@@ -4,6 +4,7 @@
  * Uses the configured Codex Responses transport for proxy/API-key setups and
  * the official ChatGPT backend for OAuth logins.
  */
+import type { Api } from "../../../../../catalog/src/types";
 import { type AuthStorage, type FetchImpl, type Model, withAuth, withOAuthAccess } from "@linxiraos/pi-ai";
 import { resolveCodexResponsesUrl } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";

@@ -15,6 +15,7 @@
  * when the agent has nothing else to do.
  */
 
+import { cfgLaunchEnabled } from "../settings";
 import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
@@ -334,7 +335,7 @@ export class HubTool implements AgentTool<typeof hubSchema, HubDetails> {
 		op: LaunchParams["op"],
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<HubDetails>> {
-		if (!this.session.settings.get("launch.enabled")) {
+		if (!this.session.cfgLaunchEnabled.get(settings)) {
 			return hubErrorResult("Process supervision is disabled (launch.enabled=false).", { op: params.op });
 		}
 		const { op: _hubOp, ...rest } = params;

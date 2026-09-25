@@ -1,3 +1,4 @@
+import type { Api } from "../../../../../catalog/src/types";
 import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type ApiKeyResolver, type AuthStorage, withAuth } from "@linxiraos/pi-ai";
 import { $env } from "@linxiraos/pi-utils";
@@ -407,9 +408,9 @@ function parseResponse(response: XAIResponsesResponse, resultCap: number): Searc
 function shouldPreferXAIOAuth(authStorage: AuthStorage): boolean {
 	if ($env.XAI_OAUTH_TOKEN) return true;
 
-	const origin = authStorage.getCredentialOrigin("xai-oauth");
+	const origin = authStorage.keys.source("xai-oauth");
 	if (!origin || origin.kind === "env") return false;
-	if ((origin.kind === "api_key" || origin.kind === "fallback") && $env.XAI_API_KEY) return false;
+	if (origin.kind === "api_key" && $env.XAI_API_KEY) return false;
 	return true;
 }
 
@@ -419,15 +420,15 @@ interface XAIWebSearchAuth {
 }
 
 function resolveXAIWebSearchAuth(params: SearchParams): XAIWebSearchAuth {
-	const xaiResolver = params.authStorage.resolver("xai", {
+	const xaiResolver = params.modelRegistry.resolver("xai", {
 		sessionId: params.sessionId,
 	});
-	const xaiOAuthOrigin = params.authStorage.getCredentialOrigin("xai-oauth");
+	const xaiOAuthOrigin = params.authStorage.keys.source("xai-oauth");
 	if (!shouldPreferXAIOAuth(params.authStorage)) {
 		return { provider: "xai", keyOrResolver: xaiResolver };
 	}
 
-	const xaiOAuthResolver = params.authStorage.resolver("xai-oauth", {
+	const xaiOAuthResolver = params.modelRegistry.resolver("xai-oauth", {
 		sessionId: params.sessionId,
 	});
 	const keyOrResolver: ApiKeyResolver = async ctx => {

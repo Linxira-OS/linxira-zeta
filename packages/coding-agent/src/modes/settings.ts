@@ -1153,3 +1153,19 @@ export const cfgRecapIdleSeconds = register({
 
 /** Idle recap policy (`recap.*`). */
 export const cfgRecap = combine({ enabled: cfgRecapEnabled, idleSeconds: cfgRecapIdleSeconds });
+
+/**
+ * Right-hand sidebar visibility. The interactive mode reads this on every
+ * toggle and reapplies the engine's main-width override.
+ */
+export const cfgTuiSidebar = register({
+	id: "tui.sidebar",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "appearance",
+		group: "Display",
+		label: "Sidebar",
+		description: "Show the right-hand sidebar (context, usage, git, model)",
+	},
+});

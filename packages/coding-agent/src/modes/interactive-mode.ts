@@ -2,6 +2,14 @@
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
  */
+import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
+import { SIDEBAR_WIDTH, SidebarComponent } from "components/sidebar.ts";
+import { StreamRedactor } from "../stream/redactor";
+import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
+import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
+import { stableStringifyJson } from "../../../utils/src/json";
+import { wireTuiTexts } from "../i18n/wire-tui";
+import { M } from "../i18n";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import {
@@ -41,7 +49,7 @@ import {
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
@@ -177,6 +185,7 @@ import {
 } from "../eval/judgment-batch-events";
 import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
+import { isMCPToolName } from "../tools/builtin-names";
 import { mirrorPlanToTracking } from "../tools/tracking";
 import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
@@ -335,7 +344,9 @@ import {
 	cfgTuiTitleState,
 	cfgTuiVimMode,
 	cfgTuiVimModeDisplay,
+	cfgTuiSidebar,
 } from "./settings";
+import { cfgProvidersTinyModel } from "../tiny/settings";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgProseOnlyThinking } from "../session/settings";
 import { cfgHideThinkingBlock } from "../session/settings";
@@ -1966,7 +1977,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		setImmediate(() => {
 			void warmHighlighter();
 			if (!$env.PI_NO_TITLE && !this.sessionManager.getSessionName()) {
-				tinyTitleClient.prewarm(this.settings.get("providers.tinyModel"));
+				tinyTitleClient.prewarm(cfgProvidersTinyModel.get(this.settings));
 			}
 		});
 
@@ -6917,15 +6928,15 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 	/** Toggle the right-hand sidebar: flips the setting and re-wires the engine. */
 	handleSidebarToggle(): void {
-		const next = !settings.get("tui.sidebar");
-		settings.set("tui.sidebar", next);
+		const next = !cfgTuiSidebar.get(settings);
+		settings.writeValue(cfgTuiSidebar, next, "global");
 		this.applySidebar();
 		this.ui.requestRender();
 	}
 
 	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
 	applySidebar(): void {
-		if (settings.get("tui.sidebar")) {
+		if (cfgTuiSidebar.get(settings)) {
 			this.ui.setMainWidth(SIDEBAR_WIDTH);
 			this.ui.setGutterComponent(this.sidebar);
 		} else {

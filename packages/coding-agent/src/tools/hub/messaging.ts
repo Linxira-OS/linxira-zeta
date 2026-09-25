@@ -1,3 +1,4 @@
+import { cfgTaskMaxRecursionDepth } from "../../task/settings";
 import { LIST_STATUS_ORDER } from "@linxiraos/pi-tui/tools/hub";
 /**
  * Hub messaging half — agent-to-agent messaging over the process-global IrcBus.
@@ -97,7 +98,7 @@ export function isIrcEnabled(settings: Settings, taskDepth: number): boolean {
 	if (taskDepth > 0) return true;
 	// Top-level session: peers exist only if it can still spawn subagents — the
 	// same capacity gate the task tool uses, reused here to avoid drift.
-	const maxDepth = settings.get("task.maxRecursionDepth") ?? 2;
+	const maxDepth = cfgTaskMaxRecursionDepth.get(settings) ?? 2;
 	return canSpawnAtDepth(maxDepth, taskDepth);
 }
 

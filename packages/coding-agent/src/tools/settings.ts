@@ -1,3 +1,4 @@
+import { IMAGE_PROVIDER_CHOICES, type ImageProvider } from "./image-providers";
 import { combine, register } from "../config/registry";
 import { cfgAutolearnEnabled } from "../autolearn/settings";
 import { cfgBashEnabled } from "../exec/settings";
@@ -997,4 +998,23 @@ export const cfgSessionToolGates = combine({
 	generateImage: cfgGenerateImageEnabled,
 	speechgen: cfgSpeechgenEnabled,
 	xdev: cfgToolsXdev,
+});
+
+/**
+ * Image-generation provider priority. Read at startup by `image-gen` to seed
+ * its module-level ordering state.
+ */
+export const cfgProvidersImageOrder = register({
+	id: "providers.imageOrder",
+	type: "array",
+	default: [] as ImageProvider[],
+	ui: {
+		tab: "providers",
+		group: "Services",
+		label: "Image Provider Order",
+		description:
+			"Prioritized providers for image generation; unlisted providers follow the active session provider and the built-in order",
+		options: IMAGE_PROVIDER_CHOICES,
+		ordered: true,
+	},
 });

@@ -21,6 +21,7 @@
  * touches the process-global settings singleton owned by the CLI session.
  */
 
+import { cfgDisabledExtensions, cfgExtensions } from "../../extensibility/settings";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
@@ -82,7 +83,7 @@ interface ConfiguredPackage {
 }
 
 function listConfiguredPackages(settings: Settings, cwd: string): ConfiguredPackage[] {
-	const configuredPaths = settings.get("extensions") ?? [];
+	const configuredPaths = cfgExtensions.get(settings) ?? [];
 	return configuredPaths.map(entry => {
 		const configuredPath = isAbsolute(entry) ? entry : join(cwd, entry);
 		const normalized = resolve(configuredPath);
@@ -232,7 +233,7 @@ async function readPlugins(cwd: string): Promise<PluginsResponse> {
 		pathToKey.set(pkg.configuredPath, keyFor(pkg.source, pkg.scope));
 	}
 
-	const disabledIds = new Set(settings.get("disabledExtensions") ?? []);
+	const disabledIds = new Set(cfgDisabledExtensions.get(settings) ?? []);
 	const diagnostics: PluginDiagnostic[] = [];
 	let countsByPackage = new Map<string, PluginResourceCounts>();
 	let resourcesByPackage = new Map<string, PluginResourceInfo[]>();
@@ -347,34 +348,40 @@ export async function handlePluginsPost(req: Request): Promise<Response> {
 		if (action === "install") {
 			if (!source) return json({ error: "source required" }, 400);
 			const entry = local && !isAbsolute(source) ? join(cwd, source) : source;
-			const next = Array.from(new Set([...(settings.get("extensions") ?? []), entry]));
-			settings.set("extensions", next);
+			const next = Array.from(new Set([...(cfgExtensions.get(settings) ?? []), entry]));
+			settings.writeValue(cfgExtensions, next, "global");
 		} else if (action === "remove") {
 			if (!source) return json({ error: "source required" }, 400);
 			const entry = local && !isAbsolute(source) ? join(cwd, source) : source;
-			settings.set(
-				"extensions",
-				(settings.get("extensions") ?? []).filter(item => item !== entry && item !== source),
+			settings.writeValue(
+				cfgExtensions,
+				(cfgExtensions.get(settings) ?? []).filter(item => item !== entry && item !== source),
+				"global",
 			);
 		} else if (action === "update") {
 			// The configured entry is idempotently re-asserted; the actual
 			// package content is refreshed by the CLI-side install tooling.
 			if (!source) return json({ error: "source required" }, 400);
 			const entry = local && !isAbsolute(source) ? join(cwd, source) : source;
-			const next = Array.from(new Set([...(settings.get("extensions") ?? []), entry]));
-			settings.set("extensions", next);
+			const next = Array.from(new Set([...(cfgExtensions.get(settings) ?? []), entry]));
+			settings.writeValue(cfgExtensions, next, "global");
 		} else if (action === "disable") {
 			if (!source) return json({ error: "source required" }, 400);
 			const fileName = source.includes("/") || source.includes("\\") ? basename(source.replace(/\\/g, "/")) : source;
 			const id = `extension-module:${fileName}`;
-			settings.set("disabledExtensions", Array.from(new Set([...(settings.get("disabledExtensions") ?? []), id])));
+			settings.writeValue(
+				cfgDisabledExtensions,
+				Array.from(new Set([...(cfgDisabledExtensions.get(settings) ?? []), id])),
+				"global",
+			);
 		} else if (action === "enable") {
 			if (!source) return json({ error: "source required" }, 400);
 			const fileName = source.includes("/") || source.includes("\\") ? basename(source.replace(/\\/g, "/")) : source;
 			const id = `extension-module:${fileName}`;
-			settings.set(
-				"disabledExtensions",
-				(settings.get("disabledExtensions") ?? []).filter(item => item !== id),
+			settings.writeValue(
+				cfgDisabledExtensions,
+				(cfgDisabledExtensions.get(settings) ?? []).filter(item => item !== id),
+				"global",
 			);
 		} else {
 			return json({ error: `Unsupported action: ${action}` }, 400);

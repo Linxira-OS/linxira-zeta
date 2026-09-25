@@ -1,3 +1,4 @@
+import { cfgProvidersAntigravityEndpoint } from "../session/settings";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
@@ -623,7 +624,7 @@ async function findAntigravityCredentials(
 
 function resolveAntigravityEndpoints(): string[] {
 	try {
-		const mode = settings.get("providers.antigravityEndpoint");
+		const mode = cfgProvidersAntigravityEndpoint.get(settings);
 		if (mode === "production") {
 			return [DEFAULT_ANTIGRAVITY_ENDPOINT_PROD];
 		}

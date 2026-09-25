@@ -8,6 +8,7 @@
  * sibling SQLite store and never POSTs the broker sentinel to a Google token
  * endpoint.
  */
+import { ModelRegistry } from "../../../config/model-registry";
 import {
 	type Api,
 	type AuthStorage,

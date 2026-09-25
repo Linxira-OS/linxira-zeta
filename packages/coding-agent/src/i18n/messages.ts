@@ -2152,6 +2152,7 @@ export interface Messages {
 
 	// ── Slash-command ACP descriptions (English leftovers → M.*) ────────────
 	cmdLoop: string;
+	cmdRecord: string;
 	cmdSshAcp: string;
 	cmdCompactAcp: string;
 	lcSessionNotFoundFmt: string; // Session "%s" not found

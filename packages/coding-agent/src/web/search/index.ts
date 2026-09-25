@@ -5,6 +5,9 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
+import { SearchResultDetails } from "./types";
+import { resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
+import { roleCandidatePool } from "../../config/model-roles";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { type } from "@linxiraos/pi-omptype";

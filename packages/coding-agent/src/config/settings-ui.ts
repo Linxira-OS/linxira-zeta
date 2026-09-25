@@ -1,3 +1,4 @@
+import { currentLanguage } from "../i18n";
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";

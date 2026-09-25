@@ -74,7 +74,7 @@ export interface SearchParams {
 	model?: Model;
 	/** True when the user pinned this engine explicitly rather than letting the chain pick it. */
 	explicit?: boolean;
-	modelRegistry?: ModelRegistry;
+	modelRegistry: ModelRegistry;
 	/** Exact active model identifier, when the caller has trusted session metadata. */
 	modelName?: string;
 	/**

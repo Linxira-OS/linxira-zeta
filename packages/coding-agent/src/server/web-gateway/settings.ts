@@ -16,6 +16,11 @@
  * owned by the CLI session.
  */
 
+import { cfgAdvisorEnabled } from "../../advisor/settings";
+import { cfgAutolearnEnabled } from "../../autolearn/settings";
+import { cfgDefaultThinkingLevel, cfgRetryUsageAwareFallback } from "../../session/settings";
+import { cfgMemoryBackend } from "../../memory-backend/settings";
+import { cfgPlanEnabled } from "../../plan-mode/settings";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { Settings } from "../../config/settings";
 import {
@@ -36,6 +41,8 @@ import {
 	SETTINGS_SCHEMA,
 	type SettingPath,
 } from "../../config/settings-schema";
+import { orderedSettings } from "../../config/all-settings";
+import { lookup } from "../../config/registry";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "../../config/settings-zh";
 import { WebConfig } from "../../config/web-config";
 
@@ -52,9 +59,23 @@ let knownPaths: SettingPath[] | null = null;
 
 function isKnownSettingPath(value: unknown): value is SettingPath {
 	if (typeof value !== "string") return false;
-	const schema = SETTINGS_SCHEMA;
-	knownPaths ??= Object.keys(schema) as SettingPath[];
+	if (knownPaths === null) {
+		// v18.3.1 moved the schema into the distributed registry; the retained
+		// settings-schema only carries the Zeta-owned keys now. Union both so the
+		// panel keeps listing the local extensions alongside the registered ones.
+		const ids = orderedSettings().map(setting => setting.id);
+		knownPaths = [...new Set([...ids, ...(Object.keys(SETTINGS_SCHEMA) as SettingPath[])])] as SettingPath[];
+	}
 	return knownPaths.includes(value as SettingPath);
+}
+
+/**
+ * Read one setting by dotted path. v18.3.1 removed `Settings.get(path)`; the
+ * registry is the only place a value can come from now. Unknown paths read as
+ * undefined so a stale caller cannot crash the panel.
+ */
+function readSetting(settings: Settings, path: SettingPath): unknown {
+	return lookup(path)?.get(settings);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -127,13 +148,13 @@ type SettingsCondition = (settings: Settings) => boolean;
 
 const CONDITIONS: Record<string, SettingsCondition> = {
 	hasImageProtocol: () => false,
-	advisorEnabled: settings => settings.get("advisor.enabled") === true,
-	hindsightActive: settings => settings.get("memory.backend") === "hindsight",
-	mnemopiActive: settings => settings.get("memory.backend") === "mnemopi",
-	autolearnActive: settings => settings.get("autolearn.enabled") === true,
-	autoThinkingActive: settings => settings.get("defaultThinkingLevel") === "auto",
-	usageAwareFallbackEnabled: settings => settings.get("retry.usageAwareFallback") === true,
-	planModeEnabled: settings => settings.get("plan.enabled"),
+	advisorEnabled: settings => cfgAdvisorEnabled.get(settings) === true,
+	hindsightActive: settings => cfgMemoryBackend.get(settings) === "hindsight",
+	mnemopiActive: settings => cfgMemoryBackend.get(settings) === "mnemopi",
+	autolearnActive: settings => cfgAutolearnEnabled.get(settings) === true,
+	autoThinkingActive: settings => cfgDefaultThinkingLevel.get(settings) === "auto",
+	usageAwareFallbackEnabled: settings => cfgRetryUsageAwareFallback.get(settings) === true,
+	planModeEnabled: settings => cfgPlanEnabled.get(settings),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -184,7 +205,7 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 	const schemaType = getType(path);
 
 	if (schemaType === "boolean") {
-		return { ...base, type: "boolean", value: settings.get(path), default: getDefault(path) };
+		return { ...base, type: "boolean", value: readSetting(settings, path), default: getDefault(path) };
 	}
 
 	const options = ui.options;
@@ -195,7 +216,7 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 				...base,
 				type: "enum",
 				values: [...(getEnumValues(path) ?? [])],
-				value: settings.get(path),
+				value: readSetting(settings, path),
 				default: getDefault(path),
 			};
 		}
@@ -205,7 +226,7 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 			...base,
 			type: "submenu",
 			options: options === "runtime" ? [] : localizedOptions(path, options, zh),
-			value: settings.get(path),
+			value: readSetting(settings, path),
 			default: getDefault(path),
 		};
 	}
@@ -217,7 +238,7 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 			...base,
 			type: "submenu",
 			options: localizedOptions(path, options, zh),
-			value: settings.get(path),
+			value: readSetting(settings, path),
 			default: getDefault(path),
 		};
 	}
@@ -226,14 +247,20 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 		if (options === "runtime") {
 			// Choice list is populated by the runtime layer (theme registry, …);
 			// the panel renders an empty submenu like the CLI does.
-			return { ...base, type: "submenu", options: [], value: settings.get(path), default: getDefault(path) };
+			return {
+				...base,
+				type: "submenu",
+				options: [],
+				value: readSetting(settings, path),
+				default: getDefault(path),
+			};
 		}
 		if (options) {
 			return {
 				...base,
 				type: "submenu",
 				options: localizedOptions(path, options, zh),
-				value: settings.get(path),
+				value: readSetting(settings, path),
 				default: getDefault(path),
 			};
 		}
@@ -244,7 +271,7 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 			...base,
 			type: "text",
 			secret,
-			value: secret ? "••••" : settings.get(path),
+			value: secret ? "••••" : readSetting(settings, path),
 			default: getDefault(path),
 		};
 	}
@@ -256,20 +283,20 @@ function pathToEntry(path: SettingPath, settings: Settings, zh: boolean): Settin
 			...base,
 			type: "multiselect",
 			options: localizedOptions(path, options, zh),
-			value: settings.get(path),
+			value: readSetting(settings, path),
 			default: getDefault(path),
 		};
 	}
 
 	if (path === "providers.maxInFlightRequests") {
-		return { ...base, type: "providerLimits", value: settings.get(path), default: getDefault(path) };
+		return { ...base, type: "providerLimits", value: readSetting(settings, path), default: getDefault(path) };
 	}
 
 	if (path === "modelRoles") {
-		return { ...base, type: "modelRoles", value: settings.get(path), default: getDefault(path) };
+		return { ...base, type: "modelRoles", value: readSetting(settings, path), default: getDefault(path) };
 	}
 
-	return { ...base, type: "text", secret: false, value: settings.get(path), default: getDefault(path) };
+	return { ...base, type: "text", secret: false, value: readSetting(settings, path), default: getDefault(path) };
 }
 
 /** Group rank for TAB_GROUPS ordering; ungrouped settings sort first. */

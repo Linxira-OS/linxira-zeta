@@ -1,3 +1,7 @@
+import { SETTINGS_SCHEMA } from "../config/settings-schema";
+import { orderedSettings } from "../config/all-settings";
+import { type AnySetting, lookup } from "../config/registry";
+import { M } from "../i18n";
 import * as path from "node:path";
 import {
 	formatModelString,
@@ -138,10 +142,24 @@ function applyExtendedContextCommand(settings: Settings, args: string): string |
 }
 
 /** Number of settings with a stored value (global config, project config, or runtime override). */
+/**
+ * Every setting the `/settings` command can inspect: the v18.3.1 registry plus
+ * the Zeta-owned keys still carried by the retained `settings-schema`.
+ */
+function allSettingHandles(): AnySetting[] {
+	const ids = new Set(orderedSettings().map(setting => setting.id));
+	return [
+		...orderedSettings(),
+		...Object.keys(SETTINGS_SCHEMA)
+			.map(key => lookup(key))
+			.filter((setting): setting is AnySetting => setting !== undefined),
+	].filter(setting => ids.has(setting.id));
+}
+
 function configuredSettingCount(settings: Settings): number {
 	let count = 0;
-	for (const key of Object.keys(SETTINGS_SCHEMA) as SettingPath[]) {
-		if (settings.isConfigured(key)) count++;
+	for (const setting of allSettingHandles()) {
+		if (settings.isConfigured(setting)) count++;
 	}
 	return count;
 }
@@ -172,10 +190,12 @@ function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
 		return;
 	}
 	if (rest[0] === "confirm") {
-		const keys = Object.keys(SETTINGS_SCHEMA) as SettingPath[];
 		let resetCount = 0;
-		for (const key of keys) {
-			if (settings.reset(key)) resetCount++;
+		for (const setting of allSettingHandles()) {
+			if (settings.isConfigured(setting)) {
+				settings.unsetGlobalValue(setting);
+				resetCount++;
+			}
 		}
 		ctx.applySidebar();
 		refreshStatusLine(ctx);
@@ -183,14 +203,16 @@ function handleSettingsReset(args: string, ctx: InteractiveModeContext): void {
 		return;
 	}
 	const key = rest[0];
-	if (!Object.hasOwn(SETTINGS_SCHEMA, key)) {
+	const setting = lookup(key);
+	if (!setting) {
 		ctx.showWarning(M.bmUnknownSettingFmt.replace("%s", key));
 		return;
 	}
-	if (!settings.reset(key as SettingPath)) {
+	if (!settings.isConfigured(setting)) {
 		ctx.showStatus(M.settingsResetNothing);
 		return;
 	}
+	settings.unsetGlobalValue(setting);
 	ctx.applySidebar();
 	refreshStatusLine(ctx);
 	ctx.showStatus(M.settingsResetKeyDoneFmt.replace("%s", key));
@@ -332,7 +354,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.settings.get("plan.enabled" as SettingPath)) return M.acPlanUltraDisabledInSettings;
+			if (!cfgPlanEnabled.get(runtime.ctx.settings)) return M.acPlanUltraDisabledInSettings;
 			const workflow = runtime.ctx.session.getPlanModeState?.()?.workflow;
 			if (runtime.ctx.planModeEnabled && workflow === "ultra") {
 				const planFile = runtime.ctx.planModePlanFilePath;
@@ -713,7 +735,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			M.acExtendedContextFmt.replace("%s", runtime.ctx.settings.get("extendedContext") ? M.stateOn : M.stateOff),
+			M.acExtendedContextFmt.replace("%s", cfgExtendedContext.get(runtime.ctx.settings) ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const output = applyExtendedContextCommand(runtime.settings, command.args);
 			if (!output) return usage("Usage: /extended-context [on|off|status]", runtime);

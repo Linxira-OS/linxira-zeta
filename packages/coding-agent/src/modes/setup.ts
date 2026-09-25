@@ -1,3 +1,4 @@
+import { SEARCH_PROVIDER_OPTIONS, SearchProviderId } from "../../../tui/src/tools/web-search";
 import type { Model, WebSearchGrounding } from "@linxiraos/pi-catalog/types";
 import { runProviderSetupWizard as runProviderWizard } from "@linxiraos/pi-tui/setup/lazy";
 import type { SetupHost, SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";

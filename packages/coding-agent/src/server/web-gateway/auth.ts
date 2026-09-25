@@ -13,6 +13,7 @@
  * events, and manual-code responses POST back with a short-lived token.
  */
 
+import type { OAuthProviderId } from "@linxiraos/pi-ai";
 import type { AuthStorage, OAuthAuthInfo, OAuthPrompt } from "@linxiraos/pi-ai";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
@@ -122,7 +123,7 @@ export async function handleAllProviders(): Promise<Response> {
 	const providers: ApiKeyProviderInfo[] = [];
 	for (const [providerId, modelCount] of modelCounts) {
 		if (OAUTH_ONLY_PROVIDER_IDS.has(providerId)) continue;
-		const configured = authStorage.hasAuth(providerId);
+		const configured = authStorage.credentials.has(providerId);
 		providers.push({
 			id: providerId,
 			displayName: displayNameFor(providerId),
@@ -142,7 +143,7 @@ export async function handleOAuthProviders(): Promise<Response> {
 	const authStorage = await getSharedAuthStorage();
 
 	const loggedInProviders = new Set<string>();
-	for (const entry of authStorage.listStoredCredentials()) {
+	for (const entry of authStorage.credentials.list()) {
 		if (entry.credential.type === "oauth") {
 			loggedInProviders.add(entry.provider);
 		}
@@ -175,7 +176,7 @@ export async function handleOAuthProviders(): Promise<Response> {
 export async function handleApiKeyGet(providerId: string): Promise<Response> {
 	const registry = await getSharedModelRegistry();
 	const authStorage = await getSharedAuthStorage();
-	const configured = authStorage.hasAuth(providerId);
+	const configured = authStorage.credentials.has(providerId);
 	const models = registry.getAll().filter(model => model.provider === providerId).length;
 	const status: ApiKeyStatus = {
 		provider: providerId,
@@ -199,7 +200,7 @@ export async function handleApiKeyPost(providerId: string, req: Request): Promis
 	}
 	try {
 		const authStorage = await getSharedAuthStorage();
-		await authStorage.set(providerId, { type: "api_key", key: apiKey.trim() });
+		await authStorage.credentials.set(providerId, { type: "api_key", key: apiKey.trim() });
 		return json({ success: true });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
@@ -209,7 +210,7 @@ export async function handleApiKeyPost(providerId: string, req: Request): Promis
 export async function handleApiKeyDelete(providerId: string): Promise<Response> {
 	try {
 		const authStorage = await getSharedAuthStorage();
-		await authStorage.remove(providerId);
+		await authStorage.credentials.remove(providerId);
 		return json({ success: true });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
@@ -223,7 +224,7 @@ export async function handleApiKeyDelete(providerId: string): Promise<Response> 
 export async function handleLogout(providerId: string): Promise<Response> {
 	try {
 		const authStorage = await getSharedAuthStorage();
-		await authStorage.remove(providerId);
+		await authStorage.credentials.remove(providerId);
 	} catch {
 		// web-ui contract: logout failures are not fatal
 	}
@@ -339,7 +340,7 @@ export async function handleLoginGet(providerId: string, req: Request): Promise<
 				}
 
 				const authStorage = await getSharedAuthStorage();
-				await authStorage.login(providerId, {
+				await authStorage.oauth.login(providerId as OAuthProviderId, {
 					onAuth: (info: OAuthAuthInfo) => {
 						const request = getManualInputRequest();
 						send(controller, {

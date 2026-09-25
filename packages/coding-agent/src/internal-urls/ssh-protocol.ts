@@ -16,7 +16,7 @@
  * barrel) on purpose — pulling the barrel here would route
  * `path-utils -> internal-urls -> ssh-protocol -> discovery -> path-utils` and
  * eager-load every provider on any `path-utils` import. Runtime bootstraps the
- * SSH provider via `import "./discovery"` (sdk.ts) / `initializeWithSettings`
+ * SSH provider via `import "discovery"` (sdk.ts) / `initializeWithSettings`
  * (main.ts) before any tool resolves.
  */
 import { $which } from "@linxiraos/pi-utils";

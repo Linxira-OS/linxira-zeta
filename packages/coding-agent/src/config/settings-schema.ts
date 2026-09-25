@@ -1,3 +1,12 @@
+import { lookup } from "./registry";
+import { SHAPE_VARIANT_NAMES } from "../../../snapcompact/src/snapcompact";
+import { SettingTab } from "../../../tui/src/overlays/settings-defs";
+import { TREE_FILTER_MODES } from "../../../tui/src/overlays/tree-selector";
+import type { AnyUiMetadata, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { AUTO_THINKING, getThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
+import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire/stream";
 import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@linxiraos/pi-ai/auth-storage";
 import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import { DEFAULT_SKILLS_URL } from "@linxiraos/pi-wire/skillshare";
@@ -882,17 +891,6 @@ export const SETTINGS_SCHEMA = {
 			group: "Status Line",
 			label: "Turn Telemetry",
 			description: "Show a transient TPS/TTFT/duration/cost line after each turn",
-		},
-	},
-
-	"tui.sidebar": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "appearance",
-			group: "Display",
-			label: "Sidebar",
-			description: "Show the right-hand sidebar (context, usage, git, model)",
 		},
 	},
 
@@ -6224,20 +6222,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"providers.imageOrder": {
-		type: "array",
-		default: [] as ImageProvider[],
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Image Provider Order",
-			description:
-				"Prioritized providers for image generation; unlisted providers follow the active session provider and the built-in order",
-			options: IMAGE_PROVIDER_CHOICES,
-			ordered: true,
-		},
-	},
-
 	"providers.judgmentProvider": {
 		type: "enum",
 		values: ["auto", "typesafe", "llm"] as const,
@@ -6325,32 +6309,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"providers.webSearchExclude": {
-		type: "array",
-		default: [] as SearchProviderId[],
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Excluded Web Search Providers",
-			description: "Providers that web_search should never use, even as fallbacks",
-			options: SEARCH_PROVIDER_CHOICES,
-		},
-	},
-
-	"providers.webSearchOrder": {
-		type: "array",
-		default: [] as SearchProviderId[],
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Web Search Provider Order",
-			description:
-				"Prioritized providers for the web_search tool; unlisted providers retain their default order afterward",
-			options: SEARCH_PROVIDER_CHOICES,
-			ordered: true,
-		},
-	},
-
 	"providers.webSearchGeminiModel": {
 		type: "string",
 		default: undefined,
@@ -6359,20 +6317,6 @@ export const SETTINGS_SCHEMA = {
 			group: "Services",
 			label: "Gemini web_search model",
 			description: "Model ID for Gemini Google Search grounding. Defaults to gemini-2.5-flash.",
-		},
-	},
-
-	"providers.tinyModel": {
-		type: "enum",
-		values: TINY_TITLE_MODEL_VALUES,
-		default: ONLINE_TINY_TITLE_MODEL_KEY,
-		ui: {
-			tab: "providers",
-			group: "Tiny Model",
-			label: "Tiny Model",
-			description:
-				"Session-title model: online (the TINY role from /models, else @smol) by default, or a local on-device model",
-			options: TINY_TITLE_MODEL_OPTIONS,
 		},
 	},
 
@@ -6432,6 +6376,15 @@ export type SettingValue<P extends SettingPath> = Schema[P] extends { type: "boo
 
 /** Get the default value for a setting path */
 export function getDefault<P extends SettingPath>(path: P): SettingValue<P> {
+	const registered = lookup(path);
+	if (registered) {
+		const fallback = registered.definition.default;
+		return (
+			registered.definition.type === "array" || registered.definition.type === "record"
+				? structuredClone(fallback)
+				: fallback
+		) as SettingValue<P>;
+	}
 	const definition = SETTINGS_SCHEMA[path];
 	if (definition.type === "array" || definition.type === "record") {
 		return structuredClone(definition.default) as SettingValue<P>;
@@ -6460,6 +6413,10 @@ export function isCredential(path: SettingPath): boolean {
 
 /** Get UI metadata for a path (undefined if no UI) */
 export function getUi(path: SettingPath): AnyUiMetadata | undefined {
+	// v18.3.1 moved every registered setting out of SETTINGS_SCHEMA; the schema
+	// now only carries the Zeta-owned keys. Registry first, schema as fallback.
+	const registered = lookup(path)?.definition;
+	if (registered && "ui" in registered) return registered.ui as AnyUiMetadata;
 	const def = SETTINGS_SCHEMA[path];
 	return "ui" in def ? (def.ui as AnyUiMetadata) : undefined;
 }
@@ -6474,11 +6431,15 @@ export function getPathsForTab(tab: SettingTab): SettingPath[] {
 
 /** Get the type of a setting */
 export function getType(path: SettingPath): SettingDef["type"] {
+	const registered = lookup(path)?.definition;
+	if (registered) return registered.type as SettingDef["type"];
 	return SETTINGS_SCHEMA[path].type;
 }
 
 /** Get enum values for an enum setting */
 export function getEnumValues(path: SettingPath): readonly string[] | undefined {
+	const registered = lookup(path)?.definition;
+	if (registered) return "values" in registered ? (registered.values as readonly string[]) : undefined;
 	const def = SETTINGS_SCHEMA[path];
 	return "values" in def ? (def.values as readonly string[]) : undefined;
 }

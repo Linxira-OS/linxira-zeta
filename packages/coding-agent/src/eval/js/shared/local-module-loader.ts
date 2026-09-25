@@ -159,7 +159,7 @@ export class LocalModuleLoader {
 			// Serialize the link phase across every graph root. Bun's node:vm linker
 			// segfaults (getImportedModule on a null record) when two link passes
 			// instantiate overlapping module instances concurrently — e.g.
-			// Promise.all([import("./a"), import("./b")]) over a graph that shares
+			// Promise.all([import("a"), import("./b")]) over a graph that shares
 			// dependencies. Holding the lock for the whole module.link() (including its
 			// async resolver callbacks) guarantees the linker is never re-entered
 			// mid-instantiation. The lock is released before evaluate(), so a dynamic
