@@ -401,6 +401,33 @@ workspace 解析也正常，只有 `check-version-consistency` 的重复键告�
 段（`## [18.x]`）会随每次 merge 累积（本次清了 281 段），两者都要在收口时按
 脚本清，不靠肉眼。
 
+### v18.3.1 实测：注册表重构、扩展设置接线与新增 crate
+
+**结论 15（注册表重构后，先查"旧面是否还有读者"再谈移植规模）**：v18.3.1 把单体
+`SETTINGS_SCHEMA` 换成分布式 `register()` 注册表，字符串路径 API（`settings.get("x.y")`）
+整体消失，改为类型化 handle（`cfgFoo.get(settings)`）。收口时若只把我们的键留在旧
+schema 里，它们会**静默变成死设置**：`settings.ts` 不再 import 旧 schema，所有读取
+路径拿不到值，全部回落到 `?? true` / 默认值——`check:ts` 零错误，功能表面正常。
+判断标准是"谁还在读"而不是"有多少调用点"：本轮 12 个 Zeta 键里，5 个（`magicKeywords.*`、
+`stt.enabled/language/submitTrigger`、`tts.localVoice`）已被上游的 `register()` 覆盖，
+只有 `editor.*` 2 个真的没注册。1047 条 zh overlay **不需要重写**——它本来就是
+id → 翻译的纯映射，而 handle 同时带 `id` 和 `definition.ui`，键天然对得上。
+
+**结论 16（扩展读设置的正确形态是 handle，不是字符串路径）**：`ExtensionContext`
+从来没有 `settings` 字段，`ExtensionRunner` 内部持有 `Settings`（`runner.ts:623`）
+但没放进 context。官方扩展读法是 `cfgXxx.get(this.settings)`。要开放给扩展，正确
+做法是把 `Settings` 加进 `ExtensionContext` 并在 `createContext()` 里填 `this.settings`，
+再让扩展 import 对应的 `cfgXxx`——而不是传字符串路径的 `get()`，那在重构后已不存在。
+本轮 `/editor` 的 `editor.autoInstall` / `editor.handoffSession` 一直靠 `?? true` 兜底，
+接线后两个开关才真正生效。
+
+**结论 17（新增 crate 必须同时核 Cargo.lock 与 BUILD.bazel）**：v18.3.1 引入
+`crates/pi-vfs`。两类门禁各红一次且都发生在编译前：`Cargo.lock` 的 workspace 条目
+被写成 `18.3.1`，CI 用 `--locked` 直接拒绝（本地 `cargo metadata --locked` 可复现）；
+`crates/pi-walker/BUILD.bazel` 的 `deps = all_crate_deps(normal = True) + ["//crates/pi-vfs"]`
+在收口时丢了，只留 Rust 侧的 `use pi_vfs::`，bazel 编译报 `unresolved import`。
+Cargo 依赖与 bazel 依赖是两套声明，新增 crate 后两套都要对账。
+
 
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
