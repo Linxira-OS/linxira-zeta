@@ -2038,6 +2038,15 @@ export interface Messages {
 	cmdCopyPick: string;
 	cmdForce: string;
 	cmdLiveVoice: string;
+	cmdEdits: string;
+	acEditsOn: string;
+	acEditsOff: string;
+	editsDisabledHint: string;
+	editsUsePrintMode: string;
+	editsEmpty: string;
+	editsEmptyFiltered: string;
+	editsHeaderRecent: (n: number) => string;
+	editsHeaderForPath: (p: string, n: number) => string;
 	cmdSidebar: string;
 	acSidebarOn: string;
 	acSidebarOff: string;
