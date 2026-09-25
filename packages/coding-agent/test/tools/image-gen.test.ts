@@ -41,8 +41,13 @@ function createRegistry(models: Model<Api>[], credentials: Record<string, string
 		if (credential !== undefined) authStorage.keys.setRuntime(model.provider, credential);
 		else if (!(model.provider in credentials)) authStorage.keys.setRuntime(model.provider, `key-${model.provider}`);
 	}
-	setImageProviderOrder([]);
-});
+	const registry = new ModelRegistry(authStorage);
+	registry.getAvailable = (kind = "chat") =>
+		kind === "all" ? [...models] : models.filter(model => modelKind(model) === kind);
+	registry.getAll = () => [...models];
+	registry.find = (provider, modelId) => models.find(model => model.provider === provider && model.id === modelId);
+	return registry;
+}
 
 function createAntigravityXAIContext(model: Model | undefined, fetchMock: typeof fetch): CustomToolContext {
 	const antigravityCredentials = JSON.stringify({ token: "test-antigravity-token", projectId: "test-project" });
