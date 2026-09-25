@@ -383,6 +383,25 @@ main 上都有测试守着，症状是"本包全量跑红、单跑绿"（前者�
 把同一处修复重做了三次（umans cost、eval 符号、zeta-protocol）。**每次
 基线对照结束后立刻 `git status` 确认工作树与预期一致。**
 
+**结论 13（v18.3.0 实测：hub 拆解可与常规轮同等处理）**：v18.2.7→v18.3.0
+单独成步，183 冲突（干跑 182，偏差 1），分桶收口后 `check:ts` **一次通过**。
+此前"hub 拆解要额外几小时移植"的判断不成立——那 227 个错误来自 v18.2.7
+轮遗留的断点，与 hub 无关；把上一轮 Zeta 扩展面（`agent-session.ts` 的
+re-export 与 mode API、`image-gen.ts`、`zeta-protocol.ts`、`magic-keywords`
+registry、eval 注入符号、`grep` 的 `zeta://` 分支）逐个修好后，hub 拆解本身
+只增加了 16 个 modify-delete（全是 hub 文件删除，按上游删除即可）。**架构变更
+仍然要单独成步**（它决定了这一步是否要重跑全部门禁），但工作量取决于断点是否
+已在前一轮清干净，不取决于变更规模。
+
+**结论 14（catalog 与 changelog 是每轮必清的静默面）**：v18.3.0 的 manifest
+带入一份上游 catalog（12 键 @ 18.3.0），与我们自己的 13 键 @ 1.1.21 在同一
+个 `package.json` 里并存。JSON 允许重复键、后者生效，所以 `bun install` 不报错、
+workspace 解析也正常，只有 `check-version-consistency` 的重复键告警会指出来；
+而 bun 在安装时会对每个重复键打一次 warn，容易被日志淹没。同时上游 changelog
+段（`## [18.x]`）会随每次 merge 累积（本次清了 281 段），两者都要在收口时按
+脚本清，不靠肉眼。
+
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与
