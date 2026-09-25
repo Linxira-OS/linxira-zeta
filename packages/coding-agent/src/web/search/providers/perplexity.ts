@@ -977,8 +977,8 @@ export class PerplexityProvider extends SearchProvider {
 	 * OpenRouter-backed Perplexity path can still opt in by setting
 	 * `webSearch: perplexity` explicitly — see {@link isExplicitlyAvailable}.
 	 */
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return !!$env.PERPLEXITY_COOKIES?.trim() || authStorage.hasAuth("perplexity");
+	isAvailable(authStorage: AuthStorage): boolean {
+		return !!$env.PERPLEXITY_COOKIES?.trim() || authStorage.keys.source("perplexity") !== undefined;
 	}
 
 	/**

@@ -3,6 +3,245 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
+## [14.9.5] - 2026-05-12
+
+### Added
+
+- Added an `isError?: boolean` field on `AgentToolResult` so tools can flag a non-throwing failure (e.g. an aggregator that catches per-entry errors). `coerceToolResult` preserves the flag and the agent loop surfaces it as a tool error on the wire.
+
+## [14.9.3] - 2026-05-10
+
+### Added
+
+- Added `onHarmonyLeak` option on `Agent`/loop config to receive GPT-5 Harmony leak audit callbacks
+- Added harmony-leak detection and audit exports to the package index for programmatic leak detection and recovery hooks
+
+### Changed
+
+- Changed OpenAI Codex model runs to detect GPT-5 Harmony protocol leakage during streaming and automatically retry or recover tool calls instead of sending contaminated arguments downstream
+
+### Security
+
+- Hardened tool-call handling against leaked `to=functions.*` protocol tails by truncating or retrying before execution
+- Hardened failure handling so repeated GPT-5 Harmony leak mitigation is retried only up to two times before escalating to an explicit error
+
+## [14.9.0] - 2026-05-10
+
+### Added
+
+- Added `Agent#metadata` field forwarded to every API request; callers can set arbitrary provider metadata (e.g. `metadata.user_id`) once and have it applied to all subsequent stream calls without modifying per-call options
+- Added `Agent#setMetadataResolver(fn)` for installing a function that resolves request metadata at call time. The `metadata` getter dispatches through the resolver on every read (including the snapshot taken per `prompt()`), so callers reflect mutable external state (e.g. live OAuth account UUID after a token refresh) without manual re-syncs. Plain `agent.metadata = …` continues to set a static value and clears any installed resolver.
+- Added an `onSseEvent` agent option and loop config forwarding path for raw provider SSE diagnostics.
+
+## [14.7.6] - 2026-05-07
+
+### Added
+
+- Added `hideThinkingSummary` option/getter/setter on `Agent` and `AgentLoopConfig`. Forwarded to the underlying stream call so providers can omit reasoning/thinking summaries on demand.
+
+## [14.7.2] - 2026-05-06
+
+### Added
+
+- Added `loadMode` option to `AgentTool` to mark built-in tools as `essential` for initial loading or `discoverable` for search activation
+- Added optional `summary` field to `AgentTool` definitions for one-line text used in tool discovery indexes
+
+## [14.7.0] - 2026-05-04
+
+### Breaking Changes
+
+- Changed `Agent` API types so `systemPrompt` is now a list of prompt strings, requiring callers to pass and update system prompts via string arrays
+
+### Changed
+
+- Removed automatic project-context injection into each model call from loop logic
+
+### Removed
+
+- Removed the `projectPrompt` field from agent state/context and the `setProjectPrompt` mutator
+
+## [14.6.2] - 2026-05-03
+
+### Fixed
+
+- Fixed unhandled promise rejection when `getApiKey` or any other async error occurs during `streamAssistantResponse`: agent loop IIFEs now catch and route errors through `EventStream.fail()`, which terminates the `for await` loop and lets `Agent#runLoop`'s catch block create a proper error assistant message instead of crashing
+
+## [14.6.0] - 2026-05-02
+
+### Fixed
+
+- Fixed request cancellation before provider events by emitting an aborted assistant message and ending the stream with `stopReason: "aborted"`
+
+## [14.5.10] - 2026-04-30
+
+### Added
+
+- Added an `onResponse` stream option for observing provider response metadata after response headers arrive.
+
+## [14.2.0] - 2026-04-23
+
+### Changed
+
+- Changed tool dispatch to match model-returned tool calls by either internal tool name or custom wire name, enabling custom OpenAI tool names such as `apply_patch`.
+
+## [14.0.1] - 2026-04-08
+
+### Added
+
+- Added `onAssistantMessageEvent` callback option to inspect assistant streaming events before they are emitted, enabling abort decisions before buffered events continue flowing
+- Added `setAssistantMessageEventInterceptor()` method to dynamically set or update the assistant message event interceptor
+
+## [13.13.0] - 2026-03-18
+
+### Added
+
+- Added `startup.checkUpdate` setting, set to `true` by default, can be disabled to skip the update check on agent initialization
+
+## [13.12.7] - 2026-03-16
+
+### Added
+
+- Added overload for `prompt()` method accepting a string input with optional options parameter
+
+### Fixed
+
+- Fixed stale forced toolChoice being passed to provider after tools are refreshed mid-turn
+
+## [13.9.16] - 2026-03-10
+
+### Added
+
+- Added `onPayload` option to `AgentOptions` to inspect or replace provider payloads before they are sent
+
+## [13.9.3] - 2026-03-07
+
+### Added
+
+- Exported `ThinkingLevel` selector constants and types for configuring agent reasoning behavior
+- Added `inherit` thinking level option to defer reasoning configuration to higher-level selectors
+- Added `serviceTier` option to configure service tier for agent requests
+
+### Changed
+
+- Changed `thinkingLevel` from required string to optional `Effort` type, allowing undefined state
+- Updated `setThinkingLevel()` method to accept `Effort | undefined` instead of `ThinkingLevel` string
+
+## [13.4.0] - 2026-03-01
+
+### Added
+
+- Added `getToolChoice` option to dynamically override tool choice per LLM call
+
+## [13.3.8] - 2026-02-28
+
+### Changed
+
+- Changed intent field name from `agent__intent` to `_i` in tool schemas
+
+### Fixed
+
+- Fixed synthetic tool result text formatting so aborted/error tool results no longer emit `Tool execution was aborted.: Request was aborted` style punctuation.
+
+## [13.3.7] - 2026-02-27
+
+### Added
+
+- Added `lenientArgValidation` option to tools to allow graceful handling of argument validation errors by passing raw arguments to execute() instead of returning an error to the LLM
+
+## [13.3.1] - 2026-02-26
+
+### Added
+
+- Added `topP`, `topK`, `minP`, `presencePenalty`, and `repetitionPenalty` options to `AgentOptions` for fine-grained sampling control
+- Added getter and setter properties for sampling parameters on the `Agent` class to allow runtime configuration
+
+## [13.1.0] - 2026-02-23
+
+### Changed
+
+- Removed per-tool `agent__intent` field description from injected schema to reduce token usage; intent format is now documented once in the system prompt instead of repeated in every tool definition
+
+## [12.19.0] - 2026-02-22
+
+### Changed
+
+- Updated tool result messages to include error details when tool execution fails
+
+## [12.14.0] - 2026-02-19
+
+### Added
+
+- Added `intentTracing` option to enable intent goal extraction from tool calls, allowing models to specify high-level goals via a required `_intent` field that is automatically injected into tool schemas and stripped from arguments before execution
+
+## [12.11.0] - 2026-02-19
+
+### Added
+
+- Exported `AgentBusyError` exception class for handling concurrent agent operations
+
+### Changed
+
+- Agent now throws `AgentBusyError` instead of generic `Error` when attempting concurrent operations
+
+## [12.8.0] - 2026-02-16
+
+### Added
+
+- Added `transformToolCallArguments` option to `AgentOptions` and `AgentLoopConfig` for transforming tool call arguments before execution (e.g. secret deobfuscation)
+
+## [12.2.0] - 2026-02-13
+
+### Added
+
+- Added `providerSessionState` option to share provider state map for session-scoped transport and session caches
+- Added `preferWebsockets` option to hint that websocket transport should be preferred when supported by the provider implementation
+
+## [11.10.0] - 2026-02-10
+
+### Added
+
+- Added `temperature` option to `AgentOptions` to control LLM sampling temperature
+- Added `temperature` getter and setter to `Agent` class for runtime configuration
+
+## [11.6.0] - 2026-02-07
+
+### Added
+
+- Added `hasQueuedMessages()` method to check for pending steering/follow-up messages
+- Resume queued steering and follow-up messages from `continue()` after auto-compaction
+
+### Changed
+
+- Extracted `dequeueSteeringMessages()` and `dequeueFollowUpMessages()` from inline config callbacks
+- Added `skipInitialSteeringPoll` option to `_runLoop()` for correct queue resume ordering
+
+## [11.3.0] - 2026-02-06
+
+### Added
+
+- Added `maxRetryDelayMs` option to AgentOptions to cap server-requested retry delays, allowing higher-level retry logic to handle long waits with user visibility
+
+### Changed
+
+- Updated ThinkingLevel documentation to include support for gpt-5.3 and gpt-5.3-codex models with 'xhigh' thinking level
+
+## [11.2.0] - 2026-02-05
+
+### Fixed
+
+- Fixed handling of aborted requests to properly throw abort errors when stream terminates without a terminal event
+
+## [10.5.0] - 2026-02-04
+
+### Added
+
+- Added `concurrency` option to `AgentTool` to control tool scheduling: "shared" (default, runs in parallel) or "exclusive" (runs alone)
+- Implemented parallel execution of shared tools within a single agent turn for improved performance
+
+### Changed
+
+- Refactored tool execution to support concurrent scheduling with proper interrupt handling and steering message checks
+
 ## [9.2.2] - 2026-01-31
 
 ### Added

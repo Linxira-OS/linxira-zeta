@@ -1462,8 +1462,8 @@ export class DapSessionManager {
 
 	#buildInitializeArguments(adapter: DapResolvedAdapter): DapInitializeArguments {
 		return {
-			clientID: "zeta",
-			clientName: "Zeta",
+			clientID: "omp",
+			clientName: "omp",
 			adapterID: adapter.name,
 			locale: "en-US",
 			linesStartAt1: true,

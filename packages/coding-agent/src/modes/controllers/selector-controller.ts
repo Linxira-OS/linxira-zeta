@@ -23,6 +23,7 @@ import {
 import { reset as resetCapabilities } from "../../capability";
 import type { AdvisorConfigScope } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { showGitOverlay } from "../../cli/git-tui";
+import { formatLoginIdentity } from "../../cli/oauth-terminal";
 import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config/model-resolver";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
@@ -355,10 +356,7 @@ export class SelectorController {
 	showUsageDashboard(reports: UsageReport[]): void {
 		const currentProvider = this.ctx.session.model?.provider;
 		const activeAccount = currentProvider
-			? this.ctx.session.modelRegistry.authStorage.getOAuthAccountIdentity(
-					currentProvider,
-					this.ctx.session.sessionId,
-				)
+			? this.ctx.session.modelRegistry.authStorage.oauth.identity(currentProvider, this.ctx.session.sessionId)
 			: undefined;
 		const usageModelSelectors = this.ctx.session.getUsageReportingModelSelectors(reports);
 		const done = () => {
@@ -465,7 +463,7 @@ export class SelectorController {
 					return reports ? collapseSharedUsageReports(reports) : null;
 				},
 				getQuotaLimitFilter: (provider, sessionId) => {
-					const identity = this.ctx.session.modelRegistry.authStorage.getOAuthAccountIdentity(
+					const identity = this.ctx.session.modelRegistry.authStorage.oauth.identity(
 						provider,
 						sessionId ?? this.ctx.session.sessionId,
 					);
@@ -2129,7 +2127,7 @@ export class SelectorController {
 		this.ctx.ui.setFocus(dialog);
 		this.ctx.ui.requestRender();
 		try {
-			const identity = await this.ctx.session.modelRegistry.authStorage.login(providerId as OAuthProvider, {
+			const identity = await this.ctx.session.modelRegistry.authStorage.oauth.login(providerId as OAuthProvider, {
 				signal: dialog.signal,
 				onBrowserSession: captureBrowserSession,
 				onAuth: (info: { url: string; launchUrl?: string; instructions?: string }) => {
@@ -2163,12 +2161,13 @@ export class SelectorController {
 			// Name the account (and Anthropic organization) that was stored so a
 			// login that lands on an unintended account/subscription is visible
 			// immediately instead of silently replacing an existing registration.
-			const whoBase = identity?.type === "oauth" ? (identity.email ?? identity.accountId) : undefined;
-			const whoOrg = identity?.type === "oauth" ? (identity.orgName ?? identity.orgId) : undefined;
-			const who = whoBase ? ` as ${whoBase}${whoOrg ? ` (${whoOrg})` : ""}` : whoOrg ? ` as ${whoOrg}` : "";
+			const who = formatLoginIdentity(identity);
 			block.addChild(
 				new Text(
-					theme.fg("success", `${theme.status.success} Successfully logged in to ${providerId}${who}`),
+					theme.fg(
+						"success",
+						`${theme.status.success} Successfully logged in to ${providerId}${who ? ` as ${who}` : ""}`,
+					),
 					1,
 					0,
 				),
@@ -2194,7 +2193,7 @@ export class SelectorController {
 	async #handleCredentialLogout(providerId: string, account: LogoutAccount): Promise<void> {
 		try {
 			const authStorage = this.ctx.session.modelRegistry.authStorage;
-			const removed = await authStorage.removeCredential(providerId, account.credentialId);
+			const removed = await authStorage.credentials.removeById(providerId, account.credentialId);
 			if (!removed) {
 				this.ctx.showError(
 					M.statusLogoutSkippedNoLongerStoredFmt.replace("%s", account.label).replace("%s", providerId),
@@ -2219,8 +2218,8 @@ export class SelectorController {
 					0,
 				),
 			);
-			block.addChild(new Text(theme.fg("dim", M.statusCredentialRemovedFmt.replace("%s", getAgentDbPath())), 1, 0));
-			const remainingSource = authStorage.describeCredentialSource(providerId, this.ctx.session.sessionId);
+			block.addChild(new Text(theme.fg("dim", `Credential removed from ${getAgentDbPath()}`), 1, 0));
+			const remainingSource = authStorage.keys.describe(providerId, this.ctx.session.sessionId);
 			if (remainingSource) {
 				block.addChild(
 					new Text(
@@ -2244,7 +2243,7 @@ export class SelectorController {
 	async #showOAuthLogoutAccountSelector(providerId: string): Promise<void> {
 		const authStorage = this.ctx.session.modelRegistry.authStorage;
 		try {
-			await authStorage.reload();
+			await authStorage.credentials.reload();
 		} catch (error: unknown) {
 			this.ctx.showError(
 				`Could not load stored credentials: ${error instanceof Error ? error.message : String(error)}`,
@@ -2253,14 +2252,14 @@ export class SelectorController {
 		}
 		const { getOAuthProviders, LogoutAccountSelectorComponent } = loadProviderAuthUi();
 		const provider = getOAuthProviders().find(candidate => candidate.id === providerId);
-		const accounts = toLogoutAccounts(providerId, authStorage.listStoredCredentials(providerId), {
-			activeIdentity: authStorage.getOAuthAccountIdentity(providerId, this.ctx.session.sessionId),
-			activeApiKey: authStorage.getCredentialOrigin(providerId)?.kind === "api_key",
+		const accounts = toLogoutAccounts(providerId, authStorage.credentials.list(providerId), {
+			activeIdentity: authStorage.oauth.identity(providerId, this.ctx.session.sessionId),
+			activeApiKey: authStorage.keys.source(providerId)?.kind === "api_key",
 		});
 		if (accounts.length === 0) {
-			const source = authStorage.describeCredentialSource(providerId, this.ctx.session.sessionId);
-			const suffix = source ? ` ${M.statusAuthSourceLogoutHintFmt.replace("%s", source)}` : "";
-			this.ctx.showError(M.statusLogoutSkippedNoCredentialsFmt.replace("%s", providerId).replace("%s", suffix));
+			const source = authStorage.keys.describe(providerId, this.ctx.session.sessionId);
+			const suffix = source ? ` Current auth comes from ${source}; remove that source to log out.` : "";
+			this.ctx.showError(`Logout skipped: no stored credentials for ${providerId}.${suffix}`);
 			return;
 		}
 
@@ -2296,7 +2295,7 @@ export class SelectorController {
 			await this.#refreshOAuthProviderAuthState();
 			const oauthProviders = getOAuthProviders();
 			const loggedInProviders = oauthProviders.filter(provider =>
-				this.ctx.session.modelRegistry.authStorage.has(provider.id),
+				this.ctx.session.modelRegistry.authStorage.credentials.has(provider.id),
 			);
 			if (loggedInProviders.length === 0) {
 				this.ctx.showStatus(M.statusNoStoredProviderCredentialsToLogOutRemoveEnvOrConfigAuthAtItsSource);
@@ -2365,10 +2364,7 @@ export class SelectorController {
 		const providerName = provider?.name ?? accountList.provider;
 		const accounts = toSessionPinAccounts(accountList.accounts);
 		if (accounts.length === 0) {
-			const source = session.modelRegistry.authStorage.describeCredentialSource(
-				accountList.provider,
-				session.sessionId,
-			);
+			const source = session.modelRegistry.authStorage.keys.describe(accountList.provider, session.sessionId);
 			this.ctx.showStatus(
 				source
 					? M.statusNoStoredOAuthAccountsSourceFmt.replace("%s", providerName).replace("%s", source)

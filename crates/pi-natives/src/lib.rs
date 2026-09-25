@@ -1,4 +1,4 @@
-//! Native utilities exported via N-API for the Oh My Pi toolchain.
+//! Native utilities exported via N-API for the omp toolchain.
 //!
 //! # Overview
 //! High-performance primitives for clipboard access, grep, file discovery,
@@ -23,6 +23,7 @@
 #![feature(alloc_error_hook)]
 
 pub mod appearance;
+pub mod applefm;
 pub mod ast;
 pub mod audio;
 pub mod block;

@@ -452,7 +452,8 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 		? await resolveXAIHttpTransport(params.modelRegistry, auth.provider, XAI_WEB_SEARCH_MODEL)
 		: { baseURL: XAI_DEFAULT_BASE_URL };
 	const customEndpoint = transport.baseURL.replace(/\/+$/, "") !== XAI_DEFAULT_BASE_URL;
-	const credentialOrigin = params.authStorage.getCredentialOrigin(auth.provider);
+	const credentialOrigin = params.authStorage.keys.source(params.model.provider);
+	const hasCommandBackedKey = params.modelRegistry.hasCommandBackedApiKey(params.model.provider);
 	if (
 		customEndpoint &&
 		auth.provider === "xai-oauth" &&
@@ -499,8 +500,8 @@ export class XAIProvider extends SearchProvider {
 	readonly id = "xai";
 	readonly label = "xAI";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return shouldPreferXAIOAuth(authStorage) || authStorage.hasAuth("xai");
+	isAvailable(authStorage: AuthStorage, model?: Model<Api>): boolean {
+		return authStorage.keys.source(model?.provider ?? "xai") !== undefined;
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

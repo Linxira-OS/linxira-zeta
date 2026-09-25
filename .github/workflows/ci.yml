@@ -158,7 +158,23 @@ jobs:
          - uses: ./.github/actions/bun-install
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
-              cargo install --locked --version 0.20.2 cargo-deny
+              # Prebuilt release binary checked against digests pinned here:
+              # `cargo install` compiled cargo-deny from source on every run
+              # (~135 s), and a .sha256 fetched from the same mutable release
+              # would prove transport integrity only. Bump ver and both
+              # digests together.
+              ver=0.20.2
+              case "$(uname -m)" in
+                x86_64) arch=x86_64 sha=9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f ;;
+                aarch64|arm64) arch=aarch64 sha=995c82be0defc7a025cae49a2aa2644ce8245c9a3318fc4103907c6a285e8c7d ;;
+                *) echo "::error::unsupported arch $(uname -m)"; exit 1 ;;
+              esac
+              name="cargo-deny-$ver-$arch-unknown-linux-musl"
+              curl -fsSL --retry 3 -o "$RUNNER_TEMP/$name.tar.gz" "https://github.com/EmbarkStudios/cargo-deny/releases/download/$ver/$name.tar.gz"
+              echo "$sha  $RUNNER_TEMP/$name.tar.gz" | sha256sum -c -
+              tar -xzf "$RUNNER_TEMP/$name.tar.gz" -C "$RUNNER_TEMP"
+              mkdir -p "$HOME/.cargo/bin"
+              install -m 0755 "$RUNNER_TEMP/$name/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
               # `--offline` needs every workspace crate already in the registry
               # cache. Every job runs on a fresh GitHub-hosted runner, where the
               # only prior cargo work is the cargo-deny install, so nothing
@@ -372,11 +388,25 @@ jobs:
               summary=$(sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/bazel-build.log" | grep -E '[0-9]+ processes:' | tail -1 || true)
               echo "::notice title=Bazel build summary::${summary:-no process summary found}"
 
-         - name: Upload native addon artifacts
+         # Split upload: every TS test job needs only the linux-x64 pair, but
+         # downloading the full ~250 MB six-addon artifact cost ~100 s per job
+         # on omp-kata. The native-artifacts action fetches `native-addons`
+         # (everything else) only when a consumer asks for a non-x64 target.
+         - name: Upload linux-x64 native addon artifact
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: natives-linux-x64
+              path: bazel-bin/natives-linux-x64-*/*.node
+              if-no-files-found: error
+              retention-days: 1
+         - name: Upload remaining native addon artifacts
+           if: github.event_name != 'pull_request'
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
               name: native-addons
-              path: bazel-bin/natives-*/*.node
+              path: |
+                 bazel-bin/natives-*/*.node
+                 !bazel-bin/natives-linux-x64-*/*.node
               if-no-files-found: error
               retention-days: 1
 
@@ -483,6 +513,14 @@ jobs:
       needs: [native_addons]
       if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
+      # The longest PR job, so it runs as two shards on hosted PR runners. Main
+      # keeps one: omp-kata caps at 8 runners and the fan-out already fills it.
+      # No required check keys on this job name (branch protection and
+      # rulesets are off for main/omp2), so the per-shard names are safe.
+      strategy:
+         fail-fast: false
+         matrix:
+            shard: ${{ fromJSON(github.event_name == 'pull_request' && '["1/2","2/2"]' || '["1/1"]') }}
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: ./.github/actions/setup-system-deps
@@ -750,12 +788,23 @@ jobs:
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
          - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Cache bun dependencies
-           uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+         - name: Restore bun store
+           id: bun-cache
+           uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+              restore-keys: |
+                 bun-${{ runner.os }}-
          - run: bun install --frozen-lockfile
+         # Main-only save: caches saved on a tag or branch are readable only by
+         # that ref yet count against the shared 10 GB quota (see bazel-cache).
+         - name: Save bun store
+           if: github.ref == 'refs/heads/main' && steps.bun-cache.outputs.cache-hit != 'true'
+           uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: ~/.bun/install/cache
+              key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
          - name: Install prebuilt native addon(s)
            uses: ./.github/actions/native-artifacts
            with:
@@ -820,12 +869,23 @@ jobs:
          # requires a newer emulated Node version than Bun 1.3 provides.
          - name: Ensure npm supports trusted publishing
            run: npm install -g npm@11.17.0
-         - name: Cache bun dependencies
-           uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+         - name: Restore bun store
+           id: bun-cache
+           uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+              restore-keys: |
+                 bun-${{ runner.os }}-
          - run: bun install --frozen-lockfile
+         # Main-only save: caches saved on a tag or branch are readable only by
+         # that ref yet count against the shared 10 GB quota (see bazel-cache).
+         - name: Save bun store
+           if: github.ref == 'refs/heads/main' && steps.bun-cache.outputs.cache-hit != 'true'
+           uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: ~/.bun/install/cache
+              key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
          # Linux + win32-x64 addons from the native_addons artifact (gnu targets
          # only — musl reuses the linux filenames and has no leaf package).
          - name: Install linux and win32-x64 native addons
@@ -1050,12 +1110,23 @@ jobs:
          # requires a newer emulated Node version than Bun 1.3 provides.
          - name: Ensure npm supports trusted publishing
            run: npm install -g npm@11.17.0
-         - name: Cache bun dependencies
-           uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+         - name: Restore bun store
+           id: bun-cache
+           uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+              restore-keys: |
+                 bun-${{ runner.os }}-
          - run: bun install --frozen-lockfile
+         # Main-only save: caches saved on a tag or branch are readable only by
+         # that ref yet count against the shared 10 GB quota (see bazel-cache).
+         - name: Save bun store
+           if: github.ref == 'refs/heads/main' && steps.bun-cache.outputs.cache-hit != 'true'
+           uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+           with:
+              path: ~/.bun/install/cache
+              key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
          # The prepack executes workspace code which loads the Linux x64
          # addon, so install the native_addons job's artifact before publishing.
          - name: Install prebuilt native addons

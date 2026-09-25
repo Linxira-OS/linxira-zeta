@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { supportsOutputTokenLimit } from "@linxiraos/pi-catalog/compat/output-limits";
 import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@linxiraos/pi-catalog/compat/tools";
-import { getBundledModel, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { getBundledModel, getBundledModels, type GeneratedProvider } from "@linxiraos/pi-catalog/models";
 import type { Model } from "@linxiraos/pi-catalog/types";
 
-function fixture(provider: Parameters<typeof getBundledModels>[0], predicate?: (candidate: Model) => boolean): Model {
+function fixture(provider: GeneratedProvider, predicate?: (candidate: Model) => boolean): Model {
 	const models = getBundledModels(provider);
 	const found = predicate ? models.find(predicate) : models[0];
 	if (!found) throw new Error(`missing bundled fixture for ${provider}`);

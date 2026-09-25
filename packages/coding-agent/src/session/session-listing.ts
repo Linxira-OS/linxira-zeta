@@ -11,7 +11,7 @@ import { toError } from "@linxiraos/pi-utils/type-guards";
 
 import { computeDefaultSessionDir } from "./session-paths";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
-import { lookupSessionTitle, recordSessionTitle } from "./title-index";
+import { lookupSessionTitle, recordSessionTitle } from "./session-index";
 
 /**
  * Coarse lifecycle status of a session, derived from its last persisted message.

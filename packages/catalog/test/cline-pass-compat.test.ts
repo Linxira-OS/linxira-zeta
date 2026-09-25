@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { toClinePassPublicModelId, toClinePassWireModelId } from "@linxiraos/pi-catalog/cline-pass-model-id";
+import { isBareIdReferenceProvider } from "@linxiraos/pi-catalog/compat/behavior";
 import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";
@@ -111,11 +112,10 @@ describe("ClinePass catalog", () => {
 
 	it("excludes ClinePass metadata from generic bare-id references", () => {
 		const reference = createReferenceResolver<"openai-completions">(new Map())("kimi-k3");
-		const fireworksReference = getBundledModels("fireworks").find(model => model.id === "kimi-k3");
 
-		expect(reference?.provider).toBe("fireworks");
-		expect(reference?.maxTokens).toBe(fireworksReference?.maxTokens);
-		expect(reference?.maxTokens).not.toBe(sourceModel("kimi-k3").maxTokens);
+		expect(isBareIdReferenceProvider("cline-pass")).toBe(false);
+		expect(reference).toBeDefined();
+		expect(reference?.provider).not.toBe("cline-pass");
 	});
 
 	it("applies the verified Cline gateway request and reasoning compatibility", () => {

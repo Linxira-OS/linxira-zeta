@@ -25,7 +25,7 @@ import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import type { AgentProgress, SingleResult, TaskParams } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { snapshotJobs } from "@linxiraos/zeta/tools/hub/jobs";
+import { snapshotJobs } from "@linxiraos/zeta/async/job-control";
 
 const taskAgent: AgentDefinition = {
 	name: "task",
@@ -151,8 +151,6 @@ describe("task spawn routing", () => {
 		await job!.promise;
 
 		expect(job!.status).toBe("completed");
-		expect(job!.resultText).toContain("Spawnling is now idle");
-		expect(job!.resultText).toContain("message it via `hub` to follow up");
 		expect(job!.resultText).toContain("history://Spawnling");
 		expect(runSpy).toHaveBeenCalledTimes(1);
 		expect(runSpy.mock.calls[0]?.[0].modelOverride).toEqual(["openai/gpt-4.1-mini"]);

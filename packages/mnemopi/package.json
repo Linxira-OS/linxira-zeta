@@ -2,7 +2,7 @@
   "type": "module",
   "name": "@linxiraos/pi-mnemopi",
   "version": "1.1.21",
-  "description": "Local SQLite memory engine for Oh My Pi agents",
+  "description": "Local SQLite memory engine for omp agents",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Linxira-OS",
   "contributors": [
@@ -39,6 +39,10 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-ai": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-natives": "catalog:",

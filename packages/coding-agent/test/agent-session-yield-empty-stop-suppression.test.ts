@@ -13,7 +13,7 @@ import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-co
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -27,7 +27,7 @@ const recordToolSchema = type({ value: type("string") });
 type Harness = { session: AgentSession; tempDir: TempDir };
 const activeHarnesses: Harness[] = [];
 const sharedAuthStorage = createInMemoryAuthStorage();
-sharedAuthStorage.setRuntimeApiKey("mock", "test-key");
+sharedAuthStorage.keys.setRuntime("mock", "test-key");
 const sharedModelRegistry = new ModelRegistry(sharedAuthStorage);
 
 afterAll(() => {

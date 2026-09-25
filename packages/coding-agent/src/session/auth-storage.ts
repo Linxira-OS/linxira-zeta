@@ -18,7 +18,6 @@ export type {
 	ResetCreditAccountStatus,
 	ResetCreditRedeemOutcome,
 	ResetCreditTarget,
-	SerializedAuthStorage,
 	StoredAuthCredential,
 } from "@linxiraos/pi-ai";
 export { AuthStorage, REMOTE_REFRESH_SENTINEL, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";

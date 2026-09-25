@@ -18,11 +18,28 @@ afterAll(async () => {
 	await Promise.all(generatedImagePaths.map(imagePath => removeWithRetries(imagePath)));
 });
 
-afterEach(() => {
-	if (originalOpenRouterKey === undefined) {
-		delete Bun.env.OPENROUTER_API_KEY;
-	} else {
-		Bun.env.OPENROUTER_API_KEY = originalOpenRouterKey;
+function catalogModel(provider: string, id: string, api: Api, kind: "chat" | "image" = "image"): Model<Api> {
+	return buildModel({
+		id,
+		name: `${provider}/${id}`,
+		api,
+		provider,
+		baseUrl: `https://${provider}.example/v1`,
+		kind,
+		reasoning: false,
+		input: kind === "image" ? ["text", "image"] : ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 128_000,
+		maxTokens: 8_192,
+	});
+}
+
+function createRegistry(models: Model<Api>[], credentials: Record<string, string | undefined> = {}): ModelRegistry {
+	const authStorage = createInMemoryAuthStorage();
+	for (const model of models) {
+		const credential = credentials[model.provider];
+		if (credential !== undefined) authStorage.keys.setRuntime(model.provider, credential);
+		else if (!(model.provider in credentials)) authStorage.keys.setRuntime(model.provider, `key-${model.provider}`);
 	}
 	setImageProviderOrder([]);
 });

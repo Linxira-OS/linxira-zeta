@@ -295,7 +295,7 @@ describe("restricted sessions sharing extension providers", () => {
 
 		try {
 			expect(parent.model?.provider).toBe(providerName);
-			expect(modelRegistry.authStorage.hasAuth(providerName)).toBe(true);
+			expect(modelRegistry.authStorage.keys.source(providerName) !== undefined).toBe(true);
 			expect(getCustomApi(apiId)).toBeDefined();
 
 			const { session: child } = await createAgentSession({
@@ -309,7 +309,7 @@ describe("restricted sessions sharing extension providers", () => {
 			try {
 				expect(child.model?.provider).toBe(providerName);
 				expect(modelRegistry.find(providerName, modelId)).toBeDefined();
-				expect(modelRegistry.authStorage.hasAuth(providerName)).toBe(true);
+				expect(modelRegistry.authStorage.keys.source(providerName) !== undefined).toBe(true);
 				expect(getCustomApi(apiId)).toBeDefined();
 			} finally {
 				await child.dispose();
@@ -371,7 +371,7 @@ describe("restricted sessions sharing extension providers", () => {
 
 			expect(providerRequests).toBe(2);
 			expect(state.proposal?.summary).toBe("fix(commit): retained extension provider");
-			expect(modelRegistry.authStorage.hasAuth(providerName)).toBe(true);
+			expect(modelRegistry.authStorage.keys.source(providerName) !== undefined).toBe(true);
 		} finally {
 			await parent.dispose();
 		}

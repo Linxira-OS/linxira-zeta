@@ -305,10 +305,10 @@ v18.2.11→v18.3.0 的 hub 单体拆解（`src/tools/hub/*` → `tools/wait.ts` 
 应单独成步；纯文件内改动可以攒着合。
 
 **结论 2（scope 反写必须覆盖全树，不能只改冲突块）**：git 对无冲突文件做的是
-auto-merge，那些文件里的 `@oh-my-pi/` import 不会进冲突列表。只重写冲突块会
+auto-merge，那些文件里的 `@linxiraos/` import 不会进冲突列表。只重写冲突块会
 留下数百处（v18.2.7 轮实测 600 处）。正确做法：merge 落地后按
 `git diff --name-only HEAD $(git rev-parse MERGE_HEAD)` 取全部触及文件做重写。
-`.omp` → `.zeta` 同理，且 `.omp-plugin` 是品牌面注册表里的保留项，不得改。
+`.zeta` → `.zeta` 同理，且 `.omp-plugin` 是品牌面注册表里的保留项，不得改。
 
 **结论 3（Zeta 扩展模块用三方合并，base 取上一个已集成 tag）**：整文件取 ours
 会丢上游功能（v18.2.11 轮的 `reset-usage-selector.ts`：ours 缺上游新增的

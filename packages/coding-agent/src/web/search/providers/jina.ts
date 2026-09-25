@@ -95,7 +95,7 @@ async function callJinaSearch(
 /** Execute Jina web search. */
 export async function searchJina(params: JinaSearchParams): Promise<SearchResponse> {
 	const numResults = clampNumResults(params.num_results, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS);
-	const keyOrResolver: ApiKey = params.authStorage.resolver("jina", {
+	const keyOrResolver: ApiKey = params.authStorage.keys.resolver("jina", {
 		sessionId: params.sessionId,
 	});
 	const response = await withAuth(
@@ -131,8 +131,8 @@ export class JinaProvider extends SearchProvider {
 	readonly id = "jina";
 	readonly label = "Jina";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return authStorage.hasAuth("jina");
+	isAvailable(authStorage: AuthStorage): boolean {
+		return authStorage.keys.source("jina") !== undefined;
 	}
 
 	search(params: SearchParamsWithFetch): Promise<SearchResponse> {

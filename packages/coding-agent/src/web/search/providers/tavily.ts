@@ -69,7 +69,7 @@ export async function findApiKey(
 	sessionId: string | undefined,
 	signal: AbortSignal | undefined,
 ): Promise<string | null> {
-	return (await authStorage.getApiKey("tavily", sessionId, { signal })) ?? null;
+	return (await authStorage.keys.get("tavily", sessionId, { signal })) ?? null;
 }
 
 /** Exported for testing. Builds the Tavily request body from unified params. */
@@ -205,7 +205,7 @@ export async function searchTavily(params: SearchParams): Promise<SearchResponse
 		if (parsed.after) tavilyParams.start_date = parsed.after;
 		if (parsed.before) tavilyParams.end_date = parsed.before;
 	}
-	const keyOrResolver: ApiKey = params.authStorage.resolver("tavily", {
+	const keyOrResolver: ApiKey = params.authStorage.keys.resolver("tavily", {
 		sessionId: params.sessionId,
 	});
 
@@ -236,8 +236,8 @@ export class TavilyProvider extends SearchProvider {
 	readonly id = "tavily";
 	readonly label = "Tavily";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return authStorage.hasAuth("tavily") || !!getEnvApiKey("tavily");
+	isAvailable(authStorage: AuthStorage): boolean {
+		return authStorage.keys.source("tavily") !== undefined || !!getEnvApiKey("tavily");
 	}
 
 	search(params: SearchParams): Promise<SearchResponse> {

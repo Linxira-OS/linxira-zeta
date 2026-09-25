@@ -1,11 +1,7 @@
 import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
-	description: "Run Zeta as an ACP (Agent Client Protocol) server over stdio",
-} satisfies CommandMetadata;
-
-export const attachHelp = {
-	description: "Attach a REPL to the serve process's shared session (status + mode control)",
+	description: "Run omp as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
 
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
@@ -81,6 +77,10 @@ export const grievancesHelp = {
 	description: "View, clean, or push reported tool issues (auto-QA grievances)",
 } satisfies CommandMetadata;
 
+export const loginHelp = {
+	description: "Log in to a model provider (terminal counterpart of /login)",
+} satisfies CommandMetadata;
+
 export const imagesHelp = {
 	description: "Inspect, diagnose, probe, and purge image publication backends",
 } satisfies CommandMetadata;
@@ -143,6 +143,10 @@ export const tinyModelsHelp = {
 } satisfies CommandMetadata;
 
 export const tokenHelp = { description: "Get the API key or OAuth token for a provider" } satisfies CommandMetadata;
+
+export const toksHelp = {
+	description: "Count a file or text with every embedded offline tokenizer (OpenAI, Claude, Qwen, …)",
+} satisfies CommandMetadata;
 
 export const ttsrHelp = {
 	description: "Inspect and test Time-Traveling Stream Rules (TTSR)",

@@ -6,9 +6,6 @@
 - **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。
 ## [1.1.20] - 2026-09-23
 ## [1.1.19] - 2026-09-22
-
-- 内嵌 TTT 编辑器修复:无按键移动不再自动弹出右键菜单(按下沿检测,免疫终端 SGR release 残留位);About/--help 品牌面清理(上游链接移除);内嵌终端鼠标按钮映射与 tcell v3 语义对齐。
-
 ## [1.1.18] - 2026-09-22
 
 - 全面板 i18n:宿主可注入 tuiText 文本层,约 700 个 key 覆盖全部 TUI 面板、设置、setup 场景与聊天/状态栏;`/language` 切换即时生效,无需重启。

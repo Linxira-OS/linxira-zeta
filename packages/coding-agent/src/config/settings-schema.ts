@@ -1,14 +1,4 @@
-import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
-import { SHAPE_VARIANT_NAMES } from "@linxiraos/pi-snapcompact";
-import type { AnyUiMetadata, SettingTab, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
-import { TREE_FILTER_MODES } from "@linxiraos/pi-tui/overlays/tree-selector";
-import {
-	AUTO_THINKING,
-	getConfiguredThinkingLevelMetadata,
-	getThinkingLevelMetadata,
-} from "@linxiraos/pi-tui/thinking";
-import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
-import { DEFAULT_SHARE_URL, DEFAULT_STREAM_URL } from "@linxiraos/pi-wire";
+import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@linxiraos/pi-ai/auth-storage";
 import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import { DEFAULT_SKILLS_URL } from "@linxiraos/pi-wire/skillshare";
 import {
@@ -257,7 +247,7 @@ const EMPTY_STRING_RECORD: Record<string, string> = {};
 const EMPTY_NUMBER_RECORD: Record<string, number> = {};
 const EMPTY_AGENT_SERVICE_TIER_OVERRIDES: Record<string, ServiceTierInheritSettingValue> = {};
 const DEFAULT_CYCLE_ORDER: string[] = ["smol", "default", "slow"];
-const DEFAULT_TOOL_CALL_LOOP_EXEMPT_TOOLS: string[] = ["hub"];
+const DEFAULT_TOOL_CALL_LOOP_EXEMPT_TOOLS: string[] = ["wait"];
 const EMPTY_MODEL_TAGS_RECORD: ModelTagsSettings = {};
 const HINDSIGHT_RECALL_TYPES_DEFAULT: string[] = ["world", "experience"];
 export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
@@ -305,26 +295,26 @@ export const DEFAULT_BASH_INTERCEPTOR_RULES: BashInterceptorRule[] = [
 	},
 	{
 		pattern: "^\\s*nohup\\s+|(?<!&)\\&\\s*$",
-		tool: "hub",
+		tool: "bash",
 		message:
-			'Use the `hub` tool (`op:"start"`) instead of nohup or background shell syntax so the process stays observable and managed.',
+			"Use `bash` with `name` instead of nohup or background shell syntax so the service stays observable and managed.",
 	},
 	{
 		pattern:
 			"^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?(?:dev|start)(?:\\s|$)|(?:vite|next\\s+dev|nuxt\\s+dev|nodemon|lldb|gdb|tail\\s+-f)(?:\\s|$)|docker\\s+compose\\s+up(?!.*(?:\\s-d(?:\\s|$)|--detach))(?:\\s|$))",
-		tool: "hub",
-		message:
-			'Use the `hub` tool (`op:"start"`) for services, watchers, and debuggers so other zeta instances can observe and control them.',
+		tool: "bash",
+		message: "Use `bash` with `name` for services, watchers, and debuggers; inspect with `read proc://<name>`.",
 	},
 	{
 		pattern:
 			"^\\s*(?:(?:bun|npm|pnpm|yarn)\\s+(?:run\\s+)?\\S+|cargo\\s+watch|watchexec|pytest|vitest|jest|tsc)(?:.|\\n)*(?:--watch|-w)(?:\\s|$)",
-		tool: "hub",
-		message: 'Use the `hub` tool (`op:"start"`) for watch mode so its output, input, and lifecycle stay managed.',
+		tool: "bash",
+		message: "Use `bash` with `name` for watch mode so its output, input, and lifecycle stay managed.",
 	},
 ];
 
 const DEFAULT_AGENT_MODEL_OVERRIDES: Record<string, string | string[]> = {};
+const EMPTY_AUTH_ACCOUNT_POLICIES: AuthAccountPolicies = [];
 
 export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
@@ -338,6 +328,7 @@ export const SETTINGS_SCHEMA = {
 	// per-machine overrides remain trivial.
 	"auth.broker.url": { type: "string", default: undefined },
 	"auth.broker.token": { type: "string", default: undefined, credential: true },
+	"auth.accountPolicies": { type: "array", default: EMPTY_AUTH_ACCOUNT_POLICIES },
 
 	autoResume: {
 		type: "boolean",
@@ -1898,7 +1889,7 @@ export const SETTINGS_SCHEMA = {
 	},
 	"retry.usageReservePct": {
 		type: "number",
-		default: 10,
+		default: DEFAULT_USAGE_RESERVE_PCT,
 		ui: {
 			tab: "model",
 			group: "Retry & Fallback",
@@ -4515,8 +4506,8 @@ export const SETTINGS_SCHEMA = {
 		ui: {
 			tab: "tools",
 			group: "Available Tools",
-			label: "Launch",
-			description: "Enable the launch tool for supervising shared long-running project processes",
+			label: "Services",
+			description: "Enable named bash services and proc:// supervision for shared long-running project processes",
 		},
 	},
 
@@ -4917,24 +4908,6 @@ export const SETTINGS_SCHEMA = {
 		default: 100,
 	},
 
-	"irc.timeoutMs": {
-		type: "number",
-		default: 120_000,
-		ui: {
-			tab: "tools",
-			group: "Execution",
-			label: "IRC Timeout",
-			description: "Timeout for hub send await:true in milliseconds; 0 disables the timeout",
-			options: [
-				{ value: "0", label: "Disabled" },
-				{ value: "30000", label: "30 seconds" },
-				{ value: "60000", label: "1 minute" },
-				{ value: "120000", label: "2 minutes" },
-				{ value: "300000", label: "5 minutes" },
-			],
-		},
-	},
-
 	"bash.autoBackground.thresholdMs": {
 		type: "number",
 		default: 60_000,
@@ -4955,7 +4928,7 @@ export const SETTINGS_SCHEMA = {
 	"tools.xdevDocs": {
 		type: "enum",
 		values: ["inline", "builtins", "catalog"] as const,
-		default: "builtins",
+		default: "catalog",
 		ui: {
 			tab: "tools",
 			group: "Discovery & MCP",
@@ -4995,6 +4968,17 @@ export const SETTINGS_SCHEMA = {
 			group: "Discovery & MCP",
 			label: "MCP Project Config",
 			description: "Load .mcp.json/mcp.json from project root",
+		},
+	},
+
+	"mcp.startupTimeoutMs": {
+		type: "number",
+		default: 250,
+		ui: {
+			tab: "tools",
+			group: "Discovery & MCP",
+			label: "MCP Startup Window",
+			description: "Wait this many milliseconds for initial MCP tool discovery; 0 waits until connections settle",
 		},
 	},
 

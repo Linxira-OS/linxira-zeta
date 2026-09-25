@@ -76,8 +76,8 @@ export class KagiProvider extends SearchProvider {
 	readonly id = "kagi";
 	readonly label = "Kagi";
 
-	isAvailable(authStorage: AuthStorage, _model?: Model): boolean {
-		return authStorage.hasAuth("kagi");
+	isAvailable(authStorage: AuthStorage): boolean {
+		return authStorage.keys.source("kagi") !== undefined;
 	}
 
 	search(params: SearchParamsWithFetch): Promise<SearchResponse> {
