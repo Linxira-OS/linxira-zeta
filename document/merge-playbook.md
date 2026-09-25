@@ -428,6 +428,29 @@ id → 翻译的纯映射，而 handle 同时带 `id` 和 `definition.ui`，键�
 在收口时丢了，只留 Rust 侧的 `use pi_vfs::`，bazel 编译报 `unresolved import`。
 Cargo 依赖与 bazel 依赖是两套声明，新增 crate 后两套都要对账。
 
+**结论 18（陈旧 `.node` 会把整棵下游包挡在类型检查之外）**：本机 natives addon 是
+9 月的旧构建，缺 v18.3.1 新增的 21 个导出。`check:ts` 按包顺序跑，第一个失败的
+是 `packages/ai`（找不到 `appleFmAvailability`），**后面的 `coding-agent` 根本没被
+检查**。也就是说"check:ts 绿"在本地是假信号：真正积压的 346 个错误全部在
+`coding-agent`，而门禁只报了 6 个 `packages/ai` 的。收口这类"类型全红"的合并时，
+先临时给缺失导出加 shim 让检查穿透到底，跑完立即还原（shim 不能入库）。这也是
+`verify-bindings` 存在的意义：它把这件事从"类型检查被静默截断"变成"构建期硬失败"。
+
+**结论 19（重构后先确认"消费者还在不在"，再决定移植量）**：注册表重构的实际
+移植面远小于按字符串调用点估算的规模。`settings-zh.ts` 那 1047 条本地化一条都不用
+改——它本来就是 id → 翻译的纯映射，而 `Setting` handle 同时带 `id` 与
+`definition.ui`，键天然对得上。真正要动的只有"谁还在读这个面"：12 个 Zeta 键里
+7 个上游已用 `register()` 覆盖，只有 `editor.*` 2 个真的没注册。判断顺序应是
+「grep 消费者」→「看是否已迁移」→「才动手」，不是「数调用点」。
+
+**结论 20（Zeta 扩展被 merge 整体覆盖时，从弃用前的最后一个 commit 取回）**：
+本轮有三处 Zeta 扩展在冲突收口里被整体删掉，且它们的依赖（`hub/jobs.ts`、
+`IrcBus.inbox`、`IrcAwaitTargetStopped`、`send({expectsReply})`、自适应等待阶梯）
+也一起消失，只剩调用点悬空。`git log -S "<符号>"` 能定位引入它的 commit；
+若该 commit 之后上游曾删除这块功能，就取**删除前最后一个**（`f89a6db15e9~1`）
+而不是 HEAD。注意该 commit 的 `job-manager.ts` 与当前差 280 行（上游已演进），
+只取需要的符号、不要整文件还原。
+
 
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
