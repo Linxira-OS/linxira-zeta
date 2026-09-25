@@ -16,6 +16,7 @@ import * as path from "node:path";
 import { $ } from "bun";
 import { detectHostAvx2Support, resolveLocalHostAddon } from "../../../scripts/host-detect";
 import { generateEnumExports } from "./gen-enums";
+import { verifyBindings } from "./verify-bindings";
 
 // pcre2-sys prefers a system libpcre2 when pkg-config finds one. Keep the
 // static build so the local addon never retains host Homebrew paths.
@@ -264,6 +265,10 @@ try {
 	await installGeneratedBindings(buildOutputDir);
 
 	await generateEnumExports();
+
+	// A build that produced an addon older than its bindings would otherwise
+	// pass here and fail much later as `undefined is not a constructor`.
+	await verifyBindings();
 
 	console.log("Bindings build complete.");
 } finally {
