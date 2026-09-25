@@ -1,3 +1,4 @@
+import { M } from "../i18n";
 import type { InteractiveModeContext } from "../modes/types";
 import { SkillshareClient } from "../skillshare/client";
 import {
@@ -64,11 +65,11 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "skills",
 		icon: "skill",
-		description: "Search, install, and update skills from the skills.omp.sh registry",
+		description: () => M.cmdSkills,
 		subcommands: [
-			{ name: "search", description: "Search the skill registry", usage: "<query>" },
-			{ name: "install", description: "Install registry skills", usage: "<@scope/name[@range]>… [--global]" },
-			{ name: "installed", description: "List installed registry skills" },
+			{ name: "search", description: () => M.cmdSkillsSearch, usage: "<query>" },
+			{ name: "install", description: () => M.cmdSkillsInstall, usage: "<@scope/name[@range]>… [--global]" },
+			{ name: "installed", description: () => M.cmdSkillsInstalled },
 			{
 				name: "update",
 				description: "Update registry skills within their ranges",

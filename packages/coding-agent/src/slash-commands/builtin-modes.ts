@@ -386,8 +386,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "loop",
 		icon: "loop",
-		description:
-			"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Bound it with a count/duration, or gate it with `--until '<cmd>'` / `--while '<cmd>'` — the command's exit status decides whether the next iteration runs. Esc suspends the ongoing loop; /loop again to disable.",
+		description: () => M.cmdLoop,
 		inlineHint: "[count|duration] [--while|--until '<cmd>'] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {

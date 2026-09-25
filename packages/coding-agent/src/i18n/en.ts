@@ -2111,7 +2111,13 @@ export const en = {
 	cmdSessionPin: "Pin the current provider to a stored OAuth account",
 	cmdJobs: "Show async background jobs status",
 	cmdUsage: "Show provider usage and limits",
-	cmdUsageReset: "Spend a saved Codex rate-limit reset",
+	cmdUsageReset: "Spend a saved provider rate-limit reset",
+	cmdSkills: "Search, install, and update skills from the skills registry",
+	cmdSkillsSearch: "Search the skill registry",
+	cmdSkillsInstall: "Install registry skills",
+	cmdRecord: "Start or stop recording this screen to a replayable file",
+	cmdSkillsInstalled: "List installed registry skills",
+	cmdSkillsUpdate: "Update registry skills within their ranges",
 	cmdStats: "Launch the local stats dashboard",
 	cmdChangelog: "Show changelog entries",
 	cmdChangelogFull: "Show complete changelog",
@@ -2160,7 +2166,7 @@ export const en = {
 	cmdInitGenerateAgentsMd: "Generate AGENTS.md for current codebase",
 
 	cmdLoop:
-		"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Esc cancels the current iteration; /loop again to disable.",
+		"Toggle loop mode. While enabled, the next prompt you send re-submits after every yield. Bound it with a count/duration, or gate it with `--until '<cmd>'` / `--while '<cmd>'` — the command's exit status decides whether the next iteration runs. Esc suspends the ongoing loop; /loop again to disable.",
 	cmdSshAcp: "Manage SSH connections",
 	cmdCompactAcp: "Compact the conversation",
 	lcSessionNotFoundFmt: 'Session "%s" not found',

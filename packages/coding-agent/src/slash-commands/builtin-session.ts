@@ -350,7 +350,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "show", description: "Show provider usage and limits" },
 			{
 				name: "reset",
-				description: "Spend a saved provider rate-limit reset",
+				description: () => M.cmdUsageReset,
 				usage: "[provider/credential-id|provider/active]",
 			},
 		],
