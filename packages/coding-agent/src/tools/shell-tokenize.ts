@@ -83,7 +83,7 @@ export function tokenizeShellSegments(command: string): string[][] {
 }
 
 /** A command in a conservative, flat `&&` chain. */
-interface LiteralShellCommandSegment {
+export interface LiteralShellCommandSegment {
 	/** Original segment text with quoting and escaping preserved. */
 	text: string;
 	/** Literal argv after shell quote removal. */
