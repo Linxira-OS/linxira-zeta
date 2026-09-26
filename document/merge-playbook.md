@@ -468,6 +468,25 @@ Cargo 依赖与 bazel 依赖是两套声明，新增 crate 后两套都要对账
 本实验的谱系已闭合：四个 tag 全部是 `dev/main` 的祖先（`git merge-base --is-ancestor`
 逐个验证通过），每轮都是真实 non-squash merge commit。
 
+**结论 22（上游测试携带原样契约，merge 收口必须逐个对照品牌面）**：v18.3.1 merge
+后测试桶全红，根因不是逻辑回归而是测试里硬编码了上游的 `omp.` 品牌：
+`utils/test/dirs.test.ts`、`utils/test/fixtures/local-day-probe.ts` 断言
+`omp.2026-05-31.123.log`，而实现（经 `APP_NAME`）写的是 `zeta.`；
+`coding-agent/test/debug/report-bundle-logs.test.ts` 整个 fixture 用 `omp.` 命名
+却同时引用 `zeta.`。这类断言 `check:ts` 抓不到（字符串字面量两侧都是 `string`），
+`brand-check` 也抓不到（`OH_MY_PI_ALLOW_FILES` 只覆盖了显式登记的文件）。
+**收口时把"上游测试文件"与"品牌面注册表"做一次交叉比对**，比逐个跑测试便宜得多。
+注意 `APP_URL = "https://omp.sh/"` 是注册表里刻意保留的共享基础设施，不要一并改掉。
+
+**结论 23（共享工具函数的 null 语义要读实现，不要凭名字推断）**：
+`extractLiteralAndChainSegments` 的用途是审批 `a && b` 链，末行有
+`segments.length < 2 → return null`，所以它对**单条命令**返回 `null` 而不是
+`[{...}]`。调用方若写成 `if (parsed) return parsed.segments` 就静默拿到空数组，
+新加的检测逻辑"看起来接上了、实测一条都不命中"。它还返回
+`LiteralShellCommandSegment[] | null`（数组本身，不是 `{segments}`）。
+**给这类函数写单测时先用 `-t` 单跑**，整文件跑会被相邻用例的耗时掩盖
+（本次整文件 13.5s、单跑 183ms 的差异就是这么定位的）。
+
 
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
