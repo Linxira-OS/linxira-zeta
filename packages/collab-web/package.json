@@ -42,9 +42,7 @@
     "lucide-react": "catalog:",
     "katex": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:"
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

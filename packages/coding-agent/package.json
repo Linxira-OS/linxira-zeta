@@ -558,18 +558,7 @@
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@opentelemetry/sdk-trace-node": "catalog:",
     "axe-core": "4.13.0",
-    "puppeteer-core": "catalog:",
-    "@linxiraos/pi-stats": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:",
-    "@linxiraos/pi-agent-core": "catalog:",
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-mnemopi": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-tui": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:"
+    "puppeteer-core": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

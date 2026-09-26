@@ -42,13 +42,7 @@
     "prettier": "catalog:",
     "regexp-tree": "catalog:",
     "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-tui": "catalog:",
-    "@linxiraos/pi-tui": "catalog:",
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/zeta": "catalog:",
-    "@linxiraos/pi-agent-core": "catalog:"
+    "@linxiraos/pi-tui": "catalog:"
   },
   "devDependencies": {
     "@types/babel__generator": "catalog:",
