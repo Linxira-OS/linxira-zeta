@@ -2040,6 +2040,11 @@ export interface Messages {
 	cmdLiveVoice: string;
 	cmdEdits: string;
 	acEditsOn: string;
+	editsReverted: (p: string, d: string) => string;
+	editsRevertUnrecorded: (p: string) => string;
+	editsRevertMissing: (p: string) => string;
+	editsRevertDiverged: (p: string) => string;
+	editsRevertFailed: (p: string, r: string) => string;
 	acEditsOff: string;
 	editsDisabledHint: string;
 	editsUsePrintMode: string;

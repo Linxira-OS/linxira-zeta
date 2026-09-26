@@ -2041,6 +2041,12 @@ export const en = {
 	cmdLiveVoice: "Start Codex-backed realtime voice mode",
 	cmdEdits: "List recent file edits recorded by the edit blackbox",
 	acEditsOn: "Edit history: on",
+	editsReverted: (p: string, d: string) => `Reverted ${p} to its state before that edit (${d}).`,
+	editsRevertUnrecorded: (p: string) => `No recorded edit for ${p}; nothing to revert.`,
+	editsRevertMissing: (p: string) => `${p} no longer exists, so there is nothing to compare against; not reverting.`,
+	editsRevertDiverged: (p: string) =>
+		`${p} changed since that edit was recorded (outside the tracked edits); refusing to overwrite it.`,
+	editsRevertFailed: (p: string, r: string) => `Could not revert ${p}: ${r}`,
 	acEditsOff: "Edit history: off",
 	editsDisabledHint:
 		"Edit history is off. Enable settings > files > Record Parse Regressions (edit.blackbox.enabled) to record it.",
