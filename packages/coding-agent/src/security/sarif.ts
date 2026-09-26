@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { APP_URL } from "@linxiraos/pi-utils";
 import type { SecurityFinding, SecurityScanBundle } from "./contracts";
 
 function sarifLevel(finding: SecurityFinding): "error" | "warning" | "note" | "none" {
@@ -29,7 +30,7 @@ export function exportSecurityBundleToSarif(bundle: SecurityScanBundle): Record<
 					driver: {
 						name: bundle.scan.producer.name,
 						version: bundle.scan.producer.version,
-						informationUri: "https://omp.sh",
+						informationUri: APP_URL,
 						rules: [...rules.values()].map(finding => ({
 							id: finding.ruleId,
 							name: finding.ruleId,

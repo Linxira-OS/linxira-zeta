@@ -20,8 +20,8 @@ import { isEnoent, isEnotdir } from "./fs-error";
 /** App name (e.g. "zeta") */
 export const APP_NAME: string = "zeta";
 
-/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit omp traffic to. */
-export const APP_URL: string = "https://omp.sh/";
+/** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit our traffic to. */
+export const APP_URL: string = "https://linxira-os.github.io/zeta/";
 
 /** Config directory name (e.g. ".zeta") */
 export const CONFIG_DIR_NAME: string = ".zeta";
