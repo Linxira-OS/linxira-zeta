@@ -42,6 +42,10 @@
     "@linxiraos/pi-ai": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },
   "peerDependencies": {
