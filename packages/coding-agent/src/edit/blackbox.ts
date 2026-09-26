@@ -77,13 +77,30 @@ export function editBlackboxPath(agentDir: string): string {
 }
 
 /**
+ * Result of a blackbox read: the entries plus what had to be skipped.
+ *
+ * `corruptLines` is reported rather than logged from inside the reader. A
+ * library that logs on a hot read path pays a file-sink initialisation cost the
+ * first time it is called, and callers that poll the log (the `/edits` command,
+ * a restore tool) would pay it again on every poll. How loudly a damaged log
+ * deserves to be reported is the caller's decision, and it has a count to
+ * decide with.
+ */
+export interface EditBlackboxRead {
+	entries: EditBlackboxEntry[];
+	/** Lines skipped because they were not valid JSON, or lacked the content fields. */
+	corruptLines: number;
+}
+
+/**
  * Read recorded edits, oldest first.
  *
  * The log is append-only JSONL, so an interrupted `appendFile` costs at most the
- * final line. A torn tail is expected and silent; an unparsable line *followed by
- * more content* means the file is damaged some other way, so it is logged at
- * warning level rather than dropped without trace — silently losing edit
- * history is the one failure mode this log cannot have.
+ * final line, and a torn tail ends the read as a normal outcome. An unparsable
+ * line *followed by more content* means the file is damaged some other way: it is
+ * counted in {@link EditBlackboxRead.corruptLines} and the rest of the log is
+ * still returned, because losing the tail of the history is the one failure
+ * mode this log cannot have.
  *
  * Entries written before `path` existed come back without it. Callers that need
  * a path must treat a missing one as "unattributable" instead of guessing from
@@ -92,33 +109,38 @@ export function editBlackboxPath(agentDir: string): string {
 export async function readEditBlackbox(
 	agentDir: string,
 	options?: { since?: number; path?: string },
-): Promise<EditBlackboxEntry[]> {
+): Promise<EditBlackboxRead> {
 	let raw: string;
 	try {
 		raw = await fs.promises.readFile(editBlackboxPath(agentDir), "utf8");
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { entries: [], corruptLines: 0 };
 		throw error;
 	}
 	const lines = raw.split("\n");
+	// Resolved once, walking backwards: a torn tail is only meaningful as the
+	// last content line, and deciding that per bad line would re-scan the tail.
+	let lastContent = lines.length - 1;
+	while (lastContent >= 0 && lines[lastContent]!.trim() === "") lastContent--;
+
 	const entries: EditBlackboxEntry[] = [];
+	let corruptLines = 0;
 	for (const [index, line] of lines.entries()) {
 		if (line.trim() === "") continue;
 		let parsed: EditBlackboxEntry;
 		try {
 			parsed = JSON.parse(line) as EditBlackboxEntry;
 		} catch {
-			const isFinalLine = lines.slice(index + 1).every(rest => rest.trim() === "");
-			if (isFinalLine) break; // torn tail: the write was interrupted
-			logger.warn("Edit blackbox line is corrupt; skipping it", {
-				path: editBlackboxPath(agentDir),
-				line: index + 1,
-			});
+			if (index === lastContent) break; // torn tail: the write was interrupted
+			corruptLines++;
 			continue;
 		}
-		if (typeof parsed.prev !== "string" || typeof parsed.new !== "string") continue;
+		if (typeof parsed.prev !== "string" || typeof parsed.new !== "string") {
+			corruptLines++;
+			continue;
+		}
 		if (options?.path !== undefined && parsed.path !== options.path) continue;
 		entries.push(parsed);
 	}
-	return options?.since === undefined ? entries : entries.slice(-options.since);
+	return { entries: options?.since === undefined ? entries : entries.slice(-options.since), corruptLines };
 }

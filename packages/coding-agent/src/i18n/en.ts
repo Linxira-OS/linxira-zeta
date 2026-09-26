@@ -2041,6 +2041,7 @@ export const en = {
 	cmdLiveVoice: "Start Codex-backed realtime voice mode",
 	cmdEdits: "List recent file edits recorded by the edit blackbox",
 	acEditsOn: "Edit history: on",
+	editsCorruptLines: (n: number) => `(${n} unreadable line(s) skipped in the edit history)`,
 	editsReverted: (p: string, d: string) => `Reverted ${p} to its state before that edit (${d}).`,
 	editsRevertUnrecorded: (p: string) => `No recorded edit for ${p}; nothing to revert.`,
 	editsRevertMissing: (p: string) => `${p} no longer exists, so there is nothing to compare against; not reverting.`,

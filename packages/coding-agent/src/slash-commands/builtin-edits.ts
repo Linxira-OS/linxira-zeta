@@ -68,7 +68,7 @@ export const BUILTIN_EDITS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}
 
 			try {
-				const entries = await readEditBlackbox(runtime.settings.getAgentDir(), {
+				const { entries, corruptLines } = await readEditBlackbox(runtime.settings.getAgentDir(), {
 					path: pathFilter,
 					since: limit,
 				});
@@ -80,7 +80,9 @@ export const BUILTIN_EDITS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 					pathFilter === undefined
 						? M.editsHeaderRecent(entries.length)
 						: M.editsHeaderForPath(pathFilter, entries.length);
-				await runtime.output([header, ...entries.map(describeEntry)].join("\n"));
+				const listing = [header, ...entries.map(describeEntry)];
+				if (corruptLines > 0) listing.push(M.editsCorruptLines(corruptLines));
+				await runtime.output(listing.join("\n"));
 			} catch (err) {
 				return usage(errorMessage(err), runtime);
 			}

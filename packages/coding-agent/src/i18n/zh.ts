@@ -2020,6 +2020,7 @@ export const zh = {
 	cmdLiveVoice: "启动 Codex 支持的实时语音模式",
 	cmdEdits: "列出编辑黑盒记录的最近文件修改",
 	acEditsOn: "编辑历史：开",
+	editsCorruptLines: (n: number) => `（编辑历史中有 ${n} 行无法读取，已跳过）`,
 	editsReverted: (p: string, d: string) => `已将 ${p} 回滚到该次编辑之前（${d}）。`,
 	editsRevertUnrecorded: (p: string) => `${p} 没有编辑记录，无需回滚。`,
 	editsRevertMissing: (p: string) => `${p} 已不存在，无从比对，已放弃回滚。`,

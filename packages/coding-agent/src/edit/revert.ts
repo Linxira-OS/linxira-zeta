@@ -29,7 +29,7 @@ export async function revertLastEdit(
 	targetPath: string,
 	absolutePath: string,
 ): Promise<RevertOutcome> {
-	const entries = await readEditBlackbox(agentDir, { path: targetPath });
+	const { entries } = await readEditBlackbox(agentDir, { path: targetPath });
 	const entry = entries.at(-1);
 	if (!entry) return { status: "unrecorded", path: targetPath };
 
@@ -57,7 +57,7 @@ export async function revertLastEdit(
 				new: entry.prev,
 				model: "revert",
 				variant: entry.variant,
-				arg: { revertedEntry: entries.length },
+				arg: { revertedIndex: entries.length },
 			})}\n`,
 		);
 	} catch (error) {
