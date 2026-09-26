@@ -3,9 +3,7 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
-
 ## [1.1.19] - 2026-09-22
-
 ## [1.1.18] - 2026-09-22
 
 - 包元数据:author/maintainer 更新为 Linxira-OS,LICENSE 追加 Linxira-OS 版权行(发行面变更)。
@@ -17,3 +15,4 @@
 - Prevented unnecessary credential command execution when runtime API keys are configured
 - Retained `readLines()` results no longer change when later chunks reuse the internal buffer.
 - Long sleeps honor elapsed time and re-arm after premature timer wakes without overflowing native timer delays.
+
