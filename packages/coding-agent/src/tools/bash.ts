@@ -5,6 +5,7 @@ import {
 	formatExitCodeNotice,
 } from "@linxiraos/pi-tui/tools/bash";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
@@ -19,6 +20,9 @@ import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { isPosixShell } from "@linxiraos/pi-utils/procmgr";
 import { raceJobSettlement, resolveAutoBackgroundWaitMs } from "../async";
 import type { Settings } from "../config/settings";
+import { EDIT_BLACKBOX_FILE } from "../edit/blackbox";
+import { cfgEditBlackboxEnabled } from "../edit/settings";
+import { collectDestructiveFiles, segmentsForCapture } from "./destructive-capture";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
 import { InternalUrlRouter } from "../internal-urls";
 import { sessionResolveContext } from "../internal-urls/context";
@@ -605,6 +609,49 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 
 	constructor(private readonly session: ToolSession) {}
 
+	/**
+	 * Record the content of files this command is about to destroy.
+	 *
+	 * A no-op unless the blackbox is enabled, and never allowed to fail the
+	 * command: the shell is about to run either way, and refusing to execute
+	 * because a backup could not be written would be a worse outcome than
+	 * running without one.
+	 */
+	async #captureDestructiveTargets(command: string, cwd: string | undefined): Promise<void> {
+		if (!cfgEditBlackboxEnabled.get(this.session.settings)) return;
+		const workingDir = cwd ?? process.cwd();
+		try {
+			const targets = collectDestructiveFiles(segmentsForCapture(command), workingDir);
+			if (targets.length === 0) return;
+			const logPath = path.join(this.session.settings.getAgentDir(), EDIT_BLACKBOX_FILE);
+			// One record per file, tagged `bash` so the capture is distinguishable
+			// from an edit-tool change. `new` is empty because the content after a
+			// delete is nothing — and `/edits revert` refuses to write when the
+			// file no longer matches `new`, which is the right behaviour here: a
+			// deleted file is restored by writing the captured `prev` back, not by
+			// the normal edit-revert path.
+			await fs.promises.appendFile(
+				logPath,
+				`${targets
+					.map(target =>
+						JSON.stringify({
+							path: target.path,
+							prev: target.prev,
+							new: "",
+							model: "bash",
+							variant: target.op,
+							arg: { cwd: workingDir },
+						}),
+					)
+					.join("\n")}\n`,
+			);
+		} catch (error) {
+			logger.debug("Failed to capture pre-destruction contents", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+
 	/** URL filesystem for one embedded-shell run: this session's context, cancelled by the run's own signal. */
 	#urlFilesystem(signal: AbortSignal | undefined, tier: ToolTier): InternalUrlFilesystem {
 		return new InternalUrlFilesystem({ context: sessionResolveContext(this.session, { signal }), tier });
@@ -817,6 +864,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				const { path: artifactPath, id: artifactId } = (await this.session.allocateOutputArtifact?.("bash")) ?? {};
 				const tailBuffer = new TailBuffer(DEFAULT_MAX_BYTES);
 				const wallTimeStart = performance.now();
+				// Capture before the command runs: once the shell has removed or
+				// truncated a file, its content is gone. Recorded here rather than
+				// in the edit tool because bash is where destructive work actually
+				// happens — the edit tool's own history already covers its path.
 				try {
 					const result = await executeBash(options.command, {
 						cwd: options.commandCwd,
@@ -929,6 +980,13 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		} else if (ready !== undefined || env !== undefined) {
 			throw new ToolError("ready and env require a service name.");
 		}
+		// Capture before any execution path (synchronous, PTY, async or bang) runs
+		// the command: once the shell has removed or truncated a file, its content
+		// is gone. Recorded here rather than at each call site so no path can skip
+		// it. `command` is used, not `rawCommand`, so a leading `cd x && rm y` is
+		// resolved against the directory it actually runs in.
+		await this.#captureDestructiveTargets(command, cwd ?? this.session.cwd);
+
 		if (asyncRequested && !cfgAsyncEnabled.get(this.session.settings)) {
 			throw new ToolError("Async bash execution is disabled. Enable async.enabled to use async mode.");
 		}

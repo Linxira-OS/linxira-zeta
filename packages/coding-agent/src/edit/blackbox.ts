@@ -6,7 +6,7 @@ import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 
 import { cfgEditBlackboxEnabled } from "./settings";
 
-const EDIT_BLACKBOX_FILE = "edit-blackbox.jsonl";
+export const EDIT_BLACKBOX_FILE = "edit-blackbox.jsonl";
 
 /** Full source transition committed by one edit operation. */
 export interface AppliedEditSnapshot {
