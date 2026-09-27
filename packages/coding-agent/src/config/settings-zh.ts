@@ -196,6 +196,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问每次更新最多建议数",
 		description: "每次顾问提示更新最多接受的非阻塞建议数（1–32；UI 提供 1–5 快捷选项）。阻塞类建议不受限。",
 	},
+	"advisor.evictStaleResults": {
+		label: "顾问清理陈旧结果",
+		description: "每次审阅前，把顾问较早审阅的 read/grep/glob 输出替换为简短占位符。最新一次审阅保留。",
+	},
 
 	"git.enabled": {
 		label: "启用 Git 集成",

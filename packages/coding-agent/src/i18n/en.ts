@@ -2139,6 +2139,7 @@ export const en = {
 	cmdChangelog: "Show changelog entries",
 	cmdChangelogFull: "Show complete changelog",
 	cmdChangelogLast: "Show the last N releases (default 1)",
+	rwNoMatches: 'No items match "%s"',
 	cmdHotkeys: "Show all keyboard shortcuts",
 	cmdTools: "Show tools currently visible to the agent",
 	cmdContext: "Show estimated context usage breakdown",

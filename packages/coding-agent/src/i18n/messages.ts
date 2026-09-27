@@ -2130,6 +2130,7 @@ export interface Messages {
 	cmdChangelog: string;
 	cmdChangelogFull: string;
 	cmdChangelogLast: string;
+	rwNoMatches: string;
 	cmdHotkeys: string;
 	cmdTools: string;
 	cmdContext: string;

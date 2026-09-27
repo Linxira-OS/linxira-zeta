@@ -2116,6 +2116,7 @@ export const zh = {
 	cmdChangelog: "显示更新日志条目",
 	cmdChangelogFull: "显示完整更新日志",
 	cmdChangelogLast: "显示最近 N 个版本（默认 1）",
+	rwNoMatches: "没有匹配 \"%s\" 的条目",
 	cmdHotkeys: "显示所有键盘快捷键",
 	cmdTools: "显示当前对代理可见的工具",
 	cmdContext: "显示预估上下文用量分解",
