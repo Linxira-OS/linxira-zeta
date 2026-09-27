@@ -27,7 +27,8 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 
 		// `zeta://docs` is the documentation root and `zeta://docs/<path>` aliases
 		// the bare doc key: the embed index stores paths without the docs/ prefix.
-		const docPath = filename === "docs" ? "" : filename.startsWith("docs/") ? filename.slice("docs/".length) : filename;
+		const docPath =
+			filename === "docs" ? "" : filename.startsWith("docs/") ? filename.slice("docs/".length) : filename;
 		if (!docPath) {
 			return this.#listDocs(url);
 		}

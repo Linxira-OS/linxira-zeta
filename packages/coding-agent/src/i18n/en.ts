@@ -2171,7 +2171,8 @@ export const en = {
 	cmdSwitchModelWithSelectors:
 		"Switch model for this session (same as alt+p); accepts fuzzy ids, provider/id, @role, :level",
 	cmdSwitchModelSessionOnly: "Switch model for this session only",
-	cmdSlow: "Toggle slow mode: flex tier on OpenAI/Google; on Anthropic, continue at low priority after the Claude session limit",
+	cmdSlow:
+		"Toggle slow mode: flex tier on OpenAI/Google; on Anthropic, continue at low priority after the Claude session limit",
 	cmdSlowAcp: "Toggle slow mode",
 	cmdSlowOn: "Flex tier, or Anthropic low priority at the session limit (auto)",
 	cmdSlowOff: "Standard service; stop Anthropic low priority",

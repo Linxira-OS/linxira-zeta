@@ -5,9 +5,7 @@ import type { getOAuthProviders as GetOAuthProviders } from "@linxiraos/pi-ai/oa
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
-import {
-	AssistantMessageComponent,
-} from "@linxiraos/pi-tui/chat/assistant-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
 import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { Loader, setTuiTight, Spacer, Text } from "@linxiraos/pi-tui";
