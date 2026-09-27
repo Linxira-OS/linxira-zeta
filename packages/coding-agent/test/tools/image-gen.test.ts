@@ -780,7 +780,6 @@ describe("imageGenTool", () => {
 				getProviderHeaders: async () => undefined,
 				resolveModelHeaders: ModelRegistry.prototype.resolveModelHeaders,
 				getAll: () => [],
-				authStorage: { keys: { source: () => undefined }, rotateSessionCredential: async () => false },
 				authStorage: {
 					hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
 					keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
