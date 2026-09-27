@@ -8,6 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-zeta";
 import type { ParsedSlashCommand, SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -23,9 +24,9 @@ function mockRuntime(cwd: string, capture: { text: string }, trackingEnabled = t
 		output: async (text: string) => {
 			capture.text = text;
 		},
-		settings: {
-			get: (path: string) => (path === "tracking.enabled" ? trackingEnabled : undefined),
-		},
+		// Real Settings instance: the tracking gate reads through the settings
+		// registry (cfgTrackingEnabled), which needs a live valueCache.
+		settings: Settings.isolated(trackingEnabled ? { "tracking.enabled": true } : {}),
 	} as unknown as SlashCommandRuntime;
 }
 
