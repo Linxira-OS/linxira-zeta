@@ -533,7 +533,9 @@ export class RewindSelectorComponent implements Component {
 		const selected = matches.indexOf(this.#selected);
 		const composed = composeOutlineColumn(rows, 0, rows.length, targets, selected, contentWidth, undefined);
 		const lines =
-			matches.length > 0 ? composed.lines : [theme.fg("muted", `  ${tuiTextFmt("rwNoMatches", 'No items match "%s"', query)}`)];
+			matches.length > 0
+				? composed.lines
+				: [theme.fg("muted", `  ${tuiTextFmt("rwNoMatches", 'No items match "%s"', query)}`)];
 		const count =
 			matches.length === 0
 				? theme.fg("error", tuiText("rwNoMatchCount", "no matches"))
