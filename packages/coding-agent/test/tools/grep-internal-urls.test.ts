@@ -396,7 +396,9 @@ describe("GrepTool internal URL resolution", () => {
 	});
 
 	it("globs zeta:// docs by URL pattern", async () => {
-		const text = getResultText(await new GlobTool(createSession()).execute("glob-omp", { path: "zeta://tools/*.md" }));
+		const text = getResultText(
+			await new GlobTool(createSession()).execute("glob-omp", { path: "zeta://tools/*.md" }),
+		);
 
 		expect(text).toContain("zeta://tools/read.md");
 		expect(text).toContain("zeta://tools/grep.md");
