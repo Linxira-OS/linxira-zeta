@@ -199,10 +199,11 @@ An intervening paragraph closes the list.
 		const selection = selectStartupChangelog([release as ChangelogEntry], "1.1.9", "1.1.10");
 		const breakdown = Object.values(selection.categoryCounts).reduce((total, count) => total + count, 0);
 		expect(selection.changeCount).toBe(breakdown);
-		// The released section keeps every bullet; the v1.1.16 CHANGELOG
-		// folding reshuffled the 1.1.10 section, so the uncategorized bullets
-		// above `### Changed` now number more than the original one.
-		expect(selection.categoryCounts.Other).toBe(12);
+		// The released section keeps every bullet; the uncategorized bullet
+		// count is a snapshot of the shipped 1.1.10 section (currently 10
+		// top-level bullets before the first `###` heading) and moves only
+		// when that section itself is edited.
+		expect(selection.categoryCounts.Other).toBe(10);
 	});
 
 	test("does not count a thematic break as a change", () => {

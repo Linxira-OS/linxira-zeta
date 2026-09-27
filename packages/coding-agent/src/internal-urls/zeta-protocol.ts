@@ -25,11 +25,14 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 		const pathname = url.rawPathname ?? url.pathname;
 		const filename = host ? (pathname && pathname !== "/" ? host + pathname : host) : "";
 
-		if (!filename) {
+		// `zeta://docs` is the documentation root and `zeta://docs/<path>` aliases
+		// the bare doc key: the embed index stores paths without the docs/ prefix.
+		const docPath = filename === "docs" ? "" : filename.startsWith("docs/") ? filename.slice("docs/".length) : filename;
+		if (!docPath) {
 			return this.#listDocs(url);
 		}
 
-		return this.#readDoc(filename, filename, url);
+		return this.#readDoc(docPath, filename, url);
 	}
 
 	async complete(): Promise<UrlCompletion[]> {

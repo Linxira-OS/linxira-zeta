@@ -643,14 +643,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "slow",
 		icon: "fast",
-		description:
-			"Toggle slow mode: flex tier on OpenAI/Google; on Anthropic, continue at low priority after the Claude session limit",
-		acpDescription: "Toggle slow mode",
+		description: () => M.cmdSlow,
+		acpDescription: M.cmdSlowAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
-			{ name: "on", description: "Flex tier, or Anthropic low priority at the session limit (auto)" },
-			{ name: "off", description: "Standard service; stop Anthropic low priority" },
-			{ name: "status", description: "Show slow mode status" },
+			{ name: "on", description: () => M.cmdSlowOn },
+			{ name: "off", description: () => M.cmdSlowOff },
+			{ name: "status", description: () => M.cmdSlowStatus },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>

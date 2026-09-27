@@ -2129,6 +2129,7 @@ export interface Messages {
 	cmdStats: string;
 	cmdChangelog: string;
 	cmdChangelogFull: string;
+	cmdChangelogLast: string;
 	cmdHotkeys: string;
 	cmdTools: string;
 	cmdContext: string;
@@ -2159,6 +2160,11 @@ export interface Messages {
 	cmdMcpHelp: string;
 	cmdSwitchModelWithSelectors: string; // /switch: fuzzy ids, provider/id, @role, :level
 	cmdSwitchModelSessionOnly: string; // /switch acpDescription
+	cmdSlow: string; // /slow
+	cmdSlowAcp: string; // /slow acpDescription
+	cmdSlowOn: string; // /slow on
+	cmdSlowOff: string; // /slow off
+	cmdSlowStatus: string; // /slow status
 	cmdSkillful: string; // /skillful
 	cmdSkillfulAcp: string; // /skillful acpDescription
 	cmdSkillfulOn: string; // /skillful on

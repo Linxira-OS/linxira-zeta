@@ -6462,6 +6462,10 @@ export class AgentSession implements SettingsScope {
 
 	/** Trigger idle compaction through the automatic maintenance flow. */
 	async runIdleCompaction(): Promise<void> {
+		// An owned async job (running or with undelivered results) means the
+		// session is not truly idle: the wake re-opens the run loop, so the
+		// idle pass must defer until the async work fully drains.
+		if (this.#hasPendingAsyncWake()) return;
 		await this.#maintenance.runIdleCompaction();
 	}
 

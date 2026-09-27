@@ -415,7 +415,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpInputHint: "[full|last [N]]",
 		subcommands: [
 			{ name: "full", description: "Show complete changelog" },
-			{ name: "last", description: "Show the last N releases (default 1)", usage: "[N]" },
+			{ name: "last", description: () => M.cmdChangelogLast, usage: "[N]" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
