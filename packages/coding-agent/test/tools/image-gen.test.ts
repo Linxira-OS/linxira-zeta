@@ -74,6 +74,7 @@ function createAntigravityXAIContext(model: Model | undefined, fetchMock: typeof
 			getAll: () => [],
 			authStorage: {
 				hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
+				keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
 				rotateSessionCredential: async () => false,
 			},
 			resolver: (provider: string) => async () =>
@@ -87,6 +88,11 @@ function createAntigravityXAIContext(model: Model | undefined, fetchMock: typeof
 }
 
 describe("imageGenTool", () => {
+	// setImageProviderOrder writes module-level state; reset it so the
+	// ordering set by one case cannot leak into the cases that follow.
+	afterEach(() => {
+		setImageProviderOrder([]);
+	});
 	it("registers without resolving image provider credentials", async () => {
 		const modelRegistry = {
 			getApiKey: async () => {
@@ -464,6 +470,7 @@ describe("imageGenTool", () => {
 				getAll: () => [],
 				authStorage: {
 					hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
+					keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: () => async () => "test-xai-token",
@@ -541,6 +548,7 @@ describe("imageGenTool", () => {
 				resolveModelHeaders: ModelRegistry.prototype.resolveModelHeaders,
 				authStorage: {
 					hasNonEnvCredential: () => false,
+					keys: { source: () => undefined },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: () => async () => "opaque-proxy-key",
@@ -673,6 +681,7 @@ describe("imageGenTool", () => {
 				getAll: () => [],
 				authStorage: {
 					hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
+					keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: () => async () => "test-xai-token",
@@ -771,8 +780,10 @@ describe("imageGenTool", () => {
 				getProviderHeaders: async () => undefined,
 				resolveModelHeaders: ModelRegistry.prototype.resolveModelHeaders,
 				getAll: () => [],
+				authStorage: { keys: { source: () => undefined }, rotateSessionCredential: async () => false },
 				authStorage: {
 					hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
+					keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: () => async () => "test-openai-key",
@@ -991,6 +1002,7 @@ describe("imageGenTool", () => {
 				getAll: () => [],
 				authStorage: {
 					hasNonEnvCredential: () => false,
+					keys: { source: () => undefined },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: (provider: string) =>
@@ -1083,6 +1095,7 @@ describe("imageGenTool", () => {
 				getAll: () => [],
 				authStorage: {
 					hasNonEnvCredential: (provider: string) => provider === "xai-oauth",
+					keys: { source: (provider: string) => (provider === "xai-oauth" ? {} : undefined) },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: (provider: string) => async () =>
@@ -1193,6 +1206,7 @@ describe("imageGenTool", () => {
 				getAll: () => [],
 				authStorage: {
 					hasNonEnvCredential: () => false,
+					keys: { source: () => undefined },
 					rotateSessionCredential: async () => false,
 				},
 				resolver: () => async () => "test-deepinfra-key",
