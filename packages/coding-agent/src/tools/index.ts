@@ -90,6 +90,7 @@ import {
 	cfgAstGrepEnabled,
 	cfgAsyncEnabled,
 	cfgCheckpointEnabled,
+	cfgChannelsEnabled,
 	cfgDebugEnabled,
 	cfgGithubEnabled,
 	cfgGlobEnabled,
@@ -773,6 +774,13 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 				cfgCheckpointEnabled.get(session.settings) &&
 				((session.taskDepth ?? 0) === 0 || requestedTools !== undefined)
 			);
+		// IM channel tools are a top-level web/desktop surface: subagents never
+		// relay, and the family is switchable via channels.enabled. CLI sessions
+		// have no sinks, so the factories return null for them regardless.
+		if (name === "channel_send" || name === "workspace_run" || name === "im_control") {
+			if ((session.taskDepth ?? 0) > 0) return false;
+			return cfgChannelsEnabled.get(session.settings);
+		}
 		// Subagents never block on `wait`: owned job results re-wake their run
 		// through the executor's quiescence barrier, and parent messages steer them.
 		if (name === "wait") {

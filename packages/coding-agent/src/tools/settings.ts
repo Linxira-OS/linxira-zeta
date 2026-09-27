@@ -1036,6 +1036,24 @@ export const cfgTrackingEnabled = register({
 });
 
 /**
+ * IM channel tools (web/desktop only; CLI sessions reject them regardless).
+ * Carried over from the pre-registry settings schema during the v18.3.1
+ * settings-registry migration.
+ */
+export const cfgChannelsEnabled = register({
+	id: "channels.enabled",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "IM Channels",
+		description:
+			"Enable channel_send / workspace_run so the agent can push progress to the remote IM user and delegate to other workspaces",
+	},
+});
+
+/**
  * Window for a peer `await` in the hub messaging surface. 0 disables the
  * timeout and waits for the peer to stop instead.
  */
