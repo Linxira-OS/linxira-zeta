@@ -7,7 +7,7 @@ import { describe, expect, it } from "bun:test";
 import type { Agent } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { Api, Usage } from "@linxiraos/pi-catalog/types";
-import type { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ContextUsage } from "@linxiraos/zeta/extensibility/extensions/types";
 import type { CompactionCheckResult } from "@linxiraos/zeta/session/session-maintenance";
 import { ZetaContextManager, type ZetaContextManagerHost } from "@linxiraos/zeta/session/zeta-context-manager";
@@ -65,23 +65,17 @@ function createMockHost(
 		lastAssistantMessage: AssistantMessage | undefined;
 	}> = {},
 ): ZetaContextManagerHost {
-	const settingsGet = (key: string): unknown => {
-		switch (key) {
-			case "zeta.contextCache.enabled":
-				return overrides.enabled ?? true;
-			case "zeta.contextCache.memoryWriteEnabled":
-				return overrides.memoryWriteEnabled ?? true;
-			case "zeta.contextCache.endTurnCompactionEnabled":
-				return overrides.endTurnCompactionEnabled ?? true;
-			case "zeta.contextCache.thresholdTokens":
-				return overrides.thresholdTokens ?? 400_000;
-			default:
-				return undefined;
-		}
-	};
+	// Real Settings instance: the manager reads through the settings registry
+	// (cfgZetaContextCache*), which needs a live valueCache.
+	const settings = Settings.isolated({
+		"zeta.contextCache.enabled": overrides.enabled ?? true,
+		"zeta.contextCache.memoryWriteEnabled": overrides.memoryWriteEnabled ?? true,
+		"zeta.contextCache.endTurnCompactionEnabled": overrides.endTurnCompactionEnabled ?? true,
+		"zeta.contextCache.thresholdTokens": overrides.thresholdTokens ?? 400_000,
+	});
 
 	return {
-		settings: { get: settingsGet } as unknown as Settings,
+		settings,
 		getContextUsage(): ContextUsage | undefined {
 			if (overrides.contextTokens === undefined) return undefined;
 			return { tokens: overrides.contextTokens } as ContextUsage;
