@@ -32,10 +32,6 @@ import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
 
 const DEFAULT_ENDPOINT = "https://cloudcode-pa.googleapis.com";
-const DEVELOPER_API_PROVIDER = "google";
-const CLOUDFLARE_GATEWAY_PROVIDER = "cloudflare-ai-gateway";
-const DEFAULT_DEVELOPER_API_HOST = "https://generativelanguage.googleapis.com";
-const DEVELOPER_API_VERSION = "v1beta";
 const ANTIGRAVITY_DAILY_ENDPOINT = "https://daily-cloudcode-pa.googleapis.com";
 const ANTIGRAVITY_SANDBOX_ENDPOINT = "https://daily-cloudcode-pa.sandbox.googleapis.com";
 const ANTIGRAVITY_ENDPOINT_FALLBACKS = [ANTIGRAVITY_DAILY_ENDPOINT, ANTIGRAVITY_SANDBOX_ENDPOINT] as const;
@@ -52,28 +48,25 @@ function resolveGeminiSearchModel(configuredModel: string | undefined): string {
 }
 
 interface GeminiDeveloperEndpoint {
+	/** Base URL including the API version segment, e.g. `.../v1beta`. */
 	url: string;
-	authProvider: typeof DEVELOPER_API_PROVIDER | typeof CLOUDFLARE_GATEWAY_PROVIDER;
 	isCloudflareGateway: boolean;
 }
 
-function resolveGeminiDeveloperEndpoint(): GeminiDeveloperEndpoint {
-	const configuredHost = Bun.env.GOOGLE_GEMINI_BASE_URL?.trim().replace(/\/+$/, "");
-	const host = configuredHost || DEFAULT_DEVELOPER_API_HOST;
+function resolveGeminiDeveloperEndpoint(baseUrl: string): GeminiDeveloperEndpoint {
+	const host = baseUrl.trim().replace(/\/+$/, "");
 	let parsed: URL;
 	try {
 		parsed = new URL(host);
 	} catch {
-		throw new SearchProviderError("gemini", "GOOGLE_GEMINI_BASE_URL must be a valid absolute URL", 400);
+		throw new SearchProviderError("gemini", `Gemini model base URL must be a valid absolute URL: ${baseUrl}`, 400);
 	}
 	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-		throw new SearchProviderError("gemini", "GOOGLE_GEMINI_BASE_URL must use HTTP or HTTPS", 400);
+		throw new SearchProviderError("gemini", "Gemini model base URL must use HTTP or HTTPS", 400);
 	}
-	const isCloudflareGateway = parsed.hostname === "gateway.ai.cloudflare.com";
 	return {
-		url: `${host}/${DEVELOPER_API_VERSION}`,
-		authProvider: isCloudflareGateway ? CLOUDFLARE_GATEWAY_PROVIDER : DEVELOPER_API_PROVIDER,
-		isCloudflareGateway,
+		url: host,
+		isCloudflareGateway: parsed.hostname === "gateway.ai.cloudflare.com",
 	};
 }
 
@@ -543,6 +536,7 @@ async function callGeminiSearch(
 async function callGeminiDeveloperSearch(
 	apiKey: string,
 	endpoint: GeminiDeveloperEndpoint,
+	configuredHeaders: Record<string, string> | undefined,
 	model: string,
 	query: string,
 	systemPrompt: string | undefined,
@@ -586,6 +580,7 @@ async function callGeminiDeveloperSearch(
 			...(endpoint.isCloudflareGateway
 				? { "cf-aig-authorization": `Bearer ${apiKey}` }
 				: { "x-goog-api-key": apiKey }),
+			...configuredHeaders,
 			"Content-Type": "application/json",
 			Accept: "text/event-stream",
 		},
@@ -668,37 +663,51 @@ export async function searchGemini(params: GeminiSearchParams): Promise<SearchRe
 				),
 			{ sessionId: params.sessionId, signal: params.signal, seed: seed.access },
 		);
-	} else {
-		const endpoint = resolveGeminiDeveloperEndpoint();
-		const storedApiKey = await params.authStorage.getApiKey(endpoint.authProvider, params.sessionId, {
-			signal: params.signal,
-		});
-		const apiKey = endpoint.isCloudflareGateway
-			? parseCloudflareAiGatewayCredential(storedApiKey ?? "")?.token
-			: storedApiKey;
-		if (!apiKey) {
-			throw new Error(
-				endpoint.isCloudflareGateway
-					? 'No Cloudflare AI Gateway credential found. Configure provider "cloudflare-ai-gateway" or set CLOUDFLARE_AI_GATEWAY_API_KEY.'
-					: "No Gemini credentials found. Set GEMINI_API_KEY, configure an API key for provider \"google\", or login with 'zeta /login google-gemini-cli' / 'zeta /login google-antigravity' to enable Gemini web search.",
-			);
-		}
-		result = await callGeminiDeveloperSearch(
-			apiKey,
-			endpoint,
-			selectedModel,
-			searchQuery,
-			params.system_prompt,
-			params.max_output_tokens,
-			params.temperature,
-			{
-				google_search: params.google_search,
-				code_execution: params.code_execution,
-				url_context: params.url_context,
+	} else if (params.model.api === "google-generative-ai") {
+		// The caller-configured model drives the endpoint; credentials flow
+		// through the registry resolver so API-key rotation (on 401) and
+		// command-backed keys apply exactly as for chat completions.
+		const endpoint = resolveGeminiDeveloperEndpoint(params.model.baseUrl);
+		const keyOrResolver = params.modelRegistry.resolver(params.model, params.sessionId);
+		result = await withAuth(
+			keyOrResolver,
+			async storedApiKey => {
+				const configuredHeaders = await params.modelRegistry.resolveModelHeaders(params.model, params.signal);
+				const apiKey = endpoint.isCloudflareGateway
+					? parseCloudflareAiGatewayCredential(storedApiKey)?.token
+					: storedApiKey;
+				if (!apiKey) {
+					throw new SearchProviderError("gemini", "Selected Gemini credential is empty", 401);
+				}
+				return callGeminiDeveloperSearch(
+					apiKey,
+					endpoint,
+					configuredHeaders,
+					selectedModel,
+					searchQuery,
+					params.system_prompt,
+					params.max_output_tokens,
+					params.temperature,
+					{
+						google_search: params.google_search,
+						code_execution: params.code_execution,
+						url_context: params.url_context,
+					},
+					params.fetch,
+					params.signal,
+					params.timeoutMs,
+				);
 			},
-			params.fetch,
-			params.signal,
-			params.timeoutMs,
+			{
+				signal: params.signal,
+				missingKeyMessage: `No Gemini credentials found for selected provider "${params.model.provider}". Set GEMINI_API_KEY or login with 'zeta /login google-gemini-cli' / 'zeta /login google-antigravity'.`,
+			},
+		);
+	} else {
+		throw new SearchProviderError(
+			"gemini",
+			`Selected model ${params.model.provider}/${params.model.id} does not use a Gemini grounding transport`,
+			400,
 		);
 	}
 
