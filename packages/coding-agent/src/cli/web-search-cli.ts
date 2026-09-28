@@ -1,7 +1,7 @@
 /**
  * Web search CLI command handlers.
  *
- * Handles `omp q`/`omp web-search` subcommands for testing web search models.
+ * Handles `zeta q`/`zeta web-search` subcommands for testing web search models.
  */
 
 import { APP_NAME, getProjectDir } from "@linxiraos/pi-utils";

@@ -2499,7 +2499,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Stream",
 			label: "Stream Server",
 			description:
-				"Live stream server used by `omp stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
+				"Live stream server used by `zeta stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
 		},
 	},
 
@@ -2524,7 +2524,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Skills",
 			label: "Skill Registry",
 			description:
-				"Skillshare registry used by `omp skill` to install, search, and publish skills (https://host[:port])",
+				"Skillshare registry used by `zeta skill` to install, search, and publish skills (https://host[:port])",
 		},
 	},
 
@@ -4663,7 +4663,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Grep & Browser",
 			label: "Browser Relay",
 			description:
-				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`omp browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
+				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`zeta browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
 		},
 	},
 
@@ -4674,7 +4674,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "Grep & Browser",
 			label: "Browser Relay URL",
-			description: "omp browser relay endpoint (default http://127.0.0.1:9224).",
+			description: "zeta browser relay endpoint (default http://127.0.0.1:9224).",
 		},
 	},
 
@@ -6538,7 +6538,7 @@ export interface SkillsSettings {
 	ignoredSkills?: string[];
 	includeSkills?: string[];
 	disabledExtensions?: string[];
-	/** Skillshare registry base URL (`omp skill`). */
+	/** Skillshare registry base URL (`zeta skill`). */
 	registryUrl?: string;
 }
 

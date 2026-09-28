@@ -1,5 +1,5 @@
 /**
- * Resolve the npm registry `omp update` talks to from the user's own package
+ * Resolve the npm registry `zeta update` talks to from the user's own package
  * manager configuration, so a configured feed (corporate proxy, Artifactory,
  * Verdaccio, …) is honored for both the release lookup and the install.
  *
@@ -12,7 +12,7 @@
  *    (`$XDG_CONFIG_HOME/.bunfig.toml`, then `~/.bunfig.toml`).
  * 5. {@link DEFAULT_NPM_REGISTRY}.
  *
- * Project-level config is deliberately ignored: `omp update` modifies a global
+ * Project-level config is deliberately ignored: `zeta update` modifies a global
  * install, and the working directory it runs from is incidental.
  */
 import * as os from "node:os";

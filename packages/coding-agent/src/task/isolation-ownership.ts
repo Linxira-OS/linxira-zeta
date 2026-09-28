@@ -65,7 +65,7 @@ async function processStartToken(pid: number): Promise<string | null> {
  * Record the current process as owner of the sandbox rooted at `baseDir`.
  *
  * Written before the isolation backend materialises `m` so a concurrent
- * `omp worktree clear` never sees an owner-less sandbox mid-creation.
+ * `zeta worktree clear` never sees an owner-less sandbox mid-creation.
  */
 export async function writeIsolationOwner(baseDir: string, id: string): Promise<void> {
 	const startToken = await processStartToken(process.pid);
@@ -113,7 +113,7 @@ export async function hasLiveIsolationOwner(baseDir: string): Promise<boolean> {
 export const RETAINED_BACKEND_FILE = ".omp-retained-backend.json";
 
 /**
- * Backends whose workspaces `omp worktree clear` must not remove with plain
+ * Backends whose workspaces `zeta worktree clear` must not remove with plain
  * recursive `rm`, but route through native `isoStop` teardown instead:
  * mounts (overlayfs, projfs), where `rm` destroys the preserved layer and
  * fails on the mountpoint, and Btrfs subvolumes, whose root is only removable

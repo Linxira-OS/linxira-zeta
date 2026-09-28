@@ -577,7 +577,7 @@ FROM model_usage_legacy
 	 * (bun:sqlite is synchronous — an unbounded scan here froze the TUI for
 	 * ~30s on multi-million-row stats databases), and the persistent meta
 	 * marker is only set on success so a crash or error retries next process.
-	 * A missing stats.db leaves the marker unset so a later `omp stats` run
+	 * A missing stats.db leaves the marker unset so a later `zeta stats` run
 	 * still gets imported. No-op for non-default db paths.
 	 */
 	#kickModelPerfBackfill(): void {

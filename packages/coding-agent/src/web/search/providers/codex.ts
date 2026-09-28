@@ -384,23 +384,26 @@ function extractTextSources(text: string): SearchSource[] {
 	return sources;
 }
 
-async function resolveCodexSearchTransport(
-	modelRegistry: ModelRegistry | undefined,
-	modelId: string,
-): Promise<CodexSearchTransport> {
-	const registryModel = modelRegistry?.find("openai-codex", modelId);
-	const bundledModel = getBundledCodexModels().find(model => model.id === modelId);
+async function resolveCodexSearchTransport(params: SearchParams): Promise<CodexSearchTransport> {
+	const modelRegistry = params.modelRegistry;
+	// The caller-configured model's own baseUrl is the primary endpoint source:
+	// a model configured with a proxy endpoint must drive the transport (the
+	// adapted initialize-contract tests assert this). Provider-level and
+	// registry-resolved baseUrls are fallbacks for registry-configured proxies.
+	const registryModel = modelRegistry?.find("openai-codex", params.model.id);
+	const bundledModel = getBundledCodexModels().find(model => model.id === params.model.id);
 	const providerBaseUrl = modelRegistry?.getProviderBaseUrl("openai-codex");
-	let baseUrl = providerBaseUrl ?? registryModel?.baseUrl ?? CODEX_BASE_URL;
-	if (registryModel?.baseUrl && registryModel.baseUrl !== (bundledModel?.baseUrl ?? CODEX_BASE_URL)) {
+	let baseUrl = params.model.baseUrl ?? providerBaseUrl ?? registryModel?.baseUrl ?? CODEX_BASE_URL;
+	if (
+		!params.model.baseUrl &&
+		registryModel?.baseUrl &&
+		registryModel.baseUrl !== (bundledModel?.baseUrl ?? CODEX_BASE_URL)
+	) {
 		baseUrl = registryModel.baseUrl;
 	}
 
 	const url = resolveCodexResponsesUrl(baseUrl);
-	const headers =
-		modelRegistry && registryModel
-			? await modelRegistry.resolveModelHeaders(registryModel)
-			: await modelRegistry?.getProviderHeaders("openai-codex");
+	const headers = modelRegistry ? await modelRegistry.resolveModelHeaders(params.model) : undefined;
 	return {
 		baseUrl,
 		url,
@@ -728,7 +731,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 	if (!firstCandidate) {
 		throw new SearchProviderError("codex", "No Codex web search model is configured.");
 	}
-	const transport = await resolveCodexSearchTransport(params.modelRegistry, firstCandidate.modelId);
+	const transport = await resolveCodexSearchTransport(params);
 	// The ChatGPT-backend Codex endpoint speaks the undocumented codex-rs
 	// request shape (responses-lite moves tools into an `additional_tools`
 	// developer item), so the documented `web_search.filters.allowed_domains`
@@ -762,7 +765,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 		result = await withAuth(
 			keyOrResolver,
 			async accessToken => {
-				const requestTransport = await resolveCodexSearchTransport(params.modelRegistry, firstCandidate.modelId);
+				const requestTransport = await resolveCodexSearchTransport(params);
 				return runCodexSearchCandidates({
 					auth: { accessToken },
 					params,
@@ -783,7 +786,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 		});
 		if (!seed) {
 			throw new Error(
-				"No Codex OAuth credentials found. Login with 'omp /login openai-codex' to enable Codex web search.",
+				"No Codex OAuth credentials found. Login with 'zeta /login openai-codex' to enable Codex web search.",
 			);
 		}
 
@@ -794,7 +797,7 @@ export async function searchCodex(params: SearchParams): Promise<SearchResponse>
 				// A refreshed/rotated credential can carry a different bearer and
 				// ChatGPT account id than the seed used to select the first attempt.
 				const accountId = access.accountId ?? getCodexAccountId(access.accessToken);
-				const requestTransport = await resolveCodexSearchTransport(params.modelRegistry, firstCandidate.modelId);
+				const requestTransport = await resolveCodexSearchTransport(params);
 				return runCodexSearchCandidates({
 					auth: { accessToken: access.accessToken, accountId },
 					params,

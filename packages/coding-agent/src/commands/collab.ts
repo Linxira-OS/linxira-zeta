@@ -27,10 +27,10 @@ export default class Collab extends Command {
 	};
 
 	static examples = [
-		"omp collab list",
-		"omp collab list --json",
-		"omp collab link <instanceId|pid>",
-		"omp collab link <pid> --view",
+		"zeta collab list",
+		"zeta collab list --json",
+		"zeta collab link <instanceId|pid>",
+		"zeta collab link <pid> --view",
 	];
 
 	async run(): Promise<void> {

@@ -185,7 +185,7 @@ export interface ModelsListingSource {
 }
 
 /**
- * Render `omp models ls`/`find` as one box table per provider, selecting chat
+ * Render `zeta models ls`/`find` as one box table per provider, selecting chat
  * models by default or the caller-requested catalog kind.
  */
 export function renderProviderModels(

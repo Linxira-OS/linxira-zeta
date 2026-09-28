@@ -32,7 +32,7 @@ export interface ReadCommandArgs {
 }
 
 /**
- * Session state `omp read <path>` must load before resolving: the caller's
+ * Session state `zeta read <path>` must load before resolving: the caller's
  * skills for skill:// and MCP servers for MCP resources — `mcp://` or any
  * scheme with no registered handler that the router's MCP fallback accepts.
  * Filesystem paths, web URLs, and other registered schemes need neither.
