@@ -1,6 +1,7 @@
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { readTargetsPlan } from "../plan-mode/plan-protection";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/pi-omptype";
 import type {
@@ -997,6 +998,17 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	}
 
 	/**
+	 * True when `readPath` targets the session plan file: the canonical
+	 * `local://PLAN.md` alias or the session plan reference path. Plan files
+	 * read without an explicit selector get the full default window so
+	 * incremental plan amendments never operate on a truncated view.
+	 */
+	#isPlanRead(readPath: string): boolean {
+		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
+		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
+	}
+
+	/**
 	 * Recover the active approved plan when a model rewrites its internal URL
 	 * as a same-basename path in the working-directory root.
 	 *
@@ -1607,6 +1619,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question,
 			questionPath: readPath,
 			signal,
+			planTargetedRead: this.#isPlanRead(readPath),
 		});
 		const details: ReadToolDetails = result.details ?? {};
 		details.resolvedPath ??= located.path;
@@ -1628,6 +1641,8 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question?: string;
 			/** Model-facing path for `?q=` hints; defaults to the displayed file path. */
 			questionPath?: string;
+			/** The read targeted the session plan URL: raise the default line window to the full cap. */
+			planTargetedRead?: boolean;
 			signal?: AbortSignal;
 			onBufferedFile?: (normalizedText: string) => void;
 			onConflictMarkers?: () => void;
@@ -1636,6 +1651,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	): Promise<AgentToolResult<ReadToolDetails>> {
 		const { located, question, questionPath, signal, onBufferedFile, onConflictMarkers, lexicalAbsolutePath } =
 			options;
+		const planTargetedRead = options.planTargetedRead === true;
 		const immutable = located?.spec.immutable === true;
 		const displayMode = resolveFileDisplayMode(this.session, { immutable });
 		// In-body continuation hints name the URL for located reads, so paging stays on the URL.
@@ -2122,7 +2138,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const startLineDisplay = startLine + 1;
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
-					const effectiveLimit = limit ?? DEFAULT_LIMIT;
+					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
 					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
 					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.

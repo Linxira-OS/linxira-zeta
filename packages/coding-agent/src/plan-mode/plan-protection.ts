@@ -6,7 +6,7 @@ const LOCAL_PLAN_ALIAS = "local://PLAN.md";
 
 /** True when `readPath` targets `planTarget`, ignoring `local:/` vs `local://`
  *  scheme spelling and any trailing read selector (`:1-50`, `:raw`, …). */
-function readTargetsPlan(readPath: string, planTarget: string): boolean {
+export function readTargetsPlan(readPath: string, planTarget: string): boolean {
 	const router = InternalUrlRouter.instance();
 	const read = router.normalize(readPath);
 	const target = router.normalize(planTarget);

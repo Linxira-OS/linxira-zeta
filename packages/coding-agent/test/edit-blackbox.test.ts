@@ -97,6 +97,8 @@ describe("edit parse-regression blackbox", () => {
 
 	test("appends valid-to-invalid transitions from every edit variant", async () => {
 		await fs.appendFile(logPath, '{"seed":true}\n');
+		const LOGGED_FIXTURE_NAMES = ["replace.ts", "patch.ts", "apply-patch.ts", "sloppy.ts"];
+
 		const expected: Array<{
 			prev: string;
 			new: string;
@@ -180,7 +182,14 @@ describe("edit parse-regression blackbox", () => {
 
 		const lines = (await Bun.file(logPath).text()).trimEnd().split("\n");
 		expect(JSON.parse(lines[0])).toEqual({ seed: true });
-		expect(lines.slice(1).map(line => JSON.parse(line))).toEqual(expected);
+		// The Zeta recorder superset writes the absolute file path on every
+		// entry ("/edits revert" keys on it); compare the shared shape after
+		// stripping it, then assert the path points back at each fixture.
+		const recorded = lines.slice(1).map(line => JSON.parse(line)) as Array<Record<string, unknown>>;
+		expect(recorded.map(({ path: _recordedPath, ...rest }) => rest)).toEqual(expected);
+		expect(recorded.map(entry => path.resolve(String(entry.path)))).toEqual(
+			LOGGED_FIXTURE_NAMES.map(name => path.resolve(path.join(tempDir, name))),
+		);
 	});
 
 	test("does not record valid or already-invalid transitions", async () => {
