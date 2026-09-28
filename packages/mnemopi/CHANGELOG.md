@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ## [1.1.20] - 2026-09-23
+## [1.1.21-omp18.3.3] - 2026-09-27
+
+### Fixed
+
+- Fixed recall search matching query terms inside unrelated words, improving result relevance and ensuring exact matches are prioritized.
+- Fixed sleep summaries replacing shortened terms within larger words, preventing unintended word corruption.
+
+## [1.1.21-omp18.2.5] - 2026-09-17
 
 - 版本线推进;本版无独立用户可见变化。
 

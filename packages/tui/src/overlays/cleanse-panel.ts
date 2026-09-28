@@ -1,11 +1,11 @@
 /** Anchored `/cleanse` overlay rendering the host's live board above the editor. */
 import { Text, type TUI } from "../index";
-import { tuiText } from "../i18n";
 import type { AgentProgress } from "../tools/task";
 import { replaceTabs } from "../render/render-utils";
 import { theme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { StreamingPanelContent, type StreamingPanelPresentation } from "../chrome/streaming-panel";
+import { interruptKey } from "../chrome/keybinding-hints";
 import type {
 	CleanseBoardModel,
 	CleanseCheckerDescriptor,
@@ -150,31 +150,21 @@ export class CleansePanelComponent extends OverlayPanel {
 	}
 
 	#footerLine(): string {
+		// The main editor routes `app.interrupt` (Escape by default) to the panel.
+		const esc = interruptKey();
 		switch (this.#outcome) {
 			case undefined:
-				return theme.fg("muted", tuiText("cleanseFooterRunning", "Esc cancel /cleanse"));
+				return theme.fg("muted", `${esc} cancel /cleanse`);
 			case "clean":
-				return theme.fg(
-					"success",
-					`${theme.status.success} ${tuiText("cleanseFooterClean", "Clean · Esc dismiss")}`,
-				);
+				return theme.fg("success", `${theme.status.success} Clean · ${esc} dismiss`);
 			case "unresolved":
-				return theme.fg(
-					"warning",
-					`${theme.status.warning} ${tuiText("cleanseFooterUnresolved", "Diagnostics remain · Esc dismiss")}`,
-				);
+				return theme.fg("warning", `${theme.status.warning} Diagnostics remain · ${esc} dismiss`);
 			case "unsupported":
-				return theme.fg(
-					"warning",
-					`${theme.status.warning} ${tuiText("cleanseFooterUnsupported", "No runnable checker · Esc dismiss")}`,
-				);
+				return theme.fg("warning", `${theme.status.warning} No runnable checker · ${esc} dismiss`);
 			case "cancelled":
-				return theme.fg(
-					"warning",
-					`${theme.status.warning} ${tuiText("cleanseFooterCancelled", "Cancelled · Esc dismiss")}`,
-				);
+				return theme.fg("warning", `${theme.status.warning} Cancelled · ${esc} dismiss`);
 			case "error":
-				return theme.fg("error", `${theme.status.error} ${tuiText("cleanseFooterError", "Error · Esc dismiss")}`);
+				return theme.fg("error", `${theme.status.error} Error · ${esc} dismiss`);
 		}
 	}
 }

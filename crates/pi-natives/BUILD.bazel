@@ -76,6 +76,7 @@ rust_binary(
         "//bazel/triples:x86_64-unknown-linux-musl": ["-Ctarget-feature=-crt-static"],
         "//bazel/triples:aarch64-unknown-linux-musl": ["-Ctarget-feature=-crt-static"],
         "//bazel/triples:x86_64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
+        "//bazel/triples:aarch64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
         "//conditions:default": [],
     }),
 )
@@ -136,6 +137,7 @@ rust_shared_library(
         # switched to /MT in lock-step via the static_link_msvcrt cc feature in
         # the native_addon transition (bazel/defs.bzl).
         "//bazel/triples:x86_64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
+        "//bazel/triples:aarch64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
         "//conditions:default": [],
     }),
     version = "1.1.21",
@@ -144,6 +146,7 @@ rust_shared_library(
         "//crates/pi-diff",
         "//crates/pi-edit",
         "//crates/pi-iso",
+        "//crates/pi-predict",
         "//crates/pi-shell",
         "//crates/pi-vcs",
         "//crates/pi-vfs",

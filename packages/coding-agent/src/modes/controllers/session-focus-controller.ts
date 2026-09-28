@@ -1,5 +1,6 @@
 import type { AssistantMessage } from "@linxiraos/pi-ai";
-
+import { formatDoubleTap } from "@linxiraos/pi-tui/app-keybindings";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { AgentLifecycleManager } from "../../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID, type AgentRef, type RegistryEvent } from "../../registry/agent-registry";
 import type { AgentSession } from "../../session/agent-session";
@@ -104,7 +105,9 @@ export class SessionFocusController {
 		}
 		if (request !== this.#focusRequestSeq) return;
 		if (attached && this.#focusedAgentId === id && this.#attachedSession === session) {
-			this.ctx.showStatus(`Viewing agent ${id} — Esc returns to main, ←← hops to parent`);
+			this.ctx.showStatus(
+				`Viewing agent ${id} — ${appKey(this.ctx.keybindings, "app.interrupt")} returns to main, ${formatDoubleTap("left")} hops to parent`,
+			);
 		}
 	}
 

@@ -1,9 +1,10 @@
 /**
  * Stats CLI command handlers.
  *
- * Handles `zeta stats` subcommand for viewing AI usage statistics.
+ * Handles `omp stats` subcommand for viewing AI usage statistics.
  */
 
+import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
 import { truncateToWidth } from "@linxiraos/pi-tui/utils";
 import { formatDuration, formatNumber, formatPercent } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
@@ -103,7 +104,7 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	// Open browser
 	openPath(url);
 
-	console.log("Press Ctrl+C to stop\n");
+	console.log(`Press ${formatKeyHint("ctrl+c")} to stop\n`);
 
 	// Keep process running
 	process.on("SIGINT", () => {

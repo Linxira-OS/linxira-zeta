@@ -15,7 +15,6 @@
  * mouse selection nor cmd-click.
  */
 import type { AgentTool } from "@linxiraos/pi-agent-core";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { type Component, matchesKey, routeSgrMouseInput, type TUI, truncateToWidth, visibleWidth } from "../index";
 import type { MessageRenderer } from "../chat/extension-types";
 import {
@@ -25,7 +24,9 @@ import {
 	userTurnDraft,
 } from "../chat/transcript-entry";
 import type { SessionMessageEntryLike as SessionMessageEntry } from "../chat/transcript-entry";
-import { replaceTabs } from "../render/render-utils";
+import { expandKeyHint, replaceTabs } from "../render/render-utils";
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { highlightCode, type ThemeColor, theme } from "../theme/theme";
 import { commandFromToolCall, extractBlocks, extractLinks } from "./copy-targets";
 import { matchesAppToolsExpand, matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
@@ -377,22 +378,21 @@ export class CopySelectorComponent implements Component {
 					color: OUTLINE_COLOR,
 					caption:
 						blocks.length > 0
-							? tuiTextFmt(
-									blocks.length === 1 ? "copyBlocksCaptionOne" : "copyBlocksCaptionMany",
-									blocks.length === 1 ? "%d block →" : "%d blocks →",
-									blocks.length,
-								)
+							? `${blocks.length} block${blocks.length === 1 ? "" : "s"} ${formatKeyHint("right")}`
 							: undefined,
 				},
 			}).column;
 		}
 
 		const selectedBlock = this.#blocks?.[this.#blockSelected];
-		const openHint = selectedBlock?.href && this.deps.onOpen ? "  o open" : "";
+		const openHint = selectedBlock?.href && this.deps.onOpen ? `  ${formatKeyHint("o")} open` : "";
 		const action = this.deps.actionLabel ?? "copy";
+		const upDown = editorKeys("tui.select.up", "tui.select.down");
+		const enter = formatKeyHint("enter");
+		const cancel = editorKey("tui.select.cancel");
 		const hint = this.#blocks
-			? `${this.#blockSelected + 1}/${this.#blocks.length}  ↑/↓ block  ←/esc back  enter ${action}${openHint}  click ${theme.cmd.copy}/${theme.cmd.share}`
-			: `${this.#targets.length > 0 ? `${this.#selected + 1}/${this.#targets.length}  ` : ""}↑/↓ step  ${blocks.length > 0 ? "→ blocks  " : ""}enter ${action}  ${this.#truncated ? "a earlier turns  " : ""}ctrl+o expand  esc close`;
+			? `${this.#blockSelected + 1}/${this.#blocks.length}  ${upDown} block  ${formatKeyHint("left")}/${cancel} back  ${enter} ${action}${openHint}  click ${theme.cmd.copy}/${theme.cmd.share}`
+			: `${this.#targets.length > 0 ? `${this.#selected + 1}/${this.#targets.length}  ` : ""}${upDown} step  ${blocks.length > 0 ? `${formatKeyHint("right")} blocks  ` : ""}${enter} ${action}  ${this.#truncated ? `${formatKeyHint("a")} earlier turns  ` : ""}${expandKeyHint()} expand  ${cancel} close`;
 		const anchorId = target
 			? this.#blocks
 				? `copy:${target.turnId}:block:${this.#blockSelected}`
@@ -433,22 +433,17 @@ export class CopySelectorComponent implements Component {
 			const styled = block.language ? highlightCode(shown.join("\n"), block.language) : shown;
 			const rows = styled.map(row => truncateToWidth(replaceTabs(row), inner));
 			if (raw.length > shown.length) {
-				rows.push(theme.fg("dim", tuiTextFmt("copyMoreLinesFmt", "… +%d more lines", raw.length - shown.length)));
+				rows.push(theme.fg("dim", `… +${raw.length - shown.length} more lines`));
 			}
 			const selected = index === this.#blockSelected;
 			const captionColor: ThemeColor = selected ? OUTLINE_COLOR : "dim";
 			const controls: Array<{ action: ControlRegion["action"]; text: string }> = [
 				{ action: "copy", text: `${theme.cmd.copy} ${this.deps.actionLabel ?? "copy"}` },
 			];
-			if (block.href && this.deps.onOpen)
-				controls.push({ action: "open", text: `${theme.cmd.share} ${tuiText("copyControlOpen", "open")}` });
+			if (block.href && this.deps.onOpen) controls.push({ action: "open", text: `${theme.cmd.share} open` });
 			const controlsWidth = controls.reduce((sum, control) => sum + visibleWidth(control.text) + 2, 0);
 			const summary = truncateToWidth(
-				`${index + 1}/${blocks.length}${theme.sep.dot}${block.label}${theme.sep.dot}${tuiTextFmt(
-					raw.length === 1 ? "copyLineCountOne" : "copyLineCountMany",
-					raw.length === 1 ? "%d line" : "%d lines",
-					raw.length,
-				)}`,
+				`${index + 1}/${blocks.length}${theme.sep.dot}${block.label}${theme.sep.dot}${raw.length} line${raw.length === 1 ? "" : "s"}`,
 				Math.max(4, inner - controlsWidth),
 			);
 			// Caption: two-space gutter, summary, then the controls, each preceded by two spaces.
@@ -535,9 +530,7 @@ function pushMarkdownBlocks(blocks: CopyBlock[], text: string, entry: Transcript
 	for (const block of extractBlocks(text)) {
 		if (block.kind === "code") {
 			blocks.push({
-				label: block.lang
-					? tuiTextFmt("copyBlockLangCodeFmt", "%s code", block.lang)
-					: tuiText("copyBlockCode", "code"),
+				label: block.lang ? `${block.lang} code` : "code",
 				content: block.code,
 				entry,
 				kind: "code",
@@ -551,10 +544,7 @@ function pushMarkdownBlocks(blocks: CopyBlock[], text: string, entry: Transcript
 	// row, so a link the transcript wrapped is copied or opened intact.
 	for (const link of extractLinks(text)) {
 		blocks.push({
-			label:
-				link.text !== link.href
-					? `${tuiText("copyBlockLink", "link")}${theme.sep.dot}${link.text}`
-					: tuiText("copyBlockLink", "link"),
+			label: link.text !== link.href ? `link${theme.sep.dot}${link.text}` : "link",
 			content: link.href,
 			entry,
 			href: link.href,
@@ -579,10 +569,7 @@ function collectBlocks(entries: readonly TranscriptEntry[]): CopyBlock[] {
 					const command = commandFromToolCall(content);
 					if (command) {
 						blocks.push({
-							label: tuiText(
-								command.kind === "bash" ? "copyBlockBashCommand" : "copyBlockEvalCode",
-								command.kind === "bash" ? "bash command" : "eval code",
-							),
+							label: command.kind === "bash" ? "bash command" : "eval code",
 							content: command.code,
 							entry,
 							kind: "command",
@@ -618,35 +605,35 @@ function targetCopy(target: OutlineTarget, blocks: readonly CopyBlock[]): { cont
 	const message = transcriptEntryMessage(entry);
 	switch (message?.role) {
 		case "user":
-			return { content: rawUserText(message), label: tuiText("copyBlockUserMessage", "user message") };
+			return { content: rawUserText(message), label: "user message" };
 		case "assistant": {
 			const text = assistantVisibleText(message);
-			if (text) return { content: text, label: tuiText("copyBlockAssistantMessage", "assistant message") };
+			if (text) return { content: text, label: "assistant message" };
 			break;
 		}
 		case "toolResult": {
 			const text = toolResultText(message);
-			if (text) return { content: text, label: tuiTextFmt("copyBlockResultFmt", "%s result", message.toolName) };
+			if (text) return { content: text, label: `${message.toolName} result` };
 			break;
 		}
 		case "bashExecution":
 			return {
 				content: [message.command, message.output].filter(part => part.trim()).join("\n"),
-				label: tuiText("copyBlockBashExecution", "bash execution"),
+				label: "bash execution",
 			};
 		case "pythonExecution":
 			return {
 				content: [message.code, message.output].filter(part => part.trim()).join("\n"),
-				label: tuiText("copyBlockEvalExecution", "eval execution"),
+				label: "eval execution",
 			};
 		case "compactionSummary":
 		case "branchSummary":
-			return { content: message.summary, label: tuiText("copyBlockSummary", "summary") };
+			return { content: message.summary, label: "summary" };
 		case "custom":
 		case "hookMessage": {
 			// A user-invoked skill/collab prompt copies as what the user typed, not the expanded body.
 			const draft = message.role === "custom" ? userTurnDraft(entry) : undefined;
-			if (draft?.trim()) return { content: draft, label: tuiText("copyBlockUserMessage", "user message") };
+			if (draft?.trim()) return { content: draft, label: "user message" };
 			const content =
 				typeof message.content === "string"
 					? message.content
@@ -654,15 +641,12 @@ function targetCopy(target: OutlineTarget, blocks: readonly CopyBlock[]): { cont
 							.filter((block): block is { type: "text"; text: string } => block.type === "text")
 							.map(block => block.text)
 							.join("\n");
-			if (content.trim()) return { content, label: tuiText("copyBlockMessage", "message") };
+			if (content.trim()) return { content, label: "message" };
 			break;
 		}
 		default:
 			break;
 	}
 	// No direct prose (e.g. a pure tool turn): fall back to its blocks joined.
-	return {
-		content: blocks.map(block => block.content).join("\n\n"),
-		label: tuiText("copyBlockTurnContent", "turn content"),
-	};
+	return { content: blocks.map(block => block.content).join("\n\n"), label: "turn content" };
 }

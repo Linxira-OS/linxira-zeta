@@ -3,7 +3,9 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries, $which } from "@linxiraos/pi-utils";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
+import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
 import * as updateCli from "@linxiraos/zeta/cli/update-cli";
 import {
@@ -26,10 +28,10 @@ import {
 	type RenameMigrationSteps,
 	replaceBinaryForUpdate,
 	resolveBunGlobalNodeModulesDirFromLocations,
+	resolveGitHubTokenForTest,
 	resolveReleaseBinaryAsset,
 	resolveReleaseDist,
 	resolveReleaseRename,
-	resolveGitHubTokenForTest,
 	resolveUpdateMethodForTest,
 	resolveUpdateTargetFromPath,
 	shouldForceBinaryUpdate,
@@ -39,8 +41,6 @@ import {
 	updateViaShimTakeover,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import type { CliConfig } from "@linxiraos/pi-utils/cli";
-import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const miseBinary = Bun.env.MISE_BIN ?? $which("mise");
 
@@ -426,7 +426,7 @@ describe("update-cli install target detection", () => {
 	);
 
 	it.skipIf(process.platform === "win32")(
-		"refuses a foreign native target that does not report an OMP version",
+		"refuses a foreign native target that does not report a zeta version",
 		async () => {
 			const dir = await makeTempDir();
 			const aliasPath = path.join(dir, "omp");
@@ -443,7 +443,7 @@ describe("update-cli install target detection", () => {
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
-			).rejects.toThrow("does not report an OMP version when run directly");
+			).rejects.toThrow("does not report a zeta version when run directly");
 			expect(fetchImpl).not.toHaveBeenCalled();
 		},
 	);

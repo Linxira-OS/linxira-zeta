@@ -1,11 +1,12 @@
 /**
  * Setup CLI command handler.
  *
- * Handles `zeta setup` for onboarding and `zeta setup <component>` for optional dependencies.
+ * Handles `omp setup` for onboarding and `omp setup <component>` for optional dependencies.
  */
 import * as path from "node:path";
 import { APP_NAME, getProjectDir, getPythonEnvDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
 import { Settings } from "../config/settings";
 import { ModelRegistry } from "../config/model-registry";
 import { resolveRoleChain } from "../config/model-resolver";
@@ -102,7 +103,7 @@ export async function checkPythonSetup(cwd: string, interpreter?: string): Promi
  * Install Python packages using uv (preferred) or pip.
  */
 // Python installation helper removed: the subprocess runner has no Python
-// package dependencies beyond a working interpreter. `zeta setup python --check`
+// package dependencies beyond a working interpreter. `omp setup python --check`
 // remains as a probe; users install optional libs (pandas, matplotlib, ...)
 // directly via pip or the in-process `%pip` magic.
 
@@ -236,7 +237,7 @@ function buildSpeechComponents(settings: Settings, registry: ModelRegistry): Spe
 }
 
 /**
- * Unified `zeta setup speech` flow. Drives every {@link SpeechComponent} through
+ * Unified `omp setup speech` flow. Drives every {@link SpeechComponent} through
  * one path: report (`--json`/`--check`) or install (interactive pick + ensure
  * with single-line progress; non-TTY skips pickers and installs configured
  * values).
@@ -300,7 +301,7 @@ async function handleSpeechSetup(flags: { json?: boolean; check?: boolean }): Pr
 	console.log(chalk.green(`\n${theme.status.success} Speech is ready`));
 	console.log(
 		chalk.dim(
-			"Enable speech-to-text via stt.enabled, then hold Space to talk (or bind app.stt.toggle); enable the speech-generation tool via speechgen.enabled; speak replies aloud via speech.enabled.",
+			`Enable speech-to-text via stt.enabled, then hold ${formatKeyHint("space")} to talk (or bind app.stt.toggle); enable the speech-generation tool via speechgen.enabled; speak replies aloud via speech.enabled.`,
 		),
 	);
 }

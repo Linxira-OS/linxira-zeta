@@ -13,7 +13,7 @@ const ENV_KEYS = [
 	"OMP_AUTH_BROKER_URL",
 	"OMP_AUTH_BROKER_TOKEN",
 	"OMP_AUTH_BROKER_ACCOUNT_POOL_FILE",
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"PI_CONFIG_FILES",
 ] as const;
 const originalAgentDir = getAgentDir();
@@ -28,7 +28,7 @@ describe("auth-gateway account pool", () => {
 	beforeEach(async () => {
 		savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]])) as typeof savedEnv;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-auth-gateway-pool-"));
-		process.env.PI_CODING_AGENT_DIR = tempDir;
+		process.env.ZETA_CODING_AGENT_DIR = tempDir;
 		setAgentDir(tempDir);
 		resetSettingsForTest();
 		brokerStore = await SqliteAuthCredentialStore.open(path.join(tempDir, "agent.db"));

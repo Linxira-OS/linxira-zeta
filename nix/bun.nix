@@ -1318,6 +1318,10 @@
     url = "https://registry.npmjs.org/asynckit/-/asynckit-0.4.0.tgz";
     hash = "sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==";
   };
+  "axe-core@4.13.0" = fetchurl {
+    url = "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz";
+    hash = "sha512-UzGt8zg7Ny8djbYMhxl2zuEevVa7r2gJjYY5Lwr1xM7+XU2nd6CkIWFTVcCIbAP63vSz71NaVyyuSk9lHKcy0A==";
+  };
   "axios@1.20.0" = fetchurl {
     url = "https://registry.npmjs.org/axios/-/axios-1.20.0.tgz";
     hash = "sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==";

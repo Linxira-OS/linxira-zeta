@@ -63,6 +63,14 @@ pathIgnorePatterns = [
   # recurses through the workspace-root loop and exhausts file descriptors.
   "bazel-*/**",
   "**/bazel-out/**",
+  # Vendored trees carry their own gates (editor: go test + vitest in
+  # editor_tests; termide: cargo in termide_tests) — root bun test must not
+  # walk into their suites (vitest's it.fails etc. are not bun APIs).
+  "editor/**",
+  "termide/**",
+  # web-ui is a standalone npm project with its own tsc/lint/build gate
+  # (web_ui_build job); its React/vitest suites are not bun-test-compatible.
+  "web-ui/**",
 ]
 
 [run]

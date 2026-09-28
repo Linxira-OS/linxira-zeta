@@ -4,7 +4,7 @@ import { type Component } from "../tui";
 import { Markdown } from "../components/markdown";
 import { formatNumber } from "@linxiraos/pi-utils";
 import { getMarkdownTheme, theme } from "../theme";
-import { tuiText, tuiTextFmt } from "../i18n";
+import { expandKeyHint } from "../render/render-utils";
 import type { BranchSummaryMessage, CompactionSummaryMessage, CustomMessage } from "./messages";
 
 /** Divider labels per compaction method; unknown/legacy methods fall back to "compacted". */
@@ -55,7 +55,7 @@ class DividerSummary implements Component {
 		const rule = theme.tree.horizontal;
 		const label = this.#label();
 		// sep.dot ships pre-padded (" · "); trim so the hint joins with single spaces.
-		const hint = `${theme.sep.dot.trim()} ctrl+o`;
+		const hint = `${theme.sep.dot.trim()} ${expandKeyHint()}`;
 		const plainWidth = Bun.stringWidth(`${label} ${hint}`, { countAnsiEscapeCodes: false });
 		// ` label hint ` framed by rules on both sides.
 		const remaining = width - plainWidth - 2;
@@ -166,10 +166,7 @@ export class CompactionSummaryMessageComponent extends SummaryMessageComponent {
 }
 
 function compactionLabel(message: CompactionSummaryMessage): string {
-	const name =
-		message.method === "handoff"
-			? tuiText("csLabelHandoff", "handed-off")
-			: (message.method && COMPACTION_METHOD_LABELS[message.method]) || tuiText("csLabelCompacted", "compacted");
+	const name = (message.method && COMPACTION_METHOD_LABELS[message.method]) || "compacted";
 	let label = `${theme.icon.camera} ${name}`;
 	const amount = compactionAmount(message);
 	if (amount) label += `${theme.sep.dot}${amount}`;
@@ -181,32 +178,15 @@ function compactionDetailMarkdown(message: CompactionSummaryMessage): string {
 	const tokenLine =
 		message.tokensBefore > 0
 			? message.tokensAfter !== undefined
-				? tuiTextFmt(
-						"compactionFromToTokensFmt",
-						`Compacted from ${message.tokensBefore.toLocaleString()} to ${message.tokensAfter.toLocaleString()} tokens`,
-						message.tokensBefore.toLocaleString(),
-						message.tokensAfter.toLocaleString(),
-					)
-				: tuiTextFmt(
-						"compactionFromTokensFmt",
-						`Compacted from ${message.tokensBefore.toLocaleString()} tokens`,
-						message.tokensBefore.toLocaleString(),
-					)
+				? `Compacted from ${message.tokensBefore.toLocaleString()} to ${message.tokensAfter.toLocaleString()} tokens`
+				: `Compacted from ${message.tokensBefore.toLocaleString()} tokens`
 			: message.tokensAfter !== undefined
-				? tuiTextFmt(
-						"compactionToTokensFmt",
-						`Compacted to ${message.tokensAfter.toLocaleString()} tokens`,
-						message.tokensAfter.toLocaleString(),
-					)
-				: tuiText("compactionContextLabel", "Compacted context");
+				? `Compacted to ${message.tokensAfter.toLocaleString()} tokens`
+				: "Compacted context";
 	const frameCount = message.images?.length ?? 0;
 	const frameNote =
-		frameCount > 0
-			? `\n\n${tuiTextFmt("csFramesAttachedFmt", `_${frameCount} snapcompact frame${frameCount === 1 ? "" : "s"} attached_`, frameCount, frameCount === 1 ? "" : "s")}`
-			: "";
-	const warningNote = message.warning
-		? `\n\n${theme.icon.warning} ${tuiTextFmt("csWarningFmt", "**Warning:** %s", message.warning)}`
-		: "";
+		frameCount > 0 ? `\n\n_${frameCount} snapcompact frame${frameCount === 1 ? "" : "s"} attached_` : "";
+	const warningNote = message.warning ? `\n\n${theme.icon.warning} **Warning:** ${message.warning}` : "";
 	return `**${tokenLine}**${warningNote}\n\n${message.summary}${frameNote}`;
 }
 
@@ -218,10 +198,10 @@ function compactionDetailMarkdown(message: CompactionSummaryMessage): string {
 export class HandoffSummaryMessageComponent extends SummaryMessageComponent {
 	constructor(message: CustomMessage<unknown>) {
 		super({
-			label: () => `${theme.icon.context} ${tuiText("csLabelHandoff", "handed-off")}`,
+			label: () => `${theme.icon.context} handed-off`,
 			detailMarkdown: () => {
 				const document = extractHandoffDocument(getCustomMessageText(message));
-				return `**${tuiText("csHandoffContext", "Handoff context")}**\n\n${document || tuiText("csNoHandoffContent", "_No handoff content._")}`;
+				return `**Handoff context**\n\n${document || "_No handoff content._"}`;
 			},
 		});
 	}
@@ -245,8 +225,8 @@ export function createHandoffSummaryMessageComponent(
 export class BranchSummaryMessageComponent extends SummaryMessageComponent {
 	constructor(message: BranchSummaryMessage) {
 		super({
-			label: () => `${theme.icon.branch} ${tuiText("csLabelBranch", "branch")}`,
-			detailMarkdown: () => `**${tuiText("csBranchSummary", "Branch summary")}**\n\n${message.summary}`,
+			label: () => `${theme.icon.branch} branch`,
+			detailMarkdown: () => `**Branch summary**\n\n${message.summary}`,
 		});
 	}
 }

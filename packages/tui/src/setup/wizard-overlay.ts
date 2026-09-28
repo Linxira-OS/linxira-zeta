@@ -1,8 +1,9 @@
 import { type Component, type OverlayFocusOwner } from "../tui";
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { matchesKey } from "../keys";
 import { centerLine, padding } from "../utils";
 import { padToWidth } from "../render/utils";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { routeSgrMouseInput, type SgrMouseEvent } from "../mouse";
 import { APP_NAME } from "@linxiraos/pi-utils";
 import { gradientLogo, ZETA_LOGO } from "../prompt/welcome";
@@ -183,20 +184,15 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 
 	#renderScene(width: number, height: number): string[] {
 		const scene = this.scenes[this.#sceneIndex];
-		const title = this.#activeScene?.title ?? scene?.title ?? tuiText("setupFallbackTitle", "Setup");
+		const title = this.#activeScene?.title ?? scene?.title ?? "Setup";
 		const subtitle = this.#activeScene?.subtitle;
 		const contentWidth = Math.max(MIN_CONTENT_WIDTH, width - SCENE_MARGIN_X * 2);
 		const logo = gradientLogo(ZETA_LOGO, 0);
 		const header = [
+			"",
 			...logo.map(line => centerLine(line, width)),
 			centerLine(theme.bold(theme.fg("accent", APP_NAME)), width),
-			centerLine(
-				theme.fg(
-					"muted",
-					tuiTextFmt("setupStepFmt", "Setup step %s of %s", this.#sceneIndex + 1, this.scenes.length),
-				),
-				width,
-			),
+			centerLine(theme.fg("muted", `Setup step ${this.#sceneIndex + 1} of ${this.scenes.length}`), width),
 			"",
 			indentLine(theme.bold(title), width, SCENE_MARGIN_X),
 		];
@@ -206,13 +202,9 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 		header.push("");
 		this.#bodyRowStart = header.length;
 
-		const footer = [
-			"",
-			centerLine(
-				theme.fg("dim", tuiText("setupFooterHint", "↑/↓ select · enter confirm · esc skip · ctrl+c exit setup")),
-				width,
-			),
-		];
+		const navKeys = editorKeys("tui.select.up", "tui.select.down");
+		const footerHint = `${navKeys} select · ${editorKey("tui.select.confirm")} confirm · ${editorKey("tui.select.cancel")} skip · ${formatKeyHint("ctrl+c")} exit setup`;
+		const footer = ["", centerLine(theme.fg("dim", footerHint), width)];
 		const maxBodyLines = Math.max(0, height - header.length - footer.length);
 		const body = this.#activeScene?.render(contentWidth, maxBodyLines).slice(0, maxBodyLines) ?? [];
 		const lines = [...header, ...body.map(line => indentLine(line, width, SCENE_MARGIN_X))];

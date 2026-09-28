@@ -5,7 +5,6 @@
  * exposes the configured ctrl+p quick roles.
  */
 import type { Model } from "@linxiraos/pi-ai";
-import { tuiText } from "../i18n";
 import { addKeyAliases, canonicalKeyId } from "../keybindings";
 import { type KeyId, parseKey } from "../keys";
 import type { Component, TUI } from "../tui";
@@ -16,6 +15,8 @@ import type { ConfiguredThinkingLevel } from "../thinking";
 import type { ScopedModelItem } from "./model-hub";
 import { bottomBorder, row, topBorder } from "../chrome/overlay-box";
 import { resolveSegmentPalette } from "../chrome/segment-track";
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 
 /** Configured role resolved to a concrete model. */
 export interface ResolvedRoleModel {
@@ -59,10 +60,8 @@ export interface ModelPickerOptions {
 	quickRoleOrder?: ReadonlyArray<string>;
 	/** Active quick role, highlighted when the search begins with `@`. */
 	currentQuickRole?: string;
-	/** Keys that toggle task-subagent mode while the picker is open; typically the alt+p binding. */
+	/** Keys that toggle task-subagent mode while the picker is open; the first is shown in the footer. */
 	taskModeKeys?: readonly KeyId[];
-	/** Human-readable label for the toggle key, shown in footer hints (e.g. "alt+p"). */
-	taskModeKeyLabel?: string;
 	/** `provider/id` highlighted and preselected in task mode (current Task subagent model). */
 	taskSelector?: string;
 }
@@ -75,6 +74,26 @@ export const BROWSER_FRAME_ROWS = 5;
 const MIN_VISIBLE = 5;
 /** Fraction of the terminal height the floating overlay occupies. */
 const HEIGHT_FRACTION = 0.4;
+
+const STATUS_HINT = "Session-only switch — role models stay unchanged";
+const QUICK_ROLE_STATUS_HINT = "Quick role switch — applies its model and thinking for this session";
+const TASK_STATUS_HINT = "Task subagent switch — spawned task agents use this model (session-only)";
+
+/** Footer hint for the active mode; keys resolve at render time so theme/keybinding changes apply. */
+function footerHint(mode: "session" | "role" | "task"): string {
+	const upDown = editorKeys("tui.select.up", "tui.select.down");
+	const enter = formatKeyHint("enter");
+	const close = `${editorKey("tui.select.cancel")} close`;
+	switch (mode) {
+		case "role":
+			return `${upDown} roles · ${enter} apply role model · type to search · ${close}`;
+		case "task":
+			return `${upDown} models · ${enter} use for Task subagents · type to search · ${close}`;
+		default:
+			return `${upDown} models · ${enter} use for this session · type to search · @ quick roles · ${close}`;
+	}
+}
+
 /**
  * The alt+p picker component. Hosted as a non-fullscreen bottom-anchored
  * overlay (`ui.showOverlay(..., { anchor: "bottom-center" })`); keyboard-only,
@@ -95,7 +114,7 @@ export class ModelPickerComponent implements Component {
 	#roleMode = false;
 	#taskMode = false;
 	#taskMatchKeys = new Set<string>();
-	#taskModeKeyLabel: string;
+	#taskModeKey: KeyId | undefined;
 	#taskSelector: string | undefined;
 
 	constructor(
@@ -113,8 +132,8 @@ export class ModelPickerComponent implements Component {
 		this.#currentSelector = options.currentSelector;
 		this.#currentQuickRoleSelector = options.currentQuickRole ? `@${options.currentQuickRole}` : undefined;
 		this.#taskSelector = options.taskSelector;
-		this.#taskModeKeyLabel = options.taskModeKeyLabel ?? "alt+p";
 		if (callbacks.onPickTask) {
+			this.#taskModeKey = options.taskModeKeys?.[0];
 			for (const key of options.taskModeKeys ?? []) addKeyAliases(this.#taskMatchKeys, key);
 		}
 		this.#quickRoleItems = this.#buildQuickRoleItems(
@@ -126,7 +145,9 @@ export class ModelPickerComponent implements Component {
 			currentContextTokens: options.currentContextTokens,
 			markOverContext: true,
 			emptyText: () =>
-				this.#roleMode ? tuiText("mpNoQuickRoles", "  No quick roles in the Ctrl+P cycle") : undefined,
+				this.#roleMode
+					? `  No quick roles in the ${editorKey("app.model.cycleForward") || formatKeyHint("ctrl+p")} cycle`
+					: undefined,
 		});
 		this.#browser.onActivate = item => {
 			const quickRole = this.#quickRoles.get(item.selector);
@@ -257,48 +278,17 @@ export class ModelPickerComponent implements Component {
 		const status = this.#configError
 			? theme.fg("error", ` ${this.#configError}`)
 			: this.#taskMode
-				? theme.fg(
-						"error",
-						` ${tuiText(
-							"mpTaskStatusHint",
-							"Task subagent switch — spawned task agents use this model (session-only)",
-						)}`,
-					)
-				: theme.fg(
-						"muted",
-						` ${
-							this.#roleMode
-								? tuiText(
-										"mpQuickRoleStatusHint",
-										"Quick role switch — applies its model and thinking for this session",
-									)
-								: tuiText("mpStatusHint", "Session-only switch — role models stay unchanged")
-						}`,
-					);
+				? theme.fg("error", ` ${TASK_STATUS_HINT}`)
+				: theme.fg("muted", ` ${this.#roleMode ? QUICK_ROLE_STATUS_HINT : STATUS_HINT}`);
 
 		const borderColor: ThemeColor | undefined = this.#taskMode ? "error" : undefined;
-		let footer = this.#taskMode
-			? tuiText("mpTaskFooterHint", "↑/↓ models · Enter use for Task subagents · type to search · Esc close")
-			: this.#roleMode
-				? tuiText("mpQuickRoleFooterHint", "↑/↓ roles · Enter apply role model · type to search · Esc close")
-				: tuiText(
-						"mpFooterHint",
-						"↑/↓ models · Enter use for this session · type to search · @ quick roles · Esc close",
-					);
-		if (this.#taskMatchKeys.size > 0 && !this.#roleMode) {
-			footer += ` · ${this.#taskModeKeyLabel} ${
-				this.#taskMode ? tuiText("mpSessionModelWord", "session model") : tuiText("mpTaskModelWord", "task model")
-			}`;
+		let footer = footerHint(this.#taskMode ? "task" : this.#roleMode ? "role" : "session");
+		if (this.#taskModeKey !== undefined && !this.#roleMode) {
+			footer += ` · ${formatKeyHint(this.#taskModeKey)} ${this.#taskMode ? "session model" : "task model"}`;
 		}
 
 		const out: string[] = [];
-		out.push(
-			topBorder(
-				width,
-				this.#taskMode ? tuiText("mpTaskTitle", "Switch Task Model") : tuiText("mpTitle", "Switch Model"),
-				borderColor,
-			),
-		);
+		out.push(topBorder(width, this.#taskMode ? "Switch Task Model" : "Switch Model", borderColor));
 		out.push(row(status, width, borderColor));
 		for (const line of this.#browser.render(inner)) {
 			out.push(row(line, width, borderColor));

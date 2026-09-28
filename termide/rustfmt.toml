@@ -1,0 +1,5 @@
+# Intentionally empty: stops rustfmt's upward config discovery so the vendored
+# tree formats with upstream's stock (spaces) style instead of inheriting the
+# Zeta root rustfmt.toml (hard_tabs + nightly options). Without this, a
+# `cargo fmt` run inside termide/ reformats the whole snapshot and CI's
+# `--check` gate fails (vendored layer, see VENDOR.md #3).

@@ -9,7 +9,15 @@ import * as os from "node:os";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
-
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
+import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
+import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
+import type { SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
+import { CURRENT_SETUP_VERSION } from "@linxiraos/pi-tui/setup/setup-version";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@linxiraos/pi-tui/theme";
+import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import chalk from "@linxiraos/pi-utils/chalk";
 import {
 	directoryIsMissing,
 	getLogPath,
@@ -21,35 +29,32 @@ import {
 import { $env, isBunTestRuntime, setInteractiveHost } from "@linxiraos/pi-utils/env";
 import * as logger from "@linxiraos/pi-utils/logger";
 import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import chalk from "@linxiraos/pi-utils/chalk";
-
+import { cfgAdvisorEnabled } from "./advisor/settings";
 import { reset as resetCapabilities } from "./capability";
 import { type Args, reportUnrecognizedFlags, validateToolNames } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
 import { buildInitialMessage } from "./cli/initial-message";
-import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
-
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { getLatestRelease } from "./cli/update-cli";
 import { findConfigFile } from "./config";
 import { ModelRegistry } from "./config/model-registry";
-import { formatModelSelectorValue, parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
 	DEFAULT_PREWALK_TARGET,
 	disabledProviderIds,
 	expandRoleAlias,
 	getModelMatchPreferences,
+	type ResolveCliModelResult,
 	resolveCliModel,
 	resolveConfiguredModelPatterns,
-	type ResolveCliModelResult,
 	resolveModelRoleValue,
 	resolveModelScope,
 	type ScopedModel,
 } from "./config/model-resolver";
+import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
 import { ModelsConfigFile } from "./config/models-config";
-import { serviceTierSettingToTier } from "./config/service-tier";
 import { all, combine, type ProtocolHost, type SettingValueOf } from "./config/registry";
+import { serviceTierSettingToTier } from "./config/service-tier";
 import { Settings, settings } from "./config/settings";
 import { initializeWithSettings } from "./discovery";
 import {
@@ -64,68 +69,14 @@ import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
 import type { ExtensionUIContext } from "./extensibility/extensions/types";
 import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
+import { cfgSkillsIncludeSkills } from "./extensibility/settings";
 import { registerDaemonProjectPresence } from "./launch/presence";
 import { discoverStartupLspServers } from "./lsp/servers";
 import type { MCPManager } from "./mcp";
 import type { InteractiveMode } from "./modes/interactive-mode";
 import type { PrintModeOptions } from "./modes/print-mode";
-import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
-import { CURRENT_SETUP_VERSION } from "@linxiraos/pi-tui/setup/setup-version";
-import type * as SetupWizardModule from "./modes/setup";
-import type { SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
-
-import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
-import {
-	applyStartupComposerPreferences,
-	type ComposerLease,
-	setStartupComposerLspServers,
-	stopPendingStartupComposer,
-	takeStartupComposerLease,
-} from "./modes/startup-composer";
-import { ensureTheme, initTheme, stopThemeWatcher } from "@linxiraos/pi-tui/theme";
-import type { SubmittedUserInput } from "./modes/types";
-import { createWarpEventBridgeExtension } from "./modes/warp-events";
-import { AgentLifecycleManager } from "./registry/agent-lifecycle";
-import {
-	type CreateAgentSessionOptions,
-	type CreateAgentSessionResult,
-	createAgentSession,
-	discoverAuthStorage,
-	loadSessionExtensions,
-} from "./sdk";
-import type { AgentSession } from "./session/agent-session";
-import { createAuthStorageSettingsSync, describeAuthBrokerStartupError } from "./session/auth-broker-config";
-import type { AuthStorage } from "./session/auth-storage";
-import { describePendingToolCalls } from "./session/exit-diagnostics";
-import {
-	createForeignSessionStore,
-	foreignSessionInfoToSessionInfo,
-	foreignSessionSourceName,
-	persistForeignSession,
-} from "./session/foreign-session-import";
-import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
-import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
-import { ForkSourceNotFoundError, SessionManager } from "./session/session-manager";
-import { shouldShowStartupSplash } from "./startup-splash";
-import {
-	discoverSystemPromptOverride,
-	discoverTitleSystemPromptFile,
-	loadSystemPromptTemplateFile,
-	resolvePromptInput,
-} from "./system-prompt";
-import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
-import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
-import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { LspStartupServerInfo } from "./tools";
-import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
-
-import { getChangelogPath, resolveStartupChangelogForDisplay, type StartupChangelogSelection } from "./utils/changelog";
-import { EventBus } from "./utils/event-bus";
-
-import { cfgAdvisorEnabled } from "./advisor/settings";
-import { cfgToolsApprovalMode } from "./tools/settings";
+import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import {
 	cfgAutocompleteMaxVisible,
 	cfgAutoResume,
@@ -151,6 +102,39 @@ import {
 	cfgTuiResizeScrollback,
 	cfgUpdateChannel,
 } from "./modes/settings";
+import type * as SetupWizardModule from "./modes/setup";
+import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
+import {
+	applyStartupComposerPreferences,
+	type ComposerLease,
+	setStartupComposerLspServers,
+	stopPendingStartupComposer,
+	takeStartupComposerLease,
+} from "./modes/startup-composer";
+import type { SubmittedUserInput } from "./modes/types";
+import { createWarpEventBridgeExtension } from "./modes/warp-events";
+import { AgentLifecycleManager } from "./registry/agent-lifecycle";
+import {
+	type CreateAgentSessionOptions,
+	type CreateAgentSessionResult,
+	createAgentSession,
+	discoverAuthStorage,
+	loadSessionExtensions,
+} from "./sdk";
+import type { AgentSession } from "./session/agent-session";
+import { createAuthStorageSettingsSync, describeAuthBrokerStartupError } from "./session/auth-broker-config";
+import type { AuthStorage } from "./session/auth-storage";
+import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
+import { describePendingToolCalls } from "./session/exit-diagnostics";
+import {
+	createForeignSessionStore,
+	foreignSessionInfoToSessionInfo,
+	foreignSessionSourceName,
+	persistForeignSession,
+} from "./session/foreign-session-import";
+import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
+import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
+import { ForkSourceNotFoundError, SessionManager } from "./session/session-manager";
 import {
 	cfgDefaultThinkingLevel,
 	cfgExternalThinking,
@@ -158,10 +142,21 @@ import {
 	cfgOmitThinking,
 	cfgPrewalkEnabled,
 } from "./session/settings";
-import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
+import { shouldShowStartupSplash } from "./startup-splash";
+import {
+	discoverSystemPromptOverride,
+	discoverTitleSystemPromptFile,
+	loadSystemPromptTemplateFile,
+	resolvePromptInput,
+} from "./system-prompt";
+import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { cfgTaskAgentIdleTtlMs } from "./task/settings";
-import { cfgSkillsIncludeSkills } from "./extensibility/settings";
-import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
+import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
+import { registerLocalInferenceApi } from "./tiny/local-inference-api";
+import type { LspStartupServerInfo } from "./tools";
+import { cfgToolsApprovalMode } from "./tools/settings";
+import { getChangelogPath, resolveStartupChangelogForDisplay, type StartupChangelogSelection } from "./utils/changelog";
+import { EventBus } from "./utils/event-bus";
 
 type RunAcpMode = (createSession: AcpSessionFactory) => Promise<never>;
 type RunPrintMode = (session: AgentSession, options: PrintModeOptions) => Promise<number>;
@@ -249,7 +244,7 @@ export async function readPipedInput(): Promise<string | undefined> {
 		? undefined
 		: setTimeout(() => {
 				process.stderr.write(
-					`${chalk.dim("Reading prompt from piped stdin (waiting for EOF; ctrl+c to abort)…")}\n`,
+					`${chalk.dim(`Reading prompt from piped stdin (waiting for EOF; ${formatKeyHint("ctrl+c")} to abort)…`)}\n`,
 				);
 			}, 1000);
 	notice?.unref?.();
@@ -342,7 +337,7 @@ export function buildModelScopeNotification(
 			return `${scopedModel.model.id}${thinkingStr}`;
 		})
 		.join(", ");
-	return { kind: "info", message: `Model scope: ${modelList} (Ctrl+P to cycle)` };
+	return { kind: "info", message: `Model scope: ${modelList} (${formatKeyHint("ctrl+p")} to cycle)` };
 }
 export async function submitInteractiveInput(
 	mode: Pick<
@@ -687,8 +682,7 @@ async function runInteractiveMode(
 			}
 		}
 
-		// `zeta join <link>`: dispatch through the same builtin path as a typed
-
+		// `omp join <link>`: dispatch through the same builtin path as a typed
 		// `/join` so collab guards and error rendering stay in one place.
 		if (joinLink !== undefined) {
 			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
@@ -990,7 +984,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `zeta models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -2237,7 +2231,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `zeta --list-models`) now that we
+			// Fail fast on stale/typo flags (e.g. `omp --list-models`) now that we
 			// know the real extension flag set. Without this check the unrecognized
 			// token gets silently consumed and any following positional leaks as the
 			// initial prompt — kicking off a real LLM session, MCP connection, and

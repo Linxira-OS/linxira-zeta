@@ -35,7 +35,6 @@ import {
 	type TUI,
 	truncateToWidth,
 } from "../index";
-import { tuiText, tuiTextFmt } from "../i18n";
 import type { MessageRenderer } from "../chat/extension-types";
 import type { TranscriptEntryLike as TranscriptEntry } from "../chat/transcript-entry";
 import { theme } from "../theme/theme";
@@ -43,6 +42,9 @@ import { matchesAppToolsExpand, matchesSelectCancel, matchesSelectDown, matchesS
 import { ChatTranscriptBuilder } from "../chat/chat-transcript-builder";
 import { TranscriptBrowser, type TranscriptBrowserFrame } from "../chat/transcript-browser";
 import { padToWidth } from "../render/utils";
+import { expandKeyHint } from "../render/render-utils";
+import { formatKeyHint, formatKeyHints } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import {
 	appendOutlineEntries,
 	type ComposedColumn,
@@ -487,32 +489,22 @@ export class RewindSelectorComponent implements Component {
 						prepared,
 					}).column;
 		const position = this.#targets.length > 0 ? `${this.#selected + 1}/${this.#targets.length}  ` : "";
-		const lateral =
-			columns.length > 0 ? tuiText("rwHintBranches", "←/→ branches") : tuiText("rwHintTurns", "←/→ user turns");
+		const upDown = editorKeys("tui.select.up", "tui.select.down");
+		const leftRight = formatKeyHints(["left", "right"]);
+		const lateral = columns.length > 0 ? `${leftRight} branches` : `${leftRight} user turns`;
+		const keys = `${upDown} step  ${lateral}  ${formatKeyHint("f")} filter  ${formatKeyHint("enter")} rewind  ${expandKeyHint()} expand  ${editorKey("tui.select.cancel")} cancel`;
 		return {
 			header: [this.#header()],
 			body: {
 				lines: composed.lines,
 				anchor: this.#outlineAnchor(composed),
 			},
-			footer: [
-				theme.fg(
-					"dim",
-					tuiTextFmt(
-						"rwFooterFmt",
-						"↑/↓ step  %s  enter rewind  ctrl+o expand  esc cancel",
-						`${position}${lateral}`,
-					),
-				),
-			],
+			footer: [theme.fg("dim", `${position}${keys}`)],
 		};
 	}
 
 	#header(): string {
-		return `${theme.icon.rewind} ${theme.bold(tuiText("rwTitle", "Rewind"))}${theme.sep.dot}${theme.fg(
-			"dim",
-			tuiText("rwSubtitle", "pick the point to continue from"),
-		)}`;
+		return `${theme.icon.rewind} ${theme.bold("Rewind")}${theme.sep.dot}${theme.fg("dim", "pick the point to continue from")}`;
 	}
 
 	/** Only the matching items of the current path, concatenated; no branch strip. */
@@ -532,14 +524,13 @@ export class RewindSelectorComponent implements Component {
 		}
 		const selected = matches.indexOf(this.#selected);
 		const composed = composeOutlineColumn(rows, 0, rows.length, targets, selected, contentWidth, undefined);
-		const lines =
-			matches.length > 0
-				? composed.lines
-				: [theme.fg("muted", `  ${tuiTextFmt("rwNoMatches", 'No items match "%s"', query)}`)];
+		const lines = matches.length > 0 ? composed.lines : [theme.fg("muted", `  No items match "${query}"`)];
 		const count =
 			matches.length === 0
-				? theme.fg("error", tuiText("rwNoMatchCount", "no matches"))
+				? theme.fg("error", "no matches")
 				: theme.fg("dim", `${selected >= 0 ? selected + 1 : "-"}/${matches.length}`);
+		const upDown = editorKeys("tui.select.up", "tui.select.down");
+		const keys = `${upDown} step  ${formatKeyHints(["left", "right"])} user turns  ${formatKeyHint("enter")} rewind  ${editorKey("tui.select.cancel")} show all`;
 		return {
 			header: [this.#header()],
 			body: {
@@ -554,7 +545,7 @@ export class RewindSelectorComponent implements Component {
 						: undefined,
 			},
 			footer: [
-				`${theme.fg("accent", tuiText("rwFilterLabel", "filter:"))} ${query}${theme.fg("accent", "▏")}  ${count}  ${theme.fg("dim", tuiText("rwFilterHint", "enter apply  esc cancel"))}`,
+				`${theme.fg("accent", "filter:")} ${query}${theme.fg("accent", "▏")}  ${count}  ${theme.fg("dim", keys)}`,
 			],
 		};
 	}
@@ -600,7 +591,7 @@ export class RewindSelectorComponent implements Component {
 				suffixTargets,
 				this.#activeVariant === 0 ? 0 : -1,
 				colWidth,
-				this.#columnHeader(0, count, tuiText("rwCurrentColumn", "current"), colWidth),
+				this.#columnHeader(0, count, "current", colWidth),
 			),
 		];
 		for (let index = 0; index < columns.length; index++) {

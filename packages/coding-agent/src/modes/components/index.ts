@@ -36,7 +36,6 @@ export * from "@linxiraos/pi-tui/overlays/show-images-selector";
 export * from "@linxiraos/pi-tui/status-line";
 export * from "@linxiraos/pi-tui/overlays/theme-selector";
 export * from "@linxiraos/pi-tui/overlays/thinking-selector";
-export * from "@linxiraos/pi-tui/overlays/tiny-title-download-progress";
 export * from "@linxiraos/pi-tui/chat/todo-reminder";
 export * from "@linxiraos/pi-tui/chat/tool-execution";
 export * from "@linxiraos/pi-tui/overlays/tree-selector";

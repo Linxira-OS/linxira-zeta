@@ -37,7 +37,7 @@ describe("AgentSession advisor toggle", () => {
 	let model: Model;
 	let replacementModel: Model;
 
-	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const originalPiProfile = process.env.PI_PROFILE;
 	const originalOmpProfile = process.env.OMP_PROFILE;
 
@@ -57,7 +57,7 @@ describe("AgentSession advisor toggle", () => {
 
 	afterAll(() => {
 		authStorage.close();
-		restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnv("PI_PROFILE", originalPiProfile);
 		restoreEnv("OMP_PROFILE", originalOmpProfile);
 		__resetDirsFromEnvForTests();
@@ -95,7 +95,7 @@ describe("AgentSession advisor toggle", () => {
 		try {
 			await session?.dispose();
 		} finally {
-			restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+			restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 			restoreEnv("PI_PROFILE", originalPiProfile);
 			restoreEnv("OMP_PROFILE", originalOmpProfile);
 			__resetDirsFromEnvForTests();

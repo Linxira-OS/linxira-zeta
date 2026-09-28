@@ -25,6 +25,7 @@ import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, MAX_WEB_SEARCH_TIMEOUT_SECONDS } fr
 import { DEFAULT_USAGE_RESERVE_PCT } from "@linxiraos/pi-ai/auth-storage";
 import { configureProviderMaxInFlightRequests } from "@linxiraos/pi-ai/stream";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import {
 	AUTO_THINKING,
 	getConfiguredThinkingLevelMetadata,
@@ -710,8 +711,9 @@ export const cfgRetryWaitForUsageReset = register({
 		tab: "model",
 		group: "Retry & Fallback",
 		label: "Wait For Usage Reset",
-		description:
-			"When a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows on any provider), sleep until the reset instead of failing fast past retry.maxDelayMs. Waits are abortable (Esc) but also hold subagents, so leave off for unattended runs.",
+		get description() {
+			return `When a provider reports usage-limit exhaustion with a reset time (5-hour or weekly quota windows on any provider), sleep until the reset instead of failing fast past retry.maxDelayMs. Waits are abortable (${formatKeyHint("escape")}) but also hold subagents, so leave off for unattended runs.`;
+		},
 	},
 });
 
@@ -1395,36 +1397,4 @@ export const cfgThinkingBudgets = combine({
 	high: cfgThinkingBudgetsHigh,
 	xhigh: cfgThinkingBudgetsXhigh,
 	max: cfgThinkingBudgetsMax,
-});
-
-/**
- * TTT editor integration. The bundled editor ships as its own npm package, so
- * both switches default to on: the handoff file is the only way the editor
- * learns the session, and the install guard keeps a missing package from
- * turning a switch into an error dialog.
- */
-export const cfgEditorAutoInstall = register({
-	id: "editor.autoInstall",
-	type: "boolean",
-	default: true,
-	ui: {
-		tab: "interaction",
-		group: "Agent",
-		label: "Auto-install Editor",
-		description:
-			"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
-	},
-});
-
-export const cfgEditorHandoffSession = register({
-	id: "editor.handoffSession",
-	type: "boolean",
-	default: true,
-	ui: {
-		tab: "interaction",
-		group: "Agent",
-		label: "Hand Off Session",
-		description:
-			"Write the current session into the handoff file so the editor side can restore the conversation context",
-	},
 });

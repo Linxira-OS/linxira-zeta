@@ -34,6 +34,7 @@ import { vi } from "bun:test";
 import { isSettingsInitialized, Settings, settings } from "@linxiraos/zeta/config/settings";
 import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import type { MCPServerConnection } from "@linxiraos/zeta/mcp/types";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
 import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { OAuthManualInputManager } from "@linxiraos/zeta/modes/oauth-manual-input";
@@ -267,6 +268,7 @@ export function createInteractiveModeContext(overrides: ContextOverrides = {}): 
 		optimisticSkillMessagePending: false,
 		locallySubmittedUserSignatures: new Set<string>(),
 		mcpTestEscapeHandlers: new Set<() => void>(),
+		keybindings: KeybindingsManager.inMemory(),
 		todoPhases: [],
 		init: vi.fn(async () => {}),
 		present: vi.fn(mount),

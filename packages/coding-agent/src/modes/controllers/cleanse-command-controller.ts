@@ -4,6 +4,7 @@
  * cancel-then-dismiss (mirroring the `/omfg` panel).
  */
 import { runCleanse } from "../../cleanse";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { CleanseBoardModel } from "@linxiraos/pi-tui/apps/cleanse-board";
 import type { CleanseCheckerDescriptor } from "../../cleanse/checkers";
 import type { CleanseTargetChoice } from "@linxiraos/pi-tui/apps/cleanse-picker";
@@ -58,7 +59,9 @@ export class CleanseCommandController {
 
 	async start(args: string): Promise<void> {
 		if (this.#active) {
-			this.ctx.showStatus("A /cleanse run is already active — Esc cancels it.");
+			this.ctx.showStatus(
+				`A /cleanse run is already active — ${appKey(this.ctx.keybindings, "app.interrupt")} cancels it.`,
+			);
 			return;
 		}
 		const parsed = parseCleanseArgs(args);
@@ -146,7 +149,7 @@ export class CleanseCommandController {
 	}
 }
 
-/** Parse `/cleanse` arguments; flag names mirror the `zeta cleanse` CLI. */
+/** Parse `/cleanse` arguments; flag names mirror the `omp cleanse` CLI. */
 function parseCleanseArgs(args: string): ParsedCleanseArgs {
 	const tokens = args.split(/\s+/).filter(Boolean);
 	const requestParts: string[] = [];

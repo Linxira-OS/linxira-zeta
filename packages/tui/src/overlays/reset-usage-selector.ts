@@ -1,4 +1,3 @@
-import { tuiText } from "../i18n";
 import type { UsageResetCreditDetail } from "@linxiraos/pi-ai";
 import { Container, matchesKey, ScrollView, Spacer, Text, TruncatedText } from "../index";
 import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
@@ -8,6 +7,8 @@ import { OverlayPanel } from "../chrome/overlay-box";
 import { MenuSelection } from "../components/menu-selection";
 import { centeredViewportRange } from "../components/scroll-viewport";
 import { formatUsageResetWindow } from "./usage-display";
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 
 const RESET_SELECTOR_MAX_VISIBLE = 10;
 
@@ -48,7 +49,7 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 	#onCancelCallback: () => void;
 
 	constructor(accounts: ResetUsageAccount[], onSelect: (account: ResetUsageAccount) => void, onCancel: () => void) {
-		super(tuiText("resetUsageTitle", "Spend a saved rate-limit reset"));
+		super("Spend a saved rate-limit reset");
 		this.#onSelectCallback = onSelect;
 		this.#onCancelCallback = onCancel;
 		const firstRedeemable = accounts.find(account => account.redeemableCount > 0);
@@ -136,18 +137,17 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 
 		if (total === 0) {
 			this.#listContainer.addChild(
-				new TruncatedText(
-					theme.fg("muted", tuiText("resetUsageEmpty", "No provider accounts with saved resets")),
-					0,
-					0,
-				),
+				new TruncatedText(theme.fg("muted", "No provider accounts with saved resets"), 0, 0),
 			);
 		}
 
 		const pending = items.find(item => this.#menu.isPending(item));
 		const hint = pending
 			? theme.fg("warning", oneLine(this.#confirmationMessage(pending)))
-			: theme.fg("muted", "↑/↓ select · ↵ spend a reset · Esc cancel");
+			: theme.fg(
+					"muted",
+					`${editorKeys("tui.select.up", "tui.select.down")} select · ${formatKeyHint("enter")} spend a reset · ${editorKey("tui.select.cancel")} cancel`,
+				);
 		this.#listContainer.addChild(new Text(hint, 0, 0));
 
 		if (this.#statusMessage) {
@@ -158,23 +158,18 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 
 	#confirmationMessage(account: ResetUsageAccount): string {
 		const subject = account.credit?.title ? `“${account.credit.title}”` : "1 saved reset";
-		const messages = [`Press Enter again to spend ${subject} for ${account.label} (${account.providerLabel}).`];
+		const messages = [
+			`Press ${formatKeyHint("enter")} again to spend ${subject} for ${account.label} (${account.providerLabel}).`,
+		];
 		if (account.credit?.program === "juniper_tide") {
-			messages.push(
-				tuiText(
-					"resetUsageClaudeScope",
-					"This resets Claude's 5h session limit only; weekly limits stay unchanged.",
-				),
-			);
+			messages.push("This resets Claude's 5h session limit only; weekly limits stay unchanged.");
 		} else if (account.credit?.clears?.length) {
 			messages.push(`Covers ${account.credit.clears.map(formatUsageResetWindow).join(", ")}.`);
 		}
 		if (account.credit?.requiresLimit === false) {
-			messages.push(
-				tuiText("resetUsageEarlyUse", "Optional early use: this can be spent before the covered limit is reached."),
-			);
+			messages.push("Optional early use: this can be spent before the covered limit is reached.");
 		}
-		messages.push(tuiText("resetUsageEsc", "Esc cancels."));
+		messages.push(`${editorKey("tui.select.cancel")} cancels.`);
 		return messages.join(" ");
 	}
 
@@ -215,7 +210,7 @@ export class ResetUsageSelectorComponent extends OverlayPanel {
 			if (account.redeemableCount <= 0) {
 				this.#statusMessage = account.unavailableReason
 					? `That account's saved resets are unavailable: ${account.unavailableReason}`
-					: tuiText("resetUsageNoneLeft", "That account has no saved resets usable right now.");
+					: "That account has no saved resets usable right now.";
 				this.#updateList();
 				return;
 			}

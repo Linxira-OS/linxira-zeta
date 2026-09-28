@@ -1,6 +1,5 @@
 import { isAnthropicServerToolHistoryBlock } from "@linxiraos/pi-ai/providers/anthropic-wire";
-import { countNewlines } from "@linxiraos/pi-utils";
-
+import { countNewlines, isRecord } from "@linxiraos/pi-utils";
 import {
 	type BlobStore,
 	externalizeImageDataSync,
@@ -189,7 +188,7 @@ function truncateForPersistence(obj: unknown, blobStore: BlobStore, key?: string
 
 	if (Array.isArray(obj)) {
 		let changed = false;
-		// [suppressed] length preallocation
+		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 		const result: unknown[] = new Array(obj.length);
 		for (let i = 0; i < obj.length; i++) {
 			const item = obj[i];
@@ -452,6 +451,32 @@ function stripReplayedReasoningSignatures(entry: FileEntry): FileEntry {
 	return { ...entry, message: { ...message, content } };
 }
 
+/**
+ * Spilled MCP text already includes the rendered structured payload in its
+ * artifact. Keep the live object for eval, but omit the duplicate from the
+ * serialized top-level tool result. Never mutate the in-memory message.
+ */
+function stripSpilledMcpStructuredContent(entry: FileEntry): FileEntry {
+	if (entry.type !== "message" || entry.message.role !== "toolResult") return entry;
+	const details = entry.message.details;
+	if (
+		!isRecord(details) ||
+		typeof details.serverName !== "string" ||
+		typeof details.mcpToolName !== "string" ||
+		!Object.hasOwn(details, "structuredContent") ||
+		!isRecord(details.meta) ||
+		!isRecord(details.meta.truncation) ||
+		typeof details.meta.truncation.artifactId !== "string" ||
+		details.meta.truncation.artifactId.length === 0
+	) {
+		return entry;
+	}
+	const persistedDetails = { ...details };
+	delete persistedDetails.structuredContent;
+	return { ...entry, message: { ...entry.message, details: persistedDetails } };
+}
+
 export function prepareEntryForPersistence(entry: FileEntry, blobStore: BlobStore): FileEntry {
-	return truncateForPersistence(stripReplayedReasoningSignatures(entry), blobStore) as FileEntry;
+	const projected = stripSpilledMcpStructuredContent(stripReplayedReasoningSignatures(entry));
+	return truncateForPersistence(projected, blobStore) as FileEntry;
 }

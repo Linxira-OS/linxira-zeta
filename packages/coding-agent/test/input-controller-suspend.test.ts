@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, type Mock, vi } from "bun:test";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 
 interface SuspendCtx {
 	ctx: InteractiveModeContext;
@@ -25,6 +26,7 @@ function createCtx(): SuspendCtx {
 		ui: ui as unknown as InteractiveModeContext["ui"],
 		showStatus,
 		showError,
+		keybindings: KeybindingsManager.inMemory(),
 	} as unknown as InteractiveModeContext;
 	return { ctx, ui, showStatus, showError };
 }

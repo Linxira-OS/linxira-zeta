@@ -19,3 +19,5 @@ export const LSP_MUX_WORKER_ARG = "__zeta_worker_lsp_mux";
 export const STATS_ACTIVITY_WORKER_ARG = "__zeta_worker_stats_activity";
 /** Terminal-output selector shared by the CLI dispatcher and worker launcher. */
 export const TERMINAL_OUTPUT_WORKER_ARG = "__zeta_worker_terminal_output";
+/** Text-prediction daemon selector shared by the CLI dispatcher and the broker daemon spec. */
+export const TEXT_PREDICT_WORKER_ARG = "__zeta_worker_text_predict";

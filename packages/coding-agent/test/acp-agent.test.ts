@@ -453,7 +453,7 @@ function expectAcpNotifications(updates: SessionNotification[]): void {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -462,7 +462,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	resetSettingsForTest();
 
@@ -2476,7 +2476,6 @@ describe("ACP agent", () => {
 			Object.assign(session, {
 				messages: session.sessionManager.buildSessionContext().messages,
 				titleGenerationSignal: new AbortController().signal,
-				notifyTitleGenerationStart: () => undefined,
 				generateTitle: (_context: string, _systemPrompt?: string, signal?: AbortSignal) => {
 					const inference = inferences[inferenceIndex++];
 					titleSignals.push(signal);

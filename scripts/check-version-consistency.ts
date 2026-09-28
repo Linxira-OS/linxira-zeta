@@ -59,13 +59,6 @@ const CATALOG_KEYS: ReadonlyArray<string> = [
 	"@linxiraos/pi-wire",
 ];
 
-// Must match SENTINEL_FILES in scripts/release-v2.ts / set-version.ts.
-const SENTINEL_FILES = [
-	"crates/pi-natives/src/lib.rs",
-	"packages/natives/native/index.d.ts",
-	"packages/natives/native/index.js",
-] as const;
-
 const problems: string[] = [];
 
 function readVersion(file: string): string {
@@ -127,15 +120,20 @@ function main(): void {
 		}
 	}
 
-	// pi-natives sentinel. Derivation must match set-version.ts: every
-	// non-alphanumeric char becomes "_", so 1.1.0-rc.1 yields
-	// __piNativesV1_1_0_rc_1 (a valid Rust identifier). The old
-	// dots-to-underscores rule produced 1_1_0-rc_1 with a hyphen — not an
-	// identifier — so the two scripts disagreed on any prerelease version.
-	const sentinel = `__piNativesV${expected.replace(/[^A-Za-z0-9]/g, "_")}`;
-	for (const file of SENTINEL_FILES) {
+	// pi-natives build-version mechanism (v18.3.3 upstream): the per-release
+	// __piNativesVX_Y_Z sentinel name is gone — the addon now exposes a single
+	// `__piNativesBuildVersion()` whose VALUE is stamped into the .node after
+	// linking (scripts/stamp-native-version.ts) and compared against
+	// package.json#version by the loader. The check therefore pins the
+	// mechanism symbols, not a version-derived name.
+	const mechanism: Array<[string, string]> = [
+		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["packages/natives/native/index.js", "__piNativesBuildVersion"],
+		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
+	];
+	for (const [file, needle] of mechanism) {
 		const content = fs.readFileSync(path.join(root, file), "utf8");
-		if (!content.includes(sentinel)) problems.push(`${file}: missing ${sentinel}`);
+		if (!content.includes(needle)) problems.push(`${file}: missing ${needle} (natives build-version mechanism)`);
 	}
 
 	// Desktop rides the same line (electron-builder + ZETA_APP_VERSION read it).

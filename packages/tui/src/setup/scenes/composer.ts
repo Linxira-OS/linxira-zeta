@@ -1,5 +1,4 @@
 import { type SgrMouseEvent } from "../../mouse";
-import { tuiText } from "../../i18n";
 import { type SelectItem, SelectList } from "../../components/select-list";
 import { Container } from "../../tui";
 import { Text } from "../../components/text";
@@ -7,17 +6,13 @@ import { WizardStep } from "../../components/wizard-step";
 import type { ComposerShape } from "../../overlays/composer-shape-registry";
 import { renderComposerShapePreview } from "../../overlays/composer-shape-preview";
 import { getComposerShapeOptions } from "../../overlays/composer-shape-registry";
+import { editorKey } from "../../chrome/keybinding-hints";
 import { getSelectListTheme, theme } from "../../theme/theme";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 class ComposerSceneController implements SetupSceneController {
-	get title(): string {
-		return tuiText("setupComposerTitle", "Choose composer shape");
-	}
-
-	get subtitle(): string {
-		return tuiText("setupComposerSubtitle", "Pick the prompt and status line layout for your workflow.");
-	}
+	title = "Choose composer shape";
+	subtitle = "Pick the prompt and status line layout for your workflow.";
 	#selectList: SelectList;
 	#shapes: readonly ComposerShape[];
 	#items: readonly SelectItem[];
@@ -81,13 +76,13 @@ class ComposerSceneController implements SetupSceneController {
 		const intro = new Text(
 			theme.fg(
 				"muted",
-				tuiText("setupComposerIntro", "Select a layout; live preview updates below. Press Enter to confirm."),
+				`Select a layout; live preview updates below. Press ${editorKey("tui.select.confirm")} to confirm.`,
 			),
 			0,
 			0,
 		);
 		const preview = new Container();
-		preview.addChild(new Text(theme.fg("muted", tuiText("setupComposerPreviewLabel", "Preview:")), 0, 0));
+		preview.addChild(new Text(theme.fg("muted", "Preview:"), 0, 0));
 		for (const line of renderComposerShapePreview(this.#currentShape, width, this.#host.ctx.statusLine)) {
 			preview.addChild(new Text(line, 0, 0));
 		}
@@ -130,9 +125,7 @@ class ComposerSceneController implements SetupSceneController {
 /** Select and persist the prompt composer layout. */
 export const composerSetupScene: SetupScene = {
 	id: "composer-shape",
-	get title(): string {
-		return tuiText("setupComposerTitle", "Choose composer shape");
-	},
+	title: "Choose composer shape",
 	minVersion: 2,
 	mount: host => new ComposerSceneController(host),
 };

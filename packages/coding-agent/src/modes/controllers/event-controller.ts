@@ -6,7 +6,6 @@ import { formatDuration, isRecord, logger, prompt, sanitizeText } from "@linxira
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { extractTextContent } from "../../commit/utils";
 import { settings } from "../../config/settings";
-import { M } from "../../i18n";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
 import {
@@ -24,6 +23,7 @@ import {
 } from "@linxiraos/pi-tui/chat/tool-execution";
 import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
 import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { getSymbolTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
@@ -231,6 +231,10 @@ export class EventController {
 	#prevHideThinking = false;
 	#handlers: AgentSessionEventHandlers;
 	#terminalProgressActive = false;
+	/** Bumped at every `agent_start`; an async-wait watch stands down once a new run begins. */
+	#runEpoch = 0;
+	/** Epoch of the in-flight {@link #finishWhenAsyncWorkDrains} watch, if any. */
+	#asyncDrainWatchEpoch: number | undefined = undefined;
 	// Coalescing window for `message_update` events at the subscription boundary.
 	// `message_update` carries the CUMULATIVE assistant message (every update
 	// re-lists all content blocks), so when a burst of deltas arrives faster than
@@ -723,12 +727,6 @@ export class EventController {
 		// cumulative snapshot is later superseded and never rebuilt.
 		this.#vocalizeDelta(event);
 		this.#vocalizedMessageUpdates.add(event);
-		// The rate meter is per-delta too: a coalesced-away snapshot still
-		// carried generated tokens.
-		const delta = event.assistantMessageEvent;
-		if (delta.type === "text_delta" || delta.type === "thinking_delta" || delta.type === "toolcall_delta") {
-			this.ctx.tokenRate.push(delta.delta);
-		}
 		this.#pendingMessageUpdate = event;
 		if (this.#messageUpdateTimer) return;
 		this.#messageUpdateTimer = setTimeout(() => {
@@ -912,6 +910,7 @@ export class EventController {
 	}
 
 	async #handleAgentStart(_event: Extract<AgentSessionEvent, { type: "agent_start" }>): Promise<void> {
+		this.#runEpoch += 1;
 		// A run with no user prompt in it (synthetic-only: `/goal` kickoff,
 		// approved-plan execution) must not measure prompt→yield from an unrelated
 		// earlier prompt. Normal user turns reseed via message_start before
@@ -1082,7 +1081,6 @@ export class EventController {
 			this.#finalizeAbandonedPostToolSegments();
 			this.#lastVisibleBlockCount = 0;
 			this.#streamedToolCallIdByIndex.clear();
-			this.ctx.tokenRate.begin(event.message.timestamp);
 			this.ctx.streamingComponent = createAssistantMessageComponent(this.ctx);
 			this.ctx.streamingMessage = event.message;
 			this.ctx.streamingComponent.pickReactionTarget(this.ctx.chatContainer.children);
@@ -1500,7 +1498,12 @@ export class EventController {
 				}
 			}
 		}
-		if (event.message.role === "user") return;
+		if (event.message.role === "user") {
+			// Live steering stays listed until the agent appends it, which follows
+			// message_start: drop its Steering chip now.
+			this.ctx.updatePendingMessagesDisplay();
+			return;
+		}
 		const unlockedThinkingVisibility =
 			event.message.role === "assistant" && this.ctx.noteDisplayableThinkingContent(event.message);
 		if (unlockedThinkingVisibility && this.ctx.streamingComponent) {
@@ -1519,10 +1522,6 @@ export class EventController {
 			}
 		}
 		if (this.ctx.streamingComponent && event.message.role === "assistant") {
-			this.ctx.tokenRate.end(
-				event.message.usage?.output,
-				event.message.duration ? event.message.timestamp + event.message.duration : undefined,
-			);
 			this.ctx.streamingMessage = event.message;
 			this.#streamingReveal.stop();
 			this.#toolArgsReveal.flushAll();
@@ -2000,9 +1999,10 @@ export class EventController {
 			// This is the render boundary, not the persisted result: the stored
 			// error stays full-fidelity for the transcript and for replays.
 			const detail = textContent ? previewLine(sanitizeText(textContent), TRUNCATE_LENGTHS.LINE) : "";
-			this.ctx.showWarning(`${M.ecTodoUpdateFailedPrefix}${detail ? `: ${detail}` : M.ecTodoUpdateFailedSuffix}`, {
-				hideWithToolActivity: true,
-			});
+			this.ctx.showWarning(
+				`Todo update failed${detail ? `: ${detail}` : ". Progress may be stale until todo succeeds."}`,
+				{ hideWithToolActivity: true },
+			);
 		}
 		// Plan approval rides a `write` to xd://propose: the dispatch metadata on
 		// the write details carries the approval payload as `inner`.
@@ -2058,16 +2058,26 @@ export class EventController {
 		// then). Mirrors the collab guest's !isStreaming loader reconciler.
 		if (this.ctx.session.isStreaming) return;
 		// A non-terminal settle (`isTerminal: false`) is a scheduling pause, not the
-		// end of the run: an unsuppressed async job (a `/vibe` worker turn, a bash
-		// `async` job, etc.) will re-wake the loop when its result is delivered.
-		// `AgentSession` tags this on the deferred event (see `#hasPendingAsyncWake`
-		// in agent-session.ts). Skip the idle title/loader teardown so the tab keeps
-		// reading "working"; the later terminal `agent_end` performs it. Still flush
-		// a deferred model switch — the plan-mode reconciler queues it to apply once
-		// the current stream ends, and `#finishAgentEnd` is otherwise its only flush
-		// site, so the automatic continuation would otherwise run on the old
-		// model/thinking level until the terminal settle.
+		// end of the run: the agent's own continuation (reminder, retry, queued
+		// steer/follow-up, IRC wake) follows, or background work may re-wake it.
+		// Skip the idle title/loader teardown; the later terminal `agent_end`
+		// performs it. Still flush a deferred model switch — the plan-mode
+		// reconciler queues it to apply once the current stream ends, and
+		// `#finishAgentEnd` is otherwise its only flush site, so the automatic
+		// continuation would otherwise run on the old model/thinking level until
+		// the terminal settle.
 		if (event.isTerminal === false) {
+			// `awaitingAsyncWork`: the model handed control back and only a
+			// background-job result can resume it. The title tracks the model, so it
+			// goes idle now — before any await, so a wake landing mid-flush keeps the
+			// `working` its `agent_start` sets. That wake is not guaranteed (a
+			// cancelled job enqueues no delivery; acknowledged/watched ones are
+			// suppressed), so the loader/progress teardown waits out the background
+			// work instead of a terminal `agent_end` that may never come.
+			if (event.awaitingAsyncWork === true) {
+				setTerminalTitleState("idle");
+				void this.#finishWhenAsyncWorkDrains(event);
+			}
 			await this.ctx.flushPendingModelSwitch();
 			// Reaching here means the first guard passed, so `isStreaming` is already
 			// false: a command issued from now on mounts immediately. Leaving earlier
@@ -2083,6 +2093,39 @@ export class EventController {
 		// This settle may belong to an extension-started turn while the main
 		// input loop remains asleep. Do not await session-idle from its own event.
 		if (this.ctx.shutdownRequested) this.ctx.requestShutdown();
+	}
+
+	/**
+	 * Terminal teardown for an async-wait settle whose wake never arrives. Mirrors
+	 * `RpcSessionSettleWatcher`: wait out owner-scoped background work, then — if
+	 * no new run started and the session is quiet — run the same teardown a
+	 * terminal `agent_end` would. A real wake starts a run (bumping the epoch)
+	 * whose own `agent_end` finalizes it instead.
+	 */
+	async #finishWhenAsyncWorkDrains(event: Extract<AgentSessionEvent, { type: "agent_end" }>): Promise<void> {
+		const epoch = this.#runEpoch;
+		if (this.#asyncDrainWatchEpoch === epoch) return;
+		this.#asyncDrainWatchEpoch = epoch;
+		const session = this.ctx.session;
+		// No `hasAdmittedSubmission` gate: this very settle is emitted while the
+		// prompt that produced it is still admitted, and a new submission starts a
+		// run whose `agent_start` bumps the epoch anyway.
+		const superseded = () => this.#runEpoch !== epoch || this.ctx.session !== session || session.isStreaming;
+		try {
+			while (!superseded() && session.hasPendingAsyncWork()) {
+				await session.settleAsyncWork();
+			}
+			await this.#runSerialized(async () => {
+				if (superseded() || session.hasPendingAsyncWork()) return;
+				setTerminalTitleState("idle");
+				await this.#finishAgentEnd(event);
+				if (this.ctx.shutdownRequested) this.ctx.requestShutdown();
+			});
+		} catch (error) {
+			logger.warn("Async-wait settle teardown failed", { error: String(error) });
+		} finally {
+			if (this.#asyncDrainWatchEpoch === epoch) this.#asyncDrainWatchEpoch = undefined;
+		}
 	}
 
 	async #finishAgentEnd(event: Extract<AgentSessionEvent, { type: "agent_end" }>): Promise<void> {
@@ -2163,7 +2206,7 @@ export class EventController {
 	 * label carries no dangling whitespace.
 	 */
 	#maintenanceEscHint(): string {
-		return this.ctx.focusedAgentId ? "" : M.ecEscToCancel;
+		return this.ctx.focusedAgentId ? "" : ` (${appKey(this.ctx.keybindings, "app.interrupt")} to cancel)`;
 	}
 
 	async #handleAutoCompactionStart(
@@ -2176,22 +2219,22 @@ export class EventController {
 		this.ctx.statusContainer.disposeChildren();
 		const reasonText =
 			event.reason === "overflow"
-				? M.ecReasonOverflow
+				? "Context overflow detected, "
 				: event.reason === "incomplete"
-					? M.ecReasonIncomplete
+					? "Response incomplete, "
 					: event.reason === "idle"
-						? M.ecReasonIdle
+						? "Idle "
 						: "";
 		const actionLabel =
 			event.action === "remote"
-				? M.ecActionRemote
+				? "Auto server compaction"
 				: event.action === "handoff"
-					? M.ecActionHandoff
+					? "Auto-handoff"
 					: event.action === "shake"
-						? M.ecActionShake
+						? "Auto-shake"
 						: event.action === "snapcompact"
-							? M.ecActionSnapcompact
-							: M.ecActionMaintenance;
+							? "Auto-snapcompact"
+							: "Auto context-full maintenance";
 		this.ctx.autoCompactionLoader = new Loader(
 			this.ctx.ui,
 			spinner => theme.fg("accent", spinner),
@@ -2219,14 +2262,14 @@ export class EventController {
 		if (event.aborted) {
 			this.ctx.showStatus(
 				isHandoffAction
-					? M.ecHandoffCancelled
+					? "Auto-handoff cancelled"
 					: isRemoteAction
-						? M.ecRemoteCancelled
+						? "Auto server compaction cancelled"
 						: isShakeAction
-							? M.ecShakeCancelled
+							? "Auto-shake cancelled"
 							: isSnapcompactAction
-								? M.ecSnapCancelled
-								: M.ecMaintenanceCancelled,
+								? "Auto-snapcompact cancelled"
+								: "Auto context-full maintenance cancelled",
 			);
 		} else if (isShakeAction) {
 			// Shake produces no CompactionResult; rebuild on success, suppress benign skips.
@@ -2244,7 +2287,8 @@ export class EventController {
 				this.ctx.lastAssistantUsage = undefined;
 				this.ctx.rebuildChatFromMessages();
 				this.ctx.statusLine.invalidate();
-				this.ctx.showStatus(M.ecShakeCompleted);
+				this.ctx.ui.requestRender();
+				this.ctx.showStatus("Auto-shake completed");
 			}
 		} else if (event.result) {
 			this.ctx.lastAssistantUsage = undefined;
@@ -2271,16 +2315,17 @@ export class EventController {
 			await this.ctx.renderInitialMessages();
 			this.ctx.statusLine.invalidate();
 			await this.ctx.reloadTodos();
-			this.ctx.showStatus(M.ecHandoffCompleted);
+			this.ctx.ui.requestRender(true, { clearScrollback: true });
+			this.ctx.showStatus("Auto-handoff completed");
 		} else if (event.skipped) {
 			// Benign skip: no model selected, no candidate models available, or nothing
 			// to compact yet. Not a failure — suppress the warning.
 		} else if (isSnapcompactAction) {
-			this.ctx.showWarning(M.ecSnapFailed);
+			this.ctx.showWarning("Auto-snapcompact maintenance failed; continuing without maintenance");
 		} else if (isRemoteAction) {
-			this.ctx.showWarning(M.ecRemoteFailed);
+			this.ctx.showWarning("Auto server compaction failed; continuing without maintenance");
 		} else {
-			this.ctx.showWarning(M.ecMaintenanceFailed);
+			this.ctx.showWarning("Auto context-full maintenance failed; continuing without maintenance");
 		}
 		await this.ctx.flushCompactionQueue({ willRetry: event.willRetry });
 		this.#ensureWorkingLoaderWhileStreaming();
@@ -2313,16 +2358,14 @@ export class EventController {
 			this.ctx.clearPinnedError();
 		}
 		const retryStartMs = Date.now();
-		const retryLabel = M.ecRetryLabelFmt
-			.replace("%s", String(event.attempt))
-			.replace("%s", String(event.maxAttempts));
+		const retryLabel = `Retrying (${event.attempt}/${event.maxAttempts})`;
 		this.ctx.retryLoader = new Loader(
 			this.ctx.ui,
 			spinner => theme.fg("warning", spinner),
 			text => theme.fg("muted", text),
 			() => {
 				const remaining = Math.max(0, event.delayMs - (Date.now() - retryStartMs));
-				return `${retryLabel}${M.ecRetryInFmt.replace("%s", formatDuration(remaining))}${this.#maintenanceEscHint()}`;
+				return `${retryLabel} in ${formatDuration(remaining)}…${this.#maintenanceEscHint()}`;
 			},
 			getSymbolTheme().spinnerFrames,
 		);
@@ -2375,18 +2418,12 @@ export class EventController {
 		if (!event.success) {
 			if (terminalFailurePinned) {
 				const terminalError = this.#restorePinnedErrorInline
-					? M.ecRetryFailedFmt
-							.replace("%d", String(event.attempt))
-							.replace("%s", event.finalError || pinnedError || M.ccUnknownError)
+					? `Retry failed after ${event.attempt} attempts: ${event.finalError || pinnedError || "Unknown error"}`
 					: (pinnedError ?? event.finalError);
 				if (terminalError) this.ctx.showPinnedError(terminalError);
 				this.#restorePinnedErrorInline = true;
 			} else {
-				this.ctx.showError(
-					M.ecRetryFailedFmt
-						.replace("%d", String(event.attempt))
-						.replace("%s", event.finalError || M.ccUnknownError),
-				);
+				this.ctx.showError(`Retry failed after ${event.attempt} attempts: ${event.finalError || "Unknown error"}`);
 			}
 		}
 		this.#ensureWorkingLoaderWhileStreaming();
@@ -2405,7 +2442,7 @@ export class EventController {
 	async #handleRetryFallbackSucceeded(
 		event: Extract<AgentSessionEvent, { type: "retry_fallback_succeeded" }>,
 	): Promise<void> {
-		this.ctx.showStatus(M.ecFallbackSucceededFmt.replace("%s", event.model));
+		this.ctx.showStatus(`Fallback succeeded on ${event.model}`);
 	}
 
 	async #handleTtsrTriggered(event: Extract<AgentSessionEvent, { type: "ttsr_triggered" }>): Promise<void> {

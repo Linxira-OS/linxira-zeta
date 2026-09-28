@@ -40,14 +40,14 @@
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@opentelemetry/api": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:"
+    "@linxiraos/pi-snapcompact": "catalog:",
+    "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
+    "@linxiraos/pi-omptype": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
-    "@types/bun": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:"
+    "@types/bun": "catalog:"
   },
   "engines": {
     "bun": ">=1.3.14"

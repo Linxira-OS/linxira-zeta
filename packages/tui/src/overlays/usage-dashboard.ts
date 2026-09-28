@@ -5,7 +5,6 @@
  * above a GitHub-style daily activity heatmap fed by the local stats DB.
  * Enter flips into the classic full per-account report, scrollable in place.
  */
-import { tuiText, tuiTextFmt } from "../i18n";
 import * as os from "node:os";
 import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@linxiraos/pi-ai";
 import {
@@ -39,6 +38,8 @@ import {
 	matchesSelectUp,
 } from "../keybinding-matchers";
 import { OverlayPanel, PanelDivider, PanelRows } from "../chrome/overlay-box";
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 
 /** Local calendar-day activity consumed by the usage heatmap. */
 export interface DailyActivityPoint {
@@ -395,7 +396,7 @@ export class UsageDashboardComponent implements Component {
 		this.#options = options;
 		this.#nowMs = Date.now();
 		this.#cards = buildProviderCards(options.reports, this.#nowMs);
-		this.#panel = new OverlayPanel(tuiText("ccUsageTitle", "Usage"));
+		this.#panel = new OverlayPanel("Usage");
 		this.#header = new PanelRows();
 		this.#header.setHeight(1);
 		this.#body = new PanelRows();
@@ -464,8 +465,7 @@ export class UsageDashboardComponent implements Component {
 	#renderCardLines(card: ProviderCard, width: number, labels: string[][], layout: CardRowLayout): string[] {
 		const lines: string[] = [];
 		const cardStatus = card.unlimited ? "ok" : aggregateStatus(card.windows);
-		const accountsText =
-			card.accounts > 1 ? theme.fg("dim", tuiTextFmt("udAccountsFmt", "%s accts", card.accounts)) : "";
+		const accountsText = card.accounts > 1 ? theme.fg("dim", `${card.accounts} accts`) : "";
 		const titleBudget = width - 2 - visibleWidth(accountsText) - (accountsText ? 1 : 0);
 		const title = theme.bold(truncateToWidth(card.name, Math.max(4, titleBudget)));
 		const titlePad = Math.max(0, width - 2 - visibleWidth(title) - visibleWidth(accountsText));
@@ -496,7 +496,7 @@ export class UsageDashboardComponent implements Component {
 		}
 
 		if (card.unlimited) {
-			lines.push(`  ${theme.fg("dim", tuiText("udNoLimits", "no limits"))}`);
+			lines.push(`  ${theme.fg("dim", "no limits")}`);
 			return lines;
 		}
 
@@ -529,12 +529,12 @@ export class UsageDashboardComponent implements Component {
 				lines.push(`  ${line}`);
 			}
 		}
-		if (hidden > 0) lines.push(`  ${theme.fg("dim", tuiTextFmt("udMoreFmt", "+%s more", hidden))}`);
+		if (hidden > 0) lines.push(`  ${theme.fg("dim", `+${hidden} more`)}`);
 		return lines;
 	}
 
 	#renderCardsGrid(innerWidth: number): string[] {
-		if (this.#cards.length === 0) return [theme.fg("dim", tuiText("ccNoUsageData", "No usage data available."))];
+		if (this.#cards.length === 0) return [theme.fg("dim", "No usage data available.")];
 		const active = this.#cards.filter(card => !card.idle);
 		const idle = this.#cards.filter(card => card.idle);
 		const columns = Math.max(1, Math.floor((innerWidth + CARD_GUTTER) / (CARD_MIN_WIDTH + CARD_GUTTER)));
@@ -613,12 +613,7 @@ export class UsageDashboardComponent implements Component {
 			if (active.length > 0) lines.push("");
 			const names = idle.map(card => card.name).join(" · ");
 			const prefix = `${theme.fg("success", theme.status.success)} `;
-			lines.push(
-				truncateToWidth(
-					`${prefix}${theme.fg("dim", tuiTextFmt("udUntouchedFmt", "untouched: %s", names))}`,
-					innerWidth,
-				),
-			);
+			lines.push(truncateToWidth(`${prefix}${theme.fg("dim", `untouched: ${names}`)}`, innerWidth));
 		}
 		return lines;
 	}
@@ -652,17 +647,10 @@ export class UsageDashboardComponent implements Component {
 		const summary: string[] = [];
 		if (this.#activityError) {
 			const detail = formatActivityErrorDetail(this.#activityError);
-			return [
-				theme.fg(
-					"dim",
-					detail
-						? tuiTextFmt("udHistoryUnavailableFmt", "Usage history unavailable (%s).", detail)
-						: tuiText("udHistoryUnavailable", "Usage history unavailable."),
-				),
-			];
+			return [theme.fg("dim", detail ? `Usage history unavailable (${detail}).` : "Usage history unavailable.")];
 		}
 		const points = this.#activity;
-		if (!points) return [theme.fg("dim", tuiText("udHistoryLoading", "Loading usage history…"))];
+		if (!points) return [theme.fg("dim", "Loading usage history…")];
 
 		const labelWidth = 2;
 		const weeks = Math.max(4, Math.min(53, Math.floor((innerWidth - labelWidth) / 2)));
@@ -678,10 +666,7 @@ export class UsageDashboardComponent implements Component {
 			layout.totalRequests,
 		);
 		summary.push(
-			`${theme.bold(theme.fg("accent", tuiText("udActivityTitle", "Activity")))} ${theme.fg(
-				"dim",
-				tuiTextFmt("udActivitySummaryFmt", "%s · %s requests · last %s weeks", cost, requests, weeks),
-			)}${this.#syncing ? theme.fg("dim", tuiText("udSyncingSuffix", " · syncing…")) : ""}`,
+			`${theme.bold(theme.fg("accent", "Activity"))} ${theme.fg("dim", `${cost} · ${requests} requests · last ${weeks} weeks`)}${this.#syncing ? theme.fg("dim", " · syncing…") : ""}`,
 		);
 		summary.push("");
 
@@ -696,7 +681,7 @@ export class UsageDashboardComponent implements Component {
 		summary.push(theme.fg("dim", truncateToWidth(monthLine, innerWidth)));
 
 		for (let day = 0; day < 7; day++) {
-			let line = `${theme.fg("dim", HEATMAP_DAY_LABELS[day])} `;
+			let line = theme.fg("dim", HEATMAP_DAY_LABELS[day]) + " ";
 			for (let week = 0; week < weeks; week++) {
 				const cell = layout.cells[day][week];
 				if (cell === null) line += "  ";
@@ -739,17 +724,15 @@ export class UsageDashboardComponent implements Component {
 		if (this.#scroll > maxScroll) this.#scroll = maxScroll;
 
 		const latestFetchedAt = Math.max(0, ...this.#options.reports.map(report => report.fetchedAt ?? 0));
-		const checkedText = latestFetchedAt
-			? tuiTextFmt("udCheckedAgoFmt", "checked %s ago", formatDuration(this.#nowMs - latestFetchedAt))
-			: "";
-		const title =
-			this.#view === "detail" ? tuiText("udDetailsTitle", "Usage · Details") : tuiText("ccUsageTitle", "Usage");
+		const checkedText = latestFetchedAt ? `checked ${formatDuration(this.#nowMs - latestFetchedAt)} ago` : "";
+		const title = this.#view === "detail" ? "Usage · Details" : "Usage";
 
-		const scrollHint = maxScroll > 0 ? tuiText("udScrollHint", "↑/↓ scroll · ") : "";
+		const scrollHint = maxScroll > 0 ? `${editorKeys("tui.select.up", "tui.select.down")} scroll · ` : "";
+		const cancel = editorKey("tui.select.cancel");
 		const hint =
 			this.#view === "detail"
-				? `${scrollHint}${tuiText("udDetailHint", "Esc back")}`
-				: `${scrollHint}${tuiText("udOverviewHint", "↵ details · Esc close")}`;
+				? `${scrollHint}${cancel} back`
+				: `${scrollHint}${formatKeyHint("enter")} details · ${cancel} close`;
 		this.#panel.title = title;
 		this.#header.setLines([checkedText ? theme.fg("dim", checkedText) : ""]);
 		this.#body.setLines(contentSource.slice(this.#scroll, this.#scroll + contentRows));

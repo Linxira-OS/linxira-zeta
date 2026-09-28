@@ -1,10 +1,9 @@
 import { type Component, Ellipsis, matchesKey, ScrollView, Text, truncateToWidth } from "../index";
-import { tuiText } from "../i18n";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel } from "../keybinding-matchers";
 import { OverlayPanel, PanelDivider, PanelRows } from "../chrome/overlay-box";
-
-const FOOTER_HINT = "↑/↓ scroll · Esc close";
+import { formatKeyHints } from "../app-keybindings";
+import { editorKey } from "../chrome/keybinding-hints";
 const PANEL_CHROME_ROWS = 4;
 
 /** Terminal surface needed to size the session info viewport. */
@@ -41,7 +40,7 @@ export class SessionInfoOverlay implements Component {
 		});
 		this.#footer = new PanelRows();
 		this.#footer.setHeight(1);
-		this.#panel = new OverlayPanel(tuiText("sessionInfoTitle", "Session Info"));
+		this.#panel = new OverlayPanel("Session Info");
 		this.#panel.addChild(this.#scrollView);
 		this.#panel.addChild(new PanelDivider());
 		this.#panel.addChild(this.#footer);
@@ -75,9 +74,8 @@ export class SessionInfoOverlay implements Component {
 
 	render(width: number): readonly string[] {
 		const innerWidth = Math.max(1, width - 4);
-		this.#footer.setLines([
-			theme.fg("dim", truncateToWidth(tuiText("sessionInfoFooterHint", FOOTER_HINT), innerWidth)),
-		]);
+		const footerHint = `${formatKeyHints(["up", "down"])} scroll · ${editorKey("tui.select.cancel")} close`;
+		this.#footer.setLines([theme.fg("dim", truncateToWidth(footerHint, innerWidth))]);
 
 		const maxBodyHeight = Math.max(1, this.#host.terminal.rows - PANEL_CHROME_ROWS);
 		const fullWidthInfoLines = this.#info.render(innerWidth);
@@ -94,7 +92,6 @@ export class SessionInfoOverlay implements Component {
 			this.#scrollView.setHeight(height);
 			this.#lastHeight = height;
 		}
-		this.#panel.title = tuiText("sessionInfoTitle", "Session Info");
 		return this.#panel.render(width);
 	}
 }

@@ -1,12 +1,15 @@
-import { APP_NAME } from "@linxiraos/pi-utils/dirs";
 import { TERMINAL } from "../terminal-capabilities";
-import { theme } from "../theme/theme";
 import type { Component } from "../tui";
 import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { tuiText } from "../i18n";
+import { APP_NAME } from "@linxiraos/pi-utils/dirs";
+import { theme } from "../theme/theme";
+import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
+import { editorKey } from "../chrome/keybinding-hints";
+import { getKeybindings, type Keybinding } from "../keybindings";
 import tipsText from "./tips.txt" with { type: "text" };
 
-/** Tips embedded at build time, one per line; blanks dropped. */
+/** Tips embedded at build time, one per line; blanks dropped. Key placeholders
+ *  (see {@link expandTipKeys}) stay raw until render time. */
 const TIPS: readonly string[] = tipsText
 	.split("\n")
 	.map(line => line.trim())
@@ -25,12 +28,12 @@ export const WELCOME_SESSION_SLOTS = 4;
 export const WELCOME_LSP_SLOTS = 4;
 
 /** Trailing marker that flags a tip as a "what's new" callout. Stripped before
- *  wrapping (with any preceding whitespace) and replaced by the NEW tag
+ *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
  *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
 const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
 
 /** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
-const NEW_TAG_TEXT_DEFAULT = "NEW!";
+const NEW_TAG_TEXT = "NEW!";
 
 /** Milliseconds for one full hue rotation of the rainbow "NEW!" tag. */
 const NEW_GLOW_PERIOD_MS = 1500;
@@ -56,14 +59,14 @@ export function pickWeightedTip(tips: readonly string[], r: number): string {
 
 type ColorEncoding = "ansi-16m" | "ansi-256";
 
-/** Paint each glyph of the NEW tag on a moving HSL rainbow. `phase`
+/** Paint each glyph of {@link NEW_TAG_TEXT} on a moving HSL rainbow. `phase`
  *  rotates the hue offset cyclically; successive renders with increasing phase
  *  shimmer, while a fixed phase yields a still rainbow. */
-function renderNewTag(tag: string, phase: number, encoding: ColorEncoding): string {
+function renderNewTag(phase: number, encoding: ColorEncoding): string {
 	const bold = "\x1b[1m";
 	const reset = "\x1b[0m";
 	const wrapped = ((phase % 1) + 1) % 1;
-	const chars = [...tag];
+	const chars = [...NEW_TAG_TEXT];
 	let out = bold;
 	let prev = "";
 	for (let i = 0; i < chars.length; i++) {
@@ -77,20 +80,43 @@ function renderNewTag(tag: string, phase: number, encoding: ColorEncoding): stri
 	}
 	return out + reset;
 }
-export function renderWelcomeTip(
-	tip: string,
-	boxWidth: number,
-	phase = 0,
-	tipLabel = "Tip: ",
-	newTag = "NEW!",
-): string[] {
-	const label = tipLabel;
+
+/** Key placeholders in tips.txt: `{key:shift+tab}`, `{keys:up,down}`, `{tap:left}`, `{action:tui.editor.undo}`. */
+const TIP_KEY_PLACEHOLDER = /\{(key|keys|tap|action):([^}]+)\}/g;
+
+const MODIFIER_NAMES: Record<string, true | undefined> = { ctrl: true, shift: true, alt: true, super: true };
+
+/** A `+`-joined chord whose leading parts are modifiers (`ctrl+o`, `shift`, `left`). */
+function isKeyName(key: string): key is KeyName {
+	const parts = key.split("+");
+	return parts.every((part, i) => part.length > 0 && (i === parts.length - 1 || MODIFIER_NAMES[part] === true));
+}
+
+function isKeybinding(action: string): action is Keybinding {
+	return action in getKeybindings().getResolvedBindings();
+}
+
+/** Expand tip key placeholders through the key formatter; malformed ones stay verbatim. */
+function expandTipKeys(tip: string): string {
+	return tip.replace(TIP_KEY_PLACEHOLDER, (placeholder, kind: string, value: string) => {
+		if (kind === "action") return isKeybinding(value) ? editorKey(value) : placeholder;
+		const keys = value.split(",");
+		if (!keys.every(isKeyName)) return placeholder;
+		if (kind === "keys") return formatKeyHints(keys);
+		const [key] = keys;
+		if (key === undefined) return placeholder;
+		return kind === "tap" ? formatDoubleTap(key) : formatKeyHint(key);
+	});
+}
+
+export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
+	const label = "Tip: ";
 	const labelWidth = visibleWidth(label);
 	const bodyBudget = boxWidth - 1 - labelWidth; // 1 = leading indent
 	if (bodyBudget < 8) return [];
 
 	const isNew = NEW_TIP_MARKER.test(tip);
-	const body = isNew ? tip.replace(NEW_TIP_MARKER, "") : tip;
+	const body = expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip);
 
 	const wrappedBody = wrapTextWithAnsi(replaceTabs(body), bodyBudget);
 	if (wrappedBody.length === 0) return [];
@@ -112,8 +138,8 @@ export function renderWelcomeTip(
 		// box; otherwise drop it onto its own indented continuation line so the
 		// styled glyphs never overflow or reflow the wrapped body.
 		const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
-		const tag = renderNewTag(newTag, phase, encoding);
-		const tagWidth = 1 + visibleWidth(newTag); // 1 = space separator
+		const tag = renderNewTag(phase, encoding);
+		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
 		const lastLine = lines[lines.length - 1];
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
@@ -139,35 +165,6 @@ export interface LspServerInfo {
 /**
  * Premium welcome screen with block-based OMP logo and two-column layout.
  */
-/**
- * Localizable strings for the welcome panel. The panel lives in pi-tui, which
- * cannot import the host's i18n catalogue, so the host injects the strings.
- * Every field is optional and falls back to the historical English literal.
- * Fields may be plain strings OR zero-arg getters returning the current value;
- * getters are re-read on every render so `/language` switches apply live.
- */
-export type WelcomeStringSource = string | (() => string);
-export interface WelcomeStrings {
-	back?: WelcomeStringSource;
-	tipsTitle?: WelcomeStringSource;
-	lspServersTitle?: WelcomeStringSource;
-	recentSessionsTitle?: WelcomeStringSource;
-	noRecentSessions?: WelcomeStringSource;
-	noLspServers?: WelcomeStringSource;
-	tipLabel?: WelcomeStringSource;
-	newTag?: WelcomeStringSource;
-	promptActionsHint?: WelcomeStringSource;
-	commandsHint?: WelcomeStringSource;
-	runBashHint?: WelcomeStringSource;
-	runPythonHint?: WelcomeStringSource;
-	nagNerdfont?: WelcomeStringSource;
-}
-
-function read(source: WelcomeStringSource | undefined, fallback: string): string {
-	if (source === undefined) return fallback;
-	return typeof source === "function" ? source() : source;
-}
-
 export class WelcomeComponent implements Component {
 	#animStart: number | null = null;
 	#animTimer: Timer | null = null;
@@ -183,13 +180,6 @@ export class WelcomeComponent implements Component {
 	// Bypassed while the intro animation runs (every frame differs).
 	#cachedWidth = -1;
 	#cachedLines: string[] | undefined;
-	#strings: WelcomeStrings = {};
-
-	/** Inject localized strings; clears the render cache so the next frame uses them. */
-	setStrings(strings: WelcomeStrings): void {
-		this.#strings = strings;
-		this.#cachedLines = undefined;
-	}
 
 	constructor(
 		private version: string,
@@ -202,12 +192,9 @@ export class WelcomeComponent implements Component {
 		this.#nagRoll ??= Math.random();
 		this.#tipRoll ??= Math.random();
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
-			return read(this.#strings.nagNerdfont, "Please use nerdfont 😭.");
+			return "Please use nerdfont 😭.";
 		}
-		const picked = pickWeightedTip(TIPS, this.#tipRoll);
-		if (!picked) return undefined;
-		const index = TIPS.indexOf(picked);
-		return index >= 0 ? tuiText(`tip${index + 1}`, picked) : picked;
+		return pickWeightedTip(TIPS, this.#tipRoll) || undefined;
 	}
 
 	invalidate(): void {
@@ -320,7 +307,7 @@ export class WelcomeComponent implements Component {
 		// Dynamic model/provider labels are truncated inside the fixed column.
 		// Letting them influence the responsive breakpoint changes the box height
 		// when authoritative session data replaces the empty prepaint labels.
-		const leftMinContentWidth = Math.max(minLeftCol, visibleWidth(read(this.#strings.back, "Welcome back!")));
+		const leftMinContentWidth = Math.max(minLeftCol, visibleWidth("Welcome back!"));
 		const desiredLeftCol = Math.max(
 			Math.min(preferredLeftCol, Math.max(minLeftCol, Math.floor(dualContentWidth * 0.35))),
 			leftMinContentWidth,
@@ -340,7 +327,7 @@ export class WelcomeComponent implements Component {
 		// Left column - centered content
 		const leftLines = [
 			"",
-			this.#centerText(theme.bold(read(this.#strings.back, "Welcome back!")), leftCol),
+			this.#centerText(theme.bold("Welcome back!"), leftCol),
 			"",
 			...logoColored.map(l => this.#centerText(l, leftCol)),
 			"",
@@ -355,7 +342,7 @@ export class WelcomeComponent implements Component {
 		// Recent sessions content
 		const sessionLines: string[] = [];
 		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", read(this.#strings.noRecentSessions, "No recent sessions"))}`);
+			sessionLines.push(` ${theme.fg("dim", "No recent sessions")}`);
 		} else {
 			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
 			// so the relative time is never the part that gets truncated. The name
@@ -381,7 +368,7 @@ export class WelcomeComponent implements Component {
 		// LSP servers content
 		const lspLines: string[] = [];
 		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", read(this.#strings.noLspServers, "No LSP servers"))}`);
+			lspLines.push(` ${theme.fg("dim", "No LSP servers")}`);
 		} else {
 			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
 				const icon =
@@ -403,16 +390,16 @@ export class WelcomeComponent implements Component {
 
 		// Right column
 		const rightLines = [
-			` ${theme.bold(theme.fg("accent", read(this.#strings.tipsTitle, "Tips")))}`,
-			` ${theme.fg("dim", "#")}${theme.fg("muted", read(this.#strings.promptActionsHint, " for prompt actions"))}`,
-			` ${theme.fg("dim", "/")}${theme.fg("muted", read(this.#strings.commandsHint, " for commands"))}`,
-			` ${theme.fg("dim", "!")}${theme.fg("muted", read(this.#strings.runBashHint, " to run bash"))}`,
-			` ${theme.fg("dim", "$")}${theme.fg("muted", read(this.#strings.runPythonHint, " to run python"))}`,
+			` ${theme.bold(theme.fg("accent", "Tips"))}`,
+			` ${theme.fg("dim", "#")}${theme.fg("muted", " for prompt actions")}`,
+			` ${theme.fg("dim", "/")}${theme.fg("muted", " for commands")}`,
+			` ${theme.fg("dim", "!")}${theme.fg("muted", " to run bash")}`,
+			` ${theme.fg("dim", "$")}${theme.fg("muted", " to run python")}`,
 			separator,
-			` ${theme.bold(theme.fg("accent", read(this.#strings.lspServersTitle, "LSP Servers")))}`,
+			` ${theme.bold(theme.fg("accent", "LSP Servers"))}`,
 			...lspLines,
 			separator,
-			` ${theme.bold(theme.fg("accent", read(this.#strings.recentSessionsTitle, "Recent sessions")))}`,
+			` ${theme.bold(theme.fg("accent", "Recent sessions"))}`,
 			...sessionLines,
 			"",
 		];
@@ -478,13 +465,7 @@ export class WelcomeComponent implements Component {
 		// intro's re-render frames, then settles into a still rainbow once the box
 		// caches its resting frame. Non-"[NEW]" tips ignore the phase entirely.
 		const phase = NEW_TIP_MARKER.test(tip) ? performance.now() / NEW_GLOW_PERIOD_MS : 0;
-		return renderWelcomeTip(
-			tip,
-			boxWidth,
-			phase,
-			read(this.#strings.tipLabel, "Tip: "),
-			read(this.#strings.newTag, NEW_TAG_TEXT_DEFAULT),
-		);
+		return renderWelcomeTip(tip, boxWidth, phase);
 	}
 
 	/** Center text within a given width */
@@ -532,7 +513,7 @@ export class WelcomeComponent implements Component {
 	}
 }
 
-/** Block-grid brand mark (ζ outline, user-selected variant B) shared by the welcome and setup surfaces. */
+/** Block-grid brand mark shared by the welcome and setup surfaces. */
 export const ZETA_LOGO = ["███████╗", "╚════██║", "   ██╔═╝", " ██╔═╝ ", "███████╗", "╚══════╝"];
 
 /** Multi-stop palette for the diagonal gradient. */

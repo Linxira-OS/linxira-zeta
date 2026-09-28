@@ -12,7 +12,7 @@ function makeTempDir(prefix: string): string {
 	return dir.path();
 }
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
 const originalOmpProfile = process.env.OMP_PROFILE;
 
@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	__resetDirsFromEnvForTests();

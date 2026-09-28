@@ -2,8 +2,7 @@ import type { Component, OverlayHandle, TUI } from "@linxiraos/pi-tui";
 import { Container, Spacer, Text } from "@linxiraos/pi-tui";
 import type { CollabUiRequestDraft, CollabUiSelectItem } from "@linxiraos/pi-wire";
 import type { CollabHost } from "../../collab/host";
-import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-
+import { formatKeyHint, formatKeyHints, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type {
 	CompactOptions,
 	ExtensionActions,
@@ -34,11 +33,19 @@ import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, them
 import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "../../modes/types";
 import { normalizeCustomMessagePayload, USER_INTERRUPT_LABEL } from "../../session/messages";
 import { disambiguateDisplayLabels, sanitizeCarriageReturns } from "@linxiraos/pi-tui/render/render-utils";
-
 import { setExtensionTerminalTitle, setSessionTerminalTitle } from "../../utils/title-generator";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 
 const MAX_WIDGET_LINES = 10;
+
+/**
+ * Footer hint for a guest-rendered ask selector. The guest's selector handles
+ * the keys, so the host can't know its bindings: advertise the defaults.
+ */
+function guestAskHelpText(enterAction: string, extra = ""): string {
+	return `${formatKeyHints(["up", "down"])} navigate  ${formatKeyHint("enter")} ${enterAction}  ${extra}${formatKeyHint("escape")} cancel`;
+}
+
 const ASK_OTHER_OPTION = "Other (type your own)";
 const ASK_CHAT_OPTION = "Chat about this";
 const ASK_NEXT_OPTION = "Next →";
@@ -149,8 +156,6 @@ export class ExtensionUiController {
 			},
 			setFooter: () => {},
 			setHeader: () => {},
-			registerSidebarWidget: widget => this.ctx.sidebar.registerWidget(widget),
-			unregisterSidebarWidget: id => this.ctx.sidebar.unregisterWidget(id),
 			setEditorComponent: factory => this.ctx.setEditorComponent(factory),
 			getToolsExpanded: () => this.ctx.toolOutputExpanded,
 			setToolsExpanded: expanded => this.ctx.setToolsExpanded(expanded),
@@ -688,6 +693,7 @@ export class ExtensionUiController {
 			const finishPrompt = (value: string | undefined): void => {
 				const resolvePrompt = promptResolve;
 				promptResolve = undefined;
+				promptEditor?.dispose();
 				promptEditor = undefined;
 				resolvePrompt?.(value);
 				// Let AskDialog apply the answer and clear its prompt guard before
@@ -741,6 +747,7 @@ export class ExtensionUiController {
 			return () => {
 				closed = true;
 				askDialog?.dispose();
+				promptEditor?.dispose();
 				promptResolve?.(undefined);
 				promptResolve = undefined;
 				promptEditor = undefined;
@@ -852,9 +859,7 @@ export class ExtensionUiController {
 						selectionMarker: "checkbox",
 						checkedIndices,
 						markableCount: question.options.length,
-						helpText: hasAnswer
-							? "up/down navigate  enter toggle  Next → continue  esc cancel"
-							: "up/down navigate  enter toggle  esc cancel",
+						helpText: guestAskHelpText("toggle", hasAnswer ? "Next → continue  " : ""),
 					},
 					signal,
 				);
@@ -895,7 +900,7 @@ export class ExtensionUiController {
 						initialIndex,
 						selectionMarker: "radio",
 						markableCount: question.options.length,
-						helpText: "up/down navigate  enter select  esc cancel",
+						helpText: guestAskHelpText("select"),
 					},
 					signal,
 				);
@@ -1084,6 +1089,7 @@ export class ExtensionUiController {
 	 * Hide the hook editor.
 	 */
 	hideHookEditor(): void {
+		this.ctx.hookEditor?.dispose();
 		this.ctx.editorContainer.clear();
 		this.ctx.editorContainer.addChild(this.ctx.editor);
 		this.ctx.hookEditor = undefined;

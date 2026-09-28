@@ -1,16 +1,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@linxiraos/pi-agent-core";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { isTinyTitleLocalModelKey } from "@linxiraos/zeta/tiny/models";
-import { cfgProvidersTinyModel } from "@linxiraos/zeta/tiny/settings";
 import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
-import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Issue #6462: the first submit used to spawn the local tiny-title worker
@@ -97,7 +96,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 	});
 
 	it("prewarms the configured local tiny role on startup for an unnamed session", async () => {
-		cfgProvidersTinyModel.set(session.settings, "lfm2.5-230m");
+		session.settings.setModelRole("tiny", "local/lfm2.5-230m");
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
 		await mode.init();
@@ -114,7 +113,7 @@ describe("InteractiveMode tiny-title prewarm", () => {
 	});
 
 	it("does not prewarm when the session is already named", async () => {
-		cfgProvidersTinyModel.set(session.settings, "lfm2.5-230m");
+		session.settings.setModelRole("tiny", "local/lfm2.5-230m");
 		vi.spyOn(mode.sessionManager, "getSessionName").mockReturnValue("resumed-session");
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
 
@@ -142,7 +141,6 @@ describe("InteractiveMode tiny-title prewarm", () => {
 
 	it("does not start a worker for a paid tiny role", async () => {
 		const prewarm = vi.spyOn(tinyTitleClient, "prewarm").mockImplementation(() => {});
-		cfgProvidersTinyModel.set(session.settings, "online");
 
 		await mode.init();
 		const immediateFlushed = Promise.withResolvers<void>();

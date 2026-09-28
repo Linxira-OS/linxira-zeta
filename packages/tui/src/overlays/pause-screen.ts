@@ -16,8 +16,9 @@ import { type Component, matchesKey, type OverlayFocusOwner, type OverlayHandle,
 import { formatCoarseDuration } from "../chrome/format";
 import { centerLine } from "../utils";
 import { theme } from "../theme/theme";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { matchesAppInterrupt } from "../keybinding-matchers";
+import { formatKeyHint } from "../app-keybindings";
+import { interruptKey } from "../chrome/keybinding-hints";
 
 /**
  * Slice of `InteractiveModeContext` the pause screen drives. Narrow so tests
@@ -51,7 +52,6 @@ const BODY_LINES = [
 	"Main agent, subagents, and advisor hold at their next step.",
 	"In-flight calls finish; nothing new starts until you resume.",
 ] as const;
-const RESUME_HINT = "esc · enter · space — resume";
 
 /** Live hold clock, seconds-precise: `0:07`, `12:34`, `1:02:03`. */
 function formatClock(ms: number): string {
@@ -70,21 +70,18 @@ function formatClock(ms: number): string {
 export function renderPauseScreen(width: number, height: number, elapsedMs: number, sessionName?: string): string[] {
 	const compact = width < MIN_FULL_WIDTH || height < MIN_FULL_HEIGHT;
 	const content: string[] = [];
+	// Resume keys mirror PauseScreenComponent#handleInput: `app.interrupt` (raw Escape when unbound), Enter, Space.
+	const esc = interruptKey();
 
 	if (compact) {
 		if (sessionName) {
 			content.push(centerLine(theme.bold(sessionName), width).trimEnd());
 			content.push("");
 		}
-		content.push(centerLine(theme.bold(theme.fg("accent", `▌▌ ${tuiText("pauseTitle", TITLE)}`)), width).trimEnd());
+		content.push(centerLine(theme.bold(theme.fg("accent", `▌▌ ${TITLE}`)), width).trimEnd());
 		content.push("");
-		content.push(
-			centerLine(
-				theme.fg("dim", tuiTextFmt("pauseElapsedFmt", "paused for %s", formatClock(elapsedMs))),
-				width,
-			).trimEnd(),
-		);
-		content.push(centerLine(theme.fg("dim", tuiText("pauseEscToResume", "esc to resume")), width).trimEnd());
+		content.push(centerLine(theme.fg("dim", `paused for ${formatClock(elapsedMs)}`), width).trimEnd());
+		content.push(centerLine(theme.fg("dim", `${esc} to resume`), width).trimEnd());
 	} else {
 		if (sessionName) {
 			content.push(centerLine(theme.bold(sessionName), width).trimEnd());
@@ -97,23 +94,20 @@ export function renderPauseScreen(width: number, height: number, elapsedMs: numb
 			content.push(centerLine(theme.fg("accent", glyphRow), width).trimEnd());
 		}
 		content.push("");
-		content.push(centerLine(theme.bold(theme.fg("accent", tuiText("pauseTitle", TITLE))), width).trimEnd());
+		content.push(centerLine(theme.bold(theme.fg("accent", TITLE)), width).trimEnd());
 		content.push("");
-		content.push(centerLine(theme.fg("muted", tuiText("pauseBodyLine1", BODY_LINES[0])), width).trimEnd());
-		content.push(centerLine(theme.fg("muted", tuiText("pauseBodyLine2", BODY_LINES[1])), width).trimEnd());
+		for (const line of BODY_LINES) {
+			content.push(centerLine(theme.fg("muted", line), width).trimEnd());
+		}
 		content.push("");
-		content.push(
-			centerLine(
-				theme.fg("dim", tuiTextFmt("pauseElapsedFmt", "paused for %s", formatClock(elapsedMs))),
-				width,
-			).trimEnd(),
-		);
+		content.push(centerLine(theme.fg("dim", `paused for ${formatClock(elapsedMs)}`), width).trimEnd());
 		content.push("");
-		content.push(centerLine(theme.fg("dim", tuiText("pauseResumeHint", RESUME_HINT)), width).trimEnd());
+		const resumeHint = `${esc} · ${formatKeyHint("enter")} · ${formatKeyHint("space")} — resume`;
+		content.push(centerLine(theme.fg("dim", resumeHint), width).trimEnd());
 	}
 
 	const topPad = Math.max(0, Math.floor((height - content.length) / 2));
-	// [suppressed] length preallocation
+	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 	const lines: string[] = new Array(topPad).fill("");
 	lines.push(...content);
 	while (lines.length < height) lines.push("");

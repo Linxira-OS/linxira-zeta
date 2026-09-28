@@ -1,10 +1,7 @@
-import { postmortem } from "@linxiraos/pi-utils";
-import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";
 import type { EditorTopBorder } from "../components/composer/types";
 import { Spacer } from "../components/spacer";
-import { ProcessTerminal, type Terminal } from "../terminal";
 import { isInsideTerminalMultiplexer } from "../terminal-multiplexer";
-import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
+import { ProcessTerminal, type Terminal } from "../terminal";
 import {
 	type Component,
 	Container,
@@ -16,8 +13,12 @@ import {
 	type ViewportSize,
 } from "../tui";
 import { sliceWithWidth, truncateToWidth, visibleWidth } from "../utils";
+import { postmortem } from "@linxiraos/pi-utils";
 import { CustomEditor } from "./custom-editor";
-import { type LspServerInfo, type RecentSession, WelcomeComponent, type WelcomeStrings } from "./welcome";
+import type { WordCompletionMethod } from "./word-completion";
+import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";
+import { type LspServerInfo, type RecentSession, WelcomeComponent } from "./welcome";
+import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 
 const DOUBLE_INTERRUPT_MS = 500;
 
@@ -31,7 +32,7 @@ export interface ComposerPreferences {
 	readonly imeSafeCursor: boolean;
 	readonly autocompleteMaxVisible: number;
 	readonly spellingTypoDetection: boolean;
-	readonly spellingAutocomplete: boolean;
+	readonly spellingAutocomplete: WordCompletionMethod;
 	readonly spellingAutocorrect: boolean;
 }
 
@@ -45,7 +46,7 @@ export const COMPOSER_DEFAULTS: ComposerPreferences = {
 	imeSafeCursor: false,
 	autocompleteMaxVisible: 10,
 	spellingTypoDetection: true,
-	spellingAutocomplete: true,
+	spellingAutocomplete: "auto",
 	spellingAutocorrect: false,
 };
 
@@ -56,8 +57,6 @@ export interface ComposerWelcomeUpdate {
 	readonly providerName?: string;
 	readonly recentSessions?: readonly RecentSession[];
 	readonly lspServers?: readonly LspServerInfo[];
-	/** Localizable panel strings; pass getters so `/language` switches apply on the next render. */
-	readonly strings?: WelcomeStrings;
 }
 
 /**
@@ -913,17 +912,12 @@ export class Composer implements TerminalFrameProvider {
 		this.#stopped = true;
 	}
 
-	#welcomeStrings: WelcomeStrings | undefined;
 	#applyWelcomeUpdate(update: ComposerWelcomeUpdate): void {
 		if (update.version !== undefined) this.#version = update.version;
 		if (update.modelName !== undefined) this.#modelName = update.modelName;
 		if (update.providerName !== undefined) this.#providerName = update.providerName;
 		if (update.recentSessions !== undefined) this.#recentSessions = [...update.recentSessions];
 		if (update.lspServers !== undefined) this.#lspServers = [...update.lspServers];
-		if (update.strings !== undefined) {
-			this.#welcomeStrings = update.strings;
-			this.#welcome?.setStrings(update.strings);
-		}
 	}
 
 	#ensureWelcome(): void {
@@ -934,7 +928,6 @@ export class Composer implements TerminalFrameProvider {
 			this.#recentSessions,
 			this.#lspServers,
 		);
-		if (this.#welcomeStrings) this.#welcome.setStrings(this.#welcomeStrings);
 	}
 
 	#rebuildHeader(): void {

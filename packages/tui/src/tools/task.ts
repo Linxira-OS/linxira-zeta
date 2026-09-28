@@ -42,8 +42,7 @@ import { framedToolCard } from "../render/tool-card";
 import { formatOutputInline, renderJsonTreeLines } from "./json-tree";
 import { repairDoubleEncodedJsonString } from "./task-repair-args";
 import { getSubprocessToolRenderer } from "./subprocess";
-import { assembleYieldResult } from "./task-yield-assembly";
-import { tuiText, tuiTextFmt } from "../i18n";
+import { assembleYieldResult, type YieldSectionShapes } from "./task-yield-assembly";
 
 /** Render context threaded in from `ToolExecutionComponent.#buildRenderContext`. */
 interface TaskRenderContext {
@@ -67,7 +66,7 @@ type TaskRenderOptions = RenderResultOptions & { renderContext?: TaskRenderConte
 const MAX_NESTED_TASK_RENDER_DEPTH = 8;
 
 function renderNestedCycleLine(theme: Theme): string {
-	return theme.fg("dim", tuiText("taskNestedProgressShown", "… nested task progress already shown"));
+	return theme.fg("dim", "… nested task progress already shown");
 }
 
 function formatFindingSummary(findings: FindingDetails[], theme: Theme): string {
@@ -99,8 +98,13 @@ function normalizeFindings(value: unknown): FindingDetails[] {
 	return findings;
 }
 
-/** Reviewer output declares `findings` as an array, so a lone finding section still assembles as a list. */
-const REVIEWER_ARRAY_LABELS: ReadonlySet<string> = new Set(["findings"]);
+/** Reviewer output shapes: `findings` is an array (a lone finding still assembles as a list); the verdict fields are scalars. */
+const REVIEWER_SECTION_SHAPES: YieldSectionShapes = new Map([
+	["findings", "array"],
+	["overall_correctness", "scalar"],
+	["explanation", "scalar"],
+	["confidence", "scalar"],
+]);
 
 function extractIncrementalReviewResult(
 	items: RenderYieldItem[],
@@ -111,7 +115,7 @@ function extractIncrementalReviewResult(
 		status: item.status === "aborted" ? "aborted" : item.status === "success" ? "success" : undefined,
 		useLastTurn: item.useLastTurn,
 	}));
-	const assembled = assembleYieldResult(yieldItems, undefined, REVIEWER_ARRAY_LABELS);
+	const assembled = assembleYieldResult(yieldItems, undefined, REVIEWER_SECTION_SHAPES);
 	const data = assembled?.data;
 	if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
 	const record = data as Record<string, unknown>;
@@ -554,7 +558,7 @@ function createAssignmentSectionRenderer(
 }
 
 /**
- * Build the shared-context section (the `# Goal / # Constraints` background a
+ * Build the shared-context section (the `# Goal / # Contract` background a
  * batch call hands every subagent). Rendered like the assignment brief so the
  * shared background stays visible for the whole task lifecycle.
  */
@@ -1230,11 +1234,11 @@ function formatHiddenProgressLine(hidden: readonly AgentProgress[], theme: Theme
 	};
 	for (const p of hidden) counts[p.status]++;
 	const parts: string[] = [];
-	if (counts.completed > 0) parts.push(theme.fg("dim", tuiTextFmt("taskDoneFmt", "%d done", counts.completed)));
-	if (counts.running > 0) parts.push(theme.fg("dim", tuiTextFmt("taskRunningFmt", "%d running", counts.running)));
-	if (counts.pending > 0) parts.push(theme.fg("dim", tuiTextFmt("taskPendingFmt", "%d pending", counts.pending)));
-	if (counts.failed > 0) parts.push(theme.fg("error", tuiTextFmt("taskFailedFmt", "%d failed", counts.failed)));
-	if (counts.aborted > 0) parts.push(theme.fg("error", tuiTextFmt("taskAbortedFmt", "%d aborted", counts.aborted)));
+	if (counts.completed > 0) parts.push(theme.fg("dim", `${counts.completed} done`));
+	if (counts.running > 0) parts.push(theme.fg("dim", `${counts.running} running`));
+	if (counts.pending > 0) parts.push(theme.fg("dim", `${counts.pending} pending`));
+	if (counts.failed > 0) parts.push(theme.fg("error", `${counts.failed} failed`));
+	if (counts.aborted > 0) parts.push(theme.fg("error", `${counts.aborted} aborted`));
 	const breakdown =
 		parts.length > 0
 			? `${theme.fg("dim", " (")}${parts.join(theme.fg("dim", theme.sep.dot))}${theme.fg("dim", ")")}`
@@ -1432,7 +1436,7 @@ export function renderResult(
 			if (abortedCount > 0) summaryParts.push(theme.fg("error", `${abortedCount} aborted`));
 			if (successCount > 0) summaryParts.push(theme.fg("success", `${successCount} succeeded`));
 			if (mergeFailedCount > 0) summaryParts.push(theme.fg("warning", `${mergeFailedCount} merge failed`));
-			if (failCount > 0) summaryParts.push(theme.fg("error", tuiTextFmt("taskFailedFmt", "%d failed", failCount)));
+			if (failCount > 0) summaryParts.push(theme.fg("error", `${failCount} failed`));
 			const totalRequests = requestTotal;
 			if (totalRequests > 0) summaryParts.push(theme.fg("dim", `${formatNumber(totalRequests)} req`));
 			summaryParts.push(theme.fg("dim", formatDuration(details.totalDurationMs)));
@@ -1449,7 +1453,7 @@ export function renderResult(
 		const borderColor = isError ? "error" : "borderMuted";
 
 		if (lines.length === 0) {
-			const text = fallbackText.trim() ? fallbackText : tuiText("taskNoResults", "No results");
+			const text = fallbackText.trim() ? fallbackText : "No results";
 			return {
 				header,
 				sections: [
@@ -1727,6 +1731,8 @@ export interface TaskItem {
 	agent?: string;
 	/** The work; required by the schema. */
 	task?: string;
+	/** Caller's terse rationale for why the work is simple or complex; required by the schema and fed to the child's `auto` thinking classifier. */
+	complexity?: string;
 	/** Per-spawn thinking effort: lowest/middle/highest level the resolved model supports. Overrides the agent's default selector (e.g. `auto`). */
 	effort?: "lo" | "med" | "hi";
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */
@@ -1752,6 +1758,8 @@ export interface TaskParams {
 	agent?: string;
 	/** The work (flat form). */
 	task?: string;
+	/** Caller's difficulty rationale (flat form); see {@link TaskItem.complexity}. */
+	complexity?: string;
 	/** Per-spawn thinking effort (flat form): lowest/middle/highest level the resolved model supports. */
 	effort?: "lo" | "med" | "hi";
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */

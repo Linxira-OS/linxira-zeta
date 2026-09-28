@@ -2,14 +2,6 @@
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
  */
-import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
-import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
-import { StreamRedactor } from "../stream/redactor";
-import { applyProviderGlobalsFromSettings } from "../config/provider-globals";
-import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
-import { stableStringifyJson } from "../../../utils/src/json";
-import { wireTuiTexts } from "../i18n/wire-tui";
-import { M } from "../i18n";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import {
@@ -44,92 +36,11 @@ import {
 	TERMINAL,
 	Text,
 	type TUI,
-	renderProgressBar,
 	visibleWidth,
 	wrapTextWithAnsi,
 } from "@linxiraos/pi-tui";
-import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
-import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
-import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
-import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
-import { messageHasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
-import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
-import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
-import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
-import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
-import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
-import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import type { AgentHubRegistry } from "@linxiraos/pi-tui/overlays/agent-hub-types";
-import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
-import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
-import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
-import {
-	getRunningSubagentBadgeAgentIds,
-	getRunningSubagentBadgeRegistry,
-} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
-import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
-import {
-	type ObservableSession,
-	type SessionObserverChangeKind,
-	SessionObserverRegistry,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
-import { Composer, type ComposerStatusSnapshot, PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
-import { modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
-import { writeComposerStatusCache, writeComposerWelcomeCache } from "@linxiraos/pi-tui/prompt/composer-cache";
-import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
-import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
-import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@linxiraos/pi-tui/prompt/image-references";
-import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
-import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
-import { applyHyperlinkSetting, fileHyperlink } from "@linxiraos/pi-tui/render/hyperlink";
-import {
-	FEED_MODEL_BADGE_WIDTH,
-	formatFeedModelBadge,
-	formatMoreItems,
-	isFeedModelBadgeEnabled,
-	replaceTabs,
-	shortenEmbeddedPaths,
-	shortenPath,
-	TRUNCATE_LENGTHS,
-	truncateToWidth,
-} from "@linxiraos/pi-tui/render/render-utils";
-import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
-import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import type { TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
 import { isInsideTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-capabilities";
-import type { Theme } from "@linxiraos/pi-tui/theme";
-import {
-	getEditorTheme,
-	getMarkdownTheme,
-	onTerminalAppearanceChange,
-	onThemeChange,
-	setMarkdownMermaidRendering,
-	startMacOSAppearanceReprobeFallback,
-	theme,
-} from "@linxiraos/pi-tui/theme";
-import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
-import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
-import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import type { Goal } from "@linxiraos/pi-tui/tools/goal";
-import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
-import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import {
-	formatPhaseDisplayName,
-	isClosedTodo,
-	selectCollapsedTodos,
-	setActiveTodoDescriptionsProvider,
-	todoMatchesAnyDescription,
-} from "@linxiraos/pi-tui/tools/todo";
 import {
 	$env,
 	adjustHsv,
@@ -141,13 +52,17 @@ import {
 	postmortem,
 	prompt,
 	sanitizeText,
+	stableStringifyJson,
 	setProjectDir,
 } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { M } from "../i18n";
 import { restartArgv } from "../cli/flag-tables";
-import { CollabController } from "../collab/controller";
 import type { CollabGuestLink } from "../collab/guest";
+import { CollabController } from "../collab/controller";
 import type { CollabHost } from "../collab/host";
+import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { formatModelString, type ResolvedModelRoleValue } from "../config/model-resolver";
 import { isSettingsInitialized, Settings, settings } from "../config/settings";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
@@ -165,6 +80,7 @@ import type { CompactOptions } from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { FileSlashCommand } from "../extensibility/slash-commands";
 import { loadSlashCommands } from "../extensibility/slash-commands";
+import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import type { GoalModeState } from "../goals/state";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { copyLocalArtifacts, resolveLocalRoot } from "../internal-urls";
@@ -183,16 +99,15 @@ import {
 	JUDGMENT_BATCH_PROGRESS_EVENT_CHANNEL,
 	type JudgmentBatchProgress,
 } from "../eval/judgment-batch-events";
+import { onDownloadActivity } from "../downloads/activity";
+import { DownloadActivityHud, JudgmentBatchProgressHud } from "./progress-hud";
 import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
-import { isMCPToolName } from "../tools/builtin-names";
-import { mirrorPlanToTracking } from "../tools/tracking";
-import type { PlanWorkflow } from "../plan-mode/state";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
-import { formatCost } from "@linxiraos/pi-tui/overlays/agent-hub-renderer";
+import type { AgentHubRegistry } from "@linxiraos/pi-tui/overlays/agent-hub-types";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import {
 	type AgentSession,
@@ -204,23 +119,44 @@ import {
 import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
 import { HistoryStorage } from "../session/history-storage";
+import { syncTextPrediction, textPredictionBackend } from "../predict/client";
+import { setWordPredictionHost } from "@linxiraos/pi-tui/prompt/word-completion";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
+import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
+import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
+import { modelMentionChipLabel } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import type { SessionContext } from "../session/session-context";
 import { getRecentSessions } from "../session/session-listing";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
+import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
+import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
 import { type DictationTarget, MicCursor, type SttCallbacks, STTController, type SttState } from "../stt";
 import type { SpaceHoldHandler } from "@linxiraos/pi-tui/space-hold";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { labelEchoesHandle } from "../task/label";
-import { tinyTitleClient } from "../tiny/title-client";
+import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { isMCPToolName } from "../tools/builtin-names";
 import type { LspStartupServerInfo } from "../tools";
 import { resolvePlanFilePath } from "../plan-mode/plan-files";
 import { resolveToCwd } from "../tools/path-utils";
 import { StreamPublisher } from "../stream/publisher";
 import { newRecordingPath, SessionRecorder } from "../stream/recording";
+import { StreamRedactor } from "../stream/redactor";
+import {
+	FEED_MODEL_BADGE_WIDTH,
+	formatFeedModelBadge,
+	formatMoreItems,
+	isFeedModelBadgeEnabled,
+	replaceTabs,
+	shortenEmbeddedPaths,
+	shortenPath,
+	TRUNCATE_LENGTHS,
+	truncateToWidth,
+} from "@linxiraos/pi-tui/render/render-utils";
 import { setAutoQaConsentHandler } from "../tools/report-tool-issue";
 import { type CfgApproval, type CfgChangeRequest, setCfgApprovalHost } from "../internal-urls/cfg-protocol";
 import {
@@ -228,15 +164,27 @@ import {
 	getTodoHudVisibility,
 	nextActionableTask,
 	TODO_HUD_STATE_CUSTOM_TYPE,
-	type TodoHudStateEntryData,
 	USER_TODO_EDIT_CUSTOM_TYPE,
+	type TodoHudStateEntryData,
 } from "../tools/todo";
+import {
+	formatPhaseDisplayName,
+	isClosedTodo,
+	selectCollapsedTodos,
+	setActiveTodoDescriptionsProvider,
+	todoMatchesAnyDescription,
+} from "@linxiraos/pi-tui/tools/todo";
 import { vocalizer } from "../tts/vocalizer";
+import { applyHyperlinkSetting, fileHyperlink } from "@linxiraos/pi-tui/render/hyperlink";
+import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
 import { formatStartupChangelogSummary, type StartupChangelogSelection } from "../utils/changelog";
 import { copyToClipboard } from "../utils/clipboard";
 import type { EventBus } from "../utils/event-bus";
 import { getEditorCommand, openInEditor } from "../utils/external-editor";
 import { resumeCommand } from "../utils/resume-command";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
+import { messageHasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
+import type { TokenRateMeter } from "../utils/token-rate";
 import {
 	disposeTerminalTitleState,
 	initTerminalTitleState,
@@ -246,19 +194,46 @@ import {
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleStateEnabled,
 } from "../utils/title-generator";
-import type { TokenRateMeter } from "../utils/token-rate";
 import {
 	aggregateVibeWorkerTokensPerSecond,
 	type VibeOwnerScope,
 	type VibeParentSession,
 	VibeSessionRegistry,
 } from "../vibe/runtime";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
 import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
+import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
+import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
+import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
+import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
+import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
+import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
+import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
+import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
 import { statusLineHost } from "./status-line-host";
-import { type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
+import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
+import {
+	Composer,
+	type ComposerPreferences,
+	type ComposerStatusSnapshot,
+	PINNED_HUD_TOGGLE_ID,
+} from "@linxiraos/pi-tui/prompt/composer";
 import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
 import { MAGIC_KEYWORDS } from "./magic-keywords";
+import { writeComposerStatusCache, writeComposerWelcomeCache } from "@linxiraos/pi-tui/prompt/composer-cache";
 import { BtwController } from "./controllers/btw-controller";
 import { CleanseCommandController } from "./controllers/cleanse-command-controller";
 import { CommandController } from "./controllers/command-controller";
@@ -273,6 +248,7 @@ import { SessionFocusController } from "./controllers/session-focus-controller";
 import { SSHCommandController } from "./controllers/ssh-command-controller";
 import { TanCommandController } from "./controllers/tan-command-controller";
 import { TodoCommandController } from "./controllers/todo-command-controller";
+import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@linxiraos/pi-tui/prompt/image-references";
 import { describeLoopCondition, evaluateLoopCondition, type LoopConditionVerdict } from "./loop-condition";
 import {
 	consumeLoopLimitIteration,
@@ -283,10 +259,37 @@ import {
 	isLoopLimitExhausted,
 	parseLoopArgs,
 } from "./loop-limit";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import { OAuthManualInputManager } from "./oauth-manual-input";
+import { resolveComposerHint } from "@linxiraos/pi-tui/prompt/composer-hints";
+import { hintUsage } from "../utils/usage-counter";
+import {
+	getRunningSubagentBadgeAgentIds,
+	getRunningSubagentBadgeRegistry,
+} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
+import {
+	type ObservableSession,
+	type SessionObserverChangeKind,
+	SessionObserverRegistry,
+} from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
+import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
-import { setSymbolPreset, warmHighlighter } from "@linxiraos/pi-tui/theme";
+import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
+import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
+import type { Theme } from "@linxiraos/pi-tui/theme";
+import {
+	getEditorTheme,
+	getMarkdownTheme,
+	onTerminalAppearanceChange,
+	onThemeChange,
+	setMarkdownMermaidRendering,
+	setSymbolPreset,
+	startMacOSAppearanceReprobeFallback,
+	theme,
+	warmHighlighter,
+} from "@linxiraos/pi-tui/theme";
+import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
 import type {
 	AgentHubOpenOptions,
 	CompactionQueuedMessage,
@@ -296,6 +299,7 @@ import type {
 	RenderSessionContextOptions,
 	SubmittedUserInput,
 } from "./types";
+import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { UiHelpers } from "./utils/ui-helpers";
 
 import {
@@ -346,13 +350,14 @@ import {
 	cfgTuiVimModeDisplay,
 	cfgTuiSidebar,
 } from "./settings";
-import { cfgProvidersTinyModel } from "../tiny/settings";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgProseOnlyThinking } from "../session/settings";
 import { cfgHideThinkingBlock } from "../session/settings";
 import { cfgCycleOrder, cfgModelRoles } from "../config/model-settings";
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "../goals/settings";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "../plan-mode/settings";
+import type { PlanWorkflow } from "../plan-mode/state";
 import { cfgStreamRedactPatterns } from "../stream/settings";
 import { cfgSttEnabled } from "../stt/settings";
 import { combine, type SettingValueOf } from "../config/registry";
@@ -423,8 +428,6 @@ type LiveUiSettings = SettingValueOf<typeof cfgLiveUiSettings>;
 
 const STILL_CLOSING_DELAY_MS = 3_000;
 const JUDGMENT_BATCH_PROGRESS_RETAIN_MS = 1_000;
-const JUDGMENT_BATCH_PROGRESS_BAR_WIDTH = 18;
-const JUDGMENT_BATCH_PROGRESS_MIN_BAR_WIDTH = 4;
 const DEFAULT_WORKING_MESSAGE = "Working…";
 
 interface WorkingMessageAccent {
@@ -625,83 +628,6 @@ class StatusHudContainer extends AnchoredLiveContainer {
 			return childLines;
 		}
 		return this.mode.renderCompactStatusLine(width, childLines);
-	}
-}
-
-/** Editor-anchored, right-aligned progress rows for concurrent judge batches. */
-class JudgmentBatchProgressHud implements Component {
-	readonly #batches = new Map<string, JudgmentBatchProgress>();
-
-	update(progress: JudgmentBatchProgress): void {
-		this.#batches.set(progress.id, progress);
-	}
-
-	delete(id: string): void {
-		this.#batches.delete(id);
-	}
-
-	clear(): void {
-		this.#batches.clear();
-	}
-
-	render(width: number): readonly string[] {
-		const rowWidth = Number.isFinite(width) ? Math.max(0, Math.trunc(width)) : 0;
-		if (rowWidth === 0) return [];
-		const rows: string[] = [];
-		for (const progress of this.#batches.values()) rows.push(this.#renderRow(progress, rowWidth));
-		return rows;
-	}
-
-	#renderRow(progress: JudgmentBatchProgress, width: number): string {
-		const countText = `${progress.done}/${progress.total}`;
-		// Zero cost means unpriced (local/native without catalog pricing), not free — omit rather than show $0.
-		const costText = progress.cost > 0 ? ` · ${formatCost(progress.cost)}` : "";
-		const failedText = progress.failed > 0 ? ` · ${progress.failed} failed` : "";
-		const compactFailedText = progress.failed > 0 ? ` +${progress.failed}!` : "";
-		let failure = failedText;
-		if (
-			failure &&
-			visibleWidth(countText) +
-				visibleWidth(costText) +
-				visibleWidth(failure) +
-				JUDGMENT_BATCH_PROGRESS_MIN_BAR_WIDTH +
-				1 >
-				width &&
-			visibleWidth(countText) + visibleWidth(costText) + visibleWidth(compactFailedText) <= width
-		) {
-			failure = compactFailedText;
-		}
-
-		const styledCount = theme.bold(theme.fg("text", countText));
-		const styledCost = costText ? theme.fg("dim", costText) : "";
-		const styledFailure = failure ? theme.fg("warning", failure) : "";
-		let tail = `${styledCount}${styledCost}${styledFailure}`;
-		let remaining = width - visibleWidth(tail);
-		if (remaining > 1) {
-			const barWidth = Math.min(JUDGMENT_BATCH_PROGRESS_BAR_WIDTH, remaining - 1);
-			const bar = renderProgressBar(progress.done, barWidth, {
-				min: 0,
-				max: Math.max(1, progress.total),
-				minWidth: barWidth,
-				maxWidth: barWidth,
-				style: {
-					filled: "━",
-					empty: "─",
-					styleFilled: text => theme.fg("accent", text),
-					styleEmpty: text => theme.fg("dim", text),
-				},
-			});
-			tail = `${bar} ${tail}`;
-			remaining = width - visibleWidth(tail);
-		}
-
-		const intent = sanitizeStatusText(progress.intent);
-		if (remaining > 1) {
-			const label = truncateToWidth(intent, remaining - 1, "");
-			if (label) tail = `${theme.fg("dim", label)} ${tail}`;
-		}
-		if (visibleWidth(tail) > width) tail = theme.bold(theme.fg("text", truncateToWidth(countText, width, "")));
-		return `${" ".repeat(Math.max(0, width - visibleWidth(tail)))}${tail}`;
 	}
 }
 
@@ -956,7 +882,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	ui: TUI;
 	chatContainer: TranscriptContainer;
 	pendingMessagesContainer: Container;
-	judgmentBatchProgressContainer: Container;
+	/** Judge-batch and automatic-download progress rows above the working line. */
+	progressHudContainer: Container;
 	statusContainer: Container;
 	/** Whether {@link statusContainer} rendered lines in the latest frame; the band composer's editor top gap collapses only then. */
 	statusRowOccupied = false;
@@ -1006,6 +933,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	#todoAutoClearGeneration = 0;
 	#modelCycleClearTimer: NodeJS.Timeout | undefined;
 	readonly #judgmentBatchProgressHud = new JudgmentBatchProgressHud();
+	readonly #downloadActivityHud = new DownloadActivityHud(() => this.ui.requestRender());
 	readonly #judgmentBatchProgressClearTimers = new Map<string, NodeJS.Timeout>();
 	#nextAppearanceRequestToken = 1;
 	#appearanceRefreshRequest: { token: TerminalAppearanceRequestToken; deadline: number } | undefined;
@@ -1056,7 +984,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	streamingMessage: AssistantMessage | undefined = undefined;
 	lastAssistantUsage: Usage | undefined = undefined;
 	servedModelTracker = new ServedModelTracker();
-
 	loadingAnimation: Loader | undefined = undefined;
 	autoCompactionLoader: Loader | undefined = undefined;
 	retryLoader: Loader | undefined = undefined;
@@ -1079,7 +1006,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	get tokenRate(): TokenRateMeter {
 		return this.viewSession.tokenRate;
 	}
-
 	/** Generation tok/s: live while streaming, the last reading between
 	 * turns, blank until a run has produced enough tokens to measure. */
 	#tokenRateLabel(): string | undefined {
@@ -1346,7 +1272,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.streamingMessage = undefined;
 		this.lastAssistantUsage = undefined;
 		this.servedModelTracker = new ServedModelTracker();
-
 		this.pendingTools.clear();
 	}
 	readonly #uiHelpers: UiHelpers;
@@ -1361,6 +1286,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	#eventBusUnsubscribers: Array<() => void> = [];
 	#observerUiSyncTimer?: NodeJS.Timeout;
 	#observerUiSyncNeedsTodoReconcile = false;
+	#runningSubagentCount = 0;
 	#agentRegistryUnsubscribe?: () => void;
 	#agentRegistrySubscriptionTarget?: AgentHubRegistry;
 	#mcpStatusOrder: string[] = [];
@@ -1395,9 +1321,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			composerShape: cfgComposerShape.get(settings),
 			...this.#liveComposerPreferences(),
 		};
-		// Bridge pi-tui chrome strings to the localized catalogue (live).
-		wireTuiTexts();
 		const wasStarted = composer?.started ?? false;
+		setMagicKeywords(MAGIC_KEYWORDS);
 		this.composer =
 			composer ??
 			new Composer({
@@ -1411,49 +1336,13 @@ export class InteractiveMode implements InteractiveModeContext {
 						status: server.status,
 						fileTypes: server.fileTypes,
 					})),
-					// Getters, not snapshots: re-read on every render so a
-					// /language switch re-localizes the panel without a rebuild.
-					strings: {
-						get back() {
-							return M.welcomeBack;
-						},
-						get tipsTitle() {
-							return M.welcomeTipsTitle;
-						},
-						get lspServersTitle() {
-							return M.welcomeLspServersTitle;
-						},
-						get recentSessionsTitle() {
-							return M.welcomeRecentSessionsTitle;
-						},
-						get noRecentSessions() {
-							return M.welcomeNoRecentSessions;
-						},
-						get noLspServers() {
-							return M.welcomeNoLspServers;
-						},
-						get tipLabel() {
-							return M.welcomeTipLabel;
-						},
-						get promptActionsHint() {
-							return M.welcomePromptActionsHint;
-						},
-						get commandsHint() {
-							return M.welcomeCommandsHint;
-						},
-						get runBashHint() {
-							return M.welcomeRunBashHint;
-						},
-						get runPythonHint() {
-							return M.welcomeRunPythonHint;
-						},
-					},
 				},
 			});
 		this.composer.setPreferences(preferences);
 		this.ui = this.composer.ui;
 		this.editor = this.composer.editor;
 		this.editor.magicKeywordsEnabled = () => cfgMagicKeywordsEnabled.get(this.settings);
+		this.editor.placeholder = () => this.#composerHint();
 		this.editor.imageReferenceHyperlink = imageReferenceHyperlink;
 		this.editor.skillFilePath = name => this.skillCommands.get(`skill:${name}`)?.filePath;
 		this.editor.modelMentionLabel = selector => {
@@ -1516,8 +1405,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 		this.chatContainer = new TranscriptContainer();
 		this.pendingMessagesContainer = new AnchoredLiveContainer();
-		this.judgmentBatchProgressContainer = new AnchoredLiveContainer();
-		this.judgmentBatchProgressContainer.addChild(this.#judgmentBatchProgressHud);
+		this.progressHudContainer = new AnchoredLiveContainer();
+		this.progressHudContainer.addChild(this.#judgmentBatchProgressHud);
+		this.progressHudContainer.addChild(this.#downloadActivityHud);
+		this.#eventBusUnsubscribers.push(onDownloadActivity(activity => this.#downloadActivityHud.update(activity)));
 		this.statusContainer = new StatusHudContainer(this);
 		this.todoContainer = new TodoHudContainer(this);
 		this.subagentContainer = new AnchoredLiveContainer();
@@ -1554,10 +1445,13 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#syncEditorMaxHeight();
 		};
 		process.stdout.on("resize", this.#resizeHandler);
+		setWordPredictionHost(textPredictionBackend);
 		try {
 			this.historyStorage = HistoryStorage.open();
 			this.editor.setHistoryStorage(this.historyStorage);
 			this.historyStorage.setSessionResolver(() => this.sessionManager.getSessionId());
+			// The prediction daemon learns from history.db; nudge it once each prompt is durable.
+			this.historyStorage.setAddListener(syncTextPrediction);
 		} catch (error) {
 			logger.warn("History storage unavailable", { error: String(error) });
 		}
@@ -1587,6 +1481,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
+		this.applySidebar();
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
 			this.#codexResetFireworksController.show(event);
@@ -1598,7 +1493,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.statusLine.setVibeWorkerTokenRateProvider(() =>
 			aggregateVibeWorkerTokensPerSecond(this.session.getAgentId() ?? MAIN_AGENT_ID),
 		);
-		this.applySidebar();
 
 		this.hideToolActivity = cfgDisplayHideToolActivity.get(settings);
 		this.chatContainer.setToolActivityVisible(!this.hideToolActivity);
@@ -1622,7 +1516,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#focusController = new SessionFocusController(this);
 		this.#inputController = new InputController(this);
 		this.collabController = new CollabController(this);
-		this.session.setTitleGenerationStart?.(() => this.#inputController.notifyTitleGenerationStart());
 		this.session.setPromptDropped?.(prompt => this.#restoreDroppedPrompt(prompt));
 		this.#observerRegistry = new SessionObserverRegistry();
 	}
@@ -1718,6 +1611,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (this.isInitialized) return;
 
 		this.keybindings = logger.time("InteractiveMode.init:keybindings", () => KeybindingsManager.create());
+		// Before first paint, so hints the user already learned never flash on.
+		await logger.time("InteractiveMode.init:hintUsage", () => hintUsage.load());
 
 		// Route SIGINT/SIGTERM/SIGHUP/uncaughtException through the same teardown
 		// the TUI Ctrl+C keypress path performs: persist the in-progress editor
@@ -1838,9 +1733,9 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.errorBannerContainer,
 				this.modelCycleContainer,
 				this.deferredCommandContainer,
-				// Judge batches stay editor-anchored and update independently of eval
-				// transcript output, directly above the working/throughput/title row.
-				this.judgmentBatchProgressContainer,
+				// Judge batches and automatic downloads stay editor-anchored and update
+				// independently of transcript output, directly above the working/throughput/title row.
+				this.progressHudContainer,
 				// Working loader / transient status sits below the sticky todo + subagent
 				// HUDs, just above the editor's hook-widget top margin — so it reads next to
 				// the prompt while keeping the one-line gap above the editor (the band
@@ -1977,7 +1872,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		setImmediate(() => {
 			void warmHighlighter();
 			if (!$env.PI_NO_TITLE && !this.sessionManager.getSessionName()) {
-				tinyTitleClient.prewarm(cfgProvidersTinyModel.get(this.settings));
+				this.#inputController.prewarmTinyTitleModel();
 			}
 		});
 
@@ -2005,7 +1900,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// custom messages, branch summaries, and compaction summaries) and the user
 		// set no explicit `mode_change` (which #reconcileModeFromSession just
 		// restored). SDK startup metadata and extension `custom` state entries are
-		// ignored. This way `zeta --continue` (or auto-resume) that finds no recent
+		// ignored. This way `omp --continue` (or auto-resume) that finds no recent
 		// session and creates a fresh one still honors the default, while a session
 		// with restored context or an explicit mode keeps its reconciled mode. Scoped
 		// to launch (not the switch reconciler above) so /new and the plan-approval →
@@ -2215,17 +2110,6 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	/** Reload slash commands and autocomplete for the provided working directory. */
 	async refreshSlashCommandState(cwd?: string, preloaded?: ReadonlyArray<FileSlashCommand>): Promise<void> {
-		// Rebuild the builtin segment so locale-dependent descriptions (M.*)
-		// re-resolve after `/language` and similar runtime switches. The names
-		// themselves are stable, so swap by the reserved-name set.
-		const builtinNames = BUILTIN_SLASH_COMMAND_RESERVED_NAMES;
-		const retainedNonBuiltin = this.#pendingSlashCommands.filter(command => !builtinNames.has(command.name));
-		const rebuiltBuiltins: SlashCommand[] = buildTuiBuiltinSlashCommands({ ctx: this }).map(cmd => ({
-			...cmd,
-			icon: getSlashCommandTypeIcon(cmd.icon ?? "action"),
-		}));
-		this.#pendingSlashCommands = [...rebuiltBuiltins, ...retainedNonBuiltin];
-
 		const basePath = cwd ?? this.sessionManager.getCwd();
 		// Session construction already ran slash-command discovery for this cwd;
 		// init passes that result through instead of re-walking the providers.
@@ -2351,11 +2235,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				// before the move commits so the next prompt cannot recall or
 				// retain against the source project's memory.
 				await rebindMemoryBackendForCwd(this.session);
-				// Reapply provider preferences from the newly-loaded settings so the
-				// module-level search/image provider state reflects the destination
-				// project's configuration. Without this, the previous project's
-				// exclusions leak and newly-excluded providers are still used.
-				applyProviderGlobalsFromSettings(settings);
 			}
 			// Re-warm plugin roots, capabilities, slash commands, and the ssh tool so
 			// the next prompt sees everything scoped to the new project directory.
@@ -2373,7 +2252,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (isSettingsInitialized()) {
 					await settings.reloadForCwd(previousCwd);
 					await rebindMemoryBackendForCwd(this.session);
-					applyProviderGlobalsFromSettings(settings);
 				}
 				clearClaudePluginRootsCache();
 				await this.refreshTitleSystemPrompt(previousCwd);
@@ -2385,7 +2263,6 @@ export class InteractiveMode implements InteractiveModeContext {
 					if (isSettingsInitialized()) {
 						await settings.reloadForCwd(actual);
 						await rebindMemoryBackendForCwd(this.session);
-						applyProviderGlobalsFromSettings(settings);
 					}
 					clearClaudePluginRootsCache();
 					await this.refreshTitleSystemPrompt(actual);
@@ -2720,7 +2597,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const conditionSuffix = parsed.condition ? ` Continuing ${describeLoopCondition(parsed.condition)}.` : "";
 		const tail = parsed.prompt ? "Repeating it after each turn." : "Your next prompt will repeat after each turn.";
 		this.showStatus(
-			`Loop mode enabled.${limitSuffix}${remainingSuffix}${conditionSuffix} ${tail} Esc suspends the ongoing loop; /loop again to disable.`,
+			`Loop mode enabled.${limitSuffix}${remainingSuffix}${conditionSuffix} ${tail} ${appKey(this.keybindings, "app.interrupt")} suspends the ongoing loop; /loop again to disable.`,
 		);
 		// Hand any inline prompt back to the dispatcher so the normal submit flow
 		// runs the first iteration — it records the text as the loop prompt and
@@ -3317,8 +3194,20 @@ export class InteractiveMode implements InteractiveModeContext {
 			});
 		}
 		const agentIds = getRunningSubagentBadgeAgentIds(registry);
+		this.#runningSubagentCount = agentIds.length;
 		this.statusLine.setRunningSubagents(agentIds);
 		if (options.requestRender !== false) this.ui.requestRender();
+	}
+
+	/** Placeholder for the empty composer; see `COMPOSER_HINTS` for the registered hints. */
+	#composerHint(): string | undefined {
+		return resolveComposerHint({
+			runningAgents: this.#runningSubagentCount,
+			focusedOnAgent: this.focusedAgentId !== undefined,
+			conversationStarted: this.viewSession.messages.length > 0,
+			keybindings: this.keybindings,
+			uses: id => hintUsage.get(id),
+		});
 	}
 
 	rebuildChatFromMessages(options: { reuseSettledComponents?: boolean } = {}): void {
@@ -3879,7 +3768,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				? {
 						enabled: this.planModeEnabled,
 						paused: this.planModePaused,
-						workflow: this.session.getPlanModeState?.()?.workflow,
 					}
 				: undefined;
 		this.statusLine.setPlanModeStatus(status);
@@ -4368,12 +4256,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		this.#updatePlanModeStatus();
 		this.sessionManager.appendModeChange("plan", { planFilePath });
-		const workflow = this.session.getPlanModeState?.()?.workflow;
-		this.showStatus(
-			workflow === "ultra"
-				? M.imPlanUltraModeEnabledFmt.replace("%s", planFilePath)
-				: M.imPlanModeEnabledFmt.replace("%s", planFilePath),
-		);
+		this.showStatus(`Plan mode enabled. Plan file: ${planFilePath}`);
 	}
 
 	async #restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
@@ -4597,13 +4480,13 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#updateGoalModeStatus();
 		if (!options?.silent) {
 			if (options?.reason === "completed") {
-				this.showStatus(M.imGoalModeCompleted);
+				this.showStatus("Goal mode completed.");
 			} else if (options?.reason === "dropped") {
-				this.showStatus(M.imGoalDropped);
+				this.showStatus("Goal dropped.");
 			} else if (options?.paused) {
-				this.showStatus(M.imGoalModePaused);
+				this.showStatus("Goal mode paused.");
 			} else {
-				this.showStatus(M.imGoalModeDisabled);
+				this.showStatus("Goal mode disabled.");
 			}
 		}
 	}
@@ -4684,7 +4567,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				helpText: dialogOptions?.helpText,
 				initialIndex: dialogOptions?.initialIndex,
 				slider: extra?.slider,
-				externalEditorLabel: this.keybindings.getDisplayString("app.editor.external") || undefined,
+				externalEditorLabel: appKey(this.keybindings, "app.editor.external") || undefined,
 				annotationState: dialogOptions?.annotationState,
 			},
 			{
@@ -4811,7 +4694,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async #copyPlanToClipboard(content: string): Promise<void> {
 		try {
 			await copyToClipboard(content);
-			this.showStatus(M.imPlanCopiedToClipboard);
+			this.showStatus("Copied plan to clipboard");
 		} catch (error) {
 			this.showWarning(
 				`Failed to copy plan to clipboard: ${error instanceof Error ? error.message : String(error)}`,
@@ -4924,7 +4807,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			if (result !== null) {
 				await Bun.write(resolvedPath, result);
 				this.#planReviewOverlay?.setPlanContent(result);
-				this.showStatus(M.imPlanUpdatedExternal);
+				this.showStatus("Plan updated in external editor.");
 			}
 		} catch (error) {
 			this.showWarning(`Failed to open external editor: ${error instanceof Error ? error.message : String(error)}`);
@@ -5074,12 +4957,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				const displayPath = truncateToWidth(replaceTabs(shortenPath(autosaved)), TRUNCATE_LENGTHS.CONTENT);
 				this.showStatus(`Saved plan to ${displayPath}.`);
 			}
-			await mirrorPlanToTracking({
-				settings: this.session.settings,
-				cwd: this.sessionManager.getCwd(),
-				slug: options.title,
-				planContent,
-			});
 		} catch (error) {
 			const detail = truncateToWidth(
 				shortenEmbeddedPaths(
@@ -5441,7 +5318,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			}
 			this.#updateVibeModeStatus();
 			if (options?.persistModeChange !== false) this.sessionManager.appendModeChange("vibe", { previousTools });
-			this.showStatus(M.imVibeModeEnabledDesc);
+			this.showStatus(
+				"Vibe mode enabled. You direct fast/good worker sessions; toolset is read + optional parent Todo + vibe tools.",
+			);
 		})();
 		this.#vibeModeEntry = entry;
 		try {
@@ -5486,7 +5365,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			return;
 		}
 		if (state.goal.status === "complete") {
-			this.showStatus(M.imGoalAlreadyComplete);
+			this.showStatus("Goal is already complete.");
 			return;
 		}
 		const trimmed = rawBudget.trim().toLowerCase();
@@ -5525,7 +5404,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (sub) return await this.#dispatchGoalSubcommand(sub, subRest, input);
 		if (this.goalModeEnabled) {
 			if (subRest) {
-				this.showStatus(M.imGoalAlreadyActiveFmt.replace("%s", "/goal").replace("%s", "/goal drop"));
+				this.showStatus("Goal mode is already active. Use /goal to manage it, or /goal drop to start over.");
 				return false;
 			}
 			await this.#openGoalMenu("active");
@@ -5567,7 +5446,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				return false;
 			}
 			if (this.goalModeEnabled) {
-				this.showStatus(M.imGoalAlreadyActiveFmt.replace("%s", "/goal").replace("%s", "/goal drop"));
+				this.showStatus("Goal mode is already active. Use /goal to manage it, or /goal drop to start over.");
 				return false;
 			}
 			if (this.#getPausedGoalState()) {
@@ -5680,7 +5559,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const state = this.session.getGoalModeState();
 		const goal = state?.goal;
 		if (!goal) {
-			this.showStatus(M.imNoGoalSet);
+			this.showStatus("No goal set.");
 			return;
 		}
 		const used = goal.tokensUsed.toLocaleString();
@@ -5724,7 +5603,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			return;
 		}
 		await this.#enterGoalMode({ resume: true, silent: true });
-		this.showStatus(M.imGoalModeResumed);
+		this.showStatus("Goal mode resumed.");
 		this.#scheduleGoalContinuation();
 	}
 
@@ -5908,7 +5787,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				: undefined;
 		// The overlay now owns the dynamic, focus-aware help line; the caller only
 		// supplies the trailing cancel hint.
-		const helpText = "esc cancel";
+		const helpText = `${editorKey("tui.select.cancel")} cancel`;
 		// In-overlay edits (section deletes/undo) and section annotations. Deletes
 		// update `editedContent` (and mirror to disk); annotations build `feedback`
 		// that the Refine branch re-prompts the model with.
@@ -6037,7 +5916,7 @@ export class InteractiveMode implements InteractiveModeContext {
 						this.#planReviewAnnotationState.delete(annotationStateKey);
 					}
 				} else {
-					this.showStatus(M.imRefinePlanPrompt);
+					this.showStatus("Refine plan: enter a follow-up prompt.");
 				}
 			} catch (error) {
 				this.showError(`Failed to refine plan: ${error instanceof Error ? error.message : String(error)}`);
@@ -6159,6 +6038,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		stopSharedSpinnerTicker();
 		this.#liveCommandController.dispose();
 		this.#clearJudgmentBatchProgress();
+		this.#downloadActivityHud.dispose();
 		this.#cancelTodoAutoClearTimer();
 		this.#cancelObserverUiSyncTimer();
 		this.#cancelGoalContinuation();
@@ -6249,7 +6129,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#teardownFailed = this.session.isDisposed;
 		this.showError(
 			this.#teardownFailed
-				? `Could not ${action} session: ${detail}\nPress Ctrl+C again to exit without saving the session log.`
+				? `Could not ${action} session: ${detail}\nPress ${appKey(this.keybindings, "app.clear")} again to exit without saving the session log.`
 				: `Could not ${action} session: ${detail}`,
 		);
 	}
@@ -6322,10 +6202,10 @@ export class InteractiveMode implements InteractiveModeContext {
 
 		// Surface progress before any asynchronous cleanup, including live commands
 		// and BTW history writes, so the user sees a reason for the pause.
-		this.showStatus(M.imClosingSession);
+		this.showStatus("Closing session…");
 
 		const stillClosingTimer = setTimeout(() => {
-			this.showStatus(M.imStillClosingFmt);
+			this.showStatus("Still closing… (flushing memory backend / network)");
 		}, STILL_CLOSING_DELAY_MS);
 		try {
 			this.#streamPublisher?.dispose();
@@ -6367,7 +6247,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.ui.terminal.drainInput(1000);
 		// Stop the run-state spinner interval BEFORE restoring the shell title, so a
 		// pending tick cannot re-emit an OSC title after `popTerminalTitle` hands the
-		// terminal back (which would leave the parent shell with a `ζ ⠋ …` tab).
+		// terminal back (which would leave the parent shell with a `π ⠋ …` tab).
 		disposeTerminalTitleState();
 		popTerminalTitle();
 		this.stop();
@@ -6439,6 +6319,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 		nextEditor.viewportRowsProvider = () => this.ui.terminal.rows;
 		nextEditor.magicKeywordsEnabled = () => cfgMagicKeywordsEnabled.get(this.settings);
+		nextEditor.placeholder = () => this.#composerHint();
 		nextEditor.imageReferenceHyperlink = imageReferenceHyperlink;
 		nextEditor.skillFilePath = name => this.skillCommands.get(`skill:${name}`)?.filePath;
 		nextEditor.modelMentionLabel = selector => {
@@ -6768,7 +6649,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				// leads with the interrupt affordance instead of a second spinner.
 				// The leading space nudges the row one column right of the flush-left
 				// status rows so the interrupt glyph reads as indented.
-				[` ${theme.icon.esc}`],
+				[` ${appKey(this.keybindings, "app.interrupt")}`],
 			);
 			this.loadingAnimation.setTrailer(() => this.#workingRowTrailer());
 			this.statusContainer.addChild(this.loadingAnimation);

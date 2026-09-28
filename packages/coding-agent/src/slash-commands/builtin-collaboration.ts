@@ -1,29 +1,27 @@
 import { Spacer } from "@linxiraos/pi-tui";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
+import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
+import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
+import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { theme } from "@linxiraos/pi-tui/theme";
 import { APP_NAME, formatAge } from "@linxiraos/pi-utils";
-
 import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
+import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../commands/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
 import { shareSession } from "../export/share";
 import { M } from "../i18n";
-import { theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../modes/types";
-import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
-import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
 import { restartBrowserForModeChange } from "../tools/browser";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { openPath } from "../utils/open";
-
+import { cfgBrowserEnabled, cfgBrowserHeadless } from "../tools/browser/settings";
 import { copyToClipboard } from "../utils/clipboard";
+import { openPath } from "../utils/open";
 import { refreshStatusLine } from "./builtin-modes";
-import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
-
-import { cfgBrowserEnabled, cfgBrowserHeadless } from "../tools/browser/settings";
-import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../commands/settings";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {
@@ -49,7 +47,7 @@ function showCollabQrCode(ctx: InteractiveModeContext, webLink: string): void {
 	try {
 		ctx.present([new Spacer(1), new CollabQrCodeComponent(webLink)]);
 	} catch (err) {
-		ctx.showError(M.colQrFailedFmt.replace("%s", errorMessage(err)));
+		ctx.showError(`Failed to render collab QR code: ${errorMessage(err)}`);
 	}
 }
 
@@ -62,25 +60,23 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "advisor",
 		icon: "advisor",
-		description: () => M.cmdAdvisor,
-		acpDescription: M.cmdAdvisorAcp,
+		description: "Toggle the advisor (a second model that reviews each turn and injects notes)",
+		acpDescription: "Toggle advisor",
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
-			{ name: "on", description: () => M.cmdAdvisorOn },
-			{ name: "off", description: () => M.cmdAdvisorOff },
-			{ name: "status", description: () => M.cmdAdvisorStatus },
-			{ name: "dump", description: () => M.cmdAdvisorDump, usage: "[raw]" },
-			{ name: "configure", description: () => M.cmdAdvisorConfigure },
+			{ name: "on", description: "Enable the advisor" },
+			{ name: "off", description: "Disable the advisor" },
+			{ name: "status", description: "Show advisor status" },
+			{ name: "dump", description: "Copy the advisor's transcript to clipboard", usage: "[raw]" },
+			{ name: "configure", description: "Open the advisor configuration editor (TUI)" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const stats = runtime.ctx.session.getAdvisorStats();
-			if (stats.active && stats.advisors.length > 1)
-				return M.acAdvisorOnFmt.replace("%s", M.ccAdvisorCountFmt.replace("%s", String(stats.advisors.length)));
-			if (stats.active && stats.model)
-				return M.acAdvisorOnFmt.replace("%s", `${stats.model.provider}/${stats.model.id}`);
-			if (stats.configured) return M.acAdvisorConfiguredNoModel;
-			return M.acAdvisorOff;
+			if (stats.active && stats.advisors.length > 1) return `Advisor: on (${stats.advisors.length} advisors)`;
+			if (stats.active && stats.model) return `Advisor: on (${stats.model.provider}/${stats.model.id})`;
+			if (stats.configured) return "Advisor: configured, no model";
+			return "Advisor: off";
 		},
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
@@ -132,11 +128,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				const active = runtime.ctx.session.toggleAdvisorEnabled();
 				const configured = runtime.ctx.session.isAdvisorEnabled();
 				if (active) {
-					runtime.ctx.showStatus(M.colAdvisorEnabled);
+					runtime.ctx.showStatus("Advisor enabled.");
 				} else if (configured) {
-					runtime.ctx.showStatus(M.colAdvisorSettingEnabledNoModel);
+					runtime.ctx.showStatus("Advisor setting enabled, but no model is assigned to the 'advisor' role.");
 				} else {
-					runtime.ctx.showStatus(M.colAdvisorDisabled);
+					runtime.ctx.showStatus("Advisor disabled.");
 				}
 				refreshStatusLine(runtime.ctx);
 				runtime.ctx.editor.setText("");
@@ -153,7 +149,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			}
 			if (verb === "off") {
 				runtime.ctx.session.setAdvisorEnabled(false);
-				runtime.ctx.showStatus(M.colAdvisorDisabled);
+				runtime.ctx.showStatus("Advisor disabled.");
 				refreshStatusLine(runtime.ctx);
 				runtime.ctx.editor.setText("");
 				return;
@@ -174,14 +170,14 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus(M.colAdvisorUsage);
+			runtime.ctx.showStatus("Usage: /advisor [on|off|status|dump [raw]|configure]");
 			runtime.ctx.editor.setText("");
 		},
 	},
 	{
 		name: "export",
 		icon: "export",
-		description: () => M.cmdExportHtml,
+		description: "Export session to HTML file",
 		inlineHint: "[--themes] [path]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -205,7 +201,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "trace",
 		icon: "stats",
-		description: () => M.cmdOpenThisSessionsTraceInTheStatsDashboard,
+		description: "Open this session's trace in the stats dashboard",
 		handle: async (_command, runtime) => {
 			const sessionFile = runtime.session.sessionFile;
 			if (!sessionFile) {
@@ -232,8 +228,8 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "dump",
 		icon: "clipboard",
-		description: () => M.cmdDumpTranscript,
-		acpDescription: M.cmdDumpAcp,
+		description: "Copy session transcript to clipboard (and write LLM request JSON to tmp)",
+		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
 		allowArgs: true,
 		handle: async (_command, runtime) => {
 			const text = runtime.session.formatSessionAsText();
@@ -265,7 +261,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "share",
 		icon: "share",
-		description: () => M.cmdShare,
+		description: "Share session via an encrypted link (share server or secret gist)",
 		handle: async (_command, runtime) => {
 			try {
 				const result = await shareSession(runtime.sessionManager, {
@@ -291,26 +287,23 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "collab",
 		icon: "broadcast",
-		description: () => M.cmdCollab,
+		description: "Share this session live via a relay",
 		inlineHint: "[start|view|list|stop|status] [relayUrl]",
 		subcommands: [
-			{ name: "view", description: () => M.cmdCollabView },
+			{ name: "view", description: "Share a read-only link (guests can watch, not prompt)" },
 			{ name: "list", description: () => M.cmdCollabList },
-			{ name: "status", description: () => M.cmdCollabStatus },
-			{ name: "stop", description: () => M.cmdCollabStop },
+			{ name: "status", description: "Show link + participants" },
+			{ name: "stop", description: "Stop sharing" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const host = runtime.ctx.collabController.host;
 			if (host) {
-				return M.acCollabFmt.replace(
-					"%s",
-					`${M.stateHosting}${M.acCollabGuestsFmt.replace("%s", String(Math.max(0, host.participants.length - 1)))}`,
-				);
+				return `Collab: hosting (${Math.max(0, host.participants.length - 1)} guests)`;
 			}
-			if (runtime.ctx.collabGuest?.readOnly) return M.acCollabFmt.replace("%s", M.stateReadOnlyGuest);
-			if (runtime.ctx.collabGuest) return M.acCollabFmt.replace("%s", M.stateGuest);
-			return M.acCollabFmt.replace("%s", M.stateOff);
+			if (runtime.ctx.collabGuest?.readOnly) return "Collab: read-only guest";
+			if (runtime.ctx.collabGuest) return "Collab: guest";
+			return "Collab: off";
 		},
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
@@ -319,7 +312,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const { verb, rest } = parseSubcommand(args);
 			if (verb === "stop") {
 				await ctx.collabController.stop("host stopped");
-				ctx.showStatus(M.colCollabStopped);
+				ctx.showStatus("Collab stopped");
 				return;
 			}
 			if (verb === "status") {
@@ -329,23 +322,24 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 						p.role === "host" ? `${p.name} (host)` : p.readOnly ? `${p.name} (view-only)` : p.name,
 					);
 					const link = host.access === "view" ? host.webViewLink : host.webLink;
-					ctx.showStatus(
-						M.colCollabStatusFmt.replace("%s", names.join(", ")).replace("%s", collabBrowserLink(link)),
-					);
+					ctx.showStatus(`Collab: ${names.join(", ")} — ${collabBrowserLink(link)}`);
 				} else if (ctx.collabGuest) {
-					ctx.showStatus(ctx.collabGuest.readOnly ? M.colInCollabReadOnlyGuest : M.colInCollabGuest);
+					ctx.showStatus(
+						ctx.collabGuest.readOnly
+							? "In a collab session as a read-only guest (/leave to exit)"
+							: "In a collab session as a guest (/leave to exit)",
+					);
 				} else {
-					ctx.showStatus(M.colNotInCollabSession);
+					ctx.showStatus("Not in a collab session");
 				}
 				return;
 			}
 			if (verb === "list") {
-				// Same registry as `zeta collab list`: metadata only, never a link. A
-				// link is a deliberate per-host act (`zeta collab link <id> [--view]`),
-
+				// Same registry as `omp collab list`: metadata only, never a link. A
+				// link is a deliberate per-host act (`omp collab link <id> [--view]`),
 				// so a listing can be shown or logged without granting anything.
 				if (rest.trim()) {
-					ctx.showError(M.colCollabListUsageFmt.replace("%s", APP_NAME));
+					ctx.showError(`Usage: /collab list — for links or JSON use \`${APP_NAME} collab link|list\``);
 					return;
 				}
 				let hosts: CollabHostSnapshot[];
@@ -361,7 +355,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 					return;
 				}
 				if (hosts.length === 0) {
-					ctx.showStatus(M.colNoActiveCollabHosts);
+					ctx.showStatus("No active Collab hosts");
 					return;
 				}
 				const bullet = theme.fg("accent", theme.format.bullet);
@@ -400,7 +394,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				return;
 			}
 			if (ctx.collabGuest) {
-				ctx.showError(M.colAlreadyGuest);
+				ctx.showError("Already in a collab session as a guest (/leave first)");
 				return;
 			}
 			const knownStartVerb = verb === "start" || verb === "view";
@@ -411,7 +405,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				host = await ctx.collabController.start({ access, relay: knownStartVerb ? rest : args });
 			} catch (err) {
-				ctx.showError(M.colFailedToStartFmt.replace("%s", errorMessage(err)));
+				ctx.showError(`Failed to start collab session: ${errorMessage(err)}`);
 				return;
 			}
 			let heading = existing ? "Collab session restarted with control access" : "Collab session started!";
@@ -422,7 +416,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 	{
 		name: "join",
 		icon: "signIn",
-		description: () => M.cmdCollabJoin,
+		description: "Join a shared collab session",
 		inlineHint: "<link>",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -430,11 +424,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			ctx.editor.setText("");
 			const link = command.args.trim();
 			if (!link) {
-				ctx.showError(M.colJoinUsage);
+				ctx.showError("Usage: /join <link>");
 				return;
 			}
 			if (ctx.collabGuest) {
-				ctx.showError(M.colAlreadyInCollab);
+				ctx.showError("Already in a collab session (/leave first)");
 				return;
 			}
 			try {
@@ -442,23 +436,23 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				if (!ctx.collabController.host) await ctx.collabController.stop("joining another session");
 				// Recheck after teardown: a concurrent manual start may have won.
 				if (ctx.collabController.host) {
-					ctx.showError(M.colStopHostingFirst);
+					ctx.showError("Stop hosting first (/collab stop)");
 					return;
 				}
 				await new CollabGuestLink(ctx).join(link);
 			} catch (err) {
-				ctx.showError(M.colFailedToJoinFmt.replace("%s", errorMessage(err)));
+				ctx.showError(`Failed to join collab session: ${errorMessage(err)}`);
 			}
 		},
 	},
 	{
 		name: "leave",
 		icon: "signOut",
-		description: () => M.cmdCollabLeave,
+		description: "Leave the collab session",
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.collabController.host) return M.acLeaveCollabHosting;
-			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;
-			return M.acLeaveCollabNone;
+			if (runtime.ctx.collabController.host) return "Leave collab: hosting";
+			if (runtime.ctx.collabGuest) return "Leave collab: guest";
+			return "Leave collab: not in collab";
 		},
 		handleTui: async (_command, runtime) => {
 			const ctx = runtime.ctx;
@@ -470,20 +464,20 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const wasHosting = ctx.collabHost !== undefined;
 			await ctx.collabController.stop("host stopped");
 			if (wasHosting) {
-				ctx.showStatus(M.colCollabStopped);
+				ctx.showStatus("Collab stopped");
 				return;
 			}
-			ctx.showStatus(M.colNotInCollabSession);
+			ctx.showStatus("Not in a collab session");
 		},
 	},
 	{
 		name: "browser",
 		icon: "globe",
-		description: () => M.cmdToggleBrowserEvalPreludeHeadlessVsVisibleMode,
+		description: "Toggle browser eval-prelude headless vs visible mode",
 		acpInputHint: "[headless|visible]",
 		subcommands: [
-			{ name: "headless", description: () => M.cmdBrowserHeadless },
-			{ name: "visible", description: () => M.cmdBrowserVisible },
+			{ name: "headless", description: "Switch to headless mode" },
+			{ name: "visible", description: "Switch to visible mode" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -530,7 +524,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			} else if (arg === "visible" || arg === "show" || arg === "headful") {
 				next = false;
 			} else {
-				runtime.ctx.showStatus(M.colBrowserUsage);
+				runtime.ctx.showStatus("Usage: /browser [headless|visible]");
 				runtime.ctx.editor.setText("");
 				return;
 			}
@@ -538,18 +532,18 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			try {
 				await restartBrowserForModeChange();
 			} catch (error) {
-				runtime.ctx.showWarning(M.colFailedToRestartBrowserFmt.replace("%s", errorMessage(error)));
+				runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus(M.colBrowserModeFmt.replace("%s", next ? "headless" : "visible"));
+			runtime.ctx.showStatus(`Browser mode: ${next ? "headless" : "visible"}`);
 			runtime.ctx.editor.setText("");
 		},
 	},
 	{
 		name: "copy",
 		icon: "copy",
-		description: () => M.cmdCopyPick,
+		description: "Pick text or code from the conversation to copy",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
@@ -561,65 +555,65 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			if (arg === "code") {
 				const block = extractLastCodeBlock(runtime.ctx.session.messages);
 				if (!block) {
-					runtime.ctx.showStatus(M.colNoCodeBlockToCopy);
+					runtime.ctx.showStatus("No code block to copy.");
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(block.code);
-				runtime.ctx.showStatus(M.colCopiedCodeBlock);
+				runtime.ctx.showStatus("Copied code block to clipboard");
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			if (arg === "cmd" || arg === "command") {
 				const lastCommand = extractLastCommand(runtime.ctx.session.messages);
 				if (!lastCommand) {
-					runtime.ctx.showStatus(M.colNoCommandToCopy);
+					runtime.ctx.showStatus("No command to copy.");
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(lastCommand.code);
-				runtime.ctx.showStatus(
-					M.colCopiedToClipboardFmt.replace("%s", lastCommand.kind === "bash" ? "bash command" : "eval code"),
-				);
+				runtime.ctx.showStatus(`Copied ${lastCommand.kind === "bash" ? "bash command" : "eval code"} to clipboard`);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			if (arg === "link" || arg === "url") {
 				const link = extractLastLink(runtime.ctx.session.messages);
 				if (!link) {
-					runtime.ctx.showStatus(M.colNoLinkToCopy);
+					runtime.ctx.showStatus("No link to copy.");
 					runtime.ctx.editor.setText("");
 					return;
 				}
 				await copyToClipboard(link.href);
-				runtime.ctx.showStatus(M.colCopiedLink);
+				runtime.ctx.showStatus("Copied link to clipboard");
 				runtime.ctx.editor.setText("");
 				return;
 			}
-			runtime.ctx.showStatus(M.colCopyUsage);
+			runtime.ctx.showStatus("Usage: /copy [code|cmd|link]");
 			runtime.ctx.editor.setText("");
 		},
 	},
 	{
 		name: "open",
 		icon: "globe",
-		description: () => M.cmdOpenLastLinkFromConversation,
+		description: "Open the last link from the conversation in your browser (or pick one with /copy)",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg && arg !== "link" && arg !== "url") {
-				runtime.ctx.showStatus(M.colOpenUsage);
+				runtime.ctx.showStatus(
+					`Usage: /open [link]  (pick a specific link: /copy, ${formatKeyHint("right")} blocks, ${formatKeyHint("o")})`,
+				);
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			const link = extractLastLink(runtime.ctx.session.messages);
 			if (!link) {
-				runtime.ctx.showStatus(M.colNoLinkToOpen);
+				runtime.ctx.showStatus("No link to open.");
 				runtime.ctx.editor.setText("");
 				return;
 			}
 			openPath(link.href);
-			runtime.ctx.showStatus(M.colOpeningFmt.replace("%s", link.href));
+			runtime.ctx.showStatus(`Opening ${link.href}`);
 			runtime.ctx.editor.setText("");
 		},
 	},

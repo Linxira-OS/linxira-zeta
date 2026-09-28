@@ -1,6 +1,6 @@
 import { type SgrMouseEvent } from "../../mouse";
-import { tuiText } from "../../i18n";
 import { TabBar } from "../../components/tab-bar";
+import { editorKey } from "../../chrome/keybinding-hints";
 import { getTabBarTheme } from "../../chrome/shared";
 import { SignInTab } from "./sign-in";
 import type { SetupScene, SetupSceneController, SetupSceneHost, SetupTab } from "./types";
@@ -13,12 +13,9 @@ import { WebSearchTab } from "./web-search";
  * temporarily suppress tab switching.
  */
 class ProvidersSceneController implements SetupSceneController {
-	get title(): string {
-		return tuiText("setupProvidersTitle", "Set up your providers");
-	}
-
+	title = "Set up your providers";
 	get subtitle(): string {
-		return tuiText("setupProvidersSubtitle", "Sign in and pick a web search provider. Press Esc when you're done.");
+		return `Sign in and pick a web search provider. Press ${editorKey("tui.select.cancel")} when you're done.`;
 	}
 
 	#tabs: SetupTab[];
@@ -29,13 +26,8 @@ class ProvidersSceneController implements SetupSceneController {
 	constructor(host: SetupSceneHost) {
 		this.#tabs = [new SignInTab(host), new WebSearchTab(host)];
 		this.#tabBar = new TabBar(
-			tuiText("setupProvidersTab", "Providers"),
-			this.#tabs.map(tab => ({
-				id: tab.id,
-				get label() {
-					return tab.label;
-				},
-			})),
+			"Providers",
+			this.#tabs.map(tab => ({ id: tab.id, label: tab.label })),
 			getTabBarTheme(),
 		);
 		this.#tabBar.onTabChange = () => {
@@ -112,9 +104,7 @@ class ProvidersSceneController implements SetupSceneController {
 /** Configure provider sign-in and the preferred web search backend. */
 export const providersSetupScene: SetupScene = {
 	id: "providers",
-	get title(): string {
-		return tuiText("setupProvidersTitle", "Set up your providers");
-	},
+	title: "Set up your providers",
 	minVersion: 1,
 	mount: host => new ProvidersSceneController(host),
 };

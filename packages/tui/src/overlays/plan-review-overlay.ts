@@ -29,7 +29,6 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { sanitizeStatusText } from "../chrome/shared";
 import { getEditorTheme, getMarkdownTheme, theme } from "../theme/theme";
@@ -53,6 +52,8 @@ import {
 import { joinPlanSections, parsePlanSections, sectionDeletionSpan } from "./plan-toc";
 import { padToWidth } from "../render/utils";
 import { renderSegmentTrack } from "../chrome/segment-track";
+import { formatKeyHint, formatKeyHints } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 
 /** Title shown in the overlay's top border. */
 const OVERLAY_TITLE = "Plan Review";
@@ -166,9 +167,6 @@ export interface PlanReviewOverlayOptions {
 	/** Serializable annotations restored into this overlay instance. */
 	annotationState?: PlanReviewAnnotationState;
 }
-
-/** Default trailing footer hint when the caller supplies none. */
-const DEFAULT_HELP_SUFFIX = "esc cancel";
 
 export class PlanReviewOverlay implements Component {
 	#mdTheme: MarkdownTheme;
@@ -1004,16 +1002,15 @@ export class PlanReviewOverlay implements Component {
 			this.callbacks.onFeedbackChange?.("");
 			return;
 		}
-		let feedback = `${tuiText("planReviewFeedbackHeader", "Refinement feedback on the plan:")}\n`;
+		let feedback = "Refinement feedback on the plan:\n";
 		if (this.#deleted.length > 0) {
-			feedback += `\n${tuiText("planReviewFeedbackRemoveHeader", "Remove these sections:")}\n`;
+			feedback += "\nRemove these sections:\n";
 			for (const title of this.#deleted) feedback += `- ${title}\n`;
 		}
 		for (const section of annotated) {
-			feedback += `\n## ${section.title || tuiText("planReviewPlanPreamble", "Plan preamble")}\n`;
+			feedback += `\n## ${section.title || "Plan preamble"}\n`;
 			for (const annotation of section.annotations) {
-				if (annotation.target.kind === "line")
-					feedback += `${tuiTextFmt("planReviewFeedbackLineFmt", "> Line: %s", annotation.target.context)}\n`;
+				if (annotation.target.kind === "line") feedback += `> Line: ${annotation.target.context}\n`;
 				feedback += this.#formatAnnotationFeedback(annotation.note);
 			}
 		}
@@ -1071,23 +1068,39 @@ export class PlanReviewOverlay implements Component {
 	#buildHelp(): string {
 		const sep = " · ";
 		const parts: string[] = [];
+		const upDown = editorKeys("tui.select.up", "tui.select.down");
+		const enter = formatKeyHint("enter");
 		switch (this.#focus) {
 			case "actions":
-				parts.push(tuiText("planReviewHelpSelect", "↑↓ select"), tuiText("planReviewHelpConfirm", "⏎ confirm"));
-				if (this.#slider) parts.push(tuiText("planReviewHelpModel", "◂▸ model"));
+				parts.push(`${upDown} select`, `${enter} confirm`);
+				if (this.#slider) parts.push(`${formatKeyHints(["left", "right"])} model`);
 				break;
 			case "toc":
-				parts.push("↑↓ section", "⏎ open", "a annotate", "e edit", "d delete", "u undo");
+				parts.push(
+					`${upDown} section`,
+					`${enter} open`,
+					`${formatKeyHint("a")} annotate`,
+					`${formatKeyHint("e")} edit`,
+					`${formatKeyHint("d")} delete`,
+					`${formatKeyHint("u")} undo`,
+				);
 				break;
 			case "body":
-				parts.push("↑↓ scroll", "⇧ faster", "pgup/pgdn", "g/G ends", "a annotate", "e edit", "u undo");
+				parts.push(
+					`${upDown} scroll`,
+					`${formatKeyHint("shift")} faster`,
+					formatKeyHints(["pageUp", "pageDown"]),
+					`${formatKeyHints(["g", "shift+g"])} ends`,
+					`${formatKeyHint("a")} annotate`,
+					`${formatKeyHint("e")} edit`,
+					`${formatKeyHint("u")} undo`,
+				);
 				break;
 		}
-		if (this.callbacks.onCopyPlan) parts.push(tuiText("planReviewHelpCopy", "c copy"));
-		parts.push(tuiText("planReviewHelpRegions", "tab regions"));
-		if (this.#externalEditorLabel && this.#focus !== "toc")
-			parts.push(tuiTextFmt("planReviewHelpEditorFmt", "%s editor", this.#externalEditorLabel));
-		parts.push(this.#helpSuffix ?? tuiText("planReviewEscCancel", "esc cancel"));
+		if (this.callbacks.onCopyPlan) parts.push(`${formatKeyHint("c")} copy`);
+		parts.push(`${formatKeyHint("tab")} regions`);
+		if (this.#externalEditorLabel && this.#focus !== "toc") parts.push(`${this.#externalEditorLabel} editor`);
+		parts.push(this.#helpSuffix ?? `${editorKey("tui.select.cancel")} cancel`);
 		return parts.join(sep);
 	}
 
@@ -1112,7 +1125,7 @@ export class PlanReviewOverlay implements Component {
 	#buildBody(bodyContentWidth: number): string[] {
 		const lines: string[] = [];
 		const anchors: BodyRowAnchor[] = [];
-		// [suppressed] length preallocation
+		// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 		const offsets: number[] = new Array(this.#sections.length);
 		for (let sectionIndex = 0; sectionIndex < this.#sections.length; sectionIndex++) {
 			const section = this.#sections[sectionIndex]!;
@@ -1203,7 +1216,7 @@ export class PlanReviewOverlay implements Component {
 		for (let i = 0; i < noteLines.length; i++) {
 			const prefix =
 				i === 0
-					? `${theme.fg("warning", "▎ ")}${theme.fg("dim", tuiText("planReviewNotePrefix", "note: "))}`
+					? `${theme.fg("warning", "▎ ")}${theme.fg("dim", "note: ")}`
 					: `${theme.fg("warning", "▎ ")}${theme.fg("dim", "      ")}`;
 			const available = Math.max(0, bodyContentWidth - visibleWidth(prefix));
 			const displayLine = truncateToWidth(
@@ -1298,7 +1311,13 @@ export class PlanReviewOverlay implements Component {
 			lines.push(truncateToWidth(label, innerWidth, Ellipsis.Unicode));
 		}
 		if (!Number.isFinite(maxRows) || maxRows >= 2) {
-			lines.push(theme.fg("dim", "↑↓ choose · enter edit · esc cancel"));
+			const upDown = editorKeys("tui.select.up", "tui.select.down");
+			lines.push(
+				theme.fg(
+					"dim",
+					`${upDown} choose · ${formatKeyHint("enter")} edit · ${editorKey("tui.select.cancel")} cancel`,
+				),
+			);
 		}
 		return lines.slice(0, Math.max(0, Math.floor(maxRows)));
 	}
@@ -1308,17 +1327,21 @@ export class PlanReviewOverlay implements Component {
 		if (this.#annotating) {
 			const target = this.#annotationTarget;
 			const section = target ? this.#sections[target.sectionIndex] : undefined;
-			const title = sanitizeStatusText(section?.title || tuiText("planReviewPlanPreamble", "Plan preamble"));
+			const title = sanitizeStatusText(section?.title || "Plan preamble");
 			const location =
 				target?.row === null
 					? `‹${title}›`
 					: `‹${title}› · ${truncateToWidth(target?.context ?? "", Math.max(1, innerWidth - 16), Ellipsis.Unicode)}`;
 			const caption = truncateToWidth(
-				`${theme.fg("dim", tuiText("planReviewAnnotate", "Annotate"))} ${theme.fg("accent", location)}`,
+				`${theme.fg("dim", "Annotate")} ${theme.fg("accent", location)}`,
 				innerWidth,
 				Ellipsis.Unicode,
 			);
-			const hintParts = ["enter save", "shift+enter newline", "esc cancel"];
+			const hintParts = [
+				`${editorKey("tui.input.submit")} save`,
+				`${editorKey("tui.input.newLine")} newline`,
+				`${editorKey("tui.select.cancel")} cancel`,
+			];
 			if (this.#editingAnnotation) hintParts.push("empty deletes");
 			if (this.#externalEditorLabel) hintParts.push(`${this.#externalEditorLabel} editor`);
 			this.#editor.setMaxHeight(Math.max(1, Math.min(MAX_ANNOTATION_EDITOR_ROWS, (process.stdout.rows || 40) - 12)));
@@ -1338,9 +1361,7 @@ export class PlanReviewOverlay implements Component {
 
 		const committed = this.#committed;
 		const sliderLines = committed ? [] : this.#renderSliderLines();
-		const submittingLabel = this.#committedLabel
-			? tuiTextFmt("planReviewSubmittingFmt", "%s — submitting…", this.#committedLabel)
-			: tuiText("planReviewSubmitting", "Submitting…");
+		const submittingLabel = this.#committedLabel ? `${this.#committedLabel} — submitting…` : "Submitting…";
 		const optionLines = committed ? [theme.bold(theme.fg("accent", submittingLabel))] : this.#renderOptionLines();
 		const promptLines = this.#promptTitle ? [theme.bold(theme.fg("accent", this.#promptTitle))] : [];
 		const baseChrome = 4 + promptLines.length + sliderLines.length + optionLines.length;
@@ -1375,7 +1396,7 @@ export class PlanReviewOverlay implements Component {
 		const out: string[] = [];
 		if (sidebarShown) {
 			const { lines: sidebar, posForRow } = this.#renderSidebarLines(regionRows, sidebarWidth);
-			out.push(topBorderSplit(width, tuiText("planReviewTitle", OVERLAY_TITLE), sidebarWidth));
+			out.push(topBorderSplit(width, OVERLAY_TITLE, sidebarWidth));
 			for (let i = 0; i < regionRows; i++) {
 				const pos = posForRow[i];
 				if (pos !== undefined) this.#tocClickRows.set(out.length, pos);
@@ -1384,7 +1405,7 @@ export class PlanReviewOverlay implements Component {
 			}
 			out.push(dividerSplit(width, sidebarWidth));
 		} else {
-			out.push(topBorder(width, tuiText("planReviewTitle", OVERLAY_TITLE)));
+			out.push(topBorder(width, OVERLAY_TITLE));
 			for (const line of body) {
 				this.#bodyClickRows.add(out.length);
 				out.push(row(line, width));

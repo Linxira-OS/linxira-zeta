@@ -6,6 +6,8 @@ import { logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { createBackgroundTanDispatchBlock } from "@linxiraos/pi-tui/chat/background-tan-message";
@@ -13,7 +15,6 @@ import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
 import { CollabPromptMessageComponent } from "@linxiraos/pi-tui/chat/collab-prompt-message";
-
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -59,7 +60,6 @@ import {
 } from "../../session/messages";
 import type { SessionContext, StrippedToolCallsMarker } from "../../session/session-context";
 import { replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
-
 import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
 import {
 	createAssistantMessageComponent,
@@ -1080,7 +1080,7 @@ export class UiHelpers {
 		block.addChild(new DynamicBorder(text => theme.fg("warning", text)));
 		const title = "Update Available";
 		const prefix = `New version ${newVersion} is available. Run: `;
-		const command = "zeta update";
+		const command = "omp update";
 		block.addChild(
 			new Text(`${title}\n${prefix}${command}`, 1, 0).setStyleFn(
 				() =>
@@ -1120,7 +1120,7 @@ export class UiHelpers {
 					this.ctx.pendingMessagesContainer.addChild(new TruncatedText(queuedText, 1, 0));
 				}
 			}
-			const dequeueKey = this.ctx.keybindings.getDisplayString("app.message.dequeue") || "Alt+Up";
+			const dequeueKey = appKey(this.ctx.keybindings, "app.message.dequeue") || formatKeyHint("alt+up");
 			const hintText = theme.fg("dim", `  ${theme.tree.hook} ${dequeueKey} to edit`);
 			this.ctx.pendingMessagesContainer.addChild(new TruncatedText(hintText, 1, 0));
 		}

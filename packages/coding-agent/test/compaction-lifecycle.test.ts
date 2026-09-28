@@ -5,6 +5,7 @@ import { CommandController } from "@linxiraos/zeta/modes/controllers/command-con
 import { getThemeByName, setThemeInstance, type Theme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { Container, Spacer } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 
 /**
  * Contract under test: `CommandController.executeCompaction` must not leak
@@ -49,6 +50,7 @@ function buildCtx(compact: InteractiveModeContext["session"]["compact"]) {
 		updateEditorTopBorder: vi.fn(),
 		showError,
 		flushCompactionQueue: vi.fn(async () => undefined),
+		keybindings: KeybindingsManager.inMemory(),
 		// executeCompaction consults display.collapseCompacted on the ok path to
 		// decide whether the rebuild replaces the terminal transcript.
 		settings: Settings.isolated({ "display.collapseCompacted": true }),

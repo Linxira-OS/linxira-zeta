@@ -1,7 +1,7 @@
 import { type Component, CURSOR_MARKER, type Focusable, Input, truncateToWidth, visibleWidth } from "../index";
-import { tuiText } from "../i18n";
 import { theme } from "../theme/theme";
 import { OverlayPanel, PanelRows } from "../chrome/overlay-box";
+import { editorKey } from "../chrome/keybinding-hints";
 
 /** A confirmed destination chosen from {@link PlanSaveOverlay}. */
 export interface PlanSaveOverlayResult {
@@ -20,9 +20,10 @@ export class PlanSaveOverlay implements Component, Focusable {
 	constructor(suggestedPath: string, done: (result: PlanSaveOverlayResult | undefined) => void) {
 		this.#suggestedPath = suggestedPath;
 		this.#done = done;
+		this.#input.prompt = theme.fg("dim", "Path: ");
 		this.#input.onSubmit = value => this.#done({ path: value.trim() || this.#suggestedPath });
 		this.#input.onEscape = () => this.#done(undefined);
-		this.#panel = new OverlayPanel(tuiText("planSaveTitle", "Save and quit"));
+		this.#panel = new OverlayPanel("Save and quit");
 		this.#body = new PanelRows();
 		this.#body.setHeight(2);
 		this.#panel.addChild(this.#body);
@@ -58,12 +59,8 @@ export class PlanSaveOverlay implements Component, Focusable {
 	render(width: number): readonly string[] {
 		const innerWidth = Math.max(0, width - 4);
 		this.#input.focused = this.#focused;
-		this.#input.prompt = theme.fg("dim", `${tuiText("adshPath", "Path:")} `);
-		this.#panel.title = tuiText("planSaveTitle", "Save and quit");
-		this.#body.setLines([
-			this.#renderInput(innerWidth),
-			theme.fg("dim", tuiText("planSaveFooterHint", "Enter save and quit · Esc cancel")),
-		]);
+		const hint = `${editorKey("tui.input.submit")} save and quit · ${editorKey("tui.select.cancel")} cancel`;
+		this.#body.setLines([this.#renderInput(innerWidth), theme.fg("dim", hint)]);
 		return this.#panel.render(width);
 	}
 

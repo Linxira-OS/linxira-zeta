@@ -15,7 +15,8 @@ import type { OutputArtifactError } from "../tools/streaming-output";
 import { formatArtifactErrorNotice, formatTruncationMetaNotice, type TruncationMeta } from "../tools/output-meta";
 import { DynamicBorder } from "../chrome/dynamic-border";
 import { Ellipsis, truncateToWidth, visibleWidth } from "../utils";
-import { tuiText, tuiTextFmt } from "../i18n";
+import { interruptKey } from "../chrome/keybinding-hints";
+import { expandKeyHint } from "../render/render-utils";
 
 /** Output rows shown while an execution is collapsed. */
 export const PREVIEW_LINES = 20;
@@ -30,7 +31,7 @@ export function clampDisplayLine(line: string): string {
 		return line;
 	}
 	const omitted = visible - MAX_DISPLAY_LINE_CHARS;
-	return `${truncateToWidth(line, MAX_DISPLAY_LINE_CHARS, Ellipsis.Omit)}… ${tuiTextFmt("execColumnsOmittedFmt", "[%s visible columns omitted]", omitted)}`;
+	return `${truncateToWidth(line, MAX_DISPLAY_LINE_CHARS, Ellipsis.Omit)}… [${omitted} visible columns omitted]`;
 }
 
 export type ExecutionStatus = "running" | "complete" | "cancelled" | "error";
@@ -60,7 +61,7 @@ export function buildExecutionFrame(
 		ui,
 		spinner => theme.fg(colorKey, spinner),
 		text => theme.fg("muted", text),
-		tuiText("execRunningEscCancel", `Running… (esc to cancel)`),
+		`Running… (${interruptKey()} to cancel)`,
 		getSymbolTheme().spinnerFrames,
 	);
 
@@ -85,17 +86,12 @@ export function buildStatusFooter(opts: {
 	const parts: string[] = [];
 
 	if (opts.hiddenLineCount > 0 && !opts.suppressHiddenCount) {
-		parts.push(
-			theme.fg(
-				"dim",
-				tuiTextFmt("execMoreLinesHintFmt", `… %s more lines (ctrl+o to expand)`, opts.hiddenLineCount),
-			),
-		);
+		parts.push(theme.fg("dim", `… ${opts.hiddenLineCount} more lines (${expandKeyHint()} to expand)`));
 	}
 	if (opts.status === "cancelled") {
-		parts.push(theme.fg("warning", tuiText("execCancelledMarker", "(cancelled)")));
+		parts.push(theme.fg("warning", "(cancelled)"));
 	} else if (opts.status === "error") {
-		parts.push(theme.fg("error", tuiTextFmt("execExitFmt", `(exit ${opts.exitCode})`, opts.exitCode ?? "")));
+		parts.push(theme.fg("error", `(exit ${opts.exitCode})`));
 	}
 	if (opts.truncation) {
 		parts.push(theme.fg("warning", formatTruncationMetaNotice(opts.truncation)));

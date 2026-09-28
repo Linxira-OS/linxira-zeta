@@ -28,7 +28,11 @@ const hasCjk = (s: string) => /[\u4e00-\u9fff]/.test(s);
  * bundled /init file command is not part of this registry; its zh description
  * is overlaid at read time in src/task/commands.ts.
  */
-const DESCRIPTION_ALLOWLIST: ReadonlySet<string> = new Set<string>([]);
+const DESCRIPTION_ALLOWLIST: ReadonlySet<string> = new Set<string>([
+	// The resolved description splices the platform keyhint (alt+p → Alt+P on
+	// win32) into the catalogue value, so it no longer string-equals the entry.
+	"/switch",
+]);
 
 /** Descriptions are thunks resolved against the active catalogue (see
  * resolveCommandDescription), so map each back to its en catalogue key to

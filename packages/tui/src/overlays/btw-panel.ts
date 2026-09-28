@@ -1,10 +1,11 @@
 import { type Component, Markdown, Text, type TUI } from "../index";
-import { tuiText } from "../i18n";
 import { replaceTabs } from "../render/render-utils";
 import { getMarkdownTheme, theme } from "../theme/theme";
 import { sanitizeErrorLine } from "../chrome/error-block";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { StreamingPanelContent } from "../chrome/streaming-panel";
+import { interruptKey } from "../chrome/keybinding-hints";
+import { formatKeyHint } from "../app-keybindings";
 
 type BtwPanelState = "running" | "complete" | "branching" | "aborted" | "error";
 
@@ -76,12 +77,7 @@ export class BtwPanelComponent extends OverlayPanel {
 
 	#setCopied(copied: boolean): void {
 		this.#copied = copied;
-	}
-
-	override render(width: number): readonly string[] {
-		// Resolved per paint so a /language switch retitles the panel live.
-		this.title = this.#copied ? `${this.#baseTitle} ${tuiText("btwCopiedBadge", "✓ Copied")}` : this.#baseTitle;
-		return super.render(width);
+		this.title = copied ? `${this.#baseTitle} ✓ Copied` : this.#baseTitle;
 	}
 
 	/** Shows that the completed answer is being promoted into the chat session. */
@@ -135,49 +131,40 @@ export class BtwPanelComponent extends OverlayPanel {
 	}
 
 	#footerLine(): string {
+		// The main editor routes `app.interrupt` (Escape by default) to the panel.
+		const esc = interruptKey();
 		switch (this.#state) {
 			case "running":
-				return theme.fg("muted", tuiText("btwEscToCancel", "Esc to cancel"));
+				return theme.fg("muted", `${esc} to cancel`);
 			case "complete": {
 				const actions: string[] = [];
-				if (this.isCopyable())
-					actions.push(
-						tuiText(this.#copied ? "btwCopyAgain" : "btwCopy", this.#copied ? "c to copy again" : "c to copy"),
-					);
-				if (this.#canFollowUp?.()) actions.push(tuiText("btwFollowUpHint", "f to follow up"));
-				if (this.#canBranch?.() ?? this.isBranchable()) actions.push(tuiText("btwBranchHint", "b to branch"));
-				actions.push(tuiText("btwEscToClose", "Esc to close"));
+				const copyKey = formatKeyHint("c");
+				if (this.isCopyable()) actions.push(this.#copied ? `${copyKey} to copy again` : `${copyKey} to copy`);
+				if (this.#canFollowUp?.()) actions.push(`${formatKeyHint("f")} to follow up`);
+				if (this.#canBranch?.() ?? this.isBranchable()) actions.push(`${formatKeyHint("b")} to branch`);
+				actions.push(`${esc} to close`);
 				if (this.#copied) {
-					return `${theme.fg("success", tuiText("btwCopiedToClipboard", "✓ Copied to clipboard"))}${theme.fg("muted", actions.length > 0 ? ` · ${actions.join(" · ")}` : "")}`;
+					return `${theme.fg("success", "✓ Copied to clipboard")}${theme.fg("muted", actions.length > 0 ? ` · ${actions.join(" · ")}` : "")}`;
 				}
 				return theme.fg("muted", actions.join(" · "));
 			}
 			case "branching":
-				return theme.fg("muted", `${theme.status.pending} ${tuiText("btwBranching", "Branching to chat…")}`);
+				return theme.fg("muted", `${theme.status.pending} Branching to chat…`);
 			case "aborted":
-				return theme.fg(
-					"warning",
-					`${theme.status.warning} ${tuiText("btwCancelledClose", "Cancelled · Esc to close")}`,
-				);
+				return theme.fg("warning", `${theme.status.warning} Cancelled · ${esc} to close`);
 			case "error":
-				return theme.fg("error", `${theme.status.error} ${tuiText("btwErrorClose", "Error · Esc to close")}`);
+				return theme.fg("error", `${theme.status.error} Error · ${esc} to close`);
 		}
 	}
 
 	#contentComponent(): Component {
 		if (this.#state === "error") {
-			return new Text(
-				theme.fg("error", sanitizeErrorLine(this.#errorMessage ?? tuiText("overlayUnknownError", "Unknown error"))),
-				0,
-				0,
-			);
+			return new Text(theme.fg("error", sanitizeErrorLine(this.#errorMessage ?? "Unknown error")), 0, 0);
 		}
 		const text = this.#visibleAnswer;
 		if (!text) {
 			const waiting =
-				this.#state === "running"
-					? `${theme.status.pending} ${tuiText("btwWaitingForResponse", "Waiting for response…")}`
-					: tuiText("btwNoTextReturned", "No text returned.");
+				this.#state === "running" ? `${theme.status.pending} Waiting for response…` : "No text returned.";
 			return new Text(theme.fg("dim", waiting), 0, 0);
 		}
 		return new Markdown(text, 0, 0, getMarkdownTheme());

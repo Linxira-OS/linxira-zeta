@@ -20,7 +20,8 @@ import { Editor } from "../components/editor";
 import { matchesKey } from "../keys";
 import { routeSgrMouseInput } from "../mouse";
 import { formatDuration, formatNumber, logger } from "@linxiraos/pi-utils";
-import type { KeyId } from "../app-keybindings";
+import { formatKeyHint, formatKeyHints, type KeyId } from "../app-keybindings";
+import { editorKey } from "../chrome/keybinding-hints";
 import type { MessageRenderer } from "../chat/extension-types";
 import type { AgentLifecycleLike } from "./agent-hub-types";
 import type { AgentHubRegistry, AgentStatus } from "./agent-hub-types";
@@ -28,8 +29,7 @@ import type { SessionMessageEntryLike } from "../chat/transcript-entry";
 import type { ObservableSession, SessionObserverRegistry } from "./session-observer-registry";
 import { getEditorTheme, theme } from "../theme/theme";
 import { matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
-import { AGENT_STATUS_TEXT, type AgentHubRemote } from "./agent-hub";
-import { tuiText, tuiTextFmt } from "../i18n";
+import type { AgentHubRemote } from "./agent-hub";
 import { ChatTranscriptBuilder } from "../chat/chat-transcript-builder";
 import {
 	TranscriptBrowser,
@@ -133,16 +133,15 @@ function sentinelsFromFile(fs: AgentTranscriptSource["fs"], file: string, size: 
 }
 
 function statusBadge(status: AgentStatus): string {
-	const word = tuiText(AGENT_STATUS_TEXT[status].key, AGENT_STATUS_TEXT[status].fallback);
 	switch (status) {
 		case "running":
-			return theme.fg("success", word);
+			return theme.fg("success", "running");
 		case "idle":
-			return theme.fg("accent", word);
+			return theme.fg("accent", "idle");
 		case "parked":
-			return theme.fg("muted", word);
+			return theme.fg("muted", "parked");
 		case "aborted":
-			return theme.fg("error", word);
+			return theme.fg("error", "aborted");
 	}
 }
 
@@ -616,14 +615,9 @@ export class AgentTranscriptViewer implements Component {
 	}
 
 	#headerLines(status: AgentStatus | undefined, kind: string | undefined, parentId: string | undefined): string[] {
-		const lines = [
-			theme.fg("accent", `${tuiText("agentHubTitle", "Agent Hub")} ${theme.sep.dot} ${this.#deps.agentId}`),
-		];
+		const lines = [theme.fg("accent", `Agent Hub ${theme.sep.dot} ${this.#deps.agentId}`)];
 		if (status && kind) {
-			const kindTag = theme.fg(
-				"dim",
-				` ${parentId ? `${kind} ${theme.sep.dot} ${tuiTextFmt("transcriptOfFmt", "of %s", parentId)}` : kind}`,
-			);
+			const kindTag = theme.fg("dim", ` ${parentId ? `${kind} ${theme.sep.dot} of ${parentId}` : kind}`);
 			const modelLabel = this.#model ? theme.fg("muted", `${theme.sep.dot}${this.#model}`) : "";
 			lines.push(`${theme.bold(this.#deps.agentId)} ${statusBadge(status)}${kindTag}${modelLabel}`);
 		}
@@ -634,17 +628,11 @@ export class AgentTranscriptViewer implements Component {
 		const lines: string[] = [];
 		const statsLine = this.#statsLine();
 		if (statsLine) lines.push(statsLine);
-		const hint = this.#editor
-			? tuiTextFmt(
-					"transcriptFooterEditorFmt",
-					"Enter:send  Esc:close  %s:expand  empty input → j/k:scroll  g/G:top/bottom",
-					this.#deps.expandKeys[0] ?? "ctrl+o",
-				)
-			: tuiTextFmt(
-					"transcriptFooterFmt",
-					"Esc:close  %s:expand  j/k:scroll  g/G:top/bottom",
-					this.#deps.expandKeys[0] ?? "ctrl+o",
-				);
+		const keys =
+			`${formatKeyHint("escape")}:close  ${formatKeyHint(this.#deps.expandKeys[0] ?? "ctrl+o")}:expand  ` +
+			`${this.#editor ? "empty input → " : ""}${formatKeyHints(["j", "k"])}:scroll  ${formatKeyHints(["g", "shift+g"])}:top/bottom`;
+		const hint = this.#editor ? `${editorKey("tui.input.submit")}:send  ${keys}` : keys;
+		lines.push(theme.fg("dim", hint));
 		return lines;
 	}
 
@@ -674,14 +662,10 @@ export class AgentTranscriptViewer implements Component {
 	#placeholder(maxWidth: number): string {
 		if (this.#deps.remote) {
 			if (this.#remoteError) return sanitizeErrorLine(this.#remoteError, maxWidth);
-			if (this.#remoteUnavailable)
-				return tuiText("transcriptHostUnavailable", "Transcript lives on the host — not available.");
-			return this.#hasRemoteData
-				? tuiText("transcriptNoMessages", "No messages yet.")
-				: tuiText("transcriptLoadingRemote", "Loading transcript from host…");
+			if (this.#remoteUnavailable) return "Transcript lives on the host — not available.";
+			return this.#hasRemoteData ? "No messages yet." : "Loading transcript from host…";
 		}
-		if (!this.#deps.registry.get(this.#deps.agentId)?.sessionFile)
-			return tuiText("transcriptNoSessionFile", "No session file available yet.");
-		return tuiText("transcriptNoMessages", "No messages yet.");
+		if (!this.#deps.registry.get(this.#deps.agentId)?.sessionFile) return "No session file available yet.";
+		return "No messages yet.";
 	}
 }

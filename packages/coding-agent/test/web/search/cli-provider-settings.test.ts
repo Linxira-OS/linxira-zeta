@@ -6,7 +6,7 @@ import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.OMP_PROFILE;
 const originalPiProfile = process.env.PI_PROFILE;
 
@@ -61,7 +61,7 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	resetSettingsForTest();
 	process.exitCode = originalExitCode;
-	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();

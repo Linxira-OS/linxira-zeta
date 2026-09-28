@@ -1,10 +1,11 @@
+import { formatKeyHint } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";
 import type { MouseRoutable, SgrMouseEvent } from "../mouse";
 import type { Component } from "../tui";
 import { Ellipsis, padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { ScrollView } from "./scroll-view";
 import { FormField, type FormFieldOptions, type FormFieldTheme } from "./form";
 import { MenuSelection } from "./menu-selection";
@@ -29,20 +30,11 @@ export interface SettingItem {
 	description?: string;
 	/** Optional risk note shown in warning styling above the description, with a glyph on the row. */
 	warning?: string;
-	/** Current value to display (right side). Kept separate from the cycled
-	 *  machine values so localized displays never break `values` matching. */
+	/** Current value to display (right side) */
 	currentValue: string;
-	/** Optional machine-readable value list cycled on confirm. Localized
-	 *  display text lives in `valueLabel`/`valueLabels`, keeping `values`
-	 *  matching stable across languages. */
+	/** If provided, Enter/Space cycles through these values */
 	values?: string[];
-	/** Optional display text overriding `currentValue` in the value column
-	 *  (e.g. a localized on/off label for a boolean whose `values` stay
-	 *  machine-readable). */
-	valueLabel?: string;
-	/** Display labels aligned with `values`; consumed whenever `valueLabel`
-	 *  is set so cycled values keep their localized text. */
-	valueLabels?: string[];
+	/** If provided, Enter opens this submenu. Receives current value and done callback. */
 	submenu?: (currentValue: string, done: (selectedValue?: string) => void) => Component;
 	/** True when the displayed setting differs from its default value. */
 	changed?: boolean;
@@ -424,9 +416,7 @@ export class SettingsList implements Component {
 
 	#renderSearchStatus(width: number): string {
 		const query = sanitizeSingleLine(this.#filterQuery);
-		const statusText = query
-			? tuiTextFmt("hsSearchFmt", "  Search: %s", query)
-			: tuiText("hsTypeToSearch", "  Type to search");
+		const statusText = query ? `  Search: ${query}` : "  Type to search";
 		return this.#theme.hint(truncateToWidth(statusText, width, Ellipsis.Omit));
 	}
 
@@ -522,11 +512,7 @@ export class SettingsList implements Component {
 		const labelPad = padding(Math.max(0, maxLabelWidth - visibleWidth(labelPlain)));
 		const separator = "  ";
 		const valueMaxWidth = rowWidth - prefixWidth - maxLabelWidth - visibleWidth(separator) - 2;
-		const valuePlain = truncateToWidth(
-			String(item.valueLabel ?? item.currentValue ?? ""),
-			valueMaxWidth,
-			Ellipsis.Omit,
-		);
+		const valuePlain = truncateToWidth(String(item.currentValue ?? ""), valueMaxWidth, Ellipsis.Omit);
 		const hovered = !isSelected && this.#theme.hovered !== undefined && item.id === this.#hoveredItemId;
 		// De-emphasized rows (outside the active section) render as plain text
 		// under one dim wash so inner label/value colors don't fight it.
@@ -553,9 +539,7 @@ export class SettingsList implements Component {
 		const lines: string[] = [];
 
 		if (this.#items.length === 0) {
-			lines.push(
-				this.#theme.hint(`  ${this.#options.emptyText ?? tuiText("settingsListEmpty", "No settings available")}`),
-			);
+			lines.push(this.#theme.hint(`  ${this.#options.emptyText ?? "No settings available"}`));
 			return lines;
 		}
 
@@ -563,16 +547,11 @@ export class SettingsList implements Component {
 			if (this.#shouldRenderSearchStatus()) {
 				lines.push(this.#renderSearchStatus(width));
 			}
-			lines.push(this.#theme.hint(`  ${tuiText("setNoMatchingSettings", "No matching settings")}`));
+			lines.push(this.#theme.hint("  No matching settings"));
 			lines.push("");
-			lines.push(
-				truncateToWidth(
-					this.#theme.hint(
-						`  ${tuiText("settingsListBackspaceHint", "Backspace to edit search · Esc to cancel")}`,
-					),
-					width,
-				),
-			);
+			const editKey = editorKey("tui.editor.deleteCharBackward");
+			const cancelKey = editorKey("tui.select.cancel");
+			lines.push(truncateToWidth(this.#theme.hint(`  ${editKey} to edit search · ${cancelKey} to cancel`), width));
 			return lines;
 		}
 
@@ -664,10 +643,10 @@ export class SettingsList implements Component {
 		if (this.#options.hint !== "") {
 			lines.push("");
 			const jumpHint =
-				sections.length >= 2 ? `${tuiText("settingsListJumpSections", "PgUp/PgDn to jump sections")} · ` : "";
+				sections.length >= 2 ? `${editorKeys("tui.select.pageUp", "tui.select.pageDown")} to jump sections · ` : "";
 			const hintText =
 				this.#options.hint ??
-				`${tuiText("ssFooterPrefix", "Enter/Space to change")} · ${jumpHint}${tuiText("settingsListFooterSuffix", "Type to search · Esc to cancel")}`;
+				`${editorKey("tui.select.confirm")}/${formatKeyHint("space")} to change · ${jumpHint}Type to search · ${editorKey("tui.select.cancel")} to cancel`;
 			lines.push(truncateToWidth(this.#theme.hint(`  ${hintText}`), width));
 		}
 
@@ -826,11 +805,6 @@ export class SettingsList implements Component {
 			const nextIndex = (currentIndex + 1) % item.values.length;
 			const newValue = item.values[nextIndex];
 			item.currentValue = newValue;
-			// Keep a localized value label in sync with the cycled value.
-			if (item.valueLabel !== undefined) {
-				const labels = item.valueLabels;
-				item.valueLabel = labels?.[nextIndex] ?? newValue;
-			}
 			this.#onChange(item.id, newValue);
 		}
 	}

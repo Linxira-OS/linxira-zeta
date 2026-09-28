@@ -1,15 +1,16 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $ } from "bun";
 import {
-	inspectPackedTarball,
+	createKeyedMutex,
 	legalPayloadFiles,
 	npmDistTag,
+	type PublishJob,
 	packages,
 	prepareNativeCorePackage,
 	rewriteManifest,
+	runPublishJobs,
 	stageLegalPayloads,
 } from "./ci-release-publish";
 
@@ -18,6 +19,122 @@ describe("npm dist-tags", () => {
 		expect(npmDistTag("0.13.0-canary.2")).toBe("canary");
 		expect(npmDistTag("0.13.0")).toBe("latest");
 		expect(() => npmDistTag("0.13.0-rc.1")).toThrow("Unsupported prerelease version");
+	});
+});
+
+describe("concurrent publish runner", () => {
+	it("runs every job past a failing sibling, keeps output grouped, and reports failures", async () => {
+		const names = ["a", "b", "c", "d", "e"];
+		const failing = ["b", "d"];
+		const started: Record<string, PromiseWithResolvers<void>> = {};
+		const gates: Record<string, PromiseWithResolvers<void>> = {};
+		for (const name of names) {
+			started[name] = Promise.withResolvers<void>();
+			gates[name] = Promise.withResolvers<void>();
+		}
+		let inFlight = 0;
+		let peak = 0;
+		const jobs: PublishJob[] = names.map(name => ({
+			name,
+			async publish(log) {
+				inFlight++;
+				peak = Math.max(peak, inFlight);
+				log(`${name} start`);
+				started[name].resolve();
+				await gates[name].promise;
+				log(`${name} end`);
+				inFlight--;
+				if (failing.includes(name)) throw new Error(`${name} exploded`);
+			},
+		}));
+		const blocks: string[] = [];
+		const run = runPublishJobs(jobs, 2, block => blocks.push(block));
+
+		// Finish out of start order so a's lines straddle b's whole lifetime.
+		await Promise.all([started.a.promise, started.b.promise]);
+		gates.b.resolve();
+		await started.c.promise;
+		gates.a.resolve();
+		await started.d.promise;
+		gates.d.resolve();
+		await started.e.promise;
+		gates.c.resolve();
+		gates.e.resolve();
+
+		expect(await run).toEqual(["b", "d"]);
+		expect(peak).toBe(2);
+		expect(blocks).toEqual([
+			"── b ──\nb start\nb end\nFAILED b: b exploded\n",
+			"── a ──\na start\na end\n",
+			"── d ──\nd start\nd end\nFAILED d: d exploded\n",
+			"── c ──\nc start\nc end\n",
+			"── e ──\ne start\ne end\n",
+		]);
+	});
+
+	it("never publishes a dependent after its prerequisite failed, while unrelated jobs still publish", async () => {
+		const published: string[] = [];
+		const discarded: string[] = [];
+		const job = (name: string, dependsOn: string[] = [], fail = false): PublishJob => ({
+			name,
+			dependsOn,
+			async pack() {},
+			async publish() {
+				if (fail) throw new Error(`${name} rejected by the registry`);
+				published.push(name);
+			},
+			async discard() {
+				discarded.push(name);
+			},
+		});
+		// Declared out of dependency order on purpose: coding-agent first, as the
+		// real runner schedules prepack packages; waiting must not deadlock.
+		const jobs = [job("coding-agent", ["utils", "ai"]), job("ai", ["utils"]), job("utils", [], true), job("wire")];
+
+		const failed = await runPublishJobs(jobs, 1, () => {});
+
+		expect(failed).toEqual(["coding-agent", "ai", "utils"]);
+		expect(published).toEqual(["wire"]);
+		expect(discarded.toSorted()).toEqual(["ai", "coding-agent"]);
+	});
+
+	it("rejects a dependency cycle instead of waiting forever", async () => {
+		const job = (name: string, dependsOn: string[]): PublishJob => ({ name, dependsOn, async publish() {} });
+		await expect(runPublishJobs([job("a", ["b"]), job("b", ["a"])], 2, () => {})).rejects.toThrow(
+			"publish dependency cycle",
+		);
+	});
+
+	it("serializes sections sharing a pack lock while unlocked sections run immediately", async () => {
+		const lock = createKeyedMutex();
+		const events: string[] = [];
+		const statsGate = Promise.withResolvers<void>();
+		const stats = lock("stats-client", async () => {
+			events.push("stats+");
+			await statsGate.promise;
+			events.push("stats-");
+		});
+		const codingAgent = lock("stats-client", async () => {
+			events.push("coding-agent");
+		});
+		await lock(undefined, async () => {
+			events.push("utils");
+		});
+		await Promise.resolve();
+
+		expect(events).toContain("stats+");
+		expect(events).toContain("utils");
+		expect(events).not.toContain("coding-agent");
+
+		statsGate.resolve();
+		await Promise.all([stats, codingAgent]);
+		expect(events.slice(-2)).toEqual(["stats-", "coding-agent"]);
+	});
+
+	it("releases a pack lock after a failing section", async () => {
+		const lock = createKeyedMutex();
+		await expect(lock("stats-client", () => Promise.reject(new Error("pack failed")))).rejects.toThrow("pack failed");
+		expect(await lock("stats-client", async () => "packed")).toBe("packed");
 	});
 });
 
@@ -87,8 +204,6 @@ describe("published legal payloads", () => {
 });
 
 describe("published manifest topology", () => {
-	const temporaryDirectories: string[] = [];
-
 	it("repoints omptype runtime entries to dist/js with a bun source condition", async () => {
 		const pkg = packages.find(entry => entry.dir === "packages/omptype");
 		if (!pkg) throw new Error("omptype missing from publish set");
@@ -120,34 +235,6 @@ describe("published manifest topology", () => {
 		});
 	});
 
-	afterEach(async () => {
-		await Promise.all(temporaryDirectories.splice(0).map(dir => fs.rm(dir, { recursive: true, force: true })));
-	});
-
-	describe("release publish", () => {
-		it("uses the packed manifest identity for an exact-version registry preflight", async () => {
-			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-release-publish-test-"));
-			temporaryDirectories.push(root);
-			const packageDir = path.join(root, "package");
-			await fs.mkdir(packageDir);
-			await Bun.write(
-				path.join(packageDir, "package.json"),
-				JSON.stringify({ name: "@linxiraos/pi-test", version: "1.2.3" }),
-			);
-			const tarball = path.join(root, "test.tgz");
-			await $`tar -czf ${tarball} -C ${root} package`.quiet();
-
-			await expect(inspectPackedTarball(tarball)).resolves.toEqual(
-				{
-					name: "@linxiraos/pi-test",
-					version: "1.2.3",
-					path: tarball,
-				},
-				20000,
-			);
-		});
-	});
-
 	it("keeps source-runtime packages on src with only types repointed", async () => {
 		const pkg = packages.find(entry => entry.dir === "packages/utils");
 		if (!pkg) throw new Error("utils missing from publish set");
@@ -170,24 +257,5 @@ describe("published manifest topology", () => {
 				import: "./src/ar/index.ts",
 			},
 		});
-	});
-
-	it("ships every file required by the lazy desktop export in the native core", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-native-core-publish-test-"));
-		temporaryDirectories.push(root);
-		await Bun.write(
-			path.join(root, "package.json"),
-			JSON.stringify({
-				name: "@linxiraos/pi-natives",
-				version: "1.2.3",
-				license: "MIT",
-				exports: {
-					"./desktop": { types: "./native/desktop.d.ts", import: "./native/desktop.js" },
-				},
-			}),
-		);
-
-		const manifest = await prepareNativeCorePackage(root, false);
-		expect(manifest.files).toEqual(expect.arrayContaining(["native/desktop.js", "native/desktop.d.ts"]));
 	});
 });

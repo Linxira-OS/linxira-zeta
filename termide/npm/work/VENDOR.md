@@ -27,6 +27,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | `LICENSE` | 版权行追加 Linxira-OS/Zeta | MIT 分发声明 | 2026-09-28 |
 | 2 | `npm/`(新增) | `@linxiraos/work` 主包 + `work-windows-x64`/`work-linux-x64` 平台 leaf(bin `zeta-work` + `zeta-w`) | npm 分发链路,照抄 `editor/npm/` 模式;平台二进制(`termide.exe`/`termide-linux-x64`)发布前本地构建后提交进 leaf 的 `bin/`(同 editor 的 ttt.exe 先例),发布经 `work-publish.yml` | 2026-09-28 |
+| 3 | `rustfmt.toml`(新增) | 空配置文件,仅注释 | 阻断 rustfmt 向上发现 Zeta 根配置(hard_tabs);否则 `cargo fmt` 重排整个快照、CI `--check` 门必挂(上游仓库自身即根,无此问题) | 2026-09-28 |
 
 ## bump 流程
 

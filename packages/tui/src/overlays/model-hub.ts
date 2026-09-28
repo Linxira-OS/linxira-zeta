@@ -19,7 +19,8 @@ import { MODEL_KINDS, modelKind, type ModelKind } from "@linxiraos/pi-catalog/ty
 import type { Component, TUI } from "../tui";
 import { extractPrintableText, matchesKey } from "../keys";
 import { fuzzyFilter } from "../fuzzy";
-import { getKeybindings } from "../keybindings";
+import { formatKeyHint, formatKeyHints } from "../app-keybindings";
+import { editorKey, editorKeys } from "../chrome/keybinding-hints";
 import { Input } from "../components/input";
 import { routeSgrMouseInput, type SgrMouseEvent } from "../mouse";
 import { truncateToWidth, visibleWidth } from "../utils";
@@ -51,7 +52,6 @@ import {
 	type StripState as HubStripState,
 } from "./hub-frame";
 import { renderSegmentTrack } from "../chrome/segment-track";
-import { tuiText, tuiTextFmt } from "../i18n";
 
 /**
  * A row of the Roles view: a role, a model/wildcard chain-key header, one of a
@@ -285,7 +285,7 @@ export class ModelHubComponent implements Component {
 		return lines.slice(0, rows);
 	};
 	readonly #frame: HubFrame = new HubFrame(
-		tuiText("mhModelsTitle", "Models"),
+		"Models",
 		{ min: 18, max: 26 },
 		(width, rows) => this.#renderSidebar(width, rows),
 		this.#renderBodyPane,
@@ -498,15 +498,10 @@ export class ModelHubComponent implements Component {
 			{
 				id: "roles",
 				kind: "roles",
-				label: tuiText("mhRolesLabel", "Roles"),
+				label: "Roles",
 				annotation: `${assignedCount}/${visibleRoles.length}`,
 			},
-			{
-				id: "all",
-				kind: "all",
-				label: tuiText("mhAllModels", "All models"),
-				annotation: String(availableModels.length),
-			},
+			{ id: "all", kind: "all", label: "All models", annotation: String(availableModels.length) },
 		];
 
 		this.#fixedEntries = fixed;
@@ -889,21 +884,17 @@ export class ModelHubComponent implements Component {
 	#formatDiscoveryAge(fetchedAt: number | undefined): string | undefined {
 		if (!fetchedAt) return undefined;
 		const ageMs = Math.max(0, Date.now() - fetchedAt);
-		if (ageMs < 60_000) return tuiText("mhJustNow", "less than a minute ago");
-		return tuiTextFmt("mhMinutesAgoFmt", "%sm ago", Math.round(ageMs / 60_000));
+		if (ageMs < 60_000) return "less than a minute ago";
+		return `${Math.round(ageMs / 60_000)}m ago`;
 	}
 
 	#emptyStateMessage(): string | undefined {
 		if (this.#configError) return `  ${this.#configError}`;
 		const entry = this.#activeEntry();
-		if (entry.kind === "recent") return tuiText("mhNoRecent", "  No recently used models yet");
+		if (entry.kind === "recent") return "  No recently used models yet";
 		if (entry.kind !== "provider" || entry.locked) return undefined;
 		if (this.#browser.query.trim()) {
-			return tuiTextFmt(
-				"mhNoMatchInProviderFmt",
-				"  No matching models in %s. Switch to All models to search every provider.",
-				entry.label,
-			);
+			return `  No matching models in ${entry.label}. Switch to All models to search every provider.`;
 		}
 		const providerId = entry.providerId ?? "";
 		const state = this.#registry.getProviderDiscoveryState(providerId);
@@ -912,35 +903,22 @@ export class ModelHubComponent implements Component {
 		switch (state.status) {
 			case "cached":
 				return age
-					? tuiTextFmt(
-							"mhCachedPendingFmt",
-							"  Using cached model list from %s. Live refresh is still pending.",
-							age,
-						)
-					: tuiText("mhUsingCached", "  Using cached model list. Live refresh is still pending.");
+					? `  Using cached model list from ${age}. Live refresh is still pending.`
+					: "  Using cached model list. Live refresh is still pending.";
 			case "unavailable": {
 				const httpMatch = state.error?.match(/^HTTP (\d+) from (.+)$/);
 				if (httpMatch?.[1] === "404") {
-					return tuiTextFmt(
-						"mhDiscovery404Fmt",
-						"  Discovery endpoint %s returned 404. Point baseUrl at the host that serves /models (usually .../v1).",
-						httpMatch[2],
-					);
+					return `  Discovery endpoint ${httpMatch[2]} returned 404. Point baseUrl at the host that serves /models (usually .../v1).`;
 				}
-				if (state.error) return tuiTextFmt("mhDiscoveryFailedFmt", "  Discovery failed: %s", state.error);
-				return age
-					? tuiTextFmt("mhCachedAgeFmt", "  Provider unavailable. Using cached model list from %s.", age)
-					: tuiText("mhUnavailable", "  Provider unavailable.");
+				if (state.error) return `  Discovery failed: ${state.error}`;
+				return age ? `  Provider unavailable. Using cached model list from ${age}.` : "  Provider unavailable.";
 			}
 			case "unauthenticated":
-				return tuiText("mhNeedsAuth", "  Provider requires authentication before models can be discovered.");
+				return "  Provider requires authentication before models can be discovered.";
 			case "idle":
-				return tuiText("mhNotRefreshed", "  Provider has not been refreshed yet.");
+				return "  Provider has not been refreshed yet.";
 			case "empty":
-				return tuiText(
-					"mhZeroModels",
-					"  Discovery succeeded but returned 0 models. Check that /models returns { data: [{ id }] }.",
-				);
+				return "  Discovery succeeded but returned 0 models. Check that /models returns { data: [{ id }] }.";
 			case "ok":
 				return undefined;
 		}
@@ -1080,13 +1058,13 @@ export class ModelHubComponent implements Component {
 			}
 		}
 		chips.push({
-			label: tuiTextFmt("mhFallbacksChipFmt", "fallbacks:%s", item.model.id),
-			styled: theme.fg("muted", tuiTextFmt("mhFallbacksChipFmt", "fallbacks:%s", item.model.id)),
+			label: `fallbacks:${item.model.id}`,
+			styled: theme.fg("muted", `fallbacks:${item.model.id}`),
 			action: "fallbackModel",
 		});
 		chips.push({
-			label: tuiTextFmt("mhFallbacksChipFmt", "fallbacks:%s", `${item.model.provider}/*`),
-			styled: theme.fg("muted", tuiTextFmt("mhFallbacksChipFmt", "fallbacks:%s", `${item.model.provider}/*`)),
+			label: `fallbacks:${item.model.provider}/*`,
+			styled: theme.fg("muted", `fallbacks:${item.model.provider}/*`),
 			action: "fallbackProvider",
 		});
 		// `retry-fallback` appends to the default chain, so only chat-capable models qualify.
@@ -1098,18 +1076,8 @@ export class ModelHubComponent implements Component {
 
 	#openScopeStrip(item: ModelBrowserItem, role: string, returnToRoles: boolean): void {
 		const chips: StripChip[] = [
-			{
-				label: tuiText("mhProjectChip", "project"),
-				styled: theme.fg("accent", tuiText("mhProjectChip", "project")),
-				action: "scope",
-				scope: "project",
-			},
-			{
-				label: tuiText("mhGlobalChip", "global"),
-				styled: theme.fg("muted", tuiText("mhGlobalChip", "global")),
-				action: "scope",
-				scope: "global",
-			},
+			{ label: "project", styled: theme.fg("accent", "project"), action: "scope", scope: "project" },
+			{ label: "global", styled: theme.fg("muted", "global"), action: "scope", scope: "global" },
 		];
 		this.#strip = { kind: "scope", item, role, chips, index: 0, returnToRoles };
 	}
@@ -1404,13 +1372,13 @@ export class ModelHubComponent implements Component {
 	#openFallbackKeyStrip(item: ModelBrowserItem): void {
 		const chips: StripChip[] = [
 			{
-				label: tuiTextFmt("mhForChipFmt", "for %s", item.selector),
-				styled: theme.fg("muted", tuiTextFmt("mhForChipFmt", "for %s", item.selector)),
+				label: `for ${item.selector}`,
+				styled: theme.fg("muted", `for ${item.selector}`),
 				action: "fallbackModel",
 			},
 			{
-				label: tuiTextFmt("mhForChipFmt", "for %s", `${item.model.provider}/*`),
-				styled: theme.fg("muted", tuiTextFmt("mhForChipFmt", "for %s", `${item.model.provider}/*`)),
+				label: `for ${item.model.provider}/*`,
+				styled: theme.fg("muted", `for ${item.model.provider}/*`),
 				action: "fallbackProvider",
 			},
 		];
@@ -1419,8 +1387,8 @@ export class ModelHubComponent implements Component {
 
 	/** Write the picked model into the target chain slot, dedupe, and land back on its Roles row. */
 	#commitFallback(item: ModelBrowserItem, target: { role: string; index: number | null }): void {
-		// New picks are stored bare, i.e. inherit-the-primary; `t` on the row specializes the effort.
 		const chain = [...(this.#fallbackChains()[target.role] ?? [])];
+		// New picks are stored bare, i.e. inherit-the-primary; `t` on the row specializes the effort.
 		const selector = item.selector;
 		if (target.index !== null && target.index < chain.length) {
 			chain[target.index] = selector;
@@ -2046,7 +2014,10 @@ export class ModelHubComponent implements Component {
 			MODEL_KIND_TABS.map(kind => ({ label: kind })),
 			Math.max(0, active),
 		);
-		return truncateToWidth(` ${theme.fg("dim", "Kind:")} ${track}  ${theme.fg("dim", "Alt+←/→")}`, width);
+		return truncateToWidth(
+			` ${theme.fg("dim", "Kind:")} ${track}  ${theme.fg("dim", formatKeyHints(["alt+left", "alt+right"]))}`,
+			width,
+		);
 	}
 
 	#renderRoleTabs(width: number): string {
@@ -2055,84 +2026,63 @@ export class ModelHubComponent implements Component {
 			ROLE_TABS.map(tab => ({ label: tab === "kind" ? "kinds" : tab })),
 			Math.max(0, active),
 		);
-		return truncateToWidth(` ${theme.fg("dim", "Roles:")} ${track}  ${theme.fg("dim", "Alt+←/→")}`, width);
+		return truncateToWidth(
+			` ${theme.fg("dim", "Roles:")} ${track}  ${theme.fg("dim", formatKeyHints(["alt+left", "alt+right"]))}`,
+			width,
+		);
 	}
 
 	#statusRow(width: number): string {
 		if (this.#assignmentPending) {
-			return truncateToWidth(theme.fg("accent", tuiText("mhApplying", " Applying model…")), width);
+			return truncateToWidth(theme.fg("accent", " Applying model…"), width);
 		}
 		if (this.#assigning !== null) {
+			const enter = formatKeyHint("enter");
+			const cancel = editorKey("tui.select.cancel");
 			if (this.#assigning.kind === "fallbackKey") {
 				return truncateToWidth(
-					theme.fg(
-						"accent",
-						tuiText(
-							"mhNewFallbackChainHint",
-							" New fallback chain — Enter picks the model it protects, Esc cancels",
-						),
-					),
+					theme.fg("accent", ` New fallback chain — ${enter} picks the model it protects, ${cancel} cancels`),
 					width,
 				);
 			}
 			const info = this.#settings.getRoleInfo(this.#assigning.role);
 			const label = info.tag ?? info.name ?? this.#assigning.role;
 			if (this.#assigning.kind === "fallback") {
-				const verb = tuiText(
-					this.#assigning.index === null ? "mhAddingFallback" : "mhReplacingFallback",
-					this.#assigning.index === null ? "Adding fallback for" : "Replacing fallback of",
-				);
+				const verb = this.#assigning.index === null ? "Adding fallback for" : "Replacing fallback of";
 				return truncateToWidth(
 					theme.fg(
 						"accent",
-						tuiTextFmt(
-							"mhPickingFallbackFmt",
-							" %s %s — Enter picks the fallback model, Esc cancels",
-							verb,
-							theme.bold(label),
-						),
+						` ${verb} ${theme.bold(label)} — ${enter} picks the fallback model, ${cancel} cancels`,
 					),
 					width,
 				);
 			}
 			return truncateToWidth(
-				theme.fg(
-					"accent",
-					tuiTextFmt("mhAssigningFmt", " Assigning %s — Enter assigns, Esc cancels", theme.bold(label)),
-				),
+				theme.fg("accent", ` Assigning ${theme.bold(label)} — ${enter} assigns, ${cancel} cancels`),
 				width,
 			);
 		}
 		const entry = this.#activeEntry();
-		const scopedSuffix = this.#scopedModels.length > 0 ? tuiText("mhModelsScopeSuffix", " · --models scope") : "";
+		const scopedSuffix = this.#scopedModels.length > 0 ? " · --models scope" : "";
 		let text: string;
 		switch (entry.kind) {
 			case "recent":
-				text = tuiTextFmt("mhRecentStatusFmt", "Recently used models%s", scopedSuffix);
+				text = `Recently used models${scopedSuffix}`;
 				break;
 			case "roles":
-				text = tuiText(
-					"mhRolesText",
-					"Model roles — f adds a retry fallback, cleared roles fall back to auto-selection",
-				);
+				text = `Model roles — ${formatKeyHint("f")} adds a retry fallback, cleared roles fall back to auto-selection`;
 				break;
 			case "provider":
 				if (entry.locked) {
-					text = tuiTextFmt("mhNotConfiguredFmt", "%s · not configured", entry.label);
+					text = `${entry.label} · not configured`;
 				} else if (entry.providerId && this.#refreshingProviders.has(entry.providerId)) {
-					text = tuiTextFmt("mhRefreshingFmt", "%s · refreshing model list…", entry.label);
+					text = `${entry.label} · refreshing model list…`;
 				} else {
-					text = tuiTextFmt(
-						"mhProviderModelsFmt",
-						"%s · %s models%s",
-						entry.label,
-						entry.annotation ?? "0",
-						scopedSuffix,
-					);
+					text = `${entry.label} · ${entry.annotation ?? "0"} models${scopedSuffix}`;
 				}
 				break;
 			default:
-				text = tuiTextFmt("mhAllAvailableFmt", "All available models%s", scopedSuffix);
+				text = `All available models${scopedSuffix}`;
 				break;
 		}
 		if (this.#configError && entry.kind !== "provider") {
@@ -2192,10 +2142,7 @@ export class ModelHubComponent implements Component {
 			}
 
 			if (rowDef.kind === "newRole" || rowDef.kind === "newFallback") {
-				const label =
-					rowDef.kind === "newRole"
-						? tuiText("mhNewRoleRow", "+ New role…")
-						: tuiText("mhNewFallbackRow", "+ New fallback…");
+				const label = rowDef.kind === "newRole" ? "+ New role…" : "+ New fallback…";
 				let line = ` ${cursor} ${theme.fg(selected ? "accent" : "dim", label)}`;
 				line = this.#finishRolesRow(line, width, hovered);
 				lines.push(line);
@@ -2243,10 +2190,7 @@ export class ModelHubComponent implements Component {
 			} else if (assignment) {
 				dot = theme.fg("dim", theme.status.shadowed);
 				tagStyled = theme.fg("dim", tag);
-				value = theme.fg(
-					"dim",
-					tuiTextFmt("mhAutoFmt", "auto → %s", `${assignment.model.provider}/${assignment.model.id}`),
-				);
+				value = theme.fg("dim", `auto → ${assignment.model.provider}/${assignment.model.id}`);
 			} else {
 				dot = theme.fg("dim", theme.status.shadowed);
 				tagStyled = theme.fg("dim", tag);
@@ -2272,8 +2216,8 @@ export class ModelHubComponent implements Component {
 			const hiddenAbove = this.#roleScrollStart;
 			const hiddenBelow = total - endIndex;
 			const parts: string[] = [];
-			if (hiddenAbove > 0) parts.push(tuiTextFmt("mhMoreAboveFmt", "↑ %s more", hiddenAbove));
-			if (hiddenBelow > 0) parts.push(tuiTextFmt("mhMoreBelowFmt", "↓ %s more", hiddenBelow));
+			if (hiddenAbove > 0) parts.push(`↑ ${hiddenAbove} more`);
+			if (hiddenBelow > 0) parts.push(`↓ ${hiddenBelow} more`);
 			lines.push(truncateToWidth(theme.fg("dim", `   ${parts.join("   ")}`), width));
 		}
 
@@ -2281,7 +2225,7 @@ export class ModelHubComponent implements Component {
 		// segment track the ctrl+p status uses; the selected role's chip fills.
 		while (lines.length < rows - 1) lines.push("");
 		if (rows >= 2) {
-			const cycleKey = getKeybindings().getKeys("app.model.cycleForward")[0] ?? "ctrl+p";
+			const cycleKey = editorKey("app.model.cycleForward") || formatKeyHint("ctrl+p");
 			if (cycleOrder.length > 0) {
 				const selectedRow = this.#rolesRows[this.#roleIndex];
 				const selectedRole =
@@ -2291,16 +2235,10 @@ export class ModelHubComponent implements Component {
 					cycleOrder.map(role => ({ label: role })),
 					activeIndex,
 				);
-				lines[rows - 1] = truncateToWidth(
-					`  ${theme.fg("dim", tuiTextFmt("mhCycleTitleFmt", "%s cycle:", cycleKey))} ${track}`,
-					width,
-				);
+				lines[rows - 1] = truncateToWidth(`  ${theme.fg("dim", `${cycleKey} cycle:`)} ${track}`, width);
 			} else {
 				lines[rows - 1] = truncateToWidth(
-					theme.fg(
-						"dim",
-						tuiTextFmt("mhCycleEmptyFmt", "  %s cycle is empty — press c on a role to add it", cycleKey),
-					),
+					theme.fg("dim", `  ${cycleKey} cycle is empty — press ${formatKeyHint("c")} on a role to add it`),
 					width,
 				);
 			}
@@ -2312,12 +2250,7 @@ export class ModelHubComponent implements Component {
 		const lines: string[] = [];
 		this.#lockedLoginLine = null;
 		lines.push("");
-		lines.push(
-			truncateToWidth(
-				theme.fg("warning", tuiTextFmt("mhNoCredentialsFmt", "  %s has no credentials configured", entry.label)),
-				width,
-			),
-		);
+		lines.push(truncateToWidth(theme.fg("warning", `  ${entry.label} has no credentials configured`), width));
 		lines.push("");
 		const envVars = entry.providerId ? (providerEntry(entry.providerId)?.envVars ?? []) : [];
 		if (envVars.length > 0) {
@@ -2334,7 +2267,7 @@ export class ModelHubComponent implements Component {
 			this.#lockedLoginLine = lines.length + 1; // +1 for the status row offset handled by caller
 			lines.push(
 				truncateToWidth(
-					theme.fg("accent", `  ${theme.nav.cursor} ${tuiText("mhLoginWithOauth", "Log in with OAuth (Enter)")}`),
+					theme.fg("accent", `  ${theme.nav.cursor} Log in with OAuth (${formatKeyHint("enter")})`),
 					width,
 				),
 			);
@@ -2355,32 +2288,40 @@ export class ModelHubComponent implements Component {
 	}
 
 	#footerHint(): string {
+		const enter = formatKeyHint("enter");
+		const cancel = editorKey("tui.select.cancel");
+		const upDown = editorKeys("tui.select.up", "tui.select.down");
+		const left = formatKeyHint("left");
+		const leftRight = formatKeyHints(["left", "right"]);
+		const enterRight = formatKeyHints(["enter", "right"]);
+		const altLeftRight = formatKeyHints(["alt+left", "alt+right"]);
 		const strip = this.#strip;
 		if (strip) {
 			if (strip.kind === "roleName") {
-				return tuiText("mhCreateHint", "Enter create + pick model · Esc cancel");
+				return `${enter} create + pick model · ${cancel} cancel`;
 			}
-			if (strip.kind === "role") return tuiText("mhRoleStripHint", "←/→ choose · Enter assign/clear · Esc cancel");
-			if (strip.kind === "scope") return tuiText("mhScopeStripHint", "←/→ save scope · Enter choose · Esc cancel");
-			return tuiText("mhThinkingStripHint", "←/→ thinking level · Enter apply · Esc keep");
+			if (strip.kind === "role") return `${leftRight} choose · ${enter} assign/clear · ${cancel} cancel`;
+			if (strip.kind === "scope") return `${leftRight} save scope · ${enter} choose · ${cancel} cancel`;
+			return `${leftRight} thinking level · ${enter} apply · ${cancel} keep`;
 		}
 		if (this.#assigning !== null) {
 			if (this.#focus === "scope") {
-				return "Enter/→ models · ↑/↓ providers · type to search · Alt+←/→ kind · Esc cancel";
+				return `${enterRight} models · ${upDown} providers · type to search · ${altLeftRight} kind · ${cancel} cancel`;
 			}
+			const browse = `${upDown} models · ${left} providers · type to search · ${altLeftRight} kind · ${cancel} cancel`;
 			switch (this.#assigning.kind) {
 				case "fallback":
-					return "Enter pick fallback · ↑/↓ models · ← providers · type to search · Alt+←/→ kind · Esc cancel";
+					return `${enter} pick fallback · ${browse}`;
 				case "fallbackKey":
-					return "Enter pick the protected model · ↑/↓ models · ← providers · type to search · Alt+←/→ kind · Esc cancel";
+					return `${enter} pick the protected model · ${browse}`;
 				default:
-					return "Enter assign · ↑/↓ models · ← providers · type to search · Alt+←/→ kind · Esc cancel";
+					return `${enter} assign · ${browse}`;
 			}
 		}
 		const entry = this.#activeEntry();
 		if (entry.kind === "roles") {
 			if (this.#focus !== "list") {
-				return "↑/↓ providers · Enter/→ roles · Alt+←/→ tabs · Esc close";
+				return `${upDown} providers · ${enterRight} roles · ${altLeftRight} tabs · ${cancel} close`;
 			}
 			const row = this.#rolesRows[this.#roleIndex];
 			if (row?.kind === "fallback") {
@@ -2388,39 +2329,27 @@ export class ModelHubComponent implements Component {
 				// inherit and unknown models have no ladder to offer, so the
 				// action would be inert there.
 				const editable = this.#resolveFallbackEntry(row.role, row.chainIndex) !== undefined;
-				const thinking = editable ? tuiText("mhThinkingRowSuffix", " · t thinking") : "";
-				return thinking
-					? tuiTextFmt(
-							"mhRolesThinkingHintFmt",
-							"↑/↓ rows · Enter replace · f add another · x remove%s · [/] reorder · ← providers",
-							thinking,
-						)
-					: tuiText(
-							"mhRolesHint",
-							"↑/↓ rows · Enter replace · f add another · x remove · [/] reorder · ← providers",
-						);
+				const thinking = editable ? ` · ${formatKeyHint("t")} thinking` : "";
+				return `${upDown} rows · ${enter} replace · ${formatKeyHint("f")} add another · ${formatKeyHint("x")} remove${thinking} · [/] reorder · ${left} providers`;
 			}
 			if (row?.kind === "chainKey") {
-				return tuiText("mhChainHint", "↑/↓ rows · Enter/f add fallback · x clear chain · ← providers");
+				return `${upDown} rows · ${formatKeyHints(["enter", "f"])} add fallback · ${formatKeyHint("x")} clear chain · ${left} providers`;
 			}
 			if (row?.kind === "newFallback") {
-				return tuiText("mhNewChainHint", "↑/↓ rows · Enter new model/provider fallback chain · ← providers");
+				return `${upDown} rows · ${enter} new model/provider fallback chain · ${left} providers`;
 			}
-			return tuiText(
-				"mhRowsHint",
-				"↑/↓ rows · Enter pick · f fallback · x clear · t thinking · c cycle · [/] reorder · n new",
-			);
+			return `${upDown} rows · ${enter} pick · ${formatKeyHint("f")} fallback · ${formatKeyHint("x")} clear · ${formatKeyHint("t")} thinking · ${formatKeyHint("c")} cycle · [/] reorder · ${formatKeyHint("n")} new`;
 		}
 		if (entry.kind === "provider" && entry.locked) {
 			return entry.oauth
-				? tuiText("mhOauthHint", "Enter log in · ↑/↓ providers · Esc close")
-				: tuiText("mhProvidersHint", "↑/↓ providers · Esc close");
+				? `${enter} log in · ${upDown} providers · ${cancel} close`
+				: `${upDown} providers · ${cancel} close`;
 		}
-		const refresh = entry.kind === "provider" ? " · F5 refresh" : "";
+		const refresh = entry.kind === "provider" ? ` · ${formatKeyHint("f5")} refresh` : "";
 		if (this.#focus === "scope") {
-			return `Enter/→ models · ↑/↓ providers · type to search · Alt+←/→ kind${refresh} · Esc close`;
+			return `${enterRight} models · ${upDown} providers · type to search · ${altLeftRight} kind${refresh} · ${cancel} close`;
 		}
-		return `Enter assign roles · ↑/↓ models · ← providers · type to search · Alt+←/→ kind${refresh} · Esc close`;
+		return `${enter} assign roles · ${upDown} models · ${left} providers · type to search · ${altLeftRight} kind${refresh} · ${cancel} close`;
 	}
 
 	#renderFooter(width: number): string {
@@ -2434,14 +2363,10 @@ export class ModelHubComponent implements Component {
 
 	#renderStrip(width: number, strip: StripState): string {
 		if (strip.kind === "roleName") {
-			const roleNameLabel = tuiText("mhNewRoleName", "New role name:");
-			const label = theme.fg("accent", roleNameLabel);
-			const inputWidth = Math.max(8, Math.min(32, width - visibleWidth(roleNameLabel) - 24));
+			const label = theme.fg("accent", "New role name:");
+			const inputWidth = Math.max(8, Math.min(32, width - visibleWidth("New role name:") - 24));
 			const inputLine = strip.input.render(inputWidth)[0] ?? "";
-			return truncateToWidth(
-				`${label} ${inputLine} ${theme.fg("dim", tuiText("mhRoleNameChars", "(letters, digits, - and _)"))}`,
-				width,
-			);
+			return truncateToWidth(`${label} ${inputLine} ${theme.fg("dim", "(letters, digits, - and _)")}`, width);
 		}
 
 		const prefix =

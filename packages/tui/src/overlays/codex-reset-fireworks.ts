@@ -7,8 +7,8 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { type ThemeColor, theme } from "../theme/theme";
+import { formatKeyHint } from "../app-keybindings";
 
 const FRAME_INTERVAL_MS = 85;
 const FRAME_COUNT = 34;
@@ -176,20 +176,14 @@ function drawBanner(
 	const top = height - 3;
 	const innerWidth = panelWidth - 2;
 	const titleText =
-		event.kind === "unscheduled-weekly-reset"
-			? tuiText("fireworksTitleWeekly", " O P E N A I   R E S E T ")
-			: tuiText("fireworksTitleSaved", " S A V E D   R E S E T ");
+		event.kind === "unscheduled-weekly-reset" ? " O P E N A I   R E S E T " : " S A V E D   R E S E T ";
+	const esc = formatKeyHint("escape");
 	const subtitleText =
 		event.kind === "unscheduled-weekly-reset"
-			? tuiText("fireworksSubtitleWeekly", "Weekly usage cleared early · ESC to return")
+			? `Weekly usage cleared early · ${esc} to return`
 			: event.added === 1
-				? tuiTextFmt("fireworksBankedOneFmt", "New reset banked · %d available · ESC to return", event.available)
-				: tuiTextFmt(
-						"fireworksBankedManyFmt",
-						"%d resets banked · %d available · ESC to return",
-						event.added,
-						event.available,
-					);
+				? `New reset banked · ${event.available} available · ${esc} to return`
+				: `${event.added} resets banked · ${event.available} available · ${esc} to return`;
 	const title = truncateToWidth(titleText, innerWidth, "");
 	const subtitle = truncateToWidth(subtitleText, innerWidth, "");
 	const titleOffset = Math.floor((innerWidth - visibleWidth(title)) / 2);
@@ -292,7 +286,7 @@ function renderCodexResetFireworks(
 	const artWidth = Math.min(96, safeWidth);
 	const left = Math.floor((safeWidth - artWidth) / 2);
 	const skyHeight = Math.max(0, safeHeight - 3);
-	// [suppressed] length preallocation
+	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
 	const canvas = Array.from({ length: safeHeight }, () => new Array<CanvasCell | undefined>(safeWidth));
 
 	drawStars(canvas, left, artWidth, skyHeight, frame);

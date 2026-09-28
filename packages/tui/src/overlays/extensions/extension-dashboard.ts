@@ -30,7 +30,8 @@ import {
 	matchesSelectPageUp,
 } from "../../keybinding-matchers";
 import { expandKeyHint } from "../../render/render-utils";
-import { tuiText, tuiTextFmt } from "../../i18n";
+import { formatKeyHint, formatKeyHints } from "../../app-keybindings";
+import { editorKeys, interruptKey } from "../../chrome/keybinding-hints";
 import { bottomBorder, divider, PanelRows, row, topBorder } from "../../chrome/overlay-box";
 import { ExtensionList } from "./extension-list";
 import { InspectorPanel, type ToolRuntimeSource } from "./inspector-panel";
@@ -74,11 +75,10 @@ export interface ExtensionDashboardOptions {
 }
 
 function extFooter(): string {
-	return tuiTextFmt(
-		"extDashboardFooterFmt",
-		" ↑/↓: navigate · Space: toggle · ←/→: provider · PgUp/PgDn: inspector · %s: expand · Esc: close",
-		expandKeyHint(),
-	);
+	const upDown = editorKeys("tui.select.up", "tui.select.down");
+	const pages = editorKeys("tui.select.pageUp", "tui.select.pageDown");
+	const close = interruptKey();
+	return ` ${upDown}: navigate · ${formatKeyHint("space")}: toggle · ${formatKeyHints(["left", "right"])}: provider · ${pages}: inspector · ${expandKeyHint()}: expand · ${close}: close`;
 }
 
 /**
@@ -231,7 +231,7 @@ export class ExtensionDashboard implements Component {
 		this.#mainList.setToolSource(toolFrame);
 		this.#inspector.setToolSource(toolFrame);
 
-		this.#frameTop.setLines([topBorder(width, tuiText("extDashboardTitle", "Extension Control Center"))]);
+		this.#frameTop.setLines([topBorder(width, "Extension Control Center")]);
 		this.#frameTabs.setLines(tabLines.map(line => row(line, width)));
 		this.#frameUpperDivider.setLines([divider(width)]);
 		this.#frameBody.setLines(this.#body.render(innerWidth).map(line => row(line, width)));
