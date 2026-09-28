@@ -283,6 +283,29 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
 
+### v18.3.2 → v18.3.4 实测：双 tag 步长的第二个数据点（2026-09-29）
+
+在 `dev/main` 按规程串联两步：v18.3.3（454 文件/31k 行）135 冲突 →
+v18.3.4（143 文件）15 冲突。干跑与实跑逐个相符，谱系检查两步均过。
+
+- **结论 3（冲突量由"上游是否动了我们重写的面"决定）**：v18.3.3 的 135 个
+  冲突 90% 落在 tui overlays/setup 与 coding-agent modes/controllers——上游
+  该轮 autocomplete/@-mention/预测文本大改恰好砸在我们品牌化+mode API 最密
+  的层；v18.3.4 只碰 session/ai 层，15 个纯机械。步长判据依旧看目录级
+  独立性，但**冲突预算应按"上游改动 × 我们改动"的交集预估**，不看增量行数。
+- **结论 4（批量 stage-3 + 类 4 恢复的作业顺序）**：先批 stage-3，再按
+  `check-zeta-sentinels` + `check:ts` 报出的缺失面逐文件从 HEAD 重三方
+  （merge-file），比逐 hunk 手解 135 个快一个量级；身份行扫描兜底。恢复
+  后必须重跑品牌 overlay（PI_LOGO/icon.omp 这类不在哨兵里的面）。
+- **结论 5（root bun test 不是本地门禁）**：root `bun test` 会扫进
+  editor/web-ui 的自有套件（vitest API 不兼容）与 Windows 符号链接族噪声；
+  本地裁决用「worktree 基线差集法」（同测试在 HEAD 上跑对照）+ WSL Linux
+  复核，CI 才是最终裁决。bunfig pathIgnorePatterns 已修剪三个 vendored 树。
+- **新损伤类预警（候选第 11 类）**：vendored 树无 rustfmt.toml 时，cargo
+  会向上发现 Zeta 根配置并按 hard_tabs 重排整个快照，fmt --check 门必挂；
+  修法 = vendored 树放空 rustfmt.toml 阻断发现链（termide/VENDOR.md 层 3），
+  editor 为 Go 树天然免疫。
+
 ### v18.2.6 → v18.2.11 实测：步长、失效边界与全树收口
 
 在 `dev/main`（用户指定的实验分支）上按本规程合并，实测三步。冲突数与
