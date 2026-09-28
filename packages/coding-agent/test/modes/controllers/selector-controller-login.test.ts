@@ -28,9 +28,11 @@ describe("SelectorController login", () => {
 		const loginSaved = Promise.withResolvers<void>();
 		const presentedBlocks: unknown[] = [];
 		const authStorage = {
-			login: vi.fn(async () => {
-				loginSaved.resolve();
-			}),
+			oauth: {
+				login: vi.fn(async () => {
+					loginSaved.resolve();
+				}),
+			},
 		} as unknown as AuthStorage;
 		const refresh = vi.fn(() => new Promise<void>(() => {}));
 		const refreshProvider = vi.fn(async () => {});
@@ -77,12 +79,12 @@ describe("SelectorController login", () => {
 
 	it("Esc during a pending login aborts the flow and restores the editor", async () => {
 		const login = vi.fn(
-			(_provider: string, ctrl: { signal?: AbortSignal }) =>
+			(_provider: string, opts: { signal?: AbortSignal }) =>
 				new Promise<void>((_resolve, reject) => {
-					ctrl.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+					opts.signal?.addEventListener("abort", () => reject(new Error("aborted")));
 				}),
 		);
-		const authStorage = { login } as unknown as AuthStorage;
+		const authStorage = { oauth: { login } } as unknown as AuthStorage;
 		const editorSlot: unknown[] = [];
 		const editor = {};
 		const presentedBlocks: unknown[] = [];

@@ -307,9 +307,11 @@ describe("selector setting side effects", () => {
 			hub.handleInput("\x1b[A"); // All models → Roles.
 			hub.handleInput("\n"); // Enter the role rows.
 			hub.handleInput("\n"); // Assign DEFAULT.
-			hub.handleInput("\n"); // Pick the scoped replacement model.
+			hub.handleInput("\n"); // Assigning browser takes list focus.
+			hub.handleInput("\n"); // Pick the scoped replacement model; the thinking strip auto-opens.
 			await assignmentApplied.promise;
-			await Promise.resolve();
+			// The hub drops input while the assignment is still settling.
+			await new Promise(resolve => setTimeout(resolve, 20));
 
 			const levels = [ThinkingLevel.Inherit, ThinkingLevel.Off, AUTO_THINKING, ...getSupportedEfforts(nextModel)];
 			const highIndex = levels.indexOf(ThinkingLevel.High);
@@ -484,7 +486,8 @@ describe("selector setting side effects", () => {
 			hub.handleInput("\x1b[A"); // All models → Roles.
 			hub.handleInput("\n"); // Enter the role rows.
 			hub.handleInput("\n"); // Assign DEFAULT.
-			hub.handleInput("\n"); // Pick the scoped model.
+			hub.handleInput("\n"); // Assigning browser takes list focus.
+			hub.handleInput("\n"); // Pick the scoped model; the project/global scope strip opens.
 			hub.handleInput("\n"); // Save the assignment to the project.
 			await assignmentApplied.promise;
 
@@ -1076,9 +1079,12 @@ describe("selector setting side effects", () => {
 			| undefined;
 		if (!hub) throw new Error("Expected model hub overlay to be shown");
 		try {
-			hub.handleInput("\n");
+			hub.handleInput("\n"); // Browser takes list focus.
+			hub.handleInput("\n"); // Open the model action strip.
 			const frame = stripVTControlCharacters(hub.render(220).join("\n"));
 			expect(frame).toContain("retry-fallback");
+			// retry-fallback is the LAST chip on the strip; one left from index 0
+			// wraps onto it regardless of how many role chips the model accepts.
 			hub.handleInput("\x1b[D");
 			hub.handleInput("\n");
 			await Promise.resolve();

@@ -488,6 +488,55 @@ Cargo 依赖与 bazel 依赖是两套声明，新增 crate 后两套都要对账
 （本次整文件 13.5s、单跑 183ms 的差异就是这么定位的）。
 
 
+### v18.3.2 实测：品牌 sweep 的自伤面与 worker 哨兵门（2026-09-28 归纳）
+
+merge commit `5390f63e490`（tag `7853b4e4999`，merge-base 验证通过）。本轮修复链
+（manifest 重复键、selector 设置副作用大表、channel gate、rewind/zh overlay 等）
+见 commit 历史；此处只录**可复用的结构性教训**。
+
+**结论 24（内部 URL scheme 是品牌面，alias 不是长期方案）**：v18.3.2 把上游
+`omp://` 文档协议带进树后，一度注册 OmpDocsAliasHandler 兼容上游测试字面量；
+结论是 alias 只是把死面留着——正确形态是**全树 sweep 到 `zeta://` 并删 alias**
+（src 代码、prompts 提示文档、docs/ 语料、crates 测试 fixture、tmp 前缀），
+`brand-check` MUST_NOT_CONTAIN 禁 `omp://`，上游测试字面量随每次 merge sweep。
+注册表加行「内部文档 URL scheme = zeta://」。
+
+**结论 25（品牌 sweep 会自伤"必须点名上游"的代码，MUST_CONTAIN 是解药）**：
+`scripts/merge-package-json.ts` 的 `OMP_SCOPE` 被机械 sweep 从 `@oh-my-pi/`
+改成 `@linxiraos/`，`zetaKeyFor()` 变 no-op：上游依赖键走"第三方"分支原样
+泄漏（每轮合并"重复键"损伤的真根因之一）。driver 测试 fixture 被同一遍
+sweep 同化后对打坏免疫，只剩 2 个红测试是信号。修复：常量恢复 + fixture
+还原 + **MUST_CONTAIN 断言 driver/测试必须携带 `@oh-my-pi/` 字面量**。
+同理修掉 AGENTS.md/playbook/账本里被 sweep 搞成同义反复的 prose
+（"上游 `@linxiraos/*`"应为"上游 `@oh-my-pi/*`"）。
+
+**结论 26（worker 哨兵是"前缀门 + 常量"两侧结构，partial sweep 断家族）**：
+`isWorkerHostSelector`（pi-utils）按 `__zeta_worker_` 前缀门禁，v18.3.x sweep
+改了门和多数常量，却漏了 `__omp_worker_daemon_broker`/`__omp_worker_ida_host`
+两个——daemon broker 子进程 argv 不过门、落回普通 CLI 命令图、socket 永不
+绑定，**runtime/session 的 stale/cold-lease、CLI smoke、browser-relay 全家
+同根因**，而 stderr 被 `ignore` 吞掉只剩泛化 ENOENT。修复：哨兵/环境变量
+（`ZETA_DAEMON_*`、`ZETA_NATIVE_LIBRARY_PATH` 含 nix wrapper）全树归 zeta；
+broker spawn 把子进程 stderr tee 进 `<runtime>/broker.err.log`，失败错误带
+日志尾部——下一个静默启动失败会自己说话。
+
+**结论 27（"旧实现 + 新测试"是契约撕裂，与 v18.2.11 镜像）**：v18.3.2 上游把
+`resolveCodexSearchTransport` 改为直读 `params.model.baseUrl`（配置模型的
+代理 endpoint 是一等来源），合并 resolve 保留了我们 registry 查找版实现、
+却带入了适配后的测试 → 自定义 endpoint 分支永远进不去，4 个
+web-search-codex 测试报"无凭证"。判定与修法同结论 11：**测试即契约**，
+按上游语义改实现（`params.model.baseUrl` 优先、provider/registry 回退），
+22/22 绿。另一处同形态：ACP `agentInfo` 被上游测试适配断言 `name: "zeta"`，
+代码侧仍是 oh-my-pi 且挂在 brand-check allow list 上——allow list 条目与
+测试契约冲突时，以测试为准并删条目。
+
+**附带机械面**：测试树 tmpdir 前缀 `omp-*` → `zeta-*`（551 行）、
+`'omp <命令>'` 提示串/注释（105 文件）、孤儿 `prompts/internal-urls/omp.md`
+删除。native/unit 余项（edit-blackbox/read-plan-limit/read-guidance/
+prelude-agent）本地被陈旧 1.1.7 natives 挡住（缺 `EditStore`，损伤类别 5），
+CI bazel 现场构建裁决。
+
+
 ## v18.2.4 squash-sync 首轮 CI 失败分类与分诊（2026-09-17/18）
 
 squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶分诊结论与

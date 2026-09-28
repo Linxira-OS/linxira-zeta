@@ -676,6 +676,16 @@ export class SelectorController {
 					this.ctx.showError(`Failed to apply xd:// prompt docs setting: ${err}`);
 				});
 				break;
+			case "memory.backend":
+				void this.ctx.session.applyMemoryBackend().catch(err => {
+					this.ctx.showError(M.statusFailedToApplyMemoryBackendFmt.replace("%s", String(err)));
+				});
+				break;
+			case "externalThinking":
+				void this.ctx.session.setThinkToolEnabled(value as boolean).catch(err => {
+					this.ctx.showError(M.statusFailedToApplyExternalThinkingFmt.replace("%s", String(err)));
+				});
+				break;
 			case "compaction.idleEnabled":
 			case "compaction.idleThresholdTokens":
 			case "compaction.idleTimeoutSeconds":
@@ -768,6 +778,12 @@ export class SelectorController {
 			case "tui.tight":
 				setTuiTight(value as boolean);
 				this.ctx.ui.invalidate();
+				this.ctx.ui.requestRender();
+				break;
+			case "tui.sidebar":
+				// Re-wire the engine's main-width override so the toggle lands live,
+				// without waiting for the next sidebar-related render.
+				this.ctx.applySidebar();
 				this.ctx.ui.requestRender();
 				break;
 			case "tui.hyperlinks":

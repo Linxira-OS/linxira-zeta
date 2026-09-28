@@ -1706,6 +1706,17 @@ export class SessionTools {
 	}
 
 	/**
+	 * Applies the external-thinking setting to the private `think` scratchpad
+	 * immediately (live /settings toggle). Enabling constructs the tool once;
+	 * disabling removes it from the active set but keeps its registry entry.
+	 *
+	 * @returns false when enabling was requested but this session cannot build the tool.
+	 */
+	setThinkToolEnabled(enabled: boolean): Promise<boolean> {
+		return this.#setThinkToolActive(enabled && supportsExternalThinking(this.#host.model()));
+	}
+
+	/**
 	 * Reconciles the private `think` scratchpad with the `externalThinking`
 	 * setting and the active model. Enabling constructs the tool once;
 	 * disabling removes it from the active set but keeps its registry entry.
