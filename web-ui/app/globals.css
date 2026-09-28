@@ -725,7 +725,17 @@ code {
 	font-size: 14px;
 	line-height: 1.7;
 	color: var(--text);
-	word-break: break-word;
+	/* 中文按短语断行而不是逐字("简报"不被拆开、标点不落行首);
+	   Chromium 支持 auto-phrase 时启用短语级换行,其余环境保持逐词回退。 */
+	overflow-wrap: break-word;
+	word-break: normal;
+	line-break: strict;
+	text-wrap: pretty;
+}
+@supports (word-break: auto-phrase) {
+	.markdown-body {
+		word-break: auto-phrase;
+	}
 }
 .markdown-body p {
 	margin: 0 0 8px;
