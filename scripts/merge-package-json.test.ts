@@ -3,17 +3,20 @@ import { mergeDeps, zetaKeyFor } from "./merge-package-json";
 
 /**
  * Guards the recurring workspaces.catalog damage class: the driver must map
- * every upstream @linxiraos/* workspace key back to its @linxiraos/* name and
- * keep Zeta's own version pins through the merge.
+ * every upstream @oh-my-pi/* workspace key back to its @linxiraos/* name and
+ * keep Zeta's own version pins through the merge. The upstream fixtures MUST
+ * carry the literal upstream scope — a sweep that rewrites them to the Zeta
+ * scope makes every assertion here pass against a broken driver (this exact
+ * failure shipped once: 2 red tests here were the only signal).
  */
 
 const UPSTREAM_CATALOG: Record<string, string> = {
-	"@linxiraos/pi-agent-core": "18.1.15",
-	"@linxiraos/pi-ai": "18.1.15",
-	"@linxiraos/pi-omptype": "18.1.15",
-	"@linxiraos/omp-stats": "18.1.15",
-	"@linxiraos/zeta": "18.1.15",
-	"@linxiraos/pi-natives": "18.1.15",
+	"@oh-my-pi/pi-agent-core": "18.1.15",
+	"@oh-my-pi/pi-ai": "18.1.15",
+	"@oh-my-pi/pi-omptype": "18.1.15",
+	"@oh-my-pi/omp-stats": "18.1.15",
+	"@oh-my-pi/pi-coding-agent": "18.1.15",
+	"@oh-my-pi/pi-natives": "18.1.15",
 	zod: "4.0.0",
 };
 
@@ -30,10 +33,10 @@ const ZETA_CATALOG: Record<string, string> = {
 
 describe("zetaKeyFor", () => {
 	it("maps the upstream scope to the Zeta scope with rename awareness", () => {
-		expect(zetaKeyFor("@linxiraos/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@linxiraos/pi-omptype")).toBe("@linxiraos/pi-omptype");
-		expect(zetaKeyFor("@linxiraos/omp-stats")).toBe("@linxiraos/pi-stats");
-		expect(zetaKeyFor("@linxiraos/zeta")).toBe("@linxiraos/zeta");
+		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@oh-my-pi/pi-omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@oh-my-pi/omp-stats")).toBe("@linxiraos/pi-stats");
+		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
 	});
 
 	it("returns null for non-upstream keys", () => {
@@ -55,7 +58,7 @@ describe("mergeDeps", () => {
 	it("never emits an upstream-scope key", () => {
 		const merged = mergeDeps(ZETA_CATALOG, UPSTREAM_CATALOG);
 		for (const key of Object.keys(merged)) {
-			expect(key.startsWith("@linxiraos/")).toBeFalse();
+			expect(key.startsWith("@oh-my-pi/")).toBeFalse();
 		}
 	});
 
@@ -66,7 +69,7 @@ describe("mergeDeps", () => {
 
 	it("adopts the upstream version for packages Zeta does not have yet", () => {
 		const merged = mergeDeps(ZETA_CATALOG, {
-			"@linxiraos/pi-newcomer": "18.1.15",
+			"@oh-my-pi/pi-newcomer": "18.1.15",
 		});
 		expect(merged["@linxiraos/pi-newcomer"]).toBe("18.1.15");
 	});

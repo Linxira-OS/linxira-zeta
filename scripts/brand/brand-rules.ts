@@ -156,14 +156,24 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: 'filenamePrefix: "zeta",',
 		why: "rotating log file identity (upstream v18.1.17+ writes omp.*.log; test pair must match)",
 	},
+	{
+		file: "scripts/merge-package-json.ts",
+		needle: '"@oh-my-pi/"',
+		why: "the driver must keep the literal upstream npm scope in OMP_SCOPE or the mapping silently no-ops (swept away twice; v18.2.4-era regression ran the v18.3.1/v18.3.2 merges unmapped)",
+	},
+	{
+		file: "scripts/merge-package-json.test.ts",
+		needle: "@oh-my-pi/",
+		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
+	},
 ];
 
 /**
  * Exact assertions: each token must NOT appear anywhere in scanned sources.
- * The upstream npm scope (`@linxiraos/…`) is deliberately NOT here: the merge
+ * The upstream npm scope (`@oh-my-pi/…`) is deliberately NOT here: the merge
  * driver and its test must name it literally to map it back (they are
- * allow-listed files), and the oh-my-pi token scan in brand-check.ts covers
- * every other file.
+ * allow-listed files, and MUST_CONTAIN asserts the scope survives), and the
+ * oh-my-pi token scan in brand-check.ts covers every other file.
  */
 export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
@@ -174,5 +184,9 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /runs-on:.*(omp-kata|\bomp\b)/,
 		why: "Zeta CI runs exclusively on GitHub-hosted runners; upstream runner labels never resolve here and stall release jobs",
+	},
+	{
+		needle: /omp:\/\//,
+		why: "the internal docs URL scheme is zeta:// only (registry row: 内部 URL scheme); upstream omp:// literals — code, prompts, docs, test fixtures — are swept at every merge",
 	},
 ];

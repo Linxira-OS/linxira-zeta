@@ -499,7 +499,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 - **指纹**：子进程 spawn 型测试成批失败（logger 字节契约、DailyRotateFile、
   ptree stderr、stderr guard、任何断言 `stderr === ""` 的测试），断言 diff
   里出现 `warn: Duplicate key "@linxiraos/xxx" in package.json:N`。
-- **根因**：合并 driver union 把上游 `@linxiraos/*` 依赖与 Zeta
+- **根因**：合并 driver union 把上游 `@oh-my-pi/*` 依赖与 Zeta
   `@linxiraos/*` 同名键并存的 manifest，再经 scope sweep 字符串改名后
   同一对象内出现重复键。bun 每次进程启动都向 stderr 打警告。
 - **修复**：`object_pairs_hook` 计数去重全部 `packages/*/package.json`；

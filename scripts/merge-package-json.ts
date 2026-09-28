@@ -31,11 +31,13 @@ const ZETA_IDENTITY_FIELDS = new Set([
 
 const ZETA_SCOPE = "@linxiraos/";
 
-// Upstream workspace packages are named @linxiraos/*. Zeta renames that scope
+// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
 // to @linxiraos/* (with RENAME_BY_TAIL for renamed packages) and keeps its own
 // independent versions (1.x product line), so the driver must map upstream
-// keys back to Zeta names before merging.
-const OMP_SCOPE = "@linxiraos/";
+// keys back to Zeta names before merging. This constant MUST keep the literal
+// upstream scope: sweeping it silently disables the mapping (recurring damage
+// class; guarded by a brand-check MUST_CONTAIN entry).
+const OMP_SCOPE = "@oh-my-pi/";
 
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
@@ -141,7 +143,7 @@ function main() {
 
 	// Handle workspace catalog entries in root package.json. The catalog
 	// lives at `workspaces.catalog`, not at the top level — a top-level
-	// `in` check never fires, silently shipping upstream `@linxiraos/*`
+	// `in` check never fires, silently shipping upstream `@oh-my-pi/*`
 	// catalog keys and dropping the Zeta `@linxiraos/*` ones on every
 	// merge (the recurring asset-name damage).
 	const currentWorkspaces = current.workspaces as Record<string, unknown> | undefined;
