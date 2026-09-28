@@ -650,8 +650,8 @@ export declare function __ompInstallTokioRuntime(): void
  * `packages/natives/native/index.js` (which derives the name from
  * `package.json#version`).
  */
-
 export declare function __piNativesV1_1_21(): void
+
 /**
  * Reports whether the on-device model can generate, as an `availability`
  * event JSON: `{available, reason?, contextSize?, variant?, vision?,

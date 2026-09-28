@@ -521,7 +521,7 @@ python-docx / python-pptx / openpyxl / pandoc，SKILL.md 内含安装指引）�
   （原列「修 check job 重复 collab:web:build」已不适用——该步骤现仅出现
   一次。）
 
-### 11.2 C 级另立（不在本批）— 执行编排见 [plan-surface-c-track.md](./plan-surface-c-track.md)
+### 11.2 C 级另立（不在本批）— 执行编排见 [plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md)
 
 - CM6 Files/编辑器 tab（附录 A §3 FilesView + Next PUT /api/files）。
 - 终端 PTY WebSocket（附录 A §4 全链）。

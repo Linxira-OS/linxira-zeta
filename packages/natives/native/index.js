@@ -261,5 +261,4 @@ export const ShellFsResolve = {
 	Logical: "logical",
 	None: "none",
 };
-
 // --- end generated native exports ---
