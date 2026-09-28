@@ -8,14 +8,7 @@
  */
 import * as path from "node:path";
 import { getDocFilenames, getEmbeddedDoc } from "./docs-index";
-import type {
-	InternalResource,
-	InternalUrl,
-	ProtocolHandler,
-	ResolveContext,
-	SchemeSpec,
-	UrlCompletion,
-} from "./types";
+import type { InternalResource, InternalUrl, ProtocolHandler, SchemeSpec, UrlCompletion } from "./types";
 
 /**
  * Handler for zeta:// URLs.
@@ -84,25 +77,5 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 			contentType: "text/markdown",
 			size: Buffer.byteLength(content, "utf-8"),
 		};
-	}
-}
-
-/**
- * `omp://` alias of the Zeta docs namespace. Upstream tests and vendor
- * adapters address documentation through omp://; the Zeta handler is
- * scheme-agnostic (it reads host/path only), so the alias delegates
- * resolve/complete to a shared instance without rewriting the URL.
- */
-export class OmpDocsAliasHandler implements ProtocolHandler {
-	readonly scheme = "omp";
-	readonly spec: SchemeSpec = { backing: "virtual", selectors: "lines", immutable: true };
-	readonly #delegate = new ZetaProtocolHandler();
-
-	async resolve(url: InternalUrl, context?: ResolveContext): Promise<InternalResource> {
-		return this.#delegate.resolve(url);
-	}
-
-	async complete(): Promise<UrlCompletion[]> {
-		return this.#delegate.complete();
 	}
 }

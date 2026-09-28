@@ -1,8 +1,8 @@
 /**
- * `omp://` search scope for `find`: the semantic cascade only walks
+ * `zeta://` search scope for `find`: the semantic cascade only walks
  * directories, while harness docs are virtual (no `sourcePath`). Materialize
  * the requested docs into a temp corpus, run the unchanged cascade over it,
- * then remap hits back to `omp://` URLs — the same materialize-and-remap
+ * then remap hits back to `zeta://` URLs — the same materialize-and-remap
  * shape `grep` uses for archives.
  */
 import { mkdtemp, rm } from "node:fs/promises";
@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { splitInternalUrlSel } from "@linxiraos/pi-tui/tools/read";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { ompDocRel, ompDocsScopeEntries } from "../../internal-urls/omp-scope";
+import { zetaDocRel, zetaDocsScopeEntries } from "../../internal-urls/zeta-scope";
 import { parseInternalUrl } from "../../internal-urls/parse";
 import { InternalUrlRouter } from "../../internal-urls/router";
 import type { ResolveContext } from "../../internal-urls/types";
@@ -20,24 +20,24 @@ export interface OmpScope {
 	dir: string;
 	/** Remove the temp corpus. Hits are remapped first, so callers run this in a `finally`. */
 	cleanup: () => Promise<void>;
-	/** Temp-root-relative `rel` (either separator) → canonical `omp://` URL. */
-	toOmpRel: (rel: string) => string;
-	/** Display form for headers: `omp://`, or `omp://<file>` for a single doc. */
+	/** Temp-root-relative `rel` (either separator) → canonical `zeta://` URL. */
+	toZetaRel: (rel: string) => string;
+	/** Display form for headers: `zeta://`, or `zeta://<file>` for a single doc. */
 	scopePath: string;
 }
 
 /**
- * Materialize an `omp://` scope into a temp corpus of the embedded docs.
- * Root inputs expand to every doc (like grep's virtual `omp://` expansion);
+ * Materialize an `zeta://` scope into a temp corpus of the embedded docs.
+ * Root inputs expand to every doc (like grep's virtual `zeta://` expansion);
  * anything else resolves one doc and rejects unknown names.
  */
 export async function materializeOmpScope(rawInput: string, context?: ResolveContext): Promise<OmpScope> {
 	const input = rawInput.trim();
-	const dir = await mkdtemp(path.join(tmpdir(), "omp-find-"));
+	const dir = await mkdtemp(path.join(tmpdir(), "zeta-find-"));
 	const cleanup = async (): Promise<void> => {
 		await rm(dir, { recursive: true, force: true }).catch(() => {});
 	};
-	const toOmpRel = (rel: string): string => `omp://${rel.replace(/\\/g, "/")}`;
+	const toZetaRel = (rel: string): string => `zeta://${rel.replace(/\\/g, "/")}`;
 	try {
 		// `find` searches whole files, so a trailing `:N-M` would silently be
 		// ignored downstream — reject it with the reason instead.
@@ -47,28 +47,28 @@ export async function materializeOmpScope(rawInput: string, context?: ResolveCon
 		}
 		let rel: string;
 		try {
-			rel = ompDocRel(parseInternalUrl(url));
+			rel = zetaDocRel(parseInternalUrl(url));
 		} catch (error) {
 			throw new ToolError(error instanceof Error ? error.message : String(error));
 		}
 
 		// No doc named: the docs root, or a form the handler lists rather than
-		// reads (`omp:///docs`), expands to the whole corpus.
+		// reads (`zeta:///docs`), expands to the whole corpus.
 		if (rel.length === 0) {
-			const entries = await ompDocsScopeEntries(context);
+			const entries = await zetaDocsScopeEntries(context);
 			if (entries.length === 0) throw new ToolError("No documentation files found");
-			for (const entry of entries) await Bun.write(path.join(dir, entry.url.slice("omp://".length)), entry.content);
-			return { dir, cleanup, toOmpRel, scopePath: "omp://" };
+			for (const entry of entries) await Bun.write(path.join(dir, entry.url.slice("zeta://".length)), entry.content);
+			return { dir, cleanup, toZetaRel, scopePath: "zeta://" };
 		}
 
 		let content: string;
 		try {
-			content = (await InternalUrlRouter.instance().resolve(`omp://${rel}`, context)).content;
+			content = (await InternalUrlRouter.instance().resolve(`zeta://${rel}`, context)).content;
 		} catch (error) {
 			throw new ToolError(error instanceof Error ? error.message : String(error));
 		}
 		await Bun.write(path.join(dir, rel), content);
-		return { dir, cleanup, toOmpRel, scopePath: `omp://${rel}` };
+		return { dir, cleanup, toZetaRel, scopePath: `zeta://${rel}` };
 	} catch (error) {
 		await cleanup();
 		throw error;

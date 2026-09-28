@@ -20,7 +20,7 @@ export * from "./local-protocol";
 export * from "./mcp-protocol";
 export * from "./memory-protocol";
 export * from "./zeta-protocol";
-export * from "./omp-scope";
+export * from "./zeta-scope";
 export * from "./parse";
 export * from "./router";
 export * from "./rule-protocol";
