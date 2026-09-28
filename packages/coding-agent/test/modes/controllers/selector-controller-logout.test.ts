@@ -57,12 +57,21 @@ describe("SelectorController logout", () => {
 			return true;
 		});
 		const authStorage = {
-			reload: vi.fn(async () => undefined),
-			listStoredCredentials: (_provider?: string) => credentials,
-			getOAuthAccountIdentity: (_provider: string, _sessionId?: string) => ({ accountId: "acct-a" }),
-			getCredentialOrigin: (_provider: string) => ({ kind: "oauth" }),
-			describeCredentialSource: (_provider: string, _sessionId?: string) => undefined,
-			removeCredential,
+			// The v18.3.x auth-storage surface is namespaced: credentials carry
+			// the stored-row CRUD, oauth the identity probe, keys the API-key
+			// provenance probes.
+			credentials: {
+				reload: vi.fn(async () => undefined),
+				list: (_provider?: string) => credentials,
+				removeById: removeCredential,
+			},
+			oauth: {
+				identity: (_provider: string, _sessionId?: string) => ({ accountId: "acct-a" }),
+			},
+			keys: {
+				source: (_provider: string) => undefined,
+				describe: (_provider: string, _sessionId?: string) => undefined,
+			},
 		} as unknown as AuthStorage;
 		const refreshProvider = vi.fn(async (_providerId: string, _mode: string) => undefined);
 		const presented = Promise.withResolvers<void>();

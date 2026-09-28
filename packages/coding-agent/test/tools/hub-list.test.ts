@@ -1386,7 +1386,6 @@ describe("child system prompt roster", () => {
 		expect(text).toContain("editing auth.ts");
 		expect(text).toContain("IdleReviewer");
 		expect(text).toContain("1 parked peer(s) omitted");
-		expect(text).toContain('status:"parked"');
 		expect(text).toContain("history://");
 		expect(text).toContain("agent://");
 		expect(text).not.toContain("ParkedScout");

@@ -9,6 +9,7 @@ import {
 	STATUS_LINE_SEGMENT_IDS,
 	STATUS_LINE_SEPARATOR_VALUES,
 } from "@linxiraos/pi-tui/status-line/schema";
+import { setStatusLineSidebarOpen } from "@linxiraos/pi-tui/status-line/component";
 import { setChatTranscriptDisplayPreferences } from "@linxiraos/pi-tui/chat/display-preferences";
 import { setEditorGapComposerShape } from "@linxiraos/pi-tui/prompt/editor-top-gap";
 import { setEmojiAutocompleteEnabled } from "@linxiraos/pi-tui/prompt/prompt-action-autocomplete";
@@ -1169,6 +1170,10 @@ export const cfgTuiSidebar = register({
 		description: "Show the right-hand sidebar (context, usage, git, model)",
 	},
 });
+// The open sidebar already shows the session identity, so the status row drops
+// the session-name segment while it is open (origin/main wiring, lost in the
+// v18.3.1 settings-registry migration).
+effect(cfgTuiSidebar, value => setStatusLineSidebarOpen(value));
 
 /**
  * Third-party sidebar widgets registered by extensions. Off by default: the
