@@ -97,7 +97,7 @@ describe("edit parse-regression blackbox", () => {
 
 	test("appends valid-to-invalid transitions from every edit variant", async () => {
 		await fs.appendFile(logPath, '{"seed":true}\n');
-		const LOGGED_FIXTURE_NAMES = ["replace.ts", "patch.ts", "apply-patch.ts", "sloppy.ts"];
+		const LOGGED_FIXTURE_NAMES = ["replace.ts", "patch.ts", "apply-patch.ts", "hashline.ts", "sloppy.ts"];
 
 		const expected: Array<{
 			prev: string;

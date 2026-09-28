@@ -90,7 +90,9 @@ export async function resolveXAIHttpTransport(
 	const model = typeof modelOrId === "string" ? modelRegistry.find(provider, modelOrId) : modelOrId;
 	const modelId = typeof modelOrId === "string" ? modelOrId : modelOrId?.id;
 	return {
-		baseURL: model?.baseUrl ? model.baseUrl.replace(/\/$/, "") : resolveXAIBaseURL(modelRegistry, provider, modelId),
+		// Keep the configured baseUrl verbatim (the request layer trims trailing
+		// slashes itself): endpoint-mismatch diagnostics quote this field.
+		baseURL: model?.baseUrl ?? resolveXAIBaseURL(modelRegistry, provider, modelId),
 		headers: model
 			? await modelRegistry.resolveModelHeaders(model)
 			: await modelRegistry.getProviderHeaders(provider),

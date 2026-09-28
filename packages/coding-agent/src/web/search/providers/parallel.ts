@@ -307,7 +307,9 @@ export class ParallelProvider extends SearchProvider {
 				timeoutMs: params.timeoutMs,
 				fetch: params.fetch,
 				parsedQuery: params.parsedQuery,
-				modelName: params.modelName,
+				// The selected model id travels as trusted metadata with anonymous
+				// (keyless) MCP searches; the orchestrator-level modelName overrides.
+				modelName: params.modelName ?? params.model.id,
 			},
 			params.authStorage,
 			params.sessionId,

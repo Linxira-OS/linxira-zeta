@@ -304,7 +304,7 @@ describe("jfind cascade", () => {
 	});
 
 	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
-		const completions = (await InternalUrlRouter.instance().complete("omp", "")) ?? [];
+		const completions = (await InternalUrlRouter.instance().complete("zeta", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());
 		const root = await resolveSearchRoot(filesystem, "zeta://", process.cwd());

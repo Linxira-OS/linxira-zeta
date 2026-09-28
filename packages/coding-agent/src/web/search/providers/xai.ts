@@ -483,7 +483,7 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 		async (key: string) => callXAIResponses(key, params, transport),
 		{
 			signal: params.signal,
-			missingKeyMessage: 'xAI credentials not found. Set XAI_API_KEY or configure an API key for provider "xai".',
+			missingKeyMessage: `xAI credentials not found for selected provider "${params.model.provider}".`,
 		},
 	);
 	const parsed = parseResponse(response, resultCap);
