@@ -343,6 +343,9 @@ async function resolveInternalUrlToPath(
 	try {
 		resource = await internalRouter.resolve(url, {
 			cwd,
+			// Bash only consumes the resolved path: handlers must return the
+			// directory shape instead of draining a full listing (memory:// roots).
+			skipDirectoryListing: true,
 			sessionFile,
 			sessionId,
 			agentRegistry,
