@@ -47,7 +47,7 @@ import type {
 } from "./types";
 import { VaultProtocolHandler } from "./vault-protocol";
 import { XdProtocolHandler } from "./xd-protocol";
-import { ZetaProtocolHandler } from "./zeta-protocol";
+import { OmpDocsAliasHandler, ZetaProtocolHandler } from "./zeta-protocol";
 
 setInternalUrlCompletionHost({
 	completionSchemes: () => InternalUrlRouter.instance().completionSchemes(),
@@ -112,6 +112,9 @@ export class InternalUrlRouter {
 		this.register(new PrProtocolHandler());
 		this.register(resourceFallback);
 		this.register(new ZetaProtocolHandler());
+		// omp:// is a reserved alias of the Zeta docs namespace (upstream tests
+		// and vendor adapters address docs through it; see OmpDocsAliasHandler).
+		this.register(new OmpDocsAliasHandler());
 		this.register(new XdProtocolHandler());
 		this.register(new AttachmentProtocolHandler());
 		this.register(new ConflictProtocolHandler());
