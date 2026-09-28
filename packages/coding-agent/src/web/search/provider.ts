@@ -22,7 +22,6 @@ type ProviderLoader = () => Promise<SearchProvider>;
 type ProviderRegistry<TId extends string> = { [Id in TId]: ProviderLoader };
 
 const PROVIDER_LOADERS: ProviderRegistry<SearchEngineId> = {
-	bing: () => import("./providers/bing").then(m => new m.BingProvider()),
 	perplexity: () => import("./providers/perplexity").then(m => new m.PerplexityProvider()),
 	zai: () => import("./providers/zai").then(m => new m.ZaiProvider()),
 	exa: () => import("./providers/exa").then(m => new m.ExaProvider()),

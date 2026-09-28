@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, mock, vi } from "bun:test";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { webModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
@@ -509,6 +509,10 @@ describe("setup wizard glyph scene", () => {
 });
 
 describe("setup wizard web search tab", () => {
+	beforeAll(async () => {
+		await initTheme(false, "unicode", false, "titanium", "dark");
+	});
+
 	const webModels = (webModelManagerOptions().staticModels ?? []).map(model => buildModel(model));
 	const googleGemini = buildModel({
 		id: "gemini-2.5-flash",

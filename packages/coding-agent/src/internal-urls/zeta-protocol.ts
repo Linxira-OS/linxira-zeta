@@ -9,6 +9,7 @@
 import * as path from "node:path";
 import { getDocFilenames, getEmbeddedDoc } from "./docs-index";
 import type { InternalResource, InternalUrl, ProtocolHandler, SchemeSpec, UrlCompletion } from "./types";
+import { zetaDocFilename, zetaDocRel, zetaDocsScopeEntries } from "./zeta-scope";
 
 /**
  * Handler for zeta:// URLs.
@@ -34,6 +35,23 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 		}
 
 		return this.#readDoc(docPath, filename, url);
+	}
+
+	/**
+	 * Leaf enumeration for the URL filesystem's directory view: the whole
+	 * embedded corpus for the docs root, or the single doc a subpath names.
+	 */
+	async enumerate(url: InternalUrl): Promise<Array<{ url: string; content: string }>> {
+		const docPath = zetaDocRel(url);
+		if (!docPath) {
+			const entries = await zetaDocsScopeEntries();
+			if (entries.length === 0) {
+				throw new Error("No documentation files found");
+			}
+			return entries;
+		}
+		const resource = await this.#readDoc(docPath, zetaDocFilename(url), url);
+		return [{ url: `zeta://${docPath}`, content: resource.content }];
 	}
 
 	async complete(): Promise<UrlCompletion[]> {

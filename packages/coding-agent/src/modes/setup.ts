@@ -1,9 +1,4 @@
-import {
-	isSearchProviderId,
-	SEARCH_PROVIDER_OPTIONS,
-	SEARCH_PROVIDER_ORDER,
-	type SearchProviderId,
-} from "../web/search/types";
+import { SEARCH_PROVIDER_OPTIONS, SEARCH_PROVIDER_ORDER, type SearchProviderId } from "../web/search/types";
 import type { Model, WebSearchGrounding } from "@linxiraos/pi-catalog/types";
 import { runProviderSetupWizard as runProviderWizard } from "@linxiraos/pi-tui/setup/lazy";
 import type { SetupHost, SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
@@ -21,7 +16,7 @@ import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-setti
 import type { Settings } from "../config/settings";
 import { captureBrowserSession } from "../utils/browser-session";
 import { copyToClipboard } from "../utils/clipboard";
-import { getSearchProvider, setSearchProviderOrder } from "../web/search/provider";
+import { getGroundedSearchProvider, getSearchProvider, setSearchProviderOrder } from "../web/search/provider";
 import { createModelBrowserSource } from "./model-browser-source";
 import type { InteractiveModeContext } from "./types";
 
@@ -145,16 +140,25 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 			ctx.settings.writeValue(mode === "dark" ? cfgThemeDark : cfgThemeLight, name, "global");
 		},
 		isSearchProviderAvailable: async id => {
-			const provider = await getSearchProvider(id);
-			return provider.isExplicitlyAvailable(ctx.session.modelRegistry.authStorage);
+			const selection = resolveWebSearchSelection(ctx, id);
+			if (!selection) return false;
+			const provider = selection.model.webSearch
+				? await getGroundedSearchProvider(selection.model.webSearch)
+				: await getSearchProvider(selection.model.id);
+			return provider.isExplicitlyAvailable(ctx.session.modelRegistry.authStorage, selection.model);
 		},
 		saveSearchProvider: id => {
-			// The TUI's provider id union is a superset (it still carries `bing`),
-			// so narrow before it reaches the coding-agent chain.
-			if (id !== "auto" && !isSearchProviderId(id)) return;
-			const order = id === "auto" ? [] : [id, ...SEARCH_PROVIDER_ORDER.filter(candidate => candidate !== id)];
+			if (id === "auto") {
+				ctx.settings.setModelRole("web", undefined);
+				ctx.settings.writeValue(cfgProvidersWebSearchOrder, [], "global");
+				setSearchProviderOrder([]);
+				return;
+			}
+			const order = [id, ...SEARCH_PROVIDER_ORDER.filter(candidate => candidate !== id)];
 			ctx.settings.writeValue(cfgProvidersWebSearchOrder, order, "global");
 			setSearchProviderOrder(order);
+			const selection = resolveWebSearchSelection(ctx, id);
+			if (selection) ctx.settings.setModelRole("web", selection.selector);
 		},
 		captureBrowserSession,
 		copyToClipboard,

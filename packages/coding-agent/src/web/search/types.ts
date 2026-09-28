@@ -9,11 +9,6 @@ export const MAX_WEB_SEARCH_TIMEOUT_SECONDS = 300;
 export const SEARCH_PROVIDER_OPTIONS = [
 	{ value: "auto", label: "Auto", description: "Automatically uses the first configured web-search provider" },
 	{
-		value: "bing",
-		label: "Bing",
-		description: "Bing web results via the public HTML endpoint",
-	},
-	{
 		value: "parallel",
 		label: "Parallel",
 		description: "Uses API auth when configured; otherwise searches through the keyless public MCP",
@@ -100,7 +95,6 @@ export const SEARCH_PROVIDER_OPTIONS = [
 		label: "Public Web",
 		description: "Queries every credential-free engine in parallel and consolidates deduplicated results",
 	},
-	{ value: "none", label: "None", description: "Disables web search" },
 ] as const;
 
 export type SearchProviderId = Exclude<(typeof SEARCH_PROVIDER_OPTIONS)[number]["value"], "auto">;
