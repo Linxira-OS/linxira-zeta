@@ -96,6 +96,46 @@
   - Round 4: CI 20/20 + Zeta Nix green → merged as PR #14 (`caef3818cc`).
 - **New standing rule** (from this sync): `nix/bun.nix` is Zeta-owned release surface — after any `bun.lock` change, regen with `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix` (bun2nix 2.1.2, same rev as flake.lock) and normalize lock registry URLs to npmjs.org before pushing; the flake's `bun-lock` check is the detector.
 
+## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
+
+按「上游增量合并规程」在 `dev/main` 上完成的两步串联合并;干跑预测与实跑逐个
+相符(v18.3.3:135;v18.3.4:15),谱系检查全程通过。
+
+| 项 | 值 |
+|---|---|
+| 起点 | `dev/main` @ `7d88e8190f9`(14 批 CI 修复全绿基线,CI 36435585671) |
+| v18.3.3 | tag `608ac7360ff`(远程核验未移动);merge-base = v18.3.2 `7853b4e4999` ✓;合并提交 `c9b8c2d1413` |
+| v18.3.4 | tag `dff728c572a`;merge-base = v18.3.3 ✓;合并提交 `14e774c9d94` |
+| 增量 | v18.3.3:454 文件/31k 行(TUI autocomplete+@-mention、SmolLM 预测文本、natives 哨兵→stamp 机制、CI 基建重构);v18.3.4:143 文件/32k 行(vendored napi 线程 env 泄漏修复、task effort 重构、prompt cache 保全) |
+
+**v18.3.3 冲突决策(135)**:
+- 机制变更整对接受:natives 版本哨兵 → `__piNativesBuildVersion` stamp 机制
+  (四个 Zeta 检查器同步改锚机制符号);ci-release-publish 并发管线重写
+  (editor/work vendored 分支重嫁接为 `publishVendoredNpmDirs`,--dry-run 冒烟);
+  ci.yml 重建(接纳 bazel_lock + native_addons_cross 进 gate;**裁掉**
+  release_binary_hosted/release_github_verify/release_brew 三个 darwin/上游
+  tap job 与 linux-arm64 发布矩阵——安装器面未跟上;omp-kata 全扫为
+  ubuntu-22.04;7 个 Zeta job 重应用);command-usage.ts 与
+  tiny-title-download-progress.ts 随上游机制替换删除。
+- **拒绝上游 OMP_PROFILE env 优先级**(与用户机器上真 OMP 冲突),保持
+  ZETA_PROFILE 单源。
+- 批量 stage-3 后的类 4 恢复:AgentSession mode API + state_version_changed、
+  tools/index 五个 channel/im 工厂、InteractiveMode sidebar/plan-ultra 成员、
+  handlePlanModeCommand workflow 参数、builtin registry i18n 解析器、
+  worker 哨兵重扫 `__zeta_worker_`(含新增 text_predict)、ZETA_LOGO/icon.omp、
+  omp→zeta 提示串、四条 slash 描述 M 键化。
+- 生成物:rules.json 重生成(local.kdl lfm)、bun.lock/nix 刷新、changelog
+  rekey 1.1.21-omp*、set-version 全绿。
+- 测试裁决:净新增失败 16 全清(9 修复:hint 串/plan-ultra 注册/zh 契约/
+  unsettled 断言/prewarm 测试迁移 setModelRole;5 Windows 噪声;2 慢测试
+  ——x-codex-turn-state SSE 对在 30s 预算下通过,CI 120s 覆盖)。
+  基线差集法(worktree 对照)用于区分既有噪声与合并伤。
+- bunfig 修剪:root `bun test` 不再扫 editor/termide/web-ui(各有独立门禁)。
+
+**v18.3.4 冲突决策(15)**:全部机械(Cargo 版本行保 1.1.21 + napi vendor
+条目、import 并集、测试断言守卫、lockfiles);新文件 scope 清扫;task 桶
+Windows 12 失败经 WSL 判定为符号链接族噪声(Linux 0 fail)。
+
 ## OMP Web divergence (Zeta — own-desktop upgrade, upstream frozen)
 
 - **Date**: 2026-09-10; **Branch**: `feat/desktop-ui-upgrade` (from `main@43d39b9f5f`)
