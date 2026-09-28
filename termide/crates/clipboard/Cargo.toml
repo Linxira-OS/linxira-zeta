@@ -1,0 +1,13 @@
+[package]
+name = "termide-clipboard"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Clipboard operations for termide"
+
+[dependencies]
+arboard.workspace = true
+base64.workspace = true
+log.workspace = true

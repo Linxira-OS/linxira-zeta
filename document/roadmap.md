@@ -636,6 +636,17 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   SidePane 框架一起评估)。
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
   修复,可修则 revert matrix 裁剪提交。
+- **TUI 三件套整合设计**(zeta CLI + zeta-work/termide + zeta-e/editor;
+  2026-09-28 用户定方向):产品愿景 = 完整 Linux 无图形界面运维迁移到
+  Agent 流程,zeta-work 为用户主入口、文件管理器最底层唤醒 zeta 到正确
+  cwd、三包经 PTY 组合零代码耦合。启动前需完成的设计调查:(1) 启动
+  上下文检测——用户从哪里进(work 直开 / editor 内唤 / 裸 shell),
+  cwd/会话/repo root 三元组如何跨进程传递(现 handoff.json 机制扩展);
+  (2) 主/子线程逻辑继承——work pane 里的 zeta 是独立会话还是 CLI 会话
+  的子线程,mode/plan 状态是否继承;(3) 嵌套 TUI 框架选择——pane 内
+  子 TUI 的 alt-screen/事件路由协议(tcell/ratatui 侧与 Zeta TUI 侧
+  的抽象层),任意数量 zeta/ttt pane 自由布局的数据结构。设计产物
+  落地时另开执行计划。
 
 ## Notes
 

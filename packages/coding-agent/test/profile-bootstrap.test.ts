@@ -18,7 +18,7 @@ describe("extractProfileFlags", () => {
 	});
 
 	it("does not eat the value of known string-valued flags", () => {
-		// `omp --system-prompt --profile foo` must pass the literal `--profile`
+		// `zeta --system-prompt --profile foo` must pass the literal `--profile`
 		// through to the launch parser (it's the system prompt) and `foo` is the
 		// positional message. The previous implementation would silently activate
 		// profile `foo` here, dropping the user's prompt.
@@ -54,7 +54,7 @@ describe("extractProfileFlags", () => {
 		// Same argv as above, but the plan-mode extension is NOT loaded, so `--plan`
 		// is the built-in string flag (planning model). It must not consume the
 		// bootstrap's internal boundary sentinel as its value — otherwise plan would
-		// become "--omp-profile-boundary" and the user's message would be dropped.
+		// become "--zeta-profile-boundary" and the user's message would be dropped.
 		const extracted = extractProfileFlags(["--plan", "--profile", "work", "follow up"]);
 		expect(extracted.argv).toEqual(["--plan", PROFILE_BOOTSTRAP_BOUNDARY_ARG, "follow up"]);
 

@@ -1,0 +1,16 @@
+# Gruvbox Dark theme for TermIDE
+# https://github.com/morhetz/gruvbox
+name = "gruvbox"
+is_light = false
+
+[colors]
+bg = { rgb = [40, 40, 40] }
+fg = { rgb = [235, 219, 178] }
+accented_bg = { rgb = [60, 56, 54] }
+accented_fg = { rgb = [250, 189, 47] }
+selected_bg = { rgb = [131, 165, 152] }
+selected_fg = { rgb = [40, 40, 40] }
+disabled = { rgb = [146, 131, 116] }
+success = { rgb = [184, 187, 38] }
+warning = { rgb = [250, 189, 47] }
+error = { rgb = [251, 73, 52] }

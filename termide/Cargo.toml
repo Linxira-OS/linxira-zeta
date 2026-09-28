@@ -1,0 +1,162 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[patch.crates-io]
+unicode-width = { path = "crates/unicode-width-fix" }
+
+[workspace.package]
+version = "0.35.0"
+edition = "2021"
+authors = ["Nick Nizovtsev"]
+license = "MIT"
+repository = "https://github.com/termide/termide"
+
+[workspace.dependencies]
+# Core dependencies
+anyhow = "1.0"
+crossterm = "0.29"
+ratatui = "0.30.0"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+dirs = "6.0"
+ropey = "1.6"
+arboard = "3.4"
+unicode-segmentation = "1.11"
+unicode-width = "0.2"
+# Infra dependencies
+tree-sitter = "0.24"
+tree-sitter-highlight = "0.24"
+lsp-types = "0.97"
+regex = "1.12"
+notify = { version = "6.1", default-features = false, features = ["macos_fsevent"] }
+notify-debouncer-mini = "0.4"
+ignore = "0.4"
+sysinfo = "0.31"
+starship-battery = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
+portable-pty = "0.8"
+vte = "0.13"
+# Additional shared dependencies
+base64 = "0.22"
+tempfile = "3.12"
+log = "0.4"
+libc = "0.2"
+glob = "0.3"
+similar = "2.7"
+serde_json = "1.0"
+url = "2"
+pulldown-cmark = { version = "0.12", default-features = false }
+html5ever = "0.29"
+ureq = "2.10"
+
+[package]
+name = "termide"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Cross-platform terminal IDE, file manager and virtual terminal"
+publish = false
+repository = "https://github.com/termide/termide"
+license = "MIT"
+keywords = ["terminal", "ide", "file-manager", "tui", "terminal-ui"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+exclude = [
+    ".github/",
+    "assets/screenshots/",
+    "doc/",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    "flake.nix",
+    "flake.lock"
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.deb]
+maintainer = "Nick Nizovtsev <nizovtsevnv@gmail.com>"
+copyright = "2025, Nick Nizovtsev <nizovtsevnv@gmail.com>"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+TermIDE is a cross-platform terminal-based IDE, file manager, and virtual terminal \
+written in Rust. It features syntax highlighting for 21 languages, Git integration, \
+multi-panel accordion layout with smart stacking, and an integrated virtual terminal \
+with full PTY support."""
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/termide", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/termide/", "644"],
+    ["LICENSE", "usr/share/doc/termide/", "644"],
+    ["completions/termide.bash", "usr/share/bash-completion/completions/termide", "644"],
+    ["completions/_termide", "usr/share/zsh/vendor-completions/", "644"],
+    ["completions/termide.fish", "usr/share/fish/vendor_completions.d/", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "termide"
+license = "MIT"
+summary = "Cross-platform terminal IDE, file manager and virtual terminal"
+assets = [
+    { source = "target/release/termide", dest = "/usr/bin/termide", mode = "755" },
+    { source = "README.md", dest = "/usr/share/doc/termide/README.md", mode = "644", doc = true },
+    { source = "LICENSE", dest = "/usr/share/doc/termide/LICENSE", mode = "644", doc = true },
+    { source = "completions/termide.bash", dest = "/usr/share/bash-completion/completions/termide", mode = "644" },
+    { source = "completions/_termide", dest = "/usr/share/zsh/site-functions/_termide", mode = "644" },
+    { source = "completions/termide.fish", dest = "/usr/share/fish/vendor_completions.d/termide.fish", mode = "644" },
+]
+auto-req = "no"
+
+[package.metadata.generate-rpm.requires]
+
+[dependencies]
+# The root binary is a thin shell: CLI parsing, terminal setup, config load and
+# the app event loop. Everything else lives in the workspace crates, so only
+# what `src/main.rs` and `src/ui.rs` actually name belongs here — a dependency
+# needed by a crate must be declared by that crate.
+anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.29"
+dirs = "6.0"
+log = "0.4"
+ratatui = "0.30.0"
+
+# Workspace crates referenced directly from main.rs / ui.rs
+termide-app = { path = "crates/app" }
+termide-config = { path = "crates/config" }
+termide-core = { path = "crates/core" }
+termide-detach = { path = "crates/detach" }
+termide-git = { path = "crates/git" }
+termide-i18n = { path = "crates/i18n" }
+termide-keyboard = { path = "crates/keyboard" }
+termide-layout = { path = "crates/layout" }
+termide-panel-editor = { path = "crates/panel-editor" }
+termide-panel-file-manager = { path = "crates/panel-file-manager" }
+termide-panel-terminal = { path = "crates/panel-terminal" }
+termide-session = { path = "crates/session" }
+termide-theme = { path = "crates/theme" }
+termide-ui-render = { path = "crates/ui-render" }
+
+[build-dependencies]
+cc = "1.0"
+
+[dev-dependencies]
+tempfile = "3.12"
+# tests/grammar_loads.rs asserts every SUPPORTED_LANGUAGES grammar loads.
+termide-highlight = { path = "crates/highlight" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = { version = "0.29", features = ["signal", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_SystemInformation"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

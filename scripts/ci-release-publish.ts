@@ -85,6 +85,7 @@ const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const isPackOnly = process.argv.includes("--pack-only");
 const publishEditor = process.argv.slice(2).includes("--editor");
+const publishWork = process.argv.slice(2).includes("--work");
 const MIT_LICENSE = "LICENSE";
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
@@ -540,6 +541,15 @@ if (import.meta.main) {
 		// via optionalDependencies.
 		const editorNpmDirs = ["editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64", "editor/npm/editor"];
 		for (const dir of editorNpmDirs) {
+			const manifest = (await Bun.file(path.join(repoRoot, dir, "package.json")).json()) as PackageManifest;
+			await packAndPublish(path.join(repoRoot, dir), manifest.name ?? path.basename(dir));
+		}
+	} else if (publishWork) {
+		// Vendored termide workspace-TUI npm distribution (not a Bun
+		// workspace). Same topology as the editor: platform leaves first,
+		// then the launcher that pins them via optionalDependencies.
+		const workNpmDirs = ["termide/npm/work-windows-x64", "termide/npm/work-linux-x64", "termide/npm/work"];
+		for (const dir of workNpmDirs) {
 			const manifest = (await Bun.file(path.join(repoRoot, dir, "package.json")).json()) as PackageManifest;
 			await packAndPublish(path.join(repoRoot, dir), manifest.name ?? path.basename(dir));
 		}

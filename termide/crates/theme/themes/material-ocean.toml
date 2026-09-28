@@ -1,0 +1,21 @@
+# Material Ocean theme for TermIDE
+# https://github.com/material-ocean/Material-Ocean
+# Dark pair to material-lighter
+name = "material-ocean"
+is_light = false
+
+[colors]
+bg = { rgb = [15, 17, 26] }
+fg = { rgb = [178, 183, 198] }
+
+accented_bg = { rgb = [9, 11, 16] }
+accented_fg = { rgb = [130, 170, 255] }
+
+selected_bg = { rgb = [130, 170, 255] }
+selected_fg = { rgb = [15, 17, 26] }
+
+disabled = { rgb = [70, 75, 93] }
+
+success = { rgb = [195, 232, 141] }
+warning = { rgb = [255, 203, 107] }
+error = { rgb = [255, 83, 112] }

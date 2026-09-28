@@ -207,7 +207,7 @@ async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 
 async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	if (flags.via && !flags.provider) {
-		throw new Error("Usage: omp auth-broker login <provider> --via=user@host (provider required for remote login)");
+		throw new Error("Usage: zeta auth-broker login <provider> --via=user@host (provider required for remote login)");
 	}
 	const providers = getOAuthProviders();
 	// One interface for picker + login prompts; closed before `--via` hands
@@ -418,7 +418,7 @@ async function loadImportPlan(
 		if (!provider) {
 			skipped.push({
 				file,
-				reason: `cannot determine omp provider from type=${json.type ?? "?"} (pass --provider to override)`,
+				reason: `cannot determine the zeta provider from type=${json.type ?? "?"} (pass --provider to override)`,
 			});
 			continue;
 		}

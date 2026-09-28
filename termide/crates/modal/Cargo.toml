@@ -1,0 +1,23 @@
+[package]
+name = "termide-modal"
+version.workspace = true
+edition.workspace = true
+description = "Modal dialog system for termide"
+license = "MIT"
+
+[dependencies]
+# External
+anyhow.workspace = true
+chrono.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+unicode-width.workspace = true
+
+# Workspace crates
+termide-clipboard = { path = "../clipboard" }
+termide-core = { path = "../core" }
+termide-ui = { path = "../ui" }
+termide-theme = { path = "../theme" }
+termide-i18n = { path = "../i18n" }
+termide-config = { path = "../config" }
+termide-state = { path = "../state" }

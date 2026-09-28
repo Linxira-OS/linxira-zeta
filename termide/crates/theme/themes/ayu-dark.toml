@@ -1,0 +1,16 @@
+# Ayu Dark theme for TermIDE
+# https://github.com/dempfi/ayu
+name = "ayu-dark"
+is_light = false
+
+[colors]
+bg = { rgb = [15, 20, 25] }
+fg = { rgb = [214, 218, 224] }
+accented_bg = { rgb = [26, 35, 46] }
+accented_fg = { rgb = [242, 133, 111] }
+selected_bg = { rgb = [63, 183, 227] }
+selected_fg = { rgb = [15, 20, 25] }
+disabled = { rgb = [92, 103, 115] }
+success = { rgb = [120, 208, 92] }
+warning = { rgb = [228, 167, 92] }
+error = { rgb = [245, 133, 114] }

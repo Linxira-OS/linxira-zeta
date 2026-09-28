@@ -1,0 +1,16 @@
+# Catppuccin Macchiato theme for TermIDE
+# https://github.com/catppuccin/catppuccin
+name = "catppuccin-macchiato"
+is_light = false
+
+[colors]
+bg = { rgb = [36, 39, 58] }
+fg = { rgb = [202, 211, 245] }
+accented_bg = { rgb = [54, 58, 79] }
+accented_fg = { rgb = [245, 189, 230] }
+selected_bg = { rgb = [138, 173, 244] }
+selected_fg = { rgb = [36, 39, 58] }
+disabled = { rgb = [110, 115, 141] }
+success = { rgb = [166, 218, 149] }
+warning = { rgb = [238, 212, 159] }
+error = { rgb = [237, 135, 150] }

@@ -1,0 +1,40 @@
+# Rust
+/target
+
+# Development
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Nix
+result
+result-*
+.direnv/
+
+# Logs and temporary files
+*.log
+/tmp/
+termide.log
+
+# Editor backups
+*~
+\#*\#
+.\#*
+
+# Testing
+/coverage/
+*.profdata
+*.profraw
+
+/.claude
+/.codex
+/.qwen
+/docs/
+CLAUDE.md

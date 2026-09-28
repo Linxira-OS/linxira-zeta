@@ -1,0 +1,16 @@
+[package]
+name = "termide-lsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Language Server Protocol integration for termide"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+lsp-types = "0.97"
+url = "2"

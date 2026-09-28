@@ -9,6 +9,7 @@ on:
          - "web-ui/**"
          - "crates/**"
          - "editor/**"
+         - "termide/**"
          - "plugins/**"
          - "scripts/**"
          - "bazel/**"
@@ -42,6 +43,7 @@ on:
          - "web-ui/**"
          - "crates/**"
          - "editor/**"
+         - "termide/**"
          - "plugins/**"
          - "scripts/**"
          - "bazel/**"
@@ -978,6 +980,115 @@ jobs:
               done
               if [ -z "$rid" ]; then
                  echo "::error::editor-publish run never appeared"
+                 exit 1
+              fi
+              gh run watch "$rid" --exit-status --interval 15
+
+   # Vendored TermIDE (zeta-work) upstream test contract, mirroring what the
+   # upstream project gates on every PR: fmt / cargo check --all-targets /
+   # clippy -D warnings / nextest, with the toolchain pinned by
+   # termide/rust-toolchain.toml (1.91.1). A full Rust rebuild of the vendored
+   # workspace is expensive, so the job self-skips when the triggering change
+   # set does not touch termide/ — a manual dispatch always runs the full
+   # gate. Same policy as the editor job: gates the vendor tree, not the
+   # Zeta release (release_gate does not depend on it).
+   termide_tests:
+      name: Test termide (vendored TermIDE)
+      runs-on: ubuntu-22.04
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - name: Detect termide/ changes
+           id: termide
+           env:
+              BEFORE: ${{ github.event.before }}
+              PR_BASE: ${{ github.event.pull_request.base.sha }}
+           run: |
+              set -euo pipefail
+              base=""
+              if [ -n "$PR_BASE" ]; then
+                 base="$PR_BASE"
+              elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                 base="$BEFORE"
+              fi
+              if [ -z "$base" ]; then
+                 echo "No base revision (manual dispatch) - running the full gate"
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+                 exit 0
+              fi
+              # Depth-1 fetch of the base tip; the two-dot diff below then
+              # needs no merge-base from the shallow history.
+              git fetch --no-tags --depth=1 origin "$base" || true
+              if git diff --name-only "$base" HEAD -- termide/ | grep -q .; then
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+              else
+                 echo "termide/ untouched - skipping the vendored Rust gate"
+                 echo "skip=true" >> "$GITHUB_OUTPUT"
+              fi
+         # Action refs mirror the upstream termide CI pins (tag per toolchain
+         # release on dtolnay/rust-toolchain; major-version branch on
+         # taiki-e/install-action and Swatinem/rust-cache).
+         - uses: dtolnay/rust-toolchain@1.91.1
+           if: steps.termide.outputs.skip != 'true'
+           with:
+              components: rustfmt, clippy
+         - uses: Swatinem/rust-cache@v2
+           if: steps.termide.outputs.skip != 'true'
+           with:
+              workspaces: termide
+         - name: Check formatting
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo fmt --all -- --check
+         - name: Check compilation
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo check --workspace --all-targets
+         - name: Run clippy (strict mode)
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo clippy --workspace --all-targets -- -D warnings
+         - name: Install cargo-nextest
+           if: steps.termide.outputs.skip != 'true'
+           uses: taiki-e/install-action@v2
+           with:
+              tool: cargo-nextest
+         - name: Run tests
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo nextest run --workspace
+
+   # Publishes the vendored termide npm distribution (@linxiraos/work plus
+   # its windows/linux x64 platform leaves) on release tags via npm trusted
+   # publishing, dispatching the dedicated work-publish.yml so the OIDC claim
+   # matches the workflow binding (same lesson as v1.1.19's editor E404).
+   # Does not gate the GitHub release itself (same policy as the editor).
+   release_work_packages:
+      name: Publish work npm packages
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_gate.result == 'success' &&
+         !inputs.skip_npm }}
+      needs: [release_metadata, release_gate]
+      runs-on: ubuntu-22.04
+      permissions:
+         contents: read
+         actions: write
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - name: Dispatch work-publish.yml and wait for it
+           env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           run: |
+              set -euo pipefail
+              gh workflow run work-publish.yml --ref "${GITHUB_REF_NAME}"
+              rid=""
+              for _ in $(seq 1 30); do
+                 sleep 10
+                 rid=$(gh run list --workflow=work-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+                 [ -n "$rid" ] && break
+              done
+              if [ -z "$rid" ]; then
+                 echo "::error::work-publish run never appeared"
                  exit 1
               fi
               gh run watch "$rid" --exit-status --interval 15

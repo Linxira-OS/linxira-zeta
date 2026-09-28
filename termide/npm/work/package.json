@@ -1,0 +1,30 @@
+{
+  "name": "@linxiraos/work",
+  "version": "1.1.21",
+  "description": "zeta-work — the Zeta workspace TUI: file manager, panels, and terminal surfaces for agent-driven Linux operations",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "directory": "termide"
+  },
+  "bin": {
+    "zeta-work": "bin/zeta-work.js",
+    "zeta-w": "bin/zeta-work.js"
+  },
+  "files": [
+    "bin/",
+    "LICENSE",
+    "VENDOR.md"
+  ],
+  "optionalDependencies": {
+    "@linxiraos/work-windows-x64": "1.1.21",
+    "@linxiraos/work-linux-x64": "1.1.21"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

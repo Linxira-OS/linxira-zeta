@@ -1,0 +1,57 @@
+[package]
+name = "termide-panel-editor"
+version.workspace = true
+edition.workspace = true
+description = "Text editor panel for termide"
+license = "MIT"
+
+[dependencies]
+# External
+anyhow.workspace = true
+crossterm.workspace = true
+log.workspace = true
+lsp-types = "0.97"
+ratatui.workspace = true
+regex.workspace = true
+ropey.workspace = true
+unicode-width.workspace = true
+unicode-segmentation.workspace = true
+dirs.workspace = true
+
+# Workspace crates
+termide-buffer = { path = "../buffer" }
+termide-vfs = { path = "../vfs" }
+termide-clipboard = { path = "../clipboard" }
+termide-config = { path = "../config" }
+termide-core = { path = "../core" }
+termide-git = { path = "../git" }
+termide-highlight = { path = "../highlight" }
+termide-i18n = { path = "../i18n" }
+termide-keyboard = { path = "../keyboard" }
+termide-lsp = { path = "../lsp" }
+termide-modal = { path = "../modal" }
+termide-session = { path = "../session" }
+termide-state = { path = "../state" }
+termide-system-monitor = { path = "../system-monitor" }
+termide-theme = { path = "../theme" }
+termide-ui = { path = "../ui" }
+
+# Diagram generation
+termide-panel-outline = { path = "../panel-outline" }
+tree-sitter.workspace = true
+tree-sitter-rust = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-kotlin-ng = "1.1"
+tree-sitter-c = "0.23"
+tree-sitter-cpp = "0.23"
+tree-sitter-ruby = "0.23"
+# Must match termide-highlight's tree-sitter-php (0.23): 0.24 is ABI 15 (which
+# tree-sitter 0.24 rejects), and two versions in one binary collide the
+# `tree_sitter_php` C symbol and break PHP highlighting.
+tree-sitter-php = "0.23"
+
+[dev-dependencies]
+tempfile.workspace = true

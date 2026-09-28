@@ -1,0 +1,67 @@
+[package]
+name = "termide-app"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Application orchestrator for termide - coordinates all app modules"
+
+[dependencies]
+anyhow.workspace = true
+crossterm.workspace = true
+log = "0.4"
+ratatui.workspace = true
+dirs.workspace = true
+lsp-types.workspace = true
+open = "5"
+unicode-width.workspace = true
+libc.workspace = true
+
+# All app-* foundation crates
+termide-app-core = { path = "../app-core" }
+
+# Core workspace crates
+termide-core = { path = "../core" }
+termide-detach = { path = "../detach" }
+termide-clipboard = { path = "../clipboard" }
+termide-keyboard = { path = "../keyboard" }
+termide-state = { path = "../state" }
+termide-modal = { path = "../modal" }
+termide-layout = { path = "../layout" }
+termide-config = { path = "../config" }
+termide-theme = { path = "../theme" }
+termide-i18n = { path = "../i18n" }
+termide-session = { path = "../session" }
+termide-git = { path = "../git" }
+termide-lsp = { path = "../lsp" }
+termide-vfs = { path = "../vfs" }
+termide-file-ops = { path = "../file-ops" }
+termide-watcher = { path = "../watcher" }
+termide-logger = { path = "../logger" }
+termide-system-monitor = { path = "../system-monitor" }
+termide-ui = { path = "../ui" }
+termide-ui-render = { path = "../ui-render" }
+termide-highlight = { path = "../highlight" }
+
+# Panel crates
+termide-panel-editor = { path = "../panel-editor" }
+termide-panel-file-manager = { path = "../panel-file-manager" }
+termide-panel-terminal = { path = "../panel-terminal" }
+termide-panel-image = { path = "../panel-image" }
+termide-panel-binary = { path = "../panel-binary" }
+termide-panel-markdown = { path = "../panel-markdown" }
+termide-panel-mermaid = { path = "../panel-mermaid" }
+termide-panel-html = { path = "../panel-html" }
+termide-fetch = { path = "../fetch" }
+termide-panel-git-status = { path = "../panel-git-status" }
+termide-panel-git-log = { path = "../panel-git-log" }
+termide-panel-git-diff = { path = "../panel-git-diff" }
+termide-panel-diagnostics = { path = "../panel-diagnostics" }
+termide-panel-misc = { path = "../panel-misc" }
+termide-panel-operations = { path = "../panel-operations" }
+termide-panel-outline = { path = "../panel-outline" }
+termide-panel-db = { path = "../panel-db" }
+
+[dev-dependencies]
+tempfile.workspace = true

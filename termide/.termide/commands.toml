@@ -1,0 +1,5 @@
+[build-release]
+command = "cargo build --release"
+name = "Build release"
+mode = "report"
+key = "Ctrl+Alt+B"

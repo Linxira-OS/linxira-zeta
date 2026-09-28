@@ -1,0 +1,15 @@
+[package]
+name = "termide-state"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "State types and data structures for termide"
+
+[dependencies]
+chrono.workspace = true
+ratatui.workspace = true
+termide-config = { path = "../config" }
+termide-file-ops = { path = "../file-ops" }
+termide-vfs = { path = "../vfs" }

@@ -1,0 +1,16 @@
+# Everforest Dark theme for TermIDE
+# https://github.com/sainnhe/everforest
+name = "everforest"
+is_light = false
+
+[colors]
+bg = { rgb = [45, 53, 59] }
+fg = { rgb = [211, 198, 170] }
+accented_bg = { rgb = [61, 72, 77] }
+accented_fg = { rgb = [214, 153, 182] }
+selected_bg = { rgb = [167, 192, 128] }
+selected_fg = { rgb = [45, 53, 59] }
+disabled = { rgb = [122, 132, 120] }
+success = { rgb = [167, 192, 128] }
+warning = { rgb = [230, 152, 117] }
+error = { rgb = [230, 126, 128] }

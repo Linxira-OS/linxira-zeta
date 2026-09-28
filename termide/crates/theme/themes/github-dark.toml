@@ -1,0 +1,16 @@
+# GitHub Dark theme for TermIDE
+# https://github.com/primer/github-vscode-theme
+name = "github-dark"
+is_light = false
+
+[colors]
+bg = { rgb = [13, 17, 23] }
+fg = { rgb = [201, 209, 217] }
+accented_bg = { rgb = [22, 27, 34] }
+accented_fg = { rgb = [57, 197, 207] }
+selected_bg = { rgb = [88, 166, 255] }
+selected_fg = { rgb = [13, 17, 23] }
+disabled = { rgb = [139, 148, 158] }
+success = { rgb = [63, 185, 80] }
+warning = { rgb = [227, 179, 65] }
+error = { rgb = [248, 81, 73] }

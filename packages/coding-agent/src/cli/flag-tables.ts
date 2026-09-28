@@ -30,8 +30,8 @@
  * real implementations at the dispatch site.
  */
 
-import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { isServiceTierOpenAISettingValue, SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
 import type { Args } from "./args";
 import { CliUsageError } from "./usage-error";
 
@@ -279,7 +279,7 @@ export const OPTIONAL_VALUE_FLAGS: ReadonlySet<string> = new Set(Object.keys(OPT
  * value of a preceding optional/extension flag. `parseArgs` ignores it, but its
  * flag-looking shape preserves argv boundaries during the second parse.
  */
-export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--omp-profile-boundary";
+export const PROFILE_BOOTSTRAP_BOUNDARY_ARG = "--zeta-profile-boundary";
 
 /**
  * Long-form launch flags that take NO value (booleans). The bootstrap pre-parser

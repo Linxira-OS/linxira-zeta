@@ -173,7 +173,20 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 	// Published outside ci-release-publish (web-ui builds via its own job;
 	// pi-messenger is the ported multi-agent extension, npm-only for now).
 	// They still need trusted-publisher links so CI can publish them with OIDC.
-	for (const extra of ["@linxiraos/zeta-web", "@linxiraos/pi-messenger"]) {
+	// The vendored distributions (editor/termide) publish through their own
+	// `--editor`/`--work` branches rather than the workspace `packages` list,
+	// so their names are pinned here the same way.
+	const extras = [
+		"@linxiraos/zeta-web",
+		"@linxiraos/pi-messenger",
+		"@linxiraos/editor",
+		"@linxiraos/editor-windows-x64",
+		"@linxiraos/editor-linux-x64",
+		"@linxiraos/work",
+		"@linxiraos/work-windows-x64",
+		"@linxiraos/work-linux-x64",
+	];
+	for (const extra of extras) {
 		if (!seen.has(extra)) {
 			seen.add(extra);
 			names.push(extra);

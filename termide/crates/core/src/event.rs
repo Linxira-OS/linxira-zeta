@@ -1,0 +1,813 @@
+//! Event types for termide application.
+//!
+//! This module provides:
+//! - `Event` - Application-level events (keyboard, mouse, resize)
+//! - `EventHandler` - Polling for terminal events
+//! - `PanelEvent` - Events emitted by panels to communicate with the application
+
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::time::Duration;
+
+use anyhow::Result;
+use crossterm::event::{
+    self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent,
+    MouseEventKind,
+};
+
+/// `true` when the event carries only a modifier key (Shift, Ctrl, Alt,
+/// Super) and no key it modifies.
+///
+/// `REPORT_ALL_KEYS_AS_ESCAPE_CODES` makes the terminal report modifier
+/// presses on their own (`CSI 57441 u` … `CSI 57444 u`). Dispatching those
+/// would run panel handlers *between* a modifier and the key it modifies —
+/// the observable breakage that removed the flag in b37b23b9.
+fn is_modifier_only(key: &KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Modifier(_))
+}
+
+/// `true` when the event is a keypress the application should act on:
+/// a Press or Repeat (held-key auto-repeat) that is not a bare modifier.
+fn is_dispatchable_key(key: &KeyEvent) -> bool {
+    matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) && !is_modifier_only(key)
+}
+
+/// Application event
+#[derive(Debug, Clone)]
+pub enum Event {
+    /// Keyboard event
+    Key(KeyEvent),
+    /// Mouse event
+    Mouse(MouseEvent),
+    /// Coalesced mouse scroll events (delta: positive=down, negative=up)
+    MouseScrollCoalesced {
+        /// Original mouse event (for coordinates and modifiers)
+        event: MouseEvent,
+        /// Combined scroll delta (positive=down, negative=up)
+        delta: i32,
+    },
+    /// Terminal resize event
+    Resize(u16, u16),
+    /// Tick event (for animations and periodic updates)
+    Tick,
+    /// Terminal focus lost event
+    FocusLost,
+    /// Terminal focus gained event
+    FocusGained,
+    /// Paste event (bracketed paste from terminal)
+    Paste(String),
+}
+
+/// Event handler for polling terminal events
+pub struct EventHandler {
+    tick_rate: Duration,
+    /// Events read during coalescing but not yet consumed
+    pending_events: RefCell<VecDeque<Event>>,
+}
+
+impl EventHandler {
+    /// Create new event handler with specified tick rate
+    pub fn new(tick_rate: Duration) -> Self {
+        Self {
+            tick_rate,
+            pending_events: RefCell::new(VecDeque::new()),
+        }
+    }
+
+    /// Update the tick rate (for adaptive idle/active polling)
+    pub fn set_tick_rate(&mut self, rate: Duration) {
+        self.tick_rate = rate;
+    }
+
+    /// Wait for next event
+    pub fn next(&self) -> Result<Event> {
+        // Check pending events first (from previous coalescing)
+        if let Some(event) = self.pending_events.borrow_mut().pop_front() {
+            return Ok(event);
+        }
+
+        if event::poll(self.tick_rate)? {
+            match event::read()? {
+                // Handle Press and Repeat (held-key auto-repeat) so navigation/resize
+                // keeps firing while key is down.
+                CrosstermEvent::Key(key) if is_dispatchable_key(&key) => {
+                    self.try_coalesce_paste(key)
+                }
+                CrosstermEvent::Key(_) => {
+                    // Release from REPORT_EVENT_TYPES, or a bare modifier press
+                    // from REPORT_ALL_KEYS_AS_ESCAPE_CODES — drain buffered
+                    // events with zero timeout instead of generating a spurious
+                    // Tick that triggers the full background-processing pipeline.
+                    self.drain_non_press_keys()
+                }
+                CrosstermEvent::Mouse(mouse)
+                    if matches!(
+                        mouse.kind,
+                        MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
+                    ) =>
+                {
+                    self.coalesce_scroll_events(mouse)
+                }
+                CrosstermEvent::Mouse(mouse) if matches!(mouse.kind, MouseEventKind::Drag(_)) => {
+                    self.coalesce_drag_events(mouse)
+                }
+                CrosstermEvent::Mouse(mouse) => Ok(Event::Mouse(mouse)),
+                CrosstermEvent::Resize(width, height) => Ok(Event::Resize(width, height)),
+                CrosstermEvent::FocusLost => Ok(Event::FocusLost),
+                CrosstermEvent::FocusGained => Ok(Event::FocusGained),
+                CrosstermEvent::Paste(text) => Ok(Event::Paste(text)),
+            }
+        } else {
+            Ok(Event::Tick)
+        }
+    }
+
+    /// Coalesce multiple scroll events into a single MouseScrollCoalesced event.
+    /// This significantly reduces render cycles during fast scrolling.
+    fn coalesce_scroll_events(&self, first: MouseEvent) -> Result<Event> {
+        let mut delta: i32 = match first.kind {
+            MouseEventKind::ScrollDown => 1,
+            MouseEventKind::ScrollUp => -1,
+            _ => unreachable!(),
+        };
+
+        let (col, row) = (first.column, first.row);
+
+        // Drain queue with zero timeout to collect pending scroll events
+        while event::poll(Duration::ZERO)? {
+            let raw = event::read()?;
+            match &raw {
+                CrosstermEvent::Mouse(m)
+                    if m.column == col
+                        && m.row == row
+                        && matches!(
+                            m.kind,
+                            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
+                        ) =>
+                {
+                    delta += match m.kind {
+                        MouseEventKind::ScrollDown => 1,
+                        MouseEventKind::ScrollUp => -1,
+                        _ => 0,
+                    };
+                }
+                _ => {
+                    // Queue non-scroll event for later processing
+                    if let Some(ev) = self.convert_crossterm_event(raw) {
+                        self.pending_events.borrow_mut().push_back(ev);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // If scrolls cancelled out, return Tick instead
+        if delta == 0 {
+            return Ok(Event::Tick);
+        }
+
+        Ok(Event::MouseScrollCoalesced {
+            event: first,
+            delta,
+        })
+    }
+
+    /// Coalesce multiple drag events into a single event with the latest position.
+    /// This prevents processing dozens of intermediate drag positions when the
+    /// user moves the mouse quickly, significantly reducing lag over SSH.
+    fn coalesce_drag_events(&self, first: MouseEvent) -> Result<Event> {
+        let mut latest = first;
+
+        // Drain queue with zero timeout to collect pending drag events
+        while event::poll(Duration::ZERO)? {
+            let raw = event::read()?;
+            match &raw {
+                CrosstermEvent::Mouse(m) if matches!(m.kind, MouseEventKind::Drag(_)) => {
+                    latest = *m;
+                }
+                _ => {
+                    // Queue non-drag event for later processing
+                    if let Some(ev) = self.convert_crossterm_event(raw) {
+                        self.pending_events.borrow_mut().push_back(ev);
+                    }
+                    break;
+                }
+            }
+        }
+
+        Ok(Event::Mouse(latest))
+    }
+
+    /// Drain buffered Release key events left by REPORT_EVENT_TYPES and bare
+    /// modifier presses left by REPORT_ALL_KEYS_AS_ESCAPE_CODES.
+    /// Returns the first real event found (Press/Repeat key, mouse, resize…) or
+    /// Tick when the queue is empty.
+    fn drain_non_press_keys(&self) -> Result<Event> {
+        while event::poll(Duration::ZERO)? {
+            match event::read()? {
+                CrosstermEvent::Key(key) if is_dispatchable_key(&key) => {
+                    return self.try_coalesce_paste(key);
+                }
+                CrosstermEvent::Key(_) => continue,
+                other => {
+                    if let Some(ev) = self.convert_crossterm_event(other) {
+                        return Ok(ev);
+                    }
+                }
+            }
+        }
+        Ok(Event::Tick)
+    }
+
+    /// On Windows, pasted text arrives as individual Key events because the console
+    /// input API doesn't support bracketed paste. Detect by waiting a few ms after
+    /// each character for more input — paste fills the buffer rapidly while typing
+    /// has natural gaps. The 5ms wait is imperceptible for typing but enough for
+    /// Windows to deliver the full paste buffer.
+    fn try_coalesce_paste(&self, first_key: KeyEvent) -> Result<Event> {
+        // Only coalesce on Windows - other platforms get native Event::Paste
+        if !cfg!(windows) {
+            return Ok(Event::Key(first_key));
+        }
+
+        // Only coalesce plain character events (Shift is OK for uppercase)
+        if first_key.modifiers.contains(KeyModifiers::CONTROL)
+            || first_key.modifiers.contains(KeyModifiers::ALT)
+            || first_key.modifiers.contains(KeyModifiers::SUPER)
+        {
+            return Ok(Event::Key(first_key));
+        }
+
+        // Must start with a printable character
+        let KeyCode::Char(first_ch) = first_key.code else {
+            return Ok(Event::Key(first_key));
+        };
+
+        // Wait briefly to see if more chars arrive (paste detection).
+        // Normal typing: no events within 5ms → return Key immediately.
+        // Paste: Windows fills console buffer → events arrive within 5ms.
+        if !event::poll(Duration::from_millis(5))? {
+            return Ok(Event::Key(first_key));
+        }
+
+        let mut text = String::new();
+        text.push(first_ch);
+
+        // Paste detected — drain all available chars, then keep waiting
+        // for more batches (Windows may deliver paste in chunks).
+        loop {
+            let before = text.len();
+            self.collect_paste_chars(&mut text)?;
+            // Wait for next batch; stop when no more arrive
+            if text.len() == before || !event::poll(Duration::from_millis(5))? {
+                break;
+            }
+        }
+
+        Ok(Event::Paste(text))
+    }
+
+    /// Drain character-like events from the input buffer with zero timeout.
+    fn collect_paste_chars(&self, text: &mut String) -> Result<()> {
+        while event::poll(Duration::ZERO)? {
+            let raw = event::read()?;
+            match &raw {
+                CrosstermEvent::Key(key)
+                    if key.kind == KeyEventKind::Press
+                        && !is_modifier_only(key)
+                        && !key.modifiers.contains(KeyModifiers::CONTROL)
+                        && !key.modifiers.contains(KeyModifiers::ALT)
+                        && !key.modifiers.contains(KeyModifiers::SUPER) =>
+                {
+                    match key.code {
+                        KeyCode::Char(c) => text.push(c),
+                        KeyCode::Enter => text.push('\r'),
+                        KeyCode::Tab => text.push('\t'),
+                        _ => {
+                            if let Some(ev) = self.convert_crossterm_event(raw) {
+                                self.pending_events.borrow_mut().push_back(ev);
+                            }
+                            return Ok(());
+                        }
+                    }
+                }
+                CrosstermEvent::Key(_) => continue,
+                _ => {
+                    if let Some(ev) = self.convert_crossterm_event(raw) {
+                        self.pending_events.borrow_mut().push_back(ev);
+                    }
+                    return Ok(());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Convert crossterm event to our Event type.
+    fn convert_crossterm_event(&self, raw: CrosstermEvent) -> Option<Event> {
+        match raw {
+            CrosstermEvent::Key(key) if is_dispatchable_key(&key) => Some(Event::Key(key)),
+            CrosstermEvent::Key(_) => None, // Ignore Release and bare modifiers
+            CrosstermEvent::Mouse(mouse) => Some(Event::Mouse(mouse)),
+            CrosstermEvent::Resize(width, height) => Some(Event::Resize(width, height)),
+            CrosstermEvent::FocusLost => Some(Event::FocusLost),
+            CrosstermEvent::FocusGained => Some(Event::FocusGained),
+            CrosstermEvent::Paste(text) => Some(Event::Paste(text)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn key_event(kind: KeyEventKind) -> CrosstermEvent {
+        CrosstermEvent::Key(KeyEvent::new_with_kind(
+            KeyCode::Down,
+            KeyModifiers::NONE,
+            kind,
+        ))
+    }
+
+    /// Regression: held-key auto-repeat. Under the Kitty keyboard protocol
+    /// (`REPORT_EVENT_TYPES`) a held key streams `Repeat` events; they must be
+    /// delivered as `Press` — so navigation and panel resize keep firing
+    /// while a key is held.
+    #[test]
+    fn repeat_key_is_treated_as_input() {
+        let handler = EventHandler::new(Duration::from_millis(50));
+        match handler.convert_crossterm_event(key_event(KeyEventKind::Repeat)) {
+            Some(Event::Key(key)) => assert_eq!(key.code, KeyCode::Down),
+            other => panic!("Repeat should yield a key event, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn press_key_is_treated_as_input() {
+        let handler = EventHandler::new(Duration::from_millis(50));
+        match handler.convert_crossterm_event(key_event(KeyEventKind::Press)) {
+            Some(Event::Key(key)) => assert_eq!(key.code, KeyCode::Down),
+            other => panic!("Press should yield a key event, got {other:?}"),
+        }
+    }
+
+    /// `Release` carries no actionable input and must stay filtered out, so a
+    /// single key tap still produces exactly one action.
+    #[test]
+    fn release_key_is_ignored() {
+        let handler = EventHandler::new(Duration::from_millis(50));
+        assert!(
+            handler
+                .convert_crossterm_event(key_event(KeyEventKind::Release))
+                .is_none(),
+            "Release events must be discarded"
+        );
+    }
+
+    /// Regression: with `REPORT_ALL_KEYS_AS_ESCAPE_CODES` the terminal reports
+    /// modifier presses on their own. Dispatching them runs panel handlers
+    /// between a modifier and the key it modifies — the breakage that removed
+    /// the flag in b37b23b9 ("breaks combinations like Shift+Home").
+    #[test]
+    fn bare_modifier_press_is_ignored() {
+        use crossterm::event::ModifierKeyCode;
+
+        let handler = EventHandler::new(Duration::from_millis(50));
+        for modifier in [
+            ModifierKeyCode::LeftShift,
+            ModifierKeyCode::LeftControl,
+            ModifierKeyCode::LeftAlt,
+            ModifierKeyCode::LeftSuper,
+        ] {
+            let raw = CrosstermEvent::Key(KeyEvent::new_with_kind(
+                KeyCode::Modifier(modifier),
+                KeyModifiers::SHIFT,
+                KeyEventKind::Press,
+            ));
+            assert!(
+                handler.convert_crossterm_event(raw).is_none(),
+                "bare {modifier:?} press must be discarded"
+            );
+        }
+    }
+}
+
+/// Type of git operation to execute in background.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GitOperationType {
+    Push,
+    Pull,
+    Fetch,
+}
+
+/// Events emitted by panels to communicate with the application.
+#[derive(Debug, Clone)]
+pub enum PanelEvent {
+    // === General events ===
+    /// Request a UI redraw
+    NeedsRedraw,
+
+    /// Request application quit
+    Quit,
+
+    /// The panel's working directory changed on its own — a `cd` inside a
+    /// terminal shell, which no navigation event covers. The app re-collects
+    /// panel paths so watched roots and the git panels' repository list follow.
+    WorkingDirectoryChanged,
+
+    // === File operations ===
+    /// Open a file in the editor (editable mode)
+    OpenFile(PathBuf),
+
+    /// Open a file in view-only mode (read-only)
+    ViewFile(PathBuf),
+
+    /// Open a file at specific location (for go-to-definition)
+    OpenFileAt {
+        path: PathBuf,
+        line: usize,
+        column: usize,
+    },
+
+    /// Execute file in a new terminal
+    ExecuteFile(PathBuf),
+
+    /// Run command in a new terminal
+    RunCommand {
+        command: String,
+        cwd: Option<PathBuf>,
+    },
+
+    /// Preview media file (raster image) using native graphics or xdg-open
+    PreviewMedia(PathBuf),
+
+    /// Open a binary file in the hex/ASCII viewer (read-only)
+    ViewBinary(PathBuf),
+
+    /// Open a local database file (SQLite) in the read-only database viewer.
+    ViewDatabase(PathBuf),
+
+    /// Open a binary file in the hex editor (editable)
+    EditBinary(PathBuf),
+
+    /// Swap the active panel in place for a hex/ASCII viewer of `path`
+    SwapActiveToHex(PathBuf),
+
+    /// Swap the active panel in place for a read-only text editor of `path`
+    SwapActiveToText(PathBuf),
+
+    /// Open a markdown file in the rendered preview panel (read-only)
+    ViewMarkdown(PathBuf),
+
+    /// Swap the active panel in place for the rendered markdown preview of `path`
+    SwapActiveToMarkdown(PathBuf),
+
+    /// Open a `.mmd` file in the Mermaid diagram viewer (read-only)
+    ViewMermaid(PathBuf),
+
+    /// Swap the active panel in place for the Mermaid diagram view of `path`
+    SwapActiveToMermaid(PathBuf),
+
+    /// Request a "Save As" dialog to write in-memory text `content` to a
+    /// user-chosen path, seeded with `default_name`. Used by read-only viewers
+    /// (e.g. the diagram panel) to export their source to a permanent file.
+    SaveContentAs {
+        content: String,
+        default_name: String,
+    },
+
+    /// Navigate the active viewer in place to an `http(s)://` URL (a link
+    /// followed inside a fetched page, or a history back/forward step).
+    NavigateUrl(String),
+
+    /// Open an `http(s)://` URL in a new viewer panel (a web link followed from
+    /// a file-backed viewer when links open in the panel).
+    OpenUrl(String),
+
+    /// Open an `.html` file in the rendered HTML viewer (read-only)
+    ViewHtml(PathBuf),
+
+    /// Swap the active panel in place for the rendered HTML view of `path`
+    SwapActiveToHtml(PathBuf),
+
+    /// Open file with system default application (xdg-open)
+    OpenExternal(PathBuf),
+
+    /// Open a remote file via VFS (URL format: "sftp://user@host/path")
+    OpenRemoteFile(String),
+
+    /// Save file to disk
+    SaveFile(PathBuf),
+
+    /// Close current file/panel
+    CloseFile,
+
+    /// Request close panel (with confirmation if needed)
+    ClosePanel,
+
+    // === Navigation ===
+    /// Navigate file manager to path
+    NavigateTo(PathBuf),
+
+    /// Open path in new file manager panel, optionally selecting a file
+    OpenPath {
+        path: PathBuf,
+        select_file: Option<std::ffi::OsString>,
+    },
+
+    /// Go to specific line in editor
+    GotoLine(usize),
+
+    // === Modal dialogs ===
+    /// Show informational message
+    ShowMessage(String),
+
+    /// Show error message
+    ShowError(String),
+
+    /// Show confirmation dialog
+    ShowConfirm {
+        message: String,
+        on_confirm: ConfirmAction,
+    },
+
+    /// Show input dialog
+    ShowInput {
+        prompt: String,
+        initial_value: String,
+        on_submit: InputAction,
+    },
+
+    /// Show selection dialog
+    ShowSelect {
+        title: String,
+        options: Vec<String>,
+        on_select: SelectAction,
+    },
+
+    /// Show file conflict resolution modal
+    ShowConflict {
+        source: PathBuf,
+        destination: PathBuf,
+        remaining: usize,
+    },
+
+    // === Status bar ===
+    /// Set status bar message
+    SetStatusMessage { message: String, is_error: bool },
+
+    /// Clear status bar message
+    ClearStatus,
+
+    // === File watcher registration ===
+    /// Register path for watching
+    WatchPath(PathBuf),
+
+    /// Unregister path from watching
+    UnwatchPath(PathBuf),
+
+    // === Git integration ===
+    /// Request git status refresh for path
+    RefreshGitStatus(PathBuf),
+
+    /// Execute git operation (push/pull) in background
+    GitOperation {
+        operation: GitOperationType,
+        repo_path: PathBuf,
+    },
+
+    /// Cancel current git operation (kill process)
+    CancelGitOperation,
+
+    /// Open git diff panel for repository
+    /// If commit_hash is Some, shows diff for that commit; otherwise shows working directory changes
+    /// If file_path is Some, filters diff to show only that file
+    OpenGitDiff {
+        repo_path: PathBuf,
+        commit_hash: Option<String>,
+        file_path: Option<PathBuf>,
+    },
+
+    /// Open git log panel for repository
+    OpenGitLog { repo_path: PathBuf },
+
+    // === Clipboard ===
+    /// Copy text to clipboard
+    CopyToClipboard(String),
+
+    /// Request paste from clipboard
+    RequestPaste,
+
+    // === Panel management ===
+    /// Request focus on specific panel by name
+    FocusPanel(String),
+
+    /// Request panel split
+    SplitPanel {
+        direction: SplitDirection,
+        panel_name: String,
+    },
+
+    /// Request next panel focus
+    NextPanel,
+
+    /// Request previous panel focus
+    PrevPanel,
+
+    /// Open diagnostics panel (e.g., when clicking on diagnostic virtual line)
+    OpenDiagnosticsPanel,
+
+    /// Vim mode panel navigation (Ctrl+w h/j/k/l)
+    VimPanelNavigation {
+        /// Direction to navigate
+        direction: VimPanelDirection,
+    },
+
+    // === Operations panel ===
+    /// Toggle pause/resume for a file operation
+    ToggleOperationPause(termide_file_ops::OperationId),
+
+    /// Cancel a file operation
+    CancelOperation(termide_file_ops::OperationId),
+
+    /// Open the per-operation popup menu (Pause/Resume/Cancel) anchored
+    /// at the operation type icon on its card.
+    OpenOperationActionMenu {
+        op_id: termide_file_ops::OperationId,
+        anchor_x: u16,
+        anchor_y: u16,
+    },
+
+    /// Open or focus the operations panel
+    OpenOperationsPanel,
+
+    /// Open or focus the outline panel
+    OpenOutlinePanel,
+
+    /// Open stash dropdown at button position
+    OpenStashDropdown {
+        repo_path: PathBuf,
+        button_area: ratatui::layout::Rect,
+        has_changes: bool,
+    },
+
+    /// Open (or refresh) the references panel with LSP find-references results
+    OpenReferencesPanel {
+        locations: Vec<ReferenceLocation>,
+        /// Symbol name for the panel title (e.g. "Config")
+        symbol_name: Option<String>,
+    },
+
+    /// Open the directory switcher modal (emitted by file manager / terminal panels).
+    OpenDirectorySwitcher,
+}
+
+/// A single file location from LSP find-references.
+#[derive(Debug, Clone)]
+pub struct ReferenceLocation {
+    pub path: PathBuf,
+    pub line: usize,
+    pub column: usize,
+}
+
+/// Direction for Vim panel navigation (Ctrl+w h/j/k/l).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VimPanelDirection {
+    /// Navigate left (Ctrl+w h)
+    Left,
+    /// Navigate down (Ctrl+w j)
+    Down,
+    /// Navigate up (Ctrl+w k)
+    Up,
+    /// Navigate right (Ctrl+w l)
+    Right,
+}
+
+/// Confirmation dialog actions.
+#[derive(Debug, Clone)]
+pub enum ConfirmAction {
+    /// Delete file at path
+    DeleteFile(PathBuf),
+
+    /// Delete multiple paths
+    DeletePaths(Vec<PathBuf>),
+
+    /// Delete directory at path
+    DeleteDirectory(PathBuf),
+
+    /// Discard unsaved changes
+    DiscardChanges(PathBuf),
+
+    /// Close panel without saving
+    CloseWithoutSaving,
+
+    /// Quit application
+    QuitApplication,
+
+    /// Cancel a running background operation
+    CancelOperation(termide_file_ops::OperationId),
+
+    /// Replace every content-search match in the file manager with this text.
+    ReplaceInContent(String),
+
+    /// Save the active binary (hex) editor's pending edits to disk.
+    SaveBinary,
+}
+
+/// Input dialog actions.
+#[derive(Debug, Clone)]
+pub enum InputAction {
+    /// Rename file
+    RenameFile { from: PathBuf },
+
+    /// Create new file in directory
+    CreateFile { in_dir: PathBuf },
+
+    /// Create new directory
+    CreateDirectory { in_dir: PathBuf },
+
+    /// Go to line number
+    GotoLine,
+
+    /// Open a path (or, later, URL) typed in a viewer's "go to" prompt,
+    /// routed to the appropriate viewer by type. Relative paths resolve
+    /// against `base_dir`.
+    ViewPath { base_dir: PathBuf },
+
+    /// Save file as (new name)
+    SaveFileAs { directory: PathBuf },
+
+    /// Copy files to destination
+    CopyTo { sources: Vec<PathBuf> },
+
+    /// Move files to destination
+    MoveTo { sources: Vec<PathBuf> },
+
+    /// Rename LSP symbol at position
+    RenameSymbol {
+        file_path: PathBuf,
+        line: usize,
+        column: usize,
+    },
+
+    /// Retry a git network operation (fetch/pull/push) with an SSH key
+    /// passphrase the user types into a masked modal.
+    GitSshPassphrase {
+        /// "fetch" | "pull" | "push"
+        operation: String,
+        /// Repository root path
+        repo_path: PathBuf,
+    },
+}
+
+/// Selection dialog actions.
+#[derive(Debug, Clone)]
+pub enum SelectAction {
+    /// Select theme
+    SelectTheme,
+
+    /// Select language
+    SelectLanguage,
+
+    /// Select encoding
+    SelectEncoding,
+
+    /// Close editor with save/discard/cancel choice
+    CloseEditorChoice,
+
+    /// Custom selection action
+    Custom(String),
+}
+
+/// File conflict resolution options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConflictResolution {
+    /// Overwrite the destination file
+    Overwrite,
+
+    /// Skip this file
+    Skip,
+
+    /// Rename the file
+    Rename,
+
+    /// Overwrite all remaining files
+    OverwriteAll,
+
+    /// Skip all remaining files
+    SkipAll,
+
+    /// Rename all remaining files with auto-generated names
+    RenameAll,
+
+    /// Cancel the entire operation
+    Cancel,
+}
+
+/// Direction for panel splits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SplitDirection {
+    Horizontal,
+    Vertical,
+}

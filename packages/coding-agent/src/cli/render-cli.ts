@@ -170,7 +170,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 	// Copy before opening: SessionManager.open takes the single-writer lock and
 	// session teardown appends a session_exit entry — neither may touch a live
 	// session file the user has open in another omp.
-	const tempDir = TempDir.createSync("@omp-render-");
+	const tempDir = TempDir.createSync("@zeta-render-");
 	const workingCopy = path.join(tempDir.path(), path.basename(sourcePath));
 
 	const width = args.width ?? (process.stdout.isTTY ? process.stdout.columns : undefined) ?? 120;

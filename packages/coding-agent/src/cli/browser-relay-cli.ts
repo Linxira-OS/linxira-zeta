@@ -54,7 +54,7 @@ async function runInstall(dirOverride: string | undefined): Promise<void> {
 	for (const name in EXTENSION_FILES) {
 		await Bun.write(path.join(dir, name), EXTENSION_FILES[name]!);
 	}
-	console.log(`Installed the OMP Browser Relay extension to ${dir}`);
+	console.log(`Installed the Zeta Browser Relay extension to ${dir}`);
 	console.log("");
 	console.log("Finish setup in Chrome:");
 	console.log("  1. Open chrome://extensions and enable Developer mode.");
@@ -98,7 +98,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 			`  enable with         zeta config set browser.relay true && zeta config set browser.relayUrl http://127.0.0.1:${args.port}`,
 		);
 	}
-	console.log("Waiting for the OMP Browser Relay extension to connect (zeta browser-relay install)...");
+	console.log("Waiting for the Zeta Browser Relay extension to connect (zeta browser-relay install)...");
 
 	let announced = false;
 	const readiness = setInterval(() => {

@@ -1,0 +1,16 @@
+# Rosé Pine theme for TermIDE
+# https://rosepinetheme.com
+name = "rosepine"
+is_light = false
+
+[colors]
+bg = { rgb = [25, 23, 36] }
+fg = { rgb = [224, 222, 244] }
+accented_bg = { rgb = [38, 35, 58] }
+accented_fg = { rgb = [235, 188, 186] }
+selected_bg = { rgb = [156, 207, 216] }
+selected_fg = { rgb = [25, 23, 36] }
+disabled = { rgb = [110, 106, 134] }
+success = { rgb = [49, 116, 143] }
+warning = { rgb = [246, 193, 119] }
+error = { rgb = [235, 111, 146] }

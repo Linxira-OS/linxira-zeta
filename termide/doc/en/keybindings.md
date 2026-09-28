@@ -1,0 +1,306 @@
+# Keybindings
+
+Termide canonicalizes every key event before matching it against a
+binding. The canonicalization runs once at the dispatch boundary and
+its result, together with the original raw event, travels through the
+panel pipeline as a `KeyChord`. Panels and modals pick whichever form
+they need:
+
+- **`canonical`** — for hotkey matching, vim command interpretation,
+  Settings keybinding capture.
+- **`raw`** — for text input (`InsertChar`), terminal-panel PTY
+  passthrough, search-buffer typing.
+
+Text typed inside the editor or sent to a program running in the
+terminal panel is **never** rewritten by canonicalization, so Cyrillic,
+shifted glyphs, and locale-specific characters reach the destination
+unchanged.
+
+## What canonicalization fixes
+
+| Quirk | Behaviour |
+| --- | --- |
+| Cyrillic letters on the same physical key as Latin (`й`/`q`, `ь`/`m`, …) | Mapped to Latin so a binding `Alt+M` fires whether the active layout is QWERTY or ЙЦУКЕН. |
+| `REPORT_ALTERNATE_KEYS` shifted-glyph rewrite | Crossterm rewrites `Shift+Ctrl+=` → `Char('+') + Ctrl` (Shift stripped, char swapped). The normalizer reverses that — `Char('+') + Ctrl` → `Char('=') + Ctrl + Shift`. |
+| Caps Lock spurious Shift on letters | When `REPORT_EVENT_TYPES` flagged `KeyEventState::CAPS_LOCK`, the Shift bit attached to letters is dropped before matching. |
+| VTE `Ctrl+/` collapsing to `Ctrl+7` | Only when Kitty proto is **not** active: `Ctrl+7` → `Ctrl+/`. |
+
+## Universal vs Enhanced bindings
+
+Some chords cannot be encoded by every terminal. Termide groups
+defaults into two tiers and warns at startup if the active terminal
+cannot deliver any of the configured Enhanced-tier chords.
+
+### Universal tier (works on every VT100+ terminal)
+
+- `Alt+letter`, `Ctrl+letter` (letters → ASCII control 0x01–0x1A).
+- `F1`–`F12` and `F1`–`F12` with **a single** modifier (`Shift+F*`,
+  `Alt+F*`, `Ctrl+F*`).
+- Arrows with **a single** modifier (`Shift+Up`, `Ctrl+Up`, `Alt+Up`).
+- `Home`, `End`, `PgUp`, `PgDn` + a single modifier.
+- `Enter`, `Tab`, `Esc`, `Backspace`, `Delete`, `Insert` + a single
+  modifier.
+- `Alt+digit`.
+- `Alt+punctuation` (`Alt+/`, `Alt+,`, `Alt+.`, …).
+
+### Enhanced tier (requires Kitty keyboard protocol)
+
+- `Ctrl+punctuation` (`Ctrl+/`, `Ctrl+-`, `Ctrl+=`, `Ctrl+,`, `Ctrl+.`).
+- `Ctrl+Shift+letter`.
+- `Ctrl+Alt+anything`.
+- `Alt+Shift+letter` and `Alt+Shift+arrow` — VTE in legacy mode emits
+  `\eL` for `Alt+Shift+l`, indistinguishable from `Alt+L`; an
+  `Alt+Shift+...` binding cannot match.
+- `Super` / `Meta` / `Hyper` modifiers.
+
+Enhanced-tier defaults that termide ships (`Ctrl+/` for `toggle_comment`
+and `switch_directory`, `Ctrl+Alt+R` for `replace_all`) are kept because
+they are de-facto standards across editors. On a terminal without
+Kitty proto, termide logs a startup warning listing the affected
+bindings; the user can rebind them through Settings → Keybindings.
+
+## macOS: Option is not Alt
+
+On macOS every terminal treats `Option` as a **text-composition**
+modifier by default — Ghostty `macos-option-as-alt=false`, kitty
+`macos_option_as_alt no`, iTerm2 Option=Normal, Terminal.app "Use Option
+as Meta key" off. `Option+F` therefore arrives as the composed glyph `ƒ`
+with no ALT bit, and every `Alt+<letter>` default (about 25 global
+actions) is unreachable. How far that reaches depends on the terminal: on
+Ghostty the keys that produce no text keep their ALT bit, so `Option+F9`,
+`Option+Up/Down` and `Option+Backspace` still work, while Terminal.app
+strips the modifier from those too and delivers a bare `Up`.
+
+Termide's remedy is the Kitty `REPORT_ALL_KEYS_AS_ESCAPE_CODES` flag,
+which makes the terminal report `Option+F` as `Alt+F` even while the
+system keeps composing. It is pushed at startup on macOS only, on
+terminals that advertise the Kitty keyboard protocol, and is controlled
+by:
+
+```toml
+[general]
+report_all_keys = true  # default
+```
+
+The flag has one cost: dead-key and IME composition no longer reaches
+termide, so `Option+E` `E` → `é` stops working inside the application.
+Users who need composed input should set `report_all_keys = false` and
+either rebind the affected actions or switch `Option` to `Alt` in the
+terminal itself (Ghostty `macos-option-as-alt = true`, Terminal.app "Use
+Option as Meta key"). The flag also makes the terminal report standalone
+modifier presses; those are dropped at the event boundary.
+
+When `Alt+<key>` bindings cannot fire, termide logs a startup warning to
+the Journal naming the remedy for the terminal at hand.
+
+### Ghostty rebinds Option+Left / Option+Right
+
+Independently of the composition problem above, Ghostty ships these
+macOS defaults:
+
+```
+keybind = alt+arrow_left=esc:b
+keybind = alt+arrow_right=esc:f
+```
+
+They implement the readline word-motion convention, and they fire before
+the key ever reaches termide: `Option+Left` arrives as the two bytes
+`ESC b`, which parse as `Alt+B`, and `Option+Right` as `Alt+F`. So on
+Ghostty those two chords do not merely fail to reach `prev_group` /
+`next_group` — they trigger whatever is bound to `Alt+B` and `Alt+F`,
+which by default are *Add bookmark* and *New file manager*.
+
+Nothing in termide can undo this: Ghostty applies the keybind before the
+keyboard protocol gets a say, so `Option+Left` arrives as the two bytes
+`ESC b` and is indistinguishable from a real `Alt+B`. Ghostty's keybind
+prefixes (`global:`, `all:`, `unconsumed:`, `performable:`) and key tables
+have no way to scope a binding to one application.
+
+Termide used to ship `Alt+A` / `Alt+D` as alternatives for these two
+actions, which sidestepped the problem without touching Ghostty. They were
+dropped in favour of `Alt+D` for detaching and `Alt+W` for closing a panel —
+the letters users reach for first — so the fix now belongs in Ghostty's
+config.
+
+To get `Option+Left` / `Option+Right` back, clear the bindings in
+`~/.config/ghostty/config`:
+
+```
+keybind = alt+arrow_left=unbind
+keybind = alt+arrow_right=unbind
+```
+
+Reload with `Cmd+Shift+,` or restart Ghostty. Note that this is a
+terminal-wide setting, so it also removes readline word motion in your
+shell. Restore that on the shell side — for zsh, in `~/.zshrc`:
+
+```zsh
+bindkey "^[[1;3D" backward-word   # Option+Left
+bindkey "^[[1;3C" forward-word    # Option+Right
+```
+
+or for bash, in `~/.inputrc`:
+
+```
+"\e[1;3D": backward-word
+"\e[1;3C": forward-word
+```
+
+Those are the standard xterm sequences Ghostty sends for `Alt+Left` /
+`Alt+Right` once its own bindings are gone; `cat -v` followed by the
+keypress confirms what your terminal actually emits.
+
+`Option+Up` / `Option+Down` carry no such Ghostty binding and reach
+`prev_panel` / `next_panel` normally.
+
+### Alt+Shift+= and Alt+Shift+- do not reach termide on macOS
+
+`panel_grow_vertical` and `panel_shrink_vertical` are the one pair of
+defaults macOS keeps out of reach. Option composes `Option+Shift+=` into a
+single glyph — `±` on a Latin layout, `«` on a Russian one — and the
+terminal reports that glyph in place of the key. The mapping is
+layout-specific, so it cannot be reversed the way `+` → `Shift+=` is on
+other platforms.
+
+Resize vertically with the mouse, or rebind both actions through
+Settings → Keybindings to chords without `Shift`.
+
+### Terminal.app cannot use the remedy at all
+
+Terminal.app does not implement the Kitty keyboard protocol, so
+`report_all_keys` has nothing to switch on and every `Alt+<letter>` binding
+stays unreachable until **Settings → Profiles → Keyboard → "Use Option as
+Meta key"** is enabled. With it on, `Option+F` reaches termide as `Alt+F`.
+
+Its arrow keys need separate attention even then. Terminal.app ships
+profile key mappings that send `ESC b` / `ESC f` for `Option+Left` /
+`Option+Right` — the same collision Ghostty has, arriving as `Alt+B` /
+`Alt+F` — and it drops the modifier entirely from `Option+Up` /
+`Option+Down`, which arrive as bare `Up` / `Down`. Both are edited in the
+key-mapping list on that same Keyboard tab. Measured on macOS 26.5:
+
+```
+Option+Left   -> Alt+Char('b')      Option+Up   -> Up   (no ALT)
+Option+Right  -> Alt+Char('f')      Option+Down -> Down (no ALT)
+```
+
+`Option+Up` / `Option+Down` reach termide unchanged once Option-as-Meta is
+on; only the horizontal pair needs the Ghostty unbind above.
+
+### macOS: `Option+Z` cannot be bound
+
+`Alt+<letter>` is universal-tier and works on macOS once the Kitty protocol is
+active — with one exception. `Option+Z` is the only combination on the US
+layout that composes an **uppercase** glyph, `Ω` (U+03A9). The terminal
+classifies it as a shifted character and reports it as:
+
+```
+Char('Ω') + SHIFT      ← no ALT bit at all
+```
+
+where `Option+Q` and `Option+T` correctly report `Char('q') + ALT` and
+`Char('t') + ALT`. Canonicalization cannot recover this: the ALT bit never
+arrived, and mapping `Ω` back to `z` would misfire for anyone typing Greek.
+
+So an `Alt+Z` binding simply never matches on macOS. Pick another letter — this
+is why `detach_session` defaults to `Alt+D`.
+
+### macOS reserves some function keys
+
+`F11` is bound to *Show Desktop* by macOS Mission Control and never
+reaches the terminal, so the `F11` alternative for *Toggle stack* does
+not work out of the box; use `Alt+Backspace`.
+
+More broadly, unless **System Settings → Keyboard → "Use F1, F2, etc.
+keys as standard function keys"** is enabled, the F-row sends media keys
+and no `F<n>` binding is reachable at all. For most global actions that
+only costs the F-key half of a pair — `Alt+M` still opens the menu when
+`F9` does not. But these defaults are bound to a function key and
+nothing else, so they are genuinely unreachable until the setting is
+turned on:
+
+| Action | Binding | Section |
+|---|---|---|
+| Toggle accordion / split | `Alt+F11` | `general` |
+| Delete line | `F8` | `editor` |
+| Find next | `F3` | `editor` |
+| Find previous | `Shift+F3` | `editor` |
+| Go to definition | `F12` | `editor` |
+| Find references | `Shift+F12`, `F24` | `editor` |
+| Rename symbol | `F4` | `editor` |
+| View file | `F3` | `git_status` |
+| Edit file | `F4` | `git_status` |
+
+Termide logs a startup warning listing them when it starts on macOS.
+Either enable the setting, or rebind these actions through
+Settings → Keybindings.
+
+## Terminal compatibility (2026)
+
+| Terminal | Kitty keyboard protocol |
+| --- | --- |
+| kitty | full |
+| foot 1.13+ | full |
+| WezTerm | full |
+| Ghostty | full |
+| iTerm2 | full |
+| rio | full |
+| Windows Terminal Preview 1.25+ | full |
+| alacritty | partial (CSI-u, no enhancement flags) |
+| xterm | partial (manual config) |
+| GNOME Terminal / Tilix / VTE | none (in progress) |
+| Konsole | none (planned) |
+| tmux | pass-through (depends on host terminal) |
+
+If your terminal does not advertise Kitty proto and you rely on
+Enhanced-tier chords, either switch to a supporting terminal or rebind
+the affected actions to Universal-tier alternatives in
+`config.toml` → `[*.keybindings]`.
+
+## Conflict detection
+
+Settings → Keybindings shows an inline warning when you assign a chord
+already in use by another action. Three classes of conflict are
+detected:
+
+- **Same section** — two actions in the same section share the chord;
+  the second one becomes unreachable.
+- **Cross-section shadow** — a global chord shadows a panel-local one;
+  the panel binding never fires.
+- **Cross-section ambient** — two panel-local bindings overlap; only
+  the focused panel handles the event, so usually fine but worth
+  noting.
+
+Same-section conflicts are also logged at startup.
+
+## Customising defaults
+
+Override any binding in `config.toml`. Strings are parsed in canonical
+form, so `"Alt++"` ≡ `"Alt+Shift+="` and `"Ctrl+Й"` ≡ `"Ctrl+Q"`:
+
+```toml
+[general.keybindings]
+panel_grow_vertical = "Alt+Shift+="
+panel_shrink_vertical = "Alt+Shift+-"
+open_sessions = "Alt+\\"
+
+[editor.keybindings]
+trigger_completion = ["Ctrl+J", "Ctrl+Space"]
+toggle_comment = ["Ctrl+/", "Ctrl+."]
+replace_all = ["Ctrl+Alt+R", "Alt+R"]
+
+[file_manager.keybindings]
+switch_directory = "Ctrl+\\"
+
+[terminal.keybindings]
+switch_directory = "Ctrl+\\"
+```
+
+Note: `Ctrl+/` and `Ctrl+\` work even on legacy terminals (e.g. VTE)
+through `KeyNormalizer` quirks — VTE sends those as `\x1F` and `\x1C`
+control bytes, which crossterm parses as `Ctrl+7` / `Ctrl+4` and the
+normalizer rewrites back to the slash / backslash chord.
+
+Multiple alternatives are supported for any action: list them in an
+array. The first form is the canonical display string shown in help
+panels.

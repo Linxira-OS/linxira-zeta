@@ -1,0 +1,50 @@
+[package]
+name = "termide-vfs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Virtual File System abstraction for termide with network filesystem support"
+
+[dependencies]
+thiserror = "2.0"
+url.workspace = true
+percent-encoding = "2"
+log = "0.4"
+
+# SFTP support — pure-Rust russh stack (no OpenSSL/libssh2 needed).
+russh = "0.62"
+russh-sftp = "2.2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "io-util", "macros", "time", "net", "fs"] }
+
+# FTP support — rustls TLS provider (pure-Rust, enables musl-static builds).
+# `rustls-ring` keeps the TLS stack pure Rust (ring, not aws-lc-rs) so
+# musl-static builds need no cmake/C toolchain.
+suppaftp = { version = "10.0.2", features = ["rustls-ring"] }
+webpki-roots = "1"
+
+# SMB support (optional, may require system libraries)
+pavao = { version = "0.2", optional = true }
+
+# For temp file management
+tempfile.workspace = true
+
+# For directory cache
+dirs.workspace = true
+
+[features]
+default = ["sftp", "ftp"]
+sftp = []
+ftp = []
+smb = ["pavao"]
+nfs = []
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
+[dev-dependencies]
+tempfile.workspace = true

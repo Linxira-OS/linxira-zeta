@@ -1,0 +1,22 @@
+[package]
+name = "termide-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core types and traits for termide panels"
+
+[dependencies]
+ratatui.workspace = true
+crossterm.workspace = true
+anyhow.workspace = true
+dirs.workspace = true
+unicode-width.workspace = true
+
+# For Panel trait methods
+termide-theme = { path = "../theme" }
+termide-config = { path = "../config" }
+termide-session = { path = "../session" }
+termide-file-ops = { path = "../file-ops" }
+termide-keyboard = { path = "../keyboard" }

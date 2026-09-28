@@ -1,0 +1,16 @@
+# Kanagawa theme for TermIDE
+# https://github.com/rebelot/kanagawa.nvim
+name = "kanagawa"
+is_light = false
+
+[colors]
+bg = { rgb = [31, 31, 40] }
+fg = { rgb = [220, 215, 186] }
+accented_bg = { rgb = [42, 42, 55] }
+accented_fg = { rgb = [210, 126, 153] }
+selected_bg = { rgb = [126, 156, 216] }
+selected_fg = { rgb = [31, 31, 40] }
+disabled = { rgb = [114, 113, 105] }
+success = { rgb = [152, 187, 108] }
+warning = { rgb = [215, 166, 87] }
+error = { rgb = [232, 36, 36] }

@@ -1,0 +1,140 @@
+//! Command config modal result handler (create + edit).
+
+use anyhow::Result;
+use std::path::{Path, PathBuf};
+
+use termide_config::commands::{CommandMetadata, CommandsMetadata};
+
+use crate::app::App;
+
+impl App {
+    /// Handle result from CommandConfigModal (both Create and Edit modes).
+    pub(in crate::app) fn handle_command_config_result(
+        &mut self,
+        result: &termide_modal::CommandConfigResult,
+    ) -> Result<()> {
+        if result.is_edit {
+            let config_dir = self.command_config_dir(result.is_project);
+            self.write_command_entry(result, &config_dir, result.name.clone())?;
+        } else {
+            let config_dir = self.command_config_dir(result.is_project);
+            self.create_command_entry(result, &config_dir)?;
+        }
+
+        self.state.cache.commands_registry = None;
+        self.state.cache.hotkey_table = None;
+        Ok(())
+    }
+
+    fn command_config_dir(&self, is_project: bool) -> PathBuf {
+        if is_project {
+            self.project_root.join(".termide")
+        } else {
+            termide_config::get_config_dir().unwrap_or_else(|_| PathBuf::from("."))
+        }
+    }
+
+    /// Create a new command entry in commands.toml.
+    fn create_command_entry(
+        &mut self,
+        result: &termide_modal::CommandConfigResult,
+        config_dir: &Path,
+    ) -> Result<()> {
+        self.write_command_entry(result, config_dir, result.name.clone())?;
+        Ok(())
+    }
+
+    pub(in crate::app) fn handle_edit_command_config_result(
+        &mut self,
+        command_name: String,
+        was_project: bool,
+        result: &termide_modal::CommandConfigResult,
+    ) -> Result<()> {
+        let source_dir = self.command_config_dir(was_project);
+        let target_dir = self.command_config_dir(result.is_project);
+        let old_key = command_name;
+
+        if was_project != result.is_project {
+            let mut source_metadata = CommandsMetadata::load(&source_dir);
+            let mut entry = source_metadata.entries.remove(&old_key).unwrap_or_default();
+            apply_result_to_entry(&mut entry, result);
+            source_metadata.save(&source_dir)?;
+
+            let mut target_metadata = CommandsMetadata::load(&target_dir);
+            target_metadata.entries.insert(old_key, entry);
+            target_metadata.save(&target_dir)?;
+        } else {
+            self.write_command_entry(result, &target_dir, old_key)?;
+        }
+
+        // Invalidate caches so the new hotkey/binding takes effect on the next
+        // keypress. Without this, `state.cache.hotkey_table` keeps the previous
+        // entry — a press of the new chord will be matched against the old
+        // ParsedKeyBinding, producing the symptom where the rebind appears to
+        // work in-session but reverts after restart (the on-disk value is
+        // re-parsed on the next cold start).
+        self.state.cache.commands_registry = None;
+        self.state.cache.hotkey_table = None;
+        Ok(())
+    }
+
+    fn write_command_entry(
+        &self,
+        result: &termide_modal::CommandConfigResult,
+        config_dir: &Path,
+        key: String,
+    ) -> Result<()> {
+        let mut metadata = CommandsMetadata::load(config_dir);
+        let mut entry = metadata.entries.remove(&key).unwrap_or_default();
+        apply_result_to_entry(&mut entry, result);
+        metadata.entries.insert(key, entry);
+        metadata.save(config_dir)?;
+        Ok(())
+    }
+}
+
+/// Apply CommandConfigResult fields to a CommandMetadata entry.
+fn apply_result_to_entry(entry: &mut CommandMetadata, result: &termide_modal::CommandConfigResult) {
+    if result.display_name.is_some() {
+        entry.display_name = result.display_name.clone();
+    }
+    entry.command = result.command.clone();
+    entry.mode = Some(result.mode);
+    entry.key = result.hotkey.clone();
+    entry.group = result.group.clone();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use termide_modal::{CommandConfigAction, CommandConfigResult};
+
+    fn result_with_project(is_project: bool) -> CommandConfigResult {
+        CommandConfigResult {
+            name: "build".to_string(),
+            command: Some("cargo test".to_string()),
+            display_name: Some("Build".to_string()),
+            group: Some("dev".to_string()),
+            mode: termide_config::commands::CommandMode::Terminal,
+            hotkey: Some("Ctrl+B".to_string()),
+            is_project,
+            action: CommandConfigAction::Save,
+            is_edit: true,
+        }
+    }
+
+    #[test]
+    fn apply_result_updates_metadata_fields() {
+        let mut entry = CommandMetadata::default();
+        let result = result_with_project(true);
+        apply_result_to_entry(&mut entry, &result);
+        assert_eq!(entry.command.as_deref(), Some("cargo test"));
+        assert_eq!(entry.display_name.as_deref(), Some("Build"));
+        assert_eq!(entry.group.as_deref(), Some("dev"));
+        assert_eq!(entry.key.as_deref(), Some("Ctrl+B"));
+        assert_eq!(
+            entry.mode,
+            Some(termide_config::commands::CommandMode::Terminal)
+        );
+    }
+}

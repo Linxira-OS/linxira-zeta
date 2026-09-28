@@ -1,0 +1,22 @@
+//! State types and data structures for termide.
+//!
+//! This crate contains pure data types used throughout the application,
+//! without dependencies on specific implementations.
+
+mod batch;
+mod layout;
+mod operations;
+mod pending_action;
+mod ui;
+
+// Re-export all public types for backward compatibility.
+pub use batch::{
+    BatchOperation, BatchOperationType, ConflictMode, DirSizeResult, PauseState, RenamePattern,
+};
+pub use layout::{LayoutInfo, LayoutMode};
+pub use operations::{ActiveOperation, OperationProgress, OperationType, SpeedTracker};
+pub use pending_action::PendingAction;
+pub use ui::{
+    DragState, PanelActionMenuState, PanelDragSource, PanelDragState, SubmenuState, TerminalState,
+    UiState,
+};

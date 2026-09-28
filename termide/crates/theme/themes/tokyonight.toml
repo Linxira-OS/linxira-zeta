@@ -1,0 +1,16 @@
+# Tokyo Night theme for TermIDE
+# https://github.com/enkia/tokyo-night-vscode-theme
+name = "tokyonight"
+is_light = false
+
+[colors]
+bg = { rgb = [26, 27, 38] }
+fg = { rgb = [192, 202, 245] }
+accented_bg = { rgb = [41, 46, 66] }
+accented_fg = { rgb = [255, 158, 100] }
+selected_bg = { rgb = [122, 162, 247] }
+selected_fg = { rgb = [26, 27, 38] }
+disabled = { rgb = [86, 95, 137] }
+success = { rgb = [158, 206, 106] }
+warning = { rgb = [224, 175, 104] }
+error = { rgb = [247, 118, 142] }

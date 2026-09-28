@@ -1,7 +1,7 @@
 import type { CommandMetadata } from "@linxiraos/pi-utils/cli";
 
 export const acpHelp = {
-	description: "Run omp as an ACP (Agent Client Protocol) server over stdio",
+	description: "Run zeta as an ACP (Agent Client Protocol) server over stdio",
 } satisfies CommandMetadata;
 
 export const attachHelp = {
@@ -139,7 +139,7 @@ export const sshHelp = { description: "Manage SSH host configurations" } satisfi
 export const statsHelp = { description: "View usage statistics" } satisfies CommandMetadata;
 
 export const streamHelp = {
-	description: "Broadcast local omp session screens and chat to your public live channel",
+	description: "Broadcast local zeta session screens and chat to your public live channel",
 } satisfies CommandMetadata;
 
 export const tinyModelsHelp = {
