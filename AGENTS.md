@@ -203,6 +203,11 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
   *why* decisions were made, dev process, release mechanics, internal plans →
   `document/`. `roadmap.md` lives in `document/` — do not recreate it under
   `docs/`.
+- **`document/` 内部规范(maintainer 裁定,2026-09-28)**:`document/` 只放
+  三类——①当前执行计划(新计划生效即删旧计划,一律不并存);②未开发的
+  后期规划(登记进 `roadmap.md` 的 Deferred Queue,不另立计划文);③架构
+  设计文档(面向其他开发者讲清代码如何运作)。违反形态:已完成/被取代的
+  计划滞留——发现即删,结论沉淀进规则表、注册表或 roadmap。
 
 ## Planning Discipline
 
@@ -222,8 +227,7 @@ that leaves an implementer choice open has failed; padding sections
   written under the userdata root (`local://` resolves to the session
   artifacts dir under `~/.zeta`), never into the repository working tree.
   With Tracking enabled, the tracking layer mirrors the durable plan into
-  `<project>/.zeta/tracking/` (`document/simplify-and-plan-surface.md` 附录 A §5) — the
-  only project-local copy.
+  `<project>/.zeta/tracking/` — the only project-local copy.
 - **Prune completed plans.** Once a plan's work has landed, its document is
   deleted; durable outcomes are encoded in AGENTS.md registries and the
   roadmap. `document/` stays lean: core references plus the one active spec

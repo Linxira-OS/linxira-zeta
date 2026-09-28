@@ -1,8 +1,9 @@
 # Zeta Development Roadmap
 
-> **当前执行计划**（极简化 UI、编辑器三端、plan/tracking 呈现、team
-> agent、上游合并边界）已收拢至 [simplify-and-plan-surface.md](./simplify-and-plan-surface.md)。
-> 本文档保留长期路线与 Shipped 记录；执行细节以该计划为准。
+> **当前执行计划**（UI 迁移、编辑器/终端两端、team agent 接入）见
+> [plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md)。本文档保留长期
+> 路线与 Shipped 记录；执行细节以该计划为准。文档规范：旧计划随新计划生效
+> 即删；未开发的后期规划登记在本文档。
 
 Zeta is an OMP downstream distribution: the runtime tree, package layout, Bun
 workflow, and internal `@linxiraos/*` names intentionally follow OMP so upstream
@@ -240,12 +241,12 @@ sync sources for upstream work.
    surfaces, system UI font stack with CJK fallbacks (no remote font
    dependency), Starfield retained as a legacy optional theme only. Full
    design spec (locked decisions, layout tree, token inventory, tracking v2
-   detail, acceptance): `document/simplify-and-plan-surface.md` 附录 A — amend that
+   detail, acceptance): `document/plan-zeta-ui-carryover.md` — amend that
    document in place; this entry stays a pointer.
    Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
-   (feat/web-ui-sidebar；头部红线见 simplify-and-plan-surface.md 附录 A §1)；会话地图
+   (feat/web-ui-sidebar；头部红线见 plan-zeta-ui-carryover.md)；会话地图
    设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
-   (`document/agent-team-plugin.md`)。
+   (`document/plan-zeta-ui-carryover.md` Z5+U11 批)。
 
 ### P0 — Compaction as a service (not a command)
 
@@ -593,7 +594,7 @@ carry the last ~40 low-priority strings.
 ### DONE — plan-surface completion A+B (feat/plan-surface-completion, 2026-09-22)
 
 The A+B remainder of
-[simplify-and-plan-surface.md](./simplify-and-plan-surface.md) (§11.1) has
+[plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md) (前 §11.1) has
 landed: minimal shell wrap-up (settings-only bottom entry, collapse rail,
 welcome dual selector), command palette (Ctrl+K), Shiki over
 react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
@@ -625,6 +626,16 @@ menus, and the About dialog. Two work items; 1.1.18 ships without them
   (MIT obligation) and add the Zeta distribution identity
   (`Zeta Editor · v<zeta version> · TTT <upstream version> ·
 github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
+
+## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
+
+- **上游合并队列**:dev/main 全绿基线后依次 v18.3.3+v18.3.4(已授权,
+  135 冲突)→ v18.3.5(24 commits)→ v18.4.0(160)→ v18.4.1/v18.4.2
+  (今日新出,上游侧干跑零自冲突;步长按 merge-playbook 结论 21 判据)。
+- **rail 拖拽排序**:dnd-kit 垂直排序 + localStorage 持久化(随 U6
+  SidePane 框架一起评估)。
+- **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
+  修复,可修则 revert matrix 裁剪提交。
 
 ## Notes
 

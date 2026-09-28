@@ -1,10 +1,9 @@
 # Zeta 端 + UI 端接入调整 — 统一执行计划(2026-09-28)
 
-> **取代** `plan-surface-c-track.md`(已删;其未完成范围全部收编进本计划,
-> 已完成项见下文「已落地不再重做」)。设计来源:[zcode-ui-research.md]
-> (../temp/zcode-ui-research.md,UI 迁移路线与三约束)与
-> [simplify-and-plan-surface.md](./simplify-and-plan-surface.md)(极简化/精简
-> 模式设计源,§11.2 由本计划接管)。
+> **取代** `plan-surface-c-track.md` 与 `simplify-and-plan-surface.md`
+> (均已删;前者未完成范围全部收编进本计划,后者已完成项见「已落地不再重做」、
+> 在途设计已内联各批)。UI 迁移路线与三约束的设计底稿:
+> `temp/zcode-ui-research.md`(本地参考,不入库)。
 >
 > **分支策略(用户已裁决)**:直接在 `dev/main` 上按批推进,每批独立 commit
 > 序列 + 全量门禁 + CI 绿后进下一批;不另开 feat 分支。批间不并行。
@@ -115,7 +114,8 @@
 
 ### T 精简模式收尾专项(自研,无参考)
 1. **盘点**(本批第一步,产出写回本节):枚举精简模式现有面(入口、布局、
-   隐藏清单)与 simplify-and-plan-surface.md 的 ✅/◐/❌ 差集,列出未完成项。
+   隐藏清单)与极简化计划的 ✅/◐/❌ 差集(设计要点已由本计划各批内联),
+   列出未完成项。
 2. 收尾原则:精简态 = 完整态的子集(同一组件树 + `compact` layout 参数),
    不允许出现"精简独有组件";每个 U 系批落地时同步声明精简态行为
    (默认:toolbar/FilesView/终端/GitView 入口隐藏,聊天流与侧栏保留)。
@@ -134,10 +134,22 @@
   `server/web-gateway/plugin-assets.ts`(静态资源路由,根 = 校验通过的
   插件声明目录,拒绝穿越)+ `web-gateway.ts` 一行注册;穿越 403 测试。
 
-### Z5+U11 team M1/M2(原 C-track 批 6/7,规格不变,默认关闭)
-- `team_*` 六工具 = pi_messenger action API 薄封装;`team.enabled` 默认
-  **false** gating 工具注册与 crew 拉起;M2 三页面走 Z4 的 plugin-assets
-  iframe;**不阻塞、不依赖任何 U 批**。
+### Z5+U11 team M1/M2(原 C-track 批 6/7,契约内联如下,默认关闭)
+
+- **M1(Zeta 端)**:`team_spawn/plan/dispatch/chat/status/cancel` 六工具 =
+  pi_messenger action API(join/plan/work/send/status/cancel)的 Zeta 化薄
+  封装(crew 底座,不自研编排);crews 配置 `teams/*.json` +
+  `personas/*.md`(frontmatter `locked` 段),发现根与 skill 同款(用户/
+  项目两层);工具 prompt 进 `prompts/tools/`;`tracking.enabled` 时 spawn
+  记 actions.jsonl(复用 v2 日志)。
+- **M2(UI 端)**:persona `locked` 段字节级重放、发言限速、@提及路由
+  (crew lobby/mesh 之上补 Zeta 语义);成员名册/消息流/任务看板三页面,
+  经 Z4 的 plugin-assets 路由 iframe 进 web-ui(web-ui 只做壳与导航)。
+- **门禁**:`team.enabled` settings 项(默认 **false**)gating 全部
+  `team_*` 工具注册、crew 自动拉起与 M2 入口;关闭时编排层零行为差异。
+- **验收**:crew 从 teams/*.json 拉起 → plan → work → review 全链(集成
+  测试打真 crew worker);`team_status` 反映 DAG 状态;@提及命中预期
+  persona;限速生效;三页面浏览器可用。
 
 ### Z6 官方 skills 批 8(纯加文件)
 - 7 个 `skills/official/<name>/SKILL.md`(+可选 scripts/),构建内嵌链路
@@ -154,7 +166,7 @@
 
 ## 与既有文档的关系
 
-- 取代并删除 `plan-surface-c-track.md`(本文已收编其全部未完成范围)。
-- `simplify-and-plan-surface.md` 保留为设计源;其 §11.2 指针改指本文。
+- 取代并删除 `plan-surface-c-track.md` 与 `simplify-and-plan-surface.md`
+  (文档规范:旧计划随新计划生效即删;后期规划进 roadmap,架构设计单独成文)。
 - `temp/zcode-ui-research.md` 是 UI 参考底稿(不入库,路径仅本地有效);
   其批号与本计划 U 系的映射已写进上表备注。
