@@ -129,7 +129,7 @@ process.stdout.write(String(await probeRelayServer(url)));`,
 	});
 
 	it("surfaces stderr when a consumer exits before becoming ready", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-failed-consumer-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-relay-failed-consumer-"));
 		const marker = path.join(home, "ready");
 		const consumer = observeConsumer(
 			Bun.spawn([process.execPath, "-e", 'console.error("synthetic relay startup failure"); process.exit(1)'], {
@@ -147,7 +147,7 @@ process.stdout.write(String(await probeRelayServer(url)));`,
 	});
 
 	it("stays alive while a consumer in another project holds the global broker lease", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-global-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-relay-global-"));
 		const firstProject = path.join(home, "project-a");
 		const secondProject = path.join(home, "project-b");
 		const firstMarker = path.join(home, "first-ready");
@@ -188,7 +188,7 @@ try {
 						USERPROFILE: home,
 						PI_CONFIG_DIR: ".zeta",
 						ZETA_PROFILE: profile,
-						OMP_DAEMON_IDLE_GRACE_MS: "200",
+						ZETA_DAEMON_IDLE_GRACE_MS: "200",
 						OMP_TEST_RELAY_URL: cdpUrl,
 						OMP_TEST_READY_MARKER: marker,
 					},

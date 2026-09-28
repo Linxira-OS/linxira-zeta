@@ -30,8 +30,8 @@ describe("auth-broker import (CLIProxyAPI)", () => {
 		savedEnv.OMP_AUTH_BROKER_TOKEN = process.env.OMP_AUTH_BROKER_TOKEN;
 		delete process.env.OMP_AUTH_BROKER_URL;
 		delete process.env.OMP_AUTH_BROKER_TOKEN;
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-import-agent-"));
-		cliproxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-import-cliproxy-"));
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-import-agent-"));
+		cliproxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-import-cliproxy-"));
 		setAgentDir(agentDir);
 	});
 
@@ -209,9 +209,9 @@ describe("auth-broker import (broker-routed)", () => {
 	beforeEach(async () => {
 		savedEnv.OMP_AUTH_BROKER_URL = process.env.OMP_AUTH_BROKER_URL;
 		savedEnv.OMP_AUTH_BROKER_TOKEN = process.env.OMP_AUTH_BROKER_TOKEN;
-		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-import-client-"));
-		brokerAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-import-broker-"));
-		cliproxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-import-cliproxy-broker-"));
+		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-import-client-"));
+		brokerAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-import-broker-"));
+		cliproxyDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-import-cliproxy-broker-"));
 		setAgentDir(agentDir);
 
 		brokerStore = await SqliteAuthCredentialStore.open(path.join(brokerAgentDir, "agent.db"));

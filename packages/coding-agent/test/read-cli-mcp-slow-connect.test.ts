@@ -20,7 +20,7 @@ describe("omp read MCP resource with a slow-connecting server", () => {
 	let probePath: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-read-mcp-slow-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-read-mcp-slow-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
 		await Promise.all([fs.mkdir(projectDir), fs.mkdir(agentDir)]);

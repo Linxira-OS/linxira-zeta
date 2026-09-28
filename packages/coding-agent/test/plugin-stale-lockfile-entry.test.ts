@@ -27,7 +27,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 // legitimate only as symlinks (`omp plugin link`, marketplace runtime
 // registration), which must keep loading.
 test("stale lockfile-only directory plugin is skipped while declared and linked plugins load", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-stale-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-stale-"));
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");
@@ -88,7 +88,7 @@ test("stale lockfile-only directory plugin is skipped while declared and linked 
 });
 
 test("manifest-less project roots retain lockfile-only directory plugins", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-project-plugin-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-project-plugin-"));
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");

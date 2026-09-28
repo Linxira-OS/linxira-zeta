@@ -39,7 +39,7 @@ function createInput(overrides: Partial<SubmittedUserInput> = {}): SubmittedUser
 
 describe("discoverTitleSystemPromptFile", () => {
 	it("discovers TITLE_SYSTEM.md from the project omp config directory", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-title-system-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-title-system-"));
 		cleanupDirs.push(projectDir);
 		const configDir = path.join(projectDir, ".zeta");
 		await fs.mkdir(configDir, { recursive: true });
@@ -93,7 +93,7 @@ describe("system prompt template CLI resolution", () => {
 	}
 
 	it("discovers SYSTEM_TEMPLATE.md and preserves the raw template", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-system-template-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-system-template-"));
 		cleanupDirs.push(projectDir);
 		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
 		await fs.writeFile(path.join(projectDir, ".zeta", "SYSTEM_TEMPLATE.md"), "Hello {{model}}");
@@ -105,7 +105,7 @@ describe("system prompt template CLI resolution", () => {
 	});
 
 	it("lets an explicit literal prompt suppress discovered templates", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-system-prompt-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-system-prompt-"));
 		cleanupDirs.push(projectDir);
 		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
 		await fs.writeFile(path.join(projectDir, ".zeta", "SYSTEM_TEMPLATE.md"), "discovered");
@@ -370,7 +370,7 @@ describe("submitInteractiveInput", () => {
 	});
 
 	it("routes a resubmitted /skill: prompt through promptCustomMessage instead of raw text (regression for #8137-style loop resubmit)", async () => {
-		const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-skill-command-"));
+		const skillDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-skill-command-"));
 		cleanupDirs.push(skillDir);
 		const skillPath = path.join(skillDir, "recap.md");
 		await fs.writeFile(skillPath, "---\nname: recap\n---\nSummarize recent changes.\n");

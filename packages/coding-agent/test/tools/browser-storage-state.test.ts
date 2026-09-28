@@ -11,7 +11,7 @@ import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-storage-state-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-storage-state-"));
 const session: ToolSession = {
 	cwd: root,
 	hasUI: false,

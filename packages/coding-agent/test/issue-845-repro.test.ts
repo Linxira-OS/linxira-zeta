@@ -24,7 +24,7 @@ describe("issue-845: resolveUpdateMethod follows symlinks/junctions", () => {
 	let ompPathViaLink: string;
 
 	beforeAll(() => {
-		tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omp-issue-845-"));
+		tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-issue-845-"));
 		realBinDir = path.join(tmpRoot, "real", "bin");
 		fs.mkdirSync(realBinDir, { recursive: true });
 		fs.writeFileSync(path.join(realBinDir, "omp"), "#!/bin/sh\n", { mode: 0o755 });

@@ -16,7 +16,7 @@ describe("jj workspace detection", () => {
 	});
 
 	async function createTempDir(): Promise<string> {
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-jj-utils-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-jj-utils-"));
 		return tmpDir;
 	}
 
@@ -134,7 +134,7 @@ describe.skipIf(!jjBinary)("native JJ workspace queries", () => {
 
 	async function createRepo(): Promise<string> {
 		if (!jjBinary) throw new Error("jj skip guard failed");
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-jj-native-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-jj-native-"));
 		tempDirs.push(dir);
 		const proc = Bun.spawn([jjBinary, "git", "init", "--colocate", "."], {
 			cwd: dir,

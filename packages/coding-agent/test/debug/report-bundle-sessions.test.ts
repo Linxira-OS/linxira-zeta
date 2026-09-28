@@ -37,7 +37,7 @@ async function archiveMembers(archivePath: string): Promise<string[]> {
 }
 
 async function setupReportDirectory(): Promise<string> {
-	cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-report-"));
+	cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-report-"));
 	const xdgStateHome = path.join(cleanupRoot, "state");
 	await fs.mkdir(path.join(xdgStateHome, "omp"), { recursive: true });
 	process.env.XDG_STATE_HOME = xdgStateHome;

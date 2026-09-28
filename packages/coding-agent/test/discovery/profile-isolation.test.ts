@@ -46,9 +46,9 @@ describe("native user-level config discovery follows the active profile", () => 
 
 	beforeEach(async () => {
 		originalHome = process.env.HOME;
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-iso-home-"));
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-iso-project-"));
-		profileAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-iso-agent-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-iso-home-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-iso-project-"));
+		profileAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-iso-agent-"));
 		process.env.HOME = tempHome;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 		setAgentDir(profileAgentDir);

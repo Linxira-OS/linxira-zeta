@@ -53,7 +53,7 @@ describe("MCP catalog-change after connect", () => {
 
 	beforeEach(() => {
 		resetSettingsForTest();
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-catalog-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-catalog-"));
 		gate = path.join(workDir, "release-catalog");
 		manager = new MCPManager(workDir);
 	});

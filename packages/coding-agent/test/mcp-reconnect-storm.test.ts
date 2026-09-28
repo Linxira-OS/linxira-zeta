@@ -28,7 +28,7 @@ describe("MCP reconnect storm (issue #1592)", () => {
 	let spawnLog: string;
 
 	beforeEach(() => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-storm-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-storm-"));
 		spawnLog = path.join(workDir, "spawns.log");
 		fs.writeFileSync(spawnLog, "");
 	});

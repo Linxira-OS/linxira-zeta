@@ -318,7 +318,7 @@ let lspOriginalHome: string | undefined;
 
 beforeEach(() => {
 	lspOriginalHome = process.env.HOME;
-	lspHomeOverride = fs.mkdtempSync(path.join(os.tmpdir(), "omp-lsp-test-home-"));
+	lspHomeOverride = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-lsp-test-home-"));
 	process.env.HOME = lspHomeOverride;
 	// Bun's os.homedir() reads the passwd entry rather than $HOME, so the env
 	// var alone does not redirect the config walk.

@@ -95,7 +95,7 @@ describe.skipIf(!hasZsh)("zsh action helper under _arguments' calling convention
 		expect(start).toBeGreaterThanOrEqual(0);
 		const fn = script.slice(start, script.indexOf("\n}\n", start) + 3);
 
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-zsh-action-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-zsh-action-"));
 		try {
 			// `command omp` bypasses shell functions, so the stub must be an
 			// executable on PATH.

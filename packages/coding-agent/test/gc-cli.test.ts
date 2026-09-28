@@ -31,7 +31,7 @@ const originalExitCode = process.exitCode;
 
 beforeEach(async () => {
 	settingsState = beginSettingsTest();
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-gc-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-gc-"));
 	writes = [];
 	stderrWrites = [];
 	process.exitCode = 0;

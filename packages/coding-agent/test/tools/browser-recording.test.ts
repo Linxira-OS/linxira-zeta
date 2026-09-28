@@ -13,7 +13,7 @@ import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
 const FFMPEG_AVAILABLE = Boolean($which("ffmpeg") && $which("ffprobe"));
-const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-recording-"));
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-recording-"));
 const session: ToolSession = {
 	cwd: root,
 	hasUI: false,

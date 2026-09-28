@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { closeSync, openSync } from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -27,6 +28,17 @@ const BROKER_SPAWN_OPTIONS = resolveDaemonSpawnOptions({
 	platform: process.platform,
 	hostHasInheritableConsole: hostHasInheritableConsole(),
 });
+
+/** Last ~600 chars of the broker's captured stderr, for startup-failure errors. */
+async function brokerStderrTail(logPath: string): Promise<string> {
+	try {
+		const text = await fs.readFile(logPath, "utf8");
+		const tail = text.length > 600 ? `…${text.slice(-600)}` : text;
+		return `Broker stderr (${logPath}):\n${tail.trim()}\n`;
+	} catch {
+		return "Broker stderr: not captured.\n";
+	}
+}
 
 interface PendingRequest {
 	operation: DaemonOperation;
@@ -306,7 +318,8 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		throw new Error(
 			`Failed to start daemon broker at ${this.#endpoint} after ${CONNECT_TIMEOUT_MS / 1000}s: ` +
 				`${lastError?.message ?? "socket unavailable"}. Scope: ${this.#runtimeDir}. ` +
-				"Run `omp --smoke-test` to verify broker startup, or `omp ps` to inspect supervised processes.",
+				`${await brokerStderrTail(path.join(this.#runtimeDir, "broker.err.log"))}` +
+				"Run `zeta --smoke-test` to verify broker startup, or `zeta ps` to inspect supervised processes.",
 		);
 	}
 
@@ -317,15 +330,27 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			[DAEMON_RUNTIME_DIR_ENV]: this.#runtimeDir,
 		};
 		if (this.#idleGraceMs !== undefined) overlay[DAEMON_IDLE_GRACE_ENV] = String(this.#idleGraceMs);
+		// The broker's stderr was previously "ignore", so a child that died at
+		// startup surfaced only as a generic connect timeout with no cause. Tee
+		// it into a scope-local log (best-effort) that the failure error below
+		// points at.
+		let stderrFd: number | undefined;
+		const brokerLog = path.join(this.#runtimeDir, "broker.err.log");
+		try {
+			stderrFd = openSync(brokerLog, "a");
+		} catch {
+			// Diagnostics only; the broker still spawns with stderr ignored.
+		}
 		const child = Bun.spawn(spawn.cmd, {
 			cwd: spawn.cwd,
 			env: workerEnvFromParent(overlay),
 			stdin: "ignore",
 			stdout: "ignore",
-			stderr: "ignore",
+			stderr: stderrFd ?? "ignore",
 			...BROKER_SPAWN_OPTIONS,
 		});
 		child.unref();
+		if (stderrFd !== undefined) closeSync(stderrFd);
 	}
 
 	#bindSocket(socket: net.Socket): void {

@@ -29,7 +29,7 @@ beforeAll(async () => {
 });
 
 async function withReviewRepo(run: (repo: string) => Promise<void>): Promise<void> {
-	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "omp-git-tui-stream-"));
+	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-git-tui-stream-"));
 	try {
 		await $`git init --initial-branch=main`.cwd(repo).quiet();
 		await $`git config user.name "Test User"`.cwd(repo).quiet();

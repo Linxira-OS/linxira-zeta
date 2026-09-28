@@ -759,7 +759,7 @@ describe("AuthStorage OAuth login upgrade and multi-account coexistence", () => 
 	let tempDir = "";
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-auth-login-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-auth-login-test-"));
 	});
 
 	afterEach(async () => {
@@ -888,7 +888,7 @@ describe("AuthStorage persistent session stickiness", () => {
 	let dbPath = "";
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-auth-test-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-auth-test-"));
 		dbPath = path.join(tempDir, "auth.db");
 	});
 

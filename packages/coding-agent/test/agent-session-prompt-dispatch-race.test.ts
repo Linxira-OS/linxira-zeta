@@ -83,7 +83,7 @@ describe("AgentSession concurrent prompt dispatch", () => {
 	it.each(["navigateTree", "branch", "fork", "branchFromBtw"] as const)(
 		"drops an admitted custom prompt when %s replaces its branch before dispatch",
 		async transition => {
-			sessionDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-prompt-transition-"));
+			sessionDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-prompt-transition-"));
 			const manager = SessionManager.create(sessionDir, sessionDir);
 			const retained = manager.appendMessage({ role: "user", content: "Retained", timestamp: 1 });
 			const abandoned = manager.appendMessage({ role: "user", content: "Abandoned", timestamp: 2 });

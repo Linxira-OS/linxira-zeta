@@ -11,7 +11,7 @@ afterEach(async () => {
 
 describe.skipIf(process.platform === "win32")("Chromium CDP availability", () => {
 	it("rejects a version-only wrapper without a CDP endpoint", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-version-shim-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-version-shim-"));
 		directories.push(directory);
 		const executable = path.join(directory, "chromium");
 		await Bun.write(executable, '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "Chromium snap"; fi\nexit 0\n');

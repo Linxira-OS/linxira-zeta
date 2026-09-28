@@ -51,7 +51,7 @@ async function git(repoRoot: string, ...args: string[]): Promise<string> {
 }
 
 async function seedFooRepo(finalContent: string): Promise<{ repoRoot: string; patchPath: string }> {
-	const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-merge-"));
+	const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-merge-"));
 	tempRoots.push(repoRoot);
 
 	await git(repoRoot, "init", "-q", "-b", "main");
@@ -85,7 +85,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("preserves branch-mode output as a patch when branch transfer fails", async () => {
-		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-run-"));
+		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-run-"));
 		tempRoots.push(repoRoot);
 		const isolationDir = path.join(repoRoot, "isolated");
 		const artifactsDir = path.join(repoRoot, "artifacts");
@@ -172,7 +172,7 @@ describe("runIsolatedSubprocess", () => {
 		// working-tree delta. A throw from that trailing step used to delete the
 		// branch while the isolation worktree — the only other copy — was torn
 		// down in `finally`, losing committed work outright.
-		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-rescue-"));
+		const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-rescue-"));
 		tempRoots.push(repoRoot);
 		const isolationDir = path.join(repoRoot, "isolated");
 		const artifactsDir = path.join(repoRoot, "artifacts");
@@ -308,7 +308,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("captures a successful yield's patch when child cleanup is deferred (issue #9670)", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-defer-ok-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-defer-ok-"));
 		tempRoots.push(artifactsDir);
 		const rootPatch = "diff --git a/task.txt b/task.txt\n--- a/task.txt\n+++ b/task.txt\n@@ -1 +1 @@\n-old\n+new\n";
 		const cleanupGate = Promise.withResolvers<void>();
@@ -376,7 +376,7 @@ describe("runIsolatedSubprocess", () => {
 
 	it("captures follow-up changes before releasing a kept-alive isolated worktree", async () => {
 		const isolationDir = "/repo/isolated";
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-retained-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-retained-"));
 		tempRoots.push(artifactsDir);
 		const initialPatch = "diff --git a/task.txt b/task.txt\n+initial\n";
 		const finalPatch = "diff --git a/task.txt b/task.txt\n+initial\n+follow-up\n";
@@ -470,7 +470,7 @@ describe("runIsolatedSubprocess", () => {
 		// post-run patch capture. The worktree must survive that early release so
 		// capture succeeds; cleanup happens once afterwards in `finally`.
 		const isolationDir = "/repo/isolated";
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-oneshot-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-oneshot-"));
 		tempRoots.push(artifactsDir);
 		const rootPatch = "diff --git a/task.txt b/task.txt\n+captured\n";
 		const baseline = {
@@ -626,7 +626,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("writes nested-repo patches to disk before the workspace is torn down", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-nested-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-nested-"));
 		tempRoots.push(artifactsDir);
 		const nestedPatch =
 			"diff --git a/b.txt b/b.txt\nnew file mode 100644\n--- /dev/null\n+++ b/b.txt\n@@ -0,0 +1 @@\n+hi\n";
@@ -701,7 +701,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("retains the workspace when captured changes cannot be written", async () => {
-		const blockedDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-blocked-"));
+		const blockedDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-blocked-"));
 		tempRoots.push(blockedDir);
 		// A regular file where the artifacts directory should be: every write fails.
 		const artifactsDir = path.join(blockedDir, "artifacts");
@@ -756,7 +756,7 @@ describe("runIsolatedSubprocess", () => {
 	});
 
 	it("removes partial nested patches when a later write fails", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-partial-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-partial-"));
 		tempRoots.push(artifactsDir);
 		const originalWrite = Bun.write.bind(Bun);
 		let calls = 0;
@@ -789,7 +789,7 @@ describe("retainIsolationWorkspace", () => {
 	});
 
 	it("moves the workspace to a unique sibling out of the deterministic slot", async () => {
-		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-retain-"));
+		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-retain-"));
 		tempRoots.push(parent);
 		const baseDir = path.join(parent, "wt_abc123");
 		const isolationDir = path.join(baseDir, "m");
@@ -809,7 +809,7 @@ describe("retainIsolationWorkspace", () => {
 	});
 
 	it("records no sidecar for copy backends that need no unmount", async () => {
-		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-retain-copy-"));
+		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-retain-copy-"));
 		tempRoots.push(parent);
 		const isolationDir = path.join(parent, "wt_abc123", "m");
 		await fs.mkdir(isolationDir, { recursive: true });
@@ -835,7 +835,7 @@ describe("retainIsolationWorkspace", () => {
 	});
 
 	it("reports missing metadata when the sidecar cannot be written", async () => {
-		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "omp-isolation-retain-sidecar-"));
+		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-isolation-retain-sidecar-"));
 		tempRoots.push(parent);
 		const isolationDir = path.join(parent, "wt_abc123", "m");
 		await fs.mkdir(isolationDir, { recursive: true });

@@ -105,7 +105,7 @@ describe("LocalProtocolHandler", () => {
 
 	it("uses a stable short temp root for long Windows artifact paths", async () => {
 		const longArtifactsDir = path.join(os.tmpdir(), "a".repeat(220), "artifacts");
-		const expectedRoot = path.join(os.tmpdir(), "omp-local", "session_long");
+		const expectedRoot = path.join(os.tmpdir(), "zeta-local", "session_long");
 		const options = {
 			getArtifactsDir: () => longArtifactsDir,
 			getSessionId: () => "session:long",

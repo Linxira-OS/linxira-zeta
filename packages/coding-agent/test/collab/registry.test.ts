@@ -40,7 +40,7 @@ afterEach(async () => {
 });
 
 async function tempDir(): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-collab-registry-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-collab-registry-"));
 	cleanupDirs.push(dir);
 	return dir;
 }

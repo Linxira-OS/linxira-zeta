@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("prepared extension rebinding", () => {
 	it("binds a fresh session extension without evaluating the module again", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-prepared-extension-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-prepared-extension-"));
 		temporaryDirectories.push(directory);
 		const parentDirectory = path.join(directory, "parent");
 		const childDirectory = path.join(directory, "child");

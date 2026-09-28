@@ -82,7 +82,7 @@ async function records(manager: SessionManager): Promise<readonly BtwHistoryReco
 }
 
 async function harness() {
-	const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-follow-up-"));
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-btw-follow-up-"));
 	const manager = SessionManager.create(directory, directory);
 	const managers = [manager];
 	const requests: PendingTurn[] = [];

@@ -36,7 +36,7 @@ describe("issue #1606 — tiny model lives in an isolated process", () => {
 		// fault callers via the `onError` channel — an earlier fix swallowed
 		// unexpected exits and left `TinyTitleClient.#pending` hanging forever —
 		// while a `terminate()` we issued ourselves MUST NOT.
-		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-tiny-1606-"));
+		const runtimeDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-tiny-1606-"));
 		try {
 			const launch = onnxLaunch("lfm2.5-230m", {});
 			const quiet = await connectTinyWorker(launch, "lfm2.5-230m", runtimeDir);

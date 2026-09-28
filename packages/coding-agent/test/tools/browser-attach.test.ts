@@ -76,7 +76,7 @@ interface DisposableExecutable {
 }
 
 async function spawnDisposableExecutable(args: string[] = []): Promise<DisposableExecutable> {
-	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-app-path-"));
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-app-path-"));
 	const executablePath = path.join(tempDir, path.basename(process.execPath));
 	await Bun.write(executablePath, Bun.file(process.execPath));
 	if (process.platform !== "win32") await fs.chmod(executablePath, 0o755);
@@ -285,7 +285,7 @@ describe("pickElectronTarget", () => {
 	});
 
 	test.skipIf(process.platform !== "linux")("reuses Chromium launched through a distro wrapper", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-wrapper-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-wrapper-"));
 		const wrapper = path.join(root, "google-chrome");
 		const target = path.join(root, "chrome");
 		const profile = path.join(root, "profile");
@@ -325,7 +325,7 @@ describe("pickElectronTarget", () => {
 		async () => {
 			const exe = await ensureChromiumExecutable();
 			if (!exe) throw new Error("Expected a Chromium executable");
-			const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-isolation-"));
+			const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-isolation-"));
 			const borrowedProfile = path.join(root, "borrowed");
 			const port = await findFreeCdpPort();
 			// Explicit profiles keep the real OS keystore, so bypass it here or macOS

@@ -1205,7 +1205,7 @@ describe("github tool", () => {
 				// The shim is a bash script resolved via `which`; neither exists on Windows.
 				if (process.platform === "win32") return;
 				const originalPath = process.env.PATH;
-				const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fake-git-"));
+				const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-fake-git-"));
 				const realGitResult = Bun.spawnSync(["which", "git"], { stdout: "pipe", stderr: "pipe" });
 				expect(realGitResult.exitCode).toBe(0);
 				const realGit = new TextDecoder().decode(realGitResult.stdout).trim();
@@ -1240,7 +1240,7 @@ exec ${JSON.stringify(realGit)} "$@"
 
 	it("pins gh messages while preserving UTF-8 character locale", async () => {
 		if (process.platform === "win32") return;
-		const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fake-gh-locale-"));
+		const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-fake-gh-locale-"));
 		const fakeGh = path.join(fakeBin, "gh");
 		await fs.writeFile(
 			fakeGh,

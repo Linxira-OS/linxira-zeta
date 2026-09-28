@@ -51,7 +51,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-pi-ai-type-remap-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-pi-ai-type-remap-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");
@@ -274,7 +274,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	});
 
 	it("preserves legacy defineTool root imports and usable coding tools", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-coding-tools-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-legacy-coding-tools-"));
 		tempRoots.push(dir);
 		await fs.writeFile(path.join(dir, "sample.txt"), "legacy read body", "utf8");
 		const entry = path.join(dir, "index.ts");
@@ -344,7 +344,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 			return realResolveSync(specifier, from);
 		});
 
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-direct-subpath-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-legacy-direct-subpath-"));
 		tempRoots.push(dir);
 		const packageDir = path.join(dir, "node_modules", "@mariozechner", "pi-ai");
 		await fs.mkdir(packageDir, { recursive: true });

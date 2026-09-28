@@ -15,7 +15,7 @@ let tempRoot: string;
 let originalClaudeConfigDir: string | undefined;
 
 beforeEach(async () => {
-	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-foreign-sessions-"));
+	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-foreign-sessions-"));
 	originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 	delete process.env.CLAUDE_CONFIG_DIR;
 });

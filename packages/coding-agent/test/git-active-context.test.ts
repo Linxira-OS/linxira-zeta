@@ -33,7 +33,7 @@ describe("resolveActiveRepoContext", () => {
 	let tempRoot: string;
 
 	beforeEach(() => {
-		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "omp-active-repo-context-"));
+		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-active-repo-context-"));
 	});
 
 	afterEach(() => {

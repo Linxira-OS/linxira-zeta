@@ -225,7 +225,7 @@ describe("structured subagent primitive", () => {
 		expect(discover).not.toHaveBeenCalled();
 	});
 	it("reloads project task and retry policy before resolving an agent added during the session", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-hot-reload-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-task-hot-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
 		await fs.mkdir(projectDir, { recursive: true });
@@ -291,7 +291,7 @@ describe("structured subagent primitive", () => {
 	});
 
 	it("reloads persisted per-agent service-tier overrides before each launch", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-tier-reload-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-task-tier-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
 		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
@@ -598,7 +598,7 @@ describe("structured subagent primitive", () => {
 	});
 
 	it("persists nested patch text with the compatible recovery path and wording", async () => {
-		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-subagent-"));
+		const artifactsDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-structured-subagent-"));
 		const completed = result();
 		completed.patchPath = "/recovery/Worker.patch";
 		completed.branchName = "omp/task/Worker";
@@ -617,7 +617,7 @@ describe("structured subagent primitive", () => {
 	it("names the failure when nested patches cannot be written as a fallback", async () => {
 		// `Bun.write` creates missing parents, so a genuine failure needs a path
 		// that cannot become a directory: a regular file in its place.
-		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "omp-structured-subagent-unwritable-"));
+		const parent = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-structured-subagent-unwritable-"));
 		const artifactsDir = path.join(parent, "artifacts");
 		await fs.writeFile(artifactsDir, "");
 		const completed = result();

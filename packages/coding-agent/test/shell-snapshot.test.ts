@@ -241,7 +241,7 @@ describe("shell-snapshot fn-env helper", () => {
 
 describe("getOrCreateSnapshot", () => {
 	it("re-exports env vars referenced by snapshotted functions (issue #3470)", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-3470-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-3470-"));
 		await fs.writeFile(
 			path.join(home, ".bashrc"),
 			[
@@ -299,7 +299,7 @@ describe("getOrCreateSnapshot", () => {
 		// window between the shell's first `>|` and the JS post-spawn chmod.
 		// Fix: JS now pre-creates the file at 0600 (shell `>|`/`>>` preserve the
 		// inode mode) AND the script re-applies `umask 077` after the source.
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-umask-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-umask-"));
 		await fs.writeFile(
 			path.join(home, ".bashrc"),
 			[`umask 022`, `export __MISE_EXE=${REAL_ECHO}`, `mise () { command "$__MISE_EXE" "$@"; }`, ``].join("\n"),
@@ -322,7 +322,7 @@ describe("getOrCreateSnapshot", () => {
 		expect(content).toContain(`export __MISE_EXE='${REAL_ECHO}'`);
 	});
 	it("cleans up the empty snapshot file when the shell exits with a non-zero code", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-fail-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-fail-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -349,7 +349,7 @@ describe("getOrCreateSnapshot", () => {
 	});
 
 	it("cleans up the empty snapshot file when the shell fails to spawn", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-spawn-fail-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-spawn-fail-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -373,7 +373,7 @@ describe("getOrCreateSnapshot", () => {
 	});
 
 	it("cleans up the empty snapshot file when the shell execution times out", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-timeout-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-timeout-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -406,7 +406,7 @@ describe("getOrCreateSnapshot", () => {
 		// owned it and every other account's pre-create write died with EACCES.
 		const realBash = REAL_BASH;
 		if (!existsSync(realBash)) return;
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-uid-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-uid-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -433,7 +433,7 @@ describe("getOrCreateSnapshot", () => {
 		if (process.getuid?.() === 0) return; // root ignores mode bits
 		const realBash = REAL_BASH;
 		if (!existsSync(realBash)) return;
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-eacces-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-eacces-"));
 		const originalTmpDir = process.env.TMPDIR;
 		const shellLink = path.join(testRoot, "bash-omp-eacces");
 		await fs.symlink(realBash, shellLink);

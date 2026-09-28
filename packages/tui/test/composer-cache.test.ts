@@ -15,7 +15,7 @@ import { getComposerCacheDir } from "@linxiraos/pi-utils/dirs";
 
 describe("composer startup cache", () => {
 	it("round-trips per-project UI, status, recent-session JSONL, and LSP speculation", async () => {
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-composer-cache-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-composer-cache-"));
 		const otherCwd = `${cwd}-other`;
 		const key = Bun.hash.wyhash(path.resolve(cwd)).toString(16).padStart(16, "0");
 		const cacheDir = path.join(getComposerCacheDir(), key);
@@ -72,7 +72,7 @@ describe("composer startup cache", () => {
 	});
 
 	it("ignores legacy status snapshots", async () => {
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-composer-cache-legacy-status-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-composer-cache-legacy-status-"));
 		const key = Bun.hash.wyhash(path.resolve(cwd)).toString(16).padStart(16, "0");
 		const cacheDir = path.join(getComposerCacheDir(), key);
 		try {
@@ -98,7 +98,7 @@ describe("composer startup cache", () => {
 	it("loads XDG_CACHE_HOME from the home .env before the first cache access", async () => {
 		if (process.platform === "win32") return;
 
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-composer-cache-dotenv-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-composer-cache-dotenv-"));
 		const home = path.join(root, "home");
 		const xdgCache = path.join(root, "xdg-cache");
 		const project = path.join(root, "project");

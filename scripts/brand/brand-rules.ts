@@ -36,7 +36,6 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"packages/coding-agent/src/blob-broker/uploaders-legacy.ts", // legacy share URLs
 	"packages/coding-agent/src/cli/git-tui/avatar.ts", // GitHub avatar URL for upstream repo
 	"packages/coding-agent/src/mcp/oauth-flow.ts", // upstream OAuth client_name compat
-	"packages/coding-agent/src/modes/acp/acp-agent.ts", // ACP agent identity compat
 	"packages/coding-agent/src/web/search/providers/exa.ts", // upstream referer
 	"packages/coding-agent/src/extensibility/plugins/legacy-pi-compat.ts", // deliberate alias table
 	"packages/coding-agent/src/extensibility/plugins/legacy-pi-coding-agent-shim.ts",

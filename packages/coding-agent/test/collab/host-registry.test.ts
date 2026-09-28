@@ -135,7 +135,7 @@ let host: CollabHost | undefined;
 const guestCleanups: (() => void)[] = [];
 
 beforeEach(async () => {
-	tmp = await fs.mkdtemp(path.join(os.tmpdir(), "omp-hostreg-"));
+	tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-hostreg-"));
 	installInMemoryRelay();
 	// Record every fake socket the host/guests construct so a test can drive a
 	// terminal close on the host's transport directly.

@@ -90,7 +90,7 @@ describe("lazy snapcompact frame resolution", () => {
 	};
 
 	async function makeTempDir(): Promise<string> {
-		const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-lazy-frames-"));
+		const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-lazy-frames-"));
 		tempDirs.push(dir);
 		return dir;
 	}

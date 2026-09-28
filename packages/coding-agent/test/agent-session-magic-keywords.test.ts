@@ -69,7 +69,7 @@ describe("AgentSession magic keyword settings", () => {
 	let modelRegistry: ModelRegistry;
 
 	beforeAll(async () => {
-		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-magic-keywords-auth-"));
+		authRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-magic-keywords-auth-"));
 		authStorage = await AuthStorage.create(path.join(authRoot, "auth.db"));
 		authStorage.keys.setRuntime("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage, path.join(authRoot, "models.yml"));

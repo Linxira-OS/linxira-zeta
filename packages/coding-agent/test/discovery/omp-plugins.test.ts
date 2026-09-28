@@ -93,7 +93,7 @@ function buildExtensionPackage(packageDir: string, skillName = "my-skill"): void
 beforeEach(() => {
 	clearCache();
 	clearOmpExtensionCliRoots();
-	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-plugins-"));
+	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-plugins-"));
 	home = path.join(tempDir, "home");
 	project = path.join(tempDir, "project");
 	ext = path.join(tempDir, "my-extension");

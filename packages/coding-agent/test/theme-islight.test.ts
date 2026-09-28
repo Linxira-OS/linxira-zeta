@@ -199,7 +199,7 @@ describe("getResolvedThemeColors HTML export defaults", () => {
 	it("uses light text when a light-status custom theme derives dark export surfaces from userMessageBg", async () => {
 		originalAgentDir = getAgentDir();
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-theme-export-"));
+		tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-theme-export-"));
 		setAgentDir(tempAgentDir);
 
 		const { export: _ignoredExport, ...themeWithoutExport } = defaultThemes.porcelain;

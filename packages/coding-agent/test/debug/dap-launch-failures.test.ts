@@ -404,7 +404,7 @@ describe("DAP launch failure handling", () => {
 
 	it("waits for delayed Unix socket adapters before connecting on Linux", async () => {
 		if (process.platform !== "linux") return;
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-socket-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-socket-"));
 		const adapterPath = path.join(cwd, "delayed-unix-socket-adapter.mjs");
 		await fs.writeFile(adapterPath, DELAYED_UNIX_SOCKET_ADAPTER);
 		const adapter: DapResolvedAdapter = {
@@ -470,7 +470,7 @@ describe("DAP launch failure handling", () => {
 
 	it("kills the detached adapter process when the Unix socket never appears (Linux)", async () => {
 		if (process.platform !== "linux") return;
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-unix-leak-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-unix-leak-"));
 		try {
 			const adapterPath = path.join(cwd, "wedged-unix-adapter.mjs");
 			const pidFilePath = path.join(cwd, "adapter.pid");
@@ -509,7 +509,7 @@ describe("DAP launch failure handling", () => {
 		const originalPlatform = process.platform;
 		Object.defineProperty(process, "platform", { value: "darwin", configurable: true });
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-tcp-leak-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-tcp-leak-"));
 			try {
 				const adapterPath = path.join(cwd, "wedged-tcp-adapter.mjs");
 				const pidFilePath = path.join(cwd, "adapter.pid");
@@ -589,7 +589,7 @@ await Bun.sleep(60_000);
 		source: string,
 		run: (adapter: DapResolvedAdapter, cwd: string) => Promise<void>,
 	): Promise<void> {
-		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-tcp-"));
+		const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-tcp-"));
 		const adapterPath = path.join(cwd, "tcp-adapter.mjs");
 		await fs.writeFile(adapterPath, source);
 		const adapter: DapResolvedAdapter = {
@@ -688,7 +688,7 @@ describe("DebugTool launch validation", () => {
 			adapter: TEST_ADAPTER,
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-program-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-program-"));
 			try {
 				await fs.mkdir(path.join(cwd, "python"));
 				const session: ToolSession = {
@@ -728,7 +728,7 @@ describe("DebugTool launch validation", () => {
 			throw Object.assign(new Error("captured launch"), { capturedOptions: opts });
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-dir-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-dir-"));
 			try {
 				await fs.mkdir(path.join(cwd, "cmd"));
 				const session: ToolSession = {
@@ -763,7 +763,7 @@ describe("DebugTool launch validation", () => {
 			throw Object.assign(new Error("captured launch"), { capturedOptions: opts });
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-mixed-roots-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-mixed-roots-"));
 			try {
 				await fs.writeFile(path.join(cwd, "go.mod"), "module hello\n\ngo 1.22\n");
 				await fs.writeFile(path.join(cwd, "Makefile"), "all:\n\tgo build ./...\n");
@@ -811,7 +811,7 @@ describe("DebugTool launch validation", () => {
 			throw Object.assign(new Error("captured launch"), { capturedOptions: opts });
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-exec-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-exec-"));
 			try {
 				await fs.writeFile(path.join(cwd, "hello"), "#!/usr/bin/env sh\necho hi\n");
 				const session: ToolSession = {
@@ -844,7 +844,7 @@ describe("DebugTool launch validation", () => {
 			command: "python",
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-debugpy-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-debugpy-"));
 			try {
 				await fs.writeFile(path.join(cwd, "main.py"), "print('hi')");
 				const session: ToolSession = {
@@ -921,7 +921,7 @@ describe("DebugTool launch validation", () => {
 	it("throws targeted 'python not found in PATH' when adapter:'debugpy' is unresolvable for attach", async () => {
 		const attachSpy = spyOn(dapModule, "selectAttachAdapter").mockReturnValue(null);
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-debugpy-attach-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-debugpy-attach-"));
 			try {
 				const session: ToolSession = {
 					cwd,
@@ -950,7 +950,7 @@ describe("DebugTool launch validation", () => {
 			command: "dlv",
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-hint-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-hint-"));
 			try {
 				await fs.writeFile(path.join(cwd, "main.go"), "package main\n\nfunc main() {}\n");
 				const session: ToolSession = {
@@ -980,7 +980,7 @@ describe("DebugTool launch validation", () => {
 			command: "js-debug-adapter",
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-js-debug-hint-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-js-debug-hint-"));
 			try {
 				await fs.writeFile(path.join(cwd, "main.js"), "console.log('hi');\n");
 				const session: ToolSession = {
@@ -1010,7 +1010,7 @@ describe("DebugTool launch validation", () => {
 			command: "./bin/missing-dlv",
 		});
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-dlv-config-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-dlv-config-"));
 			try {
 				await fs.writeFile(path.join(cwd, "main.go"), "package main\n\nfunc main() {}\n");
 				const session: ToolSession = {
@@ -1036,7 +1036,7 @@ describe("DebugTool launch validation", () => {
 	it("shows the rdbg install command for explicit Ruby attach", async () => {
 		const attachSpy = spyOn(dapModule, "selectAttachAdapter").mockReturnValue(null);
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-rdbg-attach-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-rdbg-attach-"));
 			try {
 				const session: ToolSession = {
 					cwd,
@@ -1061,7 +1061,7 @@ describe("DebugTool launch validation", () => {
 	it("falls back to the generic 'No debugger adapter' error when adapter is unspecified", async () => {
 		const launchSpy = spyOn(dapModule, "selectLaunchAdapter").mockReturnValue({ kind: "none" });
 		try {
-			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-debug-noadapter-"));
+			const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-debug-noadapter-"));
 			try {
 				await fs.writeFile(path.join(cwd, "main.py"), "print('hi')");
 				const session: ToolSession = {

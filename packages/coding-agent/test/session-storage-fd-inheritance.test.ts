@@ -33,7 +33,7 @@ afterAll(async () => {
 });
 
 test.skipIf(process.platform !== "linux")("bash tool children never inherit session or log descriptors", async () => {
-	const root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-fd-"));
+	const root = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-session-fd-"));
 	ROOTS.push(root);
 
 	const storage = new FileSessionStorage();

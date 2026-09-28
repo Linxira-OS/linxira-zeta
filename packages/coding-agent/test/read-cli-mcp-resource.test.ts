@@ -15,7 +15,7 @@ describe("omp read MCP resources", () => {
 	let probePath: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-read-mcp-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-read-mcp-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
 		await Promise.all([fs.mkdir(projectDir), fs.mkdir(agentDir)]);

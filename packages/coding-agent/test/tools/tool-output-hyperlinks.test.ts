@@ -53,7 +53,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("links plain text and image read titles to the resolved filesystem path", async () => {
 		cfgTuiHyperlinks.override(settings, "always");
 		const theme = (await getThemeByName("dark"))!;
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-link-read-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-link-read-"));
 		try {
 			const textPath = path.join(dir, "task.txt");
 			fs.writeFileSync(textPath, "hello\nworld\n");
@@ -93,7 +93,7 @@ describe("tool output OSC 8 file:// hyperlinks", () => {
 	it("links the write header to the absolute path it wrote", async () => {
 		cfgTuiHyperlinks.override(settings, "always");
 		const theme = (await getThemeByName("dark"))!;
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-link-write-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-link-write-"));
 		try {
 			const filePath = path.join(dir, "out.ts");
 			const tool = new WriteTool(createTestToolSession(dir));

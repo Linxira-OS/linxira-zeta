@@ -64,7 +64,7 @@ describe("PluginManager.install with git sources", () => {
 	let pluginsPkgJson: string;
 
 	beforeEach(async () => {
-		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-git-"));
+		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-git-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
 		pluginsNodeModules = path.join(pluginsDir, "node_modules");
 		pluginsPkgJson = path.join(pluginsDir, "package.json");

@@ -37,9 +37,9 @@ let originalHome: string | undefined;
 
 beforeEach(async () => {
 	originalHome = process.env.HOME;
-	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-home-"));
-	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-agent-"));
-	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-cwd-"));
+	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-home-"));
+	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-agent-"));
+	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-cwd-"));
 	process.env.HOME = tempHome;
 	vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 	setAgentDir(tempAgentDir);

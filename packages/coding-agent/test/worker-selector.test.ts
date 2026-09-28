@@ -37,7 +37,7 @@ describe("worker selector dispatch", () => {
 				process.stdout.write("ENTRY=" + (workerHostEntry() ?? "null"));
 				process.exit(0);
 				`,
-				"__omp_worker_does_not_exist",
+				"__zeta_worker_does_not_exist",
 			],
 			cwd: repoRoot,
 			env: { ...process.env, PI_COMPILED: "true" },

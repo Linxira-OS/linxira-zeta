@@ -74,7 +74,7 @@ let tmpHome: string;
 let ompRegistryPath: string;
 
 beforeEach(() => {
-	tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-discovery-test-"));
+	tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-discovery-test-"));
 	ompRegistryPath = path.join(tmpHome, OMP_CONFIG_DIR, "plugins", "installed_plugins.json");
 	fs.mkdirSync(path.dirname(ompRegistryPath), { recursive: true });
 });

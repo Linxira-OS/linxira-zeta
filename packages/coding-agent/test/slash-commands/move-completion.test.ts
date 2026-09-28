@@ -10,7 +10,7 @@ describe("/move directory completion", () => {
 	const move = BUILTIN_SLASH_COMMANDS.find(c => c.name === "move");
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-move-completion-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-move-completion-"));
 		vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tempDir);
 	});
 

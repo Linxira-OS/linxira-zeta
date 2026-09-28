@@ -10,7 +10,7 @@ const PKG = "@linxiraos/zeta";
 const dirs: string[] = [];
 
 async function home(files: Record<string, string>): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-npm-registry-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-npm-registry-"));
 	dirs.push(dir);
 	for (const [name, content] of Object.entries(files)) await Bun.write(path.join(dir, name), content);
 	return dir;

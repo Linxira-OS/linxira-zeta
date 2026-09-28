@@ -30,7 +30,7 @@ describe("PluginManager.install npm idempotency", () => {
 	let pluginsPkgJson: string;
 
 	beforeEach(async () => {
-		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-npm-dedupe-"));
+		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-npm-dedupe-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
 		pluginsNodeModules = path.join(pluginsDir, "node_modules");
 		pluginsPkgJson = path.join(pluginsDir, "package.json");

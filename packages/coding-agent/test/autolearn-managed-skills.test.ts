@@ -19,7 +19,7 @@ describe("managed-skills primitives", () => {
 	let originalAgentDir: string;
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-managed-skills-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-managed-skills-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
 		setAgentDir(path.join(tempHome, ".zeta", "agent"));
 	});
@@ -133,7 +133,7 @@ describe("managed-skills primitives", () => {
 			await fs.mkdir(managedRoot, { recursive: true });
 			// Plant a symlink where the skill dir would live, pointing outside the
 			// isolated managed root; Bun.write would otherwise follow it.
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-escape-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-escape-"));
 			try {
 				await fs.symlink(
 					outside,
@@ -165,7 +165,7 @@ describe("managed-skills primitives", () => {
 		});
 
 		it("refuses to write when the managed-skills root itself is a symlink", async () => {
-			const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-realroot-"));
+			const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-realroot-"));
 			try {
 				await fs.mkdir(path.dirname(getManagedSkillsDir()), { recursive: true });
 				symlinkDirectorySync(realRoot, getManagedSkillsDir());
@@ -203,7 +203,7 @@ describe("managed-skills primitives", () => {
 
 		it.skipIf(process.platform === "win32")("refuses to update a SKILL.md that is a symlink", async () => {
 			await writeManagedSkill({ action: "create", name: "linky", description: "d", body: "real" });
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-link-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-link-"));
 			const target = path.join(outside, "target.md");
 			await Bun.write(target, "outside content");
 			try {
@@ -244,7 +244,7 @@ describe("managed-skills primitives", () => {
 		it("refuses to delete through a symlinked skill directory", async () => {
 			const managedRoot = getManagedSkillsDir();
 			await fs.mkdir(managedRoot, { recursive: true });
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-deltarget-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-deltarget-"));
 			await Bun.write(path.join(outside, "keep.txt"), "keep");
 			try {
 				await fs.symlink(

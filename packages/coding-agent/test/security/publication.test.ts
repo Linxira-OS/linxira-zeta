@@ -11,7 +11,7 @@ let store: SecurityStore;
 let plan: SecurityScanPlan;
 
 beforeEach(async () => {
-	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-security-publication-"));
+	temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-security-publication-"));
 	repositoryRoot = path.join(temporaryRoot, "repo");
 	await fs.mkdir(repositoryRoot);
 	store = await SecurityStore.open(repositoryRoot, { stateRoot: path.join(temporaryRoot, "state") });

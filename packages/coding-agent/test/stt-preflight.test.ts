@@ -37,7 +37,7 @@ describe("isSttModelCached completeness", () => {
 
 	beforeEach(async () => {
 		state = beginSettingsTest();
-		tmp = await fs.mkdtemp(path.join(os.tmpdir(), "omp-stt-cache-"));
+		tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-stt-cache-"));
 		setAgentDir(tmp);
 		cacheDir = getTinyModelsCacheDir();
 	});

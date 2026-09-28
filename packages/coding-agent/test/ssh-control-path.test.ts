@@ -139,7 +139,7 @@ describe("assertOwnerPrivateDir", () => {
 	});
 
 	const mkScratch = () => {
-		scratch = fs.mkdtempSync(path.join(os.tmpdir(), "omp-ssh-guard-"));
+		scratch = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-ssh-guard-"));
 		return scratch;
 	};
 

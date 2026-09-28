@@ -211,7 +211,7 @@ describe("global --profile flag", () => {
 	});
 
 	it("loads profile agent .env before command modules import pi-utils env", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-cli-env-"));
 		try {
 			const home = path.join(root, "home");
 			const configDir = ".zeta-profile-cli-env";
@@ -266,7 +266,7 @@ describe("global --profile flag", () => {
 	}, 30_000);
 
 	it("surfaces an invalid ZETA_PROFILE env as a clean error, not an import crash", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-bad-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-cli-env-bad-"));
 		try {
 			const home = path.join(root, "home");
 			await fs.mkdir(home, { recursive: true });

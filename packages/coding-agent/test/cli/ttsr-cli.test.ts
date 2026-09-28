@@ -14,7 +14,7 @@ import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 let testTmpDir: string;
 
 beforeAll(() => {
-	testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-ttsr-tests-"));
+	testTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-ttsr-tests-"));
 });
 
 afterAll(() => {

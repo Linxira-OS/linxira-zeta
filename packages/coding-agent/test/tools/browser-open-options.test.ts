@@ -81,7 +81,7 @@ describe("browser open options CDP helpers", () => {
 	});
 
 	it("loads existing init-script files and preserves inline source", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-init-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-init-test-"));
 		tempDirs.push(directory);
 		await Bun.write(path.join(directory, "init.js"), "globalThis.fromFile = true;");
 		expect(await resolveInitScriptSources(["init.js", "globalThis.inline = true;"], directory)).toEqual([
@@ -205,7 +205,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				});
 			},
 		});
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-browser-download-test-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-browser-download-test-"));
 		tempDirs.push(directory);
 		try {
 			const invoke = browserHost();

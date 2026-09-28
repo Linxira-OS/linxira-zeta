@@ -23,7 +23,7 @@ function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlug
 
 describe("plugin manifest path resolution", () => {
 	it("resolves a directory tools entry to its index, not the omp.extensions modules", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-manifest-paths-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-manifest-paths-"));
 		try {
 			// The package declares both extensions and a directory-based tool entry.
 			// `omp.extensions` and the sub-extension scan are extensions-specific and
@@ -50,7 +50,7 @@ describe("plugin manifest path resolution", () => {
 	});
 
 	it("reports an unresolved extension directory whose authoritative manifest entries are missing", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-manifest-paths-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-manifest-paths-"));
 		try {
 			const extensionsDir = path.join(dir, "extensions");
 			fs.mkdirSync(extensionsDir);

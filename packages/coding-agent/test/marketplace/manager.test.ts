@@ -21,7 +21,7 @@ import {
 let FIXTURE_DIR: string;
 
 function buildMinimalFixture(): string {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-fixture-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-fixture-"));
 	const pluginDir = path.join(root, "plugins", "hello-plugin");
 	fs.mkdirSync(path.join(pluginDir, ".claude-plugin"), { recursive: true });
 	fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
@@ -89,7 +89,7 @@ interface TestContext {
 }
 
 function createTestContext(): TestContext {
-	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-test-"));
+	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-test-"));
 
 	const dirs = {
 		mktRegistry: path.join(tmpDir, "marketplaces.json"),
@@ -635,7 +635,7 @@ describe("MarketplaceManager", () => {
 	});
 
 	it("installPlugin exposes marketplace package to the runtime loader", async () => {
-		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-home-"));
+		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-home-"));
 		try {
 			const pluginsDir = path.join(tmpHome, ".zeta", "plugins");
 			const manager = new MarketplaceManager({
@@ -734,7 +734,7 @@ describe("MarketplaceManager", () => {
 	});
 
 	it("installPlugin keeps marketplace packages out of OMP extension roots", async () => {
-		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-home-"));
+		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-home-"));
 		try {
 			const pluginsDir = path.join(tmpHome, ".zeta", "plugins");
 			const manager = new MarketplaceManager({
@@ -755,8 +755,8 @@ describe("MarketplaceManager", () => {
 	});
 
 	it("installPlugin with scope:project exposes the marketplace package to the runtime loader", async () => {
-		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-home-"));
-		const projectAnchor = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-project-"));
+		const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-home-"));
+		const projectAnchor = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-project-"));
 		try {
 			const userPluginsDir = path.join(tmpHome, ".zeta", "plugins");
 			const projectPluginsDir = path.join(projectAnchor, ".zeta", "plugins");
@@ -1097,7 +1097,7 @@ describe("MarketplaceManager", () => {
 	// ── Scope feature ────────────────────────────────────────────────────────
 
 	it("installPlugin scope:project when no projectInstalledRegistryPath → throws", async () => {
-		const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mgr-noproj-"));
+		const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mgr-noproj-"));
 		try {
 			const noProjectManager = new MarketplaceManager({
 				marketplacesRegistryPath: path.join(tmp, "marketplaces.json"),

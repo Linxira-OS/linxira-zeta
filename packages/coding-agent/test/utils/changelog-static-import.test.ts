@@ -88,7 +88,7 @@ describe("changelog static import resources", () => {
 	}, 30_000);
 
 	test("reads the emitted changelog asset when run outside the bundle directory", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-changelog-bundle-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-changelog-bundle-"));
 		try {
 			const bundleDir = path.join(tempDir, "bundle");
 			const unrelatedCwd = path.join(tempDir, "cwd");
@@ -122,7 +122,7 @@ describe("changelog static import resources", () => {
 	}, 30_000);
 
 	test("reads the emitted changelog asset from a compiled binary", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-changelog-compiled-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-changelog-compiled-"));
 		try {
 			const binaryPath = path.join(tempDir, "changelog-probe");
 			const unrelatedCwd = path.join(tempDir, "cwd");

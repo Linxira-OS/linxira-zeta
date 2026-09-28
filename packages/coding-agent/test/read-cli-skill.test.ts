@@ -13,7 +13,7 @@ describe("omp read skill resources", () => {
 	let agentDir: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-read-skill-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-read-skill-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
 		const skillDir = path.join(projectDir, ".zeta", "skills", "standalone-skill");

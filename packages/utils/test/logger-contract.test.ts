@@ -33,7 +33,7 @@ afterEach(async () => {
 });
 
 async function runScenario(scenario: string): Promise<ScenarioResult> {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-logger-contract-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-logger-contract-"));
 	roots.push(root);
 	const primaryDir = path.join(root, "primary");
 	const secondaryDir = path.join(root, "secondary");
@@ -338,7 +338,7 @@ describe("DailyRotateFile option and retention contract", () => {
 });
 
 test("root and direct source entry points expose identical public logger functions", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-logger-api-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-logger-api-"));
 	roots.push(root);
 	const outputPath = path.join(root, "result.json");
 	const proc = Bun.spawn([process.execPath, apiProbePath, outputPath], {

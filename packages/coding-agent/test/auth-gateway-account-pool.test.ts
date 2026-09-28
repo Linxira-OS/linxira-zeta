@@ -27,7 +27,7 @@ describe("auth-gateway account pool", () => {
 
 	beforeEach(async () => {
 		savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]])) as typeof savedEnv;
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-auth-gateway-pool-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-auth-gateway-pool-"));
 		process.env.PI_CODING_AGENT_DIR = tempDir;
 		setAgentDir(tempDir);
 		resetSettingsForTest();

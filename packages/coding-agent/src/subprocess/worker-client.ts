@@ -206,7 +206,7 @@ export function workerEnvFromParent(overlay?: Record<string, string>): Record<st
  * each addon carries its own `DT_RUNPATH`, an RPATH on our executable cannot
  * satisfy them, so the path has to come from the environment. On distros where
  * those libraries are outside the loader's default search path (NixOS) the
- * packaged build exports `OMP_NATIVE_LIBRARY_PATH` (see `nix/package.nix`).
+ * packaged build exports `ZETA_NATIVE_LIBRARY_PATH` (see `nix/package.nix`).
  * Appended last so an inherited `LD_LIBRARY_PATH` keeps precedence.
  * Pure for testability; see {@link inferenceWorkerEnv} for the spawn-time glue.
  */
@@ -215,7 +215,7 @@ export function nativeLibraryPathOverlay(
 	platform: NodeJS.Platform,
 ): Record<string, string> {
 	if (platform !== "linux") return {};
-	const native = env.OMP_NATIVE_LIBRARY_PATH;
+	const native = env.ZETA_NATIVE_LIBRARY_PATH;
 	if (typeof native !== "string" || native.length === 0) return {};
 	const inherited = env.LD_LIBRARY_PATH;
 	return { LD_LIBRARY_PATH: inherited ? `${inherited}:${native}` : native };

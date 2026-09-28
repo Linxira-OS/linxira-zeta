@@ -1590,6 +1590,11 @@ export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage
 // `../cli/args`, neither of which the barrel below forwards, so legacy
 // extensions importing either fail Bun's static export check during validation.
 export { CONFIG_DIR_NAME } from "@linxiraos/pi-utils";
+// Legacy pi package root exported these truncation defaults; pi-lean-ctx
+// imports them from the root. Our barrel never re-exported them, so the
+// shim (which stands in for the legacy root) must.
+export { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, truncateHead } from "@linxiraos/pi-tui/tools/streaming-output";
+export { getLanguageFromPath, highlightCode } from "@linxiraos/pi-tui/theme";
 export { parseArgs } from "../cli/args";
 
 export * from "../index";

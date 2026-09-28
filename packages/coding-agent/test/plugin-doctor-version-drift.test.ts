@@ -16,7 +16,7 @@ describe("PluginManager.doctor version drift", () => {
 	let pluginsNodeModules: string;
 
 	beforeEach(async () => {
-		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-drift-"));
+		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-drift-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
 		pluginsNodeModules = path.join(pluginsDir, "node_modules");
 		await fs.mkdir(pluginsNodeModules, { recursive: true });

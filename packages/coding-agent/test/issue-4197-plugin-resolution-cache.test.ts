@@ -26,7 +26,7 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 }
 
 test("getEnabledPlugins caches repeated discovery for the same cwd and home until plugin caches clear", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-cache-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-cache-"));
 	tempRoots.push(root);
 	const home = path.join(root, "home");
 	const cwd = path.join(root, "project");
@@ -63,7 +63,7 @@ test("getEnabledPlugins caches repeated discovery for the same cwd and home unti
 });
 
 test("legacy bare dependency rewrites cache fallback package resolution until plugin caches clear", async () => {
-	const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-cache-"));
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-legacy-cache-"));
 	tempRoots.push(root);
 	const importer = path.join(root, "extension", "src", "entry.ts");
 	const depRoot = path.join(root, "extension", "node_modules", "left-pad");

@@ -37,12 +37,12 @@ describe("disabledExtensions runtime filtering", () => {
 		originalZetaProfileEnv = process.env.ZETA_PROFILE;
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
-		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-home-"));
+		tempHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-disabled-ext-home-"));
 		process.env.HOME = tempHomeDir;
 		process.env.USERPROFILE = tempHomeDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHomeDir);
 		setAgentDir(path.join(tempHomeDir, ".zeta", "agent"));
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-ext-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-disabled-ext-"));
 		await fs.mkdir(path.join(tempDir, ".zeta"), { recursive: true });
 		await fs.writeFile(path.join(tempDir, ".zeta", "AGENTS.md"), "# project instructions\n");
 

@@ -42,8 +42,8 @@ describe("native user-level MCP discovery follows the active profile", () => {
 
 	beforeEach(async () => {
 		originalHome = process.env.HOME;
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-profile-home-"));
-		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-profile-project-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-profile-home-"));
+		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-profile-project-"));
 		process.env.HOME = tempHome;
 		vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 		clearFsCache();
@@ -66,7 +66,7 @@ describe("native user-level MCP discovery follows the active profile", () => {
 
 	test("active profile loads its own user server, not the default profile's", async () => {
 		// Active profile's agent dir (stand-in for ~/.zeta/profiles/<name>/agent).
-		const profileAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-profile-agent-"));
+		const profileAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-profile-agent-"));
 		setAgentDir(profileAgentDir);
 
 		// Decoy: the default profile's user file at the literal-home path the old

@@ -15,7 +15,7 @@ import { removeUserDataDir } from "@linxiraos/zeta/tools/browser/launch";
 import { type BrowserHandle, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
 
 async function makeProfileDir(): Promise<string> {
-	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));
+	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "zeta-chrome-profile-test-"));
 	await Bun.write(path.join(dir, "SingletonLock"), "lock");
 	await Bun.write(path.join(dir, "Default", "Preferences"), "{}");
 	return dir;

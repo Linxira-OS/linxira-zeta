@@ -17,8 +17,8 @@ describe("$which", () => {
 	});
 
 	it.skipIf(process.platform === "win32")("uses the current process PATH for each cached lookup", () => {
-		const firstDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-which-first-"));
-		const secondDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-which-second-"));
+		const firstDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-which-first-"));
+		const secondDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-which-second-"));
 		tempDirs.push(firstDir, secondDir);
 
 		const command = `omp-which-${process.pid}`;
@@ -44,7 +44,7 @@ describe("$which", () => {
 	it.skipIf(process.platform === "win32")(
 		"resolves absolute PATH entries while ignoring relative ones when requireAbsolutePaths is true",
 		() => {
-			const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-which-abs-"));
+			const testDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-which-abs-"));
 			tempDirs.push(testDir);
 
 			const command = `omp-test-cmd-${process.pid}`;
@@ -61,7 +61,7 @@ describe("$which", () => {
 	// host binaries would leak into the result.
 	it("honours a Bun.which stub installed after import", () => {
 		const command = `omp-which-stubbed-${process.pid}`;
-		const stubbedPath = path.join(os.tmpdir(), "omp-which-stub", command);
+		const stubbedPath = path.join(os.tmpdir(), "zeta-which-stub", command);
 		const whichSpy = vi.spyOn(Bun, "which").mockReturnValue(stubbedPath);
 
 		expect($which(command, { cache: WhichCachePolicy.Bypass })).toBe(stubbedPath);

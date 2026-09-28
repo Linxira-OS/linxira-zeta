@@ -14,7 +14,7 @@ const hasPtyHarness =
 
 describe.skipIf(!hasPtyHarness)("CLI initial-message title generation", () => {
 	test("generates a title for the positional initial message", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cli-title-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cli-title-"));
 		const agentDir = path.join(root, "agent");
 		const outputPath = path.join(root, "probe.json");
 		try {

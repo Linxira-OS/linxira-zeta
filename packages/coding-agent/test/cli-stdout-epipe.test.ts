@@ -21,7 +21,7 @@ const cliEntry = path.join(repoRoot, "packages/coding-agent/src/cli.ts");
 it.skipIf(process.platform === "win32")(
 	"exits 0 without a fatal dump when the stdout consumer closes early",
 	async () => {
-		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cli-epipe-"));
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cli-epipe-"));
 		const errPath = path.join(tmpDir, "omp.err");
 		try {
 			// `| true` closes the read end of the pipe immediately, so `omp`'s help

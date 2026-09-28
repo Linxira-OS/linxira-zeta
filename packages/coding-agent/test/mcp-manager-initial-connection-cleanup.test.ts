@@ -91,7 +91,7 @@ describe("MCPManager initial connection ownership", () => {
 	});
 
 	it("recovers tools after an initial handshake timeout", async () => {
-		const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-initial-recovery-"));
+		const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-initial-recovery-"));
 		const manager = new MCPManager(workDir);
 		const rebound = Promise.withResolvers<void>();
 		const statusTypes: string[] = [];

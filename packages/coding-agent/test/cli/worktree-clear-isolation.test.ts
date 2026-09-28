@@ -22,7 +22,7 @@ describe("worktree clear task-isolation ownership", () => {
 	let savedEnv: string | undefined;
 
 	beforeEach(async () => {
-		base = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-clear-"));
+		base = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-wt-clear-"));
 		savedEnv = process.env.OMP_WORKTREE_DIR;
 		delete process.env.OMP_WORKTREE_DIR;
 		setWorktreesDir(base);

@@ -180,7 +180,7 @@ if (!CHILD_FLAGS.some(flag => process.argv.includes(flag))) {
 		it.skipIf(process.platform === "win32")(
 			"runs cleanup and exits 0 when a registered stdout consumer closes early",
 			async () => {
-				const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-postmortem-stdout-"));
+				const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-postmortem-stdout-"));
 				const marker = path.join(tmpDir, "cleanup");
 				const errPath = path.join(tmpDir, "child.err");
 				try {

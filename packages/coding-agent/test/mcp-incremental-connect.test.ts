@@ -33,7 +33,7 @@ describe("MCP incremental connectServers", () => {
 	let manager: MCPManager;
 
 	beforeEach(() => {
-		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mcp-incremental-"));
+		workDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-incremental-"));
 		manager = new MCPManager(workDir);
 	});
 

@@ -27,7 +27,7 @@ describe("OpenCode MCP discovery", () => {
 	let tempDir = "";
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-opencode-mcp-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-opencode-mcp-"));
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 	});
 

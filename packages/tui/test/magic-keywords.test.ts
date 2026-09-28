@@ -14,7 +14,7 @@ beforeAll(async () => {
 
 describe("highlightMagicKeywords", () => {
 	it("paints keywords when the module-level theme is uninitialized", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-magic-keywords-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-magic-keywords-"));
 		try {
 			const script = [
 				`import { highlightMagicKeywords } from ${JSON.stringify(magicKeywordsPath)};`,

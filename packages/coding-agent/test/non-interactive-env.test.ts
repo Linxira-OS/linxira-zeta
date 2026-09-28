@@ -87,7 +87,7 @@ describe("buildNonInteractiveEnv", () => {
 });
 
 it("filters expanded dotenv values while preserving matching and empty launcher values", async () => {
-	const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "omp-env-"));
+	const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-env-"));
 	try {
 		await Bun.write(
 			path.join(tmp, ".env"),

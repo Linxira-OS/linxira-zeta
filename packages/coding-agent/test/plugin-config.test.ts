@@ -18,7 +18,7 @@ describe("plugin config", () => {
 	let lockfile: string;
 
 	beforeEach(async () => {
-		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-config-"));
+		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-config-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
 		lockfile = path.join(pluginsDir, "omp-plugins.lock.json");
 
