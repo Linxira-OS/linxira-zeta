@@ -33,7 +33,7 @@ process.env.OTEL_TRACES_EXPORTER = "console";
 process.env.OTEL_LOGS_EXPORTER = "console";
 process.env.OTEL_METRICS_EXPORTER = "console";
 
-await initTelemetryExport();
+await initTelemetryExport(true);
 const enabled = isTelemetryExportEnabled();
 
 const span = trace.getTracer("@linxiraos/pi-agent-core").startSpan("non-otlp-probe");

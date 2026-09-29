@@ -11,13 +11,8 @@ import { ToolAbortError } from "../../tools/tool-errors";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { safeSend as safeSendIpc } from "../../utils/ipc";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "../bridge-timeout";
-import {
-	attachSessionOwner,
-	EvalKernelNotRunningError,
-	resolveOwnerScopedSessionKey,
-	type SessionOwners,
-} from "../executor-base";
 import { getEnabledEvalPreludes } from "../preludes";
+import { attachSessionOwner, EvalKernelNotRunningError, type SessionOwners } from "../executor-base";
 import { shouldDetachKernel } from "../py/spawn-options";
 import { updateEvalState } from "../state";
 import type { EvalShadowCellSession } from "../speculation/cell-session";
@@ -127,7 +122,7 @@ const resettingSessions = new Map<string, Promise<void>>();
 // SIGILL/SIGSEGV. Callers that pass a larger per-cell budget still dominate.
 const WORKER_INIT_TIMEOUT_MS = 15_000;
 const WORKER_CLOSE_TIMEOUT_MS = 1_000;
-const JS_EVAL_PROCESS_ARG = "__zeta_worker_js_eval_process";
+const JS_EVAL_PROCESS_ARG = "__omp_worker_js_eval_process";
 const productionWorkerFactories: JsEvalWorkerFactories = {
 	spawnProcess: spawnJsProcess,
 	spawnWorker: spawnBunWorker,
@@ -152,7 +147,7 @@ export function setJsEvalWorkerFactoriesForTests(factories: JsEvalWorkerFactorie
 export async function executeInVmContext(options: {
 	sessionKey: string;
 	sessionId: string;
-	/** Logical owner identifier; scopes `reset` on shared contexts and retained-worker cleanup. */
+	/** Logical owner identifier; scopes retained-worker cleanup via {@link disposeVmContextsByOwner}. */
 	ownerId?: string;
 	cwd: string;
 	session: ToolSession;
@@ -167,13 +162,7 @@ export async function executeInVmContext(options: {
 	timeoutMs?: number;
 	runState: VmRunState;
 }): Promise<{ value: unknown }> {
-	const sessionKey = resolveOwnerScopedSessionKey({
-		baseKey: options.sessionKey,
-		ownerId: options.ownerId,
-		reset: options.reset === true,
-		hasSession: key => sessions.has(key) || startingSessions.has(key),
-		getOwners: key => sessions.get(key) ?? startingSessions.get(key),
-	});
+	const { sessionKey } = options;
 	if (options.reset) {
 		// Coalesce concurrent resets: an existing in-flight reset already
 		// produces a fresh context, so a follow-up `reset: true` cell should
@@ -232,20 +221,11 @@ export async function invokeJsTool(
 	request: JsToolRequest,
 	options: {
 		sessionKey: string;
-		ownerId?: string;
 		session: ToolSession;
 		signal?: AbortSignal;
 	},
 ): Promise<EvalToolInvokeResult | { ok: true; tools: EvalToolDescriptor[]; missing: string[] }> {
-	const sessionKey = resolveOwnerScopedSessionKey({
-		baseKey: options.sessionKey,
-		ownerId: options.ownerId,
-		reset: false,
-		hasSession: key => sessions.has(key) || startingSessions.has(key),
-		getOwners: key => sessions.get(key) ?? startingSessions.get(key),
-	});
-	const session = sessions.get(sessionKey);
-	// biome-ignore lint/complexity/useOptionalChain: mixed null/enum guard reads clearer flat
+	const session = sessions.get(options.sessionKey);
 	if (!session || session.state !== "alive") throw new EvalKernelNotRunningError("JavaScript");
 
 	const runId = `tool-${crypto.randomUUID()}`;
@@ -429,8 +409,8 @@ export async function disposeAllVmContexts(): Promise<void> {
 }
 
 /**
- * Shut down retained JS contexts owned solely by `ownerId` (e.g. a subagent's
- * private fork); shared contexts just drop the owner registration.
+ * Shut down retained JS contexts owned solely by `ownerId`; contexts with other
+ * owners (e.g. an in-memory session keyed only by cwd) just drop the registration.
  */
 export async function disposeVmContextsByOwner(ownerId: string): Promise<void> {
 	const toKill: JsSession[] = [];
@@ -473,7 +453,7 @@ export async function disposeVmContextsByOwner(ownerId: string): Promise<void> {
  * fallback). Catches silent process-load and init-message regressions
  * that otherwise strand every cell on the init timeout in a distribution build —
  * the failure mode that motivated `installWorkerInbox`. Wired into
- * `zeta --smoke-test` so binary / source / tarball installs all exercise it.
+ * `omp --smoke-test` so binary / source / tarball installs all exercise it.
  */
 export async function smokeTestJsEvalWorker(): Promise<void> {
 	const worker = spawnJsWorker();
@@ -1008,7 +988,7 @@ function spawnBunWorker(): JsEvalWorkerHandle {
 	try {
 		const hostEntry = workerHostEntry();
 		const worker = hostEntry
-			? new Worker(hostEntry, { type: "module", argv: ["__zeta_worker_js_eval"] })
+			? new Worker(hostEntry, { type: "module", argv: ["__omp_worker_js_eval"] })
 			: new Worker(new URL("./worker-entry.ts", import.meta.url).href, { type: "module" });
 		return wrapBunWorker(worker);
 	} catch (error) {

@@ -8,7 +8,7 @@
  *
  * The fix has two halves, both pinned by this test:
  *   1. The loader stages `nativeDir/<filename>.node` → `versionedDir/<filename>.node`
- *      (per-package-version cache under `~/.zeta/natives/<version>/`) so the
+ *      (per-package-version cache under `~/.omp/natives/<version>/`) so the
  *      running process holds its OS-level handle on a path bun is never asked
  *      to overwrite. Gated to Windows + node_modules installs + non-compiled
  *      mode by `shouldStageNodeModulesAddon`.
@@ -33,8 +33,8 @@ import {
 } from "../native/loader-state.js";
 import packageJson from "../package.json" with { type: "json" };
 
-const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@linxiraos\\pi-natives\\native";
-const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\zeta\\packages\\natives\\native";
+const winNodeModulesNativeDir = "C:\\Users\\Admin\\node_modules\\@oh-my-pi\\pi-natives\\native";
+const winWorkspaceNativeDir = "C:\\Users\\Admin\\dev\\oh-my-pi\\packages\\natives\\native";
 const posixNodeModulesNativeDir = "/home/u/proj/node_modules/@linxiraos/pi-natives/native";
 
 describe("windows native addon staging", () => {
@@ -87,7 +87,7 @@ describe("windows native addon staging", () => {
 	});
 
 	it("prepends versionedDir candidates ahead of node_modules when staging on Windows", () => {
-		const versionedDir = "C:\\Users\\Admin\\.zeta\\natives\\15.0.1";
+		const versionedDir = "C:\\Users\\Admin\\.omp\\natives\\15.0.1";
 		const userDataDir = "C:\\Users\\Admin\\AppData\\Local\\omp";
 		const candidates = resolveLoaderCandidates({
 			addonFilenames: getAddonFilenames({ tag: "win32-x64", arch: "x64", variant: "baseline" }),
@@ -172,32 +172,12 @@ describe("windows native addon staging", () => {
 		}
 	});
 
-	it("falls back to the node_modules-only candidate list when staging is off", () => {
-		// Mirrors the non-Windows / workspace-dev path: same behavior as before
-		// the staging feature was introduced.
-		const versionedDir = "/home/u/.zeta/natives/15.0.1";
-		const candidates = resolveLoaderCandidates({
-			addonFilenames: getAddonFilenames({ tag: "linux-x64", arch: "x64", variant: "baseline" }),
-			isCompiledBinary: false,
-			stageFromNodeModules: false,
-			nativeDir: posixNodeModulesNativeDir,
-			execDir: "/usr/bin",
-			versionedDir,
-			userDataDir: "/home/u/.local/bin",
-		});
-
-		const versionedBaseline = path.join(versionedDir, "pi_natives.linux-x64-baseline.node");
-		const nodeModulesBaseline = path.join(posixNodeModulesNativeDir, "pi_natives.linux-x64-baseline.node");
-		expect(candidates).not.toContain(versionedBaseline);
-		expect(candidates).toContain(nodeModulesBaseline);
-	});
-
 	it("removes only older version directories after the current native version loads", async () => {
-		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-natives-cache-"));
+		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-natives-cache-"));
 		const currentMajor = Number.parseInt(packageJson.version, 10);
 		const futureVersion = `${currentMajor + 1}.0.0`;
-		const staleVersion = "0.5.0";
-		const freshVersion = "0.9.0";
+		const staleVersion = "15.10.11";
+		const freshVersion = "15.10.12";
 		try {
 			await fs.mkdir(path.join(nativesDir, staleVersion));
 			await fs.mkdir(path.join(nativesDir, freshVersion));

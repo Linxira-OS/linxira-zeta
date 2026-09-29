@@ -1,9 +1,10 @@
 import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { logger, untilAborted } from "@linxiraos/pi-utils";
+import { logger, prompt, untilAborted } from "@linxiraos/pi-utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";
 import { ensureBankExists } from "../hindsight/bank";
 import reflectDescription from "../prompts/tools/reflect.md" with { type: "text" };
+import { sessionMemoryToolRefs } from "../memory-backend/tool-names";
 import type { ToolSession } from ".";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
@@ -19,7 +20,11 @@ export class MemoryReflectTool implements AgentTool<typeof memoryReflectSchema> 
 	readonly name = "reflect";
 	readonly approval = "read" as const;
 	readonly label = "Reflect";
-	readonly description = reflectDescription;
+	get description(): string {
+		return prompt.render(reflectDescription, {
+			toolRefs: sessionMemoryToolRefs(this.session),
+		});
+	}
 	readonly parameters = memoryReflectSchema;
 	readonly strict = true;
 	readonly loadMode = "discoverable";

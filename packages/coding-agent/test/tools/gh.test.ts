@@ -3,11 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ToolCall } from "@linxiraos/pi-ai";
-import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import type { VcsGitRepo } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
@@ -22,6 +18,9 @@ import { parseIssueUrl, parsePullRequestUrl } from "@linxiraos/zeta/tools/gh-com
 import { github } from "@linxiraos/zeta/utils/github";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { getAgentDir, hashPath, normalizePathForComparison, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const TINY_PNG_BASE64 =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
@@ -187,7 +186,7 @@ async function createPrFixture(): Promise<PrFixture> {
 /**
  * Stub `os.homedir()` AND rebuild the cached `dirs` resolver in pi-utils so
  * `getWorktreesDir()` resolves under an isolated temp home instead of the
- * user's real `~/.zeta/wt`. Returns the temp home and a cleanup hook.
+ * user's real `~/.omp/wt`. Returns the temp home and a cleanup hook.
  */
 interface TempHome {
 	home: string;
@@ -198,7 +197,7 @@ async function setupTempHome(): Promise<{ home: string; cleanup: () => Promise<v
 	const home = await fs.mkdtemp(path.join(os.tmpdir(), "gh-pr-tool-home-"));
 	vi.spyOn(os, "homedir").mockReturnValue(home);
 	// Clear XDG_*_HOME so the rebuilt resolver routes `dirs.rootSubdir("wt", "data")`
-	// through the spied homedir instead of `$XDG_DATA_HOME/zeta/wt` (CI sets these).
+	// through the spied homedir instead of `$XDG_DATA_HOME/omp/wt` (CI sets these).
 	const xdgKeys = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 	const xdgPrevious: Partial<Record<(typeof xdgKeys)[number], string | undefined>> = {};
 	for (const key of xdgKeys) {
@@ -1201,46 +1200,12 @@ describe("github tool", () => {
 				// Existing URL is preserved — we never overwrote it.
 				expect(runGit(fixture.repoRoot, ["remote", "get-url", "forksrc"])).toBe(fixture.forkBare);
 			});
-			it("does not depend on localized git remote-add stderr for existing remotes", async () => {
-				// The shim is a bash script resolved via `which`; neither exists on Windows.
-				if (process.platform === "win32") return;
-				const originalPath = process.env.PATH;
-				const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-fake-git-"));
-				const realGitResult = Bun.spawnSync(["which", "git"], { stdout: "pipe", stderr: "pipe" });
-				expect(realGitResult.exitCode).toBe(0);
-				const realGit = new TextDecoder().decode(realGitResult.stdout).trim();
-				const fakeGit = path.join(fakeBin, "git");
-				await fs.writeFile(
-					fakeGit,
-					`#!/usr/bin/env bash
-while [[ "$1" == "-c" ]]; do shift 2; done
-if [[ "$1" == "remote" && "$2" == "add" && "$3" == "forksrc" ]]; then
-	echo "本地化错误：远程 forksrc 已经存在。" >&2
-	exit 3
-fi
-exec ${JSON.stringify(realGit)} "$@"
-`,
-				);
-				await fs.chmod(fakeGit, 0o755);
-
-				try {
-					process.env.PATH = `${fakeBin}${path.delimiter}${originalPath ?? ""}`;
-					await vcs.requireGit(fixture.repoRoot).remoteAdd("forksrc", fixture.forkBare);
-				} finally {
-					if (originalPath === undefined) {
-						delete process.env.PATH;
-					} else {
-						process.env.PATH = originalPath;
-					}
-					await removeWithRetries(fakeBin);
-				}
-			});
 		});
 	});
 
 	it("pins gh messages while preserving UTF-8 character locale", async () => {
 		if (process.platform === "win32") return;
-		const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-fake-gh-locale-"));
+		const fakeBin = await fs.mkdtemp(path.join(os.tmpdir(), "omp-fake-gh-locale-"));
 		const fakeGh = path.join(fakeBin, "gh");
 		await fs.writeFile(
 			fakeGh,
@@ -1413,15 +1378,6 @@ echo ok
 				);
 			});
 		});
-	});
-
-	it("exposes a flat op-based schema without legacy run_watch parameters", () => {
-		const tool = new GithubTool(createSession());
-		const wire = toolWireSchema(tool);
-		const properties = wire.properties as Record<string, unknown>;
-		expect(properties.op).toBeDefined();
-		expect(properties.interval).toBeUndefined();
-		expect(properties.grace).toBeUndefined();
 	});
 
 	it("tails failed job logs inline and saves the full failed-job logs as an artifact", async () => {

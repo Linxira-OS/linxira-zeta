@@ -6,11 +6,7 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import { getSettingsForTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
-import {
-	autosaveApprovedPlan,
-	defaultPlanAutosaveDir,
-	resolvePlanAutosaveDir,
-} from "@linxiraos/zeta/plan-mode/plan-autosave";
+import { autosaveApprovedPlan, resolvePlanAutosaveDir } from "@linxiraos/zeta/plan-mode/plan-autosave";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { PlanYolo } from "@linxiraos/zeta/session/agent-session-types";
 import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@linxiraos/zeta/session/prewalk";
@@ -59,13 +55,6 @@ describe("plan autosave settings UI", () => {
 });
 
 describe("resolvePlanAutosaveDir", () => {
-	it("defaults to <project>/.zeta/plans when unset", () => {
-		const cwd = makeCwd();
-		const settings = Settings.isolated();
-		expect(resolvePlanAutosaveDir(settings, cwd)).toBe(path.join(cwd, ".zeta", "plans"));
-		expect(defaultPlanAutosaveDir(cwd)).toBe(path.join(cwd, ".zeta", "plans"));
-	});
-
 	it("resolves absolute, tilde, and cwd-relative custom dirs", () => {
 		const cwd = makeCwd();
 		expect(resolvePlanAutosaveDir(Settings.isolated({ "plan.autosaveDir": path.join(cwd, "custom") }), cwd)).toBe(

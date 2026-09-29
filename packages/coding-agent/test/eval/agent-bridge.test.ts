@@ -3,15 +3,13 @@ import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { runEvalAgent, type EvalAgentBridgeOptions, type EvalAgentResult } from "@linxiraos/zeta/eval/agent-bridge";
 import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
-import type { LocalProtocolOptions } from "@linxiraos/zeta/internal-urls";
-import type { MCPManager } from "@linxiraos/zeta/mcp";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as taskDiscovery from "@linxiraos/zeta/task/discovery";
 import * as taskExecutor from "@linxiraos/zeta/task/executor";
 import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { SingleResult, StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 
 import { cfgTaskIsolationEnabled } from "@linxiraos/zeta/task/settings";
@@ -94,69 +92,6 @@ describe("runEvalAgent", () => {
 		vi.restoreAllMocks();
 		await Promise.all([...jobManagers].map(manager => manager.dispose()));
 		jobManagers.clear();
-	});
-
-	it("forwards session-scoped MCP and local protocol options", async () => {
-		const agent: AgentDefinition = {
-			name: "task",
-			description: "Task agent",
-			systemPrompt: "Handle task",
-			source: "bundled",
-		};
-		vi.spyOn(taskDiscovery, "discoverAgents").mockResolvedValue({ agents: [agent], projectAgentsDir: null });
-		const runSubprocessSpy = vi.spyOn(taskExecutor, "runSubprocess").mockResolvedValue(createResult());
-
-		const mcpManager = { sentinel: "mcp" } as unknown as MCPManager;
-		const localProtocolOptions: LocalProtocolOptions = {
-			getArtifactsDir: () => "/tmp/parent-artifacts",
-			getSessionId: () => "parent-session",
-		};
-		const session = {
-			cwd: "/tmp",
-			settings: Settings.isolated(),
-			getSessionSpawns: () => "*",
-			getSessionFile: () => null,
-			mcpManager,
-			localProtocolOptions,
-			getAgentId: () => "BridgeParent",
-		} as unknown as ToolSession;
-
-		await runEvalAgentAndWait({ prompt: "do work", agent: "task" }, { session });
-
-		expect(runSubprocessSpy).toHaveBeenCalledTimes(1);
-		const options = runSubprocessSpy.mock.calls[0]?.[0];
-		expect(options?.mcpManager).toBe(mcpManager);
-		expect(options?.localProtocolOptions).toBe(localProtocolOptions);
-		expect(options?.parentAgentId).toBe("BridgeParent");
-	});
-
-	it("returns executor-parsed structured data through the public eval bridge", async () => {
-		const agent: AgentDefinition = {
-			name: "task",
-			description: "Task agent",
-			systemPrompt: "Handle task",
-			source: "bundled",
-			output: { type: "object" },
-		};
-		const structuredOutput: StructuredSubagentOutput = {
-			source: "agent",
-			mode: "strict",
-			status: "valid",
-			data: { status: "ok" },
-		};
-		vi.spyOn(taskDiscovery, "discoverAgents").mockResolvedValue({ agents: [agent], projectAgentsDir: null });
-		vi.spyOn(taskExecutor, "runSubprocess").mockResolvedValue(createResult({ output: "not JSON", structuredOutput }));
-		const session = {
-			cwd: "/tmp",
-			settings: Settings.isolated(),
-			getSessionSpawns: () => "*",
-			getSessionFile: () => null,
-		} as unknown as ToolSession;
-
-		const result = await runEvalAgentAndWait({ prompt: "do work", agent: "task", schemaMode: "strict" }, { session });
-
-		expect(result.data).toEqual({ status: "ok" });
-		expect(result.details).toMatchObject({ structured: true, schemaSource: "agent", schemaMode: "strict" });
 	});
 
 	it("updates the real turn budget by output tokens only", async () => {

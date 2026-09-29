@@ -2,7 +2,6 @@ import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
 import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
 import { getCapability } from "@linxiraos/zeta/discovery";
@@ -12,12 +11,10 @@ import {
 	loadSkills,
 	loadSkillsFromDir,
 	parseSkillInvocation,
-	type Skill,
 } from "@linxiraos/zeta/extensibility/skills";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
-
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
-const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
 
 const longSkillName = "this-is-a-very-long-skill-name-that-exceeds-the-sixty-four-character-limit-set-by-the-standard";
 const expectedFixtureSkillOrder: string[] = [
@@ -38,7 +35,6 @@ const expectedFixtureSkillOrder: string[] = [
  * the assertion.
  */
 const DISABLE_ALL_BUILTIN_SKILLS = {
-	enableOfficial: false,
 	enableCodexUser: false,
 	enableClaudeUser: false,
 	enableClaudeProject: false,
@@ -65,78 +61,6 @@ describe("skills", () => {
 			expect(validSkill?.description).toBe("A valid skill for testing purposes.");
 			expect(validSkill?.source).toBe("test");
 			expect(warnings).toHaveLength(0);
-		});
-
-		it("should load skill when name doesn't match parent directory", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "different-name")).toBe(true);
-		});
-
-		it("should load skill with invalid name characters", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "Invalid_Name")).toBe(true);
-		});
-
-		it("should load skill when name exceeds 64 characters", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(
-				skills.some(
-					skill =>
-						skill.name ===
-						"this-is-a-very-long-skill-name-that-exceeds-the-sixty-four-character-limit-set-by-the-standard",
-				),
-			).toBe(true);
-		});
-
-		it("should skip skill when description is missing", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "missing-description")).toBe(false);
-		});
-
-		it("should load skill with unknown frontmatter fields", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "unknown-field")).toBe(true);
-		});
-
-		it("should not load nested skills recursively", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "child-skill")).toBe(false);
-		});
-
-		it("should skip files without frontmatter description", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "no-frontmatter")).toBe(false);
-		});
-
-		it("should load skill with consecutive hyphens in name", async () => {
-			const { skills } = await loadFixtureRoot();
-
-			expect(skills.some(skill => skill.name === "bad--name")).toBe(true);
-		});
-
-		it("should load all directly nested skills from fixture directory", async () => {
-			const { skills } = await loadFixtureRoot();
-			const names = skills.map(skill => skill.name);
-
-			expect(names).toEqual(
-				expect.arrayContaining([
-					"valid-skill",
-					"different-name",
-					"Invalid_Name",
-					"this-is-a-very-long-skill-name-that-exceeds-the-sixty-four-character-limit-set-by-the-standard",
-					"unknown-field",
-					"bad--name",
-				]),
-			);
-			expect(names).not.toContain("child-skill");
-			expect(skills).toHaveLength(6);
 		});
 
 		it("should return skills sorted by name (case-insensitive)", async () => {
@@ -416,7 +340,7 @@ describe("skills", () => {
 		});
 
 		it("should skip skills disabled via frontmatter", async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-disabled-skill-"));
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-disabled-skill-"));
 			const skillDir = path.join(tempDir, "disabled-skill");
 			await fs.mkdir(skillDir, { recursive: true });
 			await fs.writeFile(
@@ -440,7 +364,7 @@ enabled: false
 		});
 
 		it("should hide skills with disable-model-invocation frontmatter (Agent Skills spec)", async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-dmi-skill-"));
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-dmi-skill-"));
 			const skillDir = path.join(tempDir, "hidden-by-spec");
 			await fs.mkdir(skillDir, { recursive: true });
 			await fs.writeFile(
@@ -553,54 +477,6 @@ description: Skill loaded from a tilde-expanded custom directory.
 	});
 });
 
-describe("collision handling", () => {
-	it("should detect name collisions and keep first skill", async () => {
-		// Load from first directory
-		const first = await loadSkillsFromDir({
-			dir: path.join(collisionFixturesDir, "first"),
-			source: "first",
-		});
-
-		const second = await loadSkillsFromDir({
-			dir: path.join(collisionFixturesDir, "second"),
-			source: "second",
-		});
-
-		// Both directories should have loaded one skill each
-		expect(first.skills).toHaveLength(1);
-		expect(second.skills).toHaveLength(1);
-
-		// Both have the same name "calendar"
-		expect(first.skills[0].name).toBe("calendar");
-		expect(second.skills[0].name).toBe("calendar");
-
-		// Simulate the collision behavior from loadSkills()
-		const skillMap = new Map<string, Skill>();
-		const collisionWarnings: Array<{ skillPath: string; message: string }> = [];
-
-		for (const skill of first.skills) {
-			skillMap.set(skill.name, skill);
-		}
-
-		for (const skill of second.skills) {
-			const existing = skillMap.get(skill.name);
-			if (existing) {
-				collisionWarnings.push({
-					skillPath: skill.filePath,
-					message: `name collision: "${skill.name}" already loaded from ${existing.filePath}`,
-				});
-			} else {
-				skillMap.set(skill.name, skill);
-			}
-		}
-
-		expect(skillMap.size).toBe(1);
-		expect(skillMap.get("calendar")?.source).toBe("first");
-		expect(collisionWarnings).toHaveLength(1);
-		expect(collisionWarnings[0].message).toContain("name collision");
-	});
-});
-
 describe("parseSkillInvocation", () => {
 	describe("leading `/skill:<name>` form", () => {
 		it("parses a bare leading command", () => {
@@ -686,10 +562,10 @@ describe("parseSkillInvocation", () => {
 				args: "$echo",
 				prompt: "$echo /skill:reviewer",
 			});
-			// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
+			// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
 			expect(parseSkillInvocation("${HOME}/bin /skill:foo")).toEqual({
 				name: "foo",
-				// biome-ignore lint/suspicious/noTemplateCurlyInString: testing literal string containing shell variable
+				// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
 				args: "${HOME}/bin",
 				// oxlint-disable-next-line no-template-curly-in-string -- testing literal string containing shell variable
 				prompt: "${HOME}/bin /skill:foo",

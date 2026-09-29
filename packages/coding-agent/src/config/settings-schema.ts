@@ -14,7 +14,7 @@ import {
 	getConfiguredThinkingLevelMetadata,
 	getThinkingLevelMetadata,
 } from "@linxiraos/pi-tui/thinking";
-import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search";
+import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search-types";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire/stream";
 import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";

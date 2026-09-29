@@ -1,18 +1,17 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
+import { type } from "@linxiraos/pi-omptype";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
 	generateHandoff,
 	generateHandoffFromContext,
-	renderHandoffPrompt,
 } from "@linxiraos/pi-agent-core/compaction";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { AssistantMessage, Model, ToolCall } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { Effort } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
 
 function createAssistantMessage(content: AssistantMessage["content"]): AssistantMessage {
 	return {
@@ -100,11 +99,6 @@ describe("handoff summary injection", () => {
 });
 
 describe("handoff helpers", () => {
-	test("renders custom focus into the handoff prompt", () => {
-		const rendered = renderHandoffPrompt("preserve failing test name");
-		expect(rendered).toContain("preserve failing test name");
-	});
-
 	test("generates handoff with the live cache prefix and tool use disabled", async () => {
 		const strayToolCall: ToolCall = { type: "toolCall", id: "call_1", name: "read", arguments: {} };
 		const completeSimpleSpy = vi

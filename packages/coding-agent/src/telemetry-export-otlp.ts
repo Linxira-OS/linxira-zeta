@@ -42,7 +42,7 @@ import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import type { TelemetrySignalConfig } from "./telemetry-export";
 
 /**
- * Periodic flush interval. A long-lived `zeta` process (the ACP server is
+ * Periodic flush interval. A long-lived `omp` process (the ACP server is
  * spawned once and reused across many turns) would otherwise hold finished
  * telemetry until a batch window elapses or the process exits.
  */
@@ -150,13 +150,7 @@ export async function registerProviders(signalConfig: TelemetrySignalConfig): Pr
 		logs.setGlobalLoggerProvider(logProvider);
 		otelLogger = logProvider.getLogger("@linxiraos/zeta");
 		unregisterLogSink = logger.registerLogSink(event => {
-			emitOtelLog(
-				event.level,
-				event.message,
-				logAttributesFromContext(event.context),
-				"pi.zeta.log",
-				event.timestamp,
-			);
+			emitOtelLog(event.level, event.message, logAttributesFromContext(event.context), "omp.log", event.timestamp);
 		});
 	}
 
@@ -193,35 +187,35 @@ class AgentMetricRecorder {
 			description: "Token usage reported by GenAI chat calls.",
 			unit: "{token}",
 		});
-		this.#chatCostUsd = meter.createCounter("pi.zeta.agent.chat.cost.estimated_usd", {
+		this.#chatCostUsd = meter.createCounter("omp.agent.chat.cost.estimated_usd", {
 			description: "Estimated USD cost for completed chat calls.",
 			unit: "USD",
 		});
-		this.#runs = meter.createCounter("pi.zeta.agent.runs", {
+		this.#runs = meter.createCounter("omp.agent.runs", {
 			description: "Completed agent runs.",
 			unit: "{run}",
 		});
-		this.#steps = meter.createCounter("pi.zeta.agent.steps", {
+		this.#steps = meter.createCounter("omp.agent.steps", {
 			description: "Agent loop steps completed inside a run.",
 			unit: "{step}",
 		});
-		this.#chatCalls = meter.createCounter("pi.zeta.agent.chat.calls", {
+		this.#chatCalls = meter.createCounter("omp.agent.chat.calls", {
 			description: "Chat calls completed inside agent runs.",
 			unit: "{call}",
 		});
-		this.#chatDurationMs = meter.createHistogram("pi.zeta.agent.chat.duration", {
+		this.#chatDurationMs = meter.createHistogram("omp.agent.chat.duration", {
 			description: "Total chat latency observed in an agent run.",
 			unit: "ms",
 		});
-		this.#toolCalls = meter.createCounter("pi.zeta.agent.tool.calls", {
+		this.#toolCalls = meter.createCounter("omp.agent.tool.calls", {
 			description: "Tool calls completed inside agent runs.",
 			unit: "{call}",
 		});
-		this.#toolDurationMs = meter.createHistogram("pi.zeta.agent.tool.duration", {
+		this.#toolDurationMs = meter.createHistogram("omp.agent.tool.duration", {
 			description: "Total tool latency observed in an agent run.",
 			unit: "ms",
 		});
-		this.#errors = meter.createCounter("pi.zeta.agent.errors", {
+		this.#errors = meter.createCounter("omp.agent.errors", {
 			description: "Errors observed in chat and tool execution.",
 			unit: "{error}",
 		});
@@ -229,12 +223,12 @@ class AgentMetricRecorder {
 
 	recordChatUsage(event: ChatUsageEvent): void {
 		const baseAttrs = metricAttributes({
-			"gen_ai.operation.name": "chat",
+			"gen_ai.operation.name": event.operation,
 			"gen_ai.provider.name": event.provider,
 			"gen_ai.request.model": event.model,
 			"gen_ai.response.service_tier": event.serviceTier,
-			"pi.gen_ai.agent.id": event.agent?.id,
-			"pi.gen_ai.agent.name": event.agent?.name,
+			"omp.gen_ai.agent.id": event.agent?.id,
+			"omp.gen_ai.agent.name": event.agent?.name,
 		});
 
 		this.#recordToken(event.usage.inputTokens, baseAttrs, "input");
@@ -251,11 +245,11 @@ class AgentMetricRecorder {
 
 	recordRun(summary: AgentRunSummary, coverage: AgentRunCoverage): void {
 		const runAttrs = metricAttributes({
-			"pi.zeta.agent.models_used.count": coverage.modelsUsed.length,
-			"pi.zeta.agent.providers_used.count": coverage.providersUsed.length,
-			"pi.zeta.agent.tools_available.count": coverage.toolsAvailable.length,
-			"pi.zeta.agent.tools_invoked.count": coverage.toolsInvoked.length,
-			"pi.zeta.agent.tools_unused.count": coverage.toolsUnused.length,
+			"omp.agent.models_used.count": coverage.modelsUsed.length,
+			"omp.agent.providers_used.count": coverage.providersUsed.length,
+			"omp.agent.tools_available.count": coverage.toolsAvailable.length,
+			"omp.agent.tools_invoked.count": coverage.toolsInvoked.length,
+			"omp.agent.tools_unused.count": coverage.toolsUnused.length,
 		});
 
 		this.#runs.add(1, runAttrs);
@@ -273,8 +267,7 @@ class AgentMetricRecorder {
 			if (counters.totalLatencyMs > 0) this.#toolDurationMs.record(counters.totalLatencyMs, toolAttrs);
 			for (const status of TOOL_STATUSES) {
 				const count = counters[status];
-				if (count > 0)
-					this.#toolCalls.add(count, metricAttributes({ ...toolAttrs, "pi.zeta.tool.status": status }));
+				if (count > 0) this.#toolCalls.add(count, metricAttributes({ ...toolAttrs, "omp.tool.status": status }));
 			}
 		}
 		for (const errorType in summary.errors.byType) {
@@ -309,33 +302,33 @@ function emitRunSummaryLog(summary: AgentRunSummary, coverage: AgentRunCoverage)
 		"info",
 		"agent run completed",
 		{
-			"pi.zeta.agent.step_count": summary.stepCount,
-			"pi.zeta.agent.chats.total": summary.chats.total,
-			"pi.zeta.agent.chats.total_latency_ms": summary.chats.totalLatencyMs,
-			"pi.zeta.agent.tools.total": summary.tools.total,
-			"pi.zeta.agent.tools.ok": summary.tools.ok,
-			"pi.zeta.agent.tools.error": summary.tools.error,
-			"pi.zeta.agent.tools.skipped": summary.tools.skipped,
-			"pi.zeta.agent.tools.blocked": summary.tools.blocked,
-			"pi.zeta.agent.tools.timeout": summary.tools.timeout,
-			"pi.zeta.agent.tools.aborted": summary.tools.aborted,
-			"pi.zeta.agent.tools.total_latency_ms": summary.tools.totalLatencyMs,
-			"pi.zeta.agent.usage.input_tokens": summary.usage.inputTokens,
-			"pi.zeta.agent.usage.output_tokens": summary.usage.outputTokens,
-			"pi.zeta.agent.usage.cached_input_tokens": summary.usage.cachedInputTokens,
-			"pi.zeta.agent.usage.cache_write_tokens": summary.usage.cacheWriteTokens,
-			"pi.zeta.agent.usage.reasoning_output_tokens": summary.usage.reasoningOutputTokens,
-			"pi.zeta.agent.usage.total_tokens": summary.usage.totalTokens,
-			"pi.zeta.agent.cost.estimated_usd": summary.cost.estimatedUsd,
-			"pi.zeta.agent.cost.unavailable_reasons": summary.cost.unavailableReasons.join(","),
-			"pi.zeta.agent.errors.total": summary.errors.total,
-			"pi.zeta.agent.coverage.tools_available": coverage.toolsAvailable.join(","),
-			"pi.zeta.agent.coverage.tools_invoked": coverage.toolsInvoked.join(","),
-			"pi.zeta.agent.coverage.tools_unused": coverage.toolsUnused.join(","),
-			"pi.zeta.agent.coverage.models_used": coverage.modelsUsed.join(","),
-			"pi.zeta.agent.coverage.providers_used": coverage.providersUsed.join(","),
+			"omp.agent.step_count": summary.stepCount,
+			"omp.agent.chats.total": summary.chats.total,
+			"omp.agent.chats.total_latency_ms": summary.chats.totalLatencyMs,
+			"omp.agent.tools.total": summary.tools.total,
+			"omp.agent.tools.ok": summary.tools.ok,
+			"omp.agent.tools.error": summary.tools.error,
+			"omp.agent.tools.skipped": summary.tools.skipped,
+			"omp.agent.tools.blocked": summary.tools.blocked,
+			"omp.agent.tools.timeout": summary.tools.timeout,
+			"omp.agent.tools.aborted": summary.tools.aborted,
+			"omp.agent.tools.total_latency_ms": summary.tools.totalLatencyMs,
+			"omp.agent.usage.input_tokens": summary.usage.inputTokens,
+			"omp.agent.usage.output_tokens": summary.usage.outputTokens,
+			"omp.agent.usage.cached_input_tokens": summary.usage.cachedInputTokens,
+			"omp.agent.usage.cache_write_tokens": summary.usage.cacheWriteTokens,
+			"omp.agent.usage.reasoning_output_tokens": summary.usage.reasoningOutputTokens,
+			"omp.agent.usage.total_tokens": summary.usage.totalTokens,
+			"omp.agent.cost.estimated_usd": summary.cost.estimatedUsd,
+			"omp.agent.cost.unavailable_reasons": summary.cost.unavailableReasons.join(","),
+			"omp.agent.errors.total": summary.errors.total,
+			"omp.agent.coverage.tools_available": coverage.toolsAvailable.join(","),
+			"omp.agent.coverage.tools_invoked": coverage.toolsInvoked.join(","),
+			"omp.agent.coverage.tools_unused": coverage.toolsUnused.join(","),
+			"omp.agent.coverage.models_used": coverage.modelsUsed.join(","),
+			"omp.agent.coverage.providers_used": coverage.providersUsed.join(","),
 		},
-		"pi.zeta.agent.run.completed",
+		"omp.agent.run.completed",
 	);
 }
 
@@ -344,7 +337,7 @@ function emitTelemetryWarningLog(warning: AgentTelemetryWarning): void {
 		code: warning.code,
 		error: warning.error,
 	});
-	emitOtelLog("warn", warning.message, attrs, "pi.zeta.telemetry.warning");
+	emitOtelLog("warn", warning.message, attrs, "omp.telemetry.warning");
 }
 
 function emitOtelLog(

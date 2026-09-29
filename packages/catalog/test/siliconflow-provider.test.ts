@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
 import { getBundledModelReferenceIndex } from "@linxiraos/pi-catalog/identity/bundled";
 import { resolveModelReference } from "@linxiraos/pi-catalog/identity/reference";
 import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
@@ -9,20 +8,6 @@ import {
 	siliconflowModelManagerOptions,
 } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import type { FetchImpl } from "@linxiraos/pi-catalog/types";
-
-function withEnv(key: string, value: string, run: () => void): void {
-	const previous = Bun.env[key];
-	Bun.env[key] = value;
-	try {
-		run();
-	} finally {
-		if (previous === undefined) {
-			delete Bun.env[key];
-		} else {
-			Bun.env[key] = previous;
-		}
-	}
-}
 
 const MODELS_DEV_STUB_PAYLOAD = {
 	siliconflow: {
@@ -65,15 +50,6 @@ describe("siliconflow built-in providers", () => {
 		// Runtime: no stencil.so mapping may feed the generator either.
 		expect(MODELS_DEV_PROVIDER_DESCRIPTORS.some(d => d.providerId === "siliconflow")).toBe(false);
 		expect(MODELS_DEV_PROVIDER_DESCRIPTORS.some(d => d.providerId === "siliconflow-cn")).toBe(false);
-	});
-
-	test("resolves SILICONFLOW_API_KEY / SILICONFLOW_CN_API_KEY via env", () => {
-		withEnv("SILICONFLOW_API_KEY", "siliconflow-test-key", () => {
-			expect(getEnvApiKey("siliconflow")).toBe("siliconflow-test-key");
-		});
-		withEnv("SILICONFLOW_CN_API_KEY", "siliconflow-cn-test-key", () => {
-			expect(getEnvApiKey("siliconflow-cn")).toBe("siliconflow-cn-test-key");
-		});
 	});
 
 	test("dynamic discovery filters non-chat ids and hydrates metadata from stencil.so and bundled references", async () => {

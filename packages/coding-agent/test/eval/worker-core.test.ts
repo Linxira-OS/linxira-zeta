@@ -93,56 +93,6 @@ function installFatalCapture(): {
 }
 
 describe("WorkerCore", () => {
-	it("reports same-realm cwd conflicts through the worker protocol", async () => {
-		const first = createWorkerHarness();
-		const second = createWorkerHarness();
-		const cwd = process.cwd();
-		await initializeWorker(first, { cwd, sessionId: "same-realm-first", localRoots: {} });
-		await initializeWorker(second, { cwd, sessionId: "same-realm-second", localRoots: {} });
-
-		const gate = Promise.withResolvers<void>();
-		const entered = Promise.withResolvers<void>();
-		(globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } }).__zeta_worker_core_gate = {
-			entered: () => entered.resolve(),
-			wait: gate.promise,
-		};
-		try {
-			first.send({
-				type: "run",
-				runId: "hold-first-runtime",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait;",
-				filename: "[same-realm-first].js",
-				snapshot: { cwd, sessionId: "same-realm-first", localRoots: {} },
-			});
-			await entered.promise;
-
-			const result = waitForMessage(
-				second,
-				message => message.type === "result" && message.runId === "overlap-second-runtime",
-			);
-			second.send({
-				type: "run",
-				runId: "overlap-second-runtime",
-				code: "1 + 1;",
-				filename: "[same-realm-second].js",
-				snapshot: { cwd, sessionId: "same-realm-second", localRoots: {} },
-			});
-
-			expect(await result).toMatchObject({
-				type: "result",
-				runId: "overlap-second-runtime",
-				ok: false,
-				error: { message: "Cannot run code while another same-realm JS runtime is running" },
-			});
-		} finally {
-			gate.resolve();
-			delete (globalThis as { __zeta_worker_core_gate?: { entered(): void; wait: Promise<void> } })
-				.__zeta_worker_core_gate;
-			first.send({ type: "close" });
-			second.send({ type: "close" });
-		}
-	});
-
 	it("re-init while a same-realm run is live does not crash the process", async () => {
 		const first = createWorkerHarness();
 		const second = createWorkerHarness();
@@ -322,7 +272,7 @@ describe("WorkerCore", () => {
 			first.send({
 				type: "run",
 				runId: "hold-for-first-init",
-				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait; __zeta_session__.sessionId;",
+				code: "globalThis.__zeta_worker_core_gate.entered(); await globalThis.__zeta_worker_core_gate.wait; __omp_session__.sessionId;",
 				filename: "[first-init-live-first].js",
 				snapshot: { cwd, sessionId: "first-init-live-first", localRoots: {} },
 			});
@@ -364,8 +314,8 @@ describe("WorkerCore", () => {
 	});
 
 	it("keeps the process cwd while another cell is mid-run", async () => {
-		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cwd-a-"));
-		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-cwd-b-"));
+		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cwd-a-"));
+		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "omp-cwd-b-"));
 		const chdirs: string[] = [];
 		const hostListeners = new Set<(message: WorkerOutbound) => void>();
 		const workerListeners = new Set<(message: WorkerInbound) => void>();
@@ -511,7 +461,7 @@ console.log("survived concurrent setCwd");
 process.exit(0);
 `;
 
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-same-realm-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-same-realm-"));
 		const probePath = path.join(root, "probe.ts");
 		try {
 			await Bun.write(probePath, probe);

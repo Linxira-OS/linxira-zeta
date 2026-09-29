@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
@@ -21,9 +24,10 @@ function createSession(options: {
 	manager: AsyncJobManager;
 	settings?: Record<string, unknown>;
 	spawns?: string | boolean;
+	cwd?: string;
 }): ToolSession {
 	return {
-		cwd: "/tmp",
+		cwd: options.cwd ?? "/tmp",
 		hasUI: false,
 		settings: Settings.isolated({ "async.enabled": true, ...options.settings }),
 		getSessionFile: () => null,
@@ -160,5 +164,27 @@ describe("task async preflight", () => {
 		expect(runSubprocess).not.toHaveBeenCalled();
 		expect(jobs.getJob("Invalid")).toBeUndefined();
 		expect(jobs.getJob("Valid")).toBeUndefined();
+	});
+
+	it("names the searched agent directories, home-shortened, when the agent is unknown", async () => {
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-unknown-agent-"));
+		try {
+			const projectDir = path.join(home, "project");
+			await fs.mkdir(path.join(projectDir, ".zeta", "agents"), { recursive: true });
+			vi.spyOn(os, "homedir").mockReturnValue(home);
+			const tool = await TaskTool.create(createSession({ manager: manager(), cwd: projectDir }));
+
+			const result = await tool.execute("unknown", {
+				agent: "missing",
+				name: "Unknown",
+				task: "Work.",
+			} as TaskParams);
+
+			const text = textOf(result);
+			expect(text).toContain(`Searched: ${path.join("~", "project", ".zeta", "agents")}`);
+			expect(text).not.toContain(home);
+		} finally {
+			await fs.rm(home, { recursive: true, force: true });
+		}
 	});
 });

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as url from "node:url";
-import { TempDir } from "@linxiraos/pi-utils";
 import { __buildLegacyPiPackageRootOverrides } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { TempDir } from "@linxiraos/pi-utils";
 import { __renderLegacyPiVirtualModule, collectBundledPiEntries } from "../../scripts/legacy-pi-virtual-module";
 
 const bundledEntries = await collectBundledPiEntries();
@@ -184,19 +184,6 @@ export const observed = [
 			}
 		}
 		expect(missing).toEqual([]);
-	});
-
-	it("keeps pi-ai/pi-coding-agent/pi-tui roots routed to their compat shims in compiled mode", () => {
-		// The shim entries themselves resolve to virtual bundled specifiers in
-		// compiled mode (the shim files are bundled under their own registry
-		// keys); the test asserts only that the roots stay distinct from the
-		// canonical pi-* surface — extensions still see the `Type` /
-		// `defineTool` helpers the canonical entrypoints dropped.
-		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@linxiraos/pi-ai"]).toBeDefined();
-		expect(overrides["@linxiraos/pi-ai"]).not.toBe("omp-legacy-pi-bundled:@linxiraos/pi-ai/oauth");
-		expect(overrides["@linxiraos/zeta"]).toBeDefined();
-		expect(overrides["@linxiraos/pi-tui"]).toBeDefined();
 	});
 
 	it("does not register subpath overrides in dev/install mode", () => {

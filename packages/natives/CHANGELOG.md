@@ -8,9 +8,6 @@
 ## [1.1.16] - 2026-09-19
 ## [1.1.13] - 2026-09-10
 ## [1.1.11] - 2026-09-08
-
-- OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.
-
 ## [1.1.10] - 2026-09-07
 
 - OMP v18.1.11 sync baseline (`e3106be68f`); no package-specific user-visible changes.

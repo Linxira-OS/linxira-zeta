@@ -5,14 +5,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
 import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import * as piUtils from "@linxiraos/pi-utils";
-import { sanitizeText, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
-import { LspTool } from "@linxiraos/zeta/lsp";
+import { restoreEnvValue } from "../helpers/settings-test-state";
+import { createLspWritethrough, LspTool } from "@linxiraos/zeta/lsp";
 import * as lspClient from "@linxiraos/zeta/lsp/client";
 import * as lspConfig from "@linxiraos/zeta/lsp/config";
-import { getServersForFile, type LspConfig, loadConfig } from "@linxiraos/zeta/lsp/config";
+import { configCache, getConfig, getServersForFile, type LspConfig, loadConfig } from "@linxiraos/zeta/lsp/config";
 import { waitForDiagnostics } from "@linxiraos/zeta/lsp/diagnostics";
 import {
 	applyTextEditsToString,
@@ -21,7 +20,6 @@ import {
 	sortAndValidateTextEdits,
 } from "@linxiraos/zeta/lsp/edits";
 import { renderCall, renderResult } from "@linxiraos/pi-tui/tools/lsp";
-import { configCache, getConfig } from "@linxiraos/zeta/lsp/servers";
 import {
 	type CodeAction,
 	type CreateFile,
@@ -52,11 +50,12 @@ import { getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
 import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
+import * as piUtils from "@linxiraos/pi-utils";
+import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
 import { renderResult as renderLocalResult } from "@linxiraos/pi-tui/tools/lsp";
 import { getLanguageFromPath } from "@linxiraos/pi-tui/lang-from-path";
-import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const lspTestSettings = Settings.isolated();
 
@@ -254,6 +253,14 @@ function installHandshakeLsp(): FakeLspServer {
 	});
 }
 
+/** Read `textDocument.uri` out of a document notification the fake server received. */
+function documentUri(params: unknown): string | undefined {
+	if (!params || typeof params !== "object" || !("textDocument" in params)) return undefined;
+	const doc = params.textDocument;
+	if (!doc || typeof doc !== "object" || !("uri" in doc) || typeof doc.uri !== "string") return undefined;
+	return doc.uri;
+}
+
 type BunSpawnOptions = Bun.SpawnOptions.SpawnOptions<
 	Bun.SpawnOptions.Writable,
 	Bun.SpawnOptions.Readable,
@@ -306,7 +313,7 @@ function textResult(result: AgentToolResult<LspToolDetails>): string {
 }
 
 /**
- * `loadConfig` walks the user config directories (~/.zeta/agent, ~/.pi/agent,
+ * `loadConfig` walks the user config directories (~/.omp/agent, ~/.pi/agent,
  * ~/.claude), which resolve from os.homedir(). A developer with a real
  * lsp.json there flips loadConfig off its auto-detect path onto the override
  * path, where their rootMarkers replace the packaged ones — so these tests
@@ -318,7 +325,7 @@ let lspOriginalHome: string | undefined;
 
 beforeEach(() => {
 	lspOriginalHome = process.env.HOME;
-	lspHomeOverride = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-lsp-test-home-"));
+	lspHomeOverride = fs.mkdtempSync(path.join(os.tmpdir(), "omp-lsp-test-home-"));
 	process.env.HOME = lspHomeOverride;
 	// Bun's os.homedir() reads the passwd entry rather than $HOME, so the env
 	// var alone does not redirect the config walk.
@@ -531,21 +538,136 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("rearms the idle checker from cached config after global shutdown", async () => {
-		const cwd = "/cached-lsp-config";
+	it("rearms the idle checker when starting a client after global shutdown without clobbering other workspaces (#8389)", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-rearm-");
 		const intervalSpy = vi.spyOn(globalThis, "setInterval");
-		configCache.set(cwd, { servers: {}, idleTimeoutMs: 60_000 });
+		const config: ServerConfig = {
+			command: "fake-lsp-rearm",
+			fileTypes: ["ts"],
+			rootMarkers: [],
+		};
 		try {
+			installFakeLsp((message, srv) => {
+				if (message.method === "initialize") {
+					srv.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
+				} else if (message.method === "shutdown") {
+					srv.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					srv.exit(0);
+				}
+			});
+
 			lspClient.setIdleTimeout(60_000);
-			expect(intervalSpy).toHaveBeenCalledTimes(1);
+			const initialCalls = intervalSpy.mock.calls.length;
+			expect(initialCalls).toBeGreaterThanOrEqual(1);
 
 			await lspClient.shutdownAll();
-			getConfig(cwd);
 
-			expect(intervalSpy).toHaveBeenCalledTimes(2);
+			// Pure config access should not mutate global timeout or spawn timers (#8389)
+			configCache.set(tempDir.path(), { servers: { "fake-lsp-rearm": config }, idleTimeoutMs: 60_000 });
+			getConfig(tempDir.path());
+			expect(intervalSpy).toHaveBeenCalledTimes(initialCalls);
+
+			// Starting an active client rearms the checker
+			await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
+			expect(intervalSpy).toHaveBeenCalledTimes(initialCalls + 1);
 		} finally {
 			lspClient.setIdleTimeout(null);
-			configCache.delete(cwd);
+			configCache.delete(tempDir.path());
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	});
+
+	it("isolates idle timeout per workspace client without global cross-contamination (#8389)", async () => {
+		const tempDirA = TempDir.createSync("@omp-lsp-iso-a-");
+		const tempDirB = TempDir.createSync("@omp-lsp-iso-b-");
+		const configA: ServerConfig = {
+			command: "fake-lsp-iso-a",
+			fileTypes: ["ts"],
+			rootMarkers: [],
+		};
+		const configB: ServerConfig = {
+			command: "fake-lsp-iso-b",
+			fileTypes: ["ts"],
+			rootMarkers: [],
+		};
+
+		try {
+			configCache.set(tempDirA.path(), { servers: { [configA.command]: configA }, idleTimeoutMs: 600_000 }); // 10 min
+			configCache.set(tempDirB.path(), { servers: { [configB.command]: configB }, idleTimeoutMs: 1_000 }); // 1 sec
+
+			installHandshakeLsp();
+			const clientA = await lspClient.getOrCreateClient(configA, tempDirA.path(), 1_000);
+
+			installHandshakeLsp();
+			const clientB = await lspClient.getOrCreateClient(configB, tempDirB.path(), 1_000);
+
+			// Client A was active just now, Client B was active 2 seconds ago
+			clientA.lastActivity = Date.now();
+			clientB.lastActivity = Date.now() - 2_000;
+
+			// Accessing Workspace B's config should not affect client A
+			getConfig(tempDirB.path());
+
+			// Drive the production idle sweep path end-to-end
+			await lspClient.checkIdleClients();
+
+			const activeNames = lspClient.getActiveClients().map(c => c.name);
+			expect(activeNames).toContain("fake-lsp-iso-a");
+			expect(activeNames).not.toContain("fake-lsp-iso-b");
+		} finally {
+			configCache.delete(tempDirA.path());
+			configCache.delete(tempDirB.path());
+			await lspClient.shutdownAll();
+			tempDirA.removeSync();
+			tempDirB.removeSync();
+		}
+	});
+
+	it("re-arms the idle checker after a config-only reload when timeout is added (#8389)", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-rearm-config-");
+		const config: ServerConfig = {
+			command: "fake-lsp-rearm-config",
+			fileTypes: ["ts"],
+			rootMarkers: [],
+		};
+
+		try {
+			// Initially no timeout configured: checker interval should remain stopped
+			configCache.set(tempDir.path(), { servers: { [config.command]: config } });
+			installHandshakeLsp();
+			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
+
+			expect(lspClient.isIdleCheckerRunning()).toBe(false);
+
+			// Config-only change: user adds idleTimeoutMs to config
+			configCache.delete(tempDir.path());
+			configCache.set(tempDir.path(), { servers: { [config.command]: config }, idleTimeoutMs: 5_000 });
+
+			// Simulate config reload (as done in `lsp reload *`)
+			getConfig(tempDir.path());
+			lspClient.reconcileIdleChecker();
+
+			// Checker must now be re-armed even though client identity is unchanged
+			expect(lspClient.isIdleCheckerRunning()).toBe(true);
+
+			// Client becomes idle and is reaped on sweep
+			client.lastActivity = Date.now() - 6_000;
+			await lspClient.checkIdleClients();
+			expect(lspClient.getActiveClients().map(c => c.name)).not.toContain("fake-lsp-rearm-config");
+
+			// Removing timeout and reloading stops the checker again
+			configCache.delete(tempDir.path());
+			configCache.set(tempDir.path(), { servers: { [config.command]: config } });
+			getConfig(tempDir.path());
+			lspClient.reconcileIdleChecker();
+			expect(lspClient.isIdleCheckerRunning()).toBe(false);
+		} finally {
+			lspClient.setIdleTimeout(null);
+			configCache.delete(tempDir.path());
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
 		}
 	});
 
@@ -1825,6 +1947,119 @@ describe("lsp regressions", () => {
 
 			expect(await waitForDiagnostics(client, sourceUri, { timeoutMs: 1_000, settleMs: 0 })).toEqual([]);
 		} finally {
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	});
+
+	it("reloads TypeScript projects after create before opening the new module", async () => {
+		// #12924/#12925: tsserver pins a failed import resolution when the new
+		// module is opened before its filesystem watcher observes the create.
+		// The write path must await reloadProjects, not rely on watcher latency.
+		const tempDir = TempDir.createSync("@omp-lsp-write-create-order-");
+		const config: ServerConfig = { command: "fake-lsp", fileTypes: ["ts"], rootMarkers: [] };
+		try {
+			const sourcePath = path.join(tempDir.path(), "UsesMissing.ts");
+			const modulePath = path.join(tempDir.path(), "MissingClass.ts");
+			const sourceUri = fileToUri(sourcePath);
+			const moduleUri = fileToUri(modulePath);
+			await Bun.write(
+				sourcePath,
+				'import { MissingClass } from "./MissingClass";\nexport const value = new MissingClass();\n',
+			);
+
+			const missingModuleDiagnostic: Diagnostic = {
+				message: "Cannot find module './MissingClass' or its corresponding type declarations.",
+				severity: 1,
+				code: 2307,
+				range: {
+					start: { line: 0, character: 29 },
+					end: { line: 0, character: 45 },
+				},
+			};
+			let projectsReloaded = false;
+			let modulePinnedMissing = false;
+			const fakeServer = installFakeLsp((message, server) => {
+				const publish = (uri: string, diagnostics: Diagnostic[]) =>
+					server.send({
+						jsonrpc: "2.0",
+						method: "textDocument/publishDiagnostics",
+						params: { uri, diagnostics },
+					});
+				const publishSource = () =>
+					publish(
+						sourceUri,
+						projectsReloaded && !modulePinnedMissing && fs.existsSync(modulePath)
+							? []
+							: [missingModuleDiagnostic],
+					);
+				if (message.method === "initialize") {
+					server.send({
+						jsonrpc: "2.0",
+						id: message.id,
+						result: {
+							capabilities: {
+								executeCommandProvider: { commands: ["typescript.tsserverRequest"] },
+							},
+						},
+					});
+				} else if (message.method === "textDocument/didOpen") {
+					const uri = documentUri(message.params);
+					if (uri === moduleUri) {
+						modulePinnedMissing ||= !fs.existsSync(modulePath) || !projectsReloaded;
+						publish(moduleUri, []);
+					} else {
+						publishSource();
+					}
+				} else if (
+					message.method === "textDocument/didChange" ||
+					message.method === "textDocument/didSave" ||
+					message.method === "workspace/didChangeWatchedFiles"
+				) {
+					publishSource();
+					publish(moduleUri, []);
+				} else if (message.method === "workspace/executeCommand") {
+					projectsReloaded = fs.existsSync(modulePath);
+					server.send({ jsonrpc: "2.0", id: message.id, result: { success: projectsReloaded } });
+				} else if (message.method === "shutdown") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					server.exit(0);
+				}
+			});
+
+			configCache.set(tempDir.path(), { servers: { "fake-lsp": config }, idleTimeoutMs: undefined });
+			const client = await lspClient.getOrCreateClient(config, tempDir.path());
+			await lspClient.ensureFileOpen(client, sourcePath);
+			expect(await waitForDiagnostics(client, sourceUri, { timeoutMs: 1_000, settleMs: 0 })).toEqual([
+				missingModuleDiagnostic,
+			]);
+
+			const writethrough = createLspWritethrough(tempDir.path(), {
+				enableFormat: true,
+				enableDiagnostics: false,
+			});
+			await writethrough(modulePath, "export class MissingClass {}\n");
+
+			expect(projectsReloaded).toBe(true);
+			expect(fakeServer.received).toContainEqual(
+				expect.objectContaining({
+					method: "workspace/executeCommand",
+					params: {
+						command: "typescript.tsserverRequest",
+						arguments: [
+							"reloadProjects",
+							{},
+							{ executionTarget: 0, expectsResult: true, isAsync: false, lowPriority: false },
+						],
+					},
+				}),
+			);
+
+			expect(modulePinnedMissing).toBe(false);
+			expect(await waitForDiagnostics(client, sourceUri, { timeoutMs: 1_000, settleMs: 0 })).toEqual([]);
+		} finally {
+			configCache.delete(tempDir.path());
 			await lspClient.shutdownAll();
 			tempDir.removeSync();
 		}
@@ -4048,7 +4283,7 @@ describe("lsp regressions", () => {
 			await Bun.write(filePath, "SOURCE");
 
 			const linkDir = path.join(tempDir.path(), "dirlink");
-			symlinkDirectorySync(realDir, linkDir);
+			fs.symlinkSync(realDir, linkDir);
 			const aliasPath = path.join(linkDir, "f.ts");
 
 			const renameOp: RenameFile = {
@@ -5501,24 +5736,6 @@ describe("ty python lsp", () => {
 		const config = { servers: DEFAULTS as unknown as Record<string, ServerConfig> };
 		const names = getServersForFile(config, "app.pyi").map(([name]) => name);
 		expect(names).toContain("ty");
-	});
-
-	it("auto-detects ty when its binary and Python root markers are present", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-ty-detect-");
-		const resolvedTy = path.join(tempDir.path(), "bin", "ty");
-		const whichSpy = vi
-			.spyOn(piUtils, "$which")
-			.mockImplementation(command => (command === "ty" ? resolvedTy : null));
-		try {
-			await Bun.write(path.join(tempDir.path(), "pyproject.toml"), '[project]\nname = "demo"\n');
-			const config = loadConfig(tempDir.path());
-			expect(config.servers.ty?.resolvedCommand).toBe(resolvedTy);
-			expect(config.servers.ty?.command).toBe("ty");
-			expect(config.servers.ty?.args).toEqual(["server"]);
-			expect(whichSpy).toHaveBeenCalledWith("ty");
-		} finally {
-			tempDir.removeSync();
-		}
 	});
 
 	it("coexists with ruff: ty is primary, ruff is linter, both auto-detected", async () => {

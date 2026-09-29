@@ -10,7 +10,8 @@ import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
 const packageDir = path.join(import.meta.dir, "..");
 const defaultOutDir = path.join(packageDir, "dist");
 const shebang = "#!/usr/bin/env bun\n";
-const legacyHtmlExportAssetPattern = /^(?:template-[^.]+\.(?:css|html|js)|tool-views\.generated-[^.]+\.js)$/;
+const htmlExportAssetPattern =
+	/^(?:template-[^.]+\.(?:css|html|js)|tool-views\.generated-[^.]+\.js|(?:marked|highlight)\.min-[^.]+\.js)$/;
 
 // Native / optional / platform-specific deps are loaded from installed files.
 // `omp-legacy-pi-modules` exists only in compiled binaries via the build plugin;
@@ -73,7 +74,7 @@ async function cleanBundleOutputs(outDir: string): Promise<void> {
 					entry.endsWith(".node") ||
 					entry.endsWith(".js.map") ||
 					(entry.startsWith("CHANGELOG-") && entry.endsWith(".md")) ||
-					legacyHtmlExportAssetPattern.test(entry),
+					htmlExportAssetPattern.test(entry),
 			)
 			.map(entry => fs.rm(path.join(outDir, entry), { force: true })),
 	);

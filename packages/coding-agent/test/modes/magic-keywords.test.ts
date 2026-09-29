@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { MAGIC_KEYWORDS, renderOrchestrateNotice, renderWorkflowNotice } from "@linxiraos/zeta/modes/magic-keywords";
-import { clearBundledCommandsCache, loadBundledCommands } from "@linxiraos/zeta/task/commands";
 
 describe("magic keyword registry", () => {
 	it("keeps ids and words unique so notice types and settings keys cannot collide", () => {
@@ -54,14 +53,5 @@ describe("workflow notice", () => {
 		expect(disabled).toContain("Default to `workpool()`");
 		expect(disabled).not.toContain("`@tool`");
 		expect(disabled).not.toContain("tools=None");
-	});
-});
-
-describe("orchestrate slash command removal", () => {
-	it("is no longer bundled as a slash command", () => {
-		clearBundledCommandsCache();
-		const names = loadBundledCommands().map(command => command.name);
-		expect(names).not.toContain("orchestrate");
-		expect(names).toContain("init");
 	});
 });

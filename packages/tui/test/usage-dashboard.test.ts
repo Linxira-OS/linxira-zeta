@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { DailyActivityPoint } from "@linxiraos/pi-tui/overlays/usage-dashboard";
+import type { DailyActivityPoint, UnavailableUsageAccount } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 import type { UsageReport } from "@linxiraos/pi-ai";
 import {
 	buildHeatmapLayout,
@@ -8,7 +8,7 @@ import {
 	formatActivityErrorDetail,
 	UsageDashboardComponent,
 } from "@linxiraos/pi-tui/overlays/usage-dashboard";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { visibleWidth } from "@linxiraos/pi-tui/utils";
 
 function day(day: string, cost: number, requests = 1): DailyActivityPoint {
@@ -241,9 +241,13 @@ describe("UsageDashboardComponent", () => {
 	beforeAll(async () => {
 		await initTheme(false);
 	});
-	function dashboard(reports: UsageReport[]): UsageDashboardComponent {
+	function dashboard(
+		reports: UsageReport[],
+		unavailableAccounts: UnavailableUsageAccount[] = [],
+	): UsageDashboardComponent {
 		return new UsageDashboardComponent({
 			reports,
+			unavailableAccounts,
 			renderDetail: () => "",
 			loadActivity: async push => {
 				push([]);
@@ -402,6 +406,20 @@ describe("UsageDashboardComponent", () => {
 			component.dispose();
 		}
 	});
+
+	it("keeps the error icon on an exhausted card when another account's lookup fails", () => {
+		const component = dashboard(
+			[report("anthropic", "a@test", [limit("anthropic", "a", "7d", "Claude 7 Day", 1, "exhausted")])],
+			[{ provider: "anthropic", label: "b@test" }],
+		);
+		try {
+			const output = Bun.stripANSI(component.render(100).join("\n"));
+			const title = output.split("\n").find(line => line.includes("2 accts"));
+			expect(title?.replace(/^[│\s]+/, "")).toStartWith(`${theme.status.error} Anthropic`);
+		} finally {
+			component.dispose();
+		}
+	});
 	it("renders specific error reason when activity loading fails instead of generic DB read error", async () => {
 		const { promise: rendered, resolve: markRendered } = Promise.withResolvers<void>();
 		const component = new UsageDashboardComponent({
@@ -419,7 +437,7 @@ describe("UsageDashboardComponent", () => {
 	});
 	it("sanitizes control sequences, collapses multiline errors, and shortens paths", async () => {
 		const home = os.homedir();
-		const rawError = `subprocess crashed at ${home}/.zeta/stats.db:\n\tfailed to open\x1b[2J\r\nline 2\x1b[31m...`;
+		const rawError = `subprocess crashed at ${home}/.omp/stats.db:\n\tfailed to open\x1b[2J\r\nline 2\x1b[31m...`;
 		const { promise: rendered, resolve: markRendered } = Promise.withResolvers<void>();
 		const component = new UsageDashboardComponent({
 			reports: [],
@@ -437,9 +455,9 @@ describe("UsageDashboardComponent", () => {
 		expect(contentLine).not.toContain("\n");
 		expect(contentLine).not.toContain("\t");
 		expect(contentLine).not.toContain(home);
-		expect(contentLine).toContain("~/.zeta/stats.db");
+		expect(contentLine).toContain("~/.omp/stats.db");
 		expect(contentLine).toContain(
-			"Usage history unavailable (subprocess crashed at ~/.zeta/stats.db: failed to open line 2).",
+			"Usage history unavailable (subprocess crashed at ~/.omp/stats.db: failed to open line 2).",
 		);
 	});
 });
@@ -452,7 +470,7 @@ describe("formatActivityErrorDetail", () => {
 
 	it("shortens home directory paths to tilde and removes trailing dots", () => {
 		const home = "/Users/testuser";
-		const input = `Error: failed to open ${home}/.zeta/stats.db...`;
-		expect(formatActivityErrorDetail(input, home)).toBe("Error: failed to open ~/.zeta/stats.db");
+		const input = `Error: failed to open ${home}/.omp/stats.db...`;
+		expect(formatActivityErrorDetail(input, home)).toBe("Error: failed to open ~/.omp/stats.db");
 	});
 });

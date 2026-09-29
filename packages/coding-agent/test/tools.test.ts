@@ -21,7 +21,6 @@ import { openArchive, readArchiveEntries } from "@linxiraos/pi-utils/ar";
 import { GlobTool } from "../src/tools/glob";
 import { DEFAULT_FILE_LIMIT, GrepTool, MULTI_FILE_PER_FILE_MATCHES } from "../src/tools/grep";
 
-import { DEFAULT_BASH_INTERCEPTOR_RULES, cfgBashInterceptorPatterns } from "@linxiraos/zeta/exec/settings";
 import { cfgEditFuzzyMatch, cfgEditFuzzyThreshold } from "@linxiraos/zeta/edit/settings";
 import { cfgReadDefaultLimit } from "@linxiraos/zeta/tools/settings";
 
@@ -1017,15 +1016,11 @@ describe("Coding Agent Tools", () => {
 			const result = await artifactReadTool.execute("test-call-artifact-byte-limit", {
 				path: "artifact://7:3-4",
 			});
-
-			// v18.2.5 read: an oversized single line is called out with its own
-			// artifact://raw hint before the summary line (no inline ":N to
-			// continue" tail anymore).
-			expect(getTextOutput(result)).toContain(
-				"[Line 3 is 60.0KB and could not fit after preceding context in the 50.0KB read budget.",
-			);
-			expect(getTextOutput(result)).toContain("Use artifact://7:raw:3-3 to read that line without context");
-			expect(getTextOutput(result)).toContain("[Showing lines 2-2 of 4 (50.0KB limit)]");
+			const output = getTextOutput(result);
+			expect(output).toContain("[Showing lines 2-2 of 4 (50.0KB limit)]");
+			expect(output).toContain("Line 3 is 60.0KB");
+			expect(output).toContain("artifact://7:raw:3-3");
+			expect(output).not.toContain("Use :3 to continue");
 		});
 
 		it("should spill oversized read output to an artifact", async () => {
@@ -2329,17 +2324,6 @@ function b() {
 			expect(result.details?.wallTimeMs).toBeGreaterThanOrEqual(0);
 		});
 
-		it("should expose built-in interceptor defaults truthfully", () => {
-			const defaultSettings = Settings.isolated({ "bashInterceptor.enabled": true });
-			const explicitEmptySettings = Settings.isolated({
-				"bashInterceptor.enabled": true,
-				"bashInterceptor.patterns": [],
-			});
-
-			expect(cfgBashInterceptorPatterns.get(defaultSettings)).toEqual(DEFAULT_BASH_INTERCEPTOR_RULES);
-			expect(cfgBashInterceptorPatterns.get(explicitEmptySettings)).toEqual([]);
-		});
-
 		it("should block built-in interceptor commands when enabled with default patterns", async () => {
 			const interceptedBashTool = wrapToolWithMetaNotice(
 				new BashTool(createTestToolSession(testDir, Settings.isolated({ "bashInterceptor.enabled": true }))),
@@ -3362,20 +3346,5 @@ describe("edit tool CRLF handling", () => {
 		});
 		expect(result.isError).toBe(true);
 		expect(getTextOutput(result)).toMatch(/Found 2 occurrences/);
-	});
-
-	// TODO: CRLF preservation broken by LSP formatting - fix later
-	it.skip("should preserve UTF-8 BOM after edit", async () => {
-		const testFile = path.join(testDir, "bom-test.txt");
-		fs.writeFileSync(testFile, "\uFEFFfirst\r\nsecond\r\nthird\r\n");
-
-		await editTool.execute("test-bom", {
-			path: testFile,
-			old_string: "second\n",
-			new_string: "REPLACED\n",
-		});
-
-		const content = await Bun.file(testFile).text();
-		expect(content).toBe("\uFEFFfirst\r\nREPLACED\r\nthird\r\n");
 	});
 });

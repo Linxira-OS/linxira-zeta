@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
 import { isRecord, readJsonl, TempDir } from "@linxiraos/pi-utils";
 import { selectRpcEntries } from "@linxiraos/zeta/modes/rpc/rpc-compat";
-import { readRpcInputFrames } from "@linxiraos/zeta/modes/rpc/rpc-input";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
@@ -42,28 +41,6 @@ describe("RPC Pi-compatible get_entries slice", () => {
 		const result = selectRpcEntries([], null);
 		expect(result.entries).toEqual([]);
 		expect(result.leafId).toBeNull();
-	});
-});
-
-describe("RPC ordinary error correlation", () => {
-	// Unknown-command id preservation is covered against the live server below
-	// (`unknown-1`); the dispatcher reuses the shared error helper, so no
-	// second unit surface is kept for it.
-	test("malformed JSON remains safely uncorrelated and the reader continues", async () => {
-		const input = new Blob([
-			"this is not json\n",
-			`${JSON.stringify({ type: "get_state", id: "after-bad-line" })}\n`,
-		]).stream();
-		const frames: unknown[] = [];
-		const parseErrors: string[] = [];
-		await readRpcInputFrames(
-			input,
-			frame => frames.push(frame),
-			message => parseErrors.push(message),
-		);
-		expect(parseErrors).toHaveLength(1);
-		expect(parseErrors[0]).toContain("Failed to parse command");
-		expect(frames).toEqual([{ type: "get_state", id: "after-bad-line" }]);
 	});
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { generateThemeStyles, generateThemeVars, getTemplate, parseExportArgs } from "@linxiraos/zeta/export/html";
+import { generateThemeStyles, generateThemeVars, parseExportArgs } from "@linxiraos/zeta/export/html";
 
 describe("HTML export themes", () => {
 	it("bundles dark, light, and auto-following web themes", async () => {
@@ -21,14 +21,6 @@ describe("HTML export themes", () => {
 
 		expect(styles).toContain(`:root, :root[data-theme="dark"] { color-scheme: dark; ${dark} }`);
 		expect(styles).toContain(`:root[data-theme="light"] { color-scheme: light; ${light} }`);
-	});
-
-	it("renders an auto, light, and dark theme selector", () => {
-		const html = getTemplate();
-		expect(html).toContain('id="theme-select"');
-		expect(html).toContain('<option value="auto">Auto</option>');
-		expect(html).toContain('<option value="light">Light</option>');
-		expect(html).toContain('<option value="dark">Dark</option>');
 	});
 
 	it("parses the optional user-theme flag before or after the output path", () => {

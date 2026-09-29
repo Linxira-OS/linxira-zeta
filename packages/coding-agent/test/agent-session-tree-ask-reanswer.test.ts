@@ -17,7 +17,7 @@ import { describe, expect, it, vi } from "bun:test";
 import { Agent, AgentBusyError, type AgentToolResult } from "@linxiraos/pi-agent-core";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionRunner, ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -162,6 +162,43 @@ describe("AgentSession tree navigation onto an ask toolResult", () => {
 			expect(result.reopenAsk?.toolCallId).toBe(askCallId);
 			expect(result.reopenAsk?.questions).toEqual(ORIGINAL_QUESTIONS);
 			// Nothing was mutated: the leaf is exactly where it was before probing.
+			expect(sessionManager.getLeafId()).toBe(leafBeforeProbe);
+		} finally {
+			await ctx.cleanup();
+		}
+	});
+
+	it("reopens a persisted Ask result with null optional previews instead of moving the leaf", async () => {
+		const ctx = await createTestSession({ inMemory: true });
+		try {
+			const { session, sessionManager } = ctx;
+			const savedQuestions = [
+				{
+					id: "deploy_target",
+					question: "Which deploy target?",
+					options: [
+						{ label: "staging", preview: null },
+						{ label: "production", preview: "Production rollout" },
+					],
+				},
+			];
+			sessionManager.appendMessage(userMsg("please deploy"));
+			sessionManager.appendMessage(toolCallMsg("ask-null-preview", "ask", { questions: savedQuestions }));
+			const resultId = sessionManager.appendMessage(
+				toolResultMsg("ask-null-preview", "ask", "User selected: staging"),
+			);
+			sessionManager.appendMessage(assistantMsg("deploying to staging"));
+			const leafBeforeProbe = sessionManager.getLeafId();
+
+			const result = await session.navigateTree(resultId, { allowAskReopen: true });
+
+			expect(result.reopenAsk?.questions).toEqual([
+				{
+					id: "deploy_target",
+					question: "Which deploy target?",
+					options: [{ label: "staging" }, { label: "production", preview: "Production rollout" }],
+				},
+			]);
 			expect(sessionManager.getLeafId()).toBe(leafBeforeProbe);
 		} finally {
 			await ctx.cleanup();
@@ -643,30 +680,6 @@ describe("AgentSession tree navigation onto an ask toolResult", () => {
 
 			await session.waitForIdle();
 			expect(continueSpy).not.toHaveBeenCalled();
-		} finally {
-			await ctx.cleanup();
-		}
-	});
-});
-
-describe("AgentSession.buildAskReanswerContext", () => {
-	it("builds an AgentToolContext backed by real session state, not a fabricated stub", async () => {
-		const ctx = await createTestSession({ inMemory: true });
-		try {
-			const { session } = ctx;
-			const uiContext = { select: async () => undefined } as unknown as ExtensionUIContext;
-
-			const toolContext = session.buildAskReanswerContext(uiContext);
-
-			expect(toolContext.sessionManager).toBe(session.sessionManager);
-			expect(toolContext.modelRegistry).toBe(session.modelRegistry);
-			expect(toolContext.model).toBe(session.model);
-			expect(toolContext.settings).toBe(session.settings);
-			expect(toolContext.hasUI).toBe(true);
-			expect(toolContext.ui).toBe(uiContext);
-			expect(toolContext.isIdle?.()).toBe(true);
-			expect(toolContext.hasQueuedMessages?.()).toBe(false);
-			expect(() => toolContext.abort?.()).not.toThrow();
 		} finally {
 			await ctx.cleanup();
 		}

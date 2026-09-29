@@ -6,12 +6,12 @@ import { syncAllSessions } from "@linxiraos/pi-stats/aggregator";
 import {
 	closeDb,
 	getFileOffset,
-	getOverallStats,
 	getRecentRequests,
 	initDb,
 	insertMessageStats,
 	insertToolCalls,
 } from "@linxiraos/pi-stats/db";
+import { getOverallStats } from "@linxiraos/pi-stats/rollup";
 import { parseSessionFile } from "@linxiraos/pi-stats/parser";
 import { getSessionsDir, getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
@@ -43,7 +43,7 @@ function assistantEntry(id: string, message: Record<string, unknown>): string {
 }
 
 async function writeSession(lines: string[]): Promise<string> {
-	const dir = path.join(getSessionsDir(), "--zeta-fixtures--malformed");
+	const dir = path.join(getSessionsDir(), "--tmp--malformed");
 	await fs.mkdir(dir, { recursive: true });
 	const file = path.join(dir, "session.jsonl");
 	await Bun.write(file, `${lines.join("\n")}\n`);
@@ -402,7 +402,7 @@ describe("legacy entries without a recorded price", () => {
 		// Every sentinel that also wipes `file_offsets` is spent, so only the
 		// unpriced marker's sentinel can trigger the re-parse below.
 		const spent = [
-			"user_messages_v8",
+			"user_messages_v9",
 			"tool_calls_v1",
 			"user_message_links_v1",
 			"premium_requests_priority_v1",

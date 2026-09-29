@@ -96,6 +96,83 @@
   - Round 4: CI 20/20 + Zeta Nix green → merged as PR #14 (`caef3818cc`).
 - **New standing rule** (from this sync): `nix/bun.nix` is Zeta-owned release surface — after any `bun.lock` change, regen with `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix` (bun2nix 2.1.2, same rev as flake.lock) and normalize lock registry URLs to npmjs.org before pushing; the flake's `bun-lock` check is the detector.
 
+## v18.4.3 (Zeta — dev/main 实验线,五 tag 直拉合并,2026-09-29)
+
+用户授权跳过分步,从 v18.3.4 基线一步直拉 v18.4.3(覆盖 v18.3.5/v18.4.0/v18.4.1/
+v18.4.2/v18.4.3 五个 tag 的增量)。干跑 255→实跑 288 冲突(多出的 33 为锁文件/
+CI 工件类机械冲突),谱系检查通过。
+
+| 项 | 值 |
+|---|---|
+| 起点 | `dev/main` @ `e72cdcea7bc`(v18.3.3+34 合并后基线) |
+| v18.4.3 | tag `fc671eba383f2a7208500836673b485c0dc7073d`(远程核验未移动);merge-base = v18.3.4 `dff728c572a` ✓ |
+| 增量 | 656 提交;上游性能大年——cache-warming、投机 task 启动、grep 流式背压、Oniguruma 高亮(内存 −5x)、流式/transcript/工具热路径大扫除(PR #13650)、~20 连发 perf(tui)(首屏 722ms 分帧、overlay 300KB→9KB 帧写入) |
+
+**v18.4.3 冲突决策(288)**:
+- **类 4 恢复(批量 stage-3 后逐项)**:InteractiveMode sidebar 面
+  (`SidebarComponent` 构造/`applySidebar`/`handleSidebarToggle`/
+  `handlePlanUltraCommand` + `PlanWorkflow` ultra 参数链:
+  `handlePlanModeCommand` 第三参 + `#enterPlanMode` 类型回 `PlanWorkflow`);
+  tui component `getSidebarContext`/`setStatusLineSidebarOpen` + 两处
+  `session_name` 段隐藏条件;`SttCallbacks.requestRender`(STT 子系统全 Zeta
+  自有);segments.ts `turn_stats` 段(schema/turn-stats.ts 存活,仅注册项丢失)。
+- **UD 处置事故与修复**:无差别 `git rm` 循环把 stage-3 失败文件与真 UD 混删,
+  182 个 staged 删除中 127 个上游仍在——经 `git cat-file -e v18.4.3:$f` 全量
+  审计后按 scope 归一化指纹三版脚本恢复(65 取 theirs+清扫、62 双改取 theirs)。
+  教训:UD 循环必须先探测 stage-3 可得性,不可盲删。
+- **web/search modelRoles 迁移处置**(上游把 provider 选择迁到 role chain + TUI
+  `web-search-types`):
+  - 保留并重建:`types.ts` Zeta 导出(`SEARCH_PROVIDER_ORDER/CHOICES/
+    PREFERENCES`/`isSearchProviderId/Preference`)改从 TUI `SEARCH_PROVIDER_LABELS`
+    派生(与上游新优先级序对齐);`index.ts` 重导出 setter;`geminiModel` 管道
+    (providers.webSearchGeminiModel → provider.search)恢复;`provider` pin 参数
+    + scoped 过滤块恢复(上游已删 `hoistProvider`——考证其在基线即无效:engine
+    marker 模型 `provider` 字段恒为 "web",语义全在过滤块);exclusion 层完好
+    (public.ts 扇出过滤存活)。
+  - 随上游放弃:setup 向导 search-provider 步骤(向导整体重写,`saveSearchProvider`
+    死于重写;providers tab 仍是配置入口)。
+  - **惰性化决策**:webSearchOrder 在基线即惰性(`resolveProviderCandidates`
+    0 调用方,orderedProvIds 无读者),维持基线形态不加戏;**image 侧
+    `providers.imageOrder` 运行时消费随旧 candidate 循环被上游删除而失活**
+    ——`setImageProviderOrder` 保留为状态种子(settings 面/zh 翻译/legacy 迁移/
+    provider-globals 测试契约完整),按 role chain 的重集成列为后续工作。
+- **品牌**:logger 日志文件名回 `zeta.*`(上游 v18.1.17+ omp.* + 新 stderr-guard
+  `onRotate` 机制保留);dirs.ts `expandWindowsLongPath` import scope 归
+  `@linxiraos/pi-natives/path`;jfind `omp://`→`zeta://` 全量清扫(含
+  `complete("zeta")` scheme 前缀——裸 `"omp"` 字符串 sed 扫不到,靠测试暴露);
+  stats README、composer-cache 注释、git-utils 测试 fixture 回 linxira-zeta;
+  `Symbol.for("omp.expectedCleanupError")` 保留(postmortem.ts 源码即此名,
+  进程间协议符号);测试文件名对同步(logger-contract/stderr-guard/rotation
+  probe 全部 zeta.*)。
+- **测试契约**:runtime-global-dispose 取基线整文件(上游版回退了 v18.1.21 的
+  `__omp_*`→`__zeta_*` 清扫且丢了 dispatcher identity 测试;三方考证:基线与
+  上游仅差符号名/import scope/该测试)。
+- **changelog**:各包上游段全剔(含 legacy 15-18.x 档案段)。
+- **生成物**:rules.json/catalog 编译物、bun.lock、nix 三件套随合并刷新;
+  MODULE.bazel.lock 无本地 bazel,维持 CI 验证回路(过期则取工件回提)。
+
+**natives 类 5(双平台)**:合并新增 `expandWindowsLongPath`(Windows 8.3 路径
+展开)、`summarizeCodeAsync`(tree-sitter 线程池化)、grep `onMatches` 流式+
+背压。本地重建路径:Windows 侧无 VS Build Tools 时用 GNU 工具链替代——
+`rustup target/toolchain install nightly-<pin>-x86_64-pc-windows-gnu` + msys2
+ucrt64 gcc,`cargo build -p pi-natives --target x86_64-pc-windows-gnu --profile
+local`,产物改名 `pi_natives.win32-x64-modern.node`(宿主 build script 会撞
+link.exe:Git Bash 的 GNU link.exe 遮蔽 MSVC linker);Linux 侧 WSL 同法
+(`x86_64-unknown-linux-gnu` → `libpi_natives.so` → `pi_natives.linux-x64-
+modern.node`)。CI bazel 现场构建不受影响。
+
+**测试裁决**:
+- WSL Rust(test:rs):3084/3085 通过;唯一失败 `detach_git_dir_..._snapshot_fails`
+  为 WSL-root 环境噪声(chmod 000 拦不住 root,测试前提失效;测试体与实现
+  三方逐字一致,CI 非 root Linux 不受影响)。
+- Windows utils 包:12 失败与基线 worktree **逐条一致**(安装锁/zip symlink/
+  SQLite 损伤恢复/EBUSY 族)——零净增。
+- Windows coding-agent 全量:234 失败 + 1 挂死(collab 后某测试)属 Windows
+  噪声族形态(EBUSY 临时目录/5s hook 超时),WSL Linux 全量为裁决环境。
+- jfind `complete("omp")`→`complete("zeta")`、logger 文件名对、runtime-global
+  清扫恢复后各自桶全绿;cli-provider-settings 2 超时经基线 worktree 对照判为
+  既有 Windows 噪声(TempDir.remove 句柄滞留)。
+
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
 
 按「上游增量合并规程」在 `dev/main` 上完成的两步串联合并;干跑预测与实跑逐个

@@ -102,18 +102,6 @@ describe("HookEditorComponent default (hook) mode", () => {
 		expect(onCancel).not.toHaveBeenCalled();
 	});
 
-	it("submits the current text on Ctrl+Enter", () => {
-		const onSubmit = vi.fn();
-		const onCancel = vi.fn();
-		const component = new HookEditorComponent(createTui(), "Prompt", "line 1\nline 2", onSubmit, onCancel);
-
-		component.handleInput("\x1b[13;5u");
-
-		expect(onSubmit).toHaveBeenCalledTimes(1);
-		expect(onSubmit).toHaveBeenCalledWith("line 1\nline 2");
-		expect(onCancel).not.toHaveBeenCalled();
-	});
-
 	it("submits Ctrl+Enter variants with NumLock or keypad Enter metadata", () => {
 		const variants = ["\x1b[13;133u", "\x1b[57414;5u", "\x1b[57414;133u"];
 
@@ -141,21 +129,6 @@ describe("HookEditorComponent default (hook) mode", () => {
 		expect(onSubmit).toHaveBeenCalledWith("draft");
 		expect(onCancel).not.toHaveBeenCalled();
 	});
-	it("submits the current text on Ctrl+Q (Windows Terminal fallback for #2118)", () => {
-		const onSubmit = vi.fn();
-		const onCancel = vi.fn();
-		const component = new HookEditorComponent(createTui(), "Prompt", "line 1\nline 2", onSubmit, onCancel);
-
-		// Ctrl+Q raw byte (0x11). Windows Terminal cannot deliver a distinct
-		// Ctrl+Enter, so app.message.followUp also binds Ctrl+Q (#1903), and the
-		// hook editor must honor it for the same reason.
-		component.handleInput("\x11");
-
-		expect(onSubmit).toHaveBeenCalledTimes(1);
-		expect(onSubmit).toHaveBeenCalledWith("line 1\nline 2");
-		expect(onCancel).not.toHaveBeenCalled();
-	});
-
 	it("keeps Ctrl+Q working after Enter inserts a newline (Windows Terminal)", () => {
 		const onSubmit = vi.fn();
 		const onCancel = vi.fn();
@@ -194,6 +167,19 @@ describe("HookEditorComponent default (hook) mode", () => {
 		expect(onCancel).not.toHaveBeenCalled();
 	});
 
+	it("treats Enter bundled after a bracketed paste as a newline in hook mode", () => {
+		const onSubmit = vi.fn();
+		const component = new HookEditorComponent(createTui(), "Prompt", undefined, onSubmit, vi.fn());
+
+		component.handleInput("\x1b[200~first\nsecond\x1b[201~\r");
+		expect(onSubmit).not.toHaveBeenCalled();
+		component.handleInput("last");
+		component.handleInput("\x11");
+
+		expect(onSubmit).toHaveBeenCalledTimes(1);
+		expect(onSubmit).toHaveBeenCalledWith("first\nsecond\nlast");
+	});
+
 	it("cancels on Escape", () => {
 		const onSubmit = vi.fn();
 		const onCancel = vi.fn();
@@ -207,20 +193,32 @@ describe("HookEditorComponent default (hook) mode", () => {
 });
 
 describe("HookEditorComponent prompt-style mode", () => {
-	it("submits on plain Enter", () => {
+	it("submits the complete pasted answer once when paste and Enter arrive together", () => {
 		const onSubmit = vi.fn();
-		const onCancel = vi.fn();
-		const component = new HookEditorComponent(createTui(), "Prompt", undefined, onSubmit, onCancel, {
+		const component = new HookEditorComponent(createTui(), "Prompt", undefined, onSubmit, vi.fn(), {
+			promptStyle: true,
+		});
+		const pasted = largePasteText();
+
+		component.handleInput(`\x1b[200~${pasted}\x1b[201~\r`);
+
+		expect(onSubmit).toHaveBeenCalledTimes(1);
+		expect(onSubmit).toHaveBeenCalledWith(pasted);
+	});
+
+	it("submits only after a fragmented paste closes with a bundled Enter", () => {
+		const onSubmit = vi.fn();
+		const component = new HookEditorComponent(createTui(), "Prompt", undefined, onSubmit, vi.fn(), {
 			promptStyle: true,
 		});
 
-		component.handleInput("a");
-		component.handleInput("b");
-		component.handleInput("\r");
+		component.handleInput("\x1b[200~first\n");
+		component.handleInput("second\x1b[20");
+		expect(onSubmit).not.toHaveBeenCalled();
+		component.handleInput("1~\r");
 
 		expect(onSubmit).toHaveBeenCalledTimes(1);
-		expect(onSubmit).toHaveBeenCalledWith("ab");
-		expect(onCancel).not.toHaveBeenCalled();
+		expect(onSubmit).toHaveBeenCalledWith("first\nsecond");
 	});
 
 	it("submits on alternate Enter encodings recognized by the key matcher", () => {

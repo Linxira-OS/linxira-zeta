@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
@@ -117,7 +117,7 @@ describe("inline click-to-focus geometry", () => {
 	});
 
 	it("bands the hovered live card and clears it off-target", async () => {
-		cfgTuiMouse.set(settings, true);
+		cfgTuiMouse.set(mode.settings, true);
 		await mode.init({ suppressWelcomeIntro: true });
 		void mode.getUserInput();
 		await term.waitForRender();
@@ -206,12 +206,12 @@ describe("inline click-to-focus geometry", () => {
 		// Disabling capture mid-hover clears the controller cache too: after
 		// re-enabling, motion over the same card must restore the band instead
 		// of looking unchanged and skipping the repaint.
-		cfgTuiMouse.set(settings, false);
+		cfgTuiMouse.set(mode.settings, false);
 		mode.ui.requestRender();
 		await term.waitForRender(() => !changed(before));
 		expect(workerBg()).toEqual(before);
 
-		cfgTuiMouse.set(settings, true);
+		cfgTuiMouse.set(mode.settings, true);
 		mode.ui.requestRender();
 		await term.waitForRender();
 		const cardRow = plainRows(term.getViewport()).findIndex(line => line.includes("HoverWorker"));
@@ -228,7 +228,7 @@ describe("inline click-to-focus geometry", () => {
 	});
 
 	it("expands and collapses the pinned jump list through SGR clicks", async () => {
-		cfgTuiMouse.set(settings, true);
+		cfgTuiMouse.set(mode.settings, true);
 		await mode.init({ suppressWelcomeIntro: true });
 		void mode.getUserInput();
 		await term.waitForRender();

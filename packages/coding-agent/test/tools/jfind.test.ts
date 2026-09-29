@@ -10,6 +10,7 @@ import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesys
 import { FindTool } from "@linxiraos/zeta/tools/jfind";
 import { runCascade } from "@linxiraos/zeta/tools/jfind/cascade";
 import { keywordsFromQuery } from "@linxiraos/zeta/tools/jfind/keywords";
+import { grepIndex } from "@linxiraos/zeta/tools/jfind/lexical";
 import { mergeHeat, type Passage, selectWindows, sketch, windows } from "@linxiraos/zeta/tools/jfind/passages";
 import { readText, ReadTextError } from "@linxiraos/zeta/tools/jfind/text";
 import { eligibleFile, renderTree, resolveSearchRoot } from "@linxiraos/zeta/tools/jfind/tree";
@@ -144,6 +145,25 @@ describe("jfind readText", () => {
 			expect(read).toEqual({ text: "first line\n", bytes: 11, truncated: true });
 			const whole = await readText(filesystem, path.join(dir, "text.txt"), 100);
 			expect(whole.truncated).toBe(false);
+		} finally {
+			await removeWithRetries(dir);
+		}
+	});
+});
+
+describe("jfind lexical index", () => {
+	it("counts keyword occurrences case-insensitively over every streamed matching line", async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "jfind-lexical-"));
+		try {
+			// Far more matching lines than one streamed batch carries.
+			await Bun.write(path.join(dir, "dense.txt"), "ΣΊΣΥΦΟΣ Service_Tier service_tier\n".repeat(3_000));
+			await Bun.write(path.join(dir, "other.txt"), "SERVICE_TIER\nunrelated\n");
+			const index = await grepIndex(dir, ["Σίσυφος", "service_tier"], {
+				includeHidden: false,
+				filesystem: urlFs(dir).shellFilesystem(),
+			});
+			expect(index.filesScanned).toBe(2);
+			expect(Object.fromEntries(index.perFileKw)).toEqual({ "dense.txt": [3_000, 6_000], "other.txt": [0, 1] });
 		} finally {
 			await removeWithRetries(dir);
 		}
@@ -303,7 +323,7 @@ describe("jfind cascade", () => {
 		expect(result.hits.map(hit => resolveSearchResultPath(root.path, hit.rel))).toEqual(["zeta://tools/read.md"]);
 	});
 
-	it("walks the omp root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
+	it("walks the zeta root in place: every embedded doc is listed and hits resolve to doc URLs", async () => {
 		const completions = (await InternalUrlRouter.instance().complete("zeta", "")) ?? [];
 		const docs = new Set(completions.map(completion => completion.value));
 		const filesystem = urlFs(process.cwd());

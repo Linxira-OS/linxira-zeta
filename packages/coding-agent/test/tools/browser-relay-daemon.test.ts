@@ -128,31 +128,13 @@ process.stdout.write(String(await probeRelayServer(url)));`,
 		}
 	});
 
-	it("surfaces stderr when a consumer exits before becoming ready", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-relay-failed-consumer-"));
-		const marker = path.join(home, "ready");
-		const consumer = observeConsumer(
-			Bun.spawn([process.execPath, "-e", 'console.error("synthetic relay startup failure"); process.exit(1)'], {
-				stdin: "pipe",
-				stdout: "ignore",
-				stderr: "pipe",
-			}),
-		);
-		try {
-			await expect(waitForConsumerReady(consumer, marker, 5_000)).rejects.toThrow("synthetic relay startup failure");
-		} finally {
-			await terminateConsumer(consumer);
-			await fs.rm(home, { recursive: true, force: true });
-		}
-	});
-
 	it("stays alive while a consumer in another project holds the global broker lease", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-relay-global-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-global-"));
 		const firstProject = path.join(home, "project-a");
 		const secondProject = path.join(home, "project-b");
 		const firstMarker = path.join(home, "first-ready");
 		const secondMarker = path.join(home, "second-ready");
-		const globalRuntimeDir = path.join(home, ".zeta", "run", "daemons", "global", "browser-relay");
+		const globalRuntimeDir = path.join(home, ".omp", "run", "daemons", "global", "browser-relay");
 		const cdpUrl = `http://127.0.0.1:${await findFreeCdpPort()}`;
 		const scriptPath = path.join(home, "consumer.ts");
 		await Promise.all([fs.mkdir(firstProject), fs.mkdir(secondProject)]);
@@ -186,9 +168,9 @@ try {
 						...process.env,
 						HOME: home,
 						USERPROFILE: home,
-						PI_CONFIG_DIR: ".zeta",
-						ZETA_PROFILE: profile,
-						ZETA_DAEMON_IDLE_GRACE_MS: "200",
+						PI_CONFIG_DIR: ".omp",
+						OMP_PROFILE: profile,
+						OMP_DAEMON_IDLE_GRACE_MS: "200",
 						OMP_TEST_RELAY_URL: cdpUrl,
 						OMP_TEST_READY_MARKER: marker,
 					},

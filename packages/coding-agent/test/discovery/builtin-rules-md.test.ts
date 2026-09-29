@@ -9,19 +9,19 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { getCapability } from "@linxiraos/zeta/capability";
 import { clearCache } from "@linxiraos/zeta/capability/fs";
 import { type Rule, ruleCapability } from "@linxiraos/zeta/capability/rule";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 // Importing discovery registers all providers as a side effect.
 import { loadCapability } from "@linxiraos/zeta/discovery";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 let tempDir: string;
 let home: string;
 let project: string;
 
-const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function writeFile(filePath: string, content: string): void {
@@ -60,34 +60,9 @@ afterEach(() => {
 		setAgentDir(originalAgentDirEnv);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.PI_CODING_AGENT_DIR;
 	}
 	removeSyncWithRetries(tempDir);
-});
-
-test("user ~/.zeta/agent/RULES.md becomes an alwaysApply rule", async () => {
-	writeFile(
-		path.join(home, ".zeta", "agent", "RULES.md"),
-		"**CRITICAL**: You _MUST_ use beads task tracker for any project\n",
-	);
-
-	const rules = await loadNativeRules({ cwd: project, home, repoRoot: project });
-
-	const userRule = rules.find(r => r._source.level === "user" && r.name === "RULES");
-	expect(userRule).toBeDefined();
-	expect(userRule?.alwaysApply).toBe(true);
-	expect(userRule?.content).toContain("beads task tracker");
-});
-
-test("project .zeta/RULES.md becomes an alwaysApply rule", async () => {
-	writeFile(path.join(project, ".zeta", "RULES.md"), "# Project rule\nAlways say hi.\n");
-
-	const rules = await loadNativeRules({ cwd: project, home, repoRoot: project });
-
-	const projectRule = rules.find(r => r._source.level === "project" && r.name === "RULES@project");
-	expect(projectRule).toBeDefined();
-	expect(projectRule?.alwaysApply).toBe(true);
-	expect(projectRule?.content).toContain("Always say hi.");
 });
 
 test("project RULES.md is found walking up from a sub-package cwd", async () => {

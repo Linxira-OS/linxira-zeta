@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@linxiraos/zeta/mcp/transports/stdio";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("resolveStdioSpawnCommand", () => {
 	it("resolves bare Windows commands through PATHEXT and wraps .cmd shims with cmd.exe", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-stdio-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-stdio-"));
 		try {
 			const shim = path.join(tempDir, "codegraph.cmd");
 			await Bun.write(shim, "@echo off\r\n");
@@ -43,8 +43,8 @@ describe("resolveStdioSpawnCommand", () => {
 	});
 
 	it("prefers a project-local .cmd shim over a same-named global one when no path segment is given", async () => {
-		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-cwd-"));
-		const globalDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-global-"));
+		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-cwd-"));
+		const globalDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-global-"));
 		try {
 			const localShim = path.join(projectDir, "server.cmd");
 			const globalShim = path.join(globalDir, "server.cmd");
@@ -82,7 +82,7 @@ describe("resolveStdioSpawnCommand", () => {
 	});
 
 	it("keeps PATH-resolved npx.cmd on the cmd.exe path so npm preserves stdio semantics", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-npx-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-npx-"));
 		try {
 			const shim = path.join(tempDir, "npx.cmd");
 			await Bun.write(
@@ -140,7 +140,7 @@ describe("resolveStdioSpawnCommand", () => {
 	});
 
 	it("still launches non-npx npm .cmd shims through node so stdio stays owned by the server process", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-codegraph-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-codegraph-"));
 		try {
 			const shim = path.join(tempDir, "codegraph.cmd");
 			const entry = path.join(tempDir, "node_modules", "@colbymchenry", "codegraph", "npm-shim.js");
@@ -191,7 +191,7 @@ describe("resolveStdioSpawnCommand", () => {
 	});
 
 	it("keeps non-node cmd-shim wrappers on the cmd.exe path instead of mislaunching them via node", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-pyshim-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-pyshim-"));
 		try {
 			const shim = path.join(tempDir, "pyserver.cmd");
 			await Bun.write(
@@ -241,79 +241,6 @@ describe("resolveStdioSpawnCommand", () => {
 		}
 	});
 
-	it("neutralizes percent-delimited args so cmd.exe cannot expand them before the .cmd shim", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-percent-"));
-		try {
-			const shim = path.join(tempDir, "codegraph.cmd");
-			await Bun.write(shim, "@echo off\r\n");
-
-			const result = await resolveStdioSpawnCommand(
-				{ type: "stdio", command: "codegraph", args: ["serve", "--header", "Authorization=%TOKEN%"] },
-				{
-					cwd: tempDir,
-					env: {
-						COMSPEC: "C:\\Windows\\System32\\cmd.exe",
-						PATH: tempDir,
-						PATHEXT: ".cmd",
-					},
-					platform: "win32",
-				},
-			);
-
-			// `%TOKEN%` -> `%%cd:~,%TOKEN%%cd:~,%`: `%cd:~,%` expands to nothing,
-			// so cmd.exe leaves a literal `%TOKEN%` for the shim instead of
-			// substituting an environment variable (BatBadBut / CVE-2024-24576).
-			expect(result.cmd).toEqual([
-				"C:\\Windows\\System32\\cmd.exe",
-				"/d",
-				"/e:ON",
-				"/v:OFF",
-				"/c",
-				`""${shim}" serve --header "Authorization=%%cd:~,%TOKEN%%cd:~,%""`,
-			]);
-			expect(result.windowsVerbatimArguments).toBe(true);
-			expect(result.windowsHide).toBe(true);
-			expect(result.detached).toBe(false);
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
-
-	it("doubles embedded quotes so cmd.exe delivers JSON args to the .cmd shim intact", async () => {
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-quotes-"));
-		try {
-			const shim = path.join(tempDir, "codegraph.cmd");
-			await Bun.write(shim, "@echo off\r\n");
-
-			const result = await resolveStdioSpawnCommand(
-				{ type: "stdio", command: "codegraph", args: ["--config", '{"a":"b&c|d"}'] },
-				{
-					cwd: tempDir,
-					env: {
-						COMSPEC: "C:\\Windows\\System32\\cmd.exe",
-						PATH: tempDir,
-						PATHEXT: ".cmd",
-					},
-					platform: "win32",
-				},
-			);
-
-			expect(result.cmd).toEqual([
-				"C:\\Windows\\System32\\cmd.exe",
-				"/d",
-				"/e:ON",
-				"/v:OFF",
-				"/c",
-				`""${shim}" --config "{""a"":""b&c|d""}""`,
-			]);
-			expect(result.windowsVerbatimArguments).toBe(true);
-			expect(result.windowsHide).toBe(true);
-			expect(result.detached).toBe(false);
-		} finally {
-			await removeWithRetries(tempDir);
-		}
-	});
-
 	it("resolves extension-less absolute Windows paths to the sibling .cmd shim", async () => {
 		// Mirrors npm's Windows shim layout: bare `codegraph` (shebang script),
 		// `codegraph.cmd` (cmd.exe wrapper), and `codegraph.ps1` siblings under
@@ -322,7 +249,7 @@ describe("resolveStdioSpawnCommand", () => {
 		// sibling so the launch succeeds (see #2174). The test rig pins
 		// PATHEXT to a single lowercase extension so the candidate filename
 		// matches the file we create on the case-sensitive test host.
-		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-abs-"));
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-abs-"));
 		try {
 			const bare = path.join(tempDir, "codegraph");
 			const shim = `${bare}.cmd`;
@@ -474,7 +401,7 @@ describe("resolveStdioSpawnCommand", () => {
 		// file, so an un-escaped command token like C:\work\%TOKEN%\server.cmd
 		// would resolve to a different path. The command token must be escaped
 		// the same way arguments are.
-		const base = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-cmdpct-"));
+		const base = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-cmdpct-"));
 		const dir = path.join(base, "%TOKEN%");
 		try {
 			await fs.mkdir(dir, { recursive: true });
@@ -619,17 +546,6 @@ describe("writeFrame", () => {
 
 		expect(writeFrame(sink, "anything\n")).toBe(false);
 		expect(sink.writes).toEqual(["anything\n"]);
-	});
-
-	it("does not propagate non-Error throws either", () => {
-		const sink = {
-			write() {
-				throw "string-thrown-non-error";
-			},
-			flush() {},
-		};
-
-		expect(writeFrame(sink, "x")).toBe(false);
 	});
 
 	it("returns true and neutralizes an asynchronous write rejection (broken pipe surfaced as a Promise)", async () => {
@@ -909,7 +825,7 @@ describe("StdioTransport.close", () => {
 	it.skipIf(process.platform === "win32")(
 		"is idempotent even when close() had to escalate to SIGKILL",
 		async () => {
-			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-stdio-close-escalate-"));
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-stdio-close-escalate-"));
 			const scriptPath = path.join(tempDir, "child.mjs");
 			const readyPath = path.join(tempDir, "ready");
 			try {

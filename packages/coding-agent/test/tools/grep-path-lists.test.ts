@@ -7,19 +7,15 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { getEditStore } from "@linxiraos/zeta/edit/store";
-import type { RenderResultOptions } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import { AgentTranscriptViewer } from "@linxiraos/pi-tui/overlays/agent-transcript-viewer";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
 import type { ObservableSession, SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import type { Theme } from "@linxiraos/pi-tui/theme";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { SessionEntry, SessionTreeNode } from "@linxiraos/zeta/session/session-entries";
 import { ToolChoiceQueue } from "@linxiraos/zeta/session/tool-choice-queue";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
-import type { Text } from "@linxiraos/pi-tui";
 import { removeWithRetries } from "@linxiraos/pi-utils";
-import { grepToolRenderer } from "@linxiraos/pi-tui/tools/grep";
 
 function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): ToolSession {
 	return {
@@ -31,18 +27,6 @@ function createTestSession(cwd: string, overrides: Partial<ToolSession> = {}): T
 		...overrides,
 	};
 }
-
-const plainTheme = {
-	fg: (_color: unknown, text: string) => text,
-	styledSymbol: () => "…",
-	sep: { dot: " • " },
-	format: { bracketLeft: "[", bracketRight: "]" },
-} as unknown as Theme;
-
-const renderOptions: RenderResultOptions = {
-	expanded: false,
-	isPartial: true,
-};
 
 function getText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -293,15 +277,6 @@ describe("tool path arrays", () => {
 		await removeWithRetries(tmp);
 	});
 
-	it("grep pending renderer accepts a single string path", () => {
-		const component = grepToolRenderer.renderCall(
-			{ pattern: "space-needle", paths: "folder with spaces/" },
-			renderOptions,
-			plainTheme,
-		);
-
-		expect((component as Text).getText()).toContain("in folder with spaces/");
-	});
 	it("agent hub chat renders a single-string grep path summary", async () => {
 		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "search-path-lists-"));
 		const sessionFile = await makeJsonlSessionFile(tmp, [
@@ -434,24 +409,6 @@ describe("tool path arrays", () => {
 
 		expect(rendered).toContain("[grep: /space-needle/ in folder with spaces/]");
 		expect(rendered).not.toContain("[grep: /space-needle/ in .]");
-	});
-
-	it("search keeps a single path that contains spaces", async () => {
-		const tools = await createTools(createTestSession(tempDir));
-		const tool = tools.find(entry => entry.name === "grep");
-		expect(tool).toBeDefined();
-		if (!tool) throw new Error("Missing grep tool");
-
-		const result = await tool.execute("search-space-directory", {
-			pattern: "space-needle",
-			path: "folder with spaces/",
-		});
-		const text = getText(result);
-		const details = result.details as { fileCount?: number; scopePath?: string } | undefined;
-
-		expect(text).toContain("note.txt");
-		expect(details?.fileCount).toBe(1);
-		expect(details?.scopePath).toBe("folder with spaces");
 	});
 
 	it("search accepts quoted directory paths", async () => {
@@ -913,6 +870,7 @@ describe("tool path arrays", () => {
 
 	it("grep keeps directory-prefixed globs out of subdirectories", async () => {
 		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "search-path-lists-"));
+		await Bun.write(path.join(tmp, "root.go"), "depth-needle root\n");
 		await Bun.write(path.join(tmp, "internal", "awsapi", "client.go"), "depth-needle awsapi-root\n");
 		await Bun.write(path.join(tmp, "internal", "awsapi", "svc", "nested.go"), "depth-needle awsapi-nested\n");
 		await Bun.write(path.join(tmp, "internal", "crypto_util.go"), "depth-needle crypto-root\n");
@@ -950,6 +908,26 @@ describe("tool path arrays", () => {
 		const bareGlob = getText(await tool.execute("grep-bare-glob", { pattern: "depth-needle", path: "*.go" }));
 		expect(bareGlob).toContain("awsapi-nested");
 		expect(bareGlob).toContain("kms");
+		const explicitCwdGlob = getText(
+			await tool.execute("grep-explicit-cwd-glob", { pattern: "depth-needle", path: "./*.go" }),
+		);
+		expect(explicitCwdGlob).toContain("depth-needle root");
+		expect(explicitCwdGlob).not.toContain("awsapi-root");
+		const absoluteCwdGlob = getText(
+			await tool.execute("grep-absolute-cwd-glob", { pattern: "depth-needle", path: path.join(tmp, "*.go") }),
+		);
+		expect(absoluteCwdGlob).toContain("depth-needle root");
+		expect(absoluteCwdGlob).not.toContain("awsapi-root");
+		const mixedGlobs = getText(
+			await tool.execute("grep-mixed-globs", { pattern: "depth-needle", path: "*.go; ./root.go" }),
+		);
+		expect(mixedGlobs).toContain("awsapi-nested");
+		// A bare glob listed beside a directory keeps matching at any depth.
+		const globBesideDir = getText(
+			await tool.execute("grep-glob-beside-dir", { pattern: "depth-needle", path: "*.go; internal/awsapi" }),
+		);
+		expect(globBesideDir).toContain("kms");
+		expect(globBesideDir).toContain("awsapi-nested");
 		await removeWithRetries(tmp);
 	});
 

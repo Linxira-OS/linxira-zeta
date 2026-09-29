@@ -28,6 +28,7 @@ import {
 	type SimpleStreamOptions,
 	streamSimple,
 } from "@linxiraos/pi-ai";
+import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import {
@@ -143,6 +144,20 @@ export { calculateCost, getBundledModel, getBundledModels, getBundledProviders, 
 export const getModel = getBundledModel;
 export const getModels = getBundledModels;
 
+const ANTHROPIC_MESSAGES_API = {
+	stream: streamAnthropic,
+	streamSimple: (model: Model<"anthropic-messages">, context: Context, options?: SimpleStreamOptions) =>
+		streamSimple(model, context, options),
+};
+
+/**
+ * Expose OMP's Anthropic transport through the legacy `/compat` provider
+ * factory used by extensions such as `pi-background-tasks`.
+ */
+export function anthropicMessagesApi() {
+	return ANTHROPIC_MESSAGES_API;
+}
+
 /**
  * Stream OpenAI Responses through the historical simple-options contract.
  *
@@ -166,7 +181,7 @@ export function streamSimpleOpenAIResponses(
  * `@linxiraos/pi-ai` barrel no longer forwards. Each symbol still exists in the
  * host graph — only its root re-export was dropped — so bridging it here keeps
  * legacy extensions importing it from the pi-ai root resolving through Bun's
- * static named-export check (e.g. `zeta plugin install pi-blackhole`).
+ * static named-export check (e.g. `omp plugin install pi-blackhole`).
  *
  * This is the full set derived from an audit of the upstream root surface: the
  * error-classification predicate `isContextOverflow` (now under

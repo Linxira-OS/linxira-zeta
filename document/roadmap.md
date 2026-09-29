@@ -629,9 +629,13 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
-- **上游合并队列**:dev/main 全绿基线后依次 v18.3.3+v18.3.4(已授权,
-  135 冲突)→ v18.3.5(24 commits)→ v18.4.0(160)→ v18.4.1/v18.4.2
-  (今日新出,上游侧干跑零自冲突;步长按 merge-playbook 结论 21 判据)。
+- **上游合并队列**:v18.3.3+v18.3.4 已合并;2026-09-29 用户授权五 tag
+  直拉 v18.4.3(v18.3.5/40/41/42/43 一次并入,288 冲突,账本见
+  upstream-sync.md)。上游性能大年获益:cache-warming、投机 task 启动、
+  grep 流式背压、Oniguruma 高亮、TUI 每帧渲染清扫。**后续遗留**:image
+  `providers.imageOrder` 的 role-chain 重集成(运行时消费随上游旧 candidate
+  循环删除而失活,设置面/测试契约保留);上游最新 tag 跟踪同前。
+
 - **rail 拖拽排序**:dnd-kit 垂直排序 + localStorage 持久化(随 U6
   SidePane 框架一起评估)。
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游

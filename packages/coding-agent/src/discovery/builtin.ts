@@ -3,8 +3,6 @@
  *
  * Primary provider for OMP native configs. Supports all capabilities.
  */
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -20,17 +18,16 @@ import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Prompt, promptCapability } from "../capability/prompt";
 import { type Rule, ruleCapability } from "../capability/rule";
 import { type Settings, settingsCapability } from "../capability/settings";
-import { OFFICIAL_SKILLS_PROVIDER_ID, type Skill, skillCapability } from "../capability/skill";
+import { type Skill, skillCapability } from "../capability/skill";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { type CustomTool, toolCapability } from "../capability/tool";
 import type { LoadContext, LoadResult } from "../capability/types";
-
 import { expandTilde } from "../tools/path-utils";
 import {
+	discoverRuleFromMarkdown,
 	createSourceMeta,
 	discoverExtensionModulePaths,
-	discoverRuleFromMarkdown,
 	expandEnvVarsDeep,
 	getExtensionNameFromPath,
 	loadFilesFromDir,
@@ -67,7 +64,8 @@ async function getConfigDirs(ctx: LoadContext): Promise<Array<{ dir: string; lev
 	}
 	// Native user config is profile-scoped: getAgentDir() points at the active
 	// profile's agent dir (~/.zeta/profiles/<name>/agent), like sessions and MCP.
-	const userDir = await ifNonEmptyDir(getAgentDir());
+	// A load that carries its own agentDir (an SDK session created with one) reads that dir.
+	const userDir = await ifNonEmptyDir(ctx.agentDir ?? getAgentDir());
 	if (userDir) {
 		result.push({ dir: userDir, level: "user" });
 	}
@@ -343,80 +341,6 @@ registerProvider<Skill>(skillCapability.id, {
 	load: loadManagedSkills,
 });
 
-// Official bundled skills (`skills/official/` in the repo, packaged with
-// releases). Priority sits between authored (100) and managed (5): an
-// authored skill of the same name from any provider still wins, but the
-// official pack beats auto-learn noise. A missing dir is a no-op so the
-// provider is inert in contexts without the pack (npm global installs
-// before the bundled seed lands).
-const OFFICIAL_SKILLS_PRIORITY = 10;
-// Resolution order:
-//   1. ZETA_OFFICIAL_SKILLS_DIR — explicit override; a dead path disables the
-//      pack entirely (the test preload uses this for process-wide isolation).
-//   2. ZETA_OFFICIAL_SKILLS_EMBED — payload burned in at bundle/binary build
-//      time (see scripts/generate-official-skills-payload.ts); seeded to disk
-//      under <agentDir>/official-skills/ so skills keep real paths.
-//   3. Repo checkout fallback — dev runs against skills/official/ in the tree.
-function resolveOfficialSkillsDir(): string | null {
-	const override = process.env.ZETA_OFFICIAL_SKILLS_DIR;
-	if (override !== undefined) return override;
-	const embed = process.env.ZETA_OFFICIAL_SKILLS_EMBED;
-	if (embed !== undefined) return seedOfficialSkillsFromEmbed(embed);
-	return path.join(import.meta.dir, "../../../../skills/official");
-}
-
-function seedOfficialSkillsFromEmbed(embedJson: string): string {
-	// Test processes override this to point the seed at a temp dir; mutating
-	// the global agent dir from a test leaks into every later chunk sibling.
-	const seedRoot = process.env.ZETA_OFFICIAL_SKILLS_SEED_DIR ?? path.join(getAgentDir(), "official-skills");
-	const seedDir = seedRoot;
-	const hash = createHash("sha256").update(embedJson).digest("hex").slice(0, 16);
-	const hashPath = path.join(seedDir, ".embed-hash");
-	let currentHash = "";
-	try {
-		currentHash = readFileSync(hashPath, "utf8").trim();
-	} catch {
-		// First seed, or the marker was removed — fall through to a rewrite.
-	}
-	if (currentHash === hash && existsSync(seedDir)) return seedDir;
-	const files = JSON.parse(embedJson) as Record<string, string>;
-	mkdirSync(seedDir, { recursive: true });
-	for (const [relative, body] of Object.entries(files)) {
-		const target = path.join(seedDir, relative);
-		mkdirSync(path.dirname(target), { recursive: true });
-		writeFileSync(target, body);
-	}
-	writeFileSync(hashPath, `${hash}\n`);
-	return seedDir;
-}
-
-async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
-	let dir: string | null;
-	try {
-		dir = resolveOfficialSkillsDir();
-	} catch (error) {
-		return {
-			items: [],
-			warnings: [`Failed to seed official skills: ${String(error)}`],
-		};
-	}
-	if (!dir || !existsSync(dir)) return { items: [] };
-	return scanSkillsFromDir(ctx, {
-		dir,
-		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
-		level: "user",
-		requireDescription: true,
-	});
-}
-
-registerProvider<Skill>(skillCapability.id, {
-	id: OFFICIAL_SKILLS_PROVIDER_ID,
-	displayName: "Official Skills (bundled)",
-	description: "First-party task skills shipped with Zeta (skills/official)",
-	priority: OFFICIAL_SKILLS_PRIORITY,
-	load: loadOfficialSkills,
-});
-
 // Slash Commands
 async function loadSlashCommands(ctx: LoadContext): Promise<LoadResult<SlashCommand>> {
 	const items: SlashCommand[] = [];
@@ -469,9 +393,9 @@ async function loadRules(ctx: LoadContext): Promise<LoadResult<Rule>> {
 	// https://omp.sh/docs/context-files: its full body is carried on every
 	// request (system-prompt text, or image frames under snapcompact
 	// system-prompt imaging) so it keeps its hold across long sessions.
-	// User scope:    ~/.zeta/agent/RULES.md
+	// User scope:    <agentDir>/RULES.md (~/.zeta/agent/RULES.md by default)
 	// Project scope: nearest .zeta/RULES.md walking up from cwd to repoRoot
-	const userRulesFile = path.join(getAgentDir(), "RULES.md");
+	const userRulesFile = path.join(ctx.agentDir ?? getAgentDir(), "RULES.md");
 	const userRule = await loadStickyRulesFile(userRulesFile, "user");
 	if (userRule) items.push(userRule);
 

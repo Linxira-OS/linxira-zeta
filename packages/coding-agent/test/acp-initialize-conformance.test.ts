@@ -127,7 +127,7 @@ class FakeAgentSession {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -135,7 +135,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.PI_CODING_AGENT_DIR;
 	}
 	for (const root of cleanupRoots.splice(0)) {
 		await fs.promises.rm(root, { recursive: true, force: true });
@@ -143,7 +143,7 @@ afterEach(async () => {
 });
 
 async function createAgent(): Promise<AcpAgent> {
-	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "zeta-acp-init-"));
+	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-acp-init-"));
 	cleanupRoots.push(root);
 	const agentDir = path.join(root, "agent");
 	const cwd = path.join(root, "cwd");
@@ -232,8 +232,7 @@ describe("ACP initialize conformance", () => {
 		const pkg = (await Bun.file(pkgPath).json()) as { version: string };
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
-				name: "zeta",
-				title: "Zeta",
+				title: "omp",
 				version: VERSION,
 			}),
 		);

@@ -112,19 +112,6 @@ describe("PluginListComponent", () => {
 		expect(text).toContain("shadowed");
 	});
 
-	it("empty-state mentions both npm and marketplace install commands", () => {
-		const component = new PluginListComponent([], {
-			onNpmSelect: () => {},
-			onMarketplaceSelect: () => {},
-			onCancel: () => {},
-		});
-
-		const text = stripVTControlCharacters(component.render(120).join("\n"));
-		expect(text).toContain("No plugins installed");
-		expect(text).toContain("zeta plugin install <package>");
-		expect(text).toContain("zeta plugin install <name>@<marketplace>");
-	});
-
 	it("routes enter on a marketplace entry to onMarketplaceSelect", () => {
 		const target = marketplace("pick@mkt");
 		let selected: MarketplaceSettingsPlugin | null = null;
@@ -367,7 +354,7 @@ describe("MarketplacePluginDetailComponent", () => {
 
 	it("shortens home-relative install paths to ~ before rendering", async () => {
 		const home = os.homedir();
-		const installPath = `${home}/.zeta/cache/plugins/sample@mkt`;
+		const installPath = `${home}/.omp/cache/plugins/sample@mkt`;
 		const plugin = marketplace("sample@mkt", { entry: { installPath } });
 		const manager = new PluginManager(process.cwd());
 		spyOn(manager, "getPlugin").mockResolvedValue(undefined);
@@ -379,7 +366,7 @@ describe("MarketplacePluginDetailComponent", () => {
 			onBack: () => {},
 		});
 
-		const text = await renderMarketplaceDetail(component, "~/.zeta/cache/plugins/sample@mkt");
+		const text = await renderMarketplaceDetail(component, "~/.omp/cache/plugins/sample@mkt");
 		expect(text).not.toContain(home);
 	});
 });

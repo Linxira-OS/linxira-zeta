@@ -5,41 +5,41 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { cfgProvidersWebSearchGeminiModel } from "./provider-order-settings";
-import { modelKind } from "@linxiraos/pi-catalog/types";
-import { isSearchProviderId, type SearchResultDetails } from "./types";
-import { resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
-import { roleCandidatePool } from "../../config/model-roles";
-import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
-import type { AuthStorage } from "@linxiraos/pi-ai";
 import { type } from "@linxiraos/pi-omptype";
-import { prompt } from "@linxiraos/pi-utils";
+import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import type { Api, AuthStorage, Model } from "@linxiraos/pi-ai";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { formatAge, prompt } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../../config/model-registry";
+import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../../config/model-resolver";
+import { roleCandidatePool } from "../../config/model-roles";
 import { settings } from "../../config/settings";
-import type { CustomTool, CustomToolContext, RenderResultOptions } from "../../extensibility/custom-tools/types";
-import type { Theme } from "@linxiraos/pi-tui/theme";
+import type { CustomTool, CustomToolContext } from "../../extensibility/custom-tools/types";
 import webSearchSystemPrompt from "../../prompts/system/web-search.md" with { type: "text" };
 import webSearchDescription from "../../prompts/tools/web-search.md" with { type: "text" };
+import { resolveConfiguredModelTarget } from "../../session/role-models";
 import { discoverAuthStorage } from "../../sdk";
 import type { ToolSession } from "../../tools";
-import { formatAge } from "@linxiraos/pi-tui/render/render-utils";
 import { throwIfAborted } from "../../tools/tool-errors";
 import {
 	formatSearchProviderFailure,
 	formatSearchProviderFailures,
-	getSearchProvider,
 	getGroundedSearchProvider,
-	resolveProviderCandidates,
+	getSearchProvider,
 	type SearchProvider,
-	type SearchProviderCandidate,
 } from "./provider";
-import { getSearchProviderLabel } from "@linxiraos/pi-tui/tools/web-search";
 import { applyQueryConstraints, parseSearchQuery } from "./query";
-import { renderSearchCall, renderSearchResult, type SearchRenderDetails } from "@linxiraos/pi-tui/tools/web-search";
-import { DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS, MAX_WEB_SEARCH_TIMEOUT_SECONDS, SearchProviderError } from "./types";
-import { type SearchProviderId, type SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
+import {
+	DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS,
+	MAX_WEB_SEARCH_TIMEOUT_SECONDS,
+	SearchProviderError,
+	type SearchProviderId,
+	type SearchResponse,
+	type SearchResultDetails,
+} from "./types";
 
 import { cfgProvidersAntigravityEndpoint, cfgProvidersWebSearchTimeoutSeconds } from "../../session/settings";
+import { cfgProvidersWebSearchGeminiModel } from "./provider-order-settings";
 
 /** Web search tool parameters schema */
 export const webSearchSchema = type({
@@ -135,9 +135,35 @@ function hasRenderableSearchContent(response: SearchResponse): boolean {
 interface ExecuteSearchOptions {
 	authStorage: AuthStorage;
 	modelRegistry?: ModelRegistry;
-	modelName?: string;
 	sessionId?: string;
+	/** The session's active model; `web/hosted` searches through it. */
+	sessionModel?: Model<Api>;
 	signal?: AbortSignal;
+}
+
+function isHostedPlaceholder(model: Model<Api>): boolean {
+	return model.provider === "web" && model.id === "hosted";
+}
+
+/**
+ * Expand the `web/hosted` placeholder into models on the session's own
+ * provider, which bill the credential the session already uses: first the
+ * session model's cheaper `webSearchModel` swap, then the session model itself.
+ * A swap the host does not expose is skipped; a failing swap falls through to
+ * the session model. Left unexpanded when neither can search.
+ */
+function expandHostedCandidate(
+	candidate: RoleChainCandidate,
+	sessionModel: Model<Api> | undefined,
+	pool: Model<Api>[],
+): RoleChainCandidate[] {
+	if (!isHostedPlaceholder(candidate.model) || !sessionModel) return [candidate];
+	const swap = resolveConfiguredModelTarget(sessionModel.webSearchModel, sessionModel, pool);
+	const models = [swap, sessionModel].filter(
+		(model, index, all): model is Model<Api> => !!model?.webSearch && all.indexOf(model) === index,
+	);
+	if (models.length === 0) return [candidate];
+	return models.map(model => ({ ...candidate, model }));
 }
 
 /** Execute web search */
@@ -145,7 +171,7 @@ async function executeSearch(
 	_toolCallId: string,
 	params: SearchQueryParams,
 	options: ExecuteSearchOptions,
-): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchRenderDetails }> {
+): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchResultDetails }> {
 	const { authStorage, sessionId, signal } = options;
 	const modelRegistry = options.modelRegistry ?? new ModelRegistry(authStorage, undefined, { settings });
 	const pool = roleCandidatePool("web", settings, modelRegistry);
@@ -157,12 +183,7 @@ async function executeSearch(
 					? [{ model: resolved.model, explicit: true, thinkingLevel: resolved.thinkingLevel }]
 					: [];
 			})()
-		: resolveRoleChain(
-				"web",
-				settings,
-				pool,
-				forcedProvider === undefined ? undefined : { hoistProvider: forcedProvider },
-			);
+		: resolveRoleChain("web", settings, pool);
 	// Zeta pins the engine with `provider`, not the upstream `model` role: a forced
 	// provider is the only candidate, and it must not silently fall through to
 	// another engine when it fails.
@@ -174,12 +195,11 @@ async function executeSearch(
 				);
 	const finalCandidates =
 		scopedCandidates.length > 0 ? scopedCandidates : forcedProvider === undefined ? [] : candidates.slice(0, 1);
+	const expanded = finalCandidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool));
 
 	const parsedQuery = parseSearchQuery(params.query);
 
-	// Invariant across providers; read once and tolerate an uninitialized
-	// Settings singleton (e.g. `zeta q ...` CLI path, unit tests) so the
-	// provider-fallback loop never aborts before any provider runs.
+	// Invariant across candidates; resolve once before walking the role chain.
 	let antigravityEndpointMode: "auto" | "production" | "sandbox" | undefined;
 	try {
 		antigravityEndpointMode = cfgProvidersAntigravityEndpoint.get(settings);
@@ -207,27 +227,28 @@ async function executeSearch(
 	const failures: Array<{ provider: { id: string; label: string }; error: unknown }> = [];
 	let availableProviderCount = 0;
 	let lastProvider: { id: string; label: string } | undefined;
-	for (const candidate of finalCandidates) {
+	let failedResponseProvider: SearchResponse["provider"] = "none";
+	for (const candidate of expanded) {
 		let provider: SearchProvider | undefined;
-		// v18.3.1 widened the chain from providers to models: each candidate
-		// carries a catalog model, and a model either names a search backend or
-		// grounds through its own webSearch tool.
-		const candidateMeta = { id: candidate.model.id, label: candidate.model.name } as {
-			id: SearchProviderId;
-			label: string;
-		};
+		const candidateMeta = { id: candidate.model.id, label: candidate.model.name };
 		lastProvider = candidateMeta;
 		try {
-			if (modelKind(candidate.model) === "search") {
-				provider = await getSearchProvider(candidate.model.id);
-			} else if (candidate.model.webSearch) {
-				provider = await getGroundedSearchProvider(candidate.model.webSearch);
-			} else {
-				throw new Error(`Model ${candidate.model.provider}/${candidate.model.id} does not support web search`);
+			const model = candidate.model;
+			if (isHostedPlaceholder(model)) {
+				if (!candidate.explicit) continue;
+				throw new Error("The session model has no web search grounding.");
 			}
+			if (modelKind(model) === "search") {
+				provider = await getSearchProvider(model.id);
+			} else if (model.webSearch) {
+				provider = await getGroundedSearchProvider(model.webSearch);
+			} else {
+				throw new Error(`Model ${model.provider}/${model.id} does not support web search`);
+			}
+			lastProvider = provider;
 			const available = candidate.explicit
-				? await provider.isExplicitlyAvailable(authStorage, candidate.model)
-				: await provider.isAvailable(authStorage, candidate.model);
+				? await provider.isExplicitlyAvailable(authStorage, model)
+				: await provider.isAvailable(authStorage, model);
 			if (!available && !candidate.explicit) continue;
 			if (!available && candidate.explicit) {
 				throw new SearchProviderError(
@@ -250,7 +271,7 @@ async function executeSearch(
 				signal,
 				timeoutMs,
 				authStorage,
-				model: candidate.model,
+				model,
 				thinkingLevel: candidate.thinkingLevel,
 				modelRegistry,
 				explicit: candidate.explicit,
@@ -258,6 +279,16 @@ async function executeSearch(
 				antigravityEndpointMode,
 				geminiModel,
 			});
+
+			// A host that silently drops the hosted search tool still answers from the
+			// model's weights; without sources that answer is not a search result.
+			if (modelKind(model) !== "search" && response.sources.length === 0 && !response.citations?.length) {
+				throw new SearchProviderError(
+					provider.id,
+					`${provider.label} returned no sources; ${model.provider}/${model.id} may not support hosted web search.`,
+					204,
+				);
+			}
 
 			// Lenient constraint pass over whatever the provider returned: enforce
 			// site:/inurl:/intitle:/filetype:/date directives the provider could
@@ -292,12 +323,15 @@ async function executeSearch(
 			// failure and the loop falls through to the next provider (or to the
 			// summary error), masking the cancellation.
 			throwIfAborted(signal);
+			failedResponseProvider = provider?.id ?? "none";
 			failures.push({ provider: provider ?? candidateMeta, error });
 		}
 	}
 
 	if (availableProviderCount === 0 && failures.length === 0) {
-		const message = "No web search provider configured.";
+		const message = params.model
+			? `No web search model matches selector "${params.model}".`
+			: "No web search model configured.";
 		return {
 			content: [{ type: "text" as const, text: `Error: ${message}` }],
 			details: { response: { provider: "none", sources: [] }, error: message },
@@ -305,8 +339,6 @@ async function executeSearch(
 	}
 
 	const lastFailure = failures[failures.length - 1];
-	// tui's SearchResponse.provider is `SearchProviderId | "none"`; the failure
-	// records carry a plain string id, so narrow once here.
 	const baseMessage = lastFailure
 		? formatSearchProviderFailure(lastFailure.error, lastFailure.provider)
 		: `Unknown error from ${lastProvider?.label ?? "web search provider"}`;
@@ -316,10 +348,7 @@ async function executeSearch(
 	return {
 		content: [{ type: "text" as const, text: `Error: ${message}` }],
 		details: {
-			response: {
-				provider: (lastFailure?.provider.id ?? lastProvider?.id ?? "none") as SearchProviderId | "none",
-				sources: [],
-			},
+			response: { provider: failedResponseProvider, sources: [] },
 			error: message,
 		},
 	};
@@ -337,23 +366,22 @@ export async function runSearchQuery(
 	options: {
 		authStorage?: AuthStorage;
 		modelRegistry?: ModelRegistry;
-		modelName?: string;
 		sessionId?: string;
+		sessionModel?: Model<Api>;
 		signal?: AbortSignal;
 	} = {},
-): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchRenderDetails }> {
+): Promise<{ content: Array<{ type: "text"; text: string }>; details: SearchResultDetails }> {
 	const createdAuthStorage = options.authStorage || options.modelRegistry ? undefined : await discoverAuthStorage();
 	const authStorage = options.authStorage ?? options.modelRegistry?.authStorage ?? createdAuthStorage;
 	if (!authStorage) {
 		throw new Error("Failed to initialize authentication storage");
 	}
-	const modelRegistry = options.modelRegistry ?? (createdAuthStorage ? new ModelRegistry(authStorage) : undefined);
 	try {
 		return await executeSearch("cli-web-search", params, {
 			authStorage,
-			modelRegistry,
-			modelName: options.modelName,
+			modelRegistry: options.modelRegistry,
 			sessionId: options.sessionId,
+			sessionModel: options.sessionModel,
 			signal: options.signal,
 		});
 	} finally {
@@ -364,9 +392,9 @@ export async function runSearchQuery(
 /**
  * Web search tool implementation.
  *
- * Supports the configured web-search provider chain with automatic fallback.
+ * Supports the configured web model role chain with automatic fallback.
  */
-export class WebSearchTool implements AgentTool<typeof webSearchSchema, SearchRenderDetails> {
+export class WebSearchTool implements AgentTool<typeof webSearchSchema, SearchResultDetails> {
 	readonly name = "web_search";
 	readonly approval = "read" as const;
 	readonly label = "Web Search";
@@ -387,23 +415,23 @@ export class WebSearchTool implements AgentTool<typeof webSearchSchema, SearchRe
 		_toolCallId: string,
 		params: SearchToolParams,
 		signal?: AbortSignal,
-		_onUpdate?: AgentToolUpdateCallback<SearchRenderDetails>,
+		_onUpdate?: AgentToolUpdateCallback<SearchResultDetails>,
 		_context?: AgentToolContext,
-	): Promise<AgentToolResult<SearchRenderDetails>> {
+	): Promise<AgentToolResult<SearchResultDetails>> {
 		const authStorage = this.#session.authStorage ?? (await discoverAuthStorage());
 		const sessionId = this.#session.getSessionId?.() ?? undefined;
 		return executeSearch(_toolCallId, params, {
 			authStorage,
 			modelRegistry: this.#session.modelRegistry,
-			modelName: this.#session.getActiveModel?.()?.id,
 			sessionId,
+			sessionModel: this.#session.getActiveModel?.(),
 			signal,
 		});
 	}
 }
 
 /** Web search tool as CustomTool for consumers embedding the custom-tool API. */
-export const webSearchCustomTool: CustomTool<typeof webSearchSchema, SearchRenderDetails> = {
+export const webSearchCustomTool: CustomTool<typeof webSearchSchema, SearchResultDetails> = {
 	name: "web_search",
 	label: "Web Search",
 	description: prompt.render(webSearchDescription),
@@ -422,25 +450,17 @@ export const webSearchCustomTool: CustomTool<typeof webSearchSchema, SearchRende
 		return executeSearch(toolCallId, params, {
 			authStorage,
 			modelRegistry: ctx.modelRegistry,
-			modelName: ctx.model?.id,
 			sessionId,
+			sessionModel: ctx.model,
 			signal,
 		});
 	},
-
-	renderCall(args: SearchToolParams, options: RenderResultOptions, theme: Theme) {
-		return renderSearchCall(args, options, theme);
-	},
-
-	renderResult(result, options: RenderResultOptions, theme: Theme, args) {
-		return renderSearchResult(result, options, theme, args);
-	},
 };
 
-export function getSearchTools(): CustomTool<any, any>[] {
+export function getSearchTools(): CustomTool<typeof webSearchSchema, SearchResultDetails>[] {
 	return [webSearchCustomTool];
 }
 
 export { getSearchProvider, setExcludedSearchProviders, setSearchProviderOrder } from "./provider";
-export type { SearchProviderId as SearchProvider, SearchResponse } from "@linxiraos/pi-tui/tools/web-search";
 export { isSearchProviderId, isSearchProviderPreference } from "./types";
+export type { SearchProviderId as SearchProvider, SearchResponse } from "./types";

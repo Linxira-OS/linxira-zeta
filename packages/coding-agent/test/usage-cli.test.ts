@@ -5,13 +5,15 @@ import type { UsageReport } from "@linxiraos/pi-ai";
 import { TempDir } from "@linxiraos/pi-utils";
 import {
 	buildRedactionMap,
-	collectUnreportedAccounts,
 	computeProviderWindowStats,
 	formatUsageBreakdown,
 	formatUsageHistory,
-	type UsageAccountIdentity,
 	type UsagePolicyDiagnosticsOptions,
 } from "@linxiraos/zeta/cli/usage-cli";
+import {
+	collectUnreportedAccounts,
+	type UsageAccountIdentity,
+} from "@linxiraos/zeta/slash-commands/helpers/usage-accounts";
 
 const HOUR = 3_600_000;
 const FIVE_HOURS = 5 * HOUR;

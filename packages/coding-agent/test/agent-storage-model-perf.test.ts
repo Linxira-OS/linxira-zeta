@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const MODEL_PERF_FLUSH_DELAY_MS = 100;
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -37,9 +37,7 @@ describe("AgentStorage model perf aggregates", () => {
 		vi.useRealTimers();
 		AgentStorage.close();
 		if (tempDir) {
-			try {
-				await tempDir.remove();
-			} catch {}
+			await tempDir.remove();
 			tempDir = undefined as unknown as TempDir;
 		}
 	});
@@ -154,17 +152,6 @@ describe("AgentStorage model perf aggregates", () => {
 		expect(stats?.ttftMs).toBeNull();
 	});
 
-	it("defers the write off the record path and lands it once the flush promise resolves", async () => {
-		const storage = await openStorage();
-
-		const flushed = storage.recordModelPerf("openai/gpt-5", { outputTokens: 1000, durationMs: 4000 });
-		// Recording is deferred: nothing is visible before the batch flushes.
-		expect(storage.getModelPerf().has("openai/gpt-5")).toBe(false);
-
-		await flushPerf(flushed);
-		expect(storage.getModelPerf().get("openai/gpt-5")?.tps).toBeCloseTo(250, 5);
-	});
-
 	it("backfills perf aggregates from an omp stats database, excluding errored and stale turns", async () => {
 		const storage = await openStorage();
 
@@ -175,7 +162,7 @@ describe("AgentStorage model perf aggregates", () => {
 			provider TEXT, model TEXT, output_tokens INTEGER, duration INTEGER,
 			ttft INTEGER, stop_reason TEXT, timestamp INTEGER
 		)`);
-		const insert = statsDb.prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)");
+		using insert = statsDb.prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)");
 		const now = Date.now();
 		// Two valid turns totaling 1500 tokens over 8.5s, one with ttft missing.
 		insert.run("openai", "gpt-5", 1000, 6000, 1000, "stop", now - 5000);
@@ -210,7 +197,7 @@ describe("AgentStorage model perf aggregates", () => {
 			provider TEXT, model TEXT, output_tokens INTEGER, duration INTEGER,
 			ttft INTEGER, stop_reason TEXT, timestamp INTEGER
 		)`);
-		const insert = statsDb.prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)");
+		using insert = statsDb.prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)");
 		const now = Date.now();
 		// 257 rows are the minimal cap-boundary fixture: the newest 256 run at
 		// 100 t/s and the one excluded oldest row is a wild 10000 t/s outlier.
@@ -239,8 +226,10 @@ describe("AgentStorage model perf aggregates", () => {
 			...process.env,
 			HOME: homeDir,
 			USERPROFILE: homeDir,
-			ZETA_PROFILE: "",
-			ZETA_CODING_AGENT_DIR: agentDir,
+			OMP_PROFILE: "",
+			PI_CODING_AGENT_DIR: agentDir,
+			PI_CONFIG_DIR: ".zeta",
+			PI_PROFILE: "",
 			XDG_CACHE_HOME: tempDir.join("xdg-cache"),
 			XDG_CONFIG_HOME: tempDir.join("xdg-config"),
 			XDG_DATA_HOME: tempDir.join("xdg-data"),

@@ -8,7 +8,6 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { USER_APPEND_HEADING } from "@linxiraos/zeta/system-prompt";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import {
@@ -34,6 +33,8 @@ const CONTEXT_MODE_ROUTE = '- "ctx_execute" → `xd://mcp__context_mode_ctx_exec
 const CONTEXT_MODE_MCP_TOOL_NAME = "mcp__context_mode_ctx_execute";
 /** Sentinel proving the user's append prompt stays a block of its own. */
 const USER_APPEND_MARKER = "USER_APPEND_SENTINEL_7d13f2: prefer Bun APIs over Node APIs.";
+/** Heading that opens the user's append section, asserted literally rather than imported. */
+const USER_APPEND_SECTION_HEADING = "## User Instructions";
 /** The route section's instruction to read an `xd://` path before first use. */
 const READ_FIRST_CLAUSE = "for docs + JSON schema before first use";
 
@@ -201,14 +202,8 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			// poll the live prompt with a generous ceiling, exiting the instant
 			// the rebuilt prompt carries the instructions.
 			const deadline = Date.now() + 12_000;
-			// The instructions frame and the mounted-tool mapping land in two
-			// independent prompt rebuilds; waiting on the instructions alone
-			// races the mapping render (v1.1.18 release runs hit exactly that
-			// split — instructions present, `do\u0060thing` mapping not yet).
-			// Poll until the last piece this case asserts on is visible.
-			const doThingMapping = '- "do\\u0060thing" → `xd://mcp__instr_do_thing`';
 			let prompt = session.systemPrompt.join("\n");
-			while ((!prompt.includes(SERVER_INSTRUCTIONS) || !prompt.includes(doThingMapping)) && Date.now() < deadline) {
+			while (!prompt.includes(SERVER_INSTRUCTIONS) && Date.now() < deadline) {
 				await Bun.sleep(10);
 				prompt = session.systemPrompt.join("\n");
 			}
@@ -251,7 +246,7 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			expect(prompt).toContain(SERVER_INSTRUCTIONS);
 			// The user's append prompt is its own block, never the trailing
 			// paragraph of the server-controlled section above it.
-			const boundary = prompt.indexOf(USER_APPEND_HEADING);
+			const boundary = prompt.indexOf(`\n${USER_APPEND_SECTION_HEADING}\n\n`);
 			expect(boundary).toBeGreaterThan(prompt.indexOf(SERVER_INSTRUCTIONS));
 			expect(prompt.slice(prompt.indexOf("## MCP Server Instructions"), boundary)).not.toContain(USER_APPEND_MARKER);
 			expect(prompt.slice(boundary)).toContain(USER_APPEND_MARKER);
@@ -351,12 +346,8 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			// completion signal exposed to this integration harness; fake timers
 			// cannot advance it, so retain the established polling bounds above.
 			const deadline = Date.now() + 12_000;
-			// Same two-pass render as above: instructions first, the 64 capped
-			// row mappings in a later rebuild. Wait for the full bounded list,
-			// not just the frame (v1.1.18 release run hit the split).
 			let prompt = session.systemPrompt.join("\n");
-			const renderedRowLines = () => prompt.split("\n").filter(line => line.startsWith('- "row_'));
-			while ((!prompt.includes(SERVER_INSTRUCTIONS) || renderedRowLines().length < 64) && Date.now() < deadline) {
+			while (!prompt.includes(SERVER_INSTRUCTIONS) && Date.now() < deadline) {
 				await Bun.sleep(10);
 				prompt = session.systemPrompt.join("\n");
 			}

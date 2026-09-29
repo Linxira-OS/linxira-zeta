@@ -1517,6 +1517,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"为内置的通用 `task` 子代理启用预遍历：它在其解析模型上启动，规划并开始实现，然后在第一次编辑/写入时交接给 'smol' 角色。逐代理覆盖（task.agentPrewalk，从 /agents 中心配置）和用户智能体的 `prewalk` frontmatter 不受此开关影响。",
 	},
+	"task.speculativeLaunch": {
+		label: "投机任务启动",
+		description:
+			"批量 task 调用中每个 tasks[] 条目流式到达时立即启动对应子代理，而不是等待整个调用结束。若已完成的调用校验失败、被阻止或参数发生变化，已启动的代理会被中止。要求 task 工具为自动放行且无扩展工具生命周期处理器。",
+	},
 	"tasks.todoClearDelay": {
 		label: "待办自动清除延迟",
 		description: "已完成或放弃的待办从待办组件中移除前的延迟",
@@ -1593,6 +1598,26 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.imageOrder": {
 		label: "图片服务商顺序",
 		description: "图片生成的优先服务商列表；未列出的服务商跟随当前会话服务商和内置顺序",
+	},
+	"providers.cacheWarming": {
+		label: "缓存保温",
+		description: "在提示词缓存条目过期前片刻，以 1 token 输出预算重放上一请求，避免空闲后整段前缀缓存失效重写。",
+	},
+	"providers.cacheWarming::off": {
+		label: "关闭",
+		description: "禁用缓存保温",
+	},
+	"providers.cacheWarming::streaming": {
+		label: "流式期间",
+		description: "在长时间工具执行期间保护昂贵的前缀缓存；代理稳定后即停止",
+	},
+	"providers.cacheWarming::idle": {
+		label: "空闲时",
+		description: "在两次运行之间也会刷新 5 分钟级缓存条目，只要预期节省仍高于成本下限",
+	},
+	"telemetry.otlpExportEnabled": {
+		label: "OTLP 遥测导出",
+		description: "允许通过 OTEL_* 端点导出 traces、logs 与 metrics。更改在下次启动时生效。",
 	},
 	"providers.fireworksTier": {
 		label: "Fireworks 层级",

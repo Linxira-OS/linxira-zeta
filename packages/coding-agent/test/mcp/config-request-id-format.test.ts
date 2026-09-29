@@ -37,9 +37,9 @@ let originalHome: string | undefined;
 
 beforeEach(async () => {
 	originalHome = process.env.HOME;
-	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-home-"));
-	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-agent-"));
-	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-reqid-cwd-"));
+	tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-home-"));
+	tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-agent-"));
+	tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "omp-mcp-reqid-cwd-"));
 	process.env.HOME = tempHome;
 	vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 	setAgentDir(tempAgentDir);
@@ -86,15 +86,6 @@ test("requestIdFormat from a standalone .mcp.json reaches the transport config",
 	});
 
 	expect(configs.xcode?.requestIdFormat).toBe("number");
-});
-
-test("an unrecognized requestIdFormat is dropped rather than passed through", async () => {
-	const configs = await loadFrom(path.join(".zeta", "mcp.json"), {
-		bogus: { type: "stdio", command: "/bin/echo", requestIdFormat: "integer" },
-	});
-
-	expect(configs.bogus).toBeDefined();
-	expect(configs.bogus?.requestIdFormat).toBeUndefined();
 });
 
 test("differing requestIdFormat prevents equivalence dedup from collapsing two aliases", async () => {
