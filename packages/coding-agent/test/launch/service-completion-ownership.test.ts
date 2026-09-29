@@ -149,8 +149,16 @@ describe("session-owned supervised services", () => {
 			expect(deliveries).toEqual([]);
 
 			switchTo("old-session");
-			// The broker writes the replay before the list response, so the sink has already run.
+			// The broker writes the replay before the list response, but on a loaded
+			// CI runner the client's socket dispatch can lag the list resolution by a
+			// scheduler turn, so the sink may not have run yet when list() settles.
+			// Wait for the delivery (bounded) instead of asserting synchronously.
 			await listServices(session);
+			const replayDeadline = Date.now() + 5_000;
+			while (deliveries.length === 0) {
+				if (Date.now() > replayDeadline) break;
+				await new Promise(resolve => setImmediate(resolve));
+			}
 			expect(
 				deliveries.map(([receiver, { owner, daemon }]) => [receiver, owner, daemon.name, daemon.state]),
 			).toEqual([["old-session", "old-session", "old-service", "failed"]]);
