@@ -2,7 +2,7 @@ import { centerLine, visibleWidth } from "../../utils";
 import { padToWidth } from "../../render/utils";
 import { gradientEscape, gradientLogo, ZETA_LOGO, type ShineConfig } from "../../prompt/welcome";
 import { theme } from "../../theme/theme";
-import { formatKeyHint } from "../../app-keybindings";
+import { tuiText } from "../../i18n";
 
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
@@ -22,11 +22,6 @@ const RESET = "\x1b[0m";
 /** Full scene needs comfortable room; below this we drop to a centered mark. */
 const MIN_SCENE_WIDTH = 56;
 const MIN_SCENE_HEIGHT = 22;
-
-/** Skip affordance; built at render time so it follows the live symbol preset. */
-function skipHint(): string {
-	return `press ${formatKeyHint("enter")} to skip`;
-}
 
 /** Density ramp for the rippling water, lightest → heaviest. */
 const WATER_RAMP = [
@@ -110,7 +105,7 @@ function waterAmplitude(
 }
 
 /**
- * Animated setup splash, in the spirit of the omp landing page: the brand π
+ * Animated setup splash, in the spirit of the omp landing page: the brand ζ
  * mark rendered with the live diagonal gradient + shine sweep, rising out of a
  * rippling, gradient-lit water surface, under a faint twinkling starfield. The
  * mark and water share one continuous gradient so the sweep reads across the
@@ -129,7 +124,7 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 	const cx = Math.floor(w / 2);
 	const surfaceTime = frame * 0.13;
 
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const cells: string[][] = Array.from({ length: h }, () => new Array<string>(w).fill(" "));
 	const put = (x: number, y: number, glyph: string): void => {
 		if (y >= 0 && y < h && x >= 0 && x < w) cells[y][x] = glyph;
@@ -170,7 +165,7 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 		}
 	});
 	// 4. skip hint on a cleared strip at the bottom so it stays legible over the water
-	const hint = skipHint();
+	const hint = tuiText("setupSkipHint", "press enter to skip");
 	const hintWidth = visibleWidth(hint);
 	const hintStart = Math.floor((w - hintWidth) / 2);
 	const hintRow = h - 1;
@@ -184,7 +179,7 @@ export function renderSetupSplash(width: number, height: number, elapsedMs: numb
 /** Centered fallback for windows too small to hold the full scene. */
 function renderCompactSplash(width: number, height: number, phase: number, shine: ShineConfig): string[] {
 	const art = height >= 14 ? LARGE_LOGO : ZETA_LOGO;
-	const content = [...gradientLogo(art, phase, shine), "", theme.bold("O h   M y   P i")];
+	const content = [...gradientLogo(art, phase, shine), "", theme.bold("Z e t a")];
 	const start = Math.max(0, Math.floor((height - content.length) / 2));
 	const lines: string[] = [];
 	for (let y = 0; y < height; y++) {
@@ -192,6 +187,9 @@ function renderCompactSplash(width: number, height: number, phase: number, shine
 		lines.push(width > 0 ? padToWidth(item !== undefined ? centerLine(item, width) : "", width) : "");
 	}
 	if (height > 2)
-		lines[height - 2] = width > 0 ? padToWidth(centerLine(theme.fg("dim", skipHint()), width), width) : "";
+		lines[height - 2] =
+			width > 0
+				? padToWidth(centerLine(theme.fg("dim", tuiText("setupSkipHint", "press enter to skip")), width), width)
+				: "";
 	return lines;
 }
