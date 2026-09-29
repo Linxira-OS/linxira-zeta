@@ -190,6 +190,25 @@ modern.node`)。CI bazel 现场构建不受影响。
   全部合并后触碰文件的"缺失行"均为 scope 改写/品牌清扫的等价形态,无上游
   内容丢失。
 
+**推送前 CI 风险预扫(第三轮惯例)命中并修复**:
+
+- **类 7 回潮**:合并把上游 ci.yml 的 12 处 omp-kata runner 带回(10 处
+  `pull_request && ubuntu || omp-kata` 条件 + 2 处裸 omp-kata;dispatch 事件
+  会打到不存在的 runner 排队死)。全部恢复 ubuntu-22.04;needs 图校验无悬挂。
+- **changelog 清扫过切(自伤)**:剔上游段时把 6 个包的**已发布段**内容一并
+  清空(coding-agent 1.1.10 十条、collab-web 1.0.0、mnemopi 1.1.19、
+  natives 1.1.11、stats 1.1.19、utils 1.1.18 各一条),违反"Released 段
+  不可变";changelog-summary 契约测试逮住,已按基线回植,49 项契约全绿。
+  教训:changelog 清扫只允许动 omp 键段(如 `1.1.21-omp15.11.1` 与上游
+  archive 链接行),已发布 1.1.x 段逐字不动。
+- **类 9 收尾**:worker-core.test 同行混扫(`__zeta_worker_core_gate` +
+  `__omp_session__`)统一为源码注入的 `__zeta_session__`;browser-recording
+  的 `__omp_recording_cursor__` 与源码一致保留。
+- **遗留(dev→main 合并时决策)**:release 矩阵与 bazel-cache-warm 的
+  `xcode-27`(上游自有 ARM macOS runner)——tag/main 事件才会触发,届时
+  映射为托管标签或按 v18.3.3 裁剪决策处理;`ubuntu-24.04-arm`/`windows-11-arm`
+  为 GitHub 托管标签,保留。
+
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
 
 按「上游增量合并规程」在 `dev/main` 上完成的两步串联合并;干跑预测与实跑逐个
