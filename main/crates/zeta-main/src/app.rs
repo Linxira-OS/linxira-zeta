@@ -49,8 +49,8 @@ enum Hit {
 	TabPlus,
 	Tab(usize),
 	TabClose,
-	SplitRow,
-	SplitCol,
+	SplitRow { pane: usize },
+	SplitCol { pane: usize },
 	PagePlus { pane: usize },
 	PageTab { pane: usize, page: usize },
 	PageClose { pane: usize },
@@ -197,10 +197,18 @@ impl Workspace {
 			.unwrap_or(Rect { x: 1, y: 2, width: self.last_frame.width.max(4), height: 10 })
 	}
 
-	/// Split the focused pane; explicit axis from the ↔/↕ controls, auto from
-	/// the menu. Missing suite tools self-install in the new slot.
-	fn split_active(&mut self, kind: PaneKind, axis: Option<Axis>) {
-		let rect = self.focused_rect();
+	/// Split `pane` — the pane whose button was pressed becomes the active
+	/// pane first, then the split lands there (never on some other focus).
+	/// Explicit axis from the ↔/↕ controls, auto from the menu; missing suite
+	/// tools self-install in the new slot.
+	fn split_pane(&mut self, pane: usize, kind: PaneKind, axis: Option<Axis>) {
+		self.active().active = pane;
+		let rect = self
+			.last_pane_areas
+			.iter()
+			.find(|(id, _)| *id == pane)
+			.map(|(_, r)| *r)
+			.unwrap_or_else(|| self.focused_rect());
 		let axis = axis.unwrap_or_else(|| Axis::for_rect(rect));
 		let cwd = std::env::current_dir().ok();
 		let kind = match kind.install_command() {
@@ -211,10 +219,16 @@ impl Workspace {
 			},
 			None => kind,
 		};
-		match self.active().add_pane(kind, cwd, rect, axis) {
+		match self.active().add_pane(pane, kind, cwd, rect, axis) {
 			Ok(()) => self.notice = None,
 			Err(error) => self.notice = Some(format!("split failed: {error}")),
 		}
+	}
+
+	/// Hotkey/menu entry: split whatever pane currently holds focus.
+	fn split_active(&mut self, kind: PaneKind, axis: Option<Axis>) {
+		let focused = self.active().active;
+		self.split_pane(focused, kind, axis);
 	}
 
 	/// Returns `true` when the workspace should quit.
@@ -410,15 +424,17 @@ impl Workspace {
 					return true;
 				}
 			},
-			Hit::SplitRow => self.split_active(PaneKind::Shell, Some(Axis::Row)),
-			Hit::SplitCol => self.split_active(PaneKind::Shell, Some(Axis::Column)),
+			Hit::SplitRow { pane } => self.split_pane(pane, PaneKind::Shell, Some(Axis::Row)),
+			Hit::SplitCol { pane } => self.split_pane(pane, PaneKind::Shell, Some(Axis::Column)),
 			Hit::PagePlus { pane } => {
+				self.active().active = pane;
 				let cwd = std::env::current_dir().ok();
 				if let Some(p) = self.active().panes.get_mut(pane) {
 					let _ = p.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
 			},
 			Hit::PageTab { pane, page } => {
+				self.active().active = pane;
 				if let Some(p) = self.active().panes.get_mut(pane) {
 					p.page = page.min(p.pages.len().saturating_sub(1));
 				}
@@ -861,11 +877,11 @@ impl Workspace {
 				);
 				push_deferred(
 					Rect { x: controls_x + 3, y: area.y, width: 3, height: 1 },
-					Hit::SplitRow,
+					Hit::SplitRow { pane: pane_id },
 				);
 				push_deferred(
 					Rect { x: controls_x + 6, y: area.y, width: 3, height: 1 },
-					Hit::SplitCol,
+					Hit::SplitCol { pane: pane_id },
 				);
 				push_deferred(
 					Rect { x: controls_x + 9, y: area.y, width: 3, height: 1 },

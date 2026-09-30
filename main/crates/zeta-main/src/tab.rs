@@ -192,10 +192,12 @@ impl Tab {
 		Ok(Self { panes: vec![pane], active: 0, tree: PaneNode::single(0) })
 	}
 
-	/// Split the focused pane along `axis` and open `kind` in the new slot.
-	/// The direction is explicit — the title bar carries `[↔]`/`[↕]` for it.
+	/// Split pane `split_at` along `axis` and open `kind` in the new slot —
+	/// the pane whose button you pressed, not the globally focused one. The
+	/// direction is explicit — the title bar carries `[↔]`/`[↕]` for it.
 	pub fn add_pane(
 		&mut self,
+		split_at: usize,
 		kind: PaneKind,
 		cwd: Option<PathBuf>,
 		focused_rect: Rect,
@@ -209,7 +211,7 @@ impl Tab {
 			let _ = term.resize(rows, cols);
 		}
 		self.panes.push(pane);
-		self.tree.split(self.active, axis, id);
+		self.tree.split(split_at, axis, id);
 		self.active = id;
 		Ok(())
 	}
