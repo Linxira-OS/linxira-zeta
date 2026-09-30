@@ -46,7 +46,12 @@ pub fn menu_bar_text() -> String {
 }
 
 /// Bottom status line: focused pane + layout + suite reminder.
-pub fn status_text(pane_label: &str, template: &str, pane_index: usize, pane_count: usize) -> String {
+pub fn status_text(
+	pane_label: &str,
+	template: &str,
+	pane_index: usize,
+	pane_count: usize,
+) -> String {
 	format!(
 		" [{pane_label}] pane {}/{} · layout {template} · suite: zeta-c · zeta-e · zeta-i · F1 help ",
 		pane_index + 1,

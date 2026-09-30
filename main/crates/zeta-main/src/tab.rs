@@ -1,5 +1,5 @@
 use crate::layout::Template;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::path::PathBuf;
 use termide_core::Panel;
 use termide_panel_terminal::Terminal;
@@ -27,8 +27,12 @@ impl PaneKind {
 	fn command_line(&self) -> Option<String> {
 		match self {
 			PaneKind::Shell => None,
-			PaneKind::Agent => Some(resolve_bin(&["zeta-c", "zeta"]).map(|b| b.to_string_lossy().into_owned())?),
-			PaneKind::Editor => Some(resolve_bin(&["zeta-e", "zeta-editor"]).map(|b| b.to_string_lossy().into_owned())?),
+			PaneKind::Agent => {
+				Some(resolve_bin(&["zeta-c", "zeta"]).map(|b| b.to_string_lossy().into_owned())?)
+			},
+			PaneKind::Editor => {
+				Some(resolve_bin(&["zeta-e", "zeta-editor"]).map(|b| b.to_string_lossy().into_owned())?)
+			},
 			PaneKind::Command(cmd) => Some(cmd.clone()),
 		}
 	}
@@ -73,7 +77,12 @@ impl Tab {
 		self.active = self.panes.len() - 1;
 		// Grow the template so every pane has a slot.
 		let needed = self.panes.len();
-		self.template = Template::ALL.iter().rev().find(|t| t.slots() >= needed).copied().unwrap_or(Template::Quad);
+		self.template = Template::ALL
+			.iter()
+			.rev()
+			.find(|t| t.slots() >= needed)
+			.copied()
+			.unwrap_or(Template::Quad);
 		Ok(())
 	}
 

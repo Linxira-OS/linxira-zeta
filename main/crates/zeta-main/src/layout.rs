@@ -48,9 +48,10 @@ pub fn pane_areas(area: Rect, template: Template, count: usize) -> Vec<Rect> {
 			Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
 				.areas::<2>(area)
 				.to_vec()
-		}
+		},
 		(Template::Quad, _) => {
-			let top_bottom = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).split(area);
+			let top_bottom =
+				Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).split(area);
 			let mut out = Vec::with_capacity(4);
 			for half in top_bottom.iter() {
 				for cell in Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -61,6 +62,6 @@ pub fn pane_areas(area: Rect, template: Template, count: usize) -> Vec<Rect> {
 				}
 			}
 			out
-		}
+		},
 	}
 }

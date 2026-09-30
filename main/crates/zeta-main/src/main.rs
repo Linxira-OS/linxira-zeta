@@ -13,12 +13,12 @@ fn main() -> ExitCode {
 			"--help" | "-h" | "help" => {
 				print!("{}", help::CLI_HELP);
 				return ExitCode::SUCCESS;
-			}
+			},
 			"--version" | "-v" | "version" => {
 				println!("zeta {}", env!("CARGO_PKG_VERSION"));
 				return ExitCode::SUCCESS;
-			}
-			_ => {}
+			},
+			_ => {},
 		}
 	}
 	match app::run() {
@@ -26,6 +26,6 @@ fn main() -> ExitCode {
 		Err(error) => {
 			eprintln!("zeta: {error:#}");
 			ExitCode::FAILURE
-		}
+		},
 	}
 }

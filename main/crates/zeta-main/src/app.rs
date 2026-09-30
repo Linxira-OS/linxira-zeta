@@ -1,14 +1,14 @@
 use crate::help;
-use crate::layout::{pane_areas, Template};
+use crate::layout::{Template, pane_areas};
 use crate::tab::{PaneKind, Tab};
-use crate::tabs_ui::{menu_bar_text, status_text, TabBar};
+use crate::tabs_ui::{TabBar, menu_bar_text, status_text};
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::Terminal as RatuTerminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
-use ratatui::Terminal as RatuTerminal;
 use std::io::Stdout;
 use std::time::Duration;
 use termide_core::{KeyChord, Panel, PanelConfig, PanelEvent, RenderContext, ThemeColors};
@@ -29,7 +29,11 @@ pub struct Workspace {
 pub fn run() -> Result<()> {
 	let mut stdout = std::io::stdout();
 	crossterm::terminal::enable_raw_mode()?;
-	crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen, crossterm::event::EnableMouseCapture)?;
+	crossterm::execute!(
+		stdout,
+		crossterm::terminal::EnterAlternateScreen,
+		crossterm::event::EnableMouseCapture
+	)?;
 	let backend = CrosstermBackend::new(stdout);
 	let mut terminal = RatuTerminal::new(backend)?;
 	let result = event_loop(&mut terminal);
@@ -56,10 +60,10 @@ fn event_loop(terminal: &mut RatuTerminal<CrosstermBackend<Stdout>>) -> Result<(
 					if ws.handle_key(key)? {
 						return Ok(());
 					}
-				}
+				},
 				Event::Mouse(mouse) => ws.handle_mouse(mouse),
 				Event::Resize(cols, rows) => ws.resize(rows, cols),
-				_ => {}
+				_ => {},
 			}
 		} else {
 			ws.tick();
@@ -105,19 +109,23 @@ impl Workspace {
 					} else {
 						return Ok(true);
 					}
-				}
+				},
 				KeyCode::Char(n @ '1'..='9') => {
 					let idx = (n as u8 - b'1') as usize;
 					if idx < self.tabs.len() {
 						self.active_tab = idx;
 					}
-				}
+				},
 				KeyCode::Left => {
-					self.active_tab = if self.active_tab == 0 { self.tabs.len() - 1 } else { self.active_tab - 1 };
-				}
+					self.active_tab = if self.active_tab == 0 {
+						self.tabs.len() - 1
+					} else {
+						self.active_tab - 1
+					};
+				},
 				KeyCode::Right => {
 					self.active_tab = (self.active_tab + 1) % self.tabs.len();
-				}
+				},
 				KeyCode::Char('n') | KeyCode::Char('N') => self.add_pane(PaneKind::Shell)?,
 				KeyCode::Char('c') | KeyCode::Char('C') => self.add_pane(PaneKind::Agent)?,
 				KeyCode::Char('e') | KeyCode::Char('E') => self.add_pane(PaneKind::Editor)?,
@@ -126,20 +134,20 @@ impl Workspace {
 					let tab = self.active();
 					tab.template = tab.template.next();
 					self.reflow_active();
-				}
+				},
 				KeyCode::Char('o') | KeyCode::Char('O') => {
 					let tab = self.active();
 					if !tab.panes.is_empty() {
 						tab.active = (tab.active + 1) % tab.panes.len();
 					}
-				}
+				},
 				KeyCode::Char('x') | KeyCode::Char('X') => {
 					let tab = self.active();
 					let idx = tab.active;
 					tab.close_pane(idx);
 					self.reflow_active();
-				}
-				_ => {}
+				},
+				_ => {},
 			}
 			return Ok(false);
 		}
@@ -197,7 +205,7 @@ impl Workspace {
 			Ok(tab) => {
 				self.tabs.push(tab);
 				self.active_tab = self.tabs.len() - 1;
-			}
+			},
 			Err(error) => self.notice = Some(format!("new tab failed: {error}")),
 		}
 	}
@@ -210,7 +218,7 @@ impl Workspace {
 			Ok(()) => {
 				self.notice = None;
 				self.reflow_active();
-			}
+			},
 			Err(error) => self.notice = Some(format!("{label}: {error}")),
 		}
 		result
@@ -293,20 +301,23 @@ impl Workspace {
 		let tab = &mut self.tabs[self.active_tab];
 		let areas = pane_areas(content, tab.template, tab.panes.len());
 		for (idx, pane) in tab.panes.iter_mut().enumerate() {
-			let Some(area) = areas.get(idx).copied() else { continue };
+			let Some(area) = areas.get(idx).copied() else {
+				continue;
+			};
 			// Keep the PTY grid in sync with its on-screen slot (2 columns and
 			// 2 rows are consumed by the pane border).
 			let inner_cols = area.width.saturating_sub(2).max(1);
 			let inner_rows = area.height.saturating_sub(2).max(1);
 			let _ = pane.term.resize(inner_rows, inner_cols);
 			let focused = idx == tab.active;
-			let block = Block::default().borders(Borders::ALL).title(format!(" {} ", pane.kind.label())).border_style(
-				if focused {
+			let block = Block::default()
+				.borders(Borders::ALL)
+				.title(format!(" {} ", pane.kind.label()))
+				.border_style(if focused {
 					Style::default().add_modifier(Modifier::BOLD)
 				} else {
 					Style::default()
-				},
-			);
+				});
 			let inner = block.inner(area);
 			frame.render_widget(block, area);
 			let colors = ThemeColors::from(&self.theme);
@@ -324,15 +335,12 @@ impl Workspace {
 			pane.term.render(inner, frame.buffer_mut(), &ctx);
 		}
 
-		let status = self
-			.notice
-			.clone()
-			.unwrap_or_else(|| {
-				let tab = &self.tabs[self.active_tab];
-				let pane = tab.panes.get(tab.active);
-				let label = pane.map(|p| p.kind.label()).unwrap_or_default();
-				status_text(&label, tab.template.label(), tab.active, tab.panes.len())
-			});
+		let status = self.notice.clone().unwrap_or_else(|| {
+			let tab = &self.tabs[self.active_tab];
+			let pane = tab.panes.get(tab.active);
+			let label = pane.map(|p| p.kind.label()).unwrap_or_default();
+			status_text(&label, tab.template.label(), tab.active, tab.panes.len())
+		});
 		frame.render_widget(Paragraph::new(status), rows[3]);
 
 		if self.help_open {
@@ -355,7 +363,11 @@ fn tab_title(tab: &Tab) -> String {
 	}
 }
 
-fn centered_rect(size: ratatui::layout::Rect, percent_x: u16, percent_y: u16) -> ratatui::layout::Rect {
+fn centered_rect(
+	size: ratatui::layout::Rect,
+	percent_x: u16,
+	percent_y: u16,
+) -> ratatui::layout::Rect {
 	let vertical = Layout::vertical([
 		Constraint::Percentage((100 - percent_y) / 2),
 		Constraint::Percentage(percent_y),

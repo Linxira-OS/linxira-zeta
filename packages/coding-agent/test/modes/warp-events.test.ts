@@ -765,7 +765,7 @@ describe("Warp CLI-agent events", () => {
 		expect(body).toEqual({
 			event: "permission_request",
 			tool_name: "bash",
-			summary: "zeta wants to run bash",
+			summary: "zeta-c wants to run bash",
 			v: 1,
 			agent: "zeta",
 			session_id: "session-123",
