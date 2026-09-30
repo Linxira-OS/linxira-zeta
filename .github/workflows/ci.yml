@@ -9,6 +9,7 @@ on:
          - "web-ui/**"
          - "editor/**"
          - "termide/**"
+         - "main/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -42,6 +43,7 @@ on:
          - "web-ui/**"
          - "editor/**"
          - "termide/**"
+         - "main/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -1440,6 +1442,68 @@ jobs:
            if: steps.termide.outputs.skip != 'true'
            working-directory: termide
            run: cargo nextest run --workspace
+
+   # The zeta workspace (main/) Rust gate — fmt / check / clippy / nextest,
+   # mirroring termide_tests. Self-skips when main/ is untouched; a manual
+   # dispatch always runs the full gate. Gates the workspace tree, not the
+   # Zeta release (release_gate does not depend on it). No release_main_packages
+   # job yet: the first @linxiraos/main publish is manual bootstrap, npm trust
+   # is configured only afterwards, then this file gains the dispatch job.
+
+   main_tests:
+      name: Test main workspace (zeta workbench)
+      runs-on: ubuntu-22.04
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - name: Detect main/ changes
+           id: main
+           env:
+              BEFORE: ${{ github.event.before }}
+              PR_BASE: ${{ github.event.pull_request.base.sha }}
+           run: |
+              set -euo pipefail
+              base=""
+              if [ -n "$PR_BASE" ]; then
+                 base="$PR_BASE"
+              elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                 base="$BEFORE"
+              fi
+              if [ -z "$base" ]; then
+                 echo "No base revision (manual dispatch) - running the full gate"
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+                 exit 0
+              fi
+              git fetch --no-tags --depth=1 origin "$base" || true
+              if git diff --name-only "$base" HEAD -- main/ | grep -q .; then
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+              else
+                 echo "main/ untouched - skipping the workspace Rust gate"
+                 echo "skip=true" >> "$GITHUB_OUTPUT"
+              fi
+         - uses: dtolnay/rust-toolchain@1.91.1
+           if: steps.main.outputs.skip != 'true'
+           with:
+              components: rustfmt, clippy
+         - uses: Swatinem/rust-cache@v2
+           if: steps.main.outputs.skip != 'true'
+           with:
+              workspaces: main
+         - name: Check formatting
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo fmt --all -- --check
+         - name: Check compilation
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo check --workspace --all-targets
+         - name: Run clippy (strict mode)
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo clippy --workspace --all-targets -- -D warnings
+         - name: Run tests
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo test --workspace
 
    # Publishes the vendored editor npm distribution (@linxiraos/editor plus
    # its windows/linux x64 platform leaves) on release tags via npm trusted

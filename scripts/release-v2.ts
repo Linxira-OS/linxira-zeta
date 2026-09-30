@@ -385,6 +385,15 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		await $`sd '"@linxiraos/${ideLeaf}": "[^"]+"' ${`"@linxiraos/${ideLeaf}": "${version}"`} termide/npm/ide/package.json`;
 	}
 
+	// Step 2f-3: the zeta workspace (main) npm distribution — same pattern.
+	console.log(`Updating main npm packages to ${version}...`);
+	for (const mainDir of ["main/npm/main", "main/npm/main-windows-x64", "main/npm/main-linux-x64"]) {
+		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${mainDir}/package.json`;
+	}
+	for (const mainLeaf of ["main-windows-x64", "main-linux-x64"]) {
+		await $`sd '"@linxiraos/${mainLeaf}": "[^"]+"' ${`"@linxiraos/${mainLeaf}": "${version}"`} main/npm/main/package.json`;
+	}
+
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).

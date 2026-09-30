@@ -1,0 +1,29 @@
+{
+  "name": "@linxiraos/main",
+  "version": "1.1.21",
+  "description": "zeta — the Zeta workspace: a nested-terminal workbench with tabs, panes, and the Zeta tool suite",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "directory": "main"
+  },
+  "bin": {
+    "zeta": "bin/zeta.js"
+  },
+  "files": [
+    "bin/",
+    "LICENSE",
+    "README.md"
+  ],
+  "optionalDependencies": {
+    "@linxiraos/main-windows-x64": "1.1.21",
+    "@linxiraos/main-linux-x64": "1.1.21"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

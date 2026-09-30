@@ -1,0 +1,24 @@
+{
+  "name": "@linxiraos/main-linux-x64",
+  "version": "1.1.21",
+  "description": "main-linux-x64 binary for @linxiraos/main (zeta)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "directory": "main"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "LICENSE"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ]
+}

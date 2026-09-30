@@ -1,0 +1,31 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+# Mirror termide's unicode-width patch: its panel-terminal grid math assumes
+# the fixed-width behavior of the vendored unicode-width-fix crate.
+[patch.crates-io]
+unicode-width = { path = "../termide/crates/unicode-width-fix" }
+
+[workspace.package]
+version = "1.1.21"
+edition = "2021"
+authors = ["Linxira-OS"]
+license = "MIT"
+repository = "https://github.com/Linxira-OS/linxira-zeta"
+
+[workspace.dependencies]
+anyhow = "1.0"
+crossterm = "0.29"
+ratatui = "0.30.0"
+
+termide-core = { path = "../termide/crates/core" }
+termide-config = { path = "../termide/crates/config" }
+termide-keyboard = { path = "../termide/crates/keyboard" }
+termide-panel-terminal = { path = "../termide/crates/panel-terminal" }
+termide-theme = { path = "../termide/crates/theme" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

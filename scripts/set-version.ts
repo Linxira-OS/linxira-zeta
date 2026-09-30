@@ -62,6 +62,13 @@ const IDE_NPM_PACKAGES = [
 	"termide/npm/ide/package.json",
 ] as const;
 
+// The zeta workspace (zeta bin) npm distribution — same vendored-npm pattern.
+const MAIN_NPM_PACKAGES = [
+	"main/npm/main-windows-x64/package.json",
+	"main/npm/main-linux-x64/package.json",
+	"main/npm/main/package.json",
+] as const;
+
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
 const CATALOG_KEYS = [
 	"@linxiraos/pi-utils",
@@ -234,6 +241,23 @@ async function main(): Promise<void> {
 		if (manifest.optionalDependencies) {
 			for (const dep of Object.keys(manifest.optionalDependencies)) {
 				if (dep.startsWith("@linxiraos/ide-")) manifest.optionalDependencies[dep] = version;
+			}
+		}
+		writeJson(rel, manifest);
+		changed.push(rel);
+	}
+
+	// 4d. The zeta workspace (main) npm distribution; same leaf-pinning move.
+	for (const rel of MAIN_NPM_PACKAGES) {
+		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
+		if (manifest.version === version) {
+			unchanged.push(rel);
+			continue;
+		}
+		manifest.version = version;
+		if (manifest.optionalDependencies) {
+			for (const dep of Object.keys(manifest.optionalDependencies)) {
+				if (dep.startsWith("@linxiraos/main-")) manifest.optionalDependencies[dep] = version;
 			}
 		}
 		writeJson(rel, manifest);

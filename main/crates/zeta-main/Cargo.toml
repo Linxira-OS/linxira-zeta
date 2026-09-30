@@ -1,0 +1,24 @@
+[package]
+name = "zeta-main"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "zeta — the Zeta workspace: a nested-terminal workbench with tabs, panes, and the Zeta tool suite"
+publish = false
+
+[[bin]]
+name = "zeta"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+
+termide-core.workspace = true
+termide-config.workspace = true
+termide-keyboard.workspace = true
+termide-panel-terminal.workspace = true
+termide-theme.workspace = true

@@ -724,7 +724,9 @@ if (import.meta.main) {
 						"termide/npm/ide-linux-x64",
 						"termide/npm/ide",
 					])
-				: await publishWorkspacePackages();
+				: publishMain
+					? await publishVendoredNpmDirs(["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"])
+					: await publishWorkspacePackages();
 	if (failed.length > 0) {
 		console.error(`Failed to publish ${failed.length} package(s): ${failed.join(", ")}`);
 		process.exit(1);

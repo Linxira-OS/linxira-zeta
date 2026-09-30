@@ -185,6 +185,9 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 		"@linxiraos/ide",
 		"@linxiraos/ide-windows-x64",
 		"@linxiraos/ide-linux-x64",
+		"@linxiraos/main",
+		"@linxiraos/main-windows-x64",
+		"@linxiraos/main-linux-x64",
 	];
 	for (const extra of extras) {
 		if (!seen.has(extra)) {
