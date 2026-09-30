@@ -335,16 +335,24 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 	// loader derives the expected sentinel from package.json at runtime, so
 	// the Rust symbol must move in lock-step or loaded .node files from other
 	// releases are rejected at validateLoadedBindings.
-	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
-	const sentinelName = `__piNativesV${sentinelJsId}`;
-	console.log(`Updating pi-natives version sentinel to ${sentinelName}...`);
-	await $`sd '__piNativesV[A-Za-z0-9_]+' ${sentinelName} ${SENTINEL_FILES}`;
-	const libRs = await Bun.file("crates/pi-natives/src/lib.rs").text();
-	if (!libRs.includes(`js_name = "${sentinelName}"`)) {
-		console.error(
-			`Error: pi-natives version sentinel did not move to ${sentinelName} in crates/pi-natives/src/lib.rs.`,
-		);
-		process.exit(1);
+	// v18.3.3+ mechanism: the per-release __piNativesVX_Y_Z sentinel export
+	// is gone — the addon carries a single __piNativesBuildVersion whose
+	// value is stamped post-link (scripts/stamp-native-version.ts) from
+	// package.json#version. Bumping the line therefore needs no source edit;
+	// verify the mechanism symbols instead (mirror of
+	// check-version-consistency.ts).
+	console.log("Verifying pi-natives version-stamp mechanism symbols...");
+	const mechanismChecks: Array<[string, string]> = [
+		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["packages/natives/native/index.js", "__piNativesBuildVersion"],
+		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
+	];
+	for (const [file, needle] of mechanismChecks) {
+		const content = await Bun.file(file).text();
+		if (!content.includes(needle)) {
+			console.error(`Error: pi-natives version-stamp mechanism missing "${needle}" in ${file}.`);
+			process.exit(1);
+		}
 	}
 	// Step 2d: Cargo.lock workspace members (pi-*) carry the release version
 	// too — keep them in lock-step so `cargo deny --locked` (CI Lint job)
