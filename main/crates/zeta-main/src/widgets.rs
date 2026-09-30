@@ -20,6 +20,22 @@ pub struct WidgetState {
 	pub pomodoro: Pomodoro,
 	/// Most recent first, de-duplicated, capped.
 	pub clipboard: Vec<String>,
+	/// Calendar month offset from the current month (mouse ‹/› navigation).
+	pub calendar_offset: i64,
+	/// Selected day of the shown month (1-based, 0 = none).
+	pub calendar_selected: u32,
+}
+
+impl WidgetState {
+	/// The month the calendar pane is showing.
+	pub fn calendar_month(&self) -> (i32, u32) {
+		let now = Local::now();
+		if self.calendar_offset == 0 {
+			return (now.year(), now.month());
+		}
+		let total = now.year() as i64 * 12 + now.month() as i64 - 1 + self.calendar_offset;
+		((total / 12) as i32, (total % 12 + 1) as u32)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -27,9 +43,10 @@ pub struct WidgetState {
 // ---------------------------------------------------------------------------
 
 /// Time + calendar on one page: big clock with seconds, full date and
-/// weekday, then the current month (Monday-first) with today marked.
+/// weekday, then a month (Monday-first) with today and the mouse-selected
+/// day marked. The `‹ month ›` row is clickable (month navigation).
 /// Colorless chrome: bold/underline only, terminal's own background.
-pub fn render_time_calendar(area: Rect, buf: &mut Buffer) {
+pub fn render_time_calendar(state: &WidgetState, area: Rect, buf: &mut Buffer) {
 	if area.height < 5 || area.width < 22 {
 		return;
 	}
@@ -51,9 +68,23 @@ pub fn render_time_calendar(area: Rect, buf: &mut Buffer) {
 		return;
 	}
 
-	// Current month, Monday-first, today underlined.
-	let month = Line::from(Span::styled(now.format("%B %Y").to_string(), strong)).centered();
-	buf.set_line(area.x, area.y + 4, &month, area.width);
+	// Shown month, Monday-first, with clickable ‹ / › navigation and the
+	// selected day underlined beside today.
+	let (year, month_num) = state.calendar_month();
+	let shown = chrono::NaiveDate::from_ymd_opt(year, month_num, 1).unwrap_or(now.date_naive());
+	let is_current = state.calendar_offset == 0;
+	let title = if is_current {
+		shown.format("%B %Y").to_string()
+	} else {
+		shown.format("%B %Y  (↺ today)").to_string()
+	};
+	let nav = Line::from(vec![
+		Span::styled("‹ ", Style::default().fg(Color::DarkGray)),
+		Span::styled(title, strong),
+		Span::styled(" ›", Style::default().fg(Color::DarkGray)),
+	])
+	.centered();
+	buf.set_line(area.x, area.y + 4, &nav, area.width);
 	let header = Line::from(Span::styled("Mo Tu We Th Fr Sa Su", dim)).centered();
 	buf.set_line(area.x, area.y + 5, &header, area.width);
 
@@ -91,6 +122,62 @@ pub fn render_time_calendar(area: Rect, buf: &mut Buffer) {
 		let line = Line::from(spans).centered();
 		buf.set_line(area.x, row, &line, area.width);
 	}
+}
+
+/// Clickable month-navigation boxes for the calendar pane: `‹` and `›` sit
+/// at the two ends of the month-title row (y + 4).
+pub fn calendar_nav_rects(area: Rect) -> (Rect, Rect) {
+	let row = area.y + 4;
+	let left = Rect { x: area.x + area.width / 5, y: row, width: 2, height: 1 };
+	let right =
+		Rect { x: area.right().saturating_sub(area.width / 5 + 2), y: row, width: 2, height: 1 };
+	(left, right)
+}
+
+/// Act on a calendar navigation click: -1/±1 month. Returns true when the
+/// click hit a nav box.
+pub fn calendar_nav_click(state: &mut WidgetState, area: Rect, column: u16, row: u16) -> bool {
+	let (left, right) = calendar_nav_rects(area);
+	let hit = |r: Rect| row == r.y && column >= r.x && column < r.x + r.width;
+	if hit(left) {
+		state.calendar_offset -= 1;
+		state.calendar_selected = 0;
+		true
+	} else if hit(right) {
+		state.calendar_offset += 1;
+		state.calendar_selected = 0;
+		true
+	} else {
+		false
+	}
+}
+
+/// Click a day cell in the calendar grid: selects it (today resets the
+/// selection). Column math mirrors the centered 21-char grid (7 cells × 3).
+pub fn calendar_day_click(state: &mut WidgetState, area: Rect, column: u16, row: u16) -> bool {
+	if row < area.y + 6 || row >= area.bottom() {
+		return false;
+	}
+	let (year, month_num) = state.calendar_month();
+	let Some(shown) = chrono::NaiveDate::from_ymd_opt(year, month_num, 1) else {
+		return false;
+	};
+	let offset = shown.weekday().num_days_from_monday() as usize;
+	let days = days_in_month(shown.year(), shown.month());
+	let grid_left = area.x + (area.width.saturating_sub(21)) / 2;
+	let grid_row = (row - area.y - 6) as usize;
+	let col = ((column.saturating_sub(grid_left)) / 3) as usize;
+	if col > 6 {
+		return false;
+	}
+	let index = grid_row * 7 + col;
+	let day = index as i64 - offset as i64 + 1;
+	if day < 1 || day > days as i64 {
+		return false;
+	}
+	let is_today = state.calendar_offset == 0 && day == Local::now().day() as i64;
+	state.calendar_selected = if is_today { 0 } else { day as u32 };
+	true
 }
 
 fn days_in_month(year: i32, month: u32) -> u32 {
@@ -248,6 +335,15 @@ pub fn pomodoro_buttons(area: Rect) -> Vec<(Rect, &'static str)> {
 
 /// Act on a pomodoro button click. Returns true when the click was consumed.
 pub fn pomodoro_click(pom: &mut Pomodoro, area: Rect, column: u16, row: u16) -> bool {
+	// The 🍅 title row toggles the phase by hand (start a break early).
+	if row == area.y + 1 && column >= area.x && column < area.right() {
+		pom.phase = match pom.phase {
+			Phase::Work => Phase::Break,
+			Phase::Break => Phase::Work,
+		};
+		pom.accumulated_secs = 0;
+		return true;
+	}
 	for (rect, action) in pomodoro_buttons(area) {
 		if row == rect.y && column >= rect.x && column < rect.x + rect.width {
 			match action {

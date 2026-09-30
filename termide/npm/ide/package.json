@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/ide",
-  "version": "1.1.21",
+  "version": "1.1.22",
   "description": "zeta-ide — the Zeta terminal IDE (vendored TermIDE): file manager, panels, git, and embedded virtual terminals",
   "license": "MIT",
   "publishConfig": {
@@ -21,8 +21,8 @@
     "VENDOR.md"
   ],
   "optionalDependencies": {
-    "@linxiraos/ide-windows-x64": "1.1.21",
-    "@linxiraos/ide-linux-x64": "1.1.21"
+    "@linxiraos/ide-windows-x64": "1.1.22",
+    "@linxiraos/ide-linux-x64": "1.1.22"
   },
   "engines": {
     "node": ">=18"

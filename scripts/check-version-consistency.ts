@@ -104,6 +104,11 @@ function main(): void {
 	const cargoToml = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== expected) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${expected}`);
+	// main/ is an independent Cargo workspace (the zeta workbench) and rides
+	// the same release line.
+	const mainToml = fs.readFileSync(path.join(root, "main", "Cargo.toml"), "utf8");
+	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
+	if (mainVersion !== expected) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${expected}`);
 
 	// Bazel-face crate versions: the hand-written crates/*/BUILD.bazel targets
 	// carry a `version` attr printed in bazel logs/cache keys; a stale one is
@@ -168,7 +173,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + sentinel + desktop + README badge + crates/*/BUILD.bazel (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + sentinel + desktop + README badge + crates/*/BUILD.bazel (verified)`,
 	);
 }
 

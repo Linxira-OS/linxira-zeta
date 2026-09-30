@@ -9,6 +9,12 @@ suite. Each tool below also runs standalone.
 
 USAGE
   zeta                  Launch the workspace in the current directory
+  zetawork              Same workspace (joined form; `zeta work` too)
+  zeta code [args]      Hand off to the coding CLI (c; zeta-c/zetacode)
+  zeta editor [args]    Hand off to the TTT editor (e)
+  zeta ide [args]       Hand off to the terminal IDE (i)
+  zeta files [args]     Terminal file manager (f; yazi)
+  zeta doctor           Suite install status + exact fixes
   zeta --help           This help
   zeta --version        Workspace version
 
@@ -30,7 +36,7 @@ THE ZETA SUITE (each with its own --help)
   zeta-c / zeta-cli / zetacode   coding agent CLI      (npm: @linxiraos/zeta)
   zeta-editor / zeta-e           terminal editor (TTT) (npm: @linxiraos/editor)
   zeta-ide / zeta-i              terminal IDE (TermIDE)(npm: @linxiraos/ide)
-  files                          terminal file manager (in selection)
+  files / yazi                   terminal file manager (in selection)
 
   A suite tool missing from PATH installs itself into a pane on first
   Alt+<tool> (npm i -g <package>); press the same keys again afterwards.

@@ -84,6 +84,7 @@ pub struct Workspace {
 	theme: termide_theme::Theme,
 	config: std::sync::Arc<termide_config::Config>,
 	help_open: bool,
+	doctor_open: bool,
 	notice: Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
 	hits: Vec<(Rect, Hit)>,
@@ -159,6 +160,7 @@ impl Workspace {
 			theme: plain_theme(),
 			config: std::sync::Arc::new(termide_config::Config::default()),
 			help_open: false,
+			doctor_open: false,
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
@@ -239,8 +241,9 @@ impl Workspace {
 
 	/// Returns `true` when the workspace should quit.
 	fn handle_key(&mut self, key: KeyEvent) -> Result<bool> {
-		if self.help_open {
+		if self.help_open || self.doctor_open {
 			self.help_open = false;
+			self.doctor_open = false;
 			if matches!(key.code, KeyCode::Esc) {
 				return Ok(false);
 			}
@@ -281,6 +284,7 @@ impl Workspace {
 				KeyCode::Char('i') | KeyCode::Char('I') => self.split_active(PaneKind::Ide, None),
 				KeyCode::Char('d') | KeyCode::Char('D') => self.split_active(PaneKind::Time, None),
 				KeyCode::Char('p') | KeyCode::Char('P') => self.split_active(PaneKind::Pomodoro, None),
+				KeyCode::Char('f') | KeyCode::Char('F') => self.split_active(PaneKind::Files, None),
 				KeyCode::Char('l') | KeyCode::Char('L') => self.cycle_preset(),
 				KeyCode::Char('o') | KeyCode::Char('O') => {
 					let tab = self.active();
@@ -314,6 +318,24 @@ impl Workspace {
 		};
 		self.apply_events(events);
 		Ok(false)
+	}
+
+	/// One click: open an install pane for every suite tool missing from
+	/// PATH (npm packages via npm, yazi via the platform package manager).
+	fn install_missing_tools(&mut self) {
+		let kinds = [PaneKind::Agent, PaneKind::Editor, PaneKind::Ide, PaneKind::Files];
+		let mut installed = 0;
+		for kind in kinds {
+			if kind.install_command().is_some() {
+				self.split_active(kind, None);
+				installed += 1;
+			}
+		}
+		self.notice = Some(if installed == 0 {
+			"all suite tools are installed — `zeta doctor` for details".into()
+		} else {
+			format!("{installed} tool(s) installing in panes — they re-resolve on next use")
+		});
 	}
 
 	/// Cycle layout presets upward, creating fresh shells for new slots.
@@ -515,6 +537,16 @@ impl Workspace {
 							return false;
 						}
 					},
+					Some(PaneKind::Time) => {
+						if widgets::calendar_nav_click(&mut self.widgets, inner, mouse.column, mouse.row)
+						{
+							return false;
+						}
+						if widgets::calendar_day_click(&mut self.widgets, inner, mouse.column, mouse.row)
+						{
+							return false;
+						}
+					},
 					Some(PaneKind::Clipboard) => {
 						if let Some(rect) = widgets::clipboard_capture_rect(inner) {
 							if rect.contains(position) {
@@ -645,18 +677,20 @@ impl Workspace {
 			(1, 4) => self.split_active(PaneKind::Time, None),
 			(1, 5) => self.split_active(PaneKind::Pomodoro, None),
 			(1, 6) => self.split_active(PaneKind::Clipboard, None),
-			(1, 7) => {
+			(1, 7) => self.split_active(PaneKind::Files, None),
+			(1, 8) => {
 				let cwd = std::env::current_dir().ok();
 				let tab = self.active();
 				if let Some(pane) = tab.panes.get_mut(tab.active) {
 					let _ = pane.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
 			},
-			(1, 8) => {
+			(1, 9) => {
 				let tab = self.active();
 				let idx = tab.active;
 				tab.close_pane(idx);
 			},
+			(1, 10) => self.install_missing_tools(),
 			// Tab
 			(2, 0) => self.active_tab = (self.active_tab + 1) % self.tabs.len(),
 			(2, 1) => {
@@ -682,10 +716,10 @@ impl Workspace {
 					tab.active = (tab.active + 1) % tab.panes.len();
 				}
 			},
+			(3, 5) => self.install_missing_tools(),
 			// Settings
 			(4, 0) => {
-				self.notice =
-					Some("Settings surface is on the roadmap — keybindings, theme, default shell".into())
+				self.doctor_open = true;
 			},
 			(4, 1) => self.help_open = true,
 			_ => {},
@@ -937,7 +971,9 @@ impl Workspace {
 				frame.render_widget(block, area);
 				if is_widget {
 					match pane.active_page().map(|p| &p.kind) {
-						Some(PaneKind::Time) => widgets::render_time_calendar(inner, frame.buffer_mut()),
+						Some(PaneKind::Time) => {
+							widgets::render_time_calendar(&widgets_state, inner, frame.buffer_mut())
+						},
 						Some(PaneKind::Pomodoro) => {
 							widgets::render_pomodoro(&widgets_state.pomodoro, inner, frame.buffer_mut())
 						},
@@ -1031,6 +1067,20 @@ impl Workspace {
 			);
 			self.push_hit(Rect { x: start, y: rows[3].y, width: 8, height: 1 }, Hit::LayoutCycle);
 			self.push_hit(Rect { x: start + 9, y: rows[3].y, width: 6, height: 1 }, Hit::Quit);
+		}
+
+		if self.doctor_open {
+			let overlay = Paragraph::new(crate::suite::doctor())
+				.block(
+					Block::default()
+						.borders(Borders::ALL)
+						.border_type(BorderType::Rounded)
+						.title(" zeta suite status "),
+				)
+				.style(Style::default().bg(Color::Reset));
+			let area = centered_rect(size, 56, 40);
+			frame.render_widget(Clear, area);
+			frame.render_widget(overlay, area);
 		}
 
 		if self.help_open {

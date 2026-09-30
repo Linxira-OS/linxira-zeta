@@ -1,16 +1,26 @@
 # Zeta 更新日志
 
-## 下一版本（Unreleased）
+## 1.1.22 - 2026-10-01
 
 ### OMP 同步基线
 
-- v18.2.5(`aead0d4742` 并入,随 1.1.16 发布);本版无新上游同步。
+- v18.3.0(经 dev/main 实验分支按 tag 差异合并验证后随本版落地)。
 
 ### 新增
 
+- **`zeta` 工作台(嵌套终端工作台,bin `zeta`,包 @linxiraos/main)**:顶层标签页 + PaneTree 可分割窗格树(n 叉权重树,tmux 式扁平化)+ 每窗格子页栈;鼠标优先(菜单栏/标签栏/窗格标题控件全可点,滚轮切标签),快捷键为可选加速(Alt+C/E/I/F/D/P);原生组件窗格:时间+日历(可点翻月/选日)、🍅 番茄钟(可点启停)、📋 剪贴板历史;缺套件工具一键窗格内安装。窗格拖拽交互(交换/移靠/拉伸)机制就绪待调研,暂以 `DRAG_ENABLED=false` 停用。
+- **套件命令入口**:`zeta code|editor|ide|files`(+首字母 c/e/i/f)接力各工具并透传参数;`zeta doctor` 报告全家桶安装状态与精确修复命令;连打别名 `zetawork`/`zeta-work` 随 npm 分发;Windows 默认 shell 修正(pwsh/powershell,不再落入 System32 bash.exe 的 WSL 陷阱)。
+- **CLI 命名定稿**:coding CLI bin = `zeta-c`/`zeta-cli`/`zetacode`(`zeta` 名让位给工作台);IDE 包 @linxiraos/ide(bin `zeta-ide`/`zeta-i`);editor 包不变。
+- **files 腿选型**:yazi(fork 自持,UI/主题改造与工作台集成排期),vendored 落树(顶层 `yazi/`)。
+- **CI 发布面**:新门禁 `check-ci-surface.ts`(job 清单/needs 接线/产物名三查);恢复 desktop_linux/desktop_windows/web_ui_build;产物名 zeta-cli-*/zeta-desktop-*;release_main_packages/release_ide_packages 接入发布链。
+
+### 修复
+
+- 官方插件编辑器切换按钮移除(统一入口=工作台);`/editor` 命令保留。
+- 大量 CI 发布面回潮修复(v18.4.3 整文件带入上游 ci.yml 所致),详见 `document/upstream-sync.md` 损伤类 7 追记与 check-ci-surface 守卫。
 - **agent ↔ editor 双向切换**(透传打开路径/git 工作区/会话):
    - handoff 文件 `~/.zeta/handoff.json` 一次性携带 cwd/gitRoot/sessionFile/file:line:col;write-then-rename 写入、读一次即删(不会重放昨天上下文);损坏或空 payload 不阻塞启动;**显式 CLI 参数永远优先**,同目录已开的工作区不拆。
-   - zeta 侧入口:**右上角独立圆角按钮**(theme 圆角制表符绘制,右对齐)+ `/editor` 命令。装在 header 而非 status-line segment——segment 来自用户可配置预设列表,而这是必须常驻的产品入口。
+   - zeta 侧入口:`/editor` 命令(右上角按钮形态随统一入口=工作台的裁定移除,见上)。
    - TTT 侧入口:**菜单栏 Agent 项**(直角配 editor 主题,追加在最后以免 menuOptionsIndex 指错)+ `handoff.toAgent` / `handoff.toAgentWithFile`(带光标位);spawn detached,PATH → 插件树 → repo checkout 三级解析。
    - 双层回归测试钉住跨进程契约(盘符冒号 vs 位置冒号、读一次语义、损坏容错、空 cwd 拒绝)——两侧无共享代码,契约只存在于两边。
 - **`/teamagent` 指令**(一个词):把 crew 角色注册为可派发的 subagent。
@@ -26,6 +36,7 @@
 - **editor handoff 设置归错 tab**:两个 `editor.*` 键原先挂在 appearance tab 并自称 `"Editor"` 组,而 appearance 的 `TAB_GROUPS` 没有该组,`settings-layout` 测试直接红。改挂 interaction tab 的既有 `"Agent"` 组(语义本就属 agent 交互),不新增组。
 - **CI 从不覆盖 editor/ 与 plugins/**:`ci.yml` 的 push 与 pull_request 两个 trigger 的 `paths` 过滤器都漏了这两个源码树,导致只改 editor 或 plugins 的 PR **跳过整个 workflow(零 check 直接绿合并)**。已双双补上。
 - **TTT 汉化范围收窄为契约**:只译设置表单与描述性文案;**菜单栏/下拉动作/面板标题保持英文**——它们与快捷键并列,译名失去指位意义。此前译掉的 72 个菜单标签 + 8 个面板标题已回退,范围写进 `i18n.go` 头注防回潮。
+
 
 
 ## 1.1.20（2026-09-23）

@@ -17,6 +17,8 @@ pub enum PaneKind {
 	Time,
 	Pomodoro,
 	Clipboard,
+	/// Terminal file manager (yazi) — the files leg.
+	Files,
 	Command(String),
 }
 
@@ -30,6 +32,7 @@ impl PaneKind {
 			PaneKind::Time => "time · calendar".into(),
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
 			PaneKind::Clipboard => "📋 clipboard".into(),
+			PaneKind::Files => "files".into(),
 			PaneKind::Command(cmd) => cmd.clone(),
 		}
 	}
@@ -39,10 +42,39 @@ impl PaneKind {
 		matches!(self, PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard)
 	}
 
+	/// The npm/native quick-install command when the tool is missing.
+	pub fn install_command_for(kind: &PaneKind) -> Option<String> {
+		let raw = match kind {
+			PaneKind::Agent if resolve_bin(&["zeta-c", "zeta"]).is_none() => {
+				"npm i -g @linxiraos/zeta"
+			},
+			PaneKind::Editor if resolve_bin(&["zeta-e", "zeta-editor"]).is_none() => {
+				"npm i -g @linxiraos/editor"
+			},
+			PaneKind::Ide if resolve_bin(&["zeta-i", "zeta-ide"]).is_none() => {
+				"npm i -g @linxiraos/ide"
+			},
+			PaneKind::Files if resolve_bin(&["yazi"]).is_none() => {
+				if cfg!(windows) {
+					"winget install sxyazi.yazi"
+				} else {
+					"sudo pacman -S yazi"
+				}
+			},
+			_ => return None,
+		};
+		Some(if cfg!(windows) {
+			format!("cmd /k {raw}")
+		} else {
+			format!("sh -c \"{raw}; exec sh\"")
+		})
+	}
+
 	/// Resolve the PTY command line, or `None` for the default shell.
 	fn command_line(&self) -> Option<String> {
 		match self {
 			PaneKind::Shell | PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard => None,
+			PaneKind::Files => Some(resolve_bin(&["yazi"]).map(|b| b.to_string_lossy().into_owned())?),
 			PaneKind::Agent => {
 				Some(resolve_bin(&["zeta-c", "zeta"]).map(|b| b.to_string_lossy().into_owned())?)
 			},
@@ -63,23 +95,7 @@ impl PaneKind {
 	/// on Windows so the output stays visible), and the next Alt+<tool> finds
 	/// the freshly installed binary.
 	pub fn install_command(&self) -> Option<String> {
-		let raw = match self {
-			PaneKind::Agent if resolve_bin(&["zeta-c", "zeta"]).is_none() => {
-				"npm i -g @linxiraos/zeta"
-			},
-			PaneKind::Editor if resolve_bin(&["zeta-e", "zeta-editor"]).is_none() => {
-				"npm i -g @linxiraos/editor"
-			},
-			PaneKind::Ide if resolve_bin(&["zeta-i", "zeta-ide"]).is_none() => {
-				"npm i -g @linxiraos/ide"
-			},
-			_ => return None,
-		};
-		Some(if cfg!(windows) {
-			format!("cmd /k {raw}")
-		} else {
-			format!("sh -c \"{raw}; exec sh\"")
-		})
+		Self::install_command_for(self)
 	}
 }
 
