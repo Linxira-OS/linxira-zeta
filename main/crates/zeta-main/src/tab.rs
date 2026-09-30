@@ -1,5 +1,6 @@
-use crate::layout::Template;
+use crate::layout::{Axis, PaneNode};
 use anyhow::{Result, anyhow};
+use ratatui::layout::Rect;
 use std::path::PathBuf;
 use termide_core::Panel;
 use termide_panel_terminal::Terminal;
@@ -11,8 +12,11 @@ pub enum PaneKind {
 	Agent,
 	Editor,
 	Ide,
-	/// Native workbench widget: live clock + current-month calendar.
+	/// Native workbench widgets (no child process): time+calendar dashboard,
+	/// pomodoro timer, clipboard history.
 	Time,
+	Pomodoro,
+	Clipboard,
 	Command(String),
 }
 
@@ -24,19 +28,21 @@ impl PaneKind {
 			PaneKind::Editor => "zeta-e".into(),
 			PaneKind::Ide => "zeta-ide".into(),
 			PaneKind::Time => "time · calendar".into(),
+			PaneKind::Pomodoro => "🍅 pomodoro".into(),
+			PaneKind::Clipboard => "📋 clipboard".into(),
 			PaneKind::Command(cmd) => cmd.clone(),
 		}
 	}
 
 	/// Native widget panes carry no child process.
 	pub fn is_widget(&self) -> bool {
-		matches!(self, PaneKind::Time)
+		matches!(self, PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard)
 	}
 
 	/// Resolve the PTY command line, or `None` for the default shell.
 	fn command_line(&self) -> Option<String> {
 		match self {
-			PaneKind::Shell | PaneKind::Time => None,
+			PaneKind::Shell | PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard => None,
 			PaneKind::Agent => {
 				Some(resolve_bin(&["zeta-c", "zeta"]).map(|b| b.to_string_lossy().into_owned())?)
 			},
@@ -77,89 +83,199 @@ impl PaneKind {
 	}
 }
 
-/// What a pane contains: a real PTY child terminal, or a native widget
+/// What a pane page contains: a real PTY child terminal, or a native widget
 /// rendered by the workbench itself (no child process).
+#[allow(clippy::large_enum_variant)]
 pub enum PaneBody {
 	Pty(Terminal),
-	TimeWidget,
+	Widget,
 }
 
-/// A single embedded pane: a PTY terminal or a native widget.
-pub struct Pane {
+/// One sub-page of a pane. Pages are live: switching keeps every PTY running
+/// so several zeta-c sessions can share one pane slot.
+pub struct Page {
 	pub kind: PaneKind,
 	pub body: PaneBody,
 }
 
+/// A single embedded pane: a stack of sub-pages plus which one shows.
+pub struct Pane {
+	pub pages: Vec<Page>,
+	pub page: usize,
+}
+
 impl Pane {
 	pub fn new(kind: PaneKind, rows: u16, cols: u16, cwd: Option<PathBuf>) -> Result<Self> {
+		let mut pane = Self { pages: Vec::new(), page: 0 };
+		pane.open_page(kind, rows, cols, cwd)?;
+		Ok(pane)
+	}
+
+	/// Open a new sub-page and switch to it. Widget pages are free; PTY pages
+	/// spawn a child.
+	pub fn open_page(
+		&mut self,
+		kind: PaneKind,
+		rows: u16,
+		cols: u16,
+		cwd: Option<PathBuf>,
+	) -> Result<usize> {
 		let body = if kind.is_widget() {
-			PaneBody::TimeWidget
+			PaneBody::Widget
 		} else {
 			match kind.command_line() {
 				None => PaneBody::Pty(Terminal::new_with_cwd(rows, cols, cwd)?),
 				Some(command) => PaneBody::Pty(Terminal::new_with_command(rows, cols, &command)?),
 			}
 		};
-		Ok(Self { kind, body })
+		self.pages.push(Page { kind, body });
+		self.page = self.pages.len() - 1;
+		Ok(self.page)
 	}
 
-	/// The PTY terminal, when this is a terminal pane.
+	/// Close sub-page `idx`. Returns true when the pane has no pages left and
+	/// must be closed entirely.
+	pub fn close_page(&mut self, idx: usize) -> bool {
+		if idx < self.pages.len() {
+			self.pages.remove(idx);
+		}
+		if self.page >= self.pages.len() {
+			self.page = self.pages.len().saturating_sub(1);
+		}
+		self.pages.is_empty()
+	}
+
+	pub fn active_page(&self) -> Option<&Page> {
+		self.pages.get(self.page)
+	}
+
+	/// The active page's PTY terminal, when it is a terminal page.
 	pub fn as_terminal(&mut self) -> Option<&mut Terminal> {
-		match &mut self.body {
-			PaneBody::Pty(term) => Some(term),
-			PaneBody::TimeWidget => None,
+		match self.pages.get_mut(self.page)?.body {
+			PaneBody::Pty(ref mut term) => Some(term),
+			PaneBody::Widget => None,
+		}
+	}
+
+	pub fn is_widget(&self) -> bool {
+		self
+			.active_page()
+			.map(|p| p.kind.is_widget())
+			.unwrap_or(false)
+	}
+
+	/// Title label: active page's tool, page count appended when stacked.
+	pub fn label(&self) -> String {
+		let base = self
+			.active_page()
+			.map(|p| p.kind.label())
+			.unwrap_or_default();
+		if self.pages.len() > 1 {
+			format!("{base} ({}/{})", self.page + 1, self.pages.len())
+		} else {
+			base
 		}
 	}
 }
 
-/// A workspace tab: one pane set and the layout template they tile into.
+/// A workspace tab: a pane store plus the layout tree tiling them.
 pub struct Tab {
 	pub panes: Vec<Pane>,
 	pub active: usize,
-	pub template: Template,
+	pub tree: PaneNode,
 }
 
 impl Tab {
-	/// A tab starts with a single shell pane; the layout grows with panes.
+	/// A tab starts with a single shell pane; the layout grows by splitting.
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
 		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
-		Ok(Self { panes: vec![pane], active: 0, template: Template::Single })
+		Ok(Self { panes: vec![pane], active: 0, tree: PaneNode::single(0) })
 	}
 
-	pub fn add_pane(&mut self, kind: PaneKind, cwd: Option<PathBuf>) -> Result<()> {
-		if self.panes.len() >= Template::Quad.slots() {
-			return Err(anyhow!("tab already holds the maximum of 4 panes"));
+	/// Split the focused pane along its rect's longer axis and open `kind`
+	/// in the new slot.
+	pub fn add_pane(
+		&mut self,
+		kind: PaneKind,
+		cwd: Option<PathBuf>,
+		focused_rect: Rect,
+	) -> Result<()> {
+		let id = self.panes.len();
+		let mut pane = Pane::new(kind, 24, 80, cwd)?;
+		// Size the new pane's first PTY to the actual slot it will occupy.
+		let axis = Axis::for_rect(focused_rect);
+		let (rows, cols) = slot_grid(focused_rect, axis);
+		if let Some(term) = pane.as_terminal() {
+			let _ = term.resize(rows, cols);
 		}
-		let pane = Pane::new(kind, 24, 80, cwd)?;
 		self.panes.push(pane);
-		self.active = self.panes.len() - 1;
-		// Grow the template so every pane has a slot.
-		let needed = self.panes.len();
-		self.template = Template::ALL
-			.iter()
-			.rev()
-			.find(|t| t.slots() >= needed)
-			.copied()
-			.unwrap_or(Template::Quad);
+		self.tree.split(self.active, axis, id);
+		self.active = id;
 		Ok(())
 	}
 
+	/// Close pane `index` (tree collapse + store reindex). No-op on the last.
 	pub fn close_pane(&mut self, index: usize) {
-		if self.panes.len() <= 1 {
+		if self.panes.len() <= 1 || index >= self.panes.len() {
 			return;
 		}
-		if index < self.panes.len() {
-			self.panes.remove(index);
+		if !self.tree.close(index) {
+			return;
 		}
+		self.panes.remove(index);
+		self.tree.reindex_after_remove(index);
 		self.active = self.active.min(self.panes.len() - 1);
 	}
 
-	pub fn resize(&mut self, rows: u16, cols: u16) {
-		for pane in &mut self.panes {
-			if let Some(term) = pane.as_terminal() {
-				let _ = term.resize(rows, cols);
+	/// Apply a preset tree; missing slots become fresh shell panes. Refuses
+	/// (no data loss) when live panes outnumber the preset's slots.
+	pub fn apply_preset(&mut self, tree: PaneNode, cwd: Option<PathBuf>) -> Result<()> {
+		let leaves = count_leaves(&tree);
+		if leaves > self.panes.len() {
+			for id in self.panes.len()..leaves {
+				self
+					.panes
+					.push(Pane::new(PaneKind::Shell, 24, 80, cwd.clone())?);
+				let _ = id;
 			}
 		}
+		if leaves < self.panes.len() {
+			return Err(anyhow!(
+				"layout {} holds {} slots — close {} more pane(s) first",
+				leaves,
+				leaves,
+				self.panes.len() - leaves
+			));
+		}
+		self.tree = tree;
+		Ok(())
+	}
+
+	/// Resize every PTY page (window resize fans out to the whole store).
+	pub fn resize(&mut self, rows: u16, cols: u16) {
+		for pane in &mut self.panes {
+			for page in &mut pane.pages {
+				if let PaneBody::Pty(term) = &mut page.body {
+					let _ = term.resize(rows, cols);
+				}
+			}
+		}
+	}
+}
+
+/// Grid size for a new pane occupying half of `area` across `axis`.
+fn slot_grid(area: Rect, axis: Axis) -> (u16, u16) {
+	let (w, h) = match axis {
+		Axis::Row => (area.width / 2, area.height),
+		Axis::Column => (area.width, area.height / 2),
+	};
+	(h.saturating_sub(2).max(1), w.saturating_sub(2).max(1))
+}
+
+fn count_leaves(node: &PaneNode) -> usize {
+	match node {
+		PaneNode::Leaf(_) => 1,
+		PaneNode::Split { children, .. } => children.iter().map(|(_, n)| count_leaves(n)).sum(),
 	}
 }
 
