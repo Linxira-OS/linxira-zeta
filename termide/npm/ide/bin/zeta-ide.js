@@ -1,23 +1,24 @@
 #!/usr/bin/env node
-// zeta-work launcher — resolves the platform binary from optionalDependencies
+// zeta-ide launcher — resolves the platform binary from optionalDependencies
 // leaves (same pattern as the zeta-editor launcher). Node-only, no Bun needed.
 
-const os = require("node:os");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
-const PKG_PREFIX = "@linxiraos/work-";
+// npm package names use "windows"; Node's process.platform is "win32".
+const PKG_PLATFORM = process.platform === "win32" ? "windows" : process.platform;
+const PKG_PREFIX = "@linxiraos/ide-";
 const EXE = process.platform === "win32" ? "termide.exe" : "termide-linux-x64";
 
 function die(msg) {
-  process.stderr.write(`zeta-work: ${msg}\n`);
+  process.stderr.write(`zeta-ide: ${msg}\n`);
   process.exit(1);
 }
 
 let bin = null;
 try {
-  bin = require.resolve(`${PKG_PREFIX}${process.platform}-${process.arch}/bin/${EXE}`);
+  bin = require.resolve(`${PKG_PREFIX}${PKG_PLATFORM}-${process.arch}/bin/${EXE}`);
 } catch {
   // Fall back to a repo-layout location (dev / source checkout):
   // <repo>/termide/target/release/<exe> next to this package.
@@ -28,7 +29,7 @@ try {
 if (!bin) {
   die(
     `no binary for ${process.platform}-${process.arch}; ` +
-      `install @linxiraos/work (supported: win32-x64, linux-x64) ` +
+      `install @linxiraos/ide (supported: windows-x64, linux-x64) ` +
       `or build from source with \`cargo build --release\` in the termide/ workspace`,
   );
 }

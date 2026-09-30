@@ -1,7 +1,7 @@
 {
-  "name": "@linxiraos/work-linux-x64",
+  "name": "@linxiraos/ide-windows-x64",
   "version": "1.1.21",
-  "description": "Linux x64 binary for @linxiraos/work (zeta-work)",
+  "description": "Windows x64 binary for @linxiraos/ide (zeta-ide)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,8 +11,12 @@
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "bin",
+    "LICENSE"
+  ],
   "os": [
-    "linux"
+    "win32"
   ],
   "cpu": [
     "x64"

@@ -91,7 +91,7 @@ interface PackageManifest {
 const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const publishEditor = process.argv.slice(2).includes("--editor");
-const publishWork = process.argv.slice(2).includes("--work");
+const publishIde = process.argv.slice(2).includes("--ide");
 const MIT_LICENSE = "LICENSE";
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
@@ -718,11 +718,11 @@ if (import.meta.main) {
 					"editor/npm/editor-linux-x64",
 					"editor/npm/editor",
 				])
-			: publishWork
+			: publishIde
 				? await publishVendoredNpmDirs([
-						"termide/npm/work-windows-x64",
-						"termide/npm/work-linux-x64",
-						"termide/npm/work",
+						"termide/npm/ide-windows-x64",
+						"termide/npm/ide-linux-x64",
+						"termide/npm/ide",
 					])
 				: await publishWorkspacePackages();
 	if (failed.length > 0) {

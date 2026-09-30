@@ -1,17 +1,17 @@
-name: Publish work packages
-# Standalone dispatchable entry for the vendored termide (zeta-work) npm
-# distribution (@linxiraos/work + platform leaves). Mirrors
-# editor-publish.yml: exists so a missed or skipped work publish on a
+name: Publish ide packages
+# Standalone dispatchable entry for the vendored termide (zeta-ide) npm
+# distribution (@linxiraos/ide + platform leaves). Mirrors
+# editor-publish.yml: exists so a missed or skipped ide publish on a
 # release run can be republished without re-tagging (`gh workflow run
-# work-publish.yml`). The release pipeline dispatches this same workflow
-# from release_work_packages; keep both in sync.
+# ide-publish.yml`). The release pipeline dispatches this same workflow
+# from release_ide_packages; keep both in sync.
 
 on:
    workflow_dispatch:
    workflow_call:
 
 concurrency:
-   group: work-publish-${{ github.ref }}
+   group: ide-publish-${{ github.ref }}
    cancel-in-progress: false
 
 permissions:
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
    publish:
-      name: Publish work npm packages
+      name: Publish ide npm packages
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -31,7 +31,7 @@ jobs:
               registry-url: "https://registry.npmjs.org"
          - name: Ensure npm supports trusted publishing
            run: npm install -g npm@11.17.0
-         - name: Publish work packages
+         - name: Publish ide packages
            env:
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-           run: bun scripts/ci-release-publish.ts --work
+           run: bun scripts/ci-release-publish.ts --ide

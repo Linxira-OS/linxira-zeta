@@ -375,6 +375,16 @@ async function cmdRelease(versionArg: string, watch: boolean): Promise<void> {
 		await $`sd '"@linxiraos/${editorLeaf}": "[^"]+"' ${`"@linxiraos/${editorLeaf}": "${version}"`} editor/npm/editor/package.json`;
 	}
 
+	// Step 2f-2: termide (zeta-ide) npm distribution — same pattern as the
+	// editor trio; the launcher pins its platform leaves exactly.
+	console.log(`Updating ide npm packages to ${version}...`);
+	for (const ideDir of ["termide/npm/ide", "termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64"]) {
+		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${ideDir}/package.json`;
+	}
+	for (const ideLeaf of ["ide-windows-x64", "ide-linux-x64"]) {
+		await $`sd '"@linxiraos/${ideLeaf}": "[^"]+"' ${`"@linxiraos/${ideLeaf}": "${version}"`} termide/npm/ide/package.json`;
+	}
+
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).

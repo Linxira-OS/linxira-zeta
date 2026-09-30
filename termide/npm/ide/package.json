@@ -1,7 +1,7 @@
 {
-  "name": "@linxiraos/work",
+  "name": "@linxiraos/ide",
   "version": "1.1.21",
-  "description": "zeta-work — the Zeta workspace TUI: file manager, panels, and terminal surfaces for agent-driven Linux operations",
+  "description": "zeta-ide — the Zeta terminal IDE (vendored TermIDE): file manager, panels, git, and embedded virtual terminals",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -12,8 +12,8 @@
     "directory": "termide"
   },
   "bin": {
-    "zeta-work": "bin/zeta-work.js",
-    "zeta-w": "bin/zeta-work.js"
+    "zeta-ide": "bin/zeta-ide.js",
+    "zeta-i": "bin/zeta-ide.js"
   },
   "files": [
     "bin/",
@@ -21,8 +21,8 @@
     "VENDOR.md"
   ],
   "optionalDependencies": {
-    "@linxiraos/work-windows-x64": "1.1.21",
-    "@linxiraos/work-linux-x64": "1.1.21"
+    "@linxiraos/ide-windows-x64": "1.1.21",
+    "@linxiraos/ide-linux-x64": "1.1.21"
   },
   "engines": {
     "node": ">=18"

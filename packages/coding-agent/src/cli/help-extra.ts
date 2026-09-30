@@ -92,10 +92,10 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Companion Tools (separate npm packages):")}
-  zeta-work / zeta-w     - Zeta workspace TUI: visual file manager with embedded
-                           terminal panes; hosts zeta and zeta-editor side by side
-                           (npm: @linxiraos/work)
-  zeta-editor / zeta-e   - Zeta terminal IDE; /editor inside zeta hands off the
+  zeta-ide / zeta-i       - Zeta terminal IDE (TermIDE): file manager, panels,
+                           git, and embedded virtual terminal panes
+                           (npm: @linxiraos/ide)
+  zeta-editor / zeta-e    - Zeta terminal editor; /editor inside zeta hands off the
                            current directory, repo root and session to it
                            (npm: @linxiraos/editor)
 

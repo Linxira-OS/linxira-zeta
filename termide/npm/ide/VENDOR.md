@@ -7,7 +7,7 @@
 | 引入方式   | `git archive HEAD`(无上游 git 历史;上游 `.github/` 不随树) |
 | 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)              |
 | 引入日期   | 2026-09-28                                                 |
-| npm 包     | `@linxiraos/work`(bin `zeta-work` + 短别名 `zeta-w`,Rust 二进制分发,版本对齐 Zeta 产品线) |
+| npm 包     | `@linxiraos/ide`(bin `zeta-ide` + 短别名 `zeta-i`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
 | 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zeta` 与 `zeta-editor`(短别名 `zeta-e`)作为 pane 内子进程经 PTY 组合,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
 
 ## 出局方案(选型记录)
@@ -26,7 +26,7 @@
 | # | 文件 | 偏离 | 原因 | 日期 |
 | --- | --- | --- | --- | --- |
 | 1 | `LICENSE` | 版权行追加 Linxira-OS/Zeta | MIT 分发声明 | 2026-09-28 |
-| 2 | `npm/`(新增) | `@linxiraos/work` 主包 + `work-windows-x64`/`work-linux-x64` 平台 leaf(bin `zeta-work` + `zeta-w`) | npm 分发链路,照抄 `editor/npm/` 模式;平台二进制(`termide.exe`/`termide-linux-x64`)发布前本地构建后提交进 leaf 的 `bin/`(同 editor 的 ttt.exe 先例),发布经 `work-publish.yml` | 2026-09-28 |
+| 2 | `npm/`(新增) | `@linxiraos/ide` 主包 + `ide-windows-x64`/`ide-linux-x64` 平台 leaf(bin `zeta-ide` + `zeta-i`;2026-09-30 由 work 更名,含 launcher win32→windows 映射修复与 leaf `files` 白名单) | npm 分发链路,照抄 `editor/npm/` 模式;平台二进制(`termide.exe`/`termide-linux-x64`)发布前本地构建后提交进 leaf 的 `bin/`(同 editor 的 ttt.exe 先例),发布经 `ide-publish.yml` | 2026-09-28 |
 | 3 | `rustfmt.toml`(新增) | 空配置文件,仅注释 | 阻断 rustfmt 向上发现 Zeta 根配置(hard_tabs);否则 `cargo fmt` 重排整个快照、CI `--check` 门必挂(上游仓库自身即根,无此问题) | 2026-09-28 |
 
 ## bump 流程

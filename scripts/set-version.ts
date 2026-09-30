@@ -53,6 +53,15 @@ const EDITOR_NPM_PACKAGES = [
 	"editor/npm/editor/package.json",
 ] as const;
 
+// Vendored termide (zeta-ide) npm distribution (published by
+// `ci-release-publish.ts --ide`). Not a Bun workspace; without this list the
+// manifests silently lag the release line (damage item 7 in release.md).
+const IDE_NPM_PACKAGES = [
+	"termide/npm/ide-windows-x64/package.json",
+	"termide/npm/ide-linux-x64/package.json",
+	"termide/npm/ide/package.json",
+] as const;
+
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
 const CATALOG_KEYS = [
 	"@linxiraos/pi-utils",
@@ -209,6 +218,24 @@ async function main(): Promise<void> {
 			continue;
 		}
 		manifest.version = version;
+		writeJson(rel, manifest);
+		changed.push(rel);
+	}
+
+	// 4c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
+	// platform leaves exactly, so the optionalDependencies refs move too.
+	for (const rel of IDE_NPM_PACKAGES) {
+		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
+		if (manifest.version === version) {
+			unchanged.push(rel);
+			continue;
+		}
+		manifest.version = version;
+		if (manifest.optionalDependencies) {
+			for (const dep of Object.keys(manifest.optionalDependencies)) {
+				if (dep.startsWith("@linxiraos/ide-")) manifest.optionalDependencies[dep] = version;
+			}
+		}
 		writeJson(rel, manifest);
 		changed.push(rel);
 	}
