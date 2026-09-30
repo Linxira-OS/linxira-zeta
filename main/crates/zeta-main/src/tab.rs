@@ -1,4 +1,4 @@
-use crate::layout::{Axis, PaneNode};
+use crate::layout::{Axis, PaneNode, Side};
 use anyhow::{Result, anyhow};
 use ratatui::layout::Rect;
 use std::path::PathBuf;
@@ -192,18 +192,18 @@ impl Tab {
 		Ok(Self { panes: vec![pane], active: 0, tree: PaneNode::single(0) })
 	}
 
-	/// Split the focused pane along its rect's longer axis and open `kind`
-	/// in the new slot.
+	/// Split the focused pane along `axis` and open `kind` in the new slot.
+	/// The direction is explicit — the title bar carries `[↔]`/`[↕]` for it.
 	pub fn add_pane(
 		&mut self,
 		kind: PaneKind,
 		cwd: Option<PathBuf>,
 		focused_rect: Rect,
+		axis: Axis,
 	) -> Result<()> {
 		let id = self.panes.len();
 		let mut pane = Pane::new(kind, 24, 80, cwd)?;
 		// Size the new pane's first PTY to the actual slot it will occupy.
-		let axis = Axis::for_rect(focused_rect);
 		let (rows, cols) = slot_grid(focused_rect, axis);
 		if let Some(term) = pane.as_terminal() {
 			let _ = term.resize(rows, cols);
@@ -212,6 +212,35 @@ impl Tab {
 		self.tree.split(self.active, axis, id);
 		self.active = id;
 		Ok(())
+	}
+
+	/// Move pane `moved` beside `target` on `side` — the drop-on-edge drag
+	/// semantic ("drag to the left edge = becomes the left neighbor").
+	/// Contents (the whole pane with all sub-pages) travel.
+	pub fn move_pane_relative(&mut self, moved: usize, target: usize, side: Side) {
+		if moved == target || moved >= self.panes.len() || target >= self.panes.len() {
+			return;
+		}
+		if !self.tree.detach(moved) {
+			return;
+		}
+		self.tree.insert_beside(moved, target, side);
+		self.active = moved;
+	}
+
+	/// Take pane `index` out of this tab (caller moves it into a new tab).
+	/// Returns None when it is the last pane here.
+	pub fn take_pane(&mut self, index: usize) -> Option<Pane> {
+		if self.panes.len() <= 1 || index >= self.panes.len() {
+			return None;
+		}
+		if !self.tree.close(index) {
+			return None;
+		}
+		let pane = self.panes.remove(index);
+		self.tree.reindex_after_remove(index);
+		self.active = self.active.min(self.panes.len() - 1);
+		Some(pane)
 	}
 
 	/// Close pane `index` (tree collapse + store reindex). No-op on the last.

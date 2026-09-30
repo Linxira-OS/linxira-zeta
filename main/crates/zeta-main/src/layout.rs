@@ -277,4 +277,159 @@ impl PaneNode {
 			},
 		}
 	}
+
+	/// Detach leaf `pane` from the tree (space flows to siblings, single-child
+	/// parents collapse, pane store untouched). Returns false when the root is
+	/// that leaf (nothing to detach) or the pane is absent.
+	pub fn detach(&mut self, pane: usize) -> bool {
+		if matches!(self, PaneNode::Leaf(_)) {
+			return false;
+		}
+		if !self.contains(pane) {
+			return false;
+		}
+		self.close(pane)
+	}
+
+	/// Place detached `moved` beside `target` on `side` (Left/Right share a
+	/// Row axis; Top/Bottom share a Column axis). The target's slot splits to
+	/// admit the moved pane — "drag to an edge = that-direction distribution".
+	pub fn insert_beside(&mut self, moved: usize, target: usize, side: Side) {
+		let axis = match side {
+			Side::Left | Side::Right => Axis::Row,
+			Side::Top | Side::Bottom => Axis::Column,
+		};
+		if let PaneNode::Leaf(id) = self {
+			// Root is the target leaf itself: grow a fresh root split.
+			if *id == target {
+				let (first, second) = match side {
+					Side::Left | Side::Top => (moved, target),
+					Side::Right | Side::Bottom => (target, moved),
+				};
+				*self = PaneNode::Split {
+					axis,
+					children: vec![(1, PaneNode::Leaf(first)), (1, PaneNode::Leaf(second))],
+				};
+			}
+			return;
+		}
+		// Walk to the split whose DIRECT leaf child is the target.
+		if let PaneNode::Split { axis: node_axis, children } = self {
+			let direct = children
+				.iter()
+				.position(|(_, n)| matches!(n, PaneNode::Leaf(id) if *id == target));
+			if let Some(pos) = direct {
+				let at = if matches!(side, Side::Right | Side::Bottom) {
+					pos + 1
+				} else {
+					pos
+				};
+				if *node_axis == axis {
+					// Same axis: insert as a sibling next to the target.
+					children.insert(at, (1, PaneNode::Leaf(moved)));
+				} else {
+					// Crossing axes: wrap the target leaf in a new split.
+					let target_leaf =
+						std::mem::replace(&mut children[pos].1, PaneNode::Leaf(usize::MAX));
+					children[pos].0 = 1;
+					children[pos].1 = PaneNode::Split {
+						axis,
+						children: match side {
+							Side::Left | Side::Top => {
+								vec![(1, PaneNode::Leaf(moved)), (1, target_leaf)]
+							},
+							Side::Right | Side::Bottom => {
+								vec![(1, target_leaf), (1, PaneNode::Leaf(moved))]
+							},
+						},
+					};
+				}
+				return;
+			}
+			for (_, node) in children.iter_mut() {
+				node.insert_beside(moved, target, side);
+			}
+		}
+	}
+}
+
+/// Drop side for pane drags: a shared split axis with the target.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Side {
+	Left,
+	Right,
+	Top,
+	Bottom,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn row(children: Vec<PaneNode>) -> PaneNode {
+		PaneNode::Split { axis: Axis::Row, children: children.into_iter().map(|n| (1, n)).collect() }
+	}
+
+	fn col(children: Vec<PaneNode>) -> PaneNode {
+		PaneNode::Split {
+			axis: Axis::Column,
+			children: children.into_iter().map(|n| (1, n)).collect(),
+		}
+	}
+
+	fn ids(tree: &PaneNode) -> Vec<usize> {
+		tree
+			.leaf_rects(Rect::new(0, 0, 80, 24))
+			.iter()
+			.map(|(id, _)| *id)
+			.collect()
+	}
+
+	#[test]
+	fn split_inserts_same_axis_sibling() {
+		let mut tree = PaneNode::single(0);
+		tree.split(0, Axis::Row, 1);
+		tree.split(1, Axis::Row, 2);
+		assert_eq!(ids(&tree), vec![0, 1, 2], "three columns in one row split");
+	}
+
+	#[test]
+	fn close_collapses_and_reindexes() {
+		let mut tree = row(vec![PaneNode::Leaf(0), col(vec![PaneNode::Leaf(1), PaneNode::Leaf(2)])]);
+		assert!(tree.close(1));
+		assert_eq!(ids(&tree), vec![0, 2], "space flows to sibling");
+		tree.reindex_after_remove(1);
+		assert_eq!(ids(&tree), vec![0, 1]);
+		assert!(tree.close(0), "closing down to the last leaf is legal");
+		assert_eq!(ids(&tree), vec![1]);
+	}
+
+	#[test]
+	fn insert_beside_crosses_axis() {
+		// User sketch: left tall | middle (top+bottom) | right tall.
+		let mut tree = PaneNode::single(0);
+		tree.split(0, Axis::Row, 1); // [0 | 1]
+		tree.split(1, Axis::Column, 2); // [0 | 1 over 2]
+		tree.split(1, Axis::Row, 3); // [0 | 1over2 | 3]
+		assert_eq!(ids(&tree), vec![0, 1, 2, 3]);
+	}
+
+	#[test]
+	fn detach_then_insert_beside_moves_pane() {
+		let mut tree = row(vec![PaneNode::Leaf(0), col(vec![PaneNode::Leaf(1), PaneNode::Leaf(2)])]);
+		assert!(tree.detach(0));
+		assert_eq!(ids(&tree), vec![1, 2]);
+		tree.insert_beside(0, 2, Side::Left);
+		assert_eq!(ids(&tree), vec![1, 0, 2], "moved pane sits left of target");
+	}
+
+	#[test]
+	fn insert_beside_root_leaf_grows_root() {
+		let mut tree = PaneNode::single(0);
+		tree.insert_beside(1, 0, Side::Top);
+		assert_eq!(ids(&tree), vec![1, 0], "drop on the top edge = above the target");
+		let mut tree = PaneNode::single(0);
+		tree.insert_beside(1, 0, Side::Bottom);
+		assert_eq!(ids(&tree), vec![0, 1], "drop on the bottom edge = below the target");
+	}
 }

@@ -1,8 +1,8 @@
-//! Top chrome: tab bar (left) + menu bar (right), shared hit geometry, and
-//! drag-to-reorder support for tabs.
-//!
-//! Doctrine: the chrome itself stays free of hotkey hints — keys live in the
-//! help overlay and menus. Every visible element is mouse-first.
+//! Top chrome, two rows: the menu bar (row 0) and the tab bar (row 1) —
+//! per the product sketch. Both publish their geometry through layout
+//! helpers shared by rendering and mouse hit-testing, so clicks always agree
+//! with what is on screen. The chrome carries no hotkey hints; keys live in
+//! the help overlay.
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -10,9 +10,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 
-/// Top-level menus, right-aligned on the tab row. `Settings` opens the
-/// settings surface (roadmap: keybindings/theme/shell config); `Help` shows
-/// the keymap overlay.
+/// Top-level menus. `Settings` opens the settings surface (roadmap);
+/// `Help` shows the keymap overlay.
 pub const MENUS: &[(&str, &[&str])] = &[
 	("File", &["New tab", "Close tab", "Quit"]),
 	(
@@ -34,169 +33,89 @@ pub const MENUS: &[(&str, &[&str])] = &[
 	("Settings", &["Settings (soon)", "Help"]),
 ];
 
-fn menu_widths() -> Vec<u16> {
-	MENUS
-		.iter()
-		.map(|(name, _)| Span::raw(format!(" {name} ")).width() as u16)
-		.collect()
-}
-
-/// Hit geometry for the tab bar row, shared by rendering and mouse routing so
-/// clicks always agree with what is on screen.
-pub struct TabHits {
-	/// `‹` previous tab.
-	pub prev: (u16, u16),
-	/// `(x, width)` per tab, in title order.
-	pub tabs: Vec<(u16, u16)>,
-	/// `×` close box per tab — the active tab only.
-	pub closes: Vec<Option<(u16, u16)>>,
-	/// `›` next tab.
-	pub next: (u16, u16),
-	/// `+` new tab.
-	pub plus: (u16, u16),
-	/// `(x, width)` per menu trigger, in `MENUS` order (right-aligned).
-	pub menus: Vec<(u16, u16)>,
-}
-
-pub fn tab_bar_hits(area_width: u16, titles: &[String], active: usize) -> TabHits {
-	let mut x: u16 = 0;
-	let prev = (x, 2); // " ‹"
-	x += 2;
-	let mut tabs = Vec::with_capacity(titles.len());
-	let mut closes = Vec::with_capacity(titles.len());
-	for (idx, title) in titles.iter().enumerate() {
-		let text = if idx == active {
-			format!("▸ {}:{} ", idx + 1, truncate(title, 18))
-		} else {
-			format!(" {}:{} ", idx + 1, truncate(title, 18))
-		};
-		let width = Span::raw(text).width() as u16;
-		tabs.push((x, width));
-		x += width;
-		if idx == active {
-			closes.push(Some((x, 2))); // " ×"
-			x += 2;
-		} else {
-			closes.push(None);
+/// Menu bar row: left-aligned triggers. Layout helper shared by render and
+/// hit-testing.
+pub fn menu_layout(width: u16) -> Vec<(&'static str, u16, u16)> {
+	let mut boxes = Vec::with_capacity(MENUS.len());
+	let mut x = 1u16;
+	for (name, _) in MENUS {
+		let w = Span::raw(format!(" {name} ")).width() as u16;
+		if x + w > width {
+			break;
 		}
+		boxes.push((*name, x, w));
+		x += w;
 	}
-	let next = (x, 2); // " ›"
-	x += 2;
-	let plus = (x, 2); // " +"
-	// Menus right-aligned: measure from the right edge backwards.
-	let widths = menu_widths();
-	let total: u16 = widths.iter().sum();
-	let mut menus = Vec::with_capacity(MENUS.len());
-	let mut mx = area_width.saturating_sub(total);
-	for (name, w) in MENUS.iter().zip(&widths) {
-		menus.push((mx, *w));
-		mx += w;
-		let _ = name;
-	}
-	TabHits { prev, tabs, closes, next, plus, menus }
+	boxes
 }
 
-/// The tab bar row: `‹ ▸ 1 shell ×  2 zeta-c › +` … menus right-aligned.
-pub struct TabBar<'a> {
-	pub titles: &'a [String],
-	pub active: usize,
-	/// Index of the open menu, when any.
-	pub open_menu: Option<usize>,
+/// The menu bar (row 0).
+pub struct MenuBar {
+	pub open: Option<usize>,
 }
 
-impl Widget for TabBar<'_> {
+impl Widget for MenuBar {
 	fn render(self, area: Rect, buf: &mut Buffer) {
-		if area.height < 1 || area.width < 3 {
+		if area.height < 1 {
 			return;
 		}
-		let dim = Style::default().fg(Color::DarkGray);
-		let active_style = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
-		let mut spans = Vec::with_capacity(self.titles.len() * 3 + 5 + MENUS.len());
-		spans.push(Span::styled(" ‹", dim));
-		for (idx, title) in self.titles.iter().enumerate() {
-			let label = truncate(title, 18);
-			if idx == self.active {
-				spans.push(Span::styled(format!("▸ {}:{} ", idx + 1, label), active_style));
-				spans.push(Span::styled("×", Style::default().add_modifier(Modifier::BOLD)));
+		let active = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+		for (name, x, w) in menu_layout(area.width) {
+			let idx = MENUS.iter().position(|(n, _)| *n == name).unwrap_or(0);
+			let style = if self.open == Some(idx) {
+				active
 			} else {
-				spans.push(Span::styled(format!(" {}:{} ", idx + 1, label), dim));
-			}
-		}
-		spans.push(Span::styled(" ›", dim));
-		spans.push(Span::styled(" +", dim));
-		// Right-align menu triggers.
-		let widths = menu_widths();
-		let total: u16 = widths.iter().sum();
-		if area.width > total {
-			let mut x = area.x;
-			for (span, width) in line_spans(spans.clone()) {
-				if x + width > area.x + area.width - total {
-					break;
-				}
-				buf.set_span(x, area.y, &span, width);
-				x += width;
-			}
-			let mut mx = area.x + area.width - total;
-			for (idx, ((name, _), width)) in MENUS.iter().zip(&widths).enumerate() {
-				let style = if self.open_menu == Some(idx) {
-					active_style
-				} else {
-					Style::default()
-				};
-				buf.set_span(mx, area.y, &Span::styled(format!(" {name} "), style), *width);
-				mx += width;
-			}
-			return;
-		}
-		let mut x = area.x;
-		for (span, width) in line_spans(spans) {
-			if x + width > area.x + area.width {
-				break;
-			}
-			buf.set_span(x, area.y, &span, width);
-			x += width;
+				Style::default()
+			};
+			buf.set_span(area.x + x, area.y, &Span::styled(format!(" {name} "), style), w);
 		}
 	}
 }
 
-fn line_spans(spans: Vec<Span<'static>>) -> Vec<(Span<'static>, u16)> {
-	spans
-		.into_iter()
-		.map(|s| {
-			let w = s.width() as u16;
-			(s, w)
-		})
-		.collect()
-}
-
-/// A dropdown menu: items stacked under the trigger, each clickable.
-/// Rendered last so it overlaps pane content.
+/// A dropdown: items stacked under the trigger, rendered as the topmost
+/// layer. Item hit boxes come from [`item_rects`].
 pub struct MenuDropdown {
 	pub menu: usize,
-	pub area: Rect,
+	pub trigger_x: u16,
 }
 
-impl Widget for MenuDropdown {
-	fn render(self, area: Rect, buf: &mut Buffer) {
+impl MenuDropdown {
+	fn rect(&self, frame: Rect) -> Rect {
 		let items = MENUS[self.menu].1;
-		let trigger_width = menu_widths()[self.menu];
 		let width = items
 			.iter()
 			.map(|item| Span::raw(format!(" {item} ")).width() as u16)
 			.max()
-			.unwrap_or(trigger_width)
-			.max(trigger_width);
-		// Clamp inside the frame.
-		let x = self.area.x.min(area.width.saturating_sub(width));
-		let height = (items.len() + 2) as u16; // border rows
-		let y = self.area.y + 1;
-		let rect = Rect { x, y, width, height };
+			.unwrap_or(8)
+			.max(10);
+		let x = self.trigger_x.min(frame.width.saturating_sub(width + 1));
+		Rect { x, y: 1, width, height: items.len() as u16 + 2 }
+	}
+
+	/// Item row rects, absolute, in item order — the click path uses these.
+	pub fn item_rects(&self, frame: Rect) -> Vec<Rect> {
+		let rect = self.rect(frame);
+		MENUS[self.menu]
+			.1
+			.iter()
+			.enumerate()
+			.map(|(idx, _)| Rect {
+				x: rect.x + 1,
+				y: rect.y + 1 + idx as u16,
+				width: rect.width - 2,
+				height: 1,
+			})
+			.collect()
+	}
+}
+
+impl Widget for MenuDropdown {
+	fn render(self, area: Rect, buf: &mut Buffer) {
+		let rect = self.rect(area);
 		if rect.bottom() > area.bottom() || rect.right() > area.right() {
 			return;
 		}
-		buf.set_style(rect, Style::default());
 		let border = Style::default().fg(Color::DarkGray);
-		// Frame: corners + edges.
 		for col in rect.x..rect.right() {
 			buf[(col, rect.y)].set_symbol("─").set_style(border);
 			buf[(col, rect.bottom() - 1)]
@@ -219,43 +138,151 @@ impl Widget for MenuDropdown {
 		buf[(rect.right() - 1, rect.bottom() - 1)]
 			.set_symbol("┘")
 			.set_style(border);
-		for (idx, item) in items.iter().enumerate() {
+		for (idx, item) in MENUS[self.menu].1.iter().enumerate() {
 			let line = Line::from(Span::raw(format!(" {item} ")));
-			buf.set_line(rect.x + 1, rect.y + 1 + idx as u16, &line, width - 2);
+			buf.set_line(rect.x + 1, rect.y + 1 + idx as u16, &line, rect.width - 2);
 		}
 	}
 }
 
-/// Hit geometry for an open dropdown: `(x, y, width)` per item row.
-pub fn dropdown_hits(area_width: u16, open_menu: usize, trigger_x: u16) -> Rect {
-	let items = MENUS[open_menu].1;
-	let trigger_width = menu_widths()[open_menu];
-	let width = items
-		.iter()
-		.map(|item| Span::raw(format!(" {item} ")).width() as u16)
-		.max()
-		.unwrap_or(trigger_width)
-		.max(trigger_width);
-	let x = trigger_x.min(area_width.saturating_sub(width));
-	Rect { x, y: 1, width, height: items.len() as u16 + 2 }
+/// Tab-row geometry shared by render and hit-testing. Labels shrink to fit —
+/// the collapse behavior for many tabs.
+pub struct TabLayout {
+	pub prev: (u16, u16),
+	/// (label drawn, x, width) per tab.
+	pub tabs: Vec<(String, u16, u16)>,
+	/// Close box of the active tab, if the row fits it.
+	pub active_close: Option<(u16, u16)>,
+	pub next: (u16, u16),
+	pub plus: (u16, u16),
 }
 
-/// The bottom status line: focused pane + layout, no hotkey hints (keys live
-/// in Help and menus).
+pub fn tab_layout(width: u16, count: usize, active: usize) -> TabLayout {
+	// Fixed furniture: " ‹" + " ›" + " +" = 6 cells; active close "×" = 1.
+	let fixed = 7u16;
+	let per = if count == 0 {
+		0
+	} else {
+		(width.saturating_sub(fixed) / count as u16).max(2)
+	};
+	let mut x = 0u16;
+	let prev = (x, 2);
+	x += 2;
+	let mut tabs = Vec::with_capacity(count);
+	let mut active_close = None;
+	for idx in 0..count {
+		let raw = if idx == active {
+			format!("▸ {}:tab ", idx + 1)
+		} else {
+			format!(" {}:tab ", idx + 1)
+		};
+		let label = if per <= 3 {
+			format!("{} ", idx + 1)
+		} else {
+			truncate(&raw, per as usize)
+		};
+		let w = Span::raw(label.clone()).width() as u16;
+		tabs.push((label, x, w));
+		x += w;
+		if idx == active {
+			active_close = Some((x, 1));
+			x += 1; // "×"
+		}
+	}
+	let next = (x, 2);
+	x += 2;
+	let plus = (x, 2);
+	TabLayout { prev, tabs, active_close, next, plus }
+}
+
+/// The tab bar (row 1): `‹ ▸1:tab × 2:tab › +`. Wheel switching is handled
+/// by the app (scroll over this row). Active tab: ▸ + bold/underline + ×.
+pub struct TabBar {
+	pub layout: TabLayout,
+	pub active: usize,
+}
+
+impl Widget for TabBar {
+	fn render(self, area: Rect, buf: &mut Buffer) {
+		if area.height < 1 {
+			return;
+		}
+		let dim = Style::default().fg(Color::DarkGray);
+		let active = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+		let layout = self.layout;
+		let mut x = area.x;
+		let mut put = |x: &mut u16, text: &str, style: Style| {
+			let w = Span::raw(text.to_string()).width() as u16;
+			if *x + w <= area.x + area.width {
+				buf.set_span(*x, area.y, &Span::styled(text.to_string(), style), w);
+			}
+			*x += w;
+		};
+		put(&mut x, " ‹", dim);
+		for (idx, (label, _, _)) in layout.tabs.iter().enumerate() {
+			let style = if idx == self.active { active } else { dim };
+			put(&mut x, label, style);
+			if idx == self.active {
+				put(&mut x, "×", Style::default().add_modifier(Modifier::BOLD));
+			}
+		}
+		put(&mut x, " ›", dim);
+		put(&mut x, " +", dim);
+	}
+}
+
+/// The bottom status line: focused pane + layout, no hotkey hints.
 pub fn status_text(
 	pane_label: &str,
 	template: &str,
 	pane_index: usize,
 	pane_count: usize,
 ) -> String {
-	format!(" [{pane_label}] pane {}/{} · layout {template} ", pane_index + 1, pane_count,)
+	format!(" [{pane_label}] pane {}/{} · layout {template} ", pane_index + 1, pane_count)
 }
 
-fn truncate(text: &str, max: usize) -> String {
+pub fn truncate(text: &str, max: usize) -> String {
+	if max == 0 {
+		return String::new();
+	}
 	if text.chars().count() <= max {
 		text.to_string()
 	} else {
 		let cut: String = text.chars().take(max.saturating_sub(1)).collect();
 		format!("{cut}…")
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn menu_layout_is_left_aligned_and_in_order() {
+		let boxes = menu_layout(120);
+		assert_eq!(boxes.len(), MENUS.len());
+		assert!(boxes[0].1 > 0);
+		for w in boxes.windows(2) {
+			assert!(w[0].1 + w[0].2 <= w[1].1, "menus run left to right");
+		}
+	}
+
+	#[test]
+	fn tab_layout_shrinks_labels_when_crowded() {
+		let wide = tab_layout(200, 3, 0);
+		assert!(wide.tabs[0].2 >= 8, "plenty of room: full labels");
+		let narrow = tab_layout(40, 12, 2);
+		let total: u16 = narrow.tabs.iter().map(|(_, _, w)| w).sum::<u16>() + 7;
+		assert!(total <= 40, "crowded row collapses into the available width");
+		assert_eq!(narrow.tabs.len(), 12);
+	}
+
+	#[test]
+	fn dropdown_items_live_below_the_trigger() {
+		let dd = MenuDropdown { menu: 0, trigger_x: 10 };
+		let frame = Rect::new(0, 0, 120, 40);
+		let rects = dd.item_rects(frame);
+		assert_eq!(rects.len(), MENUS[0].1.len());
+		assert_eq!(rects[0].y, 2, "first item under the border row");
 	}
 }
