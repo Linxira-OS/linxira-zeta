@@ -52,6 +52,7 @@ merge gets a row here (append, never rewrite history rows). A merge reaching
 | Version line (packages, catalog, Cargo, natives sentinel, desktop, README badge) | `bun scripts/check-version-consistency.ts` | every push | `check` |
 | Brand residue | `bun scripts/brand/brand-check.ts` | every push | `check` |
 | Zeta-only sentinels + AGENTS.md link | `bun scripts/check-zeta-sentinels.ts` | every push | `check` |
+| CI release surface (job inventory + needs edges + artifact names — damage classes 7+10; registry `scripts/brand/ci-surface-registry.ts`) | `bun scripts/check-ci-surface.ts` | every push | `check` |
 | Type check | `bun run ci:check:full` | every push | `check` |
 | Rust format | `cargo fmt --all --check` | when `crates/` touched | `rust_validate` |
 | Native pipeline smoke | desktop smoke | release runs | `desktop_*` |

@@ -267,7 +267,10 @@ editor/ide-publish.yml 幸存,故手动补发仍可用,但 release tag 自动链
 断。修复 `7d588b2503b`(ide 更名轮一并恢复,release_work_packages→
 release_ide_packages)。教训:**ci.yml 是"我们的 CI 面",合并时必须对照
 基线 job 清单逐名核对**,brand-check 的 runs-on 规则只防上游 runner 混入,
-不防 Zeta job 丢失——job 集合对账只在人/账本层。
+不防 Zeta job 丢失——job 集合对账已机械化为 `bun
+scripts/check-ci-surface.ts`(2026-09-30,job 清单/needs 接线/产物名三查,
+注册表 `scripts/brand/ci-surface-registry.ts`);账本仍需记录每次裁剪/改名
+决策,注册表随决策同 PR 更新。
 
 
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
