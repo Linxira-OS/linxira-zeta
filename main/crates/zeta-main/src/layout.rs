@@ -53,6 +53,17 @@ pub enum PaneNode {
 	Split { axis: Axis, children: Vec<(u32, PaneNode)> },
 }
 
+fn collect_ids(node: &PaneNode, out: &mut Vec<usize>) {
+	match node {
+		PaneNode::Leaf(id) => out.push(*id),
+		PaneNode::Split { children, .. } => {
+			for (_, n) in children {
+				collect_ids(n, out);
+			}
+		},
+	}
+}
+
 impl PaneNode {
 	pub fn single(pane: usize) -> Self {
 		PaneNode::Leaf(pane)
@@ -116,9 +127,9 @@ impl PaneNode {
 		}
 	}
 
-	/// Split leaf `pane` along `axis`, inserting `new_pane` as its sibling.
-	/// Same-axis parent: insert in place (tmux flattening) and rebalance;
-	/// otherwise wrap the leaf in a new split node.
+	/// Split leaf `pane` along `axis`, wrapping it in a new split node with
+	/// `new_pane` as its sibling. Always wraps at the leaf — the new pane
+	/// lands exactly beside its target, never as a stray top-level row.
 	pub fn split(&mut self, pane: usize, axis: Axis, new_pane: usize) {
 		match self {
 			PaneNode::Leaf(id) if *id == pane => {
@@ -128,24 +139,50 @@ impl PaneNode {
 				};
 			},
 			PaneNode::Leaf(_) => {},
-			PaneNode::Split { axis: node_axis, children } => {
-				if *node_axis == axis {
-					let pos = children
-						.iter()
-						.position(|(_, n)| n.contains(pane))
-						.unwrap_or(children.len().saturating_sub(1));
-					children.insert(pos + 1, (1, PaneNode::Leaf(new_pane)));
-					// Rebalance so the insertion is actually visible.
-					for (w, _) in children.iter_mut() {
-						*w = 4;
-					}
-				} else {
-					for (_, node) in children.iter_mut() {
-						node.split(pane, axis, new_pane);
-					}
+			PaneNode::Split { children, .. } => {
+				for (_, node) in children.iter_mut() {
+					node.split(pane, axis, new_pane);
 				}
 			},
 		}
+	}
+
+	/// Whether any pane id occurs more than once — a corrupting invariant
+	/// that makes two panes highlight and split together.
+	pub fn has_duplicates(&self) -> bool {
+		let mut ids: Vec<usize> = Vec::new();
+		collect_ids(self, &mut ids);
+		let total = ids.len();
+		ids.sort_unstable();
+		ids.dedup();
+		ids.len() != total
+	}
+
+	/// Repair duplicates: second and later occurrences of each id are
+	/// reassigned to fresh sequential ids. Returns the required store length
+	/// (the caller grows the pane store with shell panes to match).
+	pub fn deduplicate(&mut self, store_len: usize) -> usize {
+		let mut seen: Vec<usize> = Vec::new();
+		let mut next = store_len;
+		fn walk(node: &mut PaneNode, seen: &mut Vec<usize>, next: &mut usize) {
+			match node {
+				PaneNode::Leaf(id) => {
+					if seen.contains(id) {
+						*id = *next;
+						*next += 1;
+					} else {
+						seen.push(*id);
+					}
+				},
+				PaneNode::Split { children, .. } => {
+					for (_, n) in children.iter_mut() {
+						walk(n, seen, next);
+					}
+				},
+			}
+		}
+		walk(self, &mut seen, &mut next);
+		next
 	}
 
 	/// Remove leaf `pane`; the vacated space flows to the adjacent sibling
@@ -410,8 +447,8 @@ mod tests {
 		let mut tree = PaneNode::single(0);
 		tree.split(0, Axis::Row, 1); // [0 | 1]
 		tree.split(1, Axis::Column, 2); // [0 | 1 over 2]
-		tree.split(1, Axis::Row, 3); // [0 | 1over2 | 3]
-		assert_eq!(ids(&tree), vec![0, 1, 2, 3]);
+		tree.split(1, Axis::Row, 3); // middle top cell 1 splits: 3 sits right of 1, above 2
+		assert_eq!(ids(&tree), vec![0, 1, 3, 2]);
 	}
 
 	#[test]
@@ -421,6 +458,53 @@ mod tests {
 		assert_eq!(ids(&tree), vec![1, 2]);
 		tree.insert_beside(0, 2, Side::Left);
 		assert_eq!(ids(&tree), vec![1, 0, 2], "moved pane sits left of target");
+	}
+
+	#[test]
+	fn no_duplicate_ids_after_drags_and_splits() {
+		// The user-reported scenario: 2x2 preset, drag panes around (edge
+		// drops + center swaps), then split — every id must stay unique and
+		// a split must land exactly beside its target.
+		let (_, preset) = PaneNode::presets()[2].clone();
+		let mut tree = preset;
+		tree.detach(0);
+		tree.insert_beside(0, 3, Side::Right);
+		tree.detach(2);
+		tree.insert_beside(2, 1, Side::Bottom);
+		tree.swap(0, 3);
+		tree.split(2, Axis::Row, 5);
+		let mut ids = Vec::new();
+		collect_ids(&tree, &mut ids);
+		ids.sort_unstable();
+		assert_eq!(ids, vec![0, 1, 2, 3, 5], "exactly the live ids, no dups, no losses");
+		assert!(!tree.has_duplicates());
+	}
+
+	#[test]
+	fn deduplicate_repairs_a_corrupted_tree() {
+		let mut tree = PaneNode::Split {
+			axis: Axis::Row,
+			children: vec![(1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(1))],
+		};
+		assert!(tree.has_duplicates());
+		let len = tree.deduplicate(2);
+		assert_eq!(len, 3, "a fresh shell slot is needed for the duplicate");
+		let mut ids = Vec::new();
+		collect_ids(&tree, &mut ids);
+		ids.sort_unstable();
+		assert_eq!(ids, vec![0, 1, 2]);
+		assert!(!tree.has_duplicates());
+	}
+
+	fn collect_ids(node: &PaneNode, out: &mut Vec<usize>) {
+		match node {
+			PaneNode::Leaf(id) => out.push(*id),
+			PaneNode::Split { children, .. } => {
+				for (_, n) in children {
+					collect_ids(n, out);
+				}
+			},
+		}
 	}
 
 	#[test]

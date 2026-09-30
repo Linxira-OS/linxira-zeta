@@ -203,6 +203,17 @@ impl Tab {
 		focused_rect: Rect,
 		axis: Axis,
 	) -> Result<()> {
+		// Self-heal a corrupted tree before touching it: duplicates make two
+		// panes share a highlight and split together (user-reported bug).
+		if self.tree.has_duplicates() {
+			let needed = self.tree.deduplicate(self.panes.len());
+			while self.panes.len() < needed {
+				self
+					.panes
+					.push(Pane::new(PaneKind::Shell, 24, 80, cwd.clone())?);
+			}
+			self.active = self.active.min(self.panes.len() - 1);
+		}
 		let id = self.panes.len();
 		let mut pane = Pane::new(kind, 24, 80, cwd)?;
 		// Size the new pane's first PTY to the actual slot it will occupy.
