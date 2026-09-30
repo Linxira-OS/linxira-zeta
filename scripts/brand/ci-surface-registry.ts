@@ -139,6 +139,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "release_ide_packages",
 				why: "Zeta-only ide package publish (renamed from release_work_packages in 7d588b2503b; damage class 7 追记)",
 			},
+			{
+				job: "release_main_packages",
+				why: "Zeta-only workbench package publish; wired 2026-09-30 after npm trusted publishing was configured for main-publish.yml (manual 1.1.21 bootstrap preceded)",
+			},
 		],
 		needsEdges: [
 			{

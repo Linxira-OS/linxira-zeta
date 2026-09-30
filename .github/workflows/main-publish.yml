@@ -2,10 +2,10 @@ name: Publish main packages
 # Standalone dispatchable entry for the zeta workspace npm distribution
 # (@linxiraos/main + platform leaves). Mirrors ide-publish.yml / editor-publish.yml:
 # exists so a publish can be run or re-run without re-tagging
-# (`gh workflow run main-publish.yml`). NOT wired into the release pipeline yet —
-# the first @linxiraos/main publish is manual (bootstrap), and npm trusted
-# publishing for these names is configured only afterwards; once trust is in
-# place, ci.yml gains a release_main_packages job dispatching this workflow.
+# (`gh workflow run main-publish.yml`). Wired into the release pipeline via the
+# release_main_packages job in ci.yml (2026-09-30): the 1.1.21 bootstrap was
+# published manually, then npm trusted publishing was configured for these
+# names; the release chain dispatches this workflow on release tags from then on.
 
 on:
    workflow_dispatch:
