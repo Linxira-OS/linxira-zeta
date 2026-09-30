@@ -58,7 +58,6 @@ import { loadConfig, loadGlobalConfig, matchesAutoRegisterPath, type MessengerCo
 import { executeCrewAction } from "./crew/index.ts";
 import { registerEditorCommand, switchToEditorFromUi } from "./editor-command.ts";
 import { registerTeamAgentCommand } from "./teamagent-command.ts";
-import { createEditorSwitchButton } from "./editor-switch-button.ts";
 import { logFeedEvent, pruneFeed } from "./feed.ts";
 import type { CrewParams } from "./crew/types.ts";
 import {
@@ -585,13 +584,10 @@ Usage (action-based API - preferred):
 	registerTeamAgentCommand(pi);
 	// Hand the session to the TTT editor (writes the handoff file, spawns the editor).
 	registerEditorCommand(pi);
-
-	// Top-right rounded switch button. The header factory needs a live
-	// ExtensionUIContext, which only exists once a session starts — so it is
-	// installed from the session_start hook rather than at load time.
-	pi.on("session_start", (_event, ctx) => {
-		ctx.ui?.setHeader?.(createEditorSwitchButton(() => void switchToEditorFromUi(ctx)));
-	});
+	// The top-right editor switch button is gone (2026-10-01): the zeta
+	// workbench is the unified entry — tools open as panes there by click or
+	// menu, so an in-CLI switch button duplicated a surface the workbench
+	// already owns. `/editor` stays as the command path.
 
 	pi.registerCommand("messenger", {
 		description: "Open messenger overlay, or 'config' to manage settings",
