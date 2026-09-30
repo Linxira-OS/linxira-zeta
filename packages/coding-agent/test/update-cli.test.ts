@@ -426,7 +426,7 @@ describe("update-cli install target detection", () => {
 	);
 
 	it.skipIf(process.platform === "win32")(
-		"refuses a foreign native target that does not report a zeta version",
+		"refuses a foreign native target that does not report a zeta-c version",
 		async () => {
 			const dir = await makeTempDir();
 			const aliasPath = path.join(dir, "omp");
@@ -443,7 +443,7 @@ describe("update-cli install target detection", () => {
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
-			).rejects.toThrow("does not report a zeta version when run directly");
+			).rejects.toThrow("does not report a zeta-c version when run directly");
 			expect(fetchImpl).not.toHaveBeenCalled();
 		},
 	);
