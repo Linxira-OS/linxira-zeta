@@ -247,6 +247,18 @@ modern.node`)。CI bazel 现场构建不受影响。
 crash_handler 读旧 env 名的**基线遗留同类病灶**(顺手治愈:ZETA_* + fmt 绿)。
 上表各修复随 `bun scripts/brand/brand-check.ts` 常驻 CI check job。
 
+**CI 第二轮(36658419425)唯一红→损伤类 4 回归**:singleton bucket
+official-skills 3 失败(provider 未注册/docx-pptx 未发现/embed seeding 失败)。
+根因:合并冲突解决把 `discovery/builtin.ts` 里 Zeta-only 的 **zeta-official
+provider 注册块整段(~80 行,含 embed seeding)静默丢弃**;`check:ts` 全盲
+(常量 `OFFICIAL_SKILLS_PROVIDER_ID` 仍在 capability/skill.ts,类型不断),
+CI 测试契约才逮住。修复 `2c7b29d825e`:按基线 7d88e8190f9 逐字回植,残余
+diff 恰为上游 agentDir 语义。教训并入根因 1 的变体:**Zeta-only 注册块
+不产生类型错误,唯一守卫是测试契约**——official-skills 两个测试文件就是
+该 provider 的哨兵,合并时凡触 builtin.ts 必须本地跑它们(已加入预扫清单)。
+另:agent-plugins 符号链接逃逸测试 Windows 本地 4 红=基线既有噪声
+(symlink 权限),CI Linux 绿,不追。
+
 
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
 
