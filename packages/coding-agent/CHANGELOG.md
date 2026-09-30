@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.22] - 2026-09-30
+
 - **CLI bin 更名(breaking)**:`zeta-c` 为主命令名,`zeta-cli`/`zetacode` 为别名;裸 `zeta` 名让位给工作台(bin @linxiraos/main)。安装器/补全/文档同步。
 - **agent ↔ editor 双向切换**:`/editor` 命令写 handoff(cwd/gitRoot/sessionFile/file:line:col)后 detached spawn editor;配套 `editor.autoInstall` / `editor.handoffSession` 设置键(挂 interaction→Agent 组)。右上角按钮形态随统一入口(工作台)裁定移除。
 - **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。

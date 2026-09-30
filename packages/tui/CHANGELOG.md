@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.22] - 2026-09-30
+
 - CLI bin 命名(zeta-c)相关键位提示文案对齐;组件 API 无破坏。
 - header 支持 `setHeader` 扩展挂点(产品常驻入口圆角按钮),`theme.boxRound` 制表符绘制。
 
