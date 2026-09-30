@@ -25,8 +25,8 @@ Install the released CLI (Node 20+ or Bun on the machine):
 
 ```sh
 npm i -g @linxiraos/zeta      # or: bun add -g @linxiraos/zeta
-zeta                           # opens in the current project directory
-zeta --help                    # commands and options
+zeta-c                           # opens in the current project directory
+zeta-c --help                    # commands and options
 ```
 
 The bundled editor ships as its own package:
@@ -65,7 +65,7 @@ toolchain required by Rust.
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
 - A Bun-first monorepo with internal packages under the `@linxiraos/*` namespace.
-- A local web workbench (`zeta serve`, Next.js app in `web-ui/`) and a desktop
+- A local web workbench (`zeta-c serve`, Next.js app in `web-ui/`) and a desktop
   shell (`zeta-desktop`, Electron) that embed the same coding-agent runtime —
   one session tree, one settings model, one gateway API (`/api/*`).
 
@@ -93,13 +93,13 @@ inherits from upstream — and what Zeta owns — is stated per component:
 
 | Component                                                               | Upstream origin                                                                                | Zeta ownership                                                                                                                      |
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/coding-agent/` (CLI, `zeta`)                                  | OMP runtime tree, release-tag merges                                                           | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
+| `packages/coding-agent/` (CLI, `zeta-c`)                                  | OMP runtime tree, release-tag merges                                                           | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats`   | OMP runtime tree                                                                               | Same adaptation surface as the CLI                                                                                                  |
 | `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`/`zeta-editor`) | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
 | `web-ui/`                                                               | OMP Web snapshot (frozen — manual cherry-picks only)                                           | Own-desktop upgrade content, Next.js app                                                                                            |
-| `desktop/`                                                              | Zeta-originated                                                                                | Electron shell that embeds the `web-ui/` build and the compiled `zeta` runtime                                                      |
+| `desktop/`                                                              | Zeta-originated                                                                                | Electron shell that embeds the `web-ui/` build and the compiled `zeta-c` runtime                                                      |
 | `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge)   | Zeta-originated                                                                                | Channel runtime, tools (`channel_send`, `workspace_run`)                                                                            |
-| `packages/coding-agent/src/server/` (web-gateway, `zeta serve`)         | Zeta-originated                                                                                | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
+| `packages/coding-agent/src/server/` (web-gateway, `zeta-c serve`)         | Zeta-originated                                                                                | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
 
 **TTT Editor plugin compatibility.** The editor currently follows the upstream
 plugin system (Go plugin API) as its extension path. Zeta's vendored changes are
@@ -126,7 +126,7 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
 - **Channel runtime** — WeChat/Feishu/Telegram bridges embedded in
-  `zeta serve`, with plan-image routing and workspace-scoped execution tools.
+  `zeta-c serve`, with plan-image routing and workspace-scoped execution tools.
 - **Web gateway** — REST API behind the web UI (`/api/*`), one handler module
   per resource, consumed by both the browser UI and the desktop shell.
 - **Desktop shell** — Electron tray application embedding a standalone build of
@@ -134,7 +134,7 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Linux downstream packaging** — `zeta-desktop` ships as a release asset with
   a frozen name/digest contract so downstream repositories (pacman et al.) can
   pin and verify it; see `document/release.md`.
-- **Local stats dashboard** — `zeta stats` observability for the coding agent.
+- **Local stats dashboard** — `zeta-c stats` observability for the coding agent.
 
 ## Documentation
 
@@ -188,9 +188,9 @@ packages include `packages/ai/`, `packages/catalog/`, `packages/agent/`,
 
 | Surface                             | Windows | macOS      | Linux      |
 | ----------------------------------- | ------- | ---------- | ---------- |
-| `zeta` CLI                          | x64     | x64, arm64 | x64, arm64 |
+| `zeta-c` CLI                          | x64     | x64, arm64 | x64, arm64 |
 | `zeta-editor` (`@linxiraos/editor`) | x64     | —          | x64        |
-| `zeta serve` (web workbench)        | x64     | x64, arm64 | x64, arm64 |
+| `zeta-c serve` (web workbench)        | x64     | x64, arm64 | x64, arm64 |
 | `zeta-desktop` shell                | x64     | x64, arm64 | x64        |
 
 Native text/grep and image capabilities require the platform C/C++ toolchain

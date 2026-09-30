@@ -1,5 +1,5 @@
 /**
- * `zeta login [provider]` — the terminal counterpart of the in-session `/login`.
+ * `zeta-c login [provider]` — the terminal counterpart of the in-session `/login`.
  *
  * Authenticates against the same credential store sessions read (local
  * `agent.db`, or the configured auth broker), including OAuth providers

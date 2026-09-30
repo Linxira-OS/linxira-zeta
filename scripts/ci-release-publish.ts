@@ -185,7 +185,7 @@ export const packages: PublishPackage[] = [
 	{
 		dir: "packages/coding-agent",
 		kind: "typescript",
-		publishBin: { zeta: "dist/cli.js" },
+		publishBin: { "zeta-c": "dist/cli.js", "zeta-cli": "dist/cli.js", zetacode: "dist/cli.js" },
 		packLock: STATS_CLIENT_LOCK,
 	},
 ];

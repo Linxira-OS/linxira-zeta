@@ -1072,7 +1072,7 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 		return null;
 	}
 	let rest = specifier.slice(slashIdx + 1);
-	// `pi-coding-agent` ↦ `zeta`: the renamed host package keeps the legacy
+	// `pi-coding-agent` ↦ `zeta-c`: the renamed host package keeps the legacy
 	// basename only as a historical alias plugins may still declare.
 	if (rest === "pi-coding-agent" || rest.startsWith("pi-coding-agent/")) {
 		rest = `zeta${rest.slice("pi-coding-agent".length)}`;

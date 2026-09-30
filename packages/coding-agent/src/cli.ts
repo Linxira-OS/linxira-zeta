@@ -21,6 +21,7 @@ import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {
 	APP_NAME,
+	CLI_BIN_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
 	resolveProfileEnv,
@@ -51,7 +52,7 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 try {
-	process.title = APP_NAME;
+	process.title = CLI_BIN_NAME;
 } catch {}
 
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
@@ -93,7 +94,7 @@ const PREPAINT_SAFE_FLAGS: Record<string, true> = {
 async function setFullProcessName(): Promise<void> {
 	// Latency boundary: bun:ffi/node:os are unnecessary before the first frame.
 	const { setProcessName } = await import("@linxiraos/pi-utils/process-name");
-	setProcessName(APP_NAME);
+	setProcessName(CLI_BIN_NAME);
 }
 
 /** Install PI_PROXY handling before any command implementation can make a provider request. */
@@ -494,7 +495,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
 			// ZETA_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `ZETA_PROFILE=.. zeta --version` into a clean error;
+			// validation here turns `ZETA_PROFILE=.. zeta-c --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
 			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));
@@ -604,7 +605,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			return;
 		}
 		runningCommand = resolved.argv[0];
-		await run({ bin: APP_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
+		await run({ bin: CLI_BIN_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
 	} finally {
 		stopStartupComposer?.();
 	}

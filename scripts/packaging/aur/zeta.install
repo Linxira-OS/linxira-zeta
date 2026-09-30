@@ -1,7 +1,7 @@
 post_install() {
   echo "============================================"
   echo "  Zeta Coding Agent installed successfully!"
-  echo "  Run 'zeta' to start."
+  echo "  Run 'zeta-c' to start."
   echo "  Stats Dashboard: http://localhost:3847"
   echo "============================================"
 }

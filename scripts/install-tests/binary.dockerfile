@@ -23,8 +23,8 @@ RUN cd packages/coding-agent && bun run build
 
 # Install binary to PATH
 RUN mkdir -p /root/.local/bin && \
-    cp packages/coding-agent/dist/zeta /root/.local/bin/
+    cp packages/coding-agent/dist/zeta /root/.local/bin/zeta-c
 ENV PATH="/root/.local/bin:$PATH"
 
 # Verify
-RUN HOME=/tmp/zeta-home XDG_DATA_HOME=/tmp/zeta-xdg zeta --version
+RUN HOME=/tmp/zeta-home XDG_DATA_HOME=/tmp/zeta-xdg zeta-c --version

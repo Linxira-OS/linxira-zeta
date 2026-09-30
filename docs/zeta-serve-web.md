@@ -1,14 +1,14 @@
-# `zeta serve` and `zeta web` Commands
+# `zeta-c serve` and `zeta-c web` Commands
 
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-## `zeta serve`
+## `zeta-c serve`
 
 Start both the Stats Dashboard and Web UI simultaneously.
 
 ```bash
-zeta serve
+zeta-c serve
 ```
 
 ### Flags
@@ -25,24 +25,24 @@ zeta serve
 
 ```bash
 # Default: both services on standard ports
-zeta serve
+zeta-c serve
 
 # Custom ports
-zeta serve --stats-port 9000 --web-port 8080
+zeta-c serve --stats-port 9000 --web-port 8080
 
 # Stats only
-zeta serve --stats-only
+zeta-c serve --stats-only
 
 # Don't open browser
-zeta serve --no-browser
+zeta-c serve --no-browser
 ```
 
-## `zeta web`
+## `zeta-c web`
 
-Start only the Web UI. Equivalent to `zeta serve --web-only`.
+Start only the Web UI. Equivalent to `zeta-c serve --web-only`.
 
 ```bash
-zeta web
+zeta-c web
 ```
 
 ### Flags
@@ -56,10 +56,10 @@ zeta web
 
 ```bash
 # Default port
-zeta web
+zeta-c web
 
 # Custom port
-zeta web --port 8080
+zeta-c web --port 8080
 ```
 
 ## Programmatic Equivalent
@@ -67,13 +67,13 @@ zeta web --port 8080
 ```typescript
 import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
-// Equivalent to: zeta serve
+// Equivalent to: zeta-c serve
 await startZetaServer();
 
-// Equivalent to: zeta web
+// Equivalent to: zeta-c web
 await startZetaServer({ webOnly: true });
 
-// Equivalent to: zeta serve --stats-only
+// Equivalent to: zeta-c serve --stats-only
 await startZetaServer({ statsOnly: true });
 ```
 
@@ -96,15 +96,15 @@ Command resolution contract — the two installs never collide on PATH:
 
 | Command | Owner | Behavior |
 |---|---|---|
-| `zeta` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
+| `zeta-c` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
 | `zeta-d` | Desktop install only | No args → the bundled CLI/TUI. |
 | `zeta-d -d [cwd]` | Desktop install only | Opens the desktop GUI at `cwd` (default: current directory). |
-| `zeta --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
+| `zeta-c --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
 
 Mechanics:
 
-- The desktop package ships a two-line shim (`resources/bin/zeta-d`, `.cmd` on Windows) that sets `ZETA_DESKTOP_ENTRY=1` and re-enters the bundled zeta binary. The NSIS installer adds `resources\bin` to the user PATH (`build/installer.nsh` + `add-to-path.ps1`); the Linux installer symlinks `~/.local/bin/zeta-d`.
-- Dispatch lives in `src/cli/desktop-entry.ts` (`dispatchDesktopEntry`), runs before profile bootstrap in `runCli`. In entry mode it resolves the GUI relative to the running binary (`<install>/resources/zeta` → `<install>` root); otherwise it probes `%LOCALAPPDATA%\Programs\Zeta`, `/opt/zeta-desktop`, `~/.local/lib/zeta-desktop`, and the macOS app locations. The GUI receives `--cwd=<dir>` and starts its service in that workspace.
+- The desktop package ships a two-line shim (`resources/bin/zeta-d`, `.cmd` on Windows) that sets `ZETA_DESKTOP_ENTRY=1` and re-enters the bundled zeta-c binary. The NSIS installer adds `resources\bin` to the user PATH (`build/installer.nsh` + `add-to-path.ps1`); the Linux installer symlinks `~/.local/bin/zeta-d`.
+- Dispatch lives in `src/cli/desktop-entry.ts` (`dispatchDesktopEntry`), runs before profile bootstrap in `runCli`. In entry mode it resolves the GUI relative to the running binary (`<install>/resources/zeta` → `<install>` root; the staging folder keeps its literal `zeta` name — desktop-entry.ts treats that basename as the bundled-runtime marker); otherwise it probes `%LOCALAPPDATA%\Programs\Zeta`, `/opt/zeta-desktop`, `~/.local/lib/zeta-desktop`, and the macOS app locations. The GUI receives `--cwd=<dir>` and starts its service in that workspace.
 - The bundled binary refuses standalone self-updates (`isDesktopBundledRuntime()` guard in `update-cli.ts`) — desktop installs update through the desktop updater, which replaces the whole bundle atomically.
 
 ## Native directory picker

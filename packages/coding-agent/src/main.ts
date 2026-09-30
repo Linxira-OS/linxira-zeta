@@ -10,7 +10,7 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import {
-	APP_NAME,
+	CLI_BIN_NAME,
 	directoryIsMissing,
 	getLogPath,
 	getProjectDir,
@@ -258,7 +258,7 @@ function rejectNoUiWithoutRpc(args: Pick<Args, "noUi" | "mode">): void {
 function exitWithoutTerminal(): never {
 	process.stderr.write(
 		`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
-			`Pass a prompt (\`${APP_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
+			`Pass a prompt (\`${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
 	);
 	process.exit(2);
 }
@@ -1119,7 +1119,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.messages.splice(messageIndex, 1);
 }
 const FORK_NOT_FOUND_HINT =
-	"Run `zeta --resume` without an argument to pick from recent sessions, or `zeta` to start a new one.";
+	"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -1190,7 +1190,7 @@ export async function createSessionManager(
 		if (!match) {
 			throw new SessionResolutionError(
 				`Session "${sessionArg}" not found.`,
-				"Run `zeta --resume` without an argument to pick from recent sessions, or `zeta` to start a new one.",
+				"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.",
 			);
 		}
 		if (match.scope === "local") {
@@ -2445,7 +2445,7 @@ export async function runRootCommand(
 						for (const selector of suggestions) process.stderr.write(`  ${selector}\n`);
 					}
 					process.stderr.write(
-						`\nRun \`${APP_NAME} models find <pattern>\` to search, or \`${APP_NAME} models\` to list all.\n`,
+						`\nRun \`${CLI_BIN_NAME} models find <pattern>\` to search, or \`${CLI_BIN_NAME} models\` to list all.\n`,
 					);
 					process.exit(1);
 				}

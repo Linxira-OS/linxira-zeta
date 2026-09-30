@@ -62,7 +62,7 @@ export function getExtraHelpText(): string {
 
   ${chalk.dim("# Configuration")}
   ZETA_PROFILE                - Named profile for isolated agent state (same as --profile)
-  Use \`zeta --profile <name> --alias <command>\` to create a shell shortcut for a profile
+  Use \`zeta-c --profile <name> --alias <command>\` to create a shell shortcut for a profile
   ZETA_CODING_AGENT_DIR      - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
   PI_PACKAGE_DIR             - Override package directory (for Nix/Guix store paths)
   PI_SMOL_MODEL              - Override smol/fast model (see --smol)
@@ -100,6 +100,6 @@ ${chalk.bold("Companion Tools (separate npm packages):")}
                            (npm: @linxiraos/editor)
 
 ${chalk.bold("Useful Commands:")}
-  zeta agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)
-  zeta agents unpack --project - Export bundled subagents to ./.zeta/agents`;
+  zeta-c agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)
+  zeta-c agents unpack --project - Export bundled subagents to ./.zeta/agents`;
 }

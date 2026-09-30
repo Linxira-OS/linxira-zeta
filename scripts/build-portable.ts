@@ -122,7 +122,7 @@ async function copyWebUi(_config: BuildConfig, outDir: string): Promise<void> {
 async function createLauncher(config: BuildConfig, outDir: string): Promise<void> {
 	if (config.platform === "win32") {
 		// VBS 无窗口启动器 — 双击后不显示终端窗口，直接打开浏览器
-		const vbsContent = `CreateObject("WScript.Shell").Run ".\\zeta.exe serve", 0, False
+		const vbsContent = `CreateObject("WScript.Shell").Run ".\\zeta-c.exe serve", 0, False
 `;
 		await Bun.write(path.join(outDir, "start.vbs"), vbsContent);
 
@@ -131,7 +131,7 @@ async function createLauncher(config: BuildConfig, outDir: string): Promise<void
 title Zeta
 echo Starting Zeta...
 echo.
-".\\zeta.exe" serve
+".\\zeta-c.exe" serve
 pause
 `;
 		await Bun.write(path.join(outDir, "start.bat"), batContent);

@@ -19,7 +19,7 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-That is a working extension. Drop it into `~/.zeta/agent/extensions/hello.ts` and restart zeta to see the notification.
+That is a working extension. Drop it into `~/.zeta/agent/extensions/hello.ts` and restart zeta-c to see the notification.
 
 ## Full example
 
@@ -81,12 +81,12 @@ zeta loads extension modules from these sources:
    - `<cwd>/.zeta/extensions/`
    - `~/.zeta/agent/extensions/`
    - legacy extension paths listed in `.zeta/settings.json#extensions` or `~/.zeta/agent/settings.json#extensions`
-2. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zeta plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
-3. Explicit configured paths passed by the CLI (`zeta --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
+2. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zeta-c plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
+3. Explicit configured paths passed by the CLI (`zeta-c --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
 
-The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zeta --profile <name>` uses `~/.zeta/profiles/<name>/agent` (and `PI_CODING_AGENT_DIR` overrides it).
+The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zeta-c --profile <name>` uses `~/.zeta/profiles/<name>/agent` (and `PI_CODING_AGENT_DIR` overrides it).
 
 When a path points to a directory, zeta resolves the entry point in this order:
 

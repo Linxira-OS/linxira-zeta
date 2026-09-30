@@ -1,5 +1,5 @@
 /**
- * `zeta auth-broker` — manage the zeta credential vault.
+ * `zeta-c auth-broker` — manage the zeta credential vault.
  */
 
 import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";

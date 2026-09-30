@@ -30,7 +30,7 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toHaveProperty("argv");
 		// Must point at the real command.
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("zeta plugin list");
+		expect("error" in result && result.error).toContain("zeta-c plugin list");
 	});
 
 	test("bare `omp remove` hints at `omp plugin uninstall` instead of launching with 'remove' as the prompt", () => {
@@ -38,7 +38,7 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toEqual({ argv: ["launch", "remove"] });
 		expect(result).not.toHaveProperty("argv");
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("zeta plugin uninstall");
+		expect("error" in result && result.error).toContain("zeta-c plugin uninstall");
 	});
 
 	test("genuine multi-word prompts beginning with these verbs still route to launch", () => {
@@ -56,17 +56,17 @@ describe("documented-but-unregistered plugin verbs do not leak to launch (#2935)
 		expect(result).not.toEqual({ argv: ["launch", "marketplace", "add", "xyz"] });
 		expect(result).not.toHaveProperty("argv");
 		expect(result).toHaveProperty("error");
-		expect("error" in result && result.error).toContain("zeta plugin marketplace");
+		expect("error" in result && result.error).toContain("zeta-c plugin marketplace");
 	});
 
 	test("bare marketplace-family verbs hint at their `omp plugin` command (#4845)", () => {
 		for (const [verb, hint] of [
-			["marketplace", "zeta plugin marketplace"],
-			["discover", "zeta plugin discover"],
-			["upgrade", "zeta plugin upgrade"],
-			["uninstall", "zeta plugin uninstall"],
-			["enable", "zeta plugin enable"],
-			["disable", "zeta plugin disable"],
+			["marketplace", "zeta-c plugin marketplace"],
+			["discover", "zeta-c plugin discover"],
+			["upgrade", "zeta-c plugin upgrade"],
+			["uninstall", "zeta-c plugin uninstall"],
+			["enable", "zeta-c plugin enable"],
+			["disable", "zeta-c plugin disable"],
 		] as const) {
 			const result = resolveCliArgv([verb]);
 			expect(result).not.toHaveProperty("argv");

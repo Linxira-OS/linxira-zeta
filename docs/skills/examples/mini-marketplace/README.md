@@ -12,8 +12,8 @@ A minimal `linxira-zeta` marketplace catalog that demonstrates the `marketplace.
 Or from the CLI:
 
 ```
-zeta plugin marketplace add ./docs/skills/examples/mini-marketplace
-zeta plugin install my-plugin@example-marketplace
+zeta-c plugin marketplace add ./docs/skills/examples/mini-marketplace
+zeta-c plugin install my-plugin@example-marketplace
 ```
 
 ## What it demonstrates

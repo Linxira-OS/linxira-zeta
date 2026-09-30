@@ -18,8 +18,15 @@ import { expandWindowsLongPath } from "@linxiraos/pi-natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 
-/** App name (e.g. "zeta") */
+/** App name (e.g. "zeta") — product-level identity: config-dir root, log file
+ * names, provider attribution headers, splash wordmark. NOT the CLI command. */
 export const APP_NAME: string = "zeta";
+
+/** CLI binary name (`npm i -g @linxiraos/zeta` installs `zeta-c`, with
+ * `zeta-cli` and `zetacode` as aliases). Every user-facing "run this command"
+ * string and process title uses this; the bare `zeta` name belongs to the
+ * @linxiraos/main workspace product, not this package. */
+export const CLI_BIN_NAME: string = "zeta-c";
 
 /** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit our traffic to. */
 export const APP_URL: string = "https://linxira-os.github.io/zeta/";

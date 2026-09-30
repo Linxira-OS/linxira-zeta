@@ -17,7 +17,9 @@ sha256sums=('SKIP')
 install=zeta.install
 
 package() {
-  install -Dm755 "$srcdir/zeta-cli-linux-x64" "$pkgdir/usr/bin/zeta"
+  install -Dm755 "$srcdir/zeta-cli-linux-x64" "$pkgdir/usr/bin/zeta-c"
+  ln -s /usr/bin/zeta-c "$pkgdir/usr/bin/zeta-cli"
+  ln -s /usr/bin/zeta-c "$pkgdir/usr/bin/zetacode"
 
   # Shell completions directories
   install -d "$pkgdir/usr/share/bash-completion/completions"

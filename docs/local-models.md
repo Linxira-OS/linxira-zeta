@@ -33,20 +33,20 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
 - **Non-FHS distros (NixOS, and any host without `libstdc++.so.6` on the loader path)**: the
   on-demand `onnxruntime-node` / `sherpa-onnx-node` / `sharp` addons are prebuilt binaries that
   `dlopen` `libstdc++.so.6` and `libgcc_s.so.1`, and they carry their own `DT_RUNPATH`, so nothing in
-  the zeta executable's own RPATH can resolve them. Set `OMP_NATIVE_LIBRARY_PATH` to the
-  colon-separated directories holding those libraries; zeta appends it to `LD_LIBRARY_PATH` for the
+  the zeta-c executable's own RPATH can resolve them. Set `OMP_NATIVE_LIBRARY_PATH` to the
+  colon-separated directories holding those libraries; zeta-c appends it to `LD_LIBRARY_PATH` for the
   inference worker subprocesses only (never for shell/eval/daemon children). The Nix package
   (`nix/package.nix`) sets this by default.
 - **One worker per model, keep-alive not persistent**: every local model is served by exactly one
   worker process on the machine that owns the socket `~/.zeta/run/tiny/<model>-<backend>.sock`
-  (Windows: a named pipe). The first zeta process that needs the model spawns the worker detached
-  (log next to the socket, `*.sock.log`); every other zeta process just connects, so the model is
+  (Windows: a named pipe). The first zeta-c process that needs the model spawns the worker detached
+  (log next to the socket, `*.sock.log`); every other zeta-c process just connects, so the model is
   resident once rather than once per instance. Nothing supervises it: the worker exits on its own
   after 15 minutes without a request (`OMP_TINY_WORKER_IDLE_MS` overrides the window for tests),
-  unlinks its socket, and the next request from any zeta process spawns a fresh one. Concurrent
+  unlinks its socket, and the next request from any zeta-c process spawns a fresh one. Concurrent
   spawns race on a `.bind.lock` file lock: the loser sees a live socket and exits while its parent
-  adopts the winner. `ping` returns a launch tag (`<zeta version>|onnx|<device>|<dtype>` or
-  `mlx|<mlx-lm version>|<script crc>`), so an zeta upgrade or a changed
+  adopts the winner. `ping` returns a launch tag (`<zeta-c version>|onnx|<device>|<dtype>` or
+  `mlx|<mlx-lm version>|<script crc>`), so an zeta-c upgrade or a changed
   `providers.tinyModelDevice`/`Dtype` tells the running worker to shut down and respawns it.
   Two concurrent instances with *conflicting* device settings would keep replacing each other's
   worker, so agree on one. The protocol is message-level (`load`, `chat` with messages / prefill /
@@ -67,15 +67,15 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
     default.
 - **MLX backend (Apple silicon)**: `PI_TINY_DEVICE=mlx` (or `metal`) swaps the worker itself, not
   the ONNX provider: the per-model worker is `mlx-server.py` running from a pinned `mlx-lm` venv
-  that zeta installs under `~/.zeta/agent/cache/tiny-mlx-runtime/` on first use (via `uv`, else
+  that zeta-c installs under `~/.zeta/agent/cache/tiny-mlx-runtime/` on first use (via `uv`, else
   `python3 -m venv` with Python ≥ 3.10). It downloads the model's pre-quantized 4-bit MLX export
   (`mlxRepo` in the registry) into `~/.zeta/agent/cache/tiny-models/mlx/` with per-byte progress,
   loads it with `mlx_lm.load`, and speaks the exact protocol the ONNX worker speaks, so titles,
   memory completions, and the `auto` thinking classifier all work unchanged and the Python process
   is the only process involved. `PI_TINY_DTYPE` is ignored. If the venv bootstrap fails (no Python,
-  install error, non-Apple host) zeta logs a warning and uses the ONNX CPU worker for the rest of
+  install error, non-Apple host) zeta-c logs a warning and uses the ONNX CPU worker for the rest of
   the process. Measured on an M4 Max: cold venv install + LFM2.5-230M download + load 15.7s; a
-  second zeta instance attaches to a running worker in well under a second; titles 15–60ms after
+  second zeta-c instance attaches to a running worker in well under a second; titles 15–60ms after
   warmup; Qwen3-1.7B (blocked on onnxruntime-node) downloads 984MB and answers a memory
   extraction in ~200ms.
 - **Quantization: q4 is the sweet spot** — smaller on disk, faster to load, and fast at inference.

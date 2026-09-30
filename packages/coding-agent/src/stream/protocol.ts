@@ -1,5 +1,5 @@
 /**
- * Local protocol between an interactive session and the `zeta stream` process
+ * Local protocol between an interactive session and the `zeta-c stream` process
  * in the same working directory.
  *
  * Transport: newline-delimited JSON over the Unix socket / named pipe at

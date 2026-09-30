@@ -16,27 +16,27 @@ npm install -g @linxiraos/zeta
 bun add -g @linxiraos/zeta
 ```
 
-After install, verify with `zeta --version`. The `zeta` binary is the single
+After install, verify with `zeta-c --version`. The `zeta-c` binary is the single
 entry point for the CLI, the web server, and the desktop shell.
 
 **Desktop:** install the packaged desktop build for your platform. The
-desktop app runs the same `zeta` runtime and adds a system tray icon
+desktop app runs the same `zeta-c` runtime and adds a system tray icon
 (minimize to tray on close).
 
 ## Starting the web interface
 
-Run `zeta serve` to start the full stack — Web UI, Web Gateway, Stats
+Run `zeta-c serve` to start the full stack — Web UI, Web Gateway, Stats
 Dashboard — behind one port:
 
 ```bash
-zeta serve
+zeta-c serve
 ```
 
 - The Web UI opens at `http://127.0.0.1:30141`.
 - The Web Gateway listener runs on `127.0.0.1:30142` (dev-mode access).
 - The Stats Dashboard runs on `127.0.0.1:3847`.
 
-`zeta web` starts the Web UI without the desktop shell. In `web.yml` you can
+`zeta-c web` starts the Web UI without the desktop shell. In `web.yml` you can
 configure the domain, the port, remote access, and whether the app stays in
 the system tray.
 
@@ -136,19 +136,19 @@ running in the tray (Settings → Web / Bot → "Minimize to tray on close");
 use the tray menu to reopen the window or quit.
 
 
-## Desktop entry: `zeta-d` vs `zeta`
+## Desktop entry: `zeta-d` vs `zeta-c`
 
 The desktop install registers exactly one command on your PATH: `zeta-d`.
 
-- `zeta-d` — runs the bundled CLI/TUI (same experience as `zeta`).
+- `zeta-d` — runs the bundled CLI/TUI (same experience as `zeta-c`).
 - `zeta-d -d` — opens the desktop GUI in the current directory; pass a path
   (`zeta-d -d ~/projects/foo`) to open that workspace instead.
 
-Bare `zeta` always belongs to your npm/source install and is never provided by
+Bare `zeta-c` always belongs to your npm/source install and is never provided by
 the desktop bundle, so both installs coexist without conflicts. From an npm
-install you can still open the desktop GUI with `zeta --desktop [cwd]`; it
+install you can still open the desktop GUI with `zeta-c --desktop [cwd]`; it
 exits with an error listing the locations it probed when no desktop install is
-found. The desktop app updates itself; running `zeta update` from the bundled
+found. The desktop app updates itself; running `zeta-c update` from the bundled
 binary is refused on purpose.
 
 ## CLI sidebar and turn telemetry
@@ -169,13 +169,13 @@ Two display features live in the interactive TUI:
 Check for a newer version:
 
 ```bash
-zeta update --check
+zeta-c update --check
 ```
 
 Apply the update:
 
 ```bash
-zeta update
+zeta-c update
 ```
 
 The desktop app can also update from the Web UI (Settings → check for

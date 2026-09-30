@@ -1,11 +1,11 @@
 /**
  * Grep CLI command handlers.
  *
- * Handles `zeta grep` subcommand for testing grep tool on Windows.
+ * Handles `zeta-c grep` subcommand for testing grep tool on Windows.
  */
 import * as path from "node:path";
 import { GrepOutputMode, grep } from "@linxiraos/pi-natives";
-import { APP_NAME } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { expandPath } from "../tools/path-utils";
 
@@ -132,10 +132,10 @@ export async function runGrepCommand(cmd: GrepCommandArgs): Promise<void> {
 }
 
 export function printGrepHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} grep`)} - Test grep tool
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} grep`)} - Test grep tool
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} grep <pattern> [path] [options]
+  ${CLI_BIN_NAME} grep <pattern> [path] [options]
 
 ${chalk.bold("Arguments:")}
   pattern   Regex pattern to search for
@@ -154,8 +154,8 @@ ${chalk.bold("Environment:")}
   PI_WALK_WORKERS=N    Set filesystem walker workers (default 4, 0 = auto)
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} grep "import" src/
-  ${APP_NAME} grep "TODO" . --glob "*.ts"
-  ${APP_NAME} grep "function" --files
+  ${CLI_BIN_NAME} grep "import" src/
+  ${CLI_BIN_NAME} grep "TODO" . --glob "*.ts"
+  ${CLI_BIN_NAME} grep "function" --files
 `);
 }

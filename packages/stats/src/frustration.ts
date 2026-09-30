@@ -101,7 +101,7 @@ const ATTEMPTS_PER_TEXT = 3;
 const CIRCUIT_BREAKER_FAILURES = 25;
 
 const NO_PROVIDER_REASON =
-	"This dashboard was started without a judge (standalone zeta stats). Run `zeta stats` to classify.";
+	"This dashboard was started without a judge (standalone zeta stats). Run `zeta-c stats` to classify.";
 const NO_MODEL_REASON = "No judge model is available. Configure the `judge` model role.";
 
 let judgeProvider: StatsJudgeProvider | undefined;

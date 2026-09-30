@@ -28,16 +28,16 @@ Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847
 
 ```bash
 # Start both Stats Dashboard and Web UI
-zeta serve
+zeta-c serve
 
 # Start only the Web UI
-zeta web
+zeta-c web
 
 # Custom ports
-zeta serve --stats-port 3847 --web-port 30141
+zeta-c serve --stats-port 3847 --web-port 30141
 
 # Don't open browser
-zeta serve --no-browser
+zeta-c serve --no-browser
 ```
 
 ### Programmatic API

@@ -2,10 +2,10 @@
  * `zeta-d` desktop entry dispatch.
  *
  * Command resolution contract (see docs/zeta-serve-web.md):
- * - bare `zeta` always belongs to the npm/source install;
+ * - bare `zeta-c` always belongs to the npm/source install;
  * - `zeta-d` (no args) runs the desktop bundle's CLI/TUI;
  * - `zeta-d -d` opens the desktop GUI in the current working directory;
- * - `zeta --desktop [cwd]` opens the desktop GUI from any install.
+ * - `zeta-c --desktop [cwd]` opens the desktop GUI from any install.
  *
  * The desktop installer puts only the `zeta-d` shim on PATH; it re-enters the
  * bundled zeta binary with `ZETA_DESKTOP_ENTRY=1`, and this module translates
@@ -105,7 +105,7 @@ export async function dispatchDesktopEntry(argv: readonly string[], deps: Deskto
 	const wantsGui = (entryMode && (first === "-d" || first === "--desktop")) || argv.includes("--desktop");
 	if (!wantsGui) return false;
 
-	// Optional cwd token directly after the flag (`zeta --desktop <cwd>`).
+	// Optional cwd token directly after the flag (`zeta-c --desktop <cwd>`).
 	let cwd = process.cwd();
 	if (first !== undefined && (first === "-d" || first === "--desktop")) {
 		const next = argv[1];

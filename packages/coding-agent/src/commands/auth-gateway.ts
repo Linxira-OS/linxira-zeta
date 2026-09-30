@@ -1,5 +1,5 @@
 /**
- * `zeta auth-gateway` — run a forward proxy that injects auth from the broker.
+ * `zeta-c auth-gateway` — run a forward proxy that injects auth from the broker.
  */
 
 import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";

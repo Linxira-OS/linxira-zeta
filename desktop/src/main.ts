@@ -303,8 +303,20 @@ function resolveServeCommand(): ServeCommand | null {
 		}
 	}
 
-	// Last resort: a `zeta` binary on PATH.
-	return { file: "zeta", args: ["serve"], cwd: process.cwd(), env: { ...process.env, ZETA_DESKTOP: "1" } };
+	// Last resort: the CLI on PATH — `zeta-c` (current bin name), falling back
+	// to the pre-rename `zeta` for older global installs.
+	const pathFallback =
+		process.platform === "win32"
+			? ["zeta-c.cmd", "zeta.cmd"]
+			: ["zeta-c", "zeta"];
+	const whichTool = process.platform === "win32" ? "where" : "which";
+	for (const candidate of pathFallback) {
+		const probe = spawnSync(whichTool, [candidate], { encoding: "utf8" });
+		if (probe.status === 0 && probe.stdout.trim()) {
+			return { file: candidate, args: ["serve"], cwd: process.cwd(), env: { ...process.env, ZETA_DESKTOP: "1" } };
+		}
+	}
+	return { file: "zeta-c", args: ["serve"], cwd: process.cwd(), env: { ...process.env, ZETA_DESKTOP: "1" } };
 }
 
 // ---------------------------------------------------------------------------

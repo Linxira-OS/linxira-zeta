@@ -14,12 +14,12 @@ An `linxira-zeta` extension that demonstrates `tool_call` blocking. It intercept
 cp -r . ~/.zeta/agent/extensions/safety-hook
 ```
 
-Restart `zeta`. The hook is active for all sessions.
+Restart `zeta-c`. The hook is active for all sessions.
 
 Or load once:
 
 ```
-zeta --extension ./safety-hook
+zeta-c --extension ./safety-hook
 ```
 
 ## How it works

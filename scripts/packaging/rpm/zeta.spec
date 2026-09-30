@@ -26,10 +26,14 @@ mkdir -p %{buildroot}/usr/share/bash-completion/completions
 mkdir -p %{buildroot}/usr/share/zsh/site-functions
 mkdir -p %{buildroot}/usr/share/fish/vendor_completions.d
 
-install -m 755 %{SOURCE0} %{buildroot}/usr/bin/zeta
+install -m 755 %{SOURCE0} %{buildroot}/usr/bin/zeta-c
+ln -s /usr/bin/zeta-c %{buildroot}/usr/bin/zeta-cli
+ln -s /usr/bin/zeta-c %{buildroot}/usr/bin/zetacode
 
 %files
-/usr/bin/zeta
+/usr/bin/zeta-c
+/usr/bin/zeta-cli
+/usr/bin/zetacode
 %doc /usr/share/doc/zeta/LICENSE
 
 %changelog

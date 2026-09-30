@@ -37,12 +37,12 @@ export default class Ps extends Command {
 	};
 
 	static examples = [
-		"zeta ps",
-		"zeta ps --all",
-		"zeta ps logs web --follow",
-		"zeta ps stop web",
-		"zeta ps kill web",
-		"zeta ps info relay --global browser-relay",
+		"zeta-c ps",
+		"zeta-c ps --all",
+		"zeta-c ps logs web --follow",
+		"zeta-c ps stop web",
+		"zeta-c ps kill web",
+		"zeta-c ps info relay --global browser-relay",
 	];
 
 	async run(): Promise<void> {

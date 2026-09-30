@@ -1,7 +1,7 @@
 /**
- * `zeta web` — 启动 Web UI 服务器
+ * `zeta-c web` — 启动 Web UI 服务器
  *
- * 使用 ZetaServer 统一 HTTP 反向代理启动 Web UI。作为 `zeta serve --web-only` 的快捷方式。
+ * 使用 ZetaServer 统一 HTTP 反向代理启动 Web UI。作为 `zeta-c serve --web-only` 的快捷方式。
  */
 
 import { APP_NAME, logger } from "@linxiraos/pi-utils";

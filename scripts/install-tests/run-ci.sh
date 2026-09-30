@@ -91,8 +91,8 @@ bun --cwd=packages/coding-agent run build
 
 BINARY_DIR="$WORK_DIR/binary-bin"
 mkdir -p "$BINARY_DIR"
-cp packages/coding-agent/dist/zeta "$BINARY_DIR/zeta"
-smoke_cli "$BINARY_DIR/zeta"
+cp packages/coding-agent/dist/zeta "$BINARY_DIR/zeta-c"
+smoke_cli "$BINARY_DIR/zeta-c"
 
 section "Source install smoke"
 SOURCE_BUN_HOME="$WORK_DIR/bun-source"
@@ -100,7 +100,7 @@ SOURCE_BUN_HOME="$WORK_DIR/bun-source"
    export BUN_INSTALL="$SOURCE_BUN_HOME"
    export PATH="$BUN_INSTALL/bin:$PATH"
    bun --cwd="$ROOT_DIR/packages/coding-agent" link
-   smoke_cli "$BUN_INSTALL/bin/zeta"
+   smoke_cli "$BUN_INSTALL/bin/zeta-c"
 )
 
 section "Tarball install smoke"
@@ -234,7 +234,7 @@ mkdir -p "$TARBALL_APP_DIR"
       echo "Collab web tarball did not install built dist/index.html"
       exit 1
    }
-   smoke_cli ./node_modules/.bin/zeta
+   smoke_cli ./node_modules/.bin/zeta-c
 )
 
 echo ""

@@ -767,7 +767,8 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"stream.serverUrl": {
 		label: "直播服务器",
-		description: "`zeta stream` 使用的直播服务器（https://host[:port]）；观众通过 <base>/<你的 Stencil 用户名> 观看",
+		description:
+			"`zeta-c stream` 使用的直播服务器（https://host[:port]）；观众通过 <base>/<你的 Stencil 用户名> 观看",
 	},
 	"stream.redactPatterns": {
 		label: "额外脱敏正则",
@@ -1335,11 +1336,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "zeta browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "zeta-c browser relay 端点（默认 http://127.0.0.1:9224）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -1452,7 +1453,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
-			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zeta worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zeta-c worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
 	},
 	"worktree.cleanSource": {
 		label: "/wt 时清理源检出",
@@ -1842,7 +1843,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"update.channel": {
 		label: "更新通道",
-		description: "zeta update 和启动更新检查使用的更新通道",
+		description: "zeta-c update 和启动更新检查使用的更新通道",
 	},
 	"edit.blackbox.enabled": {
 		label: "记录解析回归",

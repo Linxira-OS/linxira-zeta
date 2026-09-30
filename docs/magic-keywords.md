@@ -41,7 +41,7 @@ Open `/settings` and use **Interaction → Magic Keywords**, or change the setti
 
 ```bash
 # Disable every magic keyword
-zeta config set magicKeywords.enabled false
+zeta-c config set magicKeywords.enabled false
 
 # Disable one keyword while leaving the others enabled
 omp config set magicKeywords.ultrathink false

@@ -5,7 +5,7 @@
  * Each row is one JSON payload keyed by project (the resolved cwd) and kind.
  * Settings-derived kinds (theme/composer preferences, welcome model labels,
  * status-bar inputs) are also written under the empty project, so a folder that
- * never ran zeta still paints with the user's theme and status bar: those are
+ * never ran zeta-c still paints with the user's theme and status bar: those are
  * rarely project-specific, and path/branch render live. Recent sessions and LSP
  * rows stay per project.
  *

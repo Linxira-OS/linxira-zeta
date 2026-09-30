@@ -233,12 +233,12 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		const outcome = await waitForRelayExtension(cdpUrl, opts.signal);
 		if (outcome === "unreachable") {
 			throw new ToolError(
-				`zeta browser relay is not reachable at ${cdpUrl}. Start it with \`zeta browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
+				`zeta-c browser relay is not reachable at ${cdpUrl}. Start it with \`zeta-c browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
 			);
 		}
 		if (outcome === "no-extension") {
 			throw new ToolError(
-				`zeta browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`zeta browser-relay install\` and check the toolbar badge shows "on".`,
+				`zeta-c browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`zeta-c browser-relay install\` and check the toolbar badge shows "on".`,
 			);
 		}
 		const puppeteer = await loadPuppeteer();
@@ -424,7 +424,7 @@ async function openSharedHeadlessHandle(
 		});
 		if (!shared) {
 			throw new ToolError(
-				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zeta ps` for omp.browser.* daemons and ~/.zeta/logs for details",
+				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zeta-c ps` for omp.browser.* daemons and ~/.zeta/logs for details",
 			);
 		}
 		const puppeteer = await loadPuppeteer();

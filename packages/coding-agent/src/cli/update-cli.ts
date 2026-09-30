@@ -1,15 +1,15 @@
 /**
  * Update CLI command handler.
  *
- * Handles `zeta update` to check for and install updates.
- * Uses the installer that owns the active zeta executable when it can be detected.
+ * Handles `zeta-c update` to check for and install updates.
+ * Uses the installer that owns the active zeta-c executable when it can be detected.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
+import { $env, $which, APP_NAME, CLI_BIN_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
@@ -559,7 +559,7 @@ function isPathInDirectory(filePath: string, directoryPath: string): boolean {
 	if (isPathInDirectoryLexical(filePath, directoryPath)) return true;
 	// Layer realpath resolution on top of the lexical guard. On Windows, ~/.bun
 	// is a junction when Bun is installed via Scoop, so `bun pm bin -g` and the
-	// PATH-resolved zeta path can refer to the same directory through different
+	// PATH-resolved zeta-c path can refer to the same directory through different
 	// strings. path.resolve does not traverse junctions/symlinks; realpath does.
 	// Resolve both the file and its parent directory: the file catches manager
 	// links like Homebrew's `bin/zeta -> Cellar/.../bin/zeta`; the parent fallback
@@ -605,7 +605,7 @@ interface UpdateMethodResolutionOptions {
 	/** Bun's configured global package directory, independent of its bin directory. */
 	bunGlobalDir?: string;
 	/**
-	 * Whether the resolved zeta path is a plain file (the standalone binary)
+	 * Whether the resolved zeta-c path is a plain file (the standalone binary)
 	 * rather than a package-manager symlink. Stops a binary install from being
 	 * misrouted to npm/bun when the global bin dir overlaps the installer's
 	 * target directory.
@@ -814,7 +814,7 @@ async function resolveUpdateTarget(options: { allowPackageManagers: boolean }): 
 
 	if (bunBinDir) return { method: "bun" };
 
-	throw new Error(`Could not resolve ${APP_NAME} binary path in PATH`);
+	throw new Error(`Could not resolve ${CLI_BIN_NAME} binary path in PATH`);
 }
 
 /** Bound on `omp.rename` hops so a broken pointer chain cannot loop forever. */
@@ -845,7 +845,7 @@ async function fetchLatestManifest(
 		}
 	};
 	const noCanary = () =>
-		new Error(`No canary release has been published for ${pkg} yet. Try \`${APP_NAME} update --stable\`.`);
+		new Error(`No canary release has been published for ${pkg} yet. Try \`${CLI_BIN_NAME} update --stable\`.`);
 
 	let response = await get(npmRegistryPackageUrl(registry, pkg, tag));
 	let data: unknown;
@@ -1047,7 +1047,7 @@ async function removeCacheEntries(paths: string[]): Promise<number> {
  *
  * Bun stores package cache entries as both a package marker directory
  * (`react/19.2.6@@@1`) and a materialized package directory
- * (`react@19.2.6@@@1`). Global `zeta` updates can leave one full copy per
+ * (`react@19.2.6@@@1`). Global `zeta-c` updates can leave one full copy per
  * release. The marker and materialized entries are removed together so the
  * cache stays internally consistent.
  */
@@ -1219,20 +1219,20 @@ function getBinaryName(): string {
 	}
 
 	if (os === "windows") {
-		return `${APP_NAME}-${os}-${archName}.exe`;
+		return `zeta-cli-${os}-${archName}.exe`;
 	}
-	return `${APP_NAME}-${os}-${archName}`;
+	return `zeta-cli-${os}-${archName}`;
 }
 
 /**
- * Resolve the path that `zeta` maps to in the user's PATH.
+ * Resolve the path that `zeta-c` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
-	return $which(APP_NAME) ?? undefined;
+	return $which(CLI_BIN_NAME) ?? $which(APP_NAME) ?? undefined;
 }
 
 /**
- * Parse the version a launcher reports from `zeta --version` output
+ * Parse the version a launcher reports from `zeta-c --version` output
  * (`zeta/X.Y.Z`, or a prerelease such as `zeta/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
@@ -1240,8 +1240,9 @@ function resolveOmpPath(): string | undefined {
  * being mistaken for an unreplaced launcher.
  */
 export function parseReportedVersion(output: string): string | undefined {
-	if (!output.startsWith(`${APP_NAME}/`)) return undefined;
-	return output.slice(APP_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
+	if (!output.startsWith(`${CLI_BIN_NAME}/`) && !output.startsWith(`${APP_NAME}/`)) return undefined;
+	const prefixLen = output.startsWith(`${CLI_BIN_NAME}/`) ? CLI_BIN_NAME.length : APP_NAME.length;
+	return output.slice(prefixLen + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
 }
 
 async function reportedVersionAtPath(binaryPath: string): Promise<string | undefined> {
@@ -1271,15 +1272,15 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 	if (!hasShebang && (await reportedVersionAtPath(targetPath)) !== undefined) return;
 
 	const reason = hasShebang
-		? "is a shebang script, not a zeta binary"
-		: "does not report a zeta version when run directly";
+		? "is a shebang script, not a zeta-c binary"
+		: "does not report a zeta-c version when run directly";
 	throw new Error(
-		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the zeta binary you want to update, or reinstall with: ${installerHint()}`,
+		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the zeta-c binary you want to update, or reinstall with: ${installerHint()}`,
 	);
 }
 
 /**
- * Run the PATH-resolved zeta binary and check if it reports the expected version.
+ * Run the PATH-resolved zeta-c binary and check if it reports the expected version.
  */
 async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	const ompPath = resolveOmpPath();
@@ -1479,7 +1480,7 @@ function buildVersionedPackageInstallArgs(
 }
 
 /**
- * Build the bun argv used to globally install a specific zeta version.
+ * Build the bun argv used to globally install a specific zeta-c version.
  *
  * The version is selected by querying the resolved registry in
  * {@link getLatestRelease} ({@link ReleaseInfo.registry}), so the install
@@ -1493,7 +1494,7 @@ function buildVersionedPackageInstallArgs(
  * - `--no-cache` tells bun to ignore its on-disk manifest snapshot so it
  *   re-fetches metadata from that registry on every invocation.
  *
- * Together these two flags make `zeta update` produce exactly the registry
+ * Together these two flags make `zeta-c update` produce exactly the registry
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
@@ -1533,7 +1534,7 @@ export function buildBunInstallArgs(
  * `force` is set only for rename migrations: npm refuses to write the `omp`
  * bin while the old package still owns it (`EEXIST`), and the migration
  * installs the new package BEFORE removing the old one so a failed install
- * never leaves the user without a working `zeta`.
+ * never leaves the user without a working `zeta-c`.
  */
 export function buildNpmInstallArgs(
 	expectedVersion: string,
@@ -1601,11 +1602,11 @@ export function buildRenameCleanupPackages(
 
 /** Injectable shell steps for {@link migrateRenamedInstall}; commands return process exit codes. */
 export interface RenameMigrationSteps {
-	/** Globally install the new package names. MUST be idempotent: re-running re-links the `zeta` bin. */
+	/** Globally install the new package names. MUST be idempotent: re-running re-links the `zeta-c` bin. */
 	install(): Promise<number>;
 	/** Remove the old-name globals. */
 	removeOld(): Promise<number>;
-	/** Check the PATH-resolved `zeta` against the expected version. */
+	/** Check the PATH-resolved `zeta-c` against the expected version. */
 	verify(): Promise<InstalledVersionVerification>;
 }
 
@@ -1646,13 +1647,13 @@ function packageManagerMigrationSteps(manager: "bun" | "npm", release: ReleaseIn
 
 /**
  * Migrate a package-manager install across an `omp.rename` hop without a
- * window where no working `zeta` exists:
+ * window where no working `zeta-c` exists:
  *
  * 1. Install the new package FIRST. Nothing has been removed yet, so a
  *    failure here leaves the old install fully functional.
  * 2. Remove the old-name globals. Failure is non-fatal: a stale package
  *    wastes disk, but the bin already points at the new install.
- * 3. Verify the PATH-resolved `zeta`. If the removal deleted the shared bin
+ * 3. Verify the PATH-resolved `zeta-c`. If the removal deleted the shared bin
  *    link (manager-dependent), re-run the idempotent install to restore it
  *    and verify again; only a repeated failure aborts, with a recovery hint.
  */
@@ -1898,7 +1899,7 @@ export async function updateViaBinaryAt(
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
 	const binaryName = options.binaryName ?? getBinaryName();
-	// Unique per attempt so two overlapping `zeta update` runs never share a temp
+	// Unique per attempt so two overlapping `zeta-c update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
 	// first kept writing to its open fd (size + digest still passed), then chmod
@@ -1928,7 +1929,7 @@ export async function updateViaBinaryAt(
 	console.log(chalk.dim(`Verified ${asset.digest}`));
 
 	// Serialize the target swap and stale-artifact sweep per target so two
-	// overlapping `zeta update` runs never replace the same binary concurrently
+	// overlapping `zeta-c update` runs never replace the same binary concurrently
 	// or reclaim each other's live backup/temp files. The download above writes
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {

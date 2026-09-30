@@ -10,9 +10,9 @@ A minimal `linxira-zeta` extension that demonstrates the two most common authori
 cp -r . ~/.zeta/agent/extensions/hello-extension
 ```
 
-Restart `zeta`. You will see the startup notification immediately.
+Restart `zeta-c`. You will see the startup notification immediately.
 
-With `zeta --profile <name>`, use `~/.zeta/profiles/<name>/agent/extensions/hello-extension` instead. `PI_CODING_AGENT_DIR` likewise changes the agent directory.
+With `zeta-c --profile <name>`, use `~/.zeta/profiles/<name>/agent/extensions/hello-extension` instead. `PI_CODING_AGENT_DIR` likewise changes the agent directory.
 
 **Option B — point the settings `extensions` array at it:**
 
@@ -25,12 +25,12 @@ extensions:
 **Option C — load once via CLI flag:**
 
 ```
-zeta --extension ./hello-extension
+zeta-c --extension ./hello-extension
 ```
 
 ## Usage
 
-After loading, type `/hello` or `/hello Ada` in the zeta prompt. The command sends a visible greeting custom message into the conversation and shows a "Message sent!" notification.
+After loading, type `/hello` or `/hello Ada` in the zeta-c prompt. The command sends a visible greeting custom message into the conversation and shows a "Message sent!" notification.
 
 ## What it demonstrates
 

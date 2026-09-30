@@ -37,7 +37,7 @@ describe("renderFormula", () => {
 	// sandbox profile) during the build (issue #2398).
 	it("wraps `generate_completions_from_executable` with a HOME redirect to buildpath", () => {
 		expect(formula).toMatch(
-			/with_env\(HOME: buildpath\) do\n\s+generate_completions_from_executable\(bin\/"zeta", "completions", shells: \[:bash, :zsh, :fish\]\)\n\s+end/,
+			/with_env\(HOME: buildpath\) do\n\s+generate_completions_from_executable\(bin\/"zeta-c", "completions", shells: \[:bash, :zsh, :fish\]\)\n\s+end/,
 		);
 		// And the bare form (which is what failed in the sandbox) must not appear
 		// outside the `with_env` block.

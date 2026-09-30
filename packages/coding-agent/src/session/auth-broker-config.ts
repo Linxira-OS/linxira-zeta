@@ -248,9 +248,9 @@ export async function describeAuthBrokerStartupError(error: unknown): Promise<st
 	const target = url ? ` at ${url}` : "";
 	return (
 		`Auth broker${target} is unreachable (${error.message}). ` +
-		"zeta is configured to use this broker for credentials and will not fall back to local credentials automatically.\n" +
-		"Start the broker with `zeta auth-broker serve`, or disable it with " +
-		"`zeta config reset auth.broker.url` and `zeta config reset auth.broker.token` " +
+		"zeta-c is configured to use this broker for credentials and will not fall back to local credentials automatically.\n" +
+		"Start the broker with `zeta-c auth-broker serve`, or disable it with " +
+		"`zeta-c config reset auth.broker.url` and `zeta-c config reset auth.broker.token` " +
 		"(or unset OMP_AUTH_BROKER_URL / OMP_AUTH_BROKER_TOKEN)."
 	);
 }

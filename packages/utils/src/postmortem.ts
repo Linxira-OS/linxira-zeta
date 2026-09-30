@@ -7,7 +7,7 @@
  */
 
 import * as fs from "node:fs";
-import { APP_NAME } from "./dirs";
+import { APP_NAME, CLI_BIN_NAME } from "./dirs";
 import * as logger from "./logger";
 import { restoreTerminalStderr } from "./stderr-guard";
 
@@ -415,10 +415,10 @@ export function reportUnsettledEntry(work: Promise<unknown>, describe?: () => st
 		// "ended before completing" line only obscures the real error.
 		if (code !== 0) return;
 		const command = describe?.();
-		const subject = command ? `\`${APP_NAME} ${command}\`` : "command";
+		const subject = command ? `\`${CLI_BIN_NAME} ${command}\`` : "command";
 		const message = `${subject} ended before completing: the event loop drained while it was still pending (rerun with PI_DEBUG_STARTUP=1 to see the last phase reached)`;
 		try {
-			fs.writeSync(2, `${APP_NAME}: ${message}\n`);
+			fs.writeSync(2, `${CLI_BIN_NAME}: ${message}\n`);
 		} catch {}
 		logger.error(message, { command });
 		process.exitCode = 1;
