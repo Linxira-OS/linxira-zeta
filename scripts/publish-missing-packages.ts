@@ -66,6 +66,14 @@ const TARGETS: Array<{
 	{ dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
 	{ dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
 	{ dir: "editor/npm/editor", name: "@linxiraos/editor" },
+	// main 工作台（vendored Rust，bin zeta）：叶包带预编译二进制，版本线统一 1.1.21
+	{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
+	{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
+	{ dir: "main/npm/main", name: "@linxiraos/main" },
+	// ide（vendored termide，bin zeta-ide/zeta-i）：同上
+	{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
+	{ dir: "termide/npm/ide-linux-x64", name: "@linxiraos/ide-linux-x64" },
+	{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
 	// zeta-web（web-ui）与 pi-messenger 版本线独立（1.1.5 / 1.1.1），不随 RELEASE 走；
 	// 需要时 --only 单发（见头部说明）。
 	// { dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
