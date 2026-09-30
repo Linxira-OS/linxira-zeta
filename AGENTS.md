@@ -1,5 +1,7 @@
 # Zeta Development Rules
 
+我们的主力平台一等公民是linux是我们自己的linxira发行吧基于arch linux。win的开发是二等公民，macos滚一边去。（用户批注）
+
 ## Zeta Direction
 
 Zeta is an OMP downstream distribution. The runtime tree, package layout, Bun
