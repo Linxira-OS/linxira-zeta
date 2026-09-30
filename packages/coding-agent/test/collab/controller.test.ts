@@ -49,7 +49,7 @@ import {
 } from "@linxiraos/zeta/modes/settings";
 
 const noRecentSessions = async () => [];
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
 const originalOmpProfile = process.env.OMP_PROFILE;
 
@@ -239,7 +239,7 @@ afterEach(async () => {
 	await controller?.shutdown("test cleanup").catch(() => {});
 	uninstallInMemoryRelay();
 	publishSpy?.mockRestore();
-	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	utils.__resetDirsFromEnvForTests();

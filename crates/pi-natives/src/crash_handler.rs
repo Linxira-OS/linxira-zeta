@@ -21,8 +21,8 @@
 //!   regardless of `RUST_BACKTRACE`.
 //! - The crash log path mirrors the JS side (`packages/utils/src/dirs.ts`):
 //!   `$XDG_STATE_HOME/zeta/logs/` on Linux / macOS when the user has migrated
-//!   to XDG (i.e. that directory already exists and `PI_CODING_AGENT_DIR` isn't
-//!   pointed somewhere custom), otherwise `<home>/<PI_CONFIG_DIR>/logs/`
+//!   to XDG (i.e. that directory already exists and `ZETA_CODING_AGENT_DIR`
+//!   isn't pointed somewhere custom), otherwise `<home>/<PI_CONFIG_DIR>/logs/`
 //!   (defaulting to `~/.zeta/logs/`).
 //! - Hook installation is idempotent across repeated module loads.
 
@@ -290,12 +290,12 @@ fn resolve_logs_dir(
 
 /// Compute the XDG-state logs dir if the runtime environment matches the
 /// JS-side eligibility rules in `packages/utils/src/dirs.ts`: linux/macos,
-/// `$XDG_STATE_HOME` set, `$XDG_STATE_HOME/omp` exists on disk, and
-/// `PI_CODING_AGENT_DIR` is unset or pointing at the default agent dir.
+/// `$XDG_STATE_HOME` set, `$XDG_STATE_HOME/zeta` exists on disk, and
+/// `ZETA_CODING_AGENT_DIR` is unset or pointing at the default agent dir.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn xdg_state_logs_from_env(home: &Path, config_dir_override: Option<&OsStr>) -> Option<PathBuf> {
 	let default_agent_dir = default_agent_dir(home, config_dir_override);
-	let agent_override = std::env::var_os("PI_CODING_AGENT_DIR");
+	let agent_override = std::env::var_os("ZETA_CODING_AGENT_DIR");
 	let xdg_state_home = std::env::var_os("XDG_STATE_HOME");
 	xdg_state_logs(
 		xdg_state_home.as_deref(),
@@ -489,7 +489,7 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_ignores_empty_agent_dir_override() {
-		// An empty PI_CODING_AGENT_DIR is "unset", not a divergent override; it
+		// An empty ZETA_CODING_AGENT_DIR is "unset", not a divergent override; it
 		// must not disable XDG resolution.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
@@ -552,7 +552,7 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_skipped_when_agent_dir_overridden() {
-		// `PI_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
+		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
 		// false` branch in `packages/utils/src/dirs.ts` and must disable XDG.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),

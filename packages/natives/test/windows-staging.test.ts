@@ -176,8 +176,11 @@ describe("windows native addon staging", () => {
 		const nativesDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-natives-cache-"));
 		const currentMajor = Number.parseInt(packageJson.version, 10);
 		const futureVersion = `${currentMajor + 1}.0.0`;
-		const staleVersion = "15.10.11";
-		const freshVersion = "15.10.12";
+		// Zeta's version line (1.x) sits below upstream's, so the historical
+		// 15.10.x fixtures would count as future versions and never qualify as
+		// stale — derive both from the current major instead.
+		const staleVersion = `${currentMajor - 1}.10.11`;
+		const freshVersion = `${currentMajor - 1}.10.12`;
 		try {
 			await fs.mkdir(path.join(nativesDir, staleVersion));
 			await fs.mkdir(path.join(nativesDir, freshVersion));

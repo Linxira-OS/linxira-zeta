@@ -209,6 +209,45 @@ modern.node`)。CI bazel 现场构建不受影响。
   映射为托管标签或按 v18.3.3 裁剪决策处理;`ubuntu-24.04-arm`/`windows-11-arm`
   为 GitHub 托管标签,保留。
 
+**CI 首轮(36598768135)失败复盘与"每轮同类错误"根因(用户命题,2026-09-30)**:
+
+六个红 job 的逐项根因——全部归于**同一结构性病根**:
+
+| 失败 | 根因 | 修复 |
+|---|---|---|
+| session-resolution ×7 | main.ts hint "Run \`omp --resume\`" 未扫,测试期望 zeta | 清扫 + 守卫 |
+| xAI UA | 测试正则 `/^omp\/\d/` 未扫(USER_AGENT 源是 zeta/) | 清扫 + 守卫 |
+| baseten 默认模型 | 上游 models.json 换掉 Kimi-K2.7-Code,Zeta 描述符默认值漂移 | KDL 默认→K3 + gen:compat |
+| agent-storage | 测试 env 块是上游契约 `PI_CODING_AGENT_DIR`,源码只读 ZETA_* | env 块回基线 + 守卫 |
+| js-executor/js-pkg-env/eval-timeout/install-smoke | **`JS_EVAL_PROCESS_ARG="__omp_worker_js_eval_process"`(源)vs cli.ts 只派发 `__zeta_worker_*`**——子进程当普通 CLI 全量启动后报错退出,worker init 10-15s 超时级联("JS context disposed"/"No models available" 均其连锁) | 协议名对齐(执行 10.9s→4.3s=基线水平,WSL 全绿) |
+| windows-staging | 夹具写死 15.10.x(相对上游 18.x 是"旧版"),我们 1.x 版本线判定翻转 | 夹具随 currentMajor 推导 |
+| composer XDG | 测试期望 `$XDG_CACHE_HOME/omp/…`,源码是 zeta/ | 清扫(Linux 验证) |
+| MODULE.bazel.lock | **Cargo.lock 12 行版本线修复(18.4.3→1.1.21)在锁生成之后**,crate_universe 哈希失新 | 取 CI 刷新工件回提(5 行哈希) |
+
+**为什么每轮合并都在同几类上翻车(结构性根因)**:
+
+1. **双面 token 只扫一面**。Zeta 清扫是"把上游品牌面改成我们的",但同一
+   token 往往存在于**生产者与消费者两侧**(源码 vs 测试、JS vs Rust、
+   spawn 参数 vs 派发表)。人工 sed 按文件/按模式扫,永远扫不齐;而
+   `check:ts` 对字符串/正则/env 名**完全失明**——错配编译全绿,只在
+   运行时/CI 炸。这是最大的时间黑洞。
+2. **守卫表只认"品牌面",不认"契约面"**。brand-rules 原有规则盯
+   π/PI_LOGO/scope/URL scheme,但 worker 协议参数、env 名、UA 正则、
+   CLI 提示串这些"跨面契约 token"不在表里——每轮靠 CI 试错发现。
+3. **上游测试夹具携带上游坐标**(版本号 15.10.x、runner 标签 omp-kata、
+   向导步骤)——这些不是品牌,是"上游世界假设",合并原样带入即错。
+4. **生成物顺序耦合**:Cargo.lock→MODULE.bazel.lock 的哈希链,版本线
+   修复必须在其上游一切 Cargo 变更之后重刷,否则 freshness 门禁红。
+5. changelog 清扫无段落感知(本轮自伤已述)。
+
+**对策(已落实)**:`brand-rules.ts` MUST_NOT_CONTAIN 新增"跨面 token 对"
+组:`__omp_worker_*`(argv 协议)、`PI_CODING_AGENT_DIR`(env 契约)、
+`USER_AGENT` omp/ 模板与 `/^omp\/\d` 测试正则、`` Run `omp `` CLI 提示——
+命中即红,producer/consumer 两侧同受约束;守卫首跑即逮住 Rust 侧
+crash_handler 读旧 env 名的**基线遗留同类病灶**(顺手治愈:ZETA_* + fmt 绿)。
+上表各修复随 `bun scripts/brand/brand-check.ts` 常驻 CI check job。
+
+
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
 
 按「上游增量合并规程」在 `dev/main` 上完成的两步串联合并;干跑预测与实跑逐个

@@ -188,4 +188,29 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /omp:\/\//,
 		why: "the internal docs URL scheme is zeta:// only (registry row: 内部 URL scheme); upstream omp:// literals — code, prompts, docs, test fixtures — are swept at every merge",
 	},
+	// ── Cross-surface token pairs (added after the v18.4.3 CI round) ──────────
+	// These tokens exist on TWO sides (producer + consumer). Sweeping only one
+	// side compiles fine and fails at runtime/CI — the worst damage class,
+	// because check:ts cannot see it. Each rule below pins BOTH sides to the
+	// Zeta spelling; a hit means one side still carries the upstream literal.
+	{
+		needle: /__omp_worker_/,
+		why: "worker argv protocol: cli.ts dispatches only __zeta_worker_* — an upstream __omp_worker_* spawn arg boots the full CLI as a normal command (v18.4.3: eval worker init 10-15s + 'No models available' smoke death)",
+	},
+	{
+		needle: /PI_CODING_AGENT_DIR/,
+		why: "agent-dir env contract: dirs.ts reads only ZETA_CODING_AGENT_DIR — a test setting PI_CODING_AGENT_DIR silently isolates nothing (v18.4.3: agent-storage CANTOPEN)",
+	},
+	{
+		needle: /USER_AGENT = `omp\//,
+		why: "(duplicate guard on the test side) any UA producer/consumer pair must both say zeta/",
+	},
+	{
+		needle: /toMatch\(\/\^omp\/\\d/,
+		why: "UA test regexes must expect zeta/<version>, not omp/<version> (task-branch names like omp/task/… are a kept upstream convention and do not match)",
+	},
+	{
+		needle: /Run `omp /,
+		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
+	},
 ];

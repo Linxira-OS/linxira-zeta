@@ -114,7 +114,7 @@ describe("composer startup cache", () => {
 		const project = path.join(root, "project");
 		await Promise.all([
 			fs.mkdir(home, { recursive: true }),
-			fs.mkdir(path.join(xdgCache, "omp"), { recursive: true }),
+			fs.mkdir(path.join(xdgCache, "zeta"), { recursive: true }),
 		]);
 		await Bun.write(path.join(home, ".env"), `XDG_CACHE_HOME=${xdgCache}\n`);
 
@@ -125,7 +125,7 @@ describe("composer startup cache", () => {
 			"const cache = ComposerCache.open();",
 			`cache.writeWelcome(${JSON.stringify(project)}, { modelName: "model", providerName: "provider" });`,
 			"cache.close();",
-			`const expected = path.join(${JSON.stringify(xdgCache)}, "omp", "cache", "composer.db");`,
+			`const expected = path.join(${JSON.stringify(xdgCache)}, "zeta", "cache", "composer.db");`,
 			"process.stdout.write(String(await Bun.file(expected).exists()));",
 		].join("\n");
 		const proc = Bun.spawn([process.execPath, "--no-env-file", "--no-install", "--eval", script], {

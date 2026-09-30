@@ -34,7 +34,7 @@ async function launchWithoutTerminal(
 		if (CREDENTIAL_ENV.test(key)) delete env[key];
 	}
 	for (const key of [
-		"PI_CODING_AGENT_DIR",
+		"ZETA_CODING_AGENT_DIR",
 		"PI_CONFIG_DIR",
 		"PI_CONFIG_FILES",
 		"OMP_PROFILE",

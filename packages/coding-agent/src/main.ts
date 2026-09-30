@@ -1119,7 +1119,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.messages.splice(messageIndex, 1);
 }
 const FORK_NOT_FOUND_HINT =
-	"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.";
+	"Run `zeta --resume` without an argument to pick from recent sessions, or `zeta` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -1190,7 +1190,7 @@ export async function createSessionManager(
 		if (!match) {
 			throw new SessionResolutionError(
 				`Session "${sessionArg}" not found.`,
-				"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.",
+				"Run `zeta --resume` without an argument to pick from recent sessions, or `zeta` to start a new one.",
 			);
 		}
 		if (match.scope === "local") {
