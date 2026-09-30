@@ -25,9 +25,10 @@ impl Axis {
 			let even = (100 / weights.len().max(1)) as u16;
 			return vec![Constraint::Percentage(even); weights.len()];
 		}
+		// Exact ratios: percentage rounding made edges drift and jitter.
 		weights
 			.iter()
-			.map(|w| Constraint::Percentage((*w * 100 / total) as u16))
+			.map(|w| Constraint::Ratio(*w, total))
 			.collect()
 	}
 
@@ -133,9 +134,11 @@ impl PaneNode {
 	pub fn split(&mut self, pane: usize, axis: Axis, new_pane: usize) {
 		match self {
 			PaneNode::Leaf(id) if *id == pane => {
+				// Large unit weights: resize deltas move in cell-sized steps,
+				// not third-of-the-screen jumps.
 				*self = PaneNode::Split {
 					axis,
-					children: vec![(1, PaneNode::Leaf(pane)), (1, PaneNode::Leaf(new_pane))],
+					children: vec![(1000, PaneNode::Leaf(pane)), (1000, PaneNode::Leaf(new_pane))],
 				};
 			},
 			PaneNode::Leaf(_) => {},
@@ -275,7 +278,7 @@ impl PaneNode {
 	pub fn equalize(&mut self) {
 		if let PaneNode::Split { children, .. } = self {
 			for (w, node) in children.iter_mut() {
-				*w = 4;
+				*w = 1000;
 				node.equalize();
 			}
 		}
@@ -298,9 +301,22 @@ impl PaneNode {
 							rect.bottom()
 						};
 						if edge == line && i + 1 < children.len() {
+							// Convert the cell delta into weight units so the
+							// edge follows the cursor one-to-one.
+							let total: i32 = weights.iter().map(|w| *w as i32).sum();
+							let length = match axis {
+								Axis::Row => area.width as i32,
+								Axis::Column => area.height as i32,
+							};
+							let wdelta = if length > 0 {
+								delta * total / length
+							} else {
+								0
+							};
 							let (left, right) = (children[i].0 as i32, children[i + 1].0 as i32);
-							let (new_left, new_right) = (left + delta, right - delta);
-							if new_left >= 2 && new_right >= 2 {
+							let (new_left, new_right) = (left + wdelta, right - wdelta);
+							const MIN_WEIGHT: i32 = 100;
+							if new_left >= MIN_WEIGHT && new_right >= MIN_WEIGHT {
 								children[i].0 = new_left as u32;
 								children[i + 1].0 = new_right as u32;
 							}
@@ -345,7 +361,7 @@ impl PaneNode {
 				};
 				*self = PaneNode::Split {
 					axis,
-					children: vec![(1, PaneNode::Leaf(first)), (1, PaneNode::Leaf(second))],
+					children: vec![(1000, PaneNode::Leaf(first)), (1000, PaneNode::Leaf(second))],
 				};
 			}
 			return;
@@ -363,20 +379,20 @@ impl PaneNode {
 				};
 				if *node_axis == axis {
 					// Same axis: insert as a sibling next to the target.
-					children.insert(at, (1, PaneNode::Leaf(moved)));
+					children.insert(at, (1000, PaneNode::Leaf(moved)));
 				} else {
 					// Crossing axes: wrap the target leaf in a new split.
 					let target_leaf =
 						std::mem::replace(&mut children[pos].1, PaneNode::Leaf(usize::MAX));
-					children[pos].0 = 1;
+					children[pos].0 = 1000;
 					children[pos].1 = PaneNode::Split {
 						axis,
 						children: match side {
 							Side::Left | Side::Top => {
-								vec![(1, PaneNode::Leaf(moved)), (1, target_leaf)]
+								vec![(1000, PaneNode::Leaf(moved)), (1000, target_leaf)]
 							},
 							Side::Right | Side::Bottom => {
-								vec![(1, target_leaf), (1, PaneNode::Leaf(moved))]
+								vec![(1000, target_leaf), (1000, PaneNode::Leaf(moved))]
 							},
 						},
 					};
@@ -505,6 +521,27 @@ mod tests {
 				}
 			},
 		}
+	}
+
+	#[test]
+	fn resize_tracks_the_cursor_one_to_one() {
+		let mut tree = PaneNode::single(0);
+		tree.split(0, Axis::Row, 1); // two equal columns in an 80-wide area
+		let area = Rect::new(0, 0, 80, 24);
+		let boundary = tree.leaf_rects(area)[0].1.right();
+		assert_eq!(boundary, 40);
+		tree.resize_at(area, Axis::Row, boundary, 10);
+		let (l, r) = (tree.leaf_rects(area)[0].1, tree.leaf_rects(area)[1].1);
+		assert_eq!(l.width, 50, "drag 10 cells = 10 cells wider");
+		assert_eq!(r.x, 50);
+		tree.resize_at(area, Axis::Row, l.right(), 5);
+		let (l, r) = (tree.leaf_rects(area)[0].1, tree.leaf_rects(area)[1].1);
+		assert_eq!(l.width, 55);
+		assert_eq!(r.width, 25);
+		// Min-size clamp holds.
+		tree.resize_at(area, Axis::Row, l.right(), 200);
+		let l = tree.leaf_rects(area)[0].1;
+		assert!(l.width >= 4, "panes never collapse below a usable width");
 	}
 
 	#[test]

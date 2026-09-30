@@ -457,7 +457,9 @@ impl Workspace {
 			},
 			Hit::Pane { pane } => {
 				// A shared split boundary near the cursor starts a resize drag.
-				if let Some((axis, _)) = find_boundary(&self.last_pane_areas, mouse.column, mouse.row) {
+				if let Some((axis, _)) =
+					find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 1)
+				{
 					self.drag = Some(Drag::Resize {
 						axis,
 						last: match axis {
@@ -541,7 +543,7 @@ impl Workspace {
 				let delta = position as i32 - *last as i32;
 				if delta != 0 {
 					if let Some((_, line)) =
-						find_boundary(&self.last_pane_areas, mouse.column, mouse.row)
+						find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 8)
 					{
 						let content = self.content_rect();
 						self.active().tree.resize_at(content, axis, line, delta);
@@ -1093,7 +1095,12 @@ fn drop_zone_rect(rect: Rect, column: u16, row: u16) -> Option<Rect> {
 }
 
 /// Shared boundary between two panes nearest to the cursor.
-fn find_boundary(areas: &[(usize, Rect)], column: u16, row: u16) -> Option<(Axis, u16)> {
+fn find_boundary(
+	areas: &[(usize, Rect)],
+	column: u16,
+	row: u16,
+	tolerance: i32,
+) -> Option<(Axis, u16)> {
 	let mut best: Option<(i32, Axis, u16)> = None;
 	for (_, r) in areas {
 		for (line, axis) in [(r.right(), Axis::Row), (r.bottom(), Axis::Column)] {
@@ -1107,7 +1114,7 @@ fn find_boundary(areas: &[(usize, Rect)], column: u16, row: u16) -> Option<(Axis
 					Axis::Column => row,
 				};
 				let dist = (cursor as i32 - line as i32).abs();
-				if dist <= 1 && best.map(|(d, _, _)| dist < d).unwrap_or(true) {
+				if dist <= tolerance && best.map(|(d, _, _)| dist < d).unwrap_or(true) {
 					best = Some((dist, axis, line));
 				}
 			}
