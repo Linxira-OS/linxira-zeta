@@ -667,7 +667,11 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   **设置页**(键位/主题/默认 shell/套件路径等)+ 自定义键位、
   任意拖拽布局编辑器、files 选型集成、tab 会话/handoff 联动
   (handoff.json 机制扩展)、官网更新(用户提供仓库位置后跨文件改)。
-  **参照系(用户指定,2026-10-01)**:交互逻辑持续对照 vendored 的
+  **拖拽交互暂缓(2026-10-01 维护者裁定)**:窗格拖拽交换/移靠/拉伸、
+  标签拖拽重排的逻辑需要详细调研后再做——机制已全部写好(app.rs 的
+  Drag 枚举、layout.rs 的 detach/insert_beside/resize_at),由
+  `DRAG_ENABLED=false` 一个开关停用,重启即回;当前界面点击(聚焦/分裂/
+  子页/关闭)不受影响。**参照系(用户指定,2026-10-01)**:交互逻辑持续对照 vendored 的
   GPL-2.0 项目 fresh(temp/fresh,sinelaw/fresh 终端编辑器)——其核心经
   验已吸收:命中区在绘制时登记、鼠标事件只查登记表(rendered geometry
   即 hit geometry,app.rs 的 HitRegistry 即由此来);后续菜单/拖拽/设置

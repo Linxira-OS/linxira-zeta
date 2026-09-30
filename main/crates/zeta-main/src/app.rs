@@ -60,6 +60,12 @@ enum Hit {
 	Quit,
 }
 
+/// Drag interactions — pane swap/move, boundary resize, tab reorder — are
+/// parked pending a dedicated design/research pass (2026-10-01 maintainer
+/// call: the logic needs more study). The machinery below stays; flipping
+/// this one flag re-enables all of it.
+const DRAG_ENABLED: bool = false;
+
 /// What a press-drag is currently doing.
 enum Drag {
 	/// Reordering tabs along the tab row.
@@ -414,7 +420,9 @@ impl Workspace {
 			Hit::TabPlus => self.new_tab(),
 			Hit::Tab(idx) => {
 				self.active_tab = idx;
-				self.drag = Some(Drag::TabReorder(idx));
+				if DRAG_ENABLED {
+					self.drag = Some(Drag::TabReorder(idx));
+				}
 			},
 			Hit::TabClose => {
 				if self.tabs.len() > 1 {
@@ -453,21 +461,26 @@ impl Workspace {
 			},
 			Hit::PaneTitle { pane } => {
 				self.active().active = pane;
-				self.drag = Some(Drag::PaneSwap { from: pane, cursor: (mouse.column, mouse.row) });
+				if DRAG_ENABLED {
+					self.drag = Some(Drag::PaneSwap { from: pane, cursor: (mouse.column, mouse.row) });
+				}
 			},
 			Hit::Pane { pane } => {
-				// A shared split boundary near the cursor starts a resize drag.
-				if let Some((axis, _)) =
-					find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 1)
-				{
-					self.drag = Some(Drag::Resize {
-						axis,
-						last: match axis {
-							Axis::Row => mouse.column,
-							Axis::Column => mouse.row,
-						},
-					});
-					return false;
+				// A shared split boundary near the cursor starts a resize drag
+				// (parked while DRAG_ENABLED is false).
+				if DRAG_ENABLED {
+					if let Some((axis, _)) =
+						find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 1)
+					{
+						self.drag = Some(Drag::Resize {
+							axis,
+							last: match axis {
+								Axis::Row => mouse.column,
+								Axis::Column => mouse.row,
+							},
+						});
+						return false;
+					}
 				}
 				self.active().active = pane;
 				let Some(area) = self
