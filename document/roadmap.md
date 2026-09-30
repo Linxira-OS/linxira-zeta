@@ -640,17 +640,26 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   SidePane 框架一起评估)。
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
   修复,可修则 revert matrix 裁剪提交。
-- **TUI 三件套整合设计**(zeta CLI + zeta-work/termide + zeta-e/editor;
-  2026-09-28 用户定方向):产品愿景 = 完整 Linux 无图形界面运维迁移到
-  Agent 流程,zeta-work 为用户主入口、文件管理器最底层唤醒 zeta 到正确
-  cwd、三包经 PTY 组合零代码耦合。启动前需完成的设计调查:(1) 启动
-  上下文检测——用户从哪里进(work 直开 / editor 内唤 / 裸 shell),
-  cwd/会话/repo root 三元组如何跨进程传递(现 handoff.json 机制扩展);
-  (2) 主/子线程逻辑继承——work pane 里的 zeta 是独立会话还是 CLI 会话
-  的子线程,mode/plan 状态是否继承;(3) 嵌套 TUI 框架选择——pane 内
-  子 TUI 的 alt-screen/事件路由协议(tcell/ratatui 侧与 Zeta TUI 侧
-  的抽象层),任意数量 zeta/ttt pane 自由布局的数据结构。设计产物
-  落地时另开执行计划。
+- **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
+  "TUI 三件套整合设计"旧条)**:产品形态 = `zeta` 打开**嵌套终端工作台**
+  ——一个终端进程,顶层标签页(tab = 窗格布局快照),窗格为真实 PTY 嵌
+  终端(zeta-c / zeta-e / shell 皆为子进程),快捷键+菜单快速打开自家工
+  具,四件套各自独立启动、help 各自独立。命名:`zeta-c`/`zeta-cli`/
+  `zetacode` = coding CLI(@linxiraos/zeta 换 bin 不换包);`zeta-editor`/
+  `zeta-e` = ttt;`zeta-ide`/`zeta-i` = termide(由未发布的
+  @linxiraos/work 更名);`zeta` = @linxiraos/main(新,工作台本体,
+  main/ 独立 Rust workspace,path 依 termide crates);files = 终端文件
+  管理器(superfile 暂缓,候选调研中)。两个 IDE(ttt 与 termide)并存
+  观察,不二选一。参照系:OpenCode 的多 tab 在其 app 层
+  (SessionTab/DraftTab + 持久化,packages/app/src/context/tabs.tsx),
+  终端 TUI 无分屏;OpenTUI = Zig 核心 + TS 应用层,不合纯 Rust——我们
+  的形态(真 PTY 窗格)更强,壳坚定 Rust。**发包规矩(用户裁定)**:新包
+  (@linxiraos/main、ide 系)先由用户手动以现行版本号(1.1.21)首发占
+  位,之后用户在 npm 配好 trusted publishing,再接自动发布链
+  (main-publish.yml 已备未接线);每次发包全包系统一版本号(无论有无
+  changelog),但依赖不强制最新(main 可引用旧版叶子)。迭代队列:任意
+  拖拽布局编辑器、鼠标窗格路由、files 选型集成、tab 会话/handoff 联动
+  (handoff.json 机制扩展)、官网更新(用户提供仓库位置后跨文件改)。
 
 ## Notes
 

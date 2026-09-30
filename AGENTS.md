@@ -151,6 +151,8 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.zeta` 别名 |
+| CLI bin 命名(2026-09-30 定稿) | `@linxiraos/zeta` 的 bin = `zeta-c`/`zeta-cli`/`zetacode`(pi-utils `CLI_BIN_NAME`;`zeta://`、`.zeta`、`ZETA_*`、包名、`zeta-cli-*` release 资产名均不变) | 裸 `zeta` 名属 `@linxiraos/main` 工作台;`APP_NAME`("zeta")仍是产品身份(配置根/日志名/归因头/splash)——勿把配置/线值扫成 zeta-c |
+| 工作台与 IDE 包 | `@linxiraos/main`(bin `zeta`,main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zeta-ide`/`zeta-i`,termide npm 面)、`@linxiraos/editor`(bin `zeta-editor`/`zeta-e`) | 新包首发=用户手动以现行版本号占位,配好 npm trust 后才接自动发布链(main-publish.yml 已备未接线) |
 | 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量，MUST_CONTAIN 守护） |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |

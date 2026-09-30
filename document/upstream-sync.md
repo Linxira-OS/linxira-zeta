@@ -259,6 +259,16 @@ diff 恰为上游 agentDir 语义。教训并入根因 1 的变体:**Zeta-only �
 另:agent-plugins 符号链接逃逸测试 Windows 本地 4 红=基线既有噪声
 (symlink 权限),CI Linux 绿,不追。
 
+**损伤类 7 追记(v18.4.3 第三处)**:合并 `7137261d83e` 重写 ci.yml
+(300+/429-)时把四个 Zeta-only job(editor_tests、termide_tests、
+release_editor_packages、release_work_packages)与 push/PR 的
+desktop/web-ui/editor/termide path filters 全部砸掉——独立
+editor/ide-publish.yml 幸存,故手动补发仍可用,但 release tag 自动链路
+断。修复 `7d588b2503b`(ide 更名轮一并恢复,release_work_packages→
+release_ide_packages)。教训:**ci.yml 是"我们的 CI 面",合并时必须对照
+基线 job 清单逐名核对**,brand-check 的 runs-on 规则只防上游 runner 混入,
+不防 Zeta job 丢失——job 集合对账只在人/账本层。
+
 
 ## v18.3.3 + v18.3.4 (Zeta — dev/main 实验线,增量双 tag 串联合并,2026-09-29)
 
