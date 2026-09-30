@@ -13,8 +13,8 @@
     "zeta-e": "./bin/zeta-editor.js"
   },
   "optionalDependencies": {
-    "@linxiraos/editor-windows-x64": "1.1.21",
-    "@linxiraos/editor-linux-x64": "1.1.21"
+    "@linxiraos/editor-windows-x64": "1.1.22",
+    "@linxiraos/editor-linux-x64": "1.1.22"
   },
   "publishConfig": {
     "access": "public"

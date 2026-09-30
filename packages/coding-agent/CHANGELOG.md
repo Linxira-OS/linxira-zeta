@@ -5,9 +5,7 @@
 - **CLI bin 更名(breaking)**:`zeta-c` 为主命令名,`zeta-cli`/`zetacode` 为别名;裸 `zeta` 名让位给工作台(bin @linxiraos/main)。安装器/补全/文档同步。
 - **agent ↔ editor 双向切换**:`/editor` 命令写 handoff(cwd/gitRoot/sessionFile/file:line:col)后 detached spawn editor;配套 `editor.autoInstall` / `editor.handoffSession` 设置键(挂 interaction→Agent 组)。右上角按钮形态随统一入口(工作台)裁定移除。
 - **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。
-## [1.1.20] - 2026-09-23
-## [1.1.19] - 2026-09-22
-## [1.1.18] - 2026-09-22
+
 ## [1.1.16] - 2026-09-19
 
 - 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。
@@ -21,8 +19,8 @@
 - `/language` 切换后斜杠命令描述即时刷新,无需重启。
 - Plan/Plan-ultra/Vibe/Goal 模式横幅与 attach 模式提示接入 i18n;`/loop`、`/rename` 描述进目录。
 
-## [1.1.11] - 2026-09-08
 ## [1.1.10] - 2026-09-07
+
 - Fixed `edit` auto-repair waiting up to 60 seconds when the `smol` model does not respond; it now times out after 20 seconds and reports repair start and timeout details.
 - Fixed subagents leaving queued parent messages behind after tool interruptions.
 - Fixed a subagent burning its whole run on `yield` calls that never finish it: an incremental-only `yield` turn no longer bypasses the request budget, and the forced final `yield` ends the run ([#12351](https://github.com/can1357/oh-my-pi/pull/12351) by [@pedropaulovc](https://github.com/pedropaulovc)).

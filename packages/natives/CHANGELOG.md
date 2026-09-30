@@ -3,11 +3,7 @@
 ## [Unreleased]
 
 - 版本线 1.1.22:sentinel `__piNativesV1_1_22` 与 committed bindings 同步。
-## [1.1.20] - 2026-09-23
-## [1.1.19] - 2026-09-22
-## [1.1.18] - 2026-09-22
-## [1.1.16] - 2026-09-19
-## [1.1.13] - 2026-09-10
+
 ## [1.1.11] - 2026-09-08
 
 - OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.
