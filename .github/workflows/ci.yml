@@ -975,9 +975,13 @@ jobs:
    desktop_windows:
       name: Build and smoke desktop (Windows)
       runs-on: windows-2022
-      needs: [release_metadata, native_addons]
+      # native_addons_cross, not native_addons, uploads the `native-addons`
+      # artifact this job downloads (win32-x64 is a cross target). Waiting only
+      # on the x64 job raced the upload — two release runs in a row died with
+      # "Artifact not found for name: native-addons" (damage class 10).
+      needs: [release_metadata, native_addons, native_addons_cross]
       # Release-only: same reason as desktop_linux (see above).
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() && needs.native_addons.result == 'success' }}
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() && needs.native_addons.result == 'success' && needs.native_addons_cross.result == 'success' }}
       timeout-minutes: 40
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3

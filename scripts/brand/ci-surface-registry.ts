@@ -157,8 +157,8 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{
 				job: "desktop_windows",
-				needs: ["release_metadata", "native_addons"],
-				why: "desktop packaging consumes release detection and the zeta natives binaries",
+				needs: ["release_metadata", "native_addons", "native_addons_cross"],
+				why: "native_addons_cross uploads the native-addons artifact desktop_windows downloads; needsing only the x64 job raced the upload (damage class 10, two release runs lost to it)",
 			},
 		],
 		artifactRules: [
