@@ -1,0 +1,58 @@
+Tab = {
+	_id = "tab",
+}
+
+function Tab:new(area, tab)
+	local me = setmetatable({ _area = area, _tab = tab }, { __index = self })
+	me:layout()
+	me:build()
+	return me
+end
+
+function Tab:layout()
+	local ratio = rt.mgr.ratio
+	local all = ratio[1] + ratio[2] + ratio[3]
+	self._chunks = ui.Layout()
+		:direction(ui.Layout.HORIZONTAL)
+		:constraints({
+			ui.Constraint.Ratio(ratio[1], all),
+			ui.Constraint.Ratio(ratio[2], all),
+			ui.Constraint.Ratio(ratio[3], all),
+		})
+		:split(self._area)
+end
+
+function Tab:build()
+	local c = self._chunks
+	local p = c[2].w > 0 and 0 or 1
+	self._children = {
+		Parent:new(c[1]:pad(ui.Pad(0, p, 0, 1)), self._tab),
+		Current:new(c[2]:pad(ui.Pad.x(1)), self._tab),
+		Preview:new(c[3]:pad(ui.Pad(0, 1, 0, p)), self._tab),
+		Rails:new(c, self._tab),
+		Markers:new(c, self._tab),
+	}
+end
+
+function Tab:reflow()
+	local components = { self }
+	for _, child in ipairs(self._children) do
+		components = ya.list_merge(components, child:reflow())
+	end
+	return components
+end
+
+function Tab:redraw()
+	local elements = self._base or {}
+	for _, child in ipairs(self._children) do
+		elements = ya.list_merge(elements, ui.redraw(child))
+	end
+	return elements
+end
+
+-- Mouse events
+function Tab:click(event, up) end
+
+function Tab:scroll(event, step) end
+
+function Tab:touch(event, step) end
