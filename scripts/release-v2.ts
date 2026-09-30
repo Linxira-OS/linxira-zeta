@@ -183,11 +183,16 @@ async function assertConsistency(version: string): Promise<void> {
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
 
-	const sentinel = `__piNativesV${version.replace(/\./g, "_")}`;
-	for (const sentinelFile of SENTINEL_FILES) {
-		const content = await Bun.file(sentinelFile).text();
-		if (!content.includes(sentinel)) {
-			problems.push(`${sentinelFile}: missing ${sentinel} sentinel`);
+	// v18.3.3+ mechanism: no per-release sentinel name — verify the stamp
+	// mechanism symbols instead (same list as the Step-2c check below).
+	for (const [file, needle] of [
+		["crates/pi-natives/src/lib.rs", "pub fn pi_natives_build_version()"],
+		["packages/natives/native/index.js", "__piNativesBuildVersion"],
+		["packages/natives/native/index.d.ts", "__piNativesBuildVersion"],
+	]) {
+		const content = await Bun.file(file).text();
+		if (!content.includes(needle)) {
+			problems.push(`${file}: missing pi-natives version-stamp symbol "${needle}"`);
 		}
 	}
 
