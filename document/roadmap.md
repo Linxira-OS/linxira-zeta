@@ -657,9 +657,22 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   (@linxiraos/main、ide 系)先由用户手动以现行版本号(1.1.21)首发占
   位,之后用户在 npm 配好 trusted publishing,再接自动发布链
   (main-publish.yml 已备未接线);每次发包全包系统一版本号(无论有无
-  changelog),但依赖不强制最新(main 可引用旧版叶子)。迭代队列:任意
-  拖拽布局编辑器、鼠标窗格路由、files 选型集成、tab 会话/handoff 联动
+  changelog),但依赖不强制最新(main 可引用旧版叶子)。**工作台交互准则
+  (2026-09-30 用户裁定):零快捷键基线** —— 一切界面元素都要能鼠标高
+  效点击(标签切换/新建/关闭、窗格聚焦/关闭、布局切换、退出、菜单、
+  设置),快捷键只做可选加速器;这从根上消解跨工具热键冲突(工作台
+  Alt 平面 vs files/两个 editor/zeta-c 各自的键位,冲突最多损失加速、
+  不损失功能),设置页/自定义键位按此准则设计。迭代队列:**真菜单栏
+  系统**(顶部标签栏+可展开菜单栏,File/Pane/Tab/Tools/Settings 树)、
+  **设置页**(键位/主题/默认 shell/套件路径等)+ 自定义键位、
+  任意拖拽布局编辑器、files 选型集成、tab 会话/handoff 联动
   (handoff.json 机制扩展)、官网更新(用户提供仓库位置后跨文件改)。
+  **已落(2026-09-30)**:鼠标路由第一层(标签栏 ‹›步进/点击切换/
+  活动标签×关闭/＋新建;状态栏 [layout]/[quit] 可点;点击窗格聚焦;
+  聚焦窗格标题 ✕ 关闭;活动标签 ▸+粗体下划线高亮)、缺套件工具时
+  窗格内一键 npm 快装(cmd /k 保窗可见)、帮助层非模态(曾吞掉
+  Alt+T 等全部热键)、Windows 默认 shell 修正(pwsh/powershell,不再
+  落 System32 bash.exe 的 WSL 陷阱)、无色 chrome(终端自身底色)。
 
 ## Notes
 

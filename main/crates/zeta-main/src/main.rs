@@ -3,6 +3,7 @@ mod help;
 mod layout;
 mod tab;
 mod tabs_ui;
+mod widgets;
 
 use std::process::ExitCode;
 

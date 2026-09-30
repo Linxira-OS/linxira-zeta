@@ -1,14 +1,16 @@
 use crate::help;
 use crate::layout::{Template, pane_areas};
 use crate::tab::{PaneKind, Tab};
-use crate::tabs_ui::{TabBar, menu_bar_text, status_text};
+use crate::tabs_ui::{TabBar, menu_bar_text, status_text, tab_bar_hits};
 use anyhow::Result;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+	self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind,
+};
 use ratatui::Terminal as RatuTerminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Span;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
 use std::io::Stdout;
 use std::time::Duration;
@@ -44,6 +46,12 @@ pub struct Workspace {
 	help_open: bool,
 	/// One-line notice shown in the status bar (tool missing, actions done).
 	notice: Option<String>,
+	/// Per-pane rects of the active tab as laid out in the last frame —
+	/// the hit-test source for mouse routing.
+	last_pane_areas: Vec<ratatui::layout::Rect>,
+	/// Clickable right-edge segments of the status bar: (x, width) of
+	/// `[layout]` and `[quit]`, plus the row they live on.
+	status_hits: ((u16, u16), (u16, u16), u16),
 }
 
 pub fn run() -> Result<()> {
@@ -81,7 +89,11 @@ fn event_loop(terminal: &mut RatuTerminal<CrosstermBackend<Stdout>>) -> Result<(
 						return Ok(());
 					}
 				},
-				Event::Mouse(mouse) => ws.handle_mouse(mouse),
+				Event::Mouse(mouse) => {
+					if ws.handle_mouse(mouse) {
+						return Ok(());
+					}
+				},
 				Event::Resize(cols, rows) => ws.resize(rows, cols),
 				_ => {},
 			}
@@ -103,6 +115,8 @@ impl Workspace {
 			config: std::sync::Arc::new(termide_config::Config::default()),
 			help_open: false,
 			notice: None,
+			last_pane_areas: Vec::new(),
+			status_hits: ((0, 0), (0, 0), 0),
 		})
 	}
 
@@ -113,10 +127,16 @@ impl Workspace {
 	/// Returns `true` when the workspace should quit.
 	fn handle_key(&mut self, key: KeyEvent) -> Result<bool> {
 		if self.help_open {
-			if matches!(key.code, KeyCode::F(1) | KeyCode::Esc) {
-				self.help_open = false;
+			// The overlay never traps the workspace: Esc/F1 just dismiss it,
+			// plain typing falls through to the focused pane, and Alt combos
+			// stay live (a modal help was swallowing hotkeys like Alt+T).
+			self.help_open = false;
+			if matches!(key.code, KeyCode::Esc) {
+				return Ok(false);
 			}
-			return Ok(false);
+			if !key.modifiers.contains(KeyModifiers::ALT) && !matches!(key.code, KeyCode::F(1)) {
+				// fall through: plain keys belong to the focused pane
+			}
 		}
 		if key.modifiers.contains(KeyModifiers::ALT) {
 			match key.code {
@@ -149,7 +169,9 @@ impl Workspace {
 				KeyCode::Char('n') | KeyCode::Char('N') => self.add_pane(PaneKind::Shell)?,
 				KeyCode::Char('c') | KeyCode::Char('C') => self.add_pane(PaneKind::Agent)?,
 				KeyCode::Char('e') | KeyCode::Char('E') => self.add_pane(PaneKind::Editor)?,
+				KeyCode::Char('i') | KeyCode::Char('I') => self.add_pane(PaneKind::Ide)?,
 				KeyCode::Char('s') | KeyCode::Char('S') => self.add_pane(PaneKind::Shell)?,
+				KeyCode::Char('d') | KeyCode::Char('D') => self.add_pane(PaneKind::Time)?,
 				KeyCode::Char('l') | KeyCode::Char('L') => {
 					let tab = self.active();
 					tab.template = tab.template.next();
@@ -175,26 +197,71 @@ impl Workspace {
 			self.help_open = true;
 			return Ok(false);
 		}
-		// Everything else belongs to the focused pane.
+		// Everything else belongs to the focused pane (widget panes have no
+		// child to type into).
 		let chord = KeyChord::new(key, &self.normalizer);
 		let events = {
 			let tab = self.active();
-			if tab.panes.is_empty() {
+			let Some(pane) = tab.panes.get_mut(tab.active) else {
 				return Ok(false);
-			}
-			tab.panes[tab.active].term.handle_key(chord)
+			};
+			let Some(term) = pane.as_terminal() else {
+				return Ok(false);
+			};
+			term.handle_key(chord)
 		};
 		self.apply_events(events);
 		Ok(false)
 	}
 
-	fn handle_mouse(&mut self, mouse: crossterm::event::MouseEvent) {
+	/// Mouse routing. Returns `true` when the workspace should quit.
+	fn handle_mouse(&mut self, mouse: crossterm::event::MouseEvent) -> bool {
+		if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+			return false;
+		}
+		// Tab bar row: ‹/› steppers, tab switch, active-tab ×, `+` new tab.
+		if mouse.row == 0 {
+			let titles: Vec<String> = self.tabs.iter().map(tab_title).collect();
+			let hits = tab_bar_hits(&titles, self.active_tab);
+			let in_box = |box_: (u16, u16)| mouse.column >= box_.0 && mouse.column < box_.0 + box_.1;
+			if in_box(hits.prev) {
+				self.active_tab = if self.active_tab == 0 {
+					self.tabs.len() - 1
+				} else {
+					self.active_tab - 1
+				};
+			} else if let Some(idx) = hits.tabs.iter().position(|box_| in_box(*box_)) {
+				self.active_tab = idx;
+			} else if hits.closes[self.active_tab].is_some_and(in_box) {
+				if self.tabs.len() > 1 {
+					self.tabs.remove(self.active_tab);
+					self.active_tab = self.active_tab.min(self.tabs.len() - 1);
+				} else {
+					return true;
+				}
+			} else if in_box(hits.next) {
+				self.active_tab = (self.active_tab + 1) % self.tabs.len();
+			} else if in_box(hits.plus) {
+				self.new_tab();
+			}
+			return false;
+		}
+		// Status bar right edge: [layout] cycles, [quit] exits.
+		let (layout_box, quit_box, status_row) = self.status_hits;
+		if status_row != 0 && mouse.row == status_row {
+			if mouse.column >= layout_box.0 && mouse.column < layout_box.0 + layout_box.1 {
+				let tab = self.active();
+				tab.template = tab.template.next();
+				self.reflow_active();
+			} else if mouse.column >= quit_box.0 && mouse.column < quit_box.0 + quit_box.1 {
+				return true;
+			}
+			return false;
+		}
 		let position = ratatui::layout::Position { x: mouse.column, y: mouse.row };
 		let areas = self.pane_area_map();
 		if areas.is_empty() {
-			// v1 routes focus by keyboard; without a computed area map there is
-			// nothing to hit-test yet.
-			return;
+			return false;
 		}
 		if let Some((idx, area)) = areas
 			.iter()
@@ -202,10 +269,27 @@ impl Workspace {
 			.find(|(_, a)| a.contains(position))
 			.map(|(i, a)| (i, *a))
 		{
+			// The focused pane's top-right ✕ closes it.
+			let focused = idx == self.active().active;
+			let close_x = area.right().saturating_sub(4);
+			if focused
+				&& mouse.row == area.y
+				&& mouse.column >= close_x
+				&& mouse.column < area.right() - 1
+			{
+				let tab = self.active();
+				tab.close_pane(idx);
+				self.reflow_active();
+				return false;
+			}
 			self.active().active = idx;
-			let events = self.active().panes[idx].term.handle_mouse(mouse, area);
+			let events = match self.active().panes[idx].as_terminal() {
+				Some(term) => term.handle_mouse(mouse, area),
+				None => Vec::new(),
+			};
 			self.apply_events(events);
 		}
+		false
 	}
 
 	fn apply_events(&mut self, events: Vec<PanelEvent>) {
@@ -232,6 +316,18 @@ impl Workspace {
 
 	fn add_pane(&mut self, kind: PaneKind) -> Result<()> {
 		let label = kind.label();
+		// Suite tool missing from PATH? Bring it up in-place: spawn a pane
+		// that installs the npm package, then the next Alt+<tool> finds it.
+		if let Some(install) = kind.install_command() {
+			let notice = format!("{label} not on PATH — installing in a pane: {install}");
+			let cwd = std::env::current_dir().ok();
+			let result = self.active().add_pane(PaneKind::Command(install), cwd);
+			self.notice = match &result {
+				Ok(()) => Some(notice),
+				Err(error) => Some(format!("{label}: {error}")),
+			};
+			return result;
+		}
 		let cwd = std::env::current_dir().ok();
 		let result = self.active().add_pane(kind, cwd);
 		match &result {
@@ -260,12 +356,15 @@ impl Workspace {
 		for (tab_idx, tab) in self.tabs.iter_mut().enumerate() {
 			let mut dead = Vec::new();
 			for (idx, pane) in tab.panes.iter_mut().enumerate() {
-				for event in pane.term.tick() {
+				let Some(term) = pane.as_terminal() else {
+					continue; // widget panes have no child process to reap
+				};
+				for event in term.tick() {
 					if matches!(event, PanelEvent::Quit) {
 						dead.push(idx);
 					}
 				}
-				if !pane.term.is_alive() {
+				if !term.is_alive() {
 					dead.push(idx);
 				}
 			}
@@ -294,11 +393,8 @@ impl Workspace {
 	}
 
 	/// Current content-area rect and the per-pane rects of the active tab.
-	/// Mouse routing uses this in a later iteration; panes are keyboard-focus
-	/// driven in v1.
-	#[allow(dead_code)]
 	fn pane_area_map(&self) -> Vec<ratatui::layout::Rect> {
-		Vec::new()
+		self.last_pane_areas.clone()
 	}
 
 	fn draw(&mut self, frame: &mut ratatui::Frame) {
@@ -320,8 +416,12 @@ impl Workspace {
 
 		let content = rows[2];
 		let panel_config = PanelConfig::default();
+		let areas = {
+			let tab = &self.tabs[self.active_tab];
+			pane_areas(content, tab.template, tab.panes.len())
+		};
+		self.last_pane_areas = areas.clone();
 		let tab = &mut self.tabs[self.active_tab];
-		let areas = pane_areas(content, tab.template, tab.panes.len());
 		for (idx, pane) in tab.panes.iter_mut().enumerate() {
 			let Some(area) = areas.get(idx).copied() else {
 				continue;
@@ -330,7 +430,10 @@ impl Workspace {
 			// 2 rows are consumed by the pane border).
 			let inner_cols = area.width.saturating_sub(2).max(1);
 			let inner_rows = area.height.saturating_sub(2).max(1);
-			let _ = pane.term.resize(inner_rows, inner_cols);
+			let is_widget = pane.as_terminal().is_none();
+			if !is_widget {
+				let _ = pane.as_terminal().unwrap().resize(inner_rows, inner_cols);
+			}
 			let focused = idx == tab.active;
 			let pane_style = if focused {
 				Style::default()
@@ -339,13 +442,29 @@ impl Workspace {
 			} else {
 				Style::default().fg(Color::DarkGray)
 			};
-			let block = Block::default()
+			let mut block = Block::default()
 				.borders(Borders::ALL)
 				.border_type(BorderType::Rounded)
 				.title(Span::styled(format!(" {} ", pane.kind.label()), pane_style))
 				.border_style(pane_style);
+			if focused {
+				// Clickable close affordance on the focused pane (top-right).
+				block = block.title(
+					ratatui::text::Line::styled(
+						" ✕ ",
+						Style::default()
+							.fg(Color::White)
+							.add_modifier(Modifier::BOLD),
+					)
+					.right_aligned(),
+				);
+			}
 			let inner = block.inner(area);
 			frame.render_widget(block, area);
+			if is_widget {
+				crate::widgets::render_time_calendar(inner, frame.buffer_mut());
+				continue;
+			}
 			let colors = ThemeColors::from(&self.theme);
 			let ctx = RenderContext {
 				theme: &colors,
@@ -357,8 +476,9 @@ impl Workspace {
 				border_right_x: Some(area.right().saturating_sub(1)),
 				border_bottom_y: Some(area.bottom().saturating_sub(1)),
 			};
-			pane.term.prepare_render(&self.theme, &self.config);
-			pane.term.render(inner, frame.buffer_mut(), &ctx);
+			let term = pane.as_terminal().expect("non-widget pane holds a PTY");
+			term.prepare_render(&self.theme, &self.config);
+			term.render(inner, frame.buffer_mut(), &ctx);
 		}
 
 		let status = self.notice.clone().unwrap_or_else(|| {
@@ -371,6 +491,23 @@ impl Workspace {
 			Paragraph::new(status).style(Style::default().fg(Color::DarkGray)),
 			rows[3],
 		);
+		// Clickable status-bar right edge: [layout] cycles the pane layout,
+		// [quit] exits the workspace — mouse-first operation, zero hotkeys.
+		const STATUS_TOOLS: &str = "[layout] [quit]";
+		let tools_width = Span::raw(STATUS_TOOLS).width() as u16;
+		if rows[3].width > tools_width {
+			let start = rows[3].right() - tools_width - 1;
+			frame.render_widget(
+				Paragraph::new(Line::from(vec![
+					Span::styled("[layout]", Style::default().fg(Color::White)),
+					Span::styled(" ", Style::default()),
+					Span::styled("[quit]", Style::default().fg(Color::White)),
+				]))
+				.style(Style::default().fg(Color::White)),
+				ratatui::layout::Rect { x: start, y: rows[3].y, width: tools_width, height: 1 },
+			);
+			self.status_hits = ((start, 8), (start + 9, 6), rows[3].y);
+		}
 
 		if self.help_open {
 			let area = centered_rect(size, 70, 60);

@@ -16,16 +16,24 @@ KEYS (inside the workspace)
   Alt+N    new shell pane          Alt+T    new tab
   Alt+C    pane: zeta-c            Alt+W    close tab
   Alt+E    pane: zeta-e            Alt+1..9 jump to tab n
-  Alt+S    pane: shell             Alt+←/→  prev/next tab
-  Alt+L    cycle pane layout       Alt+O    focus next pane
-  Alt+X    close focused pane      F1       help overlay
+  Alt+I    pane: zeta-ide          Alt+←/→  prev/next tab
+  Alt+S    pane: shell             Alt+O    focus next pane
+  Alt+D    pane: time+calendar     Alt+X    close focused pane
+  Alt+L    cycle pane layout       F1       help overlay
   Alt+Q    quit
+
+  Mouse: click a tab (or +) in the tab bar, click a pane to focus it.
+  Note: an active IME can swallow Alt combos — switch to English input
+  if a hotkey does not respond.
 
 THE ZETA SUITE (each with its own --help)
   zeta-c / zeta-cli / zetacode   coding agent CLI      (npm: @linxiraos/zeta)
   zeta-editor / zeta-e           terminal editor (TTT) (npm: @linxiraos/editor)
   zeta-ide / zeta-i              terminal IDE (TermIDE)(npm: @linxiraos/ide)
   files                          terminal file manager (in selection)
+
+  A suite tool missing from PATH installs itself into a pane on first
+  Alt+<tool> (npm i -g <package>); press the same keys again afterwards.
 
 PANES
 A pane is a real terminal (PTY): anything that runs in a terminal runs in a
@@ -39,12 +47,16 @@ pub fn overlay_text() -> &'static str {
 	"zeta workspace — help\n\
 	\n\
 	tabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ cycle\n\
-	panes    Alt+N shell · Alt+C zeta-c · Alt+E zeta-e · Alt+L layout\n\
-	          Alt+O next pane · Alt+X close pane\n\
+	panes    Alt+N shell · Alt+C zeta-c · Alt+E zeta-e · Alt+I zeta-ide\n\
+	          Alt+D time+calendar · Alt+L layout · Alt+O next pane\n\
+	          Alt+X close pane\n\
+	mouse    click tab bar (switch / +) · click a pane to focus it\n\
 	general  F1 help · Alt+Q quit\n\
 	\n\
 	suite    zeta-c/zeta-cli/zetacode · zeta-editor/zeta-e · zeta-ide/zeta-i\n\
 	          files (in selection)\n\
+	missing  a missing suite tool installs itself into a pane on first use\n\
 	\n\
+	note     an active IME can swallow Alt combos — use English input\n\
 	press F1 or Esc to close"
 }

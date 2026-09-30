@@ -4,8 +4,54 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 
-/// The top-level tab bar: `ζ  1 title  2 title …  +`, active tab highlighted
-/// by weight/underline only — the chrome stays colorless by design.
+/// Hit geometry for the tab bar, shared by `TabBar::render` and mouse
+/// routing so clicks always agree with what is on screen.
+pub struct TabHits {
+	/// `‹` previous tab.
+	pub prev: (u16, u16),
+	/// `(x, width)` per tab, in title order.
+	pub tabs: Vec<(u16, u16)>,
+	/// `×` close box per tab — present on the active tab only.
+	pub closes: Vec<Option<(u16, u16)>>,
+	/// `›` next tab.
+	pub next: (u16, u16),
+	/// `+` new tab.
+	pub plus: (u16, u16),
+}
+
+pub fn tab_bar_hits(titles: &[String], active: usize) -> TabHits {
+	let mut x: u16 = 0;
+	let prev = (x, 2); // " ‹"
+	x += 2;
+	let mut tabs = Vec::with_capacity(titles.len());
+	let mut closes = Vec::with_capacity(titles.len());
+	for (idx, title) in titles.iter().enumerate() {
+		let text = if idx == active {
+			format!("▸ {}:{} ", idx + 1, truncate(title, 18))
+		} else {
+			format!(" {}:{} ", idx + 1, truncate(title, 18))
+		};
+		let width = Span::raw(text).width() as u16;
+		tabs.push((x, width));
+		x += width;
+		if idx == active {
+			closes.push(Some((x, 2))); // " ×"
+			x += 2;
+		} else {
+			closes.push(None);
+		}
+	}
+	let next = (x, 2); // " ›"
+	x += 2;
+	let plus = (x, 2); // " +"
+	TabHits { prev, tabs, closes, next, plus }
+}
+
+/// The top-level tab bar: `‹ ▸ 1 shell ×  2 zeta-c › +`.
+///
+/// Mouse-first: every element is clickable (prev/next steppers, tab switch,
+/// active-tab ×, new tab). Active tab is marked with ▸ plus bold+underline;
+/// the rest are dim. The chrome stays colorless by design.
 pub struct TabBar<'a> {
 	pub titles: &'a [String],
 	pub active: usize,
@@ -16,18 +62,21 @@ impl Widget for TabBar<'_> {
 		if area.height < 1 || area.width < 3 {
 			return;
 		}
-		let mut spans = Vec::with_capacity(self.titles.len() * 2 + 3);
-		spans.push(Span::styled(" ζ", Style::default().add_modifier(Modifier::BOLD)));
+		let dim = Style::default().fg(Color::DarkGray);
+		let active_style = Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+		let mut spans = Vec::with_capacity(self.titles.len() * 3 + 5);
+		spans.push(Span::styled(" ‹", dim));
 		for (idx, title) in self.titles.iter().enumerate() {
 			let label = truncate(title, 18);
-			let style = if idx == self.active {
-				Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+			if idx == self.active {
+				spans.push(Span::styled(format!("▸ {}:{} ", idx + 1, label), active_style));
+				spans.push(Span::styled("×", Style::default().add_modifier(Modifier::BOLD)));
 			} else {
-				Style::default().fg(Color::DarkGray)
-			};
-			spans.push(Span::styled(format!(" {}:{} ", idx + 1, label), style));
+				spans.push(Span::styled(format!(" {}:{} ", idx + 1, label), dim));
+			}
 		}
-		spans.push(Span::styled(" +", Style::default().fg(Color::DarkGray)));
+		spans.push(Span::styled(" ›", dim));
+		spans.push(Span::styled(" +", dim));
 		let line = Line::from(spans);
 		let widths: Vec<u16> = line.spans.iter().map(|s| s.width() as u16).collect();
 		let mut x = area.x;
@@ -42,9 +91,10 @@ impl Widget for TabBar<'_> {
 }
 
 /// The quick-launch menu strip under the tab bar. MVP is a static hint row;
-/// interactive menus arrive with the menu subsystem iteration.
+/// the full menu-bar subsystem (File/Pane/Tab/Tools/Settings trees) is a
+/// roadmap iteration.
 pub fn menu_bar_text() -> String {
-	" zeta workspace  ·  Alt+N shell · Alt+C zeta-c · Alt+E zeta-e · Alt+L layout · Alt+T tab · F1 help ".into()
+	" zeta workspace  ·  Alt+N shell · Alt+C zeta-c · Alt+E zeta-e · Alt+I zeta-ide · Alt+D time · Alt+L layout · Alt+O focus · Alt+X close pane · Alt+W close tab · F1 help · Alt+Q quit ".into()
 }
 
 /// Bottom status line: focused pane + layout + suite reminder.
