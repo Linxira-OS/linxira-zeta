@@ -7,12 +7,32 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifier
 use ratatui::Terminal as RatuTerminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
 use std::io::Stdout;
 use std::time::Duration;
 use termide_core::{KeyChord, Panel, PanelConfig, PanelEvent, RenderContext, ThemeColors};
 use termide_keyboard::{KeyNormalizer, KeyboardCaps};
+
+/// Colorless theme: inherit the terminal's own colors wherever possible, so
+/// panes render on the terminal's plain background instead of a palette.
+fn plain_theme() -> termide_theme::Theme {
+	termide_theme::Theme {
+		name: "zeta-plain",
+		bg: Color::Reset,
+		fg: Color::Reset,
+		accented_bg: Color::Reset,
+		accented_fg: Color::White,
+		selected_bg: Color::DarkGray,
+		selected_fg: Color::White,
+		disabled: Color::DarkGray,
+		success: Color::Green,
+		warning: Color::Yellow,
+		error: Color::Red,
+		is_light: Some(false),
+	}
+}
 
 /// The workspace: top-level tabs, each tab a tiled set of PTY panes.
 pub struct Workspace {
@@ -79,7 +99,7 @@ impl Workspace {
 			tabs: vec![first],
 			active_tab: 0,
 			normalizer: KeyNormalizer::new(KeyboardCaps::default()),
-			theme: termide_theme::Theme::default(),
+			theme: plain_theme(),
 			config: std::sync::Arc::new(termide_config::Config::default()),
 			help_open: false,
 			notice: None,
@@ -293,10 +313,12 @@ impl Workspace {
 
 		let titles: Vec<String> = self.tabs.iter().map(tab_title).collect();
 		frame.render_widget(TabBar { titles: &titles, active: self.active_tab }, rows[0]);
-		frame.render_widget(Paragraph::new(menu_bar_text()), rows[1]);
+		frame.render_widget(
+			Paragraph::new(menu_bar_text()).style(Style::default().fg(Color::DarkGray)),
+			rows[1],
+		);
 
 		let content = rows[2];
-		let _colors = ThemeColors::from(&self.theme);
 		let panel_config = PanelConfig::default();
 		let tab = &mut self.tabs[self.active_tab];
 		let areas = pane_areas(content, tab.template, tab.panes.len());
@@ -310,14 +332,18 @@ impl Workspace {
 			let inner_rows = area.height.saturating_sub(2).max(1);
 			let _ = pane.term.resize(inner_rows, inner_cols);
 			let focused = idx == tab.active;
+			let pane_style = if focused {
+				Style::default()
+					.fg(Color::White)
+					.add_modifier(Modifier::BOLD)
+			} else {
+				Style::default().fg(Color::DarkGray)
+			};
 			let block = Block::default()
 				.borders(Borders::ALL)
-				.title(format!(" {} ", pane.kind.label()))
-				.border_style(if focused {
-					Style::default().add_modifier(Modifier::BOLD)
-				} else {
-					Style::default()
-				});
+				.border_type(BorderType::Rounded)
+				.title(Span::styled(format!(" {} ", pane.kind.label()), pane_style))
+				.border_style(pane_style);
 			let inner = block.inner(area);
 			frame.render_widget(block, area);
 			let colors = ThemeColors::from(&self.theme);
@@ -341,7 +367,10 @@ impl Workspace {
 			let label = pane.map(|p| p.kind.label()).unwrap_or_default();
 			status_text(&label, tab.template.label(), tab.active, tab.panes.len())
 		});
-		frame.render_widget(Paragraph::new(status), rows[3]);
+		frame.render_widget(
+			Paragraph::new(status).style(Style::default().fg(Color::DarkGray)),
+			rows[3],
+		);
 
 		if self.help_open {
 			let area = centered_rect(size, 70, 60);

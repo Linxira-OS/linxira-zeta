@@ -222,61 +222,48 @@ fn where_first(binary: &str) -> Option<String> {
 /// Detect available shell on the system.
 ///
 /// Checks in order:
-/// - Windows: $SHELL (Git Bash), pwsh.exe, powershell.exe, cmd.exe ($COMSPEC)
+/// - Windows: $SHELL (absolute Windows path only), pwsh.exe, powershell.exe,
+///   Git Bash (install dirs / derived from git.exe), cmd.exe ($COMSPEC).
+///   Never `where bash.exe` — that resolves to the WSL launcher on stock
+///   Windows and would silently drop the user into a WSL shell.
 /// - Unix: NixOS system shells, $SHELL, common shell paths
 pub fn detect_shell() -> String {
     #[cfg(windows)]
     {
-        // Check $SHELL first (set by Git Bash, MSYS2, Cygwin, etc.)
+        // Check $SHELL first, but only trust absolute Windows paths (drive
+        // letter). MSYS/Git-Bash environments export "/usr/bin/bash", which
+        // a native binary cannot spawn and must never fall back to.
         if let Ok(shell) = std::env::var("SHELL") {
-            if std::path::Path::new(&shell).exists() {
+            if shell.contains(':') && std::path::Path::new(&shell).exists() {
                 return shell;
             }
         }
-        // Check for Git Bash at standard install locations
-        let git_bash_paths = [
-            r"C:\Program Files\Git\bin\bash.exe",
-            r"C:\Program Files (x86)\Git\bin\bash.exe",
+        // PowerShell Core first, then Windows PowerShell — the Windows-native
+        // defaults. Never probe `where bash.exe`: on stock Windows that hits
+        // C:\Windows\System32\bash.exe, the WSL launcher, which would silently
+        // drop the user into a WSL shell.
+        if let Some(path) = where_first("pwsh.exe") {
+            return path;
+        }
+        if let Some(path) = where_first("powershell.exe") {
+            return path;
+        }
+        // Git Bash only through an actual Git installation: standard locations
+        // plus a derivation from `where git.exe` (Git may live on any drive).
+        let mut git_bash_paths = vec![
+            r"C:\Program Files\Git\bin\bash.exe".to_string(),
+            r"C:\Program Files (x86)\Git\bin\bash.exe".to_string(),
         ];
+        if let Some(git) = where_first("git.exe") {
+            if let Some(root) = git.rsplit("\\cmd\\git.exe").next() {
+                if root != git {
+                    git_bash_paths.push(format!("{root}\\bin\\bash.exe"));
+                }
+            }
+        }
         for path in &git_bash_paths {
             if std::path::Path::new(path).exists() {
-                return path.to_string();
-            }
-        }
-        // Also check if bash is on PATH (e.g. MSYS2, custom Git install)
-        if let Ok(output) = std::process::Command::new("where").arg("bash.exe").output() {
-            if output.status.success() {
-                if let Ok(path) = String::from_utf8(output.stdout) {
-                    let path = path.trim();
-                    if !path.is_empty() {
-                        return path.lines().next().unwrap_or(path).to_string();
-                    }
-                }
-            }
-        }
-        // Check for PowerShell Core (pwsh)
-        if let Ok(output) = std::process::Command::new("where").arg("pwsh.exe").output() {
-            if output.status.success() {
-                if let Ok(path) = String::from_utf8(output.stdout) {
-                    let path = path.trim();
-                    if !path.is_empty() {
-                        return path.lines().next().unwrap_or(path).to_string();
-                    }
-                }
-            }
-        }
-        // Check for Windows PowerShell
-        if let Ok(output) = std::process::Command::new("where")
-            .arg("powershell.exe")
-            .output()
-        {
-            if output.status.success() {
-                if let Ok(path) = String::from_utf8(output.stdout) {
-                    let path = path.trim();
-                    if !path.is_empty() {
-                        return path.lines().next().unwrap_or(path).to_string();
-                    }
-                }
+                return path.clone();
             }
         }
         // Fallback to cmd.exe

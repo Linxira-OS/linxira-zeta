@@ -1,10 +1,11 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 
-/// The top-level tab bar: `1 title  2 title …  +`, active tab highlighted.
+/// The top-level tab bar: `ζ  1 title  2 title …  +`, active tab highlighted
+/// by weight/underline only — the chrome stays colorless by design.
 pub struct TabBar<'a> {
 	pub titles: &'a [String],
 	pub active: usize,
@@ -15,17 +16,18 @@ impl Widget for TabBar<'_> {
 		if area.height < 1 || area.width < 3 {
 			return;
 		}
-		let mut spans = Vec::with_capacity(self.titles.len() * 2 + 2);
+		let mut spans = Vec::with_capacity(self.titles.len() * 2 + 3);
+		spans.push(Span::styled(" ζ", Style::default().add_modifier(Modifier::BOLD)));
 		for (idx, title) in self.titles.iter().enumerate() {
 			let label = truncate(title, 18);
 			let style = if idx == self.active {
-				Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
+				Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
 			} else {
-				Style::default()
+				Style::default().fg(Color::DarkGray)
 			};
 			spans.push(Span::styled(format!(" {}:{} ", idx + 1, label), style));
 		}
-		spans.push(Span::raw(" + "));
+		spans.push(Span::styled(" +", Style::default().fg(Color::DarkGray)));
 		let line = Line::from(spans);
 		let widths: Vec<u16> = line.spans.iter().map(|s| s.width() as u16).collect();
 		let mut x = area.x;
