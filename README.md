@@ -23,12 +23,10 @@ supported; there is no macOS build.
 | `zeta-c` / `zetacode`    | `@linxiraos/zeta`   | Coding agent CLI                                |
 | `zeta-editor` / `zeta-e` | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
 | `zeta-ide` / `zeta-i`    | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
-| `zeta files` / `yazi`    | system install      | Terminal file manager (yazi)                    |
 
 Every tool launches standalone with its own `--help`. The workbench is the
 unified entry: `zeta code` (or `zeta c`) hands off to the coding agent,
-`zeta editor`/`zeta e`, `zeta ide`/`zeta i`, `zeta files`/`zeta f` to the
-others.
+`zeta editor`/`zeta e` and `zeta ide`/`zeta i` to the others.
 
 ## Quick Start
 
@@ -253,11 +251,10 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 | `zeta-c` / `zetacode`    | `@linxiraos/zeta`   | 编码 Agent CLI                  |
 | `zeta-editor` / `zeta-e` | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
 | `zeta-ide` / `zeta-i`    | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
-| `zeta files` / `yazi`    | 系统安装            | 终端文件管理器(yazi)            |
 
 每个工具都能独立启动、各有自己的 `--help`。工作区是统一入口:
 `zeta code`(或 `zeta c`)接力编码 Agent,`zeta editor`/`zeta e`、
-`zeta ide`/`zeta i`、`zeta files`/`zeta f` 接力其余工具。
+`zeta ide`/`zeta i` 接力其余工具。
 
 ### 快速开始
 
