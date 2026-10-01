@@ -163,7 +163,7 @@ mod tests {
 			for b in SUITE.iter().skip(i + 1) {
 				for alias in a.bins {
 					assert!(
-						!b.bins.contains(&alias),
+						!b.bins.contains(alias),
 						"`{alias}` claimed by both {} and {}",
 						a.name,
 						b.name

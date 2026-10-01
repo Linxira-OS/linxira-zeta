@@ -189,7 +189,7 @@ mod tests {
 		assert!(!settings.drag, "a garbled value falls back to default, not true");
 		assert!(!settings.focus_follows_mouse);
 		std::fs::remove_file(&path).ok();
-		assert_eq!(load_from(&std::path::Path::new("Z:/nope/missing.toml")), Settings::default());
+		assert_eq!(load_from(std::path::Path::new("Z:/nope/missing.toml")), Settings::default());
 	}
 
 	#[test]

@@ -65,14 +65,11 @@ enum Hit {
 	Quit,
 }
 
-/// Drag interactions — pane swap/move, boundary resize, tab reorder. The
-/// 2026-10-01 investigation concluded the weighted-tree machinery is sound
-/// (unit-tested splits, detaches, swaps, one-to-one resize with a min-weight
-/// clamp); resize drags pin the flanking pane pair at press time and track a
-/// single edge, so nested boundaries are never re-grabbed mid-drag. The
-/// layer is a runtime Settings toggle (default on), not a compile flag.
-
-/// What a press-drag is currently doing.
+/// What a press-drag is currently doing. The drag layer runs while the
+/// Settings toggle is on (default on) — a runtime switch, not a compile
+/// flag. The 2026-10-01 investigation concluded the weighted-tree machinery
+/// is sound: resize drags pin the flanking pane pair at press time and
+/// track a single edge, so nested boundaries are never re-grabbed mid-drag.
 enum Drag {
 	/// Reordering tabs along the tab row.
 	TabReorder(usize),
@@ -110,8 +107,6 @@ pub struct Workspace {
 	/// The pane canvas from the last frame (between the chrome and the
 	/// dock/status rows) — the resize baseline, identical to what was drawn.
 	last_content: Rect,
-	/// Clickable right-edge segments of the status bar.
-	status_hits: ((u16, u16), (u16, u16), u16),
 	open_menu: Option<usize>,
 	/// Menu trigger boxes from the last frame, for dropdown placement.
 	menu_boxes: Vec<(u16, u16)>,
@@ -187,7 +182,6 @@ impl Workspace {
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
 			last_content: Rect::default(),
-			status_hits: ((0, 0), (0, 0), 0),
 			open_menu: None,
 			menu_boxes: Vec::new(),
 			drag: None,

@@ -777,7 +777,7 @@ mod tests {
 		let npm = PathBuf::from(r"C:\Users\u\AppData\Roaming\npm");
 		let shims = vec![npm.join("zetacode.ps1"), npm.join("zetacode.cmd"), npm.join("zetacode")];
 		assert_eq!(
-			exec_line_in(&ps, &shims, &[npm.clone()]),
+			exec_line_in(&ps, &shims, std::slice::from_ref(&npm)),
 			Some("zetacode".to_string()),
 			"on-PATH tools are invoked like a hand-typed command, not a shim incantation"
 		);
@@ -790,7 +790,7 @@ mod tests {
 		let bash = Shell { path: PathBuf::from("bash"), flavor: ShellFlavor::Posix };
 		let exe = vec![npm.join("zetaeditor.exe")];
 		assert_eq!(
-			exec_line_in(&bash, &exe, &[npm.clone()]),
+			exec_line_in(&bash, &exe, std::slice::from_ref(&npm)),
 			Some("zetaeditor".to_string()),
 			"bash also types bare names for on-PATH .exe files"
 		);
@@ -798,7 +798,7 @@ mod tests {
 		// An extensionless sh shim under PowerShell never resolves by name.
 		let sh_only = vec![npm.join("zetacode")];
 		assert_eq!(
-			exec_line_in(&ps, &sh_only, &[npm.clone()]),
+			exec_line_in(&ps, &sh_only, std::slice::from_ref(&npm)),
 			Some(format!("& '{}'", npm.join("zetacode").display()))
 		);
 	}
