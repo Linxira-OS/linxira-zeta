@@ -12,6 +12,7 @@
     "directory": "termide"
   },
   "bin": {
+    "zetaide": "bin/zeta-ide.js",
     "zeta-ide": "bin/zeta-ide.js",
     "zeta-i": "bin/zeta-ide.js"
   },

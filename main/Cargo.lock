@@ -4845,6 +4845,7 @@ dependencies = [
  "termide-keyboard",
  "termide-panel-terminal",
  "termide-theme",
+ "unicode-width",
 ]
 
 [[package]]

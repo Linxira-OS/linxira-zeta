@@ -5,6 +5,15 @@ use std::path::PathBuf;
 use termide_core::Panel;
 use termide_panel_terminal::Terminal;
 
+/// Suite bin names, in resolution-priority order. `zeta` is deliberately
+/// absent from `AGENT_BINS`: since the npm package split it is the
+/// workbench's own bin (`@linxiraos/main`) and resolving the agent pane to
+/// it would spawn the workbench recursively.
+pub const AGENT_BINS: &[&str] = &["zetacode", "zeta-c", "zeta-cli"];
+pub const EDITOR_BINS: &[&str] = &["zetaeditor", "zeta-editor", "zeta-e"];
+pub const IDE_BINS: &[&str] = &["zeta-ide", "zeta-i"];
+pub const FILES_BINS: &[&str] = &["yazi"];
+
 /// What a pane runs — drives the pane label and the menu entries.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PaneKind {
@@ -18,22 +27,28 @@ pub enum PaneKind {
 	Pomodoro,
 	Clipboard,
 	/// Terminal file manager (yazi) — the files leg.
-	Files,
 	Command(String),
+	/// One-click bring-up of a missing suite tool: the raw install command
+	/// runs inside a modern chained shell (never cmd.exe), the pane stays
+	/// open afterwards, and the title stays readable (`install · zeta-c`).
+	Install {
+		tool: String,
+		command: String,
+	},
 }
 
 impl PaneKind {
 	pub fn label(&self) -> String {
 		match self {
 			PaneKind::Shell => "shell".into(),
-			PaneKind::Agent => "zeta-c".into(),
-			PaneKind::Editor => "zeta-e".into(),
-			PaneKind::Ide => "zeta-ide".into(),
+			PaneKind::Agent => "zetacode".into(),
+			PaneKind::Editor => "zetaeditor".into(),
+			PaneKind::Ide => "zetaide".into(),
 			PaneKind::Time => "time · calendar".into(),
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
 			PaneKind::Clipboard => "📋 clipboard".into(),
-			PaneKind::Files => "files".into(),
 			PaneKind::Command(cmd) => cmd.clone(),
+			PaneKind::Install { tool, .. } => format!("install · {tool}"),
 		}
 	}
 
@@ -42,60 +57,61 @@ impl PaneKind {
 		matches!(self, PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard)
 	}
 
-	/// The npm/native quick-install command when the tool is missing.
-	pub fn install_command_for(kind: &PaneKind) -> Option<String> {
-		let raw = match kind {
-			PaneKind::Agent if resolve_bin(&["zeta-c", "zeta"]).is_none() => {
-				"npm i -g @linxiraos/zeta"
-			},
-			PaneKind::Editor if resolve_bin(&["zeta-e", "zeta-editor"]).is_none() => {
-				"npm i -g @linxiraos/editor"
-			},
-			PaneKind::Ide if resolve_bin(&["zeta-i", "zeta-ide"]).is_none() => {
-				"npm i -g @linxiraos/ide"
-			},
-			PaneKind::Files if resolve_bin(&["yazi"]).is_none() => {
-				if cfg!(windows) {
-					"winget install sxyazi.yazi"
-				} else {
-					"sudo pacman -S yazi"
-				}
-			},
-			_ => return None,
-		};
-		Some(if cfg!(windows) {
-			format!("cmd /k {raw}")
-		} else {
-			format!("sh -c \"{raw}; exec sh\"")
-		})
-	}
-
-	/// Resolve the PTY command line, or `None` for the default shell.
-	fn command_line(&self) -> Option<String> {
+	/// The raw install spec for a suite tool: `(pane label, command)` — no
+	/// shell wrapping lives here, the spawn layer picks the shell. The suite
+	/// table renders the same strings, so both layers stay in sync.
+	pub(crate) fn install_spec(&self) -> Option<(&'static str, &'static str)> {
 		match self {
-			PaneKind::Shell | PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard => None,
-			PaneKind::Files => Some(resolve_bin(&["yazi"]).map(|b| b.to_string_lossy().into_owned())?),
-			PaneKind::Agent => {
-				Some(resolve_bin(&["zeta-c", "zeta"]).map(|b| b.to_string_lossy().into_owned())?)
-			},
-			PaneKind::Editor => {
-				Some(resolve_bin(&["zeta-e", "zeta-editor"]).map(|b| b.to_string_lossy().into_owned())?)
-			},
-			PaneKind::Ide => {
-				Some(resolve_bin(&["zeta-i", "zeta-ide"]).map(|b| b.to_string_lossy().into_owned())?)
-			},
-			PaneKind::Command(cmd) => Some(cmd.clone()),
+			PaneKind::Agent => Some(("zetacode", "npm install -g @linxiraos/zeta")),
+			PaneKind::Editor => Some(("zetaeditor", "npm install -g @linxiraos/editor")),
+			PaneKind::Ide => Some(("zetaide", "npm install -g @linxiraos/ide")),
+			_ => None,
 		}
 	}
 
-	/// The npm quick-install command for a suite tool that is not on PATH.
+	/// The install pane kind when this suite tool is missing from PATH.
 	///
 	/// The workbench offers one-click bring-up of missing suite members: the
-	/// returned command runs in a dedicated pane (`cmd /k` keeps the pane open
-	/// on Windows so the output stays visible), and the next Alt+<tool> finds
-	/// the freshly installed binary.
-	pub fn install_command(&self) -> Option<String> {
-		Self::install_command_for(self)
+	/// returned pane runs the raw install command inside a modern chained
+	/// shell (Windows PowerShell → PowerShell 7 → Git Bash — cmd.exe is
+	/// never used for installs), keeps the pane open so the output stays
+	/// visible, and the next Alt+<tool> finds the freshly installed binary.
+	pub fn install_kind(&self) -> Option<PaneKind> {
+		let bins = match self {
+			PaneKind::Agent => AGENT_BINS,
+			PaneKind::Editor => EDITOR_BINS,
+			PaneKind::Ide => IDE_BINS,
+			_ => return None,
+		};
+		if resolve_bin(bins).is_some() {
+			return None;
+		}
+		let (tool, command) = self.install_spec()?;
+		Some(PaneKind::Install { tool: tool.to_string(), command: command.to_string() })
+	}
+
+	/// The command line this pane types into its chained shell — `None` for
+	/// a bare interactive shell. Tool paths are quoted for the target shell;
+	/// the shell stays open after the command exits, so install output and
+	/// tool panes keep their history.
+	fn launch_line(&self, shell: &crate::shell::Shell) -> Option<String> {
+		match self {
+			PaneKind::Shell | PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard => None,
+			PaneKind::Command(line) => Some(line.clone()),
+			PaneKind::Install { command, .. } => Some(command.clone()),
+			PaneKind::Agent => {
+				let candidates = crate::shell::resolve_bin_candidates(AGENT_BINS);
+				crate::shell::exec_line(shell, &candidates)
+			},
+			PaneKind::Editor => {
+				let candidates = crate::shell::resolve_bin_candidates(EDITOR_BINS);
+				crate::shell::exec_line(shell, &candidates)
+			},
+			PaneKind::Ide => {
+				let candidates = crate::shell::resolve_bin_candidates(IDE_BINS);
+				crate::shell::exec_line(shell, &candidates)
+			},
+		}
 	}
 }
 
@@ -128,7 +144,7 @@ impl Pane {
 	}
 
 	/// Open a new sub-page and switch to it. Widget pages are free; PTY pages
-	/// spawn a child.
+	/// spawn the chained shell and type the pane's command into it.
 	pub fn open_page(
 		&mut self,
 		kind: PaneKind,
@@ -139,10 +155,28 @@ impl Pane {
 		let body = if kind.is_widget() {
 			PaneBody::Widget
 		} else {
-			match kind.command_line() {
-				None => PaneBody::Pty(Terminal::new_with_cwd(rows, cols, cwd)?),
-				Some(command) => PaneBody::Pty(Terminal::new_with_command(rows, cols, &command)?),
+			// Every PTY page is the modern chained shell (Windows
+			// PowerShell → PowerShell 7 → Git Bash, cmd.exe only as last
+			// resort — never for installs). The pane's command is typed
+			// into the interactive shell: quoting stays shell-correct for
+			// spaced paths, and the shell keeps the pane open after the
+			// command exits so install output remains visible.
+			let shell = match &kind {
+				PaneKind::Install { .. } => crate::shell::detect_install_shell().ok_or_else(|| {
+					anyhow!(
+						"no install shell found — installs need Windows PowerShell, \
+						 PowerShell 7 or Git Bash; cmd.exe is never used for installs"
+					)
+				})?,
+				_ => crate::shell::detect_shell(),
+			};
+			let mut term = Terminal::new_with_shell(rows, cols, &shell.path.to_string_lossy(), cwd)?;
+			if let Some(line) = kind.launch_line(&shell) {
+				// Input is buffered by the pty until the shell reads it,
+				// so sending before the first prompt is safe.
+				let _ = term.send_command(&line);
 			}
+			PaneBody::Pty(term)
 		};
 		self.pages.push(Page { kind, body });
 		self.page = self.pages.len() - 1;
@@ -337,21 +371,74 @@ fn count_leaves(node: &PaneNode) -> usize {
 	}
 }
 
-/// First existing binary on PATH among `names`.
+/// First existing binary among `names`, via the shell layer's PATHEXT-aware
+/// probe: process PATH (the same value the pty child inherits), then npm/
+/// native global-bin dirs a stale GUI PATH may be missing, then `where.exe`.
+///
+/// npm's Windows installs are shims — `name`, `name.ps1`, `name.cmd` — with
+/// no `name.exe`; probing only `.exe` reported installed tools as missing
+/// and opened bogus install panes.
 pub fn resolve_bin(names: &[&str]) -> Option<PathBuf> {
-	let path = std::env::var_os("PATH")?;
-	let exe_ext = if cfg!(windows) { ".exe" } else { "" };
-	for dir in std::env::split_paths(&path) {
-		for name in names {
-			let candidate = dir.join(format!("{name}{exe_ext}"));
-			if candidate.is_file() {
-				return Some(candidate);
-			}
-		}
-	}
-	None
+	crate::shell::resolve_bin_candidates(names)
+		.into_iter()
+		.next()
 }
 
 /// Ensure the Panel trait is linked even if call sites change.
 #[allow(dead_code)]
 fn _panel_bound(_: &dyn Panel) {}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn install_specs_map_to_npm_packages() {
+		assert_eq!(
+			PaneKind::Agent.install_spec(),
+			Some(("zetacode", "npm install -g @linxiraos/zeta"))
+		);
+		assert_eq!(
+			PaneKind::Editor.install_spec(),
+			Some(("zetaeditor", "npm install -g @linxiraos/editor"))
+		);
+		assert_eq!(PaneKind::Ide.install_spec(), Some(("zetaide", "npm install -g @linxiraos/ide")));
+		assert_eq!(PaneKind::Shell.install_spec(), None, "shells never install");
+	}
+
+	#[test]
+	fn install_pane_title_is_readable_and_never_a_command_line() {
+		let kind = PaneKind::Install {
+			tool: "zetacode".into(),
+			command: "npm install -g @linxiraos/zeta".into(),
+		};
+		assert_eq!(kind.label(), "install · zetacode");
+		assert!(!kind.label().contains("cmd"), "no shell invocation in titles");
+		assert!(!kind.label().contains("npm"), "the raw command stays out of the title");
+	}
+
+	#[test]
+	fn install_specs_never_wrap_in_cmd() {
+		// Regression guard: install panes used to run `cmd /k npm …` on
+		// Windows. The spec layer must stay raw — shell choice belongs to
+		// the spawn layer, and cmd.exe is banned there for installs.
+		for kind in [PaneKind::Agent, PaneKind::Editor, PaneKind::Ide, PaneKind::Shell] {
+			if let Some((_, command)) = kind.install_spec() {
+				assert!(!command.contains("cmd /k"), "cmd /k leaked into {command}");
+				assert!(!command.contains("sh -c"), "sh -c leaked into {command}");
+			}
+		}
+	}
+
+	#[test]
+	fn agent_bins_skip_the_workbench_itself() {
+		// `zeta` is the workbench's own npm bin (@linxiraos/main) since the
+		// package split; resolving the Agent pane to it would spawn the
+		// workbench recursively. Whatever the alias order, the workbench bin
+		// itself must never enter any suite resolution list.
+		assert!(!AGENT_BINS.contains(&"zeta"), "agent must not resolve to the workbench bin");
+		assert!(!EDITOR_BINS.contains(&"zeta"));
+		assert!(!IDE_BINS.contains(&"zeta"));
+		assert!(!FILES_BINS.contains(&"zeta"));
+	}
+}

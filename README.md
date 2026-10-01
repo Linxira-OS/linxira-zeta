@@ -17,12 +17,12 @@ supported; there is no macOS build.
 
 ## The Suite
 
-| Command                  | Package             | What it is                                      |
-| ------------------------ | ------------------- | ----------------------------------------------- |
-| `zeta` / `zetawork`      | `@linxiraos/main`   | The workspace: nested-terminal workbench (Rust) |
-| `zeta-c` / `zetacode`    | `@linxiraos/zeta`   | Coding agent CLI                                |
-| `zeta-editor` / `zeta-e` | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
-| `zeta-ide` / `zeta-i`    | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
+| Command                 | Package             | What it is                                      |
+| ----------------------- | ------------------- | ----------------------------------------------- |
+| `zeta` / `zetawork`     | `@linxiraos/main`   | The workspace: nested-terminal workbench (Rust) |
+| `zetacode` / `zeta-c`   | `@linxiraos/zeta`   | Coding agent CLI                                |
+| `zetaeditor` / `zeta-e` | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
+| `zetaide` / `zeta-i`    | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
 
 Every tool launches standalone with its own `--help`. The workbench is the
 unified entry: `zeta code` (or `zeta c`) hands off to the coding agent,
@@ -75,7 +75,7 @@ bun run dev
 
 ## The Coding Agent
 
-`zeta-c` is the coding CLI (built on the OMP runtime):
+`zetacode` is the coding CLI (built on the OMP runtime):
 
 - A terminal coding workspace with file reading, search, patching, shell, git,
   task delegation, and structured tool output.
@@ -245,12 +245,12 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 
 ### 套件
 
-| 命令                     | 包                  | 是什么                          |
-| ------------------------ | ------------------- | ------------------------------- |
-| `zeta` / `zetawork`      | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)    |
-| `zeta-c` / `zetacode`    | `@linxiraos/zeta`   | 编码 Agent CLI                  |
-| `zeta-editor` / `zeta-e` | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
-| `zeta-ide` / `zeta-i`    | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
+| 命令                    | 包                  | 是什么                          |
+| ----------------------- | ------------------- | ------------------------------- |
+| `zeta` / `zetawork`     | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)    |
+| `zetacode` / `zeta-c`   | `@linxiraos/zeta`   | 编码 Agent CLI                  |
+| `zetaeditor` / `zeta-e` | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
+| `zetaide` / `zeta-i`    | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
 
 每个工具都能独立启动、各有自己的 `--help`。工作区是统一入口:
 `zeta code`(或 `zeta c`)接力编码 Agent,`zeta editor`/`zeta e`、
@@ -300,7 +300,7 @@ bun run dev
 
 ### 编码 Agent
 
-`zeta-c` 是编码 CLI(基于 OMP 运行时构建):
+`zetacode` 是编码 CLI(基于 OMP 运行时构建):
 
 - 终端编码工作区,包含文件读取、搜索、补丁、shell、git、任务委派和结构化
   工具输出。

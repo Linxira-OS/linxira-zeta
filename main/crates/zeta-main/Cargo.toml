@@ -13,6 +13,7 @@ name = "zeta"
 path = "src/main.rs"
 
 [dependencies]
+unicode-width = "0.2.2"
 anyhow.workspace = true
 chrono = "0.4"
 arboard = "3"

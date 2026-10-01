@@ -17,19 +17,29 @@ pub const MENUS: &[(&str, &[&str])] = &[
 	(
 		"Pane",
 		&[
-			"Split shell",
-			"Split zeta-c",
-			"Split zeta-e",
-			"Split zeta-ide",
-			"Time · calendar",
+			"💻 Split shell",
+			"🤖 Split zetacode",
+			"📝 Split zetaeditor",
+			"🧩 Split zetaide",
+			"🕒 Time · calendar",
 			"🍅 Pomodoro",
 			"📋 Clipboard",
-			"New subtab (shell)",
-			"Close pane",
+			"➕ New subtab",
+			"❌ Close pane",
 		],
 	),
 	("Tab", &["Next tab", "Previous tab"]),
-	("Tools", &["Layout 1x1", "Layout 1x2", "Layout 2x2", "Equalize", "Focus next pane"]),
+	(
+		"Tools",
+		&[
+			"Layout 1x1",
+			"Layout 1x2",
+			"Layout 2x2",
+			"Equalize",
+			"Focus next pane",
+			"📦 Install missing",
+		],
+	),
 	("Settings", &["Settings (soon)", "Help"]),
 ];
 
@@ -82,12 +92,20 @@ pub struct MenuDropdown {
 impl MenuDropdown {
 	fn rect(&self, frame: Rect) -> Rect {
 		let items = MENUS[self.menu].1;
+		// +2 beyond the padded text: the render draws " item " (already
+		// padded) into width-2 columns, so width = padded_max + 2 is the
+		// minimum that never clips the longest item's tail.
 		let width = items
 			.iter()
 			.map(|item| Span::raw(format!(" {item} ")).width() as u16)
 			.max()
 			.unwrap_or(8)
-			.max(10);
+			.max(10)
+			+ 2;
+		// Never wider than the screen: on a narrow terminal an overflowing
+		// dropdown is skipped by render's fit guard while the hit rects would
+		// still be pushed — invisible click targets.
+		let width = width.min(frame.width.saturating_sub(2)).max(10);
 		let x = self.trigger_x.min(frame.width.saturating_sub(width + 1));
 		Rect { x, y: 1, width, height: items.len() as u16 + 2 }
 	}
@@ -241,21 +259,66 @@ pub fn status_text(
 	format!(" [{pane_label}] pane {}/{} · layout {template} ", pane_index + 1, pane_count)
 }
 
+/// Truncate to a **display-column** budget (CJK and emoji are 2 columns),
+/// marking the cut with a 1-column ellipsis. Callers pass column budgets, so
+/// a chars()-based cut used to overflow the rect for wide glyphs.
 pub fn truncate(text: &str, max: usize) -> String {
 	if max == 0 {
 		return String::new();
 	}
-	if text.chars().count() <= max {
-		text.to_string()
-	} else {
-		let cut: String = text.chars().take(max.saturating_sub(1)).collect();
-		format!("{cut}…")
+	let width = Span::raw(text).width();
+	if width <= max {
+		return text.to_string();
 	}
+	let budget = max.saturating_sub(1); // reserve one column for the ellipsis
+	let mut cut = String::new();
+	let mut used = 0usize;
+	for ch in text.chars() {
+		let w = Span::raw(ch.to_string()).width();
+		if used + w > budget {
+			break;
+		}
+		cut.push(ch);
+		used += w;
+	}
+	format!("{cut}…")
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn truncate_respects_display_columns_for_wide_glyphs() {
+		// CJK: 3 chars are 6 columns; a 5-column budget keeps 2 chars + ellipsis.
+		let out = truncate("日历视图", 5);
+		assert_eq!(Span::raw(&out).width(), 5);
+		assert!(out.ends_with('…'));
+
+		// Emoji are 2 columns: a 12-col label into 8 keeps 7 cols + ellipsis.
+		let out = truncate("🍅 pomodoro", 8);
+		assert_eq!(Span::raw(&out).width(), 8);
+
+		// ASCII unchanged when it fits.
+		assert_eq!(truncate("shell", 12), "shell");
+
+		// Zero budget is empty, one column is just the ellipsis.
+		assert_eq!(truncate("abc", 0), "");
+		assert_eq!(truncate("abc", 1), "…");
+	}
+
+	#[test]
+	fn dropdown_never_exceeds_the_screen() {
+		let frame = Rect { x: 0, y: 0, width: 24, height: 20 };
+		let dd = MenuDropdown { menu: 1, trigger_x: 1 };
+		let rect = dd.rect(frame);
+		assert!(rect.right() <= frame.right(), "dropdown {} overflows {}", rect.width, frame.width);
+		let rects = dd.item_rects(frame);
+		assert_eq!(rects.len(), MENUS[1].1.len());
+		for r in &rects {
+			assert!(r.right() <= frame.right());
+		}
+	}
 
 	#[test]
 	fn menu_layout_is_left_aligned_and_in_order() {

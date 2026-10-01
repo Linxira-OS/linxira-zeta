@@ -9,6 +9,7 @@
     "directory": "editor"
   },
   "bin": {
+    "zetaeditor": "./bin/zeta-editor.js",
     "zeta-editor": "./bin/zeta-editor.js",
     "zeta-e": "./bin/zeta-editor.js"
   },

@@ -151,7 +151,7 @@ fn event_loop(terminal: &mut RatuTerminal<CrosstermBackend<Stdout>>) -> Result<(
 
 impl Workspace {
 	fn new() -> Result<Self> {
-		let cwd = std::env::current_dir().ok();
+		let cwd = launch_cwd();
 		let first = Tab::new_shell(cwd)?;
 		Ok(Self {
 			tabs: vec![first],
@@ -208,8 +208,9 @@ impl Workspace {
 	/// Split `pane` — the pane whose button was pressed becomes the active
 	/// pane first, then the split lands there (never on some other focus).
 	/// Explicit axis from the ↔/↕ controls, auto from the menu; missing suite
-	/// tools self-install in the new slot.
-	fn split_pane(&mut self, pane: usize, kind: PaneKind, axis: Option<Axis>) {
+	/// tools self-install in the new slot. Returns `false` when the split
+	/// failed (the notice then carries the error).
+	fn split_pane(&mut self, pane: usize, kind: PaneKind, axis: Option<Axis>) -> bool {
 		self.active().active = pane;
 		let rect = self
 			.last_pane_areas
@@ -218,25 +219,31 @@ impl Workspace {
 			.map(|(_, r)| *r)
 			.unwrap_or_else(|| self.focused_rect());
 		let axis = axis.unwrap_or_else(|| Axis::for_rect(rect));
-		let cwd = std::env::current_dir().ok();
-		let kind = match kind.install_command() {
+		let cwd = launch_cwd();
+		let kind = match kind.install_kind() {
 			Some(install) => {
 				self.notice =
 					Some(format!("{} not on PATH — installing in the new pane", kind.label()));
-				PaneKind::Command(install)
+				install
 			},
 			None => kind,
 		};
 		match self.active().add_pane(pane, kind, cwd, rect, axis) {
-			Ok(()) => self.notice = None,
-			Err(error) => self.notice = Some(format!("split failed: {error}")),
+			Ok(()) => {
+				self.notice = None;
+				true
+			},
+			Err(error) => {
+				self.notice = Some(format!("split failed: {error}"));
+				false
+			},
 		}
 	}
 
 	/// Hotkey/menu entry: split whatever pane currently holds focus.
-	fn split_active(&mut self, kind: PaneKind, axis: Option<Axis>) {
+	fn split_active(&mut self, kind: PaneKind, axis: Option<Axis>) -> bool {
 		let focused = self.active().active;
-		self.split_pane(focused, kind, axis);
+		self.split_pane(focused, kind, axis)
 	}
 
 	/// Returns `true` when the workspace should quit.
@@ -277,14 +284,23 @@ impl Workspace {
 					self.active_tab = (self.active_tab + 1) % self.tabs.len();
 				},
 				KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Char('s') | KeyCode::Char('S') => {
-					self.split_active(PaneKind::Shell, None)
+					self.split_active(PaneKind::Shell, None);
 				},
-				KeyCode::Char('c') | KeyCode::Char('C') => self.split_active(PaneKind::Agent, None),
-				KeyCode::Char('e') | KeyCode::Char('E') => self.split_active(PaneKind::Editor, None),
-				KeyCode::Char('i') | KeyCode::Char('I') => self.split_active(PaneKind::Ide, None),
-				KeyCode::Char('d') | KeyCode::Char('D') => self.split_active(PaneKind::Time, None),
-				KeyCode::Char('p') | KeyCode::Char('P') => self.split_active(PaneKind::Pomodoro, None),
-				KeyCode::Char('f') | KeyCode::Char('F') => self.split_active(PaneKind::Files, None),
+				KeyCode::Char('c') | KeyCode::Char('C') => {
+					self.split_active(PaneKind::Agent, None);
+				},
+				KeyCode::Char('e') | KeyCode::Char('E') => {
+					self.split_active(PaneKind::Editor, None);
+				},
+				KeyCode::Char('i') | KeyCode::Char('I') => {
+					self.split_active(PaneKind::Ide, None);
+				},
+				KeyCode::Char('d') | KeyCode::Char('D') => {
+					self.split_active(PaneKind::Time, None);
+				},
+				KeyCode::Char('p') | KeyCode::Char('P') => {
+					self.split_active(PaneKind::Pomodoro, None);
+				},
 				KeyCode::Char('l') | KeyCode::Char('L') => self.cycle_preset(),
 				KeyCode::Char('o') | KeyCode::Char('O') => {
 					let tab = self.active();
@@ -321,21 +337,25 @@ impl Workspace {
 	}
 
 	/// One click: open an install pane for every suite tool missing from
-	/// PATH (npm packages via npm, yazi via the platform package manager).
+	/// PATH. What to install comes from the suite table (`suite::SUITE`) —
+	/// the status line lists the same canonical commands `zeta doctor`
+	/// prints. The summary lands after the splits: each split rewrites the
+	/// notice while opening (those intermediate writes are never rendered —
+	/// one draw per event), so only the last assignment survives.
 	fn install_missing_tools(&mut self) {
-		let kinds = [PaneKind::Agent, PaneKind::Editor, PaneKind::Ide, PaneKind::Files];
-		let mut installed = 0;
-		for kind in kinds {
-			if kind.install_command().is_some() {
-				self.split_active(kind, None);
-				installed += 1;
+		let missing = crate::suite::missing_tools();
+		let Some(summary) = crate::suite::install_batch_line(&missing) else {
+			self.notice = Some("all suite tools are installed — `zeta doctor` for details".into());
+			return;
+		};
+		let mut failed: Option<String> = None;
+		for tool in missing {
+			if !self.split_active(tool.kind.clone(), None) && failed.is_none() {
+				failed = self.notice.take();
 			}
 		}
-		self.notice = Some(if installed == 0 {
-			"all suite tools are installed — `zeta doctor` for details".into()
-		} else {
-			format!("{installed} tool(s) installing in panes — they re-resolve on next use")
-		});
+		// A failed split's error explains itself; otherwise show the plan.
+		self.notice = Some(failed.unwrap_or(summary));
 	}
 
 	/// Cycle layout presets upward, creating fresh shells for new slots.
@@ -352,7 +372,7 @@ impl Workspace {
 			let idx = (start + offset) % len;
 			if count_leaves(&presets[idx].1) >= panes {
 				let (_, tree) = presets[idx].clone();
-				let cwd = std::env::current_dir().ok();
+				let cwd = launch_cwd();
 				match self.active().apply_preset(tree, cwd) {
 					Ok(()) => self.notice = None,
 					Err(error) => self.notice = Some(format!("{error}")),
@@ -454,11 +474,15 @@ impl Workspace {
 					return true;
 				}
 			},
-			Hit::SplitRow { pane } => self.split_pane(pane, PaneKind::Shell, Some(Axis::Row)),
-			Hit::SplitCol { pane } => self.split_pane(pane, PaneKind::Shell, Some(Axis::Column)),
+			Hit::SplitRow { pane } => {
+				self.split_pane(pane, PaneKind::Shell, Some(Axis::Row));
+			},
+			Hit::SplitCol { pane } => {
+				self.split_pane(pane, PaneKind::Shell, Some(Axis::Column));
+			},
 			Hit::PagePlus { pane } => {
 				self.active().active = pane;
-				let cwd = std::env::current_dir().ok();
+				let cwd = launch_cwd();
 				if let Some(p) = self.active().panes.get_mut(pane) {
 					let _ = p.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
@@ -670,27 +694,39 @@ impl Workspace {
 			},
 			(0, 2) => return true,
 			// Pane
-			(1, 0) => self.split_active(PaneKind::Shell, None),
-			(1, 1) => self.split_active(PaneKind::Agent, None),
-			(1, 2) => self.split_active(PaneKind::Editor, None),
-			(1, 3) => self.split_active(PaneKind::Ide, None),
-			(1, 4) => self.split_active(PaneKind::Time, None),
-			(1, 5) => self.split_active(PaneKind::Pomodoro, None),
-			(1, 6) => self.split_active(PaneKind::Clipboard, None),
-			(1, 7) => self.split_active(PaneKind::Files, None),
-			(1, 8) => {
-				let cwd = std::env::current_dir().ok();
+			(1, 0) => {
+				self.split_active(PaneKind::Shell, None);
+			},
+			(1, 1) => {
+				self.split_active(PaneKind::Agent, None);
+			},
+			(1, 2) => {
+				self.split_active(PaneKind::Editor, None);
+			},
+			(1, 3) => {
+				self.split_active(PaneKind::Ide, None);
+			},
+			(1, 4) => {
+				self.split_active(PaneKind::Time, None);
+			},
+			(1, 5) => {
+				self.split_active(PaneKind::Pomodoro, None);
+			},
+			(1, 6) => {
+				self.split_active(PaneKind::Clipboard, None);
+			},
+			(1, 7) => {
+				let cwd = launch_cwd();
 				let tab = self.active();
 				if let Some(pane) = tab.panes.get_mut(tab.active) {
 					let _ = pane.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
 			},
-			(1, 9) => {
+			(1, 8) => {
 				let tab = self.active();
 				let idx = tab.active;
 				tab.close_pane(idx);
 			},
-			(1, 10) => self.install_missing_tools(),
 			// Tab
 			(2, 0) => self.active_tab = (self.active_tab + 1) % self.tabs.len(),
 			(2, 1) => {
@@ -703,7 +739,7 @@ impl Workspace {
 			// Tools
 			(3, 0..=2) => {
 				let (_, tree) = PaneNode::presets()[item].clone();
-				let cwd = std::env::current_dir().ok();
+				let cwd = launch_cwd();
 				match self.active().apply_preset(tree, cwd) {
 					Ok(()) => self.notice = None,
 					Err(error) => self.notice = Some(format!("{error}")),
@@ -739,7 +775,7 @@ impl Workspace {
 	}
 
 	fn new_tab(&mut self) {
-		let cwd = std::env::current_dir().ok();
+		let cwd = launch_cwd();
 		match Tab::new_shell(cwd) {
 			Ok(tab) => {
 				self.tabs.push(tab);
@@ -1200,6 +1236,18 @@ fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
 	])
 	.split(v[1]);
 	h[1]
+}
+
+/// The working directory new panes inherit. GUI launches (Start menu, some
+/// terminal profiles) inherit C:\Windows — a directory no one wants as a
+/// pane's home — so a system-directory cwd falls back to the user profile.
+fn launch_cwd() -> Option<std::path::PathBuf> {
+	let dir = launch_cwd()?;
+	let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+	if dir.starts_with(system_root) {
+		return std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
+	}
+	Some(dir)
 }
 
 fn count_leaves(node: &PaneNode) -> usize {
