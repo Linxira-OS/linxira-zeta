@@ -44,6 +44,7 @@ enum Hit {
 	Menu(usize),
 	MenuItem { menu: usize, item: usize },
 	DismissMenu,
+	DismissOverlay,
 	TabPrev,
 	TabNext,
 	TabPlus,
@@ -81,6 +82,14 @@ enum Drag {
 	/// time, `edge` is the boundary's current position (tree-truth, updated
 	/// after every applied shift).
 	Resize { axis: Axis, low: usize, high: usize, edge: u16 },
+}
+
+/// The modal surfaces — mutually exclusive (see `open_overlay`).
+#[derive(Clone, Copy)]
+enum Overlay {
+	Settings,
+	Doctor,
+	Help,
 }
 
 /// The workspace: menu row, tab row, and a tree of panes per tab.
@@ -194,6 +203,20 @@ impl Workspace {
 	fn push_hit(&mut self, rect: Rect, hit: Hit) {
 		if rect.width > 0 && rect.height > 0 {
 			self.hits.push((rect, hit));
+		}
+	}
+
+	/// Open one modal surface and close the others — overlays are mutually
+	/// exclusive; they render independently and would stack into a nested
+	/// mess if two were ever live together.
+	fn open_overlay(&mut self, which: Overlay) {
+		self.settings_open = false;
+		self.doctor_open = false;
+		self.help_open = false;
+		match which {
+			Overlay::Settings => self.settings_open = true,
+			Overlay::Doctor => self.doctor_open = true,
+			Overlay::Help => self.help_open = true,
 		}
 	}
 
@@ -338,7 +361,7 @@ impl Workspace {
 			return Ok(false);
 		}
 		if matches!(key.code, KeyCode::F(1)) {
-			self.help_open = true;
+			self.open_overlay(Overlay::Help);
 			return Ok(false);
 		}
 		let chord = KeyChord::new(key, &self.normalizer);
@@ -490,6 +513,13 @@ impl Workspace {
 		match hit {
 			Hit::DismissMenu => {
 				self.open_menu = None;
+			},
+			Hit::DismissOverlay => {
+				// Any click closes the modal — overlays must never depend on
+				// keys alone (an active IME can swallow those entirely).
+				self.settings_open = false;
+				self.doctor_open = false;
+				self.help_open = false;
 			},
 			Hit::Menu(menu) => {
 				self.open_menu = if self.open_menu == Some(menu) {
@@ -866,12 +896,12 @@ impl Workspace {
 			(3, 8) => self.install_missing_tools(),
 			// Settings
 			(4, 0) => {
-				self.settings_open = true;
+				self.open_overlay(Overlay::Settings);
 			},
 			(4, 1) => {
-				self.doctor_open = true;
+				self.open_overlay(Overlay::Doctor);
 			},
-			(4, 2) => self.help_open = true,
+			(4, 2) => self.open_overlay(Overlay::Help),
 			_ => {},
 		}
 		false
@@ -1292,12 +1322,16 @@ impl Workspace {
 		}
 
 		if self.doctor_open {
+			// Full-frame dismiss beneath the panel: any click closes —
+			// overlays must never depend on keys alone (an active IME can
+			// swallow those entirely).
+			self.push_hit(size, Hit::DismissOverlay);
 			let overlay = Paragraph::new(crate::suite::doctor())
 				.block(
 					Block::default()
 						.borders(Borders::ALL)
 						.border_type(BorderType::Rounded)
-						.title(" zeta suite status "),
+						.title(" zeta suite status — click anywhere to close "),
 				)
 				.style(Style::default().bg(Color::Reset));
 			let area = centered_rect(size, 56, 40);
@@ -1306,12 +1340,13 @@ impl Workspace {
 		}
 
 		if self.help_open {
+			self.push_hit(size, Hit::DismissOverlay);
 			let overlay = Paragraph::new(help::overlay_text())
 				.block(
 					Block::default()
 						.borders(Borders::ALL)
 						.border_type(BorderType::Rounded)
-						.title(" zeta help "),
+						.title(" zeta help — click anywhere to close "),
 				)
 				.wrap(Wrap { trim: false })
 				.style(Style::default().bg(Color::Reset));
@@ -1321,8 +1356,12 @@ impl Workspace {
 		}
 
 		// Settings overlay: one clickable row per setting; a click applies
-		// (and persists) immediately, any key closes.
+		// (and persists) immediately, a click anywhere else closes.
 		if self.settings_open {
+			// Dismiss beneath, rows above: clicks outside the rows close,
+			// clicks on a row apply. Never key-only — an active IME can
+			// swallow keys entirely.
+			self.push_hit(size, Hit::DismissOverlay);
 			let s = crate::settings::snapshot();
 			let value = |on: bool| if on { "on" } else { "off" };
 			let rows = [
@@ -1342,7 +1381,7 @@ impl Workspace {
 					Block::default()
 						.borders(Borders::ALL)
 						.border_type(BorderType::Rounded)
-						.title(" zeta settings — any key closes "),
+						.title(" zeta settings — click outside to close "),
 				)
 				.style(Style::default().bg(Color::Reset));
 			// Fixed 5-row panel (3 settings + borders) centered — a percent
