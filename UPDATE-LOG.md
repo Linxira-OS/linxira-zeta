@@ -1,6 +1,6 @@
 # Zeta 更新日志
 
-## 下一版本（Unreleased）
+## 1.1.23（2026-10-01）
 
 ### OMP 同步基线
 
@@ -8,10 +8,10 @@
 
 ### 新增
 
-- **`zeta` 工作台(嵌套终端工作台,bin `zeta`,包 @linxiraos/main)**:顶层标签页 + PaneTree 可分割窗格树(n 叉权重树,tmux 式扁平化)+ 每窗格子页栈;鼠标优先(菜单栏/标签栏/窗格标题控件全可点,滚轮切标签),快捷键为可选加速(Alt+C/E/I/F/D/P);原生组件窗格:时间+日历(可点翻月/选日)、🍅 番茄钟(可点启停)、📋 剪贴板历史;缺套件工具一键窗格内安装。窗格拖拽交互(交换/移靠/拉伸)机制就绪待调研,暂以 `DRAG_ENABLED=false` 停用。
-- **套件命令入口**:`zeta code|editor|ide|files`(+首字母 c/e/i/f)接力各工具并透传参数;`zeta doctor` 报告全家桶安装状态与精确修复命令;连打别名 `zetawork`/`zeta-work` 随 npm 分发;Windows 默认 shell 修正(pwsh/powershell,不再落入 System32 bash.exe 的 WSL 陷阱)。
+- **`zeta` 工作台(嵌套终端工作台,bin `zeta`,包 @linxiraos/main)**:顶层标签页 + PaneTree 可分割窗格树(n 叉权重树,tmux 式扁平化)+ 每窗格子页栈;鼠标优先(菜单栏/标签栏/窗格标题控件全可点,滚轮切标签),快捷键为可选加速(Alt+C/E/I/F/D/P);原生组件窗格:时间+日历(可点翻月/选日)、🍅 番茄钟(可点启停)、📋 剪贴板历史;缺套件工具一键窗格内安装。窗格拖拽已上线(2026-10-01 调研裁定树机制健全后启用):拖共享边界伸缩(左右/上下),按下即钉住边界两侧窗格对、整段拖动只跟踪一条树实测边,嵌套布局不抓错边、连发事件精确累积;拖动中活动边界渲染亮白条实时指示位置;拖窗格标题到另一窗格即换位/移靠,拖标签即重排。**智能预设**:Tools 菜单与 `[layout]` 循环换为 6 形态——单窗、1+2(左⅓右⅔,agent 在左的默认工作形态)、三等分、T 形(上排⅓+⅔、下排整宽半高)、2×2、双列(左对⅓宽、右对⅔宽)。**窗格最小化**:标题栏 – / Pane 菜单 / Alt+M,窗格让位给兄弟窗格并沉到当前顶级标签页底部的泊坞条(PTY 保持运行,每标签页各显各的),点芯片即还原到聚焦窗格旁。**设置面板**:Settings 菜单打开可点击浮层——默认 shell(auto/powershell/pwsh 7/git bash,新窗格生效)、拖拽层总开关、焦点跟随鼠标;持久化 `~/.zeta/workbench.toml`,逐键容错回落。浮层互斥打开、点击任意处关闭(不再依赖键盘,IME 吞键也关得掉);菜单下拉清底不透。
+- **套件命令入口**:`zeta code|editor|ide`(+首字母 c/e/i)接力各工具并透传参数,窗格内工具在 PATH 上时直接敲裸命令名(`zetacode`),与手敲一致;`zeta doctor` 报告全家桶安装状态与精确修复命令;连打别名 `zetawork`/`zeta-work` 随 npm 分发;Windows 默认 shell 修正(pwsh/powershell,不再落入 System32 bash.exe 的 WSL 陷阱)。
 - **CLI 命名定稿**:coding CLI bin = `zeta-c`/`zeta-cli`/`zetacode`(`zeta` 名让位给工作台);IDE 包 @linxiraos/ide(bin `zeta-ide`/`zeta-i`);editor 包不变。
-- **files 腿选型**:yazi(fork 自持,UI/主题改造与工作台集成排期),vendored 落树(顶层 `yazi/`)。
+- **files 腿退场**:yazi 从未是 Zeta 代码,vendored 树整体移除,files 命令与窗格同步下线;终端文件管理器后续以原生 Rust 重做(roadmap 登记)。
 - **CI 发布面**:新门禁 `check-ci-surface.ts`(job 清单/needs 接线/产物名三查);恢复 desktop_linux/desktop_windows/web_ui_build;产物名 zeta-cli-*/zeta-desktop-*;release_main_packages/release_ide_packages 接入发布链。
 
 ### 修复
