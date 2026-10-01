@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.23] - 2026-10-01
+
 ## [1.1.22] - 2026-09-30
 
 - **CLI bin 更名(breaking)**:`zeta-c` 为主命令名,`zeta-cli`/`zetacode` 为别名;裸 `zeta` 名让位给工作台(bin @linxiraos/main)。安装器/补全/文档同步。

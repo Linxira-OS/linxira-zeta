@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.23] - 2026-10-01
+
 ## [1.1.22] - 2026-09-30
 
 - 版本线 1.1.22:sentinel `__piNativesV1_1_22` 与 committed bindings 同步。
