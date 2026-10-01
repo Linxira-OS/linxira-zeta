@@ -12,7 +12,6 @@ use termide_panel_terminal::Terminal;
 pub const AGENT_BINS: &[&str] = &["zetacode", "zeta-c", "zeta-cli"];
 pub const EDITOR_BINS: &[&str] = &["zetaeditor", "zeta-editor", "zeta-e"];
 pub const IDE_BINS: &[&str] = &["zeta-ide", "zeta-i"];
-pub const FILES_BINS: &[&str] = &["yazi"];
 
 /// What a pane runs — drives the pane label and the menu entries.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -26,7 +25,8 @@ pub enum PaneKind {
 	Time,
 	Pomodoro,
 	Clipboard,
-	/// Terminal file manager (yazi) — the files leg.
+	/// A raw command line typed into the pane's shell (used by presets and
+	/// ad-hoc commands).
 	Command(String),
 	/// One-click bring-up of a missing suite tool: the raw install command
 	/// runs inside a modern chained shell (never cmd.exe), the pane stays
@@ -439,6 +439,5 @@ mod tests {
 		assert!(!AGENT_BINS.contains(&"zeta"), "agent must not resolve to the workbench bin");
 		assert!(!EDITOR_BINS.contains(&"zeta"));
 		assert!(!IDE_BINS.contains(&"zeta"));
-		assert!(!FILES_BINS.contains(&"zeta"));
 	}
 }

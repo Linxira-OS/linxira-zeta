@@ -133,6 +133,15 @@ impl Widget for MenuDropdown {
 		if rect.bottom() > area.bottom() || rect.right() > area.right() {
 			return;
 		}
+		// Opaque surface: the diff renderer only repaints changed cells, so
+		// without this the dropdown interior still holds the previous
+		// frame's pane text and bleeds through. Reset every cell to the
+		// terminal default first — theme-neutral and fully opaque.
+		for row in rect.y..rect.bottom() {
+			for col in rect.x..rect.right() {
+				buf[(col, row)].reset();
+			}
+		}
 		let border = Style::default().fg(Color::DarkGray);
 		for col in rect.x..rect.right() {
 			buf[(col, rect.y)].set_symbol("─").set_style(border);

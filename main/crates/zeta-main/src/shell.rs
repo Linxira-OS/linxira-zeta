@@ -368,6 +368,12 @@ fn exec_preference(flavor: ShellFlavor) -> &'static [&'static str] {
 /// interactive prompt. Falls back to the first candidate when no
 /// extension matches the flavor's preference.
 pub fn exec_line(shell: &Shell, candidates: &[PathBuf]) -> Option<String> {
+	exec_line_in(shell, candidates, &path_dirs())
+}
+
+/// `exec_line` with the PATH injected — the seam that keeps the bare-name
+/// decision deterministic under test.
+fn exec_line_in(shell: &Shell, candidates: &[PathBuf], path: &[PathBuf]) -> Option<String> {
 	let first = candidates.first()?;
 	let ext = |path: &Path| match path.extension().and_then(|e| e.to_str()) {
 		Some(ext) => format!(".{}", ext.to_ascii_lowercase()),
@@ -377,6 +383,30 @@ pub fn exec_line(shell: &Shell, candidates: &[PathBuf]) -> Option<String> {
 		.iter()
 		.find_map(|want| candidates.iter().find(|c| ext(c) == *want))
 		.unwrap_or(first);
+	// A tool already on the process PATH is typed as its bare command name:
+	// the pane shell resolves the same name through the same PATH, so the
+	// pane reads exactly like a hand-typed invocation instead of some
+	// generated shim incantation. Only tools found off-PATH (augmented
+	// global-bin dirs, where.exe) fall back to a full quoted path.
+	if let Some(stem) = target.file_stem().and_then(|stem| stem.to_str()) {
+		let bare_ok = match ext(target).as_str() {
+			// Extensionless npm sh shims resolve by name in bash only.
+			"" => shell.flavor == ShellFlavor::Posix,
+			extension => exec_preference(shell.flavor).contains(&extension),
+		};
+		let on_path = target
+			.parent()
+			.and_then(|parent| parent.to_str())
+			.is_some_and(|parent| {
+				path.iter().any(|dir| {
+					dir.to_str()
+						.is_some_and(|dir| parent.eq_ignore_ascii_case(dir))
+				})
+			});
+		if bare_ok && on_path {
+			return Some(stem.to_string());
+		}
+	}
 	Some(shell.quote_exec(target))
 }
 
@@ -683,25 +713,60 @@ mod tests {
 			PathBuf::from(r"C:\npm\zeta-c.cmd"),
 		];
 		assert_eq!(
-			exec_line(&ps, &candidates),
+			exec_line_in(&ps, &candidates, &[]),
 			Some(r"& 'C:\npm\zeta-c.ps1'".to_string()),
 			"PowerShell prefers its own shim form"
 		);
-		let with_exe = vec![PathBuf::from(r"C:\scoop\shims\yazi.exe")];
-		assert_eq!(exec_line(&ps, &with_exe), Some(r"& 'C:\scoop\shims\yazi.exe'".to_string()));
+		let with_exe = vec![PathBuf::from(r"C:\scoop\shims\tool.exe")];
+		assert_eq!(
+			exec_line_in(&ps, &with_exe, &[]),
+			Some(r"& 'C:\scoop\shims\tool.exe'".to_string())
+		);
 
 		let bash = Shell { path: PathBuf::from("bash.exe"), flavor: ShellFlavor::Posix };
 		assert_eq!(
-			exec_line(&bash, &candidates),
+			exec_line_in(&bash, &candidates, &[]),
 			Some("'C:/npm/zeta-c'".to_string()),
 			"bash prefers the extensionless sh shim"
 		);
 
 		let cmd = Shell { path: PathBuf::from("cmd.exe"), flavor: ShellFlavor::Cmd };
 		assert_eq!(
-			exec_line(&cmd, &candidates),
+			exec_line_in(&cmd, &candidates, &[]),
 			Some(r#""C:\npm\zeta-c.cmd""#.to_string()),
 			"cmd prefers the .cmd shim"
+		);
+	}
+
+	#[test]
+	fn exec_line_types_the_bare_name_when_the_tool_is_on_path() {
+		let ps = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
+		let npm = PathBuf::from(r"C:\Users\u\AppData\Roaming\npm");
+		let shims = vec![npm.join("zetacode.ps1"), npm.join("zetacode.cmd"), npm.join("zetacode")];
+		assert_eq!(
+			exec_line_in(&ps, &shims, &[npm.clone()]),
+			Some("zetacode".to_string()),
+			"on-PATH tools are invoked like a hand-typed command, not a shim incantation"
+		);
+		// Same tool off PATH keeps the full quoted path.
+		assert_eq!(
+			exec_line_in(&ps, &shims, &[]),
+			Some(format!("& '{}'", npm.join("zetacode.ps1").display()))
+		);
+
+		let bash = Shell { path: PathBuf::from("bash"), flavor: ShellFlavor::Posix };
+		let exe = vec![npm.join("zetaeditor.exe")];
+		assert_eq!(
+			exec_line_in(&bash, &exe, &[npm.clone()]),
+			Some("zetaeditor".to_string()),
+			"bash also types bare names for on-PATH .exe files"
+		);
+
+		// An extensionless sh shim under PowerShell never resolves by name.
+		let sh_only = vec![npm.join("zetacode")];
+		assert_eq!(
+			exec_line_in(&ps, &sh_only, &[npm.clone()]),
+			Some(format!("& '{}'", npm.join("zetacode").display()))
 		);
 	}
 
