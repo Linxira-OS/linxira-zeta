@@ -1031,9 +1031,13 @@ impl Workspace {
 					border_right_x: Some(area.right().saturating_sub(1)),
 					border_bottom_y: Some(area.bottom().saturating_sub(1)),
 				};
-				let term = pane.as_terminal().expect("non-widget pane holds a PTY");
-				term.prepare_render(&self.theme, &self.config);
-				term.render(inner, frame.buffer_mut(), &ctx);
+				// A pane whose pages were all reaped this tick (child exit)
+				// can reach the draw between reap and close — render it as an
+				// empty body instead of panicking.
+				if let Some(term) = pane.as_terminal() {
+					term.prepare_render(&self.theme, &self.config);
+					term.render(inner, frame.buffer_mut(), &ctx);
+				}
 			}
 
 			for (rect, hit) in deferred {
@@ -1242,7 +1246,7 @@ fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
 /// terminal profiles) inherit C:\Windows — a directory no one wants as a
 /// pane's home — so a system-directory cwd falls back to the user profile.
 fn launch_cwd() -> Option<std::path::PathBuf> {
-	let dir = launch_cwd()?;
+	let dir = std::env::current_dir().ok()?;
 	let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
 	if dir.starts_with(system_root) {
 		return std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
