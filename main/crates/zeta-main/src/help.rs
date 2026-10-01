@@ -20,20 +20,24 @@ USAGE
 KEYS (inside the workspace)
   Alt+N    new shell pane          Alt+T    new tab
   Alt+C    pane: zetacode          Alt+W    close tab
-  Alt+E    pane: zeta-editor       Alt+1..9 jump to tab n
-  Alt+I    pane: zeta-ide          Alt+←/→  prev/next tab
+  Alt+E    pane: zetaeditor        Alt+1..9 jump to tab n
+  Alt+I    pane: zetaide           Alt+←/→  prev/next tab
   Alt+S    pane: shell             Alt+O    focus next pane
   Alt+D    pane: time+calendar     Alt+X    close focused pane
-  Alt+L    cycle pane layout       F1       help overlay
-  Alt+Q    quit
+  Alt+L    cycle pane layout       Alt+M    minimize focused pane
+  Alt+Q    quit                    F1       help overlay
 
-  Mouse: click a tab (or +) in the tab bar, click a pane to focus it.
+  Mouse: click a tab (or +) in the tab bar; click a pane to focus it;
+  drag a shared border to resize (left/right and top/bottom); drag a
+  pane by its title onto another pane to swap or reposition it; the –
+  button (or the Pane menu) minimizes a pane into the dock at the
+  bottom — click its chip there to restore it.
   Note: an active IME can swallow Alt combos — switch to English input
   if a hotkey does not respond.
 
 THE ZETA SUITE (each with its own --help)
   zetacode / zeta-c / zeta-cli   coding agent CLI      (npm: @linxiraos/zeta)
-  zeta-editor / zeta-e           terminal editor (TTT) (npm: @linxiraos/editor)
+  zetaeditor / zeta-editor / zeta-e  terminal editor (TTT) (npm: @linxiraos/editor)
   zetaide / zeta-ide / zeta-i    terminal IDE (TermIDE) (npm: @linxiraos/ide)
 
   A suite tool missing from PATH installs itself into a pane on first
@@ -42,9 +46,11 @@ THE ZETA SUITE (each with its own --help)
 PANES
 A pane is a real terminal (PTY): anything that runs in a terminal runs in a
 pane — zetacode coding sessions, the zetaeditor, plain shells. Panes tile
-through the pane tree: split any pane left/right or top/bottom, and each
-pane keeps a stack of pages. Free drag-and-drop arrives with the layout
-editor iteration.
+through the pane tree: split any pane left/right or top/bottom, then drag
+borders to taste — the Tools menu carries smart presets (1+2 gives the
+left pane a third of the width; thirds, T, quad, and columns cover the
+wider shapes). Each pane keeps a stack of pages; minimizing docks the
+pane (still running) at the bottom of its tab.
 ";
 
 /// In-app help overlay: keymap + suite map, centered.
@@ -52,14 +58,15 @@ pub fn overlay_text() -> &'static str {
 	"zeta workspace — help\n\
 	\n\
 	tabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ cycle\n\
-	panes    Alt+N shell · Alt+C zeta-c · Alt+E zeta-editor · Alt+I zeta-ide\n\
+	panes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\n\
 	          Alt+D time+calendar · Alt+L layout · Alt+O next pane\n\
-	          Alt+X close pane\n\
-	mouse    click tab bar (switch / +) · click a pane to focus it\n\
+	          Alt+X close pane · Alt+M minimize pane (dock below)\n\
+	mouse    click tab bar · click pane to focus · drag border = resize\n\
+	          drag pane title onto a pane = swap / reposition\n\
+	dock     minimized panes wait at the bottom — click a chip to restore\n\
 	general  F1 help · Alt+Q quit\n\
 	\n\
-	suite    zeta-c/zeta-cli/zetacode · zeta-editor/zeta-e · zeta-ide/zeta-i\n\
-	          files (in selection)\n\
+	suite    zetacode/zeta-c/zeta-cli · zetaeditor/zeta-e · zetaide/zeta-i\n\
 	missing  a missing suite tool installs itself into a pane on first use\n\
 	\n\
 	note     an active IME can swallow Alt combos — use English input\n\

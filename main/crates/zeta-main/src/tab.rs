@@ -231,6 +231,10 @@ impl Pane {
 /// A workspace tab: a pane store plus the layout tree tiling them.
 pub struct Tab {
 	pub panes: Vec<Pane>,
+	/// Minimized panes docked below the workspace. Their PTYs stay alive
+	/// while docked; the dock is per-tab — switching top-level tabs shows
+	/// that tab's own minimized panes.
+	pub minimized: Vec<Pane>,
 	pub active: usize,
 	pub tree: PaneNode,
 }
@@ -239,7 +243,7 @@ impl Tab {
 	/// A tab starts with a single shell pane; the layout grows by splitting.
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
 		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
-		Ok(Self { panes: vec![pane], active: 0, tree: PaneNode::single(0) })
+		Ok(Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) })
 	}
 
 	/// Split pane `split_at` along `axis` and open `kind` in the new slot —
@@ -319,6 +323,38 @@ impl Tab {
 		self.active = self.active.min(self.panes.len() - 1);
 	}
 
+	/// Minimize pane `index`: it leaves the tiling — its space flows to the
+	/// siblings, so a maximized neighbor stretches over it — and the pane
+	/// docks at the bottom of this tab with its PTY alive. Refused on the
+	/// last pane (nothing left to flow the space to).
+	pub fn minimize_pane(&mut self, index: usize) -> bool {
+		if self.panes.len() <= 1 || index >= self.panes.len() {
+			return false;
+		}
+		if !self.tree.close(index) {
+			return false;
+		}
+		let pane = self.panes.remove(index);
+		self.tree.reindex_after_remove(index);
+		self.active = self.active.min(self.panes.len() - 1);
+		self.minimized.push(pane);
+		true
+	}
+
+	/// Restore docked pane `slot` into the tiling beside the focused pane on
+	/// `side`; focus follows the restored pane.
+	pub fn restore_pane(&mut self, slot: usize, side: Side) -> bool {
+		if slot >= self.minimized.len() || self.panes.is_empty() {
+			return false;
+		}
+		let pane = self.minimized.remove(slot);
+		let id = self.panes.len();
+		self.panes.push(pane);
+		self.tree.insert_beside(id, self.active, side);
+		self.active = id;
+		true
+	}
+
 	/// Apply a preset tree; missing slots become fresh shell panes. Refuses
 	/// (no data loss) when live panes outnumber the preset's slots.
 	pub fn apply_preset(&mut self, tree: PaneNode, cwd: Option<PathBuf>) -> Result<()> {
@@ -391,6 +427,56 @@ fn _panel_bound(_: &dyn Panel) {}
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn widget_tab(count: usize) -> Tab {
+		let kinds = [PaneKind::Time, PaneKind::Pomodoro, PaneKind::Clipboard, PaneKind::Time];
+		let panes: Vec<Pane> = (0..count)
+			.map(|i| Pane::new(kinds[i % 4].clone(), 24, 80, None).unwrap())
+			.collect();
+		let children: Vec<(u32, PaneNode)> =
+			(0..count).map(|id| (1000, PaneNode::Leaf(id))).collect();
+		Tab {
+			panes,
+			minimized: Vec::new(),
+			active: 0,
+			tree: PaneNode::Split { axis: crate::layout::Axis::Row, children },
+		}
+	}
+
+	#[test]
+	fn minimize_docks_and_restore_replants() {
+		let mut tab = widget_tab(3);
+		assert!(tab.minimize_pane(1), "middle pane minimizes");
+		assert_eq!(tab.panes.len(), 2);
+		assert_eq!(tab.minimized.len(), 1);
+		assert_eq!(tab.active, 0);
+		let mut ids: Vec<usize> = Vec::new();
+		collect_test_ids(&tab.tree, &mut ids);
+		assert_eq!(ids, vec![0, 1], "the tree sheds the leaf; ids above it shift down");
+
+		// The last tiled pane cannot be minimized — nothing to flow space to.
+		assert!(tab.minimize_pane(0));
+		assert!(!tab.minimize_pane(0), "the only remaining pane refuses");
+
+		assert!(tab.restore_pane(0, Side::Right), "docked pane replants");
+		assert_eq!(tab.panes.len(), 2);
+		assert_eq!(tab.active, 1, "focus follows the restored pane");
+		ids.clear();
+		collect_test_ids(&tab.tree, &mut ids);
+		assert_eq!(ids, vec![0, 1], "restored beside the focused pane");
+		assert!(!tab.restore_pane(9, Side::Left), "bogus slot refused");
+	}
+
+	fn collect_test_ids(node: &PaneNode, out: &mut Vec<usize>) {
+		match node {
+			PaneNode::Leaf(id) => out.push(*id),
+			PaneNode::Split { children, .. } => {
+				for (_, n) in children {
+					collect_test_ids(n, out);
+				}
+			},
+		}
+	}
 
 	#[test]
 	fn install_specs_map_to_npm_packages() {

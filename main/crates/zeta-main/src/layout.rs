@@ -70,36 +70,47 @@ impl PaneNode {
 		PaneNode::Leaf(pane)
 	}
 
-	/// Preset trees the layout cycler walks through.
+	/// Preset shapes the layout cycler and Tools menu walk through. The
+	/// smart defaults follow the product sketch: a side-by-side pair gives
+	/// the left pane a third of the width (agent-left workflows), three
+	/// panes get thirds or the T shape (⅓ + ⅔ top band, full-width bottom
+	/// half), four panes get the quad or dual columns (left pair ⅓ wide,
+	/// right pair ⅔). Listed ascending by slot count so the cycler only
+	/// ever grows.
 	pub fn presets() -> Vec<(&'static str, PaneNode)> {
-		vec![
-			("1x1", PaneNode::Leaf(0)),
+		let leaf = |id: usize| (1000, PaneNode::Leaf(id));
+		let row =
+			|children: Vec<(u32, PaneNode)>| (1000, PaneNode::Split { axis: Axis::Row, children });
+		let col =
+			|children: Vec<(u32, PaneNode)>| (1000, PaneNode::Split { axis: Axis::Column, children });
+		let two_thirds_top = || {
 			(
-				"1x2",
+				1000,
+				PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), (2000, PaneNode::Leaf(1))] },
+			)
+		};
+		vec![
+			("single", PaneNode::Leaf(0)),
+			(
+				"1+2",
+				PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), (2000, PaneNode::Leaf(1))] },
+			),
+			("thirds", PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), leaf(1), leaf(2)] }),
+			("T", PaneNode::Split { axis: Axis::Column, children: vec![two_thirds_top(), leaf(2)] }),
+			(
+				"quad",
 				PaneNode::Split {
-					axis: Axis::Row,
-					children: vec![(1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(1))],
+					axis: Axis::Column,
+					children: vec![row(vec![leaf(0), leaf(1)]), row(vec![leaf(2), leaf(3)])],
 				},
 			),
 			(
-				"2x2",
+				"columns",
 				PaneNode::Split {
-					axis: Axis::Column,
+					axis: Axis::Row,
 					children: vec![
-						(
-							1,
-							PaneNode::Split {
-								axis: Axis::Row,
-								children: vec![(1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(1))],
-							},
-						),
-						(
-							1,
-							PaneNode::Split {
-								axis: Axis::Row,
-								children: vec![(1, PaneNode::Leaf(2)), (1, PaneNode::Leaf(3))],
-							},
-						),
+						col(vec![leaf(0), leaf(1)]),
+						(2000, PaneNode::Split { axis: Axis::Column, children: vec![leaf(2), leaf(3)] }),
 					],
 				},
 			),
@@ -415,6 +426,46 @@ pub enum Side {
 	Bottom,
 }
 
+/// The shared boundary nearest the cursor, with the pane ids flanking it
+/// (`low` = left/top pane, `high` = right/bottom). Resize drags pin this
+/// pair at press time and track one edge for the whole drag, so nested
+/// boundaries are never re-grabbed mid-drag.
+pub fn boundary_pair(
+	areas: &[(usize, Rect)],
+	column: u16,
+	row: u16,
+	tolerance: i32,
+) -> Option<(Axis, usize, usize)> {
+	let mut best: Option<(i32, Axis, usize, usize)> = None;
+	for &(low, a) in areas {
+		for &(high, b) in areas {
+			if low == high {
+				continue;
+			}
+			// Vertical boundary: a's right edge meets b's left edge over a
+			// shared vertical span, cursor near the line and inside it.
+			if b.left() != 0 && a.right() == b.left() && a.bottom() > b.top() && b.bottom() > a.top() {
+				let row_in = row >= a.top().max(b.top()) && row < a.bottom().min(b.bottom());
+				let dist = (column as i32 - b.left() as i32).abs();
+				if row_in && dist <= tolerance && best.as_ref().map(|(d, ..)| dist < *d).unwrap_or(true)
+				{
+					best = Some((dist, Axis::Row, low, high));
+				}
+			}
+			// Horizontal boundary: a's bottom edge meets b's top edge.
+			if b.top() != 0 && a.bottom() == b.top() && a.right() > b.left() && b.right() > a.left() {
+				let col_in = column >= a.left().max(b.left()) && column < a.right().min(b.right());
+				let dist = (row as i32 - b.top() as i32).abs();
+				if col_in && dist <= tolerance && best.as_ref().map(|(d, ..)| dist < *d).unwrap_or(true)
+				{
+					best = Some((dist, Axis::Column, low, high));
+				}
+			}
+		}
+	}
+	best.map(|(_, axis, low, high)| (axis, low, high))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -436,6 +487,14 @@ mod tests {
 			.iter()
 			.map(|(id, _)| *id)
 			.collect()
+	}
+
+	fn preset(name: &str) -> PaneNode {
+		PaneNode::presets()
+			.into_iter()
+			.find(|(n, _)| *n == name)
+			.unwrap_or_else(|| panic!("preset {name} missing"))
+			.1
 	}
 
 	#[test]
@@ -481,8 +540,7 @@ mod tests {
 		// The user-reported scenario: 2x2 preset, drag panes around (edge
 		// drops + center swaps), then split — every id must stay unique and
 		// a split must land exactly beside its target.
-		let (_, preset) = PaneNode::presets()[2].clone();
-		let mut tree = preset;
+		let mut tree = preset("quad");
 		tree.detach(0);
 		tree.insert_beside(0, 3, Side::Right);
 		tree.detach(2);
@@ -552,5 +610,90 @@ mod tests {
 		let mut tree = PaneNode::single(0);
 		tree.insert_beside(1, 0, Side::Bottom);
 		assert_eq!(ids(&tree), vec![0, 1], "drop on the bottom edge = below the target");
+	}
+
+	#[test]
+	fn smart_presets_carry_the_sketch_ratios() {
+		let area = Rect::new(0, 0, 90, 24);
+		let rects = preset("1+2").leaf_rects(area);
+		assert_eq!(rects[0].1.width, 30, "left pane takes a third");
+		assert_eq!(rects[1].1.width, 60, "right pane takes two thirds");
+
+		let rects = preset("thirds").leaf_rects(area);
+		assert!(rects.iter().all(|(_, r)| r.width == 30), "three equal columns");
+
+		let rects = preset("T").leaf_rects(area);
+		assert_eq!(rects[0].1.width, 30, "T top band: left third");
+		assert_eq!(rects[1].1.width, 60, "T top band: right two thirds");
+		assert_eq!(rects[1].1.height, 12, "T top band: upper half");
+		assert_eq!(
+			(rects[2].1.y, rects[2].1.height, rects[2].1.width),
+			(12, 12, 90),
+			"T bottom: full width, lower half"
+		);
+
+		let rects = preset("quad").leaf_rects(area);
+		assert_eq!(
+			(rects[0].1.width, rects[0].1.height, rects[3].1.x),
+			(45, 12, 45),
+			"quad: 2x2 equal grid"
+		);
+
+		let rects = preset("columns").leaf_rects(area);
+		assert_eq!(
+			(rects[0].1.width, rects[1].1.y, rects[2].1.width),
+			(30, 12, 60),
+			"dual columns: left pair ⅓ wide stacked, right pair ⅔ wide stacked"
+		);
+
+		// The cycler only ever grows: slot counts ascend along the list.
+		let counts: Vec<usize> = PaneNode::presets()
+			.iter()
+			.map(|(_, t)| count_leaves_pub(t))
+			.collect();
+		let mut sorted = counts.clone();
+		sorted.sort_unstable();
+		assert_eq!(counts, sorted, "presets ascend by slot count");
+	}
+
+	fn count_leaves_pub(node: &PaneNode) -> usize {
+		match node {
+			PaneNode::Leaf(_) => 1,
+			PaneNode::Split { children, .. } => {
+				children.iter().map(|(_, n)| count_leaves_pub(n)).sum()
+			},
+		}
+	}
+
+	#[test]
+	fn boundary_pair_pins_the_flanking_panes() {
+		// [0 | 1 over 2]: vertical boundary 0|1, horizontal 1|2.
+		let tree = row(vec![PaneNode::Leaf(0), col(vec![PaneNode::Leaf(1), PaneNode::Leaf(2)])]);
+		let areas = tree.leaf_rects(Rect::new(0, 0, 80, 24));
+		let (x01, y12) = (areas[0].1.right(), areas[1].1.bottom());
+
+		assert_eq!(
+			boundary_pair(&areas, x01, 5, 1),
+			Some((Axis::Row, 0, 1)),
+			"vertical boundary pins 0 left, 1 right"
+		);
+		assert_eq!(
+			boundary_pair(&areas, x01, 20, 1),
+			Some((Axis::Row, 0, 2)),
+			"below the 1|2 split the same line flanks 0 and 2"
+		);
+		assert_eq!(
+			boundary_pair(&areas, 60, y12, 1),
+			Some((Axis::Column, 1, 2)),
+			"horizontal boundary pins 1 above, 2 below"
+		);
+		assert_eq!(boundary_pair(&areas, x01 + 5, 5, 1), None, "off-boundary clicks grab nothing");
+		assert_eq!(
+			boundary_pair(&areas, 20, y12, 1),
+			None,
+			"left half has no boundary at the T stem"
+		);
+		let lone = PaneNode::single(0).leaf_rects(Rect::new(0, 0, 80, 24));
+		assert_eq!(boundary_pair(&lone, 40, 12, 1), None, "a lone pane has no boundary");
 	}
 }

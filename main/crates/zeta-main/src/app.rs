@@ -55,16 +55,19 @@ enum Hit {
 	PageTab { pane: usize, page: usize },
 	PageClose { pane: usize },
 	PaneTitle { pane: usize },
+	PaneMinimize { pane: usize },
+	DockChip { slot: usize },
 	Pane { pane: usize },
 	LayoutCycle,
 	Quit,
 }
 
-/// Drag interactions — pane swap/move, boundary resize, tab reorder — are
-/// parked pending a dedicated design/research pass (2026-10-01 maintainer
-/// call: the logic needs more study). The machinery below stays; flipping
-/// this one flag re-enables all of it.
-const DRAG_ENABLED: bool = false;
+/// Drag interactions — pane swap/move, boundary resize, tab reorder. The
+/// 2026-10-01 investigation concluded the weighted-tree machinery is sound
+/// (unit-tested splits, detaches, swaps, one-to-one resize with a min-weight
+/// clamp); resize drags pin the flanking pane pair at press time and track a
+/// single edge, so nested boundaries are never re-grabbed mid-drag.
+const DRAG_ENABLED: bool = true;
 
 /// What a press-drag is currently doing.
 enum Drag {
@@ -72,8 +75,10 @@ enum Drag {
 	TabReorder(usize),
 	/// Moving a pane; cursor tracked for the drop-zone overlay.
 	PaneSwap { from: usize, cursor: (u16, u16) },
-	/// Dragging a split boundary.
-	Resize { axis: Axis, last: u16 },
+	/// Dragging a split boundary: the flanking pane pair is pinned at press
+	/// time, `edge` is the boundary's current position (tree-truth, updated
+	/// after every applied shift).
+	Resize { axis: Axis, low: usize, high: usize, edge: u16 },
 }
 
 /// The workspace: menu row, tab row, and a tree of panes per tab.
@@ -90,6 +95,9 @@ pub struct Workspace {
 	hits: Vec<(Rect, Hit)>,
 	/// (pane id, rect) of the active tab from the last frame.
 	last_pane_areas: Vec<(usize, Rect)>,
+	/// The pane canvas from the last frame (between the chrome and the
+	/// dock/status rows) — the resize baseline, identical to what was drawn.
+	last_content: Rect,
 	/// Clickable right-edge segments of the status bar.
 	status_hits: ((u16, u16), (u16, u16), u16),
 	open_menu: Option<usize>,
@@ -164,6 +172,7 @@ impl Workspace {
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
+			last_content: Rect::default(),
 			status_hits: ((0, 0), (0, 0), 0),
 			open_menu: None,
 			menu_boxes: Vec::new(),
@@ -312,6 +321,11 @@ impl Workspace {
 					let tab = self.active();
 					let idx = tab.active;
 					tab.close_pane(idx);
+				},
+				KeyCode::Char('m') | KeyCode::Char('M') => {
+					let tab = self.active();
+					let idx = tab.active;
+					tab.minimize_pane(idx);
 				},
 				_ => {},
 			}
@@ -505,6 +519,20 @@ impl Workspace {
 					self.active().close_pane(pane);
 				}
 			},
+			Hit::PaneMinimize { pane } => {
+				self.active().minimize_pane(pane);
+			},
+			Hit::DockChip { slot } => {
+				// Replant beside the focused pane, split across its longer
+				// side (same rule as a fresh auto split).
+				let rect = self.focused_rect();
+				let side = if rect.width >= rect.height {
+					Side::Left
+				} else {
+					Side::Top
+				};
+				self.active().restore_pane(slot, side);
+			},
 			Hit::PaneTitle { pane } => {
 				self.active().active = pane;
 				if DRAG_ENABLED {
@@ -512,20 +540,23 @@ impl Workspace {
 				}
 			},
 			Hit::Pane { pane } => {
-				// A shared split boundary near the cursor starts a resize drag
-				// (parked while DRAG_ENABLED is false).
+				// A shared split boundary near the cursor starts a resize
+				// drag: the flanking pair is pinned here, the edge follows
+				// the cursor one-to-one for the whole drag.
 				if DRAG_ENABLED {
-					if let Some((axis, _)) =
-						find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 1)
+					if let Some((axis, low, high)) =
+						crate::layout::boundary_pair(&self.last_pane_areas, mouse.column, mouse.row, 1)
 					{
-						self.drag = Some(Drag::Resize {
-							axis,
-							last: match axis {
-								Axis::Row => mouse.column,
-								Axis::Column => mouse.row,
+						let edge = self.last_pane_areas.iter().find(|(id, _)| *id == low).map(
+							|(_, r)| match axis {
+								Axis::Row => r.right(),
+								Axis::Column => r.bottom(),
 							},
-						});
-						return false;
+						);
+						if let Some(edge) = edge {
+							self.drag = Some(Drag::Resize { axis, low, high, edge });
+							return false;
+						}
 					}
 				}
 				self.active().active = pane;
@@ -603,22 +634,33 @@ impl Workspace {
 			Some(Drag::PaneSwap { cursor, .. }) => {
 				*cursor = (mouse.column, mouse.row);
 			},
-			Some(Drag::Resize { axis, last }) => {
-				let axis = *axis;
+			Some(Drag::Resize { axis, low, edge, .. }) => {
+				let (axis, low, mut edge) = (*axis, *low, *edge);
 				let position = match axis {
 					Axis::Row => mouse.column,
 					Axis::Column => mouse.row,
 				};
-				let delta = position as i32 - *last as i32;
+				let delta = position as i32 - edge as i32;
 				if delta != 0 {
-					if let Some((_, line)) =
-						find_boundary(&self.last_pane_areas, mouse.column, mouse.row, 8)
+					let content = self.last_content;
+					self.active().tree.resize_at(content, axis, edge, delta);
+					// Re-measure the edge from the tree itself — never from
+					// the screen — so back-to-back drag events between two
+					// frames still accumulate exactly.
+					if let Some((_, rect)) = self
+						.active()
+						.tree
+						.leaf_rects(content)
+						.into_iter()
+						.find(|(id, _)| *id == low)
 					{
-						let content = self.content_rect();
-						self.active().tree.resize_at(content, axis, line, delta);
+						edge = match axis {
+							Axis::Row => rect.right(),
+							Axis::Column => rect.bottom(),
+						};
 					}
-					if let Some(Drag::Resize { last, .. }) = self.drag.as_mut() {
-						*last = position;
+					if let Some(Drag::Resize { edge: stored, .. }) = self.drag.as_mut() {
+						*stored = edge;
 					}
 				}
 			},
@@ -647,9 +689,12 @@ impl Workspace {
 				// Drop on the chrome rows → the pane becomes its own tab.
 				if mouse.row <= 1 {
 					if let Some(pane) = self.active().take_pane(from) {
-						self
-							.tabs
-							.push(Tab { panes: vec![pane], active: 0, tree: PaneNode::single(0) });
+						self.tabs.push(Tab {
+							panes: vec![pane],
+							minimized: Vec::new(),
+							active: 0,
+							tree: PaneNode::single(0),
+						});
 						self.active_tab = self.tabs.len() - 1;
 					}
 					return false;
@@ -725,6 +770,11 @@ impl Workspace {
 			(1, 8) => {
 				let tab = self.active();
 				let idx = tab.active;
+				tab.minimize_pane(idx);
+			},
+			(1, 9) => {
+				let tab = self.active();
+				let idx = tab.active;
 				tab.close_pane(idx);
 			},
 			// Tab
@@ -737,7 +787,7 @@ impl Workspace {
 				}
 			},
 			// Tools
-			(3, 0..=2) => {
+			(3, 0..=5) => {
 				let (_, tree) = PaneNode::presets()[item].clone();
 				let cwd = launch_cwd();
 				match self.active().apply_preset(tree, cwd) {
@@ -745,14 +795,14 @@ impl Workspace {
 					Err(error) => self.notice = Some(format!("{error}")),
 				}
 			},
-			(3, 3) => self.active().tree.equalize(),
-			(3, 4) => {
+			(3, 6) => self.active().tree.equalize(),
+			(3, 7) => {
 				let tab = self.active();
 				if !tab.panes.is_empty() {
 					tab.active = (tab.active + 1) % tab.panes.len();
 				}
 			},
-			(3, 5) => self.install_missing_tools(),
+			(3, 8) => self.install_missing_tools(),
 			// Settings
 			(4, 0) => {
 				self.doctor_open = true;
@@ -842,26 +892,24 @@ impl Workspace {
 		}
 	}
 
-	fn content_rect(&self) -> Rect {
-		Rect {
-			x: 1,
-			y: 2,
-			width: self.last_frame.width.saturating_sub(2),
-			height: self.last_frame.height.saturating_sub(4),
-		}
-	}
-
 	fn draw(&mut self, frame: &mut ratatui::Frame) {
 		let size = frame.area();
 		self.last_frame = size;
 		self.hits.clear();
+		let dock_h = if self.tabs[self.active_tab].minimized.is_empty() {
+			0
+		} else {
+			1
+		};
 		let rows = Layout::vertical([
-			Constraint::Length(1), // menu bar
-			Constraint::Length(1), // tab bar
-			Constraint::Min(3),    // panes
-			Constraint::Length(1), // status
+			Constraint::Length(1),      // menu bar
+			Constraint::Length(1),      // tab bar
+			Constraint::Min(3),         // panes
+			Constraint::Length(dock_h), // minimized dock
+			Constraint::Length(1),      // status
 		])
 		.split(size);
+		self.last_content = rows[2];
 
 		// Row 0: menu bar — render and hit geometry from the same helper.
 		frame.render_widget(MenuBar { open: self.open_menu }, rows[0]);
@@ -953,7 +1001,7 @@ impl Workspace {
 					});
 					cursor += w;
 				}
-				const CONTROLS: &str = " +  ↔  ↕  ✕ ";
+				const CONTROLS: &str = " +  ↔  ↕  –  ✕ ";
 				let controls_w = Span::raw(CONTROLS).width() as u16;
 				let controls_x = area.right().saturating_sub(controls_w + 1);
 				push_deferred(
@@ -970,6 +1018,10 @@ impl Workspace {
 				);
 				push_deferred(
 					Rect { x: controls_x + 9, y: area.y, width: 3, height: 1 },
+					Hit::PaneMinimize { pane: pane_id },
+				);
+				push_deferred(
+					Rect { x: controls_x + 12, y: area.y, width: 3, height: 1 },
 					Hit::PageClose { pane: pane_id },
 				);
 				for (idx, (x, w)) in page_boxes.iter().enumerate() {
@@ -1078,6 +1130,27 @@ impl Workspace {
 			frame.render_widget(dropdown, size);
 		}
 
+		// Minimized dock: one chip per docked pane of THIS tab — click to
+		// replant it beside the focused pane.
+		if dock_h == 1 {
+			let mut spans = vec![Span::styled(" minimized:", Style::default().fg(Color::DarkGray))];
+			let mut cursor = rows[3].x + Span::raw(" minimized:").width() as u16;
+			for slot in 0..self.tabs[self.active_tab].minimized.len() {
+				let label = format!(" ▢ {} ", self.tabs[self.active_tab].minimized[slot].label());
+				let width = Span::raw(label.clone()).width() as u16;
+				spans.push(Span::styled(label, Style::default().fg(Color::White)));
+				self.push_hit(
+					Rect { x: cursor, y: rows[3].y, width, height: 1 },
+					Hit::DockChip { slot },
+				);
+				cursor += width;
+			}
+			frame.render_widget(
+				Paragraph::new(Line::from(spans)).style(Style::default().fg(Color::DarkGray)),
+				rows[3],
+			);
+		}
+
 		// Status row.
 		let tab = &self.tabs[self.active_tab];
 		let pane_label = tab
@@ -1091,22 +1164,22 @@ impl Workspace {
 		});
 		frame.render_widget(
 			Paragraph::new(status).style(Style::default().fg(Color::DarkGray)),
-			rows[3],
+			rows[4],
 		);
 		const STATUS_TOOLS: &str = "[layout] [quit]";
 		let tools_width = Span::raw(STATUS_TOOLS).width() as u16;
-		if rows[3].width > tools_width {
-			let start = rows[3].right() - tools_width - 1;
+		if rows[4].width > tools_width {
+			let start = rows[4].right() - tools_width - 1;
 			frame.render_widget(
 				Paragraph::new(Line::from(vec![
 					Span::styled("[layout]", Style::default().fg(Color::White)),
 					Span::styled(" ", Style::default()),
 					Span::styled("[quit]", Style::default().fg(Color::White)),
 				])),
-				Rect { x: start, y: rows[3].y, width: tools_width, height: 1 },
+				Rect { x: start, y: rows[4].y, width: tools_width, height: 1 },
 			);
-			self.push_hit(Rect { x: start, y: rows[3].y, width: 8, height: 1 }, Hit::LayoutCycle);
-			self.push_hit(Rect { x: start + 9, y: rows[3].y, width: 6, height: 1 }, Hit::Quit);
+			self.push_hit(Rect { x: start, y: rows[4].y, width: 8, height: 1 }, Hit::LayoutCycle);
+			self.push_hit(Rect { x: start + 9, y: rows[4].y, width: 6, height: 1 }, Hit::Quit);
 		}
 
 		if self.doctor_open {
@@ -1195,35 +1268,6 @@ fn drop_zone_rect(rect: Rect, column: u16, row: u16) -> Option<Rect> {
 			height: rect.height.saturating_sub(2),
 		}),
 	}
-}
-
-/// Shared boundary between two panes nearest to the cursor.
-fn find_boundary(
-	areas: &[(usize, Rect)],
-	column: u16,
-	row: u16,
-	tolerance: i32,
-) -> Option<(Axis, u16)> {
-	let mut best: Option<(i32, Axis, u16)> = None;
-	for (_, r) in areas {
-		for (line, axis) in [(r.right(), Axis::Row), (r.bottom(), Axis::Column)] {
-			let shared = areas.iter().any(|(_, o)| {
-				matches!(axis, Axis::Row) && o.left() == line && line != 0
-					|| matches!(axis, Axis::Column) && o.top() == line && line != 0
-			});
-			if shared {
-				let cursor = match axis {
-					Axis::Row => column,
-					Axis::Column => row,
-				};
-				let dist = (cursor as i32 - line as i32).abs();
-				if dist <= tolerance && best.map(|(d, _, _)| dist < d).unwrap_or(true) {
-					best = Some((dist, axis, line));
-				}
-			}
-		}
-	}
-	best.map(|(_, axis, line)| (axis, line))
 }
 
 fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {

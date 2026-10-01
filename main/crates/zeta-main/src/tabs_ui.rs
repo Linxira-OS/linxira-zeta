@@ -25,6 +25,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"🍅 Pomodoro",
 			"📋 Clipboard",
 			"➕ New subtab",
+			"🗕 Minimize pane",
 			"❌ Close pane",
 		],
 	),
@@ -32,9 +33,12 @@ pub const MENUS: &[(&str, &[&str])] = &[
 	(
 		"Tools",
 		&[
-			"Layout 1x1",
-			"Layout 1x2",
-			"Layout 2x2",
+			"Layout single",
+			"Layout 1+2 (⅓|⅔)",
+			"Layout thirds",
+			"Layout T",
+			"Layout quad",
+			"Layout columns (⅓|⅔)",
 			"Equalize",
 			"Focus next pane",
 			"📦 Install missing",
