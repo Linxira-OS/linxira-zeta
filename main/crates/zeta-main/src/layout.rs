@@ -426,6 +426,47 @@ pub enum Side {
 	Bottom,
 }
 
+/// Grab rects for every shared boundary: adjacent panes register their
+/// border columns/rows as draggable strips. The strip covers both flanking
+/// border lines (the visible double-line gutter) across the panes' shared
+/// span — a press there must start a resize even though the cells belong
+/// to no pane's inner hit area.
+pub fn boundary_grabs(areas: &[(usize, Rect)]) -> Vec<(Axis, usize, usize, Rect)> {
+	let mut out = Vec::new();
+	for &(low, a) in areas {
+		for &(high, b) in areas {
+			if low == high {
+				continue;
+			}
+			if b.left() != 0 && a.right() == b.left() && a.bottom() > b.top() && b.bottom() > a.top() {
+				let top = a.top().max(b.top());
+				let bottom = a.bottom().min(b.bottom());
+				if bottom > top {
+					out.push((
+						Axis::Row,
+						low,
+						high,
+						Rect { x: b.left() - 1, y: top, width: 2, height: bottom - top },
+					));
+				}
+			}
+			if b.top() != 0 && a.bottom() == b.top() && a.right() > b.left() && b.right() > a.left() {
+				let left = a.left().max(b.left());
+				let right = a.right().min(b.right());
+				if right > left {
+					out.push((
+						Axis::Column,
+						low,
+						high,
+						Rect { x: left, y: b.top() - 1, width: right - left, height: 2 },
+					));
+				}
+			}
+		}
+	}
+	out
+}
+
 /// The shared boundary nearest the cursor, with the pane ids flanking it
 /// (`low` = left/top pane, `high` = right/bottom). Resize drags pin this
 /// pair at press time and track one edge for the whole drag, so nested
@@ -663,6 +704,49 @@ mod tests {
 				children.iter().map(|(_, n)| count_leaves_pub(n)).sum()
 			},
 		}
+	}
+
+	#[test]
+	fn boundary_grabs_cover_both_border_lines() {
+		// [0 | 1 over 2]: the divider col 40 splits into two grab strips
+		// (beside 1 above the T stem, beside 2 below), the horizontal one
+		// covers the double-line gutter rows 11-12.
+		let tree = row(vec![PaneNode::Leaf(0), col(vec![PaneNode::Leaf(1), PaneNode::Leaf(2)])]);
+		let areas = tree.leaf_rects(Rect::new(0, 0, 80, 24));
+		let grabs = boundary_grabs(&areas);
+
+		assert!(
+			grabs.iter().any(|(axis, low, high, r)| {
+				*axis == Axis::Row
+					&& *low == 0
+					&& *high == 1
+					&& r.x == 39
+					&& r.width == 2
+					&& r.y == 0
+					&& r.height == 12
+			}),
+			"vertical grab beside pane 1 covers both border cols: {grabs:?}"
+		);
+		assert!(
+			grabs.iter().any(|(axis, low, high, r)| {
+				*axis == Axis::Row && *low == 0 && *high == 2 && r.y == 12 && r.height == 12
+			}),
+			"vertical grab beside pane 2 covers the lower stretch: {grabs:?}"
+		);
+		assert!(
+			grabs.iter().any(|(axis, low, high, r)| {
+				*axis == Axis::Column
+					&& *low == 1
+					&& *high == 2
+					&& r.y == 11
+					&& r.height == 2
+					&& r.x == 40
+					&& r.width == 40
+			}),
+			"horizontal grab covers both gutter rows across the shared span: {grabs:?}"
+		);
+		let lone = PaneNode::single(0).leaf_rects(Rect::new(0, 0, 80, 24));
+		assert!(boundary_grabs(&lone).is_empty(), "a lone pane has nothing to grab");
 	}
 
 	#[test]

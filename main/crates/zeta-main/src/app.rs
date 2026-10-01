@@ -58,6 +58,7 @@ enum Hit {
 	PaneMinimize { pane: usize },
 	DockChip { slot: usize },
 	Pane { pane: usize },
+	Boundary { axis: Axis, low: usize, high: usize },
 	LayoutCycle,
 	SettingRow(usize),
 	Quit,
@@ -559,6 +560,20 @@ impl Workspace {
 			},
 			Hit::PaneMinimize { pane } => {
 				self.active().minimize_pane(pane);
+			},
+			Hit::Boundary { axis, low, high } => {
+				// The shared border itself was pressed — the resize drag
+				// starts right here (the position bar renders while it is
+				// live). The flanking pair is pinned for the whole drag.
+				if self.drag_enabled() {
+					if let Some((_, r)) = self.last_pane_areas.iter().find(|(id, _)| *id == low) {
+						let edge = match axis {
+							Axis::Row => r.right(),
+							Axis::Column => r.bottom(),
+						};
+						self.drag = Some(Drag::Resize { axis, low, high, edge });
+					}
+				}
 			},
 			Hit::DockChip { slot } => {
 				// Replant beside the focused pane, split across its longer
@@ -1141,8 +1156,53 @@ impl Workspace {
 				}
 			}
 
+			// Boundary grab zones: shared border columns/rows. Claimed
+			// before the deferred flush so title-bar controls keep
+			// priority where they overlap the strip.
+			for (axis, low, high, rect) in crate::layout::boundary_grabs(&rects) {
+				self.push_hit(rect, Hit::Boundary { axis, low, high });
+			}
 			for (rect, hit) in deferred {
 				self.push_hit(rect, hit);
+			}
+		}
+
+		// Resize position bar: while a boundary drag is live, its edge
+		// renders as a bright strip across the shared span — the splitter
+		// affordance that shows exactly where the divide sits.
+		if let Some(Drag::Resize { axis, low, high, .. }) = self.drag {
+			let rect_of = |id: usize| {
+				self
+					.last_pane_areas
+					.iter()
+					.find(|(pid, _)| *pid == id)
+					.map(|(_, r)| *r)
+			};
+			if let (Some(a), Some(b)) = (rect_of(low), rect_of(high)) {
+				let (left, top) = (a.left().max(b.left()), a.top().max(b.top()));
+				let (right, bottom) = (a.right().min(b.right()), a.bottom().min(b.bottom()));
+				let bar = match axis {
+					Axis::Row => Rect {
+						x: a.right().saturating_sub(1),
+						y: top,
+						width: 2,
+						height: bottom.saturating_sub(top),
+					},
+					Axis::Column => Rect {
+						x: left,
+						y: a.bottom().saturating_sub(1),
+						width: right.saturating_sub(left),
+						height: 2,
+					},
+				};
+				let buffer = frame.buffer_mut();
+				for row in bar.y..bar.bottom() {
+					for col in bar.x..bar.right() {
+						buffer[(col, row)]
+							.set_symbol(" ")
+							.set_style(Style::default().bg(Color::White));
+					}
+				}
 			}
 		}
 
