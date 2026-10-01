@@ -44,7 +44,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"📦 Install missing",
 		],
 	),
-	("Settings", &["Settings (soon)", "Help"]),
+	("Settings", &["Settings", "Suite status", "Help"]),
 ];
 
 /// Menu bar row: left-aligned triggers. Layout helper shared by render and

@@ -234,6 +234,39 @@ pub fn detect_install_shell() -> Option<Shell> {
 		.cloned()
 }
 
+/// The shell new panes spawn, honoring the workbench's pinned choice
+/// (Settings → default shell). A pin whose shell is not installed falls
+/// back to [`detect_shell`], so a choice can never break pane creation.
+pub fn pick_shell(choice: crate::settings::ShellChoice) -> Shell {
+	let chain = cached_chain();
+	let stem_is = |shell: &Shell, name: &str| {
+		shell
+			.path
+			.file_stem()
+			.and_then(|stem| stem.to_str())
+			.is_some_and(|stem| stem.eq_ignore_ascii_case(name))
+	};
+	match choice {
+		crate::settings::ShellChoice::Auto => detect_shell(),
+		crate::settings::ShellChoice::PowerShell => chain
+			.iter()
+			.find(|s| s.flavor == ShellFlavor::PowerShell && stem_is(s, "powershell"))
+			.or_else(|| chain.iter().find(|s| s.flavor == ShellFlavor::PowerShell))
+			.cloned()
+			.unwrap_or_else(detect_shell),
+		crate::settings::ShellChoice::Pwsh => chain
+			.iter()
+			.find(|s| s.flavor == ShellFlavor::PowerShell && stem_is(s, "pwsh"))
+			.cloned()
+			.unwrap_or_else(detect_shell),
+		crate::settings::ShellChoice::GitBash => chain
+			.iter()
+			.find(|s| s.flavor == ShellFlavor::Posix)
+			.cloned()
+			.unwrap_or_else(detect_shell),
+	}
+}
+
 // --- binary probing ------------------------------------------------------
 
 /// File-name extensions probed per bin name, in preference order. On

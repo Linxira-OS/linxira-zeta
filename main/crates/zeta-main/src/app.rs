@@ -59,6 +59,7 @@ enum Hit {
 	DockChip { slot: usize },
 	Pane { pane: usize },
 	LayoutCycle,
+	SettingRow(usize),
 	Quit,
 }
 
@@ -66,8 +67,8 @@ enum Hit {
 /// 2026-10-01 investigation concluded the weighted-tree machinery is sound
 /// (unit-tested splits, detaches, swaps, one-to-one resize with a min-weight
 /// clamp); resize drags pin the flanking pane pair at press time and track a
-/// single edge, so nested boundaries are never re-grabbed mid-drag.
-const DRAG_ENABLED: bool = true;
+/// single edge, so nested boundaries are never re-grabbed mid-drag. The
+/// layer is a runtime Settings toggle (default on), not a compile flag.
 
 /// What a press-drag is currently doing.
 enum Drag {
@@ -90,6 +91,7 @@ pub struct Workspace {
 	config: std::sync::Arc<termide_config::Config>,
 	help_open: bool,
 	doctor_open: bool,
+	settings_open: bool,
 	notice: Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
 	hits: Vec<(Rect, Hit)>,
@@ -109,6 +111,7 @@ pub struct Workspace {
 }
 
 pub fn run() -> Result<()> {
+	crate::settings::init();
 	let mut stdout = std::io::stdout();
 	crossterm::terminal::enable_raw_mode()?;
 	crossterm::execute!(
@@ -169,6 +172,7 @@ impl Workspace {
 			config: std::sync::Arc::new(termide_config::Config::default()),
 			help_open: false,
 			doctor_open: false,
+			settings_open: false,
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
@@ -257,9 +261,10 @@ impl Workspace {
 
 	/// Returns `true` when the workspace should quit.
 	fn handle_key(&mut self, key: KeyEvent) -> Result<bool> {
-		if self.help_open || self.doctor_open {
+		if self.help_open || self.doctor_open || self.settings_open {
 			self.help_open = false;
 			self.doctor_open = false;
+			self.settings_open = false;
 			if matches!(key.code, KeyCode::Esc) {
 				return Ok(false);
 			}
@@ -403,8 +408,41 @@ impl Workspace {
 			MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => self.handle_mouse_scroll(mouse),
 			MouseEventKind::Drag(MouseButton::Left) => self.handle_mouse_drag(mouse),
 			MouseEventKind::Up(MouseButton::Left) => self.handle_mouse_up(mouse),
+			MouseEventKind::Moved => self.handle_mouse_moved(mouse),
 			_ => false,
 		}
+	}
+
+	/// The drag layer runs while the Settings toggle is on.
+	fn drag_enabled(&self) -> bool {
+		crate::settings::snapshot().drag
+	}
+
+	/// Focus follows the hover when the setting is on — suppressed while a
+	/// menu, an overlay, or a drag owns the pointer.
+	fn handle_mouse_moved(&mut self, mouse: crossterm::event::MouseEvent) -> bool {
+		let settings = crate::settings::snapshot();
+		if !settings.focus_follows_mouse
+			|| self.open_menu.is_some()
+			|| self.help_open
+			|| self.doctor_open
+			|| self.settings_open
+			|| self.drag.is_some()
+		{
+			return false;
+		}
+		let position = ratatui::layout::Position { x: mouse.column, y: mouse.row };
+		if let Some(pane) = self
+			.last_pane_areas
+			.iter()
+			.find(|(_, a)| a.contains(position))
+			.map(|(p, _)| *p)
+		{
+			if self.active().panes.get(pane).is_some() {
+				self.active().active = pane;
+			}
+		}
+		false
 	}
 
 	fn handle_mouse_scroll(&mut self, mouse: crossterm::event::MouseEvent) -> bool {
@@ -476,7 +514,7 @@ impl Workspace {
 			Hit::TabPlus => self.new_tab(),
 			Hit::Tab(idx) => {
 				self.active_tab = idx;
-				if DRAG_ENABLED {
+				if self.drag_enabled() {
 					self.drag = Some(Drag::TabReorder(idx));
 				}
 			},
@@ -533,9 +571,17 @@ impl Workspace {
 				};
 				self.active().restore_pane(slot, side);
 			},
+			Hit::SettingRow(idx) => {
+				crate::settings::update(|s| match idx {
+					0 => s.shell = s.shell.next(),
+					1 => s.drag = !s.drag,
+					2 => s.focus_follows_mouse = !s.focus_follows_mouse,
+					_ => {},
+				});
+			},
 			Hit::PaneTitle { pane } => {
 				self.active().active = pane;
-				if DRAG_ENABLED {
+				if self.drag_enabled() {
 					self.drag = Some(Drag::PaneSwap { from: pane, cursor: (mouse.column, mouse.row) });
 				}
 			},
@@ -543,7 +589,7 @@ impl Workspace {
 				// A shared split boundary near the cursor starts a resize
 				// drag: the flanking pair is pinned here, the edge follows
 				// the cursor one-to-one for the whole drag.
-				if DRAG_ENABLED {
+				if self.drag_enabled() {
 					if let Some((axis, low, high)) =
 						crate::layout::boundary_pair(&self.last_pane_areas, mouse.column, mouse.row, 1)
 					{
@@ -805,9 +851,12 @@ impl Workspace {
 			(3, 8) => self.install_missing_tools(),
 			// Settings
 			(4, 0) => {
+				self.settings_open = true;
+			},
+			(4, 1) => {
 				self.doctor_open = true;
 			},
-			(4, 1) => self.help_open = true,
+			(4, 2) => self.help_open = true,
 			_ => {},
 		}
 		false
@@ -1209,6 +1258,56 @@ impl Workspace {
 			let area = centered_rect(size, 62, 40);
 			frame.render_widget(Clear, area);
 			frame.render_widget(overlay, area);
+		}
+
+		// Settings overlay: one clickable row per setting; a click applies
+		// (and persists) immediately, any key closes.
+		if self.settings_open {
+			let s = crate::settings::snapshot();
+			let value = |on: bool| if on { "on" } else { "off" };
+			let rows = [
+				format!(
+					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git bash)",
+					s.shell.label()
+				),
+				format!(
+					" drag                 {:<9}  ← click to toggle (border resize · pane swap · tab reorder)",
+					value(s.drag)
+				),
+				format!(" focus follows mouse  {:<9}  ← click to toggle", value(s.focus_follows_mouse)),
+			];
+			let lines: Vec<Line> = rows.iter().map(|row| Line::from(row.clone())).collect();
+			let overlay = Paragraph::new(lines)
+				.block(
+					Block::default()
+						.borders(Borders::ALL)
+						.border_type(BorderType::Rounded)
+						.title(" zeta settings — any key closes "),
+				)
+				.style(Style::default().bg(Color::Reset));
+			// Fixed 5-row panel (3 settings + borders) centered — a percent
+			// height would cramp below ~30 terminal rows.
+			let width = (size.width * 72 / 100).clamp(46, size.width.saturating_sub(2).max(46));
+			let height = 5u16.min(size.height);
+			let area = Rect {
+				x: size.x + (size.width.saturating_sub(width)) / 2,
+				y: size.y + (size.height.saturating_sub(height)) / 2,
+				width,
+				height,
+			};
+			frame.render_widget(Clear, area);
+			frame.render_widget(overlay, area);
+			for (idx, _) in rows.iter().enumerate() {
+				self.push_hit(
+					Rect {
+						x: area.x + 1,
+						y: area.y + 1 + idx as u16,
+						width: area.width.saturating_sub(2),
+						height: 1,
+					},
+					Hit::SettingRow(idx),
+				);
+			}
 		}
 	}
 }

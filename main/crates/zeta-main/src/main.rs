@@ -1,6 +1,7 @@
 mod app;
 mod help;
 mod layout;
+mod settings;
 mod shell;
 mod suite;
 mod tab;

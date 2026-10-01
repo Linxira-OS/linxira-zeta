@@ -168,7 +168,7 @@ impl Pane {
 						 PowerShell 7 or Git Bash; cmd.exe is never used for installs"
 					)
 				})?,
-				_ => crate::shell::detect_shell(),
+				_ => crate::shell::pick_shell(crate::settings::snapshot().shell),
 			};
 			let mut term = Terminal::new_with_shell(rows, cols, &shell.path.to_string_lossy(), cwd)?;
 			if let Some(line) = kind.launch_line(&shell) {
