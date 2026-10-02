@@ -98,7 +98,7 @@ describe("worktree isolation helpers", () => {
 	// Regression: the staged and unstaged diffs were rendered in full before the
 	// #8939 gate ran, so a working tree whose index-vs-HEAD diff was enormous
 	// (a jj conflict commit exported to git materialises every side as a
-	// `.jjconflict-*` subtree) grew one omp process to 141 GB and took the host
+	// `.jjconflict-*` subtree) grew one zeta process to 141 GB and took the host
 	// down. The renderer now stops at the budget; the caller sees the same typed
 	// refusal it gets for oversized untracked content, with no measured total.
 	it("refuses to snapshot a working tree whose staged diff exceeds the isolation budget", async () => {
@@ -383,7 +383,7 @@ describe("worktree isolation helpers", () => {
 				await fs.writeFile(path.join(iso, fixtureName), `${isolatedLines.join("\n")}\n`);
 
 				const taskId = `dirty-context-${path.basename(isoRoot)}`;
-				let branchName = `omp/task/${taskId}`;
+				let branchName = `zeta/task/${taskId}`;
 				try {
 					const commitResult = await commitToBranch(iso, baseline, taskId, "dirty context merge");
 					if (!commitResult?.branchName) throw new Error("expected task branch");
@@ -646,8 +646,8 @@ describe("detachGitDir", () => {
 		expect(taskParent).toBe(baseSha);
 		// Objects still resolve through the borrowed source ODB: the parent can
 		// fetch the task branch (proving the alternates link is intact).
-		await runGit(wt, ["fetch", iso, "feature/a:refs/heads/omp-fetched"]);
-		expect(await runGit(wt, ["rev-parse", "omp-fetched"])).toBe(taskCommit);
+		await runGit(wt, ["fetch", iso, "feature/a:refs/heads/zeta-fetched"]);
+		expect(await runGit(wt, ["rev-parse", "zeta-fetched"])).toBe(taskCommit);
 	});
 
 	it.skipIf(process.getuid?.() === 0)("keeps shared git metadata intact when the index cannot be read", async () => {
@@ -1052,7 +1052,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const aiMessage = vi.fn(async () => "fix: update line5 in clean commit example");
 		const result = await commitToBranch(isolation, baseline, taskId, undefined, aiMessage);
 
-		expect(result?.branchName).toBe(`omp/task/${taskId}`);
+		expect(result?.branchName).toBe(`zeta/task/${taskId}`);
 		expect(result?.baseSha).toBe(baseline.root.headCommit);
 		// commitMessage callback must NOT have been invoked — the agent's
 		// message is taken verbatim.
@@ -1082,12 +1082,12 @@ describe("commitToBranch preserves agent commits", () => {
 		await runGit(isolation, ["commit", "-q", "-m", "test: add beta coverage"]);
 
 		const result = await commitToBranch(isolation, baseline, "multi", undefined);
-		expect(result?.branchName).toBe("omp/task/multi");
+		expect(result?.branchName).toBe("zeta/task/multi");
 
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId: "multi", baseSha: result!.baseSha! },
 		]);
-		expect(merge).toEqual({ failed: [], merged: ["omp/task/multi"] });
+		expect(merge).toEqual({ failed: [], merged: ["zeta/task/multi"] });
 
 		const subjects = (await runGit(parent, ["log", "-2", "--pretty=%s"])).split("\n");
 		expect(subjects).toEqual(["test: add beta coverage", "feat: add alpha file"]);
@@ -1105,7 +1105,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 		const aiMessage = vi.fn(async () => "chore: leftover beta wip");
 		const result = await commitToBranch(isolation, baseline, "leftover", undefined, aiMessage);
-		expect(result?.branchName).toBe("omp/task/leftover");
+		expect(result?.branchName).toBe("zeta/task/leftover");
 		expect(aiMessage).toHaveBeenCalledTimes(1);
 
 		const subjects = (await runGit(parent, ["log", "-2", "--pretty=%s", result!.branchName!])).split("\n");
@@ -1131,7 +1131,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 		const aiMessage = vi.fn(async () => "fix: generated fallback");
 		const result = await commitToBranch(isolation, baseline, "dirty-baseline", undefined, aiMessage);
-		expect(result?.branchName).toBe("omp/task/dirty-baseline");
+		expect(result?.branchName).toBe("zeta/task/dirty-baseline");
 		expect(aiMessage).not.toHaveBeenCalled();
 
 		const branchFiles = (await runGit(parent, ["show", "--name-only", "--pretty=format:", result!.branchName!]))
@@ -1142,7 +1142,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId: "dirty-baseline", baseSha: result!.baseSha! },
 		]);
-		expect(merge).toEqual({ failed: [], merged: ["omp/task/dirty-baseline"] });
+		expect(merge).toEqual({ failed: [], merged: ["zeta/task/dirty-baseline"] });
 
 		const [headSubject, status, fixture] = await Promise.all([
 			runGit(parent, ["log", "-1", "--pretty=%s"]),
@@ -1180,7 +1180,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 		const taskId = "dirty-parent-committed-agent";
 		const result = await commitToBranch(isolation, baseline, taskId, undefined);
-		expect(result?.branchName).toBe(`omp/task/${taskId}`);
+		expect(result?.branchName).toBe(`zeta/task/${taskId}`);
 
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId, baseSha: result!.baseSha! },
@@ -1197,7 +1197,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const aiMessage = vi.fn(async () => "feat: add alpha");
 		const result = await commitToBranch(isolation, baseline, "nocommit", undefined, aiMessage);
 
-		expect(result?.branchName).toBe("omp/task/nocommit");
+		expect(result?.branchName).toBe("zeta/task/nocommit");
 		expect(aiMessage).toHaveBeenCalledTimes(1);
 
 		const branchSubject = await runGit(parent, ["log", "-1", "--pretty=%s", result!.branchName!]);
@@ -1247,7 +1247,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 			const baseline = await captureBaseline(parent);
 			const result = await commitToBranch(isolation, baseline, "wip-tracked-file", undefined);
-			expect(result?.branchName).toBe("omp/task/wip-tracked-file");
+			expect(result?.branchName).toBe("zeta/task/wip-tracked-file");
 
 			const branchDiff = await runGit(parent, ["show", "--pretty=format:", result!.branchName!]);
 			expect(branchDiff).toContain("+# line 30 def new_func()");
@@ -1269,7 +1269,7 @@ describe("commitToBranch preserves agent commits", () => {
 			const baseline = await captureBaseline(parent);
 			expect(baseline.root.untracked).toContain("src/new.py");
 			const result = await commitToBranch(isolation, baseline, "wip-untracked", undefined);
-			expect(result?.branchName).toBe("omp/task/wip-untracked");
+			expect(result?.branchName).toBe("zeta/task/wip-untracked");
 
 			const branchDiff = await runGit(parent, ["show", "--pretty=format:", result!.branchName!]);
 			expect(branchDiff).toContain("new file mode");
@@ -1291,7 +1291,7 @@ describe("commitToBranch preserves agent commits", () => {
 			const baseline = await captureBaseline(parent);
 			expect(baseline.root.staged).toContain("new file mode");
 			const result = await commitToBranch(isolation, baseline, "wip-staged-new", undefined);
-			expect(result?.branchName).toBe("omp/task/wip-staged-new");
+			expect(result?.branchName).toBe("zeta/task/wip-staged-new");
 
 			const branchDiff = await runGit(parent, ["show", "--pretty=format:", result!.branchName!]);
 			expect(branchDiff).toContain("new file mode");
@@ -1324,7 +1324,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 			const baseline = await captureBaseline(parent);
 			const result = await commitToBranch(isolation, baseline, "wip-filter", undefined);
-			expect(result?.branchName).toBe("omp/task/wip-filter");
+			expect(result?.branchName).toBe("zeta/task/wip-filter");
 
 			const files = (await runGit(parent, ["show", "--name-only", "--pretty=format:", result!.branchName!]))
 				.split("\n")
@@ -1360,7 +1360,7 @@ describe("commitToBranch preserves agent commits", () => {
 			const baseline = await captureBaseline(parent);
 			expect(baseline.root.untracked).toContain("src/new.py");
 			const result = await commitToBranch(isolation, baseline, "wip-only-commit", undefined);
-			expect(result?.branchName).toBe("omp/task/wip-only-commit");
+			expect(result?.branchName).toBe("zeta/task/wip-only-commit");
 
 			const branchDiff = await runGit(parent, ["show", "--pretty=format:", result!.branchName!]);
 			expect(branchDiff).toContain("new file mode");

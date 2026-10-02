@@ -20,9 +20,8 @@ import {
 	type StreamingPartialJsonCarrier,
 	setStreamingPartialJson,
 } from "@linxiraos/pi-ai/utils/block-symbols";
-import { parseToolCallArguments } from "@linxiraos/pi-ai/utils/tool-call-arguments";
-import { parseStreamingJsonThrottled, readSseJson } from "@linxiraos/pi-utils";
 import { parseStreamingJson, parseStreamingJsonThrottled, readSseJson } from "@linxiraos/pi-utils";
+import { parseToolCallArguments } from "@linxiraos/pi-ai/utils/tool-call-arguments";
 
 // Event stream adapter for proxy SSE events
 export class ProxyMessageEventStream extends EventStream<AssistantMessageEvent, AssistantMessage> {

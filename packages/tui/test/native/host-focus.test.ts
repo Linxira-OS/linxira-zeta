@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Editor } from "@oh-my-pi/pi-tui/components/editor";
-import { node } from "@oh-my-pi/pi-tui/native/describe";
-import type { NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import type { Component } from "@oh-my-pi/pi-tui/tui";
+import { Editor } from "@linxiraos/pi-tui/components/editor";
+import { node } from "@linxiraos/pi-tui/native/describe";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
+import type { Component } from "@linxiraos/pi-tui/tui";
 import { defaultEditorTheme } from "../test-themes";
 import { TspHarness } from "./tsp-harness";
 

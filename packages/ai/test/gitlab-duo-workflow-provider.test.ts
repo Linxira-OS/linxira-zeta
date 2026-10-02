@@ -41,7 +41,6 @@ import type {
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
 import { extractHttpStatusFromError } from "@linxiraos/pi-utils";
 
 beforeAll(() => configureCredentialRedaction(true));

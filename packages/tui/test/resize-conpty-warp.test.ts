@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { type TerminalFramePlan, type TerminalFrameProvider, TUI, type ViewportSize } from "@linxiraos/pi-tui";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Regression coverage for a resize on Warp under Windows ConPTY leaving the

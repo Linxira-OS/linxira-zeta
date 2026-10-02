@@ -99,7 +99,7 @@ mod platform {
 		if DYLIB.is_empty() {
 			return Err(Unavailable {
 				reason:  "not_built",
-				message: "This omp build does not include Apple Foundation Models support".to_owned(),
+				message: "This zeta build does not include Apple Foundation Models support".to_owned(),
 			});
 		}
 		if macos_major().is_none_or(|major| major < MIN_MACOS_MAJOR) {
@@ -188,7 +188,7 @@ mod platform {
 		let hash = DYLIB.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
 			(hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
 		});
-		let path = std::env::temp_dir().join(format!("omp-applefm-{hash:016x}.dylib"));
+		let path = std::env::temp_dir().join(format!("zeta-applefm-{hash:016x}.dylib"));
 		if fs::read(&path).is_ok_and(|bytes| bytes == DYLIB) {
 			return Ok(path);
 		}

@@ -6,19 +6,19 @@
  * and abort() must cancel an in-flight vision description rather than wait on it.
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
-import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as imageVisionFallback from "@oh-my-pi/pi-coding-agent/utils/image-vision-fallback";
-import * as imageLoading from "@oh-my-pi/pi-coding-agent/utils/image-loading";
-import { withTimeout } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as imageVisionFallback from "@linxiraos/zeta/utils/image-vision-fallback";
+import * as imageLoading from "@linxiraos/zeta/utils/image-loading";
+import { withTimeout } from "@linxiraos/pi-utils";
 
 const IMAGE: ImageContent = {
 	type: "image",

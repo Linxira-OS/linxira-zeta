@@ -4,7 +4,6 @@ import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { describe, expect, test } from "bun:test";
 import { RpcHostToolBridge } from "@linxiraos/zeta/modes/rpc/host-tools";
 import {
 	dispatchRpcInputFrame,

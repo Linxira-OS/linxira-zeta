@@ -11,7 +11,6 @@ import {
 	type UsageReport,
 } from "@linxiraos/pi-ai";
 import { Loader, Markdown, padding, Spacer, Text, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
-import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
 import { formatDuration, logger, Snowflake, sanitizeText } from "@linxiraos/pi-utils";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
 import { type BashResult, isPersistentShellCdCommand } from "../../exec/bash-executor";

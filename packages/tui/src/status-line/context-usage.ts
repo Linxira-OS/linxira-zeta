@@ -785,10 +785,10 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 	const children = [
 		node(
 			"row",
-			{ role: "omp.context.body" },
+			{ role: "zeta.context.body" },
 			[
 				node("meter", { value: used, style: "blocks", size: "lg", parts, aria: "Context usage by category" }),
-				node("kv", { items, layout: "grid", role: "omp.context.legend" }),
+				node("kv", { items, layout: "grid", role: "zeta.context.legend" }),
 			],
 			"body",
 		),
@@ -813,7 +813,7 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 	const modelName = breakdown.model?.name ?? breakdown.model?.id ?? "no model";
 	return card(
 		{
-			role: "omp.context",
+			role: "zeta.context",
 			head: [
 				span("Context", "strong"),
 				span(` · ${modelName}`, "muted"),
@@ -849,7 +849,7 @@ export function describeContextUsage(breakdown: ContextBreakdown): NativeNode {
 	return row([col(grid), col(legend)], {
 		gap: "lg",
 		wrap: true,
-		role: "omp.context.usage",
+		role: "zeta.context.usage",
 	});
 }
 
@@ -897,7 +897,7 @@ export class ContextUsageView extends Container {
 				? describeContextUsage(breakdown)
 				: meter
 					? describeContextFrame(breakdown)
-					: card({ role: "omp.context", head: [span("Context usage", "strong")] }, [
+					: card({ role: "zeta.context", head: [span("Context usage", "strong")] }, [
 							describeContextUsage(breakdown),
 						]);
 		this.#native = { meter, node: described };

@@ -2,7 +2,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as os from "node:os";
 import * as path from "node:path";
 import { formatDimensionNote, formatScreenshot, resizeImage } from "@linxiraos/zeta/utils/image-resize";
-import { formatScreenshot, resizeImage } from "@linxiraos/zeta/utils/image-resize";
 
 describe("formatScreenshot", () => {
 	function fakeResized(

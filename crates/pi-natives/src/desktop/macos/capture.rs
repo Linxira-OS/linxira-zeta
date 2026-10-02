@@ -311,7 +311,7 @@ fn key_window(active: &[u32], ax_focused: Option<u32>) -> Option<u32> {
 
 fn run_screencapture(args: &[String]) -> CoreResult<RgbaImage> {
 	let file = tempfile::Builder::new()
-		.prefix("omp-computer-")
+		.prefix("zeta-computer-")
 		.suffix(".png")
 		.tempfile()
 		.map_err(|error| {

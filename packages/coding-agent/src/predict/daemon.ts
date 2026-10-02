@@ -15,7 +15,6 @@ import * as path from "node:path";
 import type { Database } from "bun:sqlite";
 import { type PredictedWord, TextPredictor } from "@linxiraos/pi-natives";
 import { getHistoryDbPath, getPredictStateDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
-import { getHistoryDbPath, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
 import { JsonLineServer } from "../tiny/worker-server";
 import { openSqliteReadConnection } from "../tools/sqlite-reader";
 import { blendPredictions } from "./blend";

@@ -739,7 +739,7 @@ function ensureBundledModuleLoadersLoaded(): Promise<BundledModuleLoaders> {
 	}
 	if (!bundledModuleLoadersPromise) {
 		// This virtual module exists only in compiled/npm builds; source mode cannot import it statically.
-		bundledModuleLoadersPromise = import("zeta-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
+		bundledModuleLoadersPromise = import("omp-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
 	}
 	return bundledModuleLoadersPromise;
 }
@@ -802,15 +802,7 @@ const CANONICAL_PI_SCOPE = "@linxiraos";
 const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
 
 // Internal host package basenames bundled inside the zeta binary.
-const PI_PACKAGE_NAMES = [
-	"pi-agent-core",
-	"pi-ai",
-	"pi-catalog",
-	"zeta",
-	"pi-natives",
-	"pi-tui",
-	"pi-utils",
-] as const;
+const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-catalog", "zeta", "pi-natives", "pi-tui", "pi-utils"] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
 const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");

@@ -10,16 +10,16 @@ import { afterEach, beforeEach, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { cfgContextPromotionEnabled } from "@oh-my-pi/pi-coding-agent/session/context-settings";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { cfgContextPromotionEnabled } from "@linxiraos/zeta/session/context-settings";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { runSubprocess } from "@linxiraos/zeta/task/executor";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const AGENT_ID = "ParkedRelease";
@@ -29,7 +29,7 @@ const MOCK_API_SOURCE = "test/parked-subagent-session-release";
 // it fires; collection is polled past that window.
 const COLLECT_DEADLINE_MS = 8_000;
 
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
 
@@ -45,12 +45,12 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-parked-release-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-parked-release-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
 	vi.spyOn(os, "homedir").mockReturnValue(home);
-	setAgentDir(path.join(home, ".omp", "agent"));
+	setAgentDir(path.join(home, ".zeta", "agent"));
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
 	registerMockApi(MOCK_API_SOURCE);

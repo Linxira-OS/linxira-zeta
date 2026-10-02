@@ -356,7 +356,7 @@ async function runPrintModeCore(
 	await stdoutTail;
 	// Dispose before returning the status instead of hard-exiting ahead of it:
 	// the awaited `dispose()` runs the browser reaper (releaseTabsForOwner), so
-	// an OMP-owned Chromium cannot survive the exit (issue #5643).
+	// an ZETA-owned Chromium cannot survive the exit (issue #5643).
 	//
 	// A latched store failure rethrows from `dispose()`; report it as lost
 	// durability rather than letting it escape as a raw fatal dump.

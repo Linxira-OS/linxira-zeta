@@ -1,6 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { SessionEntry } from "./session-entries";
 
 export const TOOL_EXECUTION_START_CUSTOM_TYPE = "tool_execution_start";

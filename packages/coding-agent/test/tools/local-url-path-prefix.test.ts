@@ -2,12 +2,12 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter, LocalProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter, LocalProtocolHandler } from "@linxiraos/zeta/internal-urls";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("local:// URL with the working directory prefixed", () => {
 	beforeAll(async () => {

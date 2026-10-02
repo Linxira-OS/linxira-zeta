@@ -3,9 +3,8 @@
  * settings-panel order; `config/all-settings.ts` registers every domain.
  */
 import { register, type SettingValueOf } from "./registry";
-import type { AuthAccountPolicies } from "@linxiraos/pi-ai/auth-storage";
-import type { cfgDefaultThinkingLevel } from "../session/settings";
-import { register } from "./registry";
+import { type AuthAccountPolicies } from "@linxiraos/pi-ai/auth-storage";
+import { cfgDefaultThinkingLevel } from "../session/settings";
 
 /** Display metadata for one model tag. */
 export interface ModelTagDef {

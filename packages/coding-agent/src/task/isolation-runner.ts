@@ -361,7 +361,7 @@ function renderIsolationError(context: IsolationErrorContext): string {
 /**
  * Run a subagent inside an isolation worktree and capture its changes.
  *
- * Branch mode: on success, commits the diff onto `omp/task/${agentId}` and
+ * Branch mode: on success, commits the diff onto `zeta/task/${agentId}` and
  * returns `branchName` + `nestedPatches` (+ `nestedPatchPaths`). On commit
  * failure the still-live isolation diff is written to
  * `${artifactsDir}/${agentId}.patch`, the task branch is kept when it already
@@ -494,7 +494,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 			} catch (mergeErr) {
 				// Agent succeeded but the branch commit failed. `commitToBranch`
 				// is not atomic: the clean-baseline path fetches the agent's
-				// commits into the parent ODB and creates `omp/task/<id>` before
+				// commits into the parent ODB and creates `zeta/task/<id>` before
 				// it commits the leftover working-tree delta, so a throw from
 				// that trailing step leaves behind a branch that already holds
 				// every commit the agent made. The isolation worktree — the only
@@ -503,7 +503,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 				// recoverable merge conflict into permanent loss of committed
 				// work (#8868). Delete only when nothing is at stake.
 				const baseSha = baseline.root.headCommit;
-				const branchName = `omp/task/${opts.agentId}`;
+				const branchName = `zeta/task/${opts.agentId}`;
 				const rescueBranch = await rescueTaskBranch(opts.context.repoRoot, branchName, baseSha);
 				const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
 				try {

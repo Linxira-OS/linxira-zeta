@@ -22,7 +22,6 @@ import {
 } from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import { create, toBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 import { $env, logger } from "@linxiraos/pi-utils";
-import { $env } from "@linxiraos/pi-utils";
 
 const NOT_IMPLEMENTED_SUFFIX = "not implemented by this client";
 

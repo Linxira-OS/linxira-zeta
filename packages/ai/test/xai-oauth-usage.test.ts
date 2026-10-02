@@ -4,7 +4,6 @@ import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import type { UsageFetchParams } from "@linxiraos/pi-ai/usage";
 import { xaiOauthRankingStrategy, xaiOauthUsageProvider } from "@linxiraos/pi-ai/usage/xai-oauth";
 import { isUsageLimitReached, reserveUsageLimits } from "../src/auth/usage-report";
-import { xaiOauthUsageProvider } from "@linxiraos/pi-ai/usage/xai-oauth";
 
 const USER_ID = "cf12ecb5-cca4-4ba0-9f02-298071a2d052";
 

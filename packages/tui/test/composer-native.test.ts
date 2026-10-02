@@ -52,18 +52,18 @@ afterEach(() => {
 describe("native composer", () => {
 	it("tints the composer by shell mode and marks `!!` as not sent to the model", () => {
 		const bash = composer({ running: false, shell: { kind: "bash", excluded: true } }).describe(cx);
-		expect(bash.p).toMatchObject({ role: "omp.editor.bash" });
-		const mode = byRole(bash, "omp.composer.mode")!;
+		expect(bash.p).toMatchObject({ role: "zeta.editor.bash" });
+		const mode = byRole(bash, "zeta.composer.mode")!;
 		expect(nodes(mode).map(n => n.k)).toEqual(["row", "icon", "text"]);
 		expect(nodes(mode)[1]!.p).toMatchObject({ name: "eye-off" });
 
 		const python = composer({ running: false, shell: { kind: "python", excluded: false } }).describe(cx);
-		expect(python.p).toMatchObject({ role: "omp.editor.python" });
-		expect(nodes(byRole(python, "omp.composer.mode")!).some(n => n.k === "icon")).toBe(false);
+		expect(python.p).toMatchObject({ role: "zeta.editor.python" });
+		expect(nodes(byRole(python, "zeta.composer.mode")!).some(n => n.k === "icon")).toBe(false);
 
 		const prompt = composer({ running: false }).describe(cx);
-		expect(prompt.p).toMatchObject({ role: "omp.editor" });
-		expect(byRole(prompt, "omp.composer.mode")).toBeUndefined();
+		expect(prompt.p).toMatchObject({ role: "zeta.editor" });
+		expect(byRole(prompt, "zeta.composer.mode")).toBeUndefined();
 	});
 
 	it("draws a shell-mode draft as code in its language, the sigil hidden behind the mode chip", () => {
@@ -92,9 +92,9 @@ describe("native composer", () => {
 		editor.onEscape = vi.fn();
 		const idle = editor.describe(cx);
 		expect(idle.p).not.toHaveProperty("tone");
-		expect(byRole(idle, "omp.composer.send")?.p).toMatchObject({ keys: ["enter"], actions: { click: "submit" } });
-		expect(byRole(idle, "omp.composer.stop")).toBeUndefined();
-		const chip = byRole(idle, "omp.composer.effort")!;
+		expect(byRole(idle, "zeta.composer.send")?.p).toMatchObject({ keys: ["enter"], actions: { click: "submit" } });
+		expect(byRole(idle, "zeta.composer.stop")).toBeUndefined();
+		const chip = byRole(idle, "zeta.composer.effort")!;
 		expect(chip.p).toMatchObject({ actions: { click: "thinking.cycle" } });
 		expect(nodes(chip).find(n => n.k === "effort")?.p).toEqual({ level: "high" });
 		expect(nodes(chip).find(n => n.k === "text")?.p).toMatchObject({ text: "high" });
@@ -102,8 +102,8 @@ describe("native composer", () => {
 		running = true;
 		const busy = editor.describe(cx);
 		expect(busy.p).toMatchObject({ tone: "pending" });
-		expect(byRole(busy, "omp.composer.send")).toBeUndefined();
-		expect(byRole(busy, "omp.composer.stop")?.p).toMatchObject({ actions: { click: "interrupt" }, tone: "error" });
+		expect(byRole(busy, "zeta.composer.send")).toBeUndefined();
+		expect(byRole(busy, "zeta.composer.stop")?.p).toMatchObject({ actions: { click: "interrupt" }, tone: "error" });
 
 		editor.handleNativeEvent({ type: "action", key: "bar/effort", act: "thinking.cycle", mods: [] });
 		editor.handleNativeEvent({ type: "action", key: "bar/stop", act: "interrupt", mods: [] });
@@ -112,22 +112,22 @@ describe("native composer", () => {
 	});
 
 	it("names the viewed subagent over the draft and routes its links to the focus handler", () => {
-		expect(byRole(composer({ running: false }).describe(cx), "omp.composer.focus")).toBeUndefined();
+		expect(byRole(composer({ running: false }).describe(cx), "zeta.composer.focus")).toBeUndefined();
 
 		const editor = composer({ running: false, viewing: ["AckAudit", "Scout"] });
 		const focused: string[] = [];
 		editor.onFocusAgent = id => focused.push(id);
 		const root = editor.describe(cx);
-		const header = byRole(root, "omp.composer.focus")!;
+		const header = byRole(root, "zeta.composer.focus")!;
 		const lead = (root.c ?? []).filter(isNode);
-		expect(lead.indexOf(header)).toBeLessThan(lead.indexOf(byRole(root, "omp.composer.line")!));
-		expect(byRole(header, "omp.composer.agent")?.p).toMatchObject({ text: "Scout" });
+		expect(lead.indexOf(header)).toBeLessThan(lead.indexOf(byRole(root, "zeta.composer.line")!));
+		expect(byRole(header, "zeta.composer.agent")?.p).toMatchObject({ text: "Scout" });
 		expect(nodes(root).find(n => n.k === "editor")?.p).toMatchObject({ placeholder: "Message Scout" });
-		expect(byRole(header, "omp.composer.crumb")?.p).toMatchObject({
+		expect(byRole(header, "zeta.composer.crumb")?.p).toMatchObject({
 			text: "AckAudit",
 			actions: { click: "focus:AckAudit" },
 		});
-		expect(byRole(header, "omp.composer.exit")?.p).toMatchObject({ actions: { click: "focus:Main" } });
+		expect(byRole(header, "zeta.composer.exit")?.p).toMatchObject({ actions: { click: "focus:Main" } });
 
 		for (const act of ["focus:AckAudit", "focus:Main"]) {
 			editor.handleNativeEvent({ type: "action", key: "focus", act, mods: [] });
@@ -147,14 +147,14 @@ describe("native composer", () => {
 	});
 
 	it("keeps the effort chip at `off` with an empty glyph so a click can turn thinking back on", () => {
-		const chip = byRole(composer({ running: false, thinking: "off" }).describe(cx), "omp.composer.effort")!;
+		const chip = byRole(composer({ running: false, thinking: "off" }).describe(cx), "zeta.composer.effort")!;
 		expect(chip.p).toMatchObject({ actions: { click: "thinking.cycle" } });
 		expect(nodes(chip).find(n => n.k === "effort")?.p).toEqual({ level: "off" });
 		expect(nodes(chip).find(n => n.k === "text")?.p).toMatchObject({ text: "off" });
 	});
 
 	it("sends an unresolved `auto` level through to the effort glyph", () => {
-		const chip = byRole(composer({ running: false, thinking: "auto" }).describe(cx), "omp.composer.effort")!;
+		const chip = byRole(composer({ running: false, thinking: "auto" }).describe(cx), "zeta.composer.effort")!;
 		expect(nodes(chip).map(n => n.k)).toEqual(["row", "effort", "text"]);
 		expect(nodes(chip)[1]!.p).toEqual({ level: "auto" });
 	});
@@ -162,7 +162,7 @@ describe("native composer", () => {
 	it("falls back to a four-step blocks meter where the terminal lacks the effort kind", () => {
 		const legacy = context(["row", "text", "icon", "meter", "editor", "kbd"]);
 		const chipFor = (thinking: string) =>
-			byRole(composer({ running: false, thinking }).describe(legacy), "omp.composer.effort")!;
+			byRole(composer({ running: false, thinking }).describe(legacy), "zeta.composer.effort")!;
 		expect(nodes(chipFor("high")).some(n => n.k === "effort")).toBe(false);
 		expect(nodes(chipFor("high")).find(n => n.k === "meter")?.p).toMatchObject({
 			value: 0.75,
@@ -175,13 +175,13 @@ describe("native composer", () => {
 
 	it("rebuilds the effort chip when the effort capability changes", () => {
 		const editor = composer({ running: false, thinking: "max" });
-		const kinds = (root: NativeNode) => nodes(byRole(root, "omp.composer.effort")!).map(n => n.k);
+		const kinds = (root: NativeNode) => nodes(byRole(root, "zeta.composer.effort")!).map(n => n.k);
 		expect(kinds(editor.describe(context(["row", "text", "meter"])))).toContain("meter");
 		expect(kinds(editor.describe(cx))).toContain("effort");
 	});
 
 	it("omits the effort chip when the model has no thinking", () => {
-		expect(byRole(composer({ running: false }).describe(cx), "omp.composer.effort")).toBeUndefined();
+		expect(byRole(composer({ running: false }).describe(cx), "zeta.composer.effort")).toBeUndefined();
 	});
 });
 
@@ -197,7 +197,7 @@ describe("native working row", () => {
 		const first = row.c![0] as NativeNode;
 		expect(first.k).toBe("meter");
 		expect(first.p).toMatchObject({ value: 0.75, style: "ring" });
-		const stop = byRole(row, "omp.working.stop")!;
+		const stop = byRole(row, "zeta.working.stop")!;
 		expect(stop.p).toMatchObject({ title: "Cancel  esc", actions: { click: "interrupt" } });
 
 		const plain = describeWorkingRow(spec, context([]), 2_000);
@@ -211,7 +211,7 @@ describe("native working row", () => {
 			10,
 		);
 		expect(nodes(row).find(n => n.k === "progress")?.p).toEqual({ value: null });
-		expect(byRole(row, "omp.working.stop")).toBeUndefined();
+		expect(byRole(row, "zeta.working.stop")).toBeUndefined();
 	});
 });
 
@@ -228,13 +228,13 @@ describe("native queued messages", () => {
 		);
 		const pills = (band.describe().c ?? []).filter(isNode);
 		expect(pills).toHaveLength(3);
-		const counts = pills.map(pill => byRole(pill, "omp.queue.count")?.p);
-		expect(counts).toEqual([{ text: "3", role: "omp.queue.count" }, undefined, undefined]);
+		const counts = pills.map(pill => byRole(pill, "zeta.queue.count")?.p);
+		expect(counts).toEqual([{ text: "3", role: "zeta.queue.count" }, undefined, undefined]);
 		band.handleNativeEvent({ type: "action", key: "x/edit", act: "queue.edit", mods: [] });
 		expect(onEdit).toHaveBeenCalledTimes(1);
 
 		const single = new QueuedMessagesBand([{ label: "Steering", messages: ["only"] }], "alt+up", onEdit);
-		expect(byRole(single.describe(), "omp.queue.count")).toBeUndefined();
+		expect(byRole(single.describe(), "zeta.queue.count")).toBeUndefined();
 	});
 });
 
@@ -300,7 +300,7 @@ describe("native composer without a status strip", () => {
 			const { dock } = composer.describeSurface();
 			expect(dock).toEqual([composer.editor]);
 			const described = composer.editor.describe(cx);
-			expect(nodes(described).some(n => n.p !== undefined && "role" in n.p && n.p.role === "omp.status")).toBe(
+			expect(nodes(described).some(n => n.p !== undefined && "role" in n.p && n.p.role === "zeta.status")).toBe(
 				false,
 			);
 
@@ -308,25 +308,25 @@ describe("native composer without a status strip", () => {
 			const [first] = (described.c ?? []).filter(isNode);
 			expect(first).toMatchObject({
 				k: "meter",
-				p: { role: "omp.composer.context", style: "bar", actions: { click: "status.context" } },
+				p: { role: "zeta.composer.context", style: "bar", actions: { click: "status.context" } },
 			});
-			const bar = byRole(described, "omp.composer.bar")!;
+			const bar = byRole(described, "zeta.composer.bar")!;
 			expect(
 				(bar.c ?? []).filter(isNode).map(n => (n.p !== undefined && "role" in n.p ? n.p.role : undefined)),
 			).toEqual([
-				"omp.composer.model",
-				"omp.composer.effort",
-				"omp.composer.extras",
-				"omp.composer.usage",
-				"omp.composer.send",
+				"zeta.composer.model",
+				"zeta.composer.effort",
+				"zeta.composer.extras",
+				"zeta.composer.usage",
+				"zeta.composer.send",
 			]);
-			const model = byRole(bar, "omp.composer.model")!;
+			const model = byRole(bar, "zeta.composer.model")!;
 			expect(model.p).toMatchObject({ actions: { click: "status.model" } });
 			expect(nodes(model).map(n => n.k)).toEqual(["row", "icon", "text", "icon"]);
 			// Path and branch belong to Tern's pane header; the rest stays as a fact.
-			const extras = byRole(bar, "omp.composer.extras")!;
+			const extras = byRole(bar, "zeta.composer.extras")!;
 			expect((extras.c ?? []).filter(isNode).map(n => n.key)).toEqual(["hostname"]);
-			expect(byRole(bar, "omp.composer.usage")?.p).toMatchObject({ actions: { click: "status.cost" } });
+			expect(byRole(bar, "zeta.composer.usage")?.p).toMatchObject({ actions: { click: "status.cost" } });
 		} finally {
 			composer.stop();
 		}

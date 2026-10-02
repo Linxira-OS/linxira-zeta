@@ -4,8 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ShellMinimizerSettings } from "@linxiraos/zeta/exec/settings";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
@@ -20,7 +19,6 @@ import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
 import * as piNatives from "@linxiraos/pi-natives";
 import { $which, removeSyncWithRetries } from "@linxiraos/pi-utils";
 
-import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 import { type ShellMinimizerSettings, cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by

@@ -5,14 +5,14 @@
  * appending to that tree for the life of the process.
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import { parseArgs, type Args } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import type { CreateAgentSessionResult } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { logger, postmortem, TempDir } from "@oh-my-pi/pi-utils";
+import { parseArgs, type Args } from "@linxiraos/zeta/cli/args";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { logger, postmortem, TempDir } from "@linxiraos/pi-utils";
 
 const tempDirs: TempDir[] = [];
 

@@ -14,7 +14,6 @@ import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
 import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 import { makeAssistantMessage } from "./helpers";
 

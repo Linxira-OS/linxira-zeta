@@ -7,8 +7,7 @@ import {
 	type TokenizerThis,
 	type Tokens,
 } from "@linxiraos/pi-utils/marked";
-import { mathBlockAt, mathSpanInContext, mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
-import { mathBlockAt, mathSpanAt, mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
+import { mathBlockAt, mathSpanAt, mathSpanInContext, mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
 import { latexToBlock } from "../latex-block";
 import { isBareMathEnvironment, latexToUnicode } from "../latex-to-unicode";
 import { plainText } from "../native/spans";

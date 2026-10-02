@@ -162,7 +162,7 @@ describe("SessionInfoOverlay.describe", () => {
 		const overlay = new SessionInfoOverlay({ terminal: { rows: 20 } }, info, () => {});
 		const root = overlay.describe(cx);
 		const kvs = findAll(root, n => n.k === "kv").map(n => n.p);
-		const copies = findAll(root, n => n.p?.role === "omp.info.copy");
+		const copies = findAll(root, n => n.p?.role === "zeta.info.copy");
 		expect(copies.map(n => n.p?.title)).toEqual(["Copy file path"]);
 		expect(JSON.stringify(copies[0])).toContain("/tmp/s.jsonl");
 		expect(kvs).toEqual([
@@ -227,7 +227,7 @@ describe("ContextUsageView.describe", () => {
 	it("keeps the glyph grid on terminals without `meter`", () => {
 		const described = new ContextUsageView(breakdown, theme).describe(plainCx);
 		expect(findAll(described, n => n.k === "meter")).toEqual([]);
-		expect(findAll(described, n => n.p?.role === "omp.context.usage")).toHaveLength(1);
+		expect(findAll(described, n => n.p?.role === "zeta.context.usage")).toHaveLength(1);
 	});
 });
 
@@ -253,10 +253,10 @@ describe("JobsPanel.describe", () => {
 		expect(findAll(native, n => n.k === "agent").map(n => n.p)).toEqual([
 			expect.objectContaining({ name: "Audit", status: "running", stats: { age: 5_000 } }),
 		]);
-		expect(findAll(native, n => n.p?.role === "omp.jobs.row").map(n => n.key)).toEqual(["j2"]);
+		expect(findAll(native, n => n.p?.role === "zeta.jobs.row").map(n => n.key)).toEqual(["j2"]);
 		const plain = new JobsPanel(snapshot, now, []).describe(plainCx);
 		expect(findAll(plain, n => n.k === "agent")).toEqual([]);
-		expect(findAll(plain, n => n.p?.role === "omp.jobs.row").map(n => n.key)).toEqual(["j1", "j2"]);
+		expect(findAll(plain, n => n.p?.role === "zeta.jobs.row").map(n => n.key)).toEqual(["j1", "j2"]);
 	});
 });
 

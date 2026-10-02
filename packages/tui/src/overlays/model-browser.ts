@@ -12,8 +12,6 @@ import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getModelPricingStatus, modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { ModelKind, ModelPricingStatus } from "@linxiraos/pi-catalog/types";
-import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import type { ModelKind } from "@linxiraos/pi-catalog/types";
 import type { Component } from "../tui";
 import { tuiText } from "../i18n";
 import { fuzzyRank } from "../fuzzy";

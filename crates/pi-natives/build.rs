@@ -125,7 +125,7 @@ fn build_oauth_callback_relay(target_os: &str) {
 	let target = env::var("TARGET").expect("TARGET should be set");
 	let rustc = env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
 	let mut output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR should be set"))
-		.join("omp-oauth-callback-relay");
+		.join("zeta-oauth-callback-relay");
 	if target_os == "windows" {
 		output.set_extension("exe");
 	}
@@ -193,7 +193,7 @@ fn build_darwin_oauth_callback_helper() {
 		PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR should be set"));
 	let source = manifest_dir.join("src/oauth_callback/darwin-helper.m");
 	let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR should be set"))
-		.join("omp-oauth-callback-darwin-helper");
+		.join("zeta-oauth-callback-darwin-helper");
 	let architecture = match env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
 		Ok("aarch64") => "arm64",
 		Ok("x86_64") => "x86_64",

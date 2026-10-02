@@ -1,6 +1,11 @@
 import type { MarkedExtension, Tokens } from "@linxiraos/pi-utils/marked";
-import { type MathSpan, mathBlockAt, mathSpanInContext, mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
-import { type MathSpan, mathBlockAt, mathSpanAt, mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
+import {
+	mathBlockAt,
+	type MathSpan,
+	mathSpanAt,
+	mathSpanInContext,
+	mathStartIndex,
+} from "@linxiraos/pi-utils/math-delimiters";
 import { renderToString } from "katex";
 import { escapeHtml } from "../../lib/format";
 

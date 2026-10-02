@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "bun:test";
-import { describe, expect, it } from "bun:test";
 import { pollOAuthDeviceCodeFlow } from "@linxiraos/pi-ai/oauth";
 
 describe("OAuth device-code polling", () => {

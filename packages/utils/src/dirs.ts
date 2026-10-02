@@ -454,10 +454,7 @@ class DirResolver {
  * without exporting it). Returns `undefined` in those cases so reset falls back
  * to the standard `~/.zeta/agent`.
  */
-function resolvePreProfileAgentDir(
-	profile: string | undefined,
-	agentDirEnv: string | undefined,
-): string | undefined {
+function resolvePreProfileAgentDir(profile: string | undefined, agentDirEnv: string | undefined): string | undefined {
 	return isProfileDerivedAgentDir(profile, agentDirEnv) ? undefined : agentDirEnv;
 }
 
@@ -1103,6 +1100,16 @@ export function getMarketplacesRegistryPath(): string {
 /** Get the project-level Python modules directory (.zeta/modules). */
 export function getProjectModulesDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "modules");
+}
+
+/** Get the project-level tracking directory (<project>/.zeta/tracking). */
+export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
+	return path.join(getProjectAgentDir(cwd), "tracking");
+}
+
+/** Get the global tracking index path (~/.zeta/agent/tracking-index.json). */
+export function getTrackingIndexPath(agentDir?: string): string {
+	return path.join(agentDir ?? getAgentDir(), "tracking-index.json");
 }
 
 /** Get the project-level prompts directory (.zeta/prompts). */

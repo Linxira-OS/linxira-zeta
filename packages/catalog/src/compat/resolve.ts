@@ -1352,7 +1352,7 @@ export function resolveModelPolicy(spec: ModelSpec<Api>, route?: ResolveRoute): 
  * inheriting a provider-wide default or {@link resolveThinkingPolicy} falling
  * through to the neutral wire ladder.
  *
- * Discovery uses this to tell "omp knows this model's tiers" apart from "omp
+ * Discovery uses this to tell "zeta knows this model's tiers" apart from "zeta
  * is guessing them", so catalog-published tiers can correct the guess without
  * ever overriding reviewed knowledge.
  */

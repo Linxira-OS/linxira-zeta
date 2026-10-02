@@ -1051,7 +1051,7 @@ export async function loadSessionExtensions(
  * `~/.zeta/agent/extensions/`) never reach model resolution. Mirrors the
  * session / `zeta-c models` path: drain the queued provider registrations, then
  * `refreshRuntimeProviders` so dynamically-discovered models exist before
- * selectors are resolved, unless `discoverModels: false` (e.g. `omp usage`,
+ * selectors are resolved, unless `discoverModels: false` (e.g. `zeta-c usage`,
  * which needs only registered usage providers).
  */
 export async function loadCliExtensionProviders(
@@ -4801,7 +4801,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					for (const extensionPath of unloaded) announcedUnloadedExtensions.add(extensionPath);
 					session.emitNotice(
 						"warning",
-						`Restart omp to load newly enabled extensions: ${unloaded.join(", ")}`,
+						`Restart zeta to load newly enabled extensions: ${unloaded.join(", ")}`,
 						"extensions",
 					);
 				}
@@ -4959,7 +4959,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		}
 
 		// Broker-shared language servers: one server per project, multiplexed
-		// across omp instances by the LSP mux daemon. Session-level because the
+		// across zeta instances by the LSP mux daemon. Session-level because the
 		// flag lives in module state consulted on every client cold-start.
 		// Re-applied live on `lsp.shared` changes: servers cold-started after the
 		// change use the new mode; already-running clients keep their transport

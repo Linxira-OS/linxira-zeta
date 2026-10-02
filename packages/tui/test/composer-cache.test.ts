@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Database, Statement } from "bun:sqlite";
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Database } from "bun:sqlite";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";

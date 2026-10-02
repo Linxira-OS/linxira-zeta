@@ -35,7 +35,7 @@ import { Memo } from "../native/memo";
 // `cursorIsAtPrompt()` permanently true and tags every subsequently painted
 // cell as `.input`. Combined with `cursor-click-to-move = true` (Ghostty's
 // default) that turns every left-click inside the pane into a burst of
-// synthesized arrow keys on omp's pty, slamming the editor caret to column 0
+// synthesized arrow keys on zeta's pty, slamming the editor caret to column 0
 // (#8030, #6115).
 //
 // `133;C` is therefore emitted immediately followed by `133;D;0` at the end of
@@ -193,7 +193,7 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 				const at = new Date(this.#timestamp);
 				tools.push(
 					text([span(at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), "dim mono")], {
-						role: "omp.user.time",
+						role: "zeta.user.time",
 						title: at.toLocaleString(),
 					}),
 				);
@@ -201,19 +201,19 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 			tools.push(
 				// `copy-message`, not Tern's local `copy` (that would copy the label).
 				text("Copy", {
-					role: "omp.user.tool",
+					role: "zeta.user.tool",
 					actions: { click: "copy-message" },
 					title: "Copy message",
 					key: "copy",
 				}),
 				text("Rewind", {
-					role: "omp.user.tool",
+					role: "zeta.user.tool",
 					actions: { click: "rewind" },
 					title: "Rewind the conversation to an earlier message",
 					key: "rewind",
 				}),
 			);
-			children.push(node("row", { gap: "xs", role: "omp.user.tools" }, tools, "tools"));
+			children.push(node("row", { gap: "xs", role: "zeta.user.tools" }, tools, "tools"));
 		}
 		// Videos keep their chip only: the native image node decodes stills.
 		const thumbs: NativeNode[] = [];
@@ -228,7 +228,7 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 			});
 		}
 		if (thumbs.length > 0) {
-			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "omp.user.images" }));
+			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "zeta.user.images" }));
 		}
 		const marks = this.#synthetic ? [] : tokenMarks(this.#text, this.#tokens);
 		children.push(md(this.#text, marks.length > 0 ? { marks } : undefined));
@@ -242,17 +242,17 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 				}),
 			);
 		}
-		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "omp.reaction" }));
+		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "zeta.reaction" }));
 		if (badges.length > 0)
-			children.push(node("row", { gap: "xs", justify: "end", role: "omp.user.badges" }, badges, "badges"));
+			children.push(node("row", { gap: "xs", justify: "end", role: "zeta.user.badges" }, badges, "badges"));
 		this.#native = card(
-			{ role: this.#synthetic ? "omp.user.synthetic" : "omp.user", tone: this.#synthetic ? "muted" : "user" },
+			{ role: this.#synthetic ? "zeta.user.synthetic" : "zeta.user", tone: this.#synthetic ? "muted" : "user" },
 			children,
 		);
 		return this.#native;
 	}
 
-	/** Hover toolbar clicks: omp's own copy and rewind commands. */
+	/** Hover toolbar clicks: zeta's own copy and rewind commands. */
 	handleNativeEvent(event: NativeUiEvent): void {
 		if (event.type !== "action") return;
 		if (event.act === "copy-message") runTranscriptAction({ act: "copy", text: this.#text });
@@ -389,7 +389,7 @@ export class CollapsedSyntheticMessageComponent implements Component {
 		return this.#native.get([this.#expanded], () =>
 			card(
 				{
-					role: "omp.user.synthetic",
+					role: "zeta.user.synthetic",
 					tone: "muted",
 					head: [span(summarizeSyntheticInput(this.#text), "dim")],
 					collapsible: true,

@@ -2,10 +2,7 @@ import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import {
-	IndexedSessionStorage,
-	type SessionStorageBackend,
-} from "@linxiraos/zeta/session/indexed-session-storage";
+import { IndexedSessionStorage, type SessionStorageBackend } from "@linxiraos/zeta/session/indexed-session-storage";
 import {
 	SessionManager,
 	SessionPersistenceIndeterminateError,

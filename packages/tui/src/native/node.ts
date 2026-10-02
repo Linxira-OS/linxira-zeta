@@ -14,7 +14,6 @@
  * `crates/tern/SURFACE_PROTOCOL.md` (Stencil repository) for the spec.
  */
 import type { TspEvent, TspKind, TspProps, TspScrollBy, TspSpan } from "@linxiraos/pi-wire";
-import type { TspEvent, TspKind, TspProps, TspSpan } from "@linxiraos/pi-wire";
 import type { Component } from "../tui";
 
 /** A described node: a wire node minus its id, with components allowed as children. */

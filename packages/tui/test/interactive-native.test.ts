@@ -164,7 +164,7 @@ describe("native interactive primitives", () => {
 		editor.setText(text);
 		expect(editorNode(editor).p).toMatchObject({ cursor: text.length });
 		// Tern moves the caret between the rows it drew; an Up it hands over comes
-		// from its first row, which is on the first line whatever width omp assumes.
+		// from its first row, which is on the first line whatever width zeta assumes.
 		editor.handleInput("\x1b[A");
 		expect(editorNode(editor).p).toMatchObject({ cursor: 0 });
 		editor.handleInput("\x1b[B");

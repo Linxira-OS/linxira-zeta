@@ -43,7 +43,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	async function openStorage(): Promise<AgentStorage> {
-		tempDir = TempDir.createSync("@omp-agent-storage-perf-");
+		tempDir = TempDir.createSync("@zeta-agent-storage-perf-");
 		return AgentStorage.open(path.join(tempDir.path(), "agent.db"));
 	}
 
@@ -91,7 +91,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	it("records task subagent samples in the shared model performance aggregate", async () => {
-		tempDir = TempDir.createSync("@omp-subagent-perf-");
+		tempDir = TempDir.createSync("@zeta-subagent-perf-");
 		const parent = await Settings.loadIsolated({ cwd: tempDir.path(), agentDir: tempDir.path() });
 		const subagent = createSubagentSettings(parent);
 
@@ -170,7 +170,7 @@ describe("AgentStorage model perf aggregates", () => {
 		expect(stats?.ttftMs).toBeNull();
 	});
 
-	it("backfills perf aggregates from an omp stats database, excluding errored and stale turns", async () => {
+	it("backfills perf aggregates from an zeta-c stats database, excluding errored and stale turns", async () => {
 		const storage = await openStorage();
 
 		// Minimal stats.db fixture: only the columns the backfill query reads.
@@ -237,7 +237,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	it("does not start the stats backfill while flushing a live batch on exit", async () => {
-		tempDir = TempDir.createSync("@omp-agent-storage-exit-backfill-");
+		tempDir = TempDir.createSync("@zeta-agent-storage-exit-backfill-");
 		const homeDir = tempDir.join("home");
 		const agentDir = tempDir.join("agent");
 		const env = {
@@ -302,7 +302,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	it("lets a process exit naturally mid-window and still persists the pending batch", async () => {
-		tempDir = TempDir.createSync("@omp-agent-storage-natural-exit-");
+		tempDir = TempDir.createSync("@zeta-agent-storage-natural-exit-");
 		const dbPath = tempDir.join("agent.db");
 		const startedAt = Date.now();
 		const exiting = await runProbe(

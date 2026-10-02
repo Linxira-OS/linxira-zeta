@@ -25,7 +25,6 @@ import {
 } from "@linxiraos/pi-catalog/compat/context-window";
 import { applyCatalogMetrics, CatalogMetricsIndex } from "@linxiraos/pi-catalog/identity/metrics";
 import { getModelCacheWriteStats, readModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { readModelCache } from "@linxiraos/pi-catalog/model-cache";
 import {
 	createModelManager,
 	fingerprintStaticModels,

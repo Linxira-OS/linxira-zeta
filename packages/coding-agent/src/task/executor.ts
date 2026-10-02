@@ -10,7 +10,6 @@ import type { AgentEvent, AgentIdentity, AgentMessage, AgentTelemetryConfig } fr
 import { AgentBusyError, EventLoopKeepalive, recordHandoff, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import type { Api, Model, ServiceTierByFamily, Usage } from "@linxiraos/pi-ai";
 import { isRecord, logger, popLoopPhase, prompt, pushLoopPhase, sanitizeText, untilAborted } from "@linxiraos/pi-utils";
-import { isRecord, logger, popLoopPhase, prompt, pushLoopPhase, untilAborted } from "@linxiraos/pi-utils";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, AsyncJobError, AsyncJobManager, type AsyncJobRunResult } from "../async";
 import type { Rule } from "../capability/rule";
 import type { EffectiveExtensionRoots } from "../capability/types";

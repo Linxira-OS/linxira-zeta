@@ -1,8 +1,8 @@
 /**
- * omp-side access to IDA databases hosted by broker-supervised daemons (`host.ts`).
+ * zeta-side access to IDA databases hosted by broker-supervised daemons (`host.ts`).
  *
- * Every open database is one `omp.ida.<id>` daemon in the project's daemon broker, so `zeta-c ps`
- * lists, stops, and tails it, and every omp process in the project shares it. This module starts
+ * Every open database is one `zeta.ida.<id>` daemon in the project's daemon broker, so `zeta-c ps`
+ * lists, stops, and tails it, and every zeta process in the project shares it. This module starts
  * hosts on demand (evicting the least recently used idle one beyond `ida.maxOpen`), attaches to
  * hosts other processes started, and forwards requests over each host's socket.
  */
@@ -151,7 +151,7 @@ class HostConnection {
 }
 
 /**
- * An open IDA database as seen from this omp process: a connection to its host daemon plus the
+ * An open IDA database as seen from this zeta process: a connection to its host daemon plus the
  * last reported {@link IdaHostStatus}. Shared by every agent in the process.
  */
 export class IdaDatabase {
@@ -229,7 +229,7 @@ export class IdaDatabase {
 	}
 
 	/**
-	 * Run one worker request on the host, queued behind requests from every omp process.
+	 * Run one worker request on the host, queued behind requests from every zeta process.
 	 * `timeoutMs` covers the queue wait; an abort cancels this request only (see `IdaWorker.request`).
 	 */
 	async request<T>(method: IdaCallMethod, params: object, options: IdaRequestOptions = {}): Promise<T> {
@@ -399,7 +399,7 @@ async function openIdaDatabase(session: ToolSession, loc: IdbLocation): Promise<
 		}
 		const existing = await describeQuietly(broker, name, HOST_LABEL);
 		if (existing && !TERMINAL_STATES[existing.state]) {
-			// Starting (possibly by another omp process): wait for its banner. Ready yet unreachable: replace it.
+			// Starting (possibly by another zeta process): wait for its banner. Ready yet unreachable: replace it.
 			if (existing.readyAt === undefined) await waitReady(broker, name, HOST_LABEL, undefined, READY_TIMEOUT_MS);
 			else await stopQuietly(broker, name, HOST_LABEL);
 			continue;
@@ -447,7 +447,7 @@ export async function acquireIdaDatabase(
 		const since = await openingSince(session, name);
 		const age = since === undefined ? "" : ` for ${Math.round((Date.now() - since) / 60_000)}m`;
 		throw new ToolError(
-			`IDA is still analyzing ${idbRef(loc)} (opening${age}); the analysis continues in \`${name}\`. Retry later, or stop it with \`omp ps stop ${name}\``,
+			`IDA is still analyzing ${idbRef(loc)} (opening${age}); the analysis continues in \`${name}\`. Retry later, or stop it with \`zeta ps stop ${name}\``,
 		);
 	}
 }
@@ -474,7 +474,7 @@ export async function findOpenIdaDatabase(session: ToolSession, ref: string): Pr
 	return db?.status.state === "open" ? db : undefined;
 }
 
-/** Every database hosted in this project, including ones other omp processes opened. */
+/** Every database hosted in this project, including ones other zeta processes opened. */
 export async function listIdaDatabases(session: ToolSession): Promise<IdaDatabase[]> {
 	const broker = await daemonClientForProject(session.cwd);
 	return attachAll(broker, await liveHostNames(broker));
@@ -482,7 +482,7 @@ export async function listIdaDatabases(session: ToolSession): Promise<IdaDatabas
 
 /**
  * Save every attached database with unsaved changes and drop this process's connections; the hosts
- * keep running for other omp processes and exit with the project's broker. Failures are logged.
+ * keep running for other zeta processes and exit with the project's broker. Failures are logged.
  */
 export async function releaseIdaDatabases(): Promise<void> {
 	const dbs = [...handles.values()];
@@ -505,9 +505,9 @@ export async function releaseIdaDatabases(): Promise<void> {
 
 /** Exercise worker-host IDA host startup and the ping handshake for distribution smoke tests. */
 export async function smokeTestIdaHost(): Promise<void> {
-	const dir = path.join(os.tmpdir(), `omp-ida-smoke-${process.pid.toString(36)}`);
+	const dir = path.join(os.tmpdir(), `zeta-ida-smoke-${process.pid.toString(36)}`);
 	const endpoint =
-		process.platform === "win32" ? `\\\\.\\pipe\\omp-ida-smoke-${process.pid.toString(16)}` : `${dir}.sock`;
+		process.platform === "win32" ? `\\\\.\\pipe\\zeta-ida-smoke-${process.pid.toString(16)}` : `${dir}.sock`;
 	// A missing source makes the open fail after the host listens; `ping` still answers.
 	const config: IdaHostConfig = {
 		endpoint,

@@ -15,9 +15,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
-import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -31,7 +30,6 @@ import { convertToLlm, type CustomMessage, USER_INTERRUPT_LABEL } from "@linxira
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
 import { removeSyncWithRetries, Snowflake, withTimeout } from "@linxiraos/pi-utils";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 const COLLAB_PROMPT_TYPE = "collab-prompt";
 const IMAGE_SOURCE_PATH = "/tmp/private-project/screenshot.png";

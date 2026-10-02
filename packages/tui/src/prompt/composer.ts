@@ -82,7 +82,7 @@ export interface ComposerStatusCache {
 /** Optional dependencies and initial state for a standalone composer. */
 export interface ComposerOptions {
 	readonly terminal?: Terminal;
-	/** Extra TUI construction options (render scheduler injection for tests and `omp render`). */
+	/** Extra TUI construction options (render scheduler injection for tests and `zeta render`). */
 	readonly tuiOptions?: TUIOptions;
 	readonly preferences?: Partial<ComposerPreferences>;
 	readonly welcome?: ComposerWelcomeUpdate;
@@ -177,7 +177,7 @@ export function routeViewportClick(spans: readonly ViewportClickSpan[], index: n
  * any registry lookup: its `@…:…` charset cannot collide with generated agent
  * ids (word names, numeric and `-N` suffixes, dotted nesting).
  */
-export const PINNED_HUD_TOGGLE_ID = "@omp:toggle-pinned-hud";
+export const PINNED_HUD_TOGGLE_ID = "@zeta:toggle-pinned-hud";
 
 /**
  * Nested background opens inside a hovered row. The band wraps the line, so a

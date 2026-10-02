@@ -32,7 +32,6 @@ import {
 import { installExtensionComposerShape } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
 import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
 import { boundPromptTitle, HookEditorComponent, type HookEditorOptions } from "@linxiraos/pi-tui/overlays/hook-editor";
-import { HookEditorComponent, type HookEditorOptions } from "@linxiraos/pi-tui/overlays/hook-editor";
 import { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
 import { HookSelectorComponent, type HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
 import { getAvailableThemesWithPaths, getThemeByName, setTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";

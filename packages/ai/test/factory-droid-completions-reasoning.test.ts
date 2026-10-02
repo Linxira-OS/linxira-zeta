@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { type } from "@linxiraos/pi-omptype";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Message, Model } from "../src/types";
 import {

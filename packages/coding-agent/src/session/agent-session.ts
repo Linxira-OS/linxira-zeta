@@ -261,7 +261,6 @@ import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { supportsExternalThinking } from "../tools/think";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { AgentDefinition } from "../task/types";
 import type { ModelMention } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import { ModelMentionRegistry } from "./model-mentions";
@@ -442,8 +441,6 @@ import {
 	SessionAdvisors,
 	type SessionAdvisorsHost,
 } from "./session-advisors";
-import type { BuildSessionContextOptions, SessionContext } from "./session-context";
-import { getRestorableSessionModels, isTranscriptEntry } from "./session-context";
 import type { CacheWarmer, CacheWarmingMode, CacheWarmingStatus } from "./cache-warmer";
 import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { formatSessionDumpText } from "./session-dump-format";
@@ -525,36 +522,6 @@ import {
 	resolveCliModel,
 } from "../config/model-resolver";
 import {
-	type AnthropicFallbackCreditHandle,
-	type AssistantMessage,
-	type CodexCompactionContext,
-	type Context,
-	type ImageContent,
-	type Judge,
-	type Message,
-	type MessageAttribution,
-	type Model,
-	type OAuthAccountIdentity,
-	type ProviderResponseMetadata,
-	type ProviderSessionState,
-	type ResetCreditAccountStatus,
-	type ResetCreditRedeemOutcome,
-	type ResetCreditTarget,
-	type ServiceTier,
-	type ServiceTierByFamily,
-	type ServiceTierFamily,
-	type SimpleStreamOptions,
-	type TextContent,
-	type ToolCall,
-	type ToolChoice,
-	type ToolResultMessage,
-	type UsageReport,
-	type UserMessage,
-	type Effort,
-	serviceTierFamily,
-	streamSimple,
-} from "@linxiraos/pi-ai";
-import {
 	type ExtensionCommandContext,
 	ExtensionRunner,
 	type ExtensionUIContext,
@@ -576,8 +543,6 @@ import {
 	emitSessionShutdownEvent,
 	TOP_LEVEL_AGENT,
 } from "../extensibility/extensions";
-import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { truncateMiddle } from "@linxiraos/pi-tui/tools/streaming-output";
 import {
 	type BuildSessionContextOptions,
 	type SessionContext,

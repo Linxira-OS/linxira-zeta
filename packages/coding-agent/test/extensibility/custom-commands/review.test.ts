@@ -12,9 +12,6 @@ import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/zeta/tools/gh";
 import * as gh from "@linxiraos/zeta/tools/gh";
 import { github } from "@linxiraos/zeta/utils/github";
-import type { VcsGitRepo, VcsRepo } from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { removeWithRetries } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts

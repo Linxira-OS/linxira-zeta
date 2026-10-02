@@ -5,7 +5,7 @@ import { taskSubprocessRenderer } from "@linxiraos/pi-tui/tools/subprocess";
  * Task tool - Delegate tasks to specialized agents.
  *
  * Discovers agent definitions from:
- *   - Bundled agents (shipped with omp-coding-agent)
+ *   - Bundled agents (shipped with zeta-coding-agent)
  *   - ~/.zeta/agent/agents/*.md (user-level)
  *   - .zeta/agents/*.md (project-level)
  *

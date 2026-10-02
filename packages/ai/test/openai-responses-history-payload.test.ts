@@ -858,7 +858,7 @@ describe("OpenAI responses history payload", () => {
 	});
 
 	it("does not replay an empty Codex final_answer message or its trailing reasoning item", async () => {
-		// gpt-5.6 shape captured from a live omp session: the answer landed in the
+		// gpt-5.6 shape captured from a live zeta-c session: the answer landed in the
 		// `commentary` phase, so the turn closed with an empty `final_answer`.
 		// Replaying that item seeds the next turn with an empty slot the model
 		// fills with drift ("\n\n", stray words, non-Latin residue).

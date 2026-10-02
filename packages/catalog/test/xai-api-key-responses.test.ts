@@ -10,7 +10,6 @@ import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-model
 import { xaiModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import { type ModelSpec, type Usage } from "@linxiraos/pi-catalog/types";
 import { applyPricingPeerFallback } from "../scripts/generated-policies";
-import { applyXaiCatalogPricing, xaiModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 const XAI_RESPONSES_SPEC: ModelSpec<"openai-responses"> = {
 	id: "grok-4.5",

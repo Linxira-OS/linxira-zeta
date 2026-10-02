@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SessionManager, type SessionPersistenceNotice } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { SessionManager, type SessionPersistenceNotice } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const SESSION_MANAGER_MODULE = path.join(import.meta.dir, "../../src/session/session-manager.ts");
 
@@ -15,7 +15,7 @@ interface OtherProcessState {
 }
 
 /**
- * A second omp-like process that resumes `sessionFile` (which writes nothing)
+ * A second zeta-like process that resumes `sessionFile` (which writes nothing)
  * and then runs one command per line: `append <text>`, `rewrite`, or `close`.
  */
 class OtherProcess {
@@ -141,9 +141,9 @@ function sessionFilesIn(dir: string): string[] {
 		.sort();
 }
 
-describe("SessionManager on a session file another omp process writes", () => {
+describe("SessionManager on a session file another zeta process writes", () => {
 	it("keeps the file with the process that wrote it first and moves the other to one sibling", async () => {
-		using tempDir = TempDir.createSync("@omp-shared-session-file-");
+		using tempDir = TempDir.createSync("@zeta-shared-session-file-");
 		const original = await createSession(tempDir);
 
 		const owner = await SessionManager.open(original, tempDir.path(), new FileSessionStorage(), {
@@ -185,10 +185,10 @@ describe("SessionManager on a session file another omp process writes", () => {
 	}, 30_000);
 
 	it("does not count a process that only opened the session as its owner", async () => {
-		using tempDir = TempDir.createSync("@omp-shared-session-file-");
+		using tempDir = TempDir.createSync("@zeta-shared-session-file-");
 		const original = await createSession(tempDir);
 
-		// `omp share`, `--export`, and `render` open a session the same way and never write it.
+		// `zeta share`, `--export`, and `render` open a session the same way and never write it.
 		const { other: inspector } = await OtherProcess.resume(tempDir, original);
 		try {
 			expect(await resumeAndAppend(original, tempDir.path())).toEqual({ savedTo: original, notices: [] });
@@ -198,7 +198,7 @@ describe("SessionManager on a session file another omp process writes", () => {
 	}, 30_000);
 
 	it("hands the file to the next writer once its owner crashed", async () => {
-		using tempDir = TempDir.createSync("@omp-shared-session-file-");
+		using tempDir = TempDir.createSync("@zeta-shared-session-file-");
 		const original = await createSession(tempDir);
 
 		const { other } = await OtherProcess.resume(tempDir, original);

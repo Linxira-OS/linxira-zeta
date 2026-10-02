@@ -10,11 +10,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as theme from "@linxiraos/pi-tui/theme";
 import { TempDir } from "@linxiraos/pi-utils";
 
-import {
-	cfgStatusLineContextLine,
-	cfgStatusLineLeftSegments,
-	cfgSymbolPreset,
-} from "@linxiraos/zeta/modes/settings";
+import { cfgStatusLineContextLine, cfgStatusLineLeftSegments, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
 import { cfgHideThinkingBlock } from "@linxiraos/zeta/session/settings";
 
 describe("InteractiveMode live settings", () => {

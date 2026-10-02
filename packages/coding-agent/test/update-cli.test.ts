@@ -210,21 +210,21 @@ describe("update-cli libc detection", () => {
 describe("update-cli install target detection", () => {
 	it("leaves Nix store installations under Nix management", () => {
 		const method = resolveUpdateMethodForTest(
-			"/nix/store/0123456789-omp-17.2.15/bin/omp",
+			"/nix/store/0123456789-zeta-17.2.15/bin/zeta",
 			"/nix/store/9876543210-bun-1.3.14/bin",
 		);
 
 		expect(method).toBe("nix");
 	});
 
-	it("uses bun update when prioritized omp is inside bun global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.bun/bin/omp", "/Users/test/.bun/bin");
+	it("uses bun update when prioritized zeta is inside bun global bin", () => {
+		const method = resolveUpdateMethodForTest("/Users/test/.bun/bin/zeta", "/Users/test/.bun/bin");
 
 		expect(method).toBe("bun");
 	});
 
-	it("uses npm update when prioritized omp is inside an npm global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.npm-global/bin/omp", undefined, {
+	it("uses npm update when prioritized zeta is inside an npm global bin", () => {
+		const method = resolveUpdateMethodForTest("/Users/test/.npm-global/bin/zeta", undefined, {
 			npmBinDir: "/Users/test/.npm-global/bin",
 		});
 
@@ -242,7 +242,7 @@ describe("update-cli install target detection", () => {
 		// (~/.local), directory containment alone misclassified the standalone
 		// binary as npm-managed, so `npm install -g` failed with EEXIST refusing
 		// to overwrite the existing executable.
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/omp", undefined, {
+		const method = resolveUpdateMethodForTest("/home/u/.local/bin/zeta", undefined, {
 			npmBinDir: "/home/u/.local/bin",
 			ompIsRegularFile: true,
 		});
@@ -251,7 +251,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses binary update when a plain file in the bun global bin dir is the standalone binary", () => {
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/omp", "/home/u/.local/bin", {
+		const method = resolveUpdateMethodForTest("/home/u/.local/bin/zeta", "/home/u/.local/bin", {
 			ompIsRegularFile: true,
 		});
 
@@ -290,7 +290,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("still uses npm update when the npm global bin entry is a package-manager symlink, not a plain file", () => {
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/omp", undefined, {
+		const method = resolveUpdateMethodForTest("/home/u/.local/bin/zeta", undefined, {
 			npmBinDir: "/home/u/.local/bin",
 			ompIsRegularFile: false,
 		});
@@ -401,7 +401,7 @@ describe("update-cli install target detection", () => {
 		async () => {
 			const dir = await makeTempDir();
 			const dispatcherPath = path.join(dir, "launch");
-			const aliasPath = path.join(dir, "omp");
+			const aliasPath = path.join(dir, "zeta");
 			const dispatcher = "#!/bin/sh\necho dispatcher\n";
 			await Bun.write(dispatcherPath, dispatcher);
 			await fs.chmod(dispatcherPath, 0o755);
@@ -415,7 +415,7 @@ describe("update-cli install target detection", () => {
 
 			await expect(
 				updateViaBinaryAt(target.path, "18.1.13", {
-					binaryName: "omp-linux-x64",
+					binaryName: "zeta-linux-x64",
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
@@ -430,7 +430,7 @@ describe("update-cli install target detection", () => {
 		async () => {
 			const dir = await makeTempDir();
 			const foreignPath = path.join(dir, "foreign");
-			const aliasPath = path.join(dir, "omp");
+			const aliasPath = path.join(dir, "zeta");
 			await fs.copyFile(process.execPath, foreignPath);
 			await fs.chmod(foreignPath, 0o755);
 			await fs.symlink(foreignPath, aliasPath);
@@ -442,7 +442,7 @@ describe("update-cli install target detection", () => {
 
 			await expect(
 				updateViaBinaryAt(target.path, "18.1.13", {
-					binaryName: "omp-linux-x64",
+					binaryName: "zeta-linux-x64",
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
@@ -502,19 +502,19 @@ describe("update-cli install target detection", () => {
 		expect(await Bun.file(checkoutCli).text()).toBe("linked checkout");
 	});
 
-	it("uses binary update when prioritized omp is outside bun global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/omp", "/Users/test/.bun/bin");
+	it("uses binary update when prioritized zeta is outside bun global bin", () => {
+		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zeta", "/Users/test/.bun/bin");
 
 		expect(method).toBe("binary");
 	});
 
 	it("uses binary update when bun global bin cannot be resolved", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/omp", undefined);
+		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zeta", undefined);
 
 		expect(method).toBe("binary");
 	});
 
-	it("uses Homebrew update when prioritized omp resolves into the Homebrew formula", async () => {
+	it("uses Homebrew update when prioritized zeta resolves into the Homebrew formula", async () => {
 		const dir = await makeTempDir();
 		const prefix = path.join(dir, "opt", "zeta");
 		const linkedBin = path.join(dir, "bin");
@@ -530,9 +530,9 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("brew");
 	});
 
-	it("uses mise update when prioritized omp is in an active mise bin path", () => {
+	it("uses mise update when prioritized zeta is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
-			"/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin/omp",
+			"/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin/zeta",
 			undefined,
 			{
 				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin"],
@@ -542,8 +542,8 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("mise");
 	});
 
-	it("uses mise update when prioritized omp is a mise shim", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.local/share/mise/shims/omp", undefined, {
+	it("uses mise update when prioritized zeta is a mise shim", () => {
+		const method = resolveUpdateMethodForTest("/Users/test/.local/share/mise/shims/zeta", undefined, {
 			miseDataDir: "/Users/test/.local/share/mise",
 		});
 
@@ -641,57 +641,57 @@ describe("update-cli package manager commands", () => {
 });
 
 describe("update-cli npm rename contract", () => {
-	it("parses a well-formed omp.rename pointer and rejects malformed ones", () => {
-		expect(resolveReleaseRename({ omp: { rename: { package: "@new/omp", natives: "@new/natives" } } })).toEqual({
-			pkg: "@new/omp",
+	it("parses a well-formed zeta.rename pointer and rejects malformed ones", () => {
+		expect(resolveReleaseRename({ zeta: { rename: { package: "@new/zeta", natives: "@new/natives" } } })).toEqual({
+			pkg: "@new/zeta",
 			natives: "@new/natives",
 		});
-		expect(resolveReleaseRename({ omp: { rename: { package: "@new/omp" } } })).toEqual({
-			pkg: "@new/omp",
+		expect(resolveReleaseRename({ zeta: { rename: { package: "@new/zeta" } } })).toEqual({
+			pkg: "@new/zeta",
 			natives: undefined,
 		});
-		expect(resolveReleaseRename({ omp: { rename: { package: "" } } })).toBeUndefined();
-		expect(resolveReleaseRename({ omp: { rename: "@new/omp" } })).toBeUndefined();
-		expect(resolveReleaseRename({ omp: {} })).toBeUndefined();
+		expect(resolveReleaseRename({ zeta: { rename: { package: "" } } })).toBeUndefined();
+		expect(resolveReleaseRename({ zeta: { rename: "@new/zeta" } })).toBeUndefined();
+		expect(resolveReleaseRename({ zeta: {} })).toBeUndefined();
 		expect(resolveReleaseRename(undefined)).toBeUndefined();
 	});
 
-	it("prefers the zeta.rename pointer over the upstream omp.rename field", () => {
+	it("prefers the zeta.rename pointer over the upstream zeta.rename field", () => {
 		expect(
 			resolveReleaseRename({ zeta: { rename: { package: "@zeta/next", natives: "@zeta/natives-next" } } }),
 		).toEqual({ pkg: "@zeta/next", natives: "@zeta/natives-next" });
 		expect(
 			resolveReleaseRename({
 				zeta: { rename: { package: "@zeta/next" } },
-				omp: { rename: { package: "@new/omp", natives: "@new/natives" } },
+				zeta: { rename: { package: "@new/zeta", natives: "@new/natives" } },
 			}),
 		).toEqual({ pkg: "@zeta/next", natives: undefined });
-		expect(resolveReleaseRename({ zeta: {}, omp: { rename: { package: "@new/omp" } } })).toEqual({
-			pkg: "@new/omp",
+		expect(resolveReleaseRename({ zeta: {}, zeta: { rename: { package: "@new/zeta" } } })).toEqual({
+			pkg: "@new/zeta",
 			natives: undefined,
 		});
 	});
 
 	it("installs renamed package names in lock-step, with no old-name leftovers in the argv", () => {
-		const packages = { pkg: "@new/omp", natives: "@new/natives" };
+		const packages = { pkg: "@new/zeta", natives: "@new/natives" };
 
 		const bunArgs = buildBunInstallArgs("17.0.0", "linux-x64", packages);
-		expect(bunArgs).toContain("@new/omp@17.0.0");
+		expect(bunArgs).toContain("@new/zeta@17.0.0");
 		expect(bunArgs).toContain("@new/natives@17.0.0");
 		expect(bunArgs).toContain("@new/natives-linux-x64@17.0.0");
 		expect(bunArgs.some(arg => arg.startsWith("@linxiraos/"))).toBe(false);
 
-		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages)).toContain("@new/omp@17.0.0");
+		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages)).toContain("@new/zeta@17.0.0");
 	});
 
 	it("adds --force to npm argv only for rename migrations so the old package's bin can be clobbered", () => {
-		const packages = { pkg: "@new/omp", natives: "@new/natives" };
+		const packages = { pkg: "@new/zeta", natives: "@new/natives" };
 		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages, { force: true })).toContain("--force");
 		expect(buildNpmInstallArgs("16.3.15", "win32-x64")).not.toContain("--force");
 	});
 
 	it("removes the old agent package and its natives companions when both names moved", () => {
-		const packages = { pkg: "@new/omp", natives: "@new/natives" };
+		const packages = { pkg: "@new/zeta", natives: "@new/natives" };
 		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual([
 			"@linxiraos/zeta",
 			"@linxiraos/pi-natives",
@@ -701,7 +701,7 @@ describe("update-cli npm rename contract", () => {
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {
-		const packages = { pkg: "@new/omp", natives: "@linxiraos/pi-natives" };
+		const packages = { pkg: "@new/zeta", natives: "@linxiraos/pi-natives" };
 		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@linxiraos/zeta"]);
 		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta"]);
 	});
@@ -711,7 +711,7 @@ describe("migrateRenamedInstall transaction", () => {
 	const release: ReleaseInfo = {
 		tag: "v999.1.0",
 		version: "999.1.0",
-		packages: { pkg: "@new/omp", natives: "@new/natives" },
+		packages: { pkg: "@new/zeta", natives: "@new/natives" },
 		registry: "https://registry.npmjs.org/",
 	};
 
@@ -736,8 +736,8 @@ describe("migrateRenamedInstall transaction", () => {
 				async verify() {
 					calls.push("verify");
 					return script.verify[verifies++]
-						? { ok: true, actual: "999.1.0", path: "/bin/omp" }
-						: { ok: false, path: "/bin/omp" };
+						? { ok: true, actual: "999.1.0", path: "/bin/zeta" }
+						: { ok: false, path: "/bin/zeta" };
 				},
 			},
 		};
@@ -805,7 +805,7 @@ describe("migrateRenamedInstall transaction", () => {
 
 describe("update-cli bun install command", () => {
 	it("pins the official npm registry and bypasses the manifest cache so a stale mirror or snapshot cannot mask a freshly published version", () => {
-		// Regression: omp queries https://registry.npmjs.org/<pkg>/latest directly.
+		// Regression: zeta queries https://registry.npmjs.org/<pkg>/latest directly.
 		// The install MUST hit the same registry, otherwise:
 		//   - a lagging mirror (corp proxy, Taobao, …) rejects the version with
 		//     `No version matching "X" (but package exists)`,
@@ -1038,7 +1038,7 @@ describe("update-cli release binary integrity", () => {
 		).toThrow(`has 2 assets named ${binaryName}`);
 		expect(() =>
 			resolveReleaseBinaryAsset(
-				releaseAsset({ browser_download_url: "https://example.com/omp-linux-x64" }),
+				releaseAsset({ browser_download_url: "https://example.com/zeta-linux-x64" }),
 				tag,
 				binaryName,
 			),
@@ -1157,8 +1157,8 @@ describe("update-cli release binary integrity", () => {
 	it("rejects an altered version-reporting executable before replacing the installed binary", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
-		const installed = "#!/bin/sh\necho omp/17.0.8\n";
-		const altered = "#!/bin/sh\necho omp/17.1.2\n";
+		const installed = "#!/bin/sh\necho zeta/17.0.8\n";
+		const altered = "#!/bin/sh\necho zeta/17.1.2\n";
 		const expectedDigest = `sha256:${Bun.SHA256.hash("x".repeat(Buffer.byteLength(altered)), "hex")}`;
 		await Bun.write(targetPath, installed);
 		await fs.chmod(targetPath, 0o755);
@@ -1375,7 +1375,7 @@ describe.skipIf(process.platform !== "darwin")("update-cli macOS live backup ima
 	// macOS when executed from a new path, so they cannot serve here.)
 	it("retains a backup whose image a live process runs across cleanup and sweep, then reclaims it after the process exits", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "omp");
+		const targetPath = path.join(dir, "zeta");
 		await fs.copyFile(process.execPath, targetPath);
 		const live = Bun.spawn([targetPath, "-e", "await Bun.sleep(30000)"], { stdout: "ignore", stderr: "ignore" });
 		try {
@@ -1432,25 +1432,25 @@ describe.skipIf(process.platform !== "darwin")("update-cli macOS live backup ima
 });
 
 describe("update-cli binary-only release gating", () => {
-	it("honors an explicit omp.dist field from the registry manifest", () => {
-		expect(resolveReleaseDist({ omp: { dist: "binary" } })).toBe("binary");
-		expect(resolveReleaseDist({ omp: { dist: "npm" } })).toBe("npm");
-	});
-
-	it("prefers the zeta.dist field over the upstream omp.dist field", () => {
+	it("honors an explicit zeta.dist field from the registry manifest", () => {
 		expect(resolveReleaseDist({ zeta: { dist: "binary" } })).toBe("binary");
 		expect(resolveReleaseDist({ zeta: { dist: "npm" } })).toBe("npm");
-		expect(resolveReleaseDist({ zeta: { dist: "binary" }, omp: { dist: "npm" } })).toBe("binary");
-		expect(resolveReleaseDist({ zeta: {}, omp: { dist: "npm" } })).toBe("npm");
+	});
+
+	it("prefers the zeta.dist field over the upstream zeta.dist field", () => {
+		expect(resolveReleaseDist({ zeta: { dist: "binary" } })).toBe("binary");
+		expect(resolveReleaseDist({ zeta: { dist: "npm" } })).toBe("npm");
+		expect(resolveReleaseDist({ zeta: { dist: "binary" }, zeta: { dist: "npm" } })).toBe("binary");
+		expect(resolveReleaseDist({ zeta: {}, zeta: { dist: "npm" } })).toBe("npm");
 	});
 
 	it("treats unknown dist values as binary-only", () => {
-		expect(resolveReleaseDist({ omp: { dist: "cargo" } })).toBe("binary");
+		expect(resolveReleaseDist({ zeta: { dist: "cargo" } })).toBe("binary");
 	});
 
 	it("returns undefined when the manifest carries no dist field", () => {
 		expect(resolveReleaseDist({ version: "1.2.3" })).toBeUndefined();
-		expect(resolveReleaseDist({ omp: {} })).toBeUndefined();
+		expect(resolveReleaseDist({ zeta: {} })).toBeUndefined();
 		expect(resolveReleaseDist(undefined)).toBeUndefined();
 	});
 
@@ -1506,9 +1506,9 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		zeta: "#!/bin/sh\nnode omp.js\n",
-		"zeta.cmd": "@node omp.js %*\n",
-		"zeta.ps1": "node omp.js @args\n",
+		zeta: "#!/bin/sh\nnode zeta.js\n",
+		"zeta.cmd": "@node zeta.js %*\n",
+		"zeta.ps1": "node zeta.js @args\n",
 	};
 
 	async function writeShims(dir: string): Promise<void> {
@@ -1591,7 +1591,7 @@ describe("update-cli script-shim takeover", () => {
 
 	it.skipIf(process.platform === "win32")("reports the physical binary path verified after an update", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "omp");
+		const targetPath = path.join(dir, "zeta");
 		const exe = `#!/bin/sh\necho zeta/${version}\n`;
 		await Bun.write(targetPath, "old binary");
 		const logSpy = spyOn(console, "log").mockImplementation(() => {});
@@ -1724,7 +1724,7 @@ describe("update-cli concurrent binary updates", () => {
 		return { dir, targetPath };
 	}
 
-	// Regression for #8434: two overlapping `omp update` runs must not share a
+	// Regression for #8434: two overlapping `zeta-c update` runs must not share a
 	// temp path. Run A downloads slowly and only finishes after run B has fully
 	// installed. With the old fixed `<binary>.new` temp name, B's pre-download
 	// unlink deleted A's temp file, so A's chmod failed with ENOENT even though
@@ -1847,7 +1847,7 @@ describe("update-cli manager update recovery", () => {
 	it("takes the launcher over when the manager install left nothing on PATH", async () => {
 		// npm retires the global bin shims before unpacking and restores them
 		// only if its own rollback succeeds; a locked file (the loaded native
-		// addon on Windows) can leave the user with no `omp` at all.
+		// addon on Windows) can leave the user with no `zeta` at all.
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: new Error("npm install failed with exit code 1") });
 

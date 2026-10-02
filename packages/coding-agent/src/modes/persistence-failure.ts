@@ -1,7 +1,6 @@
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { replaceTabs, shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import type { SessionPersistenceNotice } from "../session/session-manager";
-import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { type SessionPersistenceNotice } from "../session/session-manager";
 
 /**
  * First-failure notice. The store keeps the unlanded entries in memory and

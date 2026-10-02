@@ -1,8 +1,8 @@
 import { mock } from "bun:test";
-import type { AssistantMessage, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { type FactoryDroidRegistryModel, factoryDroidRegistry } from "@oh-my-pi/pi-catalog/compat/factory-droid";
-import { buildFactoryDroidModel } from "@oh-my-pi/pi-catalog/discovery";
+import type { AssistantMessage, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { type FactoryDroidRegistryModel, factoryDroidRegistry } from "@linxiraos/pi-catalog/compat/factory-droid";
+import { buildFactoryDroidModel } from "@linxiraos/pi-catalog/discovery";
 
 /** One captured request: URL, lowercased headers, and the parsed JSON body. */
 export interface CapturedRequest {

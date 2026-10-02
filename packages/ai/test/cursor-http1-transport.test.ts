@@ -1,8 +1,8 @@
 import { expect, it } from "bun:test";
-import type { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { streamCursor } from "@oh-my-pi/pi-ai/providers/cursor";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { streamCursor } from "@linxiraos/pi-ai/providers/cursor";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	AgentClientMessageSchema,
 	AgentServerMessageSchema,
@@ -11,8 +11,8 @@ import {
 	InteractionUpdateSchema,
 	TextDeltaUpdateSchema,
 	TurnEndedUpdateSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@oh-my-pi/pi-catalog/discovery/protobuf";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 
 const CONNECT_END_STREAM_FLAG = 0x02;
 

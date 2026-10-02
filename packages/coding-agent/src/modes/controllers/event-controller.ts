@@ -18,7 +18,11 @@ import { RecapNotice } from "@linxiraos/pi-tui/chat/recap-notice";
 import { TodoReminderComponent } from "@linxiraos/pi-tui/chat/todo-reminder";
 import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
 import { textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
-import { ToolExecutionComponent, type ToolExecutionHandle, toolRenderName } from "@linxiraos/pi-tui/chat/tool-execution";
+import {
+	ToolExecutionComponent,
+	type ToolExecutionHandle,
+	toolRenderName,
+} from "@linxiraos/pi-tui/chat/tool-execution";
 import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
 import { createUsageRowBlock, TurnUsageTally, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
 import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";

@@ -25,7 +25,6 @@ import {
 	parseKittySequence as parseKittySequenceNative,
 } from "@linxiraos/pi-natives";
 import { isInsideTerminalMultiplexer, isSshSession } from "./terminal-capabilities";
-import { isInsideTerminalMultiplexer } from "./terminal-capabilities";
 
 // =============================================================================
 // Platform Detection

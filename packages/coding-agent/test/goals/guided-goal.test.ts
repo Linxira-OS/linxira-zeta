@@ -1,10 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent, type AgentMessage, AgentBusyError } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { Agent, AgentBusyError, type AgentMessage } from "@linxiraos/pi-agent-core";
+import { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
-import type { ImageContent } from "@linxiraos/pi-ai";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";

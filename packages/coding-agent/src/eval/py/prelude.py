@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# OMP prelude helpers (loaded once into the runner namespace)
+# ZETA prelude helpers (loaded once into the runner namespace)
 if "__zeta_prelude_loaded__" not in globals():
     __zeta_prelude_loaded__ = True
     from pathlib import Path

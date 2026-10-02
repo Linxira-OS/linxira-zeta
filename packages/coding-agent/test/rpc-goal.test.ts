@@ -2,19 +2,19 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
-import { RpcGoalController, type RpcGoalSession } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-goal";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
+import { RpcGoalController, type RpcGoalSession } from "@linxiraos/zeta/modes/rpc/rpc-goal";
 import {
 	isRpcSessionSettled,
 	RpcSessionSettleWatcher,
 	type RpcSettleSession,
 	watchedScheduledTurnProbe,
-} from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-session-settle";
-import type { RpcSessionState } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { GoalModeState } from "@oh-my-pi/pi-coding-agent/goals/state";
-import { removeWithRetries, withTimeout } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/rpc/rpc-session-settle";
+import type { RpcSessionState } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import type { GoalModeState } from "@linxiraos/zeta/goals/state";
+import { removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 
 function nextMacrotask(): Promise<void> {
 	const { promise, resolve } = Promise.withResolvers<void>();
@@ -51,12 +51,12 @@ describe("RPC goal command", () => {
 		plan?: boolean;
 		persist?: boolean;
 	}): Promise<RpcClient> {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-goal-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-rpc-goal-"));
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "goal-rpc-agent.ts")],
 			cwd: directory,
 			env: {
-				PI_CODING_AGENT_DIR: directory,
+				ZETA_CODING_AGENT_DIR: directory,
 				PI_NO_TITLE: "1",
 				GOAL_RPC_CONTINUATION: options.continuation ? "1" : "0",
 				GOAL_RPC_SCRIPT: options.script ?? "complete",

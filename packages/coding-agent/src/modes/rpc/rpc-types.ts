@@ -7,7 +7,6 @@
 import type { AgentMessage, AgentToolResult, ThinkingLevel, ToolLoadMode } from "@linxiraos/pi-agent-core";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessageEvent, Effort, ImageContent, Model, ToolExample } from "@linxiraos/pi-ai";
-import type { Effort, ImageContent, Model, ToolExample } from "@linxiraos/pi-ai";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ContextUsage } from "../../extensibility/extensions/types";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";

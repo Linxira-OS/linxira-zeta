@@ -173,7 +173,7 @@ export interface SegmentContext {
 	turnElapsedMs: number | null;
 	/**
 	 * Sampled foreground ANSI for the `pi` brand segment — tweened between dim
-	 * gray (idle) and the accent (working) across turn edges (rust omp's
+	 * gray (idle) and the accent (working) across turn edges (rust zeta's
 	 * status-band brand fade). Absent in direct-segment fixtures and previews,
 	 * which fall back to the static dim color.
 	 */
@@ -232,7 +232,7 @@ export interface SegmentView {
  */
 export interface ComposerFacts {
 	/**
-	 * `meter` (role `omp.composer.context`): context usage along the composer's top edge,
+	 * `meter` (role `zeta.composer.context`): context usage along the composer's top edge,
 	 * the whole window wide, with the speculation and compaction points as icon marks,
 	 * the share as `label` and the window as `total`.
 	 */
@@ -240,11 +240,11 @@ export interface ComposerFacts {
 	/** The model chip's label: name plus the advisor, fast-mode and slow-mode marks. */
 	readonly model: SegmentView;
 	/**
-	 * `status` (role `omp.composer.extras`, `grow: 1`) of the other configured
+	 * `status` (role `zeta.composer.extras`, `grow: 1`) of the other configured
 	 * segments as `seg`s; the bar's flexible space, so present even when empty.
 	 */
 	readonly extras: NativeNode;
-	/** `text` (role `omp.composer.usage`): the session cost (empty when there is none). */
+	/** `text` (role `zeta.composer.usage`): the session cost (empty when there is none). */
 	readonly usage: NativeNode;
 }
 

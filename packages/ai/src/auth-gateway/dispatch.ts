@@ -9,7 +9,6 @@
  */
 import { extractHttpStatusFromError, logger } from "@linxiraos/pi-utils";
 import type { ApiKeyResolver, ResolvedApiKey } from "../auth-retry";
-import type { ApiKeyResolver } from "../auth-retry";
 import type { AuthApiKeyOptions, AuthStorage } from "../auth-storage";
 import * as AIError from "../error";
 import { classifyGatewayError, type GatewayErrorClassification } from "../error/gateway";

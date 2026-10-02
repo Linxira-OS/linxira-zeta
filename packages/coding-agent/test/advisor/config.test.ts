@@ -487,7 +487,7 @@ describe("maxNotesPerUpdate configuration", () => {
 describe("per-advisor syncBacklog override", () => {
 	let tmp: string;
 	beforeEach(async () => {
-		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-advisor-sync-backlog-"));
+		tmp = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-advisor-sync-backlog-"));
 		await fsp.mkdir(path.join(tmp, ".git"));
 	});
 	afterEach(async () => {

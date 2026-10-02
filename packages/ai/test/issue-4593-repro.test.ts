@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "bun:test";
-import { describe, expect, it } from "bun:test";
 import { setBedrockProviderModule, streamBedrock } from "@linxiraos/pi-ai/providers/register-builtins";
 import type { AssistantMessage, Context, Model } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";

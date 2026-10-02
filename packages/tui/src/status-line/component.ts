@@ -40,7 +40,6 @@ import { summarizeUsageResetCredits } from "../overlays/usage-display";
 import { getPreset } from "./presets";
 import { describeSegment, renderSegment, type SegmentContext } from "./segments";
 import type { TspMeterMark, TspProps } from "@linxiraos/pi-wire";
-import type { TspProps } from "@linxiraos/pi-wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span } from "../native/describe";
 import { getContextMeterThresholds } from "../chrome/context-thresholds";

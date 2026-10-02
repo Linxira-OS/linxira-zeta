@@ -3,6 +3,7 @@ import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
 import { getKeybindings, type Keybinding } from "../keybindings";
+import { registerNativeBlob } from "../native/blobs";
 import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";

@@ -4,7 +4,6 @@
  */
 import type { Database } from "bun:sqlite";
 import { getModelDbPath, isSqliteCorruptionError, logger, openSqliteDatabaseSync, VERSION } from "@linxiraos/pi-utils";
-import { getModelDbPath, isSqliteCorruptionError, openSqliteDatabaseSync, VERSION } from "@linxiraos/pi-utils";
 import RULES from "./compat/rules.json" with { type: "json" };
 import type { Api, Model } from "./types";
 

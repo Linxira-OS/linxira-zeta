@@ -657,7 +657,8 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"input.bareSlashCommands": {
 		label: "裸斜杠命令",
-		description: "输入不带前导 `/` 的命令名（如 `model`、`compact`）即运行对应斜杠命令；会话已有消息时需按两次 Enter 确认",
+		description:
+			"输入不带前导 `/` 的命令名（如 `model`、`compact`）即运行对应斜杠命令；会话已有消息时需按两次 Enter 确认",
 	},
 	treeFilterMode: {
 		label: "会话树过滤器",
@@ -1118,7 +1119,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"lsp.shared": {
 		label: "共享语言服务器",
-		description: "通过守护进程代理在 omp 实例间按项目共享一个语言服务器（不可用时回退到私有服务器）",
+		description: "通过守护进程代理在 zeta 实例间按项目共享一个语言服务器（不可用时回退到私有服务器）",
 	},
 	"lsp.formatOnWrite": {
 		label: "写入时格式化",
@@ -1344,7 +1345,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 zeta-c browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
@@ -1791,7 +1792,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"extensionHandlers.toolCallTimeoutMs": {
 		label: "工具调用处理超时（毫秒）",
-		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000 毫秒，等待 OMP 自有对话框的时间不计入",
+		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000 毫秒，等待 ZETA 自有对话框的时间不计入",
 	},
 	"dev.autoqa": {
 		label: "自动 QA",

@@ -20,7 +20,6 @@ import {
 } from "@linxiraos/pi-tui/overlays/model-hub";
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme";
 import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
-import type { TUI } from "@linxiraos/pi-tui";
 
 import { cfgCycleOrder } from "@linxiraos/zeta/config/model-settings";
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";

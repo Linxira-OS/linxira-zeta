@@ -140,7 +140,7 @@ impl Libei {
 					Duration::from_secs(5),
 					backend
 						.context
-						.handshake_tokio("omp-computer", ei::handshake::ContextType::Sender),
+						.handshake_tokio("zeta-computer", ei::handshake::ContextType::Sender),
 				)
 				.await
 			})

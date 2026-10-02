@@ -1,5 +1,5 @@
 /**
- * Shared wire types for the omp collab live-session protocol.
+ * Shared wire types for the zeta-c collab live-session protocol.
  *
  * Dependency-free JSON shapes produced by `@linxiraos/zeta`
  * (`src/collab/protocol.ts` and friends). Browser and test clients import this

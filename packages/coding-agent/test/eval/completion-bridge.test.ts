@@ -686,7 +686,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("exposes plain and structured completion() in the JavaScript runtime", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-completion-js-");
+		using tempDir = TempDir.createSync("@zeta-eval-completion-js-");
 		const sessionFile = path.join(tempDir.path(), "session.jsonl");
 		const sessionId = `js-completion:${crypto.randomUUID()}`;
 		vi.spyOn(ai, "completeSimple")
@@ -710,7 +710,7 @@ describe("completion() through eval runtimes", () => {
 	});
 
 	it("exposes plain and structured completion() in the Python runtime", async () => {
-		const tempDir = TempDir.createSync("@omp-eval-completion-py-");
+		const tempDir = TempDir.createSync("@zeta-eval-completion-py-");
 		try {
 			const result = await runPythonCompletionsInSubprocess(tempDir);
 			expect(result.exitCode).toBe(0);

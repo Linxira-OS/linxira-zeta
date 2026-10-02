@@ -214,7 +214,7 @@ describe("proc:// background jobs", () => {
 	});
 
 	it("requires file content instead of silently truncating a file", async () => {
-		using temp = TempDir.createSync("@omp-proc-write-");
+		using temp = TempDir.createSync("@zeta-proc-write-");
 		const file = path.join(temp.path(), "keep.txt");
 		await Bun.write(file, "keep this");
 		const write = new WriteTool(toolSession(temp.path(), undefined, { launch: false }));
@@ -263,7 +263,7 @@ describe("proc:// background jobs", () => {
 
 describe("bash services via proc://", () => {
 	it("starts at log readiness, delivers stdin, switches persistence, and restarts a live name", async () => {
-		using temp = TempDir.createSync("@omp-proc-service-");
+		using temp = TempDir.createSync("@zeta-proc-service-");
 		const cwd = path.join(temp.path(), "project");
 		const runtimeDir = path.join(temp.path(), "runtime");
 		await fs.mkdir(cwd);

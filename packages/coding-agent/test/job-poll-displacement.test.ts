@@ -12,13 +12,12 @@
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { resetSettingsForTest, settings, Settings } from "@linxiraos/zeta/config/settings";
 import { ToolExecutionComponent, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { cfgDisplayShowTokenUsage } from "@linxiraos/zeta/modes/settings";
 import { ChatTranscriptBuilder } from "@linxiraos/pi-tui/chat/chat-transcript-builder";
 import { createUsageRowBlock } from "@linxiraos/pi-tui/overlays/usage-row";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
 import type { SessionContext } from "@linxiraos/zeta/session/session-context";

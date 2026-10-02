@@ -69,7 +69,7 @@ build() {
 	sdk=${4:-}
 	rm -f "$out"
 	if [ "$arch" = arm64 ] && [ -n "$swiftc" ]; then
-		cache=${OMP_APPLEFM_MODULE_CACHE:-${TMPDIR:-/tmp}/omp-applefm-module-cache}
+		cache=${OMP_APPLEFM_MODULE_CACHE:-${TMPDIR:-/tmp}/zeta-applefm-module-cache}
 		# Loaded only on macOS 27+, so it targets 27 and needs no Swift
 		# back-deployment runtime.
 		"$swiftc" -emit-library -parse-as-library -module-name OmpAppleFm \

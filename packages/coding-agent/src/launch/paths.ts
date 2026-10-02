@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getDaemonRuntimeDir, hasFsCode, isEacces, isEisdir, isEnoent } from "@linxiraos/pi-utils";
 
-/** Resolve the private runtime directory shared by omp processes in one project directory. */
+/** Resolve the private runtime directory shared by zeta processes in one project directory. */
 export { getDaemonRuntimeDir as daemonRuntimeDir };
 
 /** File in a broker runtime dir recording which project (or global service dir) owns the scope. */
@@ -85,7 +85,7 @@ export async function readStoredDaemonRecord(dir: string): Promise<StoredDaemonR
 export function daemonBrokerEndpoint(projectDir: string, runtimeDir: string): string {
 	if (process.platform === "win32") {
 		const key = Bun.hash.wyhash(path.resolve(projectDir)).toString(16).padStart(16, "0");
-		return `\\\\.\\pipe\\omp-daemon-${key}`;
+		return `\\\\.\\pipe\\zeta-daemon-${key}`;
 	}
 	return path.join(runtimeDir, "broker.sock");
 }

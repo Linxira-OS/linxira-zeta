@@ -245,7 +245,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 	}
 }
 
-// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
+// Protocol hosts inherit ZETA's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
 // configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
 // `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
@@ -725,7 +725,7 @@ async function runInteractiveMode(
 			}
 		}
 
-		// `omp join <link>`: dispatch through the same builtin path as a typed
+		// `zeta-c join <link>`: dispatch through the same builtin path as a typed
 		// `/join` so collab guards and error rendering stay in one place.
 		if (joinLink !== undefined) {
 			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
@@ -1036,7 +1036,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `zeta-c models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -1763,7 +1763,7 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
@@ -1953,7 +1953,7 @@ export async function runRootCommand(
 		normalizeContinueSessionArgs(parsedArgs, rawArgs);
 
 		// Resolve native resume/fork flags or import one foreign transcript into a
-		// fresh persisted OMP session before constructing the AgentSession.
+		// fresh persisted ZETA session before constructing the AgentSession.
 		let sessionManager: SessionManager | undefined;
 		let foreignSource: ForeignSessionSource | undefined;
 		try {
@@ -2289,7 +2289,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `omp --list-models`) and invalid
+			// Fail fast on stale/typo flags (e.g. `zeta-c --list-models`) and invalid
 			// built-in enum values now that we know the real extension flag set —
 			// an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
 			// neither can be judged by the pre-extension parse. Without this check

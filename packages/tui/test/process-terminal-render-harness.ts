@@ -1,7 +1,6 @@
 import { vi } from "bun:test";
 import { type Component, TUI } from "@linxiraos/pi-tui";
 import { ProcessTerminal, type ProcessTerminalOptions } from "@linxiraos/pi-tui/terminal";
-import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
 import { setTerminalHeadless } from "@linxiraos/pi-utils";
 
 // Pristine descriptors, captured once at module load. Every dispose() restores

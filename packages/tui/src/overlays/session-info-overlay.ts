@@ -7,8 +7,6 @@ import { editorKey } from "../chrome/keybinding-hints";
 import type { TspProps, TspSpan } from "@linxiraos/pi-wire";
 import { formatNumber } from "@linxiraos/pi-utils";
 import { col, node, row, span, text } from "../native/describe";
-import type { TspSpan } from "@linxiraos/pi-wire";
-import { col, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";
 import { plainText, styledSpans } from "../native/spans";

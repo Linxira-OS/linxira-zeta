@@ -4,8 +4,6 @@ import * as path from "node:path";
 import { FileLock as NativeFileLock } from "@linxiraos/pi-natives";
 import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@linxiraos/pi-utils/file-lock";
 import { type FsError, hasFsCode, isEnoent } from "@linxiraos/pi-utils/fs-error";
-import { withFileLockSync } from "@linxiraos/pi-utils/file-lock";
-import { hasFsCode, isEnoent } from "@linxiraos/pi-utils/fs-error";
 import { openCloexecSync } from "@linxiraos/pi-utils/fs-open";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { peekFileEnds } from "@linxiraos/pi-utils/peek-file";

@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from "bun:test";
-import { describe, expect, test } from "bun:test";
 import { type Api, Effort, type Model, type ModelSpec } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";

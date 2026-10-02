@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
-import type { Model } from "@linxiraos/pi-catalog/types";
-import type { SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { Model } from "@linxiraos/pi-catalog/types";
+import { SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { CacheWarmer, getPromptCacheTtlMs } from "../src/session/cache-warmer";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 
 const originalAgentDir = getAgentDir();
 const originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;

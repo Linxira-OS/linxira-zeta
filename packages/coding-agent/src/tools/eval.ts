@@ -46,7 +46,6 @@ import { generateCodeModeDeclarations } from "@linxiraos/pi-tui/tools/eval-forma
 import { upsertStatusEvent } from "@linxiraos/pi-tui/tools/eval";
 import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { resolveOutputMaxColumns, resolveOutputSinkArtifactMaxBytes, resolveOutputSinkHeadBytes } from "./output-meta";
-import { resolveOutputMaxColumns, resolveOutputSinkHeadBytes } from "./output-meta";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
 import { hasWaitTool } from "./wait";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";

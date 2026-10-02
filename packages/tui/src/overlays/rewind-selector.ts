@@ -61,15 +61,11 @@ import {
 	positionRail,
 	userTurnLabel,
 } from "../chat/transcript-outline";
-import type { TspMark } from "@linxiraos/pi-wire";
-import { kbd, node, span, text } from "../native/describe";
+import type { TspMark, TspPickerItem, TspPickerProps } from "@linxiraos/pi-wire";
+import { compact, kbd, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeScreen, NativeUiEvent } from "../native/node";
-import { actionBar, actionButton, actionHint, hintsRow } from "../native/overlay";
-import type { TspPickerItem, TspPickerProps } from "@linxiraos/pi-wire";
-import { compact, node, span, text } from "../native/describe";
-import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
-import { actionHint, hintsRow, overlayCard } from "../native/overlay";
-import { CLOSE_ACTION, type PickerEvent, picker, pickerAction, pickerEvent, pickerQuery } from "../native/picker";
+import { actionBar, actionButton, actionHint, hintsRow, overlayCard } from "../native/overlay";
+import { CLOSE_ACTION, picker, pickerAction, pickerEvent, type PickerEvent, pickerQuery } from "../native/picker";
 import { isNativeRendering } from "../native/state";
 import { collectBlocks, targetCopy } from "./copy-selector";
 

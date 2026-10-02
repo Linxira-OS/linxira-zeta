@@ -781,7 +781,7 @@ export const cfgSecurityEnabled = register({
 		group: "Available Tools",
 		label: "Security",
 		description:
-			"Enable OMP-native security scan planning, execution, and the read-only security:// resource namespace",
+			"Enable ZETA-native security scan planning, execution, and the read-only security:// resource namespace",
 	},
 });
 

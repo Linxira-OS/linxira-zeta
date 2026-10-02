@@ -51,7 +51,7 @@ import { fgOrPlain, theme } from "../theme/theme";
 const SHELL_SIGIL_RE = /^\s*(?:!!?|\$\$?)[ \t]?/;
 
 /** The composer's TSP placeholder; the rotating ANSI hints (thinking effort, …) move into control tooltips. */
-const NATIVE_COMPOSER_PLACEHOLDER = "Ask omp — / commands · @ files · ! bash";
+const NATIVE_COMPOSER_PLACEHOLDER = "Ask zeta — / commands · @ files · ! bash";
 
 /** Live composer state the TSP layout shows; the interactive host wires {@link CustomEditor.composerState}. */
 export interface ComposerNativeState {
@@ -389,7 +389,7 @@ export function extractImagePathFromText(text: string): string | undefined {
 
 /**
  * Resolve the {@link EditorTheme} from a `CustomEditor`/`Editor` constructor
- * argument list, tolerating both the omp `(theme)` and upstream-pi
+ * argument list, tolerating both the zeta `(theme)` and upstream-pi
  * `(tui, theme, keybindings)` conventions (see {@link CustomEditor}'s
  * constructor). A real `EditorTheme` is identified structurally — it exposes a
  * `borderColor` function and a `symbols` object — so a `TUI` passed in the first
@@ -465,7 +465,7 @@ export class CustomEditor extends Editor {
 
 	/**
 	 * The host {@link TUI}, captured when a plugin constructs this editor through
-	 * the upstream-pi `(tui, theme, keybindings)` convention. Undefined for omp's
+	 * the upstream-pi `(tui, theme, keybindings)` convention. Undefined for zeta's
 	 * own `new CustomEditor(theme)` callers (they drive repaints through the
 	 * interactive-mode wiring instead). Plugins that call `this.tui.requestRender()`
 	 * in their overrides read it here (issue #4766).
@@ -473,7 +473,7 @@ export class CustomEditor extends Editor {
 	tui?: TUI;
 
 	/**
-	 * Accept both the omp constructor convention — `new CustomEditor(theme)` —
+	 * Accept both the zeta constructor convention — `new CustomEditor(theme)` —
 	 * and the upstream-pi `Editor` convention — `new Editor(tui, theme, keybindings)`
 	 * — that {@link ExtensionUIContext.setEditorComponent}'s factory contract
 	 * advertises `(tui, theme, keybindings)`. Plugins written against upstream pi
@@ -1022,7 +1022,7 @@ export class CustomEditor extends Editor {
 		| undefined;
 
 	/**
-	 * The TSP composer: role `omp.editor[.bash|.python]` (tone `pending` while
+	 * The TSP composer: role `zeta.editor[.bash|.python]` (tone `pending` while
 	 * a turn runs) over the context hairline, the viewing header while a
 	 * subagent is focused, the attachment chips, a `line` row of the
 	 * shell-mode chip and the input, and the `bar`: model chip, effort chip,
@@ -1058,9 +1058,12 @@ export class CustomEditor extends Editor {
 			memo?.key === key && memo.facts === facts
 				? memo
 				: this.#describeComposerControls(state, facts, thinkingKey, modelKey, interruptKey, effortGlyph);
-		const line = keyed(row(compact([mode, input]), { role: "omp.composer.line", align: "start", gap: "sm" }), "line");
+		const line = keyed(
+			row(compact([mode, input]), { role: "zeta.composer.line", align: "start", gap: "sm" }),
+			"line",
+		);
 		const layout: NativeEditorLayout = {
-			role: shell ? `omp.editor.${shell.kind}` : "omp.editor",
+			role: shell ? `zeta.editor.${shell.kind}` : "zeta.editor",
 			tone: state.running ? "pending" : undefined,
 			children: compact([facts?.context, focus, chips, line, bar]),
 			caret: "line/input",
@@ -1070,10 +1073,10 @@ export class CustomEditor extends Editor {
 	};
 
 	/**
-	 * The viewing header (`omp.composer.focus`) while a subagent is focused:
-	 * an eye, the agent's ancestors as `omp.composer.crumb` links, the agent
-	 * itself (`omp.composer.agent`), then the way back to the main session
-	 * (`omp.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
+	 * The viewing header (`zeta.composer.focus`) while a subagent is focused:
+	 * an eye, the agent's ancestors as `zeta.composer.crumb` links, the agent
+	 * itself (`zeta.composer.agent`), then the way back to the main session
+	 * (`zeta.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
 	 */
 	#describeViewing(viewing: readonly string[], interruptKey: KeyId): NativeNode | undefined {
 		const agent = viewing.at(-1);
@@ -1083,7 +1086,7 @@ export class CustomEditor extends Editor {
 			node(
 				"text",
 				{
-					role: "omp.composer.crumb",
+					role: "zeta.composer.crumb",
 					text: id,
 					wrap: "none",
 					title: `View ${id}`,
@@ -1099,11 +1102,11 @@ export class CustomEditor extends Editor {
 					node("icon", { name: "eye" }, undefined, "icon"),
 					node("text", { text: "Viewing", wrap: "none" }, undefined, "label"),
 					...crumbs,
-					node("text", { role: "omp.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
+					node("text", { role: "zeta.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
 					node(
 						"row",
 						{
-							role: "omp.composer.exit",
+							role: "zeta.composer.exit",
 							gap: "xs",
 							align: "center",
 							title: `Back to the main session  ${back}`,
@@ -1117,7 +1120,7 @@ export class CustomEditor extends Editor {
 					),
 				],
 				{
-					role: "omp.composer.focus",
+					role: "zeta.composer.focus",
 					gap: "xs",
 					align: "center",
 					title: `Viewing subagent ${agent}: what you send goes to it`,
@@ -1143,7 +1146,7 @@ export class CustomEditor extends Editor {
 			node(
 				"row",
 				{
-					role: "omp.composer.model",
+					role: "zeta.composer.model",
 					gap: "xs",
 					align: "center",
 					tone: facts.model.tone,
@@ -1164,7 +1167,7 @@ export class CustomEditor extends Editor {
 			node(
 				"row",
 				{
-					role: "omp.composer.effort",
+					role: "zeta.composer.effort",
 					gap: "xs",
 					align: "center",
 					title: thinkingKey ? `Thinking effort  ${formatKeyHint(thinkingKey)}` : "Thinking effort",
@@ -1187,7 +1190,7 @@ export class CustomEditor extends Editor {
 			? node(
 					"text",
 					{
-						role: "omp.composer.stop",
+						role: "zeta.composer.stop",
 						text: "Stop",
 						tone: "error",
 						title: `Stop  ${interruptKey === "escape" ? "esc" : formatKeyHint(interruptKey)}`,
@@ -1199,7 +1202,7 @@ export class CustomEditor extends Editor {
 			: node(
 					"kbd",
 					{
-						role: "omp.composer.send",
+						role: "zeta.composer.send",
 						keys: ["enter"],
 						title: `Send  ${formatKeyHint("enter")}`,
 						actions: { click: "submit" },
@@ -1210,7 +1213,7 @@ export class CustomEditor extends Editor {
 		// The status facts are the bar's flexible space; without them a spacer keeps send at the end.
 		const bar = keyed(
 			row(compact([model, effort, facts?.extras ?? node("row", { grow: 1 }, [], "gap"), facts?.usage, submit]), {
-				role: "omp.composer.bar",
+				role: "zeta.composer.bar",
 				gap: "sm",
 				align: "center",
 			}),
@@ -1231,7 +1234,7 @@ export class CustomEditor extends Editor {
 					),
 				]),
 				{
-					role: "omp.composer.mode",
+					role: "zeta.composer.mode",
 					gap: "xs",
 					align: "center",
 					title: shell.excluded ? `${runs} · not sent to the model` : runs,

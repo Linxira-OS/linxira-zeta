@@ -6,15 +6,15 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { resetRegisteredArtifactDirsForTests } from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { CURRENT_SESSION_VERSION } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { TempDir } from "@linxiraos/pi-utils";
 
 let tempDir: TempDir;
 let rootSessionFile: string;
@@ -76,7 +76,7 @@ describe("agent:// for agents without a published output", () => {
 		AgentRegistry.resetGlobalForTests();
 		InternalUrlRouter.resetForTests();
 		resetRegisteredArtifactDirsForTests();
-		tempDir = TempDir.createSync("omp-agent-live-");
+		tempDir = TempDir.createSync("zeta-agent-live-");
 		rootSessionFile = path.join(tempDir.path(), "session.jsonl");
 		artifactsDir = rootSessionFile.slice(0, -6);
 		await fs.mkdir(artifactsDir, { recursive: true });

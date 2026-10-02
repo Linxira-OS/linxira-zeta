@@ -1,7 +1,7 @@
 /**
  * Client for the Tern session daemon's browser relay: a Unix socket speaking
  * Tern's wire frames (`u32` LE length + payload; payload = tag byte, LE
- * integers, `u32`-length UTF-8 strings). omp greets as a script client, then
+ * integers, `u32`-length UTF-8 strings). zeta greets as a script client, then
  * sends `Request::Browser { id, json }` and receives `Reply::Browser { id, json }`
  * answers, correlated by `id`. The JSON is Tern's browser op protocol: a
  * request `{"op": …}` answers `{"ok": result}` or `{"error": {"kind", "message"}}`.
@@ -9,7 +9,7 @@
 import * as net from "node:net";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
-/** Tern wire protocol version omp speaks. */
+/** Tern wire protocol version zeta speaks. */
 export const TERN_WIRE_VERSION = 9;
 
 /** Tag of the daemon's `Welcome` reply. */
@@ -56,7 +56,7 @@ export class TernBrowserError extends ToolError {
 	}
 }
 
-/** Error kinds meaning "this Tern cannot host a browser for omp right now". */
+/** Error kinds meaning "this Tern cannot host a browser for zeta right now". */
 const UNAVAILABLE_KINDS: Partial<Record<TernErrorKind, true>> = {
 	no_window: true,
 	unsupported: true,
@@ -313,7 +313,7 @@ export class TernSocketClient {
 		return this.#welcomed && !this.#closed;
 	}
 
-	/** Open the socket and greet; resolves once the daemon welcomed omp. */
+	/** Open the socket and greet; resolves once the daemon welcomed zeta. */
 	async connect(): Promise<void> {
 		if (this.#closed) throw this.#closeError ?? new TernBrowserError("closed", "Tern connection closed");
 		if (this.#welcomed) return;
@@ -447,7 +447,7 @@ export class TernSocketClient {
 					this.#fail(
 						new TernBrowserError(
 							"refused",
-							`Tern refused omp's browser connection: ${reply.reason} (omp speaks Tern protocol ${TERN_WIRE_VERSION})`,
+							`Tern refused zeta's browser connection: ${reply.reason} (zeta speaks Tern protocol ${TERN_WIRE_VERSION})`,
 						),
 					);
 					return;

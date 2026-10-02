@@ -2,9 +2,9 @@ import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 
 /** Build-time specifier resolved to bundled legacy Pi module namespaces. */
-export const LEGACY_PI_MODULES_SPECIFIER = "omp-legacy-pi-modules";
+export const LEGACY_PI_MODULES_SPECIFIER = "zeta-legacy-pi-modules";
 
-const VIRTUAL_NAMESPACE = "omp-legacy-pi-modules-build";
+const VIRTUAL_NAMESPACE = "zeta-legacy-pi-modules-build";
 const packageDir = path.resolve(import.meta.dir, "..");
 const repoRoot = path.resolve(packageDir, "..", "..");
 
@@ -18,7 +18,7 @@ const BUNDLED_PACKAGES: readonly BundledPackage[] = [
 	{ dir: "agent", identifier: "PiAgentCore", rootShim: null },
 	{ dir: "ai", identifier: "PiAi", rootShim: "legacy-pi-ai-shim.ts" },
 	{ dir: "catalog", identifier: "PiCatalog", rootShim: null },
-	{ dir: "coding-agent", identifier: "PiCodingAgent", rootShim: "legacy-pi-coding-agent-shim.ts" },
+	{ dir: "coding-agent", identifier: "PiCodingAgent", rootShim: "legacy-zeta-shim.ts" },
 	{ dir: "natives", identifier: "PiNatives", rootShim: null },
 	{ dir: "tui", identifier: "PiTui", rootShim: "legacy-pi-tui-shim.ts" },
 	{ dir: "utils", identifier: "PiUtils", rootShim: null },
@@ -197,9 +197,9 @@ export function __renderLegacyPiVirtualModule(entries: readonly BundledPiEntry[]
 export async function createLegacyPiVirtualModulePlugin(): Promise<Bun.BunPlugin> {
 	const source = __renderLegacyPiVirtualModule(await collectBundledPiEntries());
 	return {
-		name: "omp:legacy-pi-modules",
+		name: "zeta:legacy-pi-modules",
 		setup(build) {
-			build.onResolve({ filter: /^omp-legacy-pi-modules$/ }, () => ({
+			build.onResolve({ filter: /^zeta-legacy-pi-modules$/ }, () => ({
 				path: LEGACY_PI_MODULES_SPECIFIER,
 				namespace: VIRTUAL_NAMESPACE,
 			}));
