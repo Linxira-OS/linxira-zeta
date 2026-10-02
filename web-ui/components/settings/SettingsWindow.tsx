@@ -6,12 +6,12 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useThemeSystem } from "@/contexts/useThemeSystem";
 import type { ThemeMode } from "@/contexts/theme-system-context";
 import { SERIF_UI_FONT_STACK, type DensityPreference, type RadiusPreference } from "@/lib/theme/appearance";
-import { inputStyle, SettingsHighlight, SettingsTabBody, useSettingsData, useWebConfigState } from "../SettingsPanel";
+import { inputStyle, SettingsHighlight, SettingsTabBody, useSettingsData, useWebConfigState } from "./shared";
 
 /**
  * Windowed settings shell: large fixed-inset window with a title bar, an
  * in-page search box, and a left group nav. The data layer and per-tab
- * rendering are reused from SettingsPanel (`useSettingsData`,
+ * rendering are reused from `settings/shared.tsx` (`useSettingsData`,
  * `useWebConfigState`, `SettingsTabBody`) — only the chrome differs.
  *
  * The "appearance" nav entry is a web-local group backed by

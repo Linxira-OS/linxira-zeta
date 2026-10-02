@@ -15,7 +15,7 @@ Zeta 的浏览器界面，基于 OMP Web 快照，并保留现有 OMP 运行时�
 
 ## 什么是 Zeta？
 
-Zeta 是基于 OMP 运行时的开箱即用编码代理。Zeta Web 通过本地 Next.js 服务器在浏览器中展示兼容的会话文件。
+Zeta 是开箱即用的编码代理。Zeta Web 通过本地 Next.js 服务器在浏览器中展示兼容的会话文件。
 
 ## 快速开始
 
@@ -60,7 +60,7 @@ macOS 或 Linux：
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx zeta-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 Windows PowerShell：
@@ -69,7 +69,7 @@ Windows PowerShell：
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx zeta-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 ## 特色与增强功能
@@ -102,7 +102,7 @@ Zeta Web 基于 OMP Web 快照，后者保留了 Pi Web 历史。下表列出 Ze
 
 | 改动点 | 说明 |
 |---|---|
-| 兼容二进制 | 为现有脚本保留 `omp-web` |
+| 二进制入口 | 单一 `zeta-web` CLI 入口（npm bin 与 `npx @linxiraos/zeta-web@latest`） |
 | 代码语法主题选择器 | **新增** 独立代码块主题选择器，支持 **One Dark Pro** 等主流主题切换 |
 | 数据与角色映射 | 支持 `~/.zeta/agent/` 下的 `models.db`、`config.yml` 角色模型及 SQLite API Key |
 | 中文与国际化体验 | **增强** 完整双语界面与中文本地化交互优化 |
@@ -173,7 +173,7 @@ hooks/
   useDragDrop.ts      # 图片拖拽
   useTheme.ts         # 主题切换
 bin/
-  omp-web.js          # npm CLI 入口
+  zeta-web.js         # npm CLI 入口
 instrumentation.ts    # 初始化服务端 HTTP dispatcher
 ```
 

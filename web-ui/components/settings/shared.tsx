@@ -1,7 +1,13 @@
 "use client";
 
+/**
+ * Shared settings layer: data hooks (`useSettingsData`, `useWebConfigState`),
+ * per-tab rendering (`SettingsTabBody`), and the style/highlight helpers used
+ * by the `SettingsWindow` shell. Formerly lived in `SettingsPanel.tsx`; the
+ * dead `SettingsPanel` modal wrapper was dropped in the D12 cleanup.
+ */
+
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { useSidebar } from "@/hooks/useSidebar";
 import { useI18n } from "@/hooks/useI18n";
 import { setRemoteToken } from "@/lib/remote-token";
@@ -15,7 +21,7 @@ import {
 	type SettingsResponse,
 	type WebConfigData,
 } from "@/lib/settings-client";
-import { DocsPanel } from "./DocsPanel";
+import { DocsPanel } from "../DocsPanel";
 
 // Tabs with full inline editing. The remaining tabs render read-only rows
 // (label + current value) with a CLI /settings hint until a later phase.
@@ -1731,230 +1737,4 @@ export function SettingsTabBody({
 	}
 
 	return <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>{body}</div>;
-}
-
-export interface SettingsPanelProps {
-	onClose: () => void;
-	/** Opens the existing ModelsConfig modal on top (model tab chains to it). */
-	onOpenModelsConfig: () => void;
-}
-
-export function SettingsPanel({ onClose, onOpenModelsConfig }: SettingsPanelProps) {
-	const isMobile = useIsMobile();
-	const { t } = useI18n();
-	const settings = useSettingsData();
-	const web = useWebConfigState();
-
-	// Escape closes the modal, unless the user is typing in a field (so Escape
-	// in an input/select doesn't accidentally dismiss the whole panel).
-	useEffect(() => {
-		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key !== "Escape") return;
-			const target = e.target as HTMLElement | null;
-			if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT"))
-				return;
-			onClose();
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [onClose]);
-
-	return (
-		<div
-			style={{
-				position: "fixed",
-				inset: 0,
-				zIndex: 900,
-				background: "rgba(0,0,0,0.35)",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-			}}
-			onClick={e => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
-			<div
-				style={{
-					width: isMobile ? "calc(100vw - 16px)" : 760,
-					maxWidth: "calc(100vw - 16px)",
-					height: isMobile ? "calc(100dvh - 16px)" : "78vh",
-					maxHeight: "calc(100dvh - 16px)",
-					background: "var(--bg)",
-					border: "1px solid var(--border)",
-					borderRadius: 10,
-					display: "flex",
-					flexDirection: "column",
-					boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-					overflow: "hidden",
-				}}
-			>
-				{/* Header */}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						padding: "12px 18px",
-						borderBottom: "1px solid var(--border)",
-						flexShrink: 0,
-					}}
-				>
-					<div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-						<span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{t("settings")}</span>
-						<code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-							~/.zeta/agent/config.yml
-						</code>
-					</div>
-					<button
-						onClick={onClose}
-						aria-label="Close settings"
-						style={{
-							background: "none",
-							border: "none",
-							color: "var(--text-muted)",
-							cursor: "pointer",
-							fontSize: 20,
-							lineHeight: 1,
-							padding: "2px 6px",
-						}}
-					>
-						×
-					</button>
-				</div>
-
-				{/* Tab bar */}
-				{settings.data && (
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: 2,
-							padding: "8px 12px",
-							borderBottom: "1px solid var(--border)",
-							flexShrink: 0,
-							overflowX: "auto",
-							background: "var(--bg-panel)",
-						}}
-					>
-						{settings.data.tabs.map(tab => (
-							<button
-								key={tab.id}
-								type="button"
-								onClick={() => settings.setActiveTab(tab.id)}
-								aria-pressed={settings.activeTab === tab.id}
-								style={{
-									padding: "5px 11px",
-									border: "none",
-									borderRadius: 7,
-									cursor: "pointer",
-									fontSize: 12,
-									whiteSpace: "nowrap",
-									flexShrink: 0,
-									background: settings.activeTab === tab.id ? "var(--bg-selected)" : "transparent",
-									color: settings.activeTab === tab.id ? "var(--text)" : "var(--text-muted)",
-								}}
-							>
-								{tab.label}
-							</button>
-						))}
-						<button
-							key="web"
-							type="button"
-							onClick={() => settings.setActiveTab("web")}
-							aria-pressed={settings.activeTab === "web"}
-							style={{
-								padding: "5px 11px",
-								border: "none",
-								borderRadius: 7,
-								cursor: "pointer",
-								fontSize: 12,
-								whiteSpace: "nowrap",
-								flexShrink: 0,
-								marginLeft: 4,
-								background: settings.activeTab === "web" ? "var(--bg-selected)" : "transparent",
-								color: settings.activeTab === "web" ? "var(--text)" : "var(--text-muted)",
-							}}
-						>
-							{t("web-bot")}
-						</button>
-						<button
-							key="docs"
-							type="button"
-							onClick={() => settings.setActiveTab("docs")}
-							aria-pressed={settings.activeTab === "docs"}
-							style={{
-								padding: "5px 11px",
-								border: "none",
-								borderRadius: 7,
-								cursor: "pointer",
-								fontSize: 12,
-								whiteSpace: "nowrap",
-								flexShrink: 0,
-								marginLeft: 4,
-								background: settings.activeTab === "docs" ? "var(--bg-selected)" : "transparent",
-								color: settings.activeTab === "docs" ? "var(--text)" : "var(--text-muted)",
-							}}
-						>
-							{t("web-docs")}
-						</button>
-					</div>
-				)}
-
-				{/* Config-scope banner: names the config UI (bot vs CLI), the actual
-            file, and the object being edited for the active tab. */}
-				{settings.data && settings.activeTab !== "docs" && (
-					<div
-						style={{
-							padding: "7px 14px",
-							borderBottom: "1px solid var(--border)",
-							background: "var(--bg-panel)",
-							fontSize: 11.5,
-							color: "var(--text-muted)",
-							display: "flex",
-							alignItems: "center",
-							gap: 8,
-							flexWrap: "wrap",
-							flexShrink: 0,
-						}}
-					>
-						<span style={{ fontWeight: 700, color: "var(--text)" }}>
-							{settings.activeTab === "web" ? `⚠ ${t("editing-bot-config")}` : `⚠ ${t("editing-cli-config")}`}
-						</span>
-						<span>
-							{t("config-file")}:{" "}
-							<code style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
-								{settings.activeTab === "web"
-									? "~/.zeta/agent/web.yml"
-									: settings.activeTab === "model"
-										? "~/.zeta/agent/models.json"
-										: "~/.zeta/agent/config.yml"}
-							</code>
-						</span>
-						<span>
-							{t("config-object")}:{" "}
-							<code style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
-								{settings.activeTab === "web"
-									? "remote.* / channels.* / tray.*"
-									: settings.activeTab === "model"
-										? "modelRoles / enabledModels"
-										: `settings.${settings.activeTab}`}
-							</code>
-						</span>
-					</div>
-				)}
-
-				{/* Body */}
-				<SettingsTabBody
-					activeTab={settings.activeTab}
-					data={settings.data}
-					loadError={settings.loadError}
-					reload={settings.reload}
-					web={web}
-					renderRow={settings.renderRow}
-					onOpenModelsConfig={onOpenModelsConfig}
-				/>
-			</div>
-		</div>
-	);
 }
