@@ -31,13 +31,13 @@ describe("auto-review skips blocked/duplicate tasks", () => {
 
 		cwd = createTempCrewDirs().cwd;
 		dirs = {
-			base: path.join(cwd, ".pi", "messenger"),
-			registry: path.join(cwd, ".pi", "messenger", "registry"),
-			inbox: path.join(cwd, ".pi", "messenger", "inbox"),
+			base: path.join(cwd, ".zeta", "messenger"),
+			registry: path.join(cwd, ".zeta", "messenger", "registry"),
+			inbox: path.join(cwd, ".zeta", "messenger", "inbox"),
 		};
 		fs.mkdirSync(dirs.registry, { recursive: true });
 		fs.mkdirSync(dirs.inbox, { recursive: true });
-		const agentsDir = path.join(cwd, ".pi", "messenger", "crew", "agents");
+		const agentsDir = path.join(cwd, ".zeta", "messenger", "crew", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		for (const name of ["crew-worker", "crew-reviewer"]) {
 			fs.writeFileSync(path.join(agentsDir, `${name}.md`), `---\nname: ${name}\ndescription: Agent\n---\nAgent`);
@@ -96,7 +96,7 @@ describe("auto-review skips blocked/duplicate tasks", () => {
 		expect(response.details.succeeded).toEqual([]);
 		expect(response.details.blocked).toContain(task.id);
 
-		const feedPath = path.join(cwd, ".pi", "messenger", "feed.jsonl");
+		const feedPath = path.join(cwd, ".zeta", "messenger", "feed.jsonl");
 		const events = fs
 			.readFileSync(feedPath, "utf8")
 			.trim()

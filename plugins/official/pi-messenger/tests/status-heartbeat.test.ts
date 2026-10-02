@@ -81,7 +81,7 @@ describe("status heartbeat", () => {
 		const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-messenger-home-"));
 		tempHomes.push(home);
 		vi.stubEnv("HOME", home);
-		vi.stubEnv("PI_MESSENGER_DIR", path.join(home, ".pi", "agent", "messenger"));
+		vi.stubEnv("PI_MESSENGER_DIR", path.join(home, ".zeta", "agent", "messenger"));
 	});
 
 	afterEach(() => {
@@ -142,8 +142,8 @@ describe("status heartbeat", () => {
 	it("does not swallow non-stale status update errors", async () => {
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-messenger-cwd-"));
 		tempCwds.push(cwd);
-		fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
-		fs.writeFileSync(path.join(cwd, ".pi", "pi-messenger.json"), JSON.stringify({ autoRegister: true }));
+		fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+		fs.writeFileSync(path.join(cwd, ".zeta", "pi-messenger.json"), JSON.stringify({ autoRegister: true }));
 
 		const pi = await loadExtension();
 		const sessionStart = pi.handlers.get("session_start")?.[0];

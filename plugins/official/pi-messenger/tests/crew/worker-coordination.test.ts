@@ -32,7 +32,7 @@ function writeTask(tasksDir: string, task: Partial<Task> & { id: string }): void
 }
 
 function writeFeedEvents(cwd: string, events: FeedEvent[]): void {
-	const feedPath = path.join(cwd, ".pi", "messenger", "feed.jsonl");
+	const feedPath = path.join(cwd, ".zeta", "messenger", "feed.jsonl");
 	fs.mkdirSync(path.dirname(feedPath), { recursive: true });
 	const lines = events.map(e => JSON.stringify(e)).join("\n") + "\n";
 	fs.writeFileSync(feedPath, lines);
@@ -535,9 +535,9 @@ describe("executeSend broadcast filtering", () => {
 		executeSend = handlers.executeSend;
 
 		messageDirs = {
-			base: path.join(dirs.cwd, ".pi", "messenger"),
-			registry: path.join(dirs.cwd, ".pi", "messenger", "registry"),
-			inbox: path.join(dirs.cwd, ".pi", "messenger", "inbox"),
+			base: path.join(dirs.cwd, ".zeta", "messenger"),
+			registry: path.join(dirs.cwd, ".zeta", "messenger", "registry"),
+			inbox: path.join(dirs.cwd, ".zeta", "messenger", "inbox"),
 		};
 		fs.mkdirSync(messageDirs.registry, { recursive: true });
 		fs.mkdirSync(messageDirs.inbox, { recursive: true });

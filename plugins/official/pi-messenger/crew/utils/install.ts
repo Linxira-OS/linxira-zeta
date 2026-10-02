@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { homedir } from "node:os";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 
 const CREW_AGENTS = ["crew-planner.md", "crew-plan-sync.md", "crew-worker.md", "crew-reviewer.md"];
 
@@ -22,11 +23,17 @@ export interface InstallOptions {
 }
 
 function getTargetAgentsDir(homeDir: string): string {
+	// The legacy ~/.pi/agent/agents directory is exactly what this migration
+	// cleans up, so it intentionally stays in the pi tree.
 	return path.join(homeDir, ".pi", "agent", "agents");
 }
 
 function getMigrationMarkerPath(homeDir: string, marker: string): string {
-	return path.join(homeDir, ".pi", "agent", "messenger", "migrations", marker);
+	// Markers live in the current messenger tree; pre-existing markers migrate
+	// together with the rest of ~/.pi/agent/messenger (crew/utils/migrations.ts).
+	const messengerDir =
+		homeDir === homedir() ? path.join(getAgentDir(), "messenger") : path.join(homeDir, ".zeta", "agent", "messenger");
+	return path.join(messengerDir, "migrations", marker);
 }
 
 export function uninstallAgents(options: InstallOptions = {}): { removed: string[]; errors: string[] } {

@@ -11,7 +11,7 @@ function createState(): MessengerState {
 }
 
 function createDirs(cwd: string): Dirs {
-	const base = path.join(cwd, ".pi", "messenger");
+	const base = path.join(cwd, ".zeta", "messenger");
 	const registry = path.join(base, "registry");
 	const inbox = path.join(base, "inbox");
 	fs.mkdirSync(registry, { recursive: true });
@@ -54,13 +54,13 @@ describe("team command routing", () => {
 		expect(setup.details.mode).toBe("team.setup");
 		expect(setup.details.charterStatus).toBe("created");
 		expect(setup.content[0].text).toContain("Set up Team profile **research-squad**");
-		expect(fs.readFileSync(path.join(cwd, ".pi", "messenger", "team", "charter.md"), "utf-8")).toContain(
+		expect(fs.readFileSync(path.join(cwd, ".zeta", "messenger", "team", "charter.md"), "utf-8")).toContain(
 			"Use the research-squad Team profile",
 		);
 
 		const keep = await run("team.setup", { name: "review-squad" });
 		expect(keep.details.charterStatus).toBe("kept");
-		expect(fs.readFileSync(path.join(cwd, ".pi", "messenger", "team", "charter.md"), "utf-8")).toContain(
+		expect(fs.readFileSync(path.join(cwd, ".zeta", "messenger", "team", "charter.md"), "utf-8")).toContain(
 			"Use the research-squad Team profile",
 		);
 
@@ -69,7 +69,7 @@ describe("team command routing", () => {
 			message: "Review first, then apply approved cleanup.",
 		});
 		expect(custom.details.charterStatus).toBe("updated");
-		expect(fs.readFileSync(path.join(cwd, ".pi", "messenger", "team", "charter.md"), "utf-8")).toContain(
+		expect(fs.readFileSync(path.join(cwd, ".zeta", "messenger", "team", "charter.md"), "utf-8")).toContain(
 			"Review first, then apply approved cleanup.",
 		);
 	});
