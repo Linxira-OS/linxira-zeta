@@ -544,6 +544,9 @@ mod tests {
 		}
 	}
 
+	// Windows path semantics: backslashes are separators only there, and
+	// `C:\...` names resolve differently on POSIX hosts.
+	#[cfg(windows)]
 	#[test]
 	fn flavor_recognition() {
 		assert_eq!(flavor_for(Path::new(r"C:\x\powershell.exe")), Some(ShellFlavor::PowerShell));
@@ -723,6 +726,8 @@ mod tests {
 		std::fs::remove_dir_all(&temp).ok();
 	}
 
+	// Windows-gated: the augmented dirs only exist there.
+	#[cfg(windows)]
 	#[test]
 	fn augmented_windows_dirs_covers_npm_pnpm_bun() {
 		let dirs = augmented_windows_dirs(
