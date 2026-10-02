@@ -38,6 +38,8 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from "../plugins/leg
 import { getAllPluginExtensionPaths } from "../plugins/loader";
 
 import { resolvePath, withHostGuard } from "../utils";
+import type { PluginStorage } from "../plugins/types";
+import { resolvePluginStorage } from "../plugins/loader";
 import type { ComposerShapeDefinition } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
 import type {
 	AssistantThinkingRenderer,
@@ -182,6 +184,8 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	readonly arktype = type;
 	readonly zod = zod;
 	readonly flagValues = new Map<string, boolean | string>();
+	/** Host-managed per-plugin storage roots (spec §4.3); undefined for non-plugin extensions. */
+	readonly storage: PluginStorage | undefined;
 	readonly pendingProviderRegistrations: Array<{
 		name: string;
 		config: ProviderConfig;
@@ -194,7 +198,9 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 		private readonly runtime: IExtensionRuntime,
 		private readonly cwd: string,
 		public readonly events: EventBus,
+		storage?: PluginStorage,
 	) {
+		this.storage = storage;
 		// Extensions destructure `pi.on` or forward API methods as callbacks, so every
 		// prototype method must keep its receiver when detached. Walk the prototype
 		// rather than listing methods: a new method is bound without touching this.
@@ -448,7 +454,8 @@ async function bindExtension(
 	}
 	try {
 		const extension = createExtension(extensionPath, imported.resolvedPath);
-		const api = new ConcreteExtensionAPI(PiCodingAgent, extension, runtime, cwd, eventBus);
+		const storage = await resolvePluginStorage(cwd, imported.resolvedPath);
+		const api = new ConcreteExtensionAPI(PiCodingAgent, extension, runtime, cwd, eventBus, storage);
 		await withHostGuard(() => runExtensionFactory(factory, api, runtime));
 
 		return { extension, error: null };

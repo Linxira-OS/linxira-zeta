@@ -8,7 +8,7 @@ import {
 	resolvePluginToolPaths,
 } from "@linxiraos/zeta/extensibility/plugins/loader";
 import type { InstalledPlugin, PluginManifest } from "@linxiraos/zeta/extensibility/plugins/types";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { getPluginCacheDir, getPluginDataDir, getPluginStateDir, removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlugin {
 	return {
@@ -18,6 +18,11 @@ function makePlugin(pluginPath: string, manifest: PluginManifest): InstalledPlug
 		manifest,
 		enabledFeatures: null,
 		enabled: true,
+		storage: {
+			dataDir: getPluginDataDir("fixture-plugin"),
+			cacheDir: getPluginCacheDir("fixture-plugin"),
+			stateDir: getPluginStateDir("fixture-plugin"),
+		},
 	};
 }
 
