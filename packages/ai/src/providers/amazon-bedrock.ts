@@ -10,9 +10,9 @@
  * only AWS's own regional host is re-pointed at the resolved region. SigV4 unaffected.
  */
 
-import type { Effort } from "@linxiraos/pi-catalog/effort";
-import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
-import { calculateCost } from "@linxiraos/pi-catalog/models";
+import type { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { mapEffortToAnthropicAdaptiveEffort, requireSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
+import { calculateCost } from "@oh-my-pi/pi-catalog/models";
 import {
 	$flag,
 	fetchWithRetry,
@@ -20,7 +20,7 @@ import {
 	parseStreamingJson,
 	parseStreamingJsonThrottled,
 	USER_AGENT,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { renderDemotedThinking } from "../dialect/demotion";
 import * as AIError from "../error";
 import { resolveAwsBearerToken } from "../registry/aws";
@@ -52,10 +52,11 @@ import { AssistantMessageEventStream } from "../utils/event-stream";
 import type { RawHttpRequestDump } from "../utils/http-inspector";
 import { armPreResponseTimeout, getStreamFirstEventTimeoutMs } from "../utils/idle-iterator";
 import { toolWireSchema } from "../utils/schema/wire";
-import { parseAnthropicInputTransformations, THINKING_BINDING_CONTROLS_BETA } from "./anthropic-wire";
 import { invalidateAwsCredentialCache, resolveAwsCredentials } from "./aws-credentials";
 import { decodeEventStream } from "./aws-eventstream";
 import { signRequest } from "./aws-sigv4";
+import { parseAnthropicInputTransformations, THINKING_BINDING_CONTROLS_BETA } from "./anthropic-wire";
+import { isBedrockRequestMetadataValue } from "./bedrock-request-metadata";
 import { transformMessages } from "./transform-messages";
 
 /**
@@ -381,9 +382,7 @@ interface MetadataEvent {
 	};
 }
 
-const REQUEST_METADATA_PATTERN = /^[a-zA-Z0-9\s:_@$#=/+,\-.]*$/;
 const REQUEST_METADATA_MAX_ENTRIES = 16;
-const REQUEST_METADATA_MAX_LENGTH = 256;
 
 /**
  * Bedrock rejects the whole invocation on a malformed `requestMetadata` entry.
@@ -400,10 +399,8 @@ function sanitizeRequestMetadata(raw: unknown): Record<string, string> | undefin
 		if (
 			typeof value !== "string" ||
 			key.length < 1 ||
-			key.length > REQUEST_METADATA_MAX_LENGTH ||
-			!REQUEST_METADATA_PATTERN.test(key) ||
-			value.length > REQUEST_METADATA_MAX_LENGTH ||
-			!REQUEST_METADATA_PATTERN.test(value) ||
+			!isBedrockRequestMetadataValue(key) ||
+			!isBedrockRequestMetadataValue(value) ||
 			kept >= REQUEST_METADATA_MAX_ENTRIES
 		) {
 			dropped.push(key);

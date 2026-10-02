@@ -19,6 +19,9 @@ import {
 	setSymbolPreset,
 	theme,
 } from "../../theme/theme";
+import { col, node, span, text } from "../../native/describe";
+import type { NativeChild, NativeNode } from "../../native/node";
+import { Memo } from "../../native/memo";
 import type { SetupScene, SetupSceneController, SetupSceneHost } from "./types";
 
 type ThemeMode = "curated" | "all";
@@ -131,6 +134,50 @@ function renderThemePreview(width: number): string[] {
 	];
 }
 
+/**
+ * Native theme preview: status samples, a status bar and a read-only editor
+ * in the highlighted theme's tokens. The terminal draws the bar and editor
+ * chrome, so none of the ANSI mock's box or fill math applies.
+ */
+function describeThemePreview(): NativeNode {
+	return col(
+		[
+			text([span("Preview", "strong")]),
+			text([
+				span(`${theme.status.success} success`, "success"),
+				span("  "),
+				span(`${theme.status.warning} warning`, "warning"),
+				span("  "),
+				span(`${theme.status.error} error`, "error"),
+				span("  "),
+				span("accent", "accent"),
+			]),
+			text([span("Status line", "muted")]),
+			node("status", {}, [
+				node("seg", { spans: [span(`${theme.icon.model} sonnet`, "statusLineModel")], side: "left" }),
+				node("seg", { spans: [span("~/project", "statusLinePath")], side: "left" }),
+				node("seg", { spans: [span(`${theme.icon.git} main +2`, "statusLineGitDirty")], side: "left" }),
+				node("seg", { spans: [span(`${theme.icon.context} 42%`, "statusLineContext")], side: "right" }),
+				node("seg", { spans: [span(`${theme.icon.cost} 0.18`, "statusLineCost")], side: "right" }),
+			]),
+			text([span("Editor", "muted")]),
+			node("input", {
+				text: "Ask anything, edit files, run tools",
+				cursor: "Ask anything, edit files, run tools".length,
+				prompt: [span(">", "accent")],
+				readonly: true,
+			}),
+			text([
+				span(
+					`${editorKey("tui.input.submit")} send · ${editorKey("tui.input.newLine")} newline · / commands`,
+					"dim",
+				),
+			]),
+		],
+		{ role: "omp.setup.theme.preview" },
+	);
+}
+
 class ThemeSceneController implements SetupSceneController {
 	get title(): string {
 		return tuiText("setupThemeTitle", "Pick a theme");
@@ -142,10 +189,12 @@ class ThemeSceneController implements SetupSceneController {
 	#mode: ThemeMode = "curated";
 	#selectList: SelectList;
 	#loadingAllThemes = false;
+	/** Error copy shown under the list (raw text; styled at render/describe time). */
 	#message: string | undefined;
 	#previewRequest = 0;
 	#disposed = false;
 	#step: WizardStep | undefined;
+	#native = new Memo();
 	readonly #originalTheme = getCurrentThemeName();
 	readonly #originalSymbolPreset: SymbolPreset;
 	readonly #originalColorBlindMode: boolean;
@@ -164,6 +213,7 @@ class ThemeSceneController implements SetupSceneController {
 	}
 
 	invalidate(): void {
+		this.#native.clear();
 		this.#step?.invalidate();
 		this.#selectList.invalidate();
 	}
@@ -243,6 +293,41 @@ class ThemeSceneController implements SetupSceneController {
 		}
 		this.#step.setMaxHeight(maxLines);
 		return this.#step.render(width);
+	}
+
+	/**
+	 * Intro hints, the live preview, the theme list (a spinner while every
+	 * theme loads) and any preview error. Theme switches re-describe through
+	 * `invalidate()`, so the preview's tokens follow the highlighted theme.
+	 */
+	describe(): NativeNode {
+		const confirm = editorKey("tui.select.confirm");
+		const cancel = editorKey("tui.select.cancel");
+		return this.#native.get(
+			[this.#mode, this.#loadingAllThemes, this.#selectList, this.#message, confirm, cancel],
+			() => {
+				const children: NativeChild[] = [
+					col([
+						text([span(`Theme changes preview live. Nothing is saved until you press ${confirm}.`, "muted")]),
+						text([
+							span(
+								this.#mode === "all"
+									? `Browsing all themes · ${cancel} returns to curated choices`
+									: `${cancel} skips this step`,
+								"dim",
+							),
+						]),
+					]),
+					describeThemePreview(),
+					this.#loadingAllThemes
+						? node("spinner", { label: [span("Loading themes…", "dim")] }, undefined, "loading")
+						: this.#selectList,
+				];
+				if (this.#message)
+					children.push(node("text", { spans: [span(this.#message, "error")] }, undefined, "status"));
+				return col(children, { gap: "sm", role: "omp.setup.theme" });
+			},
+		);
 	}
 
 	#createSelectList(items: readonly SelectItem[], selectedIndex: number): SelectList {

@@ -1,5 +1,5 @@
 import { createGradientHighlighter, type KeywordHighlighter } from "./gradient-highlight";
-import { keywordInProse } from "./markdown-prose";
+import { keywordInProse, maskNonProse } from "./markdown-prose";
 
 /**
  * Magic-keyword engine: standalone prose words the host registers via
@@ -39,6 +39,8 @@ function magicKeywordRegex(word: string, flags = ""): RegExp {
 export interface RegisteredKeyword {
 	readonly word: string;
 	readonly highlight: KeywordHighlighter;
+	/** Global standalone-prose matcher, walked over masked text. */
+	readonly pattern: RegExp;
 }
 
 /**
@@ -79,6 +81,7 @@ export function setMagicKeywords(specs: readonly MagicKeywordSpec[]): void {
 function buildRegistry(specs: readonly MagicKeywordSpec[]): readonly RegisteredKeyword[] {
 	return specs.map(({ word, hue: [from, to] }) => ({
 		word,
+		pattern: magicKeywordRegex(word, "g"),
 		highlight: createGradientHighlighter({
 			probe: word,
 			highlight: magicKeywordRegex(word, "g"),
@@ -125,6 +128,24 @@ export function highlightMagicKeywords(text: string, resetTo?: string, phase?: n
 	let out = text;
 	for (const keyword of registry) out = keyword.highlight(out, resetTo, phase);
 	return out;
+}
+
+/**
+ * UTF-16 ranges of every registered keyword standing as prose in `text`
+ * (never inside code or XML/HTML sections), for decorating the keywords
+ * without painting them: a TSP terminal draws the gradient sweep itself.
+ */
+export function magicKeywordRanges(text: string): { from: number; to: number }[] {
+	const ranges: { from: number; to: number }[] = [];
+	let masked: string | undefined;
+	for (const keyword of registry) {
+		if (!text.includes(keyword.word)) continue;
+		masked ??= maskNonProse(text);
+		for (const match of masked.matchAll(keyword.pattern)) {
+			ranges.push({ from: match.index, to: match.index + match[0].length });
+		}
+	}
+	return ranges.sort((a, b) => a.from - b.from);
 }
 
 /**

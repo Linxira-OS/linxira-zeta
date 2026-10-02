@@ -78,7 +78,12 @@ export type AgentSessionEvent =
 			resolved?: Effort;
 	  }
 	| { type: "goal_updated"; goal: Goal | null; state?: GoalModeState }
-	| { type: "state_version_changed"; stateVersion: number };
+	| { type: "state_version_changed"; stateVersion: number }
+	// Coalesced snapshot of the displayable steering/follow-up queue: emitted
+	// whenever it differs from the last `queue_update` (enqueue, dequeue on
+	// delivery, remove, clear/restore, or session switch), never on a no-op
+	// mutation. Mirrors `AgentSession.getQueuedMessages()`.
+	| { type: "queue_update"; steering: string[]; followUp: string[] };
 
 /** Listener function for agent session events. */
 export type AgentSessionEventListener = (event: AgentSessionEvent) => void;

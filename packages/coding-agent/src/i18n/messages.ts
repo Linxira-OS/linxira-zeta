@@ -2097,6 +2097,7 @@ export interface Messages {
 	cmdModelSwitch: string;
 	cmdFast: string;
 	cmdFastOn: string;
+	cmdFastUltra: string;
 	cmdFastOff: string;
 	cmdFastStatus: string;
 	cmdComputer: string;
@@ -2761,6 +2762,7 @@ export interface Messages {
 	oauthSelectLoginTitle: string; // "Select provider to login"
 	oauthSelectLogoutTitle: string; // "Select provider to logout"
 	oauthSearchFmt: string; // "Search: %s"
+	oauthSearchLabel: string;
 	oauthTypeToSearch: string; // "Type to search"
 	oauthNoProvidersAvailable: string; // "No OAuth providers available"
 	oauthNoStoredCredentials: string; // "No stored provider credentials to log out"

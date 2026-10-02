@@ -12,6 +12,7 @@ import {
 	getDbBusyTimeoutMs,
 	getLegacyPiExtensionCacheDbPath,
 	isCompiledBinary,
+	isRecord,
 	logger,
 	stripWindowsExtendedLengthPathPrefix,
 } from "@linxiraos/pi-utils";
@@ -1218,10 +1219,6 @@ function toGraphImportSpecifier(resolvedPath: string, mtimeTag: string | null): 
 		return url.pathToFileURL(stripWindowsExtendedLengthPathPrefix(resolvedPath)).href;
 	}
 	return `${stripWindowsExtendedLengthPathPrefix(resolvedPath).replaceAll("\\", "/")}?mtime=${mtimeTag}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function pathExists(p: string): Promise<boolean> {

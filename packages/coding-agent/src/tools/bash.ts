@@ -360,7 +360,6 @@ const bashSchemaWithService = type({
 		"host?": "string",
 		"timeout?": "number",
 	}),
-	"env?": type.record("string", "string"),
 });
 
 const bashSchemaWithAsyncAndService = type({
@@ -376,7 +375,6 @@ const bashSchemaWithAsyncAndService = type({
 		"host?": "string",
 		"timeout?": "number",
 	}),
-	"env?": type.record("string", "string"),
 });
 
 type BashToolSchema =
@@ -391,7 +389,6 @@ export interface BashToolInput {
 	cwd?: string;
 	name?: string;
 	ready?: ServiceReady;
-	env?: Record<string, string>;
 	async?: boolean;
 	pty?: boolean;
 }
@@ -421,13 +418,6 @@ function normalizeReady(ready: ServiceReady | undefined): ServiceReady | undefin
 	const timeout = Number.isFinite(ready.timeout) ? ready.timeout : undefined;
 	if (log === undefined && host === undefined && port === undefined && timeout === undefined) return undefined;
 	return { log, host, port, timeout };
-}
-
-/** Drops a record with no keys: `env: {}` sets nothing, so it requests nothing. */
-function nonEmptyRecord(record: Record<string, string> | undefined): Record<string, string> | undefined {
-	if (!record) return undefined;
-	for (const _key in record) return record;
-	return undefined;
 }
 
 export interface BashToolOptions {}
@@ -994,7 +984,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			cwd,
 			name: rawName,
 			ready: rawReady,
-			env: rawEnv,
 			async: rawAsync,
 			pty,
 		}: BashToolInput,
@@ -1023,18 +1012,16 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		// them are not a service request.
 		const name = blankToUndefined(rawName);
 		const ready = normalizeReady(rawReady);
-		const env = nonEmptyRecord(rawEnv);
 		const asyncRequested = rawAsync === true;
 		const pendingNotices: string[] = [];
 		if (name !== undefined) {
 			if (!this.#launchEnabled) throw new ToolError("Service launch is disabled in this session.");
 			if (asyncRequested || rawTimeout !== undefined)
 				throw new ToolError("Service mode does not accept async or timeout; use ready.timeout for readiness.");
-		} else if (ready !== undefined || env !== undefined) {
-			// Nothing can honour ready/env without a service to attach them to;
+		} else if (ready !== undefined) {
+			// Nothing can honour ready without a service to attach it to;
 			// running the command the caller did ask for beats failing the call.
-			const ignored = [ready && "ready", env && "env"].filter(Boolean).join(" and ");
-			pendingNotices.push(`Ignored ${ignored}: service-only, and no service name was given.`);
+			pendingNotices.push("Ignored ready: service-only, and no service name was given.");
 		}
 		// Capture before any execution path (synchronous, PTY, async or bang) runs
 		// the command: once the shell has removed or truncated a file, its content
@@ -1124,7 +1111,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					command,
 					cwd: commandCwd,
 					pty: pty ?? true,
-					env,
 					ready,
 				},
 				signal,

@@ -1,5 +1,5 @@
 /**
- * `zeta-c auth-gateway` command handlers.
+ * `omp auth-gateway` command handlers.
  *
  * Boots a forward-proxy server that lets less-trusted clients (the macOS
  * usage widget, robomp containers, …) make provider API calls without ever
@@ -12,7 +12,6 @@
  *   - `token` / `token --regenerate` — manages the gateway bearer token file.
  *   - `status` — prints the locally-stored gateway token and bind hint.
  */
-import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import {
@@ -23,24 +22,25 @@ import {
 	type CredentialCompletionResult,
 	completeSimple,
 	type Model,
-} from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-ai";
 import {
 	AuthBrokerClient,
 	loadAuthBrokerAccountPool,
 	RemoteAuthCredentialStore,
 	type SnapshotResponse,
-} from "@linxiraos/pi-ai/auth-broker";
-import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
-import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
-import { type ModelKind, modelKind } from "@linxiraos/pi-catalog/types";
-import { getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+} from "@oh-my-pi/pi-ai/auth-broker";
+import { DEFAULT_AUTH_GATEWAY_BIND, startAuthGateway } from "@oh-my-pi/pi-ai/auth-gateway";
+import { type GeneratedProvider, getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import { type ModelKind, modelKind } from "@oh-my-pi/pi-catalog/types";
+import { getConfigRootDir, logger, VERSION } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import {
 	type AuthBrokerClientConfig,
 	loadEffectiveAuthAccountPolicyConfig,
 	resolveAuthBrokerConfig,
 } from "../session/auth-broker-config";
+import { generateToken, readTokenFile, writeTokenFile } from "./token-file";
 
 export type AuthGatewayAction = "serve" | "token" | "status" | "check";
 
@@ -73,28 +73,6 @@ function getTokenFilePath(): string {
 	return path.join(getConfigRootDir(), "auth-gateway.token");
 }
 
-async function readToken(): Promise<string | null> {
-	try {
-		const raw = await fs.readFile(getTokenFilePath(), "utf8");
-		const trimmed = raw.trim();
-		return trimmed.length > 0 ? trimmed : null;
-	} catch (err) {
-		if (isEnoent(err)) return null;
-		throw err;
-	}
-}
-
-async function writeToken(token: string): Promise<void> {
-	const file = getTokenFilePath();
-	await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
-	await fs.writeFile(file, token, { mode: 0o600 });
-	try {
-		await fs.chmod(file, 0o600);
-	} catch {
-		// Best-effort (e.g. Windows).
-	}
-}
-
 /**
  * Atomically create the token file, refusing to clobber an existing one.
  * Returns `true` on success, `false` when the file already existed (so the
@@ -118,21 +96,17 @@ async function createTokenExclusive(token: string): Promise<boolean> {
 	return true;
 }
 
-function generateToken(): string {
-	return crypto.randomBytes(32).toString("base64url");
-}
-
 async function ensureToken(): Promise<string> {
-	const existing = await readToken();
+	const existing = await readTokenFile(getTokenFilePath());
 	if (existing) return existing;
 	const token = generateToken();
 	if (await createTokenExclusive(token)) return token;
 	// Another concurrent invocation won the create race; read what they wrote.
-	const fromRace = await readToken();
+	const fromRace = await readTokenFile(getTokenFilePath());
 	if (fromRace) return fromRace;
 	// File existed-then-disappeared between EEXIST and read; last resort, write
 	// our generated token unconditionally so callers don't see an empty string.
-	await writeToken(token);
+	await writeTokenFile(getTokenFilePath(), token);
 	return token;
 }
 
@@ -248,7 +222,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"`zeta-c auth-gateway serve` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
+			"`omp auth-gateway serve` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). The gateway is itself a broker client.",
 		);
 	}
 	const bind = flags.bind ?? DEFAULT_AUTH_GATEWAY_BIND;
@@ -279,7 +253,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	// Build the model resolver + catalog from the ModelRegistry — the same
 	// component the TUI/CLI use — scoped to providers we hold credentials for.
 	// `getAll()` is a superset of the bundled catalog (bundled first, then
-	// cached + broker-discovered), so the discovery-only models zeta-c itself
+	// cached + broker-discovered), so the discovery-only models omp itself
 	// reaches become routable through the gateway instead of freezing on the
 	// compiled snapshot. `ignoreLocalModelConfig` keeps the host's `models.yml`
 	// out of the picture: client-side provider overrides (baseUrl/apiKey/headers/
@@ -402,7 +376,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 async function runToken(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	if (flags.regenerate) {
 		const next = generateToken();
-		await writeToken(next);
+		await writeTokenFile(getTokenFilePath(), next);
 		if (flags.json) {
 			process.stdout.write(`${JSON.stringify({ token: next, path: getTokenFilePath() })}\n`);
 		} else {
@@ -419,7 +393,7 @@ async function runToken(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 }
 
 async function runStatus(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
-	const token = await readToken();
+	const token = await readTokenFile(getTokenFilePath());
 	const brokerConfig = await resolveAuthBrokerConfig();
 	const tokenFile = getTokenFilePath();
 	if (!brokerConfig) {
@@ -469,7 +443,7 @@ async function runStatus(flags: AuthGatewayCommandArgs["flags"]): Promise<void> 
 			);
 			if (!tokenPresent) {
 				process.stdout.write(
-					"Run `zeta-c auth-gateway token` or `zeta-c auth-gateway serve` to create a bearer token.\n",
+					"Run `omp auth-gateway token` or `omp auth-gateway serve` to create a bearer token.\n",
 				);
 			}
 		}
@@ -691,7 +665,7 @@ function formatCompletionStatus(completion: CredentialCompletionResult | undefin
 }
 
 /**
- * `zeta-c auth-gateway check` — probe each broker-supplied credential and print
+ * `omp auth-gateway check` — probe each broker-supplied credential and print
  * per-credential auth health. Use this when the gateway is returning 401s and
  * you need to find which row in a multi-account pool is the bad one. The
  * aggregate `/v1/usage` endpoint silently drops failed credentials, so a
@@ -706,7 +680,7 @@ async function runCheck(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	const brokerConfig = await resolveAuthBrokerConfig();
 	if (!brokerConfig) {
 		throw new Error(
-			"`zeta-c auth-gateway check` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). It probes the same credentials the gateway would serve.",
+			"`omp auth-gateway check` requires OMP_AUTH_BROKER_URL (or `auth.broker.url`/`auth.broker.token` in config.yml). It probes the same credentials the gateway would serve.",
 		);
 	}
 

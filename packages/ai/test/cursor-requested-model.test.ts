@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { streamCursor } from "@linxiraos/pi-ai/providers/cursor";
-import type { Context, Model } from "@linxiraos/pi-ai/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import type { AgentRunRequest } from "@linxiraos/pi-catalog/discovery/cursor-proto";
-import { Effort } from "@linxiraos/pi-catalog/effort";
+import { streamCursor } from "@oh-my-pi/pi-ai/providers/cursor";
+import type { Context, Model } from "@oh-my-pi/pi-ai/types";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { cursorModelParameters } from "@oh-my-pi/pi-catalog/compat/behavior";
+import type { AgentRunRequest } from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+import { Effort } from "@oh-my-pi/pi-catalog/effort";
 
 function cursorModel(id: string, overrides?: Partial<Model<"cursor-agent">>): Model<"cursor-agent"> {
 	return {
@@ -205,10 +206,13 @@ describe("Cursor requestedModel wire shape", () => {
 		expect(payload.requestedModel?.parameters).toEqual([]);
 	});
 
-	it("pins the Standard tier for bare composer-2.5 (#9012)", async () => {
+	it("pins the Standard tier for bare composer-2.5 from the catalog rule (#9012)", async () => {
 		const payload = await capture(cursorModel("composer-2.5"));
 		expect(payload.requestedModel?.modelId).toBe("composer-2.5");
 		expect(payload.requestedModel?.parameters).toEqual([expect.objectContaining({ id: "fast", value: "false" })]);
+		expect(payload.requestedModel?.parameters.map(({ id, value }) => ({ id, value }))).toEqual(
+			cursorModelParameters("composer-2.5").map(({ id, value }) => ({ id, value })),
+		);
 	});
 
 	it("keeps explicit composer-2.5-fast on the Fast lane with no parameters", async () => {

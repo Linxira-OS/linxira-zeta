@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ## [1.1.23] - 2026-10-01
+## [18.4.4] - 2026-09-29
+
+### Added
+
+- Added the `printStatsSummary` export, shared by `omp-stats --sync` and `omp stats --summary`.
+
+## [18.4.3] - 2026-09-28
 
 ## [1.1.22] - 2026-09-30
 

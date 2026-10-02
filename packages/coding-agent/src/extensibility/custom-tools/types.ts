@@ -19,7 +19,7 @@ import type * as zod from "@linxiraos/pi-omptype/zod";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { FetchImpl, Model, Static, TSchema } from "@linxiraos/pi-ai";
 import type { Component } from "@linxiraos/pi-tui";
-import type { RenderResultOptions } from "@linxiraos/pi-tui/tools/renderer";
+import type { NativeToolView, RenderResultOptions } from "@linxiraos/pi-tui/tools/renderer";
 import type { logger as PiLogger } from "@linxiraos/pi-utils";
 import type { Rule } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
@@ -250,6 +250,16 @@ export interface CustomTool<TParams extends TSchema = TSchema, TDetails = any> {
 		theme: Theme,
 		args?: Static<TParams>,
 	) => Component;
+
+	/** Semantic call view for TSP terminals (the native counterpart of {@link renderCall}). */
+	describeCall?: (args: Static<TParams>, options: RenderResultOptions) => NativeToolView | undefined;
+
+	/** Semantic result view for TSP terminals (the native counterpart of {@link renderResult}). */
+	describeResult?: (
+		result: CustomToolResult<TDetails>,
+		options: RenderResultOptions,
+		args?: Static<TParams>,
+	) => NativeToolView | undefined;
 }
 
 /** Factory function that creates a custom tool or array of tools */

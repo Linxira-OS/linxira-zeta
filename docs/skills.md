@@ -63,8 +63,8 @@ Current runtime behavior:
 
 - `name` defaults to the skill directory name
 - `description` is required for:
-  - native `.zeta` provider skill discovery (`requireDescription: true`)
-  - `zeta-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
+  - native `.omp` provider skill discovery (`requireDescription: true`)
+  - `omp-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
   - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
 - the claude/codex/agents/opencode/claude-plugins providers can load skills without description
 
@@ -73,8 +73,8 @@ Current runtime behavior:
 `loadSkills()` in `packages/coding-agent/src/extensibility/skills.ts` does three passes:
 
 1. **Capability providers** via `loadCapability("skills")` (the managed/auto-learn provider's skills are skipped here and handled in pass 3)
-2. **Custom directories** via `scanSkillsFromDir(..., { requireDescription: true })` (one-level directory enumeration). A custom-directory skill overrides a same-named default provider skill; duplicate custom-directory names remain first-wins.
-3. **Managed (auto-learn) skills** (`zeta-managed` provider) resolved dead-last, so any same-named enabled authored skill from a provider or custom directory takes precedence
+2. **Custom directories** via `scanSkillsFromDir(..., { requireDescription: true })` (one-level directory enumeration). A custom-directory skill overrides a same-named default provider skill; the displaced provider skill stays reachable under its namespaced name unless its body is identical.
+3. **Managed (auto-learn) skills** (`omp-managed` provider) resolved dead-last, so any same-named enabled authored skill from a provider or custom directory takes precedence
 
 If `skills.enabled` is `false`, discovery returns no skills.
 
@@ -84,8 +84,8 @@ Provider ordering is priority-first (higher wins), then registration order for t
 
 Current registered skill providers:
 
-1. `native` (priority 100) — `.zeta` user/project skills via `src/discovery/builtin.ts`
-2. `zeta-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.zeta/plugins/node_modules`
+1. `native` (priority 100) — `.omp` user/project skills via `src/discovery/builtin.ts`
+2. `omp-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.omp/plugins/node_modules`
 3. `claude` (priority 80)
 4. priority 70 group (in registration order):
    - `claude-plugins`
@@ -93,9 +93,9 @@ Current registered skill providers:
    - `codex`
 5. `opencode` (priority 55)
 6. `github` (priority 30) — `.github/skills/<name>/SKILL.md` (GitHub Agent Skills layout, project-only)
-7. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+7. `omp-managed` (priority 5) — auto-learn skills under `~/.omp/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
 
-Dedup key is skill name. First item with a given name wins.
+Capability dedup key is skill name; the first item with a given name wins in the deduped `items` view. `loadSkills()` resolves same-name collisions itself (see "Collision and duplicate handling").
 
 ### Source toggles and filtering
 
@@ -113,16 +113,20 @@ Filter order is:
 3. not ignored
 4. included (if include list present)
 
-The `agents` provider (`.agent[s]/skills`) is the canonical OMP-native location and has its own `enableAgentsUser`/`enableAgentsProject` toggles — disabling Claude/Codex/Pi does **not** turn it off. Foreign user-level providers are opt-in through `enabledProviders`; their project roots still load by default. Native OMP sources and marketplace plugins registered under `~/.zeta/plugins` also load by default. For `claude-plugins`, the opt-in controls only plugins from Claude Code's own user registry.
+The `agents` provider (`.agent[s]/skills`) is the canonical OMP-native location and has its own `enableAgentsUser`/`enableAgentsProject` toggles — disabling Claude/Codex/Pi does **not** turn it off. Foreign user-level providers are opt-in through `enabledProviders`; their project roots still load by default. Native OMP sources and marketplace plugins registered under `~/.omp/plugins` also load by default. For `claude-plugins`, the opt-in controls only plugins from Claude Code's own user registry.
 
 ### Collision and duplicate handling
 
-- Capability dedup already keeps first skill per name (highest-precedence provider)
-- `extensibility/skills.ts` additionally:
+- Capability dedup keeps the first skill per name (highest-precedence provider) for the deduped `items` view; `loadSkills()` works from the pre-dedup superset so lower-precedence copies can still be examined.
+- `extensibility/skills.ts` then:
   - de-duplicates identical files by `realpath` (symlink-safe)
-  - emits collision warnings when a later skill name conflicts
+  - drops a later same-named skill silently when its body and frontmatter are byte-identical to a loaded one (the same skill installed twice, e.g. a plugin copy mirrored into `~/.agents/skills`). When the incoming skill outranks the bare holder (below), the identical copies it supersedes (the bare holder and any namespaced aliases) are dropped instead, so an override never re-admits its own duplicate
+  - when same-named skills differ, the higher-precedence skill keeps the bare name and every other variant receives a `<namespace>/<name>` suffix, with collision warnings naming the paths. Precedence: an authored skill outranks a registry-installed package (the `skillshare` provider, `omp skill install`); a custom-directory skill outranks a provider skill (#7190); otherwise whichever was admitted first — provider-priority order for providers, array order within `skills.customDirectories` for custom directories — keeps the bare name. The namespace is the plugin identity from provider metadata when the provider tracks one (every registry-backed provider supplies one: `claude-plugins` and `agent-plugins` use the plugin name, `omp-plugins` the extension package name, `skillshare` the package name — so an installed plugin namespaces by its own name rather than its cache path's version segment, and the namespace survives plugin updates); otherwise the directory owning the skill's `skills/` tree, or the skill root's directory name, falling back to the provider id for dotted homes such as `~/.claude/skills`. A namespaced slot that is itself already taken by a differing skill gets a `~2`, `~3`, … suffix; no differing skill is dropped without a warning.
+  - rejects a raw frontmatter `name` containing `/` or `\` (with a warning) for every provider and custom directory: the separator is reserved for the namespaced form and for `skill://<name>/<path>` resolution, so a raw name cannot claim a namespaced address
   - keeps the convenience `loadSkillsFromDir({ dir, source })` API as a thin adapter over `scanSkillsFromDir`
-- Custom-directory skills are merged after provider skills and override same-named default-path provider skills. Among custom directories, the first same-named skill wins.
+- Namespaced skills resolve through `skill://<namespace>/<name>[/<path>]` and the `/skill:<namespace>/<name>` token, both leading and mid-prompt (a mid-prompt token accepts exactly one `/`; deeper paths are left as prose). Because skill names never contain `/`, an exact `<host>/<first segment>` match is unambiguous and takes precedence over reading that segment as a path relative to a bare skill of the same name as the namespace.
+- Custom-directory skills are merged after provider skills and outrank a same-named default-path provider skill regardless of admission order (#7190): the custom-directory skill keeps the bare name, and the provider skill is re-admitted under its namespaced name (suffixed if that slot is taken) when it differs or dropped when it is identical. Among two custom directories, the first one in `skills.customDirectories` keeps the bare name and the other is namespaced.
+- `disabledExtensions` (`skill:<name>`) and `skills.ignore` are applied to both the raw and the final name, so a namespaced alias cannot bypass an exclusion. `skills.include` is applied to the final listing only, after every name is resolved, so `second/*` selects a namespaced skill even though the bare skill it collided with is not itself included.
 
 ## Runtime usage behavior
 
@@ -231,4 +235,4 @@ No fallback search is performed for missing assets.
 - Always include explicit `name` and `description` frontmatter
 - Keep referenced assets under the same skill directory and access with `skill://<name>/...`
 - For nested taxonomy (`team/domain/skill`), point `skills.customDirectories` to the nested parent directory; scanning itself remains non-recursive
-- Avoid duplicate skill names across sources; first match wins by provider precedence
+- On a name collision, the higher-precedence skill keeps the bare name; identical copies collapse, and differing copies remain reachable under a namespace.

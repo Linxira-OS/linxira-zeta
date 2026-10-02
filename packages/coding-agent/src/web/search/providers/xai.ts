@@ -1,6 +1,7 @@
 import type { Api } from "../../../../../catalog/src/types";
 import type { Model } from "@linxiraos/pi-ai";
 import { type ApiKey, type ApiKeyResolver, type AuthStorage, withAuth } from "@linxiraos/pi-ai";
+import { resolveXaiBaseUrl, XAI_DEFAULT_BASE_URL } from "@linxiraos/pi-ai/providers/xai-base-url";
 import { $env } from "@linxiraos/pi-utils";
 import { resolveXAIHttpTransport, type XAIHttpProvider, type XAIHttpTransport } from "../../../lib/xai-http";
 import type { SearchCitation, SearchResponse, SearchSource, SearchUsage } from "../types";
@@ -11,12 +12,11 @@ import type { SearchParams } from "./base";
 import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
 
-const XAI_DEFAULT_BASE_URL = "https://api.x.ai/v1";
 const XAI_WEB_SEARCH_MODEL = "grok-4.5";
 // grok-4.5 defaults reasoning.effort to "high"; xAI documents "low" for
-// latency-sensitive agentic use and simple tool calling
-// (docs.x.ai/developers/model-capabilities/text/reasoning). Web search is
-// latency-sensitive, so pin these calls low regardless of their configured timeout.
+// latency-sensitive agentic use and simple tool calling. Web search is
+// latency-sensitive, so keep reasoning effort low regardless of the selected
+// model's configured timeout.
 const XAI_WEB_SEARCH_REASONING_EFFORT = "low";
 const DEFAULT_NUM_RESULTS = 10;
 const MAX_NUM_RESULTS = 30;
@@ -461,11 +461,11 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 	const customEndpoint = transport.baseURL.replace(/\/+$/, "") !== XAI_DEFAULT_BASE_URL;
 	const credentialOrigin = params.authStorage.keys.source(params.model.provider);
 	const hasCommandBackedKey = params.modelRegistry.hasCommandBackedApiKey(params.model.provider);
-	if (
-		customEndpoint &&
-		auth.provider === "xai-oauth" &&
-		(credentialOrigin?.kind === "oauth" || credentialOrigin?.kind === "env")
-	) {
+	const officialOAuthCredential =
+		params.model.provider === "xai-oauth" &&
+		!hasCommandBackedKey &&
+		(credentialOrigin?.kind === "oauth" || credentialOrigin?.kind === "env");
+	if (customEndpoint && officialOAuthCredential) {
 		throw new SearchProviderError(
 			"xai",
 			`Refusing to send official xAI OAuth credentials to custom endpoint ${transport.baseURL}. Configure an API key for provider "xai-oauth".`,
@@ -478,9 +478,17 @@ export async function searchXAI(params: SearchParams): Promise<SearchResponse> {
 	const resultCap = clampNumResults(params.numSearchResults ?? params.limit, DEFAULT_NUM_RESULTS, MAX_NUM_RESULTS);
 	const response = await withAuth(
 		keyOrResolver,
-		// `transport` is already resolved from the caller's model above; resolving
-		// again here with a hardcoded id discarded a custom baseUrl.
-		async (key: string) => callXAIResponses(key, params, transport),
+		async key => {
+			const requestTransport: XAIHttpTransport = {
+				// XAI_BASE_URL never receives official OAuth credentials: neither an OAuth-origin
+				// credential nor an OAuth access-token bearer leaves the bundled endpoint.
+				baseURL: officialOAuthCredential
+					? params.model.baseUrl
+					: (resolveXaiBaseUrl(params.model.provider, params.model.baseUrl, key) ?? params.model.baseUrl),
+				headers: await params.modelRegistry.resolveModelHeaders(params.model, params.signal),
+			};
+			return callXAIResponses(key, params, requestTransport);
+		},
 		{
 			signal: params.signal,
 			missingKeyMessage: `xAI credentials not found for selected provider "${params.model.provider}".`,
