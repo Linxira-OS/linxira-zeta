@@ -347,5 +347,9 @@ Windows 12 失败经 WSL 判定为符号链接族噪声(Linux 0 fail)。
 
 ## Current Baselines
 
-- OMP: `v18.1.14` (peeled tag `daf07999c2fee9b22edc7bf8fea1fb6272e0df5e`; v13 `a1b254047d` also in history via the dual-tag serial merge)
-- Zeta: `1.1.10` (version line holds across the published `@linxiraos/*` packages; release tag pending)
+- OMP: `v18.4.3` (five-tag serial merge, landed on dev/main; the dev→main
+  merge is a pending decision — see the ledger above)
+- Zeta: `1.1.23` (version line holds across the published `@linxiraos/*`
+  packages)
+- In flight: `v18.4.4` on `sync/omp-release/v18.4.4` (worktree, 4 commits,
+  not yet merged)
