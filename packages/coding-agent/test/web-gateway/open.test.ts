@@ -89,7 +89,7 @@ describe("gateway open targets", () => {
 
 	// --- which-style probing ---
 
-	test("windows probe resolves npm-style .cmd shims and native .exe via PATHEXT", () => {
+	test.skipIf(process.platform !== "win32")("windows probe resolves npm-style .cmd shims and native .exe via PATHEXT", () => {
 		const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd", "code.exe"] });
 		trackTree(tree);
 		expect(whichCommand("zeta-ide", tree.ctx())).toBe(path.join(tree.root, "tools", "zeta-ide.cmd"));
@@ -97,7 +97,7 @@ describe("gateway open targets", () => {
 		expect(whichCommand("missing", tree.ctx())).toBeNull();
 	});
 
-	test("windows probe prefers the bare name over PATHEXT extensions and honours PATHEXT order", () => {
+	test.skipIf(process.platform !== "win32")("windows probe prefers the bare name over PATHEXT extensions and honours PATHEXT order", () => {
 		const tree = makeProbeTree("win32", { tools: ["tool.exe", "tool.cmd"] });
 		trackTree(tree);
 		expect(whichCommand("tool.exe", tree.ctx())).toBe(path.join(tree.root, "tools", "tool.exe"));
@@ -107,7 +107,7 @@ describe("gateway open targets", () => {
 		expect(whichCommand("tool", cmdFirst)).toBe(path.join(tree.root, "tools", "tool.cmd"));
 	});
 
-	test("windows probe searches every PATH directory in order", () => {
+	test.skipIf(process.platform !== "win32")("windows probe searches every PATH directory in order", () => {
 		const tree = makeProbeTree("win32", { first: [], second: ["pwsh.cmd"] });
 		trackTree(tree);
 		expect(whichCommand("pwsh", tree.ctx())).toBe(path.join(tree.root, "second", "pwsh.cmd"));
@@ -134,7 +134,7 @@ describe("gateway open targets", () => {
 
 	// --- Windows terminal chain ---
 
-	test("windows chain prefers pwsh when PowerShell 7+ is on PATH", () => {
+	test.skipIf(process.platform !== "win32")("windows chain prefers pwsh when PowerShell 7+ is on PATH", () => {
 		const tree = makeProbeTree("win32", {
 			pwsh: ["pwsh.exe"],
 			git: ["git.exe"],
@@ -149,7 +149,7 @@ describe("gateway open targets", () => {
 		});
 	});
 
-	test("windows chain falls back to Git Bash bundled beside git.exe, then to powershell", () => {
+	test.skipIf(process.platform !== "win32")("windows chain falls back to Git Bash bundled beside git.exe, then to powershell", () => {
 		const tree = makeProbeTree("win32", {
 			git: ["git.exe"],
 			gitbin: ["bash.exe"],
@@ -253,7 +253,7 @@ describe("gateway open targets", () => {
 
 	// --- options payload ---
 
-	test("options list every target with availability and mark the first available as default", () => {
+	test.skipIf(process.platform !== "win32")("options list every target with availability and mark the first available as default", () => {
 		const tree = makeProbeTree("win32", { pwsh: ["pwsh.exe"], tools: ["zeta-ide.cmd"] });
 		trackTree(tree);
 		const body = getOpenOptions(false, tree.ctx());
@@ -278,7 +278,7 @@ describe("gateway open targets", () => {
 		expect(body.targets.filter(t => t.default)).toHaveLength(1);
 	});
 
-	test("desktop host hides explorer/editors but keeps the bundled terminal tools", () => {
+	test.skipIf(process.platform !== "win32")("desktop host hides explorer/editors but keeps the bundled terminal tools", () => {
 		const tree = makeProbeTree("win32", { tools: ["zeta-editor.cmd"] });
 		trackTree(tree);
 		const body = getOpenOptions(true, tree.ctx());
@@ -293,7 +293,7 @@ describe("gateway open targets", () => {
 
 	// --- probe cache ---
 
-	test("probe results are cached within the TTL and re-resolved after expiry or invalidation", () => {
+	test.skipIf(process.platform !== "win32")("probe results are cached within the TTL and re-resolved after expiry or invalidation", () => {
 		const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
 		trackTree(tree);
 		let clock = 1_000;
