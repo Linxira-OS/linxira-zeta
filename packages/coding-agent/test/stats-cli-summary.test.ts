@@ -27,15 +27,18 @@ describe("omp stats --summary", () => {
 		setAgentDir(path.join(os.homedir(), configDir, "agent"));
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		closeDb();
 		for (const [key, value] of Object.entries(originalEnv)) {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
 		setAgentDir(originalAgentDir);
-		tempDir.removeSync();
-	});
+		// Async removal: Windows releases the stats SQLite lock some time after
+		// closeDb() returns, and removeSync's retry loop can outlive the default
+		// 5s hook budget. Await the retrying removal and widen the hook timeout.
+		await tempDir.remove();
+	}, 20000);
 
 	it("prints unpriced subscription usage as N/A, not a zero-dollar charge", async () => {
 		const dir = path.join(getSessionsDir(), "--tmp--summary--");

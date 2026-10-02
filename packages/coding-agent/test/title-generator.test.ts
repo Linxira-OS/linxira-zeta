@@ -1175,7 +1175,9 @@ describe("terminal title runtime", () => {
 			expect(emittedTitles().at(-1)).toBe("Renamed · #412");
 			setSessionTerminalTitle(undefined);
 			setTerminalTitlePullRequest(undefined);
-			expect(emittedTitles().at(-1)).toBe("omp");
+			// Zeta brand divergence (merge decision): the native terminal title is
+			// "zeta" here, not upstream's "omp" — see scripts/brand overlay.
+			expect(emittedTitles().at(-1)).toBe("zeta");
 			setSessionTerminalTitle("Renamed");
 		} finally {
 			setNativeRendering(false);

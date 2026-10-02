@@ -502,7 +502,10 @@ describe("listClaudePluginRoots", () => {
 		const marketRoot = path.join(tempDir, ".claude", "plugins", "cache", "test-market");
 		const pluginARoot = path.join(marketRoot, "plugin-a", "1.0.0");
 		const pluginBRoot = path.join(marketRoot, "plugin-b", "1.0.0");
-		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
+		// Zeta brand divergence (merge decision): the OMP plugin registry lives
+		// under `.zeta` here, not upstream's `.omp` — Zeta's config dir is
+		// `.zeta` only (AGENTS.md brand surface).
+		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
 
 		await Promise.all([
 			fs.mkdir(path.join(pluginARoot, "skills", "shared-skill"), { recursive: true }),
