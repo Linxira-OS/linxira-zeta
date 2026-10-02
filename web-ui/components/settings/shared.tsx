@@ -7,7 +7,7 @@
  * dead `SettingsPanel` modal wrapper was dropped in the D12 cleanup.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useSidebar } from "@/hooks/useSidebar";
 import { useI18n } from "@/hooks/useI18n";
 import { setRemoteToken } from "@/lib/remote-token";
@@ -43,34 +43,91 @@ function isTerminalEffect(path: string): boolean {
 
 const ZETA_LOCALE_STORAGE_KEY = "zeta-locale";
 
-export const inputStyle = {
-	padding: "6px 9px",
-	background: "var(--bg-panel)",
+/**
+ * Settings control primitives (spec D14): the single visual implementation
+ * shared by every settings surface — SettingsWindow and all tabs. Screens
+ * never hand-roll toggles, inputs, or card containers.
+ *
+ * Reference rules (zcode DESIGN.md): inputs sit on `--bg-input` with
+ * default/hover/focus border states, control heights stay in the 24–28px
+ * band, menus/rows are compact, and not every action is promoted to primary —
+ * destructive actions use a red outline variant, never a filled red block.
+ *
+ * Themes that predate the `--bg-input` / `--border-strong` tokens keep working
+ * through fallbacks to the legacy variables.
+ */
+
+/**
+ * Class for the settings surface root; every text field/select inside it
+ * picks up the shared hover/focus/disabled states (checkboxes excluded).
+ */
+export const SURFACE_CLASS = "zset-scope";
+
+export const inputStyle: CSSProperties = {
+	height: 26,
+	padding: "4px 9px",
+	background: "var(--bg-input, var(--bg-panel))",
 	border: "1px solid var(--border)",
-	borderRadius: 5,
+	borderRadius: "var(--radius-unit, 6px)",
 	color: "var(--text)",
 	fontSize: 12,
 	outline: "none",
 	boxSizing: "border-box" as const,
+	transition: "border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease",
 };
 
-/** Render a setting's current value as display text for read-only rows. */
-function formatValue(entry: SettingEntry): string {
-	const { value } = entry;
-	if (entry.secret) return "••••";
-	if (value === undefined || value === null) return "—";
-	if (typeof value === "boolean") return value ? "true" : "false";
-	if (Array.isArray(value)) return value.length === 0 ? "—" : value.join(", ");
-	if (typeof value === "object") {
-		const entries = Object.entries(value as Record<string, unknown>);
-		if (entries.length === 0) return "—";
-		return entries.map(([key, v]) => `${key}: ${String(v)}`).join(", ");
-	}
-	const text = String(value);
-	return text === "" ? "—" : text;
+export const selectStyle: CSSProperties = { ...inputStyle, width: "auto", minWidth: 180 };
+
+/** Neutral secondary-action button (reconnect, retry, add…). */
+export const outlineButtonStyle: CSSProperties = {
+	padding: "4px 10px",
+	height: 26,
+	background: "transparent",
+	border: "1px solid var(--border)",
+	borderRadius: "var(--radius-unit, 6px)",
+	color: "var(--text-muted)",
+	cursor: "pointer",
+	fontSize: 11.5,
+	transition: "border-color 0.15s ease, color 0.15s ease, background 0.15s ease",
+};
+
+/** Destructive action (unbind, reset token): red outline/text, red tint on hover. */
+export const destructiveButtonStyle: CSSProperties = {
+	...outlineButtonStyle,
+	borderColor: "color-mix(in srgb, #f87171 45%, transparent)",
+	color: "#f87171",
+};
+
+/**
+ * Channel/section card container: uniform background, border, radius, and
+ * padding for the per-channel config blocks (WeChat/Feishu/Lark/Telegram).
+ */
+export function SettingsCard({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				gap: 8,
+				padding: "10px 12px",
+				background: "var(--bg-input, var(--bg-panel))",
+				border: "1px solid var(--border)",
+				borderRadius: "var(--radius-unit, 8px)",
+				...style,
+			}}
+		>
+			{children}
+		</div>
+	);
 }
 
-function Toggle({
+/**
+ * Track + thumb toggle (two layers): ON = accent-colored track with a
+ * contrasting thumb, OFF = neutral track with a muted thumb, disabled =
+ * grayed but still distinguishable. 150ms transitions throughout.
+ * `aria-checked`/`role="switch"` keep the original semantics.
+ */
+export function SettingsToggle({
 	checked,
 	disabled,
 	label,
@@ -90,17 +147,18 @@ function Toggle({
 			disabled={disabled}
 			onClick={() => onChange(!checked)}
 			style={{
-				width: 36,
-				height: 20,
-				borderRadius: 10,
+				width: 34,
+				height: 18,
+				borderRadius: 9,
 				padding: 0,
-				border: "none",
 				flexShrink: 0,
 				position: "relative",
 				cursor: disabled ? "default" : "pointer",
-				background: checked ? "var(--accent)" : "var(--border)",
-				opacity: disabled ? 0.5 : 1,
-				transition: "background 0.15s",
+				border: checked ? "1px solid transparent" : "1px solid var(--border)",
+				background: checked ? "var(--accent)" : "var(--bg-input, var(--bg-panel))",
+				opacity: disabled ? 0.45 : 1,
+				filter: disabled ? "grayscale(1)" : undefined,
+				transition: "background 0.15s ease, border-color 0.15s ease",
 			}}
 		>
 			<span
@@ -108,15 +166,131 @@ function Toggle({
 					position: "absolute",
 					top: 2,
 					left: checked ? 18 : 2,
-					width: 16,
-					height: 16,
-					borderRadius: 8,
-					background: "#fff",
-					transition: "left 0.15s",
+					width: 12,
+					height: 12,
+					borderRadius: 6,
+					background: checked ? "var(--bg, #fff)" : "var(--text-dim)",
+					boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+					transition: "left 0.15s ease, background 0.15s ease",
 				}}
 			/>
 		</button>
 	);
+}
+
+/**
+ * Full-row toggle layout: label + optional description on the left (both
+ * accept pre-highlighted nodes from the search), toggle on the right.
+ */
+export function SettingsToggleRow({
+	checked,
+	disabled,
+	label,
+	description,
+	onChange,
+}: {
+	checked: boolean;
+	disabled?: boolean;
+	label: ReactNode;
+	description?: ReactNode;
+	onChange: (next: boolean) => void;
+}) {
+	return (
+		<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+			<div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{label}</span>
+				{description && (
+					<span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>{description}</span>
+				)}
+			</div>
+			<SettingsToggle
+				checked={checked}
+				disabled={disabled}
+				label={typeof label === "string" ? label : ""}
+				onChange={onChange}
+			/>
+		</div>
+	);
+}
+
+/**
+ * Compact settings nav entry: surface contrast for the active state (no brand
+ * color block), muted hover tint, tight row height. Pair with the
+ * `.zset-nav-item` rules in `SettingsControlStyles` for the hover state.
+ */
+export function settingsNavButtonStyle(active: boolean): CSSProperties {
+	return {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		padding: "4px 9px",
+		border: "none",
+		borderRadius: "var(--radius-unit, 6px)",
+		cursor: "pointer",
+		fontSize: 12,
+		lineHeight: 1.4,
+		whiteSpace: "nowrap",
+		textAlign: "left",
+		flexShrink: 0,
+		background: active ? "var(--bg-selected)" : "transparent",
+		color: active ? "var(--text)" : "var(--text-muted)",
+	};
+}
+
+/**
+ * Shared control-state CSS (hover/focus borders, disabled fields, nav hover,
+ * destructive hover). Rendered once per settings surface; the classes are
+ * namespaced `zset-*` and only apply inside settings markup.
+ */
+export function SettingsControlStyles() {
+	return (
+		<style>{`
+			.${SURFACE_CLASS} input:not([type="checkbox"]):not([type="radio"]):hover:not(:disabled):not(:focus),
+			.${SURFACE_CLASS} select:hover:not(:disabled):not(:focus),
+			.${SURFACE_CLASS} textarea:hover:not(:disabled):not(:focus) {
+				border-color: var(--border-strong, var(--text-dim));
+			}
+			.${SURFACE_CLASS} input:focus,
+			.${SURFACE_CLASS} select:focus,
+			.${SURFACE_CLASS} textarea:focus {
+				border-color: var(--accent);
+				box-shadow: 0 0 0 2px var(--accent-muted);
+				outline: none;
+			}
+			.${SURFACE_CLASS} input:disabled,
+			.${SURFACE_CLASS} select:disabled {
+				opacity: 0.55;
+				cursor: not-allowed;
+			}
+			.zset-nav-item:hover:not([aria-pressed="true"]) {
+				background: color-mix(in srgb, var(--text) 7%, transparent);
+				color: var(--text);
+			}
+			.zset-danger:hover:not(:disabled) {
+				background: color-mix(in srgb, #f87171 12%, transparent);
+			}
+			.zset-outline:hover:not(:disabled) {
+				border-color: var(--border-strong, var(--text-dim));
+				color: var(--text);
+			}
+		`}</style>
+	);
+}
+
+/** Render a setting's current value as display text for read-only rows. */
+function formatValue(entry: SettingEntry): string {
+	const { value } = entry;
+	if (entry.secret) return "••••";
+	if (value === undefined || value === null) return "—";
+	if (typeof value === "boolean") return value ? "true" : "false";
+	if (Array.isArray(value)) return value.length === 0 ? "—" : value.join(", ");
+	if (typeof value === "object") {
+		const entries = Object.entries(value as Record<string, unknown>);
+		if (entries.length === 0) return "—";
+		return entries.map(([key, v]) => `${key}: ${String(v)}`).join(", ");
+	}
+	const text = String(value);
+	return text === "" ? "—" : text;
 }
 
 /** Set one dot path inside a web-config copy; returns a new object. */
@@ -355,7 +529,7 @@ function ChannelCredentialsForm({
 					<select
 						value={domain}
 						onChange={e => setDomain(e.target.value)}
-						style={{ ...inputStyle, width: "auto", minWidth: 120 }}
+						style={selectStyle}
 					>
 						<option value="feishu">{t("feishu")}</option>
 						<option value="lark">Lark</option>
@@ -380,11 +554,12 @@ function ChannelCredentialsForm({
 					onClick={() => void handleSave()}
 					disabled={saving || !dirty}
 					style={{
-						padding: "5px 12px",
-						background: saved ? "#16a34a" : dirty && !saving ? "var(--accent)" : "var(--bg-panel)",
-						border: "none",
-						borderRadius: 5,
-						color: (dirty && !saving) || saved ? "#fff" : "var(--text-dim)",
+						height: 26,
+						padding: "0 12px",
+						background: saved ? "#16a34a" : dirty && !saving ? "var(--accent)" : "var(--bg-input, var(--bg-panel))",
+						border: dirty && !saving || saved ? "1px solid transparent" : "1px solid var(--border)",
+						borderRadius: "var(--radius-unit, 6px)",
+						color: (dirty && !saving) || saved ? "var(--bg, #fff)" : "var(--text-dim)",
 						cursor: dirty && !saving ? "pointer" : "not-allowed",
 						fontSize: 11.5,
 						fontWeight: 600,
@@ -392,6 +567,7 @@ function ChannelCredentialsForm({
 						display: "flex",
 						alignItems: "center",
 						gap: 5,
+						transition: "background 0.15s ease, border-color 0.15s ease",
 					}}
 				>
 					{saved ? t("settings.saved") : saving ? t("settings.saving") : t("settings.save")}
@@ -418,46 +594,12 @@ function WebDisplaySection({ t, highlight }: { t: (key: string) => string; highl
 			>
 				{t("web-display")}
 			</div>
-			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-				<div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-					<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
-						<SettingsHighlight text={t("web-sidebar")} query={highlight} />
-					</span>
-					<span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>
-						<SettingsHighlight text={t("web-sidebar-desc")} query={highlight} />
-					</span>
-				</div>
-				<button
-					type="button"
-					role="switch"
-					aria-checked={visible}
-					aria-label={t("web-sidebar")}
-					onClick={toggle}
-					style={{
-						width: 36,
-						height: 20,
-						borderRadius: 10,
-						border: "1px solid var(--border)",
-						background: visible ? "var(--accent)" : "var(--bg-panel)",
-						cursor: "pointer",
-						position: "relative",
-						flexShrink: 0,
-					}}
-				>
-					<span
-						style={{
-							position: "absolute",
-							top: 2,
-							left: visible ? 18 : 2,
-							width: 14,
-							height: 14,
-							borderRadius: 7,
-							background: "#fff",
-							transition: "left 0.15s ease",
-						}}
-					/>
-				</button>
-			</div>
+			<SettingsToggleRow
+				checked={visible}
+				onChange={toggle}
+				label={<SettingsHighlight text={t("web-sidebar")} query={highlight} />}
+				description={<SettingsHighlight text={t("web-sidebar-desc")} query={highlight} />}
+			/>
 		</div>
 	);
 }
@@ -596,7 +738,7 @@ function WebSettingsSection({
 					{row(
 						t("web-minimize-to-tray"),
 						t("web-minimize-to-tray-desc"),
-						<Toggle
+						<SettingsToggle
 							checked={data.tray.minimizeToTray}
 							label={t("web-minimize-to-tray")}
 							onChange={next => onCommit("tray.minimizeToTray", next)}
@@ -606,7 +748,7 @@ function WebSettingsSection({
 					{row(
 						t("web-autostart"),
 						t("web-autostart-desc"),
-						<Toggle
+						<SettingsToggle
 							checked={data.tray.autostart}
 							label={t("web-autostart")}
 							onChange={next => onCommit("tray.autostart", next)}
@@ -642,16 +784,9 @@ function WebSettingsSection({
 							/>
 							<button
 								type="button"
+								className="zset-danger"
 								onClick={() => void onCommit("remote.token", "")}
-								style={{
-									padding: "5px 9px",
-									background: "none",
-									border: "1px solid var(--border)",
-									borderRadius: 5,
-									color: "var(--text-muted)",
-									cursor: "pointer",
-									fontSize: 11.5,
-								}}
+								style={destructiveButtonStyle}
 							>
 								{t("web-remote-token-reset")}
 							</button>
@@ -661,7 +796,7 @@ function WebSettingsSection({
 					{row(
 						t("web-show-bot-sessions"),
 						t("web-show-bot-sessions-desc"),
-						<Toggle
+						<SettingsToggle
 							checked={data.remote.showBotSessions === true}
 							label={t("web-show-bot-sessions")}
 							onChange={next => void onCommit("remote.showBotSessions", next)}
@@ -677,22 +812,11 @@ function WebSettingsSection({
 					{CHANNEL_IDS.map(channelId => {
 						const channel = data.channels[channelId];
 						return (
-							<div
-								key={channelId}
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: 8,
-									padding: "9px 11px",
-									background: "var(--bg-panel)",
-									border: "1px solid var(--border)",
-									borderRadius: 7,
-								}}
-							>
+							<SettingsCard key={channelId}>
 								{row(
 									t(CHANNEL_LABEL_KEY[channelId]),
 									undefined,
-									<Toggle
+									<SettingsToggle
 										checked={channel.enabled}
 										label={t(CHANNEL_LABEL_KEY[channelId])}
 										onChange={next => void onCommit(`channels.${channelId}.enabled`, next)}
@@ -756,17 +880,13 @@ function WebSettingsSection({
 										<div style={{ display: "flex", gap: 6 }}>
 											<button
 												type="button"
+												className="zset-outline"
 												onClick={() => void handleReconnect()}
 												disabled={reconnecting}
 												style={{
-													padding: "5px 9px",
-													background: "none",
-													border: "1px solid var(--border)",
-													borderRadius: 5,
-													color: "var(--text-muted)",
-													cursor: reconnecting ? "default" : "pointer",
-													fontSize: 11.5,
+													...outlineButtonStyle,
 													opacity: reconnecting ? 0.5 : 1,
+													cursor: reconnecting ? "default" : "pointer",
 													width: "fit-content",
 												}}
 											>
@@ -774,17 +894,13 @@ function WebSettingsSection({
 											</button>
 											<button
 												type="button"
+												className="zset-danger"
 												onClick={() => void handleUnbind()}
 												disabled={unbinding}
 												style={{
-													padding: "5px 9px",
-													background: "none",
-													border: "1px solid var(--border)",
-													borderRadius: 5,
-													color: "#f87171",
-													cursor: unbinding ? "default" : "pointer",
-													fontSize: 11.5,
+													...destructiveButtonStyle,
 													opacity: unbinding ? 0.5 : 1,
+													cursor: unbinding ? "default" : "pointer",
 													width: "fit-content",
 												}}
 											>
@@ -799,7 +915,7 @@ function WebSettingsSection({
 								{channelId === "telegram" && (
 									<ChannelCredentialsForm channelId="telegram" channel={channel} onCommit={onCommit} t={t} />
 								)}
-							</div>
+							</SettingsCard>
 						);
 					})}
 				</>,
@@ -876,6 +992,7 @@ function ProviderLimitsEditor({
 	const [drafts, setDrafts] = useState<Record<string, string>>({});
 	const [newName, setNewName] = useState("");
 	const [newLimit, setNewLimit] = useState("");
+	const { t } = useI18n();
 
 	const providers = useMemo(() => Object.keys(value).sort((a, b) => a.localeCompare(b)), [value]);
 
@@ -910,7 +1027,7 @@ function ProviderLimitsEditor({
 		<div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
 			{providers.length === 0 && (
 				<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-					No limits set — omitted providers are unlimited.
+					{t("settings.provider-limits-empty")}
 				</div>
 			)}
 			{providers.map(provider => (
@@ -936,7 +1053,7 @@ function ProviderLimitsEditor({
 							if (e.key === "Enter") e.currentTarget.blur();
 						}}
 						placeholder="∞"
-						aria-label={`${provider} max in-flight requests`}
+						aria-label={t("settings.provider-limits-aria", { provider })}
 						style={{ ...inputStyle, width: 90, fontFamily: "var(--font-mono)", flexShrink: 0 }}
 					/>
 				</div>
@@ -945,7 +1062,7 @@ function ProviderLimitsEditor({
 				<input
 					value={newName}
 					onChange={e => setNewName(e.target.value)}
-					placeholder="provider id (e.g. openai)"
+					placeholder={t("settings.provider-limits-id-placeholder")}
 					style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)" }}
 				/>
 				<input
@@ -956,25 +1073,23 @@ function ProviderLimitsEditor({
 					onKeyDown={e => {
 						if (e.key === "Enter") addProvider();
 					}}
-					placeholder="limit"
+					placeholder={t("settings.provider-limits-limit-placeholder")}
 					style={{ ...inputStyle, width: 90, fontFamily: "var(--font-mono)", flexShrink: 0 }}
 				/>
 				<button
 					type="button"
+					className="zset-outline"
 					onClick={addProvider}
 					disabled={newName.trim() === "" || newLimit.trim() === ""}
 					style={{
-						padding: "6px 12px",
-						background: "none",
-						border: "1px solid var(--border)",
-						borderRadius: 5,
-						color: "var(--text-muted)",
+						...outlineButtonStyle,
+						height: 28,
 						cursor: newName.trim() === "" || newLimit.trim() === "" ? "default" : "pointer",
 						fontSize: 12,
 						flexShrink: 0,
 					}}
 				>
-					Add
+					{t("settings.add")}
 				</button>
 			</div>
 		</div>
@@ -996,6 +1111,7 @@ function ModelRolesEditor({
 	const [drafts, setDrafts] = useState<Record<string, string>>({});
 	const [newRole, setNewRole] = useState("");
 	const [newValue, setNewValue] = useState("");
+	const { t } = useI18n();
 
 	const roles = useMemo(() => Object.keys(value).sort((a, b) => a.localeCompare(b)), [value]);
 
@@ -1028,7 +1144,7 @@ function ModelRolesEditor({
 		<div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
 			{roles.length === 0 && (
 				<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-					No role overrides set — the default role resolves from your model selection.
+					{t("settings.model-roles-empty")}
 				</div>
 			)}
 			{roles.map(role => (
@@ -1052,7 +1168,7 @@ function ModelRolesEditor({
 							if (e.key === "Enter") e.currentTarget.blur();
 						}}
 						placeholder="provider/model[:level]"
-						aria-label={`${role} model assignment`}
+						aria-label={t("settings.model-roles-aria", { role })}
 						style={{ ...inputStyle, width: 240, fontFamily: "var(--font-mono)", flexShrink: 0 }}
 					/>
 				</div>
@@ -1061,7 +1177,7 @@ function ModelRolesEditor({
 				<input
 					value={newRole}
 					onChange={e => setNewRole(e.target.value)}
-					placeholder="role (e.g. plan)"
+					placeholder={t("settings.model-roles-role-placeholder")}
 					style={{ ...inputStyle, flex: 1, fontFamily: "var(--font-mono)" }}
 				/>
 				<input
@@ -1075,21 +1191,17 @@ function ModelRolesEditor({
 				/>
 				<button
 					type="button"
+					className="zset-outline"
 					onClick={addRole}
 					disabled={newRole.trim() === "" || newValue.trim() === ""}
 					style={{
-						padding: "6px 10px",
-						border: "1px solid var(--border)",
-						borderRadius: 5,
-						background: "none",
-						color: "var(--text-muted)",
+						...outlineButtonStyle,
 						cursor: newRole.trim() === "" || newValue.trim() === "" ? "default" : "pointer",
-						fontSize: 11.5,
 						opacity: newRole.trim() === "" || newValue.trim() === "" ? 0.5 : 1,
 						flexShrink: 0,
 					}}
 				>
-					Add
+					{t("settings.add")}
 				</button>
 			</div>
 		</div>
@@ -1130,14 +1242,14 @@ function SettingRow({
 	const renderControl = () => {
 		switch (entry.type) {
 			case "boolean":
-				return <Toggle checked={Boolean(value)} label={entry.label} onChange={onCommit} />;
+				return <SettingsToggle checked={Boolean(value)} label={entry.label} onChange={onCommit} />;
 			case "enum": {
 				const current = String(value ?? "");
 				return (
 					<select
 						value={current}
 						onChange={e => onCommit(e.target.value)}
-						style={{ ...inputStyle, width: "auto", minWidth: 180 }}
+						style={selectStyle}
 					>
 						{(entry.values ?? []).map(v => (
 							<option key={v} value={v}>
@@ -1171,7 +1283,7 @@ function SettingRow({
 					<select
 						value={current}
 						onChange={e => onCommit(e.target.value)}
-						style={{ ...inputStyle, width: "auto", minWidth: 180 }}
+						style={selectStyle}
 					>
 						{missing && <option value={current}>{current}</option>}
 						{options.map(o => (
@@ -1204,8 +1316,8 @@ function SettingRow({
 							<button
 								type="button"
 								onClick={onReveal}
-								title={revealed ? "Hide" : "Show"}
-								aria-label={revealed ? "Hide value" : "Show value"}
+								title={revealed ? t("settings.hide") : t("settings.show")}
+								aria-label={revealed ? t("settings.hide-value") : t("settings.show-value")}
 								style={{
 									width: 26,
 									height: 26,
@@ -1334,15 +1446,7 @@ export function SettingsHighlight({ text, query }: { text: string; query?: strin
 	return <>{parts}</>;
 }
 
-const retryButtonStyle: React.CSSProperties = {
-	padding: "5px 12px",
-	background: "none",
-	border: "1px solid var(--border)",
-	borderRadius: 6,
-	color: "var(--text)",
-	cursor: "pointer",
-	fontSize: 12,
-};
+const retryButtonStyle: React.CSSProperties = outlineButtonStyle;
 
 /**
  * Gateway-settings data layer (`/api/settings`) behind the SettingsWindow
@@ -1686,18 +1790,9 @@ export function SettingsTabBody({
 						<span style={{ lineHeight: 1.45 }}>{t("configure-provider-models-via-the-models-configu")}</span>
 						<button
 							type="button"
+							className="zset-outline"
 							onClick={onOpenModelsConfig}
-							style={{
-								padding: "5px 12px",
-								background: "none",
-								border: "1px solid var(--border)",
-								borderRadius: 6,
-								color: "var(--text)",
-								cursor: "pointer",
-								fontSize: 12,
-								whiteSpace: "nowrap",
-								flexShrink: 0,
-							}}
+							style={{ ...outlineButtonStyle, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}
 						>
 							{t("models")} →
 						</button>

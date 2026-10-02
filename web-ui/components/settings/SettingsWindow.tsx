@@ -6,7 +6,17 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useThemeSystem } from "@/contexts/useThemeSystem";
 import type { ThemeMode } from "@/contexts/theme-system-context";
 import { SERIF_UI_FONT_STACK, type DensityPreference, type RadiusPreference } from "@/lib/theme/appearance";
-import { inputStyle, SettingsHighlight, SettingsTabBody, useSettingsData, useWebConfigState } from "./shared";
+import {
+	SettingsControlStyles,
+	SettingsHighlight,
+	SettingsTabBody,
+	SURFACE_CLASS,
+	useSettingsData,
+	useWebConfigState,
+	inputStyle,
+	selectStyle,
+	settingsNavButtonStyle,
+} from "./shared";
 
 /**
  * Windowed settings shell: large fixed-inset window with a title bar, an
@@ -69,8 +79,6 @@ const WEB_SEARCH_KEYS = [
 	"web-channel-feishu",
 	"web-channel-telegram",
 ];
-
-const selectStyle = { ...inputStyle, width: "auto", minWidth: 180 };
 
 export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWindowProps) {
 	const isMobile = useIsMobile();
@@ -139,10 +147,12 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 	if (!open) return null;
 
 	return (
-		<div
-			style={{
-				position: "fixed",
-				inset: 0,
+		<>
+			<SettingsControlStyles />
+			<div
+				style={{
+					position: "fixed",
+					inset: 0,
 				zIndex: 950,
 				background: "rgba(0,0,0,0.35)",
 				display: "flex",
@@ -157,6 +167,7 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 			<div
 				role="dialog"
 				aria-label={t("settings")}
+				className={SURFACE_CLASS}
 				style={{
 					width: isMobile ? "100%" : "min(1080px, 100%)",
 					height: isMobile ? "100%" : "min(860px, 100%)",
@@ -196,7 +207,7 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 					/>
 					<button
 						onClick={onClose}
-						aria-label="Close settings"
+						aria-label={t("settings.close")}
 						style={{
 							background: "none",
 							border: "none",
@@ -230,10 +241,10 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 								: {
 										display: "flex",
 										flexDirection: "column",
-										gap: 2,
-										width: 208,
+										gap: 1,
+										width: 192,
 										flexShrink: 0,
-										padding: "10px 8px",
+										padding: "8px 6px",
 										borderRight: "1px solid var(--border)",
 										background: "var(--bg-panel)",
 										overflowY: "auto",
@@ -246,23 +257,10 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 								<button
 									key={entry.id}
 									type="button"
+									className="zset-nav-item"
 									onClick={() => settings.setActiveTab(entry.id)}
 									aria-pressed={active}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										padding: "calc(6px * var(--padding-scale, 1)) 10px",
-										border: "none",
-										borderRadius: "var(--radius-unit, 8px)",
-										cursor: "pointer",
-										fontSize: 12,
-										whiteSpace: "nowrap",
-										textAlign: "left",
-										flexShrink: 0,
-										background: active ? "var(--bg-selected)" : "transparent",
-										color: active ? "var(--text)" : "var(--text-muted)",
-									}}
+									style={settingsNavButtonStyle(active)}
 								>
 									<span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
 										<SettingsHighlight text={entry.label} query={query} />
@@ -318,7 +316,8 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 					</div>
 				</div>
 			</div>
-		</div>
+			</div>
+		</>
 	);
 }
 
