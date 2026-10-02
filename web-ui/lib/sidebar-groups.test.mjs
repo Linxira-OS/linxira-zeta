@@ -3,7 +3,7 @@ import test from "node:test";
 import { createJiti } from "jiti";
 
 const jiti = createJiti(import.meta.url);
-const { foldVisible, MAX_VISIBLE_SESSIONS, sortProjects, sortSessions, splitZones, timeGroupOf, timeGroups } =
+const { foldVisible, MAX_VISIBLE_SESSIONS, sortProjects, sortSessions, splitZones, timeGroupOf, timeGroups, isFoldableEmptySession } =
 	await jiti.import("../lib/sidebar-groups.ts");
 
 // Fixed "now": 2026-09-16 12:00 local.
@@ -127,4 +127,25 @@ test("foldVisible caps at 10 and reports hidden count", () => {
 	assert.equal(folded.hidden, 3);
 	assert.equal(foldVisible(items, true).hidden, 0);
 	assert.equal(foldVisible(items.slice(0, 3), false).hidden, 0);
+});
+
+// ── D5 empty-session policy ──
+
+const NOW_TS = new Date(2026, 8, 16, 12, 0, 0).getTime();
+const HOURS = 3_600_000;
+
+function emptyOpts(over = {}) {
+	return { now: NOW_TS, isRunning: false, isPinned: false, ...over };
+}
+
+test("isFoldableEmptySession: only stale 0-message sessions fold", () => {
+	const fresh = { messageCount: 0, modified: new Date(NOW_TS - 2 * HOURS).toISOString() };
+	const stale = { messageCount: 0, modified: new Date(NOW_TS - 25 * HOURS).toISOString() };
+	const active = { messageCount: 3, modified: new Date(NOW_TS - 48 * HOURS).toISOString() };
+	assert.equal(isFoldableEmptySession(fresh, emptyOpts()), false); // <24h stays
+	assert.equal(isFoldableEmptySession(stale, emptyOpts()), true); // >24h folds
+	assert.equal(isFoldableEmptySession(active, emptyOpts()), false); // has messages
+	assert.equal(isFoldableEmptySession(stale, emptyOpts({ isRunning: true })), false);
+	assert.equal(isFoldableEmptySession(stale, emptyOpts({ isPinned: true })), false);
+	assert.equal(isFoldableEmptySession({ messageCount: 0, modified: "bogus" }, emptyOpts()), true);
 });

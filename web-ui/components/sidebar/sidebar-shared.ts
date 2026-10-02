@@ -5,7 +5,44 @@
  */
 "use client";
 
+import type { TranslationParams } from "@/lib/i18n/types";
+
 export type ProjectSort = "manual" | "a-z" | "z-a" | "date-added" | "recent";
+
+/**
+ * D4 session title resolution: explicit title (name, incl. user renames) >
+ * sanitized first user message (max 60 chars) > "New session · HH:mm".
+ * The gateway's `"(no messages)"` placeholder and raw uuids are never shown.
+ */
+const NO_MESSAGES_PLACEHOLDER = "(no messages)";
+const MAX_FIRST_MESSAGE_TITLE = 60;
+
+type TranslateFn = (key: string, params?: TranslationParams) => string;
+
+export function sessionDisplayTitle(
+	session: Pick<SessionInfoLite, "name" | "firstMessage" | "created">,
+	t: TranslateFn,
+): string {
+	const name = session.name?.trim();
+	if (name && name !== NO_MESSAGES_PLACEHOLDER) return name;
+	const first = session.firstMessage?.trim();
+	if (first && first !== NO_MESSAGES_PLACEHOLDER) {
+		return first.length > MAX_FIRST_MESSAGE_TITLE ? `${first.slice(0, MAX_FIRST_MESSAGE_TITLE)}…` : first;
+	}
+	const created = new Date(session.created);
+	const time = Number.isFinite(created.getTime())
+		? `${String(created.getHours()).padStart(2, "0")}:${String(created.getMinutes()).padStart(2, "0")}`
+		: "--:--";
+	return t("sidebar.newSessionFallback", { time });
+}
+
+/** Minimal structural subset of SessionInfo the helpers need (avoids a cycle). */
+export interface SessionInfoLite {
+	name?: string | null;
+	firstMessage: string;
+	created: string;
+}
+
 
 export interface SidebarDisplaySettings {
 	projectSort: ProjectSort;

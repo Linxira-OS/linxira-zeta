@@ -32,6 +32,7 @@ import {
 import { SidebarProjectsList } from "./sidebar/SidebarProjectsList";
 import { SessionGroupSection } from "./sidebar/SessionGroupSection";
 import { SessionNodeItem } from "./sidebar/SessionNodeItem";
+import { EmptySessionsFold } from "./sidebar/EmptySessionsFold";
 import { ArchiveSection } from "./sidebar/ArchiveSection";
 import { PinnedSection } from "./sidebar/PinnedSection";
 import { BulkActionBar } from "./sidebar/BulkActionBar";
@@ -44,12 +45,13 @@ import {
 	type SessionSort,
 	type ProjectSort,
 } from "@/lib/sidebar-prefs";
-import { sortSessions, sortProjects } from "@/lib/sidebar-groups";
+import { sortSessions, sortProjects, isFoldableEmptySession } from "@/lib/sidebar-groups";
 import {
 	loadCollapsedProjects,
 	loadDisplaySettings,
 	loadPinnedSessionIds,
 	savePinnedSessionIds,
+	sessionDisplayTitle,
 	SIDEBAR_COLLAPSED_PROJECTS_KEY,
 	SIDEBAR_DISPLAY_KEY,
 	type SidebarDisplaySettings,
@@ -1289,14 +1291,40 @@ export function SessionSidebar({
 		: allSessions.filter(s => s.tag !== "relay" && s.tag !== "bot");
 	const nonTempSessions = visibleSessions.filter(s => !s.temp);
 	const tempSessions = visibleSessions.filter(s => s.temp === true);
-	const recentProjects = getRecentProjects(nonTempSessions);
+	// D5: stale empty sessions (0 msgs, >24h, not running/pinned) leave the
+	// regular lists and surface in the per-group EmptySessionsFold instead.
+	const foldableEmptyIds = useMemo(() => {
+		const ids = new Set<string>();
+		for (const s of nonTempSessions) {
+			if (isFoldableEmptySession(s, { now: Date.now(), isRunning: runningSessionIds.has(s.id), isPinned: pinnedIds.includes(s.id) })) {
+				ids.add(s.id);
+			}
+		}
+		return ids;
+	}, [nonTempSessions, runningSessionIds, pinnedIds]);
+	const activeNonTempSessions = useMemo(
+		() => nonTempSessions.filter(s => !foldableEmptyIds.has(s.id)),
+		[nonTempSessions, foldableEmptyIds],
+	);
+	const emptySessionsByProject = useMemo(() => {
+		const byProject = new Map<string, SessionInfo[]>();
+		for (const s of nonTempSessions) {
+			if (!foldableEmptyIds.has(s.id)) continue;
+			const root = s.projectRoot ?? s.cwd;
+			const list = byProject.get(root) ?? [];
+			list.push(s);
+			byProject.set(root, list);
+		}
+		return byProject;
+	}, [nonTempSessions, foldableEmptyIds]);
+	const recentProjects = getRecentProjects(activeNonTempSessions);
 	const showProjectFilter = recentProjects.length > 8;
 	const visibleProjects = projectFilter.trim()
 		? recentProjects.filter(p => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
 		: recentProjects;
 	const filteredSessions = selectedProject
-		? nonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
-		: nonTempSessions;
+		? activeNonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
+		: activeNonTempSessions;
 	const purgeTempSessions = useCallback(async () => {
 		const byCwd = new Set<string>();
 		for (const s of tempSessions) byCwd.add(s.cwd);
@@ -1387,7 +1415,7 @@ export function SessionSidebar({
 	const workspaceGroups = useMemo(() => {
 		const counts = new Map<string, number>();
 		for (const project of recentProjects) {
-			counts.set(project, visibleSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length);
+			counts.set(project, activeNonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length);
 		}
 		let ordered: string[];
 		const firstSeen = new Map<string, number>();
@@ -1438,7 +1466,7 @@ export function SessionSidebar({
 			project,
 			count: counts.get(project) ?? 0,
 		}));
-	}, [recentProjects, selectedProject, visibleSessions, projSort, allSessions]);
+	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions]);
 
 	// Local session search (data is fully in memory — no backend round trip).
 	const searchQuery = sessionSearch.trim().toLowerCase();
@@ -1458,7 +1486,7 @@ export function SessionSidebar({
 	// Flat within the group — no time-bucket headers (D6).
 	const projectTrees = useMemo(() => {
 		const byProject = new Map<string, SessionInfo[]>();
-		for (const s of nonTempSessions) {
+		for (const s of activeNonTempSessions) {
 			const root = s.projectRoot ?? s.cwd;
 			const list = byProject.get(root) ?? [];
 			list.push(s);
@@ -1469,7 +1497,7 @@ export function SessionSidebar({
 			trees.set(project, buildSessionTree(sessions));
 		}
 		return trees;
-	}, [nonTempSessions]);
+	}, [activeNonTempSessions]);
 
 	// ── Pin / archive / bulk-selection glue ──
 	const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
@@ -1493,6 +1521,43 @@ export function SessionSidebar({
 			}
 		},
 		[loadSessions],
+	);
+	// D5: empty-session deletion (single + batch) — both go through the shared
+	// two-step danger confirm and only ever touch foldable empty sessions.
+	const handleEmptySessionsCleanup = useCallback(
+		async (targets: SessionInfo[]) => {
+			if (targets.length === 0) return;
+			try {
+				await deleteSessions(targets.map(s => s.id));
+				await loadSessions();
+			} catch {
+				// keep the fold in place on failure
+			}
+		},
+		[loadSessions],
+	);
+	const confirmEmptySessionDelete = useCallback(
+		(s: SessionInfo) => {
+			setDangerConfirm({
+				title: t("sidebar.deleteSessionTitle"),
+				body: t("sidebar.deleteSessionConfirm", { name: sessionDisplayTitle(s, t) }),
+				detail: s.id,
+				confirmLabel: t("sidebar.delete"),
+				action: () => handleEmptySessionsCleanup([s]),
+			});
+		},
+		[handleEmptySessionsCleanup, t],
+	);
+	const confirmEmptySessionsCleanup = useCallback(
+		(targets: SessionInfo[]) => {
+			setDangerConfirm({
+				title: t("sidebar.emptySessionCleanup"),
+				body: t("sidebar.deleteSelectedConfirm", { count: targets.length }),
+				confirmLabel: t("sidebar.delete"),
+				action: () => handleEmptySessionsCleanup(targets),
+			});
+		},
+		[handleEmptySessionsCleanup, t],
 	);
 	const loadArchived = useCallback(async () => {
 		try {
@@ -1817,7 +1882,7 @@ export function SessionSidebar({
 									fontSize: 11.5,
 									textAlign: "left",
 								}}
-								title={s.name ?? s.firstMessage ?? s.id}
+								title={sessionDisplayTitle(s, t)}
 							>
 								<span
 									style={{
@@ -1836,7 +1901,7 @@ export function SessionSidebar({
 										whiteSpace: "nowrap",
 									}}
 								>
-									{s.name ?? s.firstMessage ?? s.id}
+									{sessionDisplayTitle(s, t)}
 								</span>
 							</button>
 						))}
@@ -2004,6 +2069,13 @@ export function SessionSidebar({
 								onRowContextMenu={(e, session) =>
 									setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
 								}
+							/>
+						)}
+						renderProjectFooter={project => (
+							<EmptySessionsFold
+								sessions={emptySessionsByProject.get(project) ?? []}
+								onDelete={confirmEmptySessionDelete}
+								onCleanup={confirmEmptySessionsCleanup}
 							/>
 						)}
 					/>
@@ -2801,7 +2873,7 @@ export function SessionSidebar({
 							onSelect: () =>
 								setDangerConfirm({
 									title: t("sidebar.archiveSession"),
-									body: t("sidebar.archiveSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									body: t("sidebar.archiveSessionConfirm", { name: sessionDisplayTitle(s, t) }),
 									confirmLabel: t("sidebar.archive"),
 									action: () => handleArchiveOne(s.id),
 								}),
@@ -2818,7 +2890,7 @@ export function SessionSidebar({
 							onSelect: () =>
 								setDangerConfirm({
 									title: t("sidebar.deleteSessionTitle"),
-									body: t("sidebar.deleteSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									body: t("sidebar.deleteSessionConfirm", { name: sessionDisplayTitle(s, t) }),
 									detail: s.id,
 									confirmLabel: t("sidebar.delete"),
 									action: async () => {

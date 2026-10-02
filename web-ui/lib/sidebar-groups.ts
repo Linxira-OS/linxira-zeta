@@ -176,6 +176,24 @@ export function sortProjects<T extends SortableProject>(
 /** Max sessions rendered per project group before the Load-more fold. */
 export const MAX_VISIBLE_SESSIONS = 10;
 
+const DAY_MS = 86_400_000;
+
+/**
+ * D5 empty-session policy: 0 messages, not running, not pinned, and untouched
+ * for >24h → pulled out of the regular list into the group-tail fold. Fresh /
+ * running / pinned empty sessions stay visible.
+ */
+export function isFoldableEmptySession(
+	session: { messageCount: number; modified: string },
+	opts: { now: number; isRunning: boolean; isPinned: boolean },
+): boolean {
+	if (session.messageCount !== 0) return false;
+	if (opts.isRunning || opts.isPinned) return false;
+	const modified = Date.parse(session.modified);
+	if (!Number.isFinite(modified)) return true;
+	return opts.now - modified > DAY_MS;
+}
+
 export function foldVisible<T>(items: readonly T[], expanded: boolean): { visible: T[]; hidden: number } {
 	if (expanded || items.length <= MAX_VISIBLE_SESSIONS) return { visible: [...items], hidden: 0 };
 	return { visible: items.slice(0, MAX_VISIBLE_SESSIONS), hidden: items.length - MAX_VISIBLE_SESSIONS };
