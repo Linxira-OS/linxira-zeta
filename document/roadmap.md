@@ -246,7 +246,7 @@ sync sources for upstream work.
    Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
    (feat/webui-sidebar-overhaul；头部红线见 webui-desktop-overhaul-plan.md §14)；会话地图
    设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
-   (`document/plan-zeta-ui-carryover.md` Z5+U11 批)。
+   （本计划 §14 Z5+U11 批）。
 
 ### P0 — Compaction as a service (not a command)
 
@@ -593,7 +593,7 @@ carry the last ~40 low-priority strings.
 ### DONE — plan-surface completion A+B (feat/plan-surface-completion, 2026-09-22)
 
 The A+B remainder of
-[plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md) (前 §11.1) has
+[webui-desktop-overhaul-plan.md](./webui-desktop-overhaul-plan.md) (§14, folded 2026-10-02) has
 landed: minimal shell wrap-up (settings-only bottom entry, collapse rail,
 welcome dual selector), command palette (Ctrl+K), Shiki over
 react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
