@@ -13,10 +13,17 @@ import { zh } from "../src/i18n/zh";
  */
 const OMP_INTEROP_ALLOWLIST: readonly string[] = ["omp.sh", ".omp-plugin", "__omp"];
 
+// Provenance labels (user ruling 2026-10-02): the read-only OMP model-config
+// compatibility feature deliberately references upstream as data — the
+// "from OMP" badge marks where a model/provider came from. That is interop
+// attribution, not product self-identification.
+const PROVENANCE_LABEL_KEYS: readonly string[] = ["models.originOmp"];
+
 function catalogueOmpLeaks(name: string, catalogue: Record<string, unknown>): string[] {
 	const leaks: string[] = [];
 	for (const [key, value] of Object.entries(catalogue)) {
 		if (typeof value !== "string") continue;
+		if (PROVENANCE_LABEL_KEYS.includes(key)) continue;
 		if (OMP_INTEROP_ALLOWLIST.some(token => value.includes(token))) continue;
 		if (/\bOMP\b/.test(value)) leaks.push(`${name}.${key}: ${value}`);
 	}
