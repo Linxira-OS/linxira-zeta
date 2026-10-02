@@ -8,7 +8,7 @@
  */
 import * as readline from "node:readline";
 import { getOAuthProviders } from "@linxiraos/pi-ai";
-import { APP_NAME, getAgentDbPath, getProjectDir } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, getAgentDbPath, getProjectDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
@@ -36,7 +36,7 @@ export async function runLoginCommand(provider: string | undefined): Promise<voi
 		const providerId = provider ?? (await pickOAuthProvider(rl, providers));
 		const info = providers.find(p => p.id === providerId);
 		if (!info) {
-			throw new Error(`Unknown OAuth provider '${providerId}'. Run \`${APP_NAME} login\` to pick one.`);
+			throw new Error(`Unknown OAuth provider '${providerId}'. Run \`${CLI_BIN_NAME} login\` to pick one.`);
 		}
 
 		const identity = await runTerminalOAuthLogin(rl, authStorage, info.id, { openBrowser: true });

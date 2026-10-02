@@ -5,7 +5,7 @@
  * The settings registry (`config/registry.ts`) is the source of truth for available settings.
  */
 
-import { APP_NAME, getAgentDir, isRecord } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, getAgentDir, isRecord } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { orderedSettings } from "../config/all-settings";
 import { type AnySetting, lookup } from "../config/registry";
@@ -257,15 +257,15 @@ async function handleList(flags: { json?: boolean }): Promise<void> {
 
 function handleGet(key: string | undefined, flags: { json?: boolean }): void {
 	if (!key) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config get <key>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} config get <key>`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
 		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
@@ -281,15 +281,15 @@ function handleGet(key: string | undefined, flags: { json?: boolean }): void {
 
 async function handleSet(key: string | undefined, value: string | undefined, flags: { json?: boolean }): Promise<void> {
 	if (!key || value === undefined) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config set <key> <value>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} config set <key> <value>`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
 		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
@@ -361,15 +361,15 @@ function shadowingSource(setting: AnySetting): { json: Record<string, string>; m
 
 async function handleReset(key: string | undefined, flags: { json?: boolean }): Promise<void> {
 	if (!key) {
-		console.error(chalk.red(`Usage: ${APP_NAME} config reset <key>`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} config reset <key>`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
 	const def = findSettingDef(key);
 	if (!def) {
 		console.error(chalk.red(`Unknown setting: ${key}`));
-		console.error(chalk.dim(`\nRun '${APP_NAME} config list' to see available keys`));
+		console.error(chalk.dim(`\nRun '${CLI_BIN_NAME} config list' to see available keys`));
 		process.exit(1);
 	}
 
@@ -403,7 +403,7 @@ function handlePath(): void {
 // =============================================================================
 
 export function printConfigHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} config`)} - Manage settings
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} config`)} - Manage settings
 
 ${chalk.bold("Commands:")}
   list               List all settings with current values
@@ -417,14 +417,14 @@ ${chalk.bold("Options:")}
   --json             Output as JSON
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} config list
-  ${APP_NAME} config get theme
-  ${APP_NAME} config set theme catppuccin-mocha
-  ${APP_NAME} config set compaction.enabled false
-  ${APP_NAME} config set defaultThinkingLevel medium
-  ${APP_NAME} config reset steeringMode
-  ${APP_NAME} config list --json
-  ${APP_NAME} config init-xdg
+  ${CLI_BIN_NAME} config list
+  ${CLI_BIN_NAME} config get theme
+  ${CLI_BIN_NAME} config set theme catppuccin-mocha
+  ${CLI_BIN_NAME} config set compaction.enabled false
+  ${CLI_BIN_NAME} config set defaultThinkingLevel medium
+  ${CLI_BIN_NAME} config reset steeringMode
+  ${CLI_BIN_NAME} config list --json
+  ${CLI_BIN_NAME} config init-xdg
 
 ${chalk.bold("Boolean Values:")}
   true, false, yes, no, on, off, 1, 0
