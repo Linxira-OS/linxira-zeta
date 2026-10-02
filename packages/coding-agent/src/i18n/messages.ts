@@ -2952,6 +2952,7 @@ export interface Messages {
 	// ── Model browser (model-browser.ts) ───────────────────────────────────
 	mbNoMatchingModels: string;
 	mbNoModelsInScope: string;
+	"models.originOmp": string;
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: string; // "No sessions found" (no indent)

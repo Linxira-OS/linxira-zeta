@@ -10,6 +10,8 @@ import { execSync } from "node:child_process";
 import type { Plan, Task, TaskApproval, TaskApprovalDecisionStatus, TaskEvidence } from "./types.ts";
 import { allocateTaskId } from "./id-allocator.ts";
 import { normalizeRiskLabels } from "./utils/risk-labels.ts";
+import { getProjectCrewDir } from "../paths.ts";
+import { ensureProjectStateMigrated } from "./utils/migrations.ts";
 
 // =============================================================================
 // Directory Helpers
@@ -22,7 +24,8 @@ function ensureDir(dir: string): void {
 }
 
 export function getCrewDir(cwd: string): string {
-	return path.join(cwd, ".pi", "messenger", "crew");
+	ensureProjectStateMigrated(cwd);
+	return getProjectCrewDir(cwd);
 }
 
 function getTasksDir(cwd: string): string {

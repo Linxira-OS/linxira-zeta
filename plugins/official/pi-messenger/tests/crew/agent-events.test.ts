@@ -37,7 +37,7 @@ function createProcess(): MockProcess {
 }
 
 function writeWorkerAgent(cwd: string): void {
-	const filePath = path.join(cwd, ".pi", "messenger", "crew", "agents", "crew-worker.md");
+	const filePath = path.join(cwd, ".zeta", "messenger", "crew", "agents", "crew-worker.md");
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(
 		filePath,

@@ -2976,6 +2976,7 @@ export const en = {
 	// ── Model browser (model-browser.ts) ───────────────────────────────────
 	mbNoMatchingModels: "  No matching models",
 	mbNoModelsInScope: "  No models available in this scope",
+	"models.originOmp": "from OMP",
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: "No sessions found",

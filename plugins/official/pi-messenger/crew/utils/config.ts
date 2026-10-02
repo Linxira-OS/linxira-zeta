@@ -5,13 +5,12 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { MaxOutputConfig } from "./truncate.ts";
+import { getGlobalConfigPath } from "../../paths.ts";
 
 export type CoordinationLevel = "none" | "minimal" | "moderate" | "chatty";
 
-const USER_CONFIG_PATH = path.join(os.homedir(), ".pi", "agent", "pi-messenger.json");
 const PROJECT_CONFIG_FILE = "config.json";
 
 const COORDINATION_LEVELS: CoordinationLevel[] = ["none", "minimal", "moderate", "chatty"];
@@ -128,11 +127,11 @@ function deepMerge<T extends object>(target: T, ...sources: Partial<T>[]): T {
  * Load crew configuration with priority: defaults <- user <- project
  */
 export function loadCrewConfig(crewDir: string): CrewConfig {
-	// User-level config (from ~/.pi/agent/pi-messenger.json -> crew section)
-	const userConfig = loadJson(USER_CONFIG_PATH);
+	// User-level config (from ~/.zeta/agent/pi-messenger.json -> crew section)
+	const userConfig = loadJson(getGlobalConfigPath());
 	const userCrewConfig = (userConfig.crew ?? {}) as Partial<CrewConfig>;
 
-	// Project-level config (from .pi/messenger/crew/config.json)
+	// Project-level config (from <project>/.zeta/messenger/crew/config.json)
 	const projectConfig = loadJson(path.join(crewDir, PROJECT_CONFIG_FILE)) as Partial<CrewConfig>;
 
 	// Merge: defaults <- user <- project <- runtime override
