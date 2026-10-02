@@ -303,12 +303,13 @@ function resolveServeCommand(): ServeCommand | null {
 		}
 	}
 
-	// Last resort: the CLI on PATH — `zeta-c` (current bin name), falling back
-	// to the pre-rename `zeta` for older global installs.
+	// Last resort: the CLI on PATH — `zeta-c` (current bin name). The bare
+	// `zeta` bin is the Zetawork workbench, which rejects `serve` ("unknown
+	// command"), so it must never be a candidate.
 	const pathFallback =
 		process.platform === "win32"
-			? ["zeta-c.cmd", "zeta.cmd"]
-			: ["zeta-c", "zeta"];
+			? ["zeta-c.cmd", "zeta-cli.cmd", "zetacode.cmd"]
+			: ["zeta-c", "zeta-cli", "zetacode"];
 	const whichTool = process.platform === "win32" ? "where" : "which";
 	for (const candidate of pathFallback) {
 		const probe = spawnSync(whichTool, [candidate], { encoding: "utf8" });

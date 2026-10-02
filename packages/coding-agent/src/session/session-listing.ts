@@ -687,6 +687,23 @@ export function filterSessionsForPicker(sessions: SessionInfo[], pinnedIds: Read
 	return sessions.filter(session => pinnedIds.has(session.id) || !isEmptySession(session));
 }
 
+/**
+ * Normalize a `--resume` argument before resolution. Trailing separators and a
+ * `.jsonl` suffix are copy-paste noise (the exit tip id plus a stray
+ * keystroke, or shell tab-completion residue); left in, they re-routed session
+ * ids into the explicit-path branch where a missing file used to mint a fresh
+ * empty session silently. Directory-bearing arguments keep their `.jsonl`
+ * suffix — that is a real file name, not noise. Callers decide path-vs-id by
+ * testing the normalized argument for a separator: after normalization a
+ * separator can only come from a deliberate explicit transcript path.
+ */
+export function normalizeResumeSessionArg(sessionArg: string): string {
+	if (/[\\/]/.test(sessionArg)) {
+		return sessionArg.replace(/[\\/]+$/, "");
+	}
+	return sessionArg.replace(/[\\/]+$/, "").replace(/\.jsonl$/i, "");
+}
+
 /** Most recent session with resumable content, skipping 0-turn empties. Exported for testing. */
 export async function findMostRecentNonEmptySession(
 	sessionDir: string,

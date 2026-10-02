@@ -18,7 +18,7 @@
 It is a TypeScript port of the default (`cascade`) strategy of [jegrep](https://github.com/can1357/jegrep); request shapes, budgets, and ordering match the reference so benchmark results carry over.
 
 ## CLI
-`omp find "<query>" [path] [-k keyword]... [--hidden] [--json] [-q]` runs the same cascade from the shell (`packages/coding-agent/src/cli/find-cli.ts`): the judge resolves from your settings' `judge` role, progress goes to stderr, and the ranked digest (or `--json` with hits and stats) to stdout. `path` takes the same host paths and internal URLs as the tool, and hits print relative to the shell cwd. Exits 1 when every judgment request failed.
+`zeta-c find "<query>" [path] [-k keyword]... [--hidden] [--json] [-q]` runs the same cascade from the shell (`packages/coding-agent/src/cli/find-cli.ts`): the judge resolves from your settings' `judge` role, progress goes to stderr, and the ranked digest (or `--json` with hits and stats) to stdout. `path` takes the same host paths and internal URLs as the tool, and hits print relative to the shell cwd. Exits 1 when every judgment request failed.
 
 ## Inputs
 
