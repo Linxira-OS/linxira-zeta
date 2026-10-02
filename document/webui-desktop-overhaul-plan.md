@@ -169,8 +169,11 @@ note 2026-07-24「New Session clears to empty state」+ zcode
 - 会话创建时机维持现状(`useAgentSession.ts` L488 `isNew`、L891 起
   首发消息才落盘;草稿持久化 `lib/draft-store.ts`)——零网关改动。
 - 入口→草稿 cwd 映射:「项目」header `+`=上次活跃 cwd;组头 `+`=该项目
-  projectRoot;临时区 `+`=上次 temp cwd;全局无项目=不设 cwd,此时整个输入卡
-  降级为工作区选择触发器(harness `.cardWorkspaceTrigger` 模式,
+  projectRoot;临时区 `+`=上次 temp cwd;**解析不到工作区时一律保底落到默认
+  工作区**(用户裁决 2026-10-02:`~/.zeta/workspace`,即 `POST /api/default-cwd`
+  /`lib/default-workspace.ts` 的位置)——不存在无 cwd 草稿态,新对话的默认
+  位置就是默认工作区,chip 可改;仅当默认工作区也不可用时才整卡降级为
+  选择触发器(harness `.cardWorkspaceTrigger` 模式,
   `InputBar.module.css:92-130`)。
 - **删除 `NewSessionDialog.tsx`(496 行)**:项目列表能力并入工作区 chip
   下拉(D11),worktree/分支并入分支 chip;其 L165 恒真 checkout 条件
@@ -247,10 +250,12 @@ note 2026-07-24「New Session clears to empty state」+ zcode
 
 **D11 草稿上下文条 `DraftContextBar`(2026-10-02 新增;新组件)**:渲染于
 composer 卡上方,hero 形态与 docked 草稿态共用,两个 chip:
-- **工作区 chip**(必现):label=草稿 cwd 叶名;点开向上弹层(数据源复用「打开
-  工作区」对话框:`GET /api/home`+最近项目),内含「浏览目录…」走既有
-  `POST /api/cwd/validate`;无 cwd 时整个输入卡是选择触发器(harness
-  `InputBar.module.css:92-130` `.cardWorkspaceTrigger` 模式)。
+- **工作区 chip**(必现):label=草稿 cwd 叶名(默认=默认工作区);点开向上
+  弹层(数据源复用「打开工作区」对话框:`GET /api/home`+最近项目),内含
+  「浏览目录…」走既有 `POST /api/cwd/validate`;cwd 解析链=入口指定→
+  默认工作区保底(`lib/default-workspace.ts`)→(两者皆不可用才)整卡降级
+  为选择触发器(harness `InputBar.module.css:92-130`
+  `.cardWorkspaceTrigger` 模式)。
 - **分支 chip**(条件:cwd 是 git 仓库):数据 `GET /api/git/branches?cwd=`
   (`NewSessionDialog.tsx` L140 现成端点);**仅显式切换分支才**
   `POST /api/git/checkout`,绝不自动 checkout(消灭 L165 恒真 bug 的语义);
@@ -351,8 +356,9 @@ DraftContextBar/空会话折叠行等全部新文案。i18n 测试补死 key 检
 8. 项目排序(含 manual/a-z/z-a/date-added/recent)生效且刷新后保持;置顶
    会话/置顶项目/项目别名/组折叠状态刷新后保持;全部落在单一
    `zeta-web:sidebar-preferences-v2` key。
-9. 新建交互(草稿直开):任何 `+` 入口直接进空态 hero,无弹窗;工作区 chip
-   可换 cwd(含「浏览目录」);无 cwd 草稿的整个输入卡是选择触发器;分支 chip
+9. 新建交互(草稿直开):任何 `+` 入口直接进空态 hero,无弹窗;解析不到
+   工作区时草稿保底落到默认工作区(`~/.zeta/workspace`),仅当其不可用时
+   整卡才降级为选择触发器;工作区 chip 可换 cwd(含「浏览目录」);分支 chip
    仅显式切换才 checkout,脏树 409 内联报错;首条消息发出即创建会话且
    DraftContextBar 消失。
 10. `web-ui`:`node_modules/.bin/tsc --noEmit` 0 错;`npm run lint` 0 错;
