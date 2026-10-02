@@ -17,7 +17,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as piUtils from "@linxiraos/pi-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { getPluginCacheDir, getPluginDataDir, getPluginStateDir, removeWithRetries } from "@linxiraos/pi-utils";
 import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
@@ -30,6 +30,11 @@ const FAKE_INSTALLED: InstalledPlugin = {
 	manifest: { version: "1.0.0" },
 	enabledFeatures: null,
 	enabled: true,
+	storage: {
+		dataDir: getPluginDataDir("kimi-datasource"),
+		cacheDir: getPluginCacheDir("kimi-datasource"),
+		stateDir: getPluginStateDir("kimi-datasource"),
+	},
 };
 
 async function createLocalPlugin(root: string, name = "kimi-datasource"): Promise<string> {

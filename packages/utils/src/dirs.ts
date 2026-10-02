@@ -650,6 +650,82 @@ export function getPluginsLockfile(home?: string): string {
 	return path.join(getPluginsDir(home), "omp-plugins.lock.json");
 }
 
+/**
+ * Normalize a plugin id into a safe single path segment (spec §4.2): lowercased,
+ * every character outside `[a-z0-9._-]` (including `/` and `\`, so scoped npm
+ * names like `@scope/name` collapse to `-scope-name`) replaced with `-`.
+ * Guarantees the result cannot traverse: it never contains a separator, and
+ * degenerate segments (`.`, `..`, empty) throw instead of escaping.
+ */
+export function normalizePluginId(pluginId: string): string {
+	const normalized = pluginId.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+	if (normalized.length === 0 || normalized === "." || normalized === "..") {
+		throw new TypeError(`Invalid plugin id: "${pluginId}"`);
+	}
+	return normalized;
+}
+
+function getPluginTierDir(tier: "data" | "cache" | "state", pluginId: string, home?: string): string {
+	return path.join(getPluginsDir(home), tier, normalizePluginId(pluginId));
+}
+
+/** Per-plugin persistent data dir (~/.zeta/plugins/data/<id>). User data: cleared on uninstall, kept across upgrades. */
+export function getPluginDataDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("data", pluginId, home);
+}
+
+/** Per-plugin rebuildable cache dir (~/.zeta/plugins/cache/<id>). May be wiped by GC at any time. */
+export function getPluginCacheDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("cache", pluginId, home);
+}
+
+/** Per-plugin runtime state dir (~/.zeta/plugins/state/<id>). Locks, cursors, migration markers. */
+export function getPluginStateDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("state", pluginId, home);
+}
+
+/**
+ * Adopt a legacy config file into its new home: one-shot best-effort copy
+ * (spec §4.5). Copies only when the target does not exist yet and the legacy
+ * file does; the legacy file is left in place for older versions sharing the
+ * profile. Returns whether a copy happened this call. Opportunistic: a copy
+ * race or unwritable target dir falls back to a fresh file at the new path.
+ */
+export function adoptLegacyFile(legacyPath: string, targetPath: string): boolean {
+	if (targetPath === legacyPath) return false;
+	try {
+		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return false;
+		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+		fs.copyFileSync(legacyPath, targetPath, fs.constants.COPYFILE_EXCL);
+		return true;
+	} catch {
+		// Opportunistic: a copy race or unwritable XDG dir falls back to a fresh
+		// file at the new path — the pre-adoption behavior.
+		return false;
+	}
+}
+
+/**
+ * One-shot legacy migration with a marker file (spec §4.5, the
+ * pi-messenger `migrations/` precedent, generalized): the first call copies
+ * `legacyPath` → `targetPath` (when legacy data exists) and writes a
+ * `migratedAt` marker at `markerPath`; every later call is a no-op regardless
+ * of filesystem state. Returns whether a copy happened this call.
+ */
+export function adoptLegacyFileOnce(legacyPath: string, targetPath: string, markerPath: string): boolean {
+	try {
+		if (fs.existsSync(markerPath)) return false;
+		const adopted = adoptLegacyFile(legacyPath, targetPath);
+		fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+		fs.writeFileSync(markerPath, `${JSON.stringify({ migratedAt: new Date().toISOString() })}\n`);
+		return adopted;
+	} catch {
+		// Opportunistic: an unwritable marker dir must not crash callers; the
+		// next run retries the migration (still idempotent via COPYFILE_EXCL).
+		return false;
+	}
+}
+
 /** Get the remote mount directory (~/.zeta/remote). */
 export function getRemoteDir(): string {
 	return dirs.rootSubdir("remote", "data");
@@ -971,25 +1047,6 @@ export function getCrashLogPath(agentDir?: string): string {
 /** Get the debug log path (~/.zeta/agent/zeta-debug.log). */
 export function getDebugLogPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, `${APP_NAME}-debug.log`, "state");
-}
-
-/**
- * Best-effort one-time copy of a legacy config-root file to its redirected XDG
- * location. Existing installs that enable XDG after the file was created keep
- * their data (e.g. a placeholder key whose loss would break deobfuscation of
- * persisted transcripts). The legacy file is left in place for older omp
- * versions sharing the profile.
- */
-function adoptLegacyFile(legacyPath: string, targetPath: string): void {
-	if (targetPath === legacyPath) return;
-	try {
-		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return;
-		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-		fs.copyFileSync(legacyPath, targetPath, fs.constants.COPYFILE_EXCL);
-	} catch {
-		// Opportunistic: a copy race or unwritable XDG dir falls back to a fresh
-		// file at the new path — the pre-adoption behavior.
-	}
 }
 
 /** Get the secret placeholder key path (~/.zeta/agent/secret-placeholder.key; XDG default: $XDG_STATE_HOME/zeta/secret-placeholder.key). Adopts a legacy key on first XDG resolution. */
