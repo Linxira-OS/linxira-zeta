@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect, useImperativeHandle, forwardRef, KeyboardEvent } from "react";
+import React, { useRef, useState, useCallback, useEffect, useImperativeHandle, forwardRef, KeyboardEvent, useSyncExternalStore } from "react";
 import { PI_CLI_BUILTIN_SLASH_COMMANDS } from "@/lib/pi-slash-commands";
 import type {
 	BuiltinSlashCommandResult,
@@ -79,6 +79,18 @@ interface Props {
 	draftKey?: string;
 	/** Session working directory — enables the @ file autocomplete menu */
 	cwd?: string | null;
+	/**
+	 * hero: empty-state draft composition (centered card, ≥2 rows); docked:
+	 * the normal bottom-anchored composer. Position/style migration only —
+	 * one component, no swapping (spec D2).
+	 */
+	variant?: "hero" | "docked";
+	/**
+	 * Degraded no-workspace draft (spec D11): the whole card acts as a
+	 * workspace-selection trigger — dashed outline, readOnly textarea with
+	 * aria-haspopup; the host overlays the actual click target.
+	 */
+	degraded?: boolean;
 }
 
 export interface ChatInputHandle {
@@ -123,6 +135,33 @@ function compareModelOptions(a: ModelOption, b: ModelOption): number {
 }
 
 const MODEL_FILTER_THRESHOLD = 8;
+
+// Breakpoint where the composer toolbar collapses into the existing ⋯
+// controls menu (mobile uses the same mechanism at 640px).
+const NARROW_CONTROLS_QUERY = "(max-width: 1024px)";
+
+function subscribeNarrowControls(cb: () => void): () => void {
+	if (typeof window === "undefined" || !window.matchMedia) return () => {};
+	const mql = window.matchMedia(NARROW_CONTROLS_QUERY);
+	mql.addEventListener("change", cb);
+	return () => mql.removeEventListener("change", cb);
+}
+
+/**
+ * True when the toolbar should collapse into the ⋯ controls menu: the mobile
+ * breakpoint, or narrow desktop widths where seven inline controls crowd the
+ * composer row. SSR-safe, same pattern as useIsMobile.
+ */
+function useControlsCompact(isMobile: boolean): boolean {
+	const getSnapshot = () =>
+		typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(NARROW_CONTROLS_QUERY).matches;
+	const narrow = useSyncExternalStore(subscribeNarrowControls, getSnapshot, getServerFalseSnapshot);
+	return isMobile || narrow;
+}
+
+function getServerFalseSnapshot(): boolean {
+	return false;
+}
 
 export function filterModelOptions(options: ModelOption[], query: string): ModelOption[] {
 	const normalized = query.trim().toLowerCase();
@@ -438,11 +477,18 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 		onPromptWithStreamingBehavior,
 		draftKey,
 		cwd,
+		variant = "docked",
+		degraded = false,
 	}: Props,
 	ref,
 ) {
 	const { t } = useI18n();
 	const isMobile = useIsMobile();
+	// Narrow-viewport collapse for the toolbar: the existing ⋯ controls menu
+	// (mobile mechanism) also takes over on narrow desktop widths so the seven
+	// controls never crowd the composer row.
+	const controlsCompact = useControlsCompact(isMobile);
+	const isHero = variant === "hero";
 	const [value, setValue] = useState(() => (draftKey ? (getDraft(draftKey)?.value ?? "") : ""));
 	const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
 	const [modelDropdownRect, setModelDropdownRect] = useState<{
@@ -1515,7 +1561,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
 							<path d="M3 3v5h5" />
 						</svg>
-						Retrying upstream request ({retryInfo.attempt}/{retryInfo.maxAttempts})…
+						{t("chat.retrying-upstream", { attempt: retryInfo.attempt, maxAttempts: retryInfo.maxAttempts })}
 						{retryInfo.errorMessage && (
 							<span style={{ opacity: 0.7, marginLeft: 4 }}>— {retryInfo.errorMessage}</span>
 						)}
@@ -2081,15 +2127,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								gap: 8,
 								alignItems: "center",
 								background: "var(--bg)",
-								border: `1px solid ${
-									bashMode
-										? "var(--tool-bg)"
-										: isStreaming && (onSteer || onFollowUp)
-											? "rgba(234,179,8,0.4)"
-											: "color-mix(in srgb, var(--border) 70%, transparent)"
-								}`,
+								border: degraded
+									? "1.5px dashed var(--border)"
+									: `1px solid ${
+											bashMode
+												? "var(--tool-bg)"
+												: isStreaming && (onSteer || onFollowUp)
+													? "rgba(234,179,8,0.4)"
+													: "color-mix(in srgb, var(--border) 70%, transparent)"
+										}`,
 								borderRadius: 14,
-								padding: "10px 10px 10px 14px",
+								padding: isHero ? "14px 14px 10px 16px" : "10px 10px 10px 14px",
 								boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)",
 								transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
 							} as React.CSSProperties
@@ -2126,7 +2174,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										? t("agent-is-running")
 										: t("message-type-for-commands-for-files")
 							}
-							rows={1}
+							rows={isHero ? 2 : 1}
+							readOnly={degraded || undefined}
+							aria-haspopup={degraded ? "dialog" : undefined}
 							style={{
 								flex: 1,
 								minWidth: 0,
@@ -2139,9 +2189,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								fontSize: 14,
 								lineHeight: 1.6,
 								fontFamily: "inherit",
-								minHeight: 24,
+								minHeight: isHero ? 48 : 24,
 								maxHeight: 200,
 								overflow: "auto",
+								cursor: degraded ? "pointer" : undefined,
 							}}
 						/>
 
@@ -2161,8 +2212,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										disabled={!canQueueStreamingMessage}
 										title={
 											attachedImages.length
-												? "Image attachments cannot be queued while the agent is running"
-												: "Interrupt the current run and inject this message now"
+												? t("chat.queue-images-blocked")
+												: t("chat.steer-title")
 										}
 										style={{
 											display: "flex",
@@ -2202,8 +2253,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										disabled={!canQueueStreamingMessage}
 										title={
 											attachedImages.length
-												? "Image attachments cannot be queued while the agent is running"
-												: "Queue this message after the agent finishes"
+												? t("chat.queue-images-blocked")
+												: t("chat.followup-title")
 										}
 										style={{
 											display: "flex",
@@ -2299,8 +2350,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 				<div
 					style={{
 						marginTop: 8,
-						display: isMobile ? "grid" : "flex",
-						gridTemplateColumns: isMobile ? "minmax(0, 1fr) auto" : undefined,
+						display: controlsCompact ? "grid" : "flex",
+						gridTemplateColumns: controlsCompact ? "minmax(0, 1fr) auto" : undefined,
 						alignItems: "center",
 						gap: 6,
 					}}
@@ -2308,7 +2359,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 					{/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
 					<div
 						style={{
-							flex: isMobile ? "1 1 auto" : "0 0 auto",
+							flex: controlsCompact ? "1 1 auto" : "0 0 auto",
 							minWidth: 0,
 							display: "flex",
 							alignItems: "center",
@@ -2668,7 +2719,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							</div>
 						)}
 					</div>
-					{!isMobile && <div style={{ flex: 1 }} />}
+					{!controlsCompact && <div style={{ flex: 1 }} />}
 
 					{/* RIGHT: thinking + tools preset + compact + sound (idle) | Stop + sound (streaming) */}
 					<div
@@ -2679,10 +2730,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							alignItems: "center",
 							justifyContent: "flex-end",
 							position: "relative",
-							marginLeft: isMobile ? 0 : "auto",
+							marginLeft: controlsCompact ? 0 : "auto",
 						}}
 					>
-						{isMobile && (
+						{controlsCompact && (
 							<button
 								type="button"
 								title={controlsMenuOpen ? undefined : t("chat.more-controls")}
@@ -2728,10 +2779,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						)}
 						<div
 							style={{
-								display: isMobile ? (controlsMenuOpen ? "flex" : "none") : "flex",
+								display: controlsCompact ? (controlsMenuOpen ? "flex" : "none") : "flex",
 								alignItems: "center",
-								gap: isMobile ? 1 : 2,
-								...(isMobile
+								gap: controlsCompact ? 1 : 2,
+								...(controlsCompact
 									? {
 											position: "absolute",
 											right: 0,
@@ -2763,8 +2814,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											justifyContent: "center",
 											gap: 5,
-											padding: isMobile ? "0 6px" : "8px 12px",
-											width: isMobile ? "auto" : undefined,
+											padding: controlsCompact ? "0 6px" : "8px 12px",
+											width: controlsCompact ? "auto" : undefined,
 											height: 32,
 											background: thinkingDropdownOpen ? "var(--bg-hover)" : "none",
 											border: "none",
@@ -2798,7 +2849,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											<path d="M9.5 2A5.5 5.5 0 0 0 4 7.5c0 1.7.78 3.21 2 4.21V14a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-2.29c1.22-1 2-2.51 2-4.21A5.5 5.5 0 0 0 9.5 2z" />
 											<line x1="7" y1="18" x2="12" y2="18" />
 										</svg>
-										{(!isMobile || controlsMenuOpen) && (
+										{(!controlsCompact || controlsMenuOpen) && (
 											<span style={{ whiteSpace: "nowrap" }}>{thinkingDisplayLabel}</span>
 										)}
 									</button>
@@ -2917,8 +2968,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											justifyContent: "center",
 											gap: 5,
-											padding: isMobile ? "0 6px" : "8px 12px",
-											width: isMobile ? "auto" : undefined,
+											padding: controlsCompact ? "0 6px" : "8px 12px",
+											width: controlsCompact ? "auto" : undefined,
 											height: 32,
 											background: toolDropdownOpen ? "var(--bg-hover)" : "none",
 											border: "none",
@@ -2951,7 +3002,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										>
 											<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
 										</svg>
-										{(!isMobile || controlsMenuOpen) && (
+										{(!controlsCompact || controlsMenuOpen) && (
 											<span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>
 										)}
 									</button>
@@ -3053,8 +3104,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											justifyContent: "center",
 											gap: 5,
-											padding: isMobile ? "0 6px" : "8px 12px",
-											width: isMobile ? "auto" : undefined,
+											padding: controlsCompact ? "0 6px" : "8px 12px",
+											width: controlsCompact ? "auto" : undefined,
 											height: 32,
 											background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
 											border: "none",
@@ -3084,7 +3135,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												<svg width="10" height="10" viewBox="0 0 10 10" fill="none">
 													<rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" />
 												</svg>
-												{(!isMobile || controlsMenuOpen) && (
+												{(!controlsCompact || controlsMenuOpen) && (
 													<span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>
 												)}
 											</>
@@ -3105,7 +3156,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													<line x1="10" y1="14" x2="3" y2="21" />
 													<line x1="21" y1="3" x2="14" y2="10" />
 												</svg>
-												{(!isMobile || controlsMenuOpen) && (
+												{(!controlsCompact || controlsMenuOpen) && (
 													<span style={{ whiteSpace: "nowrap" }}>{t("compact")}</span>
 												)}
 											</>
@@ -3159,7 +3210,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										alignItems: "center",
 										justifyContent: "center",
 										gap: 5,
-										width: isMobile ? 32 : 32,
+										width: controlsCompact ? 32 : 32,
 										height: 32,
 										padding: 0,
 										background: "none",
@@ -3214,7 +3265,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									)}
 								</button>
 							)}
-							{isMobile && controlsMenuOpen && (
+							{controlsCompact && controlsMenuOpen && (
 								<button
 									type="button"
 									title={t("chat.collapse-controls")}

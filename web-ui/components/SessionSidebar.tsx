@@ -566,7 +566,7 @@ function ZetaWebTitle() {
 	const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const target = showVersion
-		? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_OMP_VERSION ?? process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}`
+		? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_ZETA_VERSION ?? "0.0.0"}`
 		: "Zeta Web";
 	const display = useScramble(target, scrambling);
 

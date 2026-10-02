@@ -61,7 +61,8 @@ import {
 	writeSidebarCollapsedPref,
 } from "@/lib/panel-layout";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
-import type { ChatInputHandle } from "./ChatInput";
+import { ChatInput, type ChatInputHandle } from "./ChatInput";
+import { WorkspacePickerPanel, type PickerAnchor } from "./DraftContextBar";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 
 type SessionCopyField = "file" | "id";
@@ -122,6 +123,9 @@ function AppShellContent() {
 	const [activeCwd, setActiveCwd] = useState<string | null>(null);
 	// When user clicks +, we only store the cwd — no fake session id
 	const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
+	// Null-cwd degraded draft (spec D11): neither a project nor the default
+	// workspace resolved — the whole composer card becomes the workspace picker.
+	const [degradedDraft, setDegradedDraft] = useState(false);
 	/** True once the user explicitly requested a new session (default chat shares the coordinator). */
 	const explicitNewRef = useRef(false);
 	const [initialCwdStatus, setInitialCwdStatus] = useState<"idle" | "validating" | "ready" | "error">(() =>
@@ -620,6 +624,7 @@ function AppShellContent() {
 	const handleSelectSession = useCallback(
 		(session: SessionInfo, isRestore = false) => {
 			setNewSessionCwd(null);
+			setDegradedDraft(false);
 			setSelectedSession(session);
 			setSessionKey(k => k + 1);
 			setSystemPrompt(null);
@@ -649,6 +654,7 @@ function AppShellContent() {
 			explicitNewRef.current = true;
 			setSelectedSession(null);
 			setNewSessionCwd(cwd);
+			setDegradedDraft(cwd === null);
 			setSessionKey(k => k + 1);
 			setBranchTree([]);
 			setBranchActiveLeafId(null);
@@ -755,6 +761,7 @@ function AppShellContent() {
 	const handleSessionCreated = useCallback(
 		(session: SessionInfo) => {
 			setNewSessionCwd(null);
+			setDegradedDraft(false);
 			setSelectedSession(session);
 			setRefreshKey(k => k + 1);
 			hydrateSelectedSession(session.id);
@@ -892,9 +899,11 @@ function AppShellContent() {
 		);
 	}, [selectedSession]);
 
-	// Show chat area if a session is selected, or if we have a cwd to start a new session in
+	// Show chat area if a session is selected, a cwd to start a new session in,
+	// or the degraded null-cwd draft (whole card = workspace trigger)
 	const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
-	const showChat = selectedSession !== null || effectiveNewSessionCwd !== null;
+	const showDegradedDraft = degradedDraft && selectedSession === null && effectiveNewSessionCwd === null;
+	const showChat = selectedSession !== null || effectiveNewSessionCwd !== null || showDegradedDraft;
 	// While restoring initial session from URL, don't show the placeholder
 	const showPlaceholder = initialSessionRestored && !showChat;
 
@@ -2475,6 +2484,13 @@ function AppShellContent() {
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
 						{statsOpen ? (
 							<StatsDashboard />
+						) : showDegradedDraft ? (
+							<DegradedDraftCard
+								onWorkspaceSelect={cwd => {
+									setDegradedDraft(false);
+									handleNewSession(`draft-${Date.now()}`, cwd);
+								}}
+							/>
 						) : showChat ? (
 							<ChatWindow
 								key={sessionKey}
@@ -3109,6 +3125,61 @@ function AppShellContent() {
  * button clickable inside the titlebar's drag region, and the hover colours
  * come from the shared theme tokens so the chrome follows the active theme.
  */
+/**
+ * Null-cwd degraded draft (spec D11): only reachable when neither the entry
+ * cwd nor the default workspace resolved. The whole composer card acts as the
+ * workspace-selection trigger — dashed outline (ChatInput `degraded`),
+ * readOnly textarea, and an overlay button with aria-haspopup that opens the
+ * shared workspace picker upward. Picking a workspace starts a normal draft.
+ */
+function DegradedDraftCard({ onWorkspaceSelect }: { onWorkspaceSelect: (cwd: string) => void }) {
+	const { t } = useI18n();
+	const [pickerOpen, setPickerOpen] = useState(false);
+	const [anchor, setAnchor] = useState<PickerAnchor | null>(null);
+	return (
+		<div className="flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-8">
+			<div className="w-full max-w-[820px]">
+				<div style={{ marginBottom: 12, textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>
+					{t("draft-context.select-workspace")}
+				</div>
+				<div style={{ position: "relative" }}>
+					<ChatInput variant="hero" degraded onSend={() => {}} onAbort={() => {}} isStreaming={false} />
+					<button
+						aria-haspopup="dialog"
+						aria-expanded={pickerOpen}
+						aria-label={t("draft-context.select-workspace")}
+						title={t("draft-context.select-workspace")}
+						onClick={e => {
+							const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+							setAnchor({ top: rect.top, left: rect.left, width: rect.width });
+							setPickerOpen(v => !v);
+						}}
+						style={{
+							position: "absolute",
+							inset: 0,
+							background: "transparent",
+							border: "none",
+							cursor: "pointer",
+							borderRadius: 14,
+						}}
+					/>
+					{pickerOpen && anchor && (
+						<WorkspacePickerPanel
+							anchor={anchor}
+							currentCwd={null}
+							onPick={picked => {
+								setPickerOpen(false);
+								onWorkspaceSelect(picked);
+							}}
+							onClose={() => setPickerOpen(false)}
+						/>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function TitlebarButton({
 	label,
 	onClick,
