@@ -4,7 +4,8 @@
  * Primary provider for OMP native configs. Supports all capabilities.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -395,6 +396,7 @@ function seedOfficialSkillsFromEmbed(embedJson: string): string {
 	}
 	if (currentHash === hash && existsSync(seedDir)) return seedDir;
 	const files = JSON.parse(embedJson) as Record<string, string>;
+	const wanted = new Set(Object.keys(files));
 	mkdirSync(seedDir, { recursive: true });
 	for (const [relative, body] of Object.entries(files)) {
 		const target = path.join(seedDir, relative);
@@ -402,7 +404,38 @@ function seedOfficialSkillsFromEmbed(embedJson: string): string {
 		writeFileSync(target, body);
 	}
 	writeFileSync(hashPath, `${hash}\n`);
+	pruneStaleSeedFiles(seedDir, wanted);
 	return seedDir;
+}
+
+/**
+ * The payload is the single source of truth for the seed dir: when a new embed
+ * ships fewer files (a skill retired from the pack), leftovers from the
+ * previous seed must go or ghost skills keep loading from disk. Only the
+ * `.embed-hash` marker itself is exempt. Runs only on rewrites — the hash
+ * short-circuit above skips it for unchanged payloads.
+ */
+function pruneStaleSeedFiles(seedDir: string, wanted: Set<string>): void {
+	const visit = (dir: string): void => {
+		let entries: Dirent[];
+		try {
+			entries = readdirSync(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const entry of entries) {
+			const entryPath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				visit(entryPath);
+				continue;
+			}
+			const relative = path.relative(seedDir, entryPath).split(path.sep).join("/");
+			if (relative !== ".embed-hash" && !wanted.has(relative)) {
+				rmSync(entryPath, { force: true });
+			}
+		}
+	};
+	visit(seedDir);
 }
 
 async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
