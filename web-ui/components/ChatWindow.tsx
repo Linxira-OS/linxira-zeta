@@ -707,6 +707,7 @@ export function ChatWindow({
 		<ChatInput
 			ref={chatInputRef}
 			variant={isEmptyNew ? "hero" : "docked"}
+			contextUsage={contextUsage}
 			onSend={isEmptyNew ? handleWelcomeSend : handleSend}
 			onAbort={handleAbort}
 			onSteer={agentRunning ? handleSteer : undefined}
