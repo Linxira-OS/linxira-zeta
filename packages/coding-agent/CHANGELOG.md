@@ -7,6 +7,7 @@
 
 ### Fixed
 - npm source installs no longer silently miss the bundled official skills, and reseeding the official-skills embed prunes stale files.
+- Plugins get a per-plugin storage contract: `pi.storage` (`dataDir`/`cacheDir`/`stateDir` under `~/.zeta/plugins/`) is injected into every extension factory, with `adoptLegacyFileOnce` as the one-time migration primitive — plugins no longer need to invent their own paths in the user data tree.
 - Models already configured in upstream OMP (`~/.omp/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
 
 ## [1.1.23] - 2026-10-01

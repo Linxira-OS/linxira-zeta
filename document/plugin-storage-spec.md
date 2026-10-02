@@ -78,7 +78,7 @@
 | `~/.zeta/stats.db` | 共享（agent+stats+scripts） | `getStatsDbPath` | 在用 |
 | `~/.zeta/logs/`（含 `http-400-requests/`、`.zeta.<pid>-audit.json`） | coding-agent/ai | `getLogsDir`/`getLogPath`、http-inspector.ts:93、logger.ts:257 | 在用 |
 | `~/.zeta/plugins/{package.json,omp-plugins.lock.json,bun.lock,node_modules}` | 插件平台 | `getPlugins*`、loader.ts:101-123 | 在用（半安装态见 §5.2） |
-| `~/.zeta/plugins/{data,cache,state}/<plugin-id>/` | 插件平台 | **本文 §4 新增** | 待规范 |
+| `~/.zeta/plugins/{data,cache,state}/<plugin-id>/` | 插件平台 | `getPluginDataDir`/`getPluginCacheDir`/`getPluginStateDir` | **API 已落地**（dirs.ts + loader 注入；插件接入待 #44 合并） |
 | `~/.zeta/handoff.json` | 共享接缝：pi-messenger 写 / editor 读 | handoff.ts:39-45 / handoff.go:26-38 | 在用 |
 | `~/.zeta/cache/{github-cache,commit-inference,judgment-cache,legacy-pi-extension-cache}.db`、`auth-broker-snapshot.enc`、`avatars/`、`fastembed{,-runtime}` | coding-agent | 对应 `get*Cache*` | 在用 |
 | `~/.zeta/{reports,ssh-control,browser-profiles,security,autoresearch}` | coding-agent | 对应 `get*Dir`（state 档） | 在用（部分未生成） |
@@ -283,6 +283,8 @@ legacy-crew-agent-cleanup-v1.json`：标记文件 + 一次性执行 + 幂等）�
   标记；标记存在即跳过。重复执行 MUST 无副作用（幂等）。
 - 宿主把 dirs.ts 内部 `adoptLegacyFile`（legacy 路径一次性采纳到 XDG
   新址）提升为公共 API，供插件复用同款「搬家不丢数据」语义。
+  （已落地：`adoptLegacyFile` 已导出，另增 `adoptLegacyFileOnce` 提供本条
+  上半段的一次性 marker 语义。）
 - pi 专属插件的更名立场：名字带 `pi`（`pi-messenger`、`legacy-pi-*`）是
   **血统标注**（上游来源记录），不是品牌违规，不做 sweep——与
   design-principles §2「icon.pi 保留」同一逻辑：语义字符/血统名不等于

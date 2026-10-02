@@ -10,6 +10,7 @@
  * `flags.json` is set so the renderer takes the JSON branch and avoids the theme.
  */
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { getPluginCacheDir, getPluginDataDir, getPluginStateDir } from "@linxiraos/pi-utils";
 import { runPluginCommand } from "@linxiraos/zeta/cli/plugin-cli";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import type { InstalledPluginSummary } from "@linxiraos/zeta/extensibility/plugins/marketplace";
@@ -54,6 +55,11 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 			},
 			enabledFeatures: null,
 			enabled: true,
+			storage: {
+				dataDir: getPluginDataDir("omp-commit"),
+				cacheDir: getPluginCacheDir("omp-commit"),
+				stateDir: getPluginStateDir("omp-commit"),
+			},
 		};
 
 		// list() omits marketplace runtime packages by design.
@@ -86,6 +92,11 @@ describe("runPluginCommand({ action: 'config', args: ['validate'] })", () => {
 			},
 			enabledFeatures: null,
 			enabled: true,
+			storage: {
+				dataDir: getPluginDataDir("omp-commit"),
+				cacheDir: getPluginCacheDir("omp-commit"),
+				stateDir: getPluginStateDir("omp-commit"),
+			},
 		};
 		const projectPlugin: InstalledPlugin = {
 			...userPlugin,
