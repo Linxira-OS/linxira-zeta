@@ -19,6 +19,9 @@ const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const longSkillName = "this-is-a-very-long-skill-name-that-exceeds-the-sixty-four-character-limit-set-by-the-standard";
 const expectedFixtureSkillOrder: string[] = [
 	"bad--name",
+	// `nested/child-skill/` — discovered since the skills scan recurses to
+	// depth 3 below the skills root.
+	"child-skill",
 	"different-name",
 	"Invalid_Name",
 	longSkillName,

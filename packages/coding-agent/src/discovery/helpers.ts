@@ -442,6 +442,15 @@ export function compareSkillOrder(aName: string, aPath: string, bName: string, b
 	return cmp(aPath, bPath);
 }
 
+/**
+ * Maximum nesting depth (directory levels below the scan root) at which a
+ * `SKILL.md` is still discovered. Depth 3 covers three-level router trees
+ * (`<root>/<router>/SKILL.md` → `<root>/<router>/<group>/INDEX.md` →
+ * `<root>/<router>/<group>/<leaf>/SKILL.md`) without letting pathological
+ * directory bombs turn every scan into a full recursive crawl.
+ */
+const MAX_SKILL_SCAN_DEPTH = 3;
+
 export async function scanSkillsFromDir(
 	_ctx: LoadContext,
 	options: ScanSkillsFromDirOptions,
@@ -450,15 +459,19 @@ export async function scanSkillsFromDir(
 	const warnings: string[] = [];
 	const { dir, level, providerId, requireDescription = false } = options;
 
-	let entries: fs.Dirent[];
-	try {
-		entries = await fs.promises.readdir(dir, { withFileTypes: true });
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-			warnings.push(`Failed to read skills directory: ${dir} (${String(error)})`);
+	const readSkillsDirEntries = async (current: string): Promise<fs.Dirent[] | null> => {
+		try {
+			return await fs.promises.readdir(current, { withFileTypes: true });
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+				warnings.push(`Failed to read skills directory: ${current} (${String(error)})`);
+			}
+			return null;
 		}
-		return { items, warnings };
-	}
+	};
+
+	const entries = await readSkillsDirEntries(dir);
+	if (!entries) return { items, warnings };
 	const loadSkill = async (skillPath: string) => {
 		try {
 			const content = await readFile(skillPath);
@@ -486,21 +499,38 @@ export async function scanSkillsFromDir(
 		}
 	};
 
+	// Depth-limited walk below the scan root. A directory carrying its own
+	// SKILL.md is still exposed as a skill (router-style navigators keep their
+	// top-level entry) AND is descended into, so leaves nested under it are
+	// discovered; plain grouping directories without a SKILL.md are walked the
+	// same way. `INDEX.md` is an ordinary file and never matches the SKILL.md
+	// probe, so index directories never become skills themselves.
+	const skillFiles: string[] = [];
+	const collectSkillFiles = async (current: string, depth: number, dirEntries: fs.Dirent[]): Promise<void> => {
+		for (const entry of dirEntries) {
+			if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+			if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+			const childDir = path.join(current, entry.name);
+			const skillPath = path.join(childDir, "SKILL.md");
+			if (fs.existsSync(skillPath)) {
+				skillFiles.push(skillPath);
+			}
+			if (depth + 1 < MAX_SKILL_SCAN_DEPTH) {
+				const childEntries = await readSkillsDirEntries(childDir);
+				if (childEntries) await collectSkillFiles(childDir, depth + 1, childEntries);
+			}
+		}
+	};
+
 	const work: Promise<void>[] = [];
 	if (options.includeSelf) {
 		const selfSkillPath = path.join(dir, "SKILL.md");
 		if (fs.existsSync(selfSkillPath)) {
-			work.push(loadSkill(selfSkillPath));
+			skillFiles.push(selfSkillPath);
 		}
 	}
-	for (const entry of entries) {
-		if (entry.name.startsWith(".")) continue;
-		if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-		const skillPath = path.join(dir, entry.name, "SKILL.md");
-		if (fs.existsSync(skillPath)) {
-			work.push(loadSkill(skillPath));
-		}
-	}
+	await collectSkillFiles(dir, 0, entries);
+	work.push(...skillFiles.map(loadSkill));
 	await Promise.all(work);
 
 	// Deterministic ordering: async file reads complete nondeterministically, so sort after loading.

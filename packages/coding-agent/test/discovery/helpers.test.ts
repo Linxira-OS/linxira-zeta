@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { parseFrontmatter, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { clearCache } from "@linxiraos/zeta/capability/fs";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
-import { loadFilesFromDir } from "@linxiraos/zeta/discovery/helpers";
+import { loadFilesFromDir, scanSkillsFromDir } from "@linxiraos/zeta/discovery/helpers";
 
 describe("parseFrontmatter", () => {
 	const parse = (content: string) => parseFrontmatter(content, { source: "tests:frontmatter", level: "off" });
@@ -123,5 +123,70 @@ describe("loadFilesFromDir recursion", () => {
 			path.join("mineru", "Lib", "site-packages", "gradio", "assets", "svelte", "media-query-D37ajmZt.js"),
 			"my-tool.ts",
 		]);
+	});
+});
+
+describe("scanSkillsFromDir router trees", () => {
+	let tempDir!: string;
+	let ctx!: LoadContext;
+
+	const skill = (name: string, description: string) =>
+		`---\nname: ${name}\ndescription: ${description}\n---\n\nBody of ${name}.\n`;
+
+	const write = (rel: string, content: string) => {
+		const full = path.join(tempDir, rel);
+		fs.mkdirSync(path.dirname(full), { recursive: true });
+		fs.writeFileSync(full, content);
+	};
+
+	beforeEach(() => {
+		clearCache();
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-scan-skills-router-"));
+		ctx = { cwd: tempDir, home: tempDir, repoRoot: tempDir };
+		// Three-level linxira-style router tree: router SKILL.md (level 1) with
+		// frontmatter, a category grouping directory holding only INDEX.md
+		// (level 2), and leaf skills (level 3).
+		write("research-router/SKILL.md", skill("research-router", "top-level navigation entry"));
+		write("research-router/life-sciences/INDEX.md", "# Life sciences index\n");
+		write("research-router/life-sciences/proteins/SKILL.md", skill("proteins", "leaf skill"));
+		write("research-router/life-sciences/cells/SKILL.md", skill("cells", "leaf skill"));
+		// Depth cap: `mid` is level 3 (discovered), `leaf` would be level 4.
+		write("deep/a/mid/SKILL.md", skill("mid", "last discoverable level"));
+		write("deep/a/mid/leaf/SKILL.md", skill("leaf", "beyond the depth cap"));
+		// A plain level-1 skill that itself nests a level-2 skill.
+		write("plain/SKILL.md", skill("plain", "level one"));
+		write("plain/nested/SKILL.md", skill("nested", "level two"));
+		// Noise that must never surface: support dirs of real skills, excluded
+		// directories, and non-SKILL.md markdown.
+		write("research-router/life-sciences/node_modules/fake/SKILL.md", skill("fake", "node_modules"));
+		write(".hidden/secret/SKILL.md", skill("secret", "dot dir"));
+		write("plain/references/INDEX.md", "# plain references\n");
+	});
+
+	afterEach(() => {
+		clearCache();
+		removeSyncWithRetries(tempDir);
+	});
+
+	const scanNames = (dir: string) =>
+		scanSkillsFromDir(ctx, { dir, providerId: "test", level: "user" }).then(r => r.items.map(i => i.name).sort());
+
+	test("three-level router tree yields the router plus every leaf", async () => {
+		expect(await scanNames(tempDir)).toEqual(["cells", "mid", "nested", "plain", "proteins", "research-router"]);
+	});
+
+	test("INDEX.md never becomes a skill", async () => {
+		const result = await scanSkillsFromDir(ctx, {
+			dir: path.join(tempDir, "research-router", "life-sciences"),
+			providerId: "test",
+			level: "user",
+		});
+		expect(result.items.map(i => i.name)).toEqual(["cells", "proteins"]);
+	});
+
+	test("node_modules and dot directories are skipped", async () => {
+		const names = await scanNames(tempDir);
+		expect(names).not.toContain("fake");
+		expect(names).not.toContain("secret");
 	});
 });
