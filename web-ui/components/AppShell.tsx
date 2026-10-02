@@ -643,7 +643,9 @@ function AppShellContent() {
 	);
 
 	const handleNewSession = useCallback(
-		(_sessionId: string, cwd: string) => {
+		// cwd === null: neither a project nor the default workspace resolved —
+		// the empty state renders its degraded workspace trigger (batch 3).
+		(_sessionId: string, cwd: string | null) => {
 			explicitNewRef.current = true;
 			setSelectedSession(null);
 			setNewSessionCwd(cwd);

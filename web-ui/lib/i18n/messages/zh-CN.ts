@@ -200,6 +200,7 @@ export const zhCNLocale: LocalePlugin = {
 		"titlebar.restore": "向下还原",
 		"titlebar.close": "关闭",
 		"sidebar.default-workspace": "默认工作区",
+		"sidebar.projectsSection": "项目",
 		"sidebar.no-sessions-in-workspace": "该工作区暂无会话。",
 		"sidebar.display.title": "显示设置",
 		"sidebar.display.projectSort": "项目排序",

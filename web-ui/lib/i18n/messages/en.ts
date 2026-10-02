@@ -202,6 +202,7 @@ export const enLocale: LocalePlugin = {
 		"titlebar.restore": "Restore",
 		"titlebar.close": "Close",
 		"sidebar.default-workspace": "Default workspace",
+		"sidebar.projectsSection": "Projects",
 		"sidebar.no-sessions-in-workspace": "No sessions in this workspace yet.",
 		"sidebar.display.title": "Display settings",
 		"sidebar.display.projectSort": "Project sort",
