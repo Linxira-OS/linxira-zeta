@@ -2075,6 +2075,7 @@ export function SessionSidebar({
 					!error && (
 						<SessionGroupSection
 							nodes={searchTree}
+							showCwd
 							selectedSessionId={selectedSessionId}
 							runningSessionIds={runningSessionIds}
 							unreadSessionIds={unreadSessionIds}

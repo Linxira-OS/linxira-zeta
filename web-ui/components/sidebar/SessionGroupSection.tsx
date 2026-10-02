@@ -31,6 +31,8 @@ interface SessionGroupSectionProps {
 	onArchive: (id: string) => void;
 	pinnedIds: ReadonlySet<string>;
 	onPinToggle: (id: string) => void;
+	/** Search-flat mode keeps the cwd leaf (D4); regular rows omit it. */
+	showCwd?: boolean;
 }
 
 function TreeItem({
@@ -54,6 +56,8 @@ function TreeItem({
 	pinnedIds: ReadonlySet<string>;
 	onPinToggle: (id: string) => void;
 	onRowContextMenu?: (e: React.MouseEvent, session: SessionInfo) => void;
+	/** Search-flat mode keeps the cwd leaf (D4); regular rows omit it. */
+	showCwd?: boolean;
 }) {
 	const [collapsed, setCollapsed] = useState(false);
 	const hasChildren = node.children.length > 0;
@@ -94,6 +98,7 @@ function TreeItem({
 					isChecked={rest.selectedIds.has(node.session.id)}
 					onToggleSelect={opts => rest.onToggleSelect(node.session.id, { ...opts, visibleIds: rest.visibleIds })}
 					visibleIds={rest.visibleIds}
+					showCwd={rest.showCwd}
 				/>
 			</div>
 			{hasChildren && !collapsed && (

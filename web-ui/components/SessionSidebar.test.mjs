@@ -48,6 +48,18 @@ test("no time-bucket grouping remains in the project list path", async () => {
 	assert.match(source, /!searching \?/);
 });
 
+test("cwd leaf renders only on search-flat rows, never on regular rows (D4)", async () => {
+	const groupSource = await readFile(new URL("./sidebar/SessionGroupSection.tsx", import.meta.url), "utf8");
+	// The search branch passes showCwd; the project-group branch does not.
+	assert.match(source, /nodes=\{searchTree\}\n\t*showCwd/m);
+	const projectBranch = source.slice(
+		source.indexOf("nodes={projectTrees.get(project) ?? []}"),
+		source.indexOf("renderProjectFooter"),
+	);
+	assert.doesNotMatch(projectBranch, /showCwd/);
+	assert.match(groupSource, /showCwd\?: boolean/);
+});
+
 // ── D4 naming rules ──
 
 test("sessionDisplayTitle: explicit > sanitized first message > fallback; never '(no messages)' or uuid", async () => {
