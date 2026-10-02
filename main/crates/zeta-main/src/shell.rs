@@ -508,12 +508,16 @@ mod tests {
 	use super::*;
 	use std::collections::HashSet;
 
+	// Probe-building helper for the chain tests; its consumers are
+	// `#[cfg(windows)]` tests, so non-Windows builds see it as dead code.
+	#[allow(dead_code)]
 	struct Fake {
 		env: HashMap<&'static str, String>,
 		where_: HashMap<&'static str, String>,
 		paths: HashSet<&'static str>,
 	}
 
+	#[allow(dead_code)]
 	impl Fake {
 		fn new() -> Self {
 			Self { env: HashMap::new(), where_: HashMap::new(), paths: HashSet::new() }
@@ -666,7 +670,7 @@ mod tests {
 			.with_env("COMSPEC", r"C:\Windows\System32\cmd.exe");
 		let full = fake.chain();
 		assert_eq!(full.last().map(|s| s.flavor), Some(ShellFlavor::Cmd));
-		assert!(full.iter().find(|s| s.flavor != ShellFlavor::Cmd).is_none());
+		assert!(full.iter().all(|s| s.flavor == ShellFlavor::Cmd));
 	}
 
 	#[cfg(windows)]

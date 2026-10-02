@@ -221,7 +221,9 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-22.04, macos-14]
+            # macOS dropped from the release surface (2026-10-01): the web-ui
+            # build is platform-independent and no darwin consumer exists.
+            os: [ubuntu-22.04]
       defaults:
          run:
             working-directory: web-ui
