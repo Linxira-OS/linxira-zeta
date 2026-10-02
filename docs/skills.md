@@ -24,27 +24,36 @@ The runtime only requires `name` and `path` for validity. In practice, matching 
 
 ### Directory layout
 
-For provider-based discovery (native/Claude/Codex/Agents/plugin providers), skills are discovered as **one level under `skills/`**:
+For provider-based discovery (native/Claude/Codex/Agents/plugin providers), skills are discovered up to **three levels under `skills/`**:
 
 - `<skills-root>/<skill-name>/SKILL.md`
+- `<skills-root>/<group>/<skill-name>/SKILL.md`
+- `<skills-root>/<router>/<group>/<skill-name>/SKILL.md`
 
-Nested patterns like `<skills-root>/group/<skill>/SKILL.md` are not discovered by provider loaders.
+Directories are descended even when they carry their own `SKILL.md`, so a router skill (`<skills-root>/<router>/SKILL.md`) stays exposed as the top-level navigation entry while its third-level leaves are discovered as individual skills. `INDEX.md` files are never treated as skills. Directories starting with `.` and `node_modules/` are skipped; deeper nesting beyond three levels is not discovered (scan-depth bomb guard).
 
-For `skills.customDirectories`, scanning uses the same non-recursive layout (`*/SKILL.md`).
+For `skills.customDirectories`, scanning uses the same depth-3 layout.
 
 ```text
-Provider-discovered layout (non-recursive under skills/):
+Provider-discovered layout (recursive to depth 3 under skills/):
 
 <root>/skills/
   ├─ postgres/
-  │   └─ SKILL.md      ✅ discovered
+  │   └─ SKILL.md      ✅ discovered (level 1)
   ├─ pdf/
-  │   └─ SKILL.md      ✅ discovered
-  └─ team/
-      └─ internal/
-          └─ SKILL.md  ❌ not discovered by provider loaders
-
-Custom-directory scanning is also non-recursive, so nested paths are ignored unless you point `customDirectories` at that nested parent.
+  │   └─ SKILL.md      ✅ discovered (level 1)
+  ├─ team/
+  │   └─ internal/
+  │       └─ SKILL.md  ✅ discovered (level 2)
+  └─ research-router/
+      ├─ SKILL.md              ✅ discovered (level 1, router entry)
+      ├─ life-sciences/
+      │   ├─ INDEX.md          ➖ never a skill
+      │   └─ proteins/
+      │       └─ SKILL.md      ✅ discovered (level 3, leaf)
+      └─ deeper/
+          └─ still/
+              └─ SKILL.md      ❌ beyond depth 3
 ```
 
 ### `SKILL.md` frontmatter
@@ -65,7 +74,7 @@ Current runtime behavior:
 - `description` is required for:
   - native `.zeta` provider skill discovery (`requireDescription: true`)
   - `zeta-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
-  - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
+  - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (depth-3 recursive)
 - the claude/codex/agents/opencode/claude-plugins providers can load skills without description
 
 ## Discovery pipeline
@@ -73,7 +82,7 @@ Current runtime behavior:
 `loadSkills()` in `packages/coding-agent/src/extensibility/skills.ts` does three passes:
 
 1. **Capability providers** via `loadCapability("skills")` (the managed/auto-learn provider's skills are skipped here and handled in pass 3)
-2. **Custom directories** via `scanSkillsFromDir(..., { requireDescription: true })` (one-level directory enumeration). A custom-directory skill overrides a same-named default provider skill; duplicate custom-directory names remain first-wins.
+2. **Custom directories** via `scanSkillsFromDir(..., { requireDescription: true })` (depth-3 directory walk). A custom-directory skill overrides a same-named default provider skill; duplicate custom-directory names remain first-wins.
 3. **Managed (auto-learn) skills** (`zeta-managed` provider) resolved dead-last, so any same-named enabled authored skill from a provider or custom directory takes precedence
 
 If `skills.enabled` is `false`, discovery returns no skills.
@@ -230,5 +239,5 @@ No fallback search is performed for missing assets.
 - Put each skill in its own directory: `<skills-root>/<skill-name>/SKILL.md`
 - Always include explicit `name` and `description` frontmatter
 - Keep referenced assets under the same skill directory and access with `skill://<name>/...`
-- For nested taxonomy (`team/domain/skill`), point `skills.customDirectories` to the nested parent directory; scanning itself remains non-recursive
+- Nested taxonomy (`router/group/skill`) is discovered automatically up to three levels; deeper trees need `skills.customDirectories` pointed at the nested parent
 - Avoid duplicate skill names across sources; first match wins by provider precedence
