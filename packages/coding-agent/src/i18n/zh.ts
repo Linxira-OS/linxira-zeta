@@ -2927,6 +2927,7 @@ export const zh = {
 	// ── Model browser (model-browser.ts) ───────────────────────────────────
 	mbNoMatchingModels: "  没有匹配的模型",
 	mbNoModelsInScope: "  此范围内没有可用模型",
+	"models.originOmp": "来自 OMP",
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: "未找到会话",

@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { homedir } from "node:os";
 import type { TeamRoleDefinition } from "./types.ts";
 import { canonicalPackagedTeamRole, isValidTeamName } from "../utils/team-roles.ts";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 
 export interface DiscoverSubagentRoleOptions {
 	homeDir?: string;
@@ -81,11 +81,16 @@ export function discoverSubagentRoles(
 	cwd: string,
 	options?: DiscoverSubagentRoleOptions,
 ): Record<string, TeamRoleDefinition> {
-	const home = options?.homeDir ?? homedir();
+	// Under zeta, user agents live in ~/.zeta/agent/agents and project agents
+	// in <project>/.zeta/agents — the same directories runtime discovery
+	// reads. (.agents is the pre-zeta upstream layout, kept for compatibility.)
+	// An explicit homeDir is a test seam mirroring the default layout.
+	const userAgentsDir = options?.homeDir
+		? path.join(options.homeDir, ".zeta", "agent", "agents")
+		: path.join(getAgentDir(), "agents");
 	const sources = [
-		{ dir: path.join(home, ".pi", "agent", "extensions", "subagent", "agents"), label: "subagent:builtin" },
-		{ dir: path.join(home, ".pi", "agent", "agents"), label: "subagent:user" },
-		{ dir: path.join(cwd, ".pi", "agents"), label: "subagent:project" },
+		{ dir: userAgentsDir, label: "subagent:user" },
+		{ dir: path.join(cwd, ".zeta", "agents"), label: "subagent:project" },
 		{ dir: path.join(cwd, ".agents"), label: "subagent:legacy-project" },
 	];
 

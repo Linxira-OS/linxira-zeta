@@ -6,19 +6,23 @@
  * be spawned: the task dispatch path needs an AgentDefinition, which requires
  * tools/spawns/model and a system prompt. Rather than grow a second registry,
  * this command writes the role into the standard agents directory
- * (`<project>/.zeta/agents/` or `~/.zeta/agents/`), where discovery already
- * looks — project scope first, then user, then plugin packages.
+ * (`<project>/.zeta/agents/` or `~/.zeta/agent/agents/`), where discovery
+ * already looks — project scope first, then user, then plugin packages.
  *
  * Scope defaults to project so a team definition travels with the repository;
- * `--user` writes the global directory instead. A file per agent is the
- * on-disk format the parser expects, so removal is just an unlink.
+ * `--user` writes the global directory instead. Project scope requires the
+ * repository to opt in (trustProjectAgents in <project>/.zeta/pi-messenger.json),
+ * since project agents load for every session in that repository. A file per
+ * agent is the on-disk format the parser expects, so removal is just an unlink.
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import * as teamStore from "./crew/team/store.ts";
+import { isProjectAgentsTrusted } from "./config.ts";
+import { getProjectConfigPath } from "./paths.ts";
 
 /** Reserved names the agent parser rejects; mirrored so we fail early. */
 const RESERVED_NAMES = new Set(["main", "sub"]);
@@ -26,7 +30,7 @@ const RESERVED_NAMES = new Set(["main", "sub"]);
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 export interface TeamAgentScope {
-	/** "project" = <cwd>/.zeta/agents, "user" = ~/.zeta/agents. */
+	/** "project" = <cwd>/.zeta/agents, "user" = ~/.zeta/agent/agents. */
 	kind: "project" | "user";
 	dir: string;
 }
@@ -34,8 +38,9 @@ export interface TeamAgentScope {
 /** Resolve the target directory for a scope. */
 export function resolveAgentsDir(scope: "project" | "user", cwd: string): TeamAgentScope {
 	if (scope === "user") {
-		const home = process.env.ZETA_CONFIG_DIR ?? path.join(os.homedir(), ".zeta");
-		return { kind: "user", dir: path.join(home, "agents") };
+		// The runtime discovers user agents from getAgentDir()/agents
+		// (~/.zeta/agent/agents) — the same directory /teamagent must write.
+		return { kind: "user", dir: path.join(getAgentDir(), "agents") };
 	}
 	return { kind: "project", dir: path.join(path.resolve(cwd), ".zeta", "agents") };
 }
@@ -214,7 +219,8 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 						"  /teamagent add <role> [--user]   register a crew role as a spawnable subagent",
 						"  /teamagent remove <name> [--user]",
 						"",
-						"Default scope is the project (<cwd>/.zeta/agents); --user writes ~/.zeta/agents.",
+						"Default scope is the project (<cwd>/.zeta/agents, requires \"trustProjectAgents\": true in",
+						"  <cwd>/.zeta/pi-messenger.json); --user writes ~/.zeta/agent/agents.",
 					].join("\n"),
 				);
 				return;
@@ -257,6 +263,19 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 					reply("Usage: /teamagent add <role> [--user]");
 					return;
 				}
+				if (scope === "project" && !isProjectAgentsTrusted(ctx.cwd)) {
+					// Project agents load for every session in this repository, so
+					// writing one requires an explicit per-project opt-in.
+					reply(
+						[
+							`Refused: this project has not opted in to project-level crew agents.`,
+							`Project agents (${resolveAgentsDir("project", ctx.cwd).dir}) are loaded automatically for every session in this repository.`,
+							`To enable, set "trustProjectAgents": true in ${getProjectConfigPath(ctx.cwd)}, then rerun /teamagent add.`,
+							`Or register a personal agent instead: /teamagent add ${roleName} --user`,
+						].join("\n"),
+					);
+					return;
+				}
 				const role = teamStore.resolveRoles(ctx.cwd)[roleName];
 				if (!role) {
 					const known = Object.keys(teamStore.resolveRoles(ctx.cwd)).sort().join(", ");
@@ -274,12 +293,12 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 					scope,
 					ctx.cwd,
 				);
-				// The discovery cache is process-wide; a freshly written file is
-				// not visible until it is refreshed, which only the runtime can
-				// do. Say so instead of implying the agent is spawnable now.
+				// Agent discovery re-reads agent files on every task request, so a
+				// freshly written file is spawnable immediately — no restart and no
+				// /reload-plugins needed for spawning.
 				reply(
 					result.ok
-						? `${result.message} → ${result.filePath}\nRestart the session (or /reload-plugins) before spawning it.`
+						? `${result.message} → ${result.filePath}\nSpawnable now: discovery re-reads agent files on every task request.`
 						: result.message,
 				);
 				return;

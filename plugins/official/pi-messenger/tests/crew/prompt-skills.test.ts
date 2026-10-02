@@ -39,13 +39,13 @@ function makeSkills(): CrewSkillInfo[] {
 		{
 			name: "react-patterns",
 			description: "React conventions",
-			path: "/home/user/.pi/agent/skills/react-patterns/SKILL.md",
+			path: "/home/user/.zeta/agent/skills/react-patterns/SKILL.md",
 			source: "user",
 		},
 		{
 			name: "testing",
 			description: "Test setup and patterns",
-			path: "/project/.pi/messenger/crew/skills/testing.md",
+			path: "/project/.zeta/messenger/crew/skills/testing.md",
 			source: "project",
 		},
 		{
@@ -65,12 +65,12 @@ describe("buildWorkerPrompt - skills section", () => {
 	});
 
 	function setupStore(task: Task) {
-		const tasksDir = path.join(dirs.cwd, ".pi", "messenger", "crew", "tasks");
+		const tasksDir = path.join(dirs.cwd, ".zeta", "messenger", "crew", "tasks");
 		fs.mkdirSync(tasksDir, { recursive: true });
 		fs.writeFileSync(path.join(tasksDir, `${task.id}.json`), JSON.stringify(task));
 		fs.writeFileSync(path.join(tasksDir, `${task.id}.md`), "Task spec content");
 
-		const planDir = path.join(dirs.cwd, ".pi", "messenger", "crew");
+		const planDir = path.join(dirs.cwd, ".zeta", "messenger", "crew");
 		fs.writeFileSync(
 			path.join(planDir, "plan.json"),
 			JSON.stringify({
@@ -206,8 +206,8 @@ describe("buildWorkerPrompt - skills section", () => {
 		setupStore(task);
 
 		const prompt = buildWorkerPrompt(task, "test.md", dirs.cwd, makeConfig(), [], makeSkills());
-		expect(prompt).toContain("/home/user/.pi/agent/skills/react-patterns/SKILL.md");
-		expect(prompt).toContain("/project/.pi/messenger/crew/skills/testing.md");
+		expect(prompt).toContain("/home/user/.zeta/agent/skills/react-patterns/SKILL.md");
+		expect(prompt).toContain("/project/.zeta/messenger/crew/skills/testing.md");
 	});
 
 	it("excludes the orchestrator crew skill from worker prompts", () => {

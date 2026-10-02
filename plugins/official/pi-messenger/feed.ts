@@ -1,11 +1,13 @@
 /**
  * Pi Messenger - Activity Feed
  *
- * Append-only JSONL feed stored at <cwd>/.pi/messenger/feed.jsonl
+ * Append-only JSONL feed stored at <cwd>/.zeta/messenger/feed.jsonl
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getProjectMessengerDir } from "./paths.ts";
+import { ensureProjectStateMigrated } from "./crew/utils/migrations.ts";
 
 export type FeedEventType =
 	| "join"
@@ -47,7 +49,8 @@ export interface FeedEvent {
 }
 
 function feedPath(cwd: string): string {
-	return path.join(cwd, ".pi", "messenger", "feed.jsonl");
+	ensureProjectStateMigrated(cwd);
+	return path.join(getProjectMessengerDir(cwd), "feed.jsonl");
 }
 
 function sanitizeInlineText(value?: string): string | undefined {
