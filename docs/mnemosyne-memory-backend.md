@@ -1,6 +1,6 @@
 # Mnemopi memory backend
 
-omp can use `@linxiraos/pi-mnemopi` as a local long-term memory backend.
+zeta-c can use `@linxiraos/pi-mnemopi` as a local long-term memory backend.
 
 Set:
 
