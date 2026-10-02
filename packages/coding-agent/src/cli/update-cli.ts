@@ -31,10 +31,10 @@ import {
 
 import { cfgUpdateChannel } from "../modes/settings";
 
-const REPO = "can1357/oh-my-pi";
+const REPO = "Linxira-OS/linxira-zeta";
 const PACKAGE = "@linxiraos/zeta";
 const HOMEBREW_FORMULA = "Linxira-OS/tap/zeta";
-const MISE_TOOL = "github:can1357/oh-my-pi";
+const MISE_TOOL = "github:Linxira-OS/linxira-zeta";
 const NIX_STORE_DIR = "/nix/store";
 const GITHUB_API = "https://api.github.com";
 const RELEASE_METADATA_TIMEOUT_MS = 30_000;
@@ -1226,23 +1226,26 @@ function getBinaryName(): string {
 
 /**
  * Resolve the path that `zeta-c` maps to in the user's PATH.
+ *
+ * Deliberately no fallback to `zeta`: that is the Zetawork workbench bin, and
+ * treating it as this package's launcher would target the wrong product for
+ * the update.
  */
 function resolveOmpPath(): string | undefined {
-	return $which(CLI_BIN_NAME) ?? $which(APP_NAME) ?? undefined;
+	return $which(CLI_BIN_NAME) ?? undefined;
 }
 
 /**
  * Parse the version a launcher reports from `zeta-c --version` output
- * (`zeta/X.Y.Z`, or a prerelease such as `zeta/X.Y.Z-canary.1`).
+ * (`zeta-c/X.Y.Z`, or a prerelease such as `zeta-c/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
  * verifies as up to date instead of appearing to report a stale `X.Y.Z` and
  * being mistaken for an unreplaced launcher.
  */
 export function parseReportedVersion(output: string): string | undefined {
-	if (!output.startsWith(`${CLI_BIN_NAME}/`) && !output.startsWith(`${APP_NAME}/`)) return undefined;
-	const prefixLen = output.startsWith(`${CLI_BIN_NAME}/`) ? CLI_BIN_NAME.length : APP_NAME.length;
-	return output.slice(prefixLen + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
+	if (!output.startsWith(`${CLI_BIN_NAME}/`)) return undefined;
+	return output.slice(CLI_BIN_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
 }
 
 async function reportedVersionAtPath(binaryPath: string): Promise<string | undefined> {
@@ -1297,7 +1300,7 @@ function printVerifiedVersion(expectedVersion: string, binaryPath?: string): voi
 
 function formatVerificationFailure(result: InstalledVersionVerification, expectedVersion: string): string {
 	if (result.actual) {
-		return `${APP_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
+		return `${CLI_BIN_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
 	}
 	return `could not verify updated version${result.path ? ` at ${result.path}` : ""}`;
 }
@@ -1445,7 +1448,7 @@ export async function replaceBinaryForUpdate(options: BinaryReplacementOptions):
 		const verification = await options.verifyInstalledVersion(options.expectedVersion);
 		if (!verification.ok) {
 			throw new Error(
-				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${APP_NAME} binary`,
+				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${CLI_BIN_NAME} binary`,
 			);
 		}
 
@@ -1820,7 +1823,7 @@ export async function updateViaManager(
 	}
 	console.log(
 		chalk.yellow(
-			`\n${steps.manager} did not install a working ${APP_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
+			`\n${steps.manager} did not install a working ${CLI_BIN_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
 		),
 	);
 	try {
@@ -1956,37 +1959,49 @@ export async function updateViaBinaryAt(
 		return result;
 	});
 	printVerifiedVersion(expectedVersion, verification.path ?? targetPath);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
- * renamed aside during a script-shim takeover; each execs the sibling
- * `omp.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * renamed aside during a script-shim takeover; each execs the sibling native
+ * exe. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
  */
 const SHIM_FORWARDERS: Record<string, string> = {
-	"": `#!/bin/sh\nexec "$(dirname "$0")/${APP_NAME}.exe" "$@"\n`,
-	".cmd": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".bat": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".ps1": `& "$PSScriptRoot\\${APP_NAME}.exe" @args\nexit $LASTEXITCODE\n`,
+	"": `#!/bin/sh\nexec "$(dirname "$0")/$BIN.exe" "$@"\n`,
+	".cmd": `@"%~dp0$BIN.exe" %*\r\n`,
+	".bat": `@"%~dp0$BIN.exe" %*\r\n`,
+	".ps1": `& "$PSScriptRoot\\$BIN.exe" @args\nexit $LASTEXITCODE\n`,
 };
+
+/** Every bin name `npm i -g @linxiraos/zeta` installs for this package. Never
+ * includes the bare `zeta`: that is the Zetawork workbench bin and must not be
+ * written, retired, or forwardered by this CLI's updater. */
+const OWN_LAUNCHER_STEMS = [CLI_BIN_NAME, "zeta-cli", "zetacode"];
+
+/** Stem (bin name) of a discovered launcher path: strip the shim extension. */
+function launcherStem(shimPath: string): string {
+	return path.basename(shimPath).replace(/\.(exe|cmd|ps1|bat)$/i, "");
+}
 
 /**
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`omp`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `omp.exe` beside them and
- * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
+ * (`zeta-c`/`zeta-c.cmd`/`zeta-c.ps1` and their `zeta-cli`/`zetacode` alias
+ * families) that cannot be overwritten with a native executable. The release
+ * binary is installed as `<bin>.exe` beside them and the shims are then
+ * renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every
  * step — the exe lands before any shim moves, a shim that refuses to move
  * (a running `.cmd` can be renamed but may be held open some other way) is
  * rewritten in place as a forwarder to the exe, and a failed version
- * verification moves everything back.
+ * verification moves everything back. Only this package's own bin names are
+ * touched — never the bare `zeta` workbench bin.
  */
 export async function updateViaShimTakeover(
 	shimPath: string,
@@ -2001,7 +2016,8 @@ export async function updateViaShimTakeover(
 ): Promise<void> {
 	const binaryName = options.binaryName ?? getBinaryName();
 	const launcherDir = path.dirname(shimPath);
-	const exePath = path.join(launcherDir, `${APP_NAME}.exe`);
+	const exeStem = launcherStem(shimPath);
+	const exePath = path.join(launcherDir, `${exeStem}.exe`);
 	const attempt = `${Date.now()}.${process.pid}.${updateAttemptSeq++}`;
 	const tempPath = `${exePath}.${attempt}.new`;
 	const asset = await getReleaseBinaryAsset(
@@ -2026,30 +2042,35 @@ export async function updateViaShimTakeover(
 	// never retire the same shims or reclaim a live run's backup before its
 	// verification can roll it back.
 	await withFileLock(exePath, async () => {
-		console.log(chalk.dim(`Installing ${APP_NAME}.exe beside the script launcher...`));
+		console.log(chalk.dim(`Installing ${exeStem}.exe beside the script launcher...`));
 		await fs.promises.rename(tempPath, exePath);
-		// Retire the shims so PATH resolution lands on the new exe. Renamed, not
-		// deleted: restorable on verification failure, and Windows permits
-		// renaming a batch file that is still executing. A shim that cannot be
-		// renamed (held open without delete sharing) is rewritten in place as a
-		// forwarder to the exe — write and rename take different Windows locks,
-		// so one can succeed where the other fails.
+		// Retire the shims so PATH resolution lands on the new exe. Every own
+		// alias family is retired, not just the discovered one: the aliases'
+		// script shims still launch the stale JS entry after a binary-only
+		// update. Renamed, not deleted: restorable on verification failure, and
+		// Windows permits renaming a batch file that is still executing. A shim
+		// that cannot be renamed (held open without delete sharing) is
+		// rewritten in place as a forwarder to the exe — write and rename take
+		// different Windows locks, so one can succeed where the other fails.
 		const backupSuffix = `${attempt}.bak`;
 		const retired: Array<{ launcher: string; backup: string }> = [];
-		for (const ext of ["", ".cmd", ".ps1", ".bat"]) {
-			const launcher = path.join(launcherDir, `${APP_NAME}${ext}`);
-			const backup = `${launcher}.${backupSuffix}`;
-			try {
-				await fs.promises.rename(launcher, backup);
-				retired.push({ launcher, backup });
-			} catch (err) {
-				if (isEnoent(err)) continue;
+		const stems = OWN_LAUNCHER_STEMS.includes(exeStem) ? OWN_LAUNCHER_STEMS : [exeStem, ...OWN_LAUNCHER_STEMS];
+		for (const stem of stems) {
+			for (const ext of ["", ".cmd", ".ps1", ".bat"]) {
+				const launcher = path.join(launcherDir, `${stem}${ext}`);
+				const backup = `${launcher}.${backupSuffix}`;
 				try {
-					const original = await Bun.file(launcher).text();
-					await Bun.write(launcher, SHIM_FORWARDERS[ext]);
-					forwarded.push({ launcher, original });
-				} catch {
-					stuck.push(launcher);
+					await fs.promises.rename(launcher, backup);
+					retired.push({ launcher, backup });
+				} catch (err) {
+					if (isEnoent(err)) continue;
+					try {
+						const original = await Bun.file(launcher).text();
+						await Bun.write(launcher, SHIM_FORWARDERS[ext].replaceAll("$BIN", stem));
+						forwarded.push({ launcher, original });
+					} catch {
+						stuck.push(launcher);
+					}
 				}
 			}
 		}
@@ -2072,15 +2093,17 @@ export async function updateViaShimTakeover(
 			}
 			await unlinkIfExists(exePath);
 			throw new Error(
-				`${formatVerificationFailure(verification, expectedVersion)}; restored previous ${APP_NAME} launcher`,
+				`${formatVerificationFailure(verification, expectedVersion)}; restored previous ${exeStem} launcher`,
 			);
 		}
 		for (const { backup } of retired) {
 			await removeBackupBestEffort(backup);
 		}
 		// Reclaim exe backups and retired-shim leftovers from earlier attempts.
-		for (const ext of [".exe", "", ".cmd", ".ps1", ".bat"]) {
-			await sweepStaleUpdateArtifacts(path.join(launcherDir, `${APP_NAME}${ext}`));
+		for (const stem of stems) {
+			for (const ext of [".exe", "", ".cmd", ".ps1", ".bat"]) {
+				await sweepStaleUpdateArtifacts(path.join(launcherDir, `${stem}${ext}`));
+			}
 		}
 	});
 	for (const { launcher } of forwarded) {
@@ -2094,7 +2117,7 @@ export async function updateViaShimTakeover(
 		);
 	}
 	printVerifiedVersion(expectedVersion);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
@@ -2204,7 +2227,7 @@ export async function runUpdateCommand(opts: {
 				// Reachable in forced mode only through a Windows script
 				// launcher resolved from PATH (the bun/npm bin-dir probes are
 				// skipped), so the launcher path is always known.
-				if (!target.path) throw new Error(`Could not resolve ${APP_NAME} launcher path in PATH`);
+				if (!target.path) throw new Error(`Could not resolve ${CLI_BIN_NAME} launcher path in PATH`);
 				console.log(chalk.dim("This release ships as a standalone binary; replacing the script launcher."));
 				await updateViaShimTakeover(target.path, release.version, { allowPrerelease });
 				console.log(
@@ -2246,10 +2269,10 @@ export async function runUpdateCommand(opts: {
  * Print update command help.
  */
 export function printUpdateHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} update`)} - Check for and install updates
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} update`)} - Check for and install updates
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} update [options]
+  ${CLI_BIN_NAME} update [options]
 
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
@@ -2259,10 +2282,10 @@ ${chalk.bold("Options:")}
   --stable        Switch back to the stable channel
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} update              Update to latest version
-  ${APP_NAME} update --check      Check if updates are available
-  ${APP_NAME} update --force      Force reinstall
-  ${APP_NAME} update -l           Update installed plugins
-  ${APP_NAME} update --canary    Switch to the canary channel and update
+  ${CLI_BIN_NAME} update              Update to latest version
+  ${CLI_BIN_NAME} update --check      Check if updates are available
+  ${CLI_BIN_NAME} update --force      Force reinstall
+  ${CLI_BIN_NAME} update -l           Update installed plugins
+  ${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
 `);
 }
