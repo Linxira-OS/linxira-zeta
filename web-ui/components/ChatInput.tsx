@@ -1426,13 +1426,17 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 		if (lvl === "auto" || !thinkingLevelMap) return lvl;
 		return thinkingLevelMap[lvl] ?? lvl;
 	})();
-	const contextUsagePercent = contextUsage?.percent != null ? Math.round(contextUsage.percent) : null;
+	// No real usage yet (fresh draft: tokens null/0) → hide rather than show a
+	// meaningless "0" ring; usable beats present.
+	const hasContextUsage =
+		contextUsage?.percent != null && contextUsage.percent > 0 && (contextUsage.tokens ?? 0) > 0;
+	const contextUsagePercent = hasContextUsage ? Math.round(contextUsage!.percent) : null;
 	const contextUsageTitle =
-		contextUsage && contextUsagePercent != null
+		hasContextUsage && contextUsagePercent != null
 			? t("chat.context-usage-detail", {
 					percent: contextUsagePercent,
-					tokens: formatTokenCount(contextUsage.tokens ?? 0),
-					limit: formatTokenCount(contextUsage.contextWindow),
+					tokens: formatTokenCount(contextUsage!.tokens ?? 0),
+					limit: formatTokenCount(contextUsage!.contextWindow),
 				})
 			: null;
 	const toolPresetLabel =
