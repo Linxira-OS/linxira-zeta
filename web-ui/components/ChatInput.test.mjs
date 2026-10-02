@@ -9,12 +9,10 @@ const jiti = createJiti(import.meta.url, {
   tsconfigPaths: true,
 });
 const { ChatInput, nextThinkingLevel } = await jiti.import("./ChatInput.tsx");
-// Absolute Windows-style path so jiti reuses the exact module instance that
-// ChatInput's own "@/hooks/useI18n" resolution caches (slash-form resolves to
-// a second copy whose context never sees this provider).
-const { I18nProvider } = await jiti.import(
-  "C:\\Users\\ETPau\\Documents\\GITHUB\\zeta-webui\\web-ui\\hooks\\useI18n.tsx",
-);
+// Alias-form import: resolves through the same jiti instance (and thus the
+// same module cache) as ChatInput's internal "@/hooks/useI18n", so the
+// provider context this test renders is the one ChatInput actually consumes.
+const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
 function renderWithLocales(element) {
   return renderToStaticMarkup(React.createElement(I18nProvider, null, element));
