@@ -68,7 +68,7 @@ describe("crew/team store", () => {
 		expect(profile.description).toContain("migrations");
 		expect(profile.approval?.labels).toContain("migration");
 		expect(profile.roles?.worker?.prompt).toContain("rollback path");
-		expect(fs.existsSync(path.join(cwd, ".pi", "messenger", "team", "team.json"))).toBe(true);
+		expect(fs.existsSync(path.join(cwd, ".zeta", "messenger", "team", "team.json"))).toBe(true);
 		expect(fs.existsSync(path.join(profilesDir, "migration-squad.json"))).toBe(true);
 		expect(teamStore.listProfiles().map(p => p.name)).toEqual(["migration-squad", "research-squad", "review-squad"]);
 	});
@@ -144,13 +144,13 @@ describe("crew/team store", () => {
 		expect(entry.type).toBe("decision");
 		expect(teamStore.listMemory(cwd, "decision")).toHaveLength(1);
 		expect(teamStore.memoryCounts(cwd).decision).toBe(1);
-		expect(fs.readFileSync(path.join(cwd, ".pi", "messenger", "team", "decisions.md"), "utf-8")).toContain(
+		expect(fs.readFileSync(path.join(cwd, ".zeta", "messenger", "team", "decisions.md"), "utf-8")).toContain(
 			"Use cursor pagination",
 		);
 	});
 
 	it("skips malformed memory JSONL entries", () => {
-		const memoryPath = path.join(cwd, ".pi", "messenger", "team", "memory.jsonl");
+		const memoryPath = path.join(cwd, ".zeta", "messenger", "team", "memory.jsonl");
 		fs.mkdirSync(path.dirname(memoryPath), { recursive: true });
 		fs.writeFileSync(
 			memoryPath,

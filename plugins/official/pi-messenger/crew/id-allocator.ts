@@ -6,13 +6,14 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getProjectCrewDir } from "../paths.ts";
 
 /**
  * Scans existing tasks to determine the next sequence number.
  * Returns task ID in format: task-N
  */
 export function allocateTaskId(cwd: string): string {
-	const tasksDir = path.join(cwd, ".pi", "messenger", "crew", "tasks");
+	const tasksDir = path.join(getProjectCrewDir(cwd), "tasks");
 
 	let maxN = 0;
 	if (fs.existsSync(tasksDir)) {

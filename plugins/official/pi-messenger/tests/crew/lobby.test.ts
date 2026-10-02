@@ -26,7 +26,7 @@ vi.mock("node:child_process", () => ({
 
 vi.mock("../../crew/store.ts", () => ({
 	getPlan: vi.fn(() => ({ prd: "docs/PRD.md" })),
-	getCrewDir: vi.fn((cwd: string) => `${cwd}/.pi/messenger/crew`),
+	getCrewDir: vi.fn((cwd: string) => `${cwd}/.zeta/messenger/crew`),
 	getTask: vi.fn(() => null),
 	getBaseCommit: vi.fn(() => "abc1234"),
 	updateTask: vi.fn(),
@@ -76,7 +76,7 @@ vi.mock("../../lib.ts", async () => {
 
 function createTestCwd(): string {
 	const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-messenger-lobby-test-"));
-	fs.mkdirSync(path.join(cwd, ".pi", "messenger", "crew"), { recursive: true });
+	fs.mkdirSync(path.join(cwd, ".zeta", "messenger", "crew"), { recursive: true });
 	return cwd;
 }
 
@@ -134,17 +134,15 @@ describe("lobby workers", () => {
 		expect(args[extensionIdx + 1]).toBe("custom-tool.js");
 	});
 
-	it("uses pi.cmd for lobby subprocesses on Windows", async () => {
-		const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
-		Object.defineProperty(process, "platform", { value: "win32" });
-		try {
-			lobby.spawnLobbyWorker("/test/cwd");
+	it("spawns lobby subprocesses via the resolved zeta CLI", async () => {
+		lobby.spawnLobbyWorker("/test/cwd");
 
-			const { spawn } = await import("node:child_process");
-			expect(vi.mocked(spawn).mock.calls[0][0]).toBe("pi.cmd");
-		} finally {
-			if (originalPlatform) Object.defineProperty(process, "platform", originalPlatform);
-		}
+		const { spawn } = await import("node:child_process");
+		const [cmd, args] = vi.mocked(spawn).mock.calls[0];
+		// Under the vitest/node runtime the resolver launches the current
+		// runtime with the CLI entry script — never the upstream pi binary.
+		expect(cmd).toBe(process.execPath);
+		expect(args[0]).toBe(process.argv[1]);
 	});
 
 	it("counts available lobby workers for a cwd", () => {
@@ -206,7 +204,7 @@ describe("lobby workers", () => {
 
 	it("assignTaskToLobbyWorker marks worker as assigned", () => {
 		const cwd = createTestCwd();
-		const inboxDir = path.join(cwd, ".pi", "messenger", "inbox");
+		const inboxDir = path.join(cwd, ".zeta", "messenger", "inbox");
 		const worker = lobby.spawnLobbyWorker(cwd)!;
 		expect(worker.assignedTaskId).toBeNull();
 
@@ -233,7 +231,7 @@ describe("lobby workers", () => {
 
 	it("manages keep-alive file lifecycle on spawn, assignment, direct assignment, and shutdown", async () => {
 		const cwd = createTestCwd();
-		const inboxDir = path.join(cwd, ".pi", "messenger", "inbox");
+		const inboxDir = path.join(cwd, ".zeta", "messenger", "inbox");
 
 		const worker = lobby.spawnLobbyWorker(cwd)!;
 		expect(worker.aliveFile).toBeTruthy();
@@ -286,7 +284,7 @@ describe("lobby workers", () => {
 
 	it("shutdownLobbyWorkers sweeps stale keep-alive files", () => {
 		const cwd = createTestCwd();
-		const staleAlive = path.join(cwd, ".pi", "messenger", "crew", "lobby-stale.alive");
+		const staleAlive = path.join(cwd, ".zeta", "messenger", "crew", "lobby-stale.alive");
 		fs.writeFileSync(staleAlive, "", { mode: 0o600 });
 		expect(fs.existsSync(staleAlive)).toBe(true);
 

@@ -45,7 +45,7 @@ function createTestState(agentName: string): MessengerState {
 }
 
 function createDirs(cwd: string): Dirs {
-	const base = path.join(cwd, ".pi", "messenger");
+	const base = path.join(cwd, ".zeta", "messenger");
 	const registry = path.join(base, "registry");
 	const inbox = path.join(base, "inbox");
 	fs.mkdirSync(registry, { recursive: true });

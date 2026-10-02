@@ -76,8 +76,8 @@ Create a plan:
 		} else {
 			text += `\n**Planning health:** active`;
 		}
-		text += `\n**Progress log:** .pi/messenger/crew/planning-progress.md`;
-		text += `\n**Outline:** .pi/messenger/crew/planning-outline.md`;
+		text += `\n**Progress log:** .zeta/messenger/crew/planning-progress.md`;
+		text += `\n**Outline:** .zeta/messenger/crew/planning-outline.md`;
 	}
 
 	text += `\n\n## Tasks\n`;
@@ -162,7 +162,7 @@ Create a plan:
 
 	text += `\n## Next`;
 	if (tasks.length === 0 && isPlanningForCwd(cwd)) {
-		text += `\nPlanning is in progress. Check .pi/messenger/crew/planning-progress.md for updates.`;
+		text += `\nPlanning is in progress. Check .zeta/messenger/crew/planning-progress.md for updates.`;
 	} else if (tasks.length === 0) {
 		text += `\nNo tasks yet. Run \`pi_messenger({ action: "plan" })\` to generate tasks from your PRD.`;
 	} else if (done.length === tasks.length) {

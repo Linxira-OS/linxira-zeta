@@ -6,7 +6,7 @@ import { createTempCrewDirs, type TempCrewDirs } from "../helpers/temp-dirs.ts";
 import { createMockContext } from "../helpers/mock-context.ts";
 
 function writeWorkerAgent(cwd: string): void {
-	const filePath = path.join(cwd, ".pi", "messenger", "crew", "agents", "crew-worker.md");
+	const filePath = path.join(cwd, ".zeta", "messenger", "crew", "agents", "crew-worker.md");
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(
 		filePath,
@@ -21,7 +21,7 @@ You are a worker.
 }
 
 function createDirs(cwd: string) {
-	const base = path.join(cwd, ".pi", "messenger");
+	const base = path.join(cwd, ".zeta", "messenger");
 	const registry = path.join(base, "registry");
 	const inbox = path.join(base, "inbox");
 	fs.mkdirSync(registry, { recursive: true });
