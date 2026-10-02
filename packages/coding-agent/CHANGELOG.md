@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Models already configured in upstream OMP (`~/.omp/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
+
 ## [1.1.23] - 2026-10-01
 
 ## [1.1.22] - 2026-09-30

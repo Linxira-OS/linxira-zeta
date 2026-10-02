@@ -277,6 +277,7 @@ export const enLocale: LocalePlugin = {
 		"models.delete": "Delete",
 		"models.providerName": "Provider name",
 		"models.rename": "Rename",
+		"models.originOmp": "From OMP",
 		"models.loading": "Loading…",
 		"models.newModel": "new model",
 		"models.model": "model",
