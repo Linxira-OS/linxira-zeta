@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Skills in nested router trees (up to 3 levels, e.g. `.agents/skills` router → category → leaf) are now all discoverable, and `skills.enableOfficial` actually toggles the bundled official skills.
+
+### Fixed
+- npm source installs no longer silently miss the bundled official skills, and reseeding the official-skills embed prunes stale files.
+
 ## [1.1.23] - 2026-10-01
 
 ## [1.1.22] - 2026-09-30
