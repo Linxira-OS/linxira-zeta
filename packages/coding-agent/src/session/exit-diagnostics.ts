@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import type { SessionEntry } from "./session-entries";
 
@@ -161,9 +162,44 @@ export function createInterruptedTurnAbortMessage(
 			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 		},
 		stopReason: "aborted",
-		errorMessage: "Previous OMP process exited before completing the turn.",
+		errorMessage: "Previous ZETA process exited before completing the turn.",
 		timestamp: Number.isFinite(recordedAt) ? recordedAt : Date.now(),
 	};
+}
+
+/** Pairs the last interrupted assistant turn's unresolved calls before resume builds model context. */
+export function createInterruptedToolResults(entries: readonly SessionEntry[]): ToolResultMessage[] {
+	let tail: AgentMessage | undefined;
+	let assistant: AssistantMessage | undefined;
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index];
+		if (entry?.type !== "message") continue;
+		tail ??= entry.message;
+		if (entry.message.role === "assistant") {
+			assistant = entry.message;
+			break;
+		}
+	}
+	if (!assistant || (tail?.role !== "assistant" && tail?.role !== "toolResult")) return [];
+	const pendingIds = new Set(collectPendingToolCalls(entries).map(call => call.toolCallId));
+	const results: ToolResultMessage[] = [];
+	for (const call of assistant.content) {
+		if (call.type !== "toolCall" || !pendingIds.has(call.id)) continue;
+		results.push({
+			role: "toolResult",
+			toolCallId: call.id,
+			toolName: call.name,
+			content: [
+				{
+					type: "text",
+					text: "Previous ZETA process exited before this tool returned; its outcome is unknown.",
+				},
+			],
+			isError: true,
+			timestamp: Date.now(),
+		});
+	}
+	return results;
 }
 
 function isToolCallContent(value: unknown): value is ToolCallContent {
@@ -306,5 +342,5 @@ export function describePendingToolCalls(entries: readonly SessionEntry[]): stri
 	if (pending.length === 0) return undefined;
 	const formatted = pending.map(formatPendingToolCall).join(", ");
 	const noun = pending.length === 1 ? "tool call" : "tool calls";
-	return `Previous session ended while ${pending.length} ${noun} remained pending: ${formatted}. The prior OMP process exited before recording tool result(s).`;
+	return `Previous session ended while ${pending.length} ${noun} remained pending: ${formatted}. The prior ZETA process exited before recording tool result(s).`;
 }

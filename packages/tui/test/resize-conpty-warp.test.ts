@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { type TerminalFramePlan, type TerminalFrameProvider, TUI, type ViewportSize } from "@linxiraos/pi-tui";
+import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Regression coverage for a resize on Warp under Windows ConPTY leaving the
@@ -9,7 +11,7 @@ import { VirtualTerminal } from "./virtual-terminal";
 // The in-place resize path is default-on for Warp: it never borrows the alt
 // buffer, skips the ResizeScrollbackMode replay, and instead anchors one settled
 // repaint on a DSR (CSI 6n) round trip against a parked cursor. Both halves of
-// that contract are false under ConPTY, measured on conhost with omp 18.1.15
+// that contract are false under ConPTY, measured on conhost with zeta 18.1.15
 // (`PtySession` at 80x24, cursor parked at row 5 column 20):
 //
 //   - resizing the pseudoconsole makes conhost re-emit its own viewport from
@@ -27,8 +29,6 @@ const ALT_ENTER = "\x1b[?1049h";
 const ED3 = "\x1b[3J";
 const DSR = "\x1b[6n";
 const COMMITTED = ["committed-0", "committed-1", "committed-2"];
-
-const TERMINAL_ENV = ["TERM", "TERM_PROGRAM", "PI_TUI_RESIZE_IN_PLACE", "TMUX", "STY", "ZELLIJ", "HERDR_ENV"] as const;
 
 /**
  * Windows ConPTY host: answers DSR from its own re-homed cursor (column 1
@@ -118,25 +118,12 @@ function startRig() {
 	return { terminal, tui, provider, renderScheduler, writes };
 }
 
-describe("resize on Warp hosted by Windows ConPTY", () => {
-	let saved: Record<string, string | undefined> = {};
+withoutTerminalMultiplexer();
 
+describe("resize on Warp hosted by Windows ConPTY", () => {
 	beforeEach(() => {
-		saved = {};
-		for (const key of TERMINAL_ENV) {
-			saved[key] = Bun.env[key];
-			delete Bun.env[key];
-		}
 		Bun.env.TERM = "xterm-256color";
 		Bun.env.TERM_PROGRAM = "WarpTerminal";
-	});
-
-	afterEach(() => {
-		for (const key of TERMINAL_ENV) {
-			if (saved[key] === undefined) delete Bun.env[key];
-			else Bun.env[key] = saved[key];
-		}
-		saved = {};
 	});
 
 	it("rebuilds the transcript instead of anchoring a repaint conhost already overwrote", async () => {

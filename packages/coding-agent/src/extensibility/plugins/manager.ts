@@ -11,6 +11,7 @@ import {
 	isEnoent,
 	logger,
 } from "@linxiraos/pi-utils";
+import { JSONC } from "bun";
 import { resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { loadExtensions } from "../extensions/loader";
 import { refreshBunGitCache } from "./bun-git-cache";
@@ -95,6 +96,24 @@ function findGitPackageName(source: GitSource, deps: Record<string, string>): st
 	return undefined;
 }
 
+/**
+ * Read a plugin's resolved identity from `plugins/bun.lock` — e.g.
+ * `ida-mcp@github:HexRaysSA/ida-mcp#<commit>` for git sources, `foo@1.2.3` for
+ * npm. Returns `undefined` when the lockfile or the entry is missing.
+ */
+async function readBunLockResolution(name: string): Promise<string | undefined> {
+	let text: string;
+	try {
+		text = await Bun.file(path.join(getPluginsDir(), "bun.lock")).text();
+	} catch (err) {
+		if (isEnoent(err)) return undefined;
+		throw err;
+	}
+	const lock = JSONC.parse(text) as { packages?: Record<string, unknown> } | null;
+	const entry = lock?.packages?.[name];
+	return Array.isArray(entry) && typeof entry[0] === "string" ? entry[0] : undefined;
+}
+
 interface PluginPackageSnapshot {
 	readonly actualName: string;
 	readonly packagePath: string;
@@ -105,7 +124,7 @@ interface PluginPackageSnapshot {
 interface RuntimePackageJson {
 	name?: unknown;
 	version: string;
-	omp?: PluginManifest;
+	zeta?: PluginManifest;
 	pi?: PluginManifest;
 }
 // =============================================================================
@@ -180,7 +199,7 @@ export class PluginManager {
 					pkgJsonPath,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {},
 						},
@@ -253,7 +272,7 @@ export class PluginManager {
 		}
 
 		const name = typeof pluginPkg.name === "string" && pluginPkg.name.length > 0 ? pluginPkg.name : fallbackName;
-		const manifest: PluginManifest = pluginPkg.omp || pluginPkg.pi || { version: pluginPkg.version };
+		const manifest: PluginManifest = pluginPkg.zeta || pluginPkg.pi || { version: pluginPkg.version };
 		manifest.version = pluginPkg.version;
 		const runtimeState = config.plugins[name] || {
 			version: pluginPkg.version,
@@ -344,7 +363,7 @@ export class PluginManager {
 			throw err;
 		}
 
-		const backupRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-plugin-backup-"));
+		const backupRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-backup-"));
 		const backupPath = path.join(backupRoot, "package");
 		await fs.promises.cp(packagePath, backupPath, { recursive: true, verbatimSymlinks: true });
 		return { actualName, packagePath, backupRoot, backupPath };
@@ -610,7 +629,7 @@ export class PluginManager {
 			}
 
 			const pkgPath = path.join(getPluginsNodeModules(), actualName, "package.json");
-			let pkg: { name: string; version: string; omp?: PluginManifest; pi?: PluginManifest };
+			let pkg: { name: string; version: string; zeta?: PluginManifest; pi?: PluginManifest };
 			try {
 				pkg = await Bun.file(pkgPath).json();
 			} catch (err) {
@@ -619,7 +638,7 @@ export class PluginManager {
 				}
 				throw err;
 			}
-			const manifest: PluginManifest = pkg.omp || pkg.pi || { version: pkg.version };
+			const manifest: PluginManifest = pkg.zeta || pkg.pi || { version: pkg.version };
 			manifest.version = pkg.version;
 
 			// Resolve enabled features
@@ -647,13 +666,21 @@ export class PluginManager {
 			}
 			// null = use defaults
 
+			let enabled = true;
+			if (options.preserveState) {
+				const available = manifest.features;
+				const preserved = options.preserveState.enabledFeatures;
+				enabledFeatures = preserved && available ? preserved.filter(feature => feature in available) : preserved;
+				enabled = options.preserveState.enabled;
+			}
+
 			const installedPlugin: InstalledPlugin = {
 				name: pkg.name,
 				version: pkg.version,
 				path: path.join(getPluginsNodeModules(), actualName),
 				manifest,
 				enabledFeatures,
-				enabled: true,
+				enabled,
 			};
 
 			await this.#validateInstalledExtensions(installedPlugin);
@@ -663,7 +690,7 @@ export class PluginManager {
 			config.plugins[pkg.name] = {
 				version: pkg.version,
 				enabledFeatures,
-				enabled: true,
+				enabled,
 			};
 			await this.#saveRuntimeConfig();
 
@@ -685,6 +712,54 @@ export class PluginManager {
 		} finally {
 			await this.#cleanupSnapshot(packageSnapshot);
 		}
+	}
+
+	/**
+	 * Upgrade an installed npm or git plugin by re-installing it from the source
+	 * recorded in `plugins/package.json`: git plugins re-resolve their recorded
+	 * ref, npm plugins move to the latest published version. The enabled state
+	 * and feature selection survive the upgrade.
+	 *
+	 * @returns The previously installed version, the upgraded plugin, and whether
+	 * anything changed — a git plugin on a moving ref can pick up new commits
+	 * without bumping its `package.json` version, so this also compares the
+	 * `bun.lock` resolution.
+	 */
+	async upgrade(name: string): Promise<{ from: string | undefined; plugin: InstalledPlugin; changed: boolean }> {
+		validatePackageName(name);
+		const deps = await this.#readDeps(getPluginsPackageJson());
+		const config = await this.#ensureConfigLoaded();
+		const recorded = deps[name];
+		if (recorded === undefined) {
+			if (config.plugins[name]) {
+				throw new Error(`${name} is linked from a local path; there is nothing to upgrade`);
+			}
+			throw new Error(`${name} is not installed`);
+		}
+		if (/^(file|link|workspace|portal):/i.test(recorded)) {
+			throw new Error(`${name} is installed from a local path (${recorded}); there is nothing to upgrade`);
+		}
+
+		const previous = config.plugins[name];
+		let from = previous?.version;
+		try {
+			const pkg: { version?: unknown } = await Bun.file(
+				path.join(getPluginsNodeModules(), name, "package.json"),
+			).json();
+			if (typeof pkg.version === "string") from = pkg.version;
+		} catch (err) {
+			if (!isEnoent(err)) throw err;
+		}
+
+		const resolutionBefore = await readBunLockResolution(name);
+		const source = parseGitUrl(recorded) ? recorded : name;
+		const plugin = await this.install(
+			source,
+			previous ? { preserveState: { enabled: previous.enabled, enabledFeatures: previous.enabledFeatures } } : {},
+		);
+		const resolutionAfter = await readBunLockResolution(name);
+		const changed = from !== plugin.version || resolutionBefore !== resolutionAfter;
+		return { from, plugin, changed };
 	}
 
 	/**
@@ -755,7 +830,7 @@ export class PluginManager {
 	 * (`<anchor>/.zeta/plugins`). Project npm/link/marketplace installs all record
 	 * their runtime state and `node_modules` symlink there — invisible to the
 	 * user-root lookup — so this reads the project's own `package.json`
-	 * dependencies plus `omp-plugins.lock.json`, and resolves the package from
+	 * dependencies plus `zeta-plugins.lock.json`, and resolves the package from
 	 * the project `node_modules`. Returns undefined when there is no active
 	 * project, when it coincides with the user root, or when the package is not
 	 * installed there.
@@ -770,7 +845,7 @@ export class PluginManager {
 		if (path.resolve(projectRoot) === path.resolve(getPluginsDir())) return undefined;
 		const [projectDeps, projectConfig] = await Promise.all([
 			this.#readDeps(path.join(projectRoot, "package.json")),
-			this.#readRuntimeConfigAt(path.join(projectRoot, "omp-plugins.lock.json")),
+			this.#readRuntimeConfigAt(path.join(projectRoot, "zeta-plugins.lock.json")),
 		]);
 		if (!this.#collectInstalledNames(projectDeps, projectConfig).has(name)) return undefined;
 		return this.#resolvePlugin(name, path.join(projectRoot, "node_modules", name), projectConfig, projectOverrides);
@@ -815,7 +890,7 @@ export class PluginManager {
 		const absolutePath = path.resolve(this.#cwd, localPath);
 
 		const pkgFilePath = path.join(absolutePath, "package.json");
-		let pkg: { name?: string; version: string; omp?: PluginManifest; pi?: PluginManifest };
+		let pkg: { name?: string; version: string; zeta?: PluginManifest; pi?: PluginManifest };
 		try {
 			pkg = await Bun.file(pkgFilePath).json();
 		} catch (err) {
@@ -845,7 +920,7 @@ export class PluginManager {
 		// link in marketplace/manager.ts).
 		await fs.promises.symlink(absolutePath, linkPath, process.platform === "win32" ? "junction" : "dir");
 
-		const manifest: PluginManifest = pkg.omp || pkg.pi || { version: pkg.version };
+		const manifest: PluginManifest = pkg.zeta || pkg.pi || { version: pkg.version };
 		manifest.version = pkg.version;
 
 		// Add to runtime config
@@ -1023,7 +1098,7 @@ export class PluginManager {
 			const pluginPkgPath = path.join(pluginPath, "package.json");
 			const fromDependencies = name in deps;
 
-			let pluginPkg: { version: string; description?: string; omp?: PluginManifest; pi?: PluginManifest };
+			let pluginPkg: { version: string; description?: string; zeta?: PluginManifest; pi?: PluginManifest };
 			try {
 				pluginPkg = await Bun.file(pluginPkgPath).json();
 			} catch (err) {
@@ -1083,15 +1158,15 @@ export class PluginManager {
 				}
 			}
 
-			const hasManifest = !!(pluginPkg.omp || pluginPkg.pi);
-			const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
+			const hasManifest = !!(pluginPkg.zeta || pluginPkg.pi);
+			const manifest: PluginManifest | undefined = pluginPkg.zeta || pluginPkg.pi;
 
 			checks.push({
 				name: `plugin:${name}`,
 				status: hasManifest ? "ok" : "warning",
 				message: hasManifest
 					? `v${pluginPkg.version}${pluginPkg.description ? ` - ${pluginPkg.description}` : ""}`
-					: `v${pluginPkg.version} - No omp/pi manifest (not an omp plugin)`,
+					: `v${pluginPkg.version} - No zeta/pi manifest (not an zeta-c plugin)`,
 			});
 
 			// Check tools path exists if specified

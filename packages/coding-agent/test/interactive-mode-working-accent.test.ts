@@ -3,6 +3,7 @@ import { stripVTControlCharacters } from "node:util";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import { Loader, type WorkingRowSpec } from "@linxiraos/pi-tui";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
@@ -221,5 +222,28 @@ describe("InteractiveMode working activity", () => {
 		expect(mode.statusContainer.children).toContain(loader);
 		expect(loader.debugState()).toMatchObject({ running: true });
 		loader.stop();
+	});
+
+	it("keeps the run's elapsed origin when a focus switch recreates the loader", async () => {
+		const { mode } = await createHarness("Focus round-trip session");
+		const runStartedAt = Date.now() - 90_000;
+		Object.defineProperty(mode.session, "runStartedAt", { configurable: true, value: runStartedAt });
+		const specs: (() => WorkingRowSpec)[] = [];
+		vi.spyOn(Loader.prototype, "setWorkingRow").mockImplementation(spec => {
+			specs.push(spec);
+		});
+
+		try {
+			mode.ensureLoadingAnimation();
+			// Session focus attach drops the loader, then synthesizes `agent_start`.
+			mode.clearTransientSessionUi();
+			mode.ensureLoadingAnimation();
+
+			expect(specs).toHaveLength(2);
+			expect(specs.map(spec => spec().startedAt)).toEqual([runStartedAt, runStartedAt]);
+		} finally {
+			mode.loadingAnimation?.stop();
+			Reflect.deleteProperty(mode.session, "runStartedAt");
+		}
 	});
 });

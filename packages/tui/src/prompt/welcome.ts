@@ -3,7 +3,6 @@ import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
 import { getKeybindings, type Keybinding } from "../keybindings";
-import { registerNativeBlob } from "../native/blobs";
 import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";
@@ -177,7 +176,7 @@ export interface LspServerInfo {
 }
 
 /**
- * Premium welcome screen with block-based OMP logo and two-column layout.
+ * Premium welcome screen with block-based ZETA logo and two-column layout.
  */
 export class WelcomeComponent implements Component {
 	#animStart: number | null = null;
@@ -220,10 +219,10 @@ export class WelcomeComponent implements Component {
 	}
 
 	/**
-	 * A `card` (`omp.welcome`) titled with the app version. The brand column
-	 * (`omp.welcome.brand`: greeting, the animated SVG mark, model, provider) sits
-	 * beside the info column (`omp.welcome.info`: prompt-sigil keycaps, LSP
-	 * servers, recent sessions); the tip of the session closes the card. Roles
+	 * A `card` (`zeta.welcome`) titled with the app version. The brand column
+	 * (`zeta.welcome.brand`: greeting and the terminal's builtin `zeta` mark, which
+	 * it animates) sits beside the info column (`zeta.welcome.info`: prompt-sigil
+	 * keycaps, LSP servers, recent sessions); the tip of the session closes the card. Roles
 	 * carry the look (gradient logo, type scale, column hairline); a "[NEW]" tip
 	 * carries a terminal-clocked shimmering tag.
 	 */
@@ -238,37 +237,35 @@ export class WelcomeComponent implements Component {
 		const brand = keyed(
 			col(
 				[
-					art([span("Welcome back!", "strong")], "omp.welcome.greeting"),
+					art([span("Welcome back!", "strong")], "zeta.welcome.greeting"),
 					node(
 						"image",
 						{
-							blob: welcomeLogoBlob(),
+							builtin: "zeta",
 							alt: APP_NAME,
 							w: 128,
-							role: "omp.welcome.logo",
+							role: "zeta.welcome.logo",
 						},
 						undefined,
 						"logo",
 					),
-					art([span(plainLine(this.modelName), "accent")], "omp.welcome.model"),
-					art([span(plainLine(this.providerName), "muted")], "omp.welcome.provider"),
 				],
-				{ align: "center", role: "omp.welcome.brand" },
+				{ align: "center", role: "zeta.welcome.brand" },
 			),
 			"brand",
 		);
 		const section = (key: string, label: string, rows: readonly NativeChild[]): NativeNode =>
 			keyed(
-				col([line([span(label, "dim")], "omp.welcome.heading"), ...rows], {
+				col([line([span(label, "dim")], "zeta.welcome.heading"), ...rows], {
 					gap: "xs",
-					role: `omp.welcome.${key}`,
+					role: `zeta.welcome.${key}`,
 				}),
 				key,
 			);
 		const shortcut = (key: string, label: string): NativeNode =>
 			keyed(row([kbd(key), line([span(label, "muted")])], { gap: "sm" }), label);
 		const info: NativeChild[] = [
-			line([span(this.version, "dim mono")], "omp.welcome.version"),
+			line([span(this.version, "dim mono")], "zeta.welcome.version"),
 			section("tips", "Tips", [
 				shortcut("#", "prompt actions"),
 				shortcut("/", "commands"),
@@ -292,13 +289,13 @@ export class WelcomeComponent implements Component {
 					keyed(
 						row(
 							[
-								text([span("●", token)], { role: "omp.welcome.lsp-dot", title: server.status, aria: symbol }),
+								text([span("●", token)], { role: "zeta.welcome.lsp-dot", title: server.status, aria: symbol }),
 								line([span(server.name)]),
 								...server.fileTypes
 									.slice(0, 3)
-									.map(type => node("badge", { text: type, role: "omp.welcome.lsp-type" }, undefined, type)),
+									.map(type => node("badge", { text: type, role: "zeta.welcome.lsp-type" }, undefined, type)),
 							],
-							{ gap: "sm", role: "omp.welcome.lsp-row" },
+							{ gap: "sm", role: "zeta.welcome.lsp-row" },
 						),
 						server.name,
 					),
@@ -313,13 +310,13 @@ export class WelcomeComponent implements Component {
 				keyed(
 					row(
 						[
-							line([span(plainLine(session.name))], "omp.welcome.session"),
-							line([span(session.timeAgo, "dim")], "omp.welcome.age"),
+							line([span(plainLine(session.name))], "zeta.welcome.session"),
+							line([span(session.timeAgo, "dim")], "zeta.welcome.age"),
 						],
 						{
 							gap: "md",
 							justify: "between",
-							role: "omp.welcome.recent",
+							role: "zeta.welcome.recent",
 							actions: session.path ? { click: "resume" } : undefined,
 							title: session.path ? `Resume ${plainLine(session.name)}` : undefined,
 						},
@@ -331,10 +328,10 @@ export class WelcomeComponent implements Component {
 		info.push(section("recents", "Recent sessions", recents));
 		const body: NativeChild[] = [
 			keyed(
-				row([brand, keyed(col(info, { gap: "md", role: "omp.welcome.info" }), "info")], {
+				row([brand, keyed(col(info, { gap: "md", role: "zeta.welcome.info" }), "info")], {
 					align: "start",
 					wrap: true,
-					role: "omp.welcome.grid",
+					role: "zeta.welcome.grid",
 				}),
 				"grid",
 			),
@@ -343,14 +340,14 @@ export class WelcomeComponent implements Component {
 			const isNew = NEW_TIP_MARKER.test(tip);
 			const tipText = plainLine(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
 			const tipRow: NativeChild[] = [
-				node("icon", { name: "lightbulb", role: "omp.welcome.tip-icon" }),
-				text(tipText, { wrap: "word", role: "omp.welcome.tip-text" }),
+				node("icon", { name: "lightbulb", role: "zeta.welcome.tip-icon" }),
+				text(tipText, { wrap: "word", role: "zeta.welcome.tip-text" }),
 			];
-			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "omp.welcome.new" }));
-			body.push(node("row", { gap: "sm", align: "start", role: "omp.welcome.tip" }, tipRow, "tip"));
+			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "zeta.welcome.new" }));
+			body.push(node("row", { gap: "sm", align: "start", role: "zeta.welcome.tip" }, tipRow, "tip"));
 		}
 		// No head row or chevron: the card is the hero; the version sits in the info column.
-		const described = card({ role: "omp.welcome" }, body);
+		const described = card({ role: "zeta.welcome" }, body);
 		this.#native = { tip, node: described };
 		return described;
 	}
@@ -719,7 +716,7 @@ export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode
 				wrap: "none",
 			}),
 		),
-		{ align: "center", role: "omp.setup.logo" },
+		{ align: "center", role: "zeta.setup.logo" },
 	);
 }
 

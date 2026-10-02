@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { TempDir } from "@linxiraos/pi-utils";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import * as evalIndex from "@linxiraos/zeta/eval";
 import * as pyKernel from "@linxiraos/zeta/eval/py/kernel";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -181,7 +182,7 @@ describe("EvalTool display() text surfacing", () => {
 	});
 
 	it("keeps oversized display details bounded and spills the full value to the artifact", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-display-");
+		using tempDir = TempDir.createSync("@zeta-eval-display-");
 		const artifactPath = tempDir.join("eval.log");
 		const huge = `start-${"x".repeat(100_000)}-end`;
 		vi.spyOn(pyKernel, "checkPythonKernelAvailability").mockResolvedValue({ ok: true });
@@ -230,7 +231,7 @@ describe("EvalTool display() text surfacing", () => {
 	});
 
 	it("restores the full display value when the artifact write fails", async () => {
-		using tempDir = TempDir.createSync("@omp-eval-display-fail-");
+		using tempDir = TempDir.createSync("@zeta-eval-display-fail-");
 		// Parent directory is never created, so the spill FileSink cannot open —
 		// OutputSink swallows the error, so persistence must be treated as
 		// unconfirmed and the full value restored into details.
@@ -255,5 +256,37 @@ describe("EvalTool display() text surfacing", () => {
 		expect(await Bun.file(artifactPath).exists()).toBe(false);
 		expect(result.details?.jsonOutputs?.[0]).toEqual({ payload: huge });
 		expect(result.details?.meta?.truncation?.artifactId).toBeUndefined();
+	});
+
+	it("restores the full display value when the artifact cap cut the spill", async () => {
+		using tempDir = TempDir.createSync("@zeta-eval-display-capped-");
+		const artifactPath = tempDir.join("eval.log");
+		// 3 MiB spill against a 1 MB artifact cap: the middle of the value is
+		// never written, so the artifact cannot stand in for it.
+		const huge = `start-${"x".repeat(3 * 1024 * 1024)}-end`;
+		vi.spyOn(pyKernel, "checkPythonKernelAvailability").mockResolvedValue({ ok: true });
+		vi.spyOn(evalIndex.jsBackend, "execute").mockResolvedValue(
+			baseResult({
+				displayOutputs: [{ type: "json", data: { payload: huge } }],
+			}) as never,
+		);
+
+		const tool = new EvalTool({
+			...makeSession(),
+			settings: Settings.isolated({ "tools.artifactMaxBytes": 1 }),
+			allocateOutputArtifact: async () => ({ id: "capped-display", path: artifactPath }),
+		});
+		const result = await tool.execute("call-huge-capped-spill", {
+			language: "js",
+			code: "display({ payload: huge });",
+		});
+
+		expect(await Bun.file(artifactPath).text()).toContain("[ARTIFACT TRUNCATED:");
+		expect(result.details?.jsonOutputs?.[0]).toEqual({ payload: huge });
+		expect(result.details?.meta?.truncation?.artifactId).toBe("capped-display");
+		expect(result.details?.meta?.truncation?.artifactElidedBytes).toBeGreaterThan(0);
+		const notice = formatOutputNotice(result.details?.meta);
+		expect(notice).toContain("Read artifact://capped-display for a head/tail sample of the output");
+		expect(notice).not.toContain("for full output");
 	});
 });

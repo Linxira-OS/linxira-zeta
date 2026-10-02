@@ -340,7 +340,7 @@ const RESERVED_TOP_LEVEL_WORDS: Record<string, string> = {
 	discover:
 		'`zeta-c discover` is not a top-level command. Use `zeta-c plugin discover [marketplace]` to browse available plugins, or run `zeta-c launch discover` if you meant to send "discover" as a prompt.',
 	upgrade:
-		'`zeta-c upgrade` is not a top-level command. Use `zeta-c plugin upgrade [name@marketplace]` to upgrade plugins, or run `zeta-c launch upgrade` if you meant to send "upgrade" as a prompt.',
+		'`zeta-c upgrade` is not a top-level command. Use `zeta-c plugin upgrade [name]` to upgrade plugins, or run `zeta-c launch upgrade` if you meant to send "upgrade" as a prompt.',
 	enable:
 		'`zeta-c enable` is not a top-level command. Use `zeta-c plugin enable <name@marketplace>` to enable a plugin, or run `zeta-c launch enable` if you meant to send "enable" as a prompt.',
 	disable:

@@ -15,6 +15,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createVideoPreviewImage, videoPreviewSource } from "@linxiraos/pi-tui/prompt/video";
 import { createVideoPreviewImage } from "@linxiraos/pi-tui/prompt/video";
 
 const TINY_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
@@ -110,4 +111,23 @@ describe("AgentSession video attachments", () => {
 			expect.objectContaining({ role: "user", content: [{ type: "text", text: "start" }] }),
 		]);
 	});
+
+	for (const operation of ["pop", "clear"] as const) {
+		it(`${operation} removes a queued video's hidden path with the restored prompt`, async () => {
+			if (!session) throw new Error("Session was not initialized");
+			const preview = createVideoPreviewImage({ type: "image", data: TINY_PNG, mimeType: "image/png" }, SOURCE_PATH);
+			await session.followUp("Review [Video #1]", [preview]);
+
+			const restored = operation === "pop" ? session.popLastQueuedMessage() : session.clearQueue().followUp[0];
+			expect(restored?.text).toBe("Review [Video #1]");
+			expect(restored?.images).toHaveLength(1);
+			expect(videoPreviewSource(restored!.images![0])).toBe(SOURCE_PATH);
+
+			await session.prompt("New request");
+			expect(JSON.stringify(session.messages)).not.toContain(SOURCE_PATH);
+			expect(session.messages.filter(message => message.role === "user").map(message => message.content)).toEqual([
+				[{ type: "text", text: "New request" }],
+			]);
+		});
+	}
 });

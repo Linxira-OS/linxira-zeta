@@ -3,8 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { ShellMinimizerSettings } from "@linxiraos/zeta/exec/settings";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
@@ -15,8 +16,11 @@ import * as direnvModule from "@linxiraos/zeta/exec/direnv";
 import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-tui/tools/streaming-output";
 import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
 import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
-import * as piNatives from "@linxiraos/pi-natives";
 import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import * as piNatives from "@linxiraos/pi-natives";
+import { $which, removeSyncWithRetries } from "@linxiraos/pi-utils";
+
+import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 import { type ShellMinimizerSettings, cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
@@ -621,9 +625,10 @@ exit 64
 
 		// Redirect the backgrounded job's stdout so it doesn't hold the executor's
 		// output pipe open (which would add the ~250ms background-drain grace);
-		// `$!` still reports the real external PID, which is all this test checks.
-		const sleepBin = fs.existsSync("/bin/sleep") ? "/bin/sleep" : "sleep";
-		const result = await executeBash(`${sleepBin} 30 >/dev/null 2>&1 & echo $!`, {
+		// `$!` reports the real external PID, which is all this test checks.
+		const sleepBin = $which("sleep");
+		if (!sleepBin) throw new Error("sleep executable not found");
+		const result = await executeBash(`${shellQuote(sleepBin)} 30 >/dev/null 2>&1 & echo $!`, {
 			cwd: tempDir,
 			timeout: 5000,
 		});
@@ -1356,19 +1361,23 @@ describe("executeBash :async: background retention", () => {
 		"keeps a per-job :async: shell's plain-`&` background process alive across turns",
 		async () => {
 			const pidFile = path.join(tmp, "pid");
-			const sleepBin = fs.existsSync("/bin/sleep") ? "/bin/sleep" : "sleep";
+			const sleepBin = $which("sleep");
+			if (!sleepBin) throw new Error("sleep executable not found");
 			let pid: number | undefined;
 			try {
 				// A per-job `:async:` key: its shell is removed from the reuse map at
 				// teardown, which would SIGKILL the backgrounded child (kill-on-drop).
 				// A plain `&` job stays a child of the shell, so `liveBackgroundJobCount`
 				// sees it and the retain logic keeps the shell alive while the child
-				// runs. `$!` is the external child's own pid (no transparent wrapper to
-				// unwrap), so it is the process we assert on.
-				const res = await executeBash(`${sleepBin} 30 >/dev/null 2>&1 & echo $! > ${shellQuote(pidFile)}`, {
-					sessionKey: "retain-probe:async:job1",
-					cwd: tmp,
-				});
+				// runs. `$!` is the external child's own pid (no transparent wrapper
+				// to unwrap), so it is the process we assert on.
+				const res = await executeBash(
+					`${shellQuote(sleepBin)} 30 >/dev/null 2>&1 & echo $! > ${shellQuote(pidFile)}`,
+					{
+						sessionKey: "retain-probe:async:job1",
+						cwd: tmp,
+					},
+				);
 				expect(res.cancelled).toBe(false);
 				pid = Number.parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
 				expect(Number.isInteger(pid)).toBe(true);
@@ -1397,7 +1406,8 @@ describe("executeBash :async: background retention", () => {
 		"keeps a nohup-detached background process alive across turns (reparenting)",
 		async () => {
 			const pidFile = path.join(tmp, "nohup-pid");
-			const sleepBin = fs.existsSync("/bin/sleep") ? "/bin/sleep" : "sleep";
+			const sleepBin = $which("sleep");
+			if (!sleepBin) throw new Error("sleep executable not found");
 			let pid: number | undefined;
 			try {
 				// `nohup cmd &` is a transparent background wrapper: brush unwraps it and
@@ -1406,7 +1416,7 @@ describe("executeBash :async: background retention", () => {
 				// short-lived intermediate fork, so `$!` is NOT the surviving process —
 				// the operand writes its own pid before `exec`ing the long sleep, and
 				// that pid (unchanged across exec) is the one we assert stays alive.
-				const operand = `echo $$ > ${pidFile}; exec ${sleepBin} 30`;
+				const operand = `echo $$ > ${shellQuote(pidFile)}; exec ${shellQuote(sleepBin)} 30`;
 				const res = await executeBash(`nohup sh -c ${shellQuote(operand)} >/dev/null 2>&1 &`, {
 					sessionKey: "reparent-probe:async:job1",
 					cwd: tmp,

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { isContextOverflow } from "@linxiraos/pi-ai/error";
 import {
 	buildGitLabDuoWorkflowApprovalStartRequest,
@@ -38,6 +39,7 @@ import type {
 	ToolResultMessage,
 } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { type } from "@linxiraos/pi-omptype";
 import { extractHttpStatusFromError } from "@linxiraos/pi-utils";
@@ -198,11 +200,11 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		expect(GITLAB_DUO_WORKFLOW_CLIENT_CAPABILITIES).not.toContain("tool_call_pattern_approval");
 	});
 
-	it("advertises OMP tools under their bare names with the official GitLab MCP schema", () => {
+	it("advertises ZETA tools under their bare names with the official GitLab MCP schema", () => {
 		const mcpTools = buildGitLabDuoWorkflowMcpTools([...nativeTools, editTool]);
 		// Bare names: the server binds the model schema and matches tool calls under the
 		// exact wire name (no prefix stripping), so the registered name must equal the
-		// bare name OMP's own tool docs use.
+		// bare name ZETA's own tool docs use.
 		expect(mcpTools.map(tool => tool.name)).toEqual(["read", "write", "grep", "glob", "bash", "lsp", "todo", "edit"]);
 		expect(mcpTools[0]).toMatchObject({
 			name: "read",
@@ -242,9 +244,9 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		expect(payload.preapproved_tools).toEqual(payload.mcpTools.map(tool => tool.name));
 	});
 
-	it("puts the OMP system prompt in the inline flow system slot with reasoning events", () => {
+	it("puts the ZETA system prompt in the inline flow system slot with reasoning events", () => {
 		const systemContext: Context = {
-			systemPrompt: ["OMP authoritative operating rules. Bridge the local tools."],
+			systemPrompt: ["ZETA authoritative operating rules. Bridge the local tools."],
 			messages: context.messages,
 		};
 		const payload = buildGitLabDuoWorkflowStartRequest("workflow-1", model, systemContext, undefined, undefined, {
@@ -262,8 +264,8 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		expect(agent?.ui_log_events).toContain("on_agent_reasoning");
 		const prompt = flow?.prompts.find(entry => entry.prompt_id === agent?.prompt_id);
 		expect(prompt?.unit_primitives).toEqual(["duo_agent_platform"]);
-		// The system slot carries OMP's real system prompt verbatim — no gateway preamble.
-		expect(prompt?.prompt_template.system).toContain("OMP authoritative operating rules.");
+		// The system slot carries ZETA's real system prompt verbatim — no gateway preamble.
+		expect(prompt?.prompt_template.system).toContain("ZETA authoritative operating rules.");
 		expect(prompt?.prompt_template.user).toBe("{{goal}}");
 		// A single-turn goal is bare text (no ChatML markers), so the history-note that
 		// warns against mimicking transcript markers must NOT be appended.
@@ -284,7 +286,7 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		const sessionCookie = "_gitlab_session=0123456789abcdef0123456789abcdef";
 
 		const replayContext: Context = {
-			systemPrompt: [`OMP system instructions: preserve the local tool bridge. token ${patToken}`],
+			systemPrompt: [`ZETA system instructions: preserve the local tool bridge. token ${patToken}`],
 			messages: [
 				{
 					role: "user",
@@ -341,13 +343,13 @@ describe("GitLab Duo Workflow provider protocol", () => {
 
 		expect(payload.additional_context).toEqual([]);
 		// The goal is now ONLY the bare ChatML transcript — no envelope, no preamble,
-		// no <instructions>. The OMP system prompt rides the flow config's system slot.
+		// no <instructions>. The ZETA system prompt rides the flow config's system slot.
 		expect(payload.goal).not.toContain("<client_prompt_envelope>");
 		expect(payload.goal).not.toContain("<instructions>");
 		expect(payload.goal).not.toContain("<conversation>");
 		expect(payload.goal).not.toContain("<current_request>");
 		expect(payload.goal).not.toContain("<prior_messages>");
-		expect(payload.goal).not.toContain("OMP system instructions: preserve the local tool bridge.");
+		expect(payload.goal).not.toContain("ZETA system instructions: preserve the local tool bridge.");
 		// ChatML role turns, every turn equal-weight, ending on the last user turn.
 		expect(payload.goal).toContain("<|im_start|>user\nFirst user turn.");
 		expect(payload.goal).toContain("<|im_start|>assistant\nAssistant answer.");
@@ -359,7 +361,7 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		// `<ran NAME>{args}</ran>` record (NOT the `{name,arguments}` live-call shape, so
 		// the model does not mimic it as emittable grammar), and the following tool turn
 		// renders `<ran:result>`. The pair is linked by ADJACENCY (1 call/turn, result
-		// rides the very next turn), so the OMP-internal call id is omitted from the
+		// rides the very next turn), so the ZETA-internal call id is omitted from the
 		// transcript — it is dead weight the model never reads.
 		expect(payload.goal).toContain('<ran read>{"path":"src/main.ts"}</ran>');
 		expect(payload.goal).not.toContain("<tool_call>");
@@ -382,9 +384,9 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		expect(payload.goal).toContain("First user turn. token");
 		expect(payload.goal.indexOf("<|im_start|>user")).toBe(0);
 
-		// The OMP system prompt lives in the flow config system slot, not the goal.
+		// The ZETA system prompt lives in the flow config system slot, not the goal.
 		const flowPrompt = payload.flowConfig?.prompts[0];
-		expect(flowPrompt?.prompt_template.system).toContain("OMP system instructions: preserve the local tool bridge.");
+		expect(flowPrompt?.prompt_template.system).toContain("ZETA system instructions: preserve the local tool bridge.");
 		expect(flowPrompt?.prompt_template.system).not.toContain(patToken);
 		expect(flowPrompt?.prompt_template.system).toContain("[gitlab_token_redacted]");
 		// This goal IS a multi-turn ChatML transcript, so the system slot appends the
@@ -392,7 +394,7 @@ describe("GitLab Duo Workflow provider protocol", () => {
 		// record, not a tool-call syntax to emit.
 	});
 
-	it("strips the OMP-internal intent (i) field from replayed tool-call args", () => {
+	it("strips the ZETA-internal intent (i) field from replayed tool-call args", () => {
 		const replayContext: Context = {
 			systemPrompt: ["system"],
 			messages: [
@@ -3549,6 +3551,80 @@ describe("GitLab Duo Workflow WebSocket state machine", () => {
 		expect(eventTypes).toEqual(["toolcall_start", "toolcall_delta", "toolcall_end", "done"]);
 	});
 
+	it("refuses truncated JSON in a runMCPTool action", async () => {
+		const sent: string[] = [];
+		let closed = false;
+		const stream = new AssistantMessageEventStream();
+		const socket: GitLabDuoWorkflowWebSocketLike = {
+			onopen: null,
+			onmessage: null,
+			onerror: null,
+			onclose: null,
+			send(data) {
+				sent.push(data);
+			},
+			close() {
+				closed = true;
+			},
+		};
+		const output: AssistantMessage = {
+			role: "assistant",
+			content: [],
+			api: "gitlab-duo-agent",
+			provider: "gitlab-duo-agent",
+			model: model.id,
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: Date.now(),
+		};
+		const streamPromise = runGitLabDuoWorkflowSocket(
+			socket,
+			buildGitLabDuoWorkflowStartRequest("workflow-1", model, context),
+			{ stream, output, started: true },
+			{ apiKey: "redacted" },
+		);
+
+		socket.onopen?.(new Event("open"));
+		socket.onmessage?.(
+			new MessageEvent("message", {
+				data: JSON.stringify({
+					requestID: "req-mcp-1",
+					runMCPTool: { name: "mcp__omp__read", args: '{"path":"src/index.ts' },
+				}),
+			}),
+		);
+
+		await expect(streamPromise).resolves.toBe("action");
+		const eventTypes: string[] = [];
+		for await (const event of stream) {
+			eventTypes.push(event.type);
+		}
+
+		expect(sent).toHaveLength(1);
+		expect(closed).toBe(false);
+		expect(output.stopReason).toBe("toolUse");
+		expect(output.content).toEqual([
+			{
+				type: "toolCall",
+				id: "req-mcp-1",
+				name: "read",
+				arguments: { __parseError: expect.any(String), __rawJson: '{"path":"src/index.ts' },
+			},
+		]);
+		const call = output.content[0];
+		if (call?.type !== "toolCall") throw new Error("Expected tool call");
+		expect(() =>
+			validateToolArguments({ name: "read", description: "", parameters: { type: "object" } }, call),
+		).toThrow("Tool call arguments are not valid JSON");
+	});
+
 	it("rejects a runMCPTool action frame missing requestID instead of synthesizing one", async () => {
 		const sent: string[] = [];
 		const stream = new AssistantMessageEventStream();
@@ -4548,7 +4624,7 @@ describe("GitLab Duo Workflow WebSocket state machine", () => {
 		expect(goal).toContain("It contains ALPHA.");
 		expect(goal).toContain("Now summarize it.");
 		// The prior tool call and its result are paired by ADJACENCY (call turn followed
-		// by its tool-result turn); the OMP-internal id is omitted from the transcript.
+		// by its tool-result turn); the ZETA-internal id is omitted from the transcript.
 		// The call is a past-tense `<ran NAME>{args}</ran>` record, the result `<ran:result>`.
 		expect(goal).toContain('<ran read>{"path":"a.ts"}</ran>');
 		expect(goal).toContain("<ran:result>");

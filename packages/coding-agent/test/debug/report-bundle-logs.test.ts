@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
+import { getConfigRootDir, getLogsDir, localDay, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { getConfigRootDir, getLogsDir, localDay, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
@@ -32,7 +33,7 @@ describe("report bundle logs", () => {
 	it("collects every same-day PID log, not only the current process", async () => {
 		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-report-logs-"));
 		const xdgStateHome = path.join(cleanupRoot, "state");
-		await fs.mkdir(path.join(xdgStateHome, "omp"), { recursive: true });
+		await fs.mkdir(path.join(xdgStateHome, "zeta"), { recursive: true });
 		process.env.XDG_STATE_HOME = xdgStateHome;
 		setAgentDir(fallbackAgentDir);
 
@@ -74,5 +75,27 @@ describe("report bundle logs", () => {
 		expect(logsText).toContain("later invocation");
 		expect(logsText.indexOf(crashedName)).toBeLessThan(logsText.indexOf(currentName));
 		if (staleUtcName) expect(logsText).not.toContain(staleUtcName);
+	});
+
+	it("includes this process's records still buffered by the batching file transport", async () => {
+		cleanupRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-report-buffered-"));
+		const xdgStateHome = path.join(cleanupRoot, "state");
+		await fs.mkdir(path.join(xdgStateHome, "zeta"), { recursive: true });
+		process.env.XDG_STATE_HOME = xdgStateHome;
+		setAgentDir(fallbackAgentDir);
+		const logsDir = getLogsDir();
+		logger.setTransports({ console: false, file: logsDir });
+		const marker = `report-buffered-${crypto.randomUUID()}`;
+		logger.debug("report bundle buffered probe", { marker });
+
+		const result = await createReportBundle({ sessionFile: undefined }).finally(() =>
+			logger.setTransports({ file: true }),
+		);
+
+		const archive = new Bun.Archive(await Bun.file(result.path).bytes());
+		const logsText = (await (await archive.files()).get("logs.txt")?.text()) ?? "";
+		await fs.rm(result.path, { force: true });
+		expect(logsText).toContain(`zeta.${localDay(new Date())}.${process.pid}.log`);
+		expect(logsText).toContain(marker);
 	});
 });

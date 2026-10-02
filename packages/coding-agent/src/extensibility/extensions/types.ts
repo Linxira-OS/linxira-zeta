@@ -153,7 +153,11 @@ export interface ExtensionUISelectOption {
 
 export type ExtensionUISelectItem = string | ExtensionUISelectOption;
 
-import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import type {
+	ExtensionAskDialogQuestion,
+	ExtensionAskDialogResult,
+	ExtensionAskDialogSubmitResult,
+} from "@linxiraos/pi-tui/overlays/ask-dialog";
 export type {
 	ExtensionAskDialogOption,
 	ExtensionAskDialogQuestion,
@@ -165,6 +169,27 @@ export type {
 
 export function getExtensionUISelectOptionLabel(option: ExtensionUISelectItem): string {
 	return typeof option === "string" ? option : option.label;
+}
+
+/** Answers an ask dialog whose timeout elapsed: each question gets its recommended option, else the first. */
+export function timedOutAskDialogResult(questions: ExtensionAskDialogQuestion[]): ExtensionAskDialogSubmitResult {
+	return {
+		kind: "submit",
+		results: questions.map(question => {
+			const labels = question.options.map(option => option.label);
+			const fallbackIndex = Math.min(Math.max(question.recommended ?? 0, 0), Math.max(labels.length - 1, 0));
+			const fallback = labels[fallbackIndex];
+			return {
+				id: question.id,
+				question: question.question,
+				options: labels,
+				multi: question.multi ?? false,
+				selectedOptions: fallback === undefined ? [] : [fallback],
+				customInput: undefined,
+				timedOut: true,
+			};
+		}),
+	};
 }
 
 /**
@@ -529,7 +554,7 @@ export interface ExtensionContext {
 	/** Identity of the agent this session runs: the top-level session or a subagent. */
 	agent: ExtensionAgentIdentity;
 	/**
-	 * Whether the current project/workspace is trusted. OMP performs no
+	 * Whether the current project/workspace is trusted. ZETA performs no
 	 * project-trust gating — project-level settings and extensions load
 	 * unconditionally — so this always returns `true`. Exposed for
 	 * compatibility with extensions authored against upstream Pi, whose
@@ -591,16 +616,16 @@ export interface ExtensionContext {
 
 	/**
 	 * Whether project-local inputs for the current working directory (extensions, settings,
-	 * skills, resources) are trusted. Upstream `@earendil-works/pi-coding-agent` (>=0.79) asks the
+	 * skills, resources) are trusted. Upstream `@earendil-works/zeta` (>=0.79) asks the
 	 * user once per directory before loading project-local inputs and exposes the saved decision
 	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
 	 * decide whether project-local config is safe to load, and warn when it is absent.
 	 *
-	 * OMP has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
+	 * Zeta has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
 	 * other project-local inputs are already discovered and loaded unconditionally (see
 	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
-	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
-	 * by default -- it does not narrow or widen OMP's own security model.
+	 * and always returns `true`, truthfully reflecting that ZETA already trusts project-local inputs
+	 * by default -- it does not narrow or widen ZETA's own security model.
 	 */
 	isProjectTrusted(): boolean;
 }
@@ -762,7 +787,7 @@ export type SourceOrigin = "package" | "top-level";
 
 /**
  * Provenance metadata describing where a registered tool came from. Mirrors the
- * `@earendil-works/pi-coding-agent` `SourceInfo` contract so extensions authored
+ * `@earendil-works/zeta` `SourceInfo` contract so extensions authored
  * against upstream pi (e.g. gentle-pi) can read `sourceInfo.source` unchanged.
  */
 export interface SourceInfo {
@@ -1381,7 +1406,7 @@ export interface ExtensionAPI {
 	/** Injected Zod-compatible omptype builder for extension tools. */
 	zod: typeof zod;
 
-	/** Injected pi-coding-agent exports for accessing SDK utilities */
+	/** Injected zeta exports for accessing SDK utilities */
 	pi: typeof PiCodingAgent;
 
 	// =========================================================================
@@ -1713,7 +1738,13 @@ export interface ExtensionAPI {
 export interface ProviderConfig {
 	/** Base URL for the API endpoint. Required when defining models. */
 	baseUrl?: string;
-	/** API key or environment variable name. Required when defining models unless oauth is provided. */
+	/**
+	 * API key or environment variable name. Required when defining models unless oauth is provided.
+	 *
+	 * Without `oauth`, this overrides stored OAuth and `/login` credentials for the provider. With
+	 * `oauth`, it is a fallback: a key saved by `/login` wins, and this value is used only when no
+	 * stored login credential exists.
+	 */
 	apiKey?: string;
 	/** API type identifier. Required when registering streamSimple or when models don't specify one. */
 	api?: Api;
@@ -1792,7 +1823,7 @@ export interface RegisteredTool<TParams extends TSchema = TSchema, TDetails = un
 	extensionPath: string;
 	/**
 	 * Upstream-shaped provenance mirroring {@link SourceInfo}. Extensions authored
-	 * against `@earendil-works/pi-coding-agent` — whose registered tools expose
+	 * against `@earendil-works/zeta` — whose registered tools expose
 	 * `sourceInfo` — read `sourceInfo.path` off `getAllRegisteredTools()` entries,
 	 * so it carries the same value `SessionTools.getAllToolInfos()` synthesizes.
 	 */

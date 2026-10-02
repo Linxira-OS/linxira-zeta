@@ -14,14 +14,11 @@ import {
 	readArgsCollapseIntoGroup,
 	readArgsHaveTarget,
 } from "@linxiraos/pi-tui/chat/read-tool-group";
+import { RecapNotice } from "@linxiraos/pi-tui/chat/recap-notice";
 import { TodoReminderComponent } from "@linxiraos/pi-tui/chat/todo-reminder";
 import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
 import { textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
-import {
-	ToolExecutionComponent,
-	type ToolExecutionHandle,
-	toolRenderName,
-} from "@linxiraos/pi-tui/chat/tool-execution";
+import { ToolExecutionComponent, type ToolExecutionHandle, toolRenderName } from "@linxiraos/pi-tui/chat/tool-execution";
 import { TtsrNotificationComponent } from "@linxiraos/pi-tui/chat/ttsr-notification";
 import { createUsageRowBlock, TurnUsageTally, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
 import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -335,6 +332,8 @@ export class EventController {
 			auto_compaction_end: e => this.#handleAutoCompactionEnd(e),
 			auto_retry_start: e => this.#handleAutoRetryStart(e),
 			auto_retry_end: e => this.#handleAutoRetryEnd(e),
+			cache_warming_start: async () => {},
+			cache_warming_end: async () => {},
 			retry_fallback_applied: e => this.#handleRetryFallbackApplied(e),
 			retry_fallback_succeeded: e => this.#handleRetryFallbackSucceeded(e),
 			ttsr_triggered: e => this.#handleTtsrTriggered(e),
@@ -892,11 +891,13 @@ export class EventController {
 
 	#setTerminalProgress(active: boolean): void {
 		if (active) {
-			if (
-				this.#terminalProgressActive ||
-				(this.ctx.settings ? cfgTerminalShowProgress.get(this.ctx.settings) : undefined) !== true
-			)
-				return;
+			// Tern reads the progress as the pane's busy state (its tab's live
+			// dot), so it gets it whatever the setting says. Tern's panes carry
+			// `KITTY_WINDOW_ID`, so `TERMINAL.id` says kitty there.
+			const wanted =
+				Bun.env.TERM_PROGRAM?.toLowerCase() === "tern" ||
+				(this.ctx.settings ? cfgTerminalShowProgress.get(this.ctx.settings) : undefined) === true;
+			if (this.#terminalProgressActive || !wanted) return;
 			this.ctx.ui.terminal.setProgress(true);
 			this.#terminalProgressActive = true;
 			return;
@@ -1218,7 +1219,7 @@ export class EventController {
 		if (
 			nextToolName === "wait" &&
 			previous.isDisplaceableBlock() &&
-			this.ctx.chatContainer.canRemoveBlock(previous)
+			this.ctx.chatContainer.canDisplaceBlock(previous)
 		) {
 			this.ctx.chatContainer.removeChild(previous);
 		}
@@ -2617,8 +2618,8 @@ export class EventController {
 
 	/**
 	 * Generate the idle recap with an ephemeral side-channel turn over the
-	 * current conversation (same pipeline as `/btw`), surface it as a status
-	 * line, and journal it to history.db (`session_recaps`) for the session that
+	 * current conversation (same pipeline as `/btw`), surface it in the transcript
+	 * ({@link RecapNotice}), and journal it to history.db (`session_recaps`) for the session that
 	 * produced it. Live goal/title and the active todo task are passed as anchoring
 	 * hints because the snapshot only carries conversation history, not the
 	 * controller's todo/goal state. The request is abortable: any activity
@@ -2644,7 +2645,7 @@ export class EventController {
 			const recap = previewLine(replyText, TRUNCATE_LENGTHS.RECAP);
 			if (!recap) return;
 			session.sessionManager.recordRecap(replyText);
-			this.ctx.showStatus(theme.fg("dim", theme.italic(`※ recap: ${recap}`)), { dim: false });
+			this.ctx.present(new RecapNotice(recap));
 		} catch (error) {
 			if (!abort.signal.aborted) logger.debug("Idle recap turn failed", { error: String(error) });
 		} finally {
@@ -2708,7 +2709,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "omp",
+			title: sessionName || "zeta",
 			body: "Stopped with error",
 			type: "error",
 			actions: "focus",
@@ -2733,7 +2734,7 @@ export class EventController {
 
 		const sessionName = this.ctx.sessionManager.getSessionName();
 		TERMINAL.sendNotification({
-			title: sessionName || "omp",
+			title: sessionName || "zeta",
 			body: "Complete",
 			type: "completion",
 			actions: "focus",

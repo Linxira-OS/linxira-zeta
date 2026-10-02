@@ -10,6 +10,7 @@ import {
 	type UsageLimit,
 	type UsageReport,
 } from "@linxiraos/pi-ai";
+import { Loader, Markdown, padding, Spacer, Text, visibleWidth, wrapTextWithAnsi } from "@linxiraos/pi-tui";
 import { Loader, Markdown, padding, Spacer, Text, visibleWidth } from "@linxiraos/pi-tui";
 import { formatDuration, logger, Snowflake, sanitizeText } from "@linxiraos/pi-utils";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
@@ -106,6 +107,9 @@ function showMarkdownPanel(ctx: InteractiveModeContext, title: string, markdown:
 }
 
 export class CommandController {
+	/** The last `/context` card mounted, reused so repeated runs never stack cards. */
+	#contextView: ContextUsageView | undefined;
+
 	constructor(private readonly ctx: InteractiveModeContext) {}
 
 	async #restoreAfterMoveFailure(
@@ -598,7 +602,8 @@ export class CommandController {
 		this.ctx.presentCommandOutput([new Spacer(1), new Text(info, 1, 0)]);
 	}
 
-	async handleJobsCommand(): Promise<void> {
+	async handleJobsCommand(options?: { full?: boolean }): Promise<void> {
+		const full = options?.full === true;
 		const snapshot = this.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
 		if (!snapshot) {
 			this.ctx.showWarning("Async background jobs are unavailable in this session.");
@@ -616,11 +621,22 @@ export class CommandController {
 			return;
 		}
 
+		// Full mode wraps here so every line, including heredoc lines and wrap
+		// continuations, keeps the two-column indent under its job row.
+		const commandWidth = Math.max(1, (this.ctx.ui.terminal.columns ?? 100) - 4);
+		const describe = (job: AsyncJobSnapshotItem): string => {
+			if (!full) return `  ${theme.fg("dim", truncateJobLabel(job.label, lineWidth))}`;
+			const command = replaceTabs(sanitizeText(job.command ?? job.label));
+			return wrapTextWithAnsi(command, commandWidth)
+				.map(line => `  ${theme.fg("dim", line)}`)
+				.join("\n");
+		};
+
 		if (snapshot.running.length > 0) {
 			info += `\n${theme.bold("Running Jobs")}\n`;
 			for (const job of snapshot.running) {
 				info += `${renderJobLine(job, now)}\n`;
-				info += `  ${theme.fg("dim", truncateJobLabel(job.label, lineWidth))}\n`;
+				info += `${describe(job)}\n`;
 			}
 		}
 
@@ -628,11 +644,13 @@ export class CommandController {
 			info += `\n${theme.bold("Recent Jobs")}\n`;
 			for (const job of snapshot.recent) {
 				info += `${renderJobLine(job, now)}\n`;
-				info += `  ${theme.fg("dim", truncateJobLabel(job.label, lineWidth))}\n`;
+				info += `${describe(job)}\n`;
 			}
 		}
 
-		this.ctx.presentCommandOutput(new JobsPanel(snapshot, now, [new Spacer(1), new Text(info.trimEnd(), 1, 0)]));
+		// The native jobs panel truncates labels, so full mode renders plain text only
+		const body = [new Spacer(1), new Text(info.trimEnd(), 1, 0)];
+		this.ctx.presentCommandOutput(full ? body : new JobsPanel(snapshot, now, body));
 	}
 
 	async handleUsageCommand(reports?: UsageReport[] | null): Promise<void> {
@@ -719,7 +737,25 @@ export class CommandController {
 			this.ctx.showWarning("Context usage is unavailable: no model is selected for this session.");
 			return;
 		}
-		this.ctx.presentCommandOutput(new ContextUsageView(breakdown, theme));
+		const chat = this.ctx.chatContainer;
+		const prev = this.#contextView;
+		// Identity check: a handle left over from a cleared/switched transcript is ignored.
+		if (prev && chat.children.includes(prev) && chat.canRemoveBlock(prev)) {
+			if (chat.children.at(-1) === prev) {
+				prev.setBreakdown(breakdown);
+				this.ctx.ui.requestRender();
+				return;
+			}
+			chat.removeChild(prev);
+		}
+		const view = new ContextUsageView(breakdown, theme);
+		this.ctx.presentCommandOutput(view);
+		this.#contextView = view;
+	}
+
+	/** Forget the tracked `/context` card (the transcript it lived in was reset). */
+	resetContextView(): void {
+		this.#contextView = undefined;
 	}
 
 	async handleMemoryCommand(text: string): Promise<void> {
@@ -1459,7 +1495,7 @@ export class CommandController {
 				if (shouldPersistCwd) return await this.#applyBashResultCwd(result);
 			} catch (error) {
 				this.ctx.showError(
-					`Bash command completed, but OMP failed to update its working directory: ${
+					`Bash command completed, but ZETA failed to update its working directory: ${
 						error instanceof Error ? error.message : "Unknown error"
 					}`,
 				);
@@ -2212,7 +2248,7 @@ export function renderUsageReports(
 			lines.push(`  ${uiTheme.fg("dim", truncateToWidth(`${boundedLabel}${status}`, availableWidth - 2))}`);
 		}
 
-		// Provider-wide disclaimers (e.g. "OMP-observed spend only") render once
+		// Provider-wide disclaimers (e.g. "ZETA-observed spend only") render once
 		// above the per-account sections instead of duplicating onto every limit.
 		const providerNotes = [...new Set(providerReports.flatMap(report => report.notes ?? []))];
 		if (providerNotes.length > 0) {
