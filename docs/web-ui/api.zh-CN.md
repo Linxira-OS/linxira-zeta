@@ -200,11 +200,20 @@ OAuth 登录流程的 SSE 流（授权 URL + 轮询事件）。
 
 ### `GET /api/open/options`
 
-可用的“打开方式”目标（平台对应的编辑器/终端）。
+“打开方式”目标及其可用性：`{ desktop, targets: [{ type, label, available,
+default?, editor?, detail? }] }`。`type` 取 `terminal`、`explorer`、`editor`
+（此时 `editor` 为产品 id）、`terminal-ide`（`zeta-ide`）或
+`terminal-editor`（`zeta-editor`）；`default` 标记网关建议的默认目标。
+Windows 终端按 `pwsh` → Git Bash → `powershell` 链解析，其余平台
+`$SHELL` → bash；探测结果按进程缓存（约 60s）。
 
 ### `POST /api/open`
 
-请求体：`{ target?: string, path?: string }` — 用编辑器或终端打开路径。
+请求体：`{ target?: string, path?: string, editor?: string }` —
+用编辑器、终端、文件管理器或内置终端工具打开路径（`terminal-ide` /
+`terminal-editor` 在该路径启动 `zeta-ide` / `zeta-editor`）。桌面宿主只执行
+`explorer` / `editor` 目标并接收签名 `{ path, token }` 凭据；内置终端工具
+始终由网关直接启动。
 
 ### `GET /api/update/check`
 

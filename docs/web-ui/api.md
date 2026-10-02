@@ -203,12 +203,22 @@ Body: `{ cwd, package, scope }`.
 
 ### `GET /api/open/options`
 
-Available "open in" targets (editor / terminal for the platform).
+Open targets with availability: `{ desktop, targets: [{ type, label,
+available, default?, editor?, detail? }] }`. `type` is `terminal`,
+`explorer`, `editor` (then `editor` carries the product id), `terminal-ide`
+(`zeta-ide`), or `terminal-editor` (`zeta-editor`); `default` marks the
+gateway-suggested target. On Windows the terminal is resolved through the
+`pwsh` → Git Bash → `powershell` chain, elsewhere `$SHELL` → bash; probe
+results are cached in-process (~60s).
 
 ### `POST /api/open`
 
-Body: `{ target?: string, path?: string }` — open a path in an editor or
-terminal.
+Body: `{ target?: string, path?: string, editor?: string }` — open a path in
+an editor, terminal, file manager, or one of the bundled terminal tools
+(`terminal-ide` / `terminal-editor` spawn `zeta-ide` / `zeta-editor` at the
+path). Desktop hosts execute only `explorer` / `editor` targets and receive a
+signed `{ path, token }` capability; the bundled terminal tools always launch
+through the gateway.
 
 ### `GET /api/update/check`
 
