@@ -23,11 +23,9 @@ import { FolderPickerModal } from "./FolderPickerModal";
 import { SidebarHeader } from "./sidebar/SidebarHeader";
 import { ProjectsSection } from "./sidebar/ProjectsSection";
 import {
-	loadProjectAliases,
-	saveProjectAliases,
-	loadPinnedProjects,
-	savePinnedProjects,
-	saveCollapsedProjects,
+	loadPinnedSessionIds,
+	savePinnedSessionIds,
+	sessionDisplayTitle,
 } from "./sidebar/sidebar-shared";
 import { SidebarProjectsList } from "./sidebar/SidebarProjectsList";
 import { SessionGroupSection } from "./sidebar/SessionGroupSection";
@@ -42,20 +40,13 @@ import {
 	loadSidebarPrefs,
 	updatePrefs,
 	markSessionRead,
+	collapseProject,
+	pinProject,
+	setProjectAlias as setProjectAliasPref,
 	type SessionSort,
 	type ProjectSort,
 } from "@/lib/sidebar-prefs";
-import { sortSessions, sortProjects, isFoldableEmptySession } from "@/lib/sidebar-groups";
-import {
-	loadCollapsedProjects,
-	loadDisplaySettings,
-	loadPinnedSessionIds,
-	savePinnedSessionIds,
-	sessionDisplayTitle,
-	SIDEBAR_COLLAPSED_PROJECTS_KEY,
-	SIDEBAR_DISPLAY_KEY,
-	type SidebarDisplaySettings,
-} from "./sidebar/sidebar-shared";
+import { sortSessions, isFoldableEmptySession } from "@/lib/sidebar-groups";
 import { useSessionMultiSelect } from "./sidebar/useSessionMultiSelect";
 import {
 	archiveSession,
@@ -662,8 +653,36 @@ export function SessionSidebar({
 		count: number;
 	} | null>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
-	const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => loadCollapsedProjects());
-	const [display, setDisplay] = useState<SidebarDisplaySettings>(() => loadDisplaySettings());
+	// P2 unified prefs: a bumped counter re-renders after every updatePrefs write.
+	const [prefsVersion, setPrefsVersion] = useState(0);
+	const prefs = useMemo(() => {
+		void prefsVersion;
+		return loadSidebarPrefs();
+	}, [prefsVersion]);
+	const collapsedProjects = useMemo(() => {
+		const collapsed = new Set<string>();
+		for (const [path, meta] of Object.entries(prefs.projectMeta)) {
+			if (meta.collapsed === true) collapsed.add(path);
+		}
+		return collapsed;
+	}, [prefs]);
+	// cwd → display alias (UI-only rename; never touches disk) — P2 source.
+	const projectAliases = useMemo(() => {
+		const aliases: Record<string, string> = {};
+		for (const [path, meta] of Object.entries(prefs.projectMeta)) {
+			if (meta.name) aliases[path] = meta.name;
+		}
+		return aliases;
+	}, [prefs]);
+	// Pinned project roots, pinned-first order — P2 source.
+	const pinnedProjects = useMemo(
+		() =>
+			Object.entries(prefs.projectMeta)
+				.filter(([, meta]) => meta.pinned === true)
+				.sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0))
+				.map(([path]) => path),
+		[prefs],
+	);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedCwd, setSelectedCwd] = useState<string | null>(null);
@@ -712,8 +731,6 @@ export function SessionSidebar({
 
 	// Temp-session section fold (default collapsed)
 	const [tempOpen, setTempOpen] = useState(false);
-	const [projectAliases, setProjectAliases] = useState<Record<string, string>>(() => loadProjectAliases());
-	const [pinnedProjects, setPinnedProjects] = useState<string[]>(() => loadPinnedProjects());
 
 	// P2 interaction port: unified palette + floating menus + sort modes.
 	const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -1255,33 +1272,10 @@ export function SessionSidebar({
 		[selectedCwd, homeDir, projectRootFor, onNewSession, tempId],
 	);
 
+	// Project presentation prefs write straight to P2 (single source of truth).
 	const toggleProjectCollapsed = useCallback((project: string) => {
-		setCollapsedProjects(prev => {
-			const next = new Set(prev);
-			if (next.has(project)) {
-				next.delete(project);
-			} else {
-				next.add(project);
-			}
-			try {
-				window.localStorage.setItem(SIDEBAR_COLLAPSED_PROJECTS_KEY, JSON.stringify([...next]));
-			} catch {
-				// storage unavailable — collapse stays session-only
-			}
-			return next;
-		});
-	}, []);
-
-	const updateDisplay = useCallback((patch: Partial<SidebarDisplaySettings>) => {
-		setDisplay(prev => {
-			const next = { ...prev, ...patch };
-			try {
-				window.localStorage.setItem(SIDEBAR_DISPLAY_KEY, JSON.stringify(next));
-			} catch {
-				// storage unavailable — display prefs stay session-only
-			}
-			return next;
-		});
+		collapseProject(project, !loadSidebarPrefs().projectMeta[project]?.collapsed);
+		setPrefsVersion(v => v + 1);
 	}, []);
 
 	// Sessions of every worktree in the selected project are shown together
@@ -1368,23 +1362,15 @@ export function SessionSidebar({
 			const current = projectAliases[project] ?? "";
 			const next = window.prompt("Project display name", current);
 			if (next === null) return;
-			setProjectAliases(prev => {
-				const updated = { ...prev };
-				if (next.trim() === "") delete updated[project];
-				else updated[project] = next.trim();
-				saveProjectAliases(updated);
-				return updated;
-			});
+			setProjectAliasPref(project, next.trim() === "" ? null : next.trim());
+			setPrefsVersion(v => v + 1);
 		},
 		[projectAliases],
 	);
 
 	const toggleProjectPin = useCallback((project: string) => {
-		setPinnedProjects(prev => {
-			const next = prev.includes(project) ? prev.filter(p => p !== project) : [project, ...prev];
-			savePinnedProjects(next);
-			return next;
-		});
+		pinProject(project, !loadSidebarPrefs().projectMeta[project]?.pinned);
+		setPrefsVersion(v => v + 1);
 	}, []);
 	const showWorktreeSwitcher = Boolean(
 		worktreeState?.isGit && worktreeState.isTopLevel && selectedCwd && selectedProject === worktreeState.projectRoot,
@@ -1654,7 +1640,6 @@ export function SessionSidebar({
 			>
 				<SidebarHeader
 					title={<ZetaWebTitle />}
-					display={display}
 					searchOpen={searchOpen}
 					editMode={multiSelect.enabled}
 					onToggleSearch={() =>
@@ -1665,7 +1650,13 @@ export function SessionSidebar({
 						})
 					}
 					onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
-					onUpdateDisplay={updateDisplay}
+					projectSort={projSort}
+					onProjectSortChange={mode => {
+						setProjSort(mode);
+						updatePrefs(p => {
+							p.projectSort = mode;
+						});
+					}}
 				/>
 
 				{/* Active plan card — only when the selected session has a live plan */}

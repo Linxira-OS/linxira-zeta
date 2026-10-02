@@ -70,11 +70,6 @@ const DYNAMIC_KEY_PREFIXES = [
 	// SessionSidebar sort menus render t(`sidebar.sort.${mode}`) for the
 	// recent|created|oldest|name|manual mode union.
 	{ prefix: "sidebar.sort.", reason: "SessionSidebar t(`sidebar.sort.${mode}`) sort menus" },
-	// SidebarHeader display-menu options are data tuples
-	// (["manual", "sidebar.display.sort.manual"]) whose key element is fed to
-	// t() at render time.
-	{ prefix: "sidebar.display.sort.", reason: "SidebarHeader option tuples rendered via t(label)" },
-	{ prefix: "sidebar.display.grouping.", reason: "SidebarHeader option tuples rendered via t(label)" },
 	// ChatInput BUILTIN_COMMANDS carries descriptions as key strings rendered
 	// via t(cmd.description); chat.command/chat.commands are picked through a
 	// ternary first argument.
