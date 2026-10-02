@@ -651,6 +651,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "双击 Esc 操作",
 		description: "编辑器为空时连按两次 Esc 的操作",
 	},
+	"input.bareExitOnEmptySession": {
+		label: "空会话裸退出",
+		description: "在首条消息之前输入 `exit`、`quit` 或 `q`（不区分大小写）直接退出，而不是把输入交给模型",
+	},
+	"input.bareSlashCommands": {
+		label: "裸斜杠命令",
+		description: "输入不带前导 `/` 的命令名（如 `model`、`compact`）即运行对应斜杠命令；会话已有消息时需按两次 Enter 确认",
+	},
 	treeFilterMode: {
 		label: "会话树过滤器",
 		description: "打开会话树时的默认过滤模式",
@@ -1350,6 +1358,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "cmux 浏览器",
 		description:
 			"当 cmux socket 可用时，使用 cmux WKWebView 表面进行浏览器自动化。可设置 PI_BROWSER_CMUX=0 或 PI_BROWSER_CMUX=1 覆盖。",
+	},
+	"browser.tern": {
+		label: "Tern 浏览器",
+		description:
+			"在 Tern 窗格内，以画中画形式（原生 Web 视图）在窗格上方打开浏览器标签页，而不是无头 Chromium；没有可承载的 Tern 窗口时回退到 Chromium。显式 app 选项、中继与浏览器 CDP 地址优先；headed:false 或 app.tern:false 可让某个打开的标签页退出此模式。可设置 PI_BROWSER_TERN=0 或 PI_BROWSER_TERN=1 覆盖。",
 	},
 	"browser.freezeOnTurnEnd": {
 		label: "轮结束时冻结浏览器标签页",
