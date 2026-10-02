@@ -26,9 +26,9 @@ export function StatsDashboard() {
       >
         <div style={{ display: "grid", gap: 12, justifyItems: "center" }}>
           <div>
-            Stats dashboard is not running. Start the web server with{" "}
+            {t("stats.notRunningPrefix")}{" "}
             <code style={{ fontFamily: "var(--font-mono)", margin: "0 4px" }}>zeta serve</code>{" "}
-            to enable it.
+            {t("stats.notRunningSuffix")}
           </div>
           <button
             type="button"
@@ -53,7 +53,7 @@ export function StatsDashboard() {
   return (
     <iframe
       src={statsUrl}
-      title="Stats dashboard"
+      title={t("topbar.statsDashboard")}
       style={{ width: "100%", height: "100%", border: "none", display: "block", background: "var(--bg)" }}
     />
   );

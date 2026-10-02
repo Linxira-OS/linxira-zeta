@@ -13,7 +13,7 @@ existing OMP runtime and configuration compatibility layer.
 
 ## What is Zeta?
 
-Zeta is a batteries-included coding agent built on the OMP runtime. Zeta Web
+Zeta is a batteries-included coding agent. Zeta Web
 surfaces compatible session files in the browser through a local Next.js server.
 
 ## Quick Start
@@ -23,8 +23,8 @@ Zeta Web requires Node.js 22.19.0 or newer. Check your version with `node --vers
 **Run from source (Git clone):**
 
 ```bash
-git clone https://github.com/17380936778/omp-web.git
-cd omp-web
+git clone https://github.com/Linxira-OS/linxira-zeta.git
+cd linxira-zeta/web-ui
 npm install
 npm run dev      # run dev server on port 30141
 # or build and run production:
@@ -37,14 +37,14 @@ Then open [http://127.0.0.1:30141](http://127.0.0.1:30141). The server tries to 
 **Options:**
 
 ```bash
-omp-web --port 8080              # custom port
-omp-web --hostname 0.0.0.0       # expose on a trusted network
-omp-web -p 8080 -H 0.0.0.0       # combine options
-omp-web --no-open                # do not open the browser automatically
+zeta-web --port 8080              # custom port
+zeta-web --hostname 0.0.0.0       # expose on a trusted network
+zeta-web -p 8080 -H 0.0.0.0       # combine options
+zeta-web --no-open                # do not open the browser automatically
 
-PORT=8080 omp-web                # environment variable is also supported
-OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # explicit network exposure
-OMP_WEB_NO_OPEN=1 omp-web        # useful when running as a background service
+PORT=8080 zeta-web                # environment variable is also supported
+ZETA_WEB_HOSTNAME=0.0.0.0 zeta-web  # explicit network exposure
+ZETA_WEB_NO_OPEN=1 zeta-web        # useful when running as a background service
 ```
 
 Zeta Web has no application-level authentication and can invoke a high-privilege agent. Do not expose it to the internet; only use non-loopback bindings on a trusted network.
@@ -59,7 +59,7 @@ On macOS or Linux:
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx omp-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 On Windows PowerShell:
@@ -68,7 +68,7 @@ On Windows PowerShell:
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx omp-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 ## Features & Enhancements
@@ -102,7 +102,7 @@ table below describes Zeta's compatibility surface and local enhancements:
 
 | Area | Change |
 |---|---|
-| Compatibility binary | `omp-web` remains available for existing scripts |
+| Binary | Single `zeta-web` CLI entrypoint (npm bin and `npx @linxiraos/zeta-web@latest`) |
 | Code Theme Selector | **Added** independent syntax theme selector with support for **One Dark Pro** and others |
 | Data & Role Mapping | Supports `models.db`, `config.yml` model roles, and SQLite credentials under `~/.zeta/agent/` |
 | Chinese & i18n Localization | **Enhanced** full bilingual interface and optimized CJK typography |
@@ -173,7 +173,7 @@ hooks/
   useDragDrop.ts      # image drag/drop
   useTheme.ts         # theme switching
 bin/
-  omp-web.js          # npm CLI entrypoint
+  zeta-web.js         # npm CLI entrypoint
 instrumentation.ts    # initializes the server HTTP dispatcher
 ```
 

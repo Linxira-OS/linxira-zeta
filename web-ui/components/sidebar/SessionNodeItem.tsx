@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SessionInfo } from "@/lib/types";
 import { deleteSession, renameSession } from "@/lib/session-api";
 import { useI18n } from "@/hooks/useI18n";
+import { sessionDisplayTitle } from "./sidebar-shared";
 
 const ITEM_HEIGHT = 54;
 
@@ -37,6 +38,9 @@ export interface SessionNodeItemProps {
 	visibleIds?: readonly string[];
 	/** External right-click handler (portal menu); overrides the inline menu. */
 	onRowContextMenu?: (e: React.MouseEvent) => void;
+	/** Show the cwd leaf in the subtitle (search results only — regular rows
+	 *  get project context from the group header, D4). */
+	showCwd?: boolean;
 }
 
 function formatElapsed(startedMs: number, nowMs: number): string {
@@ -140,6 +144,7 @@ export function SessionNodeItem({
 	onToggleSelect,
 	onRowContextMenu,
 	visibleIds,
+	showCwd = false,
 }: SessionNodeItemProps) {
 	const { t } = useI18n();
 	const [hovered, setHovered] = useState(false);
@@ -151,7 +156,7 @@ export function SessionNodeItem({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
-	const title = session.name || session.firstMessage.slice(0, 50) || session.id.slice(0, 12);
+	const title = sessionDisplayTitle(session, t);
 
 	const startRename = useCallback(
 		(e: React.MouseEvent) => {
@@ -466,7 +471,7 @@ export function SessionNodeItem({
 								minWidth: 0,
 							}}
 						>
-							{session.cwd && (
+							{showCwd && session.cwd && (
 								<span
 									title={session.cwd}
 									style={{

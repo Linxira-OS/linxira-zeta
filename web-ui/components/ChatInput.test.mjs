@@ -8,42 +8,79 @@ const jiti = createJiti(import.meta.url, {
   jsx: { runtime: "automatic" },
   tsconfigPaths: true,
 });
-const { ChatInput, ModelErrorBanner } = await jiti.import("./ChatInput.tsx");
+const { ChatInput, nextThinkingLevel } = await jiti.import("./ChatInput.tsx");
+// Alias-form import: resolves through the same jiti instance (and thus the
+// same module cache) as ChatInput's internal "@/hooks/useI18n", so the
+// provider context this test renders is the one ChatInput actually consumes.
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
-test("renders the upstream model error", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(I18nProvider, null,
-      React.createElement(ModelErrorBanner, {
-        error: "Invalid models.json schema:\nproviders.custom.models.0.id must not be empty",
-      }),
-    ),
-  );
+function renderWithLocales(element) {
+  return renderToStaticMarkup(React.createElement(I18nProvider, null, element));
+}
 
-  assert.match(html, /role="alert"/);
-  assert.match(html, /Model error/);
-  assert.match(html, /providers\.custom\.models\.0\.id must not be empty/);
+const baseProps = {
+  onSend: () => {},
+  onAbort: () => {},
+  isStreaming: false,
+};
+
+test("context usage indicator is absent without data (no dead space)", () => {
+  const html = renderWithLocales(React.createElement(ChatInput, baseProps));
+  assert.doesNotMatch(html, /Context usage/);
+  assert.doesNotMatch(html, /aria-label="[^"]*%/);
+
+  const nullPercent = renderWithLocales(
+    React.createElement(ChatInput, {
+      ...baseProps,
+      contextUsage: { percent: null, contextWindow: 200000, tokens: 50000 },
+    }),
+  );
+  assert.doesNotMatch(nullPercent, /Context usage/);
 });
 
-test("does not render an empty model error", () => {
-  assert.equal(renderToStaticMarkup(React.createElement(I18nProvider, null, React.createElement(ModelErrorBanner, { error: null }))), "");
+test("context usage indicator renders icon plus percent with a detailed tooltip", () => {
+  const html = renderWithLocales(
+    React.createElement(ChatInput, {
+      ...baseProps,
+      contextUsage: { percent: 41.6, contextWindow: 200000, tokens: 83200 },
+    }),
+  );
+  assert.match(html, /42%/);
+  assert.match(html, /aria-label="Context usage: 42%"/);
+  assert.match(html, /title="83k of 200k tokens \(42% of context window\)"/);
+  assert.match(html, /stroke-dasharray="/i, "usage ring drawn proportionally");
 });
 
-test("keeps the model selector visible when a model error leaves no options", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(I18nProvider, null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onModelChange() {},
-        isStreaming: false,
-        modelError: "Invalid models.json schema",
-        modelList: [],
-        modelNames: {},
-      }),
-    ),
-  );
+function thinkingProps(level, available) {
+  return {
+    ...baseProps,
+    thinkingLevel: level,
+    onThinkingLevelChange: () => {},
+    ...(available ? { availableThinkingLevels: available } : {}),
+  };
+}
 
-  assert.match(html, />No models</);
-  assert.match(html, /title="No models available \(failed to load\)"/);
+test("thinking button title carries the Alt+T cycle hint with the live level", () => {
+  const html = renderWithLocales(React.createElement(ChatInput, thinkingProps("medium")));
+  assert.match(html, /title="Change reasoning level: medium \(Alt\+T\)"/);
+});
+
+test("nextThinkingLevel cycles the full ladder with wraparound", () => {
+  assert.equal(nextThinkingLevel("auto"), "off");
+  assert.equal(nextThinkingLevel("off"), "minimal");
+  assert.equal(nextThinkingLevel("medium"), "high");
+  assert.equal(nextThinkingLevel("max"), "auto");
+});
+
+test("nextThinkingLevel: missing current advances from auto; unknown wraps to auto", () => {
+  assert.equal(nextThinkingLevel(undefined), "off");
+  assert.equal(nextThinkingLevel("bogus"), "auto");
+});
+
+test("nextThinkingLevel restricts the cycle to available levels but keeps auto", () => {
+  const available = ["minimal", "high"];
+  assert.equal(nextThinkingLevel("auto", available), "minimal");
+  assert.equal(nextThinkingLevel("minimal", available), "high");
+  assert.equal(nextThinkingLevel("high", available), "auto");
+  assert.equal(nextThinkingLevel("max", available), "auto", "unavailable current falls back to cycle head");
 });

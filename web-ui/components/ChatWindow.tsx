@@ -27,8 +27,8 @@ import { ExtensionStatusBar } from "./ExtensionStatusBar";
 import { TrajectoryView } from "./TrajectoryView";
 import { PlanApproval } from "./PlanApproval";
 import { useAgentSession, type AgentPhase, type AttachedImage, type NoticeItem } from "@/hooks/useAgentSession";
+import { DraftContextBar } from "./DraftContextBar";
 import { sendAgentCommand } from "@/lib/agent-client";
-import { fetchSessions } from "@/lib/session-api";
 import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -101,80 +101,6 @@ function phaseLabel(
 const CHAT_MINIMAP_WIDTH = 36;
 const CHAT_COLUMN_PADDING = 16;
 const CHAT_INPUT_RIGHT_PADDING = CHAT_COLUMN_PADDING + CHAT_MINIMAP_WIDTH;
-
-/** One selectable workspace in the new-chat welcome row. */
-interface WorkspaceOption {
-	path: string;
-	label: string;
-	/** Branch of a linked worktree; absent on the main checkout / plain dirs. */
-	branch?: string;
-	isMain?: boolean;
-}
-
-function basenameLabel(p: string): string {
-	return p.split(/[\\/]/).filter(Boolean).pop() ?? p;
-}
-
-/**
- * Welcome-row workspace options: worktrees of the current project (via
- * /api/worktrees, same response shape NewSessionDialog consumes) plus other
- * recent projects collapsed to their projectRoot (same dedupe as the
- * sidebar's recent-projects list, sourced from /api/sessions). The current
- * cwd is always present so the select never shows a foreign value.
- */
-async function fetchWorkspaceOptions(currentCwd: string): Promise<WorkspaceOption[]> {
-	const options: WorkspaceOption[] = [];
-	const seen = new Set<string>();
-	const pushOption = (opt: WorkspaceOption): void => {
-		const key = opt.path.replace(/[\\/]+$/, "");
-		if (seen.has(key)) return;
-		seen.add(key);
-		options.push(opt);
-	};
-	pushOption({ path: currentCwd, label: basenameLabel(currentCwd) });
-
-	const [worktreeRes, sessionsRes] = await Promise.allSettled([
-		fetch(`/api/worktrees?cwd=${encodeURIComponent(currentCwd)}`).then(r => (r.ok ? r.json() : null)),
-		fetchSessions(),
-	]);
-
-	let currentProjectRoot = currentCwd;
-	if (worktreeRes.status === "fulfilled" && worktreeRes.value) {
-		const d = worktreeRes.value as {
-			projectRoot?: string;
-			worktrees?: { path: string; branch?: string; isMain?: boolean }[];
-		};
-		if (d.projectRoot) currentProjectRoot = d.projectRoot;
-		for (const w of d.worktrees ?? []) {
-			pushOption({
-				path: w.path,
-				label: basenameLabel(w.path),
-				...(w.branch ? { branch: w.branch } : {}),
-				...(w.isMain ? { isMain: true } : {}),
-			});
-		}
-	}
-
-	if (sessionsRes.status === "fulfilled") {
-		const latestByRoot = new Map<string, string>();
-		for (const s of sessionsRes.value.sessions ?? []) {
-			if (s.temp) continue;
-			const root = s.projectRoot ?? s.cwd;
-			if (!root) continue;
-			const prev = latestByRoot.get(root);
-			if (!prev || s.modified > prev) latestByRoot.set(root, s.modified);
-		}
-		const otherRoots = [...latestByRoot.entries()]
-			.filter(([root]) => root !== currentProjectRoot)
-			.sort((a, b) => (a[1] < b[1] ? 1 : -1))
-			.slice(0, 6);
-		for (const [root] of otherRoots) {
-			pushOption({ path: root, label: basenameLabel(root) });
-		}
-	}
-
-	return options;
-}
 
 const welcomeSelectStyle: React.CSSProperties = {
 	background: "var(--bg)",
@@ -747,26 +673,8 @@ export function ChatWindow({
 	const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
 	const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
 
-	// --- Welcome-state pickers (workspace + mode) ---
-	const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>(() =>
-		newSessionCwd ? [{ path: newSessionCwd, label: basenameLabel(newSessionCwd) }] : [],
-	);
+	// --- Welcome-state mode picker (workspace picking moved to DraftContextBar) ---
 	const [welcomeMode, setWelcomeMode] = useState<"agent" | "plan">("agent");
-
-	useEffect(() => {
-		if (!isEmptyNew || !newSessionCwd) return;
-		let cancelled = false;
-		fetchWorkspaceOptions(newSessionCwd)
-			.then(options => {
-				if (!cancelled) setWorkspaceOptions(options);
-			})
-			.catch(() => {
-				// Keep the seeded current-cwd option on failure; the row stays usable.
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [isEmptyNew, newSessionCwd]);
 
 	// Plan mode rides the exact slash-command path ChatInput uses for /plan
 	// (onBuiltinCommand → handleBuiltinSlashCommand → mode_enter): the pending
@@ -798,6 +706,8 @@ export function ChatWindow({
 	const chatInputElement = (
 		<ChatInput
 			ref={chatInputRef}
+			variant={isEmptyNew ? "hero" : "docked"}
+			contextUsage={contextUsage}
 			onSend={isEmptyNew ? handleWelcomeSend : handleSend}
 			onAbort={handleAbort}
 			onSteer={agentRunning ? handleSteer : undefined}
@@ -994,37 +904,30 @@ export function ChatWindow({
 									<span style={{ color: "var(--text)" }}>
 										v
 										{process.env.NEXT_PUBLIC_APP_VERSION ??
-											process.env.NEXT_PUBLIC_OMP_VERSION ??
-											process.env.NEXT_PUBLIC_PI_VERSION ??
+											process.env.NEXT_PUBLIC_ZETA_VERSION ??
 											"0.0.0"}
 									</span>
 								</span>
 							</div>
 						</div>
 						<NoticeShelf notices={notices} align="right" />
+						{/* Draft context bar (spec D11): workspace + branch chips replace
+						    the old welcome selects; mode stays a plain picker. */}
 						<div
 							style={{
 								display: "flex",
+								flexDirection: "column",
 								alignItems: "center",
-								gap: 8,
-								flexWrap: "wrap",
-								margin: "0 52px 10px 16px",
+								gap: 10,
+								margin: "0 52px 12px 16px",
 							}}
 						>
-							<select
-								value={newSessionCwd ?? ""}
-								onChange={e => onNewSessionCwdChange?.(e.target.value)}
-								disabled={!onNewSessionCwdChange || workspaceOptions.length < 2}
-								aria-label={t("welcome.select-workspace")}
-								style={welcomeSelectStyle}
-							>
-								{workspaceOptions.map(opt => (
-									<option key={opt.path} value={opt.path}>
-										{opt.label}
-										{opt.branch && !opt.isMain ? ` (${opt.branch})` : ""}
-									</option>
-								))}
-							</select>
+							<DraftContextBar
+								cwd={newSessionCwd}
+								onCwdChange={picked => {
+									if (onNewSessionCwdChange && picked !== newSessionCwd) onNewSessionCwdChange(picked);
+								}}
+							/>
 							<select
 								value={welcomeMode}
 								onChange={e => setWelcomeMode(e.target.value as "agent" | "plan")}
@@ -1564,6 +1467,26 @@ export function ChatWindow({
 							</div>
 
 							<div className="relative">
+								{/* Docked draft state (spec D11): the bar rides above the
+								    composer until the first message creates the session. */}
+								{isNew && newSessionCwd && messages.length === 0 && !sessionBusy && (
+									<div
+										style={{
+											padding: `0 ${CHAT_COLUMN_PADDING}px`,
+											paddingRight: isMobile ? CHAT_COLUMN_PADDING : CHAT_INPUT_RIGHT_PADDING,
+											marginBottom: 8,
+										}}
+									>
+										<div style={{ maxWidth: 820, margin: "0 auto" }}>
+											<DraftContextBar
+												cwd={newSessionCwd}
+												onCwdChange={picked => {
+													if (onNewSessionCwdChange && picked !== newSessionCwd) onNewSessionCwdChange(picked);
+												}}
+											/>
+										</div>
+									</div>
+								)}
 								<div
 									style={{
 										padding: `0 ${CHAT_COLUMN_PADDING}px`,

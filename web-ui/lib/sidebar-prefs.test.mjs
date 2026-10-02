@@ -116,3 +116,38 @@ test("markSessionRead records readAt used by unread badges", async () => {
 	assert.equal(mod.loadSidebarPrefs().sessionMeta.s9.readAt, 1234);
 	restore();
 });
+
+test("project sort writes land in P2 and survive reload (menu + ↑↓ share one state)", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	// The SidebarHeader menu and the group-header ↑↓ both do
+	// updatePrefs(p => { p.projectSort = mode }) — verify the write path.
+	for (const mode of ["created", "name", "manual", "recent"]) {
+		mod.updatePrefs(p => {
+			p.projectSort = mode;
+		});
+		assert.equal(mod.loadSidebarPrefs().projectSort, mode);
+	}
+	// Reload from the same storage: single source of truth.
+	const storage2 = makeStorage(storage._dump());
+	const { mod: mod2, restore: restore2 } = await loadModule(storage2);
+	assert.equal(mod2.loadSidebarPrefs().projectSort, "recent");
+	restore2();
+	restore();
+});
+
+test("project meta writers (collapse / alias / pin) persist into P2", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	mod.collapseProject("/p", true);
+	mod.setProjectAlias("/p", "Zeta");
+	mod.pinProject("/q", true);
+	const prefs = mod.loadSidebarPrefs();
+	assert.equal(prefs.projectMeta["/p"].collapsed, true);
+	assert.equal(prefs.projectMeta["/p"].name, "Zeta");
+	assert.equal(prefs.projectMeta["/q"].pinned, true);
+	assert.equal(storage.getItem("zeta-web:sidebar-collapsed-projects"), null);
+	assert.equal(storage.getItem("zeta-web:sidebar-project-aliases"), null);
+	assert.equal(storage.getItem("zeta-web:sidebar-pinned-projects"), null);
+	restore();
+});

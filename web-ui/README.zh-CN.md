@@ -8,7 +8,7 @@ Zeta 的浏览器界面，基于 OMP Web 快照，并保留现有 OMP 运行时�
 
 ![Zeta Web 界面展示：结构化 Markdown、工具调用与项目导航](./docs/Untitled%20blend-4096x4096.png)
 
-Zeta 是基于 OMP 运行时的开箱即用编码代理。Zeta Web 通过本地 Next.js 服务器在浏览器中展示兼容的会话文件。
+Zeta 是开箱即用的编码代理。Zeta Web 通过本地 Next.js 服务器在浏览器中展示兼容的会话文件。
 
 ## 快速开始
 
@@ -17,8 +17,8 @@ Zeta Web 要求 Node.js 22.19.0 或更高版本。可通过 `node --version` 检
 **从源码运行（Git Clone）：**
 
 ```bash
-git clone https://github.com/17380936778/omp-web.git
-cd omp-web
+git clone https://github.com/Linxira-OS/linxira-zeta.git
+cd linxira-zeta/web-ui
 npm install
 npm run dev      # 启动开发服务器（端口 30141）
 # 或构建后运行生产模式：
@@ -31,14 +31,14 @@ npm start
 **可选参数：**
 
 ```bash
-omp-web --port 8080              # 自定义端口
-omp-web --hostname 0.0.0.0       # 在可信网络中开放访问
-omp-web -p 8080 -H 0.0.0.0       # 组合使用
-omp-web --no-open                # 不自动打开浏览器
+zeta-web --port 8080              # 自定义端口
+zeta-web --hostname 0.0.0.0       # 在可信网络中开放访问
+zeta-web -p 8080 -H 0.0.0.0       # 组合使用
+zeta-web --no-open                # 不自动打开浏览器
 
-PORT=8080 omp-web                # 也支持环境变量
-OMP_WEB_HOSTNAME=0.0.0.0 omp-web  # 显式开放网络访问
-OMP_WEB_NO_OPEN=1 omp-web         # 适用于后台服务或开机自启
+PORT=8080 zeta-web                # 也支持环境变量
+ZETA_WEB_HOSTNAME=0.0.0.0 zeta-web  # 显式开放网络访问
+ZETA_WEB_NO_OPEN=1 zeta-web         # 适用于后台服务或开机自启
 ```
 
 Zeta Web 没有应用层身份验证，并且可以调用高权限智能体。请勿将其暴露到互联网；仅在可信网络中使用非 loopback 监听地址。
@@ -53,7 +53,7 @@ macOS 或 Linux：
 HTTP_PROXY=http://127.0.0.1:7890 \
 HTTPS_PROXY=http://127.0.0.1:7890 \
 NO_PROXY=localhost,127.0.0.1 \
-npx omp-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 Windows PowerShell：
@@ -62,7 +62,7 @@ Windows PowerShell：
 $env:HTTP_PROXY = "http://127.0.0.1:7890"
 $env:HTTPS_PROXY = "http://127.0.0.1:7890"
 $env:NO_PROXY = "localhost,127.0.0.1"
-npx omp-web@latest
+npx @linxiraos/zeta-web@latest
 ```
 
 ## 特色与增强功能
@@ -93,7 +93,7 @@ Zeta Web 基于 OMP Web 快照，后者保留了 Pi Web 历史。下表列出 Ze
 
 | 改动点 | 说明 |
 |---|---|
-| 兼容二进制 | 为现有脚本保留 `omp-web` |
+| 二进制入口 | 单一 `zeta-web` CLI 入口（npm bin 与 `npx @linxiraos/zeta-web@latest`） |
 | 代码语法主题选择器 | **新增** 独立代码块主题选择器，支持 **One Dark Pro** 等主流主题切换 |
 | 数据与角色映射 | 支持 `~/.zeta/agent/` 下的 `models.db`、`config.yml` 角色模型及 SQLite API Key |
 | 中文与国际化体验 | **增强** 完整双语界面与中文本地化交互优化 |
@@ -163,7 +163,7 @@ hooks/
   useDragDrop.ts      # 图片拖拽
   useTheme.ts         # 主题切换
 bin/
-  omp-web.js          # npm CLI 入口
+  zeta-web.js         # npm CLI 入口
 instrumentation.ts    # 初始化服务端 HTTP dispatcher
 ```
 
