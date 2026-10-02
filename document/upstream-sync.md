@@ -96,6 +96,48 @@
    - Round 4: CI 20/20 + Zeta Nix green → merged as PR #14 (`caef3818cc`).
 - **New standing rule** (from this sync): `nix/bun.nix` is Zeta-owned release surface — after any `bun.lock` change, regen with `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix` (bun2nix 2.1.2, same rev as flake.lock) and normalize lock registry URLs to npmjs.org before pushing; the flake's `bun-lock` check is the detector.
 
+## v18.4.4 (Zeta — sync/omp-release/v18.4.4,单 tag 增量合并,2026-10-02)
+
+回规 playbook 单 tag 增量方式(v18.4.3 → v18.4.4)。合并于隔离 worktree
+`zeta-sync-1844`,全部 174 冲突逐块手工 resolve,无自动 squash、无 stage-3
+批量取边。
+
+| 项      | 值 |
+| ------- | --- |
+| 起点    | `main` @ `61c35ed82a3`(v1.1.23 tag 所指) |
+| v18.4.4 | 轻量 tag = commit `8ac1309bd8adaddc891eeb389c545345073875be`(ls-remote 核验);merge-base = v18.4.3 `fc671eba383f` ✓;真双亲 merge `1882c662448` |
+| 增量    | 上游 wire/native describe(TSP)面扩张、context-usage span 重写、`sceneFooterHint` 动态键位、`showModelCycleTrack(segments, activeIndex)` 签名演进(渲染下沉 interactive-mode + describeSegmentTrack)、pi-wire 类型进入 interactive-mode |
+
+**v18.4.4 冲突决策(174)**:
+
+- **97 scope 噪声桶**:stage-3 取 theirs + 全树 scope 映射重写(636 处;
+  pi-coding-agent→zeta、omptype→pi-omptype、snapcompact→pi-snapcompact、
+  omp-stats→pi-stats;keeper:brand drivers、legacy-pi-canonical、
+  windows-staging)。
+- **类 4 恢复**:Zeta sidebar 面(`SidebarComponent` 构造与上游
+  `onNativeAction`/`onNativePullRequest` 双保);`selector-helpers`
+  `searchableChar`+`extractPrintableText`(自动合并静默丢弃,TS2305 才暴露);
+  splash `skipHint` 恢复 + native describe wordmark 复位 "Z e t a";
+  event-handler 表 `state_version_changed` + 上游 `queue_update` 双保。
+- **上游演进吸收**:`showModelCycleTrack` 采用上游双参形态(controllers 去掉
+  renderSegmentTrack 预渲染);`sceneFooterHint()` 动态键位替代硬编码提示;
+  composer-shape-preview/theme/queue-mode/thinking 四 overlay 的
+  `zeta.overlay.*` 第二参保持。
+- **union 叠伤返工**:select-list `#statusText` 双 return 叠写、ui-helpers
+  read-tool-group import 断头、context-usage.ts 函数体双实现花斑(整体取
+  theirs span 重写版)——教训:union 合并器只可用于 import 块与注册表,
+  函数体禁用。
+- **CHANGELOG**:356 个上游 15.x–18.x 段从 packages/*/CHANGELOG.md 剥离
+  (检测规则 `^## \[1[5-8]\.`);Zeta 段与 [Unreleased] 保留。
+- **版本线**:set-version 1.1.23 整线对齐(Cargo/main workspace/natives
+  sentinel/desktop/badge/BUILD.bazel);bun.lock 重生成;catalog 13 键全验证。
+- **worker argv 协议**(类 11):上游新 worker `__omp_worker_text_predict` →
+  `__zeta_worker_text_predict`,stt/tab/tts 三处对齐 cli.ts 派发表;
+  测试 env `PI_CODING_AGENT_DIR`→`ZETA_CODING_AGENT_DIR` 两处。
+- **门禁**:check:ts / oxfmt / cargo fmt / version-consistency / brand-check
+  (0 hit)/ zeta-sentinels(46)/ ci-surface 全绿;tui 本地测试相对
+  main 基线零新增失败(15 个两侧一致的 Windows 环境固红)。
+
 ## v18.4.3 (Zeta — dev/main 实验线,五 tag 直拉合并,2026-09-29)
 
 用户授权跳过分步,从 v18.3.4 基线一步直拉 v18.4.3(覆盖 v18.3.5/v18.4.0/v18.4.1/

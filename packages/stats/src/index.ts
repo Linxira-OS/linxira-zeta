@@ -47,8 +47,8 @@ function formatCost(n: number, unpricedRequests = 0): string {
 }
 
 /**
- * Print the dashboard summary to the console. Shared by `omp stats --summary`
- * and the standalone `omp-stats --sync`.
+ * Print the dashboard summary to the console. Shared by `zeta-c stats --summary`
+ * and the standalone `zeta-stats --sync`.
  */
 export async function printStatsSummary(): Promise<void> {
 	const stats = await getDashboardStats();
@@ -93,7 +93,7 @@ export async function printStatsSummary(): Promise<void> {
 	console.log("");
 }
 
-/** Parsed arguments for the standalone `omp-stats` entry point. */
+/** Parsed arguments for the standalone `zeta-stats` entry point. */
 export interface StandaloneStatsArgs {
 	port: number;
 	host: string;
@@ -102,7 +102,7 @@ export interface StandaloneStatsArgs {
 	help: boolean;
 }
 
-/** Parse the standalone `omp-stats` arguments used by the production entry point. */
+/** Parse the standalone `zeta-stats` arguments used by the production entry point. */
 export function parseStandaloneStatsArgs(args: string[]): StandaloneStatsArgs {
 	const { values } = parseArgs({
 		args,
@@ -132,10 +132,10 @@ async function main(): Promise<void> {
 
 	if (values.help) {
 		console.log(`
-omp-stats - AI Usage Statistics Dashboard
+zeta-stats - AI Usage Statistics Dashboard
 
 Usage:
-  omp-stats [options]
+  zeta-stats [options]
 
 Options:
   -p, --port <port>  Port for the dashboard server (default: 3847)
@@ -145,10 +145,10 @@ Options:
   -h, --help         Show this help message
 
 Examples:
-  omp-stats              # Start dashboard server
-  omp-stats --json       # Print stats as JSON
-  omp-stats --host 0.0.0.0 # Explicitly expose on all IPv4 interfaces
-  omp-stats --sync       # Sync and show summary
+  zeta-stats              # Start dashboard server
+  zeta-stats --json       # Print stats as JSON
+  zeta-stats --host 0.0.0.0 # Explicitly expose on all IPv4 interfaces
+  zeta-stats --sync       # Sync and show summary
 `);
 		return;
 	}

@@ -213,4 +213,30 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
 	},
+	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
+	// The stats client shipped with upstream branding since the fork (never
+	// overlayed) and regressed visually every release merge. These pin the
+	// user-visible dashboard tokens to the Zeta spelling; port-conflict's
+	// deliberate `omp` process-match keepers are narrower literals and do not
+	// match any of these.
+	{
+		needle: /<title>omp stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'omp stats' since the fork)",
+	},
+	{
+		needle: /Everything omp did/,
+		why: "stats Overview subtitle names zeta, not upstream",
+	},
+	{
+		needle: /X-Omp-Stats-Action/,
+		why: "stats action header is X-Zeta-Stats-Action on both client and server sides",
+	},
+	{
+		needle: /omp-stats-theme/,
+		why: "stats theme localStorage key is zeta-stats-theme (client + useSystemTheme pair)",
+	},
+	{
+		needle: /omp-mark-grad/,
+		why: "stats logo gradient id is zeta-mark-grad (ζ mark, not π)",
+	},
 ];

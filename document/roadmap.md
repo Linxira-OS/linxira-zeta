@@ -636,6 +636,27 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   `providers.imageOrder` 的 role-chain 重集成(运行时消费随上游旧 candidate
   循环删除而失活,设置面/测试契约保留);上游最新 tag 跟踪同前。
 
+- **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
+  基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方
+  基线 977ec83(2026-07-31)距其 1389 提交。裁决:**durable 子系统暂缓**——
+  OMP 作者有主动引入意愿,等上游带进来再随 release 合并吸收,不自建。其余按
+  优先级排队:①codemode/tool_search 官方内置扩展激活(defaultTools 设置页
+  组,默认关)②cacheWarming 三档(上游已合并面,核对设置页暴露)③TUI/UX
+  开关包(默认关清单逐项裁断)④provider stream events 语义移植。官方插件
+  生态参照:llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true 让位
+  机制,tuiText(key,fallback) 宿主注入 i18n。
+- **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:必修①user scope
+  死目录(~/.zeta/agents → getAgentDir()/agents);强烈建议②默认 scope 与官
+  方安全姿态相反(project 需 opt-in+trust 确认,isProjectTrusted 勿桩 true)
+  ③非编辑角色缺 tools 最小权限④thinking-level→thinkingLevel 键名⑤删除失
+  实重启提示;小项:usage 文案、--user/--project 冲突不报错、零测试覆盖、
+  .pi 品牌路径残留(crew/team/*)。随 feat 分支落地,不经 dev/*。
+- **web-ui/桌面侧栏大修(2026-10-02 用户裁决,发布硬门)**:下一次发布 CI
+  前必须完成,否则不许上线。执行计划见 document/webui-desktop-overhaul-plan
+  .md(项目分组 IA、hover 浮现 + 新建入口、会话命名/空会话折叠、死代码清
+  理;桌面壳零代码改动,仅重建嵌入)。
+- **stats dashboard 品牌面修复(2026-10-02 用户裁决)**:π logo/omp 字样/
+  "Everything omp did" 全量 Zeta 化;数据源若解析上游目录需切回 .zeta 根。
 - **rail 拖拽排序**:dnd-kit 垂直排序 + localStorage 持久化(随 U6
   SidePane 框架一起评估)。
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游

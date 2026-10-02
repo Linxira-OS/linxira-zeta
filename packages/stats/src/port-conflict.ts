@@ -7,7 +7,18 @@ import { $ } from "bun";
 const STATS_PROBE_TIMEOUT_MS = 500;
 const PROCESS_EXIT_POLL_MS = 50;
 const PROCESS_EXIT_POLLS = 10;
-const STATS_RUNTIME_IMAGES: Record<string, true> = { bun: true, node: true, omp: true, "omp-stats": true };
+const STATS_RUNTIME_IMAGES: Record<string, true> = {
+	bun: true,
+	node: true,
+	// Zeta runtime images: the compiled CLI and the standalone npm bin.
+	"zeta-c": true,
+	"zeta-cli": true,
+	zetacode: true,
+	"zeta-stats": true,
+	// Upstream OMP images kept so a leftover upstream dashboard is still reclaimable.
+	omp: true,
+	"omp-stats": true,
+};
 
 interface PortHolder {
 	pid: number;
@@ -16,9 +27,9 @@ interface PortHolder {
 }
 
 /** Header stamped on every dashboard response so reuse probes can identify us. */
-export const STATS_DASHBOARD_HEADER = "x-omp-stats-dashboard";
+export const STATS_DASHBOARD_HEADER = "x-zeta-stats-dashboard";
 /** Header recording the server's requested bind host so reuse cannot change its exposure scope. */
-export const STATS_DASHBOARD_HOSTNAME_HEADER = "x-omp-stats-hostname";
+export const STATS_DASHBOARD_HOSTNAME_HEADER = "x-zeta-stats-hostname";
 
 /** Identity-header value for dashboards enforcing an explicit bind host and same-origin access. */
 export const STATS_DASHBOARD_SECURITY_VERSION = "3";
@@ -242,14 +253,19 @@ async function reclaimStatsPort(port: number, hasDashboardIdentity = false): Pro
 		.replace(/ \(deleted\)$/, "");
 	const normalizedCommand = holder.commandLine.toLowerCase().replaceAll("\\", "/");
 	const hasStatsIdentity =
+		normalizedImage === "zeta-stats" ||
 		normalizedImage === "omp-stats" ||
-		/(?:^|[/"'\s])omp-stats(?:\.exe)?(?:["'\s]|$)/.test(normalizedCommand) ||
+		/(?:^|[/"'\s])(?:zeta|omp)-stats(?:\.exe)?(?:["'\s]|$)/.test(normalizedCommand) ||
 		/\/packages\/stats\/src\/index\.ts(?:["'\s]|$)/.test(normalizedCommand) ||
-		(normalizedImage === "omp" && /(?:^|\s)stats(?:\s|$)/.test(normalizedCommand)) ||
-		/(?:^|\/)omp(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
+		((normalizedImage === "zeta-c" ||
+			normalizedImage === "zeta-cli" ||
+			normalizedImage === "zetacode" ||
+			normalizedImage === "omp") &&
+			/(?:^|\s)stats(?:\s|$)/.test(normalizedCommand)) ||
+		/(?:^|\/)(?:zeta-c|zeta-cli|zetacode|omp)(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
 	if (!STATS_RUNTIME_IMAGES[normalizedImage] || (!hasStatsIdentity && !hasDashboardIdentity)) {
 		throw new Error(
-			`Port ${port} is in use by ${holder.image} (PID ${holder.pid}), which is not identifiable as an omp stats dashboard; refusing to stop it.`,
+			`Port ${port} is in use by ${holder.image} (PID ${holder.pid}), which is not identifiable as a zeta stats dashboard; refusing to stop it.`,
 		);
 	}
 

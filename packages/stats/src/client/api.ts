@@ -57,7 +57,7 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
  * Spend-incurring actions carry this custom header. It forces a CORS preflight
  * the server never approves, so a cross-site page cannot trigger them.
  */
-const ACTION_HEADERS = { "X-Omp-Stats-Action": "1" };
+const ACTION_HEADERS = { "X-Zeta-Stats-Action": "1" };
 
 export async function getOverviewStats(range: TimeRange = "24h", signal?: AbortSignal): Promise<OverviewStats> {
 	return fetchJson<OverviewStats>(`${API_BASE}/stats/overview?range=${encodeURIComponent(range)}`, {
