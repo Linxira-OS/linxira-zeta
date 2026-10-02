@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- **Crew subprocesses run the zeta CLI, not upstream `pi`**: worker/lobby spawns resolve the CLI that loaded the extension (compiled binary or runtime + entry, `PI_SUBPROCESS_CMD` override, then PATH lookup of `zeta-c`/`zetacode`/`zeta-cli`; never bare `pi`/`zeta`). The spawn flag surface (`--mode json`, `--no-session`, `-p`, `--provider/--model`, `--thinking`, `--tools`, `--extension`, `--append-system-prompt`) is equivalent on the zeta CLI. Windows `.cmd` shims are deliberately not spawned shell-less (EINVAL under Bun/Node, command-injection risk through a shell).
+- **State moved from the `~/.pi` tree to the zeta tree**: global messenger state `~/.zeta/agent/messenger` (was `~/.pi/agent/messenger`), project state `<project>/.zeta/messenger` (was `.pi/messenger`), config `~/.zeta/agent/pi-messenger.json` / `<project>/.zeta/pi-messenger.json`. One-time migrations move pre-existing state on first load (global) or first touch per project; the upstream `settings.json` "messenger" config source is no longer read.
+- **`/teamagent add --user` writes the real discovery directory** `~/.zeta/agent/agents` (was the dead `~/.zeta/agents`), so user-registered agents are actually spawnable.
+- **Project agents are opt-in**: project-scope `/teamagent add` refuses unless the project config sets `"trustProjectAgents": true` in `<project>/.zeta/pi-messenger.json`, and project-supplied crew agent/skill overrides only load with the same opt-in — cloning an untrusted repository no longer registers tool-capable subagents silently. `/teamagent` explains how to enable it.
+- **Removed the false "restart before spawning" notice**: agent discovery re-reads agent files on every task request, so `/teamagent add` results are spawnable immediately.
+
 - **handoff 契约模块**(`handoff.ts`):write-then-rename + 读一次即删,`path:line:col` 解析处理 Windows 盘符冒号;损坏/空 payload 不阻塞启动;显式 CLI 参数优先,同目录已开工作区不拆。
 - **`/editor` + 右上角圆角按钮**:header 挂点(`setHeader` 需要 live ctx,故从 `session_start` 装)而非 status-line segment;`editor.autoInstall` 缺失自动 `npm i -g`,Linux EACCES 走 `sudo -n` 重试,需密码时返回确切命令。
 - **`/teamagent`**:crew 角色注册为可 spawn subagent(七动词归一个命令,原 `/team` 删除消除同名双注册);scope 默认 project,`--user` 全局;保留名与非法名写入前拒绝。
