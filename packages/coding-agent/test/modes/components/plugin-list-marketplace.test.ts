@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as os from "node:os";
 import { stripVTControlCharacters } from "node:util";
+import { getPluginCacheDir, getPluginDataDir, getPluginStateDir } from "@linxiraos/pi-utils";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
 import {
 	type InstalledPluginSummary,
@@ -29,6 +30,11 @@ const npm = (name: string, opts: Partial<InstalledPlugin> = {}): InstalledPlugin
 	manifest: { version: "1.2.3", description: `desc ${name}` },
 	enabledFeatures: null,
 	enabled: true,
+	storage: {
+		dataDir: getPluginDataDir(name),
+		cacheDir: getPluginCacheDir(name),
+		stateDir: getPluginStateDir(name),
+	},
 	...opts,
 });
 
