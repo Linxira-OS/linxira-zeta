@@ -20,13 +20,13 @@ supported; there is no macOS build.
 | Command                 | Package             | What it is                                      |
 | ----------------------- | ------------------- | ----------------------------------------------- |
 | `zeta` / `zetawork`     | `@linxiraos/main`   | The workspace: nested-terminal workbench (Rust) |
-| `zetacode` / `zeta-c`   | `@linxiraos/zeta`   | Coding agent CLI                                |
-| `zetaeditor` / `zeta-e` | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
-| `zetaide` / `zeta-i`    | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
+| `zetacode`              | `@linxiraos/zeta`   | Coding agent CLI                                |
+| `zetaeditor`            | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
+| `zetaide`               | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
 
 Every tool launches standalone with its own `--help`. The workbench is the
-unified entry: `zeta code` (or `zeta c`) hands off to the coding agent,
-`zeta editor`/`zeta e` and `zeta ide`/`zeta i` to the others.
+unified entry: its coding/editor/IDE panes hand off to `zetacode`,
+`zetaeditor`, and `zetaide`.
 
 ## Quick Start
 
@@ -43,9 +43,9 @@ exact install command for what is missing. Missing tools also self-install
 into a workbench pane on first use. Install any tool standalone the same way:
 
 ```sh
-npm i -g @linxiraos/zeta      # zeta-c — coding agent CLI
-npm i -g @linxiraos/editor    # zeta-editor — terminal editor
-npm i -g @linxiraos/ide       # zeta-ide — terminal IDE
+npm i -g @linxiraos/zeta      # zetacode — coding agent CLI
+npm i -g @linxiraos/editor    # zetaeditor — terminal editor
+npm i -g @linxiraos/ide       # zetaide — terminal IDE
 ```
 
 From a source checkout:
@@ -61,7 +61,7 @@ bun run dev
 `zeta` is a real terminal multiplexer with product opinions, written in Rust:
 
 - **Tabs and tiled panes** — each pane is a real PTY: anything that runs in a
-  terminal runs in a pane (a shell, a `zeta-c` session, the editor, the IDE).
+  terminal runs in a pane (a shell, a `zetacode` session, the editor, the IDE).
   Split any pane left/right or top/bottom; panes keep a stack of **pages** so
   one pane can hold several terminals without closing anything.
 - **Mouse-first** — every control (menu bar, tab bar, pane title controls,
@@ -81,7 +81,7 @@ bun run dev
   task delegation, and structured tool output.
 - Multi-provider model access, local configuration, OAuth flows, model
   discovery, session recovery, and controllable retry behavior.
-- A local web workbench (`zeta-c serve`, Next.js app in `web-ui/`) and a
+- A local web workbench (`zetacode serve`, Next.js app in `web-ui/`) and a
   desktop shell (`zeta-desktop`, Electron) that embed the same runtime — one
   session tree, one settings model, one gateway API (`/api/*`).
 - Native text, image, terminal, browser, and desktop capabilities where the
@@ -112,14 +112,14 @@ inherits from upstream — and what Zeta owns — is stated per component:
 | Component                                                               | Upstream origin                                                                                        | Zeta ownership                                                                                                                      |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `main/` (workspace, `@linxiraos/main`, binary `zeta`)                   | Zeta-originated                                                                                        | Rust workspace built on the vendored termide crates; PaneTree layout, page stacks, widget panes, suite entry                        |
-| `packages/coding-agent/` (CLI, `zeta-c`)                                | OMP runtime tree, release-tag merges                                                                   | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
+| `packages/coding-agent/` (CLI, `zetacode`)                                | OMP runtime tree, release-tag merges                                                                   | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats`   | OMP runtime tree                                                                                       | Same adaptation surface as the CLI                                                                                                  |
-| `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`/`zeta-editor`) | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries         | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
-| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zeta-ide`)             | [termide/termide](https://github.com/termide/termide) — vendored Rust, ledgered in `termide/VENDOR.md` | Brand and npm surface; upstream snapshot with Zeta adaptations                                                                      |
+| `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`/`zetaeditor`) | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries         | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
+| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)             | [termide/termide](https://github.com/termide/termide) — vendored Rust, ledgered in `termide/VENDOR.md` | Brand and npm surface; upstream snapshot with Zeta adaptations                                                                      |
 | `web-ui/`                                                               | OMP Web snapshot (frozen — manual cherry-picks only)                                                   | Own-desktop upgrade content, Next.js app                                                                                            |
 | `desktop/`                                                              | Zeta-originated                                                                                        | Electron shell that embeds the `web-ui/` build and the compiled runtime                                                             |
 | `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge)   | Zeta-originated                                                                                        | Channel runtime, tools (`channel_send`, `workspace_run`)                                                                            |
-| `packages/coding-agent/src/server/` (web-gateway, `zeta-c serve`)       | Zeta-originated                                                                                        | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
+| `packages/coding-agent/src/server/` (web-gateway, `zetacode serve`)       | Zeta-originated                                                                                        | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
 
 ## Zeta-Originated Capabilities
 
@@ -140,7 +140,7 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Command marketplace** — install and share slash commands as Bun packages.
 - **ACP collaboration builtins** — Agent Client Protocol session support.
 - **Channel runtime** — WeChat/Feishu/Telegram bridges embedded in
-  `zeta-c serve`, with plan-image routing and workspace-scoped execution tools.
+  `zetacode serve`, with plan-image routing and workspace-scoped execution tools.
 - **Web gateway** — REST API behind the web UI (`/api/*`), one handler module
   per resource, consumed by both the browser UI and the desktop shell.
 - **Desktop shell** — Electron tray application embedding a standalone build of
@@ -148,7 +148,7 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 - **Linux downstream packaging** — `zeta-desktop` ships as a release asset with
   a frozen name/digest contract so downstream repositories (pacman et al.) can
   pin and verify it; see `document/release.md`.
-- **Local stats dashboard** — `zeta-c stats` observability for the coding agent.
+- **Local stats dashboard** — `zetacode stats` observability for the coding agent.
 
 ## Documentation
 
@@ -207,10 +207,10 @@ supported development/target platform; macOS is not built.
 | Surface                              | Linux      | Windows | macOS |
 | ------------------------------------ | ---------- | ------- | ----- |
 | `zeta` workspace (`@linxiraos/main`) | x64        | x64     | —     |
-| `zeta-c` CLI                         | x64, arm64 | x64     | —     |
-| `zeta-editor` (`@linxiraos/editor`)  | x64        | x64     | —     |
-| `zeta-ide` (`@linxiraos/ide`)        | x64        | x64     | —     |
-| `zeta-c serve` (web workbench)       | x64, arm64 | x64     | —     |
+| `zetacode` CLI                         | x64, arm64 | x64     | —     |
+| `zetaeditor` (`@linxiraos/editor`)  | x64        | x64     | —     |
+| `zetaide` (`@linxiraos/ide`)        | x64        | x64     | —     |
+| `zetacode serve` (web workbench)       | x64, arm64 | x64     | —     |
 | `zeta-desktop` shell                 | x64        | x64     | —     |
 
 Native text/grep and image capabilities require the platform C/C++ toolchain
@@ -248,13 +248,13 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 | 命令                    | 包                  | 是什么                          |
 | ----------------------- | ------------------- | ------------------------------- |
 | `zeta` / `zetawork`     | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)    |
-| `zetacode` / `zeta-c`   | `@linxiraos/zeta`   | 编码 Agent CLI                  |
-| `zetaeditor` / `zeta-e` | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
-| `zetaide` / `zeta-i`    | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
+| `zetacode`              | `@linxiraos/zeta`   | 编码 Agent CLI                  |
+| `zetaeditor`            | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
+| `zetaide`               | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
 
 每个工具都能独立启动、各有自己的 `--help`。工作区是统一入口:
-`zeta code`(或 `zeta c`)接力编码 Agent,`zeta editor`/`zeta e`、
-`zeta ide`/`zeta i` 接力其余工具。
+其中的编码/编辑器/IDE 面板会接力到 `zetacode`、`zetaeditor` 与
+`zetaide`。
 
 ### 快速开始
 
@@ -270,9 +270,9 @@ zeta doctor                   # 套件安装状态 + 精确修复命令
 工具也能在工作区里首次使用时直接装进窗格。任一工具同样可以独立安装:
 
 ```sh
-npm i -g @linxiraos/zeta      # zeta-c — 编码 Agent CLI
-npm i -g @linxiraos/editor    # zeta-editor — 终端编辑器
-npm i -g @linxiraos/ide       # zeta-ide — 终端 IDE
+npm i -g @linxiraos/zeta      # zetacode — 编码 Agent CLI
+npm i -g @linxiraos/editor    # zetaeditor — 终端编辑器
+npm i -g @linxiraos/ide       # zetaide — 终端 IDE
 ```
 
 从源码检出运行:
@@ -288,7 +288,7 @@ bun run dev
 `zeta` 是一个有产品主张的真实终端复用器,Rust 编写:
 
 - **标签页与平铺窗格** —— 每个窗格都是真实 PTY:终端里能跑的都能跑在
-  窗格里(shell、`zeta-c` 会话、编辑器、IDE)。任意窗格可左右或上下分裂;
+  窗格里(shell、`zetacode` 会话、编辑器、IDE)。任意窗格可左右或上下分裂;
   窗格内还有**子页栈**,一个窗格容纳多个终端而互不关闭。
 - **鼠标优先** —— 所有控件(菜单栏、标签栏、窗格标题控件、子页标签)都可
   点击;快捷键只是加速器,不是前提。切换、分裂、关闭、布局修复全是鼠标
@@ -306,7 +306,7 @@ bun run dev
   工具输出。
 - 多提供商模型访问、本地配置、OAuth 流程、模型发现、会话恢复和可控的重试
   行为。
-- 本地 Web 工作台(`zeta-c serve`,`web-ui/` 的 Next.js 应用)和桌面外壳
+- 本地 Web 工作台(`zetacode serve`,`web-ui/` 的 Next.js 应用)和桌面外壳
   (`zeta-desktop`,Electron)嵌入同一运行时——同一会话树、同一设置模型、
   同一网关 API(`/api/*`)。
 - 宿主平台支持时提供原生文本、图像、终端、浏览器和桌面能力。
@@ -334,14 +334,14 @@ Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
 | 组件                                                                  | 上游来源                                                                                         | Zeta 自有部分                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | `main/`(工作区,`@linxiraos/main`,二进制 `zeta`)                       | Zeta 自创                                                                                        | 基于 vendored termide crates 的 Rust workspace;PaneTree 布局、子页栈、组件窗格、套件入口            |
-| `packages/coding-agent/`(CLI,`zeta-c`)                                | OMP 运行时树,按发布 tag 合并                                                                     | 品牌、配置目录 `.zeta`、npm scope `@linxiraos/*`、发布链、Zeta 自创能力                             |
+| `packages/coding-agent/`(CLI,`zetacode`)                                | OMP 运行时树,按发布 tag 合并                                                                     | 品牌、配置目录 `.zeta`、npm scope `@linxiraos/*`、发布链、Zeta 自创能力                             |
 | `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                                                                                     | 与 CLI 相同的适配面                                                                                 |
-| `editor/`(TTT Editor,`@linxiraos/editor`,二进制 `ttt`/`zeta-editor`)  | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go 源码 + 预构建二进制          | 品牌界面、Zeta 主题、鼠标/交互修复、i18n 钩子面;每个 vendored 二进制变更都记录在 `editor/VENDOR.md` |
-| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zeta-ide`)                | [termide/termide](https://github.com/termide/termide) — vendored Rust,台账见 `termide/VENDOR.md` | 品牌与 npm 面;上游快照加 Zeta 适配                                                                  |
+| `editor/`(TTT Editor,`@linxiraos/editor`,二进制 `ttt`/`zetaeditor`)  | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go 源码 + 预构建二进制          | 品牌界面、Zeta 主题、鼠标/交互修复、i18n 钩子面;每个 vendored 二进制变更都记录在 `editor/VENDOR.md` |
+| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)                | [termide/termide](https://github.com/termide/termide) — vendored Rust,台账见 `termide/VENDOR.md` | 品牌与 npm 面;上游快照加 Zeta 适配                                                                  |
 | `web-ui/`                                                             | OMP Web 快照(冻结——仅手动 cherry-pick)                                                           | 自有桌面升级内容、Next.js 应用                                                                      |
 | `desktop/`                                                            | Zeta 自创                                                                                        | 嵌入 `web-ui/` 构建和编译后运行时的 Electron 外壳                                                   |
 | `packages/coding-agent/src/channels/`(微信/飞书/Telegram 桥接)        | Zeta 自创                                                                                        | 通道运行时、工具(`channel_send`、`workspace_run`)                                                   |
-| `packages/coding-agent/src/server/`(web-gateway,`zeta-c serve`)       | Zeta 自创                                                                                        | 由 `web-ui/` 和 `desktop/` 通过 HTTP 消费的 REST 面                                                 |
+| `packages/coding-agent/src/server/`(web-gateway,`zetacode serve`)       | Zeta 自创                                                                                        | 由 `web-ui/` 和 `desktop/` 通过 HTTP 消费的 REST 面                                                 |
 
 ### Zeta 自有能力
 
@@ -358,7 +358,7 @@ Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
   访问运行时 API。
 - **命令市场** —— 以 Bun 包的形式安装和分享斜杠命令。
 - **ACP 协作内建** —— Agent Client Protocol 会话支持。
-- **通道运行时** —— 嵌入 `zeta-c serve` 的微信/飞书/Telegram 桥接,带
+- **通道运行时** —— 嵌入 `zetacode serve` 的微信/飞书/Telegram 桥接,带
   plan-image 路由和工作区作用域的执行工具。
 - **Web 网关** —— Web UI 背后的 REST API(`/api/*`),每个资源一个处理
   模块,由浏览器 UI 和桌面外壳共同消费。
@@ -366,7 +366,7 @@ Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
   运行时;目标机器无需 Bun 或 Node。
 - **Linux 下游打包** —— `zeta-desktop` 以冻结名称/摘要契约作为发布资产
   提供,下游仓库(pacman 等)可以固定并校验它;见 `document/release.md`。
-- **本地统计仪表板** —— 面向编码 Agent 的 `zeta-c stats` 可观测性。
+- **本地统计仪表板** —— 面向编码 Agent 的 `zetacode stats` 可观测性。
 
 ### 文档
 
@@ -419,10 +419,10 @@ Linux 是主力平台(Linxira OS,基于 Arch);Windows x64 是受支持的开发�
 | 形态                               | Linux      | Windows | macOS |
 | ---------------------------------- | ---------- | ------- | ----- |
 | `zeta` 工作区(`@linxiraos/main`)   | x64        | x64     | —     |
-| `zeta-c` CLI                       | x64, arm64 | x64     | —     |
-| `zeta-editor`(`@linxiraos/editor`) | x64        | x64     | —     |
-| `zeta-ide`(`@linxiraos/ide`)       | x64        | x64     | —     |
-| `zeta-c serve`(Web 工作台)         | x64, arm64 | x64     | —     |
+| `zetacode` CLI                       | x64, arm64 | x64     | —     |
+| `zetaeditor`(`@linxiraos/editor`) | x64        | x64     | —     |
+| `zetaide`(`@linxiraos/ide`)       | x64        | x64     | —     |
+| `zetacode serve`(Web 工作台)         | x64, arm64 | x64     | —     |
 | `zeta-desktop` 外壳                | x64        | x64     | —     |
 
 从源码构建时,原生文本/grep 和图像能力需要平台 C/C++ 工具链;发布的二进制
