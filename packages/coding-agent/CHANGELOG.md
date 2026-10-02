@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Plugins get a per-plugin storage contract: `pi.storage` (`dataDir`/`cacheDir`/`stateDir` under `~/.zeta/plugins/`) is injected into every extension factory, with `adoptLegacyFileOnce` as the one-time migration primitive — plugins no longer need to invent their own paths in the user data tree.
+
 ## [1.1.23] - 2026-10-01
 
 ## [1.1.22] - 2026-09-30
