@@ -70,6 +70,9 @@ pi-*.html
 # Generated files
 packages/coding-agent/src/export/html/tool-views.generated.js
 packages/natives/npm/
+# prepack materializes the repo-root skills/ tree into the package dir for the
+# npm tarball (see packages/coding-agent/scripts/sync-official-skills.ts)
+packages/coding-agent/skills/
 /runs/
 python/omp-rpc/src/omp_rpc.egg-info/
 python/omp-rpc/build/

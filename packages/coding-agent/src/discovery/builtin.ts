@@ -356,13 +356,28 @@ const OFFICIAL_SKILLS_PRIORITY = 10;
 //   2. ZETA_OFFICIAL_SKILLS_EMBED — payload burned in at bundle/binary build
 //      time (see scripts/generate-official-skills-payload.ts); seeded to disk
 //      under <agentDir>/official-skills/ so skills keep real paths.
-//   3. Repo checkout fallback — dev runs against skills/official/ in the tree.
+//   3. On-disk candidates — repo checkout (`<repo>/skills/official`, dev runs)
+//      and the packaged copy (`<pkg>/skills/official`, shipped via the
+//      package.json `files` list). src runtimes have no embed define (it is
+//      substituted at bundle/binary build time), so npm source installs rely
+//      entirely on the packaged candidate.
+/**
+ * Candidate directories probed in order by {@link resolveOfficialSkillsDir}.
+ * Exported for tests that verify the npm source-install layout.
+ */
+export function officialSkillsDirCandidates(fromDir: string): string[] {
+	return [path.join(fromDir, "../../../../skills/official"), path.join(fromDir, "../../skills/official")];
+}
+
 function resolveOfficialSkillsDir(): string | null {
 	const override = process.env.ZETA_OFFICIAL_SKILLS_DIR;
 	if (override !== undefined) return override;
 	const embed = process.env.ZETA_OFFICIAL_SKILLS_EMBED;
 	if (embed !== undefined) return seedOfficialSkillsFromEmbed(embed);
-	return path.join(import.meta.dir, "../../../../skills/official");
+	for (const candidate of officialSkillsDirCandidates(import.meta.dir)) {
+		if (existsSync(candidate)) return candidate;
+	}
+	return null;
 }
 
 function seedOfficialSkillsFromEmbed(embedJson: string): string {
