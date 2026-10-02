@@ -101,6 +101,10 @@ export const OMP_PATH_ALLOW = [
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
 	/packages\/browser-relay\//, // relay README pairs with OMP-compatible CLI surfaces
+	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
+	// the probe must name the upstream `~/.omp/agent` default root to find it.
+	/"\.omp", "agent"/,
+	/~\/\.omp\/agent/,
 ];
 
 /**

@@ -6,10 +6,12 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { MaxOutputConfig } from "./truncate.ts";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { getProjectCrewDir } from "../../paths.ts";
+import { isProjectAgentsTrusted } from "../../config.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,10 +117,12 @@ function loadAgentsFromDir(dir: string, source: "extension" | "project"): CrewAg
 
 export function discoverCrewAgents(cwd: string, extensionAgentsDir?: string): CrewAgentConfig[] {
 	const extDir = extensionAgentsDir ?? DEFAULT_EXTENSION_AGENTS_DIR;
-	const projectAgentsDir = path.join(cwd, ".pi", "messenger", "crew", "agents");
+	// Project-supplied agent overrides load only when the project explicitly
+	// opted in (trustProjectAgents) — see isProjectAgentsTrusted.
+	const projectAgentsDir = path.join(getProjectCrewDir(cwd), "agents");
 
 	const extensionAgents = loadAgentsFromDir(extDir, "extension");
-	const projectAgents = loadAgentsFromDir(projectAgentsDir, "project");
+	const projectAgents = isProjectAgentsTrusted(cwd) ? loadAgentsFromDir(projectAgentsDir, "project") : [];
 
 	const agentMap = new Map<string, CrewAgentConfig>();
 	for (const agent of extensionAgents) agentMap.set(agent.name, agent);
@@ -199,12 +203,14 @@ function loadSkillsFromUserDir(dir: string): CrewSkillInfo[] {
 
 export function discoverCrewSkills(cwd: string, extensionSkillsDir?: string, userSkillsDir?: string): CrewSkillInfo[] {
 	const extDir = extensionSkillsDir ?? DEFAULT_EXTENSION_SKILLS_DIR;
-	const projectSkillsDir = path.join(cwd, ".pi", "messenger", "crew", "skills");
-	const userDir = userSkillsDir ?? path.join(os.homedir(), ".pi", "agent", "skills");
+	// Project-supplied skills load only when the project explicitly opted in
+	// (trustProjectAgents) — see isProjectAgentsTrusted.
+	const projectSkillsDir = path.join(getProjectCrewDir(cwd), "skills");
+	const userDir = userSkillsDir ?? path.join(getAgentDir(), "skills");
 
 	const userSkills = loadSkillsFromUserDir(userDir);
 	const extensionSkills = loadSkillsFromFlatDir(extDir, "extension");
-	const projectSkills = loadSkillsFromFlatDir(projectSkillsDir, "project");
+	const projectSkills = isProjectAgentsTrusted(cwd) ? loadSkillsFromFlatDir(projectSkillsDir, "project") : [];
 
 	const skillMap = new Map<string, CrewSkillInfo>();
 	for (const skill of userSkills) skillMap.set(skill.name, skill);

@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { normalizeCwd } from "./state.ts";
+import { getProjectCrewDir } from "../paths.ts";
 
 export type PlanningPhase =
 	| "idle"
@@ -160,7 +161,7 @@ export function resetPlanningCancellation(): void {
 }
 
 function planningStatePath(cwd: string): string {
-	return path.join(cwd, ".pi", "messenger", "crew", "planning-state.json");
+	return path.join(getProjectCrewDir(cwd), "planning-state.json");
 }
 
 function persistPlanningState(cwd: string): void {

@@ -6,23 +6,17 @@ import { discoverSubagentRoles } from "../../crew/team/subagent-roles.ts";
 import * as teamStore from "../../crew/team/store.ts";
 
 describe("team subagent role discovery", () => {
-	it("merges builtin, user, project, and profile role metadata", () => {
+	it("merges user and project role metadata", () => {
 		const { cwd } = createTempCrewDirs();
 		const home = path.join(cwd, "home");
-		const builtinDir = path.join(home, ".pi", "agent", "extensions", "subagent", "agents");
-		const userDir = path.join(home, ".pi", "agent", "agents");
-		const projectDir = path.join(cwd, ".pi", "agents");
-		fs.mkdirSync(builtinDir, { recursive: true });
+		const userDir = path.join(home, ".zeta", "agent", "agents");
+		const projectDir = path.join(cwd, ".zeta", "agents");
 		fs.mkdirSync(userDir, { recursive: true });
 		fs.mkdirSync(projectDir, { recursive: true });
 
 		fs.writeFileSync(
-			path.join(builtinDir, "worker.md"),
-			`---\nname: worker\ndescription: Builtin worker\nmodel: builtin-model\nthinking: low\nskills: testing, api\n---\nBuiltin prompt.`,
-		);
-		fs.writeFileSync(
 			path.join(userDir, "worker.md"),
-			`---\r\nname: worker\r\ndescription: User worker\r\nmodel: user-model\r\n---\r\nUser prompt.`,
+			`---\r\nname: worker\r\ndescription: User worker\r\nmodel: user-model\r\nthinking: low\r\nskills: testing, api\r\n---\r\nUser prompt.`,
 		);
 		fs.writeFileSync(
 			path.join(userDir, "simplifier.md"),

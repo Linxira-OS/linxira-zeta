@@ -6,6 +6,9 @@ import { getTasks } from "../store.ts";
 import { discoverSubagentRoles } from "./subagent-roles.ts";
 import { normalizeRiskLabels } from "../utils/risk-labels.ts";
 import { canonicalPackagedTeamRole, isNonEditingTeamRole, isValidTeamName } from "../utils/team-roles.ts";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { getProjectMessengerDir } from "../../paths.ts";
+import { ensureProjectStateMigrated } from "../utils/migrations.ts";
 import {
 	TEAM_MEMORY_TYPES,
 	type TeamMemoryEntry,
@@ -154,13 +157,18 @@ function writeText(filePath: string, content: string): void {
 }
 
 export function getTeamDir(cwd: string): string {
-	return path.join(cwd, ".pi", "messenger", "team");
+	ensureProjectStateMigrated(cwd);
+	return path.join(getProjectMessengerDir(cwd), "team");
 }
 
 export function getProfileDir(homeDir = homedir()): string {
 	if (homeDir === homedir() && process.env.PI_MESSENGER_TEAM_PROFILE_DIR)
 		return process.env.PI_MESSENGER_TEAM_PROFILE_DIR;
-	return path.join(homeDir, ".pi", "agent", "messenger", "team-profiles");
+	if (homeDir !== homedir()) {
+		// Test isolation: mirror the default layout under the given root.
+		return path.join(homeDir, ".zeta", "agent", "messenger", "team-profiles");
+	}
+	return path.join(getAgentDir(), "messenger", "team-profiles");
 }
 
 function teamPath(cwd: string, file: string): string {

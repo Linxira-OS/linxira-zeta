@@ -13,7 +13,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { generateMemorableName } from "../lib.ts";
-import { resolveThinking, modelHasThinkingSuffix, pushModelArgs, getPiCommand, resolveModel } from "./agents.ts";
+import { resolveThinking, modelHasThinkingSuffix, pushModelArgs, getCliSpawnCommand, resolveModel } from "./agents.ts";
 import { discoverCrewAgents } from "./utils/discover.ts";
 import { loadCrewConfig, type CrewConfig } from "./utils/config.ts";
 import { createProgress, parseJsonlLine, updateProgress } from "./utils/progress.ts";
@@ -102,7 +102,8 @@ export function spawnLobbyWorker(cwd: string, promptOverride?: string, sessionMo
 	const envOverrides = config.work.env ?? {};
 	const env = { ...process.env, ...envOverrides, PI_AGENT_NAME: name, PI_CREW_WORKER: "1", PI_LOBBY_ID: id };
 
-	const proc = spawn(getPiCommand(), args, {
+	const cli = getCliSpawnCommand();
+	const proc = spawn(cli.cmd, [...cli.args, ...args], {
 		cwd,
 		stdio: ["ignore", "pipe", "pipe"],
 		env,

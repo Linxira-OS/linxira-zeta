@@ -186,6 +186,7 @@ interface ThinkingEntry {
 }
 
 interface ProviderEntry {
+  origin?: "omp";
   baseUrl?: string;
   api?: string;
   apiKey?: string;
@@ -528,8 +529,12 @@ function ProviderDetail({
   const discoveryRequestIdRef = useRef(0);
   const selectShownRef = useRef<HTMLInputElement>(null);
   useEffect(() => setEditingName(name), [name]);
-  const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) =>
+  const isOmpOrigin = provider.origin === "omp";
+
+  const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => {
+    if (isOmpOrigin) return;
     onChange({ ...provider, [k]: v });
+  };
 
   useEffect(() => {
     if (!provider.api) onChange({ ...provider, api: "openai-completions" });
@@ -652,21 +657,45 @@ function ProviderDetail({
           justifyContent: "space-between",
         }}
       >
-        <SectionTitle>{t("provider")}</SectionTitle>
-        <button
-          onClick={onDelete}
+        <div
           style={{
-            padding: "3px 8px",
-            background: "none",
-            border: "1px solid rgba(239,68,68,0.3)",
-            borderRadius: 4,
-            color: "#ef4444",
-            cursor: "pointer",
-            fontSize: 11,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {t("models.delete")}
-        </button>
+          <SectionTitle>{t("provider")}</SectionTitle>
+          {isOmpOrigin && (
+            <span
+              style={{
+                padding: "1px 6px",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                color: "var(--text-dim)",
+                fontSize: 10,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t("models.originOmp")}
+            </span>
+          )}
+        </div>
+        {!isOmpOrigin && (
+          <button
+            onClick={onDelete}
+            style={{
+              padding: "3px 8px",
+              background: "none",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 4,
+              color: "#ef4444",
+              cursor: "pointer",
+              fontSize: 11,
+            }}
+          >
+            {t("models.delete")}
+          </button>
+        )}
       </div>
 
       <Field label={t("models.providerName")}>
@@ -678,7 +707,10 @@ function ProviderDetail({
         />
         {editingName !== name && editingName.trim() && (
           <button
-            onClick={() => onRename(editingName.trim())}
+            onClick={() => {
+              if (isOmpOrigin) return;
+              onRename(editingName.trim());
+            }}
             style={{
               marginTop: 4,
               padding: "3px 10px",

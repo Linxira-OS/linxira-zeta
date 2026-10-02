@@ -47,13 +47,13 @@ ${modelLine}${toolsLine}---
 You are a test worker.
 `;
 
-	const filePath = path.join(cwd, ".pi", "messenger", "crew", "agents", "crew-worker.md");
+	const filePath = path.join(cwd, ".zeta", "messenger", "crew", "agents", "crew-worker.md");
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, content);
 }
 
 function writeCrewConfig(cwd: string, models: Record<string, string | null>): void {
-	const configPath = path.join(cwd, ".pi", "messenger", "crew", "config.json");
+	const configPath = path.join(cwd, ".zeta", "messenger", "crew", "config.json");
 	fs.mkdirSync(path.dirname(configPath), { recursive: true });
 	fs.writeFileSync(configPath, JSON.stringify({ models }));
 }
@@ -63,6 +63,13 @@ describe("crew/model override", () => {
 
 	beforeEach(() => {
 		dirs = createTempCrewDirs();
+		// Worker overrides are project-supplied agents, which only load when
+		// the project opts in.
+		fs.mkdirSync(path.join(dirs.cwd, ".zeta"), { recursive: true });
+		fs.writeFileSync(
+			path.join(dirs.cwd, ".zeta", "pi-messenger.json"),
+			JSON.stringify({ trustProjectAgents: true }),
+		);
 		spawnMock.mockReset();
 		spawnMock.mockImplementation(() => createMockProcess(0));
 	});
@@ -181,27 +188,25 @@ describe("crew/model override", () => {
 		expect(args[extensionIdx + 1]).toBe("custom-tool.js");
 	});
 
-	it("uses pi.cmd for worker subprocesses on Windows", async () => {
-		const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
-		Object.defineProperty(process, "platform", { value: "win32" });
-		try {
-			writeWorkerAgent(dirs.cwd);
+	it("spawns worker subprocesses via the resolved zeta CLI", async () => {
+		writeWorkerAgent(dirs.cwd);
 
-			await spawnAgents(
-				[
-					{
-						agent: "crew-worker",
-						task: "Implement task",
-						taskId: "task-1",
-					},
-				],
-				dirs.cwd,
-			);
+		await spawnAgents(
+			[
+				{
+					agent: "crew-worker",
+					task: "Implement task",
+					taskId: "task-1",
+				},
+			],
+			dirs.cwd,
+		);
 
-			expect(spawnMock.mock.calls[0][0]).toBe("pi.cmd");
-		} finally {
-			if (originalPlatform) Object.defineProperty(process, "platform", originalPlatform);
-		}
+		const [cmd, args] = spawnMock.mock.calls[0];
+		// Under the vitest/node runtime the resolver launches the current
+		// runtime with the CLI entry script — never the upstream pi binary.
+		expect(cmd).toBe(process.execPath);
+		expect(args[0]).toBe(process.argv[1]);
 	});
 
 	describe("pushModelArgs", () => {

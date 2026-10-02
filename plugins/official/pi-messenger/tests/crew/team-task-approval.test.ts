@@ -198,9 +198,9 @@ describe("Team task approval gates", () => {
 
 	it("reports approval-gated tasks unlocked by task completion", async () => {
 		const { cwd } = createTempCrewDirs();
-		fs.mkdirSync(path.join(cwd, ".pi", "messenger", "crew"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".zeta", "messenger", "crew"), { recursive: true });
 		fs.writeFileSync(
-			path.join(cwd, ".pi", "messenger", "crew", "config.json"),
+			path.join(cwd, ".zeta", "messenger", "crew", "config.json"),
 			JSON.stringify({ dependencies: "strict" }),
 		);
 		store.createPlan(cwd, "docs/PRD.md");
