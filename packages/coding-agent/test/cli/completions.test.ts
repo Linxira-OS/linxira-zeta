@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { buildSpec, type CompletionSpec, generateCompletion } from "@linxiraos/zeta/cli/completion-gen";
 import { generateLiveCompletion } from "@linxiraos/zeta/commands/completions";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 
 // A compact synthetic spec exercising every value-source kind and an aliased
@@ -253,10 +254,10 @@ describe("live completion surface", () => {
 		expect(stdout).toContain("_omp_cmd_commit");
 		expect(stdout).toContain("'completions:");
 		// zsh routes single-value dynamic flags through the _omp_call action, which
-		// itself shells out to `zeta __complete $kind`.
+		// itself shells out to `<CLI_BIN_NAME> __complete $kind`.
 		expect(stdout).toContain("_omp_call models");
 		expect(stdout).toContain("_omp_call sessions");
-		expect(stdout).toContain("command zeta __complete $kind");
+		expect(stdout).toContain(`command ${CLI_BIN_NAME} __complete $kind`);
 		// Hidden/default commands must NOT surface as completable subcommands.
 		expect(stdout).not.toContain("_omp_cmd_launch");
 		expect(stdout).not.toContain("_omp_cmd___complete");
