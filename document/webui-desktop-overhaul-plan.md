@@ -454,6 +454,7 @@ web.yml 字段契约与 gateway 端点。
 | 3 | 草稿直开:空态 hero + `DraftContextBar`;删 `NewSessionDialog`;ChatInput hero/docked 形态 | 验收 9、16 |
 | 3.5 | 设置面现代化(D14):开关/输入/卡片 primitives 重做 | 验收 18 |
 | 3.6 | Open 面重设计 + 默认打开链(D15,gateway open 端点扩展) | 验收 19 |
+| 3.7 | 输入区增强(carryover U3 残余收编):context 用量圈 + thinking 循环键,进 ChatInput 工具条 | 验收 16 扩 |
 | 4 | 命名/副标题规则 + `EmptySessionsFold` 空会话策略 | 验收 5-6 |
 | 5 | 偏好统一 P2(`sidebar-shared` 缩减、显示菜单裁剪) | 验收 8 |
 | 6 | merge main → push → PR → CI 绿 → 桌面 dist 冒烟 → 合并 | 验收 13、§8 全部 |
