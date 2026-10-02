@@ -9,6 +9,7 @@ import type {
 	SlashCommandInfo,
 } from "@/hooks/useAgentSession";
 import type { SkillsResponse } from "@/lib/api-types";
+import type { ContextUsage } from "@/lib/pi-types";
 import { clearDraft, getDraft, setDraft, type ChatDraftImage } from "@/lib/draft-store";
 import { MAX_ATTACHED_IMAGE_BYTES, MAX_ATTACHED_IMAGES, isBase64ImageWithinLimits } from "@/lib/image-attachments";
 import {
@@ -79,6 +80,11 @@ interface Props {
 	draftKey?: string;
 	/** Session working directory — enables the @ file autocomplete menu */
 	cwd?: string | null;
+	/**
+	 * Live context-window usage from the session stats stream (spec 3.7).
+	 * Absent or percent-less data hides the indicator entirely (no dead space).
+	 */
+	contextUsage?: ContextUsage | null;
 	/**
 	 * hero: empty-state draft composition (centered card, ≥2 rows); docked:
 	 * the normal bottom-anchored composer. Position/style migration only —
@@ -186,6 +192,27 @@ const THINKING_LEVEL_DESC_KEYS: Record<(typeof THINKING_LEVELS)[number], string>
 	xhigh: "chat.thinking-xhigh",
 	max: "chat.thinking-max",
 };
+
+/**
+ * Next level when cycling thinking levels with the Alt+T shortcut. Follows
+ * THINKING_LEVELS order restricted to the same set the thinking dropdown
+ * offers for the current model (`auto` is always offered; other levels only
+ * when listed in `availableThinkingLevels`). Wraps around; an unknown or
+ * missing current level is treated as "auto", so the cycle advances from the
+ * top of the ladder.
+ */
+export function nextThinkingLevel(
+	current: string | null | undefined,
+	availableThinkingLevels?: string[] | null,
+): (typeof THINKING_LEVELS)[number] {
+	const cycle = THINKING_LEVELS.filter(lvl => {
+		if (!availableThinkingLevels || availableThinkingLevels.length <= 1) return true;
+		if (lvl === "auto") return true;
+		return availableThinkingLevels.includes(lvl);
+	});
+	const idx = cycle.indexOf((current ?? "auto") as (typeof THINKING_LEVELS)[number]);
+	return cycle[(idx + 1) % cycle.length];
+}
 
 function formatTokenCount(tokens: number): string {
 	if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
@@ -477,6 +504,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 		onPromptWithStreamingBehavior,
 		draftKey,
 		cwd,
+		contextUsage,
 		variant = "docked",
 		degraded = false,
 	}: Props,
@@ -1213,6 +1241,23 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 				return;
 			}
 
+			// Alt+T cycles the thinking level, but only while the thinking
+			// control itself is visible/enabled (idle + wired to a handler).
+			if (
+				e.altKey &&
+				!e.ctrlKey &&
+				!e.metaKey &&
+				!e.shiftKey &&
+				(e.key === "t" || e.key === "T") &&
+				!isComposing &&
+				!isStreaming &&
+				onThinkingLevelChange
+			) {
+				e.preventDefault();
+				onThinkingLevelChange(nextThinkingLevel(thinkingLevel, availableThinkingLevels));
+				return;
+			}
+
 			if (e.key === "Enter" && !e.shiftKey) {
 				e.preventDefault();
 				if (isStreaming && (onSteer || onFollowUp)) {
@@ -1251,6 +1296,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 			onModelChange,
 			model,
 			isAutoModelSelection,
+			thinkingLevel,
+			onThinkingLevelChange,
+			availableThinkingLevels,
 		],
 	);
 
@@ -1378,6 +1426,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 		if (lvl === "auto" || !thinkingLevelMap) return lvl;
 		return thinkingLevelMap[lvl] ?? lvl;
 	})();
+	const contextUsagePercent = contextUsage?.percent != null ? Math.round(contextUsage.percent) : null;
+	const contextUsageTitle =
+		contextUsage && contextUsagePercent != null
+			? t("chat.context-usage-detail", {
+					percent: contextUsagePercent,
+					tokens: formatTokenCount(contextUsage.tokens ?? 0),
+					limit: formatTokenCount(contextUsage.contextWindow),
+				})
+			: null;
 	const toolPresetLabel =
 		Object.entries(TOOL_PRESET_MAP).find(([, v]) => v === (toolPreset ?? "default"))?.[0] ?? "default";
 
@@ -2802,12 +2859,50 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									: null),
 							}}
 						>
+							{contextUsage && contextUsagePercent != null && (
+								<div
+									title={contextUsageTitle ?? undefined}
+									aria-label={`${t("chat.context-usage")}: ${contextUsagePercent}%`}
+									style={{
+										flexShrink: 0,
+										display: "flex",
+										alignItems: "center",
+										gap: 5,
+										padding: controlsCompact ? "0 6px" : "8px 12px",
+										height: 32,
+										color: "var(--text-muted)",
+										fontSize: 12,
+										whiteSpace: "nowrap",
+									}}
+								>
+									<svg
+										width="12"
+										height="12"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										aria-hidden="true"
+									>
+										<circle cx="12" cy="12" r="9" strokeWidth="3" strokeOpacity="0.25" />
+										<circle
+											cx="12"
+											cy="12"
+											r="9"
+											strokeWidth="3"
+											strokeLinecap="round"
+											strokeDasharray={`${(contextUsagePercent / 100) * 2 * Math.PI * 9} ${2 * Math.PI * 9}`}
+											transform="rotate(-90 12 12)"
+										/>
+									</svg>
+									<span style={{ fontVariantNumeric: "tabular-nums" }}>{contextUsagePercent}%</span>
+								</div>
+							)}
 							{!isStreaming && onThinkingLevelChange && (
 								<div ref={thinkingDropdownRef} style={{ position: "relative" }}>
 									<button
 										onClick={() => !isStreaming && setThinkingDropdownOpen(v => !v)}
 										disabled={isStreaming}
-										title={`${t("chat.change-reasoning")}: ${thinkingDisplayLabel}`}
+										title={t("chat.change-reasoning-hint", { level: thinkingDisplayLabel })}
 										aria-label={t("chat.change-reasoning")}
 										style={{
 											display: "flex",
