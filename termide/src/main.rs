@@ -68,11 +68,13 @@ struct Cli {
     #[arg(long, value_name = "SHELL", num_args = 0..=1, value_parser = completions::SHELLS)]
     install_completions: Option<Option<String>>,
 
-    /// File(s) to open. Given a path, termide starts in a clean editor view
-    /// (no session is restored or saved), so it works as $EDITOR for tools
-    /// like git, crontab and visudo: `EDITOR=termide git commit`.
+    /// File(s) to open, optionally with a `file:line[:col]` position suffix.
+    /// An existing directory becomes the project root. Given any file,
+    /// termide starts in a clean editor view (no session is restored or
+    /// saved), so it works as $EDITOR for tools like git, crontab and
+    /// visudo: `EDITOR=termide git commit`.
     #[arg(value_name = "FILE")]
-    files: Vec<std::path::PathBuf>,
+    files: Vec<String>,
 }
 
 /// Print a diagnostics report to stdout and return whether everything
@@ -169,7 +171,10 @@ fn restore_terminal() {
 /// Returns `Some(exit_code)` when one of them ran and the process should stop,
 /// `None` when this is an ordinary launch.
 #[cfg(unix)]
-fn handle_detached_session_cli(cli: &Cli) -> Result<Option<i32>> {
+fn handle_detached_session_cli(
+    cli: &Cli,
+    file_paths: &[std::path::PathBuf],
+) -> Result<Option<i32>> {
     if cli.list_sessions {
         print!("{}", termide_detach::format_session_list()?);
         return Ok(Some(0));
@@ -193,7 +198,7 @@ fn handle_detached_session_cli(cli: &Cli) -> Result<Option<i32>> {
 
     if cli.detached {
         let project_root = std::env::current_dir()?;
-        let id = termide_detach::spawn_detached(&project_root, &cli.files)?;
+        let id = termide_detach::spawn_detached(&project_root, file_paths)?;
         println!("Detached session '{id}' started.");
         println!("Attach with: termide --attach {id}");
         return Ok(Some(0));
@@ -222,6 +227,32 @@ fn main() -> Result<()> {
 
     // Parse CLI arguments
     let cli = Cli::parse();
+
+    // Resolve positional arguments (`file[:line[:col]]`, directories) once,
+    // against the invoking directory. A directory argument becomes the
+    // project root: chdir before anything else reads the current directory
+    // (config layering, session dir, LSP/git roots), which also keeps
+    // "bare launch = restore this directory's session" intact because a
+    // bare launch simply has no dir target.
+    let invoke_cwd = std::env::current_dir()
+        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/")));
+    let targets = termide_app::parse_positional_args(&cli.files, &invoke_cwd);
+    if let Some(dir) = targets.iter().find(|t| t.is_dir_root) {
+        if let Err(e) = std::env::set_current_dir(&dir.path) {
+            eprintln!(
+                "termide: cannot use '{}' as project root: {e}",
+                dir.path.display()
+            );
+        }
+    }
+    // Files to open as editor panels; extra directory arguments beyond the
+    // first are not panel-openable, so they are reported and dropped.
+    let file_targets: Vec<&termide_app::OpenedTarget> =
+        targets.iter().filter(|t| !t.is_dir_root).collect();
+    for t in targets.iter().filter(|t| t.is_dir_root).skip(1) {
+        log::warn!("Ignoring extra directory argument '{}'", t.path.display());
+    }
+    let file_paths: Vec<std::path::PathBuf> = file_targets.iter().map(|t| t.path.clone()).collect();
 
     // `--completions` only prints a script; like the other pre-UI options
     // it must stay plain stdout so `eval "$(termide --completions bash)"`
@@ -257,7 +288,7 @@ fn main() -> Result<()> {
     // carries the calling thread into the child: a lock held by a thread that
     // no longer exists would deadlock the daemon, so no thread may exist yet.
     #[cfg(unix)]
-    if let Some(code) = handle_detached_session_cli(&cli)? {
+    if let Some(code) = handle_detached_session_cli(&cli, &file_paths)? {
         std::process::exit(code);
     }
 
@@ -329,7 +360,7 @@ fn main() -> Result<()> {
     // Skipped inside a session for the obvious reason.
     #[cfg(unix)]
     if config.general.always_detachable
-        && cli.files.is_empty()
+        && file_paths.is_empty()
         && std::env::var_os(termide_detach::SOCKET_ENV).is_none()
     {
         let id = termide_detach::spawn_detached(&project_root, &[])?;
@@ -435,7 +466,7 @@ fn main() -> Result<()> {
     // open just those files in a clean view and don't touch the project's
     // session (restoring or overwriting it when editing e.g. a commit message
     // would be surprising and could clobber the real session).
-    if cli.files.is_empty() {
+    if file_targets.is_empty() {
         // Try to load session, fallback to default layout on error
         if let Err(e) = app.load_session() {
             // Session file doesn't exist or is corrupted - use default layout.
@@ -446,9 +477,10 @@ fn main() -> Result<()> {
         }
     } else {
         app.set_session_persistence(false);
-        for path in cli.files {
-            if let Err(e) = app.open_path_in_editor(path.clone()) {
-                log::error!("Failed to open '{}' from CLI: {e}", path.display());
+        for target in file_targets {
+            if let Err(e) = app.open_path_in_editor_at(target.path.clone(), target.line, target.col)
+            {
+                log::error!("Failed to open '{}' from CLI: {e}", target.path.display());
             }
         }
     }
@@ -476,7 +508,6 @@ fn main() -> Result<()> {
 mod cli_tests {
     use super::Cli;
     use clap::Parser;
-    use std::path::PathBuf;
 
     // Regression for #24: a bare file path must parse as a positional argument
     // (clap previously rejected it as "unexpected argument"), so termide can be
@@ -484,10 +515,7 @@ mod cli_tests {
     #[test]
     fn accepts_a_file_path_argument() {
         let cli = Cli::try_parse_from(["termide", "/tmp/crontab.kIwZUa/crontab"]).unwrap();
-        assert_eq!(
-            cli.files,
-            vec![PathBuf::from("/tmp/crontab.kIwZUa/crontab")]
-        );
+        assert_eq!(cli.files, vec!["/tmp/crontab.kIwZUa/crontab".to_string()]);
     }
 
     #[test]
@@ -500,10 +528,7 @@ mod cli_tests {
     fn flags_and_multiple_files_coexist() {
         let cli = Cli::try_parse_from(["termide", "--no-lsp", "a.rs", "b.rs"]).unwrap();
         assert!(cli.no_lsp);
-        assert_eq!(
-            cli.files,
-            vec![PathBuf::from("a.rs"), PathBuf::from("b.rs")]
-        );
+        assert_eq!(cli.files, vec!["a.rs".to_string(), "b.rs".to_string()]);
     }
 }
 
@@ -530,7 +555,7 @@ mod completion_tests {
         let cli =
             Cli::try_parse_from(["termide", "--install-completions", "--", "notes.md"]).unwrap();
         assert_eq!(cli.install_completions, Some(None));
-        assert_eq!(cli.files, vec![std::path::PathBuf::from("notes.md")]);
+        assert_eq!(cli.files, vec!["notes.md".to_string()]);
     }
 
     /// The completion scripts spell out option names by hand, so a new clap

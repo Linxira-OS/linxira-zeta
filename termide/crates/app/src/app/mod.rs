@@ -373,6 +373,25 @@ impl App {
         self.open_editor_for_file(path)
     }
 
+    /// Open a CLI file target in a new editor panel and place the cursor.
+    ///
+    /// `line`/`col` are 1-based (as parsed from `file:line[:col]`); a
+    /// missing column means the start of the line. Cursor placement keeps
+    /// the editor's `goto_position` clamping semantics, so out-of-range
+    /// positions snap to the end of the document instead of failing.
+    pub fn open_path_in_editor_at(
+        &mut self,
+        path: std::path::PathBuf,
+        line: Option<usize>,
+        col: Option<usize>,
+    ) -> Result<()> {
+        self.open_path_in_editor(path)?;
+        if let Some(line) = line {
+            self.event_goto_position(line.saturating_sub(1), col.unwrap_or(1).saturating_sub(1));
+        }
+        Ok(())
+    }
+
     /// Log same-section conflicts and bindings that need Kitty
     /// keyboard protocol on terminals that don't advertise it.
     fn log_keybinding_warnings(config: &Config, caps: termide_keyboard::KeyboardCaps) {
