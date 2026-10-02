@@ -288,6 +288,17 @@ prompt" L1871-1872)、ChatInput("Retrying upstream request" L1518、
 Steer/Follow-up title L2162-2241)、StatsDashboard 空态句 L29-31、
 DraftContextBar/空会话折叠行等全部新文案。i18n 测试补死 key 检测。
 
+**D14 设置面现代化(2026-10-02 追加;用户截图裁决「按钮太诡异/不现代」)**:
+`components/settings/**`(SettingsWindow+各 tab+`settings/shared.tsx`)全套
+控件 primitives 现代化——**开关重做**:轨道+滑块双层结构,ON=主题强调色轨道
++对比滑块,OFF=中性轨道,disabled 灰化,150ms 过渡(现状 ON=全白药丸、滑块
+无对比,状态可辨但无细节);输入框/下拉/卡片容器对齐参考控件规范(zcode
+DESIGN.md:输入 bg-input+hover/focus 三态边框、控件高 h-6~h-9、菜单紧凑行、
+"Do not promote every action to primary");分区导航列表紧凑化;危险操作
+(解除绑定/重置)用 destructive 变体;全部文案走 i18n。只动
+`components/settings/**` 与其 i18n key,**不改** `useSettingsData`/
+web.yml 字段契约与 gateway 端点。
+
 ## 5. 组件级改造清单
 
 | 文件 | 动作 |
@@ -377,6 +388,9 @@ DraftContextBar/空会话折叠行等全部新文案。i18n 测试补死 key 检
     (`lib/draft-store.ts` 按 draftKey 恢复)。
 17. 仓库根 `bun scripts/brand/brand-check.ts` 与 `bun scripts/check-ci-surface.ts`
     归零(随 §8 门禁复跑)。
+18. 设置面(D14):开关 ON/OFF/disabled 三态视觉可辨(强调色轨道+滑块,非全白
+    药丸);输入/下拉/卡片对齐参考控件规范;危险操作 destructive 变体;文案
+    全 i18n;`useSettingsData`/web.yml 契约零改动。
 
 ## 8. 发布门(硬性,下一次 release CI 之前)
 
@@ -416,6 +430,7 @@ DraftContextBar/空会话折叠行等全部新文案。i18n 测试补死 key 检
 | 1 | 清场:D12 兼容面/死代码删除 + D13 i18n 债接线 + web-ui 文档品牌残留 | 验收 14-15、10-11 |
 | 2 | IA 重排:删 action row/死代码;新增 `ProjectsSection`;组头 hover 化 + bug 修复;去时间桶;临时区行换实现 | 验收 1-4、8 |
 | 3 | 草稿直开:空态 hero + `DraftContextBar`;删 `NewSessionDialog`;ChatInput hero/docked 形态 | 验收 9、16 |
+| 3.5 | 设置面现代化(D14):开关/输入/卡片 primitives 重做 | 验收 18 |
 | 4 | 命名/副标题规则 + `EmptySessionsFold` 空会话策略 | 验收 5-6 |
 | 5 | 偏好统一 P2(`sidebar-shared` 缩减、显示菜单裁剪) | 验收 8 |
 | 6 | merge main → push → PR → CI 绿 → 桌面 dist 冒烟 → 合并 | 验收 13、§8 全部 |
