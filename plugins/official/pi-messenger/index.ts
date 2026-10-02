@@ -80,6 +80,8 @@ import { loadCrewConfig } from "./crew/utils/config.ts";
 import * as crewStore from "./crew/store.ts";
 import * as teamStore from "./crew/team/store.ts";
 import { runLegacyAgentCleanupMigration } from "./crew/utils/install.ts";
+import { runStateDirMigrations } from "./crew/utils/migrations.ts";
+import { getGlobalMessengerDir } from "./paths.ts";
 import { getLiveWorkers, onLiveWorkersChanged } from "./crew/live-progress.ts";
 import { shutdownAllWorkers } from "./crew/agents.ts";
 import { shutdownLobbyWorkers } from "./crew/lobby.ts";
@@ -89,8 +91,12 @@ let overlayHandle: OverlayHandle | null = null;
 let overlayOpening = false;
 
 export default function piMessengerExtension(pi: ExtensionAPI) {
-	// One-time migration: remove stale crew agents from shared ~/.pi/agent/agents/
-	// (crew agents now discovered from extension-local directory)
+	// One-time migrations, order matters:
+	// 1. Move legacy ~/.pi state (messenger dir + config) into the zeta tree —
+	//    including the legacy cleanup marker below, which travels with it.
+	// 2. Remove stale crew agents from the legacy shared ~/.pi/agent/agents/
+	//    directory (crew agents are discovered from the extension-local one).
+	runStateDirMigrations();
 	runLegacyAgentCleanupMigration();
 
 	// ===========================================================================
@@ -127,7 +133,7 @@ export default function piMessengerExtension(pi: ExtensionAPI) {
 
 	const nameTheme = { theme: config.nameTheme, customWords: config.nameWords };
 
-	const baseDir = process.env.PI_MESSENGER_DIR || join(homedir(), ".pi/agent/messenger");
+	const baseDir = getGlobalMessengerDir();
 	const dirs: Dirs = {
 		base: baseDir,
 		registry: join(baseDir, "registry"),
@@ -922,7 +928,9 @@ Usage (action-based API - preferred):
 
 		state.isHuman = ctx.hasUI;
 		try {
-			fs.rmSync(join(homedir(), ".pi/agent/messenger/feed.jsonl"), { force: true });
+			// Remove the stale global-scope feed left behind by pre-project-scoped
+			// versions (after migration it lives in the zeta messenger dir).
+			fs.rmSync(join(getGlobalMessengerDir(), "feed.jsonl"), { force: true });
 		} catch {}
 
 		const shouldAutoRegister = config.autoRegister || matchesAutoRegisterPath(state.cwd, config.autoRegisterPaths);
@@ -1048,7 +1056,7 @@ Usage (action-based API - preferred):
 		const lobbyId = process.env.PI_LOBBY_ID;
 		if (lobbyId) {
 			const cwd = ctx.cwd;
-			const aliveFile = join(cwd, ".pi", "messenger", "crew", `lobby-${lobbyId}.alive`);
+			const aliveFile = join(crewStore.getCrewDir(cwd), `lobby-${lobbyId}.alive`);
 			if (fs.existsSync(aliveFile)) {
 				pi.sendMessage(
 					{
@@ -1147,7 +1155,7 @@ Usage (action-based API - preferred):
 		}
 
 		const cwd = autonomousState.cwd ?? currentCwd;
-		const crewDir = join(cwd, ".pi", "messenger", "crew");
+		const crewDir = crewStore.getCrewDir(cwd);
 		const crewConfig = loadCrewConfig(crewDir);
 
 		// Check max waves limit

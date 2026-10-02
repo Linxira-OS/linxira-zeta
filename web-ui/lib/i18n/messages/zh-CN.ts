@@ -277,6 +277,7 @@ export const zhCNLocale: LocalePlugin = {
 		"models.delete": "删除",
 		"models.providerName": "服务商名称",
 		"models.rename": "重命名",
+		"models.originOmp": "来自 OMP",
 		"models.loading": "加载中…",
 		"models.newModel": "新模型",
 		"models.model": "模型",

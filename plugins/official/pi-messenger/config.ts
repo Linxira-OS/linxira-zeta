@@ -2,15 +2,20 @@
  * Pi Messenger - Configuration
  *
  * Priority (highest to lowest):
- * 1. Project: .pi/pi-messenger.json
- * 2. Extension-specific: ~/.pi/agent/pi-messenger.json
- * 3. Main settings: ~/.pi/agent/settings.json → "messenger" key
- * 4. Defaults
+ * 1. Project: <project>/.zeta/pi-messenger.json
+ * 2. Extension-specific: ~/.zeta/agent/pi-messenger.json
+ * 3. Defaults
+ *
+ * (The historical third source, the upstream pi "messenger" key in
+ * ~/.pi/agent/settings.json, belonged to the pi CLI's own settings file and
+ * has no zeta equivalent; it is no longer read.)
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { getGlobalConfigPath, getProjectConfigPath } from "./paths.ts";
+import { ensureProjectStateMigrated } from "./crew/utils/migrations.ts";
 
 export interface MessengerConfig {
 	autoRegister: boolean;
@@ -95,7 +100,7 @@ export function matchesAutoRegisterPath(cwd: string, paths: string[]): boolean {
 }
 
 export function saveAutoRegisterPaths(paths: string[]): void {
-	const configPath = join(homedir(), ".pi", "agent", "pi-messenger.json");
+	const configPath = getGlobalConfigPath();
 	let existing: Record<string, unknown> = {};
 
 	if (existsSync(configPath)) {
@@ -108,13 +113,13 @@ export function saveAutoRegisterPaths(paths: string[]): void {
 
 	existing.autoRegisterPaths = paths;
 
-	const dir = join(homedir(), ".pi", "agent");
+	const dir = dirname(configPath);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(configPath, JSON.stringify(existing, null, 2));
 }
 
 export function getAutoRegisterPaths(): string[] {
-	const configPath = join(homedir(), ".pi", "agent", "pi-messenger.json");
+	const configPath = getGlobalConfigPath();
 	if (!existsSync(configPath)) return [];
 
 	try {
@@ -126,22 +131,13 @@ export function getAutoRegisterPaths(): string[] {
 }
 
 function buildConfig(projectConfig?: Partial<MessengerConfig> | null): MessengerConfig {
-	const extensionGlobalPath = join(homedir(), ".pi", "agent", "pi-messenger.json");
-	const mainSettingsPath = join(homedir(), ".pi", "agent", "settings.json");
-
-	// Load from main settings.json (lowest priority of the three sources)
-	let settingsConfig: Partial<MessengerConfig> = {};
-	const mainSettings = readJsonFile(mainSettingsPath);
-	if (mainSettings && typeof mainSettings.messenger === "object" && mainSettings.messenger !== null) {
-		settingsConfig = mainSettings.messenger as Partial<MessengerConfig>;
-	}
+	const extensionGlobalPath = getGlobalConfigPath();
 
 	// Load extension-specific global config
 	const extensionConfig = readJsonFile(extensionGlobalPath) as Partial<MessengerConfig> | null;
 
 	const merged = {
 		...DEFAULT_CONFIG,
-		...settingsConfig,
 		...extensionConfig,
 		...projectConfig,
 	};
@@ -206,7 +202,20 @@ export function loadGlobalConfig(): MessengerConfig {
 }
 
 export function loadConfig(cwd: string): MessengerConfig {
-	const projectPath = join(cwd, ".pi", "pi-messenger.json");
-	const projectConfig = readJsonFile(projectPath) as Partial<MessengerConfig> | null;
+	ensureProjectStateMigrated(cwd);
+	const projectConfig = readJsonFile(getProjectConfigPath(cwd)) as Partial<MessengerConfig> | null;
 	return buildConfig(projectConfig);
+}
+
+/**
+ * Conservative project-trust gate. Project-supplied crew agents and skills,
+ * and project-scope agent registration via /teamagent, only load when the
+ * project config (<project>/.zeta/pi-messenger.json) explicitly opts in with
+ * `"trustProjectAgents": true`. Defaults to false so cloning an untrusted
+ * repository cannot silently register tool-capable subagents. Only the
+ * project-level file grants this — a user-global setting must not trust every
+ * repository on the machine.
+ */
+export function isProjectAgentsTrusted(cwd: string): boolean {
+	return readJsonFile(getProjectConfigPath(cwd))?.trustProjectAgents === true;
 }

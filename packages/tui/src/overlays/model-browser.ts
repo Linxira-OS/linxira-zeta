@@ -125,6 +125,8 @@ export interface ModelBrowserSource extends ModelRoleLookup {
 	readonly mruOrder: readonly string[];
 	readonly modelPerf: ReadonlyMap<string, ModelBrowserPerf>;
 	getRoleInfo(role: string): ModelBrowserRoleInfo;
+	/** True when the provider was injected from the upstream OMP model config. */
+	isOmpOriginProvider?(provider: string): boolean;
 	defaultRoleChain(role: string): string[];
 	resolveRoleValue(value: string | undefined, models: Model[], roleLookup?: ModelRoleLookup): ResolvedModelRoleValue;
 }
@@ -1125,10 +1127,13 @@ export class ModelBrowser implements Component {
 				: item.id;
 		const currentMark =
 			item.selector === this.#currentSelector ? ` ${theme.fg("success", theme.status.enabled)}` : "";
+		const ompBadge = this.#settings.isOmpOriginProvider?.(item.provider)
+			? ` ${theme.fg("dim", tuiText("models.originOmp", "from OMP"))}`
+			: "";
 		const overLimit = overContext
 			? ` ${theme.status.disabled} context>${formatNumber(item.model.contextWindow ?? 0).toLowerCase()}`
 			: "";
-		let left = `${prefix}${providerPrefix}${name}${currentMark}${overLimit}`;
+		let left = `${prefix}${providerPrefix}${name}${ompBadge}${currentMark}${overLimit}`;
 
 		// Metric columns collapse independently when no visible row has data.
 		const intelligenceCol =

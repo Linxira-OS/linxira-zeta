@@ -474,8 +474,8 @@ export function renderPlanningState(theme: Theme, cwd: string, width: number, he
 			}
 		}
 		lines.push("");
-		lines.push(theme.fg("dim", "  progress: .pi/messenger/crew/planning-progress.md"));
-		lines.push(theme.fg("dim", "  outline: .pi/messenger/crew/planning-outline.md"));
+		lines.push(theme.fg("dim", "  progress: .zeta/messenger/crew/planning-progress.md"));
+		lines.push(theme.fg("dim", "  outline: .zeta/messenger/crew/planning-outline.md"));
 	}
 
 	if (lines.length > height) {

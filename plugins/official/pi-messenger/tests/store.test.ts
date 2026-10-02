@@ -15,7 +15,7 @@ function createTempRoot(): string {
 }
 
 function createDirs(root: string): Dirs {
-	const base = path.join(root, ".pi", "messenger");
+	const base = path.join(root, ".zeta", "messenger");
 	const registry = path.join(base, "registry");
 	const inbox = path.join(base, "inbox");
 	fs.mkdirSync(registry, { recursive: true });

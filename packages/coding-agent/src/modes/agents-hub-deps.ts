@@ -61,7 +61,7 @@ export function createAgentsHubDeps(
 	defaultModelPattern?: string,
 ): AgentsHubDeps {
 	return {
-		browserSource: createModelBrowserSource(settings),
+		browserSource: createModelBrowserSource(settings, modelRegistry),
 		loadAgents: async () => {
 			const { agents } = await discoverAgents(cwd, undefined, extensionRoots());
 			const disabled = new Set(cfgTaskDisabledAgents.get(settings));

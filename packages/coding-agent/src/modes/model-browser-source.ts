@@ -12,7 +12,11 @@ import {
 import { cfgDefaultThinkingLevel, cfgRetryFallbackChains } from "../session/settings";
 
 /** Supply live model-overlay preferences and runtime resolution from the host. */
-export function createModelBrowserSource(settings: Settings): ModelHubSource {
+export function createModelBrowserSource(
+	settings: Settings,
+	registry?: { getOmpOriginProviders?(): ReadonlySet<string> },
+): ModelHubSource {
+	const ompOriginProviders = registry?.getOmpOriginProviders?.();
 	return {
 		get revision() {
 			return settings.revision;
@@ -49,6 +53,7 @@ export function createModelBrowserSource(settings: Settings): ModelHubSource {
 		getGlobalModelRole: role => settings.getGlobalModelRole(role),
 		getModelRoleSource: role => settings.getModelRoleSource(role),
 		getRoleInfo: role => getRoleInfo(role, settings),
+		isOmpOriginProvider: provider => ompOriginProviders?.has(provider) ?? false,
 		defaultRoleChain: role => rolePriorityDefaults(role),
 		resolveRoleValue: (value, models, roleLookup) => resolveModelRoleValue(value, models, { settings, roleLookup }),
 	};
