@@ -1,8 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { resolveContainedPath, type ContainedPathResolution } from "../discovery/contained-path";
 import type { Rule } from "../capability/rule";
-import { resolveContainedPathSync } from "../discovery/contained-path";
 import type { Skill } from "../extensibility/skills";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import { validateRelativePath } from "../internal-urls/filesystem-resource";
@@ -10,6 +8,11 @@ import type { InternalResource, ResolveContext } from "../internal-urls/types";
 import type { ImageAttachmentEntry } from ".";
 import { normalizeLocalScheme } from "./path-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import {
+	resolveContainedPath,
+	type ContainedPathResolution,
+	resolveContainedPathSync,
+} from "../discovery/contained-path";
 
 /**
  * A `skill://` URL that resolves outside its plugin root or to a missing target.

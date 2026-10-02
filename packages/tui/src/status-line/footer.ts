@@ -1,8 +1,8 @@
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { type Component, padding, truncateToWidth, visibleWidth } from "../index";
-import { formatNumber, getProjectDir } from "@oh-my-pi/pi-utils";
+import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
 import { theme } from "../theme";
 import type { FooterHost, FooterSession } from "./host";
 import { shortenPath } from "../render/render-utils";
@@ -15,7 +15,7 @@ import {
 	getContextUsageThemeColor,
 	getContextUsageTone,
 } from "../chrome/context-thresholds";
-import type { TspProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspProps, TspSpan } from "@linxiraos/pi-wire";
 import type { NativeNode } from "../native/node";
 import { col, node, span } from "../native/describe";
 

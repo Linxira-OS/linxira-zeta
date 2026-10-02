@@ -626,7 +626,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "ultra", description: () => M.cmdFastUltra },
 			{ name: "off", description: () => M.cmdFastOff },
 			{ name: "status", description: () => M.cmdFastStatus },
-	],
+		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
 			M.acFastFmt.replace("%s", runtime.ctx.session.isFastModeEnabled() ? M.stateOn : M.stateOff),

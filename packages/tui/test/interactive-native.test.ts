@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { TspListProps } from "@oh-my-pi/pi-wire";
-import { CountdownTimer } from "@oh-my-pi/pi-tui/chrome/countdown-timer";
-import { Editor } from "@oh-my-pi/pi-tui/components/editor";
-import { Input } from "@oh-my-pi/pi-tui/components/input";
-import { Loader, type LoaderMessageColorFn } from "@oh-my-pi/pi-tui/components/loader";
-import { type SelectItem, SelectList } from "@oh-my-pi/pi-tui/components/select-list";
-import { type SettingItem, SettingsList } from "@oh-my-pi/pi-tui/components/settings-list";
-import type { DescribeContext, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { CustomEditor } from "@oh-my-pi/pi-tui/prompt/custom-editor";
-import { setMagicKeywords } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
-import { getEditorTheme, getSelectListTheme, getSettingsListTheme, initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { TUI } from "@oh-my-pi/pi-tui";
+import type { TspListProps } from "@linxiraos/pi-wire";
+import { CountdownTimer } from "@linxiraos/pi-tui/chrome/countdown-timer";
+import { Editor } from "@linxiraos/pi-tui/components/editor";
+import { Input } from "@linxiraos/pi-tui/components/input";
+import { Loader, type LoaderMessageColorFn } from "@linxiraos/pi-tui/components/loader";
+import { type SelectItem, SelectList } from "@linxiraos/pi-tui/components/select-list";
+import { type SettingItem, SettingsList } from "@linxiraos/pi-tui/components/settings-list";
+import type { DescribeContext, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import { getEditorTheme, getSelectListTheme, getSettingsListTheme, initTheme } from "@linxiraos/pi-tui/theme";
+import type { TUI } from "@linxiraos/pi-tui";
 
 const cx: DescribeContext = { cols: 80, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 

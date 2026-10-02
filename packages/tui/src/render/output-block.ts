@@ -1,7 +1,7 @@
 /**
  * Bordered output container with optional header and sections.
  */
-import type { TspCardStatus, TspPreview, TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspCardStatus, TspPreview, TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { ImageProtocol, TERMINAL } from "../terminal-capabilities";

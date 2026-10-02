@@ -13,7 +13,7 @@
  *
  * Replaces the old SessionObserverOverlayComponent (ctrl+s observer).
  */
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type {
 	TspPickerAction,
 	TspPickerColumn,
@@ -22,12 +22,12 @@ import type {
 	TspPickerScope,
 	TspSpan,
 	TspTreeNode,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import { Container, type OverlayHandle, type TUI } from "../tui";
 import { matchesKey } from "../keys";
 import { routeSelectListMouse, routeSgrMouseInput, type SelectListMouseTarget } from "../mouse";
 import { padding, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { formatAge, formatDuration, formatNumber, getProjectDir, logger } from "@oh-my-pi/pi-utils";
+import { formatAge, formatDuration, formatNumber, getProjectDir, logger } from "@linxiraos/pi-utils";
 import {
 	type AgentActivitySource,
 	type AgentActivityKind,

@@ -7,7 +7,7 @@
  * - Grouped references and symbols
  * - Collapsible/expandable views
  */
-import type { TspSpan, TspText, TspTone, TspTreeNode } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText, TspTone, TspTreeNode } from "@linxiraos/pi-wire";
 import type { NativeToolHead, NativeToolView, RenderResultOptions, ToolRenderer, ToolRenderResult } from "./renderer";
 import type { Component } from "../tui";
 import { Text } from "../components/text";

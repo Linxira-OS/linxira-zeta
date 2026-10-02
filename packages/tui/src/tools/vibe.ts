@@ -1,7 +1,7 @@
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import { describeShimmer, shimmerEnabled, shimmerText } from "../theme/shimmer";
-import type { TspCardStatus, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspCardStatus, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { compact, elapsed, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";

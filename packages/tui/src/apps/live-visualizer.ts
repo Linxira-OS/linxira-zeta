@@ -5,7 +5,7 @@ import { type KeyId, matchesKey } from "../keys";
 import { sliceWithWidth, truncateToWidth, visibleWidth } from "../utils";
 import { sanitizeDisplaySingleLine } from "../overlays/extensions/display-text";
 import { type ThemeColor, theme } from "../theme/theme";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { card, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { actionBar, actionButton } from "../native/overlay";

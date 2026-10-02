@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import type { NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { SessionInfoOverlay } from "@oh-my-pi/pi-tui/overlays/session-info-overlay";
-import { UsageDashboardComponent } from "@oh-my-pi/pi-tui/overlays/usage-dashboard";
-import { createUsageRowBlock } from "@oh-my-pi/pi-tui/overlays/usage-row";
-import { JobsPanel } from "@oh-my-pi/pi-tui/overlays/jobs-panel";
-import { computeContextBreakdown, ContextUsageView } from "@oh-my-pi/pi-tui/status-line/context-usage";
-import { DEFAULT_COMPACTION_SETTINGS } from "@oh-my-pi/pi-agent-core/compaction";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import type { NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
+import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashboard";
+import { createUsageRowBlock } from "@linxiraos/pi-tui/overlays/usage-row";
+import { JobsPanel } from "@linxiraos/pi-tui/overlays/jobs-panel";
+import { computeContextBreakdown, ContextUsageView } from "@linxiraos/pi-tui/status-line/context-usage";
+import { DEFAULT_COMPACTION_SETTINGS } from "@linxiraos/pi-agent-core/compaction";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 
 const cx = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 /** An older terminal without the data-first kinds. */

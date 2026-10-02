@@ -10,7 +10,7 @@ import { parseModelString, splitUpstreamRouting, formatModelSelectorValue } from
  * Fully mouse-navigable (hover, wheel, click). Session-only switching lives
  * in the compact alt+p picker ({@link ./model-picker}).
  */
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type {
 	TspPickerAction,
 	TspPickerColumn,
@@ -19,12 +19,12 @@ import type {
 	TspPickerProps,
 	TspPickerScope,
 	TspSpan,
-} from "@oh-my-pi/pi-wire";
-import type { KeysApi, Model } from "@oh-my-pi/pi-ai";
-import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
-import { MODEL_KINDS, modelKind, type ModelKind } from "@oh-my-pi/pi-catalog/types";
+} from "@linxiraos/pi-wire";
+import type { KeysApi, Model } from "@linxiraos/pi-ai";
+import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { MODEL_KINDS, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
 import type { Component, TUI } from "../tui";
 import { extractPrintableText, matchesKey } from "../keys";
 import { fuzzyFilter } from "../fuzzy";

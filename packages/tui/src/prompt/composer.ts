@@ -18,7 +18,7 @@ import {
 import { sliceWithWidth, visibleWidth } from "../utils";
 import type { NativeChild, NativeSurface, NativeSurfaceProvider } from "../native/node";
 import { sameItems } from "../native/memo";
-import { postmortem } from "@oh-my-pi/pi-utils";
+import { postmortem } from "@linxiraos/pi-utils";
 import { CustomEditor } from "./custom-editor";
 import type { WordCompletionMethod } from "./word-completion";
 import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";

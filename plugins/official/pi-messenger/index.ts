@@ -9,8 +9,6 @@ import { homedir } from "node:os";
 import * as fs from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@linxiraos/zeta";
-import type { OverlayHandle, TUI } from "@linxiraos/pi-tui";
-import { truncateToWidth } from "@linxiraos/pi-tui";
 import { Type, type TSchema } from "typebox";
 
 function StringEnum<T extends readonly string[]>(
@@ -83,6 +81,7 @@ import { runLegacyAgentCleanupMigration } from "./crew/utils/install.ts";
 import { getLiveWorkers, onLiveWorkersChanged } from "./crew/live-progress.ts";
 import { shutdownAllWorkers } from "./crew/agents.ts";
 import { shutdownLobbyWorkers } from "./crew/lobby.ts";
+import { OverlayHandle, TUI, truncateToWidth } from "@linxiraos/pi-tui";
 
 let overlayTui: TUI | null = null;
 let overlayHandle: OverlayHandle | null = null;

@@ -4,7 +4,7 @@ import { fuzzyFilter } from "../fuzzy";
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText } from "../keys";
 import type { MouseRoutable, SgrMouseEvent } from "../mouse";
-import type { TspPrefsControl, TspPrefsRow, TspPrefsSection, TspProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspPrefsControl, TspPrefsRow, TspPrefsSection, TspProps, TspSpan } from "@linxiraos/pi-wire";
 import { col, node, span } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainLine, plainText } from "../native/spans";

@@ -8,7 +8,7 @@
  * the bodies byte-wise. Chunks split on code-point boundaries, so every chunk
  * is valid UTF-8 on its own and the joined bytes equal the original body.
  */
-import { isRecord } from "@oh-my-pi/pi-utils/type-guards";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
 import {
 	TSP_APC_ID,
 	TSP_DEFAULT_APC_LIMIT,
@@ -16,7 +16,7 @@ import {
 	type TspEvent,
 	type TspReply,
 	type TspVerb,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 
 const APC = "\x1b_";
 const ST = "\x1b\\";

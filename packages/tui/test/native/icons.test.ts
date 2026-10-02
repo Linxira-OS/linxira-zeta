@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { node, span } from "@oh-my-pi/pi-tui/native/describe";
-import type { DescribeContext, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { nativeComponentId, Reconciler } from "@oh-my-pi/pi-tui/native/reconcile";
-import { TERMINAL } from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { getSymbolPresetOverride, initThemeSync, theme } from "@oh-my-pi/pi-tui/theme";
-import type { Component } from "@oh-my-pi/pi-tui/tui";
-import type { TspNode } from "@oh-my-pi/pi-wire";
+import { node, span } from "@linxiraos/pi-tui/native/describe";
+import type { DescribeContext, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { nativeComponentId, Reconciler } from "@linxiraos/pi-tui/native/reconcile";
+import { TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { getSymbolPresetOverride, initThemeSync, theme } from "@linxiraos/pi-tui/theme";
+import type { Component } from "@linxiraos/pi-tui/tui";
+import type { TspNode } from "@linxiraos/pi-wire";
 import { TspHarness } from "./tsp-harness";
 
 const cx: DescribeContext = { cols: 80, reduceMotion: false, dark: true, supports: () => true, feature: () => true };

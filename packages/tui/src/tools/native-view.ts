@@ -5,7 +5,7 @@
  */
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { code, keyed, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { type ParsedDiagnostic, parseDiagnosticMessage, shortenPath } from "../render/render-utils";

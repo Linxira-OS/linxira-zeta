@@ -28,7 +28,7 @@ import type { Theme, ThemeColor } from "../theme/theme";
 import type { Component } from "../tui";
 import type { OutputMeta } from "./output-meta";
 import type { NativeToolHead, NativeToolView, RenderResultOptions, ToolRenderer } from "./renderer";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { code, col, compact, keyed, node, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { getLanguageFromPath } from "../lang-from-path";

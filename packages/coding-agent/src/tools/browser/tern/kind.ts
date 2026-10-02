@@ -4,7 +4,7 @@
  * picture-in-pictures floating over omp's own pane and every tab helper drives
  * that PiP's native web view through the Tern daemon (`wire.ts`).
  */
-import { parseFlag } from "@oh-my-pi/pi-utils";
+import { parseFlag } from "@linxiraos/pi-utils";
 
 /** Browser kind selecting a Tern browser PiP. */
 export interface TernKind {

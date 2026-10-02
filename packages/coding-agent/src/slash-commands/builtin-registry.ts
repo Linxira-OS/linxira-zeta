@@ -1,7 +1,5 @@
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
 import { clearSubmittedText } from "./helpers/draft";
-import type { AutocompleteItem } from "@oh-my-pi/pi-tui";
 import { COLLAB_GUEST_ALLOWED_COMMANDS } from "../collab/guest";
 import { BUILTIN_COLLABORATION_SLASH_COMMANDS } from "./builtin-collaboration";
 import {
@@ -28,6 +26,7 @@ import type {
 	SlashCommandSpec,
 	TuiSlashCommandRuntime,
 } from "./types";
+import type { AutocompleteItem } from "@linxiraos/pi-tui";
 
 export type { BuiltinSlashCommand, SubcommandDef } from "./types";
 

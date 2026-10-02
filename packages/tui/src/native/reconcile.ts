@@ -27,8 +27,8 @@
  * `overlay` nodes described anywhere but directly under `layer` are hoisted
  * into `layer`; their anchor keypaths are rewritten to wire ids.
  */
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { TSP_TEXT_KINDS, type TspKind, type TspNode, type TspOp } from "@oh-my-pi/pi-wire";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { TSP_TEXT_KINDS, type TspKind, type TspNode, type TspOp } from "@linxiraos/pi-wire";
 import { type Component, Container, CURSOR_MARKER } from "../tui";
 import { normalizeIconProps } from "./icons";
 import type { DescribeContext, NativeChild, NativeNode } from "./node";

@@ -1,6 +1,6 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { createCustomMessage } from "@oh-my-pi/pi-agent-core/compaction/messages";
-import type { ImageContent, MessageAttribution, TextContent } from "@oh-my-pi/pi-ai";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { createCustomMessage } from "@linxiraos/pi-agent-core/compaction/messages";
+import type { ImageContent, MessageAttribution, TextContent } from "@linxiraos/pi-ai";
 import {
 	type CustomMessage,
 	type CustomMessageContent,

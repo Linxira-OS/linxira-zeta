@@ -4,16 +4,13 @@
  * Calls Brave's web search REST API and maps results into the unified
  * SearchResponse shape used by the web search tool.
  */
-import type { Model } from "@linxiraos/pi-ai";
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
-import type { QuerySyntax, StructuredQuery } from "../query";
-import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
 import { clampNumResults, dateToAgeSeconds } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, readLimitedText, withHardTimeout } from "./utils";
+import { type Model, type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
+import { type QuerySyntax, type StructuredQuery, formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
+import { type SearchParams, SearchProvider } from "./base";
 
 const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
 const DEFAULT_NUM_RESULTS = 10;

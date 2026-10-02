@@ -1,13 +1,12 @@
 import { centerLine, visibleWidth } from "../../utils";
 import { padToWidth } from "../../render/utils";
-import { gradientEscape, gradientLogo, ZETA_LOGO, type ShineConfig } from "../../prompt/welcome";
 import { theme } from "../../theme/theme";
 import { tuiText } from "../../i18n";
-import { gradientEscape, gradientLogo, logoNode, ZETA_LOGO, type ShineConfig } from "../../prompt/welcome";
 import { formatKeyHint } from "../../app-keybindings";
 import { col, node, span, text } from "../../native/describe";
 import type { NativeNode } from "../../native/node";
 import { Memo } from "../../native/memo";
+import { gradientEscape, gradientLogo, ZETA_LOGO, type ShineConfig, logoNode } from "../../prompt/welcome";
 
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
@@ -27,6 +26,10 @@ const RESET = "\x1b[0m";
 /** Full scene needs comfortable room; below this we drop to a centered mark. */
 const MIN_SCENE_WIDTH = 56;
 const MIN_SCENE_HEIGHT = 22;
+
+function skipHint(): string {
+	return `press ${formatKeyHint("enter")} to skip`;
+}
 
 /** Density ramp for the rippling water, lightest → heaviest. */
 const WATER_RAMP = [
@@ -196,7 +199,7 @@ export function describeSetupSplash(): NativeNode {
 			[
 				node("spacer", { grow: 1 }),
 				logoNode(LARGE_LOGO, true),
-				text([span("O h   M y   P i", "strong")], { wrap: "none" }),
+				text([span("Z e t a", "strong")], { wrap: "none" }),
 				node("spacer", { grow: 1 }),
 				text([span(hint, "dim")], { wrap: "none" }),
 			],

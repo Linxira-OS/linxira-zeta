@@ -7,7 +7,7 @@ import { type MouseRoutable, routeSelectListMouse, type SgrMouseEvent } from "..
 import { col, node, span } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainLine } from "../native/spans";
-import type { TspProps } from "@oh-my-pi/pi-wire";
+import type { TspProps } from "@linxiraos/pi-wire";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import type { SymbolTheme } from "../symbols";
 import type { Component } from "../tui";
@@ -738,20 +738,14 @@ export class SelectList implements Component, MouseRoutable {
 			totalCount: this.#selection.items.length,
 			pendingItem,
 		});
-		const statusText =
-			this.layout.statusText !== undefined
-				? (custom ?? "")
-				: (pendingItem?.confirmation ??
+		return this.layout.statusText !== undefined
+			? (custom ?? "")
+			: (pendingItem?.confirmation ??
 					(query
 						? tuiTextFmt("hsSearchFmt", "  Search: %s", query)
 						: this.#canEditSearch()
 							? tuiText("hsTypeToSearch", "  Type to search")
 							: ""));
-		return this.theme.scrollInfo(truncateToWidth(statusText, Math.max(1, width - 2), Ellipsis.Omit));
-		return this.layout.statusText !== undefined
-			? (custom ?? "")
-			: (pendingItem?.confirmation ??
-					(query ? `  Search: ${query}` : this.#canEditSearch() ? "  Type to search" : ""));
 	}
 
 	#shouldRenderSearchStatus(): boolean {

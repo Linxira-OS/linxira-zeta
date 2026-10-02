@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { Markdown } from "@oh-my-pi/pi-tui";
+import { Markdown } from "@linxiraos/pi-tui";
 import { Settings } from "../../../src/config/settings";
-import { fgAnsi } from "@oh-my-pi/pi-tui/theme/color";
-import { createTheme, getBuiltinThemes } from "@oh-my-pi/pi-tui/theme/loader";
+import { fgAnsi } from "@linxiraos/pi-tui/theme/color";
+import { createTheme, getBuiltinThemes } from "@linxiraos/pi-tui/theme/loader";
 import {
 	getMarkdownTheme,
 	getThemeByName,
 	setMarkdownMermaidRendering,
 	setThemeInstance,
-} from "@oh-my-pi/pi-tui/theme";
+} from "@linxiraos/pi-tui/theme";
 import { buildSystemPrompt } from "../../../src/system-prompt";
 
 const workspaceTree = {

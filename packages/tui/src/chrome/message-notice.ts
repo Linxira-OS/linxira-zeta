@@ -1,7 +1,7 @@
 import { Box } from "../components/box";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
-import type { TspPreview, TspText } from "@oh-my-pi/pi-wire";
+import type { TspPreview, TspText } from "@linxiraos/pi-wire";
 import { type Component, Container } from "../tui";
 import { type ThemeColor, theme } from "../theme";
 import { card, node, text, withHidden } from "../native/describe";

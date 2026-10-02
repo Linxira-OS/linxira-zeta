@@ -9,7 +9,7 @@ Example hooks for omp-coding-agent. Hook modules load through the extension runn
 omp --hook examples/hooks/permission-gate.ts
 
 # Or copy to a hooks/pre (or hooks/post) directory for auto-discovery
-cp permission-gate.ts ~/.omp/agent/hooks/pre/
+cp permission-gate.ts ~/.zeta/agent/hooks/pre/
 ```
 
 ## Examples
@@ -33,7 +33,7 @@ cp permission-gate.ts ~/.omp/agent/hooks/pre/
 See [docs/hooks.md](../../../../docs/hooks.md) for full documentation.
 
 ```typescript
-import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
+import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
 
 export default function (pi: HookAPI) {
 	// Subscribe to events

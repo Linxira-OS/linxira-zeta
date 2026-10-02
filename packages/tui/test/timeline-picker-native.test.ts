@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { TspKind, TspPickerProps, TspProps } from "@oh-my-pi/pi-wire";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { TspKind, TspPickerProps, TspProps } from "@linxiraos/pi-wire";
 import type { SessionMessageEntryLike } from "../src/chat/transcript-entry";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { setNativeRendering } from "../src/native/state";

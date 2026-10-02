@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { setTranscriptActionHandler, type TranscriptAction } from "@oh-my-pi/pi-tui/chat/transcript-actions";
-import { UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
-import { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { TspNode } from "@oh-my-pi/pi-wire";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { setTranscriptActionHandler, type TranscriptAction } from "@linxiraos/pi-tui/chat/transcript-actions";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { TspNode } from "@linxiraos/pi-wire";
 import { TspHarness } from "./tsp-harness";
 
 beforeAll(async () => {

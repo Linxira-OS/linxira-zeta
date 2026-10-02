@@ -12,7 +12,7 @@ import { framedToolCard } from "../render/tool-card";
 
 import { formatErrorDetail, formatMoreItems, PREVIEW_LIMITS, pluralize, replaceTabs } from "../render/render-utils";
 import { tuiText, tuiTextFmt } from "../i18n";
-import type { TspChecklistItem, TspChecklistPhase } from "@oh-my-pi/pi-wire";
+import type { TspChecklistItem, TspChecklistPhase } from "@linxiraos/pi-wire";
 import { node } from "../native/describe";
 import { OwnerMemo } from "../native/memo";
 import { errorText, noteText, resultText } from "./native-view";

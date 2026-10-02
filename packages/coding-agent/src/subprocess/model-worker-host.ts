@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import { ModelDownloadActivity, type ModelLoadProgressEvent } from "../downloads/model-downloads";
 import { tinyModelEnvKey } from "../tiny/title-client";
 import { safeSend } from "../utils/ipc";

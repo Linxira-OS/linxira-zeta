@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
 import { loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import {
@@ -18,12 +17,12 @@ import {
 	listClaudePluginRoots,
 } from "@linxiraos/zeta/discovery/helpers";
 import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
-import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 import "@linxiraos/zeta/discovery/agent-plugins";
 import "@linxiraos/zeta/discovery/claude-plugins";
 import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
 import type { Skill } from "@linxiraos/zeta/capability/skill";
+import { getPluginsDir, removeWithRetries } from "@linxiraos/pi-utils";
 
 // Concatenation avoids the noTemplateCurlyInString lint on literal placeholder names.
 const PLUGIN_ROOT_VAR = "$" + "{PLUGIN_ROOT}";

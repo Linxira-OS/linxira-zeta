@@ -13,7 +13,7 @@
  * so the graphics test needs no asset on disk and works across all three image
  * protocols, each of which decodes a standard PNG.
  */
-import { hsvToRgb } from "@oh-my-pi/pi-utils/color";
+import { hsvToRgb } from "@linxiraos/pi-utils/color";
 import * as zlib from "node:zlib";
 import { type Component, Container } from "../../tui";
 import { encodeTextSized, type TextSizingScale } from "../../utils";

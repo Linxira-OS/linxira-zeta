@@ -39,7 +39,7 @@ import { canReuseCachedPr, createPrCacheContext, isSamePrCacheContext, type PrCa
 import { summarizeUsageResetCredits } from "../overlays/usage-display";
 import { getPreset } from "./presets";
 import { describeSegment, renderSegment, type SegmentContext } from "./segments";
-import type { TspProps } from "@oh-my-pi/pi-wire";
+import type { TspProps } from "@linxiraos/pi-wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span } from "../native/describe";
 import { getContextMeterThresholds, getContextUsageLevel, getContextUsageTone } from "../chrome/context-thresholds";

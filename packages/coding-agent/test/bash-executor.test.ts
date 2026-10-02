@@ -3,11 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import * as piNatives from "@linxiraos/pi-natives";
-import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ShellMinimizerSettings } from "@linxiraos/zeta/exec/settings";
 import {
 	applyDirenvPreflight,
 	buildMinimizerOptions,
@@ -18,8 +15,9 @@ import * as direnvModule from "@linxiraos/zeta/exec/direnv";
 import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-tui/tools/streaming-output";
 import * as shellSnapshot from "@linxiraos/zeta/utils/shell-snapshot";
 import { encodeTerminalImage } from "@linxiraos/zeta/utils/terminal-graphics";
-
-import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
+import * as piNatives from "@linxiraos/pi-natives";
+import type { Shell, ShellRunResult } from "@linxiraos/pi-natives";
+import { type ShellMinimizerSettings, cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.

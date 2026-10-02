@@ -1,13 +1,12 @@
 import { centerLine } from "../../utils";
 import { padToWidth } from "../../render/utils";
-import { gradientLogo, ZETA_LOGO } from "../../prompt/welcome";
 import { theme } from "../../theme/theme";
 import { tuiText } from "../../i18n";
-import { gradientLogo, logoNode, ZETA_LOGO } from "../../prompt/welcome";
 import { col, node, span, text } from "../../native/describe";
 import type { NativeNode } from "../../native/node";
 import { Memo } from "../../native/memo";
 import { renderStarfield, SETUP_TICK_MS } from "./splash";
+import { gradientLogo, ZETA_LOGO, logoNode } from "../../prompt/welcome";
 
 export const SETUP_OUTRO_MS = 1200;
 

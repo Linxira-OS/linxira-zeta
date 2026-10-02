@@ -1,11 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
-import { generateOpenAIImage } from "@oh-my-pi/pi-ai/images/openai-images";
-import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { SearchParams } from "@oh-my-pi/pi-coding-agent/web/search/providers/base";
-import { searchXAI } from "@oh-my-pi/pi-coding-agent/web/search/providers/xai";
+import { generateOpenAIImage } from "@linxiraos/pi-ai/images/openai-images";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { SearchParams } from "@linxiraos/zeta/web/search/providers/base";
+import { searchXAI } from "@linxiraos/zeta/web/search/providers/xai";
 import { createInMemoryAuthStorage } from "../../helpers/agent-session-setup";
 
 const SELECTED_MODEL_ID = "grok-selected-grounding";

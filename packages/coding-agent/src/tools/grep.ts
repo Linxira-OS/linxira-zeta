@@ -32,7 +32,11 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { formatGroupedFiles, type FileMatchSection, formatFileMatches } from "@linxiraos/pi-tui/tools/grouped-file-output";
+import {
+	formatGroupedFiles,
+	type FileMatchSection,
+	formatFileMatches,
+} from "@linxiraos/pi-tui/tools/grouped-file-output";
 import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
 import { isFindEnabled } from "./jfind";
 import {
@@ -49,14 +53,13 @@ import {
 } from "./path-utils";
 import { type LineRange, parseLineRanges, selectorLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
 import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
-import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { formatCodeFrameLine } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";
 import { cfgTaskDisabledAgents } from "../task/settings";
+import { toPathList, formatCodeFrameLine } from "@linxiraos/pi-tui/render/render-utils";
 
 const searchSchema = type({
 	pattern: type("string"),

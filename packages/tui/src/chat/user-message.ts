@@ -2,9 +2,9 @@ import { applyBackgroundToLine, padding, visibleWidth } from "../utils";
 import { type Component, Container } from "../tui";
 import { Disclosure } from "../components/disclosure";
 import { Markdown } from "../components/markdown";
-import { formatBytes } from "@oh-my-pi/pi-utils";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import { formatBytes } from "@linxiraos/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { ensureThemeSync, getMarkdownTheme, theme } from "../theme";
 import {
 	attachmentSgr,

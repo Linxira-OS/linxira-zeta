@@ -18,9 +18,8 @@ import { code, compact, node, span } from "../native/describe";
 import type { NativeChild } from "../native/node";
 import { errorText, noteText, resultText, toolHead } from "./native-view";
 import type { OutputMeta } from "./output-meta";
-import type { RenderResultOptions, ToolRenderer } from "./renderer";
 import { tuiText, tuiTextFmt } from "../i18n";
-import type { NativeToolView, RenderResultOptions, ToolRenderer } from "./renderer";
+import type { RenderResultOptions, ToolRenderer, NativeToolView } from "./renderer";
 
 /** Display metadata returned by ast-grep. */
 export interface AstGrepToolDetails {

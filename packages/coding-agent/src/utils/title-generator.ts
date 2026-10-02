@@ -16,7 +16,7 @@ import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healin
 import { writeThroughActiveTerminal } from "@linxiraos/pi-tui";
 import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
 import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
-import { isNativeRendering, onNativeRenderingChange } from "@oh-my-pi/pi-tui/native/state";
+import { isNativeRendering, onNativeRenderingChange } from "@linxiraos/pi-tui/native/state";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { roleCandidatePool } from "../config/model-roles";
@@ -962,7 +962,7 @@ export function initTerminalTitleState(): void {
 	// state — a frozen spinner frame. Mirror the enable path and re-arm.
 	if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
 	// A TSP terminal takes the plain native title while it renders; the
-	// classic `π > label` (and its spinner) comes back when it stops.
+	// classic `ζ > label` (and its spinner) comes back when it stops.
 	terminalTitleRuntime.unwatchNative ??= onNativeRenderingChange(native => {
 		if (native) stopTerminalTitleSpinner();
 		else if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();

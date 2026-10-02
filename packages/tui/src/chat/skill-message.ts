@@ -13,7 +13,7 @@ import { fileHyperlink } from "../render";
 import { collapseSkillTokens, skillChipLabel, skillChipStyle, skillToken } from "../prompt/composer-attachments";
 import { tuiText, tuiTextFmt } from "../i18n";
 import { type UserBubbleOptions, UserMessageComponent, userBubbleColor } from "./user-message";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { card, md, node, span, text } from "../native/describe";
 import { type NativeChild, type NativeNode, type NativeUiEvent, rootToggleExpanded } from "../native/node";
 import { Memo } from "../native/memo";

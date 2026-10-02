@@ -17,7 +17,6 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import type { ComposerShape } from "./composer-shape-registry";
 import { tuiText } from "../i18n";
 import { type ComposerShape, getComposerShapeOptions } from "./composer-shape-registry";
 import { theme } from "../theme/theme";

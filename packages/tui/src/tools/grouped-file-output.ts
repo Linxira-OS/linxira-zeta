@@ -1,7 +1,7 @@
 import * as path from "node:path";
 
-import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@oh-my-pi/pi-utils";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import { buildPathTree, isUrlLikePath, type PathTreeInput, walkPathTree } from "@linxiraos/pi-utils";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { code, col, keyed, span, text } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { formatHashlineHeader } from "./hashline-format";

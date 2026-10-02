@@ -2,7 +2,7 @@ import { isReadableUrlPath, readSelectorRangeStart } from "./read";
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import type { NativeToolHead, NativeToolView, RenderResultOptions } from "./renderer";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { compact, span, text } from "../native/describe";
 import { plainText } from "../native/spans";
 import { errorText, noteText, resultText, statsText } from "./native-view";

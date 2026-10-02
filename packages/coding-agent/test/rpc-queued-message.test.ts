@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
-import { removeWithRetries, withTimeout } from "@oh-my-pi/pi-utils";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
+import { removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 
 describe("RPC queued-message removal", () => {
 	let client: RpcClient;
@@ -14,7 +14,7 @@ describe("RPC queued-message removal", () => {
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "queued-message-rpc-agent.ts")],
 			cwd: directory,
-			env: { PI_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
+			env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 		});
 	});
 

@@ -1,6 +1,6 @@
 import { type Component, Container, type HistoryBatch } from "../tui";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { popLoopPhase, pushLoopPhase } from "@oh-my-pi/pi-utils";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { popLoopPhase, pushLoopPhase } from "@linxiraos/pi-utils";
 import { col } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { isNativeSettled, settleNative } from "../native/settle";

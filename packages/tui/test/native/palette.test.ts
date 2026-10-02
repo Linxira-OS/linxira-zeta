@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { node } from "@oh-my-pi/pi-tui/native/describe";
-import type { NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { initThemeSync, setTheme } from "@oh-my-pi/pi-tui/theme";
-import { loadThemeSync } from "@oh-my-pi/pi-tui/theme/loader";
-import type { Component } from "@oh-my-pi/pi-tui/tui";
+import { node } from "@linxiraos/pi-tui/native/describe";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
+import { initThemeSync, setTheme } from "@linxiraos/pi-tui/theme";
+import { loadThemeSync } from "@linxiraos/pi-tui/theme/loader";
+import type { Component } from "@linxiraos/pi-tui/tui";
 import { TspHarness } from "./tsp-harness";
 
 class Described implements Component {

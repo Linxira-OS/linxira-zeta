@@ -1,7 +1,7 @@
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, ApiKey, AuthStorage, Model } from "@oh-my-pi/pi-ai";
-import { completeSimple } from "@oh-my-pi/pi-ai";
-import { toReasoningEffort } from "@oh-my-pi/pi-tui/thinking";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, AuthStorage, Model } from "@linxiraos/pi-ai";
+import { completeSimple } from "@linxiraos/pi-ai";
+import { toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import type { ResolvedCommitModel } from "../model-selection";
 import { extractTextContent } from "../utils";
 import { type CommitInferenceCache, computeCommitCacheKey } from "./cache";

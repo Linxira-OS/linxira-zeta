@@ -4,15 +4,15 @@
  * tool binaries, browsers, side runtimes). Both render through
  * {@link renderHudProgressRow} so they read as one HUD.
  */
-import { type Component, renderProgressBar, visibleWidth } from "@oh-my-pi/pi-tui";
-import { col, node, span, text } from "@oh-my-pi/pi-tui/native/describe";
-import type { NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
-import { sanitizeStatusText } from "@oh-my-pi/pi-tui/chrome/shared";
-import { formatCost } from "@oh-my-pi/pi-tui/overlays/agent-hub-renderer";
-import { truncateToWidth } from "@oh-my-pi/pi-tui/render/render-utils";
-import { theme } from "@oh-my-pi/pi-tui/theme";
-import { formatBytes } from "@oh-my-pi/pi-utils";
+import { type Component, renderProgressBar, visibleWidth } from "@linxiraos/pi-tui";
+import { col, node, span, text } from "@linxiraos/pi-tui/native/describe";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
+import type { TspSpan } from "@linxiraos/pi-wire";
+import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
+import { formatCost } from "@linxiraos/pi-tui/overlays/agent-hub-renderer";
+import { truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { theme } from "@linxiraos/pi-tui/theme";
+import { formatBytes } from "@linxiraos/pi-utils";
 import type { DownloadActivity } from "../downloads/activity";
 import type { JudgmentBatchProgress } from "../eval/judgment-batch-events";
 

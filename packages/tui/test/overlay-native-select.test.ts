@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { DescribeContext, NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { type LogoutAccount, LogoutAccountSelectorComponent } from "@oh-my-pi/pi-tui/overlays/logout-account-selector";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+import type { DescribeContext, NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { type LogoutAccount, LogoutAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/logout-account-selector";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const DOWN = "\x1b[B";
 const genericCx: DescribeContext = {

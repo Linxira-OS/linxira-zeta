@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
-import type { TspAgentProps, TspChecklistProps } from "@oh-my-pi/pi-wire";
+import type { TspAgentProps, TspChecklistProps } from "@linxiraos/pi-wire";
 import type { NativeChild, NativeNode } from "../src/native/node";
 import { setNativeRendering } from "../src/native/state";
 import type { AgentProgress, TaskToolDetails } from "../src/tools/task";

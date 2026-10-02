@@ -40,7 +40,7 @@ import {
 import { OverlayPanel, PanelDivider, PanelRows } from "../chrome/overlay-box";
 import { formatKeyHint } from "../app-keybindings";
 import { editorKey, editorKeys } from "../chrome/keybinding-hints";
-import type { TspSpan, TspTableColumn, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspTableColumn, TspText, TspTone } from "@linxiraos/pi-wire";
 import { col, elapsed, node, span, text } from "../native/describe";
 import { type DescribeContext, leafKey, type NativeChild, type NativeNode, type NativeUiEvent } from "../native/node";
 import { actionButton } from "../native/overlay";

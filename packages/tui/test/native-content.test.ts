@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { Box } from "../src/components/box";
 import { Disclosure } from "../src/components/disclosure";
 import { Markdown } from "../src/components/markdown";

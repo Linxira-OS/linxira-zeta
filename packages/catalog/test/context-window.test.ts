@@ -4,9 +4,9 @@ import {
 	clampsContextOverride,
 	codexOverrideCeiling,
 	resolveMaxContextWindow,
-} from "@oh-my-pi/pi-catalog/compat/context-window";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-catalog/compat/context-window";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
 function bundledAstra() {
 	const astra = getBundledModels("openai-codex").find(model => model.id === "gpt-6-astra");
 	if (!astra) throw new Error("Expected bundled Astra model");

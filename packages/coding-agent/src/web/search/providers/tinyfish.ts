@@ -4,15 +4,13 @@
  * Calls TinyFish's search API and maps results into the unified
  * SearchResponse shape used by the web search tool.
  */
-import type { Model } from "@linxiraos/pi-ai";
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery, type QuerySyntax } from "../query";
 import { clampNumResults } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, normalizeSearchText, siteHosts, withHardTimeout } from "./utils";
+import { type Model, type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
+import { type SearchParams, SearchProvider } from "./base";
 
 const TINYFISH_SEARCH_URL = "https://api.search.tinyfish.ai";
 const DEFAULT_NUM_RESULTS = 10;

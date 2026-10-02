@@ -1,4 +1,4 @@
-import type { TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspText } from "@linxiraos/pi-wire";
 import { Text } from "../components/text";
 import { compactText, rowsText, styledSpans } from "../native/spans";
 import { sameItems } from "../native/memo";

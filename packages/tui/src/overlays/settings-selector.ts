@@ -40,7 +40,7 @@ import {
 	type SettingsHost,
 	type SettingsDisplayEntry,
 } from "./settings-defs";
-import type { TspPrefsControl, TspPrefsProps } from "@oh-my-pi/pi-wire";
+import type { TspPrefsControl, TspPrefsProps } from "@linxiraos/pi-wire";
 import { prefsSectionId } from "../components/settings-list";
 import { getCurrentThemeName, getSelectListTheme, getSettingsListTheme, theme } from "../theme/theme";
 import { AUTO_THINKING, type ConfiguredThinkingLevel } from "../thinking";

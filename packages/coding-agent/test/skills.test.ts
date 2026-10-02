@@ -2,20 +2,20 @@ import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { disableUserSource, enableUserSource } from "@oh-my-pi/pi-coding-agent/capability";
-import { type Skill as CapabilitySkill, skillCapability } from "@oh-my-pi/pi-coding-agent/capability/skill";
-import { getCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { getWslWindowsHomeCandidate, runHostProbe } from "@oh-my-pi/pi-coding-agent/discovery/agents";
+import { disableUserSource, enableUserSource } from "@linxiraos/zeta/capability";
+import { type Skill as CapabilitySkill, skillCapability } from "@linxiraos/zeta/capability/skill";
+import { getCapability } from "@linxiraos/zeta/discovery";
+import { getWslWindowsHomeCandidate, runHostProbe } from "@linxiraos/zeta/discovery/agents";
 import {
 	type LoadSkillsResult,
 	loadSkills,
 	loadSkillsFromDir,
 	parseSkillInvocation,
-} from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { SkillProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/skill-protocol";
-import { CombinedAutocompleteProvider } from "@oh-my-pi/pi-tui/autocomplete";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/skills";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { SkillProtocolHandler } from "@linxiraos/zeta/internal-urls/skill-protocol";
+import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "./helpers/settings-test-state";
 const fixturesDir = path.resolve(import.meta.dirname, "fixtures/skills");
 const collisionFixturesDir = path.resolve(import.meta.dirname, "fixtures/skills-collision");
@@ -49,13 +49,13 @@ const DISABLE_ALL_BUILTIN_SKILLS = {
 
 // Every provider resolves user-level roots from `os.homedir()` (HOME on POSIX,
 // USERPROFILE on Windows) and the agent dir; point both at an empty temp home
-// so real `~/.omp/plugins`, `~/.claude/plugins`, and `~/.agents/skills`
+// so real `~/.zeta/plugins`, `~/.claude/plugins`, and `~/.agents/skills`
 // installs never leak into these tests.
 const isolatedEnvKeys = [
 	"HOME",
 	"USERPROFILE",
 	"CLAUDE_CONFIG_DIR",
-	"PI_CODING_AGENT_DIR",
+	"ZETA_CODING_AGENT_DIR",
 	"OMP_PROFILE",
 	"PI_PROFILE",
 ] as const;
@@ -72,7 +72,7 @@ beforeAll(async () => {
 	}
 	delete process.env.CLAUDE_CONFIG_DIR;
 	delete Bun.env.CLAUDE_CONFIG_DIR;
-	setAgentDir(path.join(isolatedHome, ".omp", "agent"));
+	setAgentDir(path.join(isolatedHome, ".zeta", "agent"));
 });
 
 afterAll(async () => {

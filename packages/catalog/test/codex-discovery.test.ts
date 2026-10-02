@@ -12,7 +12,7 @@ import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { openaiCodexModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/special";
 import { modelKind, type ModelSpec } from "@linxiraos/pi-catalog/types";
-import { resolveProviderModelReference } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { resolveProviderModelReference } from "@linxiraos/zeta/config/model-resolver";
 
 describe("Codex model discovery", () => {
 	it("normalizes optional maximum context windows separately from the default window", async () => {

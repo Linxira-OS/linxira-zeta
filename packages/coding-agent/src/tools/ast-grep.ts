@@ -19,17 +19,25 @@ import type { ToolSession } from ".";
 import { resolveToolTier } from "./approval";
 import { materializeReadUrlToFile, parseReadUrlTarget } from "./fetch";
 import { createFileRecorder, formatResultPath, resultSnapshotPath } from "./file-recorder";
-import { formatGroupedFiles, type FileMatchSection, formatFileMatches } from "@linxiraos/pi-tui/tools/grouped-file-output";
+import {
+	formatGroupedFiles,
+	type FileMatchSection,
+	formatFileMatches,
+} from "@linxiraos/pi-tui/tools/grouped-file-output";
 import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
 
 import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope } from "./path-utils";
-import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
-import { capParseErrors, formatCodeFrameLine, formatParseErrors } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgTaskDisabledAgents } from "../task/settings";
+import {
+	toPathList,
+	capParseErrors,
+	formatCodeFrameLine,
+	formatParseErrors,
+} from "@linxiraos/pi-tui/render/render-utils";
 
 const astGrepSchema = type({
 	pat: type("string").describe("ast pattern"),

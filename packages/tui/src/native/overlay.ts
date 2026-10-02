@@ -6,7 +6,7 @@
  * engine wraps every overlay-stack component in an `overlay` node. An overlay
  * component's root is a `card` whose `head` carries the title.
  */
-import type { TspProps, TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { TspProps, TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { KeyName } from "../key-hint-format";
 import { getKeybindings, type Keybinding } from "../keybindings";
 import { card, kbd, list, node, row, span, text } from "./describe";

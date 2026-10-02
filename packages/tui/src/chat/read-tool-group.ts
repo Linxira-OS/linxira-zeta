@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AssistantMessage, Usage } from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, Usage } from "@linxiraos/pi-ai";
 import { type Component } from "../tui";
 import { Container } from "../tui";
 import { Text } from "../components/text";
@@ -19,8 +19,8 @@ import { canonicalizeMessage } from "./thinking-display";
 import { internalUrlSchemeSpec, splitUrlScheme } from "../tools/url-scheme-host";
 import type { ToolExecutionHandle } from "./tool-execution";
 import { formatUsageRow } from "../overlays/usage-row";
-import { formatCount } from "@oh-my-pi/pi-utils";
-import type { TspCardStatus, TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import { formatCount } from "@linxiraos/pi-utils";
+import type { TspCardStatus, TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { NativeToolHead } from "../tools/renderer";
 import { card, code, keyed, node, span, text, withHidden } from "../native/describe";
 import {

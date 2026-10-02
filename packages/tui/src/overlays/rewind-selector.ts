@@ -57,7 +57,7 @@ import {
 	positionRail,
 	userTurnLabel,
 } from "../chat/transcript-outline";
-import type { TspPickerItem, TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerItem, TspPickerProps } from "@linxiraos/pi-wire";
 import { compact, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";

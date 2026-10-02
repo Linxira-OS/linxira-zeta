@@ -1,15 +1,9 @@
-import { Spacer } from "@linxiraos/pi-tui";
-import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
 import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
 import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
 import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { theme } from "@linxiraos/pi-tui/theme";
-import { APP_NAME, formatAge } from "@linxiraos/pi-utils";
 import { clearSubmittedText } from "./helpers/draft";
-import { Spacer } from "@oh-my-pi/pi-tui";
-import { APP_NAME, formatAge } from "@oh-my-pi/pi-utils";
-import { formatKeyHint } from "@oh-my-pi/pi-tui/app-keybindings";
 import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
@@ -26,6 +20,9 @@ import { openPath } from "../utils/open";
 import { refreshStatusLine } from "./builtin-modes";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
+import { Spacer } from "@linxiraos/pi-tui";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { APP_NAME, formatAge } from "@linxiraos/pi-utils";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {

@@ -22,13 +22,6 @@ import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
 import { SidebarHeader } from "./sidebar/SidebarHeader";
 import { NewSessionDialog } from "./sidebar/NewSessionDialog";
-import {
-	loadProjectAliases,
-	saveProjectAliases,
-	loadPinnedProjects,
-	savePinnedProjects,
-	saveCollapsedProjects,
-} from "./sidebar/sidebar-shared";
 import { SidebarProjectsList } from "./sidebar/SidebarProjectsList";
 import { SessionGroupSection } from "./sidebar/SessionGroupSection";
 import { ArchiveSection } from "./sidebar/ArchiveSection";
@@ -44,15 +37,6 @@ import {
 	type ProjectSort,
 } from "@/lib/sidebar-prefs";
 import { sortSessions, sortProjects } from "@/lib/sidebar-groups";
-import {
-	loadCollapsedProjects,
-	loadDisplaySettings,
-	loadPinnedSessionIds,
-	savePinnedSessionIds,
-	SIDEBAR_COLLAPSED_PROJECTS_KEY,
-	SIDEBAR_DISPLAY_KEY,
-	type SidebarDisplaySettings,
-} from "./sidebar/sidebar-shared";
 import { useSessionMultiSelect } from "./sidebar/useSessionMultiSelect";
 import {
 	archiveSession,
@@ -65,6 +49,20 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationParams } from "@/lib/i18n/types";
 import { sendAgentCommand } from "@/lib/agent-client";
+import {
+	loadProjectAliases,
+	saveProjectAliases,
+	loadPinnedProjects,
+	savePinnedProjects,
+	saveCollapsedProjects,
+	loadCollapsedProjects,
+	loadDisplaySettings,
+	loadPinnedSessionIds,
+	savePinnedSessionIds,
+	SIDEBAR_COLLAPSED_PROJECTS_KEY,
+	SIDEBAR_DISPLAY_KEY,
+	type SidebarDisplaySettings,
+} from "./sidebar/sidebar-shared";
 import "@/lib/pi-desktop";
 
 interface Props {

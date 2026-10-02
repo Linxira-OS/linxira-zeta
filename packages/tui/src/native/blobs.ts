@@ -5,7 +5,7 @@
  * the native backend uploads each referenced blob once per surface with verb
  * `b` before the frame that first references it.
  */
-import type { TspProps } from "@oh-my-pi/pi-wire";
+import type { TspProps } from "@linxiraos/pi-wire";
 import { getImageDimensions } from "../terminal-capabilities";
 import { node } from "./describe";
 import type { NativeNode } from "./node";

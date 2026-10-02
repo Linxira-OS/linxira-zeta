@@ -1,14 +1,12 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
-import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@linxiraos/pi-tui";
 import type { CollabController } from "../collab/controller";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import type { Component, Container, EditorTheme, Loader, TUI } from "@oh-my-pi/pi-tui";
-import type { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import type { TrackSegment } from "@oh-my-pi/pi-tui/chrome/segment-track";
+import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
 import type { Settings } from "../config/settings";
 import type {
 	AutocompleteProviderFactory,
@@ -50,11 +48,12 @@ import type { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-co
 import type { RecentSession } from "@linxiraos/pi-tui/prompt/welcome";
 import type { EventController } from "./controllers/event-controller";
 import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
-import type { ContextUsage } from "@oh-my-pi/pi-tui/status-line/types";
+import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
 import type { OAuthManualInputManager } from "./oauth-manual-input";
 import type { SidebarComponent } from "./components/sidebar";
 import type { Theme } from "@linxiraos/pi-tui/theme";
 import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@linxiraos/pi-tui";
 
 export type CompactionQueuedMessage = {
 	text: string;

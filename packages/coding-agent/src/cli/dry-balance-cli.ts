@@ -1,17 +1,3 @@
-import type {
-	Api,
-	ApiKeyResolver,
-	AssistantMessage,
-	AssistantMessageEvent,
-	AssistantMessageEventStream,
-	AuthCredentialSnapshotEntry,
-	Context,
-	Model,
-	OAuthAccess,
-	OAuthAccessResolution,
-	SimpleStreamOptions,
-} from "@linxiraos/pi-ai";
-import { streamSimple } from "@linxiraos/pi-ai";
 import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
 import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
 import { formatDuration, getProjectDir } from "@linxiraos/pi-utils";
@@ -27,6 +13,20 @@ import {
 import { Settings } from "../config/settings";
 import dryBalanceBenchPrompt from "../prompts/dry-balance-bench.md" with { type: "text" };
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
+import {
+	type Api,
+	type ApiKeyResolver,
+	type AssistantMessage,
+	type AssistantMessageEvent,
+	type AssistantMessageEventStream,
+	type AuthCredentialSnapshotEntry,
+	type Context,
+	type Model,
+	type OAuthAccess,
+	type OAuthAccessResolution,
+	type SimpleStreamOptions,
+	streamSimple,
+} from "@linxiraos/pi-ai";
 
 const DEFAULT_SAMPLE_COUNT = 100;
 const DEFAULT_CONCURRENCY = 32;

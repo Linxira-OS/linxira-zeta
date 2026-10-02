@@ -2,7 +2,7 @@ import { BracketedPasteHandler, decodeReencodedPasteControls } from "../brackete
 import { getKeybindings } from "../keybindings";
 import { extractPrintableText, matchesKey } from "../keys";
 import { KillRing } from "../kill-ring";
-import type { TspInputProps } from "@oh-my-pi/pi-wire";
+import type { TspInputProps } from "@linxiraos/pi-wire";
 import { node } from "../native/describe";
 import { sameProps } from "../native/memo";
 import { plainText } from "../native/spans";

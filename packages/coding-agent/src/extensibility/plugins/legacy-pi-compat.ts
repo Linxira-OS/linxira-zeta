@@ -6,8 +6,6 @@ import * as fs from "node:fs";
 import { createRequire, isBuiltin } from "node:module";
 import * as path from "node:path";
 import * as url from "node:url";
-import type { ParseResult, ParserPlugin } from "@babel/parser";
-import { parse as parseBabel } from "@babel/parser";
 import {
 	getDbBusyTimeoutMs,
 	getLegacyPiExtensionCacheDbPath,
@@ -17,6 +15,7 @@ import {
 	stripWindowsExtendedLengthPathPrefix,
 } from "@linxiraos/pi-utils";
 import { registerPluginCacheInvalidator } from "../../discovery/helpers";
+import { type ParseResult, type ParserPlugin, parse as parseBabel } from "@babel/parser";
 
 const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUNDLED);
 

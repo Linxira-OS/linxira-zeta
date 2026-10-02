@@ -1,14 +1,14 @@
 import * as fs from "node:fs/promises";
 import http2 from "node:http2";
-import { cursorModelParameters } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { isCursorMaxModeWireId } from "@oh-my-pi/pi-catalog/compat/collapse";
-import { classifyModel, collapseVariantId } from "@oh-my-pi/pi-catalog/compat/taxonomy";
+import { cursorModelParameters } from "@linxiraos/pi-catalog/compat/behavior";
+import { isCursorMaxModeWireId } from "@linxiraos/pi-catalog/compat/collapse";
+import { classifyModel, collapseVariantId } from "@linxiraos/pi-catalog/compat/taxonomy";
 import type {
 	ConversationStep,
 	CursorRule,
 	McpToolDefinition,
 	RequestedModel_ModelParameterbytes,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import {
 	AgentClientMessageSchema,
 	AgentConversationTurnStructureSchema,
@@ -150,7 +150,7 @@ import {
 	WriteShellStdinErrorSchema,
 	WriteShellStdinResultSchema,
 	WriteSuccessSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
 import {
 	create,
 	decodeJsonValue,
@@ -159,9 +159,9 @@ import {
 	type JsonValue,
 	toBinary,
 	toJson,
-} from "@oh-my-pi/pi-catalog/discovery/protobuf";
-import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { calculateCost } from "@oh-my-pi/pi-catalog/models";
+} from "@linxiraos/pi-catalog/discovery/protobuf";
+import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {
 	$env,
 	isRecord,
@@ -170,7 +170,7 @@ import {
 	parseStreamingJson,
 	parseStreamingJsonThrottled,
 	sanitizeText,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type {
 	Api,

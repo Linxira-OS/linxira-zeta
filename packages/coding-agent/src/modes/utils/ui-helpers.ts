@@ -1,7 +1,6 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
 import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
-import { type Component, Spacer, Text, TruncatedText } from "@linxiraos/pi-tui";
 import { logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
@@ -15,9 +14,8 @@ import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
 import { CollabPromptMessageComponent } from "@linxiraos/pi-tui/chat/collab-prompt-message";
-import { type Component, Spacer, Text } from "@oh-my-pi/pi-tui";
-import { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import { QueuedMessagesBand } from "@oh-my-pi/pi-tui/prompt/queued-messages";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -29,8 +27,8 @@ import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import {
 	type LateDiagnosticsFile,
 	LateDiagnosticsMessageComponent,
-} from "@linxiraos/pi-tui/chat/late-diagnostics-message";
 	routeLateDiagnostics,
+} from "@linxiraos/pi-tui/chat/late-diagnostics-message";
 import {
 	groupedReadUsageCallIds,
 	ReadToolGroupComponent,
@@ -38,18 +36,10 @@ import {
 } from "@linxiraos/pi-tui/chat/read-tool-group";
 import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
 import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
-import { textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { ToolActivityContainer } from "@linxiraos/pi-tui/chrome/tool-activity";
-import {
-	ToolExecutionComponent,
-	type ToolExecutionHandle,
-	toolRenderName,
-} from "@linxiraos/pi-tui/chat/tool-execution";
 import { TranscriptBlock, TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
 import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
-import { imageContent, textContent } from "@oh-my-pi/pi-tui/chat/transcript-entry";
-import { ToolExecutionComponent, type ToolExecutionHandle, toolRenderName } from "@oh-my-pi/pi-tui/chat/tool-execution";
 import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
 import { materializeImageReferenceLinksSync } from "@linxiraos/pi-tui/prompt/image-references";
 import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
@@ -93,6 +83,13 @@ import {
 	cfgTerminalShowImages,
 } from "../settings";
 import { cfgReadToolResultPreview } from "../../tools/settings";
+import { type Component, Spacer, Text, TruncatedText } from "@linxiraos/pi-tui";
+import { textContent, imageContent } from "@linxiraos/pi-tui/chat/transcript-entry";
+import {
+	ToolExecutionComponent,
+	type ToolExecutionHandle,
+	toolRenderName,
+} from "@linxiraos/pi-tui/chat/tool-execution";
 
 interface RenderInitialMessagesOptions {
 	preserveExistingChat?: boolean;

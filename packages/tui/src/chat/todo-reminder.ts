@@ -3,10 +3,9 @@ import { Container } from "../tui";
 import { MessageNoticeComponent } from "../chrome/message-notice";
 import { theme } from "../theme";
 import { tuiTextFmt } from "../i18n";
-import type { TodoItem } from "../tools/todo";
-import { type TodoItem, todoChecklistPhases } from "../tools/todo";
 import { node, span, withHidden } from "../native/describe";
 import type { DescribeContext, NativeNode } from "../native/node";
+import { type TodoItem, todoChecklistPhases } from "../tools/todo";
 
 /**
  * Component that renders a todo completion reminder notification, committed into

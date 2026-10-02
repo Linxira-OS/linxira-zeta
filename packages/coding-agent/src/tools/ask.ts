@@ -16,12 +16,10 @@ import type { AskToolDetails, QuestionResult } from "@linxiraos/pi-tui/tools/ask
  *   - Questions may time out and auto-select the recommended option (configurable, disabled in plan mode)
  */
 
-import { type as arkType } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { type ToolExample, validateToolArguments, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
 import { replaceTabs, TERMINAL, truncateToWidth } from "@linxiraos/pi-tui";
 import { isRecord, logger, prompt, untilAborted } from "@linxiraos/pi-utils";
-import { type as arkType } from "@linxiraos/pi-omptype";
 
 import type { ExtensionUISelectItem } from "../extensibility/extensions";
 import { formatKeyHint, formatKeyHints } from "@linxiraos/pi-tui/app-keybindings";
@@ -44,6 +42,7 @@ import { cfgAskNotify, cfgAskTimeout } from "../modes/settings";
 import { renderAttachmentSourceNotice } from "../session/attachment-source-notice";
 import { cfgSpeechEnabled } from "../tts/settings";
 import { describeAttachedImagesForTextModel, shouldDescribeImagesForTextModel } from "../utils/image-vision-fallback";
+import { type as arkType } from "@linxiraos/pi-omptype";
 
 // =============================================================================
 // Types

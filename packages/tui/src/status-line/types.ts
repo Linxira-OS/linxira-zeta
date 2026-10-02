@@ -1,5 +1,5 @@
-import type { Model } from "@oh-my-pi/pi-ai";
-import type { SessionState, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { Model } from "@linxiraos/pi-ai";
+import type { SessionState, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import type { ContextLineMode, StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "./schema";
 import type { ActiveRepoContext, StatusLineSession } from "./host";

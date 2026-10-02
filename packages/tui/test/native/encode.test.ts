@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { encodeTspMessage, parseTspMessage, splitTspMessage, TspReader } from "@oh-my-pi/pi-tui/native/encode";
+import { encodeTspMessage, parseTspMessage, splitTspMessage, TspReader } from "@linxiraos/pi-tui/native/encode";
 
 const encoder = new TextEncoder();
 

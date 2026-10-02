@@ -18,20 +18,18 @@ import { summarizeLoopCondition } from "./loop";
 import { formatMetric } from "../components/metric";
 import { formatBillingSummary } from "./metrics";
 import { sanitizeStatusText } from "../chrome/shared";
-import { formatContextUsage, getContextUsageLevel, getContextUsageThemeColor } from "../chrome/context-thresholds";
 import { extractLastTurnStats, formatTurnStats } from "./turn-stats";
-import type { RenderedSegment, SegmentContext, StatusLineSegment, StatusLineSegmentId } from "./types";
+import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
+import { node, span } from "../native/describe";
+import { thinkingLevelToken } from "../theme/theme-class";
+import type { StatusLineSession } from "./host";
 import {
 	formatContextUsage,
 	getContextUsageLevel,
 	getContextUsageThemeColor,
 	getContextUsageTone,
 } from "../chrome/context-thresholds";
-import type { TspSpan, TspTone } from "@oh-my-pi/pi-wire";
-import { node, span } from "../native/describe";
-import { thinkingLevelToken } from "../theme/theme-class";
-import type { StatusLineSession } from "./host";
-import type { RenderedSegment, SegmentContext, SegmentView, StatusLineSegment, StatusLineSegmentId } from "./types";
+import type { RenderedSegment, SegmentContext, StatusLineSegment, StatusLineSegmentId, SegmentView } from "./types";
 
 export type { SegmentContext } from "./types";
 
@@ -1271,6 +1269,11 @@ const turnStatsSegment: StatusLineSegment = {
 		const stats = extractLastTurnStats(ctx.session.state.messages);
 		if (!stats) return { content: "", visible: false };
 		return { content: theme.fg("muted", formatTurnStats(stats)), visible: true };
+	},
+	describe(ctx) {
+		const stats = extractLastTurnStats(ctx.session.state.messages);
+		if (!stats) return null;
+		return segView([span(formatTurnStats(stats), "muted")]);
 	},
 };
 

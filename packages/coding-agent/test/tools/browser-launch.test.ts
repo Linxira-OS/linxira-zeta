@@ -7,10 +7,10 @@ import {
 	resolveSharedBrowserLaunchSpec,
 	stealthIgnoreDefaultArgsForTest,
 	systemChromiumCandidatesForTest,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { computeExecutablePath, detectBrowserPlatform } from "@oh-my-pi/pi-utils/browsers";
-import { APP_NAME } from "@oh-my-pi/pi-utils/dirs";
+} from "@linxiraos/zeta/tools/browser/launch";
+import { TempDir } from "@linxiraos/pi-utils";
+import { computeExecutablePath, detectBrowserPlatform } from "@linxiraos/pi-utils/browsers";
+import { APP_NAME } from "@linxiraos/pi-utils/dirs";
 import { PUPPETEER_REVISIONS } from "puppeteer-core/internal/revisions.js";
 
 const EXECUTABLE_PROBE = path.resolve(import.meta.dir, "../fixtures/browser-executable-probe.ts");

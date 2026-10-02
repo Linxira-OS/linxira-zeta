@@ -22,11 +22,9 @@ import type { BenchRuntime, BenchTarget, StreamSimpleFn } from "../cli/bench-run
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { formatModelString } from "../config/model-resolver";
 import { shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
-import type { Action } from "./actions";
-import { applyActions, initialArray, makeActions } from "./actions";
 import type { IfBenchFailure, IfBenchObserver } from "@linxiraos/pi-tui/apps/if-bench-board";
-import type { CatPlacement } from "./protocol";
-import { assessResponse, buildSystemPrompt, buildTurnPrompt } from "./protocol";
+import { type Action, applyActions, initialArray, makeActions } from "./actions";
+import { type CatPlacement, assessResponse, buildSystemPrompt, buildTurnPrompt } from "./protocol";
 
 /** Outcome of one turn: what was asked, what came back, and how it scored. */
 export interface IfBenchTurnRecord {

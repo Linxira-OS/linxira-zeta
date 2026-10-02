@@ -1,4 +1,4 @@
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { isRecord } from "@linxiraos/pi-utils";
 import { extractClaudeMetadataSessionId } from "./anthropic-identity";
 import { isBedrockRequestMetadataValue } from "./bedrock-request-metadata";
 

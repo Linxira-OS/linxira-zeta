@@ -54,7 +54,6 @@ export interface VibeModeEntryOptions {
 	persistModeChange?: boolean;
 	previousTools?: string[];
 }
-import { formatModelString } from "../config/model-resolver";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -96,34 +95,6 @@ import {
 	generateBranchSummary,
 	type ShakeConfig,
 } from "@linxiraos/pi-agent-core/compaction";
-import type {
-	AnthropicFallbackCreditHandle,
-	AssistantMessage,
-	CodexCompactionContext,
-	Context,
-	ImageContent,
-	Judge,
-	Message,
-	MessageAttribution,
-	Model,
-	OAuthAccountIdentity,
-	ProviderResponseMetadata,
-	ProviderSessionState,
-	ResetCreditAccountStatus,
-	ResetCreditRedeemOutcome,
-	ResetCreditTarget,
-	ServiceTier,
-	ServiceTierByFamily,
-	ServiceTierFamily,
-	SimpleStreamOptions,
-	TextContent,
-	ToolCall,
-	ToolChoice,
-	ToolResultMessage,
-	UsageReport,
-	UserMessage,
-} from "@linxiraos/pi-ai";
-import { type Effort, serviceTierFamily, streamSimple } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { withCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
@@ -158,12 +129,6 @@ import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
 import type { ModelRegistry } from "../config/model-registry";
-import {
-	DEFAULT_PREWALK_TARGET,
-	getModelMatchPreferences,
-	type ResolvedModelRoleValue,
-	resolveCliModel,
-} from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
 import { buildServiceTierByFamily, isServiceTierForFamily, serviceTierSettingToTier } from "../config/service-tier";
 import { combine, type SettingsScope } from "../config/registry";
@@ -180,27 +145,6 @@ import type { BashPtyOptions, BashResult } from "../exec/bash-executor";
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
-import type {
-	ExtensionCommandContext,
-	ExtensionRunner,
-	ExtensionUIContext,
-	MessageEndEvent,
-	MessageStartEvent,
-	MessageUpdateEvent,
-	PreparedExtension,
-	SessionBeforeBranchResult,
-	SessionBeforeSwitchResult,
-	SessionBeforeTreeResult,
-	SessionStopEventResult,
-	ToolExecutionEndEvent,
-	ToolExecutionStartEvent,
-	ToolExecutionUpdateEvent,
-	ToolInfo,
-	TreePreparation,
-	TurnEndEvent,
-	TurnStartEvent,
-} from "../extensibility/extensions";
-import { emitSessionShutdownEvent, TOP_LEVEL_AGENT } from "../extensibility/extensions";
 import { ManagedTimers } from "../extensibility/extensions/managed-timers";
 import { createExtensionModelQuery } from "../extensibility/extensions/model-api";
 import type { CompactOptions, ContextUsage } from "../extensibility/extensions/types";
@@ -285,8 +229,6 @@ import {
 	writeDeviceDispatch,
 } from "../tools/resolve";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
-import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { truncateMiddle } from "@linxiraos/pi-tui/tools/streaming-output";
 import { supportsExternalThinking } from "../tools/think";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
@@ -364,8 +306,6 @@ export type {
 } from "./agent-session-types";
 import { writeArtifact } from "./artifacts";
 import { renderAttachmentSourceNotice } from "./attachment-source-notice";
-import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
-import { truncateMiddle } from "@linxiraos/pi-tui/tools/streaming-output";
 import {
 	ASYNC_INLINE_RESULT_MAX_CHARS,
 	ASYNC_PREVIEW_MAX_CHARS,
@@ -468,8 +408,6 @@ import {
 	SessionAdvisors,
 	type SessionAdvisorsHost,
 } from "./session-advisors";
-import type { BuildSessionContextOptions, SessionContext } from "./session-context";
-import { getRestorableSessionModels, isTranscriptEntry } from "./session-context";
 import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@linxiraos/pi-tui/chat/transcript-entry";
 import type { CacheWarmer, CacheWarmingStatus } from "./cache-warmer";
 import { formatSessionDumpText } from "./session-dump-format";
@@ -524,19 +462,9 @@ import {
 	cfgProvidersAnthropicSlowMode,
 } from "./settings";
 import { type AnthropicSlowModeController, anthropicSlowModeLanes } from "./anthropic-slow-mode";
-import { cfgInterruptMode } from "../modes/settings";
-import { cfgFollowUpMode } from "../modes/settings";
-import { cfgSteeringMode } from "../modes/settings";
 import { cfgDisabledProviders, cfgModelRoles } from "../config/model-settings";
 import { cfgEvalToolsEnabled } from "../eval/settings";
 import { cfgExtensions, type SkillsSettings } from "../extensibility/settings";
-import {
-	cfgImagesAutoResize,
-	cfgMagicKeyword,
-	cfgMagicKeywordsEnabled,
-	cfgThemeDark,
-	cfgThemeLight,
-} from "../modes/settings";
 import { cfgTaskBatch, cfgTaskDisabledAgents } from "../task/settings";
 import {
 	cfgBranchSummaryReserveTokens,
@@ -552,6 +480,83 @@ import {
 	cfgToolsApproval,
 } from "../tools/settings";
 import { cfgTtsrJudge } from "../export/ttsr-settings";
+import {
+	formatModelString,
+	DEFAULT_PREWALK_TARGET,
+	getModelMatchPreferences,
+	type ResolvedModelRoleValue,
+	resolveCliModel,
+} from "../config/model-resolver";
+import {
+	type AnthropicFallbackCreditHandle,
+	type AssistantMessage,
+	type CodexCompactionContext,
+	type Context,
+	type ImageContent,
+	type Judge,
+	type Message,
+	type MessageAttribution,
+	type Model,
+	type OAuthAccountIdentity,
+	type ProviderResponseMetadata,
+	type ProviderSessionState,
+	type ResetCreditAccountStatus,
+	type ResetCreditRedeemOutcome,
+	type ResetCreditTarget,
+	type ServiceTier,
+	type ServiceTierByFamily,
+	type ServiceTierFamily,
+	type SimpleStreamOptions,
+	type TextContent,
+	type ToolCall,
+	type ToolChoice,
+	type ToolResultMessage,
+	type UsageReport,
+	type UserMessage,
+	type Effort,
+	serviceTierFamily,
+	streamSimple,
+} from "@linxiraos/pi-ai";
+import {
+	type ExtensionCommandContext,
+	ExtensionRunner,
+	type ExtensionUIContext,
+	type MessageEndEvent,
+	type MessageStartEvent,
+	type MessageUpdateEvent,
+	type PreparedExtension,
+	type SessionBeforeBranchResult,
+	type SessionBeforeSwitchResult,
+	type SessionBeforeTreeResult,
+	type SessionStopEventResult,
+	type ToolExecutionEndEvent,
+	type ToolExecutionStartEvent,
+	type ToolExecutionUpdateEvent,
+	type ToolInfo,
+	type TreePreparation,
+	type TurnEndEvent,
+	type TurnStartEvent,
+	emitSessionShutdownEvent,
+	TOP_LEVEL_AGENT,
+} from "../extensibility/extensions";
+import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { truncateMiddle } from "@linxiraos/pi-tui/tools/streaming-output";
+import {
+	type BuildSessionContextOptions,
+	type SessionContext,
+	getRestorableSessionModels,
+	isTranscriptEntry,
+} from "./session-context";
+import {
+	cfgInterruptMode,
+	cfgFollowUpMode,
+	cfgSteeringMode,
+	cfgImagesAutoResize,
+	cfgMagicKeyword,
+	cfgMagicKeywordsEnabled,
+	cfgThemeDark,
+	cfgThemeLight,
+} from "../modes/settings";
 
 /** Advisor settings whose edit toggles or rebuilds a running advisor. */
 const cfgAdvisorRuntimeInputs = combine({

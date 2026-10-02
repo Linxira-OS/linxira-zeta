@@ -8,7 +8,6 @@ import { footnoteText, inlineErrorView, resultText } from "./native-view";
 import { type Theme } from "../theme/theme";
 import type { OutputMeta } from "./output-meta";
 import type { TruncationResult } from "./streaming-output";
-import { toPathList } from "../render/render-utils";
 import {
 	Ellipsis,
 	fileHyperlink,
@@ -19,7 +18,9 @@ import {
 	truncateToWidth,
 	uriHyperlink,
 } from "../render";
+import { tuiText, tuiTextFmt } from "../i18n";
 import {
+	toPathList,
 	createCachedComponent,
 	formatCount,
 	formatEmptyMessage,
@@ -28,9 +29,7 @@ import {
 	PREVIEW_LIMITS,
 	replaceTabs,
 } from "../render/render-utils";
-import { tuiText, tuiTextFmt } from "../i18n";
-import { classifyGroupedLines, groupLineIndicesByBlank } from "./grouped-file-output";
-import { classifyGroupedLines, describeGroupedOutput, groupLineIndicesByBlank } from "./grouped-file-output";
+import { classifyGroupedLines, groupLineIndicesByBlank, describeGroupedOutput } from "./grouped-file-output";
 
 /** Display metadata for grep tool results. */
 export interface GrepToolDetails {

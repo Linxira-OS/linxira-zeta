@@ -30,7 +30,7 @@ import {
 	type ProcWriteAction,
 	type ProcWriteDetails,
 } from "./proc-render";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { code, compact, node, span } from "../native/describe";
 import type { NativeChild } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";

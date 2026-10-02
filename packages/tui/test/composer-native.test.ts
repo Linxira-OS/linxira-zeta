@@ -1,14 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { TspKind } from "@oh-my-pi/pi-wire";
-import { describeWorkingRow } from "@oh-my-pi/pi-tui/components/loader";
-import { SelectList } from "@oh-my-pi/pi-tui/components/select-list";
-import type { DescribeContext, NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { COMPOSER_DEFAULTS, Composer } from "@oh-my-pi/pi-tui/prompt/composer";
-import { type ComposerNativeState, CustomEditor } from "@oh-my-pi/pi-tui/prompt/custom-editor";
-import { QueuedMessagesBand } from "@oh-my-pi/pi-tui/prompt/queued-messages";
-import { createStartupStatusLine } from "@oh-my-pi/pi-tui/status-line/startup";
-import { getEditorTheme, getSelectListTheme, initTheme } from "@oh-my-pi/pi-tui/theme";
+import type { TspKind } from "@linxiraos/pi-wire";
+import { describeWorkingRow } from "@linxiraos/pi-tui/components/loader";
+import { SelectList } from "@linxiraos/pi-tui/components/select-list";
+import type { DescribeContext, NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/pi-tui/prompt/composer";
+import { type ComposerNativeState, CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
+import { createStartupStatusLine } from "@linxiraos/pi-tui/status-line/startup";
+import { getEditorTheme, getSelectListTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import { VirtualTerminal } from "./virtual-terminal";
 
 const context = (kinds: readonly TspKind[] | "all"): DescribeContext => ({

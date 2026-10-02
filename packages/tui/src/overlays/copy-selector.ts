@@ -14,8 +14,8 @@
  * A URL that wrapped across terminal rows therefore needs neither a careful
  * mouse selection nor cmd-click.
  */
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
-import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@oh-my-pi/pi-wire";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+import type { TspPickerColumn, TspPickerItem, TspPickerProps, TspText } from "@linxiraos/pi-wire";
 import { type Component, matchesKey, routeSgrMouseInput, type TUI, truncateToWidth, visibleWidth } from "../index";
 import type { MessageRenderer } from "../chat/extension-types";
 import {

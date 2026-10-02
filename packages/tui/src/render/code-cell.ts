@@ -1,7 +1,7 @@
 /**
  * Render a code or markdown cell with optional output section.
  */
-import type { TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspSpan } from "@linxiraos/pi-wire";
 import { Markdown } from "../components/markdown";
 import { styledSpans } from "../native/spans";
 import { code, md, span } from "../native/describe";

@@ -1,4 +1,4 @@
-import type { TspProps } from "@oh-my-pi/pi-wire";
+import type { TspProps } from "@linxiraos/pi-wire";
 import { elapsed, kbd, keyed, node, row, span, text } from "../native/describe";
 import { plainText } from "../native/spans";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";

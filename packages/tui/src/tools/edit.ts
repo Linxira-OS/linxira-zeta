@@ -2,10 +2,10 @@
  * Edit tool renderer.
  */
 
-import { type EditInspection, editInspect } from "@oh-my-pi/pi-natives";
+import { type EditInspection, editInspect } from "@linxiraos/pi-natives";
 import type { Component } from "../tui";
 import { sliceWithWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { NativeToolHead, NativeToolView, RenderResultOptions, ToolRenderer } from "./renderer";
 import { code, compact, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";

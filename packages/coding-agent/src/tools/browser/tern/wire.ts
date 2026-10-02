@@ -7,7 +7,7 @@
  * request `{"op": …}` answers `{"ok": result}` or `{"error": {"kind", "message"}}`.
  */
 import * as net from "node:net";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 /** Tern wire protocol version omp speaks. */
 export const TERN_WIRE_VERSION = 6;

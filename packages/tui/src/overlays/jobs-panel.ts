@@ -4,7 +4,7 @@
  * nodes for task jobs and a status dot, the label and a live `elapsed` for
  * the others (running first, recent below a hairline).
  */
-import type { TspAgentProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspAgentProps, TspSpan } from "@linxiraos/pi-wire";
 import { type Component, Container } from "../tui";
 import { card, elapsed, node, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode } from "../native/node";

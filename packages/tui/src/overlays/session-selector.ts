@@ -14,8 +14,8 @@ import {
 	visibleWidth,
 } from "../index";
 import * as path from "node:path";
-import { formatBytes, getProjectDir } from "@oh-my-pi/pi-utils";
-import type { TspPickerGroup, TspPickerItem, TspSpan, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import { formatBytes, getProjectDir } from "@linxiraos/pi-utils";
+import type { TspPickerGroup, TspPickerItem, TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
 import { compact, kv, md, node, span } from "../native/describe";
 import {
 	picker,

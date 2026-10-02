@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspPrefsProps } from "@oh-my-pi/pi-wire";
-import type { DescribeContext, NativeNode, NativeUiEvent } from "@oh-my-pi/pi-tui/native/node";
-import type { PluginSettingsHost } from "@oh-my-pi/pi-tui/overlays/plugin-settings";
-import type { SettingsDisplayEntry, SettingsHost } from "@oh-my-pi/pi-tui/overlays/settings-defs";
-import { SettingsSelectorComponent } from "@oh-my-pi/pi-tui/overlays/settings-selector";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+import type { TspPrefsProps } from "@linxiraos/pi-wire";
+import type { DescribeContext, NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
+import type { PluginSettingsHost } from "@linxiraos/pi-tui/overlays/plugin-settings";
+import type { SettingsDisplayEntry, SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
+import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const ENTER = "\n";
 const DOWN = "\x1b[B";

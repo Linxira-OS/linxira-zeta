@@ -5,15 +5,13 @@
  * cleaned content.
  */
 
-import type { Model } from "@linxiraos/pi-ai";
-import { type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
+import { type Model, type ApiKey, type AuthStorage, type FetchImpl, withAuth } from "@linxiraos/pi-ai";
+import { type SearchParams, SearchProvider } from "./base";
 
 const JINA_SEARCH_URL = "https://s.jina.ai";
 const DEFAULT_NUM_RESULTS = 5;

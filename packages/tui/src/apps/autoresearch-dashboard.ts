@@ -15,7 +15,7 @@ import {
 	isBetter,
 } from "./autoresearch-data";
 import { formatNum, type ExperimentResult, type ExperimentState } from "../tools/autoresearch";
-import type { TspSpan, TspTableColumn, TspText } from "@oh-my-pi/pi-wire";
+import type { TspSpan, TspTableColumn, TspText } from "@linxiraos/pi-wire";
 import { card, col, elapsed, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode } from "../native/node";
 import { hintsRow } from "../native/overlay";

@@ -9,7 +9,7 @@
  *   ]);
  * }
  */
-import type { TspKind, TspProps, TspSpan, TspText } from "@oh-my-pi/pi-wire";
+import type { TspKind, TspProps, TspSpan, TspText } from "@linxiraos/pi-wire";
 import type { NativeChild, NativeNode } from "./node";
 
 /** A node of any kind. */

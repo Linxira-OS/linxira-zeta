@@ -1,4 +1,4 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai";
 import { afterEach, beforeAll, describe, expect, it, type Mock, vi } from "bun:test";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";

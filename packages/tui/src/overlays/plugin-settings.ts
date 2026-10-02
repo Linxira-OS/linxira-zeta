@@ -26,7 +26,7 @@ import { type PrefsEditing, SettingsFormField, type SettingsList } from "../comp
 import { editorKey } from "../chrome/keybinding-hints";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { col, node, span, text } from "../native/describe";
-import type { TspPrefsControl, TspPrefsSection } from "@oh-my-pi/pi-wire";
+import type { TspPrefsControl, TspPrefsSection } from "@linxiraos/pi-wire";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 
 const PLUGIN_SETTINGS_ROLE = "omp.overlay.plugin-settings";

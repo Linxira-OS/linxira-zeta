@@ -1,8 +1,8 @@
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Api, ApiKey, Model } from "@oh-my-pi/pi-ai";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Api, ApiKey, Model } from "@linxiraos/pi-ai";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { logger } from "@linxiraos/pi-utils";
 import { CHANGELOG_CATEGORIES } from "../../commit/types";
 import { renderStat } from "../utils";
 import { detectChangelogBoundaries } from "./detect";

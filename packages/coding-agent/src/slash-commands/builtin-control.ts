@@ -1,11 +1,10 @@
 import { M } from "../i18n";
-import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 import { cfgTuiSidebar } from "../modes/settings";
-import { runPauseScreen } from "@oh-my-pi/pi-tui/overlays/pause-screen";
 import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
+import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{

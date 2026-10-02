@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 import type { DescribeContext, NativeNode } from "../src/native/node";
 import { type HistorySearchEntry, HistorySearchComponent } from "../src/overlays/history-search";
 import { type SessionSelectorEntry, SessionSelectorComponent } from "../src/overlays/session-selector";
@@ -22,7 +22,7 @@ const HOUR = 3_600_000;
 
 function session(id: string, title: string, ageMs: number, cwd = "/work/app"): SessionSelectorEntry {
 	return {
-		path: `${cwd}/.omp/${id}.jsonl`,
+		path: `${cwd}/.zeta/${id}.jsonl`,
 		id,
 		cwd,
 		title,

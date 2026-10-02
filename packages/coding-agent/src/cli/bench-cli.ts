@@ -1,17 +1,4 @@
 import type { ResolvedThinkingLevel } from "@linxiraos/pi-agent-core";
-import type {
-	Api,
-	ApiKeyResolver,
-	AssistantMessage,
-	AssistantMessageEvent,
-	Context,
-	Effort,
-	Model,
-	ProviderSessionState,
-	ServiceTier,
-	ServiceTierByFamily,
-} from "@linxiraos/pi-ai";
-import { resolveModelServiceTier, streamSimple } from "@linxiraos/pi-ai";
 import {
 	renderTableRow,
 	replaceTabs,
@@ -43,6 +30,20 @@ import { createLiveBoard, type LiveBoardOutput } from "@linxiraos/pi-tui/chrome/
 import { formatCost } from "@linxiraos/pi-tui/overlays/agent-hub-renderer";
 
 import { cfgTierAnthropic, cfgTierGoogle, cfgTierOpenai } from "../session/settings";
+import {
+	type Api,
+	type ApiKeyResolver,
+	type AssistantMessage,
+	type AssistantMessageEvent,
+	type Context,
+	Effort,
+	type Model,
+	type ProviderSessionState,
+	type ServiceTier,
+	type ServiceTierByFamily,
+	resolveModelServiceTier,
+	streamSimple,
+} from "@linxiraos/pi-ai";
 
 const DEFAULT_PAR = 4;
 const DEFAULT_CACHE_MAX_TOKENS = 64;
