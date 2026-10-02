@@ -89,23 +89,29 @@ describe("gateway open targets", () => {
 
 	// --- which-style probing ---
 
-	test.skipIf(process.platform !== "win32")("windows probe resolves npm-style .cmd shims and native .exe via PATHEXT", () => {
-		const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd", "code.exe"] });
-		trackTree(tree);
-		expect(whichCommand("zeta-ide", tree.ctx())).toBe(path.join(tree.root, "tools", "zeta-ide.cmd"));
-		expect(whichCommand("code", tree.ctx())).toBe(path.join(tree.root, "tools", "code.exe"));
-		expect(whichCommand("missing", tree.ctx())).toBeNull();
-	});
+	test.skipIf(process.platform !== "win32")(
+		"windows probe resolves npm-style .cmd shims and native .exe via PATHEXT",
+		() => {
+			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd", "code.exe"] });
+			trackTree(tree);
+			expect(whichCommand("zeta-ide", tree.ctx())).toBe(path.join(tree.root, "tools", "zeta-ide.cmd"));
+			expect(whichCommand("code", tree.ctx())).toBe(path.join(tree.root, "tools", "code.exe"));
+			expect(whichCommand("missing", tree.ctx())).toBeNull();
+		},
+	);
 
-	test.skipIf(process.platform !== "win32")("windows probe prefers the bare name over PATHEXT extensions and honours PATHEXT order", () => {
-		const tree = makeProbeTree("win32", { tools: ["tool.exe", "tool.cmd"] });
-		trackTree(tree);
-		expect(whichCommand("tool.exe", tree.ctx())).toBe(path.join(tree.root, "tools", "tool.exe"));
-		// .exe sorts before .cmd in the default PATHEXT order.
-		expect(whichCommand("tool", tree.ctx())).toBe(path.join(tree.root, "tools", "tool.exe"));
-		const cmdFirst = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), PATHEXT: ".cmd;.exe" } });
-		expect(whichCommand("tool", cmdFirst)).toBe(path.join(tree.root, "tools", "tool.cmd"));
-	});
+	test.skipIf(process.platform !== "win32")(
+		"windows probe prefers the bare name over PATHEXT extensions and honours PATHEXT order",
+		() => {
+			const tree = makeProbeTree("win32", { tools: ["tool.exe", "tool.cmd"] });
+			trackTree(tree);
+			expect(whichCommand("tool.exe", tree.ctx())).toBe(path.join(tree.root, "tools", "tool.exe"));
+			// .exe sorts before .cmd in the default PATHEXT order.
+			expect(whichCommand("tool", tree.ctx())).toBe(path.join(tree.root, "tools", "tool.exe"));
+			const cmdFirst = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), PATHEXT: ".cmd;.exe" } });
+			expect(whichCommand("tool", cmdFirst)).toBe(path.join(tree.root, "tools", "tool.cmd"));
+		},
+	);
 
 	test.skipIf(process.platform !== "win32")("windows probe searches every PATH directory in order", () => {
 		const tree = makeProbeTree("win32", { first: [], second: ["pwsh.cmd"] });
@@ -149,31 +155,34 @@ describe("gateway open targets", () => {
 		});
 	});
 
-	test.skipIf(process.platform !== "win32")("windows chain falls back to Git Bash bundled beside git.exe, then to powershell", () => {
-		const tree = makeProbeTree("win32", {
-			git: ["git.exe"],
-			gitbin: ["bash.exe"],
-			ps: ["powershell.exe"],
-		});
-		trackTree(tree);
-		// git.exe lives in <install>\cmd, bash.exe in <install>\bin.
-		fs.renameSync(path.join(tree.root, "gitbin"), path.join(tree.root, "bin"));
-		expect(resolveTerminalWindows(tree.ctx())).toEqual({
-			kind: "git-bash",
-			label: "Git Bash",
-			command: path.join(tree.root, "bin", "bash.exe"),
-			args: [],
-		});
+	test.skipIf(process.platform !== "win32")(
+		"windows chain falls back to Git Bash bundled beside git.exe, then to powershell",
+		() => {
+			const tree = makeProbeTree("win32", {
+				git: ["git.exe"],
+				gitbin: ["bash.exe"],
+				ps: ["powershell.exe"],
+			});
+			trackTree(tree);
+			// git.exe lives in <install>\cmd, bash.exe in <install>\bin.
+			fs.renameSync(path.join(tree.root, "gitbin"), path.join(tree.root, "bin"));
+			expect(resolveTerminalWindows(tree.ctx())).toEqual({
+				kind: "git-bash",
+				label: "Git Bash",
+				command: path.join(tree.root, "bin", "bash.exe"),
+				args: [],
+			});
 
-		// Without a bundled bash, the plain powershell.exe is the last resort.
-		fs.rmSync(path.join(tree.root, "bin"), { recursive: true, force: true });
-		expect(resolveTerminalWindows(tree.ctx())).toEqual({
-			kind: "powershell",
-			label: "PowerShell",
-			command: path.join(tree.root, "ps", "powershell.exe"),
-			args: [],
-		});
-	});
+			// Without a bundled bash, the plain powershell.exe is the last resort.
+			fs.rmSync(path.join(tree.root, "bin"), { recursive: true, force: true });
+			expect(resolveTerminalWindows(tree.ctx())).toEqual({
+				kind: "powershell",
+				label: "PowerShell",
+				command: path.join(tree.root, "ps", "powershell.exe"),
+				args: [],
+			});
+		},
+	);
 
 	test("windows chain finds Git Bash via common install paths without git.exe on PATH", () => {
 		const tree = makeProbeTree("win32", {});
@@ -253,72 +262,81 @@ describe("gateway open targets", () => {
 
 	// --- options payload ---
 
-	test.skipIf(process.platform !== "win32")("options list every target with availability and mark the first available as default", () => {
-		const tree = makeProbeTree("win32", { pwsh: ["pwsh.exe"], tools: ["zeta-ide.cmd"] });
-		trackTree(tree);
-		const body = getOpenOptions(false, tree.ctx());
+	test.skipIf(process.platform !== "win32")(
+		"options list every target with availability and mark the first available as default",
+		() => {
+			const tree = makeProbeTree("win32", { pwsh: ["pwsh.exe"], tools: ["zeta-ide.cmd"] });
+			trackTree(tree);
+			const body = getOpenOptions(false, tree.ctx());
 
-		expect(body.desktop).toBe(false);
-		const byType = Object.fromEntries(body.targets.map(t => [t.type + (t.editor ? `:${t.editor}` : ""), t]));
-		expect(byType["terminal"]).toMatchObject({
-			type: "terminal",
-			label: "PowerShell",
-			available: true,
-			default: true,
-		});
-		expect(byType["explorer"]).toMatchObject({ type: "explorer", available: true });
-		expect(byType["editor:vscode"]).toMatchObject({ type: "editor", label: "VS Code", available: false });
-		expect(byType["terminal-ide"]).toMatchObject({ type: "terminal-ide", label: "Zeta IDE", available: true });
-		expect(byType["terminal-editor"]).toMatchObject({
-			type: "terminal-editor",
-			label: "Zeta Editor",
-			available: false,
-		});
-		// Exactly one default, and it is the first available target.
-		expect(body.targets.filter(t => t.default)).toHaveLength(1);
-	});
+			expect(body.desktop).toBe(false);
+			const byType = Object.fromEntries(body.targets.map(t => [t.type + (t.editor ? `:${t.editor}` : ""), t]));
+			expect(byType["terminal"]).toMatchObject({
+				type: "terminal",
+				label: "PowerShell",
+				available: true,
+				default: true,
+			});
+			expect(byType["explorer"]).toMatchObject({ type: "explorer", available: true });
+			expect(byType["editor:vscode"]).toMatchObject({ type: "editor", label: "VS Code", available: false });
+			expect(byType["terminal-ide"]).toMatchObject({ type: "terminal-ide", label: "Zeta IDE", available: true });
+			expect(byType["terminal-editor"]).toMatchObject({
+				type: "terminal-editor",
+				label: "Zeta Editor",
+				available: false,
+			});
+			// Exactly one default, and it is the first available target.
+			expect(body.targets.filter(t => t.default)).toHaveLength(1);
+		},
+	);
 
-	test.skipIf(process.platform !== "win32")("desktop host hides explorer/editors but keeps the bundled terminal tools", () => {
-		const tree = makeProbeTree("win32", { tools: ["zeta-editor.cmd"] });
-		trackTree(tree);
-		const body = getOpenOptions(true, tree.ctx());
-		expect(body.desktop).toBe(true);
-		const byType = Object.fromEntries(body.targets.map(t => [t.type, t]));
-		expect(byType["terminal"].available).toBe(false);
-		expect(byType["explorer"].available).toBe(false);
-		expect(body.targets.filter(t => t.type === "editor").every(t => !t.available)).toBe(true);
-		expect(byType["terminal-editor"].available).toBe(true);
-		expect(byType["terminal-ide"].available).toBe(false);
-	});
+	test.skipIf(process.platform !== "win32")(
+		"desktop host hides explorer/editors but keeps the bundled terminal tools",
+		() => {
+			const tree = makeProbeTree("win32", { tools: ["zeta-editor.cmd"] });
+			trackTree(tree);
+			const body = getOpenOptions(true, tree.ctx());
+			expect(body.desktop).toBe(true);
+			const byType = Object.fromEntries(body.targets.map(t => [t.type, t]));
+			expect(byType["terminal"].available).toBe(false);
+			expect(byType["explorer"].available).toBe(false);
+			expect(body.targets.filter(t => t.type === "editor").every(t => !t.available)).toBe(true);
+			expect(byType["terminal-editor"].available).toBe(true);
+			expect(byType["terminal-ide"].available).toBe(false);
+		},
+	);
 
 	// --- probe cache ---
 
-	test.skipIf(process.platform !== "win32")("probe results are cached within the TTL and re-resolved after expiry or invalidation", () => {
-		const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
-		trackTree(tree);
-		let clock = 1_000;
-		const ctx = tree.ctx({ now: () => clock });
+	test.skipIf(process.platform !== "win32")(
+		"probe results are cached within the TTL and re-resolved after expiry or invalidation",
+		() => {
+			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
+			trackTree(tree);
+			let clock = 1_000;
+			const ctx = tree.ctx({ now: () => clock });
 
-		const first = getOpenOptions(false, ctx);
-		expect(first.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
+			const first = getOpenOptions(false, ctx);
+			expect(first.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
 
-		fs.rmSync(path.join(tree.root, "tools", "zeta-ide.cmd"), { force: true });
-		// Still cached: identical result before TTL expiry.
-		const second = getOpenOptions(false, ctx);
-		expect(second.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
+			fs.rmSync(path.join(tree.root, "tools", "zeta-ide.cmd"), { force: true });
+			// Still cached: identical result before TTL expiry.
+			const second = getOpenOptions(false, ctx);
+			expect(second.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
 
-		clock += 60_001;
-		const third = getOpenOptions(false, ctx);
-		expect(third.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
+			clock += 60_001;
+			const third = getOpenOptions(false, ctx);
+			expect(third.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
 
-		// Recomputed results are cached again until explicit invalidation.
-		fs.writeFileSync(path.join(tree.root, "tools", "zeta-ide.cmd"), "");
-		const fourth = getOpenOptions(false, ctx);
-		expect(fourth.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
-		invalidateOpenProbes();
-		const fifth = getOpenOptions(false, ctx);
-		expect(fifth.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
-	});
+			// Recomputed results are cached again until explicit invalidation.
+			fs.writeFileSync(path.join(tree.root, "tools", "zeta-ide.cmd"), "");
+			const fourth = getOpenOptions(false, ctx);
+			expect(fourth.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
+			invalidateOpenProbes();
+			const fifth = getOpenOptions(false, ctx);
+			expect(fifth.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
+		},
+	);
 
 	// --- POST wiring against real stub executables ---
 
