@@ -416,20 +416,20 @@ function AppShellContent() {
 		try {
 			const download = await fetch("/api/update/download", { method: "POST" });
 			if (!download.ok) {
-				window.alert(`Download failed: ${await download.text()}`);
+				window.alert(t("topbar.downloadFailedFmt", { detail: await download.text() }));
 				return;
 			}
 			const install = await fetch("/api/update/install", { method: "POST" });
 			if (!install.ok) {
-				window.alert(`Install failed: ${await install.text()}`);
+				window.alert(t("topbar.installFailedFmt", { detail: await install.text() }));
 				return;
 			}
-			window.alert(`Updated to ${updateInfo.latest}. Restart Zeta to use the new version.`);
+			window.alert(t("topbar.updatedFmt", { version: updateInfo.latest }));
 			setUpdateInfo(null);
 		} finally {
 			setUpdating(false);
 		}
-	}, [updateInfo]);
+	}, [updateInfo, t]);
 	const [copiedSessionField, setCopiedSessionField] = useState<SessionCopyField | null>(null);
 	const sessionCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const handleCopySessionField = useCallback((field: SessionCopyField, value: string) => {
@@ -494,7 +494,7 @@ function AppShellContent() {
 		return () => mql.removeEventListener("change", onChange);
 	}, []);
 
-	// Bridge the shared "session panel" visibility flag (SettingsPanel toggle,
+	// Bridge the shared "session panel" visibility flag (sidebar toggle,
 	// storage-persisted) into the dock's window selection. Edge-triggered so a
 	// mount with a stale persisted `true` does not force-open the dock.
 	const prevSessionPanelVisible = useRef(sessionPanelVisible);
@@ -1584,7 +1584,7 @@ function AppShellContent() {
 							>
 								<button
 									onClick={() => setStatsOpen(v => !v)}
-									title={statsOpen ? "Back to chat" : "Stats dashboard"}
+									title={statsOpen ? t("topbar.backToChat") : t("topbar.statsDashboard")}
 									aria-pressed={statsOpen}
 									style={{
 										display: "flex",
@@ -1616,11 +1616,11 @@ function AppShellContent() {
 										<line x1="12" y1="20" x2="12" y2="4" />
 										<line x1="6" y1="20" x2="6" y2="14" />
 									</svg>
-									{!isMobile && <span>Stats</span>}
+									{!isMobile && <span>{t("topbar.stats")}</span>}
 								</button>
 								<button
 									onClick={handleToggleOpenMenu}
-									title="Open in app"
+									title={t("topbar.openInApp")}
 									aria-pressed={openMenuOpen}
 									style={{
 										display: "flex",
@@ -1652,13 +1652,13 @@ function AppShellContent() {
 										<polyline points="15 3 21 3 21 9" />
 										<line x1="10" y1="14" x2="21" y2="3" />
 									</svg>
-									{!isMobile && <span>Open</span>}
+									{!isMobile && <span>{t("topbar.open")}</span>}
 								</button>
 								<button
 									onClick={() => {
 										if (checkingUpdate) return;
 										if (updateInfo) {
-											if (updateInfo.available && window.confirm(`Update Zeta to ${updateInfo.latest}?`)) {
+											if (updateInfo.available && window.confirm(t("topbar.updateConfirmFmt", { version: updateInfo.latest }))) {
 												void handleRunUpdate();
 											} else {
 												showUpdateNotice(t("you-are-up-to-date"));
@@ -1671,10 +1671,10 @@ function AppShellContent() {
 									disabled={updating || checkingUpdate}
 									title={
 										checkingUpdate
-											? "Checking for updates…"
+											? t("checking-for-updates")
 											: updateInfo && updateInfo.available
-												? `Update available: ${updateInfo.latest}`
-												: "Check for updates"
+												? t("topbar.updateAvailableFmt", { version: updateInfo.latest })
+												: t("topbar.checkForUpdates")
 									}
 									style={{
 										display: "flex",
@@ -1712,7 +1712,7 @@ function AppShellContent() {
 												? t("checking-for-updates")
 												: updateInfo && updateInfo.available
 													? `v${updateInfo.latest}`
-													: "Update"}
+													: t("topbar.update")}
 										</span>
 									)}
 								</button>
@@ -1868,8 +1868,8 @@ function AppShellContent() {
 								<button
 									ref={systemBtnRef}
 									onClick={() => toggleTopPanel("system")}
-									title="System prompt"
-									aria-label="System prompt"
+									title={t("topbar.systemPrompt")}
+									aria-label={t("topbar.systemPrompt")}
 									aria-pressed={activeTopPanel === "system"}
 									style={{
 										display: "flex",

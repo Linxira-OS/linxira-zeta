@@ -1345,9 +1345,8 @@ const retryButtonStyle: React.CSSProperties = {
 };
 
 /**
- * Gateway-settings data layer (`/api/settings`) shared by the SettingsPanel
- * modal and the SettingsWindow shell: load, commit, per-tab row rendering —
- * a single source so the two shells can never drift.
+ * Gateway-settings data layer (`/api/settings`) behind the SettingsWindow
+ * shell: load, commit, per-tab row rendering.
  */
 export interface SettingsDataState {
 	data: SettingsResponse | null;
@@ -1498,7 +1497,7 @@ export function useSettingsData(enabled = true): SettingsDataState {
 
 /**
  * Web-layer config data layer (`/api/web-config`, `~/.zeta/agent/web.yml`)
- * shared by the SettingsPanel modal and the SettingsWindow shell.
+ * behind the SettingsWindow shell.
  */
 export interface SettingsWebConfigState {
 	data: WebConfigData | null;
@@ -1613,9 +1612,8 @@ export interface SettingsTabBodyProps {
 
 /**
  * Renders the content area of one settings tab — docs, web config, loading /
- * error states, or gateway rows with group headings. Shared by the legacy
- * SettingsPanel modal and the SettingsWindow shell so the per-tab rendering
- * has a single source.
+ * error states, or gateway rows with group headings. Shared by the
+ * SettingsWindow shell so the per-tab rendering has a single source.
  */
 export function SettingsTabBody({
 	activeTab,
