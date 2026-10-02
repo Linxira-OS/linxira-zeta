@@ -376,3 +376,12 @@ decide when the branch is stale:
 `v18.1.14`). Older `backup/omp-tag/` entries are removed once the release
 is superseded; full history stays reachable through `backup/omp/main`, which
 mirrors `omp-upstream/main`.
+
+- **macOS exit from the release surface (2026-10-01).** macOS is dropped from
+  the release surface as of 2026-10-01; the darwin signing/notarization chain
+  (`release_binary_hosted` darwin legs, `release_github_verify` codesign,
+  `release_brew`) has been removed — restoring it requires rebuilding the
+  entire chain. `scripts/ci-macos-sign.sh`,
+  `scripts/ci-macos-upload-secrets.sh`, and `macos-entitlements.plist` no
+  longer have any workflow references; keep-or-delete awaits an explicit
+  decision.
