@@ -15,7 +15,7 @@ import { resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { loadExtensions } from "../extensions/loader";
 import { refreshBunGitCache } from "./bun-git-cache";
 import { type GitSource, parseGitUrl } from "./git-url";
-import { resolvePluginManifestEntries } from "./loader";
+import { buildPluginStorage, resolvePluginManifestEntries } from "./loader";
 import { getInstalledPluginsRegistryPath, readInstalledPluginsRegistry } from "./marketplace/registry";
 import { parsePluginId } from "./marketplace/types";
 import { extractPackageName, parsePluginSpec } from "./parser";
@@ -269,6 +269,7 @@ export class PluginManager {
 			manifest,
 			enabledFeatures: projectOverrides.features?.[name] ?? runtimeState.enabledFeatures,
 			enabled: runtimeState.enabled && !isDisabledInProject,
+			storage: buildPluginStorage(name),
 		};
 	}
 	async #collectMarketplaceRuntimePackageRealpaths(): Promise<Map<string, Set<string>>> {
@@ -463,6 +464,7 @@ export class PluginManager {
 				manifest: { version: "0.0.0-dryrun" },
 				enabledFeatures: spec.features === "*" ? null : (spec.features as string[] | null),
 				enabled: true,
+				storage: buildPluginStorage(spec.packageName),
 			};
 		}
 		const pkgJsonPath = getPluginsPackageJson();
@@ -654,6 +656,7 @@ export class PluginManager {
 				manifest,
 				enabledFeatures,
 				enabled: true,
+				storage: buildPluginStorage(pkg.name),
 			};
 
 			await this.#validateInstalledExtensions(installedPlugin);
@@ -864,6 +867,7 @@ export class PluginManager {
 			manifest,
 			enabledFeatures: null,
 			enabled: true,
+			storage: buildPluginStorage(pkg.name),
 		};
 	}
 

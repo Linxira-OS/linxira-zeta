@@ -1,4 +1,5 @@
 import type { Settings } from "../../config/settings";
+import type { PluginStorage } from "../plugins/types";
 /**
  * Extension system types.
  *
@@ -1331,6 +1332,16 @@ export interface ExtensionAPI {
 
 	/** Injected pi-coding-agent exports for accessing SDK utilities */
 	pi: typeof PiCodingAgent;
+
+	/**
+	 * Host-managed per-plugin storage roots (spec §4.3): `{ dataDir, cacheDir,
+	 * stateDir }` under `~/.zeta/plugins/{data,cache,state}/<plugin-id>/`,
+	 * created by the host before the factory runs. Present only when this
+	 * extension belongs to an installed plugin; top-level extensions and
+	 * inline factories get `undefined`. Plugins MUST persist user data only
+	 * here (or project-local `.zeta/`), never elsewhere under `~/.zeta` (§4.4).
+	 */
+	readonly storage?: PluginStorage;
 
 	// =========================================================================
 	// Event Subscription
