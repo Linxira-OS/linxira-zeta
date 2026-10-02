@@ -391,6 +391,26 @@ web.yml 字段契约与 gateway 端点。
 18. 设置面(D14):开关 ON/OFF/disabled 三态视觉可辨(强调色轨道+滑块,非全白
     药丸);输入/下拉/卡片对齐参考控件规范;危险操作 destructive 变体;文案
     全 i18n;`useSettingsData`/web.yml 契约零改动。
+19. Open 面(D15):菜单带图标与「(默认)」标注,split-button 一键默认打开;
+    检测到 `zeta-ide`/`zeta-editor` 时可一键在终端 IDE/编辑器打开当前
+    工作区;Windows 终端按 pwsh→Git Bash→powershell 链解析,Linux 用
+    $SHELL;默认目标刷新后保持;desktop 桥 `npm test` 回归绿。
+
+    **D15 Open 面重设计与默认打开链(2026-10-02 追加;用户截图裁决「Open 页面
+    很烂/不现代」,参考 ZCode split-button 与 dsh 菜单)**:
+    - **UI**:顶栏 Open 改 split-button(左半=一键用默认目标打开,右半=下拉);
+      菜单每项带图标,当前默认目标标「(默认)」+勾选(对齐 dsh
+      「文件资源管理器(默认)」形态);默认目标记忆(localStorage,菜单内切换)。
+    - **新目标(用户裁决)**:我们自己的终端编辑器/IDE——gateway 检测 PATH 上的
+      `zeta-ide`/`zeta-editor`,存在即作为打开目标(cwd=当前工作区启动)。
+    - **终端解析链(用户裁决)**:Windows=`pwsh`(PowerShell 7+,优先高版本)→
+      Git Bash(更稳)→系统自带 `powershell.exe`;Linux/macOS=`$SHELL`→bash。
+      解析在 gateway 侧做,`GET /api/open/options` 返回 terminal 解析结果与
+      全部可用目标,`POST /api/open` 按目标类型启动。
+    - **实现面**:gateway `server/web-gateway/open.ts` 扩展目标枚举与检测;
+      AppShell Open 菜单重写;desktop 桥 `getDesktopOpenTargets` 同步核对。
+      **本条显式突破 §9「不改 gateway」非目标——范围仅 open 端点,依赖方向
+      (web-ui 只经 fetch)不破。**
 
 ## 8. 发布门(硬性,下一次 release CI 之前)
 
@@ -411,6 +431,8 @@ web.yml 字段契约与 gateway 端点。
   「Code Location Rules」原文有效)。
 - **不改 gateway**:无新 handler、无新路由、`lib/types.ts` DTO 契约不动;
   服务端会话过滤/分页留待会话规模实测超标后另立计划。
+  **例外(D15,2026-10-02 用户追加)**:`server/web-gateway/open.ts` 允许扩展
+  目标枚举与终端解析链,不新增路由前缀。
 - **不做会话自动改名**:标题回退规则只影响显示,不写盘;`manualTitle`
   语义不动。
 - **不动 AppShell 布局骨架**:折叠 rail、可拖宽度、移动端抽屉、标题栏、
@@ -431,6 +453,7 @@ web.yml 字段契约与 gateway 端点。
 | 2 | IA 重排:删 action row/死代码;新增 `ProjectsSection`;组头 hover 化 + bug 修复;去时间桶;临时区行换实现 | 验收 1-4、8 |
 | 3 | 草稿直开:空态 hero + `DraftContextBar`;删 `NewSessionDialog`;ChatInput hero/docked 形态 | 验收 9、16 |
 | 3.5 | 设置面现代化(D14):开关/输入/卡片 primitives 重做 | 验收 18 |
+| 3.6 | Open 面重设计 + 默认打开链(D15,gateway open 端点扩展) | 验收 19 |
 | 4 | 命名/副标题规则 + `EmptySessionsFold` 空会话策略 | 验收 5-6 |
 | 5 | 偏好统一 P2(`sidebar-shared` 缩减、显示菜单裁剪) | 验收 8 |
 | 6 | merge main → push → PR → CI 绿 → 桌面 dist 冒烟 → 合并 | 验收 13、§8 全部 |
