@@ -2,10 +2,10 @@
 
 ## [Unreleased]
 
+## [1.1.24] - 2026-10-03
+
 - linux-x64/win32-x64 平台二进制随 v18.4.11 源码重编（新增 `commit_tree` 等 vcs 绑定）；版本线对齐。
 
-## [1.1.23] - 2026-10-01
-## [1.1.22] - 2026-09-30
 ## [1.1.11] - 2026-09-08
 
 - OMP v18.1.13 + v18.1.14 dual-tag sync baseline; no package-specific user-visible changes.

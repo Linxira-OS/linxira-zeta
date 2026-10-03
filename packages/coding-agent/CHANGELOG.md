@@ -2,23 +2,25 @@
 
 ## [Unreleased]
 
+## [1.1.24] - 2026-10-03
+
+### Added
+
+- Skills in nested router trees (up to 3 levels, e.g. `.agents/skills` router → category → leaf) are now all discoverable, and `skills.enableOfficial` actually toggles the bundled official skills.
+
+### Changed
+
+- Usage/help strings across `config`/`plugin`/`setup`/`update`/`login`/`shell`/`web-search` and the docs corpus show canonical bin names only (`zetacode`/`zetaide`/`zetaeditor`); spaced forms like "zeta code" no longer appear anywhere user-visible.
+
 ### Fixed
+
 - Session exit tips and every command example now name the coding CLI (`zeta-c`) instead of the workbench `zeta` — following the old `zeta --resume <id>` hint silently opened the Zetawork workbench and did nothing.
 - `--resume` ids pasted with a trailing `/` (or a `.jsonl` suffix) resolve as session ids again; an explicit transcript path that does not exist now errors with a usage hint instead of silently minting an empty session.
 - `update` on Windows no longer writes or retires the workbench `zeta` shims (it manages only this package's `zeta-c`/`zeta-cli`/`zetacode`), and its GitHub/mise fallbacks point at Linxira-OS/linxira-zeta.
-
-### Changed
-- Usage/help strings across `config`/`plugin`/`setup`/`update`/`login`/`shell`/`web-search` and the docs corpus show canonical bin names only (`zetacode`/`zetaide`/`zetaeditor`); spaced forms like "zeta code" no longer appear anywhere user-visible.
-### Added
-- Skills in nested router trees (up to 3 levels, e.g. `.agents/skills` router → category → leaf) are now all discoverable, and `skills.enableOfficial` actually toggles the bundled official skills.
-
-### Fixed
 - npm source installs no longer silently miss the bundled official skills, and reseeding the official-skills embed prunes stale files.
 - Plugins get a per-plugin storage contract: `pi.storage` (`dataDir`/`cacheDir`/`stateDir` under `~/.zeta/plugins/`) is injected into every extension factory, with `adoptLegacyFileOnce` as the one-time migration primitive — plugins no longer need to invent their own paths in the user data tree.
 - Models already configured in upstream OMP (`~/.omp/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
 
-## [1.1.23] - 2026-10-01
-## [1.1.22] - 2026-09-30
 ## [1.1.16] - 2026-09-19
 
 - 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。
@@ -156,6 +158,7 @@
 - WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
 - Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
 - Replaced `arktype` with `@linxiraos/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
+- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
 
 ### Fixed
 
@@ -226,11 +229,6 @@
 - Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
 - Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
 Older entries are archived in [packages\coding-agent\CHANGELOG.md@07e9197a3012](https://github.com/can1357/oh-my-pi/blob/07e9197a3012f58c459f1faabeb324decc21f41d/packages\coding-agent\CHANGELOG.md).
-### Changed
-
-- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
-
-### Fixed
 
 - Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
 - Restored mouse clicks, hover, and wheel scrolling in Plan Review.
