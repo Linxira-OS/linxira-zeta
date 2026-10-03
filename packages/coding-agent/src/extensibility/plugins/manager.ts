@@ -125,6 +125,9 @@ interface RuntimePackageJson {
 	name?: unknown;
 	version: string;
 	zeta?: PluginManifest;
+	// Historical manifest keys from the upstream scopes stay valid: installed
+	// plugins author these (see loader.ts, which never stopped reading them).
+	omp?: PluginManifest;
 	pi?: PluginManifest;
 }
 // =============================================================================
@@ -272,7 +275,9 @@ export class PluginManager {
 		}
 
 		const name = typeof pluginPkg.name === "string" && pluginPkg.name.length > 0 ? pluginPkg.name : fallbackName;
-		const manifest: PluginManifest = pluginPkg.zeta || pluginPkg.pi || { version: pluginPkg.version };
+		const manifest: PluginManifest = pluginPkg.zeta ||
+			pluginPkg.omp ||
+			pluginPkg.pi || { version: pluginPkg.version };
 		manifest.version = pluginPkg.version;
 		const runtimeState = config.plugins[name] || {
 			version: pluginPkg.version,
@@ -631,7 +636,7 @@ export class PluginManager {
 			}
 
 			const pkgPath = path.join(getPluginsNodeModules(), actualName, "package.json");
-			let pkg: { name: string; version: string; zeta?: PluginManifest; pi?: PluginManifest };
+			let pkg: { name: string; version: string; zeta?: PluginManifest; omp?: PluginManifest; pi?: PluginManifest };
 			try {
 				pkg = await Bun.file(pkgPath).json();
 			} catch (err) {
@@ -640,7 +645,7 @@ export class PluginManager {
 				}
 				throw err;
 			}
-			const manifest: PluginManifest = pkg.zeta || pkg.pi || { version: pkg.version };
+			const manifest: PluginManifest = pkg.zeta || pkg.omp || pkg.pi || { version: pkg.version };
 			manifest.version = pkg.version;
 
 			// Resolve enabled features
@@ -893,7 +898,7 @@ export class PluginManager {
 		const absolutePath = path.resolve(this.#cwd, localPath);
 
 		const pkgFilePath = path.join(absolutePath, "package.json");
-		let pkg: { name?: string; version: string; zeta?: PluginManifest; pi?: PluginManifest };
+		let pkg: { name?: string; version: string; zeta?: PluginManifest; omp?: PluginManifest; pi?: PluginManifest };
 		try {
 			pkg = await Bun.file(pkgFilePath).json();
 		} catch (err) {
@@ -923,7 +928,7 @@ export class PluginManager {
 		// link in marketplace/manager.ts).
 		await fs.promises.symlink(absolutePath, linkPath, process.platform === "win32" ? "junction" : "dir");
 
-		const manifest: PluginManifest = pkg.zeta || pkg.pi || { version: pkg.version };
+		const manifest: PluginManifest = pkg.zeta || pkg.omp || pkg.pi || { version: pkg.version };
 		manifest.version = pkg.version;
 
 		// Add to runtime config
@@ -1102,7 +1107,13 @@ export class PluginManager {
 			const pluginPkgPath = path.join(pluginPath, "package.json");
 			const fromDependencies = name in deps;
 
-			let pluginPkg: { version: string; description?: string; zeta?: PluginManifest; pi?: PluginManifest };
+			let pluginPkg: {
+				version: string;
+				description?: string;
+				zeta?: PluginManifest;
+				omp?: PluginManifest;
+				pi?: PluginManifest;
+			};
 			try {
 				pluginPkg = await Bun.file(pluginPkgPath).json();
 			} catch (err) {
@@ -1162,8 +1173,8 @@ export class PluginManager {
 				}
 			}
 
-			const hasManifest = !!(pluginPkg.zeta || pluginPkg.pi);
-			const manifest: PluginManifest | undefined = pluginPkg.zeta || pluginPkg.pi;
+			const hasManifest = !!(pluginPkg.zeta || pluginPkg.omp || pluginPkg.pi);
+			const manifest: PluginManifest | undefined = pluginPkg.zeta || pluginPkg.omp || pluginPkg.pi;
 
 			checks.push({
 				name: `plugin:${name}`,

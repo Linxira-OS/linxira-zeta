@@ -16,7 +16,7 @@ import {
 //
 // Follow-up (issue #3423): on Bun 1.3.14 the compiled binary's
 // `/$bunfs/...` paths are unreachable via every filesystem API, so
-// compiled-binary mode now routes through `omp-legacy-pi-bundled:` virtual
+// compiled-binary mode now routes through `zeta-legacy-pi-bundled:` virtual
 // specifiers instead. Those entries must always pass validation because
 // the bundled registry — not the filesystem — is the source of truth.
 describe("legacy pi compat package-root override validation (issue #2168)", () => {
@@ -41,19 +41,19 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 		expect(result).not.toHaveProperty("@linxiraos/pi-tui");
 	});
 
-	it("keeps virtual omp-legacy-pi-bundled: entries without touching the filesystem (issue #3423)", () => {
+	it("keeps virtual zeta-legacy-pi-bundled: entries without touching the filesystem (issue #3423)", () => {
 		// Bun 1.3.14 `fs.existsSync` returns false for every bunfs path, so the
 		// pre-#3423 fix dropped every override in compiled mode. The new
 		// virtual scheme is the source of truth in compiled-binary mode; the
 		// validator MUST short-circuit before any filesystem probe.
 		let probed = false;
 		const candidates = {
-			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
-			"@linxiraos/zeta": "omp-legacy-pi-bundled:@linxiraos/zeta",
-			"@linxiraos/pi-agent-core": "omp-legacy-pi-bundled:@linxiraos/pi-agent-core",
-			"@linxiraos/pi-natives": "omp-legacy-pi-bundled:@linxiraos/pi-natives",
-			"@linxiraos/pi-tui": "omp-legacy-pi-bundled:@linxiraos/pi-tui",
-			"@linxiraos/pi-utils": "omp-legacy-pi-bundled:@linxiraos/pi-utils",
+			"@linxiraos/pi-ai": "zeta-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/zeta": "zeta-legacy-pi-bundled:@linxiraos/zeta",
+			"@linxiraos/pi-agent-core": "zeta-legacy-pi-bundled:@linxiraos/pi-agent-core",
+			"@linxiraos/pi-natives": "zeta-legacy-pi-bundled:@linxiraos/pi-natives",
+			"@linxiraos/pi-tui": "zeta-legacy-pi-bundled:@linxiraos/pi-tui",
+			"@linxiraos/pi-utils": "zeta-legacy-pi-bundled:@linxiraos/pi-utils",
 		};
 		const result = __validateLegacyPiPackageRootOverrides(candidates, () => {
 			probed = true;
@@ -65,14 +65,14 @@ describe("legacy pi compat package-root override validation (issue #2168)", () =
 
 	it("mixes virtual and filesystem entries: virtuals always pass, filesystems gated", () => {
 		const candidates = {
-			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/pi-ai": "zeta-legacy-pi-bundled:@linxiraos/pi-ai",
 			"@linxiraos/zeta": "/dev/source/legacy-pi-coding-agent-shim.ts",
 			"@linxiraos/pi-tui": "/missing/path.ts",
 		};
 		const missing = new Set(["/missing/path.ts"]);
 		const result = __validateLegacyPiPackageRootOverrides(candidates, p => !missing.has(p));
 		expect(result).toEqual({
-			"@linxiraos/pi-ai": "omp-legacy-pi-bundled:@linxiraos/pi-ai",
+			"@linxiraos/pi-ai": "zeta-legacy-pi-bundled:@linxiraos/pi-ai",
 			"@linxiraos/zeta": "/dev/source/legacy-pi-coding-agent-shim.ts",
 		});
 	});
@@ -91,7 +91,7 @@ describe("legacy pi compat typebox shim path resolution (issues #3414, #3423)", 
 			probed = true;
 			return false;
 		});
-		expect(result).toBe("omp-legacy-pi-bundled:typebox");
+		expect(result).toBe("zeta-legacy-pi-bundled:typebox");
 		expect(probed).toBe(false);
 	});
 

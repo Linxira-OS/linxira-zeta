@@ -801,8 +801,19 @@ const CANONICAL_PI_SCOPE = "@linxiraos";
 // path instead of pulling a duplicate copy from plugin node_modules.
 const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
 
-// Internal host package basenames bundled inside the zeta binary.
-const PI_PACKAGE_NAMES = ["pi-agent-core", "pi-ai", "pi-catalog", "zeta", "pi-natives", "pi-tui", "pi-utils"] as const;
+// Internal host package basenames bundled inside the zeta binary. The legacy
+// `pi-coding-agent` basename stays listed: plugins still declare it under the
+// alias scopes, and `remapLegacyPiSpecifier` renames it onto `zeta` below.
+const PI_PACKAGE_NAMES = [
+	"pi-agent-core",
+	"pi-ai",
+	"pi-catalog",
+	"pi-coding-agent",
+	"zeta",
+	"pi-natives",
+	"pi-tui",
+	"pi-utils",
+] as const;
 
 const PI_SCOPE_ALTERNATION = PI_SCOPE_ALIASES.join("|");
 const PI_PACKAGE_ALTERNATION = PI_PACKAGE_NAMES.join("|");
@@ -1064,7 +1075,7 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 		return null;
 	}
 	let rest = specifier.slice(slashIdx + 1);
-	// `pi-coding-agent` ↦ `zeta-c`: the renamed host package keeps the legacy
+	// `pi-coding-agent` ↦ `zeta`: the renamed host package keeps the legacy
 	// basename only as a historical alias plugins may still declare.
 	if (rest === "pi-coding-agent" || rest.startsWith("pi-coding-agent/")) {
 		rest = `zeta${rest.slice("pi-coding-agent".length)}`;
