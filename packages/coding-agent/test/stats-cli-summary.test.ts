@@ -41,7 +41,11 @@ describe("omp stats --summary", () => {
 	}, 20000);
 
 	it("prints unpriced subscription usage as N/A, not a zero-dollar charge", async () => {
-		const dir = path.join(getSessionsDir(), "--tmp--summary--");
+		// Zeta divergence (deliberate): the stats scan skips temp-cwd project
+		// folders (isTempProjectFolder — test junk must never reach the stats
+		// DB), so seed under a non-temp encoded cwd instead of upstream's
+		// `--tmp--summary--` (which decodes into the OS temp dir).
+		const dir = path.join(getSessionsDir(), "--opt-summary-fixt--");
 		await fs.mkdir(dir, { recursive: true });
 		const timestamp = Date.now() - 60_000;
 		const entry = {
@@ -83,6 +87,6 @@ describe("omp stats --summary", () => {
 		const output = Bun.stripANSI(lines.join("\n"));
 		expect(output).toContain("API-equivalent estimate: N/A");
 		expect(output).toContain("test-supergrok-without-reference-price: 1 reqs, N/A,");
-		expect(output).toContain("/tmp/summary/: 1 reqs, N/A");
+		expect(output).toContain("/opt-summary-fixt/: 1 reqs, N/A");
 	});
 });
