@@ -1163,7 +1163,7 @@ export class AnnotationOverlay implements Component {
 			selected: this.#focus === "diff" ? `l${this.#sourceIndex}` : null,
 			virtual: true,
 			empty: [span(this.#textSource ? "No text" : "No reviewable files", "dim")],
-			role: this.#textSource ? "omp.overlay.annotateText.lines" : "omp.overlay.codeReview.diff",
+			role: this.#textSource ? "zeta.overlay.annotateText.lines" : "zeta.overlay.codeReview.diff",
 			tone: this.#focus === "diff" ? "accent" : undefined,
 		});
 		const main = node("col", { grow: 1 }, [this.#describeHeader(), lines], "main");
@@ -1182,7 +1182,7 @@ export class AnnotationOverlay implements Component {
 				}),
 				{
 					selected: this.#files.length > 0 ? `f${this.#fileIndex}` : null,
-					role: "omp.overlay.codeReview.files",
+					role: "zeta.overlay.codeReview.files",
 					tone: this.#focus === "files" ? "accent" : undefined,
 				},
 			);
@@ -1206,7 +1206,7 @@ export class AnnotationOverlay implements Component {
 		this.#nativeSig = sig;
 		this.#nativeRootBody = body;
 		this.#nativeRoot = overlayCard(
-			this.#textSource ? "omp.overlay.annotateText" : "omp.overlay.codeReview",
+			this.#textSource ? "zeta.overlay.annotateText" : "zeta.overlay.codeReview",
 			this.#textSource ? TEXT_OVERLAY_TITLE : OVERLAY_TITLE,
 			children,
 		);
@@ -1270,7 +1270,7 @@ export class AnnotationOverlay implements Component {
 					label: noteSpans(label, sanitizeText(body)),
 					disabled: true,
 					tone: "warning",
-					role: "omp.overlay.codeReview.note",
+					role: "zeta.overlay.codeReview.note",
 				}),
 			);
 		if (this.#textSource) {

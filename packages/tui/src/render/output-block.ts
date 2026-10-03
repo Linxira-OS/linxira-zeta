@@ -259,7 +259,7 @@ export interface NativeOutputBlockOptions {
 	head?: TspText;
 	meta?: TspText;
 	state?: State;
-	/** Card role (`omp.tool.bash`, `omp.eval.cell`, …). Defaults to `omp.output`. */
+	/** Card role (`zeta.tool.bash`, `zeta.eval.cell`, …). Defaults to `zeta.output`. */
 	role?: string;
 	/** Override the state-derived tone (the ANSI path's `borderColor`). */
 	tone?: TspTone;
@@ -302,7 +302,7 @@ export function describeOutputBlock(options: NativeOutputBlockOptions): NativeNo
 	return node(
 		"card",
 		{
-			role: options.role ?? "omp.output",
+			role: options.role ?? "zeta.output",
 			tone: options.tone ?? outputStateTone(options.state),
 			status: outputStateStatus(options.state),
 			head,

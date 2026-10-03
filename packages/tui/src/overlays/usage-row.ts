@@ -35,7 +35,7 @@ export function turnElapsedMs(
 	return elapsed > 0 ? Math.round(elapsed) : undefined;
 }
 
-/** A finished turn's totals, the native `omp.turn.usage` line under its last answer. */
+/** A finished turn's totals, the native `zeta.turn.usage` line under its last answer. */
 export interface TurnUsageSummary {
 	/** Prompt→yield wall time; undefined when either end is unknown. */
 	readonly elapsedMs: number | undefined;
@@ -208,7 +208,7 @@ class UsageRowBlock extends Container {
 			);
 		}
 		this.#nativeNode = row(children, {
-			role: "omp.usage.turn",
+			role: "zeta.usage.turn",
 			gap: "none",
 			align: "baseline",
 			...(stamped ? { title: formatUsageTimestamp(timestamp) } : {}),

@@ -29,7 +29,7 @@ export type WorkingRowVariant =
 	  }
 	| { readonly kind: "compaction" };
 
-/** What the dock's working row (§8.1, role `omp.working`) shows. */
+/** What the dock's working row (§8.1, role `zeta.working`) shows. */
 export interface WorkingRowSpec {
 	/** The intent, or the variant's label ("Retrying · attempt 1 of 3", "Compacting context…"). */
 	readonly label: string;
@@ -67,8 +67,8 @@ export function describeWorkingRow(spec: WorkingRowSpec, cx: DescribeContext, no
 	}
 	const label = describeShimmer([{ text: spec.label, palette: spec.palette }], "label");
 	children.push(
-		node(label.k, { ...label.p, role: "omp.working.label" } as TspProps, label.c, label.key),
-		node("text", { text: "·", role: "omp.working.sep" }, undefined, "sep"),
+		node(label.k, { ...label.p, role: "zeta.working.label" } as TspProps, label.c, label.key),
+		node("text", { text: "·", role: "zeta.working.sep" }, undefined, "sep"),
 		keyed(elapsed(now - spec.startedAt), "elapsed"),
 		node("row", { grow: 1 }, undefined, "fill"),
 	);
@@ -80,7 +80,7 @@ export function describeWorkingRow(spec: WorkingRowSpec, cx: DescribeContext, no
 			node(
 				"row",
 				{
-					role: "omp.working.stop",
+					role: "zeta.working.stop",
 					gap: "xs",
 					align: "center",
 					title: `${verb}  ${titleKey(spec.interruptKey)}`,
@@ -91,7 +91,7 @@ export function describeWorkingRow(spec: WorkingRowSpec, cx: DescribeContext, no
 			),
 		);
 	}
-	return row(children, { role: "omp.working", align: "center", gap: "sm" });
+	return row(children, { role: "zeta.working", align: "center", gap: "sm" });
 }
 
 type ColorFn = (str: string) => string;
@@ -250,7 +250,7 @@ export class Loader extends Text {
 			: node("text", { spans: [span(message, "muted")] }, undefined, "message");
 		const children: NativeChild[] = [row([indicator, label], { gap: "sm", align: "baseline" })];
 		if (trailer) children.push(text(trailer, { wrap: "none", truncate: "end" }));
-		const described = row(children, { justify: "between", role: "omp.loader" });
+		const described = row(children, { justify: "between", role: "zeta.loader" });
 		this.#native = { message, trailer, shimmer, node: described };
 		return described;
 	}

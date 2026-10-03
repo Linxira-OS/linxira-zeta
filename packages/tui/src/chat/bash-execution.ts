@@ -157,7 +157,7 @@ export class BashExecutionComponent extends Container {
 	}
 
 	/**
-	 * The agent's bash `tool` frame (role `omp.bash`) with a `you` badge: the
+	 * The agent's bash `tool` frame (role `zeta.bash`) with a `you` badge: the
 	 * command in the head, the output as an `ansi` mini terminal following its
 	 * tail. Terminals without the `tool` kind get a `card` headed by the
 	 * command.
@@ -185,7 +185,7 @@ export class BashExecutionComponent extends Container {
 						]),
 			);
 			const common = {
-				role: "omp.bash",
+				role: "zeta.bash",
 				status: this.#status,
 				startedAt: this.#startedAt,
 				expanded: this.#expanded,

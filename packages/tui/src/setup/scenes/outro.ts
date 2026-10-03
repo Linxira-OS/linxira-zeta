@@ -29,7 +29,7 @@ export function describeSetupOutro(): NativeNode {
 				node("progress", { value: null, max: { w: "48ch" } }),
 				node("spacer", { grow: 1 }),
 			],
-			{ align: "center", gap: "sm", grow: 1, role: "omp.setup.outro", actions: { click: "continue" } },
+			{ align: "center", gap: "sm", grow: 1, role: "zeta.setup.outro", actions: { click: "continue" } },
 		),
 	);
 }
