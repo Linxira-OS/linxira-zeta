@@ -222,7 +222,9 @@ impl App {
                 self.event_navigate_to(path)?;
             }
 
-            PanelEvent::OpenPath { path, select_file } => {
+            PanelEvent::OpenPath {
+                path, select_file, ..
+            } => {
                 self.event_open_path(path, select_file)?;
             }
 

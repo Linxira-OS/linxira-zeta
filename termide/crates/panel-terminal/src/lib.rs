@@ -2,6 +2,7 @@
 #![allow(clippy::needless_range_loop)]
 
 mod clipboard;
+mod hyperlink;
 mod input_encoding;
 mod link_detection;
 #[cfg(target_os = "macos")]
@@ -161,6 +162,10 @@ impl Terminal {
             .map(|caps| caps.term_for_child())
             .unwrap_or("xterm-256color");
         cmd.env("TERM", term_value);
+        // Workbench marker: panes of this terminal IDE announce themselves so
+        // hosted TUIs (zetacode) can light up workbench-only behavior — the
+        // OSC 8 hyperlink emitter gates on exactly this probe.
+        cmd.env("ZETA_WORKBENCH", "1");
         cmd.env(
             "HOME",
             std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
@@ -512,6 +517,19 @@ impl Terminal {
     /// Check if PTY process is alive
     pub fn is_alive(&self) -> bool {
         self.is_alive.lock().map(|alive| *alive).unwrap_or(false)
+    }
+
+    /// The child's OSC 0/2 window title, when it announced one and has not
+    /// cleared it. Polled by the host app: the PTY reader thread updates the
+    /// screen asynchronously, so a push event would need a cross-thread queue.
+    pub fn osc_title(&self) -> Option<String> {
+        self.read_screen().title.clone()
+    }
+
+    /// The shell process's pid, when the platform reported one. The host
+    /// app uses it to probe for live child processes before closing panes.
+    pub fn shell_pid(&self) -> Option<u32> {
+        self.shell_pid
     }
 
     /// Get terminal info for status bar
@@ -1643,6 +1661,46 @@ mod title_tests {
         assert!(
             title.contains("subdir"),
             "title {title:?} did not follow the shell into subdir"
+        );
+    }
+
+    /// The child's OSC 0/2 title must reach the screen: zetacode, vim and
+    /// friends name themselves this way, and the workspace names panes from
+    /// it. Drives a real PTY through the full reader → parser path.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn osc_title_arrives_from_a_real_child() {
+        let script =
+            std::env::temp_dir().join(format!("termide-osc-title-{}.sh", std::process::id()));
+        std::fs::write(
+            &script,
+            "#!/bin/sh\nprintf '\\033]0;hello title\\007'\nsleep 30\n",
+        )
+        .unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let Ok(term) = Terminal::new_with_command(24, 80, script.to_str().unwrap()) else {
+            let _ = std::fs::remove_file(&script);
+            return; // No PTY available (sandboxed test runner).
+        };
+
+        // The reader thread parses asynchronously; poll instead of guessing.
+        let mut title = None;
+        for _ in 0..50 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            title = term.osc_title();
+            if title.as_deref() == Some("hello title") {
+                break;
+            }
+        }
+        drop(term); // Drop reaps the `sleep 30` child.
+        let _ = std::fs::remove_file(&script);
+        assert_eq!(
+            title.as_deref(),
+            Some("hello title"),
+            "OSC 0 title never reached the screen"
         );
     }
 }
