@@ -1,6 +1,6 @@
-# Contributing to omp-web
+# Contributing to Zeta Web
 
-Thank you for considering contributing to `omp-web`!
+Thank you for considering contributing to `zeta-web`!
 
 ## Getting Started
 

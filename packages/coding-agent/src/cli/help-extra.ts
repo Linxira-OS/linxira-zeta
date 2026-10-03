@@ -1,6 +1,6 @@
 import "@linxiraos/pi-utils/env";
 import chalk from "@linxiraos/pi-utils/chalk";
-import { APP_NAME, CONFIG_DIR_NAME } from "@linxiraos/pi-utils/dirs";
+import { CLI_BIN_NAME, CONFIG_DIR_NAME } from "@linxiraos/pi-utils/dirs";
 
 export function getExtraHelpText(): string {
 	return `${chalk.bold("Environment Variables:")}
@@ -80,7 +80,7 @@ ${chalk.bold("Available Tools (default-enabled unless noted):")}
   grep          - Search file contents
   glob          - Find files by glob pattern
   lsp           - Language server protocol (code intelligence)
-  python        - Execute Python code (requires: ${APP_NAME} setup python)
+  python        - Execute Python code (requires: ${CLI_BIN_NAME} setup python)
   notebook      - Edit Jupyter notebooks
   browser       - Browser automation (Puppeteer)
   computer      - Native host desktop capture and input (disabled by default)

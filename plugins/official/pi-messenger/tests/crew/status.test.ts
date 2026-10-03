@@ -36,7 +36,7 @@ function resetAutonomousState(): void {
 }
 
 function writeCrewDependenciesConfig(cwd: string, dependencies: "advisory" | "strict"): void {
-	const configPath = path.join(cwd, ".pi", "messenger", "crew", "config.json");
+	const configPath = path.join(cwd, ".zeta", "messenger", "crew", "config.json");
 	fs.mkdirSync(path.dirname(configPath), { recursive: true });
 	fs.writeFileSync(configPath, JSON.stringify({ dependencies }, null, 2));
 }

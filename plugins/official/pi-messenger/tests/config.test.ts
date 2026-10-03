@@ -40,10 +40,10 @@ describe("config autoOverlayPlanning", () => {
 
 	it("applies project override for autoOverlayPlanning", async () => {
 		const homeDir = path.join(dirs.root, ".pi-home");
-		writeJson(path.join(homeDir, ".pi", "agent", "pi-messenger.json"), {
+		writeJson(path.join(homeDir, ".zeta", "agent", "pi-messenger.json"), {
 			autoOverlayPlanning: true,
 		});
-		writeJson(path.join(dirs.cwd, ".pi", "pi-messenger.json"), {
+		writeJson(path.join(dirs.cwd, ".zeta", "pi-messenger.json"), {
 			autoOverlayPlanning: false,
 		});
 

@@ -9,6 +9,12 @@ function writeAgent(filePath: string, content: string): void {
 	fs.writeFileSync(filePath, content);
 }
 
+/** Grant the project-trust opt-in so project-supplied agents/skills load. */
+function optInProjectAgents(cwd: string): void {
+	fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
+	fs.writeFileSync(path.join(cwd, ".zeta", "pi-messenger.json"), JSON.stringify({ trustProjectAgents: true }));
+}
+
 describe("crew/utils/discover", () => {
 	let dirs: TempCrewDirs;
 	let extensionAgentsDir: string;
@@ -17,7 +23,7 @@ describe("crew/utils/discover", () => {
 	beforeEach(() => {
 		dirs = createTempCrewDirs();
 		extensionAgentsDir = path.join(dirs.root, "extension-agents");
-		projectAgentsDir = path.join(dirs.cwd, ".pi", "messenger", "crew", "agents");
+		projectAgentsDir = path.join(dirs.cwd, ".zeta", "messenger", "crew", "agents");
 		fs.mkdirSync(extensionAgentsDir, { recursive: true });
 	});
 
@@ -44,6 +50,7 @@ You are a worker.
 	});
 
 	it("project agents override extension agents with the same name", () => {
+		optInProjectAgents(dirs.cwd);
 		writeAgent(
 			path.join(extensionAgentsDir, "crew-reviewer.md"),
 			`---
@@ -78,6 +85,7 @@ Project prompt.
 	});
 
 	it("includes project-only agents alongside extension defaults", () => {
+		optInProjectAgents(dirs.cwd);
 		writeAgent(
 			path.join(extensionAgentsDir, "crew-worker.md"),
 			`---
@@ -105,6 +113,34 @@ Project custom prompt.
 		expect(names).toEqual(["crew-custom", "crew-worker"]);
 		expect(agents.find(agent => agent.name === "crew-worker")?.source).toBe("extension");
 		expect(agents.find(agent => agent.name === "crew-custom")?.source).toBe("project");
+	});
+
+	it("ignores project agents without the trust opt-in", () => {
+		writeAgent(
+			path.join(extensionAgentsDir, "crew-worker.md"),
+			`---
+name: crew-worker
+description: Extension worker
+crewRole: worker
+---
+Extension worker prompt.
+`,
+		);
+
+		writeAgent(
+			path.join(projectAgentsDir, "crew-custom.md"),
+			`---
+name: crew-custom
+description: Project custom agent
+crewRole: worker
+---
+Project custom prompt.
+`,
+		);
+
+		const agents = discoverCrewAgents(dirs.cwd, extensionAgentsDir);
+		expect(agents.map(agent => agent.name)).toEqual(["crew-worker"]);
+		expect(agents.every(agent => agent.source === "extension")).toBe(true);
 	});
 
 	it("returns extension agents when project directory is missing", () => {
@@ -195,7 +231,7 @@ describe("crew/utils/discover - skills", () => {
 		dirs = createTempCrewDirs();
 		extensionSkillsDir = path.join(dirs.root, "extension-skills");
 		userSkillsDir = path.join(dirs.root, "user-skills");
-		projectSkillsDir = path.join(dirs.cwd, ".pi", "messenger", "crew", "skills");
+		projectSkillsDir = path.join(dirs.cwd, ".zeta", "messenger", "crew", "skills");
 		fs.mkdirSync(extensionSkillsDir, { recursive: true });
 		fs.mkdirSync(userSkillsDir, { recursive: true });
 	});
@@ -238,6 +274,7 @@ React guidelines here.
 	});
 
 	it("project skills override extension skills with the same name", () => {
+		optInProjectAgents(dirs.cwd);
 		writeSkill(
 			path.join(extensionSkillsDir, "testing.md"),
 			`---
@@ -293,6 +330,7 @@ Extension content.
 	});
 
 	it("merges skills from all three layers", () => {
+		optInProjectAgents(dirs.cwd);
 		writeSkill(
 			path.join(userSkillsDir, "cloudflare", "SKILL.md"),
 			`---

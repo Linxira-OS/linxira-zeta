@@ -1,6 +1,7 @@
 /**
- * Time-bucket group rendering (Today / Yesterday / Earlier) for the selected
- * project's session tree. Extracted from SessionSidebar's groupedTree map.
+ * Flat session list for one project group (D6: single-level grouping — no
+ * time-bucket headers). Newest 10 rows render first; "Load more" reveals the
+ * rest.
  */
 "use client";
 
@@ -14,14 +15,8 @@ export interface SessionTreeNode {
 	children: SessionTreeNode[];
 }
 
-export interface TimeGroup {
-	bucket: "today" | "yesterday" | "thisWeek" | "earlier";
-	nodes: SessionTreeNode[];
-}
-
 interface SessionGroupSectionProps {
-	groups: TimeGroup[];
-	bucketLabels: Record<TimeGroup["bucket"], string>;
+	nodes: SessionTreeNode[];
 	selectedSessionId: string | null;
 	runningSessionIds: ReadonlySet<string>;
 	unreadSessionIds: ReadonlySet<string>;
@@ -36,6 +31,8 @@ interface SessionGroupSectionProps {
 	onArchive: (id: string) => void;
 	pinnedIds: ReadonlySet<string>;
 	onPinToggle: (id: string) => void;
+	/** Search-flat mode keeps the cwd leaf (D4); regular rows omit it. */
+	showCwd?: boolean;
 }
 
 function TreeItem({
@@ -59,6 +56,8 @@ function TreeItem({
 	pinnedIds: ReadonlySet<string>;
 	onPinToggle: (id: string) => void;
 	onRowContextMenu?: (e: React.MouseEvent, session: SessionInfo) => void;
+	/** Search-flat mode keeps the cwd leaf (D4); regular rows omit it. */
+	showCwd?: boolean;
 }) {
 	const [collapsed, setCollapsed] = useState(false);
 	const hasChildren = node.children.length > 0;
@@ -94,10 +93,12 @@ function TreeItem({
 					depth={depth}
 					hasChildren={hasChildren}
 					collapsed={collapsed}
+					onToggleCollapse={() => setCollapsed(v => !v)}
 					editMode={rest.editMode}
 					isChecked={rest.selectedIds.has(node.session.id)}
 					onToggleSelect={opts => rest.onToggleSelect(node.session.id, { ...opts, visibleIds: rest.visibleIds })}
 					visibleIds={rest.visibleIds}
+					showCwd={rest.showCwd}
 				/>
 			</div>
 			{hasChildren && !collapsed && (
@@ -111,62 +112,37 @@ function TreeItem({
 	);
 }
 
-
 const MAX_VISIBLE_SESSIONS = 10;
 
-export function SessionGroupSection({
-	groups,
-	bucketLabels,
-	visibleIds,
-	...rest
-}: Omit<SessionGroupSectionProps, "visibleIds"> & { visibleIds: readonly string[] }) {
-	// Per-section fold: show the newest 10 rows, "Load more" reveals the rest
-	// (P2 interaction port — keeps long projects scannable).
-	const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+export function SessionGroupSection({ nodes, visibleIds, ...rest }: SessionGroupSectionProps) {
+	// Fold: show the newest 10 rows, "Load more" reveals the rest.
+	const [expanded, setExpanded] = useState(false);
 	const { t } = useI18n();
+	const hidden = expanded ? 0 : Math.max(0, nodes.length - MAX_VISIBLE_SESSIONS);
+	const visibleNodes = hidden > 0 ? nodes.slice(0, MAX_VISIBLE_SESSIONS) : nodes;
 	return (
 		<>
-			{groups.map(group => {
-				const hidden = expanded[group.bucket] ? 0 : Math.max(0, group.nodes.length - MAX_VISIBLE_SESSIONS);
-				const visibleNodes = hidden > 0 ? group.nodes.slice(0, MAX_VISIBLE_SESSIONS) : group.nodes;
-				return (
-					<div key={group.bucket}>
-						<div
-							style={{
-								padding: "10px 14px 4px",
-								color: "var(--text-dim)",
-								fontSize: 10,
-								fontWeight: 600,
-								letterSpacing: "0.08em",
-								textTransform: "uppercase",
-							}}
-						>
-							{bucketLabels[group.bucket]}
-						</div>
-						{visibleNodes.map(node => (
-							<TreeItem key={node.session.id} node={node} depth={0} visibleIds={visibleIds} {...rest} />
-						))}
-						{hidden > 0 && (
-							<button
-								onClick={() => setExpanded(prev => ({ ...prev, [group.bucket]: true }))}
-								style={{
-									display: "block",
-									width: "100%",
-									padding: "5px 14px",
-									background: "none",
-									border: "none",
-									color: "var(--accent)",
-									cursor: "pointer",
-									fontSize: 11,
-									textAlign: "left",
-								}}
-							>
-								{t("sidebar.loadMore")} ({hidden})
-							</button>
-						)}
-					</div>
-				);
-			})}
+			{visibleNodes.map(node => (
+				<TreeItem key={node.session.id} node={node} depth={0} visibleIds={visibleIds} {...rest} />
+			))}
+			{hidden > 0 && (
+				<button
+					onClick={() => setExpanded(true)}
+					style={{
+						display: "block",
+						width: "100%",
+						padding: "5px 14px",
+						background: "none",
+						border: "none",
+						color: "var(--accent)",
+						cursor: "pointer",
+						fontSize: 11,
+						textAlign: "left",
+					}}
+				>
+					{t("sidebar.loadMore")}
+				</button>
+			)}
 		</>
 	);
 }

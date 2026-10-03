@@ -28,13 +28,13 @@ describe("work with Team approval", () => {
 		cwd = createTempCrewDirs().cwd;
 		process.env.PI_MESSENGER_TEAM_PROFILE_DIR = path.join(cwd, "profiles");
 		dirs = {
-			base: path.join(cwd, ".pi", "messenger"),
-			registry: path.join(cwd, ".pi", "messenger", "registry"),
-			inbox: path.join(cwd, ".pi", "messenger", "inbox"),
+			base: path.join(cwd, ".zeta", "messenger"),
+			registry: path.join(cwd, ".zeta", "messenger", "registry"),
+			inbox: path.join(cwd, ".zeta", "messenger", "inbox"),
 		};
 		fs.mkdirSync(dirs.registry, { recursive: true });
 		fs.mkdirSync(dirs.inbox, { recursive: true });
-		const agentPath = path.join(cwd, ".pi", "messenger", "crew", "agents", "crew-worker.md");
+		const agentPath = path.join(cwd, ".zeta", "messenger", "crew", "agents", "crew-worker.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(agentPath, "---\nname: crew-worker\ndescription: Worker\n---\nWorker");
 	});
@@ -61,9 +61,9 @@ describe("work with Team approval", () => {
 	});
 
 	it("does not auto-block approval-gated tasks at max attempts", async () => {
-		fs.mkdirSync(path.join(cwd, ".pi", "messenger", "crew"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".zeta", "messenger", "crew"), { recursive: true });
 		fs.writeFileSync(
-			path.join(cwd, ".pi", "messenger", "crew", "config.json"),
+			path.join(cwd, ".zeta", "messenger", "crew", "config.json"),
 			JSON.stringify({ work: { maxAttemptsPerTask: 1 } }),
 		);
 		store.createPlan(cwd, "docs/PRD.md");
@@ -170,9 +170,9 @@ describe("work with Team approval", () => {
 	});
 
 	it("reports approval-gated tasks unlocked after a wave", async () => {
-		fs.mkdirSync(path.join(cwd, ".pi", "messenger", "crew"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".zeta", "messenger", "crew"), { recursive: true });
 		fs.writeFileSync(
-			path.join(cwd, ".pi", "messenger", "crew", "config.json"),
+			path.join(cwd, ".zeta", "messenger", "crew", "config.json"),
 			JSON.stringify({ dependencies: "strict" }),
 		);
 		store.createPlan(cwd, "docs/PRD.md");

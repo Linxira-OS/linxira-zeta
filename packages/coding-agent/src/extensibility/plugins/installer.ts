@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getAgentDir, getProjectDir } from "@linxiraos/pi-utils";
 import { extractPackageName } from "./parser";
+import { buildPluginStorage } from "./loader";
 import type { InstalledPlugin } from "./types";
 
 const PLUGINS_DIR = path.join(getAgentDir(), "plugins");
@@ -83,6 +84,7 @@ export async function installPlugin(packageName: string): Promise<InstalledPlugi
 		manifest: pkg.omp || pkg.pi || { version: pkg.version },
 		enabledFeatures: null,
 		enabled: true,
+		storage: buildPluginStorage(pkg.name),
 	};
 }
 
@@ -132,6 +134,7 @@ export async function listPlugins(): Promise<InstalledPlugin[]> {
 				manifest: pkg.omp || pkg.pi || { version: pkg.version },
 				enabledFeatures: null,
 				enabled: true,
+				storage: buildPluginStorage(name),
 			});
 		}
 	}

@@ -1,7 +1,7 @@
 /**
  * Crew - Agent Spawning
  *
- * Spawns pi processes with progress tracking, truncation, and artifacts.
+ * Spawns zeta CLI subprocesses with progress tracking, truncation, and artifacts.
  */
 
 import { spawn } from "node:child_process";
@@ -10,7 +10,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { discoverCrewAgents, type CrewAgentConfig } from "./utils/discover.ts";
+import { getProjectCrewDir } from "../paths.ts";
 import { truncateOutput } from "./utils/truncate.ts";
 import {
 	createProgress,
@@ -54,8 +56,82 @@ export function resolveModel(
 	return taskModel ?? paramModel ?? roleModel ?? configModel ?? sessionModel ?? agentModel;
 }
 
-export function getPiCommand(): string {
-	return process.platform === "win32" ? "pi.cmd" : "pi";
+/**
+ * Resolve the CLI that crew subprocesses run: the zeta CLI this extension is
+ * loaded by — never upstream `pi`, and never the workspace `zeta` product.
+ *
+ * Priority (mirrors the host's own subprocess resolver, task/omp-command.ts):
+ * 1. `PI_SUBPROCESS_CMD` env override (documented escape hatch for embedders).
+ * 2. Source/dev run: `process.execPath` is the Bun/Node runtime and
+ *    `process.argv[1]` the TS/JS CLI entry — spawn `[runtime, entry]`.
+ * 3. Compiled binary: `process.execPath` IS the CLI executable.
+ * 4. PATH lookup of the published CLI names — `CLI_BIN_NAME` ("zeta-c") first,
+ *    then the install aliases "zetacode"/"zeta-cli". On Windows only real
+ *    executables qualify: `.cmd`/`.bat` shims cannot be spawned without a
+ *    shell (EINVAL under Bun and modern Node), and spawning through a shell
+ *    would expose task text to command injection. When nothing resolves, the
+ *    primary name is returned anyway so the spawn fails with a clear ENOENT
+ *    instead of silently running the wrong CLI.
+ */
+const CLI_FALLBACK_NAMES = ["zetacode", "zeta-cli"];
+
+/** Script-file argv[1] discriminates a source-mode CLI run from a compiled binary. */
+const ENTRY_SCRIPT_RE = /\.(?:[cm]?[jt]sx?)$/;
+
+interface CliSpawnCommand {
+	cmd: string;
+	args: string[];
+}
+
+let cachedCliCommand: CliSpawnCommand | null = null;
+
+function isJsRuntimeExecutable(): boolean {
+	const base = path.basename(process.execPath).replace(/\.exe$/i, "").toLowerCase();
+	return base === "bun" || base === "node" || base === "electron";
+}
+
+function resolveCliFromPath(): string | null {
+	const searchDirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+	const suffixes = process.platform === "win32" ? [".exe"] : [""];
+	for (const dir of searchDirs) {
+		for (const name of [CLI_BIN_NAME, ...CLI_FALLBACK_NAMES]) {
+			for (const suffix of suffixes) {
+				const candidate = path.join(dir, name + suffix);
+				try {
+					fs.accessSync(candidate, fs.constants.X_OK);
+					if (fs.statSync(candidate).isFile()) return candidate;
+				} catch {
+					// Keep scanning.
+				}
+			}
+		}
+	}
+	return null;
+}
+
+export function getCliSpawnCommand(): CliSpawnCommand {
+	if (cachedCliCommand) return cachedCliCommand;
+
+	const envCmd = process.env.PI_SUBPROCESS_CMD?.trim();
+	const entry = process.argv[1];
+	let resolved: CliSpawnCommand;
+	if (envCmd) {
+		resolved = { cmd: envCmd, args: [] };
+	} else if (isJsRuntimeExecutable() && entry && ENTRY_SCRIPT_RE.test(entry)) {
+		resolved = { cmd: process.execPath, args: [entry] };
+	} else if (!isJsRuntimeExecutable()) {
+		resolved = { cmd: process.execPath, args: [] };
+	} else {
+		resolved = { cmd: resolveCliFromPath() ?? CLI_BIN_NAME, args: [] };
+	}
+
+	cachedCliCommand = resolved;
+	return resolved;
+}
+
+/** Test seam: forget the cached CLI resolution so a test can re-resolve. */
+export function resetCliCommandCache(): void {
+	cachedCliCommand = null;
 }
 
 export function pushModelArgs(args: string[], model: string): void {
@@ -120,7 +196,7 @@ const SHUTDOWN_MESSAGE = `⚠️ SHUTDOWN REQUESTED: Please wrap up your current
  * Spawn multiple agents in parallel with concurrency limit.
  */
 export async function spawnAgents(tasks: AgentTask[], cwd: string, options: SpawnOptions = {}): Promise<AgentResult[]> {
-	const crewDir = options.crewDir ?? path.join(cwd, ".pi", "messenger", "crew");
+	const crewDir = options.crewDir ?? getProjectCrewDir(cwd);
 	const config = loadCrewConfig(crewDir);
 	const agents = discoverCrewAgents(cwd);
 	const runId = randomUUID().slice(0, 8);
@@ -186,7 +262,12 @@ async function runAgent(
 	}
 
 	return new Promise(resolve => {
-		// Build args for pi command
+		// Build args for the zeta CLI. Flag surface verified against the host
+		// parser (packages/coding-agent/src/cli/{args,flag-tables}.ts):
+		// --mode json, --no-session, -p/--print, --provider/--model, --thinking,
+		// --tools (comma-separated), repeatable --extension,
+		// --append-system-prompt, trailing positional prompt. Upstream pi used
+		// the same vocabulary, so no per-flag adaptation is needed.
 		const args = ["--mode", "json", "--no-session", "-p"];
 		const model = task.modelOverride ?? config.models?.[role] ?? agentConfig?.model;
 		if (model) pushModelArgs(args, model);
@@ -235,7 +316,8 @@ async function runAgent(
 				? { ...process.env, ...envOverrides, ...workerFlag }
 				: undefined;
 
-		const proc = spawn(getPiCommand(), args, {
+		const cli = getCliSpawnCommand();
+		const proc = spawn(cli.cmd, [...cli.args, ...args], {
 			cwd,
 			stdio: ["ignore", "pipe", "pipe"],
 			...(env ? { env } : {}),

@@ -3,7 +3,7 @@
  */
 
 import { MODEL_KINDS, type ModelKind } from "@linxiraos/pi-catalog/types";
-import { APP_NAME } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { modelsHelp as commandHelp } from "../cli/command-help";
 import { resolveModelsArgs, runModelsCommand } from "../cli/models-cli";
@@ -45,12 +45,12 @@ export default class Models extends Command {
 	};
 
 	static examples = [
-		`# List available chat models, grouped by provider\n  ${APP_NAME} models`,
-		`# List models of every catalog kind\n  ${APP_NAME} models --kind all`,
-		`# List one provider's models (any provider name works)\n  ${APP_NAME} models openai-codex`,
-		`# Find models by substring\n  ${APP_NAME} models find minimax`,
-		`# Force a fresh catalog fetch (replaces rm -rf ~/.zeta/models.db)\n  ${APP_NAME} models refresh`,
-		`# Machine-readable output\n  ${APP_NAME} models --json`,
+		`# List available chat models, grouped by provider\n  ${CLI_BIN_NAME} models`,
+		`# List models of every catalog kind\n  ${CLI_BIN_NAME} models --kind all`,
+		`# List one provider's models (any provider name works)\n  ${CLI_BIN_NAME} models openai-codex`,
+		`# Find models by substring\n  ${CLI_BIN_NAME} models find minimax`,
+		`# Force a fresh catalog fetch (replaces rm -rf ~/.zeta/models.db)\n  ${CLI_BIN_NAME} models refresh`,
+		`# Machine-readable output\n  ${CLI_BIN_NAME} models --json`,
 	];
 
 	async run(): Promise<void> {

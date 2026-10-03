@@ -1,7 +1,7 @@
 {
   "name": "hello-extension",
   "version": "1.0.0",
-  "description": "Minimal omp extension example",
+  "description": "Minimal zeta-c extension example",
   "homepage": "https://linxira-os.github.io/zeta/",
   "omp": {
     "extensions": [

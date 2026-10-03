@@ -5,7 +5,7 @@
  * 作为内部后端，用户只需访问一个端口。
  */
 
-import { APP_NAME, logger } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { ensureAgentDirEnv } from "../server/web-gateway";
@@ -63,7 +63,7 @@ export default class Serve extends Command {
 		const statsOnly = flags["stats-only"];
 		const webOnly = flags["web-only"];
 
-		console.log(chalk.bold(`\n  ${APP_NAME} Serve\n`));
+		console.log(chalk.bold(`\n  ${CLI_BIN_NAME} Serve\n`));
 
 		let instance: Awaited<ReturnType<typeof startZetaServer>> | null = null;
 		try {

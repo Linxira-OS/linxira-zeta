@@ -1,26 +1,28 @@
 /**
- * Sidebar header row: brand title, folder picker, display-settings dropdown,
- * new-workspace entry, search toggle, and the edit-mode (multi-select) toggle.
- * New-session remains the only creation entry — no batch button here.
+ * Sidebar header row: brand title, display-settings dropdown (project sort
+ * only — the dead grouping/recent controls are gone, D6), search toggle, and
+ * the edit-mode (multi-select) toggle. The sort dropdown and the group-header
+ * ↑↓ entry share the same P2 `projectSort` state.
  */
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import type { SidebarDisplaySettings } from "./sidebar-shared";
+import type { ProjectSort } from "@/lib/sidebar-prefs";
 
 interface SidebarHeaderProps {
 	title: React.ReactNode;
-	display: SidebarDisplaySettings;
 	searchOpen: boolean;
 	editMode: boolean;
 	onToggleSearch: () => void;
 	onToggleEditMode: () => void;
-	onUpdateDisplay: (patch: Partial<SidebarDisplaySettings>) => void;
-	/** Opens the create-session draft flow seeded for workspace (project/worktree/branch) picking. */
-	onNewWorkspace?: () => void;
+	/** Active project sort — same P2 state the group-header ↑↓ writes. */
+	projectSort: ProjectSort;
+	onProjectSortChange: (sort: ProjectSort) => void;
 }
+
+const PROJECT_SORTS: readonly ProjectSort[] = ["recent", "created", "oldest", "name", "manual"];
 
 const TOOL_BUTTON_STYLE: CSSProperties = {
 	display: "flex",
@@ -47,13 +49,12 @@ function hoverReset(e: React.MouseEvent<HTMLButtonElement>) {
 
 export function SidebarHeader({
 	title,
-	display,
 	searchOpen,
 	editMode,
 	onToggleSearch,
 	onToggleEditMode,
-	onUpdateDisplay,
-	onNewWorkspace,
+	projectSort,
+	onProjectSortChange,
 }: SidebarHeaderProps) {
 	const { t } = useI18n();
 	return (
@@ -67,34 +68,7 @@ export function SidebarHeader({
 		>
 			{title}
 			<div style={{ display: "flex", gap: 6 }}>
-				{/* New workspace — same draft flow as the create button, seeded for workspace picking */}
-				{onNewWorkspace && (
-					<button
-						className="ze-btn"
-						aria-label={t("sidebar.new-workspace")}
-						title={t("sidebar.new-workspace")}
-						onClick={onNewWorkspace}
-						style={TOOL_BUTTON_STYLE}
-						onMouseEnter={hoverAccent}
-						onMouseLeave={hoverReset}
-					>
-						<svg
-							width="13"
-							height="13"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-							<line x1="12" y1="10" x2="12" y2="16" />
-							<line x1="9" y1="13" x2="15" y2="13" />
-						</svg>
-					</button>
-				)}
-				{/* Display settings dropdown — sort/group/recent controls */}
+				{/* Display settings — project sort (P2), shared with the ↑↓ entry */}
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger asChild>
 						<button
@@ -145,97 +119,26 @@ export function SidebarHeader({
 							>
 								{t("sidebar.display.projectSort")}
 							</DropdownMenu.Label>
-							{(
-								[
-									["manual", "sidebar.display.sort.manual"],
-									["a-z", "sidebar.display.sort.a-z"],
-									["z-a", "sidebar.display.sort.z-a"],
-									["date-added", "sidebar.display.sort.date-added"],
-									["recent", "sidebar.display.sort.recent"],
-								] as const
-							).map(([value, key]) => (
+							{PROJECT_SORTS.map(value => (
 								<DropdownMenu.Item
 									key={value}
-									onSelect={() => onUpdateDisplay({ projectSort: value })}
+									onSelect={() => onProjectSortChange(value)}
 									style={{
 										display: "flex",
 										alignItems: "center",
 										gap: 6,
 										padding: "6px 8px",
 										fontSize: 12,
-										color: display.projectSort === value ? "var(--accent)" : "var(--text)",
+										color: projectSort === value ? "var(--accent)" : "var(--text)",
 										borderRadius: 5,
 										cursor: "pointer",
 										outline: "none",
 									}}
 								>
-									<span style={{ width: 12 }}>{display.projectSort === value ? "✓" : ""}</span>
-									{t(key)}
+									<span style={{ width: 12 }}>{projectSort === value ? "✓" : ""}</span>
+									{t(`sidebar.sort.${value}`)}
 								</DropdownMenu.Item>
 							))}
-							<DropdownMenu.Separator style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-							<DropdownMenu.Label
-								style={{
-									padding: "6px 8px 2px",
-									fontSize: 10,
-									fontWeight: 600,
-									letterSpacing: "0.08em",
-									textTransform: "uppercase",
-									color: "var(--text-dim)",
-								}}
-							>
-								{t("sidebar.display.sessionGrouping")}
-							</DropdownMenu.Label>
-							{(
-								[
-									["by-worktree", "sidebar.display.grouping.by-worktree"],
-									["flat", "sidebar.display.grouping.flat"],
-								] as const
-							).map(([value, key]) => (
-								<DropdownMenu.Item
-									key={value}
-									onSelect={() => onUpdateDisplay({ sessionGrouping: value })}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										padding: "6px 8px",
-										fontSize: 12,
-										color: display.sessionGrouping === value ? "var(--accent)" : "var(--text)",
-										borderRadius: 5,
-										cursor: "pointer",
-										outline: "none",
-									}}
-								>
-									<span style={{ width: 12 }}>{display.sessionGrouping === value ? "✓" : ""}</span>
-									{t(key)}
-								</DropdownMenu.Item>
-							))}
-							<DropdownMenu.Separator style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-							<DropdownMenu.Item
-								onSelect={() => onUpdateDisplay({ showRecent: !display.showRecent })}
-								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
-									padding: "6px 8px",
-									fontSize: 12,
-									color: "var(--text)",
-									borderRadius: 5,
-									cursor: "pointer",
-									outline: "none",
-								}}
-							>
-								{t("sidebar.display.showRecent")}
-								<span
-									style={{
-										fontSize: 11,
-										color: display.showRecent ? "var(--accent)" : "var(--text-dim)",
-									}}
-								>
-									{display.showRecent ? "ON" : "OFF"}
-								</span>
-							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Portal>
 				</DropdownMenu.Root>

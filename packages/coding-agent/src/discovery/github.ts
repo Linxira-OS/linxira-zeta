@@ -277,7 +277,8 @@ function copilotCustomInstructionDirs(): string[] {
  * Load skills from `.github/skills/<name>/SKILL.md`.
  *
  * GitHub documents this layout for Copilot Agent Skills and matches the
- * non-recursive shape `scanSkillsFromDir` already expects. `requireDescription`
+ * `<skill>/SKILL.md` shape `scanSkillsFromDir` probes at every depth.
+ * `requireDescription`
  * is on to match the Agent Skills spec (name + description are mandatory) and
  * the sibling `native`/`omp-plugins` providers.
  *

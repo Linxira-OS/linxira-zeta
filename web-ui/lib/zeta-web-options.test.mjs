@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
-const { parseLaunchOptions } = require("../bin/omp-web-options.js");
+const { parseLaunchOptions } = require("../bin/zeta-web-options.js");
 
 test("opens the browser by default", () => {
   assert.deepEqual(parseLaunchOptions([], {}), {
@@ -17,15 +17,19 @@ test("supports the no-open CLI option", () => {
   assert.equal(parseLaunchOptions(["--no-open"], {}).openBrowser, false);
 });
 
-test("supports truthy OMP_WEB_NO_OPEN values", () => {
-  for (const value of ["1", "true", "TRUE", "yes", "on"]) {
-    assert.equal(parseLaunchOptions([], { OMP_WEB_NO_OPEN: value }).openBrowser, false);
+test("supports truthy ZETA_WEB_NO_OPEN and the legacy OMP_WEB_NO_OPEN fallback", () => {
+  for (const env of ["ZETA_WEB_NO_OPEN", "OMP_WEB_NO_OPEN"]) {
+    for (const value of ["1", "true", "TRUE", "yes", "on"]) {
+      assert.equal(parseLaunchOptions([], { [env]: value }).openBrowser, false);
+    }
   }
 });
 
-test("does not disable browser opening for false OMP_WEB_NO_OPEN values", () => {
-  for (const value of ["0", "false", "off", ""]) {
-    assert.equal(parseLaunchOptions([], { OMP_WEB_NO_OPEN: value }).openBrowser, true);
+test("does not disable browser opening for false no-open values", () => {
+  for (const env of ["ZETA_WEB_NO_OPEN", "OMP_WEB_NO_OPEN"]) {
+    for (const value of ["0", "false", "off", ""]) {
+      assert.equal(parseLaunchOptions([], { [env]: value }).openBrowser, true);
+    }
   }
 });
 
@@ -40,13 +44,13 @@ test("preserves port and hostname options", () => {
   );
 });
 
-test("supports PI_WEB_HOSTNAME without trusting the ambient system HOSTNAME", () => {
+test("supports ZETA_WEB_HOSTNAME without trusting the ambient system HOSTNAME", () => {
   assert.equal(
     parseLaunchOptions([], { HOSTNAME: "container-id" }).hostname,
     "127.0.0.1",
   );
   assert.equal(
-    parseLaunchOptions([], { PI_WEB_HOSTNAME: "0.0.0.0" }).hostname,
+    parseLaunchOptions([], { ZETA_WEB_HOSTNAME: "0.0.0.0" }).hostname,
     "0.0.0.0",
   );
 });

@@ -155,11 +155,31 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 | 9 | 归档区 | 保留底部折叠(现状) |
 | 10 | 批量操作条 / 使用量微行 / 文件浏览器 | 保留(现状) |
 
-**D2 创建入口收敛**:删除 hero action row(`SessionSidebar.tsx` L1629-1725
-整块删除)与 `SidebarHeader` 新建工作区图标(L71-96)。全侧栏创建路径只剩:
-「项目」header 的 `+`(跨项目草稿)、项目组头 `+`(定项目草稿)、临时区 `+`
-(免选项目草稿)。三者都走既有 `NewSessionDialog`。AppShell 56px 折叠 rail
-的 `+`(AppShell.tsx L918 起)保持「立即按 activeCwd 建会话」不变(非目标)。
+**D2 创建交互重设计(草稿直开,弹窗降级;2026-10-02 修订)**:删除 hero
+action row(`SessionSidebar.tsx` L1629-1725 整块删除)与 `SidebarHeader`
+新建工作区图标(L71-96)。创建语义对齐两参考项目的收敛模式(deepseek-harness
+note 2026-07-24「New Session clears to empty state」+ zcode
+`workbenchNewTaskTarget.ts:25-54`):**任何 + 入口不再弹 NewSessionDialog,
+直接把主区切到空态 hero 并聚焦输入框**;「项目」header 的 ⊞ 保留既有打开
+工作区对话框(路径添加面)。
+- 空态 hero = `ChatWindow.tsx` L1038 欢迎分支改造:居中 `DraftContextBar`
+  (D11)+ hero 形态输入卡;同一 `ChatInput` 组件只做位置迁移,不换组件
+  (harness `InputBar.module.css:8-19`「one InputBar moves position rather
+  than swapping components」)。
+- 会话创建时机维持现状(`useAgentSession.ts` L488 `isNew`、L891 起
+  首发消息才落盘;草稿持久化 `lib/draft-store.ts`)——零网关改动。
+- 入口→草稿 cwd 映射:「项目」header `+`=上次活跃 cwd;组头 `+`=该项目
+  projectRoot;临时区 `+`=上次 temp cwd;**解析不到工作区时一律保底落到默认
+  工作区**(用户裁决 2026-10-02:`~/.zeta/workspace`,即 `POST /api/default-cwd`
+  /`lib/default-workspace.ts` 的位置)——不存在无 cwd 草稿态,新对话的默认
+  位置就是默认工作区,chip 可改;仅当默认工作区也不可用时才整卡降级为
+  选择触发器(harness `.cardWorkspaceTrigger` 模式,
+  `InputBar.module.css:92-130`)。
+- **删除 `NewSessionDialog.tsx`(496 行)**:项目列表能力并入工作区 chip
+  下拉(D11),worktree/分支并入分支 chip;其 L165 恒真 checkout 条件
+  (`worktree !== branch` 用路径比分支名)随删除消灭。AppShell 56px 折叠
+  rail 的 `+`(AppShell.tsx L918 起)保持「立即按 activeCwd 建会话」不变
+  (非目标)。
 
 **D3 hover 范式实现规则(全侧栏统一)**:
 - 触发行容器 `:hover` / `:focus-within` 时操作簇 `opacity: 0→1`
@@ -228,6 +248,57 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 `sidebar.openWorkspace`(按最终去留核对);不引入 `omp` 裸字样
 (`bun scripts/brand/brand-check.ts` 必须保持归零)。
 
+**D11 草稿上下文条 `DraftContextBar`(2026-10-02 新增;新组件)**:渲染于
+composer 卡上方,hero 形态与 docked 草稿态共用,两个 chip:
+- **工作区 chip**(必现):label=草稿 cwd 叶名(默认=默认工作区);点开向上
+  弹层(数据源复用「打开工作区」对话框:`GET /api/home`+最近项目),内含
+  「浏览目录…」走既有 `POST /api/cwd/validate`;cwd 解析链=入口指定→
+  默认工作区保底(`lib/default-workspace.ts`)→(两者皆不可用才)整卡降级
+  为选择触发器(harness `InputBar.module.css:92-130`
+  `.cardWorkspaceTrigger` 模式)。
+- **分支 chip**(条件:cwd 是 git 仓库):数据 `GET /api/git/branches?cwd=`
+  (`NewSessionDialog.tsx` L140 现成端点);**仅显式切换分支才**
+  `POST /api/git/checkout`,绝不自动 checkout(消灭 L165 恒真 bug 的语义);
+  脏树 409 错误内联展示。
+- 首条消息发出=会话创建,`DraftContextBar` 随之隐藏;换工作区=开新草稿
+  (draft 迁移不做——非目标)。
+
+**D12 上游兼容面与死代码删除(2026-10-02 新增;用户裁决:兼容面除产品面板
+外全删)**:纯残留 11 项本批全删——`lib/omp-models.ts`、`lib/omp-auth.ts`
+(+其测试)、`lib/models-cache.ts`(+其测试)、`empty-models.json`、
+`lib/custom-ui-terminal.ts`(+其测试)、`lib/utils.ts`(唯一消费者是死目录
+icon)、`components/icon/` 整目录、`SettingsPanel.tsx` 内 `SettingsPanel`
+组件本体(L1742 起;共享层 `SettingsTabBody/useSettingsData/
+useWebConfigState/inputStyle/SettingsHighlight` 移至 `settings/` 保留)、
+损坏测试 `lib/omp-web-options.test.mjs`(改指 `bin/zeta-web-options.js`)、
+`NEXT_PUBLIC_OMP_VERSION` 回退环节(ChatWindow L997、SessionSidebar L562)、
+`docs/release.md`(上游 pi-web 发布清单,重写为 zeta-web 简述或删除)。
+env/lockfile 迁移期项(`OMP_WEB_*` env 回退、`pi-cwd-*` 目录扫描、P1 五键、
+旧主题/语言键、`bash-output` 旧文件名读取)保留至下一版本,登记 §12 不动。
+`NEXT_PUBLIC_PI_VERSION` 改名 `NEXT_PUBLIC_ZETA_VERSION`(next.config.ts
+L119 + ChatWindow L998 + SessionSidebar L562)。web-ui 自有文档
+(README*.md/CONTRIBUTING/SECURITY/docs/worktrees*)的 omp-web 残留同批
+改品牌(`npx @linxiraos/zeta-web@latest` 等)。
+
+**D13 i18n 债清偿(2026-10-02 新增)**:i18n 品牌残留=0(en/zh 裸 omp/π 均
+无);实际文案债是硬编码英文绕过 i18n。本批全部接线
+`lib/i18n/messages/en.ts`+`zh-CN.ts`:AppShell 顶栏 title("Stats dashboard"
+L1587、"Open in app" L1623、Update 组 L1672-1718 与 alert L427、"System
+prompt" L1871-1872)、ChatInput("Retrying upstream request" L1518、
+Steer/Follow-up title L2162-2241)、StatsDashboard 空态句 L29-31、
+DraftContextBar/空会话折叠行等全部新文案。i18n 测试补死 key 检测。
+
+**D14 设置面现代化(2026-10-02 追加;用户截图裁决「按钮太诡异/不现代」)**:
+`components/settings/**`(SettingsWindow+各 tab+`settings/shared.tsx`)全套
+控件 primitives 现代化——**开关重做**:轨道+滑块双层结构,ON=主题强调色轨道
++对比滑块,OFF=中性轨道,disabled 灰化,150ms 过渡(现状 ON=全白药丸、滑块
+无对比,状态可辨但无细节);输入框/下拉/卡片容器对齐参考控件规范(zcode
+DESIGN.md:输入 bg-input+hover/focus 三态边框、控件高 h-6~h-9、菜单紧凑行、
+"Do not promote every action to primary");分区导航列表紧凑化;危险操作
+(解除绑定/重置)用 destructive 变体;全部文案走 i18n。只动
+`components/settings/**` 与其 i18n key,**不改** `useSettingsData`/
+web.yml 字段契约与 gateway 端点。
+
 ## 5. 组件级改造清单
 
 | 文件 | 动作 |
@@ -242,7 +313,11 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 | `web-ui/components/sidebar/sidebar-shared.ts` | 缩减:collapse/别名/项目置顶 helper 迁 P2 后删除(保留仍被引用的会话置顶持久化) |
 | `web-ui/lib/sidebar-prefs.ts` | 扩:成为唯一偏好源;补 `projectMeta.{collapsed,name,pinned,order}` 的写入口 |
 | `web-ui/lib/sidebar-groups.ts` | 清理:删除未被组件引用的 `splitZones/timeGroups/foldVisible/metaEntry` 及其测试段(保留 `sortSessions/sortProjects`);或将其接线后保留——执行者按「删后无死代码」为准,**二选一必须落定** |
-| `web-ui/components/sidebar/PinnedSection.tsx` `ArchiveSection.tsx` `BulkActionBar.tsx` `FloatingMenu.tsx` `NewSessionDialog.tsx` `useSessionMultiSelect.ts` | 保留,按新顺序挂载;`NewSessionDialog` 成为唯一创建流程 |
+| `web-ui/components/sidebar/PinnedSection.tsx` `ArchiveSection.tsx` `BulkActionBar.tsx` `FloatingMenu.tsx` `useSessionMultiSelect.ts` | 保留,按新顺序挂载 |
+| `web-ui/components/sidebar/NewSessionDialog.tsx` | **删除**(D2/D11);能力并入 DraftContextBar 两 chip;SessionSidebar 中的挂载与 openDraft 弹窗逻辑移除 |
+| `web-ui/components/DraftContextBar.tsx` | **新增**(D11):工作区 chip + 分支 chip;hero/docked 草稿态共用 |
+| `web-ui/components/ChatWindow.tsx` | 改:L1038 欢迎分支改造成空态 hero(居中 DraftContextBar + hero 输入卡);L997-998 版本回退链换 `NEXT_PUBLIC_ZETA_VERSION` |
+| `web-ui/components/ChatInput.tsx` | 改:hero/docked 两形态(位置迁移,组件不换);工具栏七控件全保留(附件/模型/thinking/preset/压缩/声音/发送,已核实无死控件),窄宽度收纳进既有 ⋯ 菜单;硬编码英文接 i18n(D13) |
 | `web-ui/lib/i18n/messages/en.ts` `zh-CN.ts` | 增删 key(D10);跑既有 i18n 校验测试 |
 | `web-ui/components/SessionSidebar.test.mjs` `lib/sidebar-groups.test.mjs` `lib/sidebar-prefs.test.mjs` | 同步更新:删死导出断言、补空会话过滤/命名回退/`projectSort` 写 P2 的用例 |
 | `web-ui/components/AppShell.tsx` | **不改**(SessionSidebar props 不变;rail 行为不变) |
@@ -253,7 +328,8 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 `DELETE /api/projects({path}|{tempOnly})`、`GET/POST/DELETE /api/worktrees`、
 `POST /api/cwd/validate`、`POST /api/default-cwd`、`GET /api/home`、
 `POST /api/open`、`GET /api/agent/running`、`GET /api/web-config`、
-`GET /api/stats/overview`。
+`GET /api/stats/overview`、`GET /api/git/branches?cwd=`、
+`POST /api/git/checkout`(仅显式换分支时调用)。
 
 ## 6. 桌面壳配合项(desktop/)
 
@@ -273,7 +349,7 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 
 ## 7. 验收清单
 
-1. 侧栏自上而下 = §4 表顺序;hero「新建会话」/「打开工作区」按钮与
+1. 侧栏自上而下 = §4 表顺序;action row「新建会话」/「打开工作区」按钮与
    SidebarHeader 新建图标不复存在。
 2. 「项目」标题行:hover 浮现 ⊞ 与 +,移开淡出;键盘 Tab 聚焦时同样可见
    (focus-within)。
@@ -291,18 +367,54 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
 8. 项目排序(含 manual/a-z/z-a/date-added/recent)生效且刷新后保持;置顶
    会话/置顶项目/项目别名/组折叠状态刷新后保持;全部落在单一
    `zeta-web:sidebar-preferences-v2` key。
-9. 新建入口统一:项目 header `+`、组头 `+`、临时区 `+` 均打开
-   NewSessionDialog 且项目预填正确。
+9. 新建交互(草稿直开):任何 `+` 入口直接进空态 hero,无弹窗;解析不到
+   工作区时草稿保底落到默认工作区(`~/.zeta/workspace`),仅当其不可用时
+   整卡才降级为选择触发器;工作区 chip 可换 cwd(含「浏览目录」);分支 chip
+   仅显式切换才 checkout,脏树 409 内联报错;首条消息发出即创建会话且
+   DraftContextBar 消失。
 10. `web-ui`:`node_modules/.bin/tsc --noEmit` 0 错;`npm run lint` 0 错;
     `npm test`(node --test 全套)绿。
 11. i18n en/zh-CN 无缺 key、无死 key(i18n 测试绿)。
 12. 仓库根 `bun scripts/brand/brand-check.ts` 归零(exit 0)。
 13. 桌面:`desktop` `npm test` 绿;`npm run dist` 成功;产物启动冒烟
     (§6.3)通过。
+14. 兼容面删除(D12)全部落地:`npm run build` 绿;grep 无
+    `omp-models|omp-auth|models-cache|custom-ui-terminal|empty-models|NEXT_PUBLIC_OMP_VERSION`
+    残留;`NEXT_PUBLIC_ZETA_VERSION` 接线生效。
+15. i18n(D13)清零:上述硬编码英文全部走 `t()`;en/zh key 集合相等测试绿;
+    死 key 检测通过。
+16. ChatInput 工具栏七控件(附件/模型/thinking/preset/压缩/声音/发送)与
+    Steer/Follow-up 行为回归不变;hero↔docked 切换时草稿文本不丢
+    (`lib/draft-store.ts` 按 draftKey 恢复)。
+17. 仓库根 `bun scripts/brand/brand-check.ts` 与 `bun scripts/check-ci-surface.ts`
+    归零(随 §8 门禁复跑)。
+18. 设置面(D14):开关 ON/OFF/disabled 三态视觉可辨(强调色轨道+滑块,非全白
+    药丸);输入/下拉/卡片对齐参考控件规范;危险操作 destructive 变体;文案
+    全 i18n;`useSettingsData`/web.yml 契约零改动。
+19. Open 面(D15):菜单带图标与「(默认)」标注,split-button 一键默认打开;
+    检测到 `zeta-ide`/`zeta-editor` 时可一键在终端 IDE/编辑器打开当前
+    工作区;Windows 终端按 pwsh→Git Bash→powershell 链解析,Linux 用
+    $SHELL;默认目标刷新后保持;desktop 桥 `npm test` 回归绿。
+
+    **D15 Open 面重设计与默认打开链(2026-10-02 追加;用户截图裁决「Open 页面
+    很烂/不现代」,参考 ZCode split-button 与 dsh 菜单)**:
+    - **UI**:顶栏 Open 改 split-button(左半=一键用默认目标打开,右半=下拉);
+      菜单每项带图标,当前默认目标标「(默认)」+勾选(对齐 dsh
+      「文件资源管理器(默认)」形态);默认目标记忆(localStorage,菜单内切换)。
+    - **新目标(用户裁决)**:我们自己的终端编辑器/IDE——gateway 检测 PATH 上的
+      `zeta-ide`/`zeta-editor`,存在即作为打开目标(cwd=当前工作区启动)。
+    - **终端解析链(用户裁决)**:Windows=`pwsh`(PowerShell 7+,优先高版本)→
+      Git Bash(更稳)→系统自带 `powershell.exe`;Linux/macOS=`$SHELL`→bash。
+      解析在 gateway 侧做,`GET /api/open/options` 返回 terminal 解析结果与
+      全部可用目标,`POST /api/open` 按目标类型启动。
+    - **实现面**:gateway `server/web-gateway/open.ts` 扩展目标枚举与检测;
+      AppShell Open 菜单重写;desktop 桥 `getDesktopOpenTargets` 同步核对。
+      **本条显式突破 §9「不改 gateway」非目标——范围仅 open 端点,依赖方向
+      (web-ui 只经 fetch)不破。**
 
 ## 8. 发布门(硬性,下一次 release CI 之前)
 
-1. §5 全部文件落地、§7 验收 1-13 全绿,且已按 Feature Branch Workflow 合入
+1. §5 全部文件落地、§7 验收 1-17 全绿,且已按 Feature Branch Workflow 合入
    `main`(PR CI 绿,含 `check-version-consistency`/`check:ts`/
    `brand-check`/`check-ci-surface` 全套根门禁)。
 2. 桌面链路(desktop_linux/desktop_windows)在包含本计划的 commit 上跑绿;
@@ -319,6 +431,8 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
   「Code Location Rules」原文有效)。
 - **不改 gateway**:无新 handler、无新路由、`lib/types.ts` DTO 契约不动;
   服务端会话过滤/分页留待会话规模实测超标后另立计划。
+  **例外(D15,2026-10-02 用户追加)**:`server/web-gateway/open.ts` 允许扩展
+  目标枚举与终端解析链,不新增路由前缀。
 - **不做会话自动改名**:标题回退规则只影响显示,不写盘;`manualTitle`
   语义不动。
 - **不动 AppShell 布局骨架**:折叠 rail、可拖宽度、移动端抽屉、标题栏、
@@ -330,17 +444,287 @@ L451),frameless 自绘标题栏(L430-491)、托盘(L588-643)、会话完成监�
   不产生 cherry-pick 台账项。
 - **不动 CLI/TUI 与渠道面**:本计划只覆盖 web-ui 左栏及其桌面嵌入链路。
 
-## 10. 实施顺序(每批独立 commit,批间可回退)
+## 10. 实施顺序(每批独立 commit,批间可回退;2026-10-02 重排)
 
 | 批 | 内容 | 门 |
 |---|---|---|
 | 0 | 切 `feat/webui-sidebar-overhaul`;merge main;基线截图(现状留档) | 干净工作树 |
-| 1 | IA 重排:删 action row/死代码;新增 `ProjectsSection`;组头 hover 化 + bug 修复;去时间桶;临时区行换实现 | 验收 1-4、8-11 |
-| 2 | 命名/副标题规则 + `EmptySessionsFold` 空会话策略 | 验收 5-6 |
-| 3 | 偏好统一 P2(`sidebar-shared` 缩减、显示菜单裁剪) | 验收 8 |
-| 4 | i18n 增删 + 测试同步 + lint/tsc/brand-check | 验收 10-12 |
-| 5 | merge main → push → PR → CI 绿 → 桌面 dist 冒烟 → 合并 | 验收 13、§8 全部 |
+| 1 | 清场:D12 兼容面/死代码删除 + D13 i18n 债接线 + web-ui 文档品牌残留 | 验收 14-15、10-11 |
+| 2 | IA 重排:删 action row/死代码;新增 `ProjectsSection`;组头 hover 化 + bug 修复;去时间桶;临时区行换实现 | 验收 1-4、8 |
+| 3 | 草稿直开:空态 hero + `DraftContextBar`;删 `NewSessionDialog`;ChatInput hero/docked 形态 | 验收 9、16 |
+| 3.5 | 设置面现代化(D14):开关/输入/卡片 primitives 重做 | 验收 18 |
+| 3.6 | Open 面重设计 + 默认打开链(D15,gateway open 端点扩展) | 验收 19 |
+| 3.7 | 输入区增强(carryover U3 残余收编):context 用量圈 + thinking 循环键,进 ChatInput 工具条 | 验收 16 扩 |
+| 4 | 命名/副标题规则 + `EmptySessionsFold` 空会话策略 | 验收 5-6 |
+| 5 | 偏好统一 P2(`sidebar-shared` 缩减、显示菜单裁剪) | 验收 8 |
+| 6 | merge main → push → PR → CI 绿 → 桌面 dist 冒烟 → 合并 | 验收 13、§8 全部 |
 
-风险与回滚:批内独立 commit 可单批回退;空会话「清理」是唯一不可逆操作,
-已用「仅 0 消息 + >24h + 二次确认」三重约束兜底;AppShell 接口不变使回归
-面集中在 SessionSidebar 内部。
+风险与回滚:批内独立 commit 可单批回退;批 3(删 NewSessionDialog)是创建
+主路径重构,风险最高,以验收 9 全条 + 草稿不丢(16)为门;空会话「清理」是
+唯一不可逆操作,已用「仅 0 消息 + >24h + 二次确认」三重约束兜底;AppShell
+接口不变使回归面集中在 SessionSidebar/ChatWindow 内部。
+
+## 11. 参考基线(2026-10-02 修订;两参考项目模式收敛)
+
+主参考 `temp/deepseek-harness`(dsh),副参考 `temp/zcode-ui-reference`(ZCode,
+自带 DESIGN.md 设计系统)。本计划采纳的交互决策及证据:
+
+| 决策 | dsh 证据 | zcode 证据 |
+|---|---|---|
+| 新建会话=清到空态,首发才建 | `.agents/notes/archived/feature/2026-07-24-new-session-clears-to-empty-state.md:9-24` | `v4/workbenchNewTaskTarget.ts:25-54` |
+| 空态与 docked 态同一 composer,位置迁移不换组件 | `InputBar.module.css:8-19`;`ConversationRoot.tsx`(DOM 跨态存活) | `ChatPromptEditor.tsx`(插槽协议) |
+| 工作区选择=chip,可跳过 | `ConversationRoot.tsx:75-135`(chip 解析链+`.cardWorkspaceTrigger`) | `ChatEmptyState.tsx:266-268`+`WorkspaceShellLayout.tsx:1180-1216` |
+| 分支切换=chip/popover,非创建前置表单 | —(无分支概念) | `GitBranchSwitcher`(同上) |
+| 行内 chrome 全 hover 渐显,CSS 实现 | `Rows.tsx:1-4`(folder↔chevron、time↔⋯ 全 CSS) | `task-row.tsx:347-356`(元数据让位操作) |
+| 会话行单状态点,优先级合成 | `Rows.tsx:231-269`(交互>运行>完成) | `task-row.tsx:387-427`(优先级链) |
+| 空会话特殊呈现 | `Rows.tsx:447-455`(无时间无菜单) | `draft-task-row.tsx:38-45`(虚线行) |
+| hover card 承载路径/全状态 | `Rows.tsx:61-135` | `task-row.tsx:470-500` |
+| 触发符管线(/ @)统一 combobox | `ui-input-trigger/controller.ts:1-11` | `promptInputTriggers.ts:1`(/ @ $ #) |
+| 布局让步链+侧栏永不让步 | `columns.ts:20-77`(中栏保底 640) | `WorkspaceShellLayout.tsx:99-117` |
+| token 三层/语义化,特性层禁字面色 | `docs/web-styling.md:7-23` | `styles.css`(@theme 语义 token) |
+| 设计规范文档先行(改 UI 前必读) | `web-styling.md` 全文 32 行 | `DESIGN.md:7-19`(违规=缺陷) |
+
+不采纳(记录理由):dsh 的 748px 内容轴/r22 圆角/业务蓝交互色为 dsh 品牌语言,
+Zeta 沿用现有 `styles/` 主题 token 体系(§9 非目标:不引入新依赖/不换样式
+框架);zcode 的用户自定义分组(颜色/拖拽排序)超出本次范围,登记 roadmap。
+
+## 12. 兼容面判定全表(2026-10-02 盘点;D12 的执行依据)
+
+**删除(11 项,批 1)**:`lib/omp-models.ts`;`lib/omp-auth.ts`+`omp-auth.test.mjs`;
+`lib/models-cache.ts`+`models-cache.test.mjs`;`empty-models.json`;
+`lib/custom-ui-terminal.ts`+测试;`lib/utils.ts`(随 icon 目录);
+`components/icon/`(Icon.tsx/sprite.ts/icons.ts);`SettingsPanel.tsx` 的
+`SettingsPanel` 组件本体(L1742 起,共享层五符号移 `settings/` 保留);
+`lib/omp-web-options.test.mjs`(改指 zeta-web-options.js);
+`NEXT_PUBLIC_OMP_VERSION` 回退环节;`docs/release.md`。
+**迁移期保留(7 项,下一版本复审)**:`bin/zeta-web-options.js` L25-26
+`OMP_WEB_*` env 回退;`lib/file-access.ts` L44-47 `^(omp|pi)-cwd-\d{8}$`
+扫描;`sidebar-shared.ts` P1 五键(批 5 后降为只读迁移源);`zeta-theme`/
+`zeta-lang` 旧键一次性迁移;`bash-output.ts` 旧 `pi-bash-*.log` 读兼容;
+`bun.lock` 工作区名(随锁刷新消解);`next.config.ts` L41
+omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头注释)。
+**产品功能误伤警示(勿删)**:`lib/request-security.ts`/`proxy.ts`;
+`lib/file-access.ts` 主体;`lib/session-reader.ts`(上游 SDK 语义契约测试
+是行为规格);`lib/pi-types.ts`/`pi-desktop.ts`/`pi-slash-commands.ts` 与
+`@earendil-works/pi-*` 依赖(运行时协议非品牌残留);`/api/stats` rewrite+
+`StatsDashboard`(用量面板本体);`ZetaWebTitle`。
+
+## 13. CLI 指令面审计结论(2026-10-02;独立分支 `fix/cli-command-surface` 落地)
+
+四产品 bin 接线层正确(npm 1.1.22/1.1.23 bins、3 个 launcher、
+`CLI_BIN_NAME` 常量及 7 个 import 方全对)。病灶五处,修复在 web-ui 本计划
+之外的独立分支进行:
+
+1. **P0 提示错名**:`packages/coding-agent/src/utils/resume-command.ts:17`
+   用 `APP_NAME`("zeta")插值,退出提示打出 `zeta --resume <id>`(裸 zeta 是
+   Zetawork bin;`main/crates/zeta-main/src/main.rs:43` 对 `-` 开头参数静默
+   吞掉进工作台)——2026-10-02 用户实测静默失败的元凶。修复:改
+   `CLI_BIN_NAME`;伴生测试 `test/utils/resume-command.test.ts:14,:21` 同步;
+   `interactive-mode.ts:6112` 硬编码英文改接既有死 i18n 键
+   `imResumeHintFmt`(en/zh L1135,传 CLI_BIN_NAME)。
+2. **P0 update 自更新链**:`update-cli.ts` :1970-2085 Windows shim takeover
+   写/退休 **`zeta.exe`/`zeta{,.cmd,.ps1,.bat}`**——劫持 Zetawork 的 bin;
+   :34/:288/:317 `REPO='can1357/oh-my-pi'` 与 :37 `MISE_TOOL` 指向上游;
+   :1231 `$which(APP_NAME)` 回退+:1242 `zeta/` 前缀容忍可误抓工作台二进制。
+   修复:shim 操作对象=本包真实 bin 名;REPO/MISE 指向 Zeta 仓库;删回退。
+3. **P1 run-string 错名**(~18 文件):config-cli/plugin-cli/setup-cli/
+   update-cli 提示/login-cli/shell-cli/web-search-cli/commands/
+   help-extra/builtin-collaboration 全部 `${APP_NAME} x` → `CLI_BIN_NAME`;
+   `launch-help.ts:122` `--alias omp-work` → `--alias zeta-work`。
+4. **红线:空格形式展示违规(零容忍)**:根 `README.md:28-29,:255-257`
+   (`zeta code`/`zeta editor`/`zeta ide`)、`main/crates/zeta-main/src/
+   help.rs:12-15`(子命令 help 展示 `zeta work/code/editor/ide` 与全部
+   别名)、`UPDATE-LOG.md:12`。展示一律 canonical
+   (`zeta`/`zetawork`、`zetacode`、`zetaide`、`zetaeditor`);连字符别名
+   (`zeta-work`/`zeta-c`/`zeta-cli`/`zeta-e`/`zeta-i`)内部可存、绝不展示;
+   `zeta code|work|editor|ide` 内部 hand-off 语法保留但任何用户可见串不得
+   出现。brand-rules 扩 MUST_NOT_CONTAIN 守卫(反引号空格形式+usage 上下文
+   `${APP_NAME}` 插值)。
+5. **P2 语料**:docs/ 30+ 文件裸 `omp` 命令名;`.github/ISSUE_TEMPLATE`
+   `omp --version`;web-ui README `npx omp-web@latest`(随 D12 批 1 处理);
+   `AGENTS.md:257` 上游对照残留。
+6. **P3 卫生**:根目录游离文件 `im`(7600 行 interactive-mode 孤儿副本)
+   删除;`editor/internal/app/handoff_to_agent.go:73` 与
+   `desktop/src/main.ts:308-311` 的裸 `zeta` 回退候选收窄(防只装工作台的
+   机器静默错路由);`profile-cli.test.ts` 的 `omp-work` fixtures 低优随扫。
+
+## 14. 后续批次（自 plan-zeta-ui-carryover.md 收编，2026-10-02）
+
+> 该计划文已按 document/ 规范删除，未完成批次原文收编如下（批号不变，规格仍决策完备）。
+> 收编时状态：U4（侧栏分组）已由本计划取代并基本落地，原文删除；U3 的工具条位置/精简态
+> 行为已并入本计划批 3/3.7，其 context 用量圈与 thinking 循环键已随批 3.7 落地；
+> A+B、U2 已完成（见 roadmap DONE）；Z4 的 getPiCommand/信任门部分已由 PR #44 落地，
+> 残余（PluginManifest pages、plugin-assets 端点）保留。硬约束与门禁节奏对收编批次继续有效。
+
+# Zeta 端 + UI 端接入调整 — 统一执行计划(2026-09-28)
+
+> **取代** `plan-surface-c-track.md` 与 `simplify-and-plan-surface.md`
+> (均已删;前者未完成范围全部收编进本计划,后者已完成项见「已落地不再重做」、
+> 在途设计已内联各批)。UI 迁移路线与三约束的设计底稿:
+> `temp/zcode-ui-research.md`(本地参考,不入库)。
+>
+> **分支策略(用户已裁决)**:直接在 `dev/main` 上按批推进,每批独立 commit
+> 序列 + 全量门禁 + CI 绿后进下一批;不另开 feat 分支。批间不并行。
+
+## 硬约束(全程有效)
+
+1. **渐进迁移**:现有桌面状态不做一次性替换;每批改一个区域,可独立回退。
+2. **精简模式保留并收尾**:精简模式是自研面(ZCode 无对应物),迁移只动
+   完整模式表现层;精简模式现状未收尾,单列专项批(见批 T)。
+3. **复用现有元件为基**:布局参考只决定"现有元件摆哪里、哪些新做";
+   样式走 Zeta theme token,数据走 `/api/*` gateway,品牌 ζ。
+
+## 已落地不再重做(核实于 2026-09-28)
+
+- `--mode json` NDJSON 事件流(`flag-tables.ts:123` + `print-mode.ts`);
+- `--append-system-prompt`(`flag-tables.ts:172`);
+- crew 底座插件 `plugins/official/pi-messenger/`(crew/agents/handlers 完整);
+- `skills/official/` 首批 4 个(docx/pdf/pptx/xlsx)+ official-skills 内嵌/
+  seed/覆盖链路;`skills.enableOfficial` 开关。
+
+## 批次总览(默认顺序;Z 系 = Zeta 端,U 系 = UI 端,同批 = 两端配套)
+
+| 批 | 端 | 内容 | 备注 |
+|---|---|---|---|
+| U1 | UI | 工具调用渲染器注册表 + ToolLayout | 研究报告批 1 |
+| U2 | UI | 中文排版增强 | ✅ 已落地(9e7c4e4251f) |
+| U3 | UI | 输入区工具条(context 用量 + thinking 级别) | 研究报告批 4;精简模式隐藏 toolbar |
+| U4 | UI | 侧栏分组 + 未读 + footer 徽章 | 研究报告批 3 |
+| U5 | UI | 聊天流原子化(先 code/confirmation/attachments) | 研究报告批 2 |
+| U6 | UI | 统一 SidePane tab 框架(整合 DocsPanel/TrajectoryInspector) | 研究报告批 5 |
+| U7 | UI | 启动门控收口(AppShell) | 研究报告批 6 |
+| Z1 | Zeta | `PUT /api/files`(allow-list + realpath 校验 + 契约测试) | U8 前置 |
+| U8 | UI | CM6 编辑器 + FilesView + 编辑 tab | 原 C-track 批 3 |
+| Z2 | Zeta | PTY websocket `/api/terminal/ws`(node-pty + 环形缓冲 + 鉴权) | U9 前置 |
+| U9 | UI | TerminalView(xterm)+ rail 挂载 | 原 C-track 批 4 |
+| U10 | UI | GitView + DiffView(@pierre/diffs,删自研 diffLines) | 原 C-track 批 2;/api/git/* 已有,纯 UI 批 |
+| T | 两端 | **精简模式收尾专项**:盘点现状 → 补齐 → 与完整模式共存验证 | 见下文专项节 |
+| Z3 | Zeta | C-track 批 0 小活清欠(ttt 探测 2 行 + 测试;File Map 重写) | 穿插任意批后 |
+| Z4 | Zeta | team M0 收尾:getPiCommand→zeta、manifest v2 pages、plugin-assets 路由 + 穿越拒绝测试 | 原 C-track 批 5 残留 |
+| Z5+U11 | 两端 | team M1/M2:`team_*` 工具、`team.enabled`(默认 false)、M2 三页面 | 原 C-track 批 6/7;默认关闭不阻塞任何批 |
+| Z6 | Zeta | 批 8:剩余 7 个官方 skills(markdown-export/charts/diagrams/doc-cleanup/translate-polish/release-notes/data-extract) | 纯加文件,穿插 |
+
+**原批 9(uiMode 双模式引导)砍除**:引导层由 U7 启动门控统一处理,
+双模式入口归精简模式专项 T;不再单独立批。
+
+## 批次要点(决策完备,执行者自上而下无需再决策)
+
+### U1 工具渲染器注册表(参考 ZCode `ToolCallBlocks/`)
+- 新建 `web-ui/components/tool-renderers/`:`ToolLayout.tsx`(统一 summary/body
+  骨架)+ `renderers/`(每工具一文件)+ `resolveRenderer.ts`(工具名 → renderer,
+  未命中回落通用 Markdown)。
+- 接入:`MessageView.tsx` 的工具结果分支改为 `resolveRenderer(toolName)` 调用;
+  首批只接 `bash`/`read`/`edit`/`grep`/`glob`/`find` 六类,其余走回落。
+- 精简模式:同一渲染器,精简态只渲染 summary 行(layout 参数 `compact`)。
+
+### U3 输入区工具条
+- `web-ui/components/ChatInput.tsx` 上沿加单行 toolbar:左 = context 用量
+  计数圈(附录 A §1 规格:SVG viewBox 0 0 20 20、r 8.5、stroke 3、
+  strokeDashoffset = 周长×(1-pct/100)、环色 80/50 阈值取 `--status-*`);
+  右 = thinking 级别循环键。
+- 数据:`/api` 既有 context usage 源(pi-types `ContextUsage`),无新 gateway。
+- 精简模式:toolbar 整行不渲染。
+
+### U4 侧栏分组(参考 ZCode `WorkspaceSidebar.tsx` 的 section 结构)
+- `SessionSidebar.tsx` 内部分组:置顶(pinned)/今天/更早/归档,折叠态持久化
+  localStorage;item 行新增未读点;底部 footer 一行用量徽章(复用 U3 数据源)。
+- 不引入 dnd(研究批 3 的排序需求推迟到 SidePane 批一起评估)。
+
+### U5 聊天流原子化
+- 从 `MessageView.tsx` 拆 `components/chat/`:`CodeBlock.tsx`、
+  `Confirmation.tsx`、`Attachments.tsx` 三件先行(参考 ZCode
+  `ai-elements/{code-block,confirmation,attachments}.tsx` 的**结构**,
+  样式走自家 token);MessageView 保留编排壳。
+- 验收:三组件被 MessageView 与 TrajectoryInspector 双方复用,零循环引用。
+
+### U6 SidePane 框架(参考 ZCode `app-shell/SidePaneTabTrigger.tsx`)
+- 新容器 `components/side-pane/`(tab 触发器 + 面板宿主,keep-alive),
+  DocsPanel/TrajectoryInspector 迁入为两个 tab;不再各自挂浮层。
+
+### U7 启动门控收口(参考 ZCode `lib/rootStartupGate.js`)
+- `AppShell.tsx` 的启动顺序判断(会话恢复、provider 状态、首帧 loading)
+  提取为 `lib/startup-gate.ts` 纯函数 + 单测;AppShell 只消费布尔结果。
+
+### Z1+U8 CM6 编辑器(原 C-track 批 3,规格不变)
+- Zeta 端:`app/api/files/[...path]/route.ts` 加 `PUT`——同 GET/POST 的
+  allow-list + 写前 realpath 校验,返回新 mtime/size;契约测试:allow-list
+  外 403、symlink 逃逸拒绝、写后重读一致。
+- UI 端:`views/FilesView.tsx`(文件树复用 FileExplorer 数据链)+
+  `components/editor/Cm6Editor.tsx`(basic-setup,语言包动态 import,
+  HighlightStyle 全部引用 `--syntax-*`/`--md-syntax-*`;Cmd/Ctrl+S → PUT;
+  dirty 指示);编辑 tab 挂 TabBar。
+- **精简模式**:FilesView/编辑 tab 在精简态隐藏入口(完整模式专属)。
+
+### Z2+U9 终端 PTY(原 C-track 批 4,规格不变)
+- Zeta 端:`server/web-gateway/terminal.ts`:node-pty 会话管理 + ws 升级
+  `/api/terminal/ws`;127.0.0.1 + origin 校验 + authorizedForAccess;64KB
+  环形缓冲重放;resize/kill 协议;并发上限 4;`web-gateway.ts` 一行注册。
+- 契约测试三条:鉴权拒绝/缓冲重放/会话回收。
+- UI 端:`lib/terminal-client.ts` + `hooks/useTerminal.ts` +
+  `views/TerminalView.tsx`(@xterm/xterm + addon-fit);`NEXT_PUBLIC_TERMINAL`
+  软开关默认开;**精简模式无终端入口**。
+
+### U10 GitView + DiffView(原 C-track 批 2)
+- `views/GitView.tsx`(BranchSelector + ChangesPanel + CommitSection,
+  数据源 `/api/git/{branches,status,diff}` 全部现成);
+  `views/DiffView.tsx` 用 @pierre/diffs 渲染,`FileViewer.tsx` 内自研
+  diffLines 删除,零残留引用;两视图挂 U6 的 rail tab。
+
+### T 精简模式收尾专项(自研,无参考)
+1. **盘点**(本批第一步,产出写回本节):枚举精简模式现有面(入口、布局、
+   隐藏清单)与极简化计划的 ✅/◐/❌ 差集(设计要点已由本计划各批内联),
+   列出未完成项。
+2. 收尾原则:精简态 = 完整态的子集(同一组件树 + `compact` layout 参数),
+   不允许出现"精简独有组件";每个 U 系批落地时同步声明精简态行为
+   (默认:toolbar/FilesView/终端/GitView 入口隐藏,聊天流与侧栏保留)。
+3. 验收:完整/精简双态各跑一遍 U 系全部批的验收项。
+
+### Z3 小活清欠(原 C-track 批 0)
+- `server/web-gateway/open.ts` `EDITOR_CLIS` 追加 `ttt`/`zeta-editor` + 契约
+  测试一条;`web-ui/AGENTS.md` File Map 按现状重写(U 批动过的目录一并覆盖);
+  windows-2022 构建评估:跟踪 next.js 上游修复,可修则恢复 matrix。
+- 滚动条指针感知移入 U6(同属容器改造,不单列)。
+
+### Z4 team M0 收尾(原 C-track 批 5 残留)
+- `plugins/official/pi-messenger/crew/agents.ts` `getPiCommand()` 返回
+  `zeta`/`zeta.cmd`(一行);`extensibility/plugins/types.ts` PluginManifest
+  加 `pages?: PluginPagesDeclaration` + loader 校验;新增
+  `server/web-gateway/plugin-assets.ts`(静态资源路由,根 = 校验通过的
+  插件声明目录,拒绝穿越)+ `web-gateway.ts` 一行注册;穿越 403 测试。
+
+### Z5+U11 team M1/M2(原 C-track 批 6/7,契约内联如下,默认关闭)
+
+- **M1(Zeta 端)**:`team_spawn/plan/dispatch/chat/status/cancel` 六工具 =
+  pi_messenger action API(join/plan/work/send/status/cancel)的 Zeta 化薄
+  封装(crew 底座,不自研编排);crews 配置 `teams/*.json` +
+  `personas/*.md`(frontmatter `locked` 段),发现根与 skill 同款(用户/
+  项目两层);工具 prompt 进 `prompts/tools/`;`tracking.enabled` 时 spawn
+  记 actions.jsonl(复用 v2 日志)。
+- **M2(UI 端)**:persona `locked` 段字节级重放、发言限速、@提及路由
+  (crew lobby/mesh 之上补 Zeta 语义);成员名册/消息流/任务看板三页面,
+  经 Z4 的 plugin-assets 路由 iframe 进 web-ui(web-ui 只做壳与导航)。
+- **门禁**:`team.enabled` settings 项(默认 **false**)gating 全部
+  `team_*` 工具注册、crew 自动拉起与 M2 入口;关闭时编排层零行为差异。
+- **验收**:crew 从 teams/*.json 拉起 → plan → work → review 全链(集成
+  测试打真 crew worker);`team_status` 反映 DAG 状态;@提及命中预期
+  persona;限速生效;三页面浏览器可用。
+
+### Z6 官方 skills 批 8(纯加文件)
+- 7 个 `skills/official/<name>/SKILL.md`(+可选 scripts/),构建内嵌链路
+  已核实零操作;每 skill 独立 commit,验收 = bundle 后 embed 含新条目。
+
+## 门禁与节奏
+
+- 每批 push 前:根门禁五件套(check-version-consistency / check:ts /
+  brand-check / zeta-sentinels / 相关套件本地绿)+ `web-ui` 侧
+  `tsc --noEmit` + `npm run lint` + 既有 `*.test.mjs`。
+- web-ui 无自动化覆盖的视图批(U4/U6/U8-U10):每批附手工验收清单
+  (浏览器 + 桌面壳各一遍,双主题 + 中英文)。
+- CI 全绿才算批完成;不带断点进下一批。
+
+## 与既有文档的关系
+
+- 取代并删除 `plan-surface-c-track.md` 与 `simplify-and-plan-surface.md`
+  (文档规范:旧计划随新计划生效即删;后期规划进 roadmap,架构设计单独成文)。
+- `temp/zcode-ui-research.md` 是 UI 参考底稿(不入库,路径仅本地有效);
+  其批号与本计划 U 系的映射已写进上表备注。

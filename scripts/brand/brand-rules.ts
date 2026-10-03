@@ -101,6 +101,10 @@ export const OMP_PATH_ALLOW = [
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
 	/packages\/browser-relay\//, // relay README pairs with OMP-compatible CLI surfaces
+	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
+	// the probe must name the upstream `~/.omp/agent` default root to find it.
+	/"\.omp", "agent"/,
+	/~\/\.omp\/agent/,
 ];
 
 /**
@@ -213,6 +217,7 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
 	},
+<<<<<<< HEAD
 	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
 	// The stats client shipped with upstream branding since the fork (never
 	// overlayed) and regressed visually every release merge. These pin the
@@ -238,5 +243,14 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /omp-mark-grad/,
 		why: "stats logo gradient id is zeta-mark-grad (ζ mark, not π)",
+	},
+	// ── CLI command-surface red lines (PR #43 round) ──────────────────────
+	{
+		needle: /`zeta (code|work|editor|ide)`/,
+		why: "red line: the space form is internal hand-off syntax only and must never appear in any user-visible string; display the canonical bins (zetacode/zetawork/zetaeditor/zetaide). UPDATE-LOG.md is exempt because released entries are immutable history",
+	},
+	{
+		needle: /\$\{APP_NAME\} [a-z]{2,}/,
+		why: "usage/help run-strings must interpolate CLI_BIN_NAME (the CLI command), not APP_NAME (product identity: bare `zeta` is the workbench bin). Product-identity contexts (splash wordmark, log-file names, attribution) use no space-separated command word and do not match",
 	},
 ];

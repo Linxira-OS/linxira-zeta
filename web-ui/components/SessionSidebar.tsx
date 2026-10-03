@@ -21,9 +21,16 @@ import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
 import { SidebarHeader } from "./sidebar/SidebarHeader";
-import { NewSessionDialog } from "./sidebar/NewSessionDialog";
+import { ProjectsSection } from "./sidebar/ProjectsSection";
+import {
+	loadPinnedSessionIds,
+	savePinnedSessionIds,
+	sessionDisplayTitle,
+} from "./sidebar/sidebar-shared";
 import { SidebarProjectsList } from "./sidebar/SidebarProjectsList";
 import { SessionGroupSection } from "./sidebar/SessionGroupSection";
+import { SessionNodeItem } from "./sidebar/SessionNodeItem";
+import { EmptySessionsFold } from "./sidebar/EmptySessionsFold";
 import { ArchiveSection } from "./sidebar/ArchiveSection";
 import { PinnedSection } from "./sidebar/PinnedSection";
 import { BulkActionBar } from "./sidebar/BulkActionBar";
@@ -33,10 +40,13 @@ import {
 	loadSidebarPrefs,
 	updatePrefs,
 	markSessionRead,
+	collapseProject,
+	pinProject,
+	setProjectAlias as setProjectAliasPref,
 	type SessionSort,
 	type ProjectSort,
 } from "@/lib/sidebar-prefs";
-import { sortSessions, sortProjects } from "@/lib/sidebar-groups";
+import { sortSessions, isFoldableEmptySession } from "@/lib/sidebar-groups";
 import { useSessionMultiSelect } from "./sidebar/useSessionMultiSelect";
 import {
 	archiveSession,
@@ -49,26 +59,20 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationParams } from "@/lib/i18n/types";
 import { sendAgentCommand } from "@/lib/agent-client";
-import {
-	loadProjectAliases,
-	saveProjectAliases,
-	loadPinnedProjects,
-	savePinnedProjects,
-	saveCollapsedProjects,
-	loadCollapsedProjects,
-	loadDisplaySettings,
-	loadPinnedSessionIds,
-	savePinnedSessionIds,
-	SIDEBAR_COLLAPSED_PROJECTS_KEY,
-	SIDEBAR_DISPLAY_KEY,
-	type SidebarDisplaySettings,
-} from "./sidebar/sidebar-shared";
+import { defaultWorkspacePath } from "@/lib/default-workspace";
 import "@/lib/pi-desktop";
 
 interface Props {
 	selectedSessionId: string | null;
 	onSelectSession: (session: SessionInfo, isRestore?: boolean) => void;
-	onNewSession?: (sessionId: string, cwd: string) => void;
+	/**
+	 * New-session entry (D2): the sidebar resolves the draft cwd (entry hint →
+	 * selected project → default workspace) and hands it to the shell, which
+	 * switches to the empty-state draft. `cwd` is null only when neither a
+	 * project nor the default workspace is available — batch 3's degraded
+	 * workspace-trigger card consumes that case.
+	 */
+	onNewSession?: (sessionId: string, cwd: string | null) => void;
 	initialSessionId?: string | null;
 	skipInitialProjectSelection?: boolean;
 	onInitialRestoreDone?: () => void;
@@ -457,6 +461,11 @@ function ProjectHeaderMenu({
 				onMouseEnter={e => {
 					e.currentTarget.style.opacity = "1";
 				}}
+				onMouseLeave={e => {
+					// Bug fix: without this reset the ⋯ stayed visible forever after
+					// its first hover (open menus keep it shown via `open`).
+					if (!open) e.currentTarget.style.opacity = "0";
+				}}
 			>
 				<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
 					<circle cx="5" cy="12" r="1.8" />
@@ -557,7 +566,7 @@ function ZetaWebTitle() {
 	const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const target = showVersion
-		? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_OMP_VERSION ?? process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}`
+		? `v${process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.NEXT_PUBLIC_ZETA_VERSION ?? "0.0.0"}`
 		: "Zeta Web";
 	const display = useScramble(target, scrambling);
 
@@ -644,8 +653,36 @@ export function SessionSidebar({
 		count: number;
 	} | null>(null);
 	const searchInputRef = useRef<HTMLInputElement>(null);
-	const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => loadCollapsedProjects());
-	const [display, setDisplay] = useState<SidebarDisplaySettings>(() => loadDisplaySettings());
+	// P2 unified prefs: a bumped counter re-renders after every updatePrefs write.
+	const [prefsVersion, setPrefsVersion] = useState(0);
+	const prefs = useMemo(() => {
+		void prefsVersion;
+		return loadSidebarPrefs();
+	}, [prefsVersion]);
+	const collapsedProjects = useMemo(() => {
+		const collapsed = new Set<string>();
+		for (const [path, meta] of Object.entries(prefs.projectMeta)) {
+			if (meta.collapsed === true) collapsed.add(path);
+		}
+		return collapsed;
+	}, [prefs]);
+	// cwd → display alias (UI-only rename; never touches disk) — P2 source.
+	const projectAliases = useMemo(() => {
+		const aliases: Record<string, string> = {};
+		for (const [path, meta] of Object.entries(prefs.projectMeta)) {
+			if (meta.name) aliases[path] = meta.name;
+		}
+		return aliases;
+	}, [prefs]);
+	// Pinned project roots, pinned-first order — P2 source.
+	const pinnedProjects = useMemo(
+		() =>
+			Object.entries(prefs.projectMeta)
+				.filter(([, meta]) => meta.pinned === true)
+				.sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0))
+				.map(([path]) => path),
+		[prefs],
+	);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedCwd, setSelectedCwd] = useState<string | null>(null);
@@ -692,16 +729,13 @@ export function SessionSidebar({
 		totalRequests: number;
 	} | null>(null);
 
-	// Create-session draft flow + project presentation prefs (P1 sidebar rework)
-	const [draftOpen, setDraftOpen] = useState(false);
-	const [draftProject, setDraftProject] = useState<string | null>(null);
+	// Temp-session section fold (default collapsed)
 	const [tempOpen, setTempOpen] = useState(false);
-	const [projectAliases, setProjectAliases] = useState<Record<string, string>>(() => loadProjectAliases());
-	const [pinnedProjects, setPinnedProjects] = useState<string[]>(() => loadPinnedProjects());
 
 	// P2 interaction port: unified palette + floating menus + sort modes.
 	const [searchDialogOpen, setSearchDialogOpen] = useState(false);
-	const [sessionSort, setSessionSort] = useState<SessionSort>(() => loadSidebarPrefs().sessionView.sort);
+	// Temp-section sort: read from and written back to P2 sessionView.sort.
+	const [tempSort, setTempSort] = useState<SessionSort>(() => loadSidebarPrefs().sessionView.sort);
 	const [projSort, setProjSort] = useState<ProjectSort>(() => loadSidebarPrefs().projectSort);
 	const [rowMenu, setRowMenu] = useState<{
 		session: SessionInfo;
@@ -1203,44 +1237,45 @@ export function SessionSidebar({
 		[onSelectSession],
 	);
 
-	const handleNewSession = useCallback(() => {
-		if (!selectedCwd) return;
-		// Generate a temporary UUID client-side — no backend call needed.
-		// Pi will be spawned lazily when the user sends the first message.
-		const tempId =
+	const tempId = useCallback(
+		() =>
 			typeof crypto.randomUUID === "function"
 				? crypto.randomUUID()
-				: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-		onNewSession?.(tempId, selectedCwd);
-	}, [selectedCwd, onNewSession]);
+				: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`,
+		[],
+	);
 
+	/**
+	 * D2 draft-direct new session: resolve the draft cwd (entry hint → selected
+	 * project → default workspace) and hand it to the shell. The session is
+	 * only created when the first message is sent (unchanged semantics).
+	 */
+	const startNewSession = useCallback(
+		async (cwdHint?: string | null) => {
+			let cwd = cwdHint ?? projectRootFor(selectedCwd) ?? selectedCwd ?? null;
+			if (!cwd) {
+				let home = homeDir;
+				if (!home) {
+					try {
+						const res = await fetch("/api/home");
+						// Gateway JSON payload; shape is owned by /api/home.
+						const data = (await res.json()) as { home?: string };
+						home = typeof data.home === "string" ? data.home : "";
+					} catch {
+						home = "";
+					}
+				}
+				if (home) cwd = defaultWorkspacePath(home);
+			}
+			onNewSession?.(tempId(), cwd);
+		},
+		[selectedCwd, homeDir, projectRootFor, onNewSession, tempId],
+	);
+
+	// Project presentation prefs write straight to P2 (single source of truth).
 	const toggleProjectCollapsed = useCallback((project: string) => {
-		setCollapsedProjects(prev => {
-			const next = new Set(prev);
-			if (next.has(project)) {
-				next.delete(project);
-			} else {
-				next.add(project);
-			}
-			try {
-				window.localStorage.setItem(SIDEBAR_COLLAPSED_PROJECTS_KEY, JSON.stringify([...next]));
-			} catch {
-				// storage unavailable — collapse stays session-only
-			}
-			return next;
-		});
-	}, []);
-
-	const updateDisplay = useCallback((patch: Partial<SidebarDisplaySettings>) => {
-		setDisplay(prev => {
-			const next = { ...prev, ...patch };
-			try {
-				window.localStorage.setItem(SIDEBAR_DISPLAY_KEY, JSON.stringify(next));
-			} catch {
-				// storage unavailable — display prefs stay session-only
-			}
-			return next;
-		});
+		collapseProject(project, !loadSidebarPrefs().projectMeta[project]?.collapsed);
+		setPrefsVersion(v => v + 1);
 	}, []);
 
 	// Sessions of every worktree in the selected project are shown together
@@ -1250,14 +1285,40 @@ export function SessionSidebar({
 		: allSessions.filter(s => s.tag !== "relay" && s.tag !== "bot");
 	const nonTempSessions = visibleSessions.filter(s => !s.temp);
 	const tempSessions = visibleSessions.filter(s => s.temp === true);
-	const recentProjects = getRecentProjects(nonTempSessions);
+	// D5: stale empty sessions (0 msgs, >24h, not running/pinned) leave the
+	// regular lists and surface in the per-group EmptySessionsFold instead.
+	const foldableEmptyIds = useMemo(() => {
+		const ids = new Set<string>();
+		for (const s of nonTempSessions) {
+			if (isFoldableEmptySession(s, { now: Date.now(), isRunning: runningSessionIds.has(s.id), isPinned: pinnedIds.includes(s.id) })) {
+				ids.add(s.id);
+			}
+		}
+		return ids;
+	}, [nonTempSessions, runningSessionIds, pinnedIds]);
+	const activeNonTempSessions = useMemo(
+		() => nonTempSessions.filter(s => !foldableEmptyIds.has(s.id)),
+		[nonTempSessions, foldableEmptyIds],
+	);
+	const emptySessionsByProject = useMemo(() => {
+		const byProject = new Map<string, SessionInfo[]>();
+		for (const s of nonTempSessions) {
+			if (!foldableEmptyIds.has(s.id)) continue;
+			const root = s.projectRoot ?? s.cwd;
+			const list = byProject.get(root) ?? [];
+			list.push(s);
+			byProject.set(root, list);
+		}
+		return byProject;
+	}, [nonTempSessions, foldableEmptyIds]);
+	const recentProjects = getRecentProjects(activeNonTempSessions);
 	const showProjectFilter = recentProjects.length > 8;
 	const visibleProjects = projectFilter.trim()
 		? recentProjects.filter(p => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
 		: recentProjects;
 	const filteredSessions = selectedProject
-		? nonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
-		: nonTempSessions;
+		? activeNonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
+		: activeNonTempSessions;
 	const purgeTempSessions = useCallback(async () => {
 		const byCwd = new Set<string>();
 		for (const s of tempSessions) byCwd.add(s.cwd);
@@ -1270,13 +1331,21 @@ export function SessionSidebar({
 		}
 	}, [tempSessions]);
 
-	const openDraft = useCallback(
-		(project?: string | null) => {
-			setDraftProject(project ?? selectedProject ?? selectedCwd ?? null);
-			setDraftOpen(true);
-		},
-		[selectedProject, selectedCwd],
-	);
+	// Temp-section ordering: the header ↑↓ menu writes P2 sessionView.sort and
+	// the rows actually follow it (was a dead control before).
+	const sortedTempSessions = useMemo(() => {
+		const rows = tempSessions.map(s => ({
+			session: s,
+			id: s.id,
+			title: s.name ?? s.firstMessage,
+			projectKey: s.projectRoot ?? s.cwd,
+			updatedAt: Date.parse(s.modified) || 0,
+			createdAt: Date.parse(s.created) || 0,
+		}));
+		return sortSessions(rows, tempSort, id => loadSidebarPrefs().sessionMeta[id]).map(
+			r => r.session,
+		);
+	}, [tempSessions, tempSort]);
 
 	const requestProjectDelete = useCallback(
 		(project: string) => {
@@ -1293,23 +1362,15 @@ export function SessionSidebar({
 			const current = projectAliases[project] ?? "";
 			const next = window.prompt("Project display name", current);
 			if (next === null) return;
-			setProjectAliases(prev => {
-				const updated = { ...prev };
-				if (next.trim() === "") delete updated[project];
-				else updated[project] = next.trim();
-				saveProjectAliases(updated);
-				return updated;
-			});
+			setProjectAliasPref(project, next.trim() === "" ? null : next.trim());
+			setPrefsVersion(v => v + 1);
 		},
 		[projectAliases],
 	);
 
 	const toggleProjectPin = useCallback((project: string) => {
-		setPinnedProjects(prev => {
-			const next = prev.includes(project) ? prev.filter(p => p !== project) : [project, ...prev];
-			savePinnedProjects(next);
-			return next;
-		});
+		pinProject(project, !loadSidebarPrefs().projectMeta[project]?.pinned);
+		setPrefsVersion(v => v + 1);
 	}, []);
 	const showWorktreeSwitcher = Boolean(
 		worktreeState?.isGit && worktreeState.isTopLevel && selectedCwd && selectedProject === worktreeState.projectRoot,
@@ -1340,7 +1401,7 @@ export function SessionSidebar({
 	const workspaceGroups = useMemo(() => {
 		const counts = new Map<string, number>();
 		for (const project of recentProjects) {
-			counts.set(project, visibleSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length);
+			counts.set(project, activeNonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length);
 		}
 		let ordered: string[];
 		const firstSeen = new Map<string, number>();
@@ -1391,7 +1452,7 @@ export function SessionSidebar({
 			project,
 			count: counts.get(project) ?? 0,
 		}));
-	}, [recentProjects, selectedProject, visibleSessions, projSort, allSessions]);
+	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions]);
 
 	// Local session search (data is fully in memory — no backend round trip).
 	const searchQuery = sessionSearch.trim().toLowerCase();
@@ -1406,90 +1467,23 @@ export function SessionSidebar({
 	const searchTree = buildSessionTree(searchedSessions);
 	const searching = searchQuery.length > 0;
 
-	// Time-group headings (Today / Yesterday / Earlier) around the tree — only
-	// when not searching, so the search result stays a flat list.
-	type TimeBucket = "today" | "yesterday" | "thisWeek" | "earlier";
-	const bucketOf = (dateStr: string): TimeBucket => {
-		const d = new Date(dateStr);
-		const now = new Date();
-		const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-		const dayMs = 86_400_000;
-		const diff = startOfDay(now) - startOfDay(d);
-		if (diff < 0) return "today";
-		if (diff < dayMs) return "today";
-		if (diff < 2 * dayMs) return "yesterday";
-		if (diff < 7 * dayMs) return "thisWeek";
-		return "earlier";
-	};
-	const BUCKET_LABELS: Record<TimeBucket, string> = {
-		today: t("sidebar.bucket.today"),
-		yesterday: t("sidebar.bucket.yesterday"),
-		thisWeek: t("sidebar.bucket.thisWeek"),
-		earlier: t("sidebar.bucket.earlier"),
-	};
-	const bucketOrder: TimeBucket[] = ["today", "yesterday", "thisWeek", "earlier"];
-	const groupedTree = useMemo(() => {
-		if (searching) return null;
-		const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
-			today: [],
-			yesterday: [],
-			thisWeek: [],
-			earlier: [],
-		};
-		const sortedForTree =
-			sessionSort === "recent"
-				? filteredSessions
-				: sortSessions(
-						filteredSessions.map(s => ({
-							...s,
-							title: s.name ?? s.firstMessage,
-							projectKey: s.projectRoot ?? s.cwd,
-							updatedAt: Date.parse(s.modified) || 0,
-							createdAt: Date.parse(s.created) || 0,
-							temp: s.temp === true,
-						})),
-						sessionSort,
-						id => loadSidebarPrefs().sessionMeta[id],
-					);
-		const tree = buildSessionTree(
-			sessionSort === "recent" ? filteredSessions : (sortedForTree as unknown as typeof filteredSessions),
-		);
-		for (const node of tree) {
-			byBucket[bucketOf(node.session.modified)].push(node);
-		}
-		return bucketOrder.map(b => ({ bucket: b, nodes: byBucket[b] })).filter(g => g.nodes.length > 0);
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder are stable per-locale constants
-	}, [filteredSessions, searching]);
-
 	// Per-project session trees: EVERY project renders its own conversations
 	// inline as children of the project row (parent folds → children hide).
+	// Flat within the group — no time-bucket headers (D6).
 	const projectTrees = useMemo(() => {
 		const byProject = new Map<string, SessionInfo[]>();
-		for (const s of nonTempSessions) {
+		for (const s of activeNonTempSessions) {
 			const root = s.projectRoot ?? s.cwd;
 			const list = byProject.get(root) ?? [];
 			list.push(s);
 			byProject.set(root, list);
 		}
-		const trees = new Map<string, { bucket: TimeBucket; nodes: SessionTreeNode[] }[]>();
+		const trees = new Map<string, SessionTreeNode[]>();
 		for (const [project, sessions] of byProject) {
-			const byBucket: Record<TimeBucket, SessionTreeNode[]> = {
-				today: [],
-				yesterday: [],
-				thisWeek: [],
-				earlier: [],
-			};
-			for (const node of buildSessionTree(sessions)) {
-				byBucket[bucketOf(node.session.modified)].push(node);
-			}
-			trees.set(
-				project,
-				bucketOrder.map(b => ({ bucket: b, nodes: byBucket[b] })).filter(g => g.nodes.length > 0),
-			);
+			trees.set(project, buildSessionTree(sessions));
 		}
 		return trees;
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- bucketOf/bucketOrder stable per locale
-	}, [nonTempSessions]);
+	}, [activeNonTempSessions]);
 
 	// ── Pin / archive / bulk-selection glue ──
 	const pinnedIdSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
@@ -1513,6 +1507,43 @@ export function SessionSidebar({
 			}
 		},
 		[loadSessions],
+	);
+	// D5: empty-session deletion (single + batch) — both go through the shared
+	// two-step danger confirm and only ever touch foldable empty sessions.
+	const handleEmptySessionsCleanup = useCallback(
+		async (targets: SessionInfo[]) => {
+			if (targets.length === 0) return;
+			try {
+				await deleteSessions(targets.map(s => s.id));
+				await loadSessions();
+			} catch {
+				// keep the fold in place on failure
+			}
+		},
+		[loadSessions],
+	);
+	const confirmEmptySessionDelete = useCallback(
+		(s: SessionInfo) => {
+			setDangerConfirm({
+				title: t("sidebar.deleteSessionTitle"),
+				body: t("sidebar.deleteSessionConfirm", { name: sessionDisplayTitle(s, t) }),
+				detail: s.id,
+				confirmLabel: t("sidebar.delete"),
+				action: () => handleEmptySessionsCleanup([s]),
+			});
+		},
+		[handleEmptySessionsCleanup, t],
+	);
+	const confirmEmptySessionsCleanup = useCallback(
+		(targets: SessionInfo[]) => {
+			setDangerConfirm({
+				title: t("sidebar.emptySessionCleanup"),
+				body: t("sidebar.deleteSelectedConfirm", { count: targets.length }),
+				confirmLabel: t("sidebar.delete"),
+				action: () => handleEmptySessionsCleanup(targets),
+			});
+		},
+		[handleEmptySessionsCleanup, t],
 	);
 	const loadArchived = useCallback(async () => {
 		try {
@@ -1609,7 +1640,6 @@ export function SessionSidebar({
 			>
 				<SidebarHeader
 					title={<ZetaWebTitle />}
-					display={display}
 					searchOpen={searchOpen}
 					editMode={multiSelect.enabled}
 					onToggleSearch={() =>
@@ -1620,107 +1650,14 @@ export function SessionSidebar({
 						})
 					}
 					onToggleEditMode={() => multiSelect.setEnabled(!multiSelect.enabled)}
-					onUpdateDisplay={updateDisplay}
-					onNewWorkspace={() => openDraft(null)}
-				/>
-
-				{/* Action row — new session / open workspace / skills */}
-				<div
-					style={{
-						display: "flex",
-						gap: 6,
-						padding: "8px 10px 6px",
-						flexShrink: 0,
+					projectSort={projSort}
+					onProjectSortChange={mode => {
+						setProjSort(mode);
+						updatePrefs(p => {
+							p.projectSort = mode;
+						});
 					}}
-				>
-					<button
-						className="ze-btn-hero"
-						onClick={() => openDraft(selectedProject)}
-						style={{
-							flex: 2,
-							height: 32,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							gap: 6,
-							borderRadius: 7,
-							fontSize: 12,
-							fontWeight: 600,
-						}}
-					>
-						<svg
-							width="12"
-							height="12"
-							viewBox="0 0 12 12"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2.2"
-							strokeLinecap="round"
-						>
-							<line x1="6" y1="1" x2="6" y2="11" />
-							<line x1="1" y1="6" x2="11" y2="6" />
-						</svg>
-						{t("sidebar.actions.newSession")}
-					</button>
-					<button
-						className="ze-btn"
-						onClick={() => setDropdownOpen(v => !v)}
-						style={{
-							flex: 1.4,
-							height: 32,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							gap: 5,
-							borderRadius: 7,
-							color: "var(--text-muted)",
-							fontSize: 11.5,
-						}}
-					>
-						<svg
-							width="11"
-							height="11"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-						</svg>
-						{t("sidebar.openWorkspace")}
-					</button>
-					{onOpenSkills && (
-						<button
-							className="ze-btn"
-							onClick={onOpenSkills}
-							title={t("skills")}
-							style={{
-								width: 32,
-								height: 32,
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								borderRadius: 7,
-								color: "var(--text-muted)",
-							}}
-						>
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<path d="M12 2l2.4 5.4L20 8.6l-4 4.2.9 6.2L12 16l-4.9 3 1-6.2-4-4.2 5.6-1.2z" />
-							</svg>
-						</button>
-					)}
-				</div>
+				/>
 
 				{/* Active plan card — only when the selected session has a live plan */}
 				{planCard && (
@@ -1936,7 +1873,7 @@ export function SessionSidebar({
 									fontSize: 11.5,
 									textAlign: "left",
 								}}
-								title={s.name ?? s.firstMessage ?? s.id}
+								title={sessionDisplayTitle(s, t)}
 							>
 								<span
 									style={{
@@ -1955,7 +1892,7 @@ export function SessionSidebar({
 										whiteSpace: "nowrap",
 									}}
 								>
-									{s.name ?? s.firstMessage ?? s.id}
+									{sessionDisplayTitle(s, t)}
 								</span>
 							</button>
 						))}
@@ -1991,125 +1928,7 @@ export function SessionSidebar({
 					</span>
 				</button>
 			)}
-			{/* Session list */}
-			{/* TEMP — throwaway sessions (cwd inside the OS temp dir), collapsed by default */}
-			{tempSessions.length > 0 && !searchOpen && (
-				<div style={{ flexShrink: 0, borderTop: "1px solid var(--border)" }}>
-					<button
-						onClick={() => setTempOpen(v => !v)}
-						style={{
-							width: "100%",
-							display: "flex",
-							alignItems: "center",
-							gap: 6,
-							padding: "6px 10px",
-							background: "none",
-							border: "none",
-							color: "var(--text-dim)",
-							cursor: "pointer",
-							fontSize: 10.5,
-							letterSpacing: "0.08em",
-						}}
-					>
-						<svg
-							width="9"
-							height="9"
-							viewBox="0 0 10 10"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.6"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							style={{ transform: tempOpen ? "none" : "rotate(-90deg)", transition: "transform 0.12s" }}
-						>
-							<polyline points="2.5 3.5 5 6.5 7.5 3.5" />
-						</svg>
-						{t("sidebar.tempSection")}
-						<span style={{ color: "var(--text-dim)" }}>({tempSessions.length})</span>
-						<span style={{ flex: 1 }} />
-						<span
-							role="button"
-							tabIndex={0}
-							aria-label={t("sidebar.sessionSort")}
-							onClick={e => {
-								e.stopPropagation();
-								setTempSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
-							}}
-							onKeyDown={e => {
-								if (e.key === "Enter") e.stopPropagation();
-							}}
-							className="ze-quiet"
-							style={{ padding: "1px 5px" }}
-						>
-							↑↓
-						</span>
-						<span
-							role="button"
-							tabIndex={0}
-							onClick={e => {
-								e.stopPropagation();
-								openDraft(null);
-							}}
-							onKeyDown={e => {
-								if (e.key === "Enter") e.stopPropagation();
-							}}
-							className="ze-quiet"
-							style={{ padding: "1px 6px" }}
-						>
-							+
-						</span>
-						<span
-							role="button"
-							tabIndex={0}
-							onClick={e => {
-								e.stopPropagation();
-								setDangerConfirm({
-									title: t("sidebar.tempClear"),
-									body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
-									confirmLabel: t("sidebar.tempClear"),
-									action: () => purgeTempSessions(),
-								});
-							}}
-							onKeyDown={e => {
-								if (e.key === "Enter") {
-									e.stopPropagation();
-									setDangerConfirm({
-										title: t("sidebar.tempClear"),
-										body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
-										confirmLabel: t("sidebar.tempClear"),
-										action: () => purgeTempSessions(),
-									});
-								}
-							}}
-							style={{ color: "var(--status-error)", cursor: "pointer" }}
-						>
-							{t("sidebar.tempClear")}
-						</span>
-					</button>
-					{tempOpen && tempSessions.length === 0 && (
-						<div style={{ padding: "6px 12px", color: "var(--text-dim)", fontSize: 11 }}>
-							{t("sidebar.tempEmpty")}
-						</div>
-					)}
-					{tempOpen && (
-						<div style={{ maxHeight: "30vh", overflowY: "auto" }}>
-							{tempSessions.map(s => (
-								<SessionItem
-									key={s.id}
-									session={s}
-									isSelected={s.id === selectedSessionId}
-									isRunning={runningSessionIds.has(s.id)}
-									isUnread={unreadSessionIds.has(s.id)}
-									onClick={() => {
-										setSelectedCwd(s.cwd);
-										onSelectSession(s, false);
-									}}
-								/>
-							))}
-						</div>
-					)}
-				</div>
-			)}
+			{/* Session list (projects; temp lives at the tail of the scroll area) */}
 			<div
 				style={{
 					// flex-basis 0 + minHeight 0: the list must shrink to the space
@@ -2121,6 +1940,12 @@ export function SessionSidebar({
 					minHeight: 0,
 				}}
 			>
+				{!loading && !error && (
+					<ProjectsSection
+						onOpenWorkspace={() => setDropdownOpen(true)}
+						onNewSession={() => void startNewSession(null)}
+					/>
+				)}
 				{loading && (
 					<div
 						style={{
@@ -2166,7 +1991,7 @@ export function SessionSidebar({
 						No sessions match &ldquo;{sessionSearch.trim()}&rdquo;
 					</div>
 				)}
-				{!loading && !error && groupedTree !== null ? (
+				{!loading && !error && !searching ? (
 					<SidebarProjectsList
 						groups={workspaceGroups}
 						selectedProject={selectedProject}
@@ -2181,7 +2006,7 @@ export function SessionSidebar({
 							}
 							return null;
 						}}
-						onNewSessionInProject={project => openDraft(project)}
+						onNewSessionInProject={project => void startNewSession(project)}
 						onProjectContextMenu={(e, project) => {
 							e.preventDefault();
 							setProjMenu({ project, point: { x: e.clientX, y: e.clientY }, anchorRect: null });
@@ -2206,7 +2031,6 @@ export function SessionSidebar({
 								<ProjectHeaderMenu
 									project={project}
 									count={visibleSessions.filter(s => (s.projectRoot ?? s.cwd) === project).length}
-
 									onRenameAlias={project => setProjectAlias(project)}
 									onTogglePin={project => toggleProjectPin(project)}
 									pinned={pinnedProjects.includes(project)}
@@ -2215,44 +2039,43 @@ export function SessionSidebar({
 							) : null
 						}
 						renderProjectSessions={project => (
-							<>
-								{(projectTrees.get(project) ?? []).map(group => (
-									<SessionGroupSection
-										key={group.bucket}
-										groups={[group]}
-										bucketLabels={BUCKET_LABELS}
-										selectedSessionId={selectedSessionId}
-										runningSessionIds={runningSessionIds}
-										unreadSessionIds={unreadSessionIds}
-										editMode={multiSelect.enabled}
-										selectedIds={multiSelect.selectedIds}
-										onSelectSession={handleSelectSessionFromList}
-										onRenamed={loadSessions}
-										onSessionDeleted={id => {
-											onSessionDeleted?.(id);
-											loadSessions();
-										}}
-										onToggleSelect={multiSelect.toggleItem}
-										visibleIds={visibleSessionIds}
-										onArchive={id => void handleArchiveOne(id)}
-										pinnedIds={pinnedIdSet}
-										onPinToggle={togglePin}
-										onRowContextMenu={(e, session) =>
-											setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
-										}
-									/>
-								))}
-							</>
+							<SessionGroupSection
+								nodes={projectTrees.get(project) ?? []}
+								selectedSessionId={selectedSessionId}
+								runningSessionIds={runningSessionIds}
+								unreadSessionIds={unreadSessionIds}
+								editMode={multiSelect.enabled}
+								selectedIds={multiSelect.selectedIds}
+								onSelectSession={handleSelectSessionFromList}
+								onRenamed={loadSessions}
+								onSessionDeleted={id => {
+									onSessionDeleted?.(id);
+									loadSessions();
+								}}
+								onToggleSelect={multiSelect.toggleItem}
+								visibleIds={visibleSessionIds}
+								onArchive={id => void handleArchiveOne(id)}
+								pinnedIds={pinnedIdSet}
+								onPinToggle={togglePin}
+								onRowContextMenu={(e, session) =>
+									setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
+								}
+							/>
+						)}
+						renderProjectFooter={project => (
+							<EmptySessionsFold
+								sessions={emptySessionsByProject.get(project) ?? []}
+								onDelete={confirmEmptySessionDelete}
+								onCleanup={confirmEmptySessionsCleanup}
+							/>
 						)}
 					/>
 				) : (
 					!loading &&
-					!error &&
-					searchTree.map(node => (
+					!error && (
 						<SessionGroupSection
-							key={node.session.id}
-							groups={[{ bucket: "earlier" as const, nodes: [node] }]}
-							bucketLabels={BUCKET_LABELS}
+							nodes={searchTree}
+							showCwd
 							selectedSessionId={selectedSessionId}
 							runningSessionIds={runningSessionIds}
 							unreadSessionIds={unreadSessionIds}
@@ -2269,8 +2092,47 @@ export function SessionSidebar({
 							onArchive={id => void handleArchiveOne(id)}
 							pinnedIds={pinnedIdSet}
 							onPinToggle={togglePin}
+							onRowContextMenu={(e, session) =>
+								setRowMenu({ session, point: { x: e.clientX, y: e.clientY }, anchorRect: null })
+							}
 						/>
-					))
+					)
+				)}
+				{/* TEMP — throwaway sessions, collapsed by default, after the project groups */}
+				{tempSessions.length > 0 && !searching && (
+					<TempSection
+						open={tempOpen}
+						onToggleOpen={() => setTempOpen(v => !v)}
+						sessions={sortedTempSessions}
+						selectedSessionId={selectedSessionId}
+						runningSessionIds={runningSessionIds}
+						unreadSessionIds={unreadSessionIds}
+						pinnedIds={pinnedIdSet}
+						onSortMenu={rect => setTempSortMenu({ anchorRect: rect })}
+						onNewSession={() => void startNewSession(tempSessions[0]?.cwd ?? null)}
+						onClear={() =>
+							setDangerConfirm({
+								title: t("sidebar.tempClear"),
+								body: t("sidebar.tempClearConfirm", { count: tempSessions.length }),
+								confirmLabel: t("sidebar.tempClear"),
+								action: () => purgeTempSessions(),
+							})
+						}
+						onSelect={s => {
+							setSelectedCwd(s.cwd);
+							onSelectSession(s, false);
+						}}
+						onRenamed={loadSessions}
+						onSessionDeleted={id => {
+							onSessionDeleted?.(id);
+							loadSessions();
+						}}
+						onArchive={id => void handleArchiveOne(id)}
+						onPinToggle={togglePin}
+						onRowMenu={(session, rect) =>
+							setRowMenu({ session, point: null, anchorRect: rect })
+						}
+					/>
 				)}
 			</div>
 			{/* Bulk action bar (edit mode, non-empty selection) */}
@@ -2973,30 +2835,6 @@ export function SessionSidebar({
 					</div>
 				</div>
 			)}
-			{/* New session draft flow — project + worktree + branch (replaces the old path picker) */}
-			<NewSessionDialog
-				open={draftOpen}
-				projects={recentProjects.map(p => ({
-					cwd: p,
-					label: projectAliases[p] ?? getFileName(p),
-					lastActivity: 0,
-				}))}
-				initialProject={draftProject ?? selectedProject}
-				onClose={() => {
-					setDraftOpen(false);
-					setDraftProject(null);
-				}}
-				onBrowse={() => {
-					setDraftProject(draftProject ?? selectedProject);
-					setFolderPickerModalOpen(true);
-				}}
-				onCreate={cwd => {
-					setDraftOpen(false);
-					setDraftProject(null);
-					setSelectedCwd(cwd);
-					onNewSession?.(`draft-${Date.now()}`, cwd);
-				}}
-			/>
 			{/* P2 floating menus + palette + hover card (portal-rendered) */}
 			<FloatingMenu
 				open={rowMenu !== null}
@@ -3027,7 +2865,7 @@ export function SessionSidebar({
 							onSelect: () =>
 								setDangerConfirm({
 									title: t("sidebar.archiveSession"),
-									body: t("sidebar.archiveSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									body: t("sidebar.archiveSessionConfirm", { name: sessionDisplayTitle(s, t) }),
 									confirmLabel: t("sidebar.archive"),
 									action: () => handleArchiveOne(s.id),
 								}),
@@ -3044,7 +2882,7 @@ export function SessionSidebar({
 							onSelect: () =>
 								setDangerConfirm({
 									title: t("sidebar.deleteSessionTitle"),
-									body: t("sidebar.deleteSessionConfirm", { name: s.name ?? s.firstMessage ?? s.id }),
+									body: t("sidebar.deleteSessionConfirm", { name: sessionDisplayTitle(s, t) }),
 									detail: s.id,
 									confirmLabel: t("sidebar.delete"),
 									action: async () => {
@@ -3100,9 +2938,9 @@ export function SessionSidebar({
 				items={(["recent", "created", "oldest", "name"] as SessionSort[]).map(mode => ({
 					key: mode,
 					label: t(`sidebar.sort.${mode}`),
-					checked: sessionSort === mode,
+					checked: tempSort === mode,
 					onSelect: () => {
-						setSessionSort(mode);
+						setTempSort(mode);
 						updatePrefs(p => {
 							p.sessionView.sort = mode;
 						});
@@ -3132,668 +2970,175 @@ export function SessionSidebar({
 				commands={[
 					{ key: "workspace", label: t("sidebar.openWorkspace"), run: () => setDropdownOpen(true) },
 					...(onOpenSkills ? [{ key: "skills", label: t("skills"), run: () => onOpenSkills() }] : []),
-					{ key: "draft", label: t("sidebar.newTempSession"), run: () => openDraft(null) },
+					{ key: "draft", label: t("sidebar.newTempSession"), run: () => void startNewSession(tempSessions[0]?.cwd ?? null) },
 				]}
 				onClose={() => setSearchDialogOpen(false)}
 				onSelectSession={s => {
 					setSelectedCwd(s.cwd);
 					onSelectSession(s, false);
 				}}
-				onNewSession={() => openDraft(selectedProject)}
+				onNewSession={() => void startNewSession(selectedProject)}
 			/>
 		</div>
 	);
 }
 
-function SessionTreeItem({
-	node,
+/**
+ * Temp-session section (D7): collapsed by default, pinned after the project
+ * groups. Header actions (↑↓ sort / + new / clear) surface on hover like the
+ * project group headers; rows reuse SessionNodeItem so rename/delete/pin/
+ * archive behave identically to project rows.
+ */
+function TempSection({
+	open,
+	onToggleOpen,
+	sessions,
 	selectedSessionId,
 	runningSessionIds,
 	unreadSessionIds,
-	onSelectSession,
+	pinnedIds,
+	onSortMenu,
+	onNewSession,
+	onClear,
+	onSelect,
 	onRenamed,
 	onSessionDeleted,
-	depth,
+	onArchive,
+	onPinToggle,
+	onRowMenu,
 }: {
-	node: SessionTreeNode;
+	open: boolean;
+	onToggleOpen: () => void;
+	sessions: SessionInfo[];
 	selectedSessionId: string | null;
-	runningSessionIds: Set<string>;
-	unreadSessionIds: Set<string>;
-	onSelectSession: (s: SessionInfo) => void;
-	onRenamed?: () => void;
-	onSessionDeleted?: (id: string) => void;
-	depth: number;
+	runningSessionIds: ReadonlySet<string>;
+	unreadSessionIds: ReadonlySet<string>;
+	pinnedIds: ReadonlySet<string>;
+	onSortMenu: (rect: DOMRect) => void;
+	onNewSession: () => void;
+	onClear: () => void;
+	onSelect: (s: SessionInfo) => void;
+	onRenamed: () => void;
+	onSessionDeleted: (id: string) => void;
+	onArchive: (id: string) => void;
+	onPinToggle: (id: string) => void;
+	onRowMenu: (session: SessionInfo, rect: DOMRect) => void;
 }) {
-	const [collapsed, setCollapsed] = useState(false);
-	const hasChildren = node.children.length > 0;
-
+	const { t } = useI18n();
+	const [active, setActive] = useState(false);
 	return (
-		<div>
-			<div style={{ position: "relative" }}>
-				{/* Indent line for child sessions */}
-				{depth > 0 && (
-					<div
-						style={{
-							position: "absolute",
-							left: depth * 12 + 6,
-							top: 0,
-							bottom: 0,
-							width: 1,
-							background: "var(--border)",
-							pointerEvents: "none",
+		<div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }}>
+			<div
+				onMouseEnter={() => setActive(true)}
+				onMouseLeave={() => setActive(false)}
+				onFocus={() => setActive(true)}
+				onBlur={e => {
+					if (!e.currentTarget.contains(e.relatedTarget as Node)) setActive(false);
+				}}
+				style={{ display: "flex", alignItems: "center", width: "100%" }}
+			>
+				<button
+					onClick={onToggleOpen}
+					aria-expanded={open}
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 6,
+						flex: 1,
+						minWidth: 0,
+						padding: "6px 0 6px 14px",
+						background: "none",
+						border: "none",
+						color: "var(--text-dim)",
+						cursor: "pointer",
+						fontSize: 10.5,
+						letterSpacing: "0.08em",
+						textAlign: "left",
+					}}
+				>
+					<svg
+						width="9"
+						height="9"
+						viewBox="0 0 10 10"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.6"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform 0.12s", flexShrink: 0 }}
+					>
+						<polyline points="2.5 3.5 5 6.5 7.5 3.5" />
+					</svg>
+					{t("sidebar.tempSection")}
+					<span>({sessions.length})</span>
+				</button>
+				<span
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 2,
+						marginRight: 8,
+						flexShrink: 0,
+						opacity: active ? 1 : 0,
+						transition: "opacity 0.12s",
+						pointerEvents: active ? "auto" : "none",
+					}}
+					onClick={e => e.stopPropagation()}
+				>
+					<button
+						aria-label={t("sidebar.sessionSort")}
+						title={t("sidebar.sessionSort")}
+						style={{ fontSize: 10, padding: "1px 5px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+						onClick={e => {
+							e.stopPropagation();
+							onSortMenu(e.currentTarget.getBoundingClientRect());
 						}}
-					/>
-				)}
-				<SessionItem
-					session={node.session}
-					isSelected={node.session.id === selectedSessionId}
-					isRunning={runningSessionIds.has(node.session.id)}
-					isUnread={unreadSessionIds.has(node.session.id)}
-					onClick={() => onSelectSession(node.session)}
-					onRenamed={onRenamed}
-					onDeleted={id => onSessionDeleted?.(id)}
-					depth={depth}
-					hasChildren={hasChildren}
-					collapsed={collapsed}
-					onToggleCollapse={() => setCollapsed(v => !v)}
-				/>
+					>
+						↑↓
+					</button>
+					<button
+						aria-label={t("sidebar.actions.newSession")}
+						title={t("sidebar.actions.newSession")}
+						style={{ padding: "1px 6px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+						onClick={e => {
+							e.stopPropagation();
+							onNewSession();
+						}}
+					>
+						+
+					</button>
+					<button
+						aria-label={t("sidebar.tempClear")}
+						title={t("sidebar.tempClear")}
+						style={{ padding: "1px 4px", background: "none", border: "none", color: "var(--status-error)", cursor: "pointer", fontSize: 10.5 }}
+						onClick={e => {
+							e.stopPropagation();
+							onClear();
+						}}
+					>
+						{t("sidebar.tempClear")}
+					</button>
+				</span>
 			</div>
-			{hasChildren && !collapsed && (
-				<div>
-					{node.children.map(child => (
-						<SessionTreeItem
-							key={child.session.id}
-							node={child}
-							selectedSessionId={selectedSessionId}
-							runningSessionIds={runningSessionIds}
-							unreadSessionIds={unreadSessionIds}
-							onSelectSession={onSelectSession}
+			{open && (
+				<div style={{ maxHeight: "30vh", overflowY: "auto" }}>
+					{sessions.map(s => (
+						<SessionNodeItem
+							key={s.id}
+							session={s}
+							isSelected={s.id === selectedSessionId}
+							isRunning={runningSessionIds.has(s.id)}
+							isUnread={unreadSessionIds.has(s.id)}
+							onClick={() => onSelect(s)}
 							onRenamed={onRenamed}
-							onSessionDeleted={onSessionDeleted}
-							depth={depth + 1}
+							onDeleted={onSessionDeleted}
+							onArchive={() => onArchive(s.id)}
+							pinned={pinnedIds.has(s.id)}
+							onPinToggle={() => onPinToggle(s.id)}
+							onRowContextMenu={e => onRowMenu(s, e.currentTarget.getBoundingClientRect())}
 						/>
 					))}
 				</div>
-			)}
-		</div>
-	);
-}
-
-function RunningSessionIndicator() {
-	const { t } = useI18n();
-	return (
-		<span
-			title={t("sidebar.agentRunning")}
-			aria-label={t("sidebar.agentRunning")}
-			style={{
-				width: 14,
-				height: 14,
-				display: "inline-flex",
-				alignItems: "center",
-				justifyContent: "center",
-				flexShrink: 0,
-				color: "var(--accent)",
-			}}
-		>
-			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
-				<g>
-					<path d="M21 12a9 9 0 1 1-3.8-7.4" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-					<animateTransform
-						attributeName="transform"
-						type="rotate"
-						from="0 12 12"
-						to="360 12 12"
-						dur="0.9s"
-						repeatCount="indefinite"
-					/>
-				</g>
-			</svg>
-		</span>
-	);
-}
-
-function UnreadSessionIndicator() {
-	const { t } = useI18n();
-	return (
-		<span
-			title={t("sidebar.newActivity")}
-			aria-label={t("sidebar.newSessionActivity")}
-			style={{
-				width: 14,
-				height: 14,
-				display: "inline-flex",
-				alignItems: "center",
-				justifyContent: "center",
-				flexShrink: 0,
-				color: "var(--status-info)",
-			}}
-		>
-			<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ display: "block" }}>
-				<circle cx="7" cy="7" r="2.5" fill="currentColor" />
-				<circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" opacity="0.32">
-					<animate attributeName="r" values="3;6;3" dur="1.6s" repeatCount="indefinite" />
-					<animate attributeName="opacity" values="0.32;0;0.32" dur="1.6s" repeatCount="indefinite" />
-				</circle>
-			</svg>
-		</span>
-	);
-}
-
-function SessionItem({
-	session,
-	isSelected,
-	isRunning,
-	isUnread,
-	onClick,
-	onRenamed,
-	onDeleted,
-	depth = 0,
-	hasChildren = false,
-	collapsed = false,
-	onToggleCollapse,
-}: {
-	session: SessionInfo;
-	isSelected: boolean;
-	isRunning?: boolean;
-	isUnread?: boolean;
-	onClick: () => void;
-	onRenamed?: () => void;
-	onDeleted?: (id: string) => void;
-	depth?: number;
-	hasChildren?: boolean;
-	collapsed?: boolean;
-	onToggleCollapse?: () => void;
-}) {
-	const { t } = useI18n();
-	const [hovered, setHovered] = useState(false);
-	const [renaming, setRenaming] = useState(false);
-	const [renameValue, setRenameValue] = useState("");
-	const [confirmDelete, setConfirmDelete] = useState(false);
-	const [deleting, setDeleting] = useState(false);
-	const inputRef = useRef<HTMLInputElement>(null);
-
-	const title = session.name || session.firstMessage.slice(0, 50) || session.id.slice(0, 12);
-
-	const startRename = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			setRenameValue(session.name ?? "");
-			setRenaming(true);
-			setTimeout(() => inputRef.current?.select(), 0);
-		},
-		[session.name],
-	);
-
-	const commitRename = useCallback(async () => {
-		const name = renameValue.trim();
-		setRenaming(false);
-		if (name === (session.name ?? "")) return;
-		try {
-			await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ name }),
-			});
-			onRenamed?.();
-		} catch {
-			// ignore
-		}
-	}, [renameValue, session.id, session.name, onRenamed]);
-
-	const performDelete = useCallback(async () => {
-		setConfirmDelete(false);
-		setDeleting(true);
-		try {
-			await fetch(`/api/sessions/${encodeURIComponent(session.id)}`, {
-				method: "DELETE",
-			});
-			onDeleted?.(session.id);
-		} catch {
-			setDeleting(false);
-		}
-	}, [session.id, onDeleted]);
-
-	const handleDeleteClick = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			if (e.shiftKey) {
-				void performDelete();
-			} else {
-				setConfirmDelete(true);
-			}
-		},
-		[performDelete],
-	);
-
-	const handleDeleteCancel = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation();
-		setConfirmDelete(false);
-	}, []);
-	const handleDeleteConfirm = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			void performDelete();
-		},
-		[performDelete],
-	);
-
-	// Fixed-height outer wrapper — content swaps in place so the list never reflows
-	const ITEM_HEIGHT = 54;
-
-	return (
-		<div
-			onClick={confirmDelete || renaming ? undefined : onClick}
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => {
-				setHovered(false);
-			}}
-			style={{
-				height: ITEM_HEIGHT,
-				display: "flex",
-				alignItems: "center",
-				paddingLeft: depth > 0 ? depth * 12 + 14 : 14,
-				paddingRight: 8,
-				cursor: confirmDelete || renaming ? "default" : "pointer",
-				background: confirmDelete
-					? "var(--status-error-background)"
-					: isSelected
-						? "var(--bg-selected)"
-						: hovered
-							? "var(--bg-hover)"
-							: "transparent",
-				borderLeft: confirmDelete
-					? "2px solid var(--status-error)"
-					: isSelected
-						? "2px solid var(--accent)"
-						: "2px solid transparent",
-				transition: "background 0.1s",
-				opacity: deleting ? 0.5 : 1,
-				gap: 6,
-				overflow: "hidden",
-			}}
-		>
-			{confirmDelete ? (
-				/* ── Delete confirmation: same height, two flat buttons ── */
-				<>
-					<div
-						style={{
-							flex: 1,
-							minWidth: 0,
-							fontSize: 12,
-							color: "var(--text)",
-							overflow: "hidden",
-							textOverflow: "ellipsis",
-							whiteSpace: "nowrap",
-						}}
-					>
-						{t("sidebar.deleteSession", {
-							title: title.slice(0, 22) + (title.length > 22 ? "…" : ""),
-						})}
-					</div>
-					<div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-						<button
-							onClick={handleDeleteConfirm}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								gap: 4,
-								height: 30,
-								padding: "0 11px",
-								background: "var(--status-error)",
-								border: "none",
-								borderRadius: 6,
-								color: "var(--status-error-foreground)",
-								cursor: "pointer",
-								fontSize: 12,
-								fontWeight: 600,
-								whiteSpace: "nowrap",
-							}}
-						>
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<polyline points="3 6 5 6 21 6" />
-								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-								<path d="M10 11v6M14 11v6" />
-								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-							</svg>
-							{t("models.delete")}
-						</button>
-						<button
-							onClick={handleDeleteCancel}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: 30,
-								padding: "0 11px",
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
-								borderRadius: 6,
-								color: "var(--text-muted)",
-								cursor: "pointer",
-								fontSize: 12,
-								fontWeight: 500,
-								whiteSpace: "nowrap",
-							}}
-						>
-							{t("cancel")}
-						</button>
-					</div>
-				</>
-			) : renaming ? (
-				/* ── Rename: input fills the same row ── */
-				<input
-					ref={inputRef}
-					value={renameValue}
-					onChange={e => setRenameValue(e.target.value)}
-					onBlur={commitRename}
-					onKeyDown={e => {
-						if (e.key === "Enter") commitRename();
-						if (e.key === "Escape") setRenaming(false);
-					}}
-					autoFocus
-					style={{
-						flex: 1,
-						fontSize: 12,
-						padding: "5px 8px",
-						border: "1px solid var(--accent)",
-						borderRadius: 5,
-						outline: "none",
-						background: "var(--bg)",
-						color: "var(--text)",
-						height: 30,
-					}}
-				/>
-			) : (
-				/* ── Normal view ── */
-				<>
-					{/* Fork indicator for child sessions */}
-					{depth > 0 && (
-						<svg
-							width="10"
-							height="10"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="var(--text-dim)"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							style={{ flexShrink: 0 }}
-						>
-							<line x1="6" y1="3" x2="6" y2="15" />
-							<circle cx="18" cy="6" r="3" />
-							<circle cx="6" cy="18" r="3" />
-							<path d="M18 9a9 9 0 0 1-9 9" />
-						</svg>
-					)}
-					<div style={{ flex: 1, minWidth: 0 }}>
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								gap: 5,
-								minWidth: 0,
-								fontSize: 12,
-								fontWeight: isSelected ? 500 : 400,
-								lineHeight: 1.4,
-								color: "var(--text)",
-							}}
-							title={title}
-						>
-							<span
-								style={{
-									overflow: "hidden",
-									textOverflow: "ellipsis",
-									whiteSpace: "nowrap",
-									minWidth: 0,
-								}}
-							>
-								{title}
-							</span>
-							{session.tag && (
-								<span
-									style={{
-										flexShrink: 0,
-										fontSize: 9,
-										lineHeight: 1,
-										padding: "2px 5px",
-										borderRadius: 8,
-										border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
-										color: "var(--accent, #6366f1)",
-										textTransform: "uppercase",
-										letterSpacing: 0.4,
-									}}
-								>
-									{session.tag}
-								</span>
-							)}
-						</div>
-						<div
-							style={{
-								marginTop: 2,
-								display: "flex",
-								alignItems: "center",
-								gap: 8,
-								color: "var(--text-dim)",
-								fontSize: 11,
-								minWidth: 0,
-							}}
-						>
-							{session.cwd && (
-								<span
-									title={session.cwd}
-									style={{
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-										whiteSpace: "nowrap",
-										maxWidth: "45%",
-										color: "var(--text-dim)",
-									}}
-								>
-									{session.cwd.split(/[\\/]/).filter(Boolean).pop() || session.cwd}
-								</span>
-							)}
-							{isRunning ? (
-								<RunningSessionIndicator />
-							) : isUnread ? (
-								<UnreadSessionIndicator />
-							) : (
-								<span title={session.modified}>{formatRelativeTime(session.modified, t)}</span>
-							)}
-							<span>{t("sidebar.messagesCount", { count: session.messageCount })}</span>
-							{session.worktreeBranch && (
-								<span
-									title={`Worktree: ${session.cwd}`}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 3,
-										color: "var(--accent)",
-										minWidth: 0,
-										overflow: "hidden",
-									}}
-								>
-									<svg
-										width="9"
-										height="9"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2.4"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										style={{ flexShrink: 0 }}
-									>
-										<line x1="6" y1="3" x2="6" y2="15" />
-										<circle cx="18" cy="6" r="3" />
-										<circle cx="6" cy="18" r="3" />
-										<path d="M18 9a9 9 0 0 1-9 9" />
-									</svg>
-									<span
-										style={{
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											whiteSpace: "nowrap",
-										}}
-									>
-										{session.worktreeBranch}
-									</span>
-								</span>
-							)}
-						</div>
-					</div>
-
-					{/* Collapse toggle — always visible when has children */}
-					{hasChildren && (
-						<button
-							onClick={e => {
-								e.stopPropagation();
-								onToggleCollapse?.();
-							}}
-							title={collapsed ? "Expand forks" : "Collapse forks"}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								width: 20,
-								height: 20,
-								padding: 0,
-								flexShrink: 0,
-								background: "none",
-								border: "none",
-								color: "var(--text-dim)",
-								cursor: "pointer",
-								transform: collapsed ? "rotate(-90deg)" : "none",
-								transition: "transform 0.15s",
-							}}
-						>
-							<svg
-								width="10"
-								height="10"
-								viewBox="0 0 10 10"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="1.8"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<polyline points="2 3.5 5 6.5 8 3.5" />
-							</svg>
-						</button>
-					)}
-
-					{/* Action buttons — reserved width (2×32px + 4px gap) so the row
-              never reflows on hover; opacity fades in instead. */}
-					<div
-						style={{
-							display: "flex",
-							gap: 4,
-							flexShrink: 0,
-							width: 68,
-							justifyContent: "flex-end",
-							opacity: hovered ? 1 : 0,
-							transition: "opacity 0.12s",
-							pointerEvents: hovered ? "auto" : "none",
-						}}
-					>
-						<button
-							onClick={startRename}
-							title={t("sidebar.rename")}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								width: 32,
-								height: 32,
-								padding: 0,
-								background: "var(--bg-hover)",
-								border: "1px solid var(--border)",
-								borderRadius: 7,
-								color: "var(--text-muted)",
-								cursor: "pointer",
-								flexShrink: 0,
-								transition: "background 0.12s, color 0.12s, border-color 0.12s",
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.background = "var(--bg-selected)";
-								e.currentTarget.style.color = "var(--accent)";
-								e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.background = "var(--bg-hover)";
-								e.currentTarget.style.color = "var(--text-muted)";
-								e.currentTarget.style.borderColor = "var(--border)";
-							}}
-						>
-							<svg
-								width="14"
-								height="14"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-							</svg>
-						</button>
-						<button
-							onClick={handleDeleteClick}
-							title={t("sidebar.deleteWithShiftClick")}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								width: 32,
-								height: 32,
-								padding: 0,
-								background: "var(--bg-hover)",
-								border: "1px solid var(--border)",
-								borderRadius: 7,
-								color: "var(--text-muted)",
-								cursor: "pointer",
-								flexShrink: 0,
-								transition: "background 0.12s, color 0.12s, border-color 0.12s",
-							}}
-							onMouseEnter={e => {
-								e.currentTarget.style.background = "var(--status-error-background)";
-								e.currentTarget.style.color = "var(--status-error)";
-								e.currentTarget.style.borderColor = "var(--status-error-border)";
-							}}
-							onMouseLeave={e => {
-								e.currentTarget.style.background = "var(--bg-hover)";
-								e.currentTarget.style.color = "var(--text-muted)";
-								e.currentTarget.style.borderColor = "var(--border)";
-							}}
-						>
-							<svg
-								width="14"
-								height="14"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-							>
-								<polyline points="3 6 5 6 21 6" />
-								<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-								<path d="M10 11v6M14 11v6" />
-								<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-							</svg>
-						</button>
-					</div>
-				</>
 			)}
 		</div>
 	);

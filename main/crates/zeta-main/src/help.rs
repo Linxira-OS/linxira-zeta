@@ -9,13 +9,13 @@ suite. Each tool below also runs standalone.
 
 USAGE
   zeta                  Launch the workspace in the current directory
-  zetawork              Same workspace (joined form; `zeta work` too)
-  zeta code [args]      Hand off to the coding CLI (c; zetacode/zeta-c/zeta-cli)
-  zeta editor [args]    Hand off to the TTT editor (e; zetaeditor)
-  zeta ide [args]       Hand off to the terminal IDE (i; zetaide)
+  zetawork              Same workspace (joined form)
   zeta doctor           Suite install status + exact fixes
   zeta --help           This help
   zeta --version        Workspace version
+
+The other suite tools hand off from inside the workspace: the coding,
+editor, and IDE panes run zetacode, zetaeditor, and zetaide (Alt+C / E / I).
 
 KEYS (inside the workspace)
   Alt+N    new shell pane          Alt+T    new tab
@@ -36,9 +36,9 @@ KEYS (inside the workspace)
   if a hotkey does not respond.
 
 THE ZETA SUITE (each with its own --help)
-  zetacode / zeta-c / zeta-cli   coding agent CLI      (npm: @linxiraos/zeta)
-  zetaeditor / zeta-editor / zeta-e  terminal editor (TTT) (npm: @linxiraos/editor)
-  zetaide / zeta-ide / zeta-i    terminal IDE (TermIDE) (npm: @linxiraos/ide)
+  zetacode                       coding agent CLI      (npm: @linxiraos/zeta)
+  zetaeditor                     terminal editor (TTT) (npm: @linxiraos/editor)
+  zetaide                        terminal IDE (TermIDE) (npm: @linxiraos/ide)
 
   A suite tool missing from PATH installs itself into a pane on first
   Alt+<tool> (npm install -g <package>); press the same keys afterwards.
@@ -66,7 +66,7 @@ pub fn overlay_text() -> &'static str {
 	dock     minimized panes wait at the bottom — click a chip to restore\n\
 	general  F1 help · Alt+Q quit\n\
 	\n\
-	suite    zetacode/zeta-c/zeta-cli · zetaeditor/zeta-e · zetaide/zeta-i\n\
+	suite    zetacode · zetaeditor · zetaide\n\
 	missing  a missing suite tool installs itself into a pane on first use\n\
 	\n\
 	note     an active IME can swallow Alt combos — use English input\n\

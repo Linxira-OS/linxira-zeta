@@ -63,8 +63,10 @@ import {
 	prompt,
 	sanitizeText,
 	setProjectDir,
+	CLI_BIN_NAME,
 } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { M } from "../i18n";
 import { restartArgv } from "../cli/flag-tables";
 import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
@@ -6821,7 +6823,18 @@ export class InteractiveMode implements InteractiveModeContext {
 		const sessionId = this.#resumableSessionId();
 		if (sessionId) {
 			// Command on its own line so triple-click selects just the command (#11001).
-			process.stderr.write(`\n${chalk.dim("Resume this session with")}\n${chalk.dim(resumeCommand(sessionId))}\n`);
+			// The catalogue sentence embeds the full command, so split it back out for
+			// the dedicated line; if the translation diverges from that shape, fall
+			// through to the whole sentence.
+			const command = resumeCommand(sessionId);
+			const hint = M.imResumeHintFmt.replace("%s", CLI_BIN_NAME).replace("%s", sessionId);
+			const commandIndex = hint.indexOf(command);
+			if (commandIndex >= 0) {
+				const label = hint.slice(0, commandIndex).trim();
+				process.stderr.write(`\n${chalk.dim(label)}\n${chalk.dim(command)}\n`);
+			} else {
+				process.stderr.write(`\n${chalk.dim(hint)}\n`);
+			}
 		}
 
 		await postmortem.quit(0);

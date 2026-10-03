@@ -81,7 +81,7 @@ describe("agent_end autonomous continuation guards", () => {
 		const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-messenger-home-"));
 		tempHomes.push(home);
 		vi.stubEnv("HOME", home);
-		vi.stubEnv("PI_MESSENGER_DIR", path.join(home, ".pi", "agent", "messenger"));
+		vi.stubEnv("PI_MESSENGER_DIR", path.join(home, ".zeta", "agent", "messenger"));
 	});
 
 	afterEach(() => {

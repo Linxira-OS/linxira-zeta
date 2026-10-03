@@ -20,7 +20,7 @@ describe("plan with skills", () => {
 	}
 
 	function writeProjectSkill(name: string, description: string) {
-		const skillsDir = path.join(tmpDir, ".pi", "messenger", "crew", "skills");
+		const skillsDir = path.join(tmpDir, ".zeta", "messenger", "crew", "skills");
 		fs.mkdirSync(skillsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(skillsDir, `${name}.md`),
@@ -40,6 +40,13 @@ describe("plan with skills", () => {
 		tmpDir = dirs.cwd;
 		fs.mkdirSync(path.join(tmpDir, "docs"), { recursive: true });
 		fs.writeFileSync(path.join(tmpDir, "docs", "PRD.md"), "# PRD\nBuild a feature");
+		// These tests exercise project-supplied skills, which only load when
+		// the project opts in.
+		fs.mkdirSync(path.join(tmpDir, ".zeta"), { recursive: true });
+		fs.writeFileSync(
+			path.join(tmpDir, ".zeta", "pi-messenger.json"),
+			JSON.stringify({ trustProjectAgents: true }),
+		);
 		mockCtx = { cwd: tmpDir, hasUI: false, ui: {} };
 	});
 

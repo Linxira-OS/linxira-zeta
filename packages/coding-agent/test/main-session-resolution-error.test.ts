@@ -380,3 +380,123 @@ describe("createSessionManager — missing session (#2084)", () => {
 		});
 	});
 });
+
+describe("createSessionManager — resume argument normalization (copy-paste noise)", () => {
+	async function createSessionIn(cwd: string, sessionDir: string): Promise<SessionManager> {
+		const manager = SessionManager.create(cwd, sessionDir);
+		manager.appendMessage({ role: "user", content: "resume normalization fixture", timestamp: Date.now() });
+		await manager.rewriteEntries();
+		return manager;
+	}
+
+	async function countJsonlFiles(sessionDir: string): Promise<number> {
+		try {
+			return (await fsp.readdir(sessionDir)).filter(name => name.endsWith(".jsonl")).length;
+		} catch {
+			return 0;
+		}
+	}
+
+	it("resumes an existing id pasted with a trailing separator", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-slash-"));
+		const sessionDir = path.join(cwd, "sessions");
+		try {
+			const existing = await createSessionIn(cwd, sessionDir);
+			const manager = await createSessionManager(
+				buildResumeArgs(`${existing.getSessionId()}/`, sessionDir),
+				cwd,
+				stubSettings,
+			);
+			if (!manager) throw new Error("expected SessionManager, got undefined");
+			expect(manager.getSessionId()).toBe(existing.getSessionId());
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("resumes an existing id pasted with a .jsonl suffix", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-jsonl-"));
+		const sessionDir = path.join(cwd, "sessions");
+		try {
+			const existing = await createSessionIn(cwd, sessionDir);
+			const manager = await createSessionManager(
+				buildResumeArgs(`${existing.getSessionId()}.jsonl`, sessionDir),
+				cwd,
+				stubSettings,
+			);
+			if (!manager) throw new Error("expected SessionManager, got undefined");
+			expect(manager.getSessionId()).toBe(existing.getSessionId());
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("resumes a bare `<timestamp>_<uuid>.jsonl` file name by id lookup", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-stem-"));
+		const sessionDir = path.join(cwd, "sessions");
+		try {
+			const existing = await createSessionIn(cwd, sessionDir);
+			const files = await fsp.readdir(sessionDir);
+			const fileName = files.find(name => name.endsWith(".jsonl"));
+			expect(fileName).toBeDefined();
+			const manager = await createSessionManager(buildResumeArgs(fileName!, sessionDir), cwd, stubSettings);
+			if (!manager) throw new Error("expected SessionManager, got undefined");
+			expect(manager.getSessionId()).toBe(existing.getSessionId());
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects an unknown id with trailing-separator noise and mints nothing", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-noise-"));
+		const sessionDir = path.join(cwd, "sessions");
+		const missingId = "019ea530-aaaa-7000-8000-00000000feed";
+		try {
+			await expect(
+				createSessionManager(buildResumeArgs(`${missingId}/`, sessionDir), cwd, stubSettings),
+			).rejects.toMatchObject({
+				name: "SessionResolutionError",
+				message: `Session "${missingId}" not found.`,
+			});
+			expect(await countJsonlFiles(sessionDir)).toBe(0);
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects a missing explicit transcript path instead of minting there", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-path-"));
+		const sessionDir = path.join(cwd, "sessions");
+		try {
+			const missingPath = path.join(cwd, "elsewhere", "2026_01-01T00-00_missing.jsonl");
+			await expect(
+				createSessionManager(buildResumeArgs(missingPath, sessionDir), cwd, stubSettings),
+			).rejects.toMatchObject({
+				name: "SessionResolutionError",
+				message: `Session file "${missingPath}" not found.`,
+				hint: expect.stringContaining("zeta-c --resume"),
+			});
+			// The missing file must not have been created at its (missing) path.
+			await expect(fsp.stat(missingPath)).rejects.toMatchObject({ code: "ENOENT" });
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+
+	it("opens a real explicit transcript path with separators", async () => {
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-explicit-"));
+		const sessionDir = path.join(cwd, "sessions");
+		try {
+			const existing = await createSessionIn(cwd, sessionDir);
+			const files = await fsp.readdir(sessionDir);
+			const fileName = files.find(name => name.endsWith(".jsonl"));
+			expect(fileName).toBeDefined();
+			const explicitPath = path.join(sessionDir, fileName!);
+			const manager = await createSessionManager(buildResumeArgs(explicitPath, sessionDir), cwd, stubSettings);
+			if (!manager) throw new Error("expected SessionManager, got undefined");
+			expect(manager.getSessionId()).toBe(existing.getSessionId());
+		} finally {
+			await fsp.rm(cwd, { recursive: true, force: true });
+		}
+	});
+});

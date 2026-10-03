@@ -97,6 +97,21 @@ export type PluginSettingSchema = StringSetting | NumberSetting | BooleanSetting
 // =============================================================================
 
 /**
+ * Host-managed per-plugin storage roots (spec §4.3). The host creates the
+ * three directories lazily when the plugin is loaded; plugins must write
+ * only inside them (or project-local `.zeta/`), never elsewhere under
+ * `~/.zeta` (§4.4).
+ */
+export interface PluginStorage {
+	/** Persistent user data. Cleared on uninstall, kept across upgrades. */
+	dataDir: string;
+	/** Rebuildable cache. May be wiped by GC at any time. */
+	cacheDir: string;
+	/** Runtime state (locks, cursors, migration markers). */
+	stateDir: string;
+}
+
+/**
  * Represents an installed plugin with full metadata.
  */
 export interface InstalledPlugin {
@@ -116,6 +131,8 @@ export interface InstalledPlugin {
 	enabledFeatures: string[] | null;
 	/** Whether the plugin is enabled */
 	enabled: boolean;
+	/** Host-managed storage roots for this plugin (spec §4.3). */
+	storage: PluginStorage;
 }
 
 // =============================================================================

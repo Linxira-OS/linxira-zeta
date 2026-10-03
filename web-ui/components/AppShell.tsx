@@ -40,11 +40,6 @@ import {
 	minimizeWindow,
 	maximizeWindow,
 	closeWindow,
-	getDesktopOpenTargets,
-	hasDesktopOpenBridge,
-	openDesktopTarget,
-	type DesktopOpenTarget,
-	type GatewayOpenPath,
 } from "@/lib/pi-desktop";
 import {
 	getDefaultRightPanelWidth,
@@ -61,24 +56,12 @@ import {
 	writeSidebarCollapsedPref,
 } from "@/lib/panel-layout";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
-import type { ChatInputHandle } from "./ChatInput";
+import { ChatInput, type ChatInputHandle } from "./ChatInput";
+import { WorkspacePickerPanel, type PickerAnchor } from "./DraftContextBar";
+import { OpenSplitButton } from "./OpenSplitButton";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 
 type SessionCopyField = "file" | "id";
-
-const openMenuItemStyle: React.CSSProperties = {
-	display: "flex",
-	alignItems: "center",
-	padding: "6px 10px",
-	border: "none",
-	background: "none",
-	borderRadius: 6,
-	color: "var(--text)",
-	fontSize: 12,
-	textAlign: "left",
-	cursor: "pointer",
-	textTransform: "capitalize",
-};
 
 const SIDEBAR_OPEN_STORAGE_KEY = "zeta-sidebar-open";
 
@@ -122,6 +105,9 @@ function AppShellContent() {
 	const [activeCwd, setActiveCwd] = useState<string | null>(null);
 	// When user clicks +, we only store the cwd — no fake session id
 	const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
+	// Null-cwd degraded draft (spec D11): neither a project nor the default
+	// workspace resolved — the whole composer card becomes the workspace picker.
+	const [degradedDraft, setDegradedDraft] = useState(false);
 	/** True once the user explicitly requested a new session (default chat shares the coordinator). */
 	const explicitNewRef = useRef(false);
 	const [initialCwdStatus, setInitialCwdStatus] = useState<"idle" | "validating" | "ready" | "error">(() =>
@@ -134,14 +120,6 @@ function AppShellContent() {
 	const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
 	const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
 	const [statsOpen, setStatsOpen] = useState(false);
-	const [openMenuOpen, setOpenMenuOpen] = useState(false);
-	const [openOptions, setOpenOptions] = useState<{
-		terminal: boolean;
-		explorer: boolean;
-		editors: string[];
-		desktop: boolean;
-	} | null>(null);
-	const [desktopOpenTargets, setDesktopOpenTargets] = useState<DesktopOpenTarget[]>([]);
 	const [updating, setUpdating] = useState(false);
 	const [checkingUpdate, setCheckingUpdate] = useState(false);
 	const [updateNotice, setUpdateNotice] = useState<string | null>(null);
@@ -318,72 +296,6 @@ function AppShellContent() {
 		setSessionStats(stats);
 	}, []);
 
-	// Browser clients retain the gateway launcher. Desktop clients receive the
-	// validated project path from the gateway and execute only host-defined IDs.
-	const handleToggleOpenMenu = useCallback(async () => {
-		if (openMenuOpen) {
-			setOpenMenuOpen(false);
-			return;
-		}
-		try {
-			const [response, targets] = await Promise.all([
-				fetch("/api/open/options"),
-				hasDesktopOpenBridge() ? getDesktopOpenTargets() : Promise.resolve([]),
-			]);
-			if (response.ok) {
-				const options = (await response.json()) as {
-					terminal: boolean;
-					explorer: boolean;
-					editors: string[];
-					desktop: boolean;
-				};
-				setOpenOptions(options);
-				setDesktopOpenTargets(options.desktop ? targets : []);
-			}
-		} catch {
-			setOpenOptions(null);
-			setDesktopOpenTargets([]);
-		}
-		setOpenMenuOpen(true);
-	}, [openMenuOpen]);
-
-	const handleOpenTarget = useCallback(
-		async (target: string, editor?: string) => {
-			setOpenMenuOpen(false);
-			try {
-				const body: Record<string, string> = { target };
-				const selectedProjectPath =
-					activeCwd ?? selectedSession?.projectRoot ?? selectedSession?.cwd ?? newSessionCwd;
-				if (selectedProjectPath) body.path = selectedProjectPath;
-				if (editor) body.editor = editor;
-				if (hasDesktopOpenBridge() && openOptions?.desktop) {
-					if (target.startsWith("editor:")) {
-						body.target = "editor";
-						body.editor = target.slice("editor:".length);
-					} else if (target === "file-manager") {
-						body.target = "explorer";
-					}
-					const response = await fetch("/api/open", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(body),
-					});
-					if (!response.ok) return;
-					await openDesktopTarget(target, (await response.json()) as GatewayOpenPath);
-					return;
-				}
-				await fetch("/api/open", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(body),
-				});
-			} catch {
-				// Non-fatal: the app simply does not open.
-			}
-		},
-		[activeCwd, newSessionCwd, openOptions?.desktop, selectedSession?.cwd, selectedSession?.projectRoot],
-	);
-
 	// "Update" button: check → confirm → download → install → prompt restart.
 	const handleCheckUpdate = useCallback(async () => {
 		setCheckingUpdate(true);
@@ -416,20 +328,20 @@ function AppShellContent() {
 		try {
 			const download = await fetch("/api/update/download", { method: "POST" });
 			if (!download.ok) {
-				window.alert(`Download failed: ${await download.text()}`);
+				window.alert(t("topbar.downloadFailedFmt", { detail: await download.text() }));
 				return;
 			}
 			const install = await fetch("/api/update/install", { method: "POST" });
 			if (!install.ok) {
-				window.alert(`Install failed: ${await install.text()}`);
+				window.alert(t("topbar.installFailedFmt", { detail: await install.text() }));
 				return;
 			}
-			window.alert(`Updated to ${updateInfo.latest}. Restart Zeta to use the new version.`);
+			window.alert(t("topbar.updatedFmt", { version: updateInfo.latest }));
 			setUpdateInfo(null);
 		} finally {
 			setUpdating(false);
 		}
-	}, [updateInfo]);
+	}, [updateInfo, t]);
 	const [copiedSessionField, setCopiedSessionField] = useState<SessionCopyField | null>(null);
 	const sessionCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const handleCopySessionField = useCallback((field: SessionCopyField, value: string) => {
@@ -494,7 +406,7 @@ function AppShellContent() {
 		return () => mql.removeEventListener("change", onChange);
 	}, []);
 
-	// Bridge the shared "session panel" visibility flag (SettingsPanel toggle,
+	// Bridge the shared "session panel" visibility flag (sidebar toggle,
 	// storage-persisted) into the dock's window selection. Edge-triggered so a
 	// mount with a stale persisted `true` does not force-open the dock.
 	const prevSessionPanelVisible = useRef(sessionPanelVisible);
@@ -620,6 +532,7 @@ function AppShellContent() {
 	const handleSelectSession = useCallback(
 		(session: SessionInfo, isRestore = false) => {
 			setNewSessionCwd(null);
+			setDegradedDraft(false);
 			setSelectedSession(session);
 			setSessionKey(k => k + 1);
 			setSystemPrompt(null);
@@ -643,10 +556,13 @@ function AppShellContent() {
 	);
 
 	const handleNewSession = useCallback(
-		(_sessionId: string, cwd: string) => {
+		// cwd === null: neither a project nor the default workspace resolved —
+		// the empty state renders its degraded workspace trigger (batch 3).
+		(_sessionId: string, cwd: string | null) => {
 			explicitNewRef.current = true;
 			setSelectedSession(null);
 			setNewSessionCwd(cwd);
+			setDegradedDraft(cwd === null);
 			setSessionKey(k => k + 1);
 			setBranchTree([]);
 			setBranchActiveLeafId(null);
@@ -753,6 +669,7 @@ function AppShellContent() {
 	const handleSessionCreated = useCallback(
 		(session: SessionInfo) => {
 			setNewSessionCwd(null);
+			setDegradedDraft(false);
 			setSelectedSession(session);
 			setRefreshKey(k => k + 1);
 			hydrateSelectedSession(session.id);
@@ -890,9 +807,11 @@ function AppShellContent() {
 		);
 	}, [selectedSession]);
 
-	// Show chat area if a session is selected, or if we have a cwd to start a new session in
+	// Show chat area if a session is selected, a cwd to start a new session in,
+	// or the degraded null-cwd draft (whole card = workspace trigger)
 	const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
-	const showChat = selectedSession !== null || effectiveNewSessionCwd !== null;
+	const showDegradedDraft = degradedDraft && selectedSession === null && effectiveNewSessionCwd === null;
+	const showChat = selectedSession !== null || effectiveNewSessionCwd !== null || showDegradedDraft;
 	// While restoring initial session from URL, don't show the placeholder
 	const showPlaceholder = initialSessionRestored && !showChat;
 
@@ -1584,7 +1503,7 @@ function AppShellContent() {
 							>
 								<button
 									onClick={() => setStatsOpen(v => !v)}
-									title={statsOpen ? "Back to chat" : "Stats dashboard"}
+									title={statsOpen ? t("topbar.backToChat") : t("topbar.statsDashboard")}
 									aria-pressed={statsOpen}
 									style={{
 										display: "flex",
@@ -1616,49 +1535,16 @@ function AppShellContent() {
 										<line x1="12" y1="20" x2="12" y2="4" />
 										<line x1="6" y1="20" x2="6" y2="14" />
 									</svg>
-									{!isMobile && <span>Stats</span>}
+									{!isMobile && <span>{t("topbar.stats")}</span>}
 								</button>
-								<button
-									onClick={handleToggleOpenMenu}
-									title="Open in app"
-									aria-pressed={openMenuOpen}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										height: "100%",
-										padding: "0 12px",
-										background: openMenuOpen ? "var(--bg-selected)" : "none",
-										border: "none",
-										borderTop: openMenuOpen ? "2px solid var(--accent)" : "2px solid transparent",
-										borderRight: "1px solid var(--border)",
-										cursor: "pointer",
-										color: openMenuOpen ? "var(--text)" : "var(--text-muted)",
-										fontSize: 11,
-										whiteSpace: "nowrap",
-									}}
-								>
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-										<polyline points="15 3 21 3 21 9" />
-										<line x1="10" y1="14" x2="21" y2="3" />
-									</svg>
-									{!isMobile && <span>Open</span>}
-								</button>
+								<OpenSplitButton
+									activeCwd={activeCwd ?? selectedSession?.projectRoot ?? selectedSession?.cwd ?? newSessionCwd}
+								/>
 								<button
 									onClick={() => {
 										if (checkingUpdate) return;
 										if (updateInfo) {
-											if (updateInfo.available && window.confirm(`Update Zeta to ${updateInfo.latest}?`)) {
+											if (updateInfo.available && window.confirm(t("topbar.updateConfirmFmt", { version: updateInfo.latest }))) {
 												void handleRunUpdate();
 											} else {
 												showUpdateNotice(t("you-are-up-to-date"));
@@ -1671,10 +1557,10 @@ function AppShellContent() {
 									disabled={updating || checkingUpdate}
 									title={
 										checkingUpdate
-											? "Checking for updates…"
+											? t("checking-for-updates")
 											: updateInfo && updateInfo.available
-												? `Update available: ${updateInfo.latest}`
-												: "Check for updates"
+												? t("topbar.updateAvailableFmt", { version: updateInfo.latest })
+												: t("topbar.checkForUpdates")
 									}
 									style={{
 										display: "flex",
@@ -1712,7 +1598,7 @@ function AppShellContent() {
 												? t("checking-for-updates")
 												: updateInfo && updateInfo.available
 													? `v${updateInfo.latest}`
-													: "Update"}
+													: t("topbar.update")}
 										</span>
 									)}
 								</button>
@@ -1733,68 +1619,6 @@ function AppShellContent() {
 										}}
 									>
 										{updateNotice}
-									</div>
-								)}
-								{openMenuOpen && openOptions && (
-									<div
-										style={{
-											position: "fixed",
-											top: 40,
-											right: 16,
-											zIndex: 300,
-											background: "var(--bg-panel)",
-											border: "1px solid var(--border)",
-											borderRadius: 8,
-											boxShadow: "0 4px 16px color-mix(in srgb, var(--bg) 20%, transparent)",
-											padding: 6,
-											minWidth: 180,
-											display: "flex",
-											flexDirection: "column",
-										}}
-									>
-										{desktopOpenTargets.map(target => (
-											<button
-												key={target.id}
-												onClick={() => void handleOpenTarget(target.id)}
-												style={openMenuItemStyle}
-											>
-												{target.label}
-											</button>
-										))}
-										{desktopOpenTargets.length === 0 && openOptions.terminal && (
-											<button onClick={() => void handleOpenTarget("terminal")} style={openMenuItemStyle}>
-												Terminal
-											</button>
-										)}
-										{desktopOpenTargets.length === 0 && openOptions.explorer && (
-											<button onClick={() => void handleOpenTarget("explorer")} style={openMenuItemStyle}>
-												Explorer
-											</button>
-										)}
-										{desktopOpenTargets.length === 0 &&
-											openOptions.editors.map(editor => (
-												<button
-													key={editor}
-													onClick={() => void handleOpenTarget("editor", editor)}
-													style={openMenuItemStyle}
-												>
-													{editor}
-												</button>
-											))}
-										{desktopOpenTargets.length === 0 &&
-											!openOptions.terminal &&
-											!openOptions.explorer &&
-											openOptions.editors.length === 0 && (
-												<div
-													style={{
-														padding: "6px 10px",
-														color: "var(--text-dim)",
-														fontSize: 12,
-													}}
-												>
-													{t("no-apps-found")}
-												</div>
-											)}
 									</div>
 								)}
 								<button
@@ -1868,8 +1692,8 @@ function AppShellContent() {
 								<button
 									ref={systemBtnRef}
 									onClick={() => toggleTopPanel("system")}
-									title="System prompt"
-									aria-label="System prompt"
+									title={t("topbar.systemPrompt")}
+									aria-label={t("topbar.systemPrompt")}
 									aria-pressed={activeTopPanel === "system"}
 									style={{
 										display: "flex",
@@ -2473,6 +2297,13 @@ function AppShellContent() {
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
 						{statsOpen ? (
 							<StatsDashboard />
+						) : showDegradedDraft ? (
+							<DegradedDraftCard
+								onWorkspaceSelect={cwd => {
+									setDegradedDraft(false);
+									handleNewSession(`draft-${Date.now()}`, cwd);
+								}}
+							/>
 						) : showChat ? (
 							<ChatWindow
 								key={sessionKey}
@@ -3107,6 +2938,61 @@ function AppShellContent() {
  * button clickable inside the titlebar's drag region, and the hover colours
  * come from the shared theme tokens so the chrome follows the active theme.
  */
+/**
+ * Null-cwd degraded draft (spec D11): only reachable when neither the entry
+ * cwd nor the default workspace resolved. The whole composer card acts as the
+ * workspace-selection trigger — dashed outline (ChatInput `degraded`),
+ * readOnly textarea, and an overlay button with aria-haspopup that opens the
+ * shared workspace picker upward. Picking a workspace starts a normal draft.
+ */
+function DegradedDraftCard({ onWorkspaceSelect }: { onWorkspaceSelect: (cwd: string) => void }) {
+	const { t } = useI18n();
+	const [pickerOpen, setPickerOpen] = useState(false);
+	const [anchor, setAnchor] = useState<PickerAnchor | null>(null);
+	return (
+		<div className="flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-8">
+			<div className="w-full max-w-[820px]">
+				<div style={{ marginBottom: 12, textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>
+					{t("draft-context.select-workspace")}
+				</div>
+				<div style={{ position: "relative" }}>
+					<ChatInput variant="hero" degraded onSend={() => {}} onAbort={() => {}} isStreaming={false} />
+					<button
+						aria-haspopup="dialog"
+						aria-expanded={pickerOpen}
+						aria-label={t("draft-context.select-workspace")}
+						title={t("draft-context.select-workspace")}
+						onClick={e => {
+							const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+							setAnchor({ top: rect.top, left: rect.left, width: rect.width });
+							setPickerOpen(v => !v);
+						}}
+						style={{
+							position: "absolute",
+							inset: 0,
+							background: "transparent",
+							border: "none",
+							cursor: "pointer",
+							borderRadius: 14,
+						}}
+					/>
+					{pickerOpen && anchor && (
+						<WorkspacePickerPanel
+							anchor={anchor}
+							currentCwd={null}
+							onPick={picked => {
+								setPickerOpen(false);
+								onWorkspaceSelect(picked);
+							}}
+							onClose={() => setPickerOpen(false)}
+						/>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function TitlebarButton({
 	label,
 	onClick,

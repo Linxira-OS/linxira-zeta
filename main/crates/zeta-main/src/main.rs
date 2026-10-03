@@ -23,8 +23,8 @@ fn main() -> ExitCode {
 			println!("zeta {}", env!("CARGO_PKG_VERSION"));
 			return ExitCode::SUCCESS;
 		},
-		// `zeta code` hands off to the coding CLI (the primary surface many
-		// users live in); remaining arguments pass through untouched.
+		// The `code` subcommand hands off to the coding CLI (the primary surface
+		// many users live in); remaining arguments pass through untouched.
 		// First-letter forms too: `zeta c/e/i` mirror the workbench's
 		// per-pane hotkeys (Alt+C/E/I). The bin candidates and install
 		// hints come from the suite table — no local copies.
@@ -37,8 +37,8 @@ fn main() -> ExitCode {
 			print!("{}", suite::doctor());
 			return ExitCode::SUCCESS;
 		},
-		// `zeta work` and bare `zeta` both open the workspace (`zetawork` /
-		// `zeta-work` are npm bin aliases of the same binary).
+		// The `work` subcommand and bare `zeta` both open the workspace
+		// (`zetawork` / `zeta-work` are npm bin aliases of the same binary).
 		Some("work") => {},
 		Some(other) if other.starts_with('-') => {},
 		Some(unknown) => {

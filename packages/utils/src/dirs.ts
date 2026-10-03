@@ -1,12 +1,12 @@
 /**
- * Centralized path helpers for zeta-c config directories.
+ * Centralized path helpers for zeta config directories.
  *
  * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
  * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
  * variables are set, paths are redirected to XDG-compliant locations under
- * $XDG_*_HOME/zeta/. This requires running `zeta-c config migrate` first to
+ * $XDG_*_HOME/zeta/. This requires running `zeta config migrate` first to
  * move data to the new locations. No filesystem existence checks are performed
  * — if the env var is set, zeta trusts that the migration has been done.
  */
@@ -40,7 +40,7 @@ export const MAIN_CONFIG_FILENAMES = ["config.yml", "config.yaml"] as const;
 /** Version (e.g. "1.0.0") */
 export const VERSION: string = version;
 
-/** Default User-Agent header string (e.g. "zeta/17.2.12") */
+/** Default User-Agent header string (e.g. "zeta/1.1.5") */
 export const USER_AGENT = `zeta/${VERSION}`;
 
 /** Minimum Bun version */
@@ -91,8 +91,8 @@ export function normalizeProfileName(profile: string | undefined): string | unde
  * validation/normalization to {@link normalizeProfileName} (which throws on a
  * syntactically invalid value).
  */
-export function resolveProfileEnv(zeta: string | undefined): string | undefined {
-	return normalizeProfileName(zeta);
+export function resolveProfileEnv(profile: string | undefined): string | undefined {
+	return normalizeProfileName(profile);
 }
 
 function getProfileFromEnv(): string | undefined {
@@ -330,7 +330,6 @@ class DirResolver {
 	// With XDG on Linux, they point to $XDG_*_HOME/zeta/.
 	readonly #rootDirs: Record<XdgCategory, string>;
 	readonly #agentDirs: Record<XdgCategory, string>;
-	readonly #baseRootDirs: Record<XdgCategory, string>;
 
 	readonly #rootCache = new Map<string, string>();
 	readonly #agentCache = new Map<string, string>();
@@ -345,7 +344,7 @@ class DirResolver {
 		const isDefault = this.agentDir === defaultAgent;
 
 		// XDG is a Linux convention. On supported platforms, default profile state
-		// resolves under $XDG_*_HOME/zeta once `zeta-c config init-xdg` has migrated
+		// resolves under $XDG_*_HOME/zeta once `zeta config init-xdg` has migrated
 		// the user's data. Named profiles follow a stricter rule: the XDG choice
 		// is keyed on the profile-specific XDG path, never the base app root.
 		//
@@ -359,8 +358,7 @@ class DirResolver {
 		let xdgData: string | undefined;
 		let xdgState: string | undefined;
 		let xdgCache: string | undefined;
-		const xdgPlatform = process.platform === "linux" || process.platform === "darwin";
-		if (xdgPlatform && isDefault) {
+		if ((process.platform === "linux" || process.platform === "darwin") && isDefault) {
 			const resolveIf = (envVar: string) => {
 				const value = process.env[envVar];
 				if (!value) return undefined;
@@ -368,10 +366,14 @@ class DirResolver {
 					const appRoot = path.join(value, APP_NAME);
 					if (profile) {
 						const profilePath = path.join(appRoot, "profiles", profile);
-						if (fs.existsSync(profilePath)) return profilePath;
+						if (fs.existsSync(profilePath)) {
+							return profilePath;
+						}
 						return undefined;
 					}
-					return fs.existsSync(appRoot) ? appRoot : undefined;
+					if (fs.existsSync(appRoot)) {
+						return appRoot;
+					}
 				} catch {}
 				return undefined;
 			};
@@ -379,22 +381,6 @@ class DirResolver {
 			xdgState = resolveIf("XDG_STATE_HOME");
 			xdgCache = resolveIf("XDG_CACHE_HOME");
 		}
-
-		// XDG choice for machine-global paths (daemon scopes shared by every
-		// process): keyed only on the base app root, independent of both the
-		// profile and any agent-dir override, so every zeta process on the machine
-		// agrees on one location. These hold process-scoped runtime state
-		// (sockets, tokens), so there is no migration to protect.
-		const resolveBase = (envVar: string) => {
-			if (!xdgPlatform) return undefined;
-			const value = process.env[envVar];
-			if (!value) return undefined;
-			try {
-				const appRoot = path.join(value, APP_NAME);
-				return fs.existsSync(appRoot) ? appRoot : undefined;
-			} catch {}
-			return undefined;
-		};
 
 		this.#rootDirs = {
 			data: xdgData ?? this.configRoot,
@@ -407,17 +393,6 @@ class DirResolver {
 			state: xdgState ?? this.agentDir,
 			cache: xdgCache ?? this.agentDir,
 		};
-		const baseRoot = getBaseConfigRoot();
-		this.#baseRootDirs = {
-			data: resolveBase("XDG_DATA_HOME") ?? baseRoot,
-			state: resolveBase("XDG_STATE_HOME") ?? baseRoot,
-			cache: resolveBase("XDG_CACHE_HOME") ?? baseRoot,
-		};
-	}
-
-	/** Profile-independent config-root subdirectory, with optional XDG override. Shared across profiles. */
-	baseRootSubdir(subdir: string, xdg?: XdgCategory): string {
-		return path.join(xdg ? this.#baseRootDirs[xdg] : getBaseConfigRoot(), subdir);
 	}
 
 	/** Config-root subdirectory, with optional XDG override. */
@@ -454,8 +429,12 @@ class DirResolver {
  * without exporting it). Returns `undefined` in those cases so reset falls back
  * to the standard `~/.zeta/agent`.
  */
-function resolvePreProfileAgentDir(profile: string | undefined, agentDirEnv: string | undefined): string | undefined {
-	return isProfileDerivedAgentDir(profile, agentDirEnv) ? undefined : agentDirEnv;
+function resolvePreProfileAgentDir(
+	profile: string | undefined,
+	agentDirEnv: string | undefined,
+	profileAgentDirSource: string | undefined = profile,
+): string | undefined {
+	return isProfileDerivedAgentDir(profile ?? profileAgentDirSource, agentDirEnv) ? undefined : agentDirEnv;
 }
 
 let activeProfile = readProfileFromEnvSafe();
@@ -491,9 +470,8 @@ let dirs = new DirResolver({
  * with `ZETA_CODING_AGENT_DIR=/custom` then `setProfile("work")` then
  * `setProfile(undefined)` would silently lose `/custom` and fall back to
  * `~/.zeta/agent`. Captured at module load — ignoring a profile-derived value
- * inherited from a parent's `setProfile` (see {@link resolvePreProfileAgentDir})
- * — and refreshed on `setAgentDir`, since that call is the user explicitly
- * redefining the baseline.
+ * inherited from a parent's `setProfile` (detected by directory shape in
+ * {@link resolveActiveAgentDirOverride}) — and refreshed on `setAgentDir`.
  */
 let preProfileAgentDirEnv: string | undefined = resolveActiveAgentDirOverride();
 // Anchor home for the resolver. Captured at module load to stay stable across
@@ -533,7 +511,6 @@ export function setAgentDir(dir: string): void {
 	activeProfile = undefined;
 	dirs = new DirResolver({ agentDirOverride: dir });
 	process.env.ZETA_CODING_AGENT_DIR = dir;
-	preProfileAgentDirEnv = dir;
 	for (const key of PROFILE_ENV_KEYS) {
 		delete process.env[key];
 	}
@@ -563,7 +540,6 @@ export function __resetDirsFromEnvForTests(): void {
 	refreshDirsFromEnv();
 }
 
-/** Activate a named profile. Passing undefined or "default" returns to the default profile. */
 export function setProfile(profile: string | undefined): void {
 	const next = normalizeProfileName(profile);
 	if (next && !activeProfile) {
@@ -627,7 +603,7 @@ export function getLogsDir(): string {
 
 /**
  * Local-timezone `YYYY-MM-DD` day key (zero-padded), formatted exactly like
- * the rotating log sink's file naming: log files are named `zeta.<day>.<pid>.log`
+ * the rotating log sink's file naming: log files are named `omp.<day>.<pid>.log`
  * with the LOCAL day, not the UTC day `toISOString()` yields. Anything that
  * computes "today's" log path or matches same-day log files by name must use
  * this key, or between local midnight and UTC midnight it points at files that
@@ -669,9 +645,85 @@ export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
 }
 
-/** Plugin lock file (~/.zeta/plugins/zeta-plugins.lock.json). */
+/** Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json). */
 export function getPluginsLockfile(home?: string): string {
-	return path.join(getPluginsDir(home), "zeta-plugins.lock.json");
+	return path.join(getPluginsDir(home), "omp-plugins.lock.json");
+}
+
+/**
+ * Normalize a plugin id into a safe single path segment (spec §4.2): lowercased,
+ * every character outside `[a-z0-9._-]` (including `/` and `\`, so scoped npm
+ * names like `@scope/name` collapse to `-scope-name`) replaced with `-`.
+ * Guarantees the result cannot traverse: it never contains a separator, and
+ * degenerate segments (`.`, `..`, empty) throw instead of escaping.
+ */
+export function normalizePluginId(pluginId: string): string {
+	const normalized = pluginId.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+	if (normalized.length === 0 || normalized === "." || normalized === "..") {
+		throw new TypeError(`Invalid plugin id: "${pluginId}"`);
+	}
+	return normalized;
+}
+
+function getPluginTierDir(tier: "data" | "cache" | "state", pluginId: string, home?: string): string {
+	return path.join(getPluginsDir(home), tier, normalizePluginId(pluginId));
+}
+
+/** Per-plugin persistent data dir (~/.zeta/plugins/data/<id>). User data: cleared on uninstall, kept across upgrades. */
+export function getPluginDataDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("data", pluginId, home);
+}
+
+/** Per-plugin rebuildable cache dir (~/.zeta/plugins/cache/<id>). May be wiped by GC at any time. */
+export function getPluginCacheDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("cache", pluginId, home);
+}
+
+/** Per-plugin runtime state dir (~/.zeta/plugins/state/<id>). Locks, cursors, migration markers. */
+export function getPluginStateDir(pluginId: string, home?: string): string {
+	return getPluginTierDir("state", pluginId, home);
+}
+
+/**
+ * Adopt a legacy config file into its new home: one-shot best-effort copy
+ * (spec §4.5). Copies only when the target does not exist yet and the legacy
+ * file does; the legacy file is left in place for older versions sharing the
+ * profile. Returns whether a copy happened this call. Opportunistic: a copy
+ * race or unwritable target dir falls back to a fresh file at the new path.
+ */
+export function adoptLegacyFile(legacyPath: string, targetPath: string): boolean {
+	if (targetPath === legacyPath) return false;
+	try {
+		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return false;
+		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+		fs.copyFileSync(legacyPath, targetPath, fs.constants.COPYFILE_EXCL);
+		return true;
+	} catch {
+		// Opportunistic: a copy race or unwritable XDG dir falls back to a fresh
+		// file at the new path — the pre-adoption behavior.
+		return false;
+	}
+}
+
+/**
+ * One-shot legacy migration with a marker file (spec §4.5, the
+ * pi-messenger `migrations/` precedent, generalized): the first call copies
+ * `legacyPath` → `targetPath` (when legacy data exists) and writes a
+ * `migratedAt` marker at `markerPath`; every later call is a no-op regardless
+ * of filesystem state. Returns whether a copy happened this call.
+ */
+export function adoptLegacyFileOnce(legacyPath: string, targetPath: string, markerPath: string): boolean {
+	try {
+		if (fs.existsSync(markerPath)) return false;
+		const adopted = adoptLegacyFile(legacyPath, targetPath);
+		fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+		fs.writeFileSync(markerPath, `${JSON.stringify({ migratedAt: new Date().toISOString() })}\n`);
+		return adopted;
+	} catch {
+		// Opportunistic: an unwritable marker dir must not crash callers; the
+		// next run retries the migration (still idempotent via COPYFILE_EXCL).
+		return false;
+	}
 }
 
 /** Get the remote mount directory (~/.zeta/remote). */
@@ -684,8 +736,8 @@ export function getRemoteDir(): string {
  * empty/whitespace input or a path that is still relative after expansion.
  *
  * A worktree base is process-global and consumed by both creation
- * (PR checkout, task isolation) and cleanup (`zeta worktree`). A relative value
- * would resolve against whatever cwd happened to launch `zeta`, so checkout and
+ * (PR checkout, task isolation) and cleanup (`omp worktree`). A relative value
+ * would resolve against whatever cwd happened to launch `omp`, so checkout and
  * cleanup could disagree — we refuse it rather than silently bind it to cwd.
  */
 function resolveWorktreeBase(value: string | undefined): string | undefined {
@@ -701,7 +753,7 @@ let worktreesDirOverride: string | undefined;
 
 /**
  * Relocate the base directory for agent-managed worktrees (PR checkouts, task
- * isolation, and `zeta worktree` cleanup all read the same base). Driven by the
+ * isolation, and `omp worktree` cleanup all read the same base). Driven by the
  * `worktree.base` setting in coding-agent; pass `undefined`/empty to clear and
  * fall back to `OMP_WORKTREE_DIR` or the `~/.zeta/wt` default.
  *
@@ -922,20 +974,14 @@ export function getTinyModelsCacheDir(agentDir?: string): string {
 export function getDocumentConversionCacheDir(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "document-conversions"), "cache");
 }
+/** Get the per-project composer speculative cache directory (~/.zeta/agent/cache/composer; XDG default: $XDG_CACHE_HOME/zeta/cache/composer). */
+export function getComposerCacheDir(agentDir?: string): string {
+	return dirs.agentSubdir(agentDir, path.join("cache", "composer"), "cache");
+}
+
 /** Get the composer speculative cache database (~/.zeta/agent/cache/composer.db; XDG default: $XDG_CACHE_HOME/zeta/cache/composer.db). */
 export function getComposerCacheDbPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, path.join("cache", "composer.db"), "cache");
-}
-/** Get the skill descriptions database (~/.zeta/agent/skill-descriptions.db; XDG default: $XDG_DATA_HOME/zeta/skill-descriptions.db). */
-export function getSkillDescriptionsDbPath(agentDir?: string): string {
-	return dirs.agentSubdir(agentDir, "skill-descriptions.db", "data");
-}
-/** Get the text-predict engine state directory (~/.zeta/agent/predict/<method>; XDG default: $XDG_DATA_HOME/zeta/predict/<method>). Adopts legacy engine state on first XDG resolution. */
-export function getPredictStateDir(agentDir: string | undefined, method: string): string {
-	const subdir = path.join("predict", method);
-	const stateDir = dirs.agentSubdir(agentDir, subdir, "data");
-	adoptLegacyDir(path.join(agentDir ?? dirs.agentDir, subdir), stateDir);
-	return stateDir;
 }
 
 /** Get the sessions directory (~/.zeta/agent/sessions). */
@@ -1003,48 +1049,6 @@ export function getDebugLogPath(agentDir?: string): string {
 	return dirs.agentSubdir(agentDir, `${APP_NAME}-debug.log`, "state");
 }
 
-/**
- * Best-effort one-time copy of a legacy config-root file to its redirected XDG
- * location. Existing installs that enable XDG after the file was created keep
- * their data (e.g. a placeholder key whose loss would break deobfuscation of
- * persisted transcripts). The legacy file is left in place for older zeta
- * versions sharing the profile.
- */
-function adoptLegacyFile(legacyPath: string, targetPath: string): void {
-	if (targetPath === legacyPath) return;
-	try {
-		if (fs.existsSync(targetPath) || !fs.existsSync(legacyPath)) return;
-		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-		fs.copyFileSync(legacyPath, targetPath, fs.constants.COPYFILE_EXCL);
-	} catch {
-		// Opportunistic: a copy race or unwritable XDG dir falls back to a fresh
-		// file at the new path — the pre-adoption behavior.
-	}
-}
-
-/**
- * Best-effort one-time copy of a legacy directory to its redirected XDG
- * location, so learned state survives enabling XDG. The copy is staged next to
- * the target and renamed into place, so a reader never sees a partial tree and
- * a concurrent adopter cannot clobber a finished one. The legacy directory is
- * left in place for older zeta versions sharing the profile.
- */
-function adoptLegacyDir(legacyPath: string, targetPath: string): void {
-	if (targetPath === legacyPath) return;
-	const staging = `${targetPath}.adopt-${process.pid}`;
-	try {
-		if (fs.existsSync(targetPath) || !fs.statSync(legacyPath, { throwIfNoEntry: false })?.isDirectory()) return;
-		fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-		fs.rmSync(staging, { recursive: true, force: true });
-		fs.cpSync(legacyPath, staging, { recursive: true });
-		fs.renameSync(staging, targetPath);
-	} catch {
-		// Opportunistic: a lost race or unwritable XDG dir falls back to fresh
-		// state at the new path — the pre-adoption behavior.
-		fs.rmSync(staging, { recursive: true, force: true });
-	}
-}
-
 /** Get the secret placeholder key path (~/.zeta/agent/secret-placeholder.key; XDG default: $XDG_STATE_HOME/zeta/secret-placeholder.key). Adopts a legacy key on first XDG resolution. */
 export function getSecretPlaceholderKeyPath(): string {
 	const keyPath = dirs.agentSubdir(undefined, "secret-placeholder.key", "state");
@@ -1068,9 +1072,9 @@ export function getDaemonRuntimeDir(projectDir: string): string {
 	return path.join(getDaemonRuntimeRoot(), key);
 }
 
-/** Root directory containing every machine-global daemon service scope (~/.zeta/run/daemons/global; XDG default: $XDG_STATE_HOME/zeta/run/daemons/global). Shared across profiles. */
+/** Root directory containing every machine-global daemon service scope. */
 export function getGlobalDaemonRuntimeRoot(): string {
-	return dirs.baseRootSubdir(path.join("run", "daemons", "global"), "state");
+	return path.join(getBaseConfigRoot(), "run", "daemons", "global");
 }
 
 /** Get a profile-independent runtime directory for a machine-global daemon service. */
@@ -1100,16 +1104,6 @@ export function getMarketplacesRegistryPath(): string {
 /** Get the project-level Python modules directory (.zeta/modules). */
 export function getProjectModulesDir(cwd: string = getProjectDir()): string {
 	return path.join(getProjectAgentDir(cwd), "modules");
-}
-
-/** Get the project-level tracking directory (<project>/.zeta/tracking). */
-export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
-	return path.join(getProjectAgentDir(cwd), "tracking");
-}
-
-/** Get the global tracking index path (~/.zeta/agent/tracking-index.json). */
-export function getTrackingIndexPath(agentDir?: string): string {
-	return path.join(agentDir ?? getAgentDir(), "tracking-index.json");
 }
 
 /** Get the project-level prompts directory (.zeta/prompts). */
@@ -1224,6 +1218,16 @@ export function getInstallId(): string {
 
 	cachedInstallId = next;
 	return next;
+}
+
+/** Get the project-level tracking directory (<project>/.zeta/tracking). */
+export function getProjectTrackingDir(cwd: string = getProjectDir()): string {
+	return path.join(getProjectAgentDir(cwd), "tracking");
+}
+
+/** Get the global tracking index path (~/.zeta/agent/tracking-index.json). */
+export function getTrackingIndexPath(agentDir?: string): string {
+	return path.join(agentDir ?? getAgentDir(), "tracking-index.json");
 }
 
 /** Test-only: clear cached install id. Never call from production code. */

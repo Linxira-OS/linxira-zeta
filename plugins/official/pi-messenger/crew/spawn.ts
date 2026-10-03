@@ -7,6 +7,7 @@
 
 import { join } from "node:path";
 import * as store from "./store.ts";
+import { getProjectMessengerDir } from "../paths.ts";
 import { loadCrewConfig } from "./utils/config.ts";
 import { discoverCrewSkills } from "./utils/discover.ts";
 import { buildWorkerPrompt } from "./prompt.ts";
@@ -27,7 +28,7 @@ export function spawnWorkersForReadyTasks(cwd: string, maxWorkers: number, sessi
 	const config = loadCrewConfig(crewDir);
 	const workerCap = Math.min(maxWorkers, config.concurrency.max);
 	const prdLabel = store.getPlanLabel(plan);
-	const inboxDir = join(cwd, ".pi", "messenger", "inbox");
+	const inboxDir = join(getProjectMessengerDir(cwd), "inbox");
 	const skills = discoverCrewSkills(cwd);
 
 	let assigned = 0;

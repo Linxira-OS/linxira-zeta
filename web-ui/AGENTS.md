@@ -11,9 +11,10 @@ while keeping Zeta's i18n catalog, theme system, and gateway architecture.
 `omp-web-upstream` is **frozen**: no further merges — manual cherry-picks only,
 recorded in `../document/upstream-sync.md`.
 
-- The Zeta package name is `zeta-web` (npm), with `omp-web` retained as a
-  compatibility bin alias. Keep session format support and OMP-specific
-  configuration behavior unless a focused Zeta change deliberately updates it.
+- The Zeta package name is `@linxiraos/zeta-web` (npm), published with the
+  single `zeta-web` bin — there is no compatibility bin alias. Keep session
+  format support and legacy configuration fallbacks unless a focused Zeta
+  change deliberately updates them.
 - Do not add `web-ui/` to the root Bun workspace or refresh its lockfiles from
   root commands.
 - Use `sync/web-ui/omp/<sha>` for OMP Web snapshots and

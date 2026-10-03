@@ -1,5 +1,5 @@
 import { Args, type CommandMetadata, Flags } from "@linxiraos/pi-utils/cli";
-import { APP_NAME } from "@linxiraos/pi-utils/dirs";
+import { APP_NAME, CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
 import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
@@ -118,15 +118,15 @@ export const launchHelp = {
 		}),
 	},
 	examples: [
-		`# Interactive mode\n  ${APP_NAME}`,
-		`# Interactive mode with initial prompt\n  ${APP_NAME} "List all .ts files in src/"`,
-		`# Start working on a goal immediately\n  ${APP_NAME} --goal "Investigate the importer"`,
-		`# Include files in initial message\n  ${APP_NAME} @prompt.md @image.png "What color is the sky?"`,
-		`# Non-interactive mode (process and exit)\n  ${APP_NAME} -p "List all .ts files in src/"`,
-		`# Continue previous session\n  ${APP_NAME} --continue "What did we discuss?"`,
-		`# Create a shell shortcut for a work profile\n  ${APP_NAME} --profile work --alias zeta-work`,
-		`# Use different model (fuzzy matching)\n  ${APP_NAME} --model opus "Help me refactor this code"`,
-		`# Limit model cycling to specific models\n  ${APP_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
-		`# Export a session file to HTML\n  ${APP_NAME} --export ~/.zeta/agent/sessions/--path--/session.jsonl`,
+		`# Interactive mode\n  ${CLI_BIN_NAME}`,
+		`# Interactive mode with initial prompt\n  ${CLI_BIN_NAME} "List all .ts files in src/"`,
+		`# Start working on a goal immediately\n  ${CLI_BIN_NAME} --goal "Investigate the importer"`,
+		`# Include files in initial message\n  ${CLI_BIN_NAME} @prompt.md @image.png "What color is the sky?"`,
+		`# Non-interactive mode (process and exit)\n  ${CLI_BIN_NAME} -p "List all .ts files in src/"`,
+		`# Continue previous session\n  ${CLI_BIN_NAME} --continue "What did we discuss?"`,
+		`# Create a shell shortcut for a work profile\n  ${CLI_BIN_NAME} --profile work --alias zeta-work`,
+		`# Use different model (fuzzy matching)\n  ${CLI_BIN_NAME} --model opus "Help me refactor this code"`,
+		`# Limit model cycling to specific models\n  ${CLI_BIN_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
+		`# Export a session file to HTML\n  ${CLI_BIN_NAME} --export ~/.zeta/agent/sessions/--path--/session.jsonl`,
 	],
 } satisfies CommandMetadata;

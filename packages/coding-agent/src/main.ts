@@ -111,7 +111,7 @@ import {
 	persistForeignSession,
 } from "./session/foreign-session-import";
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
-import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
+import { normalizeResumeSessionArg, resolveResumableSession, type SessionInfo } from "./session/session-listing";
 import { ForkSourceNotFoundError, SessionManager } from "./session/session-manager";
 import { shouldShowStartupSplash } from "./startup-splash";
 import {
@@ -1202,19 +1202,37 @@ export async function createSessionManager(
 
 	if (typeof parsed.resume === "string") {
 		const sessionArg = parsed.resume;
-		if (sessionArg.includes("/") || sessionArg.includes("\\") || sessionArg.endsWith(".jsonl")) {
-			return await SessionManager.open(sessionArg, parsed.sessionDir);
+		// Copy-paste noise (`<id>/`, `<id>.jsonl`) must not re-route an id into
+		// the path branch below: a missing file there used to mint a fresh
+		// empty session with no explanation. After normalization a separator
+		// can only come from a deliberate explicit transcript path.
+		const normalizedSessionArg = normalizeResumeSessionArg(sessionArg);
+		if (/[\\/]/.test(normalizedSessionArg)) {
+			try {
+				return await SessionManager.open(normalizedSessionArg, parsed.sessionDir, undefined, {
+					throwIfMissing: true,
+				});
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException | undefined)?.code;
+				if (code === "ENOENT" || code === "ENOTDIR") {
+					throw new SessionResolutionError(
+						`Session file "${normalizedSessionArg}" not found.`,
+						"Pass the session id from the exit tip (`zeta-c --resume <id>`), or run `zeta-c --resume` without an argument to pick from recent sessions.",
+					);
+				}
+				throw error;
+			}
 		}
-		const match = await resolveResumableSession(sessionArg, cwd, parsed.sessionDir);
+		const match = await resolveResumableSession(normalizedSessionArg, cwd, parsed.sessionDir);
 		if (!match) {
 			throw new SessionResolutionError(
-				`Session "${sessionArg}" not found.`,
+				`Session "${normalizedSessionArg}" not found.`,
 				"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.",
 			);
 		}
 		if (match.scope === "local") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				sessionArg,
+				normalizedSessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,
@@ -1229,7 +1247,7 @@ export async function createSessionManager(
 		}
 		if (match.scope === "global") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				sessionArg,
+				normalizedSessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,

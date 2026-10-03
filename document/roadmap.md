@@ -1,7 +1,7 @@
 # Zeta Development Roadmap
 
 > **当前执行计划**（UI 迁移、编辑器/终端两端、team agent 接入）见
-> [plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md)。本文档保留长期
+> [webui-desktop-overhaul-plan.md](./webui-desktop-overhaul-plan.md)（2026-10-02 起；carryover 未完成批次已收编其 §14）。本文档保留长期
 > 路线与 Shipped 记录；执行细节以该计划为准。文档规范：旧计划随新计划生效
 > 即删；未开发的后期规划登记在本文档。
 
@@ -241,12 +241,12 @@ sync sources for upstream work.
    surfaces, system UI font stack with CJK fallbacks (no remote font
    dependency), Starfield retained as a legacy optional theme only. Full
    design spec (locked decisions, layout tree, token inventory, tracking v2
-   detail, acceptance): `document/plan-zeta-ui-carryover.md` — amend that
+   detail, acceptance): `document/webui-desktop-overhaul-plan.md` §14（收编自 plan-zeta-ui-carryover.md）— amend that
    document in place; this entry stays a pointer.
    Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
-   (feat/web-ui-sidebar；头部红线见 plan-zeta-ui-carryover.md)；会话地图
+   (feat/webui-sidebar-overhaul；头部红线见 webui-desktop-overhaul-plan.md §14)；会话地图
    设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
-   (`document/plan-zeta-ui-carryover.md` Z5+U11 批)。
+   （本计划 §14 Z5+U11 批）。
 
 ### P0 — Compaction as a service (not a command)
 
@@ -284,10 +284,12 @@ OpenCode commands fall into three kinds; migrate them in that order:
 
 1. **Mechanism-triggering** (run code): e.g. compaction triggers, session
    operations — implemented as code, not text.
-2. **Prompt-substitution** (expand to a prompt): `/init` (guided AGENTS.md
-   setup, `initialize.txt`), plus `/update`, `/recipe` equivalents where they
-   fit Zeta. (`/review` and `/share` already shipped as bundled/builtin
-   commands.)
+2. **Prompt-substitution** (expand to a prompt): `/init` and `/update` have
+   shipped (`cmdInitGenerateAgentsMd` bundled zh overlay; CLI `/update`);
+   `/recipe` remains deferred with the removed-feature backlog — manage
+   remaining prompt-substitution gaps together with the user-defined
+   commands gaps below. (`/review` and `/share` already shipped as
+   bundled/builtin commands.)
 3. **Combined** (template + arguments), using V2's command schema
    (`template`/`description`/`agent`/`model`) as reference.
 
@@ -395,10 +397,10 @@ self-protection on the Bun 1.4 base (Rust rewrite: mimalloc-backed JSC,
 machines are already on Bun 1.4 (done out-of-band); the remaining work is
 repo-side:
 
-1. **Lockfile + CI pin residue**: regenerate `bun.lock` under Bun 1.4
-   (lockfileVersion 1 → 2) and bump the `native_addons` bazel job's
-   `bun-version` from 1.3 to 1.4 in the same commit — bun 1.3 cannot parse
-   v2 locks, so the two must land together.
+1. **Lockfile**: regenerate `bun.lock` under Bun 1.4 (lockfileVersion 1 →
+   2). The CI bun-version pin concern is resolved — CI derives its bun
+   floor from `packageManager` (`bun@>=1.4` already set); no
+   `bun-version` pin remains to bump.
 2. **Memory profiling harness**: a bounded soak script (scripted long session:
    large tool outputs + resize sequences) sampling rss/heap plus Windows
    commit; A/B matrix — Bun 1.3-built vs 1.4-built binaries, 18.0.x vs 18.1.x
@@ -464,9 +466,6 @@ subagents never do. Preserve that invariant in merges. Hardening remaining:
 
 - `channels.enabled` is an opt-out (default true); settings copy must not
   imply the toggle grants capability.
-- No `taskDepth` guard exists for the trio in `isToolAllowed` (safe only
-  because subagents never receive sinks — add the guard before any sink
-  forwarding change).
 - Bot sessions hold the full sink set including absolute-path `workspace_run`
   delegation (by design; revisit if the surface widens).
 - Future surface-conditional prompt options must be immutable per session
@@ -544,10 +543,10 @@ Remaining:
    LAN; a pairing QR in settings/desktop encoding `URL + token` (reuse
    `utils/qrcode.ts`) so the phone pairs by scanning; token rotation/revocation
    and rate limiting on the auth gate for WAN exposure.
-2. **Lazy media for mobile**: `?deferMedia` blanks tool-result images with no
-   fetch-back endpoint; add a blob-store read endpoint
-   (`~/.zeta/agent/blobs`) so phone clients lazy-load images instead of
-   pulling base64 inline.
+2. **Lazy media for mobile**: the blob-store read endpoint is in place —
+   `GET /api/blobs/:hash` (web-gateway) serves `~/.zeta/agent/blobs` for
+   fetch-back. Remaining: wire lazy fetch-back into web-ui
+   (`useAgentSession` still only sends `?deferMedia`).
 3. **Mobile web-ui**: PWA manifest + service worker (installable, offline
    shell) on top of the existing responsive pass; voice input rides the native
    IME (zero work) — an optional Web Speech API mic button can come later.
@@ -594,7 +593,7 @@ carry the last ~40 low-priority strings.
 ### DONE — plan-surface completion A+B (feat/plan-surface-completion, 2026-09-22)
 
 The A+B remainder of
-[plan-zeta-ui-carryover.md](./plan-zeta-ui-carryover.md) (前 §11.1) has
+[webui-desktop-overhaul-plan.md](./webui-desktop-overhaul-plan.md) (§14, folded 2026-10-02) has
 landed: minimal shell wrap-up (settings-only bottom entry, collapse rail,
 welcome dual selector), command palette (Ctrl+K), Shiki over
 react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
@@ -603,38 +602,33 @@ react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
   index template, object index, status stage/phases, plan mirroring, phase
   nudge). C-level items (CM6, PTY terminal, team agent M0-M2, 7 remaining
   skills, onboarding) stay in §11.2 for separate plans; per-section status is
-  annotated inline in that document.
+  annotated inline in that document. U2 (9e7c4e4251f) has landed as well.
 
-### P2 — TTT editor zh UI + About branding (deferred past 1.1.18)
+### P2 — TTT editor About branding (remaining scope; zh UI done)
 
 The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
-`zeta-editor`) predates the tui text layer and ships English UI: the
-Settings pane (Editor/Appearance/Completion tabs, footer Cancel/Apply),
-menus, and the About dialog. Two work items; 1.1.18 ships without them
-(user call, 2026-09-22) — slot them into whichever release follows:
+`zeta-editor`) predates the tui text layer.
 
-- **zh UI**: TTT is a vendored upstream app, not a pi-tui component —
-  `tuiText` does not reach it. Either port the same injectable-source
-  pattern into TTT's own render path (preferred; keeps upstream
-  mergeable) or fork the strings. Scope: settings tabs/labels, menus,
-  footer actions, dialog chrome.
-- **About branding**: the dialog still presents upstream identity —
-  "About TTT Editor", `Version 1.1.15` (TTT's own semver, not the Zeta
-  package version), `https://tttedit.dev`,
-  `https://github.com/eugenioenko/ttt`. Per the brand-surface registry
-  this is a Zeta product face: keep the upstream attribution lines
-  (MIT obligation) and add the Zeta distribution identity
-  (`Zeta Editor · v<zeta version> · TTT <upstream version> ·
-github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
+- ~~**zh UI**~~ DONE: `editor/internal/app/i18n.go` now carries a full zh
+  string table (settings tabs/labels, menus, footer actions, dialog
+  chrome); the settings view exposes an English/中文（简体） selector.
+- **About branding (remaining)**: upstream attribution is already cleaned —
+  Source points at `github.com/Linxira-OS/linxira-zeta` and the upstream
+  website line is gone (VENDOR.md). Still upstream-flavored: the dialog
+  title remains "About TTT Editor" and the version line shows TTT's own
+  semver. Remaining work: a Zeta distribution identity line
+  (`Zeta Editor · v<zeta version> · TTT <upstream version>`),
+  Chinese-first copy.
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
-- **上游合并队列**:v18.3.3+v18.3.4 已合并;2026-09-29 用户授权五 tag
-  直拉 v18.4.3(v18.3.5/40/41/42/43 一次并入,288 冲突,账本见
-  upstream-sync.md)。上游性能大年获益:cache-warming、投机 task 启动、
-  grep 流式背压、Oniguruma 高亮、TUI 每帧渲染清扫。**后续遗留**:image
+- **上游合并队列**:v18.4.3(五 tag 直拉,v18.3.5/40/41/42/43 一次并入,
+  288 冲突,账本见 upstream-sync.md)已落 dev/main;dev→main 合并待决策。
+  上游性能大年获益:cache-warming、投机 task 启动、grep 流式背压、
+  Oniguruma 高亮、TUI 每帧渲染清扫。**后续遗留**:image
   `providers.imageOrder` 的 role-chain 重集成(运行时消费随上游旧 candidate
-  循环删除而失活,设置面/测试契约保留);上游最新 tag 跟踪同前。
+  循环删除而失活,设置面/测试契约保留);v18.4.4 在 sync worktree
+  在途(4 commits 未进 main)。
 
 - **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
   基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方
@@ -688,11 +682,11 @@ github.com/Linxira-OS/linxira-zeta`), Chinese-first copy.
   **设置页**(键位/主题/默认 shell/套件路径等)+ 自定义键位、
   任意拖拽布局编辑器、files 选型集成、tab 会话/handoff 联动
   (handoff.json 机制扩展)、官网更新(用户提供仓库位置后跨文件改)。
-  **拖拽交互暂缓(2026-10-01 维护者裁定)**:窗格拖拽交换/移靠/拉伸、
-  标签拖拽重排的逻辑需要详细调研后再做——机制已全部写好(app.rs 的
-  Drag 枚举、layout.rs 的 detach/insert_beside/resize_at),由
-  `DRAG_ENABLED=false` 一个开关停用,重启即回;当前界面点击(聚焦/分裂/
-  子页/关闭)不受影响。**参照系(用户指定,2026-10-01)**:交互逻辑持续对照 vendored 的
+  **拖拽交互现状(2026-10-02 更新)**:拖拽已是设置项且默认开启
+  (settings.rs `drag` 默认 true,app.rs drag_enabled() 接线;窗格拖拽
+  交换/移靠/拉伸、标签拖拽重排全接线,重启即回)。停用走 settings
+  文件开关,并非早期设想的 `DRAG_ENABLED=false` 编译期停用。
+  **参照系(用户指定,2026-10-01)**:交互逻辑持续对照 vendored 的
   GPL-2.0 项目 fresh(temp/fresh,sinelaw/fresh 终端编辑器)——其核心经
   验已吸收:命中区在绘制时登记、鼠标事件只查登记表(rendered geometry
   即 hit geometry,app.rs 的 HitRegistry 即由此来);后续菜单/拖拽/设置

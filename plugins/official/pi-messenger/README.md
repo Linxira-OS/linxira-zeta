@@ -24,7 +24,7 @@ To show available crew agents:
 npx pi-messenger --crew-install
 ```
 
-To customize an agent for one project, copy it to `.pi/messenger/crew/agents/` and edit it.
+To customize an agent for one project, copy it to `.zeta/messenger/crew/agents/` and edit it. Project-supplied agents and skills load only when the project opts in (see [Default Agent Models](#default-agent-models)).
 
 To remove the extension:
 
@@ -93,7 +93,7 @@ Chat input supports `@Name msg` for DMs and `@all msg` for broadcasts. Text with
 
 Crew turns a PRD into a dependency graph of tasks, then executes them in parallel waves.
 
-Crew logs are per project, under that project's working directory: `.pi/messenger/crew/`. For example, if you run Crew from `/path/to/my-app`, the planner log lives at `/path/to/my-app/.pi/messenger/crew/planning-progress.md`.
+Crew logs are per project, under that project's working directory: `.zeta/messenger/crew/`. For example, if you run Crew from `/path/to/my-app`, the planner log lives at `/path/to/my-app/.zeta/messenger/crew/planning-progress.md`.
 
 ### Workflow
 
@@ -132,13 +132,13 @@ Workers follow the same join/read/implement/commit/release protocol regardless o
 
 Skills are discovered from three locations (later sources override earlier by name):
 
-1. **User skills** — `~/.pi/agent/skills/` (pi's standard `dir/SKILL.md` format)
+1. **User skills** — `~/.zeta/agent/skills/` (pi's standard `dir/SKILL.md` format)
 2. **Extension skills** — `crew/skills/` within the extension (flat `.md` files)
-3. **Project skills** — `.pi/messenger/crew/skills/` in your project root (flat `.md` files)
+3. **Project skills** — `.zeta/messenger/crew/skills/` in your project root (flat `.md` files)
 
 The planner sees a compact index of all discovered skills and can tag tasks with relevant ones. Workers see tagged skills as "Recommended for this task" with the full catalog under "Also available", and load what they need via `read()`. Zero tokens spent until a worker actually needs the knowledge.
 
-To add a project-level skill, drop a `.md` file in `.pi/messenger/crew/skills/`:
+To add a project-level skill, drop a `.md` file in `.zeta/messenger/crew/skills/`:
 
 ```markdown
 ---
@@ -152,11 +152,11 @@ Always use Bearer token auth. Paginate with cursor-based `?after=` params.
 Error responses use `{ error: { code, message, details? } }` shape.
 ```
 
-Any skills you already have in `~/.pi/agent/skills/` are automatically available to crew workers — no setup needed.
+Any skills you already have in `~/.zeta/agent/skills/` are automatically available to crew workers — no setup needed.
 
 ### Team Layer
 
-Team is an optional layer around Crew. Crew still plans and executes tasks; Team adds project-local roles, a charter, durable memory, reusable JSON profiles, and high-risk approval gates. Active Team state lives in `.pi/messenger/team/`. Reusable profiles live in `~/.pi/agent/messenger/team-profiles/`.
+Team is an optional layer around Crew. Crew still plans and executes tasks; Team adds project-local roles, a charter, durable memory, reusable JSON profiles, and high-risk approval gates. Active Team state lives in `.zeta/messenger/team/`. Reusable profiles live in `~/.zeta/agent/messenger/team-profiles/`.
 
 Most users should talk to their agent in plain language:
 
@@ -209,7 +209,7 @@ A saved profile looks like this:
 
 ### Crew Configuration
 
-Crew spawns multiple LLM sessions in parallel — it can burn tokens fast. Start with a cheap worker model and scale up once you've seen the workflow. Add this to `~/.pi/agent/pi-messenger.json`:
+Crew spawns multiple LLM sessions in parallel — it can burn tokens fast. Start with a cheap worker model and scale up once you've seen the workflow. Add this to `~/.zeta/agent/pi-messenger.json`:
 
 ```json
 { "crew": { "models": { "worker": "claude-haiku-4-5" } } }
@@ -298,7 +298,7 @@ Each crew agent ships with a fallback model in its frontmatter. Override any rol
 | `crew-reviewer`  | reviewer | `anthropic/claude-opus-4-6`  |
 | `crew-plan-sync` | analyst  | `anthropic/claude-haiku-4-5` |
 
-Agent definitions live in `crew/agents/` within the extension. To customize one for a project, copy it to `.pi/messenger/crew/agents/` and edit the frontmatter — project-level agents override extension defaults by name. Agents support `thinking: <level>` in frontmatter (off, minimal, low, medium, high, xhigh). Config `thinking.<role>` overrides the frontmatter value.
+Agent definitions live in `crew/agents/` within the extension. To customize one for a project, copy it to `.zeta/messenger/crew/agents/` and edit the frontmatter — project-level agents override extension defaults by name. Project-supplied agents (and [project skills](#crew-skills)) load only when the project opts in: set `"trustProjectAgents": true` in `<project>/.zeta/pi-messenger.json`. Agents support `thinking: <level>` in frontmatter (off, minimal, low, medium, high, xhigh). Config `thinking.<role>` overrides the frontmatter value.
 
 ## API Reference
 
@@ -372,7 +372,7 @@ Approval-gated tasks use the Crew task commands `task.approve` and `task.reject`
 
 ## Configuration
 
-Create `~/.pi/agent/pi-messenger.json`:
+Create `~/.zeta/agent/pi-messenger.json`:
 
 ```json
 {
@@ -402,7 +402,7 @@ Create `~/.pi/agent/pi-messenger.json`:
 | `crewEventsInFeed`    | Include crew task events in activity feed                              | `true`      |
 | `contextMode`         | Context injection level: `full`, `minimal`, `none`                     | `"full"`    |
 
-Config priority: project `.pi/pi-messenger.json` > user `~/.pi/agent/pi-messenger.json` > `~/.pi/agent/settings.json` `"messenger"` key > defaults.
+Config priority: project `.zeta/pi-messenger.json` > user `~/.zeta/agent/pi-messenger.json` > defaults.
 
 ## How It Works
 
@@ -412,7 +412,7 @@ Incoming messages wake the receiving agent via `pi.sendMessage()` with `triggerT
 
 Crew workers are spawned as `pi --mode json` subprocesses with the agent's system prompt, model, and tool restrictions from their `.md` definitions. Progress is tracked via JSONL streaming — the overlay subscribes to a live progress store that shows each worker's current tool, call count, and token usage in real time. Aborting a work run triggers graceful shutdown: each worker receives an inbox message asking it to stop, followed by a grace period before SIGTERM. The planner and reviewer work the same way — just pi instances with different agent configs.
 
-All coordination is file-based, no daemon required. Shared state (registry, inboxes, swarm claims/completions) lives in `~/.pi/agent/messenger/`. Activity feed and crew data are project-scoped under `.pi/messenger/` inside your project, so Crew logs live at `<project>/.pi/messenger/crew/` and the shared activity feed lives at `<project>/.pi/messenger/feed.jsonl`. Dead agents are detected via PID checks and cleaned up automatically.
+All coordination is file-based, no daemon required. Shared state (registry, inboxes, swarm claims/completions) lives in `~/.zeta/agent/messenger/`. Activity feed and crew data are project-scoped under `.zeta/messenger/` inside your project, so Crew logs live at `<project>/.zeta/messenger/crew/` and the shared activity feed lives at `<project>/.zeta/messenger/feed.jsonl`. Dead agents are detected via PID checks and cleaned up automatically.
 
 ## Credits
 

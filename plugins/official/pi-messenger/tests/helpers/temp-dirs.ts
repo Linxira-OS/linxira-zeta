@@ -18,7 +18,7 @@ export function createTempCrewDirs(): TempCrewDirs {
 	roots.add(root);
 
 	const cwd = root;
-	const messengerDir = path.join(cwd, ".pi", "messenger");
+	const messengerDir = path.join(cwd, ".zeta", "messenger");
 	const crewDir = path.join(messengerDir, "crew");
 	const tasksDir = path.join(crewDir, "tasks");
 	const blocksDir = path.join(crewDir, "blocks");

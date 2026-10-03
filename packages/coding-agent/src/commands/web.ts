@@ -4,7 +4,7 @@
  * 使用 ZetaServer 统一 HTTP 反向代理启动 Web UI。作为 `zeta-c serve --web-only` 的快捷方式。
  */
 
-import { APP_NAME, logger } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { startZetaServer } from "../server/zeta-server";
@@ -30,7 +30,7 @@ export default class Web extends Command {
 		const port = flags.port;
 		const noBrowser = flags["no-browser"];
 
-		console.log(chalk.bold(`\n  ${APP_NAME} Web UI\n`));
+		console.log(chalk.bold(`\n  ${CLI_BIN_NAME} Web UI\n`));
 
 		let instance: Awaited<ReturnType<typeof startZetaServer>> | null = null;
 		try {

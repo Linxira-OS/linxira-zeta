@@ -6,7 +6,7 @@ import {
 	MANAGED_SKILLS_PROVIDER_ID,
 	sanitizeManagedDescription,
 } from "../autolearn/managed-skills";
-import { skillCapability } from "../capability/skill";
+import { OFFICIAL_SKILLS_PROVIDER_ID, skillCapability } from "../capability/skill";
 import type { EffectiveExtensionRoots, SourceMeta } from "../capability/types";
 import type { SkillsSettings } from "./settings";
 import {
@@ -297,6 +297,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		enablePiProject = true,
 		enableAgentsUser = true,
 		enableAgentsProject = true,
+		enableOfficial = true,
 		customDirectories = [],
 		ignoredSkills = [],
 		includeSkills = [],
@@ -321,6 +322,10 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		if (provider === "native" && level === "project") return enablePiProject;
 		if (provider === "agents" && level === "user") return enableAgentsUser;
 		if (provider === "agents" && level === "project") return enableAgentsProject;
+		// Official bundled pack (`zeta-official`) is OMP-native, so it skips the
+		// foreign `~/` opt-in registry below; `skills.enableOfficial` is its
+		// dedicated user-facing switch (default on).
+		if (provider === OFFICIAL_SKILLS_PROVIDER_ID) return enableOfficial;
 		// User-scope claude-plugins skills carry the root's origin (#10743). omp's
 		// own installs (`omp` registry, `--plugin-dir`) are not the foreign
 		// ~/.claude/plugins tree, so the foreign opt-in gate applies only to

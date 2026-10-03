@@ -60,17 +60,19 @@ func (a *App) SwitchToAgent(withCurrentFile bool) {
 }
 
 // spawnZeta launches the agent CLI detached in dir. PATH is consulted first
-// under the current bin name and its .cmd shim (a global npm install; older
-// installs still expose the pre-rename `zeta` name, so it stays as a
-// fallback), then the plugin install location, then the repo checkout's dev
-// entry — the last covers running the editor from source.
+// under the current bin name and its .cmd shim (a global npm install; the
+// zeta-cli/zetacode aliases too), then the plugin install location, then the
+// repo checkout's dev entry — the last covers running the editor from source.
+// The bare `zeta` bin is deliberately NOT a candidate: it belongs to the
+// Zetawork workbench, which swallows `--resume` as an unknown flag and opens
+// the workbench instead — a silent misroute on workbench-only machines.
 func spawnZeta(dir string) error {
 	home, _ := os.UserHomeDir()
 	pluginBin := ""
 	if home != "" {
 		pluginBin = filepath.Join(home, ".zeta", "plugins", "node_modules", ".bin", "zeta-c")
 	}
-	candidates := []string{"zeta-c", "zeta-c.cmd", "zeta", "zeta.cmd"}
+	candidates := []string{"zeta-c", "zeta-c.cmd", "zeta-cli", "zetacode"}
 	if pluginBin != "" {
 		if _, err := os.Stat(pluginBin); err == nil {
 			candidates = append(candidates, pluginBin)

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7-labs
 ###############################################################################
-# oh-my-pi — pi image
+# zeta — pi image
 #
 # Stages:
 #   natives-builder — Rust + Bun → pi_natives.linux-<arch>.node
@@ -164,7 +164,7 @@ COPY --from=wheel-builder /out/*.whl /tmp/wheels/
 RUN pip install /tmp/wheels/omp_rpc-*.whl && rm -rf /tmp/wheels
 
 # `zeta` shim — runs the coding-agent CLI against $PI_ROOT via Bun. Derived
-COPY LICENSE  THIRD-PARTY-NOTICES.txt /usr/share/doc/omp/
+COPY LICENSE  THIRD-PARTY-NOTICES.txt /usr/share/doc/zeta/
 # images override PI_ROOT to point at wherever their pi source lives.
 RUN printf '%s\n' \
     '#!/usr/bin/env bash' \

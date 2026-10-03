@@ -48,7 +48,7 @@ describe("crew/utils/install", () => {
 		const agentsDir = path.join(homeDir, ".pi", "agent", "agents");
 		const markerPath = path.join(
 			homeDir,
-			".pi",
+			".zeta",
 			"agent",
 			"messenger",
 			"migrations",

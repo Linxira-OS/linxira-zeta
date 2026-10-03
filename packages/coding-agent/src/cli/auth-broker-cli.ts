@@ -31,7 +31,7 @@ import {
 import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
 import { refreshOAuthToken } from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
-import { $which, APP_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
+import { $which, CLI_BIN_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { setTransports as setLoggerTransports } from "@linxiraos/pi-utils/logger";
 import { $ } from "bun";
@@ -237,7 +237,7 @@ async function runRemoteLogin(provider: string, via: string, dryRun: boolean): P
 		"-o",
 		"ExitOnForwardFailure=yes",
 		via,
-		`${APP_NAME} auth-broker login ${provider}`,
+		`${CLI_BIN_NAME} auth-broker login ${provider}`,
 	];
 	if (dryRun) {
 		process.stdout.write(`ssh ${sshArgs.map(a => (a.includes(" ") ? `'${a}'` : a)).join(" ")}\n`);

@@ -22,7 +22,7 @@ import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers
 import type { SlashCommandSpec } from "./types";
 import { Spacer } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
-import { APP_NAME, formatAge } from "@linxiraos/pi-utils";
+import { APP_NAME, CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {
@@ -33,7 +33,7 @@ function collabLinkHint(host: CollabHost, heading: string, view = false): string
 		// Keep the URL on the first row: under transcript pressure the status
 		// block is clipped to rendered[0], which used to drop the join link.
 		`${collabBrowserLink(webLink, "Join in browser")}  ${theme.fg("success", heading)}`,
-		` ${bullet} ${theme.fg("muted", view ? "Watch from another terminal:" : "Join from another terminal:")} ${APP_NAME} join "${link}"`,
+		` ${bullet} ${theme.fg("muted", view ? "Watch from another terminal:" : "Join from another terminal:")} ${CLI_BIN_NAME} join "${link}"`,
 		` ${bullet} ${theme.fg("muted", "or any web browser:")} ${collabBrowserLink(webLink)}`,
 		theme.fg(
 			"dim",
@@ -340,7 +340,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				// link is a deliberate per-host act (`omp collab link <id> [--view]`),
 				// so a listing can be shown or logged without granting anything.
 				if (rest.trim()) {
-					ctx.showError(`Usage: /collab list — for links or JSON use \`${APP_NAME} collab link|list\``);
+					ctx.showError(`Usage: /collab list — for links or JSON use \`${CLI_BIN_NAME} collab link|list\``);
 					return;
 				}
 				let hosts: CollabHostSnapshot[];
@@ -388,7 +388,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 						// fixed details can never push it past one transcript line.
 						truncateToWidth(` ${bullet} ${session} ${theme.fg("muted", `— ${room}`)}`, TRUNCATE_LENGTHS.LINE),
 						truncateToWidth(`   ${theme.fg("muted", detail)}`, TRUNCATE_LENGTHS.LINE),
-						`   ${theme.fg("dim", `${APP_NAME} collab link ${host.instanceId}${host.access === "view" ? " --view" : ""}`)}`,
+						`   ${theme.fg("dim", `${CLI_BIN_NAME} collab link ${host.instanceId}${host.access === "view" ? " --view" : ""}`)}`,
 					);
 				}
 				ctx.showStatus(lines.join("\n"), { dim: false });
