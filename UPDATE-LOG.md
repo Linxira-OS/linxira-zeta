@@ -1,6 +1,6 @@
 # Zeta 更新日志
 
-## 下一版本（Unreleased）
+## 1.1.24（2026-10-03）
 
 ### OMP 同步基线
 
@@ -12,7 +12,6 @@
 - **OMP 模型配置只读兼容**：上游 `~/.omp` 已配模型/key 自动映射进模型列表（「来自 OMP」徽标），key 内存复用不落盘，Zeta 本地配置优先。
 - **插件存储契约**：`pi.storage`（`~/.zeta/plugins/{data,cache,state}/<id>/`）注入每个扩展 factory；`adoptLegacyFileOnce` 一次性迁移原语公共化。
 - **skills 嵌套路由树发现**（限深 3 层，linxira-skills 三级树叶子全部可见）；`skills.enableOfficial` 开关接线；npm 源码安装补齐 official skills。
-- **zeta-ide 位置参数**：`zeta-ide file[:line[:col]]` 与目录参数（对标 `code`；TTT 侧原有能力不变）。
 - **合并驱动**：`@mariozechner/*` 原作者 scope 纳入 package.json 合并映射（brand-rules 加守卫）。
 - **zh 本地化回填**：v18.4.11 新设置面（工件上限/棘轮递进/子代理完成度探测/goal 斜杠命令等）。
 
@@ -24,6 +23,45 @@
 - **虚拟模块 specifier 统一** `zeta-legacy-pi-modules`（生产/消费两侧，修复 install smoke bundle 失败）。
 - **zh 本地化契约**：v18.4.11 新设置全部含 CJK 条目；`parseFlag`/`$env` 等测试桩补齐。
 - **第三方协议头部**：THIRD-PARTY-NOTICES 标题与导语改 Zeta（vendored 法律文本与上游署名行原样保留）。
+
+### 移除
+
+- 无。
+
+## 1.1.25（2026-10-03）
+
+### OMP 同步基线
+
+- 未同步（基线保持 v18.4.11）。
+
+### 新增
+
+- **桌面内置终端（批次 4 / Z2+U9）**：网关新增 `/api/terminal` REST 与 WS 数据面（64KiB 断线回放缓冲、并发上限 4、一次性 connect ticket 鉴权），web-ui 右侧 dock 新增 xterm.js 终端窗格（TerminalView，断线指数退避重连）；聊天文件芯片右键「在终端打开」→ 终端窗格跑 `zeta-ide <file>[:line[:col]]`（PATH 探测，未命中回退纯 shell）。桌面/浏览器共用同一 WS，PTY 全在网关进程，桌面壳零改动。
+- **工作台 v1 批次**：OSC 8 超链接全链（termide 解析 + Ctrl+点击 → 右侧新窗格 `zeta-ide` 打开，IDE→editor 回退）；OSC 0/2 标题自动命名 + 槽位编号（`1:shell`，子进程报题实时接管 tab/pane 名）；子窗格单独关闭/提升为顶级 tab（Alt+B，PTY 存活）；死壳 tab 根因修复（关闭管线统一，不变量「tab 存在 ⇒ ≥1 活 pane」，末 tab 关闭自动补新 shell）；嵌套禁令（`ZETA_WORKBENCH=1` 时拒启，exit 2）；忙碌关闭二级确认（shell 有存活子进程时 Y/N，`~/.zeta/workbench.toml` 可关）。
+- **zeta-ide 位置参数**：`zeta-ide file[:line[:col]]` 与目录参数（对标 `code`；TTT 侧原有能力不变）。
+- **发布流程**：CI 双态切换（发布态跳过测试直进构建发布，tag 前强制同 SHA push-run 全绿）；set-version 纳管 main 工作区 Rust 版本（修复工作台二进制版本戳落后）。
+
+### 修复
+
+- 无。
+
+### 移除
+
+- 无。
+
+## 下一版本（Unreleased）
+
+### OMP 同步基线
+
+- 未同步。
+
+### 新增
+
+- 无。
+
+### 修复
+
+- 无。
 
 ### 移除
 

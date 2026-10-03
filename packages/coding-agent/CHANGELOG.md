@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Embedded terminal sessions for the web UI: `POST/GET/DELETE /api/terminal`, resize, and a WebSocket data plane (`/api/terminal/:id/ws`) with a 64 KiB replay buffer, a 4-session concurrency cap, and one-time connect tickets for browser WebSocket auth. File chips in chat open a terminal pane that runs `zeta-ide <file>[:line[:col]]` when an IDE binary is on PATH.
+- TUI hyperlinks (OSC 8) are now emitted inside Zetawork workbench panes: the workbench injects a `ZETA_WORKBENCH=1` probe that unlocks `fileHyperlink` output, so clickable file links and live titles work in embedded terminals.
+
 ## [1.1.24] - 2026-10-03
 
 ### Added

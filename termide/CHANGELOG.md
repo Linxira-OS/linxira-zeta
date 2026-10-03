@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OSC 8 hyperlink and OSC 0/2 title parsing in `panel-terminal`: terminal cells carry hyperlink ids (`file://` and `zeta-open://?line=&col=` URIs, percent-decoded, drive-letter and localhost forms accepted), Ctrl+click on a link region emits `PanelEvent::OpenPath{path, line, col}` (visible-text `:line:col` fallback), and parsed titles surface via `Terminal::osc_title` for pane auto-naming.
+
+### Fixed
+
+- `set_env` now injects a `ZETA_WORKBENCH=1` probe into PTY children on every spawn path, letting host-aware TUIs (zetacode) unlock workbench-specific behavior such as hyperlinks.
+
 ## [0.35.0] - 2026-09-13
 
 [0.35.0]: https://github.com/termide/termide/releases/tag/0.35.0
