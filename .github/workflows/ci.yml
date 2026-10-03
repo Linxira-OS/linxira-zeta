@@ -166,6 +166,11 @@ jobs:
 
    check:
       name: Lint, type check & web build
+      # Dual-mode: test-type jobs run on ordinary pushes/PRs only; the
+      # release run (bump-commit push with `v*` tag on HEAD) skips them and
+      # goes straight to build+publish (see release_gate).
+      needs: [release_metadata]
+      if: needs.release_metadata.outputs.is-release != 'true'
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -253,6 +258,9 @@ jobs:
    # extension once and uploads the refreshed lockfile, so a contributor
    # without bazelisk can commit it as-is.
    bazel_lock:
+      # No `if`: this job runs in BOTH modes — ordinary CI drift visibility and
+      # the release state, where it is a release_gate dependency (a stale lock
+      # must block publishing, not slip through a skipped-test release).
       name: Check MODULE.bazel.lock freshness
       runs-on: ubuntu-22.04
       steps:
@@ -277,7 +285,8 @@ jobs:
    # release. A skipped required check still satisfies branch protection.
    rust_validate:
       name: Validate Rust workspace (bazel)
-      if: github.event_name != 'pull_request'
+      needs: [release_metadata]
+      if: needs.release_metadata.outputs.is-release != 'true' && github.event_name != 'pull_request'
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -616,9 +625,9 @@ jobs:
 
    test_coding_agent_native:
       name: "Test coding-agent native/unit (TS) ${{ matrix.shard }}"
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       # The longest PR job, so it runs as three shards on hosted PR runners
       # (two left the slower shard ~25 s behind every other job). Main keeps
@@ -647,9 +656,9 @@ jobs:
 
    test_workspace:
       name: Test TS workspace fast
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
@@ -670,9 +679,9 @@ jobs:
 
    test_coding_agent_singleton:
       name: Test coding-agent singleton/global-state (TS)
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 20
       steps:
          - uses: actions/checkout@v4
@@ -688,9 +697,9 @@ jobs:
 
    test_ts_native:
       name: Test TS native/integration packages
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -706,9 +715,9 @@ jobs:
 
    test_coding_agent_ui:
       name: Test coding-agent UI/TUI (TS)
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -724,9 +733,9 @@ jobs:
 
    test_coding_agent_runtime:
       name: Test coding-agent runtime/session (TS)
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 25
       steps:
          - uses: actions/checkout@v4
@@ -775,24 +784,20 @@ jobs:
               OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
            run: bun run ci:test:install-methods
 
-   # Aggregates every validation job so publish-side release jobs gate on one
-   # result. Binary BUILDS deliberately do not wait for this gate — they run
-   # in parallel with the test fan-out and only publishing is held back.
+   # Aggregates the release-state prerequisites so publish-side release jobs
+   # gate on one result. In the release state the test-type jobs above are
+   # skipped (their greenness is a precondition enforced by scripts/release-v2.ts
+   # waiting for the bump-commit push run before tagging), so this gate only
+   # needs the jobs that actually run on a release. Skipped jobs would not
+   # appear in needs.*.result at all, and the guard below counts only
+   # failure/cancelled. Binary BUILDS deliberately do not wait for this gate —
+   # they run in parallel and only publishing is held back.
    release_gate:
       name: Release validation gate
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.rust_validate.result == 'success' &&
-         needs.native_addons.result == 'success' &&
-         needs.native_addons_cross.result == 'success' &&
-         needs.test_workspace.result == 'success' &&
-         needs.test_coding_agent_singleton.result == 'success' &&
-         needs.test_ts_native.result == 'success' &&
-         needs.test_coding_agent_ui.result == 'success' &&
-         needs.test_coding_agent_runtime.result == 'success' &&
-         needs.test_coding_agent_native.result == 'success' &&
-         needs.test_smoke.result == 'success' && needs.check.result == 'success' &&
-         needs.install_methods.result == 'success' }}
-      needs: [release_metadata, check, rust_validate, native_addons, native_addons_cross, test_workspace, test_coding_agent_singleton, test_ts_native, test_coding_agent_ui, test_coding_agent_runtime, test_coding_agent_native, test_smoke, install_methods]
+         !contains(needs.*.result, 'failure') &&
+         !contains(needs.*.result, 'cancelled') }}
+      needs: [release_metadata, bazel_lock, native_addons, native_addons_cross, install_methods]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4

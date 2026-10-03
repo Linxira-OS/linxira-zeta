@@ -98,30 +98,58 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
 
-### Trigger discipline (push is a quality gate, never a publish path)
+### Trigger discipline (dual-mode CI: push validates, tagged HEAD releases)
 
-- `push` to `main` runs quality checks only (check + test suites); it never
-  publishes. Only a release run — a `v*` tag at HEAD detected by
-  `release_metadata` — enters the build/publish chain.
-- `.github/**` is deliberately **excluded** from the `on.push` /
-  `on.pull_request` path filters: CI/workflow config changes never self-trigger
-  a full run. They are verified by `workflow_dispatch` instead (using
-  `skip_npm` as needed). Before any dispatch, the change must
-  be functionally complete and locally validated — never dispatch half-done
-  work, and never trigger CI for a simple documentation/config push.
-- Release runs are entered only through two channels:
-   1. `bun scripts/release-v2.ts <version>` — atomic bump commit + `v*` tag push
-      on `main`; the push run detects the tag and runs the full gate
-      (tests + build + publish).
-   2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-only
-      dispatch that skips publishing.
+- CI is **dual-mode**. `release_metadata` resolves one output, `is-release`,
+  and every job branches on it:
+  - **Ordinary mode** (push/PR whose HEAD carries no `v*` tag): the full test
+    fan-out runs — `check`, `rust_validate`, `test_workspace`,
+    `test_coding_agent_singleton/native/ui/runtime`, `test_ts_native`,
+    `test_smoke`, `install_methods`.
+  - **Release mode** (`is-release == 'true'`): the test-type jobs above
+    (`check` / `rust_validate` / `test_workspace` / the `test_coding_agent_*`
+    buckets / `test_ts_native`) are **skipped** via
+    `needs: [release_metadata]` +
+    `if: needs.release_metadata.outputs.is-release != 'true'`; the run goes
+    straight to `bazel_lock` + `native_addons`(+`native_addons_cross`) +
+    `install_methods` → `release_gate` → build/publish. `release_gate` counts
+    only `failure`/`cancelled` in `needs.*.result`, so skipped test jobs never
+    block or greenwash it.
+- Precise trigger discipline (push is a quality gate, never a publish path):
+  - `push` to `main` runs quality checks only; it never publishes. Only a
+    release run — a `v*` tag at HEAD detected by `release_metadata` — enters
+    the build/publish chain.
+  - Because the release run **skips the tests**, green push-run CI on the
+    **identical SHA** is a hard precondition before the tag may land.
+    `scripts/release-v2.ts` enforces this mechanically: it pushes the bump
+    commit, waits for that push run (`gh run watch` on the headSha+`event=push`
+    run, poll ≥60 s, max 90 min) and aborts without tagging on anything but
+    success. Escape hatch: `--no-ci-wait` restores the old atomic
+    branch+tag push for exceptional cases only.
+  - `.github/**` is deliberately **excluded** from the `on.push` /
+    `on.pull_request` path filters: CI/workflow config changes never self-trigger
+    a full run. They are verified by `workflow_dispatch` instead (using
+    `skip_npm` as needed). Before any dispatch, the change must
+    be functionally complete and locally validated — never dispatch half-done
+    work, and never trigger CI for a simple documentation/config push.
+  - Release runs are entered only through two channels:
+     1. `bun scripts/release-v2.ts <version>` — bump-commit push → wait for a
+        green push-run on that SHA → tag push → then
+        `gh workflow run ci.yml --ref main` (tagged HEAD ⇒ release mode:
+        tests skipped, straight to build + publish).
+     2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
+        dispatch that skips publishing (re-runs / 补发).
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
-  gated on `release_gate` (full test/build validation) plus
-  `release_binary` / `release_binary_hosted` (all release artifacts present)
-  and `!inputs.skip_npm`.
+  gated on `release_gate` (release-state validation: lockfile freshness +
+  native addons + install methods) plus `release_binary` / `desktop_*`
+  artifacts and `!inputs.skip_npm`.
+- `check:ts` (and the rest of the local pre-commit gates) remain mandatory
+  before every merge/release regardless of mode — the dual-mode skip only
+  removes the *duplicated CI* run, never the local gate.
 - Test-suite failures in a push run are environment flakes (e.g. singleton
   `broker-idle-shutdown`, julia prelude kernel) unless proven otherwise; a
-  release run gates on its own test results, never on unrelated push runs.
+  release run relies on the pre-tag push-run greenness (same SHA), never on
+  unrelated push runs.
 
 ### CI watching discipline (no polling)
 
@@ -222,7 +250,7 @@ Always move the version with a script:
 | `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, the `__piNativesVX_Y_Z` sentinel (lib.rs + committed bindings), `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
 | `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
 | `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives sentinel, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
-| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, atomic `v*` tag push.                                                                                                                                                                                                                                                                                                       |
+| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, push → wait for green push-run CI on that SHA → tag push (`--no-ci-wait` restores the old atomic push).                                                                                                                 |
 
 Rules:
 
