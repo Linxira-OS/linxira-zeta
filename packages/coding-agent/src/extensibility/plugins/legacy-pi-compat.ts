@@ -739,7 +739,7 @@ function ensureBundledModuleLoadersLoaded(): Promise<BundledModuleLoaders> {
 	}
 	if (!bundledModuleLoadersPromise) {
 		// This virtual module exists only in compiled/npm builds; source mode cannot import it statically.
-		bundledModuleLoadersPromise = import("omp-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
+		bundledModuleLoadersPromise = import("zeta-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
 	}
 	return bundledModuleLoadersPromise;
 }

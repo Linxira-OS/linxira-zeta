@@ -14,14 +14,14 @@ const htmlExportAssetPattern =
 	/^(?:template-[^.]+\.(?:css|html|js)|tool-views\.generated-[^.]+\.js|(?:marked|highlight)\.min-[^.]+\.js)$/;
 
 // Native / optional / platform-specific deps are loaded from installed files.
-// `omp-legacy-pi-modules` exists only in compiled binaries via the build plugin;
+// `zeta-legacy-pi-modules` exists only in compiled binaries via the build plugin;
 // the npm bundle never executes that bundled-modules branch.
 const ALWAYS_EXTERNAL = [
 	"@linxiraos/pi-natives",
 	"@huggingface/transformers",
 	"fastembed",
 	"onnxruntime-node",
-	"omp-legacy-pi-modules",
+	"zeta-legacy-pi-modules",
 ];
 
 // Heavy, lazily-used third-party leaf deps. Each is a declared `dependency`, so the
