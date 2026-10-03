@@ -77,6 +77,7 @@ interface Props {
 	) => void;
 	onModelChange?: (model: { provider: string; modelId: string } | null, thinkingLevel: string) => void;
 	onOpenFile?: (filePath: string) => void;
+	onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }
 
 function phaseLabel(
@@ -347,6 +348,7 @@ export function ChatWindow({
 	onContextUsageChange,
 	onModelChange,
 	onOpenFile,
+	onOpenFileContextMenu,
 }: Props) {
 	const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
 	const { t } = useI18n();
@@ -1167,6 +1169,8 @@ export function ChatWindow({
 															modelNames={modelNames}
 															cwd={messageCwd}
 															onOpenFile={onOpenFile}
+															onOpenFileContextMenu={onOpenFileContextMenu}
+
 															entryId={entryIds[idx]}
 															onFork={
 																sessionBusy || isNew || (idx === 0 && msg.role === "user")
@@ -1408,6 +1412,8 @@ export function ChatWindow({
 													modelNames={modelNames}
 													cwd={messageCwd}
 													onOpenFile={onOpenFile}
+													onOpenFileContextMenu={onOpenFileContextMenu}
+
 												/>
 											)}
 
