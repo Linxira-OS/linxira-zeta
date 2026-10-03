@@ -226,6 +226,15 @@ impl Pane {
 			base
 		}
 	}
+
+	/// The active PTY page's OSC 0/2 title, when the child announced one.
+	/// Widget pages have none.
+	pub fn osc_title(&self) -> Option<String> {
+		match &self.pages.get(self.page)?.body {
+			crate::tab::PaneBody::Pty(term) => term.osc_title(),
+			crate::tab::PaneBody::Widget => None,
+		}
+	}
 }
 
 /// A workspace tab: a pane store plus the layout tree tiling them.
@@ -244,6 +253,34 @@ impl Tab {
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
 		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
 		Ok(Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) })
+	}
+
+	/// A tab around an existing pane — the promote-pane move: the Pane
+	/// object (and its live PTY pages) travels here by value, never
+	/// respawned or cloned.
+	pub fn with_pane(pane: Pane) -> Self {
+		Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) }
+	}
+
+	/// The pane's unnumbered title: the child's OSC 0/2 name when its active
+	/// PTY page announced one, else the pane's default label (active tool,
+	/// page count appended).
+	pub fn pane_title_base(&self, pane_index: usize) -> String {
+		let Some(pane) = self.panes.get(pane_index) else {
+			return "pane".into();
+		};
+		match pane.osc_title() {
+			Some(title) if !title.is_empty() => title,
+			_ => pane.label(),
+		}
+	}
+
+	/// The pane's display name: [`Self::pane_title_base`] prefixed with the
+	/// pane's 1-based slot number, so identical defaults stay distinguishable
+	/// (`1:shell`, `2:shell`). Slots are store positions — they renumber
+	/// automatically as panes are promoted out or closed.
+	pub fn pane_display_name(&self, pane_index: usize) -> String {
+		format!("{}:{}", pane_index + 1, self.pane_title_base(pane_index))
 	}
 
 	/// Split pane `split_at` along `axis` and open `kind` in the new slot —
@@ -321,6 +358,19 @@ impl Tab {
 		self.panes.remove(index);
 		self.tree.reindex_after_remove(index);
 		self.active = self.active.min(self.panes.len() - 1);
+		debug_assert!(self.is_consistent(), "pane close desynced tree and store");
+	}
+
+	/// Invariant check: the tree tiles exactly the live pane store — one
+	/// leaf per pane, every id in range. A violation is the "dead shell"
+	/// bug: a tab whose tree outlived its panes renders black content with
+	/// an empty label and can never be closed.
+	pub fn is_consistent(&self) -> bool {
+		let mut ids = Vec::new();
+		self.tree.leaf_ids(&mut ids);
+		ids.len() == self.panes.len()
+			&& ids.iter().all(|id| *id < self.panes.len())
+			&& self.panes.iter().all(|pane| !pane.pages.is_empty())
 	}
 
 	/// Minimize pane `index`: it leaves the tiling — its space flows to the
@@ -418,6 +468,51 @@ pub fn resolve_bin(names: &[&str]) -> Option<PathBuf> {
 	crate::shell::resolve_bin_candidates(names)
 		.into_iter()
 		.next()
+}
+
+/// What closing the focused pane takes with it: just the pane, the whole
+/// tab (the pane was its last leaf), or — for the last pane of the last
+/// tab — nothing: the tab is replaced by a fresh default shell, so a dead
+/// or closed pane can never leave an empty shell behind (nor quit the app).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaneClose {
+	Pane,
+	Tab,
+	FreshShell,
+}
+
+/// Pure decision for the close-focused-pane action.
+pub fn pane_close_target(panes_in_tab: usize, tab_count: usize) -> PaneClose {
+	match (panes_in_tab, tab_count) {
+		(1, 1) => PaneClose::FreshShell,
+		(1, _) => PaneClose::Tab,
+		_ => PaneClose::Pane,
+	}
+}
+
+/// Visible-text open target for a clicked link: the path plus `:line[:col]`
+/// when the link knew a cursor position — the form the suite IDE bins accept.
+pub fn link_target_text(path: &std::path::Path, line: Option<u32>, col: Option<u32>) -> String {
+	let mut text = path.to_string_lossy().into_owned();
+	if let Some(line) = line {
+		text.push_str(&format!(":{line}"));
+		if let Some(col) = col {
+			text.push_str(&format!(":{col}"));
+		}
+	}
+	text
+}
+
+/// Shell line that opens `target_text` in the suite IDE: `IDE_BINS` first,
+/// `EDITOR_BINS` as the fallback, `None` when neither is on PATH.
+pub fn ide_open_command(shell: &crate::shell::Shell, target_text: &str) -> Option<String> {
+	for bins in [IDE_BINS, EDITOR_BINS] {
+		let candidates = crate::shell::resolve_bin_candidates(bins);
+		if let Some(bin) = crate::shell::exec_line(shell, &candidates) {
+			return Some(format!("{bin} {}", shell.quote_arg(target_text)));
+		}
+	}
+	None
 }
 
 /// Ensure the Panel trait is linked even if call sites change.
@@ -525,5 +620,176 @@ mod tests {
 		assert!(!AGENT_BINS.contains(&"zeta"), "agent must not resolve to the workbench bin");
 		assert!(!EDITOR_BINS.contains(&"zeta"));
 		assert!(!IDE_BINS.contains(&"zeta"));
+	}
+
+	#[test]
+	fn link_target_text_appends_position_only_when_known() {
+		let path = std::path::Path::new("/repo/src/app.rs");
+		assert_eq!(link_target_text(path, None, None), "/repo/src/app.rs");
+		assert_eq!(link_target_text(path, Some(42), None), "/repo/src/app.rs:42");
+		assert_eq!(link_target_text(path, Some(42), Some(7)), "/repo/src/app.rs:42:7");
+	}
+
+	#[test]
+	fn promote_moves_pane_into_a_focused_tab_without_respawn() {
+		// Two widget panes in a row; promote the right one.
+		let mut tab = widget_tab(2);
+		let moved = tab.take_pane(1).expect("a non-last pane moves out");
+		assert_eq!(tab.panes.len(), 1);
+		assert_eq!(tab.active, 0, "the old tab focuses the surviving sibling");
+		// The same Pane object arrives in the new tab: pages and kind travel
+		// with it (a respawned pane would be a fresh shell, and Pane is not
+		// Clone — the move is the only way this compiles).
+		assert_eq!(moved.pages.len(), 1);
+		assert_eq!(moved.pages[0].kind, PaneKind::Pomodoro);
+
+		let new_tab = Tab::with_pane(moved);
+		assert_eq!(new_tab.panes.len(), 1);
+		assert_eq!(new_tab.panes[0].pages[0].kind, PaneKind::Pomodoro);
+		assert_eq!(new_tab.active, 0, "the new tab focuses the moved pane");
+		assert_eq!(count_leaves(&new_tab.tree), 1, "the new tab's tree is a single leaf");
+	}
+
+	#[test]
+	fn promote_refuses_the_last_pane_and_bogus_indexes() {
+		let mut tab = widget_tab(1);
+		assert!(tab.take_pane(0).is_none(), "the last pane cannot leave");
+		assert_eq!(tab.panes.len(), 1, "the refused move keeps the tab intact");
+
+		let mut tab = widget_tab(2);
+		assert!(tab.take_pane(9).is_none(), "out-of-range index refused");
+	}
+
+	/// (0 | 1) | (2 | 3): a three-level tree with two splits at the root.
+	fn nested_tree() -> PaneNode {
+		PaneNode::Split {
+			axis: crate::layout::Axis::Row,
+			children: vec![
+				(
+					1000,
+					PaneNode::Split {
+						axis: crate::layout::Axis::Column,
+						children: vec![(1000, PaneNode::Leaf(0)), (1000, PaneNode::Leaf(1))],
+					},
+				),
+				(
+					1000,
+					PaneNode::Split {
+						axis: crate::layout::Axis::Row,
+						children: vec![(1000, PaneNode::Leaf(2)), (1000, PaneNode::Leaf(3))],
+					},
+				),
+			],
+		}
+	}
+
+	#[test]
+	fn promote_collapse_folds_three_level_trees() {
+		let mut tab = widget_tab(4);
+		tab.tree = nested_tree();
+
+		// Take the middle-left leaf (1): its parent split collapses to the
+		// lone sibling, ids above 1 shift down.
+		assert!(tab.take_pane(1).is_some());
+		let mut ids = Vec::new();
+		collect_test_ids(&tab.tree, &mut ids);
+		assert_eq!(ids, vec![0, 1, 2]);
+
+		// Take the left-most leaf (0): the emptied left parent lifts away
+		// entirely and the root's first child becomes a plain leaf.
+		assert!(tab.take_pane(0).is_some());
+		ids.clear();
+		collect_test_ids(&tab.tree, &mut ids);
+		assert_eq!(ids, vec![0, 1]);
+		assert!(matches!(
+			&tab.tree,
+			PaneNode::Split { children, .. } if matches!(children[0].1, PaneNode::Leaf(_))
+		));
+
+		// Take the last remaining right leaf: the tree degenerates to a
+		// single bare leaf — a plain one-pane tab again.
+		assert!(tab.take_pane(1).is_some());
+		ids.clear();
+		collect_test_ids(&tab.tree, &mut ids);
+		assert_eq!(ids, vec![0]);
+		assert!(matches!(tab.tree, PaneNode::Leaf(0)));
+	}
+
+	#[test]
+	fn close_pane_outcome_cascades_to_tab_and_fresh_shell() {
+		use crate::tab::{PaneClose, pane_close_target};
+		// Multiple panes: only the pane goes.
+		assert_eq!(pane_close_target(3, 2), PaneClose::Pane);
+		assert_eq!(pane_close_target(2, 1), PaneClose::Pane);
+		// Last leaf of a tab that is not the only tab: the whole tab closes.
+		assert_eq!(pane_close_target(1, 3), PaneClose::Tab);
+		// Last pane of the last tab: replaced by a fresh shell — the app
+		// stays up and no dead shell tab remains.
+		assert_eq!(pane_close_target(1, 1), PaneClose::FreshShell);
+	}
+
+	#[test]
+	fn a_pageless_pane_is_the_dead_shell_state_and_closes_its_tab() {
+		// The reported bug: closing a single-pane tab's only page (pane ✕ or
+		// the process exiting) used to leave the pane in store and tree with
+		// zero pages — black content, `[]` label, uncloseable.
+		let mut tab = widget_tab(1);
+		assert!(tab.panes[0].close_page(0), "the last page closes its pane");
+		assert!(tab.panes[0].pages.is_empty());
+		assert!(!tab.is_consistent(), "a page-less pane violates the live-pane invariant");
+		// The healing decision for that state is the FreshShell cascade.
+		assert_eq!(pane_close_target(1, 1), PaneClose::FreshShell);
+		assert_eq!(pane_close_target(1, 4), PaneClose::Tab);
+	}
+
+	#[test]
+	fn tabs_stay_consistent_through_promote_and_close() {
+		let mut tab = widget_tab(4);
+		tab.tree = nested_tree();
+		assert!(tab.is_consistent());
+		assert!(tab.take_pane(1).is_some());
+		assert!(tab.is_consistent(), "promote desynced the tree");
+		assert!(tab.take_pane(0).is_some());
+		assert!(tab.is_consistent());
+		tab.close_pane(0);
+		assert!(tab.is_consistent(), "close desynced the tree");
+		// The last pane cannot be closed away: the store keeps it and the
+		// invariant holds (the workspace cascade replaces the tab instead).
+		tab.close_pane(0);
+		assert_eq!(tab.panes.len(), 1);
+		assert!(tab.is_consistent());
+	}
+
+	#[test]
+	fn pane_display_names_number_slots_and_renumber_after_removal() {
+		let mut tab = widget_tab(2);
+		assert_eq!(tab.pane_display_name(0), "1:time · calendar");
+		assert_eq!(tab.pane_display_name(1), "2:🍅 pomodoro");
+		assert_eq!(tab.pane_title_base(1), "🍅 pomodoro");
+
+		// Removing the first pane renumbers the survivor (slots are store
+		// positions).
+		assert!(tab.take_pane(0).is_some());
+		assert_eq!(tab.pane_display_name(0), "1:🍅 pomodoro");
+	}
+
+	#[test]
+	fn ide_open_command_orders_ide_bins_before_editor() {
+		// Resolution order is the contract: a zeta-ide on PATH must win over
+		// zeta-editor regardless of alias order inside each list.
+		assert_eq!(IDE_BINS, ["zeta-ide", "zeta-i"]);
+		assert_eq!(EDITOR_BINS, ["zetaeditor", "zeta-editor", "zeta-e"]);
+	}
+
+	#[test]
+	fn ide_command_line_quotes_target_for_the_shell() {
+		// The composition the workbench types into the new pane: resolved bin
+		// word + one shell-correct argument covering spaces and the position.
+		let shell = crate::shell::Shell {
+			path: "powershell.exe".into(),
+			flavor: crate::shell::ShellFlavor::PowerShell,
+		};
+		let target = link_target_text(std::path::Path::new("C:/repo/a b.rs"), Some(4), Some(2));
+		assert_eq!(format!("zeta-ide {}", shell.quote_arg(&target)), "zeta-ide 'C:/repo/a b.rs:4:2'");
 	}
 }

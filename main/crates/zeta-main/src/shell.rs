@@ -64,6 +64,17 @@ impl Shell {
 			ShellFlavor::Cmd => text,
 		}
 	}
+
+	/// One shell-correct argument word from `text` — a path plus an optional
+	/// `:line:col` suffix — quoted for spaces. Argument position, so no `&`
+	/// call operator (unlike [`Shell::quote_exec`]).
+	pub fn quote_arg(&self, text: &str) -> String {
+		match self.flavor {
+			ShellFlavor::PowerShell => format!("'{}'", text.replace('\'', "''")),
+			ShellFlavor::Posix => format!("'{}'", text.replace('\\', "/").replace('\'', "'\\''")),
+			ShellFlavor::Cmd => format!("\"{text}\""),
+		}
+	}
 }
 
 /// Which behavior family a shell path belongs to, judged by file name.
@@ -585,6 +596,19 @@ mod tests {
 			shell.quote_exec(Path::new(r"C:\Program Files\App\tool.cmd")),
 			r#""C:\Program Files\App\tool.cmd""#
 		);
+	}
+
+	#[test]
+	fn quote_arg_quotes_argument_position_without_call_operator() {
+		// Unlike quote_exec, an argument never gets PowerShell's `&`.
+		let ps = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
+		assert_eq!(ps.quote_arg(r"C:\od d's\x.rs:4:2"), r"'C:\od d''s\x.rs:4:2'");
+
+		let posix = Shell { path: PathBuf::from("bash.exe"), flavor: ShellFlavor::Posix };
+		assert_eq!(posix.quote_arg(r"C:\a b\x.rs:4:2"), "'C:/a b/x.rs:4:2'");
+
+		let cmd = Shell { path: PathBuf::from("cmd.exe"), flavor: ShellFlavor::Cmd };
+		assert_eq!(cmd.quote_arg(r"C:\a b\x.rs"), r#""C:\a b\x.rs""#);
 	}
 
 	#[cfg(windows)]

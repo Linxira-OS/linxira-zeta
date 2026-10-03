@@ -10,6 +10,7 @@ import {
 	ImageProtocol,
 	isInsideHerdr,
 	isInsideTerminalMultiplexer,
+	isInsideZetaWorkbench,
 	isPaseoEmbedder,
 	NotifyProtocol,
 	resolveImageProtocol,
@@ -46,6 +47,18 @@ describe("isInsideHerdr", () => {
 
 	it("is false for HERDR_ENV=0", () => {
 		expect(isInsideHerdr({ HERDR_ENV: "0" })).toBe(false);
+	});
+});
+
+describe("isInsideZetaWorkbench", () => {
+	it("is true for ZETA_WORKBENCH=1", () => {
+		expect(isInsideZetaWorkbench({ ZETA_WORKBENCH: "1" })).toBe(true);
+	});
+
+	it("is false for other values and when unset", () => {
+		expect(isInsideZetaWorkbench({ ZETA_WORKBENCH: "0" })).toBe(false);
+		expect(isInsideZetaWorkbench({ ZETA_WORKBENCH: "" })).toBe(false);
+		expect(isInsideZetaWorkbench({})).toBe(false);
 	});
 });
 
@@ -705,6 +718,20 @@ describe("shouldEnableHyperlinksByDefault", () => {
 			false,
 		);
 		expect(shouldEnableHyperlinksByDefault({ HERDR_ENV: "1", PI_NO_HYPERLINKS: "1" }, "base")).toBe(false);
+	});
+
+	it("enables Zeta workbench panes: the workbench simulator renders OSC 8 and opens links itself", () => {
+		// The workbench hides the outer terminal (TERM=xterm-256color, base
+		// static profile), so the probe is what lights the emitter up.
+		expect(shouldEnableHyperlinksByDefault({ ZETA_WORKBENCH: "1", TERM: "xterm-256color" }, "base")).toBe(true);
+	});
+
+	it("keeps screen/tmux nested in a Zeta workbench pane on their own rules", () => {
+		expect(shouldEnableHyperlinksByDefault({ ZETA_WORKBENCH: "1", STY: "1234.pts-0.host" }, "base")).toBe(false);
+		expect(shouldEnableHyperlinksByDefault({ ZETA_WORKBENCH: "1", TMUX: "/tmp/tmux-1000/default,1,0" }, "base")).toBe(
+			false,
+		);
+		expect(shouldEnableHyperlinksByDefault({ ZETA_WORKBENCH: "1", PI_NO_HYPERLINKS: "1" }, "base")).toBe(false);
 	});
 
 	it("lets PI_NO_HYPERLINKS beat every positive heuristic", () => {

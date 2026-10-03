@@ -28,6 +28,9 @@ pub enum LinkType {
     Url(String),
     /// Local file path (resolved to absolute)
     FilePath(PathBuf),
+    /// OSC 8 hyperlink: the emitter-provided URI (`file://`, `zeta-open://`,
+    /// `https://`, …), authoritative over text scraping.
+    Hyperlink(String),
 }
 
 /// Highlight segment: (abs_row, start_col, end_col)
@@ -195,5 +198,6 @@ pub(crate) fn link_text(link: &LinkType) -> String {
     match link {
         LinkType::Url(url) => url.clone(),
         LinkType::FilePath(path) => path.display().to_string(),
+        LinkType::Hyperlink(uri) => uri.clone(),
     }
 }

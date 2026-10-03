@@ -70,6 +70,11 @@ impl PaneNode {
 		PaneNode::Leaf(pane)
 	}
 
+	/// Every leaf id, depth-first in tree order.
+	pub fn leaf_ids(&self, out: &mut Vec<usize>) {
+		collect_ids(self, out);
+	}
+
 	/// Preset shapes the layout cycler and Tools menu walk through. The
 	/// smart defaults follow the product sketch: a side-by-side pair gives
 	/// the left pane a third of the width (agent-left workflows), three

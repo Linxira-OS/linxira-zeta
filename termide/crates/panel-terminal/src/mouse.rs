@@ -172,35 +172,47 @@ impl Terminal {
         self.ctrl_pressed = ctrl_pressed;
         let mut needs_redraw = false;
 
-        // Detect link (URL or path) under cursor when Ctrl is pressed
+        // Detect link (URL or path) under cursor when Ctrl is pressed. An
+        // OSC 8 hyperlink wins over text scraping: the emitter's own markup
+        // is authoritative about what is a link and what it targets.
         if ctrl_pressed && is_inside {
             let screen = self.read_screen();
             let abs_row = screen.visual_to_absolute(inner_row);
             let cols = screen.cols;
 
-            if let Some((link_type, link_start_row, link_start_col, display_len)) =
+            let detected = if let Some((id, segments)) =
+                crate::hyperlink::osc8_region_at(&screen, abs_row, inner_col)
+            {
+                screen
+                    .hyperlink_uri(id)
+                    .map(|uri| (LinkType::Hyperlink(uri.to_string()), segments))
+            } else {
                 link_detection::detect_link_at_position(
                     &screen,
                     abs_row,
                     inner_col,
                     &self.initial_cwd,
                 )
-            {
+                .map(|(link_type, link_start_row, link_start_col, display_len)| {
+                    // Build segments for multi-line highlighting
+                    let segments = link_detection::build_link_segments(
+                        display_len,
+                        link_start_row,
+                        link_start_col,
+                        cols,
+                    );
+                    (link_type, segments)
+                })
+            };
+            drop(screen);
+
+            if let Some((link_type, segments)) = detected {
                 // Link found - check if it's new
                 let is_new_link = self
                     .hovered_link
                     .as_ref()
                     .map(|(l, _)| l != &link_type)
                     .unwrap_or(true);
-
-                // Build segments for multi-line highlighting
-                let segments = link_detection::build_link_segments(
-                    display_len,
-                    link_start_row,
-                    link_start_col,
-                    cols,
-                );
-                drop(screen);
 
                 if is_new_link {
                     // Copy link text to clipboard
@@ -209,14 +221,11 @@ impl Terminal {
                 self.hovered_link = Some((link_type, segments));
                 self.cached_lines = None; // Force redraw
                 needs_redraw = true;
-            } else {
+            } else if self.hovered_link.is_some() {
                 // No link under cursor
-                drop(screen);
-                if self.hovered_link.is_some() {
-                    self.hovered_link = None;
-                    self.cached_lines = None; // Force redraw
-                    needs_redraw = true;
-                }
+                self.hovered_link = None;
+                self.cached_lines = None; // Force redraw
+                needs_redraw = true;
             }
         } else if !ctrl_pressed && self.hovered_link.is_some() {
             // Ctrl not pressed - clear link highlight
@@ -277,10 +286,35 @@ impl Terminal {
                 return vec![PanelEvent::NeedsRedraw];
             }
 
-            if let Some((ref link_type, _)) = self.hovered_link {
+            if let Some((link_type, segments)) = &self.hovered_link {
                 match link_type {
                     LinkType::Url(url) => {
                         let _ = open::that(url);
+                        return if needs_redraw {
+                            vec![PanelEvent::NeedsRedraw]
+                        } else {
+                            vec![]
+                        };
+                    }
+                    LinkType::Hyperlink(uri) => {
+                        // Resolve the emitter's URI to a local target; the
+                        // visible region text fills in :line:col when the URI
+                        // itself carries no position.
+                        let text = {
+                            let screen = self.read_screen();
+                            crate::hyperlink::region_text(&screen, segments)
+                        };
+                        if let Some(target) = crate::hyperlink::resolve_hyperlink_target(uri, &text)
+                        {
+                            return vec![PanelEvent::OpenPath {
+                                path: target.path,
+                                select_file: None,
+                                line: target.line,
+                                col: target.col,
+                            }];
+                        }
+                        // Not a local target (e.g. https://) — hand it to the OS.
+                        let _ = open::that(uri);
                         return if needs_redraw {
                             vec![PanelEvent::NeedsRedraw]
                         } else {
@@ -301,6 +335,8 @@ impl Terminal {
                         return vec![PanelEvent::OpenPath {
                             path: dir,
                             select_file: file,
+                            line: None,
+                            col: None,
                         }];
                     }
                 }

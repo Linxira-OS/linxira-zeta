@@ -99,6 +99,9 @@ pub struct Cell {
     pub ch: char,
     pub style: CellStyle,
     pub extra: Option<char>,
+    /// OSC 8 hyperlink id (index into [`TerminalScreen::hyperlinks`]) stamped
+    /// while a hyperlink is open, so a click on the cell can resolve its URI.
+    pub link: Option<u32>,
 }
 
 /// Marker stored in the right half of a wide character.
@@ -110,6 +113,7 @@ impl Cell {
             ch: ' ',
             style,
             extra: None,
+            link: None,
         }
     }
 
@@ -118,6 +122,7 @@ impl Cell {
             ch: CONTINUATION,
             style,
             extra: None,
+            link: None,
         }
     }
 
@@ -229,6 +234,12 @@ pub struct TerminalScreen {
     pub cols: usize,
     /// Current style
     pub current_style: CellStyle,
+    /// Hyperlink currently open (OSC 8): id into `hyperlinks`, stamped onto
+    /// every cell `put_char` writes until the link is closed again.
+    pub current_hyperlink: Option<u32>,
+    /// OSC 8 URI intern table: cell link ids index into this. Deduplicated by
+    /// URI so repeated links from an emitter share one id.
+    pub hyperlinks: Vec<String>,
     /// Application Cursor Keys Mode (DECCKM)
     pub application_cursor_keys: bool,
     /// Mouse tracking mode
@@ -271,6 +282,9 @@ pub struct TerminalScreen {
     /// Synchronized output mode (CSI ? 2026 h/l)
     /// When enabled, rendering is deferred until mode is disabled
     pub sync_output: bool,
+    /// The child's OSC 0/2 window title; an empty OSC 0/2 clears it to `None`.
+    /// Polled by the host app for pane naming.
+    pub title: Option<String>,
     /// Flag set when sync_output transitions from true to false
     /// Signals that cached content must be invalidated
     pub sync_output_ended: bool,
@@ -298,6 +312,8 @@ impl TerminalScreen {
             rows,
             cols,
             current_style: CellStyle::default(),
+            current_hyperlink: None,
+            hyperlinks: Vec::new(),
             application_cursor_keys: false,
             mouse_tracking: MouseTrackingMode::None,
             sgr_mouse_mode: false,
@@ -318,9 +334,25 @@ impl TerminalScreen {
             scroll_top: 0,
             scroll_bottom: rows.saturating_sub(1),
             sync_output: false,
+            title: None,
             sync_output_ended: false,
             force_cache_invalidation: false,
         }
+    }
+
+    /// Intern a hyperlink URI (OSC 8), returning its stable id. URIs are
+    /// deduplicated so an emitter that re-opens the same link reuses the id.
+    pub fn hyperlink_intern(&mut self, uri: &str) -> u32 {
+        if let Some(pos) = self.hyperlinks.iter().position(|u| u == uri) {
+            return pos as u32;
+        }
+        self.hyperlinks.push(uri.to_string());
+        (self.hyperlinks.len() - 1) as u32
+    }
+
+    /// The URI a cell link id refers to.
+    pub fn hyperlink_uri(&self, id: u32) -> Option<&str> {
+        self.hyperlinks.get(id as usize).map(String::as_str)
     }
 
     /// Get mutable reference to active buffer
@@ -442,14 +474,20 @@ impl TerminalScreen {
 
         // Overwriting half of a wide character erases the whole character.
         self.blank_cells(row, col, col + width, style);
+        let link = self.current_hyperlink;
         let line = &mut self.active_buffer_mut()[row];
         line[col] = Cell {
             ch,
             style,
             extra: None,
+            link,
         };
         if width == 2 {
-            line[col + 1] = Cell::continuation(style);
+            // The continuation half carries the link too, so a click on either
+            // half of a wide character inside a link resolves it.
+            let mut cont = Cell::continuation(style);
+            cont.link = link;
+            line[col + 1] = cont;
         }
 
         if col + width >= cols {

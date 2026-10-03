@@ -26,6 +26,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"📋 Clipboard",
 			"➕ New subtab",
 			"🗕 Minimize pane",
+			"🗗 Move pane to new tab",
 			"❌ Close pane",
 		],
 	),
@@ -44,7 +45,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"📦 Install missing",
 		],
 	),
-	("Settings", &["Settings", "Suite status", "Help"]),
+	("Settings", &["Settings", "Suite status", "Help", "Toggle close confirmation"]),
 ];
 
 /// Menu bar row: left-aligned triggers. Layout helper shared by render and
@@ -189,6 +190,19 @@ pub struct TabLayout {
 }
 
 pub fn tab_layout(width: u16, count: usize, active: usize) -> TabLayout {
+	tab_layout_named(width, count, active, &default_tab_names(count))
+}
+
+/// `1:tab`, `2:tab` — the generic names when a caller has no per-tab titles.
+fn default_tab_names(count: usize) -> Vec<String> {
+	(1..=count).map(|idx| format!("{idx}:tab")).collect()
+}
+
+/// Tab-row geometry from explicit per-tab names (`<n>:<focused pane
+/// title>`). Label widths drive the shrink-to-fit, so callers must pass the
+/// same names they render — a drag hit-test built from different labels
+/// than the draw would target the wrong tab.
+pub fn tab_layout_named(width: u16, count: usize, active: usize, names: &[String]) -> TabLayout {
 	// Fixed furniture: " ‹" + " ›" + " +" = 6 cells; active close "×" = 1.
 	let fixed = 7u16;
 	let per = if count == 0 {
@@ -202,10 +216,14 @@ pub fn tab_layout(width: u16, count: usize, active: usize) -> TabLayout {
 	let mut tabs = Vec::with_capacity(count);
 	let mut active_close = None;
 	for idx in 0..count {
+		let name: String = names
+			.get(idx)
+			.cloned()
+			.unwrap_or_else(|| format!("{}:tab", idx + 1));
 		let raw = if idx == active {
-			format!("▸ {}:tab ", idx + 1)
+			format!("▸ {name} ")
 		} else {
-			format!(" {}:tab ", idx + 1)
+			format!(" {name} ")
 		};
 		let label = if per <= 3 {
 			format!("{} ", idx + 1)
@@ -351,6 +369,17 @@ mod tests {
 		let total: u16 = narrow.tabs.iter().map(|(_, _, w)| w).sum::<u16>() + 7;
 		assert!(total <= 40, "crowded row collapses into the available width");
 		assert_eq!(narrow.tabs.len(), 12);
+	}
+
+	#[test]
+	fn tab_layout_renders_the_given_names() {
+		let names = vec!["1:shell".to_string(), "2:zeta · bio".to_string()];
+		let layout = tab_layout_named(200, 2, 0, &names);
+		assert!(layout.tabs[0].0.contains("1:shell"), "got {:?}", layout.tabs[0].0);
+		assert!(layout.tabs[1].0.contains("2:zeta · bio"), "got {:?}", layout.tabs[1].0);
+		// Missing names fall back to the generic label.
+		let layout = tab_layout_named(200, 3, 0, &names);
+		assert!(layout.tabs[2].0.contains("3:tab"), "got {:?}", layout.tabs[2].0);
 	}
 
 	#[test]

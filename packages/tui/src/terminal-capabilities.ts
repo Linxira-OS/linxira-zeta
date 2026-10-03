@@ -495,6 +495,17 @@ export function detectStyledUnderlineSupport(terminalId: TerminalId, env: NodeJS
 	}
 }
 /**
+ * True when this process runs inside a Zeta workbench pane. The workbench
+ * injects `ZETA_WORKBENCH=1` into every pane PTY (`termide` set_env); its
+ * terminal simulator renders OSC 8 in its own grid and opens links itself on
+ * Ctrl+click, so — like Herdr — the outer terminal's advertised support does
+ * not matter. Pane-only detection, mirroring `isInsideHerdr`.
+ */
+export function isInsideZetaWorkbench(env: NodeJS.ProcessEnv = Bun.env): boolean {
+	return env.ZETA_WORKBENCH === "1";
+}
+
+/**
  * Resolve an explicit user override for OSC 8 hyperlinks. Returns `false` for
  * an opt-out, `true` for a force-on, or `null` when the user has expressed no
  * preference. Opt-out beats force-on so a kill switch is unambiguous, mirroring
@@ -527,6 +538,10 @@ function parseTmuxVersionFromEnv(env: NodeJS.ProcessEnv): { major: number; minor
  *      terminal (`TERM=xterm-256color`, no `TERM_PROGRAM`), but it renders
  *      OSC 8 in its own grid and opens links itself on Ctrl+click, so the
  *      outer terminal's support does not matter.
+ *   2b. Zeta workbench pane with no nested screen/tmux: on, for the same
+ *      reason — the workbench's terminal simulator renders OSC 8 itself and
+ *      opens links on Ctrl+click (`ZETA_WORKBENCH=1` is injected into every
+ *      pane PTY; the outer terminal is invisible from inside).
  *   3. Static terminal capability — terminals whose {@link TerminalInfo} marks
  *      `hyperlinks: false` (e.g. `base`) stay off unless the user forced on.
  *   4. GNU screen's explicit session marker (`STY`) always off, even if tmux is
@@ -553,6 +568,8 @@ export function shouldEnableHyperlinksByDefault(
 	if (override !== null) return override;
 
 	if (isInsideHerdr(env) && !env.STY && !env.TMUX) return true;
+
+	if (isInsideZetaWorkbench(env) && !env.STY && !env.TMUX) return true;
 
 	if (!getTerminalInfo(terminalId).hyperlinks) return false;
 

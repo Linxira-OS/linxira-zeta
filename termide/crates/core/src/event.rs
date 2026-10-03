@@ -510,10 +510,14 @@ pub enum PanelEvent {
     /// Navigate file manager to path
     NavigateTo(PathBuf),
 
-    /// Open path in new file manager panel, optionally selecting a file
+    /// Open path in new file manager panel, optionally selecting a file.
+    /// `line`/`col` carry a cursor position when the source link knew one
+    /// (OSC 8 hyperlinks, `path:line:col` display text).
     OpenPath {
         path: PathBuf,
         select_file: Option<std::ffi::OsString>,
+        line: Option<u32>,
+        col: Option<u32>,
     },
 
     /// Go to specific line in editor

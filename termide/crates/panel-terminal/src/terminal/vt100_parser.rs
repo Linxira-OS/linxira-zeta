@@ -663,6 +663,55 @@ impl Perform for VtPerformer {
         }
     }
 
+    fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
+        // Apply characters printed before the sequence with the link state
+        // that was current when they were printed (same inline flush as
+        // csi_dispatch), then switch state for what follows.
+        if let Ok(mut screen) = self.screen.write() {
+            if !self.pending_ops.is_empty() {
+                for op in self.pending_ops.drain(..) {
+                    match op {
+                        ScreenOp::PutChar(ch) => screen.put_char(ch),
+                        ScreenOp::Newline => screen.newline(),
+                        ScreenOp::CarriageReturn => screen.carriage_return(),
+                        ScreenOp::Backspace => screen.backspace(),
+                        ScreenOp::Tab => screen.tab(),
+                    }
+                }
+                screen.dirty = true;
+            }
+
+            // OSC 0 / OSC 2: the child names itself (icon+title / title).
+            // An empty title clears. Stored on the screen; the host app
+            // polls it (the PTY reader thread runs this — it cannot emit
+            // PanelEvents itself).
+            if params
+                .first()
+                .is_some_and(|p| p.len() == 1 && (p[0] == b'0' || p[0] == b'2'))
+            {
+                let title: Option<&[u8]> = params.get(1).copied().filter(|t| !t.is_empty());
+                screen.title = title.map(|t| String::from_utf8_lossy(t).into_owned());
+                screen.dirty = true;
+            }
+
+            // OSC 8 ; params ; URI — an empty URI closes the open link.
+            // params[1] (the `id=…` hint) is accepted but ignored: cells
+            // reference the interned URI directly.
+            if params.first().is_some_and(|p| p.len() == 1 && p[0] == b'8') {
+                let uri: Option<&[u8]> = params.get(2).copied().filter(|uri| !uri.is_empty());
+                match uri {
+                    Some(uri) => {
+                        let text = String::from_utf8_lossy(uri);
+                        let id = screen.hyperlink_intern(&text);
+                        screen.current_hyperlink = Some(id);
+                    }
+                    None => screen.current_hyperlink = None,
+                }
+                screen.dirty = true;
+            }
+        }
+    }
+
     fn esc_dispatch(&mut self, _intermediates: &[u8], _ignore: bool, byte: u8) {
         self.flush();
         if let Ok(mut screen) = self.screen.write() {
@@ -801,5 +850,129 @@ mod tests {
         feed(&mut performer, b"\x1b[6n");
 
         assert_eq!(&*capture.lock().unwrap(), b"\x1b[?62c\x1b[2;3R");
+    }
+
+    fn row_links(screen: &Arc<RwLock<TerminalScreen>>, row: usize) -> Vec<Option<u32>> {
+        let s = screen.read().unwrap();
+        s.active_buffer()[row]
+            .iter()
+            .map(|cell| cell.link)
+            .collect()
+    }
+
+    #[test]
+    fn osc8_open_stamps_cells_and_close_clears() {
+        let (mut performer, _capture, screen) = performer();
+        // BEL-terminated open, then a BEL-terminated close.
+        feed(
+            &mut performer,
+            b"\x1b]8;id=abc;file:///tmp/a.rs\x07link\x1b]8;;\x07done",
+        );
+        performer.flush();
+
+        let s = screen.read().unwrap();
+        assert_eq!(s.hyperlink_uri(0), Some("file:///tmp/a.rs"));
+        let links = row_links(&screen, 0);
+        // 'l','i','n','k' linked; 'done' is not.
+        assert_eq!(links[0], Some(0));
+        assert_eq!(links[3], Some(0));
+        assert_eq!(links[4], None);
+        assert_eq!(links[7], None);
+        assert_eq!(row_text(&screen, 0), "linkdone");
+    }
+
+    #[test]
+    fn osc8_accepts_st_terminator() {
+        let (mut performer, _capture, screen) = performer();
+        feed(
+            &mut performer,
+            "\x1b]8;;file:///tmp/b.rs\x1b\\x\x1b]8;;\x1b\\y".as_bytes(),
+        );
+        performer.flush();
+
+        let s = screen.read().unwrap();
+        assert_eq!(s.hyperlink_uri(0), Some("file:///tmp/b.rs"));
+        assert_eq!(row_links(&screen, 0)[0], Some(0));
+        assert_eq!(row_links(&screen, 0)[1], None);
+    }
+
+    #[test]
+    fn osc8_reopen_without_close_switches_uri() {
+        let (mut performer, _capture, screen) = performer();
+        feed(
+            &mut performer,
+            b"\x1b]8;;file:///a.rs\x07aa\x1b]8;;file:///b.rs\x07bb",
+        );
+        performer.flush();
+
+        let s = screen.read().unwrap();
+        assert_eq!(s.hyperlink_uri(0), Some("file:///a.rs"));
+        assert_eq!(s.hyperlink_uri(1), Some("file:///b.rs"));
+        let links = row_links(&screen, 0);
+        assert_eq!(links[0], Some(0)); // 'a'
+        assert_eq!(links[1], Some(0));
+        assert_eq!(links[2], Some(1)); // 'b'
+        assert_eq!(links[3], Some(1));
+    }
+
+    #[test]
+    fn osc8_deduplicates_identical_uris() {
+        let (mut performer, _capture, screen) = performer();
+        feed(
+            &mut performer,
+            b"\x1b]8;;file:///same.rs\x07a\x1b]8;;\x07 \x1b]8;;file:///same.rs\x07b",
+        );
+        performer.flush();
+        assert_eq!(screen.read().unwrap().hyperlinks.len(), 1);
+    }
+
+    #[test]
+    fn osc8_region_survives_newlines_and_wrap() {
+        let (mut performer, _capture, screen) = performer();
+        // One open link spanning a hard newline and an auto-wrap (the row is
+        // filled to width 80).
+        let long = "z".repeat(80);
+        feed(
+            &mut performer,
+            format!("\x1b]8;;file:///multi.rs\x07first{long}\r\nsecond\x1b]8;;\x07").as_bytes(),
+        );
+        performer.flush();
+
+        let s = screen.read().unwrap();
+        assert_eq!(s.hyperlink_uri(0), Some("file:///multi.rs"));
+        assert_eq!(s.hyperlinks.len(), 1);
+        // Row 0: fully linked (soft-wrapped at width 80).
+        assert!(row_links(&screen, 0).iter().all(|l| *l == Some(0)));
+        // Row 1: the wrapped tail of the link (5 z's, cols 0-4).
+        assert_eq!(row_links(&screen, 1)[0], Some(0));
+        assert_eq!(row_links(&screen, 1)[4], Some(0));
+        assert_eq!(row_links(&screen, 1)[5], None);
+        // The hard newline moves to row 2: 'second' is still inside the
+        // same link there.
+        assert_eq!(row_links(&screen, 2)[0], Some(0));
+        assert_eq!(row_links(&screen, 2)[5], Some(0));
+    }
+
+    #[test]
+    fn osc0_and_osc2_titles_are_stored() {
+        let (mut performer, _capture, screen) = performer();
+        // OSC 0 with BEL, OSC 2 with ST — both must land.
+        feed(&mut performer, b"\x1b]0;bel title\x07");
+        feed(&mut performer, "\x1b]2;st title\x1b\\".as_bytes());
+        performer.flush();
+        assert_eq!(screen.read().unwrap().title.as_deref(), Some("st title"));
+    }
+
+    #[test]
+    fn osc_titles_overwrite_and_empty_clears() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"\x1b]2;first\x07");
+        feed(&mut performer, b"\x1b]0;second\x07");
+        performer.flush();
+        assert_eq!(screen.read().unwrap().title.as_deref(), Some("second"));
+
+        feed(&mut performer, b"\x1b]2;\x07");
+        performer.flush();
+        assert_eq!(screen.read().unwrap().title, None, "an empty title clears");
     }
 }
