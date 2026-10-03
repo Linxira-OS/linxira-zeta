@@ -728,3 +728,26 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
   (文档规范:旧计划随新计划生效即删;后期规划进 roadmap,架构设计单独成文)。
 - `temp/zcode-ui-research.md` 是 UI 参考底稿(不入库,路径仅本地有效);
   其批号与本计划 U 系的映射已写进上表备注。
+
+## 15. 批次 4：桌面内置终端（Z2+U9，2026-10-03 立项）
+
+> 架构调查：双标杆对标（opencode：server 持 PTY+REST 控制面+WS 数据面+ticket+缓冲重放；
+> deepseek-harness：PTY 在服务端、浏览器只读 TerminalBlock、host.openPath 能力门控）。
+
+### 架构
+
+- **网关端点**（packages/coding-agent/src/server/web-gateway/terminal.ts 新文件）：
+  REST 控制面 POST /api/terminal（创建，shell 沿 pwsh→Git Bash→powershell 链，cwd=会话 cwd）、
+  DELETE /api/terminal/:id、POST /api/terminal/:id/resize；WS 数据面 GET /api/terminal/:id/ws
+  （upgrade 复用网关既有授权 authorizedForAccess + x-zeta-token/Bearer）。
+  PTY 用 node-pty；64KB 环形缓冲断线重放；并发上限 4（Z2 既有规格）。
+- **前端**（web-ui/components/TerminalView.tsx 新文件）：xterm.js + addon-fit，挂既有 dock/rail
+  体系（U9）；聊天文件路径 chip 点击 → TerminalView 窗格跑 `zeta-ide <file>[:line[:col]]`。
+- **桌面壳零改动**：PTY 在网关进程，浏览器/桌面共用同一 WS。
+- **安全**：全部复用网关既有授权，WS upgrade 同一 token 校验，不新增暴露面。
+
+### 验收
+
+创建/输入/resize/退出全链可用；断开重连恢复缓冲；并发第 5 会话拒绝有提示；
+非授权 WS upgrade 被拒；聊天路径 chip → 终端窗格 zeta-ide 打通；
+check:ts / web-ui 测试全绿。
