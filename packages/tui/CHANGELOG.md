@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 版本线推进至 1.1.26；本版无独立用户可见变化。
+
 ## [1.1.25] - 2026-10-03
 
 - Hyperlinks (OSC 8) are now emitted when running inside Zetawork workbench panes: the `ZETA_WORKBENCH=1` probe unlocks `fileHyperlink` output, so file links stay clickable and titles update live in the workbench's embedded terminals.
