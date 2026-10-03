@@ -10,6 +10,7 @@
 
 // Internal modules
 pub mod app;
+pub mod cli_args;
 pub mod layout_session;
 pub mod panel_ext;
 pub mod state;
@@ -18,6 +19,7 @@ mod state_types;
 
 // Re-export main types for convenience
 pub use app::App;
+pub use cli_args::{parse_positional_args, split_line_col, OpenedTarget};
 pub use layout_session::LayoutManagerSession;
 pub use panel_ext::PanelExt;
 pub use state::AppState;
