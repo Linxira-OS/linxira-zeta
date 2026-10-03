@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.25] - 2026-10-03
+
 ### Added
 
 - Embedded terminal sessions for the web UI: `POST/GET/DELETE /api/terminal`, resize, and a WebSocket data plane (`/api/terminal/:id/ws`) with a 64 KiB replay buffer, a 4-session concurrency cap, and one-time connect tickets for browser WebSocket auth. File chips in chat open a terminal pane that runs `zeta-ide <file>[:line[:col]]` when an IDE binary is on PATH.
@@ -234,6 +236,5 @@
 - Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
 - Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
 Older entries are archived in [packages\coding-agent\CHANGELOG.md@07e9197a3012](https://github.com/can1357/oh-my-pi/blob/07e9197a3012f58c459f1faabeb324decc21f41d/packages\coding-agent\CHANGELOG.md).
-
 - Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
 - Restored mouse clicks, hover, and wheel scrolling in Plan Review.

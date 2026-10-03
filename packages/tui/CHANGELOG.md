@@ -1,11 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.1.25] - 2026-10-03
+
 - Hyperlinks (OSC 8) are now emitted when running inside Zetawork workbench panes: the `ZETA_WORKBENCH=1` probe unlocks `fileHyperlink` output, so file links stay clickable and titles update live in the workbench's embedded terminals.
-
-## [1.1.24] - 2026-10-03
-
-- 语义角色清扫补全（omp.*→zeta.*，106 文件）；agent-hub 空态提示还原 `omp-dev`；notifications OSC 99 对齐 zeta app id。
 
 ## [14.9.8] - 2026-05-12
 
@@ -775,6 +774,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.1.24] - 2026-10-03
+
+- 语义角色清扫补全（omp.*→zeta.*，106 文件）；agent-hub 空态提示还原 `omp-dev`；notifications OSC 99 对齐 zeta app id。
 
 ## [1.1.19] - 2026-09-22
 

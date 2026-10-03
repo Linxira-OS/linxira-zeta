@@ -1,11 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.1.25] - 2026-10-03
+
 - 版本线推进至 1.1.25；本版无独立用户可见变化。
-
-## [1.1.24] - 2026-10-03
-
-- 上游 v18.4.11 集成：goal 命令与 Zeta goal/vibe mode 共存（GoalRuntime 共享）；跨面 token 对双端清扫（统一 `__zeta_worker_*`）。
 
 ## [14.9.5] - 2026-05-12
 
@@ -375,6 +374,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.1.24] - 2026-10-03
+
+- 上游 v18.4.11 集成：goal 命令与 Zeta goal/vibe mode 共存（GoalRuntime 共享）；跨面 token 对双端清扫（统一 `__zeta_worker_*`）。
 
 ## [1.1.19] - 2026-09-22
 
