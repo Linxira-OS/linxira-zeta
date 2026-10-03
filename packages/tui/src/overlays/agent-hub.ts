@@ -1193,7 +1193,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 						[span("Finished, parked, and killed subagents remain with the session that created them.", "dim")],
 						{ wrap: "word" },
 					),
-					text([span("Resume that session with zeta-dev --continue, or spawn a task here.", "dim")], {
+					text([span("Resume that session with omp-dev --continue, or spawn a task here.", "dim")], {
 						wrap: "word",
 					}),
 				],
@@ -1838,7 +1838,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 				const emptyState = [
 					`${theme.fg("muted", theme.status.shadowed)} ${theme.bold("No agents in this session")}`,
 					theme.fg("dim", "Finished, parked, and killed subagents remain with the session that created them."),
-					theme.fg("dim", "Resume that session with zeta-dev --continue, or spawn a task here."),
+					theme.fg("dim", "Resume that session with omp-dev --continue, or spawn a task here."),
 				];
 				for (const line of emptyState.slice(0, budget)) {
 					lines.push(line);

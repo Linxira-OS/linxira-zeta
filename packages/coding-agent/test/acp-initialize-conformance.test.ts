@@ -232,7 +232,8 @@ describe("ACP initialize conformance", () => {
 		const pkg = (await Bun.file(pkgPath).json()) as { version: string };
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
-				title: "omp",
+				name: "zeta",
+				title: "zeta",
 				version: VERSION,
 			}),
 		);
