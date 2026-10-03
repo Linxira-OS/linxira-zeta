@@ -165,6 +165,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the driver must keep the literal upstream npm scope in OMP_SCOPE or the mapping silently no-ops (swept away twice; v18.2.4-era regression ran the v18.3.1/v18.3.2 merges unmapped)",
 	},
 	{
+		file: "scripts/merge-package-json.ts",
+		needle: '"@mariozechner/"',
+		why: "the driver must keep upstream's original author scope in LEGACY_AUTHOR_SCOPE or historical manifests merge unmapped (v18.4.11 install-smoke regression: @mariozechner/pi-coding-agent passed through)",
+	},
+	{
 		file: "scripts/merge-package-json.test.ts",
 		needle: "@oh-my-pi/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
