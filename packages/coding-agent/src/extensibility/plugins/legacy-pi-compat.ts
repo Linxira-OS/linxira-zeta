@@ -961,7 +961,7 @@ const LEGACY_PI_AI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 // while still re-exporting the canonical package surface.
 const LEGACY_PI_CODING_AGENT_SHIM_PATH = USE_BUNDLED_PI_MODULES
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/zeta`)
-	: sourceShimPath("legacy-zeta-shim.ts");
+	: sourceShimPath("legacy-pi-coding-agent-shim.ts");
 
 // Legacy pi-tui exported `decodeKittyPrintable` from its package root. The
 // canonical TUI replaced it with the broader `decodePrintableKey`; route only
