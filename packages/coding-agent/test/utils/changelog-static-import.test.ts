@@ -89,7 +89,10 @@ function changelogUtilsStubPlugin(): BunPlugin {
 					.filter(name => !HAND_TUNED_STUB_NAMES[name])
 					.map(name => `export const ${name} = undefined;`)
 					.join("\n");
-				return { contents: `${handTuned}\n// Generated catch-all (real pi-utils exports not hand-tuned above):\n${generated}\n`, loader: "ts" };
+				return {
+					contents: `${handTuned}\n// Generated catch-all (real pi-utils exports not hand-tuned above):\n${generated}\n`,
+					loader: "ts",
+				};
 			});
 		},
 	};

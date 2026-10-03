@@ -36,11 +36,7 @@ export const extractHttpStatusFromError = (error: unknown): number | undefined =
 	const match = /\b(?:HTTP|status)[ :=]+(\d{3})\b/i.exec(message);
 	return match ? Number(match[1]) : undefined;
 };
-export const extractRetryHint = (
-	source: unknown,
-	body?: string,
-	options?: unknown,
-): number | undefined => undefined;
+export const extractRetryHint = (source: unknown, body?: string, options?: unknown): number | undefined => undefined;
 export const isEnoent = (error: unknown): boolean =>
 	typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 export const logger = { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} };
