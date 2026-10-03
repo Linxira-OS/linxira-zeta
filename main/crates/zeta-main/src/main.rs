@@ -1,4 +1,5 @@
 mod app;
+mod busy;
 mod help;
 mod layout;
 mod settings;
@@ -46,6 +47,13 @@ fn main() -> ExitCode {
 			return ExitCode::FAILURE;
 		},
 		None => {},
+	}
+	// Unified nesting guard: every path that reaches the workspace below
+	// refuses to run inside another workbench. (`zeta ide` and friends never
+	// get here — they hand off above.)
+	if is_nested_workbench(std::env::var("ZETA_WORKBENCH").ok().as_deref()) {
+		eprintln!("zetawork: cannot run inside another zetawork (nesting is not supported)");
+		return ExitCode::from(2);
 	}
 	match app::run() {
 		Ok(()) => ExitCode::SUCCESS,
@@ -99,5 +107,27 @@ fn run_suite_tool(tool: Option<&'static suite::SuiteTool>, passthrough: &[String
 			eprintln!("zeta: failed to launch: {error}");
 			ExitCode::FAILURE
 		},
+	}
+}
+
+/// Whether this process would nest a workbench inside another one. Every
+/// workbench pane PTY carries `ZETA_WORKBENCH=1` (the same probe the agent
+/// TUI reads to light up hyperlinks), so a `zeta work` typed into a terminal
+/// pane would spawn a workbench inside a workbench — two terminal simulators
+/// fighting over one output stream. Pure so both states stay testable.
+fn is_nested_workbench(zeta_workbench: Option<&str>) -> bool {
+	zeta_workbench == Some("1")
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn nesting_guard_rejects_only_the_probe_value() {
+		assert!(is_nested_workbench(Some("1")), "the injected probe value nests");
+		assert!(!is_nested_workbench(Some("0")), "an unset-looking value does not");
+		assert!(!is_nested_workbench(Some("")));
+		assert!(!is_nested_workbench(None), "outside any workbench starts fine");
 	}
 }

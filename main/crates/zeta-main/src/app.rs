@@ -1,7 +1,7 @@
 use crate::help;
 use crate::layout::{Axis, PaneNode, Side};
-use crate::tab::{PaneKind, Tab};
-use crate::tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout, truncate};
+use crate::tab::{PaneClose, PaneKind, Tab, pane_close_target};
+use crate::tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate};
 use crate::widgets::{self, WidgetState};
 use anyhow::Result;
 use crossterm::event::{
@@ -17,6 +17,58 @@ use std::io::Stdout;
 use std::time::Duration;
 use termide_core::{KeyChord, Panel, PanelConfig, PanelEvent, RenderContext, ThemeColors};
 use termide_keyboard::{KeyNormalizer, KeyboardCaps};
+
+/// `a, b, c … +2` — the busy list a confirm dialog shows, capped so the
+/// box stays one line.
+fn summarize_busy(names: &[String]) -> String {
+	if names.len() <= 3 {
+		return names.join(", ");
+	}
+	let listed = names.iter().take(3).cloned().collect::<Vec<_>>().join(", ");
+	format!("{listed} … +{}", names.len() - 3)
+}
+
+/// The busy-close confirm: a small opaque centered box — one message line
+/// plus the key hints. Modal: input is swallowed until answered.
+fn render_confirm_box(frame: &mut ratatui::Frame, area: Rect, message: &str) {
+	let hint = " Y yes · N no ";
+	let needed = Span::raw(message).width().max(Span::raw(hint).width()) as u16 + 4;
+	let width = needed.min(area.width.saturating_sub(2)).max(12);
+	let height = 4u16.min(area.height);
+	if area.width < 14 || area.height < 4 {
+		return;
+	}
+	let rect = Rect {
+		x: area.x + (area.width - width) / 2,
+		y: area.y + (area.height - height) / 2,
+		width,
+		height,
+	};
+	// Opaque surface: reset cells first so pane text never bleeds through
+	// (the same rule as the menu dropdown).
+	for row in rect.y..rect.bottom() {
+		for col in rect.x..rect.right() {
+			frame.buffer_mut()[(col, row)].reset();
+		}
+	}
+	let block = Block::default()
+		.borders(Borders::ALL)
+		.border_type(BorderType::Rounded)
+		.style(Style::default().fg(Color::Yellow));
+	frame.render_widget(block, rect);
+	let inner = Rect {
+		x: rect.x + 1,
+		y: rect.y + 1,
+		width: rect.width.saturating_sub(2),
+		height: rect.height.saturating_sub(2),
+	};
+	frame.render_widget(Paragraph::new(truncate(message, inner.width as usize)), inner);
+	let hint_row = Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 1 };
+	frame.render_widget(
+		Paragraph::new(Line::from(Span::styled(hint, Style::default().fg(Color::DarkGray)))),
+		hint_row,
+	);
+}
 
 /// Colorless theme: inherit the terminal's own colors wherever possible.
 fn plain_theme() -> termide_theme::Theme {
@@ -113,6 +165,24 @@ pub struct Workspace {
 	drag: Option<Drag>,
 	last_frame: Rect,
 	widgets: WidgetState,
+	/// Pending close awaiting confirmation of busy panes (Yes replays it).
+	confirm: Option<ConfirmClose>,
+}
+
+/// A close the user still has to confirm: which panes are busy, and what
+/// executes on Yes.
+struct ConfirmClose {
+	message: String,
+	action: PendingClose,
+}
+
+enum PendingClose {
+	/// Close pane `usize` — or cascade per [`pane_close_target`].
+	Pane(usize),
+	/// Close the active tab.
+	Tab,
+	/// Quit the workspace.
+	Quit,
 }
 
 pub fn run() -> Result<()> {
@@ -187,6 +257,7 @@ impl Workspace {
 			drag: None,
 			last_frame: Rect::default(),
 			widgets: WidgetState::default(),
+			confirm: None,
 		})
 	}
 
@@ -279,6 +350,26 @@ impl Workspace {
 
 	/// Returns `true` when the workspace should quit.
 	fn handle_key(&mut self, key: KeyEvent) -> Result<bool> {
+		// The busy-close confirm is modal: Yes replays the pending close,
+		// No dismisses, everything else is swallowed while it shows.
+		if self.confirm.is_some() {
+			let confirmed = match key.code {
+				KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => true,
+				KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => false,
+				_ => return Ok(false),
+			};
+			let pending = self.confirm.take();
+			if confirmed {
+				if let Some(pending) = pending {
+					match pending.action {
+						PendingClose::Pane(idx) => self.execute_pane_close(idx),
+						PendingClose::Tab => self.execute_tab_close(),
+						PendingClose::Quit => return Ok(true),
+					}
+				}
+			}
+			return Ok(false);
+		}
 		if self.help_open || self.doctor_open || self.settings_open {
 			self.help_open = false;
 			self.doctor_open = false;
@@ -289,13 +380,23 @@ impl Workspace {
 		}
 		if key.modifiers.contains(KeyModifiers::ALT) {
 			match key.code {
-				KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(true),
+				KeyCode::Char('q') | KeyCode::Char('Q') => {
+					if self.confirm_quit() {
+						return Ok(false);
+					}
+					return Ok(true);
+				},
 				KeyCode::Char('t') | KeyCode::Char('T') => self.new_tab(),
 				KeyCode::Char('w') | KeyCode::Char('W') => {
 					if self.tabs.len() > 1 {
-						self.tabs.remove(self.active_tab);
-						self.active_tab = self.active_tab.min(self.tabs.len() - 1);
+						if self.confirm_tab_close() {
+							return Ok(false);
+						}
+						self.execute_tab_close();
 					} else {
+						if self.confirm_quit() {
+							return Ok(false);
+						}
 						return Ok(true);
 					}
 				},
@@ -341,15 +442,15 @@ impl Workspace {
 					}
 				},
 				KeyCode::Char('x') | KeyCode::Char('X') => {
-					let tab = self.active();
-					let idx = tab.active;
-					tab.close_pane(idx);
+					let idx = self.active().active;
+					self.close_pane_at(idx);
 				},
 				KeyCode::Char('m') | KeyCode::Char('M') => {
 					let tab = self.active();
 					let idx = tab.active;
 					tab.minimize_pane(idx);
 				},
+				KeyCode::Char('b') | KeyCode::Char('B') => self.promote_pane_to_tab(),
 				_ => {},
 			}
 			return Ok(false);
@@ -579,7 +680,12 @@ impl Workspace {
 						.unwrap_or(false)
 				};
 				if close_pane {
-					self.active().close_pane(pane);
+					// The pane's last page went with the click — the pane
+					// must go too. This used to call close_pane, whose
+					// last-pane guard silently refused on a single-pane tab
+					// and left the page-less pane as a dead shell (black
+					// content, `[]` label); the cascade below heals it.
+					self.close_pane_at(pane);
 				}
 			},
 			Hit::PaneMinimize { pane } => {
@@ -709,7 +815,12 @@ impl Workspace {
 				self.apply_events(events);
 			},
 			Hit::LayoutCycle => self.cycle_preset(),
-			Hit::Quit => return true,
+			Hit::Quit => {
+				if self.confirm_quit() {
+					return false;
+				}
+				return true;
+			},
 		}
 		false
 	}
@@ -757,7 +868,9 @@ impl Workspace {
 	fn handle_mouse_up(&mut self, mouse: crossterm::event::MouseEvent) -> bool {
 		match self.drag.take() {
 			Some(Drag::TabReorder(from)) => {
-				let layout = tab_layout(self.last_frame.width, self.tabs.len(), usize::MAX);
+				let names = self.tab_display_names();
+				let layout =
+					tab_layout_named(self.last_frame.width, self.tabs.len(), usize::MAX, &names);
 				let target = layout
 					.tabs
 					.iter()
@@ -857,10 +970,10 @@ impl Workspace {
 				let idx = tab.active;
 				tab.minimize_pane(idx);
 			},
-			(1, 9) => {
-				let tab = self.active();
-				let idx = tab.active;
-				tab.close_pane(idx);
+			(1, 9) => self.promote_pane_to_tab(),
+			(1, 10) => {
+				let idx = self.active().active;
+				self.close_pane_at(idx);
 			},
 			// Tab
 			(2, 0) => self.active_tab = (self.active_tab + 1) % self.tabs.len(),
@@ -896,6 +1009,12 @@ impl Workspace {
 				self.open_overlay(Overlay::Doctor);
 			},
 			(4, 2) => self.open_overlay(Overlay::Help),
+			(4, 3) => {
+				let enabled = !crate::settings::snapshot().close_confirmation;
+				crate::settings::update(|s| s.close_confirmation = enabled);
+				self.notice =
+					Some(format!("close confirmation {}", if enabled { "on" } else { "off" }));
+			},
 			_ => {},
 		}
 		false
@@ -903,12 +1022,46 @@ impl Workspace {
 
 	fn apply_events(&mut self, events: Vec<PanelEvent>) {
 		for event in events {
-			if matches!(event, PanelEvent::Quit) {
-				return;
+			match event {
+				PanelEvent::Quit => return,
+				PanelEvent::RunCommand { command, .. } => {
+					self.split_active(PaneKind::Command(command), None);
+				},
+				PanelEvent::OpenPath { path, select_file, line, col } => {
+					self.open_path_in_ide(path, select_file, line, col);
+				},
+				_ => {},
 			}
-			if let PanelEvent::RunCommand { command, .. } = event {
-				self.split_active(PaneKind::Command(command), None);
-			}
+		}
+	}
+
+	/// A clicked terminal link (OSC 8 hyperlink or scraped file path) opens
+	/// the suite IDE in a new pane to the right of the focused one — the
+	/// same split a hand press of `[↔]` performs. zeta-editor backs zeta-ide
+	/// up; with neither installed the notice carries the error.
+	fn open_path_in_ide(
+		&mut self,
+		path: std::path::PathBuf,
+		select_file: Option<std::ffi::OsString>,
+		line: Option<u32>,
+		col: Option<u32>,
+	) {
+		// Scraped file-path clicks report the parent directory plus the file
+		// to select inside it; the IDE wants the file itself.
+		let path = match select_file {
+			Some(file) => path.join(file),
+			None => path,
+		};
+		let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
+		let target = crate::tab::link_target_text(&path, line, col);
+		match crate::tab::ide_open_command(&shell, &target) {
+			Some(command) => {
+				self.split_active(PaneKind::Command(command), Some(Axis::Row));
+			},
+			None => {
+				self.notice =
+					Some("no zeta-ide or zeta-editor on PATH — install one to open links".into());
+			},
 		}
 	}
 
@@ -923,15 +1076,181 @@ impl Workspace {
 		}
 	}
 
+	/// Break the focused pane out into its own top-level tab: appended last
+	/// and focused, while the old tab focuses a surviving sibling. The Pane
+	/// object moves — its PTY pages keep running (a restart would lose the
+	/// session); the PTY pages resize from the old slot's grid to the full
+	/// tab. The last pane of a tab cannot leave (the tab would vanish):
+	/// no-op, and the notice says so.
+	fn promote_pane_to_tab(&mut self) {
+		let pane_index = self.active().active;
+		let Some(pane) = self.active().take_pane(pane_index) else {
+			self.notice = Some("cannot move the last pane — a tab needs at least one".into());
+			return;
+		};
+		let mut tab = Tab::with_pane(pane);
+		tab.resize(
+			self.last_content.height.saturating_sub(2).max(1),
+			self.last_content.width.saturating_sub(2).max(1),
+		);
+		self.tabs.push(tab);
+		self.active_tab = self.tabs.len() - 1;
+	}
+
+	/// The one pane-close pipeline every path shares (pane ✕, page ✕ on the
+	/// last page, Alt+X, the menu entry, a pane's process exiting): detach
+	/// the leaf and collapse the tree; the tab's last leaf closes the whole
+	/// tab — focus moves to the right neighbor, else the left; the last
+	/// tab's last pane is replaced in place by a fresh default shell. A tab
+	/// therefore always keeps at least one live pane, and closing panes
+	/// never quits the app. The dropped pane's PTY child is reaped by
+	/// `Terminal`'s Drop.
+	fn close_pane_at(&mut self, pane_index: usize) {
+		if let Some(confirm) = self.confirm_pane_close(pane_index) {
+			self.confirm = Some(confirm);
+			return;
+		}
+		self.execute_pane_close(pane_index);
+	}
+
+	/// The confirmation to show before closing pane `pane_index` — `None`
+	/// proceeds (idle pane, or confirmation toggled off).
+	fn confirm_pane_close(&self, pane_index: usize) -> Option<ConfirmClose> {
+		if !crate::settings::snapshot().close_confirmation {
+			return None;
+		}
+		let tab = &self.tabs[self.active_tab];
+		if !self.pane_busy(tab, pane_index) {
+			return None;
+		}
+		let name = tab.pane_display_name(pane_index);
+		let what = match pane_close_target(tab.panes.len(), self.tabs.len()) {
+			PaneClose::Pane => format!("close `{name}` anyway?"),
+			PaneClose::Tab => {
+				format!("its last pane `{name}` runs a program — close the tab anyway?")
+			},
+			PaneClose::FreshShell => {
+				format!("close `{name}` anyway? The slot becomes a fresh shell.")
+			},
+		};
+		Some(ConfirmClose {
+			message: format!("`{name}` is running a program — {what}"),
+			action: PendingClose::Pane(pane_index),
+		})
+	}
+
+	/// The close pipeline proper — no questions asked.
+	fn execute_pane_close(&mut self, pane_index: usize) {
+		match pane_close_target(self.active().panes.len(), self.tabs.len()) {
+			PaneClose::Pane => self.active().close_pane(pane_index),
+			PaneClose::Tab => {
+				let index = self.active_tab;
+				self.tabs.remove(index);
+				self.active_tab = self.active_tab.min(self.tabs.len().saturating_sub(1));
+			},
+			PaneClose::FreshShell => match Tab::new_shell(launch_cwd()) {
+				Ok(tab) => self.tabs[self.active_tab] = tab,
+				Err(error) => self.notice = Some(format!("new tab failed: {error}")),
+			},
+		}
+	}
+
+	/// The tab-close pipeline proper (Alt+W): remove the tab and focus the
+	/// right neighbor, else the left.
+	fn execute_tab_close(&mut self) {
+		self.tabs.remove(self.active_tab);
+		self.active_tab = self.active_tab.min(self.tabs.len().saturating_sub(1));
+	}
+
+	/// Whether one pane's any PTY page runs a shell with live child
+	/// processes (zetacode, vim, git, …). Widget pages are never busy.
+	fn pane_busy(&self, tab: &Tab, pane_index: usize) -> bool {
+		let Some(pane) = tab.panes.get(pane_index) else {
+			return false;
+		};
+		pane.pages.iter().any(|page| match &page.body {
+			crate::tab::PaneBody::Pty(term) => crate::busy::pane_is_busy(term.shell_pid()),
+			crate::tab::PaneBody::Widget => false,
+		})
+	}
+
+	/// Whether any pane in the tab is busy.
+	fn tab_busy(&self, tab: &Tab) -> bool {
+		(0..tab.panes.len()).any(|idx| self.pane_busy(tab, idx))
+	}
+
+	fn any_pane_busy(&self) -> bool {
+		self.tabs.iter().any(|tab| self.tab_busy(tab))
+	}
+
+	/// Open the confirmation before a tab close when any of its panes is
+	/// busy. `true` means the dialog opened and the close is paused.
+	fn confirm_tab_close(&mut self) -> bool {
+		if !crate::settings::snapshot().close_confirmation {
+			return false;
+		}
+		let tab_index = self.active_tab;
+		let busy: Vec<usize> = (0..self.tabs[tab_index].panes.len())
+			.filter(|idx| self.pane_busy(&self.tabs[tab_index], *idx))
+			.collect();
+		if busy.is_empty() {
+			return false;
+		}
+		let names: Vec<String> = {
+			let tab = self.active();
+			busy.iter().map(|idx| tab.pane_display_name(*idx)).collect()
+		};
+		self.confirm = Some(ConfirmClose {
+			message: format!("{} — close the tab anyway?", summarize_busy(&names)),
+			action: PendingClose::Tab,
+		});
+		true
+	}
+
+	/// Open the confirmation before quitting when anything runs anywhere.
+	/// `true` means the dialog opened and the quit is paused.
+	fn confirm_quit(&mut self) -> bool {
+		if !crate::settings::snapshot().close_confirmation || !self.any_pane_busy() {
+			return false;
+		}
+		let mut names: Vec<String> = Vec::new();
+		for (idx, tab) in self.tabs.iter().enumerate() {
+			for pane_idx in 0..tab.panes.len() {
+				if self.pane_busy(tab, pane_idx) {
+					names.push(self.tabs[idx].pane_display_name(pane_idx));
+				}
+			}
+		}
+		self.confirm = Some(ConfirmClose {
+			message: format!("{} — quit anyway?", summarize_busy(&names)),
+			action: PendingClose::Quit,
+		});
+		true
+	}
+
 	fn resize(&mut self, rows: u16, cols: u16) {
 		for tab in &mut self.tabs {
 			tab.resize(rows.saturating_sub(3), cols);
 		}
 	}
 
+	/// Tab-bar names: `<tab number>:<focused pane title>` — the focused
+	/// pane's OSC 0/2 title when the child named itself, else its numbered
+	/// default label. Browser-style float-up of the focused pane's name;
+	/// the number keeps renumbering itself as tabs come and go.
+	fn tab_display_names(&self) -> Vec<String> {
+		self
+			.tabs
+			.iter()
+			.enumerate()
+			.map(|(idx, tab)| format!("{}:{}", idx + 1, tab.pane_title_base(tab.active)))
+			.collect()
+	}
+
 	fn tick(&mut self) {
 		self.widgets.pomodoro.tick();
 		let mut notices = Vec::new();
+		let mut dead_tabs: Vec<usize> = Vec::new();
 		for (tab_idx, tab) in self.tabs.iter_mut().enumerate() {
 			// Reap dead PTY pages; a pane whose last page died closes.
 			for pane in tab.panes.iter_mut() {
@@ -965,14 +1284,33 @@ impl Workspace {
 				.map(|(idx, _)| idx)
 				.collect();
 			for idx in to_close.into_iter().rev() {
-				tab.close_pane(idx);
+				if tab.panes.len() > 1 {
+					tab.close_pane(idx);
+				} else {
+					// The tab's last pane lost its page (its process exited):
+					// the whole tab goes through the cascade below — a fresh
+					// shell replaces the active one, never a dead shell.
+					dead_tabs.push(tab_idx);
+					break;
+				}
 			}
 		}
-		if self.tabs.len() > 1 {
-			let before = self.tabs.len();
-			self.tabs.retain(|tab| !tab.panes.is_empty());
-			if self.tabs.len() < before {
-				self.active_tab = self.active_tab.min(self.tabs.len() - 1);
+		for tab_idx in dead_tabs.into_iter().rev() {
+			let was_active = tab_idx == self.active_tab;
+			self.tabs.remove(tab_idx);
+			if was_active {
+				// The active tab's last pane died: a fresh default shell
+				// takes its slot (numbering continues), the app stays up.
+				match Tab::new_shell(launch_cwd()) {
+					Ok(tab) => {
+						let index = tab_idx.min(self.tabs.len());
+						self.tabs.insert(index, tab);
+						self.active_tab = index;
+					},
+					Err(error) => self.notice = Some(format!("new tab failed: {error}")),
+				}
+			} else {
+				self.active_tab = self.active_tab.min(self.tabs.len().saturating_sub(1));
 			}
 		}
 		if let Some(last) = notices.pop() {
@@ -1013,7 +1351,8 @@ impl Workspace {
 			.collect();
 
 		// Row 1: tab bar.
-		let layout = tab_layout(size.width, self.tabs.len(), self.active_tab);
+		let tab_names = self.tab_display_names();
+		let layout = tab_layout_named(size.width, self.tabs.len(), self.active_tab, &tab_names);
 		frame
 			.render_widget(TabBar { layout: clone_layout(&layout), active: self.active_tab }, rows[1]);
 		let (prev, prev_w) = layout.prev;
@@ -1043,6 +1382,7 @@ impl Workspace {
 			let widgets_state = self.widgets.clone();
 			let tab = &mut self.tabs[self.active_tab];
 			for (pane_id, area) in rects.iter().copied() {
+				let display_name = tab.pane_display_name(pane_id);
 				let Some(pane) = tab.panes.get_mut(pane_id) else {
 					continue;
 				};
@@ -1071,11 +1411,18 @@ impl Workspace {
 				let mut page_boxes: Vec<(u16, u16)> = Vec::new();
 				let mut cursor = area.x + 1;
 				for page_idx in 0..pane.pages.len() {
-					let label: String = pane
-						.pages
-						.get(page_idx)
-						.map(|p| p.kind.label())
-						.unwrap_or_default();
+					let label: String = if page_idx == pane.page {
+						// The active page carries the pane's display name:
+						// OSC title when the child named itself, else the
+						// numbered default.
+						display_name.clone()
+					} else {
+						pane
+							.pages
+							.get(page_idx)
+							.map(|p| p.kind.label())
+							.unwrap_or_default()
+					};
 					let label = format!(" {} ", truncate(&label, 12));
 					let w = Span::raw(label.clone()).width() as u16;
 					page_boxes.push((cursor, w));
@@ -1286,11 +1633,7 @@ impl Workspace {
 
 		// Status row.
 		let tab = &self.tabs[self.active_tab];
-		let pane_label = tab
-			.panes
-			.get(tab.active)
-			.map(|p| p.label())
-			.unwrap_or_default();
+		let pane_label = tab.pane_display_name(tab.active);
 		let leaves = count_leaves(&tab.tree);
 		let status = self.notice.clone().unwrap_or_else(|| {
 			status_text(&pane_label, &leaves.to_string(), tab.active, tab.panes.len())
@@ -1313,6 +1656,10 @@ impl Workspace {
 			);
 			self.push_hit(Rect { x: start, y: rows[4].y, width: 8, height: 1 }, Hit::LayoutCycle);
 			self.push_hit(Rect { x: start + 9, y: rows[4].y, width: 6, height: 1 }, Hit::Quit);
+		}
+
+		if let Some(confirm) = &self.confirm {
+			render_confirm_box(frame, rows[2], &confirm.message);
 		}
 
 		if self.doctor_open {

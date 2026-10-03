@@ -72,16 +72,28 @@ pub struct Settings {
 	pub drag: bool,
 	/// Hovering a pane focuses it, no click needed.
 	pub focus_follows_mouse: bool,
+	/// Ask before closing a pane/tab that runs child processes (zetacode,
+	/// vim, …). Off closes everything without asking.
+	pub close_confirmation: bool,
 }
 
 impl Default for Settings {
 	fn default() -> Self {
-		Self { shell: ShellChoice::Auto, drag: true, focus_follows_mouse: false }
+		Self {
+			shell: ShellChoice::Auto,
+			drag: true,
+			focus_follows_mouse: false,
+			close_confirmation: true,
+		}
 	}
 }
 
-static SETTINGS: RwLock<Settings> =
-	RwLock::new(Settings { shell: ShellChoice::Auto, drag: true, focus_follows_mouse: false });
+static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
+	shell: ShellChoice::Auto,
+	drag: true,
+	focus_follows_mouse: false,
+	close_confirmation: true,
+});
 
 /// Load the settings file into the global. Called once at startup; a
 /// missing or malformed file keeps the defaults (each key falls back
@@ -144,6 +156,7 @@ fn load_from(path: &std::path::Path) -> Settings {
 			"shell" => settings.shell = ShellChoice::from_key(value),
 			"drag" => settings.drag = value.eq_ignore_ascii_case("true"),
 			"focus_follows_mouse" => settings.focus_follows_mouse = value.eq_ignore_ascii_case("true"),
+			"close_confirmation" => settings.close_confirmation = value.eq_ignore_ascii_case("true"),
 			_ => {},
 		}
 	}
@@ -158,10 +171,12 @@ fn save_to(path: &std::path::Path, settings: Settings) -> std::io::Result<()> {
 		"# zeta workbench settings — hand-edited values are overwritten by the Settings surface\n\
 		 shell = \"{}\"          # auto | powershell | pwsh | git-bash\n\
 		 drag = {}\n\
-		 focus_follows_mouse = {}\n",
+		 focus_follows_mouse = {}\n\
+		 close_confirmation = {}          # ask before closing panes that run programs\n",
 		settings.shell.key(),
 		settings.drag,
 		settings.focus_follows_mouse,
+		settings.close_confirmation,
 	);
 	std::fs::write(path, text)
 }
@@ -173,7 +188,12 @@ mod tests {
 	#[test]
 	fn roundtrips_through_the_file_format() {
 		let path = std::env::temp_dir().join(format!("zeta-settings-{}.toml", std::process::id()));
-		let original = Settings { shell: ShellChoice::Pwsh, drag: false, focus_follows_mouse: true };
+		let original = Settings {
+			shell: ShellChoice::Pwsh,
+			drag: false,
+			focus_follows_mouse: true,
+			close_confirmation: false,
+		};
 		save_to(&path, original).expect("save");
 		assert_eq!(load_from(&path), original, "every key survives a save/load roundtrip");
 		std::fs::remove_file(&path).ok();

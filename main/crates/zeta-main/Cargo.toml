@@ -19,6 +19,7 @@ chrono = "0.4"
 arboard = "3"
 crossterm.workspace = true
 ratatui.workspace = true
+sysinfo = "0.31"
 
 termide-core.workspace = true
 termide-config.workspace = true

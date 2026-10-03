@@ -4840,6 +4840,7 @@ dependencies = [
  "chrono",
  "crossterm",
  "ratatui",
+ "sysinfo",
  "termide-config",
  "termide-core",
  "termide-keyboard",

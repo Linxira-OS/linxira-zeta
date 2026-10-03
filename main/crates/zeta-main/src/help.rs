@@ -25,7 +25,8 @@ KEYS (inside the workspace)
   Alt+S    pane: shell             Alt+O    focus next pane
   Alt+D    pane: time+calendar     Alt+X    close focused pane
   Alt+L    cycle pane layout       Alt+M    minimize focused pane
-  Alt+Q    quit                    F1       help overlay
+  Alt+B    pane → new tab          Alt+Q    quit
+  F1       help overlay
 
   Mouse: click a tab (or +) in the tab bar; click a pane to focus it;
   drag a shared border to resize (left/right and top/bottom); drag a
@@ -61,6 +62,7 @@ pub fn overlay_text() -> &'static str {
 	panes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\n\
 	          Alt+D time+calendar · Alt+L layout · Alt+O next pane\n\
 	          Alt+X close pane · Alt+M minimize pane (dock below)\n\
+	          Alt+B move pane to its own new tab\n\
 	mouse    click tab bar · click pane to focus · drag border = resize\n\
 	          drag pane title onto a pane = swap / reposition\n\
 	dock     minimized panes wait at the bottom — click a chip to restore\n\
