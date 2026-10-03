@@ -378,16 +378,11 @@ describe("terminal WS upgrade gate", () => {
 		expect(unknown?.status).toBe(404);
 	});
 
-	test("non-loopback without a token or ticket is rejected (REST 403 and WS 403)", async () => {
+	test("non-loopback without a token or ticket is rejected (WS 403)", async () => {
 		await setup(); // no remote.token configured
 		installFakePty();
-		const rest = await fetch("http://192.168.1.5:30142/api/terminal", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: "{}",
-		}).catch(() => null);
-		// REST gate lives in webGatewayFetch; verified in access-gate.test.ts.
-		void rest;
+		// The REST-side 403 for non-loopback callers is covered by
+		// access-gate.test.ts (webGatewayFetch gate); here only the WS gate.
 
 		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
 		cleanups.push(() => rm(cwd, { recursive: true, force: true }));

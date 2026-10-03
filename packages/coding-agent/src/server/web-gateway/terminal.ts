@@ -200,6 +200,8 @@ interface AttachedSocket {
 
 interface TerminalSession {
 	id: string;
+	/** Monotonic creation sequence — deterministic retention ordering. */
+	seq: number;
 	cwd: string;
 	shell: ResolvedTerminal;
 	pty: TerminalPty | null;
@@ -215,6 +217,7 @@ const TERMINAL_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
 class TerminalManager {
 	#sessions = new Map<string, TerminalSession>();
+	#creationSeq = 0;
 	#tickets = new Map<string, { terminalId: string; expiresAt: number }>();
 
 	list(): TerminalInfo[] {
@@ -270,8 +273,10 @@ class TerminalManager {
 		if (!shell) return { ok: false, status: 500, error: "no terminal shell found on this system" };
 
 		const id = this.#createId();
+		this.#creationSeq += 1;
 		const session: TerminalSession = {
 			id,
+			seq: this.#creationSeq,
 			cwd,
 			shell,
 			pty: null,
@@ -372,10 +377,11 @@ class TerminalManager {
 	}
 
 	#pruneExited(): void {
-		const exited = [...this.#sessions.values()]
-			.filter(session => session.exited)
-			.sort((a, b) => (b.exitedAt ?? 0) - (a.exitedAt ?? 0));
-		for (const session of exited.slice(RETAINED_EXITED_TERMINALS)) {
+		// Retain the newest sessions by *creation order* (monotonic seq), not
+		// exit-arrival order: PTY exit callbacks can land out of order across
+		// platforms, and same-millisecond exits must not flip who survives.
+		const exited = [...this.#sessions.values()].filter(session => session.exited).sort((a, b) => a.seq - b.seq);
+		for (const session of exited.slice(0, Math.max(0, exited.length - RETAINED_EXITED_TERMINALS))) {
 			this.#sessions.delete(session.id);
 		}
 	}
