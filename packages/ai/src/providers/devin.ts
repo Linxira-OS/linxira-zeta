@@ -33,6 +33,7 @@ import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@li
 import { decodeDevinUnaryMessage } from "@linxiraos/pi-catalog/wire/devin-proto";
 import { isRecord, logger, parseStreamingJson, parseStreamingJsonThrottled, sanitizeText } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
+import { parseToolCallArguments } from "../utils/tool-call-arguments";
 
 import type {
 	Api,
@@ -489,7 +490,7 @@ export const streamDevin: StreamFunction<"devin-agent"> = (
 			endTextBlock();
 			endThinkingBlock();
 			for (const [id, block] of toolBlocks) {
-				block.arguments = parseStreamingJson(toolPartialJson.get(id));
+				block.arguments = parseToolCallArguments(toolPartialJson.get(id));
 				stream.push({
 					type: "toolcall_end",
 					contentIndex: output.content.indexOf(block),
@@ -735,7 +736,7 @@ function buildUserPrompt(msg: UserMessage | DeveloperMessage, messageId: string)
 	return create(ChatMessagePromptSchema, { messageId, source: ChatMessageSource.USER, prompt, images });
 }
 
-/** Map omp `Message` history onto Cascade `ChatMessagePrompt`s (USER / SYSTEM / TOOL channels). */
+/** Map zeta `Message` history onto Cascade `ChatMessagePrompt`s (USER / SYSTEM / TOOL channels). */
 function buildChatMessagePrompts(
 	messages: Message[],
 	cascadeId: string,

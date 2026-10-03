@@ -39,6 +39,14 @@ const ZETA_SCOPE = "@linxiraos/";
 // class; guarded by a brand-check MUST_CONTAIN entry).
 const OMP_SCOPE = "@oh-my-pi/";
 
+// Upstream's original author scope predating the @oh-my-pi rename. Legacy
+// manifests and vendored plugin manifests still declare it; map it exactly
+// like @oh-my-pi so dependency keys land on Zeta packages instead of passing
+// through unmapped (install-smoke failure class). This literal MUST survive
+// the sweep: dropping it silently breaks historical-scope mapping (guarded by
+// a brand-check MUST_CONTAIN entry).
+const LEGACY_AUTHOR_SCOPE = "@mariozechner/";
+
 // Upstream names whose catalog/tail does not equal the Zeta package tail.
 const RENAME_BY_TAIL: Record<string, string> = {
 	hashline: "pi-hashline",
@@ -49,9 +57,13 @@ const RENAME_BY_TAIL: Record<string, string> = {
 };
 
 function zetaKeyFor(ompKey: string): string | null {
-	if (!ompKey.startsWith(OMP_SCOPE)) return null;
-	const tail = ompKey.slice(OMP_SCOPE.length);
-	return `${ZETA_SCOPE}${RENAME_BY_TAIL[tail] ?? tail}`;
+	for (const scope of [OMP_SCOPE, LEGACY_AUTHOR_SCOPE] as const) {
+		if (ompKey.startsWith(scope)) {
+			const tail = ompKey.slice(scope.length);
+			return `${ZETA_SCOPE}${RENAME_BY_TAIL[tail] ?? tail}`;
+		}
+	}
+	return null;
 }
 
 function loadJson(path: string): Record<string, unknown> | null {

@@ -88,7 +88,7 @@ describe("PluginManager.install with git sources", () => {
 		// rather than triggering #ensurePackageJson's bootstrap path.
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -105,7 +105,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: { "real-name": "github:foo/bar" },
 						},
@@ -141,7 +141,7 @@ describe("PluginManager.install with git sources", () => {
 	test("normalizes non-GitHub shorthand before invoking bun install", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -154,7 +154,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {
 								"gitlab-plugin": "git+https://gitlab.com/group/sub/project.git#v1.0.0",
@@ -196,7 +196,7 @@ describe("PluginManager.install with git sources", () => {
 			pluginsPkgJson,
 			JSON.stringify(
 				{
-					name: "omp-plugins",
+					name: "zeta-plugins",
 					private: true,
 					dependencies: { "stale-plugin": "github:foo/bar" },
 				},
@@ -272,7 +272,7 @@ describe("PluginManager.install with git sources", () => {
 			pluginsPkgJson,
 			JSON.stringify(
 				{
-					name: "omp-plugins",
+					name: "zeta-plugins",
 					private: true,
 					dependencies: { "replaced-plugin": "github:foo/bar#v1.0.0" },
 				},
@@ -300,7 +300,7 @@ describe("PluginManager.install with git sources", () => {
 						pluginsPkgJson,
 						JSON.stringify(
 							{
-								name: "omp-plugins",
+								name: "zeta-plugins",
 								private: true,
 								dependencies: { "replaced-plugin": "github:foo/bar" },
 							},
@@ -353,7 +353,7 @@ describe("PluginManager.install with git sources", () => {
 	test("first-time github install does NOT run `bun update` (no existing pin to refresh)", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		const spawnedCommands: string[][] = [];
@@ -365,7 +365,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: { "fresh-plugin": "github:foo/bar" },
 						},
@@ -400,7 +400,7 @@ describe("PluginManager.install with git sources", () => {
 		// sufficient: the test runner's timeout catches a regression.
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		const makeGatedStream = (payload: string): { stream: ReadableStream<Uint8Array>; drained: Promise<void> } => {
@@ -424,7 +424,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: { "real-name": "github:foo/bar" },
 						},
@@ -500,7 +500,7 @@ describe("PluginManager.install with git sources", () => {
 		try {
 			await Bun.write(
 				pluginsPkgJson,
-				JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+				JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 			);
 			await Bun.write(path.join(pluginsDir, "bunfig.toml"), `[install.cache]\ndir = ${JSON.stringify(cacheDir)}\n`);
 			const spec = `git+http://127.0.0.1:${server.port}/testuser/remote.git#main`;
@@ -543,5 +543,88 @@ describe("PluginManager.install with git sources", () => {
 	test("still rejects invalid npm names with the original error", async () => {
 		const mgr = new PluginManager(tmpRoot);
 		await expect(mgr.install("Invalid Name With Spaces")).rejects.toThrow(/Invalid (package name|characters)/);
+	});
+
+	test("upgrades a git plugin by bare name from its recorded source, keeping it disabled", async () => {
+		await Bun.write(
+			pluginsPkgJson,
+			JSON.stringify(
+				{ name: "zeta-plugins", private: true, dependencies: { "ida-mcp": "github:HexRaysSA/ida-mcp#latest" } },
+				null,
+				2,
+			),
+		);
+		const seedDir = path.join(pluginsNodeModules, "ida-mcp");
+		await fs.mkdir(seedDir, { recursive: true });
+		await Bun.write(path.join(seedDir, "package.json"), JSON.stringify({ name: "ida-mcp", version: "1.0.0" }));
+		await Bun.write(
+			path.join(tmpRoot, "omp-plugins.lock.json"),
+			JSON.stringify({
+				plugins: { "ida-mcp": { version: "1.0.0", enabledFeatures: null, enabled: false } },
+				settings: {},
+			}),
+		);
+		const cacheDir = path.join(tmpRoot, "bun-cache");
+		await fs.mkdir(cacheDir);
+
+		const spawnedCommands: string[][] = [];
+		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
+			spawnedCommands.push([...cmd]);
+			const stdout = cmd[1] === "pm" ? textStream(`${cacheDir}\n`) : emptyStream();
+			const prepare =
+				cmd[1] === "update"
+					? Bun.write(path.join(seedDir, "package.json"), JSON.stringify({ name: "ida-mcp", version: "2.0.0" }))
+					: Promise.resolve(0);
+			return { pid: 1, stdout, stderr: emptyStream(), exited: prepare.then(() => 0) } as Subprocess;
+		}) as typeof Bun.spawn);
+
+		const { from, plugin, changed } = await new PluginManager(tmpRoot).upgrade("ida-mcp");
+
+		expect(from).toBe("1.0.0");
+		expect(plugin.version).toBe("2.0.0");
+		expect(changed).toBe(true);
+		expect(spawnedCommands).toEqual([
+			["bun", "install", "github:HexRaysSA/ida-mcp#latest"],
+			["bun", "pm", "cache"],
+			["bun", "update", "ida-mcp"],
+		]);
+		const lock = await Bun.file(path.join(tmpRoot, "omp-plugins.lock.json")).json();
+		expect(lock.plugins["ida-mcp"]).toEqual({ version: "2.0.0", enabledFeatures: null, enabled: false });
+	});
+
+	test("reports a git plugin on a moving ref as changed when only the bun.lock pin moves", async () => {
+		await Bun.write(
+			pluginsPkgJson,
+			JSON.stringify({
+				name: "zeta-plugins",
+				private: true,
+				dependencies: { "ida-mcp": "github:foo/ida-mcp#main" },
+			}),
+		);
+		const seedDir = path.join(pluginsNodeModules, "ida-mcp");
+		await fs.mkdir(seedDir, { recursive: true });
+		await Bun.write(path.join(seedDir, "package.json"), JSON.stringify({ name: "ida-mcp", version: "1.0.0" }));
+		const bunLock = path.join(pluginsDir, "bun.lock");
+		const lockAt = (commit: string) =>
+			`{\n  "lockfileVersion": 1,\n  "packages": {\n    "ida-mcp": ["ida-mcp@github:foo/ida-mcp#${commit}", {}, "foo-ida-mcp-${commit}"],\n  },\n}\n`;
+		await Bun.write(bunLock, lockAt("aaaaaaa"));
+		const cacheDir = path.join(tmpRoot, "bun-cache");
+		await fs.mkdir(cacheDir);
+
+		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
+			const stdout = cmd[1] === "pm" ? textStream(`${cacheDir}\n`) : emptyStream();
+			const prepare = cmd[1] === "update" ? Bun.write(bunLock, lockAt("bbbbbbb")) : Promise.resolve(0);
+			return { pid: 1, stdout, stderr: emptyStream(), exited: prepare.then(() => 0) } as Subprocess;
+		}) as typeof Bun.spawn);
+
+		const result = await new PluginManager(tmpRoot).upgrade("ida-mcp");
+
+		expect(result.from).toBe("1.0.0");
+		expect(result.plugin.version).toBe("1.0.0");
+		expect(result.changed).toBe(true);
+	});
+
+	test("refuses to upgrade a plugin that is not installed", async () => {
+		await expect(new PluginManager(tmpRoot).upgrade("ida-mcp")).rejects.toThrow(/ida-mcp is not installed/);
 	});
 });

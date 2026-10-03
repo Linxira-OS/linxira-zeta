@@ -3,11 +3,7 @@
 ## [Unreleased]
 
 ## [1.1.23] - 2026-10-01
-
 ## [1.1.22] - 2026-09-30
-
-- **CLI bin 命名**:新增 `CLI_BIN_NAME`(zeta-c),Usage/进程标题/补全驱动统一;配置根 `.zeta`、`ZETA_*`、`APP_NAME` 不变。
-
 ## [1.1.18] - 2026-09-22
 
 - 包元数据:author/maintainer 更新为 Linxira-OS,LICENSE 追加 Linxira-OS 版权行(发行面变更)。

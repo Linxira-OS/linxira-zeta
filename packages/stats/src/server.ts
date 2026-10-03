@@ -69,7 +69,7 @@ async function getEmbeddedClientFiles(): Promise<Map<string, Blob>> {
 
 	if (!EMBEDDED_CLIENT_ARCHIVE) {
 		throw new Error(
-			"Embedded stats client bundle missing. Rebuild the omp binary or npm bundle with embedded stats assets.",
+			"Embedded stats client bundle missing. Rebuild the zeta binary or npm bundle with embedded stats assets.",
 		);
 	}
 
@@ -157,7 +157,7 @@ const ensureClientBuild = async () => {
  * preflight, which this server never approves, so a hostile page cannot
  * trigger a paid judge run through a cross-site form or `fetch`.
  */
-const STATS_ACTION_HEADER = "X-Omp-Stats-Action";
+const STATS_ACTION_HEADER = "X-Zeta-Stats-Action";
 
 /**
  * Handle API requests.

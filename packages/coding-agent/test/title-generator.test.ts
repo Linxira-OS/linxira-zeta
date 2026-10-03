@@ -13,9 +13,11 @@ import {
 	setExtensionTerminalTitle,
 	setSessionTerminalTitle,
 	setTerminalTitle,
+	setTerminalTitlePullRequest,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleState,
 } from "@linxiraos/zeta/utils/title-generator";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
 import { isWsl, logger, setTerminalHeadless } from "@linxiraos/pi-utils";
 import { mockWindowsConsoleTitle, type WindowsConsoleTitleMock } from "./terminal-title-test-utils";
 
@@ -1156,5 +1158,31 @@ describe("terminal title runtime", () => {
 		expect(last).toBeDefined();
 		expect(last).toContain("my-session");
 		expectWorkingSeparator(last, "my-session");
+	});
+
+	it("titles the tab with the bare session name while a TSP terminal renders, and restores the run state after", () => {
+		setSessionTerminalTitle("Ack path refactor");
+		setTerminalTitleState("working");
+		try {
+			setNativeRendering(true);
+			resetEmitted();
+			// The terminal shows run state itself: no brand, no spinner ticks.
+			vi.advanceTimersByTime(400);
+			setTerminalTitlePullRequest(412);
+			expect(emittedTitles()).toEqual(["Ack path refactor · #412"]);
+
+			setSessionTerminalTitle("Renamed");
+			expect(emittedTitles().at(-1)).toBe("Renamed · #412");
+			setSessionTerminalTitle(undefined);
+			setTerminalTitlePullRequest(undefined);
+			// Zeta brand divergence (merge decision): the native terminal title is
+			// "zeta" here, not upstream's "omp" — see scripts/brand overlay.
+			expect(emittedTitles().at(-1)).toBe("zeta");
+			setSessionTerminalTitle("Renamed");
+		} finally {
+			setNativeRendering(false);
+			setTerminalTitlePullRequest(undefined);
+		}
+		expectWorkingSeparator(emittedTitles().at(-1), "Renamed");
 	});
 });

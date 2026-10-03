@@ -1,5 +1,5 @@
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
-import type { AutocompleteItem } from "@linxiraos/pi-tui";
+import { clearSubmittedText } from "./helpers/draft";
 import { COLLAB_GUEST_ALLOWED_COMMANDS } from "../collab/guest";
 import { BUILTIN_COLLABORATION_SLASH_COMMANDS } from "./builtin-collaboration";
 import {
@@ -26,6 +26,7 @@ import type {
 	SlashCommandSpec,
 	TuiSlashCommandRuntime,
 } from "./types";
+import type { AutocompleteItem } from "@linxiraos/pi-tui";
 
 export type { BuiltinSlashCommand, SubcommandDef } from "./types";
 
@@ -162,7 +163,7 @@ export async function executeBuiltinSlashCommand(
 	// host-only; the allowlist covers purely local/read-only commands.
 	if (runtime.ctx.collabGuest && !COLLAB_GUEST_ALLOWED_COMMANDS[command.name]) {
 		runtime.ctx.showStatus(`/${command.name} is host-only during a collab session`);
-		runtime.ctx.editor.setText("");
+		clearSubmittedText(runtime);
 		return true;
 	}
 	if (command.handleTui) {
@@ -190,7 +191,7 @@ export async function executeBuiltinSlashCommand(
 			reloadPlugins: () => reloadTuiPluginState(ctx),
 		};
 		const result = await command.handle(parsed, adapted);
-		ctx.editor.setText("");
+		clearSubmittedText(runtime);
 		if (result && typeof result === "object" && "prompt" in result) return result.prompt;
 		return true;
 	}

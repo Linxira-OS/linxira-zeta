@@ -70,6 +70,8 @@ import { MCPAddWizard } from "@linxiraos/pi-tui/overlays/mcp-add-wizard";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { parseCommandArgs } from "../../utils/command-args";
 import { theme } from "@linxiraos/pi-tui/theme";
+import { col, span, text } from "@linxiraos/pi-tui/native/describe";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
 import type { InteractiveModeContext } from "../types";
 import { groupBySource, parseRemoveArgs, readScopeFlag, showCommandMessage } from "./command-controller-shared";
 
@@ -209,7 +211,7 @@ function wrapUrlRows(label: string, url: string, width: number): string[] {
 /**
  * Renders the MCP OAuth fallback URL. Always shows the full authorization URL
  * as the primary `Copy URL:` target — that works from any machine, including
- * SSH/WSL/headless sessions where the OMP-hosted `/launch` loopback URL would
+ * SSH/WSL/headless sessions where the ZETA-hosted `/launch` loopback URL would
  * resolve against the user's local browser and fail.
  *
  * The render is `width`-aware: on any viewport narrower than the composed row
@@ -227,6 +229,7 @@ function wrapUrlRows(label: string, url: string, width: number): string[] {
 export class MCPAuthorizationLinkPrompt implements Component {
 	readonly #fullUrl: string;
 	readonly #launchUrl: string | undefined;
+	#node: NativeNode | undefined;
 
 	constructor(url: string, launchUrl?: string) {
 		this.#fullUrl = url;
@@ -234,6 +237,23 @@ export class MCPAuthorizationLinkPrompt implements Component {
 	}
 
 	invalidate(): void {}
+
+	/** Prompt, clickable full URL (open + copy), and optional local shortcut; immutable, so built once. */
+	describe(): NativeNode {
+		this.#node ??= col(
+			[
+				text([span("Open authorization URL:", "success")]),
+				text([span("Click here to authorize", "link", { href: this.#fullUrl })], {
+					href: this.#fullUrl,
+					actions: { click: "open", menu: ["open", "copy"] },
+				}),
+				urlCopyRow("Copy URL:", this.#fullUrl),
+				...(this.#launchUrl ? [urlCopyRow("Local shortcut (this machine only):", this.#launchUrl)] : []),
+			],
+			{ gap: "xs" },
+		);
+		return this.#node;
+	}
 
 	render(width: number): readonly string[] {
 		const link = urlHyperlinkAlways(this.#fullUrl, "Click here to authorize");
@@ -247,6 +267,16 @@ export class MCPAuthorizationLinkPrompt implements Component {
 		}
 		return lines;
 	}
+}
+
+/** Labelled URL that copies on click and wraps anywhere so no parameter is hidden. */
+function urlCopyRow(label: string, url: string): NativeNode {
+	return text([span(`${label} `, "muted"), span(url, "mono", { href: url })], {
+		wrap: "char",
+		href: url,
+		actions: { click: "copy", menu: ["copy", "open"] },
+		title: "Copy URL",
+	});
 }
 
 /**
@@ -947,9 +977,9 @@ export class MCPCommandController {
 						openPath(info.url);
 						// Stage the FULL authorization URL on the clipboard via OSC 52.
 						// The full URL works from any machine (unlike `launchUrl`, which
-						// only resolves against the OMP host), and OSC 52 is a
+						// only resolves against the ZETA host), and OSC 52 is a
 						// wire-level protocol — the terminal writes it to the user's
-						// LOCAL clipboard even when OMP is on a remote SSH box.
+						// LOCAL clipboard even when ZETA is on a remote SSH box.
 						// Best-effort: falls back to the visible copy-URL rows below
 						// whether or not the terminal honors OSC 52.
 						void copyToClipboard(info.url).catch(() => {});
@@ -1174,7 +1204,7 @@ export class MCPCommandController {
 	/**
 	 * Resolve a server for an auth/test operation.
 	 *
-	 * Unlike {@link #findConfiguredServer} (which only reads writable OMP config
+	 * Unlike {@link #findConfiguredServer} (which only reads writable ZETA config
 	 * files), this also recognizes runtime-discovered servers that `/mcp list`
 	 * surfaces but that live in no writable config — e.g. servers from a Claude
 	 * Code marketplace plugin (`cloudflare:cloudflare-api`), `.cursor/mcp.json`,
@@ -1218,7 +1248,7 @@ export class MCPCommandController {
 		config: MCPServerConfig,
 		authChallenge?: MCPAuthChallenge,
 	): Promise<OAuthEndpoints> {
-		// Stdio servers manage credentials inside the child process; OMP's OAuth
+		// Stdio servers manage credentials inside the child process; ZETA's OAuth
 		// flow only applies to http/sse transports. Without this guard the
 		// unauthenticated preflight below spawns the child, which happily reuses
 		// its own cached tokens (e.g. mcp-remote's machine-wide ~/.mcp-auth) and
@@ -1229,8 +1259,8 @@ export class MCPCommandController {
 			const usesMcpRemote = [config.command, ...(config.args ?? [])].some(part => part?.includes("mcp-remote"));
 			throw new Error(
 				usesMcpRemote
-					? `this server proxies OAuth through mcp-remote, which caches tokens machine-wide in ~/.mcp-auth (shared across every OMP profile). Clear ~/.mcp-auth to force a fresh login, or replace the proxy with ${httpHint} so OMP manages OAuth per profile.`
-					: `stdio servers manage their own credentials, so OMP has no OAuth to reauthorize. If the service supports OAuth over HTTP, configure it as ${httpHint} instead.`,
+					? `this server proxies OAuth through mcp-remote, which caches tokens machine-wide in ~/.mcp-auth (shared across every ZETA profile). Clear ~/.mcp-auth to force a fresh login, or replace the proxy with ${httpHint} so ZETA manages OAuth per profile.`
+					: `stdio servers manage their own credentials, so ZETA has no OAuth to reauthorize. If the service supports OAuth over HTTP, configure it as ${httpHint} instead.`,
 			);
 		}
 		// First test if server actually needs auth by connecting without OAuth

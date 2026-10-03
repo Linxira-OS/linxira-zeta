@@ -5,14 +5,12 @@
  * Endpoint: POST https://api.synthetic.new/v2/search
  */
 
-import type { Model } from "@linxiraos/pi-ai";
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
+import { type Model, type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
+import { type SearchParams, SearchProvider } from "./base";
 
 type SearchParamsWithFetch = SearchParams & { fetch?: FetchImpl };
 

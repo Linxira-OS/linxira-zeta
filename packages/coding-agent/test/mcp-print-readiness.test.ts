@@ -64,6 +64,7 @@ function printSession(manager: MCPManager, refreshGate?: Promise<void>, onRefres
 			getHeader: () => undefined,
 			getEntries: () => [],
 			onPersistenceError: () => () => {},
+			onPersistenceNotice: () => () => {},
 		},
 		refreshMCPTools: async (tools: Array<{ name: string }>) => {
 			onRefreshStarted?.();
@@ -183,7 +184,7 @@ describe("headless MCP readiness", () => {
 	}, 3_000);
 
 	it("waits through a timed-out handshake's reconnect before reporting readiness", async () => {
-		using tempDir = TempDir.createSync("@omp-mcp-reconnect-readiness-");
+		using tempDir = TempDir.createSync("@zeta-mcp-reconnect-readiness-");
 		const manager = new MCPManager(tempDir.path());
 		managers.push(manager);
 		Bun.env.OMP_MCP_TIMEOUT_MS = "200";

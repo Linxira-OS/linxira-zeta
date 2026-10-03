@@ -60,7 +60,7 @@ try {
 		`const fixture = ${JSON.stringify({ work, cwd, agentDir, resultPath, baseUrl: server.url.href })};\n` +
 			String.raw`
 import assert from "node:assert/strict";
-import { SettingsManager } from "@mariozechner/pi-coding-agent";
+import { SettingsManager } from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 import { cfgExtensions } from "@linxiraos/zeta/extensibility/settings";
 import { cfgTaskAgentModelOverrides } from "@linxiraos/zeta/task/settings";
 import { hasMatch } from "@linxiraos/pi-natives";

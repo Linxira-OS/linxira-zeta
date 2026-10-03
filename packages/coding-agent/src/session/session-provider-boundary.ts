@@ -2,7 +2,6 @@
 
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionPreparation } from "@linxiraos/pi-agent-core/compaction";
-import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 import type {
 	AssistantMessage,
 	ImageContent,
@@ -13,7 +12,6 @@ import type {
 } from "@linxiraos/pi-ai";
 import { isRecord, logger } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
-
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
@@ -23,16 +21,14 @@ import type { SecretObfuscator } from "../secrets/obfuscator";
 import { stripPendingSecretPlaceholderSuffix } from "../secrets/placeholder";
 import { normalizeModelContextImages } from "../utils/image-loading";
 import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
-import { describeAttachedImagesForTextModel } from "../utils/image-vision-fallback";
+import { describeAttachedImagesForTextModel, shouldDescribeImagesForTextModel } from "../utils/image-vision-fallback";
 import { blobExtensionForImageMimeType } from "@linxiraos/pi-tui/prompt/image-format";
 import { type CustomMessage, convertToLlm } from "./messages";
 import { IMAGE_ATTACHMENT_DESCRIPTION_TYPE } from "./queued-messages";
 import type { BuildSessionContextOptions, SessionContext } from "./session-context";
 import type { SessionManager } from "./session-manager";
 
-import { cfgImagesBlockImages } from "../modes/settings";
 import {
-	cfgImagesDescribeForTextModels,
 	cfgModelLoopGuardCheckAssistantContent,
 	cfgModelLoopGuardEnabled,
 	cfgProvidersAntigravityEndpoint,
@@ -69,13 +65,19 @@ export class SessionProviderBoundary {
 		this.#host = host;
 	}
 
-	/** Latest image attachments addressable by tools as `Image #N` or `attachment://N`. */
+	/**
+	 * Latest image attachments addressable by tools as `Image #N` or `attachment://N`: the newest
+	 * user/developer message with images, or `ask` result whose answers carry pasted images.
+	 */
 	getImageAttachments(): { label: string; uri: string; image: ImageContent; sourcePath: string }[] {
 		for (let i = this.#host.agent.state.messages.length - 1; i >= 0; i--) {
 			const message = this.#host.agent.state.messages[i];
-			if (!message || (message.role !== "user" && message.role !== "developer") || !Array.isArray(message.content)) {
-				continue;
-			}
+			if (!message) continue;
+			const carriesUserImages =
+				message.role === "user" ||
+				message.role === "developer" ||
+				(message.role === "toolResult" && message.toolName === "ask");
+			if (!carriesUserImages || !Array.isArray(message.content)) continue;
 			const images = message.content.filter((part): part is ImageContent => part.type === "image");
 			if (images.length === 0) continue;
 			return images.flatMap((image, index) => {
@@ -267,12 +269,7 @@ export class SessionProviderBoundary {
 		signal?: AbortSignal,
 	): Promise<CustomMessage | undefined> {
 		const model = this.#host.model();
-		const shouldDescribe =
-			!!model &&
-			!sendsImageInputOnWire(model) &&
-			!cfgImagesBlockImages.get(this.#host.settings) &&
-			cfgImagesDescribeForTextModels.get(this.#host.settings);
-		if (!shouldDescribe || !model) return undefined;
+		if (!shouldDescribeImagesForTextModel(model, this.#host.settings)) return undefined;
 
 		let blocks: TextContent[];
 		try {

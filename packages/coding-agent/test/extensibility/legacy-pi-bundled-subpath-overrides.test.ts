@@ -5,9 +5,24 @@ import * as url from "node:url";
 import { __buildLegacyPiPackageRootOverrides } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import { TempDir } from "@linxiraos/pi-utils";
 import { __renderLegacyPiVirtualModule, collectBundledPiEntries } from "../../scripts/legacy-pi-virtual-module";
+import type { BundledPiEntry } from "../../scripts/legacy-pi-virtual-module";
 
 const bundledEntries = await collectBundledPiEntries();
 const bundledModuleKeys = new Set(bundledEntries.map(entry => entry.key));
+
+async function runRegistryProbe(entries: BundledPiEntry[], source: string): Promise<unknown> {
+	// Bare package imports in the generated registry need the workspace links.
+	const packageRoot = path.join(path.dirname(url.fileURLToPath(import.meta.url)), "..", "..");
+	const registryPath = path.join(packageRoot, `.probe-legacy-pi-${Bun.randomUUIDv7()}.ts`);
+	await Bun.write(registryPath, `${__renderLegacyPiVirtualModule(entries)}\n${source}\n`);
+	try {
+		// Runtime-selected registry filename: static imports cannot exercise its generated module.
+		const registry = await import(url.pathToFileURL(registryPath).href);
+		return registry.observed;
+	} finally {
+		await fs.rm(registryPath, { force: true });
+	}
+}
 
 // Regression for issue #3442: extension validation in compiled-binary mode
 // failed to resolve `@earendil-works/pi-ai/oauth` because the override map
@@ -16,11 +31,11 @@ const bundledModuleKeys = new Set(bundledEntries.map(entry => entry.key));
 // `rewriteLegacyPiImports` catch left the original specifier in place and
 // Bun's native resolver couldn't find a peer install. The build plugin now
 // derives every module key from current package exports, so subpaths route to
-// the same `omp-legacy-pi-bundled:` virtual namespace as package roots without
+// the same `zeta-legacy-pi-bundled:` virtual namespace as package roots without
 // a generated registry or duplicate key list.
 describe("legacy pi compat compiled-mode subpath overrides (issue #3442)", () => {
 	it("does not evaluate unrelated host modules while loading the registry", async () => {
-		using tempDir = TempDir.createSync("@omp-legacy-pi-loaders-");
+		using tempDir = TempDir.createSync("@zeta-legacy-pi-loaders-");
 		const alphaPath = path.join(tempDir.path(), "alpha.ts");
 		const betaPath = path.join(tempDir.path(), "beta.ts");
 		const registryPath = path.join(tempDir.path(), "registry.ts");
@@ -64,7 +79,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 
 	it("serves @linxiraos/pi-ai/oauth through the bundled virtual namespace in compiled mode", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides["@linxiraos/pi-ai/oauth"]).toBe("omp-legacy-pi-bundled:@linxiraos/pi-ai/oauth");
+		expect(overrides["@linxiraos/pi-ai/oauth"]).toBe("zeta-legacy-pi-bundled:@linxiraos/pi-ai/oauth");
 	});
 
 	it("expands wildcard exports for concrete on-disk targets (issue #3442 follow-up)", () => {
@@ -76,7 +91,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(overrides["@linxiraos/pi-ai/oauth/anthropic"]).toBe(
-			"omp-legacy-pi-bundled:@linxiraos/pi-ai/oauth/anthropic",
+			"zeta-legacy-pi-bundled:@linxiraos/pi-ai/oauth/anthropic",
 		);
 		// Sanity: the wildcard expansion also reaches deeper subroots so plugins
 		// pinned to e.g. `@linxiraos/pi-ai/providers/openai` keep resolving.
@@ -96,32 +111,31 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		const entry = bundledEntries.find(candidate => candidate.key === key);
 		expect(entry).toBeDefined();
 
-		// The rendered registry imports by bare specifier, exactly as the real
-		// bundle does, so it must run somewhere those specifiers resolve — the
-		// package itself. A temp dir has no workspace links and would fail for
-		// a reason unrelated to the export map.
-		const packageRoot = path.join(path.dirname(url.fileURLToPath(import.meta.url)), "..", "..");
-		const registryPath = path.join(packageRoot, `.probe-legacy-pi-args-${Bun.randomUUIDv7()}.ts`);
-		await Bun.write(
-			registryPath,
-			`${__renderLegacyPiVirtualModule([entry!])}
-const mod = await BUNDLED_PI_MODULE_LOADERS[${JSON.stringify(key)}]();
-export const observed = [
-	mod.piEscapeRegexLiteral("a.b*c"),
-	mod.piJoinPath("src", "*.ts"),
-];
-`,
-		);
-		try {
-			// The generated registry has a runtime-selected package-root path; importing it exercises bare resolution.
-			const registryModule = await import(url.pathToFileURL(registryPath).href);
-			expect(registryModule.observed).toEqual(["a\\.b\\*c", path.join("src", "*.ts")]);
-		} finally {
-			await fs.rm(registryPath, { force: true });
-		}
+		expect(
+			await runRegistryProbe(
+				[entry!],
+				`const mod = await BUNDLED_PI_MODULE_LOADERS[${JSON.stringify(key)}]();
+export const observed = [mod.piEscapeRegexLiteral("a.b*c"), mod.piJoinPath("src", "*.ts")];`,
+			),
+		).toEqual(["a\\.b\\*c", path.join("src", "*.ts")]);
 
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
+	});
+
+	it("loads catalog root and provider-model exports from the bundled graph", async () => {
+		const root = bundledEntries.find(entry => entry.key === "@linxiraos/pi-catalog");
+		const provider = bundledEntries.find(entry => entry.key === "@linxiraos/pi-catalog/provider-models");
+		if (!root || !provider) throw new Error("Catalog imports are missing from the bundled registry");
+
+		const observed = await runRegistryProbe(
+			[root, provider],
+			`const catalog = await BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-catalog"]();
+const providers = await BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-catalog/provider-models"]();
+const result = await catalog.createModelManager(providers.anthropicModelManagerOptions()).refresh("offline");
+export const observed = result.models.some(model => model.id === "claude-3-5-sonnet-20240620");`,
+		);
+		expect(observed).toBe(true);
 	});
 
 	it("expands web search provider wildcard exports for compiled plugin imports", () => {
@@ -135,7 +149,7 @@ export const observed = [
 
 		for (const key of providerKeys) {
 			expect(bundledModuleKeys.has(key)).toBe(true);
-			expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+			expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 		}
 	});
 
@@ -143,7 +157,7 @@ export const observed = [
 		const key = "@linxiraos/zeta/registry/agent-registry";
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		expect(bundledModuleKeys.has(key)).toBe(true);
-		expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 	});
 
 	it("does not enumerate root catch-all wildcards (./* / ./*.js)", () => {
@@ -168,7 +182,7 @@ export const observed = [
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		const missing: string[] = [];
 		for (const key of bundledModuleKeys) {
-			// pi-ai/pi-coding-agent/pi-tui roots intentionally use the legacy compat
+			// pi-ai/zeta/pi-tui roots intentionally use the legacy compat
 			// shims (they re-attach `Type`, `defineTool`, `decodeKittyPrintable`, etc.
 			// dropped from the canonical package surfaces); typebox is served via
 			// TYPEBOX_SHIM_PATH.
@@ -179,7 +193,7 @@ export const observed = [
 				key === "typebox"
 			)
 				continue;
-			if (overrides[key] !== `omp-legacy-pi-bundled:${key}`) {
+			if (overrides[key] !== `zeta-legacy-pi-bundled:${key}`) {
 				missing.push(key);
 			}
 		}

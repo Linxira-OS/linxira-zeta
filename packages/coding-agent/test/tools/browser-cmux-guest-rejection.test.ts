@@ -4,7 +4,8 @@ import * as path from "node:path";
 const repoRoot = path.resolve(import.meta.dir, "../../../..");
 
 const probe = `
-import { CmuxTab, runCmuxCode } from "@linxiraos/zeta/tools/browser/cmux/cmux-tab";
+import { CmuxTab } from "@linxiraos/zeta/tools/browser/cmux/cmux-tab";
+import { runInProcessTab } from "@linxiraos/zeta/tools/browser/in-process-run";
 import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
 
 const cwd = process.cwd();
@@ -15,7 +16,7 @@ const tab = new CmuxTab({
 const session = { cwd, hasUI: false, getSessionFile: () => null };
 
 try {
-	await runCmuxCode(tab, {
+	await runInProcessTab(tab, {
 		code: \`
 			const { promise, reject } = Promise.withResolvers();
 			reject(new Error("boom"));

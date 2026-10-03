@@ -86,7 +86,7 @@ describe("auth-gateway POST /v1/systemone", () => {
 			"/v1/systemone",
 			{ model: "typesafe/jev-latest", ...REQUEST },
 			{
-				"x-omp-app": "robomp",
+				"x-zeta-app": "robomp",
 			},
 		);
 

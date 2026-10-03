@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "bun:test";
-import {
-	dispatchScroll,
-	normalizeSelector,
-	resolveOpTimeouts,
-	resolveWaitTimeout,
-} from "@linxiraos/zeta/tools/browser/tab-worker";
+import { resolveOpTimeouts, resolveWaitTimeout } from "@linxiraos/zeta/tools/browser/op-timeouts";
+import { dispatchScroll, normalizeSelector } from "@linxiraos/zeta/tools/browser/tab-worker";
 import { resolvePredicateTimeout } from "@linxiraos/zeta/tools/run-scope";
 
 // Regression coverage for the "weird timeouts" failure mode: interactive `tab.*` helpers

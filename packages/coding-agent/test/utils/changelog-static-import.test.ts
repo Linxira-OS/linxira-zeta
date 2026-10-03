@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { BunPlugin } from "bun";
+import * as piUtilsExports from "@linxiraos/pi-utils";
 import { resolveBundledChangelogPath } from "../../src/utils/changelog";
 
 interface HeapProbeResult {
@@ -40,7 +41,40 @@ async function runProbe(command: string[], cwd?: string): Promise<BundleProbeRes
  * that loader resolves `pi_natives.<platform>.node` relative to the emitted artifact,
  * so any probe written outside the repo fails to start. The subject under test is
  * emitted-asset resolution, not native loading.
+ *
+ * The stub module = the hand-tuned fixture file PLUS generated `undefined`
+ * exports for every other real pi-utils export (upstream moves names between
+ * modules release-to-release; the generated tail keeps the probe graph
+ * resolvable without chasing each rename).
  */
+// Hand-tuned stub names (real shapes live in the fixture file). Everything
+// else that the real pi-utils module exports gets a generated `undefined`
+// export so upstream renames between modules keep the probe graph resolvable
+// without chasing each rename.
+const HAND_TUNED_STUB_NAMES: Record<string, true> = {
+	VERSION: true,
+	getLastChangelogVersionPath: true,
+	getChangelogPath: true,
+	$env: true,
+	$envExact: true,
+	directoryIsEnterable: true,
+	getAgentDir: true,
+	getProjectDir: true,
+	isBunTestRuntime: true,
+	isRecord: true,
+	once: true,
+	parseFlag: true,
+	ptree: true,
+	stringifyYamlConfig: true,
+	untilAborted: true,
+	withFileLock: true,
+	wrapFetchForExtraCa: true,
+	extractHttpStatusFromError: true,
+	extractRetryHint: true,
+	isEnoent: true,
+	logger: true,
+};
+
 function changelogUtilsStubPlugin(): BunPlugin {
 	return {
 		name: "changelog-utils-stub",
@@ -49,6 +83,17 @@ function changelogUtilsStubPlugin(): BunPlugin {
 			build.onResolve({ filter: /^\.\.\/config$/ }, args =>
 				args.importer.endsWith("/utils/changelog.ts") ? { path: utilsStubPath } : undefined,
 			);
+			build.onLoad({ filter: /changelog-utils-stub\.ts$/ }, async () => {
+				const handTuned = await Bun.file(utilsStubPath).text();
+				const generated = Object.keys(piUtilsExports)
+					.filter(name => !HAND_TUNED_STUB_NAMES[name])
+					.map(name => `export const ${name} = undefined;`)
+					.join("\n");
+				return {
+					contents: `${handTuned}\n// Generated catch-all (real pi-utils exports not hand-tuned above):\n${generated}\n`,
+					loader: "ts",
+				};
+			});
 		},
 	};
 }
@@ -100,7 +145,7 @@ describe("changelog static import resources", () => {
 				entrypoints: [bundleProbePath],
 				outdir: bundleDir,
 				target: "bun",
-				external: ["omp-legacy-pi-modules"],
+				external: ["zeta-legacy-pi-modules"],
 				plugins: [changelogUtilsStubPlugin()],
 			});
 			expect(buildOutput.success, buildOutput.logs.map(log => log.message).join("\n")).toBe(true);
@@ -133,7 +178,7 @@ describe("changelog static import resources", () => {
 			const buildOutput = await Bun.build({
 				entrypoints: [bundleProbePath],
 				root: repoRoot,
-				external: ["omp-legacy-pi-modules"],
+				external: ["zeta-legacy-pi-modules"],
 				plugins: [changelogUtilsStubPlugin()],
 				compile: {
 					outfile: binaryPath,

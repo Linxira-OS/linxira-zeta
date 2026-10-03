@@ -1,11 +1,9 @@
-import { Spacer } from "@linxiraos/pi-tui";
-import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
 import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
 import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
 import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { theme } from "@linxiraos/pi-tui/theme";
-import { CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
+import { clearSubmittedText } from "./helpers/draft";
 import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
@@ -22,6 +20,9 @@ import { openPath } from "../utils/open";
 import { refreshStatusLine } from "./builtin-modes";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
+import { Spacer } from "@linxiraos/pi-tui";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { APP_NAME, CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {
@@ -135,7 +136,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 					runtime.ctx.showStatus("Advisor disabled.");
 				}
 				refreshStatusLine(runtime.ctx);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (verb === "on") {
@@ -144,34 +145,34 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 					active ? "Advisor enabled." : "Advisor setting enabled, but no model is assigned to the 'advisor' role.",
 				);
 				refreshStatusLine(runtime.ctx);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (verb === "off") {
 				runtime.ctx.session.setAdvisorEnabled(false);
 				runtime.ctx.showStatus("Advisor disabled.");
 				refreshStatusLine(runtime.ctx);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (verb === "status") {
 				await runtime.ctx.handleAdvisorStatusCommand();
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (verb === "dump") {
 				const isRaw = rest.toLowerCase() === "raw";
 				runtime.ctx.handleAdvisorDumpCommand(isRaw);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (verb === "configure") {
 				runtime.ctx.showAdvisorConfigure();
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			runtime.ctx.showStatus("Usage: /advisor [on|off|status|dump [raw]|configure]");
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -195,7 +196,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (command, runtime) => {
 			await runtime.ctx.handleExportCommand(command.text);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -222,7 +223,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.handleTraceCommand();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -255,7 +256,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.handleDumpCommand();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -281,7 +282,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.handleShareCommand();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -307,7 +308,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
-			ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			const args = command.args.trim();
 			const { verb, rest } = parseSubcommand(args);
 			if (verb === "stop") {
@@ -421,7 +422,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
-			ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			const link = command.args.trim();
 			if (!link) {
 				ctx.showError("Usage: /join <link>");
@@ -456,7 +457,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		},
 		handleTui: async (_command, runtime) => {
 			const ctx = runtime.ctx;
-			ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			if (ctx.collabGuest) {
 				await ctx.collabGuest.leave("left");
 				return;
@@ -514,7 +515,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			let next = current;
 			if (!cfgBrowserEnabled.get(settings)) {
 				runtime.ctx.showWarning("Browser capability is disabled (enable in settings)");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (!arg) {
@@ -525,7 +526,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				next = false;
 			} else {
 				runtime.ctx.showStatus("Usage: /browser [headless|visible]");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			cfgBrowserHeadless.set(settings, next);
@@ -533,11 +534,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				await restartBrowserForModeChange();
 			} catch (error) {
 				runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			runtime.ctx.showStatus(`Browser mode: ${next ? "headless" : "visible"}`);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -549,47 +550,47 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			const arg = command.args.trim().toLowerCase();
 			if (!arg) {
 				runtime.ctx.showCopySelector();
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (arg === "code") {
 				const block = extractLastCodeBlock(runtime.ctx.session.messages);
 				if (!block) {
 					runtime.ctx.showStatus("No code block to copy.");
-					runtime.ctx.editor.setText("");
+					clearSubmittedText(runtime);
 					return;
 				}
 				await copyToClipboard(block.code);
 				runtime.ctx.showStatus("Copied code block to clipboard");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (arg === "cmd" || arg === "command") {
 				const lastCommand = extractLastCommand(runtime.ctx.session.messages);
 				if (!lastCommand) {
 					runtime.ctx.showStatus("No command to copy.");
-					runtime.ctx.editor.setText("");
+					clearSubmittedText(runtime);
 					return;
 				}
 				await copyToClipboard(lastCommand.code);
 				runtime.ctx.showStatus(`Copied ${lastCommand.kind === "bash" ? "bash command" : "eval code"} to clipboard`);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			if (arg === "link" || arg === "url") {
 				const link = extractLastLink(runtime.ctx.session.messages);
 				if (!link) {
 					runtime.ctx.showStatus("No link to copy.");
-					runtime.ctx.editor.setText("");
+					clearSubmittedText(runtime);
 					return;
 				}
 				await copyToClipboard(link.href);
 				runtime.ctx.showStatus("Copied link to clipboard");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			runtime.ctx.showStatus("Usage: /copy [code|cmd|link]");
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -603,18 +604,18 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 				runtime.ctx.showStatus(
 					`Usage: /open [link]  (pick a specific link: /copy, ${formatKeyHint("right")} blocks, ${formatKeyHint("o")})`,
 				);
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			const link = extractLastLink(runtime.ctx.session.messages);
 			if (!link) {
 				runtime.ctx.showStatus("No link to open.");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 			openPath(link.href);
 			runtime.ctx.showStatus(`Opening ${link.href}`);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 ];

@@ -1,11 +1,9 @@
 import type { AuthStorage } from "@linxiraos/pi-ai";
 import { formatSearchProviderFailures, getSearchProvider, isSearchProviderExcluded } from "../provider";
-import type { SearchProviderId, SearchResponse, SearchSource } from "../types";
-import { SearchProviderError } from "../types";
 import { clampNumResults } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { withHardTimeout } from "./utils";
+import { type SearchProviderId, type SearchResponse, type SearchSource, SearchProviderError } from "../types";
+import { type SearchParams, SearchProvider } from "./base";
 
 /**
  * Credential-free engines the Public Web aggregate fans out to. Order is the

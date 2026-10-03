@@ -7,12 +7,10 @@ import type { AuthStorage, FetchImpl, Model } from "@linxiraos/pi-ai";
 import type { SearchResponse } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { KagiApiError, searchWithKagi } from "../../kagi";
-import type { StructuredQuery } from "../query";
-import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
 import { clampNumResults } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, toSearchSources } from "./utils";
+import { type StructuredQuery, formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery } from "../query";
+import { type SearchParams, SearchProvider } from "./base";
 
 type SearchParamsWithFetch = SearchParams & { fetch?: FetchImpl };
 

@@ -4,15 +4,13 @@
  * Uses Tavily's agent-focused search API to return structured results with an
  * optional synthesized answer.
  */
-import type { Model } from "@linxiraos/pi-ai";
-import { type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
 import type { SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, parseSearchQuery } from "../query";
 import { clampNumResults, dateToAgeSeconds } from "../utils";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
-import { classifyProviderHttpError, withHardTimeout } from "./utils";
+import { classifyProviderHttpError, siteHosts, withHardTimeout } from "./utils";
+import { type Model, type ApiKey, type AuthStorage, type FetchImpl, getEnvApiKey, withAuth } from "@linxiraos/pi-ai";
+import { type SearchParams, SearchProvider } from "./base";
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const DEFAULT_NUM_RESULTS = 5;
@@ -172,16 +170,6 @@ function toSearchResponse(response: TavilySearchResponse, numResults: number): S
 function hasRenderableResponse(response: SearchResponse): boolean {
 	if (response.answer?.trim()) return true;
 	return response.sources.length > 0;
-}
-
-/** Bare hosts from `site:` values (path parts are enforced by the central lenient filter). */
-function siteHosts(sites: readonly string[]): string[] {
-	const hosts = new Set<string>();
-	for (const site of sites) {
-		const host = site.split("/", 1)[0];
-		if (host) hosts.add(host);
-	}
-	return [...hosts];
 }
 
 /** Execute Tavily web search. */

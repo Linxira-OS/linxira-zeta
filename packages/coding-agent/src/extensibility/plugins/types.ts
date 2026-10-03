@@ -1,5 +1,5 @@
 // =============================================================================
-// Plugin Manifest Types (from package.json omp/pi field)
+// Plugin Manifest Types (from package.json zeta/pi field)
 // =============================================================================
 
 /**
@@ -22,7 +22,7 @@ export interface PluginFeature {
 }
 
 /**
- * Plugin manifest from package.json omp or pi field.
+ * Plugin manifest from package.json zeta or pi field.
  */
 export interface PluginManifest {
 	/** Plugin display name (defaults to package name) */
@@ -121,7 +121,7 @@ export interface InstalledPlugin {
 	version: string;
 	/** Absolute path to package directory */
 	path: string;
-	/** Parsed omp/pi manifest */
+	/** Parsed zeta/pi manifest */
 	manifest: PluginManifest;
 	/**
 	 * Enabled features:
@@ -203,6 +203,12 @@ export interface InstallOptions {
 	force?: boolean;
 	/** Preview changes without applying */
 	dryRun?: boolean;
+	/**
+	 * Runtime state to keep instead of the fresh-install default (enabled, default
+	 * features). Used by upgrades so the lock file is written once, inside the
+	 * install's rollback scope. Features no longer offered by the new version drop out.
+	 */
+	preserveState?: Pick<PluginRuntimeState, "enabled" | "enabledFeatures">;
 }
 
 export interface DoctorOptions {

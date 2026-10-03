@@ -6,11 +6,12 @@ It does **not** cover [`gemini-extension.json` manifest extensions](./gemini-man
 
 ## What this subsystem does
 
-Extension loading builds a list of module entry files, imports each module with Bun, executes its factory, and returns:
+Extension loading builds an ordered list of module entry files, imports the modules concurrently with Bun, then binds their factories sequentially in path order. It returns:
 
 - loaded extension definitions
-- per-path load errors (without aborting the whole load)
+- per-path import/factory errors (without aborting the other module loads)
 - a shared extension runtime object used later by `ExtensionRunner`
+- prepared factories that can be rebound to a fresh session without re-evaluating the module graph
 
 ## Primary implementation files
 
@@ -21,6 +22,8 @@ Extension loading builds a list of module entry files, imports each module with 
 - `src/discovery/builtin.ts` — native auto-discovery provider for extension modules
 - `src/extensibility/plugins/legacy-pi-compat.ts` — in-place module graph loading and host-package compatibility rewriting
 - `src/config/settings.ts` — loads merged `extensions` / `disabledExtensions` settings
+- `src/sdk.ts` — session-specific discovery, prepared-factory rebinding, and live source reconciliation
+- `src/discovery/zeta-extension-roots.ts` — sibling capability roots from extension packages
 
 ---
 
@@ -28,7 +31,7 @@ Extension loading builds a list of module entry files, imports each module with 
 
 ### 1) Auto-discovered native extension modules
 
-`discoverAndLoadExtensions()` first asks discovery providers for `extension-module` capability items, then keeps only provider `native` items.
+`discoverExtensionPaths()` loads the `extension-module` capability with a `providers: ["native"]` filter. Foreign extension-module providers are not scanned by this loader.
 
 Native `extension-module` discovery comes from:
 
@@ -36,7 +39,7 @@ Native `extension-module` discovery comes from:
 - User directory: the active agent directory's `extensions/` (default `~/.zeta/agent/extensions`)
 - Native legacy/settings JSON entries: `<cwd>/.zeta/settings.json#extensions` and the active agent directory's `settings.json#extensions`
 
-The project root is the native provider's `.zeta` directory (`SOURCE_PATHS.native.projectDir`), cwd-only; it does not walk ancestors. The user root is the active profile's agent directory via `getAgentDir()`, so under `zeta-c --profile <name>` it becomes `~/.zeta/profiles/<name>/agent/extensions` (and it honors `PI_CODING_AGENT_DIR`). See [Profiles](./config-usage.md#profiles).
+The project root is the native provider's `.zeta` directory (`SOURCE_PATHS.native.projectDir`), cwd-only; it does not walk ancestors. Native discovery uses its `LoadContext.agentDir` when supplied, otherwise `getAgentDir()`. With the default user config root, `zeta-c --profile <name>` selects `~/.zeta/profiles/<name>/agent/extensions`. `PI_CONFIG_DIR` changes that user config root; `ZETA_CODING_AGENT_DIR` overrides the agent directory only in the default profile, not named profiles. See [Profiles](./config-usage.md#profiles).
 
 Notes:
 
@@ -53,9 +56,15 @@ Hook-capability loading already applies its own hook-specific disabled ids, so t
 
 After hook discovery, `discoverAndLoadExtensions()` appends extension entry points from enabled installed plugins via `getAllPluginExtensionPaths(cwd)`.
 
-Plugin extension entries come from package `omp.extensions` / `pi.extensions` manifests, including enabled feature entries.
+Plugin extension entries come from package `zeta.extensions` / `pi.extensions` manifests, including enabled feature entries.
 
 Installed-plugin manifest resolution accepts explicit `.ts`, `.js`, `.mjs`, and `.cjs` files. For a manifest entry that names a directory, it recognizes `index.ts`, `index.js`, `index.mjs`, or `index.cjs`; extension-directory expansion uses the same four suffixes. This is broader than native and configured-directory auto-scanning, which remains limited to `.ts` and `.js`.
+
+Installed-plugin extension directory resolution uses the directory's own
+non-empty `zeta.extensions` / `pi.extensions` manifest first, then a direct index,
+then a sorted one-level scan. That scan skips declaration files
+(`*.d.ts`, `*.d.mts`, `*.d.cts`); explicitly declared file entries are not
+suffix-filtered.
 
 ### 4) Explicitly configured paths
 
@@ -64,12 +73,15 @@ After plugin extension entries, configured paths are appended and resolved.
 Configured path sources in the main session startup path (`sdk.ts`):
 
 1. CLI-provided paths (`--extension/-e`, and `--hook` is also treated as an extension path)
-2. Merged settings `extensions` array
+2. Effective settings `extensions` array (settings layers replace arrays rather than concatenate them)
 
-Settings files:
+Native settings files:
 
-- User: the active agent directory's `config.yml` (default `~/.zeta/agent/config.yml`; with `--profile <name>`, `~/.zeta/profiles/<name>/agent/config.yml`; `PI_CODING_AGENT_DIR` can override the agent directory)
+- User: the active agent directory's `config.yml`, with `config.yaml` as a fallback (default root `~/.zeta/agent`; named profiles use `~/.zeta/profiles/<name>/agent`). Agent-directory overrides follow the profile rules above.
 - Project/native settings capability: `<cwd>/.zeta/config.yml` and `<cwd>/.zeta/settings.json`
+
+Other enabled settings providers and `--config` overlays can also supply the
+effective `extensions` value. See [Settings](./config-usage.md).
 
 Native extension-module discovery also reads legacy JSON extension lists from:
 
@@ -104,21 +116,35 @@ Behavior split:
 
 - SDK: when `disableExtensionDiscovery=true`, ambient extension factories are
   excluded, while `additionalExtensionPaths` are still resolved normally
-  (including package directories with `package.json#omp.extensions`).
+  (including package directories with `package.json#zeta.extensions`).
 - CLI: `--no-extensions` follows the same explicit-only contract. Explicit
   `-e/--extension` and `--hook` paths still load, and only sibling capability
   roots from explicitly named extension packages remain eligible. Project/user
-  `extensions:` settings and installed OMP extension packages are excluded from
+  `extensions:` settings and installed ZETA extension packages are excluded from
   that sibling surface.
 
-This flag governs extension factories and OMP extension-package sibling roots;
+This flag governs extension factories and ZETA extension-package sibling roots;
 it is not a whole-process capability-isolation switch. Skills, MCP servers,
 tools, prompts, and rules owned by other discovery subsystems retain their own
 enable/disable controls.
 
+### Exact module allowlist
+
+CLI `--trusted-extension <absolute-file>` is repeatable and loads only those
+extension module files, bypassing discovery and package-directory expansion.
+Paths must be absolute, existing files; symlinks are resolved before loading.
+It cannot be combined with `-e`/`--extension` or `--hook`. A load failure aborts
+startup rather than silently dropping an allowlisted module.
+
+Unlike an explicit extension package directory, an allowlisted file does not
+authorize sibling hooks, tools, commands, skills, rules, prompts, or MCP config.
+This is still an in-process module allowlist, not a sandbox or a switch disabling
+other discovery subsystems.
+
 ### Disable specific extension modules
 
-`disabledExtensions` setting filters by extension id format:
+For ambient extension modules, installed-plugin entries, and entries expanded
+from configured directories, `disabledExtensions` filters by extension id format:
 
 - `extension-module:<derivedName>`
 
@@ -133,6 +159,21 @@ Example:
 disabledExtensions:
   - extension-module:foo
 ```
+
+An explicitly configured file path bypasses this name filter. Explicit-only
+sessions (`--no-extensions` / `disableExtensionDiscovery`) also omit the settings
+disable list entirely.
+
+### Live source changes
+
+In the main session, changes to `extensions` or `disabledExtensions` suspend or
+resume already-loaded, settings-governed sources: their handlers, commands,
+tools, renderers, shortcuts, flags, and file fallbacks stop or resume
+participating. A suspended override of a built-in tool restores the native tool.
+Modules are not unloaded or re-evaluated, and newly enabled modules that were
+not imported at startup require a restart. Inline and caller-preloaded sources
+outside the governed discovery set are left alone. Explicit-only sessions ignore
+these settings changes.
 
 ### Disable specific items of other capabilities
 
@@ -163,7 +204,7 @@ For configured paths:
 1. Normalize Unicode spaces and supported path shorthands (including `file://`, `@/absolute/path`, and a stray `:` before an absolute/relative path)
 2. Expand `~`
 3. If relative, resolve against current `cwd`
-4. Reject the internal `local://` scheme; it must be resolved by its protocol handler, not treated as a filesystem path
+4. Reject schemes handled by the internal URL router (including `local://`); they must be resolved by their protocol handler, not treated as filesystem paths
 
 ### If configured path is a file
 
@@ -173,19 +214,20 @@ It is used directly as a module entry candidate. Explicit `.ts`, `.js`, `.mjs`, 
 
 Resolution order:
 
-1. `package.json` in that directory with a non-empty `omp.extensions` (or legacy `pi.extensions`) array -> use declared entries
+1. `package.json` in that directory with a non-empty `zeta.extensions` (or legacy `pi.extensions`) array -> use declared entries
 2. `index.ts`
 3. `index.js`
 4. Otherwise scan one level for extension entries:
    - direct `*.ts` / `*.js`
    - subdir `index.ts` / `index.js`
-   - subdir `package.json` with `omp.extensions` / `pi.extensions`
+   - subdir `package.json` with `zeta.extensions` / `pi.extensions`
 
 Rules and constraints:
 
 - no recursive discovery beyond one subdirectory level
 - declared `extensions` manifest entries are resolved relative to that package directory
 - a non-empty declared array is authoritative: convention-based index/scan fallback stays suppressed even when every declared entry is missing
+- `zeta` takes precedence over `pi` when both manifest objects exist
 - missing or inaccessible declared entries are skipped individually, so existing entries in a partially missing manifest still load
 - in `*/index.{ts,js}` pairs, TypeScript is preferred over JavaScript
 - symlinks are treated as eligible files/directories
@@ -199,7 +241,9 @@ Rules and constraints:
 
 ## Load order and precedence
 
-`discoverAndLoadExtensions()` builds one ordered list and then calls `loadExtensions()`.
+`discoverAndLoadExtensions()` composes `discoverExtensionPaths()` and `loadExtensions()`.
+The SDK normally discovers paths first and can reuse imported/prepared factories
+for child sessions.
 
 Order:
 
@@ -221,14 +265,19 @@ De-duplication:
 
 Implication: if the same module path is both auto-discovered and explicitly configured, it is loaded once at the first position (auto-discovered stage).
 
+De-duplication does not use realpaths: different symlink spellings can remain
+distinct discovery entries. Module evaluation runs concurrently, so top-level
+module side effects have no path-order guarantee. Factory invocation and
+registration remain sequential in the discovered order.
+
 ---
 
 ## Module import and factory contract
 
 Each candidate path is loaded via `loadLegacyPiModule()` (`src/extensibility/plugins/legacy-pi-compat.ts`):
 
-- the entry's realpath is resolved, then dynamically imported with an `?mtime` cache-buster so edited source reloads. Since 16.3.7 the same mtime tag propagates to every module in the extension-owned dependency graph — relative `./`/`../` imports, package `imports` aliases (`#alias/*`), and extension-local bare dependencies — via the graph-wide `onLoad` rewrite, so same-process re-imports pick up edits across the whole graph, not just the entry file. Host-resolved rewrites (legacy pi-package specifiers, the TypeBox shim) stay untagged `file://` URLs because they point at in-process host code that never changes between reloads
-- a scoped Bun `onLoad` hook rewrites legacy pi-package specifiers (`@mariozechner/*`, `@earendil-works/*`) and bare `@sinclair/typebox` onto the host-bundled copies before evaluation. Legacy Pi package-root imports resolve through compat shims: catalog symbols that moved to `@linxiraos/pi-catalog/models` (`calculateCost`, `modelsAreEqual`, `getBundledProviders`, plus `getModel`/`getModels` aliases) are re-exported by the legacy pi-ai shim (`src/extensibility/legacy-pi-ai-shim.ts`), and legacy `@linxiraos/zeta` imports — including `DefaultResourceLoader` — resolve to the compat loader in `src/extensibility/legacy-pi-coding-agent-shim.ts`
+- the entry's realpath is resolved, then dynamically imported with a per-load `?mtime` cache-buster. On POSIX the loader uses filesystem-path specifiers, and the same tag propagates through extension-owned relative imports, package `imports` aliases (`#alias/*`), and extension-local dependencies so same-process re-imports pick up graph edits. Windows uses `file://` specifiers, whose query strings Bun currently ignores, so the same reload guarantee does not apply there. Host-resolved rewrites (pi-package specifiers and the TypeBox shim) stay untagged because they point at in-process host code
+- a scoped Bun `onLoad` hook rewrites legacy pi-package specifiers (`@mariozechner/*`, `@earendil-works/*`) and bare `@sinclair/typebox` onto the host-bundled copies before evaluation. Legacy Pi package-root imports resolve through compat shims: catalog symbols that moved to `@linxiraos/pi-catalog/models` (`calculateCost`, `modelsAreEqual`, `getBundledProviders`, plus `getModel`/`getModels` aliases) are re-exported by the legacy pi-ai shim (`src/extensibility/legacy-pi-ai-shim.ts`), and legacy `@linxiraos/zeta` imports — including `DefaultResourceLoader` — resolve to the compat loader in `src/extensibility/legacy-zeta-shim.ts`
 - graph-owned CommonJS modules use synchronous Bun `onLoad` object modules exposing runtime own-string export keys, including computed and non-enumerable names; `default` remains the complete `module.exports` value. The shared evaluator preserves cycles and `require`/import identity, while required host ESM shims are prepared before synchronous evaluation. No generated facade files or AST named-export reconstruction are needed
 - bundled host modules use Bun's native object loader. Modules exporting `theme` add a thin ESM binding bridge so the existing `theme` import follows host assignments synchronously without replacing the UI's change listener
 - package `imports` and `exports` patterns prefer the longest prefix before `*`, then the longest complete pattern; exact matches take precedence and excluded targets never fall back to broader patterns
@@ -243,7 +292,15 @@ If export is not a function, that path fails with a structured error and loading
 
 ### During loading
 
-Per extension path, failures are captured as `{ path, error }` and do not stop other paths from loading.
+Per extension path, import and factory failures are captured as `{ path, error }`
+and do not stop other paths from loading. A failed factory's changes to the shared
+pending provider-registration queue are rolled back. Discovery itself is not
+covered by this per-module error result: unexpected filesystem or plugin
+enumeration errors can reject path collection before imports begin.
+
+Imports and file-backed factory calls run under `withHostGuard()`: load-time
+`process.exit` / `process.reallyExit` calls throw `ExtensionExitError`, and stdin
+listeners plus paused/raw input state are restored to their pre-load snapshot. This protects host startup, not arbitrary runtime extension code.
 
 Common cases:
 
@@ -276,7 +333,14 @@ not an extension sandbox. Existing per-module load-failure handling is unchanged
 
 ### After loading
 
-When events run through `ExtensionRunner`, handler exceptions are caught and emitted as extension errors instead of crashing the runner loop.
+When events run through `ExtensionRunner`, handler exceptions are caught and
+emitted as extension errors instead of crashing the runner loop. Most dispatched
+handlers have a 30-second budget; `session_shutdown` handlers run concurrently
+with a 2-second budget. `tool_call` uses
+`extensionHandlers.toolCallTimeoutMs` (default 30,000 ms), pauses that budget while
+waiting for extension UI dialogs, and fails closed on an error or timeout.
+Raw detached callbacks remain outside this isolation; use the managed timers
+described in [Extensions](./extensions.md#background-work-ctxsetinterval--ctxsettimeout).
 
 ---
 

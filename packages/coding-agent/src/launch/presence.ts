@@ -21,18 +21,18 @@ const DAEMONS_DIR = "daemons";
 const DAEMON_SCOPE_KEY = /^[0-9a-f]{16}$/;
 /**
  * Grace before a dead daemon runtime dir becomes prune-eligible. Guards against
- * deleting a scope whose owning omp process is mid-startup (token written, broker
+ * deleting a scope whose owning zeta process is mid-startup (token written, broker
  * not yet spawned, presence not yet registered). The leak this reclaims is a
  * weeks-scale accumulation, so a few minutes of slack costs nothing.
  */
 const DAEMON_RUNTIME_STALE_GRACE_MS = 5 * 60_000;
 
-/** Handle keeping one omp process registered in a project daemon scope. */
+/** Handle keeping one zeta process registered in a project daemon scope. */
 export interface DaemonProjectPresence {
 	close(): Promise<void>;
 }
 
-/** Register this omp process so project daemons survive while it remains alive. */
+/** Register this zeta process so project daemons survive while it remains alive. */
 export async function registerDaemonProjectPresence(
 	projectDir: string,
 	runtimeOverride?: string,
@@ -44,7 +44,8 @@ export async function registerDaemonProjectPresence(
 	const id = `${process.pid}-${crypto.randomUUID()}`;
 	const presencePath = path.join(clientsDir, `${id}.json`);
 	await Bun.write(presencePath, JSON.stringify({ pid: process.pid, id, projectDir: canonical }));
-	await fs.chmod(presencePath, 0o600);
+	// POSIX modes are meaningless on Windows; chmod there only costs another syscall.
+	if (process.platform !== "win32") await fs.chmod(presencePath, 0o600);
 	let closed = false;
 	const close = async (): Promise<void> => {
 		if (closed) return;
@@ -56,7 +57,7 @@ export async function registerDaemonProjectPresence(
 	return { close };
 }
 
-/** Return whether a registered omp process in this runtime directory is still alive. */
+/** Return whether a registered zeta process in this runtime directory is still alive. */
 export async function hasLiveDaemonProjectPresence(runtimeDir: string): Promise<boolean> {
 	const clientsDir = path.join(runtimeDir, CLIENTS_DIR);
 	let entries: string[];

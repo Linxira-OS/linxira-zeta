@@ -6,9 +6,7 @@ import { lookup } from "./registry";
 // look unregistered and fall through to a schema that no longer holds them.
 import "./all-settings";
 import { SHAPE_VARIANT_NAMES } from "../../../snapcompact/src/snapcompact";
-import type { SettingTab } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { TREE_FILTER_MODES } from "../../../tui/src/overlays/tree-selector";
-import type { AnyUiMetadata, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
 import {
 	AUTO_THINKING,
 	getConfiguredThinkingLevelMetadata,
@@ -128,6 +126,7 @@ import {
 	type StatusLineSegmentId,
 	type StatusLineSeparatorStyle,
 } from "@linxiraos/pi-tui/status-line/schema";
+import type { SettingTab, AnyUiMetadata, SubmenuOption, UiBase } from "@linxiraos/pi-tui/overlays/settings-defs";
 
 export {
 	CONTEXT_LINE_MODE_VALUES,

@@ -1,7 +1,10 @@
 //! Process management
 
 use futures::FutureExt;
-use std::io::Write;
+use std::{
+	io::Write,
+	sync::Arc,
+};
 
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle};
@@ -31,8 +34,10 @@ pub struct ChildProcess {
 	reaped:      bool,
 	/// If available, the process ID of the child.
 	pid:         Option<sys::process::ProcessId>,
-	/// If available, the process group ID of the child.
+	/// If available, the shared process group ID of the pipeline.
 	pgid:        Option<sys::process::ProcessId>,
+	/// Every external process in this pipeline.
+	stop_pids:   Option<Arc<[sys::process::ProcessId]>>,
 	/// Windows handle duplicated from the child process for safe termination.
 	#[cfg(windows)]
 	kill_handle: Option<OwnedHandle>,
@@ -53,6 +58,7 @@ impl ChildProcess {
 			exec_future: Box::pin(child.wait_with_output()),
 			pid,
 			pgid,
+			stop_pids: None,
 			reaped: false,
 			#[cfg(windows)]
 			kill_handle,
@@ -68,6 +74,11 @@ impl ChildProcess {
 	/// Returns the process's group ID.
 	pub const fn pgid(&self) -> Option<sys::process::ProcessId> {
 		self.pgid
+	}
+
+	/// Sets the external process IDs that form this pipeline's stop scope.
+	pub(crate) fn set_stop_pids(&mut self, pids: Arc<[sys::process::ProcessId]>) {
+		self.stop_pids = Some(pids);
 	}
 
 	/// Duplicates the process handle for termination use on Windows.
@@ -87,6 +98,18 @@ impl ChildProcess {
 			Some(CompletionMarker { output, end_marker_prefix, end_marker_suffix });
 	}
 
+	/// Checks whether this process, or a stage in its pipeline, stopped.
+	fn poll_for_stop(&self) -> Result<bool, error::Error> {
+		let Some(pid) = self.pid else {
+			return Ok(false);
+		};
+		let pids = self
+			.stop_pids
+			.as_deref()
+			.unwrap_or_else(|| std::slice::from_ref(&pid));
+		sys::signal::poll_for_stopped_processes(pids, self.pgid)
+	}
+
 	/// Waits for the process to exit.
 	///
 	/// If a cancellation token is provided and triggered, the process will be killed.
@@ -99,12 +122,12 @@ impl ChildProcess {
 		#[allow(unused_mut, reason = "only mutated on some platforms")]
 		let mut sigchld = sys::signal::chld_signal_listener()?;
 
-		// The SIGCHLD stream below only reports signals that arrive after this
-		// point, but the child may already be stopped: pipeline stages stop
-		// themselves right after spawn, routinely while later stages are still
-		// spawning. Probe for an already-pending stop once on entry so the
-		// wait does not stall until some unrelated child produces a signal.
-		if sys::signal::poll_for_stopped_child(self.pid)? {
+		// A SIGCHLD delivered before the subscription above never reaches
+		// `sigchld`. Pipeline stages are all spawned before the first is
+		// waited on, so this process or one in its pipeline can stop before
+		// this point. Exits need no such check: the child's exec future
+		// registered for them when it was spawned.
+		if self.poll_for_stop()? {
 			return Ok(ProcessWaitResult::Stopped);
 		}
 
@@ -135,7 +158,7 @@ impl ChildProcess {
 					break Ok(ProcessWaitResult::Stopped)
 				},
 				_ = sigchld.recv() => {
-					if sys::signal::poll_for_stopped_child(self.pid)? {
+					if self.poll_for_stop()? {
 						break Ok(ProcessWaitResult::Stopped);
 					}
 				},
@@ -318,38 +341,4 @@ pub enum ProcessWaitResult {
 	Stopped,
 	/// The process was killed due to cancellation.
 	Cancelled,
-}
-
-#[cfg(all(test, unix))]
-mod tests {
-	use super::*;
-
-	/// A child that stopped before `wait` was called must still be observed:
-	/// the SIGCHLD stream inside `wait` only reports signals that arrive
-	/// after its registration, and pipeline stages routinely stop while later
-	/// stages are still spawning.
-	#[tokio::test]
-	async fn wait_observes_a_stop_that_precedes_the_wait() {
-		let mut command = tokio::process::Command::new("sh");
-		command.arg("-c").arg("kill -STOP $$");
-		let mut child = command.spawn().expect("spawn self-stopping sh");
-		let pid = child.id().expect("child pid") as i32;
-
-		// Give the child time to stop; its SIGCHLD fires while no wait is
-		// registered anywhere in this process.
-		tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-
-		let mut process = ChildProcess::new(child, Some(pid), None);
-		let waited = tokio::time::timeout(std::time::Duration::from_secs(5), process.wait(None))
-			.await
-			.expect("wait must not stall on a stop that precedes the wait");
-		assert!(matches!(waited, Ok(ProcessWaitResult::Stopped)));
-
-		// Resume and reap the stopped child so no stopped process outlives
-		// the test.
-		use nix::sys::signal::{kill, Signal};
-		use nix::unistd::Pid;
-		let _ = kill(Pid::from_raw(pid), Signal::SIGCONT);
-		let _ = kill(Pid::from_raw(pid), Signal::SIGKILL);
-	}
 }

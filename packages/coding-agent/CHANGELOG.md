@@ -18,13 +18,7 @@
 - Models already configured in upstream OMP (`~/.omp/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
 
 ## [1.1.23] - 2026-10-01
-
 ## [1.1.22] - 2026-09-30
-
-- **CLI bin 更名(breaking)**:`zeta-c` 为主命令名,`zeta-cli`/`zetacode` 为别名;裸 `zeta` 名让位给工作台(bin @linxiraos/main)。安装器/补全/文档同步。
-- **agent ↔ editor 双向切换**:`/editor` 命令写 handoff(cwd/gitRoot/sessionFile/file:line:col)后 detached spawn editor;配套 `editor.autoInstall` / `editor.handoffSession` 设置键(挂 interaction→Agent 组)。右上角按钮形态随统一入口(工作台)裁定移除。
-- **`/teamagent` 指令**:crew 角色 → 标准 AgentDefinition 写 `<project|user>/.zeta/agents`,含 add/remove/agents/roles/status/profile.list/charter.show 七动词。
-
 ## [1.1.16] - 2026-09-19
 
 - 上游 v18.2.5 同步:streaming CLI 命令、热路径记忆化(工具 schema/stamp/which 缓存)、TUI 主题与覆盖层组件迁移至 pi-tui、Astra 上下文确定性策略、eval 判定桥与 Python prelude 维护。
@@ -231,3 +225,12 @@
 - Fixed Enter being ignored during the first turn when omp starts with an initial prompt.
 - Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
 - Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
+Older entries are archived in [packages\coding-agent\CHANGELOG.md@07e9197a3012](https://github.com/can1357/oh-my-pi/blob/07e9197a3012f58c459f1faabeb324decc21f41d/packages\coding-agent\CHANGELOG.md).
+### Changed
+
+- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
+
+### Fixed
+
+- Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
+- Restored mouse clicks, hover, and wheel scrolling in Plan Review.

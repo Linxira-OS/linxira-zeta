@@ -23,7 +23,7 @@ import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { callTool } from "./client";
 import { formatMCPToolFailure, MCPTransportError } from "./errors";
-import { renderMCPCall, renderMCPResult } from "@linxiraos/pi-tui/tools/mcp";
+import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@linxiraos/pi-tui/tools/mcp";
 import type {
 	MCPAuthChallenge,
 	MCPServerConnection,
@@ -132,6 +132,10 @@ async function resolveOutboundUrlArgs(
 	seen: WeakSet<object> = new WeakSet(),
 ): Promise<unknown> {
 	if (typeof value === "string") {
+		// Only arguments that are themselves URLs: the router's repair of a
+		// cwd-prefixed `…/local://x` path must not rewrite free text that merely
+		// mentions one.
+		if (!extractUriScheme(value)) return value;
 		const router = InternalUrlRouter.instance();
 		const url = router.normalize(value);
 		if (!router.canHandle(url)) return value;
@@ -469,7 +473,7 @@ export function createMCPToolName(serverName: string, toolName: string): string 
  * order. Empty when the name is not `mcp__`-prefixed or is already canonical.
  *
  * {@link createMCPToolName} joins the sanitized server and tool with a SINGLE
- * underscore, but OMP presents itself as Claude Code, whose convention is
+ * underscore, but ZETA presents itself as Claude Code, whose convention is
  * `mcp__<server>__<tool>` — so a primed model reliably emits the doubled
  * separator, often keeping the raw unsanitized server spelling as well
  * (`mcp__seedpatch-client__bank` for a server named `seedpatch-client`). Those
@@ -692,6 +696,14 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		return renderMCPResult(result, options, theme, normalizeToolArgs(args));
 	}
 
+	describeCall(args: unknown, _options: RenderResultOptions) {
+		return describeMCPCall(normalizeToolArgs(args), this.label);
+	}
+
+	describeResult(result: CustomToolResult<MCPToolDetails>, options: RenderResultOptions, args?: unknown) {
+		return describeMCPResult(result, options, normalizeToolArgs(args));
+	}
+
 	async execute(
 		_toolCallId: string,
 		params: unknown,
@@ -813,6 +825,14 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 
 	renderResult(result: CustomToolResult<MCPToolDetails>, options: RenderResultOptions, theme: Theme, args?: unknown) {
 		return renderMCPResult(result, options, theme, normalizeToolArgs(args));
+	}
+
+	describeCall(args: unknown, _options: RenderResultOptions) {
+		return describeMCPCall(normalizeToolArgs(args), this.label);
+	}
+
+	describeResult(result: CustomToolResult<MCPToolDetails>, options: RenderResultOptions, args?: unknown) {
+		return describeMCPResult(result, options, normalizeToolArgs(args));
 	}
 
 	async execute(

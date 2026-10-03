@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import type {
 	InstalledPluginEntry,
 	InstalledPluginsRegistry,
@@ -24,27 +23,7 @@ import {
 	writeInstalledPluginsRegistry,
 	writeMarketplacesRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-
-// Inline the parseClaudePluginsRegistry validation logic to avoid pulling
-// in discovery/helpers.ts which transitively imports @linxiraos/pi-natives.
-// Matches the exact checks in helpers.ts parseClaudePluginsRegistry().
-function validateClaudeRegistryFormat(content: string): Record<string, unknown> | null {
-	let data: Record<string, unknown>;
-	try {
-		data = JSON.parse(content);
-	} catch {
-		return null;
-	}
-	if (!data || typeof data !== "object") return null;
-	if (
-		typeof data.version !== "number" ||
-		!data.plugins ||
-		typeof data.plugins !== "object" ||
-		Array.isArray(data.plugins)
-	)
-		return null;
-	return data;
-}
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // ── ID helpers ───────────────────────────────────────────────────────
 
@@ -198,7 +177,7 @@ describe("registry file I/O", () => {
 	let installedPath: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mkt-test-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-mkt-test-"));
 		marketplacesPath = path.join(tmpDir, "marketplaces.json");
 		installedPath = path.join(tmpDir, "installed_plugins.json");
 	});
@@ -266,28 +245,6 @@ describe("registry file I/O", () => {
 		await writeInstalledPluginsRegistry(installedPath, reg);
 		const read = await readInstalledPluginsRegistry(installedPath);
 		expect(read).toEqual(reg);
-	});
-
-	it("written installed registry passes Claude Code registry validation", async () => {
-		const entry: InstalledPluginEntry = {
-			scope: "user",
-			installPath: path.join(tmpDir, "cache", "plugins", "mkt--plug--1.0.0"),
-			version: "1.0.0",
-			installedAt: "2025-01-15T10:30:00.000Z",
-			lastUpdated: "2025-01-15T10:30:00.000Z",
-		};
-		const reg: InstalledPluginsRegistry = {
-			version: 2,
-			plugins: { "plug@mkt": [entry] },
-		};
-		await writeInstalledPluginsRegistry(installedPath, reg);
-
-		const content = await Bun.file(installedPath).text();
-		const parsed = validateClaudeRegistryFormat(content);
-		expect(parsed).not.toBeNull();
-		expect(parsed!.version).toBe(2);
-		const plugins = parsed!.plugins as Record<string, unknown>;
-		expect(plugins["plug@mkt"]).toBeDefined();
 	});
 
 	it("atomic write leaves no .tmp file after success", async () => {

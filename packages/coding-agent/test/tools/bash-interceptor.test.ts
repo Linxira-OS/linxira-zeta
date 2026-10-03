@@ -2,11 +2,10 @@ import { describe, expect, it } from "bun:test";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { BashInterceptorRule } from "@linxiraos/zeta/exec/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool, type BashToolInput } from "@linxiraos/zeta/tools/bash";
 import { checkBashInterception } from "@linxiraos/zeta/tools/bash-interceptor";
-import { DEFAULT_BASH_INTERCEPTOR_RULES } from "@linxiraos/zeta/exec/settings";
+import { type BashInterceptorRule, DEFAULT_BASH_INTERCEPTOR_RULES } from "@linxiraos/zeta/exec/settings";
 
 function createBashTool(rules: BashInterceptorRule[]): BashTool {
 	const session = {

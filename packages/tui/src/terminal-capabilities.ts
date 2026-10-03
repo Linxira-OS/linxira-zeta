@@ -39,10 +39,11 @@ export type TerminalId =
 	| "orca"
 	| "otty"
 	| "rio"
+	| "tern"
 	| "base"
 	| "trueColor";
 
-const CMUX_NOTIFICATION_TITLE = "omp";
+const CMUX_NOTIFICATION_TITLE = "zeta";
 const CMUX_SURFACE_ID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
 
 /** Title and body for an out-of-band multiplexer notification (cmux, Herdr). */
@@ -280,6 +281,14 @@ export class TerminalInfo {
  */
 export function isInsideZellij(env: NodeJS.ProcessEnv = Bun.env): boolean {
 	return Boolean(env.ZELLIJ);
+}
+
+/**
+ * Whether the agent process runs in an SSH session, so the terminal emulator
+ * is remote and host-local input/keyboard modes cannot be assumed.
+ */
+export function isSshSession(env: NodeJS.ProcessEnv = Bun.env): boolean {
+	return Boolean(env.SSH_CONNECTION || env.SSH_TTY || env.SSH_CLIENT);
 }
 
 export function isNotificationSuppressed(): boolean {
@@ -698,6 +707,11 @@ const KNOWN_TERMINALS = Object.freeze({
 	// OSC 99, and OSC 66 text sizing are outside rio's supported set and keep
 	// the conservative defaults.
 	rio: new TerminalInfo("rio", ImageProtocol.Kitty, true, true),
+	// Tern (Stencil's terminal, `stencil-term`) sets TERM_PROGRAM=tern and
+	// implements Kitty graphics, OSC 8 and OSC 9/99 notifications. Whether zeta
+	// renders natively (Tern Surface Protocol) is decided by the `hello`
+	// handshake alone, never by this identity.
+	tern: new TerminalInfo("tern", ImageProtocol.Kitty, true, true, NotifyProtocol.Osc99),
 });
 
 /** Resolve terminal identity from environment markers used by common emulators. */
@@ -718,6 +732,7 @@ export function detectTerminalId(env: NodeJS.ProcessEnv = Bun.env): TerminalId {
 		if (caseEq(program, "orca")) return "orca";
 		if (caseEq(program, "otty")) return "otty";
 		if (caseEq(program, "rio")) return "rio";
+		if (caseEq(program, "tern")) return "tern";
 		return null;
 	}
 
@@ -1439,7 +1454,7 @@ function notificationToLine(n: TerminalNotification): string {
 // C0/C1 control characters that are unsafe inside an OSC payload (must base64).
 const OSC99_UNSAFE = /[\x00-\x1f\x7f\x80-\x9f]/u;
 const OSC99_MAX_PAYLOAD_BYTES = 2048;
-const OSC99_APP_NAME = "omp";
+const OSC99_APP_NAME = "zeta";
 let nextOsc99NotificationId = 1;
 
 function base64Utf8(value: string): string {
@@ -1453,7 +1468,7 @@ function sanitizeOsc99Id(id: string | undefined): string {
 }
 
 function osc99Id(id: string | undefined): string {
-	return sanitizeOsc99Id(id) || `omp-${nextOsc99NotificationId++}`;
+	return sanitizeOsc99Id(id) || `zeta-${nextOsc99NotificationId++}`;
 }
 
 function utf8CodePointBytes(char: string): number {

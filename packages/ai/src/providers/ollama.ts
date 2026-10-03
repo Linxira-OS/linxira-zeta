@@ -1,6 +1,7 @@
 import { calculateCost } from "@linxiraos/pi-catalog/models";
 import { fetchWithRetry, parseStreamingJson, readJsonl } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
+import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import { getEnvApiKey } from "../stream";
 import type {
 	Api,
@@ -405,7 +406,7 @@ function endToolCallBlock(stream: AssistantMessageEventStream, output: Assistant
 	}
 	const toolCall = block as InternalToolCallBlock;
 	if (toolCall[kStreamingPartialJson]) {
-		toolCall.arguments = parseStreamingJson<Record<string, unknown>>(toolCall[kStreamingPartialJson]);
+		toolCall.arguments = parseToolCallArguments(toolCall[kStreamingPartialJson]);
 		clearStreamingPartialJson(toolCall);
 	}
 	stream.push({ type: "toolcall_end", contentIndex: index, toolCall, partial: output });
@@ -725,6 +726,7 @@ const streamOllamaOnce = (
 			}
 			endActiveThinkingBlock();
 			endActiveTextBlock();
+			for (const index of activeToolIndices) endToolCallBlock(stream, output, index);
 			if (output.stopReason === "length" && !hasVisibleAssistantContent(output)) {
 				output.stopReason = "error";
 				output.errorMessage = EMPTY_OLLAMA_LENGTH_COMPLETION_MESSAGE;

@@ -165,6 +165,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the driver must keep the literal upstream npm scope in OMP_SCOPE or the mapping silently no-ops (swept away twice; v18.2.4-era regression ran the v18.3.1/v18.3.2 merges unmapped)",
 	},
 	{
+		file: "scripts/merge-package-json.ts",
+		needle: '"@mariozechner/"',
+		why: "the driver must keep upstream's original author scope in LEGACY_AUTHOR_SCOPE or historical manifests merge unmapped (v18.4.11 install-smoke regression: @mariozechner/pi-coding-agent passed through)",
+	},
+	{
 		file: "scripts/merge-package-json.test.ts",
 		needle: "@oh-my-pi/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
@@ -217,6 +222,33 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
 	},
+	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
+	// The stats client shipped with upstream branding since the fork (never
+	// overlayed) and regressed visually every release merge. These pin the
+	// user-visible dashboard tokens to the Zeta spelling; port-conflict's
+	// deliberate `omp` process-match keepers are narrower literals and do not
+	// match any of these.
+	{
+		needle: /<title>omp stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'omp stats' since the fork)",
+	},
+	{
+		needle: /Everything omp did/,
+		why: "stats Overview subtitle names zeta, not upstream",
+	},
+	{
+		needle: /X-Omp-Stats-Action/,
+		why: "stats action header is X-Zeta-Stats-Action on both client and server sides",
+	},
+	{
+		needle: /omp-stats-theme/,
+		why: "stats theme localStorage key is zeta-stats-theme (client + useSystemTheme pair)",
+	},
+	{
+		needle: /omp-mark-grad/,
+		why: "stats logo gradient id is zeta-mark-grad (ζ mark, not π)",
+	},
+	// ── CLI command-surface red lines (PR #43 round) ──────────────────────
 	{
 		needle: /`zeta (code|work|editor|ide)`/,
 		why: "red line: the space form is internal hand-off syntax only and must never appear in any user-visible string; display the canonical bins (zetacode/zetawork/zetaeditor/zetaide). UPDATE-LOG.md is exempt because released entries are immutable history",

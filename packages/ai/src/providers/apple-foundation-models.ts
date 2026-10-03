@@ -13,6 +13,7 @@ import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { appleFmAvailability, appleFmCancel, appleFmGenerate } from "@linxiraos/pi-natives";
 import { parseStreamingJson } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
+import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {
 	AssistantMessage,
 	Context,
@@ -367,7 +368,7 @@ export const streamAppleFoundationModels: StreamFunction<"apple-foundation-model
 			for (const index of toolIndices.values()) {
 				const block = output.content[index] as ToolCallBlock;
 				block.arguments = decodeFoundationModelsArguments(
-					parseStreamingJson<Record<string, unknown>>(block[kStreamingPartialJson] ?? ""),
+					parseToolCallArguments(block[kStreamingPartialJson]),
 					encodedPaths.get(block.name) ?? [],
 				);
 				clearStreamingPartialJson(block);

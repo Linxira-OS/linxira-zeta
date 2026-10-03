@@ -23,7 +23,7 @@ import {
 import { buildWorkPoolOutputSchema, type WorkPoolYieldItem } from "./workpool-yield";
 
 import { cfgEvalWorkpoolFreshAgents } from "../eval/settings";
-import { cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
+import { cfgTaskCompletionProbeMs, cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
 
 /** One user-supplied unit tracked through a workpool batch. */
 export interface WorkPoolItem {
@@ -415,6 +415,7 @@ export class WorkPool {
 							subagentEventBus: this.session.subagentEventBus,
 							artifactsDir: this.session.getSessionFile()?.slice(0, -6),
 							maxRuntimeMs: cfgTaskMaxRuntimeMs.get(this.session.settings),
+							completionProbeMs: cfgTaskCompletionProbeMs.get(this.session.settings),
 						});
 					}
 				} catch (error) {

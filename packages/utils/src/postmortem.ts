@@ -54,7 +54,7 @@ const CLEANUP_DEADLINE_MS = 10_000;
  * terminates cleanly (#7393). `Symbol.for` so it survives duplicate module
  * instances across bundles/realms.
  */
-export const NATIVE_PROCESS_EXIT = Symbol.for("omp.postmortem.nativeProcessExit");
+export const NATIVE_PROCESS_EXIT = Symbol.for("zeta.postmortem.nativeProcessExit");
 
 type HardExitFn = (code?: number) => never;
 
@@ -97,8 +97,13 @@ function nativeHardExit(fn: HardExitFn | undefined): HardExitFn | undefined {
  * guard and loops the rejection storm (#11789). After restoring, `reallyExit`
  * (the low-level primitive) is preferred; `process.exit` and finally `SIGKILL`
  * are fallbacks so a poisoned or absent chain can never leave the process alive.
+ *
+ * Buffered log records are written first: `reallyExit` skips the `exit` event
+ * the logger otherwise flushes on, which would drop the last batch on every
+ * signal and fatal exit.
  */
 export function exitProcess(code: number): never {
+	logger.flush();
 	const reallyExit = nativeHardExit(typeof process.reallyExit === "function" ? process.reallyExit : undefined);
 	const exit = nativeHardExit(process.exit as HardExitFn);
 	if (reallyExit) process.reallyExit = reallyExit as typeof process.reallyExit;
@@ -327,7 +332,7 @@ function faultWorkerIpcChannels(err: Error): void {
 /**
  * Graceful shutdown driven by `process.stdout`'s own `error` event.
  *
- * A closed stdout consumer (`omp --help | head`, an ACP client dropping the
+ * A closed stdout consumer (`zeta-c --help | head`, an ACP client dropping the
  * pipe) delivers the broken-pipe write here — attributable to stdout by
  * construction, unlike a process-wide `syscall: "write"` match that a closed
  * subprocess stdin or socket would also satisfy — so it runs cleanup and exits
@@ -428,7 +433,7 @@ export function reportUnsettledEntry(work: Promise<unknown>, describe?: () => st
 // Well-known key marking an error as an *expected* teardown artifact (e.g. a
 // browser run-scope abort at normal run end). `Symbol.for` so the marker
 // survives duplicate module instances across bundles/realms.
-const EXPECTED_CLEANUP = Symbol.for("omp.expectedCleanupError");
+const EXPECTED_CLEANUP = Symbol.for("zeta.expectedCleanupError");
 
 /**
  * Mark an error as expected cleanup fallout so the global fatal handlers

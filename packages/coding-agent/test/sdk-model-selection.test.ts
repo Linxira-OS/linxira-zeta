@@ -1481,7 +1481,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores a discovery-backed session model instead of falling back to the default role", async () => {
-		// Regression: on `omp --resume`, the session-model restore probed
+		// Regression: on `zeta-c --resume`, the session-model restore probed
 		// candidates only against the static+cached catalog. A discovery-backed
 		// provider (models.yml `discovery:`) hasn't been fetched at that point, so
 		// the saved model failed to resolve and resume silently downgraded to
@@ -1633,6 +1633,50 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			expect(session.model?.provider).toBe("anthropic");
 			expect(session.model?.id).toBe(providerDefault.id);
 			expect(session.model?.id).not.toBe(catalogFirst.id);
+		} finally {
+			await session.dispose();
+		}
+	});
+
+	test("resolves the default thinking level against the startup fallback model", async () => {
+		// Regression: with no configured model, the provider-default fallback kept
+		// the settings default thinking level (`high`) unresolved, so a reasoning
+		// model without an effort ladder failed its first turn with
+		// "Thinking effort high is not supported by devin/swe-1-6".
+		const fallbackModel = getBundledModel("devin", "swe-1-6");
+		if (!fallbackModel?.reasoning || fallbackModel.thinking) {
+			throw new Error("Expected bundled devin/swe-1-6 as a reasoning model without an effort ladder");
+		}
+
+		const authStorage = createInMemoryAuthStorage();
+		authStoragesToClose.push(authStorage);
+		authStorage.keys.setRuntime("devin", "test-key");
+		const modelRegistry = new ModelRegistry(authStorage, path.join(tempDir, "models.yml"));
+
+		const { session } = await createAgentSession({
+			cwd: tempDir,
+			agentDir: tempDir,
+			authStorage,
+			modelRegistry,
+			settings: Settings.isolated({ enabledModels: ["devin/swe-1-6"], defaultThinkingLevel: Effort.High }),
+			sessionManager: SessionManager.inMemory(),
+			disableExtensionDiscovery: true,
+			skills: [],
+			contextFiles: [],
+			promptTemplates: [],
+			slashCommands: [],
+			enableMCP: false,
+			enableLsp: false,
+			skipPythonPreflight: true,
+			rules: [],
+			preloadedCustomToolPaths: [],
+			toolNames: ["read"],
+		});
+
+		try {
+			expect(session.model?.provider).toBe("devin");
+			expect(session.model?.id).toBe("swe-1-6");
+			expect(session.thinkingLevel).toBeUndefined();
 		} finally {
 			await session.dispose();
 		}

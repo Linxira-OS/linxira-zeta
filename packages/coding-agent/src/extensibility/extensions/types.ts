@@ -41,6 +41,7 @@ import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { ContextUsage, SegmentContext } from "@linxiraos/pi-tui/status-line/types";
 import type {
 	Api,
+	AssistantMessage,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
 	Context,
@@ -82,6 +83,7 @@ import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
 import type { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
 import type { Theme } from "@linxiraos/pi-tui/theme";
+import type { NativeToolView } from "@linxiraos/pi-tui/tools/renderer";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
 import type { EphemeralTurnOptions, EphemeralTurnResult } from "../../session/agent-session-types";
 import type { CompactMode } from "../../session/compact-modes";
@@ -152,7 +154,11 @@ export interface ExtensionUISelectOption {
 
 export type ExtensionUISelectItem = string | ExtensionUISelectOption;
 
-import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import type {
+	ExtensionAskDialogQuestion,
+	ExtensionAskDialogResult,
+	ExtensionAskDialogSubmitResult,
+} from "@linxiraos/pi-tui/overlays/ask-dialog";
 export type {
 	ExtensionAskDialogOption,
 	ExtensionAskDialogQuestion,
@@ -164,6 +170,27 @@ export type {
 
 export function getExtensionUISelectOptionLabel(option: ExtensionUISelectItem): string {
 	return typeof option === "string" ? option : option.label;
+}
+
+/** Answers an ask dialog whose timeout elapsed: each question gets its recommended option, else the first. */
+export function timedOutAskDialogResult(questions: ExtensionAskDialogQuestion[]): ExtensionAskDialogSubmitResult {
+	return {
+		kind: "submit",
+		results: questions.map(question => {
+			const labels = question.options.map(option => option.label);
+			const fallbackIndex = Math.min(Math.max(question.recommended ?? 0, 0), Math.max(labels.length - 1, 0));
+			const fallback = labels[fallbackIndex];
+			return {
+				id: question.id,
+				question: question.question,
+				options: labels,
+				multi: question.multi ?? false,
+				selectedOptions: fallback === undefined ? [] : [fallback],
+				customInput: undefined,
+				timedOut: true,
+			};
+		}),
+	};
 }
 
 /**
@@ -201,6 +228,8 @@ export interface ExtensionUIDialogOptions {
 	 *  trailing options (e.g. "Other"/"Done" actions) keep the plain cursor.
 	 *  Defaults to all options when `selectionMarker` is set. */
 	markableCount?: number;
+	/** Allow image pastes in rich ask-dialog custom-answer and note prompts. */
+	acceptImages?: boolean;
 }
 
 /** Raw terminal input listener for extensions. */
@@ -526,7 +555,7 @@ export interface ExtensionContext {
 	/** Identity of the agent this session runs: the top-level session or a subagent. */
 	agent: ExtensionAgentIdentity;
 	/**
-	 * Whether the current project/workspace is trusted. OMP performs no
+	 * Whether the current project/workspace is trusted. ZETA performs no
 	 * project-trust gating — project-level settings and extensions load
 	 * unconditionally — so this always returns `true`. Exposed for
 	 * compatibility with extensions authored against upstream Pi, whose
@@ -588,16 +617,16 @@ export interface ExtensionContext {
 
 	/**
 	 * Whether project-local inputs for the current working directory (extensions, settings,
-	 * skills, resources) are trusted. Upstream `@earendil-works/pi-coding-agent` (>=0.79) asks the
+	 * skills, resources) are trusted. Upstream `@earendil-works/zeta` (>=0.79) asks the
 	 * user once per directory before loading project-local inputs and exposes the saved decision
 	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
 	 * decide whether project-local config is safe to load, and warn when it is absent.
 	 *
-	 * OMP has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
+	 * Zeta has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
 	 * other project-local inputs are already discovered and loaded unconditionally (see
 	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
-	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
-	 * by default -- it does not narrow or widen OMP's own security model.
+	 * and always returns `true`, truthfully reflecting that ZETA already trusts project-local inputs
+	 * by default -- it does not narrow or widen ZETA's own security model.
 	 */
 	isProjectTrusted(): boolean;
 }
@@ -739,6 +768,16 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
 		theme: Theme,
 		args?: Static<TParams>,
 	) => Component;
+
+	/** Semantic call view for TSP terminals (the native counterpart of {@link renderCall}). */
+	describeCall?: (args: Static<TParams>, options: ToolRenderResultOptions) => NativeToolView | undefined;
+
+	/** Semantic result view for TSP terminals (the native counterpart of {@link renderResult}). */
+	describeResult?: (
+		result: AgentToolResult<TDetails>,
+		options: ToolRenderResultOptions,
+		args?: Static<TParams>,
+	) => NativeToolView | undefined;
 }
 
 /** Whether a tool's source is scoped to the user, the project, or a transient runtime session. */
@@ -749,7 +788,7 @@ export type SourceOrigin = "package" | "top-level";
 
 /**
  * Provenance metadata describing where a registered tool came from. Mirrors the
- * `@earendil-works/pi-coding-agent` `SourceInfo` contract so extensions authored
+ * `@earendil-works/zeta` `SourceInfo` contract so extensions authored
  * against upstream pi (e.g. gentle-pi) can read `sourceInfo.source` unchanged.
  */
 export interface SourceInfo {
@@ -888,10 +927,32 @@ export interface MessageUpdateEvent {
  * Fired when a message ends. Notification-only: the message is a detached
  * snapshot, so in-place changes do not rewrite agent or provider context.
  * Persistence and subscriber delivery do not wait for this handler to finish.
+ * Use `assistant_message` to rewrite a finalized assistant message.
  */
 export interface MessageEndEvent {
 	type: "message_end";
 	message: AgentMessage;
+}
+
+/**
+ * Fired once per finalized assistant message, after the provider stream settles
+ * and before the message reaches agent context, `message_end` listeners (TUI,
+ * RPC, exporters), session persistence, or tool dispatch. Return
+ * {@link AssistantMessageRewriteResult} to replace its content; the replacement
+ * is the single source of truth for history, persistence, `message_end`
+ * consumers, and the next provider request. Text already streamed through
+ * `message_update` is not retracted, so stream-rendering clients may keep
+ * showing the original. Handlers chain: each sees the previous handler's
+ * replacement.
+ *
+ * `message` is a detached copy — in-place mutation has no effect; return
+ * `content` instead. If cancellation arrives while handlers are pending,
+ * rewrites accepted so far are returned and remaining handlers are skipped.
+ * This event is not fired if the provider stream is cut off before finalizing.
+ */
+export interface AssistantMessageRewriteEvent {
+	type: "assistant_message";
+	message: AssistantMessage;
 }
 
 /** Fired when a tool starts executing */
@@ -1193,6 +1254,7 @@ export type ExtensionEvent =
 	| MessageStartEvent
 	| MessageUpdateEvent
 	| MessageEndEvent
+	| AssistantMessageRewriteEvent
 	| ToolExecutionStartEvent
 	| ToolExecutionUpdateEvent
 	| ToolExecutionEndEvent
@@ -1221,6 +1283,21 @@ export type ExtensionEvent =
 
 export interface ContextEventResult {
 	messages?: AgentMessage[];
+}
+
+/**
+ * Result from an `assistant_message` handler. Return `undefined` to leave the
+ * message unchanged.
+ *
+ * Text blocks must remain in their original positions: only their `text` may
+ * change. Non-text blocks and all other block metadata must remain unchanged.
+ * A text block with unchanged text keeps its original `textSignature` even if
+ * a handler replaces it; editing text removes its signature because that
+ * provider replay state cannot be reused for different text. Invalid
+ * replacements are reported as extension errors and skipped.
+ */
+export interface AssistantMessageRewriteResult {
+	content?: AssistantMessage["content"];
 }
 
 export type BeforeProviderRequestEventResult = unknown;
@@ -1330,7 +1407,7 @@ export interface ExtensionAPI {
 	/** Injected Zod-compatible omptype builder for extension tools. */
 	zod: typeof zod;
 
-	/** Injected pi-coding-agent exports for accessing SDK utilities */
+	/** Injected zeta exports for accessing SDK utilities */
 	pi: typeof PiCodingAgent;
 
 	/**
@@ -1391,6 +1468,10 @@ export interface ExtensionAPI {
 	on(event: "message_start", handler: ExtensionHandler<MessageStartEvent>): void;
 	on(event: "message_update", handler: ExtensionHandler<MessageUpdateEvent>): void;
 	on(event: "message_end", handler: ExtensionHandler<MessageEndEvent>): void;
+	on(
+		event: "assistant_message",
+		handler: ExtensionHandler<AssistantMessageRewriteEvent, AssistantMessageRewriteResult>,
+	): void;
 	on(event: "tool_execution_start", handler: ExtensionHandler<ToolExecutionStartEvent>): void;
 	on(event: "tool_execution_update", handler: ExtensionHandler<ToolExecutionUpdateEvent>): void;
 	on(event: "tool_execution_end", handler: ExtensionHandler<ToolExecutionEndEvent>): void;
@@ -1668,7 +1749,13 @@ export interface ExtensionAPI {
 export interface ProviderConfig {
 	/** Base URL for the API endpoint. Required when defining models. */
 	baseUrl?: string;
-	/** API key or environment variable name. Required when defining models unless oauth is provided. */
+	/**
+	 * API key or environment variable name. Required when defining models unless oauth is provided.
+	 *
+	 * Without `oauth`, this overrides stored OAuth and `/login` credentials for the provider. With
+	 * `oauth`, it is a fallback: a key saved by `/login` wins, and this value is used only when no
+	 * stored login credential exists.
+	 */
 	apiKey?: string;
 	/** API type identifier. Required when registering streamSimple or when models don't specify one. */
 	api?: Api;
@@ -1747,7 +1834,7 @@ export interface RegisteredTool<TParams extends TSchema = TSchema, TDetails = un
 	extensionPath: string;
 	/**
 	 * Upstream-shaped provenance mirroring {@link SourceInfo}. Extensions authored
-	 * against `@earendil-works/pi-coding-agent` — whose registered tools expose
+	 * against `@earendil-works/zeta` — whose registered tools expose
 	 * `sourceInfo` — read `sourceInfo.path` off `getAllRegisteredTools()` entries,
 	 * so it carries the same value `SessionTools.getAllToolInfos()` synthesizes.
 	 */

@@ -13,8 +13,9 @@
  */
 import type { Api, Effort, Model } from "@linxiraos/pi-ai";
 import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
-import { modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
+import { type ModelKind, type ModelPricingStatus, modelKind } from "@linxiraos/pi-catalog/types";
 import { formatNumber, getProjectDir } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import type { ConfigError } from "../config/config-file";
@@ -83,6 +84,7 @@ interface ModelJson {
 	thinking: readonly Effort[] | null;
 	input: ("text" | "image")[];
 	cost: Model<Api>["cost"];
+	pricingStatus: ModelPricingStatus;
 }
 
 interface ModelsJson {
@@ -124,6 +126,7 @@ function toModelJson(model: Model<Api>): ModelJson {
 		thinking: model.thinking ? getSupportedEfforts(model) : null,
 		input: model.input,
 		cost: model.cost,
+		pricingStatus: getModelPricingStatus(model),
 	};
 }
 

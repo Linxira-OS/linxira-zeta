@@ -1,3 +1,4 @@
+import { clearSubmittedText } from "./helpers/draft";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
@@ -58,7 +59,7 @@ export const shutdownHandlerTui = (
 	_command: ParsedSlashCommand,
 	runtime: TuiSlashCommandRuntime,
 ): SlashCommandResult => {
-	runtime.ctx.editor.setText("");
+	clearSubmittedText(runtime);
 	void runtime.ctx.shutdown();
 	return commandConsumed();
 };
@@ -83,6 +84,23 @@ async function fatalMoveFailure(text: string, runtime: SlashCommandRuntime): Pro
 	await runtime.output(text);
 	await runtime.session.dispose();
 	return commandConsumed();
+}
+
+/** A move rollback failed: re-align the workspace to wherever the session ended up and report it. */
+async function reportFailedRollback(runtime: SlashCommandRuntime, rollbackError: unknown): Promise<SlashCommandResult> {
+	const actual = runtime.sessionManager.getCwd();
+	try {
+		await rescopeHeadlessToCwd(runtime, actual);
+	} catch {
+		return fatalMoveFailure(
+			`Move failed and rollback failed: ${errorMessage(rollbackError)} (failed to re-align workspace to ${actual}; process remains at source while session is at ${actual})`,
+			runtime,
+		);
+	}
+	return usage(
+		`Move failed and rollback failed: ${errorMessage(rollbackError)} (workspace remains at ${actual})`,
+		runtime,
+	);
 }
 
 /**
@@ -112,22 +130,7 @@ async function relocateHeadlessSession(
 		try {
 			await runtime.sessionManager.rollbackMove(previousState);
 		} catch (rollbackError) {
-			const actual = runtime.sessionManager.getCwd();
-			let realigned = false;
-			try {
-				await rescopeHeadlessToCwd(runtime, actual);
-				realigned = true;
-			} catch {}
-			if (!realigned) {
-				return fatalMoveFailure(
-					`Move failed and rollback failed: ${errorMessage(rollbackError)} (failed to re-align workspace to ${actual}; process remains at source while session is at ${actual})`,
-					runtime,
-				);
-			}
-			return usage(
-				`Move failed and rollback failed: ${errorMessage(rollbackError)} (workspace remains at ${actual})`,
-				runtime,
-			);
+			return reportFailedRollback(runtime, rollbackError);
 		}
 		return usage(`Move failed: ${errorMessage(err)}`, runtime);
 	}
@@ -138,22 +141,7 @@ async function relocateHeadlessSession(
 			await runtime.sessionManager.rollbackMove(previousState);
 			await rescopeHeadlessToCwd(runtime, previousState.cwd);
 		} catch (rollbackError) {
-			const actual = runtime.sessionManager.getCwd();
-			let realigned = false;
-			try {
-				await rescopeHeadlessToCwd(runtime, actual);
-				realigned = true;
-			} catch {}
-			if (!realigned) {
-				return fatalMoveFailure(
-					`Move failed and rollback failed: ${errorMessage(rollbackError)} (failed to re-align workspace to ${actual}; process remains at source while session is at ${actual})`,
-					runtime,
-				);
-			}
-			return usage(
-				`Move failed and rollback failed: ${errorMessage(rollbackError)} (workspace remains at ${actual})`,
-				runtime,
-			);
+			return reportFailedRollback(runtime, rollbackError);
 		}
 		return usage(`Move failed: ${errorMessage(err)}`, runtime);
 	}
@@ -182,7 +170,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handle: handleSshAcp,
 		handleTui: async (command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleSSHCommand(command.text);
 		},
 	},
@@ -191,7 +179,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "plus",
 		description: () => M.cmdNew,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleClearCommand();
 		},
 	},
@@ -213,7 +201,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			return commandConsumed();
 		},
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleFreshCommand();
 		},
 	},
@@ -224,7 +212,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		getTuiAutocompleteDescription: runtime =>
 			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleResetContextCommand();
 		},
 	},
@@ -233,7 +221,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "trash",
 		description: () => M.cmdDrop,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleDeleteCommand();
 		},
 	},
@@ -300,7 +288,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 		handleTui: async (command, runtime) => {
 			const parsed = parseCompactArgs(command.args);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			if ("error" in parsed) {
 				runtime.ctx.showWarning(parsed.error);
 				return;
@@ -328,7 +316,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			const mode = parseShakeMode(command.args);
 			if (typeof mode !== "string") {
 				runtime.ctx.showWarning(mode.error);
@@ -401,7 +389,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 		handleTui: async (command, runtime) => {
 			const customInstructions = command.args || undefined;
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleHandoffCommand(customInstructions);
 		},
 	},
@@ -413,7 +401,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const sessionArg = command.args.trim();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			const foreignSource = sessionArg === "@claude" ? "claude" : sessionArg === "@codex" ? "codex" : undefined;
 			if (foreignSource) {
 				runtime.ctx.showSessionSelector(foreignSource);
@@ -476,7 +464,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const question = command.text.slice(`/${command.name}`.length).trim();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleBtwCommand(question);
 		},
 	},
@@ -488,7 +476,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const work = command.text.slice(`/${command.name}`.length).trim();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleTanCommand(work);
 		},
 	},
@@ -500,7 +488,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const complaint = command.text.slice(`/${command.name}`.length).trim();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleOmfgCommand(complaint);
 		},
 	},
@@ -512,7 +500,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const args = command.text.slice(`/${command.name}`.length).trim();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleCleanseCommand(args);
 		},
 	},
@@ -548,7 +536,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			if (!didRetry) {
 				runtime.ctx.showStatus(M.statusNothingToRetry);
 			}
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -557,7 +545,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		description: () => M.cmdDebug,
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.showDebugSelector();
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 		},
 	},
 	{
@@ -645,7 +633,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			}
 		},
 		handleTui: async (command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleMemoryCommand(command.text);
 		},
 	},
@@ -704,7 +692,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			const session = runtime.ctx.session;
 			const sessionManager = runtime.ctx.sessionManager;
 			const sessionId = sessionManager.getSessionId();
@@ -754,7 +742,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 		handleTui: async (command, runtime) => {
 			runtime.ctx.editor.addToHistory(command.text);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleMoveCommand(command.args || undefined);
 		},
 	},
@@ -789,7 +777,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 		handleTui: async (command, runtime) => {
 			runtime.ctx.editor.addToHistory(command.text);
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleWorktreeCommand(command.args || undefined);
 		},
 	},
@@ -873,7 +861,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "restart",
 		description: () => M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.restart();
 		},
 	},

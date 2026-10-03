@@ -1,5 +1,6 @@
 import type { Model } from "@linxiraos/pi-ai";
-import type { SessionState } from "@linxiraos/pi-wire";
+import type { SessionState, TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { NativeNode, NativeUiEvent } from "../native/node";
 import type { ContextLineMode, StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "./schema";
 import type { ActiveRepoContext, StatusLineSession } from "./host";
 import type { LoopConditionConfig, LoopLimitRuntime } from "./loop";
@@ -94,7 +95,6 @@ export interface SegmentContext {
 	planMode: {
 		enabled: boolean;
 		paused: boolean;
-		workflow?: "parallel" | "iterative" | "ultra";
 	} | null;
 	prewalk: {
 		enabled: boolean;
@@ -138,6 +138,8 @@ export interface SegmentContext {
 		orchestrationCacheRead: number;
 		premiumRequests: number;
 		cost: number;
+		/** Portion of `cost` carried by completed subagent task results. */
+		subagentCost?: number;
 		tokensPerSecond: number | null;
 	};
 	/** Context usage percent, or null when unknown (e.g. right after compaction). */
@@ -150,6 +152,11 @@ export interface SegmentContext {
 	/** Blink phase for the running-speculation pulse; toggled by the component's timer. */
 	speculationBlinkOn: boolean;
 	subagentCount: number;
+	/**
+	 * Spend of every subagent under the main session (descendants included),
+	 * from the Agent Hub projection; 0 while a subagent is focused or unknown.
+	 */
+	subagentTreeCost?: number;
 	/**
 	 * Active processing time accumulated this session, in ms — the union of
 	 * every `agent_start`→`agent_end` window plus the currently-streaming
@@ -166,7 +173,7 @@ export interface SegmentContext {
 	turnElapsedMs: number | null;
 	/**
 	 * Sampled foreground ANSI for the `pi` brand segment — tweened between dim
-	 * gray (idle) and the accent (working) across turn edges (rust omp's
+	 * gray (idle) and the accent (working) across turn edges (rust zeta's
 	 * status-band brand fade). Absent in direct-segment fixtures and previews,
 	 * which fall back to the static dim color.
 	 */
@@ -204,9 +211,54 @@ export interface RenderedSegment {
 	visible: boolean; // Whether to render (e.g., git hidden when not in repo)
 }
 
+/**
+ * A segment described for a TSP terminal: styled spans (theme/semantic
+ * tokens, no ANSI), a named icon, a tone, and terminal-clocked nodes
+ * (`spinner`, `elapsed`, `rate`) laid out after the spans.
+ */
+export interface SegmentView {
+	readonly spans: readonly TspSpan[];
+	readonly icon?: string;
+	readonly tone?: TspTone;
+	readonly motion?: readonly NativeNode[];
+	/** Tooltip on the segment. */
+	readonly title?: string;
+}
+
+/**
+ * The status line's facts for the native composer. A TSP terminal shows no
+ * status strip: the tab title carries the session, the pane header the path
+ * and branch, and the composer the rest.
+ */
+export interface ComposerFacts {
+	/**
+	 * `meter` (role `zeta.composer.context`): context usage along the composer's top edge,
+	 * the whole window wide, with the speculation and compaction points as icon marks,
+	 * the share as `label` and the window as `total`.
+	 */
+	readonly context: NativeNode;
+	/** The model chip's label: name plus the advisor, fast-mode and slow-mode marks. */
+	readonly model: SegmentView;
+	/**
+	 * `status` (role `zeta.composer.extras`, `grow: 1`) of the other configured
+	 * segments as `seg`s; the bar's flexible space, so present even when empty.
+	 */
+	readonly extras: NativeNode;
+	/** `text` (role `zeta.composer.usage`): the session cost (empty when there is none). */
+	readonly usage: NativeNode;
+}
+
+/** Supplies {@link ComposerFacts} and takes the clicks on them (`status.*` actions). */
+export interface ComposerFactsSource {
+	describeComposerFacts(): ComposerFacts;
+	handleNativeEvent(event: NativeUiEvent): void;
+}
+
 export interface StatusLineSegment {
 	id: StatusLineSegmentId;
 	render(ctx: SegmentContext): RenderedSegment;
+	/** Native description; null when the segment is hidden. */
+	describe(ctx: SegmentContext): SegmentView | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

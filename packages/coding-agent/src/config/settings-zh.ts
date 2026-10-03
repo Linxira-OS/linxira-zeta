@@ -200,6 +200,39 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问清理陈旧结果",
 		description: "每次审阅前，把顾问较早审阅的 read/grep/glob 输出替换为简短占位符。最新一次审阅保留。",
 	},
+	"advisor.reviewMode": {
+		label: "顾问审阅模式",
+		description: "没有 WATCHDOG.yml 名册时的默认顾问节奏。turn 在每个主要回合后审阅；agent-end 仅在最终产出时审阅。",
+	},
+	"advisor.reviewMode::turn": {
+		label: "每个回合",
+		description: "审阅每个主要更新（工具调用轮次）。",
+	},
+	"advisor.reviewMode::agent-end": {
+		label: "智能体结束时",
+		description: "仅在最终产出时审阅（每次运行一次）。",
+	},
+	"advisor.reviewInterval": {
+		label: "顾问审阅间隔",
+		description:
+			"没有 WATCHDOG.yml 名册时的默认顾问节奏：每 N 个符合条件的主要更新审阅一次。1 表示每次更新。被跳过的更新会随下一次计划审阅一并发送。",
+	},
+	"advisor.reviewInterval::1": {
+		label: "每个符合条件的更新",
+		description: "默认。",
+	},
+	"advisor.reviewInterval::2": {
+		label: "每 2 次",
+	},
+	"advisor.reviewInterval::3": {
+		label: "每 3 次",
+	},
+	"advisor.reviewInterval::5": {
+		label: "每 5 次",
+	},
+	"advisor.reviewInterval::10": {
+		label: "每 10 次",
+	},
 
 	"git.enabled": {
 		label: "启用 Git 集成",
@@ -294,6 +327,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tools.artifactHeadBytes": {
 		label: "工件头部大小（KB）",
 		description: "输出溢出到工件时，除尾部外保留在头部内联的内容量（中间省略）。0 表示禁用——仅保留尾部。",
+	},
+	"tools.artifactMaxBytes": {
+		label: "工件文件上限（MB）",
+		description:
+			"流式工具输出（bash、python、js eval）保存的工件文件大小上限。较大输出保留开头（至多 3 MB）与最近尾部，中间以截断提示衔接。0 = 不限量。",
+	},
+	"ratchet.enabled": {
+		label: "棘轮递进（Ratchet）",
+		description: "启用 ratchet eval/hillclimb 预奏环境；/ratchet 可为当前会话开启",
 	},
 	"tools.outputMaxColumns": {
 		label: "输出列数上限",
@@ -420,6 +462,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"display.smoothStreaming": {
 		label: "平滑流式输出",
 		description: "在分块到达时平滑地显示助手文本和流式工具输入",
+	},
+	"display.subagentLivePreview": {
+		label: "子智能体实时预览",
+		description: "在每个固定的子智能体行下方显示其当前（或最近一次）工具调用",
 	},
 	"display.hideToolActivity": {
 		label: "隐藏工具活动",
@@ -650,6 +696,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	doubleEscapeAction: {
 		label: "双击 Esc 操作",
 		description: "编辑器为空时连按两次 Esc 的操作",
+	},
+	"input.bareExitOnEmptySession": {
+		label: "空会话裸退出",
+		description: "在首条消息之前输入 `exit`、`quit` 或 `q`（不区分大小写）直接退出，而不是把输入交给模型",
+	},
+	"input.bareSlashCommands": {
+		label: "裸斜杠命令",
+		description:
+			"输入不带前导 `/` 的命令名（如 `model`、`compact`）即运行对应斜杠命令；会话已有消息时需按两次 Enter 确认",
 	},
 	treeFilterMode: {
 		label: "会话树过滤器",
@@ -1110,7 +1165,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"lsp.shared": {
 		label: "共享语言服务器",
-		description: "通过守护进程代理在 omp 实例间按项目共享一个语言服务器（不可用时回退到私有服务器）",
+		description: "通过守护进程代理在 zeta 实例间按项目共享一个语言服务器（不可用时回退到私有服务器）",
 	},
 	"lsp.formatOnWrite": {
 		label: "写入时格式化",
@@ -1336,7 +1391,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 omp browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 zeta-c browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
@@ -1350,6 +1405,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "cmux 浏览器",
 		description:
 			"当 cmux socket 可用时，使用 cmux WKWebView 表面进行浏览器自动化。可设置 PI_BROWSER_CMUX=0 或 PI_BROWSER_CMUX=1 覆盖。",
+	},
+	"browser.tern": {
+		label: "Tern 浏览器",
+		description:
+			"在 Tern 窗格内，以画中画形式（原生 Web 视图）在窗格上方打开浏览器标签页，而不是无头 Chromium；没有可承载的 Tern 窗口时回退到 Chromium。显式 app 选项、中继与浏览器 CDP 地址优先；headed:false 或 app.tern:false 可让某个打开的标签页退出此模式。可设置 PI_BROWSER_TERN=0 或 PI_BROWSER_TERN=1 覆盖。",
 	},
 	"browser.freezeOnTurnEnd": {
 		label: "轮结束时冻结浏览器标签页",
@@ -1526,6 +1586,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tasks.todoClearDelay": {
 		label: "待办自动清除延迟",
 		description: "已完成或放弃的待办从待办组件中移除前的延迟",
+	},
+	"task.completionProbeMs": {
+		label: "子代理完成度探测",
+		description:
+			"每隔多少毫秒（ms）通过类似 /btw 的缓存侧向请求询问一个正在工作的子代理，估算其任务完成度。该估算显示在等待与任务视图中子代理旁边。0 表示禁用。",
 	},
 	"task.showResolvedModelBadge": {
 		label: "显示已解析模型徽标",
@@ -1778,7 +1843,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"extensionHandlers.toolCallTimeoutMs": {
 		label: "工具调用处理超时（毫秒）",
-		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000 毫秒，等待 OMP 自有对话框的时间不计入",
+		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000 毫秒，等待 ZETA 自有对话框的时间不计入",
 	},
 	"dev.autoqa": {
 		label: "自动 QA",
@@ -2042,6 +2107,39 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"task.isolation.merge": {
 		label: "隔离合并策略",
 		description: "隔离任务变更的整合方式（应用补丁或合并分支）",
+	},
+	"tools.artifactMaxBytes::0": {
+		label: "不限量",
+		description: "保存完整输出",
+	},
+	"tools.artifactMaxBytes::4": {
+		label: "4 MB",
+	},
+	"tools.artifactMaxBytes::16": {
+		label: "16 MB",
+		description: "默认",
+	},
+	"tools.artifactMaxBytes::64": {
+		label: "64 MB",
+	},
+	"tools.artifactMaxBytes::256": {
+		label: "256 MB",
+	},
+	"tools.artifactMaxBytes::1024": {
+		label: "1 GB",
+	},
+	"task.completionProbeMs::0": {
+		label: "禁用",
+	},
+	"task.completionProbeMs::120000": {
+		label: "2 分钟",
+		description: "默认",
+	},
+	"task.completionProbeMs::300000": {
+		label: "5 分钟",
+	},
+	"task.completionProbeMs::600000": {
+		label: "10 分钟",
 	},
 	"worktree.clone": {
 		label: "将检出克隆到工作树",

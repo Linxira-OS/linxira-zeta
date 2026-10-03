@@ -13,8 +13,6 @@
  * the visible viewport brightened; clicking it seeks. Long lines either pan
  * horizontally (`←`/`→`) or soft-wrap when word wrap is enabled.
  */
-import type { DiffStreamResult, HighlightStream } from "@linxiraos/pi-natives";
-import { diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
 import { Image, type ImageBudget } from "../../components/image";
 import { clampScrollOffset, scrollOffsetForRow, viewportRange } from "../../components/scroll-viewport";
 import { centerLine, sliceWithWidth, truncateToWidth, visibleWidth } from "../../utils";
@@ -25,6 +23,7 @@ import { createHighlightStream, theme } from "../../theme/theme";
 import { bgAnsiHex, canvasHex, fgAnsiHex, mixHex, pill, selectionBgAnsi, textHex, withBg } from "./colors";
 import { DIFF_CONTEXT_LINES, type FileAssetSide, type FileStreamUpdate } from "./state";
 import { tuiText } from "../../i18n";
+import { type DiffStreamResult, HighlightStream, diffWords, structuredPatchHunks } from "@linxiraos/pi-natives";
 
 /** Column ranges (inclusive start, exclusive end) carrying intraline emphasis. */
 type MarkRanges = readonly (readonly [number, number])[];

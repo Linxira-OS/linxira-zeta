@@ -1,9 +1,10 @@
 import { M } from "../i18n";
-import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 import { cfgTuiSidebar } from "../modes/settings";
+import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
+import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
@@ -37,7 +38,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 
 			if (!toolName) {
 				runtime.ctx.showError("Usage: /force:<tool-name> [prompt]");
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 
@@ -46,11 +47,11 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				runtime.ctx.showStatus(`Next turn forced to use ${toolName}.`);
 			} catch (error) {
 				runtime.ctx.showError(errorMessage(error));
-				runtime.ctx.editor.setText("");
+				clearSubmittedText(runtime);
 				return;
 			}
 
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 
 			// If a prompt was provided, pass it through as input
 			if (prompt) return { prompt };
@@ -61,7 +62,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "voice",
 		description: () => M.cmdLiveVoice,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.handleLiveCommand();
 		},
 	},
@@ -70,7 +71,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "export",
 		description: () => M.cmdRecord,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runtime.ctx.toggleRecording();
 		},
 	},
@@ -79,7 +80,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "pause",
 		description: () => M.cmdPause,
 		handleTui: async (_command, runtime) => {
-			runtime.ctx.editor.setText("");
+			clearSubmittedText(runtime);
 			await runPauseScreen(runtime.ctx);
 		},
 	},

@@ -1,5 +1,4 @@
-import { sanitizeText } from "@linxiraos/pi-utils";
-
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import {
 	replaceTabs,
 	shortenEmbeddedPaths,
@@ -90,10 +89,6 @@ export function formatMCPConnectionStatusMessage(snapshot: McpConnectionStatusSn
 		return `Connected to MCP ${formatServerCount(connectedServers.length)}: ${formatServerList(connectedServers)}.`;
 	}
 	return "";
-}
-
-function isRecord(data: unknown): data is Record<string, unknown> {
-	return typeof data === "object" && data !== null;
 }
 
 function isStringArray(data: unknown): data is string[] {

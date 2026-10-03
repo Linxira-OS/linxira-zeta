@@ -101,11 +101,12 @@ const HTTP2_STREAM_RESET_ERROR_RE =
 	/stream closed with error code\s+nghttp2_(?:internal_error|refused_stream)|nghttp2_(?:internal_error|refused_stream)|HTTP2(?:StreamReset|RefusedStream)/i;
 // Gateway/provider closes a stream mid-generation without its terminal chunk
 // (openai-completions "finish_reason", openai/azure responses "terminal
-// response event", Codex "terminal completion event"). Same transport-failure
-// class as the stall/reset entries: retriable, and eligible for preserved-turn
-// continuation on resolved tool turns.
+// response event", Codex "terminal completion event", Cursor "turnEnded" —
+// an HTTP/2 reset can settle as the stream end rather than the RST error).
+// Same transport-failure class as the stall/reset entries: retriable, and
+// eligible for preserved-turn continuation on resolved tool turns.
 const PREMATURE_STREAM_CLOSE_ERROR_RE =
-	/(?:stream closed before a (?:finish_reason|terminal response event)|Codex stream ended before terminal completion event)/i;
+	/(?:stream closed before a (?:finish_reason|terminal response event)|Codex stream ended before terminal completion event|Cursor stream ended before turnEnded)/i;
 const IMMUTABLE_ANTHROPIC_THINKING_ERROR_PATTERN =
 	/messages\.\d+\.content\.\d+.*\b(?:thinking|redacted_thinking)\b.*\blatest assistant message cannot be modified\b/is;
 
@@ -1663,7 +1664,7 @@ export class TurnRecovery {
 	 * Re-run fallback-chain validation once background discovery has settled and
 	 * reconcile `configWarnings`. Startup validation suppresses "unknown model"
 	 * warnings for selectors whose config-declared discovery provider had not yet
-	 * populated the registry (a cold cache after `omp update` bumps the discovery
+	 * populated the registry (a cold cache after `zeta-c update` bumps the discovery
 	 * namespace, #10048). With discovery done, drop any startup warning discovery
 	 * resolved and surface warnings for selectors that stayed unknown.
 	 *

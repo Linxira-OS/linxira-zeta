@@ -29,7 +29,7 @@ import { installLegacyPiSpecifierShim, loadLegacyPiModule } from ${JSON.stringif
 Bun.plugin({
 	name: "bundled-extension-fixture",
 	setup(build) {
-		build.module("omp-legacy-pi-modules", () => ({
+		build.module("zeta-legacy-pi-modules", () => ({
 			loader: "object",
 			exports: {
 				BUNDLED_PI_MODULE_LOADERS: {

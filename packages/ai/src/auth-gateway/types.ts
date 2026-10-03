@@ -10,9 +10,9 @@ import type {
 } from "../types";
 
 /**
- * Wire types for the omp auth-gateway.
+ * Wire types for the zeta-c auth-gateway.
  *
- * The gateway sits between unauthenticated clients (containerized omp,
+ * The gateway sits between unauthenticated clients (containerized zeta,
  * llm-git, …) and the broker. It accepts provider-format HTTP requests
  * (OpenAI chat-completions / Anthropic messages / OpenAI Responses),
  * dispatches them through pi-ai's `streamSimple()`, and translates the
@@ -150,6 +150,8 @@ export interface AuthGatewayServerOptions {
 	bind?: string;
 	/** Accept any of these bearer tokens. Empty allows unauthenticated calls. */
 	bearerTokens: string[];
+	/** Honor forwarded peer headers only when the connecting proxy is trusted. Default false. */
+	trustProxyHeaders?: boolean;
 	/** Version surfaced on `/healthz`. */
 	version?: string;
 }

@@ -11,9 +11,8 @@ import { type } from "@linxiraos/pi-omptype";
 import { getSSHConfigPath, ptree } from "@linxiraos/pi-utils";
 import sshExecDescription from "../prompts/tools/ssh-exec.md" with { type: "text" };
 import { readSSHConfigFile } from "../ssh/config-writer";
-import type { SSHConnectionTarget } from "../ssh/connection-manager";
-import { buildRemoteCommand, ensureConnection } from "../ssh/connection-manager";
 import type { ToolSession } from "./index";
+import { type SSHConnectionTarget, buildRemoteCommand, ensureConnection } from "../ssh/connection-manager";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;

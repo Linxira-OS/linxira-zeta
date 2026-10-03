@@ -27,9 +27,8 @@ import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
 import type { SearchCitation, SearchResponse, SearchSource } from "../types";
 import { SearchProviderError } from "../../../web/search/types";
 import { formatQuery, GOOGLE_QUERY_SYNTAX, parseSearchQuery, type StructuredQuery } from "../query";
-import type { SearchParams } from "./base";
-import { SearchProvider } from "./base";
 import { classifyProviderHttpError, withHardTimeout } from "./utils";
+import { type SearchParams, SearchProvider } from "./base";
 
 const DEFAULT_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 const ANTIGRAVITY_DAILY_ENDPOINT = "https://daily-cloudcode-pa.googleapis.com";

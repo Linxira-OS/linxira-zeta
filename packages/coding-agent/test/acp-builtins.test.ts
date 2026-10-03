@@ -36,6 +36,7 @@ interface FakeAcpBuiltinSession {
 	toggleFastMode(): boolean;
 	setFastMode(enabled: boolean): boolean;
 	isFastModeEnabled(): boolean;
+	isUltrafastModeEnabled(): boolean;
 	setForcedToolChoice(toolName: string): void;
 	fetchUsageReports?: () => Promise<unknown>;
 	getAsyncJobSnapshot: (opts?: { recentLimit?: number }) => { running: unknown[]; recent: unknown[] } | null;
@@ -106,6 +107,9 @@ function createRuntime() {
 		},
 		isFastModeEnabled() {
 			return this.fastMode;
+		},
+		isUltrafastModeEnabled() {
+			return false;
 		},
 		setForcedToolChoice(toolName: string) {
 			this.forcedToolChoice = toolName;
@@ -522,17 +526,53 @@ describe("ACP builtin slash commands", () => {
 		expect(output[0]).toContain("Recent Jobs");
 	});
 
+	it("jobs full: shows the untruncated command instead of the label", async () => {
+		const { output, runtime } = createRuntime();
+		const command = `pytest ${"tests/a ".repeat(40)}-q`;
+		runtime.session.getAsyncJobSnapshot = () => ({
+			running: [
+				{ id: "j1", type: "bash", status: "running", label: "pytest tests/a...", command, startTime: Date.now() },
+			],
+			recent: [{ id: "j2", type: "task", status: "completed", label: "build done", startTime: Date.now() - 60_000 }],
+			delivery: { queued: 0, delivering: false, pendingJobIds: [] },
+		});
+
+		await executeAcpBuiltinSlashCommand("/jobs", runtime);
+		await executeAcpBuiltinSlashCommand("/jobs full", runtime);
+		await executeAcpBuiltinSlashCommand("/jobs bogus", runtime);
+
+		expect(output[0]).not.toContain(command);
+		expect(output[1]).toContain(command);
+		expect(output[1]).toContain("build done");
+		expect(output[2]).toContain("Usage: /jobs [full]");
+	});
+
+	it("jobs full: strips control sequences and fences the command", async () => {
+		const { output, runtime } = createRuntime();
+		const command = `printf ${"x".repeat(150)} \x1b[2J\`\`\`\n# heading TAIL`;
+		runtime.session.getAsyncJobSnapshot = () => ({
+			running: [{ id: "j1", type: "bash", status: "running", label: "printf x...", command, startTime: Date.now() }],
+			recent: [],
+			delivery: { queued: 0, delivering: false, pendingJobIds: [] },
+		});
+
+		await executeAcpBuiltinSlashCommand("/jobs full", runtime);
+
+		expect(output[0]).not.toContain("\x1b");
+		expect(output[0]).toContain(`\`\`\`\`\nprintf ${"x".repeat(150)} \`\`\`\n# heading TAIL\n\`\`\`\``);
+	});
+
 	// /dump
 	it("dump: outputs transcript with LLM request JSON path when sidecar succeeds", async () => {
 		const { output, runtime } = createRuntime();
 		runtime.session.formatSessionAsText = () => "Session content here";
-		runtime.session.dumpLlmRequestToTmpDir = async () => "/tmp/omp-llm-request-test.json";
+		runtime.session.dumpLlmRequestToTmpDir = async () => "/tmp/zeta-llm-request-test.json";
 
 		const result = await executeAcpBuiltinSlashCommand("/dump", runtime);
 
 		expect(result).toEqual({ consumed: true });
 		expect(output[0]).toContain("Session content here");
-		expect(output[0]).toContain("LLM request JSON: /tmp/omp-llm-request-test.json");
+		expect(output[0]).toContain("LLM request JSON: /tmp/zeta-llm-request-test.json");
 		expect(output[0]).toContain("persists on disk");
 	});
 
@@ -613,7 +653,7 @@ describe("ACP builtin slash commands", () => {
 		expect(configNotified).toBe(0);
 	});
 
-	// /switch resolves like `omp bench`: fuzzy ids, @role aliases, :level suffixes
+	// /switch resolves like `zeta bench`: fuzzy ids, @role aliases, :level suffixes
 	it("switch opus:low: fuzzy-resolves a session-only model with the thinking suffix", async () => {
 		const { output, runtime, session } = createRuntime();
 		const available = [

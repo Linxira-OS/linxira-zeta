@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -7,10 +7,10 @@ import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { initTheme } from "@linxiraos/pi-tui/theme";
+import * as theme from "@linxiraos/pi-tui/theme";
 import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgStatusLineContextLine, cfgStatusLineLeftSegments } from "@linxiraos/zeta/modes/settings";
+import { cfgStatusLineContextLine, cfgStatusLineLeftSegments, cfgSymbolPreset } from "@linxiraos/zeta/modes/settings";
 import { cfgHideThinkingBlock } from "@linxiraos/zeta/session/settings";
 
 describe("InteractiveMode live settings", () => {
@@ -18,9 +18,10 @@ describe("InteractiveMode live settings", () => {
 	let authStorage: AuthStorage;
 	let session: AgentSession;
 	let mode: InteractiveMode;
+	let reportGlyphProtocol: (supported: boolean) => void;
 
 	beforeAll(async () => {
-		await initTheme();
+		await theme.initTheme();
 	});
 
 	beforeEach(async () => {
@@ -42,6 +43,9 @@ describe("InteractiveMode live settings", () => {
 			modelRegistry,
 		});
 		mode = new InteractiveMode(session, "test");
+		vi.spyOn(mode.ui.terminal, "onGlyphProtocolReport").mockImplementation(callback => {
+			reportGlyphProtocol = callback;
+		});
 		await mode.init({ suppressWelcomeIntro: true });
 	});
 
@@ -51,6 +55,8 @@ describe("InteractiveMode live settings", () => {
 		authStorage?.close();
 		tempDir?.removeSync();
 		resetSettingsForTest();
+		await theme.setSymbolPreset("unicode");
+		vi.restoreAllMocks();
 	});
 
 	it("applies status-line and thinking-visibility changes made outside the settings panel", async () => {
@@ -63,5 +69,19 @@ describe("InteractiveMode live settings", () => {
 		expect(effective.leftSegments).toEqual(["time", "model"]);
 		expect(effective.contextLine).toBe("off");
 		expect(mode.hideThinkingBlock).toBe(true);
+	});
+
+	it("keeps an explicitly configured unicode status bar after Glyph Protocol confirmation", async () => {
+		cfgSymbolPreset.set(session.settings, "unicode");
+		await theme.setSymbolPreset("unicode");
+		reportGlyphProtocol(true);
+		expect(theme.getSymbolPresetOverride()).toBe("unicode");
+		expect(theme.theme.getSymbolPreset()).toBe("unicode");
+	});
+
+	it("upgrades an unconfigured unicode status bar after Glyph Protocol confirmation", async () => {
+		await theme.setSymbolPreset("unicode");
+		reportGlyphProtocol(true);
+		expect(theme.getSymbolPresetOverride()).toBe("nerd");
 	});
 });

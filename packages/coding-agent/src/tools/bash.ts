@@ -162,7 +162,7 @@ const BASH_PATTERN_APPROVAL_VALUES = new Set(["allow", "deny", "prompt"]);
  * preserves `bash` tool semantics (`$VAR`, `$(...)`, `source`, POSIX quoting,
  * `-l`) wherever a POSIX shell is available. The agent host's shell path is
  * used as a proxy for the client's, matching the near-universal ACP
- * deployment shape of an editor spawning omp as a co-hosted subprocess.
+ * deployment shape of an editor spawning zeta as a co-hosted subprocess.
  */
 export function wrapShellLineForClientTerminal(
 	line: string,
@@ -360,7 +360,6 @@ const bashSchemaWithService = type({
 		"host?": "string",
 		"timeout?": "number",
 	}),
-	"env?": type.record("string", "string"),
 });
 
 const bashSchemaWithAsyncAndService = type({
@@ -376,7 +375,6 @@ const bashSchemaWithAsyncAndService = type({
 		"host?": "string",
 		"timeout?": "number",
 	}),
-	"env?": type.record("string", "string"),
 });
 
 type BashToolSchema =
@@ -391,7 +389,6 @@ export interface BashToolInput {
 	cwd?: string;
 	name?: string;
 	ready?: ServiceReady;
-	env?: Record<string, string>;
 	async?: boolean;
 	pty?: boolean;
 }
@@ -423,13 +420,6 @@ function normalizeReady(ready: ServiceReady | undefined): ServiceReady | undefin
 	return { log, host, port, timeout };
 }
 
-/** Drops a record with no keys: `env: {}` sets nothing, so it requests nothing. */
-function nonEmptyRecord(record: Record<string, string> | undefined): Record<string, string> | undefined {
-	if (!record) return undefined;
-	for (const _key in record) return record;
-	return undefined;
-}
-
 export interface BashToolOptions {}
 
 type ManagedBashJobCompletion =
@@ -452,6 +442,9 @@ interface ManagedBashJobHandle {
 interface BashProgressDetails extends BashToolDetails {
 	images?: ImageContent[];
 }
+
+/** Pid probe of a background job with no command in flight. */
+const NO_PIDS = (): readonly number[] => [];
 
 function normalizeResultOutput(result: BashResult | BashInteractiveResult): string {
 	return result.output || "";
@@ -886,6 +879,9 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		}
 
 		const label = options.command.length > 120 ? `${options.command.slice(0, 117)}...` : options.command;
+		// Holds the run's Shell only while it runs: a retained reference would
+		// keep a finished `:async:` Shell (and its background children) alive.
+		let pids: () => readonly number[] = NO_PIDS;
 		let latestText = "";
 		let latestProgressDetails: BashProgressDetails | undefined;
 		let forwardUpdates = options.foreground;
@@ -921,6 +917,11 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 							});
 						},
 						onMinimizedSave: originalText => saveBashOriginalArtifact(this.session, originalText),
+						onStart: probe => {
+							pids = probe;
+						},
+					}).finally(() => {
+						pids = NO_PIDS;
 					});
 					if (result.artifactError) latestProgressDetails = { meta: { artifactError: result.artifactError } };
 					const wallTimeMs = performance.now() - wallTimeStart;
@@ -965,6 +966,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			{
 				ownerId: this.session.getAgentId?.() ?? undefined,
 				foreground: options.foreground,
+				process: { command: options.command, cwd: options.commandCwd, pids: () => pids() },
 				onProgress: async text => {
 					latestText = text;
 					if (!forwardUpdates) return;
@@ -994,7 +996,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			cwd,
 			name: rawName,
 			ready: rawReady,
-			env: rawEnv,
 			async: rawAsync,
 			pty,
 		}: BashToolInput,
@@ -1023,18 +1024,16 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		// them are not a service request.
 		const name = blankToUndefined(rawName);
 		const ready = normalizeReady(rawReady);
-		const env = nonEmptyRecord(rawEnv);
 		const asyncRequested = rawAsync === true;
 		const pendingNotices: string[] = [];
 		if (name !== undefined) {
 			if (!this.#launchEnabled) throw new ToolError("Service launch is disabled in this session.");
 			if (asyncRequested || rawTimeout !== undefined)
 				throw new ToolError("Service mode does not accept async or timeout; use ready.timeout for readiness.");
-		} else if (ready !== undefined || env !== undefined) {
-			// Nothing can honour ready/env without a service to attach them to;
+		} else if (ready !== undefined) {
+			// Nothing can honour ready without a service to attach it to;
 			// running the command the caller did ask for beats failing the call.
-			const ignored = [ready && "ready", env && "env"].filter(Boolean).join(" and ");
-			pendingNotices.push(`Ignored ${ignored}: service-only, and no service name was given.`);
+			pendingNotices.push("Ignored ready: service-only, and no service name was given.");
 		}
 		// Capture before any execution path (synchronous, PTY, async or bang) runs
 		// the command: once the shell has removed or truncated a file, its content
@@ -1124,7 +1123,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					command,
 					cwd: commandCwd,
 					pty: pty ?? true,
-					env,
 					ready,
 				},
 				signal,
@@ -1154,7 +1152,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		}
 
 		// A timeout of 0 is an explicit long-running-command contract: the user
-		// must still cancel the call or job, but OMP does not impose a deadline.
+		// must still cancel the call or job, but ZETA does not impose a deadline.
 		const requestedTimeoutSec = rawTimeout ?? 300;
 		const timeoutDisabled = requestedTimeoutSec === 0;
 		const maxTimeout = cfgToolsMaxTimeout.get(this.session.settings);

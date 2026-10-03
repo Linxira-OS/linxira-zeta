@@ -51,10 +51,52 @@ export function gatewayResponseHeaders(
 	return headers;
 }
 
-export function resolvePeer(req: Request): string {
+/** Use the socket peer unless the gateway explicitly trusts its reverse proxy. */
+export function resolvePeer(req: Request, socketAddress: string, trustProxyHeaders = false): string {
+	if (!trustProxyHeaders) return socketAddress;
 	const fwd = req.headers.get("x-forwarded-for");
 	if (fwd) return fwd.split(",")[0].trim();
-	return req.headers.get("x-real-ip") ?? "unknown";
+	return req.headers.get("x-real-ip") ?? socketAddress;
+}
+
+/**
+ * Decode each run of percent-escapes on its own, so one malformed escape
+ * elsewhere in the URL cannot hide an encoded token. A run that is not valid
+ * UTF-8 still has its ASCII escapes decoded.
+ */
+function decodeUrlLeniently(location: string): string {
+	return location.replace(/(?:%[0-9A-Fa-f]{2})+/g, run => {
+		try {
+			return decodeURIComponent(run);
+		} catch {
+			return run.replace(/%([0-7][0-9A-Fa-f])/g, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)));
+		}
+	});
+}
+
+/** Keep configured gateway credentials out of URL and forwarded/logged request fields. */
+export function hasMisplacedBearer(req: Request, url: URL, tokens: ReadonlySet<string>): boolean {
+	if (tokens.size === 0) return false;
+	const location = url.pathname + url.search;
+	const decodedLocation = decodeUrlLeniently(location);
+	const headers = req.headers;
+	for (const token of tokens) {
+		if (location.includes(token) || decodedLocation.includes(token)) return true;
+		for (const [name, value] of headers) {
+			if (
+				(PASSTHROUGH_HEADER_NAMES[name] ||
+					name.startsWith("x-stainless-") ||
+					name.startsWith("x-zeta-") ||
+					name === "x-forwarded-for" ||
+					name === "x-real-ip" ||
+					name === "forwarded") &&
+				value.includes(token)
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 /**
@@ -144,8 +186,8 @@ export function captureRequestHeaders(headers: Headers): Record<string, string> 
 /**
  * Resolve the usage-attribution identity for an inbound gateway request.
  *
- * pi-native omp clients send `x-omp-install-id` / `x-omp-hostname` /
- * `x-omp-app` (see `providers/pi-native-client.ts`); any client may set them.
+ * pi-native zeta clients send `x-zeta-install-id` / `x-zeta-hostname` /
+ * `x-zeta-app` (see `providers/pi-native-client.ts`); any client may set them.
  * Requests without an install id fall back to the gateway host's identity
  * under the `gateway` app label, so unlabeled foreign-SDK traffic (llm-git,
  * openai/anthropic SDKs) still lands in per-client burn tracking instead of
@@ -158,12 +200,12 @@ export function resolveClientIdentity(headers: Headers): ClientUsageIdentity {
 		const value = headers.get(name)?.trim();
 		return value ? value : undefined;
 	};
-	const installId = read("x-omp-install-id");
-	const app = read("x-omp-app");
+	const installId = read("x-zeta-install-id");
+	const app = read("x-zeta-app");
 	if (!installId) {
 		return { installId: getInstallId(), hostname: os.hostname(), app: app ?? "gateway" };
 	}
-	return { installId, hostname: read("x-omp-hostname"), app: app ?? "gateway" };
+	return { installId, hostname: read("x-zeta-hostname"), app: app ?? "gateway" };
 }
 
 /**

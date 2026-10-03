@@ -112,7 +112,7 @@ export interface StoredCredentialBlock {
 /**
  * Identity slice of a disabled (soft-deleted) credential tombstone — cause and
  * account identity only, never token material. Surfaced so auto-disabled
- * accounts (e.g. an expired Anthropic OAuth grant) stay visible in `omp usage`
+ * accounts (e.g. an expired Anthropic OAuth grant) stay visible in `zeta-c usage`
  * instead of silently vanishing until the user notices missing quota.
  */
 export interface DisabledCredentialSummary {
@@ -214,6 +214,9 @@ export type CompletionProbeCredential =
 			email?: string;
 			enterpriseUrl?: string;
 			apiEndpoint?: string;
+			orgId?: string;
+			region?: string;
+			inferenceRegion?: "global" | "eu" | "us";
 	  };
 
 /**
@@ -375,7 +378,7 @@ export type AuthStorageOptions = {
 	 *
 	 * Examples:
 	 * - `"local ~/.zeta/agent/agent.db"`
-	 * - `"broker http://omp.internal:8765"`
+	 * - `"broker http://zeta.internal:8765"`
 	 */
 	sourceLabel?: string;
 };
@@ -486,6 +489,13 @@ export type AuthApiKeyOptions = {
 	refreshReason?: OAuthRefreshReason;
 };
 
+/** Non-secret identity bound to the OAuth credential selected for one request attempt. */
+export interface OAuthRequestIdentity {
+	orgId?: string;
+	region?: string;
+	inferenceRegion?: "global" | "eu" | "us";
+}
+
 /**
  * Refreshed OAuth access plus identity metadata returned by
  * {@link AuthStorage.oauth.access}. Callers that authenticate via a bearer
@@ -505,6 +515,8 @@ export interface OAuthAccess {
 	/** Organization/workspace the credential is scoped to (Anthropic/ChatGPT multi-subscription). */
 	orgId?: string;
 	orgName?: string;
+	region?: string;
+	inferenceRegion?: "global" | "eu" | "us";
 }
 
 /**
@@ -569,6 +581,8 @@ export interface OAuthAccountSummary {
 	orgName?: string;
 	/** True when this account is the session-sticky OAuth credential requested by `listOAuthAccounts`. */
 	active: boolean;
+	/** Last use recorded on the session sticky; set only on the `active` account. */
+	lastUsedAtMs?: number;
 }
 /** Scope a matching-key invalidation to a session or signal. */
 export interface InvalidateCredentialMatchingOptions {
@@ -790,7 +804,7 @@ export interface CredentialsApi {
 	 * Force the backing store to revalidate its credential snapshot, then
 	 * reload. Remote broker stores re-fetch the snapshot; local stores are
 	 * always current, so only the reload runs. Callers that pair live
-	 * per-credential data with stored identities (`omp usage`) use this so a
+	 * per-credential data with stored identities (`zeta-c usage`) use this so a
 	 * disk-cached snapshot cannot misattribute fresh reports.
 	 */
 	revalidate(): Promise<void>;
@@ -849,7 +863,7 @@ export interface CredentialsApi {
 	 */
 	disable(id: number, disabledCause: string): Promise<boolean>;
 	/**
-	 * Disabled credential tombstones for display surfaces (`omp usage`,
+	 * Disabled credential tombstones for display surfaces (`zeta-c usage`,
 	 * broker `GET /v1/credentials/disabled`). Empty when the backing store
 	 * keeps no tombstones or the remote broker predates the endpoint.
 	 */
@@ -933,10 +947,14 @@ export interface KeysApi {
 	 *
 	 * Lower priority than {@link setRuntimeApiKey} so a CLI `--api-key`
 	 * still wins for the duration of a single invocation.
+	 *
+	 * `fallback: true` ranks the value below stored OAuth and `/login`
+	 * credentials instead, so a provider's default key reference cannot shadow
+	 * a key the user logged in with.
 	 */
-	setConfig(provider: string, apiKeyConfig: string): void;
+	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean }): void;
 	/**
-	 * Remove a single config-sourced API key override.
+	 * Remove a single config-sourced API key (override or fallback).
 	 */
 	removeConfig(provider: string): void;
 	/**

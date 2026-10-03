@@ -6,7 +6,7 @@ import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
 import { TempDir } from "@linxiraos/pi-utils";
 
-const MODEL_PERF_FLUSH_DELAY_MS = 100;
+const MODEL_PERF_FLUSH_DELAY_MS = 60_000;
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const AGENT_STORAGE_MODULE = path.resolve(import.meta.dir, "../src/session/agent-storage.ts");
 
@@ -43,7 +43,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	async function openStorage(): Promise<AgentStorage> {
-		tempDir = TempDir.createSync("@omp-agent-storage-perf-");
+		tempDir = TempDir.createSync("@zeta-agent-storage-perf-");
 		return AgentStorage.open(path.join(tempDir.path(), "agent.db"));
 	}
 
@@ -72,8 +72,26 @@ describe("AgentStorage model perf aggregates", () => {
 		expect(stats?.ttftMs).toBeCloseTo(750, 5);
 	});
 
+	it("persists a still-batched sample when the storage closes before the window elapses", async () => {
+		const storage = await openStorage();
+		const dbPath = path.join(tempDir.path(), "agent.db");
+		void storage.recordModelPerf("openai/gpt-5", { outputTokens: 600, durationMs: 3000 });
+
+		AgentStorage.close();
+		const reopened = await AgentStorage.open(dbPath);
+
+		expect(reopened.getModelPerf().get("openai/gpt-5")?.tps).toBeCloseTo(200, 5);
+	});
+
+	it("includes a still-batched sample in an in-process read without waiting for the window", async () => {
+		const storage = await openStorage();
+		void storage.recordModelPerf("openai/gpt-5", { outputTokens: 600, durationMs: 3000 });
+
+		expect(storage.getModelPerf().get("openai/gpt-5")?.tps).toBeCloseTo(200, 5);
+	});
+
 	it("records task subagent samples in the shared model performance aggregate", async () => {
-		tempDir = TempDir.createSync("@omp-subagent-perf-");
+		tempDir = TempDir.createSync("@zeta-subagent-perf-");
 		const parent = await Settings.loadIsolated({ cwd: tempDir.path(), agentDir: tempDir.path() });
 		const subagent = createSubagentSettings(parent);
 
@@ -152,7 +170,7 @@ describe("AgentStorage model perf aggregates", () => {
 		expect(stats?.ttftMs).toBeNull();
 	});
 
-	it("backfills perf aggregates from an omp stats database, excluding errored and stale turns", async () => {
+	it("backfills perf aggregates from an zeta-c stats database, excluding errored and stale turns", async () => {
 		const storage = await openStorage();
 
 		// Minimal stats.db fixture: only the columns the backfill query reads.
@@ -219,7 +237,7 @@ describe("AgentStorage model perf aggregates", () => {
 	});
 
 	it("does not start the stats backfill while flushing a live batch on exit", async () => {
-		tempDir = TempDir.createSync("@omp-agent-storage-exit-backfill-");
+		tempDir = TempDir.createSync("@zeta-agent-storage-exit-backfill-");
 		const homeDir = tempDir.join("home");
 		const agentDir = tempDir.join("agent");
 		const env = {
@@ -282,4 +300,32 @@ describe("AgentStorage model perf aggregates", () => {
 			db.close();
 		}
 	});
+
+	it("lets a process exit naturally mid-window and still persists the pending batch", async () => {
+		tempDir = TempDir.createSync("@zeta-agent-storage-natural-exit-");
+		const dbPath = tempDir.join("agent.db");
+		const startedAt = Date.now();
+		const exiting = await runProbe(
+			[
+				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
+				`const storage = await AgentStorage.open(${JSON.stringify(dbPath)});`,
+				'void storage.recordModelPerf("openai/natural-exit", { outputTokens: 10, durationMs: 1000 });',
+			].join("\n"),
+			{ ...process.env, HOME: tempDir.path(), USERPROFILE: tempDir.path() },
+		);
+		expect(exiting.exitCode, exiting.stderr).toBe(0);
+		// A referenced batch timer would hold the process open for the whole window.
+		expect(Date.now() - startedAt).toBeLessThan(MODEL_PERF_FLUSH_DELAY_MS / 2);
+
+		const db = new Database(dbPath, { readonly: true });
+		try {
+			expect(
+				db
+					.query<{ samples: number }, []>("SELECT samples FROM model_perf WHERE model_key = 'openai/natural-exit'")
+					.get(),
+			).toEqual({ samples: 1 });
+		} finally {
+			db.close();
+		}
+	}, 30_000);
 });

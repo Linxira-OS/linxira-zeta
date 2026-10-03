@@ -1,5 +1,5 @@
 import { Args, type CommandMetadata, Flags } from "@linxiraos/pi-utils/cli";
-import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
+import { APP_NAME, CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
 import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
 import { SERVICE_TIER_OPENAI_VALUES } from "../config/service-tier";
@@ -21,6 +21,10 @@ export const launchHelp = {
 		smol: Flags.string({ description: "Smol/fast model for lightweight tasks (or PI_SMOL_MODEL env)" }),
 		slow: Flags.string({ description: "Slow/reasoning model for thorough analysis (or PI_SLOW_MODEL env)" }),
 		plan: Flags.string({ description: "Plan model for architectural planning (or PI_PLAN_MODEL env)" }),
+		goal: Flags.string({
+			description:
+				"Start fresh in goal mode (interactive only; bypasses autoResume; no positional prompt, startup plan mode, or explicit resume)",
+		}),
 		prewalk: Flags.boolean({
 			description:
 				"Switch from the active model to a fast/cheap model at the first edit/write after the plan's todo list exists (default off; see prewalk.enabled)",
@@ -58,8 +62,8 @@ export const launchHelp = {
 		print: Flags.boolean({ char: "p", description: "Non-interactive mode: process prompt and exit" }),
 		continue: Flags.boolean({ char: "c", description: "Continue previous session" }),
 		resume: Flags.string({ char: "r", description: "Resume a session (by ID prefix, path, or picker if omitted)" }),
-		"from-claude": Flags.boolean({ description: "Import a Claude Code session into OMP" }),
-		"from-codex": Flags.boolean({ description: "Import a Codex session into OMP" }),
+		"from-claude": Flags.boolean({ description: "Import a Claude Code session into ZETA" }),
+		"from-codex": Flags.boolean({ description: "Import a Codex session into ZETA" }),
 		"session-dir": Flags.string({ description: "Directory for session storage and lookup" }),
 		"no-session": Flags.boolean({ description: "Don't save session (ephemeral)" }),
 		models: Flags.string({ description: `Comma-separated model patterns for ${formatKeyHint("ctrl+p")} cycling` }),
@@ -100,7 +104,7 @@ export const launchHelp = {
 		export: Flags.string({ description: "Export session file to HTML and exit" }),
 		"no-title": Flags.boolean({ description: "Disable title auto-generation" }),
 		"no-ui": Flags.boolean({
-			description: "With --mode rpc: run extensions headless (no extension_ui_request dialogs for the host)",
+			description: "With --mode rpc or rpc-ui: run extensions headless (rpc-ui tool UI remains enabled)",
 		}),
 		"print-thoughts": Flags.boolean({ description: "Include thinking blocks in print mode text output" }),
 		"max-time": Flags.string({ description: "Stop the session after this duration (e.g., 600, 10m, 1h)" }),
@@ -116,6 +120,7 @@ export const launchHelp = {
 	examples: [
 		`# Interactive mode\n  ${CLI_BIN_NAME}`,
 		`# Interactive mode with initial prompt\n  ${CLI_BIN_NAME} "List all .ts files in src/"`,
+		`# Start working on a goal immediately\n  ${CLI_BIN_NAME} --goal "Investigate the importer"`,
 		`# Include files in initial message\n  ${CLI_BIN_NAME} @prompt.md @image.png "What color is the sky?"`,
 		`# Non-interactive mode (process and exit)\n  ${CLI_BIN_NAME} -p "List all .ts files in src/"`,
 		`# Continue previous session\n  ${CLI_BIN_NAME} --continue "What did we discuss?"`,

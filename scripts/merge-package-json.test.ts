@@ -39,6 +39,16 @@ describe("zetaKeyFor", () => {
 		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
 	});
 
+	it("maps upstream's original @mariozechner author scope the same way", () => {
+		// Historical manifests (and vendored plugin manifests) still declare the
+		// pre-@oh-my-pi scope; unmapped keys re-create the install-smoke
+		// "Cannot find package '@mariozechner/pi-coding-agent'" failure class.
+		expect(zetaKeyFor("@mariozechner/pi-coding-agent")).toBe("@linxiraos/zeta");
+		expect(zetaKeyFor("@mariozechner/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@mariozechner/omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@mariozechner/pi-natives")).toBe("@linxiraos/pi-natives");
+	});
+
 	it("returns null for non-upstream keys", () => {
 		expect(zetaKeyFor("@linxiraos/pi-ai")).toBeNull();
 		expect(zetaKeyFor("zod")).toBeNull();

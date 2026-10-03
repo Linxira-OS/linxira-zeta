@@ -15,8 +15,6 @@ import { discoverCrewAgents, discoverCrewSkills } from "../utils/discover.ts";
 import { buildWorkerPrompt } from "../prompt.ts";
 import * as teamStore from "../team/store.ts";
 import { reviewImplementation } from "./review.ts";
-import * as store from "../store.ts";
-import { getCrewDir } from "../store.ts";
 import {
 	autonomousState,
 	isAutonomousForCwd,
@@ -28,6 +26,8 @@ import {
 import { getAvailableLobbyWorkers, assignTaskToLobbyWorker, cleanupUnassignedAliveFiles } from "../lobby.ts";
 import { logFeedEvent } from "../../feed.ts";
 import { approvalTaskSummaries } from "../utils/task-format.ts";
+import * as store from "../store.ts";
+import { getCrewDir } from "../store.ts";
 
 function revisionHint(taskId: string): string {
 	return `pi_messenger({ action: "task.revise", id: "${taskId}", prompt: "Address approval feedback" })`;
