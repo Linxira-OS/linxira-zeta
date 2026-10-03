@@ -185,6 +185,16 @@ async function main(): Promise<void> {
 		unchanged.push(cargoRel);
 	}
 
+	// 2a. Main workbench workspace — a separate Cargo workspace riding the same
+	// release line; its version stamps the published workbench binary
+	// (`zeta --version`), so it must move in lockstep.
+	const mainCargoRel = "main/Cargo.toml";
+	if (replaceInFile(mainCargoRel, /^version = "[^"]+"/m, `version = "${version}"`)) {
+		changed.push(mainCargoRel);
+	} else {
+		unchanged.push(mainCargoRel);
+	}
+
 	// 3. pi-natives version sentinel.
 	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
 	const sentinelName = `__piNativesV${sentinelJsId}`;
