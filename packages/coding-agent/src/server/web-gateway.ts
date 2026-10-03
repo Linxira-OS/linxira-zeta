@@ -89,6 +89,17 @@ import {
 import { handleGetTracking, handleTrackingEvents } from "./web-gateway/tracking";
 import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
 import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
+import {
+	handleTerminalCreate,
+	handleTerminalDelete,
+	handleTerminalList,
+	handleTerminalResize,
+	handleTerminalTicket,
+	handleTerminalWsUpgrade,
+	isTerminalWsUpgradeRequest,
+	terminalWebSocketHandler,
+	type TerminalWsData,
+} from "./web-gateway/terminal";
 
 const DEFAULT_GATEWAY_PORT = 30142;
 
@@ -133,6 +144,10 @@ const SKILLS_UPDATE_RE = /^\/api\/skills\/update$/;
 const OPEN_RE = /^\/api\/open$/;
 const DESKTOP_INFO_RE = /^\/api\/desktop\/info$/;
 const OPEN_OPTIONS_RE = /^\/api\/open\/options$/;
+const TERMINAL_LIST_RE = /^\/api\/terminal$/;
+const TERMINAL_ID_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})$`);
+const TERMINAL_RESIZE_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})/resize$`);
+const TERMINAL_TICKET_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})/ticket$`);
 const UPDATE_CHECK_RE = /^\/api\/update\/check$/;
 const UPDATE_DOWNLOAD_RE = /^\/api\/update\/download$/;
 const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
@@ -176,9 +191,10 @@ export function ensureAgentDirEnv(): void {
  * loopback origin. Non-browser clients (curl, the desktop shell, the IM
  * channels) send no Origin and are unaffected. Only enforced for
  * unauthenticated loopback callers — a valid remote token already
- * authenticates the request (see {@link authorizedForAccess}).
+ * authenticates the request (see {@link authorizedForAccess}). The terminal
+ * WS upgrade applies the same guard (exported for that use).
  */
-function isAllowedOrigin(origin: string | null): boolean {
+export function isAllowedOrigin(origin: string | null): boolean {
 	if (!origin) return true;
 	try {
 		const url = new URL(origin);
@@ -477,6 +493,30 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (TERMINAL_LIST_RE.test(pathname)) {
+		if (req.method === "POST") return handleTerminalCreate(req);
+		if (req.method === "GET") return handleTerminalList();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const terminalId = capture(pathname, TERMINAL_ID_RE);
+	if (terminalId) {
+		if (req.method === "DELETE") return handleTerminalDelete(terminalId[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const terminalResize = capture(pathname, TERMINAL_RESIZE_RE);
+	if (terminalResize) {
+		if (req.method === "POST") return handleTerminalResize(req, terminalResize[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const terminalTicket = capture(pathname, TERMINAL_TICKET_RE);
+	if (terminalTicket) {
+		if (req.method === "POST") return handleTerminalTicket(terminalTicket[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	if (OPEN_RE.test(pathname)) {
 		if (req.method === "OPTIONS") return new Response("", { status: 204, headers: { Allow: "POST, OPTIONS" } });
 		if (req.method === "POST") return handleOpenPost(req);
@@ -608,11 +648,22 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		throw new Error(`Invalid ZETA_WEB_GATEWAY_PORT: ${gatewayPort}`);
 	}
 
-	const server = Bun.serve({
+	const server = Bun.serve<TerminalWsData>({
 		hostname: "127.0.0.1",
 		port: gatewayPort,
 		idleTimeout: 0,
-		fetch: (req, srv) => webGatewayFetch(req, srv?.requestIP(req)?.address),
+		websocket: terminalWebSocketHandler,
+		fetch: async (req, srv) => {
+			// Terminal data-plane upgrades bypass webGatewayFetch (it can only
+			// return Responses); auth lives in handleTerminalWsUpgrade.
+			if (isTerminalWsUpgradeRequest(req)) {
+				const remoteAddr = srv?.requestIP(req)?.address;
+				const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);
+				// Null means the socket was upgraded; the fetch result is moot.
+				return response ?? new Response(null);
+			}
+			return webGatewayFetch(req, srv?.requestIP(req)?.address);
+		},
 	});
 
 	return {

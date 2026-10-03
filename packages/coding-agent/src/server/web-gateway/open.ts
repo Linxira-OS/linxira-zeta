@@ -43,7 +43,7 @@ const EDITOR_LABELS: Record<string, string> = {
 };
 
 /** PATH probe order mirrors the bins each bundled npm package installs. */
-const ZETA_IDE_BINS = ["zeta-ide", "zetaide", "zeta-i"] as const;
+export const ZETA_IDE_BINS = ["zeta-ide", "zetaide", "zeta-i"] as const;
 const ZETA_EDITOR_BINS = ["zeta-editor", "zetaeditor", "zeta-e"] as const;
 
 /** Injectable process snapshot so probes are testable without a real PATH/fs. */
@@ -54,7 +54,7 @@ export interface OpenProbeContext {
 	now: () => number;
 }
 
-function defaultProbeContext(): OpenProbeContext {
+export function defaultProbeContext(): OpenProbeContext {
 	return {
 		platform: process.platform,
 		env: process.env,

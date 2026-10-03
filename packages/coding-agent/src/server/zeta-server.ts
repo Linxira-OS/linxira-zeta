@@ -38,6 +38,12 @@ import type { AgentSession } from "../session/agent-session";
 import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
 import { authorizedForAccess, startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
+import {
+	handleTerminalWsUpgrade,
+	isTerminalWsUpgradeRequest,
+	terminalWebSocketHandler,
+	type TerminalWsData,
+} from "./web-gateway/terminal";
 import { startRpcSession } from "./web-gateway/agents";
 import { getSharedModelRegistry } from "./web-gateway/auth";
 import { setBotSessionDispose } from "./web-gateway/running-sessions";
@@ -886,14 +892,26 @@ export class ZetaServer {
 			});
 		}
 
-		const server = Bun.serve({
+		const server = Bun.serve<TerminalWsData>({
 			port,
 			hostname,
 			// Agent streams are Server-Sent Events and may stay quiet between turns.
 			idleTimeout: 0,
+			// Terminal data plane (spec §15): the one WebSocket surface; auth
+			// (loopback / one-time ticket) lives in handleTerminalWsUpgrade.
+			websocket: terminalWebSocketHandler,
 			async fetch(req, srv) {
-				const route = classifyRequest(req, webUiPort, gatewayRunning);
 				const remoteAddr = srv?.requestIP(req)?.address;
+
+				// Terminal WS upgrades must short-circuit before classifyRequest:
+				// they are GETs on /api/* that webGatewayFetch cannot answer.
+				if (gatewayRunning && isTerminalWsUpgradeRequest(req)) {
+					const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);
+					// Null means the socket was upgraded; the fetch result is moot.
+					return response ?? new Response(null);
+				}
+
+				const route = classifyRequest(req, webUiPort, gatewayRunning);
 
 				switch (route.type) {
 					case "stats":
