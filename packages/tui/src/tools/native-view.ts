@@ -184,7 +184,10 @@ export function footnoteText(parts: readonly string[], meta?: OutputMeta): Nativ
 	if (all.length === 0) return undefined;
 	const notice = meta?.truncation !== undefined || meta?.artifactError !== undefined;
 	return {
-		...text([span(all.join(" · "), "muted")], { wrap: "word", role: notice ? "zeta.tool.notice" : "zeta.tool.stats" }),
+		...text([span(all.join(" · "), "muted")], {
+			wrap: "word",
+			role: notice ? "zeta.tool.notice" : "zeta.tool.stats",
+		}),
 		key: "foot",
 	};
 }

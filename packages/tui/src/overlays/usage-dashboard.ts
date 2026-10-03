@@ -1007,7 +1007,12 @@ export class UsageDashboardComponent implements Component {
 		const children: NativeChild[] = [];
 		if (this.#cards.length === 0) {
 			children.push(
-				node("text", { spans: [span("No usage data available.")], role: "zeta.usage.untouched" }, undefined, "none"),
+				node(
+					"text",
+					{ spans: [span("No usage data available.")], role: "zeta.usage.untouched" },
+					undefined,
+					"none",
+				),
 			);
 		} else {
 			// Unlimited providers keep a frame reading "No limits"; only untouched ones collapse.

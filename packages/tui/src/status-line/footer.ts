@@ -243,7 +243,9 @@ export class FooterComponent implements Component {
 				.sort(([a], [b]) => a.localeCompare(b))
 				.map(([, value]) => sanitizeStatusText(value))
 				.join(" ");
-			children.push(node("text", { text: statuses, wrap: "none", role: "zeta.footer.extensions" }, undefined, "ext"));
+			children.push(
+				node("text", { text: statuses, wrap: "none", role: "zeta.footer.extensions" }, undefined, "ext"),
+			);
 		}
 		const built = children.length === 1 ? bar : col(children, { role: "zeta.footer.panel" });
 		const fingerprint = JSON.stringify(built);
