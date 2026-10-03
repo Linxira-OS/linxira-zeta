@@ -4,8 +4,8 @@ import * as path from "node:path";
 import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { Model } from "@linxiraos/pi-catalog/types";
-import { SimpleStreamOptions } from "@linxiraos/pi-ai";
+import { type Model } from "@linxiraos/pi-catalog/types";
+import { type SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { CacheWarmer, getPromptCacheTtlMs } from "../src/session/cache-warmer";
 
 const originalAgentDir = getAgentDir();

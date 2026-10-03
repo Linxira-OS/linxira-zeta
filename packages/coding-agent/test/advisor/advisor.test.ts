@@ -6,7 +6,7 @@ import {
 	createCompactionSummaryMessage,
 	defaultConvertToLlm,
 } from "@linxiraos/pi-agent-core/compaction";
-import { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
+import { type AssistantMessage, type ToolResultMessage } from "@linxiraos/pi-ai";
 import type {
 	ResponseFileSearchToolCall,
 	ResponseFunctionWebSearch,

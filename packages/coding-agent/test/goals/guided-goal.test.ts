@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent, AgentBusyError, type AgentMessage } from "@linxiraos/pi-agent-core";
-import { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { type AssistantMessage, type ImageContent } from "@linxiraos/pi-ai";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";

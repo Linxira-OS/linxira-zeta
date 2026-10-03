@@ -5,7 +5,7 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { RetryFallbackRole, ServingModel } from "@linxiraos/zeta/session/retry-fallback-chains";
+import { type RetryFallbackRole, type ServingModel } from "@linxiraos/zeta/session/retry-fallback-chains";
 import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
