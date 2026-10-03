@@ -326,7 +326,7 @@ describe("pi-native gateway reasoning flags", () => {
 });
 
 describe("pi-native gateway usage attribution", () => {
-	it("records observed usage under the caller's x-omp-* identity, host-fallback when absent", async () => {
+	it("records observed usage under the caller's x-zeta-* identity, host-fallback when absent", async () => {
 		registerMockApi();
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gw-pi-native-usage-"));
 		const storage = await AuthStorage.create(path.join(dir, "auth.db"));
@@ -358,9 +358,9 @@ describe("pi-native gateway usage attribution", () => {
 				headers: {
 					Authorization: "Bearer test-token",
 					"Content-Type": "application/json",
-					"x-omp-install-id": "robomp-install",
-					"x-omp-hostname": "robomp-box",
-					"x-omp-app": "robomp",
+					"x-zeta-install-id": "robomp-install",
+					"x-zeta-hostname": "robomp-box",
+					"x-zeta-app": "robomp",
 				},
 				body: JSON.stringify({ modelId: "pi-native-usage", context: baseContext, stream: false }),
 			});

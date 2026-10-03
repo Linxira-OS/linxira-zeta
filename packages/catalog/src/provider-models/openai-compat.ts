@@ -1443,12 +1443,13 @@ export function novitaModelManagerOptions(
 export const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai";
 /**
  * `filter=with_meta` attaches per-model `metadata` (limits, pricing, tags);
- * `sort_by=zeta` asks DeepInfra to return models in zeta-priority order
+ * `sort_by=omp` asks DeepInfra to return models in omp-priority order
+ * (upstream-negotiated API key; never rebrand this outbound value)
  * (earlier = better). The mapper does not stamp `priority` yet — see
  * `mapDeepinfraModel` — but the params are sent so discovery picks the
  * ordering up as soon as the server honors it.
  */
-const DEEPINFRA_MODELS_QUERY = "?filter=with_meta&sort_by=zeta";
+const DEEPINFRA_MODELS_QUERY = "?filter=with_meta&sort_by=omp";
 const DEEPINFRA_EFFORTS = [Effort.Low, Effort.Medium, Effort.High] as const;
 
 /** DeepInfra OpenAI-compatible discovery configuration. */
@@ -1558,7 +1559,7 @@ function mapDeepinfraModel(
  * Bespoke fetch instead of `fetchOpenAICompatibleModels`: the shared helper
  * cannot carry the `filter`/`sort_by` query params and re-sorts results by id,
  * which would destroy DeepInfra's priority ordering once the server honors
- * `sort_by=zeta`. Response order is preserved (dedupe keeps the first, i.e.
+ * `sort_by=omp`. Response order is preserved (dedupe keeps the first, i.e.
  * highest-priority, occurrence).
  */
 async function fetchDeepinfraModels(options: {

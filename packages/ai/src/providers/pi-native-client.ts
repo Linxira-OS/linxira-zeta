@@ -120,11 +120,11 @@ function buildHeaders(model: Model<Api>, apiKey: string | undefined): Record<str
 		Accept: "text/event-stream",
 		// Usage-attribution identity: the gateway reports this request's token
 		// burn to the broker under the ORIGINATING client, not the gateway host.
-		// Attribution-only — the gateway never forwards x-omp-* upstream. Header
+		// Attribution-only — the gateway never forwards x-zeta-* upstream. Header
 		// values must stay ISO-8859-1-safe, hence the hostname scrub.
-		"x-omp-install-id": getInstallId(),
-		"x-omp-hostname": os.hostname().replace(/[^\x20-\x7e]/g, "?"),
-		"x-omp-app": getAppName(),
+		"x-zeta-install-id": getInstallId(),
+		"x-zeta-hostname": os.hostname().replace(/[^\x20-\x7e]/g, "?"),
+		"x-zeta-app": getAppName(),
 		...model.headers,
 	};
 	if (apiKey && !headers.Authorization) {
