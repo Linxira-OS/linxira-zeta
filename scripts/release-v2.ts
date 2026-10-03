@@ -260,7 +260,9 @@ async function findPushRunId(sha: string): Promise<string | null> {
  * `gh run watch <id> --exit-status`. True only on a green run.
  */
 async function waitForBumpCommitCI(sha: string): Promise<boolean> {
-	console.log(`Waiting for CI on bump commit ${sha} (poll ${CI_WAIT_POLL_MS / 1000}s, max ${CI_WAIT_TIMEOUT_MS / 60_000}min)...`);
+	console.log(
+		`Waiting for CI on bump commit ${sha} (poll ${CI_WAIT_POLL_MS / 1000}s, max ${CI_WAIT_TIMEOUT_MS / 60_000}min)...`,
+	);
 	const deadline = Date.now() + CI_WAIT_TIMEOUT_MS;
 
 	let runId: string | null = null;
@@ -272,16 +274,20 @@ async function waitForBumpCommitCI(sha: string): Promise<boolean> {
 		await Bun.sleep(CI_WAIT_POLL_MS);
 	}
 	// `gh run watch` needs the URL for the link anyway; resolve once here:
-	const origin = (await git(["remote", "get-url", "origin"]).text()).trim()
+	const origin = (await git(["remote", "get-url", "origin"]).text())
+		.trim()
 		.replace(/^git@github\.com:/, "https://github.com/")
 		.replace(/\.git$/, "");
 	console.log(`  Run: ${origin}/actions/runs/${runId}`);
 
-	const proc = Bun.spawn(["gh", "run", "watch", runId, "--exit-status", "--interval", String(CI_WAIT_POLL_MS / 1000)], {
-		stdin: "ignore",
-		stdout: "inherit",
-		stderr: "inherit",
-	});
+	const proc = Bun.spawn(
+		["gh", "run", "watch", runId, "--exit-status", "--interval", String(CI_WAIT_POLL_MS / 1000)],
+		{
+			stdin: "ignore",
+			stdout: "inherit",
+			stderr: "inherit",
+		},
+	);
 	const timer = setTimeout(() => {
 		console.error("\nTimed out after 90 minutes waiting for the push run.");
 		proc.kill();
