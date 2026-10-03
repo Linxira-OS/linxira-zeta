@@ -200,6 +200,40 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问清理陈旧结果",
 		description: "每次审阅前，把顾问较早审阅的 read/grep/glob 输出替换为简短占位符。最新一次审阅保留。",
 	},
+	"advisor.reviewMode": {
+		label: "顾问审阅模式",
+		description:
+			"没有 WATCHDOG.yml 名册时的默认顾问节奏。turn 在每个主要回合后审阅；agent-end 仅在最终产出时审阅。",
+	},
+	"advisor.reviewMode::turn": {
+		label: "每个回合",
+		description: "审阅每个主要更新（工具调用轮次）。",
+	},
+	"advisor.reviewMode::agent-end": {
+		label: "智能体结束时",
+		description: "仅在最终产出时审阅（每次运行一次）。",
+	},
+	"advisor.reviewInterval": {
+		label: "顾问审阅间隔",
+		description:
+			"没有 WATCHDOG.yml 名册时的默认顾问节奏：每 N 个符合条件的主要更新审阅一次。1 表示每次更新。被跳过的更新会随下一次计划审阅一并发送。",
+	},
+	"advisor.reviewInterval::1": {
+		label: "每个符合条件的更新",
+		description: "默认。",
+	},
+	"advisor.reviewInterval::2": {
+		label: "每 2 次",
+	},
+	"advisor.reviewInterval::3": {
+		label: "每 3 次",
+	},
+	"advisor.reviewInterval::5": {
+		label: "每 5 次",
+	},
+	"advisor.reviewInterval::10": {
+		label: "每 10 次",
+	},
 
 	"git.enabled": {
 		label: "启用 Git 集成",
@@ -294,6 +328,22 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tools.artifactHeadBytes": {
 		label: "工件头部大小（KB）",
 		description: "输出溢出到工件时，除尾部外保留在头部内联的内容量（中间省略）。0 表示禁用——仅保留尾部。",
+	},
+	"tools.artifactMaxBytes": {
+		label: "工件文件上限（MB）",
+		description: "流式工具输出（bash、python、js eval）保存的工件文件大小上限。较大输出保留开头（至多 3 MB）与最近尾部，中间以截断提示衔接。0 = 不限量。",
+		options: [
+			{ value: "0", label: "不限量", description: "保存完整输出" },
+			{ value: "4", label: "4 MB" },
+			{ value: "16", label: "16 MB", description: "默认" },
+			{ value: "64", label: "64 MB" },
+			{ value: "256", label: "256 MB" },
+			{ value: "1024", label: "1 GB" },
+		],
+	},
+	"ratchet.enabled": {
+		label: "棘轮递进（Ratchet）",
+		description: "启用 ratchet eval/hillclimb 预奏环境；/ratchet 可为当前会话开启",
 	},
 	"tools.outputMaxColumns": {
 		label: "输出列数上限",
@@ -420,6 +470,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"display.smoothStreaming": {
 		label: "平滑流式输出",
 		description: "在分块到达时平滑地显示助手文本和流式工具输入",
+	},
+	"display.subagentLivePreview": {
+		label: "子智能体实时预览",
+		description: "在每个固定的子智能体行下方显示其当前（或最近一次）工具调用",
 	},
 	"display.hideToolActivity": {
 		label: "隐藏工具活动",

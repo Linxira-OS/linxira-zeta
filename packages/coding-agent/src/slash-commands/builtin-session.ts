@@ -1,4 +1,5 @@
 import { clearSubmittedText } from "./helpers/draft";
+import { M } from "../i18n";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { AgentSession } from "../session/agent-session";
@@ -326,7 +327,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: "Show async background jobs status",
 		acpDescription: "Show background jobs",
 		acpInputHint: "[full]",
-		subcommands: [{ name: "full", description: "Show full, untruncated command lines" }],
+		subcommands: [{ name: "full", description: () => M.cmdJobsFull }],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });

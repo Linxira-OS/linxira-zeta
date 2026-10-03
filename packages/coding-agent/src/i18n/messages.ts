@@ -2125,6 +2125,13 @@ export interface Messages {
 	cmdSessionDelete: string;
 	cmdSessionPin: string;
 	cmdJobs: string;
+	cmdJobsFull: string;
+	cmdRatchet: string;
+	cmdModelpreset: string;
+	cmdModelpresetList: string;
+	cmdModelpresetSave: string;
+	cmdModelpresetSwitch: string;
+	cmdModelpresetDelete: string;
 	cmdUsage: string;
 	cmdUsageReset: string;
 	cmdStats: string;

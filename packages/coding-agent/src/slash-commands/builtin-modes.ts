@@ -841,7 +841,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "ratchet",
 		icon: "loop",
-		description: "Build (or reuse) an eval for an LLM flow, then hillclimb it unattended",
+		description: () => M.cmdRatchet,
 		inlineHint: "[flow and goal]",
 		allowArgs: true,
 		handle: (command, runtime) => {
@@ -926,15 +926,15 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "modelpreset",
 		icon: "model",
-		description: "Save and switch model presets (role models + thinking level)",
+		description: () => M.cmdModelpreset,
 		acpDescription: "Manage model presets",
 		acpInputHint: "[list|save|switch|delete] [name]",
 		inlineHint: "[save|switch|delete|list] [name]",
 		subcommands: [
-			{ name: "list", description: "List saved presets" },
-			{ name: "save", description: "Save the current role models and thinking level", usage: "<name>" },
-			{ name: "switch", description: "Apply a saved preset", usage: "<name>" },
-			{ name: "delete", description: "Delete a saved preset", usage: "<name>" },
+			{ name: "list", description: () => M.cmdModelpresetList },
+			{ name: "save", description: () => M.cmdModelpresetSave, usage: "<name>" },
+			{ name: "switch", description: () => M.cmdModelpresetSwitch, usage: "<name>" },
+			{ name: "delete", description: () => M.cmdModelpresetDelete, usage: "<name>" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
