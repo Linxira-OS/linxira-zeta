@@ -84,6 +84,7 @@ interface Props {
   modelNames?: Record<string, string>;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
   entryId?: string;
   onFork?: (entryId: string) => void;
   forking?: boolean;
@@ -156,6 +157,7 @@ export const MessageView = memo(
     modelNames,
     cwd,
     onOpenFile,
+    onOpenFileContextMenu,
     entryId,
     onFork,
     forking,
@@ -173,6 +175,7 @@ export const MessageView = memo(
           message={message as UserMessage}
           cwd={cwd}
           onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
           entryId={entryId}
           onFork={onFork}
           forking={forking}
@@ -191,6 +194,7 @@ export const MessageView = memo(
           modelNames={modelNames}
           cwd={cwd}
           onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
           showTimestamp={showTimestamp}
           prevTimestamp={prevTimestamp}
           sessionId={sessionId}
@@ -212,6 +216,7 @@ export const MessageView = memo(
           message={message as CustomMessage}
           cwd={cwd}
           onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
         />
       );
     }
@@ -237,6 +242,7 @@ export const MessageView = memo(
       prev.modelNames === next.modelNames &&
       prev.cwd === next.cwd &&
       prev.onOpenFile === next.onOpenFile &&
+      prev.onOpenFileContextMenu === next.onOpenFileContextMenu &&
       prev.entryId === next.entryId &&
       prev.onFork === next.onFork &&
       prev.forking === next.forking &&
@@ -255,6 +261,7 @@ function UserMessageView({
   message,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
   entryId,
   onFork,
   forking,
@@ -265,6 +272,7 @@ function UserMessageView({
   message: UserMessage;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
   entryId?: string;
   onFork?: (entryId: string) => void;
   forking?: boolean;
@@ -384,12 +392,14 @@ function UserMessageView({
                 content={content}
                 cwd={cwd}
                 onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
               />
             ) : (
               <MarkdownBody
                 className="markdown-user-message"
                 cwd={cwd}
                 onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
               >
                 {content}
               </MarkdownBody>
@@ -607,10 +617,12 @@ function UserMessageWithRainbow({
   content,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
 }: {
   content: string;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }) {
   const lines = content.split("\n");
   const nodes: ReactNode[] = [];
@@ -624,6 +636,7 @@ function UserMessageWithRainbow({
         className="markdown-user-message"
         cwd={cwd}
         onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
       >
         {plain.join("\n")}
       </MarkdownBody>,
@@ -658,6 +671,7 @@ function AssistantMessageView({
   modelNames,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
   showTimestamp,
   prevTimestamp,
   sessionId,
@@ -670,6 +684,7 @@ function AssistantMessageView({
   modelNames?: Record<string, string>;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
   showTimestamp?: boolean;
   prevTimestamp?: number;
   sessionId?: string;
@@ -980,6 +995,7 @@ function AssistantMessageView({
             toolCallDurations={toolCallDurations}
             cwd={cwd}
             onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
             sessionId={sessionId}
             entryId={entryId}
             blockIndex={originalIndex}
@@ -1272,6 +1288,7 @@ function BlockView({
   toolCallDurations,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
   sessionId,
   entryId,
   blockIndex,
@@ -1283,6 +1300,7 @@ function BlockView({
   toolCallDurations?: Map<string, number>;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
   sessionId?: string;
   entryId?: string;
   blockIndex: number;
@@ -1294,6 +1312,7 @@ function BlockView({
         isStreaming={isStreaming}
         cwd={cwd}
         onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
       />
     );
   }
@@ -1329,14 +1348,17 @@ function TextBlock({
   isStreaming,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
 }: {
   block: TextContent;
   isStreaming?: boolean;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }) {
   return (
-    <MarkdownBody isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile}>
+    <MarkdownBody isStreaming={isStreaming} cwd={cwd} onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}>
       {block.text}
     </MarkdownBody>
   );
@@ -2155,10 +2177,12 @@ function CustomMessageView({
   message,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
 }: {
   message: CustomMessage;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }) {
   const { t } = useI18n();
   const isHiddenDisplay = message.display === false;
@@ -2268,6 +2292,7 @@ function CustomMessageView({
                 className="markdown-custom-message"
                 cwd={cwd}
                 onOpenFile={onOpenFile}
+          onOpenFileContextMenu={onOpenFileContextMenu}
               >
                 {text}
               </MarkdownBody>

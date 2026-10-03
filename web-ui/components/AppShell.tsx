@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { installRemoteTokenFetch } from "@/lib/remote-token";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow, planTitleFromPath } from "./ChatWindow";
+import { TerminalView, type TerminalFileRequest } from "./TerminalView";
+import { FloatingMenu, type FloatingMenuItem } from "./sidebar/FloatingMenu";
 import { PluginsManager } from "./PluginsManager";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
@@ -193,9 +195,14 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
+	// Embedded terminal (spec §15): live session id survives pane close so the
+	// dock reattach; chip flow carries file/line/col for zeta-ide injection.
+	const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
+	const [terminalFileRequest, setTerminalFileRequest] = useState<TerminalFileRequest | null>(null);
+	const [fileChipMenu, setFileChipMenu] = useState<{ filePath: string; point: { x: number; y: number } } | null>(null);
 	const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
 	const rightPanelWidthRef = useRef(RIGHT_PANEL_FALLBACK_WIDTH);
 	const getResponsiveRightPanelWidth = useCallback(
@@ -781,6 +788,35 @@ function AppShellContent() {
 		},
 		[handleOpenFile, selectedSession?.id],
 	);
+
+	// 「在终端打开」 (spec U9): pop the terminal pane with a session that runs
+	// `zeta-ide <file>`; the gateway falls back to a plain shell when the
+	// zeta-ide binary is not on PATH.
+	const handleOpenFileInTerminal = useCallback((filePath: string) => {
+		setDockTool("terminal");
+		setTerminalFileRequest({ file: filePath, nonce: Date.now() });
+	}, []);
+
+	const handleFileChipContextMenu = useCallback((filePath: string, point: { x: number; y: number }) => {
+		setFileChipMenu({ filePath, point });
+	}, []);
+
+	const fileChipMenuItems = useMemo<Array<FloatingMenuItem>>(() => {
+		const chip = fileChipMenu;
+		if (!chip) return [];
+		return [
+			{
+				key: "open-file",
+				label: t("markdown.openFile"),
+				onSelect: () => handleOpenLinkedFile(chip.filePath),
+			},
+			{
+				key: "open-in-terminal",
+				label: t("markdown.openInTerminal"),
+				onSelect: () => handleOpenFileInTerminal(chip.filePath),
+			},
+		];
+	}, [fileChipMenu, handleOpenFileInTerminal, handleOpenLinkedFile, t]);
 
 	const handleCloseFileTab = useCallback(
 		(tabId: string) => {
@@ -2324,6 +2360,7 @@ function AppShellContent() {
 								onContextUsageChange={handleContextUsageChange}
 								onModelChange={handleModelChange}
 								onOpenFile={handleOpenLinkedFile}
+								onOpenFileContextMenu={handleFileChipContextMenu}
 							/>
 						) : initialCwdStatus === "validating" ? (
 							<div
@@ -2654,6 +2691,25 @@ function AppShellContent() {
 									]
 								: []),
 							{
+								id: "terminal",
+								label: t("dock.window.terminal"),
+								icon: (
+									<svg
+										width="16"
+										height="16"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<polyline points="4 17 10 11 4 5" />
+										<line x1="12" y1="19" x2="20" y2="19" />
+									</svg>
+								),
+							},
+							{
 								id: "plugins",
 								label: t("dock.window.plugins"),
 								icon: (
@@ -2767,7 +2823,9 @@ function AppShellContent() {
 										? t("dock.window.files")
 										: dockTool === "tracking"
 											? t("dock.window.tracking")
-											: t("dock.window.plugins")}
+											: dockTool === "terminal"
+												? t("dock.window.terminal")
+												: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2840,6 +2898,13 @@ function AppShellContent() {
 									thinkingLevel={modelInfo.thinkingLevel}
 									onClose={() => setDockTool(null)}
 								/>
+							) : dockTool === "terminal" ? (
+								<TerminalView
+									cwd={activeCwd ?? selectedSession?.cwd ?? null}
+									attachSessionId={terminalSessionId}
+									onSessionCreated={setTerminalSessionId}
+									openFileRequest={terminalFileRequest}
+								/>
 							) : dockTool === "tracking" ? (
 								<TrackingPanel cwd={activeCwd} />
 							) : dockTool === "plugins" ? (
@@ -2896,6 +2961,14 @@ function AppShellContent() {
 					</div>
 				</div>
 			</div>
+			{/* File-chip context menu (U9): 打开文件 / 在终端打开 */}
+			<FloatingMenu
+				open={fileChipMenu !== null}
+				point={fileChipMenu?.point ?? null}
+				onClose={() => setFileChipMenu(null)}
+				label={t("markdown.openFileMenu")}
+				items={fileChipMenuItems}
+			/>
 			<CommandPalette
 				open={paletteOpen}
 				onOpenChange={setPaletteOpen}

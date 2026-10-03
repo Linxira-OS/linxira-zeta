@@ -18,6 +18,8 @@ interface MarkdownBodyProps {
   isStreaming?: boolean;
   cwd?: string;
   onOpenFile?: (filePath: string) => void;
+  /** Right-click on a local file chip: 「打开文件」/「在终端打开」 menu (U9). */
+  onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }
 
 export function MarkdownBody({
@@ -26,6 +28,7 @@ export function MarkdownBody({
   isStreaming,
   cwd,
   onOpenFile,
+  onOpenFileContextMenu,
 }: MarkdownBodyProps) {
   const normalizedMarkdown = useMemo(
     () => normalizeDisplayMath(children),
@@ -81,8 +84,14 @@ export function MarkdownBody({
           openFile(filePath);
         };
 
+        const handleContextMenu = (event: MouseEvent<HTMLAnchorElement>) => {
+          if (!onOpenFileContextMenu) return;
+          event.preventDefault();
+          onOpenFileContextMenu(filePath, { x: event.clientX, y: event.clientY });
+        };
+
         return (
-          <a href={href} {...props} onClick={handleClick}>
+          <a href={href} {...props} onClick={handleClick} onContextMenu={handleContextMenu}>
             {children}
           </a>
         );
@@ -106,7 +115,7 @@ export function MarkdownBody({
         );
       },
     }),
-    [cwd, isStreaming, onOpenFile],
+    [cwd, isStreaming, onOpenFile, onOpenFileContextMenu],
   );
 
   return (
