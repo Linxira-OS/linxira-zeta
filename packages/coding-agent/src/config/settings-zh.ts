@@ -202,8 +202,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"advisor.reviewMode": {
 		label: "顾问审阅模式",
-		description:
-			"没有 WATCHDOG.yml 名册时的默认顾问节奏。turn 在每个主要回合后审阅；agent-end 仅在最终产出时审阅。",
+		description: "没有 WATCHDOG.yml 名册时的默认顾问节奏。turn 在每个主要回合后审阅；agent-end 仅在最终产出时审阅。",
 	},
 	"advisor.reviewMode::turn": {
 		label: "每个回合",
@@ -331,15 +330,8 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"tools.artifactMaxBytes": {
 		label: "工件文件上限（MB）",
-		description: "流式工具输出（bash、python、js eval）保存的工件文件大小上限。较大输出保留开头（至多 3 MB）与最近尾部，中间以截断提示衔接。0 = 不限量。",
-		options: [
-			{ value: "0", label: "不限量", description: "保存完整输出" },
-			{ value: "4", label: "4 MB" },
-			{ value: "16", label: "16 MB", description: "默认" },
-			{ value: "64", label: "64 MB" },
-			{ value: "256", label: "256 MB" },
-			{ value: "1024", label: "1 GB" },
-		],
+		description:
+			"流式工具输出（bash、python、js eval）保存的工件文件大小上限。较大输出保留开头（至多 3 MB）与最近尾部，中间以截断提示衔接。0 = 不限量。",
 	},
 	"ratchet.enabled": {
 		label: "棘轮递进（Ratchet）",
@@ -1595,6 +1587,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "待办自动清除延迟",
 		description: "已完成或放弃的待办从待办组件中移除前的延迟",
 	},
+	"task.completionProbeMs": {
+		label: "子代理完成度探测",
+		description:
+			"每隔多少毫秒（ms）通过类似 /btw 的缓存侧向请求询问一个正在工作的子代理，估算其任务完成度。该估算显示在等待与任务视图中子代理旁边。0 表示禁用。",
+	},
 	"task.showResolvedModelBadge": {
 		label: "显示已解析模型徽标",
 		description: "在任务组件状态栏中显示每个子代理实际使用的模型 ID",
@@ -2110,6 +2107,39 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"task.isolation.merge": {
 		label: "隔离合并策略",
 		description: "隔离任务变更的整合方式（应用补丁或合并分支）",
+	},
+	"tools.artifactMaxBytes::0": {
+		label: "不限量",
+		description: "保存完整输出",
+	},
+	"tools.artifactMaxBytes::4": {
+		label: "4 MB",
+	},
+	"tools.artifactMaxBytes::16": {
+		label: "16 MB",
+		description: "默认",
+	},
+	"tools.artifactMaxBytes::64": {
+		label: "64 MB",
+	},
+	"tools.artifactMaxBytes::256": {
+		label: "256 MB",
+	},
+	"tools.artifactMaxBytes::1024": {
+		label: "1 GB",
+	},
+	"task.completionProbeMs::0": {
+		label: "禁用",
+	},
+	"task.completionProbeMs::120000": {
+		label: "2 分钟",
+		description: "默认",
+	},
+	"task.completionProbeMs::300000": {
+		label: "5 分钟",
+	},
+	"task.completionProbeMs::600000": {
+		label: "10 分钟",
 	},
 	"worktree.clone": {
 		label: "将检出克隆到工作树",
