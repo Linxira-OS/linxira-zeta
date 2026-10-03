@@ -189,11 +189,13 @@ pub struct TabLayout {
 	pub plus: (u16, u16),
 }
 
+#[cfg(test)]
 pub fn tab_layout(width: u16, count: usize, active: usize) -> TabLayout {
 	tab_layout_named(width, count, active, &default_tab_names(count))
 }
 
 /// `1:tab`, `2:tab` — the generic names when a caller has no per-tab titles.
+#[cfg(test)]
 fn default_tab_names(count: usize) -> Vec<String> {
 	(1..=count).map(|idx| format!("{idx}:tab")).collect()
 }

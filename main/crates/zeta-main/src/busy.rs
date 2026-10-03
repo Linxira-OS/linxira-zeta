@@ -11,7 +11,7 @@ use sysinfo::{Pid, ProcessesToUpdate, System};
 fn busy_from_parents(parent_pids: &[Option<u32>], shell_pid: Option<u32>) -> bool {
 	match shell_pid {
 		None => false,
-		Some(pid) => parent_pids.iter().any(|parent| *parent == Some(pid)),
+		Some(pid) => parent_pids.contains(&Some(pid)),
 	}
 }
 

@@ -203,12 +203,11 @@ fn rows_connected(screen: &TerminalScreen, upper: usize, lower: usize, id: u32) 
     };
     let upper_ends_linked = upper_line
         .iter()
-        .rposition(|cell| cell.link == Some(id) && cell.ch != ' ')
-        .is_some();
+        .rev()
+        .any(|cell| cell.link == Some(id) && cell.ch != ' ');
     let lower_starts_linked = lower_line
         .iter()
-        .position(|cell| cell.link == Some(id) && cell.ch != ' ')
-        .is_some();
+        .any(|cell| cell.link == Some(id) && cell.ch != ' ');
     upper_ends_linked && lower_starts_linked
 }
 

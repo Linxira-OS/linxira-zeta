@@ -49,8 +49,8 @@ fn main() -> ExitCode {
 		None => {},
 	}
 	// Unified nesting guard: every path that reaches the workspace below
-	// refuses to run inside another workbench. (`zeta ide` and friends never
-	// get here — they hand off above.)
+	// refuses to run inside another workbench. (The suite hand-offs —
+	// zetacode/zetaide/zetaeditor — never get here; they exec above.)
 	if is_nested_workbench(std::env::var("ZETA_WORKBENCH").ok().as_deref()) {
 		eprintln!("zetawork: cannot run inside another zetawork (nesting is not supported)");
 		return ExitCode::from(2);
@@ -112,9 +112,9 @@ fn run_suite_tool(tool: Option<&'static suite::SuiteTool>, passthrough: &[String
 
 /// Whether this process would nest a workbench inside another one. Every
 /// workbench pane PTY carries `ZETA_WORKBENCH=1` (the same probe the agent
-/// TUI reads to light up hyperlinks), so a `zeta work` typed into a terminal
-/// pane would spawn a workbench inside a workbench — two terminal simulators
-/// fighting over one output stream. Pure so both states stay testable.
+/// TUI reads to light up hyperlinks), so a bare `zetawork` typed into a
+/// terminal pane would spawn a workbench inside a workbench — two terminal
+/// simulators fighting over one output stream. Pure so both states stay testable.
 fn is_nested_workbench(zeta_workbench: Option<&str>) -> bool {
 	zeta_workbench == Some("1")
 }

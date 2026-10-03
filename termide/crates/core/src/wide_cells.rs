@@ -20,6 +20,11 @@ use unicode_width::UnicodeWidthStr;
 /// host terminal keeps such emoji narrow (see
 /// [`unicode_width::variation_selectors_change_width`]): then no cell of
 /// theirs is two columns wide and the diff has nothing to work around.
+///
+/// `Cell::skip` is deprecated in ratatui 0.30.2 (the main workspace resolves
+/// it) but the replacement API does not exist in 0.30.0 (termide standalone);
+/// allowed here until the version lines converge.
+#[allow(deprecated)]
 pub fn mark_variation_selector_tails(buf: &mut Buffer) {
     if !unicode_width::variation_selectors_change_width() {
         return;

@@ -472,7 +472,14 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		await $`sd '"@linxiraos/${mainLeaf}": "[^"]+"' ${`"@linxiraos/${mainLeaf}": "${version}"`} main/npm/main/package.json`;
 	}
 
-	// Step 3: desktop shell (package.json + package-lock.json root version).
+	// Step 2f-4: the main workbench is a separate Cargo workspace whose
+	// version stamps the published workbench binary (`zeta --version`) — it
+	// rides the same release line (mirror of Step 2b/2d for main/).
+	console.log("Updating main workbench Cargo workspace...");
+	await $`sd '^ *version = "[^"]+"' ${`version = "${version}"`} main/Cargo.toml`;
+	const mainCargoLock = await Bun.file("main/Cargo.lock").text();
+	const updatedMainLock = mainCargoLock.replace(/^(name = "zeta-main"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
+	await Bun.write("main/Cargo.lock", updatedMainLock);
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");
