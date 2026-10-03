@@ -669,9 +669,11 @@ export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
 }
 
-/** Plugin lock file (~/.zeta/plugins/zeta-plugins.lock.json). */
+/** Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json). The on-disk
+ * filename stays upstream-compatible so existing installs keep their runtime
+ * state (enabled features, versions) across upgrades — never rebrand it. */
 export function getPluginsLockfile(home?: string): string {
-	return path.join(getPluginsDir(home), "zeta-plugins.lock.json");
+	return path.join(getPluginsDir(home), "omp-plugins.lock.json");
 }
 
 /**

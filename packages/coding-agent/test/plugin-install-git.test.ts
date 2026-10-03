@@ -73,7 +73,7 @@ describe("PluginManager.install with git sources", () => {
 		vi.spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		vi.spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(pluginsNodeModules);
 		vi.spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(pluginsPkgJson);
-		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "zeta-plugins.lock.json"));
+		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "omp-plugins.lock.json"));
 		vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tmpRoot);
 		vi.spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(tmpRoot, "plugin-overrides.json"));
 	});
@@ -558,7 +558,7 @@ describe("PluginManager.install with git sources", () => {
 		await fs.mkdir(seedDir, { recursive: true });
 		await Bun.write(path.join(seedDir, "package.json"), JSON.stringify({ name: "ida-mcp", version: "1.0.0" }));
 		await Bun.write(
-			path.join(tmpRoot, "zeta-plugins.lock.json"),
+			path.join(tmpRoot, "omp-plugins.lock.json"),
 			JSON.stringify({
 				plugins: { "ida-mcp": { version: "1.0.0", enabledFeatures: null, enabled: false } },
 				settings: {},
@@ -588,7 +588,7 @@ describe("PluginManager.install with git sources", () => {
 			["bun", "pm", "cache"],
 			["bun", "update", "ida-mcp"],
 		]);
-		const lock = await Bun.file(path.join(tmpRoot, "zeta-plugins.lock.json")).json();
+		const lock = await Bun.file(path.join(tmpRoot, "omp-plugins.lock.json")).json();
 		expect(lock.plugins["ida-mcp"]).toEqual({ version: "2.0.0", enabledFeatures: null, enabled: false });
 	});
 

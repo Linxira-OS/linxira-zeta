@@ -136,7 +136,7 @@ export interface InstalledPlugin {
 }
 
 // =============================================================================
-// Runtime Config Types (stored in zeta-plugins.lock.json)
+// Runtime Config Types (stored in omp-plugins.lock.json)
 // =============================================================================
 
 /**
@@ -152,7 +152,7 @@ export interface PluginRuntimeState {
 }
 
 /**
- * Runtime configuration persisted to zeta-plugins.lock.json.
+ * Runtime configuration persisted to omp-plugins.lock.json.
  * Tracks plugin states and settings across sessions.
  */
 export interface PluginRuntimeConfig {
