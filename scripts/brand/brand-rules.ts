@@ -217,7 +217,6 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
 	},
-<<<<<<< HEAD
 	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
 	// The stats client shipped with upstream branding since the fork (never
 	// overlayed) and regressed visually every release merge. These pin the
