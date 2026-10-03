@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- v18.4.11 集成：dirs.ts XDG 解析增量（skill-descriptions/predict/global daemon）+ 插件存储契约（`pi.storage` 三目录、`adoptLegacyFileOnce` 公共化）；插件锁文件名保持上游兼容。
+
 ## [1.1.23] - 2026-10-01
 ## [1.1.22] - 2026-09-30
 ## [1.1.18] - 2026-09-22

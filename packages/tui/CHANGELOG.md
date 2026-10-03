@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- 语义角色清扫补全（omp.*→zeta.*，106 文件）；agent-hub 空态提示还原 `omp-dev`；notifications OSC 99 对齐 zeta app id。
+
 ## [1.1.23] - 2026-10-01
 
 ## [1.1.22] - 2026-09-30

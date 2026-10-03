@@ -1,5 +1,34 @@
 # Zeta 更新日志
 
+## 下一版本（Unreleased）
+
+### OMP 同步基线
+
+- v18.4.4 + v18.4.11（双 tag 一轮直上集成，682+174 commits 全解；谱系 gate 精确通过；账本见 `document/upstream-sync.md` v18.4.11 条目）。
+
+### 新增
+
+- **Web UI 左栏大修（发布硬门）**：项目分组 IA（分组头 hover 浮现操作簇）、草稿直开（＋入口直接进空态 hero，工作区/分支选择降级为输入卡上方 chip，解析不到时保底默认工作区 `~/.zeta/workspace`）、空会话折叠清理、设置面板控件现代化（开关三态/destructive）、Open split-button（终端解析链 pwsh→Git Bash→powershell + `zeta-ide`/`zeta-editor` 目标）、composer context 用量指示与 Alt+T thinking 循环。
+- **OMP 模型配置只读兼容**：上游 `~/.omp` 已配模型/key 自动映射进模型列表（「来自 OMP」徽标），key 内存复用不落盘，Zeta 本地配置优先。
+- **插件存储契约**：`pi.storage`（`~/.zeta/plugins/{data,cache,state}/<id>/`）注入每个扩展 factory；`adoptLegacyFileOnce` 一次性迁移原语公共化。
+- **skills 嵌套路由树发现**（限深 3 层，linxira-skills 三级树叶子全部可见）；`skills.enableOfficial` 开关接线；npm 源码安装补齐 official skills。
+- **zeta-ide 位置参数**：`zeta-ide file[:line[:col]]` 与目录参数（对标 `code`；TTT 侧原有能力不变）。
+- **合并驱动**：`@mariozechner/*` 原作者 scope 纳入 package.json 合并映射（brand-rules 加守卫）。
+- **zh 本地化回填**：v18.4.11 新设置面（工件上限/棘轮递进/子代理完成度探测/goal 斜杠命令等）。
+
+### 修复
+
+- **CLI 指令面审计**：会话退出提示与全部示例改用 `zeta-c`（此前打裸 `zeta` 落入工作台静默无动作）；`--resume` 尾斜杠/`.jsonl` 粘贴噪音归一为 id 解析，显式路径缺失报错而非静默铸造空会话；`update` 不再触碰工作台 `zeta` shim，GitHub/mise 回退指向 Linxira-OS/linxira-zeta。
+- **teamagent（pi-messenger 1.1.3）**：crew 子进程改跑 zeta CLI（此前 spawn 上游 pi）；user 角色目录修正为真实发现目录；状态从 `~/.pi` 迁 `~/.zeta`；项目级 crew 改 opt-in。
+- **插件锁文件名还原** `omp-plugins.lock.json`（sweep 误改 `zeta-plugins.lock.json` 导致项目级插件解析静默丢功能——文件名非品牌面）。
+- **虚拟模块 specifier 统一** `zeta-legacy-pi-modules`（生产/消费两侧，修复 install smoke bundle 失败）。
+- **zh 本地化契约**：v18.4.11 新设置全部含 CJK 条目；`parseFlag`/`$env` 等测试桩补齐。
+- **第三方协议头部**：THIRD-PARTY-NOTICES 标题与导语改 Zeta（vendored 法律文本与上游署名行原样保留）。
+
+### 移除
+
+- 无。
+
 ## 1.1.23（2026-10-01）
 
 ### OMP 同步基线

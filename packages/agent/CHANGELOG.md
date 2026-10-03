@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+
+- 上游 v18.4.11 集成：goal 命令与 Zeta goal/vibe mode 共存（GoalRuntime 共享）；跨面 token 对（`__omp_worker_*`→`__zeta_worker_*`）双端清扫。
 ## [1.1.23] - 2026-10-01
 ## [1.1.22] - 2026-09-30
 ## [14.9.5] - 2026-05-12
