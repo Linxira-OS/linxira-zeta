@@ -80,7 +80,7 @@
 
 ### 修复
 
-- 无。
+- **桌面版选择工作路径闪退加固**：1.1.25/26 新 Open 流在部分 Windows 环境下点选目录弹窗（原生弹窗切换/新建文件夹/进入目录）即整窗消失且无任何日志。分层加固：web-ui 增加应用级 `ErrorBoundary`（此前任何渲染异常都会整树白屏，现提供带错误信息的一键恢复页，en/zh 文案）；桌面壳 `render-process-gone` 由仅记日志改为限次自动重载（GPU/合成器闪崩自愈），补 `child-process-gone` 日志（此前 GPU 崩溃完全不可见）；`zeta serve` 子进程意外退出不再立即 `app.quit()` 陪葬，改为一次监督重启（渲染层已有连接拒绝自动重试，窗口随之自愈），策略逻辑抽到 `desktop/src/service-supervision.ts`；`pi:select-directory` 加固（defaultPath 仅接受已存在目录、dialog 锚定主窗口、异常吞掉并记日志返回 null、`createDirectory` 仅 macOS）。`/api/fs/directories` GET/POST 路由行为测试（真实临时目录：仅列目录/自然排序/跳过回收站/404/400/409/建盘校验）与 ErrorBoundary、监督策略测试入库。
 
 ### 移除
 
