@@ -40,7 +40,7 @@ const THREAD_STOPPED: &str = "native spelling thread stopped";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SpellingRange {
 	/// Inclusive UTF-16 start offset.
-	pub start: u32,
+	pub start:  u32,
 	/// UTF-16 length of the span.
 	pub length: u32,
 }
