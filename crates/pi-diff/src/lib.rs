@@ -868,11 +868,20 @@ mod tests {
 	#[test]
 	fn line_diff_replaces_middle_line() {
 		assert_eq!(lines("a\nb\nc\n", "a\nx\nc\n"), vec![
+			("a\n".into(), false, false),
+			("b\n".into(), false, true),
+			("x\n".into(), true, false),
+			("c\n".into(), false, false),
+		]);
 	}
 
 	#[test]
 	fn line_diff_treats_missing_trailing_newline_as_distinct() {
 		assert_eq!(lines("a\nb", "a\nb\n"), vec![
+			("a\n".into(), false, false),
+			("b".into(), false, true),
+			("b\n".into(), true, false),
+		]);
 	}
 
 	#[test]
@@ -885,6 +894,8 @@ mod tests {
 			.into_iter()
 			.map(|change| Change {
 				value:   String::from_utf16(&change.value).unwrap(),
+				count:   change.count,
+				added:   change.added,
 				removed: change.removed,
 			})
 			.collect();
@@ -918,6 +929,12 @@ mod tests {
 			.map(|line| String::from_utf16(line).unwrap())
 			.collect();
 		assert_eq!(body, vec![
+			" a",
+			"-b",
+			"\\ No newline at end of file",
+			"+c",
+			"\\ No newline at end of file"
+		]);
 	}
 
 	#[test]
