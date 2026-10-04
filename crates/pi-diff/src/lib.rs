@@ -14,18 +14,18 @@ const LF: u16 = 0x000a;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Run {
 	/// Number of tokens in this run.
-	pub count: u32,
+	pub count:   u32,
 	/// True when this run exists only in the new input.
-	pub added: bool,
+	pub added:   bool,
 	/// True when this run exists only in the old input.
 	pub removed: bool,
 }
 
 struct Component {
-	count: usize,
-	added: bool,
+	count:   usize,
+	added:   bool,
 	removed: bool,
-	prev: Option<Rc<Self>>,
+	prev:    Option<Rc<Self>>,
 }
 
 /// Frontier state for one diagonal: furthest old-position reached plus the
@@ -53,10 +53,10 @@ fn extract_common(path: &mut PathState, new: &[u32], old: &[u32], diagonal: isiz
 	}
 	if common > 0 {
 		path.last = Some(Rc::new(Component {
-			count: common,
-			added: false,
+			count:   common,
+			added:   false,
 			removed: false,
-			prev: path.last.take(),
+			prev:    path.last.take(),
 		}));
 	}
 	path.old_pos = old_pos;
@@ -79,7 +79,7 @@ fn add_to_path(path: &PathState, added: bool, removed: bool, old_pos_inc: isize)
 		},
 		_ => PathState {
 			old_pos: path.old_pos + old_pos_inc,
-			last: Some(Rc::new(Component { count: 1, added, removed, prev: path.last.clone() })),
+			last:    Some(Rc::new(Component { count: 1, added, removed, prev: path.last.clone() })),
 		},
 	}
 }
@@ -90,8 +90,8 @@ fn build_runs(last: Option<Rc<Component>>) -> Vec<Run> {
 	let mut cursor = last.as_deref();
 	while let Some(component) = cursor {
 		runs.push(Run {
-			count: component.count as u32,
-			added: component.added,
+			count:   component.count as u32,
+			added:   component.added,
 			removed: component.removed,
 		});
 		cursor = component.prev.as_deref();
@@ -208,11 +208,11 @@ pub fn intern<T: Eq + Hash + Copy>(old: &[T], new: &[T]) -> (Vec<u32>, Vec<u32>)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Change<V> {
 	/// Joined token value for this run.
-	pub value: V,
+	pub value:   V,
 	/// Number of tokens in this run.
-	pub count: u32,
+	pub count:   u32,
 	/// True when this run exists only in the new input.
-	pub added: bool,
+	pub added:   bool,
 	/// True when this run exists only in the old input.
 	pub removed: bool,
 }
@@ -943,15 +943,12 @@ mod tests {
 			.into_iter()
 			.map(|change| (String::from_utf16(&change.value).unwrap(), change.added, change.removed))
 			.collect();
-		assert_eq!(
-			shaped,
-			vec![
-				("foo ".into(), false, false),
-				("bar".into(), false, true),
-				("qux".into(), true, false),
-				(" baz".into(), false, false),
-			]
-		);
+		assert_eq!(shaped, vec![
+			("foo ".into(), false, false),
+			("bar".into(), false, true),
+			("qux".into(), true, false),
+			(" baz".into(), false, false),
+		]);
 	}
 
 	#[test]
@@ -985,13 +982,10 @@ mod tests {
 			.into_iter()
 			.map(|change| (change.value, change.added, change.removed))
 			.collect();
-		assert_eq!(
-			shaped,
-			vec![
-				(vec![0xd800], false, false),
-				(vec![0xd83d, 0xde80], false, true),
-				(vec![0x78], true, false),
-			]
-		);
+		assert_eq!(shaped, vec![
+			(vec![0xd800], false, false),
+			(vec![0xd83d, 0xde80], false, true),
+			(vec![0x78], true, false),
+		]);
 	}
 }
