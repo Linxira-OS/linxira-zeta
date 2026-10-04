@@ -14,6 +14,7 @@ import { setRemoteToken } from "@/lib/remote-token";
 import {
 	fetchSettings,
 	fetchWebConfig,
+	syncGatewayState,
 	settingsLang,
 	updateSetting,
 	updateWebConfig,
@@ -1594,7 +1595,7 @@ export function useSettingsData(enabled = true): SettingsDataState {
 		entriesFor,
 		groupsFor: (tab: string) => data?.groups[tab] ?? [],
 		commit,
-		reload: () => void load(lang),
+		reload: () => void syncGatewayState().then(() => load(lang)),
 		renderRow,
 	};
 }

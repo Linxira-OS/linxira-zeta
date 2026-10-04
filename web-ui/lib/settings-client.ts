@@ -57,6 +57,16 @@ export async function fetchSettings(lang: "en" | "zh"): Promise<SettingsResponse
   return (await res.json()) as SettingsResponse;
 }
 
+/**
+ * Ask the gateway to re-read settings/web.yml plus its cached credential
+ * pool and model registry, so login/logout/key changes made by other
+ * processes (CLI, another window) become visible to this client's re-fetch.
+ * Best-effort: a failed sync must not block the client-side reload.
+ */
+export async function syncGatewayState(): Promise<void> {
+  await fetch("/api/settings/reload", { method: "POST" }).catch(() => {});
+}
+
 /** Persist a single setting value; throws Error with the server message on failure. */
 export async function updateSetting(path: string, value: unknown): Promise<void> {
   const res = await fetch("/api/settings", {
