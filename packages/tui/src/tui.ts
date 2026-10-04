@@ -860,6 +860,12 @@ export class TUI extends Container {
 	#preparedLineMemo = new Map<string, PreparedLine>();
 	#preparedLineMemoSpare = new Map<string, PreparedLine>();
 	#previousFrameLength = 0;
+	// Rows a transiently grown frame scrolled off the top without any history
+	// transaction committing them (see #emitPlanFrame). The shrink that follows
+	// the transient chrome row out pulls exactly these rows back, restoring the
+	// pre-growth screen; any append, replay, reset, resize, or overlay frame
+	// zeroes the count — those scrolls are committed or superseded.
+	#transientScrollPushed = 0;
 	#previousWidth = 0;
 	#previousHeight = 0;
 	// Physical width of the last provider frame. Scrollback reflow follows the
@@ -3424,30 +3430,6 @@ export class TUI extends Container {
 				replayViewportRows = moved;
 			}
 		}
-		// A transiently grown frame (an editor suggestion row) must not scroll
-		// retained history off the top: scrolled rows cannot be pulled back, so
-		// the later shrink would park the frame one row high above a trailing
-		// blank instead of restoring the pre-growth screen. Clip the overflow
-		// from the head of the live tail instead — the rows stay live and return
-		// byte-for-byte once the transient chrome row leaves, which is exactly
-		// what scrollback would have done to them. History frames are exempt:
-		// an append's scroll is the designed commit path for retired rows, and a
-		// replay re-streams its ledger rows from row zero (the anchor is stale
-		// by definition until the reset below re-homes it). A composited
-		// inline overlay is exempt too: its window is padded to the full screen
-		// and its rows are placed against that geometry, so clipping the head
-		// would cut through the overlay itself.
-		const transientAnchorTop = Math.min(this.#providerViewportTop, Math.max(0, height - 1));
-		if (
-			historyRows.length === 0 &&
-			history?.kind !== "replay" &&
-			!this.#clearScrollbackOnNextRender &&
-			this.#getTopmostVisibleOverlay() === undefined &&
-			transientAnchorTop > 0
-		) {
-			const transientOverflow = transientAnchorTop + viewport.length - height;
-			if (transientOverflow > 0) viewport = viewport.slice(Math.min(transientOverflow, viewport.length));
-		}
 		// History first: it reuses the previous viewport's rows by content, and
 		// the viewport pass replaces that memo with its own rows.
 		const preparedHistory = this.#prepareLinesArray(historyRows, width);
@@ -3468,9 +3450,23 @@ export class TUI extends Container {
 		// screen. Appending K history rows moves the anchor down by K; the write
 		// scrolls only when history + viewport overflow the physical screen, and
 		// the rows that scroll off the top are exactly the oldest history rows.
+		//
+		// A frame that transiently grew (an editor suggestion row) scrolls the same
+		// way — the extra rows must become visible — but its push was never
+		// committed by a history transaction, so the shrink when the transient
+		// chrome row leaves pulls those rows back and restores the pre-growth
+		// anchor instead of parking the frame one row high above a trailing blank.
+		// Frames carrying a history transaction, a reset, an overlay, or a new
+		// geometry commit or supersede the scroll and track nothing.
 		const geometryStable = this.#hasEverRendered && this.#previousWidth === width && this.#previousHeight === height;
 		const startTop = destructiveReset ? 0 : Math.min(this.#providerViewportTop, Math.max(0, height - 1));
-		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows));
+		const transientFrame =
+			history === undefined && !destructiveReset && geometryStable && this.#getTopmostVisibleOverlay() === undefined;
+		let anchorPull = 0;
+		if (transientFrame && rows < this.#previousFrameLength) {
+			anchorPull = Math.min(Math.max(0, height - rows - startTop), this.#transientScrollPushed);
+		}
+		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows)) + anchorPull;
 		const pendingAltExit = this.#pendingAltExit;
 		let buffer = this.#paintBeginSequence + pendingAltExit;
 		const renewSync =
@@ -3523,6 +3519,7 @@ export class TUI extends Container {
 		if (destructiveReset) buffer += `${LINE_TERMINATOR}\x1b[H\x1b[2J\x1b[3J`;
 		for (const sequence of this.#imageBudget.takeTransmits()) append(sequence);
 		const diffable =
+			anchorPull === 0 &&
 			geometryStable &&
 			historyRows.length === 0 &&
 			startTop === newTop &&
@@ -3565,8 +3562,18 @@ export class TUI extends Container {
 			if (pushed > this.#providerViewportTop && this.#providerWindow.length > 0) {
 				buffer += this.#eraseBelowRow(this.#providerViewportTop, height);
 			}
-			buffer += `\x1b[${startTop + 1};1H`;
-			let screenRow = startTop;
+			// The un-committed push of a transiently grown frame, returned from
+			// scrollback: `CSI Ps + T` scrolls the grid down Ps rows filling the
+			// top from scrollback (kitty's SD extension; terminals without it
+			// ignore the sequence and keep today's shifted layout). The write
+			// below then lands on the restored anchor; its rows exactly fill the
+			// screen, so nothing scrolls further.
+			if (anchorPull > 0) buffer += `\x1b[${anchorPull}+T`;
+			// A history-carrying write starts at the anchor and lets any overflow
+			// scroll; a pulled write owns the whole restored region below it.
+			const writeTop = historyRows.length > 0 || anchorPull === 0 ? startTop : newTop;
+			buffer += `\x1b[${writeTop + 1};1H`;
+			let screenRow = writeTop;
 			for (let index = 0; index < preparedHistory.lines.length; index++) {
 				if (screenRow > startTop) buffer += "\n";
 				append(
@@ -3644,6 +3651,19 @@ export class TUI extends Container {
 		this.#providerWindow = mutablePreparedLines;
 		this.#providerPreparedRows = mutablePreparedRows;
 		this.#providerViewportTop = mutableTop;
+		// Track the un-committed scroll of a transiently grown frame so the
+		// matching shrink can pull exactly those rows back. Every committing or
+		// superseding frame zeroes the debt: history appends and replays own
+		// their scrolls, a reset wipes the ledger, a new geometry reflows it,
+		// and an overlay frame paints against full-screen padding.
+		if (transientFrame) {
+			const scrolledOff = Math.max(0, startTop + rows - height);
+			this.#transientScrollPushed =
+				Math.min(this.#transientScrollPushed + scrolledOff, Math.max(0, height - 1)) - anchorPull;
+			if (this.#transientScrollPushed < 0) this.#transientScrollPushed = 0;
+		} else {
+			this.#transientScrollPushed = 0;
+		}
 		this.#providerViewportPadTop = replayViewportRows - replayPrependedBlanks;
 		this.#previousWidth = width;
 		this.#previousHeight = height;
