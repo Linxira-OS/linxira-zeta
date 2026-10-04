@@ -2132,19 +2132,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tools.artifactMaxBytes::1024": {
 		label: "1 GB",
 	},
-	"task.completionProbeMs::0": {
-		label: "禁用",
-	},
-	"task.completionProbeMs::120000": {
-		label: "2 分钟",
-		description: "默认",
-	},
-	"task.completionProbeMs::300000": {
-		label: "5 分钟",
-	},
-	"task.completionProbeMs::600000": {
-		label: "10 分钟",
-	},
 	"worktree.clone": {
 		label: "将检出克隆到工作树",
 		description:
