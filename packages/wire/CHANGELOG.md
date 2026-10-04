@@ -3,13 +3,6 @@
 ## [Unreleased]
 
 ## [1.1.26] - 2026-10-03
-## [18.5.1] - 2026-10-03
-
-### Added
-
-- Added support for submitting explicit prompts to live editable composers without simulating keyboard input.
-
-## [18.4.11] - 2026-10-02
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
 

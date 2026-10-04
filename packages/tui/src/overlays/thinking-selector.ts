@@ -1,4 +1,6 @@
 import { AUTO_THINKING, type ConfiguredThinkingLevel, getConfiguredThinkingLevelMetadata } from "../thinking";
+import type { Effort } from "@linxiraos/pi-ai";
+import { tuiText } from "../i18n";
 import { type SelectItem, SelectList, type SgrMouseEvent } from "../index";
 import { getSelectListTheme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
@@ -19,7 +21,7 @@ export class ThinkingSelectorComponent extends OverlayPanel {
 		onSelect: (level: ConfiguredThinkingLevel) => void,
 		onCancel: () => void,
 	) {
-		super("Thinking Level", "omp.overlay.thinking");
+		super(tuiText("thinkingSelectorTitle", "Thinking Level"), "zeta.overlay.thinking");
 
 		const thinkingLevels: SelectItem[] = availableLevels.map(getConfiguredThinkingLevelMetadata);
 
@@ -68,5 +70,10 @@ export class ThinkingSelectorComponent extends OverlayPanel {
 
 	routeMouse(event: SgrMouseEvent, line: number, col: number): void {
 		routeSelectListMouseWithTopBorder(this.#selectList, event, line, col);
+	}
+
+	override render(width: number): readonly string[] {
+		this.title = tuiText("thinkingSelectorTitle", "Thinking Level");
+		return super.render(width);
 	}
 }

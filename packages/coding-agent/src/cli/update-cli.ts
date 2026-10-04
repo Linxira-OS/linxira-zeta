@@ -1,20 +1,20 @@
 /**
  * Update CLI command handler.
  *
- * Handles `omp update` to check for and install updates.
- * Uses the installer that owns the active omp executable when it can be detected.
+ * Handles `zeta-c update` to check for and install updates.
+ * Uses the installer that owns the active zeta-c executable when it can be detected.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
-import { withFileLock } from "@oh-my-pi/pi-utils/file-lock";
+import { $env, $which, APP_NAME, compareVersions, isEnoent, VERSION, CLI_BIN_NAME } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
 import { settings } from "../config/settings";
-import { theme } from "@oh-my-pi/pi-tui/theme";
+import { theme } from "@linxiraos/pi-tui/theme";
 import {
 	isTimeoutError,
 	isUnsupportedProxyError,
@@ -31,10 +31,10 @@ import {
 
 import { cfgUpdateChannel } from "../modes/settings";
 
-const REPO = "can1357/oh-my-pi";
-const PACKAGE = "@oh-my-pi/pi-coding-agent";
-const HOMEBREW_FORMULA = "can1357/tap/omp";
-const MISE_TOOL = "github:can1357/oh-my-pi";
+const REPO = "Linxira-OS/linxira-zeta";
+const PACKAGE = "@linxiraos/zeta";
+const HOMEBREW_FORMULA = "Linxira-OS/tap/zeta";
+const MISE_TOOL = "github:Linxira-OS/linxira-zeta";
 const NIX_STORE_DIR = "/nix/store";
 const GITHUB_API = "https://api.github.com";
 const RELEASE_METADATA_TIMEOUT_MS = 30_000;
@@ -46,11 +46,11 @@ const BINARY_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
  * disk; see {@link buildBunInstallArgs} for why this must be installed
  * explicitly rather than inherited as a transitive dependency.
  */
-const NATIVES_PACKAGE = "@oh-my-pi/pi-natives";
+const NATIVES_PACKAGE = "@linxiraos/pi-natives";
 
 /**
  * Platform tags the release pipeline publishes as
- * `@oh-my-pi/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
+ * `@linxiraos/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
  * `packages/natives/native/loader-state.js` and `LEAF_TARGETS` in
  * `packages/natives/scripts/gen-npm-packages.ts`; kept here as the local
  * source of truth so the update path stays free of cross-package imports.
@@ -156,18 +156,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse the `omp.dist` field from a published package manifest.
+ * Parse the release-dist field from a published package manifest.
  *
  * Forward-compatibility contract with future releases: a release that is not
  * installable as an npm package (e.g. a native rewrite) publishes
- * `"omp": { "dist": "binary" }` in its package.json. Any value other than
- * "npm" — including values this updater does not know yet — maps to "binary"
- * so already-deployed updaters never run a package-manager install against a
- * release that no longer supports it.
+ * `"zeta": { "dist": "binary" }` (or the legacy upstream `"omp": { "dist":
+ * "binary" }`) in its package.json; the Zeta field wins when both are present.
+ * Any value other than "npm" — including values this updater does not know
+ * yet — maps to "binary" so already-deployed updaters never run a
+ * package-manager install against a release that no longer supports it.
  */
 export function resolveReleaseDist(manifest: unknown): ReleaseDist | undefined {
-	if (!isRecord(manifest) || !isRecord(manifest.omp)) return undefined;
-	const dist = manifest.omp.dist;
+	const container =
+		isRecord(manifest) && isRecord(manifest.zeta) && manifest.zeta.dist !== undefined
+			? manifest.zeta
+			: isRecord(manifest)
+				? manifest.omp
+				: undefined;
+	if (!isRecord(container)) return undefined;
+	const dist = container.dist;
 	if (dist === undefined) return undefined;
 	return dist === "npm" ? "npm" : "binary";
 }
@@ -190,8 +197,14 @@ export function resolveReleaseDist(manifest: unknown): ReleaseDist | undefined {
  * "already up to date" against the running build).
  */
 export function resolveReleaseRename(manifest: unknown): ReleaseRename | undefined {
-	if (!isRecord(manifest) || !isRecord(manifest.omp)) return undefined;
-	const rename = manifest.omp.rename;
+	const container =
+		isRecord(manifest) && isRecord(manifest.zeta) && manifest.zeta.rename !== undefined
+			? manifest.zeta
+			: isRecord(manifest)
+				? manifest.omp
+				: undefined;
+	if (!isRecord(container)) return undefined;
+	const rename = container.rename;
 	if (!isRecord(rename) || typeof rename.package !== "string" || rename.package.length === 0) return undefined;
 	const natives = rename.natives;
 	return {
@@ -208,10 +221,11 @@ function majorVersion(version: string): number {
 /**
  * Whether the update must bypass bun/npm and install the release binary.
  *
- * An explicit `omp.dist` wins in both directions. Without one, a release with
- * a higher major than the running build is assumed not npm-installable: the
+ * An explicit release-dist field (`zeta.dist`, falling back to the upstream
+ * `omp.dist`) wins in both directions. Without one, a release with a higher
+ * major than the running build is assumed not npm-installable: the
  * runtime may have changed out from under the package layout, and the pinned
- * `@oh-my-pi/pi-natives*` companions ({@link buildBunInstallArgs}) may not
+ * `@linxiraos/pi-natives*` companions ({@link buildBunInstallArgs}) may not
  * exist at that version, which would strand bun/npm-managed installs behind a
  * hard install failure. Homebrew and mise installs are unaffected — both
  * already pull GitHub release binaries.
@@ -625,10 +639,10 @@ function isPathInDirectory(filePath: string, directoryPath: string): boolean {
 	if (isPathInDirectoryLexical(filePath, directoryPath)) return true;
 	// Layer realpath resolution on top of the lexical guard. On Windows, ~/.bun
 	// is a junction when Bun is installed via Scoop, so `bun pm bin -g` and the
-	// PATH-resolved omp path can refer to the same directory through different
+	// PATH-resolved zeta-c path can refer to the same directory through different
 	// strings. path.resolve does not traverse junctions/symlinks; realpath does.
 	// Resolve both the file and its parent directory: the file catches manager
-	// links like Homebrew's `bin/omp -> Cellar/.../bin/omp`; the parent fallback
+	// links like Homebrew's `bin/zeta -> Cellar/.../bin/zeta`; the parent fallback
 	// still tolerates fresh install paths where the file does not exist yet.
 	const dirReal = tryRealpath(path.resolve(directoryPath));
 	if (!dirReal) return false;
@@ -671,7 +685,7 @@ interface UpdateMethodResolutionOptions {
 	/** Bun's configured global package directory, independent of its bin directory. */
 	bunGlobalDir?: string;
 	/**
-	 * Whether the resolved omp path is a plain file (the standalone binary)
+	 * Whether the resolved zeta-c path is a plain file (the standalone binary)
 	 * rather than a package-manager symlink. Stops a binary install from being
 	 * misrouted to npm/bun when the global bin dir overlaps the installer's
 	 * target directory.
@@ -880,7 +894,7 @@ async function resolveUpdateTarget(options: { allowPackageManagers: boolean }): 
 
 	if (bunBinDir) return { method: "bun" };
 
-	throw new Error(`Could not resolve ${APP_NAME} binary path in PATH`);
+	throw new Error(`Could not resolve ${CLI_BIN_NAME} binary path in PATH`);
 }
 
 /** Bound on `omp.rename` hops so a broken pointer chain cannot loop forever. */
@@ -911,7 +925,7 @@ async function fetchLatestManifest(
 		}
 	};
 	const noCanary = () =>
-		new Error(`No canary release has been published for ${pkg} yet. Try \`${APP_NAME} update --stable\`.`);
+		new Error(`No canary release has been published for ${pkg} yet. Try \`${CLI_BIN_NAME} update --stable\`.`);
 
 	const fromPackument = (packument: unknown): Record<string, unknown> => {
 		const distTags = isRecord(packument) ? packument["dist-tags"] : undefined;
@@ -1134,7 +1148,7 @@ async function removeCacheEntries(paths: string[]): Promise<number> {
  *
  * Bun stores package cache entries as both a package marker directory
  * (`react/19.2.6@@@1`) and a materialized package directory
- * (`react@19.2.6@@@1`). Global `omp` updates can leave one full copy per
+ * (`react@19.2.6@@@1`). Global `zeta-c` updates can leave one full copy per
  * release. The marker and materialized entries are removed together so the
  * cache stays internally consistent.
  */
@@ -1306,29 +1320,33 @@ function getBinaryName(): string {
 	}
 
 	if (os === "windows") {
-		return `${APP_NAME}-${os}-${archName}.exe`;
+		return `zeta-cli-${os}-${archName}.exe`;
 	}
-	return `${APP_NAME}-${os}-${archName}`;
+	return `zeta-cli-${os}-${archName}`;
 }
 
 /**
- * Resolve the path that `omp` maps to in the user's PATH.
+ * Resolve the path that `zeta-c` maps to in the user's PATH.
+ *
+ * Deliberately no fallback to `zeta`: that is the Zetawork workbench bin, and
+ * treating it as this package's launcher would target the wrong product for
+ * the update.
  */
 function resolveOmpPath(): string | undefined {
-	return $which(APP_NAME) ?? undefined;
+	return $which(CLI_BIN_NAME) ?? undefined;
 }
 
 /**
- * Parse the version a launcher reports from `omp --version` output
- * (`omp/X.Y.Z`, or a prerelease such as `omp/X.Y.Z-canary.1`).
+ * Parse the version a launcher reports from `zeta-c --version` output
+ * (`zeta-c/X.Y.Z`, or a prerelease such as `zeta-c/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
  * verifies as up to date instead of appearing to report a stale `X.Y.Z` and
  * being mistaken for an unreplaced launcher.
  */
 export function parseReportedVersion(output: string): string | undefined {
-	if (!output.startsWith(`${APP_NAME}/`)) return undefined;
-	return output.slice(APP_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
+	if (!output.startsWith(`${CLI_BIN_NAME}/`)) return undefined;
+	return output.slice(CLI_BIN_NAME.length + 1).match(/^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/)?.[1];
 }
 
 async function reportedVersionAtPath(binaryPath: string): Promise<string | undefined> {
@@ -1358,15 +1376,15 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 	if (!hasShebang && (await reportedVersionAtPath(targetPath)) !== undefined) return;
 
 	const reason = hasShebang
-		? "is a shebang script, not an OMP binary"
-		: "does not report an OMP version when run directly";
+		? "is a shebang script, not a zeta-c binary"
+		: "does not report a zeta-c version when run directly";
 	throw new Error(
-		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
+		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the zeta-c binary you want to update, or reinstall with: ${installerHint()}`,
 	);
 }
 
 /**
- * Run the PATH-resolved omp binary and check if it reports the expected version.
+ * Run the PATH-resolved zeta-c binary and check if it reports the expected version.
  */
 async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	const ompPath = resolveOmpPath();
@@ -1383,7 +1401,7 @@ function printVerifiedVersion(expectedVersion: string, binaryPath?: string): voi
 
 function formatVerificationFailure(result: InstalledVersionVerification, expectedVersion: string): string {
 	if (result.actual) {
-		return `${APP_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
+		return `${CLI_BIN_NAME} at ${result.path} still reports ${result.actual} (expected ${expectedVersion})`;
 	}
 	return `could not verify updated version${result.path ? ` at ${result.path}` : ""}`;
 }
@@ -1531,7 +1549,7 @@ export async function replaceBinaryForUpdate(options: BinaryReplacementOptions):
 		const verification = await options.verifyInstalledVersion(options.expectedVersion);
 		if (!verification.ok) {
 			throw new Error(
-				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${APP_NAME} binary`,
+				`${formatVerificationFailure(verification, options.expectedVersion)}; restored previous ${CLI_BIN_NAME} binary`,
 			);
 		}
 
@@ -1566,7 +1584,7 @@ function buildVersionedPackageInstallArgs(
 }
 
 /**
- * Build the bun argv used to globally install a specific omp version.
+ * Build the bun argv used to globally install a specific zeta-c version.
  *
  * The version is selected by querying the resolved registry in
  * {@link getLatestRelease} ({@link ReleaseInfo.registry}), so the install
@@ -1580,15 +1598,15 @@ function buildVersionedPackageInstallArgs(
  * - `--no-cache` tells bun to ignore its on-disk manifest snapshot so it
  *   re-fetches metadata from that registry on every invocation.
  *
- * Together these two flags make `omp update` produce exactly the registry
+ * Together these two flags make `zeta-c update` produce exactly the registry
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
- * `@oh-my-pi/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
+ * `@linxiraos/pi-natives-<tag>` leaf to `expectedVersion`. `bun install -g`
  * does not reliably refresh transitive `optionalDependencies` when the
  * top-level package is the only one bumped, so the native addon and its
  * version sentinel can drift out of sync with the freshly installed
- * `@oh-my-pi/pi-coding-agent` and the loader aborts at
+ * `@linxiraos/zeta` and the loader aborts at
  * `validateLoadedBindings` on the next launch
  * (`The .node file on disk is from a different release than this loader`).
  * Listing the natives explicitly forces bun to replace them in lock-step.
@@ -1620,7 +1638,7 @@ export function buildBunInstallArgs(
  * `force` is set only for rename migrations: npm refuses to write the `omp`
  * bin while the old package still owns it (`EEXIST`), and the migration
  * installs the new package BEFORE removing the old one so a failed install
- * never leaves the user without a working `omp`.
+ * never leaves the user without a working `zeta-c`.
  */
 export function buildNpmInstallArgs(
 	expectedVersion: string,
@@ -1688,11 +1706,11 @@ export function buildRenameCleanupPackages(
 
 /** Injectable shell steps for {@link migrateRenamedInstall}; commands return process exit codes. */
 export interface RenameMigrationSteps {
-	/** Globally install the new package names. MUST be idempotent: re-running re-links the `omp` bin. */
+	/** Globally install the new package names. MUST be idempotent: re-running re-links the `zeta-c` bin. */
 	install(): Promise<number>;
 	/** Remove the old-name globals. */
 	removeOld(): Promise<number>;
-	/** Check the PATH-resolved `omp` against the expected version. */
+	/** Check the PATH-resolved `zeta-c` against the expected version. */
 	verify(): Promise<InstalledVersionVerification>;
 }
 
@@ -1733,13 +1751,13 @@ function packageManagerMigrationSteps(manager: "bun" | "npm", release: ReleaseIn
 
 /**
  * Migrate a package-manager install across an `omp.rename` hop without a
- * window where no working `omp` exists:
+ * window where no working `zeta-c` exists:
  *
  * 1. Install the new package FIRST. Nothing has been removed yet, so a
  *    failure here leaves the old install fully functional.
  * 2. Remove the old-name globals. Failure is non-fatal: a stale package
  *    wastes disk, but the bin already points at the new install.
- * 3. Verify the PATH-resolved `omp`. If the removal deleted the shared bin
+ * 3. Verify the PATH-resolved `zeta-c`. If the removal deleted the shared bin
  *    link (manager-dependent), re-run the idempotent install to restore it
  *    and verify again; only a repeated failure aborts, with a recovery hint.
  */
@@ -1906,7 +1924,7 @@ export async function updateViaManager(
 	}
 	console.log(
 		chalk.yellow(
-			`\n${steps.manager} did not install a working ${APP_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
+			`\n${steps.manager} did not install a working ${CLI_BIN_NAME} ${release.version} launcher (${formatVerificationFailure(result, release.version)}); installing the standalone binary at ${launcherPath}.`,
 		),
 	);
 	try {
@@ -1989,7 +2007,7 @@ export async function updateViaBinaryAt(
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
 	const binaryName = options.binaryName ?? getBinaryName();
-	// Unique per attempt so two overlapping `omp update` runs never share a temp
+	// Unique per attempt so two overlapping `zeta-c update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
 	// first kept writing to its open fd (size + digest still passed), then chmod
@@ -2019,7 +2037,7 @@ export async function updateViaBinaryAt(
 	console.log(chalk.dim(`Verified ${asset.digest}`));
 
 	// Serialize the target swap and stale-artifact sweep per target so two
-	// overlapping `omp update` runs never replace the same binary concurrently
+	// overlapping `zeta-c update` runs never replace the same binary concurrently
 	// or reclaim each other's live backup/temp files. The download above writes
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {
@@ -2045,38 +2063,50 @@ export async function updateViaBinaryAt(
 		await sweepStaleUpdateArtifacts(targetPath);
 		return result;
 	});
-	printVerifiedVersion(asset.version, verification.path ?? targetPath);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	printVerifiedVersion(expectedVersion, verification.path ?? targetPath);
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
- * renamed aside during a script-shim takeover; each execs the sibling
- * `omp.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * renamed aside during a script-shim takeover; each execs the sibling native
+ * exe. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
  */
 const SHIM_FORWARDERS: Record<string, string> = {
-	"": `#!/bin/sh\nexec "$(dirname "$0")/${APP_NAME}.exe" "$@"\n`,
-	".cmd": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".bat": `@"%~dp0${APP_NAME}.exe" %*\r\n`,
-	".ps1": `& "$PSScriptRoot\\${APP_NAME}.exe" @args\nexit $LASTEXITCODE\n`,
+	"": `#!/bin/sh\nexec "$(dirname "$0")/$BIN.exe" "$@"\n`,
+	".cmd": `@"%~dp0$BIN.exe" %*\r\n`,
+	".bat": `@"%~dp0$BIN.exe" %*\r\n`,
+	".ps1": `& "$PSScriptRoot\\$BIN.exe" @args\nexit $LASTEXITCODE\n`,
 };
+
+/** Every bin name `npm i -g @linxiraos/zeta` installs for this package. Never
+ * includes the bare `zeta`: that is the Zetawork workbench bin and must not be
+ * written, retired, or forwardered by this CLI's updater. */
+const OWN_LAUNCHER_STEMS = [CLI_BIN_NAME, "zeta-cli", "zetacode"];
+
+/** Stem (bin name) of a discovered launcher path: strip the shim extension. */
+function launcherStem(shimPath: string): string {
+	return path.basename(shimPath).replace(/\.(exe|cmd|ps1|bat)$/i, "");
+}
 
 /**
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`omp`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `omp.exe` beside them and
- * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
+ * (`zeta-c`/`zeta-c.cmd`/`zeta-c.ps1` and their `zeta-cli`/`zetacode` alias
+ * families) that cannot be overwritten with a native executable. The release
+ * binary is installed as `<bin>.exe` beside them and the shims are then
+ * renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every
  * step — the exe lands before any shim moves, a shim that refuses to move
  * (a running `.cmd` can be renamed but may be held open some other way) is
  * rewritten in place as a forwarder to the exe, and a failed version
- * verification moves everything back.
+ * verification moves everything back. Only this package's own bin names are
+ * touched — never the bare `zeta` workbench bin.
  */
 export async function updateViaShimTakeover(
 	shimPath: string,
@@ -2091,7 +2121,8 @@ export async function updateViaShimTakeover(
 ): Promise<void> {
 	const binaryName = options.binaryName ?? getBinaryName();
 	const launcherDir = path.dirname(shimPath);
-	const exePath = path.join(launcherDir, `${APP_NAME}.exe`);
+	const exeStem = launcherStem(shimPath);
+	const exePath = path.join(launcherDir, `${exeStem}.exe`);
 	const attempt = `${Date.now()}.${process.pid}.${updateAttemptSeq++}`;
 	const tempPath = `${exePath}.${attempt}.new`;
 	const asset = await getReleaseBinaryAsset(
@@ -2116,30 +2147,35 @@ export async function updateViaShimTakeover(
 	// never retire the same shims or reclaim a live run's backup before its
 	// verification can roll it back.
 	await withFileLock(exePath, async () => {
-		console.log(chalk.dim(`Installing ${APP_NAME}.exe beside the script launcher...`));
+		console.log(chalk.dim(`Installing ${exeStem}.exe beside the script launcher...`));
 		await fs.promises.rename(tempPath, exePath);
-		// Retire the shims so PATH resolution lands on the new exe. Renamed, not
-		// deleted: restorable on verification failure, and Windows permits
-		// renaming a batch file that is still executing. A shim that cannot be
-		// renamed (held open without delete sharing) is rewritten in place as a
-		// forwarder to the exe — write and rename take different Windows locks,
-		// so one can succeed where the other fails.
+		// Retire the shims so PATH resolution lands on the new exe. Every own
+		// alias family is retired, not just the discovered one: the aliases'
+		// script shims still launch the stale JS entry after a binary-only
+		// update. Renamed, not deleted: restorable on verification failure, and
+		// Windows permits renaming a batch file that is still executing. A shim
+		// that cannot be renamed (held open without delete sharing) is
+		// rewritten in place as a forwarder to the exe — write and rename take
+		// different Windows locks, so one can succeed where the other fails.
 		const backupSuffix = `${attempt}.bak`;
 		const retired: Array<{ launcher: string; backup: string }> = [];
-		for (const ext of ["", ".cmd", ".ps1", ".bat"]) {
-			const launcher = path.join(launcherDir, `${APP_NAME}${ext}`);
-			const backup = `${launcher}.${backupSuffix}`;
-			try {
-				await fs.promises.rename(launcher, backup);
-				retired.push({ launcher, backup });
-			} catch (err) {
-				if (isEnoent(err)) continue;
+		const stems = OWN_LAUNCHER_STEMS.includes(exeStem) ? OWN_LAUNCHER_STEMS : [exeStem, ...OWN_LAUNCHER_STEMS];
+		for (const stem of stems) {
+			for (const ext of ["", ".cmd", ".ps1", ".bat"]) {
+				const launcher = path.join(launcherDir, `${stem}${ext}`);
+				const backup = `${launcher}.${backupSuffix}`;
 				try {
-					const original = await Bun.file(launcher).text();
-					await Bun.write(launcher, SHIM_FORWARDERS[ext]);
-					forwarded.push({ launcher, original });
-				} catch {
-					stuck.push(launcher);
+					await fs.promises.rename(launcher, backup);
+					retired.push({ launcher, backup });
+				} catch (err) {
+					if (isEnoent(err)) continue;
+					try {
+						const original = await Bun.file(launcher).text();
+						await Bun.write(launcher, SHIM_FORWARDERS[ext].replaceAll("$BIN", stem));
+						forwarded.push({ launcher, original });
+					} catch {
+						stuck.push(launcher);
+					}
 				}
 			}
 		}
@@ -2162,15 +2198,17 @@ export async function updateViaShimTakeover(
 			}
 			await unlinkIfExists(exePath);
 			throw new Error(
-				`${formatVerificationFailure(verification, asset.version)}; restored previous ${APP_NAME} launcher`,
+				`${formatVerificationFailure(verification, expectedVersion)}; restored previous ${exeStem} launcher`,
 			);
 		}
 		for (const { backup } of retired) {
 			await removeBackupBestEffort(backup);
 		}
 		// Reclaim exe backups and retired-shim leftovers from earlier attempts.
-		for (const ext of [".exe", "", ".cmd", ".ps1", ".bat"]) {
-			await sweepStaleUpdateArtifacts(path.join(launcherDir, `${APP_NAME}${ext}`));
+		for (const stem of stems) {
+			for (const ext of [".exe", "", ".cmd", ".ps1", ".bat"]) {
+				await sweepStaleUpdateArtifacts(path.join(launcherDir, `${stem}${ext}`));
+			}
 		}
 	});
 	for (const { launcher } of forwarded) {
@@ -2183,8 +2221,8 @@ export async function updateViaShimTakeover(
 			),
 		);
 	}
-	printVerifiedVersion(asset.version);
-	console.log(chalk.dim(`Restart ${APP_NAME} to use the new version`));
+	printVerifiedVersion(expectedVersion);
+	console.log(chalk.dim(`Restart ${CLI_BIN_NAME} to use the new version`));
 }
 
 /**
@@ -2283,7 +2321,7 @@ export async function runUpdateCommand(opts: {
 		}
 		if (target.method === "nix") {
 			console.log(chalk.yellow("This installation is managed by Nix and cannot update itself."));
-			console.log(chalk.dim("Update the flake input or profile that provides omp, then rebuild."));
+			console.log(chalk.dim("Update the flake input or profile that provides zeta, then rebuild."));
 			return;
 		} else if (target.method === "brew") {
 			await updateViaHomebrew(release.version, opts.force);
@@ -2294,7 +2332,7 @@ export async function runUpdateCommand(opts: {
 				// Reachable in forced mode only through a Windows script
 				// launcher resolved from PATH (the bun/npm bin-dir probes are
 				// skipped), so the launcher path is always known.
-				if (!target.path) throw new Error(`Could not resolve ${APP_NAME} launcher path in PATH`);
+				if (!target.path) throw new Error(`Could not resolve ${CLI_BIN_NAME} launcher path in PATH`);
 				console.log(chalk.dim("This release ships as a standalone binary; replacing the script launcher."));
 				await updateViaShimTakeover(target.path, release.version, { allowPrerelease });
 				console.log(
@@ -2336,10 +2374,10 @@ export async function runUpdateCommand(opts: {
  * Print update command help.
  */
 export function printUpdateHelp(): void {
-	console.log(`${chalk.bold(`${APP_NAME} update`)} - Check for and install updates
+	console.log(`${chalk.bold(`${CLI_BIN_NAME} update`)} - Check for and install updates
 
 ${chalk.bold("Usage:")}
-  ${APP_NAME} update [options]
+  ${CLI_BIN_NAME} update [options]
 
 ${chalk.bold("Options:")}
   -c, --check     Check for updates without installing
@@ -2349,10 +2387,10 @@ ${chalk.bold("Options:")}
   --stable        Switch back to the stable channel
 
 ${chalk.bold("Examples:")}
-  ${APP_NAME} update              Update to latest version
-  ${APP_NAME} update --check      Check if updates are available
-  ${APP_NAME} update --force      Force reinstall
-  ${APP_NAME} update -l           Update installed plugins
-  ${APP_NAME} update --canary    Switch to the canary channel and update
+  ${CLI_BIN_NAME} update              Update to latest version
+  ${CLI_BIN_NAME} update --check      Check if updates are available
+  ${CLI_BIN_NAME} update --force      Force reinstall
+  ${CLI_BIN_NAME} update -l           Update installed plugins
+  ${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
 `);
 }

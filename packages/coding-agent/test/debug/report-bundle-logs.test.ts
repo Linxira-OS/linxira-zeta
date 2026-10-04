@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createReportBundle } from "@oh-my-pi/pi-coding-agent/debug/report-bundle";
-import { getConfigRootDir, getLogsDir, localDay, logger, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { createReportBundle } from "@linxiraos/zeta/debug/report-bundle";
+import { getConfigRootDir, getLogsDir, localDay, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalXdgStateHome = process.env.XDG_STATE_HOME;
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
@@ -19,7 +19,7 @@ function restoreEnv(name: string, value: string | undefined): void {
 
 // Points the logs dir at `root`. XDG_STATE_HOME is only honored on Linux/macOS;
 // elsewhere the config root follows the home dir, so redirect that instead —
-// otherwise the test reads and writes the user's real ~/.omp/logs.
+// otherwise the test reads and writes the user's real ~/.zeta/logs.
 async function isolateLogsRoot(root: string): Promise<void> {
 	if (process.platform === "linux" || process.platform === "darwin") {
 		const xdgStateHome = path.join(root, "state");
@@ -40,7 +40,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	if (cleanupRoot) {
 		await removeWithRetries(cleanupRoot);

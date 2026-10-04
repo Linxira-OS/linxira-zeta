@@ -1,8 +1,8 @@
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import type { VcsGitRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { $env, getProjectDir, isEnoent, prompt } from "@oh-my-pi/pi-utils";
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { $env, getProjectDir, isEnoent, prompt } from "@linxiraos/pi-utils";
 import { applyChangelogProposals } from "../../commit/changelog";
 import { detectChangelogBoundaries } from "../../commit/changelog/detect";
 import { parseUnreleasedSection } from "../../commit/changelog/parse";

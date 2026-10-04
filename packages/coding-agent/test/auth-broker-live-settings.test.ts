@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { type AuthBrokerServerHandle, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { discoverAuthStorage } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { createAuthStorageSettingsSync } from "@oh-my-pi/pi-coding-agent/session/auth-broker-config";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { discoverAuthStorage } from "@linxiraos/zeta/sdk";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { createAuthStorageSettingsSync } from "@linxiraos/zeta/session/auth-broker-config";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgAuthBrokerUrl } from "@oh-my-pi/pi-coding-agent/config/model-settings";
+import { cfgAuthBrokerUrl } from "@linxiraos/zeta/config/model-settings";
 
 const PROVIDER = "live-broker-test";
 const TOKEN = "live-broker-bearer";

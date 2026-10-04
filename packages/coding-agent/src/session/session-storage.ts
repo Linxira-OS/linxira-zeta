@@ -2,16 +2,16 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileLock as NativeFileLock } from "@oh-my-pi/pi-natives";
-import { getSessionOwnersDir } from "@oh-my-pi/pi-utils/dirs";
-import { isBunTestRuntime } from "@oh-my-pi/pi-utils/env";
-import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@oh-my-pi/pi-utils/file-lock";
-import { type FsError, hasFsCode, isEnoent } from "@oh-my-pi/pi-utils/fs-error";
-import { openCloexecSync } from "@oh-my-pi/pi-utils/fs-open";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { peekFileEnds } from "@oh-my-pi/pi-utils/peek-file";
-import { Snowflake } from "@oh-my-pi/pi-utils/snowflake";
-import { toError } from "@oh-my-pi/pi-utils/type-guards";
+import { FileLock as NativeFileLock } from "@linxiraos/pi-natives";
+import { getSessionOwnersDir } from "@linxiraos/pi-utils/dirs";
+import { isBunTestRuntime } from "@linxiraos/pi-utils/env";
+import { type FileLockHandle, tryAcquireFileLock, withFileLockSync } from "@linxiraos/pi-utils/file-lock";
+import { type FsError, hasFsCode, isEnoent } from "@linxiraos/pi-utils/fs-error";
+import { openCloexecSync } from "@linxiraos/pi-utils/fs-open";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { peekFileEnds } from "@linxiraos/pi-utils/peek-file";
+import { Snowflake } from "@linxiraos/pi-utils/snowflake";
+import { toError } from "@linxiraos/pi-utils/type-guards";
 import { isAssistantMessageLine } from "./session-entries";
 import {
 	overlayTitleSlotContent,
@@ -1086,7 +1086,7 @@ export class FileSessionStorage implements SessionStorage {
 
 	/**
 	 * The lease is an OS lock (abstract socket, named mutex, or `flock` sidecar
-	 * under ~/.omp/run/session-owners), so the kernel drops a dead owner's claim.
+	 * under ~/.zeta/run/session-owners), so the kernel drops a dead owner's claim.
 	 * Never throws: a lock that cannot be taken for another reason counts as
 	 * owned, so it never moves a session off its file.
 	 */

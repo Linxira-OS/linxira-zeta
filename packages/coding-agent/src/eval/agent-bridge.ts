@@ -14,8 +14,12 @@ import {
 	type StructuredSubagentIsolationControls,
 	type StructuredSubagentResult,
 } from "../task/structured-subagent";
-import type { AgentProgress, SingleResult, StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
-import type { NestedRepoPatch } from "@linxiraos/pi-tui/tools/task";
+import type {
+	AgentProgress,
+	SingleResult,
+	StructuredSubagentSchemaMode,
+	NestedRepoPatch,
+} from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "../tools";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { JsStatusEvent } from "./js/shared/types";

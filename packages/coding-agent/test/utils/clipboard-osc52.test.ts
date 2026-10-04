@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Buffer } from "node:buffer";
-import { copyToClipboard } from "@oh-my-pi/pi-coding-agent/utils/clipboard";
-import * as natives from "@oh-my-pi/pi-natives/clipboard";
+import { copyToClipboard } from "@linxiraos/zeta/utils/clipboard";
+import * as natives from "@linxiraos/pi-natives/clipboard";
 import { type ActiveTerminalHarness, startActiveTerminal } from "../helpers/active-terminal";
 
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");

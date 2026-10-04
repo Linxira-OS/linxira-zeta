@@ -1,6 +1,6 @@
-import { type } from "@oh-my-pi/omptype";
-import { shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { type } from "@linxiraos/pi-omptype";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { EvalPreludeDefinition } from "../eval/preludes";
 import archiveDocumentation from "../prompts/tools/archive.md" with { type: "text" };
 import type { ToolSession } from "../tools";

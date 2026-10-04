@@ -4,17 +4,17 @@ import {
 	getDialectDefinition,
 	type InbandScanEvent,
 	ThinkingInbandScanner,
-} from "@oh-my-pi/pi-ai/dialect";
-import { streamGoogleGeminiCli } from "@oh-my-pi/pi-ai/providers/google-gemini-cli";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { stream } from "@oh-my-pi/pi-ai/stream";
-import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@oh-my-pi/pi-ai/types";
-import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
-import { stripDsmlToolMarkup } from "@oh-my-pi/pi-ai/utils/dsml-leak";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-ai/dialect";
+import { streamGoogleGeminiCli } from "@linxiraos/pi-ai/providers/google-gemini-cli";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { stream } from "@linxiraos/pi-ai/stream";
+import type { Context, FetchImpl, Model, TextContent, ThinkingContent, Tool, ToolCall } from "@linxiraos/pi-ai/types";
+import { getStreamMarkupHealingPattern, StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
+import { stripDsmlToolMarkup } from "@linxiraos/pi-ai/utils/dsml-leak";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 interface SseToolCallDelta {
 	index: number;

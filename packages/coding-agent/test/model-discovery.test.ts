@@ -3,26 +3,26 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-ai";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
-import type { ModelKind, ModelSpec, OpenAICompat } from "@oh-my-pi/pi-catalog/types";
-import { CODEX_CLIENT_VERSION } from "@oh-my-pi/pi-catalog/wire/codex";
+import type { FetchImpl, Model } from "@linxiraos/pi-ai";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import type { ModelKind, ModelSpec, OpenAICompat } from "@linxiraos/pi-catalog/types";
+import { CODEX_CLIENT_VERSION } from "@linxiraos/pi-catalog/wire/codex";
 import {
 	discoverOllamaModels,
 	discoverOpenAIModelsList,
 	discoveryProbeTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/config/model-discovery";
-import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@oh-my-pi/pi-coding-agent/config/model-provider-discovery";
-import { kNoAuth, ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { ProviderDiscoverySchema } from "@oh-my-pi/pi-coding-agent/config/models-config-schema";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/config/model-discovery";
+import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@linxiraos/zeta/config/model-provider-discovery";
+import { kNoAuth, ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { ProviderDiscoverySchema } from "@linxiraos/zeta/config/models-config-schema";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;
@@ -45,7 +45,7 @@ describe("ModelRegistry runtime discovery", () => {
 		delete Bun.env.OLLAMA_HOST;
 		delete Bun.env.OLLAMA_CONTEXT_LENGTH;
 		delete Bun.env.ANTHROPIC_API_KEY;
-		// The developer's shell or ~/.omp/agent/.env must not redirect llama.cpp discovery probes.
+		// The developer's shell or ~/.zeta/agent/.env must not redirect llama.cpp discovery probes.
 		originalLlamaCppBaseUrl = Bun.env.LLAMA_CPP_BASE_URL;
 		delete Bun.env.LLAMA_CPP_BASE_URL;
 		tempDir = path.join(os.tmpdir(), `pi-test-model-registry-${Snowflake.next()}`);

@@ -60,7 +60,14 @@ import {
 	type ToolResultMessage,
 	type Usage,
 } from "../types";
-import { resolveCopilotRequestIdentity } from "./github-copilot-headers";
+import {
+	resolveCopilotRequestIdentity,
+	buildCopilotDynamicHeaders,
+	getCachedCopilotIntegrationId,
+	getCopilotIntegrationCacheKey,
+	hasCopilotVisionInput,
+	resolveGitHubCopilotBaseUrl,
+} from "./github-copilot-headers";
 import { resolveXaiBaseUrl } from "./xai-base-url";
 
 export type { OpenAIPromptCacheOptions } from "../types";
@@ -92,13 +99,6 @@ import {
 import type { CapturedHttpErrorResponse } from "../utils/http-inspector";
 import { getOpenRouterHeaders } from "../utils/openrouter-headers";
 import { isForcedToolChoice } from "../utils/tool-choice";
-import {
-	buildCopilotDynamicHeaders,
-	getCachedCopilotIntegrationId,
-	getCopilotIntegrationCacheKey,
-	hasCopilotVisionInput,
-	resolveGitHubCopilotBaseUrl,
-} from "./github-copilot-headers";
 import { applyInferenceHeaders, setHeaderIfAbsent } from "./inference-headers";
 import { servedModelFromOpenRouterReasoning } from "./anthropic-signature";
 import type { ChatCompletionCreateParamsStreaming } from "./openai-chat-wire";

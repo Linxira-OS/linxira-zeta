@@ -22,7 +22,7 @@ import { postmortem } from "@linxiraos/pi-utils";
 import { CustomEditor } from "./custom-editor";
 import type { WordCompletionMethod } from "./word-completion";
 import { type AnimationFrame, TranscriptContainer } from "../chrome/transcript-container";
-import { WelcomeComponent } from "./welcome";
+import { WelcomeComponent, type RecentSession, type LspServerInfo } from "./welcome";
 import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 
 const DOUBLE_INTERRUPT_MS = 500;
@@ -58,6 +58,11 @@ export const COMPOSER_DEFAULTS: ComposerPreferences = {
 /** Welcome data that can be supplied initially or patched as startup resolves it. */
 export interface ComposerWelcomeUpdate {
 	readonly version?: string;
+	readonly modelName?: string;
+	readonly providerName?: string;
+	readonly recentSessions?: readonly RecentSession[];
+	/** Detected project servers; `null` means LSP is disabled and hides the welcome section. */
+	readonly lspServers?: readonly LspServerInfo[] | null;
 }
 
 /**
@@ -210,6 +215,10 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	#preferences: ComposerPreferences;
 	#welcome: WelcomeComponent | undefined;
 	#version = "";
+	#modelName = "";
+	#providerName = "";
+	#recentSessions: RecentSession[] = [];
+	#lspServers: LspServerInfo[] | null = [];
 	#headerBefore: readonly Component[] = [];
 	#headerAfter: readonly Component[] = [];
 	#runtimeChildren: readonly Component[] = [];
@@ -897,6 +906,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		const welcome = this.#welcome;
 		if (!welcome) return;
 		if (update.version !== undefined) welcome.setVersion(this.#version);
+		welcome.setModel(this.#modelName, this.#providerName);
 		this.ui.requestRender();
 	}
 
@@ -977,10 +987,20 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 
 	#applyWelcomeUpdate(update: ComposerWelcomeUpdate): void {
 		if (update.version !== undefined) this.#version = update.version;
+		if (update.modelName !== undefined || update.providerName !== undefined) {
+			this.#modelName = update.modelName ?? this.#modelName;
+			this.#providerName = update.providerName ?? this.#providerName;
+		}
 	}
 
 	#ensureWelcome(): void {
-		this.#welcome ??= new WelcomeComponent(this.#version);
+		this.#welcome ??= new WelcomeComponent(
+			this.#version,
+			this.#modelName,
+			this.#providerName,
+			this.#recentSessions,
+			this.#lspServers,
+		);
 	}
 
 	#rebuildHeader(): void {

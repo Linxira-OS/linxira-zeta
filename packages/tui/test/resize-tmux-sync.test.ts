@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { PtySession } from "@oh-my-pi/pi-natives";
-import { CURSOR_MARKER, Text, TUI, type TerminalFramePlan, type ViewportSize } from "@oh-my-pi/pi-tui";
-import type { PrivateModeReportHandler } from "@oh-my-pi/pi-tui/terminal";
-import * as capabilities from "@oh-my-pi/pi-tui/terminal-capabilities";
-import * as multiplexer from "@oh-my-pi/pi-tui/terminal-multiplexer";
+import { PtySession } from "@linxiraos/pi-natives";
+import { CURSOR_MARKER, Text, TUI, type TerminalFramePlan, type ViewportSize } from "@linxiraos/pi-tui";
+import type { PrivateModeReportHandler } from "@linxiraos/pi-tui/terminal";
+import * as capabilities from "@linxiraos/pi-tui/terminal-capabilities";
+import * as multiplexer from "@linxiraos/pi-tui/terminal-multiplexer";
 import { $ } from "bun";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

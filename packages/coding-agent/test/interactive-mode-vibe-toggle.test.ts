@@ -1,4 +1,4 @@
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 /**
  * Contracts: /vibe mode toggle on InteractiveMode.
  *

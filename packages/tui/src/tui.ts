@@ -14,11 +14,11 @@
  */
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
-import { getDebugLogPath } from "@oh-my-pi/pi-utils/dirs";
-import { $flag } from "@oh-my-pi/pi-utils/env";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import type { TspFrame, TspNode, TspText } from "@oh-my-pi/pi-wire";
+import { getDebugLogPath } from "@linxiraos/pi-utils/dirs";
+import { $flag } from "@linxiraos/pi-utils/env";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import type { TspFrame, TspNode, TspText } from "@linxiraos/pi-wire";
 import { DEFAULT_MAX_INLINE_IMAGES, ImageBudget } from "./components/image";
 import { TuiDebugServer } from "./debug-server";
 import { isKeyRelease, matchesKey } from "./keys";
@@ -75,6 +75,9 @@ const ERASE_TO_END_OF_LINE = "\x1b[K";
 const LINE_FIT_MIN_SOURCE_CODE_UNITS = 4096;
 const LINE_FIT_MAX_SOURCE_CODE_UNITS = 65536;
 const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
+// Zeta sidebar: the main area never composes narrower than this, even when a
+// gutter reservation is active — narrow terminals ignore the reservation.
+const MIN_MAIN_AREA_COLUMNS = 64;
 // Hide the hardware cursor before each paint/move write. Ghostty-style bar
 // cursors can otherwise leave visual afterimages while the TUI repaints the
 // row under a visible cursor. Paint writes also disable terminal autowrap:
@@ -262,7 +265,7 @@ export interface Component {
 
 	/**
 	 * Props for the native `overlay` wrapper when this component is shown as
-	 * an overlay: the sheet's `role` (Tern styles `omp.overlay.*` roles as
+	 * an overlay: the sheet's `role` (Tern styles `zeta.overlay.*` roles as
 	 * glass sheets, so the component's own root must not draw a second frame),
 	 * `head` spans for the sheet's title row, and `size`/`anchor` overriding
 	 * the ones derived from the overlay options.
@@ -859,6 +862,15 @@ export class TUI extends Container {
 	#previousFrameLength = 0;
 	#previousWidth = 0;
 	#previousHeight = 0;
+	// Physical width of the last provider frame. Scrollback reflow follows the
+	// terminal's wrap width, not the sidebar-shrunk composed main-area width,
+	// so resize accounting keys on this, never on `#previousWidth`.
+	#previousPhysicalWidth = 0;
+	// Zeta sidebar: right-hand gutter component and its last painted rows.
+	#gutterComponent: Component | null = null;
+	#paintedGutterRows: readonly string[] | null = null;
+	// Zeta sidebar: columns reserved for the gutter, or null for full width.
+	#mainWidthOverride: number | null = null;
 	#focusedComponent: Component | null = null;
 	#debugServer: TuiDebugServer | undefined;
 	#debugPaint:
@@ -1097,6 +1109,84 @@ export class TUI extends Container {
 	 */
 	setMaxInlineImages(cap: number): void {
 		this.#imageBudget.setCap(cap);
+	}
+
+	/**
+	 * Yield `width` columns from the right edge of the terminal as a sidebar
+	 * margin, repainted per frame from the gutter component (see
+	 * {@link setGutterComponent}). The main area composes and paints at
+	 * `terminal.columns - width`, which keeps every committed row — and
+	 * therefore native scrollback — free of gutter text. `null` restores
+	 * full-width rendering. Frames where that would drop the main area below
+	 * {@link MIN_MAIN_AREA_COLUMNS}, or where a fullscreen-capable overlay is
+	 * visible, ignore the reservation and paint at the physical width.
+	 */
+	setMainWidth(width: number | null): void {
+		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
+		if (this.#mainWidthOverride === next) return;
+		this.#mainWidthOverride = next;
+		// The composed row width changes, so already-committed scrollback would
+		// sit shredded at the old width. Re-offer finalized history and force a
+		// full viewport repaint on the next frame, mirroring the settled-resize
+		// replay in #prepareResizeReplay.
+		if (this.#hasEverRendered) {
+			const provider = this.#frameProvider;
+			if (provider?.beginHistoryReplay) {
+				provider.beginHistoryReplay();
+				this.#forceViewportRepaintOnNextRender = true;
+			}
+		}
+		this.requestRender();
+	}
+
+	/**
+	 * Component rendered into the right-hand margin created by
+	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
+	 * cursor addressing inside each frame's synchronized block; they never enter
+	 * the composed frame or scrollback. `null` clears the margin.
+	 */
+	setGutterComponent(component: Component | null): void {
+		if (this.#gutterComponent === component) return;
+		this.#gutterComponent = component;
+		this.#paintedGutterRows = null;
+		this.requestRender();
+	}
+
+	/** Effective main-area width for this frame, honoring the sidebar guards. */
+	#effectiveMainWidth(rawWidth: number): number {
+		if (
+			this.#mainWidthOverride === null ||
+			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
+			this.overlayStack.length > 0
+		) {
+			return rawWidth;
+		}
+		return rawWidth - this.#mainWidthOverride;
+	}
+
+	/**
+	 * Absolute-positioned paint for one frame's gutter column. Writes every
+	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
+	 * hardware cursor. Returns "" when there is no gutter this frame.
+	 */
+	#gutterPaintSequence(
+		rows: readonly string[] | null,
+		gutterWidth: number,
+		mainWidth: number,
+		height: number,
+		restoreRow: number,
+	): string {
+		const col = mainWidth + 1;
+		let seq = "";
+		for (let row = 0; row < height; row++) {
+			if (rows === null || gutterWidth <= 0) return "";
+			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
+			const pad = gutterWidth - visibleWidth(text);
+			if (pad > 0) text += " ".repeat(pad);
+			seq += `\x1b[${row + 1};${col}H${text}`;
+		}
+		seq += `\x1b[${restoreRow + 1};1H`;
+		return seq;
 	}
 	/** Return how settled resizes refresh native scrollback. */
 	getResizeScrollback(): ResizeScrollbackMode {
@@ -3123,15 +3213,15 @@ export class TUI extends Container {
 		}
 	}
 
-	#renderProviderFrame(width: number, height: number): void {
+	#renderProviderFrame(mainWidth: number, rawWidth: number, height: number): void {
 		const provider = this.#frameProvider;
-		if (!provider || width <= 0 || height <= 0) return;
+		if (!provider || mainWidth <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
 		let plan: TerminalFramePlan;
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
-			plan = provider.renderFrame({ columns: width, rows: height });
+			plan = provider.renderFrame({ columns: mainWidth, rows: height });
 			viewport = Array.from(plan.viewport);
 			if (viewport.length > height) {
 				const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;
@@ -3139,10 +3229,39 @@ export class TUI extends Container {
 				logger.error("TUI layout contract violated", { rows: viewport.length, height });
 				viewport = viewport.slice(0, height);
 			}
-			viewport = this.#compositeVisibleOverlays(viewport, width, height);
+			viewport = this.#compositeVisibleOverlays(viewport, mainWidth, height);
 		} while (this.#imageBudget.endPass());
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
-		this.#emitPlanFrame(width, height, viewport, plan.history, provider);
+		this.#emitPlanFrame(mainWidth, height, viewport, plan.history, provider);
+		this.#previousPhysicalWidth = rawWidth;
+		this.#paintGutter(mainWidth, rawWidth, height, viewport.length);
+	}
+
+	/**
+	 * Paint (or clear) the right-hand gutter column after a frame's content
+	 * block, inside the same synchronous paint. Content is composed at
+	 * `mainWidth`, so absolute-positioned gutter writes at column `mainWidth + 1`
+	 * compose with it without touching the frame or scrollback. The gutter
+	 * component composes into the column width it owns (`rawWidth - mainWidth`).
+	 * When no gutter applies this frame — component cleared, or an overlay frame
+	 * composing at full width — a previously painted gutter is erased row by row.
+	 */
+	#paintGutter(mainWidth: number, rawWidth: number, height: number, viewportRows: number): void {
+		const gutter = this.#gutterComponent && mainWidth < rawWidth ? this.#gutterComponent : null;
+		if (gutter) {
+			const rows = gutter.render(rawWidth - mainWidth);
+			const seq = this.#gutterPaintSequence(rows, rawWidth - mainWidth, mainWidth, viewportRows, 0);
+			if (seq) this.terminal.write(seq);
+			this.#paintedGutterRows = rows;
+		} else if (this.#paintedGutterRows !== null) {
+			// Gutter removed: clear the margin column once via absolute EL per row.
+			const col = mainWidth + 1;
+			let seq = "";
+			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
+			seq += "\x1b[H";
+			this.terminal.write(seq);
+			this.#paintedGutterRows = null;
+		}
 	}
 	/**
 	 * Re-offer finalized history once after a settled resize.
@@ -3172,7 +3291,7 @@ export class TUI extends Container {
 		const resized = this.#resizeBurstResized || widthChanged || height !== this.#previousHeight;
 		if (
 			!this.#hasEverRendered ||
-			!resized ||
+			(this.#previousPhysicalWidth === width && this.#previousHeight === height) ||
 			this.#resizeReplaySize === size ||
 			this.#resizeScrollbackMode === "preserve" ||
 			// In-place resizes (Warp) repaint the settled viewport once the drag
@@ -3205,7 +3324,7 @@ export class TUI extends Container {
 			this.#prepareForcedRender(true);
 			return;
 		}
-		if (!widthChanged) return;
+		if (width === this.#previousPhysicalWidth) return;
 		provider.beginHistoryReplay();
 		this.#forceViewportRepaintOnNextRender = true;
 	}
@@ -3650,10 +3769,10 @@ export class TUI extends Container {
 		if (this.#frameProvider !== undefined) this.#prepareResizeReplay(width, height);
 		this.#forgetTransmittedForPendingReset();
 		if (this.#frameProvider !== undefined) {
-			this.#renderProviderFrame(width, height);
+			this.#renderProviderFrame(this.#effectiveMainWidth(width), width, height);
 			return;
 		}
-		this.#renderChildrenFrame(width, height);
+		this.#renderChildrenFrame(width, this.#effectiveMainWidth(width), height);
 	}
 
 	/**
@@ -3680,7 +3799,7 @@ export class TUI extends Container {
 	 * compose the root children and paint the bottom `height` rows as the
 	 * mutable viewport. Nothing is ever appended to terminal history.
 	 */
-	#renderChildrenFrame(width: number, height: number): void {
+	#renderChildrenFrame(rawWidth: number, width: number, height: number): void {
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
@@ -3691,6 +3810,7 @@ export class TUI extends Container {
 		} while (this.#imageBudget.endPass());
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
+		this.#paintGutter(width, rawWidth, height, viewport.length);
 	}
 
 	/**

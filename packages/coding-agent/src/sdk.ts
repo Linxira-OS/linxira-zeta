@@ -314,7 +314,13 @@ import {
 	cfgToolsXdevInlineDevices,
 	cfgSessionToolGates,
 } from "./tools/settings";
-import { cfgToolsFormat } from "./session/context-settings";
+import {
+	cfgToolsFormat,
+	cfgSnapcompactShape,
+	cfgSnapcompactSystemPrompt,
+	cfgSnapcompactToolResults,
+	cfgWorkspaceAdditionalDirectories,
+} from "./session/context-settings";
 import { cfgAutolearnEnabled } from "./autolearn/settings";
 import { cfgBrowserEnabled } from "./tools/browser/settings";
 import {
@@ -339,9 +345,15 @@ import {
 	cfgTierGoogle,
 	cfgTierOpenai,
 } from "./session/settings";
-import { cfgInterruptMode } from "./modes/settings";
-import { cfgFollowUpMode } from "./modes/settings";
-import { cfgSteeringMode } from "./modes/settings";
+import {
+	cfgInterruptMode,
+	cfgFollowUpMode,
+	cfgSteeringMode,
+	cfgImagesBlockImages,
+	cfgStartupQuiet,
+	cfgTuiReactions,
+	cfgTuiRenderMermaid,
+} from "./modes/settings";
 import {
 	cfgCommandsEnableClaudeProject,
 	cfgCommandsEnableClaudeUser,
@@ -356,7 +368,6 @@ import { cfgTtsr } from "./export/ttsr-settings";
 import { cfgDisabledProviders, cfgEnabledModels, cfgEnabledProviders, cfgModelRoles } from "./config/model-settings";
 import { cfgEditRecoverInlineEdits } from "./edit/settings";
 import { cfgGoalEnabled } from "./goals/settings";
-import { cfgImagesBlockImages, cfgStartupQuiet, cfgTuiReactions, cfgTuiRenderMermaid } from "./modes/settings";
 import { cfgLspEnabled, cfgLspLazy, cfgLspShared } from "./lsp/settings";
 import {
 	cfgMcpEnableProjectConfig,
@@ -366,12 +377,6 @@ import {
 } from "./mcp/settings";
 import { cfgPlanEnabled } from "./plan-mode/settings";
 import { cfgSecretsEnabled } from "./secrets/settings";
-import {
-	cfgSnapcompactShape,
-	cfgSnapcompactSystemPrompt,
-	cfgSnapcompactToolResults,
-	cfgWorkspaceAdditionalDirectories,
-} from "./session/context-settings";
 import { cfgTaskBatch, cfgTaskDisabledAgents, cfgTaskEager, cfgTaskMaxConcurrency } from "./task/settings";
 
 /** Agent-level tool-call switches, snapshotted by the agent loop per prompt run. */

@@ -12,8 +12,23 @@
  * the hello and hangs up.
  */
 import * as net from "node:net";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
+/** Tern wire protocol version zeta speaks. */
+export const TERN_WIRE_VERSION = 9;
+
+/** Tag of the daemon's `Welcome` reply. */
+const TAG_WELCOME = 0;
+/** Tag of the daemon's `Refused` reply. */
+const TAG_REFUSED = 1;
+/** Tag of the daemon's `Browser` reply. */
+const TAG_BROWSER_REPLY = 30;
+/** Tag of the script's `Browser` request. */
+const TAG_BROWSER_REQUEST = 40;
+/** Tag of the script's `Hello` request. */
+const TAG_HELLO = 0;
+/** `ClientKind::Cli` on the wire. */
+const CLIENT_KIND_CLI = 1;
 /** Frames larger than this are a protocol error (the daemon's own cap). */
 const MAX_FRAME_BYTES = 256 << 20;
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -45,7 +60,7 @@ export class TernBrowserError extends ToolError {
 	}
 }
 
-/** Error kinds meaning "this Tern cannot host a browser for omp right now". */
+/** Error kinds meaning "this Tern cannot host a browser for zeta right now". */
 const UNAVAILABLE_KINDS: Partial<Record<TernErrorKind, true>> = {
 	no_window: true,
 	unsupported: true,
@@ -261,7 +276,7 @@ export class TernSocketClient {
 		return this.#welcomed && !this.#closed;
 	}
 
-	/** Open the socket and greet; resolves once the daemon welcomed omp. */
+	/** Open the socket and greet; resolves once the daemon welcomed zeta. */
 	async connect(): Promise<void> {
 		if (this.#closed) throw this.#closeError ?? new TernBrowserError("closed", "Tern connection closed");
 		if (this.#welcomed) return;

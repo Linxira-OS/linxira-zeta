@@ -19,17 +19,17 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, AgentState } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, TextContent } from "@oh-my-pi/pi-ai";
-import { $which, logger } from "@oh-my-pi/pi-utils";
-import { DEFAULT_SHARE_URL } from "@oh-my-pi/pi-wire";
+import type { AgentMessage, AgentState } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { $which, logger } from "@linxiraos/pi-utils";
+import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { $ } from "bun";
 import { obfuscateToolArguments } from "../secrets/message-transform";
 import type { SecretObfuscator } from "../secrets/obfuscator";
 import { SecretValueSet } from "../secrets/placeholder";
 import { type SessionEntry, type SessionHeader, TITLE_CHANGE_ENTRY_TYPE } from "../session/session-entries";
 import type { SessionManager } from "../session/session-manager";
-import type { OutputMeta } from "@oh-my-pi/pi-tui/tools/output-meta";
+import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
 import type { SubSession } from "../session/sub-sessions";
 import { buildSessionData, type SessionData } from "./html";
 

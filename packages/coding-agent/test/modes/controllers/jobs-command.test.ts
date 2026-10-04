@@ -1,21 +1,21 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession, type AsyncJobSnapshotItem } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Container } from "@oh-my-pi/pi-tui";
-import { isNativeRendering, setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { JobsSheet } from "@oh-my-pi/pi-tui/overlays/jobs-panel";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentSession, type AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Container } from "@linxiraos/pi-tui";
+import { isNativeRendering, setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { JobsSheet } from "@linxiraos/pi-tui/overlays/jobs-panel";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const WIDTH = 60;
 

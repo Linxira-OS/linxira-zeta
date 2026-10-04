@@ -11,10 +11,10 @@
  * is started, so a card that names generation N can never reach session N+1.
  */
 import { randomBytes } from "node:crypto";
-import { logger } from "@oh-my-pi/pi-utils";
-import { sanitizeDisplayLine } from "@oh-my-pi/pi-tui/overlays/extensions/display-text";
+import { logger } from "@linxiraos/pi-utils";
+import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
 import type { InteractiveModeContext } from "../modes/types";
-import { TRUNCATE_LENGTHS, truncateToWidth } from "@oh-my-pi/pi-tui/render/render-utils";
+import { TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { CollabHost, CollabHostStoppedError, CollabRelayUnavailableError } from "./host";
 import type { CollabAccess } from "./registry";
 
@@ -65,7 +65,7 @@ export class CollabController {
 
 	constructor(ctx: InteractiveModeContext) {
 		this.#ctx = ctx;
-		// 64 random bits: unique per process on one machine, short enough for `omp collab link <id>` and socket paths.
+		// 64 random bits: unique per process on one machine, short enough for `zeta-c collab link <id>` and socket paths.
 		this.instanceId = randomBytes(8).toString("hex");
 	}
 

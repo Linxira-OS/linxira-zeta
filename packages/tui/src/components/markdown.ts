@@ -1,4 +1,4 @@
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	Lexer,
 	Marked,
@@ -7,7 +7,7 @@ import {
 	type TokenizerThis,
 	type Tokens,
 	type TokensList,
-} from "@oh-my-pi/pi-utils/marked";
+} from "@linxiraos/pi-utils/marked";
 import {
 	MathBlockScan,
 	type MathBlockOpener,
@@ -17,7 +17,7 @@ import {
 	mathBlockOpenerAt,
 	mathSpanInContext,
 	mathStartIndex,
-} from "@oh-my-pi/pi-utils/math-delimiters";
+} from "@linxiraos/pi-utils/math-delimiters";
 import { latexToBlock } from "../latex-block";
 import { isBareMathEnvironment, latexToUnicode } from "../latex-to-unicode";
 import { plainText } from "../native/spans";
@@ -653,7 +653,7 @@ const customHrExtension: TokenizerAndRendererExtension = {
 	},
 };
 
-// Delimiters come from `@oh-my-pi/pi-utils/math-delimiters`; rendering policy stays here.
+// Delimiters come from `@linxiraos/pi-utils/math-delimiters`; rendering policy stays here.
 const mathExtension: TokenizerAndRendererExtension = {
 	name: "math",
 	level: "inline",
@@ -1355,7 +1355,7 @@ function lexDocument(text: string): TokensList {
 
 /** A hyperlink as the renderer sees it: inline `[text](href)`, `<autolink>`, bare GFM URL, or reference link. */
 export interface MarkdownLink {
-	/** Flattened visible label with whitespace collapsed to one row; falls back to `href` when empty. */
+	/** Visible link text (equals `href` for autolinks and bare URLs). */
 	text: string;
 	/** Destination exactly as marked resolved it (references resolved, no normalization). */
 	href: string;
@@ -2794,11 +2794,11 @@ export class Markdown implements Component {
 		}
 
 		const recorder: TailRenderRecorder = {
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			rows: new Array(tokens.length - spliceEnd).fill(undefined),
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			raws: new Array(tokens.length - spliceEnd).fill(undefined),
-			// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+			// [suppressed] render-cache length preallocation
 			nextTypes: new Array(tokens.length - spliceEnd).fill(undefined),
 		};
 		const fresh = this.#renderContentLines(tokens, spliceEnd, tokens.length, contentWidth, signature, recorder);
@@ -2811,11 +2811,11 @@ export class Markdown implements Component {
 		// `start`), so a mostly-frozen document allocates only for the
 		// unfrozen tail instead of the whole token list every frame.
 		const tailCount = tokens.length - start;
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const rows: (readonly string[] | undefined)[] = new Array(tailCount).fill(undefined);
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const raws: (string | undefined)[] = new Array(tailCount).fill(undefined);
-		// oxlint-disable-next-line unicorn/no-new-array -- render-cache length preallocation
+		// [suppressed] render-cache length preallocation
 		const nextTypes: (string | undefined)[] = new Array(tailCount).fill(undefined);
 		if (cache !== undefined && cache.tokenStart === start) {
 			for (let i = start; i < Math.min(cache.cachedThrough, spliceEnd); i++) {
@@ -3943,7 +3943,7 @@ export class Markdown implements Component {
 		let minCellsWidth = minColumnWidths.reduce((a, b) => a + b, 0);
 
 		if (minCellsWidth > availableForCells) {
-			// oxlint-disable-next-line unicorn/no-new-array -- column-width allocation
+			// [suppressed] column-width allocation
 			minColumnWidths = new Array(numCols).fill(1);
 			const remaining = availableForCells - numCols;
 

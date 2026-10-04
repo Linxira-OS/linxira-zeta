@@ -1,20 +1,20 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "@oh-my-pi/pi-coding-agent/lsp/startup-events";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { LspStartupServerInfo } from "@oh-my-pi/pi-coding-agent/tools";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "@linxiraos/zeta/lsp/startup-events";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { LspStartupServerInfo } from "@linxiraos/zeta/tools";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgStartupQuiet } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgStartupQuiet } from "@linxiraos/zeta/modes/settings";
 
 describe("InteractiveMode LSP startup events", () => {
 	let authStorage: AuthStorage;

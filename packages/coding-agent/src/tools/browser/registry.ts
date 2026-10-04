@@ -264,7 +264,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "outdated-extension") {
 			throw new ToolError(
-				"The OMP Browser Relay extension is out of date. Run `omp browser-relay install` and reload the extension in Chrome.",
+				"The OMP Browser Relay extension is out of date. Run `zeta browser-relay install` and reload the extension in Chrome.",
 			);
 		}
 		const puppeteer = await loadPuppeteer();

@@ -20,10 +20,10 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { fuzzyFilter } from "@oh-my-pi/pi-tui/fuzzy";
-import { formatDuration, isEnoent, prompt } from "@oh-my-pi/pi-utils";
+import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
+import { formatDuration, isEnoent, prompt } from "@linxiraos/pi-utils";
 import { type AgentRef, AgentRegistry } from "../registry/agent-registry";
+import { type AgentMessage } from "@linxiraos/pi-agent-core";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { executeSend, isIrcEnabled } from "../irc/messaging";
 import agentPromptDoc from "../prompts/internal-urls/agent.md" with { type: "text" };

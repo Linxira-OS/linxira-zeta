@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { seedModels } from "@linxiraos/pi-catalog/compat/providers";
-import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { seedModels, providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import {
 	metaModelManagerOptions,
 	museCodeModelManagerOptions,

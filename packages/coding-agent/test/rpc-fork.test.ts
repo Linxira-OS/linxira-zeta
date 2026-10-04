@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import { parseSessionEntries, type SessionHeader } from "@oh-my-pi/pi-coding-agent";
-import { RpcClient } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-client";
-import { removeWithRetries, withTimeout } from "@oh-my-pi/pi-utils";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import { parseSessionEntries, type SessionHeader } from "@linxiraos/zeta";
+import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
+import { removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 import { rejectionOf } from "./helpers/rejection";
 
 async function readSessionFile(sessionFile: string): Promise<{ header: SessionHeader; messageIds: string[] }> {
@@ -25,7 +25,7 @@ describe("RPC fork", () => {
 		client = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "fork-rpc-agent.ts")],
 			cwd: directory,
-			env: { PI_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
+			env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 		});
 	});
 

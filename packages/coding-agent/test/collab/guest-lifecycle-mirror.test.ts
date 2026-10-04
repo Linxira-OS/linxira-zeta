@@ -13,16 +13,16 @@
  * they applied.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { generateRoomKey, importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import type { MappedExtensionEvent } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/lifecycle-mirror";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import type { MappedExtensionEvent } from "@linxiraos/zeta/extensibility/extensions/lifecycle-mirror";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import * as fsp from "node:fs/promises";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 

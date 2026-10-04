@@ -82,7 +82,7 @@ fn smoke_real_server() {
 	process
 		.args(["packages/coding-agent/src/cli.ts", "--mode", "rpc", "--no-session"])
 		.current_dir(&repo)
-		.env("PI_CODING_AGENT_DIR", &agent_dir);
+		.env("ZETA_CODING_AGENT_DIR", &agent_dir);
 	let (client, events) = Client::spawn(process, ClientOptions::default()).expect("spawn + ready");
 	println!("ready: {:?}", client.ready());
 	println!("protocol version: {}", client.protocol_version());
@@ -267,7 +267,7 @@ fn smoke_scripted_model() {
 			"fake/fake-model",
 		])
 		.current_dir(&repo)
-		.env("PI_CODING_AGENT_DIR", &agent_dir);
+		.env("ZETA_CODING_AGENT_DIR", &agent_dir);
 	let reads: Arc<Mutex<Vec<String>>> = Arc::default();
 	let writes: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
 	let (seen_reads, seen_writes) = (Arc::clone(&reads), Arc::clone(&writes));

@@ -10,7 +10,7 @@ import {
 	type AgentToolUpdateCallback,
 	isNonBlankContext,
 	joinAdditionalContext,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import type {
 	AssistantMessage,
 	CredentialDisabledEvent,
@@ -18,22 +18,22 @@ import type {
 	Model,
 	ProviderResponseMetadata,
 	TextContent,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	clearContextHistoryIndex,
 	getContextHistoryIndex,
 	markPerCallContextMessage,
 	setContextHistoryIndex,
-} from "@oh-my-pi/pi-ai/utils/block-symbols";
-import type { KeyId } from "@oh-my-pi/pi-tui";
-import { logger } from "@oh-my-pi/pi-utils";
-import { refreshShellConfigCache } from "@oh-my-pi/pi-utils/procmgr";
+} from "@linxiraos/pi-ai/utils/block-symbols";
+import type { KeyId } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
+import { refreshShellConfigCache } from "@linxiraos/pi-utils/procmgr";
 import { MAIN_AGENT_RULE_NAME } from "../../capability/rule";
 import type { ModelRegistry } from "../../config/model-registry";
-import { type Settings, withActiveSettings } from "../../config/settings";
+import { Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
-import { type Theme, theme } from "@oh-my-pi/pi-tui/theme";
+import { type Theme, theme } from "@linxiraos/pi-tui/theme";
 import type { AsyncJobSnapshot } from "../../session/agent-session";
 import { MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { SessionManager } from "../../session/session-manager";
@@ -42,7 +42,7 @@ import type { BranchHandler, NavigateTreeHandler, NewSessionHandler } from "../s
 import { accumulateToolCallResult, buildAggregatedToolCallResult } from "../shared-events";
 import { ManagedTimers } from "./managed-timers";
 import { createExtensionModelQuery } from "./model-api";
-import type { ComposerShapeDefinition } from "@oh-my-pi/pi-tui/overlays/composer-shape-registry";
+import type { ComposerShapeDefinition } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
 import type {
 	AfterProviderResponseEvent,
 	AssistantMessageRewriteEvent,
@@ -1366,6 +1366,9 @@ export class ExtensionRunner {
 		const runEphemeralTurn = this.#runEphemeralTurnFn;
 		return {
 			ui: this.#uiContext,
+			// One-shot callers construct a runner without a Settings instance; hand
+			// them an isolated one rather than making every handler null-check.
+			settings: this.settings ?? Settings.isolated(),
 			mode: this.#mode,
 			getContextUsage: () => this.#getContextUsageFn(),
 			compact: instructionsOrOptions => this.#compactFn(instructionsOrOptions),

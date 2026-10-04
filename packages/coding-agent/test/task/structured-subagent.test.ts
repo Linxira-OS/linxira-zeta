@@ -2,21 +2,21 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import path from "node:path";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { normalizeModelPatternList, resolveModelOverride } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentCompactionThresholdOverride } from "@oh-my-pi/pi-coding-agent/config/compaction-threshold";
-import type { BeforeSubagentSpawnEvent } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { normalizeModelPatternList, resolveModelOverride } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentCompactionThresholdOverride } from "@linxiraos/zeta/config/compaction-threshold";
+import type { BeforeSubagentSpawnEvent } from "@linxiraos/zeta/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import * as planHandoff from "@oh-my-pi/pi-coding-agent/plan-mode/plan-handoff";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { createEvalCustomTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+} from "@linxiraos/zeta/internal-urls/registry-helpers";
+import * as planHandoff from "@linxiraos/zeta/plan-mode/plan-handoff";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { createEvalCustomTools } from "@linxiraos/zeta/task/eval-tools";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	invalidModelSelectorReason,
@@ -24,13 +24,13 @@ import {
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { SingleResult } from "@oh-my-pi/pi-tui/tools/task";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+} from "@linxiraos/zeta/task/structured-subagent";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
-import { cfgRetryModelFallback } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgRetryModelFallback } from "@linxiraos/zeta/session/settings";
+import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@linxiraos/zeta/task/settings";
 
 const AGENT: AgentDefinition = {
 	name: "worker",
@@ -262,11 +262,11 @@ describe("structured subagent primitive", () => {
 
 		try {
 			await Bun.write(
-				path.join(projectDir, ".omp", "config.yml"),
+				path.join(projectDir, ".zeta", "config.yml"),
 				"task:\n  agentModelOverrides:\n    hot-worker: xai-oauth/grok-4.6:medium\n  enableEffort: false\nretry:\n  modelFallback: false\n",
 			);
 			await Bun.write(
-				path.join(projectDir, ".omp", "agents", "hot-worker.md"),
+				path.join(projectDir, ".zeta", "agents", "hot-worker.md"),
 				"---\nname: hot-worker\ndescription: Newly added worker.\nmodel: openai/gpt-4o\n---\n\nInspect the assignment.\n",
 			);
 
@@ -316,7 +316,7 @@ describe("structured subagent primitive", () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-task-tier-reload-"));
 		const projectDir = path.join(root, "project");
 		const agentDir = path.join(root, "agent");
-		await fs.mkdir(path.join(projectDir, ".omp"), { recursive: true });
+		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
 		await fs.mkdir(agentDir, { recursive: true });
 		const liveSettings = await Settings.loadIsolated({ cwd: projectDir, agentDir });
 		const liveSession = session({ cwd: projectDir, settings: liveSettings });

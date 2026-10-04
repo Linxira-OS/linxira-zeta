@@ -9,7 +9,7 @@ import {
 	resolveTelemetry,
 	type StreamFn,
 	type ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	AGGRESSIVE_SHAKE_CONFIG,
 	AUTO_HANDOFF_THRESHOLD_FOCUS,
@@ -41,15 +41,16 @@ import {
 	shouldCompact,
 	shouldUseProviderNativeCompaction,
 	upsertFileOperations,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import {
 	DEFAULT_PRUNE_CONFIG,
 	type PruneResult,
 	pruneSupersededToolResults,
 	pruneToolOutputs,
 	readToolSupersedeKey,
-} from "@oh-my-pi/pi-agent-core/compaction/pruning";
-import type { ProtectedToolMatcher } from "@oh-my-pi/pi-agent-core/compaction/tool-protection";
+} from "@linxiraos/pi-agent-core/compaction/pruning";
+import type { ProtectedToolMatcher } from "@linxiraos/pi-agent-core/compaction/tool-protection";
+
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -57,12 +58,12 @@ import type {
 	Model,
 	OpenAIResponsesHistoryPayload,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { preferredDialect } from "@oh-my-pi/pi-catalog/identity";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { isRecord, logger, prompt, Snowflake, stringifyJson } from "@oh-my-pi/pi-utils";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { isRecord, logger, prompt, Snowflake, stringifyJson } from "@linxiraos/pi-utils";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { writeArtifact } from "./artifacts";
 import type { ModelRegistry } from "../config/model-registry";
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";
@@ -72,10 +73,11 @@ import type { CompactOptions, ContextUsage } from "../extensibility/extensions/t
 import type { GoalModeState } from "../goals/state";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import type { MemoryBackendOperationContext } from "../memory-backend/types";
-import { computeNonMessageTokens, type NonMessageTokenSource } from "@oh-my-pi/pi-tui/status-line/context-usage";
+import { computeNonMessageTokens, type NonMessageTokenSource } from "@linxiraos/pi-tui/status-line/context-usage";
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import { isCompleteReadResult } from "../tools/read-supersede";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { TrackingRecorder } from "../tools/tracking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";
@@ -542,6 +544,7 @@ export class SessionMaintenance {
 	/** Latest rollover boundary that already received its pre-threshold notebook reminder. */
 	#experimentalNotesReminderBoundaryId: string | undefined;
 	readonly #host: SessionMaintenanceHost;
+	readonly #trackingRecorder: TrackingRecorder;
 
 	get #model(): Model | undefined {
 		return this.#host.model();
@@ -557,6 +560,7 @@ export class SessionMaintenance {
 
 	constructor(host: SessionMaintenanceHost) {
 		this.#host = host;
+		this.#trackingRecorder = new TrackingRecorder(host.settings);
 	}
 
 	/** Experimental rollover is safe only when the current effective tool surface can recover its state. */
@@ -2432,6 +2436,9 @@ export class SessionMaintenance {
 		const savedCompactionEntry = newEntries.find(e => e.type === "compaction" && e.id === entryId) as
 			| CompactionEntry
 			| undefined;
+		if (savedCompactionEntry) {
+			await this.#trackingRecorder.recordCompaction(this.#host.sessionManager.getCwd(), savedCompactionEntry);
+		}
 		if (this.#host.extensionRunner && savedCompactionEntry) {
 			const compactEmit = this.#host.extensionRunner.emit({
 				type: "session_compact",
@@ -3689,6 +3696,7 @@ export class SessionMaintenance {
 			this.#tokenizer,
 			this.#host.settings.revision,
 		);
+
 		const branch = this.#host.sessionManager.getBranch();
 		const leaf = branch.at(-1);
 		const archive = snapcompact.getPreservedArchive(args.preserveData);

@@ -1,50 +1,56 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, ImageContent, Usage } from "@oh-my-pi/pi-ai";
-import { getStreamingPartialJson } from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { type Component, Spacer, Text } from "@oh-my-pi/pi-tui";
-import { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import { QueuedMessagesBand } from "@oh-my-pi/pi-tui/prompt/queued-messages";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
+import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Spacer, Text, TruncatedText } from "@linxiraos/pi-tui";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
+import { logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
-import { createAdvisorMessageCard } from "@oh-my-pi/pi-tui/chat/advisor-message";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { createBackgroundTanDispatchBlock } from "@oh-my-pi/pi-tui/chat/background-tan-message";
-import { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { detectCacheInvalidation } from "@oh-my-pi/pi-tui/chat/cache-invalidation-marker";
-import { ServedModelTracker } from "@oh-my-pi/pi-tui/chat/served-model-marker";
-import { CollabPromptMessageComponent } from "@oh-my-pi/pi-tui/chat/collab-prompt-message";
+import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
+import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
+import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { createBackgroundTanDispatchBlock } from "@linxiraos/pi-tui/chat/background-tan-message";
+import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { CollabPromptMessageComponent } from "@linxiraos/pi-tui/chat/collab-prompt-message";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
 	createHandoffSummaryMessageComponent,
-} from "@oh-my-pi/pi-tui/chat/compaction-summary-message";
-import { CustomMessageComponent } from "@oh-my-pi/pi-tui/chat/custom-message";
-import { DynamicBorder } from "@oh-my-pi/pi-tui/chrome/dynamic-border";
-import { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
+} from "@linxiraos/pi-tui/chat/compaction-summary-message";
+import { CustomMessageComponent } from "@linxiraos/pi-tui/chat/custom-message";
+import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
+import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import {
 	type LateDiagnosticsFile,
 	LateDiagnosticsMessageComponent,
 	routeLateDiagnostics,
-} from "@oh-my-pi/pi-tui/chat/late-diagnostics-message";
+} from "@linxiraos/pi-tui/chat/late-diagnostics-message";
 import {
 	groupedReadUsageCallIds,
 	ReadToolGroupComponent,
 	readArgsCollapseIntoGroup,
-} from "@oh-my-pi/pi-tui/chat/read-tool-group";
-import { SkillMessageComponent } from "@oh-my-pi/pi-tui/chat/skill-message";
-import { StrippedToolCallsPlaceholder } from "@oh-my-pi/pi-tui/chat/stripped-tool-calls-placeholder";
-import { imageContent, textContent } from "@oh-my-pi/pi-tui/chat/transcript-entry";
-import { ToolActivityContainer } from "@oh-my-pi/pi-tui/chrome/tool-activity";
-import { ToolExecutionComponent, type ToolExecutionHandle, toolRenderName } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { TranscriptBlock, TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { createUsageRowBlock, turnElapsedMs } from "@oh-my-pi/pi-tui/overlays/usage-row";
-import { UserMessageComponent } from "@oh-my-pi/pi-tui/chat/user-message";
+} from "@linxiraos/pi-tui/chat/read-tool-group";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
+import { imageContent, textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
+import { ToolActivityContainer } from "@linxiraos/pi-tui/chrome/tool-activity";
+import {
+	ToolExecutionComponent,
+	type ToolExecutionHandle,
+	toolRenderName,
+} from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptBlock, TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
 import { decodeStreamedToolArgs, streamingStringKeysForTool } from "../../modes/controllers/tool-args-reveal";
-import { materializeImageReferenceLinksSync } from "@oh-my-pi/pi-tui/prompt/image-references";
-import { imageAttachmentSource } from "@oh-my-pi/pi-tui/prompt/image-source";
-import { theme } from "@oh-my-pi/pi-tui/theme";
+import { materializeImageReferenceLinksSync } from "@linxiraos/pi-tui/prompt/image-references";
+import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
+import { theme } from "@linxiraos/pi-tui/theme";
 import type { CompactionQueuedMessage, InteractiveModeContext, RenderSessionContextOptions } from "../../modes/types";
 import { extractVisibleAssistantText } from "../rpc/rpc-live";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
@@ -59,12 +65,13 @@ import {
 import type { SessionContext, StrippedToolCallsMarker } from "../../session/session-context";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { parseSlashCommand } from "../../slash-commands/helpers/parse";
+import { replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
 import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
 import {
 	createAssistantMessageComponent,
 	getAssistantMessageLinkTargets,
 	refreshAssistantMessageLinkTargets,
-} from "@oh-my-pi/pi-tui/prompt/interactive-context-helpers";
+} from "@linxiraos/pi-tui/prompt/interactive-context-helpers";
 import {
 	assistantHasVisibleContent,
 	assistantUsageIsBilled,
@@ -75,7 +82,7 @@ import {
 	normalizeToolArgs,
 	resolveAssistantErrorPresentation,
 	splitAssistantMessageToolTimeline,
-} from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
+} from "@linxiraos/pi-tui/chat/transcript-render-helpers";
 
 import {
 	cfgComposerRecallClearedDrafts,
@@ -1080,7 +1087,7 @@ export class UiHelpers {
 		block.addChild(new DynamicBorder(text => theme.fg("warning", text)));
 		const title = "Update Available";
 		const prefix = `New version ${newVersion} is available. Run: `;
-		const command = "omp update";
+		const command = "zeta-c update";
 		block.addChild(
 			new Text(`${title}\n${prefix}${command}`, 1, 0).setStyleFn(
 				() =>

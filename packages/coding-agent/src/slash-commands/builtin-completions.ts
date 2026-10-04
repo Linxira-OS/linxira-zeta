@@ -6,7 +6,7 @@ import { getMCPConfigPath, getProjectDir, logger } from "@linxiraos/pi-utils";
 import { formatModelRoleAlias, getKnownRoleIds } from "../config/model-roles";
 import { readMCPConfigFile } from "../mcp/config-writer";
 import { collectMcpServerNames } from "../modes/controllers/mcp-command-controller";
-import { getConfiguredThinkingLevelMetadata } from "@oh-my-pi/pi-tui/thinking";
+import { getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
 import { expandTilde } from "../tools/path-utils";
 import { resolveCommandDescription } from "./builtin-registry";
 import type { SubcommandDef, TuiSlashCommandRuntime } from "./types";

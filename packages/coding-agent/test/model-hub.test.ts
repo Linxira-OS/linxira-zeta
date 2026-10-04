@@ -4,25 +4,25 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { ModelKind } from "@oh-my-pi/pi-catalog/types";
-import type { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { ModelKind } from "@linxiraos/pi-catalog/types";
+import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	type ModelHubCallbacks,
 	ModelHubComponent,
 	type ModelHubOptions,
 	resetProviderAutoRefreshGuard,
-} from "@oh-my-pi/pi-tui/overlays/model-hub";
-import { getThemeByName, setThemeInstance, theme } from "@oh-my-pi/pi-tui/theme";
-import { AUTO_THINKING } from "@oh-my-pi/pi-tui/thinking";
-import type { TUI } from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui/overlays/model-hub";
+import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme";
+import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+import type { TUI } from "@linxiraos/pi-tui";
 
-import { cfgCycleOrder, cfgModelPresets } from "@oh-my-pi/pi-coding-agent/config/model-settings";
-import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgCycleOrder, cfgModelPresets } from "@linxiraos/zeta/config/model-settings";
+import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 
 function normalize(lines: readonly string[]): string {
 	return stripVTControlCharacters(lines.join("\n")).replace(/\s+/g, " ").trim();
@@ -943,7 +943,7 @@ describe("ModelHub", () => {
 					`modelRoleStorage: project\nmodelRoles:\n  default: ${selector}\n  smol: ${selector}\n`,
 				);
 				await Bun.write(
-					path.join(cwd, ".omp", "config.yml"),
+					path.join(cwd, ".zeta", "config.yml"),
 					`modelRoles:\n  default: ${selector}\n  smol: ${selector}\n`,
 				);
 				await Bun.write(overlayPath, "modelRoles:\n  default: null\n  smol: null\n");

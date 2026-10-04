@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 // Regression: a caller disabling reasoning (titles, tiny roles) sent Ollama the
 // lowest ladder effort "low", which Gemma 4 still thinks at (12-19 s per title).

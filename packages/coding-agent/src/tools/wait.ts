@@ -1,11 +1,11 @@
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/pi-omptype";
 import {
 	type AgentTool,
 	type AgentToolResult,
 	type AgentToolUpdateCallback,
 	TOOL_INTERRUPT_ABORT_REASON,
-} from "@oh-my-pi/pi-agent-core";
-import { prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-agent-core";
+import { prompt, formatDuration } from "@linxiraos/pi-utils";
 import { IrcBus } from "../irc/bus";
 import waitDescription from "../prompts/tools/wait.md" with { type: "text" };
 import type { ToolSession } from ".";
@@ -14,9 +14,9 @@ import { buildJobResult, snapshotJobs, undeliveredJobs } from "../async/job-cont
 import { hasLiveOwnedService, listServicesTolerant, waitForOwnedServiceCompletion } from "../launch/services";
 import { drainPendingInbox, messageResult } from "../irc/messaging";
 import type { AgentRegistry } from "../registry/agent-registry";
-import type { IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import type { CoordinationDetails } from "@oh-my-pi/pi-tui/tools/wait";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 import { throwIfAborted } from "./tool-errors";
 
 import { cfgLaunchEnabled } from "./settings";

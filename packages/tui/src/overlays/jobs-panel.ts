@@ -5,9 +5,9 @@
  * `elapsed`, lists every job and inspects the selected one (command, cwd, live
  * pids, exit code, output tail).
  */
-import type { TspAgentProps, TspSpan } from "@oh-my-pi/pi-wire";
-import { formatDuration } from "@oh-my-pi/pi-utils";
-import type { Component } from "../tui";
+import type { TspAgentProps, TspSpan } from "@linxiraos/pi-wire";
+import { formatDuration } from "@linxiraos/pi-utils";
+import { type Component, Container } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";
 import { truncateToWidth } from "../utils";
@@ -91,6 +91,31 @@ const DOT: Record<JobsPanelJob["status"], TspSpan> = {
 /** Output tail rows the terminal fallback shows under the selected job. */
 const FALLBACK_TAIL_LINES = 8;
 
+/** The `/jobs` block: `ansi` renders in the terminal, the snapshot describes the native frame. */
+export class JobsPanel extends Container {
+	readonly #snapshot: JobsPanelSnapshot;
+	readonly #nowMs: number;
+	#native: { agent: boolean; node: NativeNode } | undefined;
+
+	constructor(snapshot: JobsPanelSnapshot, nowMs: number, ansi: readonly Component[]) {
+		super();
+		this.#snapshot = snapshot;
+		this.#nowMs = nowMs;
+		for (const child of ansi) this.addChild(child);
+	}
+
+	override describe(cx: DescribeContext): NativeNode {
+		const agent = cx.supports("agent");
+		if (this.#native?.agent === agent) return this.#native.node;
+		const head: TspSpan[] = [span("Background jobs", "strong")];
+		const running = this.#snapshot.running.length;
+		if (running > 0) head.push(span(` · ${running} running`, "muted"));
+		const described = card({ role: "zeta.jobs", head }, describeJobs(this.#snapshot, this.#nowMs, agent));
+		this.#native = { agent, node: described };
+		return described;
+	}
+}
+
 /**
  * The jobs pill's sheet: a centred `lg` glass sheet titled Background jobs.
  * A selectable list of every job (running first) sits over the selected
@@ -102,7 +127,7 @@ const FALLBACK_TAIL_LINES = 8;
  */
 export class JobsSheet implements Component {
 	readonly nativeOverlay = {
-		role: "omp.overlay.jobs",
+		role: "zeta.overlay.jobs",
 		size: "lg",
 		anchor: "center",
 		head: "Background jobs",
@@ -228,6 +253,27 @@ function jobAge(job: JobsPanelJob, nowMs: number): number {
 	return Math.max(0, (job.endTime ?? nowMs) - job.startTime);
 }
 
+/** The body the `/jobs` panel draws: running rows, then a Recent section; an empty note when there are none. */
+function describeJobs(snapshot: JobsPanelSnapshot, nowMs: number, agent: boolean): NativeChild[] {
+	const { running, recent } = snapshot;
+	const children: NativeChild[] = [];
+	if (running.length === 0 && recent.length === 0) {
+		children.push(node("text", { text: "No background jobs", role: "zeta.jobs.empty" }, undefined, "empty"));
+	}
+	for (const job of running) children.push(describeJob(job, nowMs, agent));
+	if (recent.length > 0) {
+		children.push(
+			node(
+				"section",
+				{ head: [span("Recent", "muted")] },
+				recent.map(job => describeJob(job, nowMs, agent)),
+				"recent",
+			),
+		);
+	}
+	return children;
+}
+
 /** A task job as an `agent` node when the terminal draws them, else a one-line dot row. */
 function describeJob(job: JobsPanelJob, nowMs: number, agent: boolean): NativeNode {
 	const settled = job.status !== "running";
@@ -248,7 +294,7 @@ function describeJob(job: JobsPanelJob, nowMs: number, agent: boolean): NativeNo
 	}
 	return node(
 		"row",
-		{ role: "omp.jobs.row", gap: "sm", align: "center", title: `${job.id} · ${job.type} · ${job.status}` },
+		{ role: "zeta.jobs.row", gap: "sm", align: "center", title: `${job.id} · ${job.type} · ${job.status}` },
 		[
 			text([DOT[job.status]], { aria: job.status, shrink: 0 }),
 			text([span(collapseCommand(job.label))], { wrap: "none", truncate: "end", grow: 1 }),
@@ -314,8 +360,8 @@ function describeDetail(
 				)
 			: undefined,
 		detail?.output
-			? ansi(detail.output, { follow: !settled, role: "omp.jobs.output", max: { h: "16lines" } })
+			? ansi(detail.output, { follow: !settled, role: "zeta.jobs.output", max: { h: "16lines" } })
 			: text([span(settled ? "No output" : "No output yet", "dim")]),
 	]);
-	return node("col", { gap: "sm", role: "omp.jobs.detail" }, children, stableKey(job.id));
+	return node("col", { gap: "sm", role: "zeta.jobs.detail" }, children, stableKey(job.id));
 }

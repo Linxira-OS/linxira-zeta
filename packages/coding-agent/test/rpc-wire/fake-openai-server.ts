@@ -6,7 +6,7 @@
  * `bun test/rpc-wire/fake-openai-server.ts <agentDir>` listens on a free
  * loopback port, writes `<agentDir>/models.yml` declaring provider `fake`
  * (model `fake-model`, no auth) at that port, prints `READY <port>`, and serves
- * until stdin closes. Start omp with `PI_CODING_AGENT_DIR=<agentDir>` and
+ * until stdin closes. Start omp with `ZETA_CODING_AGENT_DIR=<agentDir>` and
  * `--model fake/fake-model`.
  *
  * Replies, by the conversation's last message:
@@ -20,7 +20,7 @@
  * - anything else → text `pong`
  */
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 const chatRequestSchema = type({
 	"messages?": type({ role: "string", "content?": "unknown" }).array(),

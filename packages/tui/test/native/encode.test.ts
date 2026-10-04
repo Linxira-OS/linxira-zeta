@@ -5,8 +5,8 @@ import {
 	parseTspMessage,
 	splitTspMessage,
 	TspReader,
-} from "@oh-my-pi/pi-tui/native/encode";
-import type { TspEvent } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-tui/native/encode";
+import type { TspEvent } from "@linxiraos/pi-wire";
 
 const encoder = new TextEncoder();
 

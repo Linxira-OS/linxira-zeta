@@ -8,7 +8,7 @@
  * the bodies byte-wise. Chunks split on code-point boundaries, so every chunk
  * is valid UTF-8 on its own and the joined bytes equal the original body.
  */
-import { isRecord } from "@oh-my-pi/pi-utils/type-guards";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
 import {
 	TSP_APC_ID,
 	TSP_DEFAULT_APC_LIMIT,
@@ -16,7 +16,7 @@ import {
 	type TspEvent,
 	type TspReply,
 	type TspVerb,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 
 const APC = "\x1b_";
 const ST = "\x1b\\";
@@ -108,19 +108,11 @@ export function encodeTspJson(verb: TspVerb, value: unknown, params?: TspParams,
 
 /**
  * The `hello` query; callers follow it with a DA1 sentinel. `features: ["edit"]`
- * tells the terminal that omp applies its `edit` events (TSP §8.5), so it may keep a
- * native selection in omp's editors; without it, every key stays omp's. `"undo"`
- * says omp applies `undo` events, so the terminal may turn ⌃Z in a field into one.
- * `"send"` accepts an explicit prompt for a live composer without simulating keys.
+ * tells the terminal that zeta applies its `edit` events (TSP §8.5), so it may keep a
+ * native selection in zeta's editors; without it, every key stays zeta's.
  */
 export function encodeTspHelloQuery(version?: string): string {
-	return encodeTspJson("q", {
-		q: "hello",
-		v: [TSP_VERSION],
-		app: "omp",
-		features: ["edit", "undo", "send"],
-		ver: version,
-	});
+	return encodeTspJson("q", { q: "hello", v: [TSP_VERSION], app: "zeta", features: ["edit"], ver: version });
 }
 
 /** One decoded APC message: verb, parameters and raw body. */

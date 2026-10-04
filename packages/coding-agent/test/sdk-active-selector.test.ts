@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Effort } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resolveAgentModelPatterns, resolveModelOverride } from "../src/config/model-resolver";
 import { Settings } from "../src/config/settings";

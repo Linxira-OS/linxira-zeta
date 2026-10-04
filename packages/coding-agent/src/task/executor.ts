@@ -81,8 +81,7 @@ import {
 import type { ContextFileEntry, ToolSession } from "../tools";
 import { resolveEvalBackends } from "../tools/eval-backends";
 import { isIrcEnabled } from "../irc/messaging";
-import { LIST_STATUS_ORDER } from "@linxiraos/pi-tui/tools/irc";
-import { DEFAULT_PEER_ROSTER_LIMIT } from "@linxiraos/pi-tui/tools/irc";
+import { LIST_STATUS_ORDER, DEFAULT_PEER_ROSTER_LIMIT } from "@linxiraos/pi-tui/tools/irc";
 import { normalizeSchema } from "../tools/jtd-to-json-schema";
 import { buildOutputValidator, summarizeValidationFailure } from "../tools/output-schema-validator";
 import { ToolAbortError } from "../tools/tool-errors";

@@ -2,12 +2,12 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { LiveSessionCallbacks, LiveSessionControllerOptions } from "@oh-my-pi/pi-coding-agent/live/controller";
-import { RpcLiveBridge, type RpcLiveSession } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-live";
-import type { RpcLiveFrame } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-types";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { readLines, removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { LiveSessionCallbacks, LiveSessionControllerOptions } from "@linxiraos/zeta/live/controller";
+import { RpcLiveBridge, type RpcLiveSession } from "@linxiraos/zeta/modes/rpc/rpc-live";
+import type { RpcLiveFrame } from "@linxiraos/zeta/modes/rpc/rpc-types";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { readLines, removeWithRetries } from "@linxiraos/pi-utils";
 
 class FakeLiveSession implements RpcLiveSession {
 	muted = false;
@@ -171,7 +171,7 @@ describe("live commands over RPC", () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-live-"));
 		const child = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixtures", "live-rpc-agent.ts")], {
 			cwd: dir,
-			env: { ...process.env, PI_CODING_AGENT_DIR: dir, PI_NO_TITLE: "1" },
+			env: { ...process.env, ZETA_CODING_AGENT_DIR: dir, PI_NO_TITLE: "1" },
 			stdin: "pipe",
 			stdout: "pipe",
 			stderr: "pipe",

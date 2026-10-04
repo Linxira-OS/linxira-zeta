@@ -8,17 +8,17 @@ import type {
 	ArchiveRecap,
 	ArchiveSession,
 	ArchiveSessionDetail,
-} from "@oh-my-pi/pi-coding-agent/archive/archive";
-import { createArchivePrelude } from "@oh-my-pi/pi-coding-agent/archive/prelude-definition";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { recordSessionRecap, resetSessionIndexForTests } from "@oh-my-pi/pi-coding-agent/session/session-index";
-import { sessionDirForCwd } from "@oh-my-pi/pi-coding-agent/session/session-paths";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/archive/archive";
+import { createArchivePrelude } from "@linxiraos/zeta/archive/prelude-definition";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { recordSessionRecap, resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { sessionDirForCwd } from "@linxiraos/zeta/session/session-paths";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { makeAssistantMessage } from "./session-manager/helpers";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let root: string;
 let app: string;
 let lib: string;
@@ -74,7 +74,7 @@ afterEach(() => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(path.join(getConfigRootDir(), "agent"));
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	removeSyncWithRetries(root);
 });

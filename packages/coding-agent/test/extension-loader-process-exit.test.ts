@@ -9,10 +9,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loadExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { loadHooks } from "@oh-my-pi/pi-coding-agent/extensibility/hooks/loader";
-import { ExtensionExitError, withHostGuard } from "@oh-my-pi/pi-coding-agent/extensibility/utils";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { loadHooks } from "@linxiraos/zeta/extensibility/hooks/loader";
+import { ExtensionExitError, withHostGuard } from "@linxiraos/zeta/extensibility/utils";
+import { TempDir, postmortem } from "@linxiraos/pi-utils";
 
 describe("extension/hook loader process.exit guard (#3680)", () => {
 	let project: TempDir | undefined;
@@ -67,8 +67,6 @@ describe("extension/hook loader process.exit guard (#3680)", () => {
 				? 'process.kill(process.pid, "SIGINT");'
 				: 'void Promise.reject(new Error("probe fatal"));';
 		return runProbe(`
-import { postmortem } from "@oh-my-pi/pi-utils";
-import { withHostGuard } from "@oh-my-pi/pi-coding-agent/extensibility/utils";
 
 postmortem.register("probe-cleanup", reason => {
 	process.stdout.write(\`cleanup:\${reason}\\n\`);
@@ -152,8 +150,6 @@ void withHostGuard(async () => {
 
 	it("keeps postmortem.quit behind the extension exit guard", async () => {
 		const { exitCode, stdout, stderr } = await runProbe(`
-import { postmortem } from "@oh-my-pi/pi-utils";
-import { withHostGuard } from "@oh-my-pi/pi-coding-agent/extensibility/utils";
 
 try {
 	await withHostGuard(() => postmortem.quit(37));
@@ -208,7 +204,6 @@ try {
 			);
 			const { exitCode, stdout, stderr } = await runProbe(
 				`
-import { postmortem } from "@oh-my-pi/pi-utils";
 postmortem.register("probe", reason => process.stdout.write(\`cleanup:\${reason}\\n\`));
 process.reallyExit = globalThis.__ompNativeReallyExit;
 process.stdout.write("armed\\n");

@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import * as utils from "@oh-my-pi/pi-utils";
+import * as utils from "@linxiraos/pi-utils";
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { resolveCliEntryCmd, resolveExecutablePath, resolveWorkerSpawnCmd } from "../src/subprocess/worker-client";
 
@@ -32,8 +32,8 @@ describe("executable fallback on unlinked binary", () => {
 		const whichSpy = vi.spyOn(utils, "$which");
 
 		expect(resolveCliEntryCmd()).toEqual([process.execPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [process.execPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [process.execPath, "__zeta_worker_test"],
 		});
 		expect(whichSpy).not.toHaveBeenCalled();
 	});
@@ -59,8 +59,8 @@ describe("executable fallback on unlinked binary", () => {
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([originalLauncher]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [originalLauncher, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [originalLauncher, "__zeta_worker_test"],
 		});
 	});
 
@@ -83,8 +83,8 @@ describe("executable fallback on unlinked binary", () => {
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([otherOmpInPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [otherOmpInPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [otherOmpInPath, "__zeta_worker_test"],
 		});
 	});
 
@@ -139,8 +139,8 @@ describe("executable fallback on unlinked binary", () => {
 		});
 
 		expect(resolveCliEntryCmd()).toEqual([mockUpgradedPath]);
-		expect(resolveWorkerSpawnCmd("__omp_worker_test")).toEqual({
-			cmd: [mockUpgradedPath, "__omp_worker_test"],
+		expect(resolveWorkerSpawnCmd("__zeta_worker_test")).toEqual({
+			cmd: [mockUpgradedPath, "__zeta_worker_test"],
 		});
 	});
 

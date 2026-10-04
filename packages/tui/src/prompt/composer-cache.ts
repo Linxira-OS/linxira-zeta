@@ -1,12 +1,13 @@
 /**
  * Speculative composer state for the next first frame, kept in one SQLite store
- * (`~/.omp/agent/cache/composer.db`).
+ * (`~/.zeta/agent/cache/composer.db`).
  *
  * Each row is one JSON payload keyed by project (the resolved cwd) and kind.
- * Settings-derived kinds (theme/composer preferences, status-bar inputs) are
- * also written under the empty project, so a folder that never ran omp still
- * paints with the user's theme and status bar: those are rarely
- * project-specific, and path/branch render live.
+ * Settings-derived kinds (theme/composer preferences, welcome model labels,
+ * status-bar inputs) are also written under the empty project, so a folder that
+ * never ran zeta-c still paints with the user's theme and status bar: those are
+ * rarely project-specific, and path/branch render live. Recent sessions and LSP
+ * rows stay per project.
  *
  * ```text
  * entries (project TEXT, kind TEXT, value TEXT JSON, PRIMARY KEY (project, kind))
@@ -18,12 +19,13 @@
 import type { Database, Statement } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getComposerCacheDbPath } from "@oh-my-pi/pi-utils/dirs";
-import { isBunTestRuntime } from "@oh-my-pi/pi-utils/env";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
-import { openSqliteDatabaseSync } from "@oh-my-pi/pi-utils/sqlite";
-import { isRecord } from "@oh-my-pi/pi-utils/type-guards";
+import { getComposerCacheDbPath } from "@linxiraos/pi-utils/dirs";
+import { isBunTestRuntime } from "@linxiraos/pi-utils/env";
+import * as logger from "@linxiraos/pi-utils/logger";
+import * as postmortem from "@linxiraos/pi-utils/postmortem";
+import { openSqliteDatabaseSync } from "@linxiraos/pi-utils/sqlite";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
+import type { LspServerInfo, RecentSession } from "./welcome";
 import type { ComposerPreferences, ComposerStatusCache } from "./composer";
 import { readStatusLineStartupData } from "../status-line/startup";
 import type { SymbolPreset } from "../theme/theme";

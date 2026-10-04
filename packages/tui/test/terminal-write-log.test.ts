@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { ProcessTerminal } from "@oh-my-pi/pi-tui/terminal";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const originalWriteLog = Bun.env.PI_TUI_WRITE_LOG;
 

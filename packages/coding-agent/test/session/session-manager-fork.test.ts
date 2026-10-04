@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isSyntheticToolResultMessage } from "@oh-my-pi/pi-agent-core";
-import { collectPendingToolCalls } from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
+import { isSyntheticToolResultMessage } from "@linxiraos/pi-agent-core";
+import { collectPendingToolCalls } from "@linxiraos/zeta/session/exit-diagnostics";
 import {
 	CURRENT_SESSION_VERSION,
 	type SessionEntry,
 	type SessionHeader,
 	type SessionMessageEntry,
-} from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { loadEntriesFromFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, MemorySessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { getTerminalId } from "@oh-my-pi/pi-tui";
-import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/session-entries";
+import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { getTerminalId } from "@linxiraos/pi-tui";
+import { getAgentDir, getTerminalSessionsDir, removeWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 interface JsonlMessageEntry {
 	type: "message";

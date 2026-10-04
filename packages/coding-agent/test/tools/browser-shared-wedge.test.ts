@@ -23,24 +23,24 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { withTimeout } from "@oh-my-pi/pi-utils";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { DaemonBrokerClient } from "@oh-my-pi/pi-coding-agent/launch/client";
-import { daemonRuntimeDir } from "@oh-my-pi/pi-coding-agent/launch/paths";
-import type { DaemonOperation } from "@oh-my-pi/pi-coding-agent/launch/protocol";
+import { withTimeout } from "@linxiraos/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
+import { daemonRuntimeDir } from "@linxiraos/zeta/launch/paths";
+import type { DaemonOperation } from "@linxiraos/zeta/launch/protocol";
 import {
 	forgetSharedTarget,
 	recordSharedTarget,
 	resetOrphanRegistryForTest,
 	type SharedTargetScope,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/orphan-registry";
-import type { BrowserHandle } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import * as sharedDaemon from "@oh-my-pi/pi-coding-agent/tools/browser/shared-daemon";
-import { stopSharedBrowserIfUnreachable } from "@oh-my-pi/pi-coding-agent/tools/browser/shared-daemon";
-import { getTabsMapForTest, releaseTab, runInTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { TabSession } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import type { DaemonSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
+} from "@linxiraos/zeta/tools/browser/orphan-registry";
+import type { BrowserHandle } from "@linxiraos/zeta/tools/browser/registry";
+import * as sharedDaemon from "@linxiraos/zeta/tools/browser/shared-daemon";
+import { stopSharedBrowserIfUnreachable } from "@linxiraos/zeta/tools/browser/shared-daemon";
+import { getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { TabSession } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 
 const DAEMON_NAME = "omp.browser.headless";
 /** The target id the incident log names for the tab whose close never landed. */

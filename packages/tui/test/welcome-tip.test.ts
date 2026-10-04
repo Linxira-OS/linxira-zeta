@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { renderWelcomeTip, WelcomeComponent } from "@oh-my-pi/pi-tui/prompt/welcome";
-import { initTheme, setSymbolPreset, setTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
+import { renderWelcomeTip, WelcomeComponent } from "@linxiraos/pi-tui/prompt/welcome";
+import { initTheme, setSymbolPreset, setTheme, theme } from "@linxiraos/pi-tui/theme";
+import { visibleWidth } from "@linxiraos/pi-tui";
 
 describe("renderWelcomeTip", () => {
 	beforeAll(async () => {

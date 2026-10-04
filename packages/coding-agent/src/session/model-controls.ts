@@ -1,21 +1,27 @@
-import { type Agent, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@oh-my-pi/pi-ai";
+import { type Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type {
+	Model,
+	ProviderSessionState,
+	ServiceTier,
+	ServiceTierByFamily,
+	ServiceTierFamily,
+} from "@linxiraos/pi-ai";
 import {
 	Effort,
 	realizesPriorityServiceTier,
 	resolveModelServiceTier,
 	serviceTierFamily,
 	shouldSendServiceTier,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	clearAnthropicFastModeFallback,
 	isAnthropicFastModeFallbackDisabled,
-} from "@oh-my-pi/pi-ai/providers/anthropic-state";
-import { isFireworksFastModelId } from "@oh-my-pi/pi-catalog/fireworks-model-id";
-import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
-import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/providers/anthropic-state";
+import { isFireworksFastModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
+import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
+import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { logger } from "@linxiraos/pi-utils";
 import { classifyDifficulty } from "../auto-thinking/classifier";
 import type { ModelRegistry } from "../config/model-registry";
 import {
@@ -27,7 +33,7 @@ import {
 } from "../config/model-resolver";
 import { getKnownRoleIds } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import { containsMagicKeyword } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
+import { containsMagicKeyword } from "@linxiraos/pi-tui/prompt/magic-keywords";
 import type { MagicKeywordId } from "../modes/magic-keywords";
 import {
 	AUTO_THINKING,
@@ -38,8 +44,8 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@oh-my-pi/pi-tui/thinking";
-import type { EditMode } from "@oh-my-pi/pi-tui/tools/edit";
+} from "@linxiraos/pi-tui/thinking";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ModelCycleResult, ResolvedRoleModel, RoleModelCycle, RoleModelCycleResult } from "./agent-session-types";
 import { formatRoleModelValue, resolveRoleModelFull } from "./role-models";

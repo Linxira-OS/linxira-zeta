@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
-import type { CostEstimatorContext } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initTelemetryExport, isTelemetryExportEnabled } from "@oh-my-pi/pi-coding-agent/telemetry-export";
-import { estimateProviderCost } from "@oh-my-pi/pi-coding-agent/telemetry-export-otlp";
-import { cfgTelemetryOtlpExportEnabled } from "@oh-my-pi/pi-coding-agent/telemetry-settings";
+import type { CostEstimatorContext } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
+import { estimateProviderCost } from "@linxiraos/zeta/telemetry-export-otlp";
+import { cfgTelemetryOtlpExportEnabled } from "@linxiraos/zeta/telemetry-settings";
 
 /**
  * Gating contract for the OTLP export bootstrap. These cases all short-circuit

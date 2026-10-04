@@ -1,10 +1,13 @@
 /**
- * Builtin Provider (.omp)
+ * Builtin Provider (.zeta)
  *
- * Primary provider for OMP native configs. Supports all capabilities.
+ * Primary provider for ZETA native configs. Supports all capabilities.
  */
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import type { Dirent } from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, logger, normalizePathForComparison, parseFrontmatter, tryParseJson } from "@oh-my-pi/pi-utils";
+import { getAgentDir, logger, normalizePathForComparison, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { getManagedSkillsDir, MANAGED_SKILLS_PROVIDER_ID } from "../autolearn/managed-skills";
 import { registerProvider } from "../capability";
@@ -18,7 +21,7 @@ import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Prompt, promptCapability } from "../capability/prompt";
 import { type Rule, ruleCapability } from "../capability/rule";
 import { type Settings, settingsCapability } from "../capability/settings";
-import { type Skill, skillCapability } from "../capability/skill";
+import { OFFICIAL_SKILLS_PROVIDER_ID, type Skill, skillCapability } from "../capability/skill";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { type CustomTool, toolCapability } from "../capability/tool";
@@ -37,8 +40,8 @@ import {
 } from "./helpers";
 
 const PROVIDER_ID = "native";
-const DISPLAY_NAME = "OMP";
-const DESCRIPTION = "Native OMP configuration from ~/.omp and .omp/";
+const DISPLAY_NAME = "Zeta";
+const DESCRIPTION = "Native Zeta configuration from ~/.zeta and .zeta/";
 const PRIORITY = 100;
 
 const PATHS = SOURCE_PATHS.native;
@@ -64,7 +67,7 @@ async function getConfigDirs(ctx: LoadContext): Promise<Array<{ dir: string; lev
 			: await ifNonEmptyDir(ctx.cwd, PATHS.projectDir);
 	if (projectDir) result.push({ dir: projectDir, level: "project" });
 	// Native user config is profile-scoped: getAgentDir() points at the active
-	// profile's agent dir (~/.omp/profiles/<name>/agent), like sessions and MCP.
+	// profile's agent dir (~/.zeta/profiles/<name>/agent), like sessions and MCP.
 	// A load that carries its own agentDir (an SDK session created with one) reads that dir.
 	const userDir = await ifNonEmptyDir(ctx.agentDir ?? getAgentDir());
 	if (userDir) {
@@ -92,8 +95,8 @@ export function getAncestorDirs(cwd: string, stopAt?: string | null): Array<{ di
 }
 
 /**
- * Nearest `.omp/` between cwd and the repo root. The home directory is never a
- * project: `~/.omp` is the user config root, so a cwd under home (temp dirs on
+ * Nearest `.zeta/` between cwd and the repo root. The home directory is never a
+ * project: `~/.zeta` is the user config root, so a cwd under home (temp dirs on
  * Windows, scratch folders) must not load its SYSTEM.md/RULES.md/AGENTS.md as
  * project config — that also bypasses an overridden agent dir or profile.
  */
@@ -293,7 +296,7 @@ registerProvider<SystemPrompt>(systemPromptCapability.id, {
 
 // Skills
 async function loadSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
-	// Walk up from cwd finding .omp/skills/ in ancestors (closest first). Home is
+	// Walk up from cwd finding .zeta/skills/ in ancestors (closest first). Home is
 	// the user config root, never a project (see findNearestProjectConfigDir).
 	const home = normalizePathForComparison(ctx.home);
 	const ancestors = getAncestorDirs(ctx.cwd, ctx.repoRoot ?? ctx.home).filter(
@@ -308,7 +311,7 @@ async function loadSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
 		}),
 	);
 
-	// User-level scan from ~/.omp/agent/skills/
+	// User-level scan from ~/.zeta/agent/skills/
 	const userScan = scanSkillsFromDir(ctx, {
 		dir: path.join(getAgentDir(), "skills"),
 		providerId: PROVIDER_ID,
@@ -348,9 +351,130 @@ registerProvider<Skill>(skillCapability.id, {
 registerProvider<Skill>(skillCapability.id, {
 	id: MANAGED_SKILLS_PROVIDER_ID,
 	displayName: "Managed Skills (auto-learn)",
-	description: "Auto-generated managed skills from ~/.omp/agent/managed-skills",
+	description: "Auto-generated managed skills from ~/.zeta/agent/managed-skills",
 	priority: MANAGED_SKILLS_PRIORITY,
 	load: loadManagedSkills,
+});
+
+// Official bundled skills (`skills/official/` in the repo, packaged with
+// releases). Priority sits between authored (100) and managed (5): an
+// authored skill of the same name from any provider still wins, but the
+// official pack beats auto-learn noise. A missing dir is a no-op so the
+// provider is inert in contexts without the pack (npm global installs
+// before the bundled seed lands).
+const OFFICIAL_SKILLS_PRIORITY = 10;
+// Resolution order:
+//   1. ZETA_OFFICIAL_SKILLS_DIR — explicit override; a dead path disables the
+//      pack entirely (the test preload uses this for process-wide isolation).
+//   2. ZETA_OFFICIAL_SKILLS_EMBED — payload burned in at bundle/binary build
+//      time (see scripts/generate-official-skills-payload.ts); seeded to disk
+//      under <agentDir>/official-skills/ so skills keep real paths.
+//   3. On-disk candidates — repo checkout (`<repo>/skills/official`, dev runs)
+//      and the packaged copy (`<pkg>/skills/official`, shipped via the
+//      package.json `files` list). src runtimes have no embed define (it is
+//      substituted at bundle/binary build time), so npm source installs rely
+//      entirely on the packaged candidate.
+/**
+ * Candidate directories probed in order by {@link resolveOfficialSkillsDir}.
+ * Exported for tests that verify the npm source-install layout.
+ */
+export function officialSkillsDirCandidates(fromDir: string): string[] {
+	return [path.join(fromDir, "../../../../skills/official"), path.join(fromDir, "../../skills/official")];
+}
+
+function resolveOfficialSkillsDir(): string | null {
+	const override = process.env.ZETA_OFFICIAL_SKILLS_DIR;
+	if (override !== undefined) return override;
+	const embed = process.env.ZETA_OFFICIAL_SKILLS_EMBED;
+	if (embed !== undefined) return seedOfficialSkillsFromEmbed(embed);
+	for (const candidate of officialSkillsDirCandidates(import.meta.dir)) {
+		if (existsSync(candidate)) return candidate;
+	}
+	return null;
+}
+
+function seedOfficialSkillsFromEmbed(embedJson: string): string {
+	// Test processes override this to point the seed at a temp dir; mutating
+	// the global agent dir from a test leaks into every later chunk sibling.
+	const seedRoot = process.env.ZETA_OFFICIAL_SKILLS_SEED_DIR ?? path.join(getAgentDir(), "official-skills");
+	const seedDir = seedRoot;
+	const hash = createHash("sha256").update(embedJson).digest("hex").slice(0, 16);
+	const hashPath = path.join(seedDir, ".embed-hash");
+	let currentHash = "";
+	try {
+		currentHash = readFileSync(hashPath, "utf8").trim();
+	} catch {
+		// First seed, or the marker was removed — fall through to a rewrite.
+	}
+	if (currentHash === hash && existsSync(seedDir)) return seedDir;
+	const files = JSON.parse(embedJson) as Record<string, string>;
+	const wanted = new Set(Object.keys(files));
+	mkdirSync(seedDir, { recursive: true });
+	for (const [relative, body] of Object.entries(files)) {
+		const target = path.join(seedDir, relative);
+		mkdirSync(path.dirname(target), { recursive: true });
+		writeFileSync(target, body);
+	}
+	writeFileSync(hashPath, `${hash}\n`);
+	pruneStaleSeedFiles(seedDir, wanted);
+	return seedDir;
+}
+
+/**
+ * The payload is the single source of truth for the seed dir: when a new embed
+ * ships fewer files (a skill retired from the pack), leftovers from the
+ * previous seed must go or ghost skills keep loading from disk. Only the
+ * `.embed-hash` marker itself is exempt. Runs only on rewrites — the hash
+ * short-circuit above skips it for unchanged payloads.
+ */
+function pruneStaleSeedFiles(seedDir: string, wanted: Set<string>): void {
+	const visit = (dir: string): void => {
+		let entries: Dirent[];
+		try {
+			entries = readdirSync(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const entry of entries) {
+			const entryPath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				visit(entryPath);
+				continue;
+			}
+			const relative = path.relative(seedDir, entryPath).split(path.sep).join("/");
+			if (relative !== ".embed-hash" && !wanted.has(relative)) {
+				rmSync(entryPath, { force: true });
+			}
+		}
+	};
+	visit(seedDir);
+}
+
+async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
+	let dir: string | null;
+	try {
+		dir = resolveOfficialSkillsDir();
+	} catch (error) {
+		return {
+			items: [],
+			warnings: [`Failed to seed official skills: ${String(error)}`],
+		};
+	}
+	if (!dir || !existsSync(dir)) return { items: [] };
+	return scanSkillsFromDir(ctx, {
+		dir,
+		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
+		level: "user",
+		requireDescription: true,
+	});
+}
+
+registerProvider<Skill>(skillCapability.id, {
+	id: OFFICIAL_SKILLS_PROVIDER_ID,
+	displayName: "Official Skills (bundled)",
+	description: "First-party task skills shipped with Zeta (skills/official)",
+	priority: OFFICIAL_SKILLS_PRIORITY,
+	load: loadOfficialSkills,
 });
 
 // Slash Commands
@@ -405,8 +529,8 @@ async function loadRules(ctx: LoadContext): Promise<LoadResult<Rule>> {
 	// https://omp.sh/docs/context-files: its full body is carried on every
 	// request (system-prompt text, or image frames under snapcompact
 	// system-prompt imaging) so it keeps its hold across long sessions.
-	// User scope:    <agentDir>/RULES.md (~/.omp/agent/RULES.md by default)
-	// Project scope: nearest .omp/RULES.md walking up from cwd to repoRoot
+	// User scope:    <agentDir>/RULES.md (~/.zeta/agent/RULES.md by default)
+	// Project scope: nearest .zeta/RULES.md walking up from cwd to repoRoot
 	const userRulesFile = path.join(ctx.agentDir ?? getAgentDir(), "RULES.md");
 	const userRule = await loadStickyRulesFile(userRulesFile, "user");
 	if (userRule) items.push(userRule);
@@ -959,7 +1083,7 @@ async function loadContextFiles(ctx: LoadContext): Promise<LoadResult<ContextFil
 registerProvider<ContextFile>(contextFileCapability.id, {
 	id: PROVIDER_ID,
 	displayName: DISPLAY_NAME,
-	description: "Load AGENTS.md from .omp/ directories",
+	description: "Load AGENTS.md from .zeta/ directories",
 	priority: PRIORITY,
 	load: loadContextFiles,
 });

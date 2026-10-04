@@ -7,6 +7,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
+	getPluginCacheDir,
+	getPluginDataDir,
+	getPluginStateDir,
 	getPluginsDir,
 	getPluginsLockfile,
 	hasFsCode,
@@ -14,13 +17,37 @@ import {
 	isEnoent,
 	logger,
 	normalizePathForComparison,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
 import { normalizePluginRuntimeConfig } from "./runtime-config";
-import type { InstalledPlugin, PluginManifest, PluginRuntimeConfig, ProjectPluginOverrides } from "./types";
+import type {
+	InstalledPlugin,
+	PluginManifest,
+	PluginRuntimeConfig,
+	PluginStorage,
+	ProjectPluginOverrides,
+} from "./types";
+
+/**
+ * Host-managed storage roots for a plugin (spec §4.3): resolve the three
+ * per-plugin dirs for `pluginName` and lazily `mkdir(recursive)` them —
+ * directory existence is a host contract, plugins must not recreate it
+ * elsewhere. `home` pins the plugins root for non-default-home callers.
+ */
+export function buildPluginStorage(pluginName: string, home?: string): PluginStorage {
+	const storage: PluginStorage = {
+		dataDir: getPluginDataDir(pluginName, home),
+		cacheDir: getPluginCacheDir(pluginName, home),
+		stateDir: getPluginStateDir(pluginName, home),
+	};
+	for (const dir of [storage.dataDir, storage.cacheDir, storage.stateDir]) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+	return storage;
+}
 
 /** Installed plugin plus the root scope that supplied its runtime metadata. */
 export interface ScopedInstalledPlugin extends InstalledPlugin {
@@ -64,7 +91,7 @@ async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
 }
 
 /**
- * Load project-local plugin overrides (checks .omp and .pi directories).
+ * Load project-local plugin overrides (checks .zeta and .pi directories).
  */
 async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides> {
 	for (const overridesPath of getConfigDirPaths("plugin-overrides.json", { user: false, cwd })) {
@@ -99,6 +126,7 @@ async function collectPluginsAtRoot(
 	root: string,
 	projectOverrides: ProjectPluginOverrides,
 	scope: ScopedInstalledPlugin["scope"],
+	home?: string,
 ): Promise<ScopedInstalledPlugin[]> {
 	const nodeModulesPath = path.join(root, "node_modules");
 	if (!fs.existsSync(nodeModulesPath)) return [];
@@ -156,7 +184,7 @@ async function collectPluginsAtRoot(
 	const plugins: ScopedInstalledPlugin[] = [];
 	for (const name of names) {
 		// When a package manifest exists, a lockfile-only entry is legitimate
-		// only for linked plugins (`omp plugin link`, marketplace runtime
+		// only for linked plugins (`zeta-c plugin link`, marketplace runtime
 		// registration), which are symlinks into node_modules. Without a
 		// manifest, retain the established lockfile-only directory layout.
 		if (hasPackageManifest && !depsKeys.includes(name) && !(await isSymlink(path.join(nodeModulesPath, name)))) {
@@ -213,6 +241,7 @@ async function collectPluginsAtRoot(
 			manifest,
 			enabledFeatures,
 			enabled: true,
+			storage: buildPluginStorage(name, home),
 		});
 	}
 
@@ -223,9 +252,9 @@ async function collectPluginsAtRoot(
  * Get list of enabled plugins with their resolved configurations.
  *
  * Enumerates two plugin roots in order: the user root
- * (`getPluginsDir(home)`) and, when a project anchor (`.omp/` or `.git/`)
+ * (`getPluginsDir(home)`) and, when a project anchor (`.zeta/` or `.git/`)
  * exists at or above `cwd`, the project root
- * (`<projectAnchor>/.omp/plugins`). Each root contributes the union of its
+ * (`<projectAnchor>/.zeta/plugins`). Each root contributes the union of its
  * `package.json#dependencies` and `omp-plugins.lock.json#plugins`. Project
  * entries shadow user entries with the same package name, matching the
  * shadow semantics of `MarketplaceManager.listInstalledPlugins`.
@@ -256,7 +285,7 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
 	const projectOverrides = await loadProjectOverrides(cwd);
 
 	const userRoot = getPluginsDir(home);
-	const userPlugins = await collectPluginsAtRoot(userRoot, projectOverrides, "user");
+	const userPlugins = await collectPluginsAtRoot(userRoot, projectOverrides, "user", home);
 
 	let projectPlugins: ScopedInstalledPlugin[] = [];
 	const projectRegistryPath = await resolveActiveProjectRegistryPath(cwd);
@@ -280,6 +309,26 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
 // =============================================================================
 // Path Resolution
 // =============================================================================
+
+/**
+ * Storage roots for the plugin that owns `extensionPath`, or `undefined` when
+ * the path is not a manifest entry of an enabled plugin (top-level extension,
+ * inline factory). Used by the extension loader to expose `pi.storage` with
+ * the same roots `InstalledPlugin.storage` carries; directories already exist
+ * (the loader created them at collection time).
+ */
+export async function resolvePluginStorage(
+	cwd: string,
+	extensionPath: string,
+	opts: { home?: string } = {},
+): Promise<PluginStorage | undefined> {
+	const resolved = path.resolve(extensionPath);
+	const plugin = (await getEnabledPlugins(cwd, opts)).find(candidate => {
+		const rel = path.relative(candidate.path, resolved);
+		return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+	});
+	return plugin?.storage;
+}
 
 const MANIFEST_ENTRY_MODULE_EXTENSIONS = [".ts", ".js", ".mjs", ".cjs"];
 const MANIFEST_ENTRY_INDEX_NAMES = MANIFEST_ENTRY_MODULE_EXTENSIONS.map(ext => `index${ext}`);

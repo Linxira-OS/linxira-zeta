@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, acquireFileLock } from "@oh-my-pi/pi-utils";
+import { $which, acquireFileLock } from "@linxiraos/pi-utils";
 import type { IdbLocation } from "../../src/ida/store";
 import { IdaWorker } from "../../src/ida/supervisor";
 

@@ -8,21 +8,21 @@ import { afterEach, beforeEach, expect, it } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Api } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { COPILOT_API_HEADERS } from "@oh-my-pi/pi-catalog/wire/github-copilot";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import type { CreateAgentSessionOptions } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { __resetDirsFromEnvForTests, getModelDbPath, setAgentDir } from "@oh-my-pi/pi-utils";
+import type { Api } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
+import { COPILOT_API_HEADERS } from "@linxiraos/pi-catalog/wire/github-copilot";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { __resetDirsFromEnvForTests, getModelDbPath, setAgentDir } from "@linxiraos/pi-utils";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 let agentDirRoot: string | undefined;
 
 beforeEach(async () => {
@@ -34,9 +34,9 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	if (originalAgentDir === undefined) {
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	} else {
-		process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+		process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
 	}
 	__resetDirsFromEnvForTests();
 	if (agentDirRoot) {

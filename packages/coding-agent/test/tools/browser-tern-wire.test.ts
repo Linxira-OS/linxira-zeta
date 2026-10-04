@@ -5,7 +5,7 @@ import {
 	TernBrowserError,
 	TernFrameReader,
 	TernSocketClient,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tern/wire";
+} from "@linxiraos/zeta/tools/browser/tern/wire";
 import { type FakeDaemon, frame, jsonPayload, startFakeDaemon } from "./tern-fake-daemon";
 
 let daemon: FakeDaemon | undefined;

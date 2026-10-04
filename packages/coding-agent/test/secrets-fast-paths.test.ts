@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { obfuscateMessages } from "@oh-my-pi/pi-coding-agent/secrets/message-transform";
-import { type SecretEntry, SecretObfuscator } from "@oh-my-pi/pi-coding-agent/secrets/obfuscator";
+import type { Message } from "@linxiraos/pi-ai";
+import { obfuscateMessages } from "@linxiraos/zeta/secrets/message-transform";
+import { type SecretEntry, SecretObfuscator } from "@linxiraos/zeta/secrets/obfuscator";
 import {
 	SecretValueSet,
 	sanitizedLabelCollidesWithSecret,
 	sanitizeForCollisionCheck,
-} from "@oh-my-pi/pi-coding-agent/secrets/placeholder";
+} from "@linxiraos/zeta/secrets/placeholder";
 
 describe("SecretObfuscator batch scans", () => {
 	it("rescans a string after a mint earlier in the same batch resolves the placeholder key", () => {

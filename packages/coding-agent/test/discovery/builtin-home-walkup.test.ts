@@ -97,7 +97,7 @@ test("noncanonical home never becomes a native project config root", async () =>
 	const link = path.join(tempDir, "home-link");
 	fs.mkdirSync(cwd, { recursive: true });
 	fs.symlinkSync(home, link, "dir");
-	writeFile(path.join(project, ".omp", "SYSTEM.md"), "project system prompt\n");
+	writeFile(path.join(project, ".zeta", "SYSTEM.md"), "project system prompt\n");
 
 	for (const alias of [`${home}${path.sep}`, link]) {
 		const ctx: LoadContext = { cwd, home: alias, repoRoot: null };
@@ -105,9 +105,9 @@ test("noncanonical home never becomes a native project config root", async () =>
 		const rules = await loadNative<Rule>(ruleCapability.id, ctx);
 		const skills = await loadNative<Skill>(skillCapability.id, ctx);
 
-		expect(prompts.map(p => p.path)).toEqual([path.join(project, ".omp", "SYSTEM.md")]);
-		expect(rules.filter(rule => rule.path === path.join(home, ".omp", "RULES.md"))).toEqual([]);
-		expect(skills.filter(skill => skill.path === path.join(home, ".omp", "skills", "operator", "SKILL.md"))).toEqual(
+		expect(prompts.map(p => p.path)).toEqual([path.join(project, ".zeta", "SYSTEM.md")]);
+		expect(rules.filter(rule => rule.path === path.join(home, ".zeta", "RULES.md"))).toEqual([]);
+		expect(skills.filter(skill => skill.path === path.join(home, ".zeta", "skills", "operator", "SKILL.md"))).toEqual(
 			[],
 		);
 	}

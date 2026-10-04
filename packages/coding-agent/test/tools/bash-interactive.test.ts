@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runInteractiveBashPty } from "@oh-my-pi/pi-coding-agent/tools/bash-interactive";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { initTheme, type Theme, theme } from "@oh-my-pi/pi-tui/theme";
-import { TUI } from "@oh-my-pi/pi-tui";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { runInteractiveBashPty } from "@linxiraos/zeta/tools/bash-interactive";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { initTheme, type Theme, theme } from "@linxiraos/pi-tui/theme";
+import { TUI } from "@linxiraos/pi-tui";
+import { TempDir } from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 
 type InteractiveUi = Pick<NonNullable<AgentToolContext["ui"]>, "custom">;

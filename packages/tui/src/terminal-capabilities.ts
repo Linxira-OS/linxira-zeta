@@ -1,5 +1,5 @@
-import { encodeSixel } from "@oh-my-pi/pi-natives";
-import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@oh-my-pi/pi-utils/env";
+import { encodeSixel } from "@linxiraos/pi-natives";
+import { $env, isBunTestRuntime, isTerminalHeadless, isWsl } from "@linxiraos/pi-utils/env";
 import { writeTerminalSequence } from "./active-terminal";
 import { sendDesktopNotification, shouldDeliverDesktopNotification } from "./desktop-notify";
 import {
@@ -45,7 +45,7 @@ export type TerminalId =
 	| "base"
 	| "trueColor";
 
-const CMUX_NOTIFICATION_TITLE = "omp";
+const CMUX_NOTIFICATION_TITLE = "zeta";
 const CMUX_SURFACE_ID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
 
 /** Title and body for an out-of-band multiplexer notification (cmux, Herdr). */
@@ -499,6 +499,17 @@ export function detectStyledUnderlineSupport(terminalId: TerminalId, env: NodeJS
 	}
 }
 /**
+ * True when this process runs inside a Zeta workbench pane. The workbench
+ * injects `ZETA_WORKBENCH=1` into every pane PTY (`termide` set_env); its
+ * terminal simulator renders OSC 8 in its own grid and opens links itself on
+ * Ctrl+click, so — like Herdr — the outer terminal's advertised support does
+ * not matter. Pane-only detection, mirroring `isInsideHerdr`.
+ */
+export function isInsideZetaWorkbench(env: NodeJS.ProcessEnv = Bun.env): boolean {
+	return env.ZETA_WORKBENCH === "1";
+}
+
+/**
  * Resolve an explicit user override for OSC 8 hyperlinks. Returns `false` for
  * an opt-out, `true` for a force-on, or `null` when the user has expressed no
  * preference. Opt-out beats force-on so a kill switch is unambiguous, mirroring
@@ -531,6 +542,10 @@ function parseTmuxVersionFromEnv(env: NodeJS.ProcessEnv): { major: number; minor
  *      terminal (`TERM=xterm-256color`, no `TERM_PROGRAM`), but it renders
  *      OSC 8 in its own grid and opens links itself on Ctrl+click, so the
  *      outer terminal's support does not matter.
+ *   2b. Zeta workbench pane with no nested screen/tmux: on, for the same
+ *      reason — the workbench's terminal simulator renders OSC 8 itself and
+ *      opens links on Ctrl+click (`ZETA_WORKBENCH=1` is injected into every
+ *      pane PTY; the outer terminal is invisible from inside).
  *   3. Static terminal capability — terminals whose {@link TerminalInfo} marks
  *      `hyperlinks: false` (e.g. `base`) stay off unless the user forced on.
  *   4. GNU screen's explicit session marker (`STY`) always off, even if tmux is
@@ -557,6 +572,8 @@ export function shouldEnableHyperlinksByDefault(
 	if (override !== null) return override;
 
 	if (isInsideHerdr(env) && !env.STY && !env.TMUX) return true;
+
+	if (isInsideZetaWorkbench(env) && !env.STY && !env.TMUX) return true;
 
 	if (!getTerminalInfo(terminalId).hyperlinks) return false;
 
@@ -712,7 +729,7 @@ const KNOWN_TERMINALS = Object.freeze({
 	// the conservative defaults.
 	rio: new TerminalInfo("rio", ImageProtocol.Kitty, true, true),
 	// Tern (Stencil's terminal, `stencil-term`) sets TERM_PROGRAM=tern and
-	// implements Kitty graphics, OSC 8 and OSC 9/99 notifications. Whether omp
+	// implements Kitty graphics, OSC 8 and OSC 9/99 notifications. Whether zeta
 	// renders natively (Tern Surface Protocol) is decided by the `hello`
 	// handshake alone, never by this identity.
 	tern: new TerminalInfo("tern", ImageProtocol.Kitty, true, true, NotifyProtocol.Osc99),
@@ -1473,7 +1490,7 @@ function notificationToLine(n: TerminalNotification): string {
 // C0/C1 control characters that are unsafe inside an OSC payload (must base64).
 const OSC99_UNSAFE = /[\x00-\x1f\x7f\x80-\x9f]/u;
 const OSC99_MAX_PAYLOAD_BYTES = 2048;
-const OSC99_APP_NAME = "omp";
+const OSC99_APP_NAME = "zeta";
 let nextOsc99NotificationId = 1;
 
 function base64Utf8(value: string): string {
@@ -1487,7 +1504,7 @@ function sanitizeOsc99Id(id: string | undefined): string {
 }
 
 function osc99Id(id: string | undefined): string {
-	return sanitizeOsc99Id(id) || `omp-${nextOsc99NotificationId++}`;
+	return sanitizeOsc99Id(id) || `zeta-${nextOsc99NotificationId++}`;
 }
 
 function utf8CodePointBytes(char: string): number {

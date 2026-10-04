@@ -3,8 +3,8 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as pluginCli from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
-import * as updateCli from "@oh-my-pi/pi-coding-agent/cli/update-cli";
+import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
+import * as updateCli from "@linxiraos/zeta/cli/update-cli";
 import {
 	buildBunInstallArgs,
 	buildHomebrewUpdateArgs,
@@ -37,11 +37,11 @@ import {
 	updateViaBinaryAt,
 	updateViaManager,
 	updateViaShimTakeover,
-} from "@oh-my-pi/pi-coding-agent/cli/update-cli";
-import Update from "@oh-my-pi/pi-coding-agent/commands/update";
-import { $which, removeWithRetries } from "@oh-my-pi/pi-utils";
-import type { CliConfig } from "@oh-my-pi/pi-utils/cli";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+} from "@linxiraos/zeta/cli/update-cli";
+import Update from "@linxiraos/zeta/commands/update";
+import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const miseBinary = Bun.env.MISE_BIN ?? $which("mise");
 
@@ -350,7 +350,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
-		const packagePath = path.join(nodeModulesDir, "@oh-my-pi", "pi-coding-agent");
+		const packagePath = path.join(nodeModulesDir, "@zeta", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(npmBinDir, "omp");
@@ -483,7 +483,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
-		const managedBinary = path.join(nodeModulesDir, "@oh-my-pi", "pi-coding-agent", "omp");
+		const managedBinary = path.join(nodeModulesDir, "@zeta", "pi-coding-agent", "omp");
 		const aliasPath = path.join(npmBinDir, "omp");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(managedBinary), { recursive: true });
@@ -507,7 +507,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunBinDir = path.join(dir, "bun-bin");
 		const bunGlobalDir = path.join(dir, "bun-global");
-		const packagePath = path.join(bunGlobalDir, "node_modules", "@oh-my-pi", "pi-coding-agent");
+		const packagePath = path.join(bunGlobalDir, "node_modules", "@zeta", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(bunBinDir, "omp");
@@ -557,10 +557,10 @@ describe("update-cli install target detection", () => {
 
 	it("uses mise update when prioritized omp is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
-			"/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin/omp",
+			"/Users/test/.local/share/mise/installs/github-can1357-zeta/latest/bin/omp",
 			undefined,
 			{
-				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin"],
+				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-zeta/latest/bin"],
 			},
 		);
 
@@ -583,13 +583,13 @@ describe("update-cli package manager commands", () => {
 	});
 
 	it("targets the mise GitHub backend and overrides release-age settings for attended updates", () => {
-		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump", "--before", "0s"]);
-		expect(buildMiseUpgradeArgs(false)).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump"]);
+		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/zeta", "--bump", "--before", "0s"]);
+		expect(buildMiseUpgradeArgs(false)).toEqual(["upgrade", "github:can1357/zeta", "--bump"]);
 		expect(buildMiseUpdateEnv({ PATH: "/bin", MISE_MINIMUM_RELEASE_AGE: "24h" })).toEqual({
 			PATH: "/bin",
 			MISE_MINIMUM_RELEASE_AGE: "0s",
 		});
-		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:can1357/oh-my-pi@15.10.5"]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:can1357/zeta@15.10.5"]);
 	});
 
 	it.skipIf(!miseBinary)("overrides per-tool release age during actual mise upgrade resolution", async () => {
@@ -613,7 +613,7 @@ describe("update-cli package manager commands", () => {
 			await Bun.write(
 				path.join(root, "mise.toml"),
 				`[tools]
-"github:can1357/oh-my-pi" = { version = "1", minimum_release_age = "999y", api_url = "${server.url}" }
+"github:can1357/zeta" = { version = "1", minimum_release_age = "999y", api_url = "${server.url}" }
 `,
 			);
 			const env = {
@@ -644,11 +644,11 @@ describe("update-cli package manager commands", () => {
 				return stdout + stderr;
 			};
 
-			const blocked = await run(["upgrade", "github:can1357/oh-my-pi", "--bump", "--dry-run"]);
-			expect(blocked).not.toContain("Would install github:can1357/oh-my-pi@2.0.0");
+			const blocked = await run(["upgrade", "github:can1357/zeta", "--bump", "--dry-run"]);
+			expect(blocked).not.toContain("Would install github:can1357/zeta@2.0.0");
 
 			const allowed = await run([...buildMiseUpgradeArgs(), "--dry-run"]);
-			expect(allowed).toContain("Would install github:can1357/oh-my-pi@2.0.0");
+			expect(allowed).toContain("Would install github:can1357/zeta@2.0.0");
 		} finally {
 			server.stop(true);
 		}
@@ -659,9 +659,9 @@ describe("update-cli package manager commands", () => {
 
 		expect(args.slice(0, 2)).toEqual(["install", "-g"]);
 		expect(args).toContain("--registry=https://registry.npmjs.org/");
-		expect(args).toContain("@oh-my-pi/pi-coding-agent@16.3.15");
-		expect(args).toContain("@oh-my-pi/pi-natives@16.3.15");
-		expect(args).toContain("@oh-my-pi/pi-natives-win32-x64@16.3.15");
+		expect(args).toContain("@linxiraos/zeta@16.3.15");
+		expect(args).toContain("@linxiraos/pi-natives@16.3.15");
+		expect(args).toContain("@linxiraos/pi-natives-win32-x64@16.3.15");
 	});
 });
 
@@ -688,7 +688,7 @@ describe("update-cli npm rename contract", () => {
 		expect(bunArgs).toContain("@new/omp@17.0.0");
 		expect(bunArgs).toContain("@new/natives@17.0.0");
 		expect(bunArgs).toContain("@new/natives-linux-x64@17.0.0");
-		expect(bunArgs.some(arg => arg.startsWith("@oh-my-pi/"))).toBe(false);
+		expect(bunArgs.some(arg => arg.startsWith("@linxiraos/"))).toBe(false);
 
 		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages)).toContain("@new/omp@17.0.0");
 	});
@@ -702,20 +702,17 @@ describe("update-cli npm rename contract", () => {
 	it("removes the old agent package and its natives companions when both names moved", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
 		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual([
-			"@oh-my-pi/pi-coding-agent",
-			"@oh-my-pi/pi-natives",
-			"@oh-my-pi/pi-natives-darwin-arm64",
+			"@linxiraos/zeta",
+			"@linxiraos/pi-natives",
+			"@linxiraos/pi-natives-darwin-arm64",
 		]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual([
-			"@oh-my-pi/pi-coding-agent",
-			"@oh-my-pi/pi-natives",
-		]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {
-		const packages = { pkg: "@new/omp", natives: "@oh-my-pi/pi-natives" };
-		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@oh-my-pi/pi-coding-agent"]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@oh-my-pi/pi-coding-agent"]);
+		const packages = { pkg: "@new/omp", natives: "@linxiraos/pi-natives" };
+		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@linxiraos/zeta"]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta"]);
 	});
 });
 
@@ -826,28 +823,28 @@ describe("update-cli bun install command", () => {
 		//   - or bun's local manifest snapshot does the same when the user's bun
 		//     is already pointed at the official registry but its cache predates
 		//     the release.
-		// See https://github.com/can1357/oh-my-pi/issues/1686.
+		// See https://github.com/can1357/zeta/issues/1686.
 		const args = buildBunInstallArgs("15.7.6", "linux-x64");
 		expect(args.slice(0, 5)).toEqual([
 			"install",
 			"-g",
 			"--no-cache",
 			"--registry=https://registry.npmjs.org/",
-			"@oh-my-pi/pi-coding-agent@15.7.6",
+			"@linxiraos/zeta@15.7.6",
 		]);
 	});
 
 	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on supported tags", () => {
 		// Regression: bun install -g <pkg>@<v> would update only the top-level
-		// package, leaving @oh-my-pi/pi-natives and @oh-my-pi/pi-natives-<tag>
+		// package, leaving @linxiraos/pi-natives and @linxiraos/pi-natives-<tag>
 		// at their previous version. The next launch then loaded a stale .node
 		// file and aborted at validateLoadedBindings with `The .node file on
 		// disk is from a different release than this loader`. See
-		// https://github.com/can1357/oh-my-pi/issues/1824.
+		// https://github.com/can1357/zeta/issues/1824.
 		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64", "win32-arm64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
-			expect(args).toContain("@oh-my-pi/pi-natives@15.9.0");
-			expect(args).toContain(`@oh-my-pi/pi-natives-${tag}@15.9.0`);
+			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
+			expect(args).toContain(`@linxiraos/pi-natives-${tag}@15.9.0`);
 		}
 	});
 
@@ -858,8 +855,8 @@ describe("update-cli bun install command", () => {
 		// pipeline doesn't publish, otherwise bun aborts with EBADPLATFORM
 		// and hides the real diagnostic from `loadNative`'s aggregated error.
 		const args = buildBunInstallArgs("15.9.0", "linux-arm");
-		expect(args).toContain("@oh-my-pi/pi-natives@15.9.0");
-		expect(args.some(arg => arg.startsWith("@oh-my-pi/pi-natives-"))).toBe(false);
+		expect(args).toContain("@linxiraos/pi-natives@15.9.0");
+		expect(args.some(arg => arg.startsWith("@linxiraos/pi-natives-"))).toBe(false);
 	});
 
 	it("derives global node_modules from supported Bun locations with the explicit global directory taking precedence", () => {
@@ -895,15 +892,15 @@ describe("update-cli bun cache pruning", () => {
 			path.join(dir, "react@19.2.6@@@1", "package.json"),
 			JSON.stringify({ name: "react", version: "19.2.6" }),
 		);
-		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1"), "");
-		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1"), "");
+		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1"), "");
+		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1"), "");
 		await Bun.write(
-			path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json"),
-			JSON.stringify({ name: "@oh-my-pi/pi-utils", version: "15.7.6" }),
+			path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json"),
+			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.7.6" }),
 		);
 		await Bun.write(
-			path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json"),
-			JSON.stringify({ name: "@oh-my-pi/pi-utils", version: "15.8.0" }),
+			path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json"),
+			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.8.0" }),
 		);
 		await Bun.write(path.join(dir, "chalk", "4.1.2@@@1"), "");
 		await Bun.write(path.join(dir, "chalk", "5.6.2@@@1"), "");
@@ -916,17 +913,17 @@ describe("update-cli bun cache pruning", () => {
 			JSON.stringify({ name: "chalk", version: "5.6.2" }),
 		);
 
-		const result = await pruneBunInstallCache(dir, new Set(["react", "@oh-my-pi/pi-utils"]));
+		const result = await pruneBunInstallCache(dir, new Set(["react", "@linxiraos/pi-utils"]));
 
 		expect(result).toEqual({ scannedPackages: 2, removedEntries: 4 });
 		expect(await Bun.file(path.join(dir, "react", "18.3.1@@@1")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react@18.3.1@@@1", "package.json")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react", "19.2.6@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "react@19.2.6@@@1", "package.json")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk", "4.1.2@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk@4.1.2@@@1", "package.json")).exists()).toBe(true);
 	});
@@ -996,7 +993,7 @@ describe("update-cli bun cache pruning", () => {
 describe("update-cli release binary integrity", () => {
 	const tag = "v17.1.2";
 	const binaryName = "omp-linux-x64";
-	const url = `https://github.com/can1357/oh-my-pi/releases/download/${tag}/${binaryName}`;
+	const url = `https://github.com/can1357/zeta/releases/download/${tag}/${binaryName}`;
 	const content = "verified binary";
 	const digest = `sha256:${Bun.SHA256.hash(content, "hex")}`;
 
@@ -1243,7 +1240,7 @@ describe("update-cli release binary integrity", () => {
 					state: "uploaded",
 					size: Buffer.byteLength(body),
 					digest: `sha256:${Bun.SHA256.hash(body, "hex")}`,
-					browser_download_url: `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`,
+					browser_download_url: `https://github.com/can1357/zeta/releases/download/v${version}/${binaryName}`,
 				},
 			],
 			...overrides,
@@ -1574,7 +1571,7 @@ describe("update-cli binary-only release gating", () => {
 describe("update-cli script-shim takeover", () => {
 	const version = "18.0.0";
 	const binaryName = "omp-windows-x64.exe";
-	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
+	const url = `https://github.com/can1357/zeta/releases/download/v${version}/${binaryName}`;
 
 	function makeFetch(content: string, prerelease = false): (input: string | URL | Request) => Promise<Response> {
 		const digest = `sha256:${Bun.SHA256.hash(content, "hex")}`;
@@ -1809,7 +1806,7 @@ describe("update-cli script-shim takeover", () => {
 describe("update-cli concurrent binary updates", () => {
 	const version = "999.0.0";
 	const binaryName = "omp-linux-x64";
-	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
+	const url = `https://github.com/can1357/zeta/releases/download/v${version}/${binaryName}`;
 	const payload = Buffer.alloc(2048, 0x41);
 	const digest = `sha256:${Bun.SHA256.hash(payload, "hex")}`;
 
@@ -1930,7 +1927,7 @@ describe("update-cli manager update recovery", () => {
 	const release: ReleaseInfo = {
 		tag: "v18.0.1",
 		version: "18.0.1",
-		packages: { pkg: "@oh-my-pi/pi-coding-agent", natives: "@oh-my-pi/pi-natives" },
+		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 		registry: "https://registry.npmjs.org/",
 	};
 	const launcherPath = "C:/Users/test/AppData/Roaming/npm/omp.cmd";

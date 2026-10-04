@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readSessionHeaderId } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager, type SessionPersistenceNotice } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage, tryAcquireSessionLease } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { readSessionHeaderId } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager, type SessionPersistenceNotice } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage, tryAcquireSessionLease } from "@linxiraos/zeta/session/session-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const SESSION_MANAGER_MODULE = path.join(import.meta.dir, "../../src/session/session-manager.ts");
 

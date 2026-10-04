@@ -6,23 +6,23 @@
  *
  * Stands up a loopback OTLP/proto receiver, points the standard env vars at it,
  * registers the providers, drives a log record through the bridged
- * `@oh-my-pi/pi-utils` logger and metric instruments through the agent
+ * `@linxiraos/pi-utils` logger and metric instruments through the agent
  * telemetry hooks, flushes, and exits 0 only if the receiver got a non-empty
  * protobuf POST at both /v1/logs and /v1/metrics.
  */
 
-import { agentLoop } from "@oh-my-pi/pi-agent-core/agent-loop";
-import type { AgentContext, AgentMessage, AgentTool } from "@oh-my-pi/pi-agent-core/types";
-import { type } from "@oh-my-pi/omptype";
-import type { Message } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
+import type { AgentContext, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
+import { type } from "@linxiraos/pi-omptype";
+import type { Message } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import {
 	createTelemetryExportConfig,
 	flushTelemetryExport,
 	initTelemetryExport,
 	isTelemetryExportEnabled,
-} from "@oh-my-pi/pi-coding-agent/telemetry-export";
-import { logger } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/telemetry-export";
+import { logger } from "@linxiraos/pi-utils";
 
 const seen = new Set<string>();
 const metricPayloads: Uint8Array[] = [];

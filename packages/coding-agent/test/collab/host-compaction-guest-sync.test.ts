@@ -12,19 +12,19 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, type Mock, spyOn } from "bun:test";
 import * as os from "node:os";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { tryAcquireSessionLease } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { refreshDirsFromEnv, TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { Model } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { tryAcquireSessionLease } from "@linxiraos/zeta/session/session-storage";
+import { refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 

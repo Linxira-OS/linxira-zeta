@@ -1,17 +1,20 @@
-import type { Terminal } from "@oh-my-pi/pi-tui";
+import type { Terminal } from "@linxiraos/pi-tui";
+import { scheduler } from "node:timers/promises";
+import * as logger from "@linxiraos/pi-utils/logger";
+import type { LspServerInfo, RecentSession } from "@linxiraos/pi-tui/prompt/welcome";
 import {
 	COMPOSER_DEFAULTS,
 	Composer,
 	type ComposerPreferences,
 	type ComposerWelcomeUpdate,
-} from "@oh-my-pi/pi-tui/prompt/composer";
+} from "@linxiraos/pi-tui/prompt/composer";
 import {
 	type ComposerCache,
 	type ComposerThemePreferences,
 	sharedComposerCache,
-} from "@oh-my-pi/pi-tui/prompt/composer-cache";
-import { setMagicKeywords } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
-import { initThemeSync } from "@oh-my-pi/pi-tui/theme";
+} from "@linxiraos/pi-tui/prompt/composer-cache";
+import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import { initThemeSync } from "@linxiraos/pi-tui/theme";
 import { MAGIC_KEYWORDS } from "./magic-keywords";
 
 /** Inputs available at the CLI prepaint boundary before command modules load. */

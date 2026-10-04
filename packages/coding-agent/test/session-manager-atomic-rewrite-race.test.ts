@@ -1,25 +1,22 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import {
-	IndexedSessionStorage,
-	type SessionStorageBackend,
-} from "@oh-my-pi/pi-coding-agent/session/indexed-session-storage";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { IndexedSessionStorage, type SessionStorageBackend } from "@linxiraos/zeta/session/indexed-session-storage";
 import {
 	SessionManager,
 	SessionPersistenceIndeterminateError,
 	type SessionPersistenceNotice,
-} from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta/session/session-manager";
 import {
 	FileSessionStorage,
 	MemorySessionStorage,
 	type SessionStorageWriter,
 	type WriteTextAtomicOptions,
-} from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { SessionTitleUpdate } from "@oh-my-pi/pi-coding-agent/session/session-title-slot";
+} from "@linxiraos/zeta/session/session-storage";
+import { TempDir } from "@linxiraos/pi-utils";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import type { SessionTitleUpdate } from "@linxiraos/zeta/session/session-title-slot";
 
 interface DetachableWriter extends SessionStorageWriter {
 	detach(): void;

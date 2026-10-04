@@ -21,11 +21,10 @@ import {
 	hashPath,
 	setAgentDir,
 	setProjectDir,
+	removeWithRetries,
 } from "@linxiraos/pi-utils";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
-
-import { removeWithRetries } from "@linxiraos/pi-utils";
 let root: string;
 let writes: string[] = [];
 let stderrWrites: string[] = [];

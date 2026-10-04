@@ -1,8 +1,8 @@
 import type { Usage } from "@linxiraos/pi-ai";
-import { isRecord } from "@linxiraos/pi-utils";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import type { ThemeColor } from "../theme/theme";
 import type { ConfiguredThinkingLevel } from "../render/render-utils";
-import type { ToolRenderer } from "./renderer";
+import type { ToolRenderer, RenderResultOptions, NativeToolView, ToolRenderResult } from "./renderer";
 /**
  * TUI rendering for task tool.
  *
@@ -14,8 +14,6 @@ import { Container, type Component } from "../tui";
 import { Markdown } from "../components/markdown";
 import { Text } from "../components/text";
 import { visibleWidth, wrapTextWithAnsi } from "../utils";
-import { sanitizeText } from "@linxiraos/pi-utils";
-import type { RenderResultOptions } from "./renderer";
 import { formatAgentStatRun, renderAgentTreeRow } from "./agent-tree";
 import { getMarkdownTheme, type Theme } from "../theme/theme";
 import { stripGeneratedOutputNotice, stripRawOutputArtifactNotice, stripTrailingNotice } from "./output-meta";
@@ -42,7 +40,7 @@ import {
 } from "../render/render-utils";
 import { renderStatusLine } from "../render/index";
 import { framedToolCard } from "../render/tool-card";
-import { formatOutputInline, renderJsonTreeLines } from "./json-tree";
+import { formatOutputInline, renderJsonTreeLines, describeJsonTree } from "./json-tree";
 import { repairDoubleEncodedJsonString } from "./task-repair-args";
 import { getSubprocessToolRenderer } from "./subprocess";
 import { assembleYieldResult, type YieldSectionShapes } from "./task-yield-assembly";
@@ -52,9 +50,7 @@ import type { NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";
 import { plainText } from "../native/spans";
 import { errorText, noteText, resultText } from "./native-view";
-import { describeJsonTree } from "./json-tree";
 import { taskSummary } from "../overlays/agent-hub-renderer";
-import type { NativeToolView, ToolRenderResult } from "./renderer";
 
 /** Render context threaded in from `ToolExecutionComponent.#buildRenderContext`. */
 interface TaskRenderContext {

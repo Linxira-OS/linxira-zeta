@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
-import { renderResult, taskCardAgentIds } from "@linxiraos/pi-tui/tools/task";
-import { taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
+import { renderResult, taskCardAgentIds, taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
 import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
 
 const strip = (lines: readonly string[]): string =>

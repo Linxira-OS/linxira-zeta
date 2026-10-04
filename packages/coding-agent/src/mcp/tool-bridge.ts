@@ -1,4 +1,11 @@
-import { MCP_TOOL_NAME_PREFIX, type MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
+import {
+	MCP_TOOL_NAME_PREFIX,
+	type MCPToolDetails,
+	describeMCPCall,
+	describeMCPResult,
+	renderMCPCall,
+	renderMCPResult,
+} from "@linxiraos/pi-tui/tools/mcp";
 /**
  * MCP to CustomTool bridge.
  *
@@ -23,7 +30,6 @@ import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
 import { callTool } from "./client";
 import { formatMCPToolFailure, MCPTransportError } from "./errors";
-import { describeMCPCall, describeMCPResult, renderMCPCall, renderMCPResult } from "@linxiraos/pi-tui/tools/mcp";
 import type {
 	MCPAuthChallenge,
 	MCPServerConnection,

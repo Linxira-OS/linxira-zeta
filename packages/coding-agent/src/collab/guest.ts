@@ -20,17 +20,17 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { getConfigRootDir, logger } from "@oh-my-pi/pi-utils";
-import type { AgentHubRemote, AgentHubRemoteTranscript } from "@oh-my-pi/pi-tui/overlays/agent-hub";
+import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { getConfigRootDir, logger } from "@linxiraos/pi-utils";
+import type { AgentHubRemote, AgentHubRemoteTranscript } from "@linxiraos/pi-tui/overlays/agent-hub";
 import type { InteractiveModeContext } from "../modes/types";
 import { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "../session/agent-session";
 import type { SessionEntry } from "../session/session-entries";
 import { mintSessionId } from "../session/session-manager";
 import { FileSessionStorage } from "../session/session-storage";
-import { shouldDisableReasoning, toReasoningEffort } from "@oh-my-pi/pi-tui/thinking";
+import { shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { emitSubagentFrame } from "../utils/event-bus";
 import { GuestLifecycleEmitter } from "../extensibility/extensions/lifecycle-mirror";
 import { setSessionTerminalTitle } from "../utils/title-generator";

@@ -14,45 +14,45 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn, vi } fro
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { CollabController } from "@oh-my-pi/pi-coding-agent/collab/controller";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
-import { CollabHost, CollabHostStoppedError } from "@oh-my-pi/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import * as registry from "@oh-my-pi/pi-coding-agent/collab/registry";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { Composer } from "@oh-my-pi/pi-tui/prompt/composer";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
-import { beginStartupComposer, stopPendingStartupComposer } from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { resetSessionIndexForTests } from "@oh-my-pi/pi-coding-agent/session/session-index";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
-import * as utils from "@oh-my-pi/pi-utils";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { CollabController } from "@linxiraos/zeta/collab/controller";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
+import { CollabHost, CollabHostStoppedError } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import * as registry from "@linxiraos/zeta/collab/registry";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { Composer } from "@linxiraos/pi-tui/prompt/composer";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { beginStartupComposer, stopPendingStartupComposer } from "@linxiraos/zeta/modes/startup-composer";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
+import * as utils from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 import { createTestSession, type TestSessionContext } from "../utilities";
 import { FakeWebSocket, installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
-import { cfgCollabAutoStart } from "@oh-my-pi/pi-coding-agent/collab/settings";
+import { cfgCollabAutoStart } from "@linxiraos/zeta/collab/settings";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupCheckUpdate,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
 const originalOmpProfile = process.env.OMP_PROFILE;
 
@@ -242,7 +242,7 @@ afterEach(async () => {
 	await controller?.shutdown("test cleanup").catch(() => {});
 	uninstallInMemoryRelay();
 	publishSpy?.mockRestore();
-	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	utils.__resetDirsFromEnvForTests();

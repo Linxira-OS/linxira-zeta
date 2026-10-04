@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { Effort } from "@oh-my-pi/pi-ai";
-import { PluginSelectorComponent } from "@oh-my-pi/pi-tui/overlays/plugin-selector";
-import { QueueModeSelectorComponent } from "@oh-my-pi/pi-tui/overlays/queue-mode-selector";
-import { ThemeSelectorComponent } from "@oh-my-pi/pi-tui/overlays/theme-selector";
-import { ThinkingSelectorComponent } from "@oh-my-pi/pi-tui/overlays/thinking-selector";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
-import type { SgrMouseEvent } from "@oh-my-pi/pi-tui";
+import { Effort } from "@linxiraos/pi-ai";
+import { PluginSelectorComponent } from "@linxiraos/pi-tui/overlays/plugin-selector";
+import { QueueModeSelectorComponent } from "@linxiraos/pi-tui/overlays/queue-mode-selector";
+import { ThemeSelectorComponent } from "@linxiraos/pi-tui/overlays/theme-selector";
+import { ThinkingSelectorComponent } from "@linxiraos/pi-tui/overlays/thinking-selector";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { SgrMouseEvent } from "@linxiraos/pi-tui";
 
 beforeAll(async () => {
 	await initTheme();

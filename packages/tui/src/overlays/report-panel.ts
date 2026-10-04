@@ -1,4 +1,4 @@
-import type { TspScrollBy, TspText } from "@oh-my-pi/pi-wire";
+import type { TspScrollBy, TspText } from "@linxiraos/pi-wire";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { editorKey } from "../chrome/keybinding-hints";
 import { Ellipsis } from "../index";

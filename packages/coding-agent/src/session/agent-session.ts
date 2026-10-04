@@ -13,12 +13,54 @@
  * Modes use this class and add their own I/O layer on top.
  */
 
+// Zeta: the event union stays re-exported from here. Upstream imports it
+// from ./agent-session-events directly, but ~83 Zeta call sites import it
+// from this module; keeping the re-export preserves that contract.
+export type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
+// Zeta: session-layer mode API. Kept as part of this module because the mode
+// controllers, interactive mode and the web gateway all import it from here.
+export type ModeId = "plan" | "goal" | "vibe";
+
+export interface PlanModeEntryOptions {
+	initialPrompt?: string;
+	planFilePath?: string;
+	workflow?: PlanWorkflow;
+	preserveRestoredModel?: boolean;
+	reentry?: boolean;
+}
+export interface PlanModeEntryOptions {
+	initialPrompt?: string;
+	planFilePath?: string;
+	workflow?: PlanWorkflow;
+	preserveRestoredModel?: boolean;
+	reentry?: boolean;
+}
+export interface PlanModeExitOptions {
+	silent?: boolean;
+	paused?: boolean;
+	deferModelRestore?: boolean;
+}
+export interface GoalModeEntryOptions {
+	objective?: string;
+	resume?: boolean;
+	silent?: boolean;
+}
+export interface GoalModeExitOptions {
+	silent?: boolean;
+	paused?: boolean;
+	reason?: "completed" | "paused" | "dropped";
+}
+export interface VibeModeEntryOptions {
+	persistModeChange?: boolean;
+	previousTools?: string[];
+}
+import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+/** Max consecutive session-stop continuations before the session stops asking. */
 import { scheduler } from "node:timers/promises";
 import { isPromise } from "node:util/types";
-
 import {
 	type AfterToolCallContext,
 	type AfterToolCallResult,
@@ -43,7 +85,7 @@ import {
 	TERMINAL_TOOL_RESULT_ABORT_REASON,
 	type ThinkingLevel,
 	type ToolChoiceDirective,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	type CompactionPreparation,
 	type CompactionResult,
@@ -51,7 +93,7 @@ import {
 	collectEntriesForBranchSummary,
 	generateBranchSummary,
 	type ShakeConfig,
-} from "@oh-my-pi/pi-agent-core/compaction";
+} from "@linxiraos/pi-agent-core/compaction";
 import type {
 	AnthropicFallbackCreditHandle,
 	AssistantMessage,
@@ -78,17 +120,17 @@ import type {
 	ToolResultMessage,
 	UsageReport,
 	UserMessage,
-} from "@oh-my-pi/pi-ai";
-import { type Effort, serviceTierFamily, streamSimple } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { resetOpenAICodexHistoryAfterCompaction } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { withCredentialRedaction } from "@oh-my-pi/pi-ai/providers/transform-messages";
-import { toolWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
-import { supportsOutputTokenLimit } from "@oh-my-pi/pi-catalog/compat/output-limits";
-import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@oh-my-pi/pi-catalog/compat/tools";
-import { preferredDialect } from "@oh-my-pi/pi-catalog/identity";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { type EditStore, PowerAssertion, type PowerAssertionOptions } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-ai";
+import { type Effort, serviceTierFamily, streamSimple } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { withCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
+import { supportsOutputTokenLimit } from "@linxiraos/pi-catalog/compat/output-limits";
+import { requiresNativeTools, requiresToolFreeHistoryForToolOptOut } from "@linxiraos/pi-catalog/compat/tools";
+import { preferredDialect } from "@linxiraos/pi-catalog/identity";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { type EditStore, PowerAssertion, type PowerAssertionOptions } from "@linxiraos/pi-natives";
 import {
 	$env,
 	escapeXmlText,
@@ -106,27 +148,21 @@ import {
 	toError,
 	withTimeout,
 	withFileLock,
-} from "@oh-my-pi/pi-utils";
-import { writeArchive } from "@oh-my-pi/pi-utils/ar";
-import type { AdvisorConfig } from "@oh-my-pi/pi-tui/overlays/advisor-config";
-import { formatUsageResetWindow } from "@oh-my-pi/pi-tui/overlays/usage-display";
+} from "@linxiraos/pi-utils";
+import { writeArchive } from "@linxiraos/pi-utils/ar";
+import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
+import { formatUsageResetWindow } from "@linxiraos/pi-tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";
 import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJob, AsyncJobManager } from "../async";
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldEnableAppendOnlyContext } from "../config/append-only-context-mode";
 import type { ModelRegistry } from "../config/model-registry";
-import {
-	DEFAULT_PREWALK_TARGET,
-	getModelMatchPreferences,
-	type ResolvedModelRoleValue,
-	resolveCliModel,
-} from "../config/model-resolver";
 import { expandPromptTemplate, type PromptTemplate } from "../config/prompt-templates";
 import { buildServiceTierByFamily, isServiceTierForFamily, serviceTierSettingToTier } from "../config/service-tier";
 import { combine, type SettingsScope } from "../config/registry";
 import type { Settings } from "../config/settings";
-import { RawSseDebugBuffer } from "@oh-my-pi/pi-tui/apps/debug/raw-sse-buffer";
+import { RawSseDebugBuffer } from "@linxiraos/pi-tui/apps/debug/raw-sse-buffer";
 import { getEditStore } from "../edit/store";
 import { releaseCompletionHandles } from "../eval/completion-bridge";
 import { releaseJudgmentBatches } from "../eval/judgment-batch-bridge";
@@ -138,19 +174,6 @@ import { type BashPtyOptions, type BashResult, releaseShellSessions } from "../e
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
-import type {
-	ExtensionCommandContext,
-	ExtensionRunner,
-	ExtensionUIContext,
-	PreparedExtension,
-	SessionBeforeBranchResult,
-	SessionBeforeSwitchResult,
-	SessionBeforeTreeResult,
-	SessionStopEventResult,
-	ToolInfo,
-	TreePreparation,
-} from "../extensibility/extensions";
-import { emitSessionShutdownEvent, TOP_LEVEL_AGENT } from "../extensibility/extensions";
 import { extensionEventFromSessionEvent } from "../extensibility/extensions/lifecycle-mirror";
 import { ManagedTimers } from "../extensibility/extensions/managed-timers";
 import { createExtensionModelQuery } from "../extensibility/extensions/model-api";
@@ -165,19 +188,19 @@ import type { GoalModeState } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
 import { InternalUrlRouter, type LocalProtocolOptions } from "../internal-urls";
 import { hasNativeJudge, journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
-import type { IrcMessage } from "@oh-my-pi/pi-tui/tools/irc";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import type { DaemonCompletionNotification } from "../launch/protocol";
 import { shutdownMnemopiEmbedClient } from "../mnemopi/embed-client";
 import { getMnemopiSessionState, type MnemopiSessionState, setMnemopiSessionState } from "../mnemopi/state";
 import { MAGIC_KEYWORDS, type MagicKeywordContext, type MagicKeywordId } from "../modes/magic-keywords";
-import { containsMagicKeyword } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
-import { theme } from "@oh-my-pi/pi-tui/theme";
+import { containsMagicKeyword } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import { theme } from "@linxiraos/pi-tui/theme";
 import { parseTurnBudget } from "../modes/turn-budget";
-import { computeNonMessageTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
+import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
 import { listPlanFiles, readPlanFile, resolvePlanFilePath } from "../plan-mode/plan-files";
 import { loadOverallPlanReference } from "../plan-mode/plan-handoff";
-import type { PlanModeState } from "../plan-mode/state";
+import type { PlanModeState, PlanWorkflow } from "../plan-mode/state";
 import goalModeContextPrompt from "../prompts/goals/goal-mode-context.md" with { type: "text" };
 import goalTodoContextPrompt from "../prompts/goals/goal-todo-context.md" with { type: "text" };
 import anthropicUsageWrapUpPrompt from "../prompts/system/anthropic-usage-wrap-up.md" with { type: "text" };
@@ -187,6 +210,7 @@ import interruptedThinkingTemplate from "../prompts/system/interrupted-thinking.
 import planModeActivePrompt from "../prompts/system/plan-mode-active.md" with { type: "text" };
 import planModeReferencePrompt from "../prompts/system/plan-mode-reference.md" with { type: "text" };
 import planModeToolDecisionReminderPrompt from "../prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
+import planModeUltraActivePrompt from "../prompts/system/plan-mode-ultra-active.md" with { type: "text" };
 import rewindReportTemplate from "../prompts/system/rewind-report.md" with { type: "text" };
 import sessionStopBlockedPrompt from "../prompts/system/session-stop-blocked.md" with { type: "text" };
 import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
@@ -209,12 +233,12 @@ import {
 	parseConfiguredThinkingLevel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@oh-my-pi/pi-tui/thinking";
+} from "@linxiraos/pi-tui/thinking";
 import { isAttachmentOnlyTitleInput, isLowSignalTitleInput } from "../tiny/text";
 import { shutdownTinyTitleClient } from "../tiny/title-client";
 import type { ImageAttachmentEntry, ToolSession } from "../tools";
 import { resolveApproval } from "../tools/approval";
-import { type AskToolDetails } from "@oh-my-pi/pi-tui/tools/ask";
+import { type AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
 import { type AskToolInput, recoverAskQuestions } from "../tools/ask";
 import {
 	armIdleCloseForOwner,
@@ -233,16 +257,16 @@ import {
 	type PlanProposalHandler,
 	writeDeviceDispatch,
 } from "../tools/resolve";
-import { PROPOSE_DEVICE_NAME } from "@oh-my-pi/pi-tui/tools/resolve";
+import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { supportsExternalThinking } from "../tools/think";
-import type { TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { AgentDefinition } from "../task/types";
-import type { ModelMention } from "@oh-my-pi/pi-tui/prompt/model-mention-syntax";
+import type { ModelMention } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import { ModelMentionRegistry } from "./model-mentions";
 import { parseCommandArgs } from "../utils/command-args";
-import type { EditMode } from "@oh-my-pi/pi-tui/tools/edit";
+import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { extractFileMentions, generateFileMentionMessages } from "../utils/file-mentions";
 import { normalizeModelContextImages } from "../utils/image-loading";
@@ -250,6 +274,7 @@ import { TokenRateMeter } from "../utils/token-rate";
 import { resumeCommand } from "../utils/resume-command";
 import { generateSessionTitle } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
+import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 import type {
@@ -280,10 +305,40 @@ import type {
 	SteerOptions,
 	UsageFallbackConfirmer,
 } from "./agent-session-types";
+// Zeta: the extension layer imports these from here; the merged import above makes
+// them local declarations, which is not an export.
+export type {
+	AgentSessionConfig,
+	AgentSessionDisposeOptions,
+	AsyncJobSnapshot,
+	AsyncJobSnapshotItem,
+	DroppedPrompt,
+	InitialRetryFallbackState,
+	PlanYolo,
+	UsageFallbackConfirmation,
+	ContextUsageBreakdown,
+	FollowUpOptions,
+	FreshSessionResult,
+	HandoffResult,
+	ModelCycleResult,
+	Prewalk,
+	PromptOptions,
+	ResetSessionContextResult,
+	ResolvedRoleModel,
+	RestoredQueuedMessage,
+	RoleModelCycle,
+	RoleModelCycleResult,
+	SendUserMessageOptions,
+	SessionHandoffOptions,
+	SessionOAuthAccountList,
+	SessionStats,
+	SteerOptions,
+	UsageFallbackConfirmer,
+} from "./agent-session-types";
 import { writeArtifact } from "./artifacts";
 import { renderAttachmentSourceNotice } from "./attachment-source-notice";
-import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@oh-my-pi/pi-tui/tools/output-meta";
-import { truncateMiddle } from "@oh-my-pi/pi-tui/tools/streaming-output";
+import { formatArtifactErrorNotice, type OutputMeta, stripOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { truncateMiddle } from "@linxiraos/pi-tui/tools/streaming-output";
 import {
 	ASYNC_INLINE_RESULT_MAX_CHARS,
 	ASYNC_PREVIEW_MAX_CHARS,
@@ -387,10 +442,8 @@ import {
 	SessionAdvisors,
 	type SessionAdvisorsHost,
 } from "./session-advisors";
-import type { BuildSessionContextOptions, SessionContext } from "./session-context";
-import { buildSessionContext, getRestorableSessionModels, isTranscriptEntry } from "./session-context";
 import type { CacheWarmer, CacheWarmingMode, CacheWarmingStatus } from "./cache-warmer";
-import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@oh-my-pi/pi-tui/chat/transcript-entry";
+import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { formatSessionDumpText, formatSubagentDumpText, type SessionDumpArchive } from "./session-dump-format";
 import { collectSubSessions, type SubSession } from "./sub-sessions";
 import type { BranchSummaryEntry, NewSessionOptions } from "./session-entries";
@@ -409,7 +462,7 @@ import { SessionStatsTracker, type SessionStatsTrackerHost } from "./session-sta
 import { SessionTools, type SessionToolsHost } from "./session-tools";
 import { resolveOpenAIWebsocketPreference } from "./settings-stream-fn";
 import type { ShakeMode, ShakeResult } from "./shake-types";
-import { skillPromptTitleInput } from "@oh-my-pi/pi-tui/chat/skill-title-input";
+import { skillPromptTitleInput } from "@linxiraos/pi-tui/chat/skill-title-input";
 import { ToolChoiceQueue } from "./tool-choice-queue";
 import { planTurnPersistence, sameMessageContent, sessionMessagePersistenceKey } from "./turn-persistence";
 import { TurnRecovery, type TurnRecoveryHost } from "./turn-recovery";
@@ -453,19 +506,9 @@ import {
 	cfgProvidersAnthropicSlowMode,
 } from "./settings";
 import { type AnthropicSlowModeController, anthropicSlowModeLanes } from "./anthropic-slow-mode";
-import { cfgInterruptMode } from "../modes/settings";
-import { cfgFollowUpMode } from "../modes/settings";
-import { cfgSteeringMode } from "../modes/settings";
 import { cfgDisabledProviders, cfgModelRoles } from "../config/model-settings";
 import { cfgEvalToolsEnabled } from "../eval/settings";
 import { cfgExtensions, type SkillsSettings } from "../extensibility/settings";
-import {
-	cfgImagesAutoResize,
-	cfgMagicKeyword,
-	cfgMagicKeywordsEnabled,
-	cfgThemeDark,
-	cfgThemeLight,
-} from "../modes/settings";
 import { cfgTaskBatch, cfgTaskDisabledAgents } from "../task/settings";
 import {
 	cfgBranchSummaryReserveTokens,
@@ -483,6 +526,52 @@ import {
 	cfgToolsApproval,
 } from "../tools/settings";
 import { cfgTtsrJudge } from "../export/ttsr-settings";
+import {
+	formatModelString,
+	DEFAULT_PREWALK_TARGET,
+	getModelMatchPreferences,
+	type ResolvedModelRoleValue,
+	resolveCliModel,
+} from "../config/model-resolver";
+import {
+	type ExtensionCommandContext,
+	ExtensionRunner,
+	type ExtensionUIContext,
+	type MessageEndEvent,
+	type MessageStartEvent,
+	type MessageUpdateEvent,
+	type PreparedExtension,
+	type SessionBeforeBranchResult,
+	type SessionBeforeSwitchResult,
+	type SessionBeforeTreeResult,
+	type SessionStopEventResult,
+	type ToolExecutionEndEvent,
+	type ToolExecutionStartEvent,
+	type ToolExecutionUpdateEvent,
+	type ToolInfo,
+	type TreePreparation,
+	type TurnEndEvent,
+	type TurnStartEvent,
+	emitSessionShutdownEvent,
+	TOP_LEVEL_AGENT,
+} from "../extensibility/extensions";
+import {
+	buildSessionContext,
+	type BuildSessionContextOptions,
+	type SessionContext,
+	getRestorableSessionModels,
+	isTranscriptEntry,
+} from "./session-context";
+import {
+	cfgInterruptMode,
+	cfgFollowUpMode,
+	cfgSteeringMode,
+	cfgImagesAutoResize,
+	cfgMagicKeyword,
+	cfgMagicKeywordsEnabled,
+	cfgThemeDark,
+	cfgThemeLight,
+} from "../modes/settings";
 
 /** Advisor settings whose edit toggles or rebuilds a running advisor. */
 const cfgAdvisorRuntimeInputs = combine({
@@ -651,7 +740,7 @@ const SESSION_CWD_CHANGE_REJECTED = Symbol("sessionCwdChangeRejected");
 export function powerAssertionOptions(mode: "off" | "idle" | "display" | "system"): PowerAssertionOptions | undefined {
 	if (mode === "off") return undefined;
 	return {
-		reason: "omp agent session",
+		reason: "zeta agent session",
 		idle: true,
 		display: mode === "display" || mode === "system",
 		system: mode === "system",
@@ -770,6 +859,22 @@ export class AgentSession implements SettingsScope {
 	/** Resolves once the resume-time advisor spend backfill settles. */
 	#advisorCostRestore: Promise<void> = Promise.resolve();
 	#goalTurnCounter = 0;
+	#planModePreviousTools: string[] | undefined;
+	/** Pre-plan-mode model snapshot, restored on plan-mode exit. */
+	#planModePreviousModelState: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
+	/** Deferred model switch queued while the session was mid-stream (plan-mode transitions). */
+	#pendingModelSwitch: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined;
+	/** Whether `#pendingModelSwitch` was queued by the live plan-role reconciler. */
+	#pendingPlanModelSwitch = false;
+	/** Pre-goal-mode tool snapshot, restored on goal-mode exit. */
+	#goalModePreviousTools: string[] | undefined;
+	/** Pre-vibe-mode tool snapshot, restored on vibe exit. */
+	#vibeModePreviousTools: string[] | undefined;
+	/** Vibe worker owner scope for the current session (vibe-mode entry/exit and worker teardown). */
+	#vibeModeOwnerScope: VibeOwnerScope | undefined;
+	#stateVersion = 0;
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: write-only sink set by setIrcAutoReplyListener; consumed by the IM channel bridge
+	#ircAutoReplyListener: ((msg: IrcMessage, replyText: string) => void) | null = null;
 	#planReferenceSent = false;
 	#planReferencePath = "local://PLAN.md";
 	#clientBridge: ClientBridge | undefined;
@@ -1428,6 +1533,443 @@ export class AgentSession implements SettingsScope {
 			content: [{ type: "text", text: "Plan ready for review." }],
 			details: { planFilePath, title: resolvedTitle, planExists: true },
 		};
+	}
+
+	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
+	getStateVersion(): number {
+		return this.#stateVersion;
+	}
+
+	/** Bump the external-state version and notify subscribers. */
+	bumpStateVersion(): number {
+		this.#stateVersion++;
+		this.#emit({ type: "state_version_changed", stateVersion: this.#stateVersion });
+		return this.#stateVersion;
+	}
+
+	/** Current state snapshot for a mode, if active (external-state contract). */
+	getModeState(mode: ModeId): PlanModeState | GoalModeState | VibeModeState | undefined {
+		switch (mode) {
+			case "plan":
+				return this.getPlanModeState();
+			case "goal":
+				return this.getGoalModeState();
+			case "vibe":
+				return this.getVibeModeState();
+			default:
+				return undefined;
+		}
+	}
+
+	/** Enter a mode through the shared ModeController API (CLI and external clients). */
+	async enterMode(mode: ModeId, options?: unknown): Promise<void> {
+		switch (mode) {
+			case "plan": {
+				const opts = (options ?? {}) as PlanModeEntryOptions;
+				await this.enterPlanMode(opts.initialPrompt, opts);
+				return;
+			}
+			case "goal":
+				await this.enterGoalMode((options ?? {}) as GoalModeEntryOptions);
+				return;
+			case "vibe":
+				await this.enterVibeMode((options ?? {}) as VibeModeEntryOptions);
+				return;
+		}
+	}
+
+	/** Exit a mode through the shared ModeController API (CLI and external clients). */
+	async exitMode(mode: ModeId, options?: unknown): Promise<void> {
+		switch (mode) {
+			case "plan":
+				await this.exitPlanMode((options ?? {}) as PlanModeExitOptions);
+				return;
+			case "goal":
+				await this.exitGoalMode((options ?? {}) as GoalModeExitOptions);
+				return;
+			case "vibe":
+				await this.exitVibeMode();
+				return;
+		}
+	}
+
+	/** Prewalk state, if armed and active */
+	/**
+	 * Enter plan mode — the shared plan-mode core for both the CLI and external
+	 * clients. Arms the plan-mode state, ensures the `write` tool is active so
+	 * the agent can draft the plan file, wires plan approval, applies the `plan`
+	 * role model transition, journals the mode change, then delivers the optional
+	 * initial prompt (or the plan-mode context when already streaming).
+	 */
+	async enterPlanMode(initialPrompt?: string, options: PlanModeEntryOptions = {}): Promise<void> {
+		if (this.#planModeState?.enabled) return;
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+
+		const planFilePath = options.planFilePath ?? (this.getPlanReferencePath() || "local://PLAN.md");
+		const previousTools = this.getEnabledToolNames();
+		const planAugmentations: string[] = [];
+		if (this.hasBuiltInTool("write")) planAugmentations.push("write");
+		const uniquePlanTools = [...new Set([...previousTools, ...planAugmentations])];
+		this.#planModePreviousTools = previousTools;
+		await this.setActiveToolsByName(uniquePlanTools);
+		this.setPlanModeState({
+			enabled: true,
+			planFilePath,
+			workflow: options.workflow ?? "parallel",
+			reentry: options.reentry,
+		});
+		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
+		if (this.isStreaming) {
+			await this.sendPlanModeContext({ deliverAs: "steer" });
+		}
+		if (!options.preserveRestoredModel) {
+			await this.#applyPlanModeModel();
+		}
+		this.sessionManager.appendModeChange("plan", { planFilePath });
+		if (initialPrompt && initialPrompt.trim() !== "") {
+			await this.steer(initialPrompt.trim());
+		}
+	}
+
+	/**
+	 * Exit plan mode — restores the pre-plan tool/model state, drops the plan
+	 * proposal handler, journals the transition, and rolls back on failure
+	 * (mirrors `InteractiveMode.#exitPlanMode` minus TUI concerns).
+	 */
+	async exitPlanMode(options: PlanModeExitOptions = {}): Promise<void> {
+		if (!this.#planModeState?.enabled) return;
+
+		const planModeState = this.#planModeState;
+		const planModeTools = this.getEnabledToolNames();
+		const planModeMountedTools = this.getMountedXdevToolNames();
+		const planModeModelState = this.model
+			? { model: this.model, thinkingLevel: this.configuredThinkingLevel() }
+			: undefined;
+		this.setPlanModeState(undefined);
+		try {
+			if (this.#planModePreviousTools !== undefined) {
+				await this.setActiveToolsByName(this.#planModePreviousTools);
+			}
+			if (this.#planModePreviousModelState && !options.deferModelRestore) {
+				await this.restorePlanPreviousModel(this.#planModePreviousModelState);
+			}
+			// If a deferred switch to the plan-role model was queued (streaming
+			// entry), drop it now: leaving plan mode means flushing it later would
+			// land the session on the plan-role model after exit (issue #816).
+			if (this.#planModePreviousModelState) this.#clearPendingPlanModelSwitch();
+		} catch (error) {
+			this.setPlanModeState(planModeState);
+			if (
+				planModeModelState &&
+				(!modelsAreEqual(this.model, planModeModelState.model) ||
+					this.configuredThinkingLevel() !== planModeModelState.thinkingLevel)
+			) {
+				try {
+					await this.restorePlanPreviousModel(planModeModelState);
+				} catch (rollbackError) {
+					logger.warn("Failed to restore plan model after plan exit failure", { error: String(rollbackError) });
+				}
+			}
+			const enabledTools = this.getEnabledToolNames();
+			const mountedTools = this.getMountedXdevToolNames();
+			if (
+				enabledTools.length !== planModeTools.length ||
+				enabledTools.some((name, index) => name !== planModeTools[index]) ||
+				mountedTools.length !== planModeMountedTools.length ||
+				mountedTools.some((name, index) => name !== planModeMountedTools[index])
+			) {
+				try {
+					await this.setActiveToolPresentation(planModeTools, planModeMountedTools);
+				} catch (rollbackError) {
+					logger.warn("Failed to restore plan tools after plan exit failure", { error: String(rollbackError) });
+				}
+			}
+			throw error;
+		}
+		this.setPlanProposalHandler?.(null);
+		this.#planModePreviousTools = undefined;
+		if (!options.deferModelRestore) this.#planModePreviousModelState = undefined;
+		this.sessionManager.appendModeChange(options.paused ? "plan_paused" : "none");
+	}
+
+	/** Pre-plan tool snapshot (used by the CLI approval/switch flows). */
+	getPlanModePreviousTools(): string[] | undefined {
+		return this.#planModePreviousTools;
+	}
+
+	setPlanModePreviousTools(tools: string[] | undefined): void {
+		this.#planModePreviousTools = tools;
+	}
+
+	/**
+	 * Drop all transient mode bookkeeping (pre-mode tool/model snapshots,
+	 * deferred model switches, vibe owner scope) without journaling. Used by the
+	 * CLI's session-switch reconciliation, where the previous mode's transient
+	 * state must not leak onto the restored session.
+	 */
+	resetModeTransientState(): void {
+		this.#planModePreviousTools = undefined;
+		this.#planModePreviousModelState = undefined;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+		this.#goalModePreviousTools = undefined;
+		this.#vibeModePreviousTools = undefined;
+		this.#vibeModeOwnerScope = undefined;
+	}
+
+	/** Pre-plan model snapshot (used by the CLI approval flow). */
+	getPlanModePreviousModelState(): { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined {
+		return this.#planModePreviousModelState;
+	}
+
+	setPlanModePreviousModelState(state: { model: Model; thinkingLevel?: ConfiguredThinkingLevel } | undefined): void {
+		this.#planModePreviousModelState = state;
+	}
+
+	async #applyPlanModeModel(): Promise<void> {
+		const resolved = this.resolveRoleModelWithThinking("plan");
+		if (!resolved.model) return;
+		const currentModel = this.model;
+		// Capture the pre-plan model so exit can restore it. Only the entry path
+		// records this — a mid-planning role change
+		// (reapplyPlanModeModelOnRoleChange) leaves the active model on the plan
+		// role, so overwriting here would restore the old plan model instead of
+		// the user's real pre-plan model.
+		this.#planModePreviousModelState = currentModel
+			? { model: currentModel, thinkingLevel: this.configuredThinkingLevel() }
+			: undefined;
+		await this.#applyPlanModelTransition(currentModel, resolved);
+	}
+
+	/** Re-resolve the `plan` role and move the active model onto it (role reassignment). */
+	async reapplyPlanModeModelOnRoleChange(): Promise<void> {
+		if (!this.#planModeState?.enabled) return;
+		const resolved = this.resolveRoleModelWithThinking("plan");
+		if (!resolved.model) {
+			this.#clearPendingPlanModelSwitch();
+			return;
+		}
+		await this.#applyPlanModelTransition(this.model, resolved);
+	}
+
+	#clearPendingPlanModelSwitch(): void {
+		if (!this.#pendingPlanModelSwitch) return;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+	}
+
+	/** Apply (or defer) the model/thinking change implied by the resolved plan role. */
+	async #applyPlanModelTransition(currentModel: Model | undefined, resolved: ResolvedModelRoleValue): Promise<void> {
+		const transition = resolvePlanModelTransition(currentModel, resolved, this.isStreaming);
+		if (transition.kind !== "apply" || !transition.deferred) {
+			this.#clearPendingPlanModelSwitch();
+		}
+		switch (transition.kind) {
+			case "none":
+				return;
+			case "thinking":
+				this.setThinkingLevel(transition.thinkingLevel);
+				return;
+			case "apply":
+				if (transition.deferred) {
+					this.#pendingModelSwitch = { model: transition.model, thinkingLevel: transition.thinkingLevel };
+					this.#pendingPlanModelSwitch = true;
+					return;
+				}
+				try {
+					await this.setModelTemporary(transition.model, transition.thinkingLevel);
+				} catch (error) {
+					logger.warn(
+						`Failed to switch to plan model for plan mode: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
+				return;
+		}
+	}
+
+	/** Apply any deferred model switch after the current stream ends. */
+	async flushPendingModelSwitch(): Promise<void> {
+		const pending = this.#pendingModelSwitch;
+		this.#pendingModelSwitch = undefined;
+		this.#pendingPlanModelSwitch = false;
+		if (!pending) return;
+		try {
+			await this.setModelTemporary(pending.model, pending.thinkingLevel);
+		} catch (error) {
+			logger.warn(
+				`Failed to switch model after streaming: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+
+	/** Restore a captured pre-plan model state, deferring the switch when streaming. */
+	async restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
+		if (modelsAreEqual(this.model, prev.model)) {
+			// Same model — only thinking level may differ. Avoid setModelTemporary()
+			// which would reset provider-side sessions and break continuity.
+			this.setThinkingLevel(prev.thinkingLevel);
+		} else if (this.isStreaming) {
+			this.#pendingModelSwitch = { model: prev.model, thinkingLevel: prev.thinkingLevel };
+			this.#pendingPlanModelSwitch = false;
+		} else {
+			await this.setModelTemporary(prev.model, prev.thinkingLevel);
+		}
+	}
+
+	/** Pre-goal-mode tool snapshot (used by the CLI interview/switch flows). */
+	getGoalModePreviousTools(): string[] | undefined {
+		return this.#goalModePreviousTools;
+	}
+
+	setGoalModePreviousTools(tools: string[] | undefined): void {
+		this.#goalModePreviousTools = tools;
+	}
+
+	/**
+	 * Enter goal mode — shared goal-mode core. Creates (or resumes) the goal via
+	 * the goal runtime, augments the active toolset with the `goal` tool, and
+	 * injects the goal-mode context when already streaming.
+	 */
+
+	async enterGoalMode(options: GoalModeEntryOptions = {}): Promise<void> {
+		if (this.#goalModeState?.enabled) return;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+
+		const previousTools = this.getEnabledToolNames().filter(name => name !== "goal");
+		const goalTools = [...new Set([...previousTools, "goal"])];
+		this.#goalModePreviousTools = previousTools;
+		const state = options.resume
+			? await this.goalRuntime.resumeGoal()
+			: await this.goalRuntime.createGoal({ objective: options.objective ?? "" });
+		await this.setActiveToolsByName(goalTools);
+		this.setGoalModeState(state);
+		if (this.isStreaming) {
+			await this.sendGoalModeContext({ deliverAs: "steer" });
+		}
+	}
+
+	/**
+	 * Exit goal mode — restores the pre-goal toolset and, for a completed goal,
+	 * clears the mode state and journals the transition. External clients exit
+	 * an active goal without pre-running the goal tool, so a reason-less exit
+	 * terminates the runtime cleanly (abandon, mirroring the goal tool's `drop`).
+	 */
+	async exitGoalMode(options: GoalModeExitOptions = {}): Promise<void> {
+		const previousTools = this.#goalModePreviousTools;
+		// `#goalModePreviousTools` is the "goal mode was entered" signal — it is
+		// cleared only on exit, so the restore runs even when the runtime already
+		// cleared the mode state (e.g. the goal `drop` op, which emits no
+		// goal_updated event and leaves `#goalModeState` undefined).
+		if (previousTools !== undefined) {
+			await this.setActiveToolsByName(previousTools);
+		}
+		const currentState = this.getGoalModeState();
+		if (
+			currentState?.enabled &&
+			currentState.goal?.status === "active" &&
+			(options.reason === undefined || options.reason === "dropped")
+		) {
+			await this.goalRuntime.dropGoal();
+			this.#goalModePreviousTools = undefined;
+			return;
+		}
+		if (options.reason === "completed") {
+			this.setGoalModeState(undefined);
+			this.sessionManager.appendModeChange("none");
+			this.sessionManager.appendCustomEntry("goal-completed", {
+				objective: currentState?.goal?.objective,
+				tokensUsed: currentState?.goal?.tokensUsed,
+				tokenBudget: currentState?.goal?.tokenBudget,
+				timeUsedSeconds: currentState?.goal?.timeUsedSeconds,
+			});
+		}
+		this.#goalModePreviousTools = undefined;
+	}
+
+	/** Pre-vibe-mode tool snapshot (used by the CLI switch flows). */
+	getVibeModePreviousTools(): string[] | undefined {
+		return this.#vibeModePreviousTools;
+	}
+
+	setVibeModePreviousTools(tools: string[] | undefined): void {
+		this.#vibeModePreviousTools = tools;
+	}
+
+	/** Vibe worker owner scope for the current session (CLI switch/teardown flows). */
+	getVibeModeOwnerScope(): VibeOwnerScope | undefined {
+		return this.#vibeModeOwnerScope;
+	}
+
+	/** The session itself as a vibe parent (worker spawns + registry scoping). */
+	#vibeParentSession(): VibeParentSession {
+		return {
+			getAgentId: () => this.getAgentId() ?? null,
+			getSessionId: () => this.sessionManager.getSessionId(),
+			getSessionFile: () => this.sessionManager.getSessionFile() ?? null,
+			sessionManager: this.sessionManager,
+			asyncJobManager: this.asyncJobManager,
+			settings: this.settings,
+			getActiveModelString: () => (this.model ? formatModelString(this.model) : undefined),
+		};
+	}
+
+	/**
+	 * Enter vibe mode — shared vibe-mode core. Activates the ephemeral vibe
+	 * toolset (read + optional parent todo + vibe tools), opens the worker
+	 * spawn scope, journals the mode change, and injects the director context
+	 * when already streaming. Returns the owner scope for the caller.
+	 */
+	async enterVibeMode(options: VibeModeEntryOptions = {}): Promise<VibeOwnerScope> {
+		if (this.#vibeModeState?.enabled) return this.#vibeModeOwnerScope!;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+
+		const vibeRegistry = VibeSessionRegistry.global();
+		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
+		vibeRegistry.activateScope(ownerScope);
+		const previousTools = options.previousTools ?? this.getEnabledToolNames();
+		const vibeBaseTools = ["read"];
+		if (this.hasBuiltInTool("todo")) vibeBaseTools.push("todo");
+		await this.activateVibeTools(vibeBaseTools);
+		this.#vibeModePreviousTools = previousTools;
+		this.#vibeModeOwnerScope = ownerScope;
+		this.setVibeModeState({ enabled: true });
+		if (this.isStreaming) {
+			await this.sendVibeModeContext({ deliverAs: "steer" });
+		}
+		if (options.persistModeChange !== false) this.sessionManager.appendModeChange("vibe", { previousTools });
+		return ownerScope;
+	}
+
+	/**
+	 * Exit vibe mode — tears down worker sessions, unregisters the vibe tools,
+	 * and clears the mode state. Returns the number of worker sessions killed.
+	 */
+	async exitVibeMode(): Promise<number> {
+		if (!this.#vibeModeState?.enabled) return 0;
+		let killed = 0;
+		await this.runModeExitTeardown(async () => {
+			if (this.isStreaming) {
+				await this.abort();
+			}
+			killed = await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#vibeModeOwnerScope!);
+			await this.deactivateVibeTools(this.#vibeModePreviousTools ?? []);
+			this.setVibeModeState(undefined);
+		});
+		this.#vibeModePreviousTools = undefined;
+		this.#vibeModeOwnerScope = undefined;
+		return killed;
+	}
+
+	async getPlanFileContent(planFilePath: string): Promise<string | null> {
+		return this.#readPlanFile(planFilePath);
+	}
+
+	/** Installs/clears the outbound listener for IRC auto-reply text (IM channels). */
+	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void {
+		this.#ircAutoReplyListener = listener;
 	}
 
 	async #readPlanFile(planFilePath: string): Promise<string | null> {
@@ -3372,6 +3914,7 @@ export class AgentSession implements SettingsScope {
 	#persistMessageEnd(message: AgentMessage, promptGeneration: number): void {
 		// Session transitions may replace the transcript before a queued commit
 		// runs. Never append the previous conversation to the replacement session.
+
 		if (this.#promptGeneration !== promptGeneration) {
 			// The message has already left the agent queue. If it was a deferred TTSR
 			// delivery, queue cleanup cannot clear its reservation.
@@ -5059,7 +5602,7 @@ export class AgentSession implements SettingsScope {
 	 * `metadata.user_id` shaped like real Claude Code's `getAPIMetadata` output:
 	 * `{ session_id, account_uuid, device_id }`. `account_uuid` is included only
 	 * when an Anthropic OAuth credential with a known account UUID is loaded;
-	 * `device_id` is derived from both the persistent omp install id and that
+	 * `device_id` is derived from both the persistent zeta-c install id and that
 	 * account UUID. Resolving live keeps the value in sync with auth-state changes
 	 * (login/logout, token refresh that surfaces a new account UUID) without
 	 * needing to re-call `#syncAgentSessionId()` on every such event.
@@ -5251,7 +5794,7 @@ export class AgentSession implements SettingsScope {
 	 * Turn-settle checkpoint for owned headless browser tabs (issue #8246).
 	 * Close tabs idle past `browser.idleCloseSec` as the memory backstop,
 	 * then freeze the survivors so idle animated pages stop burning CPU/GPU
-	 * while keeping their state for millisecond resume. Scoped to OMP-owned
+	 * while keeping their state for millisecond resume. Scoped to ZETA-owned
 	 * headless tabs of this session only — relay/CDP/spawned tabs, other
 	 * sessions' tabs, and `persist` tabs are never touched. Best-effort:
 	 * never throws, so teardown cannot break the event flow.
@@ -6108,6 +6651,11 @@ export class AgentSession implements SettingsScope {
 		return this.#memory.applyMemoryBackend(options);
 	}
 
+	/** Applies the external-thinking setting to the private scratchpad tool immediately. */
+	setThinkToolEnabled(enabled: boolean): Promise<boolean> {
+		return this.#tools.setThinkToolEnabled(enabled);
+	}
+
 	/** Resolves once every memory-setting edit so far, and the backend transitions it started, has settled. */
 	settleMemoryBackend(): Promise<void> {
 		return this.#memory.settle();
@@ -6159,13 +6707,9 @@ export class AgentSession implements SettingsScope {
 
 	/** Trigger idle compaction through the automatic maintenance flow. */
 	async runIdleCompaction(): Promise<void> {
-		// A pending async wake means the session is waiting, not idle: a
-		// background job (bash/task) owned by this agent re-wakes the loop when it
-		// completes, and the async-result delivery continues the run. Idle
-		// compaction is a stop-time pass like the todo reminder and session_stop
-		// hook — defer it until the session is fully idle so the resumed turn
-		// keeps its context (the async settle, or the threshold path, compacts if
-		// still needed).
+		// An owned async job (running or with undelivered results) means the
+		// session is not truly idle: the wake re-opens the run loop, so the
+		// idle pass must defer until the async work fully drains.
 		if (this.#hasPendingAsyncWake()) return;
 		await this.#maintenance.runIdleCompaction();
 	}
@@ -6360,6 +6904,7 @@ export class AgentSession implements SettingsScope {
 			// does not inherit a stale `required` tool choice.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
 		}
+		this.bumpStateVersion();
 	}
 
 	getGoalModeState(): GoalModeState | undefined {
@@ -6368,6 +6913,7 @@ export class AgentSession implements SettingsScope {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
+		this.bumpStateVersion();
 	}
 
 	getVibeModeState(): VibeModeState | undefined {
@@ -6376,6 +6922,7 @@ export class AgentSession implements SettingsScope {
 
 	setVibeModeState(state: VibeModeState | undefined): void {
 		this.#vibeModeState = state;
+		this.bumpStateVersion();
 		if (state?.enabled) return;
 
 		const isVibeContext = (message: AgentMessage): boolean =>
@@ -6682,7 +7229,7 @@ export class AgentSession implements SettingsScope {
 		// Capability gates, not the visible surface: a Code Mode partition keeps
 		// `task` and `ask` callable through the eval bridge after demoting them.
 		const capableToolNames = this.getEnabledToolNames();
-		const content = prompt.render(planModeActivePrompt, {
+		const content = prompt.render(state.workflow === "ultra" ? planModeUltraActivePrompt : planModeActivePrompt, {
 			planFilePath: displayPlanPath,
 			planExists,
 			askToolName: "ask",
@@ -7702,6 +8249,7 @@ export class AgentSession implements SettingsScope {
 
 		return {
 			ui: noOpUIContext,
+			settings: this.settings,
 			mode: "print",
 			hasUI: false,
 			cwd: this.sessionManager.getCwd(),
@@ -7723,7 +8271,7 @@ export class AgentSession implements SettingsScope {
 				// Await the idempotent dispose() before exiting so the browser
 				// reaper and other bounded teardown complete — a fire-and-forget
 				// `void this.dispose()` raced process.exit() and could leave an
-				// OMP-owned Chromium alive (#5643).
+				// ZETA-owned Chromium alive (#5643).
 				void this.dispose().finally(() => process.exit(0));
 			},
 			getContextUsage: () => this.getContextUsage(),
@@ -12867,3 +13415,5 @@ export class AgentSession implements SettingsScope {
 		return this.#recovery.consumeActiveFallbackCreditRedemption(targetModel);
 	}
 }
+
+export { SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "./agent-session-types";

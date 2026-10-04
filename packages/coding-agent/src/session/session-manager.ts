@@ -8,8 +8,9 @@ import type {
 	ServiceTierByFamily,
 	TextContent,
 	Usage,
-} from "@oh-my-pi/pi-ai";
-import { createSyntheticToolResultMessage } from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-ai";
+import { createSyntheticToolResultMessage } from "@linxiraos/pi-agent-core";
+
 import {
 	directoryIsEnterable,
 	getBlobsDir,
@@ -24,8 +25,8 @@ import {
 	pathIsWithin,
 	stringifyJson,
 	toError,
-} from "@oh-my-pi/pi-utils";
-import type { StructuredSubagentSchemaMode } from "@oh-my-pi/pi-tui/tools/task";
+} from "@linxiraos/pi-utils";
+import type { StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore, lazyImageDataSync } from "./blob-store";
@@ -733,7 +734,7 @@ export class SessionPersistenceIndeterminateError extends AggregateError {
  */
 export interface SessionPersistenceNotice {
 	/**
-	 * `"open-elsewhere"`: another live omp process wrote `from` first and still
+	 * `"open-elsewhere"`: another live zeta process wrote `from` first and still
 	 * has it open, so this process saves its entries elsewhere instead of mixing
 	 * them into that file. `"replaced"`: `from` changed on disk and no longer
 	 * reads as this session's journal, so it is left untouched. `"contested"`:
@@ -980,9 +981,9 @@ export class SessionManager {
 	}
 
 	/**
-	 * Hold this process's ownership claim on `#sessionId`, moving it off a
-	 * previous session. Only write paths claim, so the first process to write a
-	 * session owns it and inspection (`omp share`, `--export`, `render`) never
+	 * Hold this process's ownership claim on `#sessionFile`, moving it off a
+	 * previous path. Only write paths claim, so the first process to write a
+	 * file owns it and inspection (`zeta share`, `--export`, `render`) never
 	 * does. A failed claim is retried on the next write, so a writer takes over
 	 * once the owner closed the session or exited.
 	 */
@@ -1000,11 +1001,11 @@ export class SessionManager {
 	}
 
 	/**
-	 * Whether another live omp process owns this session, claiming it first
-	 * when it is free. A non-owner never writes the session's file: its next
-	 * write moves this session to a sibling with a new id instead, so two
-	 * processes never mix their entries in one journal and the owner's full
-	 * rewrites never race the other process's appends.
+	 * Whether another live zeta process owns `#sessionFile`, claiming it first
+	 * when it is free. A non-owner never writes to that file: its next write
+	 * moves this session to a sibling instead, so two processes never mix their
+	 * entries in one journal and the owner's full rewrites never race the other
+	 * process's appends.
 	 */
 	#sessionOwnedElsewhere(): boolean {
 		if (this.#released || this.#sessionFileRelocating) return false;
@@ -1075,7 +1076,7 @@ export class SessionManager {
 
 	/**
 	 * A synchronous full rewrite of `#sessionFile` met bytes this manager did
-	 * not write: usually a writer without the ownership lease (an older omp,
+	 * not write: usually a writer without the ownership lease (an older zeta,
 	 * an external tool) appending to the file this process owns. Overwriting
 	 * would erase those entries and retrying blindly can never succeed, so read
 	 * the file back, keep its new entries, and retry against the size just read.
@@ -2532,7 +2533,7 @@ export class SessionManager {
 		await this.#rewriteAtomically();
 	}
 
-	/** Persist this session's transcript as a newly identified OMP session. */
+	/** Persist this session's transcript as a newly identified ZETA session. */
 	async persistCopy(
 		options?: { sessionDir?: string; suppressBreadcrumb?: boolean },
 		storage: SessionStorage = new FileSessionStorage(),

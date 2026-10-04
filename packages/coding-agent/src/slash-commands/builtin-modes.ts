@@ -30,7 +30,7 @@ import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import ratchetKickoffPrompt from "../prompts/ratchet-kickoff.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
-import { CLI_THINKING_LEVELS, getConfiguredThinkingLevelMetadata } from "@oh-my-pi/pi-tui/thinking";
+import { CLI_THINKING_LEVELS, getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
 import { noThinkingMessage, resolveThinkingArgument } from "./helpers/effort";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";

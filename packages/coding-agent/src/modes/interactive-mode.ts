@@ -1,4 +1,4 @@
-import { formatModelSelectorValue } from "@oh-my-pi/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 /**
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
@@ -12,11 +12,11 @@ import {
 	agentPauseGate,
 	EventLoopKeepalive,
 	ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
-import type { CompactionOutcome } from "@oh-my-pi/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@oh-my-pi/pi-ai";
-import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { execReplace } from "@oh-my-pi/pi-natives";
+} from "@linxiraos/pi-agent-core";
+import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
+import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
+import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { execReplace } from "@linxiraos/pi-natives";
 import type {
 	AutocompleteProvider,
 	Component,
@@ -24,7 +24,7 @@ import type {
 	LoaderMessageColorFn,
 	OverlayHandle,
 	SlashCommand,
-} from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui";
 import {
 	Container,
 	clearRenderCache,
@@ -41,17 +41,17 @@ import {
 	type TUI,
 	visibleWidth,
 	wrapTextWithAnsi,
-} from "@oh-my-pi/pi-tui";
-import type { TerminalAppearanceRequestToken } from "@oh-my-pi/pi-tui/terminal";
-import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@oh-my-pi/pi-tui/native/node";
-import { col, kbd, node, row, span, text } from "@oh-my-pi/pi-tui/native/describe";
-import { sameItems } from "@oh-my-pi/pi-tui/native/memo";
-import { describeSegmentTrack, renderSegmentTrack, type TrackSegment } from "@oh-my-pi/pi-tui/chrome/segment-track";
-import type { WorkingRowSpec } from "@oh-my-pi/pi-tui/components/loader";
-import { formatDoubleTap } from "@oh-my-pi/pi-tui/key-hint-format";
-import { thinkingLevelWord } from "@oh-my-pi/pi-tui/status-line/segments";
-import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspText, TspTreeNode } from "@oh-my-pi/pi-wire";
-import { isInsideTerminalMultiplexer } from "@oh-my-pi/pi-tui/terminal-capabilities";
+} from "@linxiraos/pi-tui";
+import type { TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
+import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
+import { col, kbd, node, row, span, text } from "@linxiraos/pi-tui/native/describe";
+import { sameItems } from "@linxiraos/pi-tui/native/memo";
+import { describeSegmentTrack, renderSegmentTrack, type TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
+import type { WorkingRowSpec } from "@linxiraos/pi-tui/components/loader";
+import { formatDoubleTap } from "@linxiraos/pi-tui/key-hint-format";
+import { thinkingLevelWord } from "@linxiraos/pi-tui/status-line/segments";
+import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspText, TspTreeNode } from "@linxiraos/pi-wire";
+import { isInsideTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-capabilities";
 import {
 	$env,
 	adjustHsv,
@@ -64,15 +64,17 @@ import {
 	prompt,
 	sanitizeText,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+	CLI_BIN_NAME,
+} from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
+import { M } from "../i18n";
 import { restartArgv } from "../cli/flag-tables";
 import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
 import type { CollabHost } from "../collab/host";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { appKey, editorKey, rawKeyHint } from "@oh-my-pi/pi-tui/chrome/keybinding-hints";
-import { formatModelStringWithRouting, type ResolvedModelRoleValue } from "../config/model-resolver";
+import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
+import { formatModelString, formatModelStringWithRouting, type ResolvedModelRoleValue } from "../config/model-resolver";
 import { isSettingsInitialized, Settings, settings } from "../config/settings";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import type {
@@ -89,6 +91,7 @@ import type { CompactOptions } from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { FileSlashCommand } from "../extensibility/slash-commands";
 import { loadSlashCommands } from "../extensibility/slash-commands";
+import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import type { GoalModeState } from "../goals/state";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
 import { copyLocalArtifacts, resolveLocalRoot } from "../internal-urls";
@@ -115,10 +118,10 @@ import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
-import type { AgentHubRegistry } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
+import type { AgentHubRegistry } from "@linxiraos/pi-tui/overlays/agent-hub-types";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { registerPersistedSubagents } from "../registry/persisted-agents";
-import type { AgentMetrics } from "@oh-my-pi/pi-tui/overlays/agent-hub-projection";
+import type { AgentMetrics } from "@linxiraos/pi-tui/overlays/agent-hub-projection";
 import { sumSubagentTreeCost } from "./agent-hub-runtime";
 import {
 	type AgentSession,
@@ -131,24 +134,24 @@ import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
 import { HistoryStorage } from "../session/history-storage";
 import { syncTextPrediction, textPredictionBackend } from "../predict/client";
-import { setWordPredictionHost } from "@oh-my-pi/pi-tui/prompt/word-completion";
+import { setWordPredictionHost } from "@linxiraos/pi-tui/prompt/word-completion";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
 import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
-import { modelMentionDisplayName } from "@oh-my-pi/pi-tui/prompt/model-mention-syntax";
-import { modelMentionChipLabel, shiftImageMarkers } from "@oh-my-pi/pi-tui/prompt/composer-attachments";
+import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
+import { modelMentionChipLabel, shiftImageMarkers } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
 import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
-import { formatCoarseDuration } from "@oh-my-pi/pi-tui/chrome/format";
+import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
 import { type DictationTarget, MicCursor, type SttCallbacks, STTController, type SttState } from "../stt";
-import type { SpaceHoldHandler } from "@oh-my-pi/pi-tui/space-hold";
+import type { SpaceHoldHandler } from "@linxiraos/pi-tui/space-hold";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { labelEchoesHandle } from "../task/label";
-import { agentTypeBadge, formatTaskId } from "@oh-my-pi/pi-tui/tools/task";
-import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
+import { agentTypeBadge, formatTaskId } from "@linxiraos/pi-tui/tools/task";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { isMCPToolName } from "../tools/builtin-names";
 import type { LspStartupServerInfo } from "../tools";
 import { resolvePlanFilePath } from "../plan-mode/plan-files";
@@ -168,7 +171,7 @@ import {
 	shortenPath,
 	TRUNCATE_LENGTHS,
 	truncateToWidth,
-} from "@oh-my-pi/pi-tui/render/render-utils";
+} from "@linxiraos/pi-tui/render/render-utils";
 import { setAutoQaConsentHandler } from "../tools/report-tool-issue";
 import { type CfgApproval, type CfgChangeRequest, setCfgApprovalHost } from "../internal-urls/cfg-protocol";
 import {
@@ -185,18 +188,18 @@ import {
 	selectCollapsedTodos,
 	setActiveTodoDescriptionsProvider,
 	todoMatchesAnyDescription,
-} from "@oh-my-pi/pi-tui/tools/todo";
+} from "@linxiraos/pi-tui/tools/todo";
 import { vocalizer } from "../tts/vocalizer";
-import { applyHyperlinkSetting, fileHyperlink } from "@oh-my-pi/pi-tui/render/hyperlink";
-import { renderTreeList } from "@oh-my-pi/pi-tui/render/tree-list";
+import { applyHyperlinkSetting, fileHyperlink } from "@linxiraos/pi-tui/render/hyperlink";
+import { renderTreeList } from "@linxiraos/pi-tui/render/tree-list";
 import { formatStartupChangelogSummary, type StartupChangelogSelection } from "../utils/changelog";
 import { copyToClipboard } from "../utils/clipboard";
 import type { EventBus } from "../utils/event-bus";
 import { getEditorCommand, openInEditor } from "../utils/external-editor";
 import { openPath } from "../utils/open";
 import { resumeCommand } from "../utils/resume-command";
-import { getSessionAccentAnsi, getSessionAccentHex } from "@oh-my-pi/pi-tui/theme/session-color";
-import { messageHasDisplayableThinking } from "@oh-my-pi/pi-tui/chat/thinking-display";
+import { getSessionAccentAnsi, getSessionAccentHex } from "@linxiraos/pi-tui/theme/session-color";
+import { messageHasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
 import type { TokenRateMeter } from "../utils/token-rate";
 import {
 	disposeTerminalTitleState,
@@ -216,42 +219,43 @@ import {
 	type VibeParentSession,
 	VibeSessionRegistry,
 } from "../vibe/runtime";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { setTranscriptActionHandler } from "@oh-my-pi/pi-tui/chat/transcript-actions";
-import { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
-import { ReadToolGroupComponent } from "@oh-my-pi/pi-tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { AttachmentChipsBand } from "@oh-my-pi/pi-tui/prompt/attachment-chips";
-import type { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { ChatBlock, type ChatBlockHost } from "@oh-my-pi/pi-tui/chrome/chat-block";
-import { CodexResetFireworksController } from "@oh-my-pi/pi-tui/overlays/codex-reset-fireworks";
-import { type ComposerNativeState, CustomEditor } from "@oh-my-pi/pi-tui/prompt/custom-editor";
-import { DynamicBorder } from "@oh-my-pi/pi-tui/chrome/dynamic-border";
-import { EditorTopGap } from "@oh-my-pi/pi-tui/prompt/editor-top-gap";
-import { ErrorBannerComponent } from "@oh-my-pi/pi-tui/overlays/error-banner";
-import type { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
-import type { HookEditorComponent } from "@oh-my-pi/pi-tui/overlays/hook-editor";
-import type { HookInputComponent } from "@oh-my-pi/pi-tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorSlider } from "@oh-my-pi/pi-tui/overlays/hook-selector";
-import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@oh-my-pi/pi-tui/overlays/plan-review-overlay";
-import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@oh-my-pi/pi-tui/overlays/plan-save-overlay";
-import { ServedModelTracker } from "@oh-my-pi/pi-tui/chat/served-model-marker";
-import { SessionInfoOverlay } from "@oh-my-pi/pi-tui/overlays/session-info-overlay";
-import { JobsSheet } from "@oh-my-pi/pi-tui/overlays/jobs-panel";
-import { SkillMessageComponent } from "@oh-my-pi/pi-tui/chat/skill-message";
-import { StatusLineComponent } from "@oh-my-pi/pi-tui/status-line";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { setTranscriptActionHandler } from "@linxiraos/pi-tui/chat/transcript-actions";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { AttachmentChipsBand } from "@linxiraos/pi-tui/prompt/attachment-chips";
+import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { ChatBlock, type ChatBlockHost } from "@linxiraos/pi-tui/chrome/chat-block";
+import { CodexResetFireworksController } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
+import { type ComposerNativeState, CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
+import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
+import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
+import { ErrorBannerComponent } from "@linxiraos/pi-tui/overlays/error-banner";
+import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
+import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
+import type { HookSelectorComponent, HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import { type PlanReviewAnnotationState, PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
+import { PlanSaveOverlay, type PlanSaveOverlayResult } from "@linxiraos/pi-tui/overlays/plan-save-overlay";
+import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
+import { SessionInfoOverlay } from "@linxiraos/pi-tui/overlays/session-info-overlay";
+import { JobsSheet } from "@linxiraos/pi-tui/overlays/jobs-panel";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
 import { statusLineHost } from "./status-line-host";
-import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
+import { stopSharedSpinnerTicker, type ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import type { LspServerInfo as WelcomeLspServerInfo } from "@linxiraos/pi-tui/prompt/welcome";
 import {
 	Composer,
 	type ComposerPreferences,
 	type ComposerStatusCache,
 	PINNED_HUD_TOGGLE_ID,
-} from "@oh-my-pi/pi-tui/prompt/composer";
-import { setMagicKeywords } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
+} from "@linxiraos/pi-tui/prompt/composer";
+import { setMagicKeywords } from "@linxiraos/pi-tui/prompt/magic-keywords";
 import { MAGIC_KEYWORDS } from "./magic-keywords";
-import { sharedComposerCache } from "@oh-my-pi/pi-tui/prompt/composer-cache";
+import { sharedComposerCache } from "@linxiraos/pi-tui/prompt/composer-cache";
 import { BtwController } from "./controllers/btw-controller";
 import { CleanseCommandController } from "./controllers/cleanse-command-controller";
 import { CommandController } from "./controllers/command-controller";
@@ -266,7 +270,7 @@ import { SessionFocusController } from "./controllers/session-focus-controller";
 import { SSHCommandController } from "./controllers/ssh-command-controller";
 import { TanCommandController } from "./controllers/tan-command-controller";
 import { TodoCommandController } from "./controllers/todo-command-controller";
-import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@oh-my-pi/pi-tui/prompt/image-references";
+import { imageReferenceHyperlink, materializeImageReferenceLinks } from "@linxiraos/pi-tui/prompt/image-references";
 import { describeLoopCondition, evaluateLoopCondition, type LoopConditionVerdict } from "./loop-condition";
 import {
 	consumeLoopLimitIteration,
@@ -277,26 +281,26 @@ import {
 	isLoopLimitExhausted,
 	parseLoopArgs,
 } from "./loop-limit";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@oh-my-pi/pi-tui/status-line/loop";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import { OAuthManualInputManager } from "./oauth-manual-input";
 import { formatPersistenceNotice } from "./persistence-failure";
-import { resolveComposerHint } from "@oh-my-pi/pi-tui/prompt/composer-hints";
+import { resolveComposerHint } from "@linxiraos/pi-tui/prompt/composer-hints";
 import { hintUsage } from "../utils/usage-counter";
 import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
-} from "@oh-my-pi/pi-tui/overlays/running-subagent-badge";
+} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
 import {
 	type ObservableSession,
 	type SessionObserverChangeKind,
 	SessionObserverRegistry,
-} from "@oh-my-pi/pi-tui/overlays/session-observer-registry";
+} from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
-import { sanitizeStatusText } from "@oh-my-pi/pi-tui/chrome/shared";
+import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
-import { clearMermaidCache } from "@oh-my-pi/pi-tui/theme/mermaid-cache";
-import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@oh-my-pi/pi-tui/theme/shimmer";
-import type { Theme } from "@oh-my-pi/pi-tui/theme";
+import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
+import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
+import type { Theme } from "@linxiraos/pi-tui/theme";
 import {
 	getEditorTheme,
 	getMarkdownTheme,
@@ -307,8 +311,8 @@ import {
 	startMacOSAppearanceReprobeFallback,
 	theme,
 	warmHighlighter,
-} from "@oh-my-pi/pi-tui/theme";
-import { getSlashCommandTypeIcon } from "@oh-my-pi/pi-tui/theme/tui-adapters";
+} from "@linxiraos/pi-tui/theme";
+import { getSlashCommandTypeIcon } from "@linxiraos/pi-tui/theme/tui-adapters";
 import type {
 	AgentHubOpenOptions,
 	CompactionQueuedMessage,
@@ -318,7 +322,7 @@ import type {
 	RenderSessionContextOptions,
 	SubmittedUserInput,
 } from "./types";
-import type { TodoItem, TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
+import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { UiHelpers } from "./utils/ui-helpers";
 
 import {
@@ -368,7 +372,9 @@ import {
 	cfgTuiTitleState,
 	cfgTuiVimMode,
 	cfgTuiVimModeDisplay,
+	cfgTuiSidebar,
 } from "./settings";
+import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgProseOnlyThinking } from "../session/settings";
 import { cfgHideThinkingBlock } from "../session/settings";
@@ -376,6 +382,7 @@ import { cfgCycleOrder, cfgModelRoles } from "../config/model-settings";
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "../goals/settings";
 import { goalContinuationActivity, goalFromModeData } from "../goals/state";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "../plan-mode/settings";
+import type { PlanWorkflow } from "../plan-mode/state";
 import { cfgStreamRedactPatterns } from "../stream/settings";
 import { cfgSttEnabled } from "../stt/settings";
 import { combine, type SettingValueOf } from "../config/registry";
@@ -695,7 +702,7 @@ function describeJobsHud(running: number): NativeNode {
 	return node(
 		"row",
 		{
-			role: "omp.hud.pill",
+			role: "zeta.hud.pill",
 			gap: "xs",
 			align: "center",
 			title: "Background jobs  /jobs",
@@ -769,7 +776,7 @@ class DeferredCommandPreview implements Component {
 				col(this.items, { max: { h: `${this.maxRows}lines` } }),
 				text([span(`${queued} — shown in full in the transcript when the agent pauses`, "dim")]),
 			],
-			{ role: "omp.hud.deferred" },
+			{ role: "zeta.hud.deferred" },
 		);
 		return this.#native;
 	}
@@ -935,7 +942,7 @@ export function describeSubagentHud(sessions: ObservableSession[]): NativeNode {
 			),
 		],
 		{
-			role: "omp.hud.pill",
+			role: "zeta.hud.pill",
 			gap: "xs",
 			align: "center",
 			title: `Agents  ${formatDoubleTap("left")}`,
@@ -1216,6 +1223,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
+	sidebar: SidebarComponent;
 
 	isInitialized = false;
 	initialChatRendered = false;
@@ -1395,7 +1403,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				rate,
 				node: row([node("rate", { value: rate, unit: "tok/s" }, undefined, "rate")], {
 					justify: "end",
-					role: "omp.working.idle",
+					role: "zeta.working.idle",
 				}),
 			};
 		}
@@ -1413,7 +1421,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#hudPillsNative;
 		const empty = this.todoHudNative === undefined && this.subagentContainer.children.length === 0 && running === 0;
 		if (memo && memo.empty === empty && sameItems(memo.children, children)) return memo.node;
-		const described = row(children, { role: "omp.hud", justify: "end", gap: "sm", hidden: empty || undefined });
+		const described = row(children, { role: "zeta.hud", justify: "end", gap: "sm", hidden: empty || undefined });
 		this.#hudPillsNative = { children, empty, node: described };
 		return described;
 	}
@@ -1434,7 +1442,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			return memo.node;
 		}
 		const parts: NativeChild[] = children.length === 0 ? (slot ? [slot] : []) : children.slice();
-		const hud = parts.length === 0 ? EMPTY_HUD : col(parts, { role: "omp.hud.status" });
+		const hud = parts.length === 0 ? EMPTY_HUD : col(parts, { role: "zeta.hud.status" });
 		this.#statusHudNative = { children: children.slice(), slot, node: hud };
 		return hud;
 	}
@@ -1877,6 +1885,17 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session, statusLineHost);
+		this.sidebar = new SidebarComponent({
+			statusLine: this.statusLine,
+			session,
+			subagents: () => this.#observerRegistry.getSessions(),
+			mcp: {
+				pending: this.#mcpPendingServers,
+				connected: this.#mcpConnectedServers,
+				failed: this.#mcpFailedServers,
+			},
+		});
+
 		// Native segment clicks open what their slash commands and keys open.
 		this.statusLine.onNativeAction = action => {
 			switch (action) {
@@ -1900,6 +1919,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// A TSP terminal has no status strip: the tab title carries the PR.
 		this.statusLine.onNativePullRequest = pr => setTerminalTitlePullRequest(pr?.number);
 		this.statusLine.setAutoCompactEnabled(session.autoCompactionEnabled);
+		this.applySidebar();
 		this.#codexResetFireworksController = new CodexResetFireworksController(this);
 		this.statusLine.setCodexResetFireworksHandler(event => {
 			this.#codexResetFireworksController.show(event);
@@ -2356,7 +2376,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// custom messages, branch summaries, and compaction summaries) and the user
 		// set no explicit `mode_change` (which #reconcileModeFromSession just
 		// restored). SDK startup metadata and extension `custom` state entries are
-		// ignored. This way `omp --continue` (or auto-resume) that finds no recent
+		// ignored. This way `zeta-c --continue` (or auto-resume) that finds no recent
 		// session and creates a fresh one still honors the default, while a session
 		// with restored context or an explicit mode keeps its reconciled mode. Scoped
 		// to launch (not the switch reconciler above) so /new and the plan-approval →
@@ -2439,7 +2459,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		);
 		// The preset may have switched before this listener existed.
 		this.#refreshSlashCommandIcons();
-		// A confirmed Glyph Protocol handshake means omp's own icons render in
+		// A confirmed Glyph Protocol handshake means zeta's own icons render in
 		// this terminal without a Nerd Font, so the unconfigured `unicode` preset
 		// is upgraded to `nerd` for this session. The persisted setting is left
 		// alone: it travels to terminals (ssh, tmux) where the upgrade would
@@ -4294,7 +4314,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				),
 				node("tree", { nodes: phaseNodes }),
 			],
-			{ role: "omp.hud.todo" },
+			{ role: "zeta.hud.todo" },
 		);
 		// A `checklist` HUD is a pill with the whole plan as its popover.
 		const checklistPhases: TspChecklistPhase[] = phases.map((phase, phaseIndex) => ({
@@ -4321,7 +4341,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			}),
 		}));
 		this.todoHudNative = {
-			checklist: node("checklist", { phases: checklistPhases, mode: "hud", role: "omp.hud.todo" }),
+			checklist: node("checklist", { phases: checklistPhases, mode: "hud", role: "zeta.hud.todo" }),
 			fallback,
 		};
 	}
@@ -4844,7 +4864,7 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	async #enterPlanMode(options?: {
 		planFilePath?: string;
-		workflow?: "parallel" | "iterative";
+		workflow?: PlanWorkflow;
 		preserveRestoredModel?: boolean;
 	}): Promise<void> {
 		if (this.planModeEnabled) {
@@ -5726,6 +5746,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async handlePlanModeCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+		workflow?: PlanWorkflow,
 	): Promise<boolean> {
 		if (this.goalModeEnabled || this.goalModePaused) {
 			this.showWarning("Exit goal mode first.");
@@ -5764,7 +5785,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
-		await this.#enterPlanMode();
+		await this.#enterPlanMode(workflow ? { workflow } : undefined);
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {
@@ -5791,6 +5812,18 @@ export class InteractiveMode implements InteractiveModeContext {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * `/plan-ultra` toggle. Same machinery as `/plan`, but the entry selects the
+	 * `ultra` plan workflow: fan-out scouting, incremental plan writes, and the
+	 * deeper decision floor rendered from the ultra prompt template.
+	 */
+	async handlePlanUltraCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean> {
+		return this.handlePlanModeCommand(initialPrompt, input, "ultra");
 	}
 
 	/**
@@ -6780,7 +6813,18 @@ export class InteractiveMode implements InteractiveModeContext {
 		const sessionId = this.#resumableSessionId();
 		if (sessionId) {
 			// Command on its own line so triple-click selects just the command (#11001).
-			process.stderr.write(`\n${chalk.dim("Resume this session with")}\n${chalk.dim(resumeCommand(sessionId))}\n`);
+			// The catalogue sentence embeds the full command, so split it back out for
+			// the dedicated line; if the translation diverges from that shape, fall
+			// through to the whole sentence.
+			const command = resumeCommand(sessionId);
+			const hint = M.imResumeHintFmt.replace("%s", CLI_BIN_NAME).replace("%s", sessionId);
+			const commandIndex = hint.indexOf(command);
+			if (commandIndex >= 0) {
+				const label = hint.slice(0, commandIndex).trim();
+				process.stderr.write(`\n${chalk.dim(label)}\n${chalk.dim(command)}\n`);
+			} else {
+				process.stderr.write(`\n${chalk.dim(hint)}\n`);
+			}
 		}
 
 		await postmortem.quit(0);
@@ -6908,7 +6952,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// Do not force a final render during teardown: disposed session/UI state can
 		// collapse to an empty frame, clearing the viewport and leaving the parent
 		// shell prompt at row 0. Stop from the last committed frame so the terminal
-		// hands Bash the cursor immediately after visible OMP content.
+		// hands Bash the cursor immediately after visible ZETA content.
 		// Close the TSP surfaces first so the drain below also swallows what the
 		// terminal still sends them (acks, events) instead of the shell.
 		this.ui.closeNative();
@@ -7487,7 +7531,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			row([node("icon", { name: "loop", tone: "muted" }), kbd(retryKey, "key"), text([span("to retry", "muted")])], {
 				gap: "sm",
 				align: "center",
-				role: "omp.hint.retry",
+				role: "zeta.hint.retry",
 			}),
 		);
 		this.statusContainer.addChild(this.#retryHintRow);
@@ -7510,6 +7554,25 @@ export class InteractiveMode implements InteractiveModeContext {
 	handleExportCommand(text: string): Promise<void> {
 		return this.#commandController.handleExportCommand(text);
 	}
+	/** Toggle the right-hand sidebar: flips the setting and re-wires the engine. */
+	handleSidebarToggle(): void {
+		const next = !cfgTuiSidebar.get(settings);
+		settings.writeValue(cfgTuiSidebar, next, "global");
+		this.applySidebar();
+		this.ui.requestRender();
+	}
+
+	/** Apply the `tui.sidebar` setting to the engine's main-width override. */
+	applySidebar(): void {
+		if (cfgTuiSidebar.get(settings)) {
+			this.ui.setMainWidth(SIDEBAR_WIDTH);
+			this.ui.setGutterComponent(this.sidebar);
+		} else {
+			this.ui.setMainWidth(null);
+			this.ui.setGutterComponent(null);
+		}
+	}
+
 	handleTraceCommand(): Promise<void> {
 		return this.#commandController.handleTraceCommand();
 	}
@@ -7673,6 +7736,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		return {
 			showWarning: (msg: string) => this.showWarning(msg),
 			showStatus: (msg: string) => this.showStatus(msg),
+			requestRender: () => this.ui.requestRender(),
 			onStateChange: (state: SttState) => {
 				// Duck assistant speech while the user is talking (push-to-talk); restore after.
 				if (state === "recording") vocalizer.duck();
@@ -7700,7 +7764,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			await active.stop();
 			this.statusLine.setRecording(false);
 			this.showStatus(
-				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: omp play · share: omp clip`,
+				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: zeta play · share: zeta clip`,
 			);
 			return;
 		}
