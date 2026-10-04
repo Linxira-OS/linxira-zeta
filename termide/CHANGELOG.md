@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `set_env` now injects a `ZETA_WORKBENCH=1` probe into PTY children on every spawn path, letting host-aware TUIs (zetacode) unlock workbench-specific behavior such as hyperlinks.
+- `set_env` now injects a `ZETA_WORKBENCH=1` probe into PTY children on every spawn path, letting host-aware TUIs (zetacode) unlock workbench-specific behavior such as hyperlinks. It also strips the launching terminal's `TERM_PROGRAM`/`WT_SESSION`/`COLORTERM` from the child environment: a leaked outer-terminal identity made hosted TUIs detect the wrong terminal and pick the wrong image protocol, and the workbench identity is expressed by `ZETA_WORKBENCH` alone.
 
 ## [0.35.0] - 2026-09-13
 

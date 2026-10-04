@@ -166,6 +166,15 @@ impl Terminal {
         // hosted TUIs (zetacode) can light up workbench-only behavior — the
         // OSC 8 hyperlink emitter gates on exactly this probe.
         cmd.env("ZETA_WORKBENCH", "1");
+        // Strip outer-terminal identity variables. Panes run *inside* the
+        // workbench, but CommandBuilder::new seeds the child env from the
+        // process that launched the IDE; a leaked TERM_PROGRAM /
+        // WT_SESSION / COLORTERM would make hosted TUIs (zetacode) think
+        // they talk to that outer terminal and pick the wrong image
+        // protocol. The workbench identity is expressed by ZETA_WORKBENCH.
+        cmd.env_remove("TERM_PROGRAM");
+        cmd.env_remove("WT_SESSION");
+        cmd.env_remove("COLORTERM");
         cmd.env(
             "HOME",
             std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
@@ -1702,5 +1711,49 @@ mod title_tests {
             Some("hello title"),
             "OSC 0 title never reached the screen"
         );
+    }
+}
+
+#[cfg(test)]
+mod env_tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    /// Panes run inside the workbench, but `CommandBuilder::new` seeds the
+    /// child environment from the process that launched the IDE. A leaked
+    /// `TERM_PROGRAM` / `WT_SESSION` / `COLORTERM` makes hosted TUIs
+    /// (zetacode) detect the outer terminal and pick the wrong image
+    /// protocol, so `set_env` must strip all three while keeping the
+    /// workbench marker.
+    #[test]
+    fn pane_env_strips_outer_terminal_identity() {
+        let outer = [
+            ("TERM_PROGRAM", "vscode"),
+            ("WT_SESSION", "some-guid"),
+            ("COLORTERM", "truecolor"),
+        ];
+        for (key, value) in outer {
+            std::env::set_var(key, value);
+        }
+        let result = std::panic::catch_unwind(|| {
+            let mut cmd = CommandBuilder::new("/bin/sh");
+            Terminal::set_env(&mut cmd, std::path::Path::new("/tmp"));
+            (
+                cmd.get_env("TERM_PROGRAM").map(OsStr::to_owned),
+                cmd.get_env("WT_SESSION").map(OsStr::to_owned),
+                cmd.get_env("COLORTERM").map(OsStr::to_owned),
+                cmd.get_env("ZETA_WORKBENCH").map(OsStr::to_owned),
+                cmd.get_env("TERM").map(OsStr::to_owned),
+            )
+        });
+        for (key, _) in outer {
+            std::env::remove_var(key);
+        }
+        let (term_program, wt_session, colorterm, workbench, term) = result.unwrap();
+        assert_eq!(term_program, None, "TERM_PROGRAM leaked into the pane");
+        assert_eq!(wt_session, None, "WT_SESSION leaked into the pane");
+        assert_eq!(colorterm, None, "COLORTERM leaked into the pane");
+        assert_eq!(workbench.as_deref(), Some(OsStr::new("1")));
+        assert!(term.is_some(), "TERM must stay set for the child shell");
     }
 }
