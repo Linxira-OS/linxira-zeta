@@ -729,7 +729,7 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
 - `temp/zcode-ui-research.md` 是 UI 参考底稿(不入库,路径仅本地有效);
   其批号与本计划 U 系的映射已写进上表备注。
 
-## 15. 批次 4：桌面内置终端（Z2+U9，2026-10-03 立项）
+## 15. 批次 4：桌面内置终端（Z2+U9，2026-10-03 立项；已随 v1.1.25 落地，PR #50）
 
 > 架构调查：双标杆对标（opencode：server 持 PTY+REST 控制面+WS 数据面+ticket+缓冲重放；
 > deepseek-harness：PTY 在服务端、浏览器只读 TerminalBlock、host.openPath 能力门控）。
