@@ -15,6 +15,8 @@ import { getFileName } from "@/lib/file-paths";
 export interface ProjectGroup {
 	project: string;
 	count: number;
+	/** The seeded default workspace (~/.zeta/workspace) — always pinned first. */
+	isDefault?: boolean;
 }
 
 interface SidebarProjectsListProps {
@@ -155,6 +157,26 @@ function ProjectGroupRow({
 					>
 						{alias ?? getFileName(group.project)}
 					</span>
+				{group.isDefault && (
+					<span
+						title={t("sidebar.default-workspace")}
+						style={{
+							fontSize: 10,
+							color: "var(--accent)",
+							border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+							borderRadius: 999,
+							padding: "0 6px",
+							lineHeight: "15px",
+							flexShrink: 0,
+							maxWidth: 110,
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{t("sidebar.default-workspace")}
+					</span>
+				)}
 					{isCurrent && branch && (
 						<span
 							title={`Branch: ${branch}`}

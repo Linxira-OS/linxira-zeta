@@ -29,6 +29,7 @@ import {
 	type DesktopSettings,
 	type RunningSessionsResponse,
 } from "./session-monitor";
+import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
 
 const WEB_UI_URL = "http://127.0.0.1:30141";
 const STATS_URL = "http://127.0.0.1:3847";
@@ -37,6 +38,8 @@ const POLL_INTERVAL_MS = 400;
 const SESSION_POLL_INTERVAL_MS = 5_000;
 const SERVICE_BINARY_NAME = process.platform === "win32" ? "zeta.exe" : "zeta";
 const WEB_RUNTIME_NAME = process.platform === "win32" ? "node.exe" : "node";
+const RENDERER_CRASH_WINDOW_MS = 120_000;
+const RENDERER_CRASH_RELOAD_LIMIT = 3;
 
 let serveChild: ChildProcess | null = null;
 let serviceLogFd: number | null = null;
@@ -86,11 +89,31 @@ function parseRequestedCwd(): string | null {
 
 // Native directory picker for the embedded web-ui (`window.piDesktop`).
 ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promise<string | null> => {
-	const result = await dialog.showOpenDialog({
-		properties: ["openDirectory", "createDirectory"],
-		defaultPath: typeof startPath === "string" && startPath.length > 0 ? startPath : undefined,
-	});
-	return result.canceled ? null : (result.filePaths[0] ?? null);
+	try {
+		// Only seed the dialog at an existing directory; a stale or invalid
+		// defaultPath can make the native dialog misbehave on some platforms.
+		let defaultPath: string | undefined;
+		if (typeof startPath === "string" && startPath.length > 0) {
+			try {
+				if (fs.statSync(startPath).isDirectory()) defaultPath = startPath;
+			} catch {
+				// Not an existing directory — let the OS pick its own default.
+			}
+		}
+		const properties: Electron.OpenDialogOptions["properties"] = ["openDirectory"];
+		// "createDirectory" only has an effect on macOS; keep it off elsewhere.
+		if (process.platform === "darwin") properties.push("createDirectory");
+		const options: Electron.OpenDialogOptions = { properties, defaultPath };
+		// Anchor the OS dialog to the app window when it exists.
+		const result =
+			mainWindow && !mainWindow.isDestroyed()
+				? await dialog.showOpenDialog(mainWindow, options)
+				: await dialog.showOpenDialog(options);
+		return result.canceled ? null : (result.filePaths[0] ?? null);
+	} catch (err) {
+		writeDesktopLog(`Native directory dialog failed: ${err instanceof Error ? err.message : String(err)}`);
+		return null;
+	}
 });
 let mainWindow: BrowserWindow | null = null;
 let statsWindow: BrowserWindow | null = null;
@@ -382,6 +405,72 @@ async function serviceIsReady(): Promise<boolean> {
 	}
 }
 
+let serveRestarts = 0;
+
+/**
+ * Spawn the service process and wire its failure handling. An unexpected
+ * exit is retried once (`service-supervision` policy) before it is treated
+ * as fatal: the renderer already retries its load URL on connection
+ * refusal, so the window heals itself once the service answers again.
+ * Returns false when the spawn itself failed (failure already surfaced).
+ */
+function startServeOnce(cmd: ServeCommand): boolean {
+	try {
+		writeDesktopLog(`Starting service: ${cmd.file}`);
+		serviceLogFd = fs.openSync(desktopLogPath(), "a");
+		serveChild = spawn(cmd.file, cmd.args, {
+			cwd: cmd.cwd,
+			env: cmd.env,
+			windowsHide: true,
+			stdio: ["ignore", serviceLogFd, serviceLogFd],
+		});
+		serviceOwned = true;
+	} catch (err) {
+		closeServiceLog();
+		showServiceFailure(`Could not start the Zeta service: ${err instanceof Error ? err.message : String(err)}`);
+		return false;
+	}
+
+	const child = serveChild;
+	child.once("error", err => {
+		if (serveChild !== child) return;
+		serveChild = null;
+		serviceOwned = false;
+		closeServiceLog();
+		showServiceFailure(`Could not start the Zeta service: ${err.message}`);
+	});
+	child.once("exit", code => {
+		if (serveChild !== child) return;
+		serveChild = null;
+		serviceOwned = false;
+		closeServiceLog();
+		if (quitting) return;
+		if (shouldRestartServe(serveRestarts)) {
+			serveRestarts++;
+			writeDesktopLog(
+				`Zeta service exited unexpectedly (exit ${code}); restarting (${serveRestarts}/${SERVICE_MAX_RESTARTS}).`,
+			);
+			if (!startServeOnce(cmd)) return;
+			void waitForService(READY_TIMEOUT_MS).then(ready => {
+				if (quitting) return;
+				if (ready) {
+					serveRestarts = 0;
+					writeDesktopLog("Zeta service restarted and is ready.");
+				} else {
+					showServiceFailure("The Zeta service did not become ready after a restart.");
+				}
+			});
+			return;
+		}
+		const hint =
+			code !== 0
+				? " The service may have failed to bind port 30141 (already in use by another zeta process). Close other zeta instances and retry."
+				: "";
+		showServiceFailure(`The Zeta service stopped unexpectedly (exit ${code}).${hint}`);
+	});
+	return true;
+}
+
 async function waitForService(timeoutMs: number): Promise<boolean> {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
@@ -467,6 +556,19 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 	win.on("unmaximize", () => pushWindowState(win));
 	win.on("enter-full-screen", () => pushWindowState(win));
 	win.on("leave-full-screen", () => pushWindowState(win));
+	// window.open / target=_blank (OAuth provider logins, external links) must
+	// never spawn an embedded Electron BrowserWindow with its own isolated
+	// cookie jar: hand http(s) targets to the system default browser — the
+	// same shell the CLI login opens — and deny every other scheme.
+	win.webContents.setWindowOpenHandler(({ url }) => {
+		try {
+			const { protocol } = new URL(url);
+			if (protocol === "http:" || protocol === "https:") void shell.openExternal(url);
+		} catch {
+			// Unparseable opener target — nothing to hand off; deny below.
+		}
+		return { action: "deny" };
+	});
 	win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
 		writeDesktopLog(`Renderer console [${level}] ${sourceId}:${line} ${message}`);
 	});
@@ -485,8 +587,29 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		}
 		loadFailurePage(win, `The local service returned ${desc || `error ${code}`}.`);
 	});
+	let rendererCrashes = 0;
+	let rendererCrashWindowStart = 0;
 	win.webContents.on("render-process-gone", (_event, details) => {
 		writeDesktopLog(`Renderer process gone: ${details.reason} (${details.exitCode})`);
+		if (quitting || win.isDestroyed()) return;
+		// Self-heal: a one-off renderer crash (GPU/compositor hiccups included)
+		// recovers with a reload instead of leaving a dead white window. Give up
+		// after repeated crashes within a short window — that points at a
+		// persistent fault, and the failure page explains it.
+		const now = Date.now();
+		if (now - rendererCrashWindowStart > RENDERER_CRASH_WINDOW_MS) {
+			rendererCrashWindowStart = now;
+			rendererCrashes = 0;
+		}
+		rendererCrashes++;
+		if (rendererCrashes <= RENDERER_CRASH_RELOAD_LIMIT) {
+			writeDesktopLog(`Reloading renderer after crash (${rendererCrashes}/${RENDERER_CRASH_RELOAD_LIMIT})`);
+			setTimeout(() => {
+				if (!quitting && !win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
+			}, 500);
+		} else {
+			loadFailurePage(win, `The Web UI renderer crashed repeatedly (${details.reason}).`);
+		}
 	});
 	return win;
 }
@@ -700,43 +823,7 @@ async function boot(): Promise<void> {
 	serviceWorkspacePath = path.resolve(cmd.cwd);
 	cmd.env = desktopServiceEnv(cmd.env);
 
-	try {
-		writeDesktopLog(`Starting service: ${cmd.file}`);
-		serviceLogFd = fs.openSync(desktopLogPath(), "a");
-		serveChild = spawn(cmd.file, cmd.args, {
-			cwd: cmd.cwd,
-			env: cmd.env,
-			windowsHide: true,
-			stdio: ["ignore", serviceLogFd, serviceLogFd],
-		});
-		serviceOwned = true;
-	} catch (err) {
-		closeServiceLog();
-		showServiceFailure(`Could not start the Zeta service: ${err instanceof Error ? err.message : String(err)}`);
-		return;
-	}
-
-	const child = serveChild;
-	child.once("error", err => {
-		if (serveChild !== child) return;
-		serveChild = null;
-		serviceOwned = false;
-		closeServiceLog();
-		showServiceFailure(`Could not start the Zeta service: ${err.message}`);
-	});
-	child.once("exit", code => {
-		if (serveChild !== child) return;
-		serveChild = null;
-		serviceOwned = false;
-		closeServiceLog();
-		if (!quitting) {
-			const hint =
-				code !== 0
-					? " The service may have failed to bind port 30141 (already in use by another zeta process). Close other zeta instances and retry."
-					: "";
-			showServiceFailure(`The Zeta service stopped unexpectedly (exit ${code}).${hint}`);
-		}
-	});
+	if (!startServeOnce(cmd)) return;
 
 	const ready = await waitForService(READY_TIMEOUT_MS);
 	if (!ready) {
