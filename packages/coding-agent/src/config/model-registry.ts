@@ -232,9 +232,14 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
  * refresh (`zeta-c models refresh`, TUI F5).
+ *
+ * `forceStatic` re-runs the static load (local models.yml + OMP overlay) even
+ * when neither file changed — for credential-state changes (web api-key save,
+ * copy-from-OMP, settings reload) that alter what the overlay should inject.
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
+	forceStatic?: boolean;
 }
 
 /** Authentication material returned to legacy extensions for one model request. */
@@ -412,9 +417,11 @@ export class ModelRegistry {
 	}
 
 	#reloadStaticModelsForRefresh(options?: ModelRegistryRefreshOptions, providerId?: string): void {
-		if (options?.refreshCommandCredentials) {
-			if (providerId) this.#invalidateProviderCommandConfigs(providerId);
-			else invalidateAllCommandConfigs();
+		if (options?.refreshCommandCredentials || options?.forceStatic) {
+			if (options.refreshCommandCredentials) {
+				if (providerId) this.#invalidateProviderCommandConfigs(providerId);
+				else invalidateAllCommandConfigs();
+			}
 			this.#reloadStaticModels({ force: true, preserveRuntimeDiscovery: true });
 			return;
 		}

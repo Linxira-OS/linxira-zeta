@@ -70,10 +70,15 @@ export async function getSharedModelRegistry(): Promise<ModelRegistry> {
  * Reload the shared registry after the models config file changed on disk
  * (e.g. `models-config` PUT), so listing/count handlers pick up the new
  * providers without restarting the gateway.
+ *
+ * `forceStatic` re-runs the static load (and with it the OMP overlay) even
+ * when no config file changed — used after credential writes, where the
+ * overlay's per-provider guards must be re-evaluated against the new
+ * agent.db state (e.g. drop the omp-origin marker once a local key exists).
  */
-export async function refreshSharedModelRegistry(): Promise<void> {
+export async function refreshSharedModelRegistry(forceStatic = false): Promise<void> {
 	const registry = await getSharedModelRegistry();
-	await registry.refresh("offline");
+	await registry.refresh("offline", forceStatic ? { forceStatic: true } : undefined);
 }
 
 /**
@@ -201,6 +206,9 @@ export async function handleApiKeyPost(providerId: string, req: Request): Promis
 	try {
 		const authStorage = await getSharedAuthStorage();
 		await authStorage.credentials.set(providerId, { type: "api_key", key: apiKey.trim() });
+		// The overlay's guards are credential-state dependent: force a static
+		// reload so a newly stored key immediately drops any omp-origin marker.
+		await refreshSharedModelRegistry(true);
 		return json({ success: true });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
@@ -211,6 +219,9 @@ export async function handleApiKeyDelete(providerId: string): Promise<Response> 
 	try {
 		const authStorage = await getSharedAuthStorage();
 		await authStorage.credentials.remove(providerId);
+		// Re-evaluate the OMP overlay: with the local credential gone, the
+		// upstream mirror key (if any) becomes the provider's fallback again.
+		await refreshSharedModelRegistry(true);
 		return json({ success: true });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
@@ -225,6 +236,7 @@ export async function handleLogout(providerId: string): Promise<Response> {
 	try {
 		const authStorage = await getSharedAuthStorage();
 		await authStorage.credentials.remove(providerId);
+		await refreshSharedModelRegistry(true);
 	} catch {
 		// web-ui contract: logout failures are not fatal
 	}
