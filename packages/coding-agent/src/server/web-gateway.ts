@@ -39,6 +39,7 @@ import {
 	handleApiKeyDelete,
 	handleApiKeyGet,
 	handleApiKeyPost,
+	handleCopyFromOmp,
 	handleLoginGet,
 	handleLoginPost,
 	handleLogout,
@@ -128,6 +129,7 @@ const AUTH_PROVIDERS_RE = /^\/api\/auth\/providers$/;
 const AUTH_API_KEY_RE = new RegExp(`^/api/auth/api-key/(${PROVIDER_PART})$`);
 const AUTH_LOGIN_RE = new RegExp(`^/api/auth/login/(${PROVIDER_PART})$`);
 const AUTH_LOGOUT_RE = new RegExp(`^/api/auth/logout/(${PROVIDER_PART})$`);
+const AUTH_COPY_FROM_OMP_RE = new RegExp(`^/api/auth/copy-from-omp/(${PROVIDER_PART})$`);
 const MODELS_RE = /^\/api\/models$/;
 const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
@@ -419,6 +421,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	const logout = capture(pathname, AUTH_LOGOUT_RE);
 	if (logout) {
 		if (req.method === "POST") return handleLogout(logout[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const copyFromOmp = capture(pathname, AUTH_COPY_FROM_OMP_RE);
+	if (copyFromOmp) {
+		if (req.method === "POST") return handleCopyFromOmp(copyFromOmp[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

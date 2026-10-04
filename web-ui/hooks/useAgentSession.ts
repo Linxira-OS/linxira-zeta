@@ -456,6 +456,8 @@ type ModelEntry = {
   name: string;
   provider: string;
   contextWindow?: number;
+  /** Catalog entry surfaced through the read-only OMP compat overlay. */
+  origin?: "omp";
 };
 type ModelsResponse = {
   models: Record<string, string>;

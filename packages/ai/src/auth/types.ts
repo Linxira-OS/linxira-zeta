@@ -890,6 +890,8 @@ export interface KeysApi {
 	 * 4. API key persisted by a successful `/login`
 	 * 5. Environment variable
 	 * 6. Stored API key (e.g. a broker-migrated copy) — last resort, so an explicit env var wins
+	 * 7. OMP compatibility mirror — below every stored credential, so a key the
+	 *    user saves locally always wins over the upstream fallback
 	 */
 	get(provider: string, sessionId?: string, options?: AuthApiKeyOptions): Promise<string | undefined>;
 	/** Resolve a bearer together with its durable stored credential row id, when known. */
@@ -951,10 +953,14 @@ export interface KeysApi {
 	 * `fallback: true` ranks the value below stored OAuth and `/login`
 	 * credentials instead, so a provider's default key reference cannot shadow
 	 * a key the user logged in with.
+	 *
+	 * `mirror: true` ranks the value below everything else, under stored
+	 * api_key credentials — a read-only compatibility mirror (upstream OMP
+	 * agent.db key) that must never shadow a locally stored key.
 	 */
-	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean }): void;
+	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean; mirror?: boolean }): void;
 	/**
-	 * Remove a single config-sourced API key (override or fallback).
+	 * Remove a single config-sourced API key (override, fallback, or mirror).
 	 */
 	removeConfig(provider: string): void;
 	/**

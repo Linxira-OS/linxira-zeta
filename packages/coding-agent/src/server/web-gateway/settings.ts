@@ -44,6 +44,7 @@ import {
 import { orderedSettings } from "../../config/all-settings";
 import { lookup } from "../../config/registry";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "../../config/settings-zh";
+import { getSharedAuthStorage, refreshSharedModelRegistry } from "./auth";
 import { WebConfig } from "../../config/web-config";
 
 function json(data: unknown, status = 200): Response {
@@ -383,11 +384,16 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 }
 
 /**
- * POST /api/settings/reload — force a fresh disk read of both the CLI
- * settings layer and web.yml. The gateway handlers already load isolated
- * instances per request, so this exists for the Settings panel's "reload"
- * button: it re-reads the files and the client re-fetches /api/settings and
- * /api/web-config afterwards.
+ * POST /api/settings/reload — force a fresh disk read of the CLI settings
+ * layer, web.yml, the shared credential pool, and the model registry.
+ *
+ * The gateway caches one AuthStorage/ModelRegistry per process; without this
+ * refresh, a login/logout/key change made by another process (CLI, another
+ * desktop window) stays invisible to every auth/models handler until the
+ * gateway restarts. The pool reload re-lists agent.db (soft-deleted rows are
+ * excluded by the store query, so logouts become logouts), and the forced
+ * static registry reload re-evaluates the OMP overlay against the new
+ * credential state.
  */
 export async function handleSettingsReload(req: Request): Promise<Response> {
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -397,6 +403,9 @@ export async function handleSettingsReload(req: Request): Promise<Response> {
 		await Settings.loadIsolated({ cwd, agentDir });
 		const webConfig = await WebConfig.load();
 		await webConfig.reload();
+		const authStorage = await getSharedAuthStorage();
+		await authStorage.credentials.reload();
+		await refreshSharedModelRegistry(true);
 		return json({ ok: true });
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
