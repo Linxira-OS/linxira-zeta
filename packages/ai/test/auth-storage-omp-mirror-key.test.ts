@@ -40,7 +40,7 @@ describe("AuthStorage OMP mirror-tier keys", () => {
 		store?.close();
 		store = null;
 		authStorage = null;
-		if (tempDir) await removeWithRetries(tempDir, { recursive: true, force: true });
+		if (tempDir) await removeWithRetries(tempDir);
 	});
 
 	test("mirror serves the key when nothing local exists", async () => {

@@ -38,9 +38,7 @@ function seedOmpAgentDb(agentDir: string, keys: Record<string, string>): void {
 	)`);
 	db.exec("CREATE TABLE auth_schema_version (version INTEGER NOT NULL)");
 	db.run("INSERT INTO auth_schema_version (version) VALUES (8)");
-	const insert = db.prepare(
-		"INSERT INTO auth_credentials (provider, credential_type, data) VALUES (?, 'api_key', ?)",
-	);
+	const insert = db.prepare("INSERT INTO auth_credentials (provider, credential_type, data) VALUES (?, 'api_key', ?)");
 	for (const [provider, key] of Object.entries(keys)) {
 		insert.run(provider, JSON.stringify({ key }));
 	}
