@@ -504,17 +504,20 @@ fn background_left_click(
 	            click_state: i64|
 	 -> CoreResult<()> {
 		let event = mouse_event(source, event_type, location, CGMouseButton::Left)?;
-		skylight::set_fields(&event, &[
-			(FIELD_MOUSE_EVENT_NUMBER, phase),
-			(FIELD_CLICK_STATE, click_state),
-			(FIELD_BUTTON_NUMBER, 0),
-			(FIELD_SUBTYPE, SUBTYPE_TOUCH),
-			(FIELD_TARGET_PID, i64::from(pid)),
-			(FIELD_WINDOW_NUMBER, i64::from(wid)),
-			(FIELD_CLICK_GROUP, group),
-			(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
-			(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
-		])?;
+		skylight::set_fields(
+			&event,
+			&[
+				(FIELD_MOUSE_EVENT_NUMBER, phase),
+				(FIELD_CLICK_STATE, click_state),
+				(FIELD_BUTTON_NUMBER, 0),
+				(FIELD_SUBTYPE, SUBTYPE_TOUCH),
+				(FIELD_TARGET_PID, i64::from(pid)),
+				(FIELD_WINDOW_NUMBER, i64::from(wid)),
+				(FIELD_CLICK_GROUP, group),
+				(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
+				(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
+			],
+		)?;
 		skylight::set_window_location(&event, window_location)?;
 		skylight::post_routed(pid, &event)
 	};
@@ -597,16 +600,19 @@ fn post_window_pointer(
 	button_number: i64,
 	group: i64,
 ) -> CoreResult<()> {
-	skylight::set_fields(event, &[
-		(FIELD_CLICK_STATE, click_state),
-		(FIELD_BUTTON_NUMBER, button_number),
-		(FIELD_SUBTYPE, SUBTYPE_TOUCH),
-		(FIELD_TARGET_PID, i64::from(pid)),
-		(FIELD_WINDOW_NUMBER, i64::from(wid)),
-		(FIELD_CLICK_GROUP, group),
-		(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
-		(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
-	])?;
+	skylight::set_fields(
+		event,
+		&[
+			(FIELD_CLICK_STATE, click_state),
+			(FIELD_BUTTON_NUMBER, button_number),
+			(FIELD_SUBTYPE, SUBTYPE_TOUCH),
+			(FIELD_TARGET_PID, i64::from(pid)),
+			(FIELD_WINDOW_NUMBER, i64::from(wid)),
+			(FIELD_CLICK_GROUP, group),
+			(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
+			(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
+		],
+	)?;
 	skylight::set_window_location(event, window_local(window, x, y))?;
 	skylight::post_dual(pid, event)
 }
@@ -632,12 +638,15 @@ fn background_scroll(
 			.map_err(|()| DesktopError::input_failed("failed to create a Quartz scroll event"))?;
 	event.set_flags(CGEventFlags::CGEventFlagNull);
 	event.set_location(CGPoint::new(x, y));
-	skylight::set_fields(&event, &[
-		(FIELD_TARGET_PID, i64::from(pid)),
-		(FIELD_WINDOW_NUMBER, i64::from(wid)),
-		(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
-		(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
-	])?;
+	skylight::set_fields(
+		&event,
+		&[
+			(FIELD_TARGET_PID, i64::from(pid)),
+			(FIELD_WINDOW_NUMBER, i64::from(wid)),
+			(FIELD_WINDOW_UNDER_POINTER, i64::from(wid)),
+			(FIELD_WINDOW_UNDER_POINTER_THAT_CAN_HANDLE, i64::from(wid)),
+		],
+	)?;
 	skylight::set_window_location(&event, window_local(window, x, y))?;
 	skylight::post_dual(pid, &event)
 }
@@ -1017,7 +1026,7 @@ fn foreground_pointer(
 /// A window that covered part of a takeover target until the target was
 /// raised over it.
 struct Occluder {
-	pid:    libc::pid_t,
+	pid: libc::pid_t,
 	window: u32,
 }
 
@@ -1482,11 +1491,10 @@ mod tests {
 		assert_eq!(keyboard_conflict(10, &[record(10, Some(false))]), None);
 		assert_eq!(keyboard_conflict(10, &[record(10, Some(false)), record(11, Some(true))]), None);
 		assert_eq!(
-			keyboard_conflict(10, &[
-				record(10, Some(false)),
-				record(11, None),
-				record(12, Some(false))
-			]),
+			keyboard_conflict(
+				10,
+				&[record(10, Some(false)), record(11, None), record(12, Some(false))]
+			),
 			Some(KeyboardConflict::Siblings(2)),
 		);
 		assert_eq!(
@@ -1516,12 +1524,15 @@ mod tests {
 		assert!(result.is_err());
 		// Quartz expresses modifier transitions as FlagsChanged; the final
 		// cleared flag proves Ctrl is released even when Enter's press fails.
-		assert_eq!(events, vec![
-			(CGEventType::FlagsChanged as u32, 59, true),
-			(CGEventType::KeyDown as u32, 36, true),
-			(CGEventType::KeyUp as u32, 36, true),
-			(CGEventType::FlagsChanged as u32, 59, false),
-		]);
+		assert_eq!(
+			events,
+			vec![
+				(CGEventType::FlagsChanged as u32, 59, true),
+				(CGEventType::KeyDown as u32, 36, true),
+				(CGEventType::KeyUp as u32, 36, true),
+				(CGEventType::FlagsChanged as u32, 59, false),
+			]
+		);
 	}
 
 	#[test]
@@ -1537,14 +1548,14 @@ mod tests {
 	#[test]
 	fn scroll_primer_starts_inside_the_target_window() {
 		let window = DesktopWindow {
-			id:      "42".to_string(),
-			title:   String::new(),
-			app:     String::new(),
-			pid:     Some(7),
-			x:       100,
-			y:       50,
-			width:   300,
-			height:  200,
+			id: "42".to_string(),
+			title: String::new(),
+			app: String::new(),
+			pid: Some(7),
+			x: 100,
+			y: 50,
+			width: 300,
+			height: 200,
 			focused: false,
 		};
 		let scroll = |x| PointerEvent::Scroll { x, y: 80.0, dx: 0.0, dy: -30.0 };

@@ -43,16 +43,16 @@ const WINDOW: usize = 512;
 struct Jev {
 	/// Base merge table (o200k ranks, non-base slots empty) plus the shared
 	/// Qwen3.5 splitter and NFC contract.
-	bpe:   BpeEncoding,
+	bpe: BpeEncoding,
 	/// Whole-word entries; only membership is read.
 	whole: RankTable,
 }
 
 static JEV: LazyLock<Jev> = LazyLock::new(|| Jev {
-	bpe:   BpeEncoding {
-		table:         RankTable::parse(include_bytes!("../../data/jev_base.bin.zst")),
-		splitter:      Splitter::Qwen,
-		nfc:           true,
+	bpe: BpeEncoding {
+		table: RankTable::parse(include_bytes!("../../data/jev_base.bin.zst")),
+		splitter: Splitter::Qwen,
+		nfc: true,
 		ignore_merges: false,
 	},
 	whole: RankTable::parse(include_bytes!("../../data/jev_whole.bin.zst")),

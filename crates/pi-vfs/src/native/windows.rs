@@ -33,8 +33,8 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct HandleInfo {
 	pub(crate) volume_serial: u64,
-	pub(crate) file_index:    u64,
-	pub(crate) nlink:         u64,
+	pub(crate) file_index: u64,
+	pub(crate) nlink: u64,
 }
 
 fn wide(path: &Path) -> io::Result<Vec<u16>> {
@@ -64,8 +64,8 @@ fn handle_info(file: &fs::File) -> io::Result<HandleInfo> {
 	cvt(unsafe { GetFileInformationByHandle(file.as_raw_handle() as HANDLE, &raw mut info) })?;
 	Ok(HandleInfo {
 		volume_serial: u64::from(info.dwVolumeSerialNumber),
-		file_index:    (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
-		nlink:         u64::from(info.nNumberOfLinks),
+		file_index: (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+		nlink: u64::from(info.nNumberOfLinks),
 	})
 }
 
@@ -350,18 +350,18 @@ pub(crate) fn stat_fs(path: &Path) -> io::Result<StatFs> {
 
 	let cluster = (u64::from(sectors_per_cluster) * u64::from(bytes_per_sector)).max(1);
 	Ok(StatFs {
-		fs_type:          None,
-		fs_type_name:     Some(String::from_utf16_lossy(until_nul(&fs_name))),
-		block_size:       cluster,
-		io_size:          cluster,
-		blocks:           total / cluster,
-		blocks_free:      free / cluster,
+		fs_type: None,
+		fs_type_name: Some(String::from_utf16_lossy(until_nul(&fs_name))),
+		block_size: cluster,
+		io_size: cluster,
+		blocks: total / cluster,
+		blocks_free: free / cluster,
 		blocks_available: available / cluster,
 		// NTFS/ReFS keep no inode table to count.
-		files:            0,
-		files_free:       0,
-		fsid:             Some(u64::from(serial)),
-		name_max:         Some(u64::from(max_component)),
+		files: 0,
+		files_free: 0,
+		fsid: Some(u64::from(serial)),
+		name_max: Some(u64::from(max_component)),
 	})
 }
 

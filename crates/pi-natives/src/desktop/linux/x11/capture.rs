@@ -25,16 +25,16 @@ const MIN_WINDOW_EDGE: u32 = 16;
 
 #[derive(Clone, Copy)]
 struct ColorMasks {
-	red:   u32,
+	red: u32,
 	green: u32,
-	blue:  u32,
+	blue: u32,
 }
 
 #[derive(Clone, Copy)]
 struct ComponentMask {
-	mask:  u32,
+	mask: u32,
 	shift: u32,
-	max:   u32,
+	max: u32,
 }
 
 impl ComponentMask {
@@ -59,12 +59,12 @@ impl ComponentMask {
 }
 
 pub struct X11Capture {
-	conn:        Arc<RustConnection>,
-	root:        Window,
-	root_width:  u32,
+	conn: Arc<RustConnection>,
+	root: Window,
+	root_width: u32,
 	root_height: u32,
-	masks:       ColorMasks,
-	selector:    DisplaySelector,
+	masks: ColorMasks,
+	selector: DisplaySelector,
 }
 
 impl X11Capture {
@@ -149,18 +149,18 @@ impl X11Capture {
 		}
 		if displays.is_empty() {
 			displays.push(DesktopDisplay {
-				id:           "0".into(),
-				name:         "Screen".into(),
-				x:            0,
-				y:            0,
-				width:        self.root_width,
-				height:       self.root_height,
-				scale:        1.0,
-				pixel_x:      0,
-				pixel_y:      0,
-				pixel_width:  self.root_width,
+				id: "0".into(),
+				name: "Screen".into(),
+				x: 0,
+				y: 0,
+				width: self.root_width,
+				height: self.root_height,
+				scale: 1.0,
+				pixel_x: 0,
+				pixel_y: 0,
+				pixel_width: self.root_width,
 				pixel_height: self.root_height,
-				is_primary:   true,
+				is_primary: true,
 			});
 		}
 		let mut selected = match &self.selector {

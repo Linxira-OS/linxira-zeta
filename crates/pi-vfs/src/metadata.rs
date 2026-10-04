@@ -28,7 +28,7 @@ enum Repr {
 
 #[derive(Clone, Debug)]
 struct NativeMeta {
-	meta:   std::fs::Metadata,
+	meta: std::fs::Metadata,
 	/// Identity/link count read through an open handle; std does not expose
 	/// them from a Windows path stat.
 	#[cfg(windows)]
@@ -37,20 +37,20 @@ struct NativeMeta {
 
 #[derive(Clone, Debug)]
 struct VirtualMeta {
-	file_type:   FileType,
-	len:         u64,
+	file_type: FileType,
+	len: u64,
 	permissions: Permissions,
-	modified:    Option<SystemTime>,
-	accessed:    Option<SystemTime>,
-	created:     Option<SystemTime>,
-	changed:     Option<SystemTime>,
-	id:          Option<FileId>,
-	nlink:       Option<u64>,
-	uid:         Option<u32>,
-	gid:         Option<u32>,
-	rdev:        Option<u64>,
-	blocks:      Option<u64>,
-	blksize:     Option<u64>,
+	modified: Option<SystemTime>,
+	accessed: Option<SystemTime>,
+	created: Option<SystemTime>,
+	changed: Option<SystemTime>,
+	id: Option<FileId>,
+	nlink: Option<u64>,
+	uid: Option<u32>,
+	gid: Option<u32>,
+	rdev: Option<u64>,
+	blocks: Option<u64>,
+	blksize: Option<u64>,
 }
 
 impl From<std::fs::Metadata> for Metadata {

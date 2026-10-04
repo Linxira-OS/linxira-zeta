@@ -122,18 +122,18 @@ enum Format {
 
 #[derive(Clone, Copy)]
 struct Options<'a> {
-	format:              Format,
-	brief:               bool,
-	report_identical:    bool,
-	recursive:           bool,
-	new_file:            bool,
-	ignore_case:         bool,
-	ignore_all_space:    bool,
+	format: Format,
+	brief: bool,
+	report_identical: bool,
+	recursive: bool,
+	new_file: bool,
+	ignore_case: bool,
+	ignore_all_space: bool,
 	ignore_space_change: bool,
-	ignore_blank_lines:  bool,
-	strip_trailing_cr:   bool,
-	labels:              &'a [OsString],
-	excludes:            &'a [glob::Pattern],
+	ignore_blank_lines: bool,
+	strip_trailing_cr: bool,
+	labels: &'a [OsString],
+	excludes: &'a [glob::Pattern],
 }
 
 /// A classified operand and its resolved filesystem path.
@@ -305,7 +305,8 @@ fn read_operand(
 	match op {
 		Operand::Stdin => {
 			let mut buf = Vec::new();
-			host.stdin
+			host
+				.stdin
 				.read_to_end(&mut buf)
 				.map_err(|err| format!("-: {}", strip_errno(&err)))?;
 			Ok((buf, None))
@@ -315,7 +316,10 @@ fn read_operand(
 			let bytes = fs
 				.read(resolved)
 				.map_err(|err| format!("{}: {}", name.display(), strip_errno(&err)))?;
-			let mtime = fs.metadata(resolved).ok().and_then(|meta| meta.modified().ok());
+			let mtime = fs
+				.metadata(resolved)
+				.ok()
+				.and_then(|meta| meta.modified().ok());
 			Ok((bytes, mtime))
 		},
 		Operand::Dir(_) => unreachable!("directories are handled by diff_dirs"),
@@ -326,7 +330,7 @@ fn read_operand(
 /// One input split into lines without terminators, remembering whether the
 /// final line is missing its newline (for `\ No newline at end of file`).
 struct FileLines<'a> {
-	lines:           Vec<&'a str>,
+	lines: Vec<&'a str>,
 	missing_newline: bool,
 }
 
@@ -384,8 +388,11 @@ fn collapse_spaces(line: &str) -> String {
 /// NUL sentinel so `"a\n"` and `"a"` still compare unequal after
 /// normalization (real diff reports them with the no-newline marker).
 fn normalize_lines<'a>(file: &FileLines<'a>, opts: Options<'_>) -> Vec<Cow<'a, str>> {
-	let mut norm: Vec<Cow<'a, str>> =
-		file.lines.iter().map(|&line| normalize_line(line, opts)).collect();
+	let mut norm: Vec<Cow<'a, str>> = file
+		.lines
+		.iter()
+		.map(|&line| normalize_line(line, opts))
+		.collect();
 	if file.missing_newline {
 		if let Some(last) = norm.last_mut() {
 			last.to_mut().push('\0');
@@ -451,11 +458,17 @@ fn diff_pair(
 	let norm_a = normalize_lines(&old, opts);
 	let norm_b = normalize_lines(&new, opts);
 	let ops = capture_diff_slices(Algorithm::Myers, &norm_a, &norm_b);
-	let suppressed: Vec<bool> =
-		ops.iter().map(|op| is_suppressed(op, &norm_a, &norm_b, opts)).collect();
+	let suppressed: Vec<bool> = ops
+		.iter()
+		.map(|op| is_suppressed(op, &norm_a, &norm_b, opts))
+		.collect();
 	// Bytes differed, but every change is ignorable (-w/-b/-i/-B/CR): the
 	// files count as identical, exit 0.
-	if !ops.iter().zip(&suppressed).any(|(op, &sup)| op.tag() != DiffTag::Equal && !sup) {
+	if !ops
+		.iter()
+		.zip(&suppressed)
+		.any(|(op, &sup)| op.tag() != DiffTag::Equal && !sup)
+	{
 		if opts.report_identical {
 			wline(host, format_args!("Files {label_a} and {label_b} are identical"))?;
 		}
@@ -557,10 +570,7 @@ fn write_normal(
 				write_marked(host, "> ", new_range, new)?;
 			},
 			DiffTag::Replace => {
-				wline(
-					host,
-					format_args!("{}c{}", normal_range(&old_range), normal_range(&new_range)),
-				)?;
+				wline(host, format_args!("{}c{}", normal_range(&old_range), normal_range(&new_range)))?;
 				write_marked(host, "< ", old_range, old)?;
 				wline(host, format_args!("---"))?;
 				write_marked(host, "> ", new_range, new)?;
@@ -600,8 +610,14 @@ fn group_ops(ops: &[DiffOp], suppressed: &[bool], context: usize) -> Vec<(usize,
 
 /// Equal-line context available before and after a hunk, clipped to `context`.
 fn group_padding(ops: &[DiffOp], first: usize, last: usize, context: usize) -> (usize, usize) {
-	let lead = if first > 0 { context.min(ops[first - 1].old_range().len()) } else { 0 };
-	let trail = ops.get(last + 1).map_or(0, |op| context.min(op.old_range().len()));
+	let lead = if first > 0 {
+		context.min(ops[first - 1].old_range().len())
+	} else {
+		0
+	};
+	let trail = ops
+		.get(last + 1)
+		.map_or(0, |op| context.min(op.old_range().len()));
 	(lead, trail)
 }
 
@@ -682,7 +698,10 @@ fn write_context_format(
 		wline(host, format_args!("***************"))?;
 		wline(host, format_args!("*** {} ****", context_range(old_start, old_count)))?;
 		// GNU omits a side's body entirely when it has no changes.
-		if group.iter().any(|op| matches!(op.tag(), DiffTag::Delete | DiffTag::Replace)) {
+		if group
+			.iter()
+			.any(|op| matches!(op.tag(), DiffTag::Delete | DiffTag::Replace))
+		{
 			write_marked(host, "  ", old_start..ops[first].old_range().start, old)?;
 			for op in group {
 				match op.tag() {
@@ -696,7 +715,10 @@ fn write_context_format(
 			write_marked(host, "  ", tail..tail + trail, old)?;
 		}
 		wline(host, format_args!("--- {} ----", context_range(new_start, new_count)))?;
-		if group.iter().any(|op| matches!(op.tag(), DiffTag::Insert | DiffTag::Replace)) {
+		if group
+			.iter()
+			.any(|op| matches!(op.tag(), DiffTag::Insert | DiffTag::Replace))
+		{
 			write_marked(host, "  ", new_start..ops[first].new_range().start, new)?;
 			for op in group {
 				match op.tag() {
@@ -747,7 +769,8 @@ fn diff_dirs(
 			.read_dir(dir_res)
 			.map_err(|err| format!("{}: {}", dir_name.display(), strip_errno(&err)))?;
 		for entry in entries {
-			let entry = entry.map_err(|err| format!("{}: {}", dir_name.display(), strip_errno(&err)))?;
+			let entry =
+				entry.map_err(|err| format!("{}: {}", dir_name.display(), strip_errno(&err)))?;
 			let name = entry.file_name();
 			if !is_excluded(&name, opts.excludes) {
 				names.insert(name);
@@ -760,7 +783,8 @@ fn diff_dirs(
 		if host.is_cancelled() {
 			return Err("interrupted".to_string());
 		}
-		let (child_name_a, child_name_b) = (child_display(name_a, &name), child_display(name_b, &name));
+		let (child_name_a, child_name_b) =
+			(child_display(name_a, &name), child_display(name_b, &name));
 		// Resolve every recursively discovered display path through the host too;
 		// the process's current directory is unrelated to the shell's.
 		let child_res_a = host.resolve(&child_name_a);
@@ -770,14 +794,8 @@ fn diff_dirs(
 		match (meta_a.as_ref(), meta_b.as_ref()) {
 			(Some(ma), Some(mb)) if ma.is_dir() && mb.is_dir() => {
 				if opts.recursive {
-					differed |= diff_dirs(
-						&child_name_a,
-						&child_res_a,
-						&child_name_b,
-						&child_res_b,
-						opts,
-						host,
-					)?;
+					differed |=
+						diff_dirs(&child_name_a, &child_res_a, &child_name_b, &child_res_b, opts, host)?;
 				} else {
 					wline(
 						host,
@@ -862,11 +880,7 @@ fn diff_dirs(
 					let present_dir = if in_a { name_a } else { name_b };
 					wline(
 						host,
-						format_args!(
-							"Only in {}: {}",
-							present_dir.display(),
-							Path::new(&name).display()
-						),
+						format_args!("Only in {}: {}", present_dir.display(), Path::new(&name).display()),
 					)?;
 					differed = true;
 				}
@@ -978,7 +992,10 @@ mod tests {
 	fn labels_override_unified_headers() {
 		let dir = tempfile::tempdir().unwrap();
 		write_pair(dir.path(), "old\n", "new\n");
-		for args in [&["-u", "-L", "before", "-L", "after"][..], &["-u", "--label", "before", "--label", "after"]] {
+		for args in [
+			&["-u", "-L", "before", "-L", "after"][..],
+			&["-u", "--label", "before", "--label", "after"],
+		] {
 			let mut argv = args.to_vec();
 			argv.extend(["a.txt", "b.txt"]);
 			let (code, stdout, stderr) = run_in(dir.path(), "", &argv);
@@ -1101,11 +1118,7 @@ mod tests {
 			run_in(dir.path(), "", &["-B", "a.txt", "b.txt"]),
 			(0, String::new(), String::new())
 		);
-		write_pair(
-			dir.path(),
-			"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n",
-			"a\n\nb\nc\nd\ne\nf\ng\nh\ni\nJ\n",
-		);
+		write_pair(dir.path(), "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", "a\n\nb\nc\nd\ne\nf\ng\nh\ni\nJ\n");
 		let (code, stdout, _) = run_in(dir.path(), "", &["-B", "a.txt", "b.txt"]);
 		assert_eq!((code, stdout.as_str()), (1, "10c11\n< j\n---\n> J\n"));
 	}
@@ -1153,8 +1166,7 @@ mod tests {
 	fn color_flag_is_accepted_and_ignored() {
 		let dir = tempfile::tempdir().unwrap();
 		write_pair(dir.path(), "x\n", "y\n");
-		let (code, stdout, stderr) =
-			run_in(dir.path(), "", &["--color=always", "a.txt", "b.txt"]);
+		let (code, stdout, stderr) = run_in(dir.path(), "", &["--color=always", "a.txt", "b.txt"]);
 		assert_eq!((code, stderr.as_str()), (1, ""));
 		assert!(!stdout.contains('\u{1b}'), "got: {stdout}");
 	}
@@ -1269,7 +1281,10 @@ mod tests {
 		let (code, stdout, stderr) =
 			run_in(dir.path(), "", &["-r", "-x", "*.log", "-x", ".git", "a", "b"]);
 		assert_eq!((code, stderr.as_str()), (1, ""));
-		assert!(stdout.contains("diff -r a/keep.txt b/keep.txt\n1c1\n< old\n---\n> new\n"), "got: {stdout}");
+		assert!(
+			stdout.contains("diff -r a/keep.txt b/keep.txt\n1c1\n< old\n---\n> new\n"),
+			"got: {stdout}"
+		);
 		assert!(!stdout.contains(".git"), "got: {stdout}");
 		assert!(!stdout.contains(".log"), "got: {stdout}");
 	}

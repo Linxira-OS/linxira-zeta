@@ -170,9 +170,9 @@ mod tests {
 	#[derive(Deserialize)]
 	struct Fixture {
 		text: String,
-		v3:   u32,
+		v3: u32,
 		v4_7: u32,
-		v5:   u32,
+		v5: u32,
 	}
 
 	/// Ground truth recorded from Python ctok 1.0.0 (`token_count(text, v)`
@@ -203,7 +203,7 @@ mod tests {
 		// (2026-08-19), whitespace-edge heavy, ladder dips included.
 		#[derive(Deserialize)]
 		struct LiveRow {
-			text:  String,
+			text: String,
 			count: u32,
 		}
 		let rows: Vec<LiveRow> =

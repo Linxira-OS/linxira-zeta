@@ -20,36 +20,36 @@ pub enum AxHandle {
 
 #[derive(Debug, Clone)]
 pub struct AxProps {
-	pub role:        String,
+	pub role: String,
 	pub native_role: String,
-	pub title:       Option<String>,
-	pub value:       Option<String>,
+	pub title: Option<String>,
+	pub value: Option<String>,
 	pub description: Option<String>,
-	pub enabled:     bool,
-	pub focused:     bool,
-	pub bounds:      Option<AxBounds>,
-	pub actions:     Vec<String>,
+	pub enabled: bool,
+	pub focused: bool,
+	pub bounds: Option<AxBounds>,
+	pub actions: Vec<String>,
 	pub child_count: u32,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct AxBounds {
-	pub x:      f64,
-	pub y:      f64,
-	pub width:  f64,
+	pub x: f64,
+	pub y: f64,
+	pub width: f64,
 	pub height: f64,
 }
 
 struct Registered {
-	handle:     AxHandle,
+	handle: AxHandle,
 	target_key: String,
 	generation: u64,
 }
 
 pub struct AxRegistry {
-	next_ref:    u64,
+	next_ref: u64,
 	generations: HashMap<String, u64>,
-	entries:     HashMap<u64, Registered>,
+	entries: HashMap<u64, Registered>,
 }
 
 impl Default for AxRegistry {
@@ -132,14 +132,14 @@ impl AxRegistry {
 
 #[derive(Clone)]
 struct WalkNode {
-	handle:   AxHandle,
-	props:    AxProps,
+	handle: AxHandle,
+	props: AxProps,
 	children: Vec<Self>,
 }
 
 struct WalkState {
-	visited:   u32,
-	skipped:   u32,
+	visited: u32,
+	skipped: u32,
 	max_nodes: u32,
 	max_depth: u32,
 	truncated: bool,
@@ -353,8 +353,8 @@ pub fn snapshot(
 	let generation = registry.begin_snapshot(target);
 	let root = backend.window_root(window)?;
 	let mut state = WalkState {
-		visited:   0,
-		skipped:   0,
+		visited: 0,
+		skipped: 0,
 		max_nodes: options.max_nodes.unwrap_or(800).max(1),
 		max_depth: options.max_depth.unwrap_or(24),
 		truncated: false,
@@ -511,7 +511,7 @@ mod tests {
 	use super::*;
 
 	struct Mock {
-		props:    HashMap<u64, AxProps>,
+		props: HashMap<u64, AxProps>,
 		children: HashMap<u64, Vec<u64>>,
 	}
 	impl AxBackend for Mock {
@@ -587,28 +587,28 @@ mod tests {
 	}
 	fn p(role: &str, title: Option<&str>) -> AxProps {
 		AxProps {
-			role:        role.into(),
+			role: role.into(),
 			native_role: role.into(),
-			title:       title.map(str::to_string),
-			value:       None,
+			title: title.map(str::to_string),
+			value: None,
 			description: None,
-			enabled:     true,
-			focused:     false,
-			bounds:      None,
-			actions:     Vec::new(),
+			enabled: true,
+			focused: false,
+			bounds: None,
+			actions: Vec::new(),
 			child_count: 0,
 		}
 	}
 	fn window() -> DesktopWindow {
 		DesktopWindow {
-			id:      "7".into(),
-			title:   "Title".into(),
-			app:     "Safari".into(),
-			pid:     None,
-			x:       0,
-			y:       0,
-			width:   100,
-			height:  100,
+			id: "7".into(),
+			title: "Title".into(),
+			app: "Safari".into(),
+			pid: None,
+			x: 0,
+			y: 0,
+			width: 100,
+			height: 100,
 			focused: true,
 		}
 	}
@@ -636,7 +636,7 @@ mod tests {
 	#[test]
 	fn snapshot_text_and_filter_are_exact() {
 		let mut m = Mock {
-			props:    [
+			props: [
 				(1, p("window", Some("Title"))),
 				(2, p("group", None)),
 				(3, p("button", Some("Go"))),
@@ -659,7 +659,7 @@ mod tests {
 		// A Reminders-shaped window: an unnamed split group holding a list pane and
 		// a detail pane, an unnamed splitter, and an empty wrapper.
 		let mut m = Mock {
-			props:    [
+			props: [
 				(1, p("window", Some("Title"))),
 				(2, p("splitgroup", None)),
 				(3, p("scrollarea", None)),
@@ -689,7 +689,7 @@ mod tests {
 		reload.description = Some("Reload".into());
 		reload.actions.push("press".into());
 		let mut m = Mock {
-			props:    [(1, p("window", Some("Title"))), (2, reload)].into(),
+			props: [(1, p("window", Some("Title"))), (2, reload)].into(),
 			children: [(1, vec![2])].into(),
 		};
 		let snapshot =
@@ -697,12 +697,17 @@ mod tests {
 				.unwrap();
 		assert!(snapshot.text.contains("- button \"Reload\""));
 
-		let nodes = query(&mut m, &mut AxRegistry::default(), &window(), &AxQuery {
-			role:  Some("button".into()),
-			title: Some("reload".into()),
-			value: None,
-			limit: None,
-		})
+		let nodes = query(
+			&mut m,
+			&mut AxRegistry::default(),
+			&window(),
+			&AxQuery {
+				role: Some("button".into()),
+				title: Some("reload".into()),
+				value: None,
+				limit: None,
+			},
+		)
 		.unwrap();
 		assert_eq!(nodes.len(), 1);
 		assert_eq!(nodes[0].title, None);
@@ -711,13 +716,15 @@ mod tests {
 	#[test]
 	fn truncation_sets_flag_and_trailer() {
 		let mut m = Mock {
-			props:    [(1, p("window", Some("Title"))), (2, p("button", Some("A")))].into(),
+			props: [(1, p("window", Some("Title"))), (2, p("button", Some("A")))].into(),
 			children: [(1, vec![2])].into(),
 		};
-		let s = snapshot(&mut m, &mut AxRegistry::default(), &window(), &AxSnapshotOptions {
-			max_nodes: Some(1),
-			..Default::default()
-		})
+		let s = snapshot(
+			&mut m,
+			&mut AxRegistry::default(),
+			&window(),
+			&AxSnapshotOptions { max_nodes: Some(1), ..Default::default() },
+		)
 		.unwrap();
 		assert!(s.truncated);
 		assert!(s.text.ends_with("… truncated (1 nodes)"));
@@ -725,7 +732,7 @@ mod tests {
 	#[test]
 	fn unreadable_subtree_is_skipped_with_trailer() {
 		let mut m = Mock {
-			props:    [(1, p("window", Some("Title"))), (3, p("button", Some("Ready")))].into(),
+			props: [(1, p("window", Some("Title"))), (3, p("button", Some("Ready")))].into(),
 			children: [(1, vec![2, 3])].into(),
 		};
 		let s =
@@ -737,10 +744,12 @@ mod tests {
 			 skipped 1 unreadable nodes"
 		);
 		assert_eq!(s.node_count, 2);
-		let limited = snapshot(&mut m, &mut AxRegistry::default(), &window(), &AxSnapshotOptions {
-			max_nodes: Some(2),
-			..Default::default()
-		})
+		let limited = snapshot(
+			&mut m,
+			&mut AxRegistry::default(),
+			&window(),
+			&AxSnapshotOptions { max_nodes: Some(2), ..Default::default() },
+		)
 		.unwrap();
 		assert!(limited.truncated);
 		assert!(
@@ -748,12 +757,12 @@ mod tests {
 				.text
 				.ends_with("… truncated (2 nodes)\n… skipped 1 unreadable nodes")
 		);
-		let nodes = query(&mut m, &mut AxRegistry::default(), &window(), &AxQuery {
-			role:  Some("button".into()),
-			title: None,
-			value: None,
-			limit: None,
-		})
+		let nodes = query(
+			&mut m,
+			&mut AxRegistry::default(),
+			&window(),
+			&AxQuery { role: Some("button".into()), title: None, value: None, limit: None },
+		)
 		.unwrap();
 		assert_eq!(nodes.len(), 1);
 		assert_eq!(nodes[0].title.as_deref(), Some("Ready"));
@@ -764,7 +773,7 @@ mod tests {
 		let mut hit = p("button", Some("Global"));
 		hit.bounds = Some(bounds);
 		let mut m = Mock {
-			props:    [(1, p("window", Some("Title"))), (2, hit)].into(),
+			props: [(1, p("window", Some("Title"))), (2, hit)].into(),
 			children: HashMap::new(),
 		};
 		let mut registry = AxRegistry::default();

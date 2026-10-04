@@ -81,19 +81,19 @@ impl PatternExpansionResult {
 /// Encapsulates a shell pattern.
 #[derive(Clone, Debug)]
 pub struct Pattern {
-	pieces:                   PatternWord,
+	pieces: PatternWord,
 	enable_extended_globbing: bool,
-	multiline:                bool,
-	case_insensitive:         bool,
+	multiline: bool,
+	case_insensitive: bool,
 }
 
 impl Default for Pattern {
 	fn default() -> Self {
 		Self {
-			pieces:                   vec![],
+			pieces: vec![],
 			enable_extended_globbing: false,
-			multiline:                true,
-			case_insensitive:         false,
+			multiline: true,
+			case_insensitive: false,
 		}
 	}
 }
@@ -241,20 +241,20 @@ impl Pattern {
 				third_component.as_deref(),
 			)
 		});
-		let (absolute_root, components_to_remove) =
-			if let Some(root) = url_pattern_root(&components) {
-				// `scheme:` and the empty component between the two slashes.
-				(Some(root), 2)
-			} else if let Some((root, consumed)) = alias_root {
-				(Some(root), consumed)
-			} else {
-				(
-					first_component
-						.as_deref()
-						.and_then(sys::fs::pattern_path_root),
-					1,
-				)
-			};
+		let (absolute_root, components_to_remove) = if let Some(root) = url_pattern_root(&components)
+		{
+			// `scheme:` and the empty component between the two slashes.
+			(Some(root), 2)
+		} else if let Some((root, consumed)) = alias_root {
+			(Some(root), consumed)
+		} else {
+			(
+				first_component
+					.as_deref()
+					.and_then(sys::fs::pattern_path_root),
+				1,
+			)
+		};
 
 		let prefix_to_remove;
 		let mut paths_so_far = if let Some(root) = absolute_root {
@@ -284,7 +284,9 @@ impl Pattern {
 		// percent-encoded, while a relative pattern under a virtual working
 		// directory names raw segments (encoded once when joined, decoded back
 		// once in the results). Host paths keep their spelling untouched.
-		let virtual_spelling = paths_so_far.first().is_some_and(|p| pi_vfs::is_virtual_path(p));
+		let virtual_spelling = paths_so_far
+			.first()
+			.is_some_and(|p| pi_vfs::is_virtual_path(p));
 		let raw_relative = virtual_spelling && prefix_to_remove.is_some();
 		let match_encoded = virtual_spelling && prefix_to_remove.is_none();
 
@@ -328,7 +330,8 @@ impl Pattern {
 				let listing = if fs.is_native_local(&current_path) {
 					fs.read_dir(&current_path).await
 				} else {
-					fs.read_dir(pi_vfs::normalize_lexically(&current_path)).await
+					fs.read_dir(pi_vfs::normalize_lexically(&current_path))
+						.await
 				};
 				let mut matching_paths_in_dir: Vec<_> = match listing {
 					Ok(entries) => entries

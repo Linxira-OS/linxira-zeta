@@ -4,7 +4,7 @@ use super::{GridCoord, NodeId};
 
 #[derive(Clone, Copy)]
 struct QueueItem {
-	coord:    GridCoord,
+	coord: GridCoord,
 	priority: i32,
 }
 
@@ -67,10 +67,10 @@ pub fn heuristic(a: GridCoord, b: GridCoord) -> i32 {
 
 #[derive(Clone, Copy)]
 struct SearchBounds {
-	min_x:           i32,
-	max_x:           i32,
-	min_y:           i32,
-	max_y:           i32,
+	min_x: i32,
+	max_x: i32,
+	min_y: i32,
+	max_y: i32,
 	expansion_limit: usize,
 }
 
@@ -260,10 +260,9 @@ mod tests {
 			GridCoord::new(2, 1),
 			GridCoord::new(2, 2),
 		];
-		assert_eq!(merge_path(path), vec![
-			GridCoord::new(0, 0),
-			GridCoord::new(2, 0),
-			GridCoord::new(2, 2)
-		]);
+		assert_eq!(
+			merge_path(path),
+			vec![GridCoord::new(0, 0), GridCoord::new(2, 0), GridCoord::new(2, 2)]
+		);
 	}
 }

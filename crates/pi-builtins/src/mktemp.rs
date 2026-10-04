@@ -24,7 +24,9 @@ use rand::{
 use thiserror::Error;
 use uucore::display::Quotable;
 
-use crate::host::{Host, Utility, forward_slash_display, format_usage, matches_parser, os_bytes, util};
+use crate::host::{
+	Host, Utility, format_usage, forward_slash_display, matches_parser, os_bytes, util,
+};
 
 static DEFAULT_TEMPLATE: &str = "tmp.XXXXXXXXXX";
 
@@ -174,9 +176,7 @@ impl Params {
 			options
 				.template
 				.to_str()
-				.ok_or_else(|| {
-					MkTempError::InvalidTemplate("template contains invalid UTF-8".into())
-				})?
+				.ok_or_else(|| MkTempError::InvalidTemplate("template contains invalid UTF-8".into()))?
 				.to_string()
 		};
 
@@ -283,8 +283,7 @@ impl Utility for Mktemp {
 			&& err.context().any(|(kind, value)| {
 				kind == clap::error::ContextKind::InvalidArg
 					&& value == &clap::error::ContextValue::String("[template]".into())
-			})
-		{
+			}) {
 			return Err(MkTempError::TooManyTemplates.to_string());
 		}
 		Ok(argv)
@@ -347,18 +346,10 @@ fn template_is_last(matches: &ArgMatches) -> bool {
 	let Some(template_index) = matches.index_of(ARG_TEMPLATE) else {
 		return true;
 	};
-	[
-		OPT_DIRECTORY,
-		OPT_DRY_RUN,
-		OPT_QUIET,
-		OPT_SUFFIX,
-		OPT_TMPDIR,
-		OPT_P,
-		OPT_T,
-	]
-	.into_iter()
-	.filter_map(|id| matches.index_of(id))
-	.all(|index| index < template_index)
+	[OPT_DIRECTORY, OPT_DRY_RUN, OPT_QUIET, OPT_SUFFIX, OPT_TMPDIR, OPT_P, OPT_T]
+		.into_iter()
+		.filter_map(|id| matches.index_of(id))
+		.all(|index| index < template_index)
 }
 
 /// Builds the `mktemp` command-line model.
@@ -475,27 +466,28 @@ fn make_temp(
 	suffix: &str,
 	make_dir: bool,
 ) -> Result<PathBuf, MkTempError> {
-	let options = TempOptions::new().prefix(prefix).random_len(rand).suffix(suffix);
+	let options = TempOptions::new()
+		.prefix(prefix)
+		.random_len(rand)
+		.suffix(suffix);
 	let created = if make_dir {
 		fs.create_temp_dir(dir, &options)
 	} else {
-		fs.create_temp(dir, &options).and_then(|(path, file)| match file.close() {
-			Ok(()) => Ok(path),
-			Err(error) => {
-				// The name is never printed, so nobody else could remove it.
-				let _ = fs.for_cleanup().remove_file(&path);
-				Err(error)
-			},
-		})
+		fs.create_temp(dir, &options)
+			.and_then(|(path, file)| match file.close() {
+				Ok(()) => Ok(path),
+				Err(error) => {
+					// The name is never printed, so nobody else could remove it.
+					let _ = fs.for_cleanup().remove_file(&path);
+					Err(error)
+				},
+			})
 	};
 	created.map_err(|err| {
 		if err.kind() == ErrorKind::NotFound {
 			let kind = if make_dir { "directory" } else { "file" };
 			let filename = format!("{prefix}{}{suffix}", "X".repeat(rand));
-			MkTempError::NotFound(
-				kind.to_string(),
-				display_join(display_dir, &filename),
-			)
+			MkTempError::NotFound(kind.to_string(), display_join(display_dir, &filename))
 		} else {
 			err.into()
 		}
@@ -609,7 +601,14 @@ mod tests {
 		let printed = PathBuf::from(stdout.trim_end_matches('\n'));
 		assert!(printed.is_file());
 		assert_eq!(printed.parent(), Some(root.as_path()));
-		assert!(printed.file_name().unwrap().to_str().unwrap().starts_with("tmp."));
+		assert!(
+			printed
+				.file_name()
+				.unwrap()
+				.to_str()
+				.unwrap()
+				.starts_with("tmp.")
+		);
 	}
 
 	#[test]
@@ -685,8 +684,7 @@ mod tests {
 	#[test]
 	fn bsd_t_prefix_creates_directory_with_d_flag() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) =
-			run_in(root.clone(), &tmpdir_env(&root), &["-d", "-t", "pfx"]);
+		let (code, stdout, stderr) = run_in(root.clone(), &tmpdir_env(&root), &["-d", "-t", "pfx"]);
 		assert_eq!(code, 0);
 		assert_eq!(stderr, "");
 		let printed = PathBuf::from(stdout.trim_end_matches('\n'));
@@ -697,8 +695,7 @@ mod tests {
 	#[test]
 	fn gnu_t_template_keeps_template_behavior() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) =
-			run_in(root.clone(), &tmpdir_env(&root), &["-t", "fooXXXX"]);
+		let (code, stdout, stderr) = run_in(root.clone(), &tmpdir_env(&root), &["-t", "fooXXXX"]);
 		assert_eq!(code, 0);
 		assert_eq!(stderr, "");
 		let printed = PathBuf::from(stdout.trim_end_matches('\n'));
@@ -745,8 +742,7 @@ mod tests {
 	#[test]
 	fn quiet_suppresses_creation_error_message_but_not_exit_code() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) =
-			run_in(root, &[], &["-q", "-p", "missing-dir", "foo.XXXX"]);
+		let (code, stdout, stderr) = run_in(root, &[], &["-q", "-p", "missing-dir", "foo.XXXX"]);
 		assert_eq!(code, 1);
 		assert_eq!(stdout, "");
 		assert_eq!(stderr, "");
@@ -755,8 +751,7 @@ mod tests {
 	#[test]
 	fn creation_error_keeps_relative_template_in_diagnostic() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) =
-			run_in(root, &[], &["-p", "missing-dir", "foo.XXXX"]);
+		let (code, stdout, stderr) = run_in(root, &[], &["-p", "missing-dir", "foo.XXXX"]);
 		assert_eq!(code, 1);
 		assert_eq!(stdout, "");
 		assert_eq!(
@@ -777,8 +772,7 @@ mod tests {
 	#[test]
 	fn posixly_correct_requires_template_last() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, stdout, stderr) =
-			run_in(root, &[("POSIXLY_CORRECT", "1")], &["foo.XXXX", "-d"]);
+		let (code, stdout, stderr) = run_in(root, &[("POSIXLY_CORRECT", "1")], &["foo.XXXX", "-d"]);
 		assert_eq!(code, 1);
 		assert_eq!(stdout, "");
 		assert_eq!(stderr, "mktemp: too many templates\n");

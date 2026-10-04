@@ -47,12 +47,9 @@ impl builtins::Command for CommandCommand {
 			}
 			let mut any_found = false;
 			for command_name in &self.command_and_args {
-				let Some(found_cmd) = Self::try_find_command(
-					context.shell,
-					command_name.as_str(),
-					self.use_default_path,
-				)
-				.await
+				let Some(found_cmd) =
+					Self::try_find_command(context.shell, command_name.as_str(), self.use_default_path)
+						.await
 				else {
 					if self.print_verbose_description {
 						writeln!(context.stderr(), "command: {command_name}: not found")?;

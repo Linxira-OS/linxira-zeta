@@ -32,9 +32,9 @@ use super::types::{
 
 #[cfg(target_os = "windows")]
 pub(crate) struct Win32Backend {
-	display:      DisplaySelector,
+	display: DisplaySelector,
 	global_input: Enigo,
-	ax:           Win32Ax,
+	ax: Win32Ax,
 }
 
 #[cfg(target_os = "windows")]

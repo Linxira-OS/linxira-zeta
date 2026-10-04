@@ -173,12 +173,12 @@ mod tests {
 
 	#[derive(Clone)]
 	struct FailingWriter {
-		state:     Arc<Mutex<WriterState>>,
+		state: Arc<Mutex<WriterState>>,
 		fail_kind: io::ErrorKind,
 	}
 
 	struct WriterState {
-		bytes:     Vec<u8>,
+		bytes: Vec<u8>,
 		remaining: usize,
 	}
 

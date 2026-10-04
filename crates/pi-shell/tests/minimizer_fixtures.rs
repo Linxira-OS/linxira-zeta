@@ -34,10 +34,10 @@ const SAVINGS_RATIO: f64 = 0.40;
 /// `.exit` and `.min` companions.
 struct Fixture {
 	/// `<family>/<case>` — used only for human-readable failure reports.
-	name:     String,
-	command:  String,
-	raw:      String,
-	exit:     i32,
+	name: String,
+	command: String,
+	raw: String,
+	exit: i32,
 	expected: Option<String>,
 }
 

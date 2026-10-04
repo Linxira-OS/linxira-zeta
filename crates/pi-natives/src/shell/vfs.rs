@@ -239,14 +239,14 @@ pub enum ShellFsResolve {
 /// Open flags for an `open` request (std `OpenOptions` semantics).
 #[napi(object, object_from_js = false)]
 pub struct ShellFsOpenFlags {
-	pub read:         bool,
-	pub write:        bool,
-	pub append:       bool,
-	pub truncate:     bool,
-	pub create:       bool,
-	pub create_new:   bool,
+	pub read: bool,
+	pub write: bool,
+	pub append: bool,
+	pub truncate: bool,
+	pub create: bool,
+	pub create_new: bool,
 	/// Permission bits for a newly created file.
-	pub mode:         Option<u32>,
+	pub mode: Option<u32>,
 	/// Platform open flags beyond the portable set (`O_*`); absent when none.
 	pub custom_flags: Option<i32>,
 }
@@ -254,63 +254,63 @@ pub struct ShellFsOpenFlags {
 /// Permissions probed by an `access` request.
 #[napi(object, object_from_js = false)]
 pub struct ShellFsAccess {
-	pub read:    bool,
-	pub write:   bool,
+	pub read: bool,
+	pub write: bool,
 	pub execute: bool,
 }
 
 /// One filesystem request. Only the fields documented for `op` are set.
 #[napi(object, object_from_js = false)]
 pub struct ShellFsRequest {
-	pub op:        ShellFsOp,
+	pub op: ShellFsOp,
 	/// Subject path, verbatim (URL spellings keep their authority).
-	pub path:      Option<String>,
+	pub path: Option<String>,
 	/// Second path: rename/hard-link destination or symlink contents.
-	pub target:    Option<String>,
+	pub target: Option<String>,
 	/// Provider handle id from a previous `open`.
-	pub handle:    Option<i64>,
+	pub handle: Option<i64>,
 	/// Byte offset for positional handle I/O.
-	pub offset:    Option<u64>,
+	pub offset: Option<u64>,
 	/// Maximum bytes to read.
-	pub length:    Option<u32>,
+	pub length: Option<u32>,
 	/// New length for `setLen`.
-	pub size:      Option<u64>,
+	pub size: Option<u64>,
 	/// Bytes to write (`write`) or attribute value (`setXattr`).
-	pub data:      Option<Buffer>,
-	pub open:      Option<ShellFsOpenFlags>,
-	pub access:    Option<ShellFsAccess>,
+	pub data: Option<Buffer>,
+	pub open: Option<ShellFsOpenFlags>,
+	pub access: Option<ShellFsAccess>,
 	pub recursive: Option<bool>,
 	/// Permission bits (`0o7777`).
-	pub mode:      Option<u32>,
+	pub mode: Option<u32>,
 	/// Whether a final symlink is followed.
-	pub follow:    Option<bool>,
+	pub follow: Option<bool>,
 	/// Access time in nanoseconds since the Unix epoch.
-	pub atime_ns:  Option<BigInt>,
+	pub atime_ns: Option<BigInt>,
 	/// Modification time in nanoseconds since the Unix epoch.
-	pub mtime_ns:  Option<BigInt>,
-	pub uid:       Option<u32>,
-	pub gid:       Option<u32>,
+	pub mtime_ns: Option<BigInt>,
+	pub uid: Option<u32>,
+	pub gid: Option<u32>,
 	/// `sync` persists data only, not metadata.
 	pub data_only: Option<bool>,
 	/// Extended attribute name.
-	pub name:      Option<String>,
+	pub name: Option<String>,
 	/// Node type for `mknod`.
 	pub file_type: Option<ShellFsFileType>,
 	/// Device number for character/block `mknod`.
-	pub device:    Option<u64>,
-	pub missing:   Option<ShellFsMissing>,
-	pub resolve:   Option<ShellFsResolve>,
+	pub device: Option<u64>,
+	pub missing: Option<ShellFsMissing>,
+	pub resolve: Option<ShellFsResolve>,
 	/// Removal of temporary files the shell itself created, issued even after
 	/// the run was aborted. Serve it under the same policy, but without the
 	/// run's abort signal. Not a retry of a cancelled request.
-	pub cleanup:   Option<bool>,
+	pub cleanup: Option<bool>,
 }
 
 /// A failed operation, reported as data so its errno identity survives.
 #[napi(object, object_to_js = false)]
 pub struct ShellFsError {
 	/// Errno name such as `ENOENT`, `EACCES`, `EROFS`, `ENOTSUP`.
-	pub code:    String,
+	pub code: String,
 	pub message: Option<String>,
 }
 
@@ -318,85 +318,85 @@ pub struct ShellFsError {
 /// they are never fabricated.
 #[napi(object, object_to_js = false)]
 pub struct ShellFsMetadata {
-	pub file_type:    ShellFsFileType,
-	pub size:         Either<f64, BigInt>,
+	pub file_type: ShellFsFileType,
+	pub size: Either<f64, BigInt>,
 	/// Permission bits (`0o7777`).
-	pub mode:         u32,
+	pub mode: u32,
 	/// Modification time, nanoseconds since the Unix epoch.
-	pub mtime_ns:     Option<Either<f64, BigInt>>,
+	pub mtime_ns: Option<Either<f64, BigInt>>,
 	/// Access time, nanoseconds since the Unix epoch.
-	pub atime_ns:     Option<Either<f64, BigInt>>,
+	pub atime_ns: Option<Either<f64, BigInt>>,
 	/// Status change time, nanoseconds since the Unix epoch.
-	pub ctime_ns:     Option<Either<f64, BigInt>>,
+	pub ctime_ns: Option<Either<f64, BigInt>>,
 	/// Creation time, nanoseconds since the Unix epoch.
 	pub birthtime_ns: Option<Either<f64, BigInt>>,
 	/// Device id; given together with `ino`.
-	pub dev:          Option<Either<f64, BigInt>>,
+	pub dev: Option<Either<f64, BigInt>>,
 	/// Inode number; given together with `dev`.
-	pub ino:          Option<Either<f64, BigInt>>,
-	pub nlink:        Option<Either<f64, BigInt>>,
-	pub rdev:         Option<Either<f64, BigInt>>,
+	pub ino: Option<Either<f64, BigInt>>,
+	pub nlink: Option<Either<f64, BigInt>>,
+	pub rdev: Option<Either<f64, BigInt>>,
 	/// Allocated 512-byte blocks; given together with `blksize`.
-	pub blocks:       Option<Either<f64, BigInt>>,
+	pub blocks: Option<Either<f64, BigInt>>,
 	/// Preferred I/O block size; given together with `blocks`.
-	pub blksize:      Option<Either<f64, BigInt>>,
+	pub blksize: Option<Either<f64, BigInt>>,
 	/// Owner user id; given together with `gid`.
-	pub uid:          Option<u32>,
+	pub uid: Option<u32>,
 	/// Owner group id; given together with `uid`.
-	pub gid:          Option<u32>,
+	pub gid: Option<u32>,
 }
 
 /// One directory entry.
 #[napi(object, object_to_js = false)]
 pub struct ShellFsDirEntry {
-	pub name:      String,
+	pub name: String,
 	pub file_type: ShellFsFileType,
 	/// Entry metadata without following a final symlink, when already known.
-	pub metadata:  Option<ShellFsMetadata>,
+	pub metadata: Option<ShellFsMetadata>,
 }
 
 /// Filesystem statistics.
 #[napi(object, object_to_js = false)]
 pub struct ShellFsStatFs {
-	pub block_size:       Either<f64, BigInt>,
+	pub block_size: Either<f64, BigInt>,
 	/// Optimal transfer size; defaults to `blockSize`.
-	pub io_size:          Option<Either<f64, BigInt>>,
-	pub blocks:           Either<f64, BigInt>,
-	pub blocks_free:      Either<f64, BigInt>,
+	pub io_size: Option<Either<f64, BigInt>>,
+	pub blocks: Either<f64, BigInt>,
+	pub blocks_free: Either<f64, BigInt>,
 	pub blocks_available: Either<f64, BigInt>,
-	pub files:            Either<f64, BigInt>,
-	pub files_free:       Either<f64, BigInt>,
+	pub files: Either<f64, BigInt>,
+	pub files_free: Either<f64, BigInt>,
 	/// Filesystem type magic number.
-	pub fs_type:          Option<Either<f64, BigInt>>,
-	pub fs_type_name:     Option<String>,
-	pub fsid:             Option<Either<f64, BigInt>>,
-	pub name_max:         Option<Either<f64, BigInt>>,
+	pub fs_type: Option<Either<f64, BigInt>>,
+	pub fs_type_name: Option<String>,
+	pub fsid: Option<Either<f64, BigInt>>,
+	pub name_max: Option<Either<f64, BigInt>>,
 }
 
 /// Provider answer. Carries `error`, a native redirect (`local` /
 /// `localTarget`), or the op's result fields.
 #[napi(object, object_to_js = false)]
 pub struct ShellFsResponse {
-	pub error:        Option<ShellFsError>,
+	pub error: Option<ShellFsError>,
 	/// Run this operation natively on this host path instead.
-	pub local:        Option<String>,
+	pub local: Option<String>,
 	/// Native host path replacing `target` (rename/hard-link destination).
 	pub local_target: Option<String>,
-	pub handle:       Option<i64>,
+	pub handle: Option<i64>,
 	/// With an `open` redirect: the host file backs an immutable mount, so
 	/// the opened file refuses every mutation (EROFS), duplicates included.
-	pub readonly:     Option<bool>,
-	pub data:         Option<Uint8Array>,
-	pub written:      Option<u32>,
+	pub readonly: Option<bool>,
+	pub data: Option<Uint8Array>,
+	pub written: Option<u32>,
 	/// Result of an `isLocked` advisory-lock query.
-	pub locked:       Option<bool>,
+	pub locked: Option<bool>,
 	/// Handle position after an append write.
-	pub offset:       Option<Either<f64, BigInt>>,
-	pub path:         Option<String>,
-	pub metadata:     Option<ShellFsMetadata>,
-	pub entries:      Option<Vec<ShellFsDirEntry>>,
-	pub names:        Option<Vec<String>>,
-	pub stat_fs:      Option<ShellFsStatFs>,
+	pub offset: Option<Either<f64, BigInt>>,
+	pub path: Option<String>,
+	pub metadata: Option<ShellFsMetadata>,
+	pub entries: Option<Vec<ShellFsDirEntry>>,
+	pub names: Option<Vec<String>>,
+	pub stat_fs: Option<ShellFsStatFs>,
 }
 
 /// Weak so an idle session never keeps the event loop alive: every call
@@ -410,7 +410,7 @@ pub struct ShellFilesystem {
 	/// Services every routed operation; failures are returned as `error`
 	/// data rather than thrown.
 	#[napi(ts_type = "(error: Error | null, request: ShellFsRequest) => Promise<ShellFsResponse>")]
-	pub handler:            ShellFsHandler,
+	pub handler: ShellFsHandler,
 	/// When true, every path without a `scheme://` prefix — and everything
 	/// beneath it — is the ordinary host filesystem: operations there run
 	/// natively (including recursive traversal and removal) and `handler` is
@@ -424,10 +424,10 @@ impl ShellFilesystem {
 	/// Filesystem facade backed by this provider.
 	pub fn into_fs(self) -> Fs {
 		Fs::new(Arc::new(JsFileSystem {
-			bridge:             Arc::new(Bridge { handler: self.handler }),
+			bridge: Arc::new(Bridge { handler: self.handler }),
 			native_local_paths: self.native_local_paths.unwrap_or(false),
-			native:             Fs::native(),
-			cleanup:            false,
+			native: Fs::native(),
+			cleanup: false,
 		}))
 	}
 
@@ -498,13 +498,13 @@ impl From<&OpenOptions> for ShellFsOpenFlags {
 	fn from(options: &OpenOptions) -> Self {
 		let custom_flags = options.get_custom_flags();
 		Self {
-			read:         options.is_read(),
-			write:        options.is_write(),
-			append:       options.is_append(),
-			truncate:     options.is_truncate(),
-			create:       options.is_create(),
-			create_new:   options.is_create_new(),
-			mode:         options.get_mode(),
+			read: options.is_read(),
+			write: options.is_write(),
+			append: options.is_append(),
+			truncate: options.is_truncate(),
+			create: options.is_create(),
+			create_new: options.is_create_new(),
+			mode: options.get_mode(),
 			custom_flags: (custom_flags != 0).then_some(custom_flags),
 		}
 	}
@@ -577,13 +577,13 @@ impl Bridge {
 
 /// [`FileSystem`] over a host [`ShellFilesystem`] callback.
 struct JsFileSystem {
-	bridge:             Arc<Bridge>,
+	bridge: Arc<Bridge>,
 	/// Non-URL paths bypass the callback and use `native`.
 	native_local_paths: bool,
 	/// Backend for non-routed paths and `local` redirects.
-	native:             Fs,
+	native: Fs,
 	/// Every request is flagged `cleanup` (see [`FileSystem::for_cleanup`]).
-	cleanup:            bool,
+	cleanup: bool,
 }
 
 impl fmt::Debug for JsFileSystem {
@@ -667,10 +667,10 @@ impl FileSystem for JsFileSystem {
 
 	fn for_cleanup(&self) -> Option<Arc<dyn FileSystem>> {
 		Some(Arc::new(Self {
-			bridge:             Arc::clone(&self.bridge),
+			bridge: Arc::clone(&self.bridge),
 			native_local_paths: self.native_local_paths,
-			native:             self.native.clone(),
-			cleanup:            true,
+			native: self.native.clone(),
+			cleanup: true,
 		}))
 	}
 
@@ -1091,16 +1091,16 @@ impl JsFileSystem {
 /// positional, so clones of the owning [`File`] share one position exactly
 /// like duplicated descriptors.
 struct JsFileHandle {
-	bridge:   Arc<Bridge>,
-	id:       i64,
+	bridge: Arc<Bridge>,
+	id: i64,
 	/// Writes go to the provider's end of file (`offset` absent on the wire).
-	append:   bool,
+	append: bool,
 	/// Held across each round trip so concurrent clones never interleave a
 	/// read-modify-advance of the shared position.
 	position: tokio::sync::Mutex<u64>,
-	closed:   AtomicBool,
+	closed: AtomicBool,
 	/// Opened through a cleanup provider; its requests stay flagged.
-	cleanup:  bool,
+	cleanup: bool,
 }
 
 impl JsFileHandle {

@@ -4,12 +4,7 @@
 
 use std::{io::Write, path::Path};
 
-use brush_core::{
-	ShellExtensions,
-	builtins::Registration,
-	pathsearch,
-	sys,
-};
+use brush_core::{ShellExtensions, builtins::Registration, pathsearch, sys};
 use clap::Parser;
 
 use crate::host::{Host, Utility, util};
@@ -99,10 +94,8 @@ mod tests {
 	}
 
 	fn run_which(argv: &[&str], path: &str, cwd: &Path) -> (i32, String) {
-		let cli = WhichCli::try_parse_from(
-			std::iter::once("which").chain(argv.iter().copied()),
-		)
-		.expect("test arguments should parse");
+		let cli = WhichCli::try_parse_from(std::iter::once("which").chain(argv.iter().copied()))
+			.expect("test arguments should parse");
 		let (mut host, capture) = Host::for_test("which", Vec::new(), cwd);
 		host.set_test_var("PATH", path);
 		let code = cli.run(&mut host);
@@ -173,10 +166,7 @@ mod tests {
 			run_which(&["-a", "tool"], &path_var, &root),
 			(0, format!("{}\n{}\n", tool_a.display(), tool_b.display()))
 		);
-		assert_eq!(
-			run_which(&["tool"], &path_var, &root),
-			(0, format!("{}\n", tool_a.display()))
-		);
+		assert_eq!(run_which(&["tool"], &path_var, &root), (0, format!("{}\n", tool_a.display())));
 	}
 
 	#[test]
@@ -189,10 +179,7 @@ mod tests {
 		place_file(&bin, "blob", false);
 		let path_var = bin.to_string_lossy();
 
-		assert_eq!(
-			run_which(&["bin/tool"], &path_var, &cwd),
-			(0, format!("{}\n", tool.display()))
-		);
+		assert_eq!(run_which(&["bin/tool"], &path_var, &cwd), (0, format!("{}\n", tool.display())));
 		assert_eq!(run_which(&["bin/blob"], &path_var, &cwd), (1, String::new()));
 		assert_eq!(run_which(&["./bin"], &path_var, &cwd), (1, String::new()));
 	}
@@ -205,9 +192,6 @@ mod tests {
 		fs::create_dir_all(&bin).expect("bin directory should be created");
 		let tool = place_file(&bin, "tool", true);
 
-		assert_eq!(
-			run_which(&["tool"], "bin", &cwd),
-			(0, format!("{}\n", tool.display()))
-		);
+		assert_eq!(run_which(&["tool"], "bin", &cwd), (0, format!("{}\n", tool.display())));
 	}
 }

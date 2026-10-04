@@ -62,7 +62,8 @@ impl Utility for Basename {
 				host.error(format!("invalid argument {}", name.quote()), 1);
 				return 1;
 			};
-			if host.stdout.write_all(&stripped).is_err() || write!(host.stdout, "{line_ending}").is_err()
+			if host.stdout.write_all(&stripped).is_err()
+				|| write!(host.stdout, "{line_ending}").is_err()
 			{
 				return 1;
 			}
@@ -99,7 +100,12 @@ fn basename(fullname: &OsString, suffix: &OsString) -> Option<Vec<u8>> {
 		return Some(name_bytes.into());
 	}
 	let suffix_bytes = os_bytes(suffix)?;
-	Some(name_bytes.strip_suffix(suffix_bytes).unwrap_or(name_bytes).into())
+	Some(
+		name_bytes
+			.strip_suffix(suffix_bytes)
+			.unwrap_or(name_bytes)
+			.into(),
+	)
 }
 
 /// The `basename` argument model.

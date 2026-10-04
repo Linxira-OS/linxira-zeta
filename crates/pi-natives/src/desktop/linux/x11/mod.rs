@@ -22,9 +22,9 @@ use crate::desktop::{
 };
 
 pub struct X11Backend {
-	capture:        X11Capture,
-	input:          X11Input,
-	ax:             Option<AtSpiAx>,
+	capture: X11Capture,
+	input: X11Input,
+	ax: Option<AtSpiAx>,
 	display_server: Option<String>,
 }
 

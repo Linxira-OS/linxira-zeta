@@ -181,7 +181,6 @@ pub fn default_builtins<SE: brush_core::ShellExtensions>(
 	m
 }
 
-
 /// Returns every in-process command-line utility builtin, as
 /// `(name, registration)` pairs.
 ///
@@ -334,10 +333,7 @@ pub fn process_builtins<SE: brush_core::ShellExtensions>()
 	// `nohup` detaches its operand into a new session so a backgrounded server
 	// survives the shell's kill-on-drop teardown; the wrapper flag keeps the
 	// shell from treating it as the job itself.
-	m.push((
-		"nohup",
-		builtin::<nohup::NohupCommand, SE>().transparent_background_wrapper(),
-	));
+	m.push(("nohup", builtin::<nohup::NohupCommand, SE>().transparent_background_wrapper()));
 	#[cfg(feature = "util.pgrep")]
 	m.push(("pgrep", builtin::<pgrep::PgrepCommand, SE>()));
 	#[cfg(feature = "util.pidwait")]

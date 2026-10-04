@@ -19,9 +19,9 @@ pub enum ActorKind {
 /// Actor or participant in declaration order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Actor {
-	pub id:    String,
+	pub id: String,
 	pub label: String,
-	pub kind:  ActorKind,
+	pub kind: ActorKind,
 }
 
 /// Complete message operator, preserving its line and arrowhead spellings.
@@ -60,11 +60,11 @@ impl MessageArrowKind {
 /// Chronological message between two actors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Message {
-	pub from:       String,
-	pub to:         String,
-	pub label:      String,
-	pub arrow:      MessageArrowKind,
-	pub activate:   bool,
+	pub from: String,
+	pub to: String,
+	pub label: String,
+	pub arrow: MessageArrowKind,
+	pub activate: bool,
 	pub deactivate: bool,
 }
 
@@ -117,11 +117,11 @@ pub struct BlockDivider {
 /// Structural frame spanning a range of messages.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Block {
-	pub kind:        BlockKind,
-	pub label:       String,
+	pub kind: BlockKind,
+	pub label: String,
 	pub start_index: usize,
-	pub end_index:   usize,
-	pub dividers:    Vec<BlockDivider>,
+	pub end_index: usize,
+	pub dividers: Vec<BlockDivider>,
 }
 
 /// Placement of a note relative to its actor lifeline.
@@ -135,28 +135,28 @@ pub enum NotePosition {
 /// Note attached to one or more actors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Note {
-	pub actor_ids:   Vec<String>,
-	pub text:        String,
-	pub position:    NotePosition,
+	pub actor_ids: Vec<String>,
+	pub text: String,
+	pub position: NotePosition,
 	pub after_index: i32,
 }
 
 /// Parsed logical sequence diagram.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SequenceDiagram {
-	pub actors:   Vec<Actor>,
+	pub actors: Vec<Actor>,
 	pub messages: Vec<Message>,
-	pub blocks:   Vec<Block>,
-	pub notes:    Vec<Note>,
+	pub blocks: Vec<Block>,
+	pub notes: Vec<Note>,
 }
 
 #[derive(Debug)]
 struct NoteLayout {
-	x:      i32,
-	y:      i32,
-	width:  i32,
+	x: i32,
+	y: i32,
+	width: i32,
 	height: i32,
-	lines:  Vec<String>,
+	lines: Vec<String>,
 }
 
 /// Render a Mermaid sequence diagram using the configured terminal glyph set.
@@ -663,19 +663,21 @@ mod tests {
 		assert_eq!(diagram.actors.len(), 2);
 		assert_eq!(diagram.actors[0].label, "Alice\nAdmin");
 		assert_eq!(diagram.actors[1].kind, ActorKind::Actor);
-		assert_eq!(diagram.messages.iter().map(|m| m.arrow).collect::<Vec<_>>(), vec![
-			MessageArrowKind::SolidFilled,
-			MessageArrowKind::DashedFilled,
-			MessageArrowKind::SolidOpen,
-			MessageArrowKind::DashedCross,
-		]);
+		assert_eq!(
+			diagram.messages.iter().map(|m| m.arrow).collect::<Vec<_>>(),
+			vec![
+				MessageArrowKind::SolidFilled,
+				MessageArrowKind::DashedFilled,
+				MessageArrowKind::SolidOpen,
+				MessageArrowKind::DashedCross,
+			]
+		);
 		assert!(diagram.messages[0].activate);
 		assert!(diagram.messages[1].deactivate);
-		assert_eq!(diagram.notes.iter().map(|n| n.position).collect::<Vec<_>>(), vec![
-			NotePosition::Left,
-			NotePosition::Right,
-			NotePosition::Over,
-		]);
+		assert_eq!(
+			diagram.notes.iter().map(|n| n.position).collect::<Vec<_>>(),
+			vec![NotePosition::Left, NotePosition::Right, NotePosition::Over,]
+		);
 	}
 
 	#[test]
@@ -683,16 +685,19 @@ mod tests {
 		let source = "sequenceDiagram\nA->>B: a\nA-->>B: b\nA->B: c\nA-->B: d\nA-)B: e\nA--)B: \
 		              f\nA-xB: g\nA--xB: h";
 		let diagram = parser::parse_sequence_diagram(source);
-		assert_eq!(diagram.messages.iter().map(|m| m.arrow).collect::<Vec<_>>(), vec![
-			MessageArrowKind::SolidFilled,
-			MessageArrowKind::DashedFilled,
-			MessageArrowKind::SolidOpen,
-			MessageArrowKind::DashedOpen,
-			MessageArrowKind::SolidOpen,
-			MessageArrowKind::DashedOpen,
-			MessageArrowKind::SolidCross,
-			MessageArrowKind::DashedCross,
-		]);
+		assert_eq!(
+			diagram.messages.iter().map(|m| m.arrow).collect::<Vec<_>>(),
+			vec![
+				MessageArrowKind::SolidFilled,
+				MessageArrowKind::DashedFilled,
+				MessageArrowKind::SolidOpen,
+				MessageArrowKind::DashedOpen,
+				MessageArrowKind::SolidOpen,
+				MessageArrowKind::DashedOpen,
+				MessageArrowKind::SolidCross,
+				MessageArrowKind::DashedCross,
+			]
+		);
 	}
 
 	#[test]
@@ -710,15 +715,18 @@ mod tests {
 			source.push_str("end\n");
 		}
 		let diagram = parser::parse_sequence_diagram(&source);
-		assert_eq!(diagram.blocks.iter().map(|b| b.kind).collect::<Vec<_>>(), vec![
-			BlockKind::Loop,
-			BlockKind::Alt,
-			BlockKind::Opt,
-			BlockKind::Par,
-			BlockKind::Critical,
-			BlockKind::Break,
-			BlockKind::Rect,
-		]);
+		assert_eq!(
+			diagram.blocks.iter().map(|b| b.kind).collect::<Vec<_>>(),
+			vec![
+				BlockKind::Loop,
+				BlockKind::Alt,
+				BlockKind::Opt,
+				BlockKind::Par,
+				BlockKind::Critical,
+				BlockKind::Break,
+				BlockKind::Rect,
+			]
+		);
 		assert_eq!(
 			diagram
 				.blocks

@@ -17,9 +17,9 @@ use crate::js;
 #[napi]
 pub enum FileType {
 	/// Regular file.
-	File    = 1,
+	File = 1,
 	/// Directory.
-	Dir     = 2,
+	Dir = 2,
 	/// Symbolic link.
 	Symlink = 3,
 }
@@ -29,13 +29,13 @@ pub enum FileType {
 #[napi(object)]
 pub struct GlobMatch {
 	/// Relative path from the search root, using forward slashes.
-	pub path:      String,
+	pub path: String,
 	/// Resolved filesystem type for the match.
 	pub file_type: FileType,
 	/// Modification time in milliseconds since Unix epoch.
-	pub mtime:     Option<f64>,
+	pub mtime: Option<f64>,
 	/// File size in bytes for regular files.
-	pub size:      Option<f64>,
+	pub size: Option<f64>,
 }
 
 fn walker_error_to_napi<E: std::fmt::Display>(err: pi_walker::WalkError<E>) -> Error {
@@ -59,10 +59,10 @@ pub(crate) const fn from_walker_file_type(file_type: pi_walker::FileType) -> Fil
 impl From<pi_walker::CollectedEntry> for GlobMatch {
 	fn from(entry: pi_walker::CollectedEntry) -> Self {
 		Self {
-			path:      entry.path,
+			path: entry.path,
 			file_type: from_walker_file_type(entry.file_type),
-			mtime:     entry.mtime,
-			size:      entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		}
 	}
 }
@@ -101,13 +101,13 @@ pub(crate) fn resolve_search_dir(fs: &BlockingFs, path: &str) -> Result<PathBuf>
 	let root = absolute_search_path(path)?;
 	let metadata = fs.metadata(&root).map_err(|err| {
 		map_walker_error(pi_walker::WalkError::<String>::InvalidData {
-			path:    root.clone(),
+			path: root.clone(),
 			message: format!("Path not found: {err}"),
 		})
 	})?;
 	if !metadata.is_dir() {
 		return Err(map_walker_error(pi_walker::WalkError::<String>::InvalidData {
-			path:    root,
+			path: root,
 			message: "Search path must be a directory".to_string(),
 		}));
 	}

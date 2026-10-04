@@ -483,8 +483,7 @@ Time:        2.345s
 	// collapses.
 	#[test]
 	fn jest_failures_drop_ran_banner_and_keep_rich_context() {
-		let input =
-			"PASS  src/__tests__/utils.test.js\nFAIL  src/__tests__/main.test.js\n  ● Main > should \
+		let input = "PASS  src/__tests__/utils.test.js\nFAIL  src/__tests__/main.test.js\n  ● Main > should \
 			 return correct value\n\n    expect(received).toBe(expected)\n\n    Expected: 4\n    \
 			 Received: 3\n\n      5 |   test('should return correct value', () => {\n      6 |     \
 			 expect(calculate(2, 2)).toBe(4);\n        |             ^\n      7 |   });\n\n    at \

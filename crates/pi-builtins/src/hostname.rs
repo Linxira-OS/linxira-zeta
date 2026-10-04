@@ -170,8 +170,7 @@ fn display_hostname(matches: &ArgMatches, host: &mut Host) -> Result<(), String>
 		}
 		let len = output.len();
 		if len > 0 {
-			writeln!(host.stdout, "{}", &output[0..len - 1])
-				.map_err(|err| err.to_string())?;
+			writeln!(host.stdout, "{}", &output[0..len - 1]).map_err(|err| err.to_string())?;
 		}
 
 		Ok(())
@@ -180,11 +179,9 @@ fn display_hostname(matches: &ArgMatches, host: &mut Host) -> Result<(), String>
 			let mut it = hostname.char_indices().filter(|&ci| ci.1 == '.');
 			if let Some(ci) = it.next() {
 				if matches.get_flag(OPT_SHORT) {
-					writeln!(host.stdout, "{}", &hostname[0..ci.0])
-						.map_err(|err| err.to_string())?;
+					writeln!(host.stdout, "{}", &hostname[0..ci.0]).map_err(|err| err.to_string())?;
 				} else {
-					writeln!(host.stdout, "{}", &hostname[ci.0 + 1..])
-						.map_err(|err| err.to_string())?;
+					writeln!(host.stdout, "{}", &hostname[ci.0 + 1..]).map_err(|err| err.to_string())?;
 				}
 			} else if matches.get_flag(OPT_SHORT) {
 				writeln!(host.stdout, "{hostname}").map_err(|err| err.to_string())?;

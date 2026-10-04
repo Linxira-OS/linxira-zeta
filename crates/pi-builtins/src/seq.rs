@@ -21,441 +21,443 @@ use uucore::{
 use crate::host::{Host, Utility, format_usage, matches_parser, util};
 
 mod number {
-use num_traits::Zero;
-use uucore::extendedbigdecimal::ExtendedBigDecimal;
+	use num_traits::Zero;
+	use uucore::extendedbigdecimal::ExtendedBigDecimal;
 
-/// A number with a specified number of integer and fractional digits.
-///
-/// This struct can be used to represent a number along with information
-/// on how many significant digits to use when displaying the number.
-/// The [`PreciseNumber::num_integral_digits`] field also includes the width
-/// needed to display the "-" character for a negative number.
-/// [`PreciseNumber::num_fractional_digits`] provides the number of decimal
-/// digits after the decimal point (a.k.a. precision), or None if that number
-/// cannot intuitively be obtained (i.e. hexadecimal floats).
-/// Note: Those 2 fields should not necessarily be interpreted literally, but as
-/// matching GNU `seq` behavior: the exact way of guessing desired precision
-/// from user input is a matter of interpretation.
-///
-/// You can get an instance of this struct by calling [`str::parse`].
-#[derive(Debug)]
-pub struct PreciseNumber {
-	pub number:                ExtendedBigDecimal,
-	pub num_integral_digits:   usize,
-	pub num_fractional_digits: Option<usize>,
-}
+	/// A number with a specified number of integer and fractional digits.
+	///
+	/// This struct can be used to represent a number along with information
+	/// on how many significant digits to use when displaying the number.
+	/// The [`PreciseNumber::num_integral_digits`] field also includes the width
+	/// needed to display the "-" character for a negative number.
+	/// [`PreciseNumber::num_fractional_digits`] provides the number of decimal
+	/// digits after the decimal point (a.k.a. precision), or None if that number
+	/// cannot intuitively be obtained (i.e. hexadecimal floats).
+	/// Note: Those 2 fields should not necessarily be interpreted literally, but as
+	/// matching GNU `seq` behavior: the exact way of guessing desired precision
+	/// from user input is a matter of interpretation.
+	///
+	/// You can get an instance of this struct by calling [`str::parse`].
+	#[derive(Debug)]
+	pub struct PreciseNumber {
+		pub number: ExtendedBigDecimal,
+		pub num_integral_digits: usize,
+		pub num_fractional_digits: Option<usize>,
+	}
 
-impl PreciseNumber {
+	impl PreciseNumber {
 		pub fn one() -> Self {
-		// We would like to implement `num_traits::One`, but it requires
-		// a multiplication implementation, and we don't want to
-		// implement that here.
-		Self {
-			number:                ExtendedBigDecimal::one(),
-			num_integral_digits:   1,
-			num_fractional_digits: Some(0),
+			// We would like to implement `num_traits::One`, but it requires
+			// a multiplication implementation, and we don't want to
+			// implement that here.
+			Self {
+				number: ExtendedBigDecimal::one(),
+				num_integral_digits: 1,
+				num_fractional_digits: Some(0),
+			}
+		}
+
+		/// Decide whether this number is zero (either positive or negative).
+		pub fn is_zero(&self) -> bool {
+			// We would like to implement `num_traits::Zero`, but it
+			// requires an addition implementation, and we don't want to
+			// implement that here.
+			self.number.is_zero()
 		}
 	}
-
-	/// Decide whether this number is zero (either positive or negative).
-	pub fn is_zero(&self) -> bool {
-		// We would like to implement `num_traits::Zero`, but it
-		// requires an addition implementation, and we don't want to
-		// implement that here.
-		self.number.is_zero()
-	}
-}
 }
 
 mod numberparse {
-//! Parsing numbers for use in `seq`.
-//!
-//! This module provides an implementation of [`FromStr`] for the
-//! [`PreciseNumber`] struct.
-use std::str::FromStr;
+	//! Parsing numbers for use in `seq`.
+	//!
+	//! This module provides an implementation of [`FromStr`] for the
+	//! [`PreciseNumber`] struct.
+	use std::str::FromStr;
 
-use uucore::{
-	extendedbigdecimal::ExtendedBigDecimal,
-	parser::num_parser::{ExtendedParser, ExtendedParserError},
-};
-
-use super::number::PreciseNumber;
-
-/// An error returned when parsing a number fails.
-#[derive(Debug, PartialEq, Eq)]
-pub enum ParseNumberError {
-	Float,
-	Nan,
-}
-
-/// Compute the number of integral and fractional digits in input string,
-/// and wrap the result in a PreciseNumber.
-/// We know that the string has already been parsed correctly, so we don't
-/// need to be too careful.
-fn compute_num_digits(input: &str, ebd: ExtendedBigDecimal) -> PreciseNumber {
-	let input = input.to_lowercase();
-	let input = input.trim_start();
-
-	// Leading + is ignored for this.
-	let input = input.strip_prefix('+').unwrap_or(input);
-
-	// Integral digits for any hex number is ill-defined (0 is fine as an output)
-	// Fractional digits for an floating hex number is ill-defined, return None
-	// as we'll totally ignore that number for precision computations.
-	// Still return 0 for hex integers though.
-	if input.starts_with("0x") || input.starts_with("-0x") {
-		return PreciseNumber {
-			number:                ebd,
-			num_integral_digits:   0,
-			num_fractional_digits: if input.contains('.') || input.contains('p') {
-				None
-			} else {
-				Some(0)
-			},
-		};
-	}
-
-	// Split the exponent part, if any
-	let parts: Vec<&str> = input.split('e').collect();
-	debug_assert!(parts.len() <= 2);
-
-	// Count all the digits up to `.`, `-` sign is included.
-	let (mut int_digits, mut frac_digits) = match parts[0].find('.') {
-		Some(i) => {
-			// Cover special case .X and -.X where we behave as if there was a leading 0:
-			// 0.X, -0.X.
-			let int_digits = match i {
-				0 => 1,
-				1 if parts[0].starts_with('-') => 2,
-				_ => i,
-			};
-
-			(int_digits, parts[0].len() - i - 1)
-		},
-		None => (parts[0].len(), 0),
+	use uucore::{
+		extendedbigdecimal::ExtendedBigDecimal,
+		parser::num_parser::{ExtendedParser, ExtendedParserError},
 	};
 
-	// If there is an exponent, reparse that (yes this is not optimal,
-	// but we can't necessarily exactly recover that from the parsed number).
-	if parts.len() == 2 {
-		let exp = parts[1].parse::<i64>().unwrap_or(0);
-		// For positive exponents, effectively expand the number. Ignore negative
-		// exponents. Also ignore overflowed exponents (unwrap_or(0)).
-		if exp > 0 {
-			int_digits += exp.try_into().unwrap_or(0);
-		}
-		frac_digits = if exp < frac_digits as i64 {
-			// Subtract from i128 to avoid any overflow
-			(frac_digits as i128 - exp as i128).try_into().unwrap_or(0)
-		} else {
-			0
-		}
+	use super::number::PreciseNumber;
+
+	/// An error returned when parsing a number fails.
+	#[derive(Debug, PartialEq, Eq)]
+	pub enum ParseNumberError {
+		Float,
+		Nan,
 	}
 
-	PreciseNumber {
-		number:                ebd,
-		num_integral_digits:   int_digits,
-		num_fractional_digits: Some(frac_digits),
-	}
-}
+	/// Compute the number of integral and fractional digits in input string,
+	/// and wrap the result in a PreciseNumber.
+	/// We know that the string has already been parsed correctly, so we don't
+	/// need to be too careful.
+	fn compute_num_digits(input: &str, ebd: ExtendedBigDecimal) -> PreciseNumber {
+		let input = input.to_lowercase();
+		let input = input.trim_start();
 
-// Note: We could also have provided an `ExtendedParser` implementation for
-// PreciseNumber, but we want a simpler custom error.
-impl FromStr for PreciseNumber {
-	type Err = ParseNumberError;
+		// Leading + is ignored for this.
+		let input = input.strip_prefix('+').unwrap_or(input);
 
-	fn from_str(input: &str) -> Result<Self, Self::Err> {
-		let ebd = match ExtendedBigDecimal::extended_parse(input) {
-			Ok(ebd) => match ebd {
-				// Handle special values
-				ExtendedBigDecimal::BigDecimal(_) | ExtendedBigDecimal::MinusZero => {
-					// TODO: GNU `seq` treats small numbers < 1e-4950 as 0, we could do the same
-					// to avoid printing senselessly small numbers.
-					ebd
+		// Integral digits for any hex number is ill-defined (0 is fine as an output)
+		// Fractional digits for an floating hex number is ill-defined, return None
+		// as we'll totally ignore that number for precision computations.
+		// Still return 0 for hex integers though.
+		if input.starts_with("0x") || input.starts_with("-0x") {
+			return PreciseNumber {
+				number: ebd,
+				num_integral_digits: 0,
+				num_fractional_digits: if input.contains('.') || input.contains('p') {
+					None
+				} else {
+					Some(0)
 				},
-				ExtendedBigDecimal::Infinity | ExtendedBigDecimal::MinusInfinity => {
-					return Ok(Self {
-						number:                ebd,
-						num_integral_digits:   0,
-						num_fractional_digits: Some(0),
-					});
-				},
-				ExtendedBigDecimal::Nan | ExtendedBigDecimal::MinusNan => {
-					return Err(ParseNumberError::Nan);
-				},
+			};
+		}
+
+		// Split the exponent part, if any
+		let parts: Vec<&str> = input.split('e').collect();
+		debug_assert!(parts.len() <= 2);
+
+		// Count all the digits up to `.`, `-` sign is included.
+		let (mut int_digits, mut frac_digits) = match parts[0].find('.') {
+			Some(i) => {
+				// Cover special case .X and -.X where we behave as if there was a leading 0:
+				// 0.X, -0.X.
+				let int_digits = match i {
+					0 => 1,
+					1 if parts[0].starts_with('-') => 2,
+					_ => i,
+				};
+
+				(int_digits, parts[0].len() - i - 1)
 			},
-			Err(ExtendedParserError::Underflow(ebd)) => ebd, // Treat underflow as 0
-			Err(_) => return Err(ParseNumberError::Float),
+			None => (parts[0].len(), 0),
 		};
 
-		Ok(compute_num_digits(input, ebd))
-	}
-}
+		// If there is an exponent, reparse that (yes this is not optimal,
+		// but we can't necessarily exactly recover that from the parsed number).
+		if parts.len() == 2 {
+			let exp = parts[1].parse::<i64>().unwrap_or(0);
+			// For positive exponents, effectively expand the number. Ignore negative
+			// exponents. Also ignore overflowed exponents (unwrap_or(0)).
+			if exp > 0 {
+				int_digits += exp.try_into().unwrap_or(0);
+			}
+			frac_digits = if exp < frac_digits as i64 {
+				// Subtract from i128 to avoid any overflow
+				(frac_digits as i128 - exp as i128).try_into().unwrap_or(0)
+			} else {
+				0
+			}
+		}
 
-#[cfg(test)]
-mod tests {
-	use bigdecimal::BigDecimal;
-	use uucore::extendedbigdecimal::ExtendedBigDecimal;
-
-	use super::{ParseNumberError, super::number::PreciseNumber};
-
-	/// Convenience function for parsing a [`Number`] and unwrapping.
-	fn parse(s: &str) -> ExtendedBigDecimal {
-		s.parse::<PreciseNumber>().unwrap().number
-	}
-
-	/// Convenience function for getting the number of integral digits.
-	fn num_integral_digits(s: &str) -> usize {
-		s.parse::<PreciseNumber>().unwrap().num_integral_digits
-	}
-
-	/// Convenience function for getting the number of fractional digits.
-	fn num_fractional_digits(s: &str) -> usize {
-		s.parse::<PreciseNumber>()
-			.unwrap()
-			.num_fractional_digits
-			.unwrap()
+		PreciseNumber {
+			number: ebd,
+			num_integral_digits: int_digits,
+			num_fractional_digits: Some(frac_digits),
+		}
 	}
 
-	/// Convenience function for making sure the number of fractional digits is
-	/// "None"
-	fn num_fractional_digits_is_none(s: &str) -> bool {
-		s.parse::<PreciseNumber>()
-			.unwrap()
-			.num_fractional_digits
-			.is_none()
+	// Note: We could also have provided an `ExtendedParser` implementation for
+	// PreciseNumber, but we want a simpler custom error.
+	impl FromStr for PreciseNumber {
+		type Err = ParseNumberError;
+
+		fn from_str(input: &str) -> Result<Self, Self::Err> {
+			let ebd = match ExtendedBigDecimal::extended_parse(input) {
+				Ok(ebd) => match ebd {
+					// Handle special values
+					ExtendedBigDecimal::BigDecimal(_) | ExtendedBigDecimal::MinusZero => {
+						// TODO: GNU `seq` treats small numbers < 1e-4950 as 0, we could do the same
+						// to avoid printing senselessly small numbers.
+						ebd
+					},
+					ExtendedBigDecimal::Infinity | ExtendedBigDecimal::MinusInfinity => {
+						return Ok(Self {
+							number: ebd,
+							num_integral_digits: 0,
+							num_fractional_digits: Some(0),
+						});
+					},
+					ExtendedBigDecimal::Nan | ExtendedBigDecimal::MinusNan => {
+						return Err(ParseNumberError::Nan);
+					},
+				},
+				Err(ExtendedParserError::Underflow(ebd)) => ebd, // Treat underflow as 0
+				Err(_) => return Err(ParseNumberError::Float),
+			};
+
+			Ok(compute_num_digits(input, ebd))
+		}
 	}
 
-	#[test]
-	fn test_parse_minus_zero_int() {
-		assert_eq!(parse("-0e0"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0e-0"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0e1"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0e+1"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0.0e1"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0x0"), ExtendedBigDecimal::MinusZero);
-	}
+	#[cfg(test)]
+	mod tests {
+		use bigdecimal::BigDecimal;
+		use uucore::extendedbigdecimal::ExtendedBigDecimal;
 
-	#[test]
-	fn test_parse_minus_zero_float() {
-		assert_eq!(parse("-0.0"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0e-1"), ExtendedBigDecimal::MinusZero);
-		assert_eq!(parse("-0.0e-1"), ExtendedBigDecimal::MinusZero);
-	}
+		use super::{super::number::PreciseNumber, ParseNumberError};
 
-	#[test]
-	fn test_parse_big_int() {
-		assert_eq!(parse("0"), ExtendedBigDecimal::zero());
-		assert_eq!(parse("0.1e1"), ExtendedBigDecimal::one());
-		assert_eq!(parse("0.1E1"), ExtendedBigDecimal::one());
-		assert_eq!(
-			parse("1.0e1"),
-			ExtendedBigDecimal::BigDecimal("10".parse::<BigDecimal>().unwrap())
-		);
-	}
+		/// Convenience function for parsing a [`Number`] and unwrapping.
+		fn parse(s: &str) -> ExtendedBigDecimal {
+			s.parse::<PreciseNumber>().unwrap().number
+		}
 
-	#[test]
-	fn test_parse_hexadecimal_big_int() {
-		assert_eq!(parse("0x0"), ExtendedBigDecimal::zero());
-		assert_eq!(
-			parse("0x10"),
-			ExtendedBigDecimal::BigDecimal("16".parse::<BigDecimal>().unwrap())
-		);
-	}
+		/// Convenience function for getting the number of integral digits.
+		fn num_integral_digits(s: &str) -> usize {
+			s.parse::<PreciseNumber>().unwrap().num_integral_digits
+		}
 
-	#[test]
-	fn test_parse_big_decimal() {
-		assert_eq!(
-			parse("0.0"),
-			ExtendedBigDecimal::BigDecimal("0.0".parse::<BigDecimal>().unwrap())
-		);
-		assert_eq!(parse(".0"), ExtendedBigDecimal::BigDecimal("0.0".parse::<BigDecimal>().unwrap()));
-		assert_eq!(
-			parse("1.0"),
-			ExtendedBigDecimal::BigDecimal("1.0".parse::<BigDecimal>().unwrap())
-		);
-		assert_eq!(
-			parse("10e-1"),
-			ExtendedBigDecimal::BigDecimal("1.0".parse::<BigDecimal>().unwrap())
-		);
-		assert_eq!(
-			parse("-1e-3"),
-			ExtendedBigDecimal::BigDecimal("-0.001".parse::<BigDecimal>().unwrap())
-		);
-	}
+		/// Convenience function for getting the number of fractional digits.
+		fn num_fractional_digits(s: &str) -> usize {
+			s.parse::<PreciseNumber>()
+				.unwrap()
+				.num_fractional_digits
+				.unwrap()
+		}
 
-	#[test]
-	fn test_parse_inf() {
-		assert_eq!(parse("inf"), ExtendedBigDecimal::Infinity);
-		assert_eq!(parse("infinity"), ExtendedBigDecimal::Infinity);
-		assert_eq!(parse("+inf"), ExtendedBigDecimal::Infinity);
-		assert_eq!(parse("+infinity"), ExtendedBigDecimal::Infinity);
-		assert_eq!(parse("-inf"), ExtendedBigDecimal::MinusInfinity);
-		assert_eq!(parse("-infinity"), ExtendedBigDecimal::MinusInfinity);
-	}
+		/// Convenience function for making sure the number of fractional digits is
+		/// "None"
+		fn num_fractional_digits_is_none(s: &str) -> bool {
+			s.parse::<PreciseNumber>()
+				.unwrap()
+				.num_fractional_digits
+				.is_none()
+		}
 
-	#[test]
-	fn test_parse_invalid_float() {
-		assert_eq!("1.2.3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
-		assert_eq!("1e2e3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
-		assert_eq!("1e2.3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
-		assert_eq!("-+-1".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
-	}
+		#[test]
+		fn test_parse_minus_zero_int() {
+			assert_eq!(parse("-0e0"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0e-0"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0e1"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0e+1"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0.0e1"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0x0"), ExtendedBigDecimal::MinusZero);
+		}
 
-	#[test]
-	fn test_parse_invalid_hex() {
-		assert_eq!("0xg".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
-	}
+		#[test]
+		fn test_parse_minus_zero_float() {
+			assert_eq!(parse("-0.0"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0e-1"), ExtendedBigDecimal::MinusZero);
+			assert_eq!(parse("-0.0e-1"), ExtendedBigDecimal::MinusZero);
+		}
 
-	#[test]
-	fn test_parse_invalid_nan() {
-		assert_eq!("nan".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
-		assert_eq!("NAN".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
-		assert_eq!("NaN".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
-		assert_eq!("nAn".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
-		assert_eq!("-nan".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
-	}
+		#[test]
+		fn test_parse_big_int() {
+			assert_eq!(parse("0"), ExtendedBigDecimal::zero());
+			assert_eq!(parse("0.1e1"), ExtendedBigDecimal::one());
+			assert_eq!(parse("0.1E1"), ExtendedBigDecimal::one());
+			assert_eq!(
+				parse("1.0e1"),
+				ExtendedBigDecimal::BigDecimal("10".parse::<BigDecimal>().unwrap())
+			);
+		}
 
-	#[test]
-	fn test_num_integral_digits() {
-		// no decimal, no exponent
-		assert_eq!(num_integral_digits("123"), 3);
-		// decimal, no exponent
-		assert_eq!(num_integral_digits("123.45"), 3);
-		assert_eq!(num_integral_digits("-0.1"), 2);
-		assert_eq!(num_integral_digits("-.1"), 2);
-		// exponent, no decimal
-		assert_eq!(num_integral_digits("123e4"), 3 + 4);
-		assert_eq!(num_integral_digits("123e-4"), 3);
-		assert_eq!(num_integral_digits("-1e-3"), 2);
-		// decimal and exponent
-		assert_eq!(num_integral_digits("123.45e6"), 3 + 6);
-		assert_eq!(num_integral_digits("123.45e-6"), 3);
-		assert_eq!(num_integral_digits("123.45e-1"), 3);
-		assert_eq!(num_integral_digits("-0.1e0"), 2);
-		assert_eq!(num_integral_digits("-0.1e2"), 4);
-		assert_eq!(num_integral_digits("-.1e0"), 2);
-		assert_eq!(num_integral_digits("-.1e2"), 4);
-		assert_eq!(num_integral_digits("-1.e-3"), 2);
-		assert_eq!(num_integral_digits("-1.0e-4"), 2);
-		// minus zero int
-		assert_eq!(num_integral_digits("-0e0"), 2);
-		assert_eq!(num_integral_digits("-0e-0"), 2);
-		assert_eq!(num_integral_digits("-0e1"), 3);
-		assert_eq!(num_integral_digits("-0e+1"), 3);
-		assert_eq!(num_integral_digits("-0.0e1"), 3);
-		// minus zero float
-		assert_eq!(num_integral_digits("-0.0"), 2);
-		assert_eq!(num_integral_digits("-0e-1"), 2);
-		assert_eq!(num_integral_digits("-0.0e-1"), 2);
+		#[test]
+		fn test_parse_hexadecimal_big_int() {
+			assert_eq!(parse("0x0"), ExtendedBigDecimal::zero());
+			assert_eq!(
+				parse("0x10"),
+				ExtendedBigDecimal::BigDecimal("16".parse::<BigDecimal>().unwrap())
+			);
+		}
 
-		// TODO In GNU `seq`, the `-w` option does not seem to work with
-		// hexadecimal arguments. In order to match that behavior, we
-		// report the number of integral digits as zero for hexadecimal
-		// inputs.
-		assert_eq!(num_integral_digits("0xff"), 0);
-	}
+		#[test]
+		fn test_parse_big_decimal() {
+			assert_eq!(
+				parse("0.0"),
+				ExtendedBigDecimal::BigDecimal("0.0".parse::<BigDecimal>().unwrap())
+			);
+			assert_eq!(
+				parse(".0"),
+				ExtendedBigDecimal::BigDecimal("0.0".parse::<BigDecimal>().unwrap())
+			);
+			assert_eq!(
+				parse("1.0"),
+				ExtendedBigDecimal::BigDecimal("1.0".parse::<BigDecimal>().unwrap())
+			);
+			assert_eq!(
+				parse("10e-1"),
+				ExtendedBigDecimal::BigDecimal("1.0".parse::<BigDecimal>().unwrap())
+			);
+			assert_eq!(
+				parse("-1e-3"),
+				ExtendedBigDecimal::BigDecimal("-0.001".parse::<BigDecimal>().unwrap())
+			);
+		}
 
-	#[test]
-	fn test_num_fractional_digits() {
-		// no decimal, no exponent
-		assert_eq!(num_fractional_digits("123"), 0);
-		assert_eq!(num_fractional_digits("0xff"), 0);
-		// decimal, no exponent
-		assert_eq!(num_fractional_digits("123.45"), 2);
-		assert_eq!(num_fractional_digits("-0.1"), 1);
-		assert_eq!(num_fractional_digits("-.1"), 1);
-		// exponent, no decimal
-		assert_eq!(num_fractional_digits("123e4"), 0);
-		assert_eq!(num_fractional_digits("123e-4"), 4);
-		assert_eq!(num_fractional_digits("123e-1"), 1);
-		assert_eq!(num_fractional_digits("-1e-3"), 3);
-		// decimal and exponent
-		assert_eq!(num_fractional_digits("123.45e6"), 0);
-		assert_eq!(num_fractional_digits("123.45e1"), 1);
-		assert_eq!(num_fractional_digits("123.45e-6"), 8);
-		assert_eq!(num_fractional_digits("123.45e-1"), 3);
-		assert_eq!(num_fractional_digits("-0.1e0"), 1);
-		assert_eq!(num_fractional_digits("-0.1e2"), 0);
-		assert_eq!(num_fractional_digits("-.1e0"), 1);
-		assert_eq!(num_fractional_digits("-.1e2"), 0);
-		assert_eq!(num_fractional_digits("-1.e-3"), 3);
-		assert_eq!(num_fractional_digits("-1.0e-4"), 5);
-		// minus zero int
-		assert_eq!(num_fractional_digits("-0e0"), 0);
-		assert_eq!(num_fractional_digits("-0e-0"), 0);
-		assert_eq!(num_fractional_digits("-0e1"), 0);
-		assert_eq!(num_fractional_digits("-0e+1"), 0);
-		assert_eq!(num_fractional_digits("-0.0e1"), 0);
-		// minus zero float
-		assert_eq!(num_fractional_digits("-0.0"), 1);
-		assert_eq!(num_fractional_digits("-0e-1"), 1);
-		assert_eq!(num_fractional_digits("-0.0e-1"), 2);
-		// Hexadecimal numbers
-		assert_eq!(num_fractional_digits("0xff"), 0);
-		assert!(num_fractional_digits_is_none("0xff.1"));
-	}
+		#[test]
+		fn test_parse_inf() {
+			assert_eq!(parse("inf"), ExtendedBigDecimal::Infinity);
+			assert_eq!(parse("infinity"), ExtendedBigDecimal::Infinity);
+			assert_eq!(parse("+inf"), ExtendedBigDecimal::Infinity);
+			assert_eq!(parse("+infinity"), ExtendedBigDecimal::Infinity);
+			assert_eq!(parse("-inf"), ExtendedBigDecimal::MinusInfinity);
+			assert_eq!(parse("-infinity"), ExtendedBigDecimal::MinusInfinity);
+		}
 
-	#[test]
-	fn test_parse_min_exponents() {
-		// Make sure exponents < i64::MIN do not cause errors
-		assert!("1e-9223372036854775807".parse::<PreciseNumber>().is_ok());
-		assert!("1e-9223372036854775808".parse::<PreciseNumber>().is_ok());
-		assert!("1e-92233720368547758080".parse::<PreciseNumber>().is_ok());
-	}
+		#[test]
+		fn test_parse_invalid_float() {
+			assert_eq!("1.2.3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
+			assert_eq!("1e2e3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
+			assert_eq!("1e2.3".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
+			assert_eq!("-+-1".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
+		}
 
-	#[test]
-	fn test_parse_max_exponents() {
-		// Make sure exponents much bigger than i64::MAX cause errors
-		assert!("1e9223372036854775807".parse::<PreciseNumber>().is_ok());
-		assert!("1e92233720368547758070".parse::<PreciseNumber>().is_err());
+		#[test]
+		fn test_parse_invalid_hex() {
+			assert_eq!("0xg".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Float);
+		}
+
+		#[test]
+		fn test_parse_invalid_nan() {
+			assert_eq!("nan".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
+			assert_eq!("NAN".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
+			assert_eq!("NaN".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
+			assert_eq!("nAn".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
+			assert_eq!("-nan".parse::<PreciseNumber>().unwrap_err(), ParseNumberError::Nan);
+		}
+
+		#[test]
+		fn test_num_integral_digits() {
+			// no decimal, no exponent
+			assert_eq!(num_integral_digits("123"), 3);
+			// decimal, no exponent
+			assert_eq!(num_integral_digits("123.45"), 3);
+			assert_eq!(num_integral_digits("-0.1"), 2);
+			assert_eq!(num_integral_digits("-.1"), 2);
+			// exponent, no decimal
+			assert_eq!(num_integral_digits("123e4"), 3 + 4);
+			assert_eq!(num_integral_digits("123e-4"), 3);
+			assert_eq!(num_integral_digits("-1e-3"), 2);
+			// decimal and exponent
+			assert_eq!(num_integral_digits("123.45e6"), 3 + 6);
+			assert_eq!(num_integral_digits("123.45e-6"), 3);
+			assert_eq!(num_integral_digits("123.45e-1"), 3);
+			assert_eq!(num_integral_digits("-0.1e0"), 2);
+			assert_eq!(num_integral_digits("-0.1e2"), 4);
+			assert_eq!(num_integral_digits("-.1e0"), 2);
+			assert_eq!(num_integral_digits("-.1e2"), 4);
+			assert_eq!(num_integral_digits("-1.e-3"), 2);
+			assert_eq!(num_integral_digits("-1.0e-4"), 2);
+			// minus zero int
+			assert_eq!(num_integral_digits("-0e0"), 2);
+			assert_eq!(num_integral_digits("-0e-0"), 2);
+			assert_eq!(num_integral_digits("-0e1"), 3);
+			assert_eq!(num_integral_digits("-0e+1"), 3);
+			assert_eq!(num_integral_digits("-0.0e1"), 3);
+			// minus zero float
+			assert_eq!(num_integral_digits("-0.0"), 2);
+			assert_eq!(num_integral_digits("-0e-1"), 2);
+			assert_eq!(num_integral_digits("-0.0e-1"), 2);
+
+			// TODO In GNU `seq`, the `-w` option does not seem to work with
+			// hexadecimal arguments. In order to match that behavior, we
+			// report the number of integral digits as zero for hexadecimal
+			// inputs.
+			assert_eq!(num_integral_digits("0xff"), 0);
+		}
+
+		#[test]
+		fn test_num_fractional_digits() {
+			// no decimal, no exponent
+			assert_eq!(num_fractional_digits("123"), 0);
+			assert_eq!(num_fractional_digits("0xff"), 0);
+			// decimal, no exponent
+			assert_eq!(num_fractional_digits("123.45"), 2);
+			assert_eq!(num_fractional_digits("-0.1"), 1);
+			assert_eq!(num_fractional_digits("-.1"), 1);
+			// exponent, no decimal
+			assert_eq!(num_fractional_digits("123e4"), 0);
+			assert_eq!(num_fractional_digits("123e-4"), 4);
+			assert_eq!(num_fractional_digits("123e-1"), 1);
+			assert_eq!(num_fractional_digits("-1e-3"), 3);
+			// decimal and exponent
+			assert_eq!(num_fractional_digits("123.45e6"), 0);
+			assert_eq!(num_fractional_digits("123.45e1"), 1);
+			assert_eq!(num_fractional_digits("123.45e-6"), 8);
+			assert_eq!(num_fractional_digits("123.45e-1"), 3);
+			assert_eq!(num_fractional_digits("-0.1e0"), 1);
+			assert_eq!(num_fractional_digits("-0.1e2"), 0);
+			assert_eq!(num_fractional_digits("-.1e0"), 1);
+			assert_eq!(num_fractional_digits("-.1e2"), 0);
+			assert_eq!(num_fractional_digits("-1.e-3"), 3);
+			assert_eq!(num_fractional_digits("-1.0e-4"), 5);
+			// minus zero int
+			assert_eq!(num_fractional_digits("-0e0"), 0);
+			assert_eq!(num_fractional_digits("-0e-0"), 0);
+			assert_eq!(num_fractional_digits("-0e1"), 0);
+			assert_eq!(num_fractional_digits("-0e+1"), 0);
+			assert_eq!(num_fractional_digits("-0.0e1"), 0);
+			// minus zero float
+			assert_eq!(num_fractional_digits("-0.0"), 1);
+			assert_eq!(num_fractional_digits("-0e-1"), 1);
+			assert_eq!(num_fractional_digits("-0.0e-1"), 2);
+			// Hexadecimal numbers
+			assert_eq!(num_fractional_digits("0xff"), 0);
+			assert!(num_fractional_digits_is_none("0xff.1"));
+		}
+
+		#[test]
+		fn test_parse_min_exponents() {
+			// Make sure exponents < i64::MIN do not cause errors
+			assert!("1e-9223372036854775807".parse::<PreciseNumber>().is_ok());
+			assert!("1e-9223372036854775808".parse::<PreciseNumber>().is_ok());
+			assert!("1e-92233720368547758080".parse::<PreciseNumber>().is_ok());
+		}
+
+		#[test]
+		fn test_parse_max_exponents() {
+			// Make sure exponents much bigger than i64::MAX cause errors
+			assert!("1e9223372036854775807".parse::<PreciseNumber>().is_ok());
+			assert!("1e92233720368547758070".parse::<PreciseNumber>().is_err());
+		}
 	}
-}
 }
 
 mod error {
-//! Errors returned by seq.
+	//! Errors returned by seq.
 
-// pi-uutils: `translate!` message lookups are literalized with the en-US
-// strings from upstream's locales/en-US.ftl.
+	// pi-uutils: `translate!` message lookups are literalized with the en-US
+	// strings from upstream's locales/en-US.ftl.
 
-use thiserror::Error;
-use uucore::display::Quotable;
+	use thiserror::Error;
+	use uucore::display::Quotable;
 
-use super::numberparse::ParseNumberError;
+	use super::numberparse::ParseNumberError;
 
-#[derive(Debug, Error)]
-pub enum SeqError {
-	/// An error parsing the input arguments.
-	///
-	/// The parameters are the [`String`] argument as read from the
-	/// command line and the underlying parsing error itself.
-	#[error("invalid {} argument: {}", parse_error_type(.1), .0.quote())]
-	ParseError(String, ParseNumberError),
+	#[derive(Debug, Error)]
+	pub enum SeqError {
+		/// An error parsing the input arguments.
+		///
+		/// The parameters are the [`String`] argument as read from the
+		/// command line and the underlying parsing error itself.
+		#[error("invalid {} argument: {}", parse_error_type(.1), .0.quote())]
+		ParseError(String, ParseNumberError),
 
-	/// The increment argument was zero, which is not allowed.
-	///
-	/// The parameter is the increment argument as a [`String`] as read
-	/// from the command line.
-	#[error("invalid Zero increment value: {}", .0.quote())]
-	ZeroIncrement(String),
+		/// The increment argument was zero, which is not allowed.
+		///
+		/// The parameter is the increment argument as a [`String`] as read
+		/// from the command line.
+		#[error("invalid Zero increment value: {}", .0.quote())]
+		ZeroIncrement(String),
 
-	/// No arguments were passed to this function, 1 or more is required
-	#[error("missing operand")]
-	NoArguments,
+		/// No arguments were passed to this function, 1 or more is required
+		#[error("missing operand")]
+		NoArguments,
 
-	/// Both a format and equal width where passed to seq
-	#[error("format string may not be specified when printing equal width strings")]
-	FormatAndEqualWidth,
-}
-
-fn parse_error_type(e: &ParseNumberError) -> &'static str {
-	match e {
-		ParseNumberError::Float => "floating point",
-		ParseNumberError::Nan => "'not-a-number'",
+		/// Both a format and equal width where passed to seq
+		#[error("format string may not be specified when printing equal width strings")]
+		FormatAndEqualWidth,
 	}
-}
 
+	fn parse_error_type(e: &ParseNumberError) -> &'static str {
+		match e {
+			ParseNumberError::Float => "floating point",
+			ParseNumberError::Nan => "'not-a-number'",
+		}
+	}
 }
 
 use self::{error::SeqError, number::PreciseNumber};
@@ -472,10 +474,10 @@ const CANCEL_POLL_INTERVAL: u64 = 4096;
 
 #[derive(Clone)]
 struct SeqOptions<'a> {
-	separator:   OsString,
-	terminator:  OsString,
+	separator: OsString,
+	terminator: OsString,
 	equal_width: bool,
-	format:      Option<&'a str>,
+	format: Option<&'a str>,
 }
 
 /// A range of floats.
@@ -556,16 +558,16 @@ fn seq_main(matches: &ArgMatches, host: &mut Host) -> Result<(), Box<dyn Error>>
 	let numbers = numbers_option.unwrap().collect::<Vec<_>>();
 
 	let options = SeqOptions {
-		separator:   matches
+		separator: matches
 			.get_one::<OsString>(OPT_SEPARATOR)
 			.cloned()
 			.unwrap_or_else(|| OsString::from("\n")),
-		terminator:  matches
+		terminator: matches
 			.get_one::<OsString>(OPT_TERMINATOR)
 			.cloned()
 			.unwrap_or_else(|| OsString::from("\n")),
 		equal_width: matches.get_flag(OPT_EQUAL_WIDTH),
-		format:      matches.get_one::<String>(OPT_FORMAT).map(String::as_str),
+		format: matches.get_one::<String>(OPT_FORMAT).map(String::as_str),
 	};
 
 	if options.equal_width && options.format.is_some() {
@@ -883,12 +885,18 @@ mod tests {
 
 	#[test]
 	fn invalid_operand_reports_error_and_fails() {
-		assert_eq!(run(&["foo"]), (1, String::new(), "seq: invalid floating point argument: 'foo'\n".into()));
+		assert_eq!(
+			run(&["foo"]),
+			(1, String::new(), "seq: invalid floating point argument: 'foo'\n".into())
+		);
 	}
 
 	#[test]
 	fn zero_increment_is_rejected() {
-		assert_eq!(run(&["1", "0", "5"]), (1, String::new(), "seq: invalid Zero increment value: '0'\n".into()));
+		assert_eq!(
+			run(&["1", "0", "5"]),
+			(1, String::new(), "seq: invalid Zero increment value: '0'\n".into())
+		);
 	}
 
 	#[test]

@@ -16,7 +16,9 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 use pi_vfs::File;
 use uucore::{display::Quotable, i18n::charmap::mb_char_len};
 
-use crate::host::{Host, Stdin, Utility, format_usage, matches_parser, os_bytes, strip_errno, util};
+use crate::host::{
+	Host, Stdin, Utility, format_usage, matches_parser, os_bytes, strip_errno, util,
+};
 
 mod options {
 	pub const DELIMITER: &str = "delimiters";
@@ -118,9 +120,10 @@ fn paste(
 		if filename == "-" {
 			prepared.push(PreparedSource::StandardInput);
 		} else {
-			let file = host.fs().open(host.resolve(&filename)).map_err(|err| {
-				format!("{}: {}", filename.to_string_lossy(), strip_errno(&err))
-			})?;
+			let file = host
+				.fs()
+				.open(host.resolve(&filename))
+				.map_err(|err| format!("{}: {}", filename.to_string_lossy(), strip_errno(&err)))?;
 			prepared.push(PreparedSource::File(BufReader::new(file)));
 		}
 	}
@@ -147,7 +150,9 @@ fn paste(
 		for source in &mut sources {
 			output.clear();
 			loop {
-				if source.read_until(line_ending, &mut output).map_err(|err| strip_errno(&err))?
+				if source
+					.read_until(line_ending, &mut output)
+					.map_err(|err| strip_errno(&err))?
 					== 0
 				{
 					break;
@@ -157,7 +162,9 @@ fn paste(
 			}
 			delimiter_state.remove_trailing_delimiter(&mut output);
 			stdout.write_all(&output).map_err(|err| strip_errno(&err))?;
-			stdout.write_all(&[line_ending]).map_err(|err| strip_errno(&err))?;
+			stdout
+				.write_all(&[line_ending])
+				.map_err(|err| strip_errno(&err))?;
 		}
 	} else {
 		let mut eof = vec![false; source_count];
@@ -184,7 +191,9 @@ fn paste(
 			}
 			delimiter_state.remove_trailing_delimiter(&mut output);
 			stdout.write_all(&output).map_err(|err| strip_errno(&err))?;
-			stdout.write_all(&[line_ending]).map_err(|err| strip_errno(&err))?;
+			stdout
+				.write_all(&[line_ending])
+				.map_err(|err| strip_errno(&err))?;
 			delimiter_state.reset_to_first_delimiter();
 		}
 	}
@@ -268,9 +277,9 @@ enum DelimiterState<'a> {
 	NoDelimiters,
 	OneDelimiter(&'a [u8]),
 	MultipleDelimiters {
-		current:    &'a [u8],
+		current: &'a [u8],
 		delimiters: &'a [Box<[u8]>],
-		iterator:   Cycle<Iter<'a, Box<[u8]>>>,
+		iterator: Cycle<Iter<'a, Box<[u8]>>>,
 	},
 }
 
@@ -341,9 +350,9 @@ impl BufRead for InputSource<'_> {
 	fn fill_buf(&mut self) -> io::Result<&[u8]> {
 		match self {
 			Self::File(reader) => reader.fill_buf(),
-			Self::StandardInput(_) => Err(io::Error::other(
-				"standard input does not support direct buffer access",
-			)),
+			Self::StandardInput(_) => {
+				Err(io::Error::other("standard input does not support direct buffer access"))
+			},
 		}
 	}
 
@@ -436,9 +445,6 @@ mod tests {
 	fn resolves_relative_file_operands_against_shell_cwd() {
 		let dir = tempfile::tempdir().unwrap();
 		fs::write(dir.path().join("input"), "line").unwrap();
-		assert_eq!(
-			paste(&["input"], "", dir.path()),
-			(0, b"line\n".to_vec(), String::new())
-		);
+		assert_eq!(paste(&["input"], "", dir.path()), (0, b"line\n".to_vec(), String::new()));
 	}
 }

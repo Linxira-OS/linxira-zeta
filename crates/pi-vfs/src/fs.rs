@@ -63,8 +63,8 @@ enum PairRoute<'a> {
 #[derive(Clone, Default)]
 pub struct Fs {
 	provider: Option<Arc<dyn FileSystem>>,
-	mounts:   Option<Arc<Vec<Arc<Mount>>>>,
-	scope:    Scope,
+	mounts: Option<Arc<Vec<Arc<Mount>>>>,
+	scope: Scope,
 }
 
 impl fmt::Debug for Fs {
@@ -91,7 +91,7 @@ impl fmt::Debug for Fs {
 /// runtime's own thread.
 #[derive(Clone, Default)]
 pub struct BlockingFs {
-	fs:      Fs,
+	fs: Fs,
 	runtime: Option<Handle>,
 }
 
@@ -250,8 +250,8 @@ impl Fs {
 	pub fn new(provider: Arc<dyn FileSystem>) -> Self {
 		Self {
 			provider: Some(provider),
-			mounts:   None,
-			scope:    Scope { cancel: None, closes: Some(Arc::new(CloseTracker::default())) },
+			mounts: None,
+			scope: Scope { cancel: None, closes: Some(Arc::new(CloseTracker::default())) },
 		}
 	}
 

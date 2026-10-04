@@ -173,19 +173,14 @@ impl builtins::Command for TimeoutCommand {
 			},
 		};
 		let Some(limit) = parse_duration(&args.duration) else {
-			let _ = writeln!(
-				context.stderr(),
-				"timeout: invalid time interval '{}'",
-				args.duration
-			);
+			let _ = writeln!(context.stderr(), "timeout: invalid time interval '{}'", args.duration);
 			return Ok(ExecutionResult::new(EXIT_TIMEOUT_FAILURE));
 		};
 		let kill_after = match &args.kill_after {
 			Some(spec) => match parse_duration(spec) {
 				Some(duration) => Some(duration),
 				None => {
-					let _ =
-						writeln!(context.stderr(), "timeout: invalid time interval '{spec}'");
+					let _ = writeln!(context.stderr(), "timeout: invalid time interval '{spec}'");
 					return Ok(ExecutionResult::new(EXIT_TIMEOUT_FAILURE));
 				},
 			},
@@ -229,7 +224,9 @@ impl builtins::Command for TimeoutCommand {
 		let mut stderr = context.stderr();
 		let outer_cancel = context.cancel_token();
 		let source_info = SourceInfo::from("pi-natives:timeout");
-		let run_future = context.shell.run_string(command_line, &source_info, &params);
+		let run_future = context
+			.shell
+			.run_string(command_line, &source_info, &params);
 		tokio::pin!(run_future);
 
 		let outer_cancelled = async {
@@ -360,8 +357,7 @@ mod tests {
 
 	use brush_core::{
 		ExecutionContext, ExecutionResult, Shell, SourceInfo, builtins,
-		extensions::DefaultShellExtensions,
-		openfiles::OpenFiles,
+		extensions::DefaultShellExtensions, openfiles::OpenFiles,
 	};
 	use clap::Parser;
 
@@ -422,18 +418,9 @@ mod tests {
 
 	async fn test_shell() -> Shell<DefaultShellExtensions> {
 		Shell::builder()
-			.builtin(
-				"timeout",
-				builtins::builtin::<TimeoutCommand, DefaultShellExtensions>(),
-			)
-			.builtin(
-				"status-test",
-				builtins::builtin::<StatusCommand, DefaultShellExtensions>(),
-			)
-			.builtin(
-				"slow-test",
-				builtins::builtin::<SlowCommand, DefaultShellExtensions>(),
-			)
+			.builtin("timeout", builtins::builtin::<TimeoutCommand, DefaultShellExtensions>())
+			.builtin("status-test", builtins::builtin::<StatusCommand, DefaultShellExtensions>())
+			.builtin("slow-test", builtins::builtin::<SlowCommand, DefaultShellExtensions>())
 			.build()
 			.await
 			.expect("build test shell")
@@ -475,25 +462,22 @@ mod tests {
 		let mut shell = test_shell().await;
 		let mut stderr = tempfile::tempfile().expect("create stderr capture");
 		let mut params = shell.default_exec_params();
-		params.set_fd(
-			OpenFiles::STDERR_FD,
-			stderr.try_clone().expect("clone stderr capture").into(),
-		);
+		params.set_fd(OpenFiles::STDERR_FD, stderr.try_clone().expect("clone stderr capture").into());
 
 		let result = tokio::time::timeout(
 			Duration::from_secs(1),
-			shell.run_string(
-				"timeout invalid status-test",
-				&SourceInfo::default(),
-				&params,
-			),
+			shell.run_string("timeout invalid status-test", &SourceInfo::default(), &params),
 		)
 		.await
 		.expect("invalid-duration test exceeded its safety deadline")
 		.expect("execute invalid-duration command");
-		stderr.seek(SeekFrom::Start(0)).expect("rewind stderr capture");
+		stderr
+			.seek(SeekFrom::Start(0))
+			.expect("rewind stderr capture");
 		let mut diagnostic = String::new();
-		stderr.read_to_string(&mut diagnostic).expect("read stderr capture");
+		stderr
+			.read_to_string(&mut diagnostic)
+			.expect("read stderr capture");
 
 		assert_eq!(u8::from(result.exit_code), 125);
 		assert_eq!(diagnostic, "timeout: invalid time interval 'invalid'\n");
@@ -502,10 +486,9 @@ mod tests {
 	#[tokio::test]
 	async fn gnu_flag_spellings_parse() {
 		// Failure mode: a real-world GNU invocation dying in clap.
-		let args = TimeoutArgs::try_parse_from([
-			"timeout", "-s", "INT", "-k", "2s", "10s", "cmd", "arg",
-		])
-		.expect("-s/-k spellings must parse");
+		let args =
+			TimeoutArgs::try_parse_from(["timeout", "-s", "INT", "-k", "2s", "10s", "cmd", "arg"])
+				.expect("-s/-k spellings must parse");
 		assert_eq!(args.signal.as_deref(), Some("INT"));
 		assert_eq!(args.kill_after.as_deref(), Some("2s"));
 		assert_eq!(args.duration, "10s");
@@ -589,11 +572,10 @@ mod tests {
 		// stubborn-test ignores the initial (cancellation-based) signal; the
 		// -k deadline must escalate and report the SIGKILL status.
 		let mut shell = test_shell().await;
-		shell
-			.register_builtin(
-				"stubborn-test",
-				builtins::builtin::<StubbornCommand, DefaultShellExtensions>(),
-			);
+		shell.register_builtin(
+			"stubborn-test",
+			builtins::builtin::<StubbornCommand, DefaultShellExtensions>(),
+		);
 		let mut params = shell.default_exec_params();
 		// Keep the inner shell's interrupted notice off the test runner's
 		// terminal, like run_with_deadline does.
@@ -602,11 +584,7 @@ mod tests {
 		}
 		let result = tokio::time::timeout(
 			Duration::from_secs(1),
-			shell.run_string(
-				"timeout -k 0.075 0.010 stubborn-test",
-				&SourceInfo::default(),
-				&params,
-			),
+			shell.run_string("timeout -k 0.075 0.010 stubborn-test", &SourceInfo::default(), &params),
 		)
 		.await
 		.expect("escalation test exceeded its safety deadline")
@@ -642,10 +620,7 @@ mod tests {
 		let mut shell = test_shell().await;
 		let mut stderr = tempfile::tempfile().expect("create stderr capture");
 		let mut params = shell.default_exec_params();
-		params.set_fd(
-			OpenFiles::STDERR_FD,
-			stderr.try_clone().expect("clone stderr capture").into(),
-		);
+		params.set_fd(OpenFiles::STDERR_FD, stderr.try_clone().expect("clone stderr capture").into());
 
 		let result = tokio::time::timeout(
 			Duration::from_secs(1),
@@ -654,9 +629,13 @@ mod tests {
 		.await
 		.expect("verbose test exceeded its safety deadline")
 		.expect("execute verbose command");
-		stderr.seek(SeekFrom::Start(0)).expect("rewind stderr capture");
+		stderr
+			.seek(SeekFrom::Start(0))
+			.expect("rewind stderr capture");
 		let mut diagnostic = String::new();
-		stderr.read_to_string(&mut diagnostic).expect("read stderr capture");
+		stderr
+			.read_to_string(&mut diagnostic)
+			.expect("read stderr capture");
 
 		assert_eq!(u8::from(result.exit_code), 124);
 		// The cancel-fallback may race the inner shell's own cancellation
@@ -675,8 +654,7 @@ mod tests {
 		let result = run_with_deadline("timeout -s TERM 0.050 sleep 5").await;
 		assert_eq!(u8::from(result.exit_code), 124);
 
-		let result =
-			run_with_deadline("timeout --preserve-status 0.050 sleep 5").await;
+		let result = run_with_deadline("timeout --preserve-status 0.050 sleep 5").await;
 		assert_eq!(u8::from(result.exit_code), 143, "SIGTERM death is 128+15");
 	}
 }

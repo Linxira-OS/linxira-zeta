@@ -27,9 +27,9 @@ use crate::{
 
 /// State shared by every operation in one file section.
 pub struct ApplyContext<'a> {
-	pub path:      &'a str,
-	pub notes:     &'a mut Vec<String>,
-	pub store:     &'a EditStore,
+	pub path: &'a str,
+	pub notes: &'a mut Vec<String>,
+	pub store: &'a EditStore,
 	pub canonical: &'a Path,
 }
 
@@ -96,19 +96,16 @@ pub(crate) fn parse_pattern(
 			)));
 		}
 		return Ok(ParsedPattern {
-			tokens:                   vec![PatternToken::Literal {
-				text: pattern.to_owned(),
-				normalized,
-			}],
-			edge_gaps:                EdgeGaps::default(),
-			selection_start:          0,
-			selection_end:            1,
-			insertion:                false,
-			line_insertion:           false,
+			tokens: vec![PatternToken::Literal { text: pattern.to_owned(), normalized }],
+			edge_gaps: EdgeGaps::default(),
+			selection_start: 0,
+			selection_end: 1,
+			insertion: false,
+			line_insertion: false,
 			selected_capture_indices: Vec::new(),
-			selection_ranges:         Vec::new(),
-			selection_pairs:          Vec::new(),
-			literal_fallback:         None,
+			selection_ranges: Vec::new(),
+			selection_pairs: Vec::new(),
+			literal_fallback: None,
 		});
 	}
 
@@ -151,7 +148,7 @@ pub(crate) fn parse_pattern(
 				.replace(SELECT_CLOSE, "");
 			tokens.push(PatternToken::Gap {
 				capture_index: capture_count,
-				line_bounded:  !before.trim().is_empty() && !after.trim().is_empty(),
+				line_bounded: !before.trim().is_empty() && !after.trim().is_empty(),
 			});
 			capture_count += 1;
 			index += GAP.len();
@@ -624,17 +621,17 @@ fn collect_candidates(
 		occurrences.insert(*index, values);
 	}
 	struct Search<'a> {
-		content:           &'a str,
-		normalized:        &'a NormalizedText,
-		pattern:           &'a ParsedPattern,
-		mode:              MatchMode,
-		literal_indices:   &'a [usize],
-		occurrences:       &'a HashMap<usize, Vec<Occurrence>>,
+		content: &'a str,
+		normalized: &'a NormalizedText,
+		pattern: &'a ParsedPattern,
+		mode: MatchMode,
+		literal_indices: &'a [usize],
+		occurrences: &'a HashMap<usize, Vec<Occurrence>>,
 		allow_punctuation: bool,
-		chosen:            HashMap<usize, Occurrence>,
-		candidates:        Vec<Candidate>,
-		combinations:      usize,
-		overflow:          bool,
+		chosen: HashMap<usize, Occurrence>,
+		candidates: Vec<Candidate>,
+		combinations: usize,
+		overflow: bool,
 	}
 	impl Search<'_> {
 		fn source_start(&self, offset: usize) -> usize {
@@ -1463,7 +1460,7 @@ fn selection_edges(
 		return EdgeGaps::default();
 	}
 	EdgeGaps {
-		leading:  pattern.edge_gaps.leading && pair.start == 0,
+		leading: pattern.edge_gaps.leading && pair.start == 0,
 		trailing: pattern.edge_gaps.trailing && pair.end == pattern.tokens.len(),
 	}
 }
@@ -2258,9 +2255,9 @@ fn reconcile_overlap(
 			&& inner.start >= outer.start
 			&& inner.end <= outer.end)
 			.then(|| PlannedEdit {
-				start:            outer.start,
-				end:              outer.end,
-				replacement:      if content.as_bytes().get(outer.end.wrapping_sub(1)) == Some(&b'\n')
+				start: outer.start,
+				end: outer.end,
+				replacement: if content.as_bytes().get(outer.end.wrapping_sub(1)) == Some(&b'\n')
 					&& !inner.replacement.ends_with('\n')
 				{
 					format!("{}\n", inner.replacement)

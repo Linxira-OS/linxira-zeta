@@ -15,7 +15,7 @@ use napi_derive::napi;
 #[napi(object)]
 pub struct SpellingRange {
 	/// Inclusive UTF-16 start offset.
-	pub start:  u32,
+	pub start: u32,
 	/// UTF-16 length of the misspelled span.
 	pub length: u32,
 }

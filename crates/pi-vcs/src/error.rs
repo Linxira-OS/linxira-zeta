@@ -64,13 +64,13 @@ pub enum Error {
 	#[error("{}", crate::error::cli_message(command, *exit_code, stdout, stderr))]
 	Cli {
 		/// Rendered command line (`git push --no-follow-tags …`).
-		command:   String,
+		command: String,
 		/// Process exit code.
 		exit_code: i32,
 		/// Captured stdout (may be truncated).
-		stdout:    String,
+		stdout: String,
 		/// Captured stderr (may be truncated).
-		stderr:    String,
+		stderr: String,
 	},
 
 	/// A CLI-backed operation exceeded its deadline and was killed.
@@ -109,7 +109,7 @@ pub enum Error {
 		/// Operation or feature name as exposed to JS (camelCase).
 		operation: &'static str,
 		/// Backend that lacks it.
-		backend:   crate::VcsKind,
+		backend: crate::VcsKind,
 	},
 	/// The rendered output crossed the caller's byte cap
 	/// (`DiffOptions::max_bytes`); the operation stopped without producing it.
@@ -118,7 +118,7 @@ pub enum Error {
 		/// Operation name as exposed to JS (camelCase).
 		operation: &'static str,
 		/// The cap that was crossed, in bytes.
-		limit:     usize,
+		limit: usize,
 	},
 }
 

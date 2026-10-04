@@ -11,13 +11,13 @@ pub const MAX_COMPOSITE_PIXELS: u64 = 268_435_456;
 
 #[derive(Debug, Clone, PartialEq)]
 struct FrameRegion {
-	x:            f64,
-	y:            f64,
-	width:        f64,
-	height:       f64,
-	pixel_x:      f64,
-	pixel_y:      f64,
-	pixel_width:  f64,
+	x: f64,
+	y: f64,
+	width: f64,
+	height: f64,
+	pixel_x: f64,
+	pixel_y: f64,
+	pixel_width: f64,
 	pixel_height: f64,
 }
 
@@ -30,10 +30,10 @@ enum FrameKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FrameGeometry {
-	width:   u32,
-	height:  u32,
+	width: u32,
+	height: u32,
 	regions: Vec<FrameRegion>,
-	kind:    FrameKind,
+	kind: FrameKind,
 }
 
 impl FrameGeometry {
@@ -51,13 +51,13 @@ impl FrameGeometry {
 		let regions = displays
 			.iter()
 			.map(|d| FrameRegion {
-				x:            f64::from(d.x),
-				y:            f64::from(d.y),
-				width:        f64::from(d.width),
-				height:       f64::from(d.height),
-				pixel_x:      f64::from(d.pixel_x),
-				pixel_y:      f64::from(d.pixel_y),
-				pixel_width:  f64::from(d.pixel_width),
+				x: f64::from(d.x),
+				y: f64::from(d.y),
+				width: f64::from(d.width),
+				height: f64::from(d.height),
+				pixel_x: f64::from(d.pixel_x),
+				pixel_y: f64::from(d.pixel_y),
+				pixel_width: f64::from(d.pixel_width),
 				pixel_height: f64::from(d.pixel_height),
 			})
 			.collect();
@@ -66,32 +66,24 @@ impl FrameGeometry {
 
 	pub(crate) fn for_window(window: &DesktopWindow, px_width: u32, px_height: u32) -> Self {
 		Self {
-			width:   px_width,
-			height:  px_height,
+			width: px_width,
+			height: px_height,
 			regions: vec![FrameRegion {
-				x:            f64::from(window.x),
-				y:            f64::from(window.y),
-				width:        f64::from(window.width),
-				height:       f64::from(window.height),
-				pixel_x:      0.0,
-				pixel_y:      0.0,
-				pixel_width:  f64::from(px_width),
+				x: f64::from(window.x),
+				y: f64::from(window.y),
+				width: f64::from(window.width),
+				height: f64::from(window.height),
+				pixel_x: 0.0,
+				pixel_y: 0.0,
+				pixel_width: f64::from(px_width),
 				pixel_height: f64::from(px_height),
 			}],
-			kind:    FrameKind::Window {
-				captured_width:  window.width,
-				captured_height: window.height,
-			},
+			kind: FrameKind::Window { captured_width: window.width, captured_height: window.height },
 		}
 	}
 
 	pub(crate) const fn identity_global() -> Self {
-		Self {
-			width:   u32::MAX,
-			height:  u32::MAX,
-			regions: Vec::new(),
-			kind:    FrameKind::Identity,
-		}
+		Self { width: u32::MAX, height: u32::MAX, regions: Vec::new(), kind: FrameKind::Identity }
 	}
 
 	pub(crate) fn map_point(
@@ -167,18 +159,18 @@ impl FrameGeometry {
 			.iter()
 			.zip(&self.regions)
 			.map(|(display, region)| DesktopDisplay {
-				id:           display.id.clone(),
-				name:         display.name.clone(),
-				x:            display.x,
-				y:            display.y,
-				width:        display.width,
-				height:       display.height,
-				scale:        display.scale,
-				pixel_x:      region.pixel_x.round() as u32,
-				pixel_y:      region.pixel_y.round() as u32,
-				pixel_width:  region.pixel_width.round().max(1.0) as u32,
+				id: display.id.clone(),
+				name: display.name.clone(),
+				x: display.x,
+				y: display.y,
+				width: display.width,
+				height: display.height,
+				scale: display.scale,
+				pixel_x: region.pixel_x.round() as u32,
+				pixel_y: region.pixel_y.round() as u32,
+				pixel_width: region.pixel_width.round().max(1.0) as u32,
 				pixel_height: region.pixel_height.round().max(1.0) as u32,
-				is_primary:   display.is_primary,
+				is_primary: display.is_primary,
 			})
 			.collect()
 	}
@@ -278,10 +270,11 @@ mod tests {
 	fn cap_scaling_adjusts_geometry() {
 		let mut f = FrameGeometry::for_displays(&[display(2.0)]);
 		let image = RgbaImage::from_pixel(800, 600, Rgba([0, 0, 0, 255]));
-		let image = apply_capture_caps(image, &mut f, &CaptureCaps {
-			max_width:  Some(400),
-			max_height: Some(400),
-		})
+		let image = apply_capture_caps(
+			image,
+			&mut f,
+			&CaptureCaps { max_width: Some(400), max_height: Some(400) },
+		)
 		.unwrap();
 		assert_eq!((image.width(), image.height()), (400, 300));
 		assert_eq!(f.map_point(200.0, 100.0, None).unwrap(), (300.0, 150.0));

@@ -166,12 +166,12 @@ const fn gcd(left: usize, right: usize) -> usize {
 
 /// Indentation statistics of a text block, used to re-indent replacements.
 struct IndentProfile<'a> {
-	lines:           Vec<&'a str>,
-	char:            Option<char>,
-	space_only:      bool,
-	tab_only:        bool,
-	mixed:           bool,
-	unit:            usize,
+	lines: Vec<&'a str>,
+	char: Option<char>,
+	space_only: bool,
+	tab_only: bool,
+	mixed: bool,
+	unit: usize,
 	non_empty_count: usize,
 }
 

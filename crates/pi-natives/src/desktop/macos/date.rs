@@ -15,9 +15,9 @@ const CF_EPOCH_DAYS: i64 = 11_323;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct CivilDate {
-	year:  i64,
+	year: i64,
 	month: i64,
-	day:   i64,
+	day: i64,
 }
 
 /// A value accepted for a date control.
@@ -149,9 +149,9 @@ fn parse_date(text: &str) -> Option<CivilDate> {
 		return None;
 	}
 	let date = CivilDate {
-		year:  digits(&text[..4])?,
+		year: digits(&text[..4])?,
 		month: digits(&text[5..7])?,
-		day:   digits(&text[8..])?,
+		day: digits(&text[8..])?,
 	};
 	(1..=12)
 		.contains(&date.month)

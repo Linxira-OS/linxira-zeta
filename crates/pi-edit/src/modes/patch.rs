@@ -56,19 +56,19 @@ impl Operation {
 /// One normalized single-file patch request.
 pub struct PatchInput<'a> {
 	/// Authored source path.
-	pub path:   &'a str,
+	pub path: &'a str,
 	/// Requested file operation.
-	pub op:     Operation,
+	pub op: Operation,
 	/// Optional update destination.
 	pub rename: Option<&'a str>,
 	/// Full create content or update hunks.
-	pub diff:   Option<&'a str>,
+	pub diff: Option<&'a str>,
 }
 
 /// JSON patch mode engine.
 pub struct PatchEngine {
 	/// Whether inexact hunk placement is allowed.
-	pub allow_fuzzy:     bool,
+	pub allow_fuzzy: bool,
 	/// Minimum confidence for character-level fallback matching.
 	pub fuzzy_threshold: f64,
 }
@@ -76,8 +76,8 @@ pub struct PatchEngine {
 #[derive(Debug, Clone)]
 struct Replacement {
 	start_index: usize,
-	old_len:     usize,
-	new_lines:   Vec<String>,
+	old_len: usize,
+	new_lines: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +92,7 @@ enum HunkVariantKind {
 struct HunkVariant {
 	old_lines: Vec<String>,
 	new_lines: Vec<String>,
-	kind:      HunkVariantKind,
+	kind: HunkVariantKind,
 }
 
 fn is_blank_line(line: &str) -> bool {
@@ -448,7 +448,7 @@ fn reduce_single_line(old: &[String], new: &[String]) -> Option<HunkVariant> {
 	(changed.len() == 1).then(|| HunkVariant {
 		old_lines: vec![old[changed[0]].clone()],
 		new_lines: vec![new[changed[0]].clone()],
-		kind:      HunkVariantKind::SingleLine,
+		kind: HunkVariantKind::SingleLine,
 	})
 }
 
@@ -815,19 +815,19 @@ fn character_match(
 ) -> Result<(String, Vec<String>), EditError> {
 	let old_text = hunk.old_lines.join("\n");
 	let new_text = hunk.new_lines.join("\n");
-	let mut outcome = find_match(content, &old_text, &FindMatchOptions {
-		allow_fuzzy,
-		threshold: Some(threshold),
-		excluded_ranges: &[],
-	});
+	let mut outcome = find_match(
+		content,
+		&old_text,
+		&FindMatchOptions { allow_fuzzy, threshold: Some(threshold), excluded_ranges: &[] },
+	);
 	if outcome.matched.is_none() && allow_fuzzy {
 		let relaxed = threshold.min(0.92);
 		if relaxed < threshold {
-			let next = find_match(content, &old_text, &FindMatchOptions {
-				allow_fuzzy,
-				threshold: Some(relaxed),
-				excluded_ranges: &[],
-			});
+			let next = find_match(
+				content,
+				&old_text,
+				&FindMatchOptions { allow_fuzzy, threshold: Some(relaxed), excluded_ranges: &[] },
+			);
 			if next.matched.is_some() {
 				outcome = next;
 			}
@@ -1033,8 +1033,8 @@ fn compute_replacements(
 			};
 			replacements.push(Replacement {
 				start_index: insertion,
-				old_len:     0,
-				new_lines:   hunk.new_lines.clone(),
+				old_len: 0,
+				new_lines: hunk.new_lines.clone(),
 			});
 			continue;
 		}
@@ -1237,8 +1237,8 @@ fn compute_replacements(
 		}
 		replacements.push(Replacement {
 			start_index: found,
-			old_len:     pattern.len(),
-			new_lines:   adjust_lines_indentation(
+			old_len: pattern.len(),
+			new_lines: adjust_lines_indentation(
 				&pattern,
 				&matched
 					.iter()
@@ -1362,15 +1362,18 @@ fn stage_from_parts(
 	let source_path = move_to
 		.as_ref()
 		.map_or(input.path, |value| value.display.as_str());
-	let unified =
-		generate_unified_diff_string(&before, comparison_after, None, &BlockContextSource {
-			path: Some(source_path),
-			lang: None,
-		});
-	let preview = generate_diff_string(&before, comparison_after, None, &BlockContextSource {
-		path: Some(source_path),
-		lang: None,
-	});
+	let unified = generate_unified_diff_string(
+		&before,
+		comparison_after,
+		None,
+		&BlockContextSource { path: Some(source_path), lang: None },
+	);
+	let preview = generate_diff_string(
+		&before,
+		comparison_after,
+		None,
+		&BlockContextSource { path: Some(source_path), lang: None },
+	);
 	let op = match input.op {
 		Operation::Create => FileOp::Create,
 		Operation::Delete => FileOp::Delete,
@@ -1504,12 +1507,12 @@ pub fn preview_patch(
 	let rename = input.rename.map(str::to_owned);
 	match stage_patch(input, files, allow_fuzzy, threshold, allow_create_overwrite) {
 		Ok(staged) => PreviewFile {
-			display:            staged.display,
-			diff:               staged.preview_diff,
+			display: staged.display,
+			diff: staged.preview_diff,
 			first_changed_line: staged.first_changed_line,
-			error:              None,
-			op:                 Some(staged.op),
-			rename:             staged.move_to.map(|value| value.display),
+			error: None,
+			op: Some(staged.op),
+			rename: staged.move_to.map(|value| value.display),
 		},
 		Err(error) => {
 			PreviewFile { display, error: Some(error.to_string()), rename, ..PreviewFile::default() }
@@ -1751,13 +1754,13 @@ mod tests {
 	#[test]
 	fn trailing_newline_policy_is_preserved() {
 		let hunk = DiffHunk {
-			change_context:    None,
-			old_start_line:    None,
-			new_start_line:    None,
+			change_context: None,
+			old_start_line: None,
+			new_start_line: None,
 			has_context_lines: false,
-			old_lines:         vec!["one".into()],
-			new_lines:         vec!["two".into()],
-			is_end_of_file:    false,
+			old_lines: vec!["one".into()],
+			new_lines: vec!["two".into()],
+			is_end_of_file: false,
 		};
 		assert_eq!(
 			apply_hunks("one\n", "a.txt", std::slice::from_ref(&hunk), 0.95, true)

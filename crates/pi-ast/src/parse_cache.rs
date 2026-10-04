@@ -64,7 +64,7 @@ pub const MAX_ENTRIES: usize = 12;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Key {
 	hash: u64,
-	len:  usize,
+	len: usize,
 	lang: SupportLang,
 }
 
@@ -76,19 +76,19 @@ struct Entry {
 	/// Retained verbatim so a hit is verified by comparison, not by trusting
 	/// the hash.
 	source: Box<str>,
-	tree:   Tree,
+	tree: Tree,
 	/// Value of [`Cache::clock`] at last use; smallest wins eviction.
-	stamp:  u64,
+	stamp: u64,
 }
 
 struct Cache {
-	entries:         HashMap<Key, Entry>,
-	source_bytes:    usize,
-	clock:           u64,
-	hits:            u64,
-	misses:          u64,
-	evictions:       u64,
-	max_entries:     usize,
+	entries: HashMap<Key, Entry>,
+	source_bytes: usize,
+	clock: u64,
+	hits: u64,
+	misses: u64,
+	evictions: u64,
+	max_entries: usize,
 	max_total_bytes: usize,
 	max_entry_bytes: usize,
 }
@@ -143,11 +143,9 @@ impl Cache {
 		}
 		self.clock += 1;
 		self.source_bytes += code.len();
-		self.entries.insert(key, Entry {
-			source: Box::from(code),
-			tree:   tree.clone(),
-			stamp:  self.clock,
-		});
+		self
+			.entries
+			.insert(key, Entry { source: Box::from(code), tree: tree.clone(), stamp: self.clock });
 	}
 
 	/// Drop the least-recently-used slot. `false` when there was nothing left
@@ -225,21 +223,21 @@ pub fn parse_cached(code: &str, lang: SupportLang) -> Result<Option<Tree>> {
 /// Occupancy and counters, for diagnostics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ParseCacheStats {
-	pub entries:      usize,
+	pub entries: usize,
 	pub source_bytes: usize,
-	pub hits:         u64,
-	pub misses:       u64,
-	pub evictions:    u64,
+	pub hits: u64,
+	pub misses: u64,
+	pub evictions: u64,
 }
 
 pub fn parse_cache_stats() -> ParseCacheStats {
 	let cache = lock();
 	ParseCacheStats {
-		entries:      cache.entries.len(),
+		entries: cache.entries.len(),
 		source_bytes: cache.source_bytes,
-		hits:         cache.hits,
-		misses:       cache.misses,
-		evictions:    cache.evictions,
+		hits: cache.hits,
+		misses: cache.misses,
+		evictions: cache.evictions,
 	}
 }
 

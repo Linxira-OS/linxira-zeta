@@ -619,7 +619,9 @@ impl DescriptorPath {
 			["dev", "stdout"] => Some(Self::Fd(OpenFiles::STDOUT_FD)),
 			["dev", "stderr"] => Some(Self::Fd(OpenFiles::STDERR_FD)),
 			["dev", "tty"] => Some(Self::Terminal),
-			["dev", "fd", fd] | ["proc", "self" | "thread-self", "fd", fd] => decimal(fd).map(Self::Fd),
+			["dev", "fd", fd] | ["proc", "self" | "thread-self", "fd", fd] => {
+				decimal(fd).map(Self::Fd)
+			},
 			["proc", pid, "fd", fd] if decimal::<u32>(pid) == Some(std::process::id()) => {
 				decimal(fd).map(Self::Fd)
 			},

@@ -369,7 +369,11 @@ pub(crate) fn ere_literalize_braces(pattern: &str) -> std::borrow::Cow<'_, str> 
 		}
 	}
 
-	if rewrote { std::borrow::Cow::Owned(result) } else { std::borrow::Cow::Borrowed(pattern) }
+	if rewrote {
+		std::borrow::Cow::Owned(result)
+	} else {
+		std::borrow::Cow::Borrowed(pattern)
+	}
 }
 
 /// True when an ERE contains a repetition operator with nothing to repeat.
@@ -537,10 +541,7 @@ mod tests {
 		// escapes it and matches it LITERALLY - which is exactly what
 		// happened before this module existed. The behaviour is unchanged by
 		// the refactor; it is not an endorsement of matching `\1` literally.
-		assert_eq!(
-			bre_to_ere(r"\(a\)\1", Backrefs::Unsupported).expect("translatable"),
-			r"(a)\1"
-		);
+		assert_eq!(bre_to_ere(r"\(a\)\1", Backrefs::Unsupported).expect("translatable"), r"(a)\1");
 		// The grouping exists only for engines that support them, where a
 		// bare `\11` would otherwise read as group 11 instead of group 1
 		// followed by a literal '1'.
@@ -644,30 +645,17 @@ mod tests {
 	#[test]
 	fn ere_accepts_repetition_with_an_operand() {
 		for pattern in [
-			"a+",
-			"^a+",
-			"a{2}",
-			"[a-z]+",
-			".*",
-			r"\++",     // an escaped plus is a literal, so it IS an operand
-			"[^x]*",    // negated class, not an anchor
-			"[]]*",     // `]` first in a class is a literal
-			"[^]]*",    // and after a negation too
-			"(a)+",
-			"a|b+",
-			"$",
-			r"\\",
-			r"a\",      // trailing backslash: not our error to report
+			"a+", "^a+", "a{2}", "[a-z]+", ".*",
+			r"\++",  // an escaped plus is a literal, so it IS an operand
+			"[^x]*", // negated class, not an anchor
+			"[]]*",  // `]` first in a class is a literal
+			"[^]]*", // and after a negation too
+			"(a)+", "a|b+", "$", r"\\", r"a\", // trailing backslash: not our error to report
 			// A `{` that opens no interval is a LITERAL, not an operator.
 			// Measured: `grep -E '^{'` and `grep -E '{a}'` match nothing and
 			// report no error, while `grep -E '{1}'` IS invalid. Rejecting
 			// every `{` refused patterns the real tool accepts.
-			"^{",
-			"{",
-			"{a}",
-			"{,5}",
-			"^{}",
-			"{1a}",
+			"^{", "{", "{a}", "{,5}", "^{}", "{1a}",
 		] {
 			assert!(!ere_repetition_operand_missing(pattern), "should accept {pattern}");
 		}

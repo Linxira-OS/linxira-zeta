@@ -23,13 +23,13 @@ use crate::{
 /// Everything the host configures per tool call.
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
-	pub mode:               EditMode,
-	pub policy:             PathPolicy,
-	pub allow_fuzzy:        bool,
-	pub fuzzy_threshold:    f64,
+	pub mode: EditMode,
+	pub policy: PathPolicy,
+	pub allow_fuzzy: bool,
+	pub fuzzy_threshold: f64,
 	pub enforce_seen_lines: bool,
 	/// The payload is not JSON (custom-format tool): the buffer is `input`.
-	pub raw_input:          bool,
+	pub raw_input: bool,
 }
 
 /// One streamed preview pass. Empty `files` means "nothing to show yet";
@@ -39,23 +39,23 @@ pub struct PreviewBatch {
 	/// Monotonically increasing per session.
 	pub generation: u32,
 	/// False for the final untrimmed pass after `finish()`.
-	pub streaming:  bool,
-	pub files:      Vec<PreviewFile>,
+	pub streaming: bool,
+	pub files: Vec<PreviewFile>,
 }
 
 /// Host write request. Rust never touches disk for writes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WriteRequest {
-	pub absolute:     PathBuf,
-	pub display:      String,
-	pub op:           FileOp,
+	pub absolute: PathBuf,
+	pub display: String,
+	pub op: FileOp,
 	/// Absolute destination for a rename; the host writes `content` there
 	/// and deletes `absolute`.
-	pub move_to:      Option<PathBuf>,
+	pub move_to: Option<PathBuf>,
 	/// Final bytes as text; `None` for deletes.
-	pub content:      Option<String>,
+	pub content: Option<String>,
 	/// Last write of this call && the LSP batch requested a flush.
-	pub flush_lsp:    bool,
+	pub flush_lsp: bool,
 	pub lsp_batch_id: Option<String>,
 }
 
@@ -63,7 +63,7 @@ pub struct WriteRequest {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WriteResponse {
 	/// Text actually persisted (a bridge may reformat); empty for deletes.
-	pub written:          String,
+	pub written: String,
 	/// Diagnostics payload serialized by the host; opaque here.
 	pub diagnostics_json: Option<String>,
 }
@@ -78,37 +78,37 @@ pub trait EditWriter: Send + Sync {
 #[derive(Debug, Clone, Default)]
 pub struct ApplyRequest {
 	pub lsp_batch_id: Option<String>,
-	pub lsp_flush:    bool,
+	pub lsp_flush: bool,
 }
 
 /// Per-file apply outcome.
 #[derive(Debug, Clone)]
 pub struct FileOutcome {
-	pub absolute:           PathBuf,
-	pub display:            String,
-	pub op:                 FileOp,
-	pub move_to:            Option<PathBuf>,
-	pub diff:               String,
+	pub absolute: PathBuf,
+	pub display: String,
+	pub op: FileOp,
+	pub move_to: Option<PathBuf>,
+	pub diff: String,
 	pub first_changed_line: Option<u32>,
-	pub old_text:           Option<String>,
-	pub new_text:           Option<String>,
+	pub old_text: Option<String>,
+	pub new_text: Option<String>,
 	/// `old_text`/`new_text` were dropped because their combined size
 	/// exceeded [`MAX_EDIT_SNAPSHOT_TEXT_CHARS`].
-	pub snapshots_pruned:   bool,
-	pub diagnostics_json:   Option<String>,
+	pub snapshots_pruned: bool,
+	pub diagnostics_json: Option<String>,
 	/// Engine warnings (also rendered in the `Warnings:` block).
-	pub warnings:           Vec<String>,
+	pub warnings: Vec<String>,
 	/// Rendered model-facing text for this file.
-	pub text:               String,
+	pub text: String,
 	/// `before` parsed and `after` does not (`pi_ast` summary).
-	pub parse_regressed:    bool,
+	pub parse_regressed: bool,
 }
 
 /// Whole-call apply outcome.
 #[derive(Debug, Clone, Default)]
 pub struct ApplyOutcome {
 	/// Per-file texts joined with `\n\n`.
-	pub text:  String,
+	pub text: String,
 	pub files: Vec<FileOutcome>,
 }
 
@@ -121,17 +121,17 @@ pub const EDIT_RESULT_SEPARATOR: &str = "\n\n";
 
 /// Per-call edit session.
 pub struct Session {
-	config:          SessionConfig,
-	engine:          Box<dyn ModeEngine>,
-	args:            ArgStream,
-	files:           FileCache,
-	store:           EditStore,
-	generation:      u32,
+	config: SessionConfig,
+	engine: Box<dyn ModeEngine>,
+	args: ArgStream,
+	files: FileCache,
+	store: EditStore,
+	generation: u32,
 	/// Generation the last preview was computed for.
-	previewed:       u32,
+	previewed: u32,
 	final_pass_done: bool,
 	/// Apply began: URL answers provided from here on belong to apply.
-	applying:        bool,
+	applying: bool,
 }
 
 impl Session {
@@ -313,12 +313,12 @@ impl Session {
 			} else {
 				writer
 					.write(WriteRequest {
-						absolute:     file.absolute.clone(),
-						display:      file.display.clone(),
-						op:           file.op,
-						move_to:      file.move_to.as_ref().map(|m| m.absolute.clone()),
-						content:      file.persisted.clone(),
-						flush_lsp:    request.lsp_flush && last_write == Some(index),
+						absolute: file.absolute.clone(),
+						display: file.display.clone(),
+						op: file.op,
+						move_to: file.move_to.as_ref().map(|m| m.absolute.clone()),
+						content: file.persisted.clone(),
+						flush_lsp: request.lsp_flush && last_write == Some(index),
 						lsp_batch_id: request.lsp_batch_id.clone(),
 					})
 					.await?
@@ -544,11 +544,11 @@ fn prune_snapshots(
 pub fn source_parses(code: &str, path: &str) -> bool {
 	let code = if code.is_empty() { "\n" } else { code };
 	pi_ast::summary::summarize_code(pi_ast::summary::SummaryOptions {
-		code:               code.to_owned(),
-		lang:               None,
-		path:               Some(path.to_owned()),
-		min_body_lines:     None,
-		min_comment_lines:  None,
+		code: code.to_owned(),
+		lang: None,
+		path: Some(path.to_owned()),
+		min_body_lines: None,
+		min_comment_lines: None,
 		unfold_until_lines: None,
 		unfold_limit_lines: None,
 	})

@@ -35,7 +35,7 @@ use crate::{
 /// Construction is filesystem-only; the gitoxide handle is opened lazily on
 /// first object/index access and shared across threads.
 pub struct GitRepo {
-	info:           GitRepoInfo,
+	info: GitRepoInfo,
 	/// Lazily opened gitoxide repository. `None` until an operation needs
 	/// object database, index, or config access. Never populated for reftable
 	/// repositories (operations route through the CLI fallback instead).
@@ -108,10 +108,7 @@ impl GitRepo {
 		if !self.is_linked_worktree() {
 			return None;
 		}
-		Some(LinkedWorktree {
-			root:         self.info.repo_root.clone(),
-			primary_root: self.primary_root(),
-		})
+		Some(LinkedWorktree { root: self.info.repo_root.clone(), primary_root: self.primary_root() })
 	}
 
 	/// Whether this checkout is a linked worktree sharing a primary repo's

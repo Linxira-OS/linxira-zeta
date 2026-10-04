@@ -82,28 +82,28 @@ const OWNER_PREFIX: &str = "OMP MPX v1.";
 static NONCE: AtomicU16 = AtomicU16::new(1);
 
 pub(super) struct Mpx {
-	conn:            RustConnection,
-	root:            Window,
-	atoms:           Atoms,
+	conn: RustConnection,
+	root: Window,
+	atoms: Atoms,
 	/// Bottom-right screen corner: the virtual cursor rests there between
 	/// actions, where its sprite is all but off-screen.
-	park:            (i16, i16),
-	name:            String,
-	master_pointer:  u16,
+	park: (i16, i16),
+	name: String,
+	master_pointer: u16,
 	master_keyboard: u16,
-	pointer:         UInputDevice,
-	pointer_slave:   u16,
-	keyboard:        Option<VirtualKeyboard>,
+	pointer: UInputDevice,
+	pointer_slave: u16,
+	keyboard: Option<VirtualKeyboard>,
 	/// A timeout can leave kernel events in flight. Never retarget that pair
 	/// to another window after an uncertain dispatch.
-	uncertain:       bool,
+	uncertain: bool,
 }
 
 /// The uinput keyboard slave, created on the first keyboard or modifier use
 /// so pointer-only sessions never pay for a second hotplug.
 struct VirtualKeyboard {
 	device: UInputDevice,
-	slave:  u16,
+	slave: u16,
 }
 
 /// A raw XI2 event the server reports once it has processed a slave event.
@@ -682,14 +682,14 @@ fn query_devices(conn: &RustConnection) -> CoreResult<Vec<XIDeviceInfo>> {
 
 fn add_master(conn: &RustConnection, name: &str) -> CoreResult<()> {
 	let change = HierarchyChange {
-		len:  hierarchy_len(4 + name.len()),
+		len: hierarchy_len(4 + name.len()),
 		data: HierarchyChangeData::AddMaster(HierarchyChangeDataAddMaster {
 			// Core events make core-protocol WMs activate and raise the target.
 			// Legacy clients must use semantic actions, synthetic delivery where
 			// supported, or explicit takeover instead.
 			send_core: false,
-			enable:    true,
-			name:      name.as_bytes().to_vec(),
+			enable: true,
+			name: name.as_bytes().to_vec(),
 		}),
 	};
 	conn
@@ -750,7 +750,7 @@ fn wait_for_slave(conn: &RustConnection, name: &str, type_: DeviceType) -> CoreR
 
 fn attach(conn: &RustConnection, slave: u16, master: u16) -> CoreResult<()> {
 	let change = HierarchyChange {
-		len:  2,
+		len: 2,
 		data: HierarchyChangeData::AttachSlave(HierarchyChangeDataAttachSlave {
 			deviceid: slave,
 			master,
@@ -775,11 +775,11 @@ fn remove_master(conn: &RustConnection, master_pointer: u16) {
 		let _ = cookie.check();
 	}
 	let change = HierarchyChange {
-		len:  3,
+		len: 3,
 		data: HierarchyChangeData::RemoveMaster(HierarchyChangeDataRemoveMaster {
-			deviceid:        master_pointer,
-			return_mode:     ChangeMode::FLOAT,
-			return_pointer:  0,
+			deviceid: master_pointer,
+			return_mode: ChangeMode::FLOAT,
+			return_pointer: 0,
 			return_keyboard: 0,
 		}),
 	};
@@ -796,10 +796,7 @@ fn select_raw(
 	mask: XIEventMask,
 ) -> CoreResult<()> {
 	conn
-		.xinput_xi_select_events(root, &[xinput::EventMask {
-			deviceid: device,
-			mask:     vec![mask],
-		}])
+		.xinput_xi_select_events(root, &[xinput::EventMask { deviceid: device, mask: vec![mask] }])
 		.map_err(mpx_failed)?
 		.check()
 		.map_err(mpx_failed)
@@ -904,8 +901,8 @@ fn reap_orphans(conn: &RustConnection, owner: &Owner) {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Owner {
 	domain: u64,
-	pid:    u32,
-	start:  u64,
+	pid: u32,
+	start: u64,
 }
 
 impl Owner {

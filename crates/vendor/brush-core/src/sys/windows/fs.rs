@@ -80,9 +80,7 @@ pub fn executable_extensions() -> &'static [String] {
 /// On Windows, entries are parsed with [`std::env::split_paths`] and then have
 /// surrounding double quotes removed. Quoted PATH entries are common on Windows
 /// and must resolve to the unquoted directory when searching for executables.
-pub fn split_paths<T: AsRef<OsStr> + ?Sized>(
-	s: &T,
-) -> impl Iterator<Item = PathBuf> + '_ {
+pub fn split_paths<T: AsRef<OsStr> + ?Sized>(s: &T) -> impl Iterator<Item = PathBuf> + '_ {
 	std::env::split_paths(s).map(trim_surrounding_path_quotes)
 }
 

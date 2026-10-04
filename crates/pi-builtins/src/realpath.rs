@@ -323,8 +323,11 @@ fn resolve_path(
 	relative_base: Option<&Path>,
 	host: &mut Host,
 ) -> io::Result<()> {
-	let (absolute, _) =
-		canonicalize_path(host.fs(), &host.resolve(path), &CanonicalizeOptions::new(can_mode, resolve))?;
+	let (absolute, _) = canonicalize_path(
+		host.fs(),
+		&host.resolve(path),
+		&CanonicalizeOptions::new(can_mode, resolve),
+	)?;
 	let output_path = process_relative(absolute, relative_base, relative_to);
 	let bytes = os_bytes(output_path.as_os_str())
 		.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path is not valid Unicode"))?;
@@ -412,8 +415,7 @@ mod tests {
 		fs::create_dir(root.join("sub")).unwrap();
 		fs::write(root.join("sub/file"), b"x").unwrap();
 
-		let (code, capture) =
-			run_util::<Realpath>(&["--relative-to", "sub", "sub/file"], "", root);
+		let (code, capture) = run_util::<Realpath>(&["--relative-to", "sub", "sub/file"], "", root);
 		assert_eq!(code, 0);
 		assert_eq!(capture.out(), "file\n");
 		assert_eq!(capture.err(), "");

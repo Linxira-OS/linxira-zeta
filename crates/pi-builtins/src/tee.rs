@@ -37,8 +37,8 @@ enum OutputErrorMode {
 }
 
 struct Options {
-	append:       bool,
-	files:        Vec<OsString>,
+	append: bool,
+	files: Vec<OsString>,
 	output_error: Option<OutputErrorMode>,
 }
 
@@ -64,7 +64,8 @@ impl Utility for Tee {
 				_ => unreachable!("clap validates output-error"),
 			})
 			.or_else(|| {
-				self.matches
+				self
+					.matches
 					.get_flag(options::IGNORE_PIPE_ERRORS)
 					.then_some(OutputErrorMode::WarnNoPipe)
 			});
@@ -76,11 +77,7 @@ impl Utility for Tee {
 			.get_many::<OsString>(options::FILE)
 			.map(|values| values.cloned().collect())
 			.unwrap_or_default();
-		let options = Options {
-			append: self.matches.get_flag(options::APPEND),
-			files,
-			output_error,
-		};
+		let options = Options { append: self.matches.get_flag(options::APPEND), files, output_error };
 
 		match tee(&options, host) {
 			Ok(()) => 0,
@@ -95,14 +92,14 @@ impl Utility for Tee {
 fn tee(options: &Options, host: &mut Host) -> io::Result<()> {
 	let mut writers = Vec::with_capacity(options.files.len() + 1);
 	writers.push(NamedWriter {
-		name:  OsString::from("standard output"),
+		name: OsString::from("standard output"),
 		inner: Writer::Stdout(host.stdout_clone()),
 	});
 	let mut had_open_errors = false;
 	for name in &options.files {
 		if name == "-" {
 			writers.push(NamedWriter {
-				name:  OsString::from("standard output"),
+				name: OsString::from("standard output"),
 				inner: Writer::Stdout(host.stdout_clone()),
 			});
 			continue;
@@ -144,7 +141,11 @@ fn tee(options: &Options, host: &mut Host) -> io::Result<()> {
 	}
 }
 
-fn copy(mut input: impl Read, mut output: impl Write, stderr: &mut impl Write) -> io::Result<usize> {
+fn copy(
+	mut input: impl Read,
+	mut output: impl Write,
+	stderr: &mut impl Write,
+) -> io::Result<usize> {
 	const FIRST_BUF_SIZE: usize = 8 * 1024;
 	let mut buffer = [0_u8; FIRST_BUF_SIZE];
 	let mut len = 0;
@@ -178,10 +179,10 @@ fn open(fs: &BlockingFs, name: &OsString, path: &Path, append: bool) -> io::Resu
 }
 
 struct MultiWriter {
-	writers:           Vec<NamedWriter>,
+	writers: Vec<NamedWriter>,
 	output_error_mode: Option<OutputErrorMode>,
-	ignored_errors:    usize,
-	stderr:            OpenFile,
+	ignored_errors: usize,
+	stderr: OpenFile,
 }
 
 impl MultiWriter {
@@ -226,7 +227,11 @@ impl MultiWriter {
 		let mut errors = 0;
 		let stderr = &mut self.stderr;
 		self.writers.retain_mut(|writer| {
-			let result = if flush { writer.flush() } else { writer.write_all(buf) };
+			let result = if flush {
+				writer.flush()
+			} else {
+				writer.write_all(buf)
+			};
 			match result {
 				Ok(()) => true,
 				Err(err) => {
@@ -304,7 +309,7 @@ impl Write for Writer {
 
 struct NamedWriter {
 	inner: Writer,
-	name:  OsString,
+	name: OsString,
 }
 
 impl Write for NamedWriter {
@@ -393,9 +398,9 @@ mod tests {
 	use pi_vfs::OpenOptions;
 
 	use super::{MultiWriter, NamedWriter, OutputErrorMode, Tee, Writer};
+	use crate::host::{Host, run_util};
 	#[cfg(unix)]
 	use crate::host::{SIGPIPE_EXIT_CODE, run_caught};
-	use crate::host::{Host, run_util};
 
 	struct BrokenPipe;
 
@@ -488,7 +493,7 @@ mod tests {
 		let mut output = MultiWriter::new(
 			vec![
 				NamedWriter {
-					name:  OsString::from("standard output"),
+					name: OsString::from("standard output"),
 					inner: Writer::Test(Box::new(BrokenPipe)),
 				},
 				NamedWriter { name: OsString::from("file"), inner: Writer::File(file) },
@@ -501,7 +506,11 @@ mod tests {
 		assert!(!output.error_occurred());
 		drop(output);
 		let mut contents = Vec::new();
-		destination.reopen().unwrap().read_to_end(&mut contents).unwrap();
+		destination
+			.reopen()
+			.unwrap()
+			.read_to_end(&mut contents)
+			.unwrap();
 		assert_eq!(contents, b"contents");
 		assert_eq!(capture.err(), "");
 	}
@@ -517,7 +526,7 @@ mod tests {
 		let mut output = MultiWriter::new(
 			vec![
 				NamedWriter {
-					name:  OsString::from("standard output"),
+					name: OsString::from("standard output"),
 					inner: Writer::Test(Box::new(BrokenPipe)),
 				},
 				NamedWriter { name: OsString::from("file"), inner: Writer::File(file) },
@@ -530,7 +539,11 @@ mod tests {
 		assert!(output.error_occurred());
 		drop(output);
 		let mut contents = Vec::new();
-		destination.reopen().unwrap().read_to_end(&mut contents).unwrap();
+		destination
+			.reopen()
+			.unwrap()
+			.read_to_end(&mut contents)
+			.unwrap();
 		assert_eq!(contents, b"contents");
 		assert!(capture.err().contains("standard output"));
 	}

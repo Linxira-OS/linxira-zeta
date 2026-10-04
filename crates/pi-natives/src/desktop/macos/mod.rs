@@ -21,17 +21,13 @@ use super::{
 
 pub struct MacosBackend {
 	capture: MacCapture,
-	input:   MacInput,
-	ax:      MacAx,
+	input: MacInput,
+	ax: MacAx,
 }
 
 impl MacosBackend {
 	pub(crate) fn new(display: DisplaySelector) -> CoreResult<Self> {
-		Ok(Self {
-			capture: MacCapture::new(display),
-			input:   MacInput::new()?,
-			ax:      MacAx::new(),
-		})
+		Ok(Self { capture: MacCapture::new(display), input: MacInput::new()?, ax: MacAx::new() })
 	}
 
 	fn require_input_permission() -> CoreResult<()> {

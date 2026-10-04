@@ -41,19 +41,19 @@ pub enum ColorMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Theme {
 	/// Text color (node labels, edge labels).
-	pub fg:       String,
+	pub fg: String,
 	/// Box border color (node borders, subgraph borders).
-	pub border:   String,
+	pub border: String,
 	/// Edge line color.
-	pub line:     String,
+	pub line: String,
 	/// Arrowhead color.
-	pub arrow:    String,
+	pub arrow: String,
 	/// Accent color used by xycharts for series 0.
-	pub accent:   Option<String>,
+	pub accent: Option<String>,
 	/// Background color used by xycharts for dark-mode-aware shading.
-	pub bg:       Option<String>,
+	pub bg: Option<String>,
 	/// Corner character color; defaults to `line`.
-	pub corner:   Option<String>,
+	pub corner: Option<String>,
 	/// Junction character color; defaults to `border`.
 	pub junction: Option<String>,
 }
@@ -62,13 +62,13 @@ impl Default for Theme {
 	/// Zinc palette derived from the SVG renderer's default theme.
 	fn default() -> Self {
 		Self {
-			fg:       "#27272a".into(),
-			border:   "#a1a1aa".into(),
-			line:     "#71717a".into(),
-			arrow:    "#52525b".into(),
-			accent:   None,
-			bg:       None,
-			corner:   Some("#71717a".into()),
+			fg: "#27272a".into(),
+			border: "#a1a1aa".into(),
+			line: "#71717a".into(),
+			arrow: "#52525b".into(),
+			accent: None,
+			bg: None,
+			corner: Some("#71717a".into()),
 			junction: Some("#a1a1aa".into()),
 		}
 	}

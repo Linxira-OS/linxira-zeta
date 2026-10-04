@@ -29,10 +29,10 @@ use crate::{
 pub struct UrlResolution {
 	/// Absolute backing file; `None` → the URL has no local file (the edit
 	/// fails with `error` or a generic message).
-	pub absolute:      Option<PathBuf>,
+	pub absolute: Option<PathBuf>,
 	/// Model-facing refusal (read-only scheme, immutable, disabled…); wins
 	/// over `absolute`.
-	pub error:         Option<String>,
+	pub error: Option<String>,
 	/// Writable while plan mode is active (the scheme's write scope is the
 	/// session sandbox).
 	pub plan_writable: bool,
@@ -41,17 +41,17 @@ pub struct UrlResolution {
 /// Session-wide path policy supplied by the host once per tool call.
 #[derive(Debug, Clone)]
 pub struct PathPolicy {
-	pub cwd:                  PathBuf,
-	pub home_dir:             PathBuf,
+	pub cwd: PathBuf,
+	pub home_dir: PathBuf,
 	/// Registered internal URL schemes, lowercase, without `://` (host
 	/// router's spec keys).
-	pub url_schemes:          Vec<String>,
+	pub url_schemes: Vec<String>,
 	/// The [`Self::url_schemes`] whose single-slash `scheme:/x` spelling
 	/// aliases `scheme://x` (host spec `singleSlashAlias`).
-	pub url_alias_schemes:    Vec<String>,
+	pub url_alias_schemes: Vec<String>,
 	/// Plain-path roots that stay writable in plan mode (sandbox directories).
-	pub plan_writable_roots:  Vec<PathBuf>,
-	pub plan_active:          bool,
+	pub plan_writable_roots: Vec<PathBuf>,
+	pub plan_active: bool,
 	pub block_auto_generated: bool,
 }
 
@@ -679,12 +679,12 @@ mod tests {
 
 	fn policy(root: &Path) -> PathPolicy {
 		PathPolicy {
-			cwd:                  root.to_owned(),
-			home_dir:             root.join("home"),
-			url_schemes:          vec!["sbx".into(), "ro".into()],
-			url_alias_schemes:    vec!["sbx".into()],
-			plan_writable_roots:  vec![root.join("sandbox")],
-			plan_active:          false,
+			cwd: root.to_owned(),
+			home_dir: root.join("home"),
+			url_schemes: vec!["sbx".into(), "ro".into()],
+			url_alias_schemes: vec!["sbx".into()],
+			plan_writable_roots: vec![root.join("sandbox")],
+			plan_active: false,
 			block_auto_generated: true,
 		}
 	}

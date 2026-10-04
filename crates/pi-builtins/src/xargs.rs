@@ -36,18 +36,18 @@ mod options {
 }
 
 struct Options {
-	arg_file:                Option<String>,
-	delimiter:               Option<u8>,
-	interactive:            bool,
+	arg_file: Option<String>,
+	delimiter: Option<u8>,
+	interactive: bool,
 	exit_if_pass_char_limit: bool,
-	max_args:                Option<usize>,
-	max_chars:               Option<usize>,
-	max_lines:               Option<usize>,
-	max_procs:               usize,
-	no_run_if_empty:         bool,
-	null:                    bool,
-	replace:                 Option<String>,
-	verbose:                 bool,
+	max_args: Option<usize>,
+	max_chars: Option<usize>,
+	max_lines: Option<usize>,
+	max_procs: usize,
+	no_run_if_empty: bool,
+	null: bool,
+	replace: Option<String>,
+	verbose: bool,
 }
 
 /// Parsed `xargs` invocation.
@@ -69,12 +69,12 @@ enum ArgumentKind {
 
 #[derive(Debug, PartialEq, Eq)]
 struct Argument {
-	arg:  OsString,
+	arg: OsString,
 	kind: ArgumentKind,
 }
 
 struct ExhaustedCommandSpace {
-	arg:          Argument,
+	arg: Argument,
 	out_of_chars: bool,
 }
 
@@ -155,7 +155,7 @@ fn count_osstr_chars_for_exec(s: &OsStr) -> usize {
 #[derive(Clone)]
 struct MaxCharsCommandSizeLimiter {
 	current_size: usize,
-	max_chars:    usize,
+	max_chars: usize,
 }
 
 impl MaxCharsCommandSizeLimiter {
@@ -210,7 +210,7 @@ impl CommandSizeLimiter for MaxCharsCommandSizeLimiter {
 #[derive(Clone)]
 struct MaxArgsCommandSizeLimiter {
 	current_args: usize,
-	max_args:     usize,
+	max_args: usize,
 }
 
 impl MaxArgsCommandSizeLimiter {
@@ -244,7 +244,7 @@ impl CommandSizeLimiter for MaxArgsCommandSizeLimiter {
 #[derive(Clone)]
 struct MaxLinesCommandSizeLimiter {
 	current_line: usize,
-	max_lines:    usize,
+	max_lines: usize,
 }
 
 impl MaxLinesCommandSizeLimiter {
@@ -332,9 +332,9 @@ fn command_outcome(
 
 /// Commands launched and not yet reaped, at most `limit` at once (`-P`).
 struct Jobs {
-	limit:   usize,
+	limit: usize,
 	running: Vec<RunningCommand>,
-	result:  CommandResult,
+	result: CommandResult,
 }
 
 impl Jobs {
@@ -383,11 +383,11 @@ enum ExecAction {
 }
 
 struct CommandBuilderOptions {
-	action:      ExecAction,
+	action: ExecAction,
 	interactive: bool,
-	limiters:    LimiterCollection,
-	verbose:     bool,
-	replace:     Option<String>,
+	limiters: LimiterCollection,
+	verbose: bool,
+	replace: Option<String>,
 }
 impl CommandBuilderOptions {
 	fn new(
@@ -409,9 +409,9 @@ impl CommandBuilderOptions {
 }
 
 struct CommandBuilder<'options> {
-	options:    &'options CommandBuilderOptions,
+	options: &'options CommandBuilderOptions,
 	extra_args: Vec<OsString>,
-	limiters:   LimiterCollection,
+	limiters: LimiterCollection,
 }
 
 impl CommandBuilder<'_> {
@@ -478,7 +478,9 @@ impl CommandBuilder<'_> {
 
 		match &self.options.action {
 			ExecAction::Command(_) => {
-				let argv = std::iter::once(entry_point.to_owned()).chain(final_args).collect();
+				let argv = std::iter::once(entry_point.to_owned())
+					.chain(final_args)
+					.collect();
 				jobs.spawn(host, argv)
 			},
 			ExecAction::Echo => {
@@ -517,7 +519,7 @@ trait ArgumentReader {
 }
 
 struct WhitespaceDelimitedArgumentReader {
-	rd:      InputSource,
+	rd: InputSource,
 	pending: Vec<u8>,
 }
 
@@ -602,7 +604,7 @@ impl ArgumentReader for WhitespaceDelimitedArgumentReader {
 		}
 
 		Ok(Some(Argument {
-			arg:  String::from_utf8_lossy(&result[..]).into_owned().into(),
+			arg: String::from_utf8_lossy(&result[..]).into_owned().into(),
 			kind: if terminated_by_newline {
 				ArgumentKind::HardTerminated
 			} else {
@@ -613,9 +615,9 @@ impl ArgumentReader for WhitespaceDelimitedArgumentReader {
 }
 
 struct ByteDelimitedArgumentReader {
-	rd:        InputSource,
+	rd: InputSource,
 	delimiter: u8,
-	pending:   Vec<u8>,
+	pending: Vec<u8>,
 }
 
 impl ByteDelimitedArgumentReader {
@@ -657,7 +659,7 @@ impl ArgumentReader for ByteDelimitedArgumentReader {
 				continue;
 			}
 			return Ok(Some(Argument {
-				arg:  String::from_utf8_lossy(&result).into_owned().into(),
+				arg: String::from_utf8_lossy(&result).into_owned().into(),
 				kind: ArgumentKind::HardTerminated,
 			}));
 		}
@@ -711,10 +713,10 @@ impl From<io::Error> for XargsError {
 
 struct InputProcessOptions {
 	exit_if_pass_char_limit: bool,
-	max_args:                Option<usize>,
-	max_lines:               Option<usize>,
-	max_procs:               usize,
-	no_run_if_empty:         bool,
+	max_args: Option<usize>,
+	max_lines: Option<usize>,
+	max_procs: usize,
+	no_run_if_empty: bool,
 }
 
 impl InputProcessOptions {
@@ -1012,25 +1014,24 @@ fn app() -> clap::Command {
 }
 
 fn do_xargs(matches: &ArgMatches, host: &mut Host) -> Result<CommandResult, XargsError> {
-
 	let options = Options {
-		arg_file:                matches
+		arg_file: matches
 			.get_one::<String>(options::ARG_FILE)
 			.map(std::borrow::ToOwned::to_owned),
-		delimiter:               matches.get_one::<u8>(options::DELIMITER).copied(),
-		interactive:             matches.get_flag(options::INTERACTIVE),
+		delimiter: matches.get_one::<u8>(options::DELIMITER).copied(),
+		interactive: matches.get_flag(options::INTERACTIVE),
 		exit_if_pass_char_limit: matches.get_flag(options::EXIT),
-		max_args:                matches.get_one::<usize>(options::MAX_ARGS).copied(),
-		max_chars:               matches.get_one::<usize>(options::MAX_CHARS).copied(),
-		max_lines:               matches.get_one::<usize>(options::MAX_LINES).copied(),
-		max_procs:               match matches.get_one::<usize>(options::MAX_PROCS) {
+		max_args: matches.get_one::<usize>(options::MAX_ARGS).copied(),
+		max_chars: matches.get_one::<usize>(options::MAX_CHARS).copied(),
+		max_lines: matches.get_one::<usize>(options::MAX_LINES).copied(),
+		max_procs: match matches.get_one::<usize>(options::MAX_PROCS) {
 			None => 1,
 			Some(0) => usize::MAX,
 			Some(&max_procs) => max_procs,
 		},
-		no_run_if_empty:         matches.get_flag(options::NO_RUN_IF_EMPTY),
-		null:                    matches.get_flag(options::NULL),
-		replace:                 [options::REPLACE_I, options::REPLACE]
+		no_run_if_empty: matches.get_flag(options::NO_RUN_IF_EMPTY),
+		null: matches.get_flag(options::NULL),
+		replace: [options::REPLACE_I, options::REPLACE]
 			.iter()
 			.find_map(|&option| {
 				matches.contains_id(option).then(|| {
@@ -1039,7 +1040,7 @@ fn do_xargs(matches: &ArgMatches, host: &mut Host) -> Result<CommandResult, Xarg
 						.map_or_else(|| "{}".to_string(), std::borrow::ToOwned::to_owned)
 				})
 			}),
-		verbose:                 matches.get_flag(options::VERBOSE),
+		verbose: matches.get_flag(options::VERBOSE),
 	};
 
 	let (max_args, max_lines, replace, delimiter) = normalize_options(host, &options, matches);
@@ -1067,22 +1068,26 @@ fn do_xargs(matches: &ArgMatches, host: &mut Host) -> Result<CommandResult, Xarg
 	}
 	limiters.add(MaxCharsCommandSizeLimiter::new_system(&env));
 
-	let mut builder_options =
-		CommandBuilderOptions::new(action, limiters, replace.clone()).map_err(|_| {
-			"Base command and environment are too large to fit into one command execution"
-		})?;
+	let mut builder_options = CommandBuilderOptions::new(action, limiters, replace.clone())
+		.map_err(
+			|_| "Base command and environment are too large to fit into one command execution",
+		)?;
 
 	builder_options.interactive = options.interactive;
 	builder_options.verbose = options.verbose;
 
 	let args: Box<dyn ArgumentReader> = match (&options.arg_file, delimiter) {
 		(Some(path), Some(delimiter)) => {
-			let file = host.fs().open(host.resolve(path))
+			let file = host
+				.fs()
+				.open(host.resolve(path))
 				.map_err(|e| format!("Failed to open {path}: {e}"))?;
 			Box::new(ByteDelimitedArgumentReader::new(file, delimiter))
 		},
 		(Some(path), None) => {
-			let file = host.fs().open(host.resolve(path))
+			let file = host
+				.fs()
+				.open(host.resolve(path))
 				.map_err(|e| format!("Failed to open {path}: {e}"))?;
 			Box::new(WhitespaceDelimitedArgumentReader::new(file))
 		},
@@ -1178,7 +1183,7 @@ mod tests {
 	}
 
 	struct ChunkReader {
-		chunks:  Vec<Chunk>,
+		chunks: Vec<Chunk>,
 		current: usize,
 	}
 
@@ -1467,8 +1472,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn replace_places_item_mid_command() {
-		let (code, out, _) =
-			run_simple(&["-I", "{}", "echo", "hello", "{}", "!"], "world\n").await;
+		let (code, out, _) = run_simple(&["-I", "{}", "echo", "hello", "{}", "!"], "world\n").await;
 		assert_eq!(code, 0);
 		assert_eq!(out, "hello world !\n");
 	}
@@ -1617,8 +1621,7 @@ mod tests {
 	async fn interactive_confirmation_reads_stdin_and_prompts_stderr() {
 		let dir = tempfile::TempDir::new().expect("tempdir");
 		std::fs::write(dir.path().join("items.txt"), "a\n").expect("write items");
-		let (code, out, err) =
-			xargs_in(dir.path(), &["-a", "items.txt", "-p", "echo"], "y\n").await;
+		let (code, out, err) = xargs_in(dir.path(), &["-a", "items.txt", "-p", "echo"], "y\n").await;
 		assert_eq!(code, 0);
 		assert_eq!(out, "a\n");
 		assert_eq!(err, "echo a ?...");

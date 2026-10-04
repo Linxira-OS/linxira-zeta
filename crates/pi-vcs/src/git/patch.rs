@@ -35,8 +35,8 @@ use crate::{
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct FileEntry {
-	id:            gix::ObjectId,
-	mode:          Mode,
+	id: gix::ObjectId,
+	mode: Mode,
 	/// Index entry carries git's intent-to-add flag (`git add -N`): the path
 	/// is promised but has no staged content yet.
 	intent_to_add: bool,
@@ -53,11 +53,11 @@ struct FilePatch {
 	new_path: Option<String>,
 	old_mode: Option<Mode>,
 	new_mode: Option<Mode>,
-	old_oid:  Option<String>,
-	new_oid:  Option<String>,
-	hunks:    Vec<Hunk>,
-	binary:   Vec<BinaryBlock>,
-	raw:      String,
+	old_oid: Option<String>,
+	new_oid: Option<String>,
+	hunks: Vec<Hunk>,
+	binary: Vec<BinaryBlock>,
+	raw: String,
 }
 
 #[derive(Clone, Debug)]
@@ -66,21 +66,21 @@ struct Hunk {
 	old_count: usize,
 	new_start: usize,
 	new_count: usize,
-	lines:     Vec<HunkLine>,
-	raw:       String,
+	lines: Vec<HunkLine>,
+	raw: String,
 }
 
 #[derive(Clone, Debug)]
 struct HunkLine {
-	kind:       u8,
-	data:       Vec<u8>,
+	kind: u8,
+	data: Vec<u8>,
 	no_newline: bool,
 }
 
 #[derive(Clone, Debug)]
 struct BinaryBlock {
-	kind:    BinaryKind,
-	size:    usize,
+	kind: BinaryKind,
+	size: usize,
 	encoded: Vec<String>,
 }
 
@@ -208,12 +208,10 @@ impl GitRepo {
 			parts.push(part);
 		}
 		let patch = join_patches(&parts);
-		self.apply_patch(&patch, &ApplyOptions {
-			cached:     true,
-			index_path: None,
-			reverse:    false,
-			three_way:  false,
-		})
+		self.apply_patch(
+			&patch,
+			&ApplyOptions { cached: true, index_path: None, reverse: false, three_way: false },
+		)
 	}
 
 	/// Cherry-pick one commit with a fail-clean three-way tree merge.
@@ -252,8 +250,8 @@ impl GitRepo {
 			.map_err(|err| Error::backend("git cherry-pick options", err))?;
 		let labels = gix::merge::blob::builtin_driver::text::Labels {
 			ancestor: Some("base".into()),
-			current:  Some("HEAD".into()),
-			other:    Some(rev.into()),
+			current: Some("HEAD".into()),
+			other: Some(rev.into()),
 		};
 		let mut outcome = repo
 			.merge_trees(parent_tree, head_tree, picked_tree, labels, options)
@@ -315,8 +313,8 @@ impl GitRepo {
 				.detach();
 			let labels = gix::merge::blob::builtin_driver::text::Labels {
 				ancestor: Some("HEAD".into()),
-				current:  Some("local changes".into()),
-				other:    Some(rev.into()),
+				current: Some("local changes".into()),
+				other: Some(rev.into()),
 			};
 			let options = repo
 				.tree_merge_options()
@@ -392,11 +390,11 @@ impl GitRepo {
 			.new_commit("untracked files on HEAD", untracked_tree, std::iter::empty::<gix::ObjectId>())
 			.map_err(|err| Error::backend("git stash untracked commit", err))?;
 		let stash_commit = repo
-			.new_commit(label, worktree_tree, [
-				head_id,
-				index_commit.id().detach(),
-				untracked_commit.id().detach(),
-			])
+			.new_commit(
+				label,
+				worktree_tree,
+				[head_id, index_commit.id().detach(), untracked_commit.id().detach()],
+			)
 			.map_err(|err| Error::backend("git stash commit", err))?;
 		update_stash_ref(
 			&repo,
@@ -536,12 +534,12 @@ pub fn validate_hunk_selections(
 		}
 		if !file.binary.is_empty() {
 			errors.push(HunkSelectionError {
-				path:    selection.path.clone(),
+				path: selection.path.clone(),
 				message: format!("Cannot select hunks for binary file {}", selection.path),
 			});
 		} else if select_hunks(file, &selection.hunks).is_empty() {
 			errors.push(HunkSelectionError {
-				path:    selection.path.clone(),
+				path: selection.path.clone(),
 				message: format!("No hunks selected for {}", selection.path),
 			});
 		}
@@ -581,11 +579,11 @@ fn parse_file_patch(raw: &str) -> std::result::Result<FilePatch, ApplyFailure> {
 		new_path: Some(strip_side_path(new_token, 'b')),
 		old_mode: None,
 		new_mode: None,
-		old_oid:  None,
-		new_oid:  None,
-		hunks:    Vec::new(),
-		binary:   Vec::new(),
-		raw:      raw.to_owned(),
+		old_oid: None,
+		new_oid: None,
+		hunks: Vec::new(),
+		binary: Vec::new(),
+		raw: raw.to_owned(),
 	};
 	let mut index = 1;
 	while index < lines.len() {
@@ -1177,8 +1175,8 @@ fn merge_tree_maps(
 		.map_err(|err| Error::backend("git merge options", err))?;
 	let labels = gix::merge::blob::builtin_driver::text::Labels {
 		ancestor: Some("base".into()),
-		current:  Some("current".into()),
-		other:    Some("stashed".into()),
+		current: Some("current".into()),
+		other: Some("stashed".into()),
 	};
 	let mut outcome = repo
 		.merge_trees(base, ours, theirs, labels, options)
@@ -1292,11 +1290,14 @@ fn index_state_map(index: &gix::index::State) -> BTreeMap<String, FileEntry> {
 	for entry in index.entries() {
 		if entry.stage() == gix::index::entry::Stage::Unconflicted {
 			let path = entry.path(index);
-			map.insert(path.to_str_lossy().into_owned(), FileEntry {
-				id:            entry.id,
-				mode:          entry.mode,
-				intent_to_add: entry.flags.contains(Flags::INTENT_TO_ADD),
-			});
+			map.insert(
+				path.to_str_lossy().into_owned(),
+				FileEntry {
+					id: entry.id,
+					mode: entry.mode,
+					intent_to_add: entry.flags.contains(Flags::INTENT_TO_ADD),
+				},
+			);
 		}
 	}
 	map
@@ -1969,10 +1970,13 @@ mod tests {
 		assert_eq!(join_patches(&["one\n\n".into(), "two".into(), String::new()]), "one\n\ntwo\n\n");
 		let binary = "diff --git a/a.bin b/a.bin\nindex 1111111..2222222 100644\nGIT binary \
 		              patch\nliteral 1\nIc${O300000\n\n";
-		let errors = validate_hunk_selections(binary, &[
-			HunkSelection { path: "missing".into(), hunks: HunkSpec::Indices(vec![1]) },
-			HunkSelection { path: "a.bin".into(), hunks: HunkSpec::Indices(vec![1]) },
-		]);
+		let errors = validate_hunk_selections(
+			binary,
+			&[
+				HunkSelection { path: "missing".into(), hunks: HunkSpec::Indices(vec![1]) },
+				HunkSelection { path: "a.bin".into(), hunks: HunkSpec::Indices(vec![1]) },
+			],
+		);
 		assert_eq!(errors.len(), 1);
 		assert_eq!(errors[0].path, "a.bin");
 	}
@@ -2037,12 +2041,10 @@ mod tests {
 		assert!(!ours.path().join("deleted.txt").exists());
 		assert!(!oracle.path().join("deleted.txt").exists());
 		repo(ours.path())
-			.apply_patch(&patch, &ApplyOptions {
-				cached:     false,
-				index_path: None,
-				reverse:    true,
-				three_way:  false,
-			})
+			.apply_patch(
+				&patch,
+				&ApplyOptions { cached: false, index_path: None, reverse: true, three_way: false },
+			)
 			.expect("reverse worktree patch");
 		let patch_file = oracle.path().join("change.patch");
 		fs::write(&patch_file, &patch).expect("write reverse patch");
@@ -2056,12 +2058,10 @@ mod tests {
 		reset(ours.path());
 		reset(oracle.path());
 		repo(ours.path())
-			.apply_patch(&patch, &ApplyOptions {
-				cached:     true,
-				index_path: None,
-				reverse:    false,
-				three_way:  false,
-			})
+			.apply_patch(
+				&patch,
+				&ApplyOptions { cached: true, index_path: None, reverse: false, three_way: false },
+			)
 			.expect("apply cached");
 		let patch_file = oracle.path().join("change.patch");
 		fs::write(&patch_file, &patch).expect("write patch");
@@ -2210,10 +2210,10 @@ mod tests {
 			.expect("seed ours index");
 		git_with_index(temp.path(), &oracle_index, &["read-tree", "HEAD"]);
 		let options = ApplyOptions {
-			cached:     true,
+			cached: true,
 			index_path: Some(ours_index.clone()),
-			reverse:    false,
-			three_way:  false,
+			reverse: false,
+			three_way: false,
 		};
 		repository
 			.apply_patch(&created, &options)
@@ -2226,18 +2226,16 @@ mod tests {
 		let modified_file = temp.path().join("modified.patch");
 		fs::write(&creation_file, &created).expect("write creation patch");
 		fs::write(&modified_file, &modified).expect("write modified patch");
-		git_with_index(temp.path(), &oracle_index, &[
-			"apply",
-			"--cached",
-			"--binary",
-			"creation.patch",
-		]);
-		git_with_index(temp.path(), &oracle_index, &[
-			"apply",
-			"--cached",
-			"--binary",
-			"modified.patch",
-		]);
+		git_with_index(
+			temp.path(),
+			&oracle_index,
+			&["apply", "--cached", "--binary", "creation.patch"],
+		);
+		git_with_index(
+			temp.path(),
+			&oracle_index,
+			&["apply", "--cached", "--binary", "modified.patch"],
+		);
 		let ours_tree = repository
 			.write_tree(Some(&ours_index))
 			.expect("write ours mixed tree");
@@ -2260,10 +2258,10 @@ mod tests {
 		git_with_index(temp.path(), &oracle_index, &["read-tree", "HEAD"]);
 		let real_index_before = fs::read(temp.path().join(".git/index")).expect("real index");
 		let options = ApplyOptions {
-			cached:     true,
+			cached: true,
 			index_path: Some(ours_index.clone()),
-			reverse:    false,
-			three_way:  false,
+			reverse: false,
+			three_way: false,
 		};
 		let ours_before_check = fs::read(&ours_index).expect("ours index before check");
 		assert!(
@@ -2277,12 +2275,11 @@ mod tests {
 			.expect("apply alternate index");
 		let patch_file = temp.path().join("alternate.patch");
 		fs::write(&patch_file, &patch).expect("write patch");
-		git_with_index(temp.path(), &oracle_index, &[
-			"apply",
-			"--cached",
-			"--binary",
-			"alternate.patch",
-		]);
+		git_with_index(
+			temp.path(),
+			&oracle_index,
+			&["apply", "--cached", "--binary", "alternate.patch"],
+		);
 		fs::remove_file(patch_file).expect("remove patch");
 		let ours_tree = repository
 			.write_tree(Some(&ours_index))

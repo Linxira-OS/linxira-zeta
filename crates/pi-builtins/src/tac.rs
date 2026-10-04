@@ -91,7 +91,11 @@ fn tac_main(matches: &ArgMatches, host: &mut Host) -> Result<(), TacError> {
 		.get_one::<OsString>(options::SEPARATOR)
 		.map_or(OsStr::new("\n"), |separator| separator.as_os_str());
 
-	let separator = if raw_separator.is_empty() { OsStr::new("\0") } else { raw_separator };
+	let separator = if raw_separator.is_empty() {
+		OsStr::new("\0")
+	} else {
+		raw_separator
+	};
 	let files: Vec<OsString> = matches
 		.get_many::<OsString>(options::FILE)
 		.map_or_else(|| vec![OsString::from("-")], |files| files.cloned().collect());
@@ -183,7 +187,12 @@ fn buffer_tac_regex(
 }
 
 /// Writes lines from `data` to stdout in reverse.
-fn buffer_tac(data: &[u8], before: bool, separator: &OsStr, host: &mut Host) -> std::io::Result<()> {
+fn buffer_tac(
+	data: &[u8],
+	before: bool,
+	separator: &OsStr,
+	host: &mut Host,
+) -> std::io::Result<()> {
 	let mut out = BufWriter::new(&mut host.stdout);
 	let separator_len = separator.len();
 	let mut following_line_start = data.len();
@@ -445,10 +454,7 @@ mod tests {
 
 	#[test]
 	fn dash_operand_reads_host_stdin() {
-		assert_eq!(
-			run(PathBuf::from("."), "x\ny\n", &["-"]),
-			(0, "y\nx\n".into(), String::new())
-		);
+		assert_eq!(run(PathBuf::from("."), "x\ny\n", &["-"]), (0, "y\nx\n".into(), String::new()));
 	}
 
 	#[test]
@@ -510,6 +516,10 @@ mod tests {
 			&mut host,
 		);
 		assert_eq!(code, 1);
-		assert!(capture.err().starts_with("tac: failed to open 'missing' for reading:"));
+		assert!(
+			capture
+				.err()
+				.starts_with("tac: failed to open 'missing' for reading:")
+		);
 	}
 }

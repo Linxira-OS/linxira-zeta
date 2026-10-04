@@ -150,12 +150,12 @@ enum CopyMode {
 ///  - otherwise, use [`Attributes::NONE`].
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct Attributes {
-	ownership:  Preserve,
-	mode:       Preserve,
+	ownership: Preserve,
+	mode: Preserve,
 	timestamps: Preserve,
-	context:    Preserve,
-	links:      Preserve,
-	xattr:      Preserve,
+	context: Preserve,
+	links: Preserve,
+	xattr: Preserve,
 }
 
 /// Whether one attribute is preserved.
@@ -192,49 +192,49 @@ impl Ord for Preserve {
 #[derive(Debug)]
 struct Options {
 	/// `--attributes-only`
-	attributes_only:        bool,
+	attributes_only: bool,
 	/// `--backup[=CONTROL]`, `-b`
-	backup:                 BackupMode,
+	backup: BackupMode,
 	/// `--copy-contents`
-	copy_contents:          bool,
+	copy_contents: bool,
 	/// `-H`
-	cli_dereference:        bool,
+	cli_dereference: bool,
 	/// `-l`, `-s`, `-u`, `--attributes-only`, or a plain copy.
-	copy_mode:              CopyMode,
+	copy_mode: CopyMode,
 	/// `-L`, `--dereference`
-	dereference:            bool,
+	dereference: bool,
 	/// `-T`, `--no-target-dir`
-	no_target_dir:          bool,
+	no_target_dir: bool,
 	/// `-x`, `--one-file-system`
-	one_file_system:        bool,
+	one_file_system: bool,
 	/// `-i`/`-n` with `-f`/`--remove-destination`.
-	overwrite:              OverwriteMode,
+	overwrite: OverwriteMode,
 	/// `--parents`
-	parents:                bool,
+	parents: bool,
 	/// `--sparse[=WHEN]`
-	sparse_mode:            SparseMode,
+	sparse_mode: SparseMode,
 	/// `--strip-trailing-slashes`
 	strip_trailing_slashes: bool,
 	/// `--reflink[=WHEN]`
-	reflink_mode:           ReflinkMode,
+	reflink_mode: ReflinkMode,
 	/// `--preserve=[=ATTRIBUTE_LIST]` and `--no-preserve=ATTRIBUTE_LIST`
-	attributes:             Attributes,
+	attributes: Attributes,
 	/// `-R`, `-r`, `--recursive`
-	recursive:              bool,
+	recursive: bool,
 	/// `-S`, `--suffix`
-	backup_suffix:          String,
+	backup_suffix: String,
 	/// `-t`, `--target-directory`
-	target_dir:             Option<PathBuf>,
+	target_dir: Option<PathBuf>,
 	/// `--update[=UPDATE]`
-	update:                 UpdateMode,
+	update: UpdateMode,
 	/// `--debug`
-	debug:                  bool,
+	debug: bool,
 	/// `-v`, `--verbose`
-	verbose:                bool,
+	verbose: bool,
 	/// `-g`, `--progress`
-	progress_bar:           bool,
+	progress_bar: bool,
 	/// `-Z`, `--context`: never copy the source's SELinux label.
-	set_selinux_context:    bool,
+	set_selinux_context: bool,
 }
 
 /// Debug states of the offload and reflink actions.
@@ -268,16 +268,16 @@ enum SparseDebug {
 /// How one file's data was copied, for `--debug`.
 #[derive(Debug)]
 struct CopyDebug {
-	offload:          OffloadReflinkDebug,
-	reflink:          OffloadReflinkDebug,
+	offload: OffloadReflinkDebug,
+	reflink: OffloadReflinkDebug,
 	sparse_detection: SparseDebug,
 }
 
 impl CopyDebug {
 	/// A copy that streamed through read and write calls.
 	const STREAMED: Self = Self {
-		offload:          OffloadReflinkDebug::Unsupported,
-		reflink:          OffloadReflinkDebug::Unsupported,
+		offload: OffloadReflinkDebug::Unsupported,
+		reflink: OffloadReflinkDebug::Unsupported,
 		sparse_detection: SparseDebug::Unsupported,
 	};
 }
@@ -357,10 +357,14 @@ static PRESERVABLE_ATTRIBUTES: &[&str] =
 	&["mode", "ownership", "timestamps", "context", "links", "xattr", "all"];
 
 #[cfg(not(unix))]
-static PRESERVABLE_ATTRIBUTES: &[&str] = &["mode", "timestamps", "context", "links", "xattr", "all"];
+static PRESERVABLE_ATTRIBUTES: &[&str] =
+	&["mode", "timestamps", "context", "links", "xattr", "all"];
 
-const PRESERVE_DEFAULT_VALUES: &str =
-	if cfg!(unix) { "mode,ownership,timestamp" } else { "mode,timestamp" };
+const PRESERVE_DEFAULT_VALUES: &str = if cfg!(unix) {
+	"mode,ownership,timestamp"
+} else {
+	"mode,timestamp"
+};
 
 /// Chunk size of streamed copies.
 const COPY_BUFFER: usize = 128 * 1024;
@@ -795,7 +799,11 @@ impl CopyMode {
 		{
 			Self::Update
 		} else if matches.get_flag(options::ATTRIBUTES_ONLY) {
-			if matches.get_flag(options::REMOVE_DESTINATION) { Self::Copy } else { Self::AttrOnly }
+			if matches.get_flag(options::REMOVE_DESTINATION) {
+				Self::Copy
+			} else {
+				Self::AttrOnly
+			}
 		} else {
 			Self::Copy
 		}
@@ -806,12 +814,12 @@ impl Attributes {
 	/// `--preserve=all` / `-a`. Without SELinux support there is no context
 	/// to preserve.
 	const ALL: Self = Self {
-		ownership:  Preserve::Yes { required: true },
-		mode:       Preserve::Yes { required: true },
+		ownership: Preserve::Yes { required: true },
+		mode: Preserve::Yes { required: true },
 		timestamps: Preserve::Yes { required: true },
-		context:    Preserve::No { explicit: false },
-		links:      Preserve::Yes { required: true },
-		xattr:      Preserve::Yes { required: false },
+		context: Preserve::No { explicit: false },
+		links: Preserve::Yes { required: true },
+		xattr: Preserve::Yes { required: false },
 	};
 	/// `-p`: GNU's `--preserve=mode,ownership,timestamps`.
 	const DEFAULT: Self = Self {
@@ -824,22 +832,22 @@ impl Attributes {
 	const LINKS: Self = Self { links: Preserve::Yes { required: true }, ..Self::NONE };
 	/// Nothing preserved.
 	const NONE: Self = Self {
-		ownership:  Preserve::No { explicit: false },
-		mode:       Preserve::No { explicit: false },
+		ownership: Preserve::No { explicit: false },
+		mode: Preserve::No { explicit: false },
 		timestamps: Preserve::No { explicit: false },
-		context:    Preserve::No { explicit: false },
-		links:      Preserve::No { explicit: false },
-		xattr:      Preserve::No { explicit: false },
+		context: Preserve::No { explicit: false },
+		links: Preserve::No { explicit: false },
+		xattr: Preserve::No { explicit: false },
 	};
 
 	fn union(self, other: &Self) -> Self {
 		Self {
-			ownership:  self.ownership.max(other.ownership),
-			context:    self.context.max(other.context),
+			ownership: self.ownership.max(other.ownership),
+			context: self.context.max(other.context),
 			timestamps: self.timestamps.max(other.timestamps),
-			mode:       self.mode.max(other.mode),
-			links:      self.links.max(other.links),
-			xattr:      self.xattr.max(other.xattr),
+			mode: self.mode.max(other.mode),
+			links: self.links.max(other.links),
+			xattr: self.xattr.max(other.xattr),
 		}
 	}
 
@@ -847,15 +855,19 @@ impl Attributes {
 	/// field in other is set to `Preserve::Yes { .. }`.
 	fn diff(self, other: &Self) -> Self {
 		fn update_preserve_field(current: Preserve, other: Preserve) -> Preserve {
-			if matches!(other, Preserve::Yes { .. }) { Preserve::No { explicit: true } } else { current }
+			if matches!(other, Preserve::Yes { .. }) {
+				Preserve::No { explicit: true }
+			} else {
+				current
+			}
 		}
 		Self {
-			ownership:  update_preserve_field(self.ownership, other.ownership),
-			mode:       update_preserve_field(self.mode, other.mode),
+			ownership: update_preserve_field(self.ownership, other.ownership),
+			mode: update_preserve_field(self.mode, other.mode),
 			timestamps: update_preserve_field(self.timestamps, other.timestamps),
-			context:    update_preserve_field(self.context, other.context),
-			links:      update_preserve_field(self.links, other.links),
-			xattr:      update_preserve_field(self.xattr, other.xattr),
+			context: update_preserve_field(self.context, other.context),
+			links: update_preserve_field(self.links, other.links),
+			xattr: update_preserve_field(self.xattr, other.xattr),
 		}
 	}
 
@@ -1009,7 +1021,9 @@ impl Options {
 		let reflink = if matches.get_flag(options::CLONE) {
 			Some("auto")
 		} else {
-			matches.get_one::<String>(options::REFLINK).map(String::as_str)
+			matches
+				.get_one::<String>(options::REFLINK)
+				.map(String::as_str)
 		};
 		let reflink_mode = match reflink {
 			Some("always") => ReflinkMode::Always,
@@ -1023,7 +1037,10 @@ impl Options {
 			},
 			None => ReflinkMode::default(),
 		};
-		let sparse_mode = match matches.get_one::<String>(options::SPARSE).map(String::as_str) {
+		let sparse_mode = match matches
+			.get_one::<String>(options::SPARSE)
+			.map(String::as_str)
+		{
 			Some("always") => SparseMode::Always,
 			Some("auto") | None => SparseMode::Auto,
 			Some("never") => SparseMode::Never,
@@ -1102,7 +1119,8 @@ impl Options {
 	fn unlink_after_failed_open(&self) -> bool {
 		matches!(
 			self.overwrite,
-			OverwriteMode::Clobber(ClobberMode::Force) | OverwriteMode::Interactive(ClobberMode::Force)
+			OverwriteMode::Clobber(ClobberMode::Force)
+				| OverwriteMode::Interactive(ClobberMode::Force)
 		)
 	}
 }
@@ -1112,13 +1130,13 @@ impl Options {
 #[derive(Default)]
 struct CopyState {
 	/// Identities of the symlinks this invocation created.
-	symlinked_files:     FxHashSet<FileId>,
+	symlinked_files: FxHashSet<FileId>,
 	/// Destinations of the operands copied so far.
 	copied_destinations: FxHashSet<PathBuf>,
 	/// Source identity to its first destination, for `--preserve=links`.
-	copied_files:        FxHashMap<FileId, PathBuf>,
+	copied_files: FxHashMap<FileId, PathBuf>,
 	/// `-g` progress over the total source size.
-	progress_bar:        Option<ProgressBar>,
+	progress_bar: Option<ProgressBar>,
 }
 
 impl CopyState {
@@ -1148,7 +1166,10 @@ impl TargetType {
 }
 
 /// Returns tuple of (Source paths, Target)
-fn parse_path_args(mut paths: Vec<PathBuf>, options: &Options) -> CopyResult<(Vec<PathBuf>, PathBuf)> {
+fn parse_path_args(
+	mut paths: Vec<PathBuf>,
+	options: &Options,
+) -> CopyResult<(Vec<PathBuf>, PathBuf)> {
 	if paths.is_empty() {
 		return Err(CpError::Usage("missing file operand".to_string()));
 	} else if paths.len() == 1 && options.target_dir.is_none() {
@@ -1243,7 +1264,9 @@ fn copy(host: &mut Host, sources: &[PathBuf], target: &Path, options: &Options) 
 		sources
 	};
 	if options.parents && !host.fs().is_dir(host.resolve(target)) {
-		return Err(CpError::Usage("with --parents, the destination must be a directory".to_string()));
+		return Err(CpError::Usage(
+			"with --parents, the destination must be a directory".to_string(),
+		));
 	}
 
 	let mut non_fatal_errors = false;
@@ -1282,8 +1305,13 @@ fn copy(host: &mut Host, sources: &[PathBuf], target: &Path, options: &Options) 
 			} else {
 				"file"
 			};
-			show_warning(host, format_args!("source {file_type} {} specified more than once", source.quote()));
-		} else if let Err(error) = copy_operand(host, &mut state, source, target, target_type, options) {
+			show_warning(
+				host,
+				format_args!("source {file_type} {} specified more than once", source.quote()),
+			);
+		} else if let Err(error) =
+			copy_operand(host, &mut state, source, target, target_type, options)
+		{
 			show_error_if_needed(host, &error);
 			if !matches!(error, CpError::Skipped(false)) {
 				non_fatal_errors = true;
@@ -1296,7 +1324,11 @@ fn copy(host: &mut Host, sources: &[PathBuf], target: &Path, options: &Options) 
 		bar.finish();
 	}
 
-	if non_fatal_errors { Err(CpError::NotAllFilesCopied) } else { Ok(()) }
+	if non_fatal_errors {
+		Err(CpError::NotAllFilesCopied)
+	} else {
+		Ok(())
+	}
 }
 
 /// Copies one command-line operand, refusing to overwrite a destination this
@@ -1421,7 +1453,15 @@ fn copy_source(
 				host.resolve(&x),
 				&CanonicalizeOptions::new(MissingHandling::Normal, ResolveMode::Physical),
 			) {
-				copy_attributes(host, &src, &y, &options.attributes, false, true, options.set_selinux_context)?;
+				copy_attributes(
+					host,
+					&src,
+					&y,
+					&options.attributes,
+					false,
+					true,
+					options.set_selinux_context,
+				)?;
 			}
 		}
 	}
@@ -1488,7 +1528,11 @@ impl OverwriteMode {
 				let prompt = interactive_prompt(host, path, clobber);
 				let _ = write!(host.stderr, "{}: {prompt} ", Cp::NAME);
 				let _ = host.stderr.flush();
-				if read_yes(host) { Ok(()) } else { Err(CpError::Skipped(true)) }
+				if read_yes(host) {
+					Ok(())
+				} else {
+					Err(CpError::Skipped(true))
+				}
 			},
 			Self::Clobber(_) => Ok(()),
 		}
@@ -1625,7 +1669,10 @@ fn copy_attributes(
 		};
 		// GNU cp doesn't report a failure to set the ownership, and falls back
 		// to changing only the group.
-		if filesystem.chown(&dest_fs, Some(uid), Some(gid), false).is_err() {
+		if filesystem
+			.chown(&dest_fs, Some(uid), Some(gid), false)
+			.is_err()
+		{
 			let _ = filesystem.chown(&dest_fs, None, Some(gid), false);
 		}
 		Ok(())
@@ -1692,7 +1739,12 @@ fn set_mode(
 }
 
 /// Creates the symlink `dest` pointing at the literal `target`.
-fn symlink_file(host: &mut Host, state: &mut CopyState, target: &Path, dest: &Path) -> CopyResult<()> {
+fn symlink_file(
+	host: &mut Host,
+	state: &mut CopyState,
+	target: &Path,
+	dest: &Path,
+) -> CopyResult<()> {
 	let filesystem = host.fs().clone();
 	let dest_fs = host.resolve(dest);
 	filesystem.symlink(target, &dest_fs).map_err(|e| {
@@ -1731,16 +1783,29 @@ fn backup_dest(
 
 /// The identity of `path`, when its filesystem reports one.
 fn file_id(filesystem: &BlockingFs, path: &Path, follow: bool) -> Option<FileId> {
-	let metadata = if follow { filesystem.metadata(path) } else { filesystem.symlink_metadata(path) };
+	let metadata = if follow {
+		filesystem.metadata(path)
+	} else {
+		filesystem.symlink_metadata(path)
+	};
 	metadata.ok()?.file_id()
 }
 
 /// Whether `a` and `b` are the same file. Identities decide when both come
 /// from one namespace; otherwise (a provider without identities, or one
 /// aliasing host files) the same location does.
-fn paths_refer_to_same_file(filesystem: &BlockingFs, a: &Path, b: &Path, dereference: bool) -> bool {
+fn paths_refer_to_same_file(
+	filesystem: &BlockingFs,
+	a: &Path,
+	b: &Path,
+	dereference: bool,
+) -> bool {
 	let stat = |path: &Path| {
-		if dereference { filesystem.metadata(path) } else { filesystem.symlink_metadata(path) }
+		if dereference {
+			filesystem.metadata(path)
+		} else {
+			filesystem.symlink_metadata(path)
+		}
 	};
 	let (Ok(a_metadata), Ok(b_metadata)) = (stat(a), stat(b)) else {
 		return false;
@@ -1886,7 +1951,14 @@ fn handle_existing_dest(
 		backup_dest(&filesystem, dest, &dest_fs, backup, is_dest_removed)?;
 	}
 	if !is_dest_removed {
-		delete_dest_if_needed_and_allowed(host, state, source, dest, options, source_in_command_line)?;
+		delete_dest_if_needed_and_allowed(
+			host,
+			state,
+			source,
+			dest,
+			options,
+			source_in_command_line,
+		)?;
 	}
 
 	Ok(backup)
@@ -1924,10 +1996,19 @@ fn delete_dest_if_needed_and_allowed(
 		OverwriteMode::NoClobber => false,
 	};
 
-	if delete_dest { delete_path(host, state, dest, options) } else { Ok(()) }
+	if delete_dest {
+		delete_path(host, state, dest, options)
+	} else {
+		Ok(())
+	}
 }
 
-fn delete_path(host: &mut Host, state: &CopyState, path: &Path, options: &Options) -> CopyResult<()> {
+fn delete_path(
+	host: &mut Host,
+	state: &CopyState,
+	path: &Path,
+	options: &Options,
+) -> CopyResult<()> {
 	let filesystem = host.fs().clone();
 	let path_fs = host.resolve(path);
 	// Windows requires clearing readonly attribute before deletion when using
@@ -1961,7 +2042,8 @@ fn delete_path(host: &mut Host, state: &CopyState, path: &Path, options: &Option
 /// without the paths themselves: `a/b/c` and `d/a/b/c` give `(a, d/a)` and
 /// `(a/b, d/a/b)`.
 fn aligned_ancestors(source: &Path, dest: &Path) -> Vec<(PathBuf, PathBuf)> {
-	let source_ancestors: Vec<&Path> = std::iter::successors(Some(source), |p| parent_path(p)).collect();
+	let source_ancestors: Vec<&Path> =
+		std::iter::successors(Some(source), |p| parent_path(p)).collect();
 	let dest_ancestors: Vec<&Path> = std::iter::successors(Some(dest), |p| parent_path(p)).collect();
 
 	// Neither the full path nor the empty path (or root) is an ancestor to
@@ -2065,16 +2147,15 @@ fn handle_copy_mode(
 			if filesystem.exists(&dest_fs) && (backed_up || options.force()) {
 				filesystem.remove_file(&dest_fs)?;
 			}
-			let original = if options.dereference(source_in_command_line)
-				&& filesystem.is_symlink(&source_fs)
-			{
-				filesystem.canonicalize_with(
-					&source_fs,
-					&CanonicalizeOptions::new(MissingHandling::Missing, ResolveMode::Physical),
-				)?
-			} else {
-				source_fs
-			};
+			let original =
+				if options.dereference(source_in_command_line) && filesystem.is_symlink(&source_fs) {
+					filesystem.canonicalize_with(
+						&source_fs,
+						&CanonicalizeOptions::new(MissingHandling::Missing, ResolveMode::Physical),
+					)?
+				} else {
+					source_fs
+				};
 			filesystem.hard_link(&original, &dest_fs).map_err(|e| {
 				CpError::IoErrContext(
 					e,
@@ -2237,8 +2318,8 @@ fn copy_file(
 		filesystem.remove_file(&dest_fs)?;
 	}
 
-	let check_existing_dest = initial_dest_metadata.is_some()
-		&& (!options.attributes_only || options.remove_destination());
+	let check_existing_dest =
+		initial_dest_metadata.is_some() && (!options.attributes_only || options.remove_destination());
 	if check_existing_dest {
 		if paths_refer_to_same_file(&filesystem, &source_fs, &dest_fs, true)
 			&& options.copy_mode == CopyMode::Link
@@ -2375,9 +2456,7 @@ fn copy_file(
 	let copied_data = !source_metadata.is_symlink()
 		&& !matches!(options.copy_mode, CopyMode::Link | CopyMode::SymLink);
 	if !dest_is_symlink && copied_data {
-		let kept = dest_metadata
-			.as_ref()
-			.filter(|_| fate == DestFate::Kept);
+		let kept = dest_metadata.as_ref().filter(|_| fate == DestFate::Kept);
 		let dest_permissions = calculate_dest_permissions(kept, &source_metadata, options);
 		// Here, to match GNU semantics, we quietly ignore an error
 		// if a user does not have the correct ownership to modify
@@ -2542,7 +2621,15 @@ fn copy_link(
 		CpError::IoErrContext(e, format!("cannot read symbolic link {}", source.quote()))
 	})?;
 	symlink_file(host, state, &link, dest)?;
-	copy_attributes(host, source, dest, &options.attributes, false, false, options.set_selinux_context)
+	copy_attributes(
+		host,
+		source,
+		dest,
+		&options.attributes,
+		false,
+		false,
+		options.set_selinux_context,
+	)
 }
 
 /// Streams `source` into `dest` through their handles, polling cancellation
@@ -2635,8 +2722,8 @@ fn copy_data(
 						.map_err(|e| CpError::IoErrContext(e, context_for(source, dest)))?;
 				}
 				let copy_debug = CopyDebug {
-					offload:          OffloadReflinkDebug::Unknown,
-					reflink:          OffloadReflinkDebug::Yes,
+					offload: OffloadReflinkDebug::Unknown,
+					reflink: OffloadReflinkDebug::Yes,
 					sparse_detection: SparseDebug::Unsupported,
 				};
 				return Ok((copy_debug, DestFate::Kept));
@@ -2659,8 +2746,11 @@ fn copy_data(
 	// A stream destination (a FIFO, a device) is written, not truncated.
 	// Owner-writable until the final permissions are applied, so a handle can
 	// still be reopened to preserve timestamps.
-	let create_mode =
-		if source_is_stream { 0o622 } else { (source_metadata.permissions().mode() & 0o777) | 0o200 };
+	let create_mode = if source_is_stream {
+		0o622
+	} else {
+		(source_metadata.permissions().mode() & 0o777) | 0o200
+	};
 	let mut dest_options = OpenOptions::new();
 	dest_options
 		.write(true)
@@ -2672,7 +2762,9 @@ fn copy_data(
 	let (dest_file, fate) = match filesystem.open_with(&dest_fs, &dest_options) {
 		Ok(file) => (file, DestFate::Kept),
 		// `-f`: remove a destination that cannot be opened, and try again.
-		Err(_) if options.unlink_after_failed_open() && filesystem.symlink_metadata(&dest_fs).is_ok() => {
+		Err(_)
+			if options.unlink_after_failed_open() && filesystem.symlink_metadata(&dest_fs).is_ok() =>
+		{
 			delete_path(host, state, dest, options)?;
 			let file = filesystem
 				.open_with(&dest_fs, &dest_options)
@@ -2683,7 +2775,9 @@ fn copy_data(
 	};
 
 	let copy_debug = if source_is_stream {
-		let dest_is_stream = dest_file.metadata().is_ok_and(|metadata| is_stream(&metadata));
+		let dest_is_stream = dest_file
+			.metadata()
+			.is_ok_and(|metadata| is_stream(&metadata));
 		if !dest_is_stream {
 			dest_file.set_len(0).map_err(|e| {
 				CpError::IoErrContext(e, format!("cannot create regular file {}", dest.quote()))
@@ -2695,9 +2789,9 @@ fn copy_data(
 		#[cfg(any(target_os = "linux", target_os = "android"))]
 		let fast = match (native, source_file.native(), dest_file.native()) {
 			(true, Some(source_native), Some(dest_native)) => {
-				let dest_is_fifo = dest_native
-					.metadata()
-					.is_ok_and(|metadata| std::os::unix::fs::FileTypeExt::is_fifo(&metadata.file_type()));
+				let dest_is_fifo = dest_native.metadata().is_ok_and(|metadata| {
+					std::os::unix::fs::FileTypeExt::is_fifo(&metadata.file_type())
+				});
 				let copy_debug = linux::copy(
 					source_native,
 					dest_native,
@@ -2732,10 +2826,9 @@ fn copy_data(
 /// Generate an error message if `target` is not the correct `target_type`
 fn verify_target_type(host: &Host, target: &Path, target_type: TargetType) -> CopyResult<()> {
 	match (target_type, host.fs().metadata(host.resolve(target))) {
-		(TargetType::Directory, Ok(metadata)) if !metadata.is_dir() => Err(CpError::IoErrContext(
-			pi_vfs::not_a_directory(),
-			format!("target {}", target.quote()),
-		)),
+		(TargetType::Directory, Ok(metadata)) if !metadata.is_dir() => {
+			Err(CpError::IoErrContext(pi_vfs::not_a_directory(), format!("target {}", target.quote())))
+		},
 		(TargetType::Directory, Err(error)) => {
 			Err(CpError::IoErrContext(error, format!("target {}", target.quote())))
 		},
@@ -2760,7 +2853,11 @@ fn disk_usage(host: &Host, paths: &[PathBuf], recursive: bool) -> u64 {
 			let resolved = host.resolve(path);
 			match filesystem.metadata(&resolved) {
 				Ok(metadata) if metadata.is_dir() => {
-					if recursive { disk_usage_directory(host, &resolved) } else { 0 }
+					if recursive {
+						disk_usage_directory(host, &resolved)
+					} else {
+						0
+					}
 				},
 				Ok(metadata) => metadata.len(),
 				Err(_) => 0,
@@ -2791,13 +2888,13 @@ fn disk_usage_directory(host: &Host, path: &Path) -> u64 {
 
 /// Traversal state of one `cp -r` operand.
 struct Walk<'a> {
-	options:   &'a Options,
+	options: &'a Options,
 	/// Device of the operand, for `-x`.
-	root_dev:  Option<u64>,
+	root_dev: Option<u64>,
 	/// Identities of the directories being copied, outermost first.
 	ancestors: Vec<FileId>,
 	/// Whether an entry failed after its diagnostic was printed.
-	failed:    bool,
+	failed: bool,
 }
 
 impl Walk<'_> {
@@ -2842,10 +2939,7 @@ fn copy_directory(
 	options: &Options,
 ) -> CopyResult<()> {
 	if !options.recursive {
-		return Err(CpError::Error(format!(
-			"-r not specified; omitting directory {}",
-			root.quote()
-		)));
+		return Err(CpError::Error(format!("-r not specified; omitting directory {}", root.quote())));
 	}
 
 	let filesystem = host.fs().clone();
@@ -2933,12 +3027,24 @@ fn copy_directory(
 				host.resolve(&x),
 				&CanonicalizeOptions::new(MissingHandling::Normal, ResolveMode::Physical),
 			) {
-				copy_attributes(host, &src, &y, &options.attributes, false, true, options.set_selinux_context)?;
+				copy_attributes(
+					host,
+					&src,
+					&y,
+					&options.attributes,
+					false,
+					true,
+					options.set_selinux_context,
+				)?;
 			}
 		}
 	}
 
-	if walk.failed { Err(CpError::NotAllFilesCopied) } else { Ok(()) }
+	if walk.failed {
+		Err(CpError::NotAllFilesCopied)
+	} else {
+		Ok(())
+	}
 }
 
 /// Copies one entry of a directory tree: a directory recursively (fixing its
@@ -2996,7 +3102,10 @@ fn copy_entry(
 	if let Some(pushed) = walk.enter(host, source, is_root) {
 		match filesystem.read_dir(&source_fs) {
 			Err(error) => {
-				show_error(host, CpError::IoErrContext(error, format!("cannot access {}", source.quote())));
+				show_error(
+					host,
+					CpError::IoErrContext(error, format!("cannot access {}", source.quote())),
+				);
 				walk.failed = true;
 			},
 			Ok(entries) => {
@@ -3019,7 +3128,8 @@ fn copy_entry(
 					let name = entry.file_name();
 					let child_source = child_path(source, &name);
 					let child_dest = child_path(dest, &name);
-					if let Err(error) = copy_entry(host, state, walk, &child_source, &child_dest, false) {
+					if let Err(error) = copy_entry(host, state, walk, &child_source, &child_dest, false)
+					{
 						show_error_if_needed(host, &error);
 						if !matches!(error, CpError::Skipped(false)) {
 							walk.failed = true;
@@ -3072,12 +3182,10 @@ fn build_dir(
 	};
 
 	excluded_perms |= match (copy_attributes_from, options.attributes.mode) {
-		(Some(from), Preserve::Yes { .. }) => {
-			!filesystem
-				.symlink_metadata(host.resolve(from))?
-				.permissions()
-				.mode()
-		},
+		(Some(from), Preserve::Yes { .. }) => !filesystem
+			.symlink_metadata(host.resolve(from))?
+			.permissions()
+			.mode(),
 		_ => umask(),
 	};
 
@@ -3108,8 +3216,8 @@ mod linux {
 
 	/// Debug report of a copy whose source could not be inspected.
 	const UNDETECTED: CopyDebug = CopyDebug {
-		offload:          OffloadReflinkDebug::Unknown,
-		reflink:          OffloadReflinkDebug::No,
+		offload: OffloadReflinkDebug::Unknown,
+		reflink: OffloadReflinkDebug::No,
 		sparse_detection: SparseDebug::No,
 	};
 
@@ -3197,7 +3305,8 @@ mod linux {
 			if hole < 0 {
 				break;
 			}
-			let mut position = u64::try_from(data).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
+			let mut position =
+				u64::try_from(data).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
 			let end = u64::try_from(hole).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
 			// Read and write data in chunks of `step` while reusing the same
 			// buffer
@@ -3206,7 +3315,8 @@ mod linux {
 				let chunk = &mut buf[..len];
 				source.read_exact_at(chunk, position)?;
 				dest.write_all_at(chunk, position)?;
-				position += u64::try_from(len).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
+				position +=
+					u64::try_from(len).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
 			}
 			current = offset(end)?;
 		}
@@ -3220,7 +3330,9 @@ mod linux {
 		let size = source.metadata()?.size();
 		dest.set_len(size)?;
 
-		let blksize = usize::try_from(dest.metadata()?.blksize()).unwrap_or(4096).max(1);
+		let blksize = usize::try_from(dest.metadata()?.blksize())
+			.unwrap_or(4096)
+			.max(1);
 		let mut buf: Vec<u8> = vec![0; blksize];
 		let mut current: u64 = 0;
 
@@ -3233,7 +3345,8 @@ mod linux {
 			if buf.iter().any(|&x| x != 0) {
 				dest.write_all_at(buf, current)?;
 			}
-			current += u64::try_from(this_read).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
+			current +=
+				u64::try_from(this_read).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
 		}
 		Ok(())
 	}
@@ -3295,10 +3408,7 @@ mod linux {
 	}
 
 	/// Debug report and copy method for `--sparse=auto`.
-	fn detect_sparse_auto(
-		source: &File,
-		dest_is_fifo: bool,
-	) -> io::Result<(CopyDebug, CopyMethod)> {
+	fn detect_sparse_auto(source: &File, dest_is_fifo: bool) -> io::Result<(CopyDebug, CopyMethod)> {
 		let mut copy_debug = UNDETECTED;
 
 		let mut copy_method = CopyMethod::Default;
@@ -3506,7 +3616,12 @@ mod tests {
 		let (code, capture) = run_util::<Cp>(&["source", "fresh"], "", fixture.path());
 		assert_eq!(code, 0, "{}", capture.err());
 
-		let modified = |name: &str| fs::metadata(fixture.path().join(name)).unwrap().modified().unwrap();
+		let modified = |name: &str| {
+			fs::metadata(fixture.path().join(name))
+				.unwrap()
+				.modified()
+				.unwrap()
+		};
 		assert_eq!(modified("kept"), past);
 		assert_ne!(modified("fresh"), past);
 	}

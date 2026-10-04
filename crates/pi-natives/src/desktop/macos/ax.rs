@@ -84,14 +84,14 @@ impl MacAx {
 /// One accessibility top-level window of an application, mapped to its
 /// `WindowServer` id.
 pub(super) struct AxWindowRecord {
-	pub(super) id:        u32,
+	pub(super) id: u32,
 	/// `AXMinimized`; `None` when the attribute could not be read.
 	pub(super) minimized: Option<bool>,
 }
 
 /// The owner of the hit-testable surface at a global point.
 pub(super) struct PointOwner {
-	pub(super) pid:    libc::pid_t,
+	pub(super) pid: libc::pid_t,
 	/// `WindowServer` id of the surface's top-level window, when AX exposes it.
 	pub(super) window: Option<u32>,
 }
@@ -133,7 +133,7 @@ pub(super) fn window_records(pid: libc::pid_t) -> Option<Vec<AxWindowRecord>> {
 		.iter()
 		.map(|window| {
 			Some(AxWindowRecord {
-				id:        window_id(window)?,
+				id: window_id(window)?,
 				minimized: copy_bool(window, "AXMinimized"),
 			})
 		})
@@ -984,12 +984,7 @@ fn bounds(element: &AXUIElement) -> Option<AxBounds> {
 	if !got_point || !got_size {
 		return None;
 	}
-	Some(AxBounds {
-		x:      point.x,
-		y:      point.y,
-		width:  dimensions.width,
-		height: dimensions.height,
-	})
+	Some(AxBounds { x: point.x, y: point.y, width: dimensions.width, height: dimensions.height })
 }
 
 fn retained_element(pointer: *const AXUIElement) -> CoreResult<CFRetained<AXUIElement>> {
@@ -1144,9 +1139,10 @@ mod tests {
 
 	#[test]
 	fn ambiguous_menu_frames_are_refused() {
-		let candidates = [AttachedCandidate::Menu { frame_matches: true }, AttachedCandidate::Menu {
-			frame_matches: true,
-		}];
+		let candidates = [
+			AttachedCandidate::Menu { frame_matches: true },
+			AttachedCandidate::Menu { frame_matches: true },
+		];
 		assert!(select_attached(&candidates, 57).is_err());
 	}
 }

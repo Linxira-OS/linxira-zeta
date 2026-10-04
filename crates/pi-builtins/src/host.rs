@@ -37,11 +37,11 @@ use std::{
 	marker::PhantomData,
 	panic::{AssertUnwindSafe, catch_unwind},
 	path::{Path, PathBuf},
-	time::Duration,
 	sync::{
 		Arc, OnceLock,
 		atomic::{AtomicBool, Ordering},
 	},
+	time::Duration,
 };
 
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -104,7 +104,7 @@ pub(crate) trait Utility: clap::Parser + Send + Sync + 'static {
 pub(crate) struct Host {
 	/// Standard input. Reads observe cancellation, so a blocked pipe read
 	/// returns EOF on abort instead of hanging the shell.
-	pub stdin:  Stdin,
+	pub stdin: Stdin,
 	/// Standard output; the null device when fd 1 is closed. Raw: utilities
 	/// with bulk output buffer it themselves via [`Host::stdout_writer`].
 	pub stdout: OpenFile,
@@ -115,25 +115,25 @@ pub(crate) struct Host {
 	/// follows write order exactly.
 	pub stderr: StreamWriter,
 	/// Unwrapped stdout retained for provider-aware self-read detection.
-	stdout_handle:         Option<OpenFile>,
+	stdout_handle: Option<OpenFile>,
 	/// Populated on the utility worker, where virtual handle queries may block.
-	stdout_metadata:       OnceLock<Option<Metadata>>,
+	stdout_metadata: OnceLock<Option<Metadata>>,
 
-	name:                  String,
-	paths:                 ShellPaths,
-	env:                   HashMap<String, String>,
-	cancel:                Arc<AtomicBool>,
-	exit_code:             i32,
+	name: String,
+	paths: ShellPaths,
+	env: HashMap<String, String>,
+	cancel: Arc<AtomicBool>,
+	exit_code: i32,
 	stdin_is_search_input: bool,
 	/// The shared stdout/stderr writer when both fds point at one
 	/// destination; `None` when they diverge.
-	merged_out:            Option<Arc<Mutex<StreamWriter>>>,
+	merged_out: Option<Arc<Mutex<StreamWriter>>>,
 	/// Emulated SIGPIPE state shared with every guarded stream handed out by
 	/// this host; see [`Sigpipe`].
-	sigpipe:               Arc<Sigpipe>,
+	sigpipe: Arc<Sigpipe>,
 	/// Requests to the adapter's [`CommandRunner`]; `None` unless the utility
 	/// set [`Utility::RUNS_COMMANDS`].
-	commands:              Option<flume::Sender<CommandRequest>>,
+	commands: Option<flume::Sender<CommandRequest>>,
 }
 
 fn output_handle(file: &OpenFile) -> Option<OpenFile> {
@@ -193,7 +193,7 @@ pub(crate) const SIGPIPE_EXIT_CODE: i32 = 141;
 /// for utilities that must survive a closed reader (`tee -p`).
 #[derive(Default)]
 pub(crate) struct Sigpipe {
-	hit:     AtomicBool,
+	hit: AtomicBool,
 	ignored: AtomicBool,
 }
 
@@ -221,8 +221,8 @@ enum GuardedStream {
 /// Clones share the [`Sigpipe`] state, so `stdout_clone()` handles given to
 /// helper threads participate too.
 struct SigpipeGuard {
-	inner:   OpenFile,
-	stream:  GuardedStream,
+	inner: OpenFile,
+	stream: GuardedStream,
 	sigpipe: Arc<Sigpipe>,
 }
 
@@ -243,22 +243,28 @@ impl Write for SigpipeGuard {
 		if matches!(self.stream, GuardedStream::Stderr) && self.sigpipe.is_hit() {
 			return Ok(buf.len());
 		}
-		self.inner.write(buf).inspect_err(|error| self.sigpipe.record(error))
+		self
+			.inner
+			.write(buf)
+			.inspect_err(|error| self.sigpipe.record(error))
 	}
 
 	fn flush(&mut self) -> io::Result<()> {
 		if matches!(self.stream, GuardedStream::Stderr) && self.sigpipe.is_hit() {
 			return Ok(());
 		}
-		self.inner.flush().inspect_err(|error| self.sigpipe.record(error))
+		self
+			.inner
+			.flush()
+			.inspect_err(|error| self.sigpipe.record(error))
 	}
 }
 
 impl openfiles::Stream for SigpipeGuard {
 	fn clone_box(&self) -> Box<dyn openfiles::Stream> {
 		Box::new(Self {
-			inner:   self.inner.clone(),
-			stream:  self.stream,
+			inner: self.inner.clone(),
+			stream: self.stream,
 			sigpipe: Arc::clone(&self.sigpipe),
 		})
 	}
@@ -304,8 +310,8 @@ const UNAVAILABLE_DESCRIPTOR: &str = "/dev/fd/-1";
 /// descriptors, for tests that build utility state without a shell.
 #[derive(Clone, Default)]
 pub(crate) struct ShellPaths {
-	cwd:         PathBuf,
-	filesystem:  BlockingFs,
+	cwd: PathBuf,
+	filesystem: BlockingFs,
 	#[cfg(unix)]
 	descriptors: Arc<[(brush_core::ShellFd, OpenFile)]>,
 }
@@ -315,7 +321,14 @@ impl std::fmt::Debug for ShellPaths {
 		let mut debug = f.debug_struct("ShellPaths");
 		debug.field("cwd", &self.cwd);
 		#[cfg(unix)]
-		debug.field("fds", &self.descriptors.iter().map(|(fd, _)| *fd).collect::<Vec<_>>());
+		debug.field(
+			"fds",
+			&self
+				.descriptors
+				.iter()
+				.map(|(fd, _)| *fd)
+				.collect::<Vec<_>>(),
+		);
 		debug.finish()
 	}
 }
@@ -332,12 +345,14 @@ impl ShellPaths {
 			.map(|(fd, file)| (fd, file.clone()))
 			.collect();
 		#[cfg(unix)]
-		let filesystem = descriptors.iter().fold(filesystem, |filesystem, (fd, file)| {
-			match file.as_vfs().and_then(|file| file.try_clone().ok()) {
-				Some(file) => filesystem.mount_file(virtual_descriptor_path(*fd), file),
-				None => filesystem,
-			}
-		});
+		let filesystem = descriptors
+			.iter()
+			.fold(filesystem, |filesystem, (fd, file)| {
+				match file.as_vfs().and_then(|file| file.try_clone().ok()) {
+					Some(file) => filesystem.mount_file(virtual_descriptor_path(*fd), file),
+					None => filesystem,
+				}
+			});
 		Self {
 			cwd: context.shell.working_dir().to_path_buf(),
 			filesystem,
@@ -417,7 +432,10 @@ impl ShellPaths {
 			// like the external commands the shell detaches into their own
 			// session.
 			openfiles::DescriptorPath::Terminal => {
-				return if self.file(OpenFiles::STDIN_FD).is_some_and(OpenFile::is_terminal) {
+				return if self
+					.file(OpenFiles::STDIN_FD)
+					.is_some_and(OpenFile::is_terminal)
+				{
 					PathBuf::from("/dev/tty")
 				} else {
 					PathBuf::from(UNAVAILABLE_DESCRIPTOR)
@@ -435,7 +453,8 @@ impl ShellPaths {
 
 	#[cfg(unix)]
 	fn file(&self, fd: brush_core::ShellFd) -> Option<&OpenFile> {
-		self.descriptors
+		self
+			.descriptors
 			.iter()
 			.find(|(shell_fd, _)| *shell_fd == fd)
 			.map(|(_, file)| file)
@@ -487,11 +506,16 @@ impl Host {
 
 	/// Whether `path` identifies the regular file currently backing stdout.
 	pub fn path_is_stdout(&self, path: &Path) -> bool {
-		self.stdout_metadata
+		self
+			.stdout_metadata
 			.get_or_init(|| self.stdout_handle.as_ref().and_then(output_metadata))
 			.as_ref()
 			.is_some_and(|stdout| {
-				stdout.is_file() && self.fs().metadata(path).is_ok_and(|candidate| stdout.same_file(&candidate))
+				stdout.is_file()
+					&& self
+						.fs()
+						.metadata(path)
+						.is_ok_and(|candidate| stdout.same_file(&candidate))
 			})
 	}
 
@@ -597,9 +621,9 @@ impl Host {
 	/// its compressor from inside the temp-file abstraction, for instance.
 	pub fn child_env(&self) -> ChildEnv {
 		ChildEnv {
-			cwd:    self.paths.cwd().to_path_buf(),
+			cwd: self.paths.cwd().to_path_buf(),
 			filesystem: self.fs().clone(),
-			env:    Arc::new(
+			env: Arc::new(
 				self
 					.env
 					.iter()
@@ -698,7 +722,11 @@ impl RunningCommand {
 			})
 			.wait();
 		drop(running.swap_remove(index));
-		Some(response.map_err(|_| cancelled_command()).and_then(|status| status))
+		Some(
+			response
+				.map_err(|_| cancelled_command())
+				.and_then(|status| status),
+		)
 	}
 }
 
@@ -706,8 +734,8 @@ impl RunningCommand {
 /// program. Stdin defaults to the null device, as GNU `xargs` and `find
 /// -exec` give their children.
 pub(crate) struct ShellCommand {
-	argv:  Vec<OsString>,
-	cwd:   Option<PathBuf>,
+	argv: Vec<OsString>,
+	cwd: Option<PathBuf>,
 	stdin: Option<OpenFile>,
 }
 
@@ -770,7 +798,7 @@ impl From<std::process::ExitStatus> for CommandStatus {
 /// to the adapter's [`CommandRunner`].
 struct CommandRequest {
 	command: ShellCommand,
-	reply:   flume::Sender<io::Result<CommandStatus>>,
+	reply: flume::Sender<io::Result<CommandStatus>>,
 }
 
 /// The error a utility sees once the adapter stops serving commands: the
@@ -789,9 +817,9 @@ fn cancelled_command() -> io::Error {
 /// every existing one is busy, so sequential commands share one.
 struct CommandRunner<SE: ShellExtensions> {
 	template: Shell<SE>,
-	idle:     Vec<Shell<SE>>,
-	params:   Arc<ExecutionParameters>,
-	cwd:      Arc<Path>,
+	idle: Vec<Shell<SE>>,
+	params: Arc<ExecutionParameters>,
+	cwd: Arc<Path>,
 	requests: flume::Receiver<CommandRequest>,
 }
 
@@ -800,31 +828,30 @@ impl<SE: ShellExtensions> CommandRunner<SE> {
 		let mut template = context.shell.clone();
 		template.options_mut().interactive = false;
 		let cwd = Arc::from(template.working_dir());
-		Self {
-			template,
-			idle: Vec::new(),
-			params: Arc::new(context.params.clone()),
-			cwd,
-			requests,
-		}
+		Self { template, idle: Vec::new(), params: Arc::new(context.params.clone()), cwd, requests }
 	}
 
 	/// Starts serving `request` on a worker. The future answers the request —
 	/// a utility that stopped waiting (it was cancelled) simply never reads
 	/// the answer — and yields the worker back for [`CommandRunner::release`].
-	fn start(&mut self, request: CommandRequest) -> impl Future<Output = Shell<SE>> + Send + use<SE> {
+	fn start(
+		&mut self,
+		request: CommandRequest,
+	) -> impl Future<Output = Shell<SE>> + Send + use<SE> {
 		let mut shell = self.idle.pop().unwrap_or_else(|| self.template.clone());
 		let params = Arc::clone(&self.params);
 		let cwd = Arc::clone(&self.cwd);
 		async move {
-			let status = run_in(&mut shell, &params, &cwd, request.command).await.map_err(|error| {
-				let kind = match ExecutionExitCode::from(&error) {
-					ExecutionExitCode::NotFound => io::ErrorKind::NotFound,
-					ExecutionExitCode::CannotExecute => io::ErrorKind::PermissionDenied,
-					_ => io::ErrorKind::Other,
-				};
-				io::Error::new(kind, error.to_string())
-			});
+			let status = run_in(&mut shell, &params, &cwd, request.command)
+				.await
+				.map_err(|error| {
+					let kind = match ExecutionExitCode::from(&error) {
+						ExecutionExitCode::NotFound => io::ErrorKind::NotFound,
+						ExecutionExitCode::CannotExecute => io::ErrorKind::PermissionDenied,
+						_ => io::ErrorKind::Other,
+					};
+					io::Error::new(kind, error.to_string())
+				});
 			let _ = request.reply.send(status);
 			shell
 		}
@@ -857,8 +884,7 @@ async fn run_in<SE: ShellExtensions>(
 		.map(|arg| CommandArg::from(arg.to_string_lossy().into_owned()))
 		.collect();
 	let name = args.first().map(ToString::to_string).unwrap_or_default();
-	let mut simple =
-		SimpleCommand::new(ShellForCommand::ParentShell(shell), params, name, args);
+	let mut simple = SimpleCommand::new(ShellForCommand::ParentShell(shell), params, name, args);
 	simple.use_functions = false;
 	let spawned = match simple.execute().await {
 		Ok(spawned) => spawned,
@@ -897,7 +923,9 @@ async fn wait_status(
 	};
 	Ok(match child.wait(cancel).await? {
 		ProcessWaitResult::Completed(output) => output.status.into(),
-		ProcessWaitResult::Stopped => CommandStatus::Exited(ExecutionResult::stopped().exit_code.into()),
+		ProcessWaitResult::Stopped => {
+			CommandStatus::Exited(ExecutionResult::stopped().exit_code.into())
+		},
 		ProcessWaitResult::Cancelled => CommandStatus::Exited(ExecutionExitCode::Interrupted.into()),
 	})
 }
@@ -936,7 +964,11 @@ impl StreamWriter {
 
 	/// Picks the policy for `file`: block for regular files, line otherwise.
 	pub fn new(file: OpenFile) -> Self {
-		if is_regular_file(&file) { Self::block(file) } else { Self::line(file) }
+		if is_regular_file(&file) {
+			Self::block(file)
+		} else {
+			Self::line(file)
+		}
 	}
 
 	/// Forces line buffering regardless of destination.
@@ -1016,7 +1048,9 @@ pub(crate) fn is_regular_file(file: &OpenFile) -> bool {
 		let Ok(dup) = fd.try_clone_to_owned() else {
 			return false;
 		};
-		std::fs::File::from(dup).metadata().is_ok_and(|m| m.is_file())
+		std::fs::File::from(dup)
+			.metadata()
+			.is_ok_and(|m| m.is_file())
 	}
 	#[cfg(not(unix))]
 	{
@@ -1073,9 +1107,9 @@ fn same_destination(_a: &OpenFile, _b: &OpenFile) -> bool {
 /// [`ChildEnv::forward_stderr`] drains it to the command's own fd 2.
 #[derive(Clone)]
 pub(crate) struct ChildEnv {
-	cwd:    PathBuf,
+	cwd: PathBuf,
 	filesystem: BlockingFs,
-	env:    Arc<Vec<(String, String)>>,
+	env: Arc<Vec<(String, String)>>,
 	stderr: OpenFile,
 }
 
@@ -1093,7 +1127,10 @@ impl ChildEnv {
 	///
 	/// Stdin and stdout are left untouched for the caller to wire; they default
 	/// to inherited, so a caller that leaves them alone MUST redirect them.
-	pub fn command(&self, program: impl AsRef<std::ffi::OsStr>) -> io::Result<std::process::Command> {
+	pub fn command(
+		&self,
+		program: impl AsRef<std::ffi::OsStr>,
+	) -> io::Result<std::process::Command> {
 		let cwd = native_working_dir(&self.filesystem, &self.cwd)?;
 		let mut command = std::process::Command::new(program);
 		command
@@ -1130,9 +1167,9 @@ impl ChildEnv {
 /// a blocked pipe; the utility then sees EOF and unwinds cleanly rather than
 /// leaving a detached thread writing to descriptors the host has moved on from.
 pub(crate) struct Stdin {
-	file:   OpenFile,
+	file: OpenFile,
 	#[cfg_attr(not(unix), allow(dead_code, reason = "readiness polling is unix-only"))]
-	fd:     Option<i32>,
+	fd: Option<i32>,
 	cancel: Arc<AtomicBool>,
 }
 
@@ -1360,7 +1397,6 @@ pub(crate) fn parse_duration(input: &str) -> Option<Duration> {
 	Duration::try_from_secs_f64(value * multiplier).map_or(Some(Duration::MAX), Some)
 }
 
-
 /// Shell-quotes `arg` when rebuilding a command line for a child process.
 ///
 /// `timeout` and `nohup` reconstruct the command they were handed so it can be
@@ -1396,7 +1432,7 @@ pub(crate) fn util<U: Utility, SE: ShellExtensions>() -> Registration<SE> {
 /// the utility's exit status) rather than through brush's generic usage-error
 /// path.
 pub(crate) struct Util<U: Utility> {
-	argv:    Vec<String>,
+	argv: Vec<String>,
 	_marker: PhantomData<fn() -> U>,
 }
 
@@ -1602,9 +1638,9 @@ fn build_host<SE: ShellExtensions>(
 	let stdin = context.try_fd(OpenFiles::STDIN_FD);
 	// The `OpenFile` is kept alive by the `Stdin` below, so the fd stays valid.
 	let stdin_fd = stdin.as_ref().and_then(pollable_fd);
-	let stdin_is_search_input = stdin
-		.as_ref()
-		.is_some_and(|file| matches!(file, OpenFile::PipeReader(_) | OpenFile::Stream(_) | OpenFile::Vfs(_)));
+	let stdin_is_search_input = stdin.as_ref().is_some_and(|file| {
+		matches!(file, OpenFile::PipeReader(_) | OpenFile::Stream(_) | OpenFile::Vfs(_))
+	});
 
 	let mut env = HashMap::new();
 	for (key, var) in context.shell.env().iter_exported() {
@@ -1642,11 +1678,7 @@ fn build_host<SE: ShellExtensions>(
 	let stdout = SigpipeGuard::wrap(stdout, GuardedStream::Stdout, &sigpipe);
 
 	Ok(Host {
-		stdin: Stdin {
-			file:   or_null(stdin)?,
-			fd:     stdin_fd,
-			cancel: Arc::clone(&cancel),
-		},
+		stdin: Stdin { file: or_null(stdin)?, fd: stdin_fd, cancel: Arc::clone(&cancel) },
 		stdout,
 		stderr,
 		stdout_handle,
@@ -1767,11 +1799,7 @@ mod testing {
 			stdin: impl Into<Vec<u8>>,
 			cwd: impl Into<PathBuf>,
 		) -> (Self, Capture) {
-			Self::for_test_with_stdin(
-				name,
-				Box::new(MemStream::reader(stdin.into())),
-				cwd,
-			)
+			Self::for_test_with_stdin(name, Box::new(MemStream::reader(stdin.into())), cwd)
 		}
 
 		/// Builds a host backed by an arbitrary in-memory stdin stream.
@@ -1789,28 +1817,20 @@ mod testing {
 			let stdout = OpenFile::Stream(Box::new(MemStream::writer(Arc::clone(&capture.stdout))));
 			let stderr = OpenFile::Stream(Box::new(MemStream::writer(Arc::clone(&capture.stderr))));
 			let host = Self {
-				stdin:                 Stdin {
-					file:   OpenFile::Stream(stdin),
-					fd:     None,
-					cancel: Arc::clone(&cancel),
-				},
-				stdout:                SigpipeGuard::wrap(stdout, GuardedStream::Stdout, &sigpipe),
-				stderr:                StreamWriter::new(SigpipeGuard::wrap(
-					stderr,
-					GuardedStream::Stderr,
-					&sigpipe,
-				)),
-				stdout_handle:         None,
-				stdout_metadata:       Default::default(),
-				name:                  name.to_string(),
-				paths:                 ShellPaths::with_cwd(cwd),
-				env:                   HashMap::new(),
+				stdin: Stdin { file: OpenFile::Stream(stdin), fd: None, cancel: Arc::clone(&cancel) },
+				stdout: SigpipeGuard::wrap(stdout, GuardedStream::Stdout, &sigpipe),
+				stderr: StreamWriter::new(SigpipeGuard::wrap(stderr, GuardedStream::Stderr, &sigpipe)),
+				stdout_handle: None,
+				stdout_metadata: Default::default(),
+				name: name.to_string(),
+				paths: ShellPaths::with_cwd(cwd),
+				env: HashMap::new(),
 				cancel,
-				exit_code:             0,
+				exit_code: 0,
 				stdin_is_search_input: false,
-				merged_out:            None,
+				merged_out: None,
 				sigpipe,
-				commands:              None,
+				commands: None,
 			};
 			(host, capture)
 		}
@@ -1906,7 +1926,10 @@ mod testing {
 		for (name, builtin) in utility_builtins() {
 			shell.register_builtin(name, builtin);
 		}
-		shell.set_working_dir(cwd).await.expect("test working directory");
+		shell
+			.set_working_dir(cwd)
+			.await
+			.expect("test working directory");
 
 		let mut input = tempfile::tempfile().expect("stdin file");
 		input.write_all(stdin.as_bytes()).expect("write stdin");
@@ -1935,14 +1958,14 @@ mod testing {
 	/// appending writer over a shared buffer.
 	#[derive(Clone)]
 	struct MemStream {
-		input:  Arc<Mutex<io::Cursor<Vec<u8>>>>,
+		input: Arc<Mutex<io::Cursor<Vec<u8>>>>,
 		output: Arc<Mutex<Vec<u8>>>,
 	}
 
 	impl MemStream {
 		fn reader(data: Vec<u8>) -> Self {
 			Self {
-				input:  Arc::new(Mutex::new(io::Cursor::new(data))),
+				input: Arc::new(Mutex::new(io::Cursor::new(data))),
 				output: Arc::new(Mutex::new(Vec::new())),
 			}
 		}
@@ -2122,8 +2145,10 @@ mod testing {
 			let (reader, writer) = std::io::pipe().unwrap();
 			drop(reader);
 			host.set_test_stdout(OpenFile::from(writer));
-			let argv: Vec<OsString> =
-				std::iter::once("naive").chain(args.iter().copied()).map(OsString::from).collect();
+			let argv: Vec<OsString> = std::iter::once("naive")
+				.chain(args.iter().copied())
+				.map(OsString::from)
+				.collect();
 			let parsed = <NaiveWriter as clap::Parser>::try_parse_from(argv).unwrap();
 			(run_caught::<NaiveWriter>(parsed, &mut host), capture)
 		}
@@ -2144,7 +2169,11 @@ mod testing {
 		fn ignored_sigpipe_leaves_error_handling_to_the_utility() {
 			let (code, capture) = closed_pipe_host(&["--ignore-sigpipe"]);
 			assert_eq!(code, 1);
-			assert!(capture.err().starts_with("naive: write error: Broken pipe"), "{:?}", capture.err());
+			assert!(
+				capture.err().starts_with("naive: write error: Broken pipe"),
+				"{:?}",
+				capture.err()
+			);
 		}
 	}
 }

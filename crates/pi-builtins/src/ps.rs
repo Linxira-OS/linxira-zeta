@@ -29,30 +29,30 @@ pub(crate) struct PsCommand {
 
 #[derive(Default)]
 struct PsOptions {
-	all:                 bool,
-	other_users:         bool,
+	all: bool,
+	other_users: bool,
 	include_no_terminal: bool,
-	full_format:         bool,
-	long_format:         bool,
-	user_format:         bool,
-	job_format:          bool,
-	memory_format:       bool,
-	bsd_syntax:          bool,
-	command_only:        bool,
-	running_only:        bool,
-	no_headers:          bool,
-	custom_format:       bool,
-	threads:             bool,
-	pids:                Vec<i32>,
-	parents:             Vec<i32>,
-	groups:              Vec<i32>,
-	sessions:            Vec<i32>,
-	effective_users:     Vec<u32>,
-	real_users:          Vec<u32>,
-	real_groups:         Vec<u32>,
-	terminals:           Vec<Option<u64>>,
-	columns:             Vec<PsColumn>,
-	sort:                Vec<PsSort>,
+	full_format: bool,
+	long_format: bool,
+	user_format: bool,
+	job_format: bool,
+	memory_format: bool,
+	bsd_syntax: bool,
+	command_only: bool,
+	running_only: bool,
+	no_headers: bool,
+	custom_format: bool,
+	threads: bool,
+	pids: Vec<i32>,
+	parents: Vec<i32>,
+	groups: Vec<i32>,
+	sessions: Vec<i32>,
+	effective_users: Vec<u32>,
+	real_users: Vec<u32>,
+	real_groups: Vec<u32>,
+	terminals: Vec<Option<u64>>,
+	columns: Vec<PsColumn>,
+	sort: Vec<PsSort>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -190,8 +190,8 @@ const THREAD_COLUMNS: [(PsField, &str); 9] = [
 
 #[derive(Clone)]
 struct PsColumn {
-	field:     PsField,
-	header:    String,
+	field: PsField,
+	header: String,
 	min_width: usize,
 }
 
@@ -217,7 +217,7 @@ enum PsSortField {
 }
 
 struct PsSort {
-	field:      PsSortField,
+	field: PsSortField,
 	descending: bool,
 }
 
@@ -237,40 +237,40 @@ enum ParsePsResult {
 }
 
 struct PsProcessRow {
-	pid:           i32,
-	ppid:          Option<i32>,
-	pgid:          Option<i32>,
-	sid:           Option<i32>,
-	tpgid:         Option<i32>,
-	user:          Option<u32>,
-	ruid:          Option<u32>,
-	rgid:          Option<u32>,
-	egid:          Option<u32>,
-	terminal:      Option<u64>,
-	state:         char,
-	start_time:    u64,
-	started_at:    Option<SystemTime>,
-	age:           Option<Duration>,
-	cpu_time:      Option<Duration>,
-	virtual_size:  Option<u64>,
+	pid: i32,
+	ppid: Option<i32>,
+	pgid: Option<i32>,
+	sid: Option<i32>,
+	tpgid: Option<i32>,
+	user: Option<u32>,
+	ruid: Option<u32>,
+	rgid: Option<u32>,
+	egid: Option<u32>,
+	terminal: Option<u64>,
+	state: char,
+	start_time: u64,
+	started_at: Option<SystemTime>,
+	age: Option<Duration>,
+	cpu_time: Option<Duration>,
+	virtual_size: Option<u64>,
 	resident_size: Option<u64>,
-	thread_count:  Option<u32>,
-	nice:          Option<i32>,
-	priority:      Option<i32>,
-	flags:         Option<u64>,
-	minor_faults:  Option<u64>,
-	major_faults:  Option<u64>,
-	wchan:         Option<String>,
-	command:       String,
-	args:          String,
+	thread_count: Option<u32>,
+	nice: Option<i32>,
+	priority: Option<i32>,
+	flags: Option<u64>,
+	minor_faults: Option<u64>,
+	major_faults: Option<u64>,
+	wchan: Option<String>,
+	command: String,
+	args: String,
 	/// Filled only under `-M`; each thread becomes its own output line.
-	threads:       Vec<ThreadInfo>,
+	threads: Vec<ThreadInfo>,
 }
 
 /// One output line: a process, or under `-M` one of its threads.
 #[derive(Clone, Copy)]
 struct PsLine<'a> {
-	row:    &'a PsProcessRow,
+	row: &'a PsProcessRow,
 	/// Thread index within the process, and its details.
 	thread: Option<(usize, &'a ThreadInfo)>,
 }
@@ -340,7 +340,11 @@ impl PsProcessRow {
 	fn cpu_percent(&self) -> Option<f64> {
 		let age = self.age?.as_secs_f64();
 		let cpu_time = self.cpu_time?.as_secs_f64();
-		Some(if age > 0.0 { 100.0 * cpu_time / age } else { 0.0 })
+		Some(if age > 0.0 {
+			100.0 * cpu_time / age
+		} else {
+			0.0
+		})
 	}
 
 	fn memory_percent(&self, total_memory: Option<u64>) -> Option<f64> {
@@ -694,11 +698,15 @@ fn parse_ps_flag_group(
 			'w' => {},
 			'c' => options.command_only = true,
 			'r' if form == FlagForm::Dashed => {
-				options.sort.push(PsSort { field: PsSortField::Cpu, descending: true });
+				options
+					.sort
+					.push(PsSort { field: PsSortField::Cpu, descending: true });
 			},
 			'r' => options.running_only = true,
 			'm' if form == FlagForm::Dashed => {
-				options.sort.push(PsSort { field: PsSortField::Mem, descending: true });
+				options
+					.sort
+					.push(PsSort { field: PsSortField::Mem, descending: true });
 			},
 			'h' => options.no_headers = true,
 			'M' => {
@@ -1533,7 +1541,8 @@ mod tests {
 	#[test]
 	fn parses_output_field_lists_and_overrides() {
 		let argv = vec!["-o".to_string(), "pid:8=PROCESS,user,args=COMMAND".to_string()];
-		let ParsePsResult::Options(options) = parse_ps_args(&argv).expect("valid output fields") else {
+		let ParsePsResult::Options(options) = parse_ps_args(&argv).expect("valid output fields")
+		else {
 			panic!("expected parsed options");
 		};
 
@@ -1552,7 +1561,10 @@ mod tests {
 	fn rejects_unknown_output_field() {
 		let error = parse_ps_format("pid,definitely_not_a_field", &mut Vec::new())
 			.expect_err("unknown fields must fail");
-		assert_eq!(error, (1, "unknown output format specifier 'definitely_not_a_field'".to_string()));
+		assert_eq!(
+			error,
+			(1, "unknown output format specifier 'definitely_not_a_field'".to_string())
+		);
 	}
 
 	#[test]
@@ -1563,7 +1575,10 @@ mod tests {
 				panic!("expected parsed options");
 			};
 			assert!(!options.running_only, "{argv:?}");
-			assert!(matches!(options.sort[..], [PsSort { field: PsSortField::Cpu, descending: true }]));
+			assert!(matches!(
+				options.sort[..],
+				[PsSort { field: PsSortField::Cpu, descending: true }]
+			));
 		}
 
 		let ParsePsResult::Options(options) =
@@ -1609,7 +1624,9 @@ mod tests {
 
 	#[test]
 	fn formats_start_time_by_age() {
-		let started_at = UNIX_EPOCH.checked_add(Duration::from_secs(1_704_164_640)).unwrap();
+		let started_at = UNIX_EPOCH
+			.checked_add(Duration::from_secs(1_704_164_640))
+			.unwrap();
 		assert_eq!(
 			format_ps_start(Some(started_at), Some(Duration::from_secs(60)), &TimeZone::UTC, false),
 			"03:04"
@@ -1639,4 +1656,3 @@ mod tests {
 		assert_eq!(format_ps_start(None, None, &TimeZone::UTC, false), "?");
 	}
 }
-

@@ -89,7 +89,7 @@ enum Header {
 }
 
 struct RewriteBody {
-	lines:  Vec<String>,
+	lines: Vec<String>,
 	insert: Option<Placement>,
 }
 
@@ -116,7 +116,7 @@ fn strip_insert_header(line: &str) -> Option<(Placement, &str)> {
 #[derive(Debug)]
 struct CompiledSection {
 	path: String,
-	ir:   Vec<String>,
+	ir: Vec<String>,
 }
 
 fn parse_error(message: impl Into<String>) -> EditError {
@@ -1654,18 +1654,18 @@ fn finish_pattern(
 		}
 		if let Some(closest) = closest_desired_block(content, &source) {
 			operations.push(Operation {
-				pattern_text:        closest,
+				pattern_text: closest,
 				source_pattern_text: source.clone(),
-				rewrite:             OperationRewrite::Explicit { text: source.clone() },
-				all:                 false,
-				assumed_deletion:    false,
-				desired_state:       false,
-				recovery_note:       Some(format!(
+				rewrite: OperationRewrite::Explicit { text: source.clone() },
+				all: false,
+				assumed_deletion: false,
+				desired_state: false,
+				recovery_note: Some(format!(
 					"Note: operation {number} stated desired text without markers; the closest \
 					 matching block was replaced with it. State the current text in *** Find and the \
 					 new text in *** Replace."
 				)),
-				whitespace_matched:  false,
+				whitespace_matched: false,
 			});
 			return Ok(());
 		}

@@ -24,8 +24,8 @@ pub(super) mod backend {
 	#[serde(deny_unknown_fields)]
 	pub(in crate::oauth_callback) struct Snapshot {
 		version: u32,
-		id:      String,
-		scheme:  String,
+		id: String,
+		scheme: String,
 	}
 
 	pub(in crate::oauth_callback) fn prepare(context: &Context) -> Result<Snapshot> {
@@ -99,10 +99,10 @@ fn core(home: PathBuf, env: BTreeMap<String, String>) -> Core {
 		scheme: "omp-test".to_owned(),
 		env,
 		state: Mutex::new(State {
-			phase:     Phase::Idle,
-			waits:     BTreeMap::new(),
+			phase: Phase::Idle,
+			waits: BTreeMap::new(),
 			next_wait: 1,
-			next_op:   1,
+			next_op: 1,
 		}),
 		operation: Mutex::new(()),
 	}
@@ -331,9 +331,10 @@ fn darwin_compiler_selection_respects_cc_and_wrappers() {
 	)));
 	assert_eq!(quoted.get_program(), "ccache");
 	let quoted_args: Vec<_> = quoted.get_args().collect();
-	assert_eq!(quoted_args, vec![OsStr::new(
-		"/Applications/Xcode 16.app/Contents/Developer/usr/bin/clang"
-	)]);
+	assert_eq!(
+		quoted_args,
+		vec![OsStr::new("/Applications/Xcode 16.app/Contents/Developer/usr/bin/clang")]
+	);
 
 	let escaped = super::darwin_compiler::darwin_compiler_command(Some(OsStr::new(
 		r"/path\ with\ spaces/clang -fuse-ld=lld",
