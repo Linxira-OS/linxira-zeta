@@ -20,6 +20,7 @@ import {
 	PI_FAMILY,
 	PI_FREE_FILES,
 	SKIP_PREFIXES,
+	USER_SURFACE_FILES,
 } from "./brand-rules";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -101,6 +102,27 @@ for (const file of trackedFiles()) {
 			}
 		});
 	}
+}
+
+// USER_SURFACE_FILES: verbatim-rendered copy surfaces, scanned regardless of
+// extension so .txt (and future non-code surfaces) cannot leak invisibly.
+for (const surface of USER_SURFACE_FILES) {
+	const abs = path.resolve(ROOT, surface.file);
+	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard
+	if (!fs.existsSync(abs)) {
+		hits.push({
+			file: surface.file,
+			line: 0,
+			text: "<file missing>",
+			rule: `${surface.why} (surface file deleted — drop it from USER_SURFACE_FILES or restore it)`,
+		});
+		continue;
+	}
+	const lines = fs.readFileSync(abs, "utf8").split("\n");
+	lines.forEach((line, index) => {
+		if (!surface.forbid.test(line)) return;
+		hits.push({ file: surface.file, line: index + 1, text: line.trim().slice(0, 120), rule: surface.why });
+	});
 }
 
 // MUST_CONTAIN: merge-protected exact forms.

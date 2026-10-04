@@ -2520,7 +2520,6 @@ export interface Messages {
 	tip24: string;
 	tip25: string;
 	tip26: string;
-	tip27: string;
 	// ── Chat transcript render layer (pi-tui chat/*, status-line/*, tools/*, apps/*) ──
 	statusInterrupted: string; // render mapping for USER_INTERRUPT_LABEL — "Interrupted by user"
 	statusOperationAborted: string; // "Operation aborted"

@@ -3,7 +3,6 @@ import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
 import { getKeybindings, type Keybinding } from "../keybindings";
-import { registerNativeBlob } from "../native/blobs";
 import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";
@@ -682,34 +681,8 @@ export class WelcomeComponent implements Component {
 	}
 }
 
-/**
- * {@link ZETA_LOGO} as SVG for the native welcome, on the terminal's grid: a
- * cell is 3×6 units, so the 12×5-cell art spans 36×30 from (14,16). The left
- * leg's `▒▒` tail is a half-opacity cell; the gradient spans the whole art in
- * user space (per-axis normalized, like {@link gradientLogo}) so the tail
- * keeps its colour. Tern mounts SVG blobs as live DOM, so the classes are
- * animation hooks: `trace` (the outline, `pathLength=1` for a draw-on), `mark`
- * (the fills) and the gradient stops `s0`–`s2`.
- */
-const WELCOME_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 12 44 38">
-<defs><linearGradient id="g" gradientUnits="userSpaceOnUse" gradientTransform="matrix(36 0 0 30 14 16)" x1="0" y1="0" x2="1" y2="1">
-<stop class="s0" offset="0" stop-color="#ed4abf"/><stop class="s1" offset=".5" stop-color="#9b4dff"/><stop class="s2" offset="1" stop-color="#5ad8e6"/>
-</linearGradient></defs>
-<path class="mark" fill="url(#g)" d="M14 16h36v6h-9v24h-6V22h-6v12h-6V22h-9z"/>
-<rect class="mark" fill="url(#g)" opacity=".5" x="23" y="34" width="6" height="6"/>
-<path class="trace" fill="none" stroke="url(#g)" stroke-width="1" stroke-linejoin="round" pathLength="1" d="M14 16h36v6h-9v24h-6V22h-6v18h-6V22h-9z"/>
-</svg>`;
-
-let welcomeLogoId: string | undefined;
-
-/** The registered blob id of {@link WELCOME_LOGO_SVG}. */
-function welcomeLogoBlob(): string {
-	welcomeLogoId ??= registerNativeBlob(new TextEncoder().encode(WELCOME_LOGO_SVG), "image/svg+xml");
-	return welcomeLogoId;
-}
-
 /** Block-grid brand mark shared by the welcome and setup surfaces. */
-export const ZETA_LOGO = ["███████╗", "╚════██║", "   ██╔═╝", " ██╔═╝ ", "███████╗", "╚══════╝"];
+export const ZETA_LOGO = ["█████████╗", "╚════████║", "   ████╔═╝", " ████╔═╝  ", "█████████╗", "╚════════╝"];
 
 /** The block-grid brand mark as accent lines; `shimmer` declares the terminal-clocked shine sweep. */
 export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode {

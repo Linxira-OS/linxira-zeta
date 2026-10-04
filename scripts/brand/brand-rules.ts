@@ -145,6 +145,21 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "ζ char-art is the product logo surface (v18.0.3 lesson)",
 	},
 	{
+		file: "packages/tui/src/prompt/composer.ts",
+		needle: "new WelcomeComponent(",
+		why: "welcome entry liveness: the composer must construct the Zeta welcome component — an upstream reroute that renders a different welcome is the v18.6.0 structural blind-spot class (guards checked welcome.ts while the runtime could have been fed another entry)",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: 'builtin: "zeta"',
+		why: "the native-rendered welcome logo must be the terminal's builtin zeta mark, never an inline upstream asset",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: "APP_NAME} v${this.version}",
+		why: "the welcome version line is `zeta v<package version>` driven by APP_NAME (registry: 版本行); a hardcoded upstream version literal or omp wordmark here is the v18.6.0 regression shape",
+	},
+	{
 		file: "packages/tui/src/theme/symbols.ts",
 		needle: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ; nerd U+F0D57 preserved separately)",
@@ -196,6 +211,14 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /omp:\/\//,
 		why: "the internal docs URL scheme is zeta:// only (registry row: 内部 URL scheme); upstream omp:// literals — code, prompts, docs, test fixtures — are swept at every merge",
+	},
+	{
+		needle: /M14 16h36/,
+		why: "upstream TTT-mark welcome SVG path fingerprint (v18.6.0: the upstream logo art sat as a dead asset beside the live ZETA_LOGO; path data carries no brand token, so token scans cannot see this class)",
+	},
+	{
+		needle: /WELCOME_LOGO_SVG|welcomeLogoBlob/,
+		why: "the welcome logo is ZETA_LOGO text art plus the terminal's builtin zeta mark; any re-introduced inline welcome logo asset is upstream residue (deleted with v18.6.0's dead TTT SVG)",
 	},
 	// ── Cross-surface token pairs (added after the v18.4.3 CI round) ──────────
 	// These tokens exist on TWO sides (producer + consumer). Sweeping only one
@@ -256,5 +279,30 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /\$\{APP_NAME\} [a-z]{2,}/,
 		why: "usage/help run-strings must interpolate CLI_BIN_NAME (the CLI command), not APP_NAME (product identity: bare `zeta` is the workbench bin). Product-identity contexts (splash wordmark, log-file names, attribution) use no space-separated command word and do not match",
+	},
+];
+
+/**
+ * User-visible brand surfaces scanned verbatim regardless of file extension
+ * (SCAN_EXT only covers code/doc extensions, so .txt copies rendered straight
+ * to the screen were invisible to every rule — the v18.6.0 tips.txt leak).
+ * `forbid` runs line-by-line on the exact file; any hit fails the gate.
+ * Extend whenever a new verbatim-rendered copy surface appears.
+ */
+export const USER_SURFACE_FILES: Array<{ file: string; forbid: RegExp; why: string }> = [
+	{
+		file: "packages/tui/src/prompt/tips.txt",
+		forbid: /\bomp\b|PI_DIALECT|clanker/,
+		why: "the welcome Tip row renders this file verbatim: the binary is zeta, and upstream env/slang tokens (PI_DIALECT, clanker) never surface (v18.6.0 shipped 7 omp tips + a PI_DIALECT tip here)",
+	},
+	{
+		file: "packages/coding-agent/src/i18n/en.ts",
+		forbid: /PI_DIALECT/,
+		why: "tip copy is user-visible; the upstream inference-dialect env var name never renders (v18.6.0: i18n tip23 leaked it — the functional env plumbing in packages/agent is fine, only rendered copy is banned)",
+	},
+	{
+		file: "packages/coding-agent/src/i18n/zh.ts",
+		forbid: /PI_DIALECT/,
+		why: "tip copy is user-visible; the upstream inference-dialect env var name never renders (v18.6.0: i18n tip23 leaked it)",
 	},
 ];

@@ -228,6 +228,11 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "ζ char-art product logo surface (v18.0.3 lesson)",
 	},
 	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		symbol: 'ZETA_LOGO = ["█████████╗", "╚════████║", "   ████╔═╝", " ████╔═╝  ", "█████████╗", "╚════════╝"]',
+		why: "widened Z art (+1px per side, 2026-10-04 user-approved geometry) — pins the exact rows so a merge cannot silently revert to the narrow art",
+	},
+	{
 		file: "packages/tui/src/theme/symbols.ts",
 		symbol: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ)",
