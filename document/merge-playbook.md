@@ -646,3 +646,9 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
    main-interactive-input：旧 main 本地同样红 = Windows 噪声；但 CI
    Linux 上红的部分需在 Linux 语境复核（rules-reload 的 `.zeta/rules`
    fixture 路径与 discovery 顺序是首要嫌疑）。
+
+### 测试契约迭代的流程教训（v18.6.0 轮实测）
+
+1. **子代理在飞时禁止 `git add -A`**：会把子代理的半成品（dump-*.txt、中途形态测试）扫进提交——CI 把 scratch 测试当真测试跑（v18.6.0 第三轮 hfp-debug.test.ts 事故）。stage 显式列文件，或等子代理完成后 gate。
+2. **TUI 锚点保持的正确机制**：transient 行（autocomplete 建议帧等）造成增长时，头部裁剪（head-clip）在持续 provider 增长（jump list）下错误——写入时无法区分 transient/persistent 增长。正确机制：增长照常滚动 + 未提交推挤记账 + 收缩时 CSI Ps +T 回拉锚点。
+3. **fixture 字面量漂移是品牌守卫盲区**：测试契约 resolve 的类型几乎全是类 11/22 字面量漂移（ZETA_PROFILE、omp. 日志名、zeta/task/ 前缀、omp fixtures/URL/shim 名）——它们活在测试 fixture 的上游形字面量里，brand-rules 跨面 token 守卫不覆盖。合并时对上游触碰的测试目录跑 fixture 字面量专项 grep。
