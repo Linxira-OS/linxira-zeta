@@ -104,6 +104,7 @@ const NEXT_OWNED_API_PREFIXES = [
 	"/api/worktrees",
 	"/api/tracking",
 	"/api/file-index",
+	"/api/webui/",
 ];
 
 /**

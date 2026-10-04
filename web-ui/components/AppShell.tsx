@@ -121,7 +121,6 @@ function AppShellContent() {
 	const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
 	const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
 	const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
-	const [statsOpen, setStatsOpen] = useState(false);
 	const [updating, setUpdating] = useState(false);
 	const [checkingUpdate, setCheckingUpdate] = useState(false);
 	const [updateNotice, setUpdateNotice] = useState<string | null>(null);
@@ -195,7 +194,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15): live session id survives pane close so the
@@ -629,7 +628,7 @@ function AppShellContent() {
 			id: "open-stats",
 			label: t("palette.open-stats"),
 			keywords: "stats dashboard usage",
-			run: () => setStatsOpen(true),
+			run: () => setDockTool("stats"),
 		},
 		...(isMobile
 			? []
@@ -1064,7 +1063,12 @@ function AppShellContent() {
 			>
 				{(
 					[
-						// The collapsed rail is desktop-only; mobile keeps the full drawer.
+						// This entry and the top-bar toggle are intentionally two
+						// different actions, not duplicates: this one switches the
+						// sidebar into the 56px icon-rail mode (quick actions stay
+						// reachable), while the top-bar toggle fully hides/shows the
+						// sidebar. Labels are worded to keep the distinction obvious.
+						// The rail is desktop-only; mobile keeps the full drawer.
 						...(isMobile
 							? []
 							: [
@@ -1538,21 +1542,21 @@ function AppShellContent() {
 								}}
 							>
 								<button
-									onClick={() => setStatsOpen(v => !v)}
-									title={statsOpen ? t("topbar.backToChat") : t("topbar.statsDashboard")}
-									aria-pressed={statsOpen}
+									onClick={() => setDockTool(cur => (cur === "stats" ? null : "stats"))}
+									title={t("topbar.statsDashboard")}
+									aria-pressed={dockTool === "stats"}
 									style={{
 										display: "flex",
 										alignItems: "center",
 										gap: 6,
 										height: "100%",
 										padding: "0 12px",
-										background: statsOpen ? "var(--bg-selected)" : "none",
+										background: dockTool === "stats" ? "var(--bg-selected)" : "none",
 										border: "none",
-										borderTop: statsOpen ? "2px solid var(--accent)" : "2px solid transparent",
+										borderTop: dockTool === "stats" ? "2px solid var(--accent)" : "2px solid transparent",
 										borderRight: "1px solid var(--border)",
 										cursor: "pointer",
-										color: statsOpen ? "var(--text)" : "var(--text-muted)",
+										color: dockTool === "stats" ? "var(--text)" : "var(--text-muted)",
 										fontSize: 11,
 										whiteSpace: "nowrap",
 									}}
@@ -2331,9 +2335,7 @@ function AppShellContent() {
 
 					{/* Chat content */}
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-						{statsOpen ? (
-							<StatsDashboard />
-						) : showDegradedDraft ? (
+						{showDegradedDraft ? (
 							<DegradedDraftCard
 								onWorkspaceSelect={cwd => {
 									setDegradedDraft(false);
@@ -2710,6 +2712,26 @@ function AppShellContent() {
 								),
 							},
 							{
+								id: "stats",
+								label: t("dock.window.stats"),
+								icon: (
+									<svg
+										width="16"
+										height="16"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<line x1="18" y1="20" x2="18" y2="10" />
+										<line x1="12" y1="20" x2="12" y2="4" />
+										<line x1="6" y1="20" x2="6" y2="14" />
+									</svg>
+								),
+							},
+							{
 								id: "plugins",
 								label: t("dock.window.plugins"),
 								icon: (
@@ -2817,15 +2839,17 @@ function AppShellContent() {
 									color: "var(--text)",
 								}}
 							>
-								{dockTool === "session"
-									? t("dock.window.session")
-									: dockTool === "files"
-										? t("dock.window.files")
-										: dockTool === "tracking"
-											? t("dock.window.tracking")
-											: dockTool === "terminal"
-												? t("dock.window.terminal")
-												: t("dock.window.plugins")}
+								{dockTool === "stats"
+									? t("dock.window.stats")
+									: dockTool === "session"
+										? t("dock.window.session")
+										: dockTool === "files"
+											? t("dock.window.files")
+											: dockTool === "tracking"
+												? t("dock.window.tracking")
+												: dockTool === "terminal"
+													? t("dock.window.terminal")
+													: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2890,7 +2914,9 @@ function AppShellContent() {
 								minHeight: 0,
 							}}
 						>
-							{dockTool === "session" ? (
+							{dockTool === "stats" ? (
+								<StatsDashboard />
+							) : dockTool === "session" ? (
 								<SidePanel
 									stats={sessionStats}
 									contextUsage={contextUsage}
