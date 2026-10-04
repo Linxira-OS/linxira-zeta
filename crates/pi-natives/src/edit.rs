@@ -60,47 +60,47 @@ fn reason(err: impl std::fmt::Display) -> napi::Error {
 /// Session-wide policy; TypeScript builds it once per tool call.
 #[napi(object)]
 pub struct EditPolicy {
-	pub cwd:                  String,
+	pub cwd: String,
 	/// `replace` | `patch` | `apply_patch` | `hashline` | `sloppy`.
-	pub mode:                 String,
-	pub allow_fuzzy:          bool,
-	pub fuzzy_threshold:      f64,
-	pub enforce_seen_lines:   bool,
+	pub mode: String,
+	pub allow_fuzzy: bool,
+	pub fuzzy_threshold: f64,
+	pub enforce_seen_lines: bool,
 	pub block_auto_generated: bool,
-	pub plan_active:          bool,
+	pub plan_active: bool,
 	/// Registered internal URL schemes (router spec keys).
-	pub url_schemes:          Vec<String>,
+	pub url_schemes: Vec<String>,
 	/// The `urlSchemes` whose single-slash `scheme:/x` spelling aliases
 	/// `scheme://x` (spec `singleSlashAlias`).
-	pub url_alias_schemes:    Vec<String>,
+	pub url_alias_schemes: Vec<String>,
 	/// Plain-path roots writable in plan mode.
-	pub plan_writable_roots:  Vec<String>,
-	pub home_dir:             String,
+	pub plan_writable_roots: Vec<String>,
+	pub home_dir: String,
 	/// The payload is a verbatim custom-format string, not JSON.
-	pub raw_input:            bool,
+	pub raw_input: bool,
 }
 
 impl EditPolicy {
 	fn into_config(self) -> Result<SessionConfig> {
 		Ok(SessionConfig {
-			mode:               parse_mode(&self.mode)?,
-			policy:             PathPolicy {
-				cwd:                  PathBuf::from(self.cwd),
-				home_dir:             PathBuf::from(self.home_dir),
-				url_schemes:          self.url_schemes,
-				url_alias_schemes:    self.url_alias_schemes,
-				plan_writable_roots:  self
+			mode: parse_mode(&self.mode)?,
+			policy: PathPolicy {
+				cwd: PathBuf::from(self.cwd),
+				home_dir: PathBuf::from(self.home_dir),
+				url_schemes: self.url_schemes,
+				url_alias_schemes: self.url_alias_schemes,
+				plan_writable_roots: self
 					.plan_writable_roots
 					.into_iter()
 					.map(PathBuf::from)
 					.collect(),
-				plan_active:          self.plan_active,
+				plan_active: self.plan_active,
 				block_auto_generated: self.block_auto_generated,
 			},
-			allow_fuzzy:        self.allow_fuzzy,
-			fuzzy_threshold:    self.fuzzy_threshold,
+			allow_fuzzy: self.allow_fuzzy,
+			fuzzy_threshold: self.fuzzy_threshold,
 			enforce_seen_lines: self.enforce_seen_lines,
-			raw_input:          self.raw_input,
+			raw_input: self.raw_input,
 		})
 	}
 }
@@ -109,9 +109,9 @@ impl EditPolicy {
 #[napi(object)]
 pub struct EditUrlResolution {
 	/// Absolute backing file; null when no local file backs the URL.
-	pub path:          Option<String>,
+	pub path: Option<String>,
 	/// Model-facing refusal (read-only, disabled…); wins over `path`.
-	pub error:         Option<String>,
+	pub error: Option<String>,
 	/// Writable while plan mode is active (sandbox-scoped scheme).
 	pub plan_writable: bool,
 }
@@ -120,15 +120,15 @@ pub struct EditUrlResolution {
 #[napi(object)]
 pub struct EditFilePreview {
 	/// Display path as authored (after suffix recovery).
-	pub path:               String,
+	pub path: String,
 	/// Numbered unified diff; mutually exclusive with `error`.
-	pub diff:               Option<String>,
+	pub diff: Option<String>,
 	pub first_changed_line: Option<u32>,
 	/// Model-facing error text.
-	pub error:              Option<String>,
+	pub error: Option<String>,
 	/// `create` | `update` | `delete`.
-	pub op:                 Option<String>,
-	pub rename:             Option<String>,
+	pub op: Option<String>,
+	pub rename: Option<String>,
 }
 
 /// A batch of previews for one session generation.
@@ -137,25 +137,25 @@ pub struct EditPreviewBatch {
 	/// Monotonically increasing per session.
 	pub generation: u32,
 	/// False for the final untrimmed pass after `finish()`.
-	pub streaming:  bool,
-	pub files:      Vec<EditFilePreview>,
+	pub streaming: bool,
+	pub files: Vec<EditFilePreview>,
 }
 
 impl From<PreviewBatch> for EditPreviewBatch {
 	fn from(batch: PreviewBatch) -> Self {
 		Self {
 			generation: batch.generation,
-			streaming:  batch.streaming,
-			files:      batch
+			streaming: batch.streaming,
+			files: batch
 				.files
 				.into_iter()
 				.map(|file| EditFilePreview {
-					path:               file.display,
-					diff:               file.diff,
+					path: file.display,
+					diff: file.diff,
 					first_changed_line: file.first_changed_line,
-					error:              file.error,
-					op:                 file.op.map(|op| op.as_str().to_owned()),
-					rename:             file.rename,
+					error: file.error,
+					op: file.op.map(|op| op.as_str().to_owned()),
+					rename: file.rename,
 				})
 				.collect(),
 		}
@@ -166,16 +166,16 @@ impl From<PreviewBatch> for EditPreviewBatch {
 #[napi(object)]
 pub struct EditWriteRequest {
 	/// Absolute path.
-	pub path:         String,
+	pub path: String,
 	pub display_path: String,
 	/// `create` | `update` | `delete` | `move`.
-	pub op:           String,
+	pub op: String,
 	/// Absolute destination for `move` (write `content` there, delete `path`).
-	pub move_to:      Option<String>,
+	pub move_to: Option<String>,
 	/// Final bytes as text; null for `delete`.
-	pub content:      Option<String>,
+	pub content: Option<String>,
 	/// Last write of this call and the LSP batch requested a flush.
-	pub flush_lsp:    bool,
+	pub flush_lsp: bool,
 	pub lsp_batch_id: Option<String>,
 }
 
@@ -183,7 +183,7 @@ pub struct EditWriteRequest {
 #[napi(object)]
 pub struct EditWriteResponse {
 	/// Text actually persisted (a bridge may reformat); empty for deletes.
-	pub written:          String,
+	pub written: String,
 	/// `FileDiagnosticsResult` serialized by the host; opaque here.
 	pub diagnostics_json: Option<String>,
 }
@@ -192,38 +192,38 @@ pub struct EditWriteResponse {
 #[napi(object)]
 pub struct EditApplyRequest {
 	pub lsp_batch_id: Option<String>,
-	pub lsp_flush:    bool,
+	pub lsp_flush: bool,
 }
 
 /// One file's apply outcome.
 #[napi(object)]
 pub struct EditFileOutcome {
 	/// Absolute path.
-	pub path:               String,
-	pub display_path:       String,
+	pub path: String,
+	pub display_path: String,
 	/// `create` | `update` | `delete`.
-	pub op:                 String,
-	pub move_to:            Option<String>,
-	pub diff:               String,
+	pub op: String,
+	pub move_to: Option<String>,
+	pub diff: String,
 	pub first_changed_line: Option<u32>,
-	pub old_text:           Option<String>,
-	pub new_text:           Option<String>,
-	pub snapshots_pruned:   bool,
-	pub diagnostics_json:   Option<String>,
+	pub old_text: Option<String>,
+	pub new_text: Option<String>,
+	pub snapshots_pruned: bool,
+	pub diagnostics_json: Option<String>,
 	/// Engine warnings (already rendered into `text`).
-	pub warnings:           Vec<String>,
+	pub warnings: Vec<String>,
 	/// Model-facing text for this file.
-	pub text:               String,
+	pub text: String,
 	/// The file parsed before the edit and no longer does.
-	pub parse_regressed:    bool,
+	pub parse_regressed: bool,
 }
 
 /// Whole-call apply outcome. `is_error` carries the model-facing failure in
 /// `text` with no files.
 #[napi(object)]
 pub struct EditApplyOutcome {
-	pub text:     String,
-	pub files:    Vec<EditFileOutcome>,
+	pub text: String,
+	pub files: Vec<EditFileOutcome>,
 	pub is_error: bool,
 }
 
@@ -373,10 +373,10 @@ enum ArgOp {
 }
 
 struct Shared {
-	session:     napi::tokio::sync::Mutex<Session>,
-	queue:       parking_lot::Mutex<Vec<ArgOp>>,
-	closed:      AtomicBool,
-	wake:        flume::Sender<()>,
+	session: napi::tokio::sync::Mutex<Session>,
+	queue: parking_lot::Mutex<Vec<ArgOp>>,
+	closed: AtomicBool,
+	wake: flume::Sender<()>,
 	/// Host internal-URL resolver; without one, misses surface as errors.
 	resolve_url: Option<ResolverCallback>,
 }
@@ -414,12 +414,12 @@ impl EditWriter for TsfnWriter {
 			request.op.as_str()
 		};
 		let payload = EditWriteRequest {
-			path:         request.absolute.to_string_lossy().into_owned(),
+			path: request.absolute.to_string_lossy().into_owned(),
 			display_path: request.display,
-			op:           op.to_owned(),
-			move_to:      request.move_to.map(|p| p.to_string_lossy().into_owned()),
-			content:      request.content,
-			flush_lsp:    request.flush_lsp,
+			op: op.to_owned(),
+			move_to: request.move_to.map(|p| p.to_string_lossy().into_owned()),
+			content: request.content,
+			flush_lsp: request.flush_lsp,
 			lsp_batch_id: request.lsp_batch_id,
 		};
 		let promise = self
@@ -428,10 +428,7 @@ impl EditWriter for TsfnWriter {
 			.await
 			.map_err(|err| EditError::Writer(err.reason))?;
 		let response = promise.await.map_err(|err| EditError::Writer(err.reason))?;
-		Ok(WriteResponse {
-			written:          response.written,
-			diagnostics_json: response.diagnostics_json,
-		})
+		Ok(WriteResponse { written: response.written, diagnostics_json: response.diagnostics_json })
 	}
 }
 
@@ -445,15 +442,11 @@ async fn resolve_one(resolver: &ResolverCallback, url: &str) -> UrlResolution {
 	};
 	match answer {
 		Ok(answer) => UrlResolution {
-			absolute:      answer.path.map(PathBuf::from),
-			error:         answer.error,
+			absolute: answer.path.map(PathBuf::from),
+			error: answer.error,
 			plan_writable: answer.plan_writable,
 		},
-		Err(err) => UrlResolution {
-			absolute:      None,
-			error:         Some(err.reason),
-			plan_writable: false,
-		},
+		Err(err) => UrlResolution { absolute: None, error: Some(err.reason), plan_writable: false },
 	}
 }
 
@@ -577,31 +570,29 @@ impl EditSession {
 		};
 		Ok(match outcome {
 			Ok(outcome) => EditApplyOutcome {
-				text:     outcome.text,
-				files:    outcome
+				text: outcome.text,
+				files: outcome
 					.files
 					.into_iter()
 					.map(|file| EditFileOutcome {
-						path:               file.absolute.to_string_lossy().into_owned(),
-						display_path:       file.display,
-						op:                 file.op.as_str().to_owned(),
-						move_to:            file.move_to.map(|p| p.to_string_lossy().into_owned()),
-						diff:               file.diff,
+						path: file.absolute.to_string_lossy().into_owned(),
+						display_path: file.display,
+						op: file.op.as_str().to_owned(),
+						move_to: file.move_to.map(|p| p.to_string_lossy().into_owned()),
+						diff: file.diff,
 						first_changed_line: file.first_changed_line,
-						old_text:           file.old_text,
-						new_text:           file.new_text,
-						snapshots_pruned:   file.snapshots_pruned,
-						diagnostics_json:   file.diagnostics_json,
-						warnings:           file.warnings,
-						text:               file.text,
-						parse_regressed:    file.parse_regressed,
+						old_text: file.old_text,
+						new_text: file.new_text,
+						snapshots_pruned: file.snapshots_pruned,
+						diagnostics_json: file.diagnostics_json,
+						warnings: file.warnings,
+						text: file.text,
+						parse_regressed: file.parse_regressed,
 					})
 					.collect(),
 				is_error: false,
 			},
-			Err(err) => {
-				EditApplyOutcome { text: err.to_string(), files: Vec::new(), is_error: true }
-			},
+			Err(err) => EditApplyOutcome { text: err.to_string(), files: Vec::new(), is_error: true },
 		})
 	}
 
@@ -697,7 +688,7 @@ async fn settled_preview(shared: &Arc<Shared>) -> Option<PreviewBatch> {
 /// `(path, added-lines digest)` for stream matchers.
 #[napi(object)]
 pub struct EditMatcherEntry {
-	pub path:   String,
+	pub path: String,
 	pub digest: String,
 }
 
@@ -707,15 +698,15 @@ pub struct EditFileOpIntent {
 	/// `delete` | `move`.
 	pub kind: String,
 	pub path: String,
-	pub to:   Option<String>,
+	pub to: Option<String>,
 }
 
 /// Static projection of a payload: target paths, per-file digests, and
 /// delete/move intents.
 #[napi(object)]
 pub struct EditInspection {
-	pub paths:    Vec<String>,
-	pub entries:  Vec<EditMatcherEntry>,
+	pub paths: Vec<String>,
+	pub entries: Vec<EditMatcherEntry>,
 	pub file_ops: Vec<EditFileOpIntent>,
 }
 
@@ -728,8 +719,8 @@ pub fn edit_inspect(mode: String, args_json: String) -> Result<EditInspection> {
 	let engine = pi_edit::modes::engine_for(mode, true, 0.95, false);
 	let inspection = engine.inspect(&snapshot);
 	Ok(EditInspection {
-		paths:    inspection.paths,
-		entries:  inspection
+		paths: inspection.paths,
+		entries: inspection
 			.entries
 			.into_iter()
 			.map(|(path, digest)| EditMatcherEntry { path, digest })
@@ -752,7 +743,7 @@ pub fn edit_inspect(mode: String, args_json: String) -> Result<EditInspection> {
 /// Numbered unified diff plus the first changed line.
 #[napi(object)]
 pub struct EditDiffResult {
-	pub diff:               String,
+	pub diff: String,
 	pub first_changed_line: Option<u32>,
 }
 
@@ -763,10 +754,12 @@ pub fn edit_diff_string(
 	new_text: String,
 	path: Option<String>,
 ) -> EditDiffResult {
-	let output = generate_diff_string(&old_text, &new_text, None, &BlockContextSource {
-		path: path.as_deref(),
-		lang: None,
-	});
+	let output = generate_diff_string(
+		&old_text,
+		&new_text,
+		None,
+		&BlockContextSource { path: path.as_deref(), lang: None },
+	);
 	EditDiffResult { diff: output.diff, first_changed_line: output.first_changed_line }
 }
 
@@ -788,12 +781,12 @@ pub fn edit_grammar(mode: String) -> Result<Option<String>> {
 #[napi]
 pub fn edit_auto_generated_message(absolute_path: String, display_path: String) -> Option<String> {
 	let policy = PathPolicy {
-		cwd:                  PathBuf::new(),
-		home_dir:             PathBuf::new(),
-		url_schemes:          Vec::new(),
-		url_alias_schemes:    Vec::new(),
-		plan_writable_roots:  Vec::new(),
-		plan_active:          false,
+		cwd: PathBuf::new(),
+		home_dir: PathBuf::new(),
+		url_schemes: Vec::new(),
+		url_alias_schemes: Vec::new(),
+		plan_writable_roots: Vec::new(),
+		plan_active: false,
 		block_auto_generated: true,
 	};
 	let mut head = [0u8; 1024];
@@ -820,8 +813,8 @@ pub fn edit_auto_generated_message(absolute_path: String, display_path: String) 
 /// One stray sloppy payload region inside prose (UTF-16 offsets).
 #[napi(object)]
 pub struct InlineSloppyRegion {
-	pub start:   u32,
-	pub end:     u32,
+	pub start: u32,
+	pub end: u32,
 	pub payload: String,
 }
 
@@ -830,11 +823,7 @@ pub struct InlineSloppyRegion {
 pub fn extract_inline_sloppy_regions(text: String) -> Vec<InlineSloppyRegion> {
 	sloppy::parse::extract_inline_sloppy_regions(&text)
 		.into_iter()
-		.map(|r| InlineSloppyRegion {
-			start:   r.start as u32,
-			end:     r.end as u32,
-			payload: r.payload,
-		})
+		.map(|r| InlineSloppyRegion { start: r.start as u32, end: r.end as u32, payload: r.payload })
 		.collect()
 }
 

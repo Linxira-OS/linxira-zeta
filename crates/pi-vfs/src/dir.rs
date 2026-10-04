@@ -17,8 +17,8 @@ use crate::{
 #[derive(Clone)]
 pub(crate) struct EntryBinding {
 	pub(crate) provider: Arc<dyn FileSystem>,
-	pub(crate) runtime:  Option<Handle>,
-	pub(crate) cancel:   Option<CancellationToken>,
+	pub(crate) runtime: Option<Handle>,
+	pub(crate) cancel: Option<CancellationToken>,
 }
 
 /// Iterator over a directory's entries (without `.` and `..`).
@@ -100,11 +100,11 @@ enum EntryRepr {
 }
 
 struct VirtualEntry {
-	path:      PathBuf,
+	path: PathBuf,
 	file_name: OsString,
 	file_type: Option<FileType>,
-	metadata:  Option<Metadata>,
-	binding:   Option<EntryBinding>,
+	metadata: Option<Metadata>,
+	binding: Option<EntryBinding>,
 }
 
 impl DirEntry {

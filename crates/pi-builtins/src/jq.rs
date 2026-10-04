@@ -41,44 +41,44 @@ mod cli {
 		pub null_input: bool,
 		/// When the option `--slurp` is used additionally,
 		/// then the whole input is read into a single string.
-		pub raw_input:  bool,
+		pub raw_input: bool,
 		/// When input is read from files,
 		/// jaq yields an array for each file, whereas
 		/// jq produces only a single array.
-		pub slurp:      bool,
+		pub slurp: bool,
 
 		// Output options
-		pub compact_output:    bool,
-		pub raw_output:        bool,
+		pub compact_output: bool,
+		pub raw_output: bool,
 		/// This flag enables `--raw-output`.
-		pub join_output:       bool,
-		pub in_place:          bool,
-		pub sort_keys:         bool,
-		pub color_output:      bool,
+		pub join_output: bool,
+		pub in_place: bool,
+		pub sort_keys: bool,
+		pub color_output: bool,
 		pub monochrome_output: bool,
-		pub tab:               bool,
-		pub indent:            usize,
+		pub tab: bool,
+		pub indent: usize,
 
 		// Compilation options
-		pub from_file:    bool,
+		pub from_file: bool,
 		/// If this option is given multiple times, all given directories are
 		/// searched.
 		pub library_path: Vec<PathBuf>,
 
 		// Key-value options
-		pub arg:       Vec<(String, String)>,
-		pub argjson:   Vec<(String, String)>,
+		pub arg: Vec<(String, String)>,
+		pub argjson: Vec<(String, String)>,
 		pub slurpfile: Vec<(String, OsString)>,
-		pub rawfile:   Vec<(String, OsString)>,
+		pub rawfile: Vec<(String, OsString)>,
 
 		// Positional arguments
 		/// If this argument is not given, it is assumed to be `.`, the identity
 		/// filter.
-		pub filter:      Option<Filter>,
-		pub files:       Vec<PathBuf>,
-		pub args:        Vec<String>,
+		pub filter: Option<Filter>,
+		pub files: Vec<PathBuf>,
+		pub args: Vec<String>,
 		//pub jsonargs: Vec<String>,
-		pub run_tests:   Option<Vec<PathBuf>>,
+		pub run_tests: Option<Vec<PathBuf>>,
 		/// If there is some last output value `v`,
 		/// then the exit status code is
 		/// 1 if `v < true` (that is, if `v` is `false` or `null`) and
@@ -87,8 +87,8 @@ mod cli {
 		///
 		/// If any error occurs, then this option has no effect.
 		pub exit_status: bool,
-		pub version:     bool,
-		pub help:        bool,
+		pub version: bool,
+		pub help: bool,
 	}
 
 	#[derive(Debug)]
@@ -174,7 +174,9 @@ mod cli {
 				'M' => self.monochrome_output = true,
 
 				'f' => self.from_file = true,
-				'L' => self.library_path.push(args.next().ok_or(Error::Path("-L"))?.into()),
+				'L' => self
+					.library_path
+					.push(args.next().ok_or(Error::Path("-L"))?.into()),
 				'e' => self.exit_status = true,
 				'V' => self.version = true,
 				'h' => self.help = true,
@@ -259,7 +261,6 @@ mod cli {
 		//JsonArgs,
 		Files,
 	}
-
 }
 
 mod filter {
@@ -336,7 +337,8 @@ mod filter {
 
 		let run_funs: [jaq_std::Filter<RunPtr<Val>>; 3] = [
 			("env", jaq_std::v(0), |_, _| {
-				let env = super::runtime_env().into_iter()
+				let env = super::runtime_env()
+					.into_iter()
 					.map(|(k, v)| (k.into(), Val::from(v)));
 				box_once(Ok(Val::obj(env.collect())))
 			}),
@@ -482,7 +484,8 @@ mod filter {
 		let meta = import_search_paths(import.meta)
 			.into_iter()
 			.map(|path| pi_vfs::join_path(parent, &expand(path.as_path())));
-		meta.chain(paths.iter().map(|path| expand(path.as_path())))
+		meta
+			.chain(paths.iter().map(|path| expand(path.as_path())))
 			.map(|path| pi_vfs::join_path(&path, &rel))
 			.filter_map(|path| fs.canonicalize(&path).ok())
 			.find(|path| fs.is_file(path))
@@ -508,7 +511,11 @@ mod filter {
 			return Vec::new();
 		};
 		let search = entries.iter().find_map(|(key, value)| {
-			if *term_str(key)? == "search" { value.as_ref() } else { None }
+			if *term_str(key)? == "search" {
+				value.as_ref()
+			} else {
+				None
+			}
 		});
 		let mut found = Vec::new();
 		match search {
@@ -626,7 +633,7 @@ mod filter {
 	#[derive(Debug)]
 	struct Report {
 		message: String,
-		labels:  Vec<(core::ops::Range<usize>, StringColors, Color)>,
+		labels: Vec<(core::ops::Range<usize>, StringColors, Color)>,
 	}
 
 	#[derive(Clone, Debug)]
@@ -650,7 +657,7 @@ mod filter {
 		let path_range = load::span(code, path);
 		Report {
 			message: format!("could not load file {}: {}", path, error),
-			labels:  [(path_range, [(error, None)].into(), Color::Red)].into(),
+			labels: [(path_range, [(error, None)].into(), Color::Red)].into(),
 		}
 	}
 
@@ -691,7 +698,7 @@ mod filter {
 
 		Report {
 			message: format!("expected {}", expected.as_str()),
-			labels:  Vec::from([(found_range, found, Color::Red)]),
+			labels: Vec::from([(found_range, found, Color::Red)]),
 		}
 	}
 
@@ -737,7 +744,6 @@ mod filter {
 				})
 		}
 	}
-
 }
 
 mod read {
@@ -838,7 +844,6 @@ mod read {
 			Box::new(iter)
 		}
 	}
-
 }
 
 mod output {
@@ -856,8 +861,8 @@ mod output {
 	}
 
 	struct PpOpts {
-		compact:   bool,
-		indent:    String,
+		compact: bool,
+		indent: String,
 		sort_keys: bool,
 	}
 
@@ -933,8 +938,8 @@ mod output {
 	pub fn print(w: &mut (impl Write + ?Sized), cli: &Cli, val: &Val) -> io::Result<()> {
 		let f = |f: &mut Formatter| {
 			let opts = PpOpts {
-				compact:   cli.compact_output,
-				indent:    if cli.tab {
+				compact: cli.compact_output,
+				indent: if cli.tab {
 					String::from("\t")
 				} else {
 					" ".repeat(cli.indent)
@@ -964,7 +969,6 @@ mod output {
 		let _ = stdout.flush();
 		res
 	}
-
 }
 
 /// Parsed `jq` invocation.
@@ -974,20 +978,11 @@ pub(crate) struct Jq {
 
 impl FromArgMatches for Jq {
 	fn from_arg_matches(_matches: &ArgMatches) -> Result<Self, clap::Error> {
-		Err(clap::Error::raw(
-			ErrorKind::InvalidValue,
-			"jq uses its order-preserving argument parser",
-		))
+		Err(clap::Error::raw(ErrorKind::InvalidValue, "jq uses its order-preserving argument parser"))
 	}
 
-	fn update_from_arg_matches(
-		&mut self,
-		_matches: &ArgMatches,
-	) -> Result<(), clap::Error> {
-		Err(clap::Error::raw(
-			ErrorKind::InvalidValue,
-			"jq uses its order-preserving argument parser",
-		))
+	fn update_from_arg_matches(&mut self, _matches: &ArgMatches) -> Result<(), clap::Error> {
+		Err(clap::Error::raw(ErrorKind::InvalidValue, "jq uses its order-preserving argument parser"))
 	}
 }
 
@@ -1014,18 +1009,21 @@ impl Parser for Jq {
 		I: IntoIterator<Item = T>,
 		T: Into<OsString> + Clone,
 	{
-		let cli = Cli::parse(itr.into_iter().map(Into::into).collect()).map_err(|error| {
-			clap::Error::raw(ErrorKind::InvalidValue, format!("Error: {error}\n"))
-		})?;
+		let cli = Cli::parse(itr.into_iter().map(Into::into).collect())
+			.map_err(|error| clap::Error::raw(ErrorKind::InvalidValue, format!("Error: {error}\n")))?;
 		if cli.version {
-			return Err(command("jaq")
-				.try_get_matches_from(["jaq", "--version"])
-				.expect_err("--version always short-circuits"));
+			return Err(
+				command("jaq")
+					.try_get_matches_from(["jaq", "--version"])
+					.expect_err("--version always short-circuits"),
+			);
 		}
 		if cli.help {
-			return Err(command("jaq")
-				.try_get_matches_from(["jaq", "--help"])
-				.expect_err("--help always short-circuits"));
+			return Err(
+				command("jaq")
+					.try_get_matches_from(["jaq", "--help"])
+					.expect_err("--help always short-circuits"),
+			);
 		}
 		Ok(Self { cli })
 	}
@@ -1072,7 +1070,12 @@ fn resolve_cli_paths(cli: &mut Cli, host: &Host) {
 	for path in &mut cli.files {
 		*path = host.resolve(&*path);
 	}
-	for path in cli.rawfile.iter_mut().chain(&mut cli.slurpfile).map(|(_, path)| path) {
+	for path in cli
+		.rawfile
+		.iter_mut()
+		.chain(&mut cli.slurpfile)
+		.map(|(_, path)| path)
+	{
 		*path = host.resolve(&*path).into_os_string();
 	}
 	if let Some(paths) = &mut cli.run_tests {
@@ -1100,7 +1103,10 @@ impl RuntimeGuard {
 		let runtime = Runtime {
 			stdout: host.stdout_clone(),
 			stderr: host.stderr_clone(),
-			env: host.env().map(|(key, value)| (key.to_owned(), value.to_owned())).collect(),
+			env: host
+				.env()
+				.map(|(key, value)| (key.to_owned(), value.to_owned()))
+				.collect(),
 			cancel: host.cancel_flag(),
 		};
 		RUNTIME.with(|slot| {
@@ -1125,12 +1131,20 @@ fn with_runtime<T>(f: impl FnOnce(&mut Runtime) -> T) -> T {
 }
 
 fn runtime_env() -> Vec<(String, String)> {
-	RUNTIME.with(|slot| slot.borrow().as_ref().expect("jq runtime is installed").env.clone())
+	RUNTIME.with(|slot| {
+		slot
+			.borrow()
+			.as_ref()
+			.expect("jq runtime is installed")
+			.env
+			.clone()
+	})
 }
 
 fn runtime_cancelled() -> bool {
 	RUNTIME.with(|slot| {
-		slot.borrow()
+		slot
+			.borrow()
 			.as_ref()
 			.expect("jq runtime is installed")
 			.cancel
@@ -1160,19 +1174,11 @@ fn real_main(cli: &Cli, host: &mut Host, stdout: &mut dyn Write) -> Result<i32, 
 	if let Some(test_files) = &cli.run_tests {
 		return Ok(match test_files.last() {
 			Some(file) => {
-				run_tests(
-					&fs,
-					io::BufReader::new(fs.open(file)?),
-					&mut host.stdout,
-					&mut host.stderr,
-				)
+				run_tests(&fs, io::BufReader::new(fs.open(file)?), &mut host.stdout, &mut host.stderr)
 			},
-			None => run_tests(
-				&fs,
-				io::BufReader::new(&mut host.stdin),
-				&mut host.stdout,
-				&mut host.stderr,
-			),
+			None => {
+				run_tests(&fs, io::BufReader::new(&mut host.stdin), &mut host.stdout, &mut host.stderr)
+			},
 		});
 	}
 
@@ -1287,13 +1293,14 @@ fn binds(cli: &Cli, host: &Host) -> Result<Vec<(String, Val)>, Error> {
 	});
 	let fs = host.fs();
 	let rawfile = cli.rawfile.iter().map(|(k, path)| {
-		let s = fs.read_to_string(Path::new(path))
+		let s = fs
+			.read_to_string(Path::new(path))
 			.map_err(|e| Error::Io(Some(format!("{path:?}")), e));
 		Ok((k.to_owned(), Val::Str(s?.into())))
 	});
 	let slurpfile = cli.slurpfile.iter().map(|(k, path)| {
-		let a = read::json_array(fs, Path::new(path))
-			.map_err(|e| Error::Io(Some(format!("{path:?}")), e));
+		let a =
+			read::json_array(fs, Path::new(path)).map_err(|e| Error::Io(Some(format!("{path:?}")), e));
 		Ok((k.to_owned(), a?))
 	});
 
@@ -1369,8 +1376,8 @@ impl From<io::Error> for Error {
 }
 
 fn run_test(fs: &BlockingFs, test: load::test::Test<String>) -> Result<(Val, Val), Error> {
-	let (ctx, filter) = filter::parse_compile(fs, &PathBuf::new(), &test.filter, &[], &[])
-		.map_err(Error::Report)?;
+	let (ctx, filter) =
+		filter::parse_compile(fs, &PathBuf::new(), &test.filter, &[], &[]).map_err(Error::Report)?;
 
 	let inputs = RcIter::new(Box::new(core::iter::empty()));
 	let ctx = Ctx::new(ctx, &inputs);
@@ -1418,7 +1425,6 @@ fn run_tests(
 
 	i32::from(total > passed)
 }
-
 
 /// Creates the `jq` builtin registration.
 pub(crate) fn jq_builtin<SE: ShellExtensions>() -> Registration<SE> {

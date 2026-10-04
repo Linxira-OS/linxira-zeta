@@ -31,7 +31,6 @@
   },
   "files": [
     "src",
-    "skills",
     "dist/cli.js",
     "dist/docs-index.generated.txt",
     "dist/CHANGELOG-*.md",
@@ -533,11 +532,10 @@
     "format-prompts": "bun scripts/format-prompts.ts",
     "gen:tool-views": "bun --cwd=../collab-web run gen:tool-views",
     "gen:bundle": "bun scripts/bundle-dist.ts",
+    "gen:rpc": "bun scripts/gen-rpc/index.ts",
     "gen:native": "bun --cwd=../natives run gen:native",
     "gen:native:reset": "bun --cwd=../natives run gen:native:reset",
-    "gen:official-skills": "bun scripts/sync-official-skills.ts",
-    "prepack": "bun run gen:tool-views && bun run gen:bundle && bun run gen:official-skills",
-    "postpack": "bun scripts/sync-official-skills.ts --clean",
+    "prepack": "bun run gen:tool-views && bun run gen:bundle",
     "bench:guard": "bun scripts/bench-guard.ts"
   },
   "dependencies": {

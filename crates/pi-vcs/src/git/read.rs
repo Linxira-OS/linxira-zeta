@@ -43,8 +43,8 @@ impl GitRepo {
 		if let Some(ref_name) = value.strip_prefix("ref:").map(str::trim) {
 			return Ok(HeadState::Ref {
 				ref_name: ref_name.to_owned(),
-				branch:   ref_name.strip_prefix("refs/heads/").map(str::to_owned),
-				commit:   self.peel_symbolic(self.read_ref(ref_name)?)?,
+				branch: ref_name.strip_prefix("refs/heads/").map(str::to_owned),
+				commit: self.peel_symbolic(self.read_ref(ref_name)?)?,
 			});
 		}
 		Ok(HeadState::Detached { commit: nonempty(value) })
@@ -127,14 +127,17 @@ impl GitRepo {
 	/// List tags pointing at `rev`, peeled through annotated tags.
 	pub fn tags_at(&self, rev: &str) -> Result<Vec<String>> {
 		if self.is_reftable() {
-			return cli_lines(self.root(), &[
-				"for-each-ref",
-				"--points-at",
-				rev,
-				"--sort=-version:refname",
-				"--format=%(refname:strip=2)",
-				"refs/tags",
-			]);
+			return cli_lines(
+				self.root(),
+				&[
+					"for-each-ref",
+					"--points-at",
+					rev,
+					"--sort=-version:refname",
+					"--format=%(refname:strip=2)",
+					"refs/tags",
+				],
+			);
 		}
 		let Some(target) = self.resolve_ref(rev)? else {
 			return Ok(Vec::new());
@@ -464,11 +467,10 @@ impl GitRepo {
 	/// List the primary and linked worktrees.
 	pub fn worktrees(&self) -> Result<Vec<WorktreeEntry>> {
 		if self.is_reftable() {
-			return Ok(parse_worktree_cli(&cli_text(self.root(), &[
-				"worktree",
-				"list",
-				"--porcelain",
-			])?));
+			return Ok(parse_worktree_cli(&cli_text(
+				self.root(),
+				&["worktree", "list", "--porcelain"],
+			)?));
 		}
 		let primary_root = self
 			.info()
@@ -526,12 +528,10 @@ impl GitRepo {
 	/// Return recent commits as `<short-sha> <subject>` lines.
 	pub fn log_onelines(&self, count: usize) -> Result<Vec<String>> {
 		if self.is_reftable() {
-			return cli_lines(self.root(), &[
-				"log",
-				&format!("-{count}"),
-				"--oneline",
-				"--no-decorate",
-			]);
+			return cli_lines(
+				self.root(),
+				&["log", &format!("-{count}"), "--oneline", "--no-decorate"],
+			);
 		}
 		let mut out = Vec::new();
 		let repo = self.gix()?;
@@ -617,13 +617,10 @@ impl GitRepo {
 	/// List commits touching `file`, newest first.
 	pub fn rev_list_touching(&self, rev: &str, file: &str, limit: usize) -> Result<Vec<String>> {
 		if self.is_reftable() {
-			return cli_lines(self.root(), &[
-				"rev-list",
-				&format!("--max-count={limit}"),
-				rev,
-				"--",
-				file,
-			]);
+			return cli_lines(
+				self.root(),
+				&["rev-list", &format!("--max-count={limit}"), rev, "--", file],
+			);
 		}
 		let mut out = Vec::new();
 		let repo = self.gix()?;
@@ -661,12 +658,10 @@ impl GitRepo {
 	/// Read commit identity, parent ids, author, date, and full message.
 	pub fn commit_details(&self, rev: &str) -> Result<CommitDetails> {
 		if self.is_reftable() {
-			let raw = cli_text(self.root(), &[
-				"show",
-				"-s",
-				"--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%B",
-				rev,
-			])?;
+			let raw = cli_text(
+				self.root(),
+				&["show", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%B", rev],
+			)?;
 			return Ok(parse_commit_details(&raw));
 		}
 		let repo = self.gix()?;
@@ -701,9 +696,9 @@ impl GitRepo {
 				.map(|parent| parent.detach().to_string())
 				.collect(),
 			author: CommitAuthor {
-				name:  author.name.to_str_lossy().into_owned(),
+				name: author.name.to_str_lossy().into_owned(),
 				email: author.email.to_str_lossy().into_owned(),
-				date:  Some(date),
+				date: Some(date),
 			},
 			message,
 		})
@@ -1456,11 +1451,14 @@ mod tests {
 	#[test]
 	fn read_head_branch_detached_unborn_and_packed() -> TestResult {
 		let (dir, repo) = repo()?;
-		assert_eq!(repo.head()?, HeadState::Ref {
-			ref_name: "refs/heads/main".to_owned(),
-			branch:   Some("main".to_owned()),
-			commit:   None,
-		});
+		assert_eq!(
+			repo.head()?,
+			HeadState::Ref {
+				ref_name: "refs/heads/main".to_owned(),
+				branch: Some("main".to_owned()),
+				commit: None,
+			}
+		);
 		commit(dir.path(), "one", "one\n", "one")?;
 		let sha = git(dir.path(), &["rev-parse", "HEAD"])?.trim().to_owned();
 		assert_eq!(repo.head_sha()?, Some(sha.clone()));
@@ -1549,11 +1547,7 @@ mod tests {
 		// render the same bytes as the CLI-first public path.
 		let fallback = repo.status_porcelain_gix(&StatusOptions::default())?;
 		assert_eq!(fallback.as_bytes(), expected.as_bytes());
-		assert_eq!(repo.status_summary()?, StatusSummary {
-			staged:    2,
-			unstaged:  2,
-			untracked: 2,
-		});
+		assert_eq!(repo.status_summary()?, StatusSummary { staged: 2, unstaged: 2, untracked: 2 });
 		Ok(())
 	}
 
@@ -1649,7 +1643,9 @@ mod tests {
 		let worktrees = repo.worktrees()?;
 		assert_eq!(worktrees.len(), 2);
 		assert_eq!(worktrees[0].path, dir.path());
-		assert_eq!(worktrees[1].path, linked.canonicalize()?);
+		// git records the real path, with `/` separators on Windows; compare
+		// resolved locations rather than spellings.
+		assert_eq!(worktrees[1].path.canonicalize()?, linked.canonicalize()?);
 		assert_eq!(worktrees[1].branch.as_deref(), Some("refs/heads/linked-branch"));
 		Ok(())
 	}

@@ -167,7 +167,7 @@ pub enum VisitOrder {
 #[derive(Clone)]
 pub struct CompiledWalkGlob {
 	patterns: Arc<[String]>,
-	matcher:  Arc<GlobSet>,
+	matcher: Arc<GlobSet>,
 }
 
 impl CompiledWalkGlob {
@@ -436,19 +436,19 @@ impl WalkPredicate for IncludeAllPredicate {
 /// Borrowed metadata view shared by owned and streaming entries.
 pub struct EntryMeta<'a> {
 	/// Traversal root used to resolve relative paths.
-	pub root:          &'a Path,
+	pub root: &'a Path,
 	/// Absolute filesystem path.
 	pub absolute_path: Cow<'a, Path>,
 	/// Relative path from the root, using `/` separators.
 	pub relative_path: &'a str,
 	/// Filesystem entry kind.
-	pub file_type:     FileType,
+	pub file_type: FileType,
 	/// Modification time in milliseconds since the Unix epoch, when requested.
-	pub mtime:         Option<f64>,
+	pub mtime: Option<f64>,
 	/// File size in bytes for regular files, when requested.
-	pub size:          Option<f64>,
+	pub size: Option<f64>,
 	/// Depth below the traversal root. Root depth is 0.
-	pub depth:         usize,
+	pub depth: usize,
 }
 
 impl<'a> EntryMeta<'a> {
@@ -483,22 +483,22 @@ impl<'a> EntryMeta<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileCandidate {
 	/// Absolute filesystem path to the regular file.
-	pub path:     PathBuf,
+	pub path: PathBuf,
 	/// Relative path from the walk root, using `/` separators.
 	pub relative: String,
 	/// Modification time in milliseconds since the Unix epoch, when requested.
-	pub mtime:    Option<f64>,
+	pub mtime: Option<f64>,
 	/// File size in bytes, when requested.
-	pub size:     Option<f64>,
+	pub size: Option<f64>,
 }
 
 impl FileCandidate {
 	fn from_entry(root: &Path, entry: CollectedEntry) -> Self {
 		Self {
-			path:     entry.absolute_path(root),
+			path: entry.absolute_path(root),
 			relative: entry.path,
-			mtime:    entry.mtime,
-			size:     entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		}
 	}
 }
@@ -530,13 +530,13 @@ pub enum WalkRank {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct WalkStats {
 	/// Age of the cache entry in milliseconds; zero means freshly scanned.
-	pub cache_age_ms:     u64,
+	pub cache_age_ms: u64,
 	/// Entries before high-level filtering.
-	pub scanned_entries:  usize,
+	pub scanned_entries: usize,
 	/// Entries removed by high-level filtering.
 	pub filtered_entries: usize,
 	/// Entries removed by the high-level limit.
-	pub limited_entries:  usize,
+	pub limited_entries: usize,
 }
 
 /// Owned entries and metadata returned by [`WalkRequest::collect`].
@@ -547,59 +547,59 @@ pub struct WalkOutcome {
 	/// Collection backend classification.
 	pub backend: WalkBackend,
 	/// Collection statistics.
-	pub stats:   WalkStats,
+	pub stats: WalkStats,
 }
 
 /// Options shared by native traversal consumers.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct WalkOptions {
 	/// Include dot-prefixed entries.
-	pub include_hidden:    bool,
+	pub include_hidden: bool,
 	/// Honor `.ignore`, `.gitignore`, repository excludes, and global gitignore.
-	pub use_gitignore:     bool,
+	pub use_gitignore: bool,
 	/// Prune `.git` directories during traversal.
-	pub skip_git:          bool,
+	pub skip_git: bool,
 	/// Prune `node_modules` directories during traversal.
 	pub skip_node_modules: bool,
 	/// Symbolic-link traversal policy.
-	pub follow_links:      FollowLinks,
+	pub follow_links: FollowLinks,
 	/// Metadata detail requested for each yielded entry.
-	pub detail:            WalkDetail,
+	pub detail: WalkDetail,
 	/// Per-directory visit order.
-	pub order:             WalkOrder,
+	pub order: WalkOrder,
 	/// Yield the traversal root as a depth-0 entry before its children.
-	pub emit_root:         bool,
+	pub emit_root: bool,
 	/// Minimum depth yielded to the visitor. Root depth is 0.
-	pub min_depth:         usize,
+	pub min_depth: usize,
 	/// Maximum depth traversed and yielded. Root depth is 0.
-	pub max_depth:         usize,
+	pub max_depth: usize,
 	/// Yield directory entries after their children.
-	pub contents_first:    bool,
+	pub contents_first: bool,
 	/// Directory-open error handling policy.
-	pub directory_errors:  DirectoryErrorMode,
+	pub directory_errors: DirectoryErrorMode,
 	/// Stay on the root filesystem when supported by the platform.
-	pub same_file_system:  bool,
+	pub same_file_system: bool,
 	/// Use the shared scan cache when collecting owned entries.
-	pub cache:             bool,
+	pub cache: bool,
 }
 
 impl Default for WalkOptions {
 	fn default() -> Self {
 		Self {
-			include_hidden:    true,
-			use_gitignore:     false,
-			skip_git:          false,
+			include_hidden: true,
+			use_gitignore: false,
+			skip_git: false,
 			skip_node_modules: false,
-			follow_links:      FollowLinks::Never,
-			detail:            WalkDetail::Minimal,
-			order:             WalkOrder::Path,
-			emit_root:         false,
-			min_depth:         1,
-			max_depth:         usize::MAX,
-			contents_first:    false,
-			directory_errors:  DirectoryErrorMode::Visit,
-			same_file_system:  false,
-			cache:             false,
+			follow_links: FollowLinks::Never,
+			detail: WalkDetail::Minimal,
+			order: WalkOrder::Path,
+			emit_root: false,
+			min_depth: 1,
+			max_depth: usize::MAX,
+			contents_first: false,
+			directory_errors: DirectoryErrorMode::Visit,
+			same_file_system: false,
+			cache: false,
 		}
 	}
 }
@@ -610,14 +610,14 @@ impl Default for WalkOptions {
 /// instance ([`BlockingFs::ptr_eq`]) with identical policy.
 #[derive(Clone, Debug)]
 pub struct WalkRequest {
-	filesystem:       BlockingFs,
-	root:             PathBuf,
-	options:          WalkOptions,
-	cache_policy:     CachePolicy,
-	filter:           WalkFilter,
-	limit:            Option<usize>,
-	empty_recheck:    EmptyRecheck,
-	visit_order:      VisitOrder,
+	filesystem: BlockingFs,
+	root: PathBuf,
+	options: WalkOptions,
+	cache_policy: CachePolicy,
+	filter: WalkFilter,
+	limit: Option<usize>,
+	empty_recheck: EmptyRecheck,
+	visit_order: VisitOrder,
 	size_hint_policy: SizeHintPolicy,
 }
 
@@ -1296,7 +1296,7 @@ where
 
 struct SerialCandidateVisitor<'a, S> {
 	filter: &'a WalkFilter,
-	sink:   &'a S,
+	sink: &'a S,
 }
 
 impl<E, S> EntryVisitor for SerialCandidateVisitor<'_, S>
@@ -1317,10 +1317,10 @@ where
 			return Ok(WalkControl::Continue);
 		}
 		let candidate = FileCandidate {
-			path:     entry.path.to_path_buf(),
+			path: entry.path.to_path_buf(),
 			relative: entry.relative.to_string(),
-			mtime:    entry.mtime,
-			size:     entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		};
 		match (self.sink)(&candidate)? {
 			ParallelWalkControl::Continue => Ok(WalkControl::Continue),
@@ -1334,12 +1334,8 @@ where
 	) -> std::result::Result<PreDescendDecision, Self::Error> {
 		let is_dir = meta.file_type == FileType::Dir;
 		Ok(match self.filter.stream_decision(meta) {
-			WalkDecision::Include => {
-				PreDescendDecision { emit: true, descend: is_dir, stop: false }
-			},
-			WalkDecision::Skip => {
-				PreDescendDecision { emit: false, descend: is_dir, stop: false }
-			},
+			WalkDecision::Include => PreDescendDecision { emit: true, descend: is_dir, stop: false },
+			WalkDecision::Skip => PreDescendDecision { emit: false, descend: is_dir, stop: false },
 			WalkDecision::SkipDescend => {
 				PreDescendDecision { emit: false, descend: false, stop: false }
 			},
@@ -1349,18 +1345,18 @@ where
 }
 
 struct ParallelWalkContext {
-	fs:       BlockingFs,
-	root:     PathBuf,
+	fs: BlockingFs,
+	root: PathBuf,
 	url_root: bool,
-	options:  WalkOptions,
-	filter:   WalkFilter,
-	matcher:  FastIgnore,
+	options: WalkOptions,
+	filter: WalkFilter,
+	matcher: FastIgnore,
 }
 
 struct ParallelWalkShared<'a, E, S, H> {
-	stop:      AtomicBool,
-	error:     Mutex<Option<E>>,
-	sink:      &'a S,
+	stop: AtomicBool,
+	error: Mutex<Option<E>>,
+	sink: &'a S,
 	heartbeat: &'a H,
 }
 
@@ -1502,21 +1498,21 @@ fn emit_parallel_root_file<E, S, H>(
 	H: Fn() -> std::result::Result<(), E> + Sync,
 {
 	let meta = EntryMeta {
-		root:          &context.root,
+		root: &context.root,
 		absolute_path: Cow::Borrowed(context.root.as_path()),
 		relative_path: "",
-		file_type:     FileType::File,
-		mtime:         root_entry.mtime,
-		size:          root_entry.size,
-		depth:         0,
+		file_type: FileType::File,
+		mtime: root_entry.mtime,
+		size: root_entry.size,
+		depth: 0,
 	};
 	match context.filter.stream_decision(&meta) {
 		WalkDecision::Include => {
 			let candidate = FileCandidate {
-				path:     context.root.clone(),
+				path: context.root.clone(),
 				relative: String::new(),
-				mtime:    root_entry.mtime,
-				size:     root_entry.size,
+				mtime: root_entry.mtime,
+				size: root_entry.size,
 			};
 			let _ = emit_parallel_candidate(shared, &candidate);
 		},
@@ -1675,13 +1671,13 @@ fn walk_parallel_dir<'scope, E, S, H>(
 		if !context.matcher.is_ignored(&dir_ignore, &absolute, is_dir) {
 			let decision = {
 				let meta = EntryMeta {
-					root:          &context.root,
+					root: &context.root,
 					absolute_path: Cow::Borrowed(absolute.as_path()),
 					relative_path: &relative,
-					file_type:     entry.file_type,
-					mtime:         entry.mtime,
-					size:          entry.size,
-					depth:         next_depth,
+					file_type: entry.file_type,
+					mtime: entry.mtime,
+					size: entry.size,
+					depth: next_depth,
 				};
 				context.filter.stream_decision(&meta)
 			};
@@ -1689,10 +1685,10 @@ fn walk_parallel_dir<'scope, E, S, H>(
 				WalkDecision::Include => {
 					if entry.file_type == FileType::File && next_depth >= context.options.min_depth {
 						let candidate = FileCandidate {
-							path:     absolute.clone(),
+							path: absolute.clone(),
 							relative: relative.clone(),
-							mtime:    entry.mtime,
-							size:     entry.size,
+							mtime: entry.mtime,
+							size: entry.size,
 						};
 						if !emit_parallel_candidate(shared, &candidate) {
 							leave_child_path(&mut absolute, parent);
@@ -1785,13 +1781,13 @@ pub enum ParallelWalkControl {
 #[derive(Clone, Debug, PartialEq)]
 pub struct CollectedEntry {
 	/// Relative path from the root, using `/` separators.
-	pub path:      String,
+	pub path: String,
 	/// Filesystem entry kind.
 	pub file_type: FileType,
 	/// Modification time in milliseconds since the Unix epoch, when requested.
-	pub mtime:     Option<f64>,
+	pub mtime: Option<f64>,
 	/// File size in bytes for regular files, when requested.
-	pub size:      Option<f64>,
+	pub size: Option<f64>,
 }
 
 impl CollectedEntry {
@@ -1897,7 +1893,7 @@ pub fn root_device_id(path: &Path, follow_links: FollowLinks) -> Option<u64> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct DeviceId {
 	native: bool,
-	dev:    u64,
+	dev: u64,
 }
 
 impl DeviceId {
@@ -1970,7 +1966,7 @@ fn metadata_for_follow_policy(
 #[derive(Clone, Debug, PartialEq)]
 pub struct CollectedEntries {
 	/// Entries collected with the requested traversal contract.
-	pub entries:      Vec<CollectedEntry>,
+	pub entries: Vec<CollectedEntry>,
 	/// Age of the cache entry in milliseconds; zero means freshly scanned.
 	pub cache_age_ms: u64,
 }
@@ -1978,26 +1974,26 @@ pub struct CollectedEntries {
 /// Borrowed entry passed to [`EntryVisitor`].
 pub struct Entry<'a> {
 	/// Absolute filesystem path for this entry.
-	pub path:      &'a Path,
+	pub path: &'a Path,
 	/// Relative path from the root, using `/` separators.
-	pub relative:  &'a str,
+	pub relative: &'a str,
 	/// Basename as returned by the platform directory API.
-	pub name:      &'a OsStr,
+	pub name: &'a OsStr,
 	/// Filesystem entry kind.
 	pub file_type: FileType,
 	/// Modification time in milliseconds since the Unix epoch, when requested.
-	pub mtime:     Option<f64>,
+	pub mtime: Option<f64>,
 	/// File size in bytes for regular files, when requested.
-	pub size:      Option<f64>,
+	pub size: Option<f64>,
 	/// Depth below the traversal root. Direct children have depth 1.
-	pub depth:     usize,
+	pub depth: usize,
 }
 
 /// Directory-open error delivered to visitors when configured by
 /// [`WalkOptions::directory_errors`].
 pub struct DirectoryError<'a> {
 	/// Directory path that could not be read.
-	pub path:  &'a Path,
+	pub path: &'a Path,
 	/// Underlying platform I/O error.
 	pub error: &'a io::Error,
 }
@@ -2006,11 +2002,11 @@ pub struct DirectoryError<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PreDescendDecision {
 	/// Whether this entry should be emitted in the requested visit order.
-	pub emit:    bool,
+	pub emit: bool,
 	/// Whether this directory's descendants should be traversed.
 	pub descend: bool,
 	/// Whether traversal should stop immediately.
-	pub stop:    bool,
+	pub stop: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2083,11 +2079,11 @@ pub trait EntryVisitor {
 	}
 }
 struct RequestVisitor<'a, V, P> {
-	root:      &'a Path,
-	filter:    &'a WalkFilter,
-	limit:     Option<usize>,
-	emitted:   usize,
-	visitor:   &'a mut V,
+	root: &'a Path,
+	filter: &'a WalkFilter,
+	limit: Option<usize>,
+	emitted: usize,
+	visitor: &'a mut V,
 	predicate: P,
 }
 
@@ -2103,13 +2099,13 @@ where
 			return Ok(WalkControl::Quit);
 		}
 		let meta = EntryMeta {
-			root:          self.root,
+			root: self.root,
 			absolute_path: Cow::Borrowed(entry.path),
 			relative_path: entry.relative,
-			file_type:     entry.file_type,
-			mtime:         entry.mtime,
-			size:          entry.size,
-			depth:         entry.depth,
+			file_type: entry.file_type,
+			mtime: entry.mtime,
+			size: entry.size,
+			depth: entry.depth,
 		};
 		match self.filter.stream_decision(&meta) {
 			WalkDecision::Include => {},
@@ -2168,21 +2164,17 @@ where
 			WalkDecision::Include => {
 				Ok(PreDescendDecision { emit: true, descend: is_dir, stop: false })
 			},
-			WalkDecision::Skip => {
-				Ok(PreDescendDecision { emit: false, descend: is_dir, stop: false })
-			},
+			WalkDecision::Skip => Ok(PreDescendDecision { emit: false, descend: is_dir, stop: false }),
 			WalkDecision::SkipDescend => {
 				Ok(PreDescendDecision { emit: false, descend: false, stop: false })
 			},
-			WalkDecision::Stop => {
-				Ok(PreDescendDecision { emit: false, descend: false, stop: true })
-			},
+			WalkDecision::Stop => Ok(PreDescendDecision { emit: false, descend: false, stop: true }),
 		}
 	}
 }
 struct ClosureEntryVisitor<'a, V, D> {
-	root:            &'a Path,
-	visit:           V,
+	root: &'a Path,
+	visit: V,
 	directory_error: D,
 }
 
@@ -2195,13 +2187,13 @@ where
 
 	fn visit(&mut self, entry: Entry<'_>) -> std::result::Result<WalkControl, Self::Error> {
 		let meta = EntryMeta {
-			root:          self.root,
+			root: self.root,
 			absolute_path: Cow::Borrowed(entry.path),
 			relative_path: entry.relative,
-			file_type:     entry.file_type,
-			mtime:         entry.mtime,
-			size:          entry.size,
-			depth:         entry.depth,
+			file_type: entry.file_type,
+			mtime: entry.mtime,
+			size: entry.size,
+			depth: entry.depth,
 		};
 		(self.visit)(meta).map(walk_decision_to_control)
 	}
@@ -2230,7 +2222,7 @@ pub enum WalkError<E> {
 	/// A platform directory API returned malformed data or an unskippable error.
 	InvalidData {
 		/// Directory whose scan failed.
-		path:    PathBuf,
+		path: PathBuf,
 		/// Human-readable failure detail.
 		message: String,
 	},
@@ -2261,12 +2253,12 @@ where
 
 struct CollectVisitor<E> {
 	entries: Vec<CollectedEntry>,
-	_error:  std::marker::PhantomData<fn() -> E>,
+	_error: std::marker::PhantomData<fn() -> E>,
 }
 
 struct RankedEntry {
 	entry: CollectedEntry,
-	rank:  WalkRank,
+	rank: WalkRank,
 }
 
 impl Ord for RankedEntry {
@@ -2297,11 +2289,11 @@ impl PartialEq for RankedEntry {
 impl Eq for RankedEntry {}
 
 struct RankedCollectVisitor<'a> {
-	filter:   &'a WalkFilter,
-	rank:     WalkRank,
-	limit:    usize,
-	entries:  BinaryHeap<RankedEntry>,
-	scanned:  usize,
+	filter: &'a WalkFilter,
+	rank: WalkRank,
+	limit: usize,
+	entries: BinaryHeap<RankedEntry>,
+	scanned: usize,
 	filtered: usize,
 }
 
@@ -2312,10 +2304,10 @@ impl<'a> RankedCollectVisitor<'a> {
 
 	fn into_outcome(self) -> WalkOutcome {
 		let stats = WalkStats {
-			cache_age_ms:     0,
-			scanned_entries:  self.scanned,
+			cache_age_ms: 0,
+			scanned_entries: self.scanned,
 			filtered_entries: self.filtered,
-			limited_entries:  self.scanned - self.filtered - self.entries.len(),
+			limited_entries: self.scanned - self.filtered - self.entries.len(),
 		};
 		let entries = self
 			.entries
@@ -2333,10 +2325,10 @@ impl EntryVisitor for RankedCollectVisitor<'_> {
 	fn visit(&mut self, entry: Entry<'_>) -> std::result::Result<WalkControl, Self::Error> {
 		self.scanned += 1;
 		let entry = CollectedEntry {
-			path:      entry.relative.to_string(),
+			path: entry.relative.to_string(),
 			file_type: entry.file_type,
-			mtime:     entry.mtime,
-			size:      entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		};
 		if !self.filter.accepts_collected(&entry) {
 			self.filtered += 1;
@@ -2365,10 +2357,10 @@ impl<E> EntryVisitor for CollectVisitor<E> {
 
 	fn visit(&mut self, entry: Entry<'_>) -> std::result::Result<WalkControl, Self::Error> {
 		self.entries.push(CollectedEntry {
-			path:      entry.relative.to_string(),
+			path: entry.relative.to_string(),
 			file_type: entry.file_type,
-			mtime:     entry.mtime,
-			size:      entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		});
 		Ok(WalkControl::Continue)
 	}
@@ -2383,34 +2375,34 @@ fn root_device_for_options(fs: &BlockingFs, root: &Path, options: WalkOptions) -
 }
 
 struct RawDirEntry<'a> {
-	name:      Cow<'a, OsStr>,
+	name: Cow<'a, OsStr>,
 	file_type: FileType,
-	mtime:     Option<f64>,
-	size:      Option<f64>,
+	mtime: Option<f64>,
+	size: Option<f64>,
 }
 
 #[cfg(unix)]
 struct DirEntryRecord {
 	name_start: usize,
-	name_len:   usize,
-	file_type:  FileType,
-	mtime:      Option<f64>,
-	size:       Option<f64>,
+	name_len: usize,
+	file_type: FileType,
+	mtime: Option<f64>,
+	size: Option<f64>,
 }
 
 #[cfg(not(unix))]
 struct DirEntryRecord {
-	name:      OsString,
+	name: OsString,
 	file_type: FileType,
-	mtime:     Option<f64>,
-	size:      Option<f64>,
+	mtime: Option<f64>,
+	size: Option<f64>,
 }
 
 #[derive(Default)]
 struct DirScratch {
-	entries:     Vec<DirEntryRecord>,
+	entries: Vec<DirEntryRecord>,
 	#[cfg(unix)]
-	name_bytes:  Vec<u8>,
+	name_bytes: Vec<u8>,
 	read_buffer: Vec<u8>,
 }
 
@@ -2439,10 +2431,10 @@ impl DirScratch {
 	#[cfg(not(unix))]
 	fn push(&mut self, entry: RawDirEntry<'_>) {
 		self.entries.push(DirEntryRecord {
-			name:      entry.name.into_owned(),
+			name: entry.name.into_owned(),
 			file_type: entry.file_type,
-			mtime:     entry.mtime,
-			size:      entry.size,
+			mtime: entry.mtime,
+			size: entry.size,
 		});
 	}
 
@@ -2519,8 +2511,8 @@ fn metadata_mtime_millis(metadata: &pi_vfs::Metadata) -> Option<f64> {
 
 struct RootEntry {
 	file_type: FileType,
-	mtime:     Option<f64>,
-	size:      Option<f64>,
+	mtime: Option<f64>,
+	size: Option<f64>,
 }
 
 fn root_entry<E>(
@@ -2535,13 +2527,13 @@ fn root_entry<E>(
 			Err(err) if is_missing_metadata_error(&err) => {
 				fs.symlink_metadata(root)
 					.map_err(|err| WalkError::InvalidData {
-						path:    root.to_path_buf(),
+						path: root.to_path_buf(),
 						message: err.to_string(),
 					})?
 			},
 			Err(err) => {
 				return Err(WalkError::InvalidData {
-					path:    root.to_path_buf(),
+					path: root.to_path_buf(),
 					message: err.to_string(),
 				});
 			},
@@ -2549,7 +2541,7 @@ fn root_entry<E>(
 	} else {
 		fs.symlink_metadata(root)
 			.map_err(|err| WalkError::InvalidData {
-				path:    root.to_path_buf(),
+				path: root.to_path_buf(),
 				message: err.to_string(),
 			})?
 	};
@@ -2676,18 +2668,18 @@ where
 }
 
 struct WalkContext<'a, H> {
-	fs:                &'a BlockingFs,
-	root_path:         &'a Path,
-	url_root:          bool,
-	options:           WalkOptions,
-	root_device:       Option<DeviceId>,
+	fs: &'a BlockingFs,
+	root_path: &'a Path,
+	url_root: bool,
+	options: WalkOptions,
+	root_device: Option<DeviceId>,
 	symlink_ancestors: SymlinkAncestorStack,
-	matcher:           FastIgnore,
-	absolute_path:     PathBuf,
-	relative_path:     String,
-	scratch_pool:      Vec<DirScratch>,
-	visited:           usize,
-	heartbeat:         H,
+	matcher: FastIgnore,
+	absolute_path: PathBuf,
+	relative_path: String,
+	scratch_pool: Vec<DirScratch>,
+	visited: usize,
+	heartbeat: H,
 }
 
 impl<H> WalkContext<'_, H> {
@@ -3012,7 +3004,7 @@ impl<H> WalkContext<'_, H> {
 						if self.options.directory_errors == DirectoryErrorMode::Visit {
 							match visitor
 								.visit_directory_error(DirectoryError {
-									path:  &self.absolute_path,
+									path: &self.absolute_path,
 									error: &loop_err,
 								})
 								.map_err(WalkError::Interrupted)?
@@ -3026,7 +3018,7 @@ impl<H> WalkContext<'_, H> {
 							return Ok(false);
 						}
 						return Err(WalkError::InvalidData {
-							path:    self.absolute_path.clone(),
+							path: self.absolute_path.clone(),
 							message: "filesystem loop detected".to_string(),
 						});
 					}
@@ -3220,26 +3212,26 @@ pub const fn supports_cheap_size_hints() -> bool {
 }
 
 struct IgnoreState {
-	parent:              Option<Arc<Self>>,
-	ignore_matcher:      Option<ignore::gitignore::Gitignore>,
-	gitignore_matcher:   Option<ignore::gitignore::Gitignore>,
+	parent: Option<Arc<Self>>,
+	ignore_matcher: Option<ignore::gitignore::Gitignore>,
+	gitignore_matcher: Option<ignore::gitignore::Gitignore>,
 	git_exclude_matcher: Option<ignore::gitignore::Gitignore>,
-	has_git:             bool,
-	chain_has_matchers:  bool,
-	any_git:             bool,
+	has_git: bool,
+	chain_has_matchers: bool,
+	any_git: bool,
 }
 
 struct FastIgnore {
-	global:        Option<ignore::gitignore::Gitignore>,
+	global: Option<ignore::gitignore::Gitignore>,
 	use_gitignore: bool,
 }
 
 #[derive(Clone, Copy, Default)]
 struct IgnoreEntryNames {
-	ignore_file:    bool,
+	ignore_file: bool,
 	gitignore_file: bool,
-	git_dir:        bool,
-	repo_marker:    bool,
+	git_dir: bool,
+	repo_marker: bool,
 }
 
 impl IgnoreEntryNames {
@@ -3373,10 +3365,8 @@ fn add_ignore_lines(
 	path: &Path,
 	mut keep: impl FnMut(&str) -> bool,
 ) -> Option<ignore::Error> {
-	let with_path = |err: ignore::Error| ignore::Error::WithPath {
-		path: path.to_path_buf(),
-		err:  Box::new(err),
-	};
+	let with_path =
+		|err: ignore::Error| ignore::Error::WithPath { path: path.to_path_buf(), err: Box::new(err) };
 	let file = match fs.open(path) {
 		Ok(file) => file,
 		Err(err) => return Some(with_path(ignore::Error::Io(err))),
@@ -3937,12 +3927,12 @@ mod platform {
 		let fd = open_dir(path)?;
 		let mut attrs = libc::attrlist {
 			bitmapcount: libc::ATTR_BIT_MAP_COUNT,
-			reserved:    0,
-			commonattr:  libc::ATTR_CMN_NAME | libc::ATTR_CMN_OBJTYPE,
-			volattr:     0,
-			dirattr:     0,
-			fileattr:    0,
-			forkattr:    0,
+			reserved: 0,
+			commonattr: libc::ATTR_CMN_NAME | libc::ATTR_CMN_OBJTYPE,
+			volattr: 0,
+			dirattr: 0,
+			fileattr: 0,
+			forkattr: 0,
 		};
 		if detail == WalkDetail::Full {
 			attrs.commonattr |= libc::ATTR_CMN_MODTIME;
@@ -4185,38 +4175,38 @@ mod platform {
 	#[repr(C)]
 	#[derive(Clone, Copy)]
 	struct StatxTimestamp {
-		tv_sec:     i64,
-		tv_nsec:    u32,
+		tv_sec: i64,
+		tv_nsec: u32,
 		__reserved: i32,
 	}
 
 	#[repr(C)]
 	#[derive(Clone, Copy)]
 	struct Statx {
-		stx_mask:             u32,
-		stx_blksize:          u32,
-		stx_attributes:       u64,
-		stx_nlink:            u32,
-		stx_uid:              u32,
-		stx_gid:              u32,
-		stx_mode:             u16,
-		__spare0:             [u16; 1],
-		stx_ino:              u64,
-		stx_size:             u64,
-		stx_blocks:           u64,
-		stx_attributes_mask:  u64,
-		stx_atime:            StatxTimestamp,
-		stx_btime:            StatxTimestamp,
-		stx_ctime:            StatxTimestamp,
-		stx_mtime:            StatxTimestamp,
-		stx_rdev_major:       u32,
-		stx_rdev_minor:       u32,
-		stx_dev_major:        u32,
-		stx_dev_minor:        u32,
-		stx_mnt_id:           u64,
-		stx_dio_mem_align:    u32,
+		stx_mask: u32,
+		stx_blksize: u32,
+		stx_attributes: u64,
+		stx_nlink: u32,
+		stx_uid: u32,
+		stx_gid: u32,
+		stx_mode: u16,
+		__spare0: [u16; 1],
+		stx_ino: u64,
+		stx_size: u64,
+		stx_blocks: u64,
+		stx_attributes_mask: u64,
+		stx_atime: StatxTimestamp,
+		stx_btime: StatxTimestamp,
+		stx_ctime: StatxTimestamp,
+		stx_mtime: StatxTimestamp,
+		stx_rdev_major: u32,
+		stx_rdev_minor: u32,
+		stx_dev_major: u32,
+		stx_dev_minor: u32,
+		stx_mnt_id: u64,
+		stx_dio_mem_align: u32,
 		stx_dio_offset_align: u32,
-		__spare3:             [u64; 12],
+		__spare3: [u64; 12],
 	}
 
 	struct FdGuard(libc::c_int);
@@ -4231,8 +4221,8 @@ mod platform {
 
 	struct EntryStat {
 		file_type: FileType,
-		mtime:     Option<f64>,
-		size:      Option<f64>,
+		mtime: Option<f64>,
+		size: Option<f64>,
 	}
 
 	pub fn read_dir_entries<F, E>(
@@ -4796,20 +4786,20 @@ mod tests {
 
 	fn test_options() -> WalkOptions {
 		WalkOptions {
-			include_hidden:    true,
-			use_gitignore:     false,
-			skip_git:          true,
+			include_hidden: true,
+			use_gitignore: false,
+			skip_git: true,
 			skip_node_modules: true,
-			follow_links:      FollowLinks::Never,
-			detail:            WalkDetail::Minimal,
-			order:             WalkOrder::Path,
-			emit_root:         false,
-			min_depth:         1,
-			max_depth:         usize::MAX,
-			contents_first:    false,
-			directory_errors:  DirectoryErrorMode::SkipSkippable,
-			same_file_system:  false,
-			cache:             false,
+			follow_links: FollowLinks::Never,
+			detail: WalkDetail::Minimal,
+			order: WalkOrder::Path,
+			emit_root: false,
+			min_depth: 1,
+			max_depth: usize::MAX,
+			contents_first: false,
+			directory_errors: DirectoryErrorMode::SkipSkippable,
+			same_file_system: false,
+			cache: false,
 		}
 	}
 
@@ -4900,10 +4890,10 @@ mod tests {
 				.set_modified(UNIX_EPOCH + Duration::from_secs(100 + index / 3))
 				.expect("set modification time");
 		}
-		let request = WalkRequest::from_options(tree.path(), WalkOptions {
-			detail: WalkDetail::Full,
-			..test_options()
-		})
+		let request = WalkRequest::from_options(
+			tree.path(),
+			WalkOptions { detail: WalkDetail::Full, ..test_options() },
+		)
 		.filter(WalkFilter::files_only().max_file_size(20))
 		.limit(1);
 		for rank in [WalkRank::PathAsc, WalkRank::MtimeDescPathAsc] {

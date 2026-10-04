@@ -31,41 +31,41 @@ use crate::{glob_util, iofs, shell::vfs::ShellFilesystem, task};
 #[napi(object, object_to_js = false)]
 pub struct GlobOptions<'env> {
 	/// Glob pattern to match (e.g., "*.ts").
-	pub pattern:              String,
+	pub pattern: String,
 	/// Directory to search: a host path or an absolute `scheme://` URL.
-	pub path:                 String,
+	pub path: String,
 	/// Filter by file type: "file", "dir", or "symlink". Symlinks are
 	/// matched for file/dir filters based on their target type.
-	pub file_type:            Option<FileType>,
+	pub file_type: Option<FileType>,
 	/// Match simple patterns recursively by default (`*.ts` -> recursive).
-	pub recursive:            Option<bool>,
+	pub recursive: Option<bool>,
 	/// Include hidden files (default: false).
-	pub hidden:               Option<bool>,
+	pub hidden: Option<bool>,
 	/// Maximum number of results to return.
-	pub max_results:          Option<u32>,
+	pub max_results: Option<u32>,
 	/// Respect .gitignore files (default: true).
-	pub gitignore:            Option<bool>,
+	pub gitignore: Option<bool>,
 	/// Enable walker scan caching (default: false).
-	pub cache:                Option<bool>,
+	pub cache: Option<bool>,
 	/// Sort results by mtime (most recent first) before applying limit.
-	pub sort_by_mtime:        Option<bool>,
+	pub sort_by_mtime: Option<bool>,
 	/// Include `node_modules` entries when the pattern does not explicitly
 	/// mention them.
 	pub include_node_modules: Option<bool>,
 	/// Abort signal for cancelling the operation.
-	pub signal:               Option<Unknown<'env>>,
+	pub signal: Option<Unknown<'env>>,
 	/// Timeout in milliseconds for the operation.
-	pub timeout_ms:           Option<u32>,
+	pub timeout_ms: Option<u32>,
 	/// Filesystem the search root is resolved and walked through (native when
 	/// absent).
-	pub filesystem:           Option<ShellFilesystem>,
+	pub filesystem: Option<ShellFilesystem>,
 }
 
 /// Result payload returned by a glob operation.
 #[napi(object)]
 pub struct GlobResult {
 	/// Matched filesystem entries.
-	pub matches:       Vec<GlobMatch>,
+	pub matches: Vec<GlobMatch>,
 	/// Number of returned matches (`matches.len()`), clamped to `u32::MAX`.
 	pub total_matches: u32,
 }
@@ -73,17 +73,17 @@ pub struct GlobResult {
 /// Internal runtime config for a single glob execution.
 struct GlobConfig {
 	/// Filesystem `root` is walked and symlink targets are resolved through.
-	filesystem:            BlockingFs,
-	root:                  PathBuf,
-	pattern:               String,
-	recursive:             bool,
-	include_hidden:        bool,
-	file_type_filter:      Option<FileType>,
-	max_results:           usize,
-	use_gitignore:         bool,
+	filesystem: BlockingFs,
+	root: PathBuf,
+	pattern: String,
+	recursive: bool,
+	include_hidden: bool,
+	file_type_filter: Option<FileType>,
+	max_results: usize,
+	use_gitignore: bool,
 	mentions_node_modules: bool,
-	sort_by_mtime:         bool,
-	cache:                 bool,
+	sort_by_mtime: bool,
+	cache: bool,
 }
 
 fn match_mtime(entry: &GlobMatch) -> f64 {
@@ -371,17 +371,17 @@ mod tests {
 
 		let result = super::run_glob(
 			super::GlobConfig {
-				filesystem:            BlockingFs::native(),
-				root:                  root.path().to_path_buf(),
-				pattern:               "*.rs".to_string(),
-				recursive:             true,
-				include_hidden:        false,
-				file_type_filter:      Some(super::FileType::File),
-				max_results:           usize::MAX,
-				use_gitignore:         true,
+				filesystem: BlockingFs::native(),
+				root: root.path().to_path_buf(),
+				pattern: "*.rs".to_string(),
+				recursive: true,
+				include_hidden: false,
+				file_type_filter: Some(super::FileType::File),
+				max_results: usize::MAX,
+				use_gitignore: true,
 				mentions_node_modules: false,
-				sort_by_mtime:         false,
-				cache:                 false,
+				sort_by_mtime: false,
+				cache: false,
 			},
 			None,
 			crate::task::CancelToken::default(),
@@ -415,17 +415,17 @@ mod tests {
 		let run = |pattern: &str| {
 			super::run_glob(
 				super::GlobConfig {
-					filesystem:            BlockingFs::native(),
-					root:                  root.path().to_path_buf(),
-					pattern:               pattern.to_string(),
-					recursive:             false,
-					include_hidden:        true,
-					file_type_filter:      None,
-					max_results:           100,
-					use_gitignore:         true,
+					filesystem: BlockingFs::native(),
+					root: root.path().to_path_buf(),
+					pattern: pattern.to_string(),
+					recursive: false,
+					include_hidden: true,
+					file_type_filter: None,
+					max_results: 100,
+					use_gitignore: true,
 					mentions_node_modules: false,
-					sort_by_mtime:         true,
-					cache:                 false,
+					sort_by_mtime: true,
+					cache: false,
 				},
 				None,
 				crate::task::CancelToken::default(),

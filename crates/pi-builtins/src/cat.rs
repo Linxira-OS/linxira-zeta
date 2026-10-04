@@ -16,15 +16,15 @@ use uucore::{display::Quotable, fast_inc::fast_inc_one};
 use brush_core::{ShellExtensions, builtins::Registration};
 use pi_vfs::BlockingFs;
 
-use crate::host::{Host, Utility, format_usage, matches_parser, util};
+use crate::host::{Host, Utility, format_usage, matches_parser, strip_errno, util};
 
 const LINE_NUMBER_BUF_SIZE: usize = 32;
 
 struct LineNumber {
-	buf:         [u8; LINE_NUMBER_BUF_SIZE],
+	buf: [u8; LINE_NUMBER_BUF_SIZE],
 	print_start: usize,
-	num_start:   usize,
-	num_end:     usize,
+	num_start: usize,
+	num_end: usize,
 }
 
 // Logic to store a string for the line number. Manually incrementing the value
@@ -79,14 +79,6 @@ enum CatError {
 	TooManySymlinks,
 }
 
-fn strip_errno(error: &io::Error) -> String {
-	let mut message = error.to_string();
-	if let Some(position) = message.find(" (os error ") {
-		message.truncate(position);
-	}
-	message
-}
-
 type CatResult<T> = Result<T, CatError>;
 
 #[derive(PartialEq)]
@@ -136,10 +128,9 @@ struct OutputState {
 	one_blank_kept: bool,
 }
 
-
 /// An input stream and whether it is connected to an interactive terminal.
 struct InputHandle<R: Read> {
-	reader:         R,
+	reader: R,
 	is_interactive: bool,
 }
 
@@ -358,10 +349,10 @@ where
 	I: IntoIterator<Item = &'a OsString>,
 {
 	let mut state = OutputState {
-		line_number:             LineNumber::new(),
-		at_line_start:           true,
+		line_number: LineNumber::new(),
+		at_line_start: true,
 		skipped_carriage_return: false,
-		one_blank_kept:          false,
+		one_blank_kept: false,
 	};
 
 	for path in files {
@@ -422,10 +413,7 @@ fn get_input_type(fs: &BlockingFs, path: &OsString, resolved: &Path) -> CatResul
 }
 
 /// Writes a handle to stdout with no output transformation.
-fn write_fast<R: Read>(
-	handle: &mut InputHandle<R>,
-	stdout: &mut impl Write,
-) -> CatResult<()> {
+fn write_fast<R: Read>(handle: &mut InputHandle<R>, stdout: &mut impl Write) -> CatResult<()> {
 	let mut buf = [0; 1024 * 64];
 	loop {
 		match handle.reader.read(&mut buf) {
@@ -571,11 +559,7 @@ fn write_tab_to_end<W: Write>(mut in_buf: &[u8], writer: &mut W) -> io::Result<u
 	}
 }
 
-fn write_nonprint_to_end<W: Write>(
-	in_buf: &[u8],
-	writer: &mut W,
-	tab: &[u8],
-) -> io::Result<usize> {
+fn write_nonprint_to_end<W: Write>(in_buf: &[u8], writer: &mut W, tab: &[u8]) -> io::Result<usize> {
 	let mut count = 0;
 	for byte in in_buf.iter().copied() {
 		if byte == b'\n' {
@@ -614,7 +598,10 @@ pub(crate) fn cat_builtin<SE: ShellExtensions>() -> Registration<SE> {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, io::{BufWriter, sink}};
+	use std::{
+		fs,
+		io::{BufWriter, sink},
+	};
 
 	use tempfile::tempdir;
 

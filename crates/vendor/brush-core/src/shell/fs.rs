@@ -33,7 +33,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 		// see the lexically normalized path: `..` in a URL is not theirs to
 		// resolve.
 		let native = self.filesystem.is_native_local(&abs_path);
-		let checked_path = if native { abs_path } else { pi_vfs::normalize_lexically(&abs_path) };
+		let checked_path = if native {
+			abs_path
+		} else {
+			pi_vfs::normalize_lexically(&abs_path)
+		};
 
 		if !self.filesystem.metadata(&checked_path).await?.is_dir() {
 			return Err(error::ErrorKind::NotADirectory(checked_path).into());
@@ -236,7 +240,11 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 			{
 				Err(descriptor.unavailable_error())
 			},
-			_ => Ok(self.filesystem.open_with(&path_to_open, options).await?.into()),
+			_ => Ok(self
+				.filesystem
+				.open_with(&path_to_open, options)
+				.await?
+				.into()),
 		}
 	}
 

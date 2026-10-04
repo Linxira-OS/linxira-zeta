@@ -24,20 +24,20 @@ use uucore::{
 
 use crate::{
 	file_backup::{backup_display, backup_path},
-	host::{Host, Utility, format_usage, matches_parser, util},
+	host::{Host, Utility, format_usage, matches_parser, strip_errno, util},
 };
 
 struct Settings {
-	overwrite:      OverwriteMode,
-	backup:         BackupMode,
-	suffix:         OsString,
-	symbolic:       bool,
-	relative:       bool,
-	logical:        bool,
-	target_dir:     Option<PathBuf>,
-	no_target_dir:  bool,
+	overwrite: OverwriteMode,
+	backup: BackupMode,
+	suffix: OsString,
+	symbolic: bool,
+	relative: bool,
+	logical: bool,
+	target_dir: Option<PathBuf>,
+	no_target_dir: bool,
 	no_dereference: bool,
-	verbose:        bool,
+	verbose: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -73,7 +73,6 @@ enum LnError {
 	#[error("{0}")]
 	Io(#[from] std::io::Error),
 }
-
 
 mod options {
 	pub const FORCE: &str = "force";
@@ -412,18 +411,24 @@ fn link_files_in_dir(
 				None => join_path(target_dir, Path::new(name)),
 			}
 		} else {
-			show_error(host, format_args!("cannot stat {}: No such file or directory", srcpath.quote()));
+			show_error(
+				host,
+				format_args!("cannot stat {}: No such file or directory", srcpath.quote()),
+			);
 			all_successful = false;
 			continue;
 		};
 
 		if linked_destinations.contains(&targetpath) {
 			// If the target file was already created in this ln call, do not overwrite
-			show_error(host, format_args!(
-				"will not overwrite just-created {} with {}",
-				targetpath.quote(),
-				srcpath.quote()
-			));
+			show_error(
+				host,
+				format_args!(
+					"will not overwrite just-created {} with {}",
+					targetpath.quote(),
+					srcpath.quote()
+				),
+			);
 			all_successful = false;
 		} else if let Err(e) = link(host, srcpath, &targetpath, settings) {
 			show_error(host, format_args!("{e}"));
@@ -484,7 +489,8 @@ fn is_same_entry(filesystem: &BlockingFs, src: &Path, dst: &Path) -> bool {
 		return true;
 	}
 	let options = canonical_missing();
-	match (filesystem.canonicalize_with(src, &options), filesystem.canonicalize_with(dst, &options)) {
+	match (filesystem.canonicalize_with(src, &options), filesystem.canonicalize_with(dst, &options))
+	{
 		(Ok(src), Ok(dst)) => src == dst,
 		_ => paths_refer_to_same_file(filesystem, src, dst),
 	}
@@ -552,9 +558,9 @@ fn link(host: &mut Host, src: &Path, dst: &Path, settings: &Settings) -> LnResul
 		// Hard links dereference their target, so syscalls get the resolved source.
 		let source_fs = host.resolve(&source);
 		let p = if settings.logical && filesystem.is_symlink(&source_fs) {
-			filesystem.canonicalize(&source_fs).map_err(|e| {
-				LnError::Message(format!("failed to access {}: {e}", source.quote()))
-			})?
+			filesystem
+				.canonicalize(&source_fs)
+				.map_err(|e| LnError::Message(format!("failed to access {}: {e}", source.quote())))?
 		} else {
 			source_fs
 		};
@@ -582,7 +588,6 @@ fn link(host: &mut Host, src: &Path, dst: &Path, settings: &Settings) -> LnResul
 	}
 
 	if settings.verbose {
-
 		let out = &mut host.stdout;
 		write!(out, "{} -> {}", dst.quote(), source.quote())?;
 		match backup {
@@ -594,14 +599,6 @@ fn link(host: &mut Host, src: &Path, dst: &Path, settings: &Settings) -> LnResul
 		}
 	}
 	Ok(())
-}
-
-fn strip_errno(error: &std::io::Error) -> String {
-	let rendered = error.to_string();
-	rendered
-		.rsplit_once(" (os error ")
-		.map_or(rendered.as_str(), |(message, _)| message)
-		.to_string()
 }
 
 /// Creates the symbolic link `link` holding the literal text `target`.
@@ -717,12 +714,10 @@ mod tests {
 	fn interactive_prompt_reads_host_stdin() {
 		let (_dir, root) = canonical_tempdir();
 		fs::write(root.join("link"), b"old").unwrap();
-		let (code, stdout, stderr) =
-			run_with_stdin(root.clone(), &["-si", "target", "link"], "n\n");
+		let (code, stdout, stderr) = run_with_stdin(root.clone(), &["-si", "target", "link"], "n\n");
 		assert_eq!((code, stdout.as_str(), stderr.as_str()), (1, "", "ln: replace 'link'? "));
 		assert!(!root.join("link").is_symlink());
-		let (code, _, stderr) =
-			run_with_stdin(root.clone(), &["-si", "target", "link"], "y\n");
+		let (code, _, stderr) = run_with_stdin(root.clone(), &["-si", "target", "link"], "y\n");
 		assert_eq!((code, stderr.as_str()), (0, "ln: replace 'link'? "));
 		assert_eq!(fs::read_link(root.join("link")).unwrap(), PathBuf::from("target"));
 	}

@@ -842,10 +842,10 @@ mod tests {
 	fn docker_compose_logs_uses_log_filter() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let compose_ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose logs api",
-			config:     &cfg,
+			command: "docker compose logs api",
+			config: &cfg,
 		};
 		let input = "api-1  | ready\napi-2  | ready\napi | ready\n";
 		let out = filter(&compose_ctx, input, 0).text;
@@ -859,10 +859,10 @@ mod tests {
 	fn docker_compose_logs_skips_option_values() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose --profile ps logs api",
-			config:     &cfg,
+			command: "docker compose --profile ps logs api",
+			config: &cfg,
 		};
 		assert!(is_log_command(&ctx));
 	}
@@ -878,10 +878,10 @@ mod tests {
 			"docker compose restart logs",
 		] {
 			let ctx = MinimizerCtx {
-				program:    "docker",
+				program: "docker",
 				subcommand: Some("compose"),
-				command:    cmd,
-				config:     &cfg,
+				command: cmd,
+				config: &cfg,
 			};
 			assert!(!is_log_command(&ctx), "`{cmd}` must not be classified as a log command");
 		}
@@ -898,10 +898,10 @@ mod tests {
 	fn docker_compose_ps_uses_table_filter() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let compose_ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose ps",
-			config:     &cfg,
+			command: "docker compose ps",
+			config: &cfg,
 		};
 		let mut input = String::from("NAME IMAGE COMMAND SERVICE CREATED STATUS PORTS\n");
 		for idx in 0..20 {
@@ -917,10 +917,10 @@ mod tests {
 	fn docker_compose_ps_skips_option_values() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose --profile logs ps",
-			config:     &cfg,
+			command: "docker compose --profile logs ps",
+			config: &cfg,
 		};
 		assert!(is_table_command(&ctx));
 	}
@@ -933,10 +933,10 @@ mod tests {
 		for cmd in &["docker compose up ps", "docker compose up images", "docker compose restart ps"]
 		{
 			let ctx = MinimizerCtx {
-				program:    "docker",
+				program: "docker",
 				subcommand: Some("compose"),
-				command:    cmd,
-				config:     &cfg,
+				command: cmd,
+				config: &cfg,
 			};
 			assert!(!is_table_command(&ctx), "`{cmd}` must not be classified as a table command");
 		}
@@ -1017,10 +1017,10 @@ mod tests {
 	fn docker_ps_quiet_preserves_id_listing_verbatim() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("ps"),
-			command:    "docker ps -q",
-			config:     &cfg,
+			command: "docker ps -q",
+			config: &cfg,
 		};
 		let mut input = String::new();
 		for idx in 0..220 {
@@ -1036,10 +1036,10 @@ mod tests {
 	fn docker_ps_format_without_table_preserves_template_output_verbatim() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("ps"),
-			command:    "docker ps --format '{{.ID}}'",
-			config:     &cfg,
+			command: "docker ps --format '{{.ID}}'",
+			config: &cfg,
 		};
 		let mut input = String::new();
 		for idx in 0..220 {
@@ -1059,10 +1059,10 @@ mod tests {
 	fn docker_images_format_table_still_compacts() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("images"),
-			command:    "docker images --format 'table {{.ID}} {{.Repository}}'",
-			config:     &cfg,
+			command: "docker images --format 'table {{.ID}} {{.Repository}}'",
+			config: &cfg,
 		};
 		let mut input = String::from("ID REPOSITORY\n");
 		for idx in 0..25 {
@@ -1082,10 +1082,10 @@ mod tests {
 	fn docker_compose_ps_format_without_table_preserves_template_output_verbatim() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose ps --format '{{.ID}}'",
-			config:     &cfg,
+			command: "docker compose ps --format '{{.ID}}'",
+			config: &cfg,
 		};
 		let mut input = String::new();
 		for idx in 0..220 {
@@ -1276,10 +1276,10 @@ mod tests {
 		// A kubectl List JSON must NOT be rewritten into a table summary.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "kubectl",
+			program: "kubectl",
 			subcommand: Some("get"),
-			command:    "kubectl get pods -ojson",
-			config:     &cfg,
+			command: "kubectl get pods -ojson",
+			config: &cfg,
 		};
 		let input = r#"{"apiVersion":"v1","kind":"List","items":[{"kind":"Pod","metadata":{"name":"p","namespace":"default"},"spec":{"nodeName":"n","containers":[{"name":"c","image":"img"}]},"status":{"phase":"Running","podIP":"1.2.3.4","startTime":"2024-01-01T00:00:00Z","containerStatuses":[{"name":"c","ready":true,"restartCount":0}]}}]}"#;
 		let out = filter(&ctx, input, 0).text;
@@ -1292,10 +1292,10 @@ mod tests {
 		// compaction.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "kubectl",
+			program: "kubectl",
 			subcommand: Some("get"),
-			command:    "kubectl get pod my-pod -oyaml",
-			config:     &cfg,
+			command: "kubectl get pod my-pod -oyaml",
+			config: &cfg,
 		};
 		let input = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod\nspec:\n  containers: []\n";
 		let out = filter(&ctx, input, 0).text;
@@ -1307,10 +1307,10 @@ mod tests {
 		// `-oname` must be treated as `-o name` — listings, not tables.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "kubectl",
+			program: "kubectl",
 			subcommand: Some("get"),
-			command:    "kubectl get pods -oname",
-			config:     &cfg,
+			command: "kubectl get pods -oname",
+			config: &cfg,
 		};
 		// `-o name` output is one `resource/name` per line — compact_table
 		// would corrupt it by treating the first line as a header.
@@ -1324,10 +1324,10 @@ mod tests {
 		// `-ojsonpath=...` must be treated as non-table.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "kubectl",
+			program: "kubectl",
 			subcommand: Some("get"),
-			command:    "kubectl get pods -ojsonpath={.items[*].metadata.name}",
-			config:     &cfg,
+			command: "kubectl get pods -ojsonpath={.items[*].metadata.name}",
+			config: &cfg,
 		};
 		let input = "alpha beta gamma\n";
 		let out = filter(&ctx, input, 0).text;
@@ -1339,10 +1339,10 @@ mod tests {
 		// `-owide` IS a table format — it must still go through compact_table.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "kubectl",
+			program: "kubectl",
 			subcommand: Some("get"),
-			command:    "kubectl get pods -owide",
-			config:     &cfg,
+			command: "kubectl get pods -owide",
+			config: &cfg,
 		};
 		let mut input = String::from("NAME READY STATUS RESTARTS AGE IP NODE\n");
 		for i in 0..25 {
@@ -1458,10 +1458,10 @@ mod tests {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		for sub in &["start", "stop", "restart", "rm"] {
 			let ctx = MinimizerCtx {
-				program:    "docker",
+				program: "docker",
 				subcommand: Some(sub),
-				command:    &format!("docker {sub} my-Downloading-app"),
-				config:     &cfg,
+				command: &format!("docker {sub} my-Downloading-app"),
+				config: &cfg,
 			};
 			let input = "my-Downloading-app\n";
 			let out = filter(&ctx, input, 0).text;
@@ -1477,10 +1477,10 @@ mod tests {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		for action in &["start", "stop", "restart", "rm"] {
 			let ctx = MinimizerCtx {
-				program:    "docker",
+				program: "docker",
 				subcommand: Some("compose"),
-				command:    &format!("docker compose {action} my-Downloading-app"),
-				config:     &cfg,
+				command: &format!("docker compose {action} my-Downloading-app"),
+				config: &cfg,
 			};
 			let input = "my-Downloading-app\n";
 			let out = filter(&ctx, input, 0).text;
@@ -1562,10 +1562,10 @@ mod tests {
 	fn docker_compose_p_project_name_routes_logs() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose -p myproj logs api",
-			config:     &cfg,
+			command: "docker compose -p myproj logs api",
+			config: &cfg,
 		};
 		assert!(is_log_command(&ctx), "docker compose -p myproj logs must be a log command");
 	}
@@ -1574,10 +1574,10 @@ mod tests {
 	fn docker_compose_p_project_name_routes_ps() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose -p myproj ps",
-			config:     &cfg,
+			command: "docker compose -p myproj ps",
+			config: &cfg,
 		};
 		assert!(
 			is_table_command(&ctx),
@@ -1589,10 +1589,10 @@ mod tests {
 	fn docker_compose_p_project_name_routes_start() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program:    "docker",
+			program: "docker",
 			subcommand: Some("compose"),
-			command:    "docker compose -p myproj start api",
-			config:     &cfg,
+			command: "docker compose -p myproj start api",
+			config: &cfg,
 		};
 		assert!(
 			is_docker_lifecycle_command(&ctx),

@@ -24,7 +24,7 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Debug)]
 struct DelayedFilesystem {
-	root:     PathBuf,
+	root: PathBuf,
 	seekable: bool,
 }
 
@@ -120,7 +120,7 @@ impl FileSystem for DelayedFilesystem {
 
 #[derive(Debug)]
 struct DelayedFile {
-	file:     File,
+	file: File,
 	seekable: bool,
 }
 
@@ -173,7 +173,7 @@ async fn virtual_shell(root: &Path) -> Shell {
 		shell.register_builtin(name, builtin);
 	}
 	shell.set_filesystem(Fs::new(Arc::new(DelayedFilesystem {
-		root:     root.to_path_buf(),
+		root: root.to_path_buf(),
 		seekable: true,
 	})));
 	shell
@@ -365,7 +365,7 @@ async fn cmp_compares_nonseekable_files_and_discards_requested_prefixes() {
 	let error = tempfile::tempfile().expect("captured stderr");
 	let mut shell = virtual_shell(directory.path()).await;
 	shell.set_filesystem(Fs::new(Arc::new(DelayedFilesystem {
-		root:     directory.path().to_path_buf(),
+		root: directory.path().to_path_buf(),
 		seekable: false,
 	})));
 	let parameters = capture_parameters(&shell, &output, &error);

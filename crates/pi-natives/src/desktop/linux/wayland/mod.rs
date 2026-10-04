@@ -28,12 +28,12 @@ use crate::desktop::{
 #[cfg(any(feature = "wayland-pipewire", test))]
 #[derive(Debug, Clone, Copy)]
 struct PortalGeometry {
-	logical_x:      i32,
-	logical_y:      i32,
-	logical_width:  u32,
+	logical_x: i32,
+	logical_y: i32,
+	logical_width: u32,
 	logical_height: u32,
-	pixel_width:    u32,
-	pixel_height:   u32,
+	pixel_width: u32,
+	pixel_height: u32,
 }
 
 #[cfg(any(feature = "wayland-pipewire", test))]
@@ -128,10 +128,10 @@ pub struct WaylandBackend {
 		not(feature = "wayland-pipewire"),
 		expect(dead_code, reason = "only read by the pipewire capture path")
 	)]
-	display:  DisplaySelector,
-	ax:       Option<AtSpiAx>,
+	display: DisplaySelector,
+	ax: Option<AtSpiAx>,
 	ax_error: Option<DesktopError>,
-	input:    Option<libei::Libei>,
+	input: Option<libei::Libei>,
 	displays: Vec<DesktopDisplay>,
 }
 
@@ -331,10 +331,10 @@ mod tests {
 
 	fn backend_without_services() -> WaylandBackend {
 		WaylandBackend {
-			display:  DisplaySelector::All,
-			ax:       None,
+			display: DisplaySelector::All,
+			ax: None,
 			ax_error: None,
-			input:    None,
+			input: None,
 			displays: Vec::new(),
 		}
 	}
@@ -442,10 +442,10 @@ mod tests {
 	#[cfg(not(feature = "wayland-pipewire"))]
 	fn capabilities_report_no_capture_without_pipewire_feature() {
 		let mut backend = WaylandBackend {
-			display:  DisplaySelector::All,
-			ax:       None,
+			display: DisplaySelector::All,
+			ax: None,
 			ax_error: None,
-			input:    None,
+			input: None,
 			displays: Vec::new(),
 		};
 		let caps = backend.capabilities();

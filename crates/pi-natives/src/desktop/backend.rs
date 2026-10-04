@@ -54,36 +54,18 @@ impl MouseButton {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Modifiers {
-	pub ctrl:  bool,
-	pub alt:   bool,
+	pub ctrl: bool,
+	pub alt: bool,
 	pub shift: bool,
-	pub meta:  bool,
+	pub meta: bool,
 }
 
 #[derive(Debug, Clone)]
 pub enum PointerEvent {
-	Click {
-		x:         f64,
-		y:         f64,
-		button:    MouseButton,
-		count:     u32,
-		modifiers: Modifiers,
-	},
-	Move {
-		x: f64,
-		y: f64,
-	},
-	Drag {
-		path:      Vec<(f64, f64)>,
-		button:    MouseButton,
-		modifiers: Modifiers,
-	},
-	Scroll {
-		x:  f64,
-		y:  f64,
-		dx: f64,
-		dy: f64,
-	},
+	Click { x: f64, y: f64, button: MouseButton, count: u32, modifiers: Modifiers },
+	Move { x: f64, y: f64 },
+	Drag { path: Vec<(f64, f64)>, button: MouseButton, modifiers: Modifiers },
+	Scroll { x: f64, y: f64, dx: f64, dy: f64 },
 }
 
 pub trait Backend: Send {

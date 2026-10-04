@@ -87,48 +87,48 @@ fn cancellation_token(signal: Option<Unknown>) -> Option<CancellationToken> {
 /// Discovered Git repository paths.
 #[napi(object)]
 pub struct VcsGitRepoInfo {
-	pub repo_root:      String,
+	pub repo_root: String,
 	pub git_entry_path: String,
-	pub git_dir:        String,
-	pub common_dir:     String,
-	pub head_path:      String,
-	pub is_reftable:    bool,
+	pub git_dir: String,
+	pub common_dir: String,
+	pub head_path: String,
+	pub is_reftable: bool,
 }
 /// Git status counts.
 #[napi(object)]
 pub struct VcsStatusSummary {
-	pub staged:    u32,
-	pub unstaged:  u32,
+	pub staged: u32,
+	pub unstaged: u32,
 	pub untracked: u32,
 }
 /// Resolved HEAD state.
 #[napi(object)]
 pub struct VcsHeadState {
-	pub kind:     String,
+	pub kind: String,
 	pub ref_name: Option<String>,
-	pub branch:   Option<String>,
-	pub commit:   Option<String>,
+	pub branch: Option<String>,
+	pub commit: Option<String>,
 }
 /// Linked worktree metadata.
 #[napi(object)]
 pub struct VcsLinkedWorktree {
-	pub root:         String,
+	pub root: String,
 	pub primary_root: String,
 }
 /// One worktree listing row.
 #[napi(object)]
 pub struct VcsWorktreeEntry {
-	pub path:     String,
-	pub head:     Option<String>,
-	pub branch:   Option<String>,
+	pub path: String,
+	pub head: Option<String>,
+	pub branch: Option<String>,
 	pub detached: bool,
 }
 /// Worktree creation options.
 #[napi(object)]
 pub struct VcsWorktreeAddOptions {
-	pub detach:       bool,
-	pub clone:        bool,
-	pub backend:      Option<IsoBackendKind>,
+	pub detach: bool,
+	pub clone: bool,
+	pub backend: Option<IsoBackendKind>,
 	/// Carry the source checkout's uncommitted changes into the new worktree
 	/// (target must be the source `HEAD`).
 	pub keep_changes: Option<bool>,
@@ -142,41 +142,41 @@ pub struct VcsWorktreeAddResult {
 /// Commit author identity.
 #[napi(object)]
 pub struct VcsCommitAuthor {
-	pub name:  String,
+	pub name: String,
 	pub email: String,
-	pub date:  Option<String>,
+	pub date: Option<String>,
 }
 /// Commit metadata.
 #[napi(object)]
 pub struct VcsCommitDetails {
-	pub sha:     String,
+	pub sha: String,
 	pub parents: Vec<String>,
-	pub author:  VcsCommitAuthor,
+	pub author: VcsCommitAuthor,
 	pub message: String,
 }
 /// Per-file line counts.
 #[napi(object)]
 pub struct VcsNumstatEntry {
-	pub path:    String,
-	pub added:   Option<u32>,
+	pub path: String,
+	pub added: Option<u32>,
 	pub removed: Option<u32>,
 }
 /// Bounded object contents.
 #[napi(object)]
 pub struct VcsShowResult {
-	pub data:      Buffer,
+	pub data: Buffer,
 	pub truncated: bool,
 }
 /// Diff generation options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsDiffOptions {
-	pub cached:    Option<bool>,
-	pub base:      Option<String>,
-	pub head:      Option<String>,
-	pub files:     Option<Vec<String>>,
-	pub context:   Option<u32>,
-	pub binary:    Option<bool>,
+	pub cached: Option<bool>,
+	pub base: Option<String>,
+	pub head: Option<String>,
+	pub files: Option<Vec<String>>,
+	pub context: Option<u32>,
+	pub binary: Option<bool>,
 	/// Fail with an `OutputTooLarge` `VcsError` once the rendered patch exceeds
 	/// this many bytes, instead of buffering an arbitrarily large string.
 	/// Carried as a double so a budget past 2^32 reaches the renderer intact
@@ -187,86 +187,86 @@ pub struct VcsDiffOptions {
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsStatusOptions {
-	pub untracked:      Option<String>,
-	pub pathspecs:      Option<Vec<String>>,
+	pub untracked: Option<String>,
+	pub pathspecs: Option<Vec<String>>,
 	pub nul_terminated: Option<bool>,
 }
 /// Commit creation options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsCommitOptions {
-	pub author:      Option<VcsCommitAuthor>,
+	pub author: Option<VcsCommitAuthor>,
 	pub allow_empty: Option<bool>,
-	pub amend:       Option<bool>,
-	pub files:       Option<Vec<String>>,
+	pub amend: Option<bool>,
+	pub files: Option<Vec<String>>,
 }
 /// Patch application options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsApplyOptions {
-	pub cached:     Option<bool>,
+	pub cached: Option<bool>,
 	pub index_path: Option<String>,
-	pub reverse:    Option<bool>,
-	pub three_way:  Option<bool>,
+	pub reverse: Option<bool>,
+	pub three_way: Option<bool>,
 }
 /// Restore options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsRestoreOptions {
-	pub source:   Option<String>,
-	pub staged:   Option<bool>,
+	pub source: Option<String>,
+	pub staged: Option<bool>,
 	pub worktree: Option<bool>,
-	pub files:    Option<Vec<String>>,
+	pub files: Option<Vec<String>>,
 }
 /// Clean options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsCleanOptions {
-	pub ignored_only:    Option<bool>,
+	pub ignored_only: Option<bool>,
 	pub include_ignored: Option<bool>,
-	pub paths:           Option<Vec<String>>,
+	pub paths: Option<Vec<String>>,
 }
 /// Push options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsPushOptions {
-	pub remote:           Option<String>,
-	pub refspec:          Option<String>,
+	pub remote: Option<String>,
+	pub refspec: Option<String>,
 	pub force_with_lease: Option<bool>,
 }
 /// Clone options.
 #[napi(object)]
 #[derive(Default)]
 pub struct VcsCloneOptions {
-	pub ref_name:   Option<String>,
-	pub sha:        Option<String>,
+	pub ref_name: Option<String>,
+	pub sha: Option<String>,
 	pub timeout_ms: Option<u32>,
 }
 /// Selected hunks or line range for a path.
 #[napi(object)]
 pub struct VcsHunkSelection {
-	pub path:    String,
-	pub kind:    String,
+	pub path: String,
+	pub kind: String,
 	pub indices: Option<Vec<u32>>,
-	pub start:   Option<u32>,
-	pub end:     Option<u32>,
+	pub start: Option<u32>,
+	pub end: Option<u32>,
 }
 /// Invalid hunk selection.
 #[napi(object)]
 pub struct VcsHunkSelectionError {
-	pub path:    String,
+	pub path: String,
 	pub message: String,
 }
 
 impl From<core::GitRepoInfo> for VcsGitRepoInfo {
 	fn from(v: core::GitRepoInfo) -> Self {
 		Self {
-			repo_root:      path_string(v.repo_root),
+			repo_root: path_string(v.repo_root),
 			git_entry_path: path_string(v.git_entry_path),
-			git_dir:        path_string(v.git_dir),
-			common_dir:     path_string(v.common_dir),
-			head_path:      path_string(v.head_path),
-			is_reftable:    v.is_reftable,
+			git_dir: path_string(v.git_dir),
+			common_dir: path_string(v.common_dir),
+			head_path: path_string(v.head_path),
+			is_reftable: v.is_reftable,
 		}
 	}
 }
@@ -294,12 +294,7 @@ impl From<core::LinkedWorktree> for VcsLinkedWorktree {
 }
 impl From<core::WorktreeEntry> for VcsWorktreeEntry {
 	fn from(v: core::WorktreeEntry) -> Self {
-		Self {
-			path:     path_string(v.path),
-			head:     v.head,
-			branch:   v.branch,
-			detached: v.detached,
-		}
+		Self { path: path_string(v.path), head: v.head, branch: v.branch, detached: v.detached }
 	}
 }
 impl From<core::CommitAuthor> for VcsCommitAuthor {
@@ -330,12 +325,12 @@ impl From<core::ShowResult> for VcsShowResult {
 impl From<VcsDiffOptions> for core::DiffOptions {
 	fn from(v: VcsDiffOptions) -> Self {
 		Self {
-			cached:    v.cached.unwrap_or(false),
-			base:      v.base,
-			head:      v.head,
-			files:     v.files.unwrap_or_default(),
-			context:   v.context,
-			binary:    v.binary.unwrap_or(false),
+			cached: v.cached.unwrap_or(false),
+			base: v.base,
+			head: v.head,
+			files: v.files.unwrap_or_default(),
+			context: v.context,
+			binary: v.binary.unwrap_or(false),
 			max_bytes: v.max_bytes.map(|v| v as usize),
 		}
 	}
@@ -360,47 +355,47 @@ impl TryFrom<VcsStatusOptions> for core::StatusOptions {
 impl From<VcsCommitOptions> for core::CommitOptions {
 	fn from(v: VcsCommitOptions) -> Self {
 		Self {
-			author:      v.author.map(Into::into),
+			author: v.author.map(Into::into),
 			allow_empty: v.allow_empty.unwrap_or(false),
-			amend:       v.amend.unwrap_or(false),
-			files:       v.files.unwrap_or_default(),
+			amend: v.amend.unwrap_or(false),
+			files: v.files.unwrap_or_default(),
 		}
 	}
 }
 impl From<VcsApplyOptions> for core::ApplyOptions {
 	fn from(v: VcsApplyOptions) -> Self {
 		Self {
-			cached:     v.cached.unwrap_or(false),
+			cached: v.cached.unwrap_or(false),
 			index_path: v.index_path.map(PathBuf::from),
-			reverse:    v.reverse.unwrap_or(false),
-			three_way:  v.three_way.unwrap_or(false),
+			reverse: v.reverse.unwrap_or(false),
+			three_way: v.three_way.unwrap_or(false),
 		}
 	}
 }
 impl From<VcsRestoreOptions> for core::RestoreOptions {
 	fn from(v: VcsRestoreOptions) -> Self {
 		Self {
-			source:   v.source,
-			staged:   v.staged.unwrap_or(false),
+			source: v.source,
+			staged: v.staged.unwrap_or(false),
 			worktree: v.worktree.unwrap_or(false),
-			files:    v.files.unwrap_or_default(),
+			files: v.files.unwrap_or_default(),
 		}
 	}
 }
 impl From<VcsCleanOptions> for core::CleanOptions {
 	fn from(v: VcsCleanOptions) -> Self {
 		Self {
-			ignored_only:    v.ignored_only.unwrap_or(false),
+			ignored_only: v.ignored_only.unwrap_or(false),
 			include_ignored: v.include_ignored.unwrap_or(false),
-			paths:           v.paths.unwrap_or_default(),
+			paths: v.paths.unwrap_or_default(),
 		}
 	}
 }
 impl From<VcsPushOptions> for core::PushOptions {
 	fn from(v: VcsPushOptions) -> Self {
 		Self {
-			remote:           v.remote,
-			refspec:          v.refspec,
+			remote: v.remote,
+			refspec: v.refspec,
 			force_with_lease: v.force_with_lease.unwrap_or(false),
 		}
 	}
@@ -409,8 +404,8 @@ impl From<VcsCloneOptions> for core::CloneOptions {
 	fn from(v: VcsCloneOptions) -> Self {
 		Self {
 			ref_name: v.ref_name,
-			sha:      v.sha,
-			timeout:  v.timeout_ms.map(|v| Duration::from_millis(u64::from(v))),
+			sha: v.sha,
+			timeout: v.timeout_ms.map(|v| Duration::from_millis(u64::from(v))),
 		}
 	}
 }
@@ -425,7 +420,7 @@ impl TryFrom<VcsHunkSelection> for core::HunkSelection {
 				start: v
 					.start
 					.ok_or_else(|| napi::Error::from_reason("lines selection requires start"))?,
-				end:   v
+				end: v
 					.end
 					.ok_or_else(|| napi::Error::from_reason("lines selection requires end"))?,
 			},
@@ -891,11 +886,15 @@ impl VcsGitRepo {
 			} else {
 				core::WorktreeClone::Auto
 			};
-			r.worktree_add(Path::new(&path), &ref_name, core::WorktreeAddOptions {
-				detach: options.detach,
-				clone,
-				keep_changes: options.keep_changes.unwrap_or(false),
-			})
+			r.worktree_add(
+				Path::new(&path),
+				&ref_name,
+				core::WorktreeAddOptions {
+					detach: options.detach,
+					clone,
+					keep_changes: options.keep_changes.unwrap_or(false),
+				},
+			)
 			.map(|result| VcsWorktreeAddResult {
 				cloned_with: result.cloned_with.map(to_napi_kind),
 				clone_error: result.clone_error,

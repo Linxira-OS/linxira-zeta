@@ -12,9 +12,9 @@ use std::{
 use brush_core::{ShellExtensions, builtins::Registration};
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser, parser::ValuesRef};
 use pi_vfs::{BlockingFs, DirOptions, is_virtual_path, parent_path};
-use uucore::{display::Quotable, fs};
 #[cfg(not(windows))]
 use uucore::mode;
+use uucore::{display::Quotable, fs};
 
 use crate::host::{Host, Utility, format_usage, matches_parser, util};
 
@@ -31,8 +31,8 @@ mod options {
 
 struct Config {
 	recursive: bool,
-	mode:      u32,
-	verbose:   bool,
+	mode: u32,
+	verbose: bool,
 }
 
 #[cfg(windows)]
@@ -87,9 +87,9 @@ fn normalized_io_message(error: &io::Error) -> String {
 	}
 
 	use io::ErrorKind::{
-		AddrInUse, AddrNotAvailable, AlreadyExists, BrokenPipe, ConnectionAborted,
-		ConnectionRefused, ConnectionReset, Interrupted, InvalidData, InvalidInput, NotConnected,
-		NotFound, PermissionDenied, TimedOut, UnexpectedEof, WouldBlock, WriteZero,
+		AddrInUse, AddrNotAvailable, AlreadyExists, BrokenPipe, ConnectionAborted, ConnectionRefused,
+		ConnectionReset, Interrupted, InvalidData, InvalidInput, NotConnected, NotFound,
+		PermissionDenied, TimedOut, UnexpectedEof, WouldBlock, WriteZero,
 	};
 	match error.kind() {
 		NotFound => "No such file or directory".into(),
@@ -234,7 +234,10 @@ fn strip_dot_for_creation(path: &Path) -> PathBuf {
 	let Some(mut spelled) = path.to_str() else {
 		return path.to_path_buf();
 	};
-	while let Some(stripped) = spelled.strip_suffix("/.").or_else(|| spelled.strip_suffix("/./")) {
+	while let Some(stripped) = spelled
+		.strip_suffix("/.")
+		.or_else(|| spelled.strip_suffix("/./"))
+	{
 		if stripped.ends_with(":/") {
 			// `scheme://.` names the root itself.
 			break;
@@ -275,10 +278,14 @@ fn acl_default_perm_bits(filesystem: &BlockingFs, path: &Path) -> u32 {
 	if value.len() < 3 {
 		return 0;
 	}
-	let entries: Vec<u8> = value[3..].iter().copied().filter(|&byte| byte != 255).collect();
-	entries.chunks_exact(4).fold(0, |perm, entry| {
-		(perm << 3) | u32::from(entry[2]) | u32::from(entry[3])
-	})
+	let entries: Vec<u8> = value[3..]
+		.iter()
+		.copied()
+		.filter(|&byte| byte != 255)
+		.collect();
+	entries
+		.chunks_exact(4)
+		.fold(0, |perm, entry| (perm << 3) | u32::from(entry[2]) | u32::from(entry[3]))
 }
 
 // Uses an iterative approach instead of recursion to avoid stack overflow with

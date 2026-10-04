@@ -18,9 +18,9 @@ use std::{
 	time::Duration,
 };
 
-use brush_core::{ExecutionContext, ExecutionExitCode, ExecutionResult};
 #[cfg(unix)]
 use brush_core::openfiles::OpenFiles;
+use brush_core::{ExecutionContext, ExecutionExitCode, ExecutionResult};
 use tokio_util::sync::CancellationToken;
 
 use crate::{host::ShellPaths, kill::signal_number, proc_snapshot};
@@ -35,38 +35,38 @@ pub(crate) enum ProcMatchMode {
 
 #[derive(Default)]
 struct ProcMatchOptions {
-	patterns:          Vec<String>,
-	full:              bool,
-	exact:             bool,
-	ignore_case:       bool,
-	invert:            bool,
-	newest:            bool,
-	oldest:            bool,
-	parents:           Vec<i32>,
-	groups:            Vec<i32>,
-	sessions:          Vec<i32>,
-	effective_users:   Vec<u32>,
-	real_users:        Vec<u32>,
-	real_groups:       Vec<u32>,
-	terminals:         Vec<Option<u64>>,
-	pids:              Vec<i32>,
-	pid_files:         Vec<String>,
-	explicit_pid:      bool,
-	require_lock:      bool,
-	older:             Option<Duration>,
-	states:            HashSet<char>,
-	ignore_ancestors:  bool,
+	patterns: Vec<String>,
+	full: bool,
+	exact: bool,
+	ignore_case: bool,
+	invert: bool,
+	newest: bool,
+	oldest: bool,
+	parents: Vec<i32>,
+	groups: Vec<i32>,
+	sessions: Vec<i32>,
+	effective_users: Vec<u32>,
+	real_users: Vec<u32>,
+	real_groups: Vec<u32>,
+	terminals: Vec<Option<u64>>,
+	pids: Vec<i32>,
+	pid_files: Vec<String>,
+	explicit_pid: bool,
+	require_lock: bool,
+	older: Option<Duration>,
+	states: HashSet<char>,
+	ignore_ancestors: bool,
 	include_ancestors: bool,
-	count:             bool,
-	list_name:         bool,
-	list_full:         bool,
-	quiet:             bool,
-	delimiter:         String,
-	signal:            i32,
-	queue:             Option<i32>,
-	echo:              bool,
-	echo_command:      bool,
-	interactive:       bool,
+	count: bool,
+	list_name: bool,
+	list_full: bool,
+	quiet: bool,
+	delimiter: String,
+	signal: i32,
+	queue: Option<i32>,
+	echo: bool,
+	echo_command: bool,
+	interactive: bool,
 }
 
 /// Runs the process-matching body for `mode`.
@@ -397,7 +397,9 @@ fn parse_proc_match_args(
 				"--euid" => parse_user_list(value.unwrap_or_default(), &mut options.effective_users)?,
 				"--uid" => parse_user_list(value.unwrap_or_default(), &mut options.real_users)?,
 				"--group" => parse_group_list(value.unwrap_or_default(), &mut options.real_groups)?,
-				"--terminal" => parse_terminal_list(value.unwrap_or_default(), &mut options.terminals, paths)?,
+				"--terminal" => {
+					parse_terminal_list(value.unwrap_or_default(), &mut options.terminals, paths)?
+				},
 				"--pidfile" => options
 					.pid_files
 					.push(value.unwrap_or_default().to_string()),
@@ -571,10 +573,13 @@ fn parse_proc_match_args(
 				.map_err(|err| (3, format!("cannot read pidfile from standard input: {err}")))?;
 			contents
 		} else {
-			let mut pidfile = paths.fs().open(paths.resolve(file))
+			let mut pidfile = paths
+				.fs()
+				.open(paths.resolve(file))
 				.map_err(|err| (3, format!("cannot read pidfile '{file}': {err}")))?;
 			if options.require_lock
-				&& !pidfile.is_locked()
+				&& !pidfile
+					.is_locked()
 					.map_err(|err| (3, format!("cannot inspect pidfile '{file}': {err}")))?
 			{
 				return Err((3, format!("pidfile '{file}' is not locked")));
@@ -874,7 +879,11 @@ fn resolve_terminal(value: &str, paths: &ShellPaths) -> Option<u64> {
 	let metadata = if virtual_path {
 		metadata
 	} else {
-		metadata.or_else(|_| paths.fs().metadata(Path::new("/dev").join(format!("tty{value}"))))
+		metadata.or_else(|_| {
+			paths
+				.fs()
+				.metadata(Path::new("/dev").join(format!("tty{value}")))
+		})
 	};
 	metadata.ok().and_then(|metadata| metadata.rdev())
 }

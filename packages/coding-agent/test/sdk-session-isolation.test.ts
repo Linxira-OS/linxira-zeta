@@ -3,9 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
-import { getActiveProfile, getConfigRootDir, setProfile } from "@linxiraos/pi-utils/dirs";
 import type { Rule } from "@linxiraos/zeta/capability/rule";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -18,6 +17,8 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { getSessionsDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { getActiveProfile, getConfigRootDir, setProfile } from "@linxiraos/pi-utils/dirs";
 
 function createTtsrRule(name: string): Rule {
 	return {
@@ -58,7 +59,7 @@ async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 	const originalProfile = getActiveProfile();
 	const originalConfigDir = process.env.PI_CONFIG_DIR;
 	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-	const configDirName = `.zeta-sdk-session-${Snowflake.next()}`;
+	const configDirName = `.omp-sdk-session-${Snowflake.next()}`;
 	const configRoot = path.join(os.homedir(), configDirName);
 	try {
 		process.env.PI_CONFIG_DIR = configDirName;
@@ -77,7 +78,10 @@ async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 			process.env.ZETA_CODING_AGENT_DIR = originalAgentDir;
 		}
 		setProfile(originalProfile);
-		fs.rmSync(configRoot, { recursive: true, force: true });
+		// The model registry opened the shared `<configRoot>/agent/models.db` cache while the
+		// temp root was active; release it so Windows can delete the root.
+		closeModelCache();
+		removeSyncWithRetries(configRoot);
 	}
 }
 

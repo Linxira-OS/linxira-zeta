@@ -120,21 +120,21 @@ impl builtins::Command for GitCommand {
 #[derive(Debug, Default, PartialEq, Eq)]
 struct AddRequest {
 	/// `-C` directories, applied in order.
-	dirs:           Vec<String>,
-	path:           String,
-	commit_ish:     Option<String>,
+	dirs: Vec<String>,
+	path: String,
+	commit_ish: Option<String>,
 	/// Branch named by `-b`/`-B`.
-	new_branch:     Option<String>,
+	new_branch: Option<String>,
 	/// `-B`: reset `new_branch` when it exists instead of refusing.
-	reset:          bool,
-	detach:         bool,
-	quiet:          bool,
+	reset: bool,
+	detach: bool,
+	quiet: bool,
 	/// `--lock` reason, written to the worktree's `locked` file.
-	lock:           Option<String>,
+	lock: Option<String>,
 	/// `--[no-]track`; `None` defers to `branch.autoSetupMerge`.
-	track:          Option<bool>,
+	track: Option<bool>,
 	/// `--[no-]guess-remote`; `None` defers to `worktree.guessRemote`.
-	guess_remote:   Option<bool>,
+	guess_remote: Option<bool>,
 	/// `--[no-]relative-paths`; `None` defers to `worktree.useRelativePaths`.
 	relative_paths: Option<bool>,
 }
@@ -438,27 +438,29 @@ struct BranchStep {
 
 /// A resolved in-process `worktree add`.
 struct Plan {
-	repo:      GitRepo,
-	path:      PathBuf,
-	branch:    Option<BranchStep>,
+	repo: GitRepo,
+	path: PathBuf,
+	branch: Option<BranchStep>,
 	/// Branch to check out, or the commit-ish to detach at.
-	target:    String,
-	detach:    bool,
+	target: String,
+	detach: bool,
 	preparing: Preparing,
-	lock:      Option<String>,
-	quiet:     bool,
+	lock: Option<String>,
+	quiet: bool,
 }
 
 impl Plan {
 	/// Creates and optionally locks the worktree.
 	fn add(self) -> pi_vcs::Result<Created> {
-		self
-			.repo
-			.worktree_add(&self.path, &self.target, WorktreeAddOptions {
-				detach:       self.detach,
-				clone:        WorktreeClone::Auto,
+		self.repo.worktree_add(
+			&self.path,
+			&self.target,
+			WorktreeAddOptions {
+				detach: self.detach,
+				clone: WorktreeClone::Auto,
 				keep_changes: false,
-			})?;
+			},
+		)?;
 		let linked = GitRepo::require(&self.path)?;
 		if let Some(reason) = &self.lock {
 			// git's `write_file` terminates non-empty content with a newline.
@@ -470,12 +472,12 @@ impl Plan {
 			std::fs::write(linked.info().git_dir.join("locked"), content)?;
 		}
 		Ok(Created {
-			head:      linked.head_sha()?.unwrap_or_default(),
-			oneline:   linked.log_onelines(1)?.pop().unwrap_or_default(),
-			hook:      linked.hook_path("post-checkout")?,
-			path:      self.path,
+			head: linked.head_sha()?.unwrap_or_default(),
+			oneline: linked.log_onelines(1)?.pop().unwrap_or_default(),
+			hook: linked.hook_path("post-checkout")?,
+			path: self.path,
 			preparing: self.preparing,
-			quiet:     self.quiet,
+			quiet: self.quiet,
 		})
 	}
 }
@@ -490,14 +492,14 @@ enum Preparing {
 
 /// A worktree pi-vcs created, awaiting git's report and hook.
 struct Created {
-	path:      PathBuf,
+	path: PathBuf,
 	preparing: Preparing,
 	/// Full id of the new worktree's HEAD.
-	head:      String,
+	head: String,
 	/// `<short-id> <subject>` of the new worktree's HEAD.
-	oneline:   String,
-	hook:      Option<PathBuf>,
-	quiet:     bool,
+	oneline: String,
+	hook: Option<PathBuf>,
+	quiet: bool,
 }
 
 impl Created {

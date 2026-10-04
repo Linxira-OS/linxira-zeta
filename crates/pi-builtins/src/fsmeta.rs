@@ -11,7 +11,10 @@ pub(crate) fn display_permissions(metadata: &Metadata, display_file_type: bool) 
 }
 
 /// Selects an available provider timestamp for metadata-reporting utilities.
-pub(crate) fn metadata_get_time(metadata: &Metadata, field: MetadataTimeField) -> Option<SystemTime> {
+pub(crate) fn metadata_get_time(
+	metadata: &Metadata,
+	field: MetadataTimeField,
+) -> Option<SystemTime> {
 	match field {
 		MetadataTimeField::Modification => metadata.modified().ok(),
 		MetadataTimeField::Access => metadata.accessed().ok(),

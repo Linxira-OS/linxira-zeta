@@ -35,26 +35,26 @@ const DEFAULT_VALUE: &str = "";
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Snapshot {
-	version:   u32,
-	scheme:    String,
+	version: u32,
+	scheme: String,
 	root_path: String,
-	id:        String,
-	keys:      Vec<KeySnapshot>,
-	values:    Vec<ValueSnapshot>,
+	id: String,
+	keys: Vec<KeySnapshot>,
+	values: Vec<ValueSnapshot>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct KeySnapshot {
-	path:    String,
+	path: String,
 	present: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ValueSnapshot {
-	path:  String,
-	name:  String,
+	path: String,
+	name: String,
 	value: Option<RawValue>,
 }
 
@@ -62,12 +62,12 @@ struct ValueSnapshot {
 #[serde(deny_unknown_fields)]
 struct RawValue {
 	value_type: u32,
-	bytes:      Vec<u8>,
+	bytes: Vec<u8>,
 }
 
 struct Layout {
-	root:   String,
-	paths:  [String; 4],
+	root: String,
+	paths: [String; 4],
 	values: [(String, String); 4],
 }
 
@@ -92,8 +92,8 @@ pub(super) fn prepare(context: &Context) -> Result<Snapshot> {
 		.map(|(path, name)| {
 			context.check()?;
 			Ok(ValueSnapshot {
-				path:  path.clone(),
-				name:  name.clone(),
+				path: path.clone(),
+				name: name.clone(),
 				value: read_value(path, name)?,
 			})
 		})
@@ -269,8 +269,8 @@ impl Layout {
 		let open = format!("{shell}\\open");
 		let command = format!("{open}\\command");
 		Self {
-			root:   root.clone(),
-			paths:  [root.clone(), shell, open, command.clone()],
+			root: root.clone(),
+			paths: [root.clone(), shell, open, command.clone()],
 			values: [
 				(root.clone(), DEFAULT_VALUE.to_owned()),
 				(root.clone(), "URL Protocol".to_owned()),
@@ -377,7 +377,7 @@ fn read_value(path: &str, name: &str) -> Result<Option<RawValue>> {
 	match key.get_raw_value(name) {
 		Ok(value) => Ok(Some(RawValue {
 			value_type: value.vtype.clone() as u32,
-			bytes:      value.bytes.into_owned(),
+			bytes: value.bytes.into_owned(),
 		})),
 		Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
 		Err(error) => {
@@ -674,7 +674,7 @@ mod tests {
 	static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 	struct DisposableScheme {
-		scheme:    String,
+		scheme: String,
 		directory: std::path::PathBuf,
 	}
 
@@ -715,16 +715,16 @@ mod tests {
 	fn untouched_snapshot(context: &Context) -> Snapshot {
 		let layout = Layout::new(&context.scheme);
 		Snapshot {
-			version:   SNAPSHOT_VERSION,
-			scheme:    context.scheme.clone(),
+			version: SNAPSHOT_VERSION,
+			scheme: context.scheme.clone(),
 			root_path: layout.root,
-			id:        context.id.clone(),
-			keys:      layout
+			id: context.id.clone(),
+			keys: layout
 				.paths
 				.into_iter()
 				.map(|path| KeySnapshot { path, present: false })
 				.collect(),
-			values:    layout
+			values: layout
 				.values
 				.into_iter()
 				.map(|(path, name)| ValueSnapshot { path, name, value: None })
@@ -817,8 +817,7 @@ mod tests {
 	fn registration_restores_raw_values_and_keeps_unrelated_values() {
 		let (_guard, context) = DisposableScheme::new();
 		let layout = Layout::new(&context.scheme);
-		let prior =
-			RawValue { value_type: REG_BINARY.clone() as u32, bytes: vec![0, 0xff, 7, 3] };
+		let prior = RawValue { value_type: REG_BINARY.clone() as u32, bytes: vec![0, 0xff, 7, 3] };
 		write_value(&layout.root, DEFAULT_VALUE, &prior).unwrap();
 		let unrelated = reg_sz(OsStr::new("leave me"));
 		write_value(&layout.root, "Unrelated", &unrelated).unwrap();

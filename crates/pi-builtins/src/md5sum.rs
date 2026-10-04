@@ -64,11 +64,7 @@ mod tests {
 	fn resolves_checklist_and_checked_paths() {
 		let dir = tempfile::tempdir().unwrap();
 		fs::write(dir.path().join("data"), b"abc").unwrap();
-		fs::write(
-			dir.path().join("checksums"),
-			b"900150983cd24fb0d6963f7d28e17f72  data\n",
-		)
-		.unwrap();
+		fs::write(dir.path().join("checksums"), b"900150983cd24fb0d6963f7d28e17f72  data\n").unwrap();
 
 		let (code, capture) = run_util::<Md5sum>(&["-c", "checksums"], "", dir.path());
 		assert_eq!(code, 0);
@@ -102,10 +98,7 @@ mod tests {
 	fn strict_rejects_an_improper_line() {
 		let dir = tempfile::tempdir().unwrap();
 		fs::write(dir.path().join("data"), b"abc").unwrap();
-		let checklist = concat!(
-			"not a checksum line\n",
-			"900150983cd24fb0d6963f7d28e17f72  data\n",
-		);
+		let checklist = concat!("not a checksum line\n", "900150983cd24fb0d6963f7d28e17f72  data\n",);
 
 		let (code, capture) = run_util::<Md5sum>(&["-c", "--strict"], checklist, dir.path());
 		assert_eq!(code, 1);

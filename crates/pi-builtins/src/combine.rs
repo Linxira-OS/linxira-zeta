@@ -203,7 +203,10 @@ fn open_input(name: &OsStr, host: &Host) -> Result<Option<File>, Error> {
 		return Ok(None);
 	}
 	let path = host.resolve(name);
-	let file = host.fs().open(path).map_err(|err| input_failure(name, &err))?;
+	let file = host
+		.fs()
+		.open(path)
+		.map_err(|err| input_failure(name, &err))?;
 	Ok(Some(file))
 }
 
@@ -323,8 +326,7 @@ mod tests {
 	#[test]
 	fn dash_reads_file1_from_stdin() {
 		let dir = fixture();
-		let (code, stdout, stderr) =
-			run_in(dir.path(), "a\nb\na\nc\n", &["-", "and", "two"]);
+		let (code, stdout, stderr) = run_in(dir.path(), "a\nb\na\nc\n", &["-", "and", "two"]);
 		assert_eq!((code, stdout.as_slice(), stderr.as_str()), (0, b"a\na\nc\n".as_slice(), ""));
 	}
 

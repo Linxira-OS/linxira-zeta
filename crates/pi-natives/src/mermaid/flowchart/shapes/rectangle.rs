@@ -27,9 +27,9 @@ pub fn box_dimensions(label: &str, opts: &ShapeRenderOptions) -> ShapeDimensions
 		width,
 		height: inner_height + 2,
 		label_area: LabelArea {
-			x:      1 + opts.padding,
-			y:      1 + opts.padding,
-			width:  max_line_width,
+			x: 1 + opts.padding,
+			y: 1 + opts.padding,
+			width: max_line_width,
 			height: line_count,
 		},
 		grid_columns: [1, inner_width, 1],

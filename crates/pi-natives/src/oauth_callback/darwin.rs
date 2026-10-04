@@ -24,7 +24,7 @@ enum ApplicationState {
 	Absent,
 	Found {
 		#[serde(rename = "appPath")]
-		app_path:  PathBuf,
+		app_path: PathBuf,
 		#[serde(rename = "bundleId")]
 		bundle_id: String,
 	},
@@ -57,13 +57,13 @@ impl ApplicationState {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Snapshot {
-	version:       u32,
-	id:            String,
-	scheme:        String,
-	app_path:      PathBuf,
-	bundle_id:     String,
+	version: u32,
+	id: String,
+	scheme: String,
+	app_path: PathBuf,
+	bundle_id: String,
 	callback_path: PathBuf,
-	previous:      ApplicationState,
+	previous: ApplicationState,
 }
 
 #[derive(Deserialize)]
@@ -75,11 +75,11 @@ struct OperationResult {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct LegacyRecoveryRecord {
-	app_path:         PathBuf,
-	bundle_id:        String,
-	pid:              i32,
+	app_path: PathBuf,
+	bundle_id: String,
+	pid: i32,
 	previous_handler: String,
-	scheme:           String,
+	scheme: String,
 }
 
 fn staging_app_path(context: &Context) -> PathBuf {
@@ -390,11 +390,10 @@ fn set_scheme_handler(context: &Context, scheme: &str, app_path: &Path) -> Resul
 	if !is_safe_absolute_path(app_path) {
 		bail!("refusing to select an invalid macOS application path");
 	}
-	let output = context.run(&context.helper_path, &[
-		"set".to_owned(),
-		scheme.to_owned(),
-		app_path.to_string_lossy().into_owned(),
-	])?;
+	let output = context.run(
+		&context.helper_path,
+		&["set".to_owned(), scheme.to_owned(), app_path.to_string_lossy().into_owned()],
+	)?;
 	let result: OperationResult = serde_json::from_str(&output)
 		.context("macOS callback helper returned invalid JSON after selecting a URL handler")?;
 	if result.status != "ok" {
@@ -778,12 +777,12 @@ mod tests {
 
 	#[derive(Clone)]
 	struct FakeLaunchServices {
-		current:             ApplicationState,
-		apps:                HashMap<String, ApplicationState>,
-		calls:               Vec<(PathBuf, Vec<String>)>,
+		current: ApplicationState,
+		apps: HashMap<String, ApplicationState>,
+		calls: Vec<(PathBuf, Vec<String>)>,
 		unregister_fallback: ApplicationState,
-		fail_unregister:     bool,
-		own:                 ApplicationState,
+		fail_unregister: bool,
+		own: ApplicationState,
 	}
 
 	fn found(path: impl Into<PathBuf>, bundle_id: impl Into<String>) -> ApplicationState {

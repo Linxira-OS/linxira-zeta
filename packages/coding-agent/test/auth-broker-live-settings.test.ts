@@ -4,6 +4,7 @@ import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { discoverAuthStorage } from "@linxiraos/zeta/sdk";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createAuthStorageSettingsSync } from "@linxiraos/zeta/session/auth-broker-config";
 import { TempDir } from "@linxiraos/pi-utils";
 
@@ -53,6 +54,8 @@ describe("auth broker settings take effect live", () => {
 			const value = savedEnv[key];
 			if (value !== undefined) process.env[key] = value;
 		}
+		// `Settings.loadIsolated` opened `<agentDir>/agent.db`; Windows cannot delete it while open.
+		AgentStorage.close();
 		tempDir.removeSync();
 	});
 

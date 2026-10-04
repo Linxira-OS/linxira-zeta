@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
@@ -65,6 +66,8 @@ afterEach(async () => {
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();
+	// runSearchCommand opens <agentDir>/models.db; Windows cannot delete an open database.
+	closeModelCache();
 	if (tempAgentDir) {
 		await tempAgentDir.remove();
 		tempAgentDir = undefined;

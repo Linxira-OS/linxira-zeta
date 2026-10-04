@@ -27,15 +27,15 @@ use uucore::{
 	update_control::{self, UpdateMode},
 };
 
-use crate::{
-	file_backup::{backup_display, backup_path, determine_backup_mode, determine_backup_suffix},
-	host::{Host, Utility, format_usage, matches_parser, util},
-	progress::stderr_draw_target,
-};
 #[cfg(unix)]
 use self::hardlink::{
 	HardlinkGroupScanner, HardlinkOptions, HardlinkTracker, create_hardlink_context,
 	with_optional_hardlink_context,
+};
+use crate::{
+	file_backup::{backup_display, backup_path, determine_backup_mode, determine_backup_suffix},
+	host::{Host, Utility, format_usage, matches_parser, util},
+	progress::stderr_draw_target,
 };
 
 #[derive(Debug, Error)]
@@ -138,17 +138,17 @@ pub struct Options {
 impl Default for Options {
 	fn default() -> Self {
 		Self {
-			overwrite:     OverwriteMode::default(),
-			backup:        BackupMode::default(),
-			suffix:        backup_control::DEFAULT_BACKUP_SUFFIX.to_owned(),
-			update:        UpdateMode::default(),
-			target_dir:    None,
+			overwrite: OverwriteMode::default(),
+			backup: BackupMode::default(),
+			suffix: backup_control::DEFAULT_BACKUP_SUFFIX.to_owned(),
+			update: UpdateMode::default(),
+			target_dir: None,
 			no_target_dir: false,
-			verbose:       false,
+			verbose: false,
 			strip_slashes: false,
-			progress_bar:  false,
-			debug:         false,
-			context:       None,
+			progress_bar: false,
+			debug: false,
+			context: None,
 		}
 	}
 }
@@ -183,7 +183,10 @@ impl Utility for Mv {
 	const NAME: &'static str = "mv";
 
 	fn run(self, host: &mut Host) -> i32 {
-		let files_len = self.matches.get_many::<OsString>(ARG_FILES).map_or(0, |v| v.len());
+		let files_len = self
+			.matches
+			.get_many::<OsString>(ARG_FILES)
+			.map_or(0, |v| v.len());
 		if files_len == 1 && !self.matches.contains_id(OPT_TARGET_DIRECTORY) {
 			let err = app().error(
 				ErrorKind::TooFewValues,
@@ -479,8 +482,15 @@ fn handle_two_paths(host: &mut Host, source: &Path, target: &Path, opts: &Option
 				#[cfg(not(unix))]
 				let hardlink_params = (None, None);
 
-				rename(host, source, target, opts, None, hardlink_params.0, hardlink_params.1)
-					.map_err(|e| MvFailure::Message(format!("cannot move {} to {}: {e}", source.quote(), target.quote())))
+				rename(host, source, target, opts, None, hardlink_params.0, hardlink_params.1).map_err(
+					|e| {
+						MvFailure::Message(format!(
+							"cannot move {} to {}: {e}",
+							source.quote(),
+							target.quote()
+						))
+					},
+				)
 			} else {
 				Err(MvError::DirectoryToNonDirectory(target.quote().to_string()).into())
 			}
@@ -570,7 +580,9 @@ fn assert_not_same_file(
 	// this is based on the argument and not canonicalized
 	let target_display = match file_name(source) {
 		// A virtual root keeps the `//` of its `scheme://` spelling.
-		Some(file_name) if target_is_dir && is_virtual_path(target) && parent_path(target).is_none() => {
+		Some(file_name)
+			if target_is_dir && is_virtual_path(target) && parent_path(target).is_none() =>
+		{
 			child_path(target, &file_name).quote().to_string()
 		},
 		Some(file_name) if target_is_dir => {
@@ -635,8 +647,10 @@ fn are_hardlinks_or_one_way_symlink_to_same_file(
 
 fn handle_multiple_paths(host: &mut Host, paths: &[PathBuf], opts: &Options) -> MvResult<()> {
 	if opts.no_target_dir {
-		return Err(MvFailure::Message(format!("mv: extra operand {}", paths.last().unwrap().quote()),
-		));
+		return Err(MvFailure::Message(format!(
+			"mv: extra operand {}",
+			paths.last().unwrap().quote()
+		)));
 	}
 	let target_dir = paths.last().unwrap();
 	let sources = &paths[..paths.len() - 1];
@@ -661,7 +675,12 @@ fn mv(host: &mut Host, files: &[OsString], opts: &Options) -> MvResult<()> {
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn move_files_into_dir(host: &mut Host, files: &[PathBuf], target_dir: &Path, options: &Options) -> MvResult<()> {
+fn move_files_into_dir(
+	host: &mut Host,
+	files: &[PathBuf],
+	target_dir: &Path,
+	options: &Options,
+) -> MvResult<()> {
 	// remember the moved destinations for further usage
 	let mut moved_destinations: FxHashSet<PathBuf> =
 		FxHashSet::with_capacity_and_hasher(files.len(), rustc_hash::FxBuildHasher);
@@ -706,7 +725,11 @@ fn move_files_into_dir(host: &mut Host, files: &[PathBuf], target_dir: &Path, op
 	};
 
 	for sourcepath in files {
-		if host.fs().symlink_metadata(host.resolve(sourcepath)).is_err() {
+		if host
+			.fs()
+			.symlink_metadata(host.resolve(sourcepath))
+			.is_err()
+		{
 			show(host, &MvError::NoSuchFile(sourcepath.quote().to_string()));
 			continue;
 		}
@@ -725,7 +748,9 @@ fn move_files_into_dir(host: &mut Host, files: &[PathBuf], target_dir: &Path, op
 
 		if moved_destinations.contains(&targetpath) && options.backup != BackupMode::Numbered {
 			// If the target file was already created in this mv call, do not overwrite
-			show(host, format!(
+			show(
+				host,
+				format!(
 					"will not overwrite just-created {} with {}",
 					targetpath.quote(),
 					sourcepath.quote()
@@ -746,7 +771,8 @@ fn move_files_into_dir(host: &mut Host, files: &[PathBuf], target_dir: &Path, op
 		#[cfg(not(unix))]
 		let hardlink_params = (None, None);
 
-		match rename(host, 
+		match rename(
+			host,
 			sourcepath,
 			&targetpath,
 			options,
@@ -850,7 +876,8 @@ fn rename(
 
 	#[cfg(unix)]
 	{
-		rename_with_fallback(host, 
+		rename_with_fallback(
+			host,
 			from,
 			to,
 			display_manager,
@@ -863,7 +890,6 @@ fn rename(
 	{
 		rename_with_fallback(host, from, to, display_manager, opts.verbose, None, None)?;
 	}
-
 
 	if opts.verbose {
 		let message = if let Some(path) = &backup {
@@ -922,8 +948,8 @@ fn rename_with_fallback(
 		// 2. On Windows, if the target file exists and source file is opened by another
 		//    process (MoveFileExW fails with "Access Denied" even if the source file
 		//    has FILE_SHARE_DELETE permission)
-		let should_fallback = crosses_devices(&err)
-			|| (filesystem.is_file(&from_fs) && can_delete_file(host, &from_fs));
+		let should_fallback =
+			crosses_devices(&err) || (filesystem.is_file(&from_fs) && can_delete_file(host, &from_fs));
 		if !should_fallback {
 			return Err(err);
 		}
@@ -939,7 +965,8 @@ fn rename_with_fallback(
 					hardlink_tracker,
 					hardlink_scanner,
 					|tracker, scanner| {
-						rename_dir_fallback(host, 
+						rename_dir_fallback(
+							host,
 							from,
 							to,
 							display_manager,
@@ -962,7 +989,9 @@ fn rename_with_fallback(
 				with_optional_hardlink_context(
 					hardlink_tracker,
 					hardlink_scanner,
-					|tracker, scanner| rename_file_fallback(host, from, to, Some(tracker), Some(scanner)),
+					|tracker, scanner| {
+						rename_file_fallback(host, from, to, Some(tracker), Some(scanner))
+					},
 				)
 			}
 			#[cfg(not(unix))]
@@ -1051,7 +1080,8 @@ fn rename_dir_fallback(
 	let xattrs = retrieve_xattrs(&filesystem, &from_fs, &to_fs).unwrap_or_default();
 
 	// Use directory copying (with or without hardlink support)
-	let result = copy_dir_contents(host, 
+	let result = copy_dir_contents(
+		host,
 		from,
 		to,
 		#[cfg(unix)]
@@ -1089,7 +1119,11 @@ fn dir_size(filesystem: &BlockingFs, path: &Path) -> io::Result<u64> {
 		// `DirEntry::metadata` does not follow symlinks, so a symlink counts as
 		// its own size and directories are summed recursively.
 		let metadata = entry.metadata()?;
-		size += if metadata.is_dir() { dir_size(filesystem, &entry.path())? } else { metadata.len() };
+		size += if metadata.is_dir() {
+			dir_size(filesystem, &entry.path())?
+		} else {
+			metadata.len()
+		};
 	}
 	Ok(size)
 }
@@ -1112,7 +1146,8 @@ fn copy_dir_contents(
 	#[cfg(unix)]
 	{
 		if let (Some(tracker), Some(scanner)) = (hardlink_tracker, hardlink_scanner) {
-			copy_dir_contents_recursive(host, 
+			copy_dir_contents_recursive(
+				host,
 				from,
 				to,
 				tracker,
@@ -1176,7 +1211,8 @@ fn copy_dir_contents_recursive(
 			// This prevents symlinks to directories from being expanded into full copies.
 			#[cfg(unix)]
 			{
-				copy_file_with_hardlinks_helper(host, 
+				copy_file_with_hardlinks_helper(
+					host,
 					&from_path,
 					&to_path,
 					hardlink_tracker,
@@ -1195,7 +1231,8 @@ fn copy_dir_contents_recursive(
 
 			print_verbose(host, &from_path, &to_path);
 
-			copy_dir_contents_recursive(host, 
+			copy_dir_contents_recursive(
+				host,
 				&from_path,
 				&to_path,
 				#[cfg(unix)]
@@ -1210,7 +1247,8 @@ fn copy_dir_contents_recursive(
 			// Copy file with or without hardlink support based on platform
 			#[cfg(unix)]
 			{
-				copy_file_with_hardlinks_helper(host, 
+				copy_file_with_hardlinks_helper(
+					host,
 					&from_path,
 					&to_path,
 					hardlink_tracker,
@@ -1307,15 +1345,21 @@ fn copy_file(host: &mut Host, from: &Path, to: &Path) -> io::Result<()> {
 	// prevent the handle retry.
 	let accessed = metadata.accessed().ok();
 	let modified = metadata.modified().ok();
-	let times = preserve(&filesystem, &to_fs, |filesystem, path| {
-		filesystem.set_times(path, accessed, modified, true)
-	}, |file| file.set_times(accessed, modified));
+	let times = preserve(
+		&filesystem,
+		&to_fs,
+		|filesystem, path| filesystem.set_times(path, accessed, modified, true),
+		|file| file.set_times(accessed, modified),
+	);
 	if let Err(error) = times {
 		let _ = writeln!(host.stderr, "mv: preserving times for {}: {error}", to.quote());
 	}
-	let mode = preserve(&filesystem, &to_fs, |filesystem, path| {
-		filesystem.set_permissions(path, permissions.clone())
-	}, |file| file.set_permissions(permissions.clone()));
+	let mode = preserve(
+		&filesystem,
+		&to_fs,
+		|filesystem, path| filesystem.set_permissions(path, permissions.clone()),
+		|file| file.set_permissions(permissions.clone()),
+	);
 	if let Err(error) = mode {
 		let _ = writeln!(host.stderr, "mv: preserving permissions for {}: {error}", to.quote());
 	}
@@ -1373,7 +1417,8 @@ fn rename_file_fallback(
 		if let (Some(tracker), Some(scanner)) = (hardlink_tracker, hardlink_scanner) {
 			use hardlink::HardlinkOptions;
 			let hardlink_options = HardlinkOptions::default();
-			if let Some(existing_target) = tracker.check_hardlink(host, from, to, scanner, &hardlink_options)
+			if let Some(existing_target) =
+				tracker.check_hardlink(host, from, to, scanner, &hardlink_options)
 			{
 				// Create a hardlink to the first moved file instead of copying
 				filesystem.hard_link(host.resolve(&existing_target), &to_fs)?;
@@ -1387,7 +1432,11 @@ fn rename_file_fallback(
 	// errors keep their own description.
 	let native = filesystem.is_native_local(&from_fs) && filesystem.is_native_local(&to_fs);
 	let describe = |err: io::Error| {
-		if native { io::Error::new(err.kind(), "Permission denied") } else { err }
+		if native {
+			io::Error::new(err.kind(), "Permission denied")
+		} else {
+			err
+		}
 	};
 
 	// Regular file copy
@@ -1444,7 +1493,8 @@ fn copy_xattrs(filesystem: &BlockingFs, from: &Path, to: &Path) -> io::Result<()
 }
 
 fn is_empty_dir(host: &Host, path: &Path) -> bool {
-	host.fs()
+	host
+		.fs()
 		.read_dir(host.resolve(path))
 		.is_ok_and(|mut contents| contents.next().is_none())
 }
@@ -1475,7 +1525,8 @@ fn is_writable(host: &Host, path: &Path) -> (bool, Option<u32>) {
 fn get_interactive_prompt(host: &Host, to: &Path, cached_mode: Option<u32>) -> String {
 	// Use cached mode if available, otherwise fetch it
 	let mode = cached_mode.or_else(|| {
-		host.fs()
+		host
+			.fs()
 			.metadata(host.resolve(to))
 			.ok()
 			.map(|m| m.permissions().mode())
@@ -1631,9 +1682,9 @@ mod hardlink {
 		/// Maps file identity -> list of source paths that are hardlinked together
 		hardlink_groups: FxHashMap<FileId, Vec<PathBuf>>,
 		/// List of source files/directories being moved (for destination mapping)
-		source_files:    Vec<PathBuf>,
+		source_files: Vec<PathBuf>,
 		/// Whether scanning has been performed
-		scanned:         bool,
+		scanned: bool,
 	}
 
 	/// Configuration options for hardlink preservation
@@ -1791,8 +1842,7 @@ mod hardlink {
 					&& options.verbose
 				{
 					// Only show warnings for verbose mode
-					let _ =
-						writeln!(host.stderr, "warning: failed to scan {}: {e}", file.quote());
+					let _ = writeln!(host.stderr, "warning: failed to scan {}: {e}", file.quote());
 				}
 				// For non-verbose mode, silently continue for missing files
 				// This provides graceful degradation - we'll lose hardlink info for
@@ -1807,8 +1857,7 @@ mod hardlink {
 					let _ = writeln!(
 						host.stderr,
 						"found {} hardlink groups with {} total files",
-						stats.total_groups,
-						stats.total_files
+						stats.total_groups, stats.total_files
 					);
 				}
 			}
@@ -1855,7 +1904,6 @@ mod hardlink {
 			}
 		}
 
-
 		/// Get statistics about scanned hardlinks
 		#[cfg(unix)]
 		pub fn stats(&self) -> ScannerStats {
@@ -1872,7 +1920,7 @@ mod hardlink {
 		/// Number of distinct inode groups found.
 		pub total_groups: usize,
 		/// Number of files belonging to those groups.
-		pub total_files:  usize,
+		pub total_files: usize,
 	}
 
 	/// Create a new hardlink tracker and scanner pair
@@ -1897,7 +1945,6 @@ mod hardlink {
 			operation(&mut dummy_tracker, &dummy_scanner)
 		}
 	}
-
 }
 #[cfg(test)]
 mod tests {

@@ -12,12 +12,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	resolveActiveProjectRegistryPath,
+	resolveOrDefaultProjectRegistryPath,
 } from "@linxiraos/zeta/discovery/helpers";
+import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace/manager";
 import type { InstalledPluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
@@ -25,6 +26,7 @@ import {
 	readInstalledPluginsRegistry,
 	writeInstalledPluginsRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-proj-scope-"));
+		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-proj-scope-"));
 	});
 
 	afterEach(() => {
@@ -100,7 +102,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 	it("does not treat ~/.git as a project root (pass-2 home-dir guard)", async () => {
 		// Simulate a dotfiles repo managed with a bare-git technique: ~/.git exists.
 		// resolveActiveProjectRegistryPath must NOT return ~/.zeta/.../installed_plugins.json.
-		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-proj-scope-home-"));
+		const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-proj-scope-home-"));
 		vi.spyOn(os, "homedir").mockReturnValue(homeDir);
 		const fakeHomeGit = path.join(homeDir, ".git");
 		await fs.promises.mkdir(fakeHomeGit, { recursive: true });
@@ -128,6 +130,66 @@ describe("resolveActiveProjectRegistryPath", () => {
 		expect(fromRoot).not.toBeNull();
 		expect(fromRoot).toBe(fromSrc);
 	});
+
+	it("keeps a user plugin in user scope with trailing-slash or symlinked home", async () => {
+		const home = path.join(tmpDir, "home");
+		const cwd = path.join(home, "work");
+		const link = path.join(tmpDir, "home-link");
+		const registryPath = path.join(home, ".zeta", "plugins", "installed_plugins.json");
+		fs.mkdirSync(cwd, { recursive: true });
+		fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+		fs.symlinkSync(home, link, "dir");
+		await writeInstalledPluginsRegistry(registryPath, {
+			version: 2,
+			plugins: { "sample@local": [makeEntry(path.join(tmpDir, "sample"))] },
+		});
+
+		for (const alias of [`${home}${path.sep}`, link]) {
+			vi.spyOn(os, "homedir").mockReturnValue(alias);
+			expect(await resolveActiveProjectRegistryPath(cwd)).toBeNull();
+			const projectPath = await resolveOrDefaultProjectRegistryPath(cwd);
+			const manager = new MarketplaceManager({
+				marketplacesRegistryPath: path.join(home, ".zeta", "plugins", "marketplaces.json"),
+				installedRegistryPath: registryPath,
+				projectInstalledRegistryPath: projectPath,
+				marketplacesCacheDir: path.join(tmpDir, "marketplaces"),
+				pluginsCacheDir: path.join(tmpDir, "plugins"),
+			});
+			expect((await manager.listInstalledPlugins()).map(({ scope }) => scope)).toEqual(["user"]);
+			await manager.uninstallPlugin("sample@local", undefined, { dryRun: true });
+			expect(await resolveOrDefaultProjectRegistryPath(home)).toBeUndefined();
+		}
+	});
+
+	it("does not use an aliased user config as a project registry even at a git root", async () => {
+		const home = path.join(tmpDir, "home");
+		const project = path.join(home, "work");
+		fs.mkdirSync(path.join(home, ".zeta"), { recursive: true });
+		fs.mkdirSync(path.join(project, ".git"), { recursive: true });
+		fs.symlinkSync(path.join(home, ".zeta"), path.join(project, ".zeta"), "dir");
+		vi.spyOn(os, "homedir").mockReturnValue(home);
+
+		expect(await resolveActiveProjectRegistryPath(project)).toBeNull();
+		expect(await resolveOrDefaultProjectRegistryPath(project)).toBeUndefined();
+	});
+
+	it("keeps a custom-home plugin in user scope during discovery", async () => {
+		const home = path.join(tmpDir, "sdk-home");
+		const cwd = path.join(home, "work");
+		const registryPath = path.join(home, ".zeta", "plugins", "installed_plugins.json");
+		fs.mkdirSync(cwd, { recursive: true });
+		await writeInstalledPluginsRegistry(registryPath, {
+			version: 2,
+			plugins: { "sample@local": [makeEntry(path.join(tmpDir, "sample"))] },
+		});
+
+		try {
+			const { roots } = await listClaudePluginRoots(home, cwd);
+			expect(roots.filter(root => root.id === "sample@local").map(root => root.scope)).toEqual(["user"]);
+		} finally {
+			clearClaudePluginRootsCache();
+		}
+	});
 });
 
 // ── listClaudePluginRoots: project shadows user ───────────────────────────────
@@ -141,8 +203,8 @@ describe("listClaudePluginRoots — project shadows user", () => {
 	let projectRegPath: string;
 
 	beforeEach(() => {
-		tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-shadow-home-"));
-		tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-shadow-proj-"));
+		tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "omp-shadow-home-"));
+		tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), "omp-shadow-proj-"));
 
 		// Create .zeta/ in project so resolveActiveProjectRegistryPath finds it.
 		fs.mkdirSync(path.join(tmpProject, ".zeta", "plugins"), { recursive: true });

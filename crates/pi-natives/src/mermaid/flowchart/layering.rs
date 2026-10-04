@@ -12,11 +12,11 @@ use super::{AsciiGraph, LayoutDirection, NodeId, SubgraphId, grid};
 /// Ranks and cross-axis slots consumed by grid placement.
 pub struct Layering {
 	/// Longest forward-path distance from a root.
-	pub rank:  Vec<usize>,
+	pub rank: Vec<usize>,
 	/// Ordered members of each rank.
 	pub order: Vec<Vec<NodeId>>,
 	/// Cross-axis node-pitch offsets, relaxed toward neighbouring ranks.
-	pub slot:  Vec<usize>,
+	pub slot: Vec<usize>,
 }
 
 /// Rank weight of an edge: `1` when it flows along the graph direction, `0`
@@ -387,11 +387,11 @@ mod tests {
 	fn layered(src: &str) -> (AsciiGraph, Layering) {
 		let parsed = parser::parse_flowchart(src).unwrap();
 		let config = AsciiConfig {
-			use_ascii:          false,
-			padding_x:          5,
-			padding_y:          5,
+			use_ascii: false,
+			padding_x: 5,
+			padding_y: 5,
 			box_border_padding: 1,
-			direction:          parsed.direction.layout(),
+			direction: parsed.direction.layout(),
 		};
 		let graph = converter::convert(&parsed, config);
 		let layering = layer(&graph);

@@ -96,7 +96,7 @@ fn compact_listing_output(input: &str) -> String {
 
 struct GrepMatch {
 	line_no: String,
-	text:    String,
+	text: String,
 }
 
 /// Legacy pre-PR behavior for grep/rg output: passthrough when
@@ -415,9 +415,9 @@ fn push_wrapped_names(out: &mut String, names: &[String], per_line: usize, max_n
 }
 
 struct LsEntry {
-	name:    String,
-	is_dir:  bool,
-	size:    Option<u64>,
+	name: String,
+	is_dir: bool,
+	size: Option<u64>,
 	is_file: bool,
 }
 

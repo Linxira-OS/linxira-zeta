@@ -38,9 +38,9 @@ pub enum EmptyPaste {
 /// Context supplied while applying parsed edits.
 pub struct ApplyOptions<'a> {
 	/// Transactional clipboard shared across sections.
-	pub clipboard:      Option<&'a mut Clipboard>,
+	pub clipboard: Option<&'a mut Clipboard>,
 	/// Display path used to infer the syntax language.
-	pub path:           Option<&'a str>,
+	pub path: Option<&'a str>,
 	/// Behavior for an empty anonymous paste.
 	pub on_empty_paste: EmptyPaste,
 }
@@ -98,9 +98,9 @@ fn validate_bounds(edits: &[Edit], lines: &[String]) -> Result<(), EditError> {
 struct ReplacementGroup {
 	insert_indices: Vec<usize>,
 	delete_indices: Vec<usize>,
-	payload:        Vec<String>,
-	start:          u32,
-	end:            u32,
+	payload: Vec<String>,
+	start: u32,
+	end: u32,
 }
 
 fn replacement_group(edits: &[Edit], start: usize) -> Option<ReplacementGroup> {
@@ -306,8 +306,8 @@ fn annotation_echo(lines: &[String], path: Option<&str>, first: u32, last: u32) 
 #[derive(Clone, Copy)]
 struct Ambiguity {
 	start: u32,
-	end:   u32,
-	side:  BoundarySide,
+	end: u32,
+	side: BoundarySide,
 	count: u32,
 }
 
@@ -344,8 +344,8 @@ fn normalize_echoes(
 			} else {
 				ambiguities.push(Ambiguity {
 					start: group.start,
-					end:   group.end,
-					side:  BoundarySide::Leading,
+					end: group.end,
+					side: BoundarySide::Leading,
 					count: leading as u32,
 				});
 			}
@@ -358,8 +358,8 @@ fn normalize_echoes(
 			} else {
 				ambiguities.push(Ambiguity {
 					start: group.start,
-					end:   group.end,
-					side:  BoundarySide::Trailing,
+					end: group.end,
+					side: BoundarySide::Trailing,
 					count: trailing as u32,
 				});
 			}
@@ -451,8 +451,8 @@ fn essential(lines: &[String], path: &str, line: u32, baseline: bool) -> bool {
 
 #[derive(Clone)]
 struct Variant {
-	edits:   Vec<Edit>,
-	kept:    usize,
+	edits: Vec<Edit>,
+	kept: usize,
 	dropped: usize,
 }
 
@@ -669,7 +669,7 @@ fn repair_boundaries(
 	struct Combo {
 		choices: Vec<Option<usize>>,
 		touched: usize,
-		kept:    usize,
+		kept: usize,
 		dropped: usize,
 	}
 	let mut combos = vec![Combo { choices: Vec::new(), touched: 0, kept: 0, dropped: 0 }];
@@ -743,8 +743,8 @@ fn repair_boundaries(
 
 #[derive(Clone)]
 struct InsertGroup {
-	anchor:      u32,
-	members:     Vec<usize>,
+	anchor: u32,
+	members: Vec<usize>,
 	block_start: Option<u32>,
 }
 fn body_indent(rows: &[&str]) -> Option<String> {
@@ -823,11 +823,10 @@ fn repair_landings(
 			if let Some((_, group)) = groups.iter_mut().find(|(candidate, _)| *candidate == key) {
 				group.members.push(index);
 			} else {
-				groups.push((key, InsertGroup {
-					anchor:      anchor.line,
-					members:     vec![index],
-					block_start: *block_start,
-				}));
+				groups.push((
+					key,
+					InsertGroup { anchor: anchor.line, members: vec![index], block_start: *block_start },
+				));
 			}
 		}
 	}

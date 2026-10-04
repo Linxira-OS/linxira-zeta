@@ -30,76 +30,76 @@ use crate::prose;
 #[derive(Clone, Debug)]
 pub struct Params {
 	/// Weight of prompts that don't look typed (pastes, logs, long dumps).
-	pub paste_weight:        f32,
+	pub paste_weight: f32,
 	/// Dirichlet strength of the web unigram prior (in history tokens).
-	pub mu1:                 f64,
+	pub mu1: f64,
 	/// Bigram discount.
-	pub d2:                  f64,
+	pub d2: f64,
 	/// Bigram floor.
-	pub mu2:                 f64,
+	pub mu2: f64,
 	/// Trigram discount.
-	pub d3:                  f64,
+	pub d3: f64,
 	/// Trigram floor.
-	pub mu3:                 f64,
+	pub mu3: f64,
 	/// Weight of the web bigram prior (0 disables it).
-	pub web_bigram:          f64,
+	pub web_bigram: f64,
 	/// Unigram candidates pulled from the range top-k tree.
-	pub top_k:               usize,
+	pub top_k: usize,
 	/// Occurrences in typed prompts before a word outside the web vocabulary
 	/// and the dictionary is suggested.
-	pub min_count:           u32,
+	pub min_count: u32,
 	/// Fold rare misspellings into a real edit-distance-1 neighbour.
-	pub canonicalize:        bool,
+	pub canonicalize: bool,
 	/// Below this many occurrences a misspelling may fold into a web word.
-	pub canon_max_count:     u32,
+	pub canon_max_count: u32,
 	/// A personal neighbour must be typed this many times as often to absorb a
 	/// spelling.
-	pub canon_ratio:         u32,
+	pub canon_ratio: u32,
 	/// Prior that a word is typed with plain (lowercase) casing.
-	pub case_prior:          f64,
+	pub case_prior: f64,
 	/// Pseudo-count of the case prior.
-	pub case_strength:       f64,
+	pub case_strength: f64,
 	/// Prompt-local cache weight λ (0 disables it).
-	pub cache_weight:        f64,
+	pub cache_weight: f64,
 	/// Distance (bytes) at which a prompt-local occurrence weighs 1/e.
-	pub cache_decay:         f64,
+	pub cache_decay: f64,
 	/// Extra cache weight (×(1 + boost)) after the same previous word.
 	pub cache_context_boost: f64,
 	/// Bytes of the text before the cursor the prompt-local cache scans.
-	pub cache_window:        usize,
+	pub cache_window: usize,
 	/// Session cache weight σ per occurrence (0 disables it).
-	pub session_weight:      f64,
+	pub session_weight: f64,
 	/// Recent prompts in the session cache.
-	pub session_prompts:     usize,
+	pub session_prompts: usize,
 	/// Show threshold τ: the minimum confidence of a ghost, at every prefix
 	/// length.
-	pub show_threshold:      f32,
+	pub show_threshold: f32,
 }
 
 impl Default for Params {
 	fn default() -> Self {
 		Self {
-			paste_weight:        0.25,
-			mu1:                 10_000.0,
-			d2:                  0.9,
-			mu2:                 2.0,
-			d3:                  0.9,
-			mu3:                 2.0,
-			web_bigram:          1.0,
-			top_k:               6,
-			min_count:           2,
-			canonicalize:        true,
-			canon_max_count:     3,
-			canon_ratio:         3,
-			case_prior:          0.97,
-			case_strength:       2.0,
-			cache_weight:        0.5,
-			cache_decay:         500.0,
+			paste_weight: 0.25,
+			mu1: 10_000.0,
+			d2: 0.9,
+			mu2: 2.0,
+			d3: 0.9,
+			mu3: 2.0,
+			web_bigram: 1.0,
+			top_k: 6,
+			min_count: 2,
+			canonicalize: true,
+			canon_max_count: 3,
+			canon_ratio: 3,
+			case_prior: 0.97,
+			case_strength: 2.0,
+			cache_weight: 0.5,
+			cache_decay: 500.0,
 			cache_context_boost: 4.0,
-			cache_window:        4000,
-			session_weight:      0.02,
-			session_prompts:     20,
-			show_threshold:      0.15,
+			cache_window: 4000,
+			session_weight: 0.02,
+			session_prompts: 20,
+			show_threshold: 0.15,
 		}
 	}
 }
@@ -123,9 +123,9 @@ const COMPACT_AT: usize = 4096;
 pub struct Session {
 	/// Word ids of each recent prompt, oldest first.
 	pub prompts: std::collections::VecDeque<Vec<u32>>,
-	counts:      FastMap<u32, u32>,
+	counts: FastMap<u32, u32>,
 	/// `(id, count)` sorted by word.
-	sorted:      Vec<(u32, u32)>,
+	sorted: Vec<(u32, u32)>,
 }
 
 impl Session {
@@ -188,50 +188,50 @@ impl Session {
 
 /// The learned model plus its static web prior.
 pub struct Model {
-	pub params:     Params,
-	pub web:        &'static WebPrior,
-	pub vocab:      Vocab,
+	pub params: Params,
+	pub web: &'static WebPrior,
+	pub vocab: Vocab,
 	/// Weighted history count per id.
-	pub count:      Vec<f32>,
+	pub count: Vec<f32>,
 	/// Occurrences of the spelling in typed prompts (hygiene).
-	pub raw:        Vec<u32>,
+	pub raw: Vec<u32>,
 	/// Web id per id (`NONE` outside the web vocabulary).
-	pub web_id:     Vec<u32>,
-	flags:          Vec<u8>,
+	pub web_id: Vec<u32>,
+	flags: Vec<u8>,
 	/// Follower-list index per context id (`NONE` = no followers).
-	pub ctx_slot:   Vec<u32>,
-	pub followers:  Vec<Followers>,
+	pub ctx_slot: Vec<u32>,
+	pub followers: Vec<Followers>,
 	/// Sum of weighted counts.
-	pub total:      f64,
+	pub total: f64,
 	/// Vocabulary id per web id.
-	pub web_to_id:  Vec<u32>,
-	fen:            Fenwick,
-	tree:           MaxTree,
+	pub web_to_id: Vec<u32>,
+	fen: Fenwick,
+	tree: MaxTree,
 	/// Trigram contexts: `u << 32 | v` → pair index.
-	pub pairs:      IdTable<u32>,
+	pub pairs: IdTable<u32>,
 	pub pair_total: Vec<f32>,
 	pub pair_types: Vec<u32>,
 	/// Trigram counts keyed `pair << 32 | w`.
-	pub tri:        IdTable<f32>,
+	pub tri: IdTable<f32>,
 	/// Non-plain case tails (`aPI`, `pRs`) per id with counts.
-	pub tails:      FastMap<u32, Vec<(Box<str>, f32)>>,
-	pub session:    Session,
+	pub tails: FastMap<u32, Vec<(Box<str>, f32)>>,
+	pub session: Session,
 	/// Id of the sentence-start pseudo-word.
-	pub bos:        u32,
+	pub bos: u32,
 	/// Bumped by every learned-state change (invalidates query memos).
-	pub version:    u64,
-	scratch:        LearnScratch,
+	pub version: u64,
+	scratch: LearnScratch,
 }
 
 #[derive(Default)]
 struct LearnScratch {
 	chars: Vec<char>,
-	buf:   String,
+	buf: String,
 	found: Vec<u32>,
-	u:     String,
-	v:     String,
-	word:  String,
-	tail:  String,
+	u: String,
+	v: String,
+	word: String,
+	tail: String,
 	/// Spellings folded in the current prompt: original id → canonical id.
 	folds: Vec<(u32, u32)>,
 }

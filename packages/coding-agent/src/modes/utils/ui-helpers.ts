@@ -1,6 +1,9 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ImageContent, Usage } from "@linxiraos/pi-ai";
 import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
+import { type Component, Spacer, Text, TruncatedText } from "@linxiraos/pi-tui";
+import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
 import { logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
@@ -14,8 +17,6 @@ import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
 import { CollabPromptMessageComponent } from "@linxiraos/pi-tui/chat/collab-prompt-message";
-import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
-import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -36,7 +37,13 @@ import {
 } from "@linxiraos/pi-tui/chat/read-tool-group";
 import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
 import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
+import { imageContent, textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { ToolActivityContainer } from "@linxiraos/pi-tui/chrome/tool-activity";
+import {
+	ToolExecutionComponent,
+	type ToolExecutionHandle,
+	toolRenderName,
+} from "@linxiraos/pi-tui/chat/tool-execution";
 import { TranscriptBlock, TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
 import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
@@ -45,6 +52,7 @@ import { materializeImageReferenceLinksSync } from "@linxiraos/pi-tui/prompt/ima
 import { imageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
 import { theme } from "@linxiraos/pi-tui/theme";
 import type { CompactionQueuedMessage, InteractiveModeContext, RenderSessionContextOptions } from "../../modes/types";
+import { extractVisibleAssistantText } from "../rpc/rpc-live";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "../../session/launch-completion";
 import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
@@ -55,6 +63,8 @@ import {
 	type SkillPromptDetails,
 } from "../../session/messages";
 import type { SessionContext, StrippedToolCallsMarker } from "../../session/session-context";
+import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
+import { parseSlashCommand } from "../../slash-commands/helpers/parse";
 import { replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
 import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
 import {
@@ -83,13 +93,6 @@ import {
 	cfgTerminalShowImages,
 } from "../settings";
 import { cfgReadToolResultPreview } from "../../tools/settings";
-import { type Component, Spacer, Text, TruncatedText } from "@linxiraos/pi-tui";
-import { textContent, imageContent } from "@linxiraos/pi-tui/chat/transcript-entry";
-import {
-	ToolExecutionComponent,
-	type ToolExecutionHandle,
-	toolRenderName,
-} from "@linxiraos/pi-tui/chat/tool-execution";
 
 interface RenderInitialMessagesOptions {
 	preserveExistingChat?: boolean;
@@ -1148,6 +1151,22 @@ export class UiHelpers {
 	}
 
 	async #deliverQueuedMessage(message: CompactionQueuedMessage): Promise<void> {
+		const builtin = await executeBuiltinSlashCommand(message.text, {
+			ctx: this.ctx,
+			input: message.images ? { images: message.images } : undefined,
+		});
+		if (builtin === true) {
+			this.#parkLoopOnLocalConsume(message.text, false);
+			return;
+		}
+		if (typeof builtin === "string") {
+			const forwarded = await this.ctx.session.prompt(builtin, {
+				streamingBehavior: message.mode,
+				images: message.images,
+			});
+			this.#parkLoopOnLocalConsume(message.text, forwarded);
+			return;
+		}
 		if (
 			await invokeSkillCommandFromText(this.ctx, message.text, message.mode, {
 				propagateErrors: true,
@@ -1174,6 +1193,9 @@ export class UiHelpers {
 
 	isKnownSlashCommand(text: string): boolean {
 		if (!text.startsWith("/")) return false;
+		const parsed = parseSlashCommand(text);
+		const builtin = parsed && lookupBuiltinSlashCommand(parsed.name);
+		if (builtin && (builtin.allowArgs || !parsed.args)) return true;
 		const spaceIndex = text.indexOf(" ");
 		const commandName = spaceIndex === -1 ? text.slice(1) : text.slice(1, spaceIndex);
 		if (!commandName) return false;
@@ -1229,8 +1251,7 @@ export class UiHelpers {
 			}
 			if (firstPromptIndex === -1) {
 				for (const message of queuedMessages) {
-					const forwarded = await this.ctx.session.prompt(message.text);
-					this.#parkLoopOnLocalConsume(message.text, forwarded);
+					await this.#deliverQueuedMessage(message);
 				}
 				return;
 			}
@@ -1316,12 +1337,6 @@ export class UiHelpers {
 	}
 
 	extractAssistantText(message: AssistantMessage): string {
-		let text = "";
-		for (const content of message.content) {
-			if (content.type === "text") {
-				text += content.text;
-			}
-		}
-		return text.trim();
+		return extractVisibleAssistantText(message);
 	}
 }

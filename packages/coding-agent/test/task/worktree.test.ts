@@ -2,9 +2,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as natives from "@linxiraos/pi-natives";
-import * as vcs from "@linxiraos/pi-natives/vcs";
-import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 import {
 	applyNestedPatches,
 	captureBaseline,
@@ -18,6 +15,9 @@ import {
 	mergeTaskBranches,
 	parseIsolationBackend,
 } from "@linxiraos/zeta/task/worktree";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 
 const tempDirs: string[] = [];
 
@@ -39,10 +39,20 @@ async function runGit(repo: string, args: string[]): Promise<string> {
 	return stdout.trim();
 }
 
+/**
+ * `git init` pinned to verbatim line endings: assertions compare exact LF
+ * bytes, and Git for Windows' system `core.autocrlf=true` would check files
+ * out (and cherry-pick/restore them) as CRLF.
+ */
+async function initRepo(dir: string, branch = "main"): Promise<void> {
+	await runGit(dir, ["init", "-q", "-b", branch]);
+	await runGit(dir, ["config", "core.autocrlf", "false"]);
+}
+
 async function createGitRepo(): Promise<string> {
 	const repo = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-worktree-"));
 	tempDirs.push(repo);
-	await runGit(repo, ["init", "-q", "-b", "main"]);
+	await initRepo(repo);
 	return repo;
 }
 
@@ -98,7 +108,7 @@ describe("worktree isolation helpers", () => {
 	// Regression: the staged and unstaged diffs were rendered in full before the
 	// #8939 gate ran, so a working tree whose index-vs-HEAD diff was enormous
 	// (a jj conflict commit exported to git materialises every side as a
-	// `.jjconflict-*` subtree) grew one zeta process to 141 GB and took the host
+	// `.jjconflict-*` subtree) grew one omp process to 141 GB and took the host
 	// down. The renderer now stops at the budget; the caller sees the same typed
 	// refusal it gets for oversized untracked content, with no measured total.
 	it("refuses to snapshot a working tree whose staged diff exceeds the isolation budget", async () => {
@@ -118,16 +128,7 @@ describe("worktree isolation helpers", () => {
 		);
 		expect(error).toBeInstanceOf(IsolationBaselineTooLargeError);
 		expect((error as IsolationBaselineTooLargeError).budgetBytes).toBe(budget);
-		// Two legal refusal paths: the diff render raises OutputTooLarge before
-		// any measurement (contentBytes undefined, "more than <budget>" copy),
-		// or the render succeeds and the measured total crosses the budget
-		// (contentBytes set). Which one fires depends on the diff backend.
-		const contentBytes = (error as IsolationBaselineTooLargeError).contentBytes;
-		if (contentBytes === undefined) {
-			expect((error as Error).message).toContain("more than");
-		} else {
-			expect(contentBytes).toBeGreaterThan(budget);
-		}
+		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeUndefined();
 		expect((error as Error).message).toContain("task.isolation.enabled: false");
 
 		const within = await captureBaseline(repo);
@@ -160,13 +161,7 @@ describe("worktree isolation helpers", () => {
 			(err: unknown) => err,
 		);
 		expect(error).toBeInstanceOf(IsolationBaselineTooLargeError);
-		const chargedBytes = (error as IsolationBaselineTooLargeError).contentBytes;
-		if (chargedBytes !== undefined) {
-			// Measured path: the sum must actually cross the budget.
-			expect(chargedBytes).toBeGreaterThan(budget);
-		}
-		// undefined is the OutputTooLarge path (diff render refused before
-		// measurement) — also legal, message already covered by the test above.
+		expect((error as IsolationBaselineTooLargeError).contentBytes).toBeUndefined();
 		expect(unstaged).toContain("+unstaged line");
 	});
 
@@ -199,7 +194,7 @@ describe("worktree isolation helpers", () => {
 
 		beforeAll(async () => {
 			repo = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-worktree-"));
-			await runGit(repo, ["init", "-q", "-b", BASE_BRANCH]);
+			await initRepo(repo, BASE_BRANCH);
 			await runGit(repo, ["config", "user.email", "test@example.com"]);
 			await runGit(repo, ["config", "user.name", "Test User"]);
 			await Promise.all([
@@ -571,7 +566,7 @@ describe("getRepoRoot", () => {
 		await fs.mkdir(path.join(outer, ".jj", "repo", "store"), { recursive: true });
 		const inner = path.join(outer, "vendor");
 		await fs.mkdir(inner, { recursive: true });
-		await runGit(inner, ["init", "-q", "-b", "main"]);
+		await initRepo(inner);
 
 		expect(await getRepoRoot(inner)).toBe(inner);
 	});
@@ -585,7 +580,7 @@ describe("detachGitDir", () => {
 	async function makeLinkedWorktree(): Promise<{ main: string; wt: string; commonDir: string; baseSha: string }> {
 		const main = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-detach-main-"));
 		tempDirs.push(main);
-		await runGit(main, ["init", "-q", "-b", "main"]);
+		await initRepo(main);
 		await runGit(main, ["config", "user.email", "src@example.com"]);
 		await runGit(main, ["config", "user.name", "Source User"]);
 		await fs.writeFile(path.join(main, "file.txt"), "base\n");
@@ -650,30 +645,35 @@ describe("detachGitDir", () => {
 		expect(await runGit(wt, ["rev-parse", "zeta-fetched"])).toBe(taskCommit);
 	});
 
-	it.skipIf(process.getuid?.() === 0)("keeps shared git metadata intact when the index cannot be read", async () => {
-		const { wt, commonDir } = await makeLinkedWorktree();
-		const iso = await copyTree(wt);
-		const gitEntry = path.join(iso, ".git");
-		const pointerBefore = await fs.readFile(gitEntry, "utf8");
-		const indexPath = await runGit(iso, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
-		const indexMode = (await fs.stat(indexPath)).mode;
-		await fs.chmod(indexPath, 0);
-		try {
-			await expect(vcs.detachGitDir(iso, commonDir)).rejects.toMatchObject({
-				code: "Io",
-				stderr: expect.stringContaining("Permission denied"),
-			});
-		} finally {
-			await fs.chmod(indexPath, indexMode);
-		}
-		expect(await fs.readFile(gitEntry, "utf8")).toBe(pointerBefore);
-		expect(await runGit(iso, ["status", "--porcelain=v1"])).toBe("");
-	});
+	// chmod(0) cannot revoke read access on Windows (it only sets the
+	// read-only attribute), so an unreadable index is POSIX-only.
+	it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+		"keeps shared git metadata intact when the index cannot be read",
+		async () => {
+			const { wt, commonDir } = await makeLinkedWorktree();
+			const iso = await copyTree(wt);
+			const gitEntry = path.join(iso, ".git");
+			const pointerBefore = await fs.readFile(gitEntry, "utf8");
+			const indexPath = await runGit(iso, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
+			const indexMode = (await fs.stat(indexPath)).mode;
+			await fs.chmod(indexPath, 0);
+			try {
+				await expect(vcs.detachGitDir(iso, commonDir)).rejects.toMatchObject({
+					code: "Io",
+					stderr: expect.stringContaining("Permission denied"),
+				});
+			} finally {
+				await fs.chmod(indexPath, indexMode);
+			}
+			expect(await fs.readFile(gitEntry, "utf8")).toBe(pointerBefore);
+			expect(await runGit(iso, ["status", "--porcelain=v1"])).toBe("");
+		},
+	);
 
 	it("leaves an already-independent full-copy checkout untouched", async () => {
 		const src = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-detach-src-"));
 		tempDirs.push(src);
-		await runGit(src, ["init", "-q", "-b", "main"]);
+		await initRepo(src);
 		await runGit(src, ["config", "user.email", "src@example.com"]);
 		await runGit(src, ["config", "user.name", "Source User"]);
 		await fs.writeFile(path.join(src, "file.txt"), "base\n");
@@ -755,7 +755,7 @@ describe("detachGitDir", () => {
 		// Origin with two commits so a depth-1 clone has a real shallow boundary.
 		const origin = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-detach-origin-"));
 		tempDirs.push(origin);
-		await runGit(origin, ["init", "-q", "-b", "main"]);
+		await initRepo(origin);
 		await runGit(origin, ["config", "core.fsmonitor", "false"]);
 		await runGit(origin, ["config", "user.email", "src@example.com"]);
 		await runGit(origin, ["config", "user.name", "Source User"]);
@@ -868,7 +868,7 @@ describe("applyNestedPatches", () => {
 
 	beforeAll(async () => {
 		fixtureParent = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-nested-fixture-"));
-		await runGit(fixtureParent, ["init", "-q", "-b", "main"]);
+		await initRepo(fixtureParent);
 		await runGit(fixtureParent, ["config", "user.email", "test@example.com"]);
 		await runGit(fixtureParent, ["config", "user.name", "Test User"]);
 		// beforeEach copies both repos with fs.cp; auto maintenance would race
@@ -881,7 +881,7 @@ describe("applyNestedPatches", () => {
 
 		const fixtureNested = path.join(fixtureParent, nestedRel);
 		await fs.mkdir(fixtureNested, { recursive: true });
-		await runGit(fixtureNested, ["init", "-q", "-b", "main"]);
+		await initRepo(fixtureNested);
 		await runGit(fixtureNested, ["config", "user.email", "test@example.com"]);
 		await runGit(fixtureNested, ["config", "user.name", "Test User"]);
 		await runGit(fixtureNested, ["config", "maintenance.auto", "false"]);
@@ -997,7 +997,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 	beforeAll(async () => {
 		fixtureRepo = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-commit-fixture-"));
-		await runGit(fixtureRepo, ["init", "-q", "-b", "main"]);
+		await initRepo(fixtureRepo);
 		await runGit(fixtureRepo, ["config", "user.email", "test@example.com"]);
 		await runGit(fixtureRepo, ["config", "user.name", "Test User"]);
 		// `git commit` kicks off `git maintenance run --auto`, which writes

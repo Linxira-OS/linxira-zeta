@@ -15,7 +15,6 @@ import * as os from "node:os";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
 import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
 import { CollabHost } from "@linxiraos/zeta/collab/host";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -24,6 +23,8 @@ import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { tryAcquireSessionLease } from "@linxiraos/zeta/session/session-storage";
+import { refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
@@ -140,7 +141,7 @@ async function settleFrames(predicate: () => boolean, timeoutMs = 10_000): Promi
 }
 
 // The guest writes its replica under getConfigRootDir(); redirect the config
-// root to a temp HOME so the test never touches the real ~/.zeta.
+// root to a temp HOME so the test never touches the real ~/.omp.
 let homedirSpy: Mock<typeof os.homedir> | undefined;
 let homeDir: TempDir | undefined;
 let authStorage: AuthStorage;
@@ -213,5 +214,43 @@ describe("collab host compaction → guest sync (#9781)", () => {
 		const withFollowup = harness.session.messages;
 		expect(withFollowup[0]?.role).toBe("compactionSummary");
 		expect(withFollowup.at(-1)).toMatchObject({ role: "user", content: "after" });
+	});
+});
+
+describe("collab guest replica identity", () => {
+	it("gives the replica its own session id, kept across a resync, so a guest never contends for the host's lease", async () => {
+		const hostManager = SessionManager.inMemory();
+		hostManager.appendMessage({ role: "user", content: "first", timestamp: Date.now() });
+		hostManager.appendMessage(createAssistantMessage("reply"));
+		const keptId = hostManager.appendMessage({ role: "user", content: "keep", timestamp: Date.now() });
+		const host = new CollabHost(makeHostContext(hostManager));
+		await host.start("ws://localhost:8788");
+		cleanups.push(() => host.stop("test done"));
+		const harness = makeGuestHarness(model, modelRegistry);
+		cleanups.push(harness.dispose);
+
+		await harness.guest.join(host.link);
+		await settleFrames(() => harness.session.messages.length === 3);
+
+		// The lease is keyed by session id: sharing the host's id would make a
+		// guest on the host's machine displace the host (or be displaced).
+		const replica = harness.session.sessionManager;
+		const replicaId = replica.getSessionId();
+		expect(replicaId).not.toBe(hostManager.getSessionId());
+		expect(replica.getHeader()?.parentSession).toBe(hostManager.getSessionId());
+		// `omp gc` probes this lease: an idle joined guest's replica is live.
+		const leaseFree = () => {
+			const probe = tryAcquireSessionLease(replicaId);
+			probe?.release();
+			return probe !== null;
+		};
+		expect(leaseFree()).toBe(false);
+
+		// A host compaction resyncs the replica. A new id there would hand the
+		// lease off and leave the replica briefly unowned.
+		hostManager.appendCompaction("SUMMARY", undefined, keptId, 100);
+		await settleFrames(() => harness.session.messages[0]?.role === "compactionSummary");
+		expect(harness.session.sessionManager.getSessionId()).toBe(replicaId);
+		expect(leaseFree()).toBe(false);
 	});
 });

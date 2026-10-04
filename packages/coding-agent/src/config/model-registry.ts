@@ -8,6 +8,7 @@ import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProvider
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
 import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { getEnvApiKey, isOfficialCodexApiUrl } from "@linxiraos/pi-ai/stream";
 import type {
 	Api,
 	Context,
@@ -339,7 +340,7 @@ export class ModelRegistry {
 	#ompOriginProviders: Set<string> = new Set();
 	#ompConfigProviders: Set<string> = new Set();
 	#ompCompatConfig: ModelsConfig | undefined;
-	/** Test seam: upstream agent dir override; undefined = default `~/.omp/agent`. */
+	/** Test seam: upstream agent dir override; undefined = default `~/.zeta/agent`. */
 	#ompAgentDir: string | undefined;
 	/** mtime fingerprint of the upstream files at last static load; drives reload detection. */
 	#lastOmpCompatFingerprint: string | null = null;
@@ -463,7 +464,7 @@ export class ModelRegistry {
 			cacheDbPath?: string;
 			/**
 			 * Upstream OMP agent directory for the read-only compatibility probe.
-			 * Defaults to `~/.omp/agent`; tests point this at a fixture directory.
+			 * Defaults to `~/.zeta/agent`; tests point this at a fixture directory.
 			 */
 			ompAgentDir?: string;
 			fetch?: FetchImpl;
@@ -1092,7 +1093,7 @@ export class ModelRegistry {
 	#ompCompatFingerprint(): string | null {
 		if (this.#ignoreLocalModelConfig) return null;
 		const dir = this.#ompAgentDir;
-		const agentDir = dir ?? path.join(os.homedir(), ".omp", "agent");
+		const agentDir = dir ?? path.join(os.homedir(), ".zeta", "agent");
 		const parts = [agentDir];
 		for (const name of ["models.yml", "agent.db"]) {
 			try {
@@ -2339,11 +2340,32 @@ export class ModelRegistry {
 				providerId: "openai-codex",
 				authoritative: true,
 				resolveKey: value => value,
-				createOptions: accessToken =>
-					openaiCodexModelManagerOptions({
-						resolveAccounts: () => resolveCodexDiscoveryAccounts(this.authStorage, accessToken),
+				createOptions: accessToken => {
+					// A custom endpoint (models.yml `baseUrl`) receives only a configured,
+					// runtime, or command key. Official credentials (stored ChatGPT OAuth or
+					// the provider env token) keep discovering against chatgpt.com, as on a
+					// relay setup chat still works with them. The check looks at the token
+					// actually being sent: a runtime provider's command key is only a
+					// fallback behind a live OAuth token, which `peek` returns first.
+					const configuredBaseUrl = this.#descriptorBaseUrl("openai-codex");
+					const officialCredential =
+						accessToken === getEnvApiKey("openai-codex") ||
+						getOAuthCredentialsForProvider(this.authStorage, "openai-codex").some(
+							credential => credential.access === accessToken,
+						);
+					if (officialCredential || isOfficialCodexApiUrl(configuredBaseUrl)) {
+						return openaiCodexModelManagerOptions({
+							baseUrl: officialCredential ? undefined : configuredBaseUrl,
+							resolveAccounts: () => resolveCodexDiscoveryAccounts(this.authStorage, accessToken),
+							fetch: this.#fetch,
+						});
+					}
+					return openaiCodexModelManagerOptions({
+						baseUrl: configuredBaseUrl,
+						resolveAccounts: async () => [{ accessToken }],
 						fetch: this.#fetch,
-					}),
+					});
+				},
 			},
 		];
 		const disabledProviders = getDisabledProviderIdsFromSettings(this.#settings);

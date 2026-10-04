@@ -306,8 +306,8 @@ mod imp {
 			FSCTL_SET_INTEGRITY_INFORMATION,
 			&FSCTL_SET_INTEGRITY_INFORMATION_BUFFER {
 				ChecksumAlgorithm: integrity.ChecksumAlgorithm,
-				Reserved:          0,
-				Flags:             integrity.Flags,
+				Reserved: 0,
+				Flags: integrity.Flags,
 			},
 			&mut (),
 		);
@@ -324,10 +324,10 @@ mod imp {
 			let count = region_limit.min(end - offset);
 			let offset_i64 = i64::try_from(offset).map_err(|_| io::ErrorKind::FileTooLarge)?;
 			let data = DUPLICATE_EXTENTS_DATA {
-				FileHandle:       src.as_raw_handle() as _,
+				FileHandle: src.as_raw_handle() as _,
 				SourceFileOffset: offset_i64,
 				TargetFileOffset: offset_i64,
-				ByteCount:        i64::try_from(count).map_err(|_| io::ErrorKind::FileTooLarge)?,
+				ByteCount: i64::try_from(count).map_err(|_| io::ErrorKind::FileTooLarge)?,
 			};
 			fsctl(dst, FSCTL_DUPLICATE_EXTENTS_TO_FILE, &data, &mut ())?;
 			offset += count;

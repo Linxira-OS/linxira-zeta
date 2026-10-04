@@ -7,7 +7,7 @@ use napi::bindgen_prelude::*;
 /// Compiled glob filter with cheap paths for common basename/extension queries.
 pub struct CompiledGlob {
 	fast_path: GlobFastPath,
-	glob_set:  GlobSet,
+	glob_set: GlobSet,
 }
 
 enum GlobFastPath {

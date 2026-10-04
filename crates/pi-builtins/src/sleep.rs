@@ -77,7 +77,10 @@ mod tests {
 		assert_eq!(parse_duration("0.000001h"), Some(Duration::from_micros(3600)));
 		assert_eq!(parse_duration("0.00000001d"), Some(Duration::from_micros(864)));
 
-		let mut shell = Shell::builder().build().await.expect("test shell should build");
+		let mut shell = Shell::builder()
+			.build()
+			.await
+			.expect("test shell should build");
 		let command = SleepCommand { durations: vec!["0.001".into(), "0.001s".into()] };
 		let context = ExecutionContext {
 			shell: &mut shell,
@@ -105,13 +108,12 @@ mod tests {
 		let token = CancellationToken::new();
 		let mut params = ExecutionParameters::default();
 		params.set_cancel_token(token.clone());
-		let mut shell = Shell::builder().build().await.expect("test shell should build");
+		let mut shell = Shell::builder()
+			.build()
+			.await
+			.expect("test shell should build");
 		let command = SleepCommand { durations: vec!["infinity".into()] };
-		let context = ExecutionContext {
-			shell: &mut shell,
-			command_name: "sleep".into(),
-			params,
-		};
+		let context = ExecutionContext { shell: &mut shell, command_name: "sleep".into(), params };
 		let execution = async {
 			let (result, ()) = tokio::join!(command.execute(context), async {
 				tokio::task::yield_now().await;
@@ -124,10 +126,7 @@ mod tests {
 			.expect("cancelled infinite sleep should return promptly")
 			.expect("sleep execution should succeed");
 
-		assert_eq!(
-			u8::from(result.exit_code),
-			u8::from(ExecutionExitCode::Interrupted)
-		);
+		assert_eq!(u8::from(result.exit_code), u8::from(ExecutionExitCode::Interrupted));
 	}
 
 	#[tokio::test]
@@ -140,15 +139,19 @@ mod tests {
 		let (mut stderr_reader, stderr_writer) = std::io::pipe().expect("stderr pipe should open");
 		let mut params = ExecutionParameters::default();
 		params.set_fd(OpenFiles::STDERR_FD, OpenFile::from(stderr_writer));
-		let mut shell = Shell::builder().build().await.expect("test shell should build");
-		let context = ExecutionContext {
-			shell: &mut shell,
-			command_name: "sleep".into(),
-			params,
-		};
-		let result = command.execute(context).await.expect("sleep execution should succeed");
+		let mut shell = Shell::builder()
+			.build()
+			.await
+			.expect("test shell should build");
+		let context = ExecutionContext { shell: &mut shell, command_name: "sleep".into(), params };
+		let result = command
+			.execute(context)
+			.await
+			.expect("sleep execution should succeed");
 		let mut stderr = String::new();
-		stderr_reader.read_to_string(&mut stderr).expect("stderr should be readable");
+		stderr_reader
+			.read_to_string(&mut stderr)
+			.expect("stderr should be readable");
 
 		assert_eq!(u8::from(result.exit_code), 1);
 		assert_eq!(stderr, "sleep: invalid time interval '-1'\n");
@@ -159,16 +162,20 @@ mod tests {
 		let (mut stderr_reader, stderr_writer) = std::io::pipe().expect("stderr pipe should open");
 		let mut params = ExecutionParameters::default();
 		params.set_fd(OpenFiles::STDERR_FD, OpenFile::from(stderr_writer));
-		let mut shell = Shell::builder().build().await.expect("test shell should build");
+		let mut shell = Shell::builder()
+			.build()
+			.await
+			.expect("test shell should build");
 		let command = SleepCommand { durations: vec!["not-a-duration".into()] };
-		let context = ExecutionContext {
-			shell: &mut shell,
-			command_name: "sleep".into(),
-			params,
-		};
-		let result = command.execute(context).await.expect("sleep execution should succeed");
+		let context = ExecutionContext { shell: &mut shell, command_name: "sleep".into(), params };
+		let result = command
+			.execute(context)
+			.await
+			.expect("sleep execution should succeed");
 		let mut stderr = String::new();
-		stderr_reader.read_to_string(&mut stderr).expect("stderr should be readable");
+		stderr_reader
+			.read_to_string(&mut stderr)
+			.expect("stderr should be readable");
 
 		assert_eq!(u8::from(result.exit_code), 1);
 		assert_eq!(stderr, "sleep: invalid time interval 'not-a-duration'\n");
@@ -179,13 +186,12 @@ mod tests {
 		let token = CancellationToken::new();
 		let mut params = ExecutionParameters::default();
 		params.set_cancel_token(token.clone());
-		let mut shell = Shell::builder().build().await.expect("test shell should build");
+		let mut shell = Shell::builder()
+			.build()
+			.await
+			.expect("test shell should build");
 		let command = SleepCommand { durations: vec!["0.250".into()] };
-		let context = ExecutionContext {
-			shell: &mut shell,
-			command_name: "sleep".into(),
-			params,
-		};
+		let context = ExecutionContext { shell: &mut shell, command_name: "sleep".into(), params };
 		let execution = async {
 			let (result, ()) = tokio::join!(command.execute(context), async {
 				tokio::task::yield_now().await;
@@ -198,9 +204,6 @@ mod tests {
 			.expect("cancelled sleep should return promptly")
 			.expect("sleep execution should succeed");
 
-		assert_eq!(
-			u8::from(result.exit_code),
-			u8::from(ExecutionExitCode::Interrupted)
-		);
+		assert_eq!(u8::from(result.exit_code), u8::from(ExecutionExitCode::Interrupted));
 	}
 }

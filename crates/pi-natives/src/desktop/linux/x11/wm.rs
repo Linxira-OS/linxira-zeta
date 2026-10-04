@@ -30,13 +30,13 @@ const FOCUS_SETTLE_WATCH: Duration = Duration::from_millis(150);
 const FOCUS_POLL: Duration = Duration::from_millis(25);
 
 pub(super) struct Atoms {
-	pub net_active_window:   Atom,
-	pub net_wm_pid:          Atom,
-	pub net_wm_name:         Atom,
-	pub net_wm_window_type:  Atom,
-	pub utf8_string:         Atom,
-	pub wm_state:            Atom,
-	pub time_probe:          Atom,
+	pub net_active_window: Atom,
+	pub net_wm_pid: Atom,
+	pub net_wm_name: Atom,
+	pub net_wm_window_type: Atom,
+	pub utf8_string: Atom,
+	pub wm_state: Atom,
+	pub time_probe: Atom,
 	/// `_NET_WM_WINDOW_TYPE`s of override-redirect windows that hold no grab.
 	pub passive_popup_types: [Atom; 3],
 }
@@ -66,13 +66,13 @@ impl Atoms {
 			.collect::<Result<Vec<_>, _>>()
 			.map_err(wm_failed)?;
 		Ok(Self {
-			net_active_window:   atoms[0],
-			net_wm_pid:          atoms[1],
-			net_wm_name:         atoms[2],
-			net_wm_window_type:  atoms[3],
-			utf8_string:         atoms[4],
-			wm_state:            atoms[5],
-			time_probe:          atoms[6],
+			net_active_window: atoms[0],
+			net_wm_pid: atoms[1],
+			net_wm_name: atoms[2],
+			net_wm_window_type: atoms[3],
+			utf8_string: atoms[4],
+			wm_state: atoms[5],
+			time_probe: atoms[6],
 			passive_popup_types: [atoms[7], atoms[8], atoms[9]],
 		})
 	}
@@ -85,8 +85,8 @@ fn wm_failed(error: impl std::fmt::Display) -> DesktopError {
 /// Window-manager view of the X session: one connection, its root, atoms.
 #[derive(Clone, Copy)]
 pub(super) struct Wm<'a> {
-	pub conn:  &'a RustConnection,
-	pub root:  Window,
+	pub conn: &'a RustConnection,
+	pub root: Window,
 	pub atoms: &'a Atoms,
 }
 
@@ -313,13 +313,12 @@ impl Wm<'_> {
 		current: Option<Window>,
 	) -> CoreResult<()> {
 		let time = self.server_time();
-		let event = ClientMessageEvent::new(32, window, self.atoms.net_active_window, [
-			2,
-			time,
-			current.unwrap_or(NONE),
-			0,
-			0,
-		]);
+		let event = ClientMessageEvent::new(
+			32,
+			window,
+			self.atoms.net_active_window,
+			[2, time, current.unwrap_or(NONE), 0, 0],
+		);
 		self
 			.conn
 			.send_event(
@@ -452,7 +451,7 @@ impl Wm<'_> {
 /// The user's focus state before a background action.
 pub(super) struct FocusSnapshot {
 	active: Option<Window>,
-	focus:  Window,
+	focus: Window,
 }
 
 impl FocusSnapshot {

@@ -7,8 +7,8 @@ use std::{
 	io::{self, BufRead, BufReader, Read, Write},
 };
 
-use bstr::io::BufReadExt;
 use brush_core::{ShellExtensions, builtins::Registration};
+use bstr::io::BufReadExt;
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 use uucore::{display::Quotable, line_ending::LineEnding, ranges::Range};
 
@@ -29,7 +29,13 @@ impl Utility for Cut {
 		// as an empty value assigned to `-d`.
 		Ok(argv
 			.into_iter()
-			.map(|arg| if arg == "-d=" { OsString::from("--delimiter==") } else { arg })
+			.map(|arg| {
+				if arg == "-d=" {
+					OsString::from("--delimiter==")
+				} else {
+					arg
+				}
+			})
 			.collect())
 	}
 
@@ -45,283 +51,281 @@ impl Utility for Cut {
 }
 
 mod matcher {
-use memchr::{memchr, memchr2};
+	use memchr::{memchr, memchr2};
 
-// Find the next matching byte sequence positions
-// Return (first, last) where haystack[first..last] corresponds to the matched
-// pattern
-pub trait Matcher {
-	fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)>;
-}
-
-// Matches for the exact byte sequence pattern
-pub struct ExactMatcher<'a> {
-	needle: &'a [u8],
-}
-
-impl<'a> ExactMatcher<'a> {
-	pub fn new(needle: &'a [u8]) -> Self {
-		assert!(!needle.is_empty());
-		Self { needle }
+	// Find the next matching byte sequence positions
+	// Return (first, last) where haystack[first..last] corresponds to the matched
+	// pattern
+	pub trait Matcher {
+		fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)>;
 	}
-}
 
-impl Matcher for ExactMatcher<'_> {
-	fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)> {
-		let mut pos = 0usize;
-		loop {
-			let match_idx = memchr(self.needle[0], &haystack[pos..])?;
-			let match_idx = match_idx + pos; // account for starting from pos
+	// Matches for the exact byte sequence pattern
+	pub struct ExactMatcher<'a> {
+		needle: &'a [u8],
+	}
 
-			if self.needle.len() == 1 || haystack[match_idx + 1..].starts_with(&self.needle[1..]) {
-				return Some((match_idx, match_idx + self.needle.len()));
-			}
-
-			pos = match_idx + 1;
+	impl<'a> ExactMatcher<'a> {
+		pub fn new(needle: &'a [u8]) -> Self {
+			assert!(!needle.is_empty());
+			Self { needle }
 		}
 	}
-}
 
-// Matches for any number of SPACE or TAB
-pub struct WhitespaceMatcher {}
+	impl Matcher for ExactMatcher<'_> {
+		fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)> {
+			let mut pos = 0usize;
+			loop {
+				let match_idx = memchr(self.needle[0], &haystack[pos..])?;
+				let match_idx = match_idx + pos; // account for starting from pos
 
-impl Matcher for WhitespaceMatcher {
-	fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)> {
-		let match_idx = memchr2(b' ', b'\t', haystack)?;
-		let mut skip = match_idx + 1;
+				if self.needle.len() == 1 || haystack[match_idx + 1..].starts_with(&self.needle[1..]) {
+					return Some((match_idx, match_idx + self.needle.len()));
+				}
 
-		while skip < haystack.len() {
-			match haystack[skip] {
-				b' ' | b'\t' => skip += 1,
-				_ => break,
+				pos = match_idx + 1;
 			}
 		}
-
-		Some((match_idx, skip))
 	}
-}
 
-#[cfg(test)]
-mod matcher_tests {
+	// Matches for any number of SPACE or TAB
+	pub struct WhitespaceMatcher {}
 
-	use super::*;
+	impl Matcher for WhitespaceMatcher {
+		fn next_match(&self, haystack: &[u8]) -> Option<(usize, usize)> {
+			let match_idx = memchr2(b' ', b'\t', haystack)?;
+			let mut skip = match_idx + 1;
 
-	#[test]
-	fn test_exact_matcher_single_byte() {
-		let matcher = ExactMatcher::new(":".as_bytes());
-				assert_eq!(matcher.next_match("".as_bytes()), None);
-		assert_eq!(matcher.next_match(":".as_bytes()), Some((0, 1)));
-		assert_eq!(matcher.next_match(":abcxyz".as_bytes()), Some((0, 1)));
-		assert_eq!(matcher.next_match("abc:xyz".as_bytes()), Some((3, 4)));
-		assert_eq!(matcher.next_match("abcxyz:".as_bytes()), Some((6, 7)));
-		assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
+			while skip < haystack.len() {
+				match haystack[skip] {
+					b' ' | b'\t' => skip += 1,
+					_ => break,
+				}
 			}
 
-	#[test]
-	fn test_exact_matcher_multi_bytes() {
-		let matcher = ExactMatcher::new("<>".as_bytes());
-				assert_eq!(matcher.next_match("".as_bytes()), None);
-		assert_eq!(matcher.next_match("<>".as_bytes()), Some((0, 2)));
-		assert_eq!(matcher.next_match("<>abcxyz".as_bytes()), Some((0, 2)));
-		assert_eq!(matcher.next_match("abc<>xyz".as_bytes()), Some((3, 5)));
-		assert_eq!(matcher.next_match("abcxyz<>".as_bytes()), Some((6, 8)));
-		assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
-			}
+			Some((match_idx, skip))
+		}
+	}
 
-	#[test]
-	fn test_whitespace_matcher_single_space() {
-		let matcher = WhitespaceMatcher {};
-				assert_eq!(matcher.next_match("".as_bytes()), None);
-		assert_eq!(matcher.next_match(" ".as_bytes()), Some((0, 1)));
-		assert_eq!(matcher.next_match("\tabcxyz".as_bytes()), Some((0, 1)));
-		assert_eq!(matcher.next_match("abc\txyz".as_bytes()), Some((3, 4)));
-		assert_eq!(matcher.next_match("abcxyz ".as_bytes()), Some((6, 7)));
-		assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
-			}
+	#[cfg(test)]
+	mod matcher_tests {
 
-	#[test]
-	fn test_whitespace_matcher_multi_spaces() {
-		let matcher = WhitespaceMatcher {};
-				assert_eq!(matcher.next_match("".as_bytes()), None);
-		assert_eq!(matcher.next_match(" \t ".as_bytes()), Some((0, 3)));
-		assert_eq!(matcher.next_match("\t\tabcxyz".as_bytes()), Some((0, 2)));
-		assert_eq!(matcher.next_match("abc \txyz".as_bytes()), Some((3, 5)));
-		assert_eq!(matcher.next_match("abcxyz  ".as_bytes()), Some((6, 8)));
-		assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
-			}
-}
+		use super::*;
+
+		#[test]
+		fn test_exact_matcher_single_byte() {
+			let matcher = ExactMatcher::new(":".as_bytes());
+			assert_eq!(matcher.next_match("".as_bytes()), None);
+			assert_eq!(matcher.next_match(":".as_bytes()), Some((0, 1)));
+			assert_eq!(matcher.next_match(":abcxyz".as_bytes()), Some((0, 1)));
+			assert_eq!(matcher.next_match("abc:xyz".as_bytes()), Some((3, 4)));
+			assert_eq!(matcher.next_match("abcxyz:".as_bytes()), Some((6, 7)));
+			assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
+		}
+
+		#[test]
+		fn test_exact_matcher_multi_bytes() {
+			let matcher = ExactMatcher::new("<>".as_bytes());
+			assert_eq!(matcher.next_match("".as_bytes()), None);
+			assert_eq!(matcher.next_match("<>".as_bytes()), Some((0, 2)));
+			assert_eq!(matcher.next_match("<>abcxyz".as_bytes()), Some((0, 2)));
+			assert_eq!(matcher.next_match("abc<>xyz".as_bytes()), Some((3, 5)));
+			assert_eq!(matcher.next_match("abcxyz<>".as_bytes()), Some((6, 8)));
+			assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
+		}
+
+		#[test]
+		fn test_whitespace_matcher_single_space() {
+			let matcher = WhitespaceMatcher {};
+			assert_eq!(matcher.next_match("".as_bytes()), None);
+			assert_eq!(matcher.next_match(" ".as_bytes()), Some((0, 1)));
+			assert_eq!(matcher.next_match("\tabcxyz".as_bytes()), Some((0, 1)));
+			assert_eq!(matcher.next_match("abc\txyz".as_bytes()), Some((3, 4)));
+			assert_eq!(matcher.next_match("abcxyz ".as_bytes()), Some((6, 7)));
+			assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
+		}
+
+		#[test]
+		fn test_whitespace_matcher_multi_spaces() {
+			let matcher = WhitespaceMatcher {};
+			assert_eq!(matcher.next_match("".as_bytes()), None);
+			assert_eq!(matcher.next_match(" \t ".as_bytes()), Some((0, 3)));
+			assert_eq!(matcher.next_match("\t\tabcxyz".as_bytes()), Some((0, 2)));
+			assert_eq!(matcher.next_match("abc \txyz".as_bytes()), Some((3, 5)));
+			assert_eq!(matcher.next_match("abcxyz  ".as_bytes()), Some((6, 8)));
+			assert_eq!(matcher.next_match("abcxyz".as_bytes()), None);
+		}
+	}
 }
 
 mod searcher {
-use super::matcher::Matcher;
+	use super::matcher::Matcher;
 
-// Generic searcher that relies on a specific matcher
-pub struct Searcher<'a, 'b, M: Matcher> {
-	matcher:  &'a M,
-	haystack: &'b [u8],
-	position: usize,
-}
-
-impl<'a, 'b, M: Matcher> Searcher<'a, 'b, M> {
-	pub fn new(matcher: &'a M, haystack: &'b [u8]) -> Self {
-		Self { matcher, haystack, position: 0 }
-	}
-}
-
-// Iterate over field delimiters
-// Returns (first, last) positions of each sequence, where
-// `haystack[first..last]` corresponds to the delimiter.
-impl<M: Matcher> Iterator for Searcher<'_, '_, M> {
-	type Item = (usize, usize);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		let (first, last) = self.matcher.next_match(&self.haystack[self.position..])?;
-		let result = (first + self.position, last + self.position);
-		self.position += last;
-
-		Some(result)
-	}
-}
-
-#[cfg(test)]
-mod exact_searcher_tests {
-
-	use super::{super::matcher::ExactMatcher, *};
-
-	#[test]
-	fn test_normal() {
-		let matcher = ExactMatcher::new("a".as_bytes());
-		let iter = Searcher::new(&matcher, "a.a.a".as_bytes());
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
+	// Generic searcher that relies on a specific matcher
+	pub struct Searcher<'a, 'b, M: Matcher> {
+		matcher: &'a M,
+		haystack: &'b [u8],
+		position: usize,
 	}
 
-	#[test]
-	fn test_empty() {
-		let matcher = ExactMatcher::new("a".as_bytes());
-		let iter = Searcher::new(&matcher, "".as_bytes());
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert!(items.is_empty());
+	impl<'a, 'b, M: Matcher> Searcher<'a, 'b, M> {
+		pub fn new(matcher: &'a M, haystack: &'b [u8]) -> Self {
+			Self { matcher, haystack, position: 0 }
+		}
 	}
 
-	fn test_multibyte(line: &[u8], expected: &[(usize, usize)]) {
-		let matcher = ExactMatcher::new("ab".as_bytes());
-		let iter = Searcher::new(&matcher, line);
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert_eq!(expected, items);
+	// Iterate over field delimiters
+	// Returns (first, last) positions of each sequence, where
+	// `haystack[first..last]` corresponds to the delimiter.
+	impl<M: Matcher> Iterator for Searcher<'_, '_, M> {
+		type Item = (usize, usize);
+
+		fn next(&mut self) -> Option<Self::Item> {
+			let (first, last) = self.matcher.next_match(&self.haystack[self.position..])?;
+			let result = (first + self.position, last + self.position);
+			self.position += last;
+
+			Some(result)
+		}
 	}
 
-	#[test]
-	fn test_multibyte_normal() {
-		test_multibyte("...ab...ab...".as_bytes(), &[(3, 5), (8, 10)]);
+	#[cfg(test)]
+	mod exact_searcher_tests {
+
+		use super::{super::matcher::ExactMatcher, *};
+
+		#[test]
+		fn test_normal() {
+			let matcher = ExactMatcher::new("a".as_bytes());
+			let iter = Searcher::new(&matcher, "a.a.a".as_bytes());
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
+		}
+
+		#[test]
+		fn test_empty() {
+			let matcher = ExactMatcher::new("a".as_bytes());
+			let iter = Searcher::new(&matcher, "".as_bytes());
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert!(items.is_empty());
+		}
+
+		fn test_multibyte(line: &[u8], expected: &[(usize, usize)]) {
+			let matcher = ExactMatcher::new("ab".as_bytes());
+			let iter = Searcher::new(&matcher, line);
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert_eq!(expected, items);
+		}
+
+		#[test]
+		fn test_multibyte_normal() {
+			test_multibyte("...ab...ab...".as_bytes(), &[(3, 5), (8, 10)]);
+		}
+
+		#[test]
+		fn test_multibyte_needle_head_at_end() {
+			test_multibyte("a".as_bytes(), &[]);
+		}
+
+		#[test]
+		fn test_multibyte_starting_needle() {
+			test_multibyte("ab...ab...".as_bytes(), &[(0, 2), (5, 7)]);
+		}
+
+		#[test]
+		fn test_multibyte_trailing_needle() {
+			test_multibyte("...ab...ab".as_bytes(), &[(3, 5), (8, 10)]);
+		}
+
+		#[test]
+		fn test_multibyte_first_byte_false_match() {
+			test_multibyte("aA..aCaC..ab..aD".as_bytes(), &[(10, 12)]);
+		}
+
+		#[test]
+		fn test_searcher_with_exact_matcher() {
+			let matcher = ExactMatcher::new("<>".as_bytes());
+			let haystack = "<><>a<>b<><>cd<><>".as_bytes();
+			let mut searcher = Searcher::new(&matcher, haystack);
+			assert_eq!(searcher.next(), Some((0, 2)));
+			assert_eq!(searcher.next(), Some((2, 4)));
+			assert_eq!(searcher.next(), Some((5, 7)));
+			assert_eq!(searcher.next(), Some((8, 10)));
+			assert_eq!(searcher.next(), Some((10, 12)));
+			assert_eq!(searcher.next(), Some((14, 16)));
+			assert_eq!(searcher.next(), Some((16, 18)));
+			assert_eq!(searcher.next(), None);
+			assert_eq!(searcher.next(), None);
+		}
 	}
 
-	#[test]
-	fn test_multibyte_needle_head_at_end() {
-		test_multibyte("a".as_bytes(), &[]);
+	#[cfg(test)]
+	mod whitespace_searcher_tests {
+
+		use super::{super::matcher::WhitespaceMatcher, *};
+
+		#[test]
+		fn test_space() {
+			let matcher = WhitespaceMatcher {};
+			let iter = Searcher::new(&matcher, " . . ".as_bytes());
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
+		}
+
+		#[test]
+		fn test_tab() {
+			let matcher = WhitespaceMatcher {};
+			let iter = Searcher::new(&matcher, "\t.\t.\t".as_bytes());
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
+		}
+
+		#[test]
+		fn test_empty() {
+			let matcher = WhitespaceMatcher {};
+			let iter = Searcher::new(&matcher, "".as_bytes());
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert!(items.is_empty());
+		}
+
+		fn test_multispace(line: &[u8], expected: &[(usize, usize)]) {
+			let matcher = WhitespaceMatcher {};
+			let iter = Searcher::new(&matcher, line);
+			let items: Vec<(usize, usize)> = iter.collect();
+			assert_eq!(expected, items);
+		}
+
+		#[test]
+		fn test_multispace_normal() {
+			test_multispace(
+				"...  ... \t...\t ... \t ...".as_bytes(),
+				&[(3, 5), (8, 10), (13, 15), (18, 21)],
+			);
+		}
+
+		#[test]
+		fn test_multispace_begin() {
+			test_multispace(" \t\t...".as_bytes(), &[(0, 3)]);
+		}
+
+		#[test]
+		fn test_multispace_end() {
+			test_multispace("...\t  ".as_bytes(), &[(3, 6)]);
+		}
+
+		#[test]
+		fn test_searcher_with_whitespace_matcher() {
+			let matcher = WhitespaceMatcher {};
+			let haystack = "\t a b \t cd\t\t".as_bytes();
+			let mut searcher = Searcher::new(&matcher, haystack);
+			assert_eq!(searcher.next(), Some((0, 2)));
+			assert_eq!(searcher.next(), Some((3, 4)));
+			assert_eq!(searcher.next(), Some((5, 8)));
+			assert_eq!(searcher.next(), Some((10, 12)));
+			assert_eq!(searcher.next(), None);
+			assert_eq!(searcher.next(), None);
+		}
 	}
-
-	#[test]
-	fn test_multibyte_starting_needle() {
-		test_multibyte("ab...ab...".as_bytes(), &[(0, 2), (5, 7)]);
-	}
-
-	#[test]
-	fn test_multibyte_trailing_needle() {
-		test_multibyte("...ab...ab".as_bytes(), &[(3, 5), (8, 10)]);
-	}
-
-	#[test]
-	fn test_multibyte_first_byte_false_match() {
-		test_multibyte("aA..aCaC..ab..aD".as_bytes(), &[(10, 12)]);
-	}
-
-	#[test]
-	fn test_searcher_with_exact_matcher() {
-		let matcher = ExactMatcher::new("<>".as_bytes());
-		let haystack = "<><>a<>b<><>cd<><>".as_bytes();
-		let mut searcher = Searcher::new(&matcher, haystack);
-		assert_eq!(searcher.next(), Some((0, 2)));
-		assert_eq!(searcher.next(), Some((2, 4)));
-		assert_eq!(searcher.next(), Some((5, 7)));
-		assert_eq!(searcher.next(), Some((8, 10)));
-		assert_eq!(searcher.next(), Some((10, 12)));
-		assert_eq!(searcher.next(), Some((14, 16)));
-		assert_eq!(searcher.next(), Some((16, 18)));
-		assert_eq!(searcher.next(), None);
-		assert_eq!(searcher.next(), None);
-	}
-}
-
-#[cfg(test)]
-mod whitespace_searcher_tests {
-
-	use super::{super::matcher::WhitespaceMatcher, *};
-
-	#[test]
-	fn test_space() {
-		let matcher = WhitespaceMatcher {};
-		let iter = Searcher::new(&matcher, " . . ".as_bytes());
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
-	}
-
-	#[test]
-	fn test_tab() {
-		let matcher = WhitespaceMatcher {};
-		let iter = Searcher::new(&matcher, "\t.\t.\t".as_bytes());
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert_eq!(vec![(0, 1), (2, 3), (4, 5)], items);
-	}
-
-	#[test]
-	fn test_empty() {
-		let matcher = WhitespaceMatcher {};
-		let iter = Searcher::new(&matcher, "".as_bytes());
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert!(items.is_empty());
-	}
-
-	fn test_multispace(line: &[u8], expected: &[(usize, usize)]) {
-		let matcher = WhitespaceMatcher {};
-		let iter = Searcher::new(&matcher, line);
-		let items: Vec<(usize, usize)> = iter.collect();
-		assert_eq!(expected, items);
-	}
-
-	#[test]
-	fn test_multispace_normal() {
-		test_multispace("...  ... \t...\t ... \t ...".as_bytes(), &[
-			(3, 5),
-			(8, 10),
-			(13, 15),
-			(18, 21),
-		]);
-	}
-
-	#[test]
-	fn test_multispace_begin() {
-		test_multispace(" \t\t...".as_bytes(), &[(0, 3)]);
-	}
-
-	#[test]
-	fn test_multispace_end() {
-		test_multispace("...\t  ".as_bytes(), &[(3, 6)]);
-	}
-
-	#[test]
-	fn test_searcher_with_whitespace_matcher() {
-		let matcher = WhitespaceMatcher {};
-		let haystack = "\t a b \t cd\t\t".as_bytes();
-		let mut searcher = Searcher::new(&matcher, haystack);
-		assert_eq!(searcher.next(), Some((0, 2)));
-		assert_eq!(searcher.next(), Some((3, 4)));
-		assert_eq!(searcher.next(), Some((5, 8)));
-		assert_eq!(searcher.next(), Some((10, 12)));
-		assert_eq!(searcher.next(), None);
-		assert_eq!(searcher.next(), None);
-	}
-}
 }
 
 use matcher::{ExactMatcher, Matcher, WhitespaceMatcher};
@@ -329,8 +333,8 @@ use searcher::Searcher;
 
 struct Options<'a> {
 	out_delimiter: Option<&'a [u8]>,
-	line_ending:   LineEnding,
-	field_opts:    Option<FieldOptions<'a>>,
+	line_ending: LineEnding,
+	field_opts: Option<FieldOptions<'a>>,
 }
 
 enum Delimiter<'a> {
@@ -339,7 +343,7 @@ enum Delimiter<'a> {
 }
 
 struct FieldOptions<'a> {
-	delimiter:      Delimiter<'a>,
+	delimiter: Delimiter<'a>,
 	only_delimited: bool,
 }
 
@@ -734,7 +738,11 @@ where
 	let inputs = filenames
 		.into_iter()
 		.map(|name| {
-			let path = if name == "-" { None } else { Some(host.resolve(name)) };
+			let path = if name == "-" {
+				None
+			} else {
+				Some(host.resolve(name))
+			};
 			(name, path)
 		})
 		.collect::<Vec<_>>();
@@ -750,7 +758,9 @@ where
 			host
 				.fs()
 				.open(path)
-				.map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", filename.maybe_quote())))
+				.map_err(|error| {
+					io::Error::new(error.kind(), format!("{}: {error}", filename.maybe_quote()))
+				})
 				.and_then(|file| match mode {
 					Mode::Bytes(ranges, opts) | Mode::Characters(ranges, opts) => {
 						cut_bytes(file, &mut out, ranges, opts)
@@ -830,8 +840,7 @@ fn get_delimiters(matches: &ArgMatches) -> Result<(Delimiter<'_>, Option<&[u8]>)
 			if value.is_empty() {
 				Ok(&b"\0"[..])
 			} else {
-				os_bytes(value)
-					.ok_or_else(|| format!("invalid argument {}", value.maybe_quote()))
+				os_bytes(value).ok_or_else(|| format!("invalid argument {}", value.maybe_quote()))
 			}
 		})
 		.transpose()?;
@@ -883,19 +892,22 @@ fn cut_main(matches: &ArgMatches, host: &mut Host) -> Result<i32, String> {
 			Mode::Characters(ranges, Options { out_delimiter, line_ending, field_opts: None })
 		}),
 		(1, None, None, Some(ranges)) => list_to_ranges(ranges, complement).map(|ranges| {
-			Mode::Fields(ranges, Options {
-				out_delimiter,
-				line_ending,
-				field_opts: Some(FieldOptions { delimiter, only_delimited }),
-			})
+			Mode::Fields(
+				ranges,
+				Options {
+					out_delimiter,
+					line_ending,
+					field_opts: Some(FieldOptions { delimiter, only_delimited }),
+				},
+			)
 		}),
 		(2.., ..) => Err(
 			"invalid usage: expects no more than one of --fields (-f), --chars (-c) or --bytes (-b)"
 				.to_owned(),
 		),
-		_ => Err(
-			"invalid usage: expects one of --fields (-f), --chars (-c) or --bytes (-b)".to_owned(),
-		),
+		_ => {
+			Err("invalid usage: expects one of --fields (-f), --chars (-c) or --bytes (-b)".to_owned())
+		},
 	};
 
 	let mode = match mode_parse? {
@@ -905,11 +917,10 @@ fn cut_main(matches: &ArgMatches, host: &mut Host) -> Result<i32, String> {
 					.into(),
 			);
 		},
-		Mode::Bytes(..) | Mode::Characters(..)
-			if matches.get_flag(options::WHITESPACE_DELIMITED) =>
-		{
+		Mode::Bytes(..) | Mode::Characters(..) if matches.get_flag(options::WHITESPACE_DELIMITED) => {
 			return Err(
-				"invalid input: The '-w' option can only be used when printing a sequence of fields".into(),
+				"invalid input: The '-w' option can only be used when printing a sequence of fields"
+					.into(),
 			);
 		},
 		Mode::Bytes(..) | Mode::Characters(..) if matches.get_flag(options::ONLY_DELIMITED) => {

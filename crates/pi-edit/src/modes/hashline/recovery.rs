@@ -22,26 +22,26 @@ use crate::{
 /// Inputs for stale-snapshot recovery.
 pub struct RecoveryArgs<'a> {
 	/// Canonical target path.
-	pub path:         &'a Path,
+	pub path: &'a Path,
 	/// Current LF-normalized file text.
 	pub current_text: &'a str,
 	/// Requested stale snapshot tag.
-	pub file_hash:    &'a str,
+	pub file_hash: &'a str,
 	/// Parsed edits anchored against the stale snapshot.
-	pub edits:        &'a [Edit],
+	pub edits: &'a [Edit],
 	/// Transactional clipboard, when the patch uses cut/paste.
-	pub clipboard:    Option<&'a mut Clipboard>,
+	pub clipboard: Option<&'a mut Clipboard>,
 }
 
 /// Successfully recovered application result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecoveryResult {
 	/// Recovered post-edit text.
-	pub text:               String,
+	pub text: String,
 	/// First changed line in the live file.
 	pub first_changed_line: Option<u32>,
 	/// Recovery banner followed by apply-time warnings.
-	pub warnings:           Vec<String>,
+	pub warnings: Vec<String>,
 }
 
 fn edit_anchors(edit: &Edit) -> Vec<Anchor> {
@@ -96,7 +96,7 @@ fn duplicated_values(lines: &[&str]) -> HashSet<String> {
 #[derive(Clone, Copy)]
 struct Neighbors {
 	before: Option<u32>,
-	after:  Option<u32>,
+	after: Option<u32>,
 }
 
 fn anchor_neighbors(anchor_lines: &HashSet<u32>, line_count: usize) -> HashMap<u32, Neighbors> {
@@ -203,18 +203,18 @@ fn remap_edits(previous: &str, current: &str, edits: &[Edit]) -> Option<(Vec<Edi
 	for edit in edits {
 		let mapped = match edit {
 			Edit::Delete { anchor, line_num, index, old_assertion } => Edit::Delete {
-				anchor:        Anchor { line: map_line(&line_map, anchor.line, &mut offsets)? },
-				line_num:      *line_num,
-				index:         *index,
+				anchor: Anchor { line: map_line(&line_map, anchor.line, &mut offsets)? },
+				line_num: *line_num,
+				index: *index,
 				old_assertion: old_assertion.clone(),
 			},
 			Edit::Block { anchor, payloads, mode, register, line_num, index } => Edit::Block {
-				anchor:   Anchor { line: map_line(&line_map, anchor.line, &mut offsets)? },
+				anchor: Anchor { line: map_line(&line_map, anchor.line, &mut offsets)? },
 				payloads: payloads.clone(),
-				mode:     *mode,
+				mode: *mode,
 				register: register.clone(),
 				line_num: *line_num,
-				index:    *index,
+				index: *index,
 			},
 			Edit::Cut { range, register, line_num, index } => {
 				let start = map_line(&line_map, range.start.line, &mut offsets)?;
@@ -223,10 +223,10 @@ fn remap_edits(previous: &str, current: &str, edits: &[Edit]) -> Option<(Vec<Edi
 					end = map_line(&line_map, line, &mut offsets)?;
 				}
 				Edit::Cut {
-					range:    ParsedRange { start: Anchor { line: start }, end: Anchor { line: end } },
+					range: ParsedRange { start: Anchor { line: start }, end: Anchor { line: end } },
 					register: register.clone(),
 					line_num: *line_num,
-					index:    *index,
+					index: *index,
 				}
 			},
 			Edit::Paste { at, register, line_num, index, block_start } => {
@@ -244,7 +244,7 @@ fn remap_edits(previous: &str, current: &str, edits: &[Edit]) -> Option<(Vec<Edi
 						PasteTarget::Span {
 							range: ParsedRange {
 								start: Anchor { line: start },
-								end:   Anchor { line: end },
+								end: Anchor { line: end },
 							},
 						}
 					},
@@ -385,11 +385,15 @@ pub fn try_recover(
 	if !context_preserved(&snapshot.text, args.current_text, args.path, args.edits, &edits) {
 		return Ok(None);
 	}
-	let Ok(applied) = apply_edits(args.current_text, &edits, ApplyOptions {
-		clipboard:      args.clipboard.take(),
-		path:           args.path.to_str(),
-		on_empty_paste: EmptyPaste::Throw,
-	}) else {
+	let Ok(applied) = apply_edits(
+		args.current_text,
+		&edits,
+		ApplyOptions {
+			clipboard: args.clipboard.take(),
+			path: args.path.to_str(),
+			on_empty_paste: EmptyPaste::Throw,
+		},
+	) else {
 		return Ok(None);
 	};
 	if applied.text == args.current_text {

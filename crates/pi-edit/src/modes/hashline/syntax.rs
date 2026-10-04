@@ -19,12 +19,12 @@ type Key = (u64, usize, String, u32, u32);
 
 #[derive(Default)]
 struct SyntaxCache {
-	chains:         HashMap<Key, Vec<NodeSpan>>,
-	chain_order:    VecDeque<Key>,
-	boundaries:     HashMap<Key, Vec<u32>>,
+	chains: HashMap<Key, Vec<NodeSpan>>,
+	chain_order: VecDeque<Key>,
+	boundaries: HashMap<Key, Vec<u32>>,
 	boundary_order: VecDeque<Key>,
-	parses:         HashMap<Key, bool>,
-	parse_order:    VecDeque<Key>,
+	parses: HashMap<Key, bool>,
+	parse_order: VecDeque<Key>,
 }
 
 static CACHE: LazyLock<Mutex<SyntaxCache>> = LazyLock::new(|| Mutex::new(SyntaxCache::default()));
@@ -78,9 +78,9 @@ pub fn enclosing_boundaries(lines: &[String], path: &str, start: u32, end: u32) 
 		return cached.clone();
 	}
 	let boundaries = enclosing_block_boundaries(EnclosingBoundaryOptions {
-		code:   text,
-		lang:   None,
-		path:   Some(path.to_owned()),
+		code: text,
+		lang: None,
+		path: Some(path.to_owned()),
 		ranges: vec![LineRange { start_line: start, end_line: end }],
 	})
 	.ok()
@@ -103,11 +103,11 @@ pub fn parses_cleanly(path: Option<&str>, text: &str) -> bool {
 		return *cached;
 	}
 	let parsed = summarize_code(SummaryOptions {
-		code:               text.to_owned(),
-		lang:               None,
-		path:               Some(path.to_owned()),
-		min_body_lines:     None,
-		min_comment_lines:  None,
+		code: text.to_owned(),
+		lang: None,
+		path: Some(path.to_owned()),
+		min_body_lines: None,
+		min_comment_lines: None,
 		unfold_until_lines: None,
 		unfold_limit_lines: None,
 	})

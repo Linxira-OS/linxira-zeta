@@ -106,10 +106,10 @@ fn after_preserves_authored_blank_lines_without_a_terminal_phantom() {
 	                  Find\nnext\n*** Replace\nchanged";
 	let sections = split_sloppy_sections(with_blank);
 	let operations = parse_operations(&sections[0].body, "anchor\nnext\n", "a.ts").unwrap();
-	assert_eq!(operations[0].rewrite, OperationRewrite::Insert {
-		text: "\ninserted\n\n".to_owned(),
-		at:   Placement::After,
-	});
+	assert_eq!(
+		operations[0].rewrite,
+		OperationRewrite::Insert { text: "\ninserted\n\n".to_owned(), at: Placement::After }
+	);
 
 	for payload in [
 		"*** Edit File: a.ts\n*** Find\nanchor\n*** Insert After\ninserted",
@@ -117,10 +117,10 @@ fn after_preserves_authored_blank_lines_without_a_terminal_phantom() {
 	] {
 		let section = &split_sloppy_sections(payload)[0];
 		let operations = parse_operations(&section.body, "anchor\n", "a.ts").unwrap();
-		assert_eq!(operations[0].rewrite, OperationRewrite::Insert {
-			text: "inserted\n".to_owned(),
-			at:   Placement::After,
-		});
+		assert_eq!(
+			operations[0].rewrite,
+			OperationRewrite::Insert { text: "inserted\n".to_owned(), at: Placement::After }
+		);
 	}
 }
 
@@ -195,9 +195,10 @@ fn old_xml_looking_lines_are_literal_body_content() {
 	let operations =
 		parse_operations(&sections[0].body, "const marker = \"<Replace>\";\n</Find>\n", "src/a.ts")
 			.unwrap();
-	assert_eq!(operations[0].rewrite, OperationRewrite::Explicit {
-		text: "const marker = \"literal\";".to_owned(),
-	});
+	assert_eq!(
+		operations[0].rewrite,
+		OperationRewrite::Explicit { text: "const marker = \"literal\";".to_owned() }
+	);
 }
 
 #[test]

@@ -3,8 +3,8 @@
 //! Ported from uutils coreutils 0.8.0.
 
 use std::{
-	fmt,
 	ffi::OsString,
+	fmt,
 	io::{self, BufRead, BufReader, Write},
 };
 
@@ -66,9 +66,9 @@ use clap::{Arg, ArgAction, Command};
 use uucore::{
 	display::Quotable,
 	encoding::{
+		BASE2LSBF, BASE2MSBF, Base32Wrapper, Base58Wrapper, Base64SimdWrapper, EncodingWrapper,
+		Format, SupportsFastDecodeAndEncode, Z85Wrapper,
 		for_base_common::{BASE32, BASE32HEX, BASE64URL, HEXUPPER_PERMISSIVE},
-		Base32Wrapper, Base58Wrapper, Base64SimdWrapper, EncodingWrapper, Format,
-		SupportsFastDecodeAndEncode, Z85Wrapper, BASE2LSBF, BASE2MSBF,
 	},
 };
 const BASE_CMD_PARSE_ERROR: i32 = 1;
@@ -86,10 +86,10 @@ const WRAP_DEFAULT: usize = 76;
 const DEFAULT_BUF_SIZE: usize = 8 * 1024;
 
 struct Config {
-	decode:         bool,
+	decode: bool,
 	ignore_garbage: bool,
-	wrap_cols:      Option<usize>,
-	to_read:        Option<OsString>,
+	wrap_cols: Option<usize>,
+	to_read: Option<OsString>,
 }
 
 mod options {
@@ -121,9 +121,8 @@ impl Config {
 		let wrap_cols = options
 			.get_one::<String>(options::WRAP)
 			.map(|num| {
-				num.parse::<usize>().map_err(|_| {
-					BaseError::new(format!("invalid wrap size: {}", num.quote()))
-				})
+				num.parse::<usize>()
+					.map_err(|_| BaseError::new(format!("invalid wrap size: {}", num.quote())))
 			})
 			.transpose()?;
 
@@ -354,7 +353,7 @@ mod fast_encode {
 	use super::{BaseError, BaseResult, WRAP_DEFAULT};
 
 	struct LineWrapping {
-		line_length:  NonZeroUsize,
+		line_length: NonZeroUsize,
 		print_buffer: Vec<u8>,
 	}
 
@@ -364,7 +363,8 @@ mod fast_encode {
 		read_buffer: &[u8],
 		encoded_buffer: &mut VecDeque<u8>,
 	) -> BaseResult<()> {
-		supports_fast_decode_and_encode.encode_to_vec_deque(read_buffer, encoded_buffer)
+		supports_fast_decode_and_encode
+			.encode_to_vec_deque(read_buffer, encoded_buffer)
 			.map_err(|err| BaseError::new(err.to_string()))?;
 		Ok(())
 	}
@@ -475,12 +475,12 @@ mod fast_encode {
 			Some(0) => None,
 			// A custom line wrapping value was passed
 			Some(an) => Some(LineWrapping {
-				line_length:  NonZeroUsize::new(an).unwrap(),
+				line_length: NonZeroUsize::new(an).unwrap(),
 				print_buffer: Vec::<u8>::new(),
 			}),
 			// Line wrapping was not set, so the default is used
 			None => Some(LineWrapping {
-				line_length:  NonZeroUsize::new(WRAP_DEFAULT).unwrap(),
+				line_length: NonZeroUsize::new(WRAP_DEFAULT).unwrap(),
 				print_buffer: Vec::<u8>::new(),
 			}),
 		};
@@ -576,11 +576,11 @@ mod fast_encode {
 		let mut line_wrapping = match wrap {
 			Some(0) => None,
 			Some(an) => Some(LineWrapping {
-				line_length:  NonZeroUsize::new(an).unwrap(),
+				line_length: NonZeroUsize::new(an).unwrap(),
 				print_buffer: Vec::<u8>::new(),
 			}),
 			None => Some(LineWrapping {
-				line_length:  NonZeroUsize::new(WRAP_DEFAULT).unwrap(),
+				line_length: NonZeroUsize::new(WRAP_DEFAULT).unwrap(),
 				print_buffer: Vec::<u8>::new(),
 			}),
 		};
@@ -657,7 +657,8 @@ mod fast_encode {
 		}
 
 		// Encode any remaining bytes and flush
-		supports_fast_decode_and_encode.encode_to_vec_deque(&leftover_buffer, &mut encoded_buffer)
+		supports_fast_decode_and_encode
+			.encode_to_vec_deque(&leftover_buffer, &mut encoded_buffer)
 			.map_err(|err| BaseError::new(err.to_string()))?;
 
 		write_to_output(&mut line_wrapping, &mut encoded_buffer, output, true, wrap == Some(0))?;
@@ -691,7 +692,8 @@ mod fast_decode {
 		read_buffer_filtered: &[u8],
 		decoded_buffer: &mut Vec<u8>,
 	) -> BaseResult<()> {
-		supports_fast_decode_and_encode.decode_into_vec(read_buffer_filtered, decoded_buffer)
+		supports_fast_decode_and_encode
+			.decode_into_vec(read_buffer_filtered, decoded_buffer)
 			.map_err(|err| BaseError::new(err.to_string()))?;
 		Ok(())
 	}
@@ -820,7 +822,8 @@ mod fast_decode {
 
 			let final_chunk = owned_chunk.as_deref().unwrap_or(&buffer);
 
-			supports_fast_decode_and_encode.decode_into_vec(final_chunk, &mut decoded_buffer)
+			supports_fast_decode_and_encode
+				.decode_into_vec(final_chunk, &mut decoded_buffer)
 				.map_err(|err| BaseError::new(err.to_string()))?;
 			write_to_output(&mut decoded_buffer, output)?;
 
@@ -940,7 +943,8 @@ mod fast_decode {
 
 			let final_chunk = owned_chunk.as_deref().unwrap_or(&buffer);
 
-			supports_fast_decode_and_encode.decode_into_vec(final_chunk, &mut decoded_buffer)
+			supports_fast_decode_and_encode
+				.decode_into_vec(final_chunk, &mut decoded_buffer)
 				.map_err(|err| BaseError::new(err.to_string()))?;
 			write_to_output(&mut decoded_buffer, output)?;
 
@@ -966,7 +970,6 @@ fn read_and_has_padding<R: io::Read>(input: &mut R) -> BaseResult<(bool, Vec<u8>
 	let has_padding = buffer.contains(&b'=');
 	Ok((has_padding, buffer))
 }
-
 
 #[cfg(test)]
 mod tests {

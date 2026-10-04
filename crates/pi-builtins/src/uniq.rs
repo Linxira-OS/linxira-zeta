@@ -18,7 +18,7 @@ use uucore::{
 	posix::{OBSOLETE, posix_version},
 };
 
-use crate::host::{Host, StreamWriter, Utility, format_usage, matches_parser, util};
+use crate::host::{Host, StreamWriter, Utility, format_usage, matches_parser, strip_errno, util};
 
 mod options {
 	pub static ALL_REPEATED: &str = "all-repeated";
@@ -47,33 +47,29 @@ enum Delimiters {
 const OUTPUT_BUFFER_CAPACITY: usize = 128 * 1024;
 
 struct UniqState {
-	repeats_only:    bool,
-	uniques_only:    bool,
-	all_repeated:    bool,
-	delimiters:      Delimiters,
-	show_counts:     bool,
-	skip_fields:     Option<usize>,
-	slice_start:     Option<usize>,
-	slice_stop:      Option<usize>,
-	ignore_case:     bool,
+	repeats_only: bool,
+	uniques_only: bool,
+	all_repeated: bool,
+	delimiters: Delimiters,
+	show_counts: bool,
+	skip_fields: Option<usize>,
+	slice_start: Option<usize>,
+	slice_stop: Option<usize>,
+	ignore_case: bool,
 	zero_terminated: bool,
-	is_c_locale:     bool,
+	is_c_locale: bool,
 }
 
 #[derive(Default)]
 struct LineMeta {
 	key_start: usize,
-	key_end:   usize,
+	key_end: usize,
 }
 
 type PortResult<T> = Result<T, String>;
 
 fn io_error(context: &str, error: std::io::Error) -> String {
-	let mut message = error.to_string();
-	if let Some(pos) = message.find(" (os error ") {
-		message.truncate(pos);
-	}
-	format!("{context}: {message}")
+	format!("{context}: {}", strip_errno(&error))
 }
 
 macro_rules! write_line_terminator {
@@ -199,8 +195,6 @@ impl UniqState {
 			0
 		}
 	}
-
-
 
 	fn key_end_index(&self, line: &[u8], key_start: usize) -> usize {
 		let remainder = &line[key_start..];
@@ -339,10 +333,7 @@ fn opt_parsed(opt_name: &str, matches: &ArgMatches) -> PortResult<Option<usize>>
 			Ok(v) => Ok(Some(v)),
 			Err(e) => match e.kind() {
 				IntErrorKind::PosOverflow => Ok(Some(usize::MAX)),
-				_ => Err(format!(
-					"Invalid argument for {opt_name}: {}",
-					arg_str.maybe_quote()
-				)),
+				_ => Err(format!("Invalid argument for {opt_name}: {}", arg_str.maybe_quote())),
 			},
 		},
 		None => Ok(None),
@@ -739,9 +730,7 @@ fn validate_special_clap_errors(args: &[OsString]) -> Result<(), String> {
 	}
 
 	if has_group && has_conflict {
-		Err(format!(
-			"--group is mutually exclusive with -c/-d/-D/-u\n{footer}"
-		))
+		Err(format!("--group is mutually exclusive with -c/-d/-D/-u\n{footer}"))
 	} else {
 		Ok(())
 	}
@@ -792,19 +781,19 @@ fn run_uniq(matches: &ArgMatches, host: &mut Host) -> PortResult<()> {
 		.unwrap_or_default();
 
 	let uniq = UniqState {
-		repeats_only:    matches.get_flag(options::REPEATED)
+		repeats_only: matches.get_flag(options::REPEATED)
 			|| matches.contains_id(options::ALL_REPEATED),
-		uniques_only:    matches.get_flag(options::UNIQUE),
-		all_repeated:    matches.contains_id(options::ALL_REPEATED)
+		uniques_only: matches.get_flag(options::UNIQUE),
+		all_repeated: matches.contains_id(options::ALL_REPEATED)
 			|| matches.contains_id(options::GROUP),
-		delimiters:      get_delimiter(matches),
-		show_counts:     matches.get_flag(options::COUNT),
-		skip_fields:     opt_parsed(options::SKIP_FIELDS, matches)?,
-		slice_start:     opt_parsed(options::SKIP_CHARS, matches)?,
-		slice_stop:      opt_parsed(options::CHECK_CHARS, matches)?,
-		ignore_case:     matches.get_flag(options::IGNORE_CASE),
+		delimiters: get_delimiter(matches),
+		show_counts: matches.get_flag(options::COUNT),
+		skip_fields: opt_parsed(options::SKIP_FIELDS, matches)?,
+		slice_start: opt_parsed(options::SKIP_CHARS, matches)?,
+		slice_stop: opt_parsed(options::CHECK_CHARS, matches)?,
+		ignore_case: matches.get_flag(options::IGNORE_CASE),
 		zero_terminated: matches.get_flag(options::ZERO_TERMINATED),
-		is_c_locale:     is_c_locale(host),
+		is_c_locale: is_c_locale(host),
 	};
 
 	if uniq.show_counts && uniq.all_repeated {
@@ -877,7 +866,9 @@ fn run_uniq(matches: &ArgMatches, host: &mut Host) -> PortResult<()> {
 }
 
 fn operand_path(host: &Host, operand: Option<&std::ffi::OsStr>) -> Option<PathBuf> {
-	operand.filter(|path| *path != "-").map(|path| host.resolve(path))
+	operand
+		.filter(|path| *path != "-")
+		.map(|path| host.resolve(path))
 }
 
 fn is_c_locale(host: &Host) -> bool {
@@ -1020,7 +1011,6 @@ pub(crate) fn uniq_builtin<SE: ShellExtensions>() -> Registration<SE> {
 	util::<Uniq, SE>()
 }
 
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -1035,10 +1025,7 @@ mod tests {
 
 	#[test]
 	fn default_collapses_adjacent_duplicates() {
-		assert_eq!(
-			uniq(&[], "a\na\nb\nc\nc\n"),
-			(0, "a\nb\nc\n".to_string(), String::new())
-		);
+		assert_eq!(uniq(&[], "a\na\nb\nc\nc\n"), (0, "a\nb\nc\n".to_string(), String::new()));
 	}
 
 	#[test]
@@ -1091,8 +1078,7 @@ mod tests {
 	#[test]
 	fn missing_input_reports_failure() {
 		let dir = tempfile::tempdir().unwrap();
-		let (code, capture) =
-			run_util::<Uniq>(&["missing"], "", dir.path().to_str().unwrap());
+		let (code, capture) = run_util::<Uniq>(&["missing"], "", dir.path().to_str().unwrap());
 		assert_eq!(code, 1);
 		assert!(capture.err().contains("Could not open"), "{}", capture.err());
 	}

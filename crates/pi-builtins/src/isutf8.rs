@@ -70,19 +70,12 @@ impl Utility for Isutf8 {
 		if files.is_empty() {
 			match validate(&mut host.stdin, &cancel) {
 				Err(err) => {
-				host.error(format!("{STDIN_NAME}: {err}"), 2);
-				io_error = true;
+					host.error(format!("{STDIN_NAME}: {err}"), 2);
+					io_error = true;
 				},
 				Ok(Verdict::Cancelled) => return 130,
 				Ok(verdict) => {
-					any_failed = report_verdict(
-						host,
-						STDIN_NAME,
-						verdict,
-						quiet,
-						list,
-						invert,
-					);
+					any_failed = report_verdict(host, STDIN_NAME, verdict, quiet, list, invert);
 				},
 			}
 		} else {
@@ -307,10 +300,7 @@ mod tests {
 		bytes.extend_from_slice("é".as_bytes());
 		fs::write(dir.path().join("straddle"), &bytes).unwrap();
 
-		assert_eq!(
-			run_in(dir.path(), "", &["straddle"]),
-			(0, String::new(), String::new())
-		);
+		assert_eq!(run_in(dir.path(), "", &["straddle"]), (0, String::new(), String::new()));
 	}
 
 	#[test]
@@ -342,10 +332,7 @@ mod tests {
 		let dir = tempfile::tempdir().unwrap();
 		fs::write(dir.path().join("bad"), b"\xFF").unwrap();
 
-		assert_eq!(
-			run_in(dir.path(), "", &["-q", "bad"]),
-			(1, String::new(), String::new())
-		);
+		assert_eq!(run_in(dir.path(), "", &["-q", "bad"]), (1, String::new(), String::new()));
 	}
 
 	#[test]
@@ -357,8 +344,7 @@ mod tests {
 		let (code, stdout, stderr) = run_in(dir.path(), "", &["-l", "good", "bad"]);
 		assert_eq!((code, stdout.as_str(), stderr.as_str()), (1, "bad\n", ""));
 
-		let (code, stdout, stderr) =
-			run_in(dir.path(), "", &["-l", "-i", "good", "bad"]);
+		let (code, stdout, stderr) = run_in(dir.path(), "", &["-l", "-i", "good", "bad"]);
 		assert_eq!((code, stdout.as_str(), stderr.as_str()), (1, "good\n", ""));
 	}
 
@@ -376,15 +362,9 @@ mod tests {
 	fn stdin_is_validated_when_no_files_given() {
 		let dir = tempfile::tempdir().unwrap();
 
-		assert_eq!(
-			run_in(dir.path(), "héllo\n", &[]),
-			(0, String::new(), String::new())
-		);
+		assert_eq!(run_in(dir.path(), "héllo\n", &[]), (0, String::new(), String::new()));
 
-		assert_eq!(
-			run_in(dir.path(), "explicit\n", &["-"]),
-			(0, String::new(), String::new())
-		);
+		assert_eq!(run_in(dir.path(), "explicit\n", &["-"]), (0, String::new(), String::new()));
 	}
 
 	#[test]

@@ -597,7 +597,7 @@ mod background {
 	}
 
 	struct KeyEmitter {
-		hwnd:      HWND,
+		hwnd: HWND,
 		alt_depth: u8,
 	}
 	impl KeyEmitter {
@@ -807,9 +807,9 @@ mod foreground {
 	/// to the user's window once the target has consumed it.
 	struct ForegroundGuard {
 		previous: HWND,
-		target:   HWND,
-		settle:   Duration,
-		armed:    bool,
+		target: HWND,
+		settle: Duration,
+		armed: bool,
 	}
 
 	impl ForegroundGuard {
@@ -1038,14 +1038,14 @@ mod foreground {
 
 	const fn mouse_event(flags: u32, data: u32) -> INPUT {
 		INPUT {
-			r#type:    INPUT_MOUSE,
+			r#type: INPUT_MOUSE,
 			Anonymous: INPUT_0 {
 				mi: MOUSEINPUT {
-					dx:          0,
-					dy:          0,
-					mouseData:   data,
-					dwFlags:     flags,
-					time:        0,
+					dx: 0,
+					dy: 0,
+					mouseData: data,
+					dwFlags: flags,
+					time: 0,
 					dwExtraInfo: 0,
 				},
 			},
@@ -1175,15 +1175,9 @@ mod foreground {
 
 	const fn keyboard_input(vk: u16, scan: u16, flags: u32) -> INPUT {
 		INPUT {
-			r#type:    INPUT_KEYBOARD,
+			r#type: INPUT_KEYBOARD,
 			Anonymous: INPUT_0 {
-				ki: KEYBDINPUT {
-					wVk:         vk,
-					wScan:       scan,
-					dwFlags:     flags,
-					time:        0,
-					dwExtraInfo: 0,
-				},
+				ki: KEYBDINPUT { wVk: vk, wScan: scan, dwFlags: flags, time: 0, dwExtraInfo: 0 },
 			},
 		}
 	}

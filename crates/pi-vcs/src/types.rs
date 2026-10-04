@@ -21,9 +21,9 @@ pub enum VcsKind {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StatusSummary {
 	/// Files with staged (index) changes.
-	pub staged:    u32,
+	pub staged: u32,
 	/// Files with unstaged worktree modifications.
-	pub unstaged:  u32,
+	pub unstaged: u32,
 	/// Untracked files (gitignore-filtered).
 	pub untracked: u32,
 }
@@ -33,20 +33,20 @@ pub struct StatusSummary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GitRepoInfo {
 	/// Checkout root: the directory containing the `.git` entry.
-	pub repo_root:      PathBuf,
+	pub repo_root: PathBuf,
 	/// The `.git` entry itself (directory, or pointer file for linked
 	/// worktrees).
 	pub git_entry_path: PathBuf,
 	/// Resolved git directory (worktree-private for linked worktrees).
-	pub git_dir:        PathBuf,
+	pub git_dir: PathBuf,
 	/// Shared common directory (equals `git_dir` for primary checkouts).
-	pub common_dir:     PathBuf,
+	pub common_dir: PathBuf,
 	/// Path of the `HEAD` file inside `git_dir`.
-	pub head_path:      PathBuf,
+	pub head_path: PathBuf,
 	/// Whether refs are stored in the reftable format (`extensions.refStorage`).
 	/// Reftable repos route ref reads through the git CLI: neither gitoxide nor
 	/// libgit2 can read reftable yet.
-	pub is_reftable:    bool,
+	pub is_reftable: bool,
 }
 
 /// HEAD resolution: on a ref (born or unborn) or detached at a commit.
@@ -57,9 +57,9 @@ pub enum HeadState {
 		/// Full ref name (`refs/heads/main`).
 		ref_name: String,
 		/// Short branch name when the ref lives under `refs/heads/`.
-		branch:   Option<String>,
+		branch: Option<String>,
 		/// Commit the ref points at; `None` for an unborn branch.
-		commit:   Option<String>,
+		commit: Option<String>,
 	},
 	/// HEAD points directly at a commit.
 	Detached {
@@ -89,7 +89,7 @@ impl HeadState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinkedWorktree {
 	/// The worktree's own checkout root.
-	pub root:         PathBuf,
+	pub root: PathBuf,
 	/// The shared primary checkout root that names the project.
 	pub primary_root: PathBuf,
 }
@@ -98,11 +98,11 @@ pub struct LinkedWorktree {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeEntry {
 	/// Checkout root of the worktree.
-	pub path:     PathBuf,
+	pub path: PathBuf,
 	/// HEAD commit, when known.
-	pub head:     Option<String>,
+	pub head: Option<String>,
 	/// Checked-out branch ref, when not detached.
-	pub branch:   Option<String>,
+	pub branch: Option<String>,
 	/// Whether the worktree is on a detached HEAD.
 	pub detached: bool,
 }
@@ -121,8 +121,8 @@ pub enum WorktreeClone {
 /// Options for linked-worktree creation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WorktreeAddOptions {
-	pub detach:       bool,
-	pub clone:        WorktreeClone,
+	pub detach: bool,
+	pub clone: WorktreeClone,
 	/// Carry the source checkout's staged, unstaged, and untracked changes
 	/// into the new worktree instead of starting from a clean tree. Requires
 	/// the target ref to resolve to the source `HEAD` commit.
@@ -140,22 +140,22 @@ pub struct WorktreeAddResult {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommitAuthor {
 	/// Author name.
-	pub name:  String,
+	pub name: String,
 	/// Author email.
 	pub email: String,
 	/// Author date (RFC 3339 / git date format), when overriding "now".
-	pub date:  Option<String>,
+	pub date: Option<String>,
 }
 
 /// Commit metadata for replay/rewrite flows (mirror of `git show -s`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommitDetails {
 	/// Full commit SHA.
-	pub sha:     String,
+	pub sha: String,
 	/// Parent SHAs; empty for a root commit.
 	pub parents: Vec<String>,
 	/// Author identity and date.
-	pub author:  CommitAuthor,
+	pub author: CommitAuthor,
 	/// Full commit message (subject + body, no trailing newline).
 	pub message: String,
 }
@@ -164,9 +164,9 @@ pub struct CommitDetails {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NumstatEntry {
 	/// Worktree-relative path (new path for renames).
-	pub path:    String,
+	pub path: String,
 	/// Added lines; `None` for binary files.
-	pub added:   Option<u32>,
+	pub added: Option<u32>,
 	/// Removed lines; `None` for binary files.
 	pub removed: Option<u32>,
 }
@@ -180,18 +180,18 @@ pub struct NumstatEntry {
 #[derive(Debug, Clone, Default)]
 pub struct DiffOptions {
 	/// Diff the index against HEAD instead of the worktree against the index.
-	pub cached:    bool,
+	pub cached: bool,
 	/// Base revision; with `head` produces a two-rev diff.
-	pub base:      Option<String>,
+	pub base: Option<String>,
 	/// Head revision (requires `base`).
-	pub head:      Option<String>,
+	pub head: Option<String>,
 	/// Restrict to these worktree-relative paths.
-	pub files:     Vec<String>,
+	pub files: Vec<String>,
 	/// Unified context lines (default 3).
-	pub context:   Option<u32>,
+	pub context: Option<u32>,
 	/// Include binary patch blocks (`GIT binary patch`) instead of the
 	/// "Binary files differ" placeholder.
-	pub binary:    bool,
+	pub binary: bool,
 	/// Refuse with [`crate::Error::OutputTooLarge`] once the rendered patch
 	/// exceeds this many bytes. Rendering stops at the first change that
 	/// crosses the cap, and a change whose input blobs alone would push the
@@ -219,9 +219,9 @@ pub enum UntrackedMode {
 #[derive(Debug, Clone, Default)]
 pub struct StatusOptions {
 	/// Untracked reporting mode.
-	pub untracked:      UntrackedMode,
+	pub untracked: UntrackedMode,
 	/// Restrict to these pathspecs.
-	pub pathspecs:      Vec<String>,
+	pub pathspecs: Vec<String>,
 	/// Terminate entries with NUL and disable path quoting (`-z`).
 	pub nul_terminated: bool,
 }
@@ -230,13 +230,13 @@ pub struct StatusOptions {
 #[derive(Debug, Clone, Default)]
 pub struct CommitOptions {
 	/// Author override; committer stays the repo identity.
-	pub author:      Option<CommitAuthor>,
+	pub author: Option<CommitAuthor>,
 	/// Permit an empty commit.
 	pub allow_empty: bool,
 	/// Amend HEAD instead of appending.
-	pub amend:       bool,
+	pub amend: bool,
 	/// Commit only these paths (pathspec commit).
-	pub files:       Vec<String>,
+	pub files: Vec<String>,
 }
 
 /// Which hunks of a file a selection covers.
@@ -251,7 +251,7 @@ pub enum HunkSpec {
 		/// First line (inclusive).
 		start: u32,
 		/// Last line (inclusive).
-		end:   u32,
+		end: u32,
 	},
 }
 
@@ -259,7 +259,7 @@ pub enum HunkSpec {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HunkSelection {
 	/// Worktree-relative path as it appears in the diff.
-	pub path:  String,
+	pub path: String,
 	/// Which hunks to take.
 	pub hunks: HunkSpec,
 }
@@ -269,7 +269,7 @@ pub struct HunkSelection {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HunkSelectionError {
 	/// Path of the offending selection.
-	pub path:    String,
+	pub path: String,
 	/// Human-readable reason.
 	pub message: String,
 }
@@ -278,14 +278,14 @@ pub struct HunkSelectionError {
 #[derive(Debug, Clone, Default)]
 pub struct ApplyOptions {
 	/// Apply to the index instead of the worktree.
-	pub cached:     bool,
+	pub cached: bool,
 	/// Alternate index file for cached application (`GIT_INDEX_FILE`
 	/// equivalent); ignored for worktree application.
 	pub index_path: Option<PathBuf>,
 	/// Apply in reverse.
-	pub reverse:    bool,
+	pub reverse: bool,
 	/// Fall back to 3-way merge using the patch's recorded blob bases.
-	pub three_way:  bool,
+	pub three_way: bool,
 }
 
 /// Reset mode for tree-wide resets.
@@ -304,33 +304,33 @@ pub enum ResetMode {
 #[derive(Debug, Clone, Default)]
 pub struct RestoreOptions {
 	/// Source revision (defaults to HEAD for staged, index for worktree).
-	pub source:   Option<String>,
+	pub source: Option<String>,
 	/// Restore the index.
-	pub staged:   bool,
+	pub staged: bool,
 	/// Restore the worktree.
 	pub worktree: bool,
 	/// Restrict to these paths.
-	pub files:    Vec<String>,
+	pub files: Vec<String>,
 }
 
 /// Options for `clean` (untracked file removal). Always recursive (`-d`).
 #[derive(Debug, Clone, Default)]
 pub struct CleanOptions {
 	/// Remove only ignored files (`-X`).
-	pub ignored_only:    bool,
+	pub ignored_only: bool,
 	/// Remove ignored files too (`-x`).
 	pub include_ignored: bool,
 	/// Restrict to these literal paths (no glob expansion).
-	pub paths:           Vec<String>,
+	pub paths: Vec<String>,
 }
 
 /// Options for the CLI-backed `push`.
 #[derive(Debug, Clone, Default)]
 pub struct PushOptions {
 	/// Remote name; git's configured default when absent.
-	pub remote:           Option<String>,
+	pub remote: Option<String>,
 	/// Refspec to push; the current branch when absent.
-	pub refspec:          Option<String>,
+	pub refspec: Option<String>,
 	/// Use `--force-with-lease`.
 	pub force_with_lease: bool,
 }
@@ -341,9 +341,9 @@ pub struct CloneOptions {
 	/// Branch or tag to clone (`--branch`).
 	pub ref_name: Option<String>,
 	/// Pin to a specific commit; forces a full (non-shallow) clone.
-	pub sha:      Option<String>,
+	pub sha: Option<String>,
 	/// Network deadline override.
-	pub timeout:  Option<Duration>,
+	pub timeout: Option<Duration>,
 }
 
 /// Outcome of severing a copied working tree from shared git metadata.
@@ -361,7 +361,7 @@ pub enum DetachGitDirResult {
 #[derive(Debug, Clone)]
 pub struct ShowResult {
 	/// Object bytes, capped at the requested maximum.
-	pub bytes:     Vec<u8>,
+	pub bytes: Vec<u8>,
 	/// True when the object was larger than the cap and `bytes` is incomplete.
 	pub truncated: bool,
 }

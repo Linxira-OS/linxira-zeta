@@ -5,10 +5,10 @@ use pi_walker::{WalkFilter, WalkOptions, WalkOrder, WalkRank, WalkRequest};
 fn main() -> Result<(), Box<dyn Error>> {
 	let root = env::args().nth(1).ok_or("expected tree path")?;
 	let limit = env::args().nth(2).unwrap_or_else(|| "100".into()).parse()?;
-	let request = WalkRequest::from_options(root, WalkOptions {
-		order: WalkOrder::Unordered,
-		..WalkOptions::default()
-	})
+	let request = WalkRequest::from_options(
+		root,
+		WalkOptions { order: WalkOrder::Unordered, ..WalkOptions::default() },
+	)
 	.filter(WalkFilter::files_only());
 	let started = Instant::now();
 	let outcome = request

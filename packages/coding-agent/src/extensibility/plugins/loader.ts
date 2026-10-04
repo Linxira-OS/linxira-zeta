@@ -16,6 +16,7 @@ import {
 	isEacces,
 	isEnoent,
 	logger,
+	normalizePathForComparison,
 } from "@linxiraos/pi-utils";
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -290,8 +291,8 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
 	const projectRegistryPath = await resolveActiveProjectRegistryPath(cwd);
 	if (projectRegistryPath) {
 		const projectRoot = path.dirname(projectRegistryPath);
-		if (projectRoot !== userRoot) {
-			projectPlugins = await collectPluginsAtRoot(projectRoot, projectOverrides, "project", home);
+		if (normalizePathForComparison(projectRoot) !== normalizePathForComparison(userRoot)) {
+			projectPlugins = await collectPluginsAtRoot(projectRoot, projectOverrides, "project");
 		}
 	}
 

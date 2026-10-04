@@ -39,7 +39,7 @@ const PREVIEW_GAP_ROW: &str = "";
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DiffOutput {
 	/// Numbered diff rows.
-	pub diff:               String,
+	pub diff: String,
 	/// First line affected in the new text.
 	pub first_changed_line: Option<u32>,
 }
@@ -62,7 +62,7 @@ enum DiffPrefix {
 
 #[derive(Debug)]
 struct ParsedNumberedDiffRow {
-	prefix:      DiffPrefix,
+	prefix: DiffPrefix,
 	line_number: u32,
 }
 
@@ -388,7 +388,7 @@ pub fn generate_unified_diff_string(
 #[derive(Clone, Copy, Debug)]
 struct LineSpan {
 	start_line: u32,
-	end_line:   u32,
+	end_line: u32,
 }
 
 fn visible_set_to_spans(visible: &BTreeSet<u32>) -> Vec<LineSpan> {
@@ -418,9 +418,9 @@ fn native_block_context(
 		return Some(Vec::new());
 	}
 	let options = EnclosingBoundaryOptions {
-		code:   full_lines.join("\n"),
-		lang:   source.lang.map(str::to_owned),
-		path:   source.path.map(str::to_owned),
+		code: full_lines.join("\n"),
+		lang: source.lang.map(str::to_owned),
+		path: source.path.map(str::to_owned),
 		ranges: ranges
 			.into_iter()
 			.map(|range| LineRange { start_line: range.start_line, end_line: range.end_line })
@@ -455,10 +455,10 @@ enum ScannerMode {
 
 #[derive(Debug)]
 struct StackEntry {
-	opener:      char,
+	opener: char,
 	line_number: u32,
-	text:        String,
-	visible:     bool,
+	text: String,
+	visible: bool,
 }
 
 fn is_hash_comment_start(line: &str, byte_index: usize) -> bool {
@@ -587,9 +587,9 @@ pub fn find_block_context_lines(
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CompactDiffPreview {
 	/// Current-file numbered preview.
-	pub preview:       String,
+	pub preview: String,
 	/// Number of added rows in the source diff.
-	pub added_lines:   usize,
+	pub added_lines: usize,
 	/// Number of removed rows in the source diff.
 	pub removed_lines: usize,
 }
@@ -600,7 +600,7 @@ pub struct CompactDiffOptions {
 	/// Added lines kept on each side of a long added run.
 	pub max_added_run_context: Option<usize>,
 	/// Back-compatible alias for `max_added_run_context`.
-	pub max_unchanged_run:     Option<usize>,
+	pub max_unchanged_run: Option<usize>,
 }
 
 fn is_preview_separator(line: &str) -> bool {
@@ -623,9 +623,9 @@ fn append_preview_line(output: &mut Vec<String>, line: &str) {
 
 #[derive(Debug)]
 struct ParsedCompactDiffLine<'a> {
-	kind:        DiffPrefix,
+	kind: DiffPrefix,
 	line_number: i64,
-	content:     &'a str,
+	content: &'a str,
 }
 
 fn parse_integer_prefix(value: &str) -> Option<i64> {
@@ -739,19 +739,19 @@ pub fn build_compact_diff_preview(diff: &str, options: &CompactDiffOptions) -> C
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DiffHunk {
 	/// Optional textual or symbolic hunk anchor.
-	pub change_context:    Option<String>,
+	pub change_context: Option<String>,
 	/// Optional 1-indexed old-file line hint.
-	pub old_start_line:    Option<u32>,
+	pub old_start_line: Option<u32>,
 	/// Optional 1-indexed new-file line hint.
-	pub new_start_line:    Option<u32>,
+	pub new_start_line: Option<u32>,
 	/// Whether the hunk contains unchanged context.
 	pub has_context_lines: bool,
 	/// Expected old-file lines.
-	pub old_lines:         Vec<String>,
+	pub old_lines: Vec<String>,
 	/// Replacement new-file lines.
-	pub new_lines:         Vec<String>,
+	pub new_lines: Vec<String>,
 	/// Whether the hunk carries an end-of-file marker.
-	pub is_end_of_file:    bool,
+	pub is_end_of_file: bool,
 }
 
 fn is_diff_content_line(line: &str) -> bool {
@@ -856,7 +856,7 @@ fn parse_unified_hunk_header(line: &str) -> Option<UnifiedHunkHeader> {
 fn parse_error(message: impl AsRef<str>, line_number: u32) -> EditError {
 	EditError::Parse {
 		message: format!("Line {line_number}: {}", message.as_ref()),
-		line:    Some(line_number),
+		line: Some(line_number),
 	}
 }
 
@@ -901,7 +901,7 @@ fn strip_line_number_prefixes(hunk: &mut DiffHunk) {
 }
 
 struct ParseHunkResult {
-	hunk:           DiffHunk,
+	hunk: DiffHunk,
 	lines_consumed: usize,
 }
 
@@ -1378,9 +1378,10 @@ mod tests {
 			[" 1|a1", " 2|a2", "-3|a3", "-4|a4", "+3|X", "+4|Y", "+5|Z", " 5|a5", " 6|a6", " 7|a7"]
 				.join("\n");
 		let preview = build_compact_diff_preview(&diff, &CompactDiffOptions::default());
-		assert_eq!(preview.preview.split('\n').collect::<Vec<_>>(), [
-			"1:a1", "2:a2", "3:X", "4:Y", "5:Z", "6:a5", "7:a6", "8:a7"
-		]);
+		assert_eq!(
+			preview.preview.split('\n').collect::<Vec<_>>(),
+			["1:a1", "2:a2", "3:X", "4:Y", "5:Z", "6:a5", "7:a6", "8:a7"]
+		);
 	}
 
 	#[test]
@@ -1403,8 +1404,7 @@ mod tests {
 		let options =
 			CompactDiffOptions { max_added_run_context: Some(1), max_unchanged_run: Some(3) };
 		assert_eq!(build_compact_diff_preview(&diff, &options).preview, "1:line 1\n…\n8:line 8");
-		let alias =
-			CompactDiffOptions { max_added_run_context: None, max_unchanged_run: Some(1) };
+		let alias = CompactDiffOptions { max_added_run_context: None, max_unchanged_run: Some(1) };
 		assert_eq!(build_compact_diff_preview(&diff, &alias).preview, "1:line 1\n…\n8:line 8");
 	}
 

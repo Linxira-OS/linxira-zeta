@@ -21,14 +21,14 @@ use crate::task;
 #[napi(object)]
 pub struct DeviceCheckTokenResult {
 	/// Whether `DCDevice.isSupported` reported attestation support.
-	pub supported:    bool,
+	pub supported: bool,
 	/// Base64-encoded `DeviceCheck` token; present only when generation
 	/// succeeded.
 	pub token_base64: Option<String>,
 	/// Human-readable failure reason when no token was produced.
-	pub error:        Option<String>,
+	pub error: Option<String>,
 	/// Wall-clock time spent in the native call, in milliseconds.
-	pub latency_ms:   f64,
+	pub latency_ms: f64,
 }
 
 /// Generate an Apple `DeviceCheck` attestation token.
@@ -146,12 +146,12 @@ mod platform {
 	/// captured context (a raw pointer to the channel sender).
 	#[repr(C)]
 	struct CompletionBlock {
-		isa:        *const c_void,
-		flags:      i32,
-		reserved:   i32,
-		invoke:     unsafe extern "C" fn(*mut Self, Id, Id),
+		isa: *const c_void,
+		flags: i32,
+		reserved: i32,
+		invoke: unsafe extern "C" fn(*mut Self, Id, Id),
 		descriptor: *const CompletionBlockDescriptor,
-		sender:     *const SyncSender<Completion>,
+		sender: *const SyncSender<Completion>,
 	}
 
 	/// `Block_descriptor_1` followed immediately by `Block_descriptor_3`.
@@ -159,8 +159,8 @@ mod platform {
 	/// captured sender pointer is plain-old-data and needs no retain/release.
 	#[repr(C)]
 	struct CompletionBlockDescriptor {
-		reserved:  usize,
-		size:      usize,
+		reserved: usize,
+		size: usize,
 		signature: *const c_char,
 	}
 
@@ -177,8 +177,8 @@ mod platform {
 	unsafe impl Sync for CompletionBlockDescriptor {}
 
 	static COMPLETION_DESCRIPTOR: CompletionBlockDescriptor = CompletionBlockDescriptor {
-		reserved:  0,
-		size:      size_of::<CompletionBlock>(),
+		reserved: 0,
+		size: size_of::<CompletionBlock>(),
 		signature: BLOCK_SIGNATURE.as_ptr(),
 	};
 
@@ -295,10 +295,10 @@ mod platform {
 		}
 
 		let mut result = DeviceCheckTokenResult {
-			supported:    true,
+			supported: true,
 			token_base64: None,
-			error:        None,
-			latency_ms:   0.0,
+			error: None,
+			latency_ms: 0.0,
 		};
 		match receiver.recv_timeout(TOKEN_TIMEOUT) {
 			Ok(Completion::Token(token)) => {
@@ -324,10 +324,10 @@ mod platform {
 
 	fn generate_token_inner() -> DeviceCheckTokenResult {
 		let mut result = DeviceCheckTokenResult {
-			supported:    false,
+			supported: false,
 			token_base64: None,
-			error:        None,
-			latency_ms:   0.0,
+			error: None,
+			latency_ms: 0.0,
 		};
 		if !session_has_graphic_access() {
 			result.error = Some("DeviceCheck unavailable without a GUI login session".to_owned());
@@ -385,11 +385,6 @@ mod platform {
 	use super::DeviceCheckTokenResult;
 
 	pub const fn generate_token() -> DeviceCheckTokenResult {
-		DeviceCheckTokenResult {
-			supported:    false,
-			token_base64: None,
-			error:        None,
-			latency_ms:   0.0,
-		}
+		DeviceCheckTokenResult { supported: false, token_base64: None, error: None, latency_ms: 0.0 }
 	}
 }

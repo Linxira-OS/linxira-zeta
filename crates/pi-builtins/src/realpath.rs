@@ -16,7 +16,7 @@ use clap::{
 use pi_vfs::{BlockingFs, CanonicalizeOptions, MissingHandling, ResolveMode, relative_path};
 use uucore::{display::Quotable, line_ending::LineEnding};
 
-use crate::host::{Host, Utility, format_usage, matches_parser, os_bytes, util};
+use crate::host::{Host, Utility, format_usage, matches_parser, os_bytes, strip_errno, util};
 
 const OPT_QUIET: &str = "quiet";
 const OPT_STRIP: &str = "strip";
@@ -112,7 +112,7 @@ fn realpath_main(matches: &ArgMatches, host: &mut Host) -> i32 {
 		match prepare_relative_options(matches, host, can_mode, resolve_mode) {
 			Ok(options) => options,
 			Err((path, err)) => {
-				host.error(format!("{}: {}", path.maybe_quote(), io_error_message(&err)), 1);
+				host.error(format!("{}: {}", path.maybe_quote(), strip_errno(&err)), 1);
 				return host.exit_code();
 			},
 		};
@@ -128,7 +128,7 @@ fn realpath_main(matches: &ArgMatches, host: &mut Host) -> i32 {
 			host,
 		) {
 			if !quiet {
-				host.error(format!("{}: {}", path.maybe_quote(), io_error_message(&err)), 1);
+				host.error(format!("{}: {}", path.maybe_quote(), strip_errno(&err)), 1);
 			} else {
 				host.fail(1);
 			}
@@ -323,8 +323,11 @@ fn resolve_path(
 	relative_base: Option<&Path>,
 	host: &mut Host,
 ) -> io::Result<()> {
-	let (absolute, _) =
-		canonicalize_path(host.fs(), &host.resolve(path), &CanonicalizeOptions::new(can_mode, resolve))?;
+	let (absolute, _) = canonicalize_path(
+		host.fs(),
+		&host.resolve(path),
+		&CanonicalizeOptions::new(can_mode, resolve),
+	)?;
 	let output_path = process_relative(absolute, relative_base, relative_to);
 	let bytes = os_bytes(output_path.as_os_str())
 		.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path is not valid Unicode"))?;
@@ -361,14 +364,6 @@ fn process_relative(
 /// Whether `path` is `base` or lies beneath it, under the same root.
 fn is_within(path: &Path, base: &Path) -> bool {
 	relative_path(path, base).is_some_and(|relative| !relative.starts_with(".."))
-}
-
-fn io_error_message(error: &io::Error) -> String {
-	let mut message = error.to_string();
-	if let Some(index) = message.find(" (os error ") {
-		message.truncate(index);
-	}
-	message
 }
 
 /// Creates the `realpath` builtin registration.
@@ -420,8 +415,7 @@ mod tests {
 		fs::create_dir(root.join("sub")).unwrap();
 		fs::write(root.join("sub/file"), b"x").unwrap();
 
-		let (code, capture) =
-			run_util::<Realpath>(&["--relative-to", "sub", "sub/file"], "", root);
+		let (code, capture) = run_util::<Realpath>(&["--relative-to", "sub", "sub/file"], "", root);
 		assert_eq!(code, 0);
 		assert_eq!(capture.out(), "file\n");
 		assert_eq!(capture.err(), "");

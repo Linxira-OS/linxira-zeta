@@ -69,11 +69,11 @@ pub fn strip_one_leading_hashline_prefix(line: &str) -> String {
 
 #[derive(Default)]
 struct LinePrefixStats {
-	non_empty:                   usize,
-	header_count:                usize,
-	hash_prefix_count:           usize,
+	non_empty: usize,
+	header_count: usize,
+	hash_prefix_count: usize,
 	diff_plus_hash_prefix_count: usize,
-	diff_plus_count:             usize,
+	diff_plus_count: usize,
 }
 
 fn collect_line_prefix_stats(lines: &[String]) -> LinePrefixStats {

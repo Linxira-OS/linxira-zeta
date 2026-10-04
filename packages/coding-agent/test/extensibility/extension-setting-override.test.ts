@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { lookup } from "@linxiraos/zeta/config/registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { TempDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
@@ -12,7 +13,6 @@ import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } f
 // lands if that import resolves to the host's registry, not a second copy.
 const EXTENSION_SOURCE = `
 import { lookup } from "@linxiraos/zeta/config/registry";
-
 export default function (pi) {
 	const recap = lookup("recap.enabled");
 	if (!recap) throw new Error("recap.enabled is not registered");
@@ -32,6 +32,8 @@ describe("extension runtime setting overrides", () => {
 	afterEach(() => {
 		restoreSettingsTestState(state);
 		state = undefined;
+		// `Settings.init` opened `<agentDir>/agent.db`; Windows cannot delete it while open.
+		AgentStorage.close();
 		tempDir?.removeSync();
 		tempDir = undefined;
 	});

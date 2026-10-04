@@ -33,13 +33,13 @@ pub struct ThreadInfo {
 	/// Scheduler state letter: the kernel's own on Linux (`R`, `S`, `D`, …),
 	/// Apple `ps` letters on macOS (`R`, `U`, `S`, `I`, `T`, `H`), `?` when
 	/// unknown.
-	pub state:       char,
+	pub state: char,
 	/// Scheduling priority on the platform's native scale.
-	pub priority:    Option<i32>,
+	pub priority: Option<i32>,
 	/// Policy letter Apple `ps -M` appends to the priority: `T` timesharing,
 	/// `R` round-robin, `F` FIFO.
-	pub policy:      Option<char>,
-	pub user_time:   Option<std::time::Duration>,
+	pub policy: Option<char>,
+	pub user_time: Option<std::time::Duration>,
 	pub system_time: Option<std::time::Duration>,
 	/// Kernel-decayed recent CPU share on macOS; lifetime average elsewhere.
 	pub cpu_percent: Option<f64>,
@@ -75,34 +75,34 @@ mod proc_snapshot {
 
 	#[derive(Clone)]
 	pub struct ProcInfo {
-		pid:  i32,
+		pid: i32,
 		stat: Stat,
 		args: Vec<String>,
-		uid:  Option<(u32, u32)>,
-		gid:  Option<(u32, u32)>,
+		uid: Option<(u32, u32)>,
+		gid: Option<(u32, u32)>,
 	}
 
 	#[derive(Clone)]
 	struct Stat {
-		comm:       String,
-		state:      char,
-		policy:     Option<u32>,
-		ppid:       i32,
-		pgrp:       i32,
-		session:    i32,
-		tty:        i64,
-		tpgid:      i32,
-		flags:      u64,
-		minflt:     u64,
-		majflt:     u64,
-		utime:      u64,
-		stime:      u64,
-		priority:   i32,
-		nice:       i32,
-		threads:    u32,
+		comm: String,
+		state: char,
+		policy: Option<u32>,
+		ppid: i32,
+		pgrp: i32,
+		session: i32,
+		tty: i64,
+		tpgid: i32,
+		flags: u64,
+		minflt: u64,
+		majflt: u64,
+		utime: u64,
+		stime: u64,
+		priority: i32,
+		nice: i32,
+		threads: u32,
 		start_time: u64,
-		virtual_:   u64,
-		rss_pages:  i64,
+		virtual_: u64,
+		rss_pages: i64,
 	}
 
 	#[allow(
@@ -335,12 +335,17 @@ mod proc_snapshot {
 			.flatten()
 			.filter_map(|entry| parse_stat(&fs::read_to_string(entry.path().join("stat")).ok()?))
 			.map(|stat| {
-				let seconds = |value: u64| ticks.map(|ticks| Duration::from_secs_f64(value as f64 / ticks));
+				let seconds =
+					|value: u64| ticks.map(|ticks| Duration::from_secs_f64(value as f64 / ticks));
 				// A thread started within the current clock tick has no elapsed time
 				// yet; procps reports 0% rather than an unknown share.
 				let cpu_percent = uptime.zip(ticks).map(|(uptime, ticks)| {
 					let age = uptime - stat.start_time as f64 / ticks;
-					if age > 0.0 { 100.0 * (stat.utime + stat.stime) as f64 / ticks / age } else { 0.0 }
+					if age > 0.0 {
+						100.0 * (stat.utime + stat.stime) as f64 / ticks / age
+					} else {
+						0.0
+					}
 				});
 				ThreadInfo {
 					state: stat.state,
@@ -449,7 +454,7 @@ mod proc_snapshot {
 
 	#[derive(Clone)]
 	pub struct ProcInfo {
-		pid:  i32,
+		pid: i32,
 		info: libc::proc_bsdinfo,
 		task: Option<libc::proc_taskinfo>,
 		args: Vec<String>,
@@ -860,41 +865,41 @@ mod proc_snapshot {
 	#[repr(C)]
 	#[derive(Clone, Copy)]
 	struct ProcessEntry32W {
-		size:          u32,
-		usage:         u32,
-		pid:           u32,
-		default_heap:  usize,
-		module_id:     u32,
-		threads:       u32,
-		ppid:          u32,
+		size: u32,
+		usage: u32,
+		pid: u32,
+		default_heap: usize,
+		module_id: u32,
+		threads: u32,
+		ppid: u32,
 		base_priority: i32,
-		flags:         u32,
-		exe:           [u16; 260],
+		flags: u32,
+		exe: [u16; 260],
 	}
 
 	#[repr(C)]
 	struct ThreadEntry32 {
-		size:           u32,
-		usage:          u32,
-		tid:            u32,
-		owner_pid:      u32,
-		base_priority:  i32,
+		size: u32,
+		usage: u32,
+		tid: u32,
+		owner_pid: u32,
+		base_priority: i32,
 		delta_priority: i32,
-		flags:          u32,
+		flags: u32,
 	}
 
 	#[repr(C)]
 	#[derive(Clone, Copy, Default)]
 	struct FileTime {
-		low:  u32,
+		low: u32,
 		high: u32,
 	}
 
 	#[repr(C)]
 	struct UnicodeString {
-		length:         u16,
+		length: u16,
 		maximum_length: u16,
-		buffer:         *const u16,
+		buffer: *const u16,
 	}
 
 	#[repr(C)]
@@ -971,14 +976,14 @@ mod proc_snapshot {
 
 	#[derive(Clone)]
 	pub struct ProcInfo {
-		pid:           i32,
-		handle:        Arc<OwnedHandle>,
-		ppid:          i32,
-		threads:       u32,
+		pid: i32,
+		handle: Arc<OwnedHandle>,
+		ppid: i32,
+		threads: u32,
 		base_priority: i32,
-		name:          String,
-		command_line:  String,
-		creation:      u64,
+		name: String,
+		command_line: String,
+		creation: u64,
 	}
 
 	#[allow(
@@ -1218,14 +1223,18 @@ mod proc_snapshot {
 			{
 				let times = thread_times(entry.tid);
 				list.push(ThreadInfo {
-					state:       '?',
-					priority:    Some(entry.base_priority),
-					policy:      None,
-					user_time:   times.map(|(_, _, user)| ticks_duration(user)),
+					state: '?',
+					priority: Some(entry.base_priority),
+					policy: None,
+					user_time: times.map(|(_, _, user)| ticks_duration(user)),
 					system_time: times.map(|(_, kernel, _)| ticks_duration(kernel)),
 					cpu_percent: times.map(|(creation, kernel, user)| {
 						let age = now.saturating_sub(creation);
-						if age > 0 { 100.0 * kernel.saturating_add(user) as f64 / age as f64 } else { 0.0 }
+						if age > 0 {
+							100.0 * kernel.saturating_add(user) as f64 / age as f64
+						} else {
+							0.0
+						}
 					}),
 				});
 			}
@@ -1386,7 +1395,7 @@ pub use proc_snapshot::{ProcInfo, threads_by_pid};
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 pub(crate) struct HostProcesses {
 	/// This process and its ancestors, nearest first.
-	pub pids:  smallvec::SmallVec<[i32; 16]>,
+	pub pids: smallvec::SmallVec<[i32; 16]>,
 	/// The process groups those processes belong to.
 	pub pgids: smallvec::SmallVec<[i32; 16]>,
 }
@@ -1399,8 +1408,8 @@ pub(crate) struct HostProcesses {
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 #[derive(Clone, Copy)]
 struct ChainNode {
-	ppid:  Option<i32>,
-	pgid:  Option<i32>,
+	ppid: Option<i32>,
+	pgid: Option<i32>,
 	/// Platform start time. Monotonic on all three supported platforms, so a
 	/// larger value means the process started later.
 	start: u64,
@@ -1422,12 +1431,11 @@ impl HostProcesses {
 			return Self { pids: smallvec::SmallVec::new(), pgids: smallvec::SmallVec::new() };
 		};
 		Self::walk(self_pid, |pid| {
-			all
-				.iter()
+			all.iter()
 				.find(|process| process.pid() == pid)
 				.map(|process| ChainNode {
-					ppid:  process.ppid(),
-					pgid:  process.group_id(),
+					ppid: process.ppid(),
+					pgid: process.group_id(),
 					start: process.start_time(),
 				})
 		})
@@ -1484,7 +1492,9 @@ mod tests {
 	use super::ChainNode;
 
 	/// Builds a lookup over a synthetic `(pid, ppid, pgid, start)` tree.
-	fn tree(nodes: &[(i32, Option<i32>, Option<i32>, u64)]) -> impl Fn(i32) -> Option<ChainNode> + '_ {
+	fn tree(
+		nodes: &[(i32, Option<i32>, Option<i32>, u64)],
+	) -> impl Fn(i32) -> Option<ChainNode> + '_ {
 		|pid| {
 			nodes
 				.iter()
@@ -1526,10 +1536,8 @@ mod tests {
 	/// where start time is measured in jiffies.
 	#[test]
 	fn a_same_tick_parent_is_followed() {
-		let host = HostProcesses::walk(
-			100,
-			tree(&[(100, Some(42), Some(7), 50), (42, None, Some(7), 50)]),
-		);
+		let host =
+			HostProcesses::walk(100, tree(&[(100, Some(42), Some(7), 50), (42, None, Some(7), 50)]));
 		assert_eq!(host.pids.as_slice(), [100, 42], "same-tick parent must still be an ancestor");
 	}
 

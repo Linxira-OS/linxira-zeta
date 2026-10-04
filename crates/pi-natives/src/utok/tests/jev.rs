@@ -18,7 +18,7 @@ struct Fixture {
 
 #[derive(Deserialize)]
 struct Case {
-	text:  String,
+	text: String,
 	count: u32,
 }
 

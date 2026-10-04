@@ -11,12 +11,13 @@ import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-model
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
 import { getModelMatchPreferences, resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { buildSessionOptions as buildCliSessionOptions } from "@linxiraos/zeta/main";
 import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
 import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
@@ -50,6 +51,10 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			authStorage.close();
 		}
 		authStoragesToClose.length = 0;
+		// Sessions without explicit settings run `Settings.init({ agentDir: tempDir })`, which
+		// opens `<tempDir>/agent.db` process-wide; release it so Windows can delete tempDir.
+		resetSettingsForTest();
+		AgentStorage.close();
 		if (tempDir && fs.existsSync(tempDir)) {
 			removeSyncWithRetries(tempDir);
 		}
@@ -1481,7 +1486,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores a discovery-backed session model instead of falling back to the default role", async () => {
-		// Regression: on `zeta-c --resume`, the session-model restore probed
+		// Regression: on `omp --resume`, the session-model restore probed
 		// candidates only against the static+cached catalog. A discovery-backed
 		// provider (models.yml `discovery:`) hasn't been fetched at that point, so
 		// the saved model failed to resolve and resume silently downgraded to

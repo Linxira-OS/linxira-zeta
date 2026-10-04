@@ -10,10 +10,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
@@ -38,7 +40,7 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-parked-shell-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-parked-shell-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
@@ -57,6 +59,9 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const key of ENV_KEYS) restoreEnvValue(key, savedEnv[key]);
 	__resetDirsFromEnvForTests();
+	// The subagent session opened agent.db and models.db under root; Windows cannot delete open files.
+	AgentStorage.close();
+	closeModelCache();
 	await removeWithRetries(root);
 });
 

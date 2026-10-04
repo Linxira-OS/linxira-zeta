@@ -37,10 +37,10 @@ impl LiveWebRtcPeer {
 	) -> Self {
 		Self {
 			inner: Arc::new(LivePeerCore::new(LiveCallbacks {
-				event:   Box::new(move |payload| {
+				event: Box::new(move |payload| {
 					on_event.call(Ok(payload), ThreadsafeFunctionCallMode::NonBlocking);
 				}),
-				level:   Box::new(move |level| {
+				level: Box::new(move |level| {
 					on_level.call(Ok(level), ThreadsafeFunctionCallMode::NonBlocking);
 				}),
 				failure: Box::new(move |message| {

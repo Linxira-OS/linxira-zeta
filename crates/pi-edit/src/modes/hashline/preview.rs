@@ -199,10 +199,12 @@ fn preview_section(
 				target.path
 			)));
 		}
-		let diff = generate_diff_string(&read.text, &applied.text, None, &BlockContextSource {
-			path: Some(&target.path),
-			lang: None,
-		});
+		let diff = generate_diff_string(
+			&read.text,
+			&applied.text,
+			None,
+			&BlockContextSource { path: Some(&target.path), lang: None },
+		);
 		result.diff = Some(diff.diff);
 		result.first_changed_line = applied.first_changed_line.or(diff.first_changed_line);
 		Ok(())

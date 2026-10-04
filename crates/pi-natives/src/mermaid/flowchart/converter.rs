@@ -202,67 +202,67 @@ mod tests {
 
 	fn config() -> AsciiConfig {
 		AsciiConfig {
-			use_ascii:          false,
-			padding_x:          5,
-			padding_y:          5,
+			use_ascii: false,
+			padding_x: 5,
+			padding_y: 5,
 			box_border_padding: 1,
-			direction:          LayoutDirection::TD,
+			direction: LayoutDirection::TD,
 		}
 	}
 
 	#[test]
 	fn conversion_preserves_order_edges_and_nested_membership_ownership() {
 		let parsed = MermaidGraph {
-			direction:         Direction::TD,
-			nodes:             vec![
+			direction: Direction::TD,
+			nodes: vec![
 				MermaidNode { id: "A".into(), label: "Alpha".into(), shape: NodeShape::Rectangle },
 				MermaidNode { id: "B".into(), label: "Beta".into(), shape: NodeShape::Diamond },
 				MermaidNode { id: "C".into(), label: "Gamma".into(), shape: NodeShape::Circle },
 			],
-			edges:             vec![
+			edges: vec![
 				MermaidEdge {
-					source:          "A".into(),
-					target:          "B".into(),
-					label:           Some("first".into()),
-					style:           EdgeStyle::Solid,
+					source: "A".into(),
+					target: "B".into(),
+					label: Some("first".into()),
+					style: EdgeStyle::Solid,
 					has_arrow_start: false,
-					has_arrow_end:   true,
+					has_arrow_end: true,
 				},
 				MermaidEdge {
-					source:          "B".into(),
-					target:          "C".into(),
-					label:           None,
-					style:           EdgeStyle::Dotted,
+					source: "B".into(),
+					target: "C".into(),
+					label: None,
+					style: EdgeStyle::Dotted,
 					has_arrow_start: true,
-					has_arrow_end:   true,
+					has_arrow_end: true,
 				},
 			],
-			subgraphs:         vec![MermaidSubgraph {
-				id:        "outer".into(),
-				label:     "Outer".into(),
-				node_ids:  vec!["A".into()],
-				children:  vec![
+			subgraphs: vec![MermaidSubgraph {
+				id: "outer".into(),
+				label: "Outer".into(),
+				node_ids: vec!["A".into()],
+				children: vec![
 					MermaidSubgraph {
-						id:        "inner".into(),
-						label:     "Inner".into(),
-						node_ids:  vec!["B".into()],
-						children:  Vec::new(),
+						id: "inner".into(),
+						label: "Inner".into(),
+						node_ids: vec!["B".into()],
+						children: Vec::new(),
 						direction: Some(Direction::LR),
 					},
 					MermaidSubgraph {
-						id:        "other".into(),
-						label:     "Other".into(),
-						node_ids:  vec!["B".into(), "C".into()],
-						children:  Vec::new(),
+						id: "other".into(),
+						label: "Other".into(),
+						node_ids: vec!["B".into(), "C".into()],
+						children: Vec::new(),
 						direction: None,
 					},
 				],
 				direction: Some(Direction::TD),
 			}],
-			class_defs:        Vec::new(),
+			class_defs: Vec::new(),
 			class_assignments: Vec::new(),
-			node_styles:       Vec::new(),
-			link_styles:       Vec::new(),
+			node_styles: Vec::new(),
+			link_styles: Vec::new(),
 		};
 
 		let graph = convert(&parsed, config());

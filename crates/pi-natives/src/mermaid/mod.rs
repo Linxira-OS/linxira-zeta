@@ -47,31 +47,31 @@ impl std::error::Error for ParseError {}
 #[derive(Clone, Debug)]
 pub struct RenderOptions {
 	/// `+-|>` instead of Unicode box-drawing characters.
-	pub use_ascii:          bool,
+	pub use_ascii: bool,
 	/// Horizontal spacing between nodes.
-	pub padding_x:          i32,
+	pub padding_x: i32,
 	/// Vertical spacing between nodes.
-	pub padding_y:          i32,
+	pub padding_y: i32,
 	/// Padding inside node boxes.
 	pub box_border_padding: i32,
 	/// Force the layout direction of flowcharts and state diagrams,
 	/// overriding the direction in the source. Other diagram types ignore it.
-	pub direction:          Option<Direction>,
+	pub direction: Option<Direction>,
 	/// `None` auto-detects from the terminal environment.
-	pub color_mode:         Option<ColorMode>,
-	pub theme:              Theme,
+	pub color_mode: Option<ColorMode>,
+	pub theme: Theme,
 }
 
 impl Default for RenderOptions {
 	fn default() -> Self {
 		Self {
-			use_ascii:          false,
-			padding_x:          5,
-			padding_y:          5,
+			use_ascii: false,
+			padding_x: 5,
+			padding_y: 5,
 			box_border_padding: 1,
-			direction:          None,
-			color_mode:         None,
-			theme:              Theme::default(),
+			direction: None,
+			color_mode: None,
+			theme: Theme::default(),
 		}
 	}
 }
@@ -127,11 +127,11 @@ const fn word_char(c: char) -> bool {
 /// Flowchart/state sources with an empty body or an unrecognized header.
 pub fn render(text: &str, options: &RenderOptions) -> Result<String, ParseError> {
 	let config = flowchart::AsciiConfig {
-		use_ascii:          options.use_ascii,
-		padding_x:          options.padding_x,
-		padding_y:          options.padding_y,
+		use_ascii: options.use_ascii,
+		padding_x: options.padding_x,
+		padding_y: options.padding_y,
 		box_border_padding: options.box_border_padding,
-		direction:          flowchart::LayoutDirection::TD,
+		direction: flowchart::LayoutDirection::TD,
 	};
 	let mode = options.color_mode.unwrap_or_else(ansi::detect_color_mode);
 	let theme = &options.theme;
@@ -149,13 +149,13 @@ pub fn render(text: &str, options: &RenderOptions) -> Result<String, ParseError>
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MermaidTheme {
-	pub fg:       Option<String>,
-	pub border:   Option<String>,
-	pub line:     Option<String>,
-	pub arrow:    Option<String>,
-	pub accent:   Option<String>,
-	pub bg:       Option<String>,
-	pub corner:   Option<String>,
+	pub fg: Option<String>,
+	pub border: Option<String>,
+	pub line: Option<String>,
+	pub arrow: Option<String>,
+	pub accent: Option<String>,
+	pub bg: Option<String>,
+	pub corner: Option<String>,
 	pub junction: Option<String>,
 }
 
@@ -167,17 +167,17 @@ pub struct MermaidTheme {
 #[serde(rename_all = "camelCase")]
 pub struct MermaidRenderOptions {
 	/// `+-|>` instead of Unicode box-drawing characters.
-	pub use_ascii:          Option<bool>,
-	pub padding_x:          Option<i32>,
-	pub padding_y:          Option<i32>,
+	pub use_ascii: Option<bool>,
+	pub padding_x: Option<i32>,
+	pub padding_y: Option<i32>,
 	pub box_border_padding: Option<i32>,
 	/// Force the flowchart/state layout direction.
 	#[napi(ts_type = "'TD' | 'TB' | 'LR' | 'BT' | 'RL'")]
-	pub direction:          Option<String>,
+	pub direction: Option<String>,
 	/// `auto` (or omitted) detects from the terminal environment.
 	#[napi(ts_type = "'none' | 'auto' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'")]
-	pub color_mode:         Option<String>,
-	pub theme:              Option<MermaidTheme>,
+	pub color_mode: Option<String>,
+	pub theme: Option<MermaidTheme>,
 }
 
 impl MermaidRenderOptions {
@@ -263,11 +263,11 @@ mod tests {
 	/// this module's output rather than TS parity.
 	#[derive(serde::Deserialize)]
 	struct Fixture {
-		name:    String,
-		source:  String,
+		name: String,
+		source: String,
 		options: MermaidRenderOptions,
-		output:  Option<String>,
-		error:   Option<String>,
+		output: Option<String>,
+		error: Option<String>,
 	}
 
 	fn first_difference(expected: &str, actual: &str) -> String {

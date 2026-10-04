@@ -13,14 +13,14 @@ use crate::utok::Encoding;
 #[derive(Deserialize)]
 struct Fixture {
 	text: String,
-	v3:   u32,
+	v3: u32,
 	v4_7: u32,
-	v5:   u32,
+	v5: u32,
 }
 
 #[derive(Deserialize)]
 struct LiveRow {
-	text:  String,
+	text: String,
 	count: u32,
 }
 

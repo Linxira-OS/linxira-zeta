@@ -45,9 +45,9 @@ pub(crate) struct CliOutput {
 	/// Process exit code (`124` designates a deadline kill).
 	pub exit_code: i32,
 	/// Captured stdout, possibly truncated.
-	pub stdout:    String,
+	pub stdout: String,
 	/// Captured stderr, possibly truncated.
-	pub stderr:    String,
+	pub stderr: String,
 }
 
 impl CliOutput {
@@ -57,10 +57,10 @@ impl CliOutput {
 			return Ok(self);
 		}
 		Err(Error::Cli {
-			command:   format!("git {}", args.join(" ")),
+			command: format!("git {}", args.join(" ")),
 			exit_code: self.exit_code,
-			stdout:    self.stdout,
-			stderr:    self.stderr,
+			stdout: self.stdout,
+			stderr: self.stderr,
 		})
 	}
 }
@@ -72,11 +72,11 @@ pub(crate) struct RunOptions {
 	/// off.
 	pub read_only: bool,
 	/// Deadline; [`COMMAND_TIMEOUT`] when unset.
-	pub timeout:   Option<Duration>,
+	pub timeout: Option<Duration>,
 	/// Bytes piped to stdin (commit messages, `update-ref --stdin` scripts).
-	pub stdin:     Option<Vec<u8>>,
+	pub stdin: Option<Vec<u8>>,
 	/// Cooperative cancellation: the child is terminated when triggered.
-	pub cancel:    Option<CancellationToken>,
+	pub cancel: Option<CancellationToken>,
 }
 
 /// Build the hardened argv prefix.
@@ -484,11 +484,11 @@ impl GitRepo {
 		if let Some(refspec) = &options.refspec {
 			args.push(refspec.clone());
 		}
-		run_checked(self.root(), &args, &RunOptions {
-			timeout: Some(NETWORK_TIMEOUT),
-			cancel,
-			..RunOptions::default()
-		})
+		run_checked(
+			self.root(),
+			&args,
+			&RunOptions { timeout: Some(NETWORK_TIMEOUT), cancel, ..RunOptions::default() },
+		)
 		.await?;
 		Ok(())
 	}
@@ -503,11 +503,15 @@ impl GitRepo {
 		cancel: Option<CancellationToken>,
 	) -> Result<()> {
 		let args = vec!["fetch".to_owned(), remote.to_owned(), format!("+{source}:{target}")];
-		run_checked(self.root(), &args, &RunOptions {
-			timeout: Some(timeout.unwrap_or(NETWORK_TIMEOUT)),
-			cancel,
-			..RunOptions::default()
-		})
+		run_checked(
+			self.root(),
+			&args,
+			&RunOptions {
+				timeout: Some(timeout.unwrap_or(NETWORK_TIMEOUT)),
+				cancel,
+				..RunOptions::default()
+			},
+		)
 		.await?;
 		Ok(())
 	}
@@ -558,10 +562,11 @@ pub async fn clone(
 	}
 
 	if let Some(sha) = &options.sha {
-		let checkout = run_checked(&absolute, &["checkout".to_owned(), sha.clone()], &RunOptions {
-			cancel,
-			..RunOptions::default()
-		})
+		let checkout = run_checked(
+			&absolute,
+			&["checkout".to_owned(), sha.clone()],
+			&RunOptions { cancel, ..RunOptions::default() },
+		)
 		.await;
 		if checkout.is_err() {
 			let _ = tokio::fs::remove_dir_all(&absolute).await;

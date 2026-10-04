@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
-import { renderResult, taskCardAgentIds } from "@linxiraos/pi-tui/tools/task";
-import { taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
+import { renderResult, taskCardAgentIds, taskToolRenderer } from "@linxiraos/pi-tui/tools/task";
 import type { AgentProgress, SingleResult, TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
 
 const strip = (lines: readonly string[]): string =>
@@ -364,5 +363,30 @@ describe("taskCardAgentIds", () => {
 		expect(taskCardAgentIds(undefined)).toEqual([]);
 		expect(taskCardAgentIds(null)).toEqual([]);
 		expect(taskCardAgentIds({ results: [{ id: 42 }, null, {}] })).toEqual([]);
+	});
+});
+
+describe("task preflight error rendering", () => {
+	it("renders an error header with empty task details", async () => {
+		const theme = await getThemeByName("dark");
+		if (!theme) throw new Error("theme unavailable");
+		const content = [{ type: "text", text: "Invalid model selector." }];
+		const options = { expanded: false, isPartial: false };
+		const ordinary = renderResult({ content, isError: true }, options, theme).render(90);
+		const preflight = renderResult(
+			{
+				content,
+				isError: true,
+				details: {
+					projectAgentsDir: null,
+					results: [],
+					totalDurationMs: 0,
+				},
+			},
+			options,
+			theme,
+		).render(90);
+		expect(strip(preflight.slice(0, 1))).toBe(strip(ordinary.slice(0, 1)));
+		expect(strip(preflight)).toContain("Invalid model selector.");
 	});
 });

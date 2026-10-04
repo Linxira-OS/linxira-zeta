@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, expect, it } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
+import { afterEach, beforeEach, expect, it, vi } from "bun:test";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 import { readTableSql } from "./helpers/sqlite-inspect";
 
 const LEGACY_TIMESTAMP = 1_700_000_000;
@@ -188,4 +188,44 @@ it("collapses preexisting whitespace-padded duplicates on open, keeping the late
 	});
 	// FTS was rebuilt after the delete+update, so no stale index rows remain.
 	expect(storage.search("tidy", 10).map(entry => entry.sessionId)).toEqual(["new-session"]);
+});
+
+// #13926: report failed persistence once per outage without changing the log-only promise contract.
+it("reports failed writes once per outage and permits persistence after recovery", async () => {
+	tempDir = TempDir.createSync("@omp-history-storage-write-failure-");
+	const dbPath = tempDir.join("history.db");
+	const storage = HistoryStorage.open(dbPath);
+	const peer = new Database(dbPath);
+	const reportFailure = vi.fn();
+	const reportSuccess = vi.fn();
+	storage.setErrorListener(reportFailure);
+	storage.setAddListener(reportSuccess);
+	try {
+		peer.run(
+			"CREATE TRIGGER reject_prompt BEFORE INSERT ON history BEGIN SELECT RAISE(ABORT, 'write rejected'); END",
+		);
+		await storage.add("lost while locked", "/project", "session");
+		await storage.add("lost again while locked", "/project", "session");
+		expect(reportFailure).toHaveBeenCalledTimes(1);
+		expect(reportFailure).toHaveBeenCalledWith(expect.any(Error));
+		expect(reportSuccess).not.toHaveBeenCalled();
+		peer.run("DROP TRIGGER reject_prompt");
+		expect(storage.getRecent(10)).toEqual([]);
+
+		await storage.add("lost while locked", "/project", "session");
+		expect(reportSuccess).toHaveBeenCalledTimes(1);
+		peer.run("CREATE TRIGGER reject_again BEFORE INSERT ON history BEGIN SELECT RAISE(ABORT, 'write rejected'); END");
+		await storage.add("lost after recovery", "/project", "session");
+		expect(reportFailure).toHaveBeenCalledTimes(2);
+		expect(reportSuccess).toHaveBeenCalledTimes(1);
+		peer.run("DROP TRIGGER reject_again");
+		HistoryStorage.close();
+		const reopened = HistoryStorage.open(dbPath);
+		expect(reopened.search("locked", 10)).toMatchObject([
+			{ prompt: "lost while locked", cwd: "/project", sessionId: "session", useCount: 1 },
+		]);
+	} finally {
+		if (peer.inTransaction) peer.run("ROLLBACK");
+		peer.close();
+	}
 });

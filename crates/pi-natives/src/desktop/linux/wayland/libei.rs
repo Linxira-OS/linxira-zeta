@@ -27,7 +27,7 @@ const DRAG_STEP_DELAY: Duration = Duration::from_millis(8);
 
 #[derive(Clone, Copy)]
 struct DiscoveryTargets {
-	pointer:  bool,
+	pointer: bool,
 	keyboard: bool,
 }
 
@@ -40,9 +40,9 @@ impl DiscoveryTargets {
 }
 
 struct EiDevice {
-	device:  Device,
+	device: Device,
 	resumed: bool,
-	layout:  Option<KeyboardLayout>,
+	layout: Option<KeyboardLayout>,
 }
 
 type RemoteDesktopSession = Session<'static, RemoteDesktop<'static>>;
@@ -53,13 +53,13 @@ struct PortalSession {
 }
 
 pub(super) struct Libei {
-	context:        ei::Context,
-	devices:        Vec<EiDevice>,
-	connection:     Option<reis::event::Connection>,
-	sequence:       u32,
-	runtime:        &'static tokio::runtime::Runtime,
-	events:         Option<EiConvertEventStream>,
-	disconnected:   bool,
+	context: ei::Context,
+	devices: Vec<EiDevice>,
+	connection: Option<reis::event::Connection>,
+	sequence: u32,
+	runtime: &'static tokio::runtime::Runtime,
+	events: Option<EiConvertEventStream>,
+	disconnected: bool,
 	portal_session: Option<PortalSession>,
 }
 
@@ -189,7 +189,7 @@ impl Libei {
 						.map_err(|err| format!("RemoteDesktop permission: {err}"))?;
 					let devices = response.devices();
 					let targets = DiscoveryTargets {
-						pointer:  devices.contains(DeviceType::Pointer),
+						pointer: devices.contains(DeviceType::Pointer),
 						keyboard: devices.contains(DeviceType::Keyboard),
 					};
 					portal
