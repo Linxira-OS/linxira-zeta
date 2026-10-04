@@ -4,18 +4,19 @@
  * Commands are sent as JSON lines on stdin.
  * Responses and events are emitted as JSON lines on stdout.
  */
-import type { AgentMessage, AgentToolResult, ThinkingLevel, ToolLoadMode } from "@linxiraos/pi-agent-core";
-import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
-import type { AssistantMessageEvent, Effort, ImageContent, Model, ToolExample } from "@linxiraos/pi-ai";
+import type { AgentMessage, AgentToolResult, ThinkingLevel, ToolLoadMode } from "@oh-my-pi/pi-agent-core";
+import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
+import type { AssistantMessageEvent, Effort, ImageContent, Model, ToolExample } from "@oh-my-pi/pi-ai";
 import type { BashResult } from "../../exec/bash-executor";
 import type { ContextUsage } from "../../extensibility/extensions/types";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
 import type { CacheWarmingMode } from "../../session/cache-warmer";
 import type { FileEntry, SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import type { AvailableSlashCommandSource } from "../../slash-commands/available-commands";
-import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
+import type { AgentProgress } from "@oh-my-pi/pi-tui/tools/task";
 import type { SubagentEventPayload, SubagentLifecyclePayload, SubagentProgressPayload } from "../../task";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import type { TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
+import type { LivePhase } from "@oh-my-pi/pi-tui/apps/live-visualizer";
 import type { RpcMessagesPage } from "./rpc-messages";
 import type { GoalModeState } from "../../goals/state";
 import type { RpcGoalOp, RpcGoalResult } from "./rpc-goal";
@@ -65,6 +66,10 @@ export type RpcCommand =
 	| { id?: string; type: "get_subagent_messages"; subagentId?: string; sessionFile?: string; fromByte?: number }
 	| { id?: string; type: "cancel_subagent"; subagentId: string }
 	| { id?: string; type: "steer_subagent"; subagentId: string; message: string }
+	// Live voice (GPT live bound to this session)
+	| { id?: string; type: "live_start"; voice?: string; instructions?: string }
+	| { id?: string; type: "live_stop" }
+	| { id?: string; type: "live_mute"; muted?: boolean }
 
 	// Model
 	| { id?: string; type: "set_model"; provider: string; modelId: string }
@@ -101,6 +106,7 @@ export type RpcCommand =
 	| { id?: string; type: "export_html"; outputPath?: string }
 	| { id?: string; type: "switch_session"; sessionPath: string }
 	| { id?: string; type: "branch"; entryId: string }
+	| { id?: string; type: "fork"; entryId?: string }
 	| { id?: string; type: "get_branch_messages" }
 	| { id?: string; type: "get_last_assistant_text" }
 	| { id?: string; type: "set_session_name"; name: string }
@@ -183,7 +189,7 @@ export type RpcPromptStatus = "completed" | "aborted" | "error";
 
 /**
  * Failure detail for a `prompt_result` with `status: "error"`. `message` is the
- * provider's error text without ZETA-local diagnostics (e.g. request dump paths).
+ * provider's error text without OMP-local diagnostics (e.g. request dump paths).
  */
 export interface RpcPromptError {
 	message: string;
@@ -191,7 +197,7 @@ export interface RpcPromptError {
 	model?: string;
 	/** HTTP status reported by the provider, when the failure came from a request. */
 	httpStatus?: number;
-	/** The failure is classified transient: resubmitting later may succeed. ZETA's own retries are already exhausted. */
+	/** The failure is classified transient: resubmitting later may succeed. OMP's own retries are already exhausted. */
 	retryable: boolean;
 }
 
@@ -222,6 +228,40 @@ export interface RpcPromptResultFrame {
 export interface RpcSessionSettledFrame {
 	type: "session_settled";
 }
+
+// ============================================================================
+// Live Voice Frames (stdout, unsolicited; not session events, so `set_event_filter` never drops them)
+// ============================================================================
+
+/** Live session phase change. */
+export interface RpcLivePhaseFrame {
+	type: "live_phase";
+	phase: LivePhase;
+}
+
+/** Microphone/speaker RMS in [0, 1], at most one frame per 100 ms carrying the latest values. */
+export interface RpcLiveLevelsFrame {
+	type: "live_levels";
+	input: number;
+	output: number;
+}
+
+/** Incremental (`final: false`) or final transcript of one realtime turn; coalesce on `role` + `turn`. */
+export interface RpcLiveTranscriptFrame {
+	type: "live_transcript";
+	role: "user" | "assistant";
+	turn: number;
+	text: string;
+	final: boolean;
+}
+
+/** Emitted exactly once per live session when it has ended; `error` carries the failure cause. */
+export interface RpcLiveEndFrame {
+	type: "live_end";
+	error?: string;
+}
+
+export type RpcLiveFrame = RpcLivePhaseFrame | RpcLiveLevelsFrame | RpcLiveTranscriptFrame | RpcLiveEndFrame;
 
 /** `open_session` result: `resumed` is false when a fresh session was started in the directory. */
 export interface RpcOpenSessionResult {
@@ -441,6 +481,7 @@ export type RpcResponse =
 	| { id?: string; type: "response"; command: "export_html"; success: true; data: { path: string } }
 	| { id?: string; type: "response"; command: "switch_session"; success: true; data: { cancelled: boolean } }
 	| { id?: string; type: "response"; command: "branch"; success: true; data: { text: string; cancelled: boolean } }
+	| { id?: string; type: "response"; command: "fork"; success: true; data: { cancelled: boolean } }
 	| {
 			id?: string;
 			type: "response";
@@ -456,6 +497,10 @@ export type RpcResponse =
 			data: { text: string | null };
 	  }
 	| { id?: string; type: "response"; command: "set_session_name"; success: true }
+	// Live voice
+	| { id?: string; type: "response"; command: "live_start"; success: true; data: { voice: string } }
+	| { id?: string; type: "response"; command: "live_stop"; success: true }
+	| { id?: string; type: "response"; command: "live_mute"; success: true; data: { muted: boolean } }
 	| { id?: string; type: "response"; command: "handoff"; success: true; data: RpcHandoffResult | null }
 
 	// Messages

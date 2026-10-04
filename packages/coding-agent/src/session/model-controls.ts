@@ -1,26 +1,21 @@
-import { type Agent, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type {
-	Model,
-	ProviderSessionState,
-	ServiceTier,
-	ServiceTierByFamily,
-	ServiceTierFamily,
-} from "@linxiraos/pi-ai";
+import { type Agent, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { Model, ProviderSessionState, ServiceTier, ServiceTierByFamily, ServiceTierFamily } from "@oh-my-pi/pi-ai";
 import {
 	Effort,
 	realizesPriorityServiceTier,
 	resolveModelServiceTier,
 	serviceTierFamily,
 	shouldSendServiceTier,
-} from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-ai";
 import {
 	clearAnthropicFastModeFallback,
 	isAnthropicFastModeFallbackDisabled,
-} from "@linxiraos/pi-ai/providers/anthropic-state";
-import { isFireworksFastModelId } from "@linxiraos/pi-catalog/fireworks-model-id";
-import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
-import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai/providers/anthropic-state";
+import { isFireworksFastModelId } from "@oh-my-pi/pi-catalog/fireworks-model-id";
+import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
+import { getSupportedEfforts } from "@oh-my-pi/pi-catalog/model-thinking";
+import { modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
+import { logger } from "@oh-my-pi/pi-utils";
 import { classifyDifficulty } from "../auto-thinking/classifier";
 import type { ModelRegistry } from "../config/model-registry";
 import {
@@ -32,7 +27,7 @@ import {
 } from "../config/model-resolver";
 import { getKnownRoleIds } from "../config/model-roles";
 import type { Settings } from "../config/settings";
-import { containsMagicKeyword } from "@linxiraos/pi-tui/prompt/magic-keywords";
+import { containsMagicKeyword } from "@oh-my-pi/pi-tui/prompt/magic-keywords";
 import type { MagicKeywordId } from "../modes/magic-keywords";
 import {
 	AUTO_THINKING,
@@ -43,8 +38,8 @@ import {
 	resolveThinkingLevelForModel,
 	shouldDisableReasoning,
 	toReasoningEffort,
-} from "@linxiraos/pi-tui/thinking";
-import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
+} from "@oh-my-pi/pi-tui/thinking";
+import type { EditMode } from "@oh-my-pi/pi-tui/tools/edit";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ModelCycleResult, ResolvedRoleModel, RoleModelCycle, RoleModelCycleResult } from "./agent-session-types";
 import { formatRoleModelValue, resolveRoleModelFull } from "./role-models";
@@ -578,18 +573,25 @@ export class ModelControls {
 		this.setThinkingLevel(this.#autoThinking ? AUTO_THINKING : (preferredDefault ?? this.#thinkingLevel));
 	}
 
+	/** All selectable effort selectors for the active model, in cycle order. */
+	getAvailableEffortSelectors(): ConfiguredThinkingLevel[] {
+		if (!this.#model?.reasoning) return [];
+		const efforts = this.getAvailableThinkingLevels();
+		const ceiling = this.#thinkingLevelCeiling;
+		const selectable =
+			ceiling === undefined
+				? efforts
+				: efforts.filter(level => THINKING_EFFORTS.indexOf(level) <= THINKING_EFFORTS.indexOf(ceiling));
+		return [ThinkingLevel.Off, AUTO_THINKING, ...selectable];
+	}
+
 	/**
 	 * Cycle to next thinking level: off → auto → minimal..max → off.
 	 * @returns New selector, or undefined if model doesn't support thinking
 	 */
 	cycleThinkingLevel(): ConfiguredThinkingLevel | undefined {
-		if (!this.#model?.reasoning) return undefined;
-
-		const levels: ConfiguredThinkingLevel[] = [
-			ThinkingLevel.Off,
-			AUTO_THINKING,
-			...this.getAvailableThinkingLevels(),
-		];
+		const levels = this.getAvailableEffortSelectors();
+		if (levels.length === 0) return undefined;
 		const configured = this.configuredThinkingLevel();
 		const currentLevel = configured === ThinkingLevel.Inherit ? ThinkingLevel.Off : configured;
 		const currentIndex = currentLevel ? levels.indexOf(currentLevel) : -1;

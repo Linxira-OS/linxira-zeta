@@ -2,28 +2,29 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models/descriptors";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { ModelRegistry, type ProviderConfigInput } from "@linxiraos/zeta/config/model-registry";
-import { getModelMatchPreferences, resolveModelScope } from "@linxiraos/zeta/config/model-resolver";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { buildSessionOptions as buildCliSessionOptions } from "@linxiraos/zeta/main";
-import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import { getBundledAgent } from "@linxiraos/zeta/task/agents";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Effort, type FetchImpl } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { resolveModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models/descriptors";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { ModelRegistry, type ProviderConfigInput } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { getModelMatchPreferences, resolveModelScope } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { buildSessionOptions as buildCliSessionOptions } from "@oh-my-pi/pi-coding-agent/main";
+import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import { getBundledAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
 
 describe("createAgentSession deferred model pattern resolution", () => {
 	let tempDir: string;
@@ -50,6 +51,10 @@ describe("createAgentSession deferred model pattern resolution", () => {
 			authStorage.close();
 		}
 		authStoragesToClose.length = 0;
+		// Sessions without explicit settings run `Settings.init({ agentDir: tempDir })`, which
+		// opens `<tempDir>/agent.db` process-wide; release it so Windows can delete tempDir.
+		resetSettingsForTest();
+		AgentStorage.close();
 		if (tempDir && fs.existsSync(tempDir)) {
 			removeSyncWithRetries(tempDir);
 		}
@@ -1481,7 +1486,7 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	});
 
 	test("restores a discovery-backed session model instead of falling back to the default role", async () => {
-		// Regression: on `zeta-c --resume`, the session-model restore probed
+		// Regression: on `omp --resume`, the session-model restore probed
 		// candidates only against the static+cached catalog. A discovery-backed
 		// provider (models.yml `discovery:`) hasn't been fetched at that point, so
 		// the saved model failed to resolve and resume silently downgraded to

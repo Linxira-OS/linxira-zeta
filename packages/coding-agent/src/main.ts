@@ -6,23 +6,24 @@
  */
 import * as fsSync from "node:fs";
 import * as os from "node:os";
-import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
-import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
-import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import type { ThinkingLevel } from "@oh-my-pi/pi-agent-core/thinking";
+import { EventLoopKeepalive } from "@oh-my-pi/pi-agent-core/utils/yield";
+import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
+import { getModelPricingStatus } from "@oh-my-pi/pi-catalog/models";
 import {
-	CLI_BIN_NAME,
+	APP_NAME,
 	directoryIsMissing,
 	getLogPath,
 	getProjectDir,
 	normalizePathForComparison,
 	setProjectDir,
 	VERSION,
-} from "@linxiraos/pi-utils/dirs";
-import { $env, isBunTestRuntime, setInteractiveHost } from "@linxiraos/pi-utils/env";
-import * as logger from "@linxiraos/pi-utils/logger";
-import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
-import chalk from "@linxiraos/pi-utils/chalk";
+} from "@oh-my-pi/pi-utils/dirs";
+import { $env, isBunTestRuntime, setInteractiveHost } from "@oh-my-pi/pi-utils/env";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
+import { fuzzyFilter } from "@oh-my-pi/pi-tui/fuzzy";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
 import {
 	type Args,
@@ -35,13 +36,13 @@ import {
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
 import { buildInitialMessage } from "./cli/initial-message";
-import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
-import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
+import { formatKeyHint } from "@oh-my-pi/pi-tui/app-keybindings";
+import type { SessionPickerOptions } from "@oh-my-pi/pi-tui/apps/session-picker";
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { getLatestRelease } from "./cli/update-cli";
 import { findConfigFile } from "./config";
 import { ModelRegistry } from "./config/model-registry";
-import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
+import { formatModelSelectorValue } from "@oh-my-pi/pi-tui/overlays/model-selector";
 import {
 	DEFAULT_PREWALK_TARGET,
 	disabledProviderIds,
@@ -71,24 +72,22 @@ import { ExtensionRunner } from "./extensibility/extensions/runner";
 import type { ExtensionUIContext } from "./extensibility/extensions/types";
 import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
 import { registerDaemonProjectPresence } from "./launch/presence";
-import { discoverStartupLspServers } from "./lsp/servers";
 import type { MCPManager } from "./mcp";
 import type { InteractiveMode } from "./modes/interactive-mode";
 import type { PrintModeOptions } from "./modes/print-mode";
 import type { RpcModeOptions } from "./modes/rpc/rpc-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
-import { CURRENT_SETUP_VERSION } from "@linxiraos/pi-tui/setup/setup-version";
+import { CURRENT_SETUP_VERSION } from "@oh-my-pi/pi-tui/setup/setup-version";
 import type * as SetupWizardModule from "./modes/setup";
-import type { SetupScene } from "@linxiraos/pi-tui/setup/scenes/types";
+import type { SetupScene } from "@oh-my-pi/pi-tui/setup/scenes/types";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "./modes/skill-command";
 import {
 	applyStartupComposerPreferences,
 	type ComposerLease,
-	setStartupComposerLspServers,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
 } from "./modes/startup-composer";
-import { ensureTheme, initTheme, stopThemeWatcher } from "@linxiraos/pi-tui/theme";
+import { ensureTheme, initTheme, stopThemeWatcher } from "@oh-my-pi/pi-tui/theme";
 import type { SubmittedUserInput } from "./modes/types";
 import { createWarpEventBridgeExtension } from "./modes/warp-events";
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
@@ -111,8 +110,8 @@ import {
 	persistForeignSession,
 } from "./session/foreign-session-import";
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
-import { normalizeResumeSessionArg, resolveResumableSession, type SessionInfo } from "./session/session-listing";
-import { ForkSourceNotFoundError, SessionManager } from "./session/session-manager";
+import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
+import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
 import { shouldShowStartupSplash } from "./startup-splash";
 import {
 	discoverSystemPromptOverride,
@@ -124,9 +123,9 @@ import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
 import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
-import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
+import { sanitizeDisplayWarnings } from "@oh-my-pi/pi-tui/render/render-utils";
 import {
 	getChangelogPath,
 	readLastChangelogVersion,
@@ -175,7 +174,6 @@ import {
 } from "./session/settings";
 import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
 import { cfgTaskAgentIdleTtlMs } from "./task/settings";
-import { cfgLspEnabled } from "./lsp/settings";
 import { cfgSkillsIncludeSkills } from "./extensibility/settings";
 import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
 
@@ -196,7 +194,7 @@ type SessionPicker = (
 /** Resume/import-only graph boundary; ordinary launches never construct a picker. */
 async function loadSessionPicker(): Promise<SessionPicker> {
 	const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds }, { FileSessionStorage }] = await Promise.all([
-		import("@linxiraos/pi-tui/apps/session-picker"),
+		import("@oh-my-pi/pi-tui/apps/session-picker"),
 		import("./session/history-storage"),
 		import("./session/session-pins"),
 		import("./session/session-storage"),
@@ -245,7 +243,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 	}
 }
 
-// Protocol hosts inherit ZETA's neutral defaults for settings declaring `protocolDefault`
+// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
 // configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
 // `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
@@ -267,7 +265,7 @@ function rejectNoUiWithoutRpc(args: Pick<Args, "noUi" | "mode">): void {
 function exitWithoutTerminal(): never {
 	process.stderr.write(
 		`${chalk.red("Error: interactive mode requires a terminal, but stdin is not a TTY.")}\n` +
-			`Pass a prompt (\`${CLI_BIN_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
+			`Pass a prompt (\`${APP_NAME} -p "…"\`), pipe one on stdin, or use \`--mode rpc\`.\n`,
 	);
 	process.exit(2);
 }
@@ -672,7 +670,6 @@ async function runInteractiveMode(
 				suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
 				clearInitialTerminalHistory: true,
 				autoStartCollab: joinLink === undefined,
-				recentSessions: startupLease?.recentSessions,
 			}),
 		);
 		startDeferredStartupWork?.();
@@ -725,7 +722,7 @@ async function runInteractiveMode(
 			}
 		}
 
-		// `zeta-c join <link>`: dispatch through the same builtin path as a typed
+		// `omp join <link>`: dispatch through the same builtin path as a typed
 		// `/join` so collab guards and error rendering stay in one place.
 		if (joinLink !== undefined) {
 			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
@@ -889,7 +886,17 @@ async function moveMissingCwdSessionIfNeeded(
 	// move target equals the current project dir. moveTo never chdirs, so the
 	// stale cwd is only a relocation source, not a directory we enter.
 	const manager = await SessionManager.open(session.path, sessionDir, undefined, { initialCwd: sourceCwd });
-	await manager.moveTo(cwd, sessionDir);
+	try {
+		await manager.moveTo(cwd, sessionDir);
+	} catch (err) {
+		if (!(err instanceof SessionMoveRefusedError)) throw err;
+		await manager.close();
+		// Its directory is gone, so it cannot be resumed in place either.
+		throw new SessionResolutionError(
+			err.message,
+			"Close the session in the other omp process, then resume it again.",
+		);
+	}
 	return { status: "moved", manager };
 }
 
@@ -1036,7 +1043,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `zeta-c models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `omp models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -1138,7 +1145,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.messages.splice(messageIndex, 1);
 }
 const FORK_NOT_FOUND_HINT =
-	"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.";
+	"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -1202,37 +1209,19 @@ export async function createSessionManager(
 
 	if (typeof parsed.resume === "string") {
 		const sessionArg = parsed.resume;
-		// Copy-paste noise (`<id>/`, `<id>.jsonl`) must not re-route an id into
-		// the path branch below: a missing file there used to mint a fresh
-		// empty session with no explanation. After normalization a separator
-		// can only come from a deliberate explicit transcript path.
-		const normalizedSessionArg = normalizeResumeSessionArg(sessionArg);
-		if (/[\\/]/.test(normalizedSessionArg)) {
-			try {
-				return await SessionManager.open(normalizedSessionArg, parsed.sessionDir, undefined, {
-					throwIfMissing: true,
-				});
-			} catch (error) {
-				const code = (error as NodeJS.ErrnoException | undefined)?.code;
-				if (code === "ENOENT" || code === "ENOTDIR") {
-					throw new SessionResolutionError(
-						`Session file "${normalizedSessionArg}" not found.`,
-						"Pass the session id from the exit tip (`zeta-c --resume <id>`), or run `zeta-c --resume` without an argument to pick from recent sessions.",
-					);
-				}
-				throw error;
-			}
+		if (sessionArg.includes("/") || sessionArg.includes("\\") || sessionArg.endsWith(".jsonl")) {
+			return await SessionManager.open(sessionArg, parsed.sessionDir);
 		}
-		const match = await resolveResumableSession(normalizedSessionArg, cwd, parsed.sessionDir);
+		const match = await resolveResumableSession(sessionArg, cwd, parsed.sessionDir);
 		if (!match) {
 			throw new SessionResolutionError(
-				`Session "${normalizedSessionArg}" not found.`,
-				"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.",
+				`Session "${sessionArg}" not found.`,
+				"Run `omp --resume` without an argument to pick from recent sessions, or `omp` to start a new one.",
 			);
 		}
 		if (match.scope === "local") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				normalizedSessionArg,
+				sessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,
@@ -1247,7 +1236,7 @@ export async function createSessionManager(
 		}
 		if (match.scope === "global") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				normalizedSessionArg,
+				sessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,
@@ -1781,7 +1770,7 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
@@ -1878,6 +1867,15 @@ export async function runRootCommand(
 			"modelRegistry:init",
 			() => new ModelRegistry(authStorage, undefined, { settings: settingsInstance }),
 		);
+		// Credential-scoped catalogs (e.g. GitHub Copilot) load from their cache
+		// rows only after credentials resolve. `--model` and `enabledModels` below
+		// resolve against the registry before `createAgentSession` hydrates it, so
+		// without this a cached-only model is absent and its selector fuzzy-matches
+		// a bundled sibling (issue #14075). Local-only and never rejects; awaited
+		// right before the first catalog read so its I/O overlaps theme setup.
+		const credentialScopedCacheHydration = logger.time("hydrateCredentialScopedModelCaches", () =>
+			modelRegistry.hydrateCredentialScopedModelCaches(),
+		);
 		if (parsedArgs.noPty || parsedArgs.mode === "rpc-ui") {
 			Bun.env.PI_NO_PTY = "1";
 		}
@@ -1953,10 +1951,8 @@ export async function runRootCommand(
 				lightTheme: cfgThemeLight.get(settingsInstance),
 			},
 		});
-		setStartupComposerLspServers(
-			!parsedArgs.noLsp && cfgLspEnabled.get(settingsInstance) ? discoverStartupLspServers(cwd, "connecting") : null,
-		);
 
+		await credentialScopedCacheHydration;
 		let scopedModels = await logger.time(
 			"resolveModelScope",
 			resolveScopedModels,
@@ -1971,7 +1967,7 @@ export async function runRootCommand(
 		normalizeContinueSessionArgs(parsedArgs, rawArgs);
 
 		// Resolve native resume/fork flags or import one foreign transcript into a
-		// fresh persisted ZETA session before constructing the AgentSession.
+		// fresh persisted OMP session before constructing the AgentSession.
 		let sessionManager: SessionManager | undefined;
 		let foreignSource: ForeignSessionSource | undefined;
 		try {
@@ -2203,7 +2199,12 @@ export async function runRootCommand(
 			cfgTelemetryOtlpExportEnabled.get(settingsInstance),
 		);
 		if (isTelemetryExportEnabled()) {
-			sessionOptions.telemetry = createTelemetryExportConfig(sessionOptions.telemetry);
+			// Chat telemetry reports each request's provider-computed cost. A model
+			// without a known rate card reports an unavailable reason instead of $0.
+			sessionOptions.telemetry = createTelemetryExportConfig(sessionOptions.telemetry, (providerId, modelId) => {
+				const model = modelRegistry.find(providerId, modelId);
+				return model !== undefined && getModelPricingStatus(model) !== "unknown";
+			});
 		}
 		await daemonPresencePromise;
 
@@ -2307,7 +2308,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `zeta-c --list-models`) and invalid
+			// Fail fast on stale/typo flags (e.g. `omp --list-models`) and invalid
 			// built-in enum values now that we know the real extension flag set —
 			// an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
 			// neither can be judged by the pre-extension parse. Without this check
@@ -2498,7 +2499,7 @@ export async function runRootCommand(
 						for (const selector of suggestions) process.stderr.write(`  ${selector}\n`);
 					}
 					process.stderr.write(
-						`\nRun \`${CLI_BIN_NAME} models find <pattern>\` to search, or \`${CLI_BIN_NAME} models\` to list all.\n`,
+						`\nRun \`${APP_NAME} models find <pattern>\` to search, or \`${APP_NAME} models\` to list all.\n`,
 					);
 					process.exit(1);
 				}

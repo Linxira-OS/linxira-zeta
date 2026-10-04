@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "node:util";
-import { formatDuration, formatNumber, formatPercent, normalizePremiumRequests } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { formatDuration, formatNumber, formatPercent, normalizePremiumRequests } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
+import { formatErrorRate } from "./client/data/formatters";
 import { getDashboardStats, getTotalMessageCount, syncAllSessions } from "./aggregator";
 import { closeDb } from "./db";
 import { refreshRollups } from "./rollup";
@@ -47,8 +48,8 @@ function formatCost(n: number, unpricedRequests = 0): string {
 }
 
 /**
- * Print the dashboard summary to the console. Shared by `zeta-c stats --summary`
- * and the standalone `zeta-stats --sync`.
+ * Print the dashboard summary to the console. Shared by `omp stats --summary`
+ * and the standalone `omp-stats --sync`.
  */
 export async function printStatsSummary(): Promise<void> {
 	const stats = await getDashboardStats();
@@ -58,7 +59,7 @@ export async function printStatsSummary(): Promise<void> {
 
 	console.log(chalk.bold("Overall:"));
 	console.log(`  Requests: ${formatNumber(overall.totalRequests)} (${formatNumber(overall.failedRequests)} errors)`);
-	console.log(`  Error Rate: ${formatPercent(overall.errorRate)}`);
+	console.log(`  Error Rate: ${formatErrorRate(overall.errorRate)}`);
 	console.log(`  Total Tokens: ${formatNumber(overall.totalInputTokens + overall.totalOutputTokens)}`);
 	console.log(`  Input Tokens: ${formatNumber(overall.totalInputTokens)}`);
 	console.log(`  Output Tokens: ${formatNumber(overall.totalOutputTokens)}`);
@@ -93,7 +94,7 @@ export async function printStatsSummary(): Promise<void> {
 	console.log("");
 }
 
-/** Parsed arguments for the standalone `zeta-stats` entry point. */
+/** Parsed arguments for the standalone `omp-stats` entry point. */
 export interface StandaloneStatsArgs {
 	port: number;
 	host: string;
@@ -102,7 +103,7 @@ export interface StandaloneStatsArgs {
 	help: boolean;
 }
 
-/** Parse the standalone `zeta-stats` arguments used by the production entry point. */
+/** Parse the standalone `omp-stats` arguments used by the production entry point. */
 export function parseStandaloneStatsArgs(args: string[]): StandaloneStatsArgs {
 	const { values } = parseArgs({
 		args,
@@ -132,10 +133,10 @@ async function main(): Promise<void> {
 
 	if (values.help) {
 		console.log(`
-zeta-stats - AI Usage Statistics Dashboard
+omp-stats - AI Usage Statistics Dashboard
 
 Usage:
-  zeta-stats [options]
+  omp-stats [options]
 
 Options:
   -p, --port <port>  Port for the dashboard server (default: 3847)
@@ -145,10 +146,10 @@ Options:
   -h, --help         Show this help message
 
 Examples:
-  zeta-stats              # Start dashboard server
-  zeta-stats --json       # Print stats as JSON
-  zeta-stats --host 0.0.0.0 # Explicitly expose on all IPv4 interfaces
-  zeta-stats --sync       # Sync and show summary
+  omp-stats              # Start dashboard server
+  omp-stats --json       # Print stats as JSON
+  omp-stats --host 0.0.0.0 # Explicitly expose on all IPv4 interfaces
+  omp-stats --sync       # Sync and show summary
 `);
 		return;
 	}

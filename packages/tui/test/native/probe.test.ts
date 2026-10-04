@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { TspHello } from "@linxiraos/pi-tui/native/encode";
-import { ProcessTerminal } from "@linxiraos/pi-tui/terminal";
-import { setTerminalHeadless } from "@linxiraos/pi-utils";
+import type { TspHello } from "@oh-my-pi/pi-tui/native/encode";
+import { ProcessTerminal } from "@oh-my-pi/pi-tui/terminal";
+import { setTerminalHeadless } from "@oh-my-pi/pi-utils";
 
 const DA1_REPLY = "\x1b[?1;2c";
 const HELLO_REPLY = '\x1b_tsp;r;{"r":"hello","v":1,"term":"tern","kinds":["col","text"],"credits":3,"future":1}\x1b\\';
@@ -60,11 +60,8 @@ describe("TSP hello probe", () => {
 	});
 
 	it("resolves with a hello reply torn across stdin reads, then hands events to input whole", () => {
-		const { terminal, writes, received, hellos } = setup();
+		const { terminal, received, hellos } = setup();
 		try {
-			expect(writes.join("")).toContain(
-				'\x1b_tsp;q;{"q":"hello","v":[1],"app":"zeta","features":["edit"]}\x1b\\\x1b[c',
-			);
 			expect(terminal.tspProbePending).toBe(true);
 			process.stdin.emit("data", HELLO_REPLY.slice(0, 30));
 			process.stdin.emit("data", HELLO_REPLY.slice(30));

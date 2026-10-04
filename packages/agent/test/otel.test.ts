@@ -6,10 +6,12 @@
  * lifecycle hook dispatch.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
+import { type } from "@oh-my-pi/omptype";
+import { agentLoop } from "@oh-my-pi/pi-agent-core/agent-loop";
 import {
 	type AgentTelemetryConfig,
 	type ChatUsageEvent,
+	type CostEstimatorContext,
 	classifyGatewayResponseCacheStatus,
 	detectGatewayFromHeaders,
 	GenAIAttr,
@@ -20,18 +22,18 @@ import {
 	recordManualChatTelemetry,
 	resolveTelemetry,
 	type TelemetryHookContext,
-} from "@linxiraos/pi-agent-core/telemetry";
+} from "@oh-my-pi/pi-agent-core/telemetry";
 import type {
 	AgentContext,
 	AgentEvent,
 	AgentLoopConfig,
 	AgentMessage,
 	AgentTool,
-} from "@linxiraos/pi-agent-core/types";
-import type { Message } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import type { EventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { type } from "@linxiraos/pi-omptype";
+	StreamFn,
+} from "@oh-my-pi/pi-agent-core/types";
+import type { Message } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream, type EventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {
@@ -457,6 +459,68 @@ describe("agent-loop OTEL instrumentation", () => {
 		expect(chat?.attributes[OmpGenAIAttr.CostEstimatedUsd]).toBeCloseTo(0.0105, 6);
 		expect(chat?.attributes[OmpGenAIAttr.CostInputUsd]).toBeCloseTo(0.003, 6);
 		expect(chat?.attributes[OmpGenAIAttr.CostOutputUsd]).toBeCloseTo(0.0075, 6);
+	});
+
+	it("gives costEstimator the request's computed cost and the requested model's registry ids", async () => {
+		const mock = createMockModel({
+			id: "requested-model",
+			provider: "openai-codex",
+			responses: [
+				{
+					content: ["ok"],
+					stopReason: "stop",
+					usage: {
+						input: 100,
+						output: 50,
+						cacheRead: 20,
+						cacheWrite: 30,
+						totalTokens: 200,
+						cost: { input: 0.11, output: 0.22, cacheRead: 0.33, cacheWrite: 0.44, total: 1.1 },
+					},
+				},
+			],
+		});
+		// Like Anthropic's server-side fallback, report the served model on the
+		// streamed message instead of the requested one.
+		const servedModelStream: StreamFn = (model, context, options) => {
+			const relay = new AssistantMessageEventStream();
+			void (async () => {
+				for await (const event of mock.stream(model, context, options)) {
+					if (event.type === "start") event.partial.model = "served-model";
+					relay.push(event);
+				}
+			})();
+			return relay;
+		};
+		let seen: CostEstimatorContext | undefined;
+		const config: AgentLoopConfig = {
+			model: mock.model,
+			convertToLlm: identityConverter,
+			telemetry: {
+				costEstimator: input => {
+					seen = input;
+					return {
+						usd: input.usageCost.total,
+						inputUsd: input.usageCost.input,
+						outputUsd: input.usageCost.output,
+					};
+				},
+			},
+		};
+		const ctx: AgentContext = { systemPrompt: [], messages: [], tools: [] };
+		await runAndDrain(agentLoop([createUserMessage("hi")], ctx, config, undefined, servedModelStream));
+
+		expect(seen).toMatchObject({
+			provider: "openai",
+			providerId: "openai-codex",
+			model: "served-model",
+			modelId: "requested-model",
+		});
+		// Cache read/write cost is only part of the estimated total.
+		const chat = findSpan(exporter.getFinishedSpans(), "chat requested-model");
+		expect(chat?.attributes[OmpGenAIAttr.CostEstimatedUsd]).toBe(1.1);
+		expect(chat?.attributes[OmpGenAIAttr.CostInputUsd]).toBe(0.11);
+		expect(chat?.attributes[OmpGenAIAttr.CostOutputUsd]).toBe(0.22);
 	});
 
 	it("applies dynamic attributes, normalization hooks, and cost deltas", async () => {

@@ -9,13 +9,13 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@linxiraos/zeta/cli/args";
-import type { Settings } from "@linxiraos/zeta/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@linxiraos/zeta/main";
-import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
-import { loadSessionFile } from "@linxiraos/zeta/session/session-loader";
-import { ForkSourceNotFoundError, SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
+import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@oh-my-pi/pi-coding-agent/main";
+import * as sessionListingModule from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { loadSessionFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
+import { ForkSourceNotFoundError, SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
 
 function buildResumeArgs(resume: string, sessionDir?: string): Args {
 	return {
@@ -113,7 +113,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 
 			// Confirm it's the exported class so `runRootCommand`'s `instanceof` check works.
@@ -129,7 +129,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("rejects --resume with unknown id instead of falling back to latest persisted session", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-unknown-id-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-resume-unknown-id-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const missingId = "019ea530-ffff-7000-8000-000000000000";
 		try {
@@ -144,7 +144,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -152,7 +152,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("rejects --continue followed by an unknown session id instead of falling back to latest", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-continue-unknown-id-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-continue-unknown-id-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const missingId = "019ea530-ffff-7000-8000-000000000000";
 		try {
@@ -166,7 +166,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -185,7 +185,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			vi.restoreAllMocks();
@@ -202,7 +202,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 		});
 	});
 	it("rejects --fork with missing path without writing a session (#11491)", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-fork-missing-path-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-missing-path-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const missingPath = path.join(cwd, "ghost-zz9q.jsonl");
 		try {
@@ -211,7 +211,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingPath}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -220,7 +220,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("forkFrom rejects a missing source without writing a session (#11491)", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-fork-missing-path-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-missing-path-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const missingPath = path.join(cwd, "ghost-zz9q.jsonl");
 		try {
@@ -236,7 +236,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("forkFrom rejects a vanished source on the streaming path (#11491)", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-fork-missing-path-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-missing-path-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const missingPath = path.join(cwd, "ghost-zz9q.jsonl");
 		const storage = new FileSessionStorage();
@@ -258,7 +258,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("rejects --fork <id> when resolved session vanished before forkFrom reads it (#11491)", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-fork-vanished-id-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-vanished-id-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const vanishedPath = path.join(cwd, "vanished.jsonl");
 		const forkId = "019ea530-0000-7000-0000-000000000000";
@@ -284,7 +284,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${forkId}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -294,7 +294,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 	});
 
 	it("rejects --fork with ENOTDIR path without writing a session (#11491)", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-fork-enotdir-"));
+		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-enotdir-"));
 		const sessionDir = path.join(cwd, "sessions");
 		const regularFile = path.join(cwd, "file.txt");
 		await Bun.write(regularFile, "not a directory");
@@ -305,7 +305,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${enotdirChild}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -313,12 +313,11 @@ describe("createSessionManager — missing session (#2084)", () => {
 		}
 	});
 
-	// Windows reports ENOENT (not ENOTDIR) for paths through a regular file, so
-	// ENOTDIR propagation is only observable on POSIX platforms.
+	// Windows reports a path through a regular file as ENOENT, never ENOTDIR.
 	it.skipIf(process.platform === "win32")(
 		"propagates ENOTDIR on ordinary session loads when throwIfMissing is false (#11491)",
 		async () => {
-			const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-enotdir-ordinary-"));
+			const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-enotdir-ordinary-"));
 			const regularFile = path.join(cwd, "file.txt");
 			await Bun.write(regularFile, "not a directory");
 			const enotdirChild = path.join(regularFile, "child.jsonl");
@@ -378,125 +377,5 @@ describe("createSessionManager — missing session (#2084)", () => {
 			name: "SessionResolutionError",
 			message: "--continue requires session persistence",
 		});
-	});
-});
-
-describe("createSessionManager — resume argument normalization (copy-paste noise)", () => {
-	async function createSessionIn(cwd: string, sessionDir: string): Promise<SessionManager> {
-		const manager = SessionManager.create(cwd, sessionDir);
-		manager.appendMessage({ role: "user", content: "resume normalization fixture", timestamp: Date.now() });
-		await manager.rewriteEntries();
-		return manager;
-	}
-
-	async function countJsonlFiles(sessionDir: string): Promise<number> {
-		try {
-			return (await fsp.readdir(sessionDir)).filter(name => name.endsWith(".jsonl")).length;
-		} catch {
-			return 0;
-		}
-	}
-
-	it("resumes an existing id pasted with a trailing separator", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-slash-"));
-		const sessionDir = path.join(cwd, "sessions");
-		try {
-			const existing = await createSessionIn(cwd, sessionDir);
-			const manager = await createSessionManager(
-				buildResumeArgs(`${existing.getSessionId()}/`, sessionDir),
-				cwd,
-				stubSettings,
-			);
-			if (!manager) throw new Error("expected SessionManager, got undefined");
-			expect(manager.getSessionId()).toBe(existing.getSessionId());
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
-	});
-
-	it("resumes an existing id pasted with a .jsonl suffix", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-jsonl-"));
-		const sessionDir = path.join(cwd, "sessions");
-		try {
-			const existing = await createSessionIn(cwd, sessionDir);
-			const manager = await createSessionManager(
-				buildResumeArgs(`${existing.getSessionId()}.jsonl`, sessionDir),
-				cwd,
-				stubSettings,
-			);
-			if (!manager) throw new Error("expected SessionManager, got undefined");
-			expect(manager.getSessionId()).toBe(existing.getSessionId());
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
-	});
-
-	it("resumes a bare `<timestamp>_<uuid>.jsonl` file name by id lookup", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-stem-"));
-		const sessionDir = path.join(cwd, "sessions");
-		try {
-			const existing = await createSessionIn(cwd, sessionDir);
-			const files = await fsp.readdir(sessionDir);
-			const fileName = files.find(name => name.endsWith(".jsonl"));
-			expect(fileName).toBeDefined();
-			const manager = await createSessionManager(buildResumeArgs(fileName!, sessionDir), cwd, stubSettings);
-			if (!manager) throw new Error("expected SessionManager, got undefined");
-			expect(manager.getSessionId()).toBe(existing.getSessionId());
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
-	});
-
-	it("rejects an unknown id with trailing-separator noise and mints nothing", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-noise-"));
-		const sessionDir = path.join(cwd, "sessions");
-		const missingId = "019ea530-aaaa-7000-8000-00000000feed";
-		try {
-			await expect(
-				createSessionManager(buildResumeArgs(`${missingId}/`, sessionDir), cwd, stubSettings),
-			).rejects.toMatchObject({
-				name: "SessionResolutionError",
-				message: `Session "${missingId}" not found.`,
-			});
-			expect(await countJsonlFiles(sessionDir)).toBe(0);
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
-	});
-
-	it("rejects a missing explicit transcript path instead of minting there", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-path-"));
-		const sessionDir = path.join(cwd, "sessions");
-		try {
-			const missingPath = path.join(cwd, "elsewhere", "2026_01-01T00-00_missing.jsonl");
-			await expect(
-				createSessionManager(buildResumeArgs(missingPath, sessionDir), cwd, stubSettings),
-			).rejects.toMatchObject({
-				name: "SessionResolutionError",
-				message: `Session file "${missingPath}" not found.`,
-				hint: expect.stringContaining("zeta-c --resume"),
-			});
-			// The missing file must not have been created at its (missing) path.
-			await expect(fsp.stat(missingPath)).rejects.toMatchObject({ code: "ENOENT" });
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
-	});
-
-	it("opens a real explicit transcript path with separators", async () => {
-		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-resume-explicit-"));
-		const sessionDir = path.join(cwd, "sessions");
-		try {
-			const existing = await createSessionIn(cwd, sessionDir);
-			const files = await fsp.readdir(sessionDir);
-			const fileName = files.find(name => name.endsWith(".jsonl"));
-			expect(fileName).toBeDefined();
-			const explicitPath = path.join(sessionDir, fileName!);
-			const manager = await createSessionManager(buildResumeArgs(explicitPath, sessionDir), cwd, stubSettings);
-			if (!manager) throw new Error("expected SessionManager, got undefined");
-			expect(manager.getSessionId()).toBe(existing.getSessionId());
-		} finally {
-			await fsp.rm(cwd, { recursive: true, force: true });
-		}
 	});
 });

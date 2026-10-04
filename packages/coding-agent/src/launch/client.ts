@@ -1,10 +1,8 @@
 import * as fs from "node:fs/promises";
-import { closeSync, openSync } from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@linxiraos/pi-utils";
-import { hostHasInheritableConsole } from "../eval/py/spawn-options";
+import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@oh-my-pi/pi-utils";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { canonicalProjectDir, daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
 import {
@@ -19,26 +17,18 @@ import {
 	parseDaemonRpcResult,
 	parseDaemonWireMessage,
 } from "./protocol";
-import { resolveDaemonSpawnOptions } from "./spawn-options";
 
 const CONNECT_TIMEOUT_MS = 10_000;
 const CONNECT_RETRY_MS = 50;
 const TOKEN_FILE = "broker.token";
-const BROKER_SPAWN_OPTIONS = resolveDaemonSpawnOptions({
-	platform: process.platform,
-	hostHasInheritableConsole: hostHasInheritableConsole(),
-});
-
-/** Last ~600 chars of the broker's captured stderr, for startup-failure errors. */
-async function brokerStderrTail(logPath: string): Promise<string> {
-	try {
-		const text = await fs.readFile(logPath, "utf8");
-		const tail = text.length > 600 ? `…${text.slice(-600)}` : text;
-		return `Broker stderr (${logPath}):\n${tail.trim()}\n`;
-	} catch {
-		return "Broker stderr: not captured.\n";
-	}
-}
+/**
+ * The broker must outlive whichever omp process happened to spawn it: other
+ * clients (and persistent daemons) still hold its lease. Bun on Windows puts
+ * every non-detached child in a kill-on-close job object owned by the parent,
+ * so an undetached broker died with its spawner and took the scope's daemons
+ * with it. Detached, it has no console; its daemons then spawn hidden.
+ */
+const BROKER_SPAWN_OPTIONS = { detached: true, windowsHide: true } as const;
 
 interface PendingRequest {
 	operation: DaemonOperation;
@@ -321,8 +311,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		throw new Error(
 			`Failed to start daemon broker at ${this.#endpoint} after ${CONNECT_TIMEOUT_MS / 1000}s: ` +
 				`${lastError?.message ?? "socket unavailable"}. Scope: ${this.#runtimeDir}. ` +
-				`${await brokerStderrTail(path.join(this.#runtimeDir, "broker.err.log"))}` +
-				"Run `zeta-c --smoke-test` to verify broker startup, or `zeta-c ps` to inspect supervised processes.",
+				"Run `omp --smoke-test` to verify broker startup, or `omp ps` to inspect supervised processes.",
 		);
 	}
 
@@ -333,27 +322,15 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			[DAEMON_RUNTIME_DIR_ENV]: this.#runtimeDir,
 		};
 		if (this.#idleGraceMs !== undefined) overlay[DAEMON_IDLE_GRACE_ENV] = String(this.#idleGraceMs);
-		// The broker's stderr was previously "ignore", so a child that died at
-		// startup surfaced only as a generic connect timeout with no cause. Tee
-		// it into a scope-local log (best-effort) that the failure error below
-		// points at.
-		let stderrFd: number | undefined;
-		const brokerLog = path.join(this.#runtimeDir, "broker.err.log");
-		try {
-			stderrFd = openSync(brokerLog, "a");
-		} catch {
-			// Diagnostics only; the broker still spawns with stderr ignored.
-		}
 		const child = Bun.spawn(spawn.cmd, {
 			cwd: spawn.cwd,
 			env: workerEnvFromParent(overlay),
 			stdin: "ignore",
 			stdout: "ignore",
-			stderr: stderrFd ?? "ignore",
+			stderr: "ignore",
 			...BROKER_SPAWN_OPTIONS,
 		});
 		child.unref();
-		if (stderrFd !== undefined) closeSync(stderrFd);
 	}
 
 	#bindSocket(socket: net.Socket): void {

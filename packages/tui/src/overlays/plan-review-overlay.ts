@@ -29,7 +29,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import { sanitizeText } from "@linxiraos/pi-utils";
+import { sanitizeText } from "@oh-my-pi/pi-utils";
 import { sanitizeStatusText } from "../chrome/shared";
 import { getEditorTheme, getMarkdownTheme, theme } from "../theme/theme";
 import {
@@ -249,6 +249,11 @@ export class PlanReviewOverlay implements Component {
 	#nativeRoot: NativeNode | undefined;
 	/** Content the memoized root was built from. */
 	#nativeRootContent: NativePlanContent | undefined;
+	/**
+	 * The section the last Contents jump targets under a native surface, which
+	 * scrolls the body itself: `n` counts the jumps, so each one reveals it again.
+	 */
+	#jump: { section: number; n: number } | undefined;
 
 	constructor(
 		planContent: string,
@@ -798,6 +803,7 @@ export class PlanReviewOverlay implements Component {
 	#scrubBodyToToc(): void {
 		const sectionIndex = this.#toc[this.#tocCursor];
 		if (sectionIndex === undefined) return;
+		this.#jump = { section: sectionIndex, n: (this.#jump?.n ?? 0) + 1 };
 		const offset = this.#sectionOffsets[sectionIndex];
 		if (offset !== undefined) {
 			this.#scrollView.setScrollOffset(offset);
@@ -1387,7 +1393,7 @@ export class PlanReviewOverlay implements Component {
 		if (this.#nativeOverlay?.title !== title) {
 			this.#nativeOverlay = {
 				title,
-				props: { role: "zeta.overlay.planReview", size: "lg", anchor: "center", head: title },
+				props: { role: "omp.overlay.planReview", size: "lg", anchor: "center", head: title },
 			};
 		}
 		return this.#nativeOverlay.props;
@@ -1404,6 +1410,7 @@ export class PlanReviewOverlay implements Component {
 		const sig = [
 			this.#focus,
 			this.#tocCursor,
+			this.#jump?.n ?? 0,
 			this.#selectedIndex,
 			this.#sliderIndex,
 			this.#committed ? `committed:${this.#committedLabel ?? ""}` : "",
@@ -1419,17 +1426,24 @@ export class PlanReviewOverlay implements Component {
 		const children: NativeChild[] = [];
 		const tools = this.#describeTools();
 		if (tools) children.push(tools);
+		// The section a Contents jump targets scrolls to the body's top.
+		const jump = this.#jump;
+		const body = jump
+			? content.body.map((section): NativeNode =>
+					section.key === `s${jump.section}` ? { ...section, reveal: { at: "start", n: jump.n } } : section,
+				)
+			: content.body;
 		const bodyCol = node(
 			"col",
-			{ role: "zeta.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
-			content.body,
+			{ role: "omp.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
+			body,
 			"body",
 		);
 		if (this.#sidebarShown) {
 			const tocSection = this.#toc[this.#tocCursor];
 			const toc = selectList("toc", content.toc, {
 				selected: tocSection === undefined ? null : `h${tocSection}`,
-				role: "zeta.plan.toc",
+				role: "omp.plan.toc",
 				tone: this.#focus === "toc" ? "accent" : undefined,
 			});
 			const sidebar = node("col", { max: { w: "32ch" }, shrink: 0 }, [toc], "sidebar");
@@ -1438,7 +1452,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(bodyCol);
 		}
 		if (this.#promptTitle) {
-			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "zeta.plan.prompt" }), "prompt"));
+			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "omp.plan.prompt" }), "prompt"));
 		}
 		if (this.#committed) {
 			const label = this.#committedLabel ? `${this.#committedLabel} — submitting…` : "Submitting…";
@@ -1464,7 +1478,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(
 				selectList("options", optionItems, {
 					selected: this.#selectedIndex >= 0 ? `o${this.#selectedIndex}` : null,
-					role: "zeta.plan.options",
+					role: "omp.plan.options",
 					tone: this.#focus === "actions" ? "accent" : undefined,
 				}),
 			);
@@ -1490,7 +1504,7 @@ export class PlanReviewOverlay implements Component {
 			buttons.push(actionButton("Edit in $EDITOR", "externalEditor", editorKeyId ? { keys: editorKeyId } : {}));
 		}
 		if (buttons.length === 0) return undefined;
-		return node("row", { role: "zeta.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
+		return node("row", { role: "omp.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
@@ -1568,7 +1582,7 @@ export class PlanReviewOverlay implements Component {
 					note.push(text([span(annotation.target.context, "muted")], { truncate: "end", lines: 1 }));
 				}
 				note.push(text(sanitizeText(annotation.note), { wrap: "word" }));
-				children.push(node("col", { role: "zeta.plan.note", gap: "xs" }, note, `n${n}`));
+				children.push(node("col", { role: "omp.plan.note", gap: "xs" }, note, `n${n}`));
 			}
 			body.push(keyed(col(children, { gap: "sm" }), key));
 		}
@@ -1578,7 +1592,7 @@ export class PlanReviewOverlay implements Component {
 			return item(`h${sectionIndex}`, {
 				label: section.title || "(untitled)",
 				value: count > 0 ? [span(`✎${count}`, "warning")] : undefined,
-				role: `zeta.plan.toc.depth${section.level - this.#tocBaseLevel}`,
+				role: `omp.plan.toc.depth${section.level - this.#tocBaseLevel}`,
 			});
 		});
 		this.#nativeContent = { sections: this.#sections, rev: this.#annotationRev, body, toc };
@@ -1594,7 +1608,7 @@ export class PlanReviewOverlay implements Component {
 				items: slider.segments.map((segment, i) => ({ id: `t${i}`, label: segment.label })),
 				active: `t${this.#sliderIndex}`,
 				actions: { click: "select" },
-				role: "zeta.plan.strategy",
+				role: "omp.plan.strategy",
 			},
 			undefined,
 			"tabs",
@@ -1646,7 +1660,7 @@ export class PlanReviewOverlay implements Component {
 			return [
 				node(
 					"col",
-					{ role: "zeta.plan.feedback", gap: "xs" },
+					{ role: "omp.plan.feedback", gap: "xs" },
 					[
 						keyed(
 							text([span("Note on ", "muted"), span(location, "accent")], { truncate: "end" }),

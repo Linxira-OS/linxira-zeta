@@ -2,24 +2,29 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AgentBusyError } from "@linxiraos/pi-agent-core";
-import type { Model } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
-import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { AgentBusyError } from "@oh-my-pi/pi-agent-core";
+import type { Model } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { ExtensionUIContext } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
+import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
 import {
 	ACP_BOOTSTRAP_RACE_GUARD_MS,
 	AcpAgent,
 	createAcpExtensionUiContext,
-} from "@linxiraos/zeta/modes/acp/acp-agent";
-import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TaskTool } from "@linxiraos/zeta/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
+import type { PlanModeState } from "@oh-my-pi/pi-coding-agent/plan-mode/state";
+import type {
+	AgentSession,
+	AgentSessionEvent,
+	UsageFallbackConfirmation,
+} from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { SILENT_ABORT_MARKER } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { resetSessionIndexForTests } from "@oh-my-pi/pi-coding-agent/session/session-index";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { getConfigRootDir, setAgentDir } from "@oh-my-pi/pi-utils";
 import type {
 	AgentSideConnection,
 	ClientCapabilities,
@@ -28,7 +33,7 @@ import type {
 	PromptRequest,
 	SessionNotification,
 	Validator,
-} from "@linxiraos/pi-utils/acp";
+} from "@oh-my-pi/pi-utils/acp";
 import {
 	RequestError,
 	zForkSessionResponse,
@@ -36,10 +41,10 @@ import {
 	zNewSessionResponse,
 	zPromptResponse,
 	zSessionNotification,
-} from "@linxiraos/pi-utils/acp";
+} from "@oh-my-pi/pi-utils/acp";
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
-import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
+import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@oh-my-pi/pi-coding-agent/plan-mode/settings";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
 function expectAcpStructure(schema: Validator<unknown>, value: unknown): void {
@@ -172,6 +177,10 @@ class FakeAgentSession {
 
 	getAvailableModels(): Model[] {
 		return this.models;
+	}
+
+	getAvailableEffortSelectors(): ReadonlyArray<string> {
+		return ["off", "auto", ...this.getAvailableThinkingLevels()];
 	}
 
 	getAvailableThinkingLevels(): ReadonlyArray<string> {
@@ -457,7 +466,7 @@ function expectAcpNotifications(updates: SessionNotification[]): void {
 }
 
 const cleanupRoots: string[] = [];
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 afterEach(async () => {
@@ -466,10 +475,12 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.ZETA_CODING_AGENT_DIR;
+		delete process.env.PI_CODING_AGENT_DIR;
 	}
 	resetSettingsForTest();
 
+	// Renames index titles in the process-wide `<agentDir>/history.db`; Windows cannot delete it while open.
+	resetSessionIndexForTests();
 	for (const root of cleanupRoots.splice(0)) {
 		await fs.promises.rm(root, { recursive: true, force: true });
 	}
@@ -483,7 +494,7 @@ async function createHarness(
 		sessionUpdateHook?: (notification: SessionNotification) => Promise<void> | void;
 	} = {},
 ): Promise<AgentHarness> {
-	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "zeta-acp-test-"));
+	const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-acp-test-"));
 	cleanupRoots.push(root);
 	const agentDir = path.join(root, "agent");
 	const cwdA = path.join(root, "cwd-a");
@@ -782,7 +793,7 @@ describe("ACP agent", () => {
 		expect(result.content[0]?.text).toMatch(/Plan approved/);
 		expect(result.content[0]?.text).not.toContain(harness.cwdA);
 		expect(result.content[0]?.text).not.toContain("autosaved to");
-		const saved = path.join(harness.cwdA, ".zeta", "plans", "WORDS_COUNTER_PLAN.md");
+		const saved = path.join(harness.cwdA, ".omp", "plans", "WORDS_COUNTER_PLAN.md");
 		expect(await Bun.file(saved).text()).toBe("# Words Counter\n\nFile contents.");
 		expect(session.planModeState).toBeUndefined();
 
@@ -1002,6 +1013,118 @@ describe("ACP agent", () => {
 			| { currentValue?: unknown }
 			| undefined;
 		expect(thinkingOption?.currentValue).toBe("high");
+
+		vi.useRealTimers();
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("emits a single config_option_update per /effort change", async () => {
+		// `/effort <level>` calls AgentSession.setThinkingLevel, which fires
+		// `thinking_level_changed`; the lifetime subscription turns that into a
+		// `config_option_update`. The command's explicit notifyConfigChanged
+		// must not add a second identical push, or clients redraw their config
+		// UI twice per change.
+		const harness = await createHarness();
+		vi.useFakeTimers();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		await advanceBootstrapGuard();
+
+		const updatesBefore = harness.updates.length;
+		await harness.agent.prompt({
+			sessionId: created.sessionId,
+			prompt: [{ type: "text", text: "/effort high" }],
+		});
+
+		const configUpdates = harness.updates
+			.slice(updatesBefore)
+			.filter(
+				notification =>
+					notification.sessionId === created.sessionId &&
+					notification.update.sessionUpdate === "config_option_update",
+			);
+		expect(session.thinkingLevel).toBe("high");
+		expect(configUpdates.length).toBe(1);
+		expectAcpNotifications(configUpdates);
+		const update = configUpdates[0]!.update;
+		if (update.sessionUpdate !== "config_option_update") {
+			throw new Error("expected config_option_update");
+		}
+		const thinkingOption = update.configOptions.find(option => option.id === "thinking") as
+			| { currentValue?: unknown }
+			| undefined;
+		expect(thinkingOption?.currentValue).toBe("high");
+
+		vi.useRealTimers();
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("delivers the thinking config update before resolving the command", async () => {
+		const blocked = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		let holdConfig = false;
+		const harness = await createHarness({
+			sessionUpdateHook: async notification => {
+				if (holdConfig && notification.update.sessionUpdate === "config_option_update") {
+					blocked.resolve();
+					await release.promise;
+				}
+			},
+		});
+		vi.useFakeTimers();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		await advanceBootstrapGuard();
+		vi.useRealTimers();
+		holdConfig = true;
+		const baseline = harness.updates.length;
+		const prompt = harness.agent.prompt({
+			sessionId: created.sessionId,
+			prompt: [{ type: "text", text: "/effort high" }],
+		});
+		await blocked.promise;
+		try {
+			expect(await Promise.race([prompt.then(() => true), Bun.sleep(0).then(() => false)])).toBe(false);
+			release.resolve();
+			expect((await prompt).stopReason).toBe("end_turn");
+			const updates = harness.updates.slice(baseline).filter(n => n.update.sessionUpdate === "config_option_update");
+			expect(updates).toHaveLength(1);
+			const update = updates[0]!.update;
+			if (update.sessionUpdate !== "config_option_update") throw new Error("Expected config update");
+			expect(update.configOptions.find(option => option.id === "thinking")?.currentValue).toBe("high");
+		} finally {
+			release.resolve();
+			await prompt;
+			harness.abortController.abort();
+			await Bun.sleep(0);
+		}
+	});
+
+	it("still pushes config_option_update for /effort before the lifetime subscription exists", async () => {
+		// Pre-bootstrap there is no lifetime subscription, so the explicit
+		// notifyConfigChanged is the only path that tells the client — same
+		// contract as `setSessionConfigOption`'s pre-bootstrap push.
+		const harness = await createHarness();
+		vi.useFakeTimers();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		// Deliberately do not advance the 50ms bootstrap guard: the lifetime
+		// subscription is not installed yet.
+
+		const updatesBefore = harness.updates.length;
+		await harness.agent.prompt({
+			sessionId: created.sessionId,
+			prompt: [{ type: "text", text: "/effort high" }],
+		});
+
+		const configUpdates = harness.updates
+			.slice(updatesBefore)
+			.filter(
+				notification =>
+					notification.sessionId === created.sessionId &&
+					notification.update.sessionUpdate === "config_option_update",
+			);
+		expect(configUpdates.length).toBe(1);
 
 		vi.useRealTimers();
 		harness.abortController.abort();
@@ -1785,7 +1908,7 @@ describe("ACP agent", () => {
 
 	it("refreshes task agent descriptions on ACP /reload-plugins", async () => {
 		const harness = await createHarness();
-		const agentDir = path.join(harness.cwdA, ".zeta", "agents");
+		const agentDir = path.join(harness.cwdA, ".omp", "agents");
 		const agentFile = path.join(agentDir, "acp-reload-agent.md");
 		await fs.promises.mkdir(agentDir, { recursive: true });
 		await fs.promises.writeFile(

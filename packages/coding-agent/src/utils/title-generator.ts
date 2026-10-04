@@ -11,12 +11,12 @@ import {
 	type Message,
 	type Model,
 	retryTransientCompletion,
-} from "@linxiraos/pi-ai";
-import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
-import { writeThroughActiveTerminal } from "@linxiraos/pi-tui";
-import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
-import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
-import { isNativeRendering, onNativeRenderingChange } from "@linxiraos/pi-tui/native/state";
+} from "@oh-my-pi/pi-ai";
+import { StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
+import { writeTerminalSequence } from "@oh-my-pi/pi-tui";
+import { isNativeRendering, onNativeRenderingChange } from "@oh-my-pi/pi-tui/native/state";
+import { SPINNER_FRAMES } from "@oh-my-pi/pi-tui/theme/symbols";
+import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@oh-my-pi/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { roleCandidatePool } from "../config/model-roles";
@@ -34,22 +34,12 @@ import { cfgRetryModelFallback } from "../session/settings";
 const TITLE_SYSTEM_PROMPT = prompt.render(titleSystemPrompt);
 const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 
-// Plain Greek glyph, not the nerd-font icon.omp PUA glyph: window/tab titles render in the
+// Plain π, not the nerd-font `icon.omp` glyph: window/tab titles render in the
 // OS UI font, which has no nerd-font PUA coverage.
-const DEFAULT_TERMINAL_TITLE = "ζ";
+const DEFAULT_TERMINAL_TITLE = "π";
 /** The native tab title without a session name. */
-const NATIVE_TERMINAL_TITLE = "zeta";
+const NATIVE_TERMINAL_TITLE = "omp";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
-/**
- * Emit a raw title escape sequence. While the TUI owns stdout its frames are
- * written by an off-thread pump, and a direct `process.stdout.write` can land
- * mid-frame — inside a torn escape sequence — making the terminal print the
- * title payload as text into the viewport. Route through the active terminal's
- * write path; fall back to stdout only when no TUI has the terminal.
- */
-function writeTitleSequence(seq: string): void {
-	if (!writeThroughActiveTerminal(seq)) process.stdout.write(seq);
-}
 
 interface WindowsConsoleTitleApi {
 	set(title: string): boolean;
@@ -632,12 +622,12 @@ function writeTerminalTitle(title: string, recomposeStaticOnFailure = false): vo
 						true,
 					);
 				if (latched === lastTerminalTitle) return;
-				writeTitleSequence(`\x1b]0;${latched}\x07`);
+				writeTerminalSequence(`\x1b]0;${latched}\x07`);
 				lastTerminalTitle = latched;
 				return;
 			}
 		}
-		writeTitleSequence(`\x1b]0;${next}\x07`);
+		writeTerminalSequence(`\x1b]0;${next}\x07`);
 	}
 	lastTerminalTitle = next;
 }
@@ -691,7 +681,7 @@ export function reportTernSessionFile(): void {
 	if (resolved === reportedSessionFile) return;
 	reportedSessionFile = resolved;
 	const value = resolved ? `=${Buffer.from(resolved).toString("base64")}` : "";
-	writeTitleSequence(`\x1b]1337;SetUserVar=${TERN_SESSION_FILE_VAR}${value}\x07`);
+	writeTerminalSequence(`\x1b]1337;SetUserVar=${TERN_SESSION_FILE_VAR}${value}\x07`);
 }
 
 /**
@@ -797,13 +787,13 @@ const terminalTitleRuntime: {
 };
 
 /**
- * Compose the terminal title from the `ζ` brand, a state-carrying separator, and
+ * Compose the terminal title from the `π` brand, a state-carrying separator, and
  * the session label. Pure (no I/O) so the state→separator contract is testable:
- *   - `idle` (user's turn):  `ζ > label`;
- *   - `working`:             `ζ ⠋ label` (static `ζ : label` under WSL, or on Windows once the native title path has failed);
- *   - `attention`:           `ζ ! label`;
- *   - disabled:              `ζ: label`.
- * Without a label the separator trails the brand (`ζ >`) so the state stays visible.
+ *   - `idle` (user's turn):  `π > label`;
+ *   - `working`:             `π ⠋ label` (static `π : label` under WSL, or on Windows once the native title path has failed);
+ *   - `attention`:           `π ! label`;
+ *   - disabled:              `π: label`.
+ * Without a label the separator trails the brand (`π >`) so the state stays visible.
  * The `working` separator cycles `TERMINAL_TITLE_SPINNER_STYLES[style]`; `style`
  * defaults to `braille` so existing 5-arg callers keep the historical frames.
  */
@@ -962,7 +952,7 @@ export function initTerminalTitleState(): void {
 	// state — a frozen spinner frame. Mirror the enable path and re-arm.
 	if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
 	// A TSP terminal takes the plain native title while it renders; the
-	// classic `ζ > label` (and its spinner) comes back when it stops.
+	// classic `π > label` (and its spinner) comes back when it stops.
 	terminalTitleRuntime.unwatchNative ??= onNativeRenderingChange(native => {
 		if (native) stopTerminalTitleSpinner();
 		else if (terminalTitleRuntime.state === "working" && terminalTitleRuntime.enabled) startTerminalTitleSpinner();
@@ -974,7 +964,7 @@ export function initTerminalTitleState(): void {
  * Stop the spinner timer and latch the runtime off; call on session/UI teardown.
  * The latch is the load-bearing half: `shutdown()` disposes and restores the shell
  * title BEFORE it unsubscribes the session, so a live `#handleAgentStart` in that
- * window would otherwise re-arm the spinner and write `ζ ⠋ …` into the parent
+ * window would otherwise re-arm the spinner and write `π ⠋ …` into the parent
  * shell's tab. Released only by {@link initTerminalTitleState}.
  */
 export function disposeTerminalTitleState(): void {
@@ -997,7 +987,7 @@ export function disposeTerminalTitleState(): void {
  */
 export function pushTerminalTitle(): void {
 	if (!process.stdout.isTTY || isTerminalHeadless()) return;
-	writeTitleSequence("\x1b[22;2t");
+	writeTerminalSequence("\x1b[22;2t");
 }
 
 /**
@@ -1005,5 +995,5 @@ export function pushTerminalTitle(): void {
  */
 export function popTerminalTitle(): void {
 	if (!process.stdout.isTTY || isTerminalHeadless()) return;
-	writeTitleSequence("\x1b[23;2t");
+	writeTerminalSequence("\x1b[23;2t");
 }

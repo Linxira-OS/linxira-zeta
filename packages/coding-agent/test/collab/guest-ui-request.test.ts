@@ -12,25 +12,26 @@
  * frame is observable.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
-import { CollabHost } from "@linxiraos/zeta/collab/host";
+import * as fsp from "node:fs/promises";
+import { generateRoomKey, importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
+import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
+import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	type CollabSessionState,
 	formatCollabLink,
 	parseCollabLink,
-} from "@linxiraos/zeta/collab/protocol";
-import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { Settings } from "@linxiraos/zeta/config/settings";
+} from "@oh-my-pi/pi-coding-agent/collab/protocol";
+import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import type {
 	ExtensionAskDialogQuestion,
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
-} from "@linxiraos/zeta/extensibility/extensions/types";
-import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
-import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "@linxiraos/zeta/modes/types";
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
+import type { InteractiveModeContext, InteractiveSelectorDialogOptions } from "@oh-my-pi/pi-coding-agent/modes/types";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see
@@ -278,16 +279,20 @@ async function makeHarness(opts?: { readOnly?: boolean }): Promise<GuestUiHarnes
 
 const harnessCleanups: (() => Promise<void>)[] = [];
 let writeSpy: { mockRestore(): void } | null = null;
+let renameSpy: { mockRestore(): void } | null = null;
 
 beforeEach(() => {
 	installInMemoryRelay();
 	writeSpy = spyOn(Bun, "write").mockResolvedValue(0);
+	renameSpy = spyOn(fsp, "rename").mockResolvedValue(undefined);
 });
 
 afterEach(async () => {
 	for (const cleanup of harnessCleanups.splice(0).reverse()) await cleanup();
 	writeSpy?.mockRestore();
+	renameSpy?.mockRestore();
 	writeSpy = null;
+	renameSpy = null;
 	uninstallInMemoryRelay();
 });
 

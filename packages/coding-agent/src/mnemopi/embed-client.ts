@@ -1,6 +1,5 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import { getFastembedCacheDir, logger } from "@linxiraos/pi-utils";
+import { isFastembedModelCached } from "@oh-my-pi/pi-mnemopi/core/fastembed-model-cache";
+import { getFastembedCacheDir, logger } from "@oh-my-pi/pi-utils";
 import { trackDownload } from "../downloads/activity";
 import {
 	createUnavailableWorker,
@@ -35,7 +34,7 @@ type PendingRequest =
  * Hidden subcommand on the main CLI that boots the mnemopi embeddings worker
  * in the spawned subprocess. Kept in sync with the dispatch in `cli.ts`.
  */
-export const MNEMOPI_EMBED_WORKER_ARG = "__zeta_worker_mnemopi_embed";
+export const MNEMOPI_EMBED_WORKER_ARG = "__omp_worker_mnemopi_embed";
 
 /**
  * Spawn the mnemopi embeddings worker as a subprocess. Exported for tests and
@@ -119,7 +118,7 @@ export interface MnemopiSubprocessEmbeddingModel {
  * means a hung native runtime (issue #4792) that would otherwise pin whatever
  * awaits the embed — a turn's memory recall or the headless shutdown
  * consolidation — indefinitely, leaving the process alive with an unreaped
- * `__zeta_worker_mnemopi_embed` child (issue #7352). On expiry the embed fails
+ * `__omp_worker_mnemopi_embed` child (issue #7352). On expiry the embed fails
  * and the worker is SIGKILL-reaped so the next request respawns a fresh one.
  */
 const EMBED_REQUEST_TIMEOUT_MS = 120_000;
@@ -157,12 +156,9 @@ export class MnemopiEmbedClient {
 		model: MnemopiEmbedModelId,
 		cacheDir: string | undefined,
 	): Promise<MnemopiSubprocessEmbeddingModel | null> {
-		// fastembed unpacks each model into `<cacheDir>/<model>` and exposes no byte
-		// progress; a missing directory means this init downloads the archive.
-		const cached = await fs.access(path.join(cacheDir ?? getFastembedCacheDir(), model)).then(
-			() => true,
-			() => false,
-		);
+		// fastembed exposes no byte progress; any missing model file means this
+		// init downloads it.
+		const cached = await isFastembedModelCached(model, cacheDir ?? getFastembedCacheDir());
 		const tracker = cached ? undefined : trackDownload(model.replace(/^fast-/, ""), { detail: "downloading" });
 		try {
 			const worker = this.#ensureWorker();

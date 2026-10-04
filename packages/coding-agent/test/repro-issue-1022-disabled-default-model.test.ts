@@ -2,15 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { createAgentSession } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 import { YAML } from "bun";
 
-import { cfgDisabledProviders, cfgEnabledModels } from "@linxiraos/zeta/config/model-settings";
+import { cfgDisabledProviders, cfgEnabledModels } from "@oh-my-pi/pi-coding-agent/config/model-settings";
 
 /**
  * Issue #1022: when path-scoped `enabledModels`/`disabledProviders` are
@@ -40,6 +41,8 @@ describe("issue #1022 — path-scoped enabledModels respected by default fallbac
 
 	afterEach(() => {
 		resetSettingsForTest();
+		// `Settings.init` opened `<agentDir>/agent.db`; Windows cannot delete it while open.
+		AgentStorage.close();
 		if (fs.existsSync(testDir)) removeSyncWithRetries(testDir);
 	});
 

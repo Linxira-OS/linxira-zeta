@@ -9,8 +9,8 @@
  */
 import * as path from "node:path";
 import { describe, expect, it, spyOn } from "bun:test";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
-import { postmortem, TempDir } from "@linxiraos/pi-utils";
+import type { AssistantMessage } from "@oh-my-pi/pi-ai";
+import { postmortem, TempDir } from "@oh-my-pi/pi-utils";
 import { Settings } from "../../src/config/settings";
 import { runPrintMode } from "../../src/modes/print-mode";
 import type { AgentSession } from "../../src/session/agent-session";
@@ -77,8 +77,9 @@ describe("print mode disposes the session before terminating", () => {
 		expect(stderrLines.join("")).toContain("boom");
 	});
 
-	it("disposes an active print session before SIGTERM exits", async () => {
-		using tempDir = TempDir.createSync("@zeta-print-signal-");
+	// Windows cannot deliver a catchable SIGTERM via process.kill: libuv terminates the process outright.
+	it.skipIf(process.platform === "win32")("disposes an active print session before SIGTERM exits", async () => {
+		using tempDir = TempDir.createSync("@omp-print-signal-");
 		const marker = tempDir.join("disposed");
 		const fixture = path.join(import.meta.dir, "..", "fixtures", "print-mode-signal.js");
 		const child = Bun.spawn([process.execPath, fixture, marker], {

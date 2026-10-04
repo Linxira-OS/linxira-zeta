@@ -6,7 +6,7 @@ import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-c
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { Model } from "@linxiraos/pi-catalog/types";
 /** Thinking selectors accepted by CLI inputs, in display order. */
-export const CLI_THINKING_LEVELS: readonly string[] = ["off", ...THINKING_EFFORTS, "auto"];
+export const CLI_THINKING_LEVELS: readonly ConfiguredThinkingLevel[] = ["off", ...THINKING_EFFORTS, "auto"];
 
 /**
  * Metadata used to render thinking selector values in the coding-agent UI.

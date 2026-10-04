@@ -1,12 +1,14 @@
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
-import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { CompactionOutcome } from "@oh-my-pi/pi-agent-core/compaction";
+import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@oh-my-pi/pi-ai";
+import type { Component, Container, EditorTheme, Loader, TUI } from "@oh-my-pi/pi-tui";
+import type { TspText } from "@oh-my-pi/pi-wire";
+import type { StatusNotice } from "@oh-my-pi/pi-tui/chrome/status-notice";
 import type { CollabController } from "../collab/controller";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
-import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
-import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
+import type { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
+import type { TrackSegment } from "@oh-my-pi/pi-tui/chrome/segment-track";
 import type { Settings } from "../config/settings";
 import type {
 	AutocompleteProviderFactory,
@@ -29,31 +31,28 @@ import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import type { ShakeMode } from "../session/shake-types";
 import type { DictationTarget } from "../stt";
-import type { SpaceHoldHandler } from "@linxiraos/pi-tui/space-hold";
-import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import type { SpaceHoldHandler } from "@oh-my-pi/pi-tui/space-hold";
+import type { ConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import type { LspStartupServerInfo } from "../tools";
 import type { EventBus } from "../utils/event-bus";
 import type { TokenRateMeter } from "../utils/token-rate";
-import type { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import type { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
-import type { CustomEditor } from "@linxiraos/pi-tui/prompt/custom-editor";
-import type { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
-import type { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import type { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
-import type { HookSelectorComponent, HookSelectorOptions } from "@linxiraos/pi-tui/overlays/hook-selector";
-import type { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
-import type { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
-import type { ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
-import type { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import type { RecentSession } from "@linxiraos/pi-tui/prompt/welcome";
+import type { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
+import type { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
+import type { CustomEditor } from "@oh-my-pi/pi-tui/prompt/custom-editor";
+import type { EvalExecutionComponent } from "@oh-my-pi/pi-tui/chat/eval-execution";
+import type { HookEditorComponent } from "@oh-my-pi/pi-tui/overlays/hook-editor";
+import type { HookInputComponent } from "@oh-my-pi/pi-tui/overlays/hook-input";
+import type { HookSelectorComponent, HookSelectorOptions } from "@oh-my-pi/pi-tui/overlays/hook-selector";
+import type { ServedModelTracker } from "@oh-my-pi/pi-tui/chat/served-model-marker";
+import type { StatusLineComponent } from "@oh-my-pi/pi-tui/status-line";
+import type { ToolExecutionHandle } from "@oh-my-pi/pi-tui/chat/tool-execution";
+import type { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
 import type { EventController } from "./controllers/event-controller";
-import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
-import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
+import type { LoopConditionConfig, LoopLimitRuntime } from "@oh-my-pi/pi-tui/status-line/loop";
+import type { ContextUsage } from "@oh-my-pi/pi-tui/status-line/types";
 import type { OAuthManualInputManager } from "./oauth-manual-input";
-import type { SidebarComponent } from "./components/sidebar";
-import type { Theme } from "@linxiraos/pi-tui/theme";
-import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
-import type { Component, Container, EditorTheme, Loader, Spacer, Text, TUI } from "@linxiraos/pi-tui";
+import type { Theme } from "@oh-my-pi/pi-tui/theme";
+import type { TodoItem, TodoPhase } from "@oh-my-pi/pi-tui/tools/todo";
 
 export type CompactionQueuedMessage = {
 	text: string;
@@ -90,8 +89,6 @@ export interface InteractiveModeInitOptions {
 	clearInitialTerminalHistory?: boolean;
 	/** Opt into hosting when the caller owns outer startup readiness and shutdown. */
 	autoStartCollab?: boolean;
-	/** Recent-session rows loaded by the prepaint composer while runtime modules initialized. */
-	recentSessions?: Promise<RecentSession[] | undefined>;
 }
 
 export type InteractiveSelectorDialogOptions = ExtensionUIDialogOptions & Pick<HookSelectorOptions, "disabledIndices">;
@@ -125,14 +122,13 @@ export interface InteractiveModeContext {
 	errorBannerContainer: Container;
 	modelCycleContainer: Container;
 	deferredCommandContainer: Container;
+	/** The docked `/changelog`-style command report, just above the editor; Esc clears it. */
+	reportContainer: Container;
 	editor: CustomEditor;
 	editorContainer: Container;
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
-	sidebar: SidebarComponent;
-	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
-	applySidebar(): void;
 	syncComposerShape(): void;
 
 	// Session access
@@ -423,7 +419,6 @@ export interface InteractiveModeContext {
 	setTodoExpanded(expanded: boolean): void;
 	// Command handling
 	handleExportCommand(text: string): Promise<void>;
-	handleSidebarToggle(): void;
 	handleTraceCommand(): Promise<void>;
 	handleShareCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
@@ -436,6 +431,7 @@ export interface InteractiveModeContext {
 	handleToolsCommand(): void;
 	handleContextCommand(): void;
 	handleDumpCommand(): Promise<void>;
+	handleDumpAllCommand(): Promise<void>;
 	handleAdvisorDumpCommand(isRaw?: boolean): void;
 	handleDebugTranscriptCommand(): Promise<void>;
 	handleClearCommand(): Promise<void>;
@@ -495,6 +491,8 @@ export interface InteractiveModeContext {
 	showUserMessageSelector(): void;
 	showCopySelector(): void;
 	showTreeSelector(): void;
+	/** Open the `/effort` picker over the levels the current model accepts. */
+	showThinkingSelector(): void;
 	showSessionSelector(source?: ForeignSessionSource): void;
 	/** Settle side requests before replacing the session or deleting its artifacts. */
 	prepareSessionSwitch(): Promise<void>;
@@ -551,16 +549,28 @@ export interface InteractiveModeContext {
 	handleCleanseCommand(args: string): Promise<void>;
 	hasActiveCleanse(): boolean;
 	handleCleanseEscape(): boolean;
+	/**
+	 * Show a read-only command report outside the transcript: above the editor
+	 * like `/btw` (a full-screen page when taller) in text mode, a `/usage`-style
+	 * sheet natively. Replaces the report already shown.
+	 */
+	showCommandReport(options: { title: string; head?: TspText; body: Component }): void;
+	/** The live background-jobs sheet (the jobs pill's). */
+	showJobsSheet(): void;
+	/** Clear the docked command report; false when none was shown (Esc falls through). */
+	dismissCommandReport(): boolean;
+	/** Screen rows a report above the editor may take (all of them but the editor and the chrome under it). */
+	commandReportRows(): number | undefined;
+	/** Whether the last frame put the editor on the bottom row of the screen. */
+	composerInputAtBottom(): boolean;
+	/** Keep the editor on the bottom row while the live rows cannot fill the screen (after a tall report closed). */
+	pinComposerToBottom(): void;
 	cycleThinkingLevel(): void;
 	cycleRoleModel(direction?: "forward" | "backward"): Promise<void>;
 	toggleToolOutputExpansion(): void;
 	setToolsExpanded(expanded: boolean): void;
 	toggleThinkingBlockVisibility(): void;
 	handlePlanModeCommand(
-		initialPrompt?: string,
-		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
-	): Promise<boolean>;
-	handlePlanUltraCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
 	): Promise<boolean>;

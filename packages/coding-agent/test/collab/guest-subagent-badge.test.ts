@@ -1,15 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
-import { type AgentSnapshot, COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
-import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { Settings } from "@linxiraos/zeta/config/settings";
+import * as fsp from "node:fs/promises";
+import { generateRoomKey, importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
+import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
+import {
+	type AgentSnapshot,
+	COLLAB_PROTO,
+	type CollabFrame,
+	formatCollabLink,
+} from "@oh-my-pi/pi-coding-agent/collab/protocol";
+import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
-} from "@linxiraos/pi-tui/overlays/running-subagent-badge";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+} from "@oh-my-pi/pi-tui/overlays/running-subagent-badge";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // In-memory transport: shared FakeWebSocket + InMemoryRelay harness (see
@@ -112,6 +118,7 @@ afterEach(() => {
 describe("collab guest running-subagents badge", () => {
 	it("uses the guest mirror registry and refreshes on join, resnapshot, and leave", async () => {
 		const writeSpy = spyOn(Bun, "write").mockResolvedValue(0);
+		const renameSpy = spyOn(fsp, "rename").mockResolvedValue(undefined);
 		const roomId = "badge-room-1";
 		const roomKey = generateRoomKey();
 		const cryptoKey = await importRoomKey(roomKey);
@@ -161,6 +168,7 @@ describe("collab guest running-subagents badge", () => {
 		} finally {
 			hostSocket.close();
 			writeSpy.mockRestore();
+			renameSpy.mockRestore();
 			await guest.leave("test cleanup").catch(() => {});
 		}
 	});

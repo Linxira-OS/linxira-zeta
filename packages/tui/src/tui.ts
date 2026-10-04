@@ -14,11 +14,11 @@
  */
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
-import { getDebugLogPath } from "@linxiraos/pi-utils/dirs";
-import { $flag } from "@linxiraos/pi-utils/env";
-import * as logger from "@linxiraos/pi-utils/logger";
-import * as postmortem from "@linxiraos/pi-utils/postmortem";
-import type { TspFrame, TspNode, TspText } from "@linxiraos/pi-wire";
+import { getDebugLogPath } from "@oh-my-pi/pi-utils/dirs";
+import { $flag } from "@oh-my-pi/pi-utils/env";
+import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as postmortem from "@oh-my-pi/pi-utils/postmortem";
+import type { TspFrame, TspNode, TspText } from "@oh-my-pi/pi-wire";
 import { DEFAULT_MAX_INLINE_IMAGES, ImageBudget } from "./components/image";
 import { TuiDebugServer } from "./debug-server";
 import { isKeyRelease, matchesKey } from "./keys";
@@ -44,6 +44,7 @@ import {
 	synchronizedOutputUserOverride,
 	TERMINAL,
 } from "./terminal-capabilities";
+import { classifyTerminalMultiplexer } from "./terminal-multiplexer";
 import {
 	Ellipsis,
 	extractSegments,
@@ -74,9 +75,6 @@ const ERASE_TO_END_OF_LINE = "\x1b[K";
 const LINE_FIT_MIN_SOURCE_CODE_UNITS = 4096;
 const LINE_FIT_MAX_SOURCE_CODE_UNITS = 65536;
 const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
-// Zeta sidebar: the main area never composes narrower than this, even when a
-// gutter reservation is active — narrow terminals ignore the reservation.
-const MIN_MAIN_AREA_COLUMNS = 64;
 // Hide the hardware cursor before each paint/move write. Ghostty-style bar
 // cursors can otherwise leave visual afterimages while the TUI repaints the
 // row under a visible cursor. Paint writes also disable terminal autowrap:
@@ -88,6 +86,9 @@ const MIN_MAIN_AREA_COLUMNS = 64;
 const HIDE_CURSOR = "\x1b[?25l";
 const SYNC_OUTPUT_BEGIN = "\x1b[?2026h";
 const SYNC_OUTPUT_END = "\x1b[?2026l";
+// tmux expires synchronized output after one second. Renew during large
+// replays as the output queue drains, at complete sequence/row boundaries.
+const SYNC_OUTPUT_RENEW_BYTES = 16 * 1024;
 const DISABLE_AUTOWRAP = "\x1b[?7l";
 const ENABLE_AUTOWRAP = "\x1b[?7h";
 const PAINT_BEGIN = `${HIDE_CURSOR}${SYNC_OUTPUT_BEGIN}${DISABLE_AUTOWRAP}`;
@@ -261,7 +262,7 @@ export interface Component {
 
 	/**
 	 * Props for the native `overlay` wrapper when this component is shown as
-	 * an overlay: the sheet's `role` (Tern styles `zeta.overlay.*` roles as
+	 * an overlay: the sheet's `role` (Tern styles `omp.overlay.*` roles as
 	 * glass sheets, so the component's own root must not draw a second frame),
 	 * `head` spans for the sheet's title row, and `size`/`anchor` overriding
 	 * the ones derived from the overlay options.
@@ -817,6 +818,16 @@ export class TUI extends Container {
 	// shrink-then-regrow that never exceeds the pre-burst height (see the
 	// CPR-timeout fallback in #resolveResizeAnchor).
 	#resizeBurstPull = 0;
+	// Whether any step of the burst left the committed width / geometry. The
+	// terminal reflowed the normal buffer at every intermediate step, so a drag
+	// that returns to its starting size still shredded retained history and
+	// pushed unerased live rows into it; the settled refresh must key on the
+	// whole burst, not on the net change (see #prepareResizeReplay).
+	#resizeBurstWidthChanged = false;
+	#resizeBurstResized = false;
+	// A shrink can discard live rows below the cursor and push others into
+	// scrollback. Rebuild must repair that even when the burst ends taller.
+	#resizeBurstShrank = false;
 	// Geometry epoch: bumped on every resize transaction entry, so each CSI 6n
 	// request records the geometry it was parked under.
 	#geometryEpoch = 0;
@@ -848,15 +859,6 @@ export class TUI extends Container {
 	#previousFrameLength = 0;
 	#previousWidth = 0;
 	#previousHeight = 0;
-	// Physical width of the last provider frame. Scrollback reflow follows the
-	// terminal's wrap width, not the sidebar-shrunk composed main-area width,
-	// so resize accounting keys on this, never on `#previousWidth`.
-	#previousPhysicalWidth = 0;
-	// Zeta sidebar: right-hand gutter component and its last painted rows.
-	#gutterComponent: Component | null = null;
-	#paintedGutterRows: readonly string[] | null = null;
-	// Zeta sidebar: columns reserved for the gutter, or null for full width.
-	#mainWidthOverride: number | null = null;
 	#focusedComponent: Component | null = null;
 	#debugServer: TuiDebugServer | undefined;
 	#debugPaint:
@@ -915,6 +917,16 @@ export class TUI extends Container {
 	static readonly #RESIZE_VIEWPORT_SETTLE_MS = 120;
 	/** Longest wait for a CPR reply before the settled repaint falls back. */
 	static readonly #RESIZE_PROBE_TIMEOUT_MS = 200;
+	/**
+	 * Smallest settled tmux replay that is preceded by a `Rebuilding…` notice.
+	 * The notice can only be published ahead of the replay (tmux holds the
+	 * pane's synchronized update until the replay ends), so it stays up for
+	 * exactly as long as tmux takes to ingest the replay. tmux next-3.9 on
+	 * Apple silicon ingests a real transcript replay at ~14 MiB/s, so this is
+	 * about half a second there. A smaller replay finishes before the notice
+	 * can be read, and showing it would only flash a status row.
+	 */
+	static readonly #RESIZE_REBUILD_NOTICE_MIN_BYTES = 7 * 1024 * 1024;
 	#inputRenderGraceUntilMs = 0;
 	// A scale-`s` OSC 66 heading reserves `s - 1` rows, and the protocol
 	// caps `s` at 7. This bounds spacer lookups and supplies enough context
@@ -982,15 +994,20 @@ export class TUI extends Container {
 	#altToggleColumns = 0;
 	#altToggleRows = 0;
 	#altToggleEchoPending = false;
-	// True while an in-place resize transaction (Warp) is inside its settle
-	// window: the normal-buffer anchor is stale until the settled CPR probe
-	// resolves, so ordinary paints are dropped until then.
+	// True while an in-place resize waits for its settled rebuild (tmux) or
+	// anchor recovery (Warp): ordinary paints must not use the stale anchor.
 	#resizeInPlaceActive = false;
 	#resizeScrollbackMode: ResizeScrollbackMode = TUI.#initialResizeScrollbackMode();
 	#resizeReplaySize: string | undefined;
 	// Holds an alternate-screen exit until its replacement full paint can emit it
 	// atomically. It must survive a deferred Ghostty image frame.
 	#pendingAltExit = "";
+	// True while #pendingAltExit holds the resize borrow's own exit: the
+	// settle fused it into the destructive rebuild, so the terminal is still
+	// on the borrowed alt buffer until that frame is written. A SIGWINCH or a
+	// fullscreen overlay arriving first adopts the buffer instead of entering
+	// it again (see #settleResizeAltPaint).
+	#resizeAltExitFused = false;
 
 	// Tern Surface Protocol backend, created when the terminal answers the
 	// `hello` probe, or at start when the environment names Tern. Kept across
@@ -1080,84 +1097,6 @@ export class TUI extends Container {
 	 */
 	setMaxInlineImages(cap: number): void {
 		this.#imageBudget.setCap(cap);
-	}
-
-	/**
-	 * Yield `width` columns from the right edge of the terminal as a sidebar
-	 * margin, repainted per frame from the gutter component (see
-	 * {@link setGutterComponent}). The main area composes and paints at
-	 * `terminal.columns - width`, which keeps every committed row — and
-	 * therefore native scrollback — free of gutter text. `null` restores
-	 * full-width rendering. Frames where that would drop the main area below
-	 * {@link MIN_MAIN_AREA_COLUMNS}, or where a fullscreen-capable overlay is
-	 * visible, ignore the reservation and paint at the physical width.
-	 */
-	setMainWidth(width: number | null): void {
-		const next = width !== null && Number.isInteger(width) && width > 0 ? width : null;
-		if (this.#mainWidthOverride === next) return;
-		this.#mainWidthOverride = next;
-		// The composed row width changes, so already-committed scrollback would
-		// sit shredded at the old width. Re-offer finalized history and force a
-		// full viewport repaint on the next frame, mirroring the settled-resize
-		// replay in #prepareResizeReplay.
-		if (this.#hasEverRendered) {
-			const provider = this.#frameProvider;
-			if (provider?.beginHistoryReplay) {
-				provider.beginHistoryReplay();
-				this.#forceViewportRepaintOnNextRender = true;
-			}
-		}
-		this.requestRender();
-	}
-
-	/**
-	 * Component rendered into the right-hand margin created by
-	 * {@link setMainWidth}. Its rows are painted viewport-only via absolute
-	 * cursor addressing inside each frame's synchronized block; they never enter
-	 * the composed frame or scrollback. `null` clears the margin.
-	 */
-	setGutterComponent(component: Component | null): void {
-		if (this.#gutterComponent === component) return;
-		this.#gutterComponent = component;
-		this.#paintedGutterRows = null;
-		this.requestRender();
-	}
-
-	/** Effective main-area width for this frame, honoring the sidebar guards. */
-	#effectiveMainWidth(rawWidth: number): number {
-		if (
-			this.#mainWidthOverride === null ||
-			rawWidth - this.#mainWidthOverride < MIN_MAIN_AREA_COLUMNS ||
-			this.overlayStack.length > 0
-		) {
-			return rawWidth;
-		}
-		return rawWidth - this.#mainWidthOverride;
-	}
-
-	/**
-	 * Absolute-positioned paint for one frame's gutter column. Writes every
-	 * viewport row's gutter cells at column `mainWidth + 1`, then restores the
-	 * hardware cursor. Returns "" when there is no gutter this frame.
-	 */
-	#gutterPaintSequence(
-		rows: readonly string[] | null,
-		gutterWidth: number,
-		mainWidth: number,
-		height: number,
-		restoreRow: number,
-	): string {
-		const col = mainWidth + 1;
-		let seq = "";
-		for (let row = 0; row < height; row++) {
-			if (rows === null || gutterWidth <= 0) return "";
-			let text = truncateToWidth(rows[row] ?? "", gutterWidth, Ellipsis.Omit);
-			const pad = gutterWidth - visibleWidth(text);
-			if (pad > 0) text += " ".repeat(pad);
-			seq += `\x1b[${row + 1};${col}H${text}`;
-		}
-		seq += `\x1b[${restoreRow + 1};1H`;
-		return seq;
 	}
 	/** Return how settled resizes refresh native scrollback. */
 	getResizeScrollback(): ResizeScrollbackMode {
@@ -1516,7 +1455,7 @@ export class TUI extends Container {
 						return;
 					}
 					this.#cancelResizeProbe();
-					if (this.#resizeRepaintsInPlace()) this.#beginResizeInPlacePaint();
+					if (this.#resizeAvoidsAltBuffer()) this.#beginResizeInPlacePaint();
 					else this.#beginResizeAltPaint(true);
 					return;
 				}
@@ -1545,7 +1484,7 @@ export class TUI extends Container {
 					this.requestRender(true);
 					return;
 				}
-				if (this.#resizeRepaintsInPlace()) {
+				if (this.#resizeAvoidsAltBuffer()) {
 					this.#beginResizeInPlacePaint();
 					return;
 				}
@@ -1760,11 +1699,11 @@ export class TUI extends Container {
 		};
 	}
 	/**
-	 * Whether a resize repaints the visible window in place — no alternate-screen
-	 * borrow. Warp-only: Warp re-reports its size on alt-buffer toggles, so borrowing
-	 * there self-sustains. Every other terminal keeps the alt-borrow path. Inside a
-	 * multiplexer the mux owns the grid and consumes the toggles itself, so an
-	 * inherited Warp marker must not divert the mux-tuned borrow path.
+	 * Whether a resize only repaints the visible window in place, without history
+	 * replay. Warp re-reports its size on alt-buffer toggles, so borrowing there
+	 * self-sustains. Inside a multiplexer the mux owns the grid and consumes the
+	 * toggles itself, so an inherited Warp marker must not suppress its replay.
+	 * tmux's synchronized rebuild is selected separately in #resizeAvoidsAltBuffer.
 	 *
 	 * A ConPTY host is excluded for the same reason as a multiplexer: conhost owns
 	 * the grid the application writes to. Measured on conhost, resizing the
@@ -1781,6 +1720,21 @@ export class TUI extends Container {
 		if (override !== null) return override;
 		if (isInsideTerminalMultiplexer() || this.terminal.hostOwnsGridOnResize === true) return false;
 		return Bun.env.TERM_PROGRAM?.toLowerCase() === "warpterminal";
+	}
+
+	#resizeAvoidsAltBuffer(): boolean {
+		if (this.#resizeRepaintsInPlace()) return true;
+		// Unlike Warp's viewport-only repaint, tmux still rebuilds history.
+		// Restoring an alternate buffer schedules a tmux redraw that ends its
+		// synchronized update early, exposing the rest of a long replay.
+		return (
+			!this.#resizeAltActive &&
+			!this.#pendingAltExit &&
+			resizeInPlaceOverride() !== false &&
+			this.#resizeScrollbackMode === "rebuild" &&
+			this.#synchronizedOutputEnabled &&
+			classifyTerminalMultiplexer() === "tmux"
+		);
 	}
 
 	#noteAltBufferToggle(): void {
@@ -1816,17 +1770,20 @@ export class TUI extends Container {
 	#trackResizeBurst(): void {
 		const burstLastHeight = this.#resizeBurstLastHeight ?? this.#previousHeight;
 		if (this.terminal.rows > burstLastHeight) this.#resizeBurstGrew = true;
+		if (this.terminal.rows < burstLastHeight) this.#resizeBurstShrank = true;
 		this.#resizeBurstLastHeight = this.terminal.rows;
 		this.#resizeBurstPull += Math.max(0, this.terminal.rows - burstLastHeight);
+		if (this.terminal.columns !== this.#previousWidth) this.#resizeBurstWidthChanged = true;
+		if (this.terminal.columns !== this.#previousWidth || this.terminal.rows !== this.#previousHeight) {
+			this.#resizeBurstResized = true;
+		}
 		this.#geometryEpoch++;
 	}
 
 	/**
-	 * Coalesced in-place resize transaction for Warp-class terminals: never
-	 * borrows the alt buffer. Drag SIGWINCHes only re-arm the settle window, so a
-	 * drag emits no paints and no scrollback replay; once quiet, the transaction
-	 * snapshots the live window and runs the CPR anchor probe, and the single
-	 * settled repaint lands on the recovered anchor with no ED3 rewrap.
+	 * Coalesced resize without borrowing the alt buffer. Once quiet, tmux can
+	 * rebuild directly under synchronized output; viewport-only repaints recover
+	 * their anchor with CPR. The existing screen remains visible while waiting.
 	 */
 	#beginResizeInPlacePaint(): void {
 		if (this.#altActive) {
@@ -1846,6 +1803,12 @@ export class TUI extends Container {
 		this.#resizeSettleTimer = this.#renderScheduler.scheduleRender(() => {
 			this.#resizeSettleTimer = undefined;
 			if (this.#stopped) return;
+			this.#prepareResizeReplay(this.terminal.columns, this.terminal.rows);
+			if (this.#clearScrollbackOnNextRender) {
+				this.#resizeInPlaceActive = false;
+				this.requestRender();
+				return;
+			}
 			this.#resizeProbeWindow = this.#providerWindow;
 			this.#resizeProbeOffset = this.#parkedViewportOffset;
 			this.#beginResizeAnchorProbe();
@@ -1905,7 +1868,15 @@ export class TUI extends Container {
 			return;
 		}
 		this.#trackResizeBurst();
-		if (!this.#resizeAltActive) {
+		if (!this.#resizeAltActive && this.#resizeAltExitFused) {
+			// The settled rebuild has not been written yet, so its fused exit never
+			// left the borrowed buffer: resume the borrow there. The live window was
+			// already stashed and the rebuild stays latched, so there is nothing to
+			// snapshot or erase, and entering again would stack another alt switch.
+			this.#resizeAltActive = true;
+			this.#pendingAltExit = "";
+			this.#resizeAltExitFused = false;
+		} else if (!this.#resizeAltActive) {
 			this.#resizeAltActive = true;
 			setAltScreenActive(true);
 			this.#altPreviousLines = [];
@@ -1953,16 +1924,49 @@ export class TUI extends Container {
 		this.#resizeSettleTimer = this.#renderScheduler.scheduleRender(() => {
 			this.#resizeSettleTimer = undefined;
 			if (this.#stopped || !this.#resizeAltActive) return;
-			this.#resizeAltActive = false;
-			this.#suppressResizeUntil = this.#renderScheduler.now() + 100;
-			this.#noteAltBufferToggle();
-			this.terminal.write(`${this.#keyboardEnhancementExit()}\x1b[?1049l`);
-			setAltScreenActive(false);
-			this.#altPreviousLines = [];
-			this.#altPreparedRows = [];
-			this.#beginResizeAnchorProbe();
+			this.#settleResizeAltPaint();
 		}, TUI.#RESIZE_VIEWPORT_SETTLE_MS);
 		this.requestRender(true);
+	}
+
+	/**
+	 * End the alt-buffer borrow once the resize settles.
+	 *
+	 * A settle that rebuilds history never needs the viewport anchor: the
+	 * destructive reset erases the screen and history and repaints from row
+	 * zero. Restoring the normal buffer on its own write would only expose the
+	 * reflowed stale screen for the CPR round trip, then clear it and stream
+	 * the replay — the one flash a large resize (a tmux zoom) still showed. So
+	 * that settle latches the rebuild now and fuses the restore into the same
+	 * synchronized write as ED2+ED3 and the replay: the terminal goes straight
+	 * from the resize frame to the rebuilt screen.
+	 *
+	 * Every other settle restores the normal buffer and probes the reflowed
+	 * anchor, which the non-destructive repaint depends on.
+	 */
+	#settleResizeAltPaint(): void {
+		this.#resizeAltActive = false;
+		this.#suppressResizeUntil = this.#renderScheduler.now() + 100;
+		this.#altPreviousLines = [];
+		this.#altPreparedRows = [];
+		const exitSequence = `${this.#keyboardEnhancementExit()}\x1b[?1049l`;
+		// Only the provider plan frame emits a pending exit, and an exit already
+		// pending (a fused overlay close) owns that slot.
+		if (this.#frameProvider !== undefined && this.#pendingAltExit === "") {
+			if (this.#resizeScrollbackMode === "rebuild") {
+				this.#prepareResizeReplay(this.terminal.columns, this.terminal.rows);
+			}
+			if (this.#clearScrollbackOnNextRender) {
+				this.#pendingAltExit = exitSequence;
+				this.#resizeAltExitFused = true;
+				this.requestRender(true);
+				return;
+			}
+		}
+		this.#noteAltBufferToggle();
+		this.terminal.write(exitSequence);
+		setAltScreenActive(false);
+		this.#beginResizeAnchorProbe();
 	}
 	/**
 	 * Recover the reflowed viewport anchor after the resize settle window ends.
@@ -2083,6 +2087,23 @@ export class TUI extends Container {
 		let top: number;
 		if (isInsideTerminalMultiplexer()) {
 			if (reportedRow !== undefined) {
+				// tmux can grow its grid before SIGWINCH reaches the app. A queued
+				// retirement frame can then overwrite pulled-down history at the old
+				// coordinates and park the cursor there. If a previously full viewport
+				// no longer reaches the bottom, replay its semantic history instead of
+				// trusting that potentially damaged physical copy. Ordinary grows with
+				// an intact bottom anchor still need no replay or additional wait.
+				if (
+					this.#resizeScrollbackMode === "rebuild" &&
+					classifyTerminalMultiplexer() === "tmux" &&
+					!this.#resizeRepaintsInPlace() &&
+					this.#frameProvider?.beginHistoryReplay &&
+					this.#resizeBurstGrew &&
+					this.#providerViewportTop + probe.window.length >= this.#previousHeight &&
+					reportedTop + staleRows < height
+				) {
+					this.#prepareForcedRender(true);
+				}
 				// The parked cursor's reply is exact under multiplexer clipping:
 				// discards leave the cursor in place, pushes only occur after
 				// everything below it is discarded (the bottom row IS the
@@ -2428,6 +2449,7 @@ export class TUI extends Container {
 			this.#altPreviousLines = [];
 			this.#altPreparedRows = [];
 			this.#pendingAltExit = "";
+			this.#resizeAltExitFused = false;
 		} else if (this.#mouseTracking !== "off") {
 			// Inline capture with no overlay: still owned by us at quit, so
 			// release it — otherwise the parent shell keeps mouse reporting
@@ -2582,6 +2604,13 @@ export class TUI extends Container {
 		if (this.#renderTimer) {
 			this.#renderTimer.cancel();
 			this.#renderTimer = undefined;
+			// The cancelled timer was the only callback owed to a pending ordinary
+			// request. Every caller paints right after (a forced or ordinary request
+			// it issues, or the render already in progress), and that paint serves
+			// the request. Leaving the flag set would turn every later ordinary
+			// request into a no-op: the resize settle's rebuild and all spinner
+			// frames would never paint until some forced render arrived.
+			this.#renderRequested = false;
 		}
 	}
 
@@ -2683,7 +2712,10 @@ export class TUI extends Container {
 				const tagEpoch = this.#cprColumnTags.get(column);
 				this.#cprColumnTags.delete(column);
 				const probe = this.#resizeProbe;
-				if (probe !== undefined && tagEpoch === probe.epoch) {
+				// tmux can resize its grid before the application receives SIGWINCH.
+				// A reply below our known screen is from that newer geometry: do not
+				// repaint it using the stale height. Wait for resize or the probe retry.
+				if (probe !== undefined && tagEpoch === probe.epoch && row >= 1 && row <= this.terminal.rows) {
 					this.#resolveResizeAnchor(Number(match[1]) - 1);
 				}
 			}
@@ -3051,7 +3083,34 @@ export class TUI extends Container {
 	}
 
 	#terminalLine(line: PreparedLine): string {
-		return line.terminalContent + (line.hasOsc8 ? LINE_TERMINATOR : SEGMENT_RESET);
+		if (line.hasOsc8) return line.terminalContent + LINE_TERMINATOR;
+		return line.terminalContent.endsWith(SEGMENT_RESET) ? line.terminalContent : line.terminalContent + SEGMENT_RESET;
+	}
+
+	/** Encode padding with REP, which tmux expands into identical styled cells. */
+	#compactReplaySpaces(line: string): string {
+		let copied = 0;
+		let output = "";
+		for (let offset = 0; offset < line.length;) {
+			const spaces = line.indexOf("        ", offset);
+			if (spaces === -1) break;
+			const escape = line.indexOf("\x1b", offset);
+			if (escape !== -1 && escape < spaces) {
+				// Only inspect text outside CSI/OSC. Unknown control strings (for
+				// example DCS payloads) must remain byte-for-byte unchanged.
+				const introducer = line.charCodeAt(escape + 1);
+				if (introducer !== 0x5b && introducer !== 0x5d) return line;
+				const end = this.#ansiSequenceEnd(line, escape);
+				if (end < 0) break;
+				offset = end;
+				continue;
+			}
+			let end = spaces + 8;
+			while (line.charCodeAt(end) === 0x20) end++;
+			output += `${line.slice(copied, spaces)} \x1b[${end - spaces - 1}b`;
+			copied = offset = end;
+		}
+		return copied === 0 ? line : output + line.slice(copied);
 	}
 
 	#notifyPaint(paint: TuiPaint): void {
@@ -3064,15 +3123,15 @@ export class TUI extends Container {
 		}
 	}
 
-	#renderProviderFrame(mainWidth: number, rawWidth: number, height: number): void {
+	#renderProviderFrame(width: number, height: number): void {
 		const provider = this.#frameProvider;
-		if (!provider || mainWidth <= 0 || height <= 0) return;
+		if (!provider || width <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
 		let plan: TerminalFramePlan;
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
-			plan = provider.renderFrame({ columns: mainWidth, rows: height });
+			plan = provider.renderFrame({ columns: width, rows: height });
 			viewport = Array.from(plan.viewport);
 			if (viewport.length > height) {
 				const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;
@@ -3080,39 +3139,10 @@ export class TUI extends Container {
 				logger.error("TUI layout contract violated", { rows: viewport.length, height });
 				viewport = viewport.slice(0, height);
 			}
-			viewport = this.#compositeVisibleOverlays(viewport, mainWidth, height);
+			viewport = this.#compositeVisibleOverlays(viewport, width, height);
 		} while (this.#imageBudget.endPass());
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
-		this.#emitPlanFrame(mainWidth, height, viewport, plan.history, provider);
-		this.#previousPhysicalWidth = rawWidth;
-		this.#paintGutter(mainWidth, rawWidth, height, viewport.length);
-	}
-
-	/**
-	 * Paint (or clear) the right-hand gutter column after a frame's content
-	 * block, inside the same synchronous paint. Content is composed at
-	 * `mainWidth`, so absolute-positioned gutter writes at column `mainWidth + 1`
-	 * compose with it without touching the frame or scrollback. The gutter
-	 * component composes into the column width it owns (`rawWidth - mainWidth`).
-	 * When no gutter applies this frame — component cleared, or an overlay frame
-	 * composing at full width — a previously painted gutter is erased row by row.
-	 */
-	#paintGutter(mainWidth: number, rawWidth: number, height: number, viewportRows: number): void {
-		const gutter = this.#gutterComponent && mainWidth < rawWidth ? this.#gutterComponent : null;
-		if (gutter) {
-			const rows = gutter.render(rawWidth - mainWidth);
-			const seq = this.#gutterPaintSequence(rows, rawWidth - mainWidth, mainWidth, viewportRows, 0);
-			if (seq) this.terminal.write(seq);
-			this.#paintedGutterRows = rows;
-		} else if (this.#paintedGutterRows !== null) {
-			// Gutter removed: clear the margin column once via absolute EL per row.
-			const col = mainWidth + 1;
-			let seq = "";
-			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
-			seq += "\x1b[H";
-			this.terminal.write(seq);
-			this.#paintedGutterRows = null;
-		}
+		this.#emitPlanFrame(width, height, viewport, plan.history, provider);
 	}
 	/**
 	 * Re-offer finalized history once after a settled resize.
@@ -3128,12 +3158,21 @@ export class TUI extends Container {
 	 * out of scrollback), so replaying would write an identical duplicate — the
 	 * editor/status chrome included — below the retained copy. Skip it, matching
 	 * the `widthChanged`-gated commit-ledger logic in {@link #doRender}.
+	 *
+	 * Both gates key on the whole coalesced burst, not the net change: the
+	 * terminal reflowed the normal buffer at every intermediate geometry, so a
+	 * drag that ends where it started (80 → 60 → 80) has still rewrapped
+	 * retained history and pushed unerased live rows into it. Comparing only
+	 * the settled size against the committed one would skip the refresh and
+	 * leave those stale copies stacked above the repainted viewport.
 	 */
 	#prepareResizeReplay(width: number, height: number): void {
 		const size = `${width}x${height}`;
+		const widthChanged = this.#resizeBurstWidthChanged || width !== this.#previousWidth;
+		const resized = this.#resizeBurstResized || widthChanged || height !== this.#previousHeight;
 		if (
 			!this.#hasEverRendered ||
-			(this.#previousPhysicalWidth === width && this.#previousHeight === height) ||
+			!resized ||
 			this.#resizeReplaySize === size ||
 			this.#resizeScrollbackMode === "preserve" ||
 			// In-place resizes (Warp) repaint the settled viewport once the drag
@@ -3150,13 +3189,36 @@ export class TUI extends Container {
 			this.#forceViewportRepaintOnNextRender = true;
 			return;
 		}
+		// A height-only settled resize rewraps nothing — rewrap is a width change
+		// everywhere. A pure height grow pulls committed scrollback down without
+		// polluting a copy, so the rebuild (an ED3 plus a full ledger replay)
+		// would be a destructive repaint that buys nothing. `rebuild` still
+		// refreshes on a burst shrink (the multiplexer pushes live pane rows into its
+		// scrollback; the destructive refresh is the only purge) and on a host
+		// that repaints its own grid (ConPTY's stale re-emission is untrusted).
 		if (this.#resizeScrollbackMode === "rebuild") {
+			// Every destructive cause warrants a rebuild: a burst shrink can push
+			// live rows into history (tmux discards rows below the cursor, then
+			// pushes rows above it; a later grow cannot undo that clipping or the
+			// provider's retirement), and ConPTY can repaint its own stale grid.
+			if (!widthChanged && this.terminal.hostOwnsGridOnResize !== true && !this.#resizeBurstShrank) return;
 			this.#prepareForcedRender(true);
 			return;
 		}
-		if (width === this.#previousPhysicalWidth) return;
+		if (!widthChanged) return;
 		provider.beginHistoryReplay();
 		this.#forceViewportRepaintOnNextRender = true;
+	}
+
+	/**
+	 * Bottom-row `Rebuilding…` notice, closed as its own synchronized update so
+	 * tmux forwards it before the replay that follows starts a new hold. Cursor
+	 * save/restore and no newline keep the row out of native scrollback; the
+	 * replay's ED2 erases it together with the rest of the screen.
+	 */
+	#rebuildNoticeSequence(width: number, height: number): string {
+		const label = truncateToWidth("↻ Rebuilding…", width, Ellipsis.Omit);
+		return `${this.#paintBeginSequence}\x1b7\x1b[${height};1H${SEGMENT_RESET}${ERASE_LINE}${label}${LINE_TERMINATOR}\x1b8${this.#paintEndSequence}`;
 	}
 
 	/**
@@ -3250,6 +3312,7 @@ export class TUI extends Container {
 		// resize in rebuild mode): erase native history and the viewport,
 		// then repaint from row zero.
 		const destructiveReset = this.#clearScrollbackOnNextRender;
+		const compactReplay = destructiveReset && classifyTerminalMultiplexer() === "tmux";
 		if (destructiveReset) {
 			this.#providerViewportTop = 0;
 			this.#providerWindow = [];
@@ -3264,6 +3327,20 @@ export class TUI extends Container {
 		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows));
 		const pendingAltExit = this.#pendingAltExit;
 		let buffer = this.#paintBeginSequence + pendingAltExit;
+		const renewSync =
+			destructiveReset &&
+			this.#resizeScrollbackMode === "rebuild" &&
+			this.#synchronizedOutputEnabled &&
+			classifyTerminalMultiplexer() === "tmux";
+		let syncBytes = Buffer.byteLength(buffer);
+		const append = (sequence: string): void => {
+			buffer += sequence;
+			if (!renewSync) return;
+			syncBytes += Buffer.byteLength(sequence);
+			if (syncBytes < SYNC_OUTPUT_RENEW_BYTES) return;
+			buffer += SYNC_OUTPUT_BEGIN;
+			syncBytes = 0;
+		};
 		if (destructiveReset && TERMINAL.imageProtocol === ImageProtocol.Kitty) {
 			// A reset is explicitly destructive, so remove every placement—not only
 			// the ones this TUI tracked—then resend images composed for the clean
@@ -3297,8 +3374,8 @@ export class TUI extends Container {
 		// erase reclaim the data, so the replay's placements then referenced an
 		// image the terminal no longer had and every inline image vanished
 		// after a settled width resize.
-		if (destructiveReset) buffer += "\x1b[H\x1b[2J\x1b[3J";
-		for (const sequence of this.#imageBudget.takeTransmits()) buffer += sequence;
+		if (destructiveReset) buffer += `${LINE_TERMINATOR}\x1b[H\x1b[2J\x1b[3J`;
+		for (const sequence of this.#imageBudget.takeTransmits()) append(sequence);
 		const diffable =
 			geometryStable &&
 			historyRows.length === 0 &&
@@ -3346,25 +3423,31 @@ export class TUI extends Container {
 			let screenRow = startTop;
 			for (let index = 0; index < preparedHistory.lines.length; index++) {
 				if (screenRow > startTop) buffer += "\n";
-				buffer += this.#lineRewriteSequence(
-					preparedHistory.rows[index]!,
-					width,
-					Math.min(screenRow, height - 1),
-					-1,
-					-1,
-					this.#osc66SpacerGlyphWidth(preparedHistory.lines, index),
+				append(
+					this.#lineRewriteSequence(
+						preparedHistory.rows[index]!,
+						width,
+						Math.min(screenRow, height - 1),
+						-1,
+						-1,
+						this.#osc66SpacerGlyphWidth(preparedHistory.lines, index),
+						{ blankRow: compactReplay },
+					),
 				);
 				screenRow++;
 			}
 			for (let index = 0; index < rows; index++) {
 				if (screenRow > startTop) buffer += "\n";
-				buffer += this.#lineRewriteSequence(
-					prepared.rows[index]!,
-					width,
-					Math.min(screenRow, height - 1),
-					-1,
-					-1,
-					this.#osc66SpacerGlyphWidth(prepared.lines, index),
+				append(
+					this.#lineRewriteSequence(
+						prepared.rows[index]!,
+						width,
+						Math.min(screenRow, height - 1),
+						-1,
+						-1,
+						this.#osc66SpacerGlyphWidth(prepared.lines, index),
+						{ blankRow: compactReplay },
+					),
 				);
 				screenRow++;
 			}
@@ -3389,6 +3472,14 @@ export class TUI extends Container {
 			this.#parkedViewportOffset = 0;
 		}
 		buffer += this.#paintEndSequence;
+		if (
+			renewSync &&
+			pendingAltExit === "" &&
+			this.#resizeReplaySize !== undefined &&
+			Buffer.byteLength(buffer) >= TUI.#RESIZE_REBUILD_NOTICE_MIN_BYTES
+		) {
+			this.terminal.write(this.#rebuildNoticeSequence(width, height));
+		}
 		this.terminal.write(buffer);
 		this.#debugPaint = {
 			lines: prepared.lines,
@@ -3399,6 +3490,7 @@ export class TUI extends Container {
 		if (pendingAltExit) {
 			this.#noteAltBufferToggle();
 			this.#pendingAltExit = "";
+			this.#resizeAltExitFused = false;
 			setAltScreenActive(false);
 		}
 		if (target) this.#recordHardwareCursorState(target);
@@ -3410,8 +3502,11 @@ export class TUI extends Container {
 		this.#previousWidth = width;
 		this.#previousHeight = height;
 		this.#resizeBurstGrew = false;
+		this.#resizeBurstShrank = false;
 		this.#resizeBurstLastHeight = undefined;
 		this.#resizeBurstPull = 0;
+		this.#resizeBurstWidthChanged = false;
+		this.#resizeBurstResized = false;
 		this.#previousFrameLength = mutablePreparedLines.length;
 		this.#clearScrollbackOnNextRender = false;
 		this.#forceViewportRepaintOnNextRender = false;
@@ -3457,11 +3552,9 @@ export class TUI extends Container {
 			return;
 		}
 		if (this.#resizeInPlaceActive && !this.#altActive) {
-			// In-place resize settling (Warp): the normal-buffer anchor is stale until
-			// the settled CPR probe resolves. Painting now would overwrite retained
-			// history and record the new geometry over the pending recovery, so drop
-			// the frame — the resolve repaints. Fullscreen overlay paints are
-			// buffer-isolated and still allowed.
+			// The normal-buffer anchor is stale until the settled rebuild or CPR
+			// recovery. Painting now would overwrite history and record the new
+			// geometry over the pending recovery, so defer until the settle.
 			return;
 		}
 
@@ -3483,9 +3576,19 @@ export class TUI extends Container {
 			// modified-key reporting sequence on the freshly entered alternate
 			// screen, or Esc/modified keys revert to legacy encoding inside
 			// fullscreen overlays (Ghostty/kitty/iTerm2).
-			this.#noteAltBufferToggle();
-			this.#imageBudget.beginAltScreenLifecycle();
-			this.terminal.write(`\x1b[?1049h${this.#keyboardEnhancementEnter()}`);
+			if (this.#resizeAltExitFused) {
+				// An overlay opened while the settled resize rebuild was still
+				// pending: the terminal never left the borrowed buffer, which already
+				// carries the pushed keyboard mode and its image store, so the overlay
+				// takes it over. The latched rebuild then lands with the overlay's
+				// own fused exit when it closes.
+				this.#pendingAltExit = "";
+				this.#resizeAltExitFused = false;
+			} else {
+				this.#noteAltBufferToggle();
+				this.#imageBudget.beginAltScreenLifecycle();
+				this.terminal.write(`\x1b[?1049h${this.#keyboardEnhancementEnter()}`);
+			}
 			this.#setMouseTracking(wantMouse);
 			setAltScreenActive(true);
 			this.terminal.hideCursor();
@@ -3547,10 +3650,10 @@ export class TUI extends Container {
 		if (this.#frameProvider !== undefined) this.#prepareResizeReplay(width, height);
 		this.#forgetTransmittedForPendingReset();
 		if (this.#frameProvider !== undefined) {
-			this.#renderProviderFrame(this.#effectiveMainWidth(width), width, height);
+			this.#renderProviderFrame(width, height);
 			return;
 		}
-		this.#renderChildrenFrame(width, this.#effectiveMainWidth(width), height);
+		this.#renderChildrenFrame(width, height);
 	}
 
 	/**
@@ -3577,7 +3680,7 @@ export class TUI extends Container {
 	 * compose the root children and paint the bottom `height` rows as the
 	 * mutable viewport. Nothing is ever appended to terminal history.
 	 */
-	#renderChildrenFrame(rawWidth: number, width: number, height: number): void {
+	#renderChildrenFrame(width: number, height: number): void {
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
@@ -3588,7 +3691,6 @@ export class TUI extends Container {
 		} while (this.#imageBudget.endPass());
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
-		this.#paintGutter(width, rawWidth, height, viewport.length);
 	}
 
 	/**
@@ -3968,6 +4070,7 @@ export class TUI extends Container {
 		frameRow = -1,
 		committedTo = -1,
 		spacerGlyphWidth = -1,
+		options?: { blankRow?: boolean },
 	): string {
 		// End every rewrite at column zero. ConPTY can materialize a pending
 		// wrap before a following cursor-addressing sequence even while DECAWM is
@@ -3987,7 +4090,14 @@ export class TUI extends Container {
 			rewrite = ERASE_LINE + this.#imageLineSequence(line.line, screenRow, frameRow, committedTo);
 		} else {
 			const terminalLine = this.#terminalLine(line);
-			if (line.asciiWidth !== undefined) {
+			if (options?.blankRow) {
+				// A destructive replay starts on a cleared screen and advances only
+				// into fresh rows. Each line resets its rendition before scrolling,
+				// so those rows already have the default background. Re-erasing every
+				// row only adds terminal parser work; images and OSC 66 spacers keep
+				// their dedicated cleanup above.
+				rewrite = this.#compactReplaySpaces(terminalLine);
+			} else if (line.asciiWidth !== undefined) {
 				// Exact width model: skip the erase only when the row truly fills
 				// the line (an EL there would eat the last cell via pending-wrap).
 				rewrite = line.asciiWidth >= width ? terminalLine : terminalLine + ERASE_TO_END_OF_LINE;

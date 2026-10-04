@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@linxiraos/zeta/utils/shell-snapshot";
+import { procmgr } from "@oh-my-pi/pi-utils";
+import { getOrCreateSnapshot, sanitizeSnapshotForBrush } from "@oh-my-pi/pi-coding-agent/utils/shell-snapshot";
 import fnEnvHelper from "../src/utils/shell-snapshot-fn-env.sh" with { type: "text" };
 
 // macOS ships bash at `/bin/bash`, not `/usr/bin/bash`; resolve a real bash the
@@ -15,6 +16,10 @@ const REAL_BASH = Bun.env.SHELL?.includes("bash") ? Bun.env.SHELL : "/bin/bash";
 // function invokes): macOS has no `/usr/bin/echo`, so hard-coding it makes the
 // replay fail with `No such file or directory` even though the export landed.
 const REAL_ECHO = Bun.which("echo") ?? "/bin/echo";
+// A bare `bash` on Windows usually resolves to the WSL launcher
+// (`WindowsApps\bash.exe`), which runs inside Linux without the spawn env; use
+// the Git Bash the product itself resolves.
+const HELPER_BASH = process.platform === "win32" ? procmgr.resolveWindowsShell() : "bash";
 
 /** Mirrors the per-uid snapshot dir name computed in `getOrCreateSnapshot`. */
 function snapshotDirIn(tmpRoot: string): string {
@@ -99,7 +104,7 @@ describe("sanitizeSnapshotForBrush", () => {
 	});
 });
 
-// `__zeta_emit_referenced_exports` (shell-snapshot-fn-env.sh) re-exports env
+// `__omp_emit_referenced_exports` (shell-snapshot-fn-env.sh) re-exports env
 // vars that snapshotted functions reference. mise activates a `mise()` shell
 // function whose body expands `$__MISE_EXE`; the snapshot used to persist the
 // function but discard the sidecar var, so the replay shell ran
@@ -114,7 +119,7 @@ describe("shell-snapshot fn-env helper", () => {
 	it("emits export lines for env vars referenced by captured functions, skips unset and shell-internal names", async () => {
 		const funcs = [
 			`mise () { command "$__MISE_EXE" "$@"; }`,
-			// biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell parameter expansion `${FOO_TEST_DIR}`
+			// oxlint-disable-next-line no-template-curly-in-string -- literal shell parameter expansion `${FOO_TEST_DIR}`
 			'my_fn () { echo "$FOO_TEST_DIR ${FOO_TEST_DIR}"; }',
 			`uses_path () { echo "$PATH"; }`,
 			`uses_locale () { echo "$LC_ALL"; }`,
@@ -122,7 +127,7 @@ describe("shell-snapshot fn-env helper", () => {
 			``,
 		].join("\n");
 
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
+		const child = Bun.spawn([HELPER_BASH, "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				__MISE_EXE: "/opt/echo",
@@ -163,7 +168,7 @@ describe("shell-snapshot fn-env helper", () => {
 			``,
 		].join("\n");
 
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
+		const child = Bun.spawn([HELPER_BASH, "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				GITHUB_TOKEN: "ghp_REDACTED",
@@ -209,7 +214,7 @@ describe("shell-snapshot fn-env helper", () => {
 
 	it("single-quote-escapes values containing apostrophes and preserves newlines", async () => {
 		const funcs = `shout () { echo "$TRICKY_VAL $NL_VAL"; }\n`;
-		const child = Bun.spawn(["bash", "-c", `${fnEnvHelper}\n__zeta_emit_referenced_exports`], {
+		const child = Bun.spawn([HELPER_BASH, "-c", `${fnEnvHelper}\n__omp_emit_referenced_exports`], {
 			env: {
 				PATH: process.env.PATH ?? "/usr/bin:/bin",
 				TRICKY_VAL: "it's 'tricky'",
@@ -229,7 +234,7 @@ describe("shell-snapshot fn-env helper", () => {
 
 		// Eval the emitted lines and verify the round-trip values match.
 		const round = Bun.spawn(
-			["bash", "-c", `eval "$1"; printf '%s\\n' "$TRICKY_VAL"; printf '%s\\n' "$NL_VAL"`, "_", out],
+			[HELPER_BASH, "-c", `eval "$1"; printf '%s\\n' "$TRICKY_VAL"; printf '%s\\n' "$NL_VAL"`, "_", out],
 			{ stdout: "pipe", stderr: "ignore" },
 		);
 		const echoed = await readStream(round.stdout as ReadableStream<Uint8Array> | null);
@@ -240,7 +245,7 @@ describe("shell-snapshot fn-env helper", () => {
 
 describe("getOrCreateSnapshot", () => {
 	it("re-exports env vars referenced by snapshotted functions (issue #3470)", async () => {
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-3470-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-3470-"));
 		await fs.writeFile(
 			path.join(home, ".bashrc"),
 			[
@@ -298,7 +303,7 @@ describe("getOrCreateSnapshot", () => {
 		// window between the shell's first `>|` and the JS post-spawn chmod.
 		// Fix: JS now pre-creates the file at 0600 (shell `>|`/`>>` preserve the
 		// inode mode) AND the script re-applies `umask 077` after the source.
-		const home = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-umask-"));
+		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-umask-"));
 		await fs.writeFile(
 			path.join(home, ".bashrc"),
 			[`umask 022`, `export __MISE_EXE=${REAL_ECHO}`, `mise () { command "$__MISE_EXE" "$@"; }`, ``].join("\n"),
@@ -321,7 +326,7 @@ describe("getOrCreateSnapshot", () => {
 		expect(content).toContain(`export __MISE_EXE='${REAL_ECHO}'`);
 	});
 	it("cleans up the empty snapshot file when the shell exits with a non-zero code", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-fail-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-fail-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -348,7 +353,7 @@ describe("getOrCreateSnapshot", () => {
 	});
 
 	it("cleans up the empty snapshot file when the shell fails to spawn", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-spawn-fail-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-spawn-fail-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -372,7 +377,7 @@ describe("getOrCreateSnapshot", () => {
 	});
 
 	it("cleans up the empty snapshot file when the shell execution times out", async () => {
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-timeout-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-timeout-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -405,7 +410,7 @@ describe("getOrCreateSnapshot", () => {
 		// owned it and every other account's pre-create write died with EACCES.
 		const realBash = REAL_BASH;
 		if (!existsSync(realBash)) return;
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-uid-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-uid-"));
 		const originalTmpDir = process.env.TMPDIR;
 		process.env.TMPDIR = testRoot;
 		try {
@@ -432,7 +437,7 @@ describe("getOrCreateSnapshot", () => {
 		if (process.getuid?.() === 0) return; // root ignores mode bits
 		const realBash = REAL_BASH;
 		if (!existsSync(realBash)) return;
-		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-snap-eacces-"));
+		const testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-snap-eacces-"));
 		const originalTmpDir = process.env.TMPDIR;
 		const shellLink = path.join(testRoot, "bash-omp-eacces");
 		await fs.symlink(realBash, shellLink);

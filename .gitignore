@@ -74,8 +74,8 @@ packages/natives/npm/
 # npm tarball (see packages/coding-agent/scripts/sync-official-skills.ts)
 packages/coding-agent/skills/
 /runs/
-python/omp-rpc/src/omp_rpc.egg-info/
-python/omp-rpc/build/
+sdk/python/omp-rpc/src/omp_rpc.egg-info/
+sdk/python/omp-rpc/build/
 # parallel-agent worktrees
 .wt/
 CPU*.md

@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
 import { runSearchCommand } from "../../../src/cli/web-search-cli";
 
-import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+import { cfgRetryFallbackChains } from "@oh-my-pi/pi-coding-agent/session/settings";
 
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.OMP_PROFILE;
 const originalPiProfile = process.env.PI_PROFILE;
 
@@ -61,10 +62,12 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	resetSettingsForTest();
 	process.exitCode = originalExitCode;
-	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
+	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();
+	// runSearchCommand opens <agentDir>/models.db; Windows cannot delete an open database.
+	closeModelCache();
 	if (tempAgentDir) {
 		await tempAgentDir.remove();
 		tempAgentDir = undefined;

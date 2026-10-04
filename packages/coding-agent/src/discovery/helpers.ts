@@ -1,16 +1,17 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { FileType, glob } from "@linxiraos/pi-natives";
+import { FileType, glob } from "@oh-my-pi/pi-natives";
 import {
 	CONFIG_DIR_NAME,
 	getAgentDir,
 	getConfigDirName,
 	getPluginsDir,
 	getProjectDir,
+	normalizePathForComparison,
 	parseFrontmatter,
 	tryParseJson,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { isUserSourceEnabled } from "../capability";
 import type { ContextFile } from "../capability/context-file";
 import type { ExtensionModule } from "../capability/extension-module";
@@ -27,7 +28,7 @@ import type { Skill, SkillFrontmatter } from "../capability/skill";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 import { resolveClaudePaths } from "../config/claude-paths";
 import type { MCPRequestIdFormat } from "../mcp/types";
-import { type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@oh-my-pi/pi-tui/thinking";
 import { normalizeToolNames } from "../tools/builtin-names";
 
 import { realpathIfExists, resolveContainedPath } from "./contained-path";
@@ -451,15 +452,6 @@ export function compareSkillOrder(aName: string, aPath: string, bName: string, b
 	return cmp(aPath, bPath);
 }
 
-/**
- * Maximum nesting depth (directory levels below the scan root) at which a
- * `SKILL.md` is still discovered. Depth 3 covers three-level router trees
- * (`<root>/<router>/SKILL.md` → `<root>/<router>/<group>/INDEX.md` →
- * `<root>/<router>/<group>/<leaf>/SKILL.md`) without letting pathological
- * directory bombs turn every scan into a full recursive crawl.
- */
-const MAX_SKILL_SCAN_DEPTH = 3;
-
 export async function scanSkillsFromDir(
 	_ctx: LoadContext,
 	options: ScanSkillsFromDirOptions,
@@ -468,19 +460,15 @@ export async function scanSkillsFromDir(
 	const warnings: string[] = [];
 	const { dir, level, providerId, requireDescription = false } = options;
 
-	const readSkillsDirEntries = async (current: string): Promise<fs.Dirent[] | null> => {
-		try {
-			return await fs.promises.readdir(current, { withFileTypes: true });
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-				warnings.push(`Failed to read skills directory: ${current} (${String(error)})`);
-			}
-			return null;
+	let entries: fs.Dirent[];
+	try {
+		entries = await fs.promises.readdir(dir, { withFileTypes: true });
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			warnings.push(`Failed to read skills directory: ${dir} (${String(error)})`);
 		}
-	};
-
-	const entries = await readSkillsDirEntries(dir);
-	if (!entries) return { items, warnings };
+		return { items, warnings };
+	}
 	const loadSkill = async (skillPath: string) => {
 		try {
 			const content = await readFile(skillPath);
@@ -514,38 +502,21 @@ export async function scanSkillsFromDir(
 		}
 	};
 
-	// Depth-limited walk below the scan root. A directory carrying its own
-	// SKILL.md is still exposed as a skill (router-style navigators keep their
-	// top-level entry) AND is descended into, so leaves nested under it are
-	// discovered; plain grouping directories without a SKILL.md are walked the
-	// same way. `INDEX.md` is an ordinary file and never matches the SKILL.md
-	// probe, so index directories never become skills themselves.
-	const skillFiles: string[] = [];
-	const collectSkillFiles = async (current: string, depth: number, dirEntries: fs.Dirent[]): Promise<void> => {
-		for (const entry of dirEntries) {
-			if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
-			if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-			const childDir = path.join(current, entry.name);
-			const skillPath = path.join(childDir, "SKILL.md");
-			if (fs.existsSync(skillPath)) {
-				skillFiles.push(skillPath);
-			}
-			if (depth + 1 < MAX_SKILL_SCAN_DEPTH) {
-				const childEntries = await readSkillsDirEntries(childDir);
-				if (childEntries) await collectSkillFiles(childDir, depth + 1, childEntries);
-			}
-		}
-	};
-
 	const work: Promise<void>[] = [];
 	if (options.includeSelf) {
 		const selfSkillPath = path.join(dir, "SKILL.md");
 		if (fs.existsSync(selfSkillPath)) {
-			skillFiles.push(selfSkillPath);
+			work.push(loadSkill(selfSkillPath));
 		}
 	}
-	await collectSkillFiles(dir, 0, entries);
-	work.push(...skillFiles.map(loadSkill));
+	for (const entry of entries) {
+		if (entry.name.startsWith(".")) continue;
+		if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+		const skillPath = path.join(dir, entry.name, "SKILL.md");
+		if (fs.existsSync(skillPath)) {
+			work.push(loadSkill(skillPath));
+		}
+	}
 	await Promise.all(work);
 
 	// Deterministic ordering: async file reads complete nondeterministically, so sort after loading.
@@ -844,12 +815,8 @@ async function readExtensionModuleManifest(
 	const content = await readFile(packageJsonPath);
 	if (!content) return null;
 
-	const pkg = tryParseJson<{
-		omp?: ExtensionModuleManifest;
-		pi?: ExtensionModuleManifest;
-		zeta?: ExtensionModuleManifest;
-	}>(content);
-	const manifest = pkg?.zeta ?? pkg?.pi;
+	const pkg = tryParseJson<{ omp?: ExtensionModuleManifest; pi?: ExtensionModuleManifest }>(content);
+	const manifest = pkg?.omp ?? pkg?.pi;
 	if (manifest && typeof manifest === "object") {
 		return manifest;
 	}
@@ -1058,28 +1025,36 @@ export function parseClaudePluginsRegistry(content: string): ClaudePluginsRegist
 	return data;
 }
 
+function isUserConfigRoot(root: string): boolean {
+	const configDir = normalizePathForComparison(path.join(root, getConfigDirName()));
+	return (
+		configDir === normalizePathForComparison(path.join(os.homedir(), getConfigDirName())) ||
+		configDir === normalizePathForComparison(path.dirname(getPluginsDir()))
+	);
+}
+
 /**
  * Resolve the active project registry path by walking up from `cwd`.
  *
  * Walk order:
- * 1. Walk up from `cwd` looking for the nearest directory containing `.zeta/`.
- *    The first match returns `<dir>/.zeta/plugins/installed_plugins.json`.
- * 2. If no `.zeta/` is found, rescan from `cwd` upward looking for `.git`.
- *    The git root is used as an anchor: `<gitRoot>/.zeta/plugins/installed_plugins.json`.
+ * 1. Walk up from `cwd` looking for the nearest directory containing `.omp/`.
+ *    The first match returns `<dir>/.omp/plugins/installed_plugins.json`.
+ * 2. If no `.omp/` is found, rescan from `cwd` upward looking for `.git`.
+ *    The git root is used as an anchor: `<gitRoot>/.omp/plugins/installed_plugins.json`.
  * 3. If neither is found, return `null` — no project context is active.
  *
  * This is the single source of truth for "active project root" used by install,
  * uninstall, list, upgrade, discovery, and doctor. Deterministic for a given `cwd`.
  */
 export async function resolveActiveProjectRegistryPath(cwd: string): Promise<string | null> {
-	// Pass 1: walk up looking for an existing .zeta/ directory (nearest wins).
-	// Stop before os.homedir() — ~/.zeta/ is the user-level config dir, not a project root.
-	const homeDir = os.homedir();
+	// Pass 1: walk up looking for an existing .omp/ directory (nearest wins).
+	// Stop before os.homedir() — ~/.omp/ is the user-level config dir, not a project root.
+	const homeDir = normalizePathForComparison(os.homedir());
 	let dir = path.resolve(cwd);
-	while (dir !== homeDir) {
+	while (normalizePathForComparison(dir) !== homeDir) {
 		try {
 			const stat = await fs.promises.stat(path.join(dir, getConfigDirName()));
-			if (stat.isDirectory()) {
+			if (stat.isDirectory() && !isUserConfigRoot(dir)) {
 				return path.join(dir, getConfigDirName(), "plugins", "installed_plugins.json");
 			}
 		} catch {
@@ -1092,10 +1067,10 @@ export async function resolveActiveProjectRegistryPath(cwd: string): Promise<str
 
 	// Pass 2: walk up looking for .git as a fallback anchor.
 	dir = path.resolve(cwd);
-	while (dir !== homeDir) {
+	while (normalizePathForComparison(dir) !== homeDir) {
 		try {
 			await fs.promises.stat(path.join(dir, ".git"));
-			return path.join(dir, getConfigDirName(), "plugins", "installed_plugins.json");
+			if (!isUserConfigRoot(dir)) return path.join(dir, getConfigDirName(), "plugins", "installed_plugins.json");
 		} catch {
 			// not found at this level — continue up
 		}
@@ -1108,11 +1083,11 @@ export async function resolveActiveProjectRegistryPath(cwd: string): Promise<str
 }
 
 /**
- * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.zeta/plugins/installed_plugins.json`
- * when no project anchor (.zeta/ or .git/) is found.
+ * Like resolveActiveProjectRegistryPath, but falls back to `<cwd>/.omp/plugins/installed_plugins.json`
+ * when no project anchor (.omp/ or .git/) is found.
  *
  * Use this when the caller accepts an explicit --scope project so that installing into a freshly
- * bootstrapped directory (no .zeta/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
+ * bootstrapped directory (no .omp/ or .git/ yet) works: writeInstalledPluginsRegistry auto-creates
  * the directory tree on first write.
  *
  * Returns undefined when cwd is os.homedir() — that path is already the user registry and must
@@ -1124,7 +1099,8 @@ export async function resolveOrDefaultProjectRegistryPath(cwd: string): Promise<
 	// Home directory must not be treated as a project root: the fallback path would alias
 	// getInstalledPluginsRegistryPath(), causing MarketplaceManager to load the same file
 	// as both user and project registry and producing duplicates / disambiguation errors.
-	if (path.resolve(cwd) === os.homedir()) return undefined;
+	if (normalizePathForComparison(cwd) === normalizePathForComparison(os.homedir()) || isUserConfigRoot(cwd))
+		return undefined;
 	return path.join(cwd, getConfigDirName(), "plugins", "installed_plugins.json");
 }
 
@@ -1181,7 +1157,7 @@ export function registerPluginCacheInvalidator(invalidator: () => void): void {
 
 /**
  * List all installed Claude Code plugin roots from its active plugin cache and
- * ~/.zeta/plugins/installed_plugins.json, plus the nearest project registry when present.
+ * ~/.omp/plugins/installed_plugins.json, plus the nearest project registry when present.
  *
  * Results are cached per Claude and OMP config directories, project registry, and canonical active project.
  */
@@ -1191,7 +1167,11 @@ export async function listClaudePluginRoots(
 ): Promise<{ roots: ClaudePluginRoot[]; warnings: string[] }> {
 	const claudeConfigDir = resolveClaudePaths(home).configDir;
 	const ompRegistryPath = path.join(getPluginsDir(home), "installed_plugins.json");
-	const resolvedProjectPath = cwd ? await resolveActiveProjectRegistryPath(cwd) : null;
+	const projectPath = cwd ? await resolveActiveProjectRegistryPath(cwd) : null;
+	const resolvedProjectPath =
+		projectPath && normalizePathForComparison(projectPath) !== normalizePathForComparison(ompRegistryPath)
+			? projectPath
+			: null;
 	const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
 	const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
 	const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
@@ -1318,7 +1298,7 @@ export async function listClaudePluginRoots(
 	}
 
 	// ── Project-scoped OMP registry ────────────────────────────────────────
-	// Loaded from the nearest .zeta/plugins/installed_plugins.json relative to cwd.
+	// Loaded from the nearest .omp/plugins/installed_plugins.json relative to cwd.
 	// Project entries take precedence over user entries for the same plugin ID.
 	if (resolvedProjectPath) {
 		const projectContent = await readFile(resolvedProjectPath);

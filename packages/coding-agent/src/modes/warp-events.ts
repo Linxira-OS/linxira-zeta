@@ -1,7 +1,8 @@
 import * as path from "node:path";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { isInsideTmux, wrapTmuxPassthrough } from "@linxiraos/pi-tui/terminal-capabilities";
-import { VERSION } from "@linxiraos/pi-utils/dirs";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import { writeTerminalSequence } from "@oh-my-pi/pi-tui/terminal";
+import { isInsideTmux, wrapTmuxPassthrough } from "@oh-my-pi/pi-tui/terminal-capabilities";
+import { VERSION } from "@oh-my-pi/pi-utils/dirs";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions/types";
 import { isSilentAbort, isUserInterruptAbort, SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
 
@@ -56,8 +57,8 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 			const body = {
 				...event,
 				v: WARP_CLI_AGENT_PROTOCOL_VERSION,
-				// Warp resolves this via CLIAgent.command_prefix(); Zeta is "zeta".
-				agent: "zeta",
+				// Warp resolves this via CLIAgent.command_prefix(); OhMyPi is "omp".
+				agent: "omp",
 				session_id: options.sessionId,
 				cwd,
 				project: path.basename(cwd),
@@ -65,7 +66,7 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 			};
 			const osc = `\x1b]777;notify;${WARP_CLI_AGENT_SENTINEL};${JSON.stringify(body)}\x07`;
 			if (!isInsideTmux()) {
-				process.stdout.write(osc);
+				writeTerminalSequence(osc);
 				return;
 			}
 			// DCS-wrap every OSC so Warp can parse it under allow-passthrough.
@@ -75,7 +76,7 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 			const wrapped = wrapTmuxPassthrough(osc);
 			const eventName = event.event;
 			const ring = typeof eventName === "string" && Object.hasOwn(WARP_ATTENTION_EVENTS, eventName);
-			process.stdout.write(ring ? `${wrapped}\x07` : wrapped);
+			writeTerminalSequence(ring ? `${wrapped}\x07` : wrapped);
 		},
 	};
 }
@@ -198,7 +199,7 @@ export function createWarpEventBridgeExtension(): ExtensionFactory {
 			emitter?.emit({
 				event: "permission_request",
 				tool_name: event.toolName,
-				summary: `zeta-c wants to run ${event.toolName}`,
+				summary: `omp wants to run ${event.toolName}`,
 			});
 		});
 

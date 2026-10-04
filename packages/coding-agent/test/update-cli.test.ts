@@ -3,11 +3,8 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
-import { $which, removeWithRetries } from "@linxiraos/pi-utils";
-import type { CliConfig } from "@linxiraos/pi-utils/cli";
-import * as pluginCli from "@linxiraos/zeta/cli/plugin-cli";
-import * as updateCli from "@linxiraos/zeta/cli/update-cli";
+import * as pluginCli from "@oh-my-pi/pi-coding-agent/cli/plugin-cli";
+import * as updateCli from "@oh-my-pi/pi-coding-agent/cli/update-cli";
 import {
 	buildBunInstallArgs,
 	buildHomebrewUpdateArgs,
@@ -28,10 +25,11 @@ import {
 	type RenameMigrationSteps,
 	replaceBinaryForUpdate,
 	resolveBunGlobalNodeModulesDirFromLocations,
-	resolveGitHubTokenForTest,
 	resolveReleaseBinaryAsset,
+	selectFallbackBinaryAsset,
 	resolveReleaseDist,
 	resolveReleaseRename,
+	resolveGitHubTokenForTest,
 	resolveUpdateMethodForTest,
 	resolveUpdateTargetFromPath,
 	shouldForceBinaryUpdate,
@@ -39,32 +37,54 @@ import {
 	updateViaBinaryAt,
 	updateViaManager,
 	updateViaShimTakeover,
-} from "@linxiraos/zeta/cli/update-cli";
-import Update from "@linxiraos/zeta/commands/update";
+} from "@oh-my-pi/pi-coding-agent/cli/update-cli";
+import Update from "@oh-my-pi/pi-coding-agent/commands/update";
+import { $which, removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { CliConfig } from "@oh-my-pi/pi-utils/cli";
+import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
 
 const miseBinary = Bun.env.MISE_BIN ?? $which("mise");
 
 const tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "zeta-update-test-")));
+	const dir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-update-test-")));
 	tempDirs.push(dir);
 	return dir;
 }
 /**
- * Run `fn` with `process.platform` reporting win32. Windows launcher
- * classification is platform-gated, so the gate itself has to be driven from
- * the POSIX host running this suite.
+ * Run `fn` with `process.platform` reporting `platform`. Launcher
+ * classification and recovery hints are platform-gated, so the gate itself has
+ * to be driven from whichever host runs this suite.
  */
-function withWin32<T>(fn: () => T): T {
+function withPlatform<T>(platform: NodeJS.Platform, fn: () => T): T {
 	const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
 	if (!platformDescriptor) throw new Error("process.platform descriptor missing");
-	Object.defineProperty(process, "platform", { ...platformDescriptor, value: "win32" });
+	Object.defineProperty(process, "platform", { ...platformDescriptor, value: platform });
 	try {
 		return fn();
 	} finally {
 		Object.defineProperty(process, "platform", platformDescriptor);
 	}
+}
+
+/** Async {@link withPlatform}: keeps the override until the returned promise settles. */
+async function withPlatformAsync<T>(platform: NodeJS.Platform, fn: () => Promise<T>): Promise<T> {
+	const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+	if (!platformDescriptor) throw new Error("process.platform descriptor missing");
+	Object.defineProperty(process, "platform", { ...platformDescriptor, value: platform });
+	try {
+		return await fn();
+	} finally {
+		Object.defineProperty(process, "platform", platformDescriptor);
+	}
+}
+
+/** npm's global layout: `<prefix>/bin` + `<prefix>/lib/node_modules` on POSIX; both rooted at `<prefix>` on Windows. */
+function npmGlobalLayout(prefix: string): { binDir: string; nodeModulesDir: string } {
+	return process.platform === "win32"
+		? { binDir: prefix, nodeModulesDir: path.join(prefix, "node_modules") }
+		: { binDir: path.join(prefix, "bin"), nodeModulesDir: path.join(prefix, "lib", "node_modules") };
 }
 
 afterEach(async () => {
@@ -73,7 +93,7 @@ afterEach(async () => {
 	await Promise.all(tempDirs.splice(0).map(dir => removeWithRetries(dir)));
 });
 const TEST_CONFIG: CliConfig = {
-	bin: "zeta",
+	bin: "omp",
 	version: "0.0.0-test",
 	commands: new Map(),
 };
@@ -174,17 +194,14 @@ describe("parseReportedVersion", () => {
 		// Regression: dropping `-canary.1` made a correctly installed canary
 		// build look like a stale `X.Y.Z` launcher, triggering a binary repair
 		// that rejects the prerelease GitHub release.
-		expect(parseReportedVersion("zeta-c/1.1.23-canary.1")).toBe("1.1.23-canary.1");
-		expect(parseReportedVersion("zeta-c/1.1.22")).toBe("1.1.22");
+		expect(parseReportedVersion("omp/18.0.6-canary.1")).toBe("18.0.6-canary.1");
+		expect(parseReportedVersion("omp/18.0.5")).toBe("18.0.5");
 		expect(parseReportedVersion("not a version")).toBeUndefined();
 	});
 
 	it("rejects version output from a different executable", () => {
-		// Regression: `zeta/X.Y.Z` is the workbench binary's version output and
-		// must never validate as this package's launcher.
-		expect(parseReportedVersion("zeta/1.1.22")).toBeUndefined();
-		expect(parseReportedVersion("node/1.1.22")).toBeUndefined();
-		expect(parseReportedVersion("codex/1.1.22")).toBeUndefined();
+		expect(parseReportedVersion("node/18.0.5")).toBeUndefined();
+		expect(parseReportedVersion("codex/18.0.5")).toBeUndefined();
 	});
 });
 
@@ -213,7 +230,7 @@ describe("update-cli libc detection", () => {
 describe("update-cli install target detection", () => {
 	it("leaves Nix store installations under Nix management", () => {
 		const method = resolveUpdateMethodForTest(
-			"/nix/store/0123456789-zeta-c-1.1.22/bin/omp",
+			"/nix/store/0123456789-omp-17.2.15/bin/omp",
 			"/nix/store/9876543210-bun-1.3.14/bin",
 		);
 
@@ -235,7 +252,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses npm update for Windows npm command shims even when no package-manager bin dirs were detected", () => {
-		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\zeta.cmd", undefined);
+		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\omp.cmd", undefined);
 
 		expect(method).toBe("npm");
 	});
@@ -244,19 +261,24 @@ describe("update-cli install target detection", () => {
 		// Regression: with `npm prefix -g` pointed at the installer's default
 		// (~/.local), directory containment alone misclassified the standalone
 		// binary as npm-managed, so `npm install -g` failed with EEXIST refusing
-		// to overwrite the existing executable.
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/omp", undefined, {
-			npmBinDir: "/home/u/.local/bin",
-			ompIsRegularFile: true,
-		});
+		// to overwrite the existing executable. POSIX layout: on Windows an
+		// extensionless launcher is npm's sh shim (covered by the win32 cases).
+		const method = withPlatform("linux", () =>
+			resolveUpdateMethodForTest("/home/u/.local/bin/omp", undefined, {
+				npmBinDir: "/home/u/.local/bin",
+				ompIsRegularFile: true,
+			}),
+		);
 
 		expect(method).toBe("binary");
 	});
 
 	it("uses binary update when a plain file in the bun global bin dir is the standalone binary", () => {
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/omp", "/home/u/.local/bin", {
-			ompIsRegularFile: true,
-		});
+		const method = withPlatform("linux", () =>
+			resolveUpdateMethodForTest("/home/u/.local/bin/omp", "/home/u/.local/bin", {
+				ompIsRegularFile: true,
+			}),
+		);
 
 		expect(method).toBe("binary");
 	});
@@ -267,8 +289,8 @@ describe("update-cli install target detection", () => {
 		// off file type — it keys off bun's `<name>.bunx` metadata sidecar, which
 		// only a bun-managed launcher has. Paths use forward slashes so the
 		// lexical containment check works on the POSIX host running this suite.
-		const method = withWin32(() =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta.exe", "C:/Users/test/.bun/bin", {
+		const method = withPlatform("win32", () =>
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/omp.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 				bunShimMarker: true,
 			}),
@@ -283,8 +305,8 @@ describe("update-cli install target detection", () => {
 		// update back through `bun install -g`, which cannot overwrite the
 		// running .exe — bun tolerates that EBUSY — so the install stayed pinned
 		// to the old version with no way forward.
-		const method = withWin32(() =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta.exe", "C:/Users/test/.bun/bin", {
+		const method = withPlatform("win32", () =>
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/omp.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 			}),
 		);
@@ -304,8 +326,8 @@ describe("update-cli install target detection", () => {
 	it("updates the standalone binary behind a foreign npm-bin alias without replacing the alias", async () => {
 		const dir = await makeTempDir();
 		const npmBinDir = path.join(dir, ".npm-global", "bin");
-		const standalonePath = path.join(dir, ".local", "bin", "zeta");
-		const aliasPath = path.join(npmBinDir, "zeta");
+		const standalonePath = path.join(dir, ".local", "bin", "omp");
+		const aliasPath = path.join(npmBinDir, "omp");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
 		await fs.symlink(standalonePath, aliasPath);
@@ -327,11 +349,11 @@ describe("update-cli install target detection", () => {
 	it("keeps an npm-linked checkout under npm management instead of overwriting its resolved script", async () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
-		const npmBinDir = path.join(npmPrefix, "bin");
-		const packagePath = path.join(npmPrefix, "lib", "node_modules", "@linxiraos", "zeta");
+		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
+		const packagePath = path.join(nodeModulesDir, "@oh-my-pi", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
-		const aliasPath = path.join(npmBinDir, "zeta");
+		const aliasPath = path.join(npmBinDir, "omp");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(packagePath), { recursive: true });
 		await Bun.write(checkoutCli, "linked checkout");
@@ -352,8 +374,8 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunDir = path.join(dir, ".bun");
 		const bunBinDir = path.join(bunDir, "bin");
-		const standalonePath = path.join(bunDir, "custom", "zeta");
-		const aliasPath = path.join(bunBinDir, "zeta");
+		const standalonePath = path.join(bunDir, "custom", "omp");
+		const aliasPath = path.join(bunBinDir, "omp");
 		await fs.mkdir(bunBinDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
 		await fs.symlink(path.relative(bunBinDir, standalonePath), aliasPath);
@@ -377,10 +399,10 @@ describe("update-cli install target detection", () => {
 		// beside a root-owned symlink (EACCES) or replaces it with a split-brain
 		// copy that shadows the shared install (#8732).
 		const dir = await makeTempDir();
-		const sharedBinDir = path.join(dir, "opt", "zeta", "bin");
-		const standalonePath = path.join(sharedBinDir, "zeta");
+		const sharedBinDir = path.join(dir, "opt", "omp", "bin");
+		const standalonePath = path.join(sharedBinDir, "omp");
 		const launcherDir = path.join(dir, "usr", "local", "bin");
-		const launcherPath = path.join(launcherDir, "zeta");
+		const launcherPath = path.join(launcherDir, "omp");
 		await fs.mkdir(sharedBinDir, { recursive: true });
 		await fs.mkdir(launcherDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
@@ -417,7 +439,7 @@ describe("update-cli install target detection", () => {
 			if (target.method !== "binary") throw new Error("Expected binary update target");
 
 			await expect(
-				updateViaBinaryAt(target.path, "1.1.23", {
+				updateViaBinaryAt(target.path, "18.1.13", {
 					binaryName: "omp-linux-x64",
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
@@ -429,11 +451,14 @@ describe("update-cli install target detection", () => {
 	);
 
 	it.skipIf(process.platform === "win32")(
-		"refuses a foreign native target that does not report a zeta-c version",
+		"refuses a foreign native target that does not report an OMP version",
 		async () => {
 			const dir = await makeTempDir();
+			const foreignPath = path.join(dir, "foreign");
 			const aliasPath = path.join(dir, "omp");
-			await fs.symlink(process.execPath, aliasPath);
+			await fs.copyFile(process.execPath, foreignPath);
+			await fs.chmod(foreignPath, 0o755);
+			await fs.symlink(foreignPath, aliasPath);
 			const fetchImpl = vi.fn(async () => new Response());
 			const target = resolveUpdateTargetFromPath(aliasPath, undefined, {
 				allowPackageManagers: true,
@@ -441,12 +466,12 @@ describe("update-cli install target detection", () => {
 			if (target.method !== "binary") throw new Error("Expected binary update target");
 
 			await expect(
-				updateViaBinaryAt(target.path, "1.1.23", {
+				updateViaBinaryAt(target.path, "18.1.13", {
 					binaryName: "omp-linux-x64",
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
-			).rejects.toThrow("does not report a zeta-c version when run directly");
+			).rejects.toThrow("does not report an OMP version when run directly");
 			expect(fetchImpl).not.toHaveBeenCalled();
 		},
 	);
@@ -457,9 +482,9 @@ describe("update-cli install target detection", () => {
 		// launcher is deliberately replaced in place, keeping the PATH entry live.
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
-		const npmBinDir = path.join(npmPrefix, "bin");
-		const managedBinary = path.join(npmPrefix, "lib", "node_modules", "@linxiraos", "zeta", "zeta");
-		const aliasPath = path.join(npmBinDir, "zeta");
+		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
+		const managedBinary = path.join(nodeModulesDir, "@oh-my-pi", "pi-coding-agent", "omp");
+		const aliasPath = path.join(npmBinDir, "omp");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(managedBinary), { recursive: true });
 		await Bun.write(managedBinary, "binary");
@@ -482,10 +507,10 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunBinDir = path.join(dir, "bun-bin");
 		const bunGlobalDir = path.join(dir, "bun-global");
-		const packagePath = path.join(bunGlobalDir, "node_modules", "@linxiraos", "zeta");
+		const packagePath = path.join(bunGlobalDir, "node_modules", "@oh-my-pi", "pi-coding-agent");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
-		const aliasPath = path.join(bunBinDir, "zeta");
+		const aliasPath = path.join(bunBinDir, "omp");
 		await fs.mkdir(bunBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(packagePath), { recursive: true });
 		await Bun.write(checkoutCli, "linked checkout");
@@ -516,14 +541,14 @@ describe("update-cli install target detection", () => {
 
 	it("uses Homebrew update when prioritized omp resolves into the Homebrew formula", async () => {
 		const dir = await makeTempDir();
-		const prefix = path.join(dir, "opt", "zeta");
+		const prefix = path.join(dir, "opt", "omp");
 		const linkedBin = path.join(dir, "bin");
 		await fs.mkdir(path.join(prefix, "bin"), { recursive: true });
 		await fs.mkdir(linkedBin, { recursive: true });
-		await Bun.write(path.join(prefix, "bin", "zeta"), "binary");
-		await fs.symlink(path.join(prefix, "bin", "zeta"), path.join(linkedBin, "zeta"));
+		await Bun.write(path.join(prefix, "bin", "omp"), "binary");
+		await fs.symlink(path.join(prefix, "bin", "omp"), path.join(linkedBin, "omp"));
 
-		const method = resolveUpdateMethodForTest(path.join(linkedBin, "zeta"), "/Users/test/.bun/bin", {
+		const method = resolveUpdateMethodForTest(path.join(linkedBin, "omp"), "/Users/test/.bun/bin", {
 			homebrewPrefix: prefix,
 		});
 
@@ -532,10 +557,10 @@ describe("update-cli install target detection", () => {
 
 	it("uses mise update when prioritized omp is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
-			"/Users/test/.local/share/mise/installs/github-Linxira-OS-linxira-zeta/latest/bin/omp",
+			"/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin/omp",
 			undefined,
 			{
-				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-Linxira-OS-linxira-zeta/latest/bin"],
+				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-oh-my-pi/latest/bin"],
 			},
 		);
 
@@ -553,22 +578,18 @@ describe("update-cli install target detection", () => {
 
 describe("update-cli package manager commands", () => {
 	it("targets the Homebrew tap formula and switches to reinstall for forced updates", () => {
-		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "Linxira-OS/tap/zeta"]);
-		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "Linxira-OS/tap/zeta"]);
+		expect(buildHomebrewUpdateArgs(false)).toEqual(["upgrade", "can1357/tap/omp"]);
+		expect(buildHomebrewUpdateArgs(true)).toEqual(["reinstall", "can1357/tap/omp"]);
 	});
 
 	it("targets the mise GitHub backend and overrides release-age settings for attended updates", () => {
-		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:Linxira-OS/linxira-zeta", "--bump", "--before", "0s"]);
-		expect(buildMiseUpgradeArgs(false)).toEqual(["upgrade", "github:Linxira-OS/linxira-zeta", "--bump"]);
+		expect(buildMiseUpgradeArgs()).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump", "--before", "0s"]);
+		expect(buildMiseUpgradeArgs(false)).toEqual(["upgrade", "github:can1357/oh-my-pi", "--bump"]);
 		expect(buildMiseUpdateEnv({ PATH: "/bin", MISE_MINIMUM_RELEASE_AGE: "24h" })).toEqual({
 			PATH: "/bin",
 			MISE_MINIMUM_RELEASE_AGE: "0s",
 		});
-		expect(buildMiseForceInstallArgs("1.1.22")).toEqual([
-			"install",
-			"--force",
-			"github:Linxira-OS/linxira-zeta@1.1.22",
-		]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:can1357/oh-my-pi@15.10.5"]);
 	});
 
 	it.skipIf(!miseBinary)("overrides per-tool release age during actual mise upgrade resolution", async () => {
@@ -592,7 +613,7 @@ describe("update-cli package manager commands", () => {
 			await Bun.write(
 				path.join(root, "mise.toml"),
 				`[tools]
-"github:Linxira-OS/linxira-zeta" = { version = "1", minimum_release_age = "999y", api_url = "${server.url}" }
+"github:can1357/oh-my-pi" = { version = "1", minimum_release_age = "999y", api_url = "${server.url}" }
 `,
 			);
 			const env = {
@@ -623,11 +644,11 @@ describe("update-cli package manager commands", () => {
 				return stdout + stderr;
 			};
 
-			const blocked = await run(["upgrade", "github:Linxira-OS/linxira-zeta", "--bump", "--dry-run"]);
-			expect(blocked).not.toContain("Would install github:Linxira-OS/linxira-zeta@2.0.0");
+			const blocked = await run(["upgrade", "github:can1357/oh-my-pi", "--bump", "--dry-run"]);
+			expect(blocked).not.toContain("Would install github:can1357/oh-my-pi@2.0.0");
 
 			const allowed = await run([...buildMiseUpgradeArgs(), "--dry-run"]);
-			expect(allowed).toContain("Would install github:Linxira-OS/linxira-zeta@2.0.0");
+			expect(allowed).toContain("Would install github:can1357/oh-my-pi@2.0.0");
 		} finally {
 			server.stop(true);
 		}
@@ -638,9 +659,9 @@ describe("update-cli package manager commands", () => {
 
 		expect(args.slice(0, 2)).toEqual(["install", "-g"]);
 		expect(args).toContain("--registry=https://registry.npmjs.org/");
-		expect(args).toContain("@linxiraos/zeta@16.3.15");
-		expect(args).toContain("@linxiraos/pi-natives@16.3.15");
-		expect(args).toContain("@linxiraos/pi-natives-win32-x64@16.3.15");
+		expect(args).toContain("@oh-my-pi/pi-coding-agent@16.3.15");
+		expect(args).toContain("@oh-my-pi/pi-natives@16.3.15");
+		expect(args).toContain("@oh-my-pi/pi-natives-win32-x64@16.3.15");
 	});
 });
 
@@ -660,54 +681,41 @@ describe("update-cli npm rename contract", () => {
 		expect(resolveReleaseRename(undefined)).toBeUndefined();
 	});
 
-	it("prefers the zeta.rename pointer over the upstream omp.rename field", () => {
-		expect(
-			resolveReleaseRename({ zeta: { rename: { package: "@zeta/next", natives: "@zeta/natives-next" } } }),
-		).toEqual({ pkg: "@zeta/next", natives: "@zeta/natives-next" });
-		expect(
-			resolveReleaseRename({
-				zeta: { rename: { package: "@zeta/next" } },
-				omp: { rename: { package: "@new/omp", natives: "@new/natives" } },
-			}),
-		).toEqual({ pkg: "@zeta/next", natives: undefined });
-		expect(resolveReleaseRename({ zeta: {}, omp: { rename: { package: "@new/omp" } } })).toEqual({
-			pkg: "@new/omp",
-			natives: undefined,
-		});
-	});
-
 	it("installs renamed package names in lock-step, with no old-name leftovers in the argv", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
 
-		const bunArgs = buildBunInstallArgs("1.1.22", "linux-x64", packages);
-		expect(bunArgs).toContain("@new/omp@1.1.22");
-		expect(bunArgs).toContain("@new/natives@1.1.22");
-		expect(bunArgs).toContain("@new/natives-linux-x64@1.1.22");
-		expect(bunArgs.some(arg => arg.startsWith("@linxiraos/"))).toBe(false);
+		const bunArgs = buildBunInstallArgs("17.0.0", "linux-x64", packages);
+		expect(bunArgs).toContain("@new/omp@17.0.0");
+		expect(bunArgs).toContain("@new/natives@17.0.0");
+		expect(bunArgs).toContain("@new/natives-linux-x64@17.0.0");
+		expect(bunArgs.some(arg => arg.startsWith("@oh-my-pi/"))).toBe(false);
 
-		expect(buildNpmInstallArgs("1.1.22", "linux-x64", packages)).toContain("@new/omp@1.1.22");
+		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages)).toContain("@new/omp@17.0.0");
 	});
 
 	it("adds --force to npm argv only for rename migrations so the old package's bin can be clobbered", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
-		expect(buildNpmInstallArgs("1.1.22", "linux-x64", packages, { force: true })).toContain("--force");
+		expect(buildNpmInstallArgs("17.0.0", "linux-x64", packages, { force: true })).toContain("--force");
 		expect(buildNpmInstallArgs("16.3.15", "win32-x64")).not.toContain("--force");
 	});
 
 	it("removes the old agent package and its natives companions when both names moved", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
 		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual([
-			"@linxiraos/zeta",
-			"@linxiraos/pi-natives",
-			"@linxiraos/pi-natives-darwin-arm64",
+			"@oh-my-pi/pi-coding-agent",
+			"@oh-my-pi/pi-natives",
+			"@oh-my-pi/pi-natives-darwin-arm64",
 		]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual([
+			"@oh-my-pi/pi-coding-agent",
+			"@oh-my-pi/pi-natives",
+		]);
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {
-		const packages = { pkg: "@new/omp", natives: "@linxiraos/pi-natives" };
-		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@linxiraos/zeta"]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta"]);
+		const packages = { pkg: "@new/omp", natives: "@oh-my-pi/pi-natives" };
+		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@oh-my-pi/pi-coding-agent"]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@oh-my-pi/pi-coding-agent"]);
 	});
 });
 
@@ -786,16 +794,10 @@ describe("migrateRenamedInstall transaction", () => {
 	it("aborts with a recovery hint when verification still fails after the restore install", async () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: [0, 0], verify: [false, false] });
-		// Pin POSIX so the curl hint is asserted deterministically on every
-		// platform; the Windows variant is covered explicitly below.
-		const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
-		if (!platformDescriptor) throw new Error("process.platform descriptor missing");
-		Object.defineProperty(process, "platform", { ...platformDescriptor, value: "linux" });
-		try {
+
+		await withPlatformAsync("linux", async () => {
 			await expect(migrateRenamedInstall(release, steps)).rejects.toThrow("curl -fsSL https://omp.sh/install");
-		} finally {
-			Object.defineProperty(process, "platform", platformDescriptor);
-		}
+		});
 		expect(calls).toEqual(["install", "removeOld", "verify", "install", "verify"]);
 	});
 
@@ -824,28 +826,28 @@ describe("update-cli bun install command", () => {
 		//   - or bun's local manifest snapshot does the same when the user's bun
 		//     is already pointed at the official registry but its cache predates
 		//     the release.
-		// See upstream issue #1686.
+		// See https://github.com/can1357/oh-my-pi/issues/1686.
 		const args = buildBunInstallArgs("15.7.6", "linux-x64");
 		expect(args.slice(0, 5)).toEqual([
 			"install",
 			"-g",
 			"--no-cache",
 			"--registry=https://registry.npmjs.org/",
-			"@linxiraos/zeta@15.7.6",
+			"@oh-my-pi/pi-coding-agent@15.7.6",
 		]);
 	});
 
 	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on supported tags", () => {
 		// Regression: bun install -g <pkg>@<v> would update only the top-level
-		// package, leaving @linxiraos/pi-natives and @linxiraos/pi-natives-<tag>
+		// package, leaving @oh-my-pi/pi-natives and @oh-my-pi/pi-natives-<tag>
 		// at their previous version. The next launch then loaded a stale .node
 		// file and aborted at validateLoadedBindings with `The .node file on
-		// disk is from a different release than this loader`. See upstream
-		// issue #1824.
+		// disk is from a different release than this loader`. See
+		// https://github.com/can1357/oh-my-pi/issues/1824.
 		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64", "win32-arm64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
-			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
-			expect(args).toContain(`@linxiraos/pi-natives-${tag}@15.9.0`);
+			expect(args).toContain("@oh-my-pi/pi-natives@15.9.0");
+			expect(args).toContain(`@oh-my-pi/pi-natives-${tag}@15.9.0`);
 		}
 	});
 
@@ -856,8 +858,8 @@ describe("update-cli bun install command", () => {
 		// pipeline doesn't publish, otherwise bun aborts with EBADPLATFORM
 		// and hides the real diagnostic from `loadNative`'s aggregated error.
 		const args = buildBunInstallArgs("15.9.0", "linux-arm");
-		expect(args).toContain("@linxiraos/pi-natives@15.9.0");
-		expect(args.some(arg => arg.startsWith("@linxiraos/pi-natives-"))).toBe(false);
+		expect(args).toContain("@oh-my-pi/pi-natives@15.9.0");
+		expect(args.some(arg => arg.startsWith("@oh-my-pi/pi-natives-"))).toBe(false);
 	});
 
 	it("derives global node_modules from supported Bun locations with the explicit global directory taking precedence", () => {
@@ -883,25 +885,25 @@ describe("update-cli bun install command", () => {
 describe("update-cli bun cache pruning", () => {
 	it("keeps only the newest cached version for filtered global install packages", async () => {
 		const dir = await makeTempDir();
-		await Bun.write(path.join(dir, "react", "19.2.0@@@1"), "");
+		await Bun.write(path.join(dir, "react", "18.3.1@@@1"), "");
 		await Bun.write(path.join(dir, "react", "19.2.6@@@1"), "");
 		await Bun.write(
-			path.join(dir, "react@19.2.0@@@1", "package.json"),
-			JSON.stringify({ name: "react", version: "19.2.0" }),
+			path.join(dir, "react@18.3.1@@@1", "package.json"),
+			JSON.stringify({ name: "react", version: "18.3.1" }),
 		);
 		await Bun.write(
 			path.join(dir, "react@19.2.6@@@1", "package.json"),
 			JSON.stringify({ name: "react", version: "19.2.6" }),
 		);
-		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1"), "");
-		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1"), "");
+		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1"), "");
+		await Bun.write(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1"), "");
 		await Bun.write(
-			path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json"),
-			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.7.6" }),
+			path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json"),
+			JSON.stringify({ name: "@oh-my-pi/pi-utils", version: "15.7.6" }),
 		);
 		await Bun.write(
-			path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json"),
-			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.8.0" }),
+			path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json"),
+			JSON.stringify({ name: "@oh-my-pi/pi-utils", version: "15.8.0" }),
 		);
 		await Bun.write(path.join(dir, "chalk", "4.1.2@@@1"), "");
 		await Bun.write(path.join(dir, "chalk", "5.6.2@@@1"), "");
@@ -914,17 +916,17 @@ describe("update-cli bun cache pruning", () => {
 			JSON.stringify({ name: "chalk", version: "5.6.2" }),
 		);
 
-		const result = await pruneBunInstallCache(dir, new Set(["react", "@linxiraos/pi-utils"]));
+		const result = await pruneBunInstallCache(dir, new Set(["react", "@oh-my-pi/pi-utils"]));
 
 		expect(result).toEqual({ scannedPackages: 2, removedEntries: 4 });
-		expect(await Bun.file(path.join(dir, "react", "19.2.0@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "react@19.2.0@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "react", "18.3.1@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "react@18.3.1@@@1", "package.json")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react", "19.2.6@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "react@19.2.6@@@1", "package.json")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@oh-my-pi", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk", "4.1.2@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk@4.1.2@@@1", "package.json")).exists()).toBe(true);
 	});
@@ -992,9 +994,9 @@ describe("update-cli bun cache pruning", () => {
 });
 
 describe("update-cli release binary integrity", () => {
-	const tag = "v1.1.23";
-	const binaryName = "zeta-cli-linux-x64";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/${tag}/${binaryName}`;
+	const tag = "v17.1.2";
+	const binaryName = "omp-linux-x64";
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/${tag}/${binaryName}`;
 	const content = "verified binary";
 	const digest = `sha256:${Bun.SHA256.hash(content, "hex")}`;
 
@@ -1018,6 +1020,7 @@ describe("update-cli release binary integrity", () => {
 
 	it("selects an uploaded asset with a valid SHA-256 digest", () => {
 		expect(resolveReleaseBinaryAsset(releaseAsset(), tag, binaryName)).toEqual({
+			version: "17.1.2",
 			url,
 			size: Buffer.byteLength(content),
 			digest,
@@ -1063,7 +1066,7 @@ describe("update-cli release binary integrity", () => {
 		// rejected even then.
 		expect(
 			resolveReleaseBinaryAsset({ ...releaseAsset(), prerelease: true }, tag, binaryName, { allowPrerelease: true }),
-		).toEqual({ url, size: Buffer.byteLength(content), digest });
+		).toEqual({ version: "17.1.2", url, size: Buffer.byteLength(content), digest });
 		expect(() =>
 			resolveReleaseBinaryAsset({ ...releaseAsset(), draft: true }, tag, binaryName, { allowPrerelease: true }),
 		).toThrow("is a draft");
@@ -1082,7 +1085,8 @@ describe("update-cli release binary integrity", () => {
 		});
 
 		expect(await Bun.file(targetPath).text()).toBe(content);
-		expect((await fs.stat(targetPath)).mode & 0o777).toBe(0o755);
+		// Windows has no POSIX mode bits; the executable bit is only observable elsewhere.
+		if (process.platform !== "win32") expect((await fs.stat(targetPath)).mode & 0o777).toBe(0o755);
 	});
 
 	it("aborts the response stream as soon as it exceeds the expected size", async () => {
@@ -1169,8 +1173,8 @@ describe("update-cli release binary integrity", () => {
 	it("rejects an altered version-reporting executable before replacing the installed binary", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
-		const installed = "#!/bin/sh\necho zeta-c/1.1.22\n";
-		const altered = "#!/bin/sh\necho zeta-c/1.1.23\n";
+		const installed = "#!/bin/sh\necho omp/17.0.8\n";
+		const altered = "#!/bin/sh\necho omp/17.1.2\n";
 		const expectedDigest = `sha256:${Bun.SHA256.hash("x".repeat(Buffer.byteLength(altered)), "hex")}`;
 		await Bun.write(targetPath, installed);
 		await fs.chmod(targetPath, 0o755);
@@ -1197,14 +1201,14 @@ describe("update-cli release binary integrity", () => {
 		Bun.env.GITHUB_TOKEN = "test-token";
 		try {
 			await expect(
-				updateViaBinaryAt(targetPath, "1.1.23", {
+				updateViaBinaryAt(targetPath, "17.1.2", {
 					binaryName,
 					fetchImpl,
 				}),
 			).rejects.toThrow("digest mismatch");
 			expect(metadataAuthorizations).toEqual(["Bearer test-token"]);
 			expect(await Bun.file(targetPath).text()).toBe(installed);
-			expect((await fs.stat(targetPath)).mode & 0o777).toBe(0o755);
+			if (process.platform !== "win32") expect((await fs.stat(targetPath)).mode & 0o777).toBe(0o755);
 			const newResidue = (await fs.readdir(dir)).filter(name => name.endsWith(".new"));
 			expect(newResidue).toEqual([]);
 		} finally {
@@ -1219,7 +1223,7 @@ describe("update-cli release binary integrity", () => {
 		const fetchImpl = async () => new Response(null, { status: 403, statusText: "rate limit exceeded" });
 
 		await expect(
-			updateViaBinaryAt(targetPath, "1.1.23", {
+			updateViaBinaryAt(targetPath, "17.1.2", {
 				binaryName,
 				fetchImpl,
 				githubToken: "",
@@ -1227,12 +1231,101 @@ describe("update-cli release binary integrity", () => {
 		).rejects.toThrow("retry later or set GITHUB_TOKEN or GH_TOKEN");
 		expect(await Bun.file(targetPath).exists()).toBe(false);
 	});
+
+	function publishedRelease(version: string, body: string, overrides: Record<string, unknown> = {}) {
+		return {
+			tag_name: `v${version}`,
+			draft: false,
+			prerelease: false,
+			assets: [
+				{
+					name: binaryName,
+					state: "uploaded",
+					size: Buffer.byteLength(body),
+					digest: `sha256:${Bun.SHA256.hash(body, "hex")}`,
+					browser_download_url: `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`,
+				},
+			],
+			...overrides,
+		};
+	}
+
+	it("installs the newest published release when the advertised tag has none", async () => {
+		// npm `latest` can name a version GitHub never published: 18.2.9 reached
+		// the npm dist-tag while `v18.2.9` 404'd and `v18.2.10` was the newest
+		// published release (#12913). Drafts and stable-channel prereleases are
+		// not installable, so the scan walks past them.
+		const dir = await makeTempDir();
+		const targetPath = path.join(dir, binaryName);
+		const published = "published 999.9.8 binary";
+		const fetchImpl = async (input: string | URL | Request): Promise<Response> => {
+			const requestUrl = String(input);
+			if (requestUrl.endsWith("/releases/tags/v999.9.9")) {
+				return new Response(null, { status: 404, statusText: "Not Found" });
+			}
+			if (requestUrl.includes("/releases?")) {
+				return new Response(
+					JSON.stringify([
+						publishedRelease("999.9.10", "draft binary", { draft: true }),
+						publishedRelease("999.9.9-canary.1", "canary binary", { prerelease: true }),
+						publishedRelease("999.9.8", published),
+					]),
+				);
+			}
+			if (requestUrl.endsWith(`/download/v999.9.8/${binaryName}`)) return new Response(published);
+			throw new Error(`Unexpected request: ${requestUrl}`);
+		};
+		const verified: string[] = [];
+
+		await updateViaBinaryAt(targetPath, "999.9.9", {
+			binaryName,
+			fetchImpl,
+			githubToken: "test-token",
+			verifyInstalledVersion: async version => {
+				verified.push(version);
+				return { ok: true, path: targetPath };
+			},
+		});
+
+		expect(verified).toEqual(["999.9.8"]);
+		expect(await Bun.file(targetPath).text()).toBe(published);
+	});
+
+	it("names the missing tag and the npm mismatch when no published release can replace it", async () => {
+		const dir = await makeTempDir();
+		const targetPath = path.join(dir, binaryName);
+		const fetchImpl = async (input: string | URL | Request): Promise<Response> => {
+			const requestUrl = String(input);
+			if (requestUrl.includes("/releases/tags/")) {
+				return new Response(null, { status: 404, statusText: "Not Found" });
+			}
+			if (requestUrl.includes("/releases?")) {
+				// Older than the running version: installing it would be a downgrade.
+				return new Response(JSON.stringify([publishedRelease("17.1.2", content)]));
+			}
+			throw new Error(`Unexpected request: ${requestUrl}`);
+		};
+
+		await expect(
+			updateViaBinaryAt(targetPath, "999.9.9", { binaryName, fetchImpl, githubToken: "test-token" }),
+		).rejects.toThrow("npm advertises 999.9.9 but GitHub release v999.9.9 is not published");
+		expect(await Bun.file(targetPath).exists()).toBe(false);
+	});
+
+	it("falls back to a prerelease only for canary updates", () => {
+		const releases = [publishedRelease("999.9.9", content, { prerelease: true })];
+
+		expect(selectFallbackBinaryAsset(releases, binaryName, "999.0.0")).toBeUndefined();
+		expect(selectFallbackBinaryAsset(releases, binaryName, "999.0.0", { allowPrerelease: true })?.version).toBe(
+			"999.9.9",
+		);
+	});
 });
 
 describe("update-cli binary replacement", () => {
 	it("restores the previous binary when the replacement fails verification", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1246,7 +1339,7 @@ describe("update-cli binary replacement", () => {
 				expectedVersion: "15.1.8",
 				verifyInstalledVersion: async () => ({ ok: false, path: targetPath }),
 			}),
-		).rejects.toThrow("restored previous zeta-c binary");
+		).rejects.toThrow("restored previous omp binary");
 
 		expect(await Bun.file(targetPath).text()).toBe("old binary");
 		expect(await Bun.file(tempPath).exists()).toBe(false);
@@ -1255,7 +1348,7 @@ describe("update-cli binary replacement", () => {
 
 	it("keeps the replacement only after it reports the expected version", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1278,7 +1371,7 @@ describe("update-cli binary replacement", () => {
 		// is nothing to move aside, so the swap must still land instead of
 		// aborting on ENOENT and leaving the user without a launcher.
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(tempPath, "new binary");
@@ -1303,7 +1396,7 @@ describe("update-cli binary replacement on locked backups", () => {
 		// the running process image, so unlinking it throws EPERM. That cleanup
 		// failure must not turn a verified swap into "Update failed" (issue #845).
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta.exe");
+		const targetPath = path.join(dir, "omp.exe");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.1700000000000.4242.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1342,7 +1435,7 @@ describe("update-cli binary replacement on locked backups", () => {
 describe("update-cli stale update artifact sweep", () => {
 	it("reclaims timestamped and legacy backups and orphaned temps while sparing in-progress temps and unrelated files", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta.exe");
+		const targetPath = path.join(dir, "omp.exe");
 		await Bun.write(targetPath, "current binary");
 		await Bun.write(`${targetPath}.bak`, "legacy backup");
 		await Bun.write(`${targetPath}.1700000000000.4242.bak`, "timestamped backup");
@@ -1449,13 +1542,6 @@ describe("update-cli binary-only release gating", () => {
 		expect(resolveReleaseDist({ omp: { dist: "npm" } })).toBe("npm");
 	});
 
-	it("prefers the zeta.dist field over the upstream omp.dist field", () => {
-		expect(resolveReleaseDist({ zeta: { dist: "binary" } })).toBe("binary");
-		expect(resolveReleaseDist({ zeta: { dist: "npm" } })).toBe("npm");
-		expect(resolveReleaseDist({ zeta: { dist: "binary" }, omp: { dist: "npm" } })).toBe("binary");
-		expect(resolveReleaseDist({ zeta: {}, omp: { dist: "npm" } })).toBe("npm");
-	});
-
 	it("treats unknown dist values as binary-only", () => {
 		expect(resolveReleaseDist({ omp: { dist: "cargo" } })).toBe("binary");
 	});
@@ -1486,9 +1572,9 @@ describe("update-cli binary-only release gating", () => {
 });
 
 describe("update-cli script-shim takeover", () => {
-	const version = "1.1.23";
-	const binaryName = "zeta-cli-windows-x64.exe";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/v${version}/${binaryName}`;
+	const version = "18.0.0";
+	const binaryName = "omp-windows-x64.exe";
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
 
 	function makeFetch(content: string, prerelease = false): (input: string | URL | Request) => Promise<Response> {
 		const digest = `sha256:${Bun.SHA256.hash(content, "hex")}`;
@@ -1518,9 +1604,9 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		zeta: "#!/bin/sh\nnode omp.js\n",
-		"zeta.cmd": "@node omp.js %*\n",
-		"zeta.ps1": "node omp.js @args\n",
+		omp: "#!/bin/sh\nnode omp.js\n",
+		"omp.cmd": "@node omp.js %*\n",
+		"omp.ps1": "node omp.js @args\n",
 	};
 
 	async function writeShims(dir: string): Promise<void> {
@@ -1529,21 +1615,36 @@ describe("update-cli script-shim takeover", () => {
 		}
 	}
 
-	it("installs zeta.exe beside the shims and retires them", async () => {
+	/**
+	 * The fake release binaries are `#!/bin/sh` scripts, which Windows cannot
+	 * launch as `omp.exe`. There, "run" the explicit path the takeover verifies
+	 * by reading the version the script echoes; POSIX hosts execute it for real.
+	 */
+	const verifyBinary =
+		process.platform === "win32"
+			? async (binaryPath: string, expectedVersion: string): Promise<InstalledVersionVerification> => {
+					const script = await Bun.file(binaryPath).text();
+					const actual = parseReportedVersion(script.match(/^echo (.+)$/m)?.[1] ?? "");
+					return { ok: actual === expectedVersion, actual, path: binaryPath };
+				}
+			: undefined;
+
+	it("installs omp.exe beside the shims and retires them", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Real executable, no injected verifier: the takeover must verify the
 		// exe by explicit path — $which cached the shim path before it was
 		// renamed away, so a PATH re-resolution would fail here.
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 
-		await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe),
 			githubToken: "test-token",
+			verifyBinary,
 		});
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).exists()).toBe(false);
 		}
@@ -1554,41 +1655,43 @@ describe("update-cli script-shim takeover", () => {
 	it("installs a canary prerelease binary only when the caller opts in", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 
 		// A canary release is published as a prerelease: without opt-in the
 		// takeover refuses the asset and leaves the shims intact.
 		await expect(
-			updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe, true),
 				githubToken: "test-token",
+				verifyBinary,
 			}),
 		).rejects.toThrow("is a prerelease");
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
 
 		// allowPrerelease threads through to the asset resolver, so the canary
 		// exe installs and the shims are retired.
-		await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe, true),
 			allowPrerelease: true,
 			githubToken: "test-token",
+			verifyBinary,
 		});
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
 	});
 
 	it("drops bun's launcher metadata when the standalone binary takes the .exe over", async () => {
 		// After the takeover the launcher is no longer bun-managed. A leftover
-		// `zeta.bunx` would keep classifying the install as bun-managed and send
+		// `omp.bunx` would keep classifying the install as bun-managed and send
 		// the next update through `bun install -g`, which cannot overwrite the
 		// running `.exe` and would pin the install to the old version.
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta.exe");
-		const marker = path.join(dir, "zeta.bunx");
+		const targetPath = path.join(dir, "omp.exe");
+		const marker = path.join(dir, "omp.bunx");
 		await Bun.write(targetPath, "bun shim");
 		await Bun.write(marker, "bun launcher metadata");
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 
 		await updateViaBinaryAt(targetPath, version, {
 			binaryName,
@@ -1604,7 +1707,7 @@ describe("update-cli script-shim takeover", () => {
 	it.skipIf(process.platform === "win32")("reports the physical binary path verified after an update", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, "omp");
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 		await Bun.write(targetPath, "old binary");
 		const logSpy = spyOn(console, "log").mockImplementation(() => {});
 
@@ -1625,17 +1728,18 @@ describe("update-cli script-shim takeover", () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Executable runs but reports the previous version -> full rollback.
-		const exe = "#!/bin/sh\necho zeta-c/1.1.22\n";
+		const exe = "#!/bin/sh\necho omp/17.2.12\n";
 
 		await expect(
-			updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
+				verifyBinary,
 			}),
-		).rejects.toThrow(/still reports 1\.1\.22 \(expected 1.1.23\); restored previous zeta launcher/);
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous omp launcher/);
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1646,7 +1750,7 @@ describe("update-cli script-shim takeover", () => {
 	function renameLockingPs1(): Mock<typeof nodeFs.promises.rename> {
 		const realRename = nodeFs.promises.rename;
 		return spyOn(nodeFs.promises, "rename").mockImplementation(async (from, to) => {
-			if (path.basename(String(from)) === "zeta.ps1") {
+			if (path.basename(String(from)) === "omp.ps1") {
 				throw Object.assign(new Error("EPERM: file is locked"), { code: "EPERM" });
 			}
 			return await realRename(from, to);
@@ -1656,44 +1760,46 @@ describe("update-cli script-shim takeover", () => {
 	it("rewrites an immovable precedence-winning shim as a forwarder to the exe", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho omp/${version}\n`;
 		const renameSpy = renameLockingPs1();
 		try {
-			await updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+			await updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
+				verifyBinary,
 			});
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).text()).toBe(exe);
-		expect(await Bun.file(path.join(dir, "zeta")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "zeta.cmd")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "omp")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "zeta.ps1")).text()).toContain('& "$PSScriptRoot\\zeta.exe" @args');
+		expect(await Bun.file(path.join(dir, "omp.ps1")).text()).toContain('& "$PSScriptRoot\\omp.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = "#!/bin/sh\necho zeta-c/1.1.22\n";
+		const exe = "#!/bin/sh\necho omp/17.2.12\n";
 		const renameSpy = renameLockingPs1();
 		try {
 			await expect(
-				updateViaShimTakeover(path.join(dir, "zeta.cmd"), version, {
+				updateViaShimTakeover(path.join(dir, "omp.cmd"), version, {
 					binaryName,
 					fetchImpl: makeFetch(exe),
 					githubToken: "test-token",
+					verifyBinary,
 				}),
-			).rejects.toThrow("restored previous zeta launcher");
+			).rejects.toThrow("restored previous omp launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "omp.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1702,8 +1808,8 @@ describe("update-cli script-shim takeover", () => {
 
 describe("update-cli concurrent binary updates", () => {
 	const version = "999.0.0";
-	const binaryName = "zeta-cli-linux-x64";
-	const url = `https://github.com/Linxira-OS/linxira-zeta/releases/download/v${version}/${binaryName}`;
+	const binaryName = "omp-linux-x64";
+	const url = `https://github.com/can1357/oh-my-pi/releases/download/v${version}/${binaryName}`;
 	const payload = Buffer.alloc(2048, 0x41);
 	const digest = `sha256:${Bun.SHA256.hash(payload, "hex")}`;
 
@@ -1731,7 +1837,7 @@ describe("update-cli concurrent binary updates", () => {
 		setThemeInstance(loadedTheme);
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta");
+		const targetPath = path.join(dir, "omp");
 		await Bun.write(targetPath, "old binary");
 		return { dir, targetPath };
 	}
@@ -1822,12 +1928,12 @@ describe("update-cli concurrent binary updates", () => {
 
 describe("update-cli manager update recovery", () => {
 	const release: ReleaseInfo = {
-		tag: "v1.1.23",
-		version: "1.1.23",
-		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
+		tag: "v18.0.1",
+		version: "18.0.1",
+		packages: { pkg: "@oh-my-pi/pi-coding-agent", natives: "@oh-my-pi/pi-natives" },
 		registry: "https://registry.npmjs.org/",
 	};
-	const launcherPath = "C:/Users/test/AppData/Roaming/npm/zeta.cmd";
+	const launcherPath = "C:/Users/test/AppData/Roaming/npm/omp.cmd";
 
 	function scriptedSteps(script: {
 		install: InstalledVersionVerification | Error | undefined;
@@ -1881,7 +1987,7 @@ describe("update-cli manager update recovery", () => {
 
 	it("takes the launcher over when the manager succeeds but the previous version remains", async () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
-		const { steps, calls } = scriptedSteps({ install: { ok: false, path: launcherPath, actual: "1.1.22" } });
+		const { steps, calls } = scriptedSteps({ install: { ok: false, path: launcherPath, actual: "17.4.2" } });
 
 		await updateViaManager(release, launcherPath, steps);
 
@@ -1890,7 +1996,7 @@ describe("update-cli manager update recovery", () => {
 
 	it("leaves a concurrently installed newer launcher untouched", async () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
-		const { steps, calls } = scriptedSteps({ install: { ok: false, path: launcherPath, actual: "1.1.24" } });
+		const { steps, calls } = scriptedSteps({ install: { ok: false, path: launcherPath, actual: "18.0.2" } });
 
 		await updateViaManager(release, launcherPath, steps);
 
@@ -1901,7 +2007,7 @@ describe("update-cli manager update recovery", () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({
 			install: new Error("npm install failed with exit code 1"),
-			verify: { ok: false, path: launcherPath, actual: "1.1.22" },
+			verify: { ok: false, path: launcherPath, actual: "17.4.2" },
 		});
 
 		await expect(updateViaManager(release, launcherPath, steps)).rejects.toThrow("exit code 1");

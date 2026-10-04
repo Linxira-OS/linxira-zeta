@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { TaskTool } from "@linxiraos/zeta/task";
-import * as discoveryModule from "@linxiraos/zeta/task/discovery";
-import * as executorModule from "@linxiraos/zeta/task/executor";
-import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import type { SingleResult, TaskParams } from "@linxiraos/pi-tui/tools/task";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
+import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
+import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
+import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
+import type { SingleResult, TaskParams } from "@oh-my-pi/pi-tui/tools/task";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 
 const taskAgent: AgentDefinition = {
 	name: "task",
@@ -170,7 +170,7 @@ describe("task async preflight", () => {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-unknown-agent-"));
 		try {
 			const projectDir = path.join(home, "project");
-			await fs.mkdir(path.join(projectDir, ".zeta", "agents"), { recursive: true });
+			await fs.mkdir(path.join(projectDir, ".omp", "agents"), { recursive: true });
 			vi.spyOn(os, "homedir").mockReturnValue(home);
 			const tool = await TaskTool.create(createSession({ manager: manager(), cwd: projectDir }));
 
@@ -181,10 +181,44 @@ describe("task async preflight", () => {
 			} as TaskParams);
 
 			const text = textOf(result);
-			expect(text).toContain(`Searched: ${path.join("~", "project", ".zeta", "agents")}`);
+			// shortenPath renders home paths as portable `~/…` on every platform.
+			expect(text).toContain("Searched: ~/project/.omp/agents");
 			expect(text).not.toContain(home);
 		} finally {
 			await fs.rm(home, { recursive: true, force: true });
 		}
+	});
+
+	it("routes a per-call model on a task item into the spawn", async () => {
+		mockDiscovery();
+		const runSubprocess = vi.spyOn(executorModule, "runSubprocess").mockResolvedValue(resultFor("Router"));
+		const jobs = manager();
+		const tool = await TaskTool.create(
+			createSession({ manager: jobs, settings: { "async.enabled": false, "task.batch": true } }),
+		);
+
+		await tool.execute("per-call-model", {
+			context: "Shared context.",
+			tasks: [{ name: "Router", agent: "task", task: "Do the work.", model: "p/requested:high" }],
+		} as TaskParams);
+
+		expect(runSubprocess.mock.calls[0]?.[0]?.modelOverride).toEqual(["p/requested:high"]);
+	});
+
+	it("rejects an ambiguous per-call model before dispatching the item", async () => {
+		mockDiscovery();
+		const runSubprocess = vi.spyOn(executorModule, "runSubprocess").mockResolvedValue(resultFor("unexpected"));
+		const jobs = manager();
+		const tool = await TaskTool.create(
+			createSession({ manager: jobs, settings: { "async.enabled": false, "task.batch": true } }),
+		);
+
+		const result = await tool.execute("ambiguous-model", {
+			context: "Shared context.",
+			tasks: [{ name: "Ambiguous", agent: "task", task: "Do the work.", model: "default" }],
+		} as TaskParams);
+
+		expect(textOf(result)).toContain('"@default"');
+		expect(runSubprocess).not.toHaveBeenCalled();
 	});
 });

@@ -1,4 +1,4 @@
-// [suppressed] legacy virtual module declarations.
+// oxlint-disable-next-line typescript/triple-slash-reference -- legacy virtual module declarations.
 /// <reference path="./legacy-pi-virtual-modules.d.ts" />
 
 import { Database } from "bun:sqlite";
@@ -6,6 +6,8 @@ import * as fs from "node:fs";
 import { createRequire, isBuiltin } from "node:module";
 import * as path from "node:path";
 import * as url from "node:url";
+import type { ParseResult, ParserPlugin } from "@babel/parser";
+import { parse as parseBabel } from "@babel/parser";
 import {
 	getDbBusyTimeoutMs,
 	getLegacyPiExtensionCacheDbPath,
@@ -13,9 +15,8 @@ import {
 	isRecord,
 	logger,
 	stripWindowsExtendedLengthPathPrefix,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import { registerPluginCacheInvalidator } from "../../discovery/helpers";
-import { type ParseResult, type ParserPlugin, parse as parseBabel } from "@babel/parser";
 
 const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUNDLED);
 
@@ -28,15 +29,15 @@ const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUND
 // imports inside runtime-loaded extensions.
 //
 // Compiled binaries and npm bundles retain lazy loaders for host packages and
-// serve requested surfaces through `zeta-legacy-pi-bundled:<key>` synthetic modules.
+// serve requested surfaces through `omp-legacy-pi-bundled:<key>` synthetic modules.
 // `scripts/legacy-pi-virtual-module.ts` derives literal dynamic-import edges
 // from current package exports inside a Bun build plugin: no generated source
 // or duplicate key list exists on disk. Deferring each host module evaluation
 // avoids cycles with an extension-loading command that is itself in the
 // retained package graph.
-const BUNDLED_VIRTUAL_SCHEME = "zeta-legacy-pi-bundled:";
-const BUNDLED_VIRTUAL_NAMESPACE = "zeta-legacy-pi-bundled";
-const BUNDLED_HOST_NAMESPACE = "zeta-legacy-pi-host";
+const BUNDLED_VIRTUAL_SCHEME = "omp-legacy-pi-bundled:";
+const BUNDLED_VIRTUAL_NAMESPACE = "omp-legacy-pi-bundled";
+const BUNDLED_HOST_NAMESPACE = "omp-legacy-pi-host";
 const BUNDLED_HOST_SCHEME = `${BUNDLED_HOST_NAMESPACE}:`;
 const TYPEBOX_BUNDLED_MODULE_KEY = "typebox";
 
@@ -568,9 +569,9 @@ function getExtensionParseCacheDb(): Database | null {
 		try {
 			if (fs.statSync(cachePath).size > EXTENSION_PARSE_CACHE_MAX_BYTES) {
 				// Remove the full WAL set, not just the main db. A leftover
-				// `-wal`/`-shm` pair still owned by a concurrent zeta process is
+				// `-wal`/`-shm` pair still owned by a concurrent omp process is
 				// adopted by this fresh connection; when that `-wal` has
-				// uncheckpointed frames (the normal case while another zeta is
+				// uncheckpointed frames (the normal case while another omp is
 				// writing its own cache entries), `journal_mode=WAL` fails with
 				// SQLITE_IOERR — disabling the parse cache for the whole process
 				// and forcing a reparse of every extension on startup. See #9549.
@@ -587,7 +588,7 @@ function getExtensionParseCacheDb(): Database | null {
 		// `PRAGMA journal_mode=WAL`, which takes an exclusive lock during WAL
 		// recovery). See #2421. WAL + synchronous=NORMAL avoids the per-entry
 		// journal create/delete + fsync churn that serialized this cache behind
-		// concurrent zeta startups and blocked the event loop for ~20s (#9549).
+		// concurrent omp startups and blocked the event loop for ~20s (#9549).
 		db.run(`PRAGMA busy_timeout = ${getDbBusyTimeoutMs()}`);
 		db.run("PRAGMA journal_mode=WAL");
 		db.run("PRAGMA synchronous=NORMAL");
@@ -619,6 +620,17 @@ function getExtensionParseCacheDb(): Database | null {
  */
 export function __isExtensionParseCacheAvailableForTests(): boolean {
 	return getExtensionParseCacheDb() !== null;
+}
+
+/**
+ * Test seam: close the process-wide extension parse cache connection so the
+ * next analysis reopens it at the then-current cache path. Tests that
+ * relocate the home/cache root must call this before deleting that root:
+ * Windows refuses to remove a directory holding an open SQLite db/WAL set.
+ */
+export function __closeExtensionParseCacheForTests(): void {
+	extensionParseCacheDb?.close();
+	extensionParseCacheDb = undefined;
 }
 
 function parseCachedAnalysis(row: ExtensionParseCacheRow): ExtensionSourceAnalysis | null {
@@ -735,11 +747,11 @@ let bundledModuleLoadersPromise: Promise<BundledModuleLoaders> | null = null;
 /** Load the build-supplied registry without evaluating unrelated host modules. */
 function ensureBundledModuleLoadersLoaded(): Promise<BundledModuleLoaders> {
 	if (!USE_BUNDLED_PI_MODULES) {
-		return Promise.reject(new Error("zeta:legacy-pi-shim: bundled modules are only available in bundled mode"));
+		return Promise.reject(new Error("omp:legacy-pi-shim: bundled modules are only available in bundled mode"));
 	}
 	if (!bundledModuleLoadersPromise) {
 		// This virtual module exists only in compiled/npm builds; source mode cannot import it statically.
-		bundledModuleLoadersPromise = import("zeta-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
+		bundledModuleLoadersPromise = import("omp-legacy-pi-modules").then(module => module.BUNDLED_PI_MODULE_LOADERS);
 	}
 	return bundledModuleLoadersPromise;
 }
@@ -750,7 +762,7 @@ async function loadBundledModule(moduleKey: string): Promise<BundledModule> {
 	const loaders = await ensureBundledModuleLoadersLoaded();
 	const loader = loaders[moduleKey];
 	if (!loader) {
-		throw new Error(`zeta:legacy-pi-shim: no bundled module registered for ${moduleKey}`);
+		throw new Error(`omp:legacy-pi-shim: no bundled module registered for ${moduleKey}`);
 	}
 	const module = await loader();
 	loadedBundledModules[moduleKey] = module;
@@ -781,7 +793,7 @@ function resolveBundledVirtualSpecifier(
 	const scheme = `${namespace}:`;
 	const registryKey = specifier.startsWith(scheme) ? specifier.slice(scheme.length) : specifier;
 	if (!registryKey) {
-		throw new Error("zeta:legacy-pi-shim: bundled virtual specifier has no registry key");
+		throw new Error("omp:legacy-pi-shim: bundled virtual specifier has no registry key");
 	}
 	return { path: registryKey, namespace };
 }
@@ -789,27 +801,24 @@ function resolveBundledVirtualSpecifier(
 // Canonical scope for in-process pi packages. Plugins published against any of
 // the aliased scopes below (mariozechner's original publish, earendil-works'
 // fork, or the canonical @oh-my-pi scope itself) are remapped to this scope and
-// resolved against the bundled copy that ships inside the zeta binary. This
+// resolved against the bundled copy that ships inside the omp binary. This
 // keeps plugins running against the exact runtime state of the host (single
 // module registry, single tool registry, etc.) regardless of which historical
 // scope name they happened to declare in their peerDependencies.
-const CANONICAL_PI_SCOPE = "@linxiraos";
+const CANONICAL_PI_SCOPE = "@oh-my-pi";
 
 // Scopes that have historically been used to publish (or alias) internal host
 // packages. `@oh-my-pi` is intentionally included so direct
 // canonical imports still pass through the same host-bundled package resolution
 // path instead of pulling a duplicate copy from plugin node_modules.
-const PI_SCOPE_ALIASES = ["linxiraos", "zeta", "oh-my-pi", "mariozechner", "earendil-works"] as const;
+const PI_SCOPE_ALIASES = ["oh-my-pi", "mariozechner", "earendil-works"] as const;
 
-// Internal host package basenames bundled inside the zeta binary. The legacy
-// `pi-coding-agent` basename stays listed: plugins still declare it under the
-// alias scopes, and `remapLegacyPiSpecifier` renames it onto `zeta` below.
+// Internal host package basenames bundled inside the omp binary.
 const PI_PACKAGE_NAMES = [
 	"pi-agent-core",
 	"pi-ai",
 	"pi-catalog",
 	"pi-coding-agent",
-	"zeta",
 	"pi-natives",
 	"pi-tui",
 	"pi-utils",
@@ -884,7 +893,7 @@ const PACKAGE_IMPORT_EXCLUDED = Symbol("packageImportExcluded");
 const TYPEBOX_SPECIFIER_FILTER = /^(?:@sinclair\/typebox|typebox)$/;
 
 // Compat-shim path resolution. In compiled-binary mode every bundled surface
-// is served through the `zeta-legacy-pi-bundled:` virtual namespace (see the
+// is served through the `omp-legacy-pi-bundled:` virtual namespace (see the
 // bundled-module block above) — bunfs paths are unreachable on Bun 1.3.14+, so the
 // pre-#3423 helpers that derived `/$bunfs/root/...` paths from
 // `import.meta.dir` are gone. Dev / source-link / installed-package modes
@@ -897,7 +906,7 @@ const TYPEBOX_SPECIFIER_FILTER = /^(?:@sinclair\/typebox|typebox)$/;
  *
  * `bundle-dist.ts` defines `process.env.PI_BUNDLED="true"`; after bundling,
  * `import.meta.dir` points at `<package>/dist`. Do not resolve the package via
- * bare `@linxiraos/zeta` here: from a global install Bun can pick an
+ * bare `@oh-my-pi/pi-coding-agent` here: from a global install Bun can pick an
  * older cache entry, recreating mixed-runtime plugin loading.
  */
 export function __computeBundledSelfPackageRoot(metaDir: string, pathImpl: typeof path = path): string {
@@ -933,7 +942,7 @@ function sourceShimPath(file: string): string {
  * entrypoint is missing.
  *
  * In compiled binaries and npm bundles the surface is served through the
- * `zeta-legacy-pi-bundled:` virtual namespace (issue #3423). Dev and source SDK
+ * `omp-legacy-pi-bundled:` virtual namespace (issue #3423). Dev and source SDK
  * imports use the shipped source module.
  *
  * Exported for tests; production callers use `TYPEBOX_SHIM_PATH`.
@@ -957,7 +966,7 @@ const TYPEBOX_SHIM_PATH = __resolveTypeBoxShimPath(USE_BUNDLED_PI_MODULES, sourc
 // longer satisfies those imports. The override below redirects only the bare
 // pi-ai package root onto a sibling shim that re-exports the canonical surface
 // plus the borrowed `Type` runtime from the omptype TypeBox facade. Subpath
-// imports such as `@linxiraos/pi-ai/oauth` continue to resolve directly
+// imports such as `@oh-my-pi/pi-ai/oauth` continue to resolve directly
 // against the bundled pi-ai package.
 const LEGACY_PI_AI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-ai`)
@@ -966,12 +975,12 @@ const LEGACY_PI_AI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 // The coding-agent's own `./src/index.ts` cannot be listed as an extra
 // `bun --compile` entrypoint alongside the CLI entry without breaking binary
 // startup (issue #1474 follow-up). In compiled binaries and npm bundles the
-// legacy `@(scope)/zeta` root therefore resolves through the bundled
+// legacy `@(scope)/pi-coding-agent` root therefore resolves through the bundled
 // module shim; in dev / source-link / source SDK mode it points at the sibling
 // source shim whose distinct file path avoids the #1474 collision
 // while still re-exporting the canonical package surface.
 const LEGACY_PI_CODING_AGENT_SHIM_PATH = USE_BUNDLED_PI_MODULES
-	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/zeta`)
+	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-coding-agent`)
 	: sourceShimPath("legacy-pi-coding-agent-shim.ts");
 
 // Legacy pi-tui exported `decodeKittyPrintable` from its package root. The
@@ -981,23 +990,23 @@ const LEGACY_PI_TUI_SHIM_PATH = USE_BUNDLED_PI_MODULES
 	? bundledModuleVirtualSpecifier(`${CANONICAL_PI_SCOPE}/pi-tui`)
 	: sourceShimPath("legacy-pi-tui-shim.ts");
 
-// Package-root overrides. Shim entries (`pi-ai`, `zeta`, `pi-tui`)
+// Package-root overrides. Shim entries (`pi-ai`, `pi-coding-agent`, `pi-tui`)
 // always replace the canonical surface so legacy helpers stay reachable. The
 // other bundled host packages (`pi-agent-core`, `pi-natives`, `pi-utils`) are
 // added in compiled binaries and npm bundles to route extensions onto the
 // in-process module instance — in dev / source-link / source SDK mode the
 // canonical specifier resolves cleanly through `Bun.resolveSync`; hardcoding a
 // source-tree path would miss installs where bundled packages live at
-// `node_modules/@linxiraos/pi-*`.
+// `node_modules/@oh-my-pi/pi-*`.
 //
-// Bundled entries are `zeta-legacy-pi-bundled:<key>` specifiers handed to the
+// Bundled entries are `omp-legacy-pi-bundled:<key>` specifiers handed to the
 // synthetic onLoad in `installLegacyPiSpecifierShim()`. Filesystem-shaped
 // overrides are still validated against on-disk presence so a missing dev-mode
 // shim falls through to `getResolvedSpecifier`.
 
 /**
  * Drop overrides whose filesystem targets are missing so they can fall
- * through to the canonical-resolution path. Virtual `zeta-legacy-pi-bundled:`
+ * through to the canonical-resolution path. Virtual `omp-legacy-pi-bundled:`
  * entries always pass because live bundled module references are the source of
  * truth.
  *
@@ -1020,7 +1029,7 @@ export function __validateLegacyPiPackageRootOverrides(
 
 /**
  * Compute the override map keyed by every canonical specifier the host serves
- * directly: the pi-ai / zeta roots (compat shims that re-attach
+ * directly: the pi-ai / pi-coding-agent roots (compat shims that re-attach
  * legacy helpers) plus, in bundled mode, every build-supplied module key.
  * Subpath coverage stops `@(scope)/pi-ai/oauth` and friends from falling
  * through to the extension's absent peer install.
@@ -1031,7 +1040,7 @@ export function __buildLegacyPiPackageRootOverrides(
 ): Record<string, string> {
 	const candidates: Record<string, string> = {
 		[`${CANONICAL_PI_SCOPE}/pi-ai`]: LEGACY_PI_AI_SHIM_PATH,
-		[`${CANONICAL_PI_SCOPE}/zeta`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
+		[`${CANONICAL_PI_SCOPE}/pi-coding-agent`]: LEGACY_PI_CODING_AGENT_SHIM_PATH,
 		[`${CANONICAL_PI_SCOPE}/pi-tui`]: LEGACY_PI_TUI_SHIM_PATH,
 	};
 	if (useBundledModules) {
@@ -1074,12 +1083,7 @@ function remapLegacyPiSpecifier(specifier: string): string | null {
 	if (slashIdx === -1) {
 		return null;
 	}
-	let rest = specifier.slice(slashIdx + 1);
-	// `pi-coding-agent` ↦ `zeta`: the renamed host package keeps the legacy
-	// basename only as a historical alias plugins may still declare.
-	if (rest === "pi-coding-agent" || rest.startsWith("pi-coding-agent/")) {
-		rest = `zeta${rest.slice("pi-coding-agent".length)}`;
-	}
+	const rest = specifier.slice(slashIdx + 1);
 	const remappedSubpath = remapLegacyPiSubpath(rest);
 	return `${CANONICAL_PI_SCOPE}/${remappedSubpath}`;
 }
@@ -1096,7 +1100,7 @@ function getResolvedSpecifier(specifier: string): string {
 }
 
 /**
- * Resolve a canonical `@linxiraos/*` specifier to a filesystem path, preferring
+ * Resolve a canonical `@oh-my-pi/*` specifier to a filesystem path, preferring
  * a bundled compat shim when one is registered for the package root.
  *
  * Falls back to `getResolvedSpecifier` (which may throw under compiled binary
@@ -1112,7 +1116,7 @@ function resolveCanonicalPiSpecifier(remappedSpecifier: string): string {
 }
 
 function toImportSpecifier(resolvedPath: string): string {
-	// Virtual `zeta-legacy-pi-bundled:` specifiers are served by the synthetic
+	// Virtual `omp-legacy-pi-bundled:` specifiers are served by the synthetic
 	// onLoad in `installLegacyPiSpecifierShim()`; wrapping them as `file://`
 	// would corrupt the scheme.
 	if (isBundledVirtualSpecifier(resolvedPath)) {
@@ -1122,7 +1126,7 @@ function toImportSpecifier(resolvedPath: string): string {
 }
 
 /**
- * Rewrite the extension-owned specifiers ZETA must host-resolve — legacy
+ * Rewrite the extension-owned specifiers OMP must host-resolve — legacy
  * `@(scope)/pi-*`, bare TypeBox packages, package `imports` aliases like
  * `#src/*`, and extension-local bare dependencies — to absolute `file://` URLs
  * or compiled-mode virtual specifiers. Relative siblings and built-in modules
@@ -1201,26 +1205,22 @@ export async function __rewriteLegacyExtensionSourceForTests(
 }
 
 /**
- * Build the import specifier for a graph-resolved absolute path. POSIX
- * emits a bare filesystem path with an optional `?mtime=<tag>` (Bun keys
- * query strings for bare-path specifiers), so same-process extension
- * reloads pick up edits to package-alias (`#foo/*`) and extension-local
- * bare deps. Windows and bundled virtual specifiers keep the current
- * `file://` / virtual form — Bun ignores queries on `file://` URLs, so
- * cache-bust does not reach Windows extensions until Bun changes that.
+ * Build the import specifier for a graph-resolved absolute path. Emits a bare
+ * filesystem path with an optional `?mtime=<tag>` (Bun keys query strings for
+ * bare-path specifiers on POSIX and Windows alike), so same-process extension
+ * reloads pick up edits to package-alias (`#foo/*`) and extension-local bare
+ * deps. Untagged paths keep the `file://` form; bundled virtual specifiers
+ * pass through unchanged. Bun ignores queries on `file://` URLs, so a tagged
+ * specifier must never use that form.
  */
 function toGraphImportSpecifier(resolvedPath: string, mtimeTag: string | null): string {
 	if (isBundledVirtualSpecifier(resolvedPath)) {
 		return resolvedPath;
 	}
-	// Plain slash paths (not `file://`) keep the `?mtime` query alive on
-	// Windows: Bun drops query strings from `file://` specifiers, which would
-	// pin every reload to the first load's cached module. Without a tag the
-	// stable file URL is fine — the module identity never changes.
 	if (!mtimeTag) {
 		return url.pathToFileURL(stripWindowsExtendedLengthPathPrefix(resolvedPath)).href;
 	}
-	return `${stripWindowsExtendedLengthPathPrefix(resolvedPath).replaceAll("\\", "/")}?mtime=${mtimeTag}`;
+	return `${stripWindowsExtendedLengthPathPrefix(resolvedPath)}?mtime=${mtimeTag}`;
 }
 
 async function pathExists(p: string): Promise<boolean> {
@@ -1312,25 +1312,31 @@ async function resolvePackageFileTarget(packageRoot: string, targetPath: string)
 }
 
 async function findPackageRoot(importerPath: string): Promise<string | null> {
+	// Every directory walked through shares the answer, so cache them all:
+	// sibling files deep inside one package then resolve with a single lookup.
+	const visited: string[] = [];
 	let dir = path.dirname(importerPath);
+	let root: string | null;
 	while (true) {
 		const cached = packageRootCache.get(dir);
 		if (cached !== undefined) {
-			return cached;
+			root = cached;
+			break;
 		}
-
+		visited.push(dir);
 		if (await pathExists(path.join(dir, "package.json"))) {
-			packageRootCache.set(path.dirname(importerPath), dir);
-			return dir;
+			root = dir;
+			break;
 		}
-
 		const parent = path.dirname(dir);
 		if (parent === dir) {
-			packageRootCache.set(path.dirname(importerPath), null);
-			return null;
+			root = null;
+			break;
 		}
 		dir = parent;
 	}
+	for (const visitedDir of visited) packageRootCache.set(visitedDir, root);
+	return root;
 }
 
 async function readPackageImports(packageRoot: string): Promise<Record<string, unknown> | null> {
@@ -1590,7 +1596,48 @@ async function readPackageManifestUncached(packageRoot: string): Promise<Record<
 
 type ExtensionModuleKind = "commonjs" | "esm";
 
+/**
+ * Per-walk memo of source text, analysis, and relative `require()` resolution.
+ * Every edge into a module asks for its CommonJS verdict, and every extensionless
+ * `require("./x")` probes up to nine paths; without this each edge repeated the
+ * reads, hashes, and stats. Scoped to a single walk so reloads still see edits.
+ */
+class ExtensionGraphSources {
+	readonly #sources = new Map<string, Promise<string>>();
+	readonly #analyses = new Map<string, Promise<ExtensionSourceAnalysis>>();
+	readonly #relativeRequires = new Map<string, Promise<string | null>>();
+
+	resolveRelativeRequire(specifier: string, importerPath: string): Promise<string | null> {
+		const key = path.resolve(path.dirname(importerPath), specifier);
+		let resolved = this.#relativeRequires.get(key);
+		if (!resolved) {
+			resolved = resolveRelativeCommonJsRequire(specifier, importerPath);
+			this.#relativeRequires.set(key, resolved);
+		}
+		return resolved;
+	}
+
+	read(modulePath: string): Promise<string> {
+		let source = this.#sources.get(modulePath);
+		if (!source) {
+			source = Bun.file(modulePath).text();
+			this.#sources.set(modulePath, source);
+		}
+		return source;
+	}
+
+	analyze(modulePath: string): Promise<ExtensionSourceAnalysis> {
+		let analysis = this.#analyses.get(modulePath);
+		if (!analysis) {
+			analysis = this.read(modulePath).then(source => getExtensionSourceAnalysis(source, modulePath));
+			this.#analyses.set(modulePath, analysis);
+		}
+		return analysis;
+	}
+}
+
 async function isCommonJsModulePath(
+	sources: ExtensionGraphSources,
 	modulePath: string,
 	sourceType?: "script" | "module",
 	inheritedKind?: ExtensionModuleKind,
@@ -1616,7 +1663,7 @@ async function isCommonJsModulePath(
 	if (sourceType === "module") {
 		return false;
 	}
-	const analysis = getExtensionSourceAnalysis(await Bun.file(modulePath).text(), modulePath);
+	const analysis = await sources.analyze(modulePath);
 	if ((sourceType ?? analysis.sourceType) === "module") {
 		return false;
 	}
@@ -1634,6 +1681,7 @@ async function isCommonJsModulePath(
 }
 
 async function isGraphOwnedCommonJsModule(
+	sources: ExtensionGraphSources,
 	modulePath: string,
 	entryRealPath: string,
 	sourceType?: "script" | "module",
@@ -1643,7 +1691,7 @@ async function isGraphOwnedCommonJsModule(
 	if (modulePath === entryRealPath && extension !== ".cjs" && extension !== ".cts") {
 		return false;
 	}
-	return isCommonJsModulePath(modulePath, sourceType, inheritedKind);
+	return isCommonJsModulePath(sources, modulePath, sourceType, inheritedKind);
 }
 
 async function resolveNodePackageExport(
@@ -1878,9 +1926,15 @@ async function resolveExtensionBareRequire(specifier: string, importerPath: stri
 	return resolution;
 }
 
-async function resolveExtensionCommonJsRequire(specifier: string, importerPath: string): Promise<string | null> {
+async function resolveExtensionCommonJsRequire(
+	specifier: string,
+	importerPath: string,
+	sources?: ExtensionGraphSources,
+): Promise<string | null> {
 	if (specifier.startsWith(".")) {
-		return resolveRelativeCommonJsRequire(specifier, importerPath);
+		return sources
+			? sources.resolveRelativeRequire(specifier, importerPath)
+			: resolveRelativeCommonJsRequire(specifier, importerPath);
 	}
 	const remappedSpecifier = remapLegacyPiSpecifier(specifier);
 	if (remappedSpecifier) {
@@ -1919,14 +1973,18 @@ async function collectExtensionSpecifierReplacements(
 	source: string,
 	importerPath: string,
 	rewriteImports = false,
+	/** The walk that read `source` for `importerPath`; its analysis memo is keyed by path. */
+	sources?: ExtensionGraphSources,
 ): Promise<Array<ExtensionSpecifierReference & { replacement: string }>> {
-	const references = getExtensionSourceAnalysis(source, importerPath).references;
+	const { references } = sources
+		? await sources.analyze(importerPath)
+		: getExtensionSourceAnalysis(source, importerPath);
 	const resolvedSpecifierTargets = new Map<string, string>();
 	const replacements: Array<ExtensionSpecifierReference & { replacement: string }> = [];
 	for (const reference of references) {
 		let resolved: string | null = null;
 		if (reference.kind === "require") {
-			resolved = await resolveExtensionCommonJsRequire(reference.specifier, importerPath);
+			resolved = await resolveExtensionCommonJsRequire(reference.specifier, importerPath, sources);
 		} else if (rewriteImports) {
 			if (reference.specifier.startsWith(".")) {
 				const candidate = Bun.resolveSync(reference.specifier, path.dirname(importerPath));
@@ -2096,7 +2154,7 @@ function evaluateGraphCommonJs(modulePath: string): unknown {
  * Register {@link evaluateGraphCommonJs} as the graph-owned CommonJS require
  * bridge on `globalThis`, first-wins.
  *
- * On source-link installs the `@(scope)/zeta` root shim is served
+ * On source-link installs the `@(scope)/pi-coding-agent` root shim is served
  * from `src/`, so an extension import can evaluate a second instance of this
  * module with empty graph state. An unconditional set would let that empty
  * instance clobber the host bundle's populated bridge and break transitive
@@ -2146,7 +2204,7 @@ interface ExtensionModuleGraph {
 
 /**
  * Walk the extension's import graph starting at `entryRealPath`, returning the
- * realpath of every reachable source module ZETA must rewrite at load time.
+ * realpath of every reachable source module OMP must rewrite at load time.
  * Relative imports, package `imports` aliases, and ESM bare dependencies are
  * graph-owned recursively because compiled Bun cannot resolve runtime
  * `node_modules` from those modules. Graph-owned CommonJS modules also own
@@ -2161,6 +2219,7 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 	const queuedCacheBustResolvedImports = new Map<string, boolean>([[entryRealPath, true]]);
 	const queuedModuleKinds = new Map<string, ExtensionModuleKind>([[entryRealPath, "esm"]]);
 	const queuedEsmBranchPaths = new Set<string>();
+	const sources = new ExtensionGraphSources();
 	const queue: Array<{
 		file: string;
 		cacheBustResolvedImports: boolean;
@@ -2181,13 +2240,14 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 		}
 		let source: string;
 		try {
-			source = await Bun.file(file).text();
+			source = await sources.read(file);
 		} catch {
 			continue;
 		}
 		modules.set(file, source);
-		const analysis = getExtensionSourceAnalysis(source, file);
+		const analysis = await sources.analyze(file);
 		const sourceIsCommonJs = await isGraphOwnedCommonJsModule(
+			sources,
 			file,
 			entryRealPath,
 			analysis.sourceType,
@@ -2212,7 +2272,7 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 				const isRequired = reference.kind === "require";
 				if (specifier.startsWith(".")) {
 					const candidate = isRequired
-						? await resolveRelativeCommonJsRequire(specifier, file)
+						? await sources.resolveRelativeRequire(specifier, file)
 						: Bun.resolveSync(specifier, dir);
 					if (candidate && hasSourceModuleExtension(candidate)) {
 						const inheritedTargetKind = isRequired
@@ -2224,7 +2284,12 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 								: esmBranch
 									? "esm"
 									: undefined;
-						const targetIsCommonJs = await isCommonJsModulePath(candidate, undefined, inheritedTargetKind);
+						const targetIsCommonJs = await isCommonJsModulePath(
+							sources,
+							candidate,
+							undefined,
+							inheritedTargetKind,
+						);
 						const isCommonJsDescendant = isRequired && sourceIsCommonJs && targetIsCommonJs;
 						requiresNativeAddonRewrite =
 							isRequired && !isCommonJsDescendant && (await moduleRequiresNativeAddon(candidate));
@@ -2247,7 +2312,12 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 								: esmBranch
 									? "esm"
 									: undefined;
-						const targetIsCommonJs = await isCommonJsModulePath(candidate, undefined, inheritedTargetKind);
+						const targetIsCommonJs = await isCommonJsModulePath(
+							sources,
+							candidate,
+							undefined,
+							inheritedTargetKind,
+						);
 						const isCommonJsDescendant = isRequired && sourceIsCommonJs && targetIsCommonJs;
 						requiresNativeAddonRewrite =
 							isRequired && !isCommonJsDescendant && (await moduleRequiresNativeAddon(candidate));
@@ -2282,7 +2352,7 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 							: undefined;
 					const isCommonJsEntry =
 						isHookableEntry && dependencyEntry
-							? await isCommonJsModulePath(dependencyEntry, undefined, inheritedTargetKind)
+							? await isCommonJsModulePath(sources, dependencyEntry, undefined, inheritedTargetKind)
 							: false;
 					if (isHookableEntry && dependencyEntry && (!isRequired || (sourceIsCommonJs && isCommonJsEntry))) {
 						resolved = await realpathOrSelf(dependencyEntry);
@@ -2350,7 +2420,10 @@ async function collectExtensionModules(entryRealPath: string): Promise<Extension
 		if (commonJsPaths.has(modulePath)) {
 			modules.set(
 				modulePath,
-				applySpecifierReplacements(source, await collectExtensionSpecifierReplacements(source, modulePath, true)),
+				applySpecifierReplacements(
+					source,
+					await collectExtensionSpecifierReplacements(source, modulePath, true, sources),
+				),
 			);
 		} else if (synchronousSourcePaths.has(modulePath)) {
 			modules.set(modulePath, await rewriteLegacyExtensionSource(source, modulePath));
@@ -2401,7 +2474,7 @@ function prepareGraphCommonJsDefinition(modulePath: string, source: string, targ
 }
 
 /**
- * Linkedom's canvas bridge uses its bundled fallback because ZETA does not ship
+ * Linkedom's canvas bridge uses its bundled fallback because OMP does not ship
  * native canvas.
  */
 async function prepareGraphCommonJsModule(modulePath: string, source: string): Promise<void> {
@@ -2445,7 +2518,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0async\0${[...asyncModules.keys()].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `zeta:legacy-pi-ext:${hookId}`,
+			name: `omp:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");
@@ -2471,11 +2544,10 @@ async function installExtensionGraphHook(
 						} else {
 							raw = await Bun.file(sourcePath).text();
 						}
-						const out = {
+						return {
 							contents: await rewriteLegacyExtensionSource(raw, sourcePath, mtimeTag, resolvedImportMtimeTag),
 							loader: getLoader(sourcePath),
 						};
-						return out;
 					})();
 				});
 			},
@@ -2487,7 +2559,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0commonjs\0${[...commonJsPaths].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `zeta:legacy-pi-ext:${hookId}`,
+			name: `omp:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");
@@ -2516,7 +2588,7 @@ async function installExtensionGraphHook(
 		const filter = new RegExp(`^(?:${alternation})(?:\\?mtime=\\d+)?$`);
 		const hookId = Bun.hash(`${entryRealPath}\0sync-source\0${[...synchronousSourcePaths].join("\0")}`).toString(36);
 		Bun.plugin({
-			name: `zeta:legacy-pi-ext:${hookId}`,
+			name: `omp:legacy-pi-ext:${hookId}`,
 			setup(build) {
 				build.onLoad({ filter, namespace: "file" }, args => {
 					const queryIndex = args.path.indexOf("?mtime=");
@@ -2637,14 +2709,12 @@ export async function loadLegacyPiModule(resolvedPath: string): Promise<unknown>
 	const pendingSources = await ensureExtensionGraphHook(entryRealPath);
 	try {
 		// Dynamic import is required: legacy extension entry paths are user/plugin supplied at runtime.
-		// Use a plain filesystem path so Bun keys the `?mtime` suffix as part of
-		// the module identity. `file://` specifiers would drop the query string,
-		// collapsing every reload onto the first load's cached module — stale
-		// edited source on Windows, where the file:// branch used to be taken.
-		// Bundled virtual specifiers must keep their scheme.
+		// Use the raw filesystem path so Bun keys the `?mtime` suffix as part of
+		// the module identity (on Windows too); Bun ignores query strings on
+		// `file://` specifiers, which would serve stale edited source.
 		const entrySpecifier = isBundledVirtualSpecifier(entryRealPath)
 			? toImportSpecifier(entryRealPath)
-			: stripWindowsExtendedLengthPathPrefix(entryRealPath).replaceAll("\\", "/");
+			: stripWindowsExtendedLengthPathPrefix(entryRealPath);
 		return await import(`${entrySpecifier}?mtime=${nextLegacyPiLoadTag()}`);
 	} finally {
 		// Drop whatever the initial import didn't consume: graph modules only
@@ -2689,7 +2759,7 @@ function resolveLegacyPiSpecifier(args: { path: string; importer: string }): Leg
 		const resolved = resolveRemappedLegacyPiSpecifier(remappedSpecifier, args);
 		// A canonical specifier that remaps to itself and already resolves to the
 		// same host file from its importer (host code, e.g. `/login` requiring
-		// `@linxiraos/pi-ai/index.js`) has nothing to rewrite: decline and let Bun
+		// `@oh-my-pi/pi-ai/index.js`) has nothing to rewrite: decline and let Bun
 		// resolve it natively. Answering it anyway breaks `require()` on Bun
 		// 1.3.x, which reads the returned path back as `file:<path>` and, on
 		// source-link/dev installs, recurses into `NameTooLong reading
@@ -2714,7 +2784,7 @@ function resolveRemappedLegacyPiSpecifier(
 	remappedSpecifier: string,
 	args: { path: string; importer: string },
 ): LegacyPiResolveResult | undefined {
-	// Primary: resolve the canonical @linxiraos/* specifier from the host binary
+	// Primary: resolve the canonical @oh-my-pi/* specifier from the host binary
 	// location. Works in dev mode and in source-link installs.
 	try {
 		return toLegacyPiResolveResult(resolveCanonicalPiSpecifier(remappedSpecifier));
@@ -2722,7 +2792,7 @@ function resolveRemappedLegacyPiSpecifier(
 		// Fallback for compiled binary mode: the bundled packages live inside
 		// /$bunfs/root and aren't reachable by filesystem resolution. Prefer the
 		// canonical specifier against the importing file's directory when the
-		// plugin installed @linxiraos peer deps, then try the original legacy
+		// plugin installed @oh-my-pi peer deps, then try the original legacy
 		// specifier for plugins that still vendor only @mariozechner or
 		// @earendil-works peer deps.
 		const importerDir = path.dirname(args.importer);
@@ -2749,14 +2819,14 @@ export function installLegacyPiSpecifierShim(): void {
 	isLegacyPiSpecifierShimInstalled = true;
 
 	Bun.plugin({
-		name: "zeta:legacy-pi-shim",
+		name: "omp:legacy-pi-shim",
 		setup(build) {
 			build.onResolve({ filter: LEGACY_PI_SPECIFIER_FILTER, namespace: "file" }, resolveLegacyPiSpecifier);
 			build.onResolve({ filter: TYPEBOX_SPECIFIER_FILTER, namespace: "file" }, resolveTypeBoxSpecifier);
-			build.onResolve({ filter: /^zeta-legacy-pi-bundled:.+$/, namespace: "file" }, args =>
+			build.onResolve({ filter: /^omp-legacy-pi-bundled:.+$/, namespace: "file" }, args =>
 				resolveBundledVirtualSpecifier(args.path),
 			);
-			build.onResolve({ filter: /^zeta-legacy-pi-host:.+$/, namespace: "file" }, args =>
+			build.onResolve({ filter: /^omp-legacy-pi-host:.+$/, namespace: "file" }, args =>
 				resolveBundledVirtualSpecifier(args.path, BUNDLED_HOST_NAMESPACE),
 			);
 			build.onResolve({ filter: /.*/, namespace: BUNDLED_VIRTUAL_NAMESPACE }, args =>

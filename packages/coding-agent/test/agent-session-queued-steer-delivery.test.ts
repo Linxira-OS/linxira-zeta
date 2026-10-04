@@ -15,21 +15,22 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
-import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import type { PromptTemplate } from "@linxiraos/zeta/config/prompt-templates";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { tryRunRpcSkillCommand } from "@linxiraos/zeta/modes/rpc/rpc-mode";
-import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@linxiraos/zeta/modes/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm, type CustomMessage, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
-import { removeSyncWithRetries, Snowflake, withTimeout } from "@linxiraos/pi-utils";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import { createMockModel, type MockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import type { PromptTemplate } from "@oh-my-pi/pi-coding-agent/config/prompt-templates";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { tryRunRpcSkillCommand } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-mode";
+import { cfgMagicKeyword, cfgMagicKeywordsEnabled } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm, type CustomMessage, USER_INTERRUPT_LABEL } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { tagImageAttachmentSource } from "@oh-my-pi/pi-tui/prompt/image-source";
+import { removeSyncWithRetries, Snowflake, withTimeout } from "@oh-my-pi/pi-utils";
+import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 
 const COLLAB_PROMPT_TYPE = "collab-prompt";
 const IMAGE_SOURCE_PATH = "/tmp/private-project/screenshot.png";
@@ -165,6 +166,27 @@ describe("AgentSession queued steer delivery", () => {
 		expect(await entryAppended).toBe("guest steer at yield");
 		expect(mock.calls.length).toBe(2);
 		expect(session.agent.hasQueuedMessages()).toBe(false);
+	});
+
+	it("rejects a synthetic continue while streaming without queuing a user message", async () => {
+		const { session } = await createSession([{ content: ["host answer"] }]);
+		let checked = false;
+		session.agent.setOnBeforeYield(async () => {
+			if (checked) return;
+			checked = true;
+			expect(session.isStreaming).toBe(true);
+			await expect(session.prompt(manualContinuePrompt, { synthetic: true, userInitiated: true })).rejects.toThrow(
+				AgentBusyError,
+			);
+			expect(session.agent.popLastSteer()).toBeUndefined();
+			expect(session.agent.popLastFollowUp()).toBeUndefined();
+		});
+
+		await session.prompt("hello");
+		expect(checked).toBe(true);
+		expect(
+			session.state.messages.some(message => message.role === "user" && message.content === manualContinuePrompt),
+		).toBe(false);
 	});
 
 	it("persists an agent-authored steer with its steering marker", async () => {

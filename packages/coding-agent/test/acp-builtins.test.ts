@@ -2,25 +2,26 @@ import { describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Tokenizer } from "@linxiraos/pi-agent-core";
+import { Tokenizer } from "@oh-my-pi/pi-agent-core";
 import type {
 	ResetCreditAccountStatus,
 	ResetCreditRedeemOutcome,
 	ResetCreditTarget,
 	UsageReport,
-} from "@linxiraos/pi-ai";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
-import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
-import { getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { PluginManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins";
+import { MarketplaceManager } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
+import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { SessionDumpArchive } from "@oh-my-pi/pi-coding-agent/session/session-dump-format";
+import type { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { executeAcpBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/acp-builtins";
+import { getProjectDir, removeWithRetries, setProjectDir } from "@oh-my-pi/pi-utils";
 
-import { cfgBrowserEnabled, cfgBrowserHeadless } from "@linxiraos/zeta/tools/browser/settings";
-import { cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
-import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
-import { cfgWorktreeCleanSource } from "@linxiraos/zeta/task/settings";
+import { cfgBrowserEnabled, cfgBrowserHeadless } from "@oh-my-pi/pi-coding-agent/tools/browser/settings";
+import { cfgExtendedContext } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgMemoryBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/settings";
+import { cfgWorktreeCleanSource } from "@oh-my-pi/pi-coding-agent/task/settings";
 
 interface FakeAcpBuiltinSession {
 	fastMode: boolean;
@@ -42,6 +43,7 @@ interface FakeAcpBuiltinSession {
 	getAsyncJobSnapshot: (opts?: { recentLimit?: number }) => { running: unknown[]; recent: unknown[] } | null;
 	formatSessionAsText: () => string;
 	dumpLlmRequestToTmpDir: () => Promise<string | undefined>;
+	dumpSessionArchiveToTmpDir: () => Promise<SessionDumpArchive | undefined>;
 	getLastAssistantText: () => string | undefined;
 	messages: unknown[];
 	settings: Settings;
@@ -160,6 +162,7 @@ function createRuntime() {
 		getAsyncJobSnapshot: () => null,
 		formatSessionAsText: () => "",
 		dumpLlmRequestToTmpDir: async () => undefined,
+		dumpSessionArchiveToTmpDir: async () => undefined,
 		getLastAssistantText: () => undefined,
 		messages: [],
 		model: undefined,
@@ -566,13 +569,13 @@ describe("ACP builtin slash commands", () => {
 	it("dump: outputs transcript with LLM request JSON path when sidecar succeeds", async () => {
 		const { output, runtime } = createRuntime();
 		runtime.session.formatSessionAsText = () => "Session content here";
-		runtime.session.dumpLlmRequestToTmpDir = async () => "/tmp/zeta-llm-request-test.json";
+		runtime.session.dumpLlmRequestToTmpDir = async () => "/tmp/omp-llm-request-test.json";
 
 		const result = await executeAcpBuiltinSlashCommand("/dump", runtime);
 
 		expect(result).toEqual({ consumed: true });
 		expect(output[0]).toContain("Session content here");
-		expect(output[0]).toContain("LLM request JSON: /tmp/zeta-llm-request-test.json");
+		expect(output[0]).toContain("LLM request JSON: /tmp/omp-llm-request-test.json");
 		expect(output[0]).toContain("persists on disk");
 	});
 
@@ -596,6 +599,27 @@ describe("ACP builtin slash commands", () => {
 
 		expect(result).toEqual({ consumed: true });
 		expect(output[0]).toContain("No messages");
+	});
+
+	it("dump all: reports the archive and reaches subagents only via the all argument", async () => {
+		const { output, runtime } = createRuntime();
+		runtime.session.formatSessionAsText = () => "Session content here";
+		runtime.session.dumpSessionArchiveToTmpDir = async () => ({
+			path: "/tmp/omp-dump-test.zip",
+			files: ["session.md", "llm-request.json", "subagents/Scout.md"],
+			subagentCount: 1,
+			subagentError: "EACCES: permission denied",
+		});
+
+		await executeAcpBuiltinSlashCommand("/dump all", runtime);
+		await executeAcpBuiltinSlashCommand("/dump", runtime);
+		await executeAcpBuiltinSlashCommand("/dump everything", runtime);
+
+		expect(output[0]).toContain("Session dump archive: /tmp/omp-dump-test.zip");
+		expect(output[0]).toContain("  subagents/Scout.md");
+		expect(output[0]).toContain("Subagent transcripts unavailable: EACCES: permission denied");
+		expect(output[1]).toBe("Session content here");
+		expect(output[2]).toContain("Usage: /dump [all]");
 	});
 
 	// /model
@@ -653,7 +677,7 @@ describe("ACP builtin slash commands", () => {
 		expect(configNotified).toBe(0);
 	});
 
-	// /switch resolves like `zeta bench`: fuzzy ids, @role aliases, :level suffixes
+	// /switch resolves like `omp bench`: fuzzy ids, @role aliases, :level suffixes
 	it("switch opus:low: fuzzy-resolves a session-only model with the thinking suffix", async () => {
 		const { output, runtime, session } = createRuntime();
 		const available = [
@@ -974,7 +998,7 @@ describe("wave 3 commands", () => {
 
 	it("/move: relocates the current session instead of switching to an empty target session", async () => {
 		const { output, runtime, session, fakeSessionManager } = createRuntime();
-		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-move-target-"));
+		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-move-target-"));
 		const originalProjectDir = process.cwd();
 		const reloadForCwd = spyOn(runtime.settings, "reloadForCwd");
 		let configNotified = 0;
@@ -1002,7 +1026,7 @@ describe("wave 3 commands", () => {
 	// /wt
 	it("/wt: refuses outside a git checkout", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
-		const plainDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-wt-plain-"));
+		const plainDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-plain-"));
 		fakeSessionManager._cwd = plainDir;
 		try {
 			const result = await executeAcpBuiltinSlashCommand("/wt feature", runtime);
@@ -1016,7 +1040,7 @@ describe("wave 3 commands", () => {
 
 	it("/wt: creates a worktree carrying uncommitted changes and relocates the session into it", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-wt-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-"));
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
@@ -1069,7 +1093,7 @@ describe("wave 3 commands", () => {
 	it("/wt: with worktree.cleanSource=true, cleans the source checkout while preserving the worktree", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
 		cfgWorktreeCleanSource.override(runtime.settings, true);
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-wt-clean-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-clean-"));
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
@@ -1086,6 +1110,9 @@ describe("wave 3 commands", () => {
 			await git("init", "-q", "-b", "main");
 			await git("config", "user.email", "t@example.com");
 			await git("config", "user.name", "t");
+			// The reset source is compared byte-for-byte; Git for Windows'
+			// system `core.autocrlf=true` would restore it as CRLF.
+			await git("config", "core.autocrlf", "false");
 			await Bun.write(path.join(repoDir, "tracked.txt"), "committed\n");
 			await Bun.write(path.join(repoDir, ".gitignore"), "build/\n");
 			await git("add", "-A");
@@ -1124,7 +1151,7 @@ describe("wave 3 commands", () => {
 	it("/wt: aborts and leaves source checkout untouched when settings flush fails", async () => {
 		const { output, runtime, fakeSessionManager } = createRuntime();
 		spyOn(runtime.settings, "flush").mockRejectedValue(new Error("disk full"));
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-wt-flush-fail-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-wt-flush-fail-"));
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
@@ -1385,9 +1412,9 @@ describe("wave 4 commands", () => {
 describe("wave 5 — adapters and polish", () => {
 	// /mcp add — verify parsing and output message
 	it("/mcp add foo --url https://example.com --token X --scope project: outputs success or propagates write error", async () => {
-		// Uses project scope so it writes to /tmp/project/.zeta/mcp.json which test infra controls.
+		// Uses project scope so it writes to /tmp/project/.omp/mcp.json which test infra controls.
 		// We verify the command either reports success or a meaningful error (not a parse error).
-		const mcpModule = await import("@linxiraos/zeta/mcp/config-writer");
+		const mcpModule = await import("@oh-my-pi/pi-coding-agent/mcp/config-writer");
 		const spy = spyOn(mcpModule, "addMCPServer").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -1425,7 +1452,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /ssh add — spy on addSSHHost
 	it("/ssh add foo --host x --user y --scope user: calls addSSHHost", async () => {
-		const sshModule = await import("@linxiraos/zeta/ssh/config-writer");
+		const sshModule = await import("@oh-my-pi/pi-coding-agent/ssh/config-writer");
 		const spy = spyOn(sshModule, "addSSHHost").mockResolvedValue(undefined);
 		try {
 			const { output, runtime } = createRuntime();
@@ -1515,7 +1542,7 @@ describe("wave 5 — adapters and polish", () => {
 
 	// /marketplace discover bulleted list
 	it("/marketplace discover: output is bulleted with '  - ' token", async () => {
-		const { MarketplaceManager } = await import("@linxiraos/zeta/extensibility/plugins/marketplace");
+		const { MarketplaceManager } = await import("@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace");
 		const discoverSpy = spyOn(MarketplaceManager.prototype, "listAvailablePlugins").mockResolvedValue([
 			{ name: "hello", version: "1.0.0", description: "A greeting plugin" } as never,
 			{ name: "world", version: "2.0.0", description: undefined } as never,
@@ -1534,7 +1561,7 @@ describe("wave 5 — adapters and polish", () => {
 
 describe("/move preflight flush", () => {
 	it("disposes the session when headless workspace rollback cannot recover", async () => {
-		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-acp-move-fatal-"));
+		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-move-fatal-"));
 		const originalProjectDir = getProjectDir();
 		const { output, runtime, session } = createRuntime();
 		const dispose = spyOn(session, "dispose");
@@ -1555,7 +1582,7 @@ describe("/move preflight flush", () => {
 		}
 	});
 	it("aborts text-mode /move when pending settings flush fails", async () => {
-		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-acp-move-"));
+		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-move-"));
 		try {
 			const { output, fakeSessionManager, runtime } = createRuntime();
 			spyOn(runtime.settings, "flush").mockRejectedValue(new Error("disk full"));
@@ -1571,7 +1598,7 @@ describe("/move preflight flush", () => {
 	});
 
 	it("completes text-mode /move when flush succeeds", async () => {
-		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-acp-move-ok-"));
+		const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-acp-move-ok-"));
 		const originalProjectDir = process.cwd();
 		try {
 			const { output, fakeSessionManager, runtime } = createRuntime();

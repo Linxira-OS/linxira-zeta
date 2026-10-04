@@ -2,12 +2,13 @@
 
 The auth broker centralizes credential storage and OAuth refreshes. The auth gateway lets clients make provider requests without receiving provider credentials. Direct broker clients are trusted: snapshots expose OAuth access tokens and stored API keys, but never the real OAuth refresh token.
 
-- **`zeta-c auth-broker serve`** holds the canonical SQLite credential vault, performs OAuth refreshes, and exposes snapshot, credential, block, usage, and health APIs under `/v1`.
-- **`zeta-c auth-gateway serve`** is a forward-proxy. It accepts OpenAI Chat Completions, Anthropic Messages, OpenAI Responses, pi-native stream, TypeSafe System One judgment, and OpenAI/OpenRouter-style image, speech, transcription, embedding, rerank, and video requests, resolves the broker-backed credential, and dispatches through `pi-ai` provider logic. Clients (containerised zeta, llm-git, the macOS usage widget, …) never see the access token.
+- **`omp auth-broker serve`** holds the canonical SQLite credential vault, performs OAuth refreshes, and exposes snapshot, credential, block, usage, and health APIs under `/v1`.
+- **`omp auth-gateway serve`** is a forward-proxy. It accepts OpenAI Chat Completions, Anthropic Messages, OpenAI Responses, pi-native stream, TypeSafe System One judgment, and OpenAI/OpenRouter-style image, speech, transcription, embedding, rerank, and video requests, resolves the broker-backed credential, and dispatches through `pi-ai` provider logic. Clients (containerised omp, llm-git, the macOS usage widget, …) never see the access token.
+- **`omp auth-gateway stdio`** serves the same routes to its parent process as JSON lines on stdin/stdout, on the CLI's own credentials and model roles; see [stdio](#stdio).
 
 Transport security between operator, broker, and gateway is delegated to the operator (Tailscale / Wireguard / reverse proxy + TLS). Every endpoint except `/v1/healthz` (broker) and `/healthz` (gateway) requires a bearer token by default. The gateway also answers CORS `OPTIONS` preflights without authentication; `--no-auth` disables inbound gateway authentication.
 
-Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packages/ai/src/auth/`, `packages/coding-agent/src/cli/auth-broker-cli.ts`, `packages/coding-agent/src/cli/auth-gateway-cli.ts`, `packages/coding-agent/src/session/auth-broker-config.ts`.
+Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packages/ai/src/auth/`, `packages/coding-agent/src/cli/auth-broker-cli.ts`, `packages/coding-agent/src/cli/auth-gateway-cli.ts`, `packages/coding-agent/src/cli/auth-gateway-stdio.ts`, `packages/coding-agent/src/session/auth-broker-config.ts`.
 
 ## Data flow
 
@@ -16,7 +17,7 @@ Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packag
                 │ broker host                                                │
                 │                                                            │
   developer ──▶ │  ┌──────────────────────────┐    ┌────────────────────┐    │
-  laptop /      │  │  zeta-c auth-broker serve   │◀──▶│  SQLite agent.db    │    │
+  laptop /      │  │  omp auth-broker serve   │◀──▶│  SQLite agent.db    │    │
   CI / robomp   │  │  - holds refresh tokens  │    │  (canonical writer)│    │
                 │  │  - background refresher  │    └────────────────────┘    │
                 │  │  /v1/{snapshot,refresh,…}│                              │
@@ -24,7 +25,7 @@ Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packag
                 │            │  bearer ($CONFIG_DIR/auth-broker.token)       │
                 │            ▼                                               │
                 │  ┌──────────────────────────┐                              │
-                │  │  zeta-c auth-gateway serve  │  RemoteAuthCredentialStore   │
+                │  │  omp auth-gateway serve  │  RemoteAuthCredentialStore   │
                 │  │  /v1/{chat,messages,…}   │  receives snapshot stream,   │
                 │  │  /v1/usage,/v1/models    │  refreshes credentials by id │
                 │  │  /v1/credentials/check   │  via the broker on expiry    │
@@ -39,29 +40,29 @@ Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packag
                   api.anthropic.com / api.openai.com / …
 ```
 
-The broker is the only writer of OAuth refresh tokens. Clients (including the gateway itself) load a redacted snapshot in which every `refresh` field has been replaced with `REMOTE_REFRESH_SENTINEL`; when an access token expires the client calls `POST /v1/credential/:id/refresh` and the broker performs the refresh server-side. `RemoteAuthCredentialStore` rejects local replace/upsert/delete-by-provider mutations, with errors pointing at `zeta-c auth-broker login` / `zeta-c auth-broker logout`.
+The broker is the only writer of OAuth refresh tokens. Clients (including the gateway itself) load a redacted snapshot in which every `refresh` field has been replaced with `REMOTE_REFRESH_SENTINEL`; when an access token expires the client calls `POST /v1/credential/:id/refresh` and the broker performs the refresh server-side. Credential writes through `RemoteAuthCredentialStore` await broker persistence and update its local snapshot before returning; the broker remains the authoritative writer.
 
 ## auth-broker
 
 ### CLI
 
 ```
-zeta-c auth-broker serve     [--bind=host:port]                    # boot the broker
-zeta-c auth-broker token     [--regenerate] [--json]               # print or rotate the bearer token
-zeta-c auth-broker login     [<provider>] [--via=user@host] [--dry-run]
-zeta-c auth-broker logout    [<provider>]
-zeta-c auth-broker list      [--json]
-zeta-c auth-broker import    <file|dir> [--provider=<id>] [--include-disabled] [--dry-run] [--json]
-zeta-c auth-broker migrate   --from-local [--include-oauth] [--include-env] [--dry-run] [--json]
-zeta-c auth-broker status    [--json]
+omp auth-broker serve     [--bind=host:port]                    # boot the broker
+omp auth-broker token     [--regenerate] [--json]               # print or rotate the bearer token
+omp auth-broker login     [<provider>] [--via=user@host] [--dry-run]
+omp auth-broker logout    [<provider>]
+omp auth-broker list      [--json]
+omp auth-broker import    <file|dir> [--provider=<id>] [--include-disabled] [--dry-run] [--json]
+omp auth-broker migrate   --from-local [--include-oauth] [--include-env] [--dry-run] [--json]
+omp auth-broker status    [--json]
 ```
 
 - `serve` opens the local SQLite store at `getAgentDbPath()` and binds an HTTP listener (default `127.0.0.1:8765`). On startup a token is ensured at `<config-dir>/auth-broker.token` (mode `0600`, newly created parent directory `0700`). The background refresher runs immediately and then every `refreshIntervalMs` (default 60 s), targeting OAuth credentials whose expiry is within `refreshSkewMs` (default 5 min).
 - `token` prints the stored bearer or generates a new one. `--regenerate` replaces the token file; restart a running broker to load the replacement into its in-memory allow-list.
-- `login [<provider>]` runs the registered sign-in flow locally (OAuth or a provider's API-key login). With no provider it shows an interactive numbered picker. With `--via=user@host` it runs `ssh -L <callback-port>:127.0.0.1:<callback-port> -o ExitOnForwardFailure=yes user@host zeta-c auth-broker login <provider>`; the credential is written on the remote host (`--via` requires `<provider>`, and `--dry-run` applies only to this remote path). Ports are derived from the auth registry: `anthropic:54545`, `openai-codex:1455`, `google-gemini-cli:8085`, `google-antigravity:51121`, `gitlab-duo:8080`, `devin:59653`, `openrouter:54549`, `stencil:54547`. `gitlab-duo-agent` and `zai-coding-plan` use non-loopback/manual callbacks rather than the old `8080`/`9999` listeners; run those flows on the host directly. Login is driven in-process through `AuthStorage.oauth.login()`.
+- `login [<provider>]` runs the registered sign-in flow locally (OAuth or a provider's API-key login). With no provider it shows an interactive numbered picker. With `--via=user@host` it runs `ssh -L <callback-port>:127.0.0.1:<callback-port> -o ExitOnForwardFailure=yes user@host omp auth-broker login <provider>`; the credential is written on the remote host (`--via` requires `<provider>`, and `--dry-run` applies only to this remote path). Ports are derived from the auth registry: `anthropic:54545`, `openai-codex:1455`, `google-gemini-cli:8085`, `google-antigravity:51121`, `gitlab-duo:8080`, `devin:59653`, `openrouter:54549`, `stencil:54547`. `gitlab-duo-agent` and `zai-coding-plan` use non-loopback/manual callbacks rather than the old `8080`/`9999` listeners; run those flows on the host directly. Login is driven in-process through `AuthStorage.oauth.login()`.
 - `logout [<provider>]` disables the provider's active rows with cause `logged out by user`; disabled tombstones remain available through the broker API. With no argument it shows an interactive numbered picker of stored providers.
 - `list` enumerates the sign-in providers returned by `getOAuthProviders()` (visible built-ins plus `registerOAuthProvider` custom providers), not the stored accounts. `--json` emits an array of `{ id, name }`.
-- `import <file|dir>` imports CLIProxyAPI-style JSON credentials into the local SQLite store. Maps `type` field → zeta provider (`claude → anthropic`, `codex → openai-codex`, `gemini → google-gemini-cli`, `antigravity → google-antigravity`, `gemini-cli → google-gemini-cli`).
+- `import <file|dir>` imports CLIProxyAPI-style JSON credentials into the local SQLite store. Maps `type` field → omp provider (`claude → anthropic`, `codex → openai-codex`, `gemini → google-gemini-cli`, `antigravity → google-antigravity`, `gemini-cli → google-gemini-cli`).
 - `migrate --from-local` uploads local SQLite credentials to the configured broker (`POST /v1/credential`). Local API keys are included by default; local OAuth rows are skipped unless `--include-oauth` is set; environment-derived API keys are skipped unless `--include-env` is set. Re-runs are idempotent against the broker snapshot.
 - `status` health-pings the configured remote broker.
 
@@ -121,18 +122,18 @@ response state machine is:
 
 Every `200`, `304`, and `499` snapshot response carries a quoted generation
 `ETag`, plus `Cache-Control: no-store` and
-`Vary: ZETA-Auth-Broker-Capabilities`. A disconnect response uses the generation
+`Vary: OMP-Auth-Broker-Capabilities`. A disconnect response uses the generation
 captured before waiting.
 
 ### Codex block-scope compatibility
 
-Clients that understand per-meter Codex blocks send `ZETA-Auth-Broker-Capabilities: codex-meter-block-scopes`. Snapshot responses then carry the canonical `chat` and `spark` scopes. Without that capability, the broker projects those rows to the legacy `shared` scope on the wire.
+Clients that understand per-meter Codex blocks send `OMP-Auth-Broker-Capabilities: codex-meter-block-scopes`. Snapshot responses then carry the canonical `chat` and `spark` scopes. Without that capability, the broker projects those rows to the legacy `shared` scope on the wire.
 
 Local SQLite schema 8 keeps `chat` and `spark` as the canonical scopes exposed by current store APIs. It also maintains a physical `shared` compatibility mirror for pre-meter binaries that read `agent.db` directly. SQLite triggers derive that mirror's deadline and update time independently from the meter rows, and copy a legacy process's `shared` writes back to both meters. Current store APIs omit the physical mirror, so broker snapshots and model selection do not double-count it.
 
 Clients released before this capability, including 17.1.4, receive the conservative `shared` projection until they are upgraded. Those clients are indistinguishable on the existing wire, so mixed-version deployments favor keeping a rate-limited credential blocked over allowing repeated provider requests and 429 responses.
 
-Capability-dependent responses include `Vary: ZETA-Auth-Broker-Capabilities` so intermediaries do not reuse one representation for another client. The encrypted client snapshot cache also uses a new format version: older cache files are ignored and fetched again, preventing legacy and meter-scoped representations from being mixed across client versions.
+Capability-dependent responses include `Vary: OMP-Auth-Broker-Capabilities` so intermediaries do not reuse one representation for another client. The encrypted client snapshot cache also uses a new format version: older cache files are ignored and fetched again, preventing legacy and meter-scoped representations from being mixed across client versions.
 
 ### Background refresher
 
@@ -148,16 +149,33 @@ The CLI broker refresh hook also handles managed `mcp_oauth:*` credentials using
 ### CLI
 
 ```
-zeta-c auth-gateway serve   [--bind=host:port] [--no-auth] [--trust-proxy-headers]
-zeta-c auth-gateway token   [--regenerate] [--json]
-zeta-c auth-gateway status  [--json]
-zeta-c auth-gateway check   [--strict] [--json]
+omp auth-gateway serve   [--bind=host:port] [--no-auth] [--trust-proxy-headers]
+omp auth-gateway stdio
+omp auth-gateway token   [--regenerate] [--json]
+omp auth-gateway status  [--json]
+omp auth-gateway check   [--strict] [--json]
 ```
 
 - `serve` requires `OMP_AUTH_BROKER_URL` (or `auth.broker.url` in `config.yml`) — the gateway is itself a broker client. It fetches a live snapshot, wraps it in `RemoteAuthCredentialStore`, and constructs `AuthStorage` with the configured account pool and account policies. Unlike normal client discovery, gateway startup does not use the encrypted snapshot cache. Default bind is `127.0.0.1:4000`. The gateway token is stored at `<config-dir>/auth-gateway.token` (`0600`); `--no-auth` disables the bearer check entirely. Use that flag only on trusted loopback listeners; it does not enforce a loopback bind.
 - Logs attribute requests to the socket peer address. Behind a trusted reverse proxy, pass `--trust-proxy-headers` to use `X-Forwarded-For` / `X-Real-IP` for authenticated requests; unauthorized requests are always logged with the socket peer. An authenticated request that also carries the gateway token in its URL or in a forwarded, logged, or identity header is rejected with `400` before any credential lookup.
 - `token` manages the token file; `--regenerate` requires a running gateway to restart before accepting the replacement. `status` checks the local token file and an authenticated broker snapshot; it does not probe the gateway listener.
 - `check` constructs its own broker-backed store and probes the credentials the gateway would use, without calling a running gateway. Without `--strict` it uses provider usage probes. `--strict` additionally tries suitable bundled chat models and can consume quota; providers with no suitable candidate (including pi-native forwarding, Bedrock, Vertex, and Cursor transports) cannot be completion-probed.
+
+### stdio
+
+`omp auth-gateway stdio` is the gateway for one trusted parent process (an editor, a terminal's git UI, a script): no listener, no token, no broker requirement. It uses the credentials, models (`models.yml` and extension providers included) and settings any other `omp` command would: the broker when one is configured, else the local store. Requests and responses are JSON lines:
+
+```
+→ {"id": 1, "path": "/v1/chat/completions", "body": {"model": "@commit,@smol", "messages": [...]}}
+← {"ready": true, "version": "18.4.11"}
+← {"id": 1, "status": 200, "body": {"object": "chat.completion", "choices": [...]}}
+```
+
+- The first output line is `{"ready": true, "version": …}`. `method` defaults to `POST` when the request has a `body`, else `GET`; every route in [Endpoints](#endpoints-1) except `/healthz` is served.
+- Requests run concurrently and answer in completion order; `id` (string or number) matches them up. A line that is not a request answers `400` with its `id` when it had one.
+- A JSON response body is embedded as JSON; a text body (the SSE of a `stream: true` request) as one string once the stream ends; anything else (audio, video) as base64 with `"encoding": "base64"`.
+- `model` takes any `--model` selector: `provider/id`, a fuzzy name, a role (`@smol`), or a comma list whose first entry that resolves wins. An attempt that fails with a status above `400` (other than `499`) moves on along that model's `retry.fallbackChains`, the role's chain when the entry named a role; the response's `model` names the model that answered.
+- The process serves until stdin ends, answers what is in flight, and exits.
 
 ### Endpoints
 
@@ -190,9 +208,9 @@ The served catalog includes bundled, cached, and broker-discovered models. The g
 
 Live OpenRouter discovery covers image and Decisions rosters, `/embeddings/models`, `/videos/models`, and rerank-flagged `/models` rows. Speech/transcription models use catalog kinds and seeds. Bundled fallbacks and `kind-apis` runner mappings are authored in `packages/catalog/src/compat/rules/providers/openrouter.kdl`. Per-search, per-second, and per-character billing have no catalog cost axis, so those rows carry zero token cost and the provider-reported `cost` in the response is authoritative.
 
-Inference routes record observed usage against `x-zeta-install-id`, `x-zeta-hostname`, and `x-zeta-app`; unlabeled requests fall back to the gateway host's identity. These attribution headers are not forwarded upstream. Completed non-streaming responses carry computed cost in `x-litellm-response-cost` when known; streaming chat responses send headers before usage arrives and do not include that cost header. Video cost may become available only while polling. Upstreams that report tokens only (TypeSafe) are priced from the catalog model; the response body's own `cost` field (OpenRouter shape) is only present when the upstream billed one.
+Inference routes record observed usage against `x-omp-install-id`, `x-omp-hostname`, and `x-omp-app`; unlabeled requests fall back to the gateway host's identity. These attribution headers are not forwarded upstream. Completed non-streaming responses carry computed cost in `x-litellm-response-cost` when known; streaming chat responses send headers before usage arrives and do not include that cost header. Video cost may become available only while polling. Upstreams that report tokens only (TypeSafe) are priced from the catalog model; the response body's own `cost` field (OpenRouter shape) is only present when the upstream billed one.
 
-TypeSafe clients using the default base-URL resolver can set `TYPESAFE_BASE_URL=http://gateway:4000` with `TYPESAFE_API_KEY=<gateway token>`. zeta's catalog-backed `judge` role passes the model's explicit `baseUrl`, which takes precedence over that environment fallback; configure the TypeSafe provider's `baseUrl` and `apiKey` in `models.yml` to use the gateway. OpenAI-SDK-style clients use `http://gateway:4000/v1`.
+TypeSafe clients using the default base-URL resolver can set `TYPESAFE_BASE_URL=http://gateway:4000` with `TYPESAFE_API_KEY=<gateway token>`. omp's catalog-backed `judge` role passes the model's explicit `baseUrl`, which takes precedence over that environment fallback; configure the TypeSafe provider's `baseUrl` and `apiKey` in `models.yml` to use the gateway. OpenAI-SDK-style clients use `http://gateway:4000/v1`.
 
 There is no raw provider passthrough path. All supported routes go through `pi-ai` provider logic so credential-specific request shaping, OAuth refresh-on-auth-error, and provider quirks stay centralized.
 
@@ -221,7 +239,7 @@ The client window is shorter than the broker's per-credential cache and coalesce
 
 ## Client snapshot cache
 
-`discoverAuthStorage()` delegates to `packages/ai/src/auth-broker/discover.ts`, which persists the initial live snapshot and later broker-sourced full snapshots to `~/.zeta/cache/auth-broker-snapshot.enc` by default. The file is AES-256-GCM encrypted with SHA-256 of the resolved broker bearer token (whether from env, config, or file) and authenticated with the broker URL and cache format metadata. Changing the token or URL makes the cache unreadable. Writes are atomic with mode `0600`.
+`discoverAuthStorage()` delegates to `packages/ai/src/auth-broker/discover.ts`, which persists the initial live snapshot and later broker-sourced full snapshots to `~/.omp/cache/auth-broker-snapshot.enc` by default. The file is AES-256-GCM encrypted with SHA-256 of the resolved broker bearer token (whether from env, config, or file) and authenticated with the broker URL and cache format metadata. Changing the token or URL makes the cache unreadable. Writes are atomic with mode `0600`.
 
 Freshness is anchored to `snapshot.generatedAt`, not local write time. Default TTL is 1 h (`OMP_AUTH_BROKER_SNAPSHOT_TTL_MS`); `0` disables cache reads and writes. A fresh cache is used immediately without a blocking revalidation or startup request budget. `RemoteAuthCredentialStore` then synchronizes through SSE/long polling in the background, so one-shot commands are not guaranteed to observe changes made after the cache was written. Revocation of the broker token surfaces through that background path rather than necessarily failing cached startup. Expired OAuth access tokens still require the broker refresh endpoint.
 
@@ -259,10 +277,10 @@ Broker-backed credential storage is **off** unless `OMP_AUTH_BROKER_URL` (or `au
 
 | Variable                            | Purpose                                                                                                                                                                | Required when                                                                                                             |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the zeta client should resolve credentials through a broker (and required by `zeta-c auth-gateway serve`).           |
+| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the omp client should resolve credentials through a broker (and required by `omp auth-gateway serve`).           |
 | `OMP_AUTH_BROKER_TOKEN`             | Bearer token used for every broker endpoint except `/v1/healthz`.                                                                                                      | When `OMP_AUTH_BROKER_URL` is set and no token is available from `auth.broker.token` or `<config-dir>/auth-broker.token`. |
 | `OMP_AUTH_BROKER_SNAPSHOT_TTL_MS`   | Freshness window for the encrypted local snapshot cache. Default `3600000` (1 h); `0` disables cache reads and writes.                                                 | Optional in broker mode.                                                                                                  |
-| `OMP_AUTH_BROKER_SNAPSHOT_CACHE`    | Path override for the encrypted local snapshot cache. Default `~/.zeta/cache/auth-broker-snapshot.enc` (or XDG cache equivalent).                                       | Optional in broker mode.                                                                                                  |
+| `OMP_AUTH_BROKER_SNAPSHOT_CACHE`    | Path override for the encrypted local snapshot cache. Default `~/.omp/cache/auth-broker-snapshot.enc` (or XDG cache equivalent).                                       | Optional in broker mode.                                                                                                  |
 | `OMP_AUTH_BROKER_ACCOUNT_POOL_FILE` | JSON file mapping provider IDs to OAuth `identityKey` values visible to this trusted client. Parsed once; invalid files abort initialization. API keys are unaffected. | Optional in broker mode.                                                                                                  |
 
 Resolution order in `resolveAuthBrokerConfig()`:
@@ -288,10 +306,10 @@ Broker connection values come from the agent's main config file, not project set
 
 | Path                              | Owner                                                | Mode                          |
 | --------------------------------- | ---------------------------------------------------- | ----------------------------- |
-| `<config-dir>/auth-broker.token`  | `zeta-c auth-broker token` or `serve` | `0600`; new parent directory `0700` |
-| `<config-dir>/auth-gateway.token` | `zeta-c auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
+| `<config-dir>/auth-broker.token`  | `omp auth-broker token` or `serve` | `0600`; new parent directory `0700` |
+| `<config-dir>/auth-gateway.token` | `omp auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
 
-`<config-dir>` is `getConfigRootDir()`: `~/.zeta/` by default, respecting `PI_CONFIG_DIR` and the active profile (`~/.zeta/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.
+`<config-dir>` is `getConfigRootDir()`: `~/.omp/` by default, respecting `PI_CONFIG_DIR` and the active profile (`~/.omp/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.
 
 ## Interaction with the local API-key resolution order
 

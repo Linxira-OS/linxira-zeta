@@ -1,28 +1,33 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent, CompactionCancelledError, type AgentTool } from "@linxiraos/pi-agent-core";
-import type { AssistantMessage, UserMessage } from "@linxiraos/pi-ai";
-import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta/session/context-notes";
-import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
-import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
-import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
-import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
-import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
-import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
-import { BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/builtin-names";
-import { GrepTool } from "@linxiraos/zeta/tools/grep";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { ReadTool } from "@linxiraos/zeta/tools/read";
+import * as path from "node:path";
+import { Agent, CompactionCancelledError, type AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AssistantMessage, UserMessage } from "@oh-my-pi/pi-ai";
+import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@oh-my-pi/pi-coding-agent/session/context-notes";
+import {
+	createCustomMessage,
+	convertToLlm,
+	SKILL_PROMPT_MESSAGE_TYPE,
+} from "@oh-my-pi/pi-coding-agent/session/messages";
+import type { CompactionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import { computeNonMessageTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
+import { mnemopiBackend } from "@oh-my-pi/pi-coding-agent/mnemopi/backend";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ContextNotesTool, NewContextTool } from "@oh-my-pi/pi-coding-agent/tools/context-notes";
+import { BUILTIN_TOOL_NAMES } from "@oh-my-pi/pi-coding-agent/tools/builtin-names";
+import { GrepTool } from "@oh-my-pi/pi-coding-agent/tools/grep";
+import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
@@ -56,6 +61,34 @@ function assistant(text: string): AssistantMessage {
 		},
 		timestamp: Date.now(),
 	};
+}
+
+const STREAMING_PARENT_ASSIGNMENT = "ASSIGNMENT_A_STREAMING_PARENT_STEER";
+const IDLE_IRC_ASSIGNMENT = "ASSIGNMENT_B_IDLE_IRC";
+
+function appendIdleIrcRolloverScenario(manager: SessionManager, fromParent: boolean): void {
+	manager.appendMessage({
+		...user(STREAMING_PARENT_ASSIGNMENT),
+		attribution: "agent",
+		steering: true,
+	});
+	manager.appendMessage(assistant("Assignment A completed."));
+	manager.appendCustomMessageEntry(
+		"irc:incoming",
+		IDLE_IRC_ASSIGNMENT,
+		true,
+		{
+			id: "idle-irc-b",
+			from: fromParent ? "Parent" : "Peer",
+			message: IDLE_IRC_ASSIGNMENT,
+			...(fromParent ? { fromParent: true } : {}),
+		},
+		"agent",
+	);
+	const firstKeptEntryId = manager.appendMessage(assistant("Assignment B work in progress."));
+	manager.appendCompaction("Context rollover", undefined, firstKeptEntryId, 100, {
+		details: { kind: "experimental-context-rollover", version: 1 },
+	});
 }
 
 describe("experimental context management", () => {
@@ -172,6 +205,52 @@ describe("experimental context management", () => {
 		expect(
 			rebuilt.filter(message => message.role === "user" && JSON.stringify(message.content).includes(request)),
 		).toHaveLength(1);
+	});
+
+	it("retains a newer idle parent assignment instead of an older streaming parent steer", () => {
+		const manager = SessionManager.inMemory();
+		appendIdleIrcRolloverScenario(manager, true);
+
+		const rebuilt = JSON.stringify(manager.buildSessionContext().messages);
+		expect(rebuilt).toContain(IDLE_IRC_ASSIGNMENT);
+		expect(rebuilt).not.toContain(STREAMING_PARENT_ASSIGNMENT);
+	});
+
+	it("does not elevate newer peer IRC above the latest user request", () => {
+		const manager = SessionManager.inMemory();
+		appendIdleIrcRolloverScenario(manager, false);
+
+		const rebuilt = JSON.stringify(manager.buildSessionContext().messages);
+		expect(rebuilt).toContain(STREAMING_PARENT_ASSIGNMENT);
+		expect(rebuilt).not.toContain(IDLE_IRC_ASSIGNMENT);
+	});
+
+	it("retains an idle parent assignment through repeated rollover and resume from the journal", async () => {
+		using tempDir = TempDir.createSync("@pi-parent-irc-rollover-");
+		const sessionDir = path.join(tempDir.path(), "sessions");
+		const manager = SessionManager.create(tempDir.path(), sessionDir);
+		appendIdleIrcRolloverScenario(manager, true);
+		const nextFirstKeptEntryId = manager.appendMessage(assistant("More work on assignment B."));
+		manager.appendCompaction("Second context rollover", undefined, nextFirstKeptEntryId, 50, {
+			details: { kind: "experimental-context-rollover", version: 1 },
+		});
+		await manager.ensureOnDisk();
+		const sessionFile = manager.getSessionFile();
+		if (!sessionFile) throw new Error("Expected persisted rollover session");
+
+		const repeated = JSON.stringify(manager.buildSessionContext().messages);
+		expect(repeated).toContain(IDLE_IRC_ASSIGNMENT);
+		expect(repeated).not.toContain(STREAMING_PARENT_ASSIGNMENT);
+
+		const resumed = await SessionManager.open(sessionFile, sessionDir);
+		try {
+			const rebuilt = JSON.stringify(resumed.buildSessionContext().messages);
+			expect(rebuilt).toContain(IDLE_IRC_ASSIGNMENT);
+			expect(rebuilt).not.toContain(STREAMING_PARENT_ASSIGNMENT);
+		} finally {
+			await resumed.close();
+			await manager.close();
+		}
 	});
 
 	it("closes the lifecycle when cancellation occurs during awaited start dispatch", async () => {

@@ -8,21 +8,23 @@ import { afterEach, beforeEach, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import { runSubprocess } from "@oh-my-pi/pi-coding-agent/task/executor";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const AGENT_ID = "ParkedShell";
 const MOCK_API_SOURCE = "test/parked-subagent-shell-release";
 const CHECK_PROMPT = "check the shell";
 
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
 
@@ -38,12 +40,12 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-parked-shell-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-parked-shell-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
 	vi.spyOn(os, "homedir").mockReturnValue(home);
-	setAgentDir(path.join(home, ".zeta", "agent"));
+	setAgentDir(path.join(home, ".omp", "agent"));
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
 	registerMockApi(MOCK_API_SOURCE);
@@ -57,6 +59,9 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const key of ENV_KEYS) restoreEnvValue(key, savedEnv[key]);
 	__resetDirsFromEnvForTests();
+	// The subagent session opened agent.db and models.db under root; Windows cannot delete open files.
+	AgentStorage.close();
+	closeModelCache();
 	await removeWithRetries(root);
 });
 

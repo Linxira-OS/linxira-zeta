@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
-import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
-import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@linxiraos/zeta/task/types";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import * as fsp from "node:fs/promises";
+import { generateRoomKey, importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
+import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
+import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
+import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { TASK_SUBAGENT_LIFECYCLE_CHANNEL } from "@oh-my-pi/pi-coding-agent/task/types";
+import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 // The guest mirrors host EventBus traffic onto the local session and
@@ -93,6 +94,7 @@ afterEach(() => {
 describe("collab guest bus mirror", () => {
 	it("emits an aliased bus frame exactly once", async () => {
 		const writeSpy = spyOn(Bun, "write").mockResolvedValue(0);
+		const renameSpy = spyOn(fsp, "rename").mockResolvedValue(undefined);
 		const roomId = "bus-mirror-room-1";
 		const roomKey = generateRoomKey();
 		const cryptoKey = await importRoomKey(roomKey);
@@ -152,6 +154,7 @@ describe("collab guest bus mirror", () => {
 		} finally {
 			hostSocket.close();
 			writeSpy.mockRestore();
+			renameSpy.mockRestore();
 			await guest.leave("test cleanup").catch(() => {});
 		}
 	});
