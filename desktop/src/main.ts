@@ -467,6 +467,19 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 	win.on("unmaximize", () => pushWindowState(win));
 	win.on("enter-full-screen", () => pushWindowState(win));
 	win.on("leave-full-screen", () => pushWindowState(win));
+	// window.open / target=_blank (OAuth provider logins, external links) must
+	// never spawn an embedded Electron BrowserWindow with its own isolated
+	// cookie jar: hand http(s) targets to the system default browser — the
+	// same shell the CLI login opens — and deny every other scheme.
+	win.webContents.setWindowOpenHandler(({ url }) => {
+		try {
+			const { protocol } = new URL(url);
+			if (protocol === "http:" || protocol === "https:") void shell.openExternal(url);
+		} catch {
+			// Unparseable opener target — nothing to hand off; deny below.
+		}
+		return { action: "deny" };
+	});
 	win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
 		writeDesktopLog(`Renderer console [${level}] ${sourceId}:${line} ${message}`);
 	});
