@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { SqliteAuthCredentialStore } from "@linxiraos/zeta/session/auth-storage";
-import { handleApiKeyGet } from "../src/server/web-gateway/auth";
+import { handleApiKeyGet, resetSharedAuthStateForTests } from "../src/server/web-gateway/auth";
 import { handleSettingsReload } from "../src/server/web-gateway/settings";
 
 const PROVIDER = "deepseek";
@@ -42,6 +42,7 @@ beforeAll(async () => {
 	agentDir = await mkdtemp(join(tmpdir(), "zeta-gw-settings-reload-"));
 	process.env.ZETA_CODING_AGENT_DIR = agentDir;
 	refreshDirsFromEnv();
+	resetSharedAuthStateForTests();
 });
 
 afterAll(async () => {
@@ -63,7 +64,9 @@ describe("POST /api/settings/reload credential sync", () => {
 		// Stale in-memory pool: still not configured.
 		expect(await configuredFlag()).toBe(false);
 
-		const response = await handleSettingsReload(new Request("http://gateway/api/settings/reload", { method: "POST" }));
+		const response = await handleSettingsReload(
+			new Request("http://gateway/api/settings/reload", { method: "POST" }),
+		);
 		expect(response.status).toBe(200);
 		expect(await configuredFlag()).toBe(true);
 

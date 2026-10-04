@@ -282,6 +282,7 @@ export const zhCNLocale: LocalePlugin = {
 		"models.providerName": "服务商名称",
 		"models.rename": "重命名",
 		"models.originOmp": "来自 OMP",
+		"models.copyFromOmp": "从 OMP 复制密钥",
 		"models.loading": "加载中…",
 		"models.newModel": "新模型",
 		"models.model": "模型",

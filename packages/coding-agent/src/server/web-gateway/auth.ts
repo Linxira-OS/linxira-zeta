@@ -18,6 +18,7 @@ import type { AuthStorage, OAuthAuthInfo, OAuthPrompt } from "@linxiraos/pi-ai";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { ModelRegistry } from "../../config/model-registry";
+import { defaultOmpAgentDir, probeOmpCompat } from "../../config/omp-compat";
 import { discoverAuthStorage } from "../../sdk";
 
 // ---------------------------------------------------------------------------
@@ -30,6 +31,8 @@ export interface ApiKeyProviderInfo {
 	configured: boolean;
 	source?: string;
 	modelCount: number;
+	/** Upstream OMP agent.db holds a copyable API key for this bundled provider. */
+	ompKeyAvailable?: boolean;
 }
 
 export interface OAuthProviderStatus {
@@ -82,6 +85,18 @@ export async function refreshSharedModelRegistry(forceStatic = false): Promise<v
 }
 
 /**
+ * Drop the process-wide singletons so the next handler call re-discovers the
+ * auth storage and registry. Test isolation only: suites point
+ * `ZETA_CODING_AGENT_DIR` at a fresh temp dir per file, but bun runs every
+ * test file in one process, so the first file to touch a handler would
+ * otherwise pin the singleton to its temp dir for the whole run.
+ */
+export function resetSharedAuthStateForTests(): void {
+	sharedAuthStoragePromise = undefined;
+	sharedRegistry = undefined;
+}
+
+/**
  * Providers whose auth is subscription/OAuth-only (no usable static API key).
  * Kept in sync with the web-ui `OAUTH_PROVIDER_IDS` set plus the Zeta
  * subscription-login providers; these are surfaced through the OAuth panel
@@ -124,17 +139,24 @@ export async function handleAllProviders(): Promise<Response> {
 	for (const model of registry.getAll()) {
 		modelCounts.set(model.provider, (modelCounts.get(model.provider) ?? 0) + 1);
 	}
+	// Bundled providers whose only credential is the upstream OMP agent.db
+	// mirror key (omp-origin but not a models.yml mirror) expose a one-click
+	// "copy to Zeta" action.
+	const ompOrigin = registry.getOmpOriginProviders();
+	const ompConfigMirrors = registry.getOmpConfigProviders();
 
 	const providers: ApiKeyProviderInfo[] = [];
 	for (const [providerId, modelCount] of modelCounts) {
 		if (OAUTH_ONLY_PROVIDER_IDS.has(providerId)) continue;
 		const configured = authStorage.credentials.has(providerId);
+		const ompKeyAvailable = !configured && ompOrigin.has(providerId) && !ompConfigMirrors.has(providerId);
 		providers.push({
 			id: providerId,
 			displayName: displayNameFor(providerId),
 			configured,
 			source: configured ? "omp_agent_db" : undefined,
 			modelCount,
+			...(ompKeyAvailable ? { ompKeyAvailable: true } : {}),
 		});
 	}
 	return json({ providers });
@@ -241,6 +263,50 @@ export async function handleLogout(providerId: string): Promise<Response> {
 		// web-ui contract: logout failures are not fatal
 	}
 	return json({ ok: true });
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/copy-from-omp/[provider] — one-click import of an upstream key
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist the upstream OMP agent.db API key for a bundled provider into
+ * Zeta's own agent.db, turning the read-only compat mirror into a native
+ * credential (no origin marker, editable, survives OMP removal).
+ *
+ * Only bundled catalog providers with an upstream *stored* key are copyable:
+ * providers defined in the upstream models.yml stay read-only mirrors — their
+ * baseUrl/models configuration is upstream state Zeta must not clone behind
+ * the user's back. `ompAgentDir` exists for tests; production always probes
+ * the fixed upstream root.
+ */
+export async function handleCopyFromOmp(
+	providerId: string,
+	ompAgentDir: string = defaultOmpAgentDir(),
+): Promise<Response> {
+	if (!getProviderDefinition(providerId)) {
+		return json({ error: `Unknown bundled provider: ${providerId}` }, 404);
+	}
+	const snapshot = probeOmpCompat(ompAgentDir);
+	if (!snapshot) {
+		return json({ error: "No OMP configuration found" }, 404);
+	}
+	if (snapshot.config.providers?.[providerId]) {
+		return json({ error: "Provider is a read-only OMP models.yml mirror; define it locally instead" }, 400);
+	}
+	const key = snapshot.credentialKeys[providerId];
+	if (!key) {
+		return json({ error: `No OMP agent.db API key stored for ${providerId}` }, 404);
+	}
+	try {
+		const authStorage = await getSharedAuthStorage();
+		await authStorage.credentials.set(providerId, { type: "api_key", key });
+		// Drop the omp-origin marker: the provider is native now.
+		await refreshSharedModelRegistry(true);
+		return json({ success: true });
+	} catch (error) {
+		return json({ error: errorMessage(error) }, 500);
+	}
 }
 
 // ---------------------------------------------------------------------------
