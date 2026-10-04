@@ -3220,21 +3220,11 @@ export class TUI extends Container {
 		const provider = this.#frameProvider;
 		if (!provider || mainWidth <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
-		// The provider composes against the rows its frame can really occupy:
-		// the screen below the retained history already anchored there. Handing
-		// it the full height lets a transient chrome row (an editor suggestion)
-		// grow the frame past the bottom, scrolling retained history off for
-		// good; the shrink back then parks the frame one row high with a blank
-		// below, because scrolled rows cannot be pulled back. With the true
-		// budget the provider clips the live tail instead — the same thing
-		// scrollback would have done — and restores it byte-for-byte on shrink.
-		const anchorTop = Math.min(this.#providerViewportTop, Math.max(0, height - 1));
-		const budget = Math.max(0, height - anchorTop);
 		let plan: TerminalFramePlan;
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
-			plan = provider.renderFrame({ columns: mainWidth, rows: budget });
+			plan = provider.renderFrame({ columns: mainWidth, rows: height });
 			viewport = Array.from(plan.viewport);
 			if (viewport.length > height) {
 				const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;
@@ -3434,6 +3424,30 @@ export class TUI extends Container {
 				replayViewportRows = moved;
 			}
 		}
+		// A transiently grown frame (an editor suggestion row) must not scroll
+		// retained history off the top: scrolled rows cannot be pulled back, so
+		// the later shrink would park the frame one row high above a trailing
+		// blank instead of restoring the pre-growth screen. Clip the overflow
+		// from the head of the live tail instead — the rows stay live and return
+		// byte-for-byte once the transient chrome row leaves, which is exactly
+		// what scrollback would have done to them. History frames are exempt:
+		// an append's scroll is the designed commit path for retired rows, and a
+		// replay re-streams its ledger rows from row zero (the anchor is stale
+		// by definition until the reset below re-homes it). A composited
+		// inline overlay is exempt too: its window is padded to the full screen
+		// and its rows are placed against that geometry, so clipping the head
+		// would cut through the overlay itself.
+		const transientAnchorTop = Math.min(this.#providerViewportTop, Math.max(0, height - 1));
+		if (
+			historyRows.length === 0 &&
+			history?.kind !== "replay" &&
+			!this.#clearScrollbackOnNextRender &&
+			this.#getTopmostVisibleOverlay() === undefined &&
+			transientAnchorTop > 0
+		) {
+			const transientOverflow = transientAnchorTop + viewport.length - height;
+			if (transientOverflow > 0) viewport = viewport.slice(Math.min(transientOverflow, viewport.length));
+		}
 		// History first: it reuses the previous viewport's rows by content, and
 		// the viewport pass replaces that memo with its own rows.
 		const preparedHistory = this.#prepareLinesArray(historyRows, width);
@@ -3457,18 +3471,6 @@ export class TUI extends Container {
 		const geometryStable = this.#hasEverRendered && this.#previousWidth === width && this.#previousHeight === height;
 		const startTop = destructiveReset ? 0 : Math.min(this.#providerViewportTop, Math.max(0, height - 1));
 		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows));
-		if (process.env.PI_TUI_DEBUG_FRAMES) {
-			require("node:fs").appendFileSync(
-				"frames-debug.log",
-				`emit w=${width} h=${height} rows=${rows} vpRows=${viewportRows.length} hist=${historyRows.length} startTop=${startTop} newTop=${newTop} pve=${this.#providerViewportTop} pvl=${this.#previousFrameLength} force=${this.#forceViewportRepaintOnNextRender} clear=${this.#clearScrollbackOnNextRender} first=${JSON.stringify(prepared.lines[0]?.slice(0, 30))}\n`,
-			);
-		}
-		if (process.env.PI_TUI_DEBUG_FRAMES === "full") {
-			require("node:fs").appendFileSync(
-				"frames-debug.log",
-				`--- viewport (top=${newTop} rows=${rows})\n${prepared.lines.map((l, i) => `${String(i).padStart(2)}|${l}`).join("\n")}\n`,
-			);
-		}
 		const pendingAltExit = this.#pendingAltExit;
 		let buffer = this.#paintBeginSequence + pendingAltExit;
 		const renewSync =

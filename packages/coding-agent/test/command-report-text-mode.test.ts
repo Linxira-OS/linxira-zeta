@@ -69,24 +69,10 @@ describe("text-mode command reports on a real terminal core", () => {
 	}
 
 	async function runCommand(command: string, shown: string): Promise<void> {
-		runCommand.calls = (runCommand.calls ?? 0) + 1;
-		const n = runCommand.calls;
 		term.sendInput(command);
 		await term.waitForRender(() => screen(term).some(row => row.includes(command)));
-		Bun.write(
-			`${import.meta.dir}/dump-typed-${n}.txt`,
-			screen(term)
-				.map((r, i) => `${String(i).padStart(2)}|${r}`)
-				.join("\n"),
-		);
 		term.sendInput("\r");
 		await term.waitForRender(() => screen(term).some(row => row.includes(shown)));
-		Bun.write(
-			`${import.meta.dir}/dump-entered-${n}.txt`,
-			screen(term)
-				.map((r, i) => `${String(i).padStart(2)}|${r}`)
-				.join("\n"),
-		);
 	}
 
 	it.each([5, 40])(
@@ -104,24 +90,6 @@ describe("text-mode command reports on a real terminal core", () => {
 
 			term.sendInput("\x1b");
 			await term.waitForRender(() => !screen(term).some(row => row.includes("Full Changelog")));
-			if (rows === 5) {
-				const dump = (label: string, rowsIn: string[]) => {
-					Bun.write(
-						`${import.meta.dir}/dump-${label}.txt`,
-						rowsIn.map((r, i) => `${String(i).padStart(2)}|${r}`).join("\n"),
-					);
-				};
-				dump("before", before);
-				const after = screen(term);
-				dump("after", after);
-				Bun.write(
-					`${import.meta.dir}/dump-buffer.txt`,
-					term
-						.getScrollBuffer()
-						.map((r, i) => `${String(i).padStart(2)}|${Bun.stripANSI(r).trimEnd()}`)
-						.join("\n"),
-				);
-			}
 			expect(screen(term).indexOf(last)).toBe(before.indexOf(last));
 			// Nothing of the page reached the main screen, and no transcript row was duplicated.
 			const buffer = term.getScrollBuffer().map(row => Bun.stripANSI(row).trimEnd());
