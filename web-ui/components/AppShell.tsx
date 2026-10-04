@@ -1064,7 +1064,12 @@ function AppShellContent() {
 			>
 				{(
 					[
-						// The collapsed rail is desktop-only; mobile keeps the full drawer.
+						// This entry and the top-bar toggle are intentionally two
+						// different actions, not duplicates: this one switches the
+						// sidebar into the 56px icon-rail mode (quick actions stay
+						// reachable), while the top-bar toggle fully hides/shows the
+						// sidebar. Labels are worded to keep the distinction obvious.
+						// The rail is desktop-only; mobile keeps the full drawer.
 						...(isMobile
 							? []
 							: [
