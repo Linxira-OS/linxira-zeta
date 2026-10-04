@@ -110,7 +110,12 @@ for (const surface of USER_SURFACE_FILES) {
 	const abs = path.resolve(ROOT, surface.file);
 	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard
 	if (!fs.existsSync(abs)) {
-		hits.push({ file: surface.file, line: 0, text: "<file missing>", rule: `${surface.why} (surface file deleted — drop it from USER_SURFACE_FILES or restore it)` });
+		hits.push({
+			file: surface.file,
+			line: 0,
+			text: "<file missing>",
+			rule: `${surface.why} (surface file deleted — drop it from USER_SURFACE_FILES or restore it)`,
+		});
 		continue;
 	}
 	const lines = fs.readFileSync(abs, "utf8").split("\n");
