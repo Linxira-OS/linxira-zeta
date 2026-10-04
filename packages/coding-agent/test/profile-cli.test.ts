@@ -50,7 +50,7 @@ describe("global --profile flag", () => {
 		originalProfile = getActiveProfile();
 		originalAgentDir = getAgentDir();
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalConfigDir = process.env.PI_CONFIG_DIR;
 		configDir = `.omp-profile-cli-test-${Snowflake.next()}`;
@@ -74,9 +74,9 @@ describe("global --profile flag", () => {
 			setProfile(undefined);
 		}
 		if (originalOmpProfileEnv === undefined) {
-			delete process.env.OMP_PROFILE;
+			delete process.env.ZETA_PROFILE;
 		} else {
-			process.env.OMP_PROFILE = originalOmpProfileEnv;
+			process.env.ZETA_PROFILE = originalOmpProfileEnv;
 		}
 		if (originalPiProfileEnv === undefined) {
 			delete process.env.PI_PROFILE;
@@ -104,10 +104,10 @@ describe("global --profile flag", () => {
 		expect(getAgentDir()).toBe(path.join(os.homedir(), configDir, "profiles", "work", "agent"));
 	});
 
-	it("activates a profile inherited from OMP_PROFILE at run time", async () => {
+	it("activates a profile inherited from ZETA_PROFILE at run time", async () => {
 		const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		setProfile(undefined);
-		process.env.OMP_PROFILE = "work";
+		process.env.ZETA_PROFILE = "work";
 		delete process.env.PI_PROFILE;
 
 		await runCli(["--version"]);
@@ -166,8 +166,8 @@ describe("global --profile flag", () => {
 			const profileAgentDir = path.join(home, configDir, "profiles", "work", "agent");
 			await fs.mkdir(defaultAgentDir, { recursive: true });
 			await fs.mkdir(profileAgentDir, { recursive: true });
-			await Bun.write(path.join(defaultAgentDir, ".env"), "OMP_PROFILE_BOOTSTRAP_SENTINEL=default\n");
-			await Bun.write(path.join(profileAgentDir, ".env"), "OMP_PROFILE_BOOTSTRAP_SENTINEL=work\n");
+			await Bun.write(path.join(defaultAgentDir, ".env"), "ZETA_PROFILE_BOOTSTRAP_SENTINEL=default\n");
+			await Bun.write(path.join(profileAgentDir, ".env"), "ZETA_PROFILE_BOOTSTRAP_SENTINEL=work\n");
 
 			const probePath = path.join(root, "probe.ts");
 			await Bun.write(
@@ -175,7 +175,7 @@ describe("global --profile flag", () => {
 				[
 					`import { runCli } from ${JSON.stringify(url.pathToFileURL(cliEntry).href)};`,
 					'await runCli(["--profile", "work", "--help"]);',
-					'process.stdout.write("\\nSENTINEL=" + (Bun.env.OMP_PROFILE_BOOTSTRAP_SENTINEL ?? ""));',
+					'process.stdout.write("\\nSENTINEL=" + (Bun.env.ZETA_PROFILE_BOOTSTRAP_SENTINEL ?? ""));',
 				].join("\n"),
 			);
 
@@ -188,10 +188,10 @@ describe("global --profile flag", () => {
 				PI_NO_TITLE: "1",
 				NO_COLOR: "1",
 			};
-			delete childEnv.OMP_PROFILE;
+			delete childEnv.ZETA_PROFILE;
 			delete childEnv.PI_PROFILE;
 			delete childEnv.ZETA_CODING_AGENT_DIR;
-			delete childEnv.OMP_PROFILE_BOOTSTRAP_SENTINEL;
+			delete childEnv.ZETA_PROFILE_BOOTSTRAP_SENTINEL;
 
 			const proc = Bun.spawn([process.execPath, probePath], {
 				cwd: repoRoot,
@@ -215,7 +215,7 @@ describe("global --profile flag", () => {
 		// transpile of the CLI graph, not latency under test.
 	}, 30_000);
 
-	it("surfaces an invalid OMP_PROFILE env as a clean error, not an import crash", async () => {
+	it("surfaces an invalid ZETA_PROFILE env as a clean error, not an import crash", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-bad-"));
 		try {
 			const home = path.join(root, "home");
@@ -239,7 +239,7 @@ describe("global --profile flag", () => {
 				HOME: home,
 				USERPROFILE: home,
 				PI_CONFIG_DIR: ".omp-profile-cli-env-bad",
-				OMP_PROFILE: "..",
+				ZETA_PROFILE: "..",
 				NO_COLOR: "1",
 			};
 			delete childEnv.PI_PROFILE;
@@ -258,7 +258,7 @@ describe("global --profile flag", () => {
 			]);
 
 			expect(stdout, stderr).toContain("HANDLED");
-			expect(stderr).toContain("Invalid OMP profile");
+			expect(stderr).toContain("Invalid Zeta profile");
 			expect(exitCode).toBe(1);
 		} finally {
 			await removeWithRetries(root);

@@ -158,6 +158,17 @@ export function resolveBasicShell(): string | undefined {
  *
  * Exported for tests; `env` overrides Bun.env-based discovery.
  */
+
+/** True for the WSL launcher bash.exe variants, which are not Windows shells. */
+function isWslLauncher(bashPath: string): boolean {
+	const normalized = bashPath.toLowerCase().replaceAll("/", "\\");
+	return (
+		normalized.endsWith("\\system32\\bash.exe") ||
+		normalized.endsWith("\\windowsapps\\bash.exe") ||
+		normalized.endsWith("\\system32\\wsl.exe")
+	);
+}
+
 export function resolveWindowsShell(env: Record<string, string | undefined> = Bun.env): string {
 	const gitRoots = [
 		env.ProgramFiles && path.join(env.ProgramFiles, "Git"),
@@ -173,8 +184,12 @@ export function resolveWindowsShell(env: Record<string, string | undefined> = Bu
 		if (fs.existsSync(candidate)) return candidate;
 	}
 
+	// The WSL launcher (`System32\bash.exe` / `WindowsApps\bash.exe`) is not a
+	// Windows shell: it runs inside Linux without the spawn environment, so
+	// scripted `-c` snapshots break. Skip it and let the sh.exe sibling (Git
+	// Bash) or cmd.exe win instead.
 	const bashOnPath = $which("bash.exe");
-	if (bashOnPath) return bashOnPath;
+	if (bashOnPath && !isWslLauncher(bashOnPath)) return bashOnPath;
 
 	const shOnPath = $which("sh.exe");
 	if (shOnPath) {

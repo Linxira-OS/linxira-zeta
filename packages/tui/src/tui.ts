@@ -1863,8 +1863,11 @@ export class TUI extends Container {
 		if (this.terminal.rows < burstLastHeight) this.#resizeBurstShrank = true;
 		this.#resizeBurstLastHeight = this.terminal.rows;
 		this.#resizeBurstPull += Math.max(0, this.terminal.rows - burstLastHeight);
-		if (this.terminal.columns !== this.#previousWidth) this.#resizeBurstWidthChanged = true;
-		if (this.terminal.columns !== this.#previousWidth || this.terminal.rows !== this.#previousHeight) {
+		// Latch against the physical width: with the sidebar reserving columns,
+		// `#previousWidth` holds the composed main-area width, which would arm
+		// the burst on every sidebar toggle.
+		if (this.terminal.columns !== this.#previousPhysicalWidth) this.#resizeBurstWidthChanged = true;
+		if (this.terminal.columns !== this.#previousPhysicalWidth || this.terminal.rows !== this.#previousHeight) {
 			this.#resizeBurstResized = true;
 		}
 		this.#geometryEpoch++;
@@ -3287,11 +3290,11 @@ export class TUI extends Container {
 	 */
 	#prepareResizeReplay(width: number, height: number): void {
 		const size = `${width}x${height}`;
-		const widthChanged = this.#resizeBurstWidthChanged || width !== this.#previousWidth;
+		const widthChanged = this.#resizeBurstWidthChanged || width !== this.#previousPhysicalWidth;
 		const resized = this.#resizeBurstResized || widthChanged || height !== this.#previousHeight;
 		if (
 			!this.#hasEverRendered ||
-			(this.#previousPhysicalWidth === width && this.#previousHeight === height) ||
+			!resized ||
 			this.#resizeReplaySize === size ||
 			this.#resizeScrollbackMode === "preserve" ||
 			// In-place resizes (Warp) repaint the settled viewport once the drag
@@ -3324,7 +3327,7 @@ export class TUI extends Container {
 			this.#prepareForcedRender(true);
 			return;
 		}
-		if (width === this.#previousPhysicalWidth) return;
+		if (!widthChanged) return;
 		provider.beginHistoryReplay();
 		this.#forceViewportRepaintOnNextRender = true;
 	}
@@ -3811,6 +3814,7 @@ export class TUI extends Container {
 		if (this.#maybeDeferGhosttyInitialImagePaint()) return;
 		this.#emitPlanFrame(width, height, viewport, undefined, undefined);
 		this.#paintGutter(width, rawWidth, height, viewport.length);
+		this.#previousPhysicalWidth = rawWidth;
 	}
 
 	/**

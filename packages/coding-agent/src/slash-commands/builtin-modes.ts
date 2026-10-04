@@ -30,7 +30,8 @@ import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import ratchetKickoffPrompt from "../prompts/ratchet-kickoff.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
-import { CLI_THINKING_LEVELS, getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
 import { noThinkingMessage, resolveThinkingArgument } from "./helpers/effort";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";
@@ -358,6 +359,19 @@ export function formatTokenCount(value: number): string {
 	return value.toLocaleString();
 }
 
+/** Catalogue-backed `/effort <level>` subcommand descriptions (resolved at
+ * read time so `/language` switches apply immediately). */
+const EFFORT_CMD_DESCRIPTIONS: Record<ConfiguredThinkingLevel, () => string> = {
+	off: () => M.cmdEffortOff,
+	minimal: () => M.cmdEffortMinimal,
+	low: () => M.cmdEffortLow,
+	medium: () => M.cmdEffortMedium,
+	high: () => M.cmdEffortHigh,
+	xhigh: () => M.cmdEffortXHigh,
+	max: () => M.cmdEffortMax,
+	auto: () => M.cmdEffortAuto,
+	inherit: () => M.cmdEffortInherit,
+};
 export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
@@ -980,16 +994,18 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "effort",
 		icon: "gauge",
 		get description() {
-			return `Set reasoning effort (thinking level, intelligence) for this session; ${formatKeyHint("shift+tab")} cycles levels`;
+			return M.cmdEffortFmt.replace("%s", formatKeyHint("shift+tab"));
 		},
 		acpDescription: "Set or show reasoning effort (thinking level, intelligence)",
 		acpInputHint: "[level]",
 		inlineHint: "[level]",
 		allowArgs: true,
-		subcommands: CLI_THINKING_LEVELS.map(level => ({
-			name: level,
-			description: getConfiguredThinkingLevelMetadata(level).description,
-		})),
+		get subcommands() {
+			return CLI_THINKING_LEVELS.map(level => ({
+				name: level,
+				description: EFFORT_CMD_DESCRIPTIONS[level](),
+			}));
+		},
 		getTuiAutocompleteDescription: runtime =>
 			`Thinking: ${runtime.ctx.session.configuredThinkingLevel() ?? "model default"}`,
 		handle: async (command, runtime) => {

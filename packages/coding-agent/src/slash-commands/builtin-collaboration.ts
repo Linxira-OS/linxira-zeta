@@ -236,7 +236,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		subcommands: [
 			{
 				name: "all",
-				description: "Write a zip with the main transcript, LLM request JSON, and one file per subagent",
+				description: () => M.cmdDumpAll,
 			},
 		],
 		allowArgs: true,

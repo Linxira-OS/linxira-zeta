@@ -12,7 +12,7 @@ import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } f
 // (documented in docs/extensions.md § Runtime setting overrides); the override only
 // lands if that import resolves to the host's registry, not a second copy.
 const EXTENSION_SOURCE = `
-
+import { lookup } from "@linxiraos/zeta/config/registry";
 export default function (pi) {
 	const recap = lookup("recap.enabled");
 	if (!recap) throw new Error("recap.enabled is not registered");

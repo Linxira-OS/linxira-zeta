@@ -67,6 +67,8 @@ describe("extension/hook loader process.exit guard (#3680)", () => {
 				? 'process.kill(process.pid, "SIGINT");'
 				: 'void Promise.reject(new Error("probe fatal"));';
 		return runProbe(`
+import { postmortem } from "@linxiraos/pi-utils";
+import { withHostGuard } from "@linxiraos/zeta/extensibility/utils";
 
 postmortem.register("probe-cleanup", reason => {
 	process.stdout.write(\`cleanup:\${reason}\\n\`);
@@ -150,6 +152,8 @@ void withHostGuard(async () => {
 
 	it("keeps postmortem.quit behind the extension exit guard", async () => {
 		const { exitCode, stdout, stderr } = await runProbe(`
+import { postmortem } from "@linxiraos/pi-utils";
+import { withHostGuard } from "@linxiraos/zeta/extensibility/utils";
 
 try {
 	await withHostGuard(() => postmortem.quit(37));

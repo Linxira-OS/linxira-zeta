@@ -124,7 +124,7 @@ function expandTipKeys(tip: string): string {
 export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
 	const label = "Tip: ";
 	const labelWidth = visibleWidth(label);
-	const bodyBudget = boxWidth - 1 - labelWidth; // 1 = leading indent
+	const bodyBudget = boxWidth - labelWidth;
 	if (bodyBudget < 8) return [];
 
 	const isNew = NEW_TIP_MARKER.test(tip);
@@ -141,8 +141,8 @@ export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): stri
 
 	const lines = wrappedBody.map((line, index) => {
 		const styledBody = theme.fg("muted", line);
-		const content = index === 0 ? `${styledLabel}${styledBody}` : `${continuationIndent}${styledBody}`;
-		return ` ${theme.italic(content)}`;
+		const content = index === 0 ? `${styledLabel}${styledBody}` : `${styledBody}`;
+		return theme.italic(content);
 	});
 
 	if (isNew) {
@@ -156,7 +156,7 @@ export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): stri
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
 		} else {
-			lines.push(` ${continuationIndent}${tag}`);
+			lines.push(continuationIndent + tag);
 		}
 	}
 
@@ -587,7 +587,9 @@ export class WelcomeComponent implements Component {
 		}
 
 		// Randomly picked tip, rendered directly beneath the box.
-		lines.push(...this.#renderTip(boxWidth));
+		// The banner centers every tip line, so the tip drops out entirely on
+		// narrow boxes rather than wrapping into unreadable slivers.
+		if (termWidth >= 16) lines.push(...this.#renderTip(boxWidth));
 
 		return lines;
 	}
