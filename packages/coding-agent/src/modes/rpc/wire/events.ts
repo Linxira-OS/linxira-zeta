@@ -156,6 +156,10 @@ export const eventDefs = {
 		{ type: "'queue_update'", steering: "string[]", followUp: "string[]" },
 		"Coalesced snapshot of the displayable steering/follow-up queue, sent whenever it changes.",
 	),
+	StateVersionChangedEvent: doc(
+		{ type: "'state_version_changed'", stateVersion: "number" },
+		"Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`).",
+	),
 
 	RpcAgentEvent: doc(
 		[
@@ -190,6 +194,7 @@ export const eventDefs = {
 			"ThinkingLevelChangedEvent",
 			"GoalUpdatedEvent",
 			"QueueUpdateEvent",
+			"StateVersionChangedEvent",
 		].join(" | "),
 		"A session event, discriminated by `type`; `set_event_filter` selects which are sent.",
 	),

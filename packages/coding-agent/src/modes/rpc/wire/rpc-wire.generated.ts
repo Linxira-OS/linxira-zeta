@@ -899,8 +899,14 @@ export interface QueueUpdateEvent {
 	followUp: string[];
 }
 
+/** Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`). */
+export interface StateVersionChangedEvent {
+	type: "state_version_changed";
+	stateVersion: number;
+}
+
 /** A session event, discriminated by `type`; `set_event_filter` selects which are sent. */
-export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent;
+export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent;
 
 /** First frame after startup; transport fields are absent on servers without protocol v2. */
 export interface ReadyEvent {

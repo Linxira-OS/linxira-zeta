@@ -1095,6 +1095,13 @@ class QueueUpdateEvent:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class StateVersionChangedEvent:
+    """Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`)."""
+    type: Literal["state_version_changed"] = "state_version_changed"
+    state_version: float
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class ReadyEvent:
     """First frame after startup; transport fields are absent on servers without protocol v2."""
     type: Literal["ready"] = "ready"
@@ -1474,7 +1481,7 @@ AssistantMessageEvent: TypeAlias = AssistantStartEvent | AssistantTextStartEvent
 """Streaming update for one assistant message, discriminated by `type`."""
 
 
-RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent
+RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
 """A session event, discriminated by `type`; `set_event_filter` selects which are sent."""
 
 
@@ -2344,6 +2351,14 @@ def parse_queue_update_event(value: object, path: str = "QueueUpdateEvent") -> Q
     )
 
 
+def parse_state_version_changed_event(value: object, path: str = "StateVersionChangedEvent") -> StateVersionChangedEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["state_version_changed"]]', literal(frozenset({"state_version_changed"}))), path)
+    return StateVersionChangedEvent(
+        state_version=required(payload, "stateVersion", decode_float, path),
+    )
+
+
 def parse_ready_event(value: object, path: str = "ReadyEvent") -> ReadyEvent:
     payload = expect_object(value, path)
     required(payload, "type", cast('Decoder[Literal["ready"]]', literal(frozenset({"ready"}))), path)
@@ -2806,6 +2821,7 @@ _RPC_AGENT_EVENT_CASES: Final[dict[str, Decoder[RpcAgentEvent]]] = {
         "thinking_level_changed": parse_thinking_level_changed_event,
         "goal_updated": parse_goal_updated_event,
         "queue_update": parse_queue_update_event,
+        "state_version_changed": parse_state_version_changed_event,
 }
 
 
@@ -2858,6 +2874,7 @@ _RPC_NOTIFICATION_CASES: Final[dict[str, Decoder[RpcNotification]]] = {
         "thinking_level_changed": parse_rpc_agent_event,
         "goal_updated": parse_rpc_agent_event,
         "queue_update": parse_rpc_agent_event,
+        "state_version_changed": parse_rpc_agent_event,
 }
 
 
@@ -3402,6 +3419,10 @@ class WireClient:
         """Subscribe to `queue_update`: Coalesced snapshot of the displayable steering/follow-up queue, sent whenever it changes."""
         return self._listen("queue_update", listener)
 
+    def on_state_version_changed(self, listener: Callable[[StateVersionChangedEvent], None]) -> Callable[[], None]:
+        """Subscribe to `state_version_changed`: Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`)."""
+        return self._listen("state_version_changed", listener)
+
 
 __all__ = [
     "AdvisorCostChangedEvent",
@@ -3542,6 +3563,7 @@ __all__ = [
     "SlashCommandInput",
     "SlashCommandSource",
     "SlashSubcommand",
+    "StateVersionChangedEvent",
     "StopReason",
     "StreamingBehavior",
     "SubagentEvent",
@@ -3699,6 +3721,7 @@ __all__ = [
     "parse_set_widget_ui_request",
     "parse_slash_command_input",
     "parse_slash_subcommand",
+    "parse_state_version_changed_event",
     "parse_subagent_event",
     "parse_subagent_event_payload",
     "parse_subagent_lifecycle_event",

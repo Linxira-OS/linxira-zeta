@@ -376,3 +376,9 @@ export class AgentRegistry {
 		}
 	}
 }
+
+const AGENT_TOMBSTONE_SUFFIX = ".tombstone";
+
+export function getAgentTombstonePath(sessionFile: string): string {
+	return `${sessionFile}${AGENT_TOMBSTONE_SUFFIX}`;
+}

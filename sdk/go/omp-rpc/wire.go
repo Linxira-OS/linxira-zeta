@@ -4062,6 +4062,32 @@ func (v QueueUpdateEvent) MarshalJSON() ([]byte, error) {
 	return encodeObject(plain(v), `"type":"queue_update"`, nil)
 }
 
+// Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`).
+type StateVersionChangedEvent struct {
+	StateVersion float64 `json:"stateVersion"`
+}
+
+func (v *StateVersionChangedEvent) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "StateVersionChangedEvent", v.decodeFrom)
+}
+
+func (v *StateVersionChangedEvent) decodeFrom(raw map[string]json.RawMessage) error {
+	var out StateVersionChangedEvent
+	d := fieldDecoder{raw: raw, owner: "StateVersionChangedEvent"}
+	d.constant("type", "state_version_changed")
+	d.required("stateVersion", &out.StateVersion)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+func (v StateVersionChangedEvent) MarshalJSON() ([]byte, error) {
+	type plain StateVersionChangedEvent
+	return encodeObject(plain(v), `"type":"state_version_changed"`, nil)
+}
+
 // A session event, discriminated by `type`; `set_event_filter` selects which are sent.
 type RpcAgentEvent struct {
 	// Value holds one variant, chosen by "type" on decode.
@@ -4105,6 +4131,7 @@ func (NoticeEvent) isRpcAgentEvent()                 {}
 func (ThinkingLevelChangedEvent) isRpcAgentEvent()   {}
 func (GoalUpdatedEvent) isRpcAgentEvent()            {}
 func (QueueUpdateEvent) isRpcAgentEvent()            {}
+func (StateVersionChangedEvent) isRpcAgentEvent()    {}
 func (UnknownNotification) isRpcAgentEvent()         {}
 
 func (v RpcAgentEvent) MarshalJSON() ([]byte, error) {
@@ -4188,6 +4215,8 @@ func (v *RpcAgentEvent) decodeFrom(raw map[string]json.RawMessage) error {
 		value, err = decodeVariant[GoalUpdatedEvent](raw)
 	case "queue_update":
 		value, err = decodeVariant[QueueUpdateEvent](raw)
+	case "state_version_changed":
+		value, err = decodeVariant[StateVersionChangedEvent](raw)
 	default:
 		return unknownValue("RpcAgentEvent.type", tag)
 	}
@@ -6085,6 +6114,7 @@ func (NoticeEvent) isRpcNotification()                  {}
 func (ThinkingLevelChangedEvent) isRpcNotification()    {}
 func (GoalUpdatedEvent) isRpcNotification()             {}
 func (QueueUpdateEvent) isRpcNotification()             {}
+func (StateVersionChangedEvent) isRpcNotification()     {}
 func (UnknownNotification) isRpcNotification()          {}
 
 func (v RpcNotification) MarshalJSON() ([]byte, error) {
@@ -6195,6 +6225,8 @@ func (v *RpcNotification) UnmarshalJSON(data []byte) error {
 		value, err = decodeVariant[GoalUpdatedEvent](raw)
 	case "queue_update":
 		value, err = decodeVariant[QueueUpdateEvent](raw)
+	case "state_version_changed":
+		value, err = decodeVariant[StateVersionChangedEvent](raw)
 	default:
 		value = newUnknownNotification(tag, data)
 	}
@@ -6269,6 +6301,7 @@ func (NoticeEvent) isRpcServerFrame()                  {}
 func (ThinkingLevelChangedEvent) isRpcServerFrame()    {}
 func (GoalUpdatedEvent) isRpcServerFrame()             {}
 func (QueueUpdateEvent) isRpcServerFrame()             {}
+func (StateVersionChangedEvent) isRpcServerFrame()     {}
 func (UnknownNotification) isRpcServerFrame()          {}
 
 func (v RpcServerFrame) MarshalJSON() ([]byte, error) {
@@ -6389,6 +6422,8 @@ func (v *RpcServerFrame) UnmarshalJSON(data []byte) error {
 		value, err = decodeVariant[GoalUpdatedEvent](raw)
 	case "queue_update":
 		value, err = decodeVariant[QueueUpdateEvent](raw)
+	case "state_version_changed":
+		value, err = decodeVariant[StateVersionChangedEvent](raw)
 	default:
 		value = newUnknownNotification(tag, data)
 	}
