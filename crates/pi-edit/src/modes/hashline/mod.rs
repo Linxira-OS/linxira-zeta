@@ -151,7 +151,7 @@ fn inspect_input(input: &str) -> Inspection {
 				match op {
 					FileOp::Rem => file_ops.push(FileOpIntent::Delete { path: section.path.clone() }),
 					FileOp::Move { dest } => {
-						file_ops.push(FileOpIntent::Move { from: section.path.clone(), to: dest.clone() })
+						file_ops.push(FileOpIntent::Move { from: section.path.clone(), to: dest.clone() });
 					},
 				}
 			}
