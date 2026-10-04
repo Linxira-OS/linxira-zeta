@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { beforeAll, afterEach, describe, expect, it } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import {
@@ -6,6 +6,7 @@ import {
 	type TranscriptStableRow,
 	trimBlankEdges,
 } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { Component } from "@linxiraos/pi-tui";
 
@@ -838,5 +839,108 @@ describe("TranscriptContainer viewport click spans", () => {
 		transcript.renderViewport(80, 10, frame);
 		transcript.clear();
 		expect(transcript.getLastViewportSpans()).toEqual([]);
+	});
+});
+
+/**
+ * Graphics rows must land in native scrollback the moment their block
+ * finalizes: live placements are repainted into the reserved-row block every
+ * frame, and on terminals whose live-region sixel does not stick (Windows
+ * Terminal) the image stays invisible until the exit flush commits the block.
+ * These tests mirror the row shape {@link Image.render} builds — reserved
+ * escape-only rows plus one cursor-anchored sequence line — with literal
+ * strings so the container policy is exercised against the real
+ * `TERMINAL.isImageLine` predicate without a native sixel encoder.
+ */
+describe("TranscriptContainer settled image flush", () => {
+	const originalProtocol = TERMINAL.imageProtocol;
+
+	afterEach(() => {
+		setTerminalImageProtocol(originalProtocol);
+	});
+
+	/** Image.render's direct-placement shape: rows-1 reserved rows + anchor line. */
+	function imageBlockRows(): string[] {
+		return ["\x1b[0m", "\x1b[0m", "\x1b[0m", "\x1b7\x1b[3A\x1bPq#0;2;0;0;0#0~~!!\x1b\\"];
+	}
+
+	it("flushes a settled image block without waiting for row pressure", () => {
+		setTerminalImageProtocol(ImageProtocol.Sixel);
+		const transcript = new TranscriptContainer();
+		transcript.addChild(new Block(["analysis"], true));
+		transcript.addChild(new Block(imageBlockRows(), true));
+
+		// Everything fits the generous capacity, yet the image block still
+		// retires: live-region graphics do not stick on all terminals.
+		const batch = transcript.peekFinalizedBatch(80, 40);
+		expect(batch?.rows).toEqual(["analysis", "", ...imageBlockRows(), ""]);
+		if (!batch) throw new Error("Expected image flush batch");
+		transcript.acknowledgeFinalizedBatch(batch.id);
+
+		expect(transcript.renderViewport(80, 40, frame)).toEqual([]);
+		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
+	});
+
+	it("retires through the last image block and keeps trailing settled blocks live", () => {
+		setTerminalImageProtocol(ImageProtocol.Sixel);
+		const transcript = new TranscriptContainer();
+		transcript.addChild(new Block(["before"], true));
+		transcript.addChild(new Block(imageBlockRows(), true));
+		const after = new Block(["after"], true);
+		transcript.addChild(after);
+
+		const batch = transcript.peekFinalizedBatch(80, 40);
+		expect(batch?.rows).toEqual(["before", "", ...imageBlockRows(), ""]);
+		if (!batch) throw new Error("Expected image flush batch");
+		transcript.acknowledgeFinalizedBatch(batch.id);
+
+		expect(transcript.renderViewport(80, 40, frame)).toEqual(["after"]);
+		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
+		// The stop-time flush remains the fallback for what the image flush
+		// deliberately left live.
+		expect(transcript.peekFlushBatch(80)?.rows).toEqual(["after", ""]);
+	});
+
+	it("waits for the image block to finalize before flushing", () => {
+		setTerminalImageProtocol(ImageProtocol.Sixel);
+		const transcript = new TranscriptContainer();
+		const image = new Block(imageBlockRows(), false);
+		transcript.addChild(image);
+
+		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
+
+		image.finalize(imageBlockRows());
+		const batch = transcript.peekFinalizedBatch(80, 40);
+		expect(batch?.rows).toEqual([...imageBlockRows(), ""]);
+		if (!batch) throw new Error("Expected image flush batch");
+		transcript.acknowledgeFinalizedBatch(batch.id);
+	});
+
+	it("leaves text-only transcripts to pressure retirement", () => {
+		setTerminalImageProtocol(ImageProtocol.Sixel);
+		const transcript = new TranscriptContainer();
+		transcript.addChild(new Block(["one"], true));
+		transcript.addChild(new Block(["two"], true));
+
+		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
+		expect(transcript.renderViewport(80, 40, frame)).toEqual(["one", "", "two"]);
+	});
+
+	it("skips image rows without a protocol and re-scans once one arrives", () => {
+		setTerminalImageProtocol(null);
+		const transcript = new TranscriptContainer();
+		const image = new Block(["[Image: image/png 100x100]"], true);
+		transcript.addChild(image);
+
+		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
+
+		// The runtime probe upgrade re-renders text-fallback blocks as
+		// graphics; the flush must pick the block up on the next peek.
+		setTerminalImageProtocol(ImageProtocol.Kitty);
+		image.finalize(["\x1b_Ga=p,q=1,v=1\x1b\\"]);
+		const batch = transcript.peekFinalizedBatch(80, 40);
+		expect(batch?.rows).toEqual(["\x1b_Ga=p,q=1,v=1\x1b\\", ""]);
+		if (!batch) throw new Error("Expected image flush batch");
+		transcript.acknowledgeFinalizedBatch(batch.id);
 	});
 });
