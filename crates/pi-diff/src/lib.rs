@@ -32,7 +32,7 @@ struct Component {
 /// component chain that got there.
 struct PathState {
 	old_pos: isize,
-	last: Option<Rc<Component>>,
+	last:    Option<Rc<Component>>,
 }
 
 /// Extend `path` along its diagonal while tokens match, recording the common
@@ -70,7 +70,7 @@ fn add_to_path(path: &PathState, added: bool, removed: bool, old_pos_inc: isize)
 	match &path.last {
 		Some(last) if last.added == added && last.removed == removed => PathState {
 			old_pos: path.old_pos + old_pos_inc,
-			last: Some(Rc::new(Component {
+			last:    Some(Rc::new(Component {
 				count: last.count + 1,
 				added,
 				removed,
@@ -321,7 +321,7 @@ pub struct Hunk {
 	/// Number of new-text lines covered by the hunk.
 	pub new_lines: u32,
 	/// Prefixed hunk body lines without trailing newlines.
-	pub lines: Vec<Vec<u16>>,
+	pub lines:     Vec<Vec<u16>>,
 }
 
 /// Prepend a unified-diff marker to a UTF-16 line.
@@ -361,9 +361,9 @@ pub fn structured_patch_hunks_from_runs_u16(
 	// Change list with per-change line slices; the trailing sentinel mirrors
 	// jsdiff's pushed empty change that flushes the final hunk.
 	struct ChangeLines<'a> {
-		added: bool,
+		added:   bool,
 		removed: bool,
-		lines: &'a [&'a [u16]],
+		lines:   &'a [&'a [u16]],
 	}
 	let mut list: Vec<ChangeLines> = Vec::with_capacity(runs.len() + 1);
 	let mut old_pos = 0usize;
@@ -393,7 +393,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 		old_lines: usize,
 		new_start: usize,
 		new_lines: usize,
-		lines: Vec<Vec<u16>>,
+		lines:     Vec<Vec<u16>>,
 	}
 	let mut hunks: Vec<RawHunk> = Vec::new();
 	let mut old_range_start = 0usize;
@@ -447,7 +447,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 						old_lines: old_line - old_range_start + context_size,
 						new_start: new_range_start,
 						new_lines: new_line - new_range_start + context_size,
-						lines: std::mem::take(&mut cur_range),
+						lines:     std::mem::take(&mut cur_range),
 					});
 					old_range_start = 0;
 					new_range_start = 0;
@@ -478,7 +478,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 			old_lines: hunk.old_lines as u32,
 			new_start: hunk.new_start as u32,
 			new_lines: hunk.new_lines as u32,
-			lines: hunk.lines,
+			lines:     hunk.lines,
 		})
 		.collect()
 }
@@ -546,7 +546,7 @@ fn js_trim(s: &[u16]) -> &[u16] {
 /// JS regex scanning under the `u` flag.
 struct CodePoints<'a> {
 	text: &'a [u16],
-	pos: usize,
+	pos:  usize,
 }
 
 impl Iterator for CodePoints<'_> {
@@ -867,23 +867,12 @@ mod tests {
 
 	#[test]
 	fn line_diff_replaces_middle_line() {
-		assert_eq!(
-			lines("a\nb\nc\n", "a\nx\nc\n"),
-			vec![
-				("a\n".into(), false, false),
-				("b\n".into(), false, true),
-				("x\n".into(), true, false),
-				("c\n".into(), false, false),
-			]
-		);
+		assert_eq!(lines("a\nb\nc\n", "a\nx\nc\n"), vec![
 	}
 
 	#[test]
 	fn line_diff_treats_missing_trailing_newline_as_distinct() {
-		assert_eq!(
-			lines("a\nb", "a\nb\n"),
-			vec![("a\n".into(), false, false), ("b".into(), false, true), ("b\n".into(), true, false),]
-		);
+		assert_eq!(lines("a\nb", "a\nb\n"), vec![
 	}
 
 	#[test]
@@ -895,9 +884,7 @@ mod tests {
 		let utf16_shaped: Vec<Change<String>> = utf16
 			.into_iter()
 			.map(|change| Change {
-				value: String::from_utf16(&change.value).unwrap(),
-				count: change.count,
-				added: change.added,
+				value:   String::from_utf16(&change.value).unwrap(),
 				removed: change.removed,
 			})
 			.collect();
@@ -930,10 +917,7 @@ mod tests {
 			.iter()
 			.map(|line| String::from_utf16(line).unwrap())
 			.collect();
-		assert_eq!(
-			body,
-			vec![" a", "-b", "\\ No newline at end of file", "+c", "\\ No newline at end of file"]
-		);
+		assert_eq!(body, vec![
 	}
 
 	#[test]
