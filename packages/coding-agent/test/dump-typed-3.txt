@@ -1,0 +1,32 @@
+ 0|
+ 1|TRANSCRIPT 29
+ 2|
+ 3|TRANSCRIPT 30
+ 4|
+ 5|TRANSCRIPT 31
+ 6|
+ 7|TRANSCRIPT 32
+ 8|
+ 9|TRANSCRIPT 33
+10|
+11|TRANSCRIPT 34
+12|
+13|TRANSCRIPT 35
+14|
+15|TRANSCRIPT 36
+16|
+17|TRANSCRIPT 37
+18|
+19|TRANSCRIPT 38
+20|
+21|TRANSCRIPT 39
+22|
+23| ζ > ⦸ Sonnet 4.5 > 🌳 zeta/zeta-sync186 > ⑂ sync/omp-release/v18.6.0 ▶─0.0%──────────────────────────────────┃──────1M─
+24|╰─ /tools
+25|❯ 🛠  tools       Tools: none available
+26|  👁  advisor     Advisor: off
+27|  🌐 browser     Browser: headless
+28|  ⑂  branch      Rewind to a previous message, keeping the old path as a branch
+29|  📋 dump        Copy session transcript to clipboard (and write LLM request JSON to tmp)
+30|  ☑  todo        Todos: none
+31|  🧩 extensions  Open Extension Control Center dashboard

@@ -350,7 +350,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
-		const packagePath = path.join(nodeModulesDir, "@zeta", "pi-coding-agent");
+		const packagePath = path.join(nodeModulesDir, "@linxiraos", "zeta");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(npmBinDir, "zeta-c");
@@ -483,7 +483,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
-		const managedBinary = path.join(nodeModulesDir, "@zeta", "pi-coding-agent", "zeta-c");
+		const managedBinary = path.join(nodeModulesDir, "@linxiraos", "zeta", "zeta-c");
 		const aliasPath = path.join(npmBinDir, "zeta-c");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(managedBinary), { recursive: true });
@@ -507,7 +507,7 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunBinDir = path.join(dir, "bun-bin");
 		const bunGlobalDir = path.join(dir, "bun-global");
-		const packagePath = path.join(bunGlobalDir, "node_modules", "@zeta", "pi-coding-agent");
+		const packagePath = path.join(bunGlobalDir, "node_modules", "@linxiraos", "zeta");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
 		const aliasPath = path.join(bunBinDir, "zeta-c");
@@ -589,7 +589,11 @@ describe("update-cli package manager commands", () => {
 			PATH: "/bin",
 			MISE_MINIMUM_RELEASE_AGE: "0s",
 		});
-		expect(buildMiseForceInstallArgs("15.10.5")).toEqual(["install", "--force", "github:Linxira-OS/linxira-zeta@15.10.5"]);
+		expect(buildMiseForceInstallArgs("15.10.5")).toEqual([
+			"install",
+			"--force",
+			"github:Linxira-OS/linxira-zeta@15.10.5",
+		]);
 	});
 
 	it.skipIf(!miseBinary)("overrides per-tool release age during actual mise upgrade resolution", async () => {
@@ -892,14 +896,14 @@ describe("update-cli bun cache pruning", () => {
 			path.join(dir, "react@19.2.6@@@1", "package.json"),
 			JSON.stringify({ name: "react", version: "19.2.6" }),
 		);
-		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1"), "");
-		await Bun.write(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1"), "");
+		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1"), "");
+		await Bun.write(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1"), "");
 		await Bun.write(
-			path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json"),
+			path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json"),
 			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.7.6" }),
 		);
 		await Bun.write(
-			path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json"),
+			path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json"),
 			JSON.stringify({ name: "@linxiraos/pi-utils", version: "15.8.0" }),
 		);
 		await Bun.write(path.join(dir, "chalk", "4.1.2@@@1"), "");
@@ -920,10 +924,10 @@ describe("update-cli bun cache pruning", () => {
 		expect(await Bun.file(path.join(dir, "react@18.3.1@@@1", "package.json")).exists()).toBe(false);
 		expect(await Bun.file(path.join(dir, "react", "19.2.6@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "react@19.2.6@@@1", "package.json")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
-		expect(await Bun.file(path.join(dir, "@zeta", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.7.6@@@1")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.7.6@@@1", "package.json")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils", "15.8.0@@@1")).exists()).toBe(true);
+		expect(await Bun.file(path.join(dir, "@linxiraos", "pi-utils@15.8.0@@@1", "package.json")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk", "4.1.2@@@1")).exists()).toBe(true);
 		expect(await Bun.file(path.join(dir, "chalk@4.1.2@@@1", "package.json")).exists()).toBe(true);
 	});
@@ -1336,7 +1340,7 @@ describe("update-cli binary replacement", () => {
 				expectedVersion: "15.1.8",
 				verifyInstalledVersion: async () => ({ ok: false, path: targetPath }),
 			}),
-		).rejects.toThrow("restored previous omp binary");
+		).rejects.toThrow("restored previous zeta-c binary");
 
 		expect(await Bun.file(targetPath).text()).toBe("old binary");
 		expect(await Bun.file(tempPath).exists()).toBe(false);
@@ -1734,7 +1738,7 @@ describe("update-cli script-shim takeover", () => {
 				githubToken: "test-token",
 				verifyBinary,
 			}),
-		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zeta launcher/);
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zeta-c launcher/);
 
 		expect(await Bun.file(path.join(dir, "zeta-c.exe")).exists()).toBe(false);
 		for (const name in shims) {
@@ -1791,7 +1795,7 @@ describe("update-cli script-shim takeover", () => {
 					githubToken: "test-token",
 					verifyBinary,
 				}),
-			).rejects.toThrow("restored previous zeta launcher");
+			).rejects.toThrow("restored previous zeta-c launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}

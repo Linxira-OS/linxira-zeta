@@ -1,0 +1,32 @@
+ 0|╭─ Full Changelog ─────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ 1|│                                                                                                                      │
+ 2|│ [1.0.10] - 2026-08-19                                                                                              █ │
+ 3|│                                                                                                                    │ │
+ 4|│ ### Added                                                                                                          │ │
+ 5|│                                                                                                                    │ │
+ 6|│ - Added a web gateway enter_plan_mode command and a session enterPlanMode path so the web-ui /plan slash command   │ │
+ 7|│   actually enters plan mode (plan file, write tool, plan-approval wiring, optional initial prompt) instead of      │ │
+ 8|│   forwarding a literal message.                                                                                    │ │
+ 9|│ - Added an interactive confirm to zeta update before installing a new version (default no on non-TTY input);       │ │
+10|│   --yes/-y skips it.                                                                                               │ │
+11|│ - Added WeChat /api/v1/wechat login (QR + status polling) with legacy iLink fallback, persisted peer→context_token │ │
+12|│   bindings in web.yml (channels.wechat.peerTokens), and a POST /api/channels/wechat/unbind gateway route that      │ │
+13|│   resets the channel and clears credentials.                                                                       │ │
+14|│ - Added Feishu bot_p2p_chat_entered handling: the first private-chat contact gets an onboarding reply.             │ │
+15|│ - Added channels.allowedPeers web-config allowlist: when non-empty, only listed peers may reach the agent.         │ │
+16|│ - Added ui: metadata to shellPath, retry.enabled, stt.language, searxng.categories/language/safesearch,            │ │
+17|│   compaction.reserveTokens/keepRecentTokens, and skills.enabled so they are editable from the web settings panel.  │ │
+18|│                                                                                                                    │ │
+19|│ ### Changed                                                                                                        │ │
+20|│                                                                                                                    │ │
+21|│ - WeChat login now prefers the new /api/v1/wechat endpoints (endpoint host configurable via                        │ │
+22|│   channels.wechat.endpoint); older hosts fall back to the legacy iLink QR flow.                                    │ │
+23|│ - Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring        │ │
+24|│   aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and     │ │
+25|│   spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and   │ │
+26|│   improved keyboard and mouse navigation.                                                                          │ │
+27|│ - Replaced arktype with @linxiraos/omptype for all tool parameter and configuration schemas, resulting in          │ │
+28|│   significantly faster startup times. Configuration schema errors are now reported via OmpErrors entries using the │ │
+29|│                                                                                                                      │
+30|│ PgUp/PgDn scroll · ⎋ to close                                                                                        │
+31|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

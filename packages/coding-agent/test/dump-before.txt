@@ -14,8 +14,8 @@
 13|│                          │                                                                       │
 14|│                          │                                                                       │
 15|╰──────────────────────────┴───────────────────────────────────────────────────────────────────────╯
-16|Tip: Need a cheap nested model call? Use `completion(x...)`. Have a big batch of tasks? Ask clanker
-17|to use it!
+16|Tip: Type `#` anywhere in your prompt for quick actions — copy the line or the whole prompt, undo,
+17|jump the cursor
 18|
 19|
 20|TRANSCRIPT 0

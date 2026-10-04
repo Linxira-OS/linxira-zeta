@@ -19,8 +19,8 @@
 18|│                          │                                                                       │
 19|│                          │                                                                       │
 20|╰──────────────────────────┴───────────────────────────────────────────────────────────────────────╯
-21|Tip: Need a cheap nested model call? Use `completion(x...)`. Have a big batch of tasks? Ask clanker
-22|to use it!
+21|Tip: Type `#` anywhere in your prompt for quick actions — copy the line or the whole prompt, undo,
+22|jump the cursor
 23|
 24|
 25|TRANSCRIPT 0
@@ -35,4 +35,3 @@
 34|
 35| ζ > ⦸ Sonnet 4.5 > 🌳 zeta/zeta-sync186 > ⑂ sync/omp-release/v18.6.0 ▶─0.0%──────────────────────────────────┃──────1M─
 36|╰─                                                                                          ⇧⇥ to change thinking effort
-37|

@@ -3220,11 +3220,21 @@ export class TUI extends Container {
 		const provider = this.#frameProvider;
 		if (!provider || mainWidth <= 0 || height <= 0) return;
 		this.#debugNextWindowTop = 0;
+		// The provider composes against the rows its frame can really occupy:
+		// the screen below the retained history already anchored there. Handing
+		// it the full height lets a transient chrome row (an editor suggestion)
+		// grow the frame past the bottom, scrolling retained history off for
+		// good; the shrink back then parks the frame one row high with a blank
+		// below, because scrolled rows cannot be pulled back. With the true
+		// budget the provider clips the live tail instead — the same thing
+		// scrollback would have done — and restores it byte-for-byte on shrink.
+		const anchorTop = Math.min(this.#providerViewportTop, Math.max(0, height - 1));
+		const budget = Math.max(0, height - anchorTop);
 		let plan: TerminalFramePlan;
 		let viewport: string[];
 		do {
 			this.#imageBudget.beginPass();
-			plan = provider.renderFrame({ columns: mainWidth, rows: height });
+			plan = provider.renderFrame({ columns: mainWidth, rows: budget });
 			viewport = Array.from(plan.viewport);
 			if (viewport.length > height) {
 				const message = `Frame provider returned ${viewport.length} rows for a ${height}-row viewport`;

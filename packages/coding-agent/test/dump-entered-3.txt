@@ -1,0 +1,32 @@
+ 0|TRANSCRIPT 28
+ 1|
+ 2|TRANSCRIPT 29
+ 3|
+ 4|TRANSCRIPT 30
+ 5|
+ 6|TRANSCRIPT 31
+ 7|
+ 8|TRANSCRIPT 32
+ 9|
+10|TRANSCRIPT 33
+11|
+12|TRANSCRIPT 34
+13|
+14|TRANSCRIPT 35
+15|
+16|TRANSCRIPT 36
+17|
+18|TRANSCRIPT 37
+19|
+20|TRANSCRIPT 38
+21|
+22|TRANSCRIPT 39
+23|╭─ Available Tools ────────────────────────────────────────────────────────────────────────────────────────────────────╮
+24|│                                                                                                                      │
+25|│ No tools are currently visible to the agent.                                                                         │
+26|│                                                                                                                      │
+27|│ ⎋ to close                                                                                                           │
+28|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+29|
+30| ζ > ⦸ Sonnet 4.5 > 🌳 zeta/zeta-sync186 > ⑂ sync/omp-release/v18.6.0 ▶─0.0%──────────────────────────────────┃──────1M─
+31|╰─                                                                                          ⇧⇥ to change thinking effort
