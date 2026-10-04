@@ -539,7 +539,7 @@ describe("update-cli install target detection", () => {
 		expect(method).toBe("binary");
 	});
 
-	it("uses Homebrew update when prioritized omp resolves into the Homebrew formula", async () => {
+	it("uses Homebrew update when the prioritized zeta-c resolves into the Homebrew formula", async () => {
 		const dir = await makeTempDir();
 		const prefix = path.join(dir, "opt", "zeta-c");
 		const linkedBin = path.join(dir, "bin");
