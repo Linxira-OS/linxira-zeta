@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- New-session brand face is Zeta end to end again after the v18.6.0 merge: the welcome Tip pool no longer ships upstream copy (7 tips named `omp` as the binary, one leaked the upstream `PI_DIALECT` env var — the live tips.txt was invisible to brand-check because the guard only scanned code/doc extensions), the dead upstream TTT-mark welcome SVG asset is deleted (its path data matched no brand token), and the i18n tip catalog matches (tip27 removed with its en/zh entries). The welcome Z art is widened by one pixel per side (10-column grid, staircase preserved) per user review.
+
 ## [1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
