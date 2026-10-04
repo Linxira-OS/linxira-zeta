@@ -842,7 +842,7 @@ export function ChatWindow({
 			{extensionCustomUi && <ExtensionCustomPanel request={extensionCustomUi} onInput={sendExtensionCustomInput} />}
 
 			{isEmptyNew ? (
-				<div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8">
+				<div className="flex flex-1 flex-col items-center justify-start overflow-y-auto px-4 pb-8 pt-[12vh]">
 					<div className="w-full max-w-[820px]">
 						<div
 							className="mb-3"
