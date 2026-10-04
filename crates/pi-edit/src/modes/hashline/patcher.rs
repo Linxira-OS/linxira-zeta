@@ -223,40 +223,51 @@ pub(crate) fn apply_with_recovery(
 		if enforce_seen_lines {
 			assert_seen_lines(section, expected, canonical, store, normalized)?;
 		}
-		let mut result = apply_edits(normalized, &resolved, ApplyOptions {
-			clipboard:      Some(clipboard),
-			path:           Some(canonical.to_string_lossy().as_ref()),
-			on_empty_paste: EmptyPaste::Throw,
-		})?;
+		let mut result = apply_edits(
+			normalized,
+			&resolved,
+			ApplyOptions {
+				clipboard: Some(clipboard),
+				path: Some(canonical.to_string_lossy().as_ref()),
+				on_empty_paste: EmptyPaste::Throw,
+			},
+		)?;
 		result.block_resolutions = block_resolutions;
 		resolve_warnings.extend(result.warnings);
 		result.warnings = resolve_warnings;
 		return Ok(result);
 	}
 	if !has_anchor_scoped_edit(&resolved) {
-		let mut result = apply_edits(normalized, &resolved, ApplyOptions {
-			clipboard:      Some(clipboard),
-			path:           Some(canonical.to_string_lossy().as_ref()),
-			on_empty_paste: EmptyPaste::Throw,
-		})?;
+		let mut result = apply_edits(
+			normalized,
+			&resolved,
+			ApplyOptions {
+				clipboard: Some(clipboard),
+				path: Some(canonical.to_string_lossy().as_ref()),
+				on_empty_paste: EmptyPaste::Throw,
+			},
+		)?;
 		resolve_warnings.push(HEADTAIL_DRIFT_WARNING.to_owned());
 		resolve_warnings.extend(result.warnings);
 		result.warnings = resolve_warnings;
 		return Ok(result);
 	}
-	if let Some(recovered) = try_recover(store, RecoveryArgs {
-		path:         canonical,
-		current_text: normalized,
-		file_hash:    expected,
-		edits:        &resolved,
-		clipboard:    Some(clipboard),
-	})? {
+	if let Some(recovered) = try_recover(
+		store,
+		RecoveryArgs {
+			path: canonical,
+			current_text: normalized,
+			file_hash: expected,
+			edits: &resolved,
+			clipboard: Some(clipboard),
+		},
+	)? {
 		resolve_warnings.extend(recovered.warnings);
 		return Ok(ApplyResult {
-			text:               recovered.text,
+			text: recovered.text,
 			first_changed_line: recovered.first_changed_line,
-			warnings:           resolve_warnings,
-			block_resolutions:  Vec::new(),
+			warnings: resolve_warnings,
+			block_resolutions: Vec::new(),
 		});
 	}
 	Err(mismatch(section, canonical, normalized, expected, store))
@@ -441,10 +452,12 @@ pub fn stage_patch(
 			_ if apply.text == read.text && parsed.file_op.is_none() => EngineFileOp::Noop,
 			_ => EngineFileOp::Update,
 		};
-		let diff = generate_diff_string(&read.text, &apply.text, None, &BlockContextSource {
-			path: Some(&section.path),
-			lang: None,
-		});
+		let diff = generate_diff_string(
+			&read.text,
+			&apply.text,
+			None,
+			&BlockContextSource { path: Some(&section.path), lang: None },
+		);
 		let move_to = if let Some(FileOp::Move { dest }) = &parsed.file_op {
 			Some(files.resolve(dest, false)?)
 		} else {

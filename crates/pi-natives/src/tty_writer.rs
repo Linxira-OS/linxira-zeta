@@ -39,13 +39,13 @@ struct Inner {
 	/// Bytes accepted from JS but not yet claimed by the pump thread. The
 	/// pump swaps this out wholesale, so enqueue cost is an in-place append
 	/// and chunks coalesce into one contiguous drain buffer per drain cycle.
-	back:    Mutex<Vec<u8>>,
+	back: Mutex<Vec<u8>>,
 	/// Bytes accepted but not yet written to the fd.
 	pending: AtomicUsize,
 	/// Signals the pump thread on enqueue/stop, and waiters on drain.
-	cv:      Condvar,
-	stop:    AtomicBool,
-	dead:    AtomicBool,
+	cv: Condvar,
+	stop: AtomicBool,
+	dead: AtomicBool,
 }
 
 /// Keep each Unix PTY syscall small enough for terminal emulators to consume
@@ -170,10 +170,10 @@ fn pump_loop(fd: i32, inner: &Inner) {
 /// such as `O_NONBLOCK` are shared and handled by polling for `POLLOUT`.
 #[napi]
 pub struct TtyWriter {
-	inner:  Arc<Inner>,
+	inner: Arc<Inner>,
 	thread: Option<JoinHandle<()>>,
 	#[cfg(unix)]
-	fd:     i32,
+	fd: i32,
 }
 
 #[napi]
@@ -193,11 +193,11 @@ impl TtyWriter {
 				)));
 			}
 			let inner = Arc::new(Inner {
-				back:    Mutex::new(Vec::new()),
+				back: Mutex::new(Vec::new()),
 				pending: AtomicUsize::new(0),
-				cv:      Condvar::new(),
-				stop:    AtomicBool::new(false),
-				dead:    AtomicBool::new(false),
+				cv: Condvar::new(),
+				stop: AtomicBool::new(false),
+				dead: AtomicBool::new(false),
 			});
 			let thread_inner = Arc::clone(&inner);
 			let thread = std::thread::Builder::new()

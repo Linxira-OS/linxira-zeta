@@ -46,13 +46,13 @@ const SCRATCH_LEN: usize = 64 * 1024;
 struct Arena {
 	/// Stored as `u16` units purely for the 2-alignment UTF-16 fills need;
 	/// UTF-8 fills reinterpret the same bytes at alignment 1.
-	buf:    UnsafeCell<[u16; SCRATCH_LEN / 2]>,
+	buf: UnsafeCell<[u16; SCRATCH_LEN / 2]>,
 	/// Bytes handed out. Fills bump it; drops roll it back (see
 	/// [`Self::release`]).
 	offset: Cell<usize>,
 	/// Live scratch-backed guards. Hitting zero resets `offset`, so a non-LIFO
 	/// drop order leaks at most until the last guard goes away.
-	live:   Cell<usize>,
+	live: Cell<usize>,
 }
 
 thread_local! {

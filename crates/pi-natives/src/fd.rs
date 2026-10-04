@@ -14,39 +14,39 @@ use crate::{iofs, task};
 #[napi(object)]
 pub struct FuzzyFindOptions<'env> {
 	/// Fuzzy query to match against file paths (case-insensitive).
-	pub query:       String,
+	pub query: String,
 	/// Directory to search.
-	pub path:        String,
+	pub path: String,
 	/// Include hidden files (default: false).
-	pub hidden:      Option<bool>,
+	pub hidden: Option<bool>,
 	/// Respect .gitignore (default: true).
-	pub gitignore:   Option<bool>,
+	pub gitignore: Option<bool>,
 	/// Enable walker scan caching (default: false).
-	pub cache:       Option<bool>,
+	pub cache: Option<bool>,
 	/// Maximum number of matches to return (default: 100).
 	pub max_results: Option<u32>,
 	/// Abort signal for cancelling the operation.
-	pub signal:      Option<Unknown<'env>>,
+	pub signal: Option<Unknown<'env>>,
 	/// Timeout in milliseconds for the operation.
-	pub timeout_ms:  Option<u32>,
+	pub timeout_ms: Option<u32>,
 }
 
 /// A single match in fuzzy find results.
 #[napi(object)]
 pub struct FuzzyFindMatch {
 	/// Relative path from the search root (uses `/` separators).
-	pub path:         String,
+	pub path: String,
 	/// Whether this entry is a directory.
 	pub is_directory: bool,
 	/// Match quality score (higher is better).
-	pub score:        u32,
+	pub score: u32,
 }
 
 /// Result of fuzzy file path search.
 #[napi(object)]
 pub struct FuzzyFindResult {
 	/// Matched entries (up to `maxResults`).
-	pub matches:       Vec<FuzzyFindMatch>,
+	pub matches: Vec<FuzzyFindMatch>,
 	/// Total number of matches found (may exceed `matches.len()`).
 	pub total_matches: u32,
 }
@@ -207,8 +207,8 @@ impl Eq for RankedMatch {}
 /// every hit, so `totalMatches` stays exact even when it exceeds `maxResults`.
 struct TopMatches {
 	capacity: usize,
-	total:    u64,
-	heap:     BinaryHeap<RankedMatch>,
+	total: u64,
+	heap: BinaryHeap<RankedMatch>,
 }
 
 impl TopMatches {
@@ -252,12 +252,12 @@ impl TopMatches {
 }
 
 struct FuzzyFindConfig {
-	query:       String,
-	path:        String,
-	hidden:      Option<bool>,
-	gitignore:   Option<bool>,
+	query: String,
+	path: String,
+	hidden: Option<bool>,
+	gitignore: Option<bool>,
 	max_results: Option<u32>,
-	cache:       Option<bool>,
+	cache: Option<bool>,
 }
 
 fn score_entries<I>(
@@ -410,12 +410,12 @@ mod tests {
 
 		let result = fuzzy_find_sync(
 			FuzzyFindConfig {
-				query:       file_name.to_string(),
-				path:        root.path().to_string_lossy().into_owned(),
-				hidden:      Some(true),
-				gitignore:   Some(false),
+				query: file_name.to_string(),
+				path: root.path().to_string_lossy().into_owned(),
+				hidden: Some(true),
+				gitignore: Some(false),
 				max_results: Some(4),
-				cache:       Some(false),
+				cache: Some(false),
 			},
 			task::CancelToken::default(),
 		)
@@ -451,12 +451,12 @@ mod tests {
 
 		let result = fuzzy_find_sync(
 			FuzzyFindConfig {
-				query:       "scripts".to_string(),
-				path:        root.path().to_string_lossy().into_owned(),
-				hidden:      Some(true),
-				gitignore:   Some(false),
+				query: "scripts".to_string(),
+				path: root.path().to_string_lossy().into_owned(),
+				hidden: Some(true),
+				gitignore: Some(false),
 				max_results: Some(10),
-				cache:       Some(false),
+				cache: Some(false),
 			},
 			task::CancelToken::default(),
 		)
@@ -485,12 +485,12 @@ mod tests {
 
 		let result = fuzzy_find_sync(
 			FuzzyFindConfig {
-				query:       "needle".to_string(),
-				path:        root.path().to_string_lossy().into_owned(),
-				hidden:      Some(true),
-				gitignore:   Some(false),
+				query: "needle".to_string(),
+				path: root.path().to_string_lossy().into_owned(),
+				hidden: Some(true),
+				gitignore: Some(false),
 				max_results: Some(3),
-				cache:       Some(false),
+				cache: Some(false),
 			},
 			task::CancelToken::default(),
 		)
@@ -612,9 +612,9 @@ mod tests {
 		let mut bounded = TopMatches::new(0);
 		for index in 0..5 {
 			bounded.push(FuzzyFindMatch {
-				path:         format!("file-{index}.txt"),
+				path: format!("file-{index}.txt"),
 				is_directory: false,
-				score:        10,
+				score: 10,
 			});
 		}
 

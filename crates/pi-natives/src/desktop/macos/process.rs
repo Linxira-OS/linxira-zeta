@@ -24,36 +24,36 @@ const MAX_REGIONS: usize = 65_536;
 /// `struct proc_regioninfo` from `<sys/proc_info.h>`.
 #[repr(C)]
 struct ProcRegionInfo {
-	protection:               u32,
-	max_protection:           u32,
-	inheritance:              u32,
-	flags:                    u32,
-	offset:                   u64,
-	behavior:                 u32,
-	user_wired_count:         u32,
-	user_tag:                 u32,
-	pages_resident:           u32,
+	protection: u32,
+	max_protection: u32,
+	inheritance: u32,
+	flags: u32,
+	offset: u64,
+	behavior: u32,
+	user_wired_count: u32,
+	user_tag: u32,
+	pages_resident: u32,
 	pages_shared_now_private: u32,
-	pages_swapped_out:        u32,
-	pages_dirtied:            u32,
-	ref_count:                u32,
-	shadow_depth:             u32,
-	share_mode:               u32,
-	private_pages_resident:   u32,
-	shared_pages_resident:    u32,
-	obj_id:                   u32,
-	depth:                    u32,
-	address:                  u64,
-	size:                     u64,
+	pages_swapped_out: u32,
+	pages_dirtied: u32,
+	ref_count: u32,
+	shadow_depth: u32,
+	share_mode: u32,
+	private_pages_resident: u32,
+	shared_pages_resident: u32,
+	obj_id: u32,
+	depth: u32,
+	address: u64,
+	size: u64,
 }
 
 /// `struct proc_regionwithpathinfo`: region info followed by
 /// `struct vnode_info_path` (152-byte `vnode_info`, then a `MAXPATHLEN` path).
 #[repr(C)]
 struct ProcRegionWithPathInfo {
-	region:     ProcRegionInfo,
+	region: ProcRegionInfo,
 	vnode_info: [u8; 152],
-	path:       [libc::c_char; 1024],
+	path: [libc::c_char; 1024],
 }
 
 /// Whether `pid` maps the Tk toolkit.

@@ -1,10 +1,9 @@
 /**
- * The async background jobs of a session, twice: {@link JobsPanel} is the
- * `/jobs` transcript block (ANSI keeps the caller's text report; natively one
- * frame), {@link JobsSheet} the dismissable sheet the native jobs pill opens.
- * The panel draws task jobs as `agent` nodes and the others as a status dot,
- * the one-line label and a live `elapsed`; the sheet lists every job and
- * inspects the selected one (command, cwd, live pids, exit code, output tail).
+ * The async background jobs of a session as {@link JobsSheet}: the dismissable
+ * sheet the native jobs pill and `/jobs` open. It draws task jobs as `agent`
+ * nodes and the others as a status dot, the one-line label and a live
+ * `elapsed`, lists every job and inspects the selected one (command, cwd, live
+ * pids, exit code, output tail).
  */
 import type { TspAgentProps, TspSpan } from "@linxiraos/pi-wire";
 import { formatDuration } from "@linxiraos/pi-utils";

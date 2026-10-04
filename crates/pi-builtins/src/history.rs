@@ -55,8 +55,8 @@ struct HistoryConfig {
 	/// The file named by the `-a`/`-n`/`-r`/`-w` operand (at most one of those
 	/// options is accepted), falling back to the shell's history file.
 	history_file_path: Option<PathBuf>,
-	time_format:       Option<String>,
-	filesystem:        pi_vfs::Fs,
+	time_format: Option<String>,
+	filesystem: pi_vfs::Fs,
 }
 
 impl builtins::Command for HistoryCommand {
@@ -81,15 +81,17 @@ impl builtins::Command for HistoryCommand {
 				|| context.shell.history_file_path(),
 				|file| Some(context.shell.absolute_path(Path::new(file))),
 			),
-			time_format:       context.shell.history_time_format(),
-			filesystem:        context.shell.filesystem().clone(),
+			time_format: context.shell.history_time_format(),
+			filesystem: context.shell.filesystem().clone(),
 		};
 
 		let stdout = context.stdout();
 		let stderr = context.stderr();
 
 		if let Some(history) = context.shell.history_mut() {
-			self.execute_with_history(history, config, stdout, stderr).await
+			self
+				.execute_with_history(history, config, stdout, stderr)
+				.await
 		} else {
 			Err(brush_core::ErrorKind::HistoryNotEnabled.into())
 		}
@@ -229,11 +231,11 @@ fn expand_history_args(
 
 	for arg in args {
 		if let Ok(expanded) = expand_history_arg(history, arg) {
-  				writeln!(stdout, "{expanded}")?;
-  			} else {
-  				writeln!(stderr, "history: {arg}: history expansion failed")?;
-  				result = ExecutionResult::general_error();
-  			}
+			writeln!(stdout, "{expanded}")?;
+		} else {
+			writeln!(stderr, "history: {arg}: history expansion failed")?;
+			result = ExecutionResult::general_error();
+		}
 	}
 
 	Ok(result)
@@ -389,11 +391,7 @@ fn find_history_event(
 	match_result.ok_or(())
 }
 
-fn select_history_words(
-	event: &str,
-	selector: char,
-	number: Option<usize>,
-) -> Result<String, ()> {
+fn select_history_words(event: &str, selector: char, number: Option<usize>) -> Result<String, ()> {
 	let words: Vec<&str> = event.split_whitespace().collect();
 	match selector {
 		'0'..='9' => {

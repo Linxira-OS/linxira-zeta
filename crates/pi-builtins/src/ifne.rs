@@ -77,12 +77,7 @@ impl Utility for Ifne {
 			}
 			// -n mode, non-empty stdin: pass stdin through, don't run the command.
 			let cancel = host.cancel_flag();
-			return match copy_cancellable(
-				&mut host.stdin,
-				&mut host.stdout,
-				Some(first[0]),
-				&cancel,
-			) {
+			return match copy_cancellable(&mut host.stdin, &mut host.stdout, Some(first[0]), &cancel) {
 				Ok(()) => 0,
 				Err(CopyError::Cancelled) => 130,
 				Err(CopyError::Io(err)) => {
@@ -121,7 +116,8 @@ fn app() -> ClapCommand {
 /// `first` byte) piped in, returning its status.
 fn run_with_input(host: &mut Host, command: Vec<OsString>, first: Option<u8>) -> i32 {
 	let name = command[0].to_string_lossy().into_owned();
-	let pumped = io::pipe().and_then(|(reader, writer)| Ok((reader, writer, host.stdin.try_clone()?)));
+	let pumped =
+		io::pipe().and_then(|(reader, writer)| Ok((reader, writer, host.stdin.try_clone()?)));
 	let (reader, mut writer, mut input) = match pumped {
 		Ok(pumped) => pumped,
 		Err(err) => {
@@ -192,7 +188,6 @@ fn copy_cancellable(
 		}
 	}
 }
-
 
 /// Creates the `ifne` builtin registration.
 pub(crate) fn ifne_builtin<SE: ShellExtensions>() -> Registration<SE> {

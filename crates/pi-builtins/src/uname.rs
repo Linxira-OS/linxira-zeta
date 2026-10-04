@@ -27,13 +27,13 @@ mod options {
 }
 
 struct UNameOutput {
-	kernel_name:       Option<OsString>,
-	nodename:          Option<OsString>,
-	kernel_release:    Option<OsString>,
-	kernel_version:    Option<OsString>,
-	machine:           Option<OsString>,
-	os:                Option<OsString>,
-	processor:         Option<OsString>,
+	kernel_name: Option<OsString>,
+	nodename: Option<OsString>,
+	kernel_release: Option<OsString>,
+	kernel_version: Option<OsString>,
+	machine: Option<OsString>,
+	os: Option<OsString>,
+	processor: Option<OsString>,
 	hardware_platform: Option<OsString>,
 }
 
@@ -97,15 +97,15 @@ impl UNameOutput {
 }
 
 struct Options {
-	all:               bool,
-	kernel_name:       bool,
-	nodename:          bool,
-	kernel_version:    bool,
-	kernel_release:    bool,
-	machine:           bool,
-	processor:         bool,
+	all: bool,
+	kernel_name: bool,
+	nodename: bool,
+	kernel_version: bool,
+	kernel_release: bool,
+	machine: bool,
+	processor: bool,
 	hardware_platform: bool,
-	os:                bool,
+	os: bool,
 }
 
 /// Parsed `uname` invocation.
@@ -120,15 +120,15 @@ impl Utility for Uname {
 
 	fn run(self, host: &mut Host) -> i32 {
 		let options = Options {
-			all:               self.matches.get_flag(options::ALL),
-			kernel_name:       self.matches.get_flag(options::KERNEL_NAME),
-			nodename:          self.matches.get_flag(options::NODENAME),
-			kernel_release:    self.matches.get_flag(options::KERNEL_RELEASE),
-			kernel_version:    self.matches.get_flag(options::KERNEL_VERSION),
-			machine:           self.matches.get_flag(options::MACHINE),
-			processor:         self.matches.get_flag(options::PROCESSOR),
+			all: self.matches.get_flag(options::ALL),
+			kernel_name: self.matches.get_flag(options::KERNEL_NAME),
+			nodename: self.matches.get_flag(options::NODENAME),
+			kernel_release: self.matches.get_flag(options::KERNEL_RELEASE),
+			kernel_version: self.matches.get_flag(options::KERNEL_VERSION),
+			machine: self.matches.get_flag(options::MACHINE),
+			processor: self.matches.get_flag(options::PROCESSOR),
 			hardware_platform: self.matches.get_flag(options::HARDWARE_PLATFORM),
-			os:                self.matches.get_flag(options::OS),
+			os: self.matches.get_flag(options::OS),
 		};
 		let output = match UNameOutput::new(&options) {
 			Ok(output) => output,
@@ -275,8 +275,8 @@ mod tests {
 	#[test]
 	fn all_uses_canonical_s_n_r_v_m_o_order() {
 		let (code, all, stderr) = run(&["-a"]);
-		let fields = ["-s", "-n", "-r", "-v", "-m", "-o"]
-			.map(|flag| run(&[flag]).1.trim_end().to_owned());
+		let fields =
+			["-s", "-n", "-r", "-v", "-m", "-o"].map(|flag| run(&[flag]).1.trim_end().to_owned());
 		assert_eq!((code, stderr.as_str()), (0, ""));
 		assert_eq!(all, format!("{}\n", fields.join(" ")));
 	}

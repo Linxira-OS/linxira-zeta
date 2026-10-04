@@ -8,6 +8,7 @@ import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProvider
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
 import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
+import { getEnvApiKey, isOfficialCodexApiUrl } from "@linxiraos/pi-ai/stream";
 import type {
 	Api,
 	Context,
@@ -232,9 +233,14 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
  * refresh (`zeta-c models refresh`, TUI F5).
+ *
+ * `forceStatic` re-runs the static load (local models.yml + OMP overlay) even
+ * when neither file changed — for credential-state changes (web api-key save,
+ * copy-from-OMP, settings reload) that alter what the overlay should inject.
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
+	forceStatic?: boolean;
 }
 
 /** Authentication material returned to legacy extensions for one model request. */
@@ -334,7 +340,7 @@ export class ModelRegistry {
 	#ompOriginProviders: Set<string> = new Set();
 	#ompConfigProviders: Set<string> = new Set();
 	#ompCompatConfig: ModelsConfig | undefined;
-	/** Test seam: upstream agent dir override; undefined = default `~/.omp/agent`. */
+	/** Test seam: upstream agent dir override; undefined = default `~/.zeta/agent`. */
 	#ompAgentDir: string | undefined;
 	/** mtime fingerprint of the upstream files at last static load; drives reload detection. */
 	#lastOmpCompatFingerprint: string | null = null;
@@ -412,16 +418,22 @@ export class ModelRegistry {
 	}
 
 	#reloadStaticModelsForRefresh(options?: ModelRegistryRefreshOptions, providerId?: string): void {
-		if (options?.refreshCommandCredentials) {
-			if (providerId) this.#invalidateProviderCommandConfigs(providerId);
-			else invalidateAllCommandConfigs();
+		if (options?.refreshCommandCredentials || options?.forceStatic) {
+			if (options.refreshCommandCredentials) {
+				if (providerId) this.#invalidateProviderCommandConfigs(providerId);
+				else invalidateAllCommandConfigs();
+			}
 			this.#reloadStaticModels({ force: true, preserveRuntimeDiscovery: true });
 			return;
 		}
 		this.#reloadStaticModels();
 	}
 
-	#installProviderApiKey(provider: string, keyConfig: string, options?: { fallback?: boolean }): void {
+	#installProviderApiKey(
+		provider: string,
+		keyConfig: string,
+		options?: { fallback?: boolean; mirror?: boolean },
+	): void {
 		this.#customProviderApiKeys.set(provider, keyConfig);
 		this.authStorage.keys.setConfig(provider, keyConfig, options);
 	}
@@ -452,7 +464,7 @@ export class ModelRegistry {
 			cacheDbPath?: string;
 			/**
 			 * Upstream OMP agent directory for the read-only compatibility probe.
-			 * Defaults to `~/.omp/agent`; tests point this at a fixture directory.
+			 * Defaults to `~/.zeta/agent`; tests point this at a fixture directory.
 			 */
 			ompAgentDir?: string;
 			fetch?: FetchImpl;
@@ -982,12 +994,13 @@ export class ModelRegistry {
 	 * - upstream models colliding with a local custom model (provider+id) are
 	 *   dropped — later overlays would otherwise replace the local definition;
 	 * - an upstream agent.db credential is only installed when Zeta has no
-	 *   credential source at all for that provider, because the in-memory
-	 *   config-override channel would shadow any stored/env key.
+	 *   credential source at all for that provider.
 	 *
-	 * API keys travel through the same in-memory config-override channel as
-	 * local models.yml keys (`keys.setConfig` semantics): they live only in
-	 * process memory and are re-read from upstream on every static load.
+	 * Upstream API keys travel through the lowest cascade tier (`keys.setConfig`
+	 * with `mirror: true`): they live only in process memory, are re-read from
+	 * upstream on every static load, and sit below every stored credential —
+	 * a key the user saves into agent.db later always wins over the upstream
+	 * fallback without waiting for a reload to evict it.
 	 */
 	#applyOmpCompatOverlay(localConfiguredProviders: ReadonlySet<string>): void {
 		this.#ompOriginProviders = new Set();
@@ -1041,11 +1054,13 @@ export class ModelRegistry {
 			// Upstream stored credentials are keyed by provider id and mostly map
 			// onto bundled catalog providers; give those a credential (and with it
 			// an OMP provenance marker) only when nothing local already resolves.
+			// The key lands in the lowest mirror tier, so a credential stored
+			// later (web api-key save, login) outranks it immediately.
 			for (const [provider, key] of Object.entries(snapshot.credentialKeys)) {
 				if (this.#ompOriginProviders.has(provider)) continue; // upstream yml provider: its apiKey already installed
 				if (this.#customProviderApiKeys.has(provider)) continue;
 				if (this.authStorage.keys.source(provider) !== undefined) continue;
-				this.#installProviderApiKey(provider, key);
+				this.#installProviderApiKey(provider, key, { mirror: true });
 				this.#ompOriginProviders.add(provider);
 			}
 		} catch (error) {
@@ -1078,7 +1093,7 @@ export class ModelRegistry {
 	#ompCompatFingerprint(): string | null {
 		if (this.#ignoreLocalModelConfig) return null;
 		const dir = this.#ompAgentDir;
-		const agentDir = dir ?? path.join(os.homedir(), ".omp", "agent");
+		const agentDir = dir ?? path.join(os.homedir(), ".zeta", "agent");
 		const parts = [agentDir];
 		for (const name of ["models.yml", "agent.db"]) {
 			try {
@@ -2325,11 +2340,32 @@ export class ModelRegistry {
 				providerId: "openai-codex",
 				authoritative: true,
 				resolveKey: value => value,
-				createOptions: accessToken =>
-					openaiCodexModelManagerOptions({
-						resolveAccounts: () => resolveCodexDiscoveryAccounts(this.authStorage, accessToken),
+				createOptions: accessToken => {
+					// A custom endpoint (models.yml `baseUrl`) receives only a configured,
+					// runtime, or command key. Official credentials (stored ChatGPT OAuth or
+					// the provider env token) keep discovering against chatgpt.com, as on a
+					// relay setup chat still works with them. The check looks at the token
+					// actually being sent: a runtime provider's command key is only a
+					// fallback behind a live OAuth token, which `peek` returns first.
+					const configuredBaseUrl = this.#descriptorBaseUrl("openai-codex");
+					const officialCredential =
+						accessToken === getEnvApiKey("openai-codex") ||
+						getOAuthCredentialsForProvider(this.authStorage, "openai-codex").some(
+							credential => credential.access === accessToken,
+						);
+					if (officialCredential || isOfficialCodexApiUrl(configuredBaseUrl)) {
+						return openaiCodexModelManagerOptions({
+							baseUrl: officialCredential ? undefined : configuredBaseUrl,
+							resolveAccounts: () => resolveCodexDiscoveryAccounts(this.authStorage, accessToken),
+							fetch: this.#fetch,
+						});
+					}
+					return openaiCodexModelManagerOptions({
+						baseUrl: configuredBaseUrl,
+						resolveAccounts: async () => [{ accessToken }],
 						fetch: this.#fetch,
-					}),
+					});
+				},
 			},
 		];
 		const disabledProviders = getDisabledProviderIdsFromSettings(this.#settings);

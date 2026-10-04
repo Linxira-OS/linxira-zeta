@@ -92,7 +92,11 @@ fn command() -> Command {
 				.action(ArgAction::SetTrue),
 		)
 		.arg(Arg::new("help").long("help").action(ArgAction::Help))
-		.arg(Arg::new("version").long("version").action(ArgAction::Version))
+		.arg(
+			Arg::new("version")
+				.long("version")
+				.action(ArgAction::Version),
+		)
 		.arg(
 			Arg::new(ARG_FORMAT)
 				.value_name("FORMAT")
@@ -170,12 +174,20 @@ fn timestamp_lines(matches: &ArgMatches, host: &mut Host) -> io::Result<i32> {
 			Mode::SinceLast | Mode::SinceStart => {
 				let nanos = if monotonic {
 					let now = Instant::now();
-					let anchor = if mode == Mode::SinceLast { last_mono } else { start_mono };
+					let anchor = if mode == Mode::SinceLast {
+						last_mono
+					} else {
+						start_mono
+					};
 					last_mono = now;
 					i128::try_from(now.duration_since(anchor).as_nanos()).unwrap_or(i128::MAX)
 				} else {
 					let now = Timestamp::now();
-					let anchor = if mode == Mode::SinceLast { last_wall } else { start_wall };
+					let anchor = if mode == Mode::SinceLast {
+						last_wall
+					} else {
+						start_wall
+					};
 					last_wall = now;
 					now.duration_since(anchor).as_nanos().max(0)
 				};
@@ -275,7 +287,8 @@ fn parse_leading_timestamp(line: &[u8], year: i16, tz: &TimeZone) -> Option<(usi
 		}
 	}
 
-	if line.len() < SYSLOG_LEN || (line.len() > SYSLOG_LEN && !line[SYSLOG_LEN].is_ascii_whitespace())
+	if line.len() < SYSLOG_LEN
+		|| (line.len() > SYSLOG_LEN && !line[SYSLOG_LEN].is_ascii_whitespace())
 	{
 		return None;
 	}
@@ -410,7 +423,8 @@ mod tests {
 	#[test]
 	fn parse_leading_timestamp_accepts_supported_formats() {
 		let tz = TimeZone::UTC;
-		let (consumed, ts) = parse_leading_timestamp(b"2024-01-01T12:00:00Z boot", 2024, &tz).unwrap();
+		let (consumed, ts) =
+			parse_leading_timestamp(b"2024-01-01T12:00:00Z boot", 2024, &tz).unwrap();
 		assert_eq!(consumed, 20);
 		assert_eq!(ts, "2024-01-01T12:00:00Z".parse::<Timestamp>().unwrap());
 		let (consumed, ts) =
@@ -437,13 +451,8 @@ mod tests {
 
 		let now: Timestamp = "2024-01-03T00:00:00Z".parse().unwrap();
 		let mut rewritten = Vec::new();
-		write_relative_line(
-			&mut rewritten,
-			b"2024-01-01T00:00:00Z boot",
-			now,
-			&TimeZone::UTC,
-		)
-		.unwrap();
+		write_relative_line(&mut rewritten, b"2024-01-01T00:00:00Z boot", now, &TimeZone::UTC)
+			.unwrap();
 		assert_eq!(rewritten, b"2d ago boot");
 	}
 }

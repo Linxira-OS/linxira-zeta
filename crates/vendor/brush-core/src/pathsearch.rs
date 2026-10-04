@@ -36,7 +36,10 @@ pub async fn resolve_executable(fs: &Fs, path: PathBuf) -> Option<PathBuf> {
 
 	#[cfg(not(windows))]
 	{
-		fs.access(&path, false, false, true).await.is_ok().then_some(path)
+		fs.access(&path, false, false, true)
+			.await
+			.is_ok()
+			.then_some(path)
 	}
 }
 

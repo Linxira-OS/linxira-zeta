@@ -181,9 +181,9 @@ pub struct Blocking<T>
 where
 	T: Send + 'static,
 {
-	tag:          &'static str,
+	tag: &'static str,
 	cancel_token: CancelToken,
-	work:         Option<Box<dyn FnOnce(CancelToken) -> Result<T> + Send>>,
+	work: Option<Box<dyn FnOnce(CancelToken) -> Result<T> + Send>>,
 }
 
 impl<T> Task for Blocking<T>
@@ -285,13 +285,13 @@ where
 	T: Send + 'static,
 	E: Send + 'static,
 {
-	tag:          &'static str,
+	tag: &'static str,
 	cancel_token: CancelToken,
-	work:         Option<MappedWork<T, E>>,
+	work: Option<MappedWork<T, E>>,
 	/// Domain error stashed by `compute` for `reject` to convert with `Env`.
-	error:        Option<E>,
-	reject_hook:  fn(Env, E) -> Error,
-	cancel_hook:  fn(Env, AbortReason) -> Error,
+	error: Option<E>,
+	reject_hook: fn(Env, E) -> Error,
+	cancel_hook: fn(Env, AbortReason) -> Error,
 }
 /// Boxed work closure for [`BlockingMapped`].
 type MappedWork<T, E> = Box<dyn FnOnce(CancelToken) -> std::result::Result<T, E> + Send>;

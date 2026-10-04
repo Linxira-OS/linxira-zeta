@@ -10,7 +10,7 @@ use std::{
 use brush_core::{ShellExtensions, builtins::Registration};
 use clap::{Arg, ArgAction, ArgMatches, Command, builder::ValueParser};
 
-use crate::host::{Host, Utility, format_usage, matches_parser, util};
+use crate::host::{Host, Utility, format_usage, matches_parser, strip_errno, util};
 
 // It's possible that using a smaller or larger buffer might provide better
 // performance on some systems, but honestly this is good enough.
@@ -151,15 +151,6 @@ fn exec(bytes: &[u8], host: &mut Host) -> ExecStop {
 	}
 }
 
-/// Formats an I/O error without its platform-specific numeric errno suffix.
-fn strip_errno(error: &io::Error) -> String {
-	let mut message = error.to_string();
-	if let Some(position) = message.find(" (os error ") {
-		message.truncate(position);
-	}
-	message
-}
-
 /// Creates the `yes` builtin registration.
 pub(crate) fn yes_builtin<SE: ShellExtensions>() -> Registration<SE> {
 	util::<Yes, SE>()
@@ -182,12 +173,12 @@ mod tests {
 
 	#[derive(Clone)]
 	struct FailingWriter {
-		state:     Arc<Mutex<WriterState>>,
+		state: Arc<Mutex<WriterState>>,
 		fail_kind: io::ErrorKind,
 	}
 
 	struct WriterState {
-		bytes:     Vec<u8>,
+		bytes: Vec<u8>,
 		remaining: usize,
 	}
 

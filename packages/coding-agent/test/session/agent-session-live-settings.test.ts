@@ -20,8 +20,7 @@ import {
 } from "@linxiraos/zeta/session/settings";
 import { cfgTtsrEnabled } from "@linxiraos/zeta/export/ttsr-settings";
 import { cfgToolsFormat } from "@linxiraos/zeta/session/context-settings";
-import { cfgInterruptMode } from "@linxiraos/zeta/modes/settings";
-import { cfgSteeringMode } from "@linxiraos/zeta/modes/settings";
+import { cfgInterruptMode, cfgSteeringMode } from "@linxiraos/zeta/modes/settings";
 
 describe("AgentSession live settings", () => {
 	const tempDirs: string[] = [];
@@ -42,6 +41,8 @@ describe("AgentSession live settings", () => {
 	});
 
 	afterAll(() => {
+		// The discovered auth DB lives in authDir; Windows cannot delete it while open.
+		modelRegistry.authStorage.close();
 		removeSyncWithRetries(authDir);
 	});
 

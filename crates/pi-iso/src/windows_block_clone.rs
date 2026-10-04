@@ -324,7 +324,7 @@ mod imp {
 			.checked_add(dur.as_secs().checked_mul(10_000_000)?)?
 			.checked_add(u64::from(dur.subsec_nanos() / 100))?;
 		Some(FILETIME {
-			dwLowDateTime:  (ticks & 0xffff_ffff) as u32,
+			dwLowDateTime: (ticks & 0xffff_ffff) as u32,
 			dwHighDateTime: (ticks >> 32) as u32,
 		})
 	}

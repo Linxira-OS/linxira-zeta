@@ -49,122 +49,30 @@ enum Response {
 type Reply = flume::Sender<CoreResult<Response>>;
 
 enum Request {
-	Capabilities {
-		reply: Reply,
-	},
-	ListDisplays {
-		reply: Reply,
-	},
-	ListWindows {
-		reply: Reply,
-	},
-	Capture {
-		target: Target,
-		caps:   CaptureCaps,
-		reply:  Reply,
-	},
-	Click {
-		target:  Target,
-		x:       f64,
-		y:       f64,
-		options: ParsedPointerOptions,
-		reply:   Reply,
-	},
-	MoveMouse {
-		target: Target,
-		x:      f64,
-		y:      f64,
-		mode:   DeliveryMode,
-		reply:  Reply,
-	},
-	Drag {
-		target:  Target,
-		path:    Vec<(f64, f64)>,
-		options: ParsedPointerOptions,
-		reply:   Reply,
-	},
-	Scroll {
-		target: Target,
-		x:      f64,
-		y:      f64,
-		dx:     f64,
-		dy:     f64,
-		mode:   DeliveryMode,
-		reply:  Reply,
-	},
-	TypeText {
-		target: Target,
-		text:   String,
-		mode:   DeliveryMode,
-		reply:  Reply,
-	},
-	KeyChord {
-		target: Target,
-		keys:   Vec<keys::KeyName>,
-		mode:   DeliveryMode,
-		reply:  Reply,
-	},
-	RaiseWindow {
-		id:    String,
-		reply: Reply,
-	},
-	AxSnapshot {
-		target:  Target,
-		options: AxSnapshotOptions,
-		reply:   Reply,
-	},
-	AxQuery {
-		target: Target,
-		query:  AxQuery,
-		reply:  Reply,
-	},
-	AxElementAt {
-		target: Target,
-		x:      f64,
-		y:      f64,
-		reply:  Reply,
-	},
-	AxFocused {
-		reply: Reply,
-	},
-	AxNode {
-		reference: String,
-		reply:     Reply,
-	},
-	AxAttributes {
-		reference: String,
-		reply:     Reply,
-	},
-	AxChildren {
-		reference: String,
-		reply:     Reply,
-	},
-	AxParent {
-		reference: String,
-		reply:     Reply,
-	},
-	AxPerform {
-		reference: String,
-		action:    String,
-		reply:     Reply,
-	},
-	AxSetValue {
-		reference: String,
-		value:     String,
-		reply:     Reply,
-	},
-	AxFocus {
-		reference: String,
-		reply:     Reply,
-	},
-	AxClick {
-		reference: String,
-		options:   ParsedPointerOptions,
-		reply:     Reply,
-	},
-	Close {
-		reply: Reply,
-	},
+	Capabilities { reply: Reply },
+	ListDisplays { reply: Reply },
+	ListWindows { reply: Reply },
+	Capture { target: Target, caps: CaptureCaps, reply: Reply },
+	Click { target: Target, x: f64, y: f64, options: ParsedPointerOptions, reply: Reply },
+	MoveMouse { target: Target, x: f64, y: f64, mode: DeliveryMode, reply: Reply },
+	Drag { target: Target, path: Vec<(f64, f64)>, options: ParsedPointerOptions, reply: Reply },
+	Scroll { target: Target, x: f64, y: f64, dx: f64, dy: f64, mode: DeliveryMode, reply: Reply },
+	TypeText { target: Target, text: String, mode: DeliveryMode, reply: Reply },
+	KeyChord { target: Target, keys: Vec<keys::KeyName>, mode: DeliveryMode, reply: Reply },
+	RaiseWindow { id: String, reply: Reply },
+	AxSnapshot { target: Target, options: AxSnapshotOptions, reply: Reply },
+	AxQuery { target: Target, query: AxQuery, reply: Reply },
+	AxElementAt { target: Target, x: f64, y: f64, reply: Reply },
+	AxFocused { reply: Reply },
+	AxNode { reference: String, reply: Reply },
+	AxAttributes { reference: String, reply: Reply },
+	AxChildren { reference: String, reply: Reply },
+	AxParent { reference: String, reply: Reply },
+	AxPerform { reference: String, action: String, reply: Reply },
+	AxSetValue { reference: String, value: String, reply: Reply },
+	AxFocus { reference: String, reply: Reply },
+	AxClick { reference: String, options: ParsedPointerOptions, reply: Reply },
+	Close { reply: Reply },
 }
 
 impl Request {
@@ -205,27 +113,27 @@ impl Request {
 
 #[derive(Clone, Copy)]
 struct ParsedPointerOptions {
-	button:    MouseButton,
-	count:     u32,
+	button: MouseButton,
+	count: u32,
 	modifiers: backend::Modifiers,
-	mode:      DeliveryMode,
+	mode: DeliveryMode,
 }
 impl ParsedPointerOptions {
 	fn parse(options: Option<PointerOptions>) -> CoreResult<Self> {
 		let options = options.unwrap_or_default();
 		Ok(Self {
-			button:    MouseButton::parse(options.button.as_deref())?,
-			count:     options.count.unwrap_or(1).max(1),
+			button: MouseButton::parse(options.button.as_deref())?,
+			count: options.count.unwrap_or(1).max(1),
 			modifiers: parse_modifiers(options.modifiers.as_deref().unwrap_or_default())?,
-			mode:      DeliveryMode::from_takeover(options.takeover),
+			mode: DeliveryMode::from_takeover(options.takeover),
 		})
 	}
 }
 
 struct Worker {
-	backend:      CoreResult<Box<dyn Backend>>,
-	registry:     AxRegistry,
-	frames:       HashMap<String, FrameGeometry>,
+	backend: CoreResult<Box<dyn Backend>>,
+	registry: AxRegistry,
+	frames: HashMap<String, FrameGeometry>,
 	capabilities: Arc<Mutex<DesktopCapabilities>>,
 }
 
@@ -310,18 +218,18 @@ impl Worker {
 					Target::Window(_) => {
 						let w = self.window(target)?;
 						vec![DesktopDisplay {
-							id:           w.id,
-							name:         format!("{} — {}", w.app, w.title),
-							x:            w.x,
-							y:            w.y,
-							width:        w.width,
-							height:       w.height,
-							scale:        f64::from(width) / f64::from(w.width.max(1)),
-							pixel_x:      0,
-							pixel_y:      0,
-							pixel_width:  width,
+							id: w.id,
+							name: format!("{} — {}", w.app, w.title),
+							x: w.x,
+							y: w.y,
+							width: w.width,
+							height: w.height,
+							scale: f64::from(width) / f64::from(w.width.max(1)),
+							pixel_x: 0,
+							pixel_y: 0,
+							pixel_width: width,
 							pixel_height: height,
-							is_primary:   false,
+							is_primary: false,
 						}]
 					},
 				};
@@ -379,8 +287,8 @@ impl Worker {
 				self.backend()?.pointer(
 					target,
 					PointerEvent::Drag {
-						path:      mapped,
-						button:    options.button,
+						path: mapped,
+						button: options.button,
 						modifiers: options.modifiers,
 					},
 					&frame,
@@ -598,26 +506,21 @@ fn create_backend(_: DisplaySelector) -> CoreResult<Box<dyn Backend>> {
 }
 
 struct Lifecycle {
-	tx:     Option<flume::Sender<Request>>,
-	done:   Option<flume::Receiver<()>>,
-	join:   Option<JoinHandle<()>>,
+	tx: Option<flume::Sender<Request>>,
+	done: Option<flume::Receiver<()>>,
+	join: Option<JoinHandle<()>>,
 	closed: bool,
 }
 struct SessionCore {
-	selector:     DisplaySelector,
-	lifecycle:    Mutex<Lifecycle>,
+	selector: DisplaySelector,
+	lifecycle: Mutex<Lifecycle>,
 	capabilities: Arc<Mutex<DesktopCapabilities>>,
 }
 impl SessionCore {
 	fn new(selector: DisplaySelector) -> Arc<Self> {
 		Arc::new(Self {
 			selector,
-			lifecycle: Mutex::new(Lifecycle {
-				tx:     None,
-				done:   None,
-				join:   None,
-				closed: false,
-			}),
+			lifecycle: Mutex::new(Lifecycle { tx: None, done: None, join: None, closed: false }),
 			capabilities: Arc::new(Mutex::new(DesktopCapabilities::unavailable())),
 		})
 	}
@@ -1084,29 +987,29 @@ mod capture_tests {
 	/// Backend that mints a composite AT-SPI window id, mirroring the Wayland
 	/// `AtSpiAx` path. Exists to exercise `Worker::process` without a display.
 	struct FakeWaylandBackend {
-		window:         DesktopWindow,
-		overlap:        Option<DesktopWindow>,
+		window: DesktopWindow,
+		overlap: Option<DesktopWindow>,
 		window_present: bool,
-		clicks:         Arc<Mutex<Vec<String>>>,
+		clicks: Arc<Mutex<Vec<String>>>,
 	}
 
 	impl FakeWaylandBackend {
 		fn new() -> Self {
 			Self {
-				window:         DesktopWindow {
-					id:      WAYLAND_ID.to_string(),
-					title:   "Obsidian".to_string(),
-					app:     "obsidian".to_string(),
-					pid:     Some(1234),
-					x:       0,
-					y:       0,
-					width:   64,
-					height:  48,
+				window: DesktopWindow {
+					id: WAYLAND_ID.to_string(),
+					title: "Obsidian".to_string(),
+					app: "obsidian".to_string(),
+					pid: Some(1234),
+					x: 0,
+					y: 0,
+					width: 64,
+					height: 48,
 					focused: true,
 				},
-				overlap:        None,
+				overlap: None,
 				window_present: true,
-				clicks:         Arc::new(Mutex::new(Vec::new())),
+				clicks: Arc::new(Mutex::new(Vec::new())),
 			}
 		}
 	}
@@ -1126,15 +1029,15 @@ mod capture_tests {
 
 		fn props(&mut self, _: &AxHandle) -> CoreResult<AxProps> {
 			Ok(AxProps {
-				role:        "button".to_string(),
+				role: "button".to_string(),
 				native_role: "button".to_string(),
-				title:       None,
-				value:       None,
+				title: None,
+				value: None,
 				description: None,
-				enabled:     true,
-				focused:     false,
-				bounds:      Some(AxBounds { x: 10.0, y: 10.0, width: 20.0, height: 20.0 }),
-				actions:     Vec::new(),
+				enabled: true,
+				focused: false,
+				bounds: Some(AxBounds { x: 10.0, y: 10.0, width: 20.0, height: 20.0 }),
+				actions: Vec::new(),
 				child_count: 0,
 			})
 		}
@@ -1244,9 +1147,9 @@ mod capture_tests {
 
 	fn worker_with(backend: impl Backend + 'static) -> Worker {
 		Worker {
-			backend:      Ok(Box::new(backend)),
-			registry:     AxRegistry::default(),
-			frames:       HashMap::new(),
+			backend: Ok(Box::new(backend)),
+			registry: AxRegistry::default(),
+			frames: HashMap::new(),
 			capabilities: Arc::new(Mutex::new(DesktopCapabilities::unavailable())),
 		}
 	}

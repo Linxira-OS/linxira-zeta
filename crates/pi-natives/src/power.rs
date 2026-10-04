@@ -18,13 +18,13 @@ use napi_derive::napi;
 #[napi(object, js_name = "PowerAssertionOptions")]
 pub struct PowerAssertionOptions {
 	/// Human-readable reason shown in platform power diagnostics.
-	pub reason:  Option<String>,
+	pub reason: Option<String>,
 	/// `caffeinate -i`: prevent the system from idle-sleeping.
-	pub idle:    Option<bool>,
+	pub idle: Option<bool>,
 	/// `caffeinate -s`: prevent the system from sleeping (AC power only).
-	pub system:  Option<bool>,
+	pub system: Option<bool>,
 	/// `caffeinate -u`: declare the user is active (wakes the display).
-	pub user:    Option<bool>,
+	pub user: Option<bool>,
 	/// `caffeinate -d`: prevent the display from idle-sleeping.
 	pub display: Option<bool>,
 }
@@ -216,7 +216,7 @@ mod platform {
 	/// Holds login1's inhibitor descriptor and the desktop `ScreenSaver` cookie.
 	/// Closing the descriptor and releasing the cookie removes both inhibits.
 	pub struct AssertionInner {
-		login1_inhibitor:   Option<OwnedFd>,
+		login1_inhibitor: Option<OwnedFd>,
 		screensaver_cookie: Option<u32>,
 	}
 
@@ -348,7 +348,7 @@ mod platform {
 
 	pub struct AssertionInner {
 		release: Option<Sender<()>>,
-		worker:  Option<JoinHandle<()>>,
+		worker: Option<JoinHandle<()>>,
 	}
 
 	impl AssertionInner {

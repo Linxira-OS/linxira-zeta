@@ -42,16 +42,18 @@ describe("global --profile flag", () => {
 	let originalProfile: string | undefined;
 	let originalAgentDir = "";
 	let originalAgentDirEnv: string | undefined;
-	let originalZetaProfileEnv: string | undefined;
+	let originalOmpProfileEnv: string | undefined;
+	let originalPiProfileEnv: string | undefined;
 	let originalConfigDir: string | undefined;
 
 	beforeEach(() => {
 		originalProfile = getActiveProfile();
 		originalAgentDir = getAgentDir();
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalZetaProfileEnv = process.env.ZETA_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
+		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalConfigDir = process.env.PI_CONFIG_DIR;
-		configDir = `.zeta-profile-cli-test-${Snowflake.next()}`;
+		configDir = `.omp-profile-cli-test-${Snowflake.next()}`;
 		process.env.PI_CONFIG_DIR = configDir;
 		process.exitCode = 0;
 	});
@@ -71,10 +73,15 @@ describe("global --profile flag", () => {
 		} else {
 			setProfile(undefined);
 		}
-		if (originalZetaProfileEnv === undefined) {
+		if (originalOmpProfileEnv === undefined) {
 			delete process.env.ZETA_PROFILE;
 		} else {
-			process.env.ZETA_PROFILE = originalZetaProfileEnv;
+			process.env.ZETA_PROFILE = originalOmpProfileEnv;
+		}
+		if (originalPiProfileEnv === undefined) {
+			delete process.env.PI_PROFILE;
+		} else {
+			process.env.PI_PROFILE = originalPiProfileEnv;
 		}
 		if (originalAgentDirEnv === undefined) {
 			delete process.env.ZETA_CODING_AGENT_DIR;
@@ -101,6 +108,7 @@ describe("global --profile flag", () => {
 		const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		setProfile(undefined);
 		process.env.ZETA_PROFILE = "work";
+		delete process.env.PI_PROFILE;
 
 		await runCli(["--version"]);
 
@@ -115,24 +123,24 @@ describe("global --profile flag", () => {
 		const installSpy = vi.spyOn(profileAliasCli, "installProfileAlias").mockResolvedValue({
 			shell: "bash",
 			configPath: "/home/me/.bashrc",
-			aliasName: "zeta-work",
+			aliasName: "omp-work",
 			profile: "work",
 			command: "omp --profile=work",
 			reloadedWith: ". '/home/me/.bashrc'",
 		});
 		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-		await runCli(["--profile", "work", "--alias", "zeta-work", "--version"]);
+		await runCli(["--profile", "work", "--alias", "omp-work", "--version"]);
 
 		expect(process.exitCode).toBe(0);
 		expect(installSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				profile: "work",
-				aliasName: "zeta-work",
+				aliasName: "omp-work",
 			}),
 		);
 		const output = outSpy.mock.calls.map(call => String(call[0] ?? "")).join("\n");
-		expect(output).toContain("Created zeta-work");
+		expect(output).toContain("Created omp-work");
 		expect(output).not.toContain(`${APP_NAME}/${VERSION}`);
 	});
 
@@ -150,10 +158,10 @@ describe("global --profile flag", () => {
 	});
 
 	it("loads profile agent .env before command modules import pi-utils env", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-cli-env-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-"));
 		try {
 			const home = path.join(root, "home");
-			const configDir = ".zeta-profile-cli-env";
+			const configDir = ".omp-profile-cli-env";
 			const defaultAgentDir = path.join(home, configDir, "agent");
 			const profileAgentDir = path.join(home, configDir, "profiles", "work", "agent");
 			await fs.mkdir(defaultAgentDir, { recursive: true });
@@ -174,11 +182,14 @@ describe("global --profile flag", () => {
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
 				HOME: home,
+				// os.homedir() reads USERPROFILE on Windows, HOME elsewhere.
+				USERPROFILE: home,
 				PI_CONFIG_DIR: configDir,
 				PI_NO_TITLE: "1",
 				NO_COLOR: "1",
 			};
 			delete childEnv.ZETA_PROFILE;
+			delete childEnv.PI_PROFILE;
 			delete childEnv.ZETA_CODING_AGENT_DIR;
 			delete childEnv.ZETA_PROFILE_BOOTSTRAP_SENTINEL;
 
@@ -205,7 +216,7 @@ describe("global --profile flag", () => {
 	}, 30_000);
 
 	it("surfaces an invalid ZETA_PROFILE env as a clean error, not an import crash", async () => {
-		const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-profile-cli-env-bad-"));
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-profile-cli-env-bad-"));
 		try {
 			const home = path.join(root, "home");
 			await fs.mkdir(home, { recursive: true });
@@ -226,10 +237,12 @@ describe("global --profile flag", () => {
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
 				HOME: home,
-				PI_CONFIG_DIR: ".zeta-profile-cli-env-bad",
+				USERPROFILE: home,
+				PI_CONFIG_DIR: ".omp-profile-cli-env-bad",
 				ZETA_PROFILE: "..",
 				NO_COLOR: "1",
 			};
+			delete childEnv.PI_PROFILE;
 			delete childEnv.ZETA_CODING_AGENT_DIR;
 
 			const proc = Bun.spawn([process.execPath, probePath], {

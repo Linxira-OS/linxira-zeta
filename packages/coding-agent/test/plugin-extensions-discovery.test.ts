@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { __closeExtensionParseCacheForTests } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const currentPiCodingAgentPath = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
 const currentPiExtensionsPath = Bun.resolveSync("@linxiraos/zeta/extensibility/extensions", import.meta.dir);
@@ -81,6 +82,9 @@ describe("plugin extension discovery", () => {
 		}
 		originalXdg.clear();
 		setAgentDir(originalAgentDir);
+		// The legacy Pi parse cache db lives under the temp home's `.zeta/cache`;
+		// release it so Windows can delete the directory.
+		__closeExtensionParseCacheForTests();
 		removeSyncWithRetries(tempHome);
 	});
 
@@ -143,8 +147,8 @@ describe("plugin extension discovery", () => {
 			[
 				'import * as nodePath from "path";',
 				'if (false) import("./optional-missing.js");',
-				'import { isToolCallEventType as legacyRoot } from "@mariozechner/pi-coding-agent";',
-				'import { isToolCallEventType as legacyExtensions } from "@mariozechner/pi-coding-agent/extensibility/extensions";',
+				'import { isToolCallEventType as legacyRoot } from "@linxiraos/zeta";',
+				'import { isToolCallEventType as legacyExtensions } from "@linxiraos/zeta/extensibility/extensions";',
 				`import { isToolCallEventType as modernRoot } from ${JSON.stringify(currentPiCodingAgentPath)};`,
 				`import { isToolCallEventType as modernExtensions } from ${JSON.stringify(currentPiExtensionsPath)};`,
 				"",
@@ -481,7 +485,7 @@ describe("plugin extension discovery", () => {
 				// Side-effect imports — no `from`, no dynamic `import()`. The
 				// regex matchers must walk and rewrite both shapes so the legacy
 				// `@earendil-works` import inside `register.ts` resolves to the
-				// host `@linxiraos` package.
+				// host `@zeta` package.
 				'import "#src/register";',
 				'import "./marker";',
 				"",

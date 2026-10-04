@@ -21,7 +21,7 @@ use crate::host::quote_arg;
 pub(crate) struct NohupCommand {
 	/// `--help` was the first argument; set by [`NohupCommand::from_argv`].
 	#[clap(skip)]
-	help:    bool,
+	help: bool,
 	/// `--version` was the first argument; set by [`NohupCommand::from_argv`].
 	#[clap(skip)]
 	version: bool,
@@ -80,11 +80,7 @@ impl builtins::Command for NohupCommand {
 				return Ok(ExecutionResult::success());
 			}
 			if version {
-				let _ = writeln!(
-					context.stdout(),
-					"nohup (pi-builtins) {}",
-					env!("CARGO_PKG_VERSION")
-				);
+				let _ = writeln!(context.stdout(), "nohup (pi-builtins) {}", env!("CARGO_PKG_VERSION"));
 				return Ok(ExecutionResult::success());
 			}
 			// coreutils `nohup` with no operand fails with exit code 125.
@@ -210,9 +206,6 @@ mod tests {
 			String::new(),
 		];
 
-		assert_eq!(
-			rebuild_command_line(&command),
-			"printf '%s %s' 'two words' 'it'\"'\"'s' ''"
-		);
+		assert_eq!(rebuild_command_line(&command), "printf '%s %s' 'two words' 'it'\"'\"'s' ''");
 	}
 }

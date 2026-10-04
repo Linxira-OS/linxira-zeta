@@ -42,8 +42,8 @@ pub const Q8_BLOCK_BYTES: usize = 2 + Q8_BLOCK;
 /// along a row is an f16 scale (little-endian) then the `i8` quants, weight
 /// `= scale · quant`.
 pub struct Q8Blocks {
-	pub rows:  usize,
-	pub cols:  usize,
+	pub rows: usize,
+	pub cols: usize,
 	pub bytes: Vec<u8>,
 }
 
@@ -93,18 +93,18 @@ fn type_name(kind: u32) -> String {
 
 struct TensorInfo {
 	/// Dimensions, innermost (contiguous) first.
-	dims:   Vec<u64>,
-	kind:   u32,
+	dims: Vec<u64>,
+	kind: u32,
 	/// Offset from the start of the data section.
 	offset: u64,
 }
 
 /// An open GGUF file.
 pub struct Gguf<R> {
-	reader:       BufReader<R>,
-	data_start:   u64,
-	data_len:     u64,
-	tensors:      HashMap<String, TensorInfo>,
+	reader: BufReader<R>,
+	data_start: u64,
+	data_len: u64,
+	tensors: HashMap<String, TensorInfo>,
 	architecture: Option<String>,
 }
 
@@ -346,9 +346,9 @@ pub(super) mod tests {
 	/// Assembles GGUF v3 files in memory.
 	pub struct Writer {
 		alignment: u64,
-		kv_count:  u64,
-		metadata:  Vec<u8>,
-		tensors:   Vec<(String, Vec<u64>, u32, Vec<u8>)>,
+		kv_count: u64,
+		metadata: Vec<u8>,
+		tensors: Vec<(String, Vec<u64>, u32, Vec<u8>)>,
 	}
 
 	fn put_string(out: &mut Vec<u8>, text: &str) {
@@ -361,9 +361,9 @@ pub(super) mod tests {
 		pub fn new(alignment: Option<u32>) -> Self {
 			let mut writer = Self {
 				alignment: DEFAULT_ALIGNMENT,
-				kv_count:  0,
-				metadata:  Vec::new(),
-				tensors:   Vec::new(),
+				kv_count: 0,
+				metadata: Vec::new(),
+				tensors: Vec::new(),
 			};
 			if let Some(alignment) = alignment {
 				writer.alignment = u64::from(alignment);

@@ -322,15 +322,15 @@ impl Excludes {
 }
 
 struct FdIgnoreMatcher {
-	fs:      BlockingFs,
+	fs: BlockingFs,
 	enabled: bool,
-	root:    PathBuf,
-	global:  Vec<ignore::gitignore::Gitignore>,
-	states:  HashMap<PathBuf, Arc<FdIgnoreState>>,
+	root: PathBuf,
+	global: Vec<ignore::gitignore::Gitignore>,
+	states: HashMap<PathBuf, Arc<FdIgnoreState>>,
 }
 
 struct FdIgnoreState {
-	parent:  Option<Arc<Self>>,
+	parent: Option<Arc<Self>>,
 	matcher: Option<ignore::gitignore::Gitignore>,
 }
 
@@ -378,7 +378,9 @@ impl FdIgnoreMatcher {
 			return false;
 		}
 		let path = normalize_fdignore_path(path);
-		let state_dir = pi_vfs::parent_path(&path).unwrap_or(&self.root).to_path_buf();
+		let state_dir = pi_vfs::parent_path(&path)
+			.unwrap_or(&self.root)
+			.to_path_buf();
 		let state = self.state_for_dir(&state_dir);
 		if let Some(ignored) = fdignore_state_match(&state, &path, is_dir) {
 			return ignored;
@@ -482,15 +484,15 @@ fn fdignore_match(
 
 #[derive(Clone, Default)]
 struct TypeFilter {
-	regular:    bool,
-	directory:  bool,
-	symlink:    bool,
-	socket:     bool,
-	pipe:       bool,
-	block:      bool,
-	character:  bool,
+	regular: bool,
+	directory: bool,
+	symlink: bool,
+	socket: bool,
+	pipe: bool,
+	block: bool,
+	character: bool,
 	executable: bool,
-	empty:      bool,
+	empty: bool,
 }
 
 impl TypeFilter {
@@ -519,7 +521,7 @@ enum SizeOrdering {
 #[derive(Clone, Copy)]
 struct SizeFilter {
 	ordering: SizeOrdering,
-	bytes:    u64,
+	bytes: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -530,35 +532,35 @@ enum OwnerSide {
 
 #[derive(Clone, Copy)]
 struct OwnerMatcher {
-	user:  Option<OwnerSide>,
+	user: Option<OwnerSide>,
 	group: Option<OwnerSide>,
 }
 
 #[derive(Clone)]
 struct SearchConfig {
-	fs:             BlockingFs,
-	base_dir:       PathBuf,
+	fs: BlockingFs,
+	base_dir: PathBuf,
 	absolute_roots: Vec<PathBuf>,
-	matcher:        Arc<SearchMatcher>,
-	excludes:       Excludes,
-	types:          TypeFilter,
-	extensions:     Vec<String>,
-	sizes:          Vec<SizeFilter>,
-	changed_after:  Option<SystemTime>,
+	matcher: Arc<SearchMatcher>,
+	excludes: Excludes,
+	types: TypeFilter,
+	extensions: Vec<String>,
+	sizes: Vec<SizeFilter>,
+	changed_after: Option<SystemTime>,
 	changed_before: Option<SystemTime>,
-	owners:         Vec<OwnerMatcher>,
-	full_path:      bool,
-	absolute_path:  bool,
-	separator:      String,
-	format:         Option<String>,
-	print0:         bool,
-	quiet:          bool,
-	show_errors:    bool,
-	prune:          bool,
+	owners: Vec<OwnerMatcher>,
+	full_path: bool,
+	absolute_path: bool,
+	separator: String,
+	format: Option<String>,
+	print0: bool,
+	quiet: bool,
+	show_errors: bool,
+	prune: bool,
 }
 
 struct SearchState {
-	matches:   usize,
+	matches: usize,
 	had_error: bool,
 }
 
@@ -590,9 +592,7 @@ impl Utility for FdCli {
 				}
 			},
 			// Abort the walk; the host maps the BrokenPipe status.
-			Err(err) if err.kind() == io::ErrorKind::BrokenPipe => {
-				crate::host::SIGPIPE_EXIT_CODE
-			},
+			Err(err) if err.kind() == io::ErrorKind::BrokenPipe => crate::host::SIGPIPE_EXIT_CODE,
 			Err(err) => {
 				let _ = writeln!(host.stderr, "fd: {err}");
 				2
@@ -647,7 +647,10 @@ fn search(
 	} else {
 		cli.max_results
 	};
-	let separator = cli.path_separator.clone().unwrap_or_else(|| "/".to_string());
+	let separator = cli
+		.path_separator
+		.clone()
+		.unwrap_or_else(|| "/".to_string());
 	let config = SearchConfig {
 		fs: host.fs().clone(),
 		base_dir,
@@ -1089,7 +1092,9 @@ fn is_empty_entry(
 		return metadata.len() == 0;
 	}
 	if metadata.is_dir() && (!filter.has_kind() || filter.directory) {
-		return fs.read_dir(path).is_ok_and(|mut entries| entries.next().is_none());
+		return fs
+			.read_dir(path)
+			.is_ok_and(|mut entries| entries.next().is_none());
 	}
 	false
 }
@@ -1157,11 +1162,7 @@ fn owner_side_matches(side: OwnerSide, actual: Option<u32>) -> bool {
 	}
 }
 
-fn resolve_search_paths(
-	cli: &FdCli,
-	base_dir: &Path,
-	host: &Host,
-) -> io::Result<Vec<SearchPath>> {
+fn resolve_search_paths(cli: &FdCli, base_dir: &Path, host: &Host) -> io::Result<Vec<SearchPath>> {
 	if !cli.search_paths.is_empty() && !cli.paths.is_empty() {
 		return Err(io::Error::new(
 			io::ErrorKind::InvalidInput,
@@ -1188,7 +1189,6 @@ struct SearchPath {
 	original: PathBuf,
 	resolved: PathBuf,
 }
-
 
 const fn include_hidden(cli: &FdCli) -> bool {
 	(cli.hidden || cli.unrestricted > 0) && !cli.no_hidden
@@ -1523,7 +1523,9 @@ fn normalize_os_str(value: &OsStr) -> String {
 }
 
 fn format_path(template: &str, path: &Path, display: &str) -> String {
-	let basename = pi_vfs::file_name(path).map(|name| normalize_os_str(&name)).unwrap_or_default();
+	let basename = pi_vfs::file_name(path)
+		.map(|name| normalize_os_str(&name))
+		.unwrap_or_default();
 	let parent = pi_vfs::parent_path(path)
 		.map(normalize_display_path)
 		.unwrap_or_default();
@@ -1581,13 +1583,9 @@ fn remove_extension(value: &str) -> String {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
-	use std::{
-		fs,
-		sync::atomic::AtomicBool,
-	};
+	use std::{fs, sync::atomic::AtomicBool};
 
 	use tempfile::{Builder, TempDir};
 

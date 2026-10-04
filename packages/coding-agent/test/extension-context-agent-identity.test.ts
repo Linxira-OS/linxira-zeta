@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { ExtensionAgentIdentity } from "@linxiraos/zeta/extensibility/extensions/types";
+import type { ExtensionAgentIdentity, ExtensionFactory } from "@linxiraos/zeta/extensibility/extensions/types";
 import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import * as sessionAdvisors from "@linxiraos/zeta/session/session-advisors";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
@@ -27,10 +30,12 @@ describe("ExtensionContext.agent", () => {
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	async function agentSeenByExtensions(options: Partial<CreateAgentSessionOptions>): Promise<ExtensionAgentIdentity> {
+	async function createSession(
+		extension: ExtensionFactory,
+		options: Partial<CreateAgentSessionOptions> = {},
+	): Promise<AgentSession> {
 		const authStorage = createInMemoryAuthStorage();
 		authStorages.push(authStorage);
-		let seen: ExtensionAgentIdentity | undefined;
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir: tempDir,
@@ -39,13 +44,7 @@ describe("ExtensionContext.agent", () => {
 			settings: Settings.isolated(),
 			sessionManager: SessionManager.inMemory(),
 			disableExtensionDiscovery: true,
-			extensions: [
-				pi => {
-					pi.on("before_agent_start", (_event, ctx) => {
-						seen = ctx.agent;
-					});
-				},
-			],
+			extensions: [extension],
 			skills: [],
 			contextFiles: [],
 			promptTemplates: [],
@@ -58,6 +57,16 @@ describe("ExtensionContext.agent", () => {
 			toolNames: ["read"],
 			...options,
 		});
+		return session;
+	}
+
+	async function agentSeenByExtensions(options: Partial<CreateAgentSessionOptions>): Promise<ExtensionAgentIdentity> {
+		let seen: ExtensionAgentIdentity | undefined;
+		const session = await createSession(pi => {
+			pi.on("before_agent_start", (_event, ctx) => {
+				seen = ctx.agent;
+			});
+		}, options);
 		try {
 			await session.extensionRunner!.emitBeforeAgentStart("hi", undefined, []);
 			return seen!;
@@ -93,5 +102,57 @@ describe("ExtensionContext.agent", () => {
 				parentAgentId: "Main",
 			}),
 		).toEqual({ kind: "sub", id: "Main-tan-1", name: "sub", depth: 0, parentId: "Main" });
+	});
+
+	// Advisors share the session's runner for approval enforcement; an extension scoping
+	// tool hooks to the main agent (e.g. injecting hints into tool results) must not act
+	// on the advisor's own investigation (issue #13598).
+	test("an advisor's tool calls report the advisor, not the session's agent", async () => {
+		const RealSessionAdvisors = sessionAdvisors.SessionAdvisors;
+		let advisorTools: AgentTool[] = [];
+		const advisorsSpy = spyOn(sessionAdvisors, "SessionAdvisors").mockImplementation(function (
+			host: sessionAdvisors.SessionAdvisorsHost,
+			options: sessionAdvisors.SessionAdvisorsOptions,
+		) {
+			advisorTools = options.tools ?? [];
+			return new RealSessionAdvisors(host, options);
+		} as never);
+		const seen: Array<{ event: string; toolCallId: string; agent: ExtensionAgentIdentity }> = [];
+		fs.writeFileSync(path.join(tempDir, "probe.txt"), "needle\n");
+		let session: AgentSession;
+		try {
+			session = await createSession(pi => {
+				pi.on("tool_call", (event, ctx) => {
+					seen.push({ event: event.type, toolCallId: event.toolCallId, agent: ctx.agent });
+				});
+				pi.on("tool_result", (event, ctx) => {
+					seen.push({ event: event.type, toolCallId: event.toolCallId, agent: ctx.agent });
+				});
+			});
+		} finally {
+			advisorsSpy.mockRestore();
+		}
+		try {
+			const advisorGrep = advisorTools.find(tool => tool.name === "grep");
+			await advisorGrep!.execute("advisor-call", { pattern: "needle", path: tempDir });
+			await session.getToolByName("read")!.execute("main-call", { path: path.join(tempDir, "probe.txt") });
+		} finally {
+			await session.dispose();
+		}
+
+		const advisor: ExtensionAgentIdentity = {
+			kind: "sub",
+			id: "advisor",
+			name: "advisor",
+			depth: 0,
+			parentId: "Main",
+		};
+		const main: ExtensionAgentIdentity = { kind: "main", id: "Main", name: "main", depth: 0 };
+		expect(seen).toEqual([
+			{ event: "tool_call", toolCallId: "advisor-call", agent: advisor },
+			{ event: "tool_result", toolCallId: "advisor-call", agent: advisor },
+			{ event: "tool_call", toolCallId: "main-call", agent: main },
+			{ event: "tool_result", toolCallId: "main-call", agent: main },
+		]);
 	});
 });

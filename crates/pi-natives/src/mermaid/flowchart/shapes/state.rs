@@ -6,11 +6,11 @@ use crate::mermaid::{
 
 const fn dimensions() -> ShapeDimensions {
 	ShapeDimensions {
-		width:        5,
-		height:       3,
-		label_area:   LabelArea { x: 2, y: 1, width: 1, height: 1 },
+		width: 5,
+		height: 3,
+		label_area: LabelArea { x: 2, y: 1, width: 1, height: 1 },
 		grid_columns: [1, 3, 1],
-		grid_rows:    [1, 1, 1],
+		grid_rows: [1, 1, 1],
 	}
 }
 

@@ -27,11 +27,11 @@ pub struct AxisRange {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct XyAxis {
 	/// Optional axis title.
-	pub title:      Option<String>,
+	pub title: Option<String>,
 	/// Optional categorical labels.
 	pub categories: Option<Vec<String>>,
 	/// Optional numeric bounds.
-	pub range:      Option<AxisRange>,
+	pub range: Option<AxisRange>,
 }
 
 /// Kind of data series drawn on an XY chart.
@@ -56,26 +56,26 @@ pub struct XyChartSeries {
 #[derive(Clone, Debug, PartialEq)]
 pub struct XyChart {
 	/// Optional centered chart title.
-	pub title:      Option<String>,
+	pub title: Option<String>,
 	/// Whether axes are rotated into horizontal orientation.
 	pub horizontal: bool,
 	/// Category or numeric x-axis.
-	pub x_axis:     XyAxis,
+	pub x_axis: XyAxis,
 	/// Value y-axis.
-	pub y_axis:     XyAxis,
+	pub y_axis: XyAxis,
 	/// Data series in source order.
-	pub series:     Vec<XyChartSeries>,
+	pub series: Vec<XyChartSeries>,
 }
 
 #[derive(Clone, Copy)]
 struct ChartChars {
-	h_line:    char,
-	v_line:    char,
-	origin:    char,
-	y_tick:    char,
-	x_tick:    char,
-	bar:       char,
-	grid:      char,
+	h_line: char,
+	v_line: char,
+	origin: char,
+	y_tick: char,
+	x_tick: char,
+	bar: char,
+	grid: char,
 	corner_tl: char,
 	corner_tr: char,
 	corner_bl: char,
@@ -83,26 +83,26 @@ struct ChartChars {
 }
 
 const UNICODE: ChartChars = ChartChars {
-	h_line:    '─',
-	v_line:    '│',
-	origin:    '┼',
-	y_tick:    '┤',
-	x_tick:    '┬',
-	bar:       '█',
-	grid:      '·',
+	h_line: '─',
+	v_line: '│',
+	origin: '┼',
+	y_tick: '┤',
+	x_tick: '┬',
+	bar: '█',
+	grid: '·',
 	corner_tl: '╭',
 	corner_tr: '╮',
 	corner_bl: '╰',
 	corner_br: '╯',
 };
 const ASCII: ChartChars = ChartChars {
-	h_line:    '-',
-	v_line:    '|',
-	origin:    '+',
-	y_tick:    '+',
-	x_tick:    '+',
-	bar:       '#',
-	grid:      '.',
+	h_line: '-',
+	v_line: '|',
+	origin: '+',
+	y_tick: '+',
+	x_tick: '+',
+	bar: '#',
+	grid: '.',
 	corner_tl: '+',
 	corner_tr: '+',
 	corner_bl: '+',

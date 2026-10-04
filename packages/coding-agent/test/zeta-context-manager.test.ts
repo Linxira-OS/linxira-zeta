@@ -81,7 +81,7 @@ function createMockHost(
 			return { tokens: overrides.contextTokens } as ContextUsage;
 		},
 		async runAutoCompaction(): Promise<CompactionCheckResult> {
-			return { deferredHandoff: false, continuationScheduled: false };
+			return { continuationScheduled: false };
 		},
 		findLastAssistantMessage(): AssistantMessage | undefined {
 			return overrides.lastAssistantMessage;
@@ -273,7 +273,7 @@ describe("ZetaContextManager", () => {
 
 			host.runAutoCompaction = async () => {
 				compactionCalled = true;
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);
@@ -305,7 +305,7 @@ describe("ZetaContextManager", () => {
 
 			host.runAutoCompaction = async () => {
 				compactionCalled = true;
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);
@@ -343,7 +343,7 @@ describe("ZetaContextManager", () => {
 			host.runAutoCompaction = async () => {
 				compactionCount++;
 				await compactionDone; // hold the first compaction open
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);
@@ -387,7 +387,7 @@ describe("ZetaContextManager", () => {
 			let compactionCalled = false;
 			host.runAutoCompaction = async () => {
 				compactionCalled = true;
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);
@@ -438,7 +438,7 @@ describe("ZetaContextManager", () => {
 
 			host.runAutoCompaction = async () => {
 				compactionCalled = true;
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);
@@ -522,7 +522,7 @@ describe("ZetaContextManager", () => {
 			let compactionCalled = false;
 			host.runAutoCompaction = async () => {
 				compactionCalled = true;
-				return { deferredHandoff: false, continuationScheduled: false };
+				return { continuationScheduled: false };
 			};
 
 			const manager = new ZetaContextManager(host);

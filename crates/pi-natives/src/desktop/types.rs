@@ -6,18 +6,18 @@ use napi_derive::napi;
 #[napi(object)]
 #[derive(Debug, Clone)]
 pub struct DesktopDisplay {
-	pub id:           String,
-	pub name:         String,
-	pub x:            i32,
-	pub y:            i32,
-	pub width:        u32,
-	pub height:       u32,
-	pub scale:        f64,
-	pub pixel_x:      u32,
-	pub pixel_y:      u32,
-	pub pixel_width:  u32,
+	pub id: String,
+	pub name: String,
+	pub x: i32,
+	pub y: i32,
+	pub width: u32,
+	pub height: u32,
+	pub scale: f64,
+	pub pixel_x: u32,
+	pub pixel_y: u32,
+	pub pixel_width: u32,
 	pub pixel_height: u32,
-	pub is_primary:   bool,
+	pub is_primary: bool,
 }
 
 /// One capturable top-level window in global logical desktop coordinates.
@@ -28,34 +28,34 @@ pub struct DesktopWindow {
 	/// window lives. Numeric on X11/Win32/macOS; a composite AT-SPI string on
 	/// Wayland (e.g. `atspi::1.31:/org/a11y/atspi/accessible/1`). Never parse
 	/// it.
-	pub id:      String,
+	pub id: String,
 	/// Window title; may be empty for untitled windows.
-	pub title:   String,
+	pub title: String,
 	/// Owning application name.
-	pub app:     String,
+	pub app: String,
 	/// Owning process id when the platform exposes it.
-	pub pid:     Option<u32>,
-	pub x:       i32,
-	pub y:       i32,
-	pub width:   u32,
-	pub height:  u32,
+	pub pid: Option<u32>,
+	pub x: i32,
+	pub y: i32,
+	pub width: u32,
+	pub height: u32,
 	/// Whether the window currently holds input focus.
 	pub focused: bool,
 }
 
 #[napi(object)]
 pub struct DesktopCapture {
-	pub data:           Uint8Array,
-	pub width:          u32,
-	pub height:         u32,
+	pub data: Uint8Array,
+	pub width: u32,
+	pub height: u32,
 	/// Pre-scaling capture width in native pixels; equals `width` when unscaled.
-	pub source_width:   u32,
+	pub source_width: u32,
 	/// Pre-scaling capture height in native pixels; equals `height` when
 	/// unscaled.
-	pub source_height:  u32,
-	pub target:         String,
-	pub displays:       Vec<DesktopDisplay>,
-	pub backend:        String,
+	pub source_height: u32,
+	pub target: String,
+	pub displays: Vec<DesktopDisplay>,
+	pub backend: String,
 	pub display_server: Option<String>,
 }
 
@@ -104,19 +104,19 @@ pub struct DesktopSessionOptions {
 #[napi(object)]
 #[derive(Debug, Clone, Default)]
 pub struct CaptureCaps {
-	pub max_width:  Option<u32>,
+	pub max_width: Option<u32>,
 	pub max_height: Option<u32>,
 }
 
 #[napi(object)]
 #[derive(Debug, Clone, Default)]
 pub struct PointerOptions {
-	pub button:    Option<String>,
-	pub count:     Option<u32>,
+	pub button: Option<String>,
+	pub count: Option<u32>,
 	pub modifiers: Option<Vec<String>>,
 	/// Briefly activate the target window and post real input instead of the
 	/// default background delivery.
-	pub takeover:  Option<bool>,
+	pub takeover: Option<bool>,
 }
 
 #[napi(object)]
@@ -130,28 +130,28 @@ pub struct DesktopPoint {
 #[derive(Debug, Clone)]
 pub struct AxNode {
 	#[napi(js_name = "ref")]
-	pub ref_:        String,
-	pub role:        String,
+	pub ref_: String,
+	pub role: String,
 	pub native_role: String,
-	pub title:       Option<String>,
-	pub value:       Option<String>,
+	pub title: Option<String>,
+	pub value: Option<String>,
 	pub description: Option<String>,
-	pub enabled:     bool,
-	pub focused:     bool,
-	pub x:           Option<f64>,
-	pub y:           Option<f64>,
-	pub width:       Option<f64>,
-	pub height:      Option<f64>,
-	pub actions:     Option<Vec<String>>,
+	pub enabled: bool,
+	pub focused: bool,
+	pub x: Option<f64>,
+	pub y: Option<f64>,
+	pub width: Option<f64>,
+	pub height: Option<f64>,
+	pub actions: Option<Vec<String>>,
 	pub child_count: u32,
 }
 
 #[napi(object)]
 #[derive(Debug, Clone)]
 pub struct AxSnapshot {
-	pub text:       String,
+	pub text: String,
 	pub node_count: u32,
-	pub truncated:  bool,
+	pub truncated: bool,
 }
 
 #[napi(object)]
@@ -159,13 +159,13 @@ pub struct AxSnapshot {
 pub struct AxSnapshotOptions {
 	pub max_depth: Option<u32>,
 	pub max_nodes: Option<u32>,
-	pub all:       Option<bool>,
+	pub all: Option<bool>,
 }
 
 #[napi(object)]
 #[derive(Debug, Clone, Default)]
 pub struct AxQuery {
-	pub role:  Option<String>,
+	pub role: Option<String>,
 	pub title: Option<String>,
 	pub value: Option<String>,
 	pub limit: Option<u32>,

@@ -149,10 +149,7 @@ impl Repo {
 				// but never render text, so a `max_bytes` inert for them must not
 				// be rejected (see the P2 finding on this validator).
 				if options.max_bytes.is_some() {
-					return Err(Error::Unsupported {
-						operation: "diffMaxBytes",
-						backend:   VcsKind::Jj,
-					});
+					return Err(Error::Unsupported { operation: "diffMaxBytes", backend: VcsKind::Jj });
 				}
 				workspace.diff_text(&options.files, true)
 			},
@@ -386,28 +383,28 @@ mod tests {
 			.diff_text(&DiffOptions { cached: true, ..DiffOptions::default() })
 			.unwrap_err();
 		assert_eq!(staged.kind(), "Unsupported");
-		assert!(matches!(staged, Error::Unsupported {
-			operation: "stagedDiff",
-			backend:   VcsKind::Jj,
-		}));
+		assert!(matches!(
+			staged,
+			Error::Unsupported { operation: "stagedDiff", backend: VcsKind::Jj }
+		));
 
 		let revision = repo
 			.diff_text(&DiffOptions { base: Some("main".to_owned()), ..DiffOptions::default() })
 			.unwrap_err();
 		assert_eq!(revision.kind(), "Unsupported");
-		assert!(matches!(revision, Error::Unsupported {
-			operation: "revDiff",
-			backend:   VcsKind::Jj,
-		}));
+		assert!(matches!(
+			revision,
+			Error::Unsupported { operation: "revDiff", backend: VcsKind::Jj }
+		));
 
 		let capped = repo
 			.diff_text(&DiffOptions { max_bytes: Some(1), ..DiffOptions::default() })
 			.unwrap_err();
 		assert_eq!(capped.kind(), "Unsupported");
-		assert!(matches!(capped, Error::Unsupported {
-			operation: "diffMaxBytes",
-			backend:   VcsKind::Jj,
-		}));
+		assert!(matches!(
+			capped,
+			Error::Unsupported { operation: "diffMaxBytes", backend: VcsKind::Jj }
+		));
 	}
 
 	#[test]

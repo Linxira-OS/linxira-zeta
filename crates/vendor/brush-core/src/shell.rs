@@ -658,7 +658,9 @@ mod initial_working_dir_tests {
 
 	#[test]
 	fn deleted_process_cwd_falls_back_to_home() {
-		let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"));
+		let home = std::env::var_os("HOME")
+			.map(PathBuf::from)
+			.unwrap_or_else(|| PathBuf::from("/"));
 		let err = std::io::Error::from_raw_os_error(2); // ENOENT: cwd deleted
 		assert_eq!(
 			initial_working_dir(None, Err(err)).expect("deleted cwd fallback"),

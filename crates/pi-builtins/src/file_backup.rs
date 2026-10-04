@@ -37,7 +37,11 @@ fn match_backup_method(method: &str, origin: &str) -> Result<BackupMode, String>
 			_ => unreachable!("matched value comes from BACKUP_CONTROL_VALUES"),
 		}
 	} else {
-		let kind = if matches.is_empty() { "invalid" } else { "ambiguous" };
+		let kind = if matches.is_empty() {
+			"invalid"
+		} else {
+			"ambiguous"
+		};
 		Err(format!(
 			"{kind} argument {} for '{origin}'\nValid arguments are:\n  - 'none', 'off'\n  - \
 			 'simple', 'never'\n  - 'existing', 'nil'\n  - 'numbered', 't'",
@@ -49,7 +53,10 @@ fn match_backup_method(method: &str, origin: &str) -> Result<BackupMode, String>
 /// The backup mode selected by the `uucore::backup_control::arguments` flags,
 /// falling back to the shell's `VERSION_CONTROL`.
 #[cfg(any(feature = "util.cp", feature = "util.mv"))]
-pub(crate) fn determine_backup_mode(matches: &ArgMatches, host: &Host) -> Result<BackupMode, String> {
+pub(crate) fn determine_backup_mode(
+	matches: &ArgMatches,
+	host: &Host,
+) -> Result<BackupMode, String> {
 	let cli_method = matches
 		.get_one::<String>(backup_control::arguments::OPT_BACKUP)
 		.map(String::as_str);
@@ -64,9 +71,9 @@ pub(crate) fn determine_backup_mode(matches: &ArgMatches, host: &Host) -> Result
 	} else if matches.get_flag(backup_control::arguments::OPT_BACKUP_NO_ARG)
 		|| matches.contains_id(backup_control::arguments::OPT_SUFFIX)
 	{
-		host.var("VERSION_CONTROL").map_or(Ok(BackupMode::Existing), |method| {
-			match_backup_method(method, "$VERSION_CONTROL")
-		})
+		host
+			.var("VERSION_CONTROL")
+			.map_or(Ok(BackupMode::Existing), |method| match_backup_method(method, "$VERSION_CONTROL"))
 	} else {
 		Ok(BackupMode::None)
 	}

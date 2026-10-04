@@ -1,3 +1,4 @@
+import { isFastembedModelCached } from "@linxiraos/pi-mnemopi/core/fastembed-model-cache";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getFastembedCacheDir, logger } from "@linxiraos/pi-utils";
@@ -157,12 +158,9 @@ export class MnemopiEmbedClient {
 		model: MnemopiEmbedModelId,
 		cacheDir: string | undefined,
 	): Promise<MnemopiSubprocessEmbeddingModel | null> {
-		// fastembed unpacks each model into `<cacheDir>/<model>` and exposes no byte
-		// progress; a missing directory means this init downloads the archive.
-		const cached = await fs.access(path.join(cacheDir ?? getFastembedCacheDir(), model)).then(
-			() => true,
-			() => false,
-		);
+		// fastembed exposes no byte progress; any missing model file means this
+		// init downloads it.
+		const cached = await isFastembedModelCached(model, cacheDir ?? getFastembedCacheDir());
 		const tracker = cached ? undefined : trackDownload(model.replace(/^fast-/, ""), { detail: "downloading" });
 		try {
 			const worker = this.#ensureWorker();

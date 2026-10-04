@@ -82,6 +82,8 @@
 
 - **工作台窗格图像实时可见**（Windows Terminal sixel 路径）：zetacode 在工作台窗格内渲染内嵌图像时，实时区的 sixel 中途刷新粘不住，此前只能等退出时历史冲刷把图像块补写进 scrollback 才可见（运行期间只剩占位空行）。现在图像块终结（finalized）后即刻退役进原生 scrollback，不再等行压力或退出；退出冲刷保留兜底。
 - **工作台环境身份泄漏修复**：工作台窗格子进程此前透传外层 `TERM_PROGRAM`/`WT_SESSION`/`COLORTERM`，导致 zetacode 把工作台误判为外部终端（如 WT）而选错图像协议；`panel-terminal` 的 `set_env` 现显式清除这三个变量，工作台身份仅由 `ZETA_WORKBENCH=1` 表达。
+- **既有会话斜杠目录缺 builtin 命令**：web 斜杠弹窗在 agent 忙碌/网关命令列表为空时只搜扩展/提示词/技能，`/plan` 等内置模式命令集体消失（「0 个匹配项」）。目录构建统一为单一 `buildSlashCommandCatalog`（builtin 清单与网关列表合并、builtin 优先去重），hero 欢迎卡与既有会话 docked 输入框、空闲与流式状态同源；流式中回车补全的内置命令走命令通道（/plan 族进入模式并 steer 在跑回合）而非把原文塞给模型。
+- **web `/plan <任务>` 激活后任务无下文**：前端 mode_enter 后未挂接事件流，steer 出的规划回合在前端不可见（后端早已派发）；`enterPlanMode` 在已启用计划模式时提前返回会把任务整个丢弃。现在 get_state 带回 `contextUsage`、前端在 mode_enter 后桥接运行态与 SSE，`/goal <目标>` 对齐 CLI「进入模式 + 提交首回合」。顶栏与侧栏 context 用量在未回流前显示 `0%` 而非 `? / 128k` 占位。
 - **桌面版选择工作路径闪退加固**：1.1.25/26 新 Open 流在部分 Windows 环境下点选目录弹窗（原生弹窗切换/新建文件夹/进入目录）即整窗消失且无任何日志。分层加固：web-ui 增加应用级 `ErrorBoundary`（此前任何渲染异常都会整树白屏，现提供带错误信息的一键恢复页，en/zh 文案）；桌面壳 `render-process-gone` 由仅记日志改为限次自动重载（GPU/合成器闪崩自愈），补 `child-process-gone` 日志（此前 GPU 崩溃完全不可见）；`zeta serve` 子进程意外退出不再立即 `app.quit()` 陪葬，改为一次监督重启（渲染层已有连接拒绝自动重试，窗口随之自愈），策略逻辑抽到 `desktop/src/service-supervision.ts`；`pi:select-directory` 加固（defaultPath 仅接受已存在目录、dialog 锚定主窗口、异常吞掉并记日志返回 null、`createDirectory` 仅 macOS）。`/api/fs/directories` GET/POST 路由行为测试（真实临时目录：仅列目录/自然排序/跳过回收站/404/400/409/建盘校验）与 ErrorBoundary、监督策略测试入库。
 
 ### 移除

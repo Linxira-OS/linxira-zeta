@@ -32,6 +32,9 @@ const DESCRIPTION_ALLOWLIST: ReadonlySet<string> = new Set<string>([
 	// The resolved description splices the platform keyhint (alt+p → Alt+P on
 	// win32) into the catalogue value, so it no longer string-equals the entry.
 	"/switch",
+	// Same splice, different key: /effort formats the active theme's
+	// shift+tab keycap into cmdEffortFmt's %s.
+	"/effort",
 ]);
 
 /** Descriptions are thunks resolved against the active catalogue (see
@@ -173,5 +176,15 @@ describe("builtin slash command zh localization", () => {
 		expect(en).not.toBe(zh);
 		expect(hasCjk(en)).toBe(false);
 		expect(hasCjk(zh)).toBe(true);
+	});
+
+	// Web/attach clients render their slash catalogs from this registry (via
+	// mode_enter names); losing a mode command here removes it from every
+	// client's autocomplete at once (the v18.6.0 registry-spread merge loss).
+	test("mode commands stay registered: plan/plan-ultra/goal/vibe resolvable by name", () => {
+		const names = new Set(BUILTIN_SLASH_COMMAND_DEFS.map(command => command.name));
+		for (const name of ["plan", "plan-ultra", "goal", "vibe"]) {
+			expect(names.has(name), `builtin registry lost /${name}`).toBe(true);
+		}
 	});
 });

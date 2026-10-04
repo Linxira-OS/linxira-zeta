@@ -57,7 +57,9 @@ mod tests {
 			.await
 			.expect("execute pgrep");
 		let mut stdout = String::new();
-		output.read_to_string(&mut stdout).expect("read pgrep output");
+		output
+			.read_to_string(&mut stdout)
+			.expect("read pgrep output");
 		(result, stdout)
 	}
 

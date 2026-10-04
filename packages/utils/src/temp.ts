@@ -96,6 +96,11 @@ export async function removeWithRetries(target: string): Promise<void> {
 			return;
 		} catch (err) {
 			if (!shouldRetryRemove(err, attempt)) throw err;
+			// bun on Windows finalizes SQLite's db/-wal/-shm file and directory
+			// handles on GC, so a closed database can still block deletion for
+			// seconds. One forced major collection on the first retry releases
+			// them immediately instead of burning the retry window.
+			if (attempt === 0) Bun.gc(true);
 			await Bun.sleep(kRemoveRetryDelayMs);
 		}
 	}
@@ -108,6 +113,7 @@ export function removeSyncWithRetries(target: string): void {
 			return;
 		} catch (err) {
 			if (!shouldRetryRemove(err, attempt)) throw err;
+			if (attempt === 0) Bun.gc(true);
 			sleepSync(kRemoveRetryDelayMs);
 		}
 	}

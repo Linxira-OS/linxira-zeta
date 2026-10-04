@@ -1,4 +1,5 @@
 import type { ModelHubSource } from "@linxiraos/pi-tui/overlays/model-hub";
+import { findActiveModelPreset, getModelPresetNames } from "../config/model-presets";
 import { resolveModelRoleValue, rolePriorityDefaults } from "../config/model-resolver";
 import { getKnownRoleIds, getRoleInfo } from "../config/model-roles";
 import type { Settings } from "../config/settings";
@@ -56,5 +57,6 @@ export function createModelBrowserSource(
 		isOmpOriginProvider: provider => ompOriginProviders?.has(provider) ?? false,
 		defaultRoleChain: role => rolePriorityDefaults(role),
 		resolveRoleValue: (value, models, roleLookup) => resolveModelRoleValue(value, models, { settings, roleLookup }),
+		getModelPresets: () => ({ names: getModelPresetNames(settings), active: findActiveModelPreset(settings) }),
 	};
 }

@@ -158,10 +158,7 @@ mod tests {
 
 	#[test]
 	fn omp_thread_limit_caps_omp_num_threads() {
-		let (code, capture) = run_in(
-			&[("OMP_NUM_THREADS", "64"), ("OMP_THREAD_LIMIT", "2")],
-			&[],
-		);
+		let (code, capture) = run_in(&[("OMP_NUM_THREADS", "64"), ("OMP_THREAD_LIMIT", "2")], &[]);
 		assert_eq!((code, capture.out(), capture.err()), (0, "2\n".to_string(), String::new()));
 	}
 
@@ -170,7 +167,11 @@ mod tests {
 		let (code, capture) = run_in(&[("OMP_NUM_THREADS", "0")], &["--all"]);
 		assert_eq!(code, 0);
 		assert_eq!(capture.err(), "");
-		let n: usize = capture.out().trim_end().parse().expect("--all output is an integer");
+		let n: usize = capture
+			.out()
+			.trim_end()
+			.parse()
+			.expect("--all output is an integer");
 		assert!(n >= 1);
 	}
 
@@ -183,7 +184,11 @@ mod tests {
 		unsafe { std::env::remove_var("OMP_NUM_THREADS") };
 		assert_eq!((code, capture.err()), (0, String::new()));
 		assert_ne!(capture.out(), "1234\n");
-		let n: usize = capture.out().trim_end().parse().expect("output is an integer");
+		let n: usize = capture
+			.out()
+			.trim_end()
+			.parse()
+			.expect("output is an integer");
 		assert!(n >= 1);
 	}
 

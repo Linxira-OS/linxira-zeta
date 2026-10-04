@@ -2262,6 +2262,17 @@ export interface Messages {
 	cmdMcpAcp: string;
 	cmdAdvisorAcp: string;
 	cmdDumpAcp: string;
+	cmdDumpAll: string;
+	cmdEffortFmt: string; // %s = shift+tab key hint
+	cmdEffortOff: string;
+	cmdEffortMinimal: string;
+	cmdEffortLow: string;
+	cmdEffortMedium: string;
+	cmdEffortHigh: string;
+	cmdEffortXHigh: string;
+	cmdEffortMax: string;
+	cmdEffortAuto: string;
+	cmdEffortInherit: string;
 	cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents: string;
 	cmdDropAllThinkingBlocks: string;
 	cmdEnableLargerContextWindows: string;

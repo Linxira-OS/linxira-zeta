@@ -48,9 +48,9 @@ pub type RewriteFn = Box<dyn Fn(&WriteRequest) -> String + Send + Sync>;
 pub struct DiskWriter {
 	pub requests: Mutex<Vec<WriteRequest>>,
 	/// Optional override of the text the writer reports as persisted.
-	pub rewrite:  Option<RewriteFn>,
+	pub rewrite: Option<RewriteFn>,
 	/// When set, the Nth (0-based) write fails with this message.
-	pub fail_at:  Option<(usize, String)>,
+	pub fail_at: Option<(usize, String)>,
 }
 
 #[async_trait]
@@ -96,8 +96,8 @@ impl EditWriter for DiskWriter {
 
 /// Temp workspace + store + config for one case.
 pub struct Workspace {
-	pub dir:    tempfile::TempDir,
-	pub store:  EditStore,
+	pub dir: tempfile::TempDir,
+	pub store: EditStore,
 	pub config: SessionConfig,
 }
 
@@ -108,12 +108,12 @@ impl Workspace {
 		let config = SessionConfig {
 			mode,
 			policy: PathPolicy {
-				cwd:                  cwd.clone(),
-				home_dir:             cwd,
-				url_schemes:          Vec::new(),
-				url_alias_schemes:    Vec::new(),
-				plan_writable_roots:  Vec::new(),
-				plan_active:          false,
+				cwd: cwd.clone(),
+				home_dir: cwd,
+				url_schemes: Vec::new(),
+				url_alias_schemes: Vec::new(),
+				plan_writable_roots: Vec::new(),
+				plan_active: false,
 				block_auto_generated: true,
 			},
 			allow_fuzzy: true,

@@ -335,7 +335,7 @@ describe("SessionManager cross-process rewrite freshness", () => {
 		);
 	const ourTurnsAfter = Array.from({ length: 5 }, (_, turn) => `our turn ${turn} after the conflict`);
 
-	/** Reports `ownedElsewhere` as held by another live process, as `claimSessionFile` does for a file a second zeta writes. */
+	/** Reports session `ownedElsewhere` as held by another live process, as `claimSession` does for a session a second omp writes. */
 	class OwnedElsewhereStorage extends FileSessionStorage {
 		readonly #ownedElsewhere: string;
 
@@ -344,8 +344,8 @@ describe("SessionManager cross-process rewrite freshness", () => {
 			this.#ownedElsewhere = ownedElsewhere;
 		}
 
-		override claimSessionFile(sessionPath: string): (() => void) | null {
-			return sessionPath === this.#ownedElsewhere ? null : super.claimSessionFile(sessionPath);
+		override claimSession(sessionId: string, sessionPath: string): (() => void) | null {
+			return sessionId === this.#ownedElsewhere ? null : super.claimSession(sessionId, sessionPath);
 		}
 	}
 
@@ -362,7 +362,7 @@ describe("SessionManager cross-process rewrite freshness", () => {
 			rewrite: undefined,
 		},
 	])("keeps another writer's entries in the file it owns after $path", async ({ tornTail, rewrite }) => {
-		using tempDir = TempDir.createSync("@zeta-session-rewrite-conflict-");
+		using tempDir = TempDir.createSync("@omp-session-rewrite-conflict-");
 		const creator = SessionManager.create(tempDir.path(), tempDir.path(), new FileSessionStorage());
 		await creator.ensureOnDisk();
 		const contested = creator.getSessionFile();
@@ -374,7 +374,7 @@ describe("SessionManager cross-process rewrite freshness", () => {
 
 		const storage = new FileSessionStorage();
 		const ours = await SessionManager.open(contested, tempDir.path(), storage, { suppressBreadcrumb: true });
-		// Another writer without the ownership lease (an older zeta, an external
+		// Another writer without the ownership lease (an older omp, an external
 		// tool) appends to the same file.
 		const theirs = await SessionManager.open(contested, tempDir.path(), new FileSessionStorage(), {
 			suppressBreadcrumb: true,
@@ -425,7 +425,7 @@ describe("SessionManager cross-process rewrite freshness", () => {
 	}
 
 	it("moves to a sibling instead of re-serializing forever when a writer without the lease races every retry", async () => {
-		using tempDir = TempDir.createSync("@zeta-session-rewrite-raced-");
+		using tempDir = TempDir.createSync("@omp-session-rewrite-raced-");
 		const creator = SessionManager.create(tempDir.path(), tempDir.path(), new FileSessionStorage());
 		await creator.ensureOnDisk();
 		const contested = creator.getSessionFile();
@@ -515,17 +515,18 @@ describe("SessionManager cross-process rewrite freshness", () => {
 	])(
 		"moves to one sibling instead of writing a file another process owns, on $path",
 		async ({ firstTurns, firstWrite }) => {
-			using tempDir = TempDir.createSync("@zeta-session-owned-elsewhere-");
+			using tempDir = TempDir.createSync("@omp-session-owned-elsewhere-");
 			const creator = SessionManager.create(tempDir.path(), tempDir.path(), new FileSessionStorage());
 			await creator.ensureOnDisk();
 			creator.appendMessage(userTurn("our turn before the conflict"));
 			const artifactId = await creator.saveArtifact("tool output", "bash");
 			const owned = creator.getSessionFile();
+			const ownedId = creator.getSessionId();
 			if (!owned || !artifactId) throw new Error("Expected session file and artifact");
 			await creator.close();
 			const ownedBytes = await Bun.file(owned).text();
 
-			const storage = new OwnedElsewhereStorage(owned);
+			const storage = new OwnedElsewhereStorage(ownedId);
 			const ours = await SessionManager.open(owned, tempDir.path(), storage, { suppressBreadcrumb: true });
 			const ownedSessionId = ours.getSessionId();
 			const notices: SessionPersistenceNotice[] = [];

@@ -14,25 +14,25 @@ const LF: u16 = 0x000a;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Run {
 	/// Number of tokens in this run.
-	pub count:   u32,
+	pub count: u32,
 	/// True when this run exists only in the new input.
-	pub added:   bool,
+	pub added: bool,
 	/// True when this run exists only in the old input.
 	pub removed: bool,
 }
 
 struct Component {
-	count:   usize,
-	added:   bool,
+	count: usize,
+	added: bool,
 	removed: bool,
-	prev:    Option<Rc<Self>>,
+	prev: Option<Rc<Self>>,
 }
 
 /// Frontier state for one diagonal: furthest old-position reached plus the
 /// component chain that got there.
 struct PathState {
 	old_pos: isize,
-	last:    Option<Rc<Component>>,
+	last: Option<Rc<Component>>,
 }
 
 /// Extend `path` along its diagonal while tokens match, recording the common
@@ -53,10 +53,10 @@ fn extract_common(path: &mut PathState, new: &[u32], old: &[u32], diagonal: isiz
 	}
 	if common > 0 {
 		path.last = Some(Rc::new(Component {
-			count:   common,
-			added:   false,
+			count: common,
+			added: false,
 			removed: false,
-			prev:    path.last.take(),
+			prev: path.last.take(),
 		}));
 	}
 	path.old_pos = old_pos;
@@ -70,7 +70,7 @@ fn add_to_path(path: &PathState, added: bool, removed: bool, old_pos_inc: isize)
 	match &path.last {
 		Some(last) if last.added == added && last.removed == removed => PathState {
 			old_pos: path.old_pos + old_pos_inc,
-			last:    Some(Rc::new(Component {
+			last: Some(Rc::new(Component {
 				count: last.count + 1,
 				added,
 				removed,
@@ -79,7 +79,7 @@ fn add_to_path(path: &PathState, added: bool, removed: bool, old_pos_inc: isize)
 		},
 		_ => PathState {
 			old_pos: path.old_pos + old_pos_inc,
-			last:    Some(Rc::new(Component { count: 1, added, removed, prev: path.last.clone() })),
+			last: Some(Rc::new(Component { count: 1, added, removed, prev: path.last.clone() })),
 		},
 	}
 }
@@ -90,8 +90,8 @@ fn build_runs(last: Option<Rc<Component>>) -> Vec<Run> {
 	let mut cursor = last.as_deref();
 	while let Some(component) = cursor {
 		runs.push(Run {
-			count:   component.count as u32,
-			added:   component.added,
+			count: component.count as u32,
+			added: component.added,
 			removed: component.removed,
 		});
 		cursor = component.prev.as_deref();
@@ -208,11 +208,11 @@ pub fn intern<T: Eq + Hash + Copy>(old: &[T], new: &[T]) -> (Vec<u32>, Vec<u32>)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Change<V> {
 	/// Joined token value for this run.
-	pub value:   V,
+	pub value: V,
 	/// Number of tokens in this run.
-	pub count:   u32,
+	pub count: u32,
 	/// True when this run exists only in the new input.
-	pub added:   bool,
+	pub added: bool,
 	/// True when this run exists only in the old input.
 	pub removed: bool,
 }
@@ -321,7 +321,7 @@ pub struct Hunk {
 	/// Number of new-text lines covered by the hunk.
 	pub new_lines: u32,
 	/// Prefixed hunk body lines without trailing newlines.
-	pub lines:     Vec<Vec<u16>>,
+	pub lines: Vec<Vec<u16>>,
 }
 
 /// Prepend a unified-diff marker to a UTF-16 line.
@@ -361,9 +361,9 @@ pub fn structured_patch_hunks_from_runs_u16(
 	// Change list with per-change line slices; the trailing sentinel mirrors
 	// jsdiff's pushed empty change that flushes the final hunk.
 	struct ChangeLines<'a> {
-		added:   bool,
+		added: bool,
 		removed: bool,
-		lines:   &'a [&'a [u16]],
+		lines: &'a [&'a [u16]],
 	}
 	let mut list: Vec<ChangeLines> = Vec::with_capacity(runs.len() + 1);
 	let mut old_pos = 0usize;
@@ -393,7 +393,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 		old_lines: usize,
 		new_start: usize,
 		new_lines: usize,
-		lines:     Vec<Vec<u16>>,
+		lines: Vec<Vec<u16>>,
 	}
 	let mut hunks: Vec<RawHunk> = Vec::new();
 	let mut old_range_start = 0usize;
@@ -447,7 +447,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 						old_lines: old_line - old_range_start + context_size,
 						new_start: new_range_start,
 						new_lines: new_line - new_range_start + context_size,
-						lines:     std::mem::take(&mut cur_range),
+						lines: std::mem::take(&mut cur_range),
 					});
 					old_range_start = 0;
 					new_range_start = 0;
@@ -478,7 +478,7 @@ pub fn structured_patch_hunks_from_runs_u16(
 			old_lines: hunk.old_lines as u32,
 			new_start: hunk.new_start as u32,
 			new_lines: hunk.new_lines as u32,
-			lines:     hunk.lines,
+			lines: hunk.lines,
 		})
 		.collect()
 }
@@ -546,7 +546,7 @@ fn js_trim(s: &[u16]) -> &[u16] {
 /// JS regex scanning under the `u` flag.
 struct CodePoints<'a> {
 	text: &'a [u16],
-	pos:  usize,
+	pos: usize,
 }
 
 impl Iterator for CodePoints<'_> {
@@ -867,21 +867,23 @@ mod tests {
 
 	#[test]
 	fn line_diff_replaces_middle_line() {
-		assert_eq!(lines("a\nb\nc\n", "a\nx\nc\n"), vec![
-			("a\n".into(), false, false),
-			("b\n".into(), false, true),
-			("x\n".into(), true, false),
-			("c\n".into(), false, false),
-		]);
+		assert_eq!(
+			lines("a\nb\nc\n", "a\nx\nc\n"),
+			vec![
+				("a\n".into(), false, false),
+				("b\n".into(), false, true),
+				("x\n".into(), true, false),
+				("c\n".into(), false, false),
+			]
+		);
 	}
 
 	#[test]
 	fn line_diff_treats_missing_trailing_newline_as_distinct() {
-		assert_eq!(lines("a\nb", "a\nb\n"), vec![
-			("a\n".into(), false, false),
-			("b".into(), false, true),
-			("b\n".into(), true, false),
-		]);
+		assert_eq!(
+			lines("a\nb", "a\nb\n"),
+			vec![("a\n".into(), false, false), ("b".into(), false, true), ("b\n".into(), true, false),]
+		);
 	}
 
 	#[test]
@@ -893,9 +895,9 @@ mod tests {
 		let utf16_shaped: Vec<Change<String>> = utf16
 			.into_iter()
 			.map(|change| Change {
-				value:   String::from_utf16(&change.value).unwrap(),
-				count:   change.count,
-				added:   change.added,
+				value: String::from_utf16(&change.value).unwrap(),
+				count: change.count,
+				added: change.added,
 				removed: change.removed,
 			})
 			.collect();
@@ -928,13 +930,10 @@ mod tests {
 			.iter()
 			.map(|line| String::from_utf16(line).unwrap())
 			.collect();
-		assert_eq!(body, vec![
-			" a",
-			"-b",
-			"\\ No newline at end of file",
-			"+c",
-			"\\ No newline at end of file"
-		]);
+		assert_eq!(
+			body,
+			vec![" a", "-b", "\\ No newline at end of file", "+c", "\\ No newline at end of file"]
+		);
 	}
 
 	#[test]
@@ -944,12 +943,15 @@ mod tests {
 			.into_iter()
 			.map(|change| (String::from_utf16(&change.value).unwrap(), change.added, change.removed))
 			.collect();
-		assert_eq!(shaped, vec![
-			("foo ".into(), false, false),
-			("bar".into(), false, true),
-			("qux".into(), true, false),
-			(" baz".into(), false, false),
-		]);
+		assert_eq!(
+			shaped,
+			vec![
+				("foo ".into(), false, false),
+				("bar".into(), false, true),
+				("qux".into(), true, false),
+				(" baz".into(), false, false),
+			]
+		);
 	}
 
 	#[test]
@@ -983,10 +985,13 @@ mod tests {
 			.into_iter()
 			.map(|change| (change.value, change.added, change.removed))
 			.collect();
-		assert_eq!(shaped, vec![
-			(vec![0xd800], false, false),
-			(vec![0xd83d, 0xde80], false, true),
-			(vec![0x78], true, false),
-		]);
+		assert_eq!(
+			shaped,
+			vec![
+				(vec![0xd800], false, false),
+				(vec![0xd83d, 0xde80], false, true),
+				(vec![0x78], true, false),
+			]
+		);
 	}
 }

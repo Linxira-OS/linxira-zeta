@@ -19,15 +19,18 @@ import {
 	parseDaemonRpcResult,
 	parseDaemonWireMessage,
 } from "./protocol";
-import { resolveDaemonSpawnOptions } from "./spawn-options";
 
 const CONNECT_TIMEOUT_MS = 10_000;
 const CONNECT_RETRY_MS = 50;
 const TOKEN_FILE = "broker.token";
-const BROKER_SPAWN_OPTIONS = resolveDaemonSpawnOptions({
-	platform: process.platform,
-	hostHasInheritableConsole: hostHasInheritableConsole(),
-});
+/**
+ * The broker must outlive whichever omp process happened to spawn it: other
+ * clients (and persistent daemons) still hold its lease. Bun on Windows puts
+ * every non-detached child in a kill-on-close job object owned by the parent,
+ * so an undetached broker died with its spawner and took the scope's daemons
+ * with it. Detached, it has no console; its daemons then spawn hidden.
+ */
+const BROKER_SPAWN_OPTIONS = { detached: true, windowsHide: true } as const;
 
 /** Last ~600 chars of the broker's captured stderr, for startup-failure errors. */
 async function brokerStderrTail(logPath: string): Promise<string> {

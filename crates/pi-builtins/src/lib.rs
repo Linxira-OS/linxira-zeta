@@ -137,26 +137,14 @@ mod cat;
 /// `sha*sum`, and `b2sum`.
 #[cfg(feature = "util.cksum")]
 mod cksum;
-#[cfg(feature = "util.md5sum")]
-mod md5sum;
-#[cfg(feature = "util.sha1sum")]
-mod sha1sum;
-#[cfg(feature = "util.sha224sum")]
-mod sha224sum;
-#[cfg(feature = "util.sha256sum")]
-mod sha256sum;
-#[cfg(feature = "util.sha384sum")]
-mod sha384sum;
-#[cfg(feature = "util.sha512sum")]
-mod sha512sum;
 #[cfg(feature = "util.cmp")]
 mod cmp;
+#[cfg(feature = "util.combine")]
+mod combine;
 #[cfg(feature = "util.comm")]
 mod comm;
 #[cfg(feature = "util.cp")]
 mod cp;
-#[cfg(feature = "util.combine")]
-mod combine;
 #[cfg(feature = "util.cut")]
 mod cut;
 #[cfg(feature = "util.date")]
@@ -187,24 +175,28 @@ mod jq;
 mod ln;
 #[cfg(feature = "util.ls")]
 mod ls;
+#[cfg(feature = "util.md5sum")]
+mod md5sum;
 #[cfg(feature = "util.mkdir")]
 mod mkdir;
 #[cfg(feature = "util.mktemp")]
 mod mktemp;
 #[cfg(feature = "util.mv")]
 mod mv;
+#[cfg(feature = "util.nohup")]
+mod nohup;
 #[cfg(feature = "util.nproc")]
 mod nproc;
 #[cfg(feature = "util.paste")]
 mod paste;
-#[cfg(feature = "util.nohup")]
-mod nohup;
 #[cfg(feature = "util.pgrep")]
 mod pgrep;
 #[cfg(feature = "util.pidwait")]
 mod pidwait;
 #[cfg(feature = "util.pkill")]
 mod pkill;
+#[cfg(feature = "util.printenv")]
+mod printenv;
 /// Shared process-matching engine behind `pgrep`, `pkill`, and `pidwait`.
 #[cfg(feature = "util.proc-match")]
 mod proc_match;
@@ -213,14 +205,6 @@ mod proc_match;
 mod proc_snapshot;
 #[cfg(feature = "util.ps")]
 mod ps;
-#[cfg(feature = "util.sleep")]
-mod sleep;
-#[cfg(feature = "util.timeout")]
-mod timeout;
-#[cfg(feature = "util.top")]
-mod top;
-#[cfg(feature = "util.printenv")]
-mod printenv;
 #[cfg(feature = "util.readlink")]
 mod readlink;
 #[cfg(feature = "util.realpath")]
@@ -233,6 +217,18 @@ mod rm;
 mod sed;
 #[cfg(feature = "util.seq")]
 mod seq;
+#[cfg(feature = "util.sha1sum")]
+mod sha1sum;
+#[cfg(feature = "util.sha224sum")]
+mod sha224sum;
+#[cfg(feature = "util.sha256sum")]
+mod sha256sum;
+#[cfg(feature = "util.sha384sum")]
+mod sha384sum;
+#[cfg(feature = "util.sha512sum")]
+mod sha512sum;
+#[cfg(feature = "util.sleep")]
+mod sleep;
 #[cfg(feature = "util.sort")]
 mod sort;
 #[cfg(feature = "util.sponge")]
@@ -245,6 +241,10 @@ mod tac;
 mod tail;
 #[cfg(feature = "util.tee")]
 mod tee;
+#[cfg(feature = "util.timeout")]
+mod timeout;
+#[cfg(feature = "util.top")]
+mod top;
 #[cfg(feature = "util.touch")]
 mod touch;
 #[cfg(feature = "util.tr")]

@@ -38,27 +38,27 @@ static UNIFIED_HUNK_RE: LazyLock<Regex> =
 /// Parsed edits, optional file operation, and parser warnings for one section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Parsed {
-	pub edits:    Vec<Edit>,
-	pub file_op:  Option<FileOp>,
+	pub edits: Vec<Edit>,
+	pub file_op: Option<FileOp>,
 	pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 struct RawSection {
-	path:        String,
-	file_hash:   Option<String>,
-	diff:        String,
+	path: String,
+	file_hash: Option<String>,
+	diff: String,
 	interleaved: bool,
 }
 
 /// One target file section with a lazily memoized parsed body.
 #[derive(Debug)]
 pub struct PatchSection {
-	pub path:      String,
+	pub path: String,
 	pub file_hash: Option<String>,
-	pub diff:      String,
-	parsed:        OnceCell<Result<Parsed, String>>,
-	interleaved:   bool,
+	pub diff: String,
+	parsed: OnceCell<Result<Parsed, String>>,
+	interleaved: bool,
 }
 impl PatchSection {
 	/// Construct a section from its authored path, optional tag, and body.
@@ -68,10 +68,10 @@ impl PatchSection {
 
 	fn from_raw(raw: RawSection) -> Self {
 		Self {
-			path:        raw.path,
-			file_hash:   raw.file_hash,
-			diff:        raw.diff,
-			parsed:      OnceCell::new(),
+			path: raw.path,
+			file_hash: raw.file_hash,
+			diff: raw.diff,
+			parsed: OnceCell::new(),
 			interleaved: raw.interleaved,
 		}
 	}
@@ -145,10 +145,10 @@ impl PatchSection {
 	/// Rebind this section to another path while preserving its cached parse.
 	pub fn with_path(&self, path: &str) -> Self {
 		let next = Self {
-			path:        path.to_string(),
-			file_hash:   self.file_hash.clone(),
-			diff:        self.diff.clone(),
-			parsed:      OnceCell::new(),
+			path: path.to_string(),
+			file_hash: self.file_hash.clone(),
+			diff: self.diff.clone(),
+			parsed: OnceCell::new(),
 			interleaved: self.interleaved,
 		};
 		if let Some(parsed) = self.parsed.get() {
@@ -167,7 +167,7 @@ pub struct Patch {
 #[derive(Default)]
 pub struct SplitOptions<'a> {
 	/// Working directory used to shorten absolute header paths.
-	pub cwd:  Option<&'a Path>,
+	pub cwd: Option<&'a Path>,
 	/// Target path used when a streaming body has no header yet.
 	pub path: Option<&'a str>,
 }
@@ -214,7 +214,10 @@ fn normalize_hashline_path(raw: &str, cwd: Option<&Path>) -> String {
 	let Some(cwd) = cwd else {
 		return cleaned;
 	};
-	if !path.is_absolute() {
+	// Shortening is lexical, so a rooted path counts even without a Windows
+	// drive prefix (`/repo/src/a.ts` under cwd `/repo`); a prefix mismatch
+	// simply fails `strip_prefix` below.
+	if !path.has_root() {
 		return cleaned;
 	}
 	let path = lexical_normalize(path);

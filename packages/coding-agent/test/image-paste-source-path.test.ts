@@ -18,6 +18,7 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { ADVISOR_RENDER_OPTIONS } from "@linxiraos/zeta/advisor/delta-split";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -27,6 +28,7 @@ import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { formatSessionHistoryMarkdown } from "@linxiraos/zeta/session/session-history-format";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
@@ -83,7 +85,7 @@ describe("path-pasted image source path (#12244)", () => {
 	beforeEach(async () => {
 		settingsState = beginSettingsTest();
 		await Settings.init({ inMemory: true });
-		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-image-paste-"));
+		tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-image-paste-"));
 		// Keep blob materialization for clipboard payloads inside the temp dir.
 		setAgentDir(tmpDir);
 		authStorage = await AuthStorage.create(":memory:");
@@ -154,6 +156,34 @@ describe("path-pasted image source path (#12244)", () => {
 	it("links the draft image to the original file instead of a materialized blob copy", async () => {
 		const { editor, imagePath } = await pasteImageFile();
 		expect(editor.pendingImageLinks[0]).toBe(imagePath);
+	});
+
+	it("names the pasted file in the advisor's session update, where the image itself is only `[image]`", async () => {
+		if (!session) throw new Error("Session was not initialized");
+		const { editor, imagePath } = await pasteImageFile();
+
+		await session.prompt("What is in [Image #1]?", { images: [...editor.pendingImages] });
+
+		// The advisor sees a text-only transcript; without the full path it cannot `read` the image.
+		const advisorView = formatSessionHistoryMarkdown(session.messages, ADVISOR_RENDER_OPTIONS);
+		expect(advisorView).toContain("[image]");
+		expect(advisorView).toContain(`[image-attachment] Image #1: ${imagePath}`);
+	});
+
+	it("names the pasted file for notices persisted before they carried structured details", async () => {
+		if (!session) throw new Error("Session was not initialized");
+		const { editor, imagePath } = await pasteImageFile();
+
+		await session.prompt("What is in [Image #1]?", { images: [...editor.pendingImages] });
+
+		// Sessions written by older builds stored only the rendered notice text.
+		const legacyMessages = session.messages.map(message =>
+			message.role === "custom" && message.customType === "image-attachment"
+				? { ...message, details: undefined }
+				: message,
+		);
+		const advisorView = formatSessionHistoryMarkdown(legacyMessages, ADVISOR_RENDER_OPTIONS);
+		expect(advisorView).toContain(`[image-attachment] Image #1: ${imagePath}`);
 	});
 
 	async function pasteClipboardBitmap(sessionManager: SessionManager): Promise<StubEditor> {

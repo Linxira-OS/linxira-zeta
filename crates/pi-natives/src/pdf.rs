@@ -10,13 +10,13 @@ use crate::task;
 #[napi(object)]
 pub struct PdfMarkdownResult {
 	/// Extracted document content in Markdown format.
-	pub markdown:            String,
+	pub markdown: String,
 	/// Document title from PDF metadata, when present.
-	pub title:               Option<String>,
+	pub title: Option<String>,
 	/// Total number of pages in the document.
-	pub page_count:          u32,
+	pub page_count: u32,
 	/// One-indexed page numbers whose content requires OCR.
-	pub pages_needing_ocr:   Vec<u32>,
+	pub pages_needing_ocr: Vec<u32>,
 	/// Whether the document contains text encoding problems.
 	pub has_encoding_issues: bool,
 }

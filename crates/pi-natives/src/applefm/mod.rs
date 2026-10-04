@@ -81,14 +81,14 @@ mod platform {
 	/// The bridge's C ABI, resolved from the `dlopen`ed dylib.
 	struct Bridge {
 		availability: unsafe extern "C" fn() -> *mut c_char,
-		generate:     unsafe extern "C" fn(u64, *const c_char, *mut c_void, Emit),
-		cancel:       unsafe extern "C" fn(u64),
-		free:         unsafe extern "C" fn(*mut c_char),
+		generate: unsafe extern "C" fn(u64, *const c_char, *mut c_void, Emit),
+		cancel: unsafe extern "C" fn(u64),
+		free: unsafe extern "C" fn(*mut c_char),
 	}
 
 	/// Why the bridge is unusable: an availability `reason` code and a message.
 	struct Unavailable {
-		reason:  &'static str,
+		reason: &'static str,
 		message: String,
 	}
 
@@ -98,13 +98,13 @@ mod platform {
 	fn load() -> std::result::Result<Bridge, Unavailable> {
 		if DYLIB.is_empty() {
 			return Err(Unavailable {
-				reason:  "not_built",
+				reason: "not_built",
 				message: "This zeta build does not include Apple Foundation Models support".to_owned(),
 			});
 		}
 		if macos_major().is_none_or(|major| major < MIN_MACOS_MAJOR) {
 			return Err(Unavailable {
-				reason:  "unsupported_os",
+				reason: "unsupported_os",
 				message: "Apple Foundation Models requires macOS 27 or later".to_owned(),
 			});
 		}
@@ -143,16 +143,16 @@ mod platform {
 				availability: std::mem::transmute::<*mut c_void, unsafe extern "C" fn() -> *mut c_char>(
 					symbol(c"omp_applefm_availability")?,
 				),
-				generate:     std::mem::transmute::<
+				generate: std::mem::transmute::<
 					*mut c_void,
 					unsafe extern "C" fn(u64, *const c_char, *mut c_void, Emit),
 				>(symbol(c"omp_applefm_generate")?),
-				cancel:       std::mem::transmute::<*mut c_void, unsafe extern "C" fn(u64)>(symbol(
+				cancel: std::mem::transmute::<*mut c_void, unsafe extern "C" fn(u64)>(symbol(
 					c"omp_applefm_cancel",
 				)?),
-				free:         std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_char)>(
-					symbol(c"omp_applefm_free")?,
-				),
+				free: std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_char)>(symbol(
+					c"omp_applefm_free",
+				)?),
 			})
 		}
 	}

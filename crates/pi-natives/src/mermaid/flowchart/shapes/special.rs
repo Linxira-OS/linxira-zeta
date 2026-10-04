@@ -24,16 +24,16 @@ impl ShapeRenderer for Subroutine {
 		let inner_width = 2 * opts.padding + max_line_width;
 		let inner_height = line_count + 2 * opts.padding;
 		ShapeDimensions {
-			width:        inner_width + 4,
-			height:       inner_height + 2,
-			label_area:   LabelArea {
-				x:      2 + opts.padding,
-				y:      1 + opts.padding,
-				width:  max_line_width,
+			width: inner_width + 4,
+			height: inner_height + 2,
+			label_area: LabelArea {
+				x: 2 + opts.padding,
+				y: 1 + opts.padding,
+				width: max_line_width,
 				height: line_count,
 			},
 			grid_columns: [2, inner_width, 2],
-			grid_rows:    [1, inner_height, 1],
+			grid_rows: [1, inner_height, 1],
 		}
 	}
 
@@ -107,16 +107,16 @@ impl ShapeRenderer for Cylinder {
 		let inner_width = 2 * opts.padding + max_line_width;
 		let inner_height = line_count + 2 * opts.padding + 2;
 		ShapeDimensions {
-			width:        inner_width + 2,
-			height:       inner_height + 2,
-			label_area:   LabelArea {
-				x:      1 + opts.padding,
-				y:      2 + opts.padding,
-				width:  max_line_width,
+			width: inner_width + 2,
+			height: inner_height + 2,
+			label_area: LabelArea {
+				x: 1 + opts.padding,
+				y: 2 + opts.padding,
+				width: max_line_width,
 				height: line_count,
 			},
 			grid_columns: [1, inner_width, 1],
-			grid_rows:    [2, inner_height - 2, 2],
+			grid_rows: [2, inner_height - 2, 2],
 		}
 	}
 

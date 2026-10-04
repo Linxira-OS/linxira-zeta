@@ -5,7 +5,7 @@ import type { getOAuthProviders as GetOAuthProviders } from "@linxiraos/pi-ai/oa
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
-import { Loader, Spacer, Text } from "@linxiraos/pi-tui";
+import { Loader, Spacer, Text, setTuiTight } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
@@ -28,7 +28,14 @@ import { reset as resetCapabilities } from "../../capability";
 import type { AdvisorConfigScope } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { showGitOverlay } from "../../cli/git-tui";
 import { formatLoginIdentity } from "../../cli/oauth-terminal";
-import { acquireModelRoleMutation, modelPresetSavedMessage, saveModelPreset } from "../../config/model-presets";
+import {
+	acquireModelRoleMutation,
+	applyModelPreset,
+	formatModelPresetSwitch,
+	isCleanModelPresetSwitch,
+	modelPresetSavedMessage,
+	saveModelPreset,
+} from "../../config/model-presets";
 import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config/model-resolver";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
@@ -71,7 +78,10 @@ import { SessionManager } from "../../session/session-manager";
 import { loadPinnedSessionIds } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
 import { toLogoutAccounts } from "../../slash-commands/helpers/logout";
-import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
+import type {
+	LogoutAccount,
+	LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType,
+} from "@linxiraos/pi-tui/overlays/logout-account-selector";
 import { describeRedeemOutcome, toResetUsageAccounts } from "../../slash-commands/helpers/reset-usage";
 import { toSessionPinAccounts } from "../../slash-commands/helpers/session-pin";
 import {
@@ -114,7 +124,6 @@ import {
 import { createExtensionDashboardRuntime } from "../components/extensions/dashboard-runtime";
 import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
 import type { LoginDialogComponent as LoginDialogComponentType } from "@linxiraos/pi-tui/overlays/login-dialog";
-import type { LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType } from "@linxiraos/pi-tui/overlays/logout-account-selector";
 import type {
 	ModelHubComponent as ModelHubComponentType,
 	ModelRoleSelectionScope,
@@ -130,6 +139,7 @@ import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxirao
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import { ThinkingSelectorComponent } from "@linxiraos/pi-tui/overlays/thinking-selector";
 import { UsageDashboardComponent } from "@linxiraos/pi-tui/overlays/usage-dashboard";
 import { renderUsageReports } from "./command-controller";
 import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
@@ -157,7 +167,6 @@ import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-mess
 import { M } from "../../i18n";
 import { applyHyperlinkSetting } from "@linxiraos/pi-tui/render/hyperlink";
 import type { disableProvider as DisableProvider, enableProvider as EnableProvider } from "../../discovery";
-import { setTuiTight } from "@linxiraos/pi-tui";
 import { applyProviderGlobalsFromSettings } from "../../config/provider-globals";
 
 interface ModelOverlayModules {
@@ -1312,6 +1321,22 @@ export class SelectorController {
 						this.ctx.showStatus(modelPresetSavedMessage(this.ctx.settings, name));
 					} catch (error) {
 						this.ctx.showError(error instanceof Error ? error.message : String(error));
+					}
+				},
+				onSwitchPreset: async name => {
+					try {
+						const result = await applyModelPreset(this.ctx.settings, this.ctx.session, name);
+						const message = formatModelPresetSwitch(name, result);
+						if (result.kind === "switched") {
+							this.ctx.statusLine.invalidate();
+							this.ctx.updateEditorBorderColor();
+						}
+						if (isCleanModelPresetSwitch(result)) this.ctx.showStatus(message);
+						else this.ctx.showWarning(message);
+					} catch (error) {
+						this.ctx.showError(error instanceof Error ? error.message : String(error));
+					} finally {
+						hub?.refreshAfterExternalMutation();
 					}
 				},
 				onCancel: () => done(),
@@ -2498,6 +2523,27 @@ export class SelectorController {
 		this.showSelector(done => {
 			const selector = new DebugSelectorComponent(this.ctx, done);
 			return { component: selector, focus: selector };
+		});
+	}
+
+	showThinkingSelector(): void {
+		const configured = this.ctx.session.configuredThinkingLevel();
+		this.showSelector(done => {
+			const selector = new ThinkingSelectorComponent(
+				configured === ThinkingLevel.Inherit ? ThinkingLevel.Off : configured,
+				this.ctx.session.getAvailableEffortSelectors(),
+				level => {
+					done();
+					// thinking_level_changed refreshes the status line and editor border.
+					this.ctx.session.setThinkingLevel(level);
+					this.ctx.ui.requestRender();
+				},
+				() => {
+					done();
+					this.ctx.ui.requestRender();
+				},
+			);
+			return { component: selector, focus: selector.getSelectList() };
 		});
 	}
 

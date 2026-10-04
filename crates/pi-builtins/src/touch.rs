@@ -50,7 +50,12 @@ fn io_error(error: &std::io::Error) -> String {
 			ErrorKind::PermissionDenied => "Permission denied".into(),
 			ErrorKind::AlreadyExists => "Already exists".into(),
 			ErrorKind::WouldBlock => "Would block".into(),
-			_ => error.to_string().split(" (os error ").next().unwrap_or_default().into(),
+			_ => error
+				.to_string()
+				.split(" (os error ")
+				.next()
+				.unwrap_or_default()
+				.into(),
 		}
 	} else {
 		error.to_string()
@@ -249,9 +254,11 @@ impl Utility for Touch {
 fn touch_main(matches: &ArgMatches, host: &mut Host) -> Result<(), TouchError> {
 	let mut filenames: Vec<&OsString> = matches
 		.get_many::<OsString>(ARG_FILES)
-		.ok_or_else(|| TouchError::Message(
-			"missing file operand\nTry 'touch --help' for more information.".into(),
-		))?
+		.ok_or_else(|| {
+			TouchError::Message(
+				"missing file operand\nTry 'touch --help' for more information.".into(),
+			)
+		})?
 		.collect();
 
 	let no_deref = matches.get_flag(options::NO_DEREF);
@@ -462,14 +469,15 @@ fn touch(
 
 	let (atime, mtime) = if let Some(date) = &opts.date {
 		let adjust = |time: Option<FileTime>| {
-			time.map(|time| {
-				parse_date(
-					filetime_to_zoned(&time, time_zone).ok_or(TouchError::InvalidFiletime(time))?,
-					date,
-					time_zone,
-				)
-			})
-			.transpose()
+			time
+				.map(|time| {
+					parse_date(
+						filetime_to_zoned(&time, time_zone).ok_or(TouchError::InvalidFiletime(time))?,
+						date,
+						time_zone,
+					)
+				})
+				.transpose()
 		};
 		(adjust(atime)?, adjust(mtime)?)
 	} else {
@@ -516,12 +524,19 @@ fn touch_file(
 	mtime: pi_vfs::FileTime,
 	host: &mut Host,
 ) -> Result<(), TouchError> {
-	let filename = if is_stdout { OsStr::new("-") } else { path.as_os_str() };
+	let filename = if is_stdout {
+		OsStr::new("-")
+	} else {
+		path.as_os_str()
+	};
 	let resolved = host.resolve(path);
 	let fs = host.fs().clone();
 
-	let metadata_result =
-		if opts.no_deref { fs.symlink_metadata(&resolved) } else { fs.metadata(&resolved) };
+	let metadata_result = if opts.no_deref {
+		fs.symlink_metadata(&resolved)
+	} else {
+		fs.metadata(&resolved)
+	};
 
 	if let Err(error) = metadata_result {
 		if error.kind() != ErrorKind::NotFound {
@@ -533,8 +548,7 @@ fn touch_file(
 		}
 
 		if opts.no_deref {
-			let error =
-				format!("setting times of {}: No such file or directory", filename.quote());
+			let error = format!("setting times of {}: No such file or directory", filename.quote());
 			if opts.strict {
 				return Err(TouchError::Message(error));
 			}
@@ -645,7 +659,8 @@ fn update_times(
 		}
 	}
 
-	fs.set_times(resolved, atime, mtime, follow).map_err(setting_times)
+	fs.set_times(resolved, atime, mtime, follow)
+		.map_err(setting_times)
 }
 
 #[cfg(unix)]
@@ -793,9 +808,9 @@ fn parse_date(ref_zoned: Zoned, s: &str, time_zone: &TimeZone) -> Result<FileTim
 /// - 68 and before is interpreted as 20xx
 /// - 69 and after is interpreted as 19xx
 fn prepend_century(s: &str) -> Result<String, TouchError> {
-	let first_two_digits = s[..2].parse::<u32>().map_err(|_| {
-		TouchError::Message(format!("invalid date ts format {}", s.quote()))
-	})?;
+	let first_two_digits = s[..2]
+		.parse::<u32>()
+		.map_err(|_| TouchError::Message(format!("invalid date ts format {}", s.quote())))?;
 	Ok(format!("{}{s}", if first_two_digits > 68 { 19 } else { 20 }))
 }
 
@@ -948,10 +963,7 @@ mod tests {
 
 	fn times_of(path: &Path) -> (FileTime, FileTime) {
 		let metadata = fs::metadata(path).unwrap();
-		(
-			FileTime::from_last_access_time(&metadata),
-			FileTime::from_last_modification_time(&metadata),
-		)
+		(FileTime::from_last_access_time(&metadata), FileTime::from_last_modification_time(&metadata))
 	}
 
 	fn run_with_tz(cwd: &Path, args: &[&str], tz: &str) -> (i32, crate::host::Capture) {
@@ -1006,8 +1018,7 @@ mod tests {
 	#[test]
 	fn date_sets_times_to_fixed_utc_instant() {
 		let (_dir, root) = canonical_tempdir();
-		let (code, capture) =
-			run_util::<Touch>(&["-d", "2001-02-03 04:05:06", "f"], "", &root);
+		let (code, capture) = run_util::<Touch>(&["-d", "2001-02-03 04:05:06", "f"], "", &root);
 		assert_eq!(code, 0);
 		assert_eq!(capture.err(), "");
 		let (atime, mtime) = times_of(&root.join("f"));
@@ -1023,8 +1034,7 @@ mod tests {
 		let old_mtime = FileTime::from_unix_time(2_222, 0);
 		set_file_times(root.join("f"), old_atime, old_mtime).unwrap();
 
-		let (code, capture) =
-			run_util::<Touch>(&["-m", "-d", "@981173106", "f"], "", &root);
+		let (code, capture) = run_util::<Touch>(&["-m", "-d", "@981173106", "f"], "", &root);
 		assert_eq!(code, 0);
 		assert_eq!(capture.err(), "");
 		let (atime, mtime) = times_of(&root.join("f"));
@@ -1040,8 +1050,7 @@ mod tests {
 		assert_eq!(capture.err(), "");
 		assert_eq!(times_of(&root.join("date")).1.unix_seconds(), 981_126_000);
 
-		let (code, capture) =
-			run_with_tz(&root, &["-t", "200102030405.06", "stamp"], "Asia/Tokyo");
+		let (code, capture) = run_with_tz(&root, &["-t", "200102030405.06", "stamp"], "Asia/Tokyo");
 		assert_eq!(code, 0);
 		assert_eq!(capture.err(), "");
 		assert_eq!(times_of(&root.join("stamp")).1.unix_seconds(), 981_140_706);

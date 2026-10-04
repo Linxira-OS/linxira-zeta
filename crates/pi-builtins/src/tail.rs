@@ -5,7 +5,7 @@
 mod args {
 	//! Command-line parsing for `tail`.
 	use std::{ffi::OsString, io::Write, time::Duration};
-	
+
 	use clap::{Arg, ArgAction, ArgMatches, Command, value_parser};
 	use uucore::{
 		display::Quotable,
@@ -16,14 +16,14 @@ mod args {
 			shortcut_value_parser::ShortcutValueParser,
 		},
 	};
-	
+
+	#[cfg(test)]
+	use crate::tail::parse;
 	use crate::{
 		host::{Host, format_usage},
 		tail::{TailError, TailResult, paths::Input, platform},
 	};
-	#[cfg(test)]
-	use crate::tail::parse;
-	
+
 	pub mod options {
 		pub mod verbosity {
 			pub const QUIET: &str = "quiet";
@@ -46,7 +46,7 @@ mod args {
 		pub const REVERSE: &str = "reverse";
 		pub const BLOCKS: &str = "blocks";
 	}
-	
+
 	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 	pub enum Signum {
 		Negative(u64),
@@ -54,15 +54,15 @@ mod args {
 		PlusZero,
 		MinusZero,
 	}
-	
+
 	#[derive(Debug, PartialEq, Eq)]
 	pub enum FilterMode {
 		Bytes(Signum),
-	
+
 		/// Mode for lines delimited by delimiter as u8
 		Lines(Signum, u8),
 	}
-	
+
 	impl FilterMode {
 		#[cfg(test)]
 		fn from_obsolete_args(args: &parse::ObsoleteArgs) -> Self {
@@ -77,7 +77,7 @@ mod args {
 				Self::Bytes(signum)
 			}
 		}
-	
+
 		fn from(matches: &ArgMatches) -> TailResult<Self> {
 			let zero_term = matches.get_flag(options::ZERO_TERM);
 			let mode = if let Some(arg) = matches.get_one::<String>(options::BYTES) {
@@ -105,68 +105,68 @@ mod args {
 			} else {
 				Self::default()
 			};
-	
+
 			Ok(mode)
 		}
-	
+
 		fn default_zero() -> Self {
 			Self::Lines(Signum::Negative(10), 0)
 		}
 	}
-	
+
 	impl Default for FilterMode {
 		fn default() -> Self {
 			Self::Lines(Signum::Negative(10), b'\n')
 		}
 	}
-	
+
 	#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 	pub enum FollowMode {
 		Descriptor,
 		Name,
 	}
-	
+
 	#[derive(Debug)]
 	pub enum VerificationResult {
 		Ok,
 		CannotFollowStdinByName,
 		NoOutput,
 	}
-	
+
 	#[derive(Debug)]
 	pub struct Settings {
-		pub follow:              Option<FollowMode>,
+		pub follow: Option<FollowMode>,
 		pub max_unchanged_stats: u32,
-		pub mode:                FilterMode,
-		pub pid:                 platform::Pid,
-		pub retry:               bool,
-		pub sleep_sec:           Duration,
-		pub use_polling:         bool,
-		pub verbose:             bool,
-		pub presume_input_pipe:  bool,
-		pub debug:               bool,
+		pub mode: FilterMode,
+		pub pid: platform::Pid,
+		pub retry: bool,
+		pub sleep_sec: Duration,
+		pub use_polling: bool,
+		pub verbose: bool,
+		pub presume_input_pipe: bool,
+		pub debug: bool,
 		/// `FILE(s)` positional arguments
-		pub inputs:              Vec<Input>,
+		pub inputs: Vec<Input>,
 	}
-	
+
 	impl Default for Settings {
 		fn default() -> Self {
 			Self {
 				max_unchanged_stats: 5,
-				sleep_sec:           Duration::from_secs_f32(1.0),
-				follow:              Option::default(),
-				mode:                FilterMode::default(),
-				pid:                 Default::default(),
-				retry:               Default::default(),
-				use_polling:         Default::default(),
-				verbose:             Default::default(),
-				presume_input_pipe:  Default::default(),
-				debug:               Default::default(),
-				inputs:              Vec::default(),
+				sleep_sec: Duration::from_secs_f32(1.0),
+				follow: Option::default(),
+				mode: FilterMode::default(),
+				pid: Default::default(),
+				retry: Default::default(),
+				use_polling: Default::default(),
+				verbose: Default::default(),
+				presume_input_pipe: Default::default(),
+				debug: Default::default(),
+				inputs: Vec::default(),
 			}
 		}
 	}
-	
+
 	impl Settings {
 		#[cfg(test)]
 		pub fn from_obsolete_args(args: &parse::ObsoleteArgs, name: Option<&OsString>) -> Self {
@@ -187,7 +187,7 @@ mod args {
 			settings.inputs.push(input);
 			settings
 		}
-	
+
 		pub fn from(matches: &ArgMatches) -> TailResult<Self> {
 			// We're parsing --follow, -F and --retry under the following conditions:
 			// * -F sets --retry and --follow=name
@@ -224,7 +224,7 @@ mod args {
 	            // The default for no occurrences of -F or --follow
 	            (false, None) => None,
 	        };
-	
+
 			let mut settings: Self = Self {
 				follow,
 				retry,
@@ -235,12 +235,12 @@ mod args {
 				debug: matches.get_flag(options::DEBUG),
 				..Default::default()
 			};
-	
+
 			if let Some(source) = matches.get_one::<String>(options::SLEEP_INT) {
 				settings.sleep_sec = parse_time::from_str(source, false)
 					.map_err(|_| TailError::message(format!("invalid number of seconds: '{source}'")))?;
 			}
-	
+
 			if let Some(s) = matches.get_one::<String>(options::MAX_UNCHANGED_STATS) {
 				settings.max_unchanged_stats = match s.parse::<u32>() {
 					Ok(s) => s,
@@ -261,7 +261,7 @@ mod args {
 							// NOTE: tail only accepts an unsigned pid
 							return Err(TailError::message(format!("invalid PID: {}", pid_str.quote())));
 						}
-	
+
 						settings.pid = pid;
 					},
 					Err(e) => {
@@ -273,26 +273,25 @@ mod args {
 					},
 				}
 			}
-	
+
 			settings.inputs = matches
 				.get_many::<OsString>(options::ARG_FILES)
 				.map_or_else(|| vec![Input::default()], |v| v.map(Input::from).collect());
-	
+
 			settings.verbose = (matches.get_flag(options::verbosity::VERBOSE)
 				|| settings.inputs.len() > 1)
 				&& !matches.get_flag(options::verbosity::QUIET);
-	
+
 			Ok(settings)
 		}
-	
+
 		/// Resolves every file operand against the shell working directory.
 		pub fn resolve_paths(&mut self, host: &Host) {
 			for input in &mut self.inputs {
 				input.resolve_path(host);
 			}
 		}
-	
-	
+
 		/// Prints warnings for valid but ineffective option combinations.
 		pub fn check_warnings(&self, stderr: &mut impl Write) {
 			if self.retry {
@@ -302,13 +301,11 @@ mod args {
 						"tail: warning: --retry ignored; --retry is useful only when following"
 					);
 				} else if self.follow == Some(FollowMode::Descriptor) {
-					let _ = writeln!(
-						stderr,
-						"tail: warning: --retry only effective for the initial open"
-					);
+					let _ =
+						writeln!(stderr, "tail: warning: --retry only effective for the initial open");
 				}
 			}
-	
+
 			if self.pid != 0 {
 				if self.follow.is_none() {
 					let _ = writeln!(
@@ -316,14 +313,11 @@ mod args {
 						"tail: warning: PID ignored; --pid=PID is useful only when following"
 					);
 				} else if !platform::supports_pid_checks(self.pid) {
-					let _ = writeln!(
-						stderr,
-						"tail: warning: --pid=PID is not supported on this system"
-					);
+					let _ = writeln!(stderr, "tail: warning: --pid=PID is not supported on this system");
 				}
 			}
 		}
-	
+
 		/// Verify [`Settings`] and try to find unsolvable misconfigurations of tail
 		/// originating from user provided command line arguments. In contrast to
 		/// [`Settings::check_warnings`] these misconfigurations usually lead to the
@@ -333,7 +327,7 @@ mod args {
 			if self.inputs.iter().any(Input::is_stdin) && self.follow == Some(FollowMode::Name) {
 				return VerificationResult::CannotFollowStdinByName;
 			}
-	
+
 			// Mimic GNU's tail for -[nc]0 without -f and exit immediately
 			if self.follow.is_none()
 				&& matches!(
@@ -342,7 +336,7 @@ mod args {
 				) {
 				return VerificationResult::NoOutput;
 			}
-	
+
 			VerificationResult::Ok
 		}
 	}
@@ -358,8 +352,7 @@ mod args {
 			(n, false) => Ok(Signum::Negative(n)),
 		}
 	}
-	
-	
+
 	pub fn uu_app() -> Command {
 		#[cfg(target_os = "linux")]
 		let polling_help = "Disable 'inotify' support and use polling instead";
@@ -369,7 +362,7 @@ mod args {
 		let polling_help = "Disable 'ReadDirectoryChanges' support and use polling instead";
 		#[cfg(not(any(unix, target_os = "windows")))]
 		let polling_help = "Disable 'kqueue' support and use polling instead";
-	
+
 		Command::new("tail")
 			.version("0.8.0")
 			.about(
@@ -511,52 +504,52 @@ mod args {
 					.value_hint(clap::ValueHint::FilePath),
 			)
 	}
-	
+
 	#[cfg(test)]
 	mod tests {
 		use super::*;
 		use crate::tail::parse::ObsoleteArgs;
-	
+
 		#[test]
 		fn test_parse_num_when_sign_is_given() {
 			let result = parse_num("+0");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::PlusZero);
-	
+
 			let result = parse_num("+1");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::Positive(1));
-	
+
 			let result = parse_num("-0");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::MinusZero);
-	
+
 			let result = parse_num("-1");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::Negative(1));
 		}
-	
+
 		#[test]
 		fn test_parse_num_when_no_sign_is_given() {
 			let result = parse_num("0");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::MinusZero);
-	
+
 			let result = parse_num("1");
 			assert!(result.is_ok());
 			assert_eq!(result.unwrap(), Signum::Negative(1));
 		}
-	
+
 		#[test]
 		fn test_parse_obsolete_settings_f() {
 			let args = ObsoleteArgs { follow: true, ..Default::default() };
 			let result = Settings::from_obsolete_args(&args, None);
 			assert_eq!(result.follow, Some(FollowMode::Descriptor));
-	
+
 			let result = Settings::from_obsolete_args(&args, Some(&"file".into()));
 			assert_eq!(result.follow, Some(FollowMode::Name));
 		}
-	
+
 		#[test]
 		fn test_parse_settings_follow_mode_and_retry() {
 			let cases: &[(&[&str], Option<FollowMode>, bool)] = &[
@@ -567,16 +560,8 @@ mod args {
 				(&["-f"], Some(FollowMode::Descriptor), false),
 				(&["--follow", "--retry"], Some(FollowMode::Descriptor), true),
 				(&["-f", "--retry"], Some(FollowMode::Descriptor), true),
-				(
-					&["--follow=name", "--follow=descriptor"],
-					Some(FollowMode::Descriptor),
-					false,
-				),
-				(
-					&["--follow=descriptor", "--follow=name"],
-					Some(FollowMode::Name),
-					false,
-				),
+				(&["--follow=name", "--follow=descriptor"], Some(FollowMode::Descriptor), false),
+				(&["--follow=descriptor", "--follow=name"], Some(FollowMode::Name), false),
 				(&["-F"], Some(FollowMode::Name), true),
 				(&["-F", "-F"], Some(FollowMode::Name), true),
 				(&["-F", "--retry"], Some(FollowMode::Name), true),
@@ -587,16 +572,8 @@ mod args {
 				(&["-f", "-F"], Some(FollowMode::Name), true),
 				(&["-F", "--follow=name"], Some(FollowMode::Name), true),
 				(&["--follow=name", "-F"], Some(FollowMode::Name), true),
-				(
-					&["--follow=name", "-F", "--follow=descriptor"],
-					Some(FollowMode::Descriptor),
-					true,
-				),
-				(
-					&["--follow=name", "-F", "--follow=name"],
-					Some(FollowMode::Name),
-					true,
-				),
+				(&["--follow=name", "-F", "--follow=descriptor"], Some(FollowMode::Descriptor), true),
+				(&["--follow=name", "-F", "--follow=name"], Some(FollowMode::Name), true),
 				(&["-f", "-F", "-f"], Some(FollowMode::Descriptor), true),
 				(&["-f", "-F", "-f", "-F"], Some(FollowMode::Name), true),
 			];
@@ -616,24 +593,23 @@ mod chunks {
 	//
 	// For the full copyright and license information, please view the LICENSE
 	// file that was distributed with this source code.
-	
+
 	//! Iterating over a file by chunks, either starting at the end of the file with
 	//! [`ReverseChunks`] or at the end of piped stdin with [`LinesChunk`] or
 	//! [`BytesChunk`].
 	//!
 	//! Use [`ReverseChunks::new`] to create a new iterator over chunks of bytes
 	//! from the file.
-	
-	
+
 	use std::{
 		collections::VecDeque,
 		io::{self, BufRead, Read, Seek, SeekFrom, Write},
 	};
-	
+
 	/// When reading files in reverse in `bounded_tail`, this is the size of each
 	/// block read at a time.
 	pub const BLOCK_SIZE: u64 = 1 << 16;
-	
+
 	/// The size of the backing buffer of a [`LinesChunk`] or [`BytesChunk`] in
 	/// bytes. The value of `BUFFER_SIZE` originates from the BUFSIZ constant in
 	/// stdio.h and the libc crate to make stream IO efficient. In the latter the
@@ -641,7 +617,7 @@ mod chunks {
 	/// is determined on each platform differently. Since libc chose 8192 as a
 	/// reasonable default the value here is set to this value, too.
 	pub const BUFFER_SIZE: usize = 8192;
-	
+
 	/// An iterator over a file in non-overlapping chunks from the end of the file.
 	///
 	/// Each chunk is a [`Vec`]<[`u8`]> of size [`BLOCK_SIZE`] (except
@@ -650,17 +626,17 @@ mod chunks {
 	pub struct ReverseChunks<'a, R> {
 		/// The file to iterate over, by blocks, from the end to the beginning.
 		file: &'a mut R,
-	
+
 		/// The total number of bytes in the file.
 		size: u64,
-	
+
 		/// The total number of blocks to read.
 		max_blocks_to_read: usize,
-	
+
 		/// The index of the next block to read.
 		block_idx: usize,
 	}
-	
+
 	impl<'a, R: Read + Seek> ReverseChunks<'a, R> {
 		pub fn new(file: &'a mut R) -> Self {
 			let current = if cfg!(unix) {
@@ -674,16 +650,16 @@ mod chunks {
 			ReverseChunks { file, size, max_blocks_to_read, block_idx }
 		}
 	}
-	
+
 	impl<R: Read + Seek> Iterator for ReverseChunks<'_, R> {
 		type Item = Vec<u8>;
-	
+
 		fn next(&mut self) -> Option<Self::Item> {
 			// If there are no more chunks to read, terminate the iterator.
 			if self.block_idx >= self.max_blocks_to_read {
 				return None;
 			}
-	
+
 			// The chunk size is `BLOCK_SIZE` for all but the last chunk
 			// (that is, the chunk closest to the beginning of the file),
 			// which contains the remainder of the bytes.
@@ -692,7 +668,7 @@ mod chunks {
 			} else {
 				BLOCK_SIZE
 			};
-	
+
 			// Seek backwards by the next chunk, read the full chunk into
 			// `buf`, and then seek back to the start of the chunk again.
 			let mut buf = vec![0; BLOCK_SIZE as usize];
@@ -709,24 +685,24 @@ mod chunks {
 				.seek(SeekFrom::Current(-(block_size as i64)))
 				.unwrap();
 			assert_eq!(pos, pos2);
-	
+
 			self.block_idx += 1;
-	
+
 			Some(buf[0..(block_size as usize)].to_vec())
 		}
 	}
-	
+
 	/// The type of the backing buffer of [`BytesChunk`] and [`LinesChunk`] which
 	/// can hold [`BUFFER_SIZE`] elements at max.
 	type ChunkBuffer = [u8; BUFFER_SIZE];
-	
+
 	/// A [`BytesChunk`] storing a fixed size number of bytes in a buffer.
 	#[derive(Clone, PartialEq, Eq, Debug)]
 	pub struct BytesChunk {
 		/// The [`ChunkBuffer`], an array storing the bytes, for example filled by
 		/// [`BytesChunk::fill`]
 		buffer: ChunkBuffer,
-	
+
 		/// Stores the number of bytes, this buffer holds. This is not equal to
 		/// `buffer.len()`, since the [`BytesChunk`] may store less bytes than the
 		/// internal buffer can hold. In addition, [`BytesChunk`] may be reused,
@@ -735,13 +711,16 @@ mod chunks {
 		/// [`BUFFER_SIZE`], which is a usize.
 		bytes: usize,
 	}
-	
+
 	impl BytesChunk {
-		#[allow(clippy::new_without_default, reason = "upstream chunk constructor is intentionally explicit")]
+		#[allow(
+			clippy::new_without_default,
+			reason = "upstream chunk constructor is intentionally explicit"
+		)]
 		pub fn new() -> Self {
 			Self { buffer: [0; BUFFER_SIZE], bytes: 0 }
 		}
-	
+
 		/// Create a new chunk from an existing chunk. The new chunk's buffer will be
 		/// copied from the old chunk's buffer, copying the slice
 		/// `[offset..old_chunk.bytes]` into the new chunk's buffer but starting at
@@ -772,13 +751,13 @@ mod chunks {
 			if offset >= chunk.bytes {
 				return Self::new();
 			}
-	
+
 			let mut buffer: ChunkBuffer = [0; BUFFER_SIZE];
 			let slice = chunk.get_buffer_with(offset);
 			buffer[..slice.len()].copy_from_slice(slice);
 			Self { buffer, bytes: chunk.bytes - offset }
 		}
-	
+
 		/// Receive the internal buffer safely, so it returns a slice only containing
 		/// as many bytes as large the `self.bytes` value is.
 		///
@@ -795,7 +774,7 @@ mod chunks {
 		pub fn get_buffer(&self) -> &[u8] {
 			&self.buffer[..self.bytes]
 		}
-	
+
 		/// Like [`BytesChunk::get_buffer`], but returning a slice from
 		/// `[offset.self.bytes]`.
 		///
@@ -812,11 +791,11 @@ mod chunks {
 		pub fn get_buffer_with(&self, offset: usize) -> &[u8] {
 			&self.buffer[offset..self.bytes]
 		}
-	
+
 		pub fn has_data(&self) -> bool {
 			self.bytes > 0
 		}
-	
+
 		/// Fills `self.buffer` with maximal [`BUFFER_SIZE`] number of bytes,
 		/// draining the reader by that number of bytes. If EOF is reached (so 0
 		/// bytes are read), it returns `Ok(None)`; otherwise, it returns
@@ -828,11 +807,11 @@ mod chunks {
 			if num_bytes == 0 {
 				return Ok(None);
 			}
-	
+
 			Ok(Some(self.bytes))
 		}
 	}
-	
+
 	/// An abstraction layer on top of [`BytesChunk`] mainly to simplify filling
 	/// only the needed amount of chunks. See also [`Self::fill`].
 	pub struct BytesChunkBuffer {
@@ -842,11 +821,11 @@ mod chunks {
 		/// [`Self::chunks`]. Use u64 here to support files > 4GB on 32-bit systems.
 		/// Note, this differs from `BytesChunk::bytes` which is a usize. The choice
 		/// of u64 is based on `tail::FilterMode::Bytes`.
-		bytes:     u64,
+		bytes: u64,
 		/// The buffer to store [`BytesChunk`] in
-		chunks:    VecDeque<Box<BytesChunk>>,
+		chunks: VecDeque<Box<BytesChunk>>,
 	}
-	
+
 	impl BytesChunkBuffer {
 		/// Creates a new [`BytesChunkBuffer`].
 		///
@@ -871,7 +850,7 @@ mod chunks {
 		pub fn new(num_print: u64) -> Self {
 			Self { bytes: 0, num_print, chunks: VecDeque::new() }
 		}
-	
+
 		/// Fills this buffer with chunks and consumes the reader completely. This
 		/// method ensures that there are exactly as many chunks as needed to match
 		/// `self.num_print` bytes, so there are in sum exactly `self.num_print`
@@ -898,13 +877,13 @@ mod chunks {
 		/// ```
 		pub fn fill(&mut self, reader: &mut impl BufRead) -> io::Result<()> {
 			let mut chunk = Box::new(BytesChunk::new());
-	
+
 			// fill chunks with all bytes from reader and reuse already instantiated chunks
 			// if possible
 			while chunk.fill(reader)?.is_some() {
 				self.bytes += chunk.bytes as u64;
 				self.chunks.push_back(chunk.clone());
-	
+
 				let first = &self.chunks[0];
 				if self.bytes - first.bytes as u64 > self.num_print {
 					chunk = self.chunks.pop_front().unwrap();
@@ -913,14 +892,14 @@ mod chunks {
 					*chunk = BytesChunk::new();
 				}
 			}
-	
+
 			// quit early if there are no chunks for example in case the pipe was empty
 			if self.chunks.is_empty() {
 				return Ok(());
 			}
-	
+
 			let chunk = self.chunks.pop_front().unwrap();
-	
+
 			// calculate the offset in the first chunk and put the calculated chunk as first
 			// element in the self.chunks collection. The calculated offset must be in the
 			// range 0 to BUFFER_SIZE and is therefore safely convertible to a usize
@@ -929,43 +908,43 @@ mod chunks {
 			self
 				.chunks
 				.push_front(Box::new(BytesChunk::from_chunk(&chunk, offset)));
-	
+
 			Ok(())
 		}
-	
+
 		pub fn print(&self, writer: &mut impl Write) -> io::Result<()> {
 			for chunk in &self.chunks {
 				writer.write_all(chunk.get_buffer())?;
 			}
 			Ok(())
 		}
-	
+
 		pub fn has_data(&self) -> bool {
 			!self.chunks.is_empty()
 		}
 	}
-	
+
 	/// Works similar to a [`BytesChunk`] but also stores the number of lines
 	/// encountered in the current buffer. The size of the buffer is limited to a
 	/// fixed size number of bytes.
 	#[derive(Clone, Debug)]
 	pub struct LinesChunk {
 		/// Work on top of a [`BytesChunk`]
-		chunk:     BytesChunk,
+		chunk: BytesChunk,
 		/// The number of lines delimited by `delimiter`. The choice of usize is
 		/// sufficient here, because lines max value is the number of bytes
 		/// contained in this chunk's buffer, and the number of bytes max value is
 		/// [`BUFFER_SIZE`], which is a usize.
-		lines:     usize,
+		lines: usize,
 		/// The delimiter to use, to count the lines
 		delimiter: u8,
 	}
-	
+
 	impl LinesChunk {
 		pub fn new(delimiter: u8) -> Self {
 			Self { chunk: BytesChunk::new(), lines: 0, delimiter }
 		}
-	
+
 		/// Count the number of lines delimited with [`Self::delimiter`] contained in
 		/// the buffer. Currently [`memchr`] is used because performance is better
 		/// than using an iterator or for loop.
@@ -985,7 +964,7 @@ mod chunks {
 		fn count_lines(&self) -> usize {
 			memchr::memchr_iter(self.delimiter, self.get_buffer()).count()
 		}
-	
+
 		/// Creates a new [`LinesChunk`] from an existing one with an offset in
 		/// lines. The new chunk contains exactly `chunk.lines - offset` lines. The
 		/// offset in bytes is calculated and applied to the new chunk, so the new
@@ -1017,13 +996,13 @@ mod chunks {
 			if offset > chunk.lines {
 				return Self::new(chunk.delimiter);
 			}
-	
+
 			let bytes_offset = chunk.calculate_bytes_offset_from(offset);
 			let new_chunk = BytesChunk::from_chunk(&chunk.chunk, bytes_offset);
-	
+
 			Self { chunk: new_chunk, lines: chunk.lines - offset, delimiter: chunk.delimiter }
 		}
-	
+
 		/// Returns true if this buffer has stored any bytes.
 		///
 		/// # Examples
@@ -1041,14 +1020,14 @@ mod chunks {
 		pub fn has_data(&self) -> bool {
 			self.chunk.has_data()
 		}
-	
+
 		/// Returns this buffer safely. See [`BytesChunk::get_buffer`]
 		///
 		/// returns: &[u8] with length `self.bytes`
 		pub fn get_buffer(&self) -> &[u8] {
 			self.chunk.get_buffer()
 		}
-	
+
 		/// Returns this buffer safely with an offset applied. See
 		/// [`BytesChunk::get_buffer_with`].
 		///
@@ -1056,14 +1035,14 @@ mod chunks {
 		pub fn get_buffer_with(&self, offset: usize) -> &[u8] {
 			self.chunk.get_buffer_with(offset)
 		}
-	
+
 		/// Return the number of lines the buffer contains. `self.lines` needs to be
 		/// set before the call to this function returns the correct value. If the
 		/// calculation of lines is needed then use `self.count_lines`.
 		pub fn get_lines(&self) -> usize {
 			self.lines
 		}
-	
+
 		/// Fills `self.buffer` with maximal [`BUFFER_SIZE`] number of bytes,
 		/// draining the reader by that number of bytes. This function works like
 		/// the [`BytesChunk::fill`] function besides that this function also counts
@@ -1081,7 +1060,7 @@ mod chunks {
 				},
 			}
 		}
-	
+
 		/// Calculates the offset in bytes within this buffer from the offset in
 		/// number of lines. The resulting offset is 0-based and points to the byte
 		/// after the delimiter.
@@ -1119,7 +1098,7 @@ mod chunks {
 			}
 			bytes_offset
 		}
-	
+
 		/// Write the bytes contained in this buffer calculated with the given offset
 		/// in number of lines.
 		///
@@ -1130,7 +1109,7 @@ mod chunks {
 		pub fn write_lines(&self, writer: &mut impl Write, offset: usize) -> io::Result<()> {
 			self.write_bytes(writer, self.calculate_bytes_offset_from(offset))
 		}
-	
+
 		/// Write the bytes contained in this buffer beginning from the given offset
 		/// in number of bytes.
 		///
@@ -1143,7 +1122,7 @@ mod chunks {
 			Ok(())
 		}
 	}
-	
+
 	/// An abstraction layer on top of [`LinesChunk`] mainly to simplify filling
 	/// only the needed amount of chunks. See also [`Self::fill`]. Works similar
 	/// like [`BytesChunkBuffer`], but works on top of lines delimited by
@@ -1155,19 +1134,19 @@ mod chunks {
 		/// Use u64 here to support files > 4GB on 32-bit systems. Note, this
 		/// differs from [`LinesChunk::lines`] which is a usize. The choice of u64
 		/// is based on `tail::FilterMode::Lines`.
-		lines:     u64,
+		lines: u64,
 		/// The amount of lines to print.
 		num_print: u64,
 		/// Stores the [`LinesChunk`]
-		chunks:    VecDeque<Box<LinesChunk>>,
+		chunks: VecDeque<Box<LinesChunk>>,
 	}
-	
+
 	impl LinesChunkBuffer {
 		/// Create a new [`LinesChunkBuffer`]
 		pub fn new(delimiter: u8, num_print: u64) -> Self {
 			Self { delimiter, num_print, lines: 0, chunks: VecDeque::new() }
 		}
-	
+
 		/// Fills this buffer with chunks and consumes the reader completely. This
 		/// method ensures that there are exactly as many chunks as needed to match
 		/// `self.num_print` lines, so there are in sum exactly `self.num_print`
@@ -1177,40 +1156,40 @@ mod chunks {
 		/// None.
 		pub fn fill(&mut self, reader: &mut impl BufRead) -> io::Result<()> {
 			let mut chunk = Box::new(LinesChunk::new(self.delimiter));
-	
+
 			while chunk.fill(reader)?.is_some() {
 				self.lines += chunk.lines as u64;
 				self.chunks.push_back(chunk.clone());
-	
+
 				let first = &self.chunks[0];
 				if self.lines - first.lines as u64 > self.num_print {
 					chunk = self.chunks.pop_front().unwrap();
-	
+
 					self.lines -= chunk.lines as u64;
 				} else {
 					*chunk = LinesChunk::new(self.delimiter);
 				}
 			}
-	
+
 			if self.chunks.is_empty() {
 				// chunks is empty when a file is empty so quitting early here
 				return Ok(());
 			}
-	
+
 			let length = &self.chunks.len();
 			let last = &mut self.chunks[length - 1];
 			if !last.get_buffer().ends_with(&[self.delimiter]) {
 				last.lines += 1;
 				self.lines += 1;
 			}
-	
+
 			// skip unnecessary chunks and save the first chunk which may hold some lines we
 			// have to print
 			let chunk = loop {
 				// it's safe to call unwrap here because there is at least one chunk and sorting
 				// out more chunks than exist shouldn't be possible.
 				let chunk = self.chunks.pop_front().unwrap();
-	
+
 				// skip is true as long there are enough lines left in the other stored chunks.
 				let skip = self.lines - chunk.lines as u64 > self.num_print;
 				if skip {
@@ -1219,17 +1198,17 @@ mod chunks {
 					break chunk;
 				}
 			};
-	
+
 			// Calculate the number of lines to skip in the current chunk. The calculated
 			// value must be in the range 0 to BUFFER_SIZE and is therefore safely
 			// convertible to a usize without losses.
 			let skip_lines = self.lines.saturating_sub(self.num_print) as usize;
 			let chunk = LinesChunk::from_chunk(&chunk, skip_lines);
 			self.chunks.push_front(Box::new(chunk));
-	
+
 			Ok(())
 		}
-	
+
 		pub fn write(&self, mut writer: impl Write) -> io::Result<()> {
 			for chunk in &self.chunks {
 				chunk.write_bytes(&mut writer, 0)?;
@@ -1237,11 +1216,11 @@ mod chunks {
 			Ok(())
 		}
 	}
-	
+
 	#[cfg(test)]
 	mod tests {
 		use crate::tail::chunks::{BUFFER_SIZE, BytesChunk};
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_zero() {
 			let mut chunk = BytesChunk::new();
@@ -1249,39 +1228,39 @@ mod chunks {
 			chunk.buffer[1] = 1;
 			let other = BytesChunk::from_chunk(&chunk, 0);
 			assert_eq!(other, chunk);
-	
+
 			chunk.bytes = 2;
 			let other = BytesChunk::from_chunk(&chunk, 0);
 			assert_eq!(other, chunk);
-	
+
 			chunk.bytes = 1;
 			let other = BytesChunk::from_chunk(&chunk, 0);
 			assert_eq!(other.buffer, [0; BUFFER_SIZE]);
 			assert_eq!(other.bytes, chunk.bytes);
-	
+
 			chunk.bytes = BUFFER_SIZE;
 			let other = BytesChunk::from_chunk(&chunk, 2);
 			assert_eq!(other.buffer, [0; BUFFER_SIZE]);
 			assert_eq!(other.bytes, BUFFER_SIZE - 2);
 		}
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_not_zero() {
 			let mut chunk = BytesChunk::new();
 			chunk.bytes = BUFFER_SIZE;
 			chunk.buffer[1] = 1;
-	
+
 			let other = BytesChunk::from_chunk(&chunk, 1);
 			let mut expected_buffer = [0; BUFFER_SIZE];
 			expected_buffer[0] = 1;
 			assert_eq!(other.buffer, expected_buffer);
 			assert_eq!(other.bytes, BUFFER_SIZE - 1);
-	
+
 			let other = BytesChunk::from_chunk(&chunk, 2);
 			assert_eq!(other.buffer, [0; BUFFER_SIZE]);
 			assert_eq!(other.bytes, BUFFER_SIZE - 2);
 		}
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_larger_than_chunk_size_1() {
 			let mut chunk = BytesChunk::new();
@@ -1289,7 +1268,7 @@ mod chunks {
 			let new_chunk = BytesChunk::from_chunk(&chunk, BUFFER_SIZE + 1);
 			assert_eq!(0, new_chunk.bytes);
 		}
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_larger_than_chunk_size_2() {
 			let mut chunk = BytesChunk::new();
@@ -1297,7 +1276,7 @@ mod chunks {
 			let new_chunk = BytesChunk::from_chunk(&chunk, 1);
 			assert_eq!(0, new_chunk.bytes);
 		}
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_larger_than_chunk_size_3() {
 			let mut chunk = BytesChunk::new();
@@ -1305,7 +1284,7 @@ mod chunks {
 			let new_chunk = BytesChunk::from_chunk(&chunk, 2);
 			assert_eq!(0, new_chunk.bytes);
 		}
-	
+
 		#[test]
 		fn test_bytes_chunk_from_when_offset_is_equal_to_chunk_size() {
 			let mut chunk = BytesChunk::new();
@@ -1322,7 +1301,7 @@ mod follow {
 	//
 	// For the full copyright and license information, please view the LICENSE
 	// file that was distributed with this source code.
-	
+
 	#[cfg(not(target_os = "wasi"))]
 	mod files {
 		//! File handle management for `tail --follow`.
@@ -1331,9 +1310,9 @@ mod follow {
 			io::{BufReader, Write},
 			path::{Path, PathBuf},
 		};
-		
+
 		use pi_vfs::{BlockingFs, File, Metadata};
-		
+
 		use crate::tail::{
 			TailResult,
 			args::Settings,
@@ -1341,7 +1320,7 @@ mod follow {
 			paths::{HeaderPrinter, PathExtTail},
 			text,
 		};
-		
+
 		/// Data structure to keep a handle on files to follow.
 		/// `last` always holds the path/key of the last file that was printed from.
 		/// The keys of the [`HashMap`] can point to an existing file path (normal
@@ -1349,67 +1328,67 @@ mod follow {
 		/// Keys are operands already resolved against the shell working
 		/// directory: absolute host paths or virtual `scheme://` paths.
 		pub struct FileHandling {
-			fs:             BlockingFs,
-			map:            HashMap<PathBuf, PathData>,
-			last:           Option<PathBuf>,
+			fs: BlockingFs,
+			map: HashMap<PathBuf, PathData>,
+			last: Option<PathBuf>,
 			header_printer: HeaderPrinter,
 		}
-		
+
 		impl FileHandling {
 			pub fn from(settings: &Settings, fs: BlockingFs) -> Self {
 				Self {
 					fs,
-					map:            HashMap::with_capacity(settings.inputs.len()),
-					last:           None,
+					map: HashMap::with_capacity(settings.inputs.len()),
+					last: None,
 					header_printer: HeaderPrinter::new(settings.verbose, false),
 				}
 			}
-		
+
 			/// Filesystem every followed path is opened and inspected through.
 			pub fn fs(&self) -> &BlockingFs {
 				&self.fs
 			}
-		
+
 			pub fn insert(&mut self, k: &Path, v: PathData, update_last: bool) {
 				if update_last {
 					self.last = Some(k.to_owned());
 				}
 				let _ = self.map.insert(k.to_owned(), v);
 			}
-		
+
 			pub fn remove(&mut self, k: &Path) -> PathData {
 				self.map.remove(k).unwrap()
 			}
-		
+
 			pub fn get(&self, k: &Path) -> &PathData {
 				self.map.get(k).unwrap()
 			}
-		
+
 			pub fn get_mut(&mut self, k: &Path) -> &mut PathData {
 				self.map.get_mut(k).unwrap()
 			}
-		
+
 			pub fn get_mut_metadata(&mut self, path: &Path) -> Option<&Metadata> {
 				self.get_mut(path).metadata.as_ref()
 			}
-		
+
 			pub fn keys(&self) -> Keys<'_, PathBuf, PathData> {
 				self.map.keys()
 			}
-		
+
 			pub fn contains_key(&self, k: &Path) -> bool {
 				self.map.contains_key(k)
 			}
-		
+
 			pub fn get_last(&self) -> Option<&PathBuf> {
 				self.last.as_ref()
 			}
-		
+
 			/// Return true if there is only stdin remaining
 			pub fn only_stdin_remaining(&self) -> bool {
 				self.map.len() == 1 && (self.map.contains_key(Path::new(text::DASH)))
 			}
-		
+
 			/// Return true if there is at least one "tailable" path (or stdin) remaining
 			pub fn files_remaining(&self) -> bool {
 				for path in self.map.keys() {
@@ -1419,18 +1398,18 @@ mod follow {
 				}
 				false
 			}
-		
+
 			/// Returns true if there are no files remaining
 			pub fn no_files_remaining(&self, settings: &Settings) -> bool {
 				self.map.is_empty() || !self.files_remaining() && !settings.retry
 			}
-		
+
 			/// Set `reader` to None to indicate that `path` is not an existing file
 			/// anymore.
 			pub fn reset_reader(&mut self, path: &Path) {
 				self.get_mut(path).reader = None;
 			}
-		
+
 			/// Reopen the file at the monitored `path`
 			pub fn update_reader(&mut self, path: &Path) -> TailResult<()> {
 				/*
@@ -1442,14 +1421,14 @@ mod follow {
 				self.set_reader(path, file);
 				Ok(())
 			}
-		
+
 			/// Follow `path` through `file` from the handle's current position.
 			pub fn set_reader(&mut self, path: &Path, file: File) {
 				let data = self.get_mut(path);
 				data.reader = Some(BufReader::new(file));
 				data.unchanged_stats = 0;
 			}
-		
+
 			/// Reload metadata from `path`, or `metadata`
 			pub fn update_metadata(&mut self, path: &Path, metadata: Option<Metadata>) {
 				let metadata = if metadata.is_some() {
@@ -1459,7 +1438,7 @@ mod follow {
 				};
 				self.get_mut(path).metadata = metadata;
 			}
-		
+
 			/// Read new data from `path` and print it to stdout
 			pub fn tail_file(
 				&mut self,
@@ -1476,10 +1455,12 @@ mod follow {
 						let display_name = self.get(path).display_name.clone();
 						self.header_printer.print(display_name.as_str(), writer);
 					}
-		
-					chunks.print(writer).map_err(crate::tail::map_output_error)?;
+
+					chunks
+						.print(writer)
+						.map_err(crate::tail::map_output_error)?;
 					writer.flush().map_err(crate::tail::map_output_error)?;
-		
+
 					self.last.replace(path.to_owned());
 					self.update_metadata(path, None);
 					Ok(true)
@@ -1487,7 +1468,7 @@ mod follow {
 					Ok(false)
 				}
 			}
-		
+
 			/// Decide if printing `path` needs a header based on when it was last
 			/// printed
 			pub fn needs_header(&self, path: &Path, verbose: bool) -> bool {
@@ -1502,19 +1483,19 @@ mod follow {
 				}
 			}
 		}
-		
+
 		/// Data structure to keep a handle on the [`BufReader`], [`Metadata`]
 		/// and the `display_name` (`header_name`) of files that are being followed.
 		pub struct PathData {
-			pub reader:          Option<BufReader<File>>,
-			pub metadata:        Option<Metadata>,
-			pub display_name:    String,
+			pub reader: Option<BufReader<File>>,
+			pub metadata: Option<Metadata>,
+			pub display_name: String,
 			/// Consecutive provider polls that read nothing from `reader`; with
 			/// `--follow=name` the name is rechecked once this reaches
 			/// `--max-unchanged-stats`.
 			pub unchanged_stats: u32,
 		}
-		
+
 		impl PathData {
 			pub fn new(
 				reader: Option<BufReader<File>>,
@@ -1523,7 +1504,7 @@ mod follow {
 			) -> Self {
 				Self { reader, metadata, display_name: display_name.to_owned(), unchanged_stats: 0 }
 			}
-		
+
 			pub fn from_other_with_path(data: Self, path: &Path, fs: &BlockingFs) -> Self {
 				// Remove old reader
 				let old_reader = data.reader;
@@ -1537,12 +1518,12 @@ mod follow {
 					// Probably file was renamed/moved or removed again
 					None
 				};
-		
+
 				Self::new(reader, fs.metadata(path).ok(), data.display_name.as_str())
 			}
 		}
 	}
-	
+
 	#[cfg(not(target_os = "wasi"))]
 	mod watch {
 		//! Notification and polling follow loop.
@@ -1556,32 +1537,31 @@ mod follow {
 			},
 			time::{Duration, Instant},
 		};
-		
+
 		use notify::{RecommendedWatcher, RecursiveMode, Watcher, WatcherKind};
+		use uucore::display::Quotable;
 		#[cfg(target_os = "linux")]
 		use uucore::signals::ensure_stdout_not_broken;
-		use uucore::display::Quotable;
-		
+
 		use brush_core::openfiles::OpenFile;
 		use pi_vfs::{BlockingFs, File, parent_path};
-		
+
 		use crate::{
 			host::{Host, StreamWriter},
 			tail::{
-				TailError,
-				TailResult,
+				TailError, TailResult,
 				args::{FollowMode, Settings},
 				follow::files::{FileHandling, PathData},
 				paths::{Input, InputKind, MetadataExtTail, PathExtTail},
 				platform, text,
 			},
 		};
-		
+
 		pub struct WatcherRx {
-			watcher:  Box<dyn Watcher>,
+			watcher: Box<dyn Watcher>,
 			receiver: Receiver<Result<notify::Event, notify::Error>>,
 		}
-		
+
 		impl WatcherRx {
 			fn new(
 				watcher: Box<dyn Watcher>,
@@ -1589,7 +1569,7 @@ mod follow {
 			) -> Self {
 				Self { watcher, receiver }
 			}
-		
+
 			/// Wrapper for `notify::Watcher::watch` to also add the parent directory of
 			/// `path` if necessary.
 			fn watch_with_parent(&mut self, path: &Path, fs: &BlockingFs) -> TailResult<()> {
@@ -1612,26 +1592,29 @@ mod follow {
 							path = PathBuf::from(".");
 						}
 					} else {
-						return Err(TailError::message(format!("cannot watch parent directory of {}", path.quote())));
+						return Err(TailError::message(format!(
+							"cannot watch parent directory of {}",
+							path.quote()
+						)));
 					}
 				}
 				if path.is_relative() {
 					path = fs.canonicalize(&path)?;
 				}
-		
+
 				// for syscalls: 2x "inotify_add_watch" ("filename" and ".") and 1x
 				// "inotify_rm_watch"
 				self.watch(&path, RecursiveMode::NonRecursive)?;
 				Ok(())
 			}
-		
+
 			fn watch(&mut self, path: &Path, mode: RecursiveMode) -> TailResult<()> {
 				self
 					.watcher
 					.watch(path, mode)
 					.map_err(|err| TailError::message(err.to_string()))
 			}
-		
+
 			fn unwatch(&mut self, path: &Path) -> TailResult<()> {
 				self
 					.watcher
@@ -1639,29 +1622,29 @@ mod follow {
 					.map_err(|err| TailError::message(err.to_string()))
 			}
 		}
-		
+
 		pub struct Observer {
 			/// Whether --retry was given on the command line
 			pub retry: bool,
-		
+
 			/// The [`FollowMode`]
 			pub follow: Option<FollowMode>,
-		
+
 			/// Indicates whether to use the fallback `polling` method instead of the
 			/// platform specific event driven method. Since `use_polling` is subject to
 			/// change during runtime it is moved out of [`Settings`].
 			pub use_polling: bool,
-		
+
 			pub watcher_rx: Option<WatcherRx>,
-			pub orphans:    Vec<PathBuf>,
-			pub files:      FileHandling,
-		
+			pub orphans: Vec<PathBuf>,
+			pub files: FileHandling,
+
 			pub pid: platform::Pid,
 			pub stdout: StreamWriter,
 			pub stderr: OpenFile,
 			pub cancel: Arc<AtomicBool>,
 		}
-		
+
 		impl Observer {
 			pub fn new(
 				retry: bool,
@@ -1678,7 +1661,7 @@ mod follow {
 				} else {
 					0
 				};
-		
+
 				Self {
 					retry,
 					follow,
@@ -1692,7 +1675,7 @@ mod follow {
 					cancel,
 				}
 			}
-		
+
 			pub fn from(
 				settings: &Settings,
 				fs: BlockingFs,
@@ -1711,7 +1694,7 @@ mod follow {
 					cancel,
 				)
 			}
-		
+
 			pub fn add_path(
 				&mut self,
 				path: &Path,
@@ -1725,10 +1708,10 @@ mod follow {
 						.files
 						.insert(path, PathData::new(reader, metadata, display_name), update_last);
 				}
-		
+
 				Ok(())
 			}
-		
+
 			pub fn add_bad_path(
 				&mut self,
 				path: &Path,
@@ -1738,15 +1721,15 @@ mod follow {
 				if self.retry && self.follow.is_some() {
 					return self.add_path(path, display_name, None, update_last);
 				}
-		
+
 				Ok(())
 			}
-		
+
 			pub fn start(&mut self, settings: &Settings, host: &mut Host) -> TailResult<()> {
 				if settings.follow.is_none() {
 					return Ok(());
 				}
-		
+
 				// notify's watchers, its PollWatcher included, observe host paths
 				// directly. Use them only when the filesystem declares every operand
 				// native; otherwise poll every operand through the provider.
@@ -1758,9 +1741,9 @@ mod follow {
 					self.use_polling = true;
 					return Ok(());
 				}
-		
+
 				let (tx, rx) = channel();
-		
+
 				/*
 				Watcher is implemented per platform using the best implementation available on that
 				platform. In addition to such event driven implementations, a polling implementation
@@ -1770,14 +1753,14 @@ mod follow {
 				Windows: ReadDirectoryChangesWatcher
 				FreeBSD / NetBSD / OpenBSD / DragonflyBSD: kqueue
 				Fallback: polling every n seconds
-		
+
 				NOTE:
 				We force the use of kqueue with: features=["macos_kqueue"].
 				On macOS only `kqueue` is suitable for our use case because `FSEvents`
 				waits for file close util it delivers a modify event. See:
 				https://github.com/notify-rs/notify/issues/240
 				*/
-		
+
 				let watcher: Box<dyn Watcher>;
 				let watcher_config = notify::Config::default()
 					.with_poll_interval(settings.sleep_sec)
@@ -1808,34 +1791,35 @@ mod follow {
 							);
 							host.fail(1);
 							self.use_polling = true;
-							watcher = Box::new(notify::PollWatcher::new(tx_clone, watcher_config).unwrap());
+							watcher =
+								Box::new(notify::PollWatcher::new(tx_clone, watcher_config).unwrap());
 						},
 						Err(e) => return Err(TailError::message(e.to_string())),
 					}
 				}
-		
+
 				self.watcher_rx = Some(WatcherRx::new(watcher, rx));
 				self.init_files(&settings.inputs)?;
-		
+
 				Ok(())
 			}
-		
+
 			pub fn follow_descriptor(&self) -> bool {
 				self.follow == Some(FollowMode::Descriptor)
 			}
-		
+
 			pub fn follow_name(&self) -> bool {
 				self.follow == Some(FollowMode::Name)
 			}
-		
+
 			pub fn follow_descriptor_retry(&self) -> bool {
 				self.follow_descriptor() && self.retry
 			}
-		
+
 			pub fn follow_name_retry(&self) -> bool {
 				self.follow_name() && self.retry
 			}
-		
+
 			fn init_files(&mut self, inputs: &[Input]) -> TailResult<()> {
 				let fs = self.files.fs();
 				if let Some(watcher_rx) = &mut self.watcher_rx {
@@ -1848,13 +1832,14 @@ mod follow {
 									continue;
 								}
 								let path = path.clone();
-		
+
 								if path.is_tailable(fs) {
 									// Add existing regular files to `Watcher` (InotifyWatcher).
 									watcher_rx.watch_with_parent(&path, fs)?;
 								} else if !path.is_orphan(fs) {
 									// If `path` is not a tailable file, add its parent to `Watcher`.
-									watcher_rx.watch(parent_path(&path).unwrap(), RecursiveMode::NonRecursive)?;
+									watcher_rx
+										.watch(parent_path(&path).unwrap(), RecursiveMode::NonRecursive)?;
 									// Add symlinks to orphans for retry polling (target may not exist)
 									if fs.is_symlink(&path) {
 										self.orphans.push(path);
@@ -1869,17 +1854,24 @@ mod follow {
 				}
 				Ok(())
 			}
-		
-			#[allow(clippy::cognitive_complexity, reason = "preserves upstream notify event state machine")]
-			fn handle_event(&mut self, event: &notify::Event, settings: &Settings) -> TailResult<Vec<PathBuf>> {
+
+			#[allow(
+				clippy::cognitive_complexity,
+				reason = "preserves upstream notify event state machine"
+			)]
+			fn handle_event(
+				&mut self,
+				event: &notify::Event,
+				settings: &Settings,
+			) -> TailResult<Vec<PathBuf>> {
 				use notify::event::{
 					CreateKind, DataChange, EventKind, MetadataKind, ModifyKind, RemoveKind, RenameMode,
 				};
-		
+
 				let event_path = event.paths.first().unwrap();
 				let mut paths: Vec<PathBuf> = vec![];
 				let display_name = self.files.get(event_path).display_name.clone();
-		
+
 				match event.kind {
 		            EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any | MetadataKind::WriteTime) | ModifyKind::Data(DataChange::Any) | ModifyKind::Name(RenameMode::To)) |
 		            EventKind::Create(CreateKind::File | CreateKind::Folder | CreateKind::Any) => {
@@ -2056,7 +2048,7 @@ mod follow {
 		        }
 				Ok(paths)
 			}
-		
+
 			/// One provider polling pass, GNU `tail_forever` without kernel
 			/// notification: each followed operand is checked through the
 			/// injected filesystem and new data is read from its handle.
@@ -2079,7 +2071,10 @@ mod follow {
 					if !self.has_reader(path) {
 						continue;
 					}
-					if self.files.tail_file(path, settings.verbose, &mut self.stdout)? {
+					if self
+						.files
+						.tail_file(path, settings.verbose, &mut self.stdout)?
+					{
 						self.files.get_mut(path).unchanged_stats = 0;
 						read_some = true;
 						continue;
@@ -2097,16 +2092,18 @@ mod follow {
 					data.unchanged_stats = 0;
 					self.recheck_provider_name(path, settings)?;
 					if self.has_reader(path) {
-						read_some |= self.files.tail_file(path, settings.verbose, &mut self.stdout)?;
+						read_some |= self
+							.files
+							.tail_file(path, settings.verbose, &mut self.stdout)?;
 					}
 				}
 				Ok(read_some)
 			}
-		
+
 			fn has_reader(&self, path: &Path) -> bool {
 				self.files.contains_key(path) && self.files.get(path).reader.is_some()
 			}
-		
+
 			/// A regular file whose handle reports fewer bytes than were already
 			/// read was truncated in place: resume reading from its start.
 			fn check_handle_truncation(&mut self, path: &Path) -> TailResult<()> {
@@ -2116,7 +2113,8 @@ mod follow {
 				};
 				// A handle without metadata or a position (pipes, providers that
 				// lack them) cannot shrink observably; reading simply continues.
-				let (Ok(metadata), Ok(position)) = (reader.get_ref().metadata(), reader.stream_position())
+				let (Ok(metadata), Ok(position)) =
+					(reader.get_ref().metadata(), reader.stream_position())
 				else {
 					return Ok(());
 				};
@@ -2126,7 +2124,7 @@ mod follow {
 				}
 				Ok(())
 			}
-		
+
 			/// GNU `recheck` through the provider: opens a followed name once it
 			/// appears or becomes accessible, reopens it when the name now refers
 			/// to a different or shorter file, and reports names that vanished or
@@ -2143,7 +2141,11 @@ mod follow {
 						}
 						let reason = inaccessible_reason(&error);
 						if settings.retry {
-							if data.metadata.as_ref().is_some_and(MetadataExtTail::is_tailable) {
+							if data
+								.metadata
+								.as_ref()
+								.is_some_and(MetadataExtTail::is_tailable)
+							{
 								let _ = writeln!(
 									self.stderr,
 									"tail: {} has become inaccessible: {reason}",
@@ -2160,18 +2162,25 @@ mod follow {
 						return Ok(());
 					},
 				};
-		
+
 				let data = self.files.get(path);
 				if !metadata.is_tailable() {
 					let was_tailable = data.reader.is_some()
-						|| data.metadata.as_ref().is_none_or(MetadataExtTail::is_tailable);
+						|| data
+							.metadata
+							.as_ref()
+							.is_none_or(MetadataExtTail::is_tailable);
 					let give_up = !(settings.retry && self.follow_name());
 					if was_tailable {
 						let _ = writeln!(
 							self.stderr,
 							"tail: {} has been replaced with an untailable file{}",
 							display_name.quote(),
-							if give_up { "; giving up on this name" } else { "" }
+							if give_up {
+								"; giving up on this name"
+							} else {
+								""
+							}
 						);
 					}
 					if give_up {
@@ -2185,7 +2194,7 @@ mod follow {
 					}
 					return Ok(());
 				}
-		
+
 				let was_untailable = data.metadata.as_ref().is_some_and(|old| !old.is_tailable());
 				let handle = self.files.get_mut(path).reader.as_mut().map(|reader| {
 					// Unknown handle identity keeps following the open handle.
@@ -2210,8 +2219,8 @@ mod follow {
 						Err(_) => {},
 					},
 					Some((same_file, position)) => {
-						let shrunk =
-							metadata.is_file() && position.is_some_and(|position| metadata.len() < position);
+						let shrunk = metadata.is_file()
+							&& position.is_some_and(|position| metadata.len() < position);
 						if !same_file || shrunk {
 							if same_file {
 								let _ = writeln!(self.stderr, "tail: {display_name}: file truncated");
@@ -2241,7 +2250,7 @@ mod follow {
 				Ok(())
 			}
 		}
-		
+
 		fn inaccessible_reason(error: &std::io::Error) -> String {
 			if error.kind() == ErrorKind::NotFound {
 				"No such file or directory".to_owned()
@@ -2249,7 +2258,7 @@ mod follow {
 				error.to_string()
 			}
 		}
-		
+
 		/// Sleeps one `--sleep-interval` in short slices so cancellation stays
 		/// responsive. Returns false once cancelled.
 		fn sleep_interval(cancel: &AtomicBool, interval: Duration) -> bool {
@@ -2259,40 +2268,39 @@ mod follow {
 				if cancel.load(Ordering::Relaxed) {
 					return false;
 				}
-				let remaining = deadline.map_or(SLICE, |deadline| {
-					deadline.saturating_duration_since(Instant::now())
-				});
+				let remaining = deadline
+					.map_or(SLICE, |deadline| deadline.saturating_duration_since(Instant::now()));
 				if remaining.is_zero() {
 					return true;
 				}
 				std::thread::sleep(remaining.min(SLICE));
 			}
 		}
-		
+
 		#[allow(clippy::cognitive_complexity, reason = "preserves upstream follow loop")]
 		pub fn follow(mut observer: Observer, settings: &Settings) -> TailResult<()> {
 			if observer.files.no_files_remaining(settings) && !observer.files.only_stdin_remaining() {
 				return Err(TailError::message("no files remaining".to_string()));
 			}
-		
+
 			let process = platform::ProcessChecker::new(observer.pid);
-		
+
 			let mut timeout_counter = 0;
-		
+
 			// main follow loop
 			loop {
 				if observer.cancel.load(Ordering::Relaxed) {
 					break;
 				}
 				let mut _read_some = false;
-		
+
 				// If `--pid=p`, tail checks whether process p
 				// is alive at least every `--sleep-interval=N` seconds
 				if settings.follow.is_some() && observer.pid != 0 && process.is_dead() {
 					// p is dead, tail will also terminate
 					break;
 				}
-		
+
 				// For `-F` we need to poll if an orphan path becomes available during runtime.
 				// If a path becomes an orphan during runtime, it will be added to orphans.
 				// To be able to differentiate between the cases of test_retry8 and test_retry9,
@@ -2309,8 +2317,11 @@ mod follow {
 								);
 								observer.files.update_metadata(new_path, Some(md));
 								observer.files.update_reader(new_path)?;
-								_read_some =
-									observer.files.tail_file(new_path, settings.verbose, &mut observer.stdout)?;
+								_read_some = observer.files.tail_file(
+									new_path,
+									settings.verbose,
+									&mut observer.stdout,
+								)?;
 								if let Some(watcher_rx) = observer.watcher_rx.as_mut() {
 									watcher_rx.watch_with_parent(new_path, observer.files.fs())?;
 								}
@@ -2318,7 +2329,7 @@ mod follow {
 						}
 					}
 				}
-		
+
 				if observer.watcher_rx.is_none() {
 					// No kernel watcher observes these operands: inspect them
 					// through the provider, sleeping only after an idle pass.
@@ -2329,7 +2340,7 @@ mod follow {
 					}
 					continue;
 				}
-		
+
 				// With  -f, sleep for approximately N seconds (default 1.0) between iterations;
 				// We wake up if Notify sends an Event or if we wait more than `sleep_sec`.
 				let rx_result = observer
@@ -2338,13 +2349,13 @@ mod follow {
 					.unwrap()
 					.receiver
 					.recv_timeout(settings.sleep_sec.min(Duration::from_millis(100)));
-		
+
 				if rx_result.is_ok() {
 					timeout_counter = 0;
 				}
-		
+
 				let mut paths = vec![]; // Paths worth checking for new content to print
-		
+
 				// Helper closure to process a single event
 				let process_event = |observer: &mut Observer,
 				                     event: notify::Event,
@@ -2364,18 +2375,20 @@ mod follow {
 					}
 					Ok(())
 				};
-		
+
 				match rx_result {
 					Ok(Ok(event)) => {
 						process_event(&mut observer, event, settings, &mut paths)?;
-		
+
 						// Drain any additional pending events to batch them together.
 						// This prevents redundant headers when multiple inotify events
 						// are queued (e.g., after resuming from SIGSTOP).
 						// Multiple iterations with spin_loop hints give the notify
 						// background thread chances to deliver pending events.
 						for _ in 0..100 {
-							while let Ok(Ok(event)) = observer.watcher_rx.as_mut().unwrap().receiver.try_recv() {
+							while let Ok(Ok(event)) =
+								observer.watcher_rx.as_mut().unwrap().receiver.try_recv()
+							{
 								process_event(&mut observer, event, settings, &mut paths)?;
 							}
 							// Use both yield and spin hint for broader CPU support
@@ -2415,19 +2428,22 @@ mod follow {
 						return Err(TailError::message(format!("RecvTimeoutError: {}", e)));
 					},
 				}
-		
+
 				if observer.use_polling && settings.follow.is_some() {
 					// Consider all files to potentially have new content.
 					// This is a workaround because `Notify::PollWatcher`
 					// does not recognize the "renaming" of files.
 					paths = observer.files.keys().cloned().collect::<Vec<_>>();
 				}
-		
+
 				// main print loop
 				for path in &paths {
-					_read_some = observer.files.tail_file(path, settings.verbose, &mut observer.stdout)?;
+					_read_some =
+						observer
+							.files
+							.tail_file(path, settings.verbose, &mut observer.stdout)?;
 				}
-		
+
 				if timeout_counter == settings.max_unchanged_stats {
 					/*
 					TODO: [2021-10; jhscheer] implement timeout_counter for each file.
@@ -2442,39 +2458,38 @@ mod follow {
 					*/
 				}
 			}
-		
+
 			Ok(())
 		}
 	}
-	
-	
+
 	#[cfg(not(target_os = "wasi"))]
 	pub use watch::{Observer, follow};
-	
+
 	// WASI: notify/inotify are unavailable, so `tail -f` cannot work.
 	// Provide minimal stubs matching the real Observer API so tail compiles.
 	#[cfg(target_os = "wasi")]
 	mod wasi_stubs {
 		use std::{io::BufReader, path::Path};
-	
+
 		use pi_vfs::File;
-	
+
 		use crate::tail::{TailError, TailResult, args::Settings};
-	
+
 		pub struct Observer {
 			pub use_polling: bool,
 		}
-	
+
 		impl Observer {
 			pub fn from(_settings: &Settings) -> Self {
 				Self { use_polling: false }
 			}
-	
+
 			#[allow(clippy::unnecessary_wraps, reason = "matches the native observer API")]
 			pub fn start(&mut self, _settings: &Settings) -> TailResult<()> {
 				Ok(())
 			}
-	
+
 			#[allow(clippy::unnecessary_wraps, reason = "matches the native observer API")]
 			pub fn add_path(
 				&mut self,
@@ -2485,7 +2500,7 @@ mod follow {
 			) -> TailResult<()> {
 				Ok(())
 			}
-	
+
 			#[allow(clippy::unnecessary_wraps, reason = "matches the native observer API")]
 			pub fn add_bad_path(
 				&mut self,
@@ -2495,17 +2510,17 @@ mod follow {
 			) -> TailResult<()> {
 				Ok(())
 			}
-	
+
 			pub fn follow_name_retry(&self) -> bool {
 				false
 			}
 		}
-	
+
 		pub fn follow(_observer: Observer, _settings: &Settings) -> TailResult<()> {
 			Err(TailError::message("follow mode is not supported on this platform"))
 		}
 	}
-	
+
 	#[cfg(target_os = "wasi")]
 	pub use wasi_stubs::{Observer, follow};
 }
@@ -2515,23 +2530,23 @@ mod parse {
 	//
 	// For the full copyright and license information, please view the LICENSE
 	// file that was distributed with this source code.
-	
+
 	use std::ffi::OsString;
-	
+
 	#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 	pub struct ObsoleteArgs {
-		pub num:    u64,
-		pub plus:   bool,
-		pub lines:  bool,
+		pub num: u64,
+		pub plus: bool,
+		pub lines: bool,
 		pub follow: bool,
 	}
-	
+
 	impl Default for ObsoleteArgs {
 		fn default() -> Self {
 			Self { num: 10, plus: false, lines: true, follow: false }
 		}
 	}
-	
+
 	#[derive(PartialEq, Eq, Debug)]
 	pub enum ParseError {
 		Context,
@@ -2551,7 +2566,7 @@ mod parse {
 			rest = r;
 			'+'
 		};
-	
+
 		let end_num = rest
 			.find(|c: char| !c.is_ascii_digit())
 			.unwrap_or(rest.len());
@@ -2562,7 +2577,7 @@ mod parse {
 			10
 		};
 		rest = &rest[end_num..];
-	
+
 		let mode = if let Some(r) = rest.strip_prefix('l') {
 			rest = r;
 			'l'
@@ -2575,7 +2590,7 @@ mod parse {
 		} else {
 			'l'
 		};
-	
+
 		let follow = rest.contains('f');
 		if !rest.chars().all(|f| f == 'f') {
 			// GNU allows an arbitrary amount of following fs, but nothing else
@@ -2584,13 +2599,13 @@ mod parse {
 			}
 			return None;
 		}
-	
+
 		let multiplier = if mode == 'b' { 512 } else { 1 };
 		let num = num.saturating_mul(multiplier);
-	
+
 		Some(Ok(ObsoleteArgs { num, plus: sign == '+', lines: mode == 'l', follow }))
 	}
-	
+
 	#[cfg(test)]
 	mod tests {
 		use super::*;
@@ -2623,10 +2638,7 @@ mod parse {
 			assert_eq!(parse_obsolete(&OsString::from("-1mmk")), Some(Err(ParseError::Context)));
 			assert_eq!(parse_obsolete(&OsString::from("-105kzm")), Some(Err(ParseError::Context)));
 			assert_eq!(parse_obsolete(&OsString::from("-1vz")), Some(Err(ParseError::Context)));
-			assert_eq!(
-				parse_obsolete(&OsString::from("-1vzqvq")),
-				Some(Err(ParseError::Context))
-			);
+			assert_eq!(parse_obsolete(&OsString::from("-1vzqvq")), Some(Err(ParseError::Context)));
 		}
 		#[test]
 		fn test_parse_obsolete_no_match() {
@@ -2644,18 +2656,21 @@ mod paths {
 		io::{Seek, SeekFrom, Write},
 		path::{Path, PathBuf},
 	};
-	
+
 	use brush_core::openfiles::{DescriptorPath, OpenFiles};
 	use pi_vfs::{BlockingFs, File, Metadata};
 
-	use crate::{host::Host, tail::{TailResult, text}};
-	
+	use crate::{
+		host::Host,
+		tail::{TailResult, text},
+	};
+
 	#[derive(Debug, Clone)]
 	pub enum InputKind {
 		File(PathBuf),
 		Stdin,
 	}
-	
+
 	#[cfg(unix)]
 	impl From<&OsStr> for InputKind {
 		fn from(value: &OsStr) -> Self {
@@ -2666,7 +2681,7 @@ mod paths {
 			}
 		}
 	}
-	
+
 	#[cfg(not(unix))]
 	impl From<&OsStr> for InputKind {
 		fn from(value: &OsStr) -> Self {
@@ -2677,26 +2692,26 @@ mod paths {
 			}
 		}
 	}
-	
+
 	#[derive(Debug, Clone)]
 	pub struct Input {
-		kind:             InputKind,
+		kind: InputKind,
 		pub display_name: String,
 	}
-	
+
 	impl Input {
 		pub fn from<T: AsRef<OsStr>>(string: T) -> Self {
 			let string = string.as_ref();
-	
+
 			let kind = string.into();
 			let display_name = match kind {
 				InputKind::File(_) => string.to_string_lossy().to_string(),
 				InputKind::Stdin => "standard input".to_string(),
 			};
-	
+
 			Self { kind, display_name }
 		}
-	
+
 		/// Resolves a file operand against the shell working directory.
 		///
 		/// Every spelling of the shell's fd 0 (`/dev/stdin`, `/dev/fd/0`,
@@ -2707,17 +2722,18 @@ mod paths {
 				return;
 			};
 			let absolute = pi_vfs::absolute_path(host.cwd(), path);
-			*path = if DescriptorPath::parse(&absolute) == Some(DescriptorPath::Fd(OpenFiles::STDIN_FD)) {
-				PathBuf::from(text::DEV_STDIN)
-			} else {
-				host.resolve(&*path)
-			};
+			*path =
+				if DescriptorPath::parse(&absolute) == Some(DescriptorPath::Fd(OpenFiles::STDIN_FD)) {
+					PathBuf::from(text::DEV_STDIN)
+				} else {
+					host.resolve(&*path)
+				};
 		}
-	
+
 		pub fn kind(&self) -> &InputKind {
 			&self.kind
 		}
-	
+
 		pub fn is_stdin(&self) -> bool {
 			match self.kind {
 				InputKind::File(_) => false,
@@ -2725,44 +2741,44 @@ mod paths {
 			}
 		}
 	}
-	
+
 	impl Default for Input {
 		fn default() -> Self {
 			Self { kind: InputKind::Stdin, display_name: "standard input".to_string() }
 		}
 	}
-	
+
 	#[derive(Debug, Default, Clone, Copy)]
 	pub struct HeaderPrinter {
-		verbose:      bool,
+		verbose: bool,
 		first_header: bool,
 	}
-	
+
 	impl HeaderPrinter {
 		pub fn new(verbose: bool, first_header: bool) -> Self {
 			Self { verbose, first_header }
 		}
-	
+
 		pub fn print_input(&mut self, input: &Input, writer: &mut impl Write) {
 			self.print(input.display_name.as_str(), writer);
 		}
-	
+
 		pub fn print(&mut self, string: &str, writer: &mut impl Write) {
 			if self.verbose {
-				let _ = writeln!(
-					writer,
-					"{}==> {string} <==",
-					if self.first_header { "" } else { "\n" },
-				);
+				let _ =
+					writeln!(writer, "{}==> {string} <==", if self.first_header { "" } else { "\n" },);
 				self.first_header = false;
 			}
 		}
 	}
 	pub trait FileExtTail {
-		#[allow(clippy::wrong_self_convention, reason = "preserves upstream file extension trait API")]
+		#[allow(
+			clippy::wrong_self_convention,
+			reason = "preserves upstream file extension trait API"
+		)]
 		fn is_seekable(&mut self, current_offset: u64) -> bool;
 	}
-	
+
 	impl FileExtTail for File {
 		/// Test if File is seekable.
 		/// Set the current position offset to `current_offset`.
@@ -2772,7 +2788,7 @@ mod paths {
 				&& self.seek(SeekFrom::Start(current_offset)).is_ok()
 		}
 	}
-	
+
 	pub trait MetadataExtTail {
 		fn is_tailable(&self) -> bool;
 		#[cfg(not(target_os = "wasi"))]
@@ -2780,19 +2796,19 @@ mod paths {
 		#[cfg(not(target_os = "wasi"))]
 		fn identity_differs(&self, other: &Metadata) -> bool;
 	}
-	
+
 	impl MetadataExtTail for Metadata {
 		fn is_tailable(&self) -> bool {
 			let ft = self.file_type();
 			ft.is_file() || ft.is_char_device() || ft.is_fifo()
 		}
-	
+
 		/// Return true if the file was modified and is now shorter
 		#[cfg(not(target_os = "wasi"))]
 		fn got_truncated(&self, other: &Metadata) -> TailResult<bool> {
 			Ok(other.len() < self.len() && other.modified()? != self.modified()?)
 		}
-	
+
 		/// True only when both sides report a file identity and the
 		/// identities differ; unknown identity is never treated as a
 		/// replacement.
@@ -2801,14 +2817,14 @@ mod paths {
 			matches!((self.file_id(), other.file_id()), (Some(this), Some(other)) if this != other)
 		}
 	}
-	
+
 	#[cfg(not(target_os = "wasi"))]
 	pub trait PathExtTail {
 		fn is_stdin(&self) -> bool;
 		fn is_orphan(&self, fs: &BlockingFs) -> bool;
 		fn is_tailable(&self, fs: &BlockingFs) -> bool;
 	}
-	
+
 	#[cfg(not(target_os = "wasi"))]
 	impl PathExtTail for Path {
 		fn is_stdin(&self) -> bool {
@@ -2816,18 +2832,18 @@ mod paths {
 				|| self.eq(Self::new(text::DEV_STDIN))
 				|| self.eq(Self::new("standard input"))
 		}
-	
+
 		/// Return true if `path` does not have an existing parent directory
 		fn is_orphan(&self, fs: &BlockingFs) -> bool {
 			!matches!(pi_vfs::parent_path(self), Some(parent) if fs.is_dir(parent))
 		}
-	
+
 		/// Return true if `path` is is a file type that can be tailed
 		fn is_tailable(&self, fs: &BlockingFs) -> bool {
 			path_is_tailable(fs, self)
 		}
 	}
-	
+
 	pub fn path_is_tailable(fs: &BlockingFs, path: &Path) -> bool {
 		fs.metadata(path).is_ok_and(|meta| meta.is_tailable())
 	}
@@ -2838,7 +2854,7 @@ mod platform {
 	//
 	// For the full copyright and license information, please view the LICENSE
 	// file that was distributed with this source code.
-	
+
 	#[cfg(unix)]
 	pub use self::unix::{
 		Pid,
@@ -2848,55 +2864,54 @@ mod platform {
 	};
 	#[cfg(windows)]
 	pub use self::windows::{Pid, ProcessChecker, supports_pid_checks};
-	
+
 	// WASI has no process management; provide stubs so tail compiles.
 	#[cfg(target_os = "wasi")]
 	pub type Pid = u64;
-	
+
 	#[cfg(target_os = "wasi")]
 	pub fn supports_pid_checks(_pid: Pid) -> bool {
 		false
 	}
-	
+
 	#[cfg(unix)]
 	mod unix {
 		// This file is part of the uutils coreutils package.
 		//
 		// For the full copyright and license information, please view the LICENSE
 		// file that was distributed with this source code.
-		
-		
+
 		use std::io::Error;
-		
+
 		pub type Pid = libc::pid_t;
-		
+
 		pub struct ProcessChecker {
 			pid: Pid,
 		}
-		
+
 		impl ProcessChecker {
 			pub fn new(process_id: Pid) -> Self {
 				Self { pid: process_id }
 			}
-		
+
 			pub fn is_dead(&self) -> bool {
 				unsafe { libc::kill(self.pid, 0) != 0 && get_errno() != libc::EPERM }
 			}
 		}
-		
+
 		impl Drop for ProcessChecker {
 			fn drop(&mut self) {}
 		}
-		
+
 		pub fn supports_pid_checks(pid: Pid) -> bool {
 			unsafe { !(libc::kill(pid, 0) != 0 && get_errno() == libc::ENOSYS) }
 		}
-		
+
 		#[inline]
 		fn get_errno() -> i32 {
 			Error::last_os_error().raw_os_error().unwrap()
 		}
-		
+
 		//pub fn stdin_is_bad_fd() -> bool {
 		// FIXME: Detect a closed file descriptor, e.g.: `tail <&-`
 		// this is never `true`, even with `<&-` because Rust's stdlib is reopening fds
@@ -2906,16 +2921,16 @@ mod platform {
 		//false
 		//}
 	}
-	
+
 	#[cfg(windows)]
 	mod windows {
 		// This file is part of the uutils coreutils package.
 		//
 		// For the full copyright and license information, please view the LICENSE
 		// file that was distributed with this source code.
-		
+
 		use std::cell::Cell;
-		
+
 		use windows_sys::{
 			Win32::{
 				Foundation::{CloseHandle, HANDLE, WAIT_FAILED, WAIT_OBJECT_0},
@@ -2923,14 +2938,14 @@ mod platform {
 			},
 			core::BOOL,
 		};
-		
+
 		pub type Pid = u32;
-		
+
 		pub struct ProcessChecker {
-			dead:   Cell<bool>,
+			dead: Cell<bool>,
 			handle: HANDLE,
 		}
-		
+
 		impl ProcessChecker {
 			pub fn new(process_id: Pid) -> Self {
 				#[allow(non_snake_case, reason = "matches the Windows API constant name")]
@@ -2938,7 +2953,7 @@ mod platform {
 				let h = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, FALSE, process_id) };
 				Self { dead: Cell::new(h.is_null()), handle: h }
 			}
-		
+
 			pub fn is_dead(&self) -> bool {
 				if !self.dead.get() {
 					self.dead.set(unsafe {
@@ -2946,11 +2961,11 @@ mod platform {
 						status == WAIT_OBJECT_0 || status == WAIT_FAILED
 					});
 				}
-		
+
 				self.dead.get()
 			}
 		}
-		
+
 		impl Drop for ProcessChecker {
 			fn drop(&mut self) {
 				unsafe {
@@ -2958,7 +2973,7 @@ mod platform {
 				}
 			}
 		}
-		
+
 		pub fn supports_pid_checks(_pid: Pid) -> bool {
 			true
 		}
@@ -2970,12 +2985,11 @@ mod text {
 	//
 	// For the full copyright and license information, please view the LICENSE
 	// file that was distributed with this source code.
-	
-	
+
 	// Non-localized constants (system paths and technical identifiers)
 	pub const DASH: &str = "-";
 	pub const DEV_STDIN: &str = "/dev/stdin";
-	
+
 	#[cfg(target_os = "linux")]
 	pub const BACKEND: &str = "inotify";
 	#[cfg(all(unix, not(target_os = "linux")))]
@@ -3004,7 +3018,6 @@ use args::{FilterMode, Settings, Signum};
 use chunks::ReverseChunks;
 use follow::Observer;
 use paths::{FileExtTail, HeaderPrinter, Input, InputKind};
-
 
 #[derive(Debug)]
 pub(crate) enum TailError {
@@ -3102,8 +3115,7 @@ fn rewrite_tail_argv(argv: Vec<OsString>) -> Result<Vec<OsString>, String> {
 		let bytes = token.as_bytes();
 		// `+…` is always a candidate (`+10`, `+f`); `-…` only with a leading
 		// digit (`-5`, `-20f`) so options like `-n` stay untouched.
-		let candidate =
-			bytes.first() == Some(&b'+') || matches!(bytes, [b'-', b'0'..=b'9', ..]);
+		let candidate = bytes.first() == Some(&b'+') || matches!(bytes, [b'-', b'0'..=b'9', ..]);
 		if candidate {
 			match parse::parse_obsolete(&arg) {
 				Some(Ok(obsolete)) => {
@@ -3140,7 +3152,11 @@ fn rewrite_tail_argv(argv: Vec<OsString>) -> Result<Vec<OsString>, String> {
 		// matching GNU; insert up front so an explicit later -f/-F wins.
 		rewritten.insert(
 			1,
-			OsString::from(if has_operand { "--follow=name" } else { "--follow=descriptor" }),
+			OsString::from(if has_operand {
+				"--follow=name"
+			} else {
+				"--follow=descriptor"
+			}),
 		);
 	}
 	Ok(rewritten)
@@ -3337,10 +3353,7 @@ fn tail_main(settings: &Settings, host: &mut Host) -> TailResult<()> {
 
 	match settings.verify() {
 		args::VerificationResult::CannotFollowStdinByName => {
-			return Err(TailError::message(format!(
-				"cannot follow {} by name",
-				text::DASH.quote()
-			)));
+			return Err(TailError::message(format!("cannot follow {} by name", text::DASH.quote())));
 		},
 		args::VerificationResult::NoOutput => return Ok(()),
 		args::VerificationResult::Ok => {},
@@ -3362,7 +3375,11 @@ fn uu_tail(settings: &Settings, host: &mut Host) -> TailResult<()> {
 	observer.start(settings, host)?;
 
 	if settings.debug && settings.follow.is_some() {
-		let mode = if observer.use_polling { "polling" } else { "notification" };
+		let mode = if observer.use_polling {
+			"polling"
+		} else {
+			"notification"
+		};
 		let _ = writeln!(observer.stderr, "tail: using {mode} mode");
 	}
 
@@ -3428,11 +3445,8 @@ fn tail_file(
 
 		header_printer.print_input(input, &mut observer.stdout);
 
-		let _ = writeln!(
-			observer.stderr,
-			"tail: error reading '{}': Is a directory",
-			input.display_name
-		);
+		let _ =
+			writeln!(observer.stderr, "tail: error reading '{}': Is a directory", input.display_name);
 		if settings.follow.is_some() {
 			let msg = if settings.retry {
 				""
@@ -3442,8 +3456,7 @@ fn tail_file(
 			let _ = writeln!(
 				observer.stderr,
 				"tail: {}: cannot follow end of this type of file{}",
-				input.display_name,
-				msg
+				input.display_name, msg
 			);
 		}
 		if !observer.follow_name_retry() {
@@ -3902,10 +3915,7 @@ mod tests {
 		assert_eq!(rewritten(&["tail", "+10", "f"]), ["tail", "-n", "+10", "f"]);
 		assert_eq!(rewritten(&["tail", "-5c", "f"]), ["tail", "-c", "5", "f"]);
 		// Obsolete `f` still maps to --follow=name with a file operand.
-		assert_eq!(
-			rewritten(&["tail", "-20f", "f"]),
-			["tail", "--follow=name", "-n", "20", "f"]
-		);
+		assert_eq!(rewritten(&["tail", "-20f", "f"]), ["tail", "--follow=name", "-n", "20", "f"]);
 		assert_eq!(rewritten(&["tail", "-20f"]), ["tail", "--follow=descriptor", "-n", "20"]);
 	}
 

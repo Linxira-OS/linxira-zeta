@@ -35,7 +35,7 @@ async function runRegistryProbe(entries: BundledPiEntry[], source: string): Prom
 // a generated registry or duplicate key list.
 describe("legacy pi compat compiled-mode subpath overrides (issue #3442)", () => {
 	it("does not evaluate unrelated host modules while loading the registry", async () => {
-		using tempDir = TempDir.createSync("@zeta-legacy-pi-loaders-");
+		using tempDir = TempDir.createSync("@omp-legacy-pi-loaders-");
 		const alphaPath = path.join(tempDir.path(), "alpha.ts");
 		const betaPath = path.join(tempDir.path(), "beta.ts");
 		const registryPath = path.join(tempDir.path(), "registry.ts");
@@ -86,7 +86,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		// `pi-ai/oauth/anthropic` is exposed via the `./oauth/*` wildcard export;
 		// the original fix only bundled non-wildcard subpaths, so peer-only plugins
 		// importing `@(scope)/pi-ai/oauth/anthropic` (remapped via PI_SUBPATH_REMAPS
-		// from `@mariozechner/pi-ai/utils/oauth/anthropic`) still hit the bunfs
+		// from `@linxiraos/pi-ai/utils/oauth/anthropic`) still hit the bunfs
 		// fall-through. The generator now globs each wildcard's source pattern
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
@@ -138,6 +138,32 @@ export const observed = result.models.some(model => model.id === "claude-3-5-son
 		expect(observed).toBe(true);
 	});
 
+	it("loads catalog build exports through the bundled registry in compiled mode", async () => {
+		const key = "@linxiraos/pi-catalog/build";
+		const entry = bundledEntries.find(candidate => candidate.key === key);
+		if (!entry) throw new Error("Catalog build import is missing from the bundled registry");
+
+		const observed = await runRegistryProbe(
+			[entry],
+			`const { buildModel } = await BUNDLED_PI_MODULE_LOADERS[${JSON.stringify(key)}]();
+export const observed = buildModel({
+	id: "custom-model",
+	name: "OpenAI: Sample (latest)",
+	api: "openai-completions",
+	provider: "custom",
+	baseUrl: "https://api.example.com/v1",
+	reasoning: false,
+	input: ["text"],
+	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+	contextWindow: 128000,
+	maxTokens: 8192,
+}).name;`,
+		);
+		expect(observed).toBe("Sample");
+		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
+		expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
+	});
+
 	it("expands web search provider wildcard exports for compiled plugin imports", () => {
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		const providerKeys = [
@@ -160,12 +186,9 @@ export const observed = result.models.some(model => model.id === "claude-3-5-son
 		expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 	});
 
-	it("does not enumerate root catch-all wildcards (./* / ./*.js)", () => {
-		// Root `./*` / `./*.js` patterns would static-import top-level files
-		// like the package's own `cli.ts` and explode the bundle through the
-		// binary entry's transitive graph. Plugins almost never import top-level
-		// pi-* files directly, so we keep those routed via `Bun.resolveSync`.
-		// Concrete check: `@linxiraos/zeta/cli` is NOT bundled.
+	it("keeps non-catalog root catch-all wildcards (./* / ./*.js) out of the bundle", () => {
+		// Other packages expose CLI entrypoints at the root; importing one from
+		// the virtual registry would expand the binary entry's transitive graph.
 		expect(bundledModuleKeys.has("@linxiraos/zeta/cli")).toBe(false);
 		expect(bundledModuleKeys.has("@linxiraos/zeta/main")).toBe(false);
 	});
@@ -182,7 +205,7 @@ export const observed = result.models.some(model => model.id === "claude-3-5-son
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		const missing: string[] = [];
 		for (const key of bundledModuleKeys) {
-			// pi-ai/zeta/pi-tui roots intentionally use the legacy compat
+			// pi-ai/pi-coding-agent/pi-tui roots intentionally use the legacy compat
 			// shims (they re-attach `Type`, `defineTool`, `decodeKittyPrintable`, etc.
 			// dropped from the canonical package surfaces); typebox is served via
 			// TYPEBOX_SHIM_PATH.

@@ -1159,6 +1159,15 @@ export function getGlobalDaemonRuntimeDir(service: string): string {
 	return path.join(getGlobalDaemonRuntimeRoot(), service);
 }
 
+/**
+ * Directory naming session ownership leases (~/.zeta/run/session-owners; XDG
+ * default: $XDG_STATE_HOME/zeta/run/session-owners). Shared across profiles:
+ * every omp process that opens a session must meet the same lease.
+ */
+export function getSessionOwnersDir(): string {
+	return dirs.baseRootSubdir(path.join("run", "session-owners"), "state");
+}
+
 /** Get the provider in-flight root directory (~/.zeta/run/provider-inflight; XDG default: $XDG_STATE_HOME/zeta/run/provider-inflight). */
 export function getProviderInFlightRoot(): string {
 	return dirs.rootSubdir(path.join("run", "provider-inflight"), "state");

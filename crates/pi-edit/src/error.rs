@@ -35,7 +35,7 @@ pub enum EditError {
 	/// Filesystem failure reading a target.
 	#[error("{source}")]
 	Io {
-		path:   PathBuf,
+		path: PathBuf,
 		#[source]
 		source: std::io::Error,
 	},

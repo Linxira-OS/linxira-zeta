@@ -1587,10 +1587,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "待办自动清除延迟",
 		description: "已完成或放弃的待办从待办组件中移除前的延迟",
 	},
-	"task.completionProbeMs": {
+	"task.completionProbe": {
 		label: "子代理完成度探测",
 		description:
-			"每隔多少毫秒（ms）通过类似 /btw 的缓存侧向请求询问一个正在工作的子代理，估算其任务完成度。该估算显示在等待与任务视图中子代理旁边。0 表示禁用。",
+			"通过类似 /btw 的缓存侧向请求询问一个正在工作的子代理，估算其任务完成度：在 2、5、10、30 分钟后各询问一次，此后每小时一次。估算结果显示在等待与任务视图中子代理旁边。仅交互式会话主代理派生的子代理会被询问；print、RPC、ACP 与 SDK 运行永不探测。",
+	},
+	"archive.enabled": {
+		label: "归档",
+		description: "启用只读归档 eval 前奏：提示历史、最近项目、过往会话与回顾摘要",
 	},
 	"task.showResolvedModelBadge": {
 		label: "显示已解析模型徽标",

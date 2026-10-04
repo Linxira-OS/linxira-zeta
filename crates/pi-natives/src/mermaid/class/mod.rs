@@ -15,26 +15,26 @@ use crate::mermaid::{
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ClassDiagram {
 	/// Classes in first-declaration order.
-	pub classes:       Vec<ClassNode>,
+	pub classes: Vec<ClassNode>,
 	/// Relationships in source order.
 	pub relationships: Vec<ClassRelationship>,
 	/// Namespace groups in closing-brace order.
-	pub namespaces:    Vec<ClassNamespace>,
+	pub namespaces: Vec<ClassNamespace>,
 }
 
 /// One class declaration and its UML compartments.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClassNode {
 	/// Mermaid identifier used by relationships.
-	pub id:         String,
+	pub id: String,
 	/// Display name, including normalized generic notation.
-	pub label:      String,
+	pub label: String,
 	/// UML annotation without surrounding angle brackets.
 	pub annotation: Option<String>,
 	/// Field and property members.
 	pub attributes: Vec<ClassMember>,
 	/// Function members.
-	pub methods:    Vec<ClassMember>,
+	pub methods: Vec<ClassMember>,
 }
 
 /// Visibility classifier on a class member.
@@ -69,19 +69,19 @@ impl Visibility {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClassMember {
 	/// UML visibility.
-	pub visibility:  Visibility,
+	pub visibility: Visibility,
 	/// Member name without a trailing classifier.
-	pub name:        String,
+	pub name: String,
 	/// Optional declared type.
-	pub type_name:   Option<String>,
+	pub type_name: Option<String>,
 	/// Whether the member has the Mermaid static (`$`) classifier.
-	pub is_static:   bool,
+	pub is_static: bool,
 	/// Whether the member has the Mermaid abstract (`*`) classifier.
 	pub is_abstract: bool,
 	/// Whether the source member used method parentheses.
-	pub is_method:   bool,
+	pub is_method: bool,
 	/// Raw method parameter text, when non-empty.
-	pub params:      Option<String>,
+	pub params: Option<String>,
 }
 
 /// UML relationship line style and endpoint marker.
@@ -114,26 +114,26 @@ pub enum MarkerAt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClassRelationship {
 	/// Source identifier as written.
-	pub from:              String,
+	pub from: String,
 	/// Target identifier as written.
-	pub to:                String,
+	pub to: String,
 	/// UML relationship kind.
 	pub relationship_type: RelationshipType,
 	/// Endpoint carrying the marker.
-	pub marker_at:         MarkerAt,
+	pub marker_at: MarkerAt,
 	/// Optional relationship label.
-	pub label:             Option<String>,
+	pub label: Option<String>,
 	/// Optional cardinality beside `from`.
-	pub from_cardinality:  Option<String>,
+	pub from_cardinality: Option<String>,
 	/// Optional cardinality beside `to`.
-	pub to_cardinality:    Option<String>,
+	pub to_cardinality: Option<String>,
 }
 
 /// Namespace declaration and the explicitly declared classes it contains.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClassNamespace {
 	/// Namespace name.
-	pub name:      String,
+	pub name: String,
 	/// Class identifiers declared while the namespace was open.
 	pub class_ids: Vec<String>,
 }
@@ -151,11 +151,11 @@ pub struct ClassPoint {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PositionedClassDiagram {
 	/// Diagram width.
-	pub width:         i32,
+	pub width: i32,
 	/// Diagram height.
-	pub height:        i32,
+	pub height: i32,
 	/// Positioned classes.
-	pub classes:       Vec<PositionedClassNode>,
+	pub classes: Vec<PositionedClassNode>,
 	/// Routed relationships.
 	pub relationships: Vec<PositionedClassRelationship>,
 }
@@ -164,27 +164,27 @@ pub struct PositionedClassDiagram {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionedClassNode {
 	/// Mermaid identifier.
-	pub id:            String,
+	pub id: String,
 	/// Display label.
-	pub label:         String,
+	pub label: String,
 	/// Optional UML annotation.
-	pub annotation:    Option<String>,
+	pub annotation: Option<String>,
 	/// Attribute compartment members.
-	pub attributes:    Vec<ClassMember>,
+	pub attributes: Vec<ClassMember>,
 	/// Method compartment members.
-	pub methods:       Vec<ClassMember>,
+	pub methods: Vec<ClassMember>,
 	/// Left canvas coordinate.
-	pub x:             i32,
+	pub x: i32,
 	/// Top canvas coordinate.
-	pub y:             i32,
+	pub y: i32,
 	/// Box width.
-	pub width:         i32,
+	pub width: i32,
 	/// Box height.
-	pub height:        i32,
+	pub height: i32,
 	/// Header compartment height.
 	pub header_height: i32,
 	/// Attribute compartment height.
-	pub attr_height:   i32,
+	pub attr_height: i32,
 	/// Method compartment height.
 	pub method_height: i32,
 }
@@ -193,23 +193,23 @@ pub struct PositionedClassNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionedClassRelationship {
 	/// Source class identifier.
-	pub from:              String,
+	pub from: String,
 	/// Target class identifier.
-	pub to:                String,
+	pub to: String,
 	/// UML relationship kind.
 	pub relationship_type: RelationshipType,
 	/// Endpoint carrying the marker.
-	pub marker_at:         MarkerAt,
+	pub marker_at: MarkerAt,
 	/// Optional relationship label.
-	pub label:             Option<String>,
+	pub label: Option<String>,
 	/// Optional source-end cardinality.
-	pub from_cardinality:  Option<String>,
+	pub from_cardinality: Option<String>,
 	/// Optional target-end cardinality.
-	pub to_cardinality:    Option<String>,
+	pub to_cardinality: Option<String>,
 	/// Manhattan path from source to target.
-	pub points:            Vec<ClassPoint>,
+	pub points: Vec<ClassPoint>,
 	/// Optional label center chosen by the layout.
-	pub label_position:    Option<ClassPoint>,
+	pub label_position: Option<ClassPoint>,
 }
 
 fn format_member(member: &ClassMember) -> String {
@@ -310,11 +310,11 @@ const fn is_dashed(kind: RelationshipType) -> bool {
 
 struct PlacedClass {
 	class_index: usize,
-	sections:    Vec<Vec<String>>,
-	x:           i32,
-	y:           i32,
-	width:       i32,
-	height:      i32,
+	sections: Vec<Vec<String>>,
+	x: i32,
+	y: i32,
+	width: i32,
+	height: i32,
 }
 
 fn set_cell(
@@ -919,21 +919,24 @@ mod tests {
 			.iter()
 			.map(|relationship| (relationship.relationship_type, relationship.marker_at))
 			.collect();
-		assert_eq!(actual, vec![
-			(RelationshipType::Inheritance, MarkerAt::From),
-			(RelationshipType::Inheritance, MarkerAt::To),
-			(RelationshipType::Realization, MarkerAt::From),
-			(RelationshipType::Realization, MarkerAt::To),
-			(RelationshipType::Composition, MarkerAt::From),
-			(RelationshipType::Composition, MarkerAt::To),
-			(RelationshipType::Aggregation, MarkerAt::From),
-			(RelationshipType::Aggregation, MarkerAt::To),
-			(RelationshipType::Association, MarkerAt::To),
-			(RelationshipType::Association, MarkerAt::From),
-			(RelationshipType::Dependency, MarkerAt::To),
-			(RelationshipType::Dependency, MarkerAt::From),
-			(RelationshipType::Association, MarkerAt::To),
-		]);
+		assert_eq!(
+			actual,
+			vec![
+				(RelationshipType::Inheritance, MarkerAt::From),
+				(RelationshipType::Inheritance, MarkerAt::To),
+				(RelationshipType::Realization, MarkerAt::From),
+				(RelationshipType::Realization, MarkerAt::To),
+				(RelationshipType::Composition, MarkerAt::From),
+				(RelationshipType::Composition, MarkerAt::To),
+				(RelationshipType::Aggregation, MarkerAt::From),
+				(RelationshipType::Aggregation, MarkerAt::To),
+				(RelationshipType::Association, MarkerAt::To),
+				(RelationshipType::Association, MarkerAt::From),
+				(RelationshipType::Dependency, MarkerAt::To),
+				(RelationshipType::Dependency, MarkerAt::From),
+				(RelationshipType::Association, MarkerAt::To),
+			]
+		);
 	}
 
 	#[test]

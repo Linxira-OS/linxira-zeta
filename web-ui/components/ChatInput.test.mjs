@@ -8,7 +8,7 @@ const jiti = createJiti(import.meta.url, {
   jsx: { runtime: "automatic" },
   tsconfigPaths: true,
 });
-const { ChatInput, nextThinkingLevel } = await jiti.import("./ChatInput.tsx");
+const { ChatInput, nextThinkingLevel, buildSlashCommandCatalog, filterSlashCommandsForQuery } = await jiti.import("./ChatInput.tsx");
 // Alias-form import: resolves through the same jiti instance (and thus the
 // same module cache) as ChatInput's internal "@/hooks/useI18n", so the
 // provider context this test renders is the one ChatInput actually consumes.
@@ -83,4 +83,36 @@ test("nextThinkingLevel restricts the cycle to available levels but keeps auto",
   assert.equal(nextThinkingLevel("minimal", available), "high");
   assert.equal(nextThinkingLevel("high", available), "auto");
   assert.equal(nextThinkingLevel("max", available), "auto", "unavailable current falls back to cycle head");
+});
+
+test("slash catalog keeps builtin mode commands in existing sessions", () => {
+  // Before the gateway command list loads (or when it returns none), the
+  // docked existing-session composer must still offer the builtin mode
+  // commands — the hero welcome card always did. One catalog builder serves
+  // both composer variants and both agent (idle/streaming) states.
+  const catalog = buildSlashCommandCatalog(undefined);
+  const builtinNames = catalog.filter(c => c.source === "builtin").map(c => c.name);
+  for (const name of ["plan", "plan-ultra", "exit-plan", "goal", "vibe"]) {
+    assert.ok(builtinNames.includes(name), `builtin /${name} missing from catalog`);
+  }
+});
+
+test("slash catalog dedupes gateway commands against builtin names (builtin wins)", () => {
+  const catalog = buildSlashCommandCatalog([
+    { name: "plan", description: "prompt-defined plan", source: "prompt" },
+    { name: "deploy", description: "custom deploy", source: "prompt" },
+  ]);
+  const planEntries = catalog.filter(c => c.name === "plan");
+  assert.equal(planEntries.length, 1);
+  assert.equal(planEntries[0].source, "builtin");
+  assert.ok(catalog.some(c => c.name === "deploy" && c.source === "prompt"));
+});
+
+test("query 'plan' ranks the exact builtin command first and matches the mode family", () => {
+  const t = key => key;
+  const matches = filterSlashCommandsForQuery(buildSlashCommandCatalog([]), "plan", t);
+  assert.equal(matches[0].name, "plan");
+  const names = matches.map(c => c.name);
+  assert.ok(names.includes("plan-ultra"));
+  assert.ok(names.includes("exit-plan"));
 });

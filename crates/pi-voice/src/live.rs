@@ -63,9 +63,9 @@ const DISCONNECT_GRACE: Duration = Duration::from_secs(2);
 const CLOSE_TASK_TIMEOUT: Duration = Duration::from_secs(1);
 
 const OPUS_CAPABILITY: RTCRtpCodecCapability = RTCRtpCodecCapability {
-	mime_type:     String::new(),
-	clock_rate:    OUTPUT_SAMPLE_RATE,
-	channels:      2,
+	mime_type: String::new(),
+	clock_rate: OUTPUT_SAMPLE_RATE,
+	channels: 2,
 	sdp_fmtp_line: String::new(),
 	rtcp_feedback: Vec::new(),
 };
@@ -89,34 +89,34 @@ enum InputCommand {
 /// forwards through non-blocking threadsafe functions).
 pub struct LiveCallbacks {
 	/// One `oai-events` data-channel text payload.
-	pub event:   Box<dyn Fn(String) + Send + Sync>,
+	pub event: Box<dyn Fn(String) + Send + Sync>,
 	/// RMS output level in `[0, 1]`, one report per level window.
-	pub level:   Box<dyn Fn(f64) + Send + Sync>,
+	pub level: Box<dyn Fn(f64) + Send + Sync>,
 	/// Terminal transport failure; reported at most once per peer.
 	pub failure: Box<dyn Fn(String) + Send + Sync>,
 }
 
 struct LiveResources {
-	peer:         Arc<RTCPeerConnection>,
+	peer: Arc<RTCPeerConnection>,
 	data_channel: Arc<RTCDataChannel>,
-	input_tx:     flume::Sender<InputCommand>,
-	input_task:   JoinHandle<()>,
-	rtcp_task:    JoinHandle<()>,
-	playback:     PlaybackStream,
+	input_tx: flume::Sender<InputCommand>,
+	input_task: JoinHandle<()>,
+	rtcp_task: JoinHandle<()>,
+	playback: PlaybackStream,
 }
 
 /// WebRTC live-conversation peer: accepts 16 kHz mono PCM input and renders
 /// remote Opus audio to the default speaker. Owned as an `Arc` by the N-API
 /// `LiveWebRtcPeer` wrapper.
 pub struct LivePeerCore {
-	callbacks:        LiveCallbacks,
-	resources:        Mutex<Option<LiveResources>>,
-	signal_tx:        watch::Sender<PeerSignal>,
-	started:          AtomicBool,
-	closing:          AtomicBool,
-	muted:            AtomicBool,
+	callbacks: LiveCallbacks,
+	resources: Mutex<Option<LiveResources>>,
+	signal_tx: watch::Sender<PeerSignal>,
+	started: AtomicBool,
+	closing: AtomicBool,
+	muted: AtomicBool,
 	failure_reported: AtomicBool,
-	queued_samples:   AtomicUsize,
+	queued_samples: AtomicUsize,
 }
 
 impl LivePeerCore {
@@ -381,9 +381,9 @@ impl LivePeerCore {
 
 fn opus_capability() -> RTCRtpCodecCapability {
 	RTCRtpCodecCapability {
-		mime_type:     MIME_TYPE_OPUS.to_owned(),
-		clock_rate:    OPUS_CAPABILITY.clock_rate,
-		channels:      OPUS_CAPABILITY.channels,
+		mime_type: MIME_TYPE_OPUS.to_owned(),
+		clock_rate: OPUS_CAPABILITY.clock_rate,
+		channels: OPUS_CAPABILITY.channels,
 		sdp_fmtp_line: "minptime=10;useinbandfec=1".to_owned(),
 		rtcp_feedback: Vec::new(),
 	}
@@ -696,7 +696,7 @@ fn write_output(playback_tx: &PlaybackWriter, samples: &[f32], core: &Weak<LiveP
 #[derive(Default)]
 struct OutputLevel {
 	sum_squares: f64,
-	samples:     usize,
+	samples: usize,
 }
 
 impl OutputLevel {

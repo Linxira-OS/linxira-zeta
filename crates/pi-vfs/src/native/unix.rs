@@ -274,17 +274,17 @@ fn statfs_impl(target: &Target<'_>) -> io::Result<StatFs> {
 	// SAFETY: `fsid_t` is two C ints on every Linux libc.
 	let fsid: [u32; 2] = unsafe { std::mem::transmute(buf.f_fsid) };
 	Ok(StatFs {
-		fs_type:          Some(buf.f_type as i64),
-		fs_type_name:     dev.and_then(mount_fs_type),
-		block_size:       buf.f_bsize as u64,
-		io_size:          buf.f_frsize as u64,
-		blocks:           buf.f_blocks as u64,
-		blocks_free:      buf.f_bfree as u64,
+		fs_type: Some(buf.f_type as i64),
+		fs_type_name: dev.and_then(mount_fs_type),
+		block_size: buf.f_bsize as u64,
+		io_size: buf.f_frsize as u64,
+		blocks: buf.f_blocks as u64,
+		blocks_free: buf.f_bfree as u64,
 		blocks_available: buf.f_bavail as u64,
-		files:            buf.f_files as u64,
-		files_free:       buf.f_ffree as u64,
-		fsid:             Some(u64::from(fsid[0]) | (u64::from(fsid[1]) << 32)),
-		name_max:         Some(buf.f_namelen as u64),
+		files: buf.f_files as u64,
+		files_free: buf.f_ffree as u64,
+		fsid: Some(u64::from(fsid[0]) | (u64::from(fsid[1]) << 32)),
+		name_max: Some(buf.f_namelen as u64),
 	})
 }
 
@@ -334,17 +334,17 @@ fn statfs_impl(target: &Target<'_>) -> io::Result<StatFs> {
 	// SAFETY: `fsid_t` is two C ints.
 	let fsid: [u32; 2] = unsafe { std::mem::transmute(buf.f_fsid) };
 	Ok(StatFs {
-		fs_type:          Some(i64::from(buf.f_type)),
-		fs_type_name:     Some(name.to_string_lossy().into_owned()),
-		block_size:       u64::from(buf.f_bsize),
-		io_size:          buf.f_iosize as u64,
-		blocks:           buf.f_blocks,
-		blocks_free:      buf.f_bfree,
+		fs_type: Some(i64::from(buf.f_type)),
+		fs_type_name: Some(name.to_string_lossy().into_owned()),
+		block_size: u64::from(buf.f_bsize),
+		io_size: buf.f_iosize as u64,
+		blocks: buf.f_blocks,
+		blocks_free: buf.f_bfree,
 		blocks_available: buf.f_bavail,
-		files:            buf.f_files,
-		files_free:       buf.f_ffree,
-		fsid:             Some(u64::from(fsid[0]) | (u64::from(fsid[1]) << 32)),
-		name_max:         u64::try_from(name_max).ok(),
+		files: buf.f_files,
+		files_free: buf.f_ffree,
+		fsid: Some(u64::from(fsid[0]) | (u64::from(fsid[1]) << 32)),
+		name_max: u64::try_from(name_max).ok(),
 	})
 }
 
@@ -364,16 +364,16 @@ fn statfs_impl(target: &Target<'_>) -> io::Result<StatFs> {
 		},
 	}
 	Ok(StatFs {
-		fs_type:          None,
-		fs_type_name:     None,
-		block_size:       buf.f_bsize as u64,
-		io_size:          buf.f_frsize as u64,
-		blocks:           buf.f_blocks as u64,
-		blocks_free:      buf.f_bfree as u64,
+		fs_type: None,
+		fs_type_name: None,
+		block_size: buf.f_bsize as u64,
+		io_size: buf.f_frsize as u64,
+		blocks: buf.f_blocks as u64,
+		blocks_free: buf.f_bfree as u64,
 		blocks_available: buf.f_bavail as u64,
-		files:            buf.f_files as u64,
-		files_free:       buf.f_ffree as u64,
-		fsid:             Some(buf.f_fsid as u64),
-		name_max:         Some(buf.f_namemax as u64),
+		files: buf.f_files as u64,
+		files_free: buf.f_ffree as u64,
+		fsid: Some(buf.f_fsid as u64),
+		name_max: Some(buf.f_namemax as u64),
 	})
 }

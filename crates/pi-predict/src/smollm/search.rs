@@ -25,16 +25,16 @@ use crate::prose::is_word_char;
 
 /// Token-text lookups for prefix-constrained decoding.
 pub struct TokenIndex {
-	texts:        Vec<Option<Box<str>>>,
+	texts: Vec<Option<Box<str>>>,
 	/// Tokens whose text starts with a word character (continue a word).
-	cont_ids:     Vec<u32>,
+	cont_ids: Vec<u32>,
 	/// Every other token, including specials and partial characters: each
 	/// ends the word.
 	boundary_ids: Vec<u32>,
 	/// `(text, id)` sorted by text bytes, for "starts with" ranges.
-	sorted:       Vec<(Box<str>, u32)>,
+	sorted: Vec<(Box<str>, u32)>,
 	/// Exact text → ids, for "is a proper prefix of" lookups.
-	exact:        HashMap<Box<str>, Vec<u32>>,
+	exact: HashMap<Box<str>, Vec<u32>>,
 }
 
 impl TokenIndex {
@@ -135,9 +135,9 @@ pub struct SearchParams {
 	/// Children kept per node while the prefix is still being spelled.
 	pub top_prefix: usize,
 	/// Word-continuation children kept per node after the prefix.
-	pub top_free:   usize,
+	pub top_free: usize,
 	/// Longest completion in characters beyond the prefix.
-	pub max_chars:  usize,
+	pub max_chars: usize,
 }
 
 impl Default for SearchParams {
@@ -156,15 +156,15 @@ pub trait Rows {
 }
 
 struct Node {
-	cost:      f64,
-	seq:       u64,
-	path:      Vec<u32>,
+	cost: f64,
+	seq: u64,
+	path: Vec<u32>,
 	/// Part of the target not yet spelled.
 	remaining: String,
 	/// Word characters produced beyond the target.
-	out:       String,
+	out: String,
 	/// The word ended inside the last token.
-	terminal:  bool,
+	terminal: bool,
 }
 
 impl PartialEq for Node {

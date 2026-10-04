@@ -1,5 +1,4 @@
 import { beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { M } from "@linxiraos/zeta/i18n/index";
 import { renderWelcomeTip, WelcomeComponent } from "@linxiraos/pi-tui/prompt/welcome";
 import { initTheme, setSymbolPreset, setTheme, theme } from "@linxiraos/pi-tui/theme";
 import { visibleWidth } from "@linxiraos/pi-tui";
@@ -9,7 +8,7 @@ describe("renderWelcomeTip", () => {
 		await initTheme(false);
 	});
 
-	it("wraps long tips under the label instead of truncating", () => {
+	it("wraps long tips into unindented lines instead of truncating", () => {
 		const tip = "Next time you see spaghetti try creating a TTSR rule that prevents this pattern before it spreads";
 		const width = 44;
 		const lines = renderWelcomeTip(tip, width);
@@ -17,8 +16,9 @@ describe("renderWelcomeTip", () => {
 
 		expect(plain.length).toBeGreaterThan(1);
 		expect(plain.join(" ")).not.toContain("…");
-		expect(plain[0]).toStartWith(" Tip: Next time");
-		expect(plain[1]).toStartWith("      ");
+		expect(plain[0]).toStartWith("Tip: Next time");
+		// The banner centers each line; a baked-in indent would push it off center.
+		for (const line of plain) expect(line).not.toStartWith(" ");
 		for (const line of plain) {
 			expect(visibleWidth(line)).toBeLessThanOrEqual(width);
 		}
@@ -98,10 +98,10 @@ describe("renderWelcomeTip", () => {
 		// the switch to the user's configured "nerd" preset.
 		const rand = spyOn(Math, "random").mockReturnValue(0.05);
 		try {
-			const welcome = new WelcomeComponent("1.0.0", "model", "provider");
-			expect(welcome.tip).toBe(M.welcomeNerdFontJoke);
+			const welcome = new WelcomeComponent("1.0.0");
+			expect(welcome.tip).toBe("Please use nerdfont 😭.");
 			await setSymbolPreset("nerd");
-			expect(welcome.tip).not.toBe(M.welcomeNerdFontJoke);
+			expect(welcome.tip).not.toBe("Please use nerdfont 😭.");
 		} finally {
 			rand.mockRestore();
 			await setSymbolPreset("unicode");

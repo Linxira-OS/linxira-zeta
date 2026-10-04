@@ -15,8 +15,8 @@ use clap::{Arg, ArgAction, ArgMatches, Command, ValueHint, builder::ValueParser}
 use os_display::Quotable;
 use uucore::{
 	checksum::{
-		AlgoKind, BlakeLength, ChecksumError, ReadingMode, ShaLength, SizedAlgoKind,
-		digest_reader, escape_filename, parse_blake_length, unescape_filename, SUPPORTED_ALGORITHMS,
+		AlgoKind, BlakeLength, ChecksumError, ReadingMode, SUPPORTED_ALGORITHMS, ShaLength,
+		SizedAlgoKind, digest_reader, escape_filename, parse_blake_length, unescape_filename,
 	},
 	hardware::{HasHardwareFeatures as _, SimdPolicy},
 	line_ending::LineEnding,
@@ -371,8 +371,8 @@ fn checksum_main(
 		return perform_checksum_validation(host, files, algo, length, opts);
 	}
 
-	let algo = SizedAlgoKind::from_unsized(algo.unwrap_or(AlgoKind::Crc), length)
-		.map_err(failure)?;
+	let algo =
+		SizedAlgoKind::from_unsized(algo.unwrap_or(AlgoKind::Crc), length).map_err(failure)?;
 	let opts = ChecksumComputeOptions {
 		algo_kind: algo,
 		output_format,
@@ -385,11 +385,8 @@ fn checksum_main(
 pub(crate) fn command(name: &'static str, with_length: bool) -> Command {
 	let (about, usage) = standalone_strings(name);
 	if with_length {
-		standalone_checksum_app_with_length(
-			"Print or check BLAKE2b (512-bit) checksums.",
-			usage,
-		)
-		.name(name)
+		standalone_checksum_app_with_length("Print or check BLAKE2b (512-bit) checksums.", usage)
+			.name(name)
 	} else {
 		standalone_checksum_app(about, usage).name(name)
 	}
@@ -503,7 +500,9 @@ fn sanitize_cksum_length(
 
 		// For BLAKE, if a length is provided, validate it.
 		(Some(algo @ (AlgoKind::Blake2b | AlgoKind::Blake3)), Some(len)) => {
-			parse_blake_length(algo, BlakeLength::String(len)).map(Some).map_err(failure)
+			parse_blake_length(algo, BlakeLength::String(len))
+				.map(Some)
+				.map_err(failure)
 		},
 
 		// For any other provided algorithm, check if length is 0.
@@ -547,7 +546,9 @@ fn run_cksum(host: &mut Host, matches: ArgMatches) -> ExecResult<()> {
 		.transpose()
 		.map_err(failure)?;
 
-	let input_length = matches.get_one::<String>(options::LENGTH).map(String::as_str);
+	let input_length = matches
+		.get_one::<String>(options::LENGTH)
+		.map(String::as_str);
 	let length = sanitize_cksum_length(host, algo, input_length)?;
 
 	let tag = !matches.get_flag(options::UNTAGGED);
@@ -734,7 +735,12 @@ fn print_legacy_checksum(
 	}
 }
 
-fn print_tagged_checksum(host: &mut Host, options: &ChecksumComputeOptions, filename: &OsStr, sum: &String) {
+fn print_tagged_checksum(
+	host: &mut Host,
+	options: &ChecksumComputeOptions,
+	filename: &OsStr,
+	sum: &String,
+) {
 	let (escaped_filename, prefix) = if options.line_ending == LineEnding::Nul {
 		(filename.to_string_lossy().to_string(), "")
 	} else {
@@ -765,10 +771,14 @@ fn print_untagged_checksum(
 	};
 
 	// Print checksum and reading mode flag
-	let _ = write!(&mut host.stdout, "{prefix}{sum} {}", match reading_mode {
-		ReadingMode::Binary => '*',
-		ReadingMode::Text => ' ',
-	});
+	let _ = write!(
+		&mut host.stdout,
+		"{prefix}{sum} {}",
+		match reading_mode {
+			ReadingMode::Binary => '*',
+			ReadingMode::Text => ' ',
+		}
+	);
 
 	// Print filename
 	let _dropped_result = &mut host.stdout.write_all(escaped_filename.as_bytes());
@@ -854,7 +864,12 @@ where
 				print_legacy_checksum(host, &options, filename, &digest_output, sz);
 			},
 			OutputFormat::Tagged(digest_format) => {
-				print_tagged_checksum(host, &options, filename, &encode_sum(digest_output, digest_format).map_err(failure)?);
+				print_tagged_checksum(
+					host,
+					&options,
+					filename,
+					&encode_sum(digest_output, digest_format).map_err(failure)?,
+				);
 			},
 			OutputFormat::Untagged(digest_format, reading_mode) => {
 				print_untagged_checksum(
@@ -916,8 +931,8 @@ impl ChecksumVerbose {
 #[derive(Debug, Default, Clone, Copy)]
 struct ChecksumValidateOptions {
 	ignore_missing: bool,
-	strict:         bool,
-	verbose:        ChecksumVerbose,
+	strict: bool,
+	verbose: ChecksumVerbose,
 }
 
 /// This structure holds the count of checksum test lines' outcomes.
@@ -925,15 +940,15 @@ struct ChecksumValidateOptions {
 struct ChecksumResult {
 	/// Number of lines in the file where the computed checksum MATCHES
 	/// the expectation.
-	correct:          u32,
+	correct: u32,
 	/// Number of lines in the file where the computed checksum DIFFERS
 	/// from the expectation.
-	failed_cksum:     u32,
+	failed_cksum: u32,
 	failed_open_file: u32,
 	/// Number of improperly formatted lines.
-	bad_format:       u32,
+	bad_format: u32,
 	/// Total number of non-empty, non-comment lines.
-	total:            u32,
+	total: u32,
 }
 
 impl ChecksumResult {
@@ -1001,15 +1016,27 @@ impl From<ChecksumError> for FileCheckError {
 fn print_cksum_report(host: &mut Host, res: &ChecksumResult) {
 	if res.bad_format > 0 {
 		let name = host.name().to_owned();
-		let _ = writeln!(host.stderr, "{name}: WARNING: {} line(s) are improperly formatted", res.bad_format);
+		let _ = writeln!(
+			host.stderr,
+			"{name}: WARNING: {} line(s) are improperly formatted",
+			res.bad_format
+		);
 	}
 	if res.failed_cksum > 0 {
 		let name = host.name().to_owned();
-		let _ = writeln!(host.stderr, "{name}: WARNING: {} computed checksum(s) did NOT match", res.failed_cksum);
+		let _ = writeln!(
+			host.stderr,
+			"{name}: WARNING: {} computed checksum(s) did NOT match",
+			res.failed_cksum
+		);
 	}
 	if res.failed_open_file > 0 {
 		let name = host.name().to_owned();
-		let _ = writeln!(host.stderr, "{name}: WARNING: {} listed file(s) could not be read", res.failed_open_file);
+		let _ = writeln!(
+			host.stderr,
+			"{name}: WARNING: {} listed file(s) could not be read",
+			res.failed_open_file
+		);
 	}
 }
 
@@ -1151,11 +1178,11 @@ impl LineFormat {
 		let checksum_utf8 = Self::validate_checksum_format(checksum)?;
 
 		Some(LineInfo {
-			algo_name:    Some(algo_utf8),
+			algo_name: Some(algo_utf8),
 			algo_bit_len: algo_bits,
-			checksum:     checksum_utf8,
-			filename:     filename.to_vec(),
-			format:       Self::AlgoBased,
+			checksum: checksum_utf8,
+			filename: filename.to_vec(),
+			format: Self::AlgoBased,
 		})
 	}
 
@@ -1177,11 +1204,11 @@ impl LineFormat {
 			.or_else(|| rest.strip_prefix(b" *"))?;
 
 		Some(LineInfo {
-			algo_name:    None,
+			algo_name: None,
 			algo_bit_len: None,
-			checksum:     checksum_utf8,
-			filename:     filename.to_vec(),
-			format:       Self::Untagged,
+			checksum: checksum_utf8,
+			filename: filename.to_vec(),
+			format: Self::Untagged,
 		})
 	}
 
@@ -1209,11 +1236,11 @@ impl LineFormat {
 		let filename = line.get(space_idx + 1..)?; // Skip single space
 
 		Some(LineInfo {
-			algo_name:    None,
+			algo_name: None,
 			algo_bit_len: None,
-			checksum:     checksum_utf8,
-			filename:     filename.to_vec(),
-			format:       Self::SingleSpace,
+			checksum: checksum_utf8,
+			filename: filename.to_vec(),
+			format: Self::SingleSpace,
 		})
 	}
 
@@ -1277,11 +1304,11 @@ impl ByteSliceExt for [u8] {
 
 /// Hold the data extracted from a checksum line.
 struct LineInfo {
-	algo_name:    Option<String>,
+	algo_name: Option<String>,
 	algo_bit_len: Option<usize>,
-	checksum:     String,
-	filename:     Vec<u8>,
-	format:       LineFormat,
+	checksum: String,
+	filename: Vec<u8>,
+	format: LineFormat,
 }
 
 impl LineInfo {
@@ -1320,7 +1347,10 @@ impl LineInfo {
 
 /// Decodes standard Base64 using the forgiving-padding rules required by GNU.
 fn forgiving_base64_decode(input: &[u8]) -> Option<Vec<u8>> {
-	let input = input.strip_suffix(b"==").or_else(|| input.strip_suffix(b"=")).unwrap_or(input);
+	let input = input
+		.strip_suffix(b"==")
+		.or_else(|| input.strip_suffix(b"="))
+		.unwrap_or(input);
 	if input.len() % 4 == 1 {
 		return None;
 	}
@@ -1343,11 +1373,7 @@ fn forgiving_base64_decode(input: &[u8]) -> Option<Vec<u8>> {
 		let b = sextet(chunk[1])?;
 		let c = sextet(chunk[2])?;
 		let d = sextet(chunk[3])?;
-		output.extend_from_slice(&[
-			(a << 2) | (b >> 4),
-			(b << 4) | (c >> 2),
-			(c << 6) | d,
-		]);
+		output.extend_from_slice(&[(a << 2) | (b >> 4), (b << 4) | (c >> 2), (c << 6) | d]);
 	}
 	match chunks.remainder() {
 		[] => {},
@@ -1419,7 +1445,11 @@ fn get_file_to_check<'a>(
 
 	match host.fs().open(host.resolve(filename)) {
 		Ok(file) => {
-			if file.metadata().map_err(|_| LineCheckError::CantOpenFile)?.is_dir() {
+			if file
+				.metadata()
+				.map_err(|_| LineCheckError::CantOpenFile)?
+				.is_dir()
+			{
 				let escaped = locale_aware_escape_name(filename, QuotingStyle::SHELL_ESCAPE);
 				host.error(format!("{}: Is a directory", escaped.to_string_lossy()), 1);
 				write_file_report(
@@ -1461,10 +1491,7 @@ fn get_input_file(host: &Host, filename: &OsStr) -> ExecResult<Box<dyn Read>> {
 				Ok(Box::new(file))
 			}
 		},
-		Err(_) => Err(failure(format!(
-			"{}: No such file or directory",
-			filename.maybe_quote()
-		))),
+		Err(_) => Err(failure(format!("{}: No such file or directory", filename.maybe_quote()))),
 	}
 }
 
@@ -1540,8 +1567,8 @@ fn compute_and_check_digest_from_file(
 	opts: ChecksumValidateOptions,
 ) -> Result<(), LineCheckError> {
 	let (filename_to_check_unescaped, prefix) = unescape_filename(filename);
-	let real_filename_to_check = os_str_from_bytes(&filename_to_check_unescaped)
-		.map_err(|error| failure(error))?;
+	let real_filename_to_check =
+		os_str_from_bytes(&filename_to_check_unescaped).map_err(|error| failure(error))?;
 
 	let file_to_check = get_file_to_check(host, &real_filename_to_check, opts)?;
 	let mut file_reader = BufReader::new(file_to_check);
@@ -1550,10 +1577,8 @@ fn compute_and_check_digest_from_file(
 		Ok((result, _)) => result,
 		Err(error) => {
 			drop(file_reader);
-			let escaped = locale_aware_escape_name(
-				&real_filename_to_check,
-				QuotingStyle::SHELL_ESCAPE,
-			);
+			let escaped =
+				locale_aware_escape_name(&real_filename_to_check, QuotingStyle::SHELL_ESCAPE);
 			host.error(format!("{}: {error}", escaped.to_string_lossy()), 1);
 			write_file_report(
 				&mut host.stdout,
@@ -1580,7 +1605,11 @@ fn compute_and_check_digest_from_file(
 		opts.verbose,
 	);
 
-	if checksum_correct { Ok(()) } else { Err(LineCheckError::DigestMismatch) }
+	if checksum_correct {
+		Ok(())
+	} else {
+		Err(LineCheckError::DigestMismatch)
+	}
 }
 
 /// Check a digest checksum with non-algo based pre-treatment.
@@ -1775,7 +1804,11 @@ fn process_checksum_file(
 	}
 
 	let filename_display = || {
-		if input_is_stdin { "standard input".maybe_quote() } else { filename_input.maybe_quote() }
+		if input_is_stdin {
+			"standard input".maybe_quote()
+		} else {
+			filename_input.maybe_quote()
+		}
 	};
 	if res.total_properly_formatted() == 0 {
 		if opts.verbose.over_status() {
@@ -1828,18 +1861,22 @@ where
 			Ok(()) => (),
 		}
 	}
-	if failed { Err(Failure(String::new())) } else { Ok(()) }
+	if failed {
+		Err(Failure(String::new()))
+	} else {
+		Ok(())
+	}
 }
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
+	use std::ffi::OsString;
 
-    use super::*;
+	use super::*;
 
-    #[test]
-    fn test_algo_based_parser() {
-        #[allow(clippy::type_complexity)]
+	#[test]
+	fn test_algo_based_parser() {
+		#[allow(clippy::type_complexity)]
         let test_cases: &[(&[u8], Option<(&[u8], Option<&[u8]>, &[u8], &[u8])>)] = &[
             (b"SHA256 (example.txt) = d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2", Some((b"SHA256", None, b"example.txt", b"d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2"))),
             // cspell:disable
@@ -1859,422 +1896,386 @@ mod tests {
             (b" MD5 (weirdfilename8) = )= fds65dsf46as5df4d6f54asds5d7f7g9", None),
         ];
 
-        // cspell:enable
-        for (input, expected) in test_cases {
-            let line_info = LineFormat::parse_algo_based(input);
-            match expected {
-                Some((algo, bits, filename, checksum)) => {
-                    assert!(
-                        line_info.is_some(),
-                        "expected Some, got None for {}",
-                        String::from_utf8_lossy(filename)
-                    );
-                    let line_info = line_info.unwrap();
-                    assert_eq!(
-                        &line_info.algo_name.unwrap().as_bytes(),
-                        algo,
-                        "failed for {}",
-                        String::from_utf8_lossy(filename)
-                    );
-                    assert_eq!(
-                        line_info
-                            .algo_bit_len
-                            .map(|m| m.to_string().as_bytes().to_owned()),
-                        bits.map(ToOwned::to_owned),
-                        "failed for {}",
-                        String::from_utf8_lossy(filename)
-                    );
-                    assert_eq!(
-                        &line_info.filename,
-                        filename,
-                        "failed for {}",
-                        String::from_utf8_lossy(filename)
-                    );
-                    assert_eq!(
-                        &line_info.checksum.as_bytes(),
-                        checksum,
-                        "failed for {}",
-                        String::from_utf8_lossy(filename)
-                    );
-                }
-                None => {
-                    assert!(
-                        line_info.is_none(),
-                        "failed for {}",
-                        String::from_utf8_lossy(input)
-                    );
-                }
-            }
-        }
-    }
+		// cspell:enable
+		for (input, expected) in test_cases {
+			let line_info = LineFormat::parse_algo_based(input);
+			match expected {
+				Some((algo, bits, filename, checksum)) => {
+					assert!(
+						line_info.is_some(),
+						"expected Some, got None for {}",
+						String::from_utf8_lossy(filename)
+					);
+					let line_info = line_info.unwrap();
+					assert_eq!(
+						&line_info.algo_name.unwrap().as_bytes(),
+						algo,
+						"failed for {}",
+						String::from_utf8_lossy(filename)
+					);
+					assert_eq!(
+						line_info
+							.algo_bit_len
+							.map(|m| m.to_string().as_bytes().to_owned()),
+						bits.map(ToOwned::to_owned),
+						"failed for {}",
+						String::from_utf8_lossy(filename)
+					);
+					assert_eq!(
+						&line_info.filename,
+						filename,
+						"failed for {}",
+						String::from_utf8_lossy(filename)
+					);
+					assert_eq!(
+						&line_info.checksum.as_bytes(),
+						checksum,
+						"failed for {}",
+						String::from_utf8_lossy(filename)
+					);
+				},
+				None => {
+					assert!(line_info.is_none(), "failed for {}", String::from_utf8_lossy(input));
+				},
+			}
+		}
+	}
 
-    #[test]
-    fn test_double_space_parser() {
-        #[allow(clippy::type_complexity)]
-        let test_cases: &[(&[u8], Option<(&[u8], &[u8])>)] = &[
-            (
-                b"60b725f10c9c85c70d97880dfe8191b3  a",
-                Some((b"60b725f10c9c85c70d97880dfe8191b3", b"a")),
-            ),
-            (
-                b"bf35d7536c785cf06730d5a40301eba2   b",
-                Some((b"bf35d7536c785cf06730d5a40301eba2", b" b")),
-            ),
-            (
-                b"f5b61709718c1ecf8db1aea8547d4698  *c",
-                Some((b"f5b61709718c1ecf8db1aea8547d4698", b"*c")),
-            ),
-            (
-                b"b064a020db8018f18ff5ae367d01b212  dd",
-                Some((b"b064a020db8018f18ff5ae367d01b212", b"dd")),
-            ),
-            (
-                b"b064a020db8018f18ff5ae367d01b212   ",
-                Some((b"b064a020db8018f18ff5ae367d01b212", b" ")),
-            ),
-            // base64 checksums are accepted
-            (
-                b"b21lbGV0dGUgZHUgZnJvbWFnZQ==   ",
-                Some((b"b21lbGV0dGUgZHUgZnJvbWFnZQ==", b" ")),
-            ),
-            // Invalid checksums fail
-            (b"inva|idchecksum  test", None),
-        ];
+	#[test]
+	fn test_double_space_parser() {
+		#[allow(clippy::type_complexity)]
+		let test_cases: &[(&[u8], Option<(&[u8], &[u8])>)] = &[
+			(
+				b"60b725f10c9c85c70d97880dfe8191b3  a",
+				Some((b"60b725f10c9c85c70d97880dfe8191b3", b"a")),
+			),
+			(
+				b"bf35d7536c785cf06730d5a40301eba2   b",
+				Some((b"bf35d7536c785cf06730d5a40301eba2", b" b")),
+			),
+			(
+				b"f5b61709718c1ecf8db1aea8547d4698  *c",
+				Some((b"f5b61709718c1ecf8db1aea8547d4698", b"*c")),
+			),
+			(
+				b"b064a020db8018f18ff5ae367d01b212  dd",
+				Some((b"b064a020db8018f18ff5ae367d01b212", b"dd")),
+			),
+			(
+				b"b064a020db8018f18ff5ae367d01b212   ",
+				Some((b"b064a020db8018f18ff5ae367d01b212", b" ")),
+			),
+			// base64 checksums are accepted
+			(b"b21lbGV0dGUgZHUgZnJvbWFnZQ==   ", Some((b"b21lbGV0dGUgZHUgZnJvbWFnZQ==", b" "))),
+			// Invalid checksums fail
+			(b"inva|idchecksum  test", None),
+		];
 
-        for (input, expected) in test_cases {
-            let line_info = LineFormat::parse_untagged(input);
-            match expected {
-                Some((checksum, filename)) => {
-                    assert!(line_info.is_some());
-                    let line_info = line_info.unwrap();
-                    assert_eq!(&line_info.filename, filename);
-                    assert_eq!(&line_info.checksum.as_bytes(), checksum);
-                }
-                None => {
-                    assert!(line_info.is_none());
-                }
-            }
-        }
-    }
+		for (input, expected) in test_cases {
+			let line_info = LineFormat::parse_untagged(input);
+			match expected {
+				Some((checksum, filename)) => {
+					assert!(line_info.is_some());
+					let line_info = line_info.unwrap();
+					assert_eq!(&line_info.filename, filename);
+					assert_eq!(&line_info.checksum.as_bytes(), checksum);
+				},
+				None => {
+					assert!(line_info.is_none());
+				},
+			}
+		}
+	}
 
-    #[test]
-    fn test_single_space_parser() {
-        #[allow(clippy::type_complexity)]
-        let test_cases: &[(&[u8], Option<(&[u8], &[u8])>)] = &[
-            (
-                b"60b725f10c9c85c70d97880dfe8191b3 a",
-                Some((b"60b725f10c9c85c70d97880dfe8191b3", b"a")),
-            ),
-            (
-                b"bf35d7536c785cf06730d5a40301eba2 b",
-                Some((b"bf35d7536c785cf06730d5a40301eba2", b"b")),
-            ),
-            (
-                b"f5b61709718c1ecf8db1aea8547d4698 *c",
-                Some((b"f5b61709718c1ecf8db1aea8547d4698", b"*c")),
-            ),
-            (
-                b"b064a020db8018f18ff5ae367d01b212 dd",
-                Some((b"b064a020db8018f18ff5ae367d01b212", b"dd")),
-            ),
-            (b"invalidchecksum test", None),
-        ];
+	#[test]
+	fn test_single_space_parser() {
+		#[allow(clippy::type_complexity)]
+		let test_cases: &[(&[u8], Option<(&[u8], &[u8])>)] = &[
+			(b"60b725f10c9c85c70d97880dfe8191b3 a", Some((b"60b725f10c9c85c70d97880dfe8191b3", b"a"))),
+			(b"bf35d7536c785cf06730d5a40301eba2 b", Some((b"bf35d7536c785cf06730d5a40301eba2", b"b"))),
+			(
+				b"f5b61709718c1ecf8db1aea8547d4698 *c",
+				Some((b"f5b61709718c1ecf8db1aea8547d4698", b"*c")),
+			),
+			(
+				b"b064a020db8018f18ff5ae367d01b212 dd",
+				Some((b"b064a020db8018f18ff5ae367d01b212", b"dd")),
+			),
+			(b"invalidchecksum test", None),
+		];
 
-        for (input, expected) in test_cases {
-            let line_info = LineFormat::parse_single_space(input);
-            match expected {
-                Some((checksum, filename)) => {
-                    assert!(line_info.is_some());
-                    let line_info = line_info.unwrap();
-                    assert_eq!(&line_info.filename, filename);
-                    assert_eq!(&line_info.checksum.as_bytes(), checksum);
-                }
-                None => {
-                    assert!(line_info.is_none());
-                }
-            }
-        }
-    }
+		for (input, expected) in test_cases {
+			let line_info = LineFormat::parse_single_space(input);
+			match expected {
+				Some((checksum, filename)) => {
+					assert!(line_info.is_some());
+					let line_info = line_info.unwrap();
+					assert_eq!(&line_info.filename, filename);
+					assert_eq!(&line_info.checksum.as_bytes(), checksum);
+				},
+				None => {
+					assert!(line_info.is_none());
+				},
+			}
+		}
+	}
 
-    #[test]
-    fn test_line_info() {
-        let mut cached_line_format = None;
+	#[test]
+	fn test_line_info() {
+		let mut cached_line_format = None;
 
-        // Test algo-based parser
-        let line_algo_based =
-            OsString::from("MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e");
-        let line_info = LineInfo::parse(&line_algo_based, &mut cached_line_format).unwrap();
-        assert_eq!(line_info.algo_name.as_deref(), Some("MD5"));
-        assert!(line_info.algo_bit_len.is_none());
-        assert_eq!(line_info.filename, b"example.txt");
-        assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
-        assert_eq!(line_info.format, LineFormat::AlgoBased);
-        assert!(cached_line_format.is_none());
+		// Test algo-based parser
+		let line_algo_based = OsString::from("MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e");
+		let line_info = LineInfo::parse(&line_algo_based, &mut cached_line_format).unwrap();
+		assert_eq!(line_info.algo_name.as_deref(), Some("MD5"));
+		assert!(line_info.algo_bit_len.is_none());
+		assert_eq!(line_info.filename, b"example.txt");
+		assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
+		assert_eq!(line_info.format, LineFormat::AlgoBased);
+		assert!(cached_line_format.is_none());
 
-        // Test double-space parser
-        let line_double_space = OsString::from("d41d8cd98f00b204e9800998ecf8427e  example.txt");
-        let line_info = LineInfo::parse(&line_double_space, &mut cached_line_format).unwrap();
-        assert!(line_info.algo_name.is_none());
-        assert!(line_info.algo_bit_len.is_none());
-        assert_eq!(line_info.filename, b"example.txt");
-        assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
-        assert_eq!(line_info.format, LineFormat::Untagged);
-        assert!(cached_line_format.is_some());
+		// Test double-space parser
+		let line_double_space = OsString::from("d41d8cd98f00b204e9800998ecf8427e  example.txt");
+		let line_info = LineInfo::parse(&line_double_space, &mut cached_line_format).unwrap();
+		assert!(line_info.algo_name.is_none());
+		assert!(line_info.algo_bit_len.is_none());
+		assert_eq!(line_info.filename, b"example.txt");
+		assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
+		assert_eq!(line_info.format, LineFormat::Untagged);
+		assert!(cached_line_format.is_some());
 
-        cached_line_format = None;
+		cached_line_format = None;
 
-        // Test single-space parser
-        let line_single_space = OsString::from("d41d8cd98f00b204e9800998ecf8427e example.txt");
-        let line_info = LineInfo::parse(&line_single_space, &mut cached_line_format).unwrap();
-        assert!(line_info.algo_name.is_none());
-        assert!(line_info.algo_bit_len.is_none());
-        assert_eq!(line_info.filename, b"example.txt");
-        assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
-        assert_eq!(line_info.format, LineFormat::SingleSpace);
-        assert!(cached_line_format.is_some());
+		// Test single-space parser
+		let line_single_space = OsString::from("d41d8cd98f00b204e9800998ecf8427e example.txt");
+		let line_info = LineInfo::parse(&line_single_space, &mut cached_line_format).unwrap();
+		assert!(line_info.algo_name.is_none());
+		assert!(line_info.algo_bit_len.is_none());
+		assert_eq!(line_info.filename, b"example.txt");
+		assert_eq!(line_info.checksum, "d41d8cd98f00b204e9800998ecf8427e");
+		assert_eq!(line_info.format, LineFormat::SingleSpace);
+		assert!(cached_line_format.is_some());
 
-        cached_line_format = None;
+		cached_line_format = None;
 
-        // Test invalid checksum line
-        let line_invalid = OsString::from("invalid checksum line");
-        assert!(LineInfo::parse(&line_invalid, &mut cached_line_format).is_none());
-        assert!(cached_line_format.is_none());
+		// Test invalid checksum line
+		let line_invalid = OsString::from("invalid checksum line");
+		assert!(LineInfo::parse(&line_invalid, &mut cached_line_format).is_none());
+		assert!(cached_line_format.is_none());
 
-        // Test leading space before checksum line
-        let line_algo_based_leading_space =
-            OsString::from("   MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e");
-        let line_info =
-            LineInfo::parse(&line_algo_based_leading_space, &mut cached_line_format).unwrap();
-        assert_eq!(line_info.format, LineFormat::AlgoBased);
-        assert!(cached_line_format.is_none());
+		// Test leading space before checksum line
+		let line_algo_based_leading_space =
+			OsString::from("   MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e");
+		let line_info =
+			LineInfo::parse(&line_algo_based_leading_space, &mut cached_line_format).unwrap();
+		assert_eq!(line_info.format, LineFormat::AlgoBased);
+		assert!(cached_line_format.is_none());
 
-        // Test trailing space after checksum line (should fail)
-        let line_algo_based_leading_space =
-            OsString::from("MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e ");
-        let res = LineInfo::parse(&line_algo_based_leading_space, &mut cached_line_format);
-        assert!(res.is_none());
-        assert!(cached_line_format.is_none());
-    }
+		// Test trailing space after checksum line (should fail)
+		let line_algo_based_leading_space =
+			OsString::from("MD5 (example.txt) = d41d8cd98f00b204e9800998ecf8427e ");
+		let res = LineInfo::parse(&line_algo_based_leading_space, &mut cached_line_format);
+		assert!(res.is_none());
+		assert!(cached_line_format.is_none());
+	}
 
-    #[test]
-    fn test_get_expected_digest() {
-        let ck = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=".to_owned();
+	#[test]
+	fn test_get_expected_digest() {
+		let ck = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=".to_owned();
 
-        let result = get_raw_expected_digest(&ck, None);
+		let result = get_raw_expected_digest(&ck, None);
 
-        assert_eq!(
-            result.unwrap(),
-            hex::decode(b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-                .unwrap()
-        );
-    }
+		assert_eq!(
+			result.unwrap(),
+			hex::decode(b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap()
+		);
+	}
 
-    #[test]
-    fn test_get_expected_checksum_invalid() {
-        // The line misses a '=' at the end to be valid base64
-        let ck = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU".to_owned();
+	#[test]
+	fn test_get_expected_checksum_invalid() {
+		// The line misses a '=' at the end to be valid base64
+		let ck = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU".to_owned();
 
-        let result = get_raw_expected_digest(&ck, None);
+		let result = get_raw_expected_digest(&ck, None);
 
-        assert!(result.is_none());
-    }
+		assert!(result.is_none());
+	}
 
-    #[test]
-    fn test_get_expected_checksum_forgives_invalid_padding() {
-        let checksum = "Zh==";
-        assert_eq!(get_raw_expected_digest(checksum, None), Some(b"f".to_vec()));
-    }
+	#[test]
+	fn test_get_expected_checksum_forgives_invalid_padding() {
+		let checksum = "Zh==";
+		assert_eq!(get_raw_expected_digest(checksum, None), Some(b"f".to_vec()));
+	}
 
-    #[test]
-    fn test_write_file_report() {
-        let opts = ChecksumValidateOptions::default();
+	#[test]
+	fn test_write_file_report() {
+		let opts = ChecksumValidateOptions::default();
 
-        let cases: &[(&[u8], FileChecksumResult, &str, &[u8])] = &[
-            (b"filename", FileChecksumResult::Ok, "", b"filename: OK\n"),
-            (
-                b"filename",
-                FileChecksumResult::Failed,
-                "",
-                b"filename: FAILED\n",
-            ),
-            (
-                b"filename",
-                FileChecksumResult::CantOpen,
-                "",
-                b"filename: FAILED open or read\n",
-            ),
-            (
-                b"filename",
-                FileChecksumResult::Ok,
-                "prefix",
-                b"prefixfilename: OK\n",
-            ),
-            (
-                b"funky\xffname",
-                FileChecksumResult::Ok,
-                "",
-                b"funky\xffname: OK\n",
-            ),
-        ];
+		let cases: &[(&[u8], FileChecksumResult, &str, &[u8])] = &[
+			(b"filename", FileChecksumResult::Ok, "", b"filename: OK\n"),
+			(b"filename", FileChecksumResult::Failed, "", b"filename: FAILED\n"),
+			(b"filename", FileChecksumResult::CantOpen, "", b"filename: FAILED open or read\n"),
+			(b"filename", FileChecksumResult::Ok, "prefix", b"prefixfilename: OK\n"),
+			(b"funky\xffname", FileChecksumResult::Ok, "", b"funky\xffname: OK\n"),
+		];
 
-        for (filename, result, prefix, expected) in cases {
-            let mut buffer: Vec<u8> = vec![];
-            write_file_report(&mut buffer, filename, *result, prefix, opts.verbose);
-            assert_eq!(&buffer, expected);
-        }
-    }
+		for (filename, result, prefix, expected) in cases {
+			let mut buffer: Vec<u8> = vec![];
+			write_file_report(&mut buffer, filename, *result, prefix, opts.verbose);
+			assert_eq!(&buffer, expected);
+		}
+	}
 
-    mod cksum_front_end {
-        //! `cksum` is the GNU multi-algorithm front-end; without these the
-        //! builtin would shadow the system binary while rejecting or
-        //! misprinting invocations the real `cksum` accepts.
+	mod cksum_front_end {
+		//! `cksum` is the GNU multi-algorithm front-end; without these the
+		//! builtin would shadow the system binary while rejecting or
+		//! misprinting invocations the real `cksum` accepts.
 
-        use std::fs;
+		use std::fs;
 
-        use super::super::Cksum;
-        use crate::host::run_util;
+		use super::super::Cksum;
+		use crate::host::run_util;
 
-        /// Failure mode: default invocation must keep the POSIX CRC format
-        /// (`<crc> <size>`), not a hex digest.
-        #[test]
-        fn default_is_posix_crc_output() {
-            let (code, capture) = run_util::<Cksum>(&[], "hi", "/");
-            assert_eq!(code, 0);
-            assert_eq!(capture.out(), "2352138605 2\n");
-        }
+		/// Failure mode: default invocation must keep the POSIX CRC format
+		/// (`<crc> <size>`), not a hex digest.
+		#[test]
+		fn default_is_posix_crc_output() {
+			let (code, capture) = run_util::<Cksum>(&[], "hi", "/");
+			assert_eq!(code, 0);
+			assert_eq!(capture.out(), "2352138605 2\n");
+		}
 
-        /// Failure mode: `cksum somefile` printing no filename or the wrong
-        /// CRC would silently diverge from `/usr/bin/cksum`.
-        #[test]
-        fn file_operand_appends_the_filename() {
-            let dir = tempfile::tempdir().unwrap();
-            fs::write(dir.path().join("input"), b"hi").unwrap();
-            let (code, capture) = run_util::<Cksum>(&["input"], "", dir.path());
-            assert_eq!(code, 0);
-            assert_eq!(capture.out(), "2352138605 2 input\n");
-        }
+		/// Failure mode: `cksum somefile` printing no filename or the wrong
+		/// CRC would silently diverge from `/usr/bin/cksum`.
+		#[test]
+		fn file_operand_appends_the_filename() {
+			let dir = tempfile::tempdir().unwrap();
+			fs::write(dir.path().join("input"), b"hi").unwrap();
+			let (code, capture) = run_util::<Cksum>(&["input"], "", dir.path());
+			assert_eq!(code, 0);
+			assert_eq!(capture.out(), "2352138605 2 input\n");
+		}
 
-        /// Failure mode: `-a sha256` is the flagship GNU extension; it must
-        /// parse and produce BSD-tagged output by default.
-        #[test]
-        fn algorithm_selects_tagged_sha256() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "sha256"], "hi", "/");
-            assert_eq!(code, 0);
-            assert_eq!(
-                capture.out(),
-                "SHA256 (-) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n"
-            );
-        }
+		/// Failure mode: `-a sha256` is the flagship GNU extension; it must
+		/// parse and produce BSD-tagged output by default.
+		#[test]
+		fn algorithm_selects_tagged_sha256() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "sha256"], "hi", "/");
+			assert_eq!(code, 0);
+			assert_eq!(
+				capture.out(),
+				"SHA256 (-) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n"
+			);
+		}
 
-        /// Failure mode: `--untagged` must switch to the two-space coreutils
-        /// format so output can be fed back to `sha256sum -c`.
-        #[test]
-        fn untagged_prints_coreutils_format() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "--untagged"], "hi", "/");
-            assert_eq!(code, 0);
-            assert_eq!(
-                capture.out(),
-                "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4  -\n"
-            );
-        }
+		/// Failure mode: `--untagged` must switch to the two-space coreutils
+		/// format so output can be fed back to `sha256sum -c`.
+		#[test]
+		fn untagged_prints_coreutils_format() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "--untagged"], "hi", "/");
+			assert_eq!(code, 0);
+			assert_eq!(
+				capture.out(),
+				"8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4  -\n"
+			);
+		}
 
-        /// Failure mode: `--base64` must encode the digest, not error or
-        /// print hex.
-        #[test]
-        fn base64_encodes_the_digest() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "--base64"], "hi", "/");
-            assert_eq!(code, 0);
-            assert_eq!(capture.out(), "SHA256 (-) = j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ=\n");
-        }
+		/// Failure mode: `--base64` must encode the digest, not error or
+		/// print hex.
+		#[test]
+		fn base64_encodes_the_digest() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "--base64"], "hi", "/");
+			assert_eq!(code, 0);
+			assert_eq!(capture.out(), "SHA256 (-) = j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ=\n");
+		}
 
-        /// Failure mode: `-a blake2b -l N` (the one length-taking algorithm
-        /// agents use) must honor the bit length in the tag.
-        #[test]
-        fn blake2b_length_is_honored() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "blake2b", "-l", "8"], "abc", "/");
-            assert_eq!(code, 0);
-            assert_eq!(capture.out(), "BLAKE2b-8 (-) = 6b\n");
-        }
+		/// Failure mode: `-a blake2b -l N` (the one length-taking algorithm
+		/// agents use) must honor the bit length in the tag.
+		#[test]
+		fn blake2b_length_is_honored() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "blake2b", "-l", "8"], "abc", "/");
+			assert_eq!(code, 0);
+			assert_eq!(capture.out(), "BLAKE2b-8 (-) = 6b\n");
+		}
 
-        /// Failure mode: GNU rejects `--length` for non-length algorithms;
-        /// silently ignoring it would hide user error.
-        #[test]
-        fn length_requires_a_length_algorithm() {
-            let (code, capture) = run_util::<Cksum>(&["-l", "16"], "", "/");
-            assert_eq!(code, 1);
-            assert!(
-                capture.err().contains("--length is only supported with"),
-                "{}",
-                capture.err()
-            );
-        }
+		/// Failure mode: GNU rejects `--length` for non-length algorithms;
+		/// silently ignoring it would hide user error.
+		#[test]
+		fn length_requires_a_length_algorithm() {
+			let (code, capture) = run_util::<Cksum>(&["-l", "16"], "", "/");
+			assert_eq!(code, 1);
+			assert!(capture.err().contains("--length is only supported with"), "{}", capture.err());
+		}
 
-        /// Failure mode: `--text` without `--untagged` is a GNU usage error
-        /// (`--text mode is only supported with --untagged`), even though the
-        /// standalone `*sum` utilities accept `-t` freely.
-        #[test]
-        fn text_without_untagged_is_rejected() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "-t"], "", "/");
-            assert_eq!(code, 1);
-            assert!(
-                capture.err().contains("--text mode is only supported with --untagged"),
-                "{}",
-                capture.err()
-            );
-        }
+		/// Failure mode: `--text` without `--untagged` is a GNU usage error
+		/// (`--text mode is only supported with --untagged`), even though the
+		/// standalone `*sum` utilities accept `-t` freely.
+		#[test]
+		fn text_without_untagged_is_rejected() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "sha256", "-t"], "", "/");
+			assert_eq!(code, 1);
+			assert!(
+				capture
+					.err()
+					.contains("--text mode is only supported with --untagged"),
+				"{}",
+				capture.err()
+			);
+		}
 
-        /// Failure mode: verification must accept tagged lines produced by
-        /// the compute side and exit 0.
-        #[test]
-        fn check_verifies_tagged_lines() {
-            let dir = tempfile::tempdir().unwrap();
-            fs::write(dir.path().join("data"), b"hi").unwrap();
-            fs::write(
-                dir.path().join("list"),
-                b"SHA256 (data) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n",
-            )
-            .unwrap();
-            let (code, capture) = run_util::<Cksum>(&["-c", "list"], "", dir.path());
-            assert_eq!(code, 0, "stderr: {}", capture.err());
-            assert_eq!(capture.out(), "data: OK\n");
-        }
+		/// Failure mode: verification must accept tagged lines produced by
+		/// the compute side and exit 0.
+		#[test]
+		fn check_verifies_tagged_lines() {
+			let dir = tempfile::tempdir().unwrap();
+			fs::write(dir.path().join("data"), b"hi").unwrap();
+			fs::write(
+				dir.path().join("list"),
+				b"SHA256 (data) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n",
+			)
+			.unwrap();
+			let (code, capture) = run_util::<Cksum>(&["-c", "list"], "", dir.path());
+			assert_eq!(code, 0, "stderr: {}", capture.err());
+			assert_eq!(capture.out(), "data: OK\n");
+		}
 
-        /// Failure mode: real GNU 9.x treats `-c -b` as a fatal usage error
-        /// ("meaningless when verifying checksums", exit 1, nothing
-        /// verified); the builtin must not silently verify anyway.
-        #[test]
-        fn check_with_binary_stays_fatal_like_gnu() {
-            let dir = tempfile::tempdir().unwrap();
-            fs::write(dir.path().join("data"), b"hi").unwrap();
-            fs::write(
-                dir.path().join("list"),
-                b"SHA256 (data) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n",
-            )
-            .unwrap();
-            let (code, capture) = run_util::<Cksum>(&["-c", "-b", "list"], "", dir.path());
-            assert_eq!(code, 1);
-            assert!(
-                capture
-                    .err()
-                    .contains("the --binary and --text options are meaningless when verifying checksums"),
-                "{}",
-                capture.err()
-            );
-            assert!(!capture.out().contains("OK"), "must not verify: {}", capture.out());
-        }
+		/// Failure mode: real GNU 9.x treats `-c -b` as a fatal usage error
+		/// ("meaningless when verifying checksums", exit 1, nothing
+		/// verified); the builtin must not silently verify anyway.
+		#[test]
+		fn check_with_binary_stays_fatal_like_gnu() {
+			let dir = tempfile::tempdir().unwrap();
+			fs::write(dir.path().join("data"), b"hi").unwrap();
+			fs::write(
+				dir.path().join("list"),
+				b"SHA256 (data) = 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4\n",
+			)
+			.unwrap();
+			let (code, capture) = run_util::<Cksum>(&["-c", "-b", "list"], "", dir.path());
+			assert_eq!(code, 1);
+			assert!(
+				capture.err().contains(
+					"the --binary and --text options are meaningless when verifying checksums"
+				),
+				"{}",
+				capture.err()
+			);
+			assert!(!capture.out().contains("OK"), "must not verify: {}", capture.out());
+		}
 
-        /// Failure mode: legacy algorithms cannot be verified; GNU errors out
-        /// rather than parsing the list.
-        #[test]
-        fn check_rejects_legacy_algorithms() {
-            let (code, capture) = run_util::<Cksum>(&["-a", "crc", "-c"], "", "/");
-            assert_eq!(code, 1);
-            assert!(
-                capture.err().contains("--check is not supported with --algorithm"),
-                "{}",
-                capture.err()
-            );
-        }
-    }
+		/// Failure mode: legacy algorithms cannot be verified; GNU errors out
+		/// rather than parsing the list.
+		#[test]
+		fn check_rejects_legacy_algorithms() {
+			let (code, capture) = run_util::<Cksum>(&["-a", "crc", "-c"], "", "/");
+			assert_eq!(code, 1);
+			assert!(
+				capture
+					.err()
+					.contains("--check is not supported with --algorithm"),
+				"{}",
+				capture.err()
+			);
+		}
+	}
 }
-

@@ -4,11 +4,11 @@ use super::super::NodeShape;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CornerChars {
 	/// Glyph at the upper-left corner.
-	pub top_left:     char,
+	pub top_left: char,
 	/// Glyph at the upper-right corner.
-	pub top_right:    char,
+	pub top_right: char,
 	/// Glyph at the lower-left corner.
-	pub bottom_left:  char,
+	pub bottom_left: char,
 	/// Glyph at the lower-right corner.
 	pub bottom_right: char,
 }

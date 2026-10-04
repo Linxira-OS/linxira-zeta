@@ -12,26 +12,26 @@ const NO_ID: u32 = u32::MAX;
 /// Interned words with an open-addressing string index.
 #[derive(Clone)]
 pub struct Vocab {
-	text:     String,
-	ends:     Vec<u32>,
-	base:     usize,
+	text: String,
+	ends: Vec<u32>,
+	base: usize,
 	/// Overflow ids sorted by word.
 	overflow: Vec<u32>,
 	/// Hash slots holding ids (`NO_ID` = empty).
-	index:    Vec<u32>,
-	shift:    u32,
+	index: Vec<u32>,
+	shift: u32,
 }
 
 impl Vocab {
 	/// Vocabulary whose base is `sorted` (byte order, deduplicated).
 	pub fn from_sorted<'a>(sorted: impl IntoIterator<Item = &'a str>) -> Self {
 		let mut vocab = Self {
-			text:     String::new(),
-			ends:     Vec::new(),
-			base:     0,
+			text: String::new(),
+			ends: Vec::new(),
+			base: 0,
 			overflow: Vec::new(),
-			index:    vec![NO_ID; 16],
-			shift:    60,
+			index: vec![NO_ID; 16],
+			shift: 60,
 		};
 		for word in sorted {
 			debug_assert!(vocab.ends.is_empty() || vocab.word(vocab.ends.len() as u32 - 1) < word);

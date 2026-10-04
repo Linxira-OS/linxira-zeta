@@ -117,7 +117,10 @@ impl Utility for Truncate {
 			.matches
 			.get_one::<String>(options::REFERENCE)
 			.map(String::from);
-		let size = self.matches.get_one::<String>(options::SIZE).map(String::from);
+		let size = self
+			.matches
+			.get_one::<String>(options::SIZE)
+			.map(String::from);
 
 		if let Err(error) = truncate(host, no_create, io_blocks, reference, size, &files) {
 			host.error(error, 1);
@@ -259,13 +262,11 @@ fn file_truncate(
 		return Err("division by zero".to_string());
 	};
 
-	file.set_len(truncate_size)
+	file
+		.set_len(truncate_size)
 		.and_then(|()| file.close())
 		.map_err(|error| {
-			format!(
-				"failed to truncate {} at {truncate_size} bytes: {error}",
-				filename.quote()
-			)
+			format!("failed to truncate {} at {truncate_size} bytes: {error}", filename.quote())
 		})
 }
 
@@ -281,27 +282,28 @@ fn truncate(
 		return Err("--io-blocks was specified but --size was not".to_string());
 	}
 
-	let reference_size = match reference {
-		Some(reference_path) => {
-			let resolved = host.resolve(&reference_path);
-			let reference_metadata = host.fs().metadata(&resolved).map_err(|error| {
-				match error.kind() {
-					ErrorKind::NotFound => format!(
-						"cannot stat {}: No such file or directory",
-						reference_path.quote()
-					),
+	let reference_size =
+		match reference {
+			Some(reference_path) => {
+				let resolved = host.resolve(&reference_path);
+				let reference_metadata = host.fs().metadata(&resolved).map_err(|error| match error
+					.kind()
+				{
+					ErrorKind::NotFound => {
+						format!("cannot stat {}: No such file or directory", reference_path.quote())
+					},
 					_ => error.to_string(),
-				}
-			})?;
-			Some(reference_metadata.len())
-		},
-		None => None,
-	};
+				})?;
+				Some(reference_metadata.len())
+			},
+			None => None,
+		};
 
 	// Omitting the mode is equivalent to extending a file by 0 bytes.
 	let mode = match size.as_deref() {
-		Some(string) => parse_mode_and_size(string)
-			.map_err(|error| format!("Invalid number: {error}"))?,
+		Some(string) => {
+			parse_mode_and_size(string).map_err(|error| format!("Invalid number: {error}"))?
+		},
 		None => TruncateMode::Extend(0),
 	};
 
@@ -317,8 +319,7 @@ fn truncate(
 	}
 
 	for filename in filenames {
-		if let Err(error) =
-			file_truncate(host, no_create, io_blocks, reference_size, &mode, filename)
+		if let Err(error) = file_truncate(host, no_create, io_blocks, reference_size, &mode, filename)
 		{
 			host.error(error, 1);
 		}
@@ -560,10 +561,7 @@ mod tests {
 			let (code, _, stderr) = run_in(root.clone(), &["-s", size, "missing"]);
 			assert_eq!(code, 1, "size {size} must fail");
 			assert!(stderr.contains("division by zero"), "size {size}: {stderr}");
-			assert!(
-				!root.join("missing").exists(),
-				"size {size} must not create the operand"
-			);
+			assert!(!root.join("missing").exists(), "size {size} must not create the operand");
 		}
 	}
 

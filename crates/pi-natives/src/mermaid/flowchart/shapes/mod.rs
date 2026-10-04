@@ -28,11 +28,11 @@ use state::{StateEnd, StateStart};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LabelArea {
 	/// Left edge relative to the shape canvas.
-	pub x:      i32,
+	pub x: i32,
 	/// Top edge relative to the shape canvas.
-	pub y:      i32,
+	pub y: i32,
 	/// Widest label line in terminal columns.
-	pub width:  i32,
+	pub width: i32,
 	/// Number of label lines.
 	pub height: i32,
 }
@@ -41,15 +41,15 @@ pub struct LabelArea {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ShapeDimensions {
 	/// Total canvas width, including borders.
-	pub width:        i32,
+	pub width: i32,
 	/// Total canvas height, including borders.
-	pub height:       i32,
+	pub height: i32,
 	/// Region occupied by the label.
-	pub label_area:   LabelArea,
+	pub label_area: LabelArea,
 	/// Widths of the left, center, and right logical-grid columns.
 	pub grid_columns: [i32; 3],
 	/// Heights of the top, middle, and bottom logical-grid rows.
-	pub grid_rows:    [i32; 3],
+	pub grid_rows: [i32; 3],
 }
 
 /// Display options used for shape sizing and rendering.
@@ -58,7 +58,7 @@ pub struct ShapeRenderOptions {
 	/// Select plain ASCII rather than Unicode box-drawing glyphs.
 	pub use_ascii: bool,
 	/// Blank columns and rows placed around the label.
-	pub padding:   i32,
+	pub padding: i32,
 }
 
 /// Pluggable sizing, drawing, and edge-attachment behavior for a node shape.

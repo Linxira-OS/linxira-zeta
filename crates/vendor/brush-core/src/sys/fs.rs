@@ -1,11 +1,11 @@
 //! Filesystem utilities
 
+#[cfg(windows)]
+use std::env;
 use std::{
 	borrow::Cow,
 	path::{Path, PathBuf},
 };
-#[cfg(windows)]
-use std::env;
 #[cfg(any(windows, test))]
 use std::{ffi::OsStr, path::Component};
 
@@ -205,7 +205,7 @@ fn translate_unix_tmp_path(path: &Path, temp_dir: impl FnOnce() -> PathBuf) -> O
 	let mut logical: Vec<&OsStr> = Vec::new();
 	for component in components {
 		match component {
-			Component::CurDir => {}
+			Component::CurDir => {},
 			Component::ParentDir => {
 				logical.pop();
 			},
@@ -356,11 +356,15 @@ mod tests {
 	#[test]
 	fn pattern_drive_alias_roots_report_consumed_components() {
 		assert_eq!(
-			pattern_drive_alias_root_impl(true, "", Some("d"), Some("project"), || PathBuf::from(r"C:\Temp")),
+			pattern_drive_alias_root_impl(true, "", Some("d"), Some("project"), || PathBuf::from(
+				r"C:\Temp"
+			)),
 			Some((PathBuf::from("D:/"), 2)),
 		);
 		assert_eq!(
-			pattern_drive_alias_root_impl(true, "", Some("mnt"), Some("d"), || PathBuf::from(r"C:\Temp")),
+			pattern_drive_alias_root_impl(true, "", Some("mnt"), Some("d"), || PathBuf::from(
+				r"C:\Temp"
+			)),
 			Some((PathBuf::from("D:/"), 3)),
 		);
 	}
@@ -370,11 +374,15 @@ mod tests {
 		let tmp = || PathBuf::from(r"C:\Temp");
 		assert_eq!(pattern_drive_alias_root_impl(false, "", Some("d"), Some("logs"), tmp), None);
 		assert_eq!(
-			pattern_drive_alias_root_impl(false, "", Some("mnt"), Some("d"), || PathBuf::from(r"C:\Temp")),
+			pattern_drive_alias_root_impl(false, "", Some("mnt"), Some("d"), || PathBuf::from(
+				r"C:\Temp"
+			)),
 			None,
 		);
 		assert_eq!(
-			pattern_drive_alias_root_impl(true, "", Some("mnt"), Some("data"), || PathBuf::from(r"C:\Temp")),
+			pattern_drive_alias_root_impl(true, "", Some("mnt"), Some("data"), || PathBuf::from(
+				r"C:\Temp"
+			)),
 			None,
 		);
 	}

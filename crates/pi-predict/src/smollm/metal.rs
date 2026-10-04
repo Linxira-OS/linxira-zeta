@@ -41,18 +41,18 @@ fn project(w: &QMatMul, x: &Tensor) -> candle_core::Result<Tensor> {
 struct Layer {
 	attn_norm: Tensor,
 	/// `[q; k; v]` fused into one `[hidden + 2·kv, hidden]` matrix.
-	qkv:       QMatMul,
-	out:       QMatMul,
-	mlp_norm:  Tensor,
+	qkv: QMatMul,
+	out: QMatMul,
+	mlp_norm: Tensor,
 	/// `[gate; up]` fused into one `[2·inter, hidden]` matrix.
-	gate_up:   QMatMul,
-	down:      QMatMul,
+	gate_up: QMatMul,
+	down: QMatMul,
 }
 
 /// Per layer `[1, kv_heads, capacity, head_dim]`.
 struct KvCache {
-	keys:     Vec<Tensor>,
-	values:   Vec<Tensor>,
+	keys: Vec<Tensor>,
+	values: Vec<Tensor>,
 	capacity: usize,
 }
 
@@ -64,18 +64,18 @@ pub struct MetalLlama {
 	config: LlamaConfig,
 	device: Device,
 	/// Token embedding for lookups.
-	embed:  Tensor,
+	embed: Tensor,
 	/// Tied LM head (the embedding as a projection).
-	head:   QMatMul,
+	head: QMatMul,
 	layers: Vec<Layer>,
-	norm:   Tensor,
-	cos:    Tensor,
-	sin:    Tensor,
-	cache:  KvCache,
-	len:    usize,
+	norm: Tensor,
+	cos: Tensor,
+	sin: Tensor,
+	cache: KvCache,
+	len: usize,
 	/// Keys then values per layer appended by the last forward,
 	/// `[1, kv_heads, n, head_dim]` each (fresh tensors, never written again).
-	fresh:  Vec<Tensor>,
+	fresh: Vec<Tensor>,
 }
 
 impl MetalLlama {
@@ -114,11 +114,11 @@ impl MetalLlama {
 			};
 			layers.push(Layer {
 				attn_norm: dense(attn_norm, &[h])?,
-				qkv:       project(&[Proj::Q, Proj::K, Proj::V])?,
-				out:       project(&[Proj::Out])?,
-				mlp_norm:  dense(mlp_norm, &[h])?,
-				gate_up:   project(&[Proj::Gate, Proj::Up])?,
-				down:      project(&[Proj::Down])?,
+				qkv: project(&[Proj::Q, Proj::K, Proj::V])?,
+				out: project(&[Proj::Out])?,
+				mlp_norm: dense(mlp_norm, &[h])?,
+				gate_up: project(&[Proj::Gate, Proj::Up])?,
+				down: project(&[Proj::Down])?,
 			});
 		}
 		let norm = dense(weights.output_norm()?, &[h])?;

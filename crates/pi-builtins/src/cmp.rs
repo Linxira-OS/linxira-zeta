@@ -6,9 +6,7 @@ use std::{
 	ffi::{OsStr, OsString},
 	io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Write},
 	path::Path,
-	sync::{
-		atomic::{AtomicBool, Ordering},
-	},
+	sync::atomic::{AtomicBool, Ordering},
 };
 
 use brush_core::{ShellExtensions, builtins::Registration};
@@ -34,14 +32,14 @@ const BUFFER_SIZE: usize = 64 * 1024;
 #[derive(Clone, Copy)]
 struct Options {
 	print_bytes: bool,
-	verbose:     bool,
-	quiet:       bool,
-	hex:         bool,
-	no_follow:   bool,
-	size_first:  bool,
-	limit:       Option<u64>,
-	skip1:       u64,
-	skip2:       u64,
+	verbose: bool,
+	quiet: bool,
+	hex: bool,
+	no_follow: bool,
+	size_first: bool,
+	limit: Option<u64>,
+	skip1: u64,
+	skip2: u64,
 }
 
 enum InputReader<'a> {
@@ -66,14 +64,17 @@ impl InputReader<'_> {
 			return Ok(());
 		}
 		match self {
-			Self::File(file) => {
-				match file.seek(SeekFrom::Start(count)) {
-					Ok(_) => {},
-					Err(error) if matches!(error.kind(), io::ErrorKind::Unsupported | io::ErrorKind::NotSeekable) => {
-						io::copy(&mut file.take(count), &mut io::sink())?;
-					},
-					Err(error) => return Err(error),
-				}
+			Self::File(file) => match file.seek(SeekFrom::Start(count)) {
+				Ok(_) => {},
+				Err(error)
+					if matches!(
+						error.kind(),
+						io::ErrorKind::Unsupported | io::ErrorKind::NotSeekable
+					) =>
+				{
+					io::copy(&mut file.take(count), &mut io::sink())?;
+				},
+				Err(error) => return Err(error),
 			},
 			Self::Bytes(bytes) => {
 				let length = u64::try_from(bytes.get_ref().len()).unwrap_or(u64::MAX);
@@ -88,7 +89,7 @@ impl InputReader<'_> {
 }
 
 struct Input<'a> {
-	reader:      BufReader<InputReader<'a>>,
+	reader: BufReader<InputReader<'a>>,
 	regular_len: Option<u64>,
 }
 
@@ -345,12 +346,17 @@ fn parse_count(value: &str) -> Result<u64, String> {
 
 fn stdin_input(stdin: &mut Stdin) -> Input<'_> {
 	Input {
-		reader:      BufReader::with_capacity(BUFFER_SIZE, InputReader::Stdin(stdin)),
+		reader: BufReader::with_capacity(BUFFER_SIZE, InputReader::Stdin(stdin)),
 		regular_len: None,
 	}
 }
 
-fn open_input<'a>(fs: &BlockingFs, name: &OsStr, path: &Path, no_follow: bool) -> Result<Input<'a>, String> {
+fn open_input<'a>(
+	fs: &BlockingFs,
+	name: &OsStr,
+	path: &Path,
+	no_follow: bool,
+) -> Result<Input<'a>, String> {
 	let metadata = if no_follow {
 		fs.symlink_metadata(path)
 	} else {
@@ -360,7 +366,7 @@ fn open_input<'a>(fs: &BlockingFs, name: &OsStr, path: &Path, no_follow: bool) -
 	if no_follow && metadata.file_type().is_symlink() {
 		let target = fs.read_link(path).map_err(|err| input_error(name, &err))?;
 		return Ok(Input {
-			reader:      BufReader::with_capacity(
+			reader: BufReader::with_capacity(
 				BUFFER_SIZE,
 				InputReader::Bytes(Cursor::new(target.as_os_str().as_encoded_bytes().to_vec())),
 			),
@@ -390,13 +396,8 @@ fn compare_inputs(
 		&& len1 != len2
 	{
 		if !options.quiet {
-			writeln!(
-				stdout,
-				"{} {} differ: size",
-				display_name(name1),
-				display_name(name2)
-			)
-			.map_err(io_message)?;
+			writeln!(stdout, "{} {} differ: size", display_name(name1), display_name(name2))
+				.map_err(io_message)?;
 		}
 		return Ok(1);
 	}
@@ -454,13 +455,8 @@ fn compare_readers(
 			different = true;
 			if !options.quiet {
 				let eof_name = if left.is_empty() { name1 } else { name2 };
-				writeln!(
-					stderr,
-					"cmp: EOF on {} after byte {}",
-					display_name(eof_name),
-					compared
-				)
-				.map_err(io_message)?;
+				writeln!(stderr, "cmp: EOF on {} after byte {}", display_name(eof_name), compared)
+					.map_err(io_message)?;
 			}
 			break;
 		}

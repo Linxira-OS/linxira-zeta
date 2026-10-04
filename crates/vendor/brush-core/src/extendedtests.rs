@@ -113,12 +113,12 @@ pub(crate) async fn apply_unary_predicate_to_str(
 		ast::UnaryPredicate::FileExistsAndIsCharSpecialFile => Ok(file_metadata(shell, operand)
 			.await
 			.is_some_and(|md| md.file_type().is_char_device())),
-		ast::UnaryPredicate::FileExistsAndIsDir => {
-			Ok(file_metadata(shell, operand).await.is_some_and(|md| md.is_dir()))
-		},
-		ast::UnaryPredicate::FileExistsAndIsRegularFile => {
-			Ok(file_metadata(shell, operand).await.is_some_and(|md| md.is_file()))
-		},
+		ast::UnaryPredicate::FileExistsAndIsDir => Ok(file_metadata(shell, operand)
+			.await
+			.is_some_and(|md| md.is_dir())),
+		ast::UnaryPredicate::FileExistsAndIsRegularFile => Ok(file_metadata(shell, operand)
+			.await
+			.is_some_and(|md| md.is_file())),
 		ast::UnaryPredicate::FileExistsAndIsSetgid => Ok(file_metadata(shell, operand)
 			.await
 			.is_some_and(|md| md.mode() & S_ISGID != 0)),
@@ -135,9 +135,9 @@ pub(crate) async fn apply_unary_predicate_to_str(
 		ast::UnaryPredicate::FileExistsAndIsReadable => {
 			Ok(file_accessible(shell, operand, true, false).await)
 		},
-		ast::UnaryPredicate::FileExistsAndIsNotZeroLength => {
-			Ok(file_metadata(shell, operand).await.is_some_and(|md| md.len() > 0))
-		},
+		ast::UnaryPredicate::FileExistsAndIsNotZeroLength => Ok(file_metadata(shell, operand)
+			.await
+			.is_some_and(|md| md.len() > 0)),
 		ast::UnaryPredicate::FdIsOpenTerminal => {
 			// Trim whitespace before parsing, matching bash behavior.
 			if let Ok(fd) = operand.trim().parse::<ShellFd>() {

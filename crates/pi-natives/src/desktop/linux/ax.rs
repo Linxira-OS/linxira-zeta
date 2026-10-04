@@ -9,7 +9,7 @@ use crate::desktop::{
 };
 
 pub struct AtSpiAx {
-	rt:         Runtime,
+	rt: Runtime,
 	connection: atspi::AccessibilityConnection,
 }
 
@@ -20,7 +20,7 @@ pub struct AtSpiAx {
 /// (usually `0,0`). Consumers that map `window` bounds onto a desktop capture
 /// (the Wayland window crop) must refuse when `position_known` is false.
 pub struct AtSpiWindow {
-	pub window:         DesktopWindow,
+	pub window: DesktopWindow,
 	/// Screen and window-relative origins differ, so `window.x`/`window.y` are
 	/// global compositor coordinates. False also covers a window genuinely at
 	/// the global origin, which is indistinguishable over AT-SPI.
@@ -456,9 +456,9 @@ impl AxBackend for AtSpiAx {
 					.ok()
 					.and_then(|(x, y, width, height)| {
 						(width >= 0 && height >= 0).then_some(AxBounds {
-							x:      f64::from(x),
-							y:      f64::from(y),
-							width:  f64::from(width),
+							x: f64::from(x),
+							y: f64::from(y),
+							width: f64::from(width),
 							height: f64::from(height),
 						})
 					})
@@ -792,14 +792,14 @@ mod tests {
 	#[test]
 	fn frame_ownership_requires_unique_process_and_title() {
 		let window = |id: &str, pid: u32| DesktopWindow {
-			id:      id.to_owned(),
-			pid:     Some(pid),
-			title:   "Document".into(),
-			app:     "Editor".into(),
-			x:       0,
-			y:       0,
-			width:   100,
-			height:  100,
+			id: id.to_owned(),
+			pid: Some(pid),
+			title: "Document".into(),
+			app: "Editor".into(),
+			x: 0,
+			y: 0,
+			width: 100,
+			height: 100,
 			focused: false,
 		};
 		let mut windows = vec![window("1", 10), window("2", 20)];
@@ -818,7 +818,7 @@ mod tests {
 		/// Minimal `org.a11y.atspi.Accessible` node: a state set plus `(name,
 		/// path)` children.
 		struct Node {
-			state:    Vec<u32>,
+			state: Vec<u32>,
 			children: Vec<(String, OwnedObjectPath)>,
 		}
 
@@ -840,7 +840,7 @@ mod tests {
 		let found = rt.block_on(async {
 			let (client, server) = tokio::net::UnixStream::pair().unwrap();
 			let root = Node {
-				state:    vec![0, 0],
+				state: vec![0, 0],
 				// Chromium frames report children that are all the AT-SPI null object.
 				children: vec![
 					(PEER.to_owned(), path("/org/a11y/atspi/null")),

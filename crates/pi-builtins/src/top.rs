@@ -162,16 +162,16 @@ pub(crate) struct TopCommand {
 
 #[derive(Clone)]
 struct TopProcessRow {
-	pid:           i32,
-	user:          Option<u32>,
-	state:         char,
-	cpu_percent:   f64,
-	cpu_time:      Option<Duration>,
-	virtual_size:  Option<u64>,
+	pid: i32,
+	user: Option<u32>,
+	state: char,
+	cpu_percent: f64,
+	cpu_time: Option<Duration>,
+	virtual_size: Option<u64>,
 	resident_size: Option<u64>,
-	threads:       Option<u32>,
-	nice:          Option<i32>,
-	command:       String,
+	threads: Option<u32>,
+	nice: Option<i32>,
+	command: String,
 }
 
 /// Long option names `top` accepts with a macOS-style single dash.
@@ -583,39 +583,37 @@ mod tests {
 		)
 		.expect("macOS-style flags must parse");
 		assert_eq!(cmd.pids, vec![56943, 101]);
-		assert_eq!(cmd.stats, vec![
-			TopStat::Pid,
-			TopStat::Cpu,
-			TopStat::Threads,
-			TopStat::Res,
-			TopStat::State
-		]);
+		assert_eq!(
+			cmd.stats,
+			vec![TopStat::Pid, TopStat::Cpu, TopStat::Threads, TopStat::Res, TopStat::State]
+		);
 	}
 
 	#[test]
 	fn snapshot_renders_selected_stats_in_order() {
 		let rows = vec![row(42, "worker", 12.3, 4096, 61)];
-		let output = render_top_snapshot(&rows, None, 1, &[
-			TopStat::Pid,
-			TopStat::Cpu,
-			TopStat::Threads,
-			TopStat::Res,
-			TopStat::State,
-		]);
+		let output = render_top_snapshot(
+			&rows,
+			None,
+			1,
+			&[TopStat::Pid, TopStat::Cpu, TopStat::Threads, TopStat::Res, TopStat::State],
+		);
 		let header = output
 			.lines()
 			.find(|line| line.contains("PID"))
 			.expect("header line");
-		assert_eq!(header.split_whitespace().collect::<Vec<_>>(), vec![
-			"PID", "%CPU", "TH", "RES", "S"
-		]);
+		assert_eq!(
+			header.split_whitespace().collect::<Vec<_>>(),
+			vec!["PID", "%CPU", "TH", "RES", "S"]
+		);
 		let row_line = output
 			.lines()
 			.find(|line| line.contains("42"))
 			.expect("process row");
-		assert_eq!(row_line.split_whitespace().collect::<Vec<_>>(), vec![
-			"42", "12.3", "2", "4.0k", "S"
-		]);
+		assert_eq!(
+			row_line.split_whitespace().collect::<Vec<_>>(),
+			vec!["42", "12.3", "2", "4.0k", "S"]
+		);
 		assert!(!output.contains("worker"));
 	}
 }

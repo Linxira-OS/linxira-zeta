@@ -10,39 +10,39 @@
 /// One element of a `patch` `edits[]` array or a `replace` batch entry.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EditEntry {
-	pub op:          Option<String>,
-	pub rename:      Option<String>,
-	pub diff:        Option<String>,
-	pub old_string:  Option<String>,
-	pub new_string:  Option<String>,
+	pub op: Option<String>,
+	pub rename: Option<String>,
+	pub diff: Option<String>,
+	pub old_string: Option<String>,
+	pub new_string: Option<String>,
 	pub replace_all: Option<bool>,
 	/// False while the element's closing `}` has not arrived.
-	pub closed:      bool,
+	pub closed: bool,
 }
 
 /// Typed projection of the (possibly partial) arguments.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ArgSnapshot {
-	pub path:        Option<String>,
+	pub path: Option<String>,
 	/// `input` (or `_input`) text payload; the whole buffer when `raw_input`.
-	pub input:       Option<String>,
-	pub old_string:  Option<String>,
-	pub new_string:  Option<String>,
+	pub input: Option<String>,
+	pub old_string: Option<String>,
+	pub new_string: Option<String>,
 	pub replace_all: Option<bool>,
-	pub edits:       Vec<EditEntry>,
+	pub edits: Vec<EditEntry>,
 	/// True when an `edits` key was present (even if still empty).
-	pub has_edits:   bool,
+	pub has_edits: bool,
 	/// True once the buffer parses as complete JSON (every bracket and
 	/// string closed) or the stream was finished.
-	pub complete:    bool,
+	pub complete: bool,
 }
 
 /// Accumulates raw argument deltas.
 #[derive(Debug, Clone, Default)]
 pub struct ArgStream {
-	buf:       String,
+	buf: String,
 	raw_input: bool,
-	finished:  bool,
+	finished: bool,
 }
 
 impl ArgStream {
@@ -113,15 +113,15 @@ pub fn snapshot_from_text(text: &str, raw_input: bool, finished: bool) -> ArgSna
 		.filter_map(serde_json::Value::as_object)
 		.enumerate()
 		.map(|(index, entry)| EditEntry {
-			op:          string_field(entry, "op"),
-			rename:      string_field(entry, "rename"),
-			diff:        string_field(entry, "diff"),
-			old_string:  string_field(entry, "old_string"),
-			new_string:  string_field(entry, "new_string"),
+			op: string_field(entry, "op"),
+			rename: string_field(entry, "rename"),
+			diff: string_field(entry, "diff"),
+			old_string: string_field(entry, "old_string"),
+			new_string: string_field(entry, "new_string"),
 			replace_all: entry
 				.get("replace_all")
 				.and_then(serde_json::Value::as_bool),
-			closed:      closed.get(index).copied().unwrap_or(false),
+			closed: closed.get(index).copied().unwrap_or(false),
 		})
 		.collect();
 
@@ -169,12 +169,12 @@ fn string_field(object: &serde_json::Map<String, serde_json::Value>, key: &str) 
 
 struct RepairParser<'a> {
 	source: &'a str,
-	bytes:  &'a [u8],
-	pos:    usize,
+	bytes: &'a [u8],
+	pos: usize,
 }
 
 struct RepairedString {
-	json:     String,
+	json: String,
 	complete: bool,
 }
 

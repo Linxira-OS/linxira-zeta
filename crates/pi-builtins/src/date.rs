@@ -60,7 +60,10 @@ mod format_modifiers {
 				// pi-uutils: literalized en-US translation of
 				// `date-error-format-modifier-width-too-large`.
 				Self::FieldWidthTooLarge { width, specifier } => {
-					write!(f, "format modifier width '{width}' is too large for specifier '%{specifier}'")
+					write!(
+						f,
+						"format modifier width '{width}' is too large for specifier '%{specifier}'"
+					)
 				},
 			}
 		}
@@ -422,12 +425,19 @@ mod format_modifiers {
 		width: usize,
 		specifier: &str,
 	) -> Result<String, FormatError> {
-		let target_len = current_len
-			.checked_add(padding)
-			.ok_or_else(|| FormatError::FieldWidthTooLarge { width, specifier: specifier.to_string() })?;
+		let target_len =
+			current_len
+				.checked_add(padding)
+				.ok_or_else(|| FormatError::FieldWidthTooLarge {
+					width,
+					specifier: specifier.to_string(),
+				})?;
 		let mut s = String::new();
 		s.try_reserve(target_len)
-			.map_err(|_| FormatError::FieldWidthTooLarge { width, specifier: specifier.to_string() })?;
+			.map_err(|_| FormatError::FieldWidthTooLarge {
+				width,
+				specifier: specifier.to_string(),
+			})?;
 		Ok(s)
 	}
 
@@ -600,7 +610,10 @@ mod format_modifiers {
 			let config = get_config();
 
 			let result = format_with_modifiers(&date, "%_5s", &config).unwrap();
-			assert_eq!(result, "  -22", "Space padding should pad before the sign for negative numbers");
+			assert_eq!(
+				result, "  -22",
+				"Space padding should pad before the sign for negative numbers"
+			);
 		}
 
 		// Unit tests for apply_modifiers function
@@ -758,14 +771,6 @@ mod format_modifiers {
 	}
 }
 
-use std::{
-	borrow::Cow,
-	collections::HashMap,
-	ffi::OsString,
-	io::{self, BufRead, BufReader, Read, Write},
-	path::{Path, PathBuf},
-	sync::LazyLock,
-};
 #[cfg(any(
 	target_os = "linux",
 	target_vendor = "apple",
@@ -775,7 +780,14 @@ use std::{
 	target_os = "dragonfly",
 ))]
 use std::ffi::{CStr, CString};
-
+use std::{
+	borrow::Cow,
+	collections::HashMap,
+	ffi::OsString,
+	io::{self, BufRead, BufReader, Read, Write},
+	path::{Path, PathBuf},
+	sync::LazyLock,
+};
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use jiff::{
@@ -812,10 +824,10 @@ const OPT_BSD_PARSE_ONLY: &str = "bsd-parse-only";
 
 /// Settings for this program, parsed from the command line
 struct Settings {
-	utc:         bool,
-	format:      Format,
+	utc: bool,
+	format: Format,
 	date_source: DateSource,
-	debug:       bool,
+	debug: bool,
 	default_format: String,
 }
 
@@ -823,7 +835,7 @@ struct Settings {
 #[derive(Clone, Copy)]
 struct DebugOptions {
 	/// Enable debug output
-	debug:         bool,
+	debug: bool,
 	/// Warn when midnight is used without explicit time specification
 	warn_midnight: bool,
 }
@@ -852,7 +864,10 @@ enum DateSource {
 	Stdin,
 	Human(String),
 	/// BSD `date -j -f FMT VALUE`: VALUE parsed with the strptime format FMT.
-	Strptime { format: String, value: String },
+	Strptime {
+		format: String,
+		value: String,
+	},
 	Resolution,
 }
 
@@ -1218,8 +1233,8 @@ fn apply_bsd_adjustments(mut date: Zoned, adjustments: &[BsdAdjustment]) -> Resu
 							69..=99 => value + 1900,
 							_ => value,
 						};
-						let year = i16::try_from(year)
-							.map_err(|_| format!("invalid adjustment: '{value}y'"))?;
+						let year =
+							i16::try_from(year).map_err(|_| format!("invalid adjustment: '{value}y'"))?;
 						with.year(year)
 					},
 					BsdAdjustUnit::Month => with.month(narrow('m')?),
@@ -1249,8 +1264,9 @@ fn apply_bsd_adjustments(mut date: Zoned, adjustments: &[BsdAdjustment]) -> Resu
 /// matching BSD `date`, which seeds the broken-down time from
 /// `localtime(now)` before calling strptime(3).
 fn parse_bsd_strptime(format: &str, value: &str, now: &Zoned) -> Result<Zoned, String> {
-	let convert_error =
-		|error: jiff::Error| format!("failed conversion of '{value}' using format '{format}' ({error})");
+	let convert_error = |error: jiff::Error| {
+		format!("failed conversion of '{value}' using format '{format}' ({error})")
+	};
 	let broken = BrokenDownTime::parse(format, value).map_err(convert_error)?;
 	// `%s` (or a complete civil datetime plus an offset) pins an instant.
 	if let Ok(timestamp) = broken.to_timestamp() {
@@ -1271,7 +1287,9 @@ fn parse_bsd_strptime(format: &str, value: &str, now: &Zoned) -> Result<Zoned, S
 		broken.hour().unwrap_or(base.hour()),
 		broken.minute().unwrap_or(base.minute()),
 		broken.second().unwrap_or(base.second()),
-		broken.subsec_nanosecond().unwrap_or(base.subsec_nanosecond()),
+		broken
+			.subsec_nanosecond()
+			.unwrap_or(base.subsec_nanosecond()),
 	)
 	.map_err(convert_error)?;
 	date
@@ -1279,7 +1297,6 @@ fn parse_bsd_strptime(format: &str, value: &str, now: &Zoned) -> Result<Zoned, S
 		.to_zoned(now.time_zone().clone())
 		.map_err(convert_error)
 }
-
 
 /// Parsed `date` invocation.
 pub(crate) struct Date {
@@ -1290,7 +1307,7 @@ matches_parser!(Date, uu_app);
 
 #[derive(Debug)]
 struct DateError {
-	code:    i32,
+	code: i32,
 	message: String,
 }
 
@@ -1397,8 +1414,6 @@ fn locale_default_format(_locale: &str) -> Option<String> {
 	None
 }
 
-
-
 #[allow(clippy::cognitive_complexity)]
 fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 	let bsd_parse_only = matches.get_flag(OPT_BSD_PARSE_ONLY);
@@ -1427,7 +1442,10 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 		None
 	};
 	let strptime_value = if strptime_format.is_some() {
-		if operands.first().is_some_and(|operand| !operand.starts_with('+')) {
+		if operands
+			.first()
+			.is_some_and(|operand| !operand.starts_with('+'))
+		{
 			Some(operands.remove(0))
 		} else {
 			return Err(DateError::new(1, "'-j -f FORMAT' requires a date operand to parse"));
@@ -1522,13 +1540,8 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 	});
 	if let Some(input) = matches.get_one::<String>(OPT_SET) {
 		let mut error = host.stderr_clone();
-		let date = parse_date(
-			input,
-			&now,
-			DebugOptions::new(debug_mode, true),
-			&mut error,
-		)
-		.map_err(|(input, _)| DateError::new(1, format!("invalid date '{input}'")))?;
+		let date = parse_date(input, &now, DebugOptions::new(debug_mode, true), &mut error)
+			.map_err(|(input, _)| DateError::new(1, format!("invalid date '{input}'")))?;
 		return set_system_datetime(date);
 	}
 
@@ -1588,17 +1601,10 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 					format!("{date_part} 00:00 {offset}")
 				};
 				if settings.debug {
-					let _ = writeln!(
-						host.stderr,
-						"date: warning: using midnight as starting time: 00:00:00"
-					);
+					let _ =
+						writeln!(host.stderr, "date: warning: using midnight as starting time: 00:00:00");
 				}
-				parse_date(
-					composed,
-					&now,
-					DebugOptions::new(settings.debug, false),
-					&mut debug_stderr,
-				)
+				parse_date(composed, &now, DebugOptions::new(settings.debug, false), &mut debug_stderr)
 			} else if let Some((total_hours, day_delta)) = military_tz_with_offset {
 				// Military timezone with optional hour offset
 				// Convert to UTC time: midnight + military_tz_offset + additional_hours
@@ -1619,12 +1625,7 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 					DayDelta::Previous => format_date_with_epoch_fallback(now.yesterday()),
 				};
 				let composed = format!("{date_part} {total_hours:02}:00:00 +00:00");
-				parse_date(
-					composed,
-					&now,
-					DebugOptions::new(settings.debug, false),
-					&mut debug_stderr,
-				)
+				parse_date(composed, &now, DebugOptions::new(settings.debug, false), &mut debug_stderr)
 			} else if is_pure_digits {
 				// Derive HH and MM from the input
 				let (hh_opt, mm_opt) = if input.len() <= 2 {
@@ -1658,20 +1659,10 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 					)
 				} else {
 					// Fallback on parse failure of digits
-					parse_date(
-						input,
-						&now,
-						DebugOptions::new(settings.debug, true),
-						&mut debug_stderr,
-					)
+					parse_date(input, &now, DebugOptions::new(settings.debug, true), &mut debug_stderr)
 				}
 			} else {
-				parse_date(
-					input,
-					&now,
-					DebugOptions::new(settings.debug, true),
-					&mut debug_stderr,
-				)
+				parse_date(input, &now, DebugOptions::new(settings.debug, true), &mut debug_stderr)
 			};
 
 			let iter = std::iter::once(date);
@@ -1695,12 +1686,7 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 			let file = host.fs().open(&resolved).map_err(|error| {
 				DateError::new(1, format!("{}: {error}", path.as_os_str().maybe_quote()))
 			})?;
-			parse_dates_from_reader(
-				file,
-				&now,
-				DebugOptions::new(settings.debug, true),
-				reader_stderr,
-			)
+			parse_dates_from_reader(file, &now, DebugOptions::new(settings.debug, true), reader_stderr)
 		},
 		DateSource::FileMtime(path) => {
 			// directory; `path` is kept for display.
@@ -1764,16 +1750,16 @@ fn date_main(host: &mut Host, matches: &ArgMatches) -> Result<(), DateError> {
 						.map_err(|e| DateError::new(1, format!("write error: {e}")))?,
 					Err(e) => {
 						let _ = stdout.flush();
-						return Err(DateError::new(
-							1,
-							format!("invalid format '{format_string}' ({e})"),
-						));
+						return Err(DateError::new(1, format!("invalid format '{format_string}' ({e})")));
 					},
 				}
 			},
 			Err((input, _err)) => {
 				// A departed reader ends the run; the host maps it to SIGPIPE.
-				if stdout.flush().is_err_and(|e| e.kind() == io::ErrorKind::BrokenPipe) {
+				if stdout
+					.flush()
+					.is_err_and(|e| e.kind() == io::ErrorKind::BrokenPipe)
+				{
 					return Ok(());
 				}
 				// context stderr, record the failure exit code, and keep
@@ -2261,8 +2247,7 @@ mod tests {
 
 	#[test]
 	fn formats_an_explicit_timestamp_in_utc() {
-		let (code, capture) =
-			run_util::<Date>(&["-u", "--date", "@0", "+%F %T %z"], "", "/");
+		let (code, capture) = run_util::<Date>(&["-u", "--date", "@0", "+%F %T %z"], "", "/");
 
 		assert_eq!(code, 0);
 		assert_eq!(capture.out(), "1970-01-01 00:00:00 +0000\n");
@@ -2293,26 +2278,22 @@ mod tests {
 		assert_eq!(capture.err(), "");
 	}
 
-
 	#[test]
 	fn parses_relative_abbreviation_against_pinned_now() {
 		let now = "2025-03-15T20:00:00+00:00[UTC]".parse::<Zoned>().unwrap();
 		let mut error = Vec::new();
-		let result = parse_date(
-			"yesterday 10:00 GMT",
-			&now,
-			DebugOptions::new(false, false),
-			&mut error,
-		)
-		.unwrap();
-
+		let result =
+			parse_date("yesterday 10:00 GMT", &now, DebugOptions::new(false, false), &mut error)
+				.unwrap();
 
 		assert_eq!(result.date(), jiff::civil::date(2025, 3, 14));
 		assert!(error.is_empty());
 	}
 	#[test]
 	fn uses_shell_locale_for_default_format() {
-		let matches = uu_app().try_get_matches_from(["date", "--date", "@0"]).unwrap();
+		let matches = uu_app()
+			.try_get_matches_from(["date", "--date", "@0"])
+			.unwrap();
 		let (mut host, capture) = Host::for_test("date", "", "/");
 		host.set_test_var("TZ", "UTC");
 		host.set_test_var("LC_ALL", "C");
@@ -2352,11 +2333,8 @@ mod tests {
 		let file = dir.join("1700000000");
 		std::fs::write(&file, b"x").unwrap();
 
-		let (code, capture) = run_util::<Date>(
-			&["-u", "-r", "1700000000", "+%s"],
-			"",
-			dir.to_str().unwrap(),
-		);
+		let (code, capture) =
+			run_util::<Date>(&["-u", "-r", "1700000000", "+%s"], "", dir.to_str().unwrap());
 		let mtime = std::fs::metadata(&file).unwrap().modified().unwrap();
 		let expected = Timestamp::try_from(mtime).unwrap().as_second();
 		std::fs::remove_dir_all(&dir).unwrap();
@@ -2369,11 +2347,8 @@ mod tests {
 	/// order instead of being rejected as unknown options.
 	#[test]
 	fn bsd_adjustments_apply_in_order() {
-		let (code, capture) = run_util::<Date>(
-			&["-u", "-r", "1700000000", "-v+1d", "-v-2m", "+%F %T"],
-			"",
-			"/",
-		);
+		let (code, capture) =
+			run_util::<Date>(&["-u", "-r", "1700000000", "-v+1d", "-v-2m", "+%F %T"], "", "/");
 
 		assert_eq!(code, 0);
 		assert_eq!(capture.out(), "2023-09-15 22:13:20\n");
@@ -2384,11 +2359,8 @@ mod tests {
 	/// of the month) rather than offsetting.
 	#[test]
 	fn bsd_adjustment_sets_fields_absolutely() {
-		let (code, capture) = run_util::<Date>(
-			&["-u", "-r", "1700000000", "-v1d", "-v5H", "+%F %T"],
-			"",
-			"/",
-		);
+		let (code, capture) =
+			run_util::<Date>(&["-u", "-r", "1700000000", "-v1d", "-v5H", "+%F %T"], "", "/");
 
 		assert_eq!(code, 0);
 		assert_eq!(capture.out(), "2023-11-01 05:13:20\n");
@@ -2439,11 +2411,7 @@ mod tests {
 		let (code, capture) = run_util::<Date>(&["-j", "-f", "%Y", "+%F"], "", "/");
 
 		assert_eq!(code, 1);
-		assert!(
-			capture.err().contains("requires a date operand"),
-			"stderr: {}",
-			capture.err()
-		);
+		assert!(capture.err().contains("requires a date operand"), "stderr: {}", capture.err());
 	}
 
 	/// Defends: bare `-j` parses as a no-op (never sets the clock) instead of
@@ -2499,7 +2467,10 @@ mod tests {
 			rewrite_date_argv(argv(&["date", "-I", "+%s"])),
 			argv(&["date", "--iso-8601=date", "+%s"])
 		);
-		assert_eq!(rewrite_date_argv(argv(&["date", "-Ihours"])), argv(&["date", "--iso-8601=hours"]));
+		assert_eq!(
+			rewrite_date_argv(argv(&["date", "-Ihours"])),
+			argv(&["date", "--iso-8601=hours"])
+		);
 		assert_eq!(
 			rewrite_date_argv(argv(&["date", "--iso-8601", "+%s"])),
 			argv(&["date", "--iso-8601=date", "+%s"])
@@ -2546,10 +2517,8 @@ fn set_system_datetime(date: Zoned) -> Result<(), DateError> {
 	use rustix::time::{ClockId, Timespec, clock_settime};
 
 	let timestamp = date.timestamp();
-	let timespec = Timespec {
-		tv_sec:  timestamp.as_second() as _,
-		tv_nsec: timestamp.subsec_nanosecond() as _,
-	};
+	let timespec =
+		Timespec { tv_sec: timestamp.as_second() as _, tv_nsec: timestamp.subsec_nanosecond() as _ };
 	clock_settime(ClockId::Realtime, timespec)
 		.map_err(std::io::Error::from)
 		.map_err(|error| DateError::new(1, format!("cannot set date: {error}")))
@@ -2557,12 +2526,8 @@ fn set_system_datetime(date: Zoned) -> Result<(), DateError> {
 
 #[cfg(not(unix))]
 fn set_system_datetime(_date: Zoned) -> Result<(), DateError> {
-	Err(DateError::new(
-		1,
-		"--set is not supported by the in-process builtin",
-	))
+	Err(DateError::new(1, "--set is not supported by the in-process builtin"))
 }
-
 
 #[cfg(all(unix, target_os = "redox"))]
 fn get_clock_resolution() -> Timestamp {
@@ -2580,7 +2545,6 @@ fn get_clock_resolution() -> Timestamp {
 	// https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-filetime
 	Timestamp::constant(0, 100)
 }
-
 
 /// Creates the `date` builtin registration.
 pub(crate) fn date_builtin<SE: ShellExtensions>() -> Registration<SE> {

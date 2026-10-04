@@ -40,7 +40,7 @@ const THREAD_STOPPED: &str = "native spelling thread stopped";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SpellingRange {
 	/// Inclusive UTF-16 start offset.
-	pub start:  u32,
+	pub start: u32,
 	/// UTF-16 length of the span.
 	pub length: u32,
 }
@@ -92,7 +92,7 @@ pub fn run_blocking<T: Send + 'static>(
 fn ns_range(start: u32, length: u32) -> anyhow::Result<NSRange> {
 	Ok(NSRange {
 		location: usize::try_from(start).context("spelling range start is too large")?,
-		length:   usize::try_from(length).context("spelling range length is too large")?,
+		length: usize::try_from(length).context("spelling range length is too large")?,
 	})
 }
 
@@ -134,7 +134,7 @@ pub fn check(text: &str) -> anyhow::Result<Vec<SpellingRange>> {
 			continue;
 		}
 		ranges.push(SpellingRange {
-			start:  u32::try_from(range.location).context("spelling range start is too large")?,
+			start: u32::try_from(range.location).context("spelling range start is too large")?,
 			length: u32::try_from(range.length).context("spelling range length is too large")?,
 		});
 	}

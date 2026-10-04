@@ -150,8 +150,9 @@ fn inspect_input(input: &str) -> Inspection {
 			if let Ok(Some(op)) = section.file_op() {
 				match op {
 					FileOp::Rem => file_ops.push(FileOpIntent::Delete { path: section.path.clone() }),
-					FileOp::Move { dest } => file_ops
-						.push(FileOpIntent::Move { from: section.path.clone(), to: dest.clone() }),
+					FileOp::Move { dest } => {
+						file_ops.push(FileOpIntent::Move { from: section.path.clone(), to: dest.clone() });
+					},
 				}
 			}
 		}

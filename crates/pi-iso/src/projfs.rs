@@ -286,29 +286,29 @@ mod imp {
 	}
 
 	struct DirectoryEntry {
-		name_wide:      Vec<u16>,
-		basic_info:     PRJ_FILE_BASIC_INFO,
+		name_wide: Vec<u16>,
+		basic_info: PRJ_FILE_BASIC_INFO,
 		symlink_target: Option<Vec<u16>>,
 	}
 
 	#[derive(Default)]
 	struct DirectoryEnumeration {
-		entries:           Vec<DirectoryEntry>,
-		cursor:            usize,
+		entries: Vec<DirectoryEntry>,
+		cursor: usize,
 		search_expression: Option<Vec<u16>>,
 	}
 
 	struct ProviderContext {
-		lower_root:   PathBuf,
-		api:          Arc<ProjfsApi>,
+		lower_root: PathBuf,
+		api: Arc<ProjfsApi>,
 		enumerations: Mutex<BTreeMap<u128, DirectoryEnumeration>>,
 	}
 
 	struct ProjfsSession {
 		virtualization_context: PRJ_NAMESPACE_VIRTUALIZATION_CONTEXT,
-		provider_context:       *mut ProviderContext,
-		callbacks:              Box<PRJ_CALLBACKS>,
-		api_handle:             Arc<ProjfsApi>,
+		provider_context: *mut ProviderContext,
+		callbacks: Box<PRJ_CALLBACKS>,
+		api_handle: Arc<ProjfsApi>,
 	}
 
 	// SAFETY: Session ownership is synchronized through `PROJFS_SESSIONS`; raw
@@ -373,8 +373,8 @@ mod imp {
 		}
 
 		let provider_context = Box::new(ProviderContext {
-			lower_root:   lower_root_path,
-			api:          api.clone(),
+			lower_root: lower_root_path,
+			api: api.clone(),
 			enumerations: Mutex::new(BTreeMap::new()),
 		});
 		let provider_context_ptr = Box::into_raw(provider_context);
@@ -485,11 +485,10 @@ mod imp {
 		};
 
 		let mut enumerations = context.enumerations.lock();
-		enumerations.insert(guid_to_u128(unsafe { &*enumeration_id }), DirectoryEnumeration {
-			entries,
-			cursor: 0,
-			search_expression: None,
-		});
+		enumerations.insert(
+			guid_to_u128(unsafe { &*enumeration_id }),
+			DirectoryEnumeration { entries, cursor: 0, search_expression: None },
+		);
 		0
 	}
 
@@ -558,9 +557,9 @@ mod imp {
 					.symlink_target
 					.as_deref()
 					.map(|target| PRJ_EXTENDED_INFO {
-						InfoType:       PRJ_EXT_INFO_TYPE_SYMLINK,
+						InfoType: PRJ_EXT_INFO_TYPE_SYMLINK,
 						NextInfoOffset: 0,
-						Anonymous:      PRJ_EXTENDED_INFO_0 {
+						Anonymous: PRJ_EXTENDED_INFO_0 {
 							Symlink: PRJ_EXTENDED_INFO_0_0 { TargetName: target.as_ptr() },
 						},
 					});
@@ -610,9 +609,9 @@ mod imp {
 			Err(err) => return io_error_to_hresult(&err),
 		};
 		let extended_info = symlink_target.as_deref().map(|target| PRJ_EXTENDED_INFO {
-			InfoType:       PRJ_EXT_INFO_TYPE_SYMLINK,
+			InfoType: PRJ_EXT_INFO_TYPE_SYMLINK,
 			NextInfoOffset: 0,
-			Anonymous:      PRJ_EXTENDED_INFO_0 {
+			Anonymous: PRJ_EXTENDED_INFO_0 {
 				Symlink: PRJ_EXTENDED_INFO_0_0 { TargetName: target.as_ptr() },
 			},
 		});
@@ -779,12 +778,12 @@ mod imp {
 
 	fn to_basic_info(metadata: &fs::Metadata) -> PRJ_FILE_BASIC_INFO {
 		PRJ_FILE_BASIC_INFO {
-			IsDirectory:    metadata.is_dir(),
-			FileSize:       metadata.file_size() as i64,
-			CreationTime:   metadata.creation_time() as i64,
+			IsDirectory: metadata.is_dir(),
+			FileSize: metadata.file_size() as i64,
+			CreationTime: metadata.creation_time() as i64,
 			LastAccessTime: metadata.last_access_time() as i64,
-			LastWriteTime:  metadata.last_write_time() as i64,
-			ChangeTime:     metadata.last_write_time() as i64,
+			LastWriteTime: metadata.last_write_time() as i64,
+			ChangeTime: metadata.last_write_time() as i64,
 			FileAttributes: metadata.file_attributes(),
 		}
 	}

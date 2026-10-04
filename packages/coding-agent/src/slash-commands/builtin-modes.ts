@@ -19,6 +19,7 @@ import {
 	deleteModelPreset,
 	formatModelPresetSwitch,
 	getModelPresetNames,
+	isCleanModelPresetSwitch,
 	isValidModelPresetName,
 	modelPresetSavedMessage,
 	type ModelPresetSession,
@@ -29,6 +30,9 @@ import { describeLoopLimitRuntime } from "../modes/loop-limit";
 import type { InteractiveModeContext } from "../modes/types";
 import ratchetKickoffPrompt from "../prompts/ratchet-kickoff.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
+import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { CLI_THINKING_LEVELS } from "@linxiraos/pi-tui/thinking";
+import { noThinkingMessage, resolveThinkingArgument } from "./helpers/effort";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { handleSecurityCommand } from "./helpers/security";
 import type { ParsedSlashCommand, SlashCommandSpec, TuiSlashCommandRuntime } from "./types";
@@ -355,6 +359,19 @@ export function formatTokenCount(value: number): string {
 	return value.toLocaleString();
 }
 
+/** Catalogue-backed `/effort <level>` subcommand descriptions (resolved at
+ * read time so `/language` switches apply immediately). */
+const EFFORT_CMD_DESCRIPTIONS: Record<ConfiguredThinkingLevel, () => string> = {
+	off: () => M.cmdEffortOff,
+	minimal: () => M.cmdEffortMinimal,
+	low: () => M.cmdEffortLow,
+	medium: () => M.cmdEffortMedium,
+	high: () => M.cmdEffortHigh,
+	xhigh: () => M.cmdEffortXHigh,
+	max: () => M.cmdEffortMax,
+	auto: () => M.cmdEffortAuto,
+	inherit: () => M.cmdEffortInherit,
+};
 export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "security",
@@ -973,6 +990,61 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			ctx.ui.requestRender();
 		},
 	},
+	{
+		name: "effort",
+		icon: "gauge",
+		get description() {
+			return M.cmdEffortFmt.replace("%s", formatKeyHint("shift+tab"));
+		},
+		acpDescription: "Set or show reasoning effort (thinking level, intelligence)",
+		acpInputHint: "[level]",
+		inlineHint: "[level]",
+		allowArgs: true,
+		get subcommands() {
+			return CLI_THINKING_LEVELS.map(level => ({
+				name: level,
+				description: EFFORT_CMD_DESCRIPTIONS[level](),
+			}));
+		},
+		getTuiAutocompleteDescription: runtime =>
+			`Thinking: ${runtime.ctx.session.configuredThinkingLevel() ?? "model default"}`,
+		handle: async (command, runtime) => {
+			const session = runtime.session;
+			if (!command.args.trim()) {
+				await runtime.output(
+					session.model?.reasoning
+						? `Thinking: ${session.configuredThinkingLevel() ?? "model default"}\nAvailable: ${session.getAvailableEffortSelectors().join(", ")}`
+						: noThinkingMessage(session),
+				);
+				return commandConsumed();
+			}
+			const resolved = resolveThinkingArgument(session, command.args);
+			if ("error" in resolved) return usage(resolved.error, runtime);
+			session.setThinkingLevel(resolved.level);
+			await runtime.output(`Thinking set to ${resolved.level}.`);
+			// `setThinkingLevel` emits `thinking_level_changed`, which hosts with a
+			// session-lifetime subscription (ACP) already turn into a config push.
+			await runtime.notifyConfigChanged?.({ handledBySessionEvent: true });
+			return commandConsumed();
+		},
+		handleTui: (command, runtime) => {
+			clearSubmittedText(runtime);
+			const { ctx } = runtime;
+			if (!command.args.trim()) {
+				if (ctx.session.model?.reasoning) ctx.showThinkingSelector();
+				else ctx.showStatus(noThinkingMessage(ctx.session));
+				return;
+			}
+			const resolved = resolveThinkingArgument(ctx.session, command.args);
+			if ("error" in resolved) {
+				ctx.showError(resolved.error);
+				return;
+			}
+			// thinking_level_changed refreshes the status line and editor border.
+			ctx.session.setThinkingLevel(resolved.level);
+			ctx.showStatus(`Thinking set to ${resolved.level}.`);
+		},
+	},
 ];
 
 const PRESETS_USAGE = "Usage: /modelpreset [list | save <name> | switch <name> | delete <name>]";
@@ -1017,7 +1089,7 @@ async function runPresetsCommand(
 			const wroteRoles = result.kind === "switched" || result.kind === "failed";
 			return {
 				message,
-				failed: result.kind !== "switched" || result.shadowed.length > 0 || result.shadowedThinking !== undefined,
+				failed: !isCleanModelPresetSwitch(result),
 				switched: result.kind === "switched",
 				changedConfig: wroteRoles,
 			};

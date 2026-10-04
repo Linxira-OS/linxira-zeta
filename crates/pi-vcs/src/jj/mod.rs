@@ -14,7 +14,7 @@ use crate::error::{Error, Result};
 /// An opened Jujutsu workspace.
 #[derive(Debug)]
 pub struct JjWorkspace {
-	root:     PathBuf,
+	root: PathBuf,
 	repo_dir: PathBuf,
 }
 

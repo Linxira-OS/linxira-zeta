@@ -51,9 +51,9 @@ pub enum Class {
 /// One maximal same-class run, as a byte range into the normalized text.
 #[derive(Clone, Copy)]
 pub struct Run {
-	pub cls:   Class,
+	pub cls: Class,
 	pub start: usize,
-	pub end:   usize,
+	pub end: usize,
 }
 
 /// Frame scalars a family contributes to the encoder (ctok's `TokenizerModel`
@@ -63,14 +63,14 @@ pub struct FrameParams {
 	/// Fixed cost of a single user message before its content.
 	pub message_overhead: u32,
 	/// v3 alone folds curly quotes to their ASCII forms.
-	pub fold_quotes:      bool,
+	pub fold_quotes: bool,
 	/// Minimum span length for the ⟨caps⟩ marker; `None` disables it (v4.7+).
-	pub allcaps_min:      Option<usize>,
+	pub allcaps_min: Option<usize>,
 	/// Whether the frame ends in a ⟨bow⟩ that absorbs one leading space.
-	pub frame_bow:        bool,
+	pub frame_bow: bool,
 	/// `true` for the measured trailing-newline ladder (v3/v4.7); `false` when
 	/// the frame absorbs all trailing ASCII whitespace (v5).
-	pub ladder:           bool,
+	pub ladder: bool,
 }
 
 // Python 3.13 ships Unicode 15.1 data; the source models know these Unicode
@@ -197,7 +197,7 @@ fn as_str<U: Unit>(units: &[U]) -> Option<&str> {
 /// sequences and lone surrogates yield U+FFFD, consuming minimally).
 struct UnitChars<'a, U: Unit> {
 	units: &'a [U],
-	pos:   usize,
+	pos: usize,
 }
 
 impl<U: Unit> Iterator for UnitChars<'_, U> {

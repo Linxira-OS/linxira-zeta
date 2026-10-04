@@ -96,9 +96,9 @@ static FONT_SILVER: LazyLock<TtfFont> =
 
 struct Glyph {
 	/// Glyph width in pixels (≤ 8 for the bundled fonts).
-	w:    u8,
+	w: u8,
 	/// Glyph height in pixels.
-	h:    i32,
+	h: i32,
 	xoff: i32,
 	yoff: i32,
 	/// One bitmask per bitmap row, MSB-leftmost.
@@ -116,17 +116,17 @@ struct Font {
 }
 
 struct TtfFont {
-	face:      TtfFace,
+	face: TtfFace,
 	supported: HashSet<char>,
-	px:        f32,
-	ascent:    f32,
-	cell_w:    usize,
-	cell_h:    usize,
+	px: f32,
+	ascent: f32,
+	cell_w: usize,
+	cell_h: usize,
 }
 
 struct RasterizedGlyph {
 	metrics: Metrics,
-	bitmap:  Vec<u8>,
+	bitmap: Vec<u8>,
 }
 
 fn parse_bdf(text: &str, cell_w: usize, cell_h: usize) -> Font {
@@ -154,13 +154,10 @@ fn parse_bdf(text: &str, cell_w: usize, cell_h: usize) -> Font {
 				rows.push(u8::from_str_radix(row.trim(), 16).unwrap_or(0));
 			}
 			if enc >= 0 {
-				glyphs.insert(enc as u32, Glyph {
-					w: bbx[0].clamp(0, 8) as u8,
-					h: bbx[1],
-					xoff: bbx[2],
-					yoff: bbx[3],
-					rows,
-				});
+				glyphs.insert(
+					enc as u32,
+					Glyph { w: bbx[0].clamp(0, 8) as u8, h: bbx[1], xoff: bbx[2], yoff: bbx[3], rows },
+				);
 			}
 		}
 	}
@@ -247,8 +244,8 @@ fn resolve_font(name: &str) -> Option<RenderFont<'static>> {
 /// (`cell_w` x `cell_h`) is the advance/pitch glyphs are laid out on; it may
 /// differ from the font's natural cell (e.g. 8x13 glyphs on an 8x16 pitch).
 struct Grid {
-	cols:   usize,
-	rows:   usize,
+	cols: usize,
+	rows: usize,
 	repeat: usize,
 	/// Cell advance (x) in pixels.
 	cell_w: usize,
@@ -1142,18 +1139,18 @@ pub struct SnapcompactRenderOptions {
 	/// Frame width in pixels; also bounds the grid rows
 	/// (`floor(size/cellHeight/lineRepeat)`). Output height hugs the rows the
 	/// text actually uses instead of padding to a square.
-	pub size:        u32,
+	pub size: u32,
 	/// Bundled font: `"5x8"`, `"6x12"`, `"8x13"` (X.org BDF), `"8x8"`
 	/// (unscii-8), or `"silver"` (embedded TrueType). Default `"5x8"`.
-	pub font:        Option<String>,
+	pub font: Option<String>,
 	/// Target cell advance in pixels. Differing from the font's natural cell
 	/// triggers the Lanczos stretch path. Default: font natural width.
-	pub cell_width:  Option<u32>,
+	pub cell_width: Option<u32>,
 	/// Target cell pitch in pixels. Default: font natural height.
 	pub cell_height: Option<u32>,
 	/// Ink variant: `"sent"` (six-hue sentence cycling) or `"bw"` (black).
 	/// Default `"sent"`.
-	pub variant:     Option<String>,
+	pub variant: Option<String>,
 	/// Print each text line this many times; copies after the first sit on a
 	/// pale highlight band. Default 1.
 	pub line_repeat: Option<u32>,
@@ -1162,10 +1159,10 @@ pub struct SnapcompactRenderOptions {
 	/// render indexed with glyphs at natural size on the requested cell box
 	/// (e.g. 8x13 glyphs on an 8x16 pitch, the "8on16" shapes). `true`: force
 	/// the stretch path (identical to auto; natural cells render indexed).
-	pub stretch:     Option<bool>,
+	pub stretch: Option<bool>,
 	/// Layout columns: `1` (default) row-major grid; `2` two newspaper "doc"
 	/// columns of pre-wrapped newline-separated lines.
-	pub columns:     Option<u32>,
+	pub columns: Option<u32>,
 }
 
 /// Return the subset of `chars` that the named snapcompact font can render.
@@ -1493,26 +1490,32 @@ mod tests {
 	#[test]
 	fn render_native_is_indexed_and_stretch_is_rgb() {
 		let native = png_bytes(
-			render_snapcompact_png_sync("Hello world. Again.".into(), SnapcompactRenderOptions {
-				size: 128,
-				font: Some("8x8".into()),
-				variant: Some("bw".into()),
-				line_repeat: Some(2),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"Hello world. Again.".into(),
+				SnapcompactRenderOptions {
+					size: 128,
+					font: Some("8x8".into()),
+					variant: Some("bw".into()),
+					line_repeat: Some(2),
+					..Default::default()
+				},
+			)
 			.unwrap(),
 		);
 		// PNG color type lives at byte 25 of the IHDR: 3 = indexed.
 		assert_eq!(native[25], 3);
 
 		let stretched = png_bytes(
-			render_snapcompact_png_sync("Hello world. Again.".into(), SnapcompactRenderOptions {
-				size: 128,
-				font: Some("8x8".into()),
-				cell_width: Some(6),
-				cell_height: Some(6),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"Hello world. Again.".into(),
+				SnapcompactRenderOptions {
+					size: 128,
+					font: Some("8x8".into()),
+					cell_width: Some(6),
+					cell_height: Some(6),
+					..Default::default()
+				},
+			)
 			.unwrap(),
 		);
 		// 2 = truecolor RGB.
@@ -1552,12 +1555,15 @@ mod tests {
 
 		// Plain bw, no dim/band/repeat: background + black ink = 1-bit.
 		let bw = png_bytes(
-			render_snapcompact_png_sync("Hello world. Again.".into(), SnapcompactRenderOptions {
-				size: 128,
-				font: Some("8x8".into()),
-				variant: Some("bw".into()),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"Hello world. Again.".into(),
+				SnapcompactRenderOptions {
+					size: 128,
+					font: Some("8x8".into()),
+					variant: Some("bw".into()),
+					..Default::default()
+				},
+			)
 			.unwrap(),
 		);
 		assert_eq!(depth_and_palette(&bw), (1, 2));
@@ -1581,12 +1587,15 @@ mod tests {
 		// Sentence hues exceed 4 colors: stays 4-bit, palette still narrowed
 		// to the inks actually printed (bg + 2 hues here).
 		let sent = png_bytes(
-			render_snapcompact_png_sync("Hi. Ok.".into(), SnapcompactRenderOptions {
-				size: 128,
-				font: Some("8x8".into()),
-				variant: Some("sent".into()),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"Hi. Ok.".into(),
+				SnapcompactRenderOptions {
+					size: 128,
+					font: Some("8x8".into()),
+					variant: Some("sent".into()),
+					..Default::default()
+				},
+			)
 			.unwrap(),
 		);
 		let (sent_depth, sent_colors) = depth_and_palette(&sent);
@@ -1598,19 +1607,21 @@ mod tests {
 	fn rejects_bad_shapes() {
 		assert!(render_snapcompact_png_sync("x".into(), opts(0)).is_err());
 		assert!(
-			render_snapcompact_png_sync("x".into(), SnapcompactRenderOptions {
-				size: 64,
-				font: Some("9x9".into()),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"x".into(),
+				SnapcompactRenderOptions { size: 64, font: Some("9x9".into()), ..Default::default() }
+			)
 			.is_err()
 		);
 		assert!(
-			render_snapcompact_png_sync("x".into(), SnapcompactRenderOptions {
-				size: 64,
-				variant: Some("zebra".into()),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"x".into(),
+				SnapcompactRenderOptions {
+					size: 64,
+					variant: Some("zebra".into()),
+					..Default::default()
+				}
+			)
 			.is_err()
 		);
 	}
@@ -1625,11 +1636,10 @@ mod tests {
 		}
 		for (name, size) in [("6x12", 60u32), ("8x13", 104u32)] {
 			let png = png_bytes(
-				render_snapcompact_png_sync("Hello world. Again!".into(), SnapcompactRenderOptions {
-					size,
-					font: Some(name.into()),
-					..Default::default()
-				})
+				render_snapcompact_png_sync(
+					"Hello world. Again!".into(),
+					SnapcompactRenderOptions { size, font: Some(name.into()), ..Default::default() },
+				)
 				.unwrap(),
 			);
 			assert_eq!(png[25], 3, "{name} natural cell must encode indexed");
@@ -1737,35 +1747,40 @@ mod tests {
 			render("0123456789", SnapcompactRenderOptions { line_repeat: Some(2), ..opts_8x8() });
 		assert_eq!(dims(&repeated), (64, 32));
 		// Doc layout counts `\n` lines down the first column.
-		let doc = render("Hello there.\nSecond line", SnapcompactRenderOptions {
-			size: 256,
-			font: Some("8x13".into()),
-			cell_width: Some(8),
-			cell_height: Some(16),
-			stretch: Some(false),
-			columns: Some(2),
-			..Default::default()
-		});
+		let doc = render(
+			"Hello there.\nSecond line",
+			SnapcompactRenderOptions {
+				size: 256,
+				font: Some("8x13".into()),
+				cell_width: Some(8),
+				cell_height: Some(16),
+				stretch: Some(false),
+				columns: Some(2),
+				..Default::default()
+			},
+		);
 		assert_eq!(dims(&doc), (256, 32));
 		// The stretch path hugs too (RGB output, 6x6 target cells).
-		let stretched = render("0123456789ab", SnapcompactRenderOptions {
-			size: 60,
-			font: Some("8x8".into()),
-			cell_width: Some(6),
-			cell_height: Some(6),
-			..Default::default()
-		});
+		let stretched = render(
+			"0123456789ab",
+			SnapcompactRenderOptions {
+				size: 60,
+				font: Some("8x8".into()),
+				cell_width: Some(6),
+				cell_height: Some(6),
+				..Default::default()
+			},
+		);
 		assert_eq!(dims(&stretched), (60, 12));
 	}
 
 	#[test]
 	fn columns_validates_and_renders_doc_frames() {
 		assert!(
-			render_snapcompact_png_sync("x".into(), SnapcompactRenderOptions {
-				size: 64,
-				columns: Some(3),
-				..Default::default()
-			})
+			render_snapcompact_png_sync(
+				"x".into(),
+				SnapcompactRenderOptions { size: 64, columns: Some(3), ..Default::default() }
+			)
 			.is_err()
 		);
 		// Indexed doc frame (stretch: false on a padded pitch).

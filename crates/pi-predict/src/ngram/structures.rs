@@ -79,10 +79,10 @@ pub fn hash_str(text: &str) -> u64 {
 /// key plus the value per slot instead of a boxed map entry.
 #[derive(Clone)]
 pub struct IdTable<V: Copy + Default> {
-	keys:   Vec<u64>,
+	keys: Vec<u64>,
 	values: Vec<V>,
-	shift:  u32,
-	len:    usize,
+	shift: u32,
+	len: usize,
 }
 
 const EMPTY_KEY: u64 = u64::MAX;
@@ -95,10 +95,10 @@ impl<V: Copy + Default> IdTable<V> {
 			slots <<= 1;
 		}
 		Self {
-			keys:   vec![EMPTY_KEY; slots],
+			keys: vec![EMPTY_KEY; slots],
 			values: vec![V::default(); slots],
-			shift:  64 - slots.trailing_zeros(),
-			len:    0,
+			shift: 64 - slots.trailing_zeros(),
+			len: 0,
 		}
 	}
 
@@ -231,9 +231,9 @@ const NO_LEAF: u32 = u32::MAX;
 #[derive(Clone, Default)]
 pub struct MaxTree {
 	values: Vec<f32>,
-	size:   usize,
+	size: usize,
 	/// Leaf id holding each subtree's max (`NO_LEAF` when empty).
-	best:   Vec<u32>,
+	best: Vec<u32>,
 }
 
 impl MaxTree {
@@ -369,11 +369,11 @@ impl MaxTree {
 #[derive(Clone, Default)]
 pub struct Followers {
 	/// Follower word ids, ascending.
-	pub ids:    Vec<u32>,
+	pub ids: Vec<u32>,
 	/// Weighted counts, parallel to `ids`.
 	pub counts: Vec<f32>,
 	/// Sum of `counts`.
-	pub total:  f64,
+	pub total: f64,
 }
 
 impl Followers {

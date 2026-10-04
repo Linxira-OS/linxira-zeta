@@ -1,10 +1,7 @@
 //! Process management
 
 use futures::FutureExt;
-use std::{
-	io::Write,
-	sync::Arc,
-};
+use std::{io::Write, sync::Arc};
 
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle};
@@ -14,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{error, openfiles::OpenFile, sys};
 
 struct CompletionMarker {
-	output:            OpenFile,
+	output: OpenFile,
 	end_marker_prefix: String,
 	end_marker_suffix: String,
 }
@@ -31,13 +28,13 @@ pub struct ChildProcess {
 	/// execution.
 	exec_future: WaitableChildProcess,
 	/// Tracks whether this process has already been reaped.
-	reaped:      bool,
+	reaped: bool,
 	/// If available, the process ID of the child.
-	pid:         Option<sys::process::ProcessId>,
+	pid: Option<sys::process::ProcessId>,
 	/// If available, the shared process group ID of the pipeline.
-	pgid:        Option<sys::process::ProcessId>,
+	pgid: Option<sys::process::ProcessId>,
 	/// Every external process in this pipeline.
-	stop_pids:   Option<Arc<[sys::process::ProcessId]>>,
+	stop_pids: Option<Arc<[sys::process::ProcessId]>>,
 	/// Windows handle duplicated from the child process for safe termination.
 	#[cfg(windows)]
 	kill_handle: Option<OwnedHandle>,
@@ -247,15 +244,7 @@ fn duplicate_handle(handle: RawHandle) -> Option<OwnedHandle> {
 	// `out_handle` is a valid out pointer checked below before ownership is
 	// transferred to OwnedHandle.
 	let ok = unsafe {
-		DuplicateHandle(
-			current,
-			handle,
-			current,
-			&mut out_handle,
-			0,
-			0,
-			DUPLICATE_SAME_ACCESS,
-		)
+		DuplicateHandle(current, handle, current, &mut out_handle, 0, 0, DUPLICATE_SAME_ACCESS)
 	};
 	if ok == 0 || out_handle.is_null() {
 		return None;
@@ -279,10 +268,7 @@ fn terminate_raw_handle(handle: RawHandle) -> bool {
 #[cfg(windows)]
 #[must_use]
 pub fn process_handle_is_running(handle: &OwnedHandle) -> bool {
-	use windows_sys::Win32::{
-		Foundation::WAIT_TIMEOUT,
-		System::Threading::WaitForSingleObject,
-	};
+	use windows_sys::Win32::{Foundation::WAIT_TIMEOUT, System::Threading::WaitForSingleObject};
 
 	// SAFETY: `handle` is a live duplicated process handle with synchronization access.
 	unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) == WAIT_TIMEOUT }

@@ -44,7 +44,11 @@ impl Utility for Sponge {
 		};
 
 		let Some(file) = self.matches.get_one::<OsString>(ARG_FILE) else {
-			if let Err(err) = host.stdout.write_all(&buffer).and_then(|()| host.stdout.flush()) {
+			if let Err(err) = host
+				.stdout
+				.write_all(&buffer)
+				.and_then(|()| host.stdout.flush())
+			{
 				host.error(format_args!("stdout: {err}"), 1);
 				return 1;
 			}
@@ -61,7 +65,7 @@ impl Utility for Sponge {
 		match result {
 			Ok(()) => 0,
 			Err(err) => {
-			host.error(format_args!("{}: {err}", file.to_string_lossy()), 1);
+				host.error(format_args!("{}: {err}", file.to_string_lossy()), 1);
 				1
 			},
 		}
@@ -165,7 +169,10 @@ fn create_sibling_temp(fs: &BlockingFs, target: &Path) -> io::Result<(PathBuf, F
 		.filter(|p| !p.as_os_str().is_empty())
 		.unwrap_or_else(|| Path::new("."));
 	let base = pi_vfs::file_name(target);
-	let base = base.as_deref().unwrap_or(OsStr::new("sponge")).to_string_lossy();
+	let base = base
+		.as_deref()
+		.unwrap_or(OsStr::new("sponge"))
+		.to_string_lossy();
 	let options = TempOptions::new()
 		.prefix(format!(".{base}.sponge."))
 		.random_len(16)
@@ -245,11 +252,7 @@ mod tests {
 		let (code, capture) = run_util::<Sponge>(&["nodir/out"], "bytes", dir.path());
 		assert_eq!(code, 1);
 		assert_eq!(capture.out(), "");
-		assert!(
-			capture.err().starts_with("sponge: nodir/out: "),
-			"stderr: {}",
-			capture.err()
-		);
+		assert!(capture.err().starts_with("sponge: nodir/out: "), "stderr: {}", capture.err());
 	}
 
 	#[test]

@@ -51,8 +51,7 @@ impl Utility for Dirname {
 			};
 			let result = dirname_string_manipulation(path_bytes);
 
-			if host.stdout.write_all(&result).is_err()
-				|| write!(host.stdout, "{line_ending}").is_err()
+			if host.stdout.write_all(&result).is_err() || write!(host.stdout, "{line_ending}").is_err()
 			{
 				return 1;
 			}

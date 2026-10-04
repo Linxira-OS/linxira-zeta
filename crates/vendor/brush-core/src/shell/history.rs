@@ -102,10 +102,10 @@ impl<SE: crate::extensions::ShellExtensions> crate::Shell<SE> {
 
 			// Add it to history.
 			history.add(crate::history::Item {
-				id:           0,
+				id: 0,
 				command_line: command.to_owned(),
-				timestamp:    Some(chrono::Utc::now()),
-				dirty:        true,
+				timestamp: Some(chrono::Utc::now()),
+				dirty: true,
 			})?;
 		}
 
