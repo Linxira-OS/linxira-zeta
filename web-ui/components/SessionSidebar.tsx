@@ -59,7 +59,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationParams } from "@/lib/i18n/types";
 import { sendAgentCommand } from "@/lib/agent-client";
-import { defaultWorkspacePath } from "@/lib/default-workspace";
+import { defaultWorkspacePath, isSameWorkspacePath, withDefaultWorkspace } from "@/lib/default-workspace";
 import "@/lib/pi-desktop";
 
 interface Props {
@@ -1311,11 +1311,18 @@ export function SessionSidebar({
 		}
 		return byProject;
 	}, [nonTempSessions, foldableEmptyIds]);
-	const recentProjects = getRecentProjects(activeNonTempSessions);
-	const showProjectFilter = recentProjects.length > 8;
-	const visibleProjects = projectFilter.trim()
-		? recentProjects.filter(p => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
-		: recentProjects;
+	// The default workspace is always listed — even before any session exists
+	// there — so a fresh install shows its anchor workspace (D2 fallback cwd).
+	const defaultWorkspace = homeDir ? defaultWorkspacePath(homeDir) : null;
+	const recentProjects = withDefaultWorkspace(getRecentProjects(activeNonTempSessions), defaultWorkspace);
+ 	const showProjectFilter = recentProjects.length > 8;
+	// The dropdown already opens with a dedicated default-workspace button, so
+	// the plain project list beneath it skips the seeded entry.
+	const visibleProjects = (
+		projectFilter.trim()
+			? recentProjects.filter(p => p.toLowerCase().includes(projectFilter.trim().toLowerCase()))
+			: recentProjects
+	).filter(p => !defaultWorkspace || !isSameWorkspacePath(p, defaultWorkspace));
 	const filteredSessions = selectedProject
 		? activeNonTempSessions.filter(s => (s.projectRoot ?? s.cwd) === selectedProject)
 		: activeNonTempSessions;
@@ -1448,11 +1455,16 @@ export function SessionSidebar({
 			default:
 				ordered = [...recentProjects];
 		}
-		return ordered.map(project => ({
+		// The seeded default workspace outranks every sort mode.
+		const orderedProjects = defaultWorkspace
+			? [defaultWorkspace, ...ordered.filter(p => !isSameWorkspacePath(p, defaultWorkspace))]
+			: ordered;
+		return orderedProjects.map(project => ({
 			project,
 			count: counts.get(project) ?? 0,
+			isDefault: defaultWorkspace !== null && isSameWorkspacePath(project, defaultWorkspace),
 		}));
-	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions]);
+	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions, defaultWorkspace]);
 
 	// Local session search (data is fully in memory — no backend round trip).
 	const searchQuery = sessionSearch.trim().toLowerCase();

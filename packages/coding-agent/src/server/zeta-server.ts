@@ -10,6 +10,8 @@
  *                                 └─ 其余        → Web UI Next.js (随机内部端口)
  */
 
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger } from "@linxiraos/pi-utils";
@@ -232,6 +234,57 @@ export function parsePlanApprovalReply(body: string): PlanApproveMode | null {
 	return null;
 }
 
+/**
+ * Stable default workspace (`~/.zeta/workspace`) anchoring the coordinator
+ * session. The serve process cwd is whatever directory launched it — on
+ * desktop installs the app install dir, which is not a meaningful workspace
+ * and left the default workspace invisible in the web UI project list.
+ */
+export function defaultCoordinatorWorkspace(): string {
+	return path.join(os.homedir(), ".zeta", "workspace");
+}
+
+/**
+ * Resolve (and if needed relocate) the coordinator transcript. Installs that
+ * predate the default-workspace anchoring keep `zeta-bot.jsonl` in the session
+ * dir derived from the serve process cwd. When the default-workspace copy does
+ * not exist yet, move the legacy transcript over and repoint the web.yml
+ * `relay` registry entry so the conversation history and its relay tagging
+ * survive the switch. Best-effort: on failure the legacy file keeps opening
+ * (the registry still points at it).
+ */
+export async function resolveCoordinatorFile(
+	defaultWorkspace: string,
+	legacyCwd: string,
+	config: WebConfig,
+): Promise<string> {
+	const targetDir = SessionManager.getDefaultSessionDir(defaultWorkspace);
+	const target = path.join(targetDir, "zeta-bot.jsonl");
+	if (fs.existsSync(target)) return target;
+	const legacy = path.join(SessionManager.getDefaultSessionDir(legacyCwd), "zeta-bot.jsonl");
+	const legacyKey = path.resolve(legacy).toLowerCase();
+	if (legacyKey === path.resolve(target).toLowerCase() || !fs.existsSync(legacy)) return target;
+	try {
+		fs.mkdirSync(targetDir, { recursive: true });
+		fs.renameSync(legacy, target);
+	} catch (error) {
+		logger.warn("Failed to relocate the coordinator transcript; keeping the legacy file", {
+			legacy,
+			target,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return legacy;
+	}
+	const relay = config.getBotSession("relay");
+	// The relay registry entry is by definition the coordinator transcript —
+	// repoint it at the relocated file so history and tagging survive.
+	if (relay && path.resolve(relay.sessionFile).toLowerCase() !== path.resolve(target).toLowerCase()) {
+		await config.upsertBotSession({ ...relay, sessionFile: target });
+	}
+	logger.info("Relocated coordinator transcript into the default workspace", { legacy, target });
+	return target;
+}
+
 // ---------------------------------------------------------------------------
 // ZetaServer
 // ---------------------------------------------------------------------------
@@ -426,14 +479,19 @@ export class ZetaServer {
 	async #ensureMainSession(webConfig?: WebConfig): Promise<void> {
 		if (this.#channelCoordinator) return;
 		const config = webConfig ?? (await WebConfig.load());
-		// The coordinator gets a stable, persisted session file in the default
-		// workspace's session dir so its conversation shows up in the web UI
-		// session list and survives restarts (file-less sessions are invisible).
-		const coordinatorFile = path.join(SessionManager.getDefaultSessionDir(process.cwd()), "zeta-bot.jsonl");
+		// The coordinator is anchored in the stable default workspace, not the
+		// serve process cwd (desktop installs launch from the app install dir):
+		// its persisted transcript lives in the workspace's session dir so the
+		// conversation shows up in the web UI session list and survives
+		// restarts (file-less sessions are invisible), while the workspace
+		// itself surfaces as the default project in the UI.
+		const defaultWorkspace = defaultCoordinatorWorkspace();
+		fs.mkdirSync(defaultWorkspace, { recursive: true });
+		const coordinatorFile = await resolveCoordinatorFile(defaultWorkspace, process.cwd(), config);
 		const { session, realSessionId } = await startRpcSession(
 			"__zeta_serve_coordinator__",
 			coordinatorFile,
-			process.cwd(),
+			defaultWorkspace,
 			undefined,
 			{
 				channelSend: async opts => {
@@ -466,7 +524,7 @@ export class ZetaServer {
 				if (!runtime) throw new Error("IM channels are not started");
 				return runtime.sendText(channelId, to, text);
 			},
-			defaultCwd: process.cwd(),
+			defaultCwd: defaultWorkspace,
 			channelSend: opts => this.#channelSendHook(opts),
 			workspaceRun: opts => this.#workspaceRunHook(opts),
 			imControl: (sessionKey, params) => this.#imControlHook(sessionKey, params),
@@ -477,7 +535,7 @@ export class ZetaServer {
 				const { session } = await startRpcSession(
 					`__zeta_serve_bot__${entry.id}`,
 					entry.sessionFile,
-					process.cwd(),
+					defaultWorkspace,
 					undefined,
 					{
 						channelSend: opts => this.#channelSendHook(opts),

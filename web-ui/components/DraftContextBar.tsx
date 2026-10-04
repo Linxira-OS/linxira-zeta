@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { fetchSessions } from "@/lib/session-api";
+import { defaultWorkspacePath, isSameWorkspacePath, withDefaultWorkspace } from "@/lib/default-workspace";
 import { FolderIcon } from "./FileIcons";
 import { FolderPickerModal } from "./FolderPickerModal";
 
@@ -134,7 +135,10 @@ export function WorkspacePickerPanel({
 	);
 
 	const normalizedCurrent = currentCwd?.replace(/[\\/]+$/, "") ?? null;
-	const items = recents.filter(p => p.replace(/[\\/]+$/, "") !== normalizedCurrent);
+	const defaultWorkspace = home ? defaultWorkspacePath(home) : null;
+	const items = withDefaultWorkspace(recents, defaultWorkspace).filter(
+		p => normalizedCurrent === null || !isSameWorkspacePath(p, normalizedCurrent),
+	);
 	const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
 
 	return (
@@ -233,6 +237,22 @@ export function WorkspacePickerPanel({
 								<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 									{basenameLabel(p)}
 								</span>
+							{defaultWorkspace && isSameWorkspacePath(p, defaultWorkspace) && (
+								<span
+									style={{
+										fontSize: 10,
+										color: "var(--accent)",
+										border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+										borderRadius: 999,
+										padding: "0 6px",
+										lineHeight: "15px",
+										flexShrink: 0,
+										whiteSpace: "nowrap",
+									}}
+								>
+									{t("sidebar.default-workspace")}
+								</span>
+							)}
 							</button>
 						))
 					)}
