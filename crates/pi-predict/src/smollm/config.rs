@@ -54,41 +54,41 @@ pub trait Decoder: Send {
 #[derive(Clone, Debug, Deserialize)]
 pub struct LlamaConfig {
 	/// Residual width.
-	pub hidden_size: usize,
+	pub hidden_size:             usize,
 	/// MLP inner width.
-	pub intermediate_size: usize,
+	pub intermediate_size:       usize,
 	/// Decoder layers.
-	pub num_hidden_layers: usize,
+	pub num_hidden_layers:       usize,
 	/// Query heads.
-	pub num_attention_heads: usize,
+	pub num_attention_heads:     usize,
 	/// Key/value heads (grouped-query attention).
-	pub num_key_value_heads: usize,
+	pub num_key_value_heads:     usize,
 	/// Vocabulary size (rows of the embedding).
-	pub vocab_size: usize,
+	pub vocab_size:              usize,
 	/// `RMSNorm` epsilon.
-	pub rms_norm_eps: f64,
+	pub rms_norm_eps:            f64,
 	/// `RoPE` base.
 	#[serde(default = "default_rope_theta")]
-	pub rope_theta: f64,
+	pub rope_theta:              f64,
 	/// Longest supported sequence.
 	#[serde(default = "default_max_positions")]
 	pub max_position_embeddings: usize,
 	/// Beginning-of-sequence token.
 	#[serde(default)]
-	pub bos_token_id: Option<u32>,
+	pub bos_token_id:            Option<u32>,
 	/// The LM head reuses the token embedding.
 	#[serde(default)]
-	pub tie_word_embeddings: bool,
+	pub tie_word_embeddings:     bool,
 	#[serde(default)]
-	model_type: String,
+	model_type:                  String,
 	#[serde(default)]
-	rope_scaling: Option<serde_json::Value>,
+	rope_scaling:                Option<serde_json::Value>,
 	#[serde(default)]
-	rope_interleaved: bool,
+	rope_interleaved:            bool,
 	#[serde(default)]
-	attention_bias: bool,
+	attention_bias:              bool,
 	#[serde(default)]
-	mlp_bias: bool,
+	mlp_bias:                    bool,
 }
 
 const fn default_rope_theta() -> f64 {
@@ -189,7 +189,7 @@ pub enum Proj {
 /// checked against `config.json` and handed out in the Hugging Face layout
 /// both decoders use.
 pub struct LlamaWeights<R> {
-	file: Gguf<R>,
+	file:   Gguf<R>,
 	config: LlamaConfig,
 }
 
@@ -339,22 +339,22 @@ pub(super) mod tests {
 	pub fn tiny_config(vocab: usize) -> LlamaConfig {
 		LlamaConfig {
 			// head_dim 32: the smallest Metal's fused attention supports.
-			hidden_size: 128,
-			intermediate_size: 96,
-			num_hidden_layers: 2,
-			num_attention_heads: 4,
-			num_key_value_heads: 2,
-			vocab_size: vocab,
-			rms_norm_eps: 1e-5,
-			rope_theta: 10_000.0,
+			hidden_size:             128,
+			intermediate_size:       96,
+			num_hidden_layers:       2,
+			num_attention_heads:     4,
+			num_key_value_heads:     2,
+			vocab_size:              vocab,
+			rms_norm_eps:            1e-5,
+			rope_theta:              10_000.0,
 			max_position_embeddings: 64,
-			bos_token_id: Some(0),
-			tie_word_embeddings: true,
-			model_type: "llama".into(),
-			rope_scaling: None,
-			rope_interleaved: false,
-			attention_bias: false,
-			mlp_bias: false,
+			bos_token_id:            Some(0),
+			tie_word_embeddings:     true,
+			model_type:              "llama".into(),
+			rope_scaling:            None,
+			rope_interleaved:        false,
+			attention_bias:          false,
+			mlp_bias:                false,
 		}
 	}
 

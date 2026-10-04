@@ -1,0 +1,160 @@
+--- crates/pi-predict/src/smollm/cpu.rs
++++ crates/pi-predict/src/smollm/cpu.rs
+@@ -27,8 +27,8 @@
+ 
+ /// Row-major matrix of 8-bit blocks with one f32 scale per block.
+ struct Q8 {
+-	rows: usize,
+-	cols: usize,
++	rows:   usize,
++	cols:   usize,
+ 	quants: Vec<[i8; BLOCK]>,
+ 	scales: Vec<f32>,
+ }
+@@ -163,9 +163,9 @@
+ 
+ /// Sense-free spinning barrier for the workers of one forward pass.
+ struct Barrier {
+-	arrived: AtomicUsize,
++	arrived:    AtomicUsize,
+ 	generation: AtomicUsize,
+-	threads: usize,
++	threads:    usize,
+ }
+ 
+ impl Barrier {
+@@ -200,8 +200,8 @@
+ /// written by at most one worker and not read by others; [`Barrier::wait`]
+ /// orders a step's writes before the next step's reads.
+ struct Shared<'a> {
+-	ptr: *mut f32,
+-	len: usize,
++	ptr:   *mut f32,
++	len:   usize,
+ 	_data: PhantomData<&'a mut [f32]>,
+ }
+ 
+@@ -248,12 +248,12 @@
+ struct Layer {
+ 	attn_norm: Vec<f32>,
+ 	/// `[q; k; v]` fused.
+-	qkv: Q8,
+-	out: Q8,
+-	mlp_norm: Vec<f32>,
+-	gate: Q8,
+-	up: Q8,
+-	down: Q8,
++	qkv:       Q8,
++	out:       Q8,
++	mlp_norm:  Vec<f32>,
++	gate:      Q8,
++	up:        Q8,
++	down:      Q8,
+ }
+ 
+ /// The immutable model: weights and tables.
+@@ -260,11 +260,11 @@
+ struct Weights {
+ 	config: LlamaConfig,
+ 	/// Token embedding, also the tied LM head.
+-	embed: Q8,
++	embed:  Q8,
+ 	layers: Vec<Layer>,
+-	norm: Vec<f32>,
+-	cos: Vec<f32>,
+-	sin: Vec<f32>,
++	norm:   Vec<f32>,
++	cos:    Vec<f32>,
++	sin:    Vec<f32>,
+ }
+ 
+ /// `SmolLM2` on the CPU.
+@@ -271,11 +271,11 @@
+ pub struct CpuLlama {
+ 	weights: Weights,
+-	pool: rayon::ThreadPool,
++	pool:    rayon::ThreadPool,
+ 	threads: usize,
+ 	/// Per layer `[position][kv_head][head_dim]`.
+-	keys: Vec<Vec<f32>>,
+-	values: Vec<Vec<f32>>,
+-	len: usize,
++	keys:    Vec<Vec<f32>>,
++	values:  Vec<Vec<f32>>,
++	len:     usize,
+ }
+ 
+ fn rms_norm(x: &[f32], weight: &[f32], eps: f32, out: &mut [f32]) {
+@@ -307,10 +307,10 @@
+ /// Dimensions of one forward pass.
+ #[derive(Clone, Copy)]
+ struct Pass {
+-	pos: usize,
+-	n: usize,
++	pos:       usize,
++	n:         usize,
+ 	keep_from: usize,
+-	threads: usize,
++	threads:   usize,
+ }
+ 
+ /// Buffers of one forward pass, shared by its workers.
+@@ -317,10 +317,10 @@
+ struct Buffers<'a> {
+ 	/// Residual stream `[n][hidden]`.
+-	x: Shared<'a>,
++	x:        Shared<'a>,
+ 	/// Normalized input of the current block `[n][hidden]`.
+-	h: Shared<'a>,
++	h:        Shared<'a>,
+ 	/// `[n][hidden + 2·kv]`.
+-	qkv: Shared<'a>,
++	qkv:      Shared<'a>,
+ 	/// Attention output `[n][hidden]`.
+ 	attended: Shared<'a>,
+ 	/// Projection output `[n][hidden]`.
+@@ -327,12 +327,12 @@
+-	proj: Shared<'a>,
++	proj:     Shared<'a>,
+ 	/// `SwiGLU` activations `[n][inter]`.
+-	act: Shared<'a>,
++	act:      Shared<'a>,
+ 	/// `[kept][vocab]`.
+-	logits: Shared<'a>,
++	logits:   Shared<'a>,
+ 	/// Per worker and kept row: `(max, Σ exp(v - max))` of its logits share.
+-	partial: Shared<'a>,
+-	keys: Vec<Shared<'a>>,
+-	values: Vec<Shared<'a>>,
++	partial:  Shared<'a>,
++	keys:     Vec<Shared<'a>>,
++	values:   Vec<Shared<'a>>,
+ }
+ 
+ impl CpuLlama {
+@@ -410,16 +410,16 @@
+ 			cache.resize((pos + n) * kv_width, 0.0);
+ 		}
+ 		let buffers = Buffers {
+-			x: Shared::new(&mut x),
+-			h: Shared::new(&mut h),
+-			qkv: Shared::new(&mut qkv),
++			x:        Shared::new(&mut x),
++			h:        Shared::new(&mut h),
++			qkv:      Shared::new(&mut qkv),
+ 			attended: Shared::new(&mut attended),
+-			proj: Shared::new(&mut proj),
+-			act: Shared::new(&mut act),
+-			logits: Shared::new(&mut logits),
+-			partial: Shared::new(&mut partial),
+-			keys: self.keys.iter_mut().map(|k| Shared::new(k)).collect(),
+-			values: self.values.iter_mut().map(|v| Shared::new(v)).collect(),
++			proj:     Shared::new(&mut proj),
++			act:      Shared::new(&mut act),
++			logits:   Shared::new(&mut logits),
++			partial:  Shared::new(&mut partial),
++			keys:     self.keys.iter_mut().map(|k| Shared::new(k)).collect(),
++			values:   self.values.iter_mut().map(|v| Shared::new(v)).collect(),
+ 		};
+ 		let pass = Pass { pos, n, keep_from, threads };
+ 		let barrier = Barrier::new(threads);

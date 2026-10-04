@@ -1,0 +1,32 @@
+--- crates/pi-predict/src/apple/appkit.rs
++++ crates/pi-predict/src/apple/appkit.rs
+@@ -40,10 +40,10 @@
+  (cd /home/runner/.cache/bazel/_bazel_runner/29a149579717d9ed541fc5d1eff693e3/sandbox/linux-sandbox/2320/execroot/_main && \
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+  exec env - \
+  bazel-out/k8-opt-exec/bin/external/rules_rust+/util/process_wrapper/process_wrapper --touch-file bazel-out/k8-fastbuild/bin/crates/pi-predict/pi-predict.rustfmt.ok -- external/rules_rust++rust+rustfmt_nightly-2026-06-30__x86_64-unknown-linux-gnu_tools/bin/rustfmt --config-path rustfmt.toml --edition 2024 --config 'skip_children=true' --check crates/pi-predict/src/apple/appkit.rs crates/pi-predict/src/apple/mod.rs crates/pi-predict/src/lib.rs crates/pi-predict/src/ngram/hygiene.rs crates/pi-predict/src/ngram/mod.rs crates/pi-predict/src/ngram/model.rs crates/pi-predict/src/ngram/query.rs crates/pi-predict/src/ngram/snapshot.rs crates/pi-predict/src/ngram/structures.rs crates/pi-predict/src/ngram/tests.rs crates/pi-predict/src/ngram/text.rs crates/pi-predict/src/ngram/vocab.rs crates/pi-predict/src/ngram/web.rs crates/pi-predict/src/prose.rs crates/pi-predict/src/smollm/config.rs crates/pi-predict/src/smollm/cpu.rs crates/pi-predict/src/smollm/gguf.rs crates/pi-predict/src/smollm/metal.rs crates/pi-predict/src/smollm/mod.rs crates/pi-predict/src/smollm/search.rs crates/pi-predict/src/smollm/session.rs crates/pi-predict/src/smollm/tokenizer.rs)
+ pub struct SpellingRange {
+ 	/// Inclusive UTF-16 start offset.
+-	pub start: u32,
++	pub start:  u32,
+ 	/// UTF-16 length of the span.
+ 	pub length: u32,
+ }
+@@ -92,7 +92,7 @@
+ fn ns_range(start: u32, length: u32) -> anyhow::Result<NSRange> {
+ 	Ok(NSRange {
+ 		location: usize::try_from(start).context("spelling range start is too large")?,
+-		length: usize::try_from(length).context("spelling range length is too large")?,
++		length:   usize::try_from(length).context("spelling range length is too large")?,
+ 	})
+ }
+ 
+@@ -134,7 +134,7 @@
+ 			continue;
+ 		}
+ 		ranges.push(SpellingRange {
+-			start: u32::try_from(range.location).context("spelling range start is too large")?,
++			start:  u32::try_from(range.location).context("spelling range start is too large")?,
+ 			length: u32::try_from(range.length).context("spelling range length is too large")?,
+ 		});
+ 	}

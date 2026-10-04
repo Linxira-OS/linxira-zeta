@@ -33,8 +33,8 @@ pub const VERSION: u32 = 1;
 /// the first I/O error sticks and surfaces from [`Writer::finish`].
 struct Writer {
 	encoder: zstd::stream::Encoder<'static, Vec<u8>>,
-	buf: Vec<u8>,
-	error: Option<std::io::Error>,
+	buf:     Vec<u8>,
+	error:   Option<std::io::Error>,
 }
 
 impl Writer {
@@ -95,7 +95,7 @@ impl Writer {
 
 struct Reader<'a> {
 	bytes: &'a [u8],
-	at: usize,
+	at:    usize,
 }
 
 impl<'a> Reader<'a> {

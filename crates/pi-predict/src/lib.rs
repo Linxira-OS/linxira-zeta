@@ -45,7 +45,7 @@ pub struct Query<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Suggestion {
 	/// Non-empty characters appended after the prefix.
-	pub suffix: String,
+	pub suffix:     String,
 	/// Engine-calibrated probability that `suffix` is exactly right.
 	pub confidence: f32,
 }
@@ -54,9 +54,9 @@ pub struct Suggestion {
 #[derive(Clone, Debug, Default)]
 pub struct Config {
 	/// Private directory the engine persists learned state into.
-	pub state_dir: PathBuf,
+	pub state_dir:      PathBuf,
 	/// Directory holding downloaded model weights (`SmolLM2` only).
-	pub model_dir: Option<PathBuf>,
+	pub model_dir:      Option<PathBuf>,
 	/// Minimum confidence [`Predictor::complete`] returns; `None` = the
 	/// engine's tuned default. Evaluation passes `f32::NEG_INFINITY` to trace
 	/// the full curve. `SmolLM`'s typed-past exclusion, which models what the

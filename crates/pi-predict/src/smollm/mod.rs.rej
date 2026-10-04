@@ -1,0 +1,64 @@
+--- crates/pi-predict/src/smollm/mod.rs
++++ crates/pi-predict/src/smollm/mod.rs
+@@ -238,9 +238,9 @@
+ struct Memory {
+ 	recent: VecDeque<String>,
+ 	/// UTF-16 units of [`Memory::text`].
+-	units: usize,
++	units:  usize,
+ 	/// The head no longer matches `recent`.
+-	dirty: bool,
++	dirty:  bool,
+ }
+ 
+ impl Memory {
+@@ -275,7 +275,7 @@
+ struct State {
+ 	version: u32,
+ 	/// Recent typed prompts, oldest first.
+-	recent: Vec<String>,
++	recent:  Vec<String>,
+ }
+ 
+ /// Words offered (confidence ≥ τ) while the current word is typed.
+@@ -282,8 +282,8 @@
+ #[derive(Default)]
+ struct Shown {
+-	before: String,
++	before:       String,
+ 	prefix_units: usize,
+-	words: HashSet<String>,
++	words:        HashSet<String>,
+ }
+ 
+ impl Shown {
+@@ -307,7 +307,7 @@
+ /// The word being completed: its context text and healed lead.
+ struct Word {
+ 	context: String,
+-	lead: String,
++	lead:    String,
+ }
+ 
+ struct SmolLm {
+@@ -314,12 +314,12 @@
+-	tokenizer: Tokenizer,
+-	index: TokenIndex,
+-	session: Session,
+-	bos: u32,
+-	memory: Memory,
+-	shown: Shown,
+-	word: Option<Word>,
++	tokenizer:      Tokenizer,
++	index:          TokenIndex,
++	session:        Session,
++	bos:            u32,
++	memory:         Memory,
++	shown:          Shown,
++	word:           Option<Word>,
+ 	show_threshold: f32,
+-	state_dir: PathBuf,
++	state_dir:      PathBuf,
+ }
+ 
+ impl SmolLm {

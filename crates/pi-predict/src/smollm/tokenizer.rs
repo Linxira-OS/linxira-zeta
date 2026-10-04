@@ -24,12 +24,12 @@ const SPLIT: &str = r"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}
 
 #[derive(Deserialize)]
 struct TokenizerJson {
-	normalizer: Option<serde_json::Value>,
+	normalizer:    Option<serde_json::Value>,
 	pre_tokenizer: Option<PreTokenizerJson>,
-	decoder: Option<TypedJson>,
-	model: ModelJson,
+	decoder:       Option<TypedJson>,
+	model:         ModelJson,
 	#[serde(default)]
-	added_tokens: Vec<AddedTokenJson>,
+	added_tokens:  Vec<AddedTokenJson>,
 }
 
 #[derive(Deserialize)]
@@ -41,7 +41,7 @@ struct TypedJson {
 #[derive(Deserialize)]
 struct PreTokenizerJson {
 	#[serde(rename = "type")]
-	kind: String,
+	kind:          String,
 	#[serde(default)]
 	pretokenizers: Vec<PreTokenizerStepJson>,
 }
@@ -49,13 +49,13 @@ struct PreTokenizerJson {
 #[derive(Deserialize)]
 struct PreTokenizerStepJson {
 	#[serde(rename = "type")]
-	kind: String,
+	kind:              String,
 	#[serde(default)]
 	individual_digits: bool,
 	#[serde(default)]
-	add_prefix_space: bool,
+	add_prefix_space:  bool,
 	#[serde(default = "default_true")]
-	use_regex: bool,
+	use_regex:         bool,
 }
 
 const fn default_true() -> bool {
@@ -86,7 +86,7 @@ enum MergeJson {
 
 #[derive(Deserialize)]
 struct AddedTokenJson {
-	id: u32,
+	id:      u32,
 	content: String,
 	#[serde(default)]
 	special: bool,
@@ -114,7 +114,7 @@ fn byte_chars() -> [char; 256] {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Encoding {
 	/// Token ids in order.
-	pub ids: Vec<u32>,
+	pub ids:     Vec<u32>,
 	/// `[start, end)` byte offsets of each token.
 	pub offsets: Vec<(usize, usize)>,
 }
@@ -122,14 +122,14 @@ pub struct Encoding {
 /// `SmolLM2`'s byte-level BPE tokenizer.
 pub struct Tokenizer {
 	/// Single-byte token id for every byte value, if the vocab has one.
-	byte_ids: [Option<u32>; 256],
+	byte_ids:    [Option<u32>; 256],
 	/// `(left, right)` → `(rank, merged id)`.
-	merges: HashMap<(u32, u32), (u32, u32)>,
+	merges:      HashMap<(u32, u32), (u32, u32)>,
 	/// Raw bytes each token decodes to.
 	token_bytes: Vec<Box<[u8]>>,
 	/// Special added tokens (never produced by `encode`).
-	special: Vec<bool>,
-	split: Regex,
+	special:     Vec<bool>,
+	split:       Regex,
 }
 
 impl Tokenizer {

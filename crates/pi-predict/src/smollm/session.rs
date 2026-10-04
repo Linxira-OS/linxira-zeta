@@ -17,19 +17,19 @@ use super::{
 };
 
 pub struct Session {
-	model: Box<dyn Decoder>,
+	model:    Box<dyn Decoder>,
 	/// Token ids backing the KV cache (always `model.len()` long).
-	cached: Vec<u32>,
-	head: Vec<u32>,
+	cached:   Vec<u32>,
+	head:     Vec<u32>,
 	/// Head plus the current word's context.
-	prefix: Vec<u32>,
+	prefix:   Vec<u32>,
 	/// Next-token log-probs by search path, for the current context.
-	memo: HashMap<Vec<u32>, Arc<[f32]>>,
+	memo:     HashMap<Vec<u32>, Arc<[f32]>>,
 	/// KV of each search path's last token, for the current context.
-	kv: HashMap<Vec<u32>, KvRow>,
+	kv:       HashMap<Vec<u32>, KvRow>,
 	/// Row after the head alone: the root for a prompt's first word.
 	head_row: Option<Arc<[f32]>>,
-	vocab: usize,
+	vocab:    usize,
 }
 
 impl Session {

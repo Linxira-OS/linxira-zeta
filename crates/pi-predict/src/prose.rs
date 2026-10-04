@@ -382,7 +382,7 @@ pub struct ProseWord {
 	/// Byte offset of the word in the prompt.
 	pub start: usize,
 	/// Byte offset just past the word.
-	pub end: usize,
+	pub end:   usize,
 }
 
 /// `[\p{L}\p{M}']+` matches of `line` as byte ranges.

@@ -1,0 +1,129 @@
+--- crates/pi-predict/src/ngram/query.rs
++++ crates/pi-predict/src/ngram/query.rs
+@@ -33,13 +33,13 @@
+ /// Context statistics of one query.
+ struct Ctx<'a> {
+ 	followers: Option<&'a Followers>,
+-	cv: f64,
+-	tv: f64,
+-	pair: u32,
+-	cuv: f64,
+-	tuv: f64,
+-	web_slot: u32,
+-	web_s: f64,
++	cv:        f64,
++	tv:        f64,
++	pair:      u32,
++	cuv:       f64,
++	tuv:       f64,
++	web_slot:  u32,
++	web_s:     f64,
+ }
+ 
+ /// One scored candidate.
+@@ -46,16 +46,16 @@
+ #[derive(Clone, Copy, Default)]
+ struct Candidate {
+ 	/// Vocabulary id, or `NONE` for a word seen only earlier in this prompt.
+-	id: u32,
++	id:      u32,
+ 	/// Window byte span of a cache-only word.
+-	span: (u32, u32),
+-	c2: f32,
+-	pw: f32,
+-	c3: f32,
+-	cache: f64,
++	span:    (u32, u32),
++	c2:      f32,
++	pw:      f32,
++	c3:      f32,
++	cache:   f64,
+ 	session: f64,
+ 	/// Case-weighted chain score `s(w)`.
+-	score: f64,
++	score:   f64,
+ }
+ 
+ /// The word a ranking picked.
+@@ -70,26 +70,26 @@
+ /// Query-local state reused across the prefixes of one word.
+ pub struct QueryState {
+ 	/// `before` the memo was built for.
+-	before: String,
+-	version: u64,
++	before:    String,
++	version:   u64,
+ 	/// Lowercased tail of `before` scanned by the prompt-local cache;
+ 	/// byte offsets match `before[window_at..]`.
+-	window: String,
++	window:    String,
+ 	window_at: usize,
+-	u: String,
+-	v: String,
+-	context: Context,
++	u:         String,
++	v:         String,
++	context:   Context,
+ 	// Scratch.
+-	cands: Vec<Candidate>,
+-	stamp: Vec<u32>,
+-	slot: Vec<u32>,
+-	epoch: u32,
+-	heap: Vec<u32>,
+-	top: Vec<u32>,
+-	tail: String,
+-	key_buf: String,
+-	cu: String,
+-	cv: String,
++	cands:     Vec<Candidate>,
++	stamp:     Vec<u32>,
++	slot:      Vec<u32>,
++	epoch:     u32,
++	heap:      Vec<u32>,
++	top:       Vec<u32>,
++	tail:      String,
++	key_buf:   String,
++	cu:        String,
++	cv:        String,
+ }
+ 
+ impl Default for QueryState {
+@@ -96,22 +96,22 @@
+ 	fn default() -> Self {
+ 		Self {
+-			before: String::new(),
+-			version: u64::MAX,
+-			window: String::new(),
++			before:    String::new(),
++			version:   u64::MAX,
++			window:    String::new(),
+ 			window_at: 0,
+-			u: String::new(),
+-			v: String::new(),
+-			context: Context { u: Slot::None, v: Slot::None },
+-			cands: Vec::new(),
+-			stamp: Vec::new(),
+-			slot: Vec::new(),
+-			epoch: 0,
+-			heap: Vec::new(),
+-			top: Vec::new(),
+-			tail: String::new(),
+-			key_buf: String::new(),
+-			cu: String::new(),
+-			cv: String::new(),
++			u:         String::new(),
++			v:         String::new(),
++			context:   Context { u: Slot::None, v: Slot::None },
++			cands:     Vec::new(),
++			stamp:     Vec::new(),
++			slot:      Vec::new(),
++			epoch:     0,
++			heap:      Vec::new(),
++			top:       Vec::new(),
++			tail:      String::new(),
++			key_buf:   String::new(),
++			cu:        String::new(),
++			cv:        String::new(),
+ 		}
+ 	}
+ }

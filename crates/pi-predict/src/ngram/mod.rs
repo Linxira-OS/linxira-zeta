@@ -99,11 +99,11 @@ const SNAPSHOT_FILE: &str = "ngram.snapshot";
 
 /// The n-gram engine.
 pub struct NgramPredictor {
-	model: model::Model,
-	query: query::QueryState,
+	model:     model::Model,
+	query:     query::QueryState,
 	/// Caller override of [`Params::show_threshold`] (see
 	/// [`Config::show_threshold`]).
-	gate: Option<f32>,
+	gate:      Option<f32>,
 	state_dir: PathBuf,
 }
 

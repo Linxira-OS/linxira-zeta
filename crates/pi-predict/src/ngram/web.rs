@@ -101,26 +101,26 @@ impl SortedWords {
 /// Web unigram and bigram statistics indexed by web id (lexicographic rank).
 pub struct WebPrior {
 	/// Vocabulary in byte order.
-	pub words: SortedWords,
+	pub words:    SortedWords,
 	/// Norvig count per word.
-	pub count: Vec<f32>,
+	pub count:    Vec<f32>,
 	/// Unigram share `p0` per word.
-	pub p0: Vec<f32>,
+	pub p0:       Vec<f32>,
 	/// Cumulative `p0` (`p0_cum[i]` = sum over words `< i`).
-	pub p0_cum: Vec<f64>,
-	in_dict: Vec<u64>,
+	pub p0_cum:   Vec<f64>,
+	in_dict:      Vec<u64>,
 	/// Dictionary words outside the vocabulary.
-	dict_only: SortedWords,
+	dict_only:    SortedWords,
 	/// Bigram slot per context word (index `len()` = sentence start).
-	slot: Vec<u32>,
+	slot:         Vec<u32>,
 	/// Follower rows per slot: `start[slot]..start[slot + 1]`.
-	start: Vec<u32>,
+	start:        Vec<u32>,
 	/// Follower web ids, ascending within a slot.
 	pub follower: Vec<u32>,
 	/// `P_web(w | v)` per row.
-	pub prob: Vec<f32>,
+	pub prob:     Vec<f32>,
 	/// Covered mass `S(v) = Σ_w P_web(w | v)` per slot (capped at 1).
-	pub covered: Vec<f32>,
+	pub covered:  Vec<f32>,
 }
 
 /// No bigram slot.
@@ -128,7 +128,7 @@ pub const NO_SLOT: u32 = u32::MAX;
 
 struct Reader<'a> {
 	bytes: &'a [u8],
-	at: usize,
+	at:    usize,
 }
 
 impl<'a> Reader<'a> {
