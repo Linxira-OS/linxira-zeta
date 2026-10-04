@@ -1589,7 +1589,16 @@ export class AgentSession implements SettingsScope {
 	 * initial prompt (or the plan-mode context when already streaming).
 	 */
 	async enterPlanMode(initialPrompt?: string, options: PlanModeEntryOptions = {}): Promise<void> {
-		if (this.#planModeState?.enabled) return;
+		if (this.#planModeState?.enabled) {
+			// Re-entry while already armed (e.g. `/plan <task>` sent from the web
+			// while plan mode is on): the mode half is a no-op, but a supplied
+			// task must still reach the agent — dropping it here leaves the
+			// client stuck on "plan mode enabled" with nothing planned.
+			if (initialPrompt && initialPrompt.trim() !== "") {
+				await this.steer(initialPrompt.trim());
+			}
+			return;
+		}
 		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
 		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
 

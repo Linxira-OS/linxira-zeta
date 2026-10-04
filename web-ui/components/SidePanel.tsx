@@ -82,7 +82,7 @@ export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }
         {contextUsage?.contextWindow ? (
           <>
             <Value>
-              <span style={{ color: pctColor }}>{pct !== null && pct !== undefined ? `${pct.toFixed(0)}%` : "?"}</span>
+              <span style={{ color: pctColor }}>{pct !== null && pct !== undefined ? `${pct.toFixed(0)}%` : "0%"}</span>
               <span style={{ color: "var(--text-muted)" }}> of {fmt(contextUsage.contextWindow)}</span>
             </Value>
             {contextUsage.tokens !== null && contextUsage.tokens !== undefined && (

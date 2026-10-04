@@ -1806,7 +1806,7 @@ function AppShellContent() {
 									ctxStr =
 										pct !== null
 											? `${pct.toFixed(0)}% / ${fmt(contextUsage.contextWindow)}`
-											: `? / ${fmt(contextUsage.contextWindow)}`;
+											: `0% / ${fmt(contextUsage.contextWindow)}`;
 								}
 
 								const tooltipParts: string[] = [];
@@ -1820,7 +1820,7 @@ function AppShellContent() {
 								if (contextUsage?.contextWindow) {
 									const pct = contextUsage.percent;
 									tooltipParts.push(
-										`context: ${pct !== null ? pct.toFixed(1) + "%" : "unknown"} of ${contextUsage.contextWindow.toLocaleString(locale)} tokens`,
+										`context: ${pct !== null ? pct.toFixed(1) + "%" : "0.0%"} of ${contextUsage.contextWindow.toLocaleString(locale)} tokens`,
 									);
 								}
 								const tooltip = tooltipParts.join("  |  ");

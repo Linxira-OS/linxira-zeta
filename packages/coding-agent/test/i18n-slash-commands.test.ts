@@ -174,4 +174,14 @@ describe("builtin slash command zh localization", () => {
 		expect(hasCjk(en)).toBe(false);
 		expect(hasCjk(zh)).toBe(true);
 	});
+
+	// Web/attach clients render their slash catalogs from this registry (via
+	// mode_enter names); losing a mode command here removes it from every
+	// client's autocomplete at once (the v18.6.0 registry-spread merge loss).
+	test("mode commands stay registered: plan/plan-ultra/goal/vibe resolvable by name", () => {
+		const names = new Set(BUILTIN_SLASH_COMMAND_DEFS.map(command => command.name));
+		for (const name of ["plan", "plan-ultra", "goal", "vibe"]) {
+			expect(names.has(name), `builtin registry lost /${name}`).toBe(true);
+		}
+	});
 });

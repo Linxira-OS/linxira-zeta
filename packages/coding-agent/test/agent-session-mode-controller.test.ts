@@ -201,4 +201,43 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 
 		expect(harness.session.getStateVersion()).toBeGreaterThan(before);
 	});
+
+	function userTexts(harness: ModeHarness): string[] {
+		return harness.session.agent.state.messages
+			.filter(m => m.role === "user")
+			.map(m => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)));
+	}
+
+	it("enterMode('plan', { initialPrompt }) dispatches the task as the first planning round", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+
+		await harness.session.enterMode("plan", { initialPrompt: "Draft the migration plan" });
+		await harness.session.waitForIdle();
+
+		// The steered task must land in the transcript and drive a model call,
+		// not just arm the mode (web `/plan <task>` regression).
+		expect(userTexts(harness).some(text => text.includes("Draft the migration plan"))).toBe(true);
+		expect(harness.mock.calls.length).toBeGreaterThan(0);
+	});
+
+	it("enterMode('plan', { initialPrompt }) while plan mode is armed still delivers the task", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+		await harness.session.enterMode("plan");
+
+		await harness.session.enterMode("plan", { initialPrompt: "Second task" });
+		await harness.session.waitForIdle();
+
+		// Re-entry is a mode no-op, but the supplied task must reach the agent
+		// instead of being dropped by the early return.
+		expect(
+			userTexts(harness).some(text => text.includes("Second task")) ||
+				harness.session
+					.getQueuedMessages()
+					.steering.some(text => text.includes("Second task")),
+		).toBe(true);
+	});
 });

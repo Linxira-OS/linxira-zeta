@@ -23,7 +23,7 @@ import type { ImControlParams, ImControlResult } from "../../channels/im-control
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
-import { type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
+import { type ContextUsage, type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
@@ -188,6 +188,8 @@ export interface AgentState {
 	autoCompactionEnabled: boolean;
 	/** Whether auto-retry is enabled. */
 	autoRetryEnabled: boolean;
+	/** Live context usage for the active model (tokens / window / percent). */
+	contextUsage: ContextUsage | null;
 	/** Monotonic counter bumped whenever mode or model state changes. */
 	stateVersion: number;
 }
@@ -461,6 +463,7 @@ export class AgentSessionWrapper {
 			activeToolNames: inner.getActiveToolNames(),
 			autoCompactionEnabled: inner.autoCompactionEnabled,
 			autoRetryEnabled: inner.autoRetryEnabled,
+			contextUsage: inner.getContextUsage() ?? null,
 			stateVersion: inner.getStateVersion(),
 		};
 	}

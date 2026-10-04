@@ -251,6 +251,23 @@ export const BUILTIN_SLASH_COMMANDS: SlashCommandPaletteItem[] = [
 	...WEB_COMMAND_ALIASES,
 ].filter((cmd, index, self) => self.findIndex(c => c.name === cmd.name) === index);
 
+/**
+ * The single slash-command catalog for BOTH composer variants (hero welcome
+ * card and docked existing-session composer) and both agent states (idle or
+ * streaming): builtin mode commands (/plan, /plan-ultra, /exit-plan, /goal,
+ * /vibe, …) stay visible and completable in existing sessions even before
+ * the gateway's extension/prompt/skill list loads — or while it returns none.
+ * Builtin entries win name collisions with gateway commands (same precedence
+ * as the CLI's buildAvailableSlashCommands).
+ */
+export function buildSlashCommandCatalog(
+	sessionCommands?: readonly SlashCommandInfo[] | null,
+): SlashCommandPaletteItem[] {
+	return [...BUILTIN_SLASH_COMMANDS, ...(sessionCommands ?? [])].filter(
+		(cmd, index, all) => all.findIndex(c => c.name === cmd.name) === index,
+	);
+}
+
 const SLASH_SOURCES: SlashCommandSource[] = ["builtin", "extension", "prompt", "skill"];
 
 const SLASH_SOURCE_GROUP_LABEL_KEYS: Record<SlashCommandSource, string> = {
@@ -282,6 +299,29 @@ function getSlashDescription(command: SlashCommandPaletteItem, t: (key: string) 
 	return command.description.startsWith("chat.") || command.description.startsWith("slashcmd.")
 		? t(command.description)
 		: command.description;
+}
+
+/** Name/description match + rank/source/name ordering for the slash palette. */
+export function filterSlashCommandsForQuery(
+	commands: readonly SlashCommandPaletteItem[],
+	query: string,
+	t: (key: string) => string,
+): SlashCommandPaletteItem[] {
+	const slashQuery = query.toLowerCase();
+	return [...commands]
+		.filter(command => {
+			const name = command.name.toLowerCase();
+			const description = getSlashDescription(command, t).toLowerCase();
+			return name.includes(slashQuery) || description.includes(slashQuery);
+		})
+		.sort((a, b) => {
+			const rankDelta = slashMatchRank(a, slashQuery, t) - slashMatchRank(b, slashQuery, t);
+			if (rankDelta !== 0) return rankDelta;
+			return (
+				SLASH_SOURCE_ORDER[a.source] - SLASH_SOURCE_ORDER[b.source] ||
+				MODEL_OPTION_COLLATOR.compare(a.name, b.name)
+			);
+		});
 }
 
 function isDormantSkillCommand(command: SlashCommandPaletteItem, skillDormancy: Record<string, boolean>): boolean {
@@ -795,24 +835,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 
 	const slashQuery = value.startsWith("/") && !/\s/.test(value.slice(1)) ? value.slice(1).toLowerCase() : null;
 
-	const filteredSlashCommands = (() => {
-		if (slashQuery === null) return [];
-		const commands = [...(isStreaming ? [] : BUILTIN_SLASH_COMMANDS), ...(slashCommands ?? [])];
-		return [...commands]
-			.filter(command => {
-				const name = command.name.toLowerCase();
-				const description = getSlashDescription(command, t).toLowerCase();
-				return name.includes(slashQuery) || description.includes(slashQuery);
-			})
-			.sort((a, b) => {
-				const rankDelta = slashMatchRank(a, slashQuery, t) - slashMatchRank(b, slashQuery, t);
-				if (rankDelta !== 0) return rankDelta;
-				return (
-					SLASH_SOURCE_ORDER[a.source] - SLASH_SOURCE_ORDER[b.source] ||
-					MODEL_OPTION_COLLATOR.compare(a.name, b.name)
-				);
-			});
-	})();
+	const filteredSlashCommands =
+		slashQuery === null ? [] : filterSlashCommandsForQuery(buildSlashCommandCatalog(slashCommands), slashQuery, t);
 
 	const { commands: displayedSlashCommands, groups: groupedSlashCommands } = buildSlashCommandLayout(
 		filteredSlashCommands,
@@ -1057,6 +1081,32 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 		[value, attachedImages, onPromptWithStreamingBehavior, onSteer, onFollowUp, clearInput, onAudioUnlock],
 	);
 
+	/**
+	 * Enter while the agent streams. Builtin slash commands keep command
+	 * semantics here (the /plan family enters the mode and steers the live
+	 * run, same as the CLI); anything the builtin switch does not own falls
+	 * back to the queued steer/follow-up path, which still reaches the
+	 * gateway's prompt parser for extension/file commands.
+	 */
+	const submitStreamingInput = useCallback(() => {
+		const msg = value.trim();
+		if (!msg || attachedImages.length) return;
+		onAudioUnlock?.();
+		if (msg.startsWith("/") && onBuiltinCommand) {
+			void (async () => {
+				const result = await onBuiltinCommand(msg);
+				if (result.handled) {
+					if (!result.error) clearInput();
+					return;
+				}
+				sendQueued(onSteer ? "steer" : "followup");
+			})();
+			return;
+		}
+		sendQueued(onSteer ? "steer" : "followup");
+	}, [value, attachedImages, onAudioUnlock, onBuiltinCommand, clearInput, sendQueued, onSteer, onFollowUp]);
+
+
 	const getNextSlashIndex = useCallback(
 		(direction: "up" | "down" | "left" | "right") => {
 			const lastIndex = displayedSlashCommands.length - 1;
@@ -1261,8 +1311,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 			if (e.key === "Enter" && !e.shiftKey) {
 				e.preventDefault();
 				if (isStreaming && (onSteer || onFollowUp)) {
-					// Default Enter sends as steer if available, else followup
-					sendQueued(onSteer ? "steer" : "followup");
+					// Default Enter sends as steer if available, else followup;
+					// builtin slash commands execute instead of queueing.
+					submitStreamingInput();
 				} else {
 					handleSend();
 				}
@@ -1278,7 +1329,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 			displayedSlashCommands,
 			slashActiveIndex,
 			applySlashCommand,
-			sendQueued,
+			submitStreamingInput,
 			handleSend,
 			getNextSlashIndex,
 			atMenuOpen,

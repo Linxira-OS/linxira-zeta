@@ -80,7 +80,8 @@
 
 ### 修复
 
-- 无。
+- **既有会话斜杠目录缺 builtin 命令**：web 斜杠弹窗在 agent 忙碌/网关命令列表为空时只搜扩展/提示词/技能，`/plan` 等内置模式命令集体消失（「0 个匹配项」）。目录构建统一为单一 `buildSlashCommandCatalog`（builtin 清单与网关列表合并、builtin 优先去重），hero 欢迎卡与既有会话 docked 输入框、空闲与流式状态同源；流式中回车补全的内置命令走命令通道（/plan 族进入模式并 steer 在跑回合）而非把原文塞给模型。
+- **web `/plan <任务>` 激活后任务无下文**：前端 mode_enter 后未挂接事件流，steer 出的规划回合在前端不可见（后端早已派发）；`enterPlanMode` 在已启用计划模式时提前返回会把任务整个丢弃。现在 get_state 带回 `contextUsage`、前端在 mode_enter 后桥接运行态与 SSE，`/goal <目标>` 对齐 CLI「进入模式 + 提交首回合」。顶栏与侧栏 context 用量在未回流前显示 `0%` 而非 `? / 128k` 占位。
 
 ### 移除
 

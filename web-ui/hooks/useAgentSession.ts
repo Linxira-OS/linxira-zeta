@@ -2197,6 +2197,40 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     [isNew, newSessionCwd, session?.cwd],
   );
 
+  /**
+   * A mode_enter with a task (web `/plan <task>` etc.) steers a round on the
+   * gateway. That round is invisible to this client unless we attach: the
+   * command POST is not the prompt pipeline, so nothing else marks the agent
+   * running or opens the event stream — the mode banner appears but the task
+   * never seems to start. Mirror the mount-time attach bridge: mark the run
+   * live when state already shows it, and connect the SSE feed either way so
+   * a turn claimed a beat later (queued-message drain) still streams in.
+   */
+  const bridgeModeEnterRound = useCallback(
+    (sid: string, agentState: { running: boolean; state?: AgentStateResponse } | null) => {
+      const st = agentState?.state;
+      if (agentState?.running && (st?.isStreaming || st?.isPromptRunning)) {
+        sdkAgentActiveRef.current = Boolean(st.isStreaming);
+        rpcPromptPendingRef.current = Boolean(st.isPromptRunning);
+        agentRunningRef.current = true;
+        setAgentRunning(true);
+        setAgentPhase(
+          st.isStreaming ? { kind: "waiting_model" } : { kind: "running_command" },
+        );
+        dispatch({ type: "start" });
+        if (!st.isStreaming && st.isPromptRunning) {
+          void waitForPromptSettlement(sid);
+        }
+      }
+      void ensureEventsConnected(sid).catch(() => {
+        // Best-effort attach: a failed connect retries on the next
+        // prompt/command like any other dropped stream.
+      });
+    },
+    [ensureEventsConnected, waitForPromptSettlement],
+  );
+
+
   const handleBuiltinSlashCommand = useCallback(
     async (text: string): Promise<BuiltinSlashCommandResult> => {
       if (!text.startsWith("/")) return { handled: false };
@@ -2253,7 +2287,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               ...(args ? { options: { initialPrompt: args } } : {}),
             });
             const planAgentState = await loadSession(sid, true, true);
-            if (planAgentState) promoteNewSession();
+            if (planAgentState) {
+              if (args) bridgeModeEnterRound(sid, planAgentState);
+              promoteNewSession();
+            }
             const planFile =
               (
                 planAgentState as {
@@ -2279,7 +2316,10 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               },
             });
             const ultraAgentState = await loadSession(sid, true, true);
-            if (ultraAgentState) promoteNewSession();
+            if (ultraAgentState) {
+              if (args) bridgeModeEnterRound(sid, ultraAgentState);
+              promoteNewSession();
+            }
             const ultraPlanFile =
               (
                 ultraAgentState as {
@@ -2320,8 +2360,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               mode: "goal",
               options: { objective: args },
             });
-            if (await loadSession(sid, true, true)) promoteNewSession();
+            const goalAgentState = await loadSession(sid, true, true);
+            if (goalAgentState) promoteNewSession();
             appendModeMessage(t("goal-mode-enabled-fmt", { objective: args }));
+            // CLI parity: /goal <objective> arms goal mode, then submits the
+            // objective as the first goal-mode turn — enterGoalMode alone arms
+            // the state without starting a round.
+            await handleSend(args);
             return complete({ handled: true, message: "Goal mode enabled" });
           }
 
@@ -2633,7 +2678,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       activeLeafId,
       addNotice,
       appendModeMessage,
+      bridgeModeEnterRound,
       ensureNewSession,
+      handleSend,
       isCompacting,
       loadModels,
       loadSession,
