@@ -23,7 +23,11 @@ import type { ImControlParams, ImControlResult } from "../../channels/im-control
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
-import { type ContextUsage, type ExtensionUIContext, getExtensionUISelectOptionLabel } from "../../extensibility/extensions/types";
+import {
+	type ContextUsage,
+	type ExtensionUIContext,
+	getExtensionUISelectOptionLabel,
+} from "../../extensibility/extensions/types";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";

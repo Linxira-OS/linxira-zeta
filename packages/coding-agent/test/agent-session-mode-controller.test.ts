@@ -235,9 +235,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		// instead of being dropped by the early return.
 		expect(
 			userTexts(harness).some(text => text.includes("Second task")) ||
-				harness.session
-					.getQueuedMessages()
-					.steering.some(text => text.includes("Second task")),
+				harness.session.getQueuedMessages().steering.some(text => text.includes("Second task")),
 		).toBe(true);
 	});
 });
