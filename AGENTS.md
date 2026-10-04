@@ -154,7 +154,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
 | 配置目录 | `.zeta` / `~/.zeta` | 无 `.zeta` 别名 |
 | CLI bin 命名(2026-09-30 定稿) | `@linxiraos/zeta` 的 bin = `zeta-c`/`zeta-cli`/`zetacode`(pi-utils `CLI_BIN_NAME`;`zeta://`、`.zeta`、`ZETA_*`、包名、`zeta-cli-*` release 资产名均不变) | 裸 `zeta` 名属 `@linxiraos/main` 工作台;`APP_NAME`("zeta")仍是产品身份(配置根/日志名/归因头/splash)——勿把配置/线值扫成 zeta-c |
-| 工作台与 IDE 包 | `@linxiraos/main`(bin `zeta`,main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zeta-ide`/`zeta-i`,termide npm 面)、`@linxiraos/editor`(bin `zeta-editor`/`zeta-e`) | 新包首发=用户手动以现行版本号占位,配好 npm trust 后才接自动发布链(main-publish.yml 已备未接线) |
+| 工作台与 IDE 包 | `@linxiraos/main`(bin `zeta`,main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zeta-ide`/`zeta-i`,termide npm 面)、`@linxiraos/editor`(bin `zeta-editor`/`zeta-e`) | 发布链已全接线：ci.yml 发布链经 workflow_call 派发 main/ide/editor-publish.yml（2026-09-30 起，1.1.24 起实际发版）。**平台叶包内嵌的二进制是入库产物**——发版前必须重编并提交（main/npm/*/bin、editor/termide npm 同理），否则原样带出陈旧二进制（v1.1.25 事故：发的是 1.1.23 的 zeta.exe，v1.1.26 补丁修复） |
 | 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量，MUST_CONTAIN 守护） |
 | Native 哨兵 | `__piNativesV1_X_Y` | 保留 Zeta 版本线 |
@@ -186,6 +186,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 10 | 发布链组装竞态与校验脱节（v1.1.16）：`release_github` 不依赖 desktop jobs → desktop artifacts 未上传时下载 0 安装包；裁剪/恢复平台时 preflight 期待数、checksums glob、files glob 未三处同步；错用"删校验"让链变绿 | GH Release 缺桌面包或整环失败：`Expected at least N zeta-desktop-*, found 0`；或校验消失后**静默漏发** | `release_github.needs` 必须含 `desktop_linux`+`desktop_windows`；平台裁剪/恢复按 `document/release.md` 损伤类别 5/6 三处同步；**严禁删 preflight 校验**；判定 CI 绿必须核对 run 的 jobs 数（1-job run 是 flake 评估器） |
 | 11 | **跨面 token 只扫一面**（v18.4.3 CI 首轮六红同根）：同一 token 存在于 producer/consumer 两侧——worker argv 协议（源 `__omp_worker_*` vs cli.ts 只派发 `__zeta_worker_*`，子进程全量跑成普通 CLI，eval worker init 10-15s 超时级联 "JS context disposed"/"No models available"）、env 契约（测试设 `PI_CODING_AGENT_DIR`，JS/Rust 源只读 ZETA_*，Rust crash_handler 曾整面漏扫）、UA 正则 `/^omp\/\d/`、CLI 提示 `Run \`omp --resume\``、XDG 目录名、测试夹具写死上游版本坐标（15.10.x vs 1.x 线） | `check:ts` 全绿但运行时/CI 才炸：eval 系测试成片超时、子进程报 "No models available"、CANTOPEN、断言含 `omp` 字面量 | 清扫必须 producer+consumer 成对；`scripts/brand/brand-rules.ts` MUST_NOT_CONTAIN "跨面 token 对"组常驻守卫（`__omp_worker_`/`PI_CODING_AGENT_DIR`/UA omp 模板与正则/`` Run `omp ``），命中即红；版本相对夹具一律从 `packageJson.version` 推导；**Cargo.lock 任何改动（含版本线修复）之后必须重刷 MODULE.bazel.lock**（crate_universe 哈希链，失新则 freshness job 红，取其上传工件回提） |
 | 12 | **CI 双态切换语义破坏**（2026-10-03 双态改造引入）：测试类 job（`check`/`rust_validate`/`test_workspace`/`test_coding_agent_*`/`test_ts_native`）的发布态跳过是 `needs: [release_metadata]` + `if: is-release != 'true'`——把 `release_gate.needs` 改回引用这些 job（release run 里 skipped → gate 永不 green 或空转），或在发布链 job 的 if 里引用测试 job 的 result；或把 skip 当"测试已绿"——发布态跳过不产生任何测试信号 | release run 里 `release_gate` 卡 skipped/永不触发；或发布 run 缺测试佐证就 build+publish | `release_gate.needs` 只含 `[release_metadata, bazel_lock, native_addons, native_addons_cross, install_methods]`；发布前提 = 同 SHA push-run 绿（`release-v2.ts` CI wait，逃生口 `--no-ci-wait`）；`check:ts` 等本地门禁仍是合并前置，任何模式都不豁免 |
+| 13 | **发布面二进制陈旧**（v1.1.25 事故）：`main/npm/main-{windows,linux}-x64/bin/`、editor/termide npm 叶包内的二进制是**入库提交产物**，发布 job 只打包 checkout——没人重编提交就原样带出旧版（1.1.25 带出 1.1.23 的 zeta.exe，`--version` 与功能面双错） | npm 装的新版本 `zeta --version` 报旧版本号；工作台新功能"发布了但用户没有" | 发版前重编并提交全部平台叶包内嵌二进制（Win GNU target + WSL linux target；版本戳必须等于将发版本）；`zeta-work --version` 本机验戳后才许 tag |
 
 **Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。tag run 的 binary/release job 崩或排队数小时 ⇒ 第 7 类，查 `runs-on` 与产物命名。`Validate Rust workspace` exit 1（非 3）⇒ 构建/格式门禁（第 8 类），`cargo fmt --all --check` 全量对账；exit 3 ⇒ 测试失败，看 test result 行。
 
@@ -259,6 +260,13 @@ This repo contains multiple packages, but **`packages/coding-agent/`** is the pr
 | `packages/omptype`      | ArkType-compatible schema validation with a lazy JIT runtime                            |
 | `packages/utils`        | Shared utilities (logger, streams, temp files)                                          |
 | `crates/pi-natives`     | Rust crate for performance-critical text/grep ops                                       |
+| `packages/channels`     | IM channel adapters (WeChat/Feishu/Telegram) + ChannelHost coordinator, embedded in `zeta serve` |
+| `packages/wire`         | RPC/event wire protocol between clients (sdk) and the agent runtime                    |
+| `packages/mnemopi`      | Memory/recall subsystem consumed by the agent runtime                                   |
+| `packages/metaharness`  | Eval harness plumbing (internal; rides the version line, rarely user-visible)          |
+| `packages/browser-relay`| Browser relay companion package for the web extension                                   |
+| `packages/collab-web`   | Collaboration web surface assets                                                        |
+| `packages/typescript-edit-benchmark` | Internal TS edit-path benchmark (dev only)                                   |
 
 ### Code Location Rules — desktop vs web-ui vs gateway
 
@@ -270,7 +278,7 @@ across the correct directories.
 |---|---|---|
 | **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:30141` web-ui, `http://127.0.0.1:3847` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
 | **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:30141`. Never place `.ts` server code or Electron code here. |
-| **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). Handler modules import from `packages/coding-agent/src/**` only. |
+| **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`, `terminal.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). `terminal.ts` is the WS precedent (upgrade wiring in `zeta-server.ts`, one-time tickets for browser WS auth) — new WebSocket endpoints follow its pattern. Handler modules import from `packages/coding-agent/src/**` only. |
 | **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
 | **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
 
@@ -309,9 +317,9 @@ runtime (desktop/src/main.ts)
   window at `WEB_UI_URL` (`http://127.0.0.1:30141`); the shell and the web-ui never
   share code — only the HTTP loopback. Web-ui and desktop each depend on the
   gateway side (`packages/coding-agent/src/**`) via HTTP, never via imports.
-- **CI** (`desktop_linux`/`desktop_windows`/`desktop_mac` jobs): `npm ci` (web-ui
+- **CI** (`desktop_linux`/`desktop_windows` jobs): `npm ci` (web-ui
   + desktop deps) → `npm test` (platform contracts) → `npm run dist` (= build +
-  `prepare:runtime` + `package-desktop`) → smoke → upload `zeta-desktop-*` assets.
+  `prepare:runtime` + `package-desktop`) → smoke → upload `zeta-desktop-*` assets. macOS exited the release surface 2026-10-01 — no `desktop_mac` job; do not reintroduce darwin consumers.
 
 **Hard rules:**
 - Electron/Tray/autostart code goes in `desktop/src/main.ts` — never in `web-ui/`, never in `packages/`, never in a new directory under `packages/coding-agent/desktop/` (that path does not exist).
