@@ -5,7 +5,7 @@ export const enLocale: LocalePlugin = {
 	id: "en",
 	label: "English",
 	messages: {
-		"add-models-via-the-models-button-at-the-bottom": "Add models via the Models button at the bottom",
+		"add-models-via-the-models-button-at-the-bottom": "Add models via the model selector in the composer, or Settings → Models",
 		"add-skill": "Add skill",
 		"agent-is-running": "Agent is running…",
 		"api-key": "API Key",

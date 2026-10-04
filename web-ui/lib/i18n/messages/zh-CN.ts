@@ -5,7 +5,7 @@ export const zhCNLocale: LocalePlugin = {
 	id: "zh-CN",
 	label: "简体中文",
 	messages: {
-		"add-models-via-the-models-button-at-the-bottom": "点击底部“模型”按钮配置 AI 模型",
+		"add-models-via-the-models-button-at-the-bottom": "打开设置 → 模型，配置服务商与 AI 模型",
 		"add-skill": "添加技能",
 		"agent-is-running": "Agent 正在运行…",
 		"api-key": "API 密钥",
@@ -14,7 +14,7 @@ export const zhCNLocale: LocalePlugin = {
 		cancel: "取消",
 		"code-syntax-theme": "代码块配色",
 		compact: "压缩上下文",
-		"configure-provider-models-via-the-models-configu": "点击底部“模型”按钮配置 AI 模型",
+		"configure-provider-models-via-the-models-configu": "在模型配置面板中配置服务商与 API 密钥",
 		"constellation-ready": "星群 // 就绪",
 		copied: "已复制",
 		copy: "复制",
