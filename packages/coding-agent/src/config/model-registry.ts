@@ -421,7 +421,11 @@ export class ModelRegistry {
 		this.#reloadStaticModels();
 	}
 
-	#installProviderApiKey(provider: string, keyConfig: string, options?: { fallback?: boolean }): void {
+	#installProviderApiKey(
+		provider: string,
+		keyConfig: string,
+		options?: { fallback?: boolean; mirror?: boolean },
+	): void {
 		this.#customProviderApiKeys.set(provider, keyConfig);
 		this.authStorage.keys.setConfig(provider, keyConfig, options);
 	}
@@ -982,12 +986,13 @@ export class ModelRegistry {
 	 * - upstream models colliding with a local custom model (provider+id) are
 	 *   dropped — later overlays would otherwise replace the local definition;
 	 * - an upstream agent.db credential is only installed when Zeta has no
-	 *   credential source at all for that provider, because the in-memory
-	 *   config-override channel would shadow any stored/env key.
+	 *   credential source at all for that provider.
 	 *
-	 * API keys travel through the same in-memory config-override channel as
-	 * local models.yml keys (`keys.setConfig` semantics): they live only in
-	 * process memory and are re-read from upstream on every static load.
+	 * Upstream API keys travel through the lowest cascade tier (`keys.setConfig`
+	 * with `mirror: true`): they live only in process memory, are re-read from
+	 * upstream on every static load, and sit below every stored credential —
+	 * a key the user saves into agent.db later always wins over the upstream
+	 * fallback without waiting for a reload to evict it.
 	 */
 	#applyOmpCompatOverlay(localConfiguredProviders: ReadonlySet<string>): void {
 		this.#ompOriginProviders = new Set();
@@ -1041,11 +1046,13 @@ export class ModelRegistry {
 			// Upstream stored credentials are keyed by provider id and mostly map
 			// onto bundled catalog providers; give those a credential (and with it
 			// an OMP provenance marker) only when nothing local already resolves.
+			// The key lands in the lowest mirror tier, so a credential stored
+			// later (web api-key save, login) outranks it immediately.
 			for (const [provider, key] of Object.entries(snapshot.credentialKeys)) {
 				if (this.#ompOriginProviders.has(provider)) continue; // upstream yml provider: its apiKey already installed
 				if (this.#customProviderApiKeys.has(provider)) continue;
 				if (this.authStorage.keys.source(provider) !== undefined) continue;
-				this.#installProviderApiKey(provider, key);
+				this.#installProviderApiKey(provider, key, { mirror: true });
 				this.#ompOriginProviders.add(provider);
 			}
 		} catch (error) {
