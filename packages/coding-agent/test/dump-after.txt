@@ -1,0 +1,32 @@
+ 0|│         ╚════██║         │ $ to run python                                                       │
+ 1|│            ██╔═╝         │ ───────────────────────────────────────────────────────────────────── │
+ 2|│          ██╔═╝           │ LSP Servers                                                           │
+ 3|│         ███████╗         │ No LSP servers                                                        │
+ 4|│         ╚══════╝         │                                                                       │
+ 5|│                          │                                                                       │
+ 6|│                          │                                                                       │
+ 7|│                          │ ───────────────────────────────────────────────────────────────────── │
+ 8|│                          │ Recent sessions                                                       │
+ 9|│                          │ No recent sessions                                                    │
+10|│                          │                                                                       │
+11|│                          │                                                                       │
+12|│                          │                                                                       │
+13|│                          │                                                                       │
+14|╰──────────────────────────┴───────────────────────────────────────────────────────────────────────╯
+15|Tip: Need a cheap nested model call? Use `completion(x...)`. Have a big batch of tasks? Ask clanker
+16|to use it!
+17|
+18|
+19|TRANSCRIPT 0
+20|
+21|TRANSCRIPT 1
+22|
+23|TRANSCRIPT 2
+24|
+25|TRANSCRIPT 3
+26|
+27|TRANSCRIPT 4
+28|
+29| ζ > ⦸ Sonnet 4.5 > 🌳 zeta/zeta-sync186 > ⑂ sync/omp-release/v18.6.0 ▶─0.0%──────────────────────────────────┃──────1M─
+30|╰─                                                                                          ⇧⇥ to change thinking effort
+31|

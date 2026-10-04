@@ -208,6 +208,7 @@ try {
 			);
 			const { exitCode, stdout, stderr } = await runProbe(
 				`
+import { postmortem } from "@linxiraos/pi-utils";
 postmortem.register("probe", reason => process.stdout.write(\`cleanup:\${reason}\\n\`));
 process.reallyExit = globalThis.__ompNativeReallyExit;
 process.stdout.write("armed\\n");

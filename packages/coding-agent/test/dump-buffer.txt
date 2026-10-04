@@ -1,0 +1,38 @@
+ 0|
+ 1|╭─── zeta vtest ───────────────────────────────────────────────────────────────────────────────────╮
+ 2|│                          │ Tips                                                                  │
+ 3|│      Welcome back!       │ # for prompt actions                                                  │
+ 4|│                          │ / for commands                                                        │
+ 5|│         ███████╗         │ ! to run bash                                                         │
+ 6|│         ╚════██║         │ $ to run python                                                       │
+ 7|│            ██╔═╝         │ ───────────────────────────────────────────────────────────────────── │
+ 8|│          ██╔═╝           │ LSP Servers                                                           │
+ 9|│         ███████╗         │ No LSP servers                                                        │
+10|│         ╚══════╝         │                                                                       │
+11|│                          │                                                                       │
+12|│                          │                                                                       │
+13|│                          │ ───────────────────────────────────────────────────────────────────── │
+14|│                          │ Recent sessions                                                       │
+15|│                          │ No recent sessions                                                    │
+16|│                          │                                                                       │
+17|│                          │                                                                       │
+18|│                          │                                                                       │
+19|│                          │                                                                       │
+20|╰──────────────────────────┴───────────────────────────────────────────────────────────────────────╯
+21|Tip: Need a cheap nested model call? Use `completion(x...)`. Have a big batch of tasks? Ask clanker
+22|to use it!
+23|
+24|
+25|TRANSCRIPT 0
+26|
+27|TRANSCRIPT 1
+28|
+29|TRANSCRIPT 2
+30|
+31|TRANSCRIPT 3
+32|
+33|TRANSCRIPT 4
+34|
+35| ζ > ⦸ Sonnet 4.5 > 🌳 zeta/zeta-sync186 > ⑂ sync/omp-release/v18.6.0 ▶─0.0%──────────────────────────────────┃──────1M─
+36|╰─                                                                                          ⇧⇥ to change thinking effort
+37|

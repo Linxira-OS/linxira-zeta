@@ -3447,6 +3447,18 @@ export class TUI extends Container {
 		const geometryStable = this.#hasEverRendered && this.#previousWidth === width && this.#previousHeight === height;
 		const startTop = destructiveReset ? 0 : Math.min(this.#providerViewportTop, Math.max(0, height - 1));
 		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows));
+		if (process.env.PI_TUI_DEBUG_FRAMES) {
+			require("node:fs").appendFileSync(
+				"frames-debug.log",
+				`emit w=${width} h=${height} rows=${rows} vpRows=${viewportRows.length} hist=${historyRows.length} startTop=${startTop} newTop=${newTop} pve=${this.#providerViewportTop} pvl=${this.#previousFrameLength} force=${this.#forceViewportRepaintOnNextRender} clear=${this.#clearScrollbackOnNextRender} first=${JSON.stringify(prepared.lines[0]?.slice(0, 30))}\n`,
+			);
+		}
+		if (process.env.PI_TUI_DEBUG_FRAMES === "full") {
+			require("node:fs").appendFileSync(
+				"frames-debug.log",
+				`--- viewport (top=${newTop} rows=${rows})\n${prepared.lines.map((l, i) => `${String(i).padStart(2)}|${l}`).join("\n")}\n`,
+			);
+		}
 		const pendingAltExit = this.#pendingAltExit;
 		let buffer = this.#paintBeginSequence + pendingAltExit;
 		const renewSync =
