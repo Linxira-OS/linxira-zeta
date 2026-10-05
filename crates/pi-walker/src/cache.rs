@@ -17,24 +17,24 @@ use crate::{CollectedEntries, CollectedEntry, FileType, WalkError, WalkOptions};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct CacheKey {
-	root: PathBuf,
+	root:    PathBuf,
 	options: WalkOptions,
 }
 
 #[derive(Clone)]
 struct CacheEntry {
 	created_at: Instant,
-	entries: Arc<Vec<CollectedEntry>>,
-	bytes: usize,
+	entries:    Arc<Vec<CollectedEntry>>,
+	bytes:      usize,
 }
 
 struct ScanCache {
-	entries: HashMap<CacheKey, CacheEntry>,
-	bytes: usize,
-	generation: u64,
-	ttl: Duration,
+	entries:     HashMap<CacheKey, CacheEntry>,
+	bytes:       usize,
+	generation:  u64,
+	ttl:         Duration,
 	max_entries: usize,
-	max_bytes: usize,
+	max_bytes:   usize,
 }
 
 impl ScanCache {
@@ -350,18 +350,18 @@ pub fn resolve_search_path(path: &str) -> Result<PathBuf, WalkError<String>> {
 		candidate
 	} else {
 		let cwd = std::env::current_dir().map_err(|err| WalkError::InvalidData {
-			path: PathBuf::from(path),
+			path:    PathBuf::from(path),
 			message: format!("Failed to resolve cwd: {err}"),
 		})?;
 		cwd.join(candidate)
 	};
 	let metadata = std::fs::metadata(&root).map_err(|err| WalkError::InvalidData {
-		path: root.clone(),
+		path:    root.clone(),
 		message: format!("Path not found: {err}"),
 	})?;
 	if !metadata.is_dir() {
 		return Err(WalkError::InvalidData {
-			path: root,
+			path:    root,
 			message: "Search path must be a directory".to_string(),
 		});
 	}
@@ -613,8 +613,12 @@ mod tests {
 	) -> super::CacheEntry {
 		let mut value = String::with_capacity(path.len() + spare_bytes);
 		value.push_str(path);
-		let entries =
-			vec![CollectedEntry { path: value, file_type: FileType::File, mtime: None, size: None }];
+		let entries = vec![CollectedEntry {
+			path:      value,
+			file_type: FileType::File,
+			mtime:     None,
+			size:      None,
+		}];
 		let bytes = super::entry_bytes(&entries, entries.capacity());
 		super::CacheEntry { created_at, entries: std::sync::Arc::new(entries), bytes }
 	}

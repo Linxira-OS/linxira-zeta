@@ -200,9 +200,9 @@ pub fn resolve_clipboard_edits(
 						}
 						for line in range.start.line..=range.end.line {
 							resolved.push(Edit::Delete {
-								anchor: Anchor { line },
-								line_num: *line_num,
-								index: synth_index,
+								anchor:        Anchor { line },
+								line_num:      *line_num,
+								index:         synth_index,
 								old_assertion: None,
 							});
 							synth_index += 1;

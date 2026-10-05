@@ -27,10 +27,10 @@ fn matcher_paths_accept_partial_sections_and_header_noise() {
 		..ArgSnapshot::default()
 	});
 	assert_eq!(inspected.paths, ["one.ts", "dir with spaces/two.ts"]);
-	assert_eq!(
-		inspected.entries,
-		[("one.ts".into(), "one".into()), ("dir with spaces/two.ts".into(), "two".into())]
-	);
+	assert_eq!(inspected.entries, [
+		("one.ts".into(), "one".into()),
+		("dir with spaces/two.ts".into(), "two".into())
+	]);
 }
 
 #[test]

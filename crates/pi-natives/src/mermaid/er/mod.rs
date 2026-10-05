@@ -13,7 +13,7 @@ use crate::mermaid::{
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ErDiagram {
 	/// Entities in first-declaration order.
-	pub entities: Vec<ErEntity>,
+	pub entities:      Vec<ErEntity>,
 	/// Relationships in source order.
 	pub relationships: Vec<ErRelationship>,
 }
@@ -22,9 +22,9 @@ pub struct ErDiagram {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErEntity {
 	/// Mermaid identifier.
-	pub id: String,
+	pub id:         String,
 	/// Display label; currently the identifier.
-	pub label: String,
+	pub label:      String,
 	/// Declared database attributes.
 	pub attributes: Vec<ErAttribute>,
 }
@@ -33,11 +33,11 @@ pub struct ErEntity {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErAttribute {
 	/// Mermaid data type.
-	pub r#type: String,
+	pub r#type:  String,
 	/// Attribute name.
-	pub name: String,
+	pub name:    String,
 	/// Primary, foreign, and unique constraints in source order.
-	pub keys: Vec<ErKey>,
+	pub keys:    Vec<ErKey>,
 	/// Optional normalized attribute comment.
 	pub comment: Option<String>,
 }
@@ -89,27 +89,27 @@ pub enum Cardinality {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErRelationship {
 	/// Entity at the source end.
-	pub entity1: String,
+	pub entity1:      String,
 	/// Entity at the target end.
-	pub entity2: String,
+	pub entity2:      String,
 	/// Cardinality at `entity1`.
 	pub cardinality1: Cardinality,
 	/// Cardinality at `entity2`.
 	pub cardinality2: Cardinality,
 	/// Normalized relationship label.
-	pub label: String,
+	pub label:        String,
 	/// Solid identifying relationship rather than dashed non-identifying.
-	pub identifying: bool,
+	pub identifying:  bool,
 }
 
 #[derive(Clone, Debug)]
 struct PlacedEntity {
 	entity_index: usize,
-	sections: Vec<Vec<String>>,
-	x: i32,
-	y: i32,
-	width: i32,
-	height: i32,
+	sections:     Vec<Vec<String>>,
+	x:            i32,
+	y:            i32,
+	width:        i32,
+	height:       i32,
 }
 
 /// Render Mermaid `erDiagram` source as ASCII or Unicode terminal art.

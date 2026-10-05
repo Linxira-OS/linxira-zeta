@@ -89,12 +89,12 @@ impl Scope {
 #[derive(Debug, Default)]
 pub(crate) struct CloseTracker {
 	state: Mutex<TrackerState>,
-	idle: Notify,
+	idle:  Notify,
 }
 
 #[derive(Debug, Default)]
 struct TrackerState {
-	in_flight: usize,
+	in_flight:   usize,
 	first_error: Option<io::Error>,
 }
 

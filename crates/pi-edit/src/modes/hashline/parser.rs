@@ -34,10 +34,10 @@ static UNIFIED_HUNK_RE: LazyLock<Regex> =
 pub struct InvalidAbsoluteRange {
 	pub patch_line: u32,
 	pub start_line: u32,
-	pub end_line: u32,
-	pub op: AbsoluteRangeOp,
-	pub register: Option<String>,
-	pub block: Option<BlockSpan>,
+	pub end_line:   u32,
+	pub op:         AbsoluteRangeOp,
+	pub register:   Option<String>,
+	pub block:      Option<BlockSpan>,
 }
 impl InvalidAbsoluteRange {
 	/// Format the model-facing absolute-range guidance.
@@ -81,29 +81,29 @@ impl From<ParseFailure> for EditError {
 
 #[derive(Debug, Clone)]
 struct PayloadRow {
-	text: String,
+	text:     String,
 	line_num: u32,
-	bare: bool,
-	minus: bool,
+	bare:     bool,
+	minus:    bool,
 }
 #[derive(Debug, Clone)]
 struct Pending {
-	target: BlockTarget,
-	line_num: u32,
-	payloads: Vec<PayloadRow>,
-	had_colon: bool,
+	target:          BlockTarget,
+	line_num:        u32,
+	payloads:        Vec<PayloadRow>,
+	had_colon:       bool,
 	deferred_blanks: Vec<PayloadRow>,
 }
 
 /// Incremental token-to-edit executor.
 pub struct Executor {
-	edits: Vec<Edit>,
-	warnings: Vec<String>,
-	edit_index: u32,
-	pending: Option<Pending>,
-	file_op: Option<FileOp>,
-	terminated: bool,
-	skippable_comments: Vec<(u32, String)>,
+	edits:                    Vec<Edit>,
+	warnings:                 Vec<String>,
+	edit_index:               u32,
+	pending:                  Option<Pending>,
+	file_op:                  Option<FileOp>,
+	terminated:               bool,
+	skippable_comments:       Vec<(u32, String)>,
 	recovered_snapshot_lines: HashSet<u32>,
 }
 
@@ -117,13 +117,13 @@ impl Executor {
 	/// Construct an empty executor.
 	pub fn new() -> Self {
 		Self {
-			edits: Vec::new(),
-			warnings: Vec::new(),
-			edit_index: 0,
-			pending: None,
-			file_op: None,
-			terminated: false,
-			skippable_comments: Vec::new(),
+			edits:                    Vec::new(),
+			warnings:                 Vec::new(),
+			edit_index:               0,
+			pending:                  None,
+			file_op:                  None,
+			terminated:               false,
+			skippable_comments:       Vec::new(),
 			recovered_snapshot_lines: HashSet::new(),
 		}
 	}
@@ -566,7 +566,7 @@ impl Executor {
 	fn normalize_overlaps(&mut self) -> Result<(), ParseFailure> {
 		#[derive(Default)]
 		struct Hunk {
-			lines: BTreeSet<u32>,
+			lines:     BTreeSet<u32>,
 			clipboard: bool,
 		}
 		let mut hunks: BTreeMap<u32, Hunk> = BTreeMap::new();

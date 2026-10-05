@@ -19,15 +19,15 @@ use crate::desktop::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct KeyStep {
 	pub keycode: u8,
-	pub press: bool,
+	pub press:   bool,
 }
 
 pub(super) struct Keymap {
-	min_keycode: u8,
+	min_keycode:         u8,
 	keysyms_per_keycode: u8,
-	keysyms: Vec<u32>,
+	keysyms:             Vec<u32>,
 	/// Core modifier mask bit each modifier keycode sets while held.
-	modifier_masks: Vec<(u8, u16)>,
+	modifier_masks:      Vec<(u8, u16)>,
 }
 
 impl Keymap {
@@ -332,23 +332,20 @@ mod tests {
 	#[test]
 	fn text_wraps_shifted_glyphs_in_shift() {
 		let steps = keymap().plan_text("aA!\n").unwrap();
-		assert_eq!(
-			steps,
-			vec![
-				press(A),
-				release(A),
-				press(SHIFT),
-				press(A),
-				release(A),
-				release(SHIFT),
-				press(SHIFT),
-				press(ONE),
-				release(ONE),
-				release(SHIFT),
-				press(RETURN),
-				release(RETURN),
-			]
-		);
+		assert_eq!(steps, vec![
+			press(A),
+			release(A),
+			press(SHIFT),
+			press(A),
+			release(A),
+			release(SHIFT),
+			press(SHIFT),
+			press(ONE),
+			release(ONE),
+			release(SHIFT),
+			press(RETURN),
+			release(RETURN),
+		]);
 	}
 
 	#[test]

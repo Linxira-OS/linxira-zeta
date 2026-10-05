@@ -27,11 +27,11 @@ const LF: u16 = 0x000a;
 #[napi(object)]
 pub struct DiffChange {
 	/// Joined token text for this run (lines keep their `\n` terminators).
-	pub value: Utf16String,
+	pub value:   Utf16String,
 	/// Number of tokens in this run.
-	pub count: u32,
+	pub count:   u32,
 	/// True when this run exists only in the new text.
-	pub added: bool,
+	pub added:   bool,
 	/// True when this run exists only in the old text.
 	pub removed: bool,
 }
@@ -40,9 +40,9 @@ pub struct DiffChange {
 #[napi(object)]
 pub struct DiffRun {
 	/// Number of tokens in this run.
-	pub count: u32,
+	pub count:   u32,
 	/// True when this run exists only in the new text.
-	pub added: bool,
+	pub added:   bool,
 	/// True when this run exists only in the old text.
 	pub removed: bool,
 }
@@ -60,7 +60,7 @@ pub struct PatchHunk {
 	pub new_lines: u32,
 	/// Hunk body: `+`/`-`/` `-prefixed lines without trailing newlines, plus
 	/// `\ No newline at end of file` markers where applicable.
-	pub lines: Vec<Utf16String>,
+	pub lines:     Vec<Utf16String>,
 }
 
 /// One side of a streamed line diff.
@@ -77,28 +77,28 @@ pub enum DiffSide {
 #[napi(object)]
 pub struct DiffStreamProgress {
 	/// Complete old-side lines available for rendering.
-	pub old_lines: u32,
+	pub old_lines:           u32,
 	/// Complete new-side lines available for rendering.
-	pub new_lines: u32,
+	pub new_lines:           u32,
 	/// Leading complete lines proven equal on both sides.
 	pub stable_common_lines: u32,
 	/// Whether old-side ingestion has finished.
-	pub old_done: bool,
+	pub old_done:            bool,
 	/// Whether new-side ingestion has finished.
-	pub new_done: bool,
+	pub new_done:            bool,
 	/// Whether either side contains a NUL byte/code unit.
-	pub binary: bool,
+	pub binary:              bool,
 	/// Whether either native file exceeded its caller-provided size limit.
-	pub too_large: bool,
+	pub too_large:           bool,
 }
 
 /// Exact line-diff output produced when a [`DiffStream`] finishes.
 #[napi(object)]
 pub struct DiffStreamResult {
 	/// Line-token Myers runs used to align the complete files.
-	pub runs: Vec<DiffRun>,
+	pub runs:             Vec<DiffRun>,
 	/// Unified hunks for the requested context.
-	pub hunks: Vec<PatchHunk>,
+	pub hunks:            Vec<PatchHunk>,
 	/// Whether the old text ends in a newline.
 	pub old_ends_newline: bool,
 	/// Whether the new text ends in a newline.
@@ -123,9 +123,9 @@ fn diff_lines_impl(old_text: &[u16], new_text: &[u16]) -> Vec<DiffChange> {
 	pi_diff::diff_lines_u16(old_text, new_text)
 		.into_iter()
 		.map(|change| DiffChange {
-			value: change.value.into(),
-			count: change.count,
-			added: change.added,
+			value:   change.value.into(),
+			count:   change.count,
+			added:   change.added,
 			removed: change.removed,
 		})
 		.collect()
@@ -160,14 +160,14 @@ fn diff_line_runs_impl(old_text: &[u16], new_text: &[u16]) -> Vec<DiffRun> {
 
 #[derive(Default)]
 struct StreamSide {
-	text: Vec<u16>,
-	line_ends: Vec<usize>,
+	text:         Vec<u16>,
+	line_ends:    Vec<usize>,
 	pending_utf8: Vec<u8>,
-	started: bool,
-	reading: bool,
-	done: bool,
-	binary: bool,
-	too_large: bool,
+	started:      bool,
+	reading:      bool,
+	done:         bool,
+	binary:       bool,
+	too_large:    bool,
 }
 
 impl StreamSide {
@@ -280,8 +280,8 @@ impl StreamSide {
 
 #[derive(Default)]
 struct DiffStreamState {
-	old: StreamSide,
-	new: StreamSide,
+	old:           StreamSide,
+	new:           StreamSide,
 	stable_common: usize,
 }
 
@@ -311,13 +311,13 @@ impl DiffStreamState {
 
 	const fn progress(&self) -> DiffStreamProgress {
 		DiffStreamProgress {
-			old_lines: self.old.line_ends.len() as u32,
-			new_lines: self.new.line_ends.len() as u32,
+			old_lines:           self.old.line_ends.len() as u32,
+			new_lines:           self.new.line_ends.len() as u32,
 			stable_common_lines: self.stable_common as u32,
-			old_done: self.old.done,
-			new_done: self.new.done,
-			binary: self.old.binary || self.new.binary,
-			too_large: self.old.too_large || self.new.too_large,
+			old_done:            self.old.done,
+			new_done:            self.new.done,
+			binary:              self.old.binary || self.new.binary,
+			too_large:           self.old.too_large || self.new.too_large,
 		}
 	}
 }
@@ -568,7 +568,7 @@ fn patch_hunk(hunk: pi_diff::Hunk) -> PatchHunk {
 		old_lines: hunk.old_lines,
 		new_start: hunk.new_start,
 		new_lines: hunk.new_lines,
-		lines: hunk.lines.into_iter().map(Utf16String::from).collect(),
+		lines:     hunk.lines.into_iter().map(Utf16String::from).collect(),
 	}
 }
 
@@ -592,9 +592,9 @@ fn diff_words_impl(old_text: &[u16], new_text: &[u16]) -> Vec<DiffChange> {
 	pi_diff::diff_words_u16(old_text, new_text)
 		.into_iter()
 		.map(|change| DiffChange {
-			value: change.value.into(),
-			count: change.count,
-			added: change.added,
+			value:   change.value.into(),
+			count:   change.count,
+			added:   change.added,
 			removed: change.removed,
 		})
 		.collect()

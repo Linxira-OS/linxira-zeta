@@ -30,22 +30,22 @@ use crate::{js::into_string, ps, task};
 #[napi(object)]
 pub struct PtyStartOptions<'env> {
 	/// Command string to execute.
-	pub command: String,
+	pub command:    String,
 	/// Working directory for command execution.
-	pub cwd: Option<String>,
+	pub cwd:        Option<String>,
 	/// Environment variables for this command.
-	pub env: Option<HashMap<String, String>>,
+	pub env:        Option<HashMap<String, String>>,
 	/// Timeout in milliseconds before cancelling.
 	pub timeout_ms: Option<u32>,
 	/// Abort signal for cancelling the operation.
-	pub signal: Option<Unknown<'env>>,
+	pub signal:     Option<Unknown<'env>>,
 	/// PTY column count.
-	pub cols: Option<u16>,
+	pub cols:       Option<u16>,
 	/// PTY row count.
-	pub rows: Option<u16>,
+	pub rows:       Option<u16>,
 	/// Shell binary to use (e.g. "sh", "bash", or an absolute path).
 	/// Defaults to "sh" if not provided.
-	pub shell: Option<String>,
+	pub shell:      Option<String>,
 }
 
 /// Options for running an executable and argument vector in a PTY session.
@@ -54,19 +54,19 @@ pub struct PtyArgvStartOptions<'env> {
 	/// Executable name or path.
 	pub application: String,
 	/// Arguments passed directly to the executable.
-	pub args: Vec<String>,
+	pub args:        Vec<String>,
 	/// Working directory for command execution.
-	pub cwd: Option<String>,
+	pub cwd:         Option<String>,
 	/// Environment variables for this command.
-	pub env: Option<HashMap<String, String>>,
+	pub env:         Option<HashMap<String, String>>,
 	/// Timeout in milliseconds before cancelling.
-	pub timeout_ms: Option<u32>,
+	pub timeout_ms:  Option<u32>,
 	/// Abort signal for cancelling the operation.
-	pub signal: Option<Unknown<'env>>,
+	pub signal:      Option<Unknown<'env>>,
 	/// PTY column count.
-	pub cols: Option<u16>,
+	pub cols:        Option<u16>,
 	/// PTY row count.
-	pub rows: Option<u16>,
+	pub rows:        Option<u16>,
 }
 
 /// Result of a PTY command run.
@@ -89,10 +89,10 @@ enum PtyCommand {
 #[derive(Clone)]
 struct PtyRunConfig {
 	command: PtyCommand,
-	cwd: Option<String>,
-	env: Option<HashMap<String, String>>,
-	cols: u16,
-	rows: u16,
+	cwd:     Option<String>,
+	env:     Option<HashMap<String, String>>,
+	cols:    u16,
+	rows:    u16,
 }
 
 enum ReaderEvent {
@@ -164,10 +164,10 @@ impl PtySession {
 	) -> Result<PromiseRaw<'env, PtyRunResult>> {
 		let run_config = PtyRunConfig {
 			command: PtyCommand::Shell { command: options.command, shell: options.shell },
-			cwd: options.cwd,
-			env: options.env,
-			cols: options.cols.unwrap_or(120).clamp(20, 400),
-			rows: options.rows.unwrap_or(40).clamp(5, 200),
+			cwd:     options.cwd,
+			env:     options.env,
+			cols:    options.cols.unwrap_or(120).clamp(20, 400),
+			rows:    options.rows.unwrap_or(40).clamp(5, 200),
 		};
 		self.start_config(env, run_config, options.timeout_ms, options.signal, on_chunk, on_start)
 	}
@@ -186,10 +186,10 @@ impl PtySession {
 	) -> Result<PromiseRaw<'env, PtyRunResult>> {
 		let run_config = PtyRunConfig {
 			command: PtyCommand::Argv { application: options.application, args: options.args },
-			cwd: options.cwd,
-			env: options.env,
-			cols: options.cols.unwrap_or(120).clamp(20, 400),
-			rows: options.rows.unwrap_or(40).clamp(5, 200),
+			cwd:     options.cwd,
+			env:     options.env,
+			cols:    options.cols.unwrap_or(120).clamp(20, 400),
+			rows:    options.rows.unwrap_or(40).clamp(5, 200),
 		};
 		self.start_config(env, run_config, options.timeout_ms, options.signal, on_chunk, on_start)
 	}
@@ -304,9 +304,9 @@ fn run_pty_sync(
 		let (tx, rx) = flume::unbounded();
 		std::thread::spawn(move || {
 			let result = pty_system.openpty(PtySize {
-				rows: config.rows,
-				cols: config.cols,
-				pixel_width: 0,
+				rows:         config.rows,
+				cols:         config.cols,
+				pixel_width:  0,
 				pixel_height: 0,
 			});
 			let _ = tx.send(result);
@@ -322,7 +322,12 @@ fn run_pty_sync(
 		}
 	} else {
 		pty_system
-			.openpty(PtySize { rows: config.rows, cols: config.cols, pixel_width: 0, pixel_height: 0 })
+			.openpty(PtySize {
+				rows:         config.rows,
+				cols:         config.cols,
+				pixel_width:  0,
+				pixel_height: 0,
+			})
 			.map_err(|err| Error::from_reason(format!("Failed to open PTY: {err}")))?
 	};
 
@@ -1053,7 +1058,7 @@ mod zombie_repro_tests {
 	}
 
 	struct StormOutcome {
-		leaked: usize,
+		leaked:  usize,
 		spawned: usize,
 	}
 
@@ -1081,12 +1086,12 @@ mod zombie_repro_tests {
 			let config = PtyRunConfig {
 				command: PtyCommand::Argv {
 					application: STORM_CHILD_COMM.to_string(),
-					args: vec!["5".to_string()],
+					args:        vec!["5".to_string()],
 				},
-				cwd: None,
-				env: None,
-				cols: 80,
-				rows: 24,
+				cwd:     None,
+				env:     None,
+				cols:    80,
+				rows:    24,
 			};
 			// Pre-spawn heartbeats bail with `Err`, so `Ok` means this iteration
 			// reached the post-spawn cancellation path.

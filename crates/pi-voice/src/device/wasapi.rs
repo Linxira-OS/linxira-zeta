@@ -79,7 +79,7 @@ impl ComVtable for MmDeviceEnumeratorVtable {
 #[repr(C)]
 #[allow(dead_code, reason = "all slots are required to preserve the COM vtable layout")]
 struct MmDeviceVtable {
-	base: IUnknown_Vtbl,
+	base:                IUnknown_Vtbl,
 	activate: unsafe extern "system" fn(
 		*mut c_void,
 		*const GUID,
@@ -88,8 +88,8 @@ struct MmDeviceVtable {
 		*mut *mut c_void,
 	) -> HRESULT,
 	open_property_store: unsafe extern "system" fn(*mut c_void, u32, *mut *mut c_void) -> HRESULT,
-	get_id: unsafe extern "system" fn(*mut c_void, *mut *mut u16) -> HRESULT,
-	get_state: unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
+	get_id:              unsafe extern "system" fn(*mut c_void, *mut *mut u16) -> HRESULT,
+	get_state:           unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
 }
 
 impl ComVtable for MmDeviceVtable {
@@ -101,7 +101,7 @@ impl ComVtable for MmDeviceVtable {
 #[repr(C)]
 #[allow(dead_code, reason = "all slots are required to preserve the COM vtable layout")]
 struct AudioClientVtable {
-	base: IUnknown_Vtbl,
+	base:                IUnknown_Vtbl,
 	initialize: unsafe extern "system" fn(
 		*mut c_void,
 		i32,
@@ -111,8 +111,8 @@ struct AudioClientVtable {
 		*const WAVEFORMATEX,
 		*const GUID,
 	) -> HRESULT,
-	get_buffer_size: unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
-	get_stream_latency: unsafe extern "system" fn(*mut c_void, *mut i64) -> HRESULT,
+	get_buffer_size:     unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
+	get_stream_latency:  unsafe extern "system" fn(*mut c_void, *mut i64) -> HRESULT,
 	get_current_padding: unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
 	is_format_supported: unsafe extern "system" fn(
 		*mut c_void,
@@ -120,12 +120,12 @@ struct AudioClientVtable {
 		*const WAVEFORMATEX,
 		*mut *mut WAVEFORMATEX,
 	) -> HRESULT,
-	get_mix_format: unsafe extern "system" fn(*mut c_void, *mut *mut WAVEFORMATEX) -> HRESULT,
-	get_device_period: unsafe extern "system" fn(*mut c_void, *mut i64, *mut i64) -> HRESULT,
-	start: unsafe extern "system" fn(*mut c_void) -> HRESULT,
-	stop: unsafe extern "system" fn(*mut c_void) -> HRESULT,
-	reset: unsafe extern "system" fn(*mut c_void) -> HRESULT,
-	set_event_handle: unsafe extern "system" fn(*mut c_void, HANDLE) -> HRESULT,
+	get_mix_format:      unsafe extern "system" fn(*mut c_void, *mut *mut WAVEFORMATEX) -> HRESULT,
+	get_device_period:   unsafe extern "system" fn(*mut c_void, *mut i64, *mut i64) -> HRESULT,
+	start:               unsafe extern "system" fn(*mut c_void) -> HRESULT,
+	stop:                unsafe extern "system" fn(*mut c_void) -> HRESULT,
+	reset:               unsafe extern "system" fn(*mut c_void) -> HRESULT,
+	set_event_handle:    unsafe extern "system" fn(*mut c_void, HANDLE) -> HRESULT,
 	get_service: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> HRESULT,
 }
 
@@ -137,8 +137,8 @@ impl ComVtable for AudioClientVtable {
 
 #[repr(C)]
 struct AudioRenderClientVtable {
-	base: IUnknown_Vtbl,
-	get_buffer: unsafe extern "system" fn(*mut c_void, u32, *mut *mut u8) -> HRESULT,
+	base:           IUnknown_Vtbl,
+	get_buffer:     unsafe extern "system" fn(*mut c_void, u32, *mut *mut u8) -> HRESULT,
 	release_buffer: unsafe extern "system" fn(*mut c_void, u32, u32) -> HRESULT,
 }
 
@@ -150,7 +150,7 @@ impl ComVtable for AudioRenderClientVtable {
 
 #[repr(C)]
 struct AudioCaptureClientVtable {
-	base: IUnknown_Vtbl,
+	base:                 IUnknown_Vtbl,
 	get_buffer: unsafe extern "system" fn(
 		*mut c_void,
 		*mut *mut u8,
@@ -159,7 +159,7 @@ struct AudioCaptureClientVtable {
 		*mut u64,
 		*mut u64,
 	) -> HRESULT,
-	release_buffer: unsafe extern "system" fn(*mut c_void, u32) -> HRESULT,
+	release_buffer:       unsafe extern "system" fn(*mut c_void, u32) -> HRESULT,
 	get_next_packet_size: unsafe extern "system" fn(*mut c_void, *mut u32) -> HRESULT,
 }
 
@@ -262,14 +262,14 @@ impl Drop for ComApartment {
 }
 
 struct BaseStream {
-	client: ComPtr<AudioClientVtable>,
+	client:      ComPtr<AudioClientVtable>,
 	// COM lifetime anchors: the device/enumerator interfaces must outlive the
 	// audio client for the whole stream, but nothing reads them after `open`.
-	_device: ComPtr<MmDeviceVtable>,
+	_device:     ComPtr<MmDeviceVtable>,
 	_enumerator: ComPtr<MmDeviceEnumeratorVtable>,
-	event: Arc<OwnedEvent>,
+	event:       Arc<OwnedEvent>,
 	buffer_size: u32,
-	_apartment: ComApartment,
+	_apartment:  ComApartment,
 }
 
 impl BaseStream {
@@ -331,13 +331,13 @@ impl BaseStream {
 			.checked_mul(4)
 			.ok_or_else(|| "WASAPI sample rate is too large".to_owned())?;
 		let format = WAVEFORMATEX {
-			wFormatTag: WAVE_FORMAT_IEEE_FLOAT as u16,
-			nChannels: 1,
-			nSamplesPerSec: config.sample_rate,
+			wFormatTag:      WAVE_FORMAT_IEEE_FLOAT as u16,
+			nChannels:       1,
+			nSamplesPerSec:  config.sample_rate,
 			nAvgBytesPerSec: bytes_per_second,
-			nBlockAlign: 4,
-			wBitsPerSample: 32,
-			cbSize: 0,
+			nBlockAlign:     4,
+			wBitsPerSample:  32,
+			cbSize:          0,
 		};
 		let stream_flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK
 			| AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
@@ -422,10 +422,10 @@ impl BaseStream {
 }
 
 struct PlaybackStream {
-	render: ComPtr<AudioRenderClientVtable>,
-	base: BaseStream,
+	render:        ComPtr<AudioRenderClientVtable>,
+	base:          BaseStream,
 	period_frames: u32,
-	started: bool,
+	started:       bool,
 }
 
 impl PlaybackStream {
@@ -469,7 +469,7 @@ impl Drop for PlaybackStream {
 
 struct CaptureStream {
 	capture: ComPtr<AudioCaptureClientVtable>,
-	base: BaseStream,
+	base:    BaseStream,
 	started: bool,
 }
 
@@ -504,8 +504,8 @@ impl Drop for CaptureStream {
 }
 
 pub struct PlaybackDevice {
-	stop: Arc<AtomicBool>,
-	event: Arc<OwnedEvent>,
+	stop:   Arc<AtomicBool>,
+	event:  Arc<OwnedEvent>,
 	thread: Option<JoinHandle<VoiceResult<()>>>,
 }
 
@@ -547,8 +547,8 @@ impl Drop for PlaybackDevice {
 }
 
 pub struct CaptureDevice {
-	stop: Arc<AtomicBool>,
-	event: Arc<OwnedEvent>,
+	stop:   Arc<AtomicBool>,
+	event:  Arc<OwnedEvent>,
 	thread: Option<JoinHandle<VoiceResult<()>>>,
 }
 

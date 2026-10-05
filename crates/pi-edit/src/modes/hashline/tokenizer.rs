@@ -77,9 +77,9 @@ impl Token {
 /// Stateful line-oriented hashline tokenizer.
 #[derive(Debug)]
 pub struct Tokenizer {
-	buffer: String,
+	buffer:        String,
 	next_line_num: u32,
-	closed: bool,
+	closed:        bool,
 }
 
 impl Default for Tokenizer {
@@ -467,10 +467,10 @@ fn parse_put_target(raw: &str) -> Option<(BlockTarget, bool)> {
 			return None;
 		}
 		tail = &tail[1..];
-		return parse_register_and_colon(
-			tail,
-			BlockTarget::Block { anchor: range.start, register: None },
-		);
+		return parse_register_and_colon(tail, BlockTarget::Block {
+			anchor:   range.start,
+			register: None,
+		});
 	}
 	parse_register_and_colon(tail, BlockTarget::Replace { range, register: None })
 }
@@ -484,10 +484,10 @@ fn parse_cut_target(raw: &str) -> Option<(BlockTarget, bool)> {
 			return None;
 		}
 		tail = &tail[1..];
-		return parse_register_and_colon(
-			tail,
-			BlockTarget::CutBlock { anchor: range.start, register: None },
-		);
+		return parse_register_and_colon(tail, BlockTarget::CutBlock {
+			anchor:   range.start,
+			register: None,
+		});
 	}
 	parse_register_and_colon(tail, BlockTarget::Cut { range, register: None })
 }

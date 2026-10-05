@@ -48,7 +48,7 @@ unsafe extern "C" {
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct ProcessSerialNumber {
 	high: u32,
-	low: u32,
+	low:  u32,
 }
 
 type SLEventPostToPidFn = unsafe extern "C" fn(pid_t, *mut c_void);
@@ -72,9 +72,9 @@ type AuthenticationFactoryFn =
 
 #[derive(Clone, Copy)]
 struct PsnLookup {
-	main_connection: Option<CGSMainConnectionIDFn>,
-	get_window_owner: Option<SLSGetWindowOwnerFn>,
-	get_connection_psn: Option<SLSGetConnectionPSNFn>,
+	main_connection:     Option<CGSMainConnectionIDFn>,
+	get_window_owner:    Option<SLSGetWindowOwnerFn>,
+	get_connection_psn:  Option<SLSGetConnectionPSNFn>,
 	get_process_for_pid: Option<GetProcessForPIDFn>,
 }
 
@@ -89,33 +89,33 @@ impl PsnLookup {
 
 #[derive(Clone, Copy)]
 struct RequiredSpi {
-	post_to_pid: SLEventPostToPidFn,
+	post_to_pid:         SLEventPostToPidFn,
 	/// `CGEventPostToPid` when it is a separate implementation; `None` where
 	/// it re-exports `SLEventPostToPid` (as on macOS 26), since posting
 	/// through both would then deliver every event twice.
-	public_post_to_pid: Option<SLEventPostToPidFn>,
-	set_integer: SLEventSetIntegerValueFieldFn,
-	post_record: SLPSPostEventRecordToFn,
-	get_front: SLPSGetFrontProcessFn,
+	public_post_to_pid:  Option<SLEventPostToPidFn>,
+	set_integer:         SLEventSetIntegerValueFieldFn,
+	post_record:         SLPSPostEventRecordToFn,
+	get_front:           SLPSGetFrontProcessFn,
 	set_window_location: CGEventSetWindowLocationFn,
-	psn: PsnLookup,
+	psn:                 PsnLookup,
 }
 
 #[derive(Clone, Copy)]
 struct ForegroundSpi {
-	set_front: SLPSSetFrontProcessWithOptionsFn,
-	get_front: SLPSGetFrontProcessFn,
+	set_front:   SLPSSetFrontProcessWithOptionsFn,
+	get_front:   SLPSGetFrontProcessFn,
 	post_record: SLPSPostEventRecordToFn,
-	psn: PsnLookup,
+	psn:         PsnLookup,
 }
 
 #[derive(Clone, Copy)]
 struct AuthenticationSpi {
-	set_message: SLEventSetAuthenticationMessageFn,
-	objc_get_class: ObjcGetClassFn,
+	set_message:       SLEventSetAuthenticationMessageFn,
+	objc_get_class:    ObjcGetClassFn,
 	sel_register_name: SelRegisterNameFn,
-	class_responds: ClassRespondsToSelectorFn,
-	factory: AuthenticationFactoryFn,
+	class_responds:    ClassRespondsToSelectorFn,
+	factory:           AuthenticationFactoryFn,
 }
 
 /// The front process as `WindowServer` reports it. Unlike
@@ -152,9 +152,9 @@ fn required() -> CoreResult<&'static RequiredSpi> {
 fn resolve_required() -> Option<RequiredSpi> {
 	ensure_skylight_loaded()?;
 	let psn = PsnLookup {
-		main_connection: Some(symbol(c"CGSMainConnectionID")?),
-		get_window_owner: symbol(c"SLSGetWindowOwner"),
-		get_connection_psn: symbol(c"SLSGetConnectionPSN"),
+		main_connection:     Some(symbol(c"CGSMainConnectionID")?),
+		get_window_owner:    symbol(c"SLSGetWindowOwner"),
+		get_connection_psn:  symbol(c"SLSGetConnectionPSN"),
 		get_process_for_pid: symbol(c"GetProcessForPID"),
 	};
 	if !psn.can_resolve() {
@@ -176,9 +176,9 @@ fn resolve_required() -> Option<RequiredSpi> {
 fn resolve_foreground() -> Option<ForegroundSpi> {
 	ensure_skylight_loaded()?;
 	let psn = PsnLookup {
-		main_connection: symbol(c"CGSMainConnectionID"),
-		get_window_owner: symbol(c"SLSGetWindowOwner"),
-		get_connection_psn: symbol(c"SLSGetConnectionPSN"),
+		main_connection:     symbol(c"CGSMainConnectionID"),
+		get_window_owner:    symbol(c"SLSGetWindowOwner"),
+		get_connection_psn:  symbol(c"SLSGetConnectionPSN"),
 		get_process_for_pid: symbol(c"GetProcessForPID"),
 	};
 	if !psn.can_resolve() {
@@ -364,8 +364,8 @@ enum FocusDecision {
 /// resurrect this action's old focus claim.
 struct BackgroundFocusLease {
 	previous: ProcessSerialNumber,
-	target: ProcessSerialNumber,
-	key: u32,
+	target:   ProcessSerialNumber,
+	key:      u32,
 	activity: [u32; 5],
 	disarmed: bool,
 }
@@ -809,11 +809,11 @@ fn process_psn(lookup: PsnLookup, pid: pid_t, wid: u32) -> Option<ProcessSerialN
 
 fn resolve_authentication() -> Option<AuthenticationSpi> {
 	Some(AuthenticationSpi {
-		set_message: symbol(c"SLEventSetAuthenticationMessage")?,
-		objc_get_class: symbol(c"objc_getClass")?,
+		set_message:       symbol(c"SLEventSetAuthenticationMessage")?,
+		objc_get_class:    symbol(c"objc_getClass")?,
 		sel_register_name: symbol(c"sel_registerName")?,
-		class_responds: symbol(c"class_respondsToSelector")?,
-		factory: symbol(c"objc_msgSend")?,
+		class_responds:    symbol(c"class_respondsToSelector")?,
+		factory:           symbol(c"objc_msgSend")?,
 	})
 }
 

@@ -274,7 +274,8 @@ pub const CUT_COLON_IGNORED_WARNING: &str =
 /// Only emitted when the hunk is unambiguously a bullet list: every `-` row is
 /// bullet-shaped (`- item`) and the body has no unified-diff `+new` counterpart
 /// rows.
-pub const MINUS_BULLET_AUTO_PIPED_WARNING: &str = "Auto-prefixed bare `- ` bullet row(s) as literal content. `-` rows never remove lines — the \
+pub const MINUS_BULLET_AUTO_PIPED_WARNING: &str =
+	"Auto-prefixed bare `- ` bullet row(s) as literal content. `-` rows never remove lines — the \
 	 range does that; always prefix literal body rows with `+`: `+- item`.";
 
 /// Unified-diff old rows were discarded; explicit `+` rows are final content.
@@ -291,7 +292,7 @@ pub const MINUS_ROW_REJECTED: &str = "`-` rows are not valid; the range already 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BlockDiagnosticSuggestions {
 	/// Closest following multi-line block that begins after the authored anchor.
-	pub next_block: Option<BlockSpan>,
+	pub next_block:      Option<BlockSpan>,
 	/// Closest preceding multi-line block whose span contains the authored
 	/// anchor.
 	pub enclosing_block: Option<BlockSpan>,
@@ -627,7 +628,8 @@ pub fn ambiguous_anonymous_paste_message(pending: &[&str]) -> String {
 ///
 /// Same-path sections coalesce into their first occurrence, so an interleaved
 /// layout would silently reorder the register sequence.
-pub const CLIPBOARD_INTERLEAVED_SECTIONS: &str = "`CUT`/register-`PUT` ops cannot be used in a file whose sections are interleaved with another \
+pub const CLIPBOARD_INTERLEAVED_SECTIONS: &str =
+	"`CUT`/register-`PUT` ops cannot be used in a file whose sections are interleaved with another \
 	 file's: same-path sections merge into the first occurrence, which would reorder the register \
 	 sequence. Keep each file's ops under ONE `[path#TAG]` header.";
 
@@ -700,7 +702,8 @@ pub const RECOVERY_LINE_REMAP_WARNING: &str = "Recovered by remapping stale line
 /// `insert head:`/`insert tail:` applied despite a stale snapshot tag.
 /// Head/tail position is content-independent, so drift is non-fatal: apply
 /// onto live content and warn instead of hard-failing.
-pub const HEADTAIL_DRIFT_WARNING: &str = "Applied the `PUT <1:`/`PUT >$:` edit despite a stale snapshot tag (file changed since your \
+pub const HEADTAIL_DRIFT_WARNING: &str =
+	"Applied the `PUT <1:`/`PUT >$:` edit despite a stale snapshot tag (file changed since your \
 	 read) — head/tail position is content-independent. Re-read if the drift was unexpected.";
 
 /// Disk content after write differs from what was sent (e.g. IDE format on
@@ -797,7 +800,7 @@ pub struct RevealedLine {
 /// re-read.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UnseenLinesReveal {
-	pub lines: Vec<RevealedLine>,
+	pub lines:     Vec<RevealedLine>,
 	pub truncated: bool,
 }
 
@@ -916,21 +919,18 @@ mod tests {
 		];
 		// Anchors at line 2 and 8 with a gap between 4 and 6.
 		let context = format_anchored_context(&[2, 8], &lines);
-		assert_eq!(
-			context,
-			vec![
-				" 1:alpha",
-				"*2:bravo",
-				" 3:charlie",
-				" 4:delta",
-				"...",
-				" 6:foxtrot",
-				" 7:golf",
-				"*8:hotel",
-				" 9:india",
-				" 10:juliet",
-			]
-		);
+		assert_eq!(context, vec![
+			" 1:alpha",
+			"*2:bravo",
+			" 3:charlie",
+			" 4:delta",
+			"...",
+			" 6:foxtrot",
+			" 7:golf",
+			"*8:hotel",
+			" 9:india",
+			" 10:juliet",
+		]);
 
 		// Out-of-range anchor ignored.
 		let context_oor = format_anchored_context(&[999], &lines);
@@ -1001,7 +1001,7 @@ mod tests {
 
 		// Non-empty reveal, not truncated
 		let reveal = UnseenLinesReveal {
-			lines: vec![RevealedLine { line: 5, text: "let x = 1;".to_string() }],
+			lines:     vec![RevealedLine { line: 5, text: "let x = 1;".to_string() }],
 			truncated: false,
 		};
 		let msg_reveal = unseen_lines_message("src/foo.ts", &[5], "AB12", &reveal);
@@ -1016,7 +1016,7 @@ mod tests {
 
 		// Truncated reveal
 		let reveal_trunc = UnseenLinesReveal {
-			lines: vec![RevealedLine { line: 5, text: "let x = 1;".to_string() }],
+			lines:     vec![RevealedLine { line: 5, text: "let x = 1;".to_string() }],
 			truncated: true,
 		};
 		let msg_trunc = unseen_lines_message("src/foo.ts", &[5, 6], "AB12", &reveal_trunc);

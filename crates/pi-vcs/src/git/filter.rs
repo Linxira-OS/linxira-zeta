@@ -24,11 +24,11 @@ pub(crate) struct WorktreeFilter<'repo> {
 	/// Index consulted by the safer-autocrlf rule: a path whose index blob
 	/// already contains CR keeps its CRLFs (`git add` semantics). An empty
 	/// index renormalizes unconditionally (`git apply` semantics).
-	index: gix::index::State,
+	index:    gix::index::State,
 	/// Paths read verbatim, as `git apply` does (`CONV_EOL_KEEP_CRLF`) when a
 	/// patch's preimage itself carries CRLF line endings.
 	verbatim: BTreeSet<String>,
-	op: &'static str,
+	op:       &'static str,
 }
 
 impl<'repo> WorktreeFilter<'repo> {

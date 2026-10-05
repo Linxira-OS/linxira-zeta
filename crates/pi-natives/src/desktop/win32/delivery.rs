@@ -32,15 +32,15 @@ impl EventKind {
 #[derive(Clone, Copy, Debug)]
 pub struct TargetTraits<'a> {
 	/// Class name of the target's top-level window.
-	pub class: &'a str,
+	pub class:               &'a str,
 	/// A Chromium or CEF renderer lives in a descendant window (`WebView2`,
 	/// Tauri, embedded CEF).
 	pub chromium_descendant: bool,
 	/// The target's top-level window currently owns the foreground.
-	pub foreground: bool,
+	pub foreground:          bool,
 	/// The target renders XAML/UWP/WinUI content, whose `CoreInput`
 	/// dispatcher reads keyboard input only from the system input queue.
-	pub xaml_host: bool,
+	pub xaml_host:           bool,
 }
 
 pub fn is_chromium_class(class: &str) -> bool {
@@ -269,10 +269,9 @@ mod tests {
 		assert_matrix(background("Chrome_WidgetWin_1"), [true; 6]);
 		assert_matrix(background("CefBrowserWindow"), [true; 6]);
 		assert_matrix(background("Chrome_RenderWidgetHostHWND"), [true; 6]);
-		assert_matrix(
-			background("WinUIDesktopWin32WindowClass"),
-			[true, true, true, false, false, false],
-		);
+		assert_matrix(background("WinUIDesktopWin32WindowClass"), [
+			true, true, true, false, false, false,
+		]);
 		assert_matrix(background("HwndWrapper[App;;abc]"), [true, true, false, true, true, true]);
 		assert_matrix(background("TkTopLevel.1"), [true, false, false, true, true, true]);
 		assert_matrix(background("gdkSurfaceToplevel"), [true, false, false, false, false, false]);
@@ -304,10 +303,9 @@ mod tests {
 
 	#[test]
 	fn terminals_accept_posted_text_only_while_foreground() {
-		assert_matrix(
-			background("CASCADIA_HOSTING_WINDOW_CLASS"),
-			[false, false, false, false, false, true],
-		);
+		assert_matrix(background("CASCADIA_HOSTING_WINDOW_CLASS"), [
+			false, false, false, false, false, true,
+		]);
 		assert_matrix(background("mintty"), [false, false, false, false, false, true]);
 		let foreground = TargetTraits { foreground: true, ..background("ConsoleWindowClass") };
 		assert_matrix(foreground, [false; 6]);
@@ -353,10 +351,15 @@ mod tests {
 	fn every_line_break_style_becomes_exactly_one_return() {
 		use TextUnit::{Char, Enter};
 		let units = |text| text_units(text).collect::<Vec<_>>();
-		assert_eq!(
-			units("a\r\nb\nc\rd"),
-			[Char('a'), Enter, Char('b'), Enter, Char('c'), Enter, Char('d')]
-		);
+		assert_eq!(units("a\r\nb\nc\rd"), [
+			Char('a'),
+			Enter,
+			Char('b'),
+			Enter,
+			Char('c'),
+			Enter,
+			Char('d')
+		]);
 		assert_eq!(units("\r\r\n\n"), [Enter, Enter, Enter]);
 		assert_eq!(units("\n\r"), [Enter, Enter]);
 		assert_eq!(units("é\t"), [Char('é'), Char('\t')]);

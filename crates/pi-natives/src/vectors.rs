@@ -107,7 +107,7 @@ pub struct VectorTopK {
 	/// Row indices of the selected hits, best score first.
 	pub indices: Uint32Array,
 	/// Scores aligned with `indices`.
-	pub scores: Float64Array,
+	pub scores:  Float64Array,
 }
 
 /// Score every row of a normalized `f32` matrix against `query` and return

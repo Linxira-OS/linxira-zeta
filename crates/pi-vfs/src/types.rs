@@ -62,7 +62,7 @@ impl FileKind {
 /// [`std::fs::FileType`].
 #[derive(Clone, Copy)]
 pub struct FileType {
-	kind: FileKind,
+	kind:   FileKind,
 	native: Option<std::fs::FileType>,
 }
 
@@ -253,8 +253,8 @@ impl From<std::fs::Permissions> for Permissions {
 /// [`FileId::native`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FileId {
-	dev: u64,
-	ino: u64,
+	dev:    u64,
+	ino:    u64,
 	native: bool,
 }
 
@@ -309,21 +309,21 @@ impl From<Option<SystemTime>> for FileTime {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StatFs {
 	/// `f_type` magic number, where the platform has one.
-	pub fs_type: Option<i64>,
+	pub fs_type:          Option<i64>,
 	/// Filesystem type name (`apfs`, `ext4`, `NTFS`, ...), when known.
-	pub fs_type_name: Option<String>,
+	pub fs_type_name:     Option<String>,
 	/// `f_bsize`.
-	pub block_size: u64,
+	pub block_size:       u64,
 	/// Optimal transfer size: Linux `f_frsize`, Apple `f_iosize`, Windows
 	/// cluster size.
-	pub io_size: u64,
-	pub blocks: u64,
-	pub blocks_free: u64,
+	pub io_size:          u64,
+	pub blocks:           u64,
+	pub blocks_free:      u64,
 	pub blocks_available: u64,
-	pub files: u64,
-	pub files_free: u64,
-	pub fsid: Option<u64>,
-	pub name_max: Option<u64>,
+	pub files:            u64,
+	pub files_free:       u64,
+	pub fsid:             Option<u64>,
+	pub name_max:         Option<u64>,
 }
 
 /// Node kinds for [`crate::BlockingFs::make_node`].

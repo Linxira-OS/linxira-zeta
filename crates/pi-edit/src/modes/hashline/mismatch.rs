@@ -15,17 +15,17 @@ static LINE_REF_RE: LazyLock<Regex> =
 
 /// Context needed to explain a stale or unrecognized snapshot tag.
 pub struct MismatchDetails {
-	pub path: Option<String>,
+	pub path:               Option<String>,
 	pub expected_file_hash: String,
-	pub actual_file_hash: String,
-	pub file_lines: Vec<String>,
-	pub anchor_lines: Vec<u32>,
-	pub hash_recognized: bool,
+	pub actual_file_hash:   String,
+	pub file_lines:         Vec<String>,
+	pub anchor_lines:       Vec<u32>,
+	pub hash_recognized:    bool,
 	/// Absolute paths this session has already issued `expected_file_hash` for.
 	/// Non-empty when `hash_recognized` is false and the tag belongs to a
 	/// different file in the same session — e.g. a worktree lane that pasted a
 	/// parent-checkout tag into its own (correctly) relative header.
-	pub tag_origin_paths: Vec<String>,
+	pub tag_origin_paths:   Vec<String>,
 }
 
 /// Format the required shape of a tagged line anchor.

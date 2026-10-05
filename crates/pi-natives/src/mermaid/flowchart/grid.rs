@@ -66,14 +66,11 @@ pub fn set_column_width(graph: &mut AsciiGraph, node: NodeId) {
 	let Some(grid_coord) = ascii_node.grid_coord else {
 		return;
 	};
-	let dimensions = shapes::shape_dimensions(
-		ascii_node.shape,
-		&ascii_node.label,
-		&ShapeRenderOptions {
+	let dimensions =
+		shapes::shape_dimensions(ascii_node.shape, &ascii_node.label, &ShapeRenderOptions {
 			use_ascii: graph.config.use_ascii,
-			padding: graph.config.box_border_padding,
-		},
-	);
+			padding:   graph.config.box_border_padding,
+		});
 	let needs_subgraph_overhead = has_incoming_edge_from_outside_subgraph(graph, node);
 
 	for (offset, width) in dimensions.grid_columns.into_iter().enumerate() {
@@ -413,24 +410,24 @@ mod tests {
 
 	fn graph(direction: LayoutDirection, node_count: usize) -> AsciiGraph {
 		AsciiGraph {
-			nodes: (0..node_count).map(node).collect(),
-			edges: Vec::new(),
-			canvas: Canvas::new(1, 1),
-			role_canvas: RoleCanvas::new(1, 1),
-			grid: HashMap::new(),
+			nodes:        (0..node_count).map(node).collect(),
+			edges:        Vec::new(),
+			canvas:       Canvas::new(1, 1),
+			role_canvas:  RoleCanvas::new(1, 1),
+			grid:         HashMap::new(),
 			column_width: HashMap::new(),
-			row_height: HashMap::new(),
-			subgraphs: Vec::new(),
-			config: AsciiConfig {
+			row_height:   HashMap::new(),
+			subgraphs:    Vec::new(),
+			config:       AsciiConfig {
 				use_ascii: false,
 				padding_x: 5,
 				padding_y: 5,
 				box_border_padding: 1,
 				direction,
 			},
-			offset_x: 0,
-			offset_y: 0,
-			bundles: Vec::new(),
+			offset_x:     0,
+			offset_y:     0,
+			bundles:      Vec::new(),
 		}
 	}
 
@@ -472,25 +469,25 @@ mod tests {
 		let mut graph = graph(LayoutDirection::TD, 2);
 		graph.subgraphs = vec![
 			AsciiSubgraph {
-				name: "outer".into(),
-				nodes: vec![0, 1],
-				parent: None,
-				children: vec![1],
-				min_x: 0,
-				min_y: 0,
-				max_x: 0,
-				max_y: 0,
+				name:      "outer".into(),
+				nodes:     vec![0, 1],
+				parent:    None,
+				children:  vec![1],
+				min_x:     0,
+				min_y:     0,
+				max_x:     0,
+				max_y:     0,
 				direction: Some(LayoutDirection::TD),
 			},
 			AsciiSubgraph {
-				name: "inner".into(),
-				nodes: vec![1],
-				parent: Some(0),
-				children: Vec::new(),
-				min_x: 0,
-				min_y: 0,
-				max_x: 0,
-				max_y: 0,
+				name:      "inner".into(),
+				nodes:     vec![1],
+				parent:    Some(0),
+				children:  Vec::new(),
+				min_x:     0,
+				min_y:     0,
+				max_x:     0,
+				max_y:     0,
 				direction: Some(LayoutDirection::LR),
 			},
 		];

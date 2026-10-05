@@ -20,16 +20,16 @@ use crate::utok::{
 // against tiktoken-rs in tests/openai.rs.
 
 static O200K_BASE: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/o200k_base.bin.zst")),
-	splitter: Splitter::O200k,
-	nfc: false,
+	table:         RankTable::parse(include_bytes!("../../data/o200k_base.bin.zst")),
+	splitter:      Splitter::O200k,
+	nfc:           false,
 	ignore_merges: false,
 });
 
 static CL100K_BASE: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/cl100k_base.bin.zst")),
-	splitter: Splitter::Cl100k,
-	nfc: false,
+	table:         RankTable::parse(include_bytes!("../../data/cl100k_base.bin.zst")),
+	splitter:      Splitter::Cl100k,
+	nfc:           false,
 	ignore_merges: false,
 });
 
@@ -48,9 +48,9 @@ static CL100K_BASE: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
 pub(crate) const QWEN3_PATTERN: &str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?[\p{L}\p{M}]+|\p{N}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
 
 static QWEN3: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/qwen3.bin.zst")),
-	splitter: Splitter::Qwen,
-	nfc: true,
+	table:         RankTable::parse(include_bytes!("../../data/qwen3.bin.zst")),
+	splitter:      Splitter::Qwen,
+	nfc:           true,
 	ignore_merges: false,
 });
 
@@ -77,9 +77,9 @@ pub(crate) const DEEPSEEK_STAGE_MAIN: &str = concat!(
 );
 
 static DEEPSEEK3: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/deepseek3.bin.zst")),
-	splitter: Splitter::DeepSeek,
-	nfc: false,
+	table:         RankTable::parse(include_bytes!("../../data/deepseek3.bin.zst")),
+	splitter:      Splitter::DeepSeek,
+	nfc:           false,
 	ignore_merges: false,
 });
 
@@ -103,9 +103,9 @@ pub(crate) const KIMI_K2_PATTERN: &str = concat!(
 );
 
 static KIMI_K2: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/kimi_k2.bin.zst")),
-	splitter: Splitter::Kimi,
-	nfc: false,
+	table:         RankTable::parse(include_bytes!("../../data/kimi_k2.bin.zst")),
+	splitter:      Splitter::Kimi,
+	nfc:           false,
 	ignore_merges: false,
 });
 
@@ -126,9 +126,9 @@ static KIMI_K2: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
 pub(crate) const GLM5_PATTERN: &str = r"(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+";
 
 static GLM5: LazyLock<BpeEncoding> = LazyLock::new(|| BpeEncoding {
-	table: RankTable::parse(include_bytes!("../../data/glm5.bin.zst")),
-	splitter: Splitter::Cl100k,
-	nfc: false,
+	table:         RankTable::parse(include_bytes!("../../data/glm5.bin.zst")),
+	splitter:      Splitter::Cl100k,
+	nfc:           false,
 	ignore_merges: true,
 });
 

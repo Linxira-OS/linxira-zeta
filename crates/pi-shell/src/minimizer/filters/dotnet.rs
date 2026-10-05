@@ -378,10 +378,10 @@ mod tests {
 	fn keeps_dotnet_build_diagnostic_and_strips_restore_noise() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		let input = "  Determining projects to restore...\n  Restored app.csproj (in 1 \
 		             sec).\nProgram.cs(10,5): error CS1002: ; expected [/repo/app.csproj]\nBuild \
@@ -408,10 +408,10 @@ mod tests {
 	fn dotnet_build_success_short_circuits() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		let input = "Microsoft (R) Build Engine version 17.8.3+195e7f5a3\nCopyright (C) Microsoft \
 		             Corporation. All rights reserved.\n\nDetermining projects to restore...\nAll \
@@ -426,10 +426,10 @@ mod tests {
 	fn dotnet_restore_success_short_circuits() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("restore"),
-			command: "dotnet restore",
-			config: &cfg,
+			command:    "dotnet restore",
+			config:     &cfg,
 		};
 		let input = "Microsoft (R) Build Engine version 17.8.3+195e7f5a3\nCopyright (C) Microsoft \
 		             Corporation. All rights reserved.\n\n  Determining projects to restore...\n  \
@@ -443,10 +443,10 @@ mod tests {
 	fn dotnet_build_unindented_summary_not_short_circuited() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		// Real warnings appear after an early unindented "0 Warning(s)" line;
 		// the def's regex required consecutive lines with the second indented.
@@ -462,10 +462,10 @@ mod tests {
 	fn dotnet_build_consecutive_unindented_summary_not_short_circuited() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		// The def's regex required the second line to be indented (\s+);
 		// consecutive unindented lines must not short-circuit.
@@ -479,10 +479,10 @@ mod tests {
 	fn dotnet_build_with_warnings_not_short_circuited() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		let input = "Microsoft (R) Build Engine version 17.8.3+195e7f5a3\nCopyright (C) Microsoft \
 		             Corporation. All rights reserved.\n\nDetermining projects to restore...\nMyApp \
@@ -500,10 +500,10 @@ mod tests {
 	fn dotnet_build_errors_preserved() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		let input = "Microsoft (R) Build Engine version 17.8.3+195e7f5a3\nCopyright (C) Microsoft \
 		             Corporation. All rights reserved.\n\nDetermining projects to \
@@ -521,10 +521,10 @@ mod tests {
 	fn truncates_long_lines_in_build_output() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "dotnet",
+			program:    "dotnet",
 			subcommand: Some("build"),
-			command: "dotnet build",
-			config: &cfg,
+			command:    "dotnet build",
+			config:     &cfg,
 		};
 		let long_tail = "x".repeat(200);
 		let input = format!(

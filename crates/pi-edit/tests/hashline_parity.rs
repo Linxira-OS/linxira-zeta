@@ -144,11 +144,12 @@ fn check_apply(source: &str, case_name: &str, call: &Value) {
 	} else {
 		EmptyPaste::Throw
 	};
-	let result = apply_edits(
-		call["text"].as_str().expect("apply source text"),
-		&parsed.edits,
-		ApplyOptions { clipboard: clipboard.as_mut(), path: call["path"].as_str(), on_empty_paste },
-	);
+	let result =
+		apply_edits(call["text"].as_str().expect("apply source text"), &parsed.edits, ApplyOptions {
+			clipboard: clipboard.as_mut(),
+			path: call["path"].as_str(),
+			on_empty_paste,
+		});
 	match (result, call["error"].as_str()) {
 		(Ok(actual), None) => {
 			let expected = &call["expect"];
@@ -437,10 +438,10 @@ fn pure_format_input_and_streaming_contracts_cover_uncaptured_cases() {
 	let patch = Patch::parse("\n[foo.ts]\nPUT <1:\n+x", &SplitOptions::default())
 		.expect("normalizes leading blanks, cwd-relative paths, and explicit fallback paths");
 	assert_eq!(patch.sections[0].path, "foo.ts");
-	let absolute = Patch::parse(
-		"[/workspace/src/foo.ts]\nPUT <1:\n+x",
-		&SplitOptions { cwd: Some(cwd), path: None },
-	)
+	let absolute = Patch::parse("[/workspace/src/foo.ts]\nPUT <1:\n+x", &SplitOptions {
+		cwd:  Some(cwd),
+		path: None,
+	})
 	.expect("cwd relative");
 	assert_eq!(absolute.sections[0].path, "src/foo.ts");
 	let fallback = Patch::parse("PUT <1:\n+x", &SplitOptions { cwd: None, path: Some("a.ts") })

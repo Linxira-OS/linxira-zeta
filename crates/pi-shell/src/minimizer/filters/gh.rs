@@ -63,10 +63,16 @@ fn preserves_raw_mode(ctx: &MinimizerCtx<'_>) -> bool {
 			// failures. A watch is an explicit live view -- pass it through raw
 			// instead of summarizing a multi-frame buffer. (--json/-w break the
 			// table shape outright.)
-			primitives::command_has_any_token(
-				ctx.command,
-				&["--json", "--web", "-w", "--jq", "--template", "--watch", "--interval", "-i"],
-			)
+			primitives::command_has_any_token(ctx.command, &[
+				"--json",
+				"--web",
+				"-w",
+				"--jq",
+				"--template",
+				"--watch",
+				"--interval",
+				"-i",
+			])
 		},
 		Some("pr") if primitives::command_has_ordered_tokens(ctx.command, "pr", "diff") => true,
 		Some("pr") if primitives::command_has_ordered_tokens(ctx.command, "pr", "status") => {

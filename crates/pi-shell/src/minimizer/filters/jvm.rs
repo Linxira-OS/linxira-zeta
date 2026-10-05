@@ -277,27 +277,24 @@ fn jvm_positional_tokens<'a>(command: &'a str, value_flags: &[&str]) -> Vec<&'a 
 pub fn detect_phase(command: &str) -> MvnPhase {
 	// Use the last RECOGNIZED lifecycle goal so that option-value tokens
 	// (e.g. the module name after -pl) are ignored.
-	let last = jvm_positional_tokens(
-		command,
-		&[
-			"-pl",
-			"--projects",
-			"-P",
-			"--activate-profiles",
-			"-f",
-			"--file",
-			"-s",
-			"--settings",
-			"-gs",
-			"--global-settings",
-			"-t",
-			"--toolchains",
-			"-gt",
-			"--global-toolchains",
-			"-T",
-			"--threads",
-		],
-	)
+	let last = jvm_positional_tokens(command, &[
+		"-pl",
+		"--projects",
+		"-P",
+		"--activate-profiles",
+		"-f",
+		"--file",
+		"-s",
+		"--settings",
+		"-gs",
+		"--global-settings",
+		"-t",
+		"--toolchains",
+		"-gt",
+		"--global-toolchains",
+		"-T",
+		"--threads",
+	])
 	.into_iter()
 	.rfind(|a| is_recognized_mvn_goal(a))
 	.unwrap_or("");
@@ -430,17 +427,17 @@ fn keep_outside_block(line: &str) -> bool {
 /// with its own outside-block keep logic, applied on the
 /// [`SurefireStep::Passthrough`] arm.
 struct SurefireBlock<'a> {
-	block_lines: Vec<&'a str>,
+	block_lines:   Vec<&'a str>,
 	block_running: Option<&'a str>,
-	in_block: bool,
+	in_block:      bool,
 	failure_trail: bool,
 	/// When set together with `failure_trail`, consumes the trail without
 	/// writing it to `out`. Used when the caller capped a failing block.
-	drop_trail: bool,
+	drop_trail:    bool,
 	/// Set when a trail ends at a blank line; holds the `drop_trail` value so
 	/// the next per-test subline of the same class re-enters the trail with the
 	/// same keep/drop decision.
-	trail_rearm: Option<bool>,
+	trail_rearm:   Option<bool>,
 }
 
 enum SurefireStep<'a> {
@@ -456,12 +453,12 @@ enum SurefireStep<'a> {
 impl<'a> SurefireBlock<'a> {
 	const fn new() -> Self {
 		Self {
-			block_lines: Vec::new(),
+			block_lines:   Vec::new(),
 			block_running: None,
-			in_block: false,
+			in_block:      false,
 			failure_trail: false,
-			drop_trail: false,
-			trail_rearm: None,
+			drop_trail:    false,
+			trail_rearm:   None,
 		}
 	}
 
@@ -612,10 +609,10 @@ impl<'a> SurefireBlock<'a> {
 /// entries at [`max_mvn_failing_classes`] and emit `\n[…N failures elided…]\n`
 /// immediately before the `Tests run:` aggregate when entries were dropped.
 struct FailuresSummaryCap {
-	cap: usize,
+	cap:        usize,
 	in_summary: bool,
-	emitted: usize,
-	dropped: usize,
+	emitted:    usize,
+	dropped:    usize,
 }
 
 impl FailuresSummaryCap {
@@ -1101,26 +1098,23 @@ pub fn detect_task(command: &str) -> GradleTask {
 	//   • no non-flag non-clean tokens at all  → only `clean` was given → Build
 	//   • non-flag non-clean tokens existed but none recognized → unrecognized
 	// task → Other
-	let mut non_clean_tokens = jvm_positional_tokens(
-		command,
-		&[
-			"-p",
-			"--project-dir",
-			"-P",
-			"--project-prop",
-			"-g",
-			"--gradle-user-home",
-			"--settings-file",
-			"-b",
-			"--build-file",
-			"--init-script",
-			"-I",
-			"--max-workers",
-			"-c",
-			"--configuration-file",
-			"--project-cache-dir",
-		],
-	)
+	let mut non_clean_tokens = jvm_positional_tokens(command, &[
+		"-p",
+		"--project-dir",
+		"-P",
+		"--project-prop",
+		"-g",
+		"--gradle-user-home",
+		"--settings-file",
+		"-b",
+		"--build-file",
+		"--init-script",
+		"-I",
+		"--max-workers",
+		"-c",
+		"--configuration-file",
+		"--project-cache-dir",
+	])
 	.into_iter()
 	.map(str::to_lowercase)
 	.filter(|a| a != "clean")
@@ -2883,7 +2877,8 @@ mod tests {
 
 	#[test]
 	fn gradle_dependencies_extracts_top_level() {
-		let input = "> Task :app:dependencies\n\\
+		let input =
+			"> Task :app:dependencies\n\\
 			 n------------------------------------------------------------\nProject \
 			 ':app'\n------------------------------------------------------------\n\nimplementation \
 			 - Implementation dependencies for the 'main' feature.\n+--- \

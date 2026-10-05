@@ -145,9 +145,9 @@ pub fn to_cells(text: &str) -> Vec<Cell> {
 /// Column-major grid: `(x, y)` addresses column `x`, row `y`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Grid<T> {
-	width: i32,
+	width:  i32,
 	height: i32,
-	cells: Vec<T>,
+	cells:  Vec<T>,
 }
 
 /// Text canvas.

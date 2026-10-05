@@ -25,11 +25,11 @@ pub const NOOP_HARD_LIMIT: u32 = 3;
 #[derive(Debug, Clone)]
 pub struct Snapshot {
 	/// Canonical path this version belongs to.
-	pub path: PathBuf,
+	pub path:       PathBuf,
 	/// Full LF-normalized, BOM-stripped text.
-	pub text: Arc<str>,
+	pub text:       Arc<str>,
 	/// Four-character content tag.
-	pub hash: String,
+	pub hash:       String,
 	/// Lines displayed from this version, when provenance was recorded.
 	pub seen_lines: Option<BTreeSet<u32>>,
 }
@@ -38,9 +38,9 @@ pub struct Snapshot {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Clipboard {
 	/// Latest anonymous cut.
-	pub lines: Option<Vec<String>>,
+	pub lines:             Option<Vec<String>>,
 	/// Named registers, retained between batches.
-	pub named: Option<HashMap<String, Vec<String>>>,
+	pub named:             Option<HashMap<String, Vec<String>>>,
 	/// Anonymous cuts not yet consumed.
 	pub pending_anon_cuts: Option<Vec<String>>,
 }
@@ -119,12 +119,12 @@ pub fn seen_lines_from_body(body: &str) -> Vec<u32> {
 
 struct StoredSnapshot {
 	snapshot: Snapshot,
-	units: usize,
+	units:    usize,
 }
 
 struct PathHistory {
 	versions: Vec<StoredSnapshot>,
-	touched: u64,
+	touched:  u64,
 }
 
 impl PathHistory {
@@ -138,27 +138,27 @@ impl PathHistory {
 }
 
 struct StoreState {
-	histories: HashMap<PathBuf, PathHistory>,
-	clipboard: Clipboard,
-	noop: HashMap<PathBuf, (u64, u32)>,
-	clock: u64,
-	max_paths: usize,
-	max_versions: usize,
+	histories:       HashMap<PathBuf, PathHistory>,
+	clipboard:       Clipboard,
+	noop:            HashMap<PathBuf, (u64, u32)>,
+	clock:           u64,
+	max_paths:       usize,
+	max_versions:    usize,
 	max_total_units: usize,
-	retained_units: usize,
+	retained_units:  usize,
 }
 
 impl Default for StoreState {
 	fn default() -> Self {
 		Self {
-			histories: HashMap::new(),
-			clipboard: Clipboard::default(),
-			noop: HashMap::new(),
-			clock: 0,
-			max_paths: DEFAULT_MAX_PATHS,
-			max_versions: DEFAULT_MAX_VERSIONS_PER_PATH,
+			histories:       HashMap::new(),
+			clipboard:       Clipboard::default(),
+			noop:            HashMap::new(),
+			clock:           0,
+			max_paths:       DEFAULT_MAX_PATHS,
+			max_versions:    DEFAULT_MAX_VERSIONS_PER_PATH,
 			max_total_units: DEFAULT_MAX_TOTAL_BYTES,
-			retained_units: 0,
+			retained_units:  0,
 		}
 	}
 }
@@ -205,9 +205,9 @@ impl EditStore {
 			history.versions.insert(0, snapshot);
 		} else if max_versions > 0 {
 			let mut snapshot = Snapshot {
-				path: path.to_owned(),
-				text: Arc::from(text),
-				hash: hash.clone(),
+				path:       path.to_owned(),
+				text:       Arc::from(text),
+				hash:       hash.clone(),
 				seen_lines: None,
 			};
 			merge_seen(&mut snapshot, seen_lines);

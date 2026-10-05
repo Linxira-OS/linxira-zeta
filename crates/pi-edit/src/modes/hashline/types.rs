@@ -23,7 +23,7 @@ pub enum Cursor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParsedRange {
 	pub start: Anchor,
-	pub end: Anchor,
+	pub end:   Anchor,
 }
 
 /// Where a `paste` edit lands: an insertion gap, or a span it replaces.
@@ -47,12 +47,12 @@ pub enum BlockMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Edit {
 	Insert {
-		cursor: Cursor,
-		text: String,
+		cursor:      Cursor,
+		text:        String,
 		/// 1-indexed payload line this edit came from (for messages).
-		line_num: u32,
+		line_num:    u32,
 		/// Position in the section's op list.
-		index: u32,
+		index:       u32,
 		/// True for replacement-payload inserts (vs. literal insertion).
 		replacement: bool,
 		/// Resolved block's first line for inserts lowered from
@@ -60,9 +60,9 @@ pub enum Edit {
 		block_start: Option<u32>,
 	},
 	Delete {
-		anchor: Anchor,
-		line_num: u32,
-		index: u32,
+		anchor:        Anchor,
+		line_num:      u32,
+		index:         u32,
 		/// Expected old content (`-` assertion row) when the payload carried one.
 		old_assertion: Option<String>,
 	},
@@ -72,21 +72,21 @@ pub enum Edit {
 	/// Clipboard insertion or replacement (`PUT <N @r` / `PUT >N @r` /
 	/// `PUT N-M @r` or the anonymous equivalents).
 	Paste {
-		at: PasteTarget,
-		register: Option<String>,
-		line_num: u32,
-		index: u32,
+		at:          PasteTarget,
+		register:    Option<String>,
+		line_num:    u32,
+		index:       u32,
 		block_start: Option<u32>,
 	},
 	/// Deferred block edit (`PUT N*:`, `PUT >N*:`, `CUT N*`, `@register`
 	/// forms); resolved to concrete edits once file text is available.
 	Block {
-		anchor: Anchor,
+		anchor:   Anchor,
 		payloads: Vec<String>,
-		mode: Option<BlockMode>,
+		mode:     Option<BlockMode>,
 		register: Option<String>,
 		line_num: u32,
-		index: u32,
+		index:    u32,
 	},
 }
 
@@ -135,26 +135,26 @@ pub enum BlockOpKind {
 pub struct BlockResolution {
 	/// The 1-indexed line the block op was anchored on (the `N`).
 	pub anchor_line: u32,
-	pub start: u32,
-	pub end: u32,
-	pub op: BlockOpKind,
+	pub start:       u32,
+	pub end:         u32,
+	pub op:          BlockOpKind,
 }
 
 /// Resolved 1-indexed inclusive line span of a block target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BlockSpan {
 	pub start: u32,
-	pub end: u32,
+	pub end:   u32,
 }
 
 /// Result of applying a parsed set of edits to a text body.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ApplyResult {
-	pub text: String,
+	pub text:               String,
 	/// 1-indexed first changed line; `None` for a no-op apply.
 	pub first_changed_line: Option<u32>,
-	pub warnings: Vec<String>,
+	pub warnings:           Vec<String>,
 	/// Resolved spans for each block op, in patch order (only when the apply
 	/// matched the tagged content).
-	pub block_resolutions: Vec<BlockResolution>,
+	pub block_resolutions:  Vec<BlockResolution>,
 }

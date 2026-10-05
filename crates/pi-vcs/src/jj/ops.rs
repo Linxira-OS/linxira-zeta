@@ -43,10 +43,10 @@ const DIFF_CONTEXT: usize = 3;
 
 #[derive(Debug)]
 struct TreeChange {
-	before_path: RepoPathBuf,
-	after_path: RepoPathBuf,
-	before: MergedTreeValue,
-	after: MergedTreeValue,
+	before_path:    RepoPathBuf,
+	after_path:     RepoPathBuf,
+	before:         MergedTreeValue,
+	after:          MergedTreeValue,
 	copy_operation: Option<&'static str>,
 }
 
@@ -280,9 +280,9 @@ impl JjWorkspace {
 						.map(|id| id.hex())
 						.collect(),
 					author: CommitAuthor {
-						name: author.name.clone(),
+						name:  author.name.clone(),
 						email: author.email.clone(),
-						date: Some(date),
+						date:  Some(date),
 					},
 					message,
 				})
@@ -542,11 +542,11 @@ async fn snapshot_working_copy(
 	let everything = EverythingMatcher;
 	let nothing = NothingMatcher;
 	let options = SnapshotOptions {
-		base_ignores: GitIgnoreFile::empty(),
-		progress: None,
+		base_ignores:           GitIgnoreFile::empty(),
+		progress:               None,
 		start_tracking_matcher: &everything,
 		force_tracking_matcher: &nothing,
-		max_new_file_size: 1024 * 1024,
+		max_new_file_size:      1024 * 1024,
 	};
 	let (new_tree, _) = locked_workspace
 		.locked_wc()
@@ -660,10 +660,10 @@ fn collect_changes(
 		if let Some(before_value) = before.get(path) {
 			if before_value != after_value && path_selected(path, path, files) {
 				changes.push(TreeChange {
-					before_path: path.clone(),
-					after_path: path.clone(),
-					before: before_value.clone(),
-					after: after_value.clone(),
+					before_path:    path.clone(),
+					after_path:     path.clone(),
+					before:         before_value.clone(),
+					after:          after_value.clone(),
 					copy_operation: None,
 				});
 			}
@@ -682,19 +682,19 @@ fn collect_changes(
 			};
 			if path_selected(source_path, path, files) {
 				changes.push(TreeChange {
-					before_path: source_path.clone(),
-					after_path: path.clone(),
-					before: before[source_path].clone(),
-					after: after_value.clone(),
+					before_path:    source_path.clone(),
+					after_path:     path.clone(),
+					before:         before[source_path].clone(),
+					after:          after_value.clone(),
 					copy_operation: Some(operation),
 				});
 			}
 		} else if path_selected(path, path, files) {
 			changes.push(TreeChange {
-				before_path: path.clone(),
-				after_path: path.clone(),
-				before: MergedTreeValue::absent(),
-				after: after_value.clone(),
+				before_path:    path.clone(),
+				after_path:     path.clone(),
+				before:         MergedTreeValue::absent(),
+				after:          after_value.clone(),
 				copy_operation: None,
 			});
 		}
@@ -703,10 +703,10 @@ fn collect_changes(
 	for path in removed {
 		if path_selected(&path, &path, files) {
 			changes.push(TreeChange {
-				before_path: path.clone(),
-				after_path: path.clone(),
-				before: before[&path].clone(),
-				after: MergedTreeValue::absent(),
+				before_path:    path.clone(),
+				after_path:     path.clone(),
+				before:         before[&path].clone(),
+				after:          MergedTreeValue::absent(),
 				copy_operation: None,
 			});
 		}
@@ -816,8 +816,8 @@ async fn render_numstat(
 fn conflict_materialize_options(repo: &dyn Repo) -> ConflictMaterializeOptions {
 	ConflictMaterializeOptions {
 		marker_style: ConflictMarkerStyle::Diff,
-		marker_len: None,
-		merge: repo.store().merge_options().clone(),
+		marker_len:   None,
+		merge:        repo.store().merge_options().clone(),
 	}
 }
 
@@ -1116,10 +1116,11 @@ mod tests {
 			.unwrap();
 		assert_eq!(parse_status_nul(&nul), vec![("A  ".to_owned(), vec!["alpha.txt".to_owned()])]);
 		assert_eq!(repo.changed_files(&crate::DiffOptions::default()).unwrap(), vec!["alpha.txt"]);
-		assert_eq!(
-			repo.numstat(&crate::DiffOptions::default()).unwrap(),
-			vec![NumstatEntry { path: "alpha.txt".to_owned(), added: Some(2), removed: Some(0) }]
-		);
+		assert_eq!(repo.numstat(&crate::DiffOptions::default()).unwrap(), vec![NumstatEntry {
+			path:    "alpha.txt".to_owned(),
+			added:   Some(2),
+			removed: Some(0),
+		}]);
 		assert_eq!(repo.ls_files(false, false).unwrap(), vec!["alpha.txt"]);
 		assert_eq!(repo.ls_files(true, true).unwrap(), Vec::<String>::new());
 
@@ -1150,17 +1151,18 @@ mod tests {
 
 		let capped = crate::DiffOptions { max_bytes: Some(1), ..crate::DiffOptions::default() };
 		assert_eq!(repo.changed_files(&capped).unwrap(), vec!["alpha.txt"]);
-		assert_eq!(
-			repo.numstat(&capped).unwrap(),
-			vec![NumstatEntry { path: "alpha.txt".to_owned(), added: Some(2), removed: Some(0) }]
-		);
+		assert_eq!(repo.numstat(&capped).unwrap(), vec![NumstatEntry {
+			path:    "alpha.txt".to_owned(),
+			added:   Some(2),
+			removed: Some(0),
+		}]);
 
 		let err = repo.diff_text(&capped).unwrap_err();
 		assert_eq!(err.kind(), "Unsupported");
-		assert!(matches!(
-			err,
-			crate::Error::Unsupported { operation: "diffMaxBytes", backend: crate::VcsKind::Jj }
-		));
+		assert!(matches!(err, crate::Error::Unsupported {
+			operation: "diffMaxBytes",
+			backend:   crate::VcsKind::Jj,
+		}));
 	}
 
 	#[test]
@@ -1174,18 +1176,15 @@ mod tests {
 		run_jj(temp.path(), &["bookmark", "create", "main", "-r", "@"]);
 		let workspace = JjWorkspace::require(temp.path()).unwrap();
 
-		let label_raw = run_jj(
-			temp.path(),
-			&[
-				"log",
-				"--no-graph",
-				"--ignore-working-copy",
-				"-r",
-				"@ | heads(::@ & bookmarks())",
-				"-T",
-				"change_id.shortest(8) ++ \"|\" ++ local_bookmarks ++ \"\\n\"",
-			],
-		);
+		let label_raw = run_jj(temp.path(), &[
+			"log",
+			"--no-graph",
+			"--ignore-working-copy",
+			"-r",
+			"@ | heads(::@ & bookmarks())",
+			"-T",
+			"change_id.shortest(8) ++ \"|\" ++ local_bookmarks ++ \"\\n\"",
+		]);
 		assert_eq!(workspace.working_copy_label().unwrap(), parse_label(&label_raw));
 
 		let summary_raw =

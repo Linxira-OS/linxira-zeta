@@ -24,7 +24,7 @@ use crate::{
 pub struct SloppyEngine {
 	/// Retained for the mode-neutral constructor; sloppy owns its matching
 	/// ladder.
-	pub allow_fuzzy: bool,
+	pub allow_fuzzy:     bool,
 	/// Retained for the mode-neutral constructor; sloppy owns its matching
 	/// thresholds.
 	pub fuzzy_threshold: f64,
@@ -94,23 +94,18 @@ impl ModeEngine for SloppyEngine {
 					},
 				};
 				let mut notes = Vec::new();
-				match apply_sloppy(
-					&read.text,
-					&section.body,
-					ApplyContext {
-						path: &read.resolved.display,
-						notes: &mut notes,
-						store,
-						canonical: &read.canonical,
-					},
-				) {
+				match apply_sloppy(&read.text, &section.body, ApplyContext {
+					path: &read.resolved.display,
+					notes: &mut notes,
+					store,
+					canonical: &read.canonical,
+				}) {
 					Ok(after) => {
-						let output = generate_diff_string(
-							&read.text,
-							&after,
-							None,
-							&BlockContextSource { path: Some(&read.resolved.display), lang: None },
-						);
+						let output =
+							generate_diff_string(&read.text, &after, None, &BlockContextSource {
+								path: Some(&read.resolved.display),
+								lang: None,
+							});
 						Some(PreviewFile {
 							display: read.resolved.display.clone(),
 							diff: Some(output.diff),
@@ -161,16 +156,12 @@ impl ModeEngine for SloppyEngine {
 				}
 			})?;
 			let mut notes = Vec::new();
-			let after = apply_sloppy(
-				&read.text,
-				&section.body,
-				ApplyContext {
-					path: &read.resolved.display,
-					notes: &mut notes,
-					store,
-					canonical: &read.canonical,
-				},
-			)
+			let after = apply_sloppy(&read.text, &section.body, ApplyContext {
+				path: &read.resolved.display,
+				notes: &mut notes,
+				store,
+				canonical: &read.canonical,
+			})
 			.map_err(|error| {
 				if multi_file {
 					EditError::matched(format!(
@@ -182,12 +173,10 @@ impl ModeEngine for SloppyEngine {
 				}
 			})?;
 			let persisted = read.persist(&after)?;
-			let output = generate_diff_string(
-				&read.text,
-				&after,
-				None,
-				&BlockContextSource { path: Some(&read.resolved.display), lang: None },
-			);
+			let output = generate_diff_string(&read.text, &after, None, &BlockContextSource {
+				path: Some(&read.resolved.display),
+				lang: None,
+			});
 			let mut file = StagedFile::new(
 				read.resolved.display.clone(),
 				read.resolved.absolute.clone(),
@@ -208,11 +197,11 @@ impl ModeEngine for SloppyEngine {
 	fn inspect(&self, args: &ArgSnapshot) -> Inspection {
 		let sections = split_sloppy_sections(args.input.as_deref().unwrap_or_default());
 		Inspection {
-			paths: sections
+			paths:    sections
 				.iter()
 				.map(|section| section.path.clone())
 				.collect(),
-			entries: sections
+			entries:  sections
 				.into_iter()
 				.map(|section| (section.path, section.body))
 				.collect(),

@@ -43,7 +43,11 @@ fn ensure_entity(entities: &mut Vec<ErEntity>, id: &str) -> usize {
 	if let Some(index) = entities.iter().position(|entity| entity.id == id) {
 		return index;
 	}
-	entities.push(ErEntity { id: id.to_owned(), label: id.to_owned(), attributes: Vec::new() });
+	entities.push(ErEntity {
+		id:         id.to_owned(),
+		label:      id.to_owned(),
+		attributes: Vec::new(),
+	});
 	entities.len() - 1
 }
 
@@ -220,33 +224,30 @@ mod tests {
 			 string email uk\n  }",
 		);
 		assert_eq!(diagram.entities.len(), 1);
-		assert_eq!(
-			diagram.entities[0],
-			ErEntity {
-				id: "CUSTOMER".into(),
-				label: "CUSTOMER".into(),
-				attributes: vec![
-					ErAttribute {
-						r#type: "string".into(),
-						name: "name".into(),
-						keys: vec![ErKey::Primary, ErKey::Foreign],
-						comment: Some("primary\nname".into()),
-					},
-					ErAttribute {
-						r#type: "int".into(),
-						name: "age".into(),
-						keys: vec![],
-						comment: None,
-					},
-					ErAttribute {
-						r#type: "string".into(),
-						name: "email".into(),
-						keys: vec![ErKey::Unique],
-						comment: None,
-					},
-				],
-			},
-		);
+		assert_eq!(diagram.entities[0], ErEntity {
+			id:         "CUSTOMER".into(),
+			label:      "CUSTOMER".into(),
+			attributes: vec![
+				ErAttribute {
+					r#type:  "string".into(),
+					name:    "name".into(),
+					keys:    vec![ErKey::Primary, ErKey::Foreign],
+					comment: Some("primary\nname".into()),
+				},
+				ErAttribute {
+					r#type:  "int".into(),
+					name:    "age".into(),
+					keys:    vec![],
+					comment: None,
+				},
+				ErAttribute {
+					r#type:  "string".into(),
+					name:    "email".into(),
+					keys:    vec![ErKey::Unique],
+					comment: None,
+				},
+			],
+		},);
 	}
 
 	#[test]

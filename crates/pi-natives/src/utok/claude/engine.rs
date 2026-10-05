@@ -39,12 +39,12 @@ const fn is_continuation(b: u8) -> bool {
 /// the stream one byte at a time and the dictionary-link chain from the state
 /// it lands in enumerates every piece ending at that byte, longest first.
 pub struct PieceMatcher {
-	states: Vec<State>,
-	edge_bytes: Vec<u8>,
+	states:       Vec<State>,
+	edge_bytes:   Vec<u8>,
 	edge_targets: Vec<u32>,
 	/// Dense transitions out of the root, which is the hottest state by far.
 	/// Zero (the root itself) where no piece starts with that byte.
-	root_goto: [u32; 256],
+	root_goto:    [u32; 256],
 }
 
 /// One automaton state: goto edges, the fail link, and the piece chain the DP
@@ -53,13 +53,13 @@ pub struct PieceMatcher {
 struct State {
 	edge_start: u32,
 	/// Longest proper suffix of this state's path that is also a state.
-	fail: u32,
+	fail:       u32,
 	/// Next state along the fail chain at which a piece ends, 0 for none — the
 	/// root can serve as that sentinel because no piece is empty.
-	dict: u32,
+	dict:       u32,
 	edge_count: u16,
 	/// Byte length of the piece ending in this state, 0 if none ends here.
-	out_len: u16,
+	out_len:    u16,
 }
 
 /// Construction form: the vocabulary arrives sorted by bytes (the blob is
@@ -67,19 +67,19 @@ struct State {
 /// and each parent's edges are created in increasing byte order.
 struct Builder {
 	terminal: Vec<bool>,
-	depth: Vec<u32>,
-	edges: Vec<(u32, u8, u32)>,
+	depth:    Vec<u32>,
+	edges:    Vec<(u32, u8, u32)>,
 	/// States along the piece last inserted, indexed by prefix length.
-	path: Vec<u32>,
+	path:     Vec<u32>,
 }
 
 impl Builder {
 	fn new(piece_count: usize) -> Self {
 		Self {
 			terminal: vec![false],
-			depth: vec![0],
-			edges: Vec::with_capacity(piece_count * 2),
-			path: vec![0],
+			depth:    vec![0],
+			edges:    Vec::with_capacity(piece_count * 2),
+			path:     vec![0],
 		}
 	}
 
@@ -125,9 +125,9 @@ impl Builder {
 			.map(|i| State {
 				edge_start: offsets[i],
 				edge_count: u16::try_from(offsets[i + 1] - offsets[i]).expect("byte fanout"),
-				out_len: 0,
-				fail: 0,
-				dict: 0,
+				out_len:    0,
+				fail:       0,
+				dict:       0,
 			})
 			.collect();
 		let mut matcher = PieceMatcher { states, edge_bytes, edge_targets, root_goto: [0; 256] };
@@ -224,7 +224,7 @@ impl PieceMatcher {
 /// longest first.
 struct Matches<'a> {
 	vocab: &'a PieceMatcher,
-	at: u32,
+	at:    u32,
 }
 
 impl Iterator for Matches<'_> {
@@ -302,7 +302,7 @@ pub fn min_vocab_tile(
 struct ByteFloor {
 	/// Sorted sentinel-packed byte strings (≤ 4 bytes): membership is all that
 	/// is needed, since every token costs 1.
-	tokens: Vec<u64>,
+	tokens:  Vec<u64>,
 	max_len: usize,
 }
 
@@ -362,7 +362,7 @@ fn decode_char(bytes: &[u8]) -> char {
 /// readers panic with context rather than propagating errors.
 struct Cursor<'a> {
 	data: &'a [u8],
-	pos: usize,
+	pos:  usize,
 }
 
 impl<'a> Cursor<'a> {
@@ -406,16 +406,16 @@ pub struct VocabCore {
 	/// Measured metadata of the vocabulary file (v5 overrides parts of it).
 	pub message_overhead: u32,
 	/// See [`FrameParams::fold_quotes`].
-	pub fold_quotes: bool,
+	pub fold_quotes:      bool,
 	/// See [`FrameParams::allcaps_min`].
-	pub allcaps_min: Option<usize>,
-	vocab: PieceMatcher,
+	pub allcaps_min:      Option<usize>,
+	vocab:                PieceMatcher,
 	/// Sorted codepoints of the cost-1 whole-character pieces.
-	unit_pieces: Vec<u32>,
+	unit_pieces:          Vec<u32>,
 	/// Sorted lengths of the pure-newline pieces; coins for the
 	/// trailing-newline ladder, where nothing else can match.
-	newline_ladder: Vec<u32>,
-	floor: ByteFloor,
+	newline_ladder:       Vec<u32>,
+	floor:                ByteFloor,
 }
 
 impl VocabCore {
@@ -548,10 +548,10 @@ impl VocabCore {
 	pub const fn frame_params(&self) -> FrameParams {
 		FrameParams {
 			message_overhead: self.message_overhead,
-			fold_quotes: self.fold_quotes,
-			allcaps_min: self.allcaps_min,
-			frame_bow: true,
-			ladder: true,
+			fold_quotes:      self.fold_quotes,
+			allcaps_min:      self.allcaps_min,
+			frame_bow:        true,
+			ladder:           true,
 		}
 	}
 }

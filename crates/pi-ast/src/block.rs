@@ -36,7 +36,7 @@ pub struct BlockRange {
 	/// 1-indexed inclusive first line of the resolved block.
 	pub start_line: u32,
 	/// 1-indexed inclusive last line of the resolved block.
-	pub end_line: u32,
+	pub end_line:   u32,
 }
 
 /// Count of leading space/tab bytes on `row` (0-indexed), i.e. the byte column
@@ -122,7 +122,10 @@ pub fn block_range_at(options: BlockRangeOptions) -> Result<Option<BlockRange>> 
 	if node.has_error() {
 		return Ok(None);
 	}
-	Ok(Some(BlockRange { start_line: node_start_line(node), end_line: node_content_end_line(node) }))
+	Ok(Some(BlockRange {
+		start_line: node_start_line(node),
+		end_line:   node_content_end_line(node),
+	}))
 }
 
 /// Is `parent` a statement-sequence container that `node` merely opens? These
@@ -181,17 +184,17 @@ pub struct LineRange {
 	/// 1-indexed inclusive first visible line.
 	pub start_line: u32,
 	/// 1-indexed inclusive last visible line.
-	pub end_line: u32,
+	pub end_line:   u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnclosingBoundaryOptions {
 	/// Source code to inspect.
-	pub code: String,
+	pub code:   String,
 	/// Language alias (e.g. "rust", "typescript") used before path inference.
-	pub lang: Option<String>,
+	pub lang:   Option<String>,
 	/// File path used to infer language by extension when `lang` is omitted.
-	pub path: Option<String>,
+	pub path:   Option<String>,
 	/// 1-indexed inclusive visible line ranges (the lines actually shown).
 	pub ranges: Vec<LineRange>,
 }
@@ -332,9 +335,9 @@ pub struct NodeSpan {
 	/// 1-indexed inclusive first line of the node.
 	pub start_line: u32,
 	/// 1-indexed inclusive last content line of the node.
-	pub end_line: u32,
+	pub end_line:   u32,
 	/// Tree-sitter grammar node kind (e.g. `attribute_item`, `function_item`).
-	pub kind: String,
+	pub kind:       String,
 }
 
 /// Named-node chain containing `options.line`, innermost-first, excluding the
@@ -384,8 +387,8 @@ pub fn node_chain_at(options: BlockRangeOptions) -> Result<Option<Vec<NodeSpan>>
 		if current.is_named() && !current.is_error() && !current.is_missing() {
 			chain.push(NodeSpan {
 				start_line: node_start_line(current),
-				end_line: node_content_end_line(current),
-				kind: current.kind().to_string(),
+				end_line:   node_content_end_line(current),
+				kind:       current.kind().to_string(),
 			});
 		}
 		node = current.parent();
@@ -780,9 +783,9 @@ mod tests {
 
 	fn boundaries(code: &str, path: &str, ranges: &[(u32, u32)]) -> Option<Vec<u32>> {
 		enclosing_block_boundaries(EnclosingBoundaryOptions {
-			code: code.to_string(),
-			lang: None,
-			path: Some(path.to_string()),
+			code:   code.to_string(),
+			lang:   None,
+			path:   Some(path.to_string()),
 			ranges: ranges
 				.iter()
 				.map(|&(start_line, end_line)| LineRange { start_line, end_line })

@@ -10,13 +10,13 @@ use crate::utok::Encoding;
 struct Fixture {
 	#[allow(dead_code, reason = "fixture provenance is deserialized but not asserted")]
 	generator: String,
-	cases: Vec<Case>,
+	cases:     Vec<Case>,
 }
 
 #[derive(Deserialize)]
 struct Case {
-	text: String,
-	ids: Vec<u32>,
+	text:  String,
+	ids:   Vec<u32>,
 	count: u32,
 }
 

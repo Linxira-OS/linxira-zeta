@@ -18,7 +18,7 @@ pub(super) const X_KEYCODE_OFFSET: u8 = 8;
 const MAX_KEYBOARD_CODE: u16 = 0xff;
 
 pub(super) struct UInputDevice {
-	file: File,
+	file:    File,
 	created: bool,
 }
 
@@ -53,8 +53,8 @@ impl UInputDevice {
 	fn create(file: File, name: &str, product: u16) -> CoreResult<Self> {
 		let fd = file.as_raw_fd();
 		let mut setup = UInputSetup {
-			id: InputId { bustype: 0x03, vendor: 0x1d6b, product, version: 1 },
-			name: [0; 80],
+			id:             InputId { bustype: 0x03, vendor: 0x1d6b, product, version: 1 },
+			name:           [0; 80],
 			ff_effects_max: 0,
 		};
 		let bytes = name.as_bytes();
@@ -164,21 +164,21 @@ fn open_uinput() -> CoreResult<File> {
 #[repr(C)]
 struct InputId {
 	bustype: u16,
-	vendor: u16,
+	vendor:  u16,
 	product: u16,
 	version: u16,
 }
 #[repr(C)]
 struct UInputSetup {
-	id: InputId,
-	name: [u8; 80],
+	id:             InputId,
+	name:           [u8; 80],
 	ff_effects_max: u32,
 }
 #[repr(C)]
 struct InputEvent {
-	time: libc::timeval,
+	time:  libc::timeval,
 	type_: u16,
-	code: u16,
+	code:  u16,
 	value: i32,
 }
 

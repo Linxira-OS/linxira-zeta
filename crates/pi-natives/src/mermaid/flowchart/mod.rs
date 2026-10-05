@@ -228,35 +228,35 @@ pub type BundleId = usize;
 #[derive(Clone, Debug)]
 pub struct AsciiNode {
 	/// Unique identity — the node id from the source (`A`, `B`).
-	pub name: String,
+	pub name:          String,
 	/// Label rendered inside the shape; may contain newlines.
-	pub label: String,
-	pub shape: NodeShape,
+	pub label:         String,
+	pub shape:         NodeShape,
 	/// Position in [`AsciiGraph::nodes`], also the parse order.
-	pub index: NodeId,
-	pub grid_coord: Option<GridCoord>,
+	pub index:         NodeId,
+	pub grid_coord:    Option<GridCoord>,
 	pub drawing_coord: Option<DrawingCoord>,
 	/// Rendered shape, once drawn.
-	pub drawing: Option<Canvas>,
-	pub drawn: bool,
+	pub drawing:       Option<Canvas>,
+	pub drawn:         bool,
 }
 
 /// An edge with its routed grid path.
 #[derive(Clone, Debug)]
 pub struct AsciiEdge {
-	pub from: NodeId,
-	pub to: NodeId,
+	pub from:             NodeId,
+	pub to:               NodeId,
 	/// Edge label (empty when none).
-	pub text: String,
-	pub path: Vec<GridCoord>,
-	pub label_line: Vec<GridCoord>,
-	pub start_dir: Dir,
-	pub end_dir: Dir,
-	pub style: EdgeStyle,
-	pub has_arrow_start: bool,
-	pub has_arrow_end: bool,
+	pub text:             String,
+	pub path:             Vec<GridCoord>,
+	pub label_line:       Vec<GridCoord>,
+	pub start_dir:        Dir,
+	pub end_dir:          Dir,
+	pub style:            EdgeStyle,
+	pub has_arrow_start:  bool,
+	pub has_arrow_end:    bool,
 	/// Bundle this edge belongs to, set during bundling analysis.
-	pub bundle: Option<BundleId>,
+	pub bundle:           Option<BundleId>,
 	/// For bundled edges: path between the non-shared node and the junction.
 	/// The full visual path is `path_to_junction + bundle.shared_path` for
 	/// fan-in, or `bundle.shared_path + path_to_junction` for fan-out.
@@ -266,14 +266,14 @@ pub struct AsciiEdge {
 /// A subgraph container with its canvas bounding box.
 #[derive(Clone, Debug)]
 pub struct AsciiSubgraph {
-	pub name: String,
-	pub nodes: Vec<NodeId>,
-	pub parent: Option<SubgraphId>,
-	pub children: Vec<SubgraphId>,
-	pub min_x: i32,
-	pub min_y: i32,
-	pub max_x: i32,
-	pub max_y: i32,
+	pub name:      String,
+	pub nodes:     Vec<NodeId>,
+	pub parent:    Option<SubgraphId>,
+	pub children:  Vec<SubgraphId>,
+	pub min_x:     i32,
+	pub min_y:     i32,
+	pub max_x:     i32,
+	pub max_y:     i32,
 	/// Direction override for layout within this subgraph.
 	pub direction: Option<LayoutDirection>,
 }
@@ -288,18 +288,18 @@ pub enum BundleKind {
 /// Edges sharing a source or target, visually merged before the shared node.
 #[derive(Clone, Debug)]
 pub struct EdgeBundle {
-	pub kind: BundleKind,
-	pub edges: Vec<EdgeId>,
+	pub kind:            BundleKind,
+	pub edges:           Vec<EdgeId>,
 	/// Target for fan-in, source for fan-out.
-	pub shared_node: NodeId,
+	pub shared_node:     NodeId,
 	/// Sources for fan-in, targets for fan-out.
-	pub other_nodes: Vec<NodeId>,
+	pub other_nodes:     Vec<NodeId>,
 	/// Where edges merge/split; set during routing.
-	pub junction_point: Option<GridCoord>,
+	pub junction_point:  Option<GridCoord>,
 	/// Path from junction to shared node, drawn once.
-	pub shared_path: Vec<GridCoord>,
+	pub shared_path:     Vec<GridCoord>,
 	/// Direction entering/exiting the junction.
-	pub junction_dir: Dir,
+	pub junction_dir:    Dir,
 	/// Direction entering/exiting the shared node.
 	pub shared_node_dir: Dir,
 }
@@ -308,33 +308,33 @@ pub struct EdgeBundle {
 #[derive(Clone, Debug)]
 pub struct AsciiConfig {
 	/// `+-|` instead of box-drawing characters.
-	pub use_ascii: bool,
+	pub use_ascii:          bool,
 	/// Horizontal spacing between nodes.
-	pub padding_x: i32,
+	pub padding_x:          i32,
 	/// Vertical spacing between nodes.
-	pub padding_y: i32,
+	pub padding_y:          i32,
 	/// Padding inside node boxes.
 	pub box_border_padding: i32,
-	pub direction: LayoutDirection,
+	pub direction:          LayoutDirection,
 }
 
 /// Full layout and rendering state for one flowchart.
 #[derive(Debug)]
 pub struct AsciiGraph {
-	pub nodes: Vec<AsciiNode>,
-	pub edges: Vec<AsciiEdge>,
-	pub canvas: Canvas,
-	pub role_canvas: RoleCanvas,
+	pub nodes:        Vec<AsciiNode>,
+	pub edges:        Vec<AsciiEdge>,
+	pub canvas:       Canvas,
+	pub role_canvas:  RoleCanvas,
 	/// Grid occupancy: which node reserved each grid cell.
-	pub grid: HashMap<GridCoord, NodeId>,
+	pub grid:         HashMap<GridCoord, NodeId>,
 	pub column_width: HashMap<i32, i32>,
-	pub row_height: HashMap<i32, i32>,
-	pub subgraphs: Vec<AsciiSubgraph>,
-	pub config: AsciiConfig,
+	pub row_height:   HashMap<i32, i32>,
+	pub subgraphs:    Vec<AsciiSubgraph>,
+	pub config:       AsciiConfig,
 	/// Offset applied to all drawing coords to make room for subgraph borders.
-	pub offset_x: i32,
-	pub offset_y: i32,
-	pub bundles: Vec<EdgeBundle>,
+	pub offset_x:     i32,
+	pub offset_y:     i32,
+	pub bundles:      Vec<EdgeBundle>,
 }
 
 /// Render a flowchart or state diagram. `direction` overrides the source's

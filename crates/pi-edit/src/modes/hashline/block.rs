@@ -138,10 +138,10 @@ pub fn resolve_block_edits(
 						paste_after_block_unresolved_lowered_warning(anchor.line)
 					});
 					resolved.push(Edit::Paste {
-						at: PasteTarget::Gap { cursor: Cursor::AfterAnchor(*anchor) },
-						register: register.clone(),
-						line_num: *line_num,
-						index: synth_index,
+						at:          PasteTarget::Gap { cursor: Cursor::AfterAnchor(*anchor) },
+						register:    register.clone(),
+						line_num:    *line_num,
+						index:       synth_index,
 						block_start: None,
 					});
 					synth_index += 1;
@@ -153,10 +153,10 @@ pub fn resolve_block_edits(
 					});
 					for payload in payloads {
 						resolved.push(Edit::Insert {
-							cursor: Cursor::AfterAnchor(*anchor),
-							text: payload.clone(),
-							line_num: *line_num,
-							index: synth_index,
+							cursor:      Cursor::AfterAnchor(*anchor),
+							text:        payload.clone(),
+							line_num:    *line_num,
+							index:       synth_index,
 							replacement: false,
 							block_start: None,
 						});
@@ -208,37 +208,39 @@ pub fn resolve_block_edits(
 		}
 		on_resolved(BlockResolution {
 			anchor_line: anchor.line,
-			start: span.start,
-			end: span.end,
-			op: result_op,
+			start:       span.start,
+			end:         span.end,
+			op:          result_op,
 		});
 		match mode {
 			Some(BlockMode::PasteAfter) => {
 				resolved.push(Edit::Paste {
-					at: PasteTarget::Gap { cursor: Cursor::AfterAnchor(Anchor { line: span.end }) },
-					register: register.clone(),
-					line_num: *line_num,
-					index: synth_index,
+					at:          PasteTarget::Gap {
+						cursor: Cursor::AfterAnchor(Anchor { line: span.end }),
+					},
+					register:    register.clone(),
+					line_num:    *line_num,
+					index:       synth_index,
 					block_start: Some(span.start),
 				});
 				synth_index += 1;
 			},
 			Some(BlockMode::Cut) => {
 				resolved.push(Edit::Cut {
-					range: ParsedRange {
+					range:    ParsedRange {
 						start: Anchor { line: span.start },
-						end: Anchor { line: span.end },
+						end:   Anchor { line: span.end },
 					},
 					register: register.clone(),
 					line_num: *line_num,
-					index: synth_index,
+					index:    synth_index,
 				});
 				synth_index += 1;
 				for line in span.start..=span.end {
 					resolved.push(Edit::Delete {
-						anchor: Anchor { line },
-						line_num: *line_num,
-						index: synth_index,
+						anchor:        Anchor { line },
+						line_num:      *line_num,
+						index:         synth_index,
 						old_assertion: None,
 					});
 					synth_index += 1;
@@ -247,10 +249,10 @@ pub fn resolve_block_edits(
 			Some(BlockMode::InsertAfter) => {
 				for payload in payloads {
 					resolved.push(Edit::Insert {
-						cursor: Cursor::AfterAnchor(Anchor { line: span.end }),
-						text: payload.clone(),
-						line_num: *line_num,
-						index: synth_index,
+						cursor:      Cursor::AfterAnchor(Anchor { line: span.end }),
+						text:        payload.clone(),
+						line_num:    *line_num,
+						index:       synth_index,
 						replacement: false,
 						block_start: Some(span.start),
 					});
@@ -259,15 +261,15 @@ pub fn resolve_block_edits(
 			},
 			None if register.is_some() => {
 				resolved.push(Edit::Paste {
-					at: PasteTarget::Span {
+					at:          PasteTarget::Span {
 						range: ParsedRange {
 							start: Anchor { line: span.start },
-							end: Anchor { line: span.end },
+							end:   Anchor { line: span.end },
 						},
 					},
-					register: register.clone(),
-					line_num: *line_num,
-					index: synth_index,
+					register:    register.clone(),
+					line_num:    *line_num,
+					index:       synth_index,
 					block_start: None,
 				});
 				synth_index += 1;
@@ -275,10 +277,10 @@ pub fn resolve_block_edits(
 			None => {
 				for payload in payloads {
 					resolved.push(Edit::Insert {
-						cursor: Cursor::BeforeAnchor(Anchor { line: span.start }),
-						text: payload.clone(),
-						line_num: *line_num,
-						index: synth_index,
+						cursor:      Cursor::BeforeAnchor(Anchor { line: span.start }),
+						text:        payload.clone(),
+						line_num:    *line_num,
+						index:       synth_index,
 						replacement: true,
 						block_start: None,
 					});
@@ -286,9 +288,9 @@ pub fn resolve_block_edits(
 				}
 				for line in span.start..=span.end {
 					resolved.push(Edit::Delete {
-						anchor: Anchor { line },
-						line_num: *line_num,
-						index: synth_index,
+						anchor:        Anchor { line },
+						line_num:      *line_num,
+						index:         synth_index,
 						old_assertion: None,
 					});
 					synth_index += 1;

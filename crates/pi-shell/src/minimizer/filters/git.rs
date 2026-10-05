@@ -223,15 +223,15 @@ fn is_diff_listing_line(mode: DiffListingMode, line: &str) -> bool {
 
 #[derive(Default)]
 struct StatusSummary {
-	branch: Option<String>,
-	stash: Option<String>,
+	branch:     Option<String>,
+	stash:      Option<String>,
 	divergence: Option<String>,
-	clean: bool,
-	staged: usize,
-	unstaged: usize,
-	untracked: usize,
-	conflicts: usize,
-	paths: Vec<String>,
+	clean:      bool,
+	staged:     usize,
+	unstaged:   usize,
+	untracked:  usize,
+	conflicts:  usize,
+	paths:      Vec<String>,
 }
 
 fn condense_status(input: &str) -> String {
@@ -558,12 +558,12 @@ fn condense_log(input: &str, head: usize, tail: usize) -> String {
 }
 
 struct LogEntry {
-	hash: String,
+	hash:    String,
 	subject: String,
-	body: Vec<String>,
+	body:    Vec<String>,
 	/// Body lines dropped past the per-commit body cap, surfaced as an explicit
 	/// `[…Nln elided…]` marker instead of being silently lost.
-	elided: usize,
+	elided:  usize,
 }
 
 /// Soft cap on rendered subject/body line width. Long commit subjects and body
@@ -602,10 +602,10 @@ fn parse_log_entries(input: &str) -> Vec<LogEntry> {
 				.split_once(' ')
 				.map_or((trimmed, ""), |(hash, subject)| (hash, subject.trim()));
 			current = Some(LogEntry {
-				hash: short_hash(hash),
+				hash:    short_hash(hash),
 				subject: subject.to_string(),
-				body: Vec::new(),
-				elided: 0,
+				body:    Vec::new(),
+				elided:  0,
 			});
 			continue;
 		}
@@ -890,15 +890,15 @@ fn has_local_tracking_branch(remote: &str, current: Option<&str>, local: &[Strin
 }
 
 struct DiffFile {
-	path: String,
-	added: usize,
+	path:    String,
+	added:   usize,
 	removed: usize,
-	hunks: Vec<DiffHunk>,
+	hunks:   Vec<DiffHunk>,
 }
 
 struct DiffHunk {
 	header: String,
-	lines: Vec<String>,
+	lines:  Vec<String>,
 }
 
 pub(crate) fn compact_diff_output(input: &str) -> String {
@@ -998,11 +998,19 @@ fn parse_unified_diff(input: &str) -> Vec<DiffFile> {
 				}
 			} else if let Some(file) = current.take() {
 				files.push(file);
-				current =
-					Some(DiffFile { path: path.to_string(), added: 0, removed: 0, hunks: Vec::new() });
+				current = Some(DiffFile {
+					path:    path.to_string(),
+					added:   0,
+					removed: 0,
+					hunks:   Vec::new(),
+				});
 			} else {
-				current =
-					Some(DiffFile { path: path.to_string(), added: 0, removed: 0, hunks: Vec::new() });
+				current = Some(DiffFile {
+					path:    path.to_string(),
+					added:   0,
+					removed: 0,
+					hunks:   Vec::new(),
+				});
 			}
 			pending_old_path = None;
 			continue;

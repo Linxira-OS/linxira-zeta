@@ -538,11 +538,11 @@ fn node_attachment_point(graph: &AsciiGraph, node: NodeId, dir: Dir) -> Option<D
 		.map(|i| graph.row_height.get(&(gc.y + i)).copied().unwrap_or(0))
 		.sum();
 	let dimensions = ShapeDimensions {
-		width: width + 1,
-		height: height + 1,
-		label_area: LabelArea { x: 0, y: 0, width: 0, height: 0 },
+		width:        width + 1,
+		height:       height + 1,
+		label_area:   LabelArea { x: 0, y: 0, width: 0, height: 0 },
 		grid_columns: [0, 0, 0],
-		grid_rows: [0, 0, 0],
+		grid_rows:    [0, 0, 0],
 	};
 	let mut point = shape_attachment_point(node.shape, dir, &dimensions, node.drawing_coord?);
 	// Edge paths run through grid cell centers; when the box is an even
@@ -1167,41 +1167,41 @@ mod tests {
 	#[test]
 	fn multi_box_matches_two_and_three_section_outputs() {
 		let two = vec![vec!["CUSTOMER".into()], vec!["+id: int".into()]];
-		assert_eq!(
-			rows(&draw_multi_box(&two, false, 1)),
-			["┌──────────┐", "│ CUSTOMER │", "├──────────┤", "│ +id: int │", "└──────────┘"]
-		);
-		assert_eq!(
-			rows(&draw_multi_box(&two, true, 1)),
-			["+----------+", "| CUSTOMER |", "+----------+", "| +id: int |", "+----------+"]
-		);
+		assert_eq!(rows(&draw_multi_box(&two, false, 1)), [
+			"┌──────────┐",
+			"│ CUSTOMER │",
+			"├──────────┤",
+			"│ +id: int │",
+			"└──────────┘"
+		]);
+		assert_eq!(rows(&draw_multi_box(&two, true, 1)), [
+			"+----------+",
+			"| CUSTOMER |",
+			"+----------+",
+			"| +id: int |",
+			"+----------+"
+		]);
 
 		let three =
 			vec![vec!["Animal".into()], vec!["+name: String".into()], vec!["+eat: void".into()]];
-		assert_eq!(
-			rows(&draw_multi_box(&three, false, 1)),
-			[
-				"┌───────────────┐",
-				"│ Animal        │",
-				"├───────────────┤",
-				"│ +name: String │",
-				"├───────────────┤",
-				"│ +eat: void    │",
-				"└───────────────┘",
-			]
-		);
-		assert_eq!(
-			rows(&draw_multi_box(&three, true, 1)),
-			[
-				"+---------------+",
-				"| Animal        |",
-				"+---------------+",
-				"| +name: String |",
-				"+---------------+",
-				"| +eat: void    |",
-				"+---------------+",
-			]
-		);
+		assert_eq!(rows(&draw_multi_box(&three, false, 1)), [
+			"┌───────────────┐",
+			"│ Animal        │",
+			"├───────────────┤",
+			"│ +name: String │",
+			"├───────────────┤",
+			"│ +eat: void    │",
+			"└───────────────┘",
+		]);
+		assert_eq!(rows(&draw_multi_box(&three, true, 1)), [
+			"+---------------+",
+			"| Animal        |",
+			"+---------------+",
+			"| +name: String |",
+			"+---------------+",
+			"| +eat: void    |",
+			"+---------------+",
+		]);
 	}
 
 	#[test]
@@ -1251,15 +1251,12 @@ mod tests {
 					use_ascii,
 					style,
 				);
-				assert_eq!(
-					rows(&bend),
-					[
-						"      ".to_owned(),
-						format!(" {horizontal}{horizontal}{horizontal}{horizontal} "),
-						format!("    {vertical} "),
-						format!("    {vertical} "),
-					]
-				);
+				assert_eq!(rows(&bend), [
+					"      ".to_owned(),
+					format!(" {horizontal}{horizontal}{horizontal}{horizontal} "),
+					format!("    {vertical} "),
+					format!("    {vertical} "),
+				]);
 				let mut roles = RoleCanvas::new(1, 1);
 				fill_roles_from_canvas(&mut roles, &bend, DrawingCoord::new(0, 0), CharRole::Line);
 				assert_eq!(roles.get(1, 1), Some(&Some(CharRole::Line)));
@@ -1270,24 +1267,24 @@ mod tests {
 
 	fn empty_graph(use_ascii: bool) -> AsciiGraph {
 		AsciiGraph {
-			nodes: Vec::new(),
-			edges: Vec::new(),
-			canvas: Canvas::new(5, 5),
-			role_canvas: RoleCanvas::new(5, 5),
-			grid: HashMap::new(),
+			nodes:        Vec::new(),
+			edges:        Vec::new(),
+			canvas:       Canvas::new(5, 5),
+			role_canvas:  RoleCanvas::new(5, 5),
+			grid:         HashMap::new(),
 			column_width: HashMap::new(),
-			row_height: HashMap::new(),
-			subgraphs: Vec::new(),
-			config: AsciiConfig {
+			row_height:   HashMap::new(),
+			subgraphs:    Vec::new(),
+			config:       AsciiConfig {
 				use_ascii,
 				padding_x: 0,
 				padding_y: 0,
 				box_border_padding: 1,
 				direction: LayoutDirection::TD,
 			},
-			offset_x: 0,
-			offset_y: 0,
-			bundles: Vec::new(),
+			offset_x:     0,
+			offset_y:     0,
+			bundles:      Vec::new(),
 		}
 	}
 

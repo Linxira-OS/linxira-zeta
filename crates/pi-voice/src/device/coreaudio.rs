@@ -53,27 +53,27 @@ impl QueueHandle {
 #[repr(C)]
 #[allow(non_snake_case, reason = "fields must match the CoreAudio C ABI")]
 struct AudioStreamBasicDescription {
-	mSampleRate: f64,
-	mFormatID: u32,
-	mFormatFlags: u32,
-	mBytesPerPacket: u32,
-	mFramesPerPacket: u32,
-	mBytesPerFrame: u32,
+	mSampleRate:       f64,
+	mFormatID:         u32,
+	mFormatFlags:      u32,
+	mBytesPerPacket:   u32,
+	mFramesPerPacket:  u32,
+	mBytesPerFrame:    u32,
 	mChannelsPerFrame: u32,
-	mBitsPerChannel: u32,
-	mReserved: u32,
+	mBitsPerChannel:   u32,
+	mReserved:         u32,
 }
 
 #[repr(C)]
 #[allow(non_snake_case, reason = "fields must match the AudioQueue C ABI")]
 struct AudioQueueBuffer {
-	mAudioDataBytesCapacity: u32,
-	mAudioData: *mut c_void,
-	mAudioDataByteSize: u32,
-	mUserData: *mut c_void,
+	mAudioDataBytesCapacity:    u32,
+	mAudioData:                 *mut c_void,
+	mAudioDataByteSize:         u32,
+	mUserData:                  *mut c_void,
 	mPacketDescriptionCapacity: u32,
-	mPacketDescriptions: *mut c_void,
-	mPacketDescriptionCount: u32,
+	mPacketDescriptions:        *mut c_void,
+	mPacketDescriptionCount:    u32,
 }
 
 #[link(name = "AudioToolbox", kind = "framework")]
@@ -124,28 +124,28 @@ unsafe extern "C" {
 }
 
 struct PlaybackContext {
-	fill: PlaybackFill,
-	stopped: Arc<AtomicBool>,
+	fill:            PlaybackFill,
+	stopped:         Arc<AtomicBool>,
 	callback_thread: Arc<AtomicUsize>,
 }
 
 struct CaptureContext {
-	sink: CaptureSink,
-	stopped: Arc<AtomicBool>,
+	sink:            CaptureSink,
+	stopped:         Arc<AtomicBool>,
 	callback_thread: Arc<AtomicUsize>,
 }
 
 fn stream_format(sample_rate: u32) -> AudioStreamBasicDescription {
 	AudioStreamBasicDescription {
-		mSampleRate: f64::from(sample_rate),
-		mFormatID: LINEAR_PCM,
-		mFormatFlags: FORMAT_FLAGS,
-		mBytesPerPacket: size_of::<f32>() as u32,
-		mFramesPerPacket: 1,
-		mBytesPerFrame: size_of::<f32>() as u32,
+		mSampleRate:       f64::from(sample_rate),
+		mFormatID:         LINEAR_PCM,
+		mFormatFlags:      FORMAT_FLAGS,
+		mBytesPerPacket:   size_of::<f32>() as u32,
+		mFramesPerPacket:  1,
+		mBytesPerFrame:    size_of::<f32>() as u32,
 		mChannelsPerFrame: 1,
-		mBitsPerChannel: 32,
-		mReserved: 0,
+		mBitsPerChannel:   32,
+		mReserved:         0,
 	}
 }
 
@@ -269,9 +269,9 @@ unsafe extern "C" fn capture_callback(
 
 /// Running `CoreAudio` default-speaker queue.
 pub struct PlaybackDevice {
-	queue: Option<QueueHandle>,
-	context: Option<Box<PlaybackContext>>,
-	stopped: Arc<AtomicBool>,
+	queue:           Option<QueueHandle>,
+	context:         Option<Box<PlaybackContext>>,
+	stopped:         Arc<AtomicBool>,
 	callback_thread: Arc<AtomicUsize>,
 }
 
@@ -381,9 +381,9 @@ impl Drop for PlaybackDevice {
 
 /// Running `CoreAudio` default-microphone queue.
 pub struct CaptureDevice {
-	queue: Option<QueueHandle>,
-	context: Option<Box<CaptureContext>>,
-	stopped: Arc<AtomicBool>,
+	queue:           Option<QueueHandle>,
+	context:         Option<Box<CaptureContext>>,
+	stopped:         Arc<AtomicBool>,
 	callback_thread: Arc<AtomicUsize>,
 }
 

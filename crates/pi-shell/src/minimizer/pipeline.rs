@@ -40,52 +40,52 @@ use crate::minimizer::primitives;
 pub struct PipelineDef {
 	/// Human-readable one-liner. Not consumed at runtime.
 	#[serde(default)]
-	pub description: Option<String>,
+	pub description:          Option<String>,
 	/// Regex that selects which commands this pipeline claims. Matched against
 	/// the first token of the command (post-wrapper stripping).
-	pub match_command: String,
+	pub match_command:        String,
 	/// Optional regex matched against the detected subcommand. When absent,
 	/// any subcommand is accepted.
 	#[serde(default)]
-	pub match_subcommand: Option<String>,
+	pub match_subcommand:     Option<String>,
 	#[serde(default)]
-	pub strip_ansi: bool,
+	pub strip_ansi:           bool,
 	#[serde(default)]
-	pub replace: Vec<ReplaceDef>,
+	pub replace:              Vec<ReplaceDef>,
 	#[serde(default)]
-	pub match_output: Vec<MatchOutputDef>,
+	pub match_output:         Vec<MatchOutputDef>,
 	#[serde(default)]
 	pub strip_lines_matching: Vec<String>,
 	#[serde(default)]
-	pub keep_lines_matching: Vec<String>,
+	pub keep_lines_matching:  Vec<String>,
 	/// Ordered regex substitutions applied after the strip/keep line filter
 	/// and before `truncate_lines_at`, so substitutions that shorten lines
 	/// (e.g. path compaction) see the full, untruncated text.
 	#[serde(default)]
-	pub replace_after: Vec<ReplaceDef>,
-	pub truncate_lines_at: Option<usize>,
-	pub head_lines: Option<usize>,
-	pub tail_lines: Option<usize>,
-	pub max_lines: Option<usize>,
-	pub on_empty: Option<String>,
+	pub replace_after:        Vec<ReplaceDef>,
+	pub truncate_lines_at:    Option<usize>,
+	pub head_lines:           Option<usize>,
+	pub tail_lines:           Option<usize>,
+	pub max_lines:            Option<usize>,
+	pub on_empty:             Option<String>,
 	/// Return the original input unchanged when all filtering stages remove it.
 	/// Useful for diagnostic filters that must not discard an unrecognized
 	/// successful output, such as a compiler query response.
 	#[serde(default)]
-	pub preserve_if_empty: bool,
+	pub preserve_if_empty:    bool,
 	/// Apply only when the command exit code is in this list. Empty = always.
 	#[serde(default)]
-	pub only_on_exit: Vec<i32>,
+	pub only_on_exit:         Vec<i32>,
 	/// Apply only when the command exit code is NOT in this list. Empty =
 	/// always.
 	#[serde(default)]
-	pub except_on_exit: Vec<i32>,
+	pub except_on_exit:       Vec<i32>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReplaceDef {
-	pub pattern: String,
+	pub pattern:     String,
 	pub replacement: String,
 }
 
@@ -95,7 +95,7 @@ pub struct MatchOutputDef {
 	pub pattern: String,
 	pub message: String,
 	#[serde(default)]
-	pub unless: Option<String>,
+	pub unless:  Option<String>,
 }
 
 /// Inline filter test embedded next to pipeline definitions via
@@ -103,11 +103,11 @@ pub struct MatchOutputDef {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineTest {
-	pub name: String,
-	pub input: String,
+	pub name:     String,
+	pub input:    String,
 	pub expected: String,
 	#[serde(default)]
-	pub exit: Option<i32>,
+	pub exit:     Option<i32>,
 }
 
 /// On-disk schema for the builtin / user settings TOML.
@@ -115,16 +115,16 @@ pub struct PipelineTest {
 pub struct PipelineFile {
 	pub schema_version: Option<u32>,
 	#[serde(default)]
-	pub filters: std::collections::BTreeMap<String, PipelineDef>,
+	pub filters:        std::collections::BTreeMap<String, PipelineDef>,
 	#[serde(default)]
-	pub tests: std::collections::BTreeMap<String, Vec<PipelineTest>>,
+	pub tests:          std::collections::BTreeMap<String, Vec<PipelineTest>>,
 }
 
 pub const SUPPORTED_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug)]
 pub struct CompiledReplace {
-	pattern: Regex,
+	pattern:     Regex,
 	replacement: String,
 }
 
@@ -132,30 +132,30 @@ pub struct CompiledReplace {
 pub struct CompiledMatchOutput {
 	pattern: Regex,
 	message: String,
-	unless: Option<Regex>,
+	unless:  Option<Regex>,
 }
 
 /// A pipeline with every regex pre-compiled.
 #[derive(Debug)]
 pub struct CompiledPipeline {
-	pub name: String,
-	pub description: Option<String>,
-	pub match_command: Regex,
-	pub match_subcommand: Option<Regex>,
-	pub strip_ansi: bool,
-	pub replace: Vec<CompiledReplace>,
-	pub match_output: Vec<CompiledMatchOutput>,
-	pub strip_lines: Option<RegexSet>,
-	pub keep_lines: Option<RegexSet>,
-	pub replace_after: Vec<CompiledReplace>,
+	pub name:              String,
+	pub description:       Option<String>,
+	pub match_command:     Regex,
+	pub match_subcommand:  Option<Regex>,
+	pub strip_ansi:        bool,
+	pub replace:           Vec<CompiledReplace>,
+	pub match_output:      Vec<CompiledMatchOutput>,
+	pub strip_lines:       Option<RegexSet>,
+	pub keep_lines:        Option<RegexSet>,
+	pub replace_after:     Vec<CompiledReplace>,
 	pub truncate_lines_at: Option<usize>,
-	pub head_lines: Option<usize>,
-	pub tail_lines: Option<usize>,
-	pub max_lines: Option<usize>,
-	pub on_empty: Option<String>,
+	pub head_lines:        Option<usize>,
+	pub tail_lines:        Option<usize>,
+	pub max_lines:         Option<usize>,
+	pub on_empty:          Option<String>,
 	pub preserve_if_empty: bool,
-	pub only_on_exit: Vec<i32>,
-	pub except_on_exit: Vec<i32>,
+	pub only_on_exit:      Vec<i32>,
+	pub except_on_exit:    Vec<i32>,
 }
 
 /// Compile an ordered regex-substitution list; `label` names the TOML key
@@ -391,7 +391,7 @@ pub type ParsedPipelineFile = (Vec<CompiledPipeline>, Vec<(String, Vec<PipelineT
 #[derive(Debug, Default)]
 pub struct PipelineRegistry {
 	pub pipelines: Vec<CompiledPipeline>,
-	pub tests: Vec<(String, Vec<PipelineTest>)>,
+	pub tests:     Vec<(String, Vec<PipelineTest>)>,
 }
 
 impl PipelineRegistry {
@@ -440,10 +440,10 @@ pub fn parse_file(contents: &str, source_label: &str) -> Result<ParsedPipelineFi
 #[derive(Debug, Clone)]
 pub struct TestOutcome {
 	pub filter_name: String,
-	pub test_name: String,
-	pub passed: bool,
-	pub actual: String,
-	pub expected: String,
+	pub test_name:   String,
+	pub passed:      bool,
+	pub actual:      String,
+	pub expected:    String,
 }
 
 /// Run every inline test in `registry` and return the outcomes.
@@ -455,10 +455,10 @@ pub fn run_tests(registry: &PipelineRegistry) -> Vec<TestOutcome> {
 			for test in tests {
 				out.push(TestOutcome {
 					filter_name: filter_name.clone(),
-					test_name: test.name.clone(),
-					passed: false,
-					actual: format!("pipeline '{filter_name}' not found"),
-					expected: test.expected.clone(),
+					test_name:   test.name.clone(),
+					passed:      false,
+					actual:      format!("pipeline '{filter_name}' not found"),
+					expected:    test.expected.clone(),
 				});
 			}
 			continue;

@@ -151,16 +151,16 @@ pub(crate) fn status_with_fresh_index<'repo>(
 fn open_options() -> Options {
 	Options::default()
 		.permissions(Permissions {
-			env: permissions::Environment {
+			env:        permissions::Environment {
 				xdg_config_home: Permission::Allow,
-				home: Permission::Allow,
-				http_transport: Permission::Deny,
-				identity: Permission::Allow,
-				objects: Permission::Deny,
-				git_prefix: Permission::Deny,
-				ssh_prefix: Permission::Deny,
+				home:            Permission::Allow,
+				http_transport:  Permission::Deny,
+				identity:        Permission::Allow,
+				objects:         Permission::Deny,
+				git_prefix:      Permission::Deny,
+				ssh_prefix:      Permission::Deny,
 			},
-			config: permissions::Config::all(),
+			config:     permissions::Config::all(),
 			attributes: permissions::Attributes::all(),
 		})
 		.with(Trust::Full)

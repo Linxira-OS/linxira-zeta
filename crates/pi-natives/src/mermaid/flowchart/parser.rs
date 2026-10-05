@@ -11,21 +11,21 @@ use crate::mermaid::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MermaidGraph {
 	/// Diagram-wide layout direction.
-	pub direction: Direction,
+	pub direction:         Direction,
 	/// Nodes in first-insertion order, with unique IDs.
-	pub nodes: Vec<MermaidNode>,
+	pub nodes:             Vec<MermaidNode>,
 	/// Edges in source order.
-	pub edges: Vec<MermaidEdge>,
+	pub edges:             Vec<MermaidEdge>,
 	/// Top-level subgraphs in source order.
-	pub subgraphs: Vec<MermaidSubgraph>,
+	pub subgraphs:         Vec<MermaidSubgraph>,
 	/// Named class definitions and their style properties.
-	pub class_defs: Vec<(String, Vec<(String, String)>)>,
+	pub class_defs:        Vec<(String, Vec<(String, String)>)>,
 	/// Node-to-class assignments in first-assignment order.
 	pub class_assignments: Vec<(String, String)>,
 	/// Inline node styles in first-style order.
-	pub node_styles: Vec<(String, Vec<(String, String)>)>,
+	pub node_styles:       Vec<(String, Vec<(String, String)>)>,
 	/// Inline edge styles in first-style order.
-	pub link_styles: Vec<(LinkStyleTarget, Vec<(String, String)>)>,
+	pub link_styles:       Vec<(LinkStyleTarget, Vec<(String, String)>)>,
 }
 
 /// A target selected by a `linkStyle` directive.
@@ -41,7 +41,7 @@ pub enum LinkStyleTarget {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MermaidNode {
 	/// Unique source identifier.
-	pub id: String,
+	pub id:    String,
 	/// Normalized display label.
 	pub label: String,
 	/// Shape selected by the node delimiters.
@@ -52,30 +52,30 @@ pub struct MermaidNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MermaidEdge {
 	/// Source node identifier.
-	pub source: String,
+	pub source:          String,
 	/// Target node identifier.
-	pub target: String,
+	pub target:          String,
 	/// Optional normalized edge label.
-	pub label: Option<String>,
+	pub label:           Option<String>,
 	/// Line style selected by the edge operator.
-	pub style: EdgeStyle,
+	pub style:           EdgeStyle,
 	/// Whether the source end has an arrowhead.
 	pub has_arrow_start: bool,
 	/// Whether the target end has an arrowhead.
-	pub has_arrow_end: bool,
+	pub has_arrow_end:   bool,
 }
 
 /// A possibly nested Mermaid subgraph or composite state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MermaidSubgraph {
 	/// Subgraph identifier.
-	pub id: String,
+	pub id:        String,
 	/// Normalized display label.
-	pub label: String,
+	pub label:     String,
 	/// Directly registered node IDs in source order.
-	pub node_ids: Vec<String>,
+	pub node_ids:  Vec<String>,
 	/// Nested subgraphs in source order.
-	pub children: Vec<Self>,
+	pub children:  Vec<Self>,
 	/// Optional internal layout direction.
 	pub direction: Option<Direction>,
 }
@@ -110,10 +110,10 @@ enum Directive<'a> {
 #[derive(Clone, Copy)]
 struct ParsedArrow<'a> {
 	has_arrow_start: bool,
-	style: EdgeStyle,
-	has_arrow_end: bool,
-	label: Option<&'a str>,
-	consumed: usize,
+	style:           EdgeStyle,
+	has_arrow_end:   bool,
+	label:           Option<&'a str>,
+	consumed:        usize,
 }
 
 #[inline]
@@ -672,15 +672,11 @@ fn parse_state_diagram(lines: &[&str]) -> MermaidGraph {
 			continue;
 		}
 		if let Some((id, label)) = parse_state_alias(line) {
-			register_state_node(
-				&mut graph,
-				&mut stack,
-				MermaidNode {
-					id: id.to_owned(),
-					label: normalize_label(label),
-					shape: NodeShape::Rounded,
-				},
-			);
+			register_state_node(&mut graph, &mut stack, MermaidNode {
+				id:    id.to_owned(),
+				label: normalize_label(label),
+				shape: NodeShape::Rounded,
+			});
 			continue;
 		}
 		if let Some((source, target, raw_label)) = parse_state_transition(line) {
@@ -694,15 +690,11 @@ fn parse_state_diagram(lines: &[&str]) -> MermaidGraph {
 			if source == "[*]" {
 				start_count += 1;
 				source = numbered_pseudostate("_start", start_count);
-				register_state_node(
-					&mut graph,
-					&mut stack,
-					MermaidNode {
-						id: source.clone(),
-						label: String::new(),
-						shape: NodeShape::StateStart,
-					},
-				);
+				register_state_node(&mut graph, &mut stack, MermaidNode {
+					id:    source.clone(),
+					label: String::new(),
+					shape: NodeShape::StateStart,
+				});
 			} else if !composite_ids.iter().any(|id| id == &source) {
 				ensure_state_node(&mut graph, &mut stack, &source);
 			}
@@ -710,11 +702,11 @@ fn parse_state_diagram(lines: &[&str]) -> MermaidGraph {
 			if target == "[*]" {
 				end_count += 1;
 				target = numbered_pseudostate("_end", end_count);
-				register_state_node(
-					&mut graph,
-					&mut stack,
-					MermaidNode { id: target.clone(), label: String::new(), shape: NodeShape::StateEnd },
-				);
+				register_state_node(&mut graph, &mut stack, MermaidNode {
+					id:    target.clone(),
+					label: String::new(),
+					shape: NodeShape::StateEnd,
+				});
 			} else if !composite_ids.iter().any(|id| id == &target) {
 				ensure_state_node(&mut graph, &mut stack, &target);
 			}
@@ -730,15 +722,11 @@ fn parse_state_diagram(lines: &[&str]) -> MermaidGraph {
 			continue;
 		}
 		if let Some((id, description)) = parse_state_description(line) {
-			register_state_node(
-				&mut graph,
-				&mut stack,
-				MermaidNode {
-					id: id.to_owned(),
-					label: normalize_label(description.trim()),
-					shape: NodeShape::Rounded,
-				},
-			);
+			register_state_node(&mut graph, &mut stack, MermaidNode {
+				id:    id.to_owned(),
+				label: normalize_label(description.trim()),
+				shape: NodeShape::Rounded,
+			});
 		}
 	}
 
@@ -824,11 +812,11 @@ fn register_state_node(graph: &mut MermaidGraph, stack: &mut [MermaidSubgraph], 
 
 fn ensure_state_node(graph: &mut MermaidGraph, stack: &mut [MermaidSubgraph], id: &str) {
 	if graph.node(id).is_none() {
-		register_state_node(
-			graph,
-			stack,
-			MermaidNode { id: id.to_owned(), label: id.to_owned(), shape: NodeShape::Rounded },
-		);
+		register_state_node(graph, stack, MermaidNode {
+			id:    id.to_owned(),
+			label: id.to_owned(),
+			shape: NodeShape::Rounded,
+		});
 	} else {
 		track_in_subgraph(stack, id);
 	}
@@ -864,12 +852,12 @@ fn parse_edge_line(line: &str, graph: &mut MermaidGraph, stack: &mut [MermaidSub
 		for source in &previous {
 			for target in &next {
 				graph.edges.push(MermaidEdge {
-					source: source.clone(),
-					target: target.clone(),
-					label: label.clone(),
-					style: arrow.style,
+					source:          source.clone(),
+					target:          target.clone(),
+					label:           label.clone(),
+					style:           arrow.style,
 					has_arrow_start: arrow.has_arrow_start,
-					has_arrow_end: arrow.has_arrow_end,
+					has_arrow_end:   arrow.has_arrow_end,
 				});
 			}
 		}
@@ -904,17 +892,17 @@ fn consume_node<'a>(
 	let (raw_id, shaped, consumed) = parse_node_ref(text)?;
 	let id = raw_id.to_owned();
 	if let Some((label, shape)) = shaped {
-		register_node(
-			graph,
-			stack,
-			MermaidNode { id: id.clone(), label: normalize_label(label), shape },
-		);
+		register_node(graph, stack, MermaidNode {
+			id: id.clone(),
+			label: normalize_label(label),
+			shape,
+		});
 	} else if graph.node(&id).is_none() {
-		register_node(
-			graph,
-			stack,
-			MermaidNode { id: id.clone(), label: id.clone(), shape: NodeShape::Rectangle },
-		);
+		register_node(graph, stack, MermaidNode {
+			id:    id.clone(),
+			label: id.clone(),
+			shape: NodeShape::Rectangle,
+		});
 	}
 	let mut remaining = &text[consumed..];
 
@@ -1131,18 +1119,18 @@ mod tests {
 			 A fill:#fff\nstyle A stroke:#000\nlinkStyle 0, 1 stroke:#abc",
 		)
 		.unwrap();
-		assert_eq!(
-			graph.class_defs,
-			[("hot".into(), vec![("fill".into(), "#f00".into()), ("stroke".into(), "#333".into())])]
-		);
-		assert_eq!(
-			graph.class_assignments,
-			[("A".into(), "cold".into()), ("B".into(), "cold".into())]
-		);
-		assert_eq!(
-			graph.node_styles[0].1,
-			[("fill".into(), "#fff".into()), ("stroke".into(), "#000".into())]
-		);
+		assert_eq!(graph.class_defs, [("hot".into(), vec![
+			("fill".into(), "#f00".into()),
+			("stroke".into(), "#333".into())
+		])]);
+		assert_eq!(graph.class_assignments, [
+			("A".into(), "cold".into()),
+			("B".into(), "cold".into())
+		]);
+		assert_eq!(graph.node_styles[0].1, [
+			("fill".into(), "#fff".into()),
+			("stroke".into(), "#000".into())
+		]);
 		assert_eq!(graph.link_styles.len(), 2);
 	}
 

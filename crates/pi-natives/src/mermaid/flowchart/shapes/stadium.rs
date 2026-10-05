@@ -23,16 +23,16 @@ impl ShapeRenderer for Stadium {
 		let inner_height = line_count + 2 * opts.padding;
 
 		ShapeDimensions {
-			width: inner_width + 4,
-			height: (inner_height + 2).max(3),
-			label_area: LabelArea {
-				x: 2 + opts.padding,
-				y: 1 + opts.padding,
-				width: max_line_width,
+			width:        inner_width + 4,
+			height:       (inner_height + 2).max(3),
+			label_area:   LabelArea {
+				x:      2 + opts.padding,
+				y:      1 + opts.padding,
+				width:  max_line_width,
 				height: line_count,
 			},
 			grid_columns: [2, inner_width, 2],
-			grid_rows: [1, inner_height, 1],
+			grid_rows:    [1, inner_height, 1],
 		}
 	}
 

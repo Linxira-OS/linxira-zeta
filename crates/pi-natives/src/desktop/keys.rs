@@ -275,10 +275,11 @@ mod tests {
 				assert_eq!(parse_key(alias).unwrap(), expected);
 			}
 		}
-		assert_eq!(
-			parse_keys(&["cmd+shift+p".into()]).unwrap(),
-			[KeyName::Meta, KeyName::Shift, KeyName::Char('p')]
-		);
+		assert_eq!(parse_keys(&["cmd+shift+p".into()]).unwrap(), [
+			KeyName::Meta,
+			KeyName::Shift,
+			KeyName::Char('p')
+		]);
 		assert_eq!(
 			parse_key("garbage").unwrap_err().code,
 			super::super::error::ErrorCode::InvalidKey
@@ -294,17 +295,14 @@ mod tests {
 			Ok::<_, ()>(())
 		})
 		.unwrap();
-		assert_eq!(
-			events,
-			[
-				(KeyName::Ctrl, KeyDirection::Press),
-				(KeyName::Shift, KeyDirection::Press),
-				(KeyName::Char('p'), KeyDirection::Press),
-				(KeyName::Char('p'), KeyDirection::Release),
-				(KeyName::Shift, KeyDirection::Release),
-				(KeyName::Ctrl, KeyDirection::Release)
-			]
-		);
+		assert_eq!(events, [
+			(KeyName::Ctrl, KeyDirection::Press),
+			(KeyName::Shift, KeyDirection::Press),
+			(KeyName::Char('p'), KeyDirection::Press),
+			(KeyName::Char('p'), KeyDirection::Release),
+			(KeyName::Shift, KeyDirection::Release),
+			(KeyName::Ctrl, KeyDirection::Release)
+		]);
 		let mut events = Vec::new();
 		let _ = execute_chord_with(&keys, |key, direction| {
 			events.push((key, direction));
@@ -314,9 +312,9 @@ mod tests {
 				Ok(())
 			}
 		});
-		assert_eq!(
-			events[3..],
-			[(KeyName::Shift, KeyDirection::Release), (KeyName::Ctrl, KeyDirection::Release)]
-		);
+		assert_eq!(events[3..], [
+			(KeyName::Shift, KeyDirection::Release),
+			(KeyName::Ctrl, KeyDirection::Release)
+		]);
 	}
 }

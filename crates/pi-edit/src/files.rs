@@ -30,15 +30,15 @@ use crate::{
 /// One target file as read from disk plus its normalized editable form.
 #[derive(Debug)]
 pub struct FileRead {
-	pub resolved: Resolved,
+	pub resolved:    Resolved,
 	/// Snapshot-store key.
-	pub canonical: PathBuf,
+	pub canonical:   PathBuf,
 	/// Bytes as read (notebook JSON for `.ipynb`).
-	pub raw: String,
-	pub bom: &'static str,
-	pub ending: LineEnding,
+	pub raw:         String,
+	pub bom:         &'static str,
+	pub ending:      LineEnding,
 	/// LF-normalized, BOM-stripped editable text (notebook cell projection).
-	pub text: String,
+	pub text:        String,
 	pub is_notebook: bool,
 }
 
@@ -97,7 +97,7 @@ pub trait FileSource {
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Stamp {
 	mtime: Option<SystemTime>,
-	len: u64,
+	len:   u64,
 }
 
 fn stamp(absolute: &Path) -> Option<Stamp> {
@@ -107,14 +107,14 @@ fn stamp(absolute: &Path) -> Option<Stamp> {
 
 /// Default [`FileSource`] backed by `std::fs`.
 pub struct FileCache {
-	policy: PathPolicy,
-	reads: HashMap<PathBuf, (Stamp, Arc<FileRead>)>,
+	policy:      PathPolicy,
+	reads:       HashMap<PathBuf, (Stamp, Arc<FileRead>)>,
 	/// Authored path → resolution (so paired hunks share one recovery).
 	resolutions: HashMap<(String, bool), Resolved>,
 	/// Host answers keyed by [`PathPolicy::url_target`].
-	urls: HashMap<String, UrlResolution>,
+	urls:        HashMap<String, UrlResolution>,
 	/// URLs that missed `urls`, deduped in first-seen order.
-	unresolved: Vec<String>,
+	unresolved:  Vec<String>,
 }
 
 impl FileCache {
@@ -189,7 +189,7 @@ impl FileCache {
 			return Err(EditError::apply(message));
 		}
 		let raw = String::from_utf8(bytes).map_err(|err| EditError::InvalidUtf8 {
-			display: resolved.display.clone(),
+			display:     resolved.display.clone(),
 			valid_up_to: err.utf8_error().valid_up_to(),
 		})?;
 		let is_notebook = notebook::is_notebook_path(&resolved.absolute);

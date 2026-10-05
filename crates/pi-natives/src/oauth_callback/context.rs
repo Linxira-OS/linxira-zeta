@@ -20,16 +20,16 @@ static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 /// Filesystem and process context for one callback registration transaction.
 #[derive(Clone)]
 pub(super) struct Context {
-	pub(super) id: String,
-	pub(super) scheme: String,
-	pub(super) directory: PathBuf,
+	pub(super) id:            String,
+	pub(super) scheme:        String,
+	pub(super) directory:     PathBuf,
 	pub(super) callback_path: PathBuf,
-	pub(super) helper_path: PathBuf,
-	pub(super) home: PathBuf,
-	pub(super) env: BTreeMap<String, String>,
-	pub(super) cancel: CancelToken,
+	pub(super) helper_path:   PathBuf,
+	pub(super) home:          PathBuf,
+	pub(super) env:           BTreeMap<String, String>,
+	pub(super) cancel:        CancelToken,
 	#[cfg(test)]
-	pub(super) runner: Option<Runner>,
+	pub(super) runner:        Option<Runner>,
 }
 
 #[cfg(test)]

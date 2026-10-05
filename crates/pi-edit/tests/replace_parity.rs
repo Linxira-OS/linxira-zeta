@@ -21,11 +21,11 @@ async fn replace_executor_parity_fixtures() {
 
 #[test]
 fn returns_empty_for_no_match() {
-	let result = find_match(
-		"line1\nline2",
-		"notfound",
-		&FindMatchOptions { allow_fuzzy: false, threshold: None, excluded_ranges: &[] },
-	);
+	let result = find_match("line1\nline2", "notfound", &FindMatchOptions {
+		allow_fuzzy:     false,
+		threshold:       None,
+		excluded_ranges: &[],
+	});
 	assert!(result.matched.is_none());
 	assert!(result.occurrences.is_none());
 }
@@ -68,12 +68,12 @@ fn does_not_go_negative_on_removal() {
 
 fn path_policy(cwd: &std::path::Path, home: &std::path::Path) -> PathPolicy {
 	PathPolicy {
-		cwd: cwd.to_owned(),
-		home_dir: home.to_owned(),
-		url_schemes: Vec::new(),
-		url_alias_schemes: Vec::new(),
-		plan_writable_roots: Vec::new(),
-		plan_active: false,
+		cwd:                  cwd.to_owned(),
+		home_dir:             home.to_owned(),
+		url_schemes:          Vec::new(),
+		url_alias_schemes:    Vec::new(),
+		plan_writable_roots:  Vec::new(),
+		plan_active:          false,
 		block_auto_generated: true,
 	}
 }

@@ -15,19 +15,19 @@ use crate::{
 
 #[derive(Clone)]
 struct FileChange {
-	old_path: String,
-	new_path: String,
-	old_id: gix::ObjectId,
-	new_id: gix::ObjectId,
-	old_mode: Option<gix::objs::tree::EntryMode>,
-	new_mode: Option<gix::objs::tree::EntryMode>,
-	similarity: Option<u8>,
+	old_path:     String,
+	new_path:     String,
+	old_id:       gix::ObjectId,
+	new_id:       gix::ObjectId,
+	old_mode:     Option<gix::objs::tree::EntryMode>,
+	new_mode:     Option<gix::objs::tree::EntryMode>,
+	similarity:   Option<u8>,
 	worktree_new: bool,
 }
 
 struct Rendered {
-	text: String,
-	added: Option<u32>,
+	text:    String,
+	added:   Option<u32>,
 	removed: Option<u32>,
 }
 
@@ -71,8 +71,8 @@ impl GitRepo {
 			.into_iter()
 			.zip(rendered)
 			.map(|(change, rendered)| NumstatEntry {
-				path: change.new_path,
-				added: rendered.added,
+				path:    change.new_path,
+				added:   rendered.added,
 				removed: rendered.removed,
 			})
 			.collect())
@@ -233,23 +233,23 @@ fn tree_changes(
 		use gix::object::tree::diff::ChangeDetached;
 		let item = match change {
 			ChangeDetached::Addition { location, entry_mode, id, .. } => FileChange {
-				old_path: path_string(location.as_ref()),
-				new_path: path_string(location.as_ref()),
-				old_id: null,
-				new_id: id,
-				old_mode: None,
-				new_mode: Some(entry_mode),
-				similarity: None,
+				old_path:     path_string(location.as_ref()),
+				new_path:     path_string(location.as_ref()),
+				old_id:       null,
+				new_id:       id,
+				old_mode:     None,
+				new_mode:     Some(entry_mode),
+				similarity:   None,
 				worktree_new: false,
 			},
 			ChangeDetached::Deletion { location, entry_mode, id, .. } => FileChange {
-				old_path: path_string(location.as_ref()),
-				new_path: path_string(location.as_ref()),
-				old_id: id,
-				new_id: null,
-				old_mode: Some(entry_mode),
-				new_mode: None,
-				similarity: None,
+				old_path:     path_string(location.as_ref()),
+				new_path:     path_string(location.as_ref()),
+				old_id:       id,
+				new_id:       null,
+				old_mode:     Some(entry_mode),
+				new_mode:     None,
+				similarity:   None,
 				worktree_new: false,
 			},
 			ChangeDetached::Modification {
@@ -259,13 +259,13 @@ fn tree_changes(
 				entry_mode,
 				id,
 			} => FileChange {
-				old_path: path_string(location.as_ref()),
-				new_path: path_string(location.as_ref()),
-				old_id: previous_id,
-				new_id: id,
-				old_mode: Some(previous_entry_mode),
-				new_mode: Some(entry_mode),
-				similarity: None,
+				old_path:     path_string(location.as_ref()),
+				new_path:     path_string(location.as_ref()),
+				old_id:       previous_id,
+				new_id:       id,
+				old_mode:     Some(previous_entry_mode),
+				new_mode:     Some(entry_mode),
+				similarity:   None,
 				worktree_new: false,
 			},
 			ChangeDetached::Rewrite {
@@ -283,13 +283,15 @@ fn tree_changes(
 					continue;
 				}
 				FileChange {
-					old_path: path_string(source_location.as_ref()),
-					new_path: path_string(location.as_ref()),
-					old_id: source_id,
-					new_id: id,
-					old_mode: Some(source_entry_mode),
-					new_mode: Some(entry_mode),
-					similarity: Some(diff.map_or(100, |stats| (stats.similarity * 100.0).floor() as u8)),
+					old_path:     path_string(source_location.as_ref()),
+					new_path:     path_string(location.as_ref()),
+					old_id:       source_id,
+					new_id:       id,
+					old_mode:     Some(source_entry_mode),
+					new_mode:     Some(entry_mode),
+					similarity:   Some(
+						diff.map_or(100, |stats| (stats.similarity * 100.0).floor() as u8),
+					),
 					worktree_new: false,
 				}
 			},
@@ -377,23 +379,23 @@ fn index_change(repo: &gix::Repository, change: gix::diff::index::Change) -> Res
 	let null = repo.object_hash().null();
 	let result = match change {
 		ChangeRef::Addition { location, entry_mode, id, .. } => FileChange {
-			old_path: path_string(location.as_ref()),
-			new_path: path_string(location.as_ref()),
-			old_id: null,
-			new_id: id.into_owned(),
-			old_mode: None,
-			new_mode: index_mode(entry_mode)?,
-			similarity: None,
+			old_path:     path_string(location.as_ref()),
+			new_path:     path_string(location.as_ref()),
+			old_id:       null,
+			new_id:       id.into_owned(),
+			old_mode:     None,
+			new_mode:     index_mode(entry_mode)?,
+			similarity:   None,
 			worktree_new: false,
 		},
 		ChangeRef::Deletion { location, entry_mode, id, .. } => FileChange {
-			old_path: path_string(location.as_ref()),
-			new_path: path_string(location.as_ref()),
-			old_id: id.into_owned(),
-			new_id: null,
-			old_mode: index_mode(entry_mode)?,
-			new_mode: None,
-			similarity: None,
+			old_path:     path_string(location.as_ref()),
+			new_path:     path_string(location.as_ref()),
+			old_id:       id.into_owned(),
+			new_id:       null,
+			old_mode:     index_mode(entry_mode)?,
+			new_mode:     None,
+			similarity:   None,
 			worktree_new: false,
 		},
 		ChangeRef::Modification {
@@ -404,13 +406,13 @@ fn index_change(repo: &gix::Repository, change: gix::diff::index::Change) -> Res
 			id,
 			..
 		} => FileChange {
-			old_path: path_string(location.as_ref()),
-			new_path: path_string(location.as_ref()),
-			old_id: previous_id.into_owned(),
-			new_id: id.into_owned(),
-			old_mode: index_mode(previous_entry_mode)?,
-			new_mode: index_mode(entry_mode)?,
-			similarity: None,
+			old_path:     path_string(location.as_ref()),
+			new_path:     path_string(location.as_ref()),
+			old_id:       previous_id.into_owned(),
+			new_id:       id.into_owned(),
+			old_mode:     index_mode(previous_entry_mode)?,
+			new_mode:     index_mode(entry_mode)?,
+			similarity:   None,
 			worktree_new: false,
 		},
 		ChangeRef::Rewrite {
@@ -428,13 +430,13 @@ fn index_change(repo: &gix::Repository, change: gix::diff::index::Change) -> Res
 			}
 			let identical = source_id == id;
 			FileChange {
-				old_path: path_string(source_location.as_ref()),
-				new_path: path_string(location.as_ref()),
-				old_id: source_id.into_owned(),
-				new_id: id.into_owned(),
-				old_mode: index_mode(source_entry_mode)?,
-				new_mode: index_mode(entry_mode)?,
-				similarity: Some(if identical { 100 } else { u8::MAX }),
+				old_path:     path_string(source_location.as_ref()),
+				new_path:     path_string(location.as_ref()),
+				old_id:       source_id.into_owned(),
+				new_id:       id.into_owned(),
+				old_mode:     index_mode(source_entry_mode)?,
+				new_mode:     index_mode(entry_mode)?,
+				similarity:   Some(if identical { 100 } else { u8::MAX }),
 				worktree_new: false,
 			}
 		},
@@ -524,7 +526,7 @@ fn worktree_changes(repo: &gix::Repository, files: &[String]) -> Result<Vec<File
 #[derive(Clone, Copy)]
 struct RenderBudget {
 	/// The full cap from `DiffOptions::max_bytes`, kept for error messages.
-	limit: usize,
+	limit:   usize,
 	/// Bytes already produced by earlier changes in this `diff_text` call.
 	already: usize,
 }
@@ -562,7 +564,7 @@ fn map_hunk_error(err: std::io::Error, budget: Option<RenderBudget>) -> Error {
 	{
 		Error::OutputTooLarge {
 			operation: "diffText",
-			limit: budget.map_or(0, |budget| budget.limit),
+			limit:     budget.map_or(0, |budget| budget.limit),
 		}
 	} else {
 		Error::backend("git diff", err)
@@ -816,11 +818,11 @@ fn compute_similarity(
 }
 
 struct GitHunks<'a> {
-	out: &'a mut String,
+	out:      &'a mut String,
 	old_data: &'a [u8],
 	/// Remaining-budget check threaded from `render_change`; `None` when the
 	/// caller set no `max_bytes`.
-	budget: Option<RenderBudget>,
+	budget:   Option<RenderBudget>,
 }
 
 /// Conservative worst-case byte length `bytes` will occupy in `self.out`
@@ -996,7 +998,7 @@ fn append_binary_block(
 #[derive(Clone, Copy)]
 struct DeltaEntry {
 	offset: usize,
-	hash: u32,
+	hash:   u32,
 }
 
 fn git_delta(source: &[u8], target: &[u8], max_size: usize) -> Option<Vec<u8>> {
@@ -1525,9 +1527,9 @@ mod tests {
 			.map(|line| {
 				let mut fields = line.split('\t');
 				NumstatEntry {
-					added: fields.next().and_then(|value| value.parse().ok()),
+					added:   fields.next().and_then(|value| value.parse().ok()),
 					removed: fields.next().and_then(|value| value.parse().ok()),
-					path: fields.next().unwrap_or_default().to_owned(),
+					path:    fields.next().unwrap_or_default().to_owned(),
 				}
 			})
 			.collect::<Vec<_>>();
@@ -1577,10 +1579,11 @@ mod tests {
 				.expect("status"),
 			git(dir.path(), &["status", "--porcelain"])
 		);
-		assert_eq!(
-			repo.status_summary().expect("summary"),
-			crate::types::StatusSummary { staged: 2, unstaged: 0, untracked: 0 }
-		);
+		assert_eq!(repo.status_summary().expect("summary"), crate::types::StatusSummary {
+			staged:    2,
+			unstaged:  0,
+			untracked: 0,
+		});
 		assert_eq!(repo.ls_files(true, true).expect("untracked files"), Vec::<String>::new());
 
 		repo
@@ -1772,9 +1775,9 @@ mod tests {
 		let mut sink = GitHunks { out: &mut out, old_data: b"", budget };
 		let header = HunkHeader {
 			before_hunk_start: 1,
-			before_hunk_len: 0,
-			after_hunk_start: 1,
-			after_hunk_len: 10_000,
+			before_hunk_len:   0,
+			after_hunk_start:  1,
+			after_hunk_len:    10_000,
 		};
 		let err = sink.consume_hunk(header, &lines).unwrap_err();
 		assert!(
@@ -1810,9 +1813,9 @@ mod tests {
 		let mut sink = GitHunks { out: &mut out, old_data: b"", budget };
 		let header = HunkHeader {
 			before_hunk_start: 1,
-			before_hunk_len: 0,
-			after_hunk_start: 1,
-			after_hunk_len: 1,
+			before_hunk_len:   0,
+			after_hunk_start:  1,
+			after_hunk_len:    1,
 		};
 		let err = sink.consume_hunk(header, &lines).unwrap_err();
 		assert!(
@@ -1856,9 +1859,9 @@ mod tests {
 		// first line of `old_data` — the pathological one — and return it.
 		let header = HunkHeader {
 			before_hunk_start: 2,
-			before_hunk_len: 0,
-			after_hunk_start: 1,
-			after_hunk_len: 1,
+			before_hunk_len:   0,
+			after_hunk_start:  1,
+			after_hunk_len:    1,
 		};
 		let err = sink.consume_hunk(header, &lines).unwrap_err();
 		assert!(
@@ -1921,10 +1924,14 @@ mod tests {
 				repo
 					.diff_no_index(Path::new("/dev/null"), Path::new(path), true)
 					.expect("no-index diff"),
-				git_diff(
-					dir.path(),
-					&["diff", "--no-ext-diff", "--no-index", "--binary", "/dev/null", path]
-				)
+				git_diff(dir.path(), &[
+					"diff",
+					"--no-ext-diff",
+					"--no-index",
+					"--binary",
+					"/dev/null",
+					path
+				])
 			);
 		}
 	}

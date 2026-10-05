@@ -92,10 +92,10 @@ enum Repr {
 
 struct Shared {
 	/// `None` only after the handle has been closed.
-	handle: Option<Arc<dyn FileHandle>>,
+	handle:  Option<Arc<dyn FileHandle>>,
 	runtime: Option<Handle>,
-	cancel: Option<CancellationToken>,
-	closes: Option<Arc<CloseTracker>>,
+	cancel:  Option<CancellationToken>,
+	closes:  Option<Arc<CloseTracker>>,
 }
 
 impl Shared {
@@ -208,10 +208,10 @@ impl File {
 	pub fn from_arc(handle: Arc<dyn FileHandle>) -> Self {
 		Self {
 			repr: Repr::Virtual(Arc::new(Shared {
-				handle: Some(handle),
+				handle:  Some(handle),
 				runtime: Handle::try_current().ok(),
-				cancel: None,
-				closes: None,
+				cancel:  None,
+				closes:  None,
 			})),
 		}
 	}

@@ -73,7 +73,7 @@ impl FileOp {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolved {
 	pub absolute: PathBuf,
-	pub display: String,
+	pub display:  String,
 }
 
 /// How the model-facing result header for a file is produced.
@@ -91,48 +91,48 @@ pub enum HeaderKind {
 #[derive(Debug, Clone)]
 pub struct StagedFile {
 	/// Display path as authored (after suffix / tag recovery).
-	pub display: String,
+	pub display:            String,
 	/// Absolute target path.
-	pub absolute: PathBuf,
-	pub op: FileOp,
+	pub absolute:           PathBuf,
+	pub op:                 FileOp,
 	/// Destination for a rename (`*** Move to:` / hashline `MV`). The write
 	/// request becomes a `move`; the result reports `Moved to <display>`.
-	pub move_to: Option<Resolved>,
+	pub move_to:            Option<Resolved>,
 	/// Whether the target existed before the edit.
-	pub existed: bool,
+	pub existed:            bool,
 	/// Raw pre-edit bytes as text (BOM and line endings intact; notebook
 	/// JSON). `None` for creates.
-	pub before_raw: Option<String>,
+	pub before_raw:         Option<String>,
 	/// LF-normalized, BOM-stripped pre-edit text (editable notebook text).
-	pub before: String,
+	pub before:             String,
 	/// LF-normalized post-edit text. Equals `before` for `Noop`/`Delete`.
-	pub after: String,
+	pub after:              String,
 	/// Bytes to persist: BOM + original line endings restored; notebook JSON
 	/// serialized. `None` for `Delete`/`Noop`.
-	pub persisted: Option<String>,
+	pub persisted:          Option<String>,
 	/// Diff reported in structured details (numbered `generate_diff_string`
 	/// format for most modes; plain unified diff for `patch`/`apply_patch`).
-	pub diff: String,
+	pub diff:               String,
 	/// Numbered diff the model-facing compact preview is built from when it
 	/// differs from `diff` (`patch`/`apply_patch`). `None` uses `diff`.
-	pub preview_diff: Option<String>,
+	pub preview_diff:       Option<String>,
 	pub first_changed_line: Option<u32>,
-	pub header: HeaderKind,
+	pub header:             HeaderKind,
 	/// Lines rendered between the header and the preview (hashline block
 	/// resolutions).
-	pub before_preview: Vec<String>,
+	pub before_preview:     Vec<String>,
 	/// Lines rendered after the preview (sloppy recovery notes).
-	pub after_preview: Vec<String>,
+	pub after_preview:      Vec<String>,
 	/// Rendered under a trailing `Warnings:` block.
-	pub warnings: Vec<String>,
+	pub warnings:           Vec<String>,
 	/// Replaces the whole rendered text (hashline no-op diagnostic).
-	pub text_override: Option<String>,
+	pub text_override:      Option<String>,
 	/// Record a fresh snapshot of the written text in the store after the
 	/// write lands (hashline) and warn when the persisted text drifted.
-	pub record_snapshot: bool,
+	pub record_snapshot:    bool,
 	/// Clipboard state to publish once this file's write lands (hashline
 	/// `CUT`/`PUT` registers).
-	pub clipboard_after: Option<crate::store::Clipboard>,
+	pub clipboard_after:    Option<crate::store::Clipboard>,
 }
 
 impl StagedFile {
@@ -166,13 +166,13 @@ impl StagedFile {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PreviewFile {
 	/// Display path as authored (after recovery when the engine resolved it).
-	pub display: String,
-	pub diff: Option<String>,
+	pub display:            String,
+	pub diff:               Option<String>,
 	pub first_changed_line: Option<u32>,
 	/// Model-facing error text; mutually exclusive with `diff`.
-	pub error: Option<String>,
-	pub op: Option<FileOp>,
-	pub rename: Option<String>,
+	pub error:              Option<String>,
+	pub op:                 Option<FileOp>,
+	pub rename:             Option<String>,
 }
 
 /// Static projection of a payload (no filesystem access): target paths, the
@@ -180,10 +180,10 @@ pub struct PreviewFile {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Inspection {
 	/// Every path the payload targets, one entry per section (duplicates kept).
-	pub paths: Vec<String>,
+	pub paths:    Vec<String>,
 	/// `(path, digest)` — the digest is the text the edit introduces into that
 	/// file (added lines only, no patch grammar). Same-path sections merge.
-	pub entries: Vec<(String, String)>,
+	pub entries:  Vec<(String, String)>,
 	/// Delete / move intents for the ACP permission gate.
 	pub file_ops: Vec<FileOpIntent>,
 }

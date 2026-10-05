@@ -121,18 +121,18 @@ pub struct NativeOAuthCallback {
 }
 
 struct Core {
-	home: PathBuf,
-	scheme: String,
-	env: BTreeMap<String, String>,
-	state: Mutex<State>,
+	home:      PathBuf,
+	scheme:    String,
+	env:       BTreeMap<String, String>,
+	state:     Mutex<State>,
 	operation: Mutex<()>,
 }
 
 struct State {
-	phase: Phase,
-	waits: BTreeMap<u64, AbortToken>,
+	phase:     Phase,
+	waits:     BTreeMap<u64, AbortToken>,
 	next_wait: u64,
-	next_op: u64,
+	next_op:   u64,
 }
 
 enum Phase {
@@ -143,20 +143,20 @@ enum Phase {
 }
 
 struct Registration {
-	context: Context,
+	context:      Context,
 	journal_path: PathBuf,
-	snapshot: platform::Snapshot,
-	lease: FileLock,
+	snapshot:     platform::Snapshot,
+	lease:        FileLock,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Journal {
-	version: u32,
-	id: String,
-	scheme: String,
+	version:     u32,
+	id:          String,
+	scheme:      String,
 	environment: BTreeMap<String, String>,
-	snapshot: platform::Snapshot,
+	snapshot:    platform::Snapshot,
 }
 
 #[napi]
@@ -177,10 +177,10 @@ impl NativeOAuthCallback {
 				scheme: options.scheme,
 				env,
 				state: Mutex::new(State {
-					phase: Phase::Idle,
-					waits: BTreeMap::new(),
+					phase:     Phase::Idle,
+					waits:     BTreeMap::new(),
 					next_wait: 1,
-					next_op: 1,
+					next_op:   1,
 				}),
 				operation: Mutex::new(()),
 			}),
@@ -521,11 +521,11 @@ fn cleanup_registration(registration: &mut Registration, cancel: CancelToken) ->
 	})?;
 	if !registration.journal_path.exists() {
 		let journal = Journal {
-			version: JOURNAL_VERSION,
-			id: context.id.clone(),
-			scheme: context.scheme.clone(),
+			version:     JOURNAL_VERSION,
+			id:          context.id.clone(),
+			scheme:      context.scheme.clone(),
 			environment: journal_environment(&context.env),
-			snapshot: registration.snapshot.clone(),
+			snapshot:    registration.snapshot.clone(),
 		};
 		atomic_write(
 			&registration.journal_path,

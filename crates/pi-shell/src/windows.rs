@@ -95,7 +95,7 @@ fn normalize_path(path: &Path) -> String {
 
 struct GitDiscovery {
 	install_roots: Vec<PathBuf>,
-	paths: Vec<String>,
+	paths:         Vec<String>,
 }
 
 fn discover_git() -> GitDiscovery {
@@ -331,39 +331,36 @@ mod tests {
 
 		let discovery = discover_git_with(|| Some(registry_path), || Some(where_path));
 
-		assert_eq!(
-			discovery.install_roots,
-			vec![registry_root.path().to_path_buf(), where_root.path().to_path_buf()]
-		);
-		assert_eq!(
-			discovery.paths,
-			vec![
-				registry_root
-					.path()
-					.join("cmd")
-					.to_string_lossy()
-					.into_owned(),
-				registry_root
-					.path()
-					.join("bin")
-					.to_string_lossy()
-					.into_owned(),
-				registry_root
-					.path()
-					.join("usr")
-					.join("bin")
-					.to_string_lossy()
-					.into_owned(),
-				where_root.path().join("cmd").to_string_lossy().into_owned(),
-				where_root.path().join("bin").to_string_lossy().into_owned(),
-				where_root
-					.path()
-					.join("usr")
-					.join("bin")
-					.to_string_lossy()
-					.into_owned(),
-			]
-		);
+		assert_eq!(discovery.install_roots, vec![
+			registry_root.path().to_path_buf(),
+			where_root.path().to_path_buf()
+		]);
+		assert_eq!(discovery.paths, vec![
+			registry_root
+				.path()
+				.join("cmd")
+				.to_string_lossy()
+				.into_owned(),
+			registry_root
+				.path()
+				.join("bin")
+				.to_string_lossy()
+				.into_owned(),
+			registry_root
+				.path()
+				.join("usr")
+				.join("bin")
+				.to_string_lossy()
+				.into_owned(),
+			where_root.path().join("cmd").to_string_lossy().into_owned(),
+			where_root.path().join("bin").to_string_lossy().into_owned(),
+			where_root
+				.path()
+				.join("usr")
+				.join("bin")
+				.to_string_lossy()
+				.into_owned(),
+		]);
 	}
 
 	#[test]
@@ -375,19 +372,16 @@ mod tests {
 		let discovery = discover_git_with(|| Some(registry_path), || Some(where_path));
 
 		assert_eq!(discovery.install_roots, vec![root.path().to_path_buf()]);
-		assert_eq!(
-			discovery.paths,
-			vec![
-				root.path().join("cmd").to_string_lossy().into_owned(),
-				root.path().join("bin").to_string_lossy().into_owned(),
-				root
-					.path()
-					.join("usr")
-					.join("bin")
-					.to_string_lossy()
-					.into_owned(),
-			]
-		);
+		assert_eq!(discovery.paths, vec![
+			root.path().join("cmd").to_string_lossy().into_owned(),
+			root.path().join("bin").to_string_lossy().into_owned(),
+			root
+				.path()
+				.join("usr")
+				.join("bin")
+				.to_string_lossy()
+				.into_owned(),
+		]);
 	}
 
 	#[test]
@@ -398,19 +392,16 @@ mod tests {
 
 		let discovery = discover_git_with(|| Some(decorated_path), || Some(clean_path));
 
-		assert_eq!(
-			discovery.paths,
-			vec![
-				root.path().join("cmd").to_string_lossy().into_owned(),
-				root.path().join("bin").to_string_lossy().into_owned(),
-				root
-					.path()
-					.join("usr")
-					.join("bin")
-					.to_string_lossy()
-					.into_owned(),
-			]
-		);
+		assert_eq!(discovery.paths, vec![
+			root.path().join("cmd").to_string_lossy().into_owned(),
+			root.path().join("bin").to_string_lossy().into_owned(),
+			root
+				.path()
+				.join("usr")
+				.join("bin")
+				.to_string_lossy()
+				.into_owned(),
+		]);
 	}
 
 	#[test]

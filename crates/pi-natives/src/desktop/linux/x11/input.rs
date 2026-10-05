@@ -66,18 +66,18 @@ const FOREGROUND_RESTORE_SETTLE: Duration = Duration::from_millis(150);
 const FOREGROUND_RESTORE_BUDGET: Duration = Duration::from_millis(400);
 
 pub struct X11Input {
-	conn: Arc<RustConnection>,
-	root: Window,
-	atoms: Atoms,
-	keymap: Keymap,
-	takeover_target: Option<Window>,
+	conn:             Arc<RustConnection>,
+	root:             Window,
+	atoms:            Atoms,
+	keymap:           Keymap,
+	takeover_target:  Option<Window>,
 	takeover_pointer: Cell<Option<(i16, i16)>>,
 	/// Session-lived virtual master pair, created on first background use.
-	mpx: Option<Mpx>,
+	mpx:              Option<Mpx>,
 	/// Why the XI2-MPX route is unusable. Set once, so a host that cannot
 	/// hot-plug devices is not re-probed (and its hierarchy not churned) on
 	/// every action.
-	mpx_unavailable: Option<String>,
+	mpx_unavailable:  Option<String>,
 }
 
 /// Keyboard input to plan against a keymap.

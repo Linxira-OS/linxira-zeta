@@ -43,22 +43,22 @@ impl OutlineLevel {
 #[derive(Debug, Clone, Default)]
 pub struct MinimizerOptions {
 	/// Master switch. Absent / false = disabled.
-	pub enabled: Option<bool>,
+	pub enabled:              Option<bool>,
 	/// Optional path to a TOML settings file whose values override
 	/// field-level defaults. `~` is expanded.
-	pub settings_path: Option<String>,
+	pub settings_path:        Option<String>,
 	/// Optional xxHash64 digest (hex) of the settings file contents. When
 	/// supplied, the engine refuses to honor a settings file whose hash does
 	/// not match — a lightweight trust gate for agent-controllable paths.
-	pub settings_hash: Option<String>,
+	pub settings_hash:        Option<String>,
 	/// Opt-in allowlist of program names (e.g. `"git"`). When empty or
 	/// absent, all built-in filters are active.
-	pub only: Option<Vec<String>>,
+	pub only:                 Option<Vec<String>>,
 	/// Program names explicitly excluded from minimization.
-	pub except: Option<Vec<String>>,
+	pub except:               Option<Vec<String>>,
 	/// Maximum captured bytes per command before the engine falls back to
 	/// the raw, un-minimized output. Default 4 MiB.
-	pub max_capture_bytes: Option<u32>,
+	pub max_capture_bytes:    Option<u32>,
 	/// Source-outline level for `cat <source-file>` minimization. Accepts
 	/// `"default"` (current behavior) or `"aggressive"` (strip function bodies).
 	pub source_outline_level: Option<String>,
@@ -68,22 +68,22 @@ pub struct MinimizerOptions {
 	/// return the legacy passthrough. When `None`, defers to the
 	/// `OMP_MINIMIZER_LEGACY_FILTERS` environment variable (truthy = "1",
 	/// "true", or "yes", case-insensitive); default `false`.
-	pub legacy_filters: Option<bool>,
+	pub legacy_filters:       Option<bool>,
 }
 
 /// Resolved minimizer configuration used by the engine.
 #[derive(Debug, Clone)]
 pub struct MinimizerConfig {
-	pub enabled: bool,
-	pub only: HashSet<String>,
-	pub except: HashSet<String>,
-	pub max_capture_bytes: u32,
-	pub per_command: HashMap<String, toml::Value>,
+	pub enabled:               bool,
+	pub only:                  HashSet<String>,
+	pub except:                HashSet<String>,
+	pub max_capture_bytes:     u32,
+	pub per_command:           HashMap<String, toml::Value>,
 	/// Compiled user-defined pipelines parsed from `settings_path`. Searched
 	/// before the built-in pipelines so user filters win.
-	pub user_pipelines: Option<Arc<PipelineRegistry>>,
+	pub user_pipelines:        Option<Arc<PipelineRegistry>>,
 	/// Aggressiveness for source-outline body stripping in `compact_cat_output`.
-	pub source_outline_level: OutlineLevel,
+	pub source_outline_level:  OutlineLevel,
 	/// Resolved kill-switch: when true, opted-in filters (Tier 1 grep/find,
 	/// Tier 2 pytest) return the pre-PR legacy behavior. Resolved at
 	/// `from_options()` time from caller-supplied
@@ -95,13 +95,13 @@ pub struct MinimizerConfig {
 impl Default for MinimizerConfig {
 	fn default() -> Self {
 		Self {
-			enabled: false,
-			only: HashSet::new(),
-			except: HashSet::new(),
-			max_capture_bytes: DEFAULT_MAX_CAPTURE_BYTES,
-			per_command: HashMap::new(),
-			user_pipelines: None,
-			source_outline_level: OutlineLevel::Default,
+			enabled:               false,
+			only:                  HashSet::new(),
+			except:                HashSet::new(),
+			max_capture_bytes:     DEFAULT_MAX_CAPTURE_BYTES,
+			per_command:           HashMap::new(),
+			user_pipelines:        None,
+			source_outline_level:  OutlineLevel::Default,
 			legacy_filters_active: false,
 		}
 	}
@@ -217,15 +217,15 @@ impl MinimizerConfig {
 #[derive(Debug, Default, Deserialize)]
 struct SettingsFile {
 	#[serde(default)]
-	schema_version: Option<u32>,
-	enabled: Option<bool>,
-	only: Option<Vec<String>>,
-	except: Option<Vec<String>>,
-	max_capture_bytes: Option<u32>,
+	schema_version:       Option<u32>,
+	enabled:              Option<bool>,
+	only:                 Option<Vec<String>>,
+	except:               Option<Vec<String>>,
+	max_capture_bytes:    Option<u32>,
 	source_outline_level: Option<String>,
-	legacy_filters: Option<bool>,
+	legacy_filters:       Option<bool>,
 	#[serde(flatten)]
-	tables: HashMap<String, toml::Value>,
+	tables:               HashMap<String, toml::Value>,
 }
 
 impl SettingsFile {

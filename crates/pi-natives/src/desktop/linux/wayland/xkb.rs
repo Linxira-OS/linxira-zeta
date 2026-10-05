@@ -18,28 +18,28 @@ use xkeysym::Keysym;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct KeyStroke {
-	pub keycode: u32,
+	pub keycode:   u32,
 	pub modifiers: Vec<u32>,
 }
 
 #[derive(Clone, Copy, Default)]
 struct ModifierState {
 	depressed: u32,
-	latched: u32,
-	locked: u32,
-	group: u32,
+	latched:   u32,
+	locked:    u32,
+	group:     u32,
 }
 
 #[derive(Clone, Copy)]
 struct ModifierReq {
 	active_mask: u32,
-	keycode: u32,
+	keycode:     u32,
 }
 
 #[derive(Clone)]
 struct Candidate {
-	keycode: u32,
-	level: usize,
+	keycode:  u32,
+	level:    usize,
 	key_type: Arc<TypeDef>,
 }
 
@@ -51,14 +51,14 @@ struct TypeDef {
 
 struct ParsedKey {
 	keycode: u32,
-	types: HashMap<usize, String>,
+	types:   HashMap<usize, String>,
 	symbols: HashMap<usize, Vec<String>>,
 }
 
 pub(super) struct KeyboardLayout {
-	groups: Vec<HashMap<char, Vec<Candidate>>>,
+	groups:    Vec<HashMap<char, Vec<Candidate>>>,
 	us_groups: Vec<bool>,
-	virtuals: HashMap<String, u32>,
+	virtuals:  HashMap<String, u32>,
 	modifiers: ModifierState,
 }
 

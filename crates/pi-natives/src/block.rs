@@ -20,7 +20,7 @@ pub struct BlockRange {
 	/// 1-indexed inclusive first line of the resolved block.
 	pub start_line: u32,
 	/// 1-indexed inclusive last line of the resolved block.
-	pub end_line: u32,
+	pub end_line:   u32,
 }
 
 impl From<pi_ast::block::BlockRange> for BlockRange {
@@ -51,9 +51,9 @@ pub struct NodeSpan {
 	/// 1-indexed inclusive first line of the node.
 	pub start_line: u32,
 	/// 1-indexed inclusive last content line of the node.
-	pub end_line: u32,
+	pub end_line:   u32,
 	/// Tree-sitter grammar node kind (e.g. `attribute_item`, `function_item`).
-	pub kind: String,
+	pub kind:       String,
 }
 
 impl From<pi_ast::block::NodeSpan> for NodeSpan {
@@ -86,17 +86,17 @@ pub struct LineRange {
 	/// 1-indexed inclusive first visible line.
 	pub start_line: u32,
 	/// 1-indexed inclusive last visible line.
-	pub end_line: u32,
+	pub end_line:   u32,
 }
 
 #[napi(object)]
 pub struct EnclosingBoundaryOptions {
 	/// Source code to inspect.
-	pub code: String,
+	pub code:   String,
 	/// Language alias (e.g. "rust", "typescript") used before path inference.
-	pub lang: Option<String>,
+	pub lang:   Option<String>,
 	/// File path used to infer language by extension when `lang` is omitted.
-	pub path: Option<String>,
+	pub path:   Option<String>,
 	/// 1-indexed inclusive visible line ranges (the lines actually shown).
 	pub ranges: Vec<LineRange>,
 }
@@ -114,15 +114,15 @@ pub struct EnclosingBoundaryOptions {
 #[napi]
 pub fn enclosing_block_boundaries(options: EnclosingBoundaryOptions) -> Result<Option<Vec<u32>>> {
 	pi_ast::block::enclosing_block_boundaries(pi_ast::block::EnclosingBoundaryOptions {
-		code: options.code,
-		lang: options.lang,
-		path: options.path,
+		code:   options.code,
+		lang:   options.lang,
+		path:   options.path,
 		ranges: options
 			.ranges
 			.into_iter()
 			.map(|range| pi_ast::block::LineRange {
 				start_line: range.start_line,
-				end_line: range.end_line,
+				end_line:   range.end_line,
 			})
 			.collect(),
 	})

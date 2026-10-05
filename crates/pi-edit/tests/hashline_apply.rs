@@ -14,35 +14,40 @@ use pi_edit::{
 
 fn insert_after(line: u32, text: &str, op_line: u32) -> Edit {
 	Edit::Insert {
-		cursor: Cursor::AfterAnchor(Anchor { line }),
-		text: text.into(),
-		line_num: op_line,
-		index: 0,
+		cursor:      Cursor::AfterAnchor(Anchor { line }),
+		text:        text.into(),
+		line_num:    op_line,
+		index:       0,
 		replacement: false,
 		block_start: None,
 	}
 }
 fn insert_before(line: u32, text: &str, op_line: u32) -> Edit {
 	Edit::Insert {
-		cursor: Cursor::BeforeAnchor(Anchor { line }),
-		text: text.into(),
-		line_num: op_line,
-		index: 0,
+		cursor:      Cursor::BeforeAnchor(Anchor { line }),
+		text:        text.into(),
+		line_num:    op_line,
+		index:       0,
 		replacement: false,
 		block_start: None,
 	}
 }
 const fn delete(line: u32, op_line: u32) -> Edit {
-	Edit::Delete { anchor: Anchor { line }, line_num: op_line, index: 0, old_assertion: None }
+	Edit::Delete {
+		anchor:        Anchor { line },
+		line_num:      op_line,
+		index:         0,
+		old_assertion: None,
+	}
 }
 fn replacement(start: u32, end: u32, body: &[&str], op_line: u32) -> Vec<Edit> {
 	let mut edits = body
 		.iter()
 		.map(|text| Edit::Insert {
-			cursor: Cursor::BeforeAnchor(Anchor { line: start }),
-			text: (*text).into(),
-			line_num: op_line,
-			index: 0,
+			cursor:      Cursor::BeforeAnchor(Anchor { line: start }),
+			text:        (*text).into(),
+			line_num:    op_line,
+			index:       0,
 			replacement: true,
 			block_start: None,
 		})
@@ -55,11 +60,11 @@ fn apply(
 	edits: &[Edit],
 	path: Option<&str>,
 ) -> pi_edit::modes::hashline::types::ApplyResult {
-	apply_edits(
-		text,
-		edits,
-		ApplyOptions { clipboard: None, path, on_empty_paste: EmptyPaste::Throw },
-	)
+	apply_edits(text, edits, ApplyOptions {
+		clipboard: None,
+		path,
+		on_empty_paste: EmptyPaste::Throw,
+	})
 	.unwrap()
 }
 
@@ -67,20 +72,20 @@ fn apply(
 fn inserts_before_after_head_and_tail() {
 	let edits = vec![
 		Edit::Insert {
-			cursor: Cursor::Bof,
-			text: "head".into(),
-			line_num: 1,
-			index: 0,
+			cursor:      Cursor::Bof,
+			text:        "head".into(),
+			line_num:    1,
+			index:       0,
 			replacement: false,
 			block_start: None,
 		},
 		insert_before(2, "before", 2),
 		insert_after(2, "after", 3),
 		Edit::Insert {
-			cursor: Cursor::Eof,
-			text: "tail".into(),
-			line_num: 4,
-			index: 0,
+			cursor:      Cursor::Eof,
+			text:        "tail".into(),
+			line_num:    4,
+			index:       0,
 			replacement: false,
 			block_start: None,
 		},
@@ -95,11 +100,11 @@ fn ignores_a_delete_of_the_trailing_phantom_line() {
 
 #[test]
 fn rejects_an_out_of_bounds_anchor() {
-	let error = apply_edits(
-		"one\ntwo",
-		&[delete(3, 1)],
-		ApplyOptions { clipboard: None, path: None, on_empty_paste: EmptyPaste::Throw },
-	)
+	let error = apply_edits("one\ntwo", &[delete(3, 1)], ApplyOptions {
+		clipboard:      None,
+		path:           None,
+		on_empty_paste: EmptyPaste::Throw,
+	})
 	.unwrap_err();
 	assert_eq!(error.to_string(), "Line 3 does not exist (file has 2 lines)");
 }
@@ -189,7 +194,11 @@ fn rejects_a_leading_keeper_echo_when_the_payload_cannot_fill_the_widened_range(
 			],
 			1,
 		),
-		ApplyOptions { clipboard: None, path: Some("x.cpp"), on_empty_paste: EmptyPaste::Throw },
+		ApplyOptions {
+			clipboard:      None,
+			path:           Some("x.cpp"),
+			on_empty_paste: EmptyPaste::Throw,
+		},
 	)
 	.unwrap_err();
 	assert!(error.to_string().contains("body opens by restating"));
@@ -243,10 +252,10 @@ fn refuses_to_cross_a_line_targeted_by_another_hunk() {
 fn inward_block_landing_pulls_a_deeper_body_inside() {
 	let file = "function f() {\n    afterEach(() => {\n        destroy();\n    });\n}\n";
 	let edit = Edit::Insert {
-		cursor: Cursor::AfterAnchor(Anchor { line: 4 }),
-		text: "        setup();".into(),
-		line_num: 1,
-		index: 0,
+		cursor:      Cursor::AfterAnchor(Anchor { line: 4 }),
+		text:        "        setup();".into(),
+		line_num:    1,
+		index:       0,
 		replacement: false,
 		block_start: Some(2),
 	};
@@ -272,12 +281,12 @@ fn native_block_resolver_uses_real_syntax() {
 fn block_replace_lowers_to_replacement_inserts_and_deletes() {
 	let text = "fn outer() {\n\tif true {\n\t\twork();\n\t}\n}\n";
 	let edit = Edit::Block {
-		anchor: Anchor { line: 2 },
+		anchor:   Anchor { line: 2 },
 		payloads: vec!["\tif false {}".into()],
-		mode: None,
+		mode:     None,
 		register: None,
 		line_num: 1,
-		index: 0,
+		index:    0,
 	};
 	let mut resolutions = Vec::new();
 	let lowered = resolve_block_edits(
@@ -296,12 +305,12 @@ fn block_replace_lowers_to_replacement_inserts_and_deletes() {
 #[test]
 fn unresolved_insert_after_block_lowers_and_warns() {
 	let edit = Edit::Block {
-		anchor: Anchor { line: 1 },
+		anchor:   Anchor { line: 1 },
 		payloads: vec!["next".into()],
-		mode: Some(BlockMode::InsertAfter),
+		mode:     Some(BlockMode::InsertAfter),
 		register: None,
 		line_num: 7,
-		index: 0,
+		index:    0,
 	};
 	let mut warnings = Vec::new();
 	let lowered = resolve_block_edits(
@@ -313,22 +322,22 @@ fn unresolved_insert_after_block_lowers_and_warns() {
 		&mut |warning| warnings.push(warning),
 	)
 	.unwrap();
-	assert!(matches!(
-		lowered[0],
-		Edit::Insert { cursor: Cursor::AfterAnchor(Anchor { line: 1 }), .. }
-	));
+	assert!(matches!(lowered[0], Edit::Insert {
+		cursor: Cursor::AfterAnchor(Anchor { line: 1 }),
+		..
+	}));
 	assert_eq!(warnings.len(), 1);
 }
 
 #[test]
 fn unresolved_block_replacement_reports_context() {
 	let edit = Edit::Block {
-		anchor: Anchor { line: 2 },
+		anchor:   Anchor { line: 2 },
 		payloads: vec!["x".into()],
-		mode: None,
+		mode:     None,
 		register: None,
 		line_num: 9,
-		index: 0,
+		index:    0,
 	};
 	let error = resolve_block_edits(
 		&[edit],
@@ -359,16 +368,16 @@ fn syntax_helpers_use_pi_ast() {
 #[test]
 fn clipboard_cut_then_gap_paste_moves_lines() {
 	let cut = Edit::Cut {
-		range: ParsedRange { start: Anchor { line: 2 }, end: Anchor { line: 3 } },
+		range:    ParsedRange { start: Anchor { line: 2 }, end: Anchor { line: 3 } },
 		register: None,
 		line_num: 1,
-		index: 0,
+		index:    0,
 	};
 	let paste = Edit::Paste {
-		at: PasteTarget::Gap { cursor: Cursor::AfterAnchor(Anchor { line: 4 }) },
-		register: None,
-		line_num: 2,
-		index: 1,
+		at:          PasteTarget::Gap { cursor: Cursor::AfterAnchor(Anchor { line: 4 }) },
+		register:    None,
+		line_num:    2,
+		index:       1,
 		block_start: None,
 	};
 	let deletes = vec![delete(2, 1), delete(3, 1)];
@@ -376,15 +385,11 @@ fn clipboard_cut_then_gap_paste_moves_lines() {
 	edits.extend(deletes);
 	edits.push(paste);
 	let mut clipboard = Clipboard::default();
-	let result = apply_edits(
-		"a\nb\nc\nd",
-		&edits,
-		ApplyOptions {
-			clipboard: Some(&mut clipboard),
-			path: None,
-			on_empty_paste: EmptyPaste::Throw,
-		},
-	)
+	let result = apply_edits("a\nb\nc\nd", &edits, ApplyOptions {
+		clipboard:      Some(&mut clipboard),
+		path:           None,
+		on_empty_paste: EmptyPaste::Throw,
+	})
 	.unwrap();
 	assert_eq!(result.text, "a\nd\nb\nc");
 }
@@ -392,36 +397,32 @@ fn clipboard_cut_then_gap_paste_moves_lines() {
 #[test]
 fn repeated_anonymous_pastes_do_not_consume_the_clipboard() {
 	let cut = Edit::Cut {
-		range: ParsedRange { start: Anchor { line: 2 }, end: Anchor { line: 2 } },
+		range:    ParsedRange { start: Anchor { line: 2 }, end: Anchor { line: 2 } },
 		register: None,
 		line_num: 1,
-		index: 0,
+		index:    0,
 	};
 	let paste_head = Edit::Paste {
-		at: PasteTarget::Gap { cursor: Cursor::Bof },
-		register: None,
-		line_num: 2,
-		index: 1,
+		at:          PasteTarget::Gap { cursor: Cursor::Bof },
+		register:    None,
+		line_num:    2,
+		index:       1,
 		block_start: None,
 	};
 	let paste_tail = Edit::Paste {
-		at: PasteTarget::Gap { cursor: Cursor::Eof },
-		register: None,
-		line_num: 3,
-		index: 2,
+		at:          PasteTarget::Gap { cursor: Cursor::Eof },
+		register:    None,
+		line_num:    3,
+		index:       2,
 		block_start: None,
 	};
 	let edits = vec![cut, delete(2, 1), paste_head, paste_tail];
 	let mut clipboard = Clipboard::default();
-	let result = apply_edits(
-		"a\nb\nc",
-		&edits,
-		ApplyOptions {
-			clipboard: Some(&mut clipboard),
-			path: None,
-			on_empty_paste: EmptyPaste::Throw,
-		},
-	)
+	let result = apply_edits("a\nb\nc", &edits, ApplyOptions {
+		clipboard:      Some(&mut clipboard),
+		path:           None,
+		on_empty_paste: EmptyPaste::Throw,
+	})
 	.unwrap();
 	assert_eq!(result.text, "b\na\nc\nb");
 }
@@ -438,30 +439,26 @@ fn named_registers_swap_two_regions() {
 		delete(3, 2),
 		delete(4, 2),
 		Edit::Paste {
-			at: PasteTarget::Gap { cursor: Cursor::Bof },
-			register: Some("b".into()),
-			line_num: 3,
-			index: 6,
+			at:          PasteTarget::Gap { cursor: Cursor::Bof },
+			register:    Some("b".into()),
+			line_num:    3,
+			index:       6,
 			block_start: None,
 		},
 		Edit::Paste {
-			at: PasteTarget::Gap { cursor: Cursor::Eof },
-			register: Some("a".into()),
-			line_num: 4,
-			index: 7,
+			at:          PasteTarget::Gap { cursor: Cursor::Eof },
+			register:    Some("a".into()),
+			line_num:    4,
+			index:       7,
 			block_start: None,
 		},
 	];
 	let mut clipboard = Clipboard::default();
-	let result = apply_edits(
-		"a1\na2\nb1\nb2",
-		&edits,
-		ApplyOptions {
-			clipboard: Some(&mut clipboard),
-			path: None,
-			on_empty_paste: EmptyPaste::Throw,
-		},
-	)
+	let result = apply_edits("a1\na2\nb1\nb2", &edits, ApplyOptions {
+		clipboard:      Some(&mut clipboard),
+		path:           None,
+		on_empty_paste: EmptyPaste::Throw,
+	})
 	.unwrap();
 	assert_eq!(result.text, "b1\nb2\na1\na2");
 }
@@ -469,10 +466,10 @@ fn named_registers_swap_two_regions() {
 #[test]
 fn named_register_gap_paste_warns_and_does_nothing_when_empty() {
 	let paste = Edit::Paste {
-		at: PasteTarget::Gap { cursor: Cursor::AfterAnchor(Anchor { line: 1 }) },
-		register: Some("missing".into()),
-		line_num: 4,
-		index: 0,
+		at:          PasteTarget::Gap { cursor: Cursor::AfterAnchor(Anchor { line: 1 }) },
+		register:    Some("missing".into()),
+		line_num:    4,
+		index:       0,
 		block_start: None,
 	};
 	let mut clipboard = Clipboard::default();
@@ -493,12 +490,12 @@ fn named_register_gap_paste_warns_and_does_nothing_when_empty() {
 #[test]
 fn empty_named_span_paste_is_rejected() {
 	let paste = Edit::Paste {
-		at: PasteTarget::Span {
+		at:          PasteTarget::Span {
 			range: ParsedRange { start: Anchor { line: 1 }, end: Anchor { line: 1 } },
 		},
-		register: Some("missing".into()),
-		line_num: 4,
-		index: 0,
+		register:    Some("missing".into()),
+		line_num:    4,
+		index:       0,
 		block_start: None,
 	};
 	let error = resolve_clipboard_edits(
@@ -523,10 +520,10 @@ fn ambiguous_anonymous_paste_is_rejected() {
 		Edit::Cut { range: range(1), register: None, line_num: 1, index: 0 },
 		Edit::Cut { range: range(2), register: None, line_num: 2, index: 1 },
 		Edit::Paste {
-			at: PasteTarget::Gap { cursor: Cursor::Eof },
-			register: None,
-			line_num: 3,
-			index: 2,
+			at:          PasteTarget::Gap { cursor: Cursor::Eof },
+			register:    None,
+			line_num:    3,
+			index:       2,
 			block_start: None,
 		},
 	];
@@ -537,10 +534,10 @@ fn ambiguous_anonymous_paste_is_rejected() {
 #[test]
 fn empty_paste_drop_removes_the_incomplete_preview_op() {
 	let paste = Edit::Paste {
-		at: PasteTarget::Gap { cursor: Cursor::Eof },
-		register: None,
-		line_num: 1,
-		index: 0,
+		at:          PasteTarget::Gap { cursor: Cursor::Eof },
+		register:    None,
+		line_num:    1,
+		index:       0,
 		block_start: None,
 	};
 	let resolved = resolve_clipboard_edits(
@@ -561,16 +558,13 @@ fn recovery_remaps_a_uniform_line_shift() {
 	let previous = "fn f() {\n\told();\n}\n";
 	let tag = store.record(path, previous, None);
 	let edit = replacement(2, 2, &["\tnew();"], 1);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: "// header\nfn f() {\n\told();\n}\n",
-			file_hash: &tag,
-			edits: &edit,
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: "// header\nfn f() {\n\told();\n}\n",
+		file_hash: &tag,
+		edits: &edit,
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert_eq!(recovered.text, "// header\nfn f() {\n\tnew();\n}\n");
@@ -583,16 +577,13 @@ fn recovery_rejects_a_changed_anchor() {
 	let path = Path::new("/tmp/recovery-changed.rs");
 	let previous = "a\nold\nc";
 	let tag = store.record(path, previous, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: "a\nchanged\nc",
-			file_hash: &tag,
-			edits: &replacement(2, 2, &["new"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: "a\nchanged\nc",
+		file_hash: &tag,
+		edits: &replacement(2, 2, &["new"], 1),
+		clipboard: None,
+	})
 	.unwrap();
 	assert!(recovered.is_none());
 }
@@ -605,16 +596,13 @@ fn recovery_replays_unchanged_anchor_onto_current_session_text() {
 	let tag = store.record(path, previous, None);
 	let current = "L1\nL2\nL3\nL4\nL5-CHANGED\nL6\n";
 	store.record(path, current, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: current,
-			file_hash: &tag,
-			edits: &replacement(3, 3, &["L3-MODEL"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: current,
+		file_hash: &tag,
+		edits: &replacement(3, 3, &["L3-MODEL"], 1),
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert!(recovered.text.contains("L3-MODEL"));
@@ -630,16 +618,13 @@ fn recovery_remaps_after_a_prior_deletion() {
 	let tag = store.record(path, previous, None);
 	let current = "L1\nL3\nL4\nL5\nL6\n";
 	store.record(path, current, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: current,
-			file_hash: &tag,
-			edits: &replacement(5, 5, &["L5-MODEL"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: current,
+		file_hash: &tag,
+		edits: &replacement(5, 5, &["L5-MODEL"], 1),
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert_eq!(recovered.text, "L1\nL3\nL4\nL5-MODEL\nL6\n");
@@ -651,16 +636,13 @@ fn recovery_refuses_an_isolated_unique_line_without_neighbor_offset() {
 	let path = Path::new("/tmp/recovery-isolated.ts");
 	let previous = "L1\nL2\nL3\nL4\nT\nL6\n";
 	let tag = store.record(path, previous, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: "X\nL1\nL2\nL3\nL4\nBEFORE\nT\nAFTER\nL6\n",
-			file_hash: &tag,
-			edits: &replacement(5, 5, &["MODEL"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: "X\nL1\nL2\nL3\nL4\nBEFORE\nT\nAFTER\nL6\n",
+		file_hash: &tag,
+		edits: &replacement(5, 5, &["MODEL"], 1),
+		clipboard: None,
+	})
 	.unwrap();
 	assert!(recovered.is_none());
 }
@@ -673,16 +655,13 @@ fn recovery_remaps_duplicate_range_when_context_matches() {
 	let tag = store.record(path, previous, None);
 	let current = "alpha\nINSERTED\nDUP\nbeta\nDUP\nomega\n";
 	store.record(path, current, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: current,
-			file_hash: &tag,
-			edits: &replacement(3, 4, &["B-MODEL", "MODEL"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: current,
+		file_hash: &tag,
+		edits: &replacement(3, 4, &["B-MODEL", "MODEL"], 1),
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert_eq!(recovered.text, "alpha\nINSERTED\nDUP\nB-MODEL\nMODEL\nomega\n");
@@ -710,16 +689,13 @@ fn recovery_uses_the_most_recent_snapshot_when_tags_collide() {
 	store.record(path, &older, None);
 	store.record(path, &newer, None);
 	let current = format!("{newer}drifted trailer\n");
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: &current,
-			file_hash: &tag,
-			edits: &replacement(2, 2, &["model payload"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: &current,
+		file_hash: &tag,
+		edits: &replacement(2, 2, &["model payload"], 1),
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert_eq!(recovered.text, "shared head\nmodel payload\nshared tail\ndrifted trailer\n");
@@ -731,16 +707,13 @@ fn recovery_rejects_ambiguous_duplicate_anchor_context() {
 	let path = Path::new("/tmp/recovery-duplicate.rs");
 	let previous = "start\nDUP\nmid\nDUP\ntail";
 	let tag = store.record(path, previous, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: "start\nmid\nDUP\nCHANGED\ntail",
-			file_hash: &tag,
-			edits: &replacement(4, 4, &["MODEL"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: "start\nmid\nDUP\nCHANGED\ntail",
+		file_hash: &tag,
+		edits: &replacement(4, 4, &["MODEL"], 1),
+		clipboard: None,
+	})
 	.unwrap();
 	assert!(recovered.is_none());
 }
@@ -756,16 +729,13 @@ fn recovery_refuses_a_remap_into_a_sibling_construct() {
 	let current = "cfg = {\n    \"a\": [\n        \"changed\",\n    ],\n    \"b\": [\n        \
 	               \"shared\",\n    ],\n}\n";
 	let tag = store.record(path, previous, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: current,
-			file_hash: &tag,
-			edits: &[insert_after(3, "        \"new\",", 1)],
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: current,
+		file_hash: &tag,
+		edits: &[insert_after(3, "        \"new\",", 1)],
+		clipboard: None,
+	})
 	.unwrap();
 	assert!(recovered.is_none());
 }
@@ -776,16 +746,13 @@ fn recovery_remaps_a_shift_inside_the_same_construct() {
 	let path = Path::new("/tmp/recovery-same-construct.py");
 	let previous = "def f():\n    old()\n";
 	let tag = store.record(path, previous, None);
-	let recovered = try_recover(
-		&store,
-		RecoveryArgs {
-			path,
-			current_text: "import os\n\ndef f():\n    old()\n",
-			file_hash: &tag,
-			edits: &replacement(2, 2, &["    new()"], 1),
-			clipboard: None,
-		},
-	)
+	let recovered = try_recover(&store, RecoveryArgs {
+		path,
+		current_text: "import os\n\ndef f():\n    old()\n",
+		file_hash: &tag,
+		edits: &replacement(2, 2, &["    new()"], 1),
+		clipboard: None,
+	})
 	.unwrap()
 	.unwrap();
 	assert_eq!(recovered.text, "import os\n\ndef f():\n    new()\n");

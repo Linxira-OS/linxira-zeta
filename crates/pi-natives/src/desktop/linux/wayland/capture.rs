@@ -156,15 +156,11 @@ fn grab_pipewire_frame(node: u32, fd: OwnedFd) -> Result<RgbaImage, String> {
 	let core = context
 		.connect_fd_rc(fd, None)
 		.map_err(|err| format!("PipeWire remote: {err}"))?;
-	let stream = pw::stream::StreamBox::new(
-		&core,
-		"omp-computer-capture",
-		properties! {
-			*pw::keys::MEDIA_TYPE => "Video",
-			*pw::keys::MEDIA_CATEGORY => "Capture",
-			*pw::keys::MEDIA_ROLE => "Screen",
-		},
-	)
+	let stream = pw::stream::StreamBox::new(&core, "omp-computer-capture", properties! {
+		*pw::keys::MEDIA_TYPE => "Video",
+		*pw::keys::MEDIA_CATEGORY => "Capture",
+		*pw::keys::MEDIA_ROLE => "Screen",
+	})
 	.map_err(|err| format!("PipeWire stream: {err}"))?;
 	let result: Rc<RefCell<Option<Result<RgbaImage, String>>>> = Rc::new(RefCell::new(None));
 	let callback_result = Rc::clone(&result);

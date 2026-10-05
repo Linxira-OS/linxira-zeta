@@ -106,11 +106,11 @@ fn pack(key: &[u8]) -> Option<u128> {
 pub struct RankTable {
 	/// Rank of 2-byte token `[a, b]` at `a << 8 | b`; `u32::MAX` where
 	/// absent (ranks are vocab indices, far below the sentinel).
-	pairs: Box<[u32; 65536]>,
+	pairs:             Box<[u32; 65536]>,
 	/// Tokens of 1 or 3..=15 bytes, keyed by [`pack`].
-	short: HashMap<u128, u32, Fx>,
+	short:             HashMap<u128, u32, Fx>,
 	/// Tokens longer than 15 bytes.
-	long: FxMap,
+	long:              FxMap,
 	/// Longest token in bytes; callers may use it to bound scans.
 	pub max_token_len: usize,
 }
@@ -276,10 +276,10 @@ impl RankTable {
 
 /// A full BPE tokenizer: piece splitter + rank table + family flags.
 pub struct BpeEncoding {
-	pub table: RankTable,
-	pub splitter: Splitter,
+	pub table:         RankTable,
+	pub splitter:      Splitter,
 	/// Apply Unicode NFC to input before splitting (Qwen3).
-	pub nfc: bool,
+	pub nfc:           bool,
 	/// HF `ignore_merges`: whole-piece vocab hit bypasses the merge loop
 	/// (GLM-5). The engine already short-circuits whole-piece hits, which
 	/// is proven equivalent for GLM-5 (see GLM tests); flag kept for

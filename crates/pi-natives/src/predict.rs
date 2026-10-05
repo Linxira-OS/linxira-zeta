@@ -13,11 +13,11 @@ use pi_predict::{Config, Method, Predictor, Query};
 #[napi(object)]
 pub struct TextPredictorOptions {
 	/// Engine: `ngram`, `smollm`, or `apple`.
-	pub method: String,
+	pub method:         String,
 	/// Private directory for persisted learned state.
-	pub state_dir: String,
+	pub state_dir:      String,
 	/// Directory holding downloaded model weights (`smollm` only).
-	pub model_dir: Option<String>,
+	pub model_dir:      Option<String>,
 	/// Show threshold override; omit for the engine's tuned default.
 	pub show_threshold: Option<f64>,
 }
@@ -26,7 +26,7 @@ pub struct TextPredictorOptions {
 #[napi(object)]
 pub struct PredictedWord {
 	/// Characters to paint after the typed prefix.
-	pub suffix: String,
+	pub suffix:     String,
 	/// Engine-calibrated probability that `suffix` is exactly right.
 	pub confidence: f64,
 }
@@ -36,8 +36,8 @@ type Job = Box<dyn FnOnce(&mut Engine) + Send>;
 
 fn open_engine(options: &TextPredictorOptions) -> Engine {
 	let config = Config {
-		state_dir: options.state_dir.clone().into(),
-		model_dir: options.model_dir.clone().map(Into::into),
+		state_dir:      options.state_dir.clone().into(),
+		model_dir:      options.model_dir.clone().map(Into::into),
 		#[allow(clippy::cast_possible_truncation, reason = "thresholds are probabilities")]
 		show_threshold: options.show_threshold.map(|value| value as f32),
 	};
@@ -117,7 +117,7 @@ impl TextPredictor {
 				Ok(engine
 					.complete(&Query { before: &before, prefix: &prefix })
 					.map(|hint| PredictedWord {
-						suffix: hint.suffix,
+						suffix:     hint.suffix,
 						confidence: f64::from(hint.confidence),
 					}))
 			})

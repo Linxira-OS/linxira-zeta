@@ -50,49 +50,49 @@ static EXCLUDED_DIR_SET: LazyLock<HashSet<&'static str>> =
 #[napi(object)]
 pub struct ListWorkspaceOptions<'env> {
 	/// Directory to scan.
-	pub path: String,
+	pub path:              String,
 	/// Maximum depth for returned tree entries. Root children are depth 1.
-	pub max_depth: u32,
+	pub max_depth:         u32,
 	/// Include hidden files and directories. Default: false.
-	pub hidden: Option<bool>,
+	pub hidden:            Option<bool>,
 	/// Respect .gitignore files. Default: true.
-	pub gitignore: Option<bool>,
+	pub gitignore:         Option<bool>,
 	/// Also surface AGENTS.md files in directories at depth 1..=4, even when
 	/// gitignore would otherwise hide the file. Walks deeper than `maxDepth`
 	/// to find them. Default: false.
 	pub collect_agents_md: Option<bool>,
 	/// Timeout in milliseconds for the operation.
-	pub timeout_ms: Option<u32>,
+	pub timeout_ms:        Option<u32>,
 	/// Abort signal for cancelling the operation.
-	pub signal: Option<Unknown<'env>>,
+	pub signal:            Option<Unknown<'env>>,
 }
 
 /// Result payload returned by a workspace scan.
 #[napi(object)]
 pub struct ListWorkspaceResult {
 	/// Entries within `maxDepth`, with mtime and regular-file size metadata.
-	pub entries: Vec<GlobMatch>,
+	pub entries:         Vec<GlobMatch>,
 	/// Directory-scoped AGENTS.md files within depth 1..=4 (capped at 200).
 	/// Always empty when `collectAgentsMd` is false.
 	pub agents_md_files: Vec<String>,
 	/// True when any output cap was hit.
-	pub truncated: bool,
+	pub truncated:       bool,
 }
 
 struct WorkspaceConfig {
-	root: PathBuf,
-	max_depth: usize,
-	walk_max_depth: usize,
-	include_hidden: bool,
-	use_gitignore: bool,
+	root:              PathBuf,
+	max_depth:         usize,
+	walk_max_depth:    usize,
+	include_hidden:    bool,
+	use_gitignore:     bool,
 	collect_agents_md: bool,
 }
 
 #[derive(Default)]
 struct WorkspaceResults {
-	entries: BTreeMap<String, GlobMatch>,
+	entries:         BTreeMap<String, GlobMatch>,
 	agents_md_files: BTreeSet<String>,
-	truncated: bool,
+	truncated:       bool,
 }
 
 impl WorkspaceResults {
@@ -232,9 +232,9 @@ fn run_list_workspace(
 		.map_err(iofs::map_walker_error)?;
 
 	Ok(ListWorkspaceResult {
-		entries: results.entries.into_values().collect(),
+		entries:         results.entries.into_values().collect(),
 		agents_md_files: results.agents_md_files.into_iter().collect(),
-		truncated: results.truncated,
+		truncated:       results.truncated,
 	})
 }
 

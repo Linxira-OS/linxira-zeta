@@ -162,7 +162,7 @@ impl fmt::Display for BackendKind {
 #[derive(Debug, Clone)]
 pub struct ProbeResult {
 	pub available: bool,
-	pub reason: Option<String>,
+	pub reason:    Option<String>,
 }
 
 impl ProbeResult {
@@ -349,10 +349,10 @@ pub const fn auto_order() -> &'static [BackendKind] {
 /// explanation when available.
 #[derive(Debug, Clone)]
 pub struct Resolution {
-	pub kind: BackendKind,
+	pub kind:       BackendKind,
 	pub candidates: Vec<BackendKind>,
-	pub fell_back: bool,
-	pub reason: Option<String>,
+	pub fell_back:  bool,
+	pub reason:     Option<String>,
 }
 
 /// Host-available tree-cloning backends in fallback order.

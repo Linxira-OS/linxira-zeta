@@ -64,7 +64,7 @@ impl Diff {
 #[derive(Debug, Clone)]
 pub struct FileChange {
 	pub path: PathBuf,
-	pub op: ChangeKind,
+	pub op:   ChangeKind,
 	pub diff: Option<String>,
 }
 
@@ -99,10 +99,14 @@ async fn git_diff(merged: &Path) -> IsoResult<Diff> {
 	let tracked =
 		git_run(merged, &["-c", "core.quotepath=off", "diff", "--no-color", "HEAD"]).await?;
 
-	let untracked_list = git_run(
-		merged,
-		&["-c", "core.quotepath=off", "ls-files", "--others", "--exclude-standard", "-z"],
-	)
+	let untracked_list = git_run(merged, &[
+		"-c",
+		"core.quotepath=off",
+		"ls-files",
+		"--others",
+		"--exclude-standard",
+		"-z",
+	])
 	.await?;
 
 	let mut files = parse_git_diff(&tracked);
@@ -116,18 +120,15 @@ async fn git_diff(merged: &Path) -> IsoResult<Diff> {
 	for path_bytes in untracked_paths {
 		let path_str = std::str::from_utf8(path_bytes)
 			.map_err(|err| IsoError::other(format!("untracked path is not valid UTF-8: {err}")))?;
-		let one = git_run_allow_exit1(
-			merged,
-			&[
-				"-c",
-				"core.quotepath=off",
-				"diff",
-				"--no-color",
-				"--no-index",
-				git_null_path(),
-				path_str,
-			],
-		)
+		let one = git_run_allow_exit1(merged, &[
+			"-c",
+			"core.quotepath=off",
+			"diff",
+			"--no-color",
+			"--no-index",
+			git_null_path(),
+			path_str,
+		])
 		.await?;
 		files.extend(parse_git_diff(&one));
 	}
@@ -621,10 +622,10 @@ mod tests {
 
 	#[test]
 	fn added_symlink_patch_applies_as_symlink() {
-		let (target, patch) = apply_plain_diff(
-			&[("keep.txt", Entry::File("keep\n"))],
-			&[("keep.txt", Entry::File("keep\n")), ("link", Entry::Link("data.bin"))],
-		);
+		let (target, patch) = apply_plain_diff(&[("keep.txt", Entry::File("keep\n"))], &[
+			("keep.txt", Entry::File("keep\n")),
+			("link", Entry::Link("data.bin")),
+		]);
 		assert!(
 			patch.contains("diff --git a/link b/link\nnew file mode 120000\n"),
 			"added symlink patch must carry the git header before the mode line:\n{patch}"
@@ -649,10 +650,10 @@ mod tests {
 
 	#[test]
 	fn regular_to_symlink_patch_applies_type_transition() {
-		let (target, patch) = apply_plain_diff(
-			&[("entry", Entry::File("payload\n"))],
-			&[("entry", Entry::Link("elsewhere"))],
-		);
+		let (target, patch) = apply_plain_diff(&[("entry", Entry::File("payload\n"))], &[(
+			"entry",
+			Entry::Link("elsewhere"),
+		)]);
 		// Git's canonical typechange representation is delete + create, in
 		// either direction (see `git diff` on a 100644 -> 120000 transition).
 		assert!(
@@ -665,10 +666,10 @@ mod tests {
 
 	#[test]
 	fn symlink_to_regular_patch_applies_type_transition() {
-		let (target, patch) = apply_plain_diff(
-			&[("entry", Entry::Link("elsewhere"))],
-			&[("entry", Entry::File("payload\n"))],
-		);
+		let (target, patch) = apply_plain_diff(&[("entry", Entry::Link("elsewhere"))], &[(
+			"entry",
+			Entry::File("payload\n"),
+		)]);
 		// `git apply` rejects a single 120000 -> 100644 mode transition, so
 		// the patch must use git's canonical delete + create representation.
 		assert!(

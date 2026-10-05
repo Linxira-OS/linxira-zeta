@@ -499,8 +499,8 @@ pub(crate) fn parts(path: &Path) -> Vec<Part> {
 /// A path under construction from [`Part`]s; `..` never pops its root.
 #[derive(Debug, Default)]
 pub(crate) struct PathBuilder {
-	root: Option<PathBuf>,
-	url: bool,
+	root:     Option<PathBuf>,
+	url:      bool,
 	segments: Vec<OsString>,
 }
 

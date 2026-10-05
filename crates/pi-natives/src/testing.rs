@@ -57,7 +57,7 @@ type PanicHook = Box<dyn Fn(&std::panic::PanicHookInfo<'_>) + Sync + Send + 'sta
 /// permanently install the noop hook, muting crash diagnostics for every later
 /// test in the crate.
 pub struct SilenceHook {
-	prev: Option<PanicHook>,
+	prev:   Option<PanicHook>,
 	_guard: MutexGuard<'static, ()>,
 }
 
@@ -132,7 +132,7 @@ fn mem_metadata(kind: FileKind, len: u64) -> Metadata {
 #[derive(Debug)]
 struct MemHandle {
 	data: Arc<parking_lot::Mutex<Vec<u8>>>,
-	pos: parking_lot::Mutex<u64>,
+	pos:  parking_lot::Mutex<u64>,
 }
 
 #[async_trait]

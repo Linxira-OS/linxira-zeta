@@ -23,16 +23,16 @@ const UPDATE_DESKTOP_DATABASE: &str = "update-desktop-database";
 #[serde(deny_unknown_fields)]
 struct DefaultEntry {
 	present: bool,
-	value: String,
+	value:   String,
 }
 
 #[derive(Debug)]
 struct PreferenceState {
-	content: String,
+	content:                 String,
 	default_section_present: bool,
-	entry: DefaultEntry,
-	exists: bool,
-	mode: u32,
+	entry:                   DefaultEntry,
+	exists:                  bool,
+	mode:                    u32,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,16 +67,16 @@ pub(super) struct Snapshot {
 }
 
 struct ExpectedPaths {
-	mime_type: String,
-	config_home: PathBuf,
-	data_home: PathBuf,
+	mime_type:              String,
+	config_home:            PathBuf,
+	data_home:              PathBuf,
 	applications_directory: PathBuf,
-	preference_path: PathBuf,
-	desktop_id: String,
-	desktop_path: PathBuf,
-	desktop_source_path: PathBuf,
-	callback_path: PathBuf,
-	helper_path: PathBuf,
+	preference_path:        PathBuf,
+	desktop_id:             String,
+	desktop_path:           PathBuf,
+	desktop_source_path:    PathBuf,
+	callback_path:          PathBuf,
+	helper_path:            PathBuf,
 }
 
 fn has_only_normal_absolute_components(path: &Path) -> bool {
@@ -227,11 +227,11 @@ fn read_preference(path: &Path, mime_type: &str) -> anyhow::Result<PreferenceSta
 			Ok(PreferenceState { content, default_section_present, entry, exists: true, mode })
 		},
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(PreferenceState {
-			content: String::new(),
+			content:                 String::new(),
 			default_section_present: false,
-			entry: DefaultEntry { present: false, value: String::new() },
-			exists: false,
-			mode: 0o600,
+			entry:                   DefaultEntry { present: false, value: String::new() },
+			exists:                  false,
+			mode:                    0o600,
 		}),
 		Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
 	}
@@ -490,8 +490,11 @@ fn validate_snapshot(context: &Context, snapshot: &Snapshot) -> anyhow::Result<(
 }
 
 fn effective_default(context: &Context, mime_type: &str) -> anyhow::Result<String> {
-	context
-		.run(Path::new(XDG_MIME), &["query".to_owned(), "default".to_owned(), mime_type.to_owned()])
+	context.run(Path::new(XDG_MIME), &[
+		"query".to_owned(),
+		"default".to_owned(),
+		mime_type.to_owned(),
+	])
 }
 
 /// Best-effort refresh of `mimeinfo.cache` for the user applications directory.
@@ -792,11 +795,10 @@ mod tests {
 			"[Other]\nkey=value\n\n",
 			"[Default Applications]\nx-scheme-handler/test=owned.desktop;\n",
 		);
-		let without_entry = change_default(
-			before,
-			"x-scheme-handler/test",
-			&DefaultEntry { present: false, value: String::new() },
-		)
+		let without_entry = change_default(before, "x-scheme-handler/test", &DefaultEntry {
+			present: false,
+			value:   String::new(),
+		})
 		.unwrap();
 		let restored =
 			remove_generated_empty_section(before, &without_entry, "x-scheme-handler/test", true);
@@ -812,11 +814,10 @@ mod tests {
 		               test=b.desktop;\n";
 		assert!(parse_default_entry(content, "x-scheme-handler/test").is_err());
 		assert!(
-			change_default(
-				content,
-				"x-scheme-handler/test",
-				&DefaultEntry { present: false, value: String::new() }
-			)
+			change_default(content, "x-scheme-handler/test", &DefaultEntry {
+				present: false,
+				value:   String::new(),
+			})
 			.is_err()
 		);
 	}
@@ -947,11 +948,10 @@ mod tests {
 		let snapshot = prepare(&context).unwrap();
 		activate(&context, &snapshot).unwrap();
 		let current = fs::read_to_string(&snapshot.preference_path).unwrap();
-		let external = change_default(
-			&current,
-			&snapshot.mime_type,
-			&DefaultEntry { present: true, value: "external.desktop;".to_owned() },
-		)
+		let external = change_default(&current, &snapshot.mime_type, &DefaultEntry {
+			present: true,
+			value:   "external.desktop;".to_owned(),
+		})
 		.unwrap();
 		fs::write(&snapshot.preference_path, external).unwrap();
 		restore(&context, &snapshot).unwrap();

@@ -42,35 +42,35 @@ pub struct FuzzyMatch {
 	/// Byte offset of the match start in the searched content.
 	pub start_index: usize,
 	/// 1-indexed line of the match start.
-	pub start_line: u32,
-	pub confidence: f64,
+	pub start_line:  u32,
+	pub confidence:  f64,
 }
 
 /// Outcome of [`find_match`].
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MatchOutcome {
-	pub matched: Option<FuzzyMatch>,
-	pub closest: Option<FuzzyMatch>,
-	pub occurrences: Option<usize>,
-	pub occurrence_lines: Option<Vec<u32>>,
+	pub matched:             Option<FuzzyMatch>,
+	pub closest:             Option<FuzzyMatch>,
+	pub occurrences:         Option<usize>,
+	pub occurrence_lines:    Option<Vec<u32>>,
 	pub occurrence_previews: Option<Vec<String>>,
-	pub fuzzy_matches: Option<usize>,
-	pub dominant_fuzzy: Option<bool>,
+	pub fuzzy_matches:       Option<usize>,
+	pub dominant_fuzzy:      Option<bool>,
 }
 
 /// A byte range excluded from matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExcludedRange {
 	pub start_index: usize,
-	pub end_index: usize,
+	pub end_index:   usize,
 }
 
 /// Knobs for [`find_match`].
 #[derive(Debug, Clone, Default)]
 pub struct FindMatchOptions<'a> {
-	pub allow_fuzzy: bool,
+	pub allow_fuzzy:     bool,
 	/// Defaults to [`DEFAULT_FUZZY_THRESHOLD`].
-	pub threshold: Option<f64>,
+	pub threshold:       Option<f64>,
 	pub excluded_ranges: &'a [ExcludedRange],
 }
 
@@ -92,11 +92,11 @@ pub enum SequenceMatchStrategy {
 /// Result of a line-sequence search.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SequenceSearchResult {
-	pub index: Option<usize>,
-	pub confidence: f64,
-	pub match_count: Option<usize>,
+	pub index:         Option<usize>,
+	pub confidence:    f64,
+	pub match_count:   Option<usize>,
 	pub match_indices: Option<Vec<usize>>,
-	pub strategy: Option<SequenceMatchStrategy>,
+	pub strategy:      Option<SequenceMatchStrategy>,
 }
 
 /// Strategy which located a context line.
@@ -113,17 +113,17 @@ pub enum ContextMatchStrategy {
 /// Result of a context-line search.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContextLineResult {
-	pub index: Option<usize>,
-	pub confidence: f64,
-	pub match_count: Option<usize>,
+	pub index:         Option<usize>,
+	pub confidence:    f64,
+	pub match_count:   Option<usize>,
 	pub match_indices: Option<Vec<usize>>,
-	pub strategy: Option<ContextMatchStrategy>,
+	pub strategy:      Option<ContextMatchStrategy>,
 }
 
 #[derive(Debug, Default)]
 struct IndexedMatches {
-	first_match: Option<usize>,
-	match_count: usize,
+	first_match:   Option<usize>,
+	match_count:   usize,
 	match_indices: Vec<usize>,
 }
 
@@ -423,9 +423,9 @@ fn line_offsets(lines: &[&str]) -> Vec<usize> {
 
 #[derive(Debug)]
 struct BestFuzzyMatch {
-	best: Option<FuzzyMatch>,
+	best:                  Option<FuzzyMatch>,
 	above_threshold_count: usize,
-	second_best_score: f64,
+	second_best_score:     f64,
 }
 
 fn best_fuzzy_match_core(
@@ -484,7 +484,11 @@ fn best_fuzzy_match(
 	let content_lines: Vec<&str> = content.split('\n').collect();
 	let target_lines: Vec<&str> = target.split('\n').collect();
 	if target.is_empty() || target_lines.len() > content_lines.len() {
-		return BestFuzzyMatch { best: None, above_threshold_count: 0, second_best_score: 0.0 };
+		return BestFuzzyMatch {
+			best:                  None,
+			above_threshold_count: 0,
+			second_best_score:     0.0,
+		};
 	}
 	let offsets = line_offsets(&content_lines);
 	let mut result = best_fuzzy_match_core(
@@ -713,11 +717,11 @@ pub fn seek_sequence(
 ) -> SequenceSearchResult {
 	if pattern.is_empty() {
 		return SequenceSearchResult {
-			index: Some(start),
-			confidence: 1.0,
-			match_count: None,
+			index:         Some(start),
+			confidence:    1.0,
+			match_count:   None,
 			match_indices: None,
-			strategy: Some(SequenceMatchStrategy::Exact),
+			strategy:      Some(SequenceMatchStrategy::Exact),
 		};
 	}
 	if pattern.len() > lines.len() {
@@ -794,15 +798,15 @@ pub fn seek_sequence(
 			&& best_score >= DOMINANT_FUZZY_MIN_CONFIDENCE
 			&& best_score - second_best_score >= DOMINANT_FUZZY_DELTA;
 		return SequenceSearchResult {
-			index: Some(index),
-			confidence: best_score,
-			match_count: Some(if dominant {
+			index:         Some(index),
+			confidence:    best_score,
+			match_count:   Some(if dominant {
 				1
 			} else {
 				fuzzy_matches.match_count
 			}),
 			match_indices: Some(fuzzy_matches.match_indices),
-			strategy: Some(if dominant {
+			strategy:      Some(if dominant {
 				SequenceMatchStrategy::FuzzyDominant
 			} else {
 				SequenceMatchStrategy::Fuzzy
@@ -812,15 +816,11 @@ pub fn seek_sequence(
 
 	let pattern_text = pattern.join("\n");
 	let content_text = lines.get(start..).unwrap_or_default().join("\n");
-	let outcome = find_match(
-		&content_text,
-		&pattern_text,
-		&FindMatchOptions {
-			allow_fuzzy: true,
-			threshold: Some(CHARACTER_MATCH_THRESHOLD),
-			excluded_ranges: &[],
-		},
-	);
+	let outcome = find_match(&content_text, &pattern_text, &FindMatchOptions {
+		allow_fuzzy:     true,
+		threshold:       Some(CHARACTER_MATCH_THRESHOLD),
+		excluded_ranges: &[],
+	});
 	if let Some(matched) = outcome.matched {
 		let line_index = start
 			+ content_text[..matched.start_index]
@@ -828,11 +828,11 @@ pub fn seek_sequence(
 				.filter(|byte| *byte == b'\n')
 				.count();
 		return SequenceSearchResult {
-			index: Some(line_index),
-			confidence: matched.confidence,
-			match_count: Some(outcome.occurrences.or(outcome.fuzzy_matches).unwrap_or(1)),
+			index:         Some(line_index),
+			confidence:    matched.confidence,
+			match_count:   Some(outcome.occurrences.or(outcome.fuzzy_matches).unwrap_or(1)),
 			match_indices: None,
-			strategy: Some(SequenceMatchStrategy::Character),
+			strategy:      Some(SequenceMatchStrategy::Character),
 		};
 	}
 	no_sequence_match(best_score, outcome.occurrences.or(outcome.fuzzy_matches))
@@ -940,11 +940,11 @@ pub fn find_context_line(
 			.collect();
 		if all_substrings.len() == 1 {
 			return ContextLineResult {
-				index: Some(all_substrings[0].0),
-				confidence: 0.94,
-				match_count: Some(1),
+				index:         Some(all_substrings[0].0),
+				confidence:    0.94,
+				match_count:   Some(1),
 				match_indices: Some(match_indices),
-				strategy: Some(ContextMatchStrategy::Substring),
+				strategy:      Some(ContextMatchStrategy::Substring),
 			};
 		}
 		let qualifying: Vec<usize> = all_substrings
@@ -953,20 +953,20 @@ pub fn find_context_line(
 			.collect();
 		if let Some(&first) = qualifying.first() {
 			return ContextLineResult {
-				index: Some(first),
-				confidence: 0.94,
-				match_count: Some(qualifying.len()),
+				index:         Some(first),
+				confidence:    0.94,
+				match_count:   Some(qualifying.len()),
 				match_indices: Some(match_indices),
-				strategy: Some(ContextMatchStrategy::Substring),
+				strategy:      Some(ContextMatchStrategy::Substring),
 			};
 		}
 		if all_substrings.len() > 1 {
 			return ContextLineResult {
-				index: Some(all_substrings[0].0),
-				confidence: 0.94,
-				match_count: Some(all_substrings.len()),
+				index:         Some(all_substrings[0].0),
+				confidence:    0.94,
+				match_count:   Some(all_substrings.len()),
 				match_indices: Some(match_indices),
-				strategy: Some(ContextMatchStrategy::Substring),
+				strategy:      Some(ContextMatchStrategy::Substring),
 			};
 		}
 	}
@@ -990,11 +990,11 @@ pub fn find_context_line(
 	}
 	if let Some(index) = best_index.filter(|_| best_score >= CONTEXT_FUZZY_THRESHOLD) {
 		return ContextLineResult {
-			index: Some(index),
-			confidence: best_score,
-			match_count: Some(fuzzy_matches.match_count),
+			index:         Some(index),
+			confidence:    best_score,
+			match_count:   Some(fuzzy_matches.match_count),
 			match_indices: Some(fuzzy_matches.match_indices),
-			strategy: Some(ContextMatchStrategy::Fuzzy),
+			strategy:      Some(ContextMatchStrategy::Fuzzy),
 		};
 	}
 	if !skip_function_fallback && trimmed_context.ends_with("()") {
@@ -1094,14 +1094,14 @@ pub fn format_occurrence_error(path: &str, outcome: &MatchOutcome) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReplaceResult {
 	pub content: String,
-	pub count: usize,
+	pub count:   usize,
 }
 
 #[derive(Debug)]
 struct Replacement {
 	start: usize,
-	end: usize,
-	text: String,
+	end:   usize,
+	text:  String,
 }
 
 fn pathless_occurrence_error(outcome: &MatchOutcome) -> String {
@@ -1144,7 +1144,7 @@ pub fn replace_text(
 		if exact_count > 0 {
 			return Ok(ReplaceResult {
 				content: normalized_content.replace(normalized_old.as_ref(), normalized_new.as_ref()),
-				count: exact_count,
+				count:   exact_count,
 			});
 		}
 		let mut replacements: Vec<Replacement> = Vec::new();
@@ -1153,18 +1153,15 @@ pub fn replace_text(
 				.iter()
 				.map(|replacement| ExcludedRange {
 					start_index: replacement.start,
-					end_index: replacement.end,
+					end_index:   replacement.end,
 				})
 				.collect();
-			let outcome = find_match(
-				&normalized_content,
-				normalized_old.as_ref(),
-				&FindMatchOptions {
-					allow_fuzzy: fuzzy,
-					threshold: Some(threshold),
+			let outcome =
+				find_match(&normalized_content, normalized_old.as_ref(), &FindMatchOptions {
+					allow_fuzzy:     fuzzy,
+					threshold:       Some(threshold),
 					excluded_ranges: &excluded,
-				},
-			);
+				});
 			let should_use_closest = fuzzy
 				&& outcome
 					.closest
@@ -1189,9 +1186,9 @@ pub fn replace_text(
 				start: matched.start_index,
 				// JavaScript's `substring` clamps this synthetic one-byte span
 				// when an empty fuzzy window lands at EOF.
-				end: (matched.start_index + matched.actual_text.len().max(1))
+				end:   (matched.start_index + matched.actual_text.len().max(1))
 					.min(normalized_content.len()),
-				text: adjusted,
+				text:  adjusted,
 			});
 		}
 		replacements.sort_by_key(|replacement| replacement.start);
@@ -1206,11 +1203,11 @@ pub fn replace_text(
 		return Ok(ReplaceResult { content: output, count: replacements.len() });
 	}
 
-	let outcome = find_match(
-		&normalized_content,
-		normalized_old.as_ref(),
-		&FindMatchOptions { allow_fuzzy: fuzzy, threshold: Some(threshold), excluded_ranges: &[] },
-	);
+	let outcome = find_match(&normalized_content, normalized_old.as_ref(), &FindMatchOptions {
+		allow_fuzzy:     fuzzy,
+		threshold:       Some(threshold),
+		excluded_ranges: &[],
+	});
 	if outcome.occurrences.is_some_and(|count| count > 1) {
 		return Err(EditError::apply(pathless_occurrence_error(&outcome)));
 	}
@@ -1301,15 +1298,21 @@ mod tests {
 
 	#[test]
 	fn threshold_and_dominant_fuzzy_match() {
-		let strict =
-			FindMatchOptions { allow_fuzzy: true, threshold: Some(0.99), excluded_ranges: &[] };
+		let strict = FindMatchOptions {
+			allow_fuzzy:     true,
+			threshold:       Some(0.99),
+			excluded_ranges: &[],
+		};
 		assert!(
 			find_match("function foo() {}", "function bar() {}", &strict)
 				.matched
 				.is_none()
 		);
-		let lenient =
-			FindMatchOptions { allow_fuzzy: true, threshold: Some(0.7), excluded_ranges: &[] };
+		let lenient = FindMatchOptions {
+			allow_fuzzy:     true,
+			threshold:       Some(0.7),
+			excluded_ranges: &[],
+		};
 		assert!(
 			find_match("function foo() {}", "function bar() {}", &lenient)
 				.matched
@@ -1318,11 +1321,11 @@ mod tests {
 
 		let target = "a".repeat(50);
 		let content = format!("{}b\n{}cccccc", "a".repeat(49), "a".repeat(44));
-		let dominant = find_match(
-			&content,
-			&target,
-			&FindMatchOptions { allow_fuzzy: true, threshold: Some(0.8), excluded_ranges: &[] },
-		);
+		let dominant = find_match(&content, &target, &FindMatchOptions {
+			allow_fuzzy:     true,
+			threshold:       Some(0.8),
+			excluded_ranges: &[],
+		});
 		assert_eq!(dominant.dominant_fuzzy, Some(true));
 		assert_eq!(dominant.fuzzy_matches, Some(2));
 	}
@@ -1330,22 +1333,18 @@ mod tests {
 	#[test]
 	fn excluded_ranges_hide_exact_and_fuzzy_candidates() {
 		let range = ExcludedRange { start_index: 0, end_index: 3 };
-		let exact = find_match(
-			"foo\nfoo",
-			"foo",
-			&FindMatchOptions { allow_fuzzy: false, threshold: None, excluded_ranges: &[range] },
-		);
+		let exact = find_match("foo\nfoo", "foo", &FindMatchOptions {
+			allow_fuzzy:     false,
+			threshold:       None,
+			excluded_ranges: &[range],
+		});
 		assert_eq!(exact.matched.as_ref().map(|matched| matched.start_index), Some(4));
 
-		let fuzzy = find_match(
-			"food\nfool",
-			"foox",
-			&FindMatchOptions {
-				allow_fuzzy: true,
-				threshold: Some(0.7),
-				excluded_ranges: &[ExcludedRange { start_index: 0, end_index: 4 }],
-			},
-		);
+		let fuzzy = find_match("food\nfool", "foox", &FindMatchOptions {
+			allow_fuzzy:     true,
+			threshold:       Some(0.7),
+			excluded_ranges: &[ExcludedRange { start_index: 0, end_index: 4 }],
+		});
 		assert_eq!(fuzzy.matched.as_ref().map(|matched| matched.start_line), Some(2));
 	}
 
@@ -1466,8 +1465,8 @@ mod tests {
 		let closest = FuzzyMatch {
 			actual_text: "alpha\ngamma".to_owned(),
 			start_index: 10,
-			start_line: 4,
-			confidence: 0.874,
+			start_line:  4,
+			confidence:  0.874,
 		};
 		assert_eq!(
 			format_match_error("src/a.ts", "alpha\nbeta", Some(&closest), true, 0.95, None),
@@ -1515,10 +1514,10 @@ mod tests {
 	fn replace_text_adjusts_indentation() {
 		let result =
 			replace_text("    foo\n    bar", "foo\nbar", "foo\nbaz\nbar", true, false, None).unwrap();
-		assert_eq!(
-			result,
-			ReplaceResult { content: "    foo\n    baz\n    bar".to_owned(), count: 1 }
-		);
+		assert_eq!(result, ReplaceResult {
+			content: "    foo\n    baz\n    bar".to_owned(),
+			count:   1,
+		});
 
 		let deindented = replace_text(
 			"    foo\n    bar",
@@ -1556,10 +1555,10 @@ mod tests {
 			replace_text("a\r\nb", "a\r\nb", "c\r\nd", false, false, None).unwrap(),
 			ReplaceResult { content: "c\nd".to_owned(), count: 1 }
 		);
-		assert_eq!(
-			replace_text("abc", "missing", "x", false, false, None).unwrap(),
-			ReplaceResult { content: "abc".to_owned(), count: 0 }
-		);
+		assert_eq!(replace_text("abc", "missing", "x", false, false, None).unwrap(), ReplaceResult {
+			content: "abc".to_owned(),
+			count:   0,
+		});
 	}
 
 	#[test]

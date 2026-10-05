@@ -59,22 +59,22 @@ pub fn get_windows_short_path(path: String) -> String {
 #[derive(Debug, Clone, Default)]
 pub struct MinimizerOptions {
 	/// Master switch. Absent / false = disabled.
-	pub enabled: Option<bool>,
+	pub enabled:              Option<bool>,
 	/// Optional path to a TOML settings file whose values override
 	/// field-level defaults. `~` is expanded.
-	pub settings_path: Option<String>,
+	pub settings_path:        Option<String>,
 	/// Optional xxHash64 digest (hex) of the settings file contents. When
 	/// supplied, the engine refuses to honor a settings file whose hash does
 	/// not match — a lightweight trust gate for agent-controllable paths.
-	pub settings_hash: Option<String>,
+	pub settings_hash:        Option<String>,
 	/// Opt-in allowlist of program names (e.g. `"git"`). When empty or
 	/// absent, all built-in filters are active.
-	pub only: Option<Vec<String>>,
+	pub only:                 Option<Vec<String>>,
 	/// Program names explicitly excluded from minimization.
-	pub except: Option<Vec<String>>,
+	pub except:               Option<Vec<String>>,
 	/// Maximum captured bytes per command before the engine falls back to
 	/// the raw, un-minimized output. Default 4 MiB.
-	pub max_capture_bytes: Option<u32>,
+	pub max_capture_bytes:    Option<u32>,
 	/// Source-outline level for `cat <source-file>` minimization. Accepts
 	/// `"default"` (current behavior) or `"aggressive"` (strip function bodies).
 	pub source_outline_level: Option<String>,
@@ -82,20 +82,20 @@ pub struct MinimizerOptions {
 	/// grep / find / pytest. When `Some(true)`, filters that opted into the
 	/// always-shrink Tier 1 / Tier 2 behavior skip the new code path. When
 	/// `None`, defers to the `OMP_MINIMIZER_LEGACY_FILTERS` env var.
-	pub legacy_filters: Option<bool>,
+	pub legacy_filters:       Option<bool>,
 }
 
 impl From<MinimizerOptions> for minimizer::MinimizerOptions {
 	fn from(value: MinimizerOptions) -> Self {
 		Self {
-			enabled: value.enabled,
-			settings_path: value.settings_path,
-			settings_hash: value.settings_hash,
-			only: value.only,
-			except: value.except,
-			max_capture_bytes: value.max_capture_bytes,
+			enabled:              value.enabled,
+			settings_path:        value.settings_path,
+			settings_hash:        value.settings_hash,
+			only:                 value.only,
+			except:               value.except,
+			max_capture_bytes:    value.max_capture_bytes,
 			source_outline_level: value.source_outline_level,
-			legacy_filters: value.legacy_filters,
+			legacy_filters:       value.legacy_filters,
 		}
 	}
 }
@@ -104,22 +104,22 @@ impl From<MinimizerOptions> for minimizer::MinimizerOptions {
 #[napi(object, object_to_js = false)]
 pub struct ShellOptions {
 	/// Environment variables to apply once per session.
-	pub session_env: Option<HashMap<String, String>>,
+	pub session_env:   Option<HashMap<String, String>>,
 	/// Optional snapshot file to source on session creation.
 	pub snapshot_path: Option<String>,
 	/// Optional per-command output minimizer configuration.
-	pub minimizer: Option<MinimizerOptions>,
+	pub minimizer:     Option<MinimizerOptions>,
 	/// Filesystem backing every run of this session (native when absent).
-	pub filesystem: Option<ShellFilesystem>,
+	pub filesystem:    Option<ShellFilesystem>,
 }
 
 impl From<ShellOptions> for CoreShellOptions {
 	fn from(value: ShellOptions) -> Self {
 		Self {
-			session_env: value.session_env,
+			session_env:   value.session_env,
 			snapshot_path: value.snapshot_path,
-			minimizer: value.minimizer.map(Into::into),
-			filesystem: value
+			minimizer:     value.minimizer.map(Into::into),
+			filesystem:    value
 				.filesystem
 				.map(ShellFilesystem::into_fs)
 				.unwrap_or_default(),
@@ -131,15 +131,15 @@ impl From<ShellOptions> for CoreShellOptions {
 #[napi(object, object_to_js = false)]
 pub struct ShellRunOptions<'env> {
 	/// Command string to execute in the shell.
-	pub command: String,
+	pub command:    String,
 	/// Working directory for the command.
-	pub cwd: Option<String>,
+	pub cwd:        Option<String>,
 	/// Environment variables to apply for this command only.
-	pub env: Option<HashMap<String, String>>,
+	pub env:        Option<HashMap<String, String>>,
 	/// Timeout in milliseconds before cancelling the command.
 	pub timeout_ms: Option<u32>,
 	/// Abort signal for cancelling the operation.
-	pub signal: Option<Unknown<'env>>,
+	pub signal:     Option<Unknown<'env>>,
 	/// Filesystem for this run only, replacing the session's; the session's
 	/// filesystem applies again to later runs.
 	pub filesystem: Option<ShellFilesystem>,
@@ -149,23 +149,23 @@ pub struct ShellRunOptions<'env> {
 #[napi(object, object_to_js = false)]
 pub struct ShellExecuteOptions<'env> {
 	/// Command string to execute in the shell.
-	pub command: String,
+	pub command:       String,
 	/// Working directory for the command.
-	pub cwd: Option<String>,
+	pub cwd:           Option<String>,
 	/// Environment variables to apply for this command only.
-	pub env: Option<HashMap<String, String>>,
+	pub env:           Option<HashMap<String, String>>,
 	/// Environment variables to apply once per session.
-	pub session_env: Option<HashMap<String, String>>,
+	pub session_env:   Option<HashMap<String, String>>,
 	/// Timeout in milliseconds before cancelling the command.
-	pub timeout_ms: Option<u32>,
+	pub timeout_ms:    Option<u32>,
 	/// Optional snapshot file to source on session creation.
 	pub snapshot_path: Option<String>,
 	/// Optional per-command output minimizer configuration.
-	pub minimizer: Option<MinimizerOptions>,
+	pub minimizer:     Option<MinimizerOptions>,
 	/// Abort signal for cancelling the operation.
-	pub signal: Option<Unknown<'env>>,
+	pub signal:        Option<Unknown<'env>>,
 	/// Filesystem backing the command (native when absent).
-	pub filesystem: Option<ShellFilesystem>,
+	pub filesystem:    Option<ShellFilesystem>,
 }
 
 /// Telemetry for a single minimization.
@@ -179,27 +179,27 @@ pub struct ShellExecuteOptions<'env> {
 pub struct MinimizerResult {
 	/// Dispatch label produced by the minimizer (e.g. `"git"`,
 	/// `"pipeline:gradle"`, `"pipeline+builtin"`).
-	pub filter: String,
+	pub filter:        String,
 	/// The minimized replacement text. Callers that streamed raw chunks
 	/// during execution should clear and replace their accumulated output
 	/// with this text.
-	pub text: String,
+	pub text:          String,
 	/// The full original capture, before minimization.
 	pub original_text: String,
 	/// Captured byte length before minimization.
-	pub input_bytes: u32,
+	pub input_bytes:   u32,
 	/// Byte length of the minimized text the consumer received.
-	pub output_bytes: u32,
+	pub output_bytes:  u32,
 }
 
 impl From<CoreMinimizerResult> for MinimizerResult {
 	fn from(value: CoreMinimizerResult) -> Self {
 		Self {
-			filter: value.filter,
-			text: value.text,
+			filter:        value.filter,
+			text:          value.text,
 			original_text: value.original_text,
-			input_bytes: value.input_bytes,
-			output_bytes: value.output_bytes,
+			input_bytes:   value.input_bytes,
+			output_bytes:  value.output_bytes,
 		}
 	}
 }
@@ -218,7 +218,7 @@ pub struct ShellRunResult {
 	/// original buffer + telemetry so the session layer can persist it as
 	/// an artifact and splice an `artifact://<id>` reference into the
 	/// minimized text shown to the agent. `None` when nothing was rewritten.
-	pub minimized: Option<MinimizerResult>,
+	pub minimized:   Option<MinimizerResult>,
 	/// Shell working directory after command completion.
 	pub working_dir: Option<String>,
 }
@@ -226,10 +226,10 @@ pub struct ShellRunResult {
 impl From<CoreShellRunResult> for ShellRunResult {
 	fn from(value: CoreShellRunResult) -> Self {
 		Self {
-			exit_code: value.exit_code,
-			cancelled: value.cancelled,
-			timed_out: value.timed_out,
-			minimized: value.minimized.map(Into::into),
+			exit_code:   value.exit_code,
+			cancelled:   value.cancelled,
+			timed_out:   value.timed_out,
+			minimized:   value.minimized.map(Into::into),
 			working_dir: value.working_dir,
 		}
 	}
@@ -267,9 +267,9 @@ impl Shell {
 		let cancel_token = task::CancelToken::new(options.timeout_ms, options.signal);
 		let inner = Arc::clone(&self.inner);
 		let run_options = CoreShellRunOptions {
-			command: options.command,
-			cwd: options.cwd,
-			env: options.env,
+			command:    options.command,
+			cwd:        options.cwd,
+			env:        options.env,
 			timeout_ms: options.timeout_ms,
 			filesystem: options.filesystem.map(ShellFilesystem::into_fs),
 		};
@@ -329,14 +329,14 @@ pub fn execute_shell<'env>(
 ) -> Result<PromiseRaw<'env, ShellRunResult>> {
 	let cancel_token = task::CancelToken::new(options.timeout_ms, options.signal);
 	let exec_options = CoreShellExecuteOptions {
-		command: options.command,
-		cwd: options.cwd,
-		env: options.env,
-		session_env: options.session_env,
-		timeout_ms: options.timeout_ms,
+		command:       options.command,
+		cwd:           options.cwd,
+		env:           options.env,
+		session_env:   options.session_env,
+		timeout_ms:    options.timeout_ms,
 		snapshot_path: options.snapshot_path,
-		minimizer: options.minimizer.map(Into::into),
-		filesystem: options
+		minimizer:     options.minimizer.map(Into::into),
+		filesystem:    options
 			.filesystem
 			.map(ShellFilesystem::into_fs)
 			.unwrap_or_default(),
@@ -593,10 +593,10 @@ mod tests {
 			.expect("pump should be connected");
 		drop(tx);
 		let result = Ok(ShellRunResult {
-			exit_code: Some(0),
-			cancelled: false,
-			timed_out: false,
-			minimized: None,
+			exit_code:   Some(0),
+			cancelled:   false,
+			timed_out:   false,
+			minimized:   None,
 			working_dir: None,
 		});
 
@@ -625,10 +625,10 @@ mod tests {
 			napi::tokio::spawn(pump_chunks(rx, FORWARD_STALL_TIMEOUT, async |_payload: String| true));
 		drop(tx);
 		let result = Ok(ShellRunResult {
-			exit_code: None,
-			cancelled: false,
-			timed_out: true,
-			minimized: None,
+			exit_code:   None,
+			cancelled:   false,
+			timed_out:   true,
+			minimized:   None,
 			working_dir: None,
 		});
 		let started = time::Instant::now();
@@ -733,9 +733,9 @@ mod tests {
 			shell
 				.run(
 					CoreShellRunOptions {
-						command: "sh -c 'printf \"%d\\n\" \"$$\"; sleep 0.5'".to_string(),
-						cwd: None,
-						env: None,
+						command:    "sh -c 'printf \"%d\\n\" \"$$\"; sleep 0.5'".to_string(),
+						cwd:        None,
+						env:        None,
 						timeout_ms: None,
 						filesystem: None,
 					},
@@ -781,9 +781,9 @@ mod tests {
 			shell
 				.run(
 					CoreShellRunOptions {
-						command: "sh -c 'sleep 30 & wait'".to_string(),
-						cwd: None,
-						env: None,
+						command:    "sh -c 'sleep 30 & wait'".to_string(),
+						cwd:        None,
+						env:        None,
 						timeout_ms: None,
 						filesystem: None,
 					},
@@ -817,12 +817,12 @@ mod tests {
 			shell
 				.run(
 					CoreShellRunOptions {
-						command: "{ printf 'x\\nx\\nx\\nx\\nx\\n'; sleep 30; } | { for _ in 1 2 3 4 \
+						command:    "{ printf 'x\\nx\\nx\\nx\\nx\\n'; sleep 30; } | { for _ in 1 2 3 4 \
 						             5; do IFS= read -r line; printf '%s\\n' \"$line\"; done; printf \
 						             'READY\\n' >&2; read -r; }"
 							.to_string(),
-						cwd: None,
-						env: None,
+						cwd:        None,
+						env:        None,
 						timeout_ms: None,
 						filesystem: None,
 					},

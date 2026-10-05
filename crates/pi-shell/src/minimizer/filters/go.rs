@@ -423,10 +423,10 @@ mod tests {
 	fn keeps_go_test_failure_from_json_lines() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("test"),
-			command: "go test ./...",
-			config: &cfg,
+			command:    "go test ./...",
+			config:     &cfg,
 		};
 		let input = r#"{"Action":"run","Package":"example.com/app","Test":"TestBad"}
 {"Action":"output","Package":"example.com/app","Test":"TestBad","Output":"=== RUN   TestBad\n"}
@@ -446,10 +446,10 @@ mod tests {
 	fn keeps_go_test_json_location_followup_context() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("test"),
-			command: "go test -json ./...",
-			config: &cfg,
+			command:    "go test -json ./...",
+			config:     &cfg,
 		};
 		let input = r#"{"Action":"output","Package":"example.com/app","Test":"TestBad","Output":"    app_test.go:42:\n"}
 	{"Action":"output","Package":"example.com/app","Test":"TestBad","Output":"        important table diff without keywords\n"}
@@ -467,10 +467,10 @@ mod tests {
 	fn go_test_verbose_success_aggregates_to_summary() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("test"),
-			command: "go test ./... -v",
-			config: &cfg,
+			command:    "go test ./... -v",
+			config:     &cfg,
 		};
 		let input = "=== RUN   TestControllers\nRunning Suite: Controller Suite\nSUCCESS! -- 1 \
 		             Passed | 0 Failed | 0 Pending\n--- PASS: TestControllers (6.04s)\nPASS\nok  \
@@ -489,10 +489,10 @@ mod tests {
 	fn go_test_success_default_text_counts_no_tests_and_skips() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("test"),
-			command: "go test ./...",
-			config: &cfg,
+			command:    "go test ./...",
+			config:     &cfg,
 		};
 		let input = "ok  \texample.com/a\t0.10s\n?   \texample.com/b\t[no test files]\nok  \
 		             \texample.com/c\t0.20s\n--- SKIP: TestSkipped (0.00s)\nok  \
@@ -529,10 +529,10 @@ mod tests {
 	fn go_tool_golangci_lint_is_filtered() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("tool"),
-			command: "go tool golangci-lint run ./...",
-			config: &cfg,
+			command:    "go tool golangci-lint run ./...",
+			config:     &cfg,
 		};
 		let input = r#"{"Issues":[{"FromLinter":"govet","Text":"bad","Pos":{"Filename":"main.go","Line":7,"Column":2}}]}"#;
 		let out = filter(&ctx, input, 1);
@@ -584,10 +584,10 @@ mod tests {
 	fn go_build_failure_preserves_non_location_error_shapes() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("build"),
-			command: "go build ./...",
-			config: &cfg,
+			command:    "go build ./...",
+			config:     &cfg,
 		};
 		let input = "pattern ./...: directory prefix . does not contain main module or its selected \
 		             dependencies\nno Go files in /tmp/example\ngo: inconsistent vendoring in \
@@ -607,10 +607,10 @@ mod tests {
 	fn golangci_strips_info_warn_but_keeps_level_error() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "golangci-lint",
+			program:    "golangci-lint",
 			subcommand: Some("run"),
-			command: "golangci-lint run ./...",
-			config: &cfg,
+			command:    "golangci-lint run ./...",
+			config:     &cfg,
 		};
 		// Real default (non-json) golangci run: the typecheck headline is emitted
 		// by the logrus logger in its canonical `level=error
@@ -639,10 +639,10 @@ mod tests {
 	fn unknown_go_tool_is_passthrough() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "go",
+			program:    "go",
 			subcommand: Some("tool"),
-			command: "go tool pprof profile.out",
-			config: &cfg,
+			command:    "go tool pprof profile.out",
+			config:     &cfg,
 		};
 		let input = "Type: cpu\nShowing nodes accounting for 10ms\ngo: downloading noise\n";
 		let out = filter(&ctx, input, 0);

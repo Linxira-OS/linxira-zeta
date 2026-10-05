@@ -667,10 +667,10 @@ mod tests {
 		}
 		// Plain (non-JSON) runs still condense.
 		let ctx = MinimizerCtx {
-			program: "pyright",
+			program:    "pyright",
 			subcommand: None,
-			command: "pyright src",
-			config: &cfg,
+			command:    "pyright src",
+			config:     &cfg,
 		};
 		let plain = "src/app.py:4:7 - error: bad\nsrc/app.py:9:3 - error: worse\n";
 		assert!(filter(&ctx, plain, 1).changed);
@@ -1003,10 +1003,10 @@ mod tests {
 	fn eslint_json_format_passes_through() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "eslint",
+			program:    "eslint",
 			subcommand: None,
-			command: "eslint -f json src/",
-			config: &cfg,
+			command:    "eslint -f json src/",
+			config:     &cfg,
 		};
 		// should passthrough — preserves_machine_readable_output returns true
 		let dummy = r#"[{"filePath":"src/foo.js","messages":[]}]"#;
@@ -1036,10 +1036,10 @@ mod tests {
 	fn eslint_stylish_still_condensed() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let ctx = MinimizerCtx {
-			program: "eslint",
+			program:    "eslint",
 			subcommand: None,
-			command: "eslint --format stylish src/",
-			config: &cfg,
+			command:    "eslint --format stylish src/",
+			config:     &cfg,
 		};
 		let dummy = "\nsrc/foo.js\n  1:1  error  bad  no-var\n\n✖ 1 problem\n";
 		let out = filter(&ctx, dummy, 1);
@@ -1051,8 +1051,12 @@ mod tests {
 	fn eslint_no_format_flag_still_condensed() {
 		// no -f/--format flag at all → default stylish → condenser runs
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
-		let ctx =
-			MinimizerCtx { program: "eslint", subcommand: None, command: "eslint src/", config: &cfg };
+		let ctx = MinimizerCtx {
+			program:    "eslint",
+			subcommand: None,
+			command:    "eslint src/",
+			config:     &cfg,
+		};
 		let dummy = "\nsrc/foo.js\n  1:1  error  bad  no-var\n\n✖ 1 problem\n";
 		let out = filter(&ctx, dummy, 1);
 		assert!(out.changed, "eslint without -f must go through the condenser");

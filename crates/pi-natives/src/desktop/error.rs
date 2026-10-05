@@ -41,7 +41,7 @@ impl ErrorCode {
 
 #[derive(Debug, Clone)]
 pub struct DesktopError {
-	pub code: ErrorCode,
+	pub code:    ErrorCode,
 	pub message: String,
 }
 

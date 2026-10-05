@@ -26,8 +26,10 @@ use crate::{
 	},
 };
 
-const INDEX_WRITE: gix::index::write::Options =
-	gix::index::write::Options { extensions: gix::index::write::Extensions::None, skip_hash: false };
+const INDEX_WRITE: gix::index::write::Options = gix::index::write::Options {
+	extensions: gix::index::write::Extensions::None,
+	skip_hash:  false,
+};
 /// Apply a ref update, synthesizing a committer for the reflog entry when no
 /// identity is configured. Reflog lines require a signature, but git never
 /// fails branch/reset/stash ref updates over missing identity — only
@@ -232,9 +234,9 @@ impl GitRepo {
 			.edit_reference(gix::refs::transaction::RefEdit {
 				change: gix::refs::transaction::Change::Update {
 					log: gix::refs::transaction::LogChange {
-						mode: gix::refs::transaction::RefLog::AndReference,
+						mode:                gix::refs::transaction::RefLog::AndReference,
 						force_create_reflog: false,
-						message: if options.amend {
+						message:             if options.amend {
 							"commit (amend)"
 						} else {
 							"commit"
@@ -244,10 +246,10 @@ impl GitRepo {
 					expected,
 					new: gix::refs::Target::Object(id),
 				},
-				name: "HEAD"
+				name:   "HEAD"
 					.try_into()
 					.map_err(|err| Error::backend("git commit", err))?,
-				deref: true,
+				deref:  true,
 			})
 			.map_err(|err| Error::backend("git commit", err))?;
 		let _ = run_commit_hook(self, "post-commit", &[]);
@@ -363,12 +365,12 @@ impl GitRepo {
 		let edit = gix::refs::transaction::RefEdit {
 			change: gix::refs::transaction::Change::Delete {
 				expected: gix::refs::transaction::PreviousValue::MustExistAndMatch(id.into()),
-				log: gix::refs::transaction::RefLog::AndReference,
+				log:      gix::refs::transaction::RefLog::AndReference,
 			},
-			name: full
+			name:   full
 				.try_into()
 				.map_err(|err| Error::backend("git branch", err))?,
-			deref: false,
+			deref:  false,
 		};
 		Ok(repo.edit_reference(edit).is_ok())
 	}
@@ -915,19 +917,19 @@ fn run_commit_hook(repository: &GitRepo, name: &str, args: &[&OsStr]) -> Result<
 		.stdin(Stdio::null())
 		.output()
 		.map_err(|err| Error::Cli {
-			command: format!("git commit ({name} hook)"),
+			command:   format!("git commit ({name} hook)"),
 			exit_code: 1,
-			stdout: String::new(),
-			stderr: err.to_string(),
+			stdout:    String::new(),
+			stderr:    err.to_string(),
 		})?;
 	if output.status.success() {
 		return Ok(());
 	}
 	Err(Error::Cli {
-		command: format!("git commit ({name} hook)"),
+		command:   format!("git commit ({name} hook)"),
 		exit_code: output.status.code().unwrap_or(1),
-		stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-		stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+		stdout:    String::from_utf8_lossy(&output.stdout).into_owned(),
+		stderr:    String::from_utf8_lossy(&output.stderr).into_owned(),
 	})
 }
 
@@ -1333,7 +1335,7 @@ fn copy_index_paths(dest: &mut gix::index::File, source: &gix::index::File, file
 #[derive(Default)]
 struct TreeNode {
 	files: Vec<(BString, gix::index::entry::Mode, gix::hash::ObjectId)>,
-	dirs: BTreeMap<BString, Self>,
+	dirs:  BTreeMap<BString, Self>,
 }
 
 fn write_index_tree(
@@ -1369,9 +1371,9 @@ fn write_tree_node(repo: &gix::Repository, node: TreeNode) -> Result<gix::hash::
 	}
 	for (name, child) in node.dirs {
 		entries.push(gix::objs::tree::Entry {
-			mode: gix::objs::tree::EntryKind::Tree.into(),
+			mode:     gix::objs::tree::EntryKind::Tree.into(),
 			filename: name,
-			oid: write_tree_node(repo, child)?,
+			oid:      write_tree_node(repo, child)?,
 		});
 	}
 	entries.sort();
@@ -1515,13 +1517,10 @@ fn worktree_id(
 }
 
 fn write_head(path: &Path, symbolic: Option<&str>, id: gix::hash::ObjectId) -> Result<()> {
-	fs::write(
-		path,
-		match symbolic {
-			Some(name) => format!("ref: {name}\n"),
-			None => format!("{}\n", id.to_hex()),
-		},
-	)?;
+	fs::write(path, match symbolic {
+		Some(name) => format!("ref: {name}\n"),
+		None => format!("{}\n", id.to_hex()),
+	})?;
 	Ok(())
 }
 
@@ -1932,17 +1931,14 @@ mod tests {
 		repo.stage_files(&["a".into()]).unwrap();
 		assert_eq!(git(temp.path(), &["status", "--porcelain"]), "M  a\n?? new");
 		let first = repo
-			.commit_create(
-				"change",
-				&CommitOptions {
-					author: Some(CommitAuthor {
-						name: "Other".into(),
-						email: "other@example.com".into(),
-						date: Some("2020-01-02T03:04:05Z".into()),
-					}),
-					..Default::default()
-				},
-			)
+			.commit_create("change", &CommitOptions {
+				author: Some(CommitAuthor {
+					name:  "Other".into(),
+					email: "other@example.com".into(),
+					date:  Some("2020-01-02T03:04:05Z".into()),
+				}),
+				..Default::default()
+			})
 			.unwrap();
 		assert_eq!(git(temp.path(), &["rev-parse", "HEAD"]), first);
 		assert_eq!(
@@ -2248,10 +2244,10 @@ mod tests {
 		#[cfg(unix)]
 		fs::remove_file(&pre_commit).unwrap();
 		repo
-			.commit_create(
-				"subject\n\nbody\n\n",
-				&CommitOptions { allow_empty: true, ..CommitOptions::default() },
-			)
+			.commit_create("subject\n\nbody\n\n", &CommitOptions {
+				allow_empty: true,
+				..CommitOptions::default()
+			})
 			.unwrap();
 		assert_eq!(repo.commit_details("HEAD").unwrap().message, "subject\n\nbody\n");
 	}
@@ -2315,11 +2311,11 @@ mod tests {
 		let linked = temp.path().join("../linked-autocrlf");
 		let _ = fs::remove_dir_all(&linked);
 		repo
-			.worktree_add(
-				&linked,
-				"main",
-				WorktreeAddOptions { detach: true, clone: WorktreeClone::Off, keep_changes: false },
-			)
+			.worktree_add(&linked, "main", WorktreeAddOptions {
+				detach:       true,
+				clone:        WorktreeClone::Off,
+				keep_changes: false,
+			})
 			.unwrap();
 		assert_eq!(fs::read_to_string(linked.join("a")).unwrap(), "main\r\n");
 		assert!(repo.worktree_remove(&linked, false).unwrap(), "clean CRLF checkout is not dirty");
@@ -2382,18 +2378,15 @@ mod tests {
 		git(&sub, &["add", "."]);
 		git(&sub, &["commit", "-qm", "sub init"]);
 
-		git(
-			temp.path(),
-			&[
-				"-c",
-				"protocol.file.allow=always",
-				"submodule",
-				"-q",
-				"add",
-				sub.to_str().unwrap(),
-				"my-submodule",
-			],
-		);
+		git(temp.path(), &[
+			"-c",
+			"protocol.file.allow=always",
+			"submodule",
+			"-q",
+			"add",
+			sub.to_str().unwrap(),
+			"my-submodule",
+		]);
 		git(temp.path(), &["commit", "-qm", "add submodule"]);
 
 		let checked_out_sub = temp.path().join("my-submodule");
@@ -2568,11 +2561,11 @@ mod tests {
 		let linked = temp.path().join("../linked-unreadable-index");
 		let _ = fs::remove_dir_all(&linked);
 		repo
-			.worktree_add(
-				&linked,
-				"main",
-				WorktreeAddOptions { detach: true, clone: WorktreeClone::Off, keep_changes: false },
-			)
+			.worktree_add(&linked, "main", WorktreeAddOptions {
+				detach:       true,
+				clone:        WorktreeClone::Off,
+				keep_changes: false,
+			})
 			.unwrap();
 		let common = fs::canonicalize(repo.info().common_dir.clone()).unwrap();
 		let linked_repo = GitRepo::require(&linked).unwrap();
@@ -2598,11 +2591,11 @@ mod tests {
 		let linked_dir = tempfile::tempdir().unwrap();
 		let linked = linked_dir.path().to_path_buf();
 		repo
-			.worktree_add(
-				&linked,
-				"main",
-				WorktreeAddOptions { detach: true, clone: WorktreeClone::Off, keep_changes: false },
-			)
+			.worktree_add(&linked, "main", WorktreeAddOptions {
+				detach:       true,
+				clone:        WorktreeClone::Off,
+				keep_changes: false,
+			})
 			.unwrap();
 
 		let admin = registered_admin(&linked.join(".git")).unwrap().unwrap();
@@ -2642,11 +2635,11 @@ mod tests {
 		let linked = temp.path().join("../linked-clone-first");
 		let _ = fs::remove_dir_all(&linked);
 		let result = repo
-			.worktree_add(
-				&linked,
-				"target",
-				WorktreeAddOptions { detach: false, clone: WorktreeClone::Auto, keep_changes: false },
-			)
+			.worktree_add(&linked, "target", WorktreeAddOptions {
+				detach:       false,
+				clone:        WorktreeClone::Auto,
+				keep_changes: false,
+			})
 			.unwrap();
 
 		assert_eq!(fs::read_to_string(linked.join("a")).unwrap(), "target\n");
@@ -2711,11 +2704,11 @@ mod tests {
 		let _ = fs::remove_dir_all(&linked);
 		let clone_works = clone_works_on(temp.path());
 		let result = repo
-			.worktree_add(
-				&linked,
-				"same-as-head",
-				WorktreeAddOptions { detach: false, clone: WorktreeClone::Auto, keep_changes: false },
-			)
+			.worktree_add(&linked, "same-as-head", WorktreeAddOptions {
+				detach:       false,
+				clone:        WorktreeClone::Auto,
+				keep_changes: false,
+			})
 			.unwrap();
 		if clone_works {
 			assert!(
@@ -2754,11 +2747,11 @@ mod tests {
 			let linked = temp.path().join(format!("../linked-keep-{clone:?}"));
 			let _ = fs::remove_dir_all(&linked);
 			let result = repo
-				.worktree_add(
-					&linked,
-					"kept",
-					WorktreeAddOptions { detach: false, clone, keep_changes: true },
-				)
+				.worktree_add(&linked, "kept", WorktreeAddOptions {
+					detach: false,
+					clone,
+					keep_changes: true,
+				})
 				.unwrap();
 			if clone == WorktreeClone::Off {
 				assert!(result.cloned_with.is_none());
@@ -2814,11 +2807,11 @@ mod tests {
 			let linked = temp.path().join(format!("../linked-keep-staged-{clone:?}"));
 			let _ = fs::remove_dir_all(&linked);
 			let result = repo
-				.worktree_add(
-					&linked,
-					"kept-staged",
-					WorktreeAddOptions { detach: false, clone, keep_changes: true },
-				)
+				.worktree_add(&linked, "kept-staged", WorktreeAddOptions {
+					detach: false,
+					clone,
+					keep_changes: true,
+				})
 				.unwrap();
 			if clone == WorktreeClone::Off {
 				assert!(result.cloned_with.is_none());
@@ -2842,11 +2835,11 @@ mod tests {
 		let linked = temp.path().join("../linked-mut");
 		let _ = fs::remove_dir_all(&linked);
 		repo
-			.worktree_add(
-				&linked,
-				"main",
-				WorktreeAddOptions { detach: true, clone: WorktreeClone::Off, keep_changes: false },
-			)
+			.worktree_add(&linked, "main", WorktreeAddOptions {
+				detach:       true,
+				clone:        WorktreeClone::Off,
+				keep_changes: false,
+			})
 			.unwrap();
 		assert!(
 			git(temp.path(), &["worktree", "list", "--porcelain"])
@@ -2857,11 +2850,11 @@ mod tests {
 		let linked = temp.path().join("../linked-detach");
 		let _ = fs::remove_dir_all(&linked);
 		repo
-			.worktree_add(
-				&linked,
-				"main",
-				WorktreeAddOptions { detach: true, clone: WorktreeClone::Off, keep_changes: false },
-			)
+			.worktree_add(&linked, "main", WorktreeAddOptions {
+				detach:       true,
+				clone:        WorktreeClone::Off,
+				keep_changes: false,
+			})
 			.unwrap();
 		let common = fs::canonicalize(repo.info().common_dir.clone()).unwrap();
 		let source_head = git(temp.path(), &["rev-parse", "HEAD"]);

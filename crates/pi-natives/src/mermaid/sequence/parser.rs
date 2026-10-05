@@ -6,19 +6,19 @@ use crate::mermaid::{lex::Cursor, text::normalize_label};
 
 #[derive(Debug)]
 struct OpenBlock {
-	kind: BlockKind,
-	label: String,
+	kind:        BlockKind,
+	label:       String,
 	start_index: usize,
-	dividers: Vec<BlockDivider>,
+	dividers:    Vec<BlockDivider>,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct ParsedMessage<'a> {
-	from: &'a str,
-	operator: &'static str,
+	from:       &'a str,
+	operator:   &'static str,
 	activation: Option<char>,
-	to: &'a str,
-	label: &'a str,
+	to:         &'a str,
+	label:      &'a str,
 }
 
 /// `participant|actor WS+ ID (WS+ "as" WS+ LABEL)?`, where `ID` is one
@@ -259,10 +259,10 @@ pub fn parse_sequence_diagram(text: &str) -> SequenceDiagram {
 
 		if let Some((keyword, label)) = parse_block(line) {
 			block_stack.push(OpenBlock {
-				kind: BlockKind::from_keyword(keyword),
-				label: normalize_label(label.trim()),
+				kind:        BlockKind::from_keyword(keyword),
+				label:       normalize_label(label.trim()),
 				start_index: diagram.messages.len(),
-				dividers: Vec::new(),
+				dividers:    Vec::new(),
 			});
 			continue;
 		}
@@ -271,15 +271,15 @@ pub fn parse_sequence_diagram(text: &str) -> SequenceDiagram {
 			&& let Some(completed) = block_stack.pop()
 		{
 			diagram.blocks.push(Block {
-				kind: completed.kind,
-				label: completed.label,
+				kind:        completed.kind,
+				label:       completed.label,
 				start_index: completed.start_index,
-				end_index: diagram
+				end_index:   diagram
 					.messages
 					.len()
 					.saturating_sub(1)
 					.max(completed.start_index),
-				dividers: completed.dividers,
+				dividers:    completed.dividers,
 			});
 			continue;
 		}
@@ -310,9 +310,9 @@ fn ensure_actor(diagram: &mut SequenceDiagram, actor_ids: &mut Vec<String>, id: 
 	}
 	actor_ids.push(id.to_owned());
 	diagram.actors.push(Actor {
-		id: id.to_owned(),
+		id:    id.to_owned(),
 		label: id.to_owned(),
-		kind: ActorKind::Participant,
+		kind:  ActorKind::Participant,
 	});
 }
 

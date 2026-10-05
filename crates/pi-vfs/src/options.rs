@@ -6,13 +6,13 @@ use std::ffi::OsString;
 /// std-style open options; see [`crate::Fs::open_with`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OpenOptions {
-	read: bool,
-	write: bool,
-	append: bool,
-	truncate: bool,
-	create: bool,
-	create_new: bool,
-	mode: Option<u32>,
+	read:         bool,
+	write:        bool,
+	append:       bool,
+	truncate:     bool,
+	create:       bool,
+	create_new:   bool,
+	mode:         Option<u32>,
 	custom_flags: i32,
 }
 
@@ -136,7 +136,7 @@ impl OpenOptions {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct DirOptions {
 	recursive: bool,
-	mode: Option<u32>,
+	mode:      Option<u32>,
 }
 
 impl DirOptions {
@@ -212,15 +212,20 @@ impl Default for CanonicalizeOptions {
 /// Temporary file/directory naming; see [`crate::Fs::create_temp`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TempOptions {
-	prefix: OsString,
-	suffix: OsString,
+	prefix:     OsString,
+	suffix:     OsString,
 	random_len: usize,
-	mode: Option<u32>,
+	mode:       Option<u32>,
 }
 
 impl Default for TempOptions {
 	fn default() -> Self {
-		Self { prefix: ".tmp".into(), suffix: OsString::new(), random_len: 6, mode: None }
+		Self {
+			prefix:     ".tmp".into(),
+			suffix:     OsString::new(),
+			random_len: 6,
+			mode:       None,
+		}
 	}
 }
 

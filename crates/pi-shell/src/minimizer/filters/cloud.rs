@@ -414,15 +414,12 @@ fn compact_aws_eks(root: &Value) -> Option<String> {
 		return Some(compact_named_rows(&["cluster", "status", "version", "endpoint"], &rows));
 	}
 	let cluster = root.get("cluster")?.as_object()?;
-	Some(compact_named_rows(
-		&["cluster", "status", "version", "endpoint"],
-		&[vec![
-			string_field_map(cluster, &["name"]),
-			string_field_map(cluster, &["status"]),
-			string_field_map(cluster, &["version"]),
-			string_field_map(cluster, &["endpoint"]),
-		]],
-	))
+	Some(compact_named_rows(&["cluster", "status", "version", "endpoint"], &[vec![
+		string_field_map(cluster, &["name"]),
+		string_field_map(cluster, &["status"]),
+		string_field_map(cluster, &["version"]),
+		string_field_map(cluster, &["endpoint"]),
+	]]))
 }
 
 fn compact_aws_sqs(root: &Value) -> Option<String> {
@@ -435,14 +432,11 @@ fn compact_aws_sqs(root: &Value) -> Option<String> {
 		return Some(compact_named_rows(&["url", "visibility", "messages"], &rows));
 	}
 	let attrs = root.get("Attributes").and_then(Value::as_object)?;
-	Some(compact_named_rows(
-		&["url", "visibility", "messages"],
-		&[vec![
-			string_field(root, &["QueueUrl"]),
-			string_field_map(attrs, &["VisibilityTimeout"]),
-			string_field_map(attrs, &["ApproximateNumberOfMessages"]),
-		]],
-	))
+	Some(compact_named_rows(&["url", "visibility", "messages"], &[vec![
+		string_field(root, &["QueueUrl"]),
+		string_field_map(attrs, &["VisibilityTimeout"]),
+		string_field_map(attrs, &["ApproximateNumberOfMessages"]),
+	]]))
 }
 
 fn extract_array<'a>(root: &'a Value, keys: &[&str]) -> Option<Vec<&'a Map<String, Value>>> {

@@ -330,11 +330,12 @@ fn escalates_the_third_identical_no_op_with_stop_guidance() {
 	let input = "«\nconst value = current;\n»\nconst value = current;";
 	for attempt in 1..=3 {
 		let mut notes = Vec::new();
-		let error = apply_sloppy(
-			"const value = current;\n",
-			input,
-			ApplyContext { path: "noop.ts", notes: &mut notes, store: &store, canonical: &canonical },
-		)
+		let error = apply_sloppy("const value = current;\n", input, ApplyContext {
+			path:      "noop.ts",
+			notes:     &mut notes,
+			store:     &store,
+			canonical: &canonical,
+		})
 		.expect_err("no-op must fail");
 		if attempt < 3 {
 			assert!(

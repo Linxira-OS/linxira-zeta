@@ -2,7 +2,7 @@ use super::{AxisRange, SeriesType, XyAxis, XyChart, XyChartSeries};
 use crate::mermaid::lex::Cursor;
 
 struct AxisCategories<'a> {
-	title: Option<&'a str>,
+	title:  Option<&'a str>,
 	values: &'a str,
 }
 

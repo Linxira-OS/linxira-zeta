@@ -22,7 +22,7 @@ use crate::{
 /// Applies exact or optionally fuzzy whole-text replacements.
 pub struct ReplaceEngine {
 	/// Whether normalized high-confidence matches may be used.
-	pub allow_fuzzy: bool,
+	pub allow_fuzzy:     bool,
 	/// Minimum similarity accepted by fuzzy matching.
 	pub fuzzy_threshold: f64,
 }
@@ -50,15 +50,11 @@ impl ReplaceEngine {
 			return Ok(result);
 		}
 
-		let outcome = find_match(
-			content,
-			old_string,
-			&FindMatchOptions {
-				allow_fuzzy: self.allow_fuzzy,
-				threshold: Some(self.fuzzy_threshold),
-				excluded_ranges: &[],
-			},
-		);
+		let outcome = find_match(content, old_string, &FindMatchOptions {
+			allow_fuzzy:     self.allow_fuzzy,
+			threshold:       Some(self.fuzzy_threshold),
+			excluded_ranges: &[],
+		});
 		if outcome.occurrences.is_some_and(|count| count > 1) {
 			return Err(EditError::apply(format_occurrence_error(path, &outcome)));
 		}
@@ -78,15 +74,15 @@ impl ReplaceEngine {
 				.edits
 				.iter()
 				.map(|entry| EditEntryRef {
-					old_string: entry.old_string.as_deref(),
-					new_string: entry.new_string.as_deref(),
+					old_string:  entry.old_string.as_deref(),
+					new_string:  entry.new_string.as_deref(),
 					replace_all: entry.replace_all,
 				})
 				.collect();
 		}
 		vec![EditEntryRef {
-			old_string: args.old_string.as_deref(),
-			new_string: args.new_string.as_deref(),
+			old_string:  args.old_string.as_deref(),
+			new_string:  args.new_string.as_deref(),
 			replace_all: args.replace_all,
 		}]
 	}
@@ -103,8 +99,8 @@ impl ReplaceEngine {
 
 #[derive(Clone, Copy)]
 struct EditEntryRef<'a> {
-	old_string: Option<&'a str>,
-	new_string: Option<&'a str>,
+	old_string:  Option<&'a str>,
+	new_string:  Option<&'a str>,
 	replace_all: Option<bool>,
 }
 
@@ -170,12 +166,10 @@ impl ModeEngine for ReplaceEngine {
 				),
 			)];
 		}
-		let output = generate_diff_string(
-			&before,
-			&after,
-			None,
-			&BlockContextSource { path: Some(&display), lang: None },
-		);
+		let output = generate_diff_string(&before, &after, None, &BlockContextSource {
+			path: Some(&display),
+			lang: None,
+		});
 		vec![PreviewFile {
 			display,
 			diff: Some(output.diff),
@@ -223,12 +217,10 @@ impl ModeEngine for ReplaceEngine {
 		}
 
 		let persisted = read.persist(&after)?;
-		let output = generate_diff_string(
-			&before,
-			&after,
-			None,
-			&BlockContextSource { path: Some(&display), lang: None },
-		);
+		let output = generate_diff_string(&before, &after, None, &BlockContextSource {
+			path: Some(&display),
+			lang: None,
+		});
 		let mut staged = StagedFile::new(display, read.resolved.absolute.clone(), FileOp::Update);
 		staged.before_raw = Some(read.raw.clone());
 		staged.before = before;
@@ -244,8 +236,8 @@ impl ModeEngine for ReplaceEngine {
 			return Inspection::default();
 		};
 		Inspection {
-			paths: vec![path.clone()],
-			entries: args
+			paths:    vec![path.clone()],
+			entries:  args
 				.new_string
 				.as_ref()
 				.map_or_else(Vec::new, |new_string| vec![(path.clone(), new_string.clone())]),

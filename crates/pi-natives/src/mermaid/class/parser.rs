@@ -47,7 +47,8 @@ pub fn parse_class_diagram(text: &str) -> ClassDiagram {
 		}
 
 		if let Some(name) = parse_namespace(line) {
-			current_namespace = Some(ClassNamespace { name: name.to_owned(), class_ids: Vec::new() });
+			current_namespace =
+				Some(ClassNamespace { name: name.to_owned(), class_ids: Vec::new() });
 			continue;
 		}
 
@@ -327,11 +328,11 @@ fn ensure_class(
 	}
 	let index = classes.len();
 	classes.push(ClassNode {
-		id: id.to_owned(),
-		label: id.to_owned(),
+		id:         id.to_owned(),
+		label:      id.to_owned(),
 		annotation: None,
 		attributes: Vec::new(),
-		methods: Vec::new(),
+		methods:    Vec::new(),
 	});
 	indices.insert(id.to_owned(), index);
 	index

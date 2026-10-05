@@ -33,18 +33,18 @@ const SND_PCM_FORMAT_FLOAT_NATIVE: c_int = 15;
 
 #[repr(C)]
 struct PaSampleSpec {
-	format: c_int,
-	rate: u32,
+	format:   c_int,
+	rate:     u32,
 	channels: u8,
 }
 
 #[repr(C)]
 struct PaBufferAttr {
 	maxlength: u32,
-	tlength: u32,
-	prebuf: u32,
-	minreq: u32,
-	fragsize: u32,
+	tlength:   u32,
+	prebuf:    u32,
+	minreq:    u32,
+	fragsize:  u32,
 }
 
 type PaSimpleNew = unsafe extern "C" fn(
@@ -64,11 +64,11 @@ type PaSimpleRead = unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *mut c
 type PaStrerror = unsafe extern "C" fn(c_int) -> *const c_char;
 
 struct PulseApi {
-	simple_new: PaSimpleNew,
-	simple_free: PaSimpleFree,
+	simple_new:   PaSimpleNew,
+	simple_free:  PaSimpleFree,
 	simple_write: PaSimpleWrite,
-	simple_read: PaSimpleRead,
-	strerror: PaStrerror,
+	simple_read:  PaSimpleRead,
+	strerror:     PaStrerror,
 }
 
 static PULSE_API: OnceLock<Result<&'static PulseApi, String>> = OnceLock::new();
@@ -128,15 +128,15 @@ type SndPcmControl = unsafe extern "C" fn(*mut c_void) -> c_int;
 type SndStrerror = unsafe extern "C" fn(c_int) -> *const c_char;
 
 struct AlsaApi {
-	pcm_open: SndPcmOpen,
+	pcm_open:       SndPcmOpen,
 	pcm_set_params: SndPcmSetParams,
-	pcm_writei: SndPcmIo,
-	pcm_readi: SndPcmIo,
-	pcm_recover: SndPcmRecover,
-	pcm_wait: SndPcmWait,
-	pcm_start: SndPcmControl,
-	pcm_close: SndPcmControl,
-	strerror: SndStrerror,
+	pcm_writei:     SndPcmIo,
+	pcm_readi:      SndPcmIo,
+	pcm_recover:    SndPcmRecover,
+	pcm_wait:       SndPcmWait,
+	pcm_start:      SndPcmControl,
+	pcm_close:      SndPcmControl,
+	strerror:       SndStrerror,
 }
 
 static ALSA_API: OnceLock<Result<&'static AlsaApi, String>> = OnceLock::new();
@@ -280,8 +280,11 @@ impl PulseStream {
 		direction: c_int,
 		attr: &PaBufferAttr,
 	) -> Result<Self, String> {
-		let spec =
-			PaSampleSpec { format: PA_SAMPLE_FLOAT32_NATIVE, rate: config.sample_rate, channels: 1 };
+		let spec = PaSampleSpec {
+			format:   PA_SAMPLE_FLOAT32_NATIVE,
+			rate:     config.sample_rate,
+			channels: 1,
+		};
 		let mut error = 0;
 		// SAFETY: all pointers reference valid values for the duration of
 		// pa_simple_new.
@@ -462,18 +465,18 @@ fn pulse_attr(
 	Ok(if direction == PA_STREAM_RECORD {
 		PaBufferAttr {
 			maxlength: backlog_bytes,
-			tlength: u32::MAX,
-			prebuf: u32::MAX,
-			minreq: u32::MAX,
-			fragsize: period_bytes,
+			tlength:   u32::MAX,
+			prebuf:    u32::MAX,
+			minreq:    u32::MAX,
+			fragsize:  period_bytes,
 		}
 	} else {
 		PaBufferAttr {
 			maxlength: backlog_bytes,
-			tlength: latency_bytes,
-			prebuf: u32::MAX,
-			minreq: u32::MAX,
-			fragsize: u32::MAX,
+			tlength:   latency_bytes,
+			prebuf:    u32::MAX,
+			minreq:    u32::MAX,
+			fragsize:  u32::MAX,
 		}
 	})
 }
@@ -773,10 +776,10 @@ impl Drop for ThreadDone {
 }
 
 struct RunningDevice {
-	stop: AtomicBool,
-	delivery: Arc<DeliveryGate>,
+	stop:      AtomicBool,
+	delivery:  Arc<DeliveryGate>,
 	worker_id: OnceLock<thread::ThreadId>,
-	error: Mutex<Option<String>>,
+	error:     Mutex<Option<String>>,
 }
 
 fn finish(
@@ -829,7 +832,7 @@ fn finish(
 pub struct PlaybackDevice {
 	device: Arc<RunningDevice>,
 	thread: Option<JoinHandle<()>>,
-	done: Option<mpsc::Receiver<()>>,
+	done:   Option<mpsc::Receiver<()>>,
 }
 
 impl PlaybackDevice {
@@ -929,7 +932,7 @@ impl Drop for PlaybackDevice {
 pub struct CaptureDevice {
 	device: Arc<RunningDevice>,
 	thread: Option<JoinHandle<()>>,
-	done: Option<mpsc::Receiver<()>>,
+	done:   Option<mpsc::Receiver<()>>,
 }
 
 impl CaptureDevice {

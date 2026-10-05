@@ -41,10 +41,11 @@ fn tokenizer_recognizes_headers_ops_payloads_and_envelope() {
 	assert!(
 		matches!(&tokens[1], Token::Header { path, file_hash: Some(hash), .. } if path == "a b.ts" && hash == "1A2B")
 	);
-	assert!(matches!(
-		&tokens[2],
-		Token::OpBlock { target: BlockTarget::Replace { .. }, had_colon: true, .. }
-	));
+	assert!(matches!(&tokens[2], Token::OpBlock {
+		target: BlockTarget::Replace { .. },
+		had_colon: true,
+		..
+	}));
 	assert!(matches!(&tokens[3], Token::PayloadLiteral { text, .. } if text == "x"));
 	assert!(matches!(&tokens[4], Token::OpBlock { target: BlockTarget::CutBlock { .. }, .. }));
 	assert!(matches!(&tokens[5], Token::EnvelopeEnd { .. }));
@@ -147,10 +148,11 @@ fn parses_cut_clipboard_and_register_pastes() {
 		2
 	);
 	assert!(parsed.edits.iter().any(|edit| matches!(edit, Edit::Paste { at: PasteTarget::Gap { cursor: Cursor::Bof }, register: Some(name), .. } if name == "hold")));
-	assert!(parsed.edits.iter().any(|edit| matches!(
-		edit,
-		Edit::Paste { at: PasteTarget::Gap { cursor: Cursor::Eof }, register: None, .. }
-	)));
+	assert!(parsed.edits.iter().any(|edit| matches!(edit, Edit::Paste {
+		at: PasteTarget::Gap { cursor: Cursor::Eof },
+		register: None,
+		..
+	})));
 	assert!(parsed.edits.iter().any(|edit| matches!(edit, Edit::Paste { at: PasteTarget::Span { range }, .. } if range.start.line == 4 && range.end.line == 5)));
 }
 
@@ -711,13 +713,13 @@ fn prefix_helpers_leave_mixed_content_unchanged() {
 #[test]
 fn mismatch_messages_distinguish_stale_and_unrecognized_hashes() {
 	let stale = MismatchDetails {
-		path: Some("a.ts".into()),
+		path:               Some("a.ts".into()),
 		expected_file_hash: "1A2B".into(),
-		actual_file_hash: "3C4D".into(),
-		file_lines: vec!["one".into(), "two".into(), "three".into()],
-		anchor_lines: vec![2],
-		hash_recognized: true,
-		tag_origin_paths: Vec::new(),
+		actual_file_hash:   "3C4D".into(),
+		file_lines:         vec!["one".into(), "two".into(), "three".into()],
+		anchor_lines:       vec![2],
+		hash_recognized:    true,
+		tag_origin_paths:   Vec::new(),
 	};
 	let message = format_mismatch_message(&stale);
 	assert!(message.contains("Edit rejected for a.ts: file changed between read and edit."));
@@ -730,13 +732,13 @@ fn mismatch_messages_distinguish_stale_and_unrecognized_hashes() {
 	// for a different path, the rejection names that path so a relative
 	// worktree lane doesn't follow a wrong-tree suggestion.
 	let known_elsewhere = MismatchDetails {
-		path: Some("a.ts".into()),
+		path:               Some("a.ts".into()),
 		expected_file_hash: "1A2B".into(),
-		actual_file_hash: "3C4D".into(),
-		file_lines: vec!["one".into(), "two".into(), "three".into()],
-		anchor_lines: vec![2],
-		hash_recognized: false,
-		tag_origin_paths: vec!["/build/x/wt/crates/a/mcp.rs".into()],
+		actual_file_hash:   "3C4D".into(),
+		file_lines:         vec!["one".into(), "two".into(), "three".into()],
+		anchor_lines:       vec![2],
+		hash_recognized:    false,
+		tag_origin_paths:   vec!["/build/x/wt/crates/a/mcp.rs".into()],
 	};
 	let message = format_mismatch_message(&known_elsewhere);
 	assert!(message.contains("hash #1A2B is not from this session"));
@@ -750,8 +752,12 @@ fn mismatch_messages_distinguish_stale_and_unrecognized_hashes() {
 fn recognizes_operations_and_emits_canonical_labels() {
 	assert!(contains_recognizable_hashline_operations("partial\nPUT 2:\n"));
 	assert!(!contains_recognizable_hashline_operations("plain text"));
-	assert_eq!(
-		op_labels("PUT 2:\nPUT 2\nPUT >3 @x\nCUT 2.=3:\nREM\nMV x"),
-		["PUT N.=N:", "PUT N.=N (invalid)", "PUT >N @reg", "CUT N.=M: (invalid)", "REM", "MV"]
-	);
+	assert_eq!(op_labels("PUT 2:\nPUT 2\nPUT >3 @x\nCUT 2.=3:\nREM\nMV x"), [
+		"PUT N.=N:",
+		"PUT N.=N (invalid)",
+		"PUT >N @reg",
+		"CUT N.=M: (invalid)",
+		"REM",
+		"MV"
+	]);
 }

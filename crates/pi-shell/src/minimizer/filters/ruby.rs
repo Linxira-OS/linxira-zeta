@@ -720,10 +720,10 @@ mod tests {
 		// condenser would drop those keyword-less lines.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let context = MinimizerCtx {
-			program: "rake",
+			program:    "rake",
 			subcommand: Some("test:models"),
-			command: "rake test:models",
-			config: &cfg,
+			command:    "rake test:models",
+			config:     &cfg,
 		};
 		let input = "Run options: --seed 1\n\n# Running:\n\n.F\n\n  1) Failure:\nUserTest#test_name \
 		             [test/models/user_test.rb:8]:\nExpected: true\n  Actual: false\n\n2 runs, 2 \
@@ -843,8 +843,12 @@ mod tests {
 	#[test]
 	fn rubocop_routes_to_lint_grouping() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
-		let context =
-			MinimizerCtx { program: "rubocop", subcommand: None, command: "rubocop", config: &cfg };
+		let context = MinimizerCtx {
+			program:    "rubocop",
+			subcommand: None,
+			command:    "rubocop",
+			config:     &cfg,
+		};
 		let out = filter(
 			&context,
 			"app/models/user.rb:1:1: C: Style/FrozenStringLiteralComment: Missing frozen string \
@@ -1019,10 +1023,10 @@ mod tests {
 	fn rake_generic_task_condensed_keeps_status_drops_chatter() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let context = MinimizerCtx {
-			program: "rake",
+			program:    "rake",
 			subcommand: Some("db:seed"),
-			command: "rake db:seed",
-			config: &cfg,
+			command:    "rake db:seed",
+			config:     &cfg,
 		};
 		let input = "Seeding users...\nLoading fixtures from db/seeds.rb\ncreating record \
 		             1\ncreating record 2\nSeed finished successfully\nDone in 1.2s\n";
@@ -1088,10 +1092,10 @@ mod tests {
 		// detail) must survive — the keep-lines pass alone would drop them.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let context = MinimizerCtx {
-			program: "rake",
+			program:    "rake",
 			subcommand: Some("import:run"),
-			command: "rake import:run",
-			config: &cfg,
+			command:    "rake import:run",
+			config:     &cfg,
 		};
 		let input = "Starting import...\nImportError occurred during processing\nRecord 4821: \
 		             invalid value '<<>>' in column total\nRecord 4822: foreign key 9912 \
@@ -1116,10 +1120,10 @@ mod tests {
 	fn rake_aborted_keeps_traceback_head() {
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let context = MinimizerCtx {
-			program: "rake",
+			program:    "rake",
 			subcommand: Some("db:seed"),
-			command: "rake db:seed",
-			config: &cfg,
+			command:    "rake db:seed",
+			config:     &cfg,
 		};
 		let mut input = String::from("rake aborted!\nNameError: undefined local variable\n");
 		for i in 0..20 {

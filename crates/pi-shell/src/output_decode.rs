@@ -31,8 +31,8 @@ enum Mode {
 
 /// Incremental decoder for one stdout/stderr stream.
 pub struct OutputDecoder {
-	pending: Vec<u8>,
-	mode: Mode,
+	pending:           Vec<u8>,
+	mode:              Mode,
 	#[cfg(windows)]
 	fallback_codepage: u32,
 }
@@ -61,7 +61,11 @@ impl OutputDecoder {
 	/// run on any Windows host, not only a Chinese ACP.
 	#[cfg(windows)]
 	pub const fn with_fallback_codepage(codepage: u32) -> Self {
-		Self { pending: Vec::new(), mode: Mode::Utf8, fallback_codepage: codepage }
+		Self {
+			pending:           Vec::new(),
+			mode:              Mode::Utf8,
+			fallback_codepage: codepage,
+		}
 	}
 
 	/// Push the next pipe read. Returns text that is safe to emit now;

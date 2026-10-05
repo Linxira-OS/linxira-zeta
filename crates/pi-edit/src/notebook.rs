@@ -61,11 +61,11 @@ impl NotebookCellType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParsedVirtualCell {
 	/// Parsed cell kind.
-	pub cell_type: NotebookCellType,
+	pub cell_type:  NotebookCellType,
 	/// Original cell index, when the marker named one.
 	pub cell_index: Option<usize>,
 	/// Unescaped cell source.
-	pub source: String,
+	pub source:     String,
 }
 
 static CELL_MARKER_RE: LazyLock<Regex> = LazyLock::new(|| {

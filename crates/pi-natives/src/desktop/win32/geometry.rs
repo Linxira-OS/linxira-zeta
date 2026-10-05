@@ -9,9 +9,9 @@ use super::super::{
 
 #[derive(Debug)]
 pub(super) struct PhysicalLayout {
-	left: i32,
-	top: i32,
-	pub(super) width: u32,
+	left:              i32,
+	top:               i32,
+	pub(super) width:  u32,
 	pub(super) height: u32,
 }
 

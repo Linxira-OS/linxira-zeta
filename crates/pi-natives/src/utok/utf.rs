@@ -198,7 +198,7 @@ impl Utf for Vec<u32> {
 /// Codepoint cursor over units — the pre-tokenizer's scan primitive.
 pub struct Cursor<'a, U: Unit> {
 	pub units: &'a [U],
-	pub pos: usize,
+	pub pos:   usize,
 }
 
 impl<'a, U: Unit> Cursor<'a, U> {

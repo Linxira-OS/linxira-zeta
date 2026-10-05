@@ -29,7 +29,7 @@ enum Node {
 /// runtime timer so synchronous callers must really drive the reactor.
 #[derive(Debug)]
 struct MemFs {
-	nodes: Mutex<BTreeMap<PathBuf, Node>>,
+	nodes:  Mutex<BTreeMap<PathBuf, Node>>,
 	closes: Arc<AtomicUsize>,
 }
 
@@ -43,8 +43,8 @@ impl MemFs {
 
 #[derive(Debug)]
 struct MemHandle {
-	data: Arc<Mutex<Vec<u8>>>,
-	pos: Mutex<u64>,
+	data:   Arc<Mutex<Vec<u8>>>,
+	pos:    Mutex<u64>,
 	append: bool,
 	closes: Arc<AtomicUsize>,
 }
@@ -377,10 +377,12 @@ fn native_path_metadata_matches_the_open_file_identity() {
 	let file_meta = fs.open(&path).unwrap().metadata().unwrap();
 	assert!(path_meta.same_file(&file_meta));
 	assert_eq!(path_meta.len(), file_meta.len());
-	let missing_identity = Metadata::native_with_handle(
-		std::fs::metadata(&path).unwrap(),
-		crate::native::HandleInfo { volume_serial: 1, file_index: 0, nlink: 1 },
-	);
+	let missing_identity =
+		Metadata::native_with_handle(std::fs::metadata(&path).unwrap(), crate::native::HandleInfo {
+			volume_serial: 1,
+			file_index:    0,
+			nlink:         1,
+		});
 	assert!(missing_identity.file_id().is_none());
 	assert!(!missing_identity.same_file(&path_meta));
 	let link = dir.0.join("link");

@@ -37,13 +37,13 @@ impl From<AstMatchStrictness> for MatchStrictness {
 
 #[derive(Debug, Clone)]
 pub struct AstMatch {
-	pub line: usize,
-	pub column: usize,
-	pub end_line: usize,
+	pub line:       usize,
+	pub column:     usize,
+	pub end_line:   usize,
 	pub end_column: usize,
 	pub byte_start: usize,
-	pub byte_end: usize,
-	pub text: String,
+	pub byte_end:   usize,
+	pub text:       String,
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +54,7 @@ pub struct MatchedFile {
 
 #[derive(Debug, Clone)]
 pub struct CompiledRewrite {
-	pub out: String,
+	pub out:      String,
 	pub patterns: Vec<Pattern>,
 }
 
@@ -259,13 +259,13 @@ pub fn collect_matches(source: &str, language: SupportLang, patterns: &[Pattern]
 			let range = matched.range();
 			let node = matched.get_node();
 			matches.push(AstMatch {
-				line: start.line() + 1,
-				column: start.column(node) + 1,
-				end_line: end.line() + 1,
+				line:       start.line() + 1,
+				column:     start.column(node) + 1,
+				end_line:   end.line() + 1,
 				end_column: end.column(node) + 1,
 				byte_start: range.start,
-				byte_end: range.end,
-				text: matched.text().into_owned(),
+				byte_end:   range.end,
+				text:       matched.text().into_owned(),
 			});
 		}
 	}

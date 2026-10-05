@@ -49,13 +49,13 @@ pub fn strip_apply_patch_path_noise(value: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplyPatchEntry {
 	/// Authored source path.
-	pub path: String,
+	pub path:   String,
 	/// Requested file operation.
-	pub op: Operation,
+	pub op:     Operation,
 	/// Optional update destination.
 	pub rename: Option<String>,
 	/// Full create content or update hunks.
-	pub diff: Option<String>,
+	pub diff:   Option<String>,
 }
 
 fn parse_error(message: impl Into<String>, line: Option<usize>) -> EditError {
@@ -119,19 +119,19 @@ fn parse_with_options(
 				index += 1;
 			}
 			output.push(ApplyPatchEntry {
-				path: path.to_owned(),
-				op: Operation::Create,
+				path:   path.to_owned(),
+				op:     Operation::Create,
 				rename: None,
-				diff: Some(content),
+				diff:   Some(content),
 			});
 			continue;
 		}
 		if let Some(path) = first.strip_prefix(DELETE_FILE_MARKER) {
 			output.push(ApplyPatchEntry {
-				path: path.to_owned(),
-				op: Operation::Delete,
+				path:   path.to_owned(),
+				op:     Operation::Delete,
 				rename: None,
-				diff: None,
+				diff:   None,
 			});
 			index += 1;
 			continue;
@@ -219,10 +219,10 @@ pub fn format_apply_codex_patch_summary(
 
 fn as_patch_input(entry: &ApplyPatchEntry) -> PatchInput<'_> {
 	PatchInput {
-		path: &entry.path,
-		op: entry.op,
+		path:   &entry.path,
+		op:     entry.op,
 		rename: entry.rename.as_deref(),
-		diff: entry.diff.as_deref(),
+		diff:   entry.diff.as_deref(),
 	}
 }
 
@@ -424,7 +424,7 @@ fn inspect_entries(input: &str) -> (Vec<String>, Vec<(String, String)>, Vec<File
 /// Codex envelope mode engine.
 pub struct ApplyPatchEngine {
 	/// Whether inexact hunk placement is allowed.
-	pub allow_fuzzy: bool,
+	pub allow_fuzzy:     bool,
 	/// Minimum confidence for character-level fallback matching.
 	pub fuzzy_threshold: f64,
 }
@@ -513,15 +513,12 @@ mod tests {
 			"<<'EOF'\n*** Begin Patch\n*** Add File: a.txt\n+hello\n*** End Patch\nEOF",
 		)
 		.unwrap();
-		assert_eq!(
-			parsed,
-			vec![ApplyPatchEntry {
-				path: "a.txt".into(),
-				op: Operation::Create,
-				rename: None,
-				diff: Some("hello\n".into()),
-			}]
-		);
+		assert_eq!(parsed, vec![ApplyPatchEntry {
+			path:   "a.txt".into(),
+			op:     Operation::Create,
+			rename: None,
+			diff:   Some("hello\n".into()),
+		}]);
 	}
 
 	#[test]

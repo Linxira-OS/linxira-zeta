@@ -55,7 +55,7 @@ impl AudioCapture {
 #[napi]
 pub struct AudioPlayback {
 	stream: Mutex<Option<PlaybackStream>>,
-	state: Arc<PlaybackState>,
+	state:  Arc<PlaybackState>,
 }
 
 #[napi]

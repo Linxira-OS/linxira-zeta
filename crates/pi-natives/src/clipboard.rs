@@ -26,7 +26,7 @@ static CLIPBOARD_ACCESS: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 #[napi(object)]
 pub struct ClipboardImage {
 	/// PNG-encoded image bytes.
-	pub data: Uint8Array,
+	pub data:      Uint8Array,
 	/// MIME type for the encoded image payload.
 	pub mime_type: String,
 }
