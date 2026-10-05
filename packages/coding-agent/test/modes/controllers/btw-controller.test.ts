@@ -12,6 +12,7 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
 import { Container, replaceTabs, type TUI } from "@linxiraos/pi-tui";
+import type { NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
 
 const usage: Usage = {
 	input: 0,
@@ -158,6 +159,56 @@ describe("BtwController", () => {
 		await controller.dispose();
 	});
 
+	it("in Tern answers in the BTW history sheet, which Esc puts away while the answer keeps streaming", async () => {
+		const pending = Promise.withResolvers<RunEphemeralTurnResult>();
+		let onTextDelta: ((delta: string) => void) | undefined;
+		const runEphemeralTurn = vi.fn((args: RunEphemeralTurnArgs) => {
+			onTextDelta = args.onTextDelta;
+			return pending.promise;
+		});
+		const btwContainer = new Container();
+		const ctx = makeCtx(makeFakeSession(runEphemeralTurn), btwContainer);
+		const hide = vi.fn();
+		const showOverlay = vi.fn((_component: unknown) => ({ hide }));
+		Object.assign(ctx.ui, { nativeRendering: true, showOverlay });
+		const controller = new BtwController(ctx);
+		const sheetAt = (call: number): BtwHistoryPanel => {
+			const sheet = showOverlay.mock.calls[call]?.[0];
+			if (!(sheet instanceof BtwHistoryPanel)) throw new Error("expected the BTW history sheet");
+			return sheet;
+		};
+		const answerText = (sheet: BtwHistoryPanel): unknown => {
+			const find = (node: NativeChild): NativeNode | undefined => {
+				if (!("k" in node) || typeof node.k !== "string") return undefined;
+				if (node.k === "md" && node.p?.text === "Because streaming.") return node;
+				for (const child of node.c ?? []) {
+					const found = find(child);
+					if (found) return found;
+				}
+				return undefined;
+			};
+			return find(sheet.describe());
+		};
+
+		await controller.start("Why?");
+		// No inline dock panel: Tern clips it, while the sheet body scrolls.
+		expect(btwContainer.children).toHaveLength(0);
+		onTextDelta?.("Because streaming.");
+		expect(answerText(sheetAt(0))).toBeDefined();
+
+		sheetAt(0).handleInput("\x1b");
+		expect(hide).toHaveBeenCalledTimes(1);
+		expect(runEphemeralTurn.mock.calls[0]?.[0].signal?.aborted).toBe(false);
+		expect(ctx.showStatus).toHaveBeenCalledWith(expect.stringContaining("/btw to reopen"), { dim: true });
+
+		// `/btw` lands back on the answer that kept streaming.
+		await controller.start("");
+		expect(answerText(sheetAt(1))).toBeDefined();
+		pending.resolve({ replyText: "Because streaming.", assistantMessage: createAssistantMessage("x") });
+		await drainBtwRequest();
+		await controller.dispose();
+	});
+
 	it("opens history without a model request when invoked without a question", async () => {
 		const runEphemeralTurn = vi.fn(async () => ({
 			replyText: "n/a",
@@ -247,7 +298,7 @@ describe("BtwController", () => {
 	});
 
 	it("keeps focused-agent side conversations apart from main history in the shared artifacts directory", async () => {
-		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-focused-scope-"));
+		const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-btw-focused-scope-"));
 		const mainTurn = vi.fn(async () => ({
 			replyText: "Main answer",
 			assistantMessage: createAssistantMessage("Main"),

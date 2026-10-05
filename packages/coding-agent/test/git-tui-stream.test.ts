@@ -19,6 +19,7 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 // v18.0.5; release addons published before that lack it, and every test here
 // that loads staged content goes through GitModel.streamContents → DiffStream.
 const HAS_DIFF_STREAM = typeof DiffStream === "function";
+
 const RED_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
 	"base64",
@@ -88,13 +89,63 @@ describe("git TUI streamed document", () => {
 		});
 	});
 
-	test
-		.each([
-			["replacement", "a\nb\nc\n", "a\nx\nc\n"],
-			["insert and delete", "a\nb\nc\nd\n", "a\nnew\nb\nd\n"],
-			["EOF newline transition", "a\nb", "a\nb\n"],
-		])
-		.skipIf(!HAS_DIFF_STREAM)("matches the exact synchronous builder for %s", async (_name, oldText, newText) => {
+	test("applies only the selected adjacent change to the index and reverses it", async () => {
+		await withReviewRepo(async repo => {
+			const filePath = path.join(repo, "seed.txt");
+			const original = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\n";
+			const modified = original.replace("line 5\nline 6", "changed 5\nchanged 6");
+			await Bun.write(filePath, original);
+			await $`git add seed.txt`.cwd(repo).quiet();
+			await $`git commit -m lines`.cwd(repo).quiet();
+			await Bun.write(filePath, modified);
+
+			const model = new GitModel(repo);
+			const doc = buildDiffDocument(original, modified, "seed.txt");
+			const row = doc.rows.findIndex(item => item.newRaw === "changed 5");
+			expect(row).toBeGreaterThanOrEqual(0);
+			const patch = buildLineSelectionPatch(doc, row, row, "apply");
+			if (!patch) throw new Error("selected row produced no patch");
+			await model.applyPatch(patch, { cached: true });
+			expect((await $`git show :seed.txt`.cwd(repo).quiet().text()).split("\n").slice(4, 6)).toEqual([
+				"changed 5",
+				"line 6",
+			]);
+			expect(await Bun.file(filePath).text()).toBe(modified);
+
+			const staged = buildDiffDocument(original, await $`git show :seed.txt`.cwd(repo).quiet().text(), "seed.txt");
+			const stagedRow = staged.rows.findIndex(item => item.newRaw === "changed 5");
+			const undo = buildLineSelectionPatch(staged, stagedRow, stagedRow, "revert");
+			if (!undo) throw new Error("staged row produced no reverse patch");
+			await model.applyPatch(undo, { cached: true });
+			expect(await $`git show :seed.txt`.cwd(repo).quiet().text()).toBe(original);
+			expect(await Bun.file(filePath).text()).toBe(modified);
+		});
+	});
+
+	test("applies a later hunk without staging an earlier hunk", async () => {
+		await withReviewRepo(async repo => {
+			const filePath = path.join(repo, "seed.txt");
+			const original = Array.from({ length: 60 }, (_, index) => `line ${index + 1}`).join("\n") + "\n";
+			const expected = original.replace("line 40\n", "changed 40\n");
+			const modified = expected.replace("line 5\n", "changed 5\n");
+			await Bun.write(filePath, original);
+			await $`git add seed.txt`.cwd(repo).quiet();
+			await $`git commit -m lines`.cwd(repo).quiet();
+			await Bun.write(filePath, modified);
+
+			const doc = buildDiffDocument(original, modified, "seed.txt");
+			expect(doc.hunks).toHaveLength(2);
+			await new GitModel(repo).applyPatch(doc.hunks[1].patch, { cached: true });
+			expect(await $`git show :seed.txt`.cwd(repo).quiet().text()).toBe(expected);
+			expect(await Bun.file(filePath).text()).toBe(modified);
+		});
+	});
+
+	test.each([
+		["replacement", "a\nb\nc\n", "a\nx\nc\n"],
+		["insert and delete", "a\nb\nc\nd\n", "a\nnew\nb\nd\n"],
+		["EOF newline transition", "a\nb", "a\nb\n"],
+	]).skipIf(!HAS_DIFF_STREAM)("matches the exact synchronous builder for %s", async (_name, oldText, newText) => {
 		const streamed = await streamedDocument(oldText, newText);
 		const synchronous = buildDiffDocument(oldText, newText, "fixture.ts");
 		expect(streamed).toEqual(synchronous);
@@ -313,7 +364,7 @@ describe("formatting-ignore whitespace mode", () => {
 		expect(patch).toContain("+value = 2");
 	});
 
-	test.skipIf(!HAS_DIFF_STREAM)("streamed formatting document matches the synchronous builder", async () => {
+	test("streamed formatting document matches the synchronous builder", async () => {
 		const streamed = await streamedDocument(SPLIT_OLD, SPLIT_NEW, FMT);
 		expect(streamed).toEqual(buildDiffDocument(SPLIT_OLD, SPLIT_NEW, "fixture.ts", FMT));
 	});

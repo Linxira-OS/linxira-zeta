@@ -108,9 +108,10 @@ export function encodeTspJson(verb: TspVerb, value: unknown, params?: TspParams,
 
 /**
  * The `hello` query; callers follow it with a DA1 sentinel. `features: ["edit"]`
- * tells the terminal that zeta applies its `edit` events (TSP §8.5), so it may keep a
- * native selection in zeta's editors; without it, every key stays zeta's. `"undo"`
- * says zeta applies `undo` events, so the terminal may turn ⌃Z in a field into one.
+#1:  * tells the terminal that zeta applies its `edit` events (Tern SDK,
+ * `protocol/input.md`), so it may keep a native selection in zeta's editors;
+ * without it, every key stays zeta's. `"undo"` says zeta applies `undo` events,
+ * so the terminal may turn ⌃Z in a field into one.
  * `"send"` accepts an explicit prompt for a live composer without simulating keys.
  */
 export function encodeTspHelloQuery(version?: string): string {
