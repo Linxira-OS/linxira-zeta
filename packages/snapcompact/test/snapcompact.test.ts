@@ -3,6 +3,14 @@ import type { AssistantMessage, Message, Usage } from "@linxiraos/pi-ai";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import * as snapcompact from "../src";
 
+// PR CI tests against the latest release addons by design (native changes are
+// validated post-merge on main and at release). These cases pin the 64px
+// render floor for vision backends, which shipped with the
+// undersized-final-frame fix; release addons published before it render
+// unfloored heights. Same contract as the natives suite's "Needs this PR's
+// rust" skips.
+const HAS_RENDER_FLOOR = process.env.GITHUB_EVENT_NAME !== "pull_request";
+
 // Small frames keep render time negligible. Legacy 5x8 shape: 320px → 64 cols
 // x 40 rows = 2560 chars. Default (anthropic 8x8r-bw): 40 cols x 20 rows = 800.
 const TEST_FRAME_SIZE = 320;
@@ -456,33 +464,36 @@ describe("shape resolution", () => {
 });
 
 describe("render", () => {
-	it("produces an indexed PNG of the declared geometry with sentence-cycled ink (legacy 5x8)", async () => {
-		const geometry = snapcompact.geometry(snapcompact.SHAPES.legacy, TEST_FRAME_SIZE);
-		expect(geometry).toEqual({ cols: 64, rows: 40, capacity: 2560 });
+	it.skipIf(!HAS_RENDER_FLOOR)(
+		"produces an indexed PNG of the declared geometry with sentence-cycled ink (legacy 5x8)",
+		async () => {
+			const geometry = snapcompact.geometry(snapcompact.SHAPES.legacy, TEST_FRAME_SIZE);
+			expect(geometry).toEqual({ cols: 64, rows: 40, capacity: 2560 });
 
-		const frame = await snapcompact.render(
-			"First sentence here. Second one differs.",
-			snapcompact.SHAPES.legacy,
-			TEST_FRAME_SIZE,
-		);
-		expect(frame.cols).toBe(64);
-		expect(frame.rows).toBe(40);
-		expect(frame.chars).toBe(40);
+			const frame = await snapcompact.render(
+				"First sentence here. Second one differs.",
+				snapcompact.SHAPES.legacy,
+				TEST_FRAME_SIZE,
+			);
+			expect(frame.cols).toBe(64);
+			expect(frame.rows).toBe(40);
+			expect(frame.chars).toBe(40);
 
-		const decoded = decodePng(Buffer.from(frame.data, "base64"));
-		expect(decoded.width).toBe(TEST_FRAME_SIZE);
-		// A short page stays compact without creating a subminimum image.
-		expect(decoded.height).toBe(64);
-		expect(decoded.colorType).toBe(3); // indexed color
+			const decoded = decodePng(Buffer.from(frame.data, "base64"));
+			expect(decoded.width).toBe(TEST_FRAME_SIZE);
+			// A short page stays compact without creating a subminimum image.
+			expect(decoded.height).toBe(64);
+			expect(decoded.colorType).toBe(3); // indexed color
 
-		// Two sentences → glyphs printed in ink 1 then ink 2; background stays 0.
-		const used = new Set(decoded.pixels);
-		expect(used.has(1)).toBe(true);
-		expect(used.has(2)).toBe(true);
-		expect(used.has(3)).toBe(false);
-	});
+			// Two sentences → glyphs printed in ink 1 then ink 2; background stays 0.
+			const used = new Set(decoded.pixels);
+			expect(used.has(1)).toBe(true);
+			expect(used.has(2)).toBe(true);
+			expect(used.has(3)).toBe(false);
+		},
+	);
 
-	it("pads a short final page without altering the printed rows", async () => {
+	it.skipIf(!HAS_RENDER_FLOOR)("pads a short final page without altering the printed rows", async () => {
 		const shape = snapcompact.resolveShape(undefined, "8on22-bw");
 		const [last] = await snapcompact.renderMany("x".repeat(83), { shape });
 		const short = decodePng(Buffer.from(last.data, "base64"));
@@ -495,7 +506,7 @@ describe("render", () => {
 		expect(short.pixels.subarray(22 * short.width).every(pixel => pixel === 0)).toBe(true);
 	});
 
-	it("leaves the repeated-row highlight out of padding", async () => {
+	it.skipIf(!HAS_RENDER_FLOOR)("leaves the repeated-row highlight out of padding", async () => {
 		const shape = snapcompact.resolveShape(undefined, "8x8r-bw");
 		const frame = await snapcompact.render("x", shape);
 		const decoded = decodePng(Buffer.from(frame.data, "base64"));
@@ -554,7 +565,7 @@ describe("render", () => {
 		expect(frame.cols).toBe(Math.floor(TEST_FRAME_SIZE / 6));
 	});
 
-	it("pads stretched RGB frames as well as indexed frames", async () => {
+	it.skipIf(!HAS_RENDER_FLOOR)("pads stretched RGB frames as well as indexed frames", async () => {
 		const shape = snapcompact.resolveShape(undefined, "6x6u-bw");
 		const frame = await snapcompact.render("x", shape);
 		const png = Buffer.from(frame.data, "base64");
@@ -562,7 +573,7 @@ describe("render", () => {
 		expect(png.readUInt32BE(20)).toBe(64);
 	});
 
-	it("renders Silver TrueType Unicode text as truecolor RGB", async () => {
+	it.skipIf(!HAS_RENDER_FLOOR)("renders Silver TrueType Unicode text as truecolor RGB", async () => {
 		const silver = snapcompact.resolveShape(undefined, "silver16-bw");
 		const frame = await snapcompact.render("你好안녕", silver, 64);
 		const png = Buffer.from(frame.data, "base64");

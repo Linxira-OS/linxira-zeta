@@ -416,7 +416,7 @@ export class BtwHistoryPanel implements Component, Focusable {
 	}
 
 	/** A large glass sheet titled "BTW history". */
-	readonly nativeOverlay = { role: "omp.overlay.btwHistory", size: "lg", head: "BTW history" } as const;
+	readonly nativeOverlay = { role: "zeta.overlay.btwHistory", size: "lg", head: "BTW history" } as const;
 
 	describe(): NativeNode {
 		const record = this.#selected();

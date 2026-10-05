@@ -344,8 +344,12 @@ describe("pi-natives", () => {
 	});
 
 	describe("grep", () => {
-		it("completes concurrent provider searches without starving pooled filesystem reads", async () => {
-			const script = `
+		// Needs this PR's rust: provider searches must run off the libuv pool
+		// for the deadline logic to fire; PR CI loads the published natives leaf.
+		it.skipIf(process.env.GITHUB_EVENT_NAME === "pull_request")(
+			"completes concurrent provider searches without starving pooled filesystem reads",
+			async () => {
+				const script = `
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -413,29 +417,31 @@ try {
 	await fs.rm(root, { recursive: true, force: true });
 }
 `;
-			const child = Bun.spawn([process.execPath, "--eval", script], {
-				env: { ...process.env, UV_THREADPOOL_SIZE: "4" },
-				stdout: "pipe",
-				stderr: "pipe",
-			});
-			// A stuck native callback never reaches a JS timeout; kill the subprocess on regression.
-			const timer = setTimeout(() => child.kill("SIGKILL"), 6_000);
-			try {
-				const [stdout, stderr, exitCode] = await Promise.all([
-					new Response(child.stdout).text(),
-					new Response(child.stderr).text(),
-					child.exited,
-				]);
-				expect({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode }).toEqual({
-					stdout: "ok",
-					stderr: "",
-					exitCode: 0,
+				const child = Bun.spawn([process.execPath, "--eval", script], {
+					env: { ...process.env, UV_THREADPOOL_SIZE: "4" },
+					stdout: "pipe",
+					stderr: "pipe",
 				});
-			} finally {
-				clearTimeout(timer);
-				if (child.exitCode === null) child.kill("SIGKILL");
-			}
-		}, 10_000);
+				// A stuck native callback never reaches a JS timeout; kill the subprocess on regression.
+				const timer = setTimeout(() => child.kill("SIGKILL"), 6_000);
+				try {
+					const [stdout, stderr, exitCode] = await Promise.all([
+						new Response(child.stdout).text(),
+						new Response(child.stderr).text(),
+						child.exited,
+					]);
+					expect({ stdout: stdout.trim(), stderr: stderr.trim(), exitCode }).toEqual({
+						stdout: "ok",
+						stderr: "",
+						exitCode: 0,
+					});
+				} finally {
+					clearTimeout(timer);
+					if (child.exitCode === null) child.kill("SIGKILL");
+				}
+			},
+			10_000,
+		);
 
 		it("delivers a completed result after the JS thread resumes past its deadline", async () => {
 			const pending = grep({
