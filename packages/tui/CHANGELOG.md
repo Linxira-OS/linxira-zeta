@@ -4,10 +4,6 @@
 
 - Inline images now retire to native scrollback as soon as their transcript block finalizes instead of waiting for row pressure or shutdown, so terminals whose live-region sixel does not stick (Windows Terminal) show images in real time; the exit-time history flush remains as the fallback.
 
-## [1.1.26] - 2026-10-03
-
-- 版本线推进至 1.1.26；本版无独立用户可见变化。
-
 ## [14.9.8] - 2026-05-12
 
 ### Added
@@ -776,6 +772,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.1.26] - 2026-10-03
+
+- 版本线推进至 1.1.26；本版无独立用户可见变化。
 
 ## [1.1.25] - 2026-10-03
 

@@ -1,11 +1,13 @@
 import type { Api, Model, ModelSpec, RemoteCompactionConfig, ThinkingConfig } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { isVertexExpressOpenAIUrl } from "@linxiraos/pi-catalog/hosts";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import { PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models";
 import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
 import { modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
 import { isRecord } from "@linxiraos/pi-utils";
 import { createConfigHeaderResolver } from "./resolve-config-value";
+import { SPECIAL_MODEL_MANAGER_PROVIDER_IDS } from "./model-provider-discovery";
 import type { ModelOverride } from "./models-config-schema";
 /** Provider override config (baseUrl, headers, apiKey, compat, transport). */
 export interface ProviderOverride {
@@ -132,9 +134,10 @@ export function mergeDiscoveredModel<TApi extends Api>(
 	return model;
 }
 
+/** Built-in providers whose KDL entry makes a successful runtime roster replace bundled chat models. */
 export const AUTHORITATIVE_RUNTIME_CATALOG_PROVIDERS = new Set<string>(
-	PROVIDER_DESCRIPTORS.filter(descriptor => descriptor.dynamicModelsAuthoritative).map(
-		descriptor => descriptor.providerId,
+	[...PROVIDER_DESCRIPTORS.map(descriptor => descriptor.providerId), ...SPECIAL_MODEL_MANAGER_PROVIDER_IDS].filter(
+		providerId => providerEntry(providerId)?.dynamicModelsAuthoritative === true,
 	),
 );
 

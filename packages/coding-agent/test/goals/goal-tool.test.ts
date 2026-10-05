@@ -4,6 +4,7 @@ import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import type { GoalModeState, GoalTokenUsage } from "@linxiraos/zeta/goals/state";
 import { GoalTool } from "@linxiraos/zeta/goals/tools/goal-tool";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { resolveApproval } from "@linxiraos/zeta/tools/approval";
 
 function createUsage(overrides: Partial<GoalTokenUsage> = {}): GoalTokenUsage {
 	return {
@@ -316,5 +317,13 @@ describe("GoalTool", () => {
 		expect(result.details?.op).toBe("drop");
 		expect(result.details?.goal?.status).toBe("dropped");
 		expect(harness.getState()).toBeUndefined();
+	});
+
+	it("auto-approves every op in write mode; always-ask prompts only for goal changes (#14368)", () => {
+		const tool = new GoalTool(createToolSession({}));
+		for (const op of ["get", "create", "complete", "resume", "drop"]) {
+			expect(resolveApproval(tool, { op }, "write").policy).toBe("allow");
+			expect(resolveApproval(tool, { op }, "always-ask").policy).toBe(op === "get" ? "allow" : "prompt");
+		}
 	});
 });
