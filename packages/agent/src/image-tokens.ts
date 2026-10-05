@@ -1,5 +1,5 @@
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { parseImageMetadata } from "@oh-my-pi/pi-utils";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { parseImageMetadata } from "@linxiraos/pi-utils";
 
 /**
  * Dimension-based image token estimates shared by the local context counter

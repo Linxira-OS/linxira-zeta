@@ -16,11 +16,7 @@ import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import * as sdkModule from "@linxiraos/zeta/sdk";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import {
-	attachIrcWakeTurnMonitor,
-	runSubagentFollowUpTurn,
-	runSubprocess,
-} from "@linxiraos/zeta/task/executor";
+import { attachIrcWakeTurnMonitor, runSubagentFollowUpTurn, runSubprocess } from "@linxiraos/zeta/task/executor";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WaitTool } from "@linxiraos/zeta/tools/wait";

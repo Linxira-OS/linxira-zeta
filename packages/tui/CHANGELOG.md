@@ -3,19 +3,6 @@
 ## [Unreleased]
 
 - Inline images now retire to native scrollback as soon as their transcript block finalizes instead of waiting for row pressure or shutdown, so terminals whose live-region sixel does not stick (Windows Terminal) show images in real time; the exit-time history flush remains as the fallback.
-## [18.6.1] - 2026-10-04
-
-### Fixed
-
-- Fixed the Space key in the Git diff pane so it stages or unstages the focused hunk instead of scrolling or acting on the wrong change.
-- Fixed the BTW history sheet in Tern: the history list no longer collapses beside a long answer, the panes lose their foldable `##` headings, and the arrow/page keys scroll the answer ([#14331](https://github.com/can1357/oh-my-pi/pull/14331) by [@H4vC](https://github.com/H4vC))
-- Fixed a single saved side question in the BTW history panel opening on its one-row list: its answer now has focus, and Enter or `f` to follow up jumps to the bottom of the conversation ([#14331](https://github.com/can1357/oh-my-pi/pull/14331) by [@H4vC](https://github.com/H4vC))
-
-## [18.6.0] - 2026-10-03
-
-## [1.1.26] - 2026-10-03
-
-- 版本线推进至 1.1.26；本版无独立用户可见变化。
 
 ## [14.9.8] - 2026-05-12
 
@@ -785,6 +772,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.1.26] - 2026-10-03
+
+- 版本线推进至 1.1.26；本版无独立用户可见变化。
 
 ## [1.1.25] - 2026-10-03
 

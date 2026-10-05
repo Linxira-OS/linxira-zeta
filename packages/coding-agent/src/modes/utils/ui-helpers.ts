@@ -37,7 +37,11 @@ import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
 import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
 import { imageContent, textContent } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { ToolActivityContainer } from "@linxiraos/pi-tui/chrome/tool-activity";
-import { ToolExecutionComponent, type ToolExecutionHandle, toolRenderName } from "@linxiraos/pi-tui/chat/tool-execution";
+import {
+	ToolExecutionComponent,
+	type ToolExecutionHandle,
+	toolRenderName,
+} from "@linxiraos/pi-tui/chat/tool-execution";
 import { TranscriptBlock, TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { createUsageRowBlock, turnElapsedMs } from "@linxiraos/pi-tui/overlays/usage-row";
 import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";

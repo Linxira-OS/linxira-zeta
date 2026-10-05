@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
+- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
+
 ## [1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
@@ -80,15 +85,7 @@
 
 ## [1.1.2] - 2026-08-25
 
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
 ## [1.1.1] - 2026-08-25
-
-### Fixed
-
-- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
 
 ## [1.1.0] - 2026-08-25
 

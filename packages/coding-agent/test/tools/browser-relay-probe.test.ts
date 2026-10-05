@@ -95,7 +95,7 @@ describe("waitForRelayExtension", () => {
 		expect(await waitForRelayExtension(`http://127.0.0.1:${fake.port}`)).toBe("outdated-relay");
 	});
 
-	it("accepts a compatible relay from another OMP version", async () => {
+	it("accepts a compatible relay from another Zeta version", async () => {
 		fake = Bun.serve({
 			hostname: "127.0.0.1",
 			port: 0,

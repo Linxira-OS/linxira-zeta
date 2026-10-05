@@ -12,7 +12,7 @@
  *   nothing is coming and the open fails at once instead of burning the
  *   whole window every call.
  */
-import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { throwIfAborted } from "../../tool-errors";
 import { probeCdpResponse } from "../attach";
 import type { RelayUnavailableInfo } from "./server";
