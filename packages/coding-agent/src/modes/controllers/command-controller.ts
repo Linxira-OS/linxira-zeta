@@ -22,6 +22,8 @@ import {
 } from "@linxiraos/pi-tui";
 import { formatDuration, logger, Snowflake, sanitizeText } from "@linxiraos/pi-utils";
 import { shouldEnableAppendOnlyContext } from "../../config/append-only-context-mode";
+import { WebConfig } from "../../config/web-config";
+import { M } from "../../i18n";
 import { type BashResult, isPersistentShellCdCommand } from "../../exec/bash-executor";
 import { type LoadedCustomShare, loadCustomShare } from "../../export/custom-share";
 import { parseExportArgs } from "../../export/html/args";
@@ -103,6 +105,7 @@ import type { UnavailableUsageAccount } from "@linxiraos/pi-tui/overlays/usage-d
 import { cfgTerminalShowImages } from "../settings";
 import { cfgProviderAppendOnlyContext } from "../../session/settings";
 import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../../commands/settings";
+import { noteDeleteAttempt } from "./delete-confirm";
 
 function formatCreditValue(value: number): string {
 	return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -1273,7 +1276,36 @@ export class CommandController {
 			this.ctx.showError("Nothing to delete (in-memory session)");
 			return;
 		}
+		// The Zeta Bot Relay coordinator transcript (web.yml bot session,
+		// tag=relay) is the IM channel hub: the live relay runtime still points
+		// at the file, so `/delete` refuses it outright.
+		if (await this.#isRelayCoordinatorSession()) {
+			this.ctx.showError(M.deleteRelayProtected);
+			return;
+		}
+		const phase = noteDeleteAttempt();
+		if (phase === "first") {
+			this.ctx.present([new Spacer(1), new Text(theme.fg("accent", M.deleteArmed), 1, 1)]);
+			return;
+		}
+		if (phase === "second") {
+			this.ctx.present([new Spacer(1), new Text(theme.fg("warning", M.deleteArmedFinal), 1, 1)]);
+			return;
+		}
+		// Third press inside the window: state is already reset — drop it.
 		await this.#runNewSessionFlow({ drop: true }, "Session deleted");
+	}
+
+	/** Whether the current transcript is the relay-tagged coordinator session. */
+	async #isRelayCoordinatorSession(): Promise<boolean> {
+		const sessionFile = this.ctx.sessionManager.getSessionFile();
+		if (!sessionFile) return false;
+		try {
+			const webConfig = await WebConfig.load();
+			return webConfig.findRelayBotSession(sessionFile) !== undefined;
+		} catch {
+			return false;
+		}
 	}
 
 	async handleForkCommand(): Promise<void> {
