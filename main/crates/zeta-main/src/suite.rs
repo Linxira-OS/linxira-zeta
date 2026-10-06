@@ -117,7 +117,8 @@ pub fn doctor() -> String {
 		}
 	}
 	out.push_str(&format!(
-		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/E/I opens an install pane; Tools ▸ Install missing\n  fills every gap at once.\n",
+		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/E/I opens an install \
+		 pane; Tools ▸ Install missing\n  fills every gap at once.\n",
 		SUITE.len() - missing,
 		SUITE.len()
 	));

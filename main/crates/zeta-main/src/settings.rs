@@ -5,9 +5,7 @@
 //! handling reads the toggles, the settings overlay writes through
 //! [`update`](update) (which persists immediately).
 
-use std::fmt;
-use std::path::PathBuf;
-use std::sync::RwLock;
+use std::{fmt, path::PathBuf, sync::RwLock};
 
 /// Which shell new panes spawn. `Auto` follows the detected chain
 /// (Windows PowerShell → PowerShell 7 → Git Bash → cmd); the pins select
@@ -168,11 +166,10 @@ fn save_to(path: &std::path::Path, settings: Settings) -> std::io::Result<()> {
 		std::fs::create_dir_all(dir)?;
 	}
 	let text = format!(
-		"# zeta workbench settings — hand-edited values are overwritten by the Settings surface\n\
-		 shell = \"{}\"          # auto | powershell | pwsh | git-bash\n\
-		 drag = {}\n\
-		 focus_follows_mouse = {}\n\
-		 close_confirmation = {}          # ask before closing panes that run programs\n",
+		"# zeta workbench settings — hand-edited values are overwritten by the Settings \
+		 surface\nshell = \"{}\"          # auto | powershell | pwsh | git-bash\ndrag = \
+		 {}\nfocus_follows_mouse = {}\nclose_confirmation = {}          # ask before closing panes \
+		 that run programs\n",
 		settings.shell.key(),
 		settings.drag,
 		settings.focus_follows_mouse,

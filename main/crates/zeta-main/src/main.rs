@@ -92,8 +92,8 @@ fn run_suite_tool(tool: Option<&'static suite::SuiteTool>, passthrough: &[String
 	let candidates = shell::resolve_bin_candidates(tool.bins);
 	let Some(mut cmd) = shell::plan_exec(&candidates, passthrough) else {
 		eprintln!(
-			"zeta: found {} but no native runner for its shim on this machine — \
-			 launch the workbench (`zeta`) and split a pane instead.",
+			"zeta: found {} but no native runner for its shim on this machine — launch the workbench \
+			 (`zeta`) and split a pane instead.",
 			path.display()
 		);
 		return ExitCode::FAILURE;
@@ -114,7 +114,8 @@ fn run_suite_tool(tool: Option<&'static suite::SuiteTool>, passthrough: &[String
 /// workbench pane PTY carries `ZETA_WORKBENCH=1` (the same probe the agent
 /// TUI reads to light up hyperlinks), so a bare `zetawork` typed into a
 /// terminal pane would spawn a workbench inside a workbench — two terminal
-/// simulators fighting over one output stream. Pure so both states stay testable.
+/// simulators fighting over one output stream. Pure so both states stay
+/// testable.
 fn is_nested_workbench(zeta_workbench: Option<&str>) -> bool {
 	zeta_workbench == Some("1")
 }

@@ -1,22 +1,27 @@
-use crate::help;
-use crate::layout::{Axis, PaneNode, Side};
-use crate::tab::{PaneClose, PaneKind, Tab, pane_close_target};
-use crate::tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate};
-use crate::widgets::{self, WidgetState};
+use std::{io::Stdout, time::Duration};
+
 use anyhow::Result;
 use crossterm::event::{
 	self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind,
 };
-use ratatui::Terminal as RatuTerminal;
-use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
-use std::io::Stdout;
-use std::time::Duration;
+use ratatui::{
+	Terminal as RatuTerminal,
+	backend::CrosstermBackend,
+	layout::{Constraint, Layout, Rect},
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+	widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
+};
 use termide_core::{KeyChord, Panel, PanelConfig, PanelEvent, RenderContext, ThemeColors};
 use termide_keyboard::{KeyNormalizer, KeyboardCaps};
+
+use crate::{
+	help,
+	layout::{Axis, PaneNode, Side},
+	tab::{PaneClose, PaneKind, Tab, pane_close_target},
+	tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate},
+	widgets::{self, WidgetState},
+};
 
 /// `a, b, c … +2` — the busy list a confirm dialog shows, capped so the
 /// box stays one line.
@@ -1707,11 +1712,13 @@ impl Workspace {
 			let value = |on: bool| if on { "on" } else { "off" };
 			let rows = [
 				format!(
-					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git bash)",
+					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git \
+					 bash)",
 					s.shell.label()
 				),
 				format!(
-					" drag                 {:<9}  ← click to toggle (border resize · pane swap · tab reorder)",
+					" drag                 {:<9}  ← click to toggle (border resize · pane swap · tab \
+					 reorder)",
 					value(s.drag)
 				),
 				format!(" focus follows mouse  {:<9}  ← click to toggle", value(s.focus_follows_mouse)),

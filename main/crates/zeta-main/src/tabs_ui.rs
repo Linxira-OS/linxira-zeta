@@ -4,11 +4,13 @@
 //! with what is on screen. The chrome carries no hotkey hints; keys live in
 //! the help overlay.
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::Widget;
+use ratatui::{
+	buffer::Buffer,
+	layout::Rect,
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+	widgets::Widget,
+};
 
 /// Top-level menus. `Settings` opens the settings surface (roadmap);
 /// `Help` shows the keymap overlay.
@@ -270,7 +272,7 @@ impl Widget for TabBar {
 			*x += w;
 		};
 		put(&mut x, " ‹", dim);
-		for (idx, (label, _, _)) in layout.tabs.iter().enumerate() {
+		for (idx, (label, ..)) in layout.tabs.iter().enumerate() {
 			let style = if idx == self.active { active } else { dim };
 			put(&mut x, label, style);
 			if idx == self.active {

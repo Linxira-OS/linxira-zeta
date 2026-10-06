@@ -13,6 +13,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { __resetProjectDirCacheForTests, setProjectDir } from "@linxiraos/pi-utils";
+import { whichCommand, type OpenProbeContext } from "../../src/utils/bin-discovery";
 import {
 	buildTerminalSpawnCommand,
 	getOpenOptions,
@@ -20,11 +21,16 @@ import {
 	invalidateOpenProbes,
 	resolveTerminalPosix,
 	resolveTerminalWindows,
-	whichCommand,
-	type OpenProbeContext,
 } from "../../src/server/web-gateway/open";
 
-const ENV_KEYS = ["ZETA_DESKTOP", "ZETA_DESKTOP_OPEN_SECRET", "PATH"] as const;
+const ENV_KEYS = [
+	"ZETA_DESKTOP",
+	"ZETA_DESKTOP_OPEN_SECRET",
+	"PATH",
+	"APPDATA",
+	"LOCALAPPDATA",
+	"USERPROFILE",
+] as const;
 
 interface ProbeTree {
 	root: string;
@@ -306,6 +312,65 @@ describe("gateway open targets", () => {
 		},
 	);
 
+	// --- unified discovery tiers: ① ZETA_BIN_DIR ② PATH ③ npm-form dirs ---
+
+	test.skipIf(process.platform !== "win32")(
+		"explicit ZETA_BIN_DIR dir outranks the PATH hit for terminal tools (win32)",
+		() => {
+			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
+			trackTree(tree);
+			const overrideDir = path.join(tree.root, "override");
+			fs.mkdirSync(overrideDir);
+			fs.writeFileSync(path.join(overrideDir, "zeta-ide.cmd"), "");
+			const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), ZETA_BIN_DIR: overrideDir } });
+			const body = getOpenOptions(false, ctx);
+			const ide = body.targets.find(t => t.type === "terminal-ide");
+			expect(ide?.available).toBe(true);
+			expect(ide?.detail).toBe(path.join(overrideDir, "zeta-ide.cmd"));
+		},
+	);
+
+	test.skipIf(process.platform !== "win32")("empty PATH falls back to the npm-form global-bin dirs (win32)", () => {
+		const tree = makeProbeTree("win32", { tools: [] });
+		trackTree(tree);
+		fs.mkdirSync(path.join(tree.root, "npm"));
+		fs.writeFileSync(path.join(tree.root, "npm", "zeta-ide.cmd"), "");
+		const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), APPDATA: tree.root } });
+		const body = getOpenOptions(false, ctx);
+		const ide = body.targets.find(t => t.type === "terminal-ide");
+		expect(ide?.available).toBe(true);
+		expect(ide?.detail).toBe(path.join(tree.root, "npm", "zeta-ide.cmd"));
+	});
+
+	test.skipIf(process.platform === "win32")(
+		"explicit ZETA_BIN_DIR dir outranks the PATH hit for terminal tools (posix)",
+		() => {
+			const tree = makeProbeTree("linux", { tools: ["zeta-ide"] });
+			trackTree(tree);
+			const overrideDir = path.join(tree.root, "override");
+			fs.mkdirSync(overrideDir);
+			fs.writeFileSync(path.join(overrideDir, "zeta-ide"), "");
+			const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), ZETA_BIN_DIR: overrideDir } });
+			const body = getOpenOptions(false, ctx);
+			const ide = body.targets.find(t => t.type === "terminal-ide");
+			expect(ide?.available).toBe(true);
+			expect(ide?.detail).toBe(path.join(overrideDir, "zeta-ide"));
+		},
+	);
+
+	test.skipIf(process.platform === "win32")("empty PATH falls back to the npm-form global-bin dirs (posix)", () => {
+		const tree = makeProbeTree("linux", { tools: [] });
+		trackTree(tree);
+		const bunBin = path.join(tree.root, ".bun", "bin");
+		fs.mkdirSync(bunBin, { recursive: true });
+		fs.writeFileSync(path.join(bunBin, "zeta-ide"), "");
+		const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), HOME: tree.root } });
+		const body = getOpenOptions(false, ctx);
+		const ide = body.targets.find(t => t.type === "terminal-ide");
+		expect(ide?.available).toBe(true);
+		expect(ide?.detail).toBe(path.join(bunBin, "zeta-ide"));
+	});
+
 	// --- probe cache ---
 
 	test.skipIf(process.platform !== "win32")(
@@ -352,6 +417,14 @@ describe("gateway open targets", () => {
 		const empty = trackTempDir("zeta-gw-open-path-");
 		savedEnv.set("PATH", process.env.PATH);
 		process.env.PATH = empty;
+		// The npm-form fallback tier derives its dirs from these, so the
+		// "tool missing" states must neutralize them too — a real
+		// %APPDATA%\npm with installed zeta shims would otherwise satisfy
+		// the probe through tier ③.
+		for (const key of ["APPDATA", "LOCALAPPDATA", "USERPROFILE"] as const) {
+			savedEnv.set(key, process.env[key]);
+			process.env[key] = empty;
+		}
 		return empty;
 	}
 

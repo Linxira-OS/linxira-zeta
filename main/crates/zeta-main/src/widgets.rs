@@ -8,10 +8,12 @@
 //! (unicode-width ambiguity, ratatui #2357).
 
 use chrono::{Datelike, Local, Timelike};
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::{
+	buffer::Buffer,
+	layout::Rect,
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+};
 
 /// Shared, workspace-lifetime state for interactive widgets. Cloned per draw
 /// frame (small); mutations go through the mouse path which owns `&mut self`.

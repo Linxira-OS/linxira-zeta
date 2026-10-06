@@ -32,15 +32,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WebSocketHandler } from "bun";
 import { PtySession } from "@linxiraos/pi-natives";
+import { defaultProbeContext, discoverBin, type OpenProbeContext } from "../../utils/bin-discovery";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
-import {
-	ZETA_IDE_BINS,
-	defaultProbeContext,
-	resolveTerminal,
-	whichCommand,
-	type OpenProbeContext,
-	type ResolvedTerminal,
-} from "./open";
+import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 
 // --- tunables (spec §15) ---
 
@@ -529,11 +523,7 @@ export function buildZetaIdeCommand(
 ): string | null {
 	const file = target.file.trim();
 	if (!file) return null;
-	let bin: string | null = null;
-	for (const candidate of ZETA_IDE_BINS) {
-		bin = whichCommand(candidate, ctx);
-		if (bin) break;
-	}
+	const bin = discoverBin(ZETA_IDE_BINS, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
 	if (!bin) return null;
 	let loc = "";
 	if (typeof target.line === "number" && Number.isFinite(target.line) && target.line > 0) {

@@ -1,9 +1,11 @@
-use crate::layout::{Axis, PaneNode, Side};
+use std::path::PathBuf;
+
 use anyhow::{Result, anyhow};
 use ratatui::layout::Rect;
-use std::path::PathBuf;
 use termide_core::Panel;
 use termide_panel_terminal::Terminal;
+
+use crate::layout::{Axis, PaneNode, Side};
 
 /// Suite bin names, in resolution-priority order. `zeta` is deliberately
 /// absent from `AGENT_BINS`: since the npm package split it is the
@@ -164,8 +166,8 @@ impl Pane {
 			let shell = match &kind {
 				PaneKind::Install { .. } => crate::shell::detect_install_shell().ok_or_else(|| {
 					anyhow!(
-						"no install shell found — installs need Windows PowerShell, \
-						 PowerShell 7 or Git Bash; cmd.exe is never used for installs"
+						"no install shell found — installs need Windows PowerShell, PowerShell 7 or Git \
+						 Bash; cmd.exe is never used for installs"
 					)
 				})?,
 				_ => crate::shell::pick_shell(crate::settings::snapshot().shell),

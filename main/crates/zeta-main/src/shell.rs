@@ -9,15 +9,18 @@
 //! Binary probing is PATHEXT-aware. npm's global installs on Windows are
 //! shims — `name` (sh), `name.ps1`, `name.cmd` — and there is no
 //! `name.exe`, so the old `.exe`-only probe reported installed tools as
-//! missing (the "Split zeta-c opens an install pane" bug). Probing reads
-//! the process PATH — the same value termide hands the pty child via
-//! `set_env` — and augments it with the npm/native global-bin directories
-//! a GUI-spawned process may be missing, then falls back to `where.exe`.
+//! missing (the "Split zeta-c opens an install pane" bug). Discovery follows
+//! the product-wide order — explicit `ZETA_BIN_DIR` override, then the
+//! process PATH (the same value termide hands the pty child via `set_env`),
+//! then the npm/native global-bin directories a GUI-spawned process may be
+//! missing, with `where.exe` as the Windows final word.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Mutex, OnceLock};
+use std::{
+	collections::HashMap,
+	path::{Path, PathBuf},
+	process::Command,
+	sync::{Mutex, OnceLock},
+};
 
 /// The behavior family of a shell: how it parses command lines and quotes
 /// paths.
@@ -362,23 +365,16 @@ fn where_all(bin: &str) -> Vec<PathBuf> {
 		.collect()
 }
 
-/// Every existing candidate for `names`: the process PATH first — the same
-/// value termide hands the pty child, so probes and spawned shells see one
-/// PATH — then the npm/native global-bin dirs when PATH probes come up
-/// empty, then `where.exe` as the final word.
+/// Every existing candidate for `names`, in the product-wide discovery
+/// order: ① the explicit `ZETA_BIN_DIR` override when set, ② the process
+/// PATH — the same value termide hands the pty child, so probes and
+/// spawned shells see one PATH — ③ the npm-form global-bin dirs when both
+/// come up empty. On Windows `where.exe` stays the final resolution word.
+/// PATH hits are used directly; no cross-component version validation
+/// happens at any tier (distro-managed natives win exactly as installed).
 pub fn resolve_bin_candidates(names: &[&str]) -> Vec<PathBuf> {
-	let exts = candidate_extensions();
-	let dirs = path_dirs();
-	let mut found = scan_dirs(&dirs, names, exts, |path| path.is_file());
-	if found.is_empty() && cfg!(windows) {
-		let mut all = dirs;
-		all.extend(augmented_windows_dirs(
-			std::env::var("APPDATA").ok().as_deref(),
-			std::env::var("LOCALAPPDATA").ok().as_deref(),
-			std::env::var("USERPROFILE").ok().as_deref(),
-		));
-		found = scan_dirs(&all, names, exts, |path| path.is_file());
-	}
+	let mut found =
+		resolve_bin_candidates_in(names, &path_dirs(), &explicit_bin_dirs(), &npm_fallback_dirs());
 	if found.is_empty() && cfg!(windows) {
 		for name in names {
 			found.extend(where_all_cached(name));
@@ -386,6 +382,61 @@ pub fn resolve_bin_candidates(names: &[&str]) -> Vec<PathBuf> {
 	}
 	found.dedup();
 	found
+}
+
+/// `resolve_bin_candidates` with every environment input injected — the seam
+/// that keeps the tier order deterministic under test.
+pub(crate) fn resolve_bin_candidates_in(
+	names: &[&str],
+	path_dirs: &[PathBuf],
+	explicit_dirs: &[PathBuf],
+	fallback_dirs: &[PathBuf],
+) -> Vec<PathBuf> {
+	let exts = candidate_extensions();
+	// Tiers ① + ② scan in one directory-major pass, so an explicit-env hit
+	// outranks the same bin found on PATH.
+	let ordered: Vec<PathBuf> = explicit_dirs.iter().chain(path_dirs).cloned().collect();
+	let mut found = scan_dirs(&ordered, names, exts, |path| path.is_file());
+	if found.is_empty() {
+		found = scan_dirs(fallback_dirs, names, exts, |path| path.is_file());
+	}
+	found
+}
+
+/// Tier ①: directories from the explicit `ZETA_BIN_DIR` override
+/// (delimiter-separated, probed in order before PATH). Unset or empty
+/// yields no dirs.
+pub fn explicit_bin_dirs() -> Vec<PathBuf> {
+	explicit_bin_dirs_from(std::env::var_os("ZETA_BIN_DIR").as_deref())
+}
+
+/// Pure parser for the `ZETA_BIN_DIR` override — the testable half.
+fn explicit_bin_dirs_from(value: Option<&std::ffi::OsStr>) -> Vec<PathBuf> {
+	value
+		.filter(|value| !value.is_empty())
+		.map(|value| {
+			std::env::split_paths(value)
+				.filter(|dir| !dir.as_os_str().is_empty())
+				.collect()
+		})
+		.unwrap_or_default()
+}
+
+/// Tier ③: the npm/native global-bin directories a stale PATH may be
+/// missing — npm's default per-user prefix, pnpm's and bun's install dirs.
+/// Windows-only at runtime: GUI-spawned processes there inherit a stale
+/// PATH, while POSIX npm/distro global-bin dirs live on PATH by convention
+/// (tier ② already covers them).
+fn npm_fallback_dirs() -> Vec<PathBuf> {
+	if cfg!(windows) {
+		augmented_windows_dirs(
+			std::env::var("APPDATA").ok().as_deref(),
+			std::env::var("LOCALAPPDATA").ok().as_deref(),
+			std::env::var("USERPROFILE").ok().as_deref(),
+		)
+	} else {
+		Vec::new()
+	}
 }
 
 /// PATH directories of this process.
@@ -516,8 +567,9 @@ fn powershell_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::collections::HashSet;
+
+	use super::*;
 
 	// Probe-building helper for the chain tests; its consumers are
 	// `#[cfg(windows)]` tests, so non-Windows builds see it as dead code.
@@ -533,18 +585,22 @@ mod tests {
 		fn new() -> Self {
 			Self { env: HashMap::new(), where_: HashMap::new(), paths: HashSet::new() }
 		}
+
 		fn with_env(mut self, key: &'static str, value: &str) -> Self {
 			self.env.insert(key, value.to_string());
 			self
 		}
+
 		fn with_where(mut self, bin: &'static str, hit: &str) -> Self {
 			self.where_.insert(bin, hit.to_string());
 			self
 		}
+
 		fn with_paths(mut self, paths: &[&'static str]) -> Self {
 			self.paths.extend(paths.iter().copied());
 			self
 		}
+
 		/// The Windows chain as this fake machine resolves it.
 		fn chain(&self) -> Vec<Shell> {
 			let env = |name: &str| self.env.get(name).cloned();
@@ -716,6 +772,98 @@ mod tests {
 			.map(|s| s.flavor)
 			.collect();
 		assert_eq!(install, vec![ShellFlavor::PowerShell]);
+	}
+
+	/// Temp tree with one dir of probe files, removed on drop.
+	struct ProbeDir {
+		root: PathBuf,
+	}
+
+	impl ProbeDir {
+		fn new(tag: &str) -> Self {
+			let root =
+				std::env::temp_dir().join(format!("zeta-shell-disc-{tag}-{}", std::process::id()));
+			std::fs::create_dir_all(&root).unwrap();
+			Self { root }
+		}
+
+		/// Writes the bin under the name the platform's candidate scan
+		/// probes first (`name.exe` on Windows, bare `name` elsewhere).
+		fn write(&self, name: &str) -> PathBuf {
+			let file = if cfg!(windows) {
+				format!("{name}.exe")
+			} else {
+				name.to_string()
+			};
+			let path = self.root.join(file);
+			std::fs::write(&path, b"").unwrap();
+			path
+		}
+	}
+
+	impl Drop for ProbeDir {
+		fn drop(&mut self) {
+			let _ = std::fs::remove_dir_all(&self.root);
+		}
+	}
+
+	#[test]
+	fn discovery_prefers_explicit_env_dir_over_path() {
+		let explicit = ProbeDir::new("explicit");
+		let on_path = ProbeDir::new("path");
+		let from_explicit = explicit.write("zeta-c");
+		let from_path = on_path.write("zeta-c");
+		// Candidates stay complete (callers may want every form), but the
+		// explicit-env hit must lead the PATH hit.
+		let found = resolve_bin_candidates_in(
+			&["zeta-c"],
+			std::slice::from_ref(&on_path.root),
+			std::slice::from_ref(&explicit.root),
+			&[],
+		);
+		assert_eq!(found, vec![from_explicit, from_path]);
+	}
+
+	#[test]
+	fn discovery_path_hit_skips_npm_fallback() {
+		let on_path = ProbeDir::new("path-hit");
+		let npm = ProbeDir::new("npm-hit");
+		let from_path = on_path.write("zeta-c");
+		npm.write("zeta-c");
+		let found = resolve_bin_candidates_in(
+			&["zeta-c"],
+			std::slice::from_ref(&on_path.root),
+			&[],
+			std::slice::from_ref(&npm.root),
+		);
+		assert_eq!(found, vec![from_path]);
+	}
+
+	#[test]
+	fn discovery_empty_path_falls_back_to_npm_dirs() {
+		let npm = ProbeDir::new("npm-fallback");
+		let from_npm = npm.write("zeta-c");
+		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], std::slice::from_ref(&npm.root));
+		assert_eq!(found, vec![from_npm]);
+	}
+
+	#[test]
+	fn discovery_all_tiers_empty_resolves_nothing() {
+		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], &[]);
+		assert!(found.is_empty());
+	}
+
+	#[test]
+	fn explicit_bin_dirs_parser_ignores_unset_and_empty_entries() {
+		assert!(explicit_bin_dirs_from(None).is_empty());
+		assert!(explicit_bin_dirs_from(Some(std::ffi::OsStr::new(""))).is_empty());
+		let raw = std::env::join_paths([
+			PathBuf::from(""),
+			PathBuf::from("/opt/zeta/bin"),
+			PathBuf::from(""),
+		])
+		.unwrap();
+		assert_eq!(explicit_bin_dirs_from(Some(&raw)), vec![PathBuf::from("/opt/zeta/bin")]);
 	}
 
 	#[test]

@@ -10,6 +10,7 @@ import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { $env, $which, APP_NAME, CLI_BIN_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
+import { discoverBin } from "../utils/bin-discovery";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
@@ -1312,10 +1313,21 @@ function getBinaryName(): string {
 }
 
 /**
- * Resolve the path that `omp` maps to in the user's PATH.
+ * Resolve the path that `zeta-c` maps to in the unified discovery order:
+ * ① explicit `ZETA_BIN_DIR` ② PATH ③ the npm-form global-bin dirs. No
+ * version validation at discovery — `update` verifies the launcher's own
+ * version only after installing a new one.
  */
 function resolveOmpPath(): string | undefined {
-	return $which(CLI_BIN_NAME) ?? undefined;
+	return discoverBin([CLI_BIN_NAME]) ?? undefined;
+}
+
+/** Test seam over the same discovery the update command uses. */
+export function resolveOmpPathForTest(
+	env: NodeJS.ProcessEnv,
+	exists: (candidate: string) => boolean,
+): string | undefined {
+	return discoverBin([CLI_BIN_NAME], { env, exists }) ?? undefined;
 }
 
 /**

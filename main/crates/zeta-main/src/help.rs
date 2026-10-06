@@ -56,21 +56,13 @@ pane (still running) at the bottom of its tab.
 
 /// In-app help overlay: keymap + suite map, centered.
 pub fn overlay_text() -> &'static str {
-	"zeta workspace — help\n\
-	\n\
-	tabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ cycle\n\
-	panes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\n\
-	          Alt+D time+calendar · Alt+L layout · Alt+O next pane\n\
-	          Alt+X close pane · Alt+M minimize pane (dock below)\n\
-	          Alt+B move pane to its own new tab\n\
-	mouse    click tab bar · click pane to focus · drag border = resize\n\
-	          drag pane title onto a pane = swap / reposition\n\
-	dock     minimized panes wait at the bottom — click a chip to restore\n\
-	general  F1 help · Alt+Q quit\n\
-	\n\
-	suite    zetacode · zetaeditor · zetaide\n\
-	missing  a missing suite tool installs itself into a pane on first use\n\
-	\n\
-	note     an active IME can swallow Alt combos — use English input\n\
-	press F1 or Esc to close"
+	"zeta workspace — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
+	 cycle\npanes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\nAlt+D \
+	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
+	 below)\nAlt+B move pane to its own new tab\nmouse    click tab bar · click pane to focus · \
+	 drag border = resize\ndrag pane title onto a pane = swap / reposition\ndock     minimized \
+	 panes wait at the bottom — click a chip to restore\ngeneral  F1 help · Alt+Q quit\n\nsuite    \
+	 zetacode · zetaeditor · zetaide\nmissing  a missing suite tool installs itself into a pane on \
+	 first use\n\nnote     an active IME can swallow Alt combos — use English input\npress F1 or \
+	 Esc to close"
 }
