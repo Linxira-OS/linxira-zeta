@@ -97,6 +97,11 @@ pub fn prepare_matched_line(
 /// Non-spacing marks (Mn) like ु (U+0941) have wcwidth=0 and are truly
 /// zero-width. CJK wide characters (e.g. 漢) return 2 as expected.
 /// Falls back to 1 for clusters that consist entirely of zero-width codepoints.
+///
+/// This is the measure of single-line widgets (menus, dropdowns) drawn with
+/// [`render_text_cells`]. The editor measures with
+/// `termide_buffer::grapheme_columns` instead, which expands tabs to tab
+/// stops and keeps zero-width clusters at zero.
 pub fn grapheme_display_width(g: &str) -> usize {
     use unicode_width::UnicodeWidthStr;
     let w = g.width();
@@ -105,6 +110,52 @@ pub fn grapheme_display_width(g: &str) -> usize {
     } else {
         1
     }
+}
+
+/// The symbol a buffer cell may hold for grapheme cluster `g`.
+///
+/// A control character must never reach the host terminal inside a cell:
+/// a TAB jumps the cursor to the next tab stop, CR returns it to column 0
+/// and LF moves it down (scrolling the whole screen on the last row), so
+/// everything written after it on that frame lands elsewhere than ratatui's
+/// diff assumes, and the diff never repaints the displaced cells. The width
+/// tables give a control character one column, so it keeps that column here
+/// as a blank.
+pub fn cell_symbol(g: &str) -> &str {
+    if g.contains(char::is_control) {
+        " "
+    } else {
+        g
+    }
+}
+
+/// `text` with every TAB expanded to blanks up to the next multiple of
+/// `tab_size`, columns counted from the start of `text` in display widths.
+///
+/// For views that draw text through `Buffer::set_string` or a `Span`: those
+/// drop control characters, so a tab-indented line would lose its
+/// indentation. The tab stop rule is the editor's
+/// (`termide_buffer::grapheme_columns`); `tab_size` 0 is treated as 1.
+/// Borrows `text` when it holds no tab.
+pub fn expand_tabs(text: &str, tab_size: usize) -> std::borrow::Cow<'_, str> {
+    use unicode_width::UnicodeWidthStr;
+    if !text.contains('\t') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let tab_size = tab_size.max(1);
+    let mut out = String::with_capacity(text.len() + tab_size);
+    let mut col = 0;
+    for g in text.graphemes(true) {
+        if g == "\t" {
+            let n = tab_size - col % tab_size;
+            out.extend(std::iter::repeat_n(' ', n));
+            col += n;
+        } else {
+            out.push_str(g);
+            col += g.width();
+        }
+    }
+    std::borrow::Cow::Owned(out)
 }
 
 /// Display width of a string, counting each grapheme cluster via `grapheme_display_width`.
@@ -137,7 +188,14 @@ pub fn render_text_cells(
     use unicode_width::UnicodeWidthChar;
     let mut col = 0u16;
     for ch in text.chars() {
-        let cw = UnicodeWidthChar::width(ch).unwrap_or(0) as u16;
+        // A control character takes the one blank column `str_display_width`
+        // counts for it (see `cell_symbol`), never the previous cell's symbol.
+        let control = ch.is_control();
+        let cw = if control {
+            1
+        } else {
+            UnicodeWidthChar::width(ch).unwrap_or(0) as u16
+        };
         if cw == 0 {
             // Zero-width (Mn combining marks, etc.): append to the last written cell
             // so the terminal font can shape them with their base character.
@@ -154,7 +212,11 @@ pub fn render_text_cells(
             let cell = &mut buf[(x + col, y)];
             // Stack-encode the char instead of allocating a String per glyph.
             let mut enc = [0u8; 4];
-            cell.set_symbol(ch.encode_utf8(&mut enc));
+            cell.set_symbol(if control {
+                " "
+            } else {
+                ch.encode_utf8(&mut enc)
+            });
             cell.set_style(style);
             if cw == 2 && col + 1 < max_cols {
                 // Fill second cell of CJK wide char so it doesn't bleed
@@ -191,5 +253,34 @@ mod tests {
         assert_eq!(str_display_width("日本"), 4);
         // Basic ASCII unaffected
         assert_eq!(str_display_width("abc"), 3);
+    }
+
+    /// Control characters are blanks of one column, both counted and drawn,
+    /// never glued onto the previous cell (#55).
+    #[test]
+    fn control_characters_render_as_one_blank_cell() {
+        assert_eq!(cell_symbol("\t"), " ");
+        assert_eq!(cell_symbol("\r\n"), " ");
+        assert_eq!(cell_symbol("a"), "a");
+        assert_eq!(str_display_width("a\tb"), 3);
+
+        let area = ratatui::layout::Rect::new(0, 0, 6, 1);
+        let mut buf = Buffer::empty(area);
+        let cols = render_text_cells(&mut buf, 0, 0, "a\tb\nc", 6, Style::default());
+        assert_eq!(cols, 5);
+        let row: String = (0..5).map(|x| buf[(x, 0)].symbol()).collect();
+        assert_eq!(row, "a b c");
+    }
+
+    #[test]
+    fn tabs_expand_to_the_next_tab_stop() {
+        assert_eq!(expand_tabs("\tx", 4), "    x");
+        assert_eq!(expand_tabs("ab\tx", 4), "ab  x");
+        assert_eq!(expand_tabs("漢\tx", 4), "漢  x");
+        assert_eq!(expand_tabs("a\t\tb", 8), format!("a{}b", " ".repeat(15)));
+        assert!(matches!(
+            expand_tabs("no tabs", 4),
+            std::borrow::Cow::Borrowed(_)
+        ));
     }
 }

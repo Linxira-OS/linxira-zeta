@@ -14,7 +14,13 @@ they need:
 Text typed inside the editor or sent to a program running in the
 terminal panel is **never** rewritten by canonicalization, so Cyrillic,
 shifted glyphs, and locale-specific characters reach the destination
-unchanged.
+unchanged. The one exception is a `Ctrl` chord on a letter of another
+layout sent to the terminal: a Cyrillic letter has no control code, so
+`Ctrl+С` goes out as the `Ctrl+C` (`^C`) of its physical key.
+
+A text field (a modal input, a find bar, the agent prompt) matches its own
+`Ctrl` shortcuts — select all, copy, cut, paste, undo — on the canonical
+form too, while the letters typed into it stay raw.
 
 ## What canonicalization fixes
 
@@ -53,8 +59,8 @@ cannot deliver any of the configured Enhanced-tier chords.
   `Alt+Shift+...` binding cannot match.
 - `Super` / `Meta` / `Hyper` modifiers.
 
-Enhanced-tier defaults that termide ships (`Ctrl+/` for `toggle_comment`
-and `switch_directory`, `Ctrl+Alt+R` for `replace_all`) are kept because
+Enhanced-tier defaults that termide ships (`Ctrl+/` for `toggle_comment`,
+`Ctrl+\` for `switch_directory`, `Ctrl+Alt+R` for `replace_all`) are kept because
 they are de-facto standards across editors. On a terminal without
 Kitty proto, termide logs a startup warning listing the affected
 bindings; the user can rebind them through Settings → Keybindings.
@@ -117,10 +123,9 @@ prefixes (`global:`, `all:`, `unconsumed:`, `performable:`) and key tables
 have no way to scope a binding to one application.
 
 Termide used to ship `Alt+A` / `Alt+D` as alternatives for these two
-actions, which sidestepped the problem without touching Ghostty. They were
-dropped in favour of `Alt+D` for detaching and `Alt+W` for closing a panel —
-the letters users reach for first — so the fix now belongs in Ghostty's
-config.
+actions, which sidestepped the problem without touching Ghostty. Those
+letters went to actions users reach for first — `Alt+D` detaches and
+`Alt+A` opens the agent panel — so the fix now belongs in Ghostty's config.
 
 To get `Option+Left` / `Option+Right` back, clear the bindings in
 `~/.config/ghostty/config`:
@@ -203,7 +208,7 @@ where `Option+Q` and `Option+T` correctly report `Char('q') + ALT` and
 arrived, and mapping `Ω` back to `z` would misfire for anyone typing Greek.
 
 So an `Alt+Z` binding simply never matches on macOS. Pick another letter — this
-is why `detach_session` defaults to `Alt+D`.
+is why `detach_instance` defaults to `Alt+D`.
 
 ### macOS reserves some function keys
 
@@ -221,7 +226,7 @@ turned on:
 
 | Action | Binding | Section |
 |---|---|---|
-| Toggle accordion / split | `Alt+F11` | `general` |
+| Maximize the panel in its group | `Alt+F11` | `general` |
 | Delete line | `F8` | `editor` |
 | Find next | `F3` | `editor` |
 | Find previous | `Shift+F3` | `editor` |
@@ -282,7 +287,7 @@ form, so `"Alt++"` ≡ `"Alt+Shift+="` and `"Ctrl+Й"` ≡ `"Ctrl+Q"`:
 [general.keybindings]
 panel_grow_vertical = "Alt+Shift+="
 panel_shrink_vertical = "Alt+Shift+-"
-open_sessions = "Alt+\\"
+open_projects = "Alt+\\"
 
 [editor.keybindings]
 trigger_completion = ["Ctrl+J", "Ctrl+Space"]
@@ -304,3 +309,25 @@ normalizer rewrites back to the slash / backslash chord.
 Multiple alternatives are supported for any action: list them in an
 array. The first form is the canonical display string shown in help
 panels.
+
+### Unbound actions
+
+Some actions ship without a binding, because every chord still free collides
+with a desktop or shell shortcut somewhere: `Ctrl+Alt+Left` / `Ctrl+Alt+Right`
+switch workspaces in several Linux desktops, `Ctrl+Alt+<digit>` reaches a
+legacy terminal as `Alt+<digit>`, and `Alt+.` inserts the last argument in
+bash. Bind them to what is free on your system:
+
+| Action | Does |
+|--------|------|
+| `prev_project` / `next_project` | Switch to the previous / next open project, in the order the `Projects` menu lists them |
+| `goto_project_1` … `goto_project_9` | Switch to the open project with that number |
+
+```toml
+[general.keybindings]
+prev_project = "Shift+F5"
+next_project = "Shift+F6"
+goto_project_1 = "Shift+F1"
+```
+
+Once bound, the key is shown beside the project in the `Projects` menu.

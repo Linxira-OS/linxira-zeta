@@ -55,10 +55,10 @@ impl App {
                 return;
             }
             termide_core::SelectAction::CloseEditorChoice => PendingAction::CloseEditorWithSave,
-            termide_core::SelectAction::Custom(_) => {
-                // Custom actions not yet supported
-                return;
-            }
+            // A panel-defined selection (e.g. an agent permission prompt);
+            // the chosen index goes back to the panels as
+            // `PanelCommand::SelectionMade`.
+            termide_core::SelectAction::Custom(action) => PendingAction::PanelSelection { action },
         };
 
         let modal = SelectModal::single(title, "", options);
@@ -90,6 +90,12 @@ impl App {
                     directory: in_dir.clone(),
                 }
             }
+            // A panel-defined prompt (e.g. renaming an agent conversation);
+            // the text goes back to the panels as
+            // `PanelCommand::InputSubmitted`.
+            termide_core::InputAction::Custom(action) => PendingAction::PanelInput {
+                action: action.clone(),
+            },
             termide_core::InputAction::GotoLine => {
                 // GotoLine is handled directly, not through modal
                 return;
@@ -133,11 +139,17 @@ impl App {
             on_submit,
             termide_core::InputAction::GitSshPassphrase { .. }
         );
-        let modal = if is_password {
+        let mut modal = if is_password {
             InputModal::new("SSH Passphrase", prompt).password()
         } else {
             InputModal::with_default("Input", prompt, &initial_value)
         };
+        if let PendingAction::ViewPath { base_dir } = &pending_action {
+            modal.set_suggestions(Box::new(crate::app::modal::PathSuggestions::new(
+                base_dir.clone(),
+                self.project_root.clone(),
+            )));
+        }
         self.state
             .set_pending_action(pending_action, ActiveModal::Input(Box::new(modal)));
     }
@@ -179,18 +191,46 @@ impl App {
                 PendingAction::ReplaceInContent { replace_with }
             }
             termide_core::ConfirmAction::SaveBinary => PendingAction::SaveBinary,
+            termide_core::ConfirmAction::Custom(action) => PendingAction::PanelConfirm { action },
         };
 
         // Create confirmation modal. Deleting is destructive and cannot be
         // undone, so that prompt starts on "No" — every other confirmation
         // keeps "Yes" as the default answer.
         let modal = ConfirmModal::new(title, message);
-        let modal = if matches!(pending_action, PendingAction::DeletePath { .. }) {
+        let modal = if matches!(
+            pending_action,
+            PendingAction::DeletePath { .. } | PendingAction::PanelConfirm { .. }
+        ) {
             modal.defaulting_to_no()
         } else {
             modal
         };
         self.state
             .set_pending_action(pending_action, ActiveModal::Confirm(Box::new(modal)));
+    }
+
+    /// Handle RefreshChecklist event: bring the checklist a panel already
+    /// raised up to date, in place. A refresh for a list that is not open —
+    /// closed since, or never raised — is dropped: the panel asked the app to
+    /// keep a window up to date, and there is none.
+    pub(in crate::app) fn event_refresh_checklist(
+        &mut self,
+        refresh: termide_core::ChecklistRefresh,
+    ) {
+        use crate::state::{ActiveModal, PendingAction};
+
+        if !matches!(
+            self.state.pending_action,
+            Some(PendingAction::PanelChecklist { ref action }) if *action == refresh.action
+        ) {
+            return;
+        }
+        let Some(ActiveModal::Checklist(modal)) = self.state.active_modal.as_mut() else {
+            return;
+        };
+        if modal.refresh(refresh.items, refresh.groups, refresh.prompt) {
+            self.state.needs_redraw = true;
+        }
     }
 }

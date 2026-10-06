@@ -248,20 +248,20 @@ impl Editor {
         Ok(())
     }
 
-    /// Set the unsaved buffer filename (for session restoration)
+    /// Set the unsaved buffer filename (for layout restoration)
     pub fn set_unsaved_buffer_file(&mut self, filename: Option<String>) {
         self.file_state.unsaved_buffer_file = filename;
     }
 
     /// Assign a filename to this unsaved buffer if it doesn't have one yet.
-    /// Called before session save so that to_session() has a stable name.
+    /// Called before the layout is saved so that to_state() has a stable name.
     pub fn ensure_unsaved_buffer_file(&mut self) {
         if self.file_path().is_none()
             && self.buffer_is_modified()
             && self.file_state.unsaved_buffer_file.is_none()
         {
             self.file_state.unsaved_buffer_file =
-                Some(termide_session::generate_unsaved_filename());
+                Some(termide_project::generate_unsaved_filename());
         }
     }
 

@@ -10,7 +10,7 @@ pub fn find_repo_root(path: &Path) -> Option<PathBuf> {
         if current.join(".git").exists() {
             // Canonicalize to resolve symlinks/bind-mounts so that all
             // consumers (panels, watcher, diff) use consistent paths.
-            return Some(std::fs::canonicalize(current).unwrap_or_else(|_| current.to_path_buf()));
+            return Some(dunce::canonicalize(current).unwrap_or_else(|_| current.to_path_buf()));
         }
         current = current.parent()?;
     }
@@ -29,6 +29,7 @@ pub fn repo_paths_overlap(repo: &Path, paths: &[&Path]) -> bool {
 /// Find the top-level repository root, skipping submodules.
 ///
 /// Submodules have `.git` as a file (not directory) containing `gitdir: ...`.
+/// A linked worktree resolves to the main working copy it was added from.
 /// This function continues searching upward until it finds a repository
 /// with `.git` as a directory (the actual root repo).
 pub fn find_toplevel_repo(path: &Path) -> Option<PathBuf> {
@@ -40,6 +41,10 @@ pub fn find_toplevel_repo(path: &Path) -> Option<PathBuf> {
             // If .git is a directory (not a file), this is the top-level repo
             if git_path.is_dir() {
                 return Some(current.to_path_buf());
+            }
+            // A linked worktree belongs to its main working copy.
+            if let Some(main) = linked_worktree_main(current) {
+                return Some(main);
             }
             // Otherwise it's a submodule (.git is a file), continue searching up
         }
@@ -87,7 +92,7 @@ pub fn find_toplevel_repos(paths: &[PathBuf]) -> Vec<PathBuf> {
     // don't create duplicate entries for the same physical directory.
     let unique_paths: HashSet<PathBuf> = paths
         .iter()
-        .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
+        .map(|p| dunce::canonicalize(p).unwrap_or_else(|_| p.clone()))
         .collect();
 
     // Every input path gets its own upward search. A path nested inside
@@ -129,6 +134,12 @@ fn find_repos_recursive(dir: &Path, depth: usize, max_depth: usize, repos: &mut 
         return;
     }
 
+    // A linked worktree is a working copy of a repository listed on its own;
+    // its branch is reached from there.
+    if is_linked_worktree(dir) {
+        return;
+    }
+
     // This is a git repo
     repos.push(dir.to_path_buf());
 
@@ -148,6 +159,29 @@ fn find_repos_recursive(dir: &Path, depth: usize, max_depth: usize, repos: &mut 
             }
         }
     }
+}
+
+/// Whether `dir` is a linked worktree: its `.git` is a file pointing into
+/// the main repository's `worktrees/` (a submodule's points into `modules/`).
+pub fn is_linked_worktree(dir: &Path) -> bool {
+    linked_worktree_main(dir).is_some()
+}
+
+/// The main working copy of the linked worktree at `dir`, read from the
+/// `gitdir: <main>/.git/worktrees/<name>` line of its `.git` file.
+fn linked_worktree_main(dir: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(dir.join(".git")).ok()?;
+    let gitdir = text.lines().find_map(|line| line.strip_prefix("gitdir:"))?;
+    let gitdir = dir.join(gitdir.trim());
+    let worktrees = gitdir.parent()?;
+    if worktrees.file_name()? != "worktrees" {
+        return None;
+    }
+    let common = worktrees.parent()?;
+    // A bare repository has no main working copy to show.
+    (common.file_name()? == ".git")
+        .then(|| common.parent().map(Path::to_path_buf))
+        .flatten()
 }
 
 /// Get repository name (folder name containing .git)
@@ -181,8 +215,8 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
         let deep = tmp.join("container/lvl1/lvl2/deeprepo");
         fs::create_dir_all(deep.join(".git")).unwrap();
-        let container = fs::canonicalize(tmp.join("container")).unwrap();
-        let deep = fs::canonicalize(&deep).unwrap();
+        let container = dunce::canonicalize(tmp.join("container")).unwrap();
+        let deep = dunce::canonicalize(&deep).unwrap();
 
         let roots = find_toplevel_repos(&[container, deep.clone()]);
         let _ = fs::remove_dir_all(&tmp);
@@ -204,7 +238,7 @@ mod tests {
         let repo = tmp.join("repo");
         fs::create_dir_all(repo.join(".git")).unwrap();
         fs::create_dir_all(repo.join("src/inner")).unwrap();
-        let repo = fs::canonicalize(&repo).unwrap();
+        let repo = dunce::canonicalize(&repo).unwrap();
 
         let roots = find_toplevel_repos(&[repo.clone(), repo.join("src"), repo.join("src/inner")]);
         let _ = fs::remove_dir_all(&tmp);

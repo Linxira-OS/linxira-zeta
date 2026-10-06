@@ -31,7 +31,8 @@ Parsed with `pulldown-cmark` and drawn as text pseudographics:
 - Bulleted and ordered lists, including nesting.
 - Block quotes, prefixed with `│`.
 - Fenced code blocks, syntax-highlighted with the same engine as the editor.
-- Tables, drawn with box-drawing borders.
+- Tables, drawn with box-drawing borders. Columns are sized to their content
+  and long cells wrap onto extra lines instead of being cut off.
 - Horizontal rules and links (underlined, clickable).
 - Images as a clickable `🖼` pictogram followed by the alt text (no terminal
   graphics protocol).
@@ -52,6 +53,7 @@ The preview has a movable cursor and supports text selection:
 - `PageUp`/`PageDown` (or `Space`) — page up/down; `Home`/`End` — line ends;
   `g`/`G` — document start/end.
 - Hold **`Shift`** with movement, or **drag with the mouse**, to select text.
+- **`Ctrl+A`** selects the whole document.
 - **`Ctrl+C`** copies the selection (or the cursor's line when nothing is
   selected) to the clipboard.
 - **`Ctrl+F`** searches; **`Ctrl+R`** reloads from disk; **`Ctrl+G`** opens a
@@ -63,4 +65,4 @@ The preview has a movable cursor and supports text selection:
   `O` opens the link externally; `[`/`]` are history back/forward. See the
   [HTML preview](html.md) for the link-open settings and fetch policy.
 
-The panel persists across sessions and reopens at the same file.
+The panel is saved with the project layout and reopens at the same file.

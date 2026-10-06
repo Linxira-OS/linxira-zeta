@@ -401,6 +401,70 @@ pub enum GitOperationType {
     Fetch,
 }
 
+/// One checkbox of [`PanelEvent::ShowChecklist`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecklistItem {
+    /// What the panel knows the item by; returned when it is left checked.
+    pub key: String,
+    pub label: String,
+    /// The group heading it is listed under; consecutive items share one.
+    pub group: String,
+    pub checked: bool,
+    /// Whether it may be toggled; a locked item shows greyed and keeps its
+    /// state.
+    pub enabled: bool,
+    /// A dim remark after the label (why it is locked, what unchecking it
+    /// does), or empty.
+    pub note: String,
+}
+
+/// A group heading of [`PanelEvent::ShowChecklist`] with more to it than its
+/// name: a remark, and buttons. A group no item names is still listed, as a
+/// heading alone, after the groups the items make.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecklistGroup {
+    /// The `group` of the items it heads.
+    pub name: String,
+    /// A dim remark after the heading (a state, a reason), or empty.
+    pub note: String,
+    pub buttons: Vec<ChecklistButton>,
+}
+
+/// A button on a checklist heading. Pressing it — a click, or its key while
+/// the cursor is on the heading — applies the list as `Enter` does and names
+/// the button in [`crate::PanelCommand::ChecklistDone`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecklistButton {
+    /// What the panel knows the button by.
+    pub id: String,
+    /// One narrow symbol, drawn in brackets.
+    pub icon: String,
+    pub key: char,
+}
+
+/// What a refresh of an open checklist carries: the same list a panel raised
+/// with [`PanelEvent::ShowChecklist`], rebuilt from what is true now. The
+/// modal keeps the ticks the user has made and moves only what changed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecklistRefresh {
+    /// The `action` the panel raised the open list with.
+    pub action: String,
+    /// The hint line as it reads now; the modal keeps its own when `None`.
+    pub prompt: Option<String>,
+    pub items: Vec<ChecklistItem>,
+    /// The headings as they stand now; a heading no item names is listed as
+    /// a heading alone, and one no longer listed takes its items away.
+    pub groups: Vec<ChecklistGroup>,
+}
+
+/// What a checklist came back with: the keys left checked, and the button
+/// that closed it, if one did.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ChecklistOutcome {
+    pub checked: Vec<String>,
+    pub pressed: Option<String>,
+}
+
 /// Events emitted by panels to communicate with the application.
 #[derive(Debug, Clone)]
 pub enum PanelEvent {
@@ -527,8 +591,20 @@ pub enum PanelEvent {
     /// Show informational message
     ShowMessage(String),
 
+    /// Show a read-only info modal: a title and key/value rows, rendered as a
+    /// table (used for the agent panel's session summary).
+    ShowInfo {
+        title: String,
+        rows: Vec<(String, String)>,
+    },
+
     /// Show error message
     ShowError(String),
+
+    /// The panel waits for the user (a question to answer, long work
+    /// finished) and asks to be noticed: the app rings the terminal bell,
+    /// unless the panel is the active one in a focused terminal window.
+    RequestAttention,
 
     /// Show confirmation dialog
     ShowConfirm {
@@ -550,6 +626,27 @@ pub enum PanelEvent {
         on_select: SelectAction,
     },
 
+    /// Show a list of checkboxes; however it is closed — `Enter`, `Esc`, a
+    /// click beside it, a heading button — the keys left checked go back to
+    /// the focused panel as [`crate::PanelCommand::ChecklistDone`].
+    ShowChecklist {
+        title: String,
+        /// A hint line under the title (the keys, what a greyed item means).
+        prompt: String,
+        items: Vec<ChecklistItem>,
+        /// Headings with a remark or buttons, and headings with no items.
+        groups: Vec<ChecklistGroup>,
+        /// Echoed back with the result, so the panel knows which list it was.
+        action: String,
+    },
+
+    /// Bring a checklist the panel raised with [`PanelEvent::ShowChecklist`]
+    /// up to date while it is open, as its state moved under the user — an
+    /// MCP server that connected, a tool that arrived. What the user ticked
+    /// stays ticked; only what changed moves. Ignored when no list with that
+    /// `action` is open, so a panel may raise it whenever it notices.
+    RefreshChecklist(ChecklistRefresh),
+
     /// Show file conflict resolution modal
     ShowConflict {
         source: PathBuf,
@@ -570,6 +667,12 @@ pub enum PanelEvent {
 
     /// Unregister path from watching
     UnwatchPath(PathBuf),
+
+    /// `path` was changed on disk by a panel acting for the user (the
+    /// agent's `edit` and `write`). Delivered to panels as a filesystem
+    /// update at once, without waiting for the watcher, which may also drop
+    /// paths under `.gitignore`.
+    FileChangedOnDisk(PathBuf),
 
     // === Git integration ===
     /// Request git status refresh for path
@@ -593,8 +696,11 @@ pub enum PanelEvent {
         file_path: Option<PathBuf>,
     },
 
-    /// Open git log panel for repository
-    OpenGitLog { repo_path: PathBuf },
+    /// Open git log panel for repository, showing `branch` (`None` = HEAD)
+    OpenGitLog {
+        repo_path: PathBuf,
+        branch: Option<String>,
+    },
 
     // === Clipboard ===
     /// Copy text to clipboard
@@ -665,6 +771,23 @@ pub enum PanelEvent {
 
     /// Open the directory switcher modal (emitted by file manager / terminal panels).
     OpenDirectorySwitcher,
+
+    /// Fork an agent session: copy the session log at `session` and open the
+    /// copy in a new agent panel working in `cwd`, leaving the panel that
+    /// asked at its own session. Emitted by the agent panel; the app does the
+    /// copying, since it owns panel creation and the configuration a new panel
+    /// runs on.
+    ForkAgentSession { session: PathBuf, cwd: PathBuf },
+
+    /// Let the user pick another working directory for a fresh agent panel
+    /// working in `cwd`, on the session log at `session`. On a pick the app
+    /// moves the log to the new directory's sessions and reopens the panel
+    /// there in place, since the panel's tools, agents and hooks are all
+    /// resolved from its directory.
+    ChangeAgentCwd {
+        session: Option<PathBuf>,
+        cwd: PathBuf,
+    },
 }
 
 /// A single file location from LSP find-references.
@@ -717,6 +840,13 @@ pub enum ConfirmAction {
 
     /// Save the active binary (hex) editor's pending edits to disk.
     SaveBinary,
+
+    /// A confirmation a panel raised for itself. On accept the answer is
+    /// delivered back to the focused panel as
+    /// [`crate::PanelCommand::Confirmed`] with this action string; on cancel
+    /// nothing happens. The panel-side counterpart of
+    /// [`InputAction::Custom`] and [`SelectAction::Custom`].
+    Custom(String),
 }
 
 /// Input dialog actions.
@@ -747,6 +877,10 @@ pub enum InputAction {
 
     /// Move files to destination
     MoveTo { sources: Vec<PathBuf> },
+
+    /// Text a panel asked for itself; the entered value comes back as
+    /// `PanelCommand::InputSubmitted` carrying this action string.
+    Custom(String),
 
     /// Rename LSP symbol at position
     RenameSymbol {

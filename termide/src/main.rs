@@ -36,27 +36,39 @@ struct Cli {
     #[arg(long)]
     diagnostics: bool,
 
-    /// Start in a detached session and print its id. The session keeps
+    /// Start a detached instance and print its id. The instance keeps
     /// running — with every shell, LSP server and job inside it — after the
     /// terminal that started it is closed.
     #[cfg(unix)]
     #[arg(long)]
     detached: bool,
 
-    /// Attach to a detached session. Without an id, the most recent one.
+    /// Attach to a detached instance. Without an id, the most recent one.
     #[cfg(unix)]
     #[arg(long, value_name = "ID", num_args = 0..=1, default_missing_value = "")]
     attach: Option<String>,
 
-    /// List detached sessions and exit.
+    /// With `--attach`: take the instance over from a client that is already
+    /// attached, instead of being refused. That client is detached.
+    #[cfg(unix)]
+    #[arg(short, long, requires = "attach")]
+    force: bool,
+
+    /// End a detached instance, with every shell and job inside it, and exit.
+    /// Unsaved changes in it are lost.
+    #[cfg(unix)]
+    #[arg(long, value_name = "ID")]
+    kill: Option<String>,
+
+    /// List detached instances and exit.
     #[cfg(unix)]
     #[arg(long)]
-    list_sessions: bool,
+    list_instances: bool,
 
     /// Print a completion script for the given shell and exit. Load it with
     /// `eval "$(termide --completions bash)"` in ~/.bashrc, or write it into
-    /// the shell's completions directory; `--attach` then completes session
-    /// ids from `--list-sessions`.
+    /// the shell's completions directory; `--attach` then completes instance
+    /// ids from `--list-instances`.
     #[cfg(unix)]
     #[arg(long, value_name = "SHELL", value_parser = completions::SHELLS)]
     completions: Option<String>,
@@ -68,11 +80,34 @@ struct Cli {
     #[arg(long, value_name = "SHELL", num_args = 0..=1, value_parser = completions::SHELLS)]
     install_completions: Option<Option<String>>,
 
+    /// Run one agent task without the UI and print the answer to stdout,
+    /// then exit: `termide --prompt "summarise src/main.rs"`. With `-` the
+    /// prompt is read from stdin. Tool activity and errors go to stderr.
+    /// The agent runs under the configured permission rules and mode with
+    /// anything else refused, since nothing can prompt; set `mode = "auto"`
+    /// or add allow rules for unattended use.
+    #[arg(long, value_name = "PROMPT")]
+    prompt: Option<String>,
+
+    /// Which agent definition the `--prompt` run uses; the default agent
+    /// otherwise.
+    #[arg(long, value_name = "NAME", requires = "prompt")]
+    agent: Option<String>,
+
+    /// How a `--prompt` run reports: `text` (the answer on stdout, the
+    /// default), `json` (one object with the answer, token usage, the tool
+    /// calls and the status) or `stream-json` (one JSON object per event as
+    /// it happens).
+    #[arg(long, value_name = "FORMAT", requires = "prompt", value_parser = ["text", "json", "stream-json"], default_value = "text")]
+    output: String,
+
     /// File(s) to open, optionally with a `file:line[:col]` position suffix.
     /// An existing directory becomes the project root. Given any file,
-    /// termide starts in a clean editor view (no session is restored or
-    /// saved), so it works as $EDITOR for tools like git, crontab and
-    /// visudo: `EDITOR=termide git commit`.
+    /// termide starts in a clean view (no project layout is restored or
+    /// saved). Text opens in the editor, so it works as $EDITOR for tools
+    /// like git, crontab and visudo: `EDITOR=termide git commit`. Images,
+    /// SQLite files, other binary files and directories open in their
+    /// viewer, the hex editor or a file manager.
     #[arg(value_name = "FILE")]
     files: Vec<String>,
 }
@@ -101,8 +136,13 @@ fn run_diagnostics(custom_config: Option<&std::path::Path>) -> bool {
     let config_result = if let Some(path) = custom_config {
         termide_config::Config::load_from(path).map(|_| path.display().to_string())
     } else if let Some(root) = project_root.as_ref() {
-        termide_config::Config::load_layered(None, root)
-            .map(|_| "layered (defaults + global + project) parses OK".to_string())
+        termide_config::Config::load_layered(None, root).and_then(|loaded| {
+            if loaded.warnings.is_empty() {
+                Ok("layered (defaults + global + project) parses OK".to_string())
+            } else {
+                Err(anyhow::anyhow!(loaded.warnings.join("\n    ")))
+            }
+        })
     } else {
         Err(anyhow::anyhow!("cannot resolve current directory"))
     };
@@ -135,8 +175,8 @@ fn run_diagnostics(custom_config: Option<&std::path::Path>) -> bool {
     );
     if let Some(ref root) = project_root {
         check(
-            "session dir",
-            termide_session::Session::get_session_dir(root)
+            "project dir",
+            termide_project::ProjectLayout::get_project_dir(root)
                 .map(|p| p.display().to_string())
                 .map_err(|e| format!("{e}")),
         );
@@ -166,28 +206,38 @@ fn restore_terminal() {
     termide_core::leave_terminal_modes();
 }
 
-/// Handle `--list-sessions`, `--attach` and `--detached`.
+/// Handle `--list-instances`, `--kill`, `--attach` and `--detached`.
 ///
 /// Returns `Some(exit_code)` when one of them ran and the process should stop,
 /// `None` when this is an ordinary launch.
 #[cfg(unix)]
-fn handle_detached_session_cli(
+fn handle_detached_instance_cli(
     cli: &Cli,
     file_paths: &[std::path::PathBuf],
 ) -> Result<Option<i32>> {
-    if cli.list_sessions {
-        print!("{}", termide_detach::format_session_list()?);
+    if cli.list_instances {
+        print!("{}", termide_detach::format_instance_list()?);
         return Ok(Some(0));
     }
 
+    if let Some(id) = &cli.kill {
+        return match termide_detach::client::kill(id) {
+            Ok(()) => Ok(Some(0)),
+            Err(e) => {
+                eprintln!("termide: {e:#}");
+                Ok(Some(1))
+            }
+        };
+    }
+
     if let Some(id) = &cli.attach {
-        // `--attach` with no value means "the most recent session".
+        // `--attach` with no value means "the most recent instance".
         let id = if id.is_empty() {
             None
         } else {
             Some(id.clone())
         };
-        return match termide_detach::client::attach(id) {
+        return match termide_detach::client::attach(id, cli.force) {
             Ok(code) => Ok(Some(code)),
             Err(e) => {
                 eprintln!("termide: {e:#}");
@@ -199,7 +249,7 @@ fn handle_detached_session_cli(
     if cli.detached {
         let project_root = std::env::current_dir()?;
         let id = termide_detach::spawn_detached(&project_root, file_paths)?;
-        println!("Detached session '{id}' started.");
+        println!("Detached instance '{id}' started.");
         println!("Attach with: termide --attach {id}");
         return Ok(Some(0));
     }
@@ -231,8 +281,8 @@ fn main() -> Result<()> {
     // Resolve positional arguments (`file[:line[:col]]`, directories) once,
     // against the invoking directory. A directory argument becomes the
     // project root: chdir before anything else reads the current directory
-    // (config layering, session dir, LSP/git roots), which also keeps
-    // "bare launch = restore this directory's session" intact because a
+    // (config layering, layout dir, LSP/git roots), which also keeps
+    // "bare launch = restore this directory's layout" intact because a
     // bare launch simply has no dir target.
     let invoke_cwd = std::env::current_dir()
         .unwrap_or_else(|_| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/")));
@@ -245,7 +295,7 @@ fn main() -> Result<()> {
             );
         }
     }
-    // Files to open as editor panels; extra directory arguments beyond the
+    // Files to open as panels; extra directory arguments beyond the
     // first are not panel-openable, so they are reported and dropped.
     let file_targets: Vec<&termide_app::OpenedTarget> =
         targets.iter().filter(|t| !t.is_dir_root).collect();
@@ -283,12 +333,12 @@ fn main() -> Result<()> {
         std::process::exit(if ok { 0 } else { 1 });
     }
 
-    // Detached-session handling runs before anything else touches the
+    // Detached-instance handling runs before anything else touches the
     // terminal, the config or the logger. `--detached` forks, and fork only
     // carries the calling thread into the child: a lock held by a thread that
     // no longer exists would deadlock the daemon, so no thread may exist yet.
     #[cfg(unix)]
-    if let Some(code) = handle_detached_session_cli(&cli, &file_paths)? {
+    if let Some(code) = handle_detached_instance_cli(&cli, &file_paths)? {
         std::process::exit(code);
     }
 
@@ -319,19 +369,25 @@ fn main() -> Result<()> {
     // effective config (historical semantics). The second tuple element is
     // the `defaults + global` snapshot used later as the diff baseline for
     // the per-project override file.
-    // Capture any config-load failure so we can re-emit it as
+    // Capture config-load problems so we can re-emit them as
     // `log::warn!` after the logger comes up below. eprintln before
     // raw mode prints to a soon-to-be-overwritten terminal scrollback;
     // the Journal panel is where the user will actually look.
-    let mut config_load_warning: Option<String> = None;
+    let mut config_load_warnings: Vec<String> = Vec::new();
     let (mut config, mut global_baseline) = if let Some(ref path) = cli.config {
         let cfg = Config::load_from(path)?;
         (cfg.clone(), cfg)
     } else {
-        Config::load_layered(None, &project_root).unwrap_or_else(|e| {
-            config_load_warning = Some(format!("Could not load config: {e}. Using defaults."));
-            (Config::default(), Config::default())
-        })
+        match Config::load_layered(None, &project_root) {
+            Ok(loaded) => {
+                config_load_warnings = loaded.warnings;
+                (loaded.effective, loaded.global_layer)
+            }
+            Err(e) => {
+                config_load_warnings.push(format!("Could not load config: {e}. Using defaults."));
+                (Config::default(), Config::default())
+            }
+        }
     };
 
     // Apply CLI overrides on top of the layered config. These are runtime-only
@@ -350,21 +406,21 @@ fn main() -> Result<()> {
         config.general.theme = "norton-commander".to_string();
     }
 
-    // `general.always_detachable`: put this session in a host of its own and
+    // `general.always_detachable`: put this instance in a host of its own and
     // attach to it, so that it is the host — not this process — that dies with
     // the terminal. Must happen before anything spawns a thread, because the
     // host is created by fork.
     //
     // Skipped with file arguments: `git commit` and friends wait for the editor
     // to exit, and a detach would tell them the edit finished when it had not.
-    // Skipped inside a session for the obvious reason.
+    // Skipped inside a hosted instance for the obvious reason.
     #[cfg(unix)]
     if config.general.always_detachable
         && file_paths.is_empty()
         && std::env::var_os(termide_detach::SOCKET_ENV).is_none()
     {
         let id = termide_detach::spawn_detached(&project_root, &[])?;
-        let code = termide_detach::client::attach(Some(id))?;
+        let code = termide_detach::client::attach(Some(id), false)?;
         std::process::exit(code);
     }
 
@@ -378,6 +434,39 @@ fn main() -> Result<()> {
 
     // Initialize translation system with language from config
     init_with_language(&config.general.language)?;
+
+    // Headless agent run: no UI, plain stdout, like --diagnostics. Config and
+    // translations are up; the terminal is still untouched.
+    if let Some(prompt) = cli.prompt.clone() {
+        let prompt = if prompt == "-" {
+            use std::io::Read;
+            let mut buffer = String::new();
+            std::io::stdin().read_to_string(&mut buffer)?;
+            buffer
+        } else {
+            prompt
+        };
+        let cwd = std::env::current_dir().unwrap_or_else(|_| project_root.clone());
+        let output = match cli.output.as_str() {
+            "json" => termide_app::HeadlessOutput::Json,
+            "stream-json" => termide_app::HeadlessOutput::StreamJson,
+            _ => termide_app::HeadlessOutput::Text,
+        };
+        let code = termide_app::run_agent_headless(
+            &config.ai,
+            &cwd,
+            &project_root,
+            cli.agent.as_deref(),
+            prompt.trim(),
+            output,
+        );
+        std::process::exit(code);
+    }
+
+    // Saved layouts of a termide older than the projects rename. Only the
+    // process that goes on to run the UI does this, so its report reaches
+    // the journal with the config warnings below.
+    let migration_notes = termide_project::migrate_legacy_layouts();
 
     // Check for git on the system
     let git_available = check_git_available();
@@ -404,11 +493,11 @@ fn main() -> Result<()> {
 
     // Alternate screen, mouse, focus and paste reporting, plus the keyboard
     // enhancement flags. Shared with the reattach path so a client that
-    // connects to a detached session gets exactly these modes and no other.
+    // connects to a detached instance gets exactly these modes and no other.
     termide_core::enter_terminal_modes(&keyboard_caps, Some(&title))?;
 
     // Whether `⏱️`-style emoji take one column or two is the host terminal's
-    // call, and the frame diff must agree with it. A hosted session has the
+    // call, and the frame diff must agree with it. A hosted instance has the
     // daemon at the other end of its PTY, which answers no query: there the
     // attach client probes its own terminal and hands the answer over.
     #[cfg(unix)]
@@ -422,7 +511,7 @@ fn main() -> Result<()> {
     };
     let vs16_wide = termide_core::adopt_variation_selector_width(vs16_probe.flatten());
 
-    // In a detached session, the daemon signals us when a client attaches.
+    // In a detached instance, the daemon signals us when a client attaches.
     // A no-op otherwise.
     #[cfg(unix)]
     if let Err(e) = termide_detach::install_reattach_handler() {
@@ -452,11 +541,14 @@ fn main() -> Result<()> {
             if vs16_wide { "two columns" } else { "one column" },
             termide_core::VS16_WIDTH_ENV
         ),
-        None => log::info!("Hosted session: VS16 width comes from the attach client"),
+        None => log::info!("Hosted instance: VS16 width comes from the attach client"),
     }
     // — these end up in the Journal panel where users actually look.
-    if let Some(msg) = config_load_warning {
+    for msg in config_load_warnings {
         log::warn!("{}", msg);
+    }
+    for (level, msg) in migration_notes {
+        log::log!(level, "{}", msg);
     }
 
     // Log git availability to journal (not to stderr)
@@ -464,22 +556,23 @@ fn main() -> Result<()> {
 
     // With explicit file arguments, behave like a plain $EDITOR invocation:
     // open just those files in a clean view and don't touch the project's
-    // session (restoring or overwriting it when editing e.g. a commit message
-    // would be surprising and could clobber the real session).
+    // layout (restoring or overwriting it when editing e.g. a commit message
+    // would be surprising and could clobber the real layout).
     if file_targets.is_empty() {
-        // Try to load session, fallback to default layout on error
-        if let Err(e) = app.load_session() {
-            // Session file doesn't exist or is corrupted - use default layout.
-            // Surface the reason in the Journal so a corrupted session is
+        // Try to load the project layout, fallback to default layout on error
+        if let Err(e) = app.load_layout() {
+            // Layout file doesn't exist or is corrupted - use default layout.
+            // Surface the reason in the Journal so a corrupted layout is
             // diagnosable instead of silently snapping to defaults.
-            log::warn!("Could not load session ({e}); starting with the default layout.");
+            log::warn!(
+                "Could not load the project layout ({e}); starting with the default layout."
+            );
             app.setup_default_layout();
         }
     } else {
-        app.set_session_persistence(false);
+        app.set_layout_persistence(false);
         for target in file_targets {
-            if let Err(e) = app.open_path_in_editor_at(target.path.clone(), target.line, target.col)
-            {
+            if let Err(e) = app.open_cli_path_at(target.path.clone(), target.line, target.col) {
                 log::error!("Failed to open '{}' from CLI: {e}", target.path.display());
             }
         }
@@ -522,6 +615,40 @@ mod cli_tests {
     fn no_arguments_means_no_files() {
         let cli = Cli::try_parse_from(["termide"]).unwrap();
         assert!(cli.files.is_empty());
+    }
+
+    #[test]
+    fn prompt_flag_carries_the_text_and_optional_agent() {
+        let cli = Cli::try_parse_from(["termide", "--prompt", "do a thing"]).unwrap();
+        assert_eq!(cli.prompt.as_deref(), Some("do a thing"));
+        assert!(cli.agent.is_none());
+        let named =
+            Cli::try_parse_from(["termide", "--prompt", "review", "--agent", "reviewer"]).unwrap();
+        assert_eq!(named.agent.as_deref(), Some("reviewer"));
+        // --agent without --prompt is rejected.
+        assert!(Cli::try_parse_from(["termide", "--agent", "reviewer"]).is_err());
+        // --output defaults to text, accepts json, rejects other values and
+        // requires --prompt.
+        assert_eq!(
+            Cli::try_parse_from(["termide", "--prompt", "x"])
+                .unwrap()
+                .output,
+            "text"
+        );
+        assert_eq!(
+            Cli::try_parse_from(["termide", "--prompt", "x", "--output", "json"])
+                .unwrap()
+                .output,
+            "json"
+        );
+        assert_eq!(
+            Cli::try_parse_from(["termide", "--prompt", "x", "--output", "stream-json"])
+                .unwrap()
+                .output,
+            "stream-json"
+        );
+        assert!(Cli::try_parse_from(["termide", "--prompt", "x", "--output", "yaml"]).is_err());
+        assert!(Cli::try_parse_from(["termide", "--output", "json"]).is_err());
     }
 
     #[test]
@@ -592,7 +719,7 @@ mod completion_tests {
     }
 
     /// Every script accepts the shells `--completions` accepts, and each one
-    /// asks termide for the session list rather than guessing ids.
+    /// asks termide for the instance list rather than guessing ids.
     #[test]
     fn completion_scripts_agree_with_the_cli() {
         for (shell, script) in SCRIPTS {
@@ -603,8 +730,8 @@ mod completion_tests {
                 );
             }
             assert!(
-                script.contains("--list-sessions 2>/dev/null"),
-                "{shell} completion does not query --list-sessions"
+                script.contains("--list-instances 2>/dev/null"),
+                "{shell} completion does not query --list-instances"
             );
             assert_eq!(completions::script(shell), script);
         }

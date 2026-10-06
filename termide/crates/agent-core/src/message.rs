@@ -1,0 +1,494 @@
+//! Transcript types shared by providers, tools, the loop and the UI.
+//!
+//! The shapes are serde-friendly on purpose: the same structs are appended
+//! to the session log and sent (after conversion) to a model API. Content is
+//! a list of typed blocks so images or other block kinds can be added later
+//! without changing the message envelope.
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::permissions::PermissionNote;
+
+/// Milliseconds since the Unix epoch, used to timestamp transcript entries.
+#[must_use]
+pub fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or(0)
+}
+
+/// Why the model stopped producing the assistant message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StopReason {
+    /// Natural end of the answer.
+    Stop,
+    /// The output token limit was hit; tool call arguments may be truncated.
+    Length,
+    /// The model asked for tool calls and is waiting for their results.
+    ToolUse,
+    /// The request failed; see [`AssistantMessage::error_message`].
+    Error,
+    /// The run was cancelled through a [`crate::CancelToken`].
+    Aborted,
+}
+
+/// Token accounting for one assistant message.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Usage {
+    pub input: u64,
+    pub output: u64,
+    #[serde(default)]
+    pub cache_read: u64,
+    #[serde(default)]
+    pub cache_write: u64,
+}
+
+impl Usage {
+    /// The prompt tokens not served from the cache, billed at the full
+    /// input price or above: the uncached input and what was written to the
+    /// cache.
+    #[must_use]
+    pub fn uncached(&self) -> u64 {
+        self.input.saturating_add(self.cache_write)
+    }
+
+    /// Every token that counted against the context window.
+    #[must_use]
+    pub fn total(&self) -> u64 {
+        self.input
+            .saturating_add(self.output)
+            .saturating_add(self.cache_read)
+            .saturating_add(self.cache_write)
+    }
+}
+
+/// A block inside a user message.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum UserContent {
+    Text { text: String },
+}
+
+/// A tool invocation requested by the model.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolCall {
+    /// Provider-assigned id echoed back in the matching [`ToolResultMessage`].
+    pub id: String,
+    pub name: String,
+    /// Parsed JSON arguments; an object for well-formed calls.
+    pub arguments: Value,
+    /// Opaque data the provider attached to the call and requires back with
+    /// it: an OpenAI-compatible call's `extra_content`, where Gemini puts the
+    /// thought signature its later requests are refused without. Kept in the
+    /// session log, so a reopened session replays it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra_content: Option<Value>,
+}
+
+/// A block inside an assistant message.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AssistantContent {
+    Text {
+        text: String,
+    },
+    Thinking {
+        text: String,
+        /// The provider's seal over the reasoning (Anthropic's `signature`),
+        /// which it needs to accept the block back in a later request.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        signature: Option<String>,
+        /// Reasoning the provider returned encrypted: `signature` holds the
+        /// opaque data and `text` is empty.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        redacted: bool,
+    },
+    ToolCall(ToolCall),
+}
+
+impl AssistantContent {
+    /// A thinking block with no signature, as most providers return it.
+    #[must_use]
+    pub fn thinking(text: impl Into<String>) -> Self {
+        Self::Thinking {
+            text: text.into(),
+            signature: None,
+            redacted: false,
+        }
+    }
+}
+
+/// A block inside a tool result.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolResultContent {
+    Text { text: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UserMessage {
+    pub content: Vec<UserContent>,
+    pub timestamp: u64,
+    /// The `/name args` the user typed when a template, command script or
+    /// skill produced `content`: what the transcript heads the message with.
+    /// Never sent to the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    /// The shell command the user ran by hand (`$` in the input) whose output
+    /// `content` holds. Set only for a message this produces, and only when
+    /// they typed it themselves — a pasted line is not one. The reviewer's log
+    /// keeps this command and leaves `content` out, so what the command
+    /// printed — which may carry text from outside — never reads as the
+    /// user's intent. The model reads it through [`Self::model_text`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ran: Option<String>,
+    /// The hand-run command in [`Self::ran`] failed: it exited non-zero or
+    /// could not run at all.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ran_failed: bool,
+}
+
+impl UserMessage {
+    #[must_use]
+    pub fn text(text: impl Into<String>) -> Self {
+        Self {
+            content: vec![UserContent::Text { text: text.into() }],
+            timestamp: now_millis(),
+            command: None,
+            ran: None,
+            ran_failed: false,
+        }
+    }
+
+    /// The message as produced by the typed `command`.
+    #[must_use]
+    pub fn with_command(mut self, command: Option<String>) -> Self {
+        self.command = command;
+        self
+    }
+
+    /// The message holding the output of `command`, which the user ran by
+    /// hand. See [`Self::ran`].
+    #[must_use]
+    pub fn with_ran(mut self, command: impl Into<String>) -> Self {
+        self.ran = Some(command.into());
+        self
+    }
+
+    /// Mark the hand-run command as failed. See [`Self::ran_failed`].
+    #[must_use]
+    pub fn with_ran_failed(mut self, failed: bool) -> Self {
+        self.ran_failed = failed;
+        self
+    }
+
+    /// What the user typed: the `/name args` or the `$ cmd` behind the
+    /// message, else its text. A hand-run command reports itself rather than
+    /// what it printed, so the queue and an export show the line
+    /// they typed instead of its output.
+    #[must_use]
+    pub fn typed(&self) -> String {
+        self.command
+            .clone()
+            .or_else(|| self.ran.as_ref().map(|ran| format!("$ {ran}")))
+            .unwrap_or_else(|| self.plain_text())
+    }
+
+    /// The text a provider sends the model. A hand-run command's output is
+    /// framed with the command, so the model knows what printed it and that
+    /// it is output rather than something the user wrote; any other message
+    /// is its text as it stands.
+    #[must_use]
+    pub fn model_text(&self) -> String {
+        let text = self.plain_text();
+        match &self.ran {
+            Some(command) => format!(
+                "<bash-input>{command}</bash-input>\n<bash-output>\n{}\n</bash-output>",
+                text.trim_end()
+            ),
+            None => text,
+        }
+    }
+
+    /// `messages` as one, their texts joined by a blank line, or `None` for
+    /// none: messages queued one after another are usually one thought
+    /// written in pieces.
+    #[must_use]
+    pub fn merge(messages: Vec<UserMessage>) -> Option<UserMessage> {
+        if messages.len() <= 1 {
+            return messages.into_iter().next();
+        }
+        let text = messages
+            .iter()
+            .map(UserMessage::plain_text)
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        Some(UserMessage::text(text))
+    }
+
+    /// Concatenated text blocks.
+    #[must_use]
+    pub fn plain_text(&self) -> String {
+        self.content
+            .iter()
+            .map(|block| match block {
+                UserContent::Text { text } => text.as_str(),
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssistantMessage {
+    pub content: Vec<AssistantContent>,
+    pub stop_reason: StopReason,
+    #[serde(default)]
+    pub usage: Usage,
+    pub provider: String,
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    pub timestamp: u64,
+}
+
+impl AssistantMessage {
+    /// A message that carries no content, only a failure. Providers return
+    /// this instead of an `Err`, so the loop sees a uniform result.
+    #[must_use]
+    pub fn failed(
+        provider: impl Into<String>,
+        model: impl Into<String>,
+        stop_reason: StopReason,
+        error_message: impl Into<String>,
+    ) -> Self {
+        Self {
+            content: Vec::new(),
+            stop_reason,
+            usage: Usage::default(),
+            provider: provider.into(),
+            model: model.into(),
+            error_message: Some(error_message.into()),
+            timestamp: now_millis(),
+        }
+    }
+
+    pub fn tool_calls(&self) -> impl Iterator<Item = &ToolCall> {
+        self.content.iter().filter_map(|block| match block {
+            AssistantContent::ToolCall(call) => Some(call),
+            _ => None,
+        })
+    }
+
+    /// Concatenated text blocks, thinking excluded.
+    #[must_use]
+    pub fn plain_text(&self) -> String {
+        self.content
+            .iter()
+            .filter_map(|block| match block {
+                AssistantContent::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Concatenated thinking blocks, so a reopened conversation can show the
+    /// reasoning it recorded.
+    #[must_use]
+    pub fn thinking_text(&self) -> String {
+        self.content
+            .iter()
+            .filter_map(|block| match block {
+                AssistantContent::Thinking { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolResultMessage {
+    pub tool_call_id: String,
+    pub tool_name: String,
+    pub content: Vec<ToolResultContent>,
+    #[serde(default)]
+    pub is_error: bool,
+    /// Structured data for the UI (a diff, a truncation report); never sent
+    /// to the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<Value>,
+    /// Who let the call run, or refused it, and how: a rule, the reviewer,
+    /// the user's answer. Set by the loop, never sent to the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permission: Option<Box<PermissionNote>>,
+    pub timestamp: u64,
+}
+
+impl ToolResultMessage {
+    #[must_use]
+    pub fn text(call: &ToolCall, text: impl Into<String>) -> Self {
+        Self {
+            tool_call_id: call.id.clone(),
+            tool_name: call.name.clone(),
+            content: vec![ToolResultContent::Text { text: text.into() }],
+            is_error: false,
+            details: None,
+            permission: None,
+            timestamp: now_millis(),
+        }
+    }
+
+    #[must_use]
+    pub fn error(call: &ToolCall, text: impl Into<String>) -> Self {
+        Self {
+            is_error: true,
+            ..Self::text(call, text)
+        }
+    }
+
+    #[must_use]
+    pub fn with_details(mut self, details: Value) -> Self {
+        self.details = Some(details);
+        self
+    }
+
+    /// Concatenated text blocks.
+    #[must_use]
+    pub fn plain_text(&self) -> String {
+        self.content
+            .iter()
+            .map(|block| match block {
+                ToolResultContent::Text { text } => text.as_str(),
+            })
+            .collect()
+    }
+}
+
+/// One transcript entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "role", rename_all = "snake_case")]
+pub enum Message {
+    User(UserMessage),
+    Assistant(AssistantMessage),
+    ToolResult(ToolResultMessage),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn message_round_trips_through_json_with_role_tag() {
+        let assistant = AssistantMessage {
+            content: vec![
+                AssistantContent::thinking("plan"),
+                AssistantContent::Text {
+                    text: "hello".into(),
+                },
+                AssistantContent::ToolCall(ToolCall {
+                    id: "c1".into(),
+                    name: "read".into(),
+                    arguments: json!({ "path": "Cargo.toml" }),
+                    extra_content: None,
+                }),
+            ],
+            stop_reason: StopReason::ToolUse,
+            usage: Usage {
+                input: 10,
+                output: 5,
+                cache_read: 0,
+                cache_write: 0,
+            },
+            provider: "fake".into(),
+            model: "m".into(),
+            error_message: None,
+            timestamp: 1,
+        };
+        let messages = vec![
+            Message::User(UserMessage {
+                content: vec![UserContent::Text { text: "hi".into() }],
+                timestamp: 0,
+                command: None,
+                ran: None,
+                ran_failed: false,
+            }),
+            Message::Assistant(assistant.clone()),
+            Message::ToolResult(ToolResultMessage {
+                tool_call_id: "c1".into(),
+                tool_name: "read".into(),
+                content: vec![ToolResultContent::Text { text: "ok".into() }],
+                is_error: false,
+                details: None,
+                permission: None,
+                timestamp: 2,
+            }),
+        ];
+
+        let encoded = serde_json::to_string(&messages).unwrap();
+        assert!(encoded.contains("\"role\":\"assistant\""));
+        assert!(encoded.contains("\"type\":\"tool_call\""));
+        assert!(encoded.contains("\"stop_reason\":\"tool_use\""));
+        assert!(!encoded.contains("error_message"));
+
+        let decoded: Vec<Message> = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, messages);
+        assert_eq!(assistant.plain_text(), "hello");
+        assert_eq!(assistant.tool_calls().count(), 1);
+    }
+
+    #[test]
+    fn a_typed_command_rides_along_but_stays_optional_on_disk() {
+        let plain = UserMessage::text("hi");
+        assert!(!serde_json::to_string(&plain).unwrap().contains("command"));
+        assert_eq!(plain.typed(), "hi");
+
+        let expanded = UserMessage::text("Review a.rs.").with_command(Some("/review a.rs".into()));
+        assert_eq!(expanded.typed(), "/review a.rs");
+        let encoded = serde_json::to_string(&expanded).unwrap();
+        let decoded: UserMessage = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, expanded);
+        // A log written before the field existed still reads.
+        let old: UserMessage =
+            serde_json::from_str(r#"{"content":[{"type":"text","text":"x"}],"timestamp":1}"#)
+                .unwrap();
+        assert_eq!(old.command, None);
+    }
+
+    #[test]
+    fn a_hand_run_command_reaches_the_model_with_its_command() {
+        let ran = UserMessage::text("On branch main\n").with_ran("git status");
+        assert_eq!(
+            ran.model_text(),
+            "<bash-input>git status</bash-input>\n<bash-output>\nOn branch main\n</bash-output>"
+        );
+        // Anything else goes as it stands.
+        assert_eq!(UserMessage::text("hi").model_text(), "hi");
+        // The failure flag stays off disk unless set.
+        let json = serde_json::to_string(&ran).unwrap();
+        assert!(!json.contains("ran_failed"), "{json}");
+        let failed: UserMessage =
+            serde_json::from_str(&serde_json::to_string(&ran.with_ran_failed(true)).unwrap())
+                .unwrap();
+        assert!(failed.ran_failed);
+    }
+
+    #[test]
+    fn error_result_flags_and_copies_call_identity() {
+        let call = ToolCall {
+            id: "id-7".into(),
+            name: "bash".into(),
+            arguments: json!({}),
+            extra_content: None,
+        };
+        let result = ToolResultMessage::error(&call, "boom");
+        assert!(result.is_error);
+        assert_eq!(result.tool_call_id, "id-7");
+        assert_eq!(result.tool_name, "bash");
+        assert_eq!(result.plain_text(), "boom");
+    }
+}

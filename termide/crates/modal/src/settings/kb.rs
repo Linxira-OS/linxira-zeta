@@ -50,8 +50,8 @@ pub(super) fn kb_binding_names(section: usize) -> &'static [&'static str] {
             "new_journal",
             "open_help",
             "open_preferences",
-            "open_sessions",
-            "new_session",
+            "open_projects",
+            "new_project",
             "open_git_status",
             "open_bookmark_add",
             "open_outline",
@@ -82,9 +82,21 @@ pub(super) fn kb_binding_names(section: usize) -> &'static [&'static str] {
             "goto_panel_7",
             "goto_panel_8",
             "goto_panel_9",
+            "prev_project",
+            "next_project",
+            "goto_project_1",
+            "goto_project_2",
+            "goto_project_3",
+            "goto_project_4",
+            "goto_project_5",
+            "goto_project_6",
+            "goto_project_7",
+            "goto_project_8",
+            "goto_project_9",
             "quit",
-            "detach_session",
+            "detach_instance",
             "open_command_palette",
+            "open_path",
             "copy",
             "cut",
             "paste",
@@ -121,6 +133,7 @@ pub(super) fn kb_binding_names(section: usize) -> &'static [&'static str] {
             "create_file",
             "delete",
             "info",
+            "pack",
             "search",
             "search_content",
             "search_replace",
@@ -179,8 +192,8 @@ pub(super) fn get_kb_value(config: &Config, section: usize, name: &str) -> Strin
             new_journal,
             open_help,
             open_preferences,
-            open_sessions,
-            new_session,
+            open_projects,
+            new_project,
             open_git_status,
             open_bookmark_add,
             open_outline,
@@ -211,9 +224,21 @@ pub(super) fn get_kb_value(config: &Config, section: usize, name: &str) -> Strin
             goto_panel_7,
             goto_panel_8,
             goto_panel_9,
+            prev_project,
+            next_project,
+            goto_project_1,
+            goto_project_2,
+            goto_project_3,
+            goto_project_4,
+            goto_project_5,
+            goto_project_6,
+            goto_project_7,
+            goto_project_8,
+            goto_project_9,
             quit,
-            detach_session,
+            detach_instance,
             open_command_palette,
+            open_path,
             copy,
             cut,
             paste
@@ -254,6 +279,7 @@ pub(super) fn get_kb_value(config: &Config, section: usize, name: &str) -> Strin
             create_file,
             delete,
             info,
+            pack,
             search,
             search_content,
             search_replace,
@@ -342,8 +368,8 @@ pub(super) fn set_kb_value(config: &mut Config, section: usize, name: &str, valu
             new_journal,
             open_help,
             open_preferences,
-            open_sessions,
-            new_session,
+            open_projects,
+            new_project,
             open_git_status,
             open_bookmark_add,
             open_outline,
@@ -374,9 +400,21 @@ pub(super) fn set_kb_value(config: &mut Config, section: usize, name: &str, valu
             goto_panel_7,
             goto_panel_8,
             goto_panel_9,
+            prev_project,
+            next_project,
+            goto_project_1,
+            goto_project_2,
+            goto_project_3,
+            goto_project_4,
+            goto_project_5,
+            goto_project_6,
+            goto_project_7,
+            goto_project_8,
+            goto_project_9,
             quit,
-            detach_session,
+            detach_instance,
             open_command_palette,
+            open_path,
             copy,
             cut,
             paste
@@ -419,6 +457,7 @@ pub(super) fn set_kb_value(config: &mut Config, section: usize, name: &str, valu
             create_file,
             delete,
             info,
+            pack,
             search,
             search_content,
             search_replace,
@@ -589,8 +628,9 @@ mod tests {
     /// take a new one.
     #[test]
     fn every_listed_binding_is_wired_to_a_field() {
-        // `normalize` is what fills in the defaults; a bare `default()` leaves
-        // every binding `None` and would make this test pass vacuously.
+        // Some actions ship unbound (`prev_project`, `goto_project_N`), so an
+        // empty read proves nothing; writing a binding and reading it back
+        // does.
         let mut config = Config::default();
         config.normalize();
         for (section, label) in KB_SECTIONS.iter().enumerate() {
@@ -600,11 +640,6 @@ mod tests {
                 "section {section} ({label}) lists no bindings"
             );
             for name in names {
-                assert!(
-                    !get_kb_value(&config, section, name).is_empty(),
-                    "{label}.{name} reads back empty — name does not match a field"
-                );
-
                 let probe = KeyBinding::Single("Ctrl+Alt+F19".to_string());
                 set_kb_value(&mut config, section, name, probe);
                 assert_eq!(

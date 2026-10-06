@@ -6,48 +6,53 @@
 
 **English** | [中文](README.zh.md) | [Русский](README.ru.md)
 
-A zero-config terminal IDE that unifies an editor, file manager, and terminal — with built-in git, database, hex, Markdown, image, and Mermaid viewers — in one cross-platform TUI written in Rust.
+An all-in-one terminal workspace for your workstation and your servers: code editor with LSP, dual-pane file manager with SFTP/FTP, terminal, git, database viewer and a coding agent — one zero-config static binary written in Rust.
 
-**[Website](https://termide.github.io)** | **[Documentation](doc/en/README.md)** | **[Releases](https://github.com/termide/termide/releases)** | **[Screenshots](https://ibb.co/album/nPX6p6)**
+**[Website](https://termide.github.io)** | **[Documentation](doc/en/README.md)** | **[Releases](https://github.com/termide/termide/releases)** | **[Screenshots](https://termide.github.io/#screenshots)**
 
-<p align="center"><img src="assets/screenshots/termide.png" alt="TermIDE — editor, file manager, terminal and viewers in one TUI" width="900"></p>
+<p align="center"><img src="assets/screenshots/termide.gif" alt="TermIDE — editor, file manager, terminal and viewers in one TUI" width="900"></p>
 
 ## Why TermIDE?
 
-Unlike traditional terminal editors that need extensive plugin configuration, TermIDE works out of the box:
+Terminal editors cover the code; everything around it — files on remote hosts, databases, git, long-running shells, a coding agent — usually takes plugins or separate tools. TermIDE ships all of it in one binary that works out of the box on a laptop, a server, or a phone:
 
-| Feature | TermIDE | Vim/Neovim | Helix | Micro |
-|---------|:-------:|:----------:|:-----:|:-----:|
-| LSP Support | ✓ | ✓ | ✓ | plugin |
-| Zero Config | ✓ | ✗ | ✓ | ✓ |
-| Script Automation | ✓ | ✓ | ✗ | plugin |
-| Remote Filesystems (SFTP/FTP) | ✓ | ✓ | ✗ | ✗ |
-| Hex / Binary Viewer | ✓ | plugin | ✗ | plugin |
-| Database Viewer | ✓ | plugin | ✗ | ✗ |
-| Markdown Preview | ✓ | plugin | ✗ | ✗ |
-| Diagram Viewer (Mermaid) | ✓ | plugin | ✗ | ✗ |
-| Image Viewer | ✓ | plugin | ✗ | ✗ |
-| Built-in Terminal | ✓ | plugin | ✗ | ✗ |
-| File Manager | ✓ | plugin | ✗ | ✗ |
-| Background File Operations | ✓ | plugin | ✗ | ✗ |
-| Git Integration | ✓ | plugin | ✗ | ✗ |
-| Sessions | ✓ | plugin | ✗ | ✗ |
-| Detachable Sessions | ✓ | ✗ | ✗ | ✗ |
-| Multi-panel Layout | ✓ | plugin | ✗ | ✗ |
-| Bookmarks | ✓ | plugin | ✗ | ✗ |
-| Resource Monitor | ✓ | ✗ | ✗ | ✗ |
+| Feature | TermIDE | Fresh | Vim/Neovim | Helix | Micro |
+|---------|:-------:|:-----:|:----------:|:-----:|:-----:|
+| LSP Support | ✓ | ✓ | ✓ | ✓ | plugin |
+| Zero Config | ✓ | ✓ | ✗ | ✓ | ✓ |
+| Script Automation | ✓ | ✓ | ✓ | ✗ | plugin |
+| External Agents (Claude Code, Codex, Gemini CLI) | ✓ | ✓ | plugin | ✗ | ✗ |
+| Remote Filesystems (SFTP/FTP) | ✓ | SSH | ✓ | ✗ | ✗ |
+| Markdown Preview | ✓ | ✓ | plugin | ✗ | ✗ |
+| Built-in Terminal | ✓ | ✓ | plugin | ✗ | ✗ |
+| Git Integration | ✓ | ✓ | plugin | ✗ | ✗ |
+| Project Layouts | ✓ | ✓ | plugin | ✗ | ✗ |
+| Multi-panel Layout | ✓ | ✓ | plugin | ✗ | ✗ |
+| Bookmarks | ✓ | ✓ | plugin | ✗ | ✗ |
+| Hex / Binary Viewer | ✓ | ✗ | plugin | ✗ | plugin |
+| Archive Browsing (zip/tar) | ✓ | ✗ | ✓ | ✗ | ✗ |
+| File Manager | ✓ | tree only | plugin | ✗ | ✗ |
+| Detachable Instances | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Built-in Coding Agent (local or hosted models) | ✓ | ✗ | plugin | ✗ | ✗ |
+| MCP Servers | ✓ | ✗ | plugin | ✗ | ✗ |
+| Database Viewer | ✓ | ✗ | plugin | ✗ | ✗ |
+| Diagram Viewer (Mermaid) | ✓ | ✗ | plugin | ✗ | ✗ |
+| Image Viewer | ✓ | ✗ | plugin | ✗ | ✗ |
+| Background File Operations | ✓ | ✗ | plugin | ✗ | ✗ |
+| Resource Monitor | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-**TermIDE = Editor + File Manager + Terminal in one TUI application.**
+**TermIDE = Editor + File Manager + Terminal + Git + Agent in one TUI application.**
 
 ## Features
 
-- **Terminal-based IDE** - Syntax highlighting for 22 languages, word navigation (Ctrl+Left/Right), paragraph/symbol navigation (Ctrl+Up/Down), toggle comment (Ctrl+/), auto-indentation, auto-close brackets
+- **Terminal-based IDE** - Syntax highlighting for 23 languages, word navigation (Ctrl+Left/Right), paragraph/symbol navigation (Ctrl+Up/Down), toggle comment (Ctrl+/), auto-indentation, auto-close brackets
 - **LSP Support** - Code completion, Find References (Shift+F12), Rename Symbol (F4), Go to Definition (Ctrl+Click), diagnostics
-- **Smart File Manager** - Tree view with expandable directories, nested git status, batch operations, file/content search (glob/regex), in-tree incremental search
+- **Coding Agent** - A panel (`Alt+A`) where a language model reads, edits and runs commands in your project through any OpenAI- or Anthropic-compatible endpoint (local llama.cpp / Ollama / vLLM / omlx or hosted), asking permission per tool call, with `/undo` and checkpoints to take its edits back; skills, prompt templates, MCP servers, command hooks, and external agents over ACP (Claude Code, Codex, Gemini CLI) in the same panel
+- **Smart File Manager** - Tree view with expandable directories, nested git status, batch operations, file/content search (glob/regex), in-tree incremental search; zip, tar and ISO archives open like read-only directories (also on a server or inside another archive), and `P` packs the selection into zip or tar
 - **Remote Filesystems** - Browse and edit files on remote servers from the file manager over SFTP / FTP / FTPS, copying between local and remote panels — pure Rust (russh + rustls), no native libraries, works on static musl (`smb://` / `nfs://` via the OS mount)
 - **Background File Operations** - Copy, move, upload, download, delete and batch transfers run in the background with a per-operation progress bar, byte/elapsed readout, and pause / resume / cancel (Operations panel)
 - **Integrated Terminal** - Full PTY support, VT100 escape sequences, mouse tracking
-- **Git Integration** - Status panel, commit log with a coloured Unicode commit graph (ASCII fallback), staging/unstaging, branch switching, stash management, inline blame
+- **Git Integration** - Status panel, commit log with a coloured Unicode commit graph (ASCII fallback), staging/unstaging, branches with their worktrees, branch switching, stash management, inline blame
 - **Database Viewer** - Read-only browser for SQLite / PostgreSQL / MySQL opened from a bookmark URL: table grid with a 2D cell cursor, server-side single-column sort and type-aware per-column filtering, sliding-window pagination, and a row-detail dialog that copies as TSV / JSON / INSERT
 - **Multi-panel Layout** - Vertically split panel groups with adjustable per-panel heights and a one-key fullscreen toggle (`Alt+F11`); smart auto-stacking when the terminal narrows; new panels open after the currently active one
 - **Image Viewer** - Native graphics in Kitty, WezTerm, iTerm2, Ghostty, foot terminals
@@ -58,19 +63,20 @@ Unlike traditional terminal editors that need extensive plugin configuration, Te
 - **38 Built-in Themes** - Dark, light, retro, and cinematic themes (Dracula, Nord, Monokai, Solarized, Matrix, Pip-Boy, Norton Commander, Windows 95, etc.)
 - **Custom Themes** - Create your own themes in TOML format
 - **15 UI Languages** - Bengali, Chinese, English, French, German, Hindi, Indonesian, Japanese, Korean, Portuguese, Russian, Spanish, Thai, Turkish, Vietnamese (missing keys transparently fall back to English)
-- **Session Management** - Auto-save and restore panel layouts
-- **Detached Sessions** - `termide --detached` keeps the whole session — editors, shells, LSP servers, running jobs — alive after the terminal closes; `termide --attach` picks it up again from any terminal, at any size (Unix only)
+- **Project Management** - Auto-save and restore panel layouts per project; projects you switch away from stay open in the background (terminals keep running, unsaved edits are kept), and the Projects menu and the `Alt+\` switcher list open and recent projects
+- **Detached Instances** - `termide --detached` keeps the whole instance — editors, shells, LSP servers, running jobs — alive after the terminal closes; `termide --attach` picks it up again from any terminal, at any size (Unix only)
 - **System Monitor** - Real-time CPU, RAM, network I/O in menu bar and disk usage in status bar; click any indicator to open a detail modal (top processes by CPU/RAM, top processes by network connections with listening ports); repeated click on the same indicator closes the modal (toggle)
 - **Search & Replace** - Live preview, match counter, regex support
-- **Custom Scripts** - Run user-defined scripts from the Scripts menu (supports `.bg.` for background, `.report.` for scrollable modal output with success/failure indicator)
+- **Custom Commands** - Shell commands from `commands.toml`, global and per project, in the Commands menu: hotkeys, groups, parameter forms, and terminal / background / report modes
 - **Settings Modal** - Full-screen configuration (`Alt+P`) with sidebar layout, grouped fields (Appearance / Input / Layout / Performance / …), and in-place keybinding capture for all 9 keybinding scopes
 - **Cross-platform** - Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), Windows (native via ConPTY, WSL)
 - **Full Mouse Support** - Click navigation, scroll, double-click actions
 - **Keyboard Layouts** - Cyrillic support with automatic hotkey translation
 - **Vim Mode** - Optional Vim-style editing with Cyrillic keyboard support
-- **Directory Switcher** - Quick directory switching with Ctrl+/
+- **Directory Switcher** - Quick directory switching with `Ctrl+\`
 - **Bookmarks** - Save and organize frequently used locations
-- **Command Palette** - Quick access to all commands (Ctrl+P)
+- **Command Palette** - Quick access to all commands with fuzzy matching (Ctrl+P)
+- **Open Prompt** - Open a file, directory or URL with path suggestions (Ctrl+G)
 
 ## Installation
 
@@ -87,37 +93,37 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ```bash
 # Linux x86_64 (also works in WSL)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64 (static musl — Alpine, distroless containers, any glibc-free system)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64 (Raspberry Pi, ARM servers)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64 (static musl — Android/Termux, Alpine ARM, any glibc-free ARM64)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64 (download .zip from Releases, extract, run in Windows Terminal)
-# https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -128,14 +134,13 @@ tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
 TermIDE runs natively on Windows 10+ via ConPTY. Use **Windows Terminal** for
 the best experience.
 
-1. Download `termide-0.35.0-x86_64-pc-windows-msvc.zip` from [GitHub Releases](https://github.com/termide/termide/releases).
+1. Download `termide-0.38.0-x86_64-pc-windows-msvc.zip` from [GitHub Releases](https://github.com/termide/termide/releases).
 2. Extract the archive.
 3. Run `termide.exe` in Windows Terminal.
 
-Configuration lives under `%APPDATA%\termide\` (config, sessions) and
-`%LOCALAPPDATA%\termide\cache\` (logs).
+Configuration, project layouts and logs live under `%APPDATA%\termide\`.
 
-Alternatively, in **WSL/WSL2** use the Linux x86_64 build (`termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz`) as on any Linux.
+Alternatively, in **WSL/WSL2** use the Linux x86_64 build (`termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz`) as on any Linux.
 
 </details>
 
@@ -146,8 +151,8 @@ Download and install the `.deb` package from [GitHub Releases](https://github.co
 
 ```bash
 # x86_64 only (ARM64 use tar.gz above)
-wget https://github.com/termide/termide/releases/latest/download/termide_0.35.0-1_amd64.deb
-sudo dpkg -i termide_0.35.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.38.0-1_amd64.deb
+sudo dpkg -i termide_0.38.0-1_amd64.deb
 ```
 
 </details>
@@ -159,8 +164,8 @@ Download and install the `.rpm` package from [GitHub Releases](https://github.co
 
 ```bash
 # x86_64 only (ARM64 use tar.gz above)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-1.x86_64.rpm
-sudo rpm -i termide-0.35.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-1.x86_64.rpm
+sudo rpm -i termide-0.38.0-1.x86_64.rpm
 ```
 
 </details>
@@ -231,8 +236,8 @@ glibc `aarch64-unknown-linux-gnu` build won't run on Android's Bionic libc):
 
 ```bash
 pkg install git openssh   # tools termide shells out to (plus any LSP servers)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -292,8 +297,8 @@ the same code, just compiled against musl.
 The easiest way is to grab the pre-built tarball from the release:
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # Verify it's fully static — no shared libraries
@@ -327,23 +332,34 @@ musl-dev or glibc installed.
 termide [OPTIONS] [FILE]...
 
 Arguments:
-  [FILE]...            File(s) to open. With a path, TermIDE starts in a clean
-                       editor view (no session restore/save), so it works as
-                       $EDITOR for git, crontab, visudo, etc.
+  [FILE]...            File(s) or directories to open. With a path, TermIDE
+                       starts in a clean view (no project layout restored or
+                       saved). Text opens in the editor, so it works as
+                       $EDITOR for git, crontab, visudo, etc.; images, SQLite
+                       files, other binaries and directories open in their
+                       viewer, the hex editor or a file manager.
 
 Options:
   --log-level <LEVEL>  Set log level (trace, debug, info, warn, error)
   --no-lsp             Disable LSP language servers
-  --config <FILE>      Use custom config file path
+  --config <PATH>      Use custom config file path
   --diagnostics        Run pre-flight diagnostics and exit (no UI)
-  --detached           Start a detached session that survives the terminal
+  --detached           Start a detached instance that survives the terminal
                        closing, and print its id (Unix only)
-  --attach [<ID>]      Attach to a detached session, most recent if omitted
-  --list-sessions      List detached sessions and exit
+  --attach [<ID>]      Attach to a detached instance, most recent if omitted
+  -f, --force          With --attach: take the instance over from a client
+                       already attached to it, detaching that client
+  --kill <ID>          End a detached instance with every shell and job in it
+                       and exit; unsaved changes in it are lost
+  --list-instances     List detached instances and exit
   --completions <SHELL>
                        Print a completion script (bash, zsh, fish) and exit
   --install-completions [<SHELL>]
                        Install the completion script for $SHELL, or the named one
+  --prompt <PROMPT>    Run one agent task without the UI, print the answer to
+                       stdout and exit; `-` reads the prompt from stdin
+  --agent <NAME>       With --prompt: the agent definition to use
+  --output <FORMAT>    With --prompt: text (default), json or stream-json
   -h, --help           Print help
   -V, --version        Print version
 ```
@@ -394,19 +410,25 @@ TermIDE follows the [XDG Base Directory Specification](https://specifications.fr
 - macOS: `~/Library/Application Support/termide/config.toml`
 - Windows: `%APPDATA%\termide\config.toml`
 
-**Session data location:**
-- Linux/BSD: `~/.local/share/termide/sessions/` (or `$XDG_DATA_HOME/termide/sessions/`)
-- macOS: `~/Library/Application Support/termide/sessions/`
-- Windows: `%APPDATA%\termide\sessions\`
+A project can override any of it in `<project>/.termide/config.toml`. A setting
+with a wrong type or value is ignored on its own and reported in the Journal;
+the rest of the file still applies. Since the next save from Settings rewrites
+the file without the ignored setting, the file as it was is first copied to
+`config.toml.bak` next to it. `termide --diagnostics` lists the same problems.
 
-**Log file location:**
-- Linux/BSD: `~/.cache/termide/termide.log` (or `$XDG_CACHE_HOME/termide/termide.log`)
-- macOS: `~/Library/Caches/termide/termide.log`
-- Windows: `%LOCALAPPDATA%\termide\cache\termide.log`
+**Project data location:**
+- Linux/BSD: `~/.local/share/termide/projects/` (or `$XDG_DATA_HOME/termide/projects/`)
+- macOS: `~/Library/Application Support/termide/projects/`
+- Windows: `%APPDATA%\termide\projects\`
+
+**Log file location:** each run writes its own `session-<date>-<time>.log`
+into the project's directory under the project data location above; logs older
+than 24 hours are removed. `logging.file_path` replaces this with one fixed file.
 
 **Bookmarks location:**
-- Linux/BSD: `~/.local/share/termide/bookmarks.toml` (or `$XDG_DATA_HOME/termide/bookmarks.toml`)
+- Linux/BSD: `~/.config/termide/bookmarks.toml` (or `$XDG_CONFIG_HOME/termide/bookmarks.toml`)
 - macOS: `~/Library/Application Support/termide/bookmarks.toml`
+- Windows: `%APPDATA%\termide\bookmarks.toml`
 
 ### Example Configuration
 
@@ -415,10 +437,10 @@ TermIDE follows the [XDG Base Directory Specification](https://specifications.fr
 theme = "windows-xp"
 language = "auto"  # auto, bn, de, en, es, fr, hi, id, ja, ko, pt, ru, th, tr, vi, zh
 vim_mode = false
-session_retention_days = 30
+project_retention_days = 30
 bell_on_operation_complete = true
 icon_mode = "auto"  # auto, emoji, unicode
-always_detachable = false  # keep sessions alive across terminal closes (Unix)
+always_detachable = false  # keep the instance alive across terminal closes (Unix)
 resource_monitor_interval = 1000
 
 [editor]
@@ -507,37 +529,26 @@ You can create custom themes by placing TOML files in the themes directory:
 
 User themes take priority over built-in themes with the same name. See `crates/theme/themes/` directory in the repository for theme file format examples.
 
-### Custom Scripts
+### Custom Commands
 
-You can add custom scripts to the Scripts menu by placing executable files in:
-- Linux: `~/.local/share/termide/scripts/`
-- macOS: `~/Library/Application Support/termide/scripts/`
-- Windows: `%APPDATA%\termide\scripts\`
+Shell commands you run often go into `commands.toml` — the global one in the
+configuration directory, or `<project>/.termide/commands.toml` for a project —
+and appear in the **Commands** menu:
 
-**Features:**
-- Scripts appear in the Scripts menu (menu bar)
-- Subdirectories create nested submenus (clicking a group toggles expand/collapse)
-- Add `.bg.` to filename for background execution (e.g., `deploy.bg.sh`)
-- Add `.report.` to filename for background with modal output (e.g., `check.report.sh`). Report modal is scrollable (Up/Down, PageUp/PageDown, Home/End, mouse wheel) and shows ✓/✗ in the title
-- Display name is the part before the first dot
+```toml
+[test]
+name = "Run tests"
+command = "cargo nextest run"
+group = "cargo"
+key = "Ctrl+Shift+T"
 
-**Example:**
-```bash
-# Create scripts directory
-mkdir -p ~/.local/share/termide/scripts
-
-# Add a simple script
-cat > ~/.local/share/termide/scripts/hello.sh << 'EOF'
-#!/bin/bash
-echo "Hello from TermIDE!"
-read -p "Press Enter to close..."
-EOF
-
-# Make it executable (required on Unix)
-chmod +x ~/.local/share/termide/scripts/hello.sh
+[clippy]
+command = "cargo clippy --workspace -- -D warnings"
+mode = "report"  # terminal (default), background, or report
 ```
 
-**Note:** On Unix systems, scripts must have the executable permission (`chmod +x`). Use `Options → Manage scripts` to open the scripts folder.
+`Commands → Add command...` creates one through a form. See
+[Custom Commands](doc/en/actions.md) for modes, parameters and hotkeys.
 
 ## Development
 

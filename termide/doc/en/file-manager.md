@@ -4,14 +4,15 @@ The file manager panel provides an intuitive interface for navigating the file s
 
 Remote filesystems (SFTP / FTP / FTPS) appear in the same panel as
 local paths — see [Remote Filesystems](vfs.md) for URL syntax and
-authentication setup.
+authentication setup. ZIP and tar archives open like read-only
+directories — see [Archives](vfs.md#archives).
 
 ## Navigation
 
 | Shortcut           | Action                                     |
 |-------------------|--------------------------------------------|
 | `↑` / `↓`         | Move cursor up/down                        |
-| `Enter`           | Enter directory, preview media, or open file |
+| `Enter`           | Enter directory or archive, preview media, or open file |
 | `Backspace`       | Go to parent directory                     |
 | `~`               | Go to home directory                       |
 | `PageUp` / `PageDown` | Scroll list by one page                |
@@ -21,10 +22,14 @@ authentication setup.
 | `←` / `h`       | Collapse directory (tree view)              |
 | `/`              | In-tree incremental search                  |
 | `Ctrl+\`          | Open directory switcher                    |
-| `Ctrl+G`          | Go to path/URL                             |
+| `Ctrl+G`          | Go to path/URL, with [suggestions](ui.md#open-prompt); a file is selected in its directory |
 | `Alt+B`           | Add bookmark                               |
 | `Tab`             | Go to next panel                           |
 | `Shift+Tab`       | Go to previous panel                       |
+
+On Windows the directory switcher also lists every drive. At the root of a
+drive or network share there is no parent to go to, so `..` and `Backspace`
+open the switcher there instead.
 
 ## File Selection
 
@@ -46,11 +51,26 @@ In tree view, selecting a directory with `Insert` cascades the selection to all 
 | `Delete` / `F8`   | Delete selected files/directories          |
 | `C` / `F5`        | Copy selected files/directories            |
 | `M` / `F6`        | Move/rename files/directories              |
+| `P`               | Pack selected files/directories into an [archive](vfs.md#packing) |
 | `E` / `F4`        | Open file in editor                        |
 | `R` / `F2`        | Rename file/directory                      |
 | `V` / `F3`        | View file (preview without executing)      |
 | `Ctrl+R`          | Refresh current directory contents         |
 | `Space`           | Show file/directory information            |
+
+Copy and move work between panels the way they do in two-pane file managers:
+open a second file manager beside the first, select files in one and press
+`C` / `F5` or `M` / `F6`. The destination is pre-filled with the directory of
+the nearest other file manager (another panel's directory when there is none);
+the source directory is offered only when no panel sits anywhere else. When the
+panels span more than one directory, a dropdown under the field lists them all;
+the path stays editable.
+
+Copying or pasting an item into the directory it already lives in makes a
+copy next to it named `name (1).ext` (the next free number) instead of
+asking to overwrite the original; moving an item onto itself does nothing.
+A directory cannot be copied or moved into itself or any of its
+subdirectories — the operation is refused before anything is written.
 
 ## Search
 
@@ -61,8 +81,9 @@ In tree view, selecting a directory with `Insert` cascades the selection to all 
 | `Ctrl+Shift+H`    | Search & replace in file contents          |
 | `/`              | In-tree incremental search (filter as you type) |
 
-These searches use an **inline bar docked at the top of the panel** (not a
-floating modal), with a separator line above the results. The bar and the
+These searches use an **inline bar docked at the bottom of the panel** (not a
+floating modal), with a titled top border (`─ Find ─`) dividing it from the
+results above. The bar and the
 results are two **zones**: `Tab` switches between them (like the git-status
 panel). In the bar zone, arrow keys move between the fields and toggles. In the
 results zone the cursor lands on the **entry rows** (files/folders, or file
@@ -132,9 +153,73 @@ Press `/` to start incremental search within the current directory tree:
 
 | Shortcut           | Action                                     |
 |-------------------|--------------------------------------------|
-| `Ctrl+C`          | Copy paths of selected items               |
-| `Ctrl+X`          | Cut paths of selected items                |
-| `Ctrl+V`          | Paste files from clipboard                 |
+| `Ctrl+C`          | Copy selected items as files             |
+| `Ctrl+X`          | Cut selected items                       |
+| `Ctrl+V`          | Paste — move if the clipboard holds a cut |
+| `Cmd+V` (macOS)   | Paste files copied from termide        |
+
+On macOS the terminal emulator answers `Cmd+V` itself and types the
+clipboard's *text* into the pane, so termide never sees that key as a paste.
+The file manager takes such typed text as a file paste when it names files
+that exist — termide's own copy carries the paths alongside the files, so
+`Cmd+V` pastes them. What a copy from another app does depends on whether
+that app also puts text on the clipboard; `Ctrl+V` always reads the file
+list directly and is the reliable key. Prose pastes fall through untouched.
+
+### What lands on the clipboard
+
+`Ctrl+C` publishes a **native file list** (`NSPasteboardTypeFileURL` on
+macOS, `CF_HDROP` on Windows, `text/uri-list` on Linux), so pasting into
+Finder, Explorer or a mail composer inserts the files themselves rather
+than a path string.
+
+Three consequences are worth knowing:
+
+- **`Ctrl+X` publishes the same list as `Ctrl+C`.** No system clipboard
+  format carries a "cut" flag for files, so termide cannot tell Finder or
+  Explorer that the items are meant to move. They paste a *copy* and leave
+  the original — the safe way to be wrong, since a stray copy is one `rm`
+  away from fixed and a deleted original is not. The move itself happens
+  inside termide, where the panel remembers what it cut.
+- **Remote and in-archive items stay text.** A `file://` URL cannot name an
+  SFTP or archive entry, so those panels keep copying path strings.
+- **Symlinks stay text.** The file flavor asks the OS for the real path, so
+  publishing a link would deliver its *target*, under the target's name. A
+  selection holding a symlink therefore copies paths as text, and the link
+  itself is preserved. Use the "Create symlink" option in the copy dialog
+  (`C` / `F5`) to make a link at the destination.
+
+The copy carries a plain-text flavor alongside the files wherever the
+platform allows it, so a browser address bar, another terminal or the
+terminal emulator's own `Cmd+V` receives the paths rather than nothing. On
+Linux, where the file flavor owns the clipboard outright, text consumers get
+nothing from a file copy; inside termide every text surface reads the file
+list back as newline-joined paths, so pasting into the editor, terminal,
+agent prompt or an input dialog still yields a usable path.
+
+The paste confirmation lists the names it is about to write — up to three,
+then a folded `… N` — over the destination, so it says which files land and
+not only how many.
+
+Over SSH or on a headless host there is no display server, so the file
+flavor is unavailable and copying falls back to path text.
+
+### Cut and paste
+
+A cut moves: `Ctrl+V` after `Ctrl+X` puts the files at the destination and
+removes them from where they were. The confirmation says so — "Move N files
+to", not "Copy" — because Yes is what deletes the sources.
+
+The cut is remembered only while the clipboard still holds it. Copying
+anything afterwards, in termide or in another application, turns the next
+paste back into a copy; on macOS the pasteboard's change counter settles it,
+elsewhere the paths themselves are compared. Cancelling the confirmation
+keeps the cut alive, so you can change your mind about the destination and
+paste again.
+
+`Ctrl+X` refuses in a remote panel and inside an archive, and says why:
+nothing there can be moved, so handing back a cut that pastes as a copy would
+be the one thing a cut must never do — delete silently, or pretend.
 
 ### Target directory rule
 
@@ -145,6 +230,8 @@ land **at the cursor's tree level**, not always in the panel's root:
   current directory.
 - Cursor inside an expanded subdirectory → the action targets that
   subdirectory.
+- Cursor on an expanded directory itself → the action targets that
+  directory, where its visible children are.
 
 This matches the visual position of the cursor — what you see is where
 the file is created or pasted.

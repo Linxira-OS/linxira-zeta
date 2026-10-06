@@ -19,8 +19,8 @@ use termide_theme::Theme;
 
 use crate::{CommandResult, KeyChord, PanelCommand, PanelEvent};
 
-// Re-export SessionPanel from termide-session for unified type
-pub use termide_session::SessionPanel;
+// Re-export PanelState from termide-project for unified type
+pub use termide_project::PanelState;
 
 /// Configuration settings relevant to panels.
 ///
@@ -187,11 +187,23 @@ pub enum WidthPreference {
     NoPreference,
 }
 
+/// Which end of a panel title the header drops when the title does not fit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TitleCut {
+    /// Drop the beginning and keep the end, as for a path whose last
+    /// component matters most.
+    #[default]
+    Start,
+    /// Drop the end and keep the beginning, as for a label followed by text
+    /// that reads from the left.
+    End,
+}
+
 /// How a panel wants its height inside a stacked column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeightMode {
     /// Share the column with the other panels: the height comes from the
-    /// user's resizes (or an equal split) and is kept in the session.
+    /// user's resizes (or an equal split) and is kept in the project layout.
     Free,
     /// Take exactly this many rows, borders included, and leave the rest of
     /// the column to the free panels. The layout asks again on every frame,
@@ -216,11 +228,16 @@ pub enum SegmentKind {
     Warn,
     /// Error emphasis.
     Error,
+    /// Flexible gap (its text is ignored): pushes the segments after it to
+    /// the right edge. When the bar is too narrow, the segments before it are
+    /// cut instead of the ones after it.
+    Spacer,
 }
 
 /// A status-bar segment contributed by a panel via [`Panel::status_segments`].
 ///
-/// The global status bar renders the focused panel's segments left-to-right.
+/// The global status bar renders the focused panel's segments left-to-right;
+/// a [`StatusSegment::spacer`] right-aligns the ones after it.
 /// A segment with `action = Some(id)` is a clickable chip: a click is routed
 /// back to the panel through [`Panel::handle_status_action`].
 #[derive(Debug, Clone)]
@@ -241,6 +258,11 @@ impl StatusSegment {
             kind,
             action: None,
         }
+    }
+
+    /// Flexible gap that right-aligns the segments after it.
+    pub fn spacer() -> Self {
+        Self::new("", SegmentKind::Spacer)
     }
 
     /// Clickable chip whose click is routed to the panel's
@@ -406,12 +428,12 @@ pub trait Panel: Any {
         Ok(())
     }
 
-    /// Serialize panel state for session persistence.
+    /// Serialize panel state for the project layout.
     ///
-    /// Returns None if panel should not be saved in session.
-    /// The session_dir is provided for saving unsaved buffers.
-    fn to_session(&self, session_dir: &Path) -> Option<SessionPanel> {
-        let _ = session_dir;
+    /// Returns None if panel should not be saved in the layout.
+    /// The project_dir is provided for saving unsaved buffers.
+    fn to_state(&self, project_dir: &Path) -> Option<PanelState> {
+        let _ = project_dir;
         None
     }
 
@@ -457,6 +479,19 @@ pub trait Panel: Any {
     /// every layout pass, so it must be cheap.
     fn height_mode(&self) -> HeightMode {
         HeightMode::Free
+    }
+
+    /// Whether the panel waits for the user (a question to answer, finished
+    /// work to look at). The header of an unfocused panel is highlighted while
+    /// this holds; the panel clears it once it renders focused.
+    fn needs_attention(&self) -> bool {
+        false
+    }
+
+    /// Which end of the title the header drops when the panel is too narrow
+    /// for it. The spinner prefix and the `(status)` suffix survive either way.
+    fn title_cut(&self) -> TitleCut {
+        TitleCut::Start
     }
 
     /// Colorize the truncated title for the panel header.

@@ -96,9 +96,10 @@ The repository ships a pre-commit hook that runs the same gates as CI before
 each commit:
 
 - ✅ Code formatting check (`cargo fmt --check`)
-- ✅ Compilation check (`cargo check`)
-- ✅ Clippy lints (`cargo clippy -- -D warnings`)
-- ✅ Test suite (`cargo test`)
+- ✅ Unused dependency declarations (`cargo machete`, when installed)
+- ✅ Compilation and Clippy lints (`cargo clippy -- -D warnings`; CI's separate
+  `cargo check` is covered by it)
+- ✅ Test suite (`cargo nextest run`, or `cargo test` without nextest)
 
 The hook lives at `.githooks/pre-commit` and is versioned with the code, so it
 is present in every clone — but git only runs it once you point the repository
@@ -310,15 +311,15 @@ Use the [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.md) when reporti
 
 **Log locations:**
 
-Each run writes its own `session-<date>-<time>.log` into the session directory
+Each run writes its own `session-<date>-<time>.log` into the project directory
 for the project you opened, under the data directory:
 
-- Linux: `~/.local/share/termide/sessions/<project path>/`
-  (or `$XDG_DATA_HOME/termide/sessions/<project path>/`)
-- macOS: `~/Library/Application Support/termide/sessions/<project path>/`
-- Windows: `%APPDATA%\termide\sessions\<project path>\`
+- Linux: `~/.local/share/termide/projects/<project path>/`
+  (or `$XDG_DATA_HOME/termide/projects/<project path>/`)
+- macOS: `~/Library/Application Support/termide/projects/<project path>/`
+- Windows: `%APPDATA%\termide\projects\<project path>\`
 
-`termide --diagnostics` prints the exact session directory for the current
+`termide --diagnostics` prints the exact project directory for the current
 project. Logs older than 24 hours are removed automatically. Setting
 `logging.file_path` in `config.toml` overrides all of this with a single fixed
 file.
@@ -399,9 +400,10 @@ string = "#a6e3a1"
 
 ### Submitting a Theme
 
-1. Add your theme file to `themes/` directory
+1. Add your theme file to the `crates/theme/themes/` directory
 2. Test it thoroughly
-3. (Optional) Add a screenshot to `assets/screenshots/your-theme.png`
+3. (Optional) Render its preview with `tools/screenshots/run.sh themes` and copy
+   `tools/screenshots/out/themes/your-theme.png` to `assets/screenshots/themes/`
 4. Update the theme list in `README.md`
 5. Submit a pull request with the title: `feat: add [theme name] theme`
 
@@ -424,11 +426,11 @@ Contains:
 **Windows:** `%APPDATA%\termide\`
 
 Contains:
-- `sessions/` - Project session files, unsaved buffers, and per-run logs
+- `projects/` - Per-project saved layouts, unsaved buffers, and per-run logs
 
 ### Logs
 
-Logs live in the session directory, not in a cache directory — see
+Logs live in the project directory, not in a cache directory — see
 [Log locations](#bug-reports) above. One file per run,
 `session-<date>-<time>.log`, pruned after 24 hours.
 

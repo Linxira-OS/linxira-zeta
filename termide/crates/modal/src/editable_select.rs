@@ -122,6 +122,11 @@ impl EditableSelectModal {
         self
     }
 
+    /// The text in the input, as it would be confirmed.
+    pub fn value(&self) -> &str {
+        self.suggestion_input.text()
+    }
+
     /// Whether the checkbox is checked
     pub fn is_checkbox_checked(&self) -> bool {
         self.checkboxes.first().is_some_and(|c| c.checked)
@@ -196,8 +201,9 @@ impl EditableSelectModal {
         // 4. Input field width based on max option (not current input)
         let min_input_width = max_option_len + 5; // +5 for arrow and padding
 
-        // 5. Options list width (with "▶ " prefix)
-        let max_option_width = max_option_len + 2;
+        // 5. Options list width, with one column of padding (the row under
+        // the cursor is inverted, so it needs no `▶` marker)
+        let max_option_width = max_option_len + 1;
 
         // 6. Buttons width: "[ OK ]    [ Cancel ]" = ~21 characters
         let buttons_width = 21;
@@ -370,7 +376,7 @@ impl Modal for EditableSelectModal {
                 .skip(scroll_offset)
                 .take(visible_end - scroll_offset)
                 .map(|(idx, option)| {
-                    let prefix = if idx == selected_idx { "▶ " } else { "  " };
+                    let prefix = " ";
 
                     let style = if idx == selected_idx {
                         Style::default()
@@ -411,7 +417,7 @@ impl Modal for EditableSelectModal {
         self.last_checkbox_areas.clear();
         for checkbox_idx in visible_checkboxes {
             let checkbox = &self.checkboxes[checkbox_idx];
-            let checkbox_char = if checkbox.checked { "x" } else { " " };
+            let checkbox_char = termide_ui::checkbox_mark(checkbox.checked);
             let checkbox_style = if self.focus == FocusArea::Checkbox(checkbox_idx) {
                 Style::default().fg(theme.accented_fg).bg(theme.bg)
             } else {

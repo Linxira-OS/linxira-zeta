@@ -133,6 +133,32 @@ impl LayoutManager {
         None
     }
 
+    /// Focus (and expand) the first panel that satisfies `predicate`, moving
+    /// keyboard focus to its group. Returns whether one was found. Lets a
+    /// caller reuse an already-open panel (matched by its own typed state)
+    /// without the layout crate knowing any concrete panel type.
+    pub fn focus_panel_where(&mut self, predicate: impl Fn(&dyn Panel) -> bool) -> bool {
+        let mut found: Option<(usize, usize)> = None;
+        for (group_idx, group) in self.panel_groups.iter().enumerate() {
+            for (panel_idx, panel) in group.panels().iter().enumerate() {
+                if predicate(panel.as_ref()) {
+                    found = Some((group_idx, panel_idx));
+                    break;
+                }
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        if let Some((group_idx, panel_idx)) = found {
+            self.focus = group_idx;
+            self.panel_groups[group_idx].set_expanded(panel_idx);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Find the best group for a panel based on its width preference.
     fn find_preferred_group(&self, panel: &dyn Panel) -> usize {
         match panel.width_preference() {
@@ -219,6 +245,18 @@ impl LayoutManager {
         self.panel_groups
             .get(self.focus)
             .and_then(|group| group.expanded_panel())
+    }
+
+    /// Where the active panel falls in the order of
+    /// [`iter_all_panels_mut`](Self::iter_all_panels_mut).
+    pub fn active_panel_position(&self) -> Option<usize> {
+        let group = self.panel_groups.get(self.focus)?;
+        group.expanded_panel()?;
+        let before: usize = self.panel_groups[..self.focus]
+            .iter()
+            .map(PanelGroup::len)
+            .sum();
+        Some(before + group.expanded_index())
     }
 
     /// Get active group index.
@@ -770,6 +808,29 @@ mod tests {
     fn test_active_panel_with_no_panels() {
         let lm = LayoutManager::new();
         assert!(lm.active_panel().is_none());
+    }
+
+    #[test]
+    fn active_panel_position_counts_the_panels_of_earlier_groups() {
+        let mut lm = LayoutManager::new();
+        assert_eq!(lm.active_panel_position(), None);
+        let config = make_config(80);
+        // Two panels stacked in one group, then a third in a group of its own.
+        lm.add_panel(panel("a"), &config, 100);
+        lm.add_panel(panel("b"), &config, 100);
+        lm.add_panel(panel("c"), &config, 400);
+        assert_eq!((lm.group_count(), lm.panel_count()), (2, 3));
+        let names = |lm: &mut LayoutManager| {
+            lm.iter_all_panels_mut()
+                .map(|p| p.name())
+                .collect::<Vec<_>>()
+        };
+        let position = lm.active_panel_position().unwrap();
+        assert_eq!(position, 2);
+        assert_eq!(names(&mut lm)[position], lm.active_panel().unwrap().name());
+        lm.set_focus(0);
+        let position = lm.active_panel_position().unwrap();
+        assert_eq!(names(&mut lm)[position], lm.active_panel().unwrap().name());
     }
 
     #[test]

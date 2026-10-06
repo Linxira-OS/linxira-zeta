@@ -3,6 +3,7 @@
 //! This module provides a full-featured terminal emulator with PTY support.
 
 mod csi_handlers;
+mod osc_cwd;
 pub mod vt100_parser;
 
 use ratatui::style::Color;
@@ -234,12 +235,6 @@ pub struct TerminalScreen {
     pub cols: usize,
     /// Current style
     pub current_style: CellStyle,
-    /// Hyperlink currently open (OSC 8): id into `hyperlinks`, stamped onto
-    /// every cell `put_char` writes until the link is closed again.
-    pub current_hyperlink: Option<u32>,
-    /// OSC 8 URI intern table: cell link ids index into this. Deduplicated by
-    /// URI so repeated links from an emitter share one id.
-    pub hyperlinks: Vec<String>,
     /// Application Cursor Keys Mode (DECCKM)
     pub application_cursor_keys: bool,
     /// Mouse tracking mode
@@ -282,15 +277,26 @@ pub struct TerminalScreen {
     /// Synchronized output mode (CSI ? 2026 h/l)
     /// When enabled, rendering is deferred until mode is disabled
     pub sync_output: bool,
-    /// The child's OSC 0/2 window title; an empty OSC 0/2 clears it to `None`.
-    /// Polled by the host app for pane naming.
-    pub title: Option<String>,
     /// Flag set when sync_output transitions from true to false
     /// Signals that cached content must be invalidated
     pub sync_output_ended: bool,
     /// Flag to force cache invalidation on next render
     /// Set by ED (clear screen) commands to ensure fresh content is shown
     pub force_cache_invalidation: bool,
+    /// Working directory the shell last reported in-band (OSC 7 / OSC 9;9).
+    pub reported_cwd: Option<std::path::PathBuf>,
+    /// The program rang the bell (BEL) since the panel was last shown
+    /// focused: it waits for the user.
+    pub bell: bool,
+    /// Hyperlink currently open (OSC 8): id into `hyperlinks`, stamped onto
+    /// every cell `put_char` writes until the link is closed again.
+    pub current_hyperlink: Option<u32>,
+    /// OSC 8 URI intern table: cell link ids index into this. Deduplicated by
+    /// URI so repeated links from an emitter share one id.
+    pub hyperlinks: Vec<String>,
+    /// The child's OSC 0/2 window title; an empty OSC 0/2 clears it to `None`.
+    /// Polled by the host app for pane naming.
+    pub title: Option<String>,
 }
 
 impl TerminalScreen {
@@ -312,8 +318,6 @@ impl TerminalScreen {
             rows,
             cols,
             current_style: CellStyle::default(),
-            current_hyperlink: None,
-            hyperlinks: Vec::new(),
             application_cursor_keys: false,
             mouse_tracking: MouseTrackingMode::None,
             sgr_mouse_mode: false,
@@ -334,9 +338,13 @@ impl TerminalScreen {
             scroll_top: 0,
             scroll_bottom: rows.saturating_sub(1),
             sync_output: false,
-            title: None,
             sync_output_ended: false,
             force_cache_invalidation: false,
+            reported_cwd: None,
+            bell: false,
+            current_hyperlink: None,
+            hyperlinks: Vec::new(),
+            title: None,
         }
     }
 

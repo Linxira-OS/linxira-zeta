@@ -378,16 +378,18 @@ impl Modal for BookmarkAddModal {
                 .iter()
                 .enumerate()
                 .map(|(idx, group)| {
+                    // The row under the cursor is highlighted, so it needs no
+                    // `▶` marker beside it; one column of padding stays.
                     let (prefix, style) = if idx == selected_idx {
                         (
-                            "▶ ",
+                            " ",
                             Style::default()
                                 .fg(theme.selected_fg)
                                 .bg(theme.selected_bg)
                                 .add_modifier(Modifier::BOLD),
                         )
                     } else {
-                        ("  ", Style::default().fg(theme.fg))
+                        (" ", Style::default().fg(theme.fg))
                     };
                     ListItem::new(Line::from(Span::styled(
                         format!("{}{}", prefix, group),
@@ -438,7 +440,7 @@ impl Modal for BookmarkAddModal {
                 .constraints([Constraint::Length(15), Constraint::Min(1)])
                 .split(chunks[chunk_idx]);
 
-            let checkbox_char = if self.project_checked { "x" } else { " " };
+            let checkbox_char = termide_ui::checkbox_mark(self.project_checked);
             let checkbox_style = if self.focus == FocusArea::ProjectCheckbox {
                 Style::default().fg(theme.accented_fg)
             } else {

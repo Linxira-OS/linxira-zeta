@@ -26,6 +26,17 @@ pub struct DropdownItem {
     pub is_project: bool,
     /// Keyboard shortcut for this action, shown dimmed on the right.
     pub shortcut: Option<String>,
+    /// What the row stands for waits for the user (drawn in the warning
+    /// colour, as the header of a panel that waits is).
+    pub attention: bool,
+    /// Drawn before the label in the row's own colours (a mark).
+    pub lead: String,
+    /// Drawn dimmed between `lead` and the label (a time).
+    pub muted: String,
+    /// A label too long loses its start instead of its end: it is a path,
+    /// whose last names say most. A dropdown holding such rows may also grow
+    /// wider than the others, see [`dropdown_width`].
+    pub cut_start: bool,
 }
 
 impl DropdownItem {
@@ -37,6 +48,10 @@ impl DropdownItem {
             is_separator: false,
             is_project: false,
             shortcut: None,
+            attention: false,
+            lead: String::new(),
+            muted: String::new(),
+            cut_start: false,
         }
     }
 
@@ -56,6 +71,10 @@ impl DropdownItem {
             is_separator: true,
             is_project: false,
             shortcut: None,
+            attention: false,
+            lead: String::new(),
+            muted: String::new(),
+            cut_start: false,
         }
     }
 
@@ -70,10 +89,42 @@ impl DropdownItem {
         self.is_project = true;
         self
     }
+
+    /// Mark this item as waiting for the user
+    pub fn with_attention(mut self) -> Self {
+        self.attention = true;
+        self
+    }
+
+    /// Draw `lead` before the label, then `muted` dimmed.
+    pub fn with_prefix(mut self, lead: impl Into<String>, muted: impl Into<String>) -> Self {
+        self.lead = lead.into();
+        self.muted = muted.into();
+        self
+    }
+
+    /// Cut a label too long from its start (a path).
+    pub fn cut_at_start(mut self) -> Self {
+        self.cut_start = true;
+        self
+    }
+
+    /// Display width of everything before the shortcut column.
+    fn text_width(&self) -> usize {
+        str_display_width(&self.lead)
+            + str_display_width(&self.muted)
+            + str_display_width(&self.label)
+    }
 }
 
 /// Maximum visible items in dropdown before scrolling
 const MAX_VISIBLE_ITEMS: usize = 20;
+
+/// Widest a dropdown grows, borders included.
+const MAX_WIDTH: usize = 48;
+/// Widest a dropdown listing paths grows: a path says little once cut down
+/// to 48 columns. The screen still bounds it.
+const MAX_PATH_WIDTH: usize = 96;
 
 /// Dropdown menu
 pub struct Dropdown<'a> {
@@ -82,8 +133,128 @@ pub struct Dropdown<'a> {
     x: u16,
     y: u16,
     theme: &'a Theme,
-    max_visible: usize,
-    scroll_offset: usize,
+}
+
+/// On-screen width of a dropdown holding `items`, borders included.
+///
+/// This is the single source of truth for the geometry: the renderer uses it
+/// to size a dropdown and to place a nested submenu to its right, and the
+/// mouse handlers use it to hit-test clicks. Recomputing it anywhere else lets
+/// the click targets drift away from what is drawn.
+pub fn dropdown_width(items: &[DropdownItem]) -> u16 {
+    let max_label_len = items
+        .iter()
+        .map(DropdownItem::text_width)
+        .max()
+        .unwrap_or(0);
+    // Shortcuts share the row with the labels, so the widest of each has
+    // to fit side by side or the two would overlap.
+    let max_shortcut_len = items
+        .iter()
+        .filter_map(|item| item.shortcut.as_deref())
+        .map(str_display_width)
+        .max()
+        .unwrap_or(0);
+    let shortcut_column = if max_shortcut_len == 0 {
+        0
+    } else {
+        max_shortcut_len + 2
+    };
+    let max_width = if items.iter().any(|item| item.cut_start) {
+        MAX_PATH_WIDTH
+    } else {
+        MAX_WIDTH
+    };
+    // 2 (borders) + 1 (space) + label + shortcut + 3 (" ▶ ")
+    (max_label_len + shortcut_column + 6).min(max_width) as u16
+}
+
+/// Where a dropdown list is actually drawn once it is fitted to the screen.
+///
+/// Renderers draw from it and mouse handlers hit-test against it, so a click
+/// always lands on the row that is displayed under the cursor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ListGeometry {
+    /// On-screen rectangle, borders included, clamped to the screen.
+    pub area: Rect,
+    /// Index of the first item shown in the first row.
+    pub scroll_offset: usize,
+}
+
+impl ListGeometry {
+    /// Fit a list of `item_count` rows, `width` columns wide and showing at
+    /// most `max_visible` rows, at (`x`, `y`) inside `screen`.
+    ///
+    /// The box is shrunk to the screen and moved left or up when it would
+    /// overflow, and the scroll offset keeps `selected` visible.
+    pub fn compute(
+        width: u16,
+        item_count: usize,
+        max_visible: usize,
+        selected: usize,
+        x: u16,
+        y: u16,
+        screen: Rect,
+    ) -> Self {
+        let width = width.min(screen.width).max(1);
+        let height = ((item_count.min(max_visible) + 2) as u16)
+            .min(screen.height)
+            .max(1);
+        let visible = height.saturating_sub(2) as usize;
+        let scroll_offset = if visible == 0 {
+            0
+        } else {
+            (selected + 1)
+                .saturating_sub(visible)
+                .min(item_count.saturating_sub(visible))
+        };
+        let x = x.min(screen.right().saturating_sub(width)).max(screen.x);
+        let y = y.min(screen.bottom().saturating_sub(height)).max(screen.y);
+        Self {
+            area: Rect {
+                x,
+                y,
+                width,
+                height,
+            },
+            scroll_offset,
+        }
+    }
+
+    /// Number of item rows visible between the borders.
+    pub fn visible_count(&self) -> usize {
+        self.area.height.saturating_sub(2) as usize
+    }
+
+    /// Index of the item under the screen cell (`x`, `y`), or `None` when the
+    /// cell is outside the list or on its top or bottom border.
+    pub fn item_at(&self, x: u16, y: u16) -> Option<usize> {
+        let inside = x >= self.area.x
+            && x < self.area.right()
+            && y > self.area.y
+            && y < self.area.bottom().saturating_sub(1);
+        inside.then(|| self.scroll_offset + (y - self.area.y - 1) as usize)
+    }
+}
+
+/// On-screen geometry of a [`Dropdown`] holding `items`, requested at
+/// (`x`, `y`) with `selected` highlighted and fitted to `screen`.
+pub fn dropdown_geometry(
+    items: &[DropdownItem],
+    selected: usize,
+    x: u16,
+    y: u16,
+    screen: Rect,
+) -> ListGeometry {
+    ListGeometry::compute(
+        dropdown_width(items),
+        items.len(),
+        MAX_VISIBLE_ITEMS,
+        selected,
+        x,
+        y,
+        screen,
+    )
 }
 
 impl<'a> Dropdown<'a> {
@@ -94,55 +265,29 @@ impl<'a> Dropdown<'a> {
         y: u16,
         theme: &'a Theme,
     ) -> Self {
-        let max_visible = MAX_VISIBLE_ITEMS.min(items.len());
-        // Calculate scroll offset to keep selected item visible
-        let scroll_offset = if selected >= max_visible {
-            selected - max_visible + 1
-        } else {
-            0
-        };
-
         Self {
             items,
             selected,
             x,
             y,
             theme,
-            max_visible,
-            scroll_offset,
         }
     }
 
     /// Get the width of this dropdown
     pub fn width(&self) -> u16 {
-        let max_label_len = self
-            .items
-            .iter()
-            .map(|item| str_display_width(&item.label))
-            .max()
-            .unwrap_or(0);
-        // Shortcuts share the row with the labels, so the widest of each has
-        // to fit side by side or the two would overlap.
-        let max_shortcut_len = self
-            .items
-            .iter()
-            .filter_map(|item| item.shortcut.as_deref())
-            .map(str_display_width)
-            .max()
-            .unwrap_or(0);
-        let shortcut_column = if max_shortcut_len == 0 {
-            0
-        } else {
-            max_shortcut_len + 2
-        };
-        // 2 (borders) + 1 (space) + label + shortcut + 3 (" ▶ ")
-        (max_label_len + shortcut_column + 6).min(48) as u16
+        dropdown_width(self.items)
     }
 
     /// Get the height of this dropdown
     pub fn height(&self) -> u16 {
-        let visible_count = self.items.len().min(self.max_visible);
+        let visible_count = self.items.len().min(MAX_VISIBLE_ITEMS);
         (visible_count + 2) as u16 // +2 for borders
+    }
+
+    /// On-screen geometry of this dropdown once fitted to `screen`.
+    pub fn geometry(&self, screen: Rect) -> ListGeometry {
+        dropdown_geometry(self.items, self.selected, self.x, self.y, screen)
     }
 
     pub fn render(&self, buf: &mut Buffer) {
@@ -150,25 +295,16 @@ impl<'a> Dropdown<'a> {
             return;
         }
 
-        // Clamp to the buffer so a dropdown taller/wider than the terminal
-        // never renders past its edges (that panics ratatui — issue #25). The
-        // per-row item loop below already stops at the inner height, so a
-        // shrunken box just shows fewer rows.
-        let width = self.width().min(buf.area.width).max(1);
-        let height = self.height().min(buf.area.height).max(1);
-
-        // Check screen boundaries
-        let max_x = buf.area.width.saturating_sub(width);
-        let max_y = buf.area.height.saturating_sub(height);
-        let x = self.x.min(max_x);
-        let y = self.y.min(max_y);
-
-        let area = Rect {
+        let geometry = self.geometry(buf.area);
+        let area = geometry.area;
+        let Rect {
             x,
             y,
             width,
             height,
-        };
+        } = area;
+        let scroll_offset = geometry.scroll_offset;
+        let visible_count = geometry.visible_count();
 
         // Clear area under dropdown
         Clear.render(area, buf);
@@ -196,12 +332,12 @@ impl<'a> Dropdown<'a> {
         }
 
         // Get visible items
-        let visible_end = (self.scroll_offset + self.max_visible).min(self.items.len());
-        let visible_items = &self.items[self.scroll_offset..visible_end];
+        let visible_end = (scroll_offset + visible_count).min(self.items.len());
+        let visible_items = &self.items[scroll_offset..visible_end];
 
         // Render rows
         for (i, item) in visible_items.iter().enumerate() {
-            let actual_index = self.scroll_offset + i;
+            let actual_index = scroll_offset + i;
             let is_selected = actual_index == self.selected;
 
             let row_y = inner.y + i as u16;
@@ -232,6 +368,11 @@ impl<'a> Dropdown<'a> {
                     .bg(self.theme.selected_bg)
                     .fg(self.theme.selected_fg)
                     .add_modifier(Modifier::BOLD)
+            } else if item.attention {
+                Style::default()
+                    .fg(self.theme.warning)
+                    .bg(self.theme.bg)
+                    .add_modifier(Modifier::BOLD)
             } else if item.is_project {
                 Style::default()
                     .fg(self.theme.fg)
@@ -246,15 +387,57 @@ impl<'a> Dropdown<'a> {
                 buf[(col, row_y)].set_style(base_style);
             }
 
-            // " " + label
+            // " " + lead + muted + label
             let mut cursor_x = inner.x;
             cursor_x += render_text_cells(buf, cursor_x, row_y, " ", inner.width, base_style);
-            let label_width = str_display_width(&item.label) as u16;
+            for (text, style) in [
+                (&item.lead, base_style),
+                (
+                    &item.muted,
+                    // Dimmed like the shortcut, except on the highlighted row.
+                    if is_selected {
+                        base_style
+                    } else {
+                        Style::default().fg(self.theme.disabled).bg(self.theme.bg)
+                    },
+                ),
+            ] {
+                if !text.is_empty() {
+                    cursor_x += render_text_cells(
+                        buf,
+                        cursor_x,
+                        row_y,
+                        text,
+                        inner.width.saturating_sub(cursor_x - inner.x),
+                        style,
+                    );
+                }
+            }
+            // A label wider than the capped box ends in an ellipsis instead
+            // of being cut off under the 3-column suffix; a path loses its
+            // start instead. A path also keeps clear of its shortcut.
+            let shortcut_room = if item.cut_start {
+                item.shortcut
+                    .as_deref()
+                    .map_or(0, |s| str_display_width(s) as u16 + 1)
+            } else {
+                0
+            };
+            let room = inner
+                .width
+                .saturating_sub(cursor_x - inner.x + 3 + shortcut_room)
+                as usize;
+            let label = if item.cut_start {
+                termide_ui::path_utils::truncate_left(&item.label, room)
+            } else {
+                termide_ui::path_utils::truncate_right(&item.label, room)
+            };
+            let label_width = str_display_width(&label) as u16;
             cursor_x += render_text_cells(
                 buf,
                 cursor_x,
                 row_y,
-                &item.label,
+                &label,
                 inner.width.saturating_sub(cursor_x - inner.x),
                 base_style,
             );
@@ -290,14 +473,13 @@ impl<'a> Dropdown<'a> {
         }
 
         // Render scrollbar on right edge (inside border)
-        let visible_count = self.items.len().min(self.max_visible);
         let theme_colors = ThemeColors::from(self.theme);
         ScrollBar::render(
             buf,
             x + width - 1,            // Right border position
             y + 1,                    // Inside top border
             height.saturating_sub(2), // Inside borders
-            self.scroll_offset,
+            scroll_offset,
             visible_count,
             self.items.len(),
             &theme_colors,
@@ -306,25 +488,76 @@ impl<'a> Dropdown<'a> {
     }
 }
 
-/// Get sessions submenu items
-pub fn get_sessions_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec<DropdownItem> {
+/// Get projects submenu items
+pub fn get_projects_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec<DropdownItem> {
     let t = i18n::t();
     let shortcut = |key: &str| kb.and_then(|kb| menu_shortcut(kb, key));
     vec![
-        DropdownItem::new(t.sessions_new(), "new_session").with_shortcut(shortcut("new_session")),
-        DropdownItem::new(t.sessions_switch(), "switch_session")
-            .with_shortcut(shortcut("switch_session")),
-        DropdownItem::new(t.sessions_change_root(), "change_root"),
+        DropdownItem::new(t.projects_new(), "new_project").with_shortcut(shortcut("new_project")),
+        DropdownItem::new(t.projects_switch(), "switch_project")
+            .with_shortcut(shortcut("switch_project")),
+        DropdownItem::new(t.projects_change_root(), "change_root"),
     ]
 }
 
-/// Number of items in Sessions submenu
-pub const SESSIONS_SUBMENU_ITEM_COUNT: usize = 3;
+/// Number of items in Projects submenu
+pub const PROJECTS_SUBMENU_ITEM_COUNT: usize = 3;
 
-/// Index of Sessions submenu items
-pub const SESSIONS_SUBMENU_NEW: usize = 0;
-pub const SESSIONS_SUBMENU_SWITCH: usize = 1;
-pub const SESSIONS_SUBMENU_CHANGE_ROOT: usize = 2;
+/// Index of Projects submenu items
+pub const PROJECTS_SUBMENU_NEW: usize = 0;
+pub const PROJECTS_SUBMENU_SWITCH: usize = 1;
+pub const PROJECTS_SUBMENU_CHANGE_ROOT: usize = 2;
+
+/// The AI submenu: four fixed sections, each opening a nested list. The item
+/// keys (`agents`/`sessions`/`skills`/`prompts`) are the contract the app's AI
+/// menu handler decodes; the `AI_SUBMENU_*` indices below address the rows.
+///
+/// `browser` is whether the agents' web browser is shown in a window, `None`
+/// when there is no browser to show; with a value, a separator and a row
+/// keyed `browser` that switches it follow the sections.
+pub fn get_ai_items(browser: Option<bool>) -> Vec<DropdownItem> {
+    let t = i18n::t();
+    let mut items = vec![
+        DropdownItem::new(t.menu_ai_agents(), "agents").with_submenu(),
+        DropdownItem::new(t.menu_ai_sessions(), "sessions").with_submenu(),
+        DropdownItem::new(t.menu_ai_skills(), "skills").with_submenu(),
+        DropdownItem::new(t.menu_ai_prompts(), "prompts").with_submenu(),
+    ];
+    if let Some(shown) = browser {
+        let label = if shown {
+            t.menu_ai_hide_browser()
+        } else {
+            t.menu_ai_show_browser()
+        };
+        items.push(DropdownItem::separator());
+        items.push(DropdownItem::new(label, AI_BROWSER_KEY));
+    }
+    items
+}
+
+/// Key of the AI submenu row that shows or hides the agents' browser.
+pub const AI_BROWSER_KEY: &str = "browser";
+
+/// Number of items in the AI submenu.
+pub const AI_SUBMENU_ITEM_COUNT: usize = 4;
+/// Index of the Agents section in the AI submenu.
+pub const AI_SUBMENU_AGENTS: usize = 0;
+/// Index of the Sessions section in the AI submenu.
+pub const AI_SUBMENU_SESSIONS: usize = 1;
+/// Index of the Skills section in the AI submenu.
+pub const AI_SUBMENU_SKILLS: usize = 2;
+/// Index of the Prompts section in the AI submenu.
+pub const AI_SUBMENU_PROMPTS: usize = 3;
+
+/// The agent file-choice submenu (third level): which file of an agent to edit.
+/// Row keys `soul`/`toml` are decoded by the app's AI menu handler.
+pub fn get_ai_agent_choice_items() -> Vec<DropdownItem> {
+    let t = i18n::t();
+    vec![
+        DropdownItem::new(t.menu_ai_edit_prompt(), "soul"),
+        DropdownItem::new(t.menu_ai_edit_settings(), "toml"),
+    ]
+}
 
 /// Get tools submenu items
 pub fn get_tools_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec<DropdownItem> {
@@ -349,11 +582,12 @@ pub fn get_tools_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec<Dr
             .with_shortcut(shortcut("diagnostics")),
         DropdownItem::new(t.tools_operations(), "operations"),
         DropdownItem::new(t.tools_outline(), "outline").with_shortcut(shortcut("outline")),
+        DropdownItem::new(t.tools_agent(), "agent").with_shortcut(shortcut("agent")),
     ]
 }
 
 /// Number of items in Tools submenu (including the separator row).
-pub const TOOLS_SUBMENU_ITEM_COUNT: usize = 11;
+pub const TOOLS_SUBMENU_ITEM_COUNT: usize = 12;
 
 /// Index of the (non-selectable) separator row in the Tools submenu.
 pub const TOOLS_SUBMENU_SEPARATOR: usize = 1;
@@ -369,6 +603,7 @@ pub const TOOLS_SUBMENU_JOURNAL: usize = 7;
 pub const TOOLS_SUBMENU_DIAGNOSTICS: usize = 8;
 pub const TOOLS_SUBMENU_OPERATIONS: usize = 9;
 pub const TOOLS_SUBMENU_OUTLINE: usize = 10;
+pub const TOOLS_SUBMENU_AGENT: usize = 11;
 
 /// Get shell picker submenu items from discovered shells.
 ///
@@ -401,11 +636,11 @@ pub fn menu_shortcut(kb: &termide_config::GlobalKeybindings, key: &str) -> Optio
         // Options
         "edit_preferences" => &kb.open_preferences,
         "help" => &kb.open_help,
-        "detach_session" => &kb.detach_session,
+        "detach_instance" => &kb.detach_instance,
         "quit" => &kb.quit,
-        // Sessions
-        "new_session" => &kb.new_session,
-        "switch_session" => &kb.open_sessions,
+        // Projects
+        "new_project" => &kb.new_project,
+        "switch_project" => &kb.open_projects,
         // Tools / Windows
         "terminal" => &kb.new_terminal,
         "files" => &kb.new_file_manager,
@@ -436,7 +671,7 @@ pub fn menu_shortcut(kb: &termide_config::GlobalKeybindings, key: &str) -> Optio
 
 /// Get options submenu items.
 ///
-/// `can_detach` says whether this termide is hosted in a detachable session.
+/// `can_detach` says whether this termide is hosted in a detachable instance.
 /// When it is not, the Detach entry is left out entirely rather than shown and
 /// refused: a menu item that normally does nothing teaches users to distrust
 /// the menu.
@@ -454,11 +689,11 @@ pub fn get_options_items(
         DropdownItem::new(t.options_help(), "help").with_shortcut(shortcut("help")),
     ];
     // Detaching sits next to Quit because it is the other way of leaving the
-    // session — the one that keeps it running.
+    // instance — the one that keeps it running.
     if can_detach {
         items.push(
-            DropdownItem::new(t.detach_session(), "detach_session")
-                .with_shortcut(shortcut("detach_session")),
+            DropdownItem::new(t.detach_instance(), "detach_instance")
+                .with_shortcut(shortcut("detach_instance")),
         );
     }
     items.push(DropdownItem::new(t.menu_quit(), "quit").with_shortcut(shortcut("quit")));
@@ -814,12 +1049,7 @@ pub fn panel_action_dropdown_position(
     screen_w: u16,
     screen_h: u16,
 ) -> (u16, u16) {
-    let width = items
-        .iter()
-        .map(|i| i.label.chars().count())
-        .max()
-        .unwrap_or(0) as u16
-        + 6;
+    let width = dropdown_width(items);
     let height = items.len() as u16 + 2;
     let x = anchor_x.min(screen_w.saturating_sub(width));
     let y = anchor_y
@@ -911,6 +1141,45 @@ mod overflow_tests {
         let mut buf = Buffer::empty(Rect::new(0, 0, 57, 15));
         Dropdown::new(&items, 29, 33, 1, theme).render(&mut buf);
     }
+
+    // A label wider than the capped dropdown ends in an ellipsis just before
+    // the suffix column rather than running under it.
+    #[test]
+    fn long_label_is_ellipsized() {
+        let theme = Theme::get_by_name("default");
+        let items = vec![DropdownItem::new("x".repeat(80), "id")];
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 5));
+        let dropdown = Dropdown::new(&items, 0, 0, 0, theme);
+        let width = dropdown.width();
+        dropdown.render(&mut buf);
+        let row: String = (0..width).map(|x| buf[(x, 1)].symbol()).collect();
+        // border, space, label ... ellipsis, 3-column suffix, border
+        assert!(row.ends_with("…   │"), "{row:?}");
+    }
+
+    // A path row grows past the usual cap, keeps its lead and dimmed time,
+    // and loses the start of the path rather than its end.
+    #[test]
+    fn a_path_row_is_wider_dims_its_time_and_loses_its_start() {
+        let theme = Theme::get_by_name("default");
+        let path = format!("~/{}/project", "deep/".repeat(30));
+        let items = vec![DropdownItem::new(path, "id")
+            .with_prefix("○ ", "2026-10-03 14:22 ")
+            .cut_at_start()];
+        let mut buf = Buffer::empty(Rect::new(0, 0, 200, 5));
+        let dropdown = Dropdown::new(&items, 0, 0, 0, theme);
+        let width = dropdown.width();
+        assert!(width > 48 && width <= 96, "{width}");
+        // Rendered unselected: the row under the cursor keeps its colours.
+        let other = DropdownItem::new("x", "id");
+        let both = [other, items[0].clone()];
+        Dropdown::new(&both, 0, 0, 0, theme).render(&mut buf);
+        let row: String = (0..width).map(|x| buf[(x, 2)].symbol()).collect();
+        assert!(row.starts_with("│ ○ 2026-10-03 14:22 …"), "{row:?}");
+        assert!(row.ends_with("/project   │"), "{row:?}");
+        assert_eq!(buf[(4, 2)].fg, theme.disabled, "the time is dimmed");
+        assert_ne!(buf[(22, 2)].fg, theme.disabled, "the path is not");
+    }
 }
 
 #[cfg(test)]
@@ -961,7 +1230,7 @@ mod options_menu_tests {
     }
 
     #[test]
-    fn detach_is_offered_only_when_the_session_can_detach() {
+    fn detach_is_offered_only_when_the_instance_can_detach() {
         assert_eq!(
             keys(true),
             vec![
@@ -969,7 +1238,7 @@ mod options_menu_tests {
                 "language",
                 "edit_preferences",
                 "help",
-                "detach_session",
+                "detach_instance",
                 "quit"
             ]
         );
@@ -1019,7 +1288,7 @@ mod menu_shortcut_tests {
         let kb = defaults();
         assert_eq!(menu_shortcut(&kb, "quit").as_deref(), Some("Alt+Q"));
         assert_eq!(
-            menu_shortcut(&kb, "detach_session").as_deref(),
+            menu_shortcut(&kb, "detach_instance").as_deref(),
             Some("Alt+D")
         );
         // Menu key and binding name differ here, which is the reason for the
@@ -1034,6 +1303,23 @@ mod menu_shortcut_tests {
             Some("Alt+H"),
             "only the primary key, not the whole `Alt+H, F1` list"
         );
+    }
+
+    #[test]
+    fn the_browser_row_follows_the_ai_sections_only_when_there_is_a_browser() {
+        let plain = get_ai_items(None);
+        assert_eq!(plain.len(), AI_SUBMENU_ITEM_COUNT);
+        let with_browser = get_ai_items(Some(false));
+        assert_eq!(with_browser.len(), AI_SUBMENU_ITEM_COUNT + 2);
+        assert!(with_browser[AI_SUBMENU_ITEM_COUNT].is_separator);
+        let row = &with_browser[AI_SUBMENU_ITEM_COUNT + 1];
+        assert_eq!(row.key, AI_BROWSER_KEY);
+        assert_ne!(
+            row.label,
+            get_ai_items(Some(true))[AI_SUBMENU_ITEM_COUNT + 1].label
+        );
+        // The sections keep their indices.
+        assert_eq!(with_browser[AI_SUBMENU_PROMPTS].key, "prompts");
     }
 
     /// The TOOLS_SUBMENU_* indices address rows of `get_tools_items`; the two
@@ -1078,11 +1364,11 @@ mod menu_shortcut_tests {
     fn every_menu_annotates_the_entries_that_have_bindings() {
         let kb = defaults();
 
-        let sessions = get_sessions_items(Some(&kb));
+        let projects = get_projects_items(Some(&kb));
         assert_eq!(
-            sessions
+            projects
                 .iter()
-                .find(|i| i.key == "new_session")
+                .find(|i| i.key == "new_project")
                 .unwrap()
                 .shortcut
                 .as_deref(),
@@ -1140,7 +1426,7 @@ mod menu_shortcut_tests {
                 .unwrap_or_else(|| panic!("{key} missing"))
         };
         assert_eq!(by_key("quit").shortcut.as_deref(), Some("Alt+Q"));
-        assert_eq!(by_key("detach_session").shortcut.as_deref(), Some("Alt+D"));
+        assert_eq!(by_key("detach_instance").shortcut.as_deref(), Some("Alt+D"));
         assert_eq!(by_key("themes").shortcut, None);
 
         // Without keybindings nothing is annotated, and nothing panics.

@@ -25,8 +25,8 @@ use ratatui::{
 use ratatui_image::{picker::Picker, protocol::StatefulProtocol, Resize, StatefulImage};
 
 use termide_core::{
-    CommandResult, Config, Panel, PanelCommand, PanelEvent, RenderContext, SegmentKind,
-    SessionPanel, StatusSegment, Theme, WidthPreference,
+    CommandResult, Config, Panel, PanelCommand, PanelEvent, PanelState, RenderContext, SegmentKind,
+    StatusSegment, Theme, WidthPreference,
 };
 
 use view::Viewport;
@@ -239,7 +239,9 @@ impl Panel for ImagePanel {
     }
 
     fn handle_key(&mut self, chord: termide_core::KeyChord) -> Vec<PanelEvent> {
-        let key = chord.raw;
+        // No text input here: every key is a shortcut, matched on the
+        // layout-normalized form so it works on a Cyrillic layout too.
+        let key = chord.canonical;
         if key.code == KeyCode::Char('q') {
             return vec![PanelEvent::ClosePanel];
         }
@@ -317,8 +319,8 @@ impl Panel for ImagePanel {
         }
     }
 
-    fn to_session(&self, _session_dir: &Path) -> Option<SessionPanel> {
-        Some(SessionPanel::Image {
+    fn to_state(&self, _project_dir: &Path) -> Option<PanelState> {
+        Some(PanelState::Image {
             path: self.file_path.clone(),
         })
     }

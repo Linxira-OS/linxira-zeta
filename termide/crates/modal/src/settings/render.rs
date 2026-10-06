@@ -13,10 +13,8 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::base::button_style;
 
-use super::fields::{
-    enum_options, fields_for_tab, get_field_value, ContentRow, FieldDescriptor, FieldType,
-};
-use super::kb::{get_kb_value, kb_binding_names, KB_SECTIONS};
+use super::fields::{fields_for_tab, ContentRow, FieldDescriptor, FieldType};
+use super::kb::{get_kb_value, kb_binding_names};
 use super::{
     button_labels, button_spans, FocusArea, KbMode, LspMode, SettingsModal, SettingsTab,
     SidebarRow, BUTTON_RESET, ENUM_PICKER_MAX_VISIBLE,
@@ -50,7 +48,42 @@ fn label_column_width(tab: SettingsTab, area_width: u16) -> usize {
     (widest + GAP).clamp(MIN, cap)
 }
 
+/// `text` broken into lines of at most `width` columns, at spaces.
+fn wrap_words(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        let needed = if line.is_empty() {
+            word.width()
+        } else {
+            line.width() + 1 + word.width()
+        };
+        if needed > width && !line.is_empty() {
+            lines.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
 /// Truncate `s` to at most `max_chars` Unicode scalar values, safe for UTF-8 slicing.
+/// `value` cut to `max` display columns with a trailing `…` when it does not
+/// fit. Widths, not bytes: a byte cut lands inside a multi-byte character
+/// (a Cyrillic label, say) and panics.
+fn fit_width(value: String, max: usize) -> String {
+    if max > 2 {
+        termide_ui::path_utils::truncate_right(&value, max)
+    } else {
+        value
+    }
+}
+
 fn truncate_str(s: &str, max_chars: usize) -> &str {
     if let Some((idx, _)) = s.char_indices().nth(max_chars) {
         &s[..idx]
@@ -111,7 +144,7 @@ impl SettingsModal {
                     .to_string(),
                     kb_label.clone(),
                 ),
-                SidebarRow::KbChild(i) => ("   ".to_string(), KB_SECTIONS[i].to_string()),
+                SidebarRow::KbChild(i) => ("   ".to_string(), Self::kb_section_label(i)),
             };
 
             let style = if is_selected {
@@ -218,7 +251,7 @@ impl SettingsModal {
 
         // Keybindings tab — dedicated renderer (renders its own title).
         if self.active_tab == SettingsTab::Keybindings {
-            let section_name = KB_SECTIONS.get(self.kb_section).copied().unwrap_or("");
+            let section_name = Self::kb_section_label(self.kb_section);
             let title = format!("{} › {}", Self::kb_group_label(), section_name);
             let inner = Self::render_section_title(area, buf, theme, &title);
             self.render_keybindings(inner, buf, theme);
@@ -226,8 +259,14 @@ impl SettingsModal {
             return;
         }
 
-        // Regular tab: title + grouped fields.
-        let title = self.active_tab.label();
+        // Regular tab: title + grouped fields. The connection page names the
+        // connection it has open.
+        let title = match self.open_connection_name() {
+            Some(name) if self.field_tab() == SettingsTab::Connection => {
+                format!("{} › {name}", self.active_tab.label())
+            }
+            _ => self.active_tab.label(),
+        };
         let area = Self::render_section_title(area, buf, theme, &title);
 
         let rows = self.content_rows();
@@ -239,8 +278,8 @@ impl SettingsModal {
         let visible_rows = area.height as usize;
         self.clamp_scroll(visible_rows);
 
-        let fields = fields_for_tab(self.active_tab);
-        let label_width = label_column_width(self.active_tab, area.width);
+        let fields = fields_for_tab(self.field_tab());
+        let label_width = label_column_width(self.field_tab(), area.width);
         let value_x = area.x as usize + 2 + label_width;
         let max_value_width = (area.x as usize + area.width as usize).saturating_sub(value_x);
 
@@ -292,11 +331,22 @@ impl SettingsModal {
                     let label_text = truncate_str(desc.label, label_width);
                     buf.set_string(area.x + 2, y, label_text, label_style);
 
-                    let value = if self.editing && is_focused {
-                        format!("{}_", self.edit_buffer)
-                    } else {
-                        self.format_field_value(desc, field_idx)
-                    };
+                    // Being edited, the value is the shared input field, with
+                    // its cursor and selection.
+                    if self.editing && is_focused {
+                        let width = max_value_width.saturating_sub(1) as u16;
+                        let field = Rect::new(value_x as u16, y, width, 1);
+                        crate::base::render_text_input(
+                            buf,
+                            field,
+                            &mut self.edit_input,
+                            true,
+                            theme,
+                        );
+                        self.edit_area = Some(field);
+                        continue;
+                    }
+                    let value = self.format_field_value(desc, field_idx);
 
                     let value_style = if is_focused {
                         Style::default().fg(theme.selected_fg)
@@ -309,12 +359,105 @@ impl SettingsModal {
                         }
                     };
 
-                    let display_value = if value.len() > max_value_width && max_value_width > 2 {
-                        format!("{}…", &value[..max_value_width - 1])
-                    } else {
-                        value
-                    };
+                    let display_value = fit_width(value, max_value_width);
                     buf.set_string(value_x as u16, y, &display_value, value_style);
+                    // A refused name says why, after the name kept.
+                    let refused = self
+                        .connection_edit
+                        .as_ref()
+                        .and_then(|edit| edit.error.as_deref())
+                        .filter(|_| {
+                            self.field_tab() == SettingsTab::Connection
+                                && field_idx == super::connection::NAME
+                                && !self.editing
+                        });
+                    if let Some(error) = refused {
+                        let x = value_x + display_value.width() + 2;
+                        let room = (area.x as usize + area.width as usize).saturating_sub(x);
+                        buf.set_string(
+                            x as u16,
+                            y,
+                            fit_width(error.to_string(), room),
+                            Style::default().fg(theme.error),
+                        );
+                    }
+                }
+                ContentRow::ConnectionButtons => {
+                    let chosen = self.connection_edit.as_ref().map_or(0, |edit| edit.button);
+                    let labels = super::connection::connection_buttons();
+                    let spans = super::connection::connection_button_spans(area.x as usize + 2);
+                    for (index, (label, (x, _))) in labels.iter().zip(spans).enumerate() {
+                        let style = if is_focused {
+                            let style = Style::default().fg(theme.selected_fg);
+                            if index == chosen {
+                                style.add_modifier(Modifier::BOLD | Modifier::REVERSED)
+                            } else {
+                                style
+                            }
+                        } else if index == super::connection::DELETE {
+                            Style::default().fg(theme.error)
+                        } else {
+                            Style::default().fg(theme.accented_fg)
+                        };
+                        buf.set_string(x as u16, y, label, style);
+                    }
+                }
+                ContentRow::ConnectionAdd => {
+                    let label = i18n::t().settings_ai_add_connection();
+                    let style = if is_focused {
+                        Style::default()
+                            .fg(theme.selected_fg)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(theme.accented_fg)
+                    };
+                    buf.set_string(area.x + 2, y, label, style);
+                }
+                ContentRow::Connection(index) => {
+                    let Some(name) = self.connection_name(index) else {
+                        continue;
+                    };
+                    let connection = &self.config.ai.connections[&name];
+                    // The one new sessions start on is marked, radio-style.
+                    let mark = if self.config.ai.default_connection() == Some(name.as_str()) {
+                        '●'
+                    } else {
+                        '○'
+                    };
+                    let focused_fg = |fg| {
+                        if is_focused {
+                            Style::default().fg(theme.selected_fg)
+                        } else {
+                            Style::default().fg(fg)
+                        }
+                    };
+                    buf.set_string(
+                        area.x + 2,
+                        y,
+                        fit_width(format!("{mark} {name}"), label_width),
+                        focused_fg(theme.fg).add_modifier(if is_focused {
+                            Modifier::BOLD
+                        } else {
+                            Modifier::empty()
+                        }),
+                    );
+                    let kind = super::fields::provider_label(&connection.provider);
+                    let summary = if connection.model.is_empty() {
+                        kind
+                    } else {
+                        format!("{kind} · {}", connection.model)
+                    };
+                    let summary = fit_width(summary, max_value_width.saturating_sub(8));
+                    buf.set_string(value_x as u16, y, &summary, focused_fg(theme.disabled));
+                    if is_focused {
+                        let del_x = (area.x as usize + area.width as usize).saturating_sub(6);
+                        buf.set_string(
+                            del_x as u16,
+                            y,
+                            "[Del]",
+                            Style::default().fg(theme.accented_fg),
+                        );
+                    }
                 }
                 ContentRow::LspAddServer => {
                     let label = i18n::t().settings_lsp_add_server();
@@ -350,11 +493,7 @@ impl SettingsModal {
                             Style::default().fg(theme.disabled)
                         };
                         let max_cmd = max_value_width.saturating_sub(12);
-                        let display_cmd = if cmd_info.len() > max_cmd && max_cmd > 2 {
-                            format!("{}…", &cmd_info[..max_cmd - 1])
-                        } else {
-                            cmd_info
-                        };
+                        let display_cmd = fit_width(cmd_info, max_cmd);
                         buf.set_string(value_x as u16, y, &display_cmd, cmd_style);
 
                         let del_label = if is_focused { "[Del]" } else { "" };
@@ -370,11 +509,31 @@ impl SettingsModal {
             }
         }
 
+        // What a CLI agent's connection runs differently, under its page.
+        if let Some(hint) = self.connection_hint() {
+            let shown = rows.len().saturating_sub(self.content_scroll);
+            let top = area.y as usize + shown + 1;
+            let bottom = area.y as usize + area.height as usize;
+            let width = area.width.saturating_sub(4) as usize;
+            for (i, line) in wrap_words(hint, width).into_iter().enumerate() {
+                let y = top + i;
+                if y >= bottom {
+                    break;
+                }
+                buf.set_string(
+                    area.x + 2,
+                    y as u16,
+                    line,
+                    Style::default().fg(theme.disabled),
+                );
+            }
+        }
+
         self.last_content_area = Some(area);
     }
 
     /// Render the LSP server edit form.
-    fn render_lsp_edit_form(&self, area: Rect, buf: &mut Buffer, theme: &Theme) {
+    fn render_lsp_edit_form(&mut self, area: Rect, buf: &mut Buffer, theme: &Theme) {
         let labels = [
             "Language:",
             "Command:",
@@ -387,6 +546,7 @@ impl SettingsModal {
             .saturating_sub(val_x)
             .saturating_sub(2);
 
+        self.lsp_field_areas.clear();
         for (i, label) in labels.iter().enumerate() {
             let y = area.y + 1 + i as u16;
             if y >= area.y + area.height {
@@ -402,22 +562,15 @@ impl SettingsModal {
             };
             buf.set_string(x as u16, y, label, label_style);
 
-            let value = if is_focused {
-                format!("{}_", self.lsp_edit_fields[i])
-            } else {
-                self.lsp_edit_fields[i].clone()
-            };
-            let display_val = if value.len() > max_val && max_val > 2 {
-                format!("{}…", &value[..max_val - 1])
-            } else {
-                value
-            };
-            let val_style = if is_focused {
-                Style::default().fg(theme.accented_fg)
-            } else {
-                Style::default().fg(theme.fg)
-            };
-            buf.set_string(val_x as u16, y, &display_val, val_style);
+            let area = Rect::new(val_x as u16, y, max_val as u16, 1);
+            crate::base::render_text_input(
+                buf,
+                area,
+                &mut self.lsp_edit_fields[i],
+                is_focused,
+                theme,
+            );
+            self.lsp_field_areas.push(area);
         }
 
         // Hint line
@@ -430,15 +583,9 @@ impl SettingsModal {
 
     /// Format a field value for display, with visual indicators.
     fn format_field_value(&self, desc: &FieldDescriptor, index: usize) -> String {
-        let raw = get_field_value(&self.config, self.active_tab, index);
+        let raw = self.field_value(index);
         match desc.field_type {
-            FieldType::Bool => {
-                if raw == "true" {
-                    "[✓]".to_string()
-                } else {
-                    "[✗]".to_string()
-                }
-            }
+            FieldType::Bool => termide_ui::checkbox(raw == "true").to_string(),
             FieldType::Enum => {
                 format!("< {} >", raw)
             }
@@ -516,11 +663,7 @@ impl SettingsModal {
                     Style::default().fg(theme.accented_fg)
                 };
                 let max_val = (area.x + area.width).saturating_sub(val_x) as usize;
-                let display_val = if val.len() > max_val && max_val > 2 {
-                    format!("{}…", &val[..max_val - 1])
-                } else {
-                    val
-                };
+                let display_val = fit_width(val, max_val);
                 buf.set_string(val_x, y, &display_val, val_style);
             }
         }
@@ -556,7 +699,7 @@ impl SettingsModal {
         let Some(picker) = self.enum_picker.clone() else {
             return;
         };
-        let Some(options) = enum_options(&self.config, self.active_tab, picker.field_index) else {
+        let Some(options) = self.enum_options_for(picker.field_index) else {
             self.enum_picker = None;
             return;
         };
@@ -694,5 +837,16 @@ mod label_column_tests {
                 "area {area}: column {width} leaves no gap after a {widest}-column label"
             );
         }
+    }
+
+    #[test]
+    fn a_long_value_is_cut_by_width_not_bytes() {
+        // A byte cut at column 40 would land inside a Cyrillic letter.
+        let value = "< ask — спрашивать перед каждым изменением и командой >".to_string();
+        let cut = fit_width(value.clone(), 40);
+        assert!(cut.ends_with('…'), "{cut}");
+        assert!(UnicodeWidthStr::width(cut.as_str()) <= 40, "{cut}");
+        // A value that fits is left as it is.
+        assert_eq!(fit_width("ask".into(), 40), "ask");
     }
 }

@@ -13,6 +13,7 @@ mod commits;
 mod discovery;
 mod files;
 pub mod graph;
+mod log_stream;
 mod operations;
 mod remote_url;
 mod repo_manager;
@@ -26,18 +27,20 @@ pub mod diff;
 // Re-export from internal modules
 pub use blame::{get_blame_async, BlameEntry};
 pub use branches::{
-    checkout_branch, get_ahead_behind, get_all_branches, get_branches, get_current_branch,
+    branch_label, checkout_branch, get_ahead_behind, get_ahead_behind_of, get_all_branches,
+    get_branch_list, get_branches, get_current_branch, linked_worktrees, BranchInfo,
 };
 pub use command::{network_command, SshAuth};
 pub use commits::{
-    get_commit_details, get_commit_diff, get_file_diff, get_file_diff_stats, get_log_graph_unicode,
-    get_log_with_graph, CommitDetails, CommitInfo, DiffStats,
+    get_commit_details, get_commit_diff, get_file_diff, get_file_diff_stats, CommitDetails,
+    CommitInfo, DiffStats,
 };
 pub use discovery::{
     find_all_repos, find_repo_root, find_repos_from_paths, find_toplevel_repo, find_toplevel_repos,
     get_repo_name, repo_paths_overlap,
 };
 pub use files::{get_staged_files, get_unstaged_files, StagedFile, UnstagedFile};
+pub use log_stream::{LogChunk, LogStream};
 pub use operations::{
     commit, init_repo, revert_all, revert_file, stage_all, stage_file, stage_files, unstage_all,
     unstage_file, unstage_files,

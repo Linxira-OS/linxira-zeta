@@ -8,6 +8,16 @@ use std::sync::mpsc;
 use crate::command::git_command_stdout;
 use crate::is_available;
 
+/// How `git status` reports ignored paths.
+///
+/// `matching` lists what an ignore pattern matches and stops there, so a
+/// matched directory such as `target/` is one line and is never walked. The
+/// default (`traditional`) walks every ignored directory to decide whether it
+/// is ignored as a whole, which costs seconds of CPU on a large build tree.
+/// The price: a directory that no pattern matches but holds only ignored
+/// files is reported file by file instead of as `dir/`.
+const IGNORED_MODE: &str = "--ignored=matching";
+
 /// Git file status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GitStatus {
@@ -44,8 +54,8 @@ pub fn get_git_status(dir: &Path) -> Option<GitStatusCache> {
     // Canonicalize both paths to resolve symlinks before strip_prefix
     // This fixes the issue where FileManager uses symlink paths (e.g., /home/nvn/...)
     // but git rev-parse returns real paths (e.g., /Data/...)
-    let dir_canonical = dir.canonicalize().ok();
-    let repo_root_canonical = repo_root.canonicalize().ok();
+    let dir_canonical = dunce::canonicalize(dir).ok();
+    let repo_root_canonical = dunce::canonicalize(&repo_root).ok();
 
     let relative_path = match (&dir_canonical, &repo_root_canonical) {
         (Some(d), Some(r)) => d
@@ -84,7 +94,7 @@ pub fn get_git_status(dir: &Path) -> Option<GitStatusCache> {
             "core.quotepath=false",
             "status",
             "--porcelain=v1",
-            "--ignored",
+            IGNORED_MODE,
         ],
     ) {
         for line in stdout.lines() {
@@ -365,7 +375,7 @@ pub fn get_repo_status(repo_path: &Path, item_path: &Path) -> Option<GitRepoStat
             "status",
             "--porcelain=v1",
             "-b",
-            "--ignored",
+            IGNORED_MODE,
             "--",
             &git_path_str,
         ],
@@ -383,7 +393,7 @@ pub fn get_repo_status(repo_path: &Path, item_path: &Path) -> Option<GitRepoStat
     })
 }
 
-/// Parse git status --porcelain=v1 -b --ignored output.
+/// Parse git status --porcelain=v1 -b --ignored=matching output.
 /// Returns (ahead, behind, uncommitted_changes, is_ignored).
 fn parse_git_status_output(output: &str, is_repo_root: bool) -> (usize, usize, usize, bool) {
     let mut ahead = 0;
@@ -482,5 +492,51 @@ mod tests {
         assert_eq!(ahead, 0);
         assert_eq!(behind, 0);
         assert_eq!(changes, 2); // M and ?? lines
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+            .args(args)
+            .current_dir(dir)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {out:?}");
+    }
+
+    fn touch(root: &Path, relative: &str) {
+        let path = root.join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "").unwrap();
+    }
+
+    #[test]
+    fn ignored_directories_are_reported_without_walking_them() {
+        let dir = tempfile::tempdir().unwrap();
+        // Canonical, as `git rev-parse --show-toplevel` reports it: the macOS
+        // temp directory sits behind the `/var` -> `/private/var` symlink.
+        let root = &dunce::canonicalize(dir.path()).unwrap();
+        git(root, &["init", "-q"]);
+        std::fs::write(root.join(".gitignore"), "target/\n*.log\n").unwrap();
+        git(root, &["add", ".gitignore"]);
+        git(root, &["commit", "-q", "-m", "init"]);
+        touch(root, "target/debug/deep/artifact");
+        touch(root, "logs/run.log");
+
+        let cache = get_git_status(root).unwrap();
+
+        // The matched directory is a single entry: its contents are never
+        // listed, which is what keeps a large build tree from being walked.
+        assert_eq!(cache.get_directory_status("target"), GitStatus::Ignored);
+        assert!(cache
+            .ignored_files
+            .iter()
+            .all(|path| !path.starts_with("target/debug")));
+        let repo = get_repo_status(root, &root.join("target/debug")).unwrap();
+        assert!(repo.is_ignored);
+
+        // A directory no pattern matches is reported file by file.
+        assert!(cache.ignored_files.contains(Path::new("logs/run.log")));
+        assert!(!cache.ignored_files.contains(Path::new("logs")));
     }
 }

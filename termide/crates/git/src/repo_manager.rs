@@ -146,6 +146,18 @@ impl RepoManager {
         }
     }
 
+    /// Select the repository at `path`. Returns `false`, keeping the
+    /// selection, when it is not in the list.
+    pub fn select_path(&mut self, path: &Path) -> bool {
+        match self.repos.iter().position(|r| r == path) {
+            Some(index) => {
+                self.selected = index;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Select the next repository (wrapping to first).
     pub fn select_next(&mut self) {
         if !self.repos.is_empty() {
@@ -308,8 +320,8 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("a/.git")).unwrap();
         fs::create_dir_all(tmp.join("b/.git")).unwrap();
-        let a = std::fs::canonicalize(tmp.join("a")).unwrap();
-        let b = std::fs::canonicalize(tmp.join("b")).unwrap();
+        let a = dunce::canonicalize(tmp.join("a")).unwrap();
+        let b = dunce::canonicalize(tmp.join("b")).unwrap();
 
         let mut mgr = RepoManager::new(&[a.clone(), b.clone()]);
         // Simulate a submodule/nested repo the async walk surfaced and that the
@@ -348,8 +360,8 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
         let deep = tmp.join("container/lvl1/lvl2/deeprepo");
         fs::create_dir_all(deep.join(".git")).unwrap();
-        let container = std::fs::canonicalize(tmp.join("container")).unwrap();
-        let deep = std::fs::canonicalize(&deep).unwrap();
+        let container = dunce::canonicalize(tmp.join("container")).unwrap();
+        let deep = dunce::canonicalize(&deep).unwrap();
 
         let mut mgr = RepoManager::for_repo(deep.clone());
         assert_eq!(mgr.current(), Some(deep.as_path()));
@@ -385,7 +397,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("termide-rm-prune-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("live/.git")).unwrap();
-        let live = std::fs::canonicalize(tmp.join("live")).unwrap();
+        let live = dunce::canonicalize(tmp.join("live")).unwrap();
 
         let mut mgr = RepoManager::new(std::slice::from_ref(&live));
         let gone = tmp.join("gone");

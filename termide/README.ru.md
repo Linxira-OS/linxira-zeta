@@ -6,48 +6,53 @@
 
 [English](README.md) | [中文](README.zh.md) | **Русский**
 
-Терминальная IDE с нулевой настройкой, объединяющая редактор, файловый менеджер и терминал — со встроенными просмотрщиками git, баз данных, hex, Markdown, изображений и Mermaid — в одном кроссплатформенном TUI, написанном на Rust.
+Терминальное рабочее место «всё в одном» для рабочей машины и серверов: редактор кода с LSP, двухпанельный файловый менеджер с SFTP/FTP, терминал, git, просмотр баз данных и агент для кода — в одном статическом бинарнике на Rust без настройки.
 
-**[Сайт](https://termide.github.io)** | **[Документация](doc/ru/README.md)** | **[Релизы](https://github.com/termide/termide/releases)** | **[Скриншоты](https://ibb.co/album/nPX6p6)**
+**[Сайт](https://termide.github.io)** | **[Документация](doc/ru/README.md)** | **[Релизы](https://github.com/termide/termide/releases)** | **[Скриншоты](https://termide.github.io/ru/#screenshots)**
 
-<p align="center"><img src="assets/screenshots/termide.png" alt="TermIDE — редактор, файловый менеджер, терминал и просмотрщики в одном TUI" width="900"></p>
+<p align="center"><img src="assets/screenshots/termide.gif" alt="TermIDE — редактор, файловый менеджер, терминал и просмотрщики в одном TUI" width="900"></p>
 
 ## Почему TermIDE?
 
-В отличие от традиционных терминальных редакторов, требующих обширной настройки плагинов, TermIDE работает из коробки:
+Терминальные редакторы закрывают работу с кодом, а всё вокруг — файлы на удалённых хостах, базы данных, git, долгоживущие шеллы, агент для кода — обычно требует плагинов или отдельных утилит. TermIDE поставляет всё это в одном бинарнике, который работает из коробки на ноутбуке, сервере или телефоне:
 
-| Возможность | TermIDE | Vim/Neovim | Helix | Micro |
-|---------|:-------:|:----------:|:-----:|:-----:|
-| Поддержка LSP | ✓ | ✓ | ✓ | плагин |
-| Нулевая настройка | ✓ | ✗ | ✓ | ✓ |
-| Автоматизация скриптами | ✓ | ✓ | ✗ | плагин |
-| Удалённые ФС (SFTP/FTP) | ✓ | ✓ | ✗ | ✗ |
-| Hex / бинарный просмотрщик | ✓ | плагин | ✗ | плагин |
-| Просмотр баз данных | ✓ | плагин | ✗ | ✗ |
-| Просмотр Markdown | ✓ | плагин | ✗ | ✗ |
-| Просмотр диаграмм (Mermaid) | ✓ | плагин | ✗ | ✗ |
-| Просмотр изображений | ✓ | плагин | ✗ | ✗ |
-| Встроенный терминал | ✓ | плагин | ✗ | ✗ |
-| Файловый менеджер | ✓ | плагин | ✗ | ✗ |
-| Фоновые файловые операции | ✓ | плагин | ✗ | ✗ |
-| Интеграция с Git | ✓ | плагин | ✗ | ✗ |
-| Сессии | ✓ | плагин | ✗ | ✗ |
-| Отсоединяемые сессии | ✓ | ✗ | ✗ | ✗ |
-| Многопанельный интерфейс | ✓ | плагин | ✗ | ✗ |
-| Закладки | ✓ | плагин | ✗ | ✗ |
-| Монитор ресурсов | ✓ | ✗ | ✗ | ✗ |
+| Возможность | TermIDE | Fresh | Vim/Neovim | Helix | Micro |
+|---------|:-------:|:-----:|:----------:|:-----:|:-----:|
+| Поддержка LSP | ✓ | ✓ | ✓ | ✓ | плагин |
+| Нулевая настройка | ✓ | ✓ | ✗ | ✓ | ✓ |
+| Автоматизация скриптами | ✓ | ✓ | ✓ | ✗ | плагин |
+| Внешние агенты (Claude Code, Codex, Gemini CLI) | ✓ | ✓ | плагин | ✗ | ✗ |
+| Удалённые ФС (SFTP/FTP) | ✓ | SSH | ✓ | ✗ | ✗ |
+| Просмотр Markdown | ✓ | ✓ | плагин | ✗ | ✗ |
+| Встроенный терминал | ✓ | ✓ | плагин | ✗ | ✗ |
+| Интеграция с Git | ✓ | ✓ | плагин | ✗ | ✗ |
+| Раскладки проектов | ✓ | ✓ | плагин | ✗ | ✗ |
+| Многопанельный интерфейс | ✓ | ✓ | плагин | ✗ | ✗ |
+| Закладки | ✓ | ✓ | плагин | ✗ | ✗ |
+| Hex / бинарный просмотрщик | ✓ | ✗ | плагин | ✗ | плагин |
+| Просмотр архивов (zip/tar) | ✓ | ✗ | ✓ | ✗ | ✗ |
+| Файловый менеджер | ✓ | только дерево | плагин | ✗ | ✗ |
+| Отсоединяемые экземпляры | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Встроенный агент для кода (локальные и облачные модели) | ✓ | ✗ | плагин | ✗ | ✗ |
+| MCP-серверы | ✓ | ✗ | плагин | ✗ | ✗ |
+| Просмотр баз данных | ✓ | ✗ | плагин | ✗ | ✗ |
+| Просмотр диаграмм (Mermaid) | ✓ | ✗ | плагин | ✗ | ✗ |
+| Просмотр изображений | ✓ | ✗ | плагин | ✗ | ✗ |
+| Фоновые файловые операции | ✓ | ✗ | плагин | ✗ | ✗ |
+| Монитор ресурсов | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-**TermIDE = Редактор + Файловый менеджер + Терминал в одном TUI-приложении.**
+**TermIDE = Редактор + Файловый менеджер + Терминал + Git + Агент в одном TUI-приложении.**
 
 ## Возможности
 
-- **Терминальная IDE** - Подсветка синтаксиса для 22 языков, навигация по словам (Ctrl+Left/Right), навигация по абзацам/символам (Ctrl+Up/Down), переключение комментариев (Ctrl+/), автоотступы, автозакрытие скобок
+- **Терминальная IDE** - Подсветка синтаксиса для 23 языков, навигация по словам (Ctrl+Left/Right), навигация по абзацам/символам (Ctrl+Up/Down), переключение комментариев (Ctrl+/), автоотступы, автозакрытие скобок
 - **Поддержка LSP** - Автодополнение, поиск ссылок (Shift+F12), переименование символа (F4), переход к определению (Ctrl+Click), диагностика
-- **Умный файловый менеджер** - Древовидный вид с разворачиваемыми каталогами, вложенный git-статус, пакетные операции, поиск по файлам/содержимому (glob/regex), инкрементальный поиск в дереве
+- **Агент для кода** - Панель (`Alt+A`), в которой языковая модель читает, правит и запускает команды в вашем проекте через любой OpenAI- или Anthropic-совместимый endpoint (локальные llama.cpp / Ollama / vLLM / omlx или облачные), спрашивая разрешение на каждый вызов инструмента, с `/undo` и контрольными точками, чтобы откатить его правки; скиллы, шаблоны промптов, MCP-серверы, хуки команд и внешние агенты по ACP (Claude Code, Codex, Gemini CLI) в той же панели
+- **Умный файловый менеджер** - Древовидный вид с разворачиваемыми каталогами, вложенный git-статус, пакетные операции, поиск по файлам/содержимому (glob/regex), инкрементальный поиск в дереве; архивы zip, tar и ISO открываются как каталоги только для чтения (в том числе на сервере и внутри другого архива), а `P` упаковывает выделенное в zip или tar
 - **Удалённые файловые системы** - Просмотр и редактирование файлов на удалённых серверах прямо из файлового менеджера по SFTP / FTP / FTPS, копирование между локальной и удалённой панелями — на чистом Rust (russh + rustls), без нативных библиотек, работает на статическом musl (`smb://` / `nfs://` — через системное монтирование)
 - **Фоновые файловые операции** - Копирование, перемещение, загрузка, скачивание, удаление и пакетные передачи выполняются в фоне с прогресс-баром, счётчиком байт/времени и паузой / возобновлением / отменой (панель операций)
 - **Встроенный терминал** - Полная поддержка PTY, escape-последовательности VT100, отслеживание мыши
-- **Интеграция с Git** - Панель статуса, журнал коммитов с цветным Unicode-графом (откат к ASCII), индексация/деиндексация, переключение веток, управление stash, инлайн blame
+- **Интеграция с Git** - Панель статуса, журнал коммитов с цветным Unicode-графом (откат к ASCII), индексация/деиндексация, ветки с их рабочими копиями (worktree), переключение веток, управление stash, инлайн blame
 - **Просмотр баз данных** - Браузер только для чтения для SQLite / PostgreSQL / MySQL, открываемый по URL-закладке: таблица с 2D-курсором по ячейкам, серверная сортировка по столбцу и типозависимая фильтрация по столбцам, постраничная подгрузка скользящим окном и диалог детали строки с копированием в TSV / JSON / INSERT
 - **Многопанельный интерфейс** - Вертикально разделённые группы панелей с настраиваемой высотой каждой и переключением полноэкранного режима одной клавишей (`Alt+F11`); умное авто-стекирование при сужении терминала; новые панели открываются после активной
 - **Просмотр изображений** - Нативная графика в терминалах Kitty, WezTerm, iTerm2, Ghostty, foot
@@ -55,22 +60,23 @@
 - **Просмотр Markdown** - Рендеренный просмотр (только чтение) для `.md` / `.markdown` (заголовки, списки, таблицы, подсвеченные блоки кода, кликабельные ссылки и пиктограммы изображений) с курсором, выделением и копированием; `Ctrl+E` переключает на редактируемый исходник; встроенные блоки ```mermaid``` рендерятся как диаграммы
 - **Просмотр диаграмм Mermaid** - Рендер `.mmd` / `.mermaid` в текстовую псевдографику — flowchart, sequence, state, class, ER, gantt, pie, journey, mindmap, timeline, gitGraph, quadrant; 2D-прокрутка, копирование в буфер и `Ctrl+E` для редактирования исходника
 - **Внешние приложения** - Открытие файлов системными приложениями по умолчанию (Shift+Enter)
-- **39 встроенных тем** - Тёмные, светлые, ретро и кинематографичные темы (Dracula, Nord, Monokai, Solarized, Matrix, Pip-Boy, Norton Commander, Windows 95 и др.)
+- **38 встроенных тем** - Тёмные, светлые, ретро и кинематографичные темы (Dracula, Nord, Monokai, Solarized, Matrix, Pip-Boy, Norton Commander, Windows 95 и др.)
 - **Пользовательские темы** - Создавайте свои темы в формате TOML
 - **15 языков интерфейса** - Бенгальский, китайский, английский, французский, немецкий, хинди, индонезийский, японский, корейский, португальский, русский, испанский, тайский, турецкий, вьетнамский (отсутствующие ключи прозрачно откатываются к английскому)
-- **Управление сессиями** - Автосохранение и восстановление раскладок панелей
-- **Отсоединяемые сессии** - `termide --detached` оставляет сессию целиком — редакторы, оболочки, LSP-серверы, запущенные задачи — работать после закрытия терминала; `termide --attach` подхватывает её из любого терминала любого размера (только Unix)
+- **Управление проектами** - Автосохранение и восстановление раскладок панелей для каждого проекта; проекты, с которых вы переключились, остаются открытыми в фоне (терминалы продолжают работать, несохранённые правки сохраняются), а меню «Проекты» и переключатель `Alt+\` показывают открытые и недавние проекты
+- **Отсоединяемые экземпляры** - `termide --detached` оставляет экземпляр целиком — редакторы, оболочки, LSP-серверы, запущенные задачи — работать после закрытия терминала; `termide --attach` подхватывает его из любого терминала любого размера (только Unix)
 - **Системный монитор** - CPU, RAM, сетевой I/O в реальном времени в меню-баре и использование диска в статус-баре; клик по индикатору открывает модал с деталями (топ процессов по CPU/RAM, топ по сетевым соединениям с прослушиваемыми портами); повторный клик закрывает модал
 - **Поиск и замена** - Живой предпросмотр, счётчик совпадений, поддержка regex
-- **Пользовательские скрипты** - Запуск своих скриптов из меню Scripts (поддержка `.bg.` для фона, `.report.` для прокручиваемого модального вывода с индикатором успеха/ошибки)
-- **Модал настроек** - Полноэкранная конфигурация (`Alt+P`) с боковой раскладкой, сгруппированными полями (Внешний вид / Ввод / Раскладка / Производительность / …) и захватом клавиш на месте для 7 областей привязок
+- **Пользовательские команды** - Команды оболочки из `commands.toml`, глобальные и проектные, в меню «Команды»: горячие клавиши, группы, формы параметров и режимы терминал / фон / отчёт
+- **Модал настроек** - Полноэкранная конфигурация (`Alt+P`) с боковой раскладкой, сгруппированными полями (Внешний вид / Ввод / Раскладка / Производительность / …) и захватом клавиш на месте для всех 9 областей привязок
 - **Кроссплатформенность** - Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), Windows (нативно через ConPTY, WSL)
 - **Полная поддержка мыши** - Навигация кликом, прокрутка, действия двойным кликом
 - **Раскладки клавиатуры** - Поддержка кириллицы с автоматическим переводом горячих клавиш
 - **Vim-режим** - Опциональное редактирование в стиле Vim с поддержкой кириллической раскладки
-- **Переключатель каталогов** - Быстрая смена каталога по Ctrl+/
+- **Переключатель каталогов** - Быстрая смена каталога по `Ctrl+\`
 - **Закладки** - Сохранение и организация часто используемых мест
-- **Палитра команд** - Быстрый доступ ко всем командам (Ctrl+P)
+- **Палитра команд** - Быстрый доступ ко всем командам с нечётким поиском (Ctrl+P)
+- **Строка «Открыть»** - Открытие файла, каталога или URL с подсказками путей (Ctrl+G)
 
 ## Установка
 
@@ -87,37 +93,37 @@
 
 ```bash
 # Linux x86_64 (также работает в WSL)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64 (статический musl — Alpine, distroless-контейнеры, любая система без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64 (Raspberry Pi, ARM-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64 (статический musl — Android/Termux, Alpine ARM, любой ARM64 без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64 (скачайте .zip с Releases, распакуйте, запустите в Windows Terminal)
-# https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -127,14 +133,13 @@ tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
 
 TermIDE работает нативно на Windows 10+ через ConPTY. Для лучшего опыта используйте **Windows Terminal**.
 
-1. Скачайте `termide-0.35.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
+1. Скачайте `termide-0.38.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
 2. Распакуйте архив.
 3. Запустите `termide.exe` в Windows Terminal.
 
-Конфигурация хранится в `%APPDATA%\termide\` (config, сессии) и
-`%LOCALAPPDATA%\termide\cache\` (логи).
+Конфигурация, раскладки проектов и логи хранятся в `%APPDATA%\termide\`.
 
-Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
+Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
 
 </details>
 
@@ -145,8 +150,8 @@ TermIDE работает нативно на Windows 10+ через ConPTY. Дл
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide_0.35.0-1_amd64.deb
-sudo dpkg -i termide_0.35.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.38.0-1_amd64.deb
+sudo dpkg -i termide_0.38.0-1_amd64.deb
 ```
 
 </details>
@@ -158,8 +163,8 @@ sudo dpkg -i termide_0.35.0-1_amd64.deb
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-1.x86_64.rpm
-sudo rpm -i termide-0.35.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-1.x86_64.rpm
+sudo rpm -i termide-0.38.0-1.x86_64.rpm
 ```
 
 </details>
@@ -230,8 +235,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # инструменты, которые вызывает termide (а также нужные LSP-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -290,8 +295,8 @@ cargo build --release
 Проще всего взять готовый tarball из релиза:
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # Проверка полной статичности — нет разделяемых библиотек
@@ -324,23 +329,36 @@ Alpine, embedded-устройство — и он будет работать б
 termide [OPTIONS] [FILE]...
 
 Аргументы:
-  [FILE]...            Файл(ы) для открытия. С путём TermIDE стартует в чистом
-                       редакторе (без восстановления/сохранения сессии), поэтому
-                       работает как $EDITOR для git, crontab, visudo и т. д.
+  [FILE]...            Файл(ы) или каталоги для открытия. С путём TermIDE
+                       стартует в чистом виде (раскладка проекта не
+                       восстанавливается и не сохраняется). Текст открывается
+                       в редакторе, поэтому TermIDE работает как $EDITOR для
+                       git, crontab, visudo и т. д.; изображения, файлы SQLite,
+                       прочие бинарные файлы и каталоги — в своём просмотрщике,
+                       hex-редакторе или файловом менеджере.
 
 Опции:
   --log-level <LEVEL>  Уровень логирования (trace, debug, info, warn, error)
   --no-lsp             Отключить LSP-серверы
-  --config <FILE>      Использовать свой путь к файлу конфигурации
+  --config <PATH>      Использовать свой путь к файлу конфигурации
   --diagnostics        Прогнать предполётную диагностику и выйти (без UI)
-  --detached           Запустить отсоединённую сессию, переживающую закрытие
-                       терминала, и напечатать её идентификатор (только Unix)
-  --attach [<ID>]      Подключиться к отсоединённой сессии, по умолчанию к последней
-  --list-sessions      Показать отсоединённые сессии и выйти
+  --detached           Запустить отсоединённый экземпляр, переживающий закрытие
+                       терминала, и напечатать его идентификатор (только Unix)
+  --attach [<ID>]      Подключиться к отсоединённому экземпляру, по умолчанию
+                       к последнему
+  -f, --force          С --attach: перехватить экземпляр у уже подключённого
+                       клиента, отключив его
+  --kill <ID>          Завершить отсоединённый экземпляр со всеми оболочками и
+                       задачами в нём и выйти; несохранённые изменения теряются
+  --list-instances     Показать отсоединённые экземпляры и выйти
   --completions <SHELL>
                        Напечатать скрипт автодополнения (bash, zsh, fish) и выйти
   --install-completions [<SHELL>]
                        Установить автодополнение для $SHELL или названной оболочки
+  --prompt <PROMPT>    Выполнить одну задачу агента без UI, напечатать ответ
+                       в stdout и выйти; `-` читает запрос из stdin
+  --agent <NAME>       С --prompt: какое определение агента использовать
+  --output <FORMAT>    С --prompt: text (по умолчанию), json или stream-json
   -h, --help           Показать справку
   -V, --version        Показать версию
 ```
@@ -391,19 +409,27 @@ TermIDE следует [спецификации XDG Base Directory](https://spe
 - macOS: `~/Library/Application Support/termide/config.toml`
 - Windows: `%APPDATA%\termide\config.toml`
 
-**Расположение данных сессий:**
-- Linux/BSD: `~/.local/share/termide/sessions/` (или `$XDG_DATA_HOME/termide/sessions/`)
-- macOS: `~/Library/Application Support/termide/sessions/`
-- Windows: `%APPDATA%\termide\sessions\`
+Проект может переопределить любую настройку в `<проект>/.termide/config.toml`.
+Настройка с неверным типом или значением игнорируется по отдельности, и об этом
+пишется в Журнал; остальной файл продолжает действовать. Следующее сохранение из
+настроек перезапишет файл уже без проигнорированной настройки, поэтому перед этим
+исходный файл копируется рядом в `config.toml.bak`. `termide --diagnostics` показывает
+те же проблемы.
 
-**Расположение файла логов:**
-- Linux/BSD: `~/.cache/termide/termide.log` (или `$XDG_CACHE_HOME/termide/termide.log`)
-- macOS: `~/Library/Caches/termide/termide.log`
-- Windows: `%LOCALAPPDATA%\termide\cache\termide.log`
+**Расположение данных проектов:**
+- Linux/BSD: `~/.local/share/termide/projects/` (или `$XDG_DATA_HOME/termide/projects/`)
+- macOS: `~/Library/Application Support/termide/projects/`
+- Windows: `%APPDATA%\termide\projects\`
+
+**Расположение файла логов:** каждый запуск пишет свой `session-<date>-<time>.log`
+в каталог проекта внутри расположения данных проектов, указанного выше; логи
+старше 24 часов удаляются. `logging.file_path` заменяет это одним фиксированным
+файлом.
 
 **Расположение закладок:**
-- Linux/BSD: `~/.local/share/termide/bookmarks.toml` (или `$XDG_DATA_HOME/termide/bookmarks.toml`)
+- Linux/BSD: `~/.config/termide/bookmarks.toml` (или `$XDG_CONFIG_HOME/termide/bookmarks.toml`)
 - macOS: `~/Library/Application Support/termide/bookmarks.toml`
+- Windows: `%APPDATA%\termide\bookmarks.toml`
 
 ### Пример конфигурации
 
@@ -412,10 +438,10 @@ TermIDE следует [спецификации XDG Base Directory](https://spe
 theme = "windows-xp"
 language = "auto"  # auto, bn, de, en, es, fr, hi, id, ja, ko, pt, ru, th, tr, vi, zh
 vim_mode = false
-session_retention_days = 30
+project_retention_days = 30
 bell_on_operation_complete = true
 icon_mode = "auto"  # auto, emoji, unicode
-always_detachable = false  # сессия переживает закрытие терминала (Unix)
+always_detachable = false  # экземпляр переживает закрытие терминала (Unix)
 resource_monitor_interval = 1000
 
 [editor]
@@ -504,37 +530,26 @@ min_level = "info"
 
 Пользовательские темы имеют приоритет над встроенными с тем же именем. Примеры формата файла темы — в каталоге `crates/theme/themes/` репозитория.
 
-### Пользовательские скрипты
+### Пользовательские команды
 
-Свои скрипты можно добавить в меню Scripts, поместив исполняемые файлы в:
-- Linux: `~/.local/share/termide/scripts/`
-- macOS: `~/Library/Application Support/termide/scripts/`
-- Windows: `%APPDATA%\termide\scripts\`
+Часто запускаемые команды оболочки описываются в `commands.toml` — глобальном,
+в каталоге конфигурации, или `<проект>/.termide/commands.toml` для проекта — и
+появляются в меню **Команды**:
 
-**Возможности:**
-- Скрипты появляются в меню Scripts (меню-бар)
-- Подкаталоги создают вложенные подменю (клик по группе сворачивает/разворачивает её)
-- Добавьте `.bg.` в имя файла для фонового запуска (например, `deploy.bg.sh`)
-- Добавьте `.report.` в имя файла для фона с модальным выводом (например, `check.report.sh`). Модал отчёта прокручивается (Up/Down, PageUp/PageDown, Home/End, колесо мыши) и показывает ✓/✗ в заголовке
-- Отображаемое имя — это часть до первой точки
+```toml
+[test]
+name = "Run tests"
+command = "cargo nextest run"
+group = "cargo"
+key = "Ctrl+Shift+T"
 
-**Пример:**
-```bash
-# Создать каталог скриптов
-mkdir -p ~/.local/share/termide/scripts
-
-# Добавить простой скрипт
-cat > ~/.local/share/termide/scripts/hello.sh << 'EOF'
-#!/bin/bash
-echo "Hello from TermIDE!"
-read -p "Press Enter to close..."
-EOF
-
-# Сделать исполняемым (обязательно на Unix)
-chmod +x ~/.local/share/termide/scripts/hello.sh
+[clippy]
+command = "cargo clippy --workspace -- -D warnings"
+mode = "report"  # terminal (по умолчанию), background или report
 ```
 
-**Примечание:** На Unix-системах скрипты должны иметь право на исполнение (`chmod +x`). Используйте `Options → Manage scripts`, чтобы открыть папку скриптов.
+`Команды → Добавить команду...` создаёт команду через форму. Режимы, параметры
+и горячие клавиши описаны в [Пользовательских командах](doc/ru/actions.md).
 
 ## Разработка
 

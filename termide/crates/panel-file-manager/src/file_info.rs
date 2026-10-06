@@ -23,7 +23,7 @@ pub struct FileInfo {
 impl FileManager {
     /// Get information about the currently selected file
     pub fn get_current_file_info(&mut self) -> Option<FileInfo> {
-        let te = self.tree_entry_at(self.selected)?;
+        let te = self.entry_under_cursor()?;
         let entry = &te.file_entry;
 
         // Handle ".." directory for remote paths
@@ -188,7 +188,7 @@ impl FileManager {
         use std::time::SystemTime;
 
         // Clone the data we need to avoid borrow issues with self
-        let te = match self.tree_entry_at(self.selected) {
+        let te = match self.entry_under_cursor() {
             Some(te) => te.clone(),
             None => return,
         };
@@ -466,7 +466,7 @@ impl FileManager {
             } else if is_symlink {
                 // Symlink without git actions — show "Follow symlink" button
                 let target_path =
-                    fs::canonicalize(&file_path).unwrap_or_else(|_| file_path.clone());
+                    dunce::canonicalize(&file_path).unwrap_or_else(|_| file_path.clone());
                 let buttons = vec![
                     ActionButton::new(t.file_info_follow_symlink(), "follow"),
                     ActionButton::new(t.git_action_close(), "close"),

@@ -121,8 +121,8 @@ impl HelpGenerator {
                 description: t.help_desc_quit().to_string(),
             },
             HelpEntry {
-                keys: Self::format_keys(&kb.detach_session),
-                description: t.help_desc_detach_session().to_string(),
+                keys: Self::format_keys(&kb.detach_instance),
+                description: t.help_desc_detach_instance().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.new_file_manager),
@@ -141,16 +141,16 @@ impl HelpGenerator {
                 description: t.help_desc_new_journal().to_string(),
             },
             HelpEntry {
-                keys: Self::format_keys(&kb.new_session),
-                description: t.help_desc_new_session().to_string(),
+                keys: Self::format_keys(&kb.new_project),
+                description: t.help_desc_new_project().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.open_preferences),
                 description: t.help_desc_open_preferences().to_string(),
             },
             HelpEntry {
-                keys: Self::format_keys(&kb.open_sessions),
-                description: t.help_desc_open_sessions().to_string(),
+                keys: Self::format_keys(&kb.open_projects),
+                description: t.help_desc_open_projects().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.open_git_status),
@@ -159,6 +159,10 @@ impl HelpGenerator {
             HelpEntry {
                 keys: Self::format_keys(&kb.open_outline),
                 description: t.help_desc_open_outline().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.open_agent),
+                description: t.help_desc_open_agent().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.open_diagnostics),
@@ -175,6 +179,10 @@ impl HelpGenerator {
             HelpEntry {
                 keys: Self::format_keys(&kb.open_command_palette),
                 description: t.help_desc_command_palette().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.open_path),
+                description: t.help_desc_open_path().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.copy),
@@ -201,7 +209,7 @@ impl HelpGenerator {
         kb: &GlobalKeybindings,
         t: &dyn termide_i18n::Translation,
     ) -> HelpSection {
-        let entries = vec![
+        let mut entries = vec![
             HelpEntry {
                 keys: "Esc".to_string(),
                 description: t.help_desc_escape_close().to_string(),
@@ -275,6 +283,32 @@ impl HelpGenerator {
                 description: t.help_desc_goto_panel().to_string(),
             },
         ];
+        // Switching projects ships unbound: listed once the user binds it.
+        let cycle = [&kb.prev_project, &kb.next_project]
+            .into_iter()
+            .map(Self::format_keys)
+            .filter(|keys| !keys.is_empty())
+            .collect::<Vec<_>>()
+            .join(" / ");
+        if !cycle.is_empty() {
+            entries.push(HelpEntry {
+                keys: cycle,
+                description: t.help_desc_cycle_project().to_string(),
+            });
+        }
+        let goto = kb
+            .goto_project()
+            .into_iter()
+            .map(Self::format_keys)
+            .filter(|keys| !keys.is_empty())
+            .collect::<Vec<_>>()
+            .join(" / ");
+        if !goto.is_empty() {
+            entries.push(HelpEntry {
+                keys: goto,
+                description: t.help_desc_goto_project().to_string(),
+            });
+        }
 
         HelpSection {
             header: t.help_section_panels().to_string(),
@@ -327,6 +361,10 @@ impl HelpGenerator {
             HelpEntry {
                 keys: Self::format_keys(&kb.info),
                 description: t.help_desc_show_hover().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.pack),
+                description: t.help_desc_pack().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.search),
@@ -831,10 +869,6 @@ impl HelpGenerator {
             HelpEntry {
                 keys: toggle,
                 description: t.help_desc_viewer_toggle().to_string(),
-            },
-            HelpEntry {
-                keys: "Ctrl+G".to_string(),
-                description: t.help_desc_viewer_goto().to_string(),
             },
             HelpEntry {
                 keys: "Ctrl+F".to_string(),

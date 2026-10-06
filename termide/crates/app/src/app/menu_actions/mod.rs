@@ -4,6 +4,7 @@
 
 // Note: PanelExt is used for editor save operations that require concrete type access.
 
+mod ai;
 mod bookmarks;
 mod command_palette;
 mod commands;
@@ -11,7 +12,7 @@ mod commands_exec;
 mod operation_action;
 mod outline;
 mod panel_action;
-mod sessions;
+mod projects;
 mod settings;
 mod stash;
 mod tools;
@@ -24,9 +25,9 @@ use crate::state::{ActiveModal, PendingAction};
 use termide_i18n as i18n;
 use termide_theme::Theme;
 use termide_ui_render::menu::{
-    BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX, INDICATOR_CLOCK_INDEX, INDICATOR_CPU_INDEX,
-    INDICATOR_DISK_INDEX, INDICATOR_NET_INDEX, INDICATOR_RAM_INDEX, MENU_TOTAL_COUNT,
-    OPTIONS_MENU_INDEX, SESSIONS_MENU_INDEX, WINDOWS_MENU_INDEX,
+    AI_MENU_INDEX, BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX, INDICATOR_CLOCK_INDEX,
+    INDICATOR_CPU_INDEX, INDICATOR_DISK_INDEX, INDICATOR_NET_INDEX, INDICATOR_RAM_INDEX,
+    MENU_TOTAL_COUNT, OPTIONS_MENU_INDEX, PROJECTS_MENU_INDEX, WINDOWS_MENU_INDEX,
 };
 use termide_ui_render::{OPTIONS_SUBMENU_LANGUAGE, OPTIONS_SUBMENU_THEMES};
 
@@ -99,6 +100,9 @@ impl App {
         }
         let reg = termide_config::commands::CommandsRegistry::load_merged(Some(&self.project_root));
         self.state.cache.commands_registry = reg.clone();
+        // The hotkey table holds the commands' keys too: a file edited by
+        // hand is read here, and its keys must take effect with it.
+        self.state.cache.hotkey_table = None;
         reg
     }
 
@@ -142,14 +146,17 @@ impl App {
     pub(super) fn execute_menu_action(&mut self) -> Result<()> {
         if let Some(menu_index) = self.state.ui.selected_menu_item {
             match menu_index {
-                SESSIONS_MENU_INDEX => {
-                    self.state.open_sessions_submenu();
+                PROJECTS_MENU_INDEX => {
+                    self.state.open_projects_submenu();
                 }
                 WINDOWS_MENU_INDEX => {
                     self.state.open_tools_submenu();
                 }
                 COMMANDS_MENU_INDEX => {
                     self.state.open_commands_submenu();
+                }
+                AI_MENU_INDEX => {
+                    self.state.open_ai_submenu();
                 }
                 BOOKMARKS_MENU_INDEX => {
                     self.state.open_bookmarks_submenu();
@@ -285,7 +292,7 @@ impl App {
     /// Execute action for selected Options submenu item
     pub(in crate::app) fn execute_submenu_action(&mut self) -> Result<()> {
         // Dispatch on the item's key, not its position: the Detach entry is
-        // only present in a detachable session, so a positional match would
+        // only present in a detachable instance, so a positional match would
         // fire Quit where Detach was chosen.
         let items = termide_ui_render::get_options_items(
             self.detach_available(),
@@ -322,16 +329,15 @@ impl App {
                 self.state.close_menu();
                 self.handle_new_help()?;
             }
-            "detach_session" => {
+            "detach_instance" => {
                 self.state.close_menu();
-                self.handle_detach_session();
+                self.handle_detach_instance();
             }
             "quit" => {
                 self.state.close_menu();
-                if self.has_panels_requiring_confirmation() {
+                if let Some(message) = self.quit_confirmation() {
                     let t = i18n::t();
-                    let modal =
-                        termide_modal::ConfirmModal::new(t.app_quit_title(), t.app_quit_confirm());
+                    let modal = termide_modal::ConfirmModal::new(t.app_quit_title(), message);
                     self.state.set_pending_action(
                         PendingAction::QuitApplication,
                         ActiveModal::Confirm(Box::new(modal)),

@@ -2,7 +2,6 @@
 #![allow(clippy::needless_range_loop)]
 
 mod clipboard;
-mod hyperlink;
 mod input_encoding;
 mod link_detection;
 #[cfg(target_os = "macos")]
@@ -14,12 +13,16 @@ mod selection;
 pub mod shell_utils;
 mod terminal;
 mod terminal_info;
+#[cfg(windows)]
+mod windows_proc;
+
+mod hyperlink;
 
 pub use terminal_info::TerminalInfo;
 
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
-use input_encoding::{arrow_modifier_param, modern_key_bytes};
+use input_encoding::{arrow_modifier_param, modern_key_bytes, pty_key};
 use link_detection::{HighlightSegment, LinkType};
 #[cfg(unix)]
 use nix::sys::signal::{self, Signal};
@@ -37,8 +40,8 @@ use vte::Parser;
 
 use termide_config::{Config, TerminalKeybindings};
 use termide_core::{
-    get_terminal_caps, CommandResult, HotkeyTable, Panel, PanelCommand, PanelEvent, RenderContext,
-    SessionPanel, WidthPreference,
+    get_terminal_caps, CommandResult, HotkeyTable, Panel, PanelCommand, PanelEvent, PanelState,
+    RenderContext, WidthPreference,
 };
 use termide_modal::FindBar;
 use termide_theme::Theme;
@@ -128,6 +131,8 @@ pub struct Terminal {
     /// Last working directory reported to the app, so a `cd` inside the shell
     /// is announced once instead of on every tick.
     last_reported_cwd: Option<std::path::PathBuf>,
+    /// Syntax the shell expects when the app types a command into it.
+    shell_kind: shell_utils::ShellKind,
 }
 
 /// Where a terminal panel's title text comes from.
@@ -162,19 +167,6 @@ impl Terminal {
             .map(|caps| caps.term_for_child())
             .unwrap_or("xterm-256color");
         cmd.env("TERM", term_value);
-        // Workbench marker: panes of this terminal IDE announce themselves so
-        // hosted TUIs (zetacode) can light up workbench-only behavior — the
-        // OSC 8 hyperlink emitter gates on exactly this probe.
-        cmd.env("ZETA_WORKBENCH", "1");
-        // Strip outer-terminal identity variables. Panes run *inside* the
-        // workbench, but CommandBuilder::new seeds the child env from the
-        // process that launched the IDE; a leaked TERM_PROGRAM /
-        // WT_SESSION / COLORTERM would make hosted TUIs (zetacode) think
-        // they talk to that outer terminal and pick the wrong image
-        // protocol. The workbench identity is expressed by ZETA_WORKBENCH.
-        cmd.env_remove("TERM_PROGRAM");
-        cmd.env_remove("WT_SESSION");
-        cmd.env_remove("COLORTERM");
         cmd.env(
             "HOME",
             std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
@@ -196,6 +188,19 @@ impl Terminal {
             std::env::var("PATH")
                 .unwrap_or_else(|_| "/run/current-system/sw/bin:/usr/bin:/bin".to_string()),
         );
+        // Workbench marker: panes of this terminal IDE announce themselves so
+        // hosted TUIs (zetacode) can light up workbench-only behavior — the
+        // OSC 8 hyperlink emitter gates on exactly this probe.
+        cmd.env("ZETA_WORKBENCH", "1");
+        // Strip outer-terminal identity variables. Panes run *inside* the
+        // workbench, but CommandBuilder::new seeds the child env from the
+        // process that launched the IDE; a leaked TERM_PROGRAM /
+        // WT_SESSION / COLORTERM would make hosted TUIs (zetacode) think
+        // they talk to that outer terminal and pick the wrong image
+        // protocol. The workbench identity is expressed by ZETA_WORKBENCH.
+        cmd.env_remove("TERM_PROGRAM");
+        cmd.env_remove("WT_SESSION");
+        cmd.env_remove("COLORTERM");
     }
 
     /// Spawn a PTY reader thread that feeds output into the terminal screen.
@@ -287,13 +292,25 @@ impl Terminal {
             )),
             cached_cwd: std::sync::Mutex::new(None),
             last_reported_cwd: None,
+            shell_kind: shell_utils::ShellKind::default(),
         }
     }
 
     /// Create new terminal with specified working directory (auto-detects shell)
     pub fn new_with_cwd(rows: u16, cols: u16, cwd: Option<std::path::PathBuf>) -> Result<Self> {
+        Self::new_with_cwd_env(rows, cols, cwd, &[])
+    }
+
+    /// Like [`Terminal::new_with_cwd`], with `env` added to the shell's
+    /// environment (a custom command's parameters, for one).
+    pub fn new_with_cwd_env(
+        rows: u16,
+        cols: u16,
+        cwd: Option<std::path::PathBuf>,
+        env: &[(String, String)],
+    ) -> Result<Self> {
         let shell = shell_utils::detect_shell();
-        Self::new_with_shell(rows, cols, &shell, cwd)
+        Self::spawn_shell(rows, cols, &shell, cwd, env)
     }
 
     /// Create new terminal with a specific shell and optional working directory.
@@ -302,6 +319,16 @@ impl Terminal {
         cols: u16,
         shell_path: &str,
         cwd: Option<std::path::PathBuf>,
+    ) -> Result<Self> {
+        Self::spawn_shell(rows, cols, shell_path, cwd, &[])
+    }
+
+    fn spawn_shell(
+        rows: u16,
+        cols: u16,
+        shell_path: &str,
+        cwd: Option<std::path::PathBuf>,
+        env: &[(String, String)],
     ) -> Result<Self> {
         let pty_system = native_pty_system();
         let size = PtySize {
@@ -338,6 +365,9 @@ impl Terminal {
         cmd.cwd(&working_dir);
         Self::set_env(&mut cmd, &working_dir);
         cmd.env("SHELL", shell_path);
+        for (key, value) in env {
+            cmd.env(key, value);
+        }
 
         let child = pair.slave.spawn_command(cmd)?;
         let shell_pid = child.process_id();
@@ -379,6 +409,7 @@ impl Terminal {
         );
         term.title = TitleSource::Shell { user_host };
         term.initial_cwd = working_dir;
+        term.shell_kind = shell_utils::ShellKind::from_shell_path(shell_path);
         Ok(term)
     }
 
@@ -528,19 +559,6 @@ impl Terminal {
         self.is_alive.lock().map(|alive| *alive).unwrap_or(false)
     }
 
-    /// The child's OSC 0/2 window title, when it announced one and has not
-    /// cleared it. Polled by the host app: the PTY reader thread updates the
-    /// screen asynchronously, so a push event would need a cross-thread queue.
-    pub fn osc_title(&self) -> Option<String> {
-        self.read_screen().title.clone()
-    }
-
-    /// The shell process's pid, when the platform reported one. The host
-    /// app uses it to probe for live child processes before closing panes.
-    pub fn shell_pid(&self) -> Option<u32> {
-        self.shell_pid
-    }
-
     /// Get terminal info for status bar
     pub fn get_terminal_info(&self) -> TerminalInfo {
         // Get user@host
@@ -582,6 +600,19 @@ impl Terminal {
         TerminalInfo { user_host, cwd }
     }
 
+    /// The child's OSC 0/2 window title, when it announced one and has not
+    /// cleared it. Polled by the host app: the PTY reader thread updates the
+    /// screen asynchronously, so a push event would need a cross-thread queue.
+    pub fn osc_title(&self) -> Option<String> {
+        self.read_screen().title.clone()
+    }
+
+    /// The shell process's pid, when the platform reported one. The host
+    /// app uses it to probe for live child processes before closing panes.
+    pub fn shell_pid(&self) -> Option<u32> {
+        self.shell_pid
+    }
+
     /// Acquire a read lock on the terminal screen, recovering from poisoning.
     fn read_screen(&self) -> std::sync::RwLockReadGuard<'_, TerminalScreen> {
         self.screen.read().unwrap_or_else(|e| {
@@ -604,6 +635,11 @@ impl Terminal {
         writer.write_all(data)?;
         writer.flush()?;
         Ok(())
+    }
+
+    /// Change the shell's directory to `path`, quoted for this shell.
+    pub fn send_cd(&mut self, path: &std::path::Path) -> Result<()> {
+        self.send_command(&self.shell_kind.cd_command(path))
     }
 
     /// Send a command to the terminal and execute it (adds Enter)
@@ -714,8 +750,9 @@ impl Terminal {
             .unwrap_or_else(|| self.initial_cwd.clone())
     }
 
-    /// Read the shell's working directory from the live process, falling back
-    /// to the directory the panel was created in.
+    /// Read the shell's working directory from the live process (on Windows,
+    /// the shell's own report first), falling back to the directory the panel
+    /// was created in.
     fn read_shell_cwd_raw(&self) -> std::path::PathBuf {
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         if let Some(pid) = self.shell_pid {
@@ -729,6 +766,23 @@ impl Terminal {
             // macOS has no /proc; the same vnode comes from libproc.
             #[cfg(target_os = "macos")]
             if let Some(path) = macos_proc::shell_cwd(pid) {
+                return path;
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            // The shell's own report first: PowerShell's `Set-Location` leaves
+            // the process directory untouched, so only the report follows it.
+            // On Unix the kernel's answer stays authoritative, and a report
+            // from a remote shell behind ssh cannot override it.
+            if let Some(path) = self.read_screen().reported_cwd.clone() {
+                if path.is_absolute() {
+                    return path;
+                }
+            }
+            // cmd and Git Bash keep the process directory current.
+            if let Some(path) = self.shell_pid.and_then(windows_proc::shell_cwd) {
                 return path;
             }
         }
@@ -884,15 +938,20 @@ impl Panel for Terminal {
         // area is already the inner content area (accordion drew outer border)
         let theme = self.cached_theme;
 
-        // Dock the inline find bar at the TOP (with a pseudographic separator),
-        // shrinking the grid area so the PTY resize / scroll / mouse math see
-        // the reduced height — consistent with the editor and file manager.
+        // Shown focused, the bell rung meanwhile has been answered.
+        if ctx.is_focused && self.read_screen().bell {
+            self.write_screen().bell = false;
+        }
+
+        // Dock the inline find bar at the BOTTOM (with a pseudographic separator
+        // above it), shrinking the grid area so the PTY resize / scroll / mouse
+        // math see the reduced height — consistent with the agent prompt input.
         let mut area = area;
         if let Some(mut bar) = self.find_bar.take() {
             let bar_h = bar.height().min(area.height);
             let bar_area = Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + area.height - bar_h,
                 width: area.width,
                 height: bar_h,
             };
@@ -900,20 +959,12 @@ impl Panel for Terminal {
             bar.render(bar_area, buf, &theme, active);
             self.find_bar = Some(bar);
 
-            let sep_y = area.y + bar_h;
-            let mut used = bar_h;
-            if sep_y < area.y + area.height {
-                let style = Style::default().fg(theme.disabled);
-                for dx in 0..area.width {
-                    buf[(area.x + dx, sep_y)].set_symbol("─").set_style(style);
-                }
-                used += 1;
-            }
+            // The bar draws its own titled top border, which is the divider.
             area = Rect {
                 x: area.x,
-                y: area.y + used,
+                y: area.y,
                 width: area.width,
-                height: area.height.saturating_sub(used),
+                height: area.height.saturating_sub(bar_h),
             };
         }
 
@@ -1060,6 +1111,7 @@ impl Panel for Terminal {
             (screen.application_cursor_keys, screen.keyboard_protocol)
         };
 
+        let key = pty_key(chord);
         if keyboard_protocol != KeyboardProtocolMode::Legacy {
             if let Some(bytes) = modern_key_bytes(&key, keyboard_protocol) {
                 let _ = self.send_input(&bytes);
@@ -1396,7 +1448,12 @@ impl Panel for Terminal {
             | PanelCommand::CloseWithoutSaving
             | PanelCommand::RefreshDirectory
             | PanelCommand::SetGitOperationInProgress { .. }
-            | PanelCommand::UpdateRepoPaths { .. } => CommandResult::None,
+            | PanelCommand::SelectionMade { .. }
+            | PanelCommand::ChecklistDone { .. }
+            | PanelCommand::InputSubmitted { .. }
+            | PanelCommand::Confirmed { .. }
+            | PanelCommand::UpdateRepoPaths { .. }
+            | PanelCommand::ShowGitLog { .. } => CommandResult::None,
 
             PanelCommand::GetScrollBars => CommandResult::ScrollBars(self.scrollbars),
             PanelCommand::SetScrollOffset { offset, .. } => {
@@ -1409,6 +1466,10 @@ impl Panel for Terminal {
                 CommandResult::NeedsRedraw(true)
             }
         }
+    }
+
+    fn needs_attention(&self) -> bool {
+        self.read_screen().bell
     }
 
     fn needs_close_confirmation(&self) -> Option<String> {
@@ -1428,11 +1489,11 @@ impl Panel for Terminal {
         self.find_bar.is_some() || (self.is_alive() && self.has_running_processes())
     }
 
-    fn to_session(&self, _session_dir: &std::path::Path) -> Option<SessionPanel> {
+    fn to_state(&self, _project_dir: &std::path::Path) -> Option<PanelState> {
         // Save where the shell was last working, not where the panel was
-        // created: reopening the session should put the user back in the
+        // created: reopening the project should put the user back in the
         // directory they left off in.
-        Some(SessionPanel::Terminal {
+        Some(PanelState::Terminal {
             working_dir: self.shell_cwd(),
         })
     }
@@ -1541,12 +1602,12 @@ mod title_tests {
 
     /// The title must name the directory the shell actually runs in — it used
     /// to read the *application's* cwd, so every terminal was labelled with the
-    /// session root no matter where it was opened.
+    /// project root no matter where it was opened.
     #[test]
     fn title_shows_the_shell_start_directory() {
         let dir = std::env::temp_dir().join(format!("termide-title-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let dir = std::fs::canonicalize(&dir).unwrap();
+        let dir = dunce::canonicalize(&dir).unwrap();
         let spawned = Terminal::new_with_cwd(24, 80, Some(dir.clone()));
         let title = spawned.as_ref().ok().map(|t| t.title());
         let _ = std::fs::remove_dir_all(&dir);
@@ -1562,14 +1623,14 @@ mod title_tests {
         );
     }
 
-    /// Reopening a session must land the shell where the user left off, so the
+    /// Reopening a project must land the shell where the user left off, so the
     /// saved directory is the shell's live one, not the panel's starting one.
     #[cfg(target_os = "linux")]
     #[test]
-    fn session_saves_the_directory_the_shell_ended_in() {
-        let dir = std::env::temp_dir().join(format!("termide-session-cd-{}", std::process::id()));
+    fn layout_saves_the_directory_the_shell_ended_in() {
+        let dir = std::env::temp_dir().join(format!("termide-layout-cd-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("subdir")).unwrap();
-        let dir = std::fs::canonicalize(&dir).unwrap();
+        let dir = dunce::canonicalize(&dir).unwrap();
         let Ok(mut term) = Terminal::new_with_cwd(24, 80, Some(dir.clone())) else {
             let _ = std::fs::remove_dir_all(&dir);
             return; // No PTY available.
@@ -1580,8 +1641,8 @@ mod title_tests {
         let mut saved = None;
         for _ in 0..40 {
             std::thread::sleep(std::time::Duration::from_millis(100));
-            saved = match term.to_session(std::path::Path::new("/tmp")) {
-                Some(SessionPanel::Terminal { working_dir }) => Some(working_dir),
+            saved = match term.to_state(std::path::Path::new("/tmp")) {
+                Some(PanelState::Terminal { working_dir }) => Some(working_dir),
                 other => panic!("terminal saved as {other:?}"),
             };
             if saved.as_ref() == Some(&expected) {
@@ -1592,7 +1653,7 @@ mod title_tests {
         assert_eq!(
             saved.as_ref(),
             Some(&expected),
-            "session kept the directory the panel was opened in"
+            "layout kept the directory the panel was opened in"
         );
     }
 
@@ -1605,7 +1666,7 @@ mod title_tests {
     fn working_directory_follows_a_cd_inside_the_shell() {
         let dir = std::env::temp_dir().join(format!("termide-cwd-cd-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("subdir")).unwrap();
-        let dir = std::fs::canonicalize(&dir).unwrap();
+        let dir = dunce::canonicalize(&dir).unwrap();
         let Ok(mut term) = Terminal::new_with_cwd(24, 80, Some(dir.clone())) else {
             let _ = std::fs::remove_dir_all(&dir);
             return; // No PTY available.
@@ -1649,7 +1710,7 @@ mod title_tests {
     fn title_follows_a_cd_inside_the_shell() {
         let dir = std::env::temp_dir().join(format!("termide-title-cd-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("subdir")).unwrap();
-        let dir = std::fs::canonicalize(&dir).unwrap();
+        let dir = dunce::canonicalize(&dir).unwrap();
         let Ok(mut term) = Terminal::new_with_cwd(24, 80, Some(dir.clone())) else {
             let _ = std::fs::remove_dir_all(&dir);
             return; // No PTY available.

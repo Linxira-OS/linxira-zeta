@@ -25,7 +25,7 @@ use dir_load::{AsyncDirReloadResult, PendingDirLoad};
 use expansion::PendingExpand;
 pub use file_info::FileInfo;
 use navigation::NavigationState;
-pub use operations::CreateOutcome;
+pub use operations::{is_database_file, is_raster_image, CreateOutcome};
 use search_bar::{BarFocus, SearchBarKind};
 use selection::SelectionState;
 pub use utils::shared_dir_size_cache;
@@ -68,7 +68,7 @@ use std::sync::mpsc;
 
 use termide_config::{constants, Config, FileManagerSettings};
 use termide_core::{
-    CommandResult, HotkeyTable, Panel, PanelCommand, PanelEvent, RenderContext, SessionPanel,
+    CommandResult, HotkeyTable, Panel, PanelCommand, PanelEvent, PanelState, RenderContext,
 };
 use termide_git::{GitStatus, GitStatusAsyncResult, GitStatusCache};
 use termide_modal::{ActionButton, ActiveModal, FindBar, InfoActionModal};
@@ -86,7 +86,7 @@ pub struct FileManager {
     visible_indices: Vec<usize>,
     /// Tree-drawing prefixes (├─, └─, │) for each visible node.
     tree_prefixes: Vec<String>,
-    /// Set of expanded directory paths (persists across reloads within session).
+    /// Set of expanded directory paths (persists across reloads within a run).
     expanded_dirs: HashSet<PathBuf>,
     /// Cursor position — index into `visible_indices`.
     selected: usize,
@@ -236,6 +236,14 @@ impl FileManager {
         Some(&self.tree_entries[tree_idx])
     }
 
+    /// The entry under the cursor, unless it is the placeholder shown while a
+    /// directory is still being listed: that row stands for no file, so no
+    /// file action may take it for one.
+    fn entry_under_cursor(&self) -> Option<&tree::TreeEntry> {
+        self.tree_entry_at(self.selected)
+            .filter(|te| !te.is_loading)
+    }
+
     /// Get full path of entry at a visible index.
     fn path_at(&self, vis_idx: usize) -> Option<&PathBuf> {
         let tree_idx = *self.visible_indices.get(vis_idx)?;
@@ -311,7 +319,7 @@ impl FileManager {
     /// Create a new smart file manager with the specified path
     pub fn new_with_path(current_path: PathBuf) -> Self {
         // Canonicalize to resolve symlinks — ensures paths match notify events
-        let current_path = std::fs::canonicalize(&current_path).unwrap_or(current_path);
+        let current_path = dunce::canonicalize(&current_path).unwrap_or(current_path);
         let vfs = VfsState::with_path(termide_vfs::VfsPath::local(&current_path), None);
         let mut fm = Self::new_common(current_path, vfs);
         let _ = fm.load_directory();
@@ -386,7 +394,7 @@ impl FileManager {
     /// Navigate to a specific directory
     pub fn navigate_to(&mut self, path: PathBuf) -> Result<()> {
         // Canonicalize to resolve symlinks — ensures paths match notify events
-        let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let path = dunce::canonicalize(&path).unwrap_or(path);
         if path.is_dir() {
             self.current_path = path.clone();
             self.vfs.set_path(termide_vfs::VfsPath::local(path));
@@ -441,6 +449,12 @@ impl FileManager {
         self.vfs.is_remote()
     }
 
+    /// At the root of a local Windows drive or share, where going up means
+    /// picking another drive rather than a parent directory.
+    pub(crate) fn at_local_drive_root(&self) -> bool {
+        !self.is_remote() && termide_vfs::is_drive_root(&self.current_path)
+    }
+
     /// Get display path (includes protocol for remote paths).
     pub fn display_path(&self) -> String {
         self.vfs.display_path()
@@ -492,7 +506,7 @@ impl FileManager {
     pub fn navigate_to_file(&mut self, path: &std::path::Path) {
         if let Some(parent) = path.parent() {
             self.current_path =
-                std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
+                dunce::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
             let _ = self.load_directory();
 
             // Find and select the file in the list
@@ -596,12 +610,12 @@ impl Panel for FileManager {
         // the mouse dispatcher to hit-test against.
         self.scrollbars = termide_core::ScrollBars::default();
 
-        // Inline content bar: dock it at the top, render results below.
+        // Inline content bar: dock it at the bottom, render results above.
         if let Some(mut bar) = self.search_bar.take() {
             let bar_h = bar.height().min(area.height);
             let bar_area = Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + area.height - bar_h,
                 width: area.width,
                 height: bar_h,
             };
@@ -609,23 +623,12 @@ impl Panel for FileManager {
             bar.render(bar_area, buf, &self.cached_theme, active);
             self.search_bar = Some(bar);
 
-            // Pseudographic separator between the form and the results.
-            let sep_y = area.y + bar_h;
-            let mut drew_sep = false;
-            if sep_y < area.y + area.height {
-                let style = ratatui::style::Style::default().fg(self.cached_theme.disabled);
-                for dx in 0..area.width {
-                    buf[(area.x + dx, sep_y)].set_symbol("─").set_style(style);
-                }
-                drew_sep = true;
-            }
-
-            let used = bar_h + u16::from(drew_sep);
+            // The bar draws its own titled top border, which is the divider.
             let results_area = Rect {
                 x: area.x,
-                y: area.y + used,
+                y: area.y,
                 width: area.width,
-                height: area.height.saturating_sub(used),
+                height: area.height.saturating_sub(bar_h),
             };
             self.search_results_area = Some(results_area);
             if results_area.height > 0 {
@@ -687,7 +690,7 @@ impl Panel for FileManager {
 
         // While the inline search bar is open it owns the keyboard.
         if self.search_bar.is_some() {
-            return self.handle_search_bar_key(key);
+            return self.handle_search_bar_key(chord);
         }
 
         // Raw key — HotkeyTable.matches() handles Cyrillic normalization internally.
@@ -831,6 +834,16 @@ impl Panel for FileManager {
                 self.clipboard_paste_files();
                 CommandResult::Handled(true)
             }
+            // `Cmd+V` on macOS: the terminal emulator answers the key and
+            // types the clipboard's text flavor in. Take it only when that
+            // text names real files, so a prose paste is not swallowed. With
+            // the search bar open the panel still declines — the bar reads
+            // typed keys and drops a bracketed paste either way, and spending
+            // the keystroke on a copy from under it would be worse.
+            PanelCommand::PasteText { text } => {
+                let paste_as_files = self.search_bar.is_none() && self.clipboard_paste_text(&text);
+                CommandResult::Handled(paste_as_files)
+            }
             PanelCommand::GetScrollBars => CommandResult::ScrollBars(self.scrollbars),
             PanelCommand::SetScrollOffset { offset, .. } => {
                 self.scroll_offset = offset;
@@ -856,7 +869,11 @@ impl Panel for FileManager {
             | PanelCommand::CloseWithoutSaving
             | PanelCommand::SetGitOperationInProgress { .. }
             | PanelCommand::UpdateRepoPaths { .. }
-            | PanelCommand::PasteText { .. } => CommandResult::None,
+            | PanelCommand::ShowGitLog { .. }
+            | PanelCommand::SelectionMade { .. }
+            | PanelCommand::ChecklistDone { .. }
+            | PanelCommand::InputSubmitted { .. }
+            | PanelCommand::Confirmed { .. } => CommandResult::None,
         }
     }
 
@@ -878,14 +895,14 @@ impl Panel for FileManager {
         self.on_tick()
     }
 
-    fn to_session(&self, _session_dir: &std::path::Path) -> Option<SessionPanel> {
+    fn to_state(&self, _project_dir: &std::path::Path) -> Option<PanelState> {
         // Save file manager with current directory path or VFS URL
         let path_or_url = self.display_path(); // Returns VFS URL for remote, local path for local
 
         // Defensive check: ensure remote paths include protocol
         if self.is_remote() && !path_or_url.contains("://") {
             log::warn!(
-                "Session save WARNING: Remote path missing protocol. VfsPath details: protocol={:?}, host={:?}, path={:?}",
+                "Layout save WARNING: Remote path missing protocol. VfsPath details: protocol={:?}, host={:?}, path={:?}",
                 self.vfs.current_path().protocol,
                 self.vfs.current_path().host,
                 self.vfs.current_path().path
@@ -914,11 +931,11 @@ impl Panel for FileManager {
                 path_or_url
             };
 
-            Some(SessionPanel::FileManager {
+            Some(PanelState::FileManager {
                 path_or_url: reconstructed,
             })
         } else {
-            Some(SessionPanel::FileManager { path_or_url })
+            Some(PanelState::FileManager { path_or_url })
         }
     }
 
@@ -987,6 +1004,35 @@ impl FileManager {
         ));
     }
 
+    /// Ask for the password of the encrypted archive whose root is `archive`;
+    /// `wrong` says the last one was rejected.
+    fn request_archive_password(&mut self, archive: termide_vfs::VfsPath, wrong: bool) {
+        let t = termide_i18n::t();
+        let name = archive
+            .container()
+            .and_then(|c| c.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let prompt = if wrong {
+            t.fm_archive_password_wrong(&name)
+        } else {
+            t.fm_archive_password_prompt(&name)
+        };
+        let modal =
+            termide_modal::InputModal::new(t.modal_archive_password_title(), &prompt).password();
+        self.modal_request = Some((
+            PendingAction::ArchivePassword { archive },
+            ActiveModal::Input(Box::new(modal)),
+        ));
+    }
+
+    /// Open the encrypted archive whose root is `archive` with `password`,
+    /// the answer to [`Self::request_archive_password`].
+    pub fn open_archive_with_password(&mut self, archive: termide_vfs::VfsPath, password: String) {
+        self.navigation.prepare_for_going_down();
+        self.vfs.enter_archive_with_password(archive, password);
+    }
+
     /// Reconnect the current remote path with a fresh session (drops the dead
     /// provider first). Driven by the recovery dialog's "Reconnect" button.
     pub fn reconnect_remote(&mut self) {
@@ -1027,7 +1073,530 @@ mod tests {
     /// against the raw `TempDir::path()` and the assertion fails there while
     /// passing on Linux, where `/tmp` is a real directory.
     fn canonical_temp_path(temp_dir: &TempDir) -> std::path::PathBuf {
-        temp_dir.path().canonicalize().unwrap()
+        dunce::canonicalize(temp_dir.path()).unwrap()
+    }
+
+    /// The row shown while a directory is still being listed stands for no
+    /// file: Enter, F3, F4 and Shift+Enter must not open it, and selection
+    /// and batch operations must not pick it up.
+    #[test]
+    fn the_listing_placeholder_is_no_file() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join("sub")).unwrap();
+        std::fs::write(temp_dir.path().join("sub/a.txt"), "x").unwrap();
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        // The listing is read on a worker thread; apply it as `tick()` would.
+        fm.load_directory().unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !fm.check_async_reload() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "listing never arrived"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let sub = fm.find_entry_index("sub").unwrap();
+        // Expanding lists on a worker thread too, and nothing applies that
+        // listing here, so the placeholder stays.
+        fm.expand_dir(sub);
+        let placeholder = sub + 1;
+        assert!(
+            fm.tree_entry_at(placeholder)
+                .is_some_and(|te| te.is_loading),
+            "the listing is still pending"
+        );
+
+        fm.selected = placeholder;
+        assert!(fm.enter().is_none());
+        assert!(fm.edit_file().is_none());
+        assert!(fm.view_file().is_none());
+        assert!(fm.open_external().is_none());
+        assert!(fm.get_selected_paths().is_empty());
+
+        fm.select_all();
+        assert!(!fm.selection.items.contains(&placeholder));
+        assert!(fm
+            .get_selected_paths()
+            .iter()
+            .all(|p| !p.ends_with("__loading__")));
+    }
+
+    fn wait_for_local_listing(fm: &mut FileManager) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !fm.check_async_reload() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "listing never arrived"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    fn wait_for_vfs(fm: &mut FileManager) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while fm.vfs.has_pending_operation() {
+            assert!(std::time::Instant::now() < deadline, "VFS never answered");
+            fm.on_tick();
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    fn names(fm: &FileManager) -> Vec<String> {
+        (0..fm.visible_count())
+            .filter_map(|i| fm.entry_at(i).map(|e| e.name.clone()))
+            .collect()
+    }
+
+    /// A symlink in the selection keeps the copy on the text path: the file
+    /// flavor resolves to the real path, so publishing it would deliver the
+    /// target under the target's name. A plain selection takes the flavor.
+    #[cfg(unix)]
+    #[test]
+    fn a_selected_symlink_keeps_the_copy_as_text() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join("real.txt"), "x").unwrap();
+        std::fs::write(temp_dir.path().join("plain.txt"), "y").unwrap();
+        std::os::unix::fs::symlink(
+            temp_dir.path().join("real.txt"),
+            temp_dir.path().join("link.txt"),
+        )
+        .unwrap();
+
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        // Cursor on a plain file: no link in play, the flavor is taken.
+        fm.selected = fm.find_entry_index("plain.txt").unwrap();
+        assert!(!fm.selection_has_symlink());
+
+        // Cursor on the link: the panel sees it as a link, not its target.
+        fm.selected = fm.find_entry_index("link.txt").unwrap();
+        assert!(fm.selection_has_symlink(), "the cursor sits on a symlink");
+
+        // A multi-selection holding the link reports it too.
+        fm.clear_selection();
+        fm.selection
+            .select(fm.find_entry_index("plain.txt").unwrap());
+        fm.selection
+            .select(fm.find_entry_index("link.txt").unwrap());
+        assert!(fm.selection_has_symlink());
+
+        // Without the link, the multi-selection takes the flavor.
+        fm.clear_selection();
+        fm.selection
+            .select(fm.find_entry_index("plain.txt").unwrap());
+        fm.selection
+            .select(fm.find_entry_index("real.txt").unwrap());
+        assert!(!fm.selection_has_symlink());
+    }
+
+    /// `Cmd+V` reaches the panel as a bracketed paste, not as `Paste`: the
+    /// terminal emulator answers the key and types the clipboard's text. When
+    /// that text names real files the panel must offer the copy, and say
+    /// which files — the count alone left the confirmation nameless.
+    #[test]
+    fn a_pasted_path_copies_the_file_and_names_it() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = canonical_temp_path(&temp_dir);
+        std::fs::write(dir.join("report.pdf"), "x").unwrap();
+
+        let mut fm = FileManager::new_with_path(dir.clone());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        let pasted = dir.join("report.pdf").display().to_string();
+        let result = fm.handle_command(PanelCommand::PasteText {
+            text: pasted.clone(),
+        });
+        assert!(
+            matches!(result, CommandResult::Handled(true)),
+            "a pasted path must be taken as a file paste"
+        );
+
+        let (action, modal) = fm.modal_request.take().expect("a confirmation");
+        match action {
+            PendingAction::CopyPath {
+                sources,
+                target_directory,
+                ..
+            } => {
+                assert_eq!(sources, [dir.join("report.pdf")]);
+                assert_eq!(target_directory, Some(dir.clone()));
+            }
+            other => panic!("expected a copy, got {other:?}"),
+        }
+
+        let message = match modal {
+            ActiveModal::Confirm(m) => m.message().to_string(),
+            other => panic!("expected a confirmation, got {other:?}"),
+        };
+        assert!(
+            message.contains("report.pdf"),
+            "the confirmation must name the file, got {message:?}"
+        );
+    }
+
+    /// Prose pasted into the panel is not a file: the key falls through
+    /// untouched, so it stays available to whatever handles keys next.
+    #[test]
+    fn pasted_prose_is_not_taken_as_a_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = canonical_temp_path(&temp_dir);
+        let mut fm = FileManager::new_with_path(dir.clone());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        let result = fm.handle_command(PanelCommand::PasteText {
+            text: "a sentence, not a path".to_string(),
+        });
+        assert!(
+            matches!(result, CommandResult::Handled(false)),
+            "prose must fall through"
+        );
+        assert!(fm.modal_request.is_none(), "no copy was offered");
+    }
+
+    /// A cut that is still on the clipboard pastes as a move, and the
+    /// confirmation has to say so — Yes deletes the sources here, so a dialog
+    /// reading "Copy" would be asking about the wrong operation.
+    #[test]
+    fn a_pasted_cut_moves_and_the_confirmation_says_move() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = canonical_temp_path(&temp_dir);
+        std::fs::write(dir.join("report.pdf"), "x").unwrap();
+
+        let mut fm = FileManager::new_with_path(dir.clone());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        let path = dir.join("report.pdf");
+        termide_ui::clipboard::mark_cut(std::slice::from_ref(&path));
+
+        let result = fm.handle_command(PanelCommand::PasteText {
+            text: path.display().to_string(),
+        });
+        assert!(
+            matches!(result, CommandResult::Handled(true)),
+            "the paste must be taken"
+        );
+
+        let (action, modal) = fm.modal_request.take().expect("a confirmation");
+        match action {
+            PendingAction::MovePath {
+                sources,
+                target_directory,
+            } => {
+                assert_eq!(sources, std::slice::from_ref(&path));
+                assert_eq!(target_directory, Some(dir.clone()));
+            }
+            other => panic!("expected a move, got {other:?}"),
+        }
+
+        let message = match modal {
+            ActiveModal::Confirm(m) => m.message().to_string(),
+            other => panic!("expected a confirmation, got {other:?}"),
+        };
+        assert!(
+            message.contains("report.pdf"),
+            "the confirmation must name the file, got {message:?}"
+        );
+        let t = termide_i18n::t();
+        assert_eq!(
+            message,
+            t.fm_paste_move_confirm(1, "report.pdf", &dir.display().to_string()),
+            "the confirmation must carry the move wording"
+        );
+    }
+
+    /// A cut inside an archive cannot move anything — `MovePath` takes local
+    /// paths — so it must refuse rather than hand back a cut that pastes as a
+    /// copy. Refusing also means no marker survives: a stale marker over paths
+    /// the panel cannot move would delete local files that merely share them.
+    #[test]
+    fn cutting_inside_an_archive_refuses_and_marks_nothing() {
+        use std::io::Write;
+        let temp_dir = TempDir::new().unwrap();
+        let archive = temp_dir.path().join("pack.zip");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        zip.start_file("inner.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(b"x").unwrap();
+        zip.finish().unwrap();
+
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        fm.selected = fm.find_entry_index("pack.zip").unwrap();
+        assert!(fm.enter().is_none());
+        wait_for_vfs(&mut fm);
+        assert!(fm.vfs.at_archive_root(), "the panel is inside the archive");
+
+        fm.selected = fm.find_entry_index("inner.txt").unwrap();
+        // What the cut would have published — an in-archive path that also
+        // names a plausible local file, which is exactly the danger.
+        let would_cut = fm.get_selected_paths();
+        assert_eq!(would_cut, [PathBuf::from("/inner.txt")]);
+        fm.handle_command(PanelCommand::Cut);
+
+        // The refusal has to name the reason. An empty or generic modal would
+        // look like a refusal and still leave the user guessing.
+        let (action, modal) = fm.modal_request.take().expect("the refusal is said");
+        assert!(matches!(action, PendingAction::VfsMessage));
+        match modal {
+            ActiveModal::InfoAction(m) => assert_eq!(
+                m.message_text(),
+                termide_i18n::t().fm_archive_read_only(),
+                "the refusal must carry the archive read-only text"
+            ),
+            other => panic!("expected an info modal, got {other:?}"),
+        }
+        assert!(
+            !termide_ui::clipboard::is_cut(&would_cut),
+            "a refused cut must leave no marker over the paths it would publish"
+        );
+    }
+
+    /// A relative path resolves against the process working directory, not
+    /// the panel's, so `exists()` can match some unrelated file and paste it
+    /// under the wrong name. Only absolute paths are taken as files.
+    #[test]
+    fn a_pasted_relative_path_is_not_taken_as_a_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = canonical_temp_path(&temp_dir);
+
+        let mut fm = FileManager::new_with_path(dir.clone());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        // The bug this guards is silent unless the relative name really does
+        // resolve somewhere: assert that it does, and that the panel still
+        // refuses it. `Cargo.toml` exists in the crate directory the test
+        // runs from, but not in the panel's directory.
+        let relative = "Cargo.toml";
+        assert!(
+            std::path::Path::new(relative).exists(),
+            "precondition: this name must resolve outside the panel"
+        );
+        assert!(!dir.join(relative).exists());
+
+        let result = fm.handle_command(PanelCommand::PasteText {
+            text: relative.to_string(),
+        });
+        assert!(
+            matches!(result, CommandResult::Handled(false)),
+            "a relative path must fall through rather than resolve elsewhere"
+        );
+        assert!(fm.modal_request.is_none(), "no copy was offered");
+    }
+
+    /// With the search bar open the same keystroke is query text, so the
+    /// panel must not spend it on a copy even when it names a real file.
+    #[test]
+    fn a_pasted_path_is_left_to_the_open_search_bar() {
+        let temp_dir = TempDir::new().unwrap();
+        let dir = canonical_temp_path(&temp_dir);
+        std::fs::write(dir.join("report.pdf"), "x").unwrap();
+
+        let mut fm = FileManager::new_with_path(dir.clone());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        fm.open_name_bar();
+        let pasted = dir.join("report.pdf").display().to_string();
+        let result = fm.handle_command(PanelCommand::PasteText { text: pasted });
+        assert!(
+            matches!(result, CommandResult::Handled(false)),
+            "the search bar owns the paste"
+        );
+        assert!(fm.modal_request.is_none(), "no copy was offered");
+    }
+
+    /// Enter on an archive browses it like a directory; `..` at its root
+    /// comes back with the cursor on the archive; nothing inside can be
+    /// changed.
+    #[test]
+    fn an_archive_opens_like_a_directory_and_is_read_only() {
+        use std::io::Write;
+        let temp_dir = TempDir::new().unwrap();
+        let archive = temp_dir.path().join("pack.zip");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        zip.start_file("docs/readme.md", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(b"hi").unwrap();
+        zip.finish().unwrap();
+        std::fs::write(temp_dir.path().join("other.txt"), "x").unwrap();
+
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        fm.selected = fm.find_entry_index("pack.zip").unwrap();
+        assert!(fm.enter().is_none(), "an archive is not opened as a file");
+        wait_for_vfs(&mut fm);
+        assert!(fm.vfs.at_archive_root());
+        assert_eq!(names(&fm), ["..", "docs"]);
+
+        fm.execute_command(keyboard::FmCommand::DeleteFiles);
+        assert!(
+            matches!(
+                fm.modal_request.take(),
+                Some((PendingAction::VfsMessage, ActiveModal::InfoAction(_)))
+            ),
+            "a read-only notice, not a delete confirmation"
+        );
+
+        fm.selected = fm.find_entry_index("..").unwrap();
+        assert!(fm.enter().is_none());
+        assert!(fm.vfs.is_local());
+        wait_for_local_listing(&mut fm);
+        assert_eq!(fm.current_path, canonical_temp_path(&temp_dir));
+        assert_eq!(
+            fm.entry_at(fm.selected).map(|e| e.name.as_str()),
+            Some("pack.zip"),
+            "the cursor comes back to the archive"
+        );
+    }
+
+    /// An archive inside an archive opens with Enter too, and `..` walks
+    /// back out one level at a time, the cursor landing on what was left.
+    #[test]
+    fn a_nested_archive_opens_and_is_left_level_by_level() {
+        use std::io::Write;
+        fn zip_with(path: &std::path::Path, name: &str, data: &[u8]) {
+            let mut zip = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+            zip.start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(data).unwrap();
+            zip.finish().unwrap();
+        }
+        let temp_dir = TempDir::new().unwrap();
+        let inner = temp_dir.path().join("inner.zip");
+        zip_with(&inner, "deep/readme.md", b"hi");
+        let outer = temp_dir.path().join("outer.zip");
+        zip_with(&outer, "inner.zip", &std::fs::read(&inner).unwrap());
+        std::fs::remove_file(&inner).unwrap();
+
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+
+        fm.selected = fm.find_entry_index("outer.zip").unwrap();
+        fm.enter();
+        wait_for_vfs(&mut fm);
+        assert_eq!(names(&fm), ["..", "inner.zip"]);
+
+        fm.selected = fm.find_entry_index("inner.zip").unwrap();
+        fm.enter();
+        wait_for_vfs(&mut fm);
+        assert_eq!(names(&fm), ["..", "deep"]);
+        assert!(fm.vfs.current_path().container().unwrap().is_archive());
+
+        fm.selected = fm.find_entry_index("..").unwrap();
+        fm.enter();
+        wait_for_vfs(&mut fm);
+        assert_eq!(names(&fm), ["..", "inner.zip"]);
+        assert_eq!(
+            fm.entry_at(fm.selected).map(|e| e.name.as_str()),
+            Some("inner.zip")
+        );
+
+        fm.selected = fm.find_entry_index("..").unwrap();
+        fm.enter();
+        wait_for_local_listing(&mut fm);
+        assert!(fm.vfs.is_local());
+        assert_eq!(
+            fm.entry_at(fm.selected).map(|e| e.name.as_str()),
+            Some("outer.zip")
+        );
+    }
+
+    /// An encrypted archive asks for its password, asks again after a wrong
+    /// one, and opens with the right one.
+    #[test]
+    fn an_encrypted_archive_asks_for_its_password() {
+        use std::io::Write;
+        let temp_dir = TempDir::new().unwrap();
+        let archive = temp_dir.path().join("locked.zip");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        zip.start_file(
+            "secret.txt",
+            zip::write::SimpleFileOptions::default()
+                .with_aes_encryption(zip::AesMode::Aes256, "hunter2"),
+        )
+        .unwrap();
+        zip.write_all(b"x").unwrap();
+        zip.finish().unwrap();
+
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+        let asked = |fm: &mut FileManager| match fm.modal_request.take() {
+            Some((PendingAction::ArchivePassword { archive }, ActiveModal::Input(_))) => archive,
+            other => panic!(
+                "expected a password prompt, got {:?}",
+                other.map(|(a, _)| a)
+            ),
+        };
+
+        fm.selected = fm.find_entry_index("locked.zip").unwrap();
+        fm.enter();
+        wait_for_vfs(&mut fm);
+        fm.on_tick();
+        let root = asked(&mut fm);
+        assert!(fm.vfs.is_local(), "the panel stays in the directory");
+
+        fm.open_archive_with_password(root, "wrong".to_string());
+        wait_for_vfs(&mut fm);
+        fm.on_tick();
+        let root = asked(&mut fm);
+
+        fm.open_archive_with_password(root, "hunter2".to_string());
+        wait_for_vfs(&mut fm);
+        assert_eq!(names(&fm), ["..", "secret.txt"]);
+    }
+
+    /// P offers an archive next to the selection in every writable format;
+    /// inside an archive it is refused instead.
+    #[test]
+    fn pack_prompts_for_an_archive_next_to_the_selection() {
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join("docs")).unwrap();
+        std::fs::write(temp_dir.path().join("report.pdf"), "x").unwrap();
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+        let dir = canonical_temp_path(&temp_dir);
+
+        fm.selected = fm.find_entry_index("report.pdf").unwrap();
+        fm.execute_command(keyboard::FmCommand::Pack);
+        match fm.modal_request.take() {
+            Some((PendingAction::PackPaths { sources }, ActiveModal::EditableSelect(modal))) => {
+                assert_eq!(sources, [dir.join("report.pdf")]);
+                assert_eq!(modal.value(), dir.join("report.zip").display().to_string());
+            }
+            other => panic!("expected the pack prompt, got {:?}", other.map(|(a, _)| a)),
+        }
+
+        fm.selected = fm.find_entry_index("docs").unwrap();
+        fm.execute_command(keyboard::FmCommand::Pack);
+        match fm.modal_request.take() {
+            Some((PendingAction::PackPaths { .. }, ActiveModal::EditableSelect(modal))) => {
+                assert_eq!(modal.value(), dir.join("docs.zip").display().to_string());
+            }
+            other => panic!("expected the pack prompt, got {:?}", other.map(|(a, _)| a)),
+        }
+
+        fm.vfs.set_path(termide_vfs::VfsPath::archive(
+            termide_vfs::VfsPath::local(dir.join("a.zip")),
+            "/",
+        ));
+        fm.execute_command(keyboard::FmCommand::Pack);
+        assert!(matches!(
+            fm.modal_request.take(),
+            Some((PendingAction::VfsMessage, ActiveModal::InfoAction(_)))
+        ));
     }
 
     /// A scrollbar drag must not be undone by the next render: the panel pulls
@@ -1079,6 +1648,46 @@ mod tests {
             fm.scroll_offset, 40,
             "render pulled the scroll back to the cursor"
         );
+    }
+
+    /// Creating on an expanded directory must land inside it: its children
+    /// are what the tree shows under the cursor. A collapsed directory at
+    /// the same level keeps the "alongside the cursor" rule.
+    #[test]
+    fn create_directory_on_expanded_dir_lands_inside_it() {
+        let (mut fm, temp_dir) = create_file_manager_in_temp();
+        std::fs::create_dir(temp_dir.path().join("sub")).unwrap();
+        std::fs::create_dir(temp_dir.path().join("other")).unwrap();
+        // The listing is read on a worker thread; apply it before looking
+        // rows up, as `tick()` would.
+        let reload = |fm: &mut FileManager| {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while !fm.check_async_reload() {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "listing never arrived"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        };
+        fm.load_directory().unwrap();
+        reload(&mut fm);
+        let vis_of = |fm: &FileManager, name: &str| {
+            (0..fm.visible_indices.len())
+                .find(|&i| fm.tree_entry_at(i).unwrap().file_entry.name == name)
+                .unwrap()
+        };
+
+        let sub = vis_of(&fm, "sub");
+        fm.expand_dir(sub);
+        fm.selected = sub;
+        fm.create_directory("inside".to_string()).unwrap();
+        assert!(canonical_temp_path(&temp_dir).join("sub/inside").is_dir());
+        reload(&mut fm);
+
+        fm.selected = vis_of(&fm, "other");
+        fm.create_directory("beside".to_string()).unwrap();
+        assert!(canonical_temp_path(&temp_dir).join("beside").is_dir());
     }
 
     #[test]

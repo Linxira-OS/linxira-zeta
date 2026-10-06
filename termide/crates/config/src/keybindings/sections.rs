@@ -18,11 +18,17 @@ pub struct GlobalKeybindings {
     pub new_journal: Option<KeyBinding>,
     pub open_help: Option<KeyBinding>,
     pub open_preferences: Option<KeyBinding>,
-    pub open_sessions: Option<KeyBinding>,
-    pub new_session: Option<KeyBinding>,
+    /// Open the project switcher. The old `open_sessions` spelling is still
+    /// accepted so keybindings written before the rename keep working.
+    #[serde(alias = "open_sessions")]
+    pub open_projects: Option<KeyBinding>,
+    /// Start a new project. Old spelling accepted, as above.
+    #[serde(alias = "new_session")]
+    pub new_project: Option<KeyBinding>,
     pub open_git_status: Option<KeyBinding>,
     pub open_bookmark_add: Option<KeyBinding>,
     pub open_outline: Option<KeyBinding>,
+    pub open_agent: Option<KeyBinding>,
     pub open_diagnostics: Option<KeyBinding>,
     pub open_git_log: Option<KeyBinding>,
 
@@ -35,7 +41,7 @@ pub struct GlobalKeybindings {
     pub move_last: Option<KeyBinding>,
     pub resize_smaller: Option<KeyBinding>,
     pub resize_larger: Option<KeyBinding>,
-    /// Toggle accordion / split layout for the active panel group.
+    /// Maximize the focused panel within its group, or restore the heights.
     pub toggle_fullscreen_panel: Option<KeyBinding>,
     /// Grow the focused panel's height in split mode.
     pub panel_grow_vertical: Option<KeyBinding>,
@@ -58,13 +64,36 @@ pub struct GlobalKeybindings {
     pub goto_panel_7: Option<KeyBinding>,
     pub goto_panel_8: Option<KeyBinding>,
     pub goto_panel_9: Option<KeyBinding>,
+    /// Switch to the previous / next open project, in the order the
+    /// Projects menu lists them. Unbound by default: every free chord collides with a desktop
+    /// shortcut or a shell binding somewhere.
+    pub prev_project: Option<KeyBinding>,
+    pub next_project: Option<KeyBinding>,
+    /// Switch to the open project with this number. Unbound by default, as
+    /// above.
+    pub goto_project_1: Option<KeyBinding>,
+    pub goto_project_2: Option<KeyBinding>,
+    pub goto_project_3: Option<KeyBinding>,
+    pub goto_project_4: Option<KeyBinding>,
+    pub goto_project_5: Option<KeyBinding>,
+    pub goto_project_6: Option<KeyBinding>,
+    pub goto_project_7: Option<KeyBinding>,
+    pub goto_project_8: Option<KeyBinding>,
+    pub goto_project_9: Option<KeyBinding>,
 
     // Application
     pub quit: Option<KeyBinding>,
-    /// Detach from the attached client, leaving the session running.
-    /// Only meaningful when termide is hosted in a detached session.
-    pub detach_session: Option<KeyBinding>,
+    /// Detach from the attached client, leaving the instance running.
+    /// Only meaningful when termide is hosted in a detached instance.
+    /// The old `detach_session` spelling is still accepted so keybindings
+    /// written before the rename keep working.
+    #[serde(alias = "detach_session")]
+    pub detach_instance: Option<KeyBinding>,
     pub open_command_palette: Option<KeyBinding>,
+    /// Open a file, directory or URL through the prompt with suggestions.
+    /// The file manager keeps the key for its own "go to path", and a
+    /// terminal passes it on to the program running in it.
+    pub open_path: Option<KeyBinding>,
 
     // Clipboard (routed to the focused panel, which copies/cuts/pastes
     // according to its own capabilities).
@@ -121,6 +150,7 @@ pub struct FileManagerKeybindings {
     pub create_file: Option<KeyBinding>,
     pub delete: Option<KeyBinding>,
     pub info: Option<KeyBinding>,
+    pub pack: Option<KeyBinding>,
 
     // Search
     pub search: Option<KeyBinding>,
@@ -341,6 +371,21 @@ pub struct TerminalKeybindings {
 // =============================================================================
 
 impl GlobalKeybindings {
+    /// The `goto_project_1..9` bindings, by number.
+    pub fn goto_project(&self) -> [&Option<KeyBinding>; 9] {
+        [
+            &self.goto_project_1,
+            &self.goto_project_2,
+            &self.goto_project_3,
+            &self.goto_project_4,
+            &self.goto_project_5,
+            &self.goto_project_6,
+            &self.goto_project_7,
+            &self.goto_project_8,
+            &self.goto_project_9,
+        ]
+    }
+
     /// Drop bindings that are verbatim copies of defaults this version no
     /// longer ships, so the new default can take their place.
     ///
@@ -402,11 +447,12 @@ impl GlobalKeybindings {
         set_default!(new_journal, "Alt+L");
         // open_help gets F1 alternative below (needs set_default_multiple)
         set_default!(open_preferences, "Alt+P");
-        set_default!(open_sessions, "Alt+\\");
-        set_default!(new_session, "Alt+N");
+        set_default!(open_projects, "Alt+\\");
+        set_default!(new_project, "Alt+N");
         set_default!(open_git_status, "Alt+G");
         set_default!(open_bookmark_add, "Alt+B");
         set_default!(open_outline, "Alt+O");
+        set_default!(open_agent, "Alt+A");
         set_default!(open_diagnostics, "Alt+I");
         set_default!(open_git_log, "Alt+C");
 
@@ -475,8 +521,9 @@ impl GlobalKeybindings {
         // obvious mnemonic and is unusable on macOS: `Option+Z` is the one
         // combination on the US layout that composes an *uppercase* glyph
         // (`Ω`), reported as `Shift+Ω` with no ALT bit at all.
-        set_default!(detach_session, "Alt+D");
+        set_default!(detach_instance, "Alt+D");
         set_default!(open_command_palette, "Ctrl+P");
+        set_default!(open_path, "Ctrl+G");
 
         // Clipboard (routed to the focused panel)
         set_default!(copy, "Ctrl+C");
@@ -595,6 +642,7 @@ impl FileManagerKeybindings {
         if self.info.is_none() {
             self.info = Some(KeyBinding::Multiple(vec!["F12".into(), "Space".into()]));
         }
+        set_default!(pack, "P");
 
         // Search
         set_default!(search, "Ctrl+F");
@@ -605,7 +653,7 @@ impl FileManagerKeybindings {
         set_default!(refresh, "Ctrl+R");
         set_default!(go_parent, "Backspace");
         set_default!(go_home, "~");
-        // Parallel to global `open_sessions = "Alt+\\"`: `Ctrl+\\` for
+        // Parallel to global `open_projects = "Alt+\\"`: `Ctrl+\\` for
         // the analogous "switch directory" action. Reaches VTE via
         // the `Ctrl+4→Ctrl+\\` quirk in `KeyNormalizer`.
         set_default!(switch_directory, "Ctrl+\\");

@@ -1,4 +1,4 @@
-//! The attach client: a thin byte pump between this terminal and a session
+//! The attach client: a thin byte pump between this terminal and an instance
 //! daemon.
 //!
 //! It deliberately knows nothing about termide's rendering. Output arrives as
@@ -29,32 +29,34 @@ const RESIZE_POLL: Duration = Duration::from_millis(100);
 /// The supported way to detach is the in-app action, which leaves termide's
 /// own keybindings untouched. This escape hatch exists only for a hosted
 /// process that has stopped responding, and is deliberately a sequence no
-/// editing session produces by accident.
+/// editing instance produces by accident.
 const EMERGENCY_BYTE: u8 = 0x1c;
 const EMERGENCY_REPEATS: usize = 3;
 
-/// Attach to a detached session, returning when the client detaches or the
-/// session ends.
+/// Attach to a detached instance, returning when the client detaches or the
+/// instance ends.
 ///
 /// Returns the exit code the caller should use: the hosted termide's own code
-/// when the session ended, and 0 when this client merely detached. Tools that
+/// when the instance ended, and 0 when this client merely detached. Tools that
 /// run termide and wait for it — `git commit`, `crontab -e` — decide what to
 /// do from that code, so swallowing it would make a failed edit look
 /// successful.
-pub fn attach(id: Option<String>) -> Result<i32> {
-    let session = match id {
-        Some(id) => {
-            registry::read_info(&id).with_context(|| format!("No detached session named '{id}'"))?
-        }
+///
+/// With `takeover`, a client that is already attached is let go rather than
+/// this one being refused.
+pub fn attach(id: Option<String>, takeover: bool) -> Result<i32> {
+    let instance = match id {
+        Some(id) => registry::read_info(&id)
+            .with_context(|| format!("No detached instance named '{id}'"))?,
         None => registry::most_recent()?
-            .context("No detached sessions. Start one with `termide --detached`.")?,
+            .context("No detached instances. Start one with `termide --detached`.")?,
     };
 
-    let socket = crate::paths::socket_path(&session.id)?;
+    let socket = crate::paths::socket_path(&instance.id)?;
     let stream = UnixStream::connect(&socket).with_context(|| {
         format!(
-            "Session '{}' is not reachable; its daemon may have died",
-            session.id
+            "Instance '{}' is not reachable; its daemon may have died",
+            instance.id
         )
     })?;
 
@@ -68,6 +70,7 @@ pub fn attach(id: Option<String>) -> Result<i32> {
         rows,
         term,
         caps,
+        takeover,
     }
     .write_to(&mut writer)?;
 
@@ -77,15 +80,32 @@ pub fn attach(id: Option<String>) -> Result<i32> {
     match ServerFrame::read_from(&mut reader)? {
         Some(ServerFrame::Attached) => {}
         Some(ServerFrame::Busy) => {
-            anyhow::bail!("Session '{}' already has a client attached", session.id);
+            anyhow::bail!(
+                "Instance '{id}' already has a client attached; \
+                 take it over with `termide --attach {id} --force`",
+                id = instance.id
+            );
         }
         Some(ServerFrame::Exited(code)) => {
-            anyhow::bail!("Session '{}' exited with code {code}", session.id);
+            anyhow::bail!("Instance '{}' exited with code {code}", instance.id);
         }
-        _ => anyhow::bail!("Session '{}' did not accept the attach", session.id),
+        // A host started by an older termide does not know the takeover frame
+        // and closes the connection on it.
+        None if takeover => anyhow::bail!(
+            "Instance '{id}' did not accept the takeover; its host may predate \
+             `--force`. Detach the other client, or end the instance with \
+             `termide --kill {id}`",
+            id = instance.id
+        ),
+        _ => anyhow::bail!("Instance '{}' did not accept the attach", instance.id),
     }
 
     enable_raw_mode().context("Failed to put the terminal into raw mode")?;
+    // The hosted termide re-enters its terminal modes only on the tick after
+    // it learns of the attach, and may paint a whole frame before that. Taken
+    // here, before any output, the alternate screen catches that frame too,
+    // so it is wiped on detach instead of staying on this shell's screen.
+    let _ = crossterm::execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen);
 
     let running = Arc::new(AtomicBool::new(true));
     spawn_input_pump(&stream, Arc::clone(&running))?;
@@ -98,21 +118,70 @@ pub fn attach(id: Option<String>) -> Result<i32> {
 
     match outcome {
         Outcome::Detached => {
-            println!("Detached from session '{}'.", session.id);
+            println!("Detached from instance '{}'.", instance.id);
+            Ok(0)
+        }
+        Outcome::TakenOver => {
+            println!(
+                "Instance '{}' was taken over by another client.",
+                instance.id
+            );
             Ok(0)
         }
         Outcome::Exited(code) => {
             if code == 0 {
-                println!("Session '{}' ended.", session.id);
+                println!("Instance '{}' ended.", instance.id);
             } else {
-                println!("Session '{}' ended with code {code}.", session.id);
+                println!("Instance '{}' ended with code {code}.", instance.id);
             }
             Ok(code)
         }
     }
 }
 
-/// Ask this terminal what it can do, on the hosted session's behalf.
+/// End a detached instance, and every shell, LSP server and job inside it.
+///
+/// The daemon is asked first: it stops the hosted termide with SIGTERM, then
+/// SIGKILL, and goes with it. A daemon that does not go — wedged itself, or
+/// started by a termide that predates `--kill` — is killed from here, which
+/// closes the PTY and hangs the hosted termide up.
+pub fn kill(id: &str) -> Result<()> {
+    let instance =
+        registry::read_info(id).with_context(|| format!("No detached instance named '{id}'"))?;
+
+    if registry::process_is_alive(instance.pid) {
+        if let Ok(mut stream) = UnixStream::connect(crate::paths::socket_path(id)?) {
+            let _ = ClientFrame::Kill.write_to(&mut stream);
+        }
+        if !wait_for_exit(instance.pid, crate::daemon::KILL_GRACE + KILL_MARGIN) {
+            use nix::sys::signal::{kill, Signal};
+            let _ = kill(nix::unistd::Pid::from_raw(instance.pid), Signal::SIGKILL);
+        }
+    }
+
+    // The daemon removes its own files on a clean exit; after a SIGKILL, or
+    // for one that was already dead, nobody else will.
+    registry::remove(id);
+    println!("Instance '{id}' ended.");
+    Ok(())
+}
+
+/// Extra time `kill` gives the daemon beyond its own SIGKILL escalation.
+const KILL_MARGIN: Duration = Duration::from_secs(2);
+
+/// Wait for a process that is not our child to go, up to `timeout`.
+fn wait_for_exit(pid: i32, timeout: Duration) -> bool {
+    let deadline = std::time::Instant::now() + timeout;
+    while registry::process_is_alive(pid) {
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    true
+}
+
+/// Ask this terminal what it can do, on the hosted instance's behalf.
 ///
 /// Must run before raw mode: the Kitty query is a request/response handshake
 /// that needs cooked-mode readiness. Over SSH the probe is skipped entirely —
@@ -140,6 +209,7 @@ fn probe_terminal() -> ClientCaps {
 
 enum Outcome {
     Detached,
+    TakenOver,
     Exited(i32),
 }
 
@@ -217,7 +287,7 @@ fn spawn_resize_watcher(
     Ok(())
 }
 
-/// Copy daemon output to stdout until the session ends or we detach.
+/// Copy daemon output to stdout until the instance ends or we detach.
 fn output_loop(reader: &mut UnixStream) -> Outcome {
     let mut stdout = std::io::stdout();
     loop {
@@ -228,8 +298,9 @@ fn output_loop(reader: &mut UnixStream) -> Outcome {
                 }
             }
             Ok(Some(ServerFrame::Exited(code))) => return Outcome::Exited(code),
+            Ok(Some(ServerFrame::TakenOver)) => return Outcome::TakenOver,
             // The daemon closing the socket is how an in-app detach reaches
-            // the client: the session lives on, this client does not.
+            // the client: the instance lives on, this client does not.
             Ok(None) => return Outcome::Detached,
             Ok(Some(_)) => {}
             Err(_) => return Outcome::Detached,
@@ -248,7 +319,7 @@ fn output_loop(reader: &mut UnixStream) -> Outcome {
 /// only when this terminal answered the capability probe.
 fn restore_terminal(caps: ClientCaps) {
     // Wipe the alternate screen before leaving it. Without this the last
-    // frame the session painted stays on screen in terminals that restore
+    // frame the instance painted stays on screen in terminals that restore
     // the primary buffer lazily, so a detach looks like a frozen termide.
     let _ = crossterm::execute!(
         std::io::stdout(),

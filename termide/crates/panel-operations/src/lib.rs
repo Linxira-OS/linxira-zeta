@@ -17,7 +17,7 @@ use ratatui::{buffer::Buffer, layout::Rect, widgets::Widget};
 use termide_config::Config;
 use termide_core::{
     CommandResult, ConfirmAction, HeightMode, HotkeyTable, Panel, PanelCommand, PanelEvent,
-    RenderContext, SessionPanel, ThemeColors, WidthPreference,
+    PanelState, RenderContext, ThemeColors, WidthPreference,
 };
 use termide_file_ops::OperationId;
 use termide_state::{ActiveOperation, OperationProgress, OperationType};
@@ -300,7 +300,9 @@ impl Panel for OperationsPanel {
     }
 
     fn handle_key(&mut self, chord: termide_core::KeyChord) -> Vec<PanelEvent> {
-        let key = chord.raw;
+        // No text input here: every key is a shortcut, matched on the
+        // layout-normalized form so it works on a Cyrillic layout too.
+        let key = chord.canonical;
         let total = self.operations.len();
         let mut events = vec![];
 
@@ -413,8 +415,8 @@ impl Panel for OperationsPanel {
         CommandResult::None
     }
 
-    fn to_session(&self, _session_dir: &Path) -> Option<SessionPanel> {
-        // Operations panel is transient, don't persist to session
+    fn to_state(&self, _project_dir: &Path) -> Option<PanelState> {
+        // Operations panel is transient, don't persist to the layout
         None
     }
 

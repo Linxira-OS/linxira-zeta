@@ -13,7 +13,7 @@ use ratatui::{buffer::Buffer, layout::Rect};
 
 use termide_config::Config;
 use termide_core::{
-    CommandResult, Panel, PanelCommand, PanelEvent, RenderContext, SegmentKind, SessionPanel,
+    CommandResult, Panel, PanelCommand, PanelEvent, PanelState, RenderContext, SegmentKind,
     StatusSegment, WidthPreference,
 };
 use termide_i18n::t;
@@ -176,15 +176,15 @@ impl Panel for Editor {
         let theme = self.render_cache.theme;
         let config = self.render_cache.config.clone();
 
-        // Dock the inline find/replace bar at the TOP (consistent with the file
-        // manager), with a pseudographic separator, shrinking the content area
-        // so the viewport/scroll/mouse math see the reduced height.
+        // Dock the inline find/replace bar at the BOTTOM, where every input in
+        // termide lives, with a pseudographic separator above it, shrinking the
+        // content area so the viewport/scroll/mouse math see the reduced height.
         let mut content_area = area;
         if let Some(mut bar) = self.find_bar.take() {
             let bar_h = bar.height().min(area.height);
             let bar_area = Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + area.height - bar_h,
                 width: area.width,
                 height: bar_h,
             };
@@ -192,22 +192,12 @@ impl Panel for Editor {
             bar.render(bar_area, buf, &theme, active);
             self.find_bar = Some(bar);
 
-            // Separator row below the bar.
-            let sep_y = area.y + bar_h;
-            let mut used = bar_h;
-            if sep_y < area.y + area.height {
-                let style = ratatui::style::Style::default().fg(theme.disabled);
-                for dx in 0..area.width {
-                    buf[(area.x + dx, sep_y)].set_symbol("─").set_style(style);
-                }
-                used += 1;
-            }
-
+            // The bar draws its own titled top border, which is the divider.
             content_area = Rect {
                 x: area.x,
-                y: area.y + used,
+                y: area.y,
                 width: area.width,
-                height: area.height.saturating_sub(used),
+                height: area.height.saturating_sub(bar_h),
             };
         }
 
@@ -400,6 +390,13 @@ impl Panel for Editor {
                 PickerAction::None => {}
             }
             return vec![PanelEvent::NeedsRedraw];
+        }
+        if self
+            .find_bar
+            .as_ref()
+            .is_some_and(|bar| bar.mouse_hits(mouse))
+        {
+            return self.handle_find_bar_mouse(mouse);
         }
         self.handle_mouse_event(mouse, panel_area)
     }
@@ -785,7 +782,12 @@ impl Panel for Editor {
             | PanelCommand::SetHostFocus { .. }
             | PanelCommand::RefreshDirectory
             | PanelCommand::SetGitOperationInProgress { .. }
-            | PanelCommand::UpdateRepoPaths { .. } => CommandResult::None,
+            | PanelCommand::SelectionMade { .. }
+            | PanelCommand::ChecklistDone { .. }
+            | PanelCommand::InputSubmitted { .. }
+            | PanelCommand::Confirmed { .. }
+            | PanelCommand::UpdateRepoPaths { .. }
+            | PanelCommand::ShowGitLog { .. } => CommandResult::None,
         }
     }
 
@@ -814,16 +816,16 @@ impl Panel for Editor {
                 .unwrap_or(false)
     }
 
-    fn to_session(&self, session_dir: &std::path::Path) -> Option<SessionPanel> {
+    fn to_state(&self, project_dir: &std::path::Path) -> Option<PanelState> {
         if let Some(path) = self.file_path() {
             // Named file - save path
-            Some(SessionPanel::Editor {
+            Some(PanelState::Editor {
                 path: Some(path.to_path_buf()),
                 unsaved_buffer_file: None,
             })
         } else if self.buffer_is_modified() {
-            // Unnamed buffer with unsaved content - save to session dir
-            // ensure_unsaved_buffer_file() must be called before to_session()
+            // Unnamed buffer with unsaved content - save to the project dir
+            // ensure_unsaved_buffer_file() must be called before to_state()
             let filename = self.unsaved_buffer_file()?.to_string();
 
             let content = self.buffer.text();
@@ -831,13 +833,13 @@ impl Panel for Editor {
                 return None; // Don't save empty buffers
             }
 
-            // Save content to session directory
-            if let Err(e) = termide_session::save_unsaved_buffer(session_dir, &filename, &content) {
+            // Save content to the project directory
+            if let Err(e) = termide_project::save_unsaved_buffer(project_dir, &filename, &content) {
                 log::warn!("Failed to save unsaved buffer: {}", e);
                 return None;
             }
 
-            Some(SessionPanel::Editor {
+            Some(PanelState::Editor {
                 path: None,
                 unsaved_buffer_file: Some(filename),
             })

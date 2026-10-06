@@ -12,7 +12,10 @@ anyhow.workspace = true
 crossterm.workspace = true
 log = "0.4"
 ratatui.workspace = true
+serde_json.workspace = true
+toml_edit.workspace = true
 dirs.workspace = true
+dunce.workspace = true
 lsp-types.workspace = true
 open = "5"
 unicode-width.workspace = true
@@ -32,7 +35,7 @@ termide-layout = { path = "../layout" }
 termide-config = { path = "../config" }
 termide-theme = { path = "../theme" }
 termide-i18n = { path = "../i18n" }
-termide-session = { path = "../session" }
+termide-project = { path = "../project" }
 termide-git = { path = "../git" }
 termide-lsp = { path = "../lsp" }
 termide-vfs = { path = "../vfs" }
@@ -59,9 +62,18 @@ termide-panel-git-log = { path = "../panel-git-log" }
 termide-panel-git-diff = { path = "../panel-git-diff" }
 termide-panel-diagnostics = { path = "../panel-diagnostics" }
 termide-panel-misc = { path = "../panel-misc" }
+termide-agent-core = { path = "../agent-core" }
+termide-agent-providers = { path = "../agent-providers" }
+termide-agent-tools = { path = "../agent-tools" }
+termide-agent-mcp = { path = "../agent-mcp" }
+termide-agent-web = { path = "../agent-web" }
+termide-agent-hooks = { path = "../agent-hooks" }
+termide-agent-acp = { path = "../agent-acp" }
+termide-panel-agent = { path = "../panel-agent" }
 termide-panel-operations = { path = "../panel-operations" }
 termide-panel-outline = { path = "../panel-outline" }
 termide-panel-db = { path = "../panel-db" }
+termide-walk = { path = "../walk" }
 
 [dev-dependencies]
 tempfile.workspace = true

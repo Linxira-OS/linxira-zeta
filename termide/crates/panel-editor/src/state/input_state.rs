@@ -7,8 +7,12 @@ use crate::click_tracker::ClickTracker;
 pub(crate) struct InputState {
     /// Mouse click tracking for double-click detection.
     pub click_tracker: ClickTracker,
-    /// Preferred column for vertical navigation (maintains column across lines).
+    /// Preferred column for vertical navigation (maintains column across lines),
+    /// in screen columns from the start of the visual row.
     pub preferred_column: Option<usize>,
+    /// Where the last vertical move left the cursor (line, column). The
+    /// preferred column holds only while the cursor is still there.
+    pub preferred_column_cursor: Option<(usize, usize)>,
     /// Left mouse button is currently held down during selection.
     pub selection_drag_active: bool,
     /// Last known mouse position (column, row) in screen coordinates.

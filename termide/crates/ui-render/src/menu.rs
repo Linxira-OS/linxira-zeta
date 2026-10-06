@@ -32,6 +32,9 @@ pub struct MenuRenderParams<'a> {
     pub net_up_rate: u64,
     /// Battery info, if available on this system
     pub battery: Option<BatteryInfo>,
+    /// A project open in the background waits for the user: the Projects
+    /// title is drawn on the warning colour.
+    pub projects_attention: bool,
 }
 
 /// Menu labels cached per UI language. Recomputed (and leaked) when the
@@ -47,7 +50,8 @@ fn compute_menu_items() -> Vec<String> {
     vec![
         t.menu_bookmarks().to_string(),
         t.menu_commands().to_string(),
-        t.menu_sessions().to_string(),
+        t.menu_projects().to_string(),
+        t.menu_ai().to_string(),
         t.menu_windows().to_string(),
         t.menu_options().to_string(),
     ]
@@ -80,7 +84,7 @@ pub fn get_menu_items() -> &'static Vec<String> {
 }
 
 /// Number of menu items
-pub const MENU_ITEM_COUNT: usize = 5;
+pub const MENU_ITEM_COUNT: usize = 6;
 
 /// Number of indicators (net, cpu, ram, clock + disk in status bar)
 pub const MENU_INDICATOR_COUNT: usize = 5;
@@ -105,14 +109,17 @@ pub const BOOKMARKS_MENU_INDEX: usize = 0;
 /// Index of Commands menu item
 pub const COMMANDS_MENU_INDEX: usize = 1;
 
-/// Index of Sessions menu item
-pub const SESSIONS_MENU_INDEX: usize = 2;
+/// Index of Projects menu item
+pub const PROJECTS_MENU_INDEX: usize = 2;
+
+/// Index of the AI menu item
+pub const AI_MENU_INDEX: usize = 3;
 
 /// Index of Windows menu item
-pub const WINDOWS_MENU_INDEX: usize = 3;
+pub const WINDOWS_MENU_INDEX: usize = 4;
 
 /// Index of Options menu item
-pub const OPTIONS_MENU_INDEX: usize = 4;
+pub const OPTIONS_MENU_INDEX: usize = 5;
 
 /// Pre-computed x positions and widths for all menu items.
 /// Avoids repeated `get_menu_items()` allocations in hot paths.
@@ -282,6 +289,13 @@ pub fn render_menu(frame: &mut Frame, area: Rect, params: &MenuRenderParams) {
             Style::default()
                 .fg(params.theme.selected_fg)
                 .bg(params.theme.selected_bg)
+                .add_modifier(Modifier::BOLD)
+        } else if i == PROJECTS_MENU_INDEX && params.projects_attention {
+            // A badge, not a text colour: several themes (the default
+            // included) give menu titles the warning colour already.
+            Style::default()
+                .fg(params.theme.bg)
+                .bg(params.theme.warning)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(params.theme.accented_fg)

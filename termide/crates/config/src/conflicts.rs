@@ -84,8 +84,8 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
     push(&mut out, "general", "new_journal", &g.new_journal);
     push(&mut out, "general", "open_help", &g.open_help);
     push(&mut out, "general", "open_preferences", &g.open_preferences);
-    push(&mut out, "general", "open_sessions", &g.open_sessions);
-    push(&mut out, "general", "new_session", &g.new_session);
+    push(&mut out, "general", "open_projects", &g.open_projects);
+    push(&mut out, "general", "new_project", &g.new_project);
     push(&mut out, "general", "open_git_status", &g.open_git_status);
     push(
         &mut out,
@@ -94,6 +94,7 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
         &g.open_bookmark_add,
     );
     push(&mut out, "general", "open_outline", &g.open_outline);
+    push(&mut out, "general", "open_agent", &g.open_agent);
     push(&mut out, "general", "open_diagnostics", &g.open_diagnostics);
     push(&mut out, "general", "open_git_log", &g.open_git_log);
     push(&mut out, "general", "close_panel", &g.close_panel);
@@ -141,6 +142,17 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
     push(&mut out, "general", "goto_panel_7", &g.goto_panel_7);
     push(&mut out, "general", "goto_panel_8", &g.goto_panel_8);
     push(&mut out, "general", "goto_panel_9", &g.goto_panel_9);
+    push(&mut out, "general", "prev_project", &g.prev_project);
+    push(&mut out, "general", "next_project", &g.next_project);
+    push(&mut out, "general", "goto_project_1", &g.goto_project_1);
+    push(&mut out, "general", "goto_project_2", &g.goto_project_2);
+    push(&mut out, "general", "goto_project_3", &g.goto_project_3);
+    push(&mut out, "general", "goto_project_4", &g.goto_project_4);
+    push(&mut out, "general", "goto_project_5", &g.goto_project_5);
+    push(&mut out, "general", "goto_project_6", &g.goto_project_6);
+    push(&mut out, "general", "goto_project_7", &g.goto_project_7);
+    push(&mut out, "general", "goto_project_8", &g.goto_project_8);
+    push(&mut out, "general", "goto_project_9", &g.goto_project_9);
     push(&mut out, "general", "quit", &g.quit);
     push(
         &mut out,
@@ -148,9 +160,11 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
         "open_command_palette",
         &g.open_command_palette,
     );
+    push(&mut out, "general", "open_path", &g.open_path);
     push(&mut out, "general", "copy", &g.copy);
     push(&mut out, "general", "cut", &g.cut);
     push(&mut out, "general", "paste", &g.paste);
+    push(&mut out, "general", "detach_instance", &g.detach_instance);
 
     let e = &config.editor.keybindings;
     push(&mut out, "editor", "save", &e.save);
@@ -190,6 +204,7 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
     push(&mut out, "file_manager", "create_file", &f.create_file);
     push(&mut out, "file_manager", "delete", &f.delete);
     push(&mut out, "file_manager", "info", &f.info);
+    push(&mut out, "file_manager", "pack", &f.pack);
     push(&mut out, "file_manager", "search", &f.search);
     push(
         &mut out,
@@ -548,6 +563,30 @@ mod tests {
                 "{reachable} has a non-function-key alternative and must not be reported"
             );
         }
+    }
+
+    /// Every global action is enumerated, so a clash with any of them is
+    /// found — and the shipped defaults clash with none.
+    #[test]
+    fn the_default_global_bindings_do_not_clash() {
+        let mut cfg = Config::default();
+        cfg.normalize();
+        let actions: Vec<String> = enumerate_bindings(&cfg)
+            .into_iter()
+            .filter(|(l, _, _)| l.section == "general")
+            .map(|(l, _, _)| l.action)
+            .collect();
+        for action in ["detach_instance", "open_agent", "panel_action_menu"] {
+            assert!(
+                actions.iter().any(|a| a == action),
+                "{action} is not enumerated"
+            );
+        }
+        let clashes: Vec<_> = find_conflicts(&cfg)
+            .into_iter()
+            .filter(|c| c.locations.iter().all(|l| l.section == "general"))
+            .collect();
+        assert!(clashes.is_empty(), "{clashes:?}");
     }
 
     #[test]

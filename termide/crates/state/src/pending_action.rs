@@ -39,6 +39,12 @@ pub enum PendingAction {
         create_symlink: bool,
         create_relative_symlink: bool,
     },
+    /// Pack files/directories into a new archive; the modal answers with
+    /// the archive path.
+    PackPaths { sources: Vec<PathBuf> },
+    /// Open the encrypted archive at `archive` (its root) with the password
+    /// the modal answers with.
+    ArchivePassword { archive: termide_vfs::VfsPath },
     /// Move files/directories (one or multiple)
     MovePath {
         sources: Vec<PathBuf>,
@@ -54,6 +60,20 @@ pub enum PendingAction {
     ClosePanel,
     /// Close editor with choice: save, don't save, cancel
     CloseEditorWithSave,
+    /// A selection a panel raised with `SelectAction::Custom`; the chosen
+    /// index is delivered back to the panels as `PanelCommand::SelectionMade`
+    /// with this action string.
+    PanelSelection { action: String },
+    /// A checklist a panel raised with `PanelEvent::ShowChecklist`; the keys
+    /// left checked go back as `PanelCommand::ChecklistDone` however it closes.
+    PanelChecklist { action: String },
+    /// Text a panel asked for with `InputAction::Custom`; delivered back as
+    /// `PanelCommand::InputSubmitted`.
+    PanelInput { action: String },
+    /// A confirmation a panel raised with `ConfirmAction::Custom`; on accept
+    /// it is delivered back as `PanelCommand::Confirmed` with this action
+    /// string.
+    PanelConfirm { action: String },
     /// Close editor with external changes (file changed on disk)
     CloseEditorExternal,
     /// Close editor with conflict (local changes + external changes)
@@ -77,12 +97,24 @@ pub enum PendingAction {
     PrevPanel,
     /// Quit application (with confirmation if there are unsaved changes)
     QuitApplication,
-    /// Switch to another session
-    SwitchSession,
-    /// Create new session in specified directory
-    NewSession,
-    /// Delete session (with confirmation)
-    DeleteSession { path: PathBuf },
+    /// Switch to another project
+    SwitchProject,
+    /// Close the project open in the background at `root` (with confirmation)
+    CloseProject {
+        root: PathBuf,
+        /// Projects menu row to reopen at afterwards (`None`: return to the
+        /// project switcher).
+        menu: Option<usize>,
+    },
+    /// Create a new project in specified directory
+    NewProject,
+    /// Delete the saved layout of a project (with confirmation)
+    DeleteProject {
+        path: PathBuf,
+        /// Projects menu row to reopen at afterwards (`None`: return to the
+        /// project switcher).
+        menu: Option<usize>,
+    },
     /// Delete bookmark (with confirmation)
     DeleteBookmark {
         path: String,
@@ -110,7 +142,7 @@ pub enum PendingAction {
         /// Selected index in parent bookmarks submenu to restore on return
         selected: usize,
     },
-    /// Change root path of current session
+    /// Change root path of the current project
     ChangeRootPath,
     /// Open Git Status panel
     OpenGitStatus,
@@ -146,6 +178,12 @@ pub enum PendingAction {
     },
     /// Switch active panel's working directory
     SwitchDirectory,
+    /// Move the focused fresh agent panel, working in `cwd` on the session
+    /// log at `session`, to the picked directory
+    ChangeAgentCwd {
+        session: Option<PathBuf>,
+        cwd: PathBuf,
+    },
     /// Add a bookmark
     AddBookmark {
         /// Group name to restore nested menu on return
@@ -249,6 +287,24 @@ pub enum PendingAction {
         group: Option<String>,
         /// Selected index to restore on return
         selected: usize,
+    },
+    /// Create an AI resource (agent/skill/prompt); name comes from the input.
+    AiCreate {
+        /// Agents, skills or prompts.
+        section: crate::AiSection,
+        /// Create under the global config dir rather than the project.
+        scope_global: bool,
+    },
+    /// Delete an AI resource (confirmed); `path` is the file or directory.
+    AiDelete {
+        section: crate::AiSection,
+        path: String,
+    },
+    /// Rename an AI resource; new name comes from the input. For sessions this
+    /// sets the display name; for the rest it renames the file/directory.
+    AiRename {
+        section: crate::AiSection,
+        path: String,
     },
     /// Rename a bookmark (change description)
     RenameBookmark {

@@ -24,8 +24,8 @@ use termide_app_core::{ModalManager, StateManager};
 // Re-export pure types from state crate
 pub use termide_state::{
     ActiveOperation, BatchOperation, BatchOperationType, ConflictMode, DirSizeResult, LayoutInfo,
-    LayoutMode, OperationProgress, OperationType, PendingAction, RenamePattern, SpeedTracker,
-    SubmenuState, TerminalState, UiState,
+    LayoutMode, OperationProgress, OperationType, PendingAction, RenamePattern, SourceLocation,
+    SpeedTracker, SubmenuState, TerminalState, UiState,
 };
 
 // Re-export ActiveModal from modal crate
@@ -38,6 +38,14 @@ pub use crate::state_types::{
     CommandOperationResult, GitOperationHandle, GitOperationResult, PendingBatchUpload,
     PendingEditorDownload, PendingRemoteDelete, ResourceModalKind, ScrollBarDrag, StashState,
 };
+
+/// A viewer URL fetch in flight: the id its viewer waits under and the channel
+/// the worker thread answers on, with the document or a readable error.
+#[derive(Debug)]
+pub struct ViewFetch {
+    pub id: u64,
+    pub receiver: mpsc::Receiver<Result<termide_fetch::Fetched, String>>,
+}
 
 /// Global application state
 #[derive(Debug)]
@@ -60,14 +68,12 @@ pub struct AppState {
     pub pending_action: Option<PendingAction>,
     /// Receiver channel for background directory size calculation results
     pub dir_size_receiver: Option<mpsc::Receiver<DirSizeResult>>,
-    /// Receiver for a background URL fetch started from a viewer's go-to-path
-    /// (`Ctrl+G` with an `http(s)://` address). Carries the fetched document
-    /// or a human-readable error.
-    pub view_fetch_receiver: Option<mpsc::Receiver<Result<termide_fetch::Fetched, String>>>,
-    /// Whether the in-flight `view_fetch_receiver` result should replace the
-    /// active viewer in place (link/history navigation) rather than open a new
-    /// viewer (`Ctrl+G`).
-    pub view_fetch_in_place: bool,
+    /// Viewer URL fetches in flight (`Ctrl+G` with an `http(s)://` address, a
+    /// followed link, a history step), each delivered to the viewer that
+    /// waits under its id.
+    pub view_fetches: Vec<ViewFetch>,
+    /// Id for the next viewer URL fetch.
+    pub next_view_fetch_id: u64,
     /// Handle for background git operation (allows cancellation)
     pub git_operation_handle: Option<GitOperationHandle>,
     /// SSH key passphrase entered for git network operations, cached in memory
@@ -106,12 +112,12 @@ pub struct AppState {
     pub resource_modal_kind: Option<ResourceModalKind>,
     /// Last time resource modal was refreshed
     pub last_resource_modal_refresh: Option<std::time::Instant>,
-    /// Last time session was saved (for debouncing autosave)
-    pub last_session_save: Option<std::time::Instant>,
+    /// Last time the layout was saved (for debouncing autosave)
+    pub last_layout_save: Option<std::time::Instant>,
     /// Flag indicating UI needs to be redrawn (for CPU optimization)
     pub needs_redraw: bool,
 
-    /// Whether this termide is hosted in a detachable session.
+    /// Whether this termide is hosted in a detachable instance.
     ///
     /// Decided once at startup — a process cannot become detachable later —
     /// and read by the menu, so that rendering, clicking and key handling all
@@ -133,6 +139,9 @@ pub struct AppState {
     pub project_bookmarks: Option<BookmarksConfig>,
     /// Project root path (for loading project-local .termide/ configs)
     pub project_root: PathBuf,
+    /// Projects open in this instance, for the menus to show (they sort it).
+    /// `App` keeps it in step with the parked panels it holds.
+    pub open_projects: Vec<crate::open_projects::OpenProjectView>,
     /// Unified operation manager for file operations (copy, move, delete, upload, download).
     /// This is the new centralized system that will eventually replace the individual
     /// operation handles (local_copy_operation, batch_download_operation, etc.).
@@ -167,6 +176,16 @@ impl Default for AppState {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// A localized "N units ago" for a millisecond timestamp, for the Sessions
+/// list's "last worked on" column. Reuses [`termide_i18n::relative_age`].
+fn relative_millis_ago(modified_ms: u64) -> String {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    termide_i18n::relative_age(now_ms.saturating_sub(modified_ms) / 1000)
 }
 
 impl AppState {
@@ -217,8 +236,8 @@ impl AppState {
             active_modal: None,
             pending_action: None,
             dir_size_receiver: None,
-            view_fetch_receiver: None,
-            view_fetch_in_place: false,
+            view_fetches: Vec::new(),
+            next_view_fetch_id: 0,
             git_operation_handle: None,
             git_ssh_passphrase: None,
             command_operation_handles: Vec::new(),
@@ -238,7 +257,7 @@ impl AppState {
             last_resource_update: std::time::Instant::now(),
             resource_modal_kind: None,
             last_resource_modal_refresh: None,
-            last_session_save: None,
+            last_layout_save: None,
             needs_redraw: true,
             detach_available: false, // Initial draw needed
             last_spinner_update: None,
@@ -249,6 +268,7 @@ impl AppState {
             bookmarks,
             project_bookmarks: None,
             project_root: std::env::current_dir().unwrap_or_default(),
+            open_projects: Vec::new(),
             operation_manager: None, // Will be initialized when VfsManager is available
             active_operation_id: None,
             last_operation_paused: false,
@@ -311,6 +331,7 @@ impl AppState {
         self.ui.close_all_submenus();
         self.cache.shells.clear();
         self.cache.commands_registry = None;
+        self.cache.projects.clear();
         // Note: hotkey_table is NOT invalidated here — key bindings don't
         // change when a menu closes. Only invalidated on config/command changes.
     }
@@ -328,10 +349,11 @@ impl AppState {
         self.ui.options_submenu.open();
     }
 
-    /// Open Sessions submenu
-    pub fn open_sessions_submenu(&mut self) {
+    /// Open Projects submenu
+    pub fn open_projects_submenu(&mut self) {
         self.ui.close_all_submenus();
-        self.ui.sessions_submenu.open();
+        self.ui.projects_submenu.open();
+        self.load_known_projects();
     }
 
     /// Open Tools submenu
@@ -372,6 +394,164 @@ impl AppState {
     pub fn close_commands_nested_submenu(&mut self) {
         self.ui.commands_nested.close();
         self.ui.current_commands_group = None;
+    }
+
+    /// Open the AI submenu (Agents / Sessions / Skills / Prompts).
+    pub fn open_ai_submenu(&mut self) {
+        self.ui.close_all_submenus();
+        self.ui.ai_submenu.open();
+    }
+
+    /// Open the AI nested submenu for `section` (the section's item list).
+    pub fn open_ai_nested_submenu(&mut self, section: termide_state::AiSection) {
+        self.ui.ai_nested.open();
+        self.ui.current_ai_section = Some(section);
+    }
+
+    /// Close the AI nested submenu (also closes the agent file-choice level).
+    pub fn close_ai_nested_submenu(&mut self) {
+        self.ui.ai_nested.close();
+        self.ui.current_ai_section = None;
+        self.close_ai_agent_choice();
+    }
+
+    /// Open the agent file-choice submenu (third level) for `agent`.
+    pub fn open_ai_agent_choice(&mut self, agent: String) {
+        self.ui.ai_agent_choice.open();
+        self.ui.ai_agent_choice.selected = 0;
+        self.ui.current_ai_agent = Some(agent);
+    }
+
+    /// Close the agent file-choice submenu.
+    pub fn close_ai_agent_choice(&mut self) {
+        self.ui.ai_agent_choice.close();
+        self.ui.current_ai_agent = None;
+    }
+
+    /// The layered AI resource roots for this project (cwd/project/global). The
+    /// menu is project-scoped, so the working dir is the project root.
+    pub(crate) fn ai_dirs(&self) -> termide_agent_core::AgentDirs {
+        let global = termide_config::get_config_dir()
+            .ok()
+            .map(|d| d.join(termide_agent_core::GLOBAL_AGENT_DIR));
+        termide_agent_core::AgentDirs::new(
+            &self.project_root,
+            Some(&self.project_root),
+            global.as_deref(),
+        )
+    }
+
+    /// The session-log directory for this project (`<config>/ai/sessions/<key>`).
+    pub(crate) fn ai_sessions_dir(&self) -> Option<PathBuf> {
+        let dir = termide_config::get_config_dir().ok()?;
+        Some(
+            dir.join(termide_agent_core::GLOBAL_AGENT_DIR)
+                .join(termide_agent_core::SESSIONS_DIR)
+                .join(termide_project::project_key(&self.project_root)),
+        )
+    }
+
+    /// The Sessions section's rows: the project's session logs, newest first.
+    fn ai_session_items(&self) -> Vec<termide_ui_render::DropdownItem> {
+        use termide_ui_render::DropdownItem;
+        let sessions = self
+            .ai_sessions_dir()
+            .and_then(|dir| termide_agent_core::Session::list(&dir).ok())
+            .unwrap_or_default();
+        if sessions.is_empty() {
+            return vec![DropdownItem::new(
+                termide_i18n::t().ai_empty(),
+                String::new(),
+            )];
+        }
+        sessions
+            .into_iter()
+            .map(|s| {
+                DropdownItem::new(s.label(), format!("session:{}", s.path.to_string_lossy()))
+                    .with_shortcut(Some(relative_millis_ago(s.modified)))
+            })
+            .collect()
+    }
+
+    /// Build one AI section's dropdown rows. Called by both the renderer and the
+    /// action handler so they address the same rows by index. Agents, skills and prompts get
+    /// two "New …" rows and a separator before the merged, source-marked items
+    /// (project-local first, in bold); sessions list the project's logs only.
+    pub fn ai_section_items(
+        &self,
+        section: termide_state::AiSection,
+    ) -> Vec<termide_ui_render::DropdownItem> {
+        use termide_state::AiSection;
+        use termide_ui_render::DropdownItem;
+        let t = termide_i18n::t();
+
+        let dirs = self.ai_dirs();
+        // (name, description, is_project)
+        let mut listed: Vec<(String, String, bool)> = match section {
+            AiSection::Sessions => return self.ai_session_items(),
+            AiSection::Agents => dirs
+                .agents()
+                .into_iter()
+                .filter(|n| n != termide_agent_core::DEFAULT_AGENT)
+                .map(|name| {
+                    let is_project = dirs
+                        .agent_dir(&name)
+                        .map(|p| p.starts_with(&self.project_root))
+                        .unwrap_or(false);
+                    let description = dirs.spec(&name).description;
+                    (name, description, is_project)
+                })
+                .collect(),
+            AiSection::Skills => dirs
+                .skills()
+                .into_iter()
+                .map(|s| {
+                    let is_project = s.path.starts_with(&self.project_root);
+                    (s.name, s.description, is_project)
+                })
+                .collect(),
+            AiSection::Prompts => dirs
+                .prompts()
+                .into_iter()
+                .map(|p| {
+                    let is_project = dirs
+                        .prompt_path(&p.name)
+                        .map(|path| path.starts_with(&self.project_root))
+                        .unwrap_or(false);
+                    (p.name, p.description, is_project)
+                })
+                .collect(),
+        };
+        let mut items = vec![
+            DropdownItem::new(t.menu_ai_new_project(), "new:project"),
+            DropdownItem::new(t.menu_ai_new_global(), "new:global"),
+            DropdownItem::separator(),
+        ];
+        // Project-local first (bold), then global; each group alphabetical.
+        listed.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
+        let has_project = listed.iter().any(|(_, _, p)| *p);
+        let has_global = listed.iter().any(|(_, _, p)| !*p);
+        let mut pushed_sep = false;
+        for (name, description, is_project) in listed {
+            if !is_project && has_project && has_global && !pushed_sep {
+                items.push(DropdownItem::separator());
+                pushed_sep = true;
+            }
+            // The key keeps the bare name; the label adds the one-line
+            // description the same way the panel's pickers show it.
+            let description = description.lines().next().unwrap_or("").trim();
+            let label = if description.is_empty() {
+                name.clone()
+            } else {
+                format!("{name} · {description}")
+            };
+            let mut item = DropdownItem::new(label, format!("item:{name}"));
+            if is_project {
+                item = item.with_project();
+            }
+            items.push(item);
+        }
+        items
     }
 
     /// Open nested submenu (e.g., Themes list)
@@ -495,6 +675,15 @@ impl AppState {
         }
     }
 
+    /// Ring the terminal bell for an agent panel that waits for the user,
+    /// if enabled in config
+    pub fn attention_bell(&self) {
+        if self.config.ai.bell_on_attention {
+            print!("\x07");
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+        }
+    }
+
     /// Create EditorConfig with settings from global config
     pub fn editor_config(&self) -> EditorConfig {
         let mut config = EditorConfig::default();
@@ -507,20 +696,20 @@ impl AppState {
         config
     }
 
-    /// Check if enough time has passed since last session save (debounce check)
-    /// Returns true if we should save the session
-    pub fn should_save_session(&self) -> bool {
+    /// Check if enough time has passed since the last layout save (debounce check)
+    /// Returns true if we should save the layout
+    pub fn should_save_layout(&self) -> bool {
         const DEBOUNCE_DURATION: std::time::Duration = std::time::Duration::from_secs(1);
 
-        match self.last_session_save {
+        match self.last_layout_save {
             None => true, // Never saved before
             Some(last_save) => last_save.elapsed() >= DEBOUNCE_DURATION,
         }
     }
 
-    /// Update last session save timestamp
-    pub fn update_last_session_save(&mut self) {
-        self.last_session_save = Some(std::time::Instant::now());
+    /// Update last layout save timestamp
+    pub fn update_last_layout_save(&mut self) {
+        self.last_layout_save = Some(std::time::Instant::now());
     }
 
     /// Save bookmarks to data directory

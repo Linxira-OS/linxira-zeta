@@ -5,6 +5,7 @@ use ratatui::layout::Rect;
 use termide_config::Config;
 use termide_i18n as i18n;
 
+use super::connection;
 use super::fields::{fields_for_tab, get_field_value, ContentRow, FieldType};
 use super::kb::KB_SECTIONS;
 use super::{
@@ -32,7 +33,10 @@ impl SettingsModal {
             field_cursor: 0,
             content_scroll: 0,
             editing: false,
-            edit_buffer: String::new(),
+            edit_input: termide_ui::TextInput::new(),
+            edit_area: None,
+            field_drag: false,
+            clicks: termide_ui::ClickTracker::new(),
             reset_available: false,
             enum_picker: None,
             lsp_mode: LspMode::Fields,
@@ -40,6 +44,9 @@ impl SettingsModal {
             lsp_server_keys,
             lsp_edit_fields: Default::default(),
             lsp_edit_cursor: 0,
+            lsp_field_areas: Vec::new(),
+            connection_edit: None,
+            model_fetch_request: None,
             kb_mode: KbMode::Bindings,
             kb_section: 0,
             kb_cursor: 0,
@@ -48,6 +55,7 @@ impl SettingsModal {
             selected_button: BUTTON_APPLY,
             dirty: false,
             project_override_active,
+            model_options: Vec::new(),
             last_modal_area: None,
             last_sidebar_area: None,
             last_content_area: None,
@@ -56,6 +64,31 @@ impl SettingsModal {
         m.field_cursor = m.first_selectable_row();
         m.refresh_reset_available();
         m
+    }
+
+    /// Provide the open connection's model list (fetched off-thread by the
+    /// app), so the model field's dropdown lists them.
+    pub fn set_model_options(&mut self, models: Vec<String>) {
+        self.model_options = models;
+    }
+
+    /// The dropdown options for a field of the tab the content shows.
+    pub(super) fn enum_options_for(
+        &self,
+        field_index: usize,
+    ) -> Option<crate::settings::fields::EnumOptions> {
+        match self.field_tab() {
+            SettingsTab::Connection => self.connection_enum_options(field_index),
+            tab => crate::settings::fields::enum_options(&self.config, tab, field_index),
+        }
+    }
+
+    /// A field's value, as its row shows it, in the tab the content shows.
+    pub(super) fn field_value(&self, index: usize) -> String {
+        match self.field_tab() {
+            SettingsTab::Connection => self.connection_value(index),
+            tab => get_field_value(&self.config, tab, index),
+        }
     }
 
     fn sorted_server_keys(config: &Config) -> Vec<String> {
@@ -126,6 +159,7 @@ impl SettingsModal {
         match row {
             SidebarRow::Leaf(tab) => {
                 self.active_tab = tab;
+                self.connection_edit = None;
                 self.content_scroll = 0;
                 self.editing = false;
                 self.field_cursor = self.first_selectable_row();
@@ -192,71 +226,92 @@ impl SettingsModal {
         i18n::t().settings_tab_keybindings().to_string()
     }
 
+    /// Localized label for a Keybindings subsection (index into `KB_SECTIONS`).
+    /// `KB_SECTIONS` itself stays the stable identifier the config uses; this
+    /// is only for display.
+    pub(super) fn kb_section_label(section: usize) -> String {
+        let t = i18n::t();
+        match section {
+            0 => t.settings_kb_global(),
+            1 => t.settings_kb_editor(),
+            2 => t.settings_kb_file_manager(),
+            3 => t.settings_kb_git_status(),
+            4 => t.settings_kb_git_diff(),
+            5 => t.settings_kb_git_log(),
+            6 => t.settings_kb_terminal(),
+            7 => t.settings_kb_database(),
+            8 => t.settings_kb_viewer(),
+            _ => "",
+        }
+        .to_string()
+    }
+
     // ---- Content-row helpers ----
 
     /// Build the list of rows rendered in the content area for the active tab.
     /// Field indices reference `fields_for_tab(self.active_tab)`.
     pub(super) fn content_rows(&self) -> Vec<ContentRow> {
         use ContentRow::*;
-        match self.active_tab {
+        let t = i18n::t();
+        match self.field_tab() {
             SettingsTab::General => vec![
-                Header("Appearance"),
+                Header(t.settings_header_appearance()),
                 Field(1), // theme
                 Field(2), // language
                 Field(3), // icon_mode
                 Spacer,
-                Header("Input"),
+                Header(t.settings_header_input()),
                 Field(0), // vim_mode
                 Spacer,
-                Header("Layout"),
+                Header(t.settings_header_layout()),
                 Field(4), // auto_stack_threshold
                 Field(5), // min_panel_width
                 Spacer,
-                Header("Notifications"),
+                Header(t.settings_header_notifications()),
                 Field(7), // bell
                 Spacer,
-                Header("Performance"),
-                Field(6), // session_retention
+                Header(t.settings_header_performance()),
+                Field(6), // project_retention
                 Field(8), // resource_monitor_interval
                 Spacer,
-                Header("Session"),
+                Header(t.settings_header_instance()),
                 Field(9), // always_detachable
             ],
             SettingsTab::Editor => vec![
-                Header("Typing"),
+                Header(t.settings_header_typing()),
                 Field(0), // tab_size
                 Field(2), // auto_indent
                 Field(3), // auto_close_brackets
                 Spacer,
-                Header("Display"),
+                Header(t.settings_header_display()),
                 Field(1), // word_wrap
                 Field(4), // show_git_diff
                 Field(5), // show_blame
                 Spacer,
-                Header("Performance"),
+                Header(t.settings_header_performance()),
                 Field(6), // large_file_threshold
             ],
             SettingsTab::FileManager => vec![
-                Header("Display"),
+                Header(t.settings_header_display()),
                 Field(0), // extended_view_width
                 Field(2), // dir_size_in_wide_view
                 Field(3), // dir_size_budget_ms
                 Spacer,
-                Header("Search"),
+                Header(t.settings_header_search()),
                 Field(1), // content_search_max_file_size_mb
             ],
             SettingsTab::Terminal => vec![Field(0)],
             SettingsTab::Lsp => {
                 let mut rows = vec![
-                    Header("General"),
+                    Header(t.settings_header_general()),
                     Field(0), // enabled
                     Field(1), // auto_completion
                     Spacer,
-                    Header("Timing"),
+                    Header(t.settings_header_timing()),
                     Field(2), // completion_delay
                     Field(3), // hover_delay
                     Spacer,
-                    Header("Servers"),
+                    Header(t.settings_header_servers()),
                     LspAddServer,
                 ];
                 for i in 0..self.lsp_server_keys.len() {
@@ -266,6 +321,30 @@ impl SettingsModal {
             }
             SettingsTab::Logging => vec![Field(0), Field(1)],
             SettingsTab::Vfs => vec![Field(0)],
+            SettingsTab::Ai => {
+                let mut rows = self.connection_list_rows();
+                rows.extend([
+                    Spacer,
+                    Header(t.settings_header_model()),
+                    Field(0), // max_tokens
+                    Field(1), // reasoning
+                    Spacer,
+                    Header(t.settings_header_permissions()),
+                    Field(7), // permission mode for new sessions
+                    Field(8), // auto mode reviewer
+                    Spacer,
+                    Header(t.settings_header_transcript()),
+                    Field(2), // autofold
+                    Spacer,
+                    Header(t.settings_header_web()),
+                    Field(3), // web backend
+                    Field(4), // search engine
+                    Field(5), // browser display
+                    Field(6), // browser executable
+                ]);
+                rows
+            }
+            SettingsTab::Connection => self.connection_page_rows(),
             SettingsTab::Keybindings => Vec::new(),
         }
     }
@@ -332,7 +411,7 @@ impl SettingsModal {
 
     /// Commit the current edit buffer to the config.
     pub(super) fn commit_edit(&mut self) {
-        let tab = self.active_tab;
+        let tab = self.field_tab();
         let Some(field_idx) = self.current_field_idx() else {
             self.editing = false;
             return;
@@ -345,13 +424,31 @@ impl SettingsModal {
 
         match desc.field_type {
             FieldType::Number => {
-                let val = self.edit_buffer.parse::<u64>().unwrap_or(0);
+                let val = self.edit_input.text().parse::<u64>().unwrap_or(0);
                 self.apply_number(tab, field_idx, val);
                 self.dirty = true;
             }
             FieldType::OptionalText => {
-                let text = self.edit_buffer.clone();
+                let text = self.edit_input.text().to_string();
                 self.apply_text(tab, field_idx, &text);
+                self.dirty = true;
+            }
+            FieldType::OptionalNumber => {
+                // Empty or zero clears the field back to "(auto)".
+                let val = self
+                    .edit_input
+                    .text()
+                    .trim()
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|n| *n > 0);
+                self.apply_optional_number(tab, field_idx, val);
+                self.dirty = true;
+            }
+            // The model field: an enum, but its typed-id escape commits text.
+            FieldType::Enum if tab == SettingsTab::Connection && field_idx == connection::MODEL => {
+                let text = self.edit_input.text().to_string();
+                self.apply_connection_text(field_idx, &text);
                 self.dirty = true;
             }
             _ => {}
@@ -369,19 +466,30 @@ impl SettingsModal {
         let Some(field_idx) = self.current_field_idx() else {
             return;
         };
-        let fields = fields_for_tab(self.active_tab);
+        let fields = fields_for_tab(self.field_tab());
         let Some(desc) = fields.get(field_idx) else {
             return;
         };
+        // The model field is an enum but its "type an id" escape edits it
+        // inline like a text field.
+        let is_model =
+            self.field_tab() == SettingsTab::Connection && field_idx == connection::MODEL;
         match desc.field_type {
-            FieldType::Bool | FieldType::Enum => return,
+            FieldType::Bool => return,
+            FieldType::Enum if !is_model => return,
             _ => {}
         }
-        self.edit_buffer = get_field_value(&self.config, self.active_tab, field_idx);
-        // Strip "(auto)" / "(none)" placeholders
-        if self.edit_buffer.starts_with('(') {
-            self.edit_buffer.clear();
-        }
+        let value = if self.field_tab() == SettingsTab::Connection {
+            self.connection_edit_text(field_idx)
+        } else {
+            let mut value = self.field_value(field_idx);
+            // Strip "(auto)" / "(none)" placeholders
+            if value.starts_with('(') {
+                value.clear();
+            }
+            value
+        };
+        self.edit_input = termide_ui::TextInput::with_text(value);
         self.editing = true;
     }
 
@@ -390,7 +498,7 @@ impl SettingsModal {
             SettingsTab::General => match index {
                 4 => self.config.general.auto_stack_threshold = val as u16,
                 5 => self.config.general.min_panel_width = val as u16,
-                6 => self.config.general.session_retention_days = val as u32,
+                6 => self.config.general.project_retention_days = val as u32,
                 8 => self.config.general.resource_monitor_interval = val,
                 _ => {}
             },
@@ -415,7 +523,19 @@ impl SettingsModal {
                     self.config.vfs.connection_timeout_secs = val;
                 }
             }
+            SettingsTab::Ai => {
+                if index == 0 {
+                    self.config.ai.max_tokens_per_turn = i64::try_from(val).unwrap_or(i64::MAX);
+                }
+            }
             _ => {}
+        }
+    }
+
+    /// Apply an optional-number field (`None` means "(auto)").
+    fn apply_optional_number(&mut self, tab: SettingsTab, index: usize, val: Option<u64>) {
+        if tab == SettingsTab::Connection && index == connection::CONTEXT_WINDOW {
+            self.apply_connection_window(val);
         }
     }
 
@@ -439,6 +559,12 @@ impl SettingsModal {
                     }
                 }
             }
+            SettingsTab::Ai => {
+                if index == 6 {
+                    self.config.ai.web.chrome_path = text.to_string();
+                }
+            }
+            SettingsTab::Connection => self.apply_connection_text(index, text),
             _ => {}
         }
     }
@@ -464,6 +590,7 @@ mod content_row_tests {
             SettingsTab::Lsp,
             SettingsTab::Logging,
             SettingsTab::Vfs,
+            SettingsTab::Ai,
         ];
 
         for tab in tabs {

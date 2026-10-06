@@ -10,6 +10,7 @@ use termide_config::Config;
 use termide_theme::Theme;
 use termide_ui::ScrollBar;
 
+use crate::word_wrap::WrapLayout;
 use crate::{rendering, word_wrap};
 
 use super::Editor;
@@ -45,8 +46,11 @@ impl Editor {
 
         // Update wrap settings BEFORE building cumulative cache
         // This ensures cache is invalidated if width changed
-        self.render_cache
-            .update_wrap_settings(effective_width, use_smart_wrap);
+        self.render_cache.update_wrap_settings(WrapLayout {
+            width: effective_width,
+            smart: use_smart_wrap,
+            tab_size: self.config.tab_size,
+        });
         self.render_cache.content_height = content_height;
 
         self.viewport.resize(content_width, content_height);
@@ -59,13 +63,14 @@ impl Editor {
             if self.config.word_wrap && content_width > 0 {
                 self.ensure_cursor_visible_word_wrap(content_height);
             } else {
+                let cursor = self.cursor_in_display_columns();
                 self.viewport
-                    .ensure_cursor_visible(&self.cursor, virtual_lines_total);
+                    .ensure_cursor_visible(&cursor, virtual_lines_total);
             }
         }
 
         // Render with custom highlighter
-        rendering::render_editor_content(
+        let cursor_screen_pos = rendering::render_editor_content(
             buf,
             area,
             &self.buffer,
@@ -82,9 +87,11 @@ impl Editor {
             config.editor.show_git_diff,
             self.config.word_wrap,
             use_smart_wrap,
+            self.config.tab_size,
             content_width,
             content_height,
         );
+        self.render_cache.cursor_screen_pos = cursor_screen_pos;
 
         // Blame annotation overlay on the cursor line
         self.render_blame_annotation(
@@ -160,8 +167,14 @@ impl Editor {
                 None => return,
             };
             let line_text = line_cow.trim_end_matches('\n');
-            let (_, wrap_points) =
-                word_wrap::get_line_wrap_points(line_text, content_width, use_smart_wrap);
+            let (_, wrap_points) = word_wrap::get_line_wrap_points(
+                line_text,
+                WrapLayout {
+                    width: content_width,
+                    smart: use_smart_wrap,
+                    tab_size: self.config.tab_size,
+                },
+            );
 
             // Last wrap-row index inside the logical line. With N wrap
             // points the line spans N+1 visual rows, so the last one is
@@ -200,13 +213,9 @@ impl Editor {
             let last_chunk_start = wrap_points.last().copied().unwrap_or(0);
             let last_chunk_width: usize = {
                 use unicode_segmentation::UnicodeSegmentation;
-                use unicode_width::UnicodeWidthChar;
-                line_text
-                    .graphemes(true)
-                    .skip(last_chunk_start)
-                    .flat_map(|g| g.chars())
-                    .map(|c| c.width().unwrap_or(0))
-                    .sum()
+                // Tab stops restart at each visual row, as when it was drawn.
+                let last_chunk: String = line_text.graphemes(true).skip(last_chunk_start).collect();
+                termide_buffer::display_width(&last_chunk, self.config.tab_size)
             };
 
             (row as u16, last_chunk_width.min(content_width))
@@ -232,8 +241,7 @@ impl Editor {
                 .buffer
                 .line(self.cursor.line)
                 .map(|l| {
-                    use unicode_width::UnicodeWidthChar;
-                    l.chars().map(|c| c.width().unwrap_or(0)).sum::<usize>()
+                    termide_buffer::display_width(l.trim_end_matches('\n'), self.config.tab_size)
                 })
                 .unwrap_or(0);
             let visible = line_visual_width
@@ -291,8 +299,11 @@ impl Editor {
 
         // Update wrap settings BEFORE building cumulative cache
         // This ensures cache is invalidated if width changed
-        self.render_cache
-            .update_wrap_settings(effective_width, use_smart_wrap);
+        self.render_cache.update_wrap_settings(WrapLayout {
+            width: effective_width,
+            smart: use_smart_wrap,
+            tab_size: self.config.tab_size,
+        });
         self.render_cache.content_height = content_height;
 
         self.viewport.resize(content_width, content_height);
@@ -308,13 +319,14 @@ impl Editor {
                 self.ensure_cursor_visible_word_wrap(content_height);
             } else {
                 // Standard mode: use physical line scrolling
+                let cursor = self.cursor_in_display_columns();
                 self.viewport
-                    .ensure_cursor_visible(&self.cursor, virtual_lines_total);
+                    .ensure_cursor_visible(&cursor, virtual_lines_total);
             }
         }
 
         // Delegate to rendering orchestrator
-        rendering::render_editor_content(
+        let cursor_screen_pos = rendering::render_editor_content(
             buf,
             area,
             &self.buffer,
@@ -331,9 +343,11 @@ impl Editor {
             config.editor.show_git_diff,
             self.config.word_wrap,
             use_smart_wrap,
+            self.config.tab_size,
             content_width,
             content_height,
         );
+        self.render_cache.cursor_screen_pos = cursor_screen_pos;
 
         // Blame annotation overlay on the cursor line
         self.render_blame_annotation(
@@ -363,68 +377,24 @@ impl Editor {
             self.scrollbars.vertical = bar;
         }
 
+        // Completion and code-action popups open at the cursor, where it was
+        // drawn: that cell already accounts for wrapping, virtual rows,
+        // horizontal scroll and tabs. Off screen, they are not drawn.
+        let anchor = self.render_cache.cursor_screen_pos;
+
         // Render completion popup if active
-        if let Some(ref popup) = self.lsp.completion_popup {
-            use unicode_width::UnicodeWidthChar;
-
-            // Only render if cursor is in visible area
-            if self.cursor.line >= self.viewport.top_line
-                && self.cursor.line < self.viewport.top_line + content_height
-            {
-                // Calculate cursor screen position
-                let line_number_width =
-                    rendering::line_number_width(self.buffer.line_count()) as u16;
-                let content_x = area.x + 1 + line_number_width; // +1 for border
-
-                // Calculate cursor X position within the line
-                // Calculate display width up to cursor column
-                let cursor_screen_col: usize = self
-                    .buffer
-                    .line(self.cursor.line)
-                    .map(|line| {
-                        line.chars()
-                            .take(self.cursor.column)
-                            .map(|c| c.width().unwrap_or(0))
-                            .sum()
-                    })
-                    .unwrap_or(0);
-
-                let cursor_x = content_x + cursor_screen_col as u16;
-                let cursor_y = area.y + 1 + (self.cursor.line - self.viewport.top_line) as u16;
-
-                // Render popup within editor area only and store rect for mouse hit testing
-                self.lsp.popup_rect = popup.render(buf, area, cursor_x, cursor_y, theme);
-            } else {
-                self.lsp.popup_rect = None;
+        self.lsp.popup_rect = match (&self.lsp.completion_popup, anchor) {
+            // Render popup within editor area only and store rect for mouse hit testing
+            (Some(popup), Some((cursor_x, cursor_y))) => {
+                popup.render(buf, area, cursor_x, cursor_y, theme)
             }
-        } else {
-            self.lsp.popup_rect = None;
-        }
+            _ => None,
+        };
 
         // Render code-action popup if active (anchored at the cursor like
         // completion).
-        if let Some(ref popup) = self.lsp.code_action_popup {
-            use unicode_width::UnicodeWidthChar;
-            if self.cursor.line >= self.viewport.top_line
-                && self.cursor.line < self.viewport.top_line + content_height
-            {
-                let line_number_width =
-                    rendering::line_number_width(self.buffer.line_count()) as u16;
-                let content_x = area.x + 1 + line_number_width;
-                let cursor_screen_col: usize = self
-                    .buffer
-                    .line(self.cursor.line)
-                    .map(|line| {
-                        line.chars()
-                            .take(self.cursor.column)
-                            .map(|c| c.width().unwrap_or(0))
-                            .sum()
-                    })
-                    .unwrap_or(0);
-                let cursor_x = content_x + cursor_screen_col as u16;
-                let cursor_y = area.y + 1 + (self.cursor.line - self.viewport.top_line) as u16;
-                popup.render(buf, area, cursor_x, cursor_y, theme);
-            }
+        if let (Some(popup), Some((cursor_x, cursor_y))) = (&self.lsp.code_action_popup, anchor) {
+            popup.render(buf, area, cursor_x, cursor_y, theme);
         }
 
         // Render hover popup if active

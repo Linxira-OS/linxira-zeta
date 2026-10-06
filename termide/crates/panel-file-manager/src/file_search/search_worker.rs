@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use regex::RegexBuilder;
 use termide_core::util::is_binary_file;
 use termide_git::{GitStatus, GitStatusCache};
+use termide_ui::fuzzy::Query;
+use termide_walk::walker;
 
 use super::{ContentResult, FileResult};
 
@@ -26,9 +28,10 @@ struct NameMatcher {
     case_sensitive: bool,
     /// Some only in name-regex mode; matched against the name / relative path.
     regex: Option<regex::Regex>,
-    /// Glob/substring needle, case-folded when Case is off.
+    /// Glob over the case-folded mask when Case is off.
     glob: Option<glob::Pattern>,
-    needle: String,
+    /// The mask as a plain "contains", for a name mask without wildcards.
+    substring: Query,
 }
 
 impl NameMatcher {
@@ -46,17 +49,14 @@ impl NameMatcher {
         } else {
             None
         };
-        // Fold case into the needle when Case is off so pattern and candidate
+        // Fold case into the glob when Case is off so pattern and candidate
         // are compared in the same case.
-        let needle = if case_sensitive {
-            mask.to_string()
-        } else {
-            mask.to_lowercase()
-        };
         let glob = if use_regex {
             None
+        } else if case_sensitive {
+            glob::Pattern::new(mask).ok()
         } else {
-            glob::Pattern::new(&needle).ok()
+            glob::Pattern::new(&mask.to_lowercase()).ok()
         };
         Some(Self {
             has_path_sep: mask.contains('/') || mask.contains('\\'),
@@ -64,12 +64,12 @@ impl NameMatcher {
             case_sensitive,
             regex,
             glob,
-            needle,
+            substring: Query::substring(mask, case_sensitive),
         })
     }
 
     /// `Some(matched)`, or `None` when the entry has no usable file name.
-    fn matches(&self, path: &Path, relative_path: &str) -> Option<bool> {
+    fn matches(&mut self, path: &Path, relative_path: &str) -> Option<bool> {
         if let Some(re) = self.regex.as_ref() {
             // Match the path when the pattern spans separators, else the name.
             return Some(if self.has_path_sep {
@@ -94,10 +94,8 @@ impl NameMatcher {
                 name.to_lowercase()
             };
             self.glob.as_ref().map(|g| g.matches(&hay)).unwrap_or(false)
-        } else if self.case_sensitive {
-            name.contains(&self.needle)
         } else {
-            name.to_lowercase().contains(&self.needle)
+            self.substring.score(&name).is_some()
         })
     }
 }
@@ -110,19 +108,12 @@ pub(super) fn search_files(
     cancel: &AtomicBool,
     git_cache: Option<&GitStatusCache>,
 ) -> Vec<FileResult> {
-    use ignore::WalkBuilder;
-
-    let Some(matcher) = NameMatcher::new(mask, use_regex, case_sensitive) else {
+    let Some(mut matcher) = NameMatcher::new(mask, use_regex, case_sensitive) else {
         return Vec::new();
     };
     let mut results = Vec::new();
 
-    let walker = WalkBuilder::new(base_path)
-        .hidden(false)
-        .git_ignore(false)
-        .git_global(false)
-        .git_exclude(false)
-        .build();
+    let walker = walker(base_path, false);
 
     for entry in walker {
         if cancel.load(Ordering::Relaxed) {
@@ -184,8 +175,6 @@ pub(super) fn search_content(
     git_cache: Option<&GitStatusCache>,
     max_file_size: u64,
 ) -> Vec<ContentResult> {
-    use ignore::WalkBuilder;
-
     let regex = match RegexBuilder::new(content_pattern)
         .case_insensitive(!case_sensitive)
         .build()
@@ -196,7 +185,7 @@ pub(super) fn search_content(
 
     // The mask filters file names with the same rules (and Case toggle) as the
     // name search; the content `regex` above is what honors case for matches.
-    let matcher = match NameMatcher::new(mask, false, case_sensitive) {
+    let mut matcher = match NameMatcher::new(mask, false, case_sensitive) {
         Some(m) => m,
         None => return Vec::new(),
     };
@@ -204,12 +193,7 @@ pub(super) fn search_content(
     let min_size = content_pattern.len() as u64;
     let mut results = Vec::new();
 
-    let walker = WalkBuilder::new(base_path)
-        .hidden(false)
-        .git_ignore(false)
-        .git_global(false)
-        .git_exclude(false)
-        .build();
+    let walker = walker(base_path, false);
 
     for entry in walker {
         if cancel.load(Ordering::Relaxed) {

@@ -9,11 +9,39 @@
 use termide_buffer::Cursor;
 use termide_config::Config;
 
-use crate::{git, word_wrap};
+use crate::word_wrap::{self, WrapLayout};
 
 use super::Editor;
 
 impl Editor {
+    /// The cursor with its column in display columns (tabs expanded, wide
+    /// characters counted twice): the unit `Viewport::left_column` scrolls in
+    /// without word wrap.
+    pub(crate) fn cursor_in_display_columns(&self) -> Cursor {
+        let column = self
+            .buffer
+            .line_cow(self.cursor.line)
+            .map(|line| {
+                termide_buffer::display_column(
+                    line.trim_end_matches('\n'),
+                    self.cursor.column,
+                    self.config.tab_size,
+                )
+            })
+            .unwrap_or(self.cursor.column);
+        Cursor::at(self.cursor.line, column)
+    }
+
+    /// The layout the last render wrapped lines with, for wrap-aware
+    /// movement and scrolling.
+    pub(crate) fn wrap_layout(&self) -> WrapLayout {
+        WrapLayout {
+            width: self.render_cache.content_width,
+            smart: self.render_cache.use_smart_wrap,
+            tab_size: self.config.tab_size,
+        }
+    }
+
     /// Check if visual movement should be used (word wrap enabled and width cached).
     pub(crate) fn should_use_visual_movement(&self) -> bool {
         self.config.word_wrap && self.render_cache.content_width > 0
@@ -34,6 +62,13 @@ impl Editor {
     ) -> usize {
         let mut extra_rows = 0;
         let show_git_diff = self.render_cache.config.editor.show_git_diff;
+        // Deduplicated like the drawing, so the rows counted are the rows drawn.
+        let diagnostic_rows = word_wrap::count_diagnostic_rows_by_line(
+            &self.lsp.diagnostics,
+            &self.buffer,
+            content_width,
+            self.config.tab_size,
+        );
 
         for line in start..end {
             // Deletion markers (rendered between text and diagnostics).
@@ -46,31 +81,35 @@ impl Editor {
             }
 
             // Diagnostic rows.
-            for diag in &self.lsp.diagnostics {
-                if diag.range.start.line as usize == line {
-                    let start_col = diag.range.start.character as usize;
-                    let end_col = diag.range.end.character as usize;
-                    let underline_len = end_col.saturating_sub(start_col).max(1);
-                    let code = diag.code.as_ref().map(|c| match c {
-                        lsp_types::NumberOrString::Number(n) => n.to_string(),
-                        lsp_types::NumberOrString::String(s) => s.clone(),
-                    });
-                    extra_rows += git::calculate_diagnostic_rows(
-                        start_col,
-                        underline_len,
-                        code.as_deref(),
-                        &diag.message,
-                        content_width,
-                    );
-                }
-            }
+            extra_rows += diagnostic_rows.get(&line).copied().unwrap_or(0);
         }
         extra_rows
     }
 
+    /// Start a vertical move: settle the screen column it keeps.
+    ///
+    /// The column the previous vertical move kept holds while the cursor
+    /// still stands where that move left it, so passing through a short line
+    /// does not lose it. Anything else that moved the cursor (a click, a
+    /// jump, a search, an edit) makes it stale, and the cursor's own column
+    /// is taken instead.
+    pub(crate) fn begin_vertical_move(&mut self) {
+        if self.input.preferred_column_cursor != Some((self.cursor.line, self.cursor.column)) {
+            self.input.preferred_column = None;
+        }
+        self.ensure_preferred_column();
+    }
+
+    /// Finish a vertical move: record where it left the cursor, for
+    /// [`Self::begin_vertical_move`].
+    pub(crate) fn end_vertical_move(&mut self) {
+        self.input.preferred_column_cursor = Some((self.cursor.line, self.cursor.column));
+    }
+
     /// Ensure preferred column is set for vertical navigation.
     ///
-    /// Sets preferred_column to visual offset within current visual row if not already set.
+    /// Sets preferred_column to the visual offset, in screen columns, within
+    /// the current visual row if not already set.
     /// Used by visual movement methods to maintain column across wrapped lines.
     pub(crate) fn ensure_preferred_column(&mut self) {
         if self.input.preferred_column.is_none() {
@@ -89,8 +128,11 @@ impl Editor {
                         &mut self.render_cache,
                         &self.buffer,
                         self.cursor.line,
-                        content_width,
-                        use_smart_wrap,
+                        WrapLayout {
+                            width: content_width,
+                            smart: use_smart_wrap,
+                            tab_size: self.config.tab_size,
+                        },
                     );
                     let current_visual_row =
                         wrap_points.iter().filter(|&&wp| wp <= cursor_col).count();
@@ -101,12 +143,17 @@ impl Editor {
                     } else {
                         0
                     };
-                    cursor_col.saturating_sub(visual_row_start)
+                    word_wrap::row_offset_columns(
+                        line_text,
+                        visual_row_start,
+                        cursor_col,
+                        self.config.tab_size,
+                    )
                 } else {
                     self.cursor.column
                 }
             } else {
-                self.cursor.column
+                self.cursor_in_display_columns().column
             };
             self.input.preferred_column = Some(visual_offset);
         }
@@ -131,8 +178,11 @@ impl Editor {
             &self.buffer,
             self.cursor.line,
             self.cursor.column,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
         );
 
         // Handle cursor above viewport (physical line check)
@@ -168,8 +218,11 @@ impl Editor {
             &mut self.render_cache,
             &self.buffer,
             self.viewport.top_line,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
         );
         let rows_remaining_in_top_line =
             top_line_visual_rows.saturating_sub(self.viewport.top_visual_row_offset);
@@ -207,8 +260,11 @@ impl Editor {
                     &mut self.render_cache,
                     &self.buffer,
                     line,
-                    content_width,
-                    use_smart_wrap,
+                    WrapLayout {
+                        width: content_width,
+                        smart: use_smart_wrap,
+                        tab_size: self.config.tab_size,
+                    },
                 );
                 rows += line_visual_rows;
             }
@@ -234,27 +290,40 @@ impl Editor {
         let scroll_needed = cursor_visual_pos - (content_height - 1);
 
         // Apply scroll directly by computing final position
-        self.apply_visual_scroll_down(scroll_needed, content_width, use_smart_wrap);
+        self.apply_visual_scroll_down(
+            scroll_needed,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
+        );
     }
 
     /// Apply scroll down by a given number of visual rows.
     /// Updates top_line and top_visual_row_offset directly.
     /// Accounts for deletion markers and diagnostic virtual rows between lines.
-    fn apply_visual_scroll_down(
-        &mut self,
-        mut remaining: usize,
-        content_width: usize,
-        use_smart_wrap: bool,
-    ) {
+    fn apply_visual_scroll_down(&mut self, mut remaining: usize, layout: WrapLayout) {
+        let WrapLayout {
+            width: content_width,
+            tab_size,
+            ..
+        } = layout;
         let show_git_diff = self.render_cache.config.editor.show_git_diff;
+        // Deduplicated like the drawing, so the rows skipped are the rows drawn.
+        let diagnostic_rows = word_wrap::count_diagnostic_rows_by_line(
+            &self.lsp.diagnostics,
+            &self.buffer,
+            content_width,
+            tab_size,
+        );
 
         while remaining > 0 && self.viewport.top_line < self.buffer.line_count() {
             let line_visual_rows = word_wrap::get_visual_rows_cached(
                 &mut self.render_cache,
                 &self.buffer,
                 self.viewport.top_line,
-                content_width,
-                use_smart_wrap,
+                layout,
             );
 
             let rows_available =
@@ -278,25 +347,10 @@ impl Editor {
                     }
                 }
             }
-            for diag in &self.lsp.diagnostics {
-                let diag_line = diag.range.start.line as usize;
-                if diag_line == self.viewport.top_line {
-                    let start_col = diag.range.start.character as usize;
-                    let end_col = diag.range.end.character as usize;
-                    let underline_len = end_col.saturating_sub(start_col).max(1);
-                    let code = diag.code.as_ref().map(|c| match c {
-                        lsp_types::NumberOrString::Number(n) => n.to_string(),
-                        lsp_types::NumberOrString::String(s) => s.clone(),
-                    });
-                    virtual_after_line += git::calculate_diagnostic_rows(
-                        start_col,
-                        underline_len,
-                        code.as_deref(),
-                        &diag.message,
-                        content_width,
-                    );
-                }
-            }
+            virtual_after_line += diagnostic_rows
+                .get(&self.viewport.top_line)
+                .copied()
+                .unwrap_or(0);
 
             // Consume virtual rows
             if remaining <= virtual_after_line {
@@ -339,8 +393,11 @@ impl Editor {
         let use_smart_wrap = self.render_cache.use_smart_wrap;
 
         // Ensure cache is valid for current width settings
-        self.render_cache
-            .update_wrap_settings(content_width, use_smart_wrap);
+        self.render_cache.update_wrap_settings(WrapLayout {
+            width: content_width,
+            smart: use_smart_wrap,
+            tab_size: self.config.tab_size,
+        });
 
         for _ in 0..count {
             if self.viewport.top_visual_row_offset > 0 {
@@ -353,8 +410,11 @@ impl Editor {
                     &mut self.render_cache,
                     &self.buffer,
                     self.viewport.top_line,
-                    content_width,
-                    use_smart_wrap,
+                    WrapLayout {
+                        width: content_width,
+                        smart: use_smart_wrap,
+                        tab_size: self.config.tab_size,
+                    },
                 );
                 self.viewport.top_visual_row_offset = visual_rows.saturating_sub(1);
             } else {
@@ -386,16 +446,22 @@ impl Editor {
         let line_count = self.buffer.line_count();
 
         // Ensure cache is valid for current width settings
-        self.render_cache
-            .update_wrap_settings(content_width, use_smart_wrap);
+        self.render_cache.update_wrap_settings(WrapLayout {
+            width: content_width,
+            smart: use_smart_wrap,
+            tab_size: self.config.tab_size,
+        });
 
         for _ in 0..count {
             let visual_rows = word_wrap::get_visual_rows_cached(
                 &mut self.render_cache,
                 &self.buffer,
                 self.viewport.top_line,
-                content_width,
-                use_smart_wrap,
+                WrapLayout {
+                    width: content_width,
+                    smart: use_smart_wrap,
+                    tab_size: self.config.tab_size,
+                },
             );
 
             if self.viewport.top_visual_row_offset + 1 < visual_rows {
@@ -520,8 +586,11 @@ impl Editor {
             &mut self.render_cache,
             &self.buffer,
             current_line,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
         );
         let rows_in_first_line =
             first_line_visual_rows.saturating_sub(self.viewport.top_visual_row_offset);
@@ -539,8 +608,11 @@ impl Editor {
                 &mut self.render_cache,
                 &self.buffer,
                 current_line,
-                content_width,
-                use_smart_wrap,
+                WrapLayout {
+                    width: content_width,
+                    smart: use_smart_wrap,
+                    tab_size: self.config.tab_size,
+                },
             );
 
             if line_visual_rows >= visual_rows_remaining {
@@ -564,16 +636,14 @@ impl Editor {
         // If word wrap is enabled, count visual rows instead of buffer lines
         if self.should_use_visual_movement() {
             // Use cached version for O(1) lookup when cache is valid
-            let content_width = self.render_cache.content_width;
+            let layout = self.wrap_layout();
             let word_wrap = self.config.word_wrap;
-            let use_smart_wrap = self.render_cache.use_smart_wrap;
 
             let total_visual_rows = word_wrap::calculate_total_visual_rows_cached(
                 &mut self.render_cache,
                 &self.buffer,
-                content_width,
+                layout,
                 word_wrap,
-                use_smart_wrap,
             );
 
             // Add deletion markers if git diff is shown (O(1) lookup)

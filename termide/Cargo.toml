@@ -6,7 +6,7 @@ resolver = "2"
 unicode-width = { path = "crates/unicode-width-fix" }
 
 [workspace.package]
-version = "0.35.0"
+version = "0.38.0"
 edition = "2021"
 authors = ["Nick Nizovtsev"]
 license = "MIT"
@@ -19,19 +19,26 @@ crossterm = "0.29"
 ratatui = "0.30.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+toml_edit = "0.22"
 dirs = "6.0"
+dunce = "1.0"
 ropey = "1.6"
 arboard = "3.4"
+# macOS pasteboard access below arboard's builder, which can only write one
+# flavor at a time; see `termide-clipboard::copy_files`.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSPasteboard"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSString", "NSURL"] }
 unicode-segmentation = "1.11"
 unicode-width = "0.2"
 # Infra dependencies
-tree-sitter = "0.24"
-tree-sitter-highlight = "0.24"
+tree-sitter = "0.27"
+tree-sitter-highlight = "0.27"
 lsp-types = "0.97"
 regex = "1.12"
 notify = { version = "6.1", default-features = false, features = ["macos_fsevent"] }
 notify-debouncer-mini = "0.4"
 ignore = "0.4"
+nucleo-matcher = "0.3"
 sysinfo = "0.31"
 starship-battery = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
@@ -55,7 +62,7 @@ name = "termide"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Cross-platform terminal IDE, file manager and virtual terminal"
+description = "All-in-one terminal workspace: editor, file manager, terminal, git and coding agent"
 publish = false
 repository = "https://github.com/termide/termide"
 license = "MIT"
@@ -81,10 +88,11 @@ maintainer = "Nick Nizovtsev <nizovtsevnv@gmail.com>"
 copyright = "2025, Nick Nizovtsev <nizovtsevnv@gmail.com>"
 license-file = ["LICENSE", "4"]
 extended-description = """\
-TermIDE is a cross-platform terminal-based IDE, file manager, and virtual terminal \
-written in Rust. It features syntax highlighting for 21 languages, Git integration, \
-multi-panel accordion layout with smart stacking, and an integrated virtual terminal \
-with full PTY support."""
+TermIDE is an all-in-one terminal workspace for workstations and servers, written \
+in Rust. It combines a code editor with LSP, a dual-pane file manager with SFTP/FTP \
+and background file operations, an integrated terminal, Git integration, a read-only \
+database viewer, and a coding agent that works with local or hosted models. \
+On Unix, instances can be detached and reattached from any terminal."""
 depends = "$auto"
 section = "utils"
 priority = "optional"
@@ -100,7 +108,7 @@ assets = [
 [package.metadata.generate-rpm]
 name = "termide"
 license = "MIT"
-summary = "Cross-platform terminal IDE, file manager and virtual terminal"
+summary = "All-in-one terminal workspace: editor, file manager, terminal, git and coding agent"
 assets = [
     { source = "target/release/termide", dest = "/usr/bin/termide", mode = "755" },
     { source = "README.md", dest = "/usr/share/doc/termide/README.md", mode = "644", doc = true },
@@ -137,7 +145,7 @@ termide-layout = { path = "crates/layout" }
 termide-panel-editor = { path = "crates/panel-editor" }
 termide-panel-file-manager = { path = "crates/panel-file-manager" }
 termide-panel-terminal = { path = "crates/panel-terminal" }
-termide-session = { path = "crates/session" }
+termide-project = { path = "crates/project" }
 termide-theme = { path = "crates/theme" }
 termide-ui-render = { path = "crates/ui-render" }
 

@@ -21,12 +21,12 @@ impl App {
 
                 // Check if editor has a temporary unsaved buffer file
                 if let Some(filename) = editor.unsaved_buffer_file() {
-                    // Get session directory and delete the temporary file
-                    if let Ok(session_dir) =
-                        termide_session::Session::get_session_dir(&self.project_root)
+                    // Get the project directory and delete the temporary file
+                    if let Ok(project_dir) =
+                        termide_project::ProjectLayout::get_project_dir(&self.project_root)
                     {
                         if let Err(e) =
-                            termide_session::delete_unsaved_buffer(&session_dir, filename)
+                            termide_project::delete_unsaved_buffer(&project_dir, filename)
                         {
                             log::warn!("Failed to delete unsaved buffer file: {}", e);
                         }
@@ -70,7 +70,7 @@ impl App {
 
         // Close active panel (LayoutManager handles active panel tracking)
         let _ = self.layout_manager.close_active_panel(terminal_width);
-        self.auto_save_session();
+        self.auto_save_layout();
 
         // Re-sync outline panel after editor close
         self.resync_outline_after_close();
@@ -85,8 +85,12 @@ impl App {
             // In $EDITOR mode (launched with file arguments), closing the last
             // panel returns control to the launching tool (git, crontab, ...)
             // like nano/vim would, instead of leaving an empty shell behind.
-            if !self.persist_session {
-                self.state.quit();
+            if !self.persist_layout {
+                // Through the quit request, which asks first when a project
+                // left open in the background still runs something.
+                if let Err(e) = self.handle_quit_request() {
+                    log::error!("Failed to quit: {}", e);
+                }
                 return;
             }
             let help = Help::new(&self.state.config);
@@ -185,9 +189,9 @@ impl App {
     }
 
     /// Paths the git panels search for repositories: every panel working
-    /// directory plus the session root.
+    /// directory plus the project root.
     ///
-    /// The session root is included because panel directories alone lose it as
+    /// The project root is included because panel directories alone lose it as
     /// soon as every panel navigates elsewhere — the repository termide was
     /// started in would then vanish from the repo dropdown.
     pub(super) fn collect_repo_search_paths(&self) -> Vec<PathBuf> {
@@ -236,6 +240,34 @@ impl App {
         options.sort_by(|a, b| a.value.cmp(&b.value));
 
         options
+    }
+
+    /// Working directories of the file managers other than the focused panel,
+    /// nearest group first: the focused group itself, then the neighbouring
+    /// columns outward, the right one before the left one at equal distance.
+    /// Remote file managers report full URLs, as in
+    /// [`find_all_other_panel_paths`](Self::find_all_other_panel_paths).
+    pub(super) fn other_file_manager_paths(&self) -> Vec<String> {
+        let focus = self.layout_manager.focus;
+        let mut found: Vec<((usize, bool), String)> = Vec::new();
+        for (gi, group) in self.layout_manager.panel_groups.iter().enumerate() {
+            for (pi, panel) in group.panels().iter().enumerate() {
+                if gi == focus && pi == group.expanded_index() {
+                    continue;
+                }
+                if !panel
+                    .as_any()
+                    .is::<termide_panel_file_manager::FileManager>()
+                {
+                    continue;
+                }
+                if let Some(path) = panel.get_working_directory_display() {
+                    found.push(((gi.abs_diff(focus), gi < focus), path));
+                }
+            }
+        }
+        found.sort_by_key(|(distance, _)| *distance);
+        found.into_iter().map(|(_, path)| path).collect()
     }
 
     /// Refresh all FM panels that show specified directory

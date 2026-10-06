@@ -50,20 +50,7 @@ impl App {
             return Ok(());
         }
 
-        // Resolve to an absolute path: `~/…` → home, relative → against base_dir.
-        let path = if let Some(rest) = input.strip_prefix("~/") {
-            match dirs::home_dir() {
-                Some(home) => home.join(rest),
-                None => PathBuf::from(input),
-            }
-        } else {
-            let p = PathBuf::from(input);
-            if p.is_absolute() {
-                p
-            } else {
-                base_dir.join(p)
-            }
-        };
+        let path = super::path_suggestions::resolve_typed_path(input, &base_dir);
 
         if !path.exists() {
             self.show_error_modal(format!("No such path: {}", path.display()));
@@ -75,7 +62,7 @@ impl App {
             self.close_help_panels();
             self.add_panel(Box::new(FileManager::new_with_path(path)));
             self.state.needs_watcher_registration = true;
-            self.auto_save_session();
+            self.auto_save_layout();
             return Ok(());
         }
 

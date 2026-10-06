@@ -10,7 +10,18 @@ use lsp_types::Diagnostic;
 use termide_buffer::{calculate_wrap_point, TextBuffer};
 use termide_git::GitDiffCache;
 use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
+
+/// How buffer lines are laid out into visual rows: everything a wrap point,
+/// a visual row count or a vertical move depends on besides the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WrapLayout {
+    /// Content width the lines wrap at; 0 means they do not wrap.
+    pub width: usize,
+    /// Break at word boundaries rather than at the last column.
+    pub smart: bool,
+    /// Tab stop interval.
+    pub tab_size: usize,
+}
 
 /// Calculate wrap points for a single line of text.
 ///
@@ -19,17 +30,18 @@ use unicode_width::UnicodeWidthStr;
 ///
 /// Uses display width and grapheme clusters for proper Unicode handling.
 /// This function iterates exactly like rendering does to ensure consistency.
-pub fn get_line_wrap_points(
-    line_text: &str,
-    content_width: usize,
-    use_smart_wrap: bool,
-) -> (usize, Vec<usize>) {
+pub fn get_line_wrap_points(line_text: &str, layout: WrapLayout) -> (usize, Vec<usize>) {
+    let WrapLayout {
+        width: content_width,
+        smart: use_smart_wrap,
+        tab_size,
+    } = layout;
     if content_width == 0 {
         return (1, Vec::new());
     }
 
     // Check display width, not char/grapheme count
-    let display_width = line_text.width();
+    let display_width = termide_buffer::display_width(line_text, tab_size);
     if display_width == 0 {
         return (1, Vec::new());
     }
@@ -46,9 +58,15 @@ pub fn get_line_wrap_points(
 
     while grapheme_offset < line_len {
         let chunk_end = if use_smart_wrap {
-            calculate_wrap_point(&graphemes, grapheme_offset, content_width, line_len)
+            calculate_wrap_point(
+                &graphemes,
+                grapheme_offset,
+                content_width,
+                line_len,
+                tab_size,
+            )
         } else {
-            calculate_simple_wrap_point(&graphemes, grapheme_offset, content_width)
+            calculate_simple_wrap_point(&graphemes, grapheme_offset, content_width, tab_size)
         };
 
         // Push chunk_end as start of NEXT visual line (not grapheme_offset!)
@@ -70,12 +88,18 @@ pub fn get_line_wrap_points(
 /// Calculate simple wrap point for a single visual line (iterative version).
 ///
 /// Returns the grapheme index where the visual line ends.
-/// This mirrors the logic in wrap_rendering.rs for consistency.
-fn calculate_simple_wrap_point(graphemes: &[&str], start: usize, max_width: usize) -> usize {
+/// This mirrors the logic in wrap_rendering.rs for consistency: tab stops
+/// restart at `start`, the first column of the visual row.
+fn calculate_simple_wrap_point(
+    graphemes: &[&str],
+    start: usize,
+    max_width: usize,
+    tab_size: usize,
+) -> usize {
     let mut display_width = 0;
 
     for (i, grapheme) in graphemes.iter().enumerate().skip(start) {
-        let grapheme_width = grapheme.width();
+        let grapheme_width = termide_buffer::grapheme_columns(grapheme, display_width, tab_size);
 
         if display_width + grapheme_width > max_width {
             return i;
@@ -95,19 +119,20 @@ pub(crate) fn get_cursor_visual_row_in_line_cached(
     buffer: &TextBuffer,
     line: usize,
     column: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> usize {
+    let WrapLayout {
+        width: content_width,
+        ..
+    } = layout;
     if content_width == 0 {
         return 0;
     }
 
-    let (_, wrap_points) =
-        get_line_wrap_points_cached(cache, buffer, line, content_width, use_smart_wrap);
+    let (_, wrap_points) = get_line_wrap_points_cached(cache, buffer, line, layout);
 
     // Clamp column to line length (using cached grapheme count)
-    let line_len =
-        get_line_grapheme_count_cached(cache, buffer, line, content_width, use_smart_wrap);
+    let line_len = get_line_grapheme_count_cached(cache, buffer, line, layout);
     let column_clamped = column.min(line_len);
 
     // Find which visual row contains the cursor column
@@ -128,12 +153,17 @@ pub fn visual_row_to_buffer_position_with_diagnostics(
     buffer: &TextBuffer,
     visual_row: usize,
     viewport_top: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
     diagnostics: &[Diagnostic],
 ) -> (usize, usize, usize, bool) {
+    let WrapLayout {
+        width: content_width,
+        smart: use_smart_wrap,
+        tab_size,
+    } = layout;
     // Group diagnostics by line with total row count (accounting for multi-row diagnostics)
-    let diagnostics_by_line = count_diagnostic_rows_by_line(diagnostics, buffer, content_width);
+    let diagnostics_by_line =
+        count_diagnostic_rows_by_line(diagnostics, buffer, content_width, tab_size);
 
     if content_width == 0 {
         // No wrap, but still need to account for diagnostic lines
@@ -196,9 +226,20 @@ pub fn visual_row_to_buffer_position_with_diagnostics(
 
                 while grapheme_offset < line_len {
                     let chunk_end = if use_smart_wrap {
-                        calculate_wrap_point(&graphemes, grapheme_offset, content_width, line_len)
+                        calculate_wrap_point(
+                            &graphemes,
+                            grapheme_offset,
+                            content_width,
+                            line_len,
+                            tab_size,
+                        )
                     } else {
-                        calculate_simple_wrap_point(&graphemes, grapheme_offset, content_width)
+                        calculate_simple_wrap_point(
+                            &graphemes,
+                            grapheme_offset,
+                            content_width,
+                            tab_size,
+                        )
                     };
 
                     if current_visual_row == visual_row {
@@ -251,8 +292,9 @@ pub fn visual_row_to_buffer_position_with_diagnostics(
 /// This accounts for multi-row diagnostic messages that wrap based on content_width.
 pub(crate) fn count_diagnostic_rows_by_line(
     diagnostics: &[Diagnostic],
-    _buffer: &TextBuffer,
+    buffer: &TextBuffer,
     content_width: usize,
+    tab_size: usize,
 ) -> HashMap<usize, usize> {
     use crate::git;
     use std::collections::HashSet;
@@ -270,12 +312,8 @@ pub(crate) fn count_diagnostic_rows_by_line(
             continue;
         }
 
-        // Calculate diagnostic info similar to git::group_diagnostics_by_line
-        let start_col = diag.range.start.character as usize;
-        let end_col = diag.range.end.character as usize;
-
-        // Get underline length (simplified - use end_col - start_col)
-        let underline_len = end_col.saturating_sub(start_col).max(1);
+        // The same span git::group_diagnostics_by_line draws.
+        let (start_col, underline_len) = git::diagnostic_span(diag, buffer, tab_size);
 
         // Extract code
         let code = diag.code.as_ref().map(|c| match c {
@@ -316,11 +354,15 @@ pub(crate) fn get_line_wrap_points_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
     line: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> (usize, Vec<usize>) {
+    let WrapLayout {
+        width: content_width,
+        smart: use_smart_wrap,
+        tab_size,
+    } = layout;
     // Check if cache has valid data for this line with matching width settings
-    if let Some(cached) = cache.get_wrap_data(line, content_width, use_smart_wrap) {
+    if let Some(cached) = cache.get_wrap_data(line, layout) {
         return (cached.visual_rows, cached.wrap_points.clone());
     }
 
@@ -332,17 +374,20 @@ pub(crate) fn get_line_wrap_points_cached(
         .unwrap_or("");
 
     let grapheme_count = line_text.graphemes(true).count();
-    let (visual_rows, wrap_points) = get_line_wrap_points(line_text, content_width, use_smart_wrap);
+    let (visual_rows, wrap_points) = get_line_wrap_points(line_text, layout);
 
-    // Store in cache with width settings
-    cache.set_wrap_data(
-        line,
-        visual_rows,
-        wrap_points.clone(),
-        grapheme_count,
-        content_width,
-        use_smart_wrap,
-    );
+    // Store in cache with width settings. The cache holds one tab size for
+    // all its entries, so a lookup made with another one is not stored.
+    if cache.tab_size == tab_size {
+        cache.set_wrap_data(
+            line,
+            visual_rows,
+            wrap_points.clone(),
+            grapheme_count,
+            content_width,
+            use_smart_wrap,
+        );
+    }
 
     (visual_rows, wrap_points)
 }
@@ -355,16 +400,14 @@ pub(crate) fn get_visual_rows_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
     line: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> usize {
-    if let Some(cached) = cache.get_wrap_data(line, content_width, use_smart_wrap) {
+    if let Some(cached) = cache.get_wrap_data(line, layout) {
         return cached.visual_rows;
     }
 
     // Cache miss — compute and cache, return only visual_rows
-    let (visual_rows, _) =
-        get_line_wrap_points_cached(cache, buffer, line, content_width, use_smart_wrap);
+    let (visual_rows, _) = get_line_wrap_points_cached(cache, buffer, line, layout);
     visual_rows
 }
 
@@ -376,20 +419,16 @@ pub(crate) fn get_line_grapheme_count_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
     line: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> usize {
     // Ensure wrap data is cached (populates grapheme_count)
-    if cache
-        .get_wrap_data(line, content_width, use_smart_wrap)
-        .is_none()
-    {
+    if cache.get_wrap_data(line, layout).is_none() {
         // Populate cache
-        get_visual_rows_cached(cache, buffer, line, content_width, use_smart_wrap);
+        get_visual_rows_cached(cache, buffer, line, layout);
     }
 
     cache
-        .get_wrap_data(line, content_width, use_smart_wrap)
+        .get_wrap_data(line, layout)
         .map(|c| c.grapheme_count)
         .unwrap_or(0)
 }
@@ -400,16 +439,15 @@ pub(crate) fn get_line_grapheme_count_cached(
 pub(crate) fn calculate_total_visual_rows_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
-    content_width: usize,
+    layout: WrapLayout,
     word_wrap_enabled: bool,
-    use_smart_wrap: bool,
 ) -> usize {
-    if content_width == 0 || !word_wrap_enabled {
+    if layout.width == 0 || !word_wrap_enabled {
         return buffer.line_count();
     }
 
     // Update wrap settings (invalidates cache if changed)
-    cache.update_wrap_settings(content_width, use_smart_wrap);
+    cache.update_wrap_settings(layout);
 
     // Try to use cumulative cache (verify it covers all buffer lines)
     if cache.cumulative_covers_line_count(buffer.line_count()) {
@@ -424,6 +462,176 @@ pub(crate) fn calculate_total_visual_rows_cached(
     cache.get_total_visual_rows().unwrap_or(buffer.line_count())
 }
 
+/// Text of buffer line `line` without its line break (empty past the end).
+fn line_text_at(buffer: &TextBuffer, line: usize) -> String {
+    buffer
+        .line(line)
+        .map(|s| s.trim_end_matches('\n').to_string())
+        .unwrap_or_default()
+}
+
+/// Screen columns between grapheme `row_start` and grapheme `col` of `line`,
+/// with tab stops restarting at `row_start` as on a drawn row: how far right
+/// the cursor sits on its visual row.
+pub(crate) fn row_offset_columns(
+    line: &str,
+    row_start: usize,
+    col: usize,
+    tab_size: usize,
+) -> usize {
+    line.graphemes(true)
+        .take(col)
+        .skip(row_start)
+        .fold(0, |width, g| {
+            width + termide_buffer::grapheme_columns(g, width, tab_size)
+        })
+}
+
+/// The grapheme of `line` drawn `offset` screen columns right of grapheme
+/// `row_start` (tab stops restarting there), no further than `max_col`:
+/// where vertical movement lands to keep the cursor in the same screen
+/// column. An offset inside a tab lands on the tab.
+pub(crate) fn column_at_row_offset(
+    line: &str,
+    row_start: usize,
+    max_col: usize,
+    offset: usize,
+    tab_size: usize,
+) -> usize {
+    let mut width = 0;
+    for (idx, g) in line.graphemes(true).enumerate().skip(row_start) {
+        if idx >= max_col {
+            return max_col;
+        }
+        let cols = termide_buffer::grapheme_columns(g, width, tab_size);
+        if width + cols > offset {
+            return idx;
+        }
+        width += cols;
+    }
+    max_col.min(line.graphemes(true).count()).max(row_start)
+}
+
+/// Move the cursor one visual row up, keeping `preferred_column` (screen
+/// columns from the start of the visual row; the cursor's own when `None`).
+///
+/// `rows` gives a buffer line's wrap points and grapheme count — from the
+/// wrap cache, or computed — so the cached arrow-key movement and the vim
+/// motions share this one walk. Returns `None` at the top of the buffer.
+pub(crate) fn step_up(
+    buffer: &TextBuffer,
+    cursor_pos: (usize, usize),
+    preferred_column: Option<usize>,
+    tab_size: usize,
+    rows: &mut impl FnMut(usize) -> (Vec<usize>, usize),
+) -> Option<(usize, usize)> {
+    let (line, col) = cursor_pos;
+    let (wrap_points, line_len) = rows(line);
+    let col = col.min(line_len);
+    let row = wrap_points.partition_point(|&wp| wp <= col);
+    let (row_start, _) = get_visual_row_bounds(row, &wrap_points, line_len);
+    let text = line_text_at(buffer, line);
+    let offset =
+        preferred_column.unwrap_or_else(|| row_offset_columns(&text, row_start, col, tab_size));
+
+    if row > 0 {
+        // Up within the same line: an intermediate row ends before its wrap point.
+        let (start, end) = get_visual_row_bounds(row - 1, &wrap_points, line_len);
+        let max_col = end.saturating_sub(1).max(start);
+        return Some((
+            line,
+            column_at_row_offset(&text, start, max_col, offset, tab_size),
+        ));
+    }
+    if line == 0 {
+        return None;
+    }
+    // The last visual row of the previous line, where the cursor may sit at
+    // the end of the line.
+    let prev = line - 1;
+    let (prev_wraps, prev_len) = rows(prev);
+    let (start, end) = get_visual_row_bounds(prev_wraps.len(), &prev_wraps, prev_len);
+    let col = column_at_row_offset(
+        &line_text_at(buffer, prev),
+        start,
+        end.max(start),
+        offset,
+        tab_size,
+    );
+    Some((prev, col))
+}
+
+/// Move the cursor one visual row down; the counterpart of [`step_up`].
+/// Returns `None` at the bottom of the buffer.
+pub(crate) fn step_down(
+    buffer: &TextBuffer,
+    cursor_pos: (usize, usize),
+    preferred_column: Option<usize>,
+    tab_size: usize,
+    rows: &mut impl FnMut(usize) -> (Vec<usize>, usize),
+) -> Option<(usize, usize)> {
+    let (line, col) = cursor_pos;
+    let (wrap_points, line_len) = rows(line);
+    let col = col.min(line_len);
+    let row = wrap_points.partition_point(|&wp| wp <= col);
+    let (row_start, _) = get_visual_row_bounds(row, &wrap_points, line_len);
+    let text = line_text_at(buffer, line);
+    let offset =
+        preferred_column.unwrap_or_else(|| row_offset_columns(&text, row_start, col, tab_size));
+
+    // On the last visual row of a line (end == line_len) the cursor can sit
+    // after the last grapheme; on an intermediate row the grapheme at the
+    // wrap point belongs to the next row.
+    let max_col = |start: usize, end: usize, len: usize| {
+        let max = if end == len {
+            end
+        } else {
+            end.saturating_sub(1)
+        };
+        max.max(start)
+    };
+
+    if row < wrap_points.len() {
+        let (start, end) = get_visual_row_bounds(row + 1, &wrap_points, line_len);
+        let col = column_at_row_offset(
+            &text,
+            start,
+            max_col(start, end, line_len),
+            offset,
+            tab_size,
+        );
+        return Some((line, col));
+    }
+    if line + 1 >= buffer.line_count() {
+        return None;
+    }
+    let next = line + 1;
+    let (next_wraps, next_len) = rows(next);
+    let (start, end) = get_visual_row_bounds(0, &next_wraps, next_len);
+    let col = column_at_row_offset(
+        &line_text_at(buffer, next),
+        start,
+        max_col(start, end, next_len),
+        offset,
+        tab_size,
+    );
+    Some((next, col))
+}
+
+/// Wrap points and grapheme count of `line` from the wrap cache, for
+/// [`step_up`] / [`step_down`].
+fn cached_rows<'a>(
+    cache: &'a mut RenderingCache,
+    buffer: &'a TextBuffer,
+    layout: WrapLayout,
+) -> impl FnMut(usize) -> (Vec<usize>, usize) + 'a {
+    move |line| {
+        let (_, wrap_points) = get_line_wrap_points_cached(cache, buffer, line, layout);
+        let len = get_line_grapheme_count_cached(cache, buffer, line, layout);
+        (wrap_points, len)
+    }
+}
+
 /// Move cursor up by one visual line, using cached wrap data.
 ///
 /// Returns Some((line, col)) if movement was possible, None if at top.
@@ -432,73 +640,11 @@ pub(crate) fn move_up_cached(
     buffer: &TextBuffer,
     cursor_pos: (usize, usize),
     preferred_column: Option<usize>,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> Option<(usize, usize)> {
-    use unicode_segmentation::UnicodeSegmentation;
-
-    let (cursor_line, cursor_col) = cursor_pos;
-
-    if content_width == 0 {
-        // No word wrap - simple line movement
-        if cursor_line == 0 {
-            return None;
-        }
-        let target_col = preferred_column.unwrap_or(cursor_col);
-        let line_len = buffer
-            .line(cursor_line - 1)
-            .map(|s| s.trim_end_matches('\n').graphemes(true).count())
-            .unwrap_or(0);
-        return Some((cursor_line - 1, target_col.min(line_len)));
-    }
-
-    // Get wrap data for current line
-    let (_, wrap_points) =
-        get_line_wrap_points_cached(cache, buffer, cursor_line, content_width, use_smart_wrap);
-
-    let line_len =
-        get_line_grapheme_count_cached(cache, buffer, cursor_line, content_width, use_smart_wrap);
-    let cursor_col = cursor_col.min(line_len);
-
-    // Find which visual row within this line the cursor is on
-    let current_visual_row = wrap_points.partition_point(|&wp| wp <= cursor_col);
-
-    // Get bounds for current visual row
-    let (visual_row_start, _) = get_visual_row_bounds(current_visual_row, &wrap_points, line_len);
-
-    // Calculate visual offset within current visual row
-    let visual_offset = preferred_column.unwrap_or(cursor_col.saturating_sub(visual_row_start));
-
-    if current_visual_row > 0 {
-        // Move up within same physical line
-        let (prev_start, prev_end) =
-            get_visual_row_bounds(current_visual_row - 1, &wrap_points, line_len);
-        let new_col = (prev_start + visual_offset).min(prev_end.saturating_sub(1).max(prev_start));
-        Some((cursor_line, new_col))
-    } else if cursor_line > 0 {
-        // Move to previous physical line
-        let prev_line = cursor_line - 1;
-        let (prev_visual_rows, prev_wrap_points) =
-            get_line_wrap_points_cached(cache, buffer, prev_line, content_width, use_smart_wrap);
-
-        let prev_line_len =
-            get_line_grapheme_count_cached(cache, buffer, prev_line, content_width, use_smart_wrap);
-
-        // Target the last visual row of previous line
-        let target_visual_row = prev_visual_rows.saturating_sub(1);
-        let (prev_start, prev_end) =
-            get_visual_row_bounds(target_visual_row, &prev_wrap_points, prev_line_len);
-
-        let max_col = if prev_end == prev_line_len {
-            prev_end
-        } else {
-            prev_end.saturating_sub(1)
-        };
-        let new_col = (prev_start + visual_offset).min(max_col.max(prev_start));
-        Some((prev_line, new_col))
-    } else {
-        None // At top of buffer
-    }
+    let WrapLayout { tab_size, .. } = layout;
+    let mut rows = cached_rows(cache, buffer, layout);
+    step_up(buffer, cursor_pos, preferred_column, tab_size, &mut rows)
 }
 
 /// Move cursor down by one visual line, using cached wrap data.
@@ -509,105 +655,30 @@ pub(crate) fn move_down_cached(
     buffer: &TextBuffer,
     cursor_pos: (usize, usize),
     preferred_column: Option<usize>,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> Option<(usize, usize)> {
-    use unicode_segmentation::UnicodeSegmentation;
-
-    let (cursor_line, cursor_col) = cursor_pos;
-    let line_count = buffer.line_count();
-
-    if content_width == 0 {
-        // No word wrap - simple line movement
-        if cursor_line + 1 >= line_count {
-            return None;
-        }
-        let target_col = preferred_column.unwrap_or(cursor_col);
-        let line_len = buffer
-            .line(cursor_line + 1)
-            .map(|s| s.trim_end_matches('\n').graphemes(true).count())
-            .unwrap_or(0);
-        return Some((cursor_line + 1, target_col.min(line_len)));
-    }
-
-    // Get wrap data for current line
-    let (total_visual_rows, wrap_points) =
-        get_line_wrap_points_cached(cache, buffer, cursor_line, content_width, use_smart_wrap);
-
-    let line_len =
-        get_line_grapheme_count_cached(cache, buffer, cursor_line, content_width, use_smart_wrap);
-    let cursor_col = cursor_col.min(line_len);
-
-    // Find which visual row within this line the cursor is on
-    let current_visual_row = wrap_points.partition_point(|&wp| wp <= cursor_col);
-
-    // Get bounds for current visual row
-    let (visual_row_start, _) = get_visual_row_bounds(current_visual_row, &wrap_points, line_len);
-
-    // Calculate visual offset within current visual row
-    let visual_offset = preferred_column.unwrap_or(cursor_col.saturating_sub(visual_row_start));
-
-    if current_visual_row + 1 < total_visual_rows {
-        // Move down within same physical line
-        let (next_start, next_end) =
-            get_visual_row_bounds(current_visual_row + 1, &wrap_points, line_len);
-        // On the last visual row (end == line_len), cursor can be after the last char.
-        // On intermediate rows, the char at the wrap point belongs to the next row.
-        let max_col = if next_end == line_len {
-            next_end
-        } else {
-            next_end.saturating_sub(1)
-        };
-        let new_col = (next_start + visual_offset).min(max_col.max(next_start));
-        Some((cursor_line, new_col))
-    } else if cursor_line + 1 < line_count {
-        // Move to next physical line
-        let next_line = cursor_line + 1;
-        let (_, next_wrap_points) =
-            get_line_wrap_points_cached(cache, buffer, next_line, content_width, use_smart_wrap);
-
-        let next_line_len =
-            get_line_grapheme_count_cached(cache, buffer, next_line, content_width, use_smart_wrap);
-
-        // Target the first visual row of next line
-        let (next_start, next_end) = get_visual_row_bounds(0, &next_wrap_points, next_line_len);
-
-        let max_col = if next_end == next_line_len {
-            next_end
-        } else {
-            next_end.saturating_sub(1)
-        };
-        let new_col = (next_start + visual_offset).min(max_col.max(next_start));
-        Some((next_line, new_col))
-    } else {
-        None // At bottom of buffer
-    }
+    let WrapLayout { tab_size, .. } = layout;
+    let mut rows = cached_rows(cache, buffer, layout);
+    step_down(buffer, cursor_pos, preferred_column, tab_size, &mut rows)
 }
 
 /// Page up by visual lines, using cached wrap data.
 ///
 /// Returns (line, col) for the new cursor position.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn page_up_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
     cursor_pos: (usize, usize),
     preferred_column: Option<usize>,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
     page_size: usize,
 ) -> (usize, usize) {
     let (mut line, mut col) = cursor_pos;
 
     for _ in 0..page_size {
-        if let Some((new_line, new_col)) = move_up_cached(
-            cache,
-            buffer,
-            (line, col),
-            preferred_column,
-            content_width,
-            use_smart_wrap,
-        ) {
+        if let Some((new_line, new_col)) =
+            move_up_cached(cache, buffer, (line, col), preferred_column, layout)
+        {
             line = new_line;
             col = new_col;
         } else {
@@ -621,27 +692,20 @@ pub(crate) fn page_up_cached(
 /// Page down by visual lines, using cached wrap data.
 ///
 /// Returns (line, col) for the new cursor position.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn page_down_cached(
     cache: &mut RenderingCache,
     buffer: &TextBuffer,
     cursor_pos: (usize, usize),
     preferred_column: Option<usize>,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
     page_size: usize,
 ) -> (usize, usize) {
     let (mut line, mut col) = cursor_pos;
 
     for _ in 0..page_size {
-        if let Some((new_line, new_col)) = move_down_cached(
-            cache,
-            buffer,
-            (line, col),
-            preferred_column,
-            content_width,
-            use_smart_wrap,
-        ) {
+        if let Some((new_line, new_col)) =
+            move_down_cached(cache, buffer, (line, col), preferred_column, layout)
+        {
             line = new_line;
             col = new_col;
         } else {
@@ -653,7 +717,7 @@ pub(crate) fn page_down_cached(
 }
 
 /// Helper: Get the start and end grapheme indices for a visual row.
-fn get_visual_row_bounds(
+pub(crate) fn get_visual_row_bounds(
     visual_row: usize,
     wrap_points: &[usize],
     line_len: usize,
@@ -698,27 +762,30 @@ pub(crate) fn visual_row_to_buffer_position_cached(
     buffer: &TextBuffer,
     visual_row: usize,
     viewport_top: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
     diagnostics: &[Diagnostic],
     git_diff_cache: &Option<GitDiffCache>,
     show_git_diff: bool,
 ) -> (usize, usize, usize, bool) {
+    let WrapLayout {
+        width: content_width,
+        tab_size,
+        ..
+    } = layout;
     if content_width == 0 {
         // No wrap - delegate to non-cached version
         return visual_row_to_buffer_position_with_diagnostics(
             buffer,
             visual_row,
             viewport_top,
-            content_width,
-            use_smart_wrap,
+            layout,
             diagnostics,
         );
     }
 
     // Ensure diagnostic rows cache is populated
     if !cache.is_diagnostic_cache_valid(content_width) {
-        let map = count_diagnostic_rows_by_line(diagnostics, buffer, content_width);
+        let map = count_diagnostic_rows_by_line(diagnostics, buffer, content_width, tab_size);
         cache.set_diagnostic_rows_cache(map, content_width);
     }
 
@@ -728,10 +795,9 @@ pub(crate) fn visual_row_to_buffer_position_cached(
     while line_idx < buffer.line_count() {
         // Use cached wrap data
         let (visual_rows, wrap_points) =
-            get_line_wrap_points_cached(cache, buffer, line_idx, content_width, use_smart_wrap);
+            get_line_wrap_points_cached(cache, buffer, line_idx, layout);
 
-        let line_len =
-            get_line_grapheme_count_cached(cache, buffer, line_idx, content_width, use_smart_wrap);
+        let line_len = get_line_grapheme_count_cached(cache, buffer, line_idx, layout);
 
         // Check if target is within this line's visual rows
         if visual_row < current_visual_row + visual_rows {
@@ -768,7 +834,29 @@ pub(crate) fn visual_row_to_buffer_position_cached(
 
     // If we've exhausted all lines, return the last line
     let last_line = buffer.line_count().saturating_sub(1);
-    let last_line_len =
-        get_line_grapheme_count_cached(cache, buffer, last_line, content_width, use_smart_wrap);
+    let last_line_len = get_line_grapheme_count_cached(cache, buffer, last_line, layout);
     (last_line, 0, last_line_len, false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{column_at_row_offset, row_offset_columns};
+
+    #[test]
+    fn row_offsets_count_screen_columns_from_the_row_start() {
+        assert_eq!(row_offset_columns("\t\txy", 0, 3, 4), 9);
+        // Tab stops restart at the row start: grapheme 1 is the second tab.
+        assert_eq!(row_offset_columns("\t\txy", 1, 3, 4), 5);
+        assert_eq!(row_offset_columns("abc", 0, 9, 4), 3);
+    }
+
+    #[test]
+    fn a_row_offset_lands_on_the_grapheme_drawn_there() {
+        assert_eq!(column_at_row_offset("\t\txy", 0, 4, 9, 4), 3);
+        // Inside a tab: the tab itself.
+        assert_eq!(column_at_row_offset("\t\txy", 0, 4, 6, 4), 1);
+        // Past the end: the end, or the row's last column.
+        assert_eq!(column_at_row_offset("ab", 0, 2, 7, 4), 2);
+        assert_eq!(column_at_row_offset("abcdef", 2, 4, 9, 4), 4);
+    }
 }

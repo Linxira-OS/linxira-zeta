@@ -11,16 +11,19 @@
 // Internal modules
 pub mod app;
 pub mod cli_args;
-pub mod layout_session;
+pub mod layout_store;
+pub mod open_projects;
 pub mod panel_ext;
+pub mod projects_menu;
 pub mod state;
 mod state_operations;
 mod state_types;
 
 // Re-export main types for convenience
+pub use app::agent_panel::{run_agent_headless, web_browser_shown, HeadlessOutput};
 pub use app::App;
 pub use cli_args::{parse_positional_args, split_line_col, OpenedTarget};
-pub use layout_session::LayoutManagerSession;
+pub use layout_store::LayoutPersistence;
 pub use panel_ext::PanelExt;
 pub use state::AppState;
 
