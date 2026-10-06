@@ -1965,8 +1965,7 @@ export const en = {
 	deleteArmed: "Session delete armed — type /delete again to confirm (15s)",
 	deleteArmedFinal:
 		"Session delete pending — the next /delete within 15s removes this session (recoverable via /trash)",
-	deleteRelayProtected:
-		"This is the Zeta Bot Relay coordinator session (the IM channel hub); it cannot be deleted",
+	deleteRelayProtected: "This is the Zeta Bot Relay coordinator session (the IM channel hub); it cannot be deleted",
 	trashEmpty: "Session trash is empty",
 	trashHeaderFmt: "Session trash — %s entries, newest first:",
 	trashEntryFmt: "%s. %s",

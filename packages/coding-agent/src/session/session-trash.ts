@@ -193,7 +193,11 @@ export async function moveSessionToTrash(
 		sessionFileName,
 		artifactsDirName: artifactsDir ? path.basename(artifactsDir) : null,
 	};
-	await fsp.writeFile(path.join(entryDir, TRASH_MANIFEST_FILENAME), `${JSON.stringify(manifest, null, "\t")}\n`, "utf8");
+	await fsp.writeFile(
+		path.join(entryDir, TRASH_MANIFEST_FILENAME),
+		`${JSON.stringify(manifest, null, "\t")}\n`,
+		"utf8",
+	);
 
 	logger.info("Session moved to trash", { sessionFile: resolved, trashEntry: entryDir });
 	return {
@@ -222,7 +226,11 @@ async function readManifest(entryDir: string): Promise<TrashManifest | null> {
 	try {
 		const raw = await fsp.readFile(path.join(entryDir, TRASH_MANIFEST_FILENAME), "utf8");
 		const parsed = JSON.parse(raw) as TrashManifest;
-		if (parsed?.version !== 1 || typeof parsed.originalPath !== "string" || typeof parsed.sessionFileName !== "string") {
+		if (
+			parsed?.version !== 1 ||
+			typeof parsed.originalPath !== "string" ||
+			typeof parsed.sessionFileName !== "string"
+		) {
 			return null;
 		}
 		return parsed;
@@ -264,7 +272,10 @@ export async function listTrashSessions(options?: { trashDir?: string }): Promis
  * transcript path is taken again, the restore lands next to it as
  * `<base>.restored-<timestamp>.jsonl` (artifacts follow the same suffix).
  */
-export async function restoreSessionFromTrash(entry: TrashEntry, options?: { now?: Date }): Promise<RestoreTrashResult> {
+export async function restoreSessionFromTrash(
+	entry: TrashEntry,
+	options?: { now?: Date },
+): Promise<RestoreTrashResult> {
 	const manifest = entry.manifest;
 	const originalDir = path.dirname(manifest.originalPath);
 	await fsp.mkdir(originalDir, { recursive: true });

@@ -165,7 +165,9 @@ describe("sweepExpiredTrash", () => {
 		await fsp.mkdir(orphan, { recursive: true });
 		// Backdate far past any retention window.
 		await fsp.utimes(orphan, new Date(0), new Date(0));
-		expect(await sweepExpiredTrash({ trashDir, retentionDays: 30, now: Date.parse("2026-10-06T00:00:00.000Z") })).toBe(1);
+		expect(
+			await sweepExpiredTrash({ trashDir, retentionDays: 30, now: Date.parse("2026-10-06T00:00:00.000Z") }),
+		).toBe(1);
 		expect(fs.existsSync(orphan)).toBe(false);
 	});
 });

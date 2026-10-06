@@ -53,7 +53,9 @@ async function formatTrashListing(): Promise<string> {
 	const lines = [M.trashHeaderFmt.replace("%s", String(entries.length))];
 	entries.forEach((entry, index) => {
 		lines.push(
-			M.trashEntryFmt.replace("%s", String(index + 1)).replace("%s", entry.manifest.title ?? entry.manifest.sessionId),
+			M.trashEntryFmt
+				.replace("%s", String(index + 1))
+				.replace("%s", entry.manifest.title ?? entry.manifest.sessionId),
 		);
 		lines.push(
 			`   ${M.trashEntryMetaFmt
