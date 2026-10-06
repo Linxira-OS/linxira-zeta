@@ -2168,7 +2168,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				maxRunningJobs: () => Math.min(100, cfgAsyncMaxJobs.get(settings)),
 			});
 
-	const scopedAsyncJobManager = asyncJobManager ?? options.asyncJobManager;
+	// Subagents bind the live singleton: the spawning session installed its own
+	// manager there (and the test executor installs the shared one), so a kept-
+	// alive child's wake turns register owner-routed jobs on the SAME manager the
+	// parent's delivery sink listens on (upstream #14428). Without this the child
+	// session has no manager and a focused manual prompt's accepted yield never
+	// reaches the parent.
+	const scopedAsyncJobManager =
+		asyncJobManager ?? options.asyncJobManager ?? (options.parentTaskPrefix ? AsyncJobManager.instance() : undefined);
 
 	const agentRegistry = options.agentRegistry ?? AgentRegistry.global();
 	const resolvedAgentId = options.agentId ?? options.parentTaskPrefix ?? MAIN_AGENT_ID;
