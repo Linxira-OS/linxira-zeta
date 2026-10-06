@@ -512,6 +512,13 @@ export const enLocale: LocalePlugin = {
 		"chat.recall": "Recall to input",
 		"chat.close": "Close",
 		"chat.confirm": "Confirm",
+		"chat.deleteNoSession": "No active session to delete",
+		"chat.deleteArmed": "Session delete armed — type /delete again to confirm (15s)",
+		"chat.deleteArmedFinal":
+			"Session delete pending — the next /delete within 15s removes this session (recoverable via trash)",
+		"chat.deleteRelayProtected":
+			"This is the Zeta Bot Relay coordinator session (the IM channel hub); it cannot be deleted",
+		"chat.deleteDone": "Session deleted (moved to trash)",
 		"chat.submit": "Submit",
 		"chat.extension-request": "extension request",
 		"chat.extension-input": "Extension terminal input",

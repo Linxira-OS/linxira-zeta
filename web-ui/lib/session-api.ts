@@ -34,11 +34,34 @@ export async function renameSession(id: string, name: string): Promise<void> {
   if (!res.ok) throw new Error(`rename session: HTTP ${res.status}`);
 }
 
+/**
+ * Error thrown when the gateway refuses a mutation. `code` carries the
+ * gateway's machine code (e.g. "relay-protected") so callers can localize.
+ */
+export class SessionApiError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "SessionApiError";
+    this.code = code;
+  }
+}
+
 export async function deleteSession(id: string): Promise<void> {
   const res = await fetch(`/api/sessions/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error(`delete session: HTTP ${res.status}`);
+  if (!res.ok) {
+    let code: string | undefined;
+    try {
+      const body = (await res.json()) as { code?: string };
+      code = body.code;
+    } catch {
+      // non-JSON error body — fall through with the status line
+    }
+    throw new SessionApiError(`delete session: HTTP ${res.status}`, code);
+  }
 }
 
 /** Delete several sessions; failures reject with the first error. */
