@@ -829,8 +829,8 @@ describe("computer prelude", () => {
 		const emitted: unknown[] = [];
 		const context = { session, toolCallId: "zoom-js" };
 		const realm = createContext({
-			__omp_display__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_display__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				emitted.push(...result.content);
 				return {
@@ -1670,8 +1670,8 @@ describe("expanded computer APIs", () => {
 		const context = { session, toolCallId: "expanded-js" };
 		const images: unknown[] = [];
 		const realm = createContext({
-			__omp_display__: () => {},
-			__omp_prelude__: async (_name: string, parameters: unknown) => {
+			__zeta_display__: () => {},
+			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				images.push(...result.content.filter(block => block.type === "image"));
 				return { details: result.details };
