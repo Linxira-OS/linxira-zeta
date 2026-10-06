@@ -5,9 +5,7 @@
 //! handling reads the toggles, the settings overlay writes through
 //! [`update`](update) (which persists immediately).
 
-use std::fmt;
-use std::path::PathBuf;
-use std::sync::RwLock;
+use std::{fmt, path::PathBuf, sync::RwLock};
 
 /// Which shell new panes spawn. `Auto` follows the detected chain
 /// (Windows PowerShell → PowerShell 7 → Git Bash → cmd); the pins select
@@ -67,32 +65,32 @@ impl fmt::Display for ShellChoice {
 /// The persisted workbench preferences.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
-	pub shell: ShellChoice,
+	pub shell:               ShellChoice,
 	/// Border-drag resize, pane swap/move, tab reorder (the drag layer).
-	pub drag: bool,
+	pub drag:                bool,
 	/// Hovering a pane focuses it, no click needed.
 	pub focus_follows_mouse: bool,
 	/// Ask before closing a pane/tab that runs child processes (zetacode,
 	/// vim, …). Off closes everything without asking.
-	pub close_confirmation: bool,
+	pub close_confirmation:  bool,
 }
 
 impl Default for Settings {
 	fn default() -> Self {
 		Self {
-			shell: ShellChoice::Auto,
-			drag: true,
+			shell:               ShellChoice::Auto,
+			drag:                true,
 			focus_follows_mouse: false,
-			close_confirmation: true,
+			close_confirmation:  true,
 		}
 	}
 }
 
 static SETTINGS: RwLock<Settings> = RwLock::new(Settings {
-	shell: ShellChoice::Auto,
-	drag: true,
+	shell:               ShellChoice::Auto,
+	drag:                true,
 	focus_follows_mouse: false,
-	close_confirmation: true,
+	close_confirmation:  true,
 });
 
 /// Load the settings file into the global. Called once at startup; a
@@ -168,11 +166,10 @@ fn save_to(path: &std::path::Path, settings: Settings) -> std::io::Result<()> {
 		std::fs::create_dir_all(dir)?;
 	}
 	let text = format!(
-		"# zeta workbench settings — hand-edited values are overwritten by the Settings surface\n\
-		 shell = \"{}\"          # auto | powershell | pwsh | git-bash\n\
-		 drag = {}\n\
-		 focus_follows_mouse = {}\n\
-		 close_confirmation = {}          # ask before closing panes that run programs\n",
+		"# zeta workbench settings — hand-edited values are overwritten by the Settings \
+		 surface\nshell = \"{}\"          # auto | powershell | pwsh | git-bash\ndrag = \
+		 {}\nfocus_follows_mouse = {}\nclose_confirmation = {}          # ask before closing panes \
+		 that run programs\n",
 		settings.shell.key(),
 		settings.drag,
 		settings.focus_follows_mouse,
@@ -189,10 +186,10 @@ mod tests {
 	fn roundtrips_through_the_file_format() {
 		let path = std::env::temp_dir().join(format!("zeta-settings-{}.toml", std::process::id()));
 		let original = Settings {
-			shell: ShellChoice::Pwsh,
-			drag: false,
+			shell:               ShellChoice::Pwsh,
+			drag:                false,
 			focus_follows_mouse: true,
-			close_confirmation: false,
+			close_confirmation:  false,
 		};
 		save_to(&path, original).expect("save");
 		assert_eq!(load_from(&path), original, "every key survives a save/load roundtrip");

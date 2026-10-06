@@ -11,34 +11,34 @@ use crate::tab::PaneKind;
 pub struct SuiteTool {
 	/// Product name, as the menus spell it (full names: zeta-editor,
 	/// zeta-ide).
-	pub name: &'static str,
+	pub name:    &'static str,
 	/// PATH lookup candidates: the canonical bin first, private aliases
 	/// after. These are the bins the owning npm package actually installs.
-	pub bins: &'static [&'static str],
+	pub bins:    &'static [&'static str],
 	/// Owning npm package; non-npm tools carry their upstream package name.
 	pub package: &'static str,
 	/// The workbench pane that runs this tool.
-	pub kind: PaneKind,
+	pub kind:    PaneKind,
 }
 
 pub const SUITE: &[SuiteTool] = &[
 	SuiteTool {
-		name: "zetacode (coding CLI)",
-		bins: &["zetacode", "zeta-c", "zeta-cli"],
+		name:    "zetacode (coding CLI)",
+		bins:    &["zetacode", "zeta-c", "zeta-cli"],
 		package: "@linxiraos/zeta",
-		kind: PaneKind::Agent,
+		kind:    PaneKind::Agent,
 	},
 	SuiteTool {
-		name: "zetaeditor (TTT)",
-		bins: &["zetaeditor", "zeta-editor", "zeta-e"],
+		name:    "zetaeditor (TTT)",
+		bins:    &["zetaeditor", "zeta-editor", "zeta-e"],
 		package: "@linxiraos/editor",
-		kind: PaneKind::Editor,
+		kind:    PaneKind::Editor,
 	},
 	SuiteTool {
-		name: "zetaide (TermIDE)",
-		bins: &["zetaide", "zeta-ide", "zeta-i"],
+		name:    "zetaide (TermIDE)",
+		bins:    &["zetaide", "zeta-ide", "zeta-i"],
 		package: "@linxiraos/ide",
-		kind: PaneKind::Ide,
+		kind:    PaneKind::Ide,
 	},
 ];
 
@@ -117,7 +117,8 @@ pub fn doctor() -> String {
 		}
 	}
 	out.push_str(&format!(
-		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/E/I opens an install pane; Tools ▸ Install missing\n  fills every gap at once.\n",
+		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/E/I opens an install \
+		 pane; Tools ▸ Install missing\n  fills every gap at once.\n",
 		SUITE.len() - missing,
 		SUITE.len()
 	));

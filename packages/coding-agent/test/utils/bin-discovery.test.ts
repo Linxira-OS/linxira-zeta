@@ -50,7 +50,6 @@ describe("bin-discovery", () => {
 			};
 			const explicitHit = mk("explicit", `zeta-ide${EXT}`);
 			const pathHit = mk("path", `zeta-ide${EXT}`);
-			mk("npm", `zeta-ide${EXT}`);
 			const aliasHit = mk("path", `zetaide${EXT}`);
 
 			const env = {
@@ -75,9 +74,14 @@ describe("bin-discovery", () => {
 				}),
 			).toBe(aliasHit);
 
-			// Tier ② empty → npm-form dirs.
+			// Tier ② empty → npm-form dirs. The stub must live in the
+			// platform-derived dir (win: %APPDATA%\npm, posix: ~/.bun/bin).
+			const npmDir = path.join(root, IS_WIN ? "npm" : path.join(".bun", "bin"));
+			const npmHit = path.join(npmDir, `zeta-ide${EXT}`);
+			fs.mkdirSync(npmDir, { recursive: true });
+			fs.writeFileSync(npmHit, "");
 			expect(discoverBin(["zeta-ide"], { env: { APPDATA: root, HOME: root }, exists: c => fs.existsSync(c) })).toBe(
-				path.join(root, IS_WIN ? "npm" : ".bun/bin", `zeta-ide${EXT}`),
+				npmHit,
 			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });

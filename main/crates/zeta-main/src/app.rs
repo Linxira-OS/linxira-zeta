@@ -1,22 +1,27 @@
-use crate::help;
-use crate::layout::{Axis, PaneNode, Side};
-use crate::tab::{PaneClose, PaneKind, Tab, pane_close_target};
-use crate::tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate};
-use crate::widgets::{self, WidgetState};
+use std::{io::Stdout, time::Duration};
+
 use anyhow::Result;
 use crossterm::event::{
 	self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind,
 };
-use ratatui::Terminal as RatuTerminal;
-use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
-use std::io::Stdout;
-use std::time::Duration;
+use ratatui::{
+	Terminal as RatuTerminal,
+	backend::CrosstermBackend,
+	layout::{Constraint, Layout, Rect},
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+	widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
+};
 use termide_core::{KeyChord, Panel, PanelConfig, PanelEvent, RenderContext, ThemeColors};
 use termide_keyboard::{KeyNormalizer, KeyboardCaps};
+
+use crate::{
+	help,
+	layout::{Axis, PaneNode, Side},
+	tab::{PaneClose, PaneKind, Tab, pane_close_target},
+	tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate},
+	widgets::{self, WidgetState},
+};
 
 /// `a, b, c … +2` — the busy list a confirm dialog shows, capped so the
 /// box stays one line.
@@ -57,9 +62,9 @@ fn render_confirm_box(frame: &mut ratatui::Frame, area: Rect, message: &str) {
 		.style(Style::default().fg(Color::Yellow));
 	frame.render_widget(block, rect);
 	let inner = Rect {
-		x: rect.x + 1,
-		y: rect.y + 1,
-		width: rect.width.saturating_sub(2),
+		x:      rect.x + 1,
+		y:      rect.y + 1,
+		width:  rect.width.saturating_sub(2),
 		height: rect.height.saturating_sub(2),
 	};
 	frame.render_widget(Paragraph::new(truncate(message, inner.width as usize)), inner);
@@ -73,18 +78,18 @@ fn render_confirm_box(frame: &mut ratatui::Frame, area: Rect, message: &str) {
 /// Colorless theme: inherit the terminal's own colors wherever possible.
 fn plain_theme() -> termide_theme::Theme {
 	termide_theme::Theme {
-		name: "zeta-plain",
-		bg: Color::Reset,
-		fg: Color::Reset,
+		name:        "zeta-plain",
+		bg:          Color::Reset,
+		fg:          Color::Reset,
 		accented_bg: Color::Reset,
 		accented_fg: Color::White,
 		selected_bg: Color::DarkGray,
 		selected_fg: Color::White,
-		disabled: Color::DarkGray,
-		success: Color::Green,
-		warning: Color::Yellow,
-		error: Color::Red,
-		is_light: Some(false),
+		disabled:    Color::DarkGray,
+		success:     Color::Green,
+		warning:     Color::Yellow,
+		error:       Color::Red,
+		is_light:    Some(false),
 	}
 }
 
@@ -143,37 +148,37 @@ enum Overlay {
 
 /// The workspace: menu row, tab row, and a tree of panes per tab.
 pub struct Workspace {
-	tabs: Vec<Tab>,
-	active_tab: usize,
-	normalizer: KeyNormalizer,
-	theme: termide_theme::Theme,
-	config: std::sync::Arc<termide_config::Config>,
-	help_open: bool,
-	doctor_open: bool,
-	settings_open: bool,
-	notice: Option<String>,
+	tabs:            Vec<Tab>,
+	active_tab:      usize,
+	normalizer:      KeyNormalizer,
+	theme:           termide_theme::Theme,
+	config:          std::sync::Arc<termide_config::Config>,
+	help_open:       bool,
+	doctor_open:     bool,
+	settings_open:   bool,
+	notice:          Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
-	hits: Vec<(Rect, Hit)>,
+	hits:            Vec<(Rect, Hit)>,
 	/// (pane id, rect) of the active tab from the last frame.
 	last_pane_areas: Vec<(usize, Rect)>,
 	/// The pane canvas from the last frame (between the chrome and the
 	/// dock/status rows) — the resize baseline, identical to what was drawn.
-	last_content: Rect,
-	open_menu: Option<usize>,
+	last_content:    Rect,
+	open_menu:       Option<usize>,
 	/// Menu trigger boxes from the last frame, for dropdown placement.
-	menu_boxes: Vec<(u16, u16)>,
-	drag: Option<Drag>,
-	last_frame: Rect,
-	widgets: WidgetState,
+	menu_boxes:      Vec<(u16, u16)>,
+	drag:            Option<Drag>,
+	last_frame:      Rect,
+	widgets:         WidgetState,
 	/// Pending close awaiting confirmation of busy panes (Yes replays it).
-	confirm: Option<ConfirmClose>,
+	confirm:         Option<ConfirmClose>,
 }
 
 /// A close the user still has to confirm: which panes are busy, and what
 /// executes on Yes.
 struct ConfirmClose {
 	message: String,
-	action: PendingClose,
+	action:  PendingClose,
 }
 
 enum PendingClose {
@@ -240,24 +245,24 @@ impl Workspace {
 		let cwd = launch_cwd();
 		let first = Tab::new_shell(cwd)?;
 		Ok(Self {
-			tabs: vec![first],
-			active_tab: 0,
-			normalizer: KeyNormalizer::new(KeyboardCaps::default()),
-			theme: plain_theme(),
-			config: std::sync::Arc::new(termide_config::Config::default()),
-			help_open: false,
-			doctor_open: false,
-			settings_open: false,
-			notice: None,
-			hits: Vec::new(),
+			tabs:            vec![first],
+			active_tab:      0,
+			normalizer:      KeyNormalizer::new(KeyboardCaps::default()),
+			theme:           plain_theme(),
+			config:          std::sync::Arc::new(termide_config::Config::default()),
+			help_open:       false,
+			doctor_open:     false,
+			settings_open:   false,
+			notice:          None,
+			hits:            Vec::new(),
 			last_pane_areas: Vec::new(),
-			last_content: Rect::default(),
-			open_menu: None,
-			menu_boxes: Vec::new(),
-			drag: None,
-			last_frame: Rect::default(),
-			widgets: WidgetState::default(),
-			confirm: None,
+			last_content:    Rect::default(),
+			open_menu:       None,
+			menu_boxes:      Vec::new(),
+			drag:            None,
+			last_frame:      Rect::default(),
+			widgets:         WidgetState::default(),
+			confirm:         None,
 		})
 	}
 
@@ -760,9 +765,9 @@ impl Workspace {
 					return false;
 				};
 				let inner = Rect {
-					x: area.x + 1,
-					y: area.y + 1,
-					width: area.width.saturating_sub(2),
+					x:      area.x + 1,
+					y:      area.y + 1,
+					width:  area.width.saturating_sub(2),
 					height: area.height.saturating_sub(2),
 				};
 				let position = ratatui::layout::Position { x: mouse.column, y: mouse.row };
@@ -888,10 +893,10 @@ impl Workspace {
 				if mouse.row <= 1 {
 					if let Some(pane) = self.active().take_pane(from) {
 						self.tabs.push(Tab {
-							panes: vec![pane],
+							panes:     vec![pane],
 							minimized: Vec::new(),
-							active: 0,
-							tree: PaneNode::single(0),
+							active:    0,
+							tree:      PaneNode::single(0),
 						});
 						self.active_tab = self.tabs.len() - 1;
 					}
@@ -1135,7 +1140,7 @@ impl Workspace {
 		};
 		Some(ConfirmClose {
 			message: format!("`{name}` is running a program — {what}"),
-			action: PendingClose::Pane(pane_index),
+			action:  PendingClose::Pane(pane_index),
 		})
 	}
 
@@ -1202,7 +1207,7 @@ impl Workspace {
 		};
 		self.confirm = Some(ConfirmClose {
 			message: format!("{} — close the tab anyway?", summarize_busy(&names)),
-			action: PendingClose::Tab,
+			action:  PendingClose::Tab,
 		});
 		true
 	}
@@ -1223,7 +1228,7 @@ impl Workspace {
 		}
 		self.confirm = Some(ConfirmClose {
 			message: format!("{} — quit anyway?", summarize_busy(&names)),
-			action: PendingClose::Quit,
+			action:  PendingClose::Quit,
 		});
 		true
 	}
@@ -1387,9 +1392,9 @@ impl Workspace {
 					continue;
 				};
 				let pre_inner = Rect {
-					x: area.x + 1,
-					y: area.y + 1,
-					width: area.width.saturating_sub(2).max(1),
+					x:      area.x + 1,
+					y:      area.y + 1,
+					width:  area.width.saturating_sub(2).max(1),
 					height: area.height.saturating_sub(2).max(1),
 				};
 				let is_widget = pane.is_widget();
@@ -1439,10 +1444,9 @@ impl Workspace {
 				const CONTROLS: &str = " +  ↔  ↕  –  ✕ ";
 				let controls_w = Span::raw(CONTROLS).width() as u16;
 				let controls_x = area.right().saturating_sub(controls_w + 1);
-				push_deferred(
-					Rect { x: controls_x, y: area.y, width: 3, height: 1 },
-					Hit::PagePlus { pane: pane_id },
-				);
+				push_deferred(Rect { x: controls_x, y: area.y, width: 3, height: 1 }, Hit::PagePlus {
+					pane: pane_id,
+				});
 				push_deferred(
 					Rect { x: controls_x + 3, y: area.y, width: 3, height: 1 },
 					Hit::SplitRow { pane: pane_id },
@@ -1460,15 +1464,20 @@ impl Workspace {
 					Hit::PageClose { pane: pane_id },
 				);
 				for (idx, (x, w)) in page_boxes.iter().enumerate() {
-					push_deferred(
-						Rect { x: *x, y: area.y, width: *w, height: 1 },
-						Hit::PageTab { pane: pane_id, page: idx },
-					);
+					push_deferred(Rect { x: *x, y: area.y, width: *w, height: 1 }, Hit::PageTab {
+						pane: pane_id,
+						page: idx,
+					});
 				}
 				let left_end = page_boxes.last().map(|(x, w)| x + w).unwrap_or(area.x + 1);
 				if controls_x > left_end {
 					push_deferred(
-						Rect { x: left_end, y: area.y, width: controls_x - left_end, height: 1 },
+						Rect {
+							x:      left_end,
+							y:      area.y,
+							width:  controls_x - left_end,
+							height: 1,
+						},
 						Hit::PaneTitle { pane: pane_id },
 					);
 				}
@@ -1509,13 +1518,13 @@ impl Workspace {
 				}
 				let colors = ThemeColors::from(&self.theme);
 				let ctx = RenderContext {
-					theme: &colors,
-					config: &panel_config,
-					is_focused: focused,
-					panel_index: pane_id,
-					terminal_width: size.width,
+					theme:           &colors,
+					config:          &panel_config,
+					is_focused:      focused,
+					panel_index:     pane_id,
+					terminal_width:  size.width,
 					terminal_height: size.height,
-					border_right_x: Some(area.right().saturating_sub(1)),
+					border_right_x:  Some(area.right().saturating_sub(1)),
 					border_bottom_y: Some(area.bottom().saturating_sub(1)),
 				};
 				// A pane whose pages were all reaped this tick (child exit)
@@ -1554,15 +1563,15 @@ impl Workspace {
 				let (right, bottom) = (a.right().min(b.right()), a.bottom().min(b.bottom()));
 				let bar = match axis {
 					Axis::Row => Rect {
-						x: a.right().saturating_sub(1),
-						y: top,
-						width: 2,
+						x:      a.right().saturating_sub(1),
+						y:      top,
+						width:  2,
 						height: bottom.saturating_sub(top),
 					},
 					Axis::Column => Rect {
-						x: left,
-						y: a.bottom().saturating_sub(1),
-						width: right.saturating_sub(left),
+						x:      left,
+						y:      a.bottom().saturating_sub(1),
+						width:  right.saturating_sub(left),
 						height: 2,
 					},
 				};
@@ -1619,10 +1628,9 @@ impl Workspace {
 				let label = format!(" ▢ {} ", self.tabs[self.active_tab].minimized[slot].label());
 				let width = Span::raw(label.clone()).width() as u16;
 				spans.push(Span::styled(label, Style::default().fg(Color::White)));
-				self.push_hit(
-					Rect { x: cursor, y: rows[3].y, width, height: 1 },
-					Hit::DockChip { slot },
-				);
+				self.push_hit(Rect { x: cursor, y: rows[3].y, width, height: 1 }, Hit::DockChip {
+					slot,
+				});
 				cursor += width;
 			}
 			frame.render_widget(
@@ -1707,11 +1715,13 @@ impl Workspace {
 			let value = |on: bool| if on { "on" } else { "off" };
 			let rows = [
 				format!(
-					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git bash)",
+					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git \
+					 bash)",
 					s.shell.label()
 				),
 				format!(
-					" drag                 {:<9}  ← click to toggle (border resize · pane swap · tab reorder)",
+					" drag                 {:<9}  ← click to toggle (border resize · pane swap · tab \
+					 reorder)",
 					value(s.drag)
 				),
 				format!(" focus follows mouse  {:<9}  ← click to toggle", value(s.focus_follows_mouse)),
@@ -1740,9 +1750,9 @@ impl Workspace {
 			for (idx, _) in rows.iter().enumerate() {
 				self.push_hit(
 					Rect {
-						x: area.x + 1,
-						y: area.y + 1 + idx as u16,
-						width: area.width.saturating_sub(2),
+						x:      area.x + 1,
+						y:      area.y + 1 + idx as u16,
+						width:  area.width.saturating_sub(2),
 						height: 1,
 					},
 					Hit::SettingRow(idx),
@@ -1777,33 +1787,33 @@ fn drop_side(rect: Rect, column: u16, row: u16) -> Option<Side> {
 fn drop_zone_rect(rect: Rect, column: u16, row: u16) -> Option<Rect> {
 	match drop_side(rect, column, row) {
 		Some(Side::Left) => Some(Rect {
-			x: rect.x + 1,
-			y: rect.y + 1,
-			width: rect.width / 4,
+			x:      rect.x + 1,
+			y:      rect.y + 1,
+			width:  rect.width / 4,
 			height: rect.height.saturating_sub(2),
 		}),
 		Some(Side::Right) => Some(Rect {
-			x: rect.right().saturating_sub(1 + rect.width / 4),
-			y: rect.y + 1,
-			width: rect.width / 4,
+			x:      rect.right().saturating_sub(1 + rect.width / 4),
+			y:      rect.y + 1,
+			width:  rect.width / 4,
 			height: rect.height.saturating_sub(2),
 		}),
 		Some(Side::Top) => Some(Rect {
-			x: rect.x + 1,
-			y: rect.y + 1,
-			width: rect.width.saturating_sub(2),
+			x:      rect.x + 1,
+			y:      rect.y + 1,
+			width:  rect.width.saturating_sub(2),
 			height: rect.height / 4,
 		}),
 		Some(Side::Bottom) => Some(Rect {
-			x: rect.x + 1,
-			y: rect.bottom().saturating_sub(1 + rect.height / 4),
-			width: rect.width.saturating_sub(2),
+			x:      rect.x + 1,
+			y:      rect.bottom().saturating_sub(1 + rect.height / 4),
+			width:  rect.width.saturating_sub(2),
 			height: rect.height / 4,
 		}),
 		None => Some(Rect {
-			x: rect.x + 1,
-			y: rect.y + 1,
-			width: rect.width.saturating_sub(2),
+			x:      rect.x + 1,
+			y:      rect.y + 1,
+			width:  rect.width.saturating_sub(2),
 			height: rect.height.saturating_sub(2),
 		}),
 	}
@@ -1846,10 +1856,10 @@ fn count_leaves(node: &PaneNode) -> usize {
 
 fn clone_layout(layout: &crate::tabs_ui::TabLayout) -> crate::tabs_ui::TabLayout {
 	crate::tabs_ui::TabLayout {
-		prev: layout.prev,
-		tabs: layout.tabs.clone(),
+		prev:         layout.prev,
+		tabs:         layout.tabs.clone(),
 		active_close: layout.active_close,
-		next: layout.next,
-		plus: layout.plus,
+		next:         layout.next,
+		plus:         layout.plus,
 	}
 }

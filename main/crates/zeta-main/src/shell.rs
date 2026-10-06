@@ -15,10 +15,12 @@
 //! then the npm/native global-bin directories a GUI-spawned process may be
 //! missing, with `where.exe` as the Windows final word.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Mutex, OnceLock};
+use std::{
+	collections::HashMap,
+	path::{Path, PathBuf},
+	process::Command,
+	sync::{Mutex, OnceLock},
+};
 
 /// The behavior family of a shell: how it parses command lines and quotes
 /// paths.
@@ -36,7 +38,7 @@ pub enum ShellFlavor {
 /// A spawnable shell: its full path plus the behavior family.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Shell {
-	pub path: PathBuf,
+	pub path:   PathBuf,
 	pub flavor: ShellFlavor,
 }
 
@@ -101,7 +103,7 @@ fn as_shell(path: PathBuf) -> Option<Shell> {
 
 /// Platform probes, injectable so tests can fake the machine.
 pub struct Probes<'a> {
-	pub env: &'a dyn Fn(&str) -> Option<String>,
+	pub env:    &'a dyn Fn(&str) -> Option<String>,
 	pub where_: &'a dyn Fn(&str) -> Option<String>,
 	pub exists: &'a dyn Fn(&Path) -> bool,
 }
@@ -198,7 +200,7 @@ fn chain_unix(p: &Probes) -> Vec<Shell> {
 
 fn real_probes() -> Probes<'static> {
 	Probes {
-		env: &|name: &str| std::env::var(name).ok(),
+		env:    &|name: &str| std::env::var(name).ok(),
 		where_: &|bin: &str| {
 			let output = Command::new("where.exe").arg(bin).output().ok()?;
 			if !output.status.success() {
@@ -371,7 +373,8 @@ fn where_all(bin: &str) -> Vec<PathBuf> {
 /// PATH hits are used directly; no cross-component version validation
 /// happens at any tier (distro-managed natives win exactly as installed).
 pub fn resolve_bin_candidates(names: &[&str]) -> Vec<PathBuf> {
-	let mut found = resolve_bin_candidates_in(names, &path_dirs(), &explicit_bin_dirs(), &npm_fallback_dirs());
+	let mut found =
+		resolve_bin_candidates_in(names, &path_dirs(), &explicit_bin_dirs(), &npm_fallback_dirs());
 	if found.is_empty() && cfg!(windows) {
 		for name in names {
 			found.extend(where_all_cached(name));
@@ -564,16 +567,17 @@ fn powershell_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::collections::HashSet;
+
+	use super::*;
 
 	// Probe-building helper for the chain tests; its consumers are
 	// `#[cfg(windows)]` tests, so non-Windows builds see it as dead code.
 	#[allow(dead_code)]
 	struct Fake {
-		env: HashMap<&'static str, String>,
+		env:    HashMap<&'static str, String>,
 		where_: HashMap<&'static str, String>,
-		paths: HashSet<&'static str>,
+		paths:  HashSet<&'static str>,
 	}
 
 	#[allow(dead_code)]
@@ -581,18 +585,22 @@ mod tests {
 		fn new() -> Self {
 			Self { env: HashMap::new(), where_: HashMap::new(), paths: HashSet::new() }
 		}
+
 		fn with_env(mut self, key: &'static str, value: &str) -> Self {
 			self.env.insert(key, value.to_string());
 			self
 		}
+
 		fn with_where(mut self, bin: &'static str, hit: &str) -> Self {
 			self.where_.insert(bin, hit.to_string());
 			self
 		}
+
 		fn with_paths(mut self, paths: &[&'static str]) -> Self {
 			self.paths.extend(paths.iter().copied());
 			self
 		}
+
 		/// The Windows chain as this fake machine resolves it.
 		fn chain(&self) -> Vec<Shell> {
 			let env = |name: &str| self.env.get(name).cloned();
@@ -619,7 +627,8 @@ mod tests {
 
 	#[test]
 	fn quote_exec_powershell_call_operator_and_quote_doubling() {
-		let shell = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
+		let shell =
+			Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
 		assert_eq!(
 			shell.quote_exec(Path::new(r"C:\Program Files\App\zeta-c.ps1")),
 			r"& 'C:\Program Files\App\zeta-c.ps1'"
@@ -773,13 +782,21 @@ mod tests {
 
 	impl ProbeDir {
 		fn new(tag: &str) -> Self {
-			let root = std::env::temp_dir().join(format!("zeta-shell-disc-{tag}-{}", std::process::id()));
+			let root =
+				std::env::temp_dir().join(format!("zeta-shell-disc-{tag}-{}", std::process::id()));
 			std::fs::create_dir_all(&root).unwrap();
 			Self { root }
 		}
 
+		/// Writes the bin under the name the platform's candidate scan
+		/// probes first (`name.exe` on Windows, bare `name` elsewhere).
 		fn write(&self, name: &str) -> PathBuf {
-			let path = self.root.join(name);
+			let file = if cfg!(windows) {
+				format!("{name}.exe")
+			} else {
+				name.to_string()
+			};
+			let path = self.root.join(file);
 			std::fs::write(&path, b"").unwrap();
 			path
 		}
@@ -795,8 +812,8 @@ mod tests {
 	fn discovery_prefers_explicit_env_dir_over_path() {
 		let explicit = ProbeDir::new("explicit");
 		let on_path = ProbeDir::new("path");
-		let from_explicit = explicit.write("zeta-c.exe");
-		let from_path = on_path.write("zeta-c.exe");
+		let from_explicit = explicit.write("zeta-c");
+		let from_path = on_path.write("zeta-c");
 		// Candidates stay complete (callers may want every form), but the
 		// explicit-env hit must lead the PATH hit.
 		let found = resolve_bin_candidates_in(
@@ -812,16 +829,17 @@ mod tests {
 	fn discovery_path_hit_skips_npm_fallback() {
 		let on_path = ProbeDir::new("path-hit");
 		let npm = ProbeDir::new("npm-hit");
-		let from_path = on_path.write("zeta-c.exe");
-		npm.write("zeta-c.exe");
-		let found = resolve_bin_candidates_in(&["zeta-c"], &[on_path.root.clone()], &[], &[npm.root.clone()]);
+		let from_path = on_path.write("zeta-c");
+		npm.write("zeta-c");
+		let found =
+			resolve_bin_candidates_in(&["zeta-c"], &[on_path.root.clone()], &[], &[npm.root.clone()]);
 		assert_eq!(found, vec![from_path]);
 	}
 
 	#[test]
 	fn discovery_empty_path_falls_back_to_npm_dirs() {
 		let npm = ProbeDir::new("npm-fallback");
-		let from_npm = npm.write("zeta-c.exe");
+		let from_npm = npm.write("zeta-c");
 		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], &[npm.root.clone()]);
 		assert_eq!(found, vec![from_npm]);
 	}
@@ -836,8 +854,12 @@ mod tests {
 	fn explicit_bin_dirs_parser_ignores_unset_and_empty_entries() {
 		assert!(explicit_bin_dirs_from(None).is_empty());
 		assert!(explicit_bin_dirs_from(Some(std::ffi::OsStr::new(""))).is_empty());
-		let raw = std::env::join_paths([PathBuf::from(""), PathBuf::from("/opt/zeta/bin"), PathBuf::from("")])
-			.unwrap();
+		let raw = std::env::join_paths([
+			PathBuf::from(""),
+			PathBuf::from("/opt/zeta/bin"),
+			PathBuf::from(""),
+		])
+		.unwrap();
 		assert_eq!(explicit_bin_dirs_from(Some(&raw)), vec![PathBuf::from("/opt/zeta/bin")]);
 	}
 
@@ -860,16 +882,13 @@ mod tests {
 			&["", ".exe", ".ps1", ".cmd", ".bat"],
 			|path| path.is_file(),
 		);
-		assert_eq!(
-			found,
-			vec![
-				first.join("tool"),
-				first.join("tool.exe"),
-				first.join("tool.ps1"),
-				first.join("tool.cmd"),
-				second.join("tool.exe"),
-			]
-		);
+		assert_eq!(found, vec![
+			first.join("tool"),
+			first.join("tool.exe"),
+			first.join("tool.ps1"),
+			first.join("tool.cmd"),
+			second.join("tool.exe"),
+		]);
 		std::fs::remove_dir_all(&temp).ok();
 	}
 
@@ -882,14 +901,11 @@ mod tests {
 			Some(r"C:\Users\u\AppData\Local"),
 			Some(r"C:\Users\u"),
 		);
-		assert_eq!(
-			dirs,
-			vec![
-				PathBuf::from(r"C:\Users\u\AppData\Roaming\npm"),
-				PathBuf::from(r"C:\Users\u\AppData\Local\pnpm"),
-				PathBuf::from(r"C:\Users\u\.bun\bin"),
-			]
-		);
+		assert_eq!(dirs, vec![
+			PathBuf::from(r"C:\Users\u\AppData\Roaming\npm"),
+			PathBuf::from(r"C:\Users\u\AppData\Local\pnpm"),
+			PathBuf::from(r"C:\Users\u\.bun\bin"),
+		]);
 		assert!(augmented_windows_dirs(None, None, None).is_empty());
 	}
 

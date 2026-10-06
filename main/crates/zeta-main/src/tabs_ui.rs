@@ -4,47 +4,43 @@
 //! with what is on screen. The chrome carries no hotkey hints; keys live in
 //! the help overlay.
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::Widget;
+use ratatui::{
+	buffer::Buffer,
+	layout::Rect,
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+	widgets::Widget,
+};
 
 /// Top-level menus. `Settings` opens the settings surface (roadmap);
 /// `Help` shows the keymap overlay.
 pub const MENUS: &[(&str, &[&str])] = &[
 	("File", &["New tab", "Close tab", "Quit"]),
-	(
-		"Pane",
-		&[
-			"💻 Split shell",
-			"🤖 Split zetacode",
-			"📝 Split zetaeditor",
-			"🧩 Split zetaide",
-			"🕒 Time · calendar",
-			"🍅 Pomodoro",
-			"📋 Clipboard",
-			"➕ New subtab",
-			"🗕 Minimize pane",
-			"🗗 Move pane to new tab",
-			"❌ Close pane",
-		],
-	),
+	("Pane", &[
+		"💻 Split shell",
+		"🤖 Split zetacode",
+		"📝 Split zetaeditor",
+		"🧩 Split zetaide",
+		"🕒 Time · calendar",
+		"🍅 Pomodoro",
+		"📋 Clipboard",
+		"➕ New subtab",
+		"🗕 Minimize pane",
+		"🗗 Move pane to new tab",
+		"❌ Close pane",
+	]),
 	("Tab", &["Next tab", "Previous tab"]),
-	(
-		"Tools",
-		&[
-			"Layout single",
-			"Layout 1+2 (⅓|⅔)",
-			"Layout thirds",
-			"Layout T",
-			"Layout quad",
-			"Layout columns (⅓|⅔)",
-			"Equalize",
-			"Focus next pane",
-			"📦 Install missing",
-		],
-	),
+	("Tools", &[
+		"Layout single",
+		"Layout 1+2 (⅓|⅔)",
+		"Layout thirds",
+		"Layout T",
+		"Layout quad",
+		"Layout columns (⅓|⅔)",
+		"Equalize",
+		"Focus next pane",
+		"📦 Install missing",
+	]),
 	("Settings", &["Settings", "Suite status", "Help", "Toggle close confirmation"]),
 ];
 
@@ -90,7 +86,7 @@ impl Widget for MenuBar {
 /// A dropdown: items stacked under the trigger, rendered as the topmost
 /// layer. Item hit boxes come from [`item_rects`].
 pub struct MenuDropdown {
-	pub menu: usize,
+	pub menu:      usize,
 	pub trigger_x: u16,
 }
 
@@ -123,9 +119,9 @@ impl MenuDropdown {
 			.iter()
 			.enumerate()
 			.map(|(idx, _)| Rect {
-				x: rect.x + 1,
-				y: rect.y + 1 + idx as u16,
-				width: rect.width - 2,
+				x:      rect.x + 1,
+				y:      rect.y + 1 + idx as u16,
+				width:  rect.width - 2,
 				height: 1,
 			})
 			.collect()
@@ -180,13 +176,13 @@ impl Widget for MenuDropdown {
 /// Tab-row geometry shared by render and hit-testing. Labels shrink to fit —
 /// the collapse behavior for many tabs.
 pub struct TabLayout {
-	pub prev: (u16, u16),
+	pub prev:         (u16, u16),
 	/// (label drawn, x, width) per tab.
-	pub tabs: Vec<(String, u16, u16)>,
+	pub tabs:         Vec<(String, u16, u16)>,
 	/// Close box of the active tab, if the row fits it.
 	pub active_close: Option<(u16, u16)>,
-	pub next: (u16, u16),
-	pub plus: (u16, u16),
+	pub next:         (u16, u16),
+	pub plus:         (u16, u16),
 }
 
 #[cfg(test)]
@@ -270,7 +266,7 @@ impl Widget for TabBar {
 			*x += w;
 		};
 		put(&mut x, " ‹", dim);
-		for (idx, (label, _, _)) in layout.tabs.iter().enumerate() {
+		for (idx, (label, ..)) in layout.tabs.iter().enumerate() {
 			let style = if idx == self.active { active } else { dim };
 			put(&mut x, label, style);
 			if idx == self.active {

@@ -8,7 +8,7 @@
  * in a real child process — no mocks.
  */
 
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -33,13 +33,23 @@ function installStub(dir: string, name: string): string {
 
 /** System32 keeps Windows child processes able to load their DLLs. The
  * spread can carry both `Path` and `PATH` spellings; both must go, or the
- * child's env block keeps a duplicate whose value wins unpredictably. */
+ * child's env block keeps a duplicate whose value wins unpredictably.
+ * `BUN_INSTALL_CACHE_DIR` points at an empty dir so bun's global-cache
+ * package fallback can never satisfy the shim's vendored-leaf resolution
+ * from the CI machine's real cache (its leaf binaries are not executable,
+ * which would turn the die-state assertion into a spawn EACCES). */
 function envWith(overrides: Record<string, string | undefined>): Record<string, string | undefined> {
 	const base: Record<string, string | undefined> = { ...process.env };
 	delete base.PATH;
 	delete base.Path;
 	const defaultPath = IS_WIN ? "C:\\Windows\\System32" : "/usr/bin:/bin";
-	return { ...base, PATH: defaultPath, ZETA_BIN_DIR: undefined, ...overrides };
+	return {
+		...base,
+		PATH: defaultPath,
+		ZETA_BIN_DIR: undefined,
+		BUN_INSTALL_CACHE_DIR: cacheSandboxDir(),
+		...overrides,
+	};
 }
 
 interface RunResult {
@@ -62,8 +72,21 @@ async function runShim(shimPath: string, env: Record<string, string | undefined>
 	return done.promise;
 }
 
+/** Empty dir standing in for bun's global install cache (see envWith). */
+let cacheSandbox: string | undefined;
+function cacheSandboxDir(): string {
+	cacheSandbox ??= fs.mkdtempSync(path.join(os.tmpdir(), "zeta-shim-cache-sandbox-"));
+	return cacheSandbox;
+}
+
 describe("npm launcher shim discovery (e2e)", () => {
 	const cleanups: Array<() => void> = [];
+
+	afterAll(() => {
+		if (cacheSandbox) fs.rmSync(cacheSandbox, { recursive: true, force: true });
+		for (const fn of cleanups.splice(0)) fn();
+	});
+
 	function tempDir(prefix: string): string {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 		cleanups.push(() => fs.rmSync(dir, { recursive: true, force: true }));
