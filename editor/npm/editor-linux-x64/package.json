@@ -20,5 +20,8 @@
   "files": [
     "bin",
     "LICENSE"
-  ]
+  ],
+  "scripts": {
+    "postinstall": "node -e \"if(process.platform!=='win32'){try{require('fs').chmodSync(require('path').join('bin','ttt-linux-x64'),0o755)}catch(e){}}\""
+  }
 }
