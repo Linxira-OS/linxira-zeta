@@ -93,6 +93,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Composer: "输入编辑器",
 	Power: "电源",
 	Sharpshooter: "精确模式",
+	"Session Trash": "会话回收站",
 };
 
 /**
@@ -1109,6 +1110,26 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"edit.enforceSeenLines": {
 		label: "强制已见行保护",
 		description: "拒绝以先前 read/search 从未完整显示过的行作为锚点的编辑",
+	},
+	"session.trashRetentionDays": {
+		label: "回收站保留天数",
+		description:
+			"删除的会话在回收站（~/.zeta/trash/sessions）保留的天数，超过后自动清理。0 表示永久保留。可用 /trash 查看、/restore <序号> 找回。",
+	},
+	"session.trashRetentionDays::7": {
+		label: "7 天",
+	},
+	"session.trashRetentionDays::14": {
+		label: "14 天",
+	},
+	"session.trashRetentionDays::30": {
+		label: "30 天",
+	},
+	"session.trashRetentionDays::90": {
+		label: "90 天",
+	},
+	"session.trashRetentionDays::0": {
+		label: "永久保留",
 	},
 	readLineNumbers: {
 		label: "行号",
