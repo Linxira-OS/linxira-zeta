@@ -28,6 +28,25 @@ describe("Windows release binary target", () => {
 		expect(output).not.toContain("bun-windows-x64-modern");
 	});
 
+	it("builds the bare zeta-work/zeta-ide/zeta-editor release assets and skips the CLI bundle round-trip", async () => {
+		const result =
+			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-work-linux-x64,zeta-work-win-x64,zeta-ide-linux-x64,zeta-editor-linux-x64,zeta-editor-win-x64`
+				.cwd(repoRoot)
+				.quiet()
+				.nothrow();
+		expect(result.exitCode).toBe(0);
+		const output = result.text();
+
+		expect(output).toContain("DRY RUN cargo build --release --locked -p zeta-main [cwd main]");
+		expect(output).toContain("DRY RUN cargo build --release --locked -p termide [cwd termide]");
+		expect(output).toContain("DRY RUN go build ./cmd/ttt -> zeta-editor-linux-x64");
+		expect(output).toContain("DRY RUN go build ./cmd/ttt -> zeta-editor-win-x64");
+		// Product-only selections touch no generated state: no gen:stats /
+		// gen:native round-trip (the cargo/go release legs run without it).
+		expect(output).not.toContain("DRY RUN bun run gen:stats");
+		expect(output).not.toContain("DRY RUN bun run gen:native");
+	});
+
 	it("resolves local Windows cross-build aliases for both architectures", () => {
 		expect(resolveCrossBuild("win32-x64")).toEqual({
 			id: "win32-x64",

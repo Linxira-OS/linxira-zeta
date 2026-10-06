@@ -102,6 +102,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "primary zeta binary build/upload; feeds release_github checksums and installer assets",
 			},
 			{
+				job: "release_product_binaries",
+				why: "bare zeta-work/zeta-ide/zeta-editor binary build/upload for distribution repackaging; release_github preflight expects zeta-work-*/zeta-ide-*/zeta-editor-* assets",
+			},
+			{
 				job: "web_ui_build",
 				why: "Zeta-only web-ui pipeline job, absent upstream; silently lost in the squash-sync era (damage class 7)",
 			},
@@ -147,7 +151,14 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		needsEdges: [
 			{
 				job: "release_github",
-				needs: ["release_metadata", "release_gate", "release_binary", "desktop_linux", "desktop_windows"],
+				needs: [
+					"release_metadata",
+					"release_gate",
+					"release_binary",
+					"release_product_binaries",
+					"desktop_linux",
+					"desktop_windows",
+				],
 				why: "damage class 10: publishing before the desktop jobs upload yields 0 zeta-desktop-* installer assets",
 			},
 			{

@@ -910,6 +910,127 @@ jobs:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
 
+   # Bare native binaries of the non-CLI products (zeta-work workbench from
+   # the main/ workspace, zeta-ide from the vendored termide workspace,
+   # zeta-editor from the vendored TTT Go module), published as release
+   # assets for distribution repackaging: the asset file name is the target
+   # id and the Linxira pacman PKGBUILDs fetch it verbatim from
+   # releases/download/v<pkgver>/. Same artifact family as release_binary
+   # (zeta-binary-* names merged into the same release staging dir) so every
+   # asset enters SHA256SUMS.txt. No native-addon dependency — these products
+   # embed no node addons — so this job runs purely in parallel with the test
+   # fan-out. The cargo legs compile under each workspace's own
+   # rust-toolchain.toml pin (1.91.1, the same toolchain main_tests /
+   # termide_tests gate with). Windows assets cross-compile on the Linux
+   # runner like the zeta-cli win32-x64 leg: cargo via the GNU target (the
+   # same "Win GNU target" method the committed npm leaf binaries are
+   # rebuilt with, no Windows runner needed), editor via GOOS=windows.
+   release_product_binaries:
+      name: "Release product binary: ${{ matrix.target_id }}"
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() }}
+      needs: [release_metadata]
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+               - {
+                    os: ubuntu-22.04,
+                    platform: linux,
+                    toolchain: cargo,
+                    target_id: zeta-work-linux-x64,
+                    artifact: zeta-work-linux-x64,
+                 }
+               - {
+                    os: ubuntu-22.04,
+                    platform: win32,
+                    toolchain: cargo,
+                    target_id: zeta-work-win-x64,
+                    artifact: zeta-work-win-x64.exe,
+                 }
+               - {
+                    os: ubuntu-22.04,
+                    platform: linux,
+                    toolchain: cargo,
+                    target_id: zeta-ide-linux-x64,
+                    artifact: zeta-ide-linux-x64,
+                 }
+               - {
+                    os: ubuntu-22.04,
+                    platform: linux,
+                    toolchain: go,
+                    target_id: zeta-editor-linux-x64,
+                    artifact: zeta-editor-linux-x64,
+                 }
+               - {
+                    os: ubuntu-22.04,
+                    platform: win32,
+                    toolchain: go,
+                    target_id: zeta-editor-win-x64,
+                    artifact: zeta-editor-win-x64.exe,
+                 }
+      runs-on: ${{ matrix.os }}
+      permissions:
+         contents: read
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         # The build script statically imports the coding-agent compile
+         # helper, so the workspace install runs even though these legs
+         # never bundle the CLI.
+         - uses: ./.github/actions/bun-install
+         - name: Install mingw-w64 cross toolchain
+           if: matrix.toolchain == 'cargo' && matrix.platform == 'win32'
+           run: |
+              sudo apt-get update
+              # mingw-w64: GNU cross toolchain (linker + cc auto-detection);
+              # nasm: aws-lc-sys (pulled in by russh through the vendored
+              # termide crates) assembles its windows-gnu crypto sources.
+              sudo apt-get install -y --no-install-recommends mingw-w64 nasm
+         - uses: dtolnay/rust-toolchain@1.91.1
+           if: matrix.toolchain == 'cargo'
+           with:
+              components: rustfmt, clippy
+              targets: ${{ matrix.platform == 'win32' && 'x86_64-pc-windows-gnu' || 'x86_64-unknown-linux-gnu' }}
+         - uses: Swatinem/rust-cache@v2
+           if: matrix.toolchain == 'cargo'
+           with:
+              workspaces: ${{ matrix.target_id == 'zeta-ide-linux-x64' && 'termide' || 'main' }}
+         - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+           if: matrix.toolchain == 'go'
+           with:
+              go-version-file: editor/go.mod
+              cache-dependency-path: editor/go.sum
+         - name: Resolve product version stamp
+           if: matrix.toolchain == 'go'
+           id: product_version
+           env:
+              RELEASE_TAG: ${{ needs.release_metadata.outputs.release-tag }}
+           run: echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+         - name: Build release product binary
+           env:
+              RELEASE_TARGETS: ${{ matrix.target_id }}
+              # ttt --version stamp, same -X stamp the committed npm leaf
+              # binaries carry; cargo products stamp CARGO_PKG_VERSION.
+              RELEASE_PRODUCT_VERSION: ${{ steps.product_version.outputs.version }}
+              # GNU cross linker for the cargo win32 legs; unset (empty) on
+              # native Linux legs where cargo uses the default host linker.
+              CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: ${{ matrix.platform == 'win32' && 'x86_64-w64-mingw32-gcc' || '' }}
+           run: bun run ci:release:build-binaries
+         # Bare TUI products: --version short-circuits before any terminal
+         # setup (zeta/termide/ttt flag parse), so a bare runner probe is
+         # safe. Windows assets are cross-built — nothing on the Linux
+         # runner can exec them (same policy as the zeta-cli win32-x64 leg).
+         - name: Smoke release product binary
+           if: matrix.platform == 'linux'
+           run: |
+              runtime_dir="$(mktemp -d)"
+              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/${{ matrix.artifact }}" --version
+         - name: Upload release product binary artifact
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-binary-${{ matrix.target_id }}
+              path: packages/coding-agent/binaries/${{ matrix.artifact }}
+              if-no-files-found: error
+
    # Desktop shells (Electron embedding the standalone web-ui + a compiled
    # zeta runtime). They run on every CI event like the test fan-out: PR-side
    # they prove the pipeline compiles and smokes; at release the artifacts
@@ -1134,13 +1255,14 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
+         needs.release_product_binaries.result == 'success' &&
          needs.desktop_linux.result == 'success' &&
          needs.desktop_windows.result == 'success' &&
          !inputs.skip_npm }}
       # v1.1.18 damage class 10 recurrence: without the desktop deps this job
       # started while desktop builds were still running, found 0
       # zeta-desktop-* installers, and the validation aborted the release.
-      needs: [release_metadata, release_gate, release_binary, desktop_linux, desktop_windows]
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries, desktop_linux, desktop_windows]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1196,6 +1318,13 @@ jobs:
                 echo "::error::Expected at least 3 zeta-cli-* binaries, found $count"
                 missing=1
               fi
+              product_count=$(ls packages/coding-agent/binaries/zeta-work-* packages/coding-agent/binaries/zeta-ide-* packages/coding-agent/binaries/zeta-editor-* 2>/dev/null | wc -l)
+              if [ "$product_count" -lt 5 ]; then
+                # Product matrix: zeta-work linux+win, zeta-ide linux,
+                # zeta-editor linux+win (release_product_binaries).
+                echo "::error::Expected at least 5 zeta-work/zeta-ide/zeta-editor product binaries, found $product_count"
+                missing=1
+              fi
               desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
               if [ "$desktop_count" -lt 5 ]; then
                 # win32 zip+nsis-exe and linux tar.gz+deb+AppImage; macOS is
@@ -1211,6 +1340,9 @@ jobs:
            run: |
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
+                packages/coding-agent/binaries/zeta-work-* \
+                packages/coding-agent/binaries/zeta-ide-* \
+                packages/coding-agent/binaries/zeta-editor-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 temp/desktop/release/zeta-desktop-* \
                 LICENSE \
@@ -1222,6 +1354,9 @@ jobs:
               prerelease: ${{ needs.release_metadata.outputs.channel == 'canary' }}
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
+                 packages/coding-agent/binaries/zeta-work-*
+                 packages/coding-agent/binaries/zeta-ide-*
+                 packages/coding-agent/binaries/zeta-editor-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  temp/desktop/release/zeta-desktop-*
                  LICENSE
