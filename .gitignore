@@ -101,8 +101,9 @@ packages/coding-agent/bench/boot-baseline.json
 /bazel-oh-my-pi
 /.bazelrc.user
 
-# Local-only session handoff notes (never commit)
-HANDOFF.md
+# Local-only session handoff notes (never commit; anchored so vendored
+# termide assets (agent-core/assets/system/handoff.md) are NOT excluded)
+/HANDOFF.md
 
 # Agent / IDE local state (never commit)
 .mimosa/
