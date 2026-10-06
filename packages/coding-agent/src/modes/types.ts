@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
-import type { Component, Container, EditorTheme, Loader, TUI, Spacer, Text } from "@linxiraos/pi-tui";
+import type { Component, Container, EditorTheme, KeyId, Loader, TUI, Spacer, Text } from "@linxiraos/pi-tui";
 import type { TspText } from "@linxiraos/pi-wire";
 import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
 import type { CollabController } from "../collab/controller";
@@ -226,6 +226,7 @@ export interface InteractiveModeContext {
 	/** Record a message whose thinking content makes Ctrl+T meaningful even at thinking level "off"; returns true on first observation. */
 	noteDisplayableThinkingContent(message: AgentMessage): boolean;
 	proseOnlyThinking: boolean;
+	expandThinkingBlocks: boolean;
 	compactionQueuedMessages: CompactionQueuedMessage[];
 	/** Settled user/assistant components reusable across post-compaction transcript rebuilds. */
 	transcriptMessageComponents: WeakMap<AgentMessage, Component>;
@@ -347,7 +348,7 @@ export interface InteractiveModeContext {
 	applyPendingWorkingMessage(): void;
 	ensureLoadingAnimation(): void;
 	/** Interrupt key id for a maintenance working row's stop control; undefined while Esc would not cancel it. */
-	maintenanceInterruptKey(): string | undefined;
+	maintenanceInterruptKey(): KeyId | undefined;
 	/** A click on a working row's stop control: the interrupt key's handler. */
 	interruptFromPointer(): void;
 	/** Reconcile the idle "F5 to Retry" status row with the transcript tail. */

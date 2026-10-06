@@ -25,6 +25,9 @@ if "__zeta_prelude_loaded__" not in globals():
 
     def display(value):
         """Render a value. Falls back to a JSON+text/plain bundle for plain dict/list/tuple."""
+        if isinstance(value, dict) and value.get("type") == "image":
+            _omp_display(value)
+            return
         if any(hasattr(value, attr) for attr in _PRESENTABLE_REPRS):
             _zeta_display(value)
             return

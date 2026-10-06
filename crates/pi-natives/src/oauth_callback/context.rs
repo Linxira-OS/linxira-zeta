@@ -14,7 +14,11 @@ use anyhow::{Context as _, Result, anyhow, bail};
 use crate::task::CancelToken;
 
 const COMMAND_OUTPUT_LIMIT: u64 = 1024 * 1024;
-const COMMAND_POLL_INTERVAL: Duration = Duration::from_millis(20);
+// Helper commands usually finish within milliseconds, so polling starts fast
+// and backs off; a slow command then costs at most 10 wakeups per second, each
+// with a try_wait and two metadata calls.
+const COMMAND_POLL_INITIAL: Duration = Duration::from_millis(5);
+const COMMAND_POLL_MAX: Duration = Duration::from_millis(100);
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 /// Filesystem and process context for one callback registration transaction.
@@ -25,6 +29,7 @@ pub(super) struct Context {
 	pub(super) directory:     PathBuf,
 	pub(super) callback_path: PathBuf,
 	pub(super) helper_path:   PathBuf,
+	#[cfg_attr(not(any(unix, test)), allow(dead_code, reason = "used by unix oauth backends"))]
 	pub(super) home:          PathBuf,
 	pub(super) env:           BTreeMap<String, String>,
 	pub(super) cancel:        CancelToken,
@@ -115,6 +120,7 @@ impl Context {
 		};
 
 		let wait_result = (|| -> Result<std::process::ExitStatus> {
+			let mut poll_interval = COMMAND_POLL_INITIAL;
 			loop {
 				self.check()?;
 				let stdout_len = file_len(&stdout_path)?;
@@ -128,7 +134,8 @@ impl Context {
 				{
 					return Ok(status);
 				}
-				thread::sleep(COMMAND_POLL_INTERVAL);
+				thread::sleep(poll_interval);
+				poll_interval = (poll_interval * 2).min(COMMAND_POLL_MAX);
 			}
 		})();
 		let status = match wait_result {

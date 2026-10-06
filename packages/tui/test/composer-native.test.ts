@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { TspKind } from "@linxiraos/pi-wire";
-import { describeWorkingRow } from "@linxiraos/pi-tui/components/loader";
+import { describeWorkingRow, type WorkingRowSpec } from "@linxiraos/pi-tui/components/loader";
 import { SelectList } from "@linxiraos/pi-tui/components/select-list";
 import type { DescribeContext, NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
 import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
@@ -211,11 +211,75 @@ describe("native composer", () => {
 	it("omits the effort chip when the model has no thinking", () => {
 		expect(byRole(composer({ running: false }).describe(cx), "zeta.composer.effort")).toBeUndefined();
 	});
+
+	it("docks the tok/s readout right after the effort chip, only while there is a reading", () => {
+		let rate: number | undefined = 31.8;
+		const editor = new CustomEditor(getEditorTheme());
+		editor.composerState = () => ({ running: false, thinking: "xhigh", rate });
+		const bar = () => byRole(editor.describe(cx), "zeta.composer.bar")!;
+		const slots = (root: NativeNode) =>
+			(root.c ?? []).filter(isNode).map(n => (n.p !== undefined && "role" in n.p ? n.p.role : n.key));
+
+		const reading = bar();
+		expect(slots(reading)).toEqual(["zeta.composer.effort", "zeta.composer.rate", "gap", "zeta.composer.send"]);
+		expect(byRole(reading, "zeta.composer.rate")?.p).toEqual({
+			value: 31.8,
+			unit: "tok/s",
+			role: "zeta.composer.rate",
+			title: "Generation rate",
+		});
+
+		// A rate tick re-describes the readout alone: the chips beside it keep their nodes.
+		rate = 32.4;
+		const ticked = bar();
+		expect(byRole(ticked, "zeta.composer.rate")?.p).toMatchObject({ value: 32.4 });
+		expect(byRole(ticked, "zeta.composer.effort")).toBe(byRole(reading, "zeta.composer.effort"));
+
+		rate = undefined;
+		expect(slots(bar())).toEqual(["zeta.composer.effort", "gap", "zeta.composer.send"]);
+	});
+});
+
+describe("native composer thinking level in the model chip", () => {
+	function withFacts(state: ComposerNativeState): CustomEditor {
+		const editor = composer(state);
+		editor.composerFacts = createStartupStatusLine({
+			settings: { preset: "custom", leftSegments: [], rightSegments: [] },
+			gitEnabled: false,
+			autoThinking: false,
+			fastMode: false,
+			usingSubscription: false,
+			autoCompactEnabled: false,
+			compactionBoundaries: null,
+		});
+		return editor;
+	}
+
+	it("draws the level as the model chip's icon, cycling on click, and drops the effort chip", () => {
+		const root = withFacts({ running: false, thinking: "xhigh", thinkingInModel: true }).describe(cx);
+		expect(byRole(root, "zeta.composer.effort")).toBeUndefined();
+		const model = byRole(root, "zeta.composer.model")!;
+		expect((model.c ?? []).filter(isNode).map(n => n.k)).toEqual(["effort", "text", "icon"]);
+		expect(byRole(model, "zeta.composer.model.effort")?.p).toMatchObject({
+			level: "xhigh",
+			// The level, then the cycle key as the effort chip's tooltip names it.
+			title: expect.stringMatching(/^Thinking effort: xhigh {2}\S/),
+			actions: { click: "thinking.cycle" },
+		});
+	});
+
+	it("keeps the model icon and the effort chip where the terminal lacks the effort kind", () => {
+		const legacy = context(["row", "text", "icon", "meter", "editor", "kbd"]);
+		const root = withFacts({ running: false, thinking: "xhigh", thinkingInModel: true }).describe(legacy);
+		expect(byRole(root, "zeta.composer.model.effort")).toBeUndefined();
+		expect((byRole(root, "zeta.composer.model")!.c ?? []).filter(isNode)[0]?.p).toMatchObject({ name: "model" });
+		expect(byRole(root, "zeta.composer.effort")).toBeDefined();
+	});
 });
 
 describe("native working row", () => {
 	it("counts a retry down in a ring and offers Cancel; without meter support it spins", () => {
-		const spec = {
+		const spec: WorkingRowSpec = {
 			label: "Retrying · attempt 1 of 3",
 			startedAt: 1_000,
 			variant: { kind: "retry", attempt: 1, max: 3, delayMs: 4_000 } as const,
@@ -230,6 +294,18 @@ describe("native working row", () => {
 
 		const plain = describeWorkingRow(spec, context([]), 2_000);
 		expect((plain.c![0] as NativeNode).k).toBe("spinner");
+	});
+
+	it("leads with the spinner and the elapsed time, then the divider and the intent, without a tok/s readout", () => {
+		const row = describeWorkingRow({ label: "Diagnosing", startedAt: 0, interruptKey: "escape" }, cx, 10);
+		expect((row.c ?? []).filter(isNode).map(n => n.key)).toEqual([
+			"spinner",
+			"elapsed",
+			"sep",
+			"label",
+			"fill",
+			"stop",
+		]);
 	});
 
 	it("shows indeterminate progress while compacting and no stop control when Esc would not cancel", () => {

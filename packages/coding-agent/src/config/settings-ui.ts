@@ -1,6 +1,7 @@
 import { currentLanguage } from "../i18n";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "./settings-zh";
 import { TERMINAL } from "@linxiraos/pi-tui";
+import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
 import { SETTING_TABS, type SettingsDisplayEntry, type SettingsHost } from "@linxiraos/pi-tui/overlays/settings-defs";
 import { isSettingsInitialized, Settings, settings } from "./settings";
 import { orderedSettings } from "./all-settings";
@@ -26,6 +27,7 @@ function whenSettings(test: (settings: Settings) => boolean): () => boolean {
 const CONDITIONS: Record<string, () => boolean> = {
 	macOS: () => process.platform === "darwin",
 	hasImageProtocol: () => !!TERMINAL.imageProtocol,
+	nativeRendering: () => isNativeRendering(),
 	advisorEnabled: whenSettings(s => cfgAdvisorEnabled.get(s) === true),
 	vimModeEnabled: whenSettings(s => cfgTuiVimMode.get(s) === true),
 	hindsightActive: whenSettings(s => cfgMemoryBackend.get(s) === "hindsight"),

@@ -1776,6 +1776,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动思考模型",
 		description: "`auto` 思考级别的难度分类器：默认为在线（/models 中的 TINY 角色，否则 smol），或本地设备端模型",
 	},
+	expandThinkingBlocks: {
+		label: "展开思考块",
+		description: "轮次结束后保持已完成的思考块展开，而不是将其折叠",
+	},
+	"providers.muse-code.storeResponses": {
+		label: "Muse Code 存储响应",
+		description:
+			"将 Muse Code 结果存储在 Meta 服务器上，连接中断的轮次可恢复而无需重跑。存储的运行会在 Meta 侧保留提示与输出。",
+	},
 	"providers.autoThinkingMaxEffort": {
 		label: "自动思考上限",
 		description:

@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
+import { type ImageContent, toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type { ToolSession } from "../../tools";
@@ -57,7 +57,7 @@ type ToolValue =
 	| {
 			text: string;
 			details?: unknown;
-			images?: Array<{ mimeType: string; data: string }>;
+			images?: Omit<ImageContent, "type">[];
 			hasError?: boolean;
 	  };
 function toolResultHasError(result: AgentToolResult): boolean {
@@ -159,7 +159,7 @@ export function bridgeValueFromToolResult(
 			content.type === "text" && typeof content.text === "string",
 	);
 	const imageBlocks = result.content.filter(
-		(content): content is { type: "image"; mimeType: string; data: string } =>
+		(content): content is ImageContent =>
 			content.type === "image" && typeof content.mimeType === "string" && typeof content.data === "string",
 	);
 	const text = textBlocks.map(block => block.text).join("");
@@ -171,7 +171,7 @@ export function bridgeValueFromToolResult(
 	if (result.details === undefined && imageBlocks.length === 0 && !hasError) return text;
 	const value: Exclude<ToolValue, string> = { text, details: result.details };
 	if (imageBlocks.length > 0) {
-		value.images = imageBlocks.map(block => ({ mimeType: block.mimeType, data: block.data }));
+		value.images = imageBlocks.map(({ type: _type, ...image }) => image);
 	}
 	if (hasError) value.hasError = true;
 	return value;

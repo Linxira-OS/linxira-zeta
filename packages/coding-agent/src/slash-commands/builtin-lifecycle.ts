@@ -507,7 +507,12 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 				runtime.ctx.showError(M.lcSessionNotFoundFmt.replace("%s", sessionArg));
 				return;
 			}
-			await runtime.ctx.handleResumeSession(match.session.path);
+			try {
+				await runtime.ctx.handleResumeSession(match.session.path);
+			} catch (error) {
+				// The picker reports a failed switch itself; `/resume <id>` has no picker.
+				runtime.ctx.showError(error instanceof Error ? error.message : String(error));
+			}
 		},
 	},
 	{
