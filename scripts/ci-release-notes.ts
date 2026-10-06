@@ -278,8 +278,10 @@ async function main(): Promise<void> {
 /**
  * Build the release asset index appended to the release body: the desktop
  * installers/archives (`zeta-desktop-<version>-<os>-<arch>.<ext>`, matching
- * `desktop/electron-builder.yml` `artifactName`) and the CLI binaries
- * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles).
+ * `desktop/electron-builder.yml` `artifactName`), the CLI binaries
+ * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles),
+ * and the bare product binaries (`zeta-work-*` / `zeta-ide-*` /
+ * `zeta-editor-*` from the release_product_binaries job).
  * Every line links to its `releases/download` URL so release assets stay
  * discoverable from the notes without scripting.
  */
@@ -308,8 +310,17 @@ function buildAssetSections(version: string): string {
 		"zeta-cli-darwin-arm64",
 		"zeta-cli-windows-x64.exe",
 	];
+	// Bare product binaries from the release_product_binaries job; the
+	// distribution PKGBUILDs fetch these URLs verbatim.
+	const productAssets = [
+		"zeta-work-linux-x64",
+		"zeta-work-win-x64.exe",
+		"zeta-ide-linux-x64",
+		"zeta-editor-linux-x64",
+		"zeta-editor-win-x64.exe",
+	];
 
-	return `## 桌面安装包\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI 二进制\n\n${cliAssets.map(link).join("\n")}`;
+	return `## 桌面安装包\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI 二进制\n\n${cliAssets.map(link).join("\n")}\n\n## 产品裸二进制\n\n${productAssets.map(link).join("\n")}`;
 }
 
 if (import.meta.main) {
