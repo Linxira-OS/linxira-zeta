@@ -4,14 +4,6 @@
 
 ## [1.1.27] - 2026-10-06
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
 ### Added
 
 - Added an optional `statefulResponses` compat field for OpenAI Responses models, kept through OpenRouter's Responses dispatch ([#13686](https://github.com/can1357/oh-my-pi/pull/13686) by [@alphastorm](https://github.com/alphastorm)).

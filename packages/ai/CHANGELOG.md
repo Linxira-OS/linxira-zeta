@@ -4,14 +4,6 @@
 
 ## [1.1.27] - 2026-10-06
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
 ### Changed
 
 - Reduced CPU spent on thinking-loop detection while streaming long reasoning ([#14284](https://github.com/can1357/oh-my-pi/pull/14284) by [@abilliontokens](https://github.com/abilliontokens)).
