@@ -133,7 +133,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 	],
 	context: ["General", "Compaction", "Zeta Context Cache", "Rules (TTSR)", "Experimental"],
 	memory: ["General", "Auto-Learn", "Mnemopi", "Hindsight", "Sharpshooter"],
-	files: ["Editing", "Reading", "Read Summaries", "LSP"],
+	files: ["Editing", "Reading", "Read Summaries", "LSP", "Session Trash"],
 	shell: ["Bash", "Eval & Runtimes"],
 	tools: [
 		"Available Tools",
