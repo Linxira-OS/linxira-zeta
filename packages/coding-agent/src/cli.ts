@@ -52,7 +52,7 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 try {
-	process.title = APP_NAME;
+	process.title = CLI_BIN_NAME;
 } catch {}
 
 // `Bun.build`-API compiled Windows executables report `import.meta.main ===
@@ -94,7 +94,7 @@ const PREPAINT_SAFE_FLAGS: Record<string, true> = {
 async function setFullProcessName(): Promise<void> {
 	// Latency boundary: bun:ffi/node:os are unnecessary before the first frame.
 	const { setProcessName } = await import("@linxiraos/pi-utils/process-name");
-	setProcessName(APP_NAME);
+	setProcessName(CLI_BIN_NAME);
 }
 
 /** Install PI_PROXY handling before any command implementation can make a provider request. */
@@ -442,22 +442,22 @@ export async function runCli(argv: string[]): Promise<void> {
 		if (extracted.profile !== undefined) {
 			setProfile(extracted.profile);
 		} else {
-			// No explicit --profile: activate any OMP_PROFILE/PI_PROFILE inherited
+			// No explicit --profile: activate any ZETA_PROFILE inherited
 			// from the environment. Module-load resolution deliberately swallows an
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
-			// OMP_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `OMP_PROFILE=.. omp --version` into a clean error;
+			// ZETA_PROFILE after importing this module (profile aliases/tests). Surfacing
+			// validation here turns `ZETA_PROFILE=.. zeta-c --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
-			setProfile(resolveProfileEnv(process.env.OMP_PROFILE, process.env.PI_PROFILE));
+			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));
 		}
 		if (extracted.aliasName !== undefined) {
 			// Command boundary: shell/path setup is used only by --alias.
 			const { installProfileAlias, resolveProfileAliasCommandFromProcess } = await import("./cli/profile-alias");
 			const profile = extracted.profile ?? getActiveProfile();
 			if (!profile) {
-				throw new Error("--alias requires --profile <name> or OMP_PROFILE");
+				throw new Error("--alias requires --profile <name> or ZETA_PROFILE");
 			}
 			const result = await installProfileAlias({
 				profile,
