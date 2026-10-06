@@ -818,8 +818,8 @@ mod tests {
 		// explicit-env hit must lead the PATH hit.
 		let found = resolve_bin_candidates_in(
 			&["zeta-c"],
-			&[on_path.root.clone()],
-			&[explicit.root.clone()],
+			std::slice::from_ref(&on_path.root),
+			std::slice::from_ref(&explicit.root),
 			&[],
 		);
 		assert_eq!(found, vec![from_explicit, from_path]);
@@ -831,8 +831,12 @@ mod tests {
 		let npm = ProbeDir::new("npm-hit");
 		let from_path = on_path.write("zeta-c");
 		npm.write("zeta-c");
-		let found =
-			resolve_bin_candidates_in(&["zeta-c"], &[on_path.root.clone()], &[], &[npm.root.clone()]);
+		let found = resolve_bin_candidates_in(
+			&["zeta-c"],
+			std::slice::from_ref(&on_path.root),
+			&[],
+			std::slice::from_ref(&npm.root),
+		);
 		assert_eq!(found, vec![from_path]);
 	}
 
@@ -840,7 +844,7 @@ mod tests {
 	fn discovery_empty_path_falls_back_to_npm_dirs() {
 		let npm = ProbeDir::new("npm-fallback");
 		let from_npm = npm.write("zeta-c");
-		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], &[npm.root.clone()]);
+		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], std::slice::from_ref(&npm.root));
 		assert_eq!(found, vec![from_npm]);
 	}
 
