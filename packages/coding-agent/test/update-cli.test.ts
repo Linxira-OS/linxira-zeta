@@ -2045,3 +2045,68 @@ describe("update-cli manager update recovery", () => {
 		);
 	});
 });
+
+describe("update-cli self discovery (unified tiers)", () => {
+	const isWin = process.platform === "win32";
+	const ext = isWin ? ".cmd" : "";
+	const CLI_BIN = "zeta-c";
+
+	function treeWith(layout: Record<string, string[]>): { root: string; dirs: Record<string, string> } {
+		const root = nodeFs.mkdtempSync(path.join(os.tmpdir(), "zeta-update-disc-"));
+		const dirs: Record<string, string> = {};
+		for (const [name, files] of Object.entries(layout)) {
+			const dir = path.join(root, name);
+			nodeFs.mkdirSync(dir, { recursive: true });
+			dirs[name] = dir;
+			for (const file of files) nodeFs.writeFileSync(path.join(dir, file), "");
+		}
+		return { root, dirs };
+	}
+
+	function cleanup(tree: { root: string }): void {
+		nodeFs.rmSync(tree.root, { recursive: true, force: true });
+	}
+
+	it("prefers the explicit ZETA_BIN_DIR dir over the PATH hit", () => {
+		const tree = treeWith({ path: [`${CLI_BIN}${ext}`], override: [`${CLI_BIN}${ext}`] });
+		try {
+			const found = updateCli.resolveOmpPathForTest(
+				{ PATH: tree.dirs.path!, ZETA_BIN_DIR: tree.dirs.override! },
+				candidate => nodeFs.existsSync(candidate),
+			);
+			expect(found).toBe(path.join(tree.dirs.override!, `${CLI_BIN}${ext}`));
+		} finally {
+			cleanup(tree);
+		}
+	});
+
+	it("resolves the launcher from PATH", () => {
+		const tree = treeWith({ path: [`${CLI_BIN}${ext}`] });
+		try {
+			const found = updateCli.resolveOmpPathForTest({ PATH: tree.dirs.path! }, candidate =>
+				nodeFs.existsSync(candidate),
+			);
+			expect(found).toBe(path.join(tree.dirs.path!, `${CLI_BIN}${ext}`));
+		} finally {
+			cleanup(tree);
+		}
+	});
+
+	it("falls back to the npm-form global-bin dir when PATH is empty", () => {
+		const npmDir = isWin ? path.join("npm-form-parent", "npm") : path.join("npm-form-parent", ".bun", "bin");
+		const tree = treeWith({ [npmDir]: [`${CLI_BIN}${ext}`] });
+		try {
+			const env = isWin
+				? { PATH: "", APPDATA: path.join(tree.root, "npm-form-parent") }
+				: { PATH: "", HOME: path.join(tree.root, "npm-form-parent") };
+			const found = updateCli.resolveOmpPathForTest(env, candidate => nodeFs.existsSync(candidate));
+			expect(found).toBe(path.join(tree.root, npmDir, `${CLI_BIN}${ext}`));
+		} finally {
+			cleanup(tree);
+		}
+	});
+
+	it("resolves nothing when every tier is empty", () => {
+		expect(updateCli.resolveOmpPathForTest({ PATH: "" }, () => false)).toBeUndefined();
+	});
+});

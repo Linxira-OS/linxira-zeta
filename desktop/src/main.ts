@@ -30,6 +30,13 @@ import {
 	type RunningSessionsResponse,
 } from "./session-monitor";
 import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
+import {
+	bundledServeCommandIn,
+	findRepoRootIn,
+	resolveServeCommandIn,
+	type ServeCommand,
+	type ServeResolutionDeps,
+} from "./serve-resolution";
 
 const WEB_UI_URL = "http://127.0.0.1:30141";
 const STATS_URL = "http://127.0.0.1:3847";
@@ -229,118 +236,47 @@ async function sessionDisplayName(sessionId: string): Promise<string> {
 // ---------------------------------------------------------------------------
 
 function findRepoRoot(): string | null {
-	// __dirname = <repo>/desktop/dist in dev; walk up until package.json with
-	// "workspaces" (or the coding-agent package) is found.
-	let dir = __dirname;
-	for (let i = 0; i < 6; i++) {
-		const pkgJson = path.join(dir, "package.json");
-		if (fs.existsSync(pkgJson)) {
-			try {
-				const pkg = JSON.parse(fs.readFileSync(pkgJson, "utf8")) as PackageManifest;
-				if (pkg.workspaces || pkg.name === "zeta" || fs.existsSync(path.join(dir, "packages", "coding-agent"))) {
-					return dir;
-				}
-			} catch {
-				// keep walking
-			}
-		}
-		dir = path.dirname(dir);
-	}
-	return null;
-}
-
-interface PackageManifest {
-	name?: string;
-	workspaces?: unknown;
-}
-
-interface ServeCommand {
-	file: string;
-	args: string[];
-	/** Working directory for the service process (web-ui lookup walks cwd). */
-	cwd: string;
-	env: NodeJS.ProcessEnv;
-}
-
-function parseCommand(command: string): string[] {
-	return (command.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(part => part.replace(/^("|')|("|')$/g, ""));
+	return findRepoRootIn(desktopServeDeps());
 }
 
 function bundledServeCommand(): ServeCommand | null {
-	if (!app.isPackaged) return null;
+	return bundledServeCommandIn(desktopServeDeps());
+}
 
-	const serviceDir = path.join(process.resourcesPath, "zeta");
-	const exe = path.join(serviceDir, SERVICE_BINARY_NAME);
-	const runtime = path.join(serviceDir, WEB_RUNTIME_NAME);
-	const standaloneServer = path.join(serviceDir, "web-ui", ".next", "standalone", "server.js");
-	if (!fs.existsSync(exe) || !fs.existsSync(runtime) || !fs.existsSync(standaloneServer)) {
-		return null;
-	}
-
+/** Real-process seams for the pure serve resolver. */
+function desktopServeDeps(): ServeResolutionDeps {
 	return {
-		file: exe,
-		args: ["serve"],
-		cwd: serviceDir,
-		env: {
-			...process.env,
-			ZETA_DESKTOP: "1",
-			ZETA_WEB_RUNTIME: runtime,
+		isPackaged: app.isPackaged,
+		platform: process.platform,
+		resourcesPath: process.resourcesPath,
+		env: process.env,
+		exists: candidate => {
+			try {
+				return fs.existsSync(candidate);
+			} catch {
+				return false;
+			}
 		},
+		readTextFile: candidate => {
+			try {
+				return fs.readFileSync(candidate, "utf8");
+			} catch {
+				return null;
+			}
+		},
+		dirname: __dirname,
+		cwd: process.cwd(),
+		probePath: name => {
+			const probe = spawnSync(process.platform === "win32" ? "where" : "which", [name], { encoding: "utf8" });
+			return probe.status === 0 && Boolean(probe.stdout.trim());
+		},
+		serviceBinaryName: SERVICE_BINARY_NAME,
+		webRuntimeName: WEB_RUNTIME_NAME,
 	};
 }
 
 function resolveServeCommand(): ServeCommand | null {
-	const bundled = bundledServeCommand();
-	if (bundled) return bundled;
-	if (app.isPackaged) return null;
-
-	const repoRoot = findRepoRoot();
-
-	const fromEnv = process.env.ZETA_SERVE_COMMAND;
-	if (fromEnv) {
-		const [file, ...args] = parseCommand(fromEnv);
-		if (file) {
-			return {
-				file,
-				args: args.length > 0 ? args : ["serve"],
-				cwd: process.env.ZETA_SERVE_CWD ?? repoRoot ?? process.cwd(),
-				env: { ...process.env, ZETA_DESKTOP: "1" },
-			};
-		}
-	}
-
-	if (repoRoot) {
-		const exe = path.join(repoRoot, "packages", "coding-agent", "dist", SERVICE_BINARY_NAME);
-		if (fs.existsSync(exe)) {
-			return { file: exe, args: ["serve"], cwd: repoRoot, env: { ...process.env, ZETA_DESKTOP: "1" } };
-		}
-		// Dev fallback: run the source CLI with Bun (PATH lookup).
-		const cli = path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts");
-		if (fs.existsSync(cli)) {
-			return {
-				file: "bun",
-				args: [cli, "serve"],
-				cwd: repoRoot,
-				env: { ...process.env, ZETA_DESKTOP: "1" },
-			};
-		}
-	}
-
-	// Last resort: the CLI on PATH — `zeta-c` (current bin name). The bare
-	// `zeta` bin is the Zetawork workbench, which rejects `serve` ("unknown
-	// command"), so it must never be a candidate.
-	const pathFallback =
-		process.platform === "win32"
-			? ["zeta-c.cmd", "zeta-cli.cmd", "zetacode.cmd"]
-			: ["zeta-c", "zeta-cli", "zetacode"];
-	const whichTool = process.platform === "win32" ? "where" : "which";
-	for (const candidate of pathFallback) {
-		const probe = spawnSync(whichTool, [candidate], { encoding: "utf8" });
-		if (probe.status === 0 && probe.stdout.trim()) {
-			return { file: candidate, args: ["serve"], cwd: process.cwd(), env: { ...process.env, ZETA_DESKTOP: "1" } };
-		}
-	}
-	return { file: "zeta-c", args: ["serve"], cwd: process.cwd(), env: { ...process.env, ZETA_DESKTOP: "1" } };
+	return resolveServeCommandIn(desktopServeDeps());
 }
 
 // ---------------------------------------------------------------------------

@@ -15,6 +15,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getProjectDir, pathIsWithin } from "@linxiraos/pi-utils";
+import {
+	defaultProbeContext,
+	discoverBin,
+	pathImpl,
+	whichCommand,
+	type OpenProbeContext,
+} from "../../utils/bin-discovery";
 
 function json(data: unknown, status = 200): Response {
 	return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -45,70 +52,6 @@ const EDITOR_LABELS: Record<string, string> = {
 /** PATH probe order mirrors the bins each bundled npm package installs. */
 export const ZETA_IDE_BINS = ["zeta-ide", "zetaide", "zeta-i"] as const;
 const ZETA_EDITOR_BINS = ["zeta-editor", "zetaeditor", "zeta-e"] as const;
-
-/** Injectable process snapshot so probes are testable without a real PATH/fs. */
-export interface OpenProbeContext {
-	platform: NodeJS.Platform;
-	env: NodeJS.ProcessEnv;
-	exists: (candidate: string) => boolean;
-	now: () => number;
-}
-
-export function defaultProbeContext(): OpenProbeContext {
-	return {
-		platform: process.platform,
-		env: process.env,
-		exists: candidate => {
-			try {
-				return fs.existsSync(candidate);
-			} catch {
-				return false;
-			}
-		},
-		now: () => Date.now(),
-	};
-}
-
-/** Platform-faithful select so POSIX chains test correctly on a Windows host. */
-function pathImpl(platform: NodeJS.Platform): typeof path.posix {
-	return platform === "win32" ? path.win32 : path.posix;
-}
-
-// --- which-style PATH probing ---
-
-const WINDOWS_DEFAULT_PATHEXT = [".com", ".exe", ".bat", ".cmd"];
-
-function windowsPathext(env: NodeJS.ProcessEnv): string[] {
-	const raw = env.PATHEXT;
-	if (raw) {
-		const parsed = raw
-			.split(";")
-			.map(ext => ext.trim().toLowerCase())
-			.filter(ext => /^\.[a-z0-9]+$/.test(ext));
-		if (parsed.length > 0) return ["", ...parsed];
-	}
-	return ["", ...WINDOWS_DEFAULT_PATHEXT];
-}
-
-/**
- * `which`-style lookup across PATH. Windows tries each dir with the bare name
- * first, then every PATHEXT-style extension (npm shims are `.cmd`, native
- * tools `.exe`); other platforms take the bare name. Returns the absolute
- * path of the first match, or null.
- */
-export function whichCommand(command: string, ctx: OpenProbeContext): string | null {
-	const name = command.trim();
-	if (!name || name.includes("\0") || /[/\\]/.test(name)) return null;
-	const extensions = ctx.platform === "win32" ? windowsPathext(ctx.env) : [""];
-	for (const dir of (ctx.env.PATH ?? "").split(ctx.platform === "win32" ? ";" : ":")) {
-		if (!dir) continue;
-		for (const ext of extensions) {
-			const candidate = pathImpl(ctx.platform).join(dir, name + ext);
-			if (ctx.exists(candidate)) return candidate;
-		}
-	}
-	return null;
-}
 
 // --- terminal shell resolution ---
 
@@ -220,12 +163,12 @@ function resolveEditors(ctx: OpenProbeContext): string[] {
 		.map(([id]) => id);
 }
 
+/**
+ * Bundled terminal-tool lookup (zeta-ide / zeta-editor) across the unified
+ * discovery tiers: ① `ZETA_BIN_DIR` ② PATH ③ npm-form global-bin dirs.
+ */
 function resolveZetaTool(bins: readonly string[], ctx: OpenProbeContext): string | null {
-	for (const bin of bins) {
-		const found = whichCommand(bin, ctx);
-		if (found) return found;
-	}
-	return null;
+	return discoverBin(bins, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
 }
 
 // --- process-level probe cache (~60s) so menu requests don't rescan PATH ---

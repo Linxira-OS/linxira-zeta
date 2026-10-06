@@ -4,6 +4,7 @@
 
 ### Added
 
+- Unified suite-binary discovery across product surfaces: a shared `bin-discovery` helper (explicit `ZETA_BIN_DIR` override → PATH → npm-form global-bin fallback, no cross-component version validation) now backs the web-gateway zeta-ide/zeta-editor probes (options list, open targets, and the embedded-terminal `buildZetaIdeCommand`) and the `update` command's self-launcher resolution.
 - Added Feishu `bot_p2p_chat_entered` handling: the first private-chat contact gets an onboarding reply.
 - Added `channels.allowedPeers` web-config allowlist: when non-empty, only listed peers may reach the agent.
 - Added `ui:` metadata to `shellPath`, `retry.enabled`, `stt.language`, `searxng.categories/language/safesearch`, `compaction.reserveTokens/keepRecentTokens`, and `skills.enabled` so they are editable from the web settings panel.
