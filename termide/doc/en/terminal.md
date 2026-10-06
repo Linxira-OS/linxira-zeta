@@ -9,9 +9,10 @@ The terminal panel provides a full-featured terminal emulator with pseudotermina
 - **Wide and combining characters**: CJK text, emoji and emoji sequences (skin tones, ZWJ) take the two columns the host terminal gives them, and combining accents attach to the character before them instead of taking a cell. Whether a variation selector widens a symbol (`⏱️`) is probed from the host terminal at startup, because terminals differ on it. Full-screen applications and coding agents such as `pi` keep their layout, erase the right rows, and place the cursor where they expect
 - **Modern TUI Compatibility**: Responds to common terminal capability queries and supports negotiated keyboard/focus reporting used by applications such as `vim`, `neovim`, `yazi`, `htop`, and `lazygit`
 - **Process Management**: When closing a terminal panel with running processes, the application will request confirmation before terminating them
+- **Bell**: A bell rung by the program reaches your terminal, and the header of a terminal panel that is not focused turns the warning colour until you focus it. In a project open in the background it marks the project with 🔔 in the `Projects` menu
 - **Panel Title**: Shows `user@host/<directory> (<foreground command>)`. The directory is read from the running shell, so it follows a `cd` inside the panel; a panel started with a fixed command (for example an SSH session) is titled with that command instead
-- **Live Working Directory**: The directory the panel reports to the rest of the application also follows a `cd` inside the shell — the directory switcher, opening a new panel "here", and the repository list of the git panels all use the directory you are actually working in
-- **Session Restore**: A restored terminal opens in the directory the shell was last working in, not the one the panel was originally created in. If that directory no longer exists, the nearest existing parent is used
+- **Live Working Directory**: The directory the panel reports to the rest of the application also follows a `cd` inside the shell — the directory switcher, opening a new panel "here", and the repository list of the git panels all use the directory you are actually working in. On Windows, see [Working directory on Windows](#working-directory-on-windows)
+- **Layout Restore**: A restored terminal opens in the directory the shell was last working in, not the one the panel was originally created in. If that directory no longer exists, the nearest existing parent is used
 
 ## Interaction
 
@@ -29,7 +30,7 @@ The terminal panel provides a full-featured terminal emulator with pseudotermina
 
 **Keyboard Layout Support:**
 
-TermIDE supports Cyrillic keyboard layouts for common shortcuts. When using a Russian/Cyrillic layout, paste (`Ctrl+V`) works without switching to a Latin layout — pressing it with the Cyrillic letter on the same physical key is recognized automatically.
+TermIDE supports Cyrillic keyboard layouts for common shortcuts. When using a Russian/Cyrillic layout, paste (`Ctrl+V`) works without switching to a Latin layout — pressing it with the Cyrillic letter on the same physical key is recognized automatically. The same goes for the control chords sent to the program: `Ctrl+С` interrupts it as `Ctrl+C` does, `Ctrl+В` sends end-of-file as `Ctrl+D` does.
 
 All other key combinations are passed directly to the application running in the terminal.
 
@@ -45,10 +46,23 @@ Plain arrows keep their existing path, including application-cursor-mode
 substitution (`\x1bOA` vs `\x1b[A`). `Alt+Left` / `Alt+Right` remain bound
 globally to previous/next panel group and therefore aren't forwarded.
 
+A shell with no binding for such a sequence echoes its last letter: bash 5
+and zsh print `A` for `Shift+Up`, `D` for `Shift+Left`, and so on. Any
+xterm-compatible terminal behaves the same. Bind the keys in `~/.inputrc`
+for bash, for example:
+
+```
+"\e[1;2A": previous-history
+"\e[1;2B": next-history
+"\e[1;2C": forward-char
+"\e[1;2D": backward-char
+```
+
 ## Text Search
 
-Press `Ctrl+F` to open an inline find bar docked at the top of the panel (the
-same UX as the editor and file manager), with a separator below it. The search
+Press `Ctrl+F` to open an inline find bar docked at the bottom of the panel (the
+same UX as the editor and file manager), with a titled top border (`─ Search ─`)
+that separates it from the grid above. The search
 works across the entire scrollback buffer and the visible screen:
 
 - **Live preview**: matches are highlighted as you type; the bar shows a match
@@ -79,6 +93,36 @@ You can also set the default shell in `config.toml`:
 [terminal]
 default_shell = "/usr/bin/fish"
 ```
+
+### Working directory on Windows
+
+Windows has no call that tells one program where another is working, so the
+terminal learns the shell's directory in one of two ways:
+
+- **From the shell process** — Command Prompt and Git Bash keep it up to date,
+  so a `cd` (including a drive change such as `D:` or `cd /d D:\work`) is
+  followed with no setup
+- **From the shell itself** — PowerShell's `Set-Location` does not update the
+  process, so PowerShell has to announce each directory with the
+  `OSC 9;9` or `OSC 7` escape sequence. Windows Terminal asks for the same
+  setup, so a profile prepared for it already works here. Otherwise add this
+  to your `$PROFILE`:
+
+```powershell
+function prompt {
+  $loc = $executionContext.SessionState.Path.CurrentLocation
+  $out = ""
+  if ($loc.Provider.Name -eq "FileSystem") {
+    $out += "$([char]27)]9;9;`"$($loc.ProviderPath)`"$([char]27)\"
+  }
+  $out += "PS $loc$('>' * ($nestedPromptLevel + 1)) "
+  return $out
+}
+```
+
+With oh-my-posh, set `"pwd": "osc99"` in its configuration instead.
+
+When the shell announces a directory, the announcement wins over the process.
 
 ## Mouse Support
 

@@ -307,8 +307,8 @@ pub struct UiState {
     pub drag: DragState,
     /// Divider drag state for in-group panel resize (vertical).
     pub vdrag: VerticalDividerDragState,
-    /// Sessions submenu state
-    pub sessions_submenu: SubmenuState,
+    /// Projects submenu state
+    pub projects_submenu: SubmenuState,
     /// Tools submenu state
     pub tools_submenu: SubmenuState,
     /// Tools nested submenu state (shell picker inside Terminal)
@@ -319,6 +319,16 @@ pub struct UiState {
     pub commands_nested: SubmenuState,
     /// Current command group name (for nested submenu)
     pub current_commands_group: Option<String>,
+    /// AI submenu state (Agents / Sessions / Skills / Prompts sections)
+    pub ai_submenu: SubmenuState,
+    /// AI nested submenu state (the selected section's item list)
+    pub ai_nested: SubmenuState,
+    /// The AI section whose item list is open
+    pub current_ai_section: Option<crate::AiSection>,
+    /// AI agent file-choice submenu (third level: SOUL.md vs agent.toml)
+    pub ai_agent_choice: SubmenuState,
+    /// The agent whose file-choice submenu is open
+    pub current_ai_agent: Option<String>,
     /// Bookmarks submenu state
     pub bookmarks_submenu: SubmenuState,
     /// Bookmarks nested submenu state (for groups)
@@ -344,10 +354,10 @@ pub struct UiState {
 }
 
 impl UiState {
-    /// Close all main-level submenus (sessions, tools, options, commands, bookmarks)
+    /// Close all main-level submenus (projects, tools, options, commands, bookmarks)
     /// and their nested submenus. Use before opening a specific submenu.
     pub fn close_all_submenus(&mut self) {
-        self.sessions_submenu.close();
+        self.projects_submenu.close();
         self.tools_submenu.close();
         self.tools_nested.close();
         self.options_submenu.close();
@@ -355,6 +365,11 @@ impl UiState {
         self.commands_submenu.close();
         self.commands_nested.close();
         self.current_commands_group = None;
+        self.ai_submenu.close();
+        self.ai_nested.close();
+        self.current_ai_section = None;
+        self.ai_agent_choice.close();
+        self.current_ai_agent = None;
         self.bookmarks_submenu.close();
         self.bookmarks_nested.close();
         self.current_bookmarks_group = None;
@@ -373,6 +388,9 @@ pub struct TerminalState {
     pub width: u16,
     /// Terminal height
     pub height: u16,
+    /// The terminal window has keyboard focus, as its focus reports say.
+    /// Starts true: a terminal that sends no reports is taken as focused.
+    pub focused: bool,
 }
 
 impl Default for TerminalState {
@@ -380,6 +398,7 @@ impl Default for TerminalState {
         Self {
             width: 80,
             height: 24,
+            focused: true,
         }
     }
 }
@@ -494,7 +513,7 @@ mod tests {
     #[test]
     fn test_ui_state_close_all_submenus() {
         let mut ui = UiState::default();
-        ui.sessions_submenu.open();
+        ui.projects_submenu.open();
         ui.tools_submenu.open();
         ui.tools_nested.open();
         ui.options_submenu.open();
@@ -505,7 +524,7 @@ mod tests {
 
         ui.close_all_submenus();
 
-        assert!(!ui.sessions_submenu.open);
+        assert!(!ui.projects_submenu.open);
         assert!(!ui.tools_submenu.open);
         assert!(!ui.tools_nested.open);
         assert!(!ui.options_submenu.open);

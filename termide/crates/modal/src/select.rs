@@ -12,9 +12,11 @@ use ratatui::{
 
 use termide_theme::Theme;
 
+use termide_ui::str_display_width;
+
 use crate::{
-    base::render_modal_block, calculate_modal_width, centered_rect_with_size, max_item_width,
-    max_line_width, Modal, ModalResult, ModalWidthConfig,
+    base::render_modal_block, centered_rect_with_size, fit_modal_width, max_item_width,
+    max_line_width, Modal, ModalResult,
 };
 
 /// Selection modal window (single selection only)
@@ -24,6 +26,7 @@ pub struct SelectModal {
     prompt: String,
     items: Vec<String>,
     cursor: usize,
+    last_modal_area: Option<Rect>,
     last_list_area: Option<Rect>,
 }
 
@@ -39,6 +42,7 @@ impl SelectModal {
             prompt: prompt.into(),
             items: labels,
             cursor: 0,
+            last_modal_area: None,
             last_list_area: None,
         }
     }
@@ -50,17 +54,16 @@ impl SelectModal {
         }
     }
 
-    /// Calculate dynamic modal width
+    /// The modal's width from its content: the widest of the title, the
+    /// prompt and the items, each item with one column of padding on either
+    /// side. The row under the cursor is inverted across that whole width,
+    /// so it needs no `▶` marker beside it.
     fn calculate_modal_width(&self, screen_width: u16) -> u16 {
-        let title_width = self.title.len() as u16 + 2;
+        let title_width = str_display_width(&self.title) as u16 + 2;
         let prompt_width = max_line_width(&self.prompt);
-        let items_width = max_item_width(&self.items, 2); // "▶ " prefix
-
-        calculate_modal_width(
-            [title_width, prompt_width, items_width].into_iter(),
-            screen_width,
-            ModalWidthConfig::default(),
-        )
+        let items_width = max_item_width(&self.items, 2);
+        let inner = title_width.max(prompt_width).max(items_width);
+        fit_modal_width(inner, screen_width)
     }
 }
 
@@ -81,6 +84,7 @@ impl Modal for SelectModal {
 
         // Create centered area
         let modal_area = centered_rect_with_size(modal_width, modal_height, area);
+        self.last_modal_area = Some(modal_area);
         let inner = render_modal_block(modal_area, buf, &self.title, theme);
 
         let chunks = Layout::default()
@@ -96,13 +100,14 @@ impl Modal for SelectModal {
             .style(Style::default().fg(theme.fg));
         prompt.render(chunks[0], buf);
 
+        let row_width = chunks[1].width as usize;
         let items: Vec<ListItem> = self
             .items
             .iter()
             .enumerate()
             .map(|(idx, label)| {
-                let prefix = if idx == self.cursor { "▶ " } else { "  " };
-
+                let row = format!(" {label}");
+                let pad = row_width.saturating_sub(str_display_width(&row));
                 let style = if idx == self.cursor {
                     Style::default()
                         .fg(theme.bg)
@@ -113,8 +118,8 @@ impl Modal for SelectModal {
                 };
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(prefix, style),
-                    Span::styled(label, style),
+                    Span::styled(row, style),
+                    Span::styled(" ".repeat(pad), style),
                 ]))
             })
             .collect();
@@ -188,11 +193,13 @@ impl Modal for SelectModal {
         match check_mouse_click(
             mouse.column,
             mouse.row,
-            None, // No modal area check
+            self.last_modal_area,
             self.last_list_area,
             0, // No scroll offset in simple select
         ) {
-            MouseClickResult::OutsideModal | MouseClickResult::OutsideList => Ok(None),
+            // A click beside the modal dismisses it, as Esc does.
+            MouseClickResult::OutsideModal => Ok(Some(ModalResult::Cancelled)),
+            MouseClickResult::OutsideList => Ok(None),
             MouseClickResult::OnListItem(clicked_index) => {
                 if clicked_index < self.items.len() {
                     // Item clicked - select and confirm immediately
@@ -203,5 +210,60 @@ impl Modal for SelectModal {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_row_under_the_cursor_needs_no_marker() {
+        let mut modal = SelectModal::single("Mode", "", vec!["● ask".into(), "  auto".into()]);
+        modal.set_cursor(1);
+        let area = Rect::new(0, 0, 40, 12);
+        let mut buf = Buffer::empty(area);
+        modal.render(area, &mut buf, &Theme::default());
+        let rows: Vec<String> = (0..area.height)
+            .map(|y| (0..area.width).map(|x| buf[(x, y)].symbol()).collect())
+            .collect();
+        // Inverted, the cursor row reads as the others do: one column of
+        // padding, no `▶`, so the current value's `●` stands alone.
+        assert!(rows.iter().all(|r| !r.contains('▶')), "{rows:?}");
+        let row = rows.iter().find(|r| r.contains("auto")).unwrap();
+        assert!(row.contains("│   auto"), "{row:?}");
+        assert!(rows.iter().any(|r| r.contains("│ ● ask")), "{rows:?}");
+    }
+
+    #[test]
+    fn the_width_follows_the_content_and_the_cursor_row_spans_it() {
+        let labels = vec![
+            "● ask — спрашивать обо всём, без разрешений из настроек".to_string(),
+            "  all — разрешать всё".to_string(),
+        ];
+        let widest = str_display_width(&labels[0]) as u16;
+        let mut modal = SelectModal::single("Режим разрешений", "", labels);
+        modal.set_cursor(1);
+        let area = Rect::new(0, 0, 200, 12);
+        let mut buf = Buffer::empty(area);
+        modal.render(area, &mut buf, &Theme::default());
+        // Columns, not bytes: the widest label, a column of padding on
+        // either side, and the two borders.
+        let left = (0..area.width)
+            .find(|&x| buf[(x, 4)].symbol() == "│")
+            .unwrap();
+        let right = (left + 1..area.width)
+            .find(|&x| buf[(x, 4)].symbol() == "│")
+            .unwrap();
+        assert_eq!(right - left + 1, widest + 4);
+        // The cursor row is inverted from border to border.
+        let y = (0..area.height)
+            .find(|&y| {
+                (left..right)
+                    .any(|x| buf[(x, y)].symbol() == "a" && buf[(x + 1, y)].symbol() == "l")
+            })
+            .unwrap();
+        let theme = Theme::default();
+        assert!((left + 1..right).all(|x| buf[(x, y)].bg == theme.fg));
     }
 }

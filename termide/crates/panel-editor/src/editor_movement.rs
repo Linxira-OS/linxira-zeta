@@ -9,6 +9,7 @@
 
 use termide_buffer::Cursor;
 
+use crate::word_wrap::WrapLayout;
 use crate::{cursor, selection, word_wrap};
 
 use super::Editor;
@@ -18,22 +19,39 @@ impl Editor {
     // Physical Cursor Movement
     // =========================================================================
 
+    /// Put the cursor, just moved to another line, in the screen column it
+    /// had (`display_col`) instead of at the same grapheme index: a tab
+    /// before it on either line would otherwise shift it sideways.
+    fn land_in_display_column(&mut self, display_col: usize) {
+        use unicode_segmentation::UnicodeSegmentation;
+        let line = self
+            .buffer
+            .line_cow(self.cursor.line)
+            .map(|l| l.trim_end_matches('\n').to_string())
+            .unwrap_or_default();
+        let len = line.graphemes(true).count();
+        self.cursor.column =
+            word_wrap::column_at_row_offset(&line, 0, len, display_col, self.config.tab_size);
+    }
+
     /// Move cursor up
     pub(crate) fn move_cursor_up(&mut self) {
-        let maintain_preferred = cursor::physical::move_up(&mut self.cursor);
-        if !maintain_preferred {
-            self.input.preferred_column = None;
-        }
+        self.begin_vertical_move();
+        let display_col = self.input.preferred_column.unwrap_or(0);
+        cursor::physical::move_up(&mut self.cursor);
+        self.land_in_display_column(display_col);
         self.clamp_cursor();
+        self.end_vertical_move();
     }
 
     /// Move cursor down
     pub(crate) fn move_cursor_down(&mut self) {
-        let maintain_preferred = cursor::physical::move_down(&mut self.cursor, &self.buffer);
-        if !maintain_preferred {
-            self.input.preferred_column = None;
-        }
+        self.begin_vertical_move();
+        let display_col = self.input.preferred_column.unwrap_or(0);
+        cursor::physical::move_down(&mut self.cursor, &self.buffer);
+        self.land_in_display_column(display_col);
         self.clamp_cursor();
+        self.end_vertical_move();
     }
 
     /// Move cursor left
@@ -176,7 +194,7 @@ impl Editor {
             return;
         }
 
-        self.ensure_preferred_column();
+        self.begin_vertical_move();
 
         let use_smart_wrap = self.render_cache.use_smart_wrap;
         let cursor_pos = (self.cursor.line, self.cursor.column);
@@ -188,13 +206,17 @@ impl Editor {
             &self.buffer,
             cursor_pos,
             preferred_column,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
         ) {
             self.cursor = Cursor::at(line, col);
         }
 
         self.clamp_cursor();
+        self.end_vertical_move();
     }
 
     /// Move cursor down by one visual line (accounting for word wrap)
@@ -205,7 +227,7 @@ impl Editor {
             return;
         }
 
-        self.ensure_preferred_column();
+        self.begin_vertical_move();
 
         let use_smart_wrap = self.render_cache.use_smart_wrap;
         let cursor_pos = (self.cursor.line, self.cursor.column);
@@ -217,13 +239,17 @@ impl Editor {
             &self.buffer,
             cursor_pos,
             preferred_column,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
         ) {
             self.cursor = Cursor::at(line, col);
         }
 
         self.clamp_cursor();
+        self.end_vertical_move();
     }
 
     /// Move cursor to start of visual line (for wrapped lines)
@@ -240,8 +266,7 @@ impl Editor {
         self.cursor.column = cursor::visual::move_to_visual_line_start(
             &self.cursor,
             &self.buffer,
-            self.render_cache.content_width,
-            self.render_cache.use_smart_wrap,
+            self.wrap_layout(),
         );
     }
 
@@ -256,12 +281,8 @@ impl Editor {
             return;
         }
 
-        self.cursor.column = cursor::visual::move_to_visual_line_end(
-            &self.cursor,
-            &self.buffer,
-            self.render_cache.content_width,
-            self.render_cache.use_smart_wrap,
-        );
+        self.cursor.column =
+            cursor::visual::move_to_visual_line_end(&self.cursor, &self.buffer, self.wrap_layout());
     }
 
     // =========================================================================
@@ -271,8 +292,19 @@ impl Editor {
     /// Move cursor page up
     pub(crate) fn page_up(&mut self) {
         let page_size = self.viewport.height;
+        // A full page keeps the screen column; the jump to the document
+        // start sets its own.
+        let keeps_column = self.cursor.line >= page_size;
+        self.begin_vertical_move();
+        let display_col = self.input.preferred_column.unwrap_or(0);
         let (should_scroll, scroll_amount) = cursor::jump::page_up(&mut self.cursor, page_size);
+        if keeps_column {
+            self.land_in_display_column(display_col);
+        } else {
+            self.input.preferred_column = None;
+        }
         self.clamp_cursor();
+        self.end_vertical_move();
         if should_scroll {
             self.viewport.scroll_up(scroll_amount);
         }
@@ -281,9 +313,21 @@ impl Editor {
     /// Move cursor page down
     pub(crate) fn page_down(&mut self) {
         let page_size = self.viewport.height;
+        // A full page keeps the screen column; the jump to the document end
+        // sets its own.
+        let max_line = self.buffer.line_count().saturating_sub(1);
+        let keeps_column = max_line.saturating_sub(self.cursor.line) >= page_size;
+        self.begin_vertical_move();
+        let display_col = self.input.preferred_column.unwrap_or(0);
         let (should_scroll, scroll_amount) =
             cursor::jump::page_down(&mut self.cursor, &self.buffer, page_size);
+        if keeps_column {
+            self.land_in_display_column(display_col);
+        } else {
+            self.input.preferred_column = None;
+        }
         self.clamp_cursor();
+        self.end_vertical_move();
         if should_scroll {
             // Use cached virtual line count for viewport scroll (accounts for deletion markers)
             self.viewport
@@ -300,7 +344,7 @@ impl Editor {
             return;
         }
 
-        self.ensure_preferred_column();
+        self.begin_vertical_move();
 
         let use_smart_wrap = self.render_cache.use_smart_wrap;
         let cursor_pos = (self.cursor.line, self.cursor.column);
@@ -313,11 +357,15 @@ impl Editor {
             &self.buffer,
             cursor_pos,
             preferred_column,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
             page_size,
         );
         self.cursor = Cursor::at(line, col);
+        self.end_vertical_move();
 
         // Don't manually scroll viewport - let ensure_cursor_visible() handle it during rendering
         // This is correct because the viewport needs to track visual rows, not buffer lines
@@ -332,7 +380,7 @@ impl Editor {
             return;
         }
 
-        self.ensure_preferred_column();
+        self.begin_vertical_move();
 
         let use_smart_wrap = self.render_cache.use_smart_wrap;
         let cursor_pos = (self.cursor.line, self.cursor.column);
@@ -345,11 +393,15 @@ impl Editor {
             &self.buffer,
             cursor_pos,
             preferred_column,
-            content_width,
-            use_smart_wrap,
+            WrapLayout {
+                width: content_width,
+                smart: use_smart_wrap,
+                tab_size: self.config.tab_size,
+            },
             page_size,
         );
         self.cursor = Cursor::at(line, col);
+        self.end_vertical_move();
 
         // Don't manually scroll viewport - let ensure_cursor_visible() handle it during rendering
         // This is correct because the viewport needs to track visual rows, not buffer lines

@@ -2,14 +2,15 @@
 //! edit form, inline field editing, buttons, and keybinding capture.
 
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use termide_config::{Config, KeyBinding, LspServerSettings};
 
+use crate::base::field_char_at;
 use crate::ModalResult;
 
 use super::fields::{
-    apply_enum_value, cycle_enum_backward, cycle_enum_forward, enum_options, fields_for_tab,
-    toggle_field, ContentRow, FieldType,
+    apply_enum_value, cycle_enum_backward, cycle_enum_forward, fields_for_tab, toggle_field,
+    ContentRow, FieldType,
 };
 use super::kb::{format_key_event, get_kb_binding, kb_binding_names, set_kb_value, KB_SECTIONS};
 use super::{
@@ -117,7 +118,7 @@ impl SettingsModal {
     /// cursor, and the switch stayed put.
     pub(super) fn activate_current_row(&mut self) {
         let field_desc = match self.current_row() {
-            Some(ContentRow::Field(i)) => fields_for_tab(self.active_tab).get(i).copied(),
+            Some(ContentRow::Field(i)) => fields_for_tab(self.field_tab()).get(i).copied(),
             _ => None,
         };
 
@@ -126,16 +127,23 @@ impl SettingsModal {
                 if let Some(d) = field_desc {
                     match d.field_type {
                         FieldType::Bool => {
-                            toggle_field(&mut self.config, self.active_tab, field_idx);
+                            self.toggle(field_idx);
                             self.mark_dirty();
                         }
                         FieldType::Enum => self.open_enum_picker(field_idx),
-                        FieldType::Number | FieldType::OptionalText => {
+                        FieldType::Number | FieldType::OptionalText | FieldType::OptionalNumber => {
                             self.start_edit();
                         }
                     }
                 }
             }
+            Some(ContentRow::ConnectionAdd) => self.add_connection(),
+            Some(ContentRow::Connection(index)) => {
+                if let Some(name) = self.connection_name(index) {
+                    self.open_connection(name);
+                }
+            }
+            Some(ContentRow::ConnectionButtons) => self.press_connection_button(),
             Some(ContentRow::LspAddServer) => {
                 self.lsp_edit_fields = Default::default();
                 self.lsp_edit_index = None;
@@ -151,7 +159,8 @@ impl SettingsModal {
                             srv.command.clone(),
                             srv.args.join(", "),
                             srv.root_markers.join(", "),
-                        ];
+                        ]
+                        .map(termide_ui::TextInput::with_text);
                         self.lsp_edit_index = Some(idx);
                         self.lsp_edit_cursor = 0;
                         self.lsp_mode = LspMode::ServerEdit;
@@ -164,7 +173,7 @@ impl SettingsModal {
 
     /// Open the dropdown for an enum field, highlighting its current value.
     pub(super) fn open_enum_picker(&mut self, field_index: usize) {
-        let Some(options) = enum_options(&self.config, self.active_tab, field_index) else {
+        let Some(options) = self.enum_options_for(field_index) else {
             return;
         };
         // With nothing matching, start at the top rather than nowhere.
@@ -187,17 +196,18 @@ impl SettingsModal {
         let Some(picker) = self.enum_picker.take() else {
             return;
         };
-        let Some(options) = enum_options(&self.config, self.active_tab, picker.field_index) else {
+        let Some(options) = self.enum_options_for(picker.field_index) else {
             return;
         };
         if let Some(value) = options.values.get(picker.cursor) {
             let value = value.clone();
-            apply_enum_value(
-                &mut self.config,
-                self.active_tab,
-                picker.field_index,
-                &value,
-            );
+            // The model dropdown's last entry is the "type an id" escape: it
+            // opens inline editing rather than storing a value.
+            if value == crate::settings::fields::MODEL_TYPE_SENTINEL {
+                self.start_edit();
+                return;
+            }
+            self.apply_enum(picker.field_index, &value);
             self.mark_dirty();
         }
     }
@@ -212,7 +222,7 @@ impl SettingsModal {
         let Some(picker) = self.enum_picker.as_ref() else {
             return;
         };
-        let Some(options) = enum_options(&self.config, self.active_tab, picker.field_index) else {
+        let Some(options) = self.enum_options_for(picker.field_index) else {
             return;
         };
         let len = options.values.len();
@@ -262,7 +272,6 @@ impl SettingsModal {
         if self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit {
             return self.handle_lsp_edit_key(key);
         }
-
         // An open dropdown owns the keyboard until it closes.
         if self.handle_enum_picker_key(key) {
             return Ok(None);
@@ -270,7 +279,7 @@ impl SettingsModal {
 
         let current = self.current_row();
         let field_desc = match current {
-            Some(ContentRow::Field(i)) => fields_for_tab(self.active_tab).get(i).copied(),
+            Some(ContentRow::Field(i)) => fields_for_tab(self.field_tab()).get(i).copied(),
             _ => None,
         };
 
@@ -289,6 +298,10 @@ impl SettingsModal {
             KeyCode::Tab => {
                 self.focus = FocusArea::Buttons;
             }
+            // The connection page goes back to the list it was opened from.
+            KeyCode::Esc | KeyCode::Backspace if self.connection_edit.is_some() => {
+                self.close_connection();
+            }
             KeyCode::BackTab | KeyCode::Esc => {
                 self.focus = FocusArea::Sidebar;
             }
@@ -298,6 +311,13 @@ impl SettingsModal {
                 ))));
             }
             KeyCode::Enter | KeyCode::Char(' ') => self.activate_current_row(),
+            KeyCode::Delete if matches!(current, Some(ContentRow::Connection(_))) => {
+                if let Some(ContentRow::Connection(index)) = current {
+                    if let Some(name) = self.connection_name(index) {
+                        self.delete_connection(&name);
+                    }
+                }
+            }
             KeyCode::Delete => {
                 if let Some(ContentRow::LspServer(idx)) = current {
                     if idx < self.lsp_server_keys.len() {
@@ -308,10 +328,13 @@ impl SettingsModal {
                     }
                 }
             }
+            KeyCode::Left | KeyCode::Right if current == Some(ContentRow::ConnectionButtons) => {
+                self.step_connection_button(key.code == KeyCode::Right);
+            }
             KeyCode::Left => {
                 if let (Some(ContentRow::Field(field_idx)), Some(d)) = (current, field_desc) {
                     if d.field_type == FieldType::Enum {
-                        cycle_enum_backward(&mut self.config, self.active_tab, field_idx);
+                        self.cycle(field_idx, false);
                         self.mark_dirty();
                     }
                 }
@@ -319,7 +342,7 @@ impl SettingsModal {
             KeyCode::Right => {
                 if let (Some(ContentRow::Field(field_idx)), Some(d)) = (current, field_desc) {
                     if d.field_type == FieldType::Enum {
-                        cycle_enum_forward(&mut self.config, self.active_tab, field_idx);
+                        self.cycle(field_idx, true);
                         self.mark_dirty();
                     }
                 }
@@ -327,6 +350,31 @@ impl SettingsModal {
             _ => {}
         }
         Ok(None)
+    }
+
+    /// Toggle a switch of the tab the content shows.
+    fn toggle(&mut self, index: usize) {
+        match self.field_tab() {
+            SettingsTab::Connection => self.toggle_connection_field(index),
+            tab => toggle_field(&mut self.config, tab, index),
+        }
+    }
+
+    /// Store a dropdown choice in a field of the tab the content shows.
+    fn apply_enum(&mut self, index: usize, value: &str) {
+        match self.field_tab() {
+            SettingsTab::Connection => self.apply_connection_enum(index, value),
+            tab => apply_enum_value(&mut self.config, tab, index, value),
+        }
+    }
+
+    /// Step an enum field of the tab the content shows.
+    fn cycle(&mut self, index: usize, forward: bool) {
+        match self.field_tab() {
+            SettingsTab::Connection => self.cycle_connection_field(index, forward),
+            tab if forward => cycle_enum_forward(&mut self.config, tab, index),
+            tab => cycle_enum_backward(&mut self.config, tab, index),
+        }
     }
 
     /// Handle keys in LSP server edit form.
@@ -352,20 +400,16 @@ impl SettingsModal {
                     self.lsp_edit_cursor - 1
                 };
             }
-            KeyCode::Backspace => {
-                self.lsp_edit_fields[self.lsp_edit_cursor].pop();
+            _ => {
+                termide_ui::edit_text_input(&mut self.lsp_edit_fields[self.lsp_edit_cursor], key);
             }
-            KeyCode::Char(c) => {
-                self.lsp_edit_fields[self.lsp_edit_cursor].push(c);
-            }
-            _ => {}
         }
         Ok(None)
     }
 
     /// Commit the LSP server edit form.
     fn commit_lsp_edit(&mut self) {
-        let lang = self.lsp_edit_fields[0].trim().to_string();
+        let lang = self.lsp_edit_fields[0].text().trim().to_string();
         if lang.is_empty() {
             return;
         }
@@ -380,20 +424,22 @@ impl SettingsModal {
             }
         }
 
-        let command = self.lsp_edit_fields[1].trim().to_string();
-        let args: Vec<String> = if self.lsp_edit_fields[2].trim().is_empty() {
+        let command = self.lsp_edit_fields[1].text().trim().to_string();
+        let args: Vec<String> = if self.lsp_edit_fields[2].text().trim().is_empty() {
             vec![]
         } else {
             self.lsp_edit_fields[2]
+                .text()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect()
         };
-        let root_markers: Vec<String> = if self.lsp_edit_fields[3].trim().is_empty() {
+        let root_markers: Vec<String> = if self.lsp_edit_fields[3].text().trim().is_empty() {
             vec![]
         } else {
             self.lsp_edit_fields[3]
+                .text()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
@@ -417,32 +463,130 @@ impl SettingsModal {
         key: KeyEvent,
     ) -> Result<Option<ModalResult<SettingsResult>>> {
         match key.code {
-            KeyCode::Enter => {
-                self.commit_edit();
-            }
-            KeyCode::Esc => {
-                self.cancel_edit();
-            }
-            KeyCode::Backspace => {
-                self.edit_buffer.pop();
-            }
-            KeyCode::Char(c) => {
-                if let Some(field_idx) = self.current_field_idx() {
-                    let fields = fields_for_tab(self.active_tab);
-                    if let Some(d) = fields.get(field_idx) {
-                        if d.field_type == FieldType::Number {
-                            if c.is_ascii_digit() {
-                                self.edit_buffer.push(c);
-                            }
-                        } else {
-                            self.edit_buffer.push(c);
-                        }
-                    }
+            KeyCode::Enter => self.commit_edit(),
+            KeyCode::Esc => self.cancel_edit(),
+            // A number field takes digits only, typed or pasted.
+            KeyCode::Char(c)
+                if self.editing_number()
+                    && !c.is_ascii_digit()
+                    && !key.modifiers.contains(KeyModifiers::CONTROL) => {}
+            _ => {
+                if termide_ui::edit_text_input(&mut self.edit_input, key)
+                    == termide_ui::FieldEdit::Edited
+                {
+                    self.keep_digits();
                 }
             }
-            _ => {}
         }
         Ok(None)
+    }
+
+    /// Paste into the field being edited.
+    pub(super) fn paste_into_edit(&mut self, text: &str) -> bool {
+        if self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit {
+            self.lsp_edit_fields[self.lsp_edit_cursor].paste(text);
+            return true;
+        }
+        if !self.editing {
+            return false;
+        }
+        self.edit_input.paste(text);
+        self.keep_digits();
+        true
+    }
+
+    /// Presses and drags on a text field being edited: a press places the
+    /// cursor, starting a selection that a drag extends, and a double click
+    /// (its first press may be the one that opened the field) selects the
+    /// whole text. Returns whether the event was the field's. A press
+    /// elsewhere commits an inline edit first and goes on to whatever it
+    /// landed on.
+    pub(super) fn handle_field_mouse(&mut self, mouse: MouseEvent) -> bool {
+        let point = (mouse.column, mouse.row).into();
+        let lsp_form = self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit;
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                let presses = self.clicks.click(mouse.row);
+                let hit = if lsp_form {
+                    self.lsp_field_areas
+                        .iter()
+                        .position(|area| area.contains(point))
+                        .map(|index| {
+                            self.lsp_edit_cursor = index;
+                            self.lsp_field_areas[index]
+                        })
+                } else if self.editing {
+                    let area = self.edit_area.filter(|area| area.contains(point));
+                    if area.is_none() {
+                        self.commit_edit();
+                    }
+                    area
+                } else {
+                    None
+                };
+                let Some(area) = hit else {
+                    return false;
+                };
+                self.focus = FocusArea::Content;
+                let input = self.mouse_input();
+                if presses >= 2 {
+                    input.select_all();
+                    self.field_drag = false;
+                    return true;
+                }
+                let pos = field_char_at(input, area, mouse.column);
+                input.set_cursor_with_selection_start(pos);
+                self.field_drag = true;
+                true
+            }
+            MouseEventKind::Drag(MouseButton::Left) if self.field_drag => {
+                let area = if lsp_form {
+                    self.lsp_field_areas.get(self.lsp_edit_cursor).copied()
+                } else {
+                    self.edit_area
+                };
+                if let Some(area) = area {
+                    let input = self.mouse_input();
+                    let pos = field_char_at(input, area, mouse.column);
+                    input.extend_selection_to(pos);
+                }
+                true
+            }
+            MouseEventKind::Up(MouseButton::Left) if self.field_drag => {
+                self.field_drag = false;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// The text field a click or drag works on.
+    fn mouse_input(&mut self) -> &mut termide_ui::TextInput {
+        if self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit {
+            &mut self.lsp_edit_fields[self.lsp_edit_cursor]
+        } else {
+            &mut self.edit_input
+        }
+    }
+
+    /// Whether the field being edited holds a number.
+    fn editing_number(&self) -> bool {
+        self.current_field_idx()
+            .and_then(|index| fields_for_tab(self.field_tab()).get(index).copied())
+            .is_some_and(|d| matches!(d.field_type, FieldType::Number | FieldType::OptionalNumber))
+    }
+
+    /// Drop what is not a digit from a number field, as a paste can bring.
+    fn keep_digits(&mut self) {
+        if !self.editing_number() {
+            return;
+        }
+        let text = self.edit_input.text();
+        if text.chars().all(|c| c.is_ascii_digit()) {
+            return;
+        }
+        let digits: String = text.chars().filter(char::is_ascii_digit).collect();
+        self.edit_input.set_text(digits);
     }
 
     pub(super) fn handle_buttons_key(
@@ -498,6 +642,9 @@ impl SettingsModal {
                 defaults.normalize();
                 self.config = defaults;
                 self.mark_dirty();
+                // The connection the page had open is gone with the rest.
+                self.connection_edit = None;
+                self.enum_picker = None;
                 self.field_cursor = 0;
                 self.content_scroll = 0;
                 self.editing = false;

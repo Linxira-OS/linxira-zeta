@@ -10,7 +10,7 @@ use termide_modal::{ActiveModal, ConfirmModal, InputModal};
 use termide_state::PendingAction;
 use termide_ui::{clipboard, path_utils};
 
-use super::{keyboard, FileManager};
+use super::{keyboard, utils, FileManager};
 
 /// Build HotkeyTable for the file manager from config.
 pub(crate) fn build_fm_hotkey_table(config: &Config) -> HotkeyTable {
@@ -27,6 +27,7 @@ pub(crate) fn build_fm_hotkey_table(config: &Config) -> HotkeyTable {
     t.insert("create_file", &kb.create_file);
     t.insert("delete", &kb.delete);
     t.insert("info", &kb.info);
+    t.insert("pack", &kb.pack);
 
     // Search
     t.insert("search", &kb.search);
@@ -69,6 +70,15 @@ impl FileManager {
 
         let mut events = Vec::new();
 
+        // Say so up front rather than let the operation fail half-way (a
+        // move would extract and then fail to delete the source). A modal,
+        // because the status bar keeps the file info over an info message.
+        if self.vfs.current_path().is_archive() && command.modifies_directory() {
+            let t = termide_i18n::t();
+            self.show_info_modal(t.modal_error_title(), t.fm_archive_read_only());
+            return events;
+        }
+
         match command {
             // Navigation
             FmCommand::MoveUp => self.move_up(),
@@ -95,7 +105,10 @@ impl FileManager {
             FmCommand::GoParent => {
                 // Use VfsState for navigation (works for both local and remote paths)
                 // navigate_up returns None if already at root - don't refresh in that case
-                if let Some(dir_name) = self.vfs.navigate_up() {
+                if self.at_local_drive_root() {
+                    events.push(PanelEvent::OpenDirectorySwitcher);
+                } else if self.leave_archive() {
+                } else if let Some(dir_name) = self.vfs.navigate_up() {
                     self.navigation.save_for_going_up(dir_name);
                     // Sync local path with VfsState
                     self.current_path = self.vfs.path_buf();
@@ -104,7 +117,7 @@ impl FileManager {
             }
             FmCommand::GoHomeDir => {
                 if let Some(home) = dirs::home_dir() {
-                    self.current_path = std::fs::canonicalize(&home).unwrap_or(home);
+                    self.current_path = dunce::canonicalize(&home).unwrap_or(home);
                     let _ = self.load_directory();
                 }
             }
@@ -197,57 +210,36 @@ impl FileManager {
                     }
                 }
             }
+            // The app answers a copy/move request with its own destination
+            // picker (`handle_modal_request` sees no target directory), so
+            // the modal sent along is a placeholder that is never shown.
             FmCommand::CopyFiles => {
                 let paths = self.get_selected_paths();
                 if !paths.is_empty() {
-                    let t = termide_i18n::t();
-                    let (message, default_dest) = if paths.len() == 1 {
-                        let name = path_utils::get_file_name_str(&paths[0]);
-                        // Single file: show full path with filename (user can rename)
-                        (
-                            t.fm_copy_prompt(name),
-                            format!("{}/{}", self.current_path.display(), name),
-                        )
-                    } else {
-                        // Multiple files: directory only (trailing slash)
-                        (
-                            format!("Copy {} items to:", paths.len()),
-                            format!("{}/", self.current_path.display()),
-                        )
-                    };
-                    let modal = InputModal::with_default("Copy", &message, &default_dest);
                     let action = PendingAction::CopyPath {
                         sources: paths,
                         target_directory: None,
                         create_symlink: false,
                         create_relative_symlink: false,
                     };
+                    let modal = InputModal::new("", "");
                     self.modal_request = Some((action, ActiveModal::Input(Box::new(modal))));
                 }
             }
+            FmCommand::Pack => self.request_pack(),
             FmCommand::MoveFiles => {
                 let paths = self.get_selected_paths();
                 if !paths.is_empty() {
-                    let t = termide_i18n::t();
-                    let (message, default_dest) = if paths.len() == 1 {
-                        let name = path_utils::get_file_name_str(&paths[0]);
-                        (t.fm_move_prompt(name), name.to_string())
-                    } else {
-                        (
-                            format!("Move {} items to:", paths.len()),
-                            format!("{}/", self.current_path.display()),
-                        )
-                    };
-                    let modal = InputModal::with_default("Move", &message, &default_dest);
                     let action = PendingAction::MovePath {
                         sources: paths,
                         target_directory: None,
                     };
+                    let modal = InputModal::new("", "");
                     self.modal_request = Some((action, ActiveModal::Input(Box::new(modal))));
                 }
             }
             FmCommand::RenameFile => {
-                if let Some(te) = self.tree_entry_at(self.selected) {
+                if let Some(te) = self.entry_under_cursor() {
                     let entry = &te.file_entry;
                     // Only allow renaming files and directories (not deleted or special entries)
                     if entry.git_status == GitStatus::Deleted {
@@ -271,11 +263,9 @@ impl FileManager {
                         (path, parent)
                     };
                     let t = termide_i18n::t();
-                    let modal = InputModal::with_default(
-                        t.op_type_rename(),
-                        t.fm_move_prompt(&filename),
-                        &filename,
-                    );
+                    // The title already says "Rename"; a prompt here would
+                    // only repeat the name that is in the field.
+                    let modal = InputModal::with_default(t.op_type_rename(), "", &filename);
                     let action = PendingAction::MovePath {
                         sources: vec![source],
                         target_directory: target_dir,
@@ -395,64 +385,173 @@ impl FileManager {
         events
     }
 
-    /// Copy the selected item paths to the system clipboard as newline-joined
-    /// paths (global `PanelCommand::Copy`).
+    /// Copy the selected items to the system clipboard (global
+    /// `PanelCommand::Copy`).
+    ///
+    /// Local items go as a native file list so other applications paste them
+    /// as files. Two cases stay newline-joined text:
+    ///
+    /// - Remote and in-archive panels: a `file://` URL cannot name such an
+    ///   entry, and a remote panel's `full_path` can look like a local path
+    ///   that also exists locally (see the rename path above), so `exists()`
+    ///   alone is not a safe test — the panel's protocol is.
+    /// - A selection holding a symlink: the file flavor asks the OS for the
+    ///   real path, so the link would arrive at the destination as its
+    ///   target, under the target's name. Text is the honest fallback. The
+    ///   whole selection falls back, not just the link — dropping items from
+    ///   the clipboard would be worse than losing the flavor.
     pub(crate) fn clipboard_copy_selection(&self) {
         let paths = self.get_selected_paths();
-        if !paths.is_empty() {
-            let text = paths
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n");
+        if paths.is_empty() {
+            return;
+        }
+
+        let text = clipboard::paths_to_text(&paths);
+
+        if self.vfs.current_path().is_remote() || self.selection_has_symlink() {
+            let _ = clipboard::copy(&text);
+            return;
+        }
+
+        if let Err(e) = clipboard::copy_files(&paths) {
+            log::debug!("file clipboard unavailable ({}), copying paths as text", e);
             let _ = clipboard::copy(&text);
         }
     }
 
-    /// Mark the selected item paths for move on the system clipboard
-    /// (global `PanelCommand::Cut`).
-    pub(crate) fn clipboard_cut_selection(&self) {
+    /// Publish the selected items as a cut (global `PanelCommand::Cut`).
+    ///
+    /// Local items go as a native file list, exactly like [`Self::
+    /// clipboard_copy_selection`], plus the in-app marker that turns a later
+    /// paste into a move. Publishing the list is the safe half of the
+    /// trade-off: no clipboard format carries a cut flag, so Finder and
+    /// Explorer paste a copy and leave the original — a stray copy is one
+    /// `rm` away from fixed, a deleted original is not. The move itself
+    /// happens inside termide only, and [`clipboard::is_cut`] guards it.
+    ///
+    /// Remote and in-archive panels refuse instead of degrading to a copy.
+    /// `MovePath` takes local paths, so a cut there could not move anything;
+    /// letting it publish would leave the user holding a cut that pastes as a
+    /// copy with no word said, and a silent copy is the one outcome a cut must
+    /// never produce. The refusal names itself, so the keystroke is not lost.
+    pub(crate) fn clipboard_cut_selection(&mut self) {
         let paths = self.get_selected_paths();
-        if !paths.is_empty() {
-            let text = paths
-                .iter()
-                .map(|p| p.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n");
-            let _ = clipboard::cut(&text);
+        if paths.is_empty() {
+            return;
+        }
+
+        // The archive refusal already exists and reads exactly right; remote
+        // needs its own words. The order matters: an in-archive path reports
+        // `is_remote()` too, so the archive test has to come first or a cut
+        // inside an archive would be refused as if it were remote.
+        if self.vfs.current_path().is_archive() {
+            let t = termide_i18n::t();
+            self.show_info_modal(t.modal_error_title(), t.fm_archive_read_only());
+            return;
+        }
+        if self.vfs.current_path().is_remote() {
+            let t = termide_i18n::t();
+            self.show_info_modal(t.modal_error_title(), t.fm_cut_local_only());
+            return;
+        }
+
+        // A selection holding a symlink stays on the text path, as it does for
+        // copy: the file flavor asks the OS for the real path, so a move would
+        // relocate the target rather than the link.
+        if self.selection_has_symlink() {
+            let _ = clipboard::cut_paths_as_text(&paths);
+            return;
+        }
+
+        if let Err(e) = clipboard::cut_files(&paths) {
+            log::debug!("file clipboard unavailable ({}), cutting paths as text", e);
+            let _ = clipboard::cut_paths_as_text(&paths);
         }
     }
 
     /// Paste files referenced by the system clipboard into the cursor's tree
     /// level (global `PanelCommand::Paste`).
+    ///
+    /// Reads the clipboard itself: both the native file list (a copy made by
+    /// this panel or by Finder/Explorer) and newline-separated paths.
     pub(crate) fn clipboard_paste_files(&mut self) {
-        if let Some(text) = clipboard::paste() {
-            let files: Vec<PathBuf> = text
-                .lines()
-                .filter(|line| !line.is_empty())
-                .map(PathBuf::from)
-                .filter(|path| path.exists())
-                .collect();
+        self.request_paste_of(clipboard::paste_paths());
+    }
 
-            if !files.is_empty() {
-                // Land the paste at the cursor's tree level —
-                // same rule as create_file / create_dir use via
-                // `create_target_dir`. Cursor on a root entry
-                // pastes into `current_path`; cursor inside an
-                // expanded subdir pastes into that subdir.
-                let (local_target, _vfs_target) = self.create_target_dir();
-                let t = termide_i18n::t();
-                let message =
-                    t.fm_paste_confirm(files.len(), "Copy", &local_target.display().to_string());
-                let action = PendingAction::CopyPath {
-                    sources: files,
-                    target_directory: Some(local_target),
-                    create_symlink: false,
-                    create_relative_symlink: false,
-                };
-                let modal = ConfirmModal::new(termide_i18n::t().modal_confirm_title(), &message);
-                self.modal_request = Some((action, ActiveModal::Confirm(Box::new(modal))));
-            }
+    /// Paste paths handed over by a bracketed paste (global
+    /// `PanelCommand::PasteText`).
+    ///
+    /// On macOS `Cmd+V` never reaches [`PanelCommand::Paste`]: the terminal
+    /// emulator answers it and types the clipboard's text flavor into the
+    /// pane, which arrives here. Taking the key only when the text names real
+    /// files keeps a prose paste from being swallowed — it falls through to
+    /// the panel's normal key handling unchanged.
+    ///
+    /// Only absolute paths qualify: a relative one would resolve against the
+    /// process working directory, not the panel's, so `exists()` could match
+    /// an unrelated file and paste it under the wrong name. Termide's own
+    /// copy publishes absolute paths, so this only discards text that was
+    /// never a file list.
+    pub(crate) fn clipboard_paste_text(&mut self, text: &str) -> bool {
+        let files: Vec<PathBuf> = clipboard::text_to_paths(text)
+            .into_iter()
+            .filter(|path| path.is_absolute() && path.exists())
+            .collect();
+
+        if files.is_empty() {
+            return false;
         }
+
+        self.request_paste_of(files);
+        true
+    }
+
+    /// Confirm, then land `files` in the cursor's tree level — as a move when
+    /// the clipboard still carries them as a cut, otherwise as a copy. The
+    /// single path both paste entries funnel through.
+    fn request_paste_of(&mut self, files: Vec<PathBuf>) {
+        if files.is_empty() {
+            return;
+        }
+
+        // Land the paste at the cursor's tree level —
+        // same rule as create_file / create_dir use via
+        // `create_target_dir`. Cursor on a root entry
+        // pastes into `current_path`; cursor inside an
+        // expanded subdir, or on the expanded subdir
+        // itself, pastes into that subdir.
+        let (local_target, _vfs_target) = self.create_target_dir();
+
+        // Move only where the destination is local. `MovePath` takes local
+        // paths, and a remote panel's target has no scheme here, so a move
+        // into one would be resolved against the local filesystem — which
+        // would then delete the source and write it somewhere else. Copy is
+        // the only honest option there, so the cut is not even consulted.
+        // `is_remote()` already covers an in-archive path, which reports it.
+        let as_move = !self.vfs.current_path().is_remote() && clipboard::is_cut(&files);
+
+        let t = termide_i18n::t();
+        let names = utils::paste_names_summary(&files);
+        let dest = local_target.display().to_string();
+        let message = if as_move {
+            t.fm_paste_move_confirm(files.len(), &names, &dest)
+        } else {
+            t.fm_paste_confirm(files.len(), &names, &dest)
+        };
+        let action = if as_move {
+            PendingAction::MovePath {
+                sources: files,
+                target_directory: Some(local_target),
+            }
+        } else {
+            PendingAction::CopyPath {
+                sources: files,
+                target_directory: Some(local_target),
+                create_symlink: false,
+                create_relative_symlink: false,
+            }
+        };
+        let modal = ConfirmModal::new(termide_i18n::t().modal_confirm_title(), &message);
+        self.modal_request = Some((action, ActiveModal::Confirm(Box::new(modal))));
     }
 }

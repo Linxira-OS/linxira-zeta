@@ -6,48 +6,53 @@
 
 [English](README.md) | **中文** | [Русский](README.ru.md)
 
-一款零配置的终端 IDE，将编辑器、文件管理器和终端合为一体 —— 内置 git、数据库、十六进制、Markdown、图片和 Mermaid 查看器 —— 全部在一个跨平台 TUI 中，使用 Rust 编写。
+一站式终端工作台，适用于你的工作站和服务器：带 LSP 的代码编辑器、支持 SFTP/FTP 的双栏文件管理器、终端、git、数据库查看器和编程智能体 —— 全部集成在一个零配置、使用 Rust 编写的静态二进制文件中。
 
-**[网站](https://termide.github.io)** | **[文档](doc/zh/README.md)** | **[版本发布](https://github.com/termide/termide/releases)** | **[截图](https://ibb.co/album/nPX6p6)**
+**[网站](https://termide.github.io)** | **[文档](doc/zh/README.md)** | **[版本发布](https://github.com/termide/termide/releases)** | **[截图](https://termide.github.io/zh/#screenshots)**
 
-<p align="center"><img src="assets/screenshots/termide.png" alt="TermIDE — 编辑器、文件管理器、终端和查看器合为一个 TUI" width="900"></p>
+<p align="center"><img src="assets/screenshots/termide.gif" alt="TermIDE — 编辑器、文件管理器、终端和查看器合为一个 TUI" width="900"></p>
 
 ## 为什么选择 TermIDE？
 
-与需要大量插件配置的传统终端编辑器不同，TermIDE 开箱即用：
+终端编辑器负责代码；而代码之外的一切 —— 远程主机上的文件、数据库、git、长时间运行的 shell、编程智能体 —— 通常需要插件或单独的工具。TermIDE 将这些全部集成在一个二进制文件中，在笔记本、服务器或手机上都能开箱即用：
 
-| 功能 | TermIDE | Vim/Neovim | Helix | Micro |
-|---------|:-------:|:----------:|:-----:|:-----:|
-| LSP 支持 | ✓ | ✓ | ✓ | 插件 |
-| 零配置 | ✓ | ✗ | ✓ | ✓ |
-| 脚本自动化 | ✓ | ✓ | ✗ | 插件 |
-| 远程文件系统（SFTP/FTP） | ✓ | ✓ | ✗ | ✗ |
-| 十六进制 / 二进制查看器 | ✓ | 插件 | ✗ | 插件 |
-| 数据库查看器 | ✓ | 插件 | ✗ | ✗ |
-| Markdown 预览 | ✓ | 插件 | ✗ | ✗ |
-| 图表查看器（Mermaid） | ✓ | 插件 | ✗ | ✗ |
-| 图片查看器 | ✓ | 插件 | ✗ | ✗ |
-| 内置终端 | ✓ | 插件 | ✗ | ✗ |
-| 文件管理器 | ✓ | 插件 | ✗ | ✗ |
-| 后台文件操作 | ✓ | 插件 | ✗ | ✗ |
-| Git 集成 | ✓ | 插件 | ✗ | ✗ |
-| 会话管理 | ✓ | 插件 | ✗ | ✗ |
-| 可分离会话 | ✓ | ✗ | ✗ | ✗ |
-| 多面板布局 | ✓ | 插件 | ✗ | ✗ |
-| 书签 | ✓ | 插件 | ✗ | ✗ |
-| 资源监控 | ✓ | ✗ | ✗ | ✗ |
+| 功能 | TermIDE | Fresh | Vim/Neovim | Helix | Micro |
+|---------|:-------:|:-----:|:----------:|:-----:|:-----:|
+| LSP 支持 | ✓ | ✓ | ✓ | ✓ | 插件 |
+| 零配置 | ✓ | ✓ | ✗ | ✓ | ✓ |
+| 脚本自动化 | ✓ | ✓ | ✓ | ✗ | 插件 |
+| 外部智能体（Claude Code、Codex、Gemini CLI） | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 远程文件系统（SFTP/FTP） | ✓ | SSH | ✓ | ✗ | ✗ |
+| Markdown 预览 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 内置终端 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| Git 集成 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 项目布局 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 多面板布局 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 书签 | ✓ | ✓ | 插件 | ✗ | ✗ |
+| 十六进制 / 二进制查看器 | ✓ | ✗ | 插件 | ✗ | 插件 |
+| 浏览压缩包（zip/tar） | ✓ | ✗ | ✓ | ✗ | ✗ |
+| 文件管理器 | ✓ | 仅文件树 | 插件 | ✗ | ✗ |
+| 可分离实例 | ✓ | ✓ | ✗ | ✗ | ✗ |
+| 内置编程智能体（本地或云端模型） | ✓ | ✗ | 插件 | ✗ | ✗ |
+| MCP 服务器 | ✓ | ✗ | 插件 | ✗ | ✗ |
+| 数据库查看器 | ✓ | ✗ | 插件 | ✗ | ✗ |
+| 图表查看器（Mermaid） | ✓ | ✗ | 插件 | ✗ | ✗ |
+| 图片查看器 | ✓ | ✗ | 插件 | ✗ | ✗ |
+| 后台文件操作 | ✓ | ✗ | 插件 | ✗ | ✗ |
+| 资源监控 | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-**TermIDE = 编辑器 + 文件管理器 + 终端，集成于一个 TUI 应用程序中。**
+**TermIDE = 编辑器 + 文件管理器 + 终端 + Git + 智能体，集成于一个 TUI 应用程序中。**
 
 ## 功能特性
 
-- **基于终端的 IDE** - 支持 22 种语言的语法高亮、单词导航（Ctrl+Left/Right）、段落/符号导航（Ctrl+Up/Down）、自动缩进、自动关闭括号
+- **基于终端的 IDE** - 支持 23 种语言的语法高亮、单词导航（Ctrl+Left/Right）、段落/符号导航（Ctrl+Up/Down）、自动缩进、自动关闭括号
 - **LSP 支持** - 代码补全、查找引用、重命名符号、跳转到定义，通过 rust-analyzer、pylsp、typescript-language-server 及其他 LSP 服务器实现
-- **智能文件管理器** - 可展开目录的树形视图、嵌套 Git 状态、批量操作、文件/内容搜索（glob/正则表达式）、树内增量搜索
+- **编码代理** - 一个面板（`Alt+A`），语言模型通过任意 OpenAI 或 Anthropic 兼容端点（本地 llama.cpp / Ollama / vLLM / omlx 或托管服务）在你的项目中读取、编辑和运行命令，每次工具调用都会征求许可，并可通过 `/undo` 和检查点撤回其修改；技能、提示模板、MCP 服务器、命令钩子，以及通过 ACP 接入的外部代理（Claude Code、Codex、Gemini CLI）都在同一面板中
+- **智能文件管理器** - 可展开目录的树形视图、嵌套 Git 状态、批量操作、文件/内容搜索（glob/正则表达式）、树内增量搜索；zip、tar 和 ISO 压缩包可像只读目录一样打开（包括服务器上的和嵌套在其他压缩包中的），按 `P` 可将所选内容打包为 zip 或 tar
 - **远程文件系统** - 在文件管理器中通过 SFTP / FTP / FTPS 浏览和编辑远程服务器上的文件，在本地与远程面板之间复制 —— 纯 Rust（russh + rustls），无需原生库，可在静态 musl 上运行（`smb://` / `nfs://` 走系统挂载）
 - **后台文件操作** - 复制、移动、上传、下载、删除及批量传输在后台运行，每个操作带进度条、字节/耗时读数，支持暂停 / 恢复 / 取消（操作面板）
 - **集成终端** - 完整的 PTY 支持、VT100 转义序列、鼠标跟踪
-- **Git 集成** - 状态面板、带彩色 Unicode 提交图（ASCII 回退）的提交日志、暂存/取消暂存、分支切换、暂存管理（stash）、内联 blame 注解
+- **Git 集成** - 状态面板、带彩色 Unicode 提交图（ASCII 回退）的提交日志、暂存/取消暂存、分支及其工作树（worktree）、分支切换、暂存管理（stash）、内联 blame 注解
 - **数据库查看器** - 通过书签 URL 打开的 SQLite / PostgreSQL / MySQL 只读浏览器：带二维单元格光标的表格、服务端单列排序与按列类型感知过滤、滑动窗口分页，以及可复制为 TSV / JSON / INSERT 的整行详情对话框
 - **多面板布局** - 垂直拆分的面板组，每个面板高度可调，一键全屏切换（`Alt+F11`）；终端变窄时智能自动堆叠
 - **图片查看器** - 在 Kitty、WezTerm、iTerm2、Ghostty、foot 终端中原生渲染图形
@@ -55,20 +60,21 @@
 - **Markdown 预览** - `.md` / `.markdown` 的只读渲染视图（标题、列表、表格、语法高亮代码块、可点击链接与图片图标），支持光标导航、选择与剪贴板复制；`Ctrl+E` 切换到可编辑源码；内嵌的 ```mermaid``` 代码块渲染为图表
 - **Mermaid 图表查看器** - 将 `.mmd` / `.mermaid` 文件渲染为文本伪图形 —— flowchart、sequence、state、class、ER、gantt、pie、journey、mindmap、timeline、gitGraph、quadrant；二维滚动、复制到剪贴板，`Ctrl+E` 编辑源码
 - **外部应用** - 使用系统默认应用程序打开文件（Shift+Enter）
-- **39 款内置主题** - 暗色、亮色、复古和电影主题（Dracula、Nord、Monokai、Solarized、Matrix、Pip-Boy、Norton Commander、Windows 95 等）
+- **38 款内置主题** - 暗色、亮色、复古和电影主题（Dracula、Nord、Monokai、Solarized、Matrix、Pip-Boy、Norton Commander、Windows 95 等）
 - **自定义主题** - 使用 TOML 格式创建自己的主题
 - **15 种界面语言** - 孟加拉语、中文、英语、法语、德语、印地语、印尼语、日语、韩语、葡萄牙语、俄语、西班牙语、泰语、土耳其语、越南语
-- **会话管理** - 自动保存和恢复面板布局
-- **可分离会话** - `termide --detached` 让整个会话（编辑器、shell、LSP 服务器、运行中的任务）在终端关闭后继续运行；`termide --attach` 可从任意终端、任意尺寸重新接入（仅限 Unix）
+- **项目管理** - 按项目自动保存和恢复面板布局；切换离开的项目会在后台保持打开（终端继续运行，未保存的修改得以保留），“项目”菜单和 `Alt+\` 切换窗口列出已打开和最近使用的项目
+- **可分离实例** - `termide --detached` 让整个实例（编辑器、shell、LSP 服务器、运行中的任务）在终端关闭后继续运行；`termide --attach` 可从任意终端、任意尺寸重新接入（仅限 Unix）
 - **系统监控** - 菜单栏实时显示 CPU、RAM、网络 I/O；状态栏显示磁盘使用情况；点击指标可打开详细模态窗口
 - **搜索和替换** - 实时预览、匹配计数、正则表达式支持
-- **自定义脚本** - 从脚本菜单运行用户定义的脚本（支持 `.bg.` 后台执行、`.report.` 模态输出）
+- **自定义命令** - 在命令菜单中运行 `commands.toml`（全局和项目级）中定义的 shell 命令：快捷键、分组、参数表单，以及终端 / 后台 / 报告模式
 - **跨平台** - Linux（x86_64、ARM64）、macOS（Intel、Apple Silicon）、Windows（原生 ConPTY、WSL）
 - **完整鼠标支持** - 点击导航、滚动、双击操作
 - **键盘布局** - 西里尔文支持，自动快捷键翻译
 - **Vim 模式** - 可选的 Vim 风格编辑，支持西里尔文键盘
-- **命令面板** - 使用 Ctrl+P 快速打开命令
-- **目录切换器** - 使用 Ctrl+/ 快速切换目录
+- **命令面板** - 使用 Ctrl+P 快速打开命令，支持模糊匹配
+- **打开提示** - 使用 Ctrl+G 打开文件、目录或 URL，带路径建议
+- **目录切换器** - 使用 `Ctrl+\` 快速切换目录
 - **书签** - 保存和管理常用位置
 
 ## 安装
@@ -86,37 +92,37 @@
 
 ```bash
 # Linux x86_64（也适用于 WSL）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64（静态 musl — Alpine、distroless 容器、任何无 glibc 的系统）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.35.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.38.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64（树莓派、ARM 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64（静态 musl —— Android/Termux、Alpine ARM、任何无 glibc 的 ARM64）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64（从 Releases 下载 .zip，解压后在 Windows Terminal 中运行）
-# https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -127,15 +133,14 @@ tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
 TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows Terminal**
 以获得最佳体验。
 
-1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.35.0-x86_64-pc-windows-msvc.zip`。
+1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.38.0-x86_64-pc-windows-msvc.zip`。
 2. 解压压缩包。
 3. 在 Windows Terminal 中运行 `termide.exe`。
 
-配置位于 `%APPDATA%\termide\`（配置、会话），日志位于
-`%LOCALAPPDATA%\termide\cache\`。
+配置、项目布局和日志均位于 `%APPDATA%\termide\`。
 
 或者在 **WSL/WSL2** 中，像在任意 Linux 上一样使用 Linux x86_64 构建
-（`termide-0.35.0-x86_64-unknown-linux-gnu.tar.gz`）。
+（`termide-0.38.0-x86_64-unknown-linux-gnu.tar.gz`）。
 
 </details>
 
@@ -146,8 +151,8 @@ TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows T
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide_0.35.0-1_amd64.deb
-sudo dpkg -i termide_0.35.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.38.0-1_amd64.deb
+sudo dpkg -i termide_0.38.0-1_amd64.deb
 ```
 
 </details>
@@ -159,8 +164,8 @@ sudo dpkg -i termide_0.35.0-1_amd64.deb
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-1.x86_64.rpm
-sudo rpm -i termide-0.35.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-1.x86_64.rpm
+sudo rpm -i termide-0.38.0-1.x86_64.rpm
 ```
 
 </details>
@@ -231,8 +236,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # termide 会调用的工具（以及所需的 LSP 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -290,8 +295,8 @@ russh-sftp —— 无 OpenSSL、无 libssh2），因此这与普通构建是相�
 最简单的方式是从发行版下载预编译的 tarball：
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.35.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.38.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # 验证完全静态 —— 无共享库
@@ -323,23 +328,33 @@ nix build github:termide/termide#termide-static
 termide [OPTIONS] [FILE]...
 
 参数:
-  [FILE]...            要打开的文件。给定路径时，TermIDE 以干净的编辑器视图启动
-                       （不恢复/保存会话），因此可作为 git、crontab、visudo 等的
-                       $EDITOR 使用。
+  [FILE]...            要打开的文件或目录。给定路径时，TermIDE 以干净的视图启动
+                       （不恢复也不保存项目布局）。文本在编辑器中打开，因此可作为
+                       git、crontab、visudo 等的 $EDITOR 使用；图片、SQLite 文件、
+                       其他二进制文件和目录会在相应的查看器、十六进制编辑器或
+                       文件管理器中打开。
 
 选项:
   --log-level <LEVEL>  设置日志级别（trace、debug、info、warn、error）
   --no-lsp             禁用 LSP 语言服务器
-  --config <FILE>      使用自定义配置文件路径
+  --config <PATH>      使用自定义配置文件路径
   --diagnostics        运行启动前诊断并退出（无 UI）
-  --detached           启动一个在终端关闭后仍继续运行的可分离会话，并打印其 ID
+  --detached           启动一个在终端关闭后仍继续运行的可分离实例，并打印其 ID
                        （仅限 Unix）
-  --attach [<ID>]      接入某个可分离会话，省略时接入最近的一个
-  --list-sessions      列出可分离会话并退出
+  --attach [<ID>]      接入某个可分离实例，省略时接入最近的一个
+  -f, --force          与 --attach 连用：从已接入的客户端接管该实例，
+                       并使该客户端分离
+  --kill <ID>          结束某个可分离实例及其中所有 shell 和任务后退出；
+                       其中未保存的更改将丢失
+  --list-instances     列出可分离实例并退出
   --completions <SHELL>
                        打印补全脚本（bash、zsh、fish）并退出
   --install-completions [<SHELL>]
                        为 $SHELL 或指定的 shell 安装补全脚本
+  --prompt <PROMPT>    不启动 UI 运行一次智能体任务，将回答打印到 stdout 后退出；
+                       `-` 表示从 stdin 读取提示
+  --agent <NAME>       与 --prompt 连用：使用的智能体定义
+  --output <FORMAT>    与 --prompt 连用：text（默认）、json 或 stream-json
   -h, --help           打印帮助
   -V, --version        打印版本
 ```
@@ -390,19 +405,19 @@ TermIDE 遵循 [XDG Base Directory 规范](https://specifications.freedesktop.or
 - macOS: `~/Library/Application Support/termide/config.toml`
 - Windows: `%APPDATA%\termide\config.toml`
 
-**会话数据位置：**
-- Linux/BSD: `~/.local/share/termide/sessions/`（或 `$XDG_DATA_HOME/termide/sessions/`）
-- macOS: `~/Library/Application Support/termide/sessions/`
-- Windows: `%APPDATA%\termide\sessions\`
+**项目数据位置：**
+- Linux/BSD: `~/.local/share/termide/projects/`（或 `$XDG_DATA_HOME/termide/projects/`）
+- macOS: `~/Library/Application Support/termide/projects/`
+- Windows: `%APPDATA%\termide\projects\`
 
-**日志文件位置：**
-- Linux/BSD: `~/.cache/termide/termide.log`（或 `$XDG_CACHE_HOME/termide/termide.log`）
-- macOS: `~/Library/Caches/termide/termide.log`
-- Windows: `%LOCALAPPDATA%\termide\cache\termide.log`
+**日志文件位置：** 每次运行都会在上述项目数据位置下对应项目的目录中写入各自的
+`session-<date>-<time>.log`；超过 24 小时的日志会被删除。设置 `logging.file_path`
+可改为使用单个固定文件。
 
 **书签位置：**
-- Linux/BSD: `~/.local/share/termide/bookmarks.toml`（或 `$XDG_DATA_HOME/termide/bookmarks.toml`）
+- Linux/BSD: `~/.config/termide/bookmarks.toml`（或 `$XDG_CONFIG_HOME/termide/bookmarks.toml`）
 - macOS: `~/Library/Application Support/termide/bookmarks.toml`
+- Windows: `%APPDATA%\termide\bookmarks.toml`
 
 ### 配置示例
 
@@ -411,10 +426,10 @@ TermIDE 遵循 [XDG Base Directory 规范](https://specifications.freedesktop.or
 theme = "windows-xp"
 language = "auto"  # auto, bn, de, en, es, fr, hi, id, ja, ko, pt, ru, th, tr, vi, zh
 vim_mode = false
-session_retention_days = 30
+project_retention_days = 30
 bell_on_operation_complete = true
 icon_mode = "auto"  # auto, emoji, unicode
-always_detachable = false  # 会话在终端关闭后继续运行（仅限 Unix）
+always_detachable = false  # 实例在终端关闭后继续运行（仅限 Unix）
 resource_monitor_interval = 1000
 
 [editor]
@@ -488,37 +503,25 @@ min_level = "info"
 
 用户主题优先于同名的内置主题。请参阅仓库中的 `themes/` 目录了解主题文件格式示例。
 
-### 自定义脚本
+### 自定义命令
 
-您可以将可执行文件放置在以下目录中，将自定义脚本添加到脚本菜单：
-- Linux: `~/.local/share/termide/scripts/`
-- macOS: `~/Library/Application Support/termide/scripts/`
-- Windows: `%APPDATA%\termide\scripts\`
+常用的 shell 命令写在 `commands.toml` 中——全局文件位于配置目录，项目文件位于
+`<项目>/.termide/commands.toml`——并显示在**命令**菜单中：
 
-**功能特性：**
-- 脚本显示在脚本菜单中（菜单栏）
-- 子目录创建嵌套子菜单
-- 在文件名中添加 `.bg.` 以实现后台执行（例如 `deploy.bg.sh`）
-- 在文件名中添加 `.report.` 以实现后台执行并显示模态输出（例如 `check.report.sh`）
-- 显示名称为第一个点号之前的部分
+```toml
+[test]
+name = "Run tests"
+command = "cargo nextest run"
+group = "cargo"
+key = "Ctrl+Shift+T"
 
-**示例：**
-```bash
-# 创建脚本目录
-mkdir -p ~/.local/share/termide/scripts
-
-# 添加一个简单脚本
-cat > ~/.local/share/termide/scripts/hello.sh << 'EOF'
-#!/bin/bash
-echo "Hello from TermIDE!"
-read -p "Press Enter to close..."
-EOF
-
-# 设置可执行权限（Unix 系统必需）
-chmod +x ~/.local/share/termide/scripts/hello.sh
+[clippy]
+command = "cargo clippy --workspace -- -D warnings"
+mode = "report"  # terminal（默认）、background 或 report
 ```
 
-**注意：** 在 Unix 系统上，脚本必须具有可执行权限（`chmod +x`）。使用 `选项 → 管理脚本` 打开脚本文件夹。
+`命令 → 添加命令...` 通过表单创建命令。模式、参数和快捷键见
+[自定义命令](doc/zh/actions.md)。
 
 ## 开发
 

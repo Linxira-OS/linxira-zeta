@@ -4,6 +4,7 @@ use termide_buffer::{Cursor, TextBuffer};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::word_boundary::{char_type, find_next_word_start, find_prev_word_start, CharType};
+use crate::word_wrap::WrapLayout;
 
 /// Vim motion types for cursor movement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,8 +63,7 @@ pub fn execute_motion(
     buffer: &TextBuffer,
     count: usize,
     viewport_height: usize,
-    content_width: usize,
-    use_smart_wrap: bool,
+    layout: WrapLayout,
 ) -> Cursor {
     let mut new_cursor = *cursor;
     let count = count.max(1);
@@ -175,13 +175,8 @@ pub fn execute_motion(
         }
         VimMotion::VisualUp => {
             for _ in 0..count {
-                if let Some(new) = crate::cursor::visual::move_up(
-                    &new_cursor,
-                    buffer,
-                    None,
-                    content_width,
-                    use_smart_wrap,
-                ) {
+                if let Some(new) = crate::cursor::visual::move_up(&new_cursor, buffer, None, layout)
+                {
                     new_cursor = new;
                 }
             }
@@ -190,13 +185,9 @@ pub fn execute_motion(
         }
         VimMotion::VisualDown => {
             for _ in 0..count {
-                if let Some(new) = crate::cursor::visual::move_down(
-                    &new_cursor,
-                    buffer,
-                    None,
-                    content_width,
-                    use_smart_wrap,
-                ) {
+                if let Some(new) =
+                    crate::cursor::visual::move_down(&new_cursor, buffer, None, layout)
+                {
                     new_cursor = new;
                 }
             }
@@ -367,8 +358,11 @@ mod tests {
             &buffer,
             2,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 3);
 
@@ -378,8 +372,11 @@ mod tests {
             &buffer,
             2,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 7);
     }
@@ -395,8 +392,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.line, 0);
 
@@ -406,8 +406,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.line, 2);
     }
@@ -423,8 +426,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 0);
 
@@ -434,8 +440,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 2);
 
@@ -445,8 +454,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 12); // "  hello world" has 13 chars, last index is 12
     }
@@ -462,8 +474,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.line, 0);
         assert_eq!(new_cursor.column, 0);
@@ -474,8 +489,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.line, 2);
     }
@@ -491,8 +509,11 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 6); // Start of "world"
 
@@ -502,8 +523,11 @@ mod tests {
             &buffer,
             2,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.column, 12); // Start of "test"
     }
@@ -519,9 +543,34 @@ mod tests {
             &buffer,
             1,
             24,
-            TEST_CONTENT_WIDTH,
-            TEST_SMART_WRAP,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
         );
         assert_eq!(new_cursor.line, 1);
+    }
+
+    /// `j` keeps the screen column across a tab-indented line, through the
+    /// same walk the arrow keys use.
+    #[test]
+    fn test_motion_down_keeps_the_screen_column_across_tabs() {
+        let buffer = create_buffer("        xy\n\t\txy");
+        let cursor = Cursor::at(0, 9);
+
+        let new_cursor = execute_motion(
+            VimMotion::Down,
+            &cursor,
+            &buffer,
+            1,
+            24,
+            WrapLayout {
+                width: TEST_CONTENT_WIDTH,
+                smart: TEST_SMART_WRAP,
+                tab_size: 4,
+            },
+        );
+        assert_eq!((new_cursor.line, new_cursor.column), (1, 3));
     }
 }

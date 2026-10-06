@@ -22,7 +22,7 @@ use termide_config::constants::{
 use termide_i18n as i18n;
 use termide_theme::Theme;
 
-use crate::{centered_rect_with_size, Modal, ModalResult};
+use crate::{centered_rect_with_size, is_click_outside, Modal, ModalResult};
 
 /// Style for a colored segment in modal values.
 #[derive(Debug, Clone, Copy, Default)]
@@ -55,15 +55,17 @@ pub struct InfoModal {
     title: String,
     lines: Vec<(String, ModalValue)>, // (key, value) pairs for table
     spinner_frame: usize,             // Frame counter for spinner animation
-    last_button_area: Option<Rect>,   // For mouse handling
-    last_content_area: Option<Rect>,  // For mouse-wheel scroll hit-test
-    min_width: Option<u16>,           // Optional minimum width to prevent jitter
-    anchor: Option<(u16, u16)>,       // Optional anchor position (x, y) instead of centering
-    anchor_bottom: bool,              // true = anchor specifies bottom edge, not top
-    show_button: bool,                // Whether to show the OK button
-    scroll_offset: usize,             // First visible content line (after wrapping)
-    cached_total_lines: usize,        // Cached total content lines after last render
-    cached_visible: usize,            // Cached visible content-area height after last render
+    /// Screen rect of the modal from the last render, for clicks beside it.
+    last_modal_area: Option<Rect>,
+    last_button_area: Option<Rect>,  // For mouse handling
+    last_content_area: Option<Rect>, // For mouse-wheel scroll hit-test
+    min_width: Option<u16>,          // Optional minimum width to prevent jitter
+    anchor: Option<(u16, u16)>,      // Optional anchor position (x, y) instead of centering
+    anchor_bottom: bool,             // true = anchor specifies bottom edge, not top
+    show_button: bool,               // Whether to show the OK button
+    scroll_offset: usize,            // First visible content line (after wrapping)
+    cached_total_lines: usize,       // Cached total content lines after last render
+    cached_visible: usize,           // Cached visible content-area height after last render
 }
 
 impl InfoModal {
@@ -77,6 +79,7 @@ impl InfoModal {
             title: title.into(),
             lines,
             spinner_frame: 0,
+            last_modal_area: None,
             last_button_area: None,
             last_content_area: None,
             min_width: None,
@@ -95,6 +98,7 @@ impl InfoModal {
             title: title.into(),
             lines,
             spinner_frame: 0,
+            last_modal_area: None,
             last_button_area: None,
             last_content_area: None,
             min_width: None,
@@ -280,7 +284,7 @@ impl InfoModal {
             .unwrap_or(0);
 
         // Calculate required width:
-        // padding (4) + borders (2) + key + ": " (2) + value
+        // padding (4) + borders (2) + key + separator (2) + value
         let content_width = 6 + max_key_len + 2 + max_value_len;
 
         // Apply constraints
@@ -311,11 +315,11 @@ impl Modal for InfoModal {
             .unwrap_or(0);
 
         // Calculate available width for values
-        // modal_width - borders (2) - padding (4) - key_width - ": " (2)
+        // modal_width - borders (2) - padding (4) - key_width - separator (2)
         let available_value_width = modal_width
             .saturating_sub(6) // borders + padding
             .saturating_sub(max_key_len as u16)
-            .saturating_sub(2) // ": "
+            .saturating_sub(2) // separator
             .max(MODAL_MIN_VALUE_WIDTH as u16) as usize;
 
         let t = i18n::t();
@@ -339,10 +343,9 @@ impl Modal for InfoModal {
                     if wrapped_values.is_empty() {
                         continue;
                     }
-                    let separator = if key.is_empty() { "  " } else { ": " };
                     all_lines.push(Line::from(vec![
                         Span::styled(format!("  {}{}", key, padding), key_style),
-                        Span::raw(separator),
+                        Span::raw("  "),
                         Span::styled(wrapped_values[0].clone(), Style::default().fg(theme.fg)),
                     ]));
                     let indent = " ".repeat(max_key_len + 4);
@@ -419,6 +422,7 @@ impl Modal for InfoModal {
         } else {
             centered_rect_with_size(modal_width, modal_height, area)
         };
+        self.last_modal_area = Some(modal_area);
 
         let inner = render_modal_block(modal_area, buf, &self.title, theme);
 
@@ -488,7 +492,9 @@ impl Modal for InfoModal {
         &mut self,
         chord: termide_core::KeyChord,
     ) -> Result<Option<ModalResult<Self::Result>>> {
-        let key = chord.raw;
+        // No text input here: letter keys are shortcuts, matched on the
+        // layout-normalized form so they work on a Cyrillic layout too.
+        let key = chord.canonical;
         let max_scroll = self.cached_total_lines.saturating_sub(self.cached_visible);
         let page = self.cached_visible.max(1);
 
@@ -543,6 +549,11 @@ impl Modal for InfoModal {
                 return Ok(None);
             }
             _ => {}
+        }
+
+        // A click beside the modal closes it, as Esc does.
+        if is_click_outside(&mouse, self.last_modal_area) {
+            return Ok(Some(ModalResult::Cancelled));
         }
 
         // Only handle left button press
@@ -622,6 +633,28 @@ mod tests {
             state: KeyEventState::NONE,
         };
         termide_core::KeyChord::identity(ev)
+    }
+
+    #[test]
+    fn keys_are_divided_from_values_by_spaces() {
+        setup_i18n();
+        let mut modal = InfoModal::new("Info", vec![("Model".into(), "gpt".into())]);
+        let theme = Theme::default();
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buf = Buffer::empty(area);
+        modal.render(area, &mut buf, &theme);
+        let text = (0..area.height)
+            .map(|y| {
+                (0..area.width)
+                    .map(|x| buf[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            text.contains("Model  gpt") && !text.contains("Model:"),
+            "{text}"
+        );
     }
 
     #[test]

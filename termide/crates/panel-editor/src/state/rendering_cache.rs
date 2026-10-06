@@ -9,6 +9,8 @@ use termide_highlight::{global_highlighter, HighlightCache};
 use termide_theme::Theme;
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::word_wrap::WrapLayout;
+
 /// Cached wrap data for a single line.
 #[derive(Clone, Debug)]
 pub struct CachedWrapData {
@@ -34,8 +36,14 @@ pub(crate) struct RenderingCache {
     pub content_width: usize,
     /// Cached content height from last render.
     pub content_height: usize,
+    /// Screen cell the cursor was drawn at in the last render, when on screen.
+    /// Popups that open at the cursor anchor here.
+    pub cursor_screen_pos: Option<(u16, u16)>,
     /// Cached smart wrap setting from last render.
     pub use_smart_wrap: bool,
+    /// Tab stop interval the wrap cache was computed with. Entries are not
+    /// tagged with it: a change clears the whole cache.
+    pub tab_size: usize,
     /// Cache of wrap points for each line: line_index -> (visual_rows, wrap_points).
     wrap_cache: HashMap<usize, CachedWrapData>,
     /// Cumulative visual row counts: cumulative_rows[i] = total visual rows for lines 0..i.
@@ -71,7 +79,9 @@ impl RenderingCache {
             virtual_line_count: 0,
             content_width: 0,
             content_height: 0,
+            cursor_screen_pos: None,
             use_smart_wrap: false,
+            tab_size: 0,
             wrap_cache: HashMap::new(),
             cumulative_visual_rows: Vec::new(),
             cumulative_valid: false,
@@ -85,15 +95,13 @@ impl RenderingCache {
 
     /// Get cached wrap data for a line, if available and valid for current settings.
     ///
-    /// Returns `None` if the cached data was computed with different width or smart_wrap settings.
-    pub fn get_wrap_data(
-        &self,
-        line: usize,
-        content_width: usize,
-        use_smart_wrap: bool,
-    ) -> Option<&CachedWrapData> {
+    /// Returns `None` if the cached data was computed with a different layout.
+    pub fn get_wrap_data(&self, line: usize, layout: WrapLayout) -> Option<&CachedWrapData> {
+        if self.tab_size != layout.tab_size {
+            return None;
+        }
         self.wrap_cache.get(&line).filter(|cached| {
-            cached.computed_width == content_width && cached.computed_smart_wrap == use_smart_wrap
+            cached.computed_width == layout.width && cached.computed_smart_wrap == layout.smart
         })
     }
 
@@ -165,16 +173,22 @@ impl RenderingCache {
     }
 
     /// Check if wrap settings match current parameters (for cache invalidation on settings change).
-    pub fn wrap_settings_match(&self, content_width: usize, use_smart_wrap: bool) -> bool {
-        self.content_width == content_width && self.use_smart_wrap == use_smart_wrap
+    pub fn wrap_settings_match(&self, layout: WrapLayout) -> bool {
+        self.content_width == layout.width
+            && self.use_smart_wrap == layout.smart
+            && self.tab_size == layout.tab_size
     }
 
     /// Update wrap settings and invalidate cache if they changed.
-    pub fn update_wrap_settings(&mut self, content_width: usize, use_smart_wrap: bool) {
-        if !self.wrap_settings_match(content_width, use_smart_wrap) {
+    pub fn update_wrap_settings(&mut self, layout: WrapLayout) {
+        if !self.wrap_settings_match(layout) {
             self.invalidate_wrap_cache();
-            self.content_width = content_width;
-            self.use_smart_wrap = use_smart_wrap;
+            // Diagnostic spans are measured in display columns, so a tab
+            // size change moves them too.
+            self.invalidate_diagnostic_cache();
+            self.content_width = layout.width;
+            self.use_smart_wrap = layout.smart;
+            self.tab_size = layout.tab_size;
         }
     }
 
@@ -199,6 +213,7 @@ impl RenderingCache {
 
         let content_width = self.content_width;
         let use_smart_wrap = self.use_smart_wrap;
+        let tab_size = self.tab_size;
 
         for line_idx in 0..line_count {
             // Get visual rows from wrap cache, or compute and cache if missing
@@ -212,8 +227,11 @@ impl RenderingCache {
                 let grapheme_count = line_text.graphemes(true).count();
                 let (visual_rows, wrap_points) = crate::word_wrap::get_line_wrap_points(
                     line_text,
-                    content_width,
-                    use_smart_wrap,
+                    WrapLayout {
+                        width: content_width,
+                        smart: use_smart_wrap,
+                        tab_size,
+                    },
                 );
                 self.wrap_cache.insert(
                     line_idx,

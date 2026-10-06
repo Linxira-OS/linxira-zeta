@@ -1,6 +1,6 @@
-//! The list of detached sessions, kept as one `<id>.info` sidecar per socket.
+//! The list of detached instances, kept as one `<id>.info` sidecar per socket.
 //!
-//! There is no central index file: a session is whatever has a live socket in
+//! There is no central index file: an instance is whatever has a live socket in
 //! the runtime directory. That keeps the registry self-healing — a daemon that
 //! dies without cleaning up leaves a socket whose pid no longer exists, and
 //! [`prune_dead`] removes it on the next listing.
@@ -11,12 +11,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::paths;
 
-/// What `--list-sessions` shows for one detached session.
+/// What `--list-instances` shows for one detached instance.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionInfo {
+pub struct InstanceInfo {
     pub id: String,
     /// Pid of the daemon, not of the hosted termide: the daemon is what owns
-    /// the socket, so its liveness is what decides whether the session exists.
+    /// the socket, so its liveness is what decides whether the instance exists.
     pub pid: i32,
     pub project: PathBuf,
     /// Seconds since the Unix epoch.
@@ -24,8 +24,8 @@ pub struct SessionInfo {
     pub attached: bool,
 }
 
-impl SessionInfo {
-    /// How long the session has been up, as a compact `3d 4h` / `5m` string.
+impl InstanceInfo {
+    /// How long the instance has been up, as a compact `3d 4h` / `5m` string.
     pub fn uptime(&self) -> String {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -75,7 +75,7 @@ impl SessionInfo {
             }
         }
 
-        Some(SessionInfo {
+        Some(InstanceInfo {
             id: id.to_string(),
             pid: pid?,
             project: project?,
@@ -93,21 +93,21 @@ pub fn now_unix() -> u64 {
         .unwrap_or(0)
 }
 
-/// Write (or overwrite) the sidecar for a session.
-pub fn write_info(info: &SessionInfo) -> Result<()> {
+/// Write (or overwrite) the sidecar for an instance.
+pub fn write_info(info: &InstanceInfo) -> Result<()> {
     let path = paths::info_path(&info.id)?;
     std::fs::write(&path, info.serialise())
         .with_context(|| format!("Failed to write {}", path.display()))
 }
 
-/// Read one session's sidecar, if it is present and parsable.
-pub fn read_info(id: &str) -> Option<SessionInfo> {
+/// Read one instance's sidecar, if it is present and parsable.
+pub fn read_info(id: &str) -> Option<InstanceInfo> {
     let path = paths::info_path(id).ok()?;
     let text = std::fs::read_to_string(path).ok()?;
-    SessionInfo::parse(id, &text)
+    InstanceInfo::parse(id, &text)
 }
 
-/// Mark a session attached or detached, leaving the rest of the sidecar alone.
+/// Mark an instance attached or detached, leaving the rest of the sidecar alone.
 pub fn set_attached(id: &str, attached: bool) -> Result<()> {
     if let Some(mut info) = read_info(id) {
         info.attached = attached;
@@ -116,7 +116,7 @@ pub fn set_attached(id: &str, attached: bool) -> Result<()> {
     Ok(())
 }
 
-/// Delete every file belonging to a session.
+/// Delete every file belonging to an instance.
 ///
 /// All three of them: a leftover `.term` is small but permanent, and since
 /// `prune_dead` routes through here, anything this function forgets accretes
@@ -140,7 +140,7 @@ pub fn remove(id: &str) {
 /// liveness is probed this way rather than by connecting to the socket — a
 /// connect would arrive at the daemon as a client and have to be rejected.
 #[cfg(unix)]
-fn process_is_alive(pid: i32) -> bool {
+pub(crate) fn process_is_alive(pid: i32) -> bool {
     use nix::sys::signal::kill;
     use nix::unistd::Pid;
     // Err(EPERM) means the process exists under another uid, which cannot
@@ -152,7 +152,7 @@ fn process_is_alive(pid: i32) -> bool {
 }
 
 #[cfg(not(unix))]
-fn process_is_alive(_pid: i32) -> bool {
+pub(crate) fn process_is_alive(_pid: i32) -> bool {
     false
 }
 
@@ -168,8 +168,8 @@ pub fn prune_dead() -> Result<Vec<String>> {
     Ok(pruned)
 }
 
-/// Every session with a socket in the runtime directory, dead ones included.
-fn scan() -> Result<Vec<SessionInfo>> {
+/// Every instance with a socket in the runtime directory, dead ones included.
+fn scan() -> Result<Vec<InstanceInfo>> {
     let dir = paths::runtime_dir()?;
     let mut found = Vec::new();
 
@@ -199,17 +199,17 @@ fn scan() -> Result<Vec<SessionInfo>> {
     Ok(found)
 }
 
-/// Live sessions, with dead entries pruned as a side effect.
-pub fn list() -> Result<Vec<SessionInfo>> {
+/// Live instances, with dead entries pruned as a side effect.
+pub fn list() -> Result<Vec<InstanceInfo>> {
     prune_dead()?;
     scan()
 }
 
-/// The session `--attach` should pick when the user names none.
+/// The instance `--attach` should pick when the user names none.
 ///
-/// The most recently started one: with a single session it is unambiguous,
+/// The most recently started one: with a single instance it is unambiguous,
 /// and with several it matches "the one I just detached from".
-pub fn most_recent() -> Result<Option<SessionInfo>> {
+pub fn most_recent() -> Result<Option<InstanceInfo>> {
     Ok(list()?.into_iter().max_by_key(|s| s.started))
 }
 
@@ -217,8 +217,8 @@ pub fn most_recent() -> Result<Option<SessionInfo>> {
 mod tests {
     use super::*;
 
-    fn sample() -> SessionInfo {
-        SessionInfo {
+    fn sample() -> InstanceInfo {
+        InstanceInfo {
             id: "termide".to_string(),
             pid: 4242,
             project: PathBuf::from("/home/u/termide"),
@@ -228,10 +228,10 @@ mod tests {
     }
 
     // Regression: `remove` used to delete the socket and the sidecar but not
-    // the `.term` handover file, so every session that ever ran left one
+    // the `.term` handover file, so every instance that ever ran left one
     // behind — for ever, since pruning goes through this same function.
     #[test]
-    fn remove_deletes_every_file_a_session_owns() {
+    fn remove_deletes_every_file_an_instance_owns() {
         let id = "test-remove-all-files";
         let paths = [
             paths::socket_path(id).unwrap(),
@@ -252,21 +252,21 @@ mod tests {
     #[test]
     fn info_round_trips_through_the_sidecar_format() {
         let info = sample();
-        let parsed = SessionInfo::parse("termide", &info.serialise()).unwrap();
+        let parsed = InstanceInfo::parse("termide", &info.serialise()).unwrap();
         assert_eq!(parsed, info);
     }
 
     #[test]
     fn parsing_needs_a_pid_and_a_project() {
-        assert!(SessionInfo::parse("x", "pid=1\n").is_none());
-        assert!(SessionInfo::parse("x", "project=/tmp\n").is_none());
-        assert!(SessionInfo::parse("x", "pid=1\nproject=/tmp\n").is_some());
+        assert!(InstanceInfo::parse("x", "pid=1\n").is_none());
+        assert!(InstanceInfo::parse("x", "project=/tmp\n").is_none());
+        assert!(InstanceInfo::parse("x", "pid=1\nproject=/tmp\n").is_some());
     }
 
     #[test]
     fn unknown_keys_are_ignored_so_the_format_can_grow() {
         let text = "pid=7\nproject=/tmp\nstarted=5\nattached=1\nfuture=yes\n";
-        let parsed = SessionInfo::parse("x", text).unwrap();
+        let parsed = InstanceInfo::parse("x", text).unwrap();
         assert_eq!(parsed.pid, 7);
         assert!(parsed.attached);
     }

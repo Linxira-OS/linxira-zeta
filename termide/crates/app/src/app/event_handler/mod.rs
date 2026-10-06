@@ -14,7 +14,7 @@
 use anyhow::Result;
 
 use super::App;
-use termide_core::PanelEvent;
+use termide_core::{PanelCommand, PanelEvent};
 
 mod file_view;
 mod git_ops;
@@ -140,8 +140,18 @@ impl App {
                 self.state.set_info(message);
             }
 
+            PanelEvent::ShowInfo { title, rows } => {
+                let modal = termide_modal::InfoModal::new(title, rows);
+                self.state.active_modal = Some(crate::state::ActiveModal::Info(Box::new(modal)));
+                self.state.needs_redraw = true;
+            }
+
             PanelEvent::ShowError(message) => {
                 self.show_error_modal(message);
+            }
+
+            PanelEvent::RequestAttention => {
+                self.state.attention_bell();
             }
 
             PanelEvent::SetStatusMessage { message, is_error } => {
@@ -254,6 +264,23 @@ impl App {
             } => {
                 self.event_show_select(title, options, on_select);
             }
+            PanelEvent::ShowChecklist {
+                title,
+                prompt,
+                items,
+                groups,
+                action,
+            } => {
+                let modal = termide_modal::ChecklistModal::new(title, prompt, items, groups);
+                self.state.set_pending_action(
+                    termide_state::PendingAction::PanelChecklist { action },
+                    crate::state::ActiveModal::Checklist(Box::new(modal)),
+                );
+            }
+
+            PanelEvent::RefreshChecklist(refresh) => {
+                self.event_refresh_checklist(refresh);
+            }
 
             PanelEvent::ShowConflict {
                 source,
@@ -269,6 +296,10 @@ impl App {
 
             PanelEvent::UnwatchPath(path) => {
                 self.event_unwatch_path(path);
+            }
+
+            PanelEvent::FileChangedOnDisk(path) => {
+                self.fan_out_fs_changes(&std::collections::HashSet::from([path]));
             }
 
             PanelEvent::RefreshGitStatus(path) => {
@@ -306,8 +337,16 @@ impl App {
                 self.event_open_git_diff(repo_path, commit_hash, file_path)?;
             }
 
-            PanelEvent::OpenGitLog { repo_path: _ } => {
+            PanelEvent::OpenGitLog { repo_path, branch } => {
                 self.handle_open_git_log()?;
+                // The log panel is focused now, found or just created.
+                if let Some(panel) = self
+                    .layout_manager
+                    .active_panel_mut()
+                    .filter(|p| p.name() == "git_log")
+                {
+                    panel.handle_command(PanelCommand::ShowGitLog { repo_path, branch });
+                }
             }
 
             PanelEvent::OpenStashDropdown {
@@ -376,6 +415,14 @@ impl App {
 
             PanelEvent::OpenDirectorySwitcher => {
                 self.handle_open_directory_switcher()?;
+            }
+
+            PanelEvent::ForkAgentSession { session, cwd } => {
+                self.fork_agent_session(&session, &cwd)?;
+            }
+
+            PanelEvent::ChangeAgentCwd { session, cwd } => {
+                self.ask_agent_cwd(session, cwd);
             }
         }
         Ok(())

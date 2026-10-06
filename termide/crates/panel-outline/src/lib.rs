@@ -495,7 +495,9 @@ impl Panel for OutlinePanel {
     }
 
     fn handle_key(&mut self, chord: termide_core::KeyChord) -> Vec<PanelEvent> {
-        let key = chord.raw;
+        // No text input here: every key is a shortcut, matched on the
+        // layout-normalized form so it works on a Cyrillic layout too.
+        let key = chord.canonical;
         // Ctrl+C: copy selected symbol name to clipboard
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             if let Some(symbol) = self.symbols.get(self.selected_index) {
@@ -592,8 +594,8 @@ impl Panel for OutlinePanel {
         vec![]
     }
 
-    fn to_session(&self, _session_dir: &std::path::Path) -> Option<termide_core::SessionPanel> {
-        Some(termide_core::SessionPanel::Outline)
+    fn to_state(&self, _project_dir: &std::path::Path) -> Option<termide_core::PanelState> {
+        Some(termide_core::PanelState::Outline)
     }
 
     fn as_any(&self) -> &dyn Any {

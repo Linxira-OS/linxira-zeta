@@ -10,6 +10,7 @@ pub const VERSION: &str = env!("TERMIDE_VERSION");
 
 pub mod command;
 pub mod event;
+pub mod graphics_cells;
 pub mod hotkey_table;
 pub mod key_chord;
 pub mod panel;
@@ -21,14 +22,16 @@ pub mod wide_cells;
 
 pub use command::{CommandResult, PanelCommand};
 pub use event::{
+    ChecklistButton, ChecklistGroup, ChecklistItem, ChecklistOutcome, ChecklistRefresh,
     ConfirmAction, ConflictResolution, Event, EventHandler, GitOperationType, InputAction,
     PanelEvent, ReferenceLocation, SelectAction, SplitDirection, VimPanelDirection,
 };
+pub use graphics_cells::GraphicsCells;
 pub use hotkey_table::HotkeyTable;
 pub use key_chord::KeyChord;
 pub use panel::{
-    HeightMode, Panel, PanelConfig, RenderContext, Searchable, SegmentKind, SessionPanel,
-    StatusSegment, ThemeColors, WidthPreference,
+    HeightMode, Panel, PanelConfig, PanelState, RenderContext, Searchable, SegmentKind,
+    StatusSegment, ThemeColors, TitleCut, WidthPreference,
 };
 pub use scrollbar::{ScrollAxis, ScrollBarGeometry, ScrollBars};
 pub use terminal_caps::{

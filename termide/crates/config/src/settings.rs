@@ -22,6 +22,10 @@ use crate::keybindings::{
     ViewerKeybindings,
 };
 
+/// The context window used when `[ai] context_window_fallback` is unset and
+/// the provider does not report a model's window.
+pub const DEFAULT_CONTEXT_WINDOW_FALLBACK: u64 = 32_000;
+
 /// Application configuration with nested sections.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -76,6 +80,367 @@ pub struct Config {
     /// Syntax-highlighting settings (custom keyword languages)
     #[serde(default)]
     pub highlight: HighlightSettings,
+
+    /// AI settings (model access and the coding agent panel).
+    #[serde(default)]
+    pub ai: AiSettings,
+}
+
+/// AI settings: the connections to models and what the agent may do.
+///
+/// A connection (`[ai.connections.<name>]`) is one endpoint and model, or a
+/// CLI agent; everything else here applies whichever one a session runs on.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSettings {
+    /// The connection new sessions start on. Empty, or naming none that
+    /// exists, falls back to the first by name.
+    #[serde(default)]
+    pub connection: String,
+
+    /// The connections, by name.
+    #[serde(default)]
+    pub connections: std::collections::BTreeMap<String, Connection>,
+
+    /// Upper bound on the model's output tokens per turn (one response). Zero
+    /// or a negative number sets no bound and leaves the length to the model.
+    #[serde(default = "agent_defaults::max_tokens")]
+    pub max_tokens_per_turn: i64,
+
+    /// The reasoning level new sessions ask for (`off` through `max`); a
+    /// model that lacks it gets the nearest one it has. The older
+    /// `prefer_reasoning = true | false` reads as `high` or `off`.
+    #[serde(
+        default = "agent_defaults::reasoning",
+        alias = "prefer_reasoning",
+        deserialize_with = "reasoning_level"
+    )]
+    pub reasoning: termide_agent_core::ThinkingLevel,
+
+    /// Permission rules: a mode (`configured` unless the file names another)
+    /// plus one `pattern = decision` table per tool.
+    #[serde(default)]
+    pub permissions: termide_agent_core::PermissionRules,
+
+    /// The connection whose model reviews calls in `auto` mode. Empty
+    /// reviews with the model the session runs on.
+    #[serde(default)]
+    pub auto_reviewer: String,
+
+    /// Context compaction policy.
+    #[serde(default)]
+    pub compaction: termide_agent_core::CompactionPolicy,
+
+    /// When the transcript folds reasoning and tool calls to their one-line
+    /// headline (the answer always shows in full).
+    #[serde(default)]
+    pub fold_blocks: FoldBlocks,
+
+    /// The web tools (`fetch`, `web_search`).
+    #[serde(default)]
+    pub web: WebSettings,
+
+    /// Ring the terminal bell when an agent panel waits for the user out of
+    /// sight: a permission or question card, or a long run that finished.
+    #[serde(default = "agent_defaults::bell_on_attention")]
+    pub bell_on_attention: bool,
+}
+
+/// One connection to a model: the wire protocol or CLI agent, where it
+/// listens, the key and the model. The API key is read from `api_key_env`
+/// rather than stored, so the config file never holds a secret.
+///
+/// Only what a connection sets is written: a new one is a table the
+/// defaults do not have, so the diff-against-defaults save would otherwise
+/// write every field, the ones its provider ignores included.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Connection {
+    /// `openai_compatible` (omlx, llama.cpp, OpenAI, OpenRouter and most
+    /// gateways), `anthropic_compatible` (the Messages API), or a CLI agent
+    /// driven over ACP: `claude_code`, `codex`, `gemini_cli`.
+    #[serde(default = "agent_defaults::provider")]
+    pub provider: String,
+    /// Base URL including the API prefix, e.g. `http://127.0.0.1:10000/v1`.
+    /// For `anthropic_compatible` it is left at the default unless a gateway
+    /// is used.
+    #[serde(
+        default = "agent_defaults::base_url",
+        skip_serializing_if = "agent_defaults::is_base_url"
+    )]
+    pub base_url: String,
+    /// Model id as the endpoint expects it; for a CLI agent, the model to
+    /// pre-select on its own login.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub model: String,
+    /// Environment variable holding the API key; empty for local servers.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub api_key_env: String,
+    /// Fallback context window in tokens, used only when the provider does
+    /// not report a model's window. Unset falls back to
+    /// [`DEFAULT_CONTEXT_WINDOW_FALLBACK`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window_fallback: Option<u64>,
+    /// Ask an `openai_compatible` server for its prompt-processing progress
+    /// (llama.cpp's `return_progress`), for a live prefill bar. Off by
+    /// default: servers that do not know the field may reject the request.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub prefill_progress: bool,
+    /// The field an `openai_compatible` server takes the reasoning level in.
+    #[serde(default, skip_serializing_if = "ReasoningParam::is_auto")]
+    pub reasoning_param: ReasoningParam,
+}
+
+/// `reasoning_param` of an `openai_compatible` connection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningParam {
+    /// `reasoning_effort` for the hosted APIs known to take it (OpenAI,
+    /// OpenRouter, Gemini), `enable_thinking` for a server on this machine
+    /// or the local network, nothing elsewhere.
+    #[default]
+    Auto,
+    /// `reasoning_effort`, the OpenAI field.
+    ReasoningEffort,
+    /// `chat_template_kwargs.enable_thinking`, the on/off switch of the chat
+    /// templates of Qwen3, GLM and DeepSeek on vLLM or llama.cpp.
+    EnableThinking,
+    /// Nothing: the server decides.
+    None,
+}
+
+impl ReasoningParam {
+    pub const ALL: [Self; 4] = [
+        Self::Auto,
+        Self::ReasoningEffort,
+        Self::EnableThinking,
+        Self::None,
+    ];
+
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::ReasoningEffort => "reasoning_effort",
+            Self::EnableThinking => "enable_thinking",
+            Self::None => "none",
+        }
+    }
+
+    #[must_use]
+    pub fn is_auto(&self) -> bool {
+        *self == Self::Auto
+    }
+}
+
+/// A reasoning level, or the on/off switch it replaced.
+fn reasoning_level<'de, D>(deserializer: D) -> Result<termide_agent_core::ThinkingLevel, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use termide_agent_core::ThinkingLevel;
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum LevelOrSwitch {
+        Switch(bool),
+        Level(ThinkingLevel),
+    }
+    Ok(match LevelOrSwitch::deserialize(deserializer)? {
+        LevelOrSwitch::Switch(true) => ThinkingLevel::High,
+        LevelOrSwitch::Switch(false) => ThinkingLevel::Off,
+        LevelOrSwitch::Level(level) => level,
+    })
+}
+
+impl Default for Connection {
+    fn default() -> Self {
+        Self {
+            provider: agent_defaults::provider(),
+            base_url: agent_defaults::base_url(),
+            model: String::new(),
+            api_key_env: String::new(),
+            context_window_fallback: None,
+            prefill_progress: false,
+            reasoning_param: ReasoningParam::Auto,
+        }
+    }
+}
+
+impl Connection {
+    /// The context window to start with, until the provider reports one.
+    #[must_use]
+    pub fn effective_context_window(&self) -> u64 {
+        self.context_window_fallback
+            .unwrap_or(DEFAULT_CONTEXT_WINDOW_FALLBACK)
+    }
+
+    /// Whether it drives a CLI agent over ACP rather than an endpoint.
+    #[must_use]
+    pub fn is_cli(&self) -> bool {
+        is_cli_provider(&self.provider)
+    }
+}
+
+/// `[ai] fold_blocks`: when reasoning and tool calls fold to one line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FoldBlocks {
+    /// Folded from the start, while they still run.
+    #[default]
+    Immediately,
+    /// In full while they run, folded once they finish.
+    OnFinish,
+    /// Never folded.
+    Never,
+}
+
+impl FoldBlocks {
+    /// Every choice, in the order the settings modal offers them.
+    pub const ALL: [FoldBlocks; 3] = [
+        FoldBlocks::Immediately,
+        FoldBlocks::OnFinish,
+        FoldBlocks::Never,
+    ];
+
+    /// The spelling configuration uses.
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            FoldBlocks::Immediately => "immediately",
+            FoldBlocks::OnFinish => "on-finish",
+            FoldBlocks::Never => "never",
+        }
+    }
+}
+
+/// `[ai.web]`: how the agent's web tools reach the web.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WebSettings {
+    /// `auto` (Chrome when found, else plain HTTP), `chrome` or `http`.
+    /// Plain HTTP reads pages but cannot search.
+    #[serde(default = "web_defaults::backend")]
+    pub backend: String,
+    /// Search engine: the name of a file under `ai/web/engines/`.
+    #[serde(default = "web_defaults::engine")]
+    pub engine: String,
+    /// Browser executable; empty looks for Chrome, Chromium, Edge or Brave in
+    /// the usual places.
+    #[serde(default)]
+    pub chrome_path: String,
+    /// How the browser shows itself: `headless` (no window; a captcha brings
+    /// one up for the user), `minimized` (a real window kept out of the way)
+    /// or `visible` (a window on screen, to watch what the agent opens).
+    #[serde(default = "web_defaults::display")]
+    pub display: String,
+}
+
+impl Default for WebSettings {
+    fn default() -> Self {
+        Self {
+            backend: web_defaults::backend(),
+            engine: web_defaults::engine(),
+            chrome_path: String::new(),
+            display: web_defaults::display(),
+        }
+    }
+}
+
+/// Values `[ai.web] backend` accepts.
+pub const WEB_BACKENDS: [&str; 3] = ["auto", "chrome", "http"];
+/// Values `[ai.web] display` accepts.
+pub const WEB_DISPLAYS: [&str; 3] = ["headless", "minimized", "visible"];
+
+/// The search engines termide ships; the user may add more as files.
+#[must_use]
+pub fn builtin_web_engines() -> Vec<&'static str> {
+    termide_agent_core::SEED_ENGINES
+        .iter()
+        .map(|(name, _)| *name)
+        .collect()
+}
+
+mod web_defaults {
+    pub fn backend() -> String {
+        "auto".to_string()
+    }
+    pub fn engine() -> String {
+        "duckduckgo".to_string()
+    }
+    pub fn display() -> String {
+        "headless".to_string()
+    }
+}
+
+impl AiSettings {
+    /// The name of the connection new sessions start on: `connection` when it
+    /// exists, else the first by name; `None` with no connections at all.
+    #[must_use]
+    pub fn default_connection(&self) -> Option<&str> {
+        if self.connections.contains_key(&self.connection) {
+            return Some(self.connection.as_str());
+        }
+        self.connections.keys().next().map(String::as_str)
+    }
+
+    /// The per-turn output bound to request, `None` when the setting is zero
+    /// or negative and the model decides the length itself.
+    #[must_use]
+    pub fn output_limit(&self) -> Option<u64> {
+        u64::try_from(self.max_tokens_per_turn)
+            .ok()
+            .filter(|&n| n > 0)
+    }
+
+    /// The permission mode new sessions start in, as configuration spells it
+    /// (`ask`, `plan`, `edit`, `configured`, `all`).
+    #[must_use]
+    pub fn permission_mode(&self) -> &'static str {
+        self.permissions.mode.label()
+    }
+
+    /// Set the permission mode new sessions start in from its spelling;
+    /// an unknown one is ignored.
+    pub fn set_permission_mode(&mut self, label: &str) {
+        if let Some(mode) = termide_agent_core::Mode::ALL
+            .into_iter()
+            .find(|mode| mode.label() == label)
+        {
+            self.permissions.mode = mode;
+        }
+    }
+}
+
+/// Every permission mode's spelling, in the order the UI offers them.
+#[must_use]
+pub fn permission_modes() -> Vec<&'static str> {
+    termide_agent_core::Mode::ALL
+        .into_iter()
+        .map(termide_agent_core::Mode::label)
+        .collect()
+}
+
+/// Whether an AI provider value names a CLI agent driven over ACP (Claude
+/// Code, Codex, Gemini CLI) rather than a wire protocol the built-in loop speaks. Such a
+/// provider brings its own endpoint, model and auth, so the endpoint/model/key
+/// settings do not apply to it.
+#[must_use]
+pub fn is_cli_provider(provider: &str) -> bool {
+    matches!(provider, "claude_code" | "codex" | "gemini_cli")
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            connection: String::new(),
+            connections: std::collections::BTreeMap::new(),
+            max_tokens_per_turn: agent_defaults::max_tokens(),
+            reasoning: agent_defaults::reasoning(),
+            permissions: termide_agent_core::PermissionRules::default(),
+            auto_reviewer: String::new(),
+            compaction: termide_agent_core::CompactionPolicy::default(),
+            fold_blocks: FoldBlocks::default(),
+            web: WebSettings::default(),
+            bell_on_attention: agent_defaults::bell_on_attention(),
+        }
+    }
 }
 
 /// Syntax-highlighting settings.
@@ -140,9 +505,14 @@ pub struct GeneralSettings {
     #[serde(default = "default_min_panel_width")]
     pub min_panel_width: u16,
 
-    /// Session retention period in days
-    #[serde(default = "default_session_retention_days")]
-    pub session_retention_days: u32,
+    /// How long a project's saved layout is kept, in days. The old
+    /// `session_retention_days` spelling is still accepted so configs written
+    /// before the rename keep working.
+    #[serde(
+        default = "default_project_retention_days",
+        alias = "session_retention_days"
+    )]
+    pub project_retention_days: u32,
 
     /// Enable Vim mode globally (disabled by default)
     /// - In editor: NORMAL/INSERT/VISUAL modes, operators, motions
@@ -174,18 +544,18 @@ pub struct GeneralSettings {
     #[serde(default = "default_true")]
     pub report_all_keys: bool,
 
-    /// Start every session in a detachable host, so that closing the
+    /// Start every instance in a detachable host, so that closing the
     /// terminal leaves it running and `termide --attach` picks it back up
     /// without having to remember `--detached` at launch.
     ///
-    /// Off by default: it changes what closing a terminal means. A session
+    /// Off by default: it changes what closing a terminal means. An instance
     /// that outlives its window keeps its LSP servers, watchers and shells
     /// alive, which is the point when working over SSH and a surprise
     /// otherwise. Ignored when termide is launched with file arguments —
     /// `git commit` and friends wait for the editor to exit, and a detach
     /// would tell them the edit finished when it had not.
     ///
-    /// Unix only; there is no session host on Windows.
+    /// Unix only; there is no instance host on Windows.
     #[serde(default)]
     pub always_detachable: bool,
 
@@ -397,8 +767,9 @@ pub struct LspSettings {
     #[serde(default = "default_lsp_hover_delay_ms")]
     pub hover_delay_ms: u64,
 
-    /// Per-language server configurations
-    #[serde(default = "default_lsp_servers")]
+    /// Per-language server configurations: the built-ins, with each user
+    /// entry laid over the built-in of the same language or added beside them.
+    #[serde(default = "default_lsp_servers", deserialize_with = "lsp_servers")]
     pub servers: std::collections::HashMap<String, LspServerSettings>,
 }
 
@@ -425,6 +796,28 @@ fn default_theme_name() -> String {
     defaults::THEME_NAME.to_string()
 }
 
+mod agent_defaults {
+    pub fn provider() -> String {
+        "openai_compatible".to_string()
+    }
+    pub fn base_url() -> String {
+        "http://127.0.0.1:10000/v1".to_string()
+    }
+    pub fn is_base_url(value: &str) -> bool {
+        value == base_url()
+    }
+    pub fn max_tokens() -> i64 {
+        // No bound: the model decides how long to answer.
+        0
+    }
+    pub fn reasoning() -> termide_agent_core::ThinkingLevel {
+        termide_agent_core::ThinkingLevel::High
+    }
+    pub fn bell_on_attention() -> bool {
+        true
+    }
+}
+
 fn default_language() -> String {
     defaults::LANGUAGE.to_string()
 }
@@ -437,8 +830,8 @@ fn default_min_panel_width() -> u16 {
     defaults::MIN_PANEL_WIDTH
 }
 
-fn default_session_retention_days() -> u32 {
-    defaults::SESSION_RETENTION_DAYS
+fn default_project_retention_days() -> u32 {
+    defaults::PROJECT_RETENTION_DAYS
 }
 
 fn default_bell_on_operation_complete() -> bool {
@@ -536,24 +929,29 @@ fn default_lsp_servers() -> std::collections::HashMap<String, LspServerSettings>
         },
     );
 
-    // TypeScript/JavaScript - typescript-language-server
-    servers.insert(
-        "typescript".to_string(),
-        LspServerSettings {
-            command: "typescript-language-server".to_string(),
-            args: vec!["--stdio".to_string()],
-            root_markers: vec!["tsconfig.json".to_string(), "package.json".to_string()],
-        },
-    );
+    // TypeScript/JavaScript - typescript-language-server. The JSX variants
+    // are languages of their own to the server, so they get their own keys.
+    for lang in ["typescript", "typescriptreact"] {
+        servers.insert(
+            lang.to_string(),
+            LspServerSettings {
+                command: "typescript-language-server".to_string(),
+                args: vec!["--stdio".to_string()],
+                root_markers: vec!["tsconfig.json".to_string(), "package.json".to_string()],
+            },
+        );
+    }
 
-    servers.insert(
-        "javascript".to_string(),
-        LspServerSettings {
-            command: "typescript-language-server".to_string(),
-            args: vec!["--stdio".to_string()],
-            root_markers: vec!["package.json".to_string()],
-        },
-    );
+    for lang in ["javascript", "javascriptreact"] {
+        servers.insert(
+            lang.to_string(),
+            LspServerSettings {
+                command: "typescript-language-server".to_string(),
+                args: vec!["--stdio".to_string()],
+                root_markers: vec!["package.json".to_string()],
+            },
+        );
+    }
 
     // Go - gopls
     servers.insert(
@@ -565,7 +963,77 @@ fn default_lsp_servers() -> std::collections::HashMap<String, LspServerSettings>
         },
     );
 
+    // PHP - PHPantom
+    servers.insert(
+        "php".to_string(),
+        LspServerSettings {
+            command: "phpantom_lsp".to_string(),
+            args: vec![],
+            root_markers: vec!["composer.json".to_string()],
+        },
+    );
+
+    // Terraform - terraform-ls
+    for lang in ["terraform", "terraform-vars"] {
+        servers.insert(
+            lang.to_string(),
+            LspServerSettings {
+                command: "terraform-ls".to_string(),
+                args: vec!["serve".to_string()],
+                root_markers: vec![".terraform.lock.hcl".to_string(), ".terraform".to_string()],
+            },
+        );
+    }
+
+    // Dockerfile/Compose - docker-language-server
+    for lang in ["dockerfile", "dockercompose"] {
+        servers.insert(
+            lang.to_string(),
+            LspServerSettings {
+                command: "docker-language-server".to_string(),
+                args: vec!["start".to_string(), "--stdio".to_string()],
+                root_markers: vec![
+                    "compose.yaml".to_string(),
+                    "compose.yml".to_string(),
+                    "docker-compose.yaml".to_string(),
+                    "docker-compose.yml".to_string(),
+                ],
+            },
+        );
+    }
+
     servers
+}
+
+/// `[lsp.servers]` as written, laid over [`default_lsp_servers`] the way the
+/// layered loader overlays files: an entry for a built-in language changes
+/// only the fields it sets, any other entry is added. Without this a single
+/// entry would replace the whole built-in table whenever a config is parsed
+/// directly (`--config`, saving the config file from the editor).
+fn lsp_servers<'de, D>(
+    deserializer: D,
+) -> Result<std::collections::HashMap<String, LspServerSettings>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    let entries = std::collections::HashMap::<String, toml::Value>::deserialize(deserializer)?;
+    let mut servers = default_lsp_servers();
+    for (lang, entry) in entries {
+        let merged = match servers.remove(&lang) {
+            Some(builtin) => {
+                let mut value = toml::Value::try_from(builtin).map_err(D::Error::custom)?;
+                crate::diff::merge_partial(&mut value, &entry);
+                value
+            }
+            None => entry,
+        };
+        let server = merged
+            .try_into()
+            .map_err(|e: toml::de::Error| D::Error::custom(format!("{lang}: {}", e.message())))?;
+        servers.insert(lang, server);
+    }
+    Ok(servers)
 }
 
 /// Legacy flat config format for migration.
@@ -587,8 +1055,12 @@ pub struct LegacyConfig {
     pub show_git_diff: bool,
     #[serde(default = "default_extended_view_width")]
     pub fm_extended_view_width: usize,
-    #[serde(default = "default_session_retention_days")]
-    pub session_retention_days: u32,
+    // A pre-sections config file only ever spelled this the old way.
+    #[serde(
+        default = "default_project_retention_days",
+        rename = "session_retention_days"
+    )]
+    pub project_retention_days: u32,
     #[serde(default = "default_word_wrap")]
     pub word_wrap: bool,
     #[serde(default = "default_min_level")]
@@ -605,7 +1077,7 @@ impl From<LegacyConfig> for Config {
                 language: legacy.language,
                 auto_stack_threshold: legacy.min_panel_width, // migrate old field
                 min_panel_width: default_min_panel_width(),
-                session_retention_days: legacy.session_retention_days,
+                project_retention_days: legacy.project_retention_days,
                 vim_mode: default_vim_mode(),
                 bell_on_operation_complete: default_bell_on_operation_complete(),
                 icon_mode: IconMode::default(),
@@ -645,6 +1117,7 @@ impl From<LegacyConfig> for Config {
             },
             vfs: VfsSettings::default(),
             highlight: HighlightSettings::default(),
+            ai: AiSettings::default(),
         }
     }
 }
@@ -657,7 +1130,7 @@ impl Default for GeneralSettings {
             language: default_language(),
             auto_stack_threshold: default_auto_stack_threshold(),
             min_panel_width: default_min_panel_width(),
-            session_retention_days: default_session_retention_days(),
+            project_retention_days: default_project_retention_days(),
             vim_mode: default_vim_mode(),
             bell_on_operation_complete: default_bell_on_operation_complete(),
             icon_mode: IconMode::default(),
@@ -747,6 +1220,112 @@ impl Config {
 }
 
 #[cfg(test)]
+mod ai_settings_tests {
+    use super::*;
+
+    #[test]
+    fn new_sessions_start_on_the_named_connection_or_the_first() {
+        let mut parsed: AiSettings = toml::from_str(
+            r#"
+            connection = "local"
+            [connections.local]
+            model = "local-model"
+            [connections.cloud]
+            provider = "anthropic_compatible"
+            model = "claude-x"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(parsed.default_connection(), Some("local"));
+        let local = &parsed.connections["local"];
+        // What a connection leaves out takes the field's own default.
+        assert_eq!(local.provider, "openai_compatible");
+        assert_eq!(local.base_url, agent_defaults::base_url());
+        parsed.connection = "gone".into();
+        assert_eq!(parsed.default_connection(), Some("cloud"));
+        assert_eq!(AiSettings::default().default_connection(), None);
+    }
+
+    #[test]
+    fn a_connection_writes_only_what_it_sets() {
+        let cli = Connection {
+            provider: "claude_code".into(),
+            ..Connection::default()
+        };
+        assert_eq!(
+            toml::to_string(&cli).unwrap().trim(),
+            r#"provider = "claude_code""#
+        );
+        let local = Connection {
+            model: "qwen".into(),
+            ..Connection::default()
+        };
+        let text = toml::to_string(&local).unwrap();
+        assert_eq!(
+            text.trim(),
+            "provider = \"openai_compatible\"\nmodel = \"qwen\""
+        );
+        // What it leaves out reads back as the default.
+        assert_eq!(toml::from_str::<Connection>(&text).unwrap(), local);
+    }
+
+    #[test]
+    fn new_sessions_reason_and_start_in_auto() {
+        let defaults = AiSettings::default();
+        assert_eq!(defaults.reasoning, termide_agent_core::ThinkingLevel::High);
+        assert!(defaults.bell_on_attention);
+        assert_eq!(defaults.permissions.mode, termide_agent_core::Mode::Auto);
+        // A file that only adds a rule keeps the mode.
+        let parsed: AiSettings =
+            toml::from_str("[permissions.bash]\n\"ls *\" = \"allow\"\n").unwrap();
+        assert_eq!(parsed.permissions.mode, termide_agent_core::Mode::Auto);
+        assert_eq!(
+            parsed.permissions.evaluate("bash", "ls -la"),
+            Some(termide_agent_core::Decision::Allow)
+        );
+        let parsed: AiSettings =
+            toml::from_str("prefer_reasoning = false\n[permissions]\nmode = \"auto\"\n").unwrap();
+        assert_eq!(parsed.permissions.mode, termide_agent_core::Mode::Auto);
+        assert!(parsed.auto_reviewer.is_empty());
+        assert_eq!(parsed.reasoning, termide_agent_core::ThinkingLevel::Off);
+        let parsed: AiSettings = toml::from_str("prefer_reasoning = true\n").unwrap();
+        assert_eq!(parsed.reasoning, termide_agent_core::ThinkingLevel::High);
+        let parsed: AiSettings = toml::from_str("reasoning = \"xhigh\"\n").unwrap();
+        assert_eq!(parsed.reasoning, termide_agent_core::ThinkingLevel::XHigh);
+        assert!(toml::from_str::<AiSettings>("reasoning = \"extreme\"\n").is_err());
+    }
+
+    #[test]
+    fn a_connection_names_its_reasoning_param_only_when_set() {
+        let mut local = Connection::default();
+        assert!(!toml::to_string(&local).unwrap().contains("reasoning_param"));
+        local.reasoning_param = ReasoningParam::EnableThinking;
+        let text = toml::to_string(&local).unwrap();
+        assert!(
+            text.contains("reasoning_param = \"enable_thinking\""),
+            "{text}"
+        );
+        assert_eq!(toml::from_str::<Connection>(&text).unwrap(), local);
+    }
+
+    #[test]
+    fn a_non_positive_output_limit_means_none() {
+        let mut settings = AiSettings::default();
+        // No bound by default: the model decides.
+        assert_eq!(settings.output_limit(), None);
+        settings.max_tokens_per_turn = 4096;
+        assert_eq!(settings.output_limit(), Some(4096));
+        settings.max_tokens_per_turn = 0;
+        assert_eq!(settings.output_limit(), None);
+        settings.max_tokens_per_turn = -1;
+        assert_eq!(settings.output_limit(), None);
+        // A negative number is valid in the config file.
+        let parsed: AiSettings = toml::from_str("max_tokens_per_turn = -1").unwrap();
+        assert_eq!(parsed.output_limit(), None);
+    }
+}
+
+#[cfg(test)]
 mod keybinding_default_tests {
     use super::*;
     use crate::KeyBinding;
@@ -784,7 +1363,7 @@ close_panel = ["Alt+X", "F10"]
             Some(KeyBinding::Single("Alt+Up".to_string()))
         );
         assert_eq!(
-            kb.detach_session,
+            kb.detach_instance,
             Some(KeyBinding::Single("Alt+D".to_string())),
             "the freed letter must now reach detach"
         );
@@ -832,8 +1411,8 @@ next_group = ["Alt+Right", "Alt+D"]
 "#;
         let mut config: Config = toml::from_str(toml).expect("config parses");
         assert!(
-            config.general.keybindings.detach_session.is_none(),
-            "precondition: the saved file has no detach_session"
+            config.general.keybindings.detach_instance.is_none(),
+            "precondition: the saved file has no detach_instance"
         );
 
         config.normalize();
@@ -841,7 +1420,7 @@ next_group = ["Alt+Right", "Alt+D"]
         let binding = config
             .general
             .keybindings
-            .detach_session
+            .detach_instance
             .expect("normalize fills in the new binding");
         assert_eq!(binding, KeyBinding::Single("Alt+D".to_string()));
 
@@ -850,5 +1429,60 @@ next_group = ["Alt+Right", "Alt+D"]
             config.general.keybindings.quit,
             Some(KeyBinding::Single("Alt+Q".to_string()))
         );
+    }
+}
+
+#[cfg(test)]
+mod lsp_default_tests {
+    use super::*;
+
+    #[test]
+    fn built_in_servers_cover_php_terraform_and_docker() {
+        let servers = default_lsp_servers();
+        let expected: [(&str, &str, &[&str], &[&str]); 5] = [
+            ("php", "phpantom_lsp", &[], &["composer.json"]),
+            (
+                "terraform",
+                "terraform-ls",
+                &["serve"],
+                &[".terraform.lock.hcl", ".terraform"],
+            ),
+            (
+                "terraform-vars",
+                "terraform-ls",
+                &["serve"],
+                &[".terraform.lock.hcl", ".terraform"],
+            ),
+            (
+                "dockerfile",
+                "docker-language-server",
+                &["start", "--stdio"],
+                &[
+                    "compose.yaml",
+                    "compose.yml",
+                    "docker-compose.yaml",
+                    "docker-compose.yml",
+                ],
+            ),
+            (
+                "dockercompose",
+                "docker-language-server",
+                &["start", "--stdio"],
+                &[
+                    "compose.yaml",
+                    "compose.yml",
+                    "docker-compose.yaml",
+                    "docker-compose.yml",
+                ],
+            ),
+        ];
+        for (lang, command, args, root_markers) in expected {
+            let server = servers.get(lang).unwrap_or_else(|| panic!("{lang}"));
+            assert_eq!(server.command, command, "{lang}");
+            assert_eq!(server.args, args, "{lang}");
+            // The root the server runs in decides what it can resolve, so the
+            // markers are as much of the definition as the command is.
+            assert_eq!(server.root_markers, root_markers, "{lang}");
+        }
     }
 }

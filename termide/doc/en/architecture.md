@@ -159,7 +159,7 @@ pub trait Panel {
 
 **Editor** (`crates/panel-editor/src/lib.rs`)
 - Text editing with undo/redo
-- Syntax highlighting via tree-sitter (22 languages)
+- Syntax highlighting via tree-sitter (23 languages)
 - Search and replace with inline find bars
 - Line numbers, cursor position, word wrap
 - Word navigation (Ctrl+Left/Right), paragraph/symbol navigation (Ctrl+Up/Down)
@@ -303,7 +303,7 @@ Handles interactive modal dialogs:
   - `settings/fields.rs` — declarative field data (`FieldType`, `FieldDescriptor`, `ContentRow`, helpers `fields_for_tab`, `get_field_value`, `toggle_field`, `cycle_enum_*`)
   - `settings/kb.rs` — keybinding tables and macros (`kb_get!`/`kb_set!`, `KB_SECTIONS`, `kb_binding_names`, `get/set_kb_value`, `format_key_event`)
 - **Progress** — progress bar for long-running operations
-- **Commit** / **Conflict** / **RenamePattern** / **Sessions** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — specialised dialogs for individual operations
+- **Commit** / **Conflict** / **RenamePattern** / **Projects** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — specialised dialogs for individual operations
 
 Shared helpers live in `crates/modal/src/base.rs` (`render_modal_block`, `render_modal_frame`, `button_style`, the `CursorNavigation` trait).
 
@@ -509,7 +509,7 @@ crates/i18n/
 - Raw mode management
 
 **Tree-sitter** - Syntax highlighting
-- Parser generators for 22 languages
+- Parser generators for 23 languages
 - Incremental parsing for performance
 - Query system for syntax highlighting
 
@@ -599,7 +599,7 @@ lives.
 | FileManager per-entry git status      | `crates/panel-file-manager/src/git_status.rs`                   | `check_git_status_async`; `apply_git_statuses` reapplies if dir read raced ahead   |
 | Git status / log panel refresh        | `crates/panel-git-status/src/lib.rs`, `panel-git-log/src/lib.rs`| `poll_refresh` in each panel's `tick`                                              |
 | Git submodule discovery (RepoManager) | `crates/git/src/repo_manager.rs` (`spawn_submodule_walk`)       | `RepoManager::poll` from git panel `tick`                                          |
-| Session restore — panels in parallel  | `crates/app/src/layout_session.rs` (`construct_panel` per panel)| Joined synchronously after spawn so the slowest panel still gates the first frame  |
+| Layout restore — panels in parallel   | `crates/app/src/layout_store.rs` (`construct_panel` per panel)| Joined synchronously after spawn so the slowest panel still gates the first frame  |
 | Watcher repo registration             | `crates/watcher/src/lib.rs` (`watch_repository`)                | `poll_pending` in app main loop; inotify installs chunked at `INSTALL_CHUNK`/tick, FSEvents (macOS) one recursive root watch with `.gitignore` filtering on delivery |
 | Directory size walk (wide-view)       | `crates/panel-file-manager/src/utils.rs` (`shared_dir_size_cache`) | Per-frame `try_recv` against shared cache; budget enforced per walk             |
 
@@ -609,23 +609,30 @@ runtime owns the connection and a chunk-as-command actor (see
 polls pause/cancel flags between dispatches, so a paused transfer
 leaves the actor free to serve other panels' metadata requests.
 
-### 8. Session Management
+### 8. Project Layouts
 
-**Location:** `crates/session/src/lib.rs`
+**Location:** `crates/project/src/lib.rs`
 
-Session persistence allows saving and restoring panel layouts:
+Each project's panel layout is saved and restored (`ProjectLayout`):
 
 **Storage Location:**
-- Linux: `~/.local/share/termide/sessions/<project_path>/session.toml`
-- macOS: `~/Library/Application Support/termide/sessions/<project_path>/session.toml`
+- Linux: `~/.local/share/termide/projects/<project_path>/session.toml`
+- macOS: `~/Library/Application Support/termide/projects/<project_path>/session.toml`
+
+A data directory from before the rename, `sessions/`, is moved to `projects/`
+on the first start. Whatever an older termide writes to `sessions/` after that
+is folded into `projects/` on the next start, the newer of two copies of a file
+winning. The **Journal** panel reports each move and any failure.
 
 **Features:**
-- Automatic session save on exit
+- Automatic layout save on exit
 - Panel layout restoration on startup
-- Session switching via menu (switch between different projects)
-- Session retention with automatic cleanup of old sessions
+- Project switching via the Projects menu
+- Retention (`project_retention_days`) with automatic cleanup of old layouts
 
-**Session File Format:**
+The file keeps its historical name, `session.toml`.
+
+**Layout File Format:**
 ```toml
 focused_group = 0
 

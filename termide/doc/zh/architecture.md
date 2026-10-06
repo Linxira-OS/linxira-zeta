@@ -158,7 +158,7 @@ pub trait Panel {
 
 **编辑器** (`crates/panel-editor/src/lib.rs`)
 - 带撤销/重做的文本编辑
-- 通过 tree-sitter 实现语法高亮（15+ 种语言）
+- 通过 tree-sitter 实现语法高亮（23 种语言）
 - 带内嵌查找栏的搜索和替换
 - 行号、光标位置、自动换行
 - 单词导航（Ctrl+Left/Right）、段落/符号导航（Ctrl+Up/Down）
@@ -302,7 +302,7 @@ while !state.should_quit {
   - `settings/fields.rs` — 声明性字段数据（`FieldType`、`FieldDescriptor`、`ContentRow`，以及辅助函数 `fields_for_tab`、`get_field_value`、`toggle_field`、`cycle_enum_*`）
   - `settings/kb.rs` — 键绑定表和宏（`kb_get!`/`kb_set!`、`KB_SECTIONS`、`kb_binding_names`、`get/set_kb_value`、`format_key_event`）
 - **Progress** — 长时间操作的进度条
-- **Commit** / **Conflict** / **RenamePattern** / **Sessions** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — 针对具体场景的专用对话框
+- **Commit** / **Conflict** / **RenamePattern** / **Projects** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — 针对具体场景的专用对话框
 
 共用工具集中在 `crates/modal/src/base.rs`（`render_modal_block`、`render_modal_frame`、`button_style`、`CursorNavigation` trait）。
 
@@ -507,7 +507,7 @@ crates/i18n/
 - Raw 模式管理
 
 **Tree-sitter** - 语法高亮
-- 15+ 种语言的解析器生成器
+- 23 种语言的解析器生成器
 - 增量解析提升性能
 - 用于语法高亮的查询系统
 
@@ -594,7 +594,7 @@ crates/i18n/
 | FileManager 每条目 git 状态      | `crates/panel-file-manager/src/git_status.rs`                   | `check_git_status_async`；若目录读取抢先，`apply_git_statuses` 会重新应用      |
 | Git 状态/日志面板刷新            | `crates/panel-git-status/src/lib.rs`、`panel-git-log/src/lib.rs`| 各面板 `tick` 中的 `poll_refresh`                                             |
 | Git 子模块发现（RepoManager）    | `crates/git/src/repo_manager.rs` (`spawn_submodule_walk`)       | git 面板 `tick` 中的 `RepoManager::poll`                                       |
-| 会话恢复——并行构建面板           | `crates/app/src/layout_session.rs`（每面板 `construct_panel`）  | 启动后同步 join，因此最慢的面板仍决定首帧                                     |
+| 布局恢复——并行构建面板           | `crates/app/src/layout_store.rs`（每面板 `construct_panel`）  | 启动后同步 join，因此最慢的面板仍决定首帧                                     |
 | 监视器仓库注册                   | `crates/watcher/src/lib.rs` (`watch_repository`)                | 主循环中的 `poll_pending`；inotify 每帧按 `INSTALL_CHUNK` 分块安装，FSEvents（macOS）为单个递归根监视，投递时按 `.gitignore` 过滤 |
 | 目录大小遍历（宽视图）           | `crates/panel-file-manager/src/utils.rs` (`shared_dir_size_cache`) | 对共享缓存逐帧 `try_recv`；每次遍历有预算限制                              |
 
@@ -602,23 +602,27 @@ SFTP/FTP 后端使用不同的模式——一个专用的 tokio 运行时拥有�
 actor（见 `crates/vfs/src/sftp.rs`）。同步工作线程驱动分块循环，并在分发之间
 轮询暂停/取消标志，因此暂停的传输会让 actor 空闲以服务其他面板的元数据请求。
 
-### 8. 会话管理
+### 8. 项目布局
 
-**位置：** `crates/session/src/lib.rs`
+**位置：** `crates/project/src/lib.rs`
 
-会话持久化允许保存和恢复面板布局：
+每个项目的面板布局都会被保存和恢复（`ProjectLayout`）：
 
 **存储位置：**
-- Linux: `~/.local/share/termide/sessions/<project_path>/session.toml`
-- macOS: `~/Library/Application Support/termide/sessions/<project_path>/session.toml`
+- Linux: `~/.local/share/termide/projects/<project_path>/session.toml`
+- macOS: `~/Library/Application Support/termide/projects/<project_path>/session.toml`
+
+重命名之前的数据目录 `sessions/` 会在首次启动时迁移到 `projects/`。此后旧版 termide 再写入 `sessions/` 的内容，会在下次启动时合并到 `projects/`，同名文件保留较新的一份。每次迁移及失败都会记录在 **日志** 面板中。
 
 **功能特性：**
-- 退出时自动保存会话
+- 退出时自动保存布局
 - 启动时恢复面板布局
-- 通过菜单切换会话（在不同项目之间切换）
-- 会话保留，自动清理旧会话
+- 通过“项目”菜单切换项目
+- 保留期限（`project_retention_days`），自动清理旧布局
 
-**会话文件格式：**
+该文件沿用历史名称 `session.toml`。
+
+**布局文件格式：**
 ```toml
 focused_group = 0
 
@@ -637,7 +641,7 @@ type = "editor"
 path = "/home/user/project/main.rs"
 ```
 
-旧会话中的 `mode = "accordion"` 字段仍会被读取，并在加载时一次性迁移为全屏预设（当前代码不再写入该字段）。
+旧项目布局中的 `mode = "accordion"` 字段仍会被读取，并在加载时一次性迁移为全屏预设（当前代码不再写入该字段）。
 
 ### 9. VFS（远程文件系统）
 

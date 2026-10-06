@@ -33,8 +33,8 @@ use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEven
 use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
 use termide_core::{
-    CommandResult, Config, HotkeyTable, KeyChord, Panel, PanelCommand, PanelEvent, RenderContext,
-    SegmentKind, SessionPanel, StatusSegment, Theme, ThemeColors, WidthPreference,
+    CommandResult, Config, HotkeyTable, KeyChord, Panel, PanelCommand, PanelEvent, PanelState,
+    RenderContext, SegmentKind, StatusSegment, Theme, ThemeColors, WidthPreference,
 };
 use termide_modal::FindBar;
 use termide_ui::ScrollBar;
@@ -281,33 +281,25 @@ impl Panel for BinaryPanel {
         }
         self.focused = ctx.is_focused;
 
-        // Find bar docked at the TOP with a separator below, matching the
-        // editor / file manager.
+        // Find bar docked at the BOTTOM with a separator above (where every
+        // input in termide lives).
         let mut hex_area = area;
         if let (Some(bar), Some(theme)) = (self.find_bar.as_mut(), self.theme_full.as_ref()) {
             let bar_h = bar.height().min(area.height);
             let bar_area = Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + area.height - bar_h,
                 width: area.width,
                 height: bar_h,
             };
             bar.render(bar_area, buf, theme, true);
 
-            let mut used = bar_h;
-            let sep_y = area.y + bar_h;
-            if sep_y < area.y + area.height {
-                let style = Style::default().fg(self.theme.disabled);
-                for dx in 0..area.width {
-                    buf[(area.x + dx, sep_y)].set_symbol("─").set_style(style);
-                }
-                used += 1;
-            }
+            // The bar draws its own titled top border, which is the divider.
             hex_area = Rect {
                 x: area.x,
-                y: area.y + used,
+                y: area.y,
                 width: area.width,
-                height: area.height.saturating_sub(used),
+                height: area.height.saturating_sub(bar_h),
             };
         }
         self.last_area = hex_area;
@@ -469,10 +461,13 @@ impl Panel for BinaryPanel {
 
     fn handle_key(&mut self, chord: KeyChord) -> Vec<PanelEvent> {
         let key = chord.raw;
+        // Shortcuts match the layout-normalized key (`Ctrl+А` is `Ctrl+F`, `р`
+        // is `h`); the find bar's query and typed bytes keep the raw one.
+        let shortcut = chord.canonical;
 
         // While the find bar is open it owns input (Esc / Ctrl+F close it).
         if self.find_bar.is_some() {
-            if key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL {
+            if shortcut.code == KeyCode::Char('f') && shortcut.modifiers == KeyModifiers::CONTROL {
                 self.close_find();
                 return vec![PanelEvent::NeedsRedraw];
             }
@@ -482,7 +477,7 @@ impl Panel for BinaryPanel {
                 None => vec![PanelEvent::NeedsRedraw],
             };
         }
-        if key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL {
+        if shortcut.code == KeyCode::Char('f') && shortcut.modifiers == KeyModifiers::CONTROL {
             self.open_find();
             return vec![PanelEvent::NeedsRedraw];
         }
@@ -497,7 +492,7 @@ impl Panel for BinaryPanel {
         }
         // Ctrl+R: re-read the file from disk (pick up external changes), keeping
         // the cursor. Skipped while there are unsaved edits so they aren't lost.
-        if key.code == KeyCode::Char('r') && key.modifiers == KeyModifiers::CONTROL {
+        if shortcut.code == KeyCode::Char('r') && shortcut.modifiers == KeyModifiers::CONTROL {
             if !self.is_modified() {
                 let cursor = self.cursor;
                 self.set_file(self.file_path.clone());
@@ -510,7 +505,7 @@ impl Panel for BinaryPanel {
         // Edit mode: Ctrl+S asks to save; typed hex digits / chars overwrite
         // (handled before navigation so letters aren't treated as motions).
         if self.editable {
-            if key.code == KeyCode::Char('s') && key.modifiers == KeyModifiers::CONTROL {
+            if shortcut.code == KeyCode::Char('s') && shortcut.modifiers == KeyModifiers::CONTROL {
                 if self.is_modified() {
                     let name = self.title.clone();
                     return vec![PanelEvent::ShowConfirm {
@@ -529,7 +524,7 @@ impl Panel for BinaryPanel {
         let page = ((self.last_area.height as i64 - 1).max(1)) * cols;
         let extend = key.modifiers.contains(KeyModifiers::SHIFT);
         let ro = !self.editable; // vim-letter motions only when not editing
-        match key.code {
+        match shortcut.code {
             KeyCode::Tab => {
                 self.zone = match self.zone {
                     Zone::Hex => Zone::Ascii,
@@ -603,8 +598,8 @@ impl Panel for BinaryPanel {
         }
     }
 
-    fn to_session(&self, _session_dir: &Path) -> Option<SessionPanel> {
-        Some(SessionPanel::Binary {
+    fn to_state(&self, _project_dir: &Path) -> Option<PanelState> {
+        Some(PanelState::Binary {
             path: self.file_path.clone(),
         })
     }

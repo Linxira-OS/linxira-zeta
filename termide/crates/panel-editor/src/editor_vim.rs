@@ -3,6 +3,7 @@
 use termide_core::PanelEvent;
 
 use super::Editor;
+use crate::word_wrap::WrapLayout;
 
 impl Editor {
     /// Execute a Vim key result and return any panel events
@@ -29,8 +30,11 @@ impl Editor {
                     &self.buffer,
                     count,
                     viewport_height,
-                    content_width,
-                    true, // use_smart_wrap
+                    WrapLayout {
+                        width: content_width,
+                        smart: true,
+                        tab_size: self.config.tab_size,
+                    },
                 );
                 self.cursor = new_cursor;
                 // Clear selection on normal mode motion
@@ -45,8 +49,11 @@ impl Editor {
                     &self.buffer,
                     count,
                     viewport_height,
-                    content_width,
-                    true, // use_smart_wrap
+                    WrapLayout {
+                        width: content_width,
+                        smart: true,
+                        tab_size: self.config.tab_size,
+                    },
                 );
 
                 // Update selection
@@ -72,8 +79,11 @@ impl Editor {
                     &self.buffer,
                     count,
                     viewport_height,
-                    content_width,
-                    true, // use_smart_wrap
+                    WrapLayout {
+                        width: content_width,
+                        smart: true,
+                        tab_size: self.config.tab_size,
+                    },
                 );
 
                 if let Some(vim) = self.vim.as_mut() {

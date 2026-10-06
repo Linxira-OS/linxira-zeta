@@ -11,8 +11,8 @@ anyhow.workspace = true
 chrono.workspace = true
 crossterm.workspace = true
 dirs.workspace = true
+dunce.workspace = true
 glob.workspace = true
-ignore.workspace = true
 log.workspace = true
 ratatui.workspace = true
 regex.workspace = true
@@ -31,9 +31,11 @@ termide-modal = { path = "../modal" }
 termide-state = { path = "../state" }
 termide-theme = { path = "../theme" }
 termide-ui = { path = "../ui" }
+termide-walk = { path = "../walk" }
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+zip = { version = "8.6", default-features = false, features = ["aes-crypto"] }

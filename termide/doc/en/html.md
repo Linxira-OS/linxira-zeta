@@ -53,6 +53,7 @@ The preview has a movable cursor and supports text selection:
 - `PageUp`/`PageDown` (or `Space`) — page up/down; `Home`/`End` — line ends;
   `g`/`G` — document start/end.
 - Hold **`Shift`** with movement, or **drag with the mouse**, to select text.
+- **`Ctrl+A`** selects the whole document.
 - **`Ctrl+C`** copies the selection (or the cursor's line when nothing is
   selected) to the clipboard.
 - **`Ctrl+F`** opens incremental search; **`Ctrl+R`** reloads the file from disk.
@@ -74,14 +75,26 @@ The preview has a movable cursor and supports text selection:
 - **Anchor links** (`#section`) jump within the page (to the matching `id`);
   `page#section` navigates to the page and then jumps to the anchor.
 
+## Saving as Markdown
+
+**`Ctrl+S`**, or **Save page as Markdown…** in the panel's `[≡]` menu, saves the
+page as a Markdown file through a Save As dialog. Headings, lists, code blocks,
+tables and links are kept, with relative links made absolute against the page
+URL (or the file for a local page). Like a reader mode, the export keeps a
+page's `<main>` (or its single `<article>`) when it has one, and leaves out
+navigation, sidebars, footers, forms and scripts. The file name defaults to the
+file's name for a local page, else the page `<title>`, else the site's host.
+
 ## Fetching URLs
 
 The **Windows ▸ Open…** menu item opens a universal prompt (a discoverable
 entry point) that accepts a file path, a directory, a database URL, or an
-`http(s)://` address; `Ctrl+G` in any viewer does the same. `Ctrl+G` with an
-`http(s)://` address fetches the document in the background
-and opens it routed by `Content-Type` (HTML → this viewer, Markdown → the
-Markdown viewer, other text → shown verbatim). The fetch is deliberately
+`http(s)://` address; `Ctrl+G` from any panel does the same. `Ctrl+G` with an
+`http(s)://` address opens a viewer at once, with a spinner and the URL in its
+title while the document is fetched in the background, and shows it routed by
+`Content-Type` (HTML → this viewer, Markdown → the Markdown viewer, an image →
+the image preview, other text → shown verbatim). A failed fetch shows its error
+in that viewer; closing the viewer drops the fetch. The fetch is deliberately
 bounded — this is a reader, not a browser engine:
 
 - `http` and `https` only; TLS is verified (no opt-out).
@@ -93,7 +106,8 @@ bounded — this is a reader, not a browser engine:
 
 Links inside a fetched page are followed **in place** (`Enter`/click), with
 relative links resolved against the page URL and `[`/`]` (or `Backspace`) for
-history; `O` opens a link in the real browser instead. URL-loaded views are not
-restored across sessions.
+history; the page stays, its title spinning with the new URL, until the next
+one arrives; `O` opens a link in the real browser instead. URL-loaded views are not
+restored with the project layout.
 
-A file-backed panel persists across sessions and reopens at the same file.
+A file-backed panel is saved with the project layout and reopens at the same file.

@@ -26,14 +26,16 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
     t.insert("new_journal", &kb.new_journal);
     t.insert("open_help", &kb.open_help);
     t.insert("open_preferences", &kb.open_preferences);
-    t.insert("open_sessions", &kb.open_sessions);
-    t.insert("new_session", &kb.new_session);
+    t.insert("open_projects", &kb.open_projects);
+    t.insert("new_project", &kb.new_project);
     t.insert("open_git_status", &kb.open_git_status);
     t.insert("open_outline", &kb.open_outline);
+    t.insert("open_agent", &kb.open_agent);
     t.insert("open_diagnostics", &kb.open_diagnostics);
     t.insert("open_git_log", &kb.open_git_log);
     t.insert("open_bookmark_add", &kb.open_bookmark_add);
     t.insert("open_command_palette", &kb.open_command_palette);
+    t.insert("open_path", &kb.open_path);
 
     // Navigation
     t.insert("prev_group", &kb.prev_group);
@@ -49,6 +51,17 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
     t.insert("goto_panel_7", &kb.goto_panel_7);
     t.insert("goto_panel_8", &kb.goto_panel_8);
     t.insert("goto_panel_9", &kb.goto_panel_9);
+    t.insert("prev_project", &kb.prev_project);
+    t.insert("next_project", &kb.next_project);
+    t.insert("goto_project_1", &kb.goto_project_1);
+    t.insert("goto_project_2", &kb.goto_project_2);
+    t.insert("goto_project_3", &kb.goto_project_3);
+    t.insert("goto_project_4", &kb.goto_project_4);
+    t.insert("goto_project_5", &kb.goto_project_5);
+    t.insert("goto_project_6", &kb.goto_project_6);
+    t.insert("goto_project_7", &kb.goto_project_7);
+    t.insert("goto_project_8", &kb.goto_project_8);
+    t.insert("goto_project_9", &kb.goto_project_9);
 
     // Panel management
     t.insert("close_panel", &kb.close_panel);
@@ -66,7 +79,7 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
 
     // Application
     t.insert("quit", &kb.quit);
-    t.insert("detach_session", &kb.detach_session);
+    t.insert("detach_instance", &kb.detach_instance);
 
     // Clipboard (routed to the focused panel)
     t.insert("copy", &kb.copy);
@@ -135,12 +148,12 @@ impl App {
             self.open_settings_modal();
             return Ok(true);
         }
-        if table.matches("open_sessions", key) {
-            self.handle_open_sessions_modal()?;
+        if table.matches("open_projects", key) {
+            self.handle_open_projects_modal()?;
             return Ok(true);
         }
-        if table.matches("new_session", key) {
-            self.handle_new_session()?;
+        if table.matches("new_project", key) {
+            self.handle_new_project()?;
             return Ok(true);
         }
         if table.matches("open_git_status", key) {
@@ -149,6 +162,10 @@ impl App {
         }
         if table.matches("open_outline", key) {
             self.handle_open_outline()?;
+            return Ok(true);
+        }
+        if table.matches("open_agent", key) {
+            self.handle_open_agent()?;
             return Ok(true);
         }
         if table.matches("open_diagnostics", key) {
@@ -166,6 +183,9 @@ impl App {
         if table.matches("open_command_palette", key) {
             self.handle_open_command_palette()?;
             return Ok(true);
+        }
+        if table.matches("open_path", key) {
+            return Ok(self.handle_open_path_hotkey());
         }
 
         // Navigation
@@ -189,6 +209,21 @@ impl App {
             let action = format!("goto_panel_{}", n);
             if table.matches(&action, key) {
                 self.navigate_to_group(n);
+                return Ok(true);
+            }
+        }
+        if table.matches("prev_project", key) {
+            self.cycle_open_projects(false)?;
+            return Ok(true);
+        }
+        if table.matches("next_project", key) {
+            self.cycle_open_projects(true)?;
+            return Ok(true);
+        }
+        for n in 1..=9usize {
+            let action = format!("goto_project_{}", n);
+            if table.matches(&action, key) {
+                self.switch_to_open_project(n - 1)?;
                 return Ok(true);
             }
         }
@@ -248,8 +283,8 @@ impl App {
             self.handle_quit_request()?;
             return Ok(true);
         }
-        if table.matches("detach_session", key) {
-            self.handle_detach_session();
+        if table.matches("detach_instance", key) {
+            self.handle_detach_instance();
             return Ok(true);
         }
 
@@ -276,6 +311,19 @@ impl App {
         }
 
         Ok(false)
+    }
+
+    /// Open the path prompt, unless the key belongs to the focused panel: the
+    /// file manager has its own "go to path" on it, and a terminal passes it
+    /// on to the program running there. `false` lets the key fall through.
+    fn handle_open_path_hotkey(&mut self) -> bool {
+        if let Some(panel) = self.layout_manager.active_panel_mut() {
+            if panel.as_file_manager_mut().is_some() || panel.as_terminal_mut().is_some() {
+                return false;
+            }
+        }
+        self.open_path_prompt();
+        true
     }
 
     /// Route a clipboard command (`Copy`/`Cut`/`Paste`) to the focused panel.
@@ -310,14 +358,19 @@ impl App {
             "new_journal" => self.handle_new_journal()?,
             "open_help" => self.handle_new_help()?,
             "open_preferences" => self.open_config_in_editor()?,
-            "open_sessions" => self.handle_open_sessions_modal()?,
-            "new_session" => self.handle_new_session()?,
+            "open_projects" => self.handle_open_projects_modal()?,
+            "new_project" => self.handle_new_project()?,
             "open_git_status" => self.handle_open_git_status()?,
             "open_outline" => self.handle_open_outline()?,
+            "open_agent" => self.handle_open_agent()?,
             "open_diagnostics" => self.handle_open_diagnostics()?,
             "open_git_log" => self.handle_open_git_log()?,
             "open_bookmark_add" => self.handle_add_bookmark()?,
             "open_command_palette" => self.handle_open_command_palette()?,
+            "open_path" => self.open_path_prompt(),
+            // Not a global binding (the panels own the key), but the palette
+            // offers it for the focused panel.
+            "switch_directory" => self.handle_open_directory_switcher()?,
             "close_panel" => self.handle_close_panel_request()?,
             "toggle_stack" => self.toggle_panel_stacking(),
             "swap_left" => self.handle_swap_panel_left()?,
@@ -330,7 +383,7 @@ impl App {
             "panel_grow_vertical" => self.handle_panel_resize_vertical(true),
             "panel_shrink_vertical" => self.handle_panel_resize_vertical(false),
             "quit" => self.handle_quit_request()?,
-            "detach_session" => self.handle_detach_session(),
+            "detach_instance" => self.handle_detach_instance(),
             other => {
                 if let Some(key) = other.strip_prefix("run_command:") {
                     self.run_command_by_menu_key(key)?;
@@ -344,12 +397,12 @@ impl App {
 
     /// Handle quit request with confirmation if needed
     pub(super) fn handle_quit_request(&mut self) -> Result<()> {
-        // Always save session before quit
-        self.auto_save_session();
+        // Always save the layout before quit
+        self.auto_save_layout();
 
-        if self.has_panels_requiring_confirmation() {
+        if let Some(message) = self.quit_confirmation() {
             let t = i18n::t();
-            let modal = termide_modal::ConfirmModal::new(t.app_quit_title(), t.app_quit_confirm());
+            let modal = termide_modal::ConfirmModal::new(t.app_quit_title(), message);
             self.state.set_pending_action(
                 PendingAction::QuitApplication,
                 ActiveModal::Confirm(Box::new(modal)),
@@ -360,20 +413,20 @@ impl App {
         Ok(())
     }
 
-    /// Check if session should be saved and save if needed
-    fn check_and_save_session(&mut self) {
-        if self.state.should_save_session() {
-            self.auto_save_session();
-            self.state.update_last_session_save();
+    /// Check if the layout should be saved and save if needed
+    fn check_and_save_layout(&mut self) {
+        if self.state.should_save_layout() {
+            self.auto_save_layout();
+            self.state.update_last_layout_save();
         }
     }
 
     /// Handle the result of a layout-manager operation: on success save the
-    /// session, on failure surface the error in a modal prefixed with the
+    /// layout, on failure surface the error in a modal prefixed with the
     /// supplied label.
     pub(in crate::app) fn handle_layout_op(&mut self, label: &str, result: Result<()>) {
         match result {
-            Ok(()) => self.auto_save_session(),
+            Ok(()) => self.auto_save_layout(),
             Err(e) => self.show_error_modal(format!("{}: {}", label, e)),
         }
     }
@@ -389,30 +442,30 @@ impl App {
 
     /// Run a navigation op that changes focus, flanked by the standard
     /// pre/post bookkeeping (close completion popup, notify outline, save
-    /// session).
+    /// layout).
     fn with_navigation(&mut self, op: impl FnOnce(&mut termide_layout::LayoutManager)) {
         self.close_completion_popup_before_focus_change();
         op(&mut self.layout_manager);
         self.notify_outline_file_opened();
-        self.check_and_save_session();
+        self.check_and_save_layout();
     }
 
-    /// Navigate to previous group with session save
+    /// Navigate to previous group with layout save
     fn navigate_to_prev_group(&mut self) {
         self.with_navigation(|lm| lm.prev_group());
     }
 
-    /// Navigate to next group with session save
+    /// Navigate to next group with layout save
     fn navigate_to_next_group(&mut self) {
         self.with_navigation(|lm| lm.next_group());
     }
 
-    /// Navigate to previous panel in group with session save
+    /// Navigate to previous panel in group with layout save
     fn navigate_to_prev_panel_in_group(&mut self) {
         self.with_navigation(|lm| lm.prev_panel_in_group());
     }
 
-    /// Navigate to next panel in group with session save
+    /// Navigate to next panel in group with layout save
     fn navigate_to_next_panel_in_group(&mut self) {
         self.with_navigation(|lm| lm.next_panel_in_group());
     }

@@ -34,6 +34,12 @@ The text editor panel provides a functional editor for working with text files w
 | `Ctrl+Shift+Up`   | Select to previous paragraph/symbol boundary |
 | `Ctrl+Shift+Down` | Select to next paragraph/symbol boundary   |
 
+`↑`/`↓` and `PageUp`/`PageDown` keep the cursor in its screen column, tabs and
+wide characters counted as drawn. Passing through a shorter line does not lose
+that column: the cursor returns to it on the next line long enough. Moving the
+cursor any other way (arrows sideways, a click, a jump, an edit) starts from
+its new column.
+
 ## Editing
 
 | Shortcut           | Action                                     |
@@ -51,12 +57,22 @@ The text editor panel provides a functional editor for working with text files w
 | `Tab`             | Insert indent (configurable, default 4)    |
 | `Ctrl+/`          | Toggle comment (line/block)                |
 
+## Changes on disk
+
+When the file changes outside the editor (a formatter, `git checkout`, the
+[agent](agent.md)), a buffer without unsaved work reloads on its own and keeps
+the cursor and the scroll position, clamped if the file got shorter. A buffer
+with unsaved work keeps it: the title shows `[changed on disk]`, saving is
+refused, and you choose between `Ctrl+Shift+R` to take the disk version
+(discarding your changes) and `Ctrl+Shift+S` to save yours elsewhere.
+
 ## Search and Replace
 
 ### Inline Search Bar (Ctrl+F)
 
-Press `Ctrl+F` to open a find bar **docked at the top of the editor** (like the
-file manager), with a separator line below it; the buffer stays visible and
+Press `Ctrl+F` to open a find bar **docked at the bottom of the editor** (like
+the file manager), with a titled top border (`─ Find ─` / `─ Replace ─`) that
+separates it from the buffer above; the buffer stays visible and
 matches highlight as you type. `Tab` switches focus between the bar and the
 buffer zone: in the buffer zone the cursor moves and scrolls normally while the
 bar stays open; `Tab` returns to the bar.
@@ -129,7 +145,9 @@ right, shared info follows, and the variable-width position sits last:
 - **`Edit: Yes`/`Edit: No`** — toggles read-only, also bound to `Ctrl+E`
   (`[viewer.keybindings] toggle_view`).
 - **`Highlight: <lang>`** — opens the language picker (below).
-- **`Tab: <n>`** — sets the tab size.
+- **`Tab: <n>`** — sets the tab size. A tab character is drawn as blank
+  space up to the next multiple of it; with word wrap, tab stops start over
+  on each wrapped row.
 - **`EOL`** / **`Encoding`** — informational.
 - **`Pos: <line>:<col>`** — opens go-to-line; accepts a line (`12`) or a
   line and column (`12:4`).
@@ -366,7 +384,7 @@ TermIDE includes built-in LSP support for intelligent code assistance. When a la
 | `Enter`           | Accept selected completion                 |
 | `Escape`          | Close completion popup                     |
 | `↑` / `↓`         | Navigate through suggestions               |
-| Type characters   | Filter suggestions by typing               |
+| Type characters   | Filter suggestions, fuzzily (`fo` finds `function_one`) |
 
 **Auto-completion:** When enabled (default), completion popup appears automatically:
 - After typing identifier characters (letters, numbers, `_`)
@@ -404,6 +422,14 @@ command = "typescript-language-server"
 args = ["--stdio"]
 root_markers = ["package.json", "tsconfig.json"]
 ```
+
+Entries under `[lsp.servers]` override or add to the built-in servers listed in
+[Supported Languages](#supported-languages); the built-ins you do not mention stay
+in use. An entry for a built-in language changes only the fields it sets, so
+`command = "/opt/rust-analyzer"` alone keeps the built-in `root_markers`. An entry
+for any other language adds a server for it. The key is the language id TermIDE
+detects for the file, such as `typescriptreact` for `.tsx`.
+
 
 ### Find References
 
@@ -444,6 +470,22 @@ LSP works with any language server that implements the LSP protocol. Common exam
 - **TypeScript/JavaScript** - typescript-language-server
 - **Go** - gopls
 - **C/C++** - clangd
+
+Built-in server definitions, used automatically when the binary is on `PATH`:
+
+| Language | Server | Files |
+|---|---|---|
+| Rust | `rust-analyzer` | `.rs` |
+| Python | `pylsp` | `.py` |
+| TypeScript/JavaScript | `typescript-language-server --stdio` | `.ts`, `.tsx`, `.js`, … |
+| Go | `gopls` | `.go` |
+| PHP | `phpantom_lsp` | `.php` |
+| Terraform | `terraform-ls serve` | `.tf`, `.tfvars` |
+| Docker | `docker-language-server start --stdio` | `Dockerfile` and `compose.yaml` by name |
+
+Docker files have no distinctive extension, so they are recognized by file name, case-insensitively: `Dockerfile`, `Dockerfile.*`, `*.Dockerfile`, and `compose.yaml`/`docker-compose.yaml` with any infix, such as `compose.override.yaml` or `docker-compose.prod.yml`.
+
+TermIDE tells `docker-language-server` to send no telemetry when it starts; the server collects it by default otherwise.
 
 **Note:** You need to install the language server separately. TermIDE only provides the LSP client integration.
 

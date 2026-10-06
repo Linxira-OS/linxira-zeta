@@ -2,10 +2,17 @@
 //!
 //! Provides reusable UI widgets and layout utilities.
 
+pub mod checkbox;
+pub mod choice_form;
 pub mod click_tracker;
 pub mod color_popup;
+pub mod completion_list;
 pub mod config;
+pub mod diff_style;
+pub mod field_edit;
+pub mod fuzzy;
 pub mod grapheme_utils;
+pub mod input_bar;
 pub mod path_utils;
 pub mod scrollbar;
 pub mod selection_style;
@@ -15,9 +22,17 @@ pub mod text_utils;
 pub mod textarea;
 pub mod viewport;
 
+pub use checkbox::{checkbox, checkbox_mark};
+pub use choice_form::{ChoiceAction, ChoiceForm};
 pub use click_tracker::{ClickTracker, IndexClickTracker, PositionClickTracker};
 pub use color_popup::{extract_hex_color_at_col, ColorPreview};
-pub use grapheme_utils::{grapheme_display_width, render_text_cells, str_display_width};
+pub use completion_list::{CompletionAction, CompletionItem, CompletionList};
+pub use diff_style::{blend_colors, diff_line_bg};
+pub use field_edit::{edit_text_area, edit_text_input, FieldEdit};
+pub use grapheme_utils::{
+    cell_symbol, expand_tabs, grapheme_display_width, render_text_cells, str_display_width,
+};
+pub use input_bar::{Control, Focus, InputBar, InputBarAction};
 pub use path_utils::expand_tilde;
 pub use scrollbar::ScrollBar;
 pub use selection_style::{
@@ -170,16 +185,28 @@ pub fn calculate_modal_width(
     total_width.max(min_width).min(max_width).min(screen_width)
 }
 
-/// Calculate maximum line width from multiline text.
-pub fn max_line_width(text: &str) -> u16 {
-    text.lines().map(|line| line.len()).max().unwrap_or(0) as u16
+/// Width of a single-bordered modal whose rows carry their own padding:
+/// `inner` columns between the borders, within the default min/max bounds.
+pub fn fit_modal_width(inner: u16, screen_width: u16) -> u16 {
+    let max_width = (screen_width as f32 * modal_constants::MAX_WIDTH_PERCENTAGE_DEFAULT) as u16;
+    inner
+        .saturating_add(2)
+        .max(modal_constants::MIN_WIDTH_DEFAULT)
+        .min(max_width)
+        .min(screen_width)
 }
 
-/// Calculate maximum item width from a list of strings with optional prefix.
+/// Calculate maximum line width, in display columns, from multiline text.
+pub fn max_line_width(text: &str) -> u16 {
+    text.lines().map(str_display_width).max().unwrap_or(0) as u16
+}
+
+/// Calculate maximum item width, in display columns, from a list of strings
+/// with optional prefix.
 pub fn max_item_width(items: &[String], prefix_len: usize) -> u16 {
     items
         .iter()
-        .map(|item| prefix_len + item.len())
+        .map(|item| prefix_len + str_display_width(item))
         .max()
         .unwrap_or(0) as u16
 }
@@ -204,6 +231,9 @@ pub struct TextInput {
     selection_anchor: Option<usize>,  // None = no selection, Some = anchor position
     undo_stack: Vec<(String, usize)>, // (text, cursor_pos) history for undo
     redo_stack: Vec<(String, usize)>, // (text, cursor_pos) history for redo
+    /// Characters scrolled out of a single-line field's left edge, kept
+    /// between frames (see [`follow_scroll`](Self::follow_scroll)).
+    scroll: usize,
 }
 
 impl TextInput {
@@ -215,6 +245,7 @@ impl TextInput {
             selection_anchor: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            scroll: 0,
         }
     }
 
@@ -228,6 +259,7 @@ impl TextInput {
             selection_anchor: None,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            scroll: 0,
         }
     }
 
@@ -244,6 +276,39 @@ impl TextInput {
     /// Get the cursor position (in characters)
     pub fn cursor_pos(&self) -> usize {
         self.cursor_pos
+    }
+
+    /// Bring the scroll of a single-line field `width` cells wide in step with
+    /// the cursor and return it: kept while the cursor stays in view, so a
+    /// click that places the cursor does not make the field jump. Call once
+    /// per frame, before drawing the field.
+    pub fn follow_scroll(&mut self, width: u16) -> usize {
+        self.scroll = text_utils::follow_input_scroll(
+            &self.input,
+            self.cursor_pos,
+            usize::from(width),
+            self.scroll,
+        );
+        self.scroll
+    }
+
+    /// Characters scrolled out of the field's left edge at the last
+    /// [`follow_scroll`](Self::follow_scroll).
+    pub fn scroll(&self) -> usize {
+        self.scroll
+    }
+
+    /// The character under display column `x` of the field as last drawn;
+    /// `None` left of it stands for the character just scrolled out, so a drag
+    /// past the edge keeps scrolling.
+    pub fn char_at_column(&self, x: Option<usize>) -> usize {
+        match x {
+            Some(x) => {
+                let visible: String = self.input.chars().skip(self.scroll).collect();
+                self.scroll + text_utils::char_at_x(&visible, x)
+            }
+            None => self.scroll.saturating_sub(1),
+        }
     }
 
     /// Set the input text and move cursor to end

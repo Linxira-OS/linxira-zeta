@@ -126,6 +126,14 @@ pub enum PanelCommand<'a> {
         paths: Vec<PathBuf>,
     },
 
+    /// Show a repository's history in a git log panel, of `branch` or, when
+    /// `None`, of HEAD. Sent when a git status panel opens the log.
+    /// Response: `CommandResult::NeedsRedraw(bool)`
+    ShowGitLog {
+        repo_path: PathBuf,
+        branch: Option<String>,
+    },
+
     // === Clipboard commands ===
     /// Copy the panel's current selection / focused item to the clipboard.
     /// Routed from the global `copy` keybinding to the focused panel; the
@@ -151,6 +159,47 @@ pub enum PanelCommand<'a> {
     PasteText {
         /// Text to paste
         text: String,
+    },
+
+    /// The user picked option `index` in a selection modal the panel raised
+    /// with `SelectAction::Custom(action)`. Delivered to every panel; a
+    /// panel answers `Handled(true)` only for actions it recognises.
+    SelectionMade {
+        /// The `SelectAction::Custom` payload the panel emitted.
+        action: String,
+        /// Zero-based index of the chosen option.
+        index: usize,
+    },
+
+    /// The user applied a checklist the panel raised with
+    /// [`crate::PanelEvent::ShowChecklist`]: the keys left checked. Same
+    /// delivery rule as [`PanelCommand::SelectionMade`].
+    ChecklistDone {
+        /// The `action` the panel raised the checklist with.
+        action: String,
+        /// Keys of the items left checked, in list order.
+        checked: Vec<String>,
+        /// The `id` of the heading button that closed the list, if one did.
+        pressed: Option<String>,
+    },
+
+    /// The user submitted an input modal the panel raised with
+    /// `InputAction::Custom(action)`. Same delivery rule as
+    /// [`PanelCommand::SelectionMade`].
+    InputSubmitted {
+        /// The `InputAction::Custom` payload the panel emitted.
+        action: String,
+        /// What the user typed.
+        text: String,
+    },
+
+    /// The user accepted a confirmation modal the panel raised with
+    /// `ConfirmAction::Custom(action)`. Only the accepted case is delivered;
+    /// cancelling leaves the panel untouched. Same delivery rule as
+    /// [`PanelCommand::SelectionMade`].
+    Confirmed {
+        /// The `ConfirmAction::Custom` payload the panel emitted.
+        action: String,
     },
 
     // === Scrollbar mouse interaction ===

@@ -6,11 +6,47 @@ use std::collections::HashMap;
 /// For non-English languages, also loads the English dictionary as a fallback
 /// so that missing keys degrade to English rather than rendering as empty.
 pub struct RuntimeTranslation {
+    plural_category: fn(usize) -> PluralCategory,
     strings: HashMap<String, String>,
     formats: HashMap<String, String>,
     plurals: HashMap<String, loader::PluralRules>,
     fallback_strings: HashMap<String, String>,
     fallback_formats: HashMap<String, String>,
+}
+
+/// The form of a counted word, as CLDR names them; only the ones the
+/// dictionaries spell out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluralCategory {
+    One,
+    Few,
+    Other,
+}
+
+/// How `lang` picks the form of a counted word.
+fn plural_category_for(lang: &str) -> fn(usize) -> PluralCategory {
+    match lang {
+        "ru" => east_slavic_plural,
+        _ => one_other_plural,
+    }
+}
+
+/// 1 → one, anything else → other: English and most languages here.
+fn one_other_plural(count: usize) -> PluralCategory {
+    if count == 1 {
+        PluralCategory::One
+    } else {
+        PluralCategory::Other
+    }
+}
+
+/// Russian: 1, 21, 31… → one; 2–4, 22–24… → few; 5–20, 25–30… → other.
+fn east_slavic_plural(count: usize) -> PluralCategory {
+    match (count % 10, count % 100) {
+        (1, n) if n != 11 => PluralCategory::One,
+        (2..=4, n) if !(12..=14).contains(&n) => PluralCategory::Few,
+        _ => PluralCategory::Other,
+    }
 }
 
 impl RuntimeTranslation {
@@ -23,6 +59,7 @@ impl RuntimeTranslation {
             (en.strings, en.formats)
         };
         Ok(Self {
+            plural_category: plural_category_for(lang),
             strings: data.strings,
             formats: data.formats,
             plurals: data.plurals,
@@ -67,18 +104,19 @@ impl RuntimeTranslation {
         result
     }
 
-    fn pluralize(&self, count: usize, key: &str) -> &str {
-        if let Some(rules) = self.plurals.get(key) {
-            match count {
-                1 => &rules.one,
-                2..=4 if rules.few.is_some() => rules.few.as_deref().unwrap_or(&rules.other),
-                _ => &rules.other,
-            }
-        } else if count == 1 {
-            ""
-        } else {
-            "s"
-        }
+    /// Both paste confirmations take the same slots and pluralize the same
+    /// way; only the key differs, so they share one formatter.
+    fn format_paste(&self, key: &str, count: usize, names: &str, dest: &str) -> String {
+        let plural = self.pluralize(count, "file");
+        self.format(
+            key,
+            &[
+                ("count", &count.to_string()),
+                ("dest", dest),
+                ("names", names),
+                ("plural", plural),
+            ],
+        )
     }
 }
 
@@ -96,8 +134,86 @@ macro_rules! i18n_get_string_methods {
 }
 
 impl Translation for RuntimeTranslation {
-    // Generate 393 trivial `fn name(&self) -> &str` wrappers over get_string("name").
+    fn pluralize(&self, count: usize, key: &str) -> &str {
+        if let Some(rules) = self.plurals.get(key) {
+            match (self.plural_category)(count) {
+                PluralCategory::One => &rules.one,
+                PluralCategory::Few => rules.few.as_deref().unwrap_or(&rules.other),
+                PluralCategory::Other => &rules.other,
+            }
+        } else if count == 1 {
+            ""
+        } else {
+            "s"
+        }
+    }
+
+    // Generate 395 trivial `fn name(&self) -> &str` wrappers over get_string("name").
     i18n_get_string_methods! {
+        agent_input_placeholder,
+        agent_input_placeholder_shell,
+        agent_info_session,
+        agent_info_log,
+        agent_info_agent,
+        agent_info_provider,
+        agent_info_model,
+        agent_info_mode,
+        agent_info_directory,
+        agent_info_created,
+        agent_info_last_active,
+        agent_info_compactions,
+        agent_info_messages,
+        agent_info_tokens,
+        agent_info_context,
+        agent_info_output_cleaned,
+        agent_chip_agent,
+        agent_chip_mode,
+        agent_chip_reasoning,
+        agent_chip_tools,
+        agent_chip_connection,
+        agent_chip_model,
+        agent_chip_on,
+        agent_chip_off,
+        agent_banner_connection,
+        agent_banner_model,
+        agent_banner_tools,
+        agent_banner_cwd,
+        agent_cwd_title,
+        agent_banner_sessions,
+        agent_project_command,
+        agent_hint_loop,
+        agent_hint_goal,
+        agent_notice_external_history,
+        agent_model_request_dropped,
+        settings_header_appearance,
+        settings_header_input,
+        settings_header_layout,
+        settings_header_notifications,
+        settings_header_performance,
+        settings_header_instance,
+        settings_header_typing,
+        settings_header_display,
+        settings_header_search,
+        settings_header_general,
+        settings_header_timing,
+        settings_header_servers,
+        settings_header_model,
+        settings_header_permissions,
+        settings_header_transcript,
+        settings_header_web,
+        settings_header_connections,
+        settings_header_connection,
+        settings_value_auto,
+        settings_value_none,
+        settings_value_unset,
+        settings_value_no_limit,
+        palette_category_panels,
+        palette_category_git,
+        palette_category_navigation,
+        palette_category_panel_management,
+        palette_category_application,
+        palette_category_commands,
+        command_report_no_output,
         git_operation_cancelled,
         modal_yes,
         modal_ok,
@@ -160,9 +276,10 @@ impl Translation for RuntimeTranslation {
         help_desc_new_editor,
         help_desc_new_journal,
         help_desc_open_preferences,
-        help_desc_open_sessions,
+        help_desc_open_projects,
         help_desc_open_git_status,
         help_desc_open_outline,
+        help_desc_open_agent,
         help_desc_open_diagnostics,
         help_desc_open_git_log,
         help_desc_toggle_stack,
@@ -188,6 +305,8 @@ impl Translation for RuntimeTranslation {
         help_desc_prev_panel,
         help_desc_next_panel,
         help_desc_goto_panel,
+        help_desc_cycle_project,
+        help_desc_goto_project,
         help_desc_save_as,
         help_desc_reload,
         help_desc_duplicate_line,
@@ -210,6 +329,7 @@ impl Translation for RuntimeTranslation {
         help_desc_delete_generic,
         help_desc_open_bookmark_add,
         help_desc_command_palette,
+        help_desc_open_path,
         help_desc_word_nav,
         help_desc_paragraph_nav,
         help_desc_view_file,
@@ -261,7 +381,6 @@ impl Translation for RuntimeTranslation {
         help_desc_vim_panel_nav,
         help_section_viewers,
         help_desc_viewer_toggle,
-        help_desc_viewer_goto,
         help_desc_viewer_search,
         help_desc_viewer_reload,
         help_desc_viewer_copy,
@@ -278,13 +397,15 @@ impl Translation for RuntimeTranslation {
         batch_result_error_move,
         batch_result_copied,
         batch_result_moved,
-        menu_sessions,
+        menu_projects,
         menu_windows,
         menu_commands,
         menu_commands_add,
         menu_copy_diagram,
         menu_save_diagram_as,
         menu_view_as_diagram,
+        menu_save_page_as_markdown,
+        viewer_loading,
         status_no_diagram_symbols,
         command_params_title,
         command_params_run,
@@ -312,6 +433,26 @@ impl Translation for RuntimeTranslation {
         menu_options,
         menu_quit,
         menu_bookmarks,
+        menu_ai,
+        menu_ai_agents,
+        menu_ai_sessions,
+        menu_ai_skills,
+        menu_ai_prompts,
+        menu_ai_new_project,
+        menu_ai_new_global,
+        menu_ai_edit_prompt,
+        menu_ai_edit_settings,
+        ai_create_agent_title,
+        ai_create_skill_title,
+        ai_create_prompt_title,
+        ai_rename_title,
+        ai_delete_title,
+        ai_name_hint,
+        ai_name_invalid,
+        ai_name_exists,
+        ai_empty,
+        ai_delete_session_title,
+        ai_session_untitled,
         bookmarks_add_bookmark,
         bookmarks_no_bookmarks,
         bookmarks_add_title,
@@ -339,6 +480,206 @@ impl Translation for RuntimeTranslation {
         tools_diagnostics,
         tools_operations,
         tools_outline,
+        tools_agent,
+        panel_agent,
+        agent_rename,
+        agent_delete_session,
+        agent_fork_session,
+        agent_rename_prompt,
+        agent_new_session,
+        agent_resume,
+        agent_no_sessions,
+        agent_not_configured,
+        agent_change_model,
+        agent_change_mode,
+        agent_change_reasoning,
+        agent_model_prompt,
+        agent_model_other,
+        agent_models_loading,
+        agent_mode_ask,
+        agent_mode_plan,
+        agent_mode_edit,
+        agent_mode_configured,
+        agent_mode_auto,
+        agent_mode_all,
+        agent_perm_note_rules_denied,
+        agent_perm_note_plan,
+        agent_perm_note_hook_allowed,
+        agent_perm_note_hook_denied,
+        agent_perm_note_unattended,
+        agent_perm_note_user_once,
+        agent_perm_note_user_ran,
+        agent_perm_note_user_session,
+        agent_perm_note_user_project,
+        agent_perm_note_user_global,
+        agent_perm_note_user_denied,
+        agent_perm_note_user_denied_session,
+        agent_show_prompt,
+        agent_session_info,
+        agent_perm_allow_once,
+        agent_perm_allow_session,
+        agent_perm_allow_always,
+        agent_perm_allow_always_global,
+        agent_perm_deny,
+        agent_perm_deny_session,
+        agent_perm_part_once,
+        agent_perm_deny_reason,
+        agent_perm_stop,
+        agent_question_title,
+        agent_question_own_answer,
+        agent_question_decline,
+        agent_question_submit,
+        agent_undo_restore,
+        agent_undo_keep,
+        agent_rewind_conversation_only,
+        agent_rewind_files_only,
+        agent_plan_carry_title,
+        agent_plan_accept_edits,
+        agent_plan_configured,
+        agent_plan_keep,
+        agent_handoff_ready_title,
+        agent_handoff_save,
+        agent_handoff_new_session,
+        agent_handoff_dismiss,
+        agent_cmd_run_once,
+        agent_cmd_run_session,
+        agent_cmd_run_always,
+        agent_cmd_dont_run,
+        agent_cmd_desc_compact,
+        agent_cmd_desc_undo,
+        agent_cmd_desc_new,
+        agent_cmd_desc_fork,
+        agent_cmd_desc_clear,
+        agent_cmd_desc_rename,
+        agent_cmd_desc_pause,
+        agent_cmd_desc_continue,
+        agent_cmd_desc_loop,
+        agent_cmd_desc_goal,
+        agent_cmd_desc_handoff,
+        agent_cmd_desc_usage,
+        agent_cmd_desc_mcp,
+        agent_save_chat,
+        agent_export_you,
+        agent_export_title,
+        agent_notice_chat_empty,
+        agent_toolset_buttons_hint,
+        agent_hint_mcp,
+        agent_notice_mcp_none,
+        agent_notice_mcp_usage,
+        agent_mcp_status_connecting,
+        agent_mcp_status_needs_login,
+        agent_mcp_status_signing_in,
+        agent_cmd_desc_prompt,
+        agent_notice_busy,
+        agent_notice_no_log_to_name,
+        agent_notice_will_pause,
+        agent_notice_nothing_to_pause,
+        agent_notice_already_running,
+        agent_notice_nothing_to_continue,
+        agent_notice_loop_stopped,
+        agent_notice_loop_usage,
+        agent_notice_goal_stopped,
+        agent_notice_goal_usage,
+        agent_state_queued,
+        agent_notice_goal_checking,
+        agent_notice_handoff_preparing,
+        agent_notice_stopping,
+        agent_notice_goal_stopped_failed,
+        agent_notice_compacting,
+        agent_notice_no_model_choices,
+        agent_notice_plan_no_request,
+        agent_notice_nothing_to_open,
+        agent_notice_nothing_to_undo,
+        agent_notice_fork_no_session,
+        agent_notice_nothing_to_rollback,
+        agent_notice_rewound,
+        agent_notice_command_running,
+        agent_notice_command_dropped,
+        agent_notice_bang_unavailable,
+        agent_notice_bang_running,
+        agent_notice_bang_dropped,
+        agent_notice_bang_failed,
+        agent_notice_bang_done,
+        agent_notice_bang_stopped,
+        agent_suggest_title,
+        agent_suggest_by_agent,
+        agent_suggest_run,
+        agent_suggest_edit,
+        agent_suggest_copy,
+        agent_suggest_dismiss,
+        agent_suggest_denied_plan,
+        agent_suggest_denied_rule,
+        agent_notice_clipboard_failed,
+        agent_notice_goal_reached,
+        agent_notice_looping,
+        agent_change_agent,
+        agent_prompts,
+        agent_no_prompts,
+        agent_undo,
+        agent_thinking,
+        agent_unit_secs,
+        agent_unit_mins,
+        agent_unit_hours,
+        agent_unit_days,
+        agent_unit_tok_per_sec,
+        agent_tool_bash,
+        agent_pick_connection,
+        agent_delete_this_session,
+        agent_fork_this_session,
+        agent_notice_connection_before_first,
+        agent_notice_model_pending,
+        agent_toolset_title,
+        agent_toolset_prompt,
+        agent_toolset_builtin,
+        agent_toolset_skills,
+        agent_toolset_note_refused,
+        agent_toolset_note_new_session,
+        agent_tool_read,
+        agent_tool_write,
+        agent_tool_edit,
+        agent_tool_fetch,
+        agent_tool_web_search,
+        agent_tool_skill,
+        agent_tool_task,
+        agent_tool_mcp,
+        agent_tool_question,
+        agent_slash_kind_builtin,
+        agent_slash_kind_template,
+        agent_slash_kind_script,
+        agent_slash_kind_skill,
+        settings_tab_agent,
+        settings_agent_provider,
+        settings_agent_base_url,
+        settings_agent_model,
+        settings_agent_api_key_env,
+        settings_agent_context_window,
+        settings_agent_max_tokens,
+        settings_agent_reasoning,
+        settings_agent_autofold,
+        settings_agent_fold_immediately,
+        settings_agent_fold_on_finish,
+        settings_agent_fold_never,
+        settings_agent_permission_mode,
+        settings_agent_auto_reviewer,
+        settings_agent_auto_reviewer_session,
+        settings_ai_add_connection,
+        settings_ai_delete_connection,
+        settings_ai_connection_back,
+        settings_ai_model_auto,
+        settings_ai_connection_hint_claude_code,
+        settings_ai_connection_hint_codex,
+        settings_ai_connection_hint_gemini_cli,
+        settings_ai_connection_name,
+        settings_ai_connection_default,
+        settings_ai_connection_prefill_progress,
+        settings_ai_connection_reasoning_param,
+        settings_ai_connection_name_taken,
+        settings_web_backend,
+        menu_ai_show_browser,
+        menu_ai_hide_browser,
+        settings_web_engine,
+        settings_web_display,
+        settings_web_chrome_path,
         tools_open,
         tools_open_prompt,
         options_help,
@@ -362,6 +703,16 @@ impl Translation for RuntimeTranslation {
         preferences_language,
         preferences_edit,
         settings_tab_keybindings,
+        settings_title,
+        settings_kb_global,
+        settings_kb_editor,
+        settings_kb_file_manager,
+        settings_kb_git_status,
+        settings_kb_git_diff,
+        settings_kb_git_log,
+        settings_kb_terminal,
+        settings_kb_database,
+        settings_kb_viewer,
         settings_btn_cancel,
         settings_general_resource_interval,
         settings_editor_large_file_threshold,
@@ -372,19 +723,24 @@ impl Translation for RuntimeTranslation {
         settings_lsp_add_server,
         settings_logging_min_level,
         settings_vfs_connection_timeout,
-        sessions_current,
-        sessions_new,
-        sessions_switch,
-        sessions_change_root,
-        session_created,
-        session_moved,
-        detach_session,
-        detach_not_detached_session,
+        projects_new,
+        projects_switch,
+        projects_change_root,
+        projects_delete_title,
+        project_created,
+        project_moved,
+        projects_close_title,
+        projects_close_warning,
+        projects_already_open,
+        projects_already_current,
+        detach_instance,
+        detach_not_detached_instance,
         detach_failed,
         settings_general_always_detachable,
-        help_desc_detach_session,
+        help_desc_detach_instance,
         directory_picker_create,
         directory_picker_move,
+        directory_picker_select,
         directory_picker_cancel,
         directory_switcher_title,
         directory_switcher_no_paths,
@@ -393,7 +749,7 @@ impl Translation for RuntimeTranslation {
         settings_kb_hint_bindings,
         settings_kb_hint_capturing,
         settings_kb_press_key,
-        sessions_title,
+        projects_title,
         time_just_now,
         time_short_hours,
         time_short_minutes,
@@ -469,6 +825,17 @@ impl Translation for RuntimeTranslation {
         op_type_scanning,
         modal_confirm_title,
         modal_error_title,
+        fm_archive_read_only,
+        fm_cut_local_only,
+        help_desc_pack,
+        op_type_pack,
+        modal_pack_title,
+        fm_pack_local_only,
+        modal_archive_password_title,
+        status_vfs_resolving_link,
+        status_vfs_loading,
+        status_vfs_connected,
+        status_vfs_cancelled,
         git_no_repo,
         git_branch_detached,
         git_refreshed,
@@ -479,6 +846,8 @@ impl Translation for RuntimeTranslation {
         git_unstage_all_btn,
         git_revert_all_btn,
         git_log_btn,
+        git_log_loading,
+        git_checkout_btn,
         git_revert_all_confirm,
         git_checkout_not_impl,
         git_no_remote_url,
@@ -511,8 +880,9 @@ impl Translation for RuntimeTranslation {
         resource_disk_free,
         resource_disk_used,
         resource_disk_total,
+        resource_disk_type,
         resource_count,
-        resource_net_title,        help_desc_new_session,
+        resource_net_title,        help_desc_new_project,
         help_desc_save,
         help_desc_undo,
         help_desc_redo,
@@ -551,7 +921,7 @@ impl Translation for RuntimeTranslation {
         settings_general_icon_mode,
         settings_general_auto_stack_threshold,
         settings_general_min_panel_width,
-        settings_general_session_retention,
+        settings_general_project_retention,
         settings_general_bell,
         settings_editor_tab_size,
         settings_editor_word_wrap,
@@ -615,6 +985,340 @@ impl Translation for RuntimeTranslation {
         db_filter_cancel,
     }
 
+    fn agent_permission_run_fmt(&self, tool: &str) -> String {
+        self.format("agent_permission_run_fmt", &[("tool", tool)])
+    }
+
+    fn agent_delete_confirm_fmt(&self, label: &str) -> String {
+        self.format("agent_delete_confirm_fmt", &[("label", label)])
+    }
+
+    fn agent_fork_confirm_fmt(&self, label: &str) -> String {
+        self.format("agent_fork_confirm_fmt", &[("label", label)])
+    }
+
+    fn agent_notice_cannot_fork_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_fork_fmt", &[("error", error)])
+    }
+
+    fn agent_undo_confirm_fmt(&self, changed: &str) -> String {
+        self.format("agent_undo_confirm_fmt", &[("changed", changed)])
+    }
+
+    fn agent_undo_changed_files_fmt(&self, count: usize, files: &str) -> String {
+        self.format(
+            "agent_undo_changed_files_fmt",
+            &[("count", &count.to_string()), ("files", files)],
+        )
+    }
+
+    fn agent_command_run_title_fmt(&self, name: &str, path: &str) -> String {
+        self.format(
+            "agent_command_run_title_fmt",
+            &[("name", name), ("path", path)],
+        )
+    }
+
+    fn agent_notice_cannot_continue_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_continue_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_start_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_start_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_check_goal_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_check_goal_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_handoff_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_handoff_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_write_handoff_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_write_handoff_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_compaction_failed_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_compaction_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_goal_check_failed_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_goal_check_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_handoff_failed_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_handoff_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_model_list_unavailable_fmt(&self, error: &str) -> String {
+        self.format(
+            "agent_notice_model_list_unavailable_fmt",
+            &[("error", error)],
+        )
+    }
+
+    fn agent_notice_mcp_error_fmt(&self, source: &str, error: &str) -> String {
+        self.format(
+            "agent_notice_mcp_error_fmt",
+            &[("source", source), ("error", error)],
+        )
+    }
+
+    fn agent_notice_connection_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_connection_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_no_connection_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_no_connection_fmt", &[("name", name)])
+    }
+
+    fn agent_toolset_mcp_fmt(&self, server: &str) -> String {
+        self.format("agent_toolset_mcp_fmt", &[("server", server)])
+    }
+
+    fn agent_notice_mcp_reconnected_fmt(&self, source: &str, count: usize) -> String {
+        self.format(
+            "agent_notice_mcp_reconnected_fmt",
+            &[("source", source), ("count", &count.to_string())],
+        )
+    }
+
+    fn agent_notice_mcp_tools_on_fmt(&self, source: &str, on: usize, count: usize) -> String {
+        self.format(
+            "agent_notice_mcp_tools_on_fmt",
+            &[
+                ("source", source),
+                ("on", &on.to_string()),
+                ("count", &count.to_string()),
+            ],
+        )
+    }
+
+    fn agent_notice_toolset_changed_fmt(&self, off: &str, on: &str) -> String {
+        self.format(
+            "agent_notice_toolset_changed_fmt",
+            &[("off", off), ("on", on)],
+        )
+    }
+
+    fn agent_notice_mcp_connected_fmt(&self, source: &str, count: usize) -> String {
+        self.format(
+            "agent_notice_mcp_connected_fmt",
+            &[("source", source), ("count", &count.to_string())],
+        )
+    }
+
+    fn agent_mcp_status_ready_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_mcp_status_ready_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_mcp_status_failed_fmt(&self, error: &str) -> String {
+        self.format("agent_mcp_status_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_mcp_status_fmt(&self, source: &str, status: &str) -> String {
+        self.format(
+            "agent_notice_mcp_status_fmt",
+            &[("source", source), ("status", status)],
+        )
+    }
+
+    fn agent_notice_mcp_reload_fmt(&self, started: &str, removed: &str, kept: &str) -> String {
+        self.format(
+            "agent_notice_mcp_reload_fmt",
+            &[("started", started), ("removed", removed), ("kept", kept)],
+        )
+    }
+
+    fn agent_notice_mcp_needs_login_fmt(&self, source: &str) -> String {
+        self.format("agent_notice_mcp_needs_login_fmt", &[("source", source)])
+    }
+
+    fn agent_notice_mcp_login_started_fmt(&self, source: &str, url: &str) -> String {
+        self.format(
+            "agent_notice_mcp_login_started_fmt",
+            &[("source", source), ("url", url)],
+        )
+    }
+
+    fn agent_notice_mcp_gone_fmt(&self, source: &str) -> String {
+        self.format("agent_notice_mcp_gone_fmt", &[("source", source)])
+    }
+
+    fn agent_notice_mcp_updated_fmt(&self, source: &str, count: usize) -> String {
+        self.format(
+            "agent_notice_mcp_updated_fmt",
+            &[("source", source), ("count", &count.to_string())],
+        )
+    }
+
+    fn agent_notice_mcp_logout_fmt(&self, source: &str) -> String {
+        self.format("agent_notice_mcp_logout_fmt", &[("source", source)])
+    }
+
+    fn agent_notice_mcp_no_login_fmt(&self, source: &str) -> String {
+        self.format("agent_notice_mcp_no_login_fmt", &[("source", source)])
+    }
+
+    fn agent_notice_no_agent_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_no_agent_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_agent_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_agent_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_cannot_switch_agent_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_switch_agent_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_switch_model_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_switch_model_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_change_reasoning_fmt(&self, error: &str) -> String {
+        self.format(
+            "agent_notice_cannot_change_reasoning_fmt",
+            &[("error", error)],
+        )
+    }
+
+    fn agent_notice_reasoning_fmt(&self, level: &str) -> String {
+        self.format("agent_notice_reasoning_fmt", &[("level", level)])
+    }
+
+    fn agent_notice_model_fmt(&self, id: &str) -> String {
+        self.format("agent_notice_model_fmt", &[("id", id)])
+    }
+
+    fn agent_notice_cannot_open_session_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_open_session_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_open_block_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_open_block_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_undo_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_undo_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_cannot_write_prompt_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_write_prompt_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_retry_fmt(
+        &self,
+        attempt: usize,
+        max: usize,
+        delay_ms: u64,
+        error: &str,
+    ) -> String {
+        self.format(
+            "agent_notice_retry_fmt",
+            &[
+                ("attempt", &attempt.to_string()),
+                ("max", &max.to_string()),
+                ("delay_ms", &delay_ms.to_string()),
+                ("error", error),
+            ],
+        )
+    }
+
+    fn agent_notice_compacted_fmt(&self, tokens: u64, kept: usize) -> String {
+        self.format(
+            "agent_notice_compacted_fmt",
+            &[("tokens", &tokens.to_string()), ("kept", &kept.to_string())],
+        )
+    }
+
+    fn agent_notice_handoff_written_fmt(&self, path: &str) -> String {
+        self.format("agent_notice_handoff_written_fmt", &[("path", path)])
+    }
+
+    fn agent_notice_no_command_fmt(&self, name: &str, available: &str) -> String {
+        self.format(
+            "agent_notice_no_command_fmt",
+            &[("name", name), ("available", available)],
+        )
+    }
+
+    fn agent_notice_slash_shadowed_fmt(&self, name: &str, runs: &str, hidden: &str) -> String {
+        self.format(
+            "agent_notice_slash_shadowed_fmt",
+            &[("name", name), ("runs", runs), ("hidden", hidden)],
+        )
+    }
+
+    fn agent_notice_slash_skill_hint_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_slash_skill_hint_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_loop_stopped_max_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_notice_loop_stopped_max_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_notice_goal_stopped_max_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_notice_goal_stopped_max_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_notice_goal_working_fmt(&self, goal: &str) -> String {
+        self.format("agent_notice_goal_working_fmt", &[("goal", goal)])
+    }
+
+    fn agent_notice_looping_every_fmt(&self, interval: &str) -> String {
+        self.format("agent_notice_looping_every_fmt", &[("interval", interval)])
+    }
+
+    fn agent_notice_goal_reached_reason_fmt(&self, reason: &str) -> String {
+        self.format(
+            "agent_notice_goal_reached_reason_fmt",
+            &[("reason", reason)],
+        )
+    }
+
+    fn agent_notice_command_denied_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_command_denied_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_rolled_back_fmt(&self, count: usize, plural: &str) -> String {
+        self.format(
+            "agent_notice_rolled_back_fmt",
+            &[("count", &count.to_string()), ("plural", plural)],
+        )
+    }
+
+    fn agent_notice_files_restored_fmt(&self, count: usize, plural: &str) -> String {
+        self.format(
+            "agent_notice_files_restored_fmt",
+            &[("count", &count.to_string()), ("plural", plural)],
+        )
+    }
+
+    fn agent_rewind_confirm_fmt(&self, message: &str, changed: &str) -> String {
+        self.format(
+            "agent_rewind_confirm_fmt",
+            &[("message", message), ("changed", changed)],
+        )
+    }
+
+    fn agent_notice_undid_fmt(&self, count: usize, plural: &str) -> String {
+        self.format(
+            "agent_notice_undid_fmt",
+            &[("count", &count.to_string()), ("plural", plural)],
+        )
+    }
+
     fn db_status_connecting_fmt(&self, label: &str) -> String {
         self.format("db_status_connecting_fmt", &[("label", label)])
     }
@@ -665,25 +1369,16 @@ impl Translation for RuntimeTranslation {
         self.format("db_row_title_fmt", &[("table", table)])
     }
 
-    fn fm_paste_confirm(&self, count: usize, mode: &str, dest: &str) -> String {
-        let plural = self.pluralize(count, "file");
-        self.format(
-            "fm_paste_confirm",
-            &[
-                ("count", &count.to_string()),
-                ("mode", mode),
-                ("dest", dest),
-                ("plural", plural),
-            ],
-        )
+    fn fm_paste_confirm(&self, count: usize, names: &str, dest: &str) -> String {
+        self.format_paste("fm_paste_confirm", count, names, dest)
     }
 
-    fn fm_copy_prompt(&self, name: &str) -> String {
-        self.format("fm_copy_prompt", &[("name", name)])
+    fn fm_paste_move_confirm(&self, count: usize, names: &str, dest: &str) -> String {
+        self.format_paste("fm_paste_move_confirm", count, names, dest)
     }
 
-    fn fm_move_prompt(&self, name: &str) -> String {
-        self.format("fm_move_prompt", &[("name", name)])
+    fn fm_copy_into_itself(&self, name: &str) -> String {
+        self.format("fm_copy_into_itself", &[("name", name)])
     }
 
     fn editor_file_opened(&self, filename: &str) -> String {
@@ -701,7 +1396,7 @@ impl Translation for RuntimeTranslation {
     }
 
     fn editor_deletion_marker(&self, count: usize) -> String {
-        let plural = self.pluralize(count, "file");
+        let plural = self.pluralize(count, "line");
         self.format(
             "editor_deletion_marker",
             &[("count", &count.to_string()), ("plural", plural)],
@@ -727,6 +1422,46 @@ impl Translation for RuntimeTranslation {
 
     fn status_dir_created(&self, name: &str) -> String {
         self.format("status_dir_created", &[("name", name)])
+    }
+
+    fn fm_pack_prompt(&self, name: &str) -> String {
+        self.format("fm_pack_prompt", &[("name", name)])
+    }
+
+    fn fm_pack_prompt_multiple(&self, count: usize) -> String {
+        self.format("fm_pack_prompt_multiple", &[("count", &count.to_string())])
+    }
+
+    fn fm_pack_unknown_format(&self, name: &str) -> String {
+        self.format("fm_pack_unknown_format", &[("name", name)])
+    }
+
+    fn fm_pack_exists(&self, name: &str) -> String {
+        self.format("fm_pack_exists", &[("name", name)])
+    }
+
+    fn fm_archive_password_prompt(&self, name: &str) -> String {
+        self.format("fm_archive_password_prompt", &[("name", name)])
+    }
+
+    fn fm_archive_password_wrong(&self, name: &str) -> String {
+        self.format("fm_archive_password_wrong", &[("name", name)])
+    }
+
+    fn status_vfs_connecting(&self, host: &str) -> String {
+        self.format("status_vfs_connecting", &[("host", host)])
+    }
+
+    fn status_vfs_opening(&self, name: &str) -> String {
+        self.format("status_vfs_opening", &[("name", name)])
+    }
+
+    fn status_item_count(&self, count: usize) -> String {
+        let element = self.pluralize(count, "element");
+        self.format(
+            "status_item_count",
+            &[("count", &count.to_string()), ("element", element)],
+        )
     }
 
     fn status_file_saved(&self, name: &str) -> String {
@@ -825,14 +1560,117 @@ impl Translation for RuntimeTranslation {
     }
 
     fn git_init_success(&self, path: &str) -> String {
-        self.get_string("git_init_success").replace("{path}", path)
+        self.format("git_init_success", &[("path", path)])
+    }
+    fn agent_thought_chars(&self, count: usize) -> String {
+        self.format("agent_thought_chars", &[("count", &count.to_string())])
+    }
+
+    fn agent_more_lines_above(&self, count: usize) -> String {
+        self.format("agent_more_lines_above", &[("count", &count.to_string())])
+    }
+
+    fn agent_more_lines(&self, count: usize) -> String {
+        self.format("agent_more_lines", &[("count", &count.to_string())])
+    }
+
+    fn agent_state_queued_more(&self, count: usize) -> String {
+        self.format("agent_state_queued_more", &[("count", &count.to_string())])
+    }
+
+    fn agent_paste_placeholder_fmt(&self, n: usize, what: &str) -> String {
+        self.format(
+            "agent_paste_placeholder_fmt",
+            &[("n", &n.to_string()), ("what", what)],
+        )
+    }
+
+    fn agent_paste_lines_fmt(&self, count: usize) -> String {
+        self.format("agent_paste_lines_fmt", &[("count", &count.to_string())])
+    }
+
+    fn agent_paste_chars_fmt(&self, count: usize) -> String {
+        self.format("agent_paste_chars_fmt", &[("count", &count.to_string())])
+    }
+
+    fn agent_project_command_fmt(&self, description: &str) -> String {
+        self.format("agent_project_command_fmt", &[("description", description)])
+    }
+
+    fn agent_running_command_fmt(&self, name: &str) -> String {
+        self.format("agent_running_command_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_bang_running_cmd_fmt(&self, command: &str) -> String {
+        self.format("agent_notice_bang_running_cmd_fmt", &[("command", command)])
+    }
+
+    fn agent_suggest_why_fmt(&self, why: &str) -> String {
+        self.format("agent_suggest_why_fmt", &[("why", why)])
+    }
+
+    fn agent_suggest_cwd_fmt(&self, cwd: &str) -> String {
+        self.format("agent_suggest_cwd_fmt", &[("cwd", cwd)])
+    }
+
+    fn agent_notice_external_failed_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_external_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_perm_note_reviewer_allowed_fmt(&self, reason: &str) -> String {
+        self.format(
+            "agent_perm_note_reviewer_allowed_fmt",
+            &[("reason", reason)],
+        )
+    }
+
+    fn agent_perm_note_reviewer_blocked_fmt(&self, reason: &str) -> String {
+        self.format(
+            "agent_perm_note_reviewer_blocked_fmt",
+            &[("reason", reason)],
+        )
+    }
+
+    fn agent_perm_note_user_denied_reason_fmt(&self, reason: &str) -> String {
+        self.format(
+            "agent_perm_note_user_denied_reason_fmt",
+            &[("reason", reason)],
+        )
+    }
+
+    fn agent_queued_fmt(&self, count: usize) -> String {
+        self.format("agent_queued_fmt", &[("count", &count.to_string())])
+    }
+
+    fn settings_value_default_fmt(&self, value: &str) -> String {
+        self.format("settings_value_default_fmt", &[("value", value)])
+    }
+
+    fn projects_delete_failed_fmt(&self, error: &str) -> String {
+        self.format("projects_delete_failed_fmt", &[("error", error)])
+    }
+
+    fn command_edit_title_fmt(&self, name: &str) -> String {
+        self.format("command_edit_title_fmt", &[("name", name)])
+    }
+
+    fn command_run_failed_fmt(&self, error: &str) -> String {
+        self.format("command_run_failed_fmt", &[("error", error)])
+    }
+
+    fn command_name_taken_fmt(&self, name: &str) -> String {
+        self.format("command_name_taken_fmt", &[("name", name)])
     }
 
     fn git_commit_title(&self, count: usize, repo: &str, branch: &str) -> String {
-        self.get_string("git_commit_title")
-            .replace("{count}", &count.to_string())
-            .replace("{repo}", repo)
-            .replace("{branch}", branch)
+        self.format(
+            "git_commit_title",
+            &[
+                ("count", &count.to_string()),
+                ("repo", repo),
+                ("branch", branch),
+            ],
+        )
     }
 
     fn git_status_added(&self) -> String {
@@ -1080,6 +1918,17 @@ impl Translation for RuntimeTranslation {
         self.format("git_checkout_error_fmt", &[("error", error)])
     }
 
+    fn git_branch_not_checked_out_fmt(&self, ahead: usize, behind: usize, base: &str) -> String {
+        self.format(
+            "git_branch_not_checked_out_fmt",
+            &[
+                ("ahead", &ahead.to_string()),
+                ("behind", &behind.to_string()),
+                ("base", base),
+            ],
+        )
+    }
+
     fn git_init_failed_fmt(&self, error: &str) -> String {
         self.format("git_init_failed_fmt", &[("error", error)])
     }
@@ -1138,6 +1987,14 @@ impl Translation for RuntimeTranslation {
         self.format("image_error_fmt", &[("error", error)])
     }
 
+    fn projects_delete_fmt(&self, path: &str) -> String {
+        self.format("projects_delete_fmt", &[("path", path)])
+    }
+
+    fn app_quit_background_fmt(&self, projects: &str) -> String {
+        self.format("app_quit_background_fmt", &[("projects", projects)])
+    }
+
     fn replace_done_fmt(&self, count: usize, files: usize) -> String {
         self.format(
             "replace_done_fmt",
@@ -1169,6 +2026,161 @@ impl Translation for RuntimeTranslation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The keys this file reads through `get_string` and `format`, taken
+    /// from its own source (the part above the tests).
+    fn keys_read_by_source() -> (Vec<String>, Vec<String>) {
+        let source = include_str!("runtime.rs");
+        let source = &source[..source.find("#[cfg(test)]").unwrap()];
+        let literals_after = |call: &str| -> Vec<String> {
+            source
+                .match_indices(call)
+                .filter_map(|(at, _)| {
+                    let rest = source[at + call.len()..].trim_start().strip_prefix('"')?;
+                    Some(rest[..rest.find('"')?].to_string())
+                })
+                .collect()
+        };
+        let mut strings = literals_after("self.get_string(");
+        let generated = source
+            .split_once("i18n_get_string_methods! {")
+            .and_then(|(_, rest)| rest.split_once('}'))
+            .unwrap()
+            .0;
+        strings.extend(
+            generated
+                .lines()
+                .map(|line| line.split("//").next().unwrap())
+                .flat_map(|line| line.split(','))
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(str::to_string),
+        );
+        (strings, literals_after("self.format("))
+    }
+
+    /// A key read with `get_string` but kept in `[formats]` (or the other
+    /// way round) comes out empty in every language.
+    #[test]
+    fn every_key_read_is_in_the_section_it_is_read_from() {
+        let en = loader::load_language("en").unwrap();
+        let (strings, formats) = keys_read_by_source();
+        assert!(strings.len() > 300 && formats.len() > 100);
+        let misplaced: Vec<_> = strings
+            .iter()
+            .filter(|key| !en.strings.contains_key(*key))
+            .chain(formats.iter().filter(|key| !en.formats.contains_key(*key)))
+            .collect();
+        assert!(misplaced.is_empty(), "not in their section: {misplaced:?}");
+    }
+
+    /// The `{name}`s of a template.
+    fn placeholders(template: &str) -> std::collections::BTreeSet<&str> {
+        template
+            .split('{')
+            .skip(1)
+            .filter_map(|part| part.split_once('}').map(|(name, _)| name))
+            .collect()
+    }
+
+    /// A translation may leave out a placeholder (`{plural}` in a language
+    /// without inflection) but not name one the code never fills.
+    #[test]
+    fn translations_use_only_the_placeholders_english_has() {
+        let en = loader::load_language("en").unwrap();
+        for (lang, _) in crate::SUPPORTED_LANGUAGES {
+            let data = loader::load_language(lang).unwrap();
+            for (key, template) in data.formats.iter().chain(&data.strings) {
+                let Some(english) = en.formats.get(key).or_else(|| en.strings.get(key)) else {
+                    panic!("{lang}: {key} is not in en.toml");
+                };
+                let extra: Vec<_> = placeholders(template)
+                    .difference(&placeholders(english))
+                    .copied()
+                    .collect();
+                assert!(extra.is_empty(), "{lang}: {key} has {extra:?}");
+            }
+        }
+    }
+
+    /// A key missing from a language silently shows the English text, so
+    /// nothing at runtime points at it: every dictionary has exactly en's keys.
+    #[test]
+    fn every_language_has_every_key() {
+        let en = loader::load_language("en").unwrap();
+        for (lang, _) in crate::SUPPORTED_LANGUAGES {
+            let data = loader::load_language(lang).unwrap();
+            let mut missing: Vec<_> = en
+                .strings
+                .keys()
+                .filter(|key| !data.strings.contains_key(*key))
+                .chain(
+                    en.formats
+                        .keys()
+                        .filter(|key| !data.formats.contains_key(*key)),
+                )
+                .collect();
+            missing.sort();
+            assert!(missing.is_empty(), "{lang} lacks {missing:?}");
+            assert_eq!(
+                data.strings.len(),
+                en.strings.len(),
+                "{lang}: extra strings"
+            );
+            assert_eq!(
+                data.formats.len(),
+                en.formats.len(),
+                "{lang}: extra formats"
+            );
+        }
+    }
+
+    #[test]
+    fn every_language_has_the_same_plural_words() {
+        let en = loader::load_language("en").unwrap();
+        let mut words: Vec<_> = en.plurals.keys().collect();
+        words.sort();
+        for (lang, _) in crate::SUPPORTED_LANGUAGES {
+            let data = loader::load_language(lang).unwrap();
+            let mut theirs: Vec<_> = data.plurals.keys().collect();
+            theirs.sort();
+            assert_eq!(theirs, words, "{lang}");
+        }
+    }
+
+    #[test]
+    fn russian_counts_take_the_form_their_last_digits_ask_for() {
+        let t = RuntimeTranslation::new("ru").unwrap();
+        let file = |n| format!("{n} файл{}", t.pluralize(n, "file"));
+        assert_eq!(file(1), "1 файл");
+        assert_eq!(file(3), "3 файла");
+        assert_eq!(file(5), "5 файлов");
+        assert_eq!(file(11), "11 файлов");
+        assert_eq!(file(13), "13 файлов");
+        assert_eq!(file(21), "21 файл");
+        assert_eq!(file(22), "22 файла");
+        assert_eq!(file(111), "111 файлов");
+        assert_eq!(file(0), "0 файлов");
+    }
+
+    #[test]
+    fn item_counts_are_pluralized() {
+        let ru = RuntimeTranslation::new("ru").unwrap();
+        assert_eq!(ru.status_item_count(3), "3 элемента");
+        assert_eq!(ru.status_item_count(5), "5 элементов");
+        assert_eq!(ru.status_item_count(21), "21 элемент");
+        let en = RuntimeTranslation::new("en").unwrap();
+        assert_eq!(en.status_item_count(2), "2 elements");
+    }
+
+    #[test]
+    fn deleted_lines_are_counted_as_lines() {
+        let de = RuntimeTranslation::new("de").unwrap();
+        assert_eq!(de.editor_deletion_marker(1), "1 Zeile gelöscht");
+        assert_eq!(de.editor_deletion_marker(3), "3 Zeilen gelöscht");
+        let en = RuntimeTranslation::new("en").unwrap();
+        assert_eq!(en.editor_deletion_marker(2), "2 lines deleted");
+    }
 
     /// Format keys must live in the TOML `[formats]` section (not `[strings]`),
     /// otherwise `format()` can't find them and returns an empty string. Guard
@@ -1234,5 +2246,120 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The banner's field labels were literals, so every language showed the
+    /// English keys. A dictionary that copies them over instead of translating
+    /// them looks right to the key test above, so check the words themselves.
+    #[test]
+    fn banner_labels_are_translated_everywhere() {
+        for (code, _) in crate::SUPPORTED_LANGUAGES {
+            let t = RuntimeTranslation::new(code).unwrap();
+            for label in [
+                t.agent_banner_connection(),
+                t.agent_banner_model(),
+                t.agent_banner_tools(),
+                t.agent_banner_cwd(),
+                t.agent_banner_sessions(),
+            ] {
+                assert!(!label.is_empty(), "{code}: a banner label is empty");
+            }
+            // Latin-script languages legitimately share a word with English;
+            // the ones with their own script must not. `cwd` is a path, so it
+            // stays as is wherever the script allows.
+            if ["ru", "zh", "ja", "ko", "th", "hi", "bn"].contains(code) {
+                assert_ne!(t.agent_banner_connection(), "connection", "{code}");
+                assert_ne!(t.agent_banner_model(), "model", "{code}");
+                assert_ne!(t.agent_banner_tools(), "tools", "{code}");
+                assert_ne!(t.agent_banner_sessions(), "sessions", "{code}");
+            }
+        }
+    }
+
+    /// The paste confirmation carries its verb inside each locale's own
+    /// string. It used to take `{mode}` filled with a hardcoded `"Copy"`, so
+    /// every non-English dictionary rendered the English word — and a verb
+    /// slot cannot be filled grammatically where the verb goes last (de, ja,
+    /// ko, tr, bn, hi). This guards both halves, and that the names block
+    /// lands: the confirmation has to say *which* files, not only how many.
+    #[test]
+    fn paste_confirmation_carries_its_verb_in_every_language() {
+        for (code, _) in crate::SUPPORTED_LANGUAGES {
+            let t = RuntimeTranslation::new(code).unwrap();
+            let msg = t.fm_paste_confirm(3, "a.txt\nb.txt", "/tmp/target");
+
+            assert!(!msg.is_empty(), "{code}: empty paste confirmation");
+            assert!(
+                !msg.contains('{') && !msg.contains('}'),
+                "{code}: unfilled placeholder in {msg:?}"
+            );
+            assert!(msg.contains("/tmp/target"), "{code}: lost the destination");
+            assert!(msg.contains("a.txt"), "{code}: lost the names");
+
+            // The verb must be localized, not the literal "Copy" the old call
+            // site passed in. Latin-script languages legitimately share the
+            // English word; scripted ones must not.
+            if ["ru", "zh", "ja", "ko", "th", "hi", "bn"].contains(code) {
+                assert!(
+                    !msg.contains("Copy"),
+                    "{code}: untranslated verb in {msg:?}"
+                );
+            }
+        }
+    }
+
+    /// A paste of a cut deletes the sources, so its confirmation cannot read
+    /// like a copy. Each move string swaps the verb in the locale's copy
+    /// string, which is exactly the risk this guards: a swap that silently
+    /// left the copy text in place would render "Copy" over a destructive Yes.
+    #[test]
+    fn the_move_confirmation_differs_from_the_copy_in_every_language() {
+        for (code, _) in crate::SUPPORTED_LANGUAGES {
+            let t = RuntimeTranslation::new(code).unwrap();
+            let copy = t.fm_paste_confirm(3, "a.txt\nb.txt", "/tmp/target");
+            let move_ = t.fm_paste_move_confirm(3, "a.txt\nb.txt", "/tmp/target");
+
+            assert!(!move_.is_empty(), "{code}: empty move confirmation");
+            assert!(
+                !move_.contains('{') && !move_.contains('}'),
+                "{code}: unfilled placeholder in {move_:?}"
+            );
+            assert!(
+                move_.contains("/tmp/target"),
+                "{code}: lost the destination"
+            );
+            assert!(move_.contains("a.txt"), "{code}: lost the names");
+            assert_ne!(
+                copy, move_,
+                "{code}: a cut must not be confirmed with the copy wording"
+            );
+
+            if ["ru", "zh", "ja", "ko", "th", "hi", "bn"].contains(code) {
+                assert!(
+                    !move_.contains("Move") && !move_.contains("Copy"),
+                    "{code}: untranslated verb in {move_:?}"
+                );
+            }
+        }
+    }
+
+    /// A counted paste confirmation pluralizes where the language inflects:
+    /// Russian asks for "файл / файла / файлов" by the last digits.
+    #[test]
+    fn paste_confirmation_pluralizes_per_language() {
+        let ru = RuntimeTranslation::new("ru").unwrap();
+        assert!(ru.fm_paste_confirm(1, "a", "/d").contains("файл"), "1");
+        assert!(ru.fm_paste_confirm(3, "a", "/d").contains("файла"), "3");
+        assert!(ru.fm_paste_confirm(7, "a", "/d").contains("файлов"), "7");
+
+        let en = RuntimeTranslation::new("en").unwrap();
+        assert!(
+            en.fm_paste_confirm(1, "a", "/d").contains("file to"),
+            "one: no plural"
+        );
+        assert!(
+            en.fm_paste_confirm(2, "a", "/d").contains("files to"),
+            "two: plural"
+        );
     }
 }

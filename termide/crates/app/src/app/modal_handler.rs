@@ -108,7 +108,7 @@ impl App {
                     }
                 }
 
-                // Return to bookmarks menu on cancel of bookmark deletion
+                // Return to the menu a deletion was started from on cancel
                 if matches!(result, ModalResult::Cancelled) {
                     use termide_state::PendingAction;
                     if let Some(action) = self.state.pending_action.take() {
@@ -141,6 +141,12 @@ impl App {
                             } => {
                                 self.state.close_modal();
                                 self.reopen_bookmarks_menu(None, is_project, selected);
+                                return Ok(());
+                            }
+                            PendingAction::DeleteProject { menu, .. }
+                            | PendingAction::CloseProject { menu, .. } => {
+                                self.state.close_modal();
+                                self.return_to_projects(menu)?;
                                 return Ok(());
                             }
                             other => self.state.pending_action = Some(other),
@@ -238,6 +244,65 @@ impl App {
 
         if let Some(action) = self.state.take_pending_action() {
             match action {
+                PendingAction::PanelChecklist { action } => {
+                    // Like a selection, to the focused panel that raised it;
+                    // cancelling changes nothing.
+                    if let Some(outcome) = value.downcast_ref::<termide_core::ChecklistOutcome>() {
+                        if let Some(panel) = self.layout_manager.active_panel_mut() {
+                            panel.handle_command(termide_core::PanelCommand::ChecklistDone {
+                                action,
+                                checked: outcome.checked.clone(),
+                                pressed: outcome.pressed.clone(),
+                            });
+                        }
+                        self.state.needs_redraw = true;
+                    }
+                }
+                PendingAction::PanelSelection { action } => {
+                    // Cancelling leaves the panel unanswered on purpose: it
+                    // keeps its pending state and can re-ask. Deliver to the
+                    // focused panel — the one that raised the prompt — not the
+                    // first that happens to handle it, so with several panels of
+                    // the same kind open the answer lands where it was asked.
+                    if let Some(index) = value
+                        .downcast_ref::<Vec<usize>>()
+                        .and_then(|picked| picked.first().copied())
+                    {
+                        if let Some(panel) = self.layout_manager.active_panel_mut() {
+                            panel.handle_command(termide_core::PanelCommand::SelectionMade {
+                                action,
+                                index,
+                            });
+                        }
+                        self.state.needs_redraw = true;
+                    }
+                }
+                PendingAction::PanelInput { action } => {
+                    // The typed answer goes to the focused panel that raised the
+                    // prompt (e.g. renaming a session), not the first panel that
+                    // recognises the action — otherwise, with several agent
+                    // panels open, the wrong session would be renamed.
+                    if let Some(text) = value.downcast_ref::<String>() {
+                        if let Some(panel) = self.layout_manager.active_panel_mut() {
+                            panel.handle_command(termide_core::PanelCommand::InputSubmitted {
+                                action,
+                                text: text.clone(),
+                            });
+                        }
+                        self.state.needs_redraw = true;
+                    }
+                }
+                PendingAction::PanelConfirm { action } => {
+                    // Only an accepted confirmation reaches the panel; on cancel
+                    // it stays as it was. As with the input and selection
+                    // prompts, deliver to the focused panel that raised it.
+                    if value.downcast_ref::<bool>().copied().unwrap_or(false) {
+                        if let Some(panel) = self.layout_manager.active_panel_mut() {
+                            panel.handle_command(termide_core::PanelCommand::Confirmed { action });
+                        }
+                        self.state.needs_redraw = true;
+                    }
+                }
                 PendingAction::CreateFile { directory } => {
                     self.handle_create_file(directory, value)?;
                 }
@@ -343,7 +408,27 @@ impl App {
                     sources,
                     target_directory,
                 } => {
+                    // A move consumes the cut it came from — pasting the same
+                    // list again would try to move sources that are already
+                    // gone. Only on a confirmed Yes: cancelling keeps the cut
+                    // alive, and only for a matching list, so renaming an
+                    // unrelated file does not drop a live cut.
+                    if *value.downcast_ref::<bool>().unwrap_or(&false)
+                        && termide_clipboard::is_cut(&sources)
+                    {
+                        termide_clipboard::clear_cut();
+                    }
                     self.handle_move_path(sources, target_directory, value)?;
+                }
+                PendingAction::PackPaths { sources } => {
+                    self.handle_pack_paths(sources, value)?;
+                }
+                PendingAction::ArchivePassword { archive } => {
+                    if let Some(password) = value.downcast_ref::<String>() {
+                        if let Some(fm) = self.active_file_manager_mut() {
+                            fm.open_archive_with_password(archive, password.clone());
+                        }
+                    }
                 }
                 PendingAction::BatchFileOperation { operation } => {
                     self.process_batch_operation(operation);
@@ -413,15 +498,24 @@ impl App {
                         }
                     }
                 }
-                PendingAction::SwitchSession => {
-                    self.handle_switch_session(value)?;
+                PendingAction::SwitchProject => {
+                    self.handle_switch_project(value)?;
                 }
-                PendingAction::NewSession => {
-                    self.handle_new_session_result(value)?;
-                }
-                PendingAction::DeleteSession { path } => {
+                PendingAction::CloseProject { root, menu } => {
                     if value.downcast_ref::<bool>().copied().unwrap_or(false) {
-                        self.handle_delete_session(&path)?;
+                        self.close_project(&root, menu)?;
+                    } else {
+                        self.return_to_projects(menu)?;
+                    }
+                }
+                PendingAction::NewProject => {
+                    self.handle_new_project_result(value)?;
+                }
+                PendingAction::DeleteProject { path, menu } => {
+                    if value.downcast_ref::<bool>().copied().unwrap_or(false) {
+                        self.handle_delete_project(&path, menu)?;
+                    } else {
+                        self.return_to_projects(menu)?;
                     }
                 }
                 PendingAction::DeleteBookmark {
@@ -536,6 +630,9 @@ impl App {
                 PendingAction::SwitchDirectory => {
                     self.handle_switch_directory(value)?;
                 }
+                PendingAction::ChangeAgentCwd { session, cwd } => {
+                    self.handle_change_agent_cwd(value, session.as_deref(), &cwd)?;
+                }
                 // Add bookmark
                 PendingAction::AddBookmark { selected, .. } => {
                     use termide_modal::BookmarkAddResult;
@@ -551,10 +648,8 @@ impl App {
                     self.reopen_bookmarks_menu(result_group, result_is_project, selected);
                 }
                 // Go to path/URL
-                PendingAction::GoToPath {
-                    current_directory: _,
-                } => {
-                    self.handle_goto_path(value)?;
+                PendingAction::GoToPath { current_directory } => {
+                    self.handle_goto_path(&current_directory, value)?;
                 }
                 // VFS message / connection-error recovery dialog. Plain "OK"
                 // modals return id "ok" (ignored); the dead-session dialog
@@ -685,6 +780,7 @@ impl App {
                     group,
                     selected,
                 } => {
+                    let mut taken = None;
                     if let Some(new_name) = value.downcast_ref::<String>() {
                         let sanitized = termide_modal::sanitize_filename(new_name.trim());
                         if !sanitized.is_empty() && sanitized != command_name {
@@ -696,7 +792,10 @@ impl App {
                             };
                             let mut metadata =
                                 termide_config::commands::CommandsMetadata::load(&config_dir);
-                            if let Some(entry) = metadata.entries.remove(&command_name) {
+                            if metadata.entries.contains_key(&sanitized) {
+                                // Renaming onto another command would replace it.
+                                taken = Some(sanitized);
+                            } else if let Some(entry) = metadata.entries.remove(&command_name) {
                                 metadata.entries.insert(sanitized, entry);
                                 if let Err(e) = metadata.save(&config_dir) {
                                     log::error!("Failed to save commands.toml: {}", e);
@@ -706,7 +805,32 @@ impl App {
                             self.state.cache.hotkey_table = None;
                         }
                     }
-                    self.reopen_commands_menu(group, selected);
+                    match taken {
+                        Some(name) => {
+                            self.show_error_modal(termide_i18n::t().command_name_taken_fmt(&name))
+                        }
+                        None => self.reopen_commands_menu(group, selected),
+                    }
+                }
+                PendingAction::AiCreate {
+                    section,
+                    scope_global,
+                } => {
+                    if let Some(name) = value.downcast_ref::<String>() {
+                        self.ai_create_item(section, scope_global, name)?;
+                    }
+                }
+                PendingAction::AiDelete { section, path } => {
+                    if value.downcast_ref::<bool>().copied().unwrap_or(false) {
+                        self.ai_delete_item(section, &path)?;
+                        self.reopen_ai_menu(section);
+                    }
+                }
+                PendingAction::AiRename { section, path } => {
+                    if let Some(new_name) = value.downcast_ref::<String>() {
+                        self.ai_rename_item(section, &path, new_name)?;
+                    }
+                    self.reopen_ai_menu(section);
                 }
                 PendingAction::RenameBookmark {
                     path,
@@ -774,6 +898,7 @@ impl App {
                                         e
                                     ));
                                 } else {
+                                    super::agent_panel::publish_ai_settings(&cfg.ai);
                                     self.state.config = std::sync::Arc::new(cfg);
                                     log::info!(
                                         "Created project override at {}",
@@ -804,6 +929,9 @@ impl App {
                             Ok(()) => {
                                 log::info!("Removed project override at {}", path.display());
                                 // Effective config falls back to defaults+global.
+                                super::agent_panel::publish_ai_settings(
+                                    &self.state.global_baseline.ai,
+                                );
                                 self.state.config =
                                     std::sync::Arc::clone(&self.state.global_baseline);
                             }

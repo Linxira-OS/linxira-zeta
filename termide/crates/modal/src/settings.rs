@@ -15,6 +15,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{Modal, ModalResult};
 
+mod connection;
 mod fields;
 mod input;
 mod kb;
@@ -41,11 +42,15 @@ pub enum SettingsTab {
     Lsp,
     Logging,
     Vfs,
+    Ai,
+    /// One AI connection, opened from the AI tab: not in the sidebar, it
+    /// names the fields of the page that edits it.
+    Connection,
     Keybindings,
 }
 
 /// Top-level leaf tabs in the sidebar (excluding the Keybindings group).
-const TOP_LEVEL_TABS: [SettingsTab; 7] = [
+const TOP_LEVEL_TABS: [SettingsTab; 8] = [
     SettingsTab::General,
     SettingsTab::Editor,
     SettingsTab::FileManager,
@@ -53,6 +58,7 @@ const TOP_LEVEL_TABS: [SettingsTab; 7] = [
     SettingsTab::Lsp,
     SettingsTab::Logging,
     SettingsTab::Vfs,
+    SettingsTab::Ai,
 ];
 
 /// Sidebar width in columns.
@@ -69,6 +75,7 @@ impl SettingsTab {
             SettingsTab::Lsp => t.settings_tab_lsp().to_string(),
             SettingsTab::Logging => t.settings_tab_logging().to_string(),
             SettingsTab::Vfs => t.settings_tab_vfs().to_string(),
+            SettingsTab::Ai | SettingsTab::Connection => t.settings_tab_agent().to_string(),
             SettingsTab::Keybindings => t.settings_tab_keybindings().to_string(),
         }
     }
@@ -196,8 +203,15 @@ pub struct SettingsModal {
     // --- Editing ---
     /// True when a text/number field is being edited inline.
     editing: bool,
-    /// Current edit buffer for text/number fields.
-    edit_buffer: String,
+    /// The text/number field being edited: the shared single-line input, so
+    /// selection, word moves, the clipboard and undo work as everywhere else.
+    edit_input: termide_ui::TextInput,
+    /// Where the edited value was last drawn, for clicks and drags on it.
+    edit_area: Option<Rect>,
+    /// A press on a text field is being dragged: the drag selects in it.
+    field_drag: bool,
+    /// Presses by row, so a double click on a field selects its text.
+    clicks: termide_ui::ClickTracker<u16>,
 
     /// Whether the config differs from the shipped defaults, i.e. whether
     /// "Reset to Defaults" has anything to do. Cached because rendering must
@@ -217,9 +231,18 @@ pub struct SettingsModal {
     /// Sorted server language names for stable indexing.
     lsp_server_keys: Vec<String>,
     /// Inline edit form for LSP server: [language, command, args, root_markers].
-    lsp_edit_fields: [String; 4],
+    lsp_edit_fields: [termide_ui::TextInput; 4],
     /// Which field (0-3) is focused in the LSP edit form.
     lsp_edit_cursor: usize,
+    /// Where each LSP form field was last drawn, for clicks and drags.
+    lsp_field_areas: Vec<Rect>,
+
+    // --- AI connections ---
+    /// The connection page, while one is open from the AI tab.
+    connection_edit: Option<connection::ConnectionEdit>,
+    /// The connection whose models the app should fetch for the model
+    /// dropdown, taken with [`SettingsModal::take_model_fetch_request`].
+    model_fetch_request: Option<termide_config::Connection>,
 
     // --- Keybindings tab ---
     kb_mode: KbMode,
@@ -240,6 +263,12 @@ pub struct SettingsModal {
     /// "Create / Remove project override" button label and decides how
     /// the modal result handler routes the third-button click.
     project_override_active: bool,
+
+    /// The open connection's models, fetched off-thread by the app and
+    /// pushed in with [`SettingsModal::set_model_options`]; empty until they
+    /// arrive (or when the endpoint cannot list them), when the model field
+    /// falls back to typing an id.
+    pub(super) model_options: Vec<String>,
 
     // --- Area caches (for mouse hit-testing) ---
     last_modal_area: Option<Rect>,
@@ -302,7 +331,11 @@ impl Modal for SettingsModal {
         // Clear and draw outer frame
         Clear.render(modal_rect, buf);
         let block = Block::default()
-            .title(format!(" Settings{} ", if self.dirty { " *" } else { "" }))
+            .title(format!(
+                " {}{} ",
+                i18n::t().settings_title(),
+                if self.dirty { " *" } else { "" }
+            ))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.accented_fg))
             .style(Style::default().bg(theme.bg));
@@ -361,11 +394,18 @@ impl Modal for SettingsModal {
             return self.handle_keybindings_key(chord.canonical);
         }
 
+        // Outside a field being edited nothing is typed, so the zones match
+        // the layout-normalized key: `Ctrl+Ы` applies as `Ctrl+S` does.
+        let key = chord.canonical;
         match self.focus {
             FocusArea::Sidebar => self.handle_sidebar_key(key),
             FocusArea::Content => self.handle_content_key(key),
             FocusArea::Buttons => self.handle_buttons_key(key),
         }
+    }
+
+    fn handle_paste(&mut self, text: &str) -> bool {
+        self.paste_into_edit(text)
     }
 
     fn handle_mouse(
@@ -405,6 +445,10 @@ impl Modal for SettingsModal {
                     _ => {}
                 }
             }
+        }
+
+        if self.handle_field_mouse(mouse) {
+            return Ok(None);
         }
 
         if mouse.kind == MouseEventKind::ScrollUp {
@@ -464,6 +508,22 @@ impl Modal for SettingsModal {
                     let rows = self.content_rows();
                     if idx < rows.len() && rows[idx].is_selectable() {
                         self.field_cursor = idx;
+                        // The buttons row acts on the button under the click;
+                        // the gap between them does nothing.
+                        if rows[idx] == fields::ContentRow::ConnectionButtons {
+                            let column = mouse.column as usize;
+                            let spans =
+                                connection::connection_button_spans(content_area.x as usize + 2);
+                            let Some(button) = spans
+                                .iter()
+                                .position(|(start, end)| (*start..*end).contains(&column))
+                            else {
+                                return Ok(None);
+                            };
+                            if let Some(edit) = self.connection_edit.as_mut() {
+                                edit.button = button;
+                            }
+                        }
                         // Clicking a control operates it, the way Enter does.
                         // Moving the cursor and leaving the switch alone looks
                         // like the click was ignored.

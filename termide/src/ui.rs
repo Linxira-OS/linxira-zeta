@@ -13,12 +13,13 @@ use termide_panel_file_manager::FileManager;
 use termide_panel_terminal::Terminal;
 use termide_theme::Theme;
 use termide_ui_render::{
-    get_bookmarks_group_items, get_bookmarks_items, get_commands_group_items, get_commands_items,
-    get_menu_item_x_position, get_options_items, get_sessions_items, get_shell_items,
-    get_tools_items, render_collapsed_panel, render_dividers, render_expanded_panel, render_menu,
-    render_v_divider_ghost, Dropdown, ExpandedPanelParams, LanguageDropdown, MenuRenderParams,
-    ThemeDropdown, BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX, OPTIONS_MENU_INDEX,
-    SESSIONS_MENU_INDEX, TOOLS_SUBMENU_TERMINAL, WINDOWS_MENU_INDEX,
+    get_ai_agent_choice_items, get_ai_items, get_bookmarks_group_items, get_bookmarks_items,
+    get_commands_group_items, get_commands_items, get_menu_item_x_position, get_options_items,
+    get_shell_items, get_tools_items, render_collapsed_panel, render_dividers,
+    render_expanded_panel, render_menu, render_v_divider_ghost, Dropdown, ExpandedPanelParams,
+    LanguageDropdown, MenuRenderParams, ThemeDropdown, AI_MENU_INDEX, BOOKMARKS_MENU_INDEX,
+    COMMANDS_MENU_INDEX, OPTIONS_MENU_INDEX, PROJECTS_MENU_INDEX, TOOLS_SUBMENU_TERMINAL,
+    WINDOWS_MENU_INDEX,
 };
 
 use termide_ui_render::{StatusBar, StatusBarParams};
@@ -31,25 +32,13 @@ fn render_dropdowns_and_modals(
 ) {
     let theme = state.theme;
 
-    // Render Sessions submenu if open
+    // Render Projects submenu if open
     if state.ui.menu_open
-        && state.ui.selected_menu_item == Some(SESSIONS_MENU_INDEX)
-        && state.ui.sessions_submenu.open
+        && state.ui.selected_menu_item == Some(PROJECTS_MENU_INDEX)
+        && state.ui.projects_submenu.open
     {
-        // Calculate position of Sessions menu item
-        let menu_x = get_menu_item_x_position(SESSIONS_MENU_INDEX);
-        let dropdown_y = 1_u16; // Below menu bar
-
-        // Render Sessions submenu
-        let sessions_items = get_sessions_items(Some(&state.config.general.keybindings));
-        let dropdown = Dropdown::new(
-            &sessions_items,
-            state.ui.sessions_submenu.selected,
-            menu_x,
-            dropdown_y,
-            theme,
-        );
-        dropdown.render(frame.buffer_mut());
+        let menu = state.projects_menu();
+        Dropdown::new(&menu.items, menu.selected, menu.x, menu.y, theme).render(frame.buffer_mut());
     }
 
     // Render Tools submenu if open
@@ -141,6 +130,60 @@ fn render_dropdowns_and_modals(
                             theme,
                         );
                         nested_dropdown.render(frame.buffer_mut());
+                    }
+                }
+            }
+        }
+    }
+
+    // Render AI submenu if open
+    if state.ui.menu_open
+        && state.ui.selected_menu_item == Some(AI_MENU_INDEX)
+        && state.ui.ai_submenu.open
+    {
+        let menu_x = get_menu_item_x_position(AI_MENU_INDEX);
+        let dropdown_y = 1_u16;
+
+        let ai_items = get_ai_items(termide_app::web_browser_shown());
+        let dropdown = Dropdown::new(
+            &ai_items,
+            state.ui.ai_submenu.selected,
+            menu_x,
+            dropdown_y,
+            theme,
+        );
+        dropdown.render(frame.buffer_mut());
+
+        // The selected section's item list, to the right.
+        if state.ui.ai_nested.open {
+            if let Some(section) = state.ui.current_ai_section {
+                let nested_items = state.ai_section_items(section);
+                if !nested_items.is_empty() {
+                    let nested_x = menu_x + dropdown.width();
+                    let nested_y = dropdown_y + 1 + state.ui.ai_submenu.selected as u16;
+                    let nested_dropdown = Dropdown::new(
+                        &nested_items,
+                        state.ui.ai_nested.selected,
+                        nested_x,
+                        nested_y,
+                        theme,
+                    );
+                    nested_dropdown.render(frame.buffer_mut());
+
+                    // The agent file-choice (third level), to the right of the
+                    // agent list, aligned with the selected agent.
+                    if state.ui.ai_agent_choice.open {
+                        let choice_items = get_ai_agent_choice_items();
+                        let choice_x = nested_x + nested_dropdown.width();
+                        let choice_y = nested_y + 1 + state.ui.ai_nested.selected as u16;
+                        let choice_dropdown = Dropdown::new(
+                            &choice_items,
+                            state.ui.ai_agent_choice.selected,
+                            choice_x,
+                            choice_y,
+                            theme,
+                        );
+                        choice_dropdown.render(frame.buffer_mut());
                     }
                 }
             }
@@ -371,6 +414,7 @@ pub fn render_layout_with_accordion(
         net_down_rate: state.system_monitor.net_download_rate(),
         net_up_rate: state.system_monitor.net_upload_rate(),
         battery: state.system_monitor.battery_cached(),
+        projects_attention: state.open_projects.iter().any(|p| p.attention),
     };
     render_menu(frame, main_chunks[0], &menu_params);
 
@@ -380,11 +424,16 @@ pub fn render_layout_with_accordion(
     // Render status bar for active panel
     render_status_bar_for_active(frame, main_chunks[2], state, layout_manager);
 
+    let graphics = termide_core::GraphicsCells::capture(frame.buffer_mut());
+
     // Render drag overlay (ghost + drop-zone highlight) on top of panels
     render_drag_overlay(frame, state, layout_manager, main_chunks[1]);
 
     // Render dropdowns and modals
     render_dropdowns_and_modals(frame, state, layout_manager);
+
+    // An image under an overlay is repainted once the overlay goes away.
+    graphics.hold_overdrawn_anchors(frame.buffer_mut());
 }
 
 /// Render the panel drag overlay: a bright highlight for the drop zone and
@@ -768,13 +817,7 @@ fn render_status_bar_for_active(
         let disk_space = state.cache.disk_space.as_ref();
 
         // Build background operations summary if available
-        let background_ops = state.background_operations_summary().map(|summary| {
-            termide_ui_render::BackgroundOpsSummary {
-                has_operations: summary.has_operations(),
-                status_text: summary.status_text(),
-                is_paused: summary.any_paused,
-            }
-        });
+        let background_ops = state.background_ops_indicator();
 
         let disk_selected = state.ui.menu_open
             && state.ui.selected_menu_item == Some(termide_ui_render::INDICATOR_DISK_INDEX);

@@ -121,9 +121,13 @@ impl Perform for VtPerformer {
                 }
             }
             b'\x07' => {
-                // Bell character - just forward to parent terminal
+                // Bell character - forward to parent terminal, and note it
+                // so the panel asks for attention until it is shown focused.
                 print!("\x07");
                 let _ = std::io::stdout().flush();
+                if let Ok(mut screen) = self.screen.write() {
+                    screen.bell = true;
+                }
             }
             _ => {}
         }
@@ -709,6 +713,19 @@ impl Perform for VtPerformer {
                 }
                 screen.dirty = true;
             }
+
+            // OSC 7 / OSC 9;9: the shell reports its working directory
+            // in-band. PowerShell's `Set-Location` leaves the process
+            // directory untouched, so on Windows this report is the only
+            // thing that follows it.
+            if matches!(params.first(), Some(&b"7") | Some(&b"9")) {
+                let local_host = std::env::var("COMPUTERNAME")
+                    .or_else(|_| std::env::var("HOSTNAME"))
+                    .unwrap_or_default();
+                if let Some(cwd) = super::osc_cwd::parse_osc_cwd(params, &local_host) {
+                    screen.reported_cwd = Some(cwd);
+                }
+            }
         }
     }
 
@@ -812,6 +829,33 @@ mod tests {
         assert_eq!(row_text(&screen, 0), "");
         feed(&mut performer, "\x1b[1;1H中文x\x1b[4G\x1b[1X".as_bytes());
         assert_eq!(row_text(&screen, 0), "中  x");
+    }
+
+    #[test]
+    fn a_bell_is_noted_but_an_osc_ended_by_bel_is_not() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"\x1b]0;title\x07$ ");
+        assert!(!screen.read().unwrap().bell);
+        feed(&mut performer, b"\x07");
+        assert!(screen.read().unwrap().bell);
+    }
+
+    #[test]
+    fn osc_cwd_reports_are_recorded_and_print_nothing() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"\x1b]9;9;\"D:\\work\"\x1b\\$ ");
+        performer.flush();
+        assert_eq!(
+            screen.read().unwrap().reported_cwd,
+            Some(std::path::PathBuf::from(r"D:\work"))
+        );
+        assert_eq!(row_text(&screen, 0), "$");
+
+        feed(&mut performer, b"\x1b]7;file:///tmp/x\x07");
+        assert_eq!(
+            screen.read().unwrap().reported_cwd,
+            Some(std::path::PathBuf::from("/tmp/x"))
+        );
     }
 
     #[test]

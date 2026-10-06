@@ -51,10 +51,29 @@ static LANGUAGE_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::At
 
 /// Translation trait for all user-facing strings.
 pub trait Translation: Send + Sync {
+    /// The plural suffix (or form) for `count` under `key`'s rules in the
+    /// active language; empty when no rule matches and `count == 1`.
+    fn pluralize(&self, count: usize, key: &str) -> &str;
+
     // File Manager operations
-    fn fm_paste_confirm(&self, count: usize, mode: &str, dest: &str) -> String;
-    fn fm_copy_prompt(&self, name: &str) -> String;
-    fn fm_move_prompt(&self, name: &str) -> String;
+    /// "Copy N files to: <dest>" — the verb is part of each locale's own
+    /// string, not a slot: German, Japanese, Korean, Turkish, Bengali and
+    /// Hindi put it at the end, so a `{mode}` placeholder cannot be filled
+    /// grammatically. `names` is a trailing block of the actual file names,
+    /// so the confirmation says what lands and not only how many; it sits on
+    /// its own lines, which is why one key serves every word order.
+    fn fm_paste_confirm(&self, count: usize, names: &str, dest: &str) -> String;
+    /// "Move N files to: <dest>" — the same shape as [`Self::fm_paste_confirm`]
+    /// with the verb swapped, used when the clipboard carries a cut rather
+    /// than a copy. A paste deletes the sources in that case, so the
+    /// confirmation has to say which operation Yes commits to.
+    fn fm_paste_move_confirm(&self, count: usize, names: &str, dest: &str) -> String;
+    /// "Cut works only for local files" — why `Ctrl+X` refuses a remote or
+    /// in-archive panel. A cut that cannot move anything must say so rather
+    /// than paste a copy in silence.
+    fn fm_cut_local_only(&self) -> &str;
+    /// Why a directory cannot be copied or moved into its own subtree.
+    fn fm_copy_into_itself(&self, name: &str) -> String;
     fn git_operation_cancelled(&self) -> &str;
 
     // Modal buttons
@@ -140,9 +159,10 @@ pub trait Translation: Send + Sync {
     fn help_desc_new_editor(&self) -> &str;
     fn help_desc_new_journal(&self) -> &str;
     fn help_desc_open_preferences(&self) -> &str;
-    fn help_desc_open_sessions(&self) -> &str;
+    fn help_desc_open_projects(&self) -> &str;
     fn help_desc_open_git_status(&self) -> &str;
     fn help_desc_open_outline(&self) -> &str;
+    fn help_desc_open_agent(&self) -> &str;
     fn help_desc_open_diagnostics(&self) -> &str;
     fn help_desc_open_git_log(&self) -> &str;
     fn help_desc_toggle_stack(&self) -> &str;
@@ -169,6 +189,8 @@ pub trait Translation: Send + Sync {
     fn help_desc_prev_panel(&self) -> &str;
     fn help_desc_next_panel(&self) -> &str;
     fn help_desc_goto_panel(&self) -> &str;
+    fn help_desc_cycle_project(&self) -> &str;
+    fn help_desc_goto_project(&self) -> &str;
     fn help_desc_save_as(&self) -> &str;
     fn help_desc_reload(&self) -> &str;
     fn help_desc_duplicate_line(&self) -> &str;
@@ -202,6 +224,7 @@ pub trait Translation: Send + Sync {
     fn help_desc_delete_generic(&self) -> &str;
     fn help_desc_open_bookmark_add(&self) -> &str;
     fn help_desc_command_palette(&self) -> &str;
+    fn help_desc_open_path(&self) -> &str;
     fn help_desc_stage_file(&self) -> &str;
     fn help_desc_unstage_file(&self) -> &str;
     fn help_desc_terminal_copy(&self) -> &str;
@@ -224,7 +247,7 @@ pub trait Translation: Send + Sync {
     fn help_desc_view_commit_diff(&self) -> &str;
 
     // Additional help descriptions (missing entries audit)
-    fn help_desc_new_session(&self) -> &str;
+    fn help_desc_new_project(&self) -> &str;
     fn help_desc_save(&self) -> &str;
     fn help_desc_undo(&self) -> &str;
     fn help_desc_redo(&self) -> &str;
@@ -277,7 +300,6 @@ pub trait Translation: Send + Sync {
     fn help_desc_vim_panel_nav(&self) -> &str;
     fn help_section_viewers(&self) -> &str;
     fn help_desc_viewer_toggle(&self) -> &str;
-    fn help_desc_viewer_goto(&self) -> &str;
     fn help_desc_viewer_search(&self) -> &str;
     fn help_desc_viewer_reload(&self) -> &str;
     fn help_desc_viewer_copy(&self) -> &str;
@@ -288,6 +310,18 @@ pub trait Translation: Send + Sync {
     // File operation status
     fn status_file_created(&self, name: &str) -> String;
     fn status_dir_created(&self, name: &str) -> String;
+    fn fm_pack_prompt(&self, name: &str) -> String;
+    fn fm_pack_prompt_multiple(&self, count: usize) -> String;
+    fn fm_pack_unknown_format(&self, name: &str) -> String;
+    fn fm_pack_exists(&self, name: &str) -> String;
+    fn fm_archive_password_prompt(&self, name: &str) -> String;
+    /// Re-asks after the archive rejected the password.
+    fn fm_archive_password_wrong(&self, name: &str) -> String;
+    fn status_vfs_connecting(&self, host: &str) -> String;
+    /// Status while an archive's table of contents is read.
+    fn status_vfs_opening(&self, name: &str) -> String;
+    /// "3 items": the source of an operation over several entries.
+    fn status_item_count(&self, count: usize) -> String;
     fn status_file_saved(&self, name: &str) -> String;
     fn status_error_save(&self, error: &str) -> String;
     fn status_file_reloaded(&self) -> &str;
@@ -322,7 +356,7 @@ pub trait Translation: Send + Sync {
     fn batch_result_errors_fmt(&self, count: usize) -> String;
 
     // Menu
-    fn menu_sessions(&self) -> &str;
+    fn menu_projects(&self) -> &str;
     fn menu_windows(&self) -> &str;
     fn menu_commands(&self) -> &str;
     fn menu_commands_add(&self) -> &str;
@@ -358,12 +392,38 @@ pub trait Translation: Send + Sync {
     fn menu_quit(&self) -> &str;
     fn menu_bookmarks(&self) -> &str;
 
+    // AI menu (agents / sessions / skills / prompts, with CRUD)
+    fn menu_ai(&self) -> &str;
+    fn menu_ai_agents(&self) -> &str;
+    fn menu_ai_sessions(&self) -> &str;
+    fn menu_ai_skills(&self) -> &str;
+    fn menu_ai_prompts(&self) -> &str;
+    fn menu_ai_new_project(&self) -> &str;
+    fn menu_ai_new_global(&self) -> &str;
+    fn menu_ai_edit_prompt(&self) -> &str;
+    fn menu_ai_edit_settings(&self) -> &str;
+    fn ai_create_agent_title(&self) -> &str;
+    fn ai_create_skill_title(&self) -> &str;
+    fn ai_create_prompt_title(&self) -> &str;
+    fn ai_rename_title(&self) -> &str;
+    fn ai_delete_title(&self) -> &str;
+    fn ai_name_hint(&self) -> &str;
+    fn ai_name_invalid(&self) -> &str;
+    fn ai_name_exists(&self) -> &str;
+    fn ai_empty(&self) -> &str;
+    fn ai_delete_session_title(&self) -> &str;
+    fn ai_session_untitled(&self) -> &str;
+
     // Diagram (Mermaid / editor "view as diagram") menu + status
     fn menu_copy_diagram(&self) -> &str;
     fn menu_save_diagram_as(&self) -> &str;
     fn menu_view_as_diagram(&self) -> &str;
     fn status_no_diagram_symbols(&self) -> &str;
     fn status_diagram_copied(&self, lines: usize) -> String;
+
+    // HTML viewer menu
+    fn menu_save_page_as_markdown(&self) -> &str;
+    fn viewer_loading(&self) -> &str;
 
     // Bookmarks submenu
     fn bookmarks_add_bookmark(&self) -> &str;
@@ -394,6 +454,528 @@ pub trait Translation: Send + Sync {
     fn tools_diagnostics(&self) -> &str;
     fn tools_operations(&self) -> &str;
     fn tools_outline(&self) -> &str;
+    /// Tools menu: coding agent panel
+    fn tools_agent(&self) -> &str;
+    /// Agent panel title prefix
+    fn panel_agent(&self) -> &str;
+    /// Agent panel context menu: rename the conversation
+    fn agent_rename(&self) -> &str;
+    fn agent_delete_session(&self) -> &str;
+    /// Prompt shown when renaming an agent conversation
+    fn agent_rename_prompt(&self) -> &str;
+    /// Agent panel context menu: start a new session
+    fn agent_new_session(&self) -> &str;
+    /// Agent panel context menu: open an earlier session
+    fn agent_resume(&self) -> &str;
+    /// Status message when the project has no saved agent sessions
+    fn agent_no_sessions(&self) -> &str;
+    /// Status message when the agent panel has no model configured
+    fn agent_not_configured(&self) -> &str;
+    /// Agent panel: open the model picker
+    fn agent_change_model(&self) -> &str;
+    /// Agent panel: open the permission-mode picker
+    fn agent_change_mode(&self) -> &str;
+    fn agent_change_reasoning(&self) -> &str;
+    /// Prompt asking for a model id by hand
+    fn agent_model_prompt(&self) -> &str;
+    /// Model picker: last entry, type an id instead
+    fn agent_model_other(&self) -> &str;
+    /// Status message while the model list is fetched
+    fn agent_models_loading(&self) -> &str;
+    /// Permission-mode picker: ask
+    fn agent_mode_ask(&self) -> &str;
+    /// Permission-mode picker: plan (read only and the web, plan first)
+    fn agent_mode_plan(&self) -> &str;
+    /// Permission-mode picker: edit
+    fn agent_mode_edit(&self) -> &str;
+    /// Permission-mode picker: configured
+    fn agent_mode_configured(&self) -> &str;
+    /// Permission-mode picker: auto (a reviewer model decides)
+    fn agent_mode_auto(&self) -> &str;
+    /// Permission-mode picker: all
+    fn agent_mode_all(&self) -> &str;
+    /// Transcript: who decided a tool call (rules denied)
+    fn agent_perm_note_rules_denied(&self) -> &str;
+    /// Transcript: who decided a tool call (plan)
+    fn agent_perm_note_plan(&self) -> &str;
+    /// Transcript: who decided a tool call (hook allowed)
+    fn agent_perm_note_hook_allowed(&self) -> &str;
+    /// Transcript: who decided a tool call (hook denied)
+    fn agent_perm_note_hook_denied(&self) -> &str;
+    /// Transcript: who decided a tool call (reviewer allowed)
+    fn agent_perm_note_reviewer_allowed_fmt(&self, reason: &str) -> String;
+    /// Transcript: who decided a tool call (reviewer blocked)
+    fn agent_perm_note_reviewer_blocked_fmt(&self, reason: &str) -> String;
+    /// Transcript: who decided a tool call (unattended)
+    fn agent_perm_note_unattended(&self) -> &str;
+    /// Transcript: who decided a tool call (user once)
+    fn agent_perm_note_user_once(&self) -> &str;
+    fn agent_perm_note_user_ran(&self) -> &str;
+    /// Transcript: who decided a tool call (user session)
+    fn agent_perm_note_user_session(&self) -> &str;
+    /// Transcript: who decided a tool call (user project)
+    fn agent_perm_note_user_project(&self) -> &str;
+    /// Transcript: who decided a tool call (user global)
+    fn agent_perm_note_user_global(&self) -> &str;
+    /// Transcript: who decided a tool call (user denied)
+    fn agent_perm_note_user_denied(&self) -> &str;
+    /// Transcript: who decided a tool call (user denied session)
+    fn agent_perm_note_user_denied_session(&self) -> &str;
+    /// Transcript: who decided a tool call (user denied reason)
+    fn agent_perm_note_user_denied_reason_fmt(&self, reason: &str) -> String;
+    /// Agent panel context menu: open the assembled system prompt
+    fn agent_show_prompt(&self) -> &str;
+    /// Agent panel context menu and `/usage`: the session-info modal title
+    fn agent_session_info(&self) -> &str;
+
+    // Agent panel — permission card
+    /// The permission card's title: what the agent wants to run (`{tool}`)
+    fn agent_permission_run_fmt(&self, tool: &str) -> String;
+    /// Permission answer: allow this one call
+    fn agent_perm_allow_once(&self) -> &str;
+    /// Permission answer: allow it for the rest of the session
+    fn agent_perm_allow_session(&self) -> &str;
+    /// Permission answer: allow it always (a rule is saved)
+    fn agent_perm_allow_always(&self) -> &str;
+    /// Permission card: allow always, recorded in the global configuration.
+    fn agent_perm_allow_always_global(&self) -> &str;
+    /// Permission answer: refuse this call
+    fn agent_perm_deny(&self) -> &str;
+    /// Permission card: deny for the rest of this session.
+    fn agent_perm_deny_session(&self) -> &str;
+    /// Permission card: a part of a command answered for this call only,
+    /// since no rule can stand for it.
+    fn agent_perm_part_once(&self) -> &str;
+    /// Permission card: refuse and give the agent a reason
+    fn agent_perm_deny_reason(&self) -> &str;
+    /// Permission card: cancel and stop the run
+    fn agent_perm_stop(&self) -> &str;
+
+    // Agent panel — the model's question card
+    /// Question card title: the agent asks the user something
+    fn agent_question_title(&self) -> &str;
+    /// Question card: the row for an answer typed by the user
+    fn agent_question_own_answer(&self) -> &str;
+    /// Question card: decline to answer and stop the run
+    fn agent_question_decline(&self) -> &str;
+    /// Question card: confirm the choices of a multi-select question
+    fn agent_question_submit(&self) -> &str;
+
+    // Agent panel — delete-session confirmation
+    /// The delete-session card's question (`{label}` is the session)
+    fn agent_delete_confirm_fmt(&self, label: &str) -> String;
+    /// Agent delete confirmation: how an unnamed session is named in it.
+    fn agent_delete_this_session(&self) -> &str;
+
+    // Agent panel — fork-session confirmation
+    /// The `[≡]` menu's Fork session entry (also `F5` and `/fork`).
+    fn agent_fork_session(&self) -> &str;
+    /// The fork-session card's question (`{label}` is the session)
+    fn agent_fork_confirm_fmt(&self, label: &str) -> String;
+    /// Fork confirmation: how an unnamed session is named in it.
+    fn agent_fork_this_session(&self) -> &str;
+    /// Why `/fork` did nothing: the panel has no session log.
+    fn agent_notice_fork_no_session(&self) -> &str;
+    /// The fork could not be made (`{error}` says why).
+    fn agent_notice_cannot_fork_fmt(&self, error: &str) -> String;
+
+    // Agent panel — undo confirmation
+    /// The undo card's question (`{changed}` names the changed files)
+    fn agent_undo_confirm_fmt(&self, changed: &str) -> String;
+    /// The undo card's summary of several changed files (`{count}`, `{files}`)
+    fn agent_undo_changed_files_fmt(&self, count: usize, files: &str) -> String;
+    /// Undo card: confirm restoring the files and rewinding
+    fn agent_undo_restore(&self) -> &str;
+    /// Undo card: cancel, keeping everything
+    fn agent_undo_keep(&self) -> &str;
+    fn agent_rewind_conversation_only(&self) -> &str;
+    fn agent_rewind_files_only(&self) -> &str;
+
+    // Agent panel — plan-mode carry-out card
+    /// The plan card's question when the plan is ready
+    fn agent_plan_carry_title(&self) -> &str;
+    /// Plan card: carry it out, accepting edits
+    fn agent_plan_accept_edits(&self) -> &str;
+    /// Plan card: carry it out under the configured rules
+    fn agent_plan_configured(&self) -> &str;
+    /// Plan card: cancel and keep planning
+    fn agent_plan_keep(&self) -> &str;
+
+    // Agent panel — handoff-ready card
+    /// The handoff card's title once the brief is ready
+    fn agent_handoff_ready_title(&self) -> &str;
+    /// Handoff card: save the brief to HANDOFF.md and stop
+    fn agent_handoff_save(&self) -> &str;
+    /// Handoff card: start a new session from the brief
+    fn agent_handoff_new_session(&self) -> &str;
+    /// Handoff card: dismiss without saving
+    fn agent_handoff_dismiss(&self) -> &str;
+
+    // Agent panel — project command confirmation
+    /// The card's question before running a project command (`{name}`, `{path}`)
+    fn agent_command_run_title_fmt(&self, name: &str, path: &str) -> String;
+    /// Command card: run this one time
+    fn agent_cmd_run_once(&self) -> &str;
+    /// Command card: run for the rest of the session
+    fn agent_cmd_run_session(&self) -> &str;
+    /// Command card: run always (a rule is saved)
+    fn agent_cmd_run_always(&self) -> &str;
+    /// Command card: do not run
+    fn agent_cmd_dont_run(&self) -> &str;
+
+    // Agent panel — `/`-command completion descriptions
+    fn agent_cmd_desc_compact(&self) -> &str;
+    fn agent_cmd_desc_undo(&self) -> &str;
+    fn agent_cmd_desc_new(&self) -> &str;
+    fn agent_cmd_desc_fork(&self) -> &str;
+    fn agent_cmd_desc_clear(&self) -> &str;
+    fn agent_cmd_desc_rename(&self) -> &str;
+    fn agent_cmd_desc_pause(&self) -> &str;
+    fn agent_cmd_desc_continue(&self) -> &str;
+    fn agent_cmd_desc_loop(&self) -> &str;
+    fn agent_cmd_desc_goal(&self) -> &str;
+    fn agent_cmd_desc_handoff(&self) -> &str;
+    fn agent_cmd_desc_usage(&self) -> &str;
+    fn agent_cmd_desc_mcp(&self) -> &str;
+    fn agent_save_chat(&self) -> &str;
+    fn agent_export_you(&self) -> &str;
+    fn agent_export_title(&self) -> &str;
+    fn agent_notice_chat_empty(&self) -> &str;
+    fn agent_toolset_buttons_hint(&self) -> &str;
+    fn agent_hint_mcp(&self) -> &str;
+    fn agent_notice_mcp_none(&self) -> &str;
+    fn agent_notice_mcp_usage(&self) -> &str;
+    fn agent_mcp_status_connecting(&self) -> &str;
+    fn agent_mcp_status_needs_login(&self) -> &str;
+    fn agent_mcp_status_signing_in(&self) -> &str;
+    fn agent_cmd_desc_prompt(&self) -> &str;
+
+    // Agent panel — transient notices (static)
+    fn agent_notice_busy(&self) -> &str;
+    fn agent_notice_no_log_to_name(&self) -> &str;
+    fn agent_notice_will_pause(&self) -> &str;
+    fn agent_notice_nothing_to_pause(&self) -> &str;
+    fn agent_notice_already_running(&self) -> &str;
+    fn agent_notice_nothing_to_continue(&self) -> &str;
+    fn agent_notice_loop_stopped(&self) -> &str;
+    fn agent_notice_loop_usage(&self) -> &str;
+    fn agent_notice_goal_stopped(&self) -> &str;
+    fn agent_notice_goal_usage(&self) -> &str;
+    /// Agent panel state strip: the label of a message queued for the next turn.
+    fn agent_state_queued(&self) -> &str;
+    /// Agent panel state strip: queued messages beyond the ones shown.
+    fn agent_state_queued_more(&self, count: usize) -> String;
+    fn agent_input_placeholder(&self) -> &str;
+    fn agent_input_placeholder_shell(&self) -> &str;
+    fn agent_info_session(&self) -> &str;
+    fn agent_info_log(&self) -> &str;
+    fn agent_info_agent(&self) -> &str;
+    fn agent_info_provider(&self) -> &str;
+    fn agent_info_model(&self) -> &str;
+    fn agent_info_mode(&self) -> &str;
+    fn agent_info_directory(&self) -> &str;
+    fn agent_info_created(&self) -> &str;
+    fn agent_info_last_active(&self) -> &str;
+    fn agent_info_compactions(&self) -> &str;
+    fn agent_info_messages(&self) -> &str;
+    fn agent_info_tokens(&self) -> &str;
+    fn agent_info_context(&self) -> &str;
+    fn agent_info_output_cleaned(&self) -> &str;
+    fn agent_chip_agent(&self) -> &str;
+    fn agent_chip_mode(&self) -> &str;
+    fn agent_chip_reasoning(&self) -> &str;
+    fn agent_chip_tools(&self) -> &str;
+    fn agent_chip_connection(&self) -> &str;
+    fn agent_chip_model(&self) -> &str;
+    fn agent_chip_on(&self) -> &str;
+    fn agent_chip_off(&self) -> &str;
+    fn agent_banner_connection(&self) -> &str;
+    fn agent_banner_model(&self) -> &str;
+    fn agent_banner_tools(&self) -> &str;
+    fn agent_banner_cwd(&self) -> &str;
+    fn agent_cwd_title(&self) -> &str;
+    fn agent_banner_sessions(&self) -> &str;
+    fn agent_project_command(&self) -> &str;
+    fn agent_hint_loop(&self) -> &str;
+    fn agent_hint_goal(&self) -> &str;
+    fn agent_notice_external_history(&self) -> &str;
+    fn agent_model_request_dropped(&self) -> &str;
+    fn settings_header_appearance(&self) -> &str;
+    fn settings_header_input(&self) -> &str;
+    fn settings_header_layout(&self) -> &str;
+    fn settings_header_notifications(&self) -> &str;
+    fn settings_header_performance(&self) -> &str;
+    fn settings_header_instance(&self) -> &str;
+    fn settings_header_typing(&self) -> &str;
+    fn settings_header_display(&self) -> &str;
+    fn settings_header_search(&self) -> &str;
+    fn settings_header_general(&self) -> &str;
+    fn settings_header_timing(&self) -> &str;
+    fn settings_header_servers(&self) -> &str;
+    fn settings_header_model(&self) -> &str;
+    fn settings_header_permissions(&self) -> &str;
+    fn settings_header_transcript(&self) -> &str;
+    fn settings_header_web(&self) -> &str;
+    fn settings_header_connections(&self) -> &str;
+    fn settings_header_connection(&self) -> &str;
+    fn settings_value_auto(&self) -> &str;
+    fn settings_value_none(&self) -> &str;
+    fn settings_value_unset(&self) -> &str;
+    fn settings_value_no_limit(&self) -> &str;
+    fn palette_category_panels(&self) -> &str;
+    fn palette_category_git(&self) -> &str;
+    fn palette_category_navigation(&self) -> &str;
+    fn palette_category_panel_management(&self) -> &str;
+    fn palette_category_application(&self) -> &str;
+    fn palette_category_commands(&self) -> &str;
+    fn command_report_no_output(&self) -> &str;
+    fn agent_paste_placeholder_fmt(&self, n: usize, what: &str) -> String;
+    fn agent_paste_lines_fmt(&self, count: usize) -> String;
+    fn agent_paste_chars_fmt(&self, count: usize) -> String;
+    fn agent_project_command_fmt(&self, description: &str) -> String;
+    fn agent_running_command_fmt(&self, name: &str) -> String;
+    fn agent_notice_external_failed_fmt(&self, error: &str) -> String;
+    fn agent_queued_fmt(&self, count: usize) -> String;
+    fn settings_value_default_fmt(&self, value: &str) -> String;
+    fn projects_delete_failed_fmt(&self, error: &str) -> String;
+    fn command_edit_title_fmt(&self, name: &str) -> String;
+    fn command_run_failed_fmt(&self, error: &str) -> String;
+    fn command_name_taken_fmt(&self, name: &str) -> String;
+    fn agent_notice_goal_checking(&self) -> &str;
+    fn agent_notice_handoff_preparing(&self) -> &str;
+    fn agent_notice_stopping(&self) -> &str;
+    fn agent_notice_goal_stopped_failed(&self) -> &str;
+    fn agent_notice_compacting(&self) -> &str;
+    fn agent_notice_no_model_choices(&self) -> &str;
+    fn agent_notice_plan_no_request(&self) -> &str;
+    fn agent_notice_nothing_to_open(&self) -> &str;
+    fn agent_notice_nothing_to_undo(&self) -> &str;
+    fn agent_notice_nothing_to_rollback(&self) -> &str;
+    fn agent_notice_rewound(&self) -> &str;
+    fn agent_notice_command_running(&self) -> &str;
+    fn agent_notice_command_dropped(&self) -> &str;
+    fn agent_notice_bang_unavailable(&self) -> &str;
+    fn agent_notice_bang_running(&self) -> &str;
+    fn agent_notice_bang_dropped(&self) -> &str;
+    fn agent_notice_bang_failed(&self) -> &str;
+    fn agent_notice_bang_done(&self) -> &str;
+    fn agent_notice_bang_stopped(&self) -> &str;
+    /// The card a `suggest_command` offer shows, and its rows.
+    fn agent_suggest_title(&self) -> &str;
+    fn agent_suggest_by_agent(&self) -> &str;
+    fn agent_suggest_run(&self) -> &str;
+    fn agent_suggest_edit(&self) -> &str;
+    fn agent_suggest_copy(&self) -> &str;
+    fn agent_suggest_dismiss(&self) -> &str;
+    fn agent_notice_clipboard_failed(&self) -> &str;
+    fn agent_notice_goal_reached(&self) -> &str;
+    fn agent_notice_looping(&self) -> &str;
+
+    // Agent panel — transient notices (with values)
+    fn agent_notice_bang_running_cmd_fmt(&self, command: &str) -> String;
+    fn agent_suggest_why_fmt(&self, why: &str) -> String;
+    fn agent_suggest_cwd_fmt(&self, cwd: &str) -> String;
+    /// Why the card withholds `[Run]`: plan mode, or one of the user's rules.
+    fn agent_suggest_denied_plan(&self) -> &str;
+    fn agent_suggest_denied_rule(&self) -> &str;
+    fn agent_notice_cannot_continue_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_start_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_check_goal_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_handoff_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_write_handoff_fmt(&self, error: &str) -> String;
+    fn agent_notice_compaction_failed_fmt(&self, error: &str) -> String;
+    fn agent_notice_goal_check_failed_fmt(&self, error: &str) -> String;
+    fn agent_notice_handoff_failed_fmt(&self, error: &str) -> String;
+    fn agent_notice_model_list_unavailable_fmt(&self, error: &str) -> String;
+    fn agent_notice_mcp_error_fmt(&self, source: &str, error: &str) -> String;
+    fn agent_notice_mcp_connected_fmt(&self, source: &str, count: usize) -> String;
+    fn agent_notice_mcp_reconnected_fmt(&self, source: &str, count: usize) -> String;
+    fn agent_notice_mcp_tools_on_fmt(&self, source: &str, on: usize, count: usize) -> String;
+    fn agent_notice_toolset_changed_fmt(&self, off: &str, on: &str) -> String;
+    fn agent_mcp_status_ready_fmt(&self, count: usize) -> String;
+    fn agent_mcp_status_failed_fmt(&self, error: &str) -> String;
+    fn agent_notice_mcp_status_fmt(&self, source: &str, status: &str) -> String;
+    fn agent_notice_mcp_reload_fmt(&self, started: &str, removed: &str, kept: &str) -> String;
+    fn agent_notice_mcp_needs_login_fmt(&self, source: &str) -> String;
+    fn agent_notice_mcp_login_started_fmt(&self, source: &str, url: &str) -> String;
+    fn agent_notice_mcp_gone_fmt(&self, source: &str) -> String;
+    fn agent_notice_mcp_updated_fmt(&self, source: &str, count: usize) -> String;
+    fn agent_notice_mcp_logout_fmt(&self, source: &str) -> String;
+    fn agent_notice_mcp_no_login_fmt(&self, source: &str) -> String;
+    /// Agent connection picker: its title.
+    fn agent_pick_connection(&self) -> &str;
+    /// Agent notice: switching to or from a CLI agent is refused mid-session.
+    fn agent_notice_connection_before_first(&self) -> &str;
+    /// Agent notice: a request waits for the provider's model list, the
+    /// model being left to it.
+    fn agent_notice_model_pending(&self) -> &str;
+    /// Agent notice: the session now runs on connection `name`.
+    fn agent_notice_connection_fmt(&self, name: &str) -> String;
+    /// Agent notice: there is no connection `name`.
+    fn agent_notice_no_connection_fmt(&self, name: &str) -> String;
+    /// Agent toolset checklist: its title.
+    fn agent_toolset_title(&self) -> &str;
+    /// Agent toolset checklist: the hint under the title.
+    fn agent_toolset_prompt(&self) -> &str;
+    /// Agent toolset checklist: the group of built-in tools.
+    fn agent_toolset_builtin(&self) -> &str;
+    /// Agent toolset checklist: the group of skills.
+    fn agent_toolset_skills(&self) -> &str;
+    /// Agent toolset checklist: an MCP server's group of tools.
+    fn agent_toolset_mcp_fmt(&self, server: &str) -> String;
+    /// Agent toolset checklist: an item switched off but still in the
+    /// model's context, so refused.
+    fn agent_toolset_note_refused(&self) -> &str;
+    /// Agent toolset checklist: an item out of the context, which cannot be
+    /// switched back on in this session.
+    fn agent_toolset_note_new_session(&self) -> &str;
+    fn agent_notice_no_agent_fmt(&self, name: &str) -> String;
+    fn agent_notice_agent_fmt(&self, name: &str) -> String;
+    fn agent_notice_cannot_switch_agent_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_switch_model_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_change_reasoning_fmt(&self, error: &str) -> String;
+    fn agent_notice_reasoning_fmt(&self, level: &str) -> String;
+    fn agent_notice_model_fmt(&self, id: &str) -> String;
+    fn agent_notice_cannot_open_session_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_open_block_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_undo_fmt(&self, error: &str) -> String;
+    fn agent_notice_cannot_write_prompt_fmt(&self, error: &str) -> String;
+    fn agent_notice_retry_fmt(
+        &self,
+        attempt: usize,
+        max: usize,
+        delay_ms: u64,
+        error: &str,
+    ) -> String;
+    fn agent_notice_compacted_fmt(&self, tokens: u64, kept: usize) -> String;
+    fn agent_notice_handoff_written_fmt(&self, path: &str) -> String;
+    fn agent_notice_no_command_fmt(&self, name: &str, available: &str) -> String;
+    /// `/name` is defined by several kinds: the one it runs and the hidden ones.
+    fn agent_notice_slash_shadowed_fmt(&self, name: &str, runs: &str, hidden: &str) -> String;
+    /// How to reach a skill whose `/name` another kind takes.
+    fn agent_notice_slash_skill_hint_fmt(&self, name: &str) -> String;
+    fn agent_notice_loop_stopped_max_fmt(&self, count: usize) -> String;
+    fn agent_notice_goal_stopped_max_fmt(&self, count: usize) -> String;
+    fn agent_notice_goal_working_fmt(&self, goal: &str) -> String;
+    fn agent_notice_looping_every_fmt(&self, interval: &str) -> String;
+    fn agent_notice_goal_reached_reason_fmt(&self, reason: &str) -> String;
+    fn agent_notice_command_denied_fmt(&self, name: &str) -> String;
+    fn agent_notice_rolled_back_fmt(&self, count: usize, plural: &str) -> String;
+    fn agent_notice_files_restored_fmt(&self, count: usize, plural: &str) -> String;
+    fn agent_rewind_confirm_fmt(&self, message: &str, changed: &str) -> String;
+    fn agent_notice_undid_fmt(&self, count: usize, plural: &str) -> String;
+
+    /// Agent panel: open the agent picker
+    fn agent_change_agent(&self) -> &str;
+    /// Agent panel: open the prompt-template picker
+    fn agent_prompts(&self) -> &str;
+    /// Status message when no prompt templates exist
+    fn agent_no_prompts(&self) -> &str;
+    /// Agent panel: undo the last request (its files and messages).
+    fn agent_undo(&self) -> &str;
+    /// Agent transcript: the action word after a reasoning block's `@`.
+    fn agent_thinking(&self) -> &str;
+    /// Agent transcript: one-line summary of a folded thinking block.
+    fn agent_thought_chars(&self, count: usize) -> String;
+    /// Agent transcript: hidden lines above a folded tool's tail preview.
+    fn agent_more_lines_above(&self, count: usize) -> String;
+    /// Agent transcript: hidden lines below a folded message/output preview.
+    fn agent_more_lines(&self, count: usize) -> String;
+    /// Agent transcript: unit for seconds in a block's meta line.
+    fn agent_unit_secs(&self) -> &str;
+    /// Agent transcript: unit for minutes in a block's meta line.
+    fn agent_unit_mins(&self) -> &str;
+    /// Agent transcript: unit for hours in a block's meta line.
+    fn agent_unit_hours(&self) -> &str;
+    /// Agent transcript: unit for days in a block's meta line.
+    fn agent_unit_days(&self) -> &str;
+    /// Agent transcript: tokens-per-second unit in a block's meta line.
+    fn agent_unit_tok_per_sec(&self) -> &str;
+    /// Agent transcript: the action verb after a shell call's `$`.
+    fn agent_tool_bash(&self) -> &str;
+    /// Agent transcript: the action verb for a `read` tool call.
+    fn agent_tool_read(&self) -> &str;
+    /// Agent transcript: the action verb for a `write` tool call.
+    fn agent_tool_write(&self) -> &str;
+    /// Agent transcript: the action verb for an `edit` tool call.
+    fn agent_tool_edit(&self) -> &str;
+    /// Agent transcript: the action verb for a `fetch` tool call.
+    fn agent_tool_fetch(&self) -> &str;
+    /// Agent transcript: the action verb for a `web_search` tool call.
+    fn agent_tool_web_search(&self) -> &str;
+    /// Agent transcript: the action words for a `skill` tool call.
+    fn agent_tool_skill(&self) -> &str;
+    /// Agent transcript: the action words for a `task` call (a subagent).
+    fn agent_tool_task(&self) -> &str;
+    /// Agent transcript: the action words for an MCP server's tool call.
+    fn agent_tool_mcp(&self) -> &str;
+    /// Agent transcript: the action words for a `question` call.
+    fn agent_tool_question(&self) -> &str;
+    /// Agent notices: what defines a `/name` — a built-in command, a prompt
+    /// template, a command script, a skill — as the object of "runs" and
+    /// "hides".
+    fn agent_slash_kind_builtin(&self) -> &str;
+    fn agent_slash_kind_template(&self) -> &str;
+    fn agent_slash_kind_script(&self) -> &str;
+    fn agent_slash_kind_skill(&self) -> &str;
+    /// Settings modal: the Agent tab label.
+    fn settings_tab_agent(&self) -> &str;
+    /// Settings modal: Agent tab field labels.
+    fn settings_agent_provider(&self) -> &str;
+    fn settings_agent_base_url(&self) -> &str;
+    fn settings_agent_model(&self) -> &str;
+    fn settings_agent_api_key_env(&self) -> &str;
+    fn settings_agent_context_window(&self) -> &str;
+    fn settings_agent_max_tokens(&self) -> &str;
+    fn settings_agent_reasoning(&self) -> &str;
+    fn settings_agent_autofold(&self) -> &str;
+    /// Settings modal: fold mode — reasoning and tool calls fold at once.
+    fn settings_agent_fold_immediately(&self) -> &str;
+    /// Settings modal: fold mode — they fold once they finish.
+    fn settings_agent_fold_on_finish(&self) -> &str;
+    /// Settings modal: fold mode — they never fold.
+    fn settings_agent_fold_never(&self) -> &str;
+    /// Settings modal: the row that adds a connection.
+    fn settings_ai_add_connection(&self) -> &str;
+    /// Settings modal: the action that deletes the open connection.
+    fn settings_ai_delete_connection(&self) -> &str;
+    /// Settings modal: the action that leaves a connection's page for the
+    /// list.
+    fn settings_ai_connection_back(&self) -> &str;
+    /// Settings modal: the model choice that leaves the model to the
+    /// provider (its first listed; a CLI agent's own default).
+    fn settings_ai_model_auto(&self) -> &str;
+    /// Settings modal: what a Claude Code connection runs differently.
+    fn settings_ai_connection_hint_claude_code(&self) -> &str;
+    /// Settings modal: what a Codex connection runs differently.
+    fn settings_ai_connection_hint_codex(&self) -> &str;
+    /// Settings modal: what a Gemini CLI connection runs differently.
+    fn settings_ai_connection_hint_gemini_cli(&self) -> &str;
+    /// Settings modal: the connection's name field.
+    fn settings_ai_connection_name(&self) -> &str;
+    /// Settings modal: the switch that makes a connection the default, the
+    /// one new sessions start on.
+    fn settings_ai_connection_default(&self) -> &str;
+    /// Settings modal: the switch that asks an OpenAI-compatible server for
+    /// its prompt-processing progress.
+    fn settings_ai_connection_prefill_progress(&self) -> &str;
+    fn settings_ai_connection_reasoning_param(&self) -> &str;
+    /// Settings modal: a connection left without a name, or with another's.
+    fn settings_ai_connection_name_taken(&self) -> &str;
+    /// Settings modal: the permission mode new agent sessions start in.
+    fn settings_agent_permission_mode(&self) -> &str;
+    /// AI settings: the connection whose model reviews calls in `auto` mode
+    fn settings_agent_auto_reviewer(&self) -> &str;
+    /// AI settings: the `auto` mode reviewer left to the session's model
+    fn settings_agent_auto_reviewer_session(&self) -> &str;
+    /// Settings modal: AI tab, web tools field labels.
+    fn settings_web_backend(&self) -> &str;
+    /// AI menu: the row that shows or hides the agents' web browser window.
+    fn menu_ai_show_browser(&self) -> &str;
+    fn menu_ai_hide_browser(&self) -> &str;
+    fn settings_web_engine(&self) -> &str;
+    fn settings_web_display(&self) -> &str;
+    fn settings_web_chrome_path(&self) -> &str;
     fn tools_open(&self) -> &str;
     fn tools_open_prompt(&self) -> &str;
 
@@ -448,6 +1030,9 @@ pub trait Translation: Send + Sync {
     fn theme_changed(&self, name: &str) -> String;
     fn language_changed(&self, name: &str) -> String;
 
+    // Settings modal — window title
+    fn settings_title(&self) -> &str;
+
     // Settings modal — tabs
     fn settings_tab_general(&self) -> &str;
     fn settings_tab_editor(&self) -> &str;
@@ -457,6 +1042,17 @@ pub trait Translation: Send + Sync {
     fn settings_tab_logging(&self) -> &str;
     fn settings_tab_vfs(&self) -> &str;
     fn settings_tab_keybindings(&self) -> &str;
+
+    // Settings modal — keybindings subsections
+    fn settings_kb_global(&self) -> &str;
+    fn settings_kb_editor(&self) -> &str;
+    fn settings_kb_file_manager(&self) -> &str;
+    fn settings_kb_git_status(&self) -> &str;
+    fn settings_kb_git_diff(&self) -> &str;
+    fn settings_kb_git_log(&self) -> &str;
+    fn settings_kb_terminal(&self) -> &str;
+    fn settings_kb_database(&self) -> &str;
+    fn settings_kb_viewer(&self) -> &str;
 
     // Settings modal — buttons
     fn settings_btn_apply(&self) -> &str;
@@ -474,7 +1070,7 @@ pub trait Translation: Send + Sync {
     fn settings_general_icon_mode(&self) -> &str;
     fn settings_general_auto_stack_threshold(&self) -> &str;
     fn settings_general_min_panel_width(&self) -> &str;
-    fn settings_general_session_retention(&self) -> &str;
+    fn settings_general_project_retention(&self) -> &str;
     fn settings_general_bell(&self) -> &str;
     fn settings_general_resource_interval(&self) -> &str;
 
@@ -516,24 +1112,31 @@ pub trait Translation: Send + Sync {
     fn settings_kb_press_key(&self) -> &str;
 
     // Sessions
-    fn sessions_title(&self) -> &str;
-    fn sessions_current(&self) -> &str;
-    fn sessions_new(&self) -> &str;
-    fn sessions_switch(&self) -> &str;
-    fn sessions_change_root(&self) -> &str;
-    fn session_created(&self) -> &str;
-    fn session_moved(&self) -> &str;
+    fn projects_title(&self) -> &str;
+    fn projects_new(&self) -> &str;
+    fn projects_switch(&self) -> &str;
+    fn projects_change_root(&self) -> &str;
+    fn projects_delete_title(&self) -> &str;
+    fn projects_delete_fmt(&self, path: &str) -> String;
+    fn app_quit_background_fmt(&self, projects: &str) -> String;
+    fn project_created(&self) -> &str;
+    fn project_moved(&self) -> &str;
+    fn projects_close_title(&self) -> &str;
+    fn projects_close_warning(&self) -> &str;
+    fn projects_already_open(&self) -> &str;
+    fn projects_already_current(&self) -> &str;
 
     // Detached sessions
-    fn detach_session(&self) -> &str;
-    fn detach_not_detached_session(&self) -> &str;
+    fn detach_instance(&self) -> &str;
+    fn detach_not_detached_instance(&self) -> &str;
     fn detach_failed(&self) -> &str;
     fn settings_general_always_detachable(&self) -> &str;
-    fn help_desc_detach_session(&self) -> &str;
+    fn help_desc_detach_instance(&self) -> &str;
 
     // Directory picker
     fn directory_picker_create(&self) -> &str;
     fn directory_picker_move(&self) -> &str;
+    fn directory_picker_select(&self) -> &str;
     fn directory_picker_cancel(&self) -> &str;
 
     // Directory switcher
@@ -668,6 +1271,18 @@ pub trait Translation: Send + Sync {
     // Modal titles
     fn modal_confirm_title(&self) -> &str;
     fn modal_error_title(&self) -> &str;
+    /// Status shown when a command would change a browsed archive.
+    fn fm_archive_read_only(&self) -> &str;
+    fn help_desc_pack(&self) -> &str;
+    fn op_type_pack(&self) -> &str;
+    fn modal_pack_title(&self) -> &str;
+    /// Shown when packing is asked for in a remote or archive panel.
+    fn fm_pack_local_only(&self) -> &str;
+    fn modal_archive_password_title(&self) -> &str;
+    fn status_vfs_resolving_link(&self) -> &str;
+    fn status_vfs_loading(&self) -> &str;
+    fn status_vfs_connected(&self) -> &str;
+    fn status_vfs_cancelled(&self) -> &str;
 
     // Git panel strings
     fn git_no_repo(&self) -> &str;
@@ -680,6 +1295,9 @@ pub trait Translation: Send + Sync {
     fn git_unstage_all_btn(&self) -> &str;
     fn git_revert_all_btn(&self) -> &str;
     fn git_log_btn(&self) -> &str;
+    /// Git log: the row under the last commit read while more are loading
+    fn git_log_loading(&self) -> &str;
+    fn git_checkout_btn(&self) -> &str;
     fn git_revert_all_confirm(&self) -> &str;
     fn git_checkout_not_impl(&self) -> &str;
     fn git_no_remote_url(&self) -> &str;
@@ -690,6 +1308,9 @@ pub trait Translation: Send + Sync {
     fn git_action_error_fmt(&self, action: &str, error: &str) -> String;
     fn git_switched_to_fmt(&self, branch: &str) -> String;
     fn git_checkout_error_fmt(&self, error: &str) -> String;
+    /// A branch checked out nowhere: how far it is from `base`, the branch
+    /// checked out in the main copy.
+    fn git_branch_not_checked_out_fmt(&self, ahead: usize, behind: usize, base: &str) -> String;
     fn git_init_failed_fmt(&self, error: &str) -> String;
     fn git_log_title_fmt(&self, repo: &str, branch: &str) -> String;
     fn git_diff_title_commit_fmt(
@@ -749,6 +1370,7 @@ pub trait Translation: Send + Sync {
     fn resource_disk_free(&self) -> &str;
     fn resource_disk_used(&self) -> &str;
     fn resource_disk_total(&self) -> &str;
+    fn resource_disk_type(&self) -> &str;
     fn resource_count(&self) -> &str;
     fn resource_net_title(&self) -> &str;
 

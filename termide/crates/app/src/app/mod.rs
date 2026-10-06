@@ -29,6 +29,7 @@ use crate::PanelExt;
 // Panel trait re-export
 pub use termide_core::Panel;
 
+pub mod agent_panel;
 mod background_ops;
 mod bg_fetch;
 mod bg_git;
@@ -48,7 +49,8 @@ mod operation_manager_handler;
 mod panel_factory;
 mod panel_manager;
 mod panel_operations;
-mod session;
+mod parked_projects;
+mod project_layout;
 mod watcher;
 mod workspace_edit;
 
@@ -57,8 +59,11 @@ pub struct App {
     state: AppState,
     layout_manager: LayoutManager,
     event_handler: EventHandler,
-    /// Project root directory (used for per-project session storage)
+    /// Project root directory (used for per-project layout storage)
     project_root: std::path::PathBuf,
+    /// Projects open in this instance; the ones not current keep their
+    /// panels parked here.
+    open_projects: crate::open_projects::OpenProjects<parked_projects::ParkedProject>,
     /// Last seen editor edit_version (for debounced outline sync).
     outline_last_version: u64,
     /// Last seen editor cursor line (for outline cursor sync).
@@ -74,10 +79,10 @@ pub struct App {
     /// downstream see canonical keys while text-input and PTY paths
     /// keep the original raw event.
     normalizer: termide_keyboard::KeyNormalizer,
-    /// Whether the session is persisted. Disabled when termide is launched
+    /// Whether the project layout is persisted. Disabled when termide is launched
     /// with explicit file arguments ($EDITOR mode), so editing a commit
-    /// message or crontab never restores or overwrites the project session.
-    persist_session: bool,
+    /// message or crontab never restores or overwrites the project layout.
+    persist_layout: bool,
     /// Terminal capabilities this process was started with. Kept so that a
     /// reattach can re-enter exactly the modes startup entered.
     keyboard_caps: termide_keyboard::KeyboardCaps,
@@ -85,6 +90,10 @@ pub struct App {
     /// input, used to detect when focus moves to a git panel so it can be
     /// refreshed automatically (no manual Ctrl+R).
     last_focus_sig: Option<(usize, String)>,
+    /// Off-thread `list_models` started when the settings modal opens, polled
+    /// each loop so the AI model field's dropdown fills in once it arrives.
+    settings_model_fetch:
+        Option<std::sync::mpsc::Receiver<Result<Vec<termide_agent_core::ModelInfo>, String>>>,
 }
 
 impl App {
@@ -103,19 +112,19 @@ impl App {
         state.project_root = project_root.clone();
         state.project_bookmarks = termide_config::BookmarksConfig::load_from_project(&project_root);
 
-        // Initialize logger in session directory (before other initializations that log)
-        // Use config override if specified, otherwise use session directory with unique filename
+        // Initialize logger in the project directory (before other initializations that log)
+        // Use config override if specified, otherwise use the project directory with unique filename
         let log_file_path = if let Some(ref path) = state.config.logging.file_path {
             std::path::PathBuf::from(path)
         } else {
-            termide_session::Session::get_session_dir(&project_root)
+            termide_project::ProjectLayout::get_project_dir(&project_root)
                 .map(|dir| {
                     // Cleanup old log files (older than 24 hours)
-                    let _ = termide_session::cleanup_old_logs(&dir);
-                    dir.join(termide_session::generate_log_filename())
+                    let _ = termide_project::cleanup_old_logs(&dir);
+                    dir.join(termide_project::generate_log_filename())
                 })
                 .unwrap_or_else(|_| {
-                    std::env::temp_dir().join(termide_session::generate_log_filename())
+                    std::env::temp_dir().join(termide_project::generate_log_filename())
                 })
         };
         let min_log_level = termide_logger::LogLevel::from_str(&state.config.logging.min_level)
@@ -139,10 +148,10 @@ impl App {
             }
         }
 
-        // Clean up old sessions (configurable retention period)
-        let retention_days = state.config.general.session_retention_days;
-        if let Err(e) = termide_session::cleanup_old_sessions(&project_root, retention_days) {
-            log::warn!("Failed to cleanup old sessions: {}", e);
+        // Clean up old project layouts (configurable retention period)
+        let retention_days = state.config.general.project_retention_days;
+        if let Err(e) = termide_project::cleanup_old_projects(&project_root, retention_days) {
+            log::warn!("Failed to cleanup old project layouts: {}", e);
         }
 
         Self {
@@ -151,6 +160,7 @@ impl App {
             event_handler: EventHandler::new(Duration::from_millis(
                 termide_config::constants::EVENT_HANDLER_INTERVAL_MS,
             )),
+            open_projects: crate::open_projects::OpenProjects::new(project_root.clone()),
             project_root,
             outline_last_version: 0,
             outline_last_cursor: 0,
@@ -159,8 +169,9 @@ impl App {
             command_palette_actions: None,
             normalizer: termide_keyboard::KeyNormalizer::default(),
             keyboard_caps: termide_keyboard::KeyboardCaps::default(),
-            persist_session: true,
+            persist_layout: true,
             last_focus_sig: None,
+            settings_model_fetch: None,
         }
     }
 
@@ -187,17 +198,17 @@ impl App {
         let project_root = std::env::current_dir()
             .unwrap_or_else(|_| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/")));
 
-        // Initialize logger in session directory
+        // Initialize logger in the project directory
         let log_file_path = if let Some(ref path) = state.config.logging.file_path {
             std::path::PathBuf::from(path)
         } else {
-            termide_session::Session::get_session_dir(&project_root)
+            termide_project::ProjectLayout::get_project_dir(&project_root)
                 .map(|dir| {
-                    let _ = termide_session::cleanup_old_logs(&dir);
-                    dir.join(termide_session::generate_log_filename())
+                    let _ = termide_project::cleanup_old_logs(&dir);
+                    dir.join(termide_project::generate_log_filename())
                 })
                 .unwrap_or_else(|_| {
-                    std::env::temp_dir().join(termide_session::generate_log_filename())
+                    std::env::temp_dir().join(termide_project::generate_log_filename())
                 })
         };
         let min_log_level = termide_logger::LogLevel::from_str(&state.config.logging.min_level)
@@ -221,10 +232,10 @@ impl App {
             }
         }
 
-        // Clean up old sessions
-        let retention_days = state.config.general.session_retention_days;
-        if let Err(e) = termide_session::cleanup_old_sessions(&project_root, retention_days) {
-            log::warn!("Failed to cleanup old sessions: {}", e);
+        // Clean up old project layouts
+        let retention_days = state.config.general.project_retention_days;
+        if let Err(e) = termide_project::cleanup_old_projects(&project_root, retention_days) {
+            log::warn!("Failed to cleanup old project layouts: {}", e);
         }
 
         // Warn about same-section conflicts and bindings that need
@@ -238,6 +249,7 @@ impl App {
             event_handler: EventHandler::new(Duration::from_millis(
                 termide_config::constants::EVENT_HANDLER_INTERVAL_MS,
             )),
+            open_projects: crate::open_projects::OpenProjects::new(project_root.clone()),
             project_root,
             outline_last_version: 0,
             outline_last_cursor: 0,
@@ -246,19 +258,20 @@ impl App {
             command_palette_actions: None,
             normalizer: termide_keyboard::KeyNormalizer::new(caps),
             keyboard_caps: caps,
-            persist_session: true,
+            persist_layout: true,
             last_focus_sig: None,
+            settings_model_fetch: None,
         }
     }
 
     /// Re-establish the terminal after a client attached to this detached
-    /// session.
+    /// instance.
     ///
     /// The client's terminal is a different terminal than the one this process
     /// started on: it has none of the modes switched on, its screen is blank,
     /// and it may not even be the same kind of terminal. Everything that was
     /// negotiated at startup is negotiated again here, against the terminal
-    /// that is actually looking at the session now.
+    /// that is actually looking at the instance now.
     #[cfg(unix)]
     pub(super) fn handle_reattach(&mut self) {
         // The client reports what its terminal is and what it can do. Both
@@ -305,7 +318,7 @@ impl App {
     }
 
     /// Whether this termide can be detached from — that is, whether it is
-    /// hosted in a detachable session at all.
+    /// hosted in a detachable instance at all.
     ///
     /// A process already bound to the terminal's PTY cannot be moved into
     /// another one, so detaching is only ever possible when the host was
@@ -318,7 +331,7 @@ impl App {
     fn detect_detach_available() -> bool {
         #[cfg(unix)]
         {
-            termide_detach::hosted_session_id().is_some()
+            termide_detach::hosted_instance_id().is_some()
         }
         #[cfg(not(unix))]
         {
@@ -326,12 +339,12 @@ impl App {
         }
     }
 
-    /// Detach this session from its client, leaving everything running.
+    /// Detach this instance from its client, leaving everything running.
     ///
     /// Reports through the status line rather than failing: outside a detached
-    /// session the action is meaningless, and the user needs to be told that
+    /// instance the action is meaningless, and the user needs to be told that
     /// rather than left wondering why nothing happened.
-    pub(super) fn handle_detach_session(&mut self) {
+    pub(super) fn handle_detach_instance(&mut self) {
         let t = termide_i18n::t();
 
         #[cfg(unix)]
@@ -339,7 +352,7 @@ impl App {
             Ok(true) => {}
             Ok(false) => self
                 .state
-                .set_info(t.detach_not_detached_session().to_string()),
+                .set_info(t.detach_not_detached_instance().to_string()),
             Err(e) => {
                 log::warn!("Detach request failed: {e:#}");
                 self.state.set_error(t.detach_failed().to_string());
@@ -348,19 +361,18 @@ impl App {
 
         #[cfg(not(unix))]
         self.state
-            .set_info(t.detach_not_detached_session().to_string());
+            .set_info(t.detach_not_detached_instance().to_string());
     }
 
-    /// Enable or disable session persistence. Disabled for `$EDITOR`-style
-    /// launches (explicit file arguments) so the project session is neither
+    /// Enable or disable project layout persistence. Disabled for `$EDITOR`-style
+    /// launches (explicit file arguments) so the project layout is neither
     /// restored nor overwritten.
-    pub fn set_session_persistence(&mut self, enabled: bool) {
-        self.persist_session = enabled;
+    pub fn set_layout_persistence(&mut self, enabled: bool) {
+        self.persist_layout = enabled;
     }
 
-    /// Open a file path in a new editor panel at startup (used for CLI file
-    /// arguments). Creates the file (and parent directories) if it does not
-    /// exist yet, so termide works as `$EDITOR` for new files too.
+    /// Open a file path in a new editor panel, creating the file (and parent
+    /// directories) if it does not exist yet.
     pub fn open_path_in_editor(&mut self, path: std::path::PathBuf) -> Result<()> {
         if !path.exists() {
             if let Some(parent) = path.parent() {
@@ -390,6 +402,40 @@ impl App {
             self.event_goto_position(line.saturating_sub(1), col.unwrap_or(1).saturating_sub(1));
         }
         Ok(())
+    }
+
+    /// Open a path given on the command line. A text file opens in the
+    /// editor, and a missing one is created there, so termide works as
+    /// `$EDITOR` for new files too; a directory opens in a file manager, and
+    /// a file the text editor cannot load goes where [`cli_open_event`]
+    /// sends it.
+    pub fn open_cli_path(&mut self, path: std::path::PathBuf) -> Result<()> {
+        self.open_cli_path_at(path, None, None)
+    }
+
+    /// [`App::open_cli_path`] with a cursor position for the text-editor
+    /// route. `line`/`col` are 1-based, as parsed from `file:line[:col]`
+    /// positional arguments; a viewer route (image, hex editor, file
+    /// manager) has no cursor and ignores them.
+    pub fn open_cli_path_at(
+        &mut self,
+        path: std::path::PathBuf,
+        line: Option<usize>,
+        col: Option<usize>,
+    ) -> Result<()> {
+        // Every other way in hands panels absolute paths; a relative one here
+        // would give the language server an empty workspace root and bad URIs.
+        let path = std::path::absolute(&path).unwrap_or(path);
+        if path.is_dir() {
+            let panel = termide_panel_file_manager::FileManager::new_with_path(path);
+            self.add_panel(Box::new(panel));
+            self.state.needs_watcher_registration = true;
+            return Ok(());
+        }
+        match cli_open_event(&path) {
+            Some(event) => self.process_panel_events(vec![event]),
+            None => self.open_path_in_editor_at(path, line, col),
+        }
     }
 
     /// Log same-section conflicts and bindings that need Kitty
@@ -507,6 +553,7 @@ impl App {
         } else {
             config.save_global()?;
         }
+        agent_panel::publish_ai_settings(&config.ai);
         self.state.config = std::sync::Arc::new(config);
         Ok(())
     }
@@ -697,6 +744,7 @@ impl App {
         // Initialize terminal dimensions
         let size = terminal.size()?;
         self.state.update_terminal_size(size.width, size.height);
+        self.sync_open_projects();
 
         while !self.state.should_quit {
             // Process events
@@ -737,14 +785,16 @@ impl App {
                     self.state.needs_redraw = true;
                 }
                 Event::FocusLost => {
+                    self.state.terminal.focused = false;
                     self.notify_active_panel_host_focus(false);
-                    // Save session on focus loss (with debounce)
-                    if self.state.should_save_session() {
-                        self.auto_save_session();
-                        self.state.update_last_session_save();
+                    // Save the layout on focus loss (with debounce)
+                    if self.state.should_save_layout() {
+                        self.auto_save_layout();
+                        self.state.update_last_layout_save();
                     }
                 }
                 Event::FocusGained => {
+                    self.state.terminal.focused = true;
                     self.notify_active_panel_host_focus(true);
                     // Redraw on focus gain to refresh display
                     self.state.needs_redraw = true;
@@ -770,7 +820,7 @@ impl App {
                     self.state.needs_redraw = true;
                 }
                 Event::Tick => {
-                    // A client attaching to a detached session raises a flag
+                    // A client attaching to a detached instance raises a flag
                     // from a signal handler; this is where it is acted on.
                     // `clear()` is what makes the repaint whole: the new
                     // client's screen is blank, but ratatui still believes the
@@ -799,6 +849,7 @@ impl App {
             }
         }
 
+        self.save_parked_layouts();
         Ok(())
     }
 
@@ -809,6 +860,12 @@ impl App {
     /// operation-manager, git/command/fetch pollers and the always-on
     /// system-resource / LSP-completion / modal-spinner updates.
     fn poll_background(&mut self) {
+        self.poll_settings_model_fetch();
+        if let Some(termide_modal::ActiveModal::Input(modal)) = self.state.active_modal.as_mut() {
+            if modal.poll_suggestions() {
+                self.state.needs_redraw = true;
+            }
+        }
         // Adaptive tick rate: slow down polling when idle
         if self.state.last_activity.elapsed()
             > Duration::from_millis(termide_config::constants::IDLE_THRESHOLD_MS)
@@ -839,9 +896,18 @@ impl App {
             // Single combined loop: terminal output + panel tick + FM spinner
             let mut all_panel_events = Vec::new();
             let area_height = self.panel_area_height();
-            for (panel, is_visible) in self
+            // The panel the user is looking at, if the window has focus: its
+            // requests for attention are already answered.
+            let watched = self
+                .state
+                .terminal
+                .focused
+                .then(|| self.layout_manager.active_panel_position())
+                .flatten();
+            for (position, (panel, is_visible)) in self
                 .layout_manager
                 .iter_all_panels_with_visibility_mut(area_height)
+                .enumerate()
             {
                 // Terminal output check (always needed, even during idle)
                 // PTY must be drained to avoid buffer deadlock
@@ -853,7 +919,12 @@ impl App {
 
                 // Always call tick() — stale panels drain async
                 // results internally and return early
-                let events = panel.tick();
+                let mut events = panel.tick();
+                if watched == Some(position) {
+                    events.retain(|event| {
+                        !matches!(event, termide_core::PanelEvent::RequestAttention)
+                    });
+                }
                 if !events.is_empty() {
                     self.state.needs_redraw = true;
                     all_panel_events.extend(events);
@@ -885,6 +956,7 @@ impl App {
                     log::error!("Error processing panel events: {}", e);
                 }
             }
+            self.tick_parked_projects();
         } else {
             // During scrolling: only check terminal output (lightweight)
             for panel in self.layout_manager.iter_all_panels_mut() {
@@ -1002,7 +1074,7 @@ impl App {
             let terminal_width = self.state.terminal.width;
 
             let _ = self.layout_manager.close_active_panel(terminal_width);
-            self.auto_save_session();
+            self.auto_save_layout();
         }
 
         Ok(())
@@ -1198,5 +1270,63 @@ impl LayoutController for App {
 
     fn set_focus(&mut self, index: usize) {
         self.layout_manager.set_focus(index);
+    }
+}
+
+/// Where a command-line path the text editor cannot load goes, as the file
+/// manager's edit action sends it: an image to the image viewer, an SQLite
+/// file to the database viewer, any other binary file to the hex editor.
+/// `None` for a file the editor opens or creates.
+fn cli_open_event(path: &std::path::Path) -> Option<termide_core::PanelEvent> {
+    use termide_core::PanelEvent;
+    // A missing file is created in the editor, whatever its extension.
+    if !path.is_file() {
+        return None;
+    }
+    let name = path.file_name()?.to_string_lossy();
+    if termide_panel_file_manager::is_raster_image(&name) {
+        Some(PanelEvent::PreviewMedia(path.to_path_buf()))
+    } else if termide_panel_file_manager::is_database_file(&name) {
+        Some(PanelEvent::ViewDatabase(path.to_path_buf()))
+    } else if termide_core::util::is_binary_file(path) {
+        Some(PanelEvent::EditBinary(path.to_path_buf()))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod cli_open_tests {
+    use super::cli_open_event;
+    use termide_core::PanelEvent;
+
+    #[test]
+    fn command_line_paths_open_where_the_editor_cannot() {
+        let dir = tempfile::tempdir().unwrap();
+        let write = |name: &str, bytes: &[u8]| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, bytes).unwrap();
+            path
+        };
+        let image = write("chart.png", b"\x89PNG\r\n\x1a\n\0\0");
+        let database = write("inventory.db", b"SQLite format 3\0");
+        let binary = write("label.bin", b"\x01\x00\x02");
+        let text = write("notes.md", b"# notes\n");
+        let commit = write("COMMIT_EDITMSG", b"fix: things\n");
+
+        assert!(matches!(cli_open_event(&image), Some(PanelEvent::PreviewMedia(p)) if p == image));
+        assert!(
+            matches!(cli_open_event(&database), Some(PanelEvent::ViewDatabase(p)) if p == database)
+        );
+        assert!(matches!(cli_open_event(&binary), Some(PanelEvent::EditBinary(p)) if p == binary));
+        assert!(
+            cli_open_event(&text).is_none(),
+            "markdown is edited, not previewed"
+        );
+        assert!(cli_open_event(&commit).is_none());
+        assert!(
+            cli_open_event(&dir.path().join("new.db")).is_none(),
+            "a missing file is created in the editor"
+        );
     }
 }

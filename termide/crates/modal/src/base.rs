@@ -84,6 +84,37 @@ pub fn render_input_field(
     is_focused: bool,
     theme: &Theme,
 ) {
+    let scroll = termide_ui::text_utils::input_scroll_offset(text, cursor_pos, width as usize);
+    render_input_field_scrolled(
+        buf,
+        x,
+        y,
+        width,
+        text,
+        cursor_pos,
+        selection_range,
+        is_focused,
+        theme,
+        scroll,
+    );
+}
+
+/// [`render_input_field`] with the first `scroll` characters of `text` scrolled
+/// out of view, for a field that keeps its scroll between frames (see
+/// [`TextInput::follow_scroll`](termide_ui::TextInput::follow_scroll)).
+#[allow(clippy::too_many_arguments)]
+pub fn render_input_field_scrolled(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: u16,
+    text: &str,
+    cursor_pos: usize,
+    selection_range: Option<(usize, usize)>,
+    is_focused: bool,
+    theme: &Theme,
+    scroll_offset: usize,
+) {
     use unicode_width::UnicodeWidthChar;
 
     let width = width as usize;
@@ -110,32 +141,6 @@ pub fn render_input_field(
         .collect();
 
     let total_chars = chars.len();
-    let total_display_width: usize = chars.iter().map(|(_, _, w)| w).sum();
-
-    // Calculate scroll offset (how many chars to skip from start)
-    let mut scroll_offset = 0;
-    if total_display_width >= width {
-        // Need to scroll - ensure cursor is visible
-        let mut cursor_display_x = 0;
-        for (char_idx, _, cw) in &chars {
-            if *char_idx >= cursor_pos {
-                break;
-            }
-            cursor_display_x += cw;
-        }
-
-        // If cursor would be past visible area, scroll
-        if cursor_display_x >= width {
-            let mut skipped_width = 0;
-            for (char_idx, _, cw) in &chars {
-                if cursor_display_x - skipped_width < width {
-                    scroll_offset = *char_idx;
-                    break;
-                }
-                skipped_width += cw;
-            }
-        }
-    }
 
     // Render characters
     let mut screen_x = x;
@@ -176,38 +181,37 @@ pub fn render_input_field(
     }
 }
 
-/// Render a labeled input field.
-#[allow(clippy::too_many_arguments)]
-pub fn render_labeled_input(
+/// Draw `input` as a single-line field in the one-row `area`, keeping the
+/// scroll it had while its cursor stays in view (see
+/// [`TextInput::follow_scroll`](termide_ui::TextInput::follow_scroll)), so a
+/// click mapped through [`field_char_at`] lands where it points.
+pub fn render_text_input(
     buf: &mut Buffer,
     area: Rect,
-    label: &str,
-    text: &str,
-    cursor_pos: usize,
-    selection_range: Option<(usize, usize)>,
+    input: &mut crate::TextInputHandler,
     is_focused: bool,
     theme: &Theme,
 ) {
-    let label_width = label.len() as u16;
-
-    // Render label
-    buf.set_string(area.x, area.y, label, Style::default().fg(theme.fg));
-
-    // Render input field
-    let input_x = area.x + label_width;
-    let input_width = area.width.saturating_sub(label_width);
-
-    render_input_field(
+    let scroll = input.follow_scroll(area.width);
+    render_input_field_scrolled(
         buf,
-        input_x,
+        area.x,
         area.y,
-        input_width,
-        text,
-        cursor_pos,
-        selection_range,
+        area.width,
+        input.text(),
+        input.cursor_pos(),
+        input.selection_range(),
         is_focused,
         theme,
+        scroll,
     );
+}
+
+/// The character of `input` under screen column `column` of the field
+/// [`render_text_input`] drew in `area`. Left of the field it is the character
+/// just scrolled out, so a drag past the edge keeps scrolling.
+pub fn field_char_at(input: &crate::TextInputHandler, area: Rect, column: u16) -> usize {
+    input.char_at_column(column.checked_sub(area.x).map(usize::from))
 }
 
 /// Result of checking mouse click position in a modal.
@@ -291,6 +295,16 @@ pub fn check_mouse_click_with_item_height(
     MouseClickResult::OnListItem(clicked_index)
 }
 
+/// Whether `mouse` is a left press outside `modal_area`, the frame the modal
+/// last drew: the click that dismisses it, as `Esc` does. `false` before the
+/// first render, when there is no frame to be outside of.
+#[must_use]
+pub fn is_click_outside(mouse: &crossterm::event::MouseEvent, modal_area: Option<Rect>) -> bool {
+    use crossterm::event::{MouseButton, MouseEventKind};
+    mouse.kind == MouseEventKind::Down(MouseButton::Left)
+        && modal_area.is_some_and(|area| !area.contains((mouse.column, mouse.row).into()))
+}
+
 /// Trait for cursor navigation in search modals.
 ///
 /// Provides default implementations for common navigation patterns
@@ -365,23 +379,6 @@ pub trait CursorNavigation {
             self.cursor_down();
         }
     }
-}
-
-/// Convert a screen X-offset inside a rendered single-line input field to
-/// the corresponding character (grapheme-agnostic, char-wise) position in
-/// `text`, accounting for double-width characters. Click past the end of
-/// the text returns the text length.
-pub fn screen_x_to_char_pos(text: &str, screen_x: usize) -> usize {
-    use unicode_width::UnicodeWidthChar;
-    let mut width = 0;
-    for (i, c) in text.chars().enumerate() {
-        let cw = UnicodeWidthChar::width(c).unwrap_or(1);
-        if width + cw > screen_x {
-            return i;
-        }
-        width += cw;
-    }
-    text.chars().count()
 }
 
 #[cfg(test)]

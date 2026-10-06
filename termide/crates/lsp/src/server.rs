@@ -4,7 +4,6 @@
 //! and routing requests/responses through channels.
 
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::AtomicU64;
@@ -37,6 +36,15 @@ pub struct LspServerConfig {
     pub args: Vec<String>,
     /// File patterns to identify project root
     pub root_markers: Vec<String>,
+}
+
+/// The status a server shows: `Indexing` without a progress token in flight
+/// is `Running`, since nothing is being indexed.
+fn effective_status(status: ServerStatus, in_progress: bool) -> ServerStatus {
+    match status {
+        ServerStatus::Indexing if !in_progress => ServerStatus::Running,
+        other => other,
+    }
 }
 
 /// Server status
@@ -115,29 +123,7 @@ impl LspServer {
         let capabilities = Arc::new(Mutex::new(None));
         let active_progress = Arc::new(Mutex::new(HashSet::new()));
 
-        // Writer thread - sends messages to server
         let (writer_tx, writer_rx) = mpsc::channel::<String>();
-        let writer_handle = {
-            let status = status.clone();
-            thread::spawn(move || {
-                let mut stdin = stdin;
-                while let Ok(msg) = writer_rx.recv() {
-                    if *status.lock().unwrap_or_else(|e| e.into_inner())
-                        == ServerStatus::ShuttingDown
-                    {
-                        break;
-                    }
-                    if let Err(e) = stdin.write_all(msg.as_bytes()) {
-                        log::error!("Failed to write to LSP server: {}", e);
-                        break;
-                    }
-                    if let Err(e) = stdin.flush() {
-                        log::error!("Failed to flush LSP server stdin: {}", e);
-                        break;
-                    }
-                }
-            })
-        };
 
         // Reader thread - receives messages from server
         let reader_handle = {
@@ -164,7 +150,7 @@ impl LspServer {
             process,
             next_id: AtomicU64::new(1),
             pending,
-            writer_handle: Some(writer_handle),
+            writer_handle: None,
             reader_handle: Some(reader_handle),
             writer_tx,
             status,
@@ -173,14 +159,26 @@ impl LspServer {
         };
 
         // Send initialize request
-        server.initialize(workspace_root)?;
+        let initialize_rx = server.initialize(workspace_root, &config.command)?;
+
+        // Writer thread - sends messages to server
+        server.writer_handle = Some({
+            let status = server.status.clone();
+            thread::spawn(move || {
+                Self::writer_loop(stdin, writer_rx, initialize_rx, status);
+            })
+        });
 
         Ok(server)
     }
 
     /// Send initialize request
     #[allow(deprecated)] // root_uri is deprecated but still widely used
-    fn initialize(&mut self, workspace_root: PathBuf) -> Result<()> {
+    fn initialize(
+        &mut self,
+        workspace_root: PathBuf,
+        command: &str,
+    ) -> Result<mpsc::Receiver<Option<InitializeResult>>> {
         let root_uri = path_to_uri(&workspace_root)
             .ok_or_else(|| anyhow::anyhow!("Invalid workspace path"))?;
 
@@ -244,17 +242,15 @@ impl LspServer {
                 }),
                 ..Default::default()
             },
+            initialization_options: transport::initialization_options(command),
             ..Default::default()
         };
 
-        let _rx = self.send_request::<InitializeResult>("initialize", params)?;
-
-        // Send initialized notification
-        self.send_notification("initialized", serde_json::json!({}));
+        let rx = self.send_request::<InitializeResult>("initialize", params)?;
 
         // Set to Indexing - will become Running when all progress tokens complete
         *self.status.lock().unwrap_or_else(|e| e.into_inner()) = ServerStatus::Indexing;
-        Ok(())
+        Ok(rx)
     }
 
     /// Request completion at position
@@ -546,37 +542,27 @@ impl LspServer {
         self.send_notification("textDocument/didSave", params);
     }
 
-    /// Get current server status
+    /// Current server status. A server that finished `initialize` stays
+    /// `Indexing` only while it reports work in progress; one that sends no
+    /// `$/progress` at all (pylsp, for one) is simply running.
     pub fn status(&self) -> ServerStatus {
-        *self.status.lock().unwrap_or_else(|e| e.into_inner())
+        let status = *self.status.lock().unwrap_or_else(|e| e.into_inner());
+        let in_progress = !self
+            .active_progress
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_empty();
+        effective_status(status, in_progress)
     }
 
-    /// Check if server is effectively ready (Running, or Indexing with no active progress)
+    /// Check if server is ready: running, with no work in progress.
     pub fn is_ready(&self) -> bool {
-        let status = *self.status.lock().unwrap_or_else(|e| e.into_inner());
-        match status {
-            ServerStatus::Running => true,
-            ServerStatus::Indexing => {
-                // If no active progress, consider it ready
-                // (server might not support/send progress notifications)
-                self.active_progress
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .is_empty()
-            }
-            _ => false,
-        }
+        self.status() == ServerStatus::Running
     }
 
     /// Check if server is actively indexing (has active progress tokens)
     pub fn is_indexing(&self) -> bool {
-        let status = *self.status.lock().unwrap_or_else(|e| e.into_inner());
-        status == ServerStatus::Indexing
-            && !self
-                .active_progress
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .is_empty()
+        self.status() == ServerStatus::Indexing
     }
 
     /// Shutdown the server
@@ -602,5 +588,31 @@ impl LspServer {
         let _ = self.process.wait();
 
         *self.status.lock().unwrap_or_else(|e| e.into_inner()) = ServerStatus::Stopped;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{effective_status, ServerStatus};
+
+    /// A server that never reports progress must not look busy forever.
+    #[test]
+    fn indexing_lasts_only_while_progress_is_reported() {
+        assert_eq!(
+            effective_status(ServerStatus::Indexing, false),
+            ServerStatus::Running
+        );
+        assert_eq!(
+            effective_status(ServerStatus::Indexing, true),
+            ServerStatus::Indexing
+        );
+        for status in [
+            ServerStatus::Starting,
+            ServerStatus::Running,
+            ServerStatus::ShuttingDown,
+            ServerStatus::Stopped,
+        ] {
+            assert_eq!(effective_status(status, false), status);
+        }
     }
 }

@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use super::super::App;
 use termide_ui_render::{
-    TOOLS_SUBMENU_DIAGNOSTICS, TOOLS_SUBMENU_EDITOR, TOOLS_SUBMENU_FILES, TOOLS_SUBMENU_GIT_LOG,
-    TOOLS_SUBMENU_GIT_STATUS, TOOLS_SUBMENU_JOURNAL, TOOLS_SUBMENU_OPEN, TOOLS_SUBMENU_OPERATIONS,
-    TOOLS_SUBMENU_OUTLINE, TOOLS_SUBMENU_SEPARATOR, TOOLS_SUBMENU_TERMINAL,
+    TOOLS_SUBMENU_AGENT, TOOLS_SUBMENU_DIAGNOSTICS, TOOLS_SUBMENU_EDITOR, TOOLS_SUBMENU_FILES,
+    TOOLS_SUBMENU_GIT_LOG, TOOLS_SUBMENU_GIT_STATUS, TOOLS_SUBMENU_JOURNAL, TOOLS_SUBMENU_OPEN,
+    TOOLS_SUBMENU_OPERATIONS, TOOLS_SUBMENU_OUTLINE, TOOLS_SUBMENU_SEPARATOR,
+    TOOLS_SUBMENU_TERMINAL,
 };
 
 impl App {
@@ -150,20 +151,36 @@ impl App {
                 self.state.close_menu();
                 self.handle_open_outline()?;
             }
-            TOOLS_SUBMENU_OPEN => {
-                // Universal opener: the entered value is routed by type — a file
-                // (by extension), a directory (file manager), a database URL
-                // (DB viewer), or an http(s) address (fetched into a viewer).
+            TOOLS_SUBMENU_AGENT => {
                 self.state.close_menu();
-                let base = std::env::current_dir().unwrap_or_default();
-                self.event_show_input(
-                    termide_i18n::t().tools_open_prompt().to_string(),
-                    String::new(),
-                    termide_core::InputAction::ViewPath { base_dir: base },
-                );
+                self.handle_open_agent()?;
+            }
+            TOOLS_SUBMENU_OPEN => {
+                self.state.close_menu();
+                self.open_path_prompt();
             }
             _ => {}
         }
         Ok(())
+    }
+}
+
+impl App {
+    /// The universal opener (Windows ▸ Open…, `Ctrl+G`): the entered value
+    /// is routed by type — a file (by extension), a directory (file
+    /// manager), a database URL (DB viewer), or an http(s) address (fetched
+    /// into a viewer). Relative paths are taken from the focused panel's
+    /// directory, else the project root.
+    pub(in crate::app) fn open_path_prompt(&mut self) {
+        let base_dir = self
+            .layout_manager
+            .active_panel()
+            .and_then(|panel| panel.get_working_directory())
+            .unwrap_or_else(|| self.project_root.clone());
+        self.event_show_input(
+            termide_i18n::t().tools_open_prompt().to_string(),
+            String::new(),
+            termide_core::InputAction::ViewPath { base_dir },
+        );
     }
 }

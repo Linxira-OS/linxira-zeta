@@ -50,6 +50,19 @@ pub(crate) fn itoa_right_align(n: usize, width: usize, buf: &mut [u8; 20]) -> &s
     }
 }
 
+/// Cells grapheme `g` is drawn into when it takes `width` columns, and the
+/// symbol each gets: a TAB fills every column it spans with a blank (so a
+/// selection or the cursor-line background covers all of it); any other
+/// cluster is drawn in its first column, a wide one's second being ratatui's
+/// to skip.
+pub(crate) fn drawn_cells(g: &str, width: usize) -> (usize, &str) {
+    if g == "\t" {
+        (width, " ")
+    } else {
+        (1, termide_ui::cell_symbol(g))
+    }
+}
+
 /// Gutter cells that follow the digits: LSP marker + separator space.
 pub const LINE_NUMBER_MARKER_CELLS: usize = 2;
 
@@ -98,6 +111,8 @@ pub fn calculate_content_dimensions(
 /// - Prepares rendering context (search matches, selection, diagnostics)
 /// - Selects appropriate rendering mode (word wrap vs no wrap)
 /// - Delegates to specialized rendering functions
+///
+/// Returns the screen cell of the cursor when it is on screen.
 #[allow(clippy::too_many_arguments)]
 pub fn render_editor_content<H: LineHighlighter>(
     buf: &mut Buffer,
@@ -116,9 +131,10 @@ pub fn render_editor_content<H: LineHighlighter>(
     show_git_diff: bool,
     word_wrap_enabled: bool,
     use_smart_wrap: bool,
+    tab_size: usize,
     content_width: usize,
     content_height: usize,
-) {
+) -> Option<(u16, u16)> {
     let line_number_width = line_number_width(buffer.line_count()) as u16;
 
     // Create rendering styles from theme
@@ -150,12 +166,17 @@ pub fn render_editor_content<H: LineHighlighter>(
             .top_line
             .saturating_add(content_height)
             .saturating_add(1);
-    let mut render_context =
-        context::RenderContext::prepare(search_state, selection, diagnostics, visible_lines);
+    let mut render_context = context::RenderContext::prepare(
+        search_state,
+        selection,
+        diagnostics,
+        visible_lines,
+        tab_size,
+    );
 
     // Group diagnostics by line once per render — hot paths read this
     // instead of rebuilding the HashMap for every visible row.
-    let diagnostics_by_line = crate::git::group_diagnostics_by_line(diagnostics, buffer);
+    let diagnostics_by_line = crate::git::group_diagnostics_by_line(diagnostics, buffer, tab_size);
 
     // Rebuild the whole-document highlight when it is stale (after an edit or a
     // syntax change) and the buffer is small enough to re-parse per edit. This
@@ -190,6 +211,7 @@ pub fn render_editor_content<H: LineHighlighter>(
             content_height,
             line_number_width,
             use_smart_wrap,
+            tab_size,
             text_style,
             cursor_line_style,
             line_number_style,
@@ -209,7 +231,7 @@ pub fn render_editor_content<H: LineHighlighter>(
             show_git_diff,
             syntax_highlighting_enabled,
             highlight_cache,
-            &render_context,
+            &mut render_context,
             &diagnostics_by_line,
             theme,
             is_focused,
@@ -223,6 +245,13 @@ pub fn render_editor_content<H: LineHighlighter>(
             selection_style,
         );
     }
+
+    // Where the cursor was drawn (or would be, unfocused): the anchor for
+    // popups that open at the cursor.
+    render_context.cursor_viewport_pos.and_then(|(row, col)| {
+        (row < content_height && col < content_width)
+            .then(|| (area.x + line_number_width + col as u16, area.y + row as u16))
+    })
 }
 
 #[cfg(test)]

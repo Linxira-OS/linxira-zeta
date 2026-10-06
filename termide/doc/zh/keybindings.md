@@ -11,6 +11,11 @@ Termide 在与绑定匹配前对每个按键事件进行规范化。规范化在
 
 在编辑器中输入的文本或发送给终端面板内程序的文本**永远不会**被
 规范化重写,西里尔字母、移位字符和 locale 相关字符原样到达目标。
+唯一的例外是发送给终端的其他布局字母上的 `Ctrl` 组合键:西里尔字母没有
+控制码,因此 `Ctrl+С` 会按其物理键作为 `Ctrl+C`(`^C`)发出。
+
+文本输入框(模态框输入、查找栏、智能体提示框)也按规范形式匹配自身的
+`Ctrl` 快捷键——全选、复制、剪切、粘贴、撤销——而输入其中的字母保持原样。
 
 ## 规范化修复的问题
 
@@ -47,8 +52,8 @@ Termide 在与绑定匹配前对每个按键事件进行规范化。规范化在
   `Alt+Shift+...` 绑定不能匹配。
 - `Super` / `Meta` / `Hyper` 修饰符。
 
-termide 自带的增强层默认值(`toggle_comment` 和 `switch_directory` 的
-`Ctrl+/`,`replace_all` 的 `Ctrl+Alt+R`)被保留,因为它们是编辑器
+termide 自带的增强层默认值(`toggle_comment` 的 `Ctrl+/`,
+`switch_directory` 的 `Ctrl+\`,`replace_all` 的 `Ctrl+Alt+R`)被保留,因为它们是编辑器
 中的事实标准。在不支持 Kitty 协议的终端上,termide 在启动时记录
 警告,列出受影响的绑定;用户可通过设置 → 键绑定重新绑定。
 
@@ -101,8 +106,8 @@ keybind 前缀(`global:`、`all:`、`unconsumed:`、`performable:`)和键表都�
 绑定限定在某个应用上。
 
 Termide 曾为这两个动作提供 `Alt+A` / `Alt+D` 作为备选,从而在不改动 Ghostty
-的情况下绕过该问题。它们后来被移除,让位于用 `Alt+D` 分离会话和用 `Alt+W`
-关闭面板——这是用户最先想到的字母——因此修复现在应放在 Ghostty 的配置中。
+的情况下绕过该问题。这两个字母后来让给了用户最先想到的动作——`Alt+D` 分离
+实例,`Alt+A` 打开编码代理面板——因此修复现在应放在 Ghostty 的配置中。
 
 要恢复 `Option+Left` / `Option+Right`,在 `~/.config/ghostty/config` 中清除这
 两个绑定:
@@ -178,7 +183,7 @@ Char('Ω') + SHIFT      ← no ALT bit at all
 会误伤输入希腊文的用户。
 
 因此 `Alt+Z` 绑定在 macOS 上永远不会匹配。请选择另一个字母——这正是
-`detach_session` 默认为 `Alt+D` 的原因。
+`detach_instance` 默认为 `Alt+D` 的原因。
 
 ### macOS 保留了部分功能键
 
@@ -192,7 +197,7 @@ F 键行发送的是媒体键,任何 `F<n>` 绑定都无法到达。对大多数
 
 | 动作 | 绑定 | 节 |
 |---|---|---|
-| 切换手风琴 / 拆分 | `Alt+F11` | `general` |
+| 在组内最大化面板 | `Alt+F11` | `general` |
 | 删除行 | `F8` | `editor` |
 | 查找下一个 | `F3` | `editor` |
 | 查找上一个 | `Shift+F3` | `editor` |
@@ -247,7 +252,7 @@ termide 在 macOS 上启动时会记录一条列出这些绑定的警告。请�
 [general.keybindings]
 panel_grow_vertical = "Alt+Shift+="
 panel_shrink_vertical = "Alt+Shift+-"
-open_sessions = "Alt+\\"
+open_projects = "Alt+\\"
 
 [editor.keybindings]
 trigger_completion = ["Ctrl+J", "Ctrl+Space"]
@@ -267,3 +272,24 @@ crossterm 解析为 `Ctrl+7` / `Ctrl+4`,规范化器将其重写回斜杠 / 反�
 
 任何动作都支持多个备选项:列在数组中。第一项是帮助面板中显示的
 规范字符串。
+
+### 未绑定的操作
+
+有些操作默认不带绑定，因为每个仍然空闲的组合键在某处都会与桌面或 shell
+的快捷键冲突：`Ctrl+Alt+Left` / `Ctrl+Alt+Right` 在多个 Linux 桌面中用于切换
+工作区，`Ctrl+Alt+<数字>` 在传统终端中会被当作 `Alt+<数字>`，而 `Alt+.` 在
+bash 中插入上一条命令的最后一个参数。请将它们绑定到您系统上空闲的组合键：
+
+| 操作 | 作用 |
+|------|------|
+| `prev_project` / `next_project` | 按 `项目` 菜单中的排列顺序切换到上一个 / 下一个已打开的项目 |
+| `goto_project_1` … `goto_project_9` | 切换到对应编号的已打开项目 |
+
+```toml
+[general.keybindings]
+prev_project = "Shift+F5"
+next_project = "Shift+F6"
+goto_project_1 = "Shift+F1"
+```
+
+绑定后，按键会显示在 `项目` 菜单中对应项目的旁边。

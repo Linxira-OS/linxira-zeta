@@ -53,6 +53,8 @@ pub enum OperationType {
     Download,
     /// Upload from local to remote (single or multiple files).
     Upload,
+    /// Pack local files into a new archive.
+    Pack,
 }
 
 /// Priority level for operations.
@@ -414,6 +416,10 @@ pub enum OperationError {
     /// Invalid operation.
     #[error("Invalid operation: {0}")]
     Invalid(String),
+
+    /// A directory cannot be copied or moved into its own subtree.
+    #[error("Cannot copy or move {} into itself", .0.display())]
+    DestinationInsideSource(PathBuf),
 }
 
 /// Events emitted by the operation system.
@@ -545,6 +551,19 @@ impl OperationRequest {
             op_type: OperationType::Download,
             sources: vec![OperationPath::Remote(remote)],
             destination: Some(OperationPath::Local(local)),
+            priority: OperationPriority::Normal,
+            is_move: false,
+            conflict_mode: ConflictMode::Ask,
+        }
+    }
+
+    /// Create a request to pack local `sources` into the new archive
+    /// `archive`, whose name picks the format.
+    pub fn pack(sources: Vec<PathBuf>, archive: PathBuf) -> Self {
+        Self {
+            op_type: OperationType::Pack,
+            sources: sources.into_iter().map(OperationPath::Local).collect(),
+            destination: Some(OperationPath::Local(archive)),
             priority: OperationPriority::Normal,
             is_move: false,
             conflict_mode: ConflictMode::Ask,

@@ -34,6 +34,10 @@
 | `Ctrl+Shift+Up`   | 选择到上一个段落/符号边界               |
 | `Ctrl+Shift+Down` | 选择到下一个段落/符号边界               |
 
+`↑`/`↓` 和 `PageUp`/`PageDown` 会让光标保持在其屏幕列上，制表符和宽字符按实际
+绘制的宽度计算。途经较短的行不会丢失该列：在下一个足够长的行上，光标会回到这一列。
+以其他任何方式移动光标（左右方向键、点击、跳转、编辑）都会从光标的新列开始计算。
+
 ## 编辑
 
 | 快捷键 | 操作 |
@@ -51,11 +55,15 @@
 | `Tab`             | 插入缩进（可配置，默认为 4）               |
 | `Ctrl+/`          | 切换注释（行注释/块注释）                  |
 
+## 磁盘上的更改
+
+当文件在编辑器之外被修改时（格式化工具、`git checkout`、[编码代理](agent.md)），没有未保存改动的缓冲区会自动重新加载，并保留光标和滚动位置（如果文件变短则相应收缩）。有未保存改动的缓冲区会保留这些改动：标题显示 `[changed on disk]`，保存会被拒绝，您可以选择按 `Ctrl+Shift+R` 采用磁盘上的版本（放弃您的更改），或按 `Ctrl+Shift+S` 将您的版本另存到别处。
+
 ## 搜索和替换
 
 ### 内嵌搜索栏 (Ctrl+F)
 
-按 `Ctrl+F` 打开**停靠在编辑器顶部的搜索栏**（与文件管理器一致），其下有分隔线；
+按 `Ctrl+F` 打开**停靠在编辑器底部的搜索栏**（与文件管理器一致），其上有带标题的边框（`─ Find ─` / `─ Replace ─`）将其与上方缓冲区隔开；
 缓冲区仍显示，输入时匹配项即时高亮。`Tab` 在搜索栏与缓冲区之间切换焦点：在缓冲区
 区域光标正常移动和滚动，同时搜索栏保持打开；`Tab` 返回搜索栏。
 
@@ -121,7 +129,8 @@
 - **`View: Text`** — 切换到十六进制查看器（等同于 `Ctrl+L`）。编辑/查看模式会延续：从可编辑缓冲区离开会打开可编辑的十六进制编辑器，反之亦然。
 - **`Edit: Yes`/`Edit: No`** — 切换只读，也绑定到 `Ctrl+E`（`[viewer.keybindings] toggle_view`）。
 - **`Highlight: <lang>`** — 打开语言选择器（见下文）。
-- **`Tab: <n>`** — 设置制表符宽度。
+- **`Tab: <n>`** — 设置制表符宽度。制表符绘制为空白，延伸到下一个该宽度的
+  整数倍列；启用自动换行时，每个折行都会重新开始计算制表位。
 - **`EOL`** / **`Encoding`** — 仅供参考。
 - **`Pos: <line>:<col>`** — 打开“转到行”；接受行号（`12`）或行加列（`12:4`）。
 
@@ -348,7 +357,7 @@ TermIDE 内置 LSP 支持，提供智能代码辅助。当配置了可用的语�
 | `Enter`           | 接受选中的补全                             |
 | `Escape`          | 关闭补全弹出框                             |
 | `↑` / `↓`         | 浏览建议列表                               |
-| 输入字符          | 通过输入过滤建议                           |
+| 输入字符          | 模糊过滤建议（`fo` 可找到 `function_one`） |
 
 **自动补全：** 启用时（默认），补全弹出框自动出现：
 - 输入标识符字符（字母、数字、`_`）后
@@ -386,6 +395,12 @@ command = "typescript-language-server"
 args = ["--stdio"]
 root_markers = ["package.json", "tsconfig.json"]
 ```
+
+`[lsp.servers]` 中的条目会覆盖或补充[支持的语言](#支持的语言)中列出的内置服务器；
+未提及的内置服务器仍然有效。针对内置语言的条目只修改其中设置的字段，因此仅写
+`command = "/opt/rust-analyzer"` 会保留内置的 `root_markers`。针对其他语言的条目会为
+该语言新增一个服务器。键名是 TermIDE 为文件识别出的语言标识，例如 `.tsx` 对应
+`typescriptreact`。
 
 ### 查找引用
 
@@ -426,6 +441,22 @@ LSP 可与任何实现了 LSP 协议的语言服务器配合使用。常见示�
 - **TypeScript/JavaScript** - typescript-language-server
 - **Go** - gopls
 - **C/C++** - clangd
+
+内置的服务器定义，只要可执行文件在 `PATH` 中即自动使用：
+
+| 语言 | 服务器 | 文件 |
+|---|---|---|
+| Rust | `rust-analyzer` | `.rs` |
+| Python | `pylsp` | `.py` |
+| TypeScript/JavaScript | `typescript-language-server --stdio` | `.ts`、`.tsx`、`.js`、… |
+| Go | `gopls` | `.go` |
+| PHP | `phpantom_lsp` | `.php` |
+| Terraform | `terraform-ls serve` | `.tf`、`.tfvars` |
+| Docker | `docker-language-server start --stdio` | 按文件名识别 `Dockerfile` 和 `compose.yaml` |
+
+Docker 文件没有特征扩展名，因此按文件名识别，且不区分大小写：`Dockerfile`、`Dockerfile.*`、`*.Dockerfile`，以及带任意中缀的 `compose.yaml`/`docker-compose.yaml`，例如 `compose.override.yaml` 或 `docker-compose.prod.yml`。
+
+TermIDE 在启动 `docker-language-server` 时会要求它不发送遥测数据；否则该服务器默认会收集遥测。
 
 **注意：** 您需要单独安装语言服务器。TermIDE 仅提供 LSP 客户端集成。
 

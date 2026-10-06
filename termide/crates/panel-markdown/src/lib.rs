@@ -15,6 +15,8 @@ mod navigation;
 mod render;
 mod search;
 
+pub use render::render_markdown;
+
 use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,9 +26,8 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
 use render::Rendered;
 use termide_core::{
-    CommandResult, Config, HotkeyTable, InputAction, KeyChord, LinkOpen, Panel, PanelCommand,
-    PanelEvent, RenderContext, SegmentKind, SessionPanel, StatusSegment, Theme, ThemeColors,
-    WidthPreference,
+    CommandResult, Config, HotkeyTable, KeyChord, LinkOpen, Panel, PanelCommand, PanelEvent,
+    PanelState, RenderContext, SegmentKind, StatusSegment, Theme, ThemeColors, WidthPreference,
 };
 use termide_modal::FindBar;
 use termide_ui::ScrollBar;
@@ -88,7 +89,7 @@ pub struct MarkdownPanel {
     last_config_ptr: usize,
     /// Origin URL when the content was fetched (not read from a file). `None`
     /// for file-backed viewers. Used for the title, base-URL link resolution,
-    /// and navigation; URL-backed viewers are not persisted across sessions.
+    /// and navigation; URL-backed viewers are not persisted across runs.
     source_url: Option<String>,
     /// Browsing history (URLs) for an in-panel navigated viewer.
     history: Vec<String>,
@@ -101,6 +102,9 @@ pub struct MarkdownPanel {
     /// Fragment to scroll to once content is (re)laid out — set when content
     /// loads from a URL carrying a `#fragment`.
     pending_anchor: Option<String>,
+    /// The fetch this viewer waits for, `(request id, URL)`: its title shows a
+    /// spinner and the URL until the app delivers the page or the failure.
+    loading: Option<(u64, String)>,
 }
 
 impl MarkdownPanel {
@@ -139,6 +143,7 @@ impl MarkdownPanel {
             open_links: LinkOpen::default(),
             open_images: LinkOpen::default(),
             pending_anchor: None,
+            loading: None,
         }
     }
 
@@ -164,9 +169,26 @@ impl MarkdownPanel {
         panel
     }
 
+    /// Mark the viewer as waiting for fetch `id` of `url` (a followed link or
+    /// a history step); the page it shows stays until the result arrives.
+    pub fn start_loading(&mut self, id: u64, url: String) {
+        self.loading = Some((id, url));
+    }
+
+    /// The fetch this viewer waits for, if any.
+    pub fn loading_id(&self) -> Option<u64> {
+        self.loading.as_ref().map(|(id, _)| *id)
+    }
+
+    /// Stop waiting: the fetch failed or its result opened elsewhere.
+    pub fn stop_loading(&mut self) {
+        self.loading = None;
+    }
+
     /// Replace the content in place with a navigated document (link/history
     /// step). History is managed by the caller's navigation, not here.
     pub fn apply_fetched(&mut self, title: String, source: String, final_url: String) {
+        self.loading = None;
         self.title = title;
         self.source = source;
         self.pending_anchor = url_fragment(&final_url);
@@ -202,25 +224,6 @@ impl MarkdownPanel {
         }
         self.layout_width = 0; // force re-layout
     }
-
-    /// Build the "go to path" input request, seeded with this file's directory
-    /// so relative entries resolve naturally.
-    fn goto_path_event(&self) -> PanelEvent {
-        let base = self
-            .file_path
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_default();
-        let mut initial = base.display().to_string();
-        if !initial.is_empty() {
-            initial.push('/');
-        }
-        PanelEvent::ShowInput {
-            prompt: "Go to path".to_string(),
-            initial_value: initial,
-            on_submit: InputAction::ViewPath { base_dir: base },
-        }
-    }
 }
 
 impl Panel for MarkdownPanel {
@@ -244,6 +247,9 @@ impl Panel for MarkdownPanel {
     }
 
     fn title(&self) -> String {
+        if let Some((_, url)) = &self.loading {
+            return format!("{} {url}", termide_config::constants::spinner_frame());
+        }
         // A fetched page shows its URL; a file-backed view shows the filename.
         self.source_url
             .clone()
@@ -253,6 +259,15 @@ impl Panel for MarkdownPanel {
     fn icon(&self) -> Option<&'static str> {
         // A globe for a fetched web page (matching the bookmark icon).
         self.source_url.as_ref().map(|_| "🌐")
+    }
+
+    fn tick(&mut self) -> Vec<PanelEvent> {
+        // Animate the title spinner while a fetch is in flight.
+        if self.loading.is_some() {
+            vec![PanelEvent::NeedsRedraw]
+        } else {
+            vec![]
+        }
     }
 
     fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
@@ -281,31 +296,24 @@ impl Panel for MarkdownPanel {
         }
         buf.set_style(area, Style::default().fg(self.colors.fg).bg(self.colors.bg));
 
-        // Find bar docked at the TOP with a separator below (like the editor).
+        // Find bar docked at the BOTTOM with a separator above (where every
+        // input in termide lives).
         let mut content = area;
         if let (Some(bar), Some(theme)) = (self.find_bar.as_mut(), self.theme_full.as_ref()) {
             let bar_h = bar.height().min(area.height);
             let bar_area = Rect {
                 x: area.x,
-                y: area.y,
+                y: area.y + area.height - bar_h,
                 width: area.width,
                 height: bar_h,
             };
             bar.render(bar_area, buf, theme, true);
-            let mut used = bar_h;
-            let sep_y = area.y + bar_h;
-            if sep_y < area.y + area.height {
-                let style = Style::default().fg(self.colors.disabled);
-                for dx in 0..area.width {
-                    buf[(area.x + dx, sep_y)].set_symbol("─").set_style(style);
-                }
-                used += 1;
-            }
+            // The bar draws its own titled top border, which is the divider.
             content = Rect {
                 x: area.x,
-                y: area.y + used,
+                y: area.y,
                 width: area.width,
-                height: area.height.saturating_sub(used),
+                height: area.height.saturating_sub(bar_h),
             };
         }
         self.last_area = content;
@@ -409,7 +417,9 @@ impl Panel for MarkdownPanel {
 
         // While the find bar is open it owns input (Esc / Ctrl+F close it).
         if self.find_bar.is_some() {
-            let ctrl_f = key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL;
+            let shortcut = chord.canonical;
+            let ctrl_f =
+                shortcut.code == KeyCode::Char('f') && shortcut.modifiers == KeyModifiers::CONTROL;
             if ctrl_f {
                 self.close_find();
                 return vec![PanelEvent::NeedsRedraw];
@@ -433,11 +443,6 @@ impl Panel for MarkdownPanel {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let page = (self.viewport_height() as i32 - 1).max(1);
 
-        // Ctrl+G: "go to path" — type a path to open it in the right viewer.
-        if ctrl && key.code == KeyCode::Char('g') {
-            return vec![self.goto_path_event()];
-        }
-
         // Ctrl+R: re-read from disk (pick up external edits), keeping position.
         if ctrl && key.code == KeyCode::Char('r') {
             let (top, cursor) = (self.top, self.cursor);
@@ -450,6 +455,10 @@ impl Panel for MarkdownPanel {
 
         if ctrl && key.code == KeyCode::Char('f') {
             self.open_find();
+            return vec![PanelEvent::NeedsRedraw];
+        }
+        if ctrl && key.code == KeyCode::Char('a') {
+            self.select_all();
             return vec![PanelEvent::NeedsRedraw];
         }
         if ctrl && key.code == KeyCode::Char('c') {
@@ -509,9 +518,10 @@ impl Panel for MarkdownPanel {
     }
 
     fn handle_mouse(&mut self, event: MouseEvent, _panel_area: Rect) -> Vec<PanelEvent> {
-        // Route clicks on the find bar to it.
+        // Route what the find bar owns to it: a press on it, and a drag
+        // started there, which keeps selecting past its edges.
         if let Some(bar) = self.find_bar.as_mut() {
-            if bar.click_hits_bar(event.column, event.row) {
+            if bar.mouse_hits(event) {
                 if let Some(action) = bar.handle_mouse(event) {
                     return self.handle_find_action(action);
                 }
@@ -622,12 +632,12 @@ impl Panel for MarkdownPanel {
         Ok(())
     }
 
-    fn to_session(&self, _session_dir: &Path) -> Option<SessionPanel> {
+    fn to_state(&self, _project_dir: &Path) -> Option<PanelState> {
         // Only file-backed viewers persist; fetched URLs are not restored.
         if self.source_url.is_some() {
             return None;
         }
-        Some(SessionPanel::Markdown {
+        Some(PanelState::Markdown {
             path: self.file_path.clone(),
         })
     }
@@ -683,6 +693,7 @@ mod tests {
             open_links: LinkOpen::Panel,
             open_images: LinkOpen::Panel,
             pending_anchor: None,
+            loading: None,
         };
         p.doc = render::render_markdown(src, 80, &p.colors, false);
         p.layout_width = 80;
@@ -770,10 +781,10 @@ mod tests {
     }
 
     #[test]
-    fn to_session_round_trips_path() {
+    fn to_state_round_trips_path() {
         let p = panel_from("x");
-        match p.to_session(Path::new("/tmp")) {
-            Some(SessionPanel::Markdown { path }) => {
+        match p.to_state(Path::new("/tmp")) {
+            Some(PanelState::Markdown { path }) => {
                 assert_eq!(path, PathBuf::from("/x/doc.md"))
             }
             other => panic!("unexpected: {other:?}"),
@@ -795,5 +806,43 @@ mod tests {
         let first = p.cursor;
         p.step_match(true);
         assert_ne!(p.cursor, first, "next match should move the cursor");
+    }
+
+    #[test]
+    fn ctrl_a_selects_the_whole_page_for_ctrl_c() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let mut p = panel_from("# Top\n\nmiddle\n\nend");
+        let press = |p: &mut _, c| {
+            let key = KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
+            Panel::handle_key(
+                p,
+                KeyChord {
+                    raw: key,
+                    canonical: key,
+                },
+            )
+        };
+        let whole: Vec<String> = (0..p.line_count()).map(|i| p.line_text(i)).collect();
+        press(&mut p, 'a');
+        assert_eq!(p.top, 0, "the view stays where it was");
+        let evs = press(&mut p, 'c');
+        assert!(
+            matches!(evs.as_slice(), [PanelEvent::CopyToClipboard(t)] if *t == whole.join("\n")),
+            "{evs:?}"
+        );
+        assert!(whole.iter().any(|l| l.contains("Top")));
+        assert!(whole.iter().any(|l| l.contains("end")));
+    }
+
+    #[test]
+    fn a_followed_link_spins_in_the_title_and_keeps_the_page() {
+        let mut p = panel_from("# page");
+        p.start_loading(5, "https://ex.com/b.md".into());
+        assert!(Panel::title(&p).ends_with(" https://ex.com/b.md"));
+        assert!(matches!(p.tick().as_slice(), [PanelEvent::NeedsRedraw]));
+        assert_eq!(p.source, "# page");
+        p.stop_loading();
+        assert_eq!(Panel::title(&p), "doc.md");
+        assert!(p.tick().is_empty());
     }
 }

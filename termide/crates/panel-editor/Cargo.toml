@@ -30,7 +30,7 @@ termide-i18n = { path = "../i18n" }
 termide-keyboard = { path = "../keyboard" }
 termide-lsp = { path = "../lsp" }
 termide-modal = { path = "../modal" }
-termide-session = { path = "../session" }
+termide-project = { path = "../project" }
 termide-state = { path = "../state" }
 termide-system-monitor = { path = "../system-monitor" }
 termide-theme = { path = "../theme" }
@@ -48,10 +48,9 @@ tree-sitter-kotlin-ng = "1.1"
 tree-sitter-c = "0.23"
 tree-sitter-cpp = "0.23"
 tree-sitter-ruby = "0.23"
-# Must match termide-highlight's tree-sitter-php (0.23): 0.24 is ABI 15 (which
-# tree-sitter 0.24 rejects), and two versions in one binary collide the
-# `tree_sitter_php` C symbol and break PHP highlighting.
-tree-sitter-php = "0.23"
+# Must match termide-highlight's tree-sitter-php: two versions in one binary
+# collide the `tree_sitter_php` C symbol and break PHP highlighting.
+tree-sitter-php = "0.24"
 
 [dev-dependencies]
 tempfile.workspace = true

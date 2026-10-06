@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn existing_path_is_taken_literally() {
-        let dir = std::env::temp_dir().join(format!("termide-cli-args-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cli-args-literal-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("notes:42");
         std::fs::write(&file, b"hi").unwrap();
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn existing_directory_becomes_dir_root() {
-        let dir = std::env::temp_dir().join(format!("termide-cli-args-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cli-args-dirroot-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let parsed = targets(&[dir.to_str().unwrap()]);
         assert_eq!(parsed.len(), 1);
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn directory_with_line_suffix_is_not_a_root() {
-        let dir = std::env::temp_dir().join(format!("termide-cli-args-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("cli-args-suffix-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let arg = format!("{}:3", dir.to_str().unwrap());
         let parsed = targets(&[&arg]);

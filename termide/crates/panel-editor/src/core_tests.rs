@@ -452,3 +452,412 @@ fn set_scroll_offset_moves_the_content_not_just_the_thumb() {
         "content did not follow the scroll offset: {first_row:?}"
     );
 }
+
+/// Push the file's mtime past what the editor recorded, so a rewrite within
+/// the same clock tick still counts as newer.
+fn rewrite_later(file: &NamedTempFile, content: &str) {
+    std::fs::write(file.path(), content).unwrap();
+    let later = std::time::SystemTime::now() + std::time::Duration::from_secs(5);
+    file.as_file().set_modified(later).unwrap();
+}
+
+#[test]
+fn a_clean_buffer_follows_the_file_on_disk_and_keeps_its_place() {
+    let (mut editor, file) = create_editor_with_content("a\nb\nc\nd\ne\nf\n");
+    editor.cursor.line = 4;
+    editor.cursor.column = 1;
+    editor.viewport.top_line = 3;
+
+    rewrite_later(&file, "a\nb\nc2\n");
+    let result = editor.handle_command(PanelCommand::OnFsUpdate {
+        changed_path: file.path(),
+    });
+    assert!(result.needs_redraw());
+
+    assert_eq!(editor.buffer().text(), "a\nb\nc2\n");
+    assert!(!editor.has_external_change());
+    assert!(!editor.buffer().is_modified());
+    // Clamped to the shorter file rather than reset to the top.
+    let last = editor.buffer().line_count() - 1;
+    assert_eq!(editor.cursor.line, last);
+    assert!(editor.viewport.top_line <= last);
+
+    // A rewrite that keeps the line leaves the cursor exactly where it was.
+    editor.cursor.line = 1;
+    editor.cursor.column = 1;
+    rewrite_later(&file, "a\nbb\nc3\n");
+    editor.handle_command(PanelCommand::OnFsUpdate {
+        changed_path: file.path(),
+    });
+    assert_eq!(editor.buffer().text(), "a\nbb\nc3\n");
+    assert_eq!((editor.cursor.line, editor.cursor.column), (1, 1));
+}
+
+#[test]
+fn a_buffer_with_unsaved_work_keeps_it_and_flags_the_conflict() {
+    let (mut editor, file) = create_editor_with_content("a\nb\n");
+    editor.insert_text("x").unwrap();
+    assert!(editor.buffer().is_modified());
+
+    rewrite_later(&file, "a\nb\nc\n");
+    editor.handle_command(PanelCommand::OnFsUpdate {
+        changed_path: file.path(),
+    });
+
+    assert!(editor.has_external_change());
+    assert!(editor.buffer().text().starts_with("xa\nb\n"));
+    assert!(editor.buffer().is_modified());
+}
+
+/// A TAB (or any control character) in a line must not reach a cell: the
+/// host terminal would move its cursor to the next tab stop and every cell
+/// written after it would land off by the difference (#55). A TAB is drawn
+/// as blanks up to its tab stop, any other control character as one blank.
+#[test]
+fn control_characters_never_reach_the_frame() {
+    use ratatui::{buffer::Buffer, layout::Rect};
+
+    for word_wrap in [false, true] {
+        let (mut editor, _file) = create_editor_with_content("\tname = 1,\r\nx\u{1b}y\r\n");
+        editor.config.word_wrap = word_wrap;
+        let theme = *termide_theme::Theme::get_by_name("github-light");
+        let config = termide_config::Config::default();
+        let area = Rect::new(0, 0, 40, 5);
+        let mut buf = Buffer::empty(area);
+        editor.render_content(area, &mut buf, &theme, &config, true, None);
+
+        let row = |y: u16| -> String { (0..area.width).map(|x| buf[(x, y)].symbol()).collect() };
+        for y in 0..area.height {
+            assert!(
+                !row(y).contains(char::is_control),
+                "word_wrap={word_wrap}: row {y} carries a control character: {:?}",
+                row(y)
+            );
+        }
+        let first = row(0);
+        let name_col = first.find("name").expect("line text rendered");
+        assert_eq!(
+            &first[name_col - 1..name_col],
+            " ",
+            "word_wrap={word_wrap}: the TAB is drawn blank: {first:?}"
+        );
+        assert!(
+            row(1).contains("x y"),
+            "word_wrap={word_wrap}: ESC becomes a blank: {:?}",
+            row(1)
+        );
+    }
+}
+
+#[test]
+fn a_click_in_the_find_bar_places_its_cursor_and_a_drag_selects() {
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
+    use ratatui::{buffer::Buffer, layout::Rect};
+    use termide_core::RenderContext;
+
+    let (mut editor, _file) = create_editor_with_content("hello\n");
+    editor.open_find_bar(false);
+    let typed = |editor: &mut Editor, c| {
+        editor.handle_find_bar_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    };
+    for c in "needle".chars() {
+        typed(&mut editor, c);
+    }
+    let colors = termide_core::ThemeColors::default();
+    let ctx = RenderContext {
+        theme: &colors,
+        config: &termide_core::PanelConfig {
+            tab_size: 4,
+            word_wrap: false,
+            show_line_numbers: false,
+            show_hidden_files: false,
+        },
+        is_focused: true,
+        panel_index: 0,
+        terminal_width: 60,
+        terminal_height: 12,
+        border_right_x: Some(59),
+        border_bottom_y: Some(11),
+    };
+    let area = Rect::new(0, 0, 60, 12);
+    let mut buf = Buffer::empty(area);
+    Panel::render(&mut editor, area, &mut buf, &ctx);
+    let (row, start) = (0..area.height)
+        .find_map(|y| {
+            // Cells, not bytes: the row holds multi-byte glyphs such as `›`.
+            let cells: Vec<String> = (0..area.width)
+                .map(|x| buf[(x, y)].symbol().to_string())
+                .collect();
+            (0..cells.len().saturating_sub(6))
+                .find(|&x| cells[x..x + 6].concat() == "needle")
+                .map(|x| (y, x as u16))
+        })
+        .expect("the find field is drawn");
+    let at = |kind, column| MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    };
+    let panel_area = Rect::new(0, 0, 62, 14);
+
+    // A click after the "n" places the cursor there.
+    Panel::handle_mouse(
+        &mut editor,
+        at(MouseEventKind::Down(MouseButton::Left), start + 1),
+        panel_area,
+    );
+    Panel::handle_mouse(
+        &mut editor,
+        at(MouseEventKind::Up(MouseButton::Left), start + 1),
+        panel_area,
+    );
+    typed(&mut editor, 'X');
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "nXeedle");
+
+    // A drag over "Xee" selects it, and typing replaces the selection.
+    Panel::handle_mouse(
+        &mut editor,
+        at(MouseEventKind::Down(MouseButton::Left), start + 1),
+        panel_area,
+    );
+    Panel::handle_mouse(
+        &mut editor,
+        at(MouseEventKind::Drag(MouseButton::Left), start + 4),
+        panel_area,
+    );
+    Panel::handle_mouse(
+        &mut editor,
+        at(MouseEventKind::Up(MouseButton::Left), start + 4),
+        panel_area,
+    );
+    typed(&mut editor, 'Y');
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "nYdle");
+}
+
+/// Render `content` into a `width`-column frame and return its rows with the
+/// line-number gutter cut off.
+fn rendered_text_rows(editor: &mut Editor, width: u16, height: u16) -> Vec<String> {
+    use ratatui::{buffer::Buffer, layout::Rect};
+
+    let theme = *termide_theme::Theme::get_by_name("github-light");
+    let config = termide_config::Config::default();
+    let area = Rect::new(0, 0, width, height);
+    let mut buf = Buffer::empty(area);
+    editor.render_content(area, &mut buf, &theme, &config, true, None);
+    let gutter = crate::rendering::line_number_width(editor.buffer.line_count()) as u16;
+    (0..height)
+        .map(|y| (gutter..width).map(|x| buf[(x, y)].symbol()).collect())
+        .collect()
+}
+
+/// A TAB reaches the next multiple of the tab size, with and without word
+/// wrap, and follows a per-editor tab size change.
+#[test]
+fn tabs_expand_to_the_next_tab_stop() {
+    for word_wrap in [false, true] {
+        let (mut editor, _file) = create_editor_with_content("\tname\nab\tc\n");
+        editor.config.word_wrap = word_wrap;
+        editor.config.tab_size = 4;
+        let rows = rendered_text_rows(&mut editor, 30, 4);
+        assert!(
+            rows[0].starts_with("    name "),
+            "word_wrap={word_wrap}: {rows:?}"
+        );
+        assert!(
+            rows[1].starts_with("ab  c "),
+            "word_wrap={word_wrap}: {rows:?}"
+        );
+
+        editor.config.tab_size = 8;
+        let rows = rendered_text_rows(&mut editor, 30, 4);
+        assert!(
+            rows[0].starts_with("        name "),
+            "word_wrap={word_wrap}: {rows:?}"
+        );
+        assert!(
+            rows[1].starts_with("ab      c "),
+            "word_wrap={word_wrap}: {rows:?}"
+        );
+    }
+}
+
+/// Wrap points are measured with tabs expanded, and a tab size change
+/// re-wraps lines whose rows were cached with the old one.
+#[test]
+fn a_tab_size_change_rewraps_the_line() {
+    let (mut editor, _file) = create_editor_with_content("ab\tcdefgh\nz\n");
+    editor.config.word_wrap = true;
+    editor.config.tab_size = 4;
+    let gutter = crate::rendering::line_number_width(editor.buffer.line_count()) as u16;
+    // Ten content columns: "ab" + a two-column tab + "cdefgh" fill one row.
+    let rows = rendered_text_rows(&mut editor, gutter + 10, 4);
+    assert_eq!(rows[0], "ab  cdefgh");
+    assert!(rows[1].starts_with('z'), "{rows:?}");
+
+    // With tab stops every 8 columns the tab takes six, so the row wraps.
+    editor.config.tab_size = 8;
+    let rows = rendered_text_rows(&mut editor, gutter + 10, 4);
+    assert!(rows[0].starts_with("ab      "), "{rows:?}");
+    assert!(rows[1].starts_with("cdefgh"), "{rows:?}");
+    assert!(rows[2].starts_with('z'), "{rows:?}");
+}
+
+/// Without word wrap the view scrolls by display columns: a cursor past a
+/// few tabs is scrolled into view even though its grapheme index is small.
+#[test]
+fn horizontal_scroll_counts_tab_columns() {
+    let (mut editor, _file) = create_editor_with_content("\t\t\t\tabc\n");
+    editor.config.word_wrap = false;
+    editor.config.tab_size = 4;
+    editor.cursor = termide_buffer::Cursor::at(0, 5); // on the "b", column 17
+    let gutter = crate::rendering::line_number_width(editor.buffer.line_count()) as u16;
+    let rows = rendered_text_rows(&mut editor, gutter + 10, 2);
+    assert_eq!(editor.cursor_in_display_columns().column, 17);
+    assert_eq!(editor.viewport().left_column, 8);
+    // Columns 8..18: the last two tabs, then "ab" with the cursor on "b".
+    assert_eq!(rows[0], "        ab");
+}
+
+/// Up and down keep the cursor in its screen column across lines indented
+/// differently, with and without word wrap: from column 8 on a line indented
+/// with spaces the cursor lands on the grapheme drawn there on a tab line.
+#[test]
+fn vertical_movement_keeps_the_screen_column_across_tabs() {
+    for word_wrap in [false, true] {
+        let (mut editor, _file) = create_editor_with_content("        xy\n\t\txy\n        xy\n");
+        editor.config.word_wrap = word_wrap;
+        editor.config.tab_size = 4;
+        let gutter = crate::rendering::line_number_width(editor.buffer.line_count()) as u16;
+        rendered_text_rows(&mut editor, gutter + 30, 5);
+        editor.cursor = termide_buffer::Cursor::at(0, 9); // on "y", column 9
+
+        if word_wrap {
+            editor.move_cursor_down_visual();
+        } else {
+            editor.move_cursor_down();
+        }
+        assert_eq!(
+            (editor.cursor.line, editor.cursor.column),
+            (1, 3),
+            "word_wrap={word_wrap}: \"y\" after two tabs"
+        );
+
+        if word_wrap {
+            editor.move_cursor_down_visual();
+        } else {
+            editor.move_cursor_down();
+        }
+        assert_eq!(
+            (editor.cursor.line, editor.cursor.column),
+            (2, 9),
+            "word_wrap={word_wrap}: back on the spaces line"
+        );
+    }
+}
+
+/// A diagnostic's underline sits under the text as drawn: its LSP range
+/// counts UTF-16 units (an emoji is two), and the tab before it is expanded.
+#[test]
+fn a_diagnostic_underline_follows_tabs_and_wide_text() {
+    use lsp_types::{Diagnostic, Position, Range};
+
+    for word_wrap in [false, true] {
+        // "😀" is two columns and two UTF-16 units; the tab then reaches
+        // column 4, so "foo" (UTF-16 3..6) is drawn in columns 4..7.
+        let (mut editor, _file) = create_editor_with_content("😀\tfoo bar\n");
+        editor.config.word_wrap = word_wrap;
+        editor.config.tab_size = 4;
+        editor.lsp.diagnostics = vec![Diagnostic {
+            range: Range::new(Position::new(0, 3), Position::new(0, 6)),
+            message: "boom".to_string(),
+            ..Default::default()
+        }];
+        let rows = rendered_text_rows(&mut editor, 40, 4);
+        assert!(rows[0].starts_with("😀"), "word_wrap={word_wrap}: {rows:?}");
+        assert!(
+            rows[1].starts_with("    ~~~ boom"),
+            "word_wrap={word_wrap}: {rows:?}"
+        );
+    }
+}
+
+/// The completion popup opens on the row under the cursor, starting at the
+/// cursor's column, as drawn: after tabs and with the view scrolled sideways.
+#[test]
+fn the_completion_popup_opens_under_the_drawn_cursor() {
+    use lsp_types::{CompletionItem, CompletionResponse};
+
+    let (mut editor, _file) = create_editor_with_content("\t\tfoo\nbar\n");
+    editor.config.word_wrap = false;
+    editor.config.tab_size = 4;
+    editor.cursor = termide_buffer::Cursor::at(0, 3); // on "o", column 9
+    editor.lsp.completion_popup = Some(crate::completion_popup::CompletionPopup::from_response(
+        CompletionResponse::Array(vec![CompletionItem::new_simple(
+            "food".into(),
+            String::new(),
+        )]),
+    ));
+    let gutter = crate::rendering::line_number_width(editor.buffer.line_count()) as u16;
+
+    rendered_text_rows(&mut editor, 40, 10);
+    let rect = editor.lsp.popup_rect.expect("popup drawn");
+    assert_eq!((rect.x, rect.y), (gutter + 9, 1));
+
+    // Six content columns: the view scrolls so column 9 is the last one.
+    rendered_text_rows(&mut editor, gutter + 6, 10);
+    assert_eq!(editor.viewport().left_column, 4);
+    let rect = editor.lsp.popup_rect.expect("popup drawn");
+    assert_eq!(rect.y, 1);
+    assert!(rect.x <= gutter + 5, "{rect:?}");
+}
+
+/// A diagnostic repeated on a line is drawn once, and the rows the cursor
+/// and blame are shifted by count it once too.
+#[test]
+fn a_repeated_diagnostic_is_counted_as_drawn() {
+    use lsp_types::{Diagnostic, Position, Range};
+
+    let (mut editor, _file) = create_editor_with_content("foo\nbar\n");
+    let diag = Diagnostic {
+        range: Range::new(Position::new(0, 0), Position::new(0, 3)),
+        message: "boom".to_string(),
+        ..Default::default()
+    };
+    editor.lsp.diagnostics = vec![diag.clone()];
+    let once = editor.count_virtual_rows_between(0, 1, 40);
+    assert_eq!(once, 1);
+
+    editor.lsp.diagnostics = vec![diag.clone(), diag];
+    assert_eq!(editor.count_virtual_rows_between(0, 1, 40), once);
+    let rows = rendered_text_rows(&mut editor, 40, 4);
+    assert!(rows[1].starts_with("~~~ boom"), "{rows:?}");
+    assert!(rows[2].starts_with("bar"), "{rows:?}");
+}
+
+/// Without word wrap too, passing through a short line keeps the screen
+/// column: the cursor comes back to it on the next long line. A cursor set
+/// by anything else (a click, a jump) starts from its own column.
+#[test]
+fn a_short_line_does_not_lose_the_column() {
+    let (mut editor, _file) = create_editor_with_content("abcdefgh\nab\n\tefgh\nabcdefgh\n");
+    editor.config.word_wrap = false;
+    editor.config.tab_size = 4;
+    rendered_text_rows(&mut editor, 40, 6);
+    editor.cursor = termide_buffer::Cursor::at(0, 6);
+
+    editor.move_cursor_down();
+    assert_eq!((editor.cursor.line, editor.cursor.column), (1, 2));
+    editor.move_cursor_down();
+    // Column 6 on "\tefgh" is the "g" (the tab spans columns 0..4).
+    assert_eq!((editor.cursor.line, editor.cursor.column), (2, 3));
+    editor.move_cursor_down();
+    assert_eq!((editor.cursor.line, editor.cursor.column), (3, 6));
+
+    // Placed elsewhere, the cursor keeps its own column from there.
+    editor.cursor = termide_buffer::Cursor::at(3, 1);
+    editor.move_cursor_up();
+    assert_eq!((editor.cursor.line, editor.cursor.column), (2, 0));
+}

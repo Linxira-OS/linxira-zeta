@@ -13,7 +13,7 @@ use super::SettingsTab;
 /// Type of a settings field for rendering and editing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum FieldType {
-    /// Boolean toggle — [✓] / [✗]
+    /// Boolean toggle — [✓] / [ ]
     Bool,
     /// Unsigned integer (u16, u32, u64, usize)
     Number,
@@ -21,6 +21,9 @@ pub(super) enum FieldType {
     Enum,
     /// Optional string — shows "(auto)" placeholder when None
     OptionalText,
+    /// Optional unsigned integer: an empty or zero entry clears it back to
+    /// None. The None display is chosen per field (e.g. a default value).
+    OptionalNumber,
 }
 
 /// Descriptor for a single settings field.
@@ -31,7 +34,7 @@ pub(super) struct FieldDescriptor {
 }
 
 /// A single renderable row in the content area.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ContentRow {
     /// Non-selectable group header.
     Header(&'static str),
@@ -43,6 +46,13 @@ pub(super) enum ContentRow {
     LspAddServer,
     /// LSP: existing server (index into `lsp_server_keys`).
     LspServer(usize),
+    /// AI: a connection (index into `ai.connections`, which keeps its names
+    /// sorted); opens its page.
+    Connection(usize),
+    /// AI: "+ Add connection" action row.
+    ConnectionAdd,
+    /// Connection page: the buttons back to the list and deleting it.
+    ConnectionButtons,
 }
 
 impl ContentRow {
@@ -81,7 +91,7 @@ pub(super) fn fields_for_tab(tab: SettingsTab) -> Vec<FieldDescriptor> {
                 field_type: FieldType::Number,
             },
             FieldDescriptor {
-                label: t.settings_general_session_retention(),
+                label: t.settings_general_project_retention(),
                 field_type: FieldType::Number,
             },
             FieldDescriptor {
@@ -181,6 +191,45 @@ pub(super) fn fields_for_tab(tab: SettingsTab) -> Vec<FieldDescriptor> {
             label: t.settings_vfs_connection_timeout(),
             field_type: FieldType::Number,
         }],
+        SettingsTab::Ai => vec![
+            FieldDescriptor {
+                label: t.settings_agent_max_tokens(),
+                field_type: FieldType::Number,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_reasoning(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_autofold(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_web_backend(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_web_engine(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_web_display(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_web_chrome_path(),
+                field_type: FieldType::OptionalText,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_permission_mode(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_auto_reviewer(),
+                field_type: FieldType::Enum,
+            },
+        ],
+        SettingsTab::Connection => super::connection::connection_fields(),
         SettingsTab::Keybindings => vec![],
     }
 }
@@ -197,7 +246,7 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
             3 => format!("{:?}", config.general.icon_mode).to_lowercase(),
             4 => config.general.auto_stack_threshold.to_string(),
             5 => config.general.min_panel_width.to_string(),
-            6 => config.general.session_retention_days.to_string(),
+            6 => config.general.project_retention_days.to_string(),
             7 => bool_str(config.general.bell_on_operation_complete),
             8 => config.general.resource_monitor_interval.to_string(),
             9 => bool_str(config.general.always_detachable),
@@ -228,7 +277,7 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
                 .terminal
                 .default_shell
                 .clone()
-                .unwrap_or_else(|| "(auto)".to_string()),
+                .unwrap_or_else(|| i18n::t().settings_value_auto().to_string()),
             _ => String::new(),
         },
         SettingsTab::Lsp => match index {
@@ -243,7 +292,7 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
                 .logging
                 .file_path
                 .clone()
-                .unwrap_or_else(|| "(none)".to_string()),
+                .unwrap_or_else(|| i18n::t().settings_value_none().to_string()),
             1 => config.logging.min_level.clone(),
             _ => String::new(),
         },
@@ -251,11 +300,68 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
             0 => config.vfs.connection_timeout_secs.to_string(),
             _ => String::new(),
         },
+        SettingsTab::Ai => match index {
+            0 => config.ai.output_limit().map_or_else(
+                || i18n::t().settings_value_no_limit().to_string(),
+                |n| n.to_string(),
+            ),
+            1 => config.ai.reasoning.label().to_string(),
+            2 => fold_blocks_label(config.ai.fold_blocks),
+            3 => config.ai.web.backend.clone(),
+            4 => config.ai.web.engine.clone(),
+            5 => config.ai.web.display.clone(),
+            6 => {
+                if config.ai.web.chrome_path.is_empty() {
+                    i18n::t().settings_value_auto().to_string()
+                } else {
+                    config.ai.web.chrome_path.clone()
+                }
+            }
+            AI_PERMISSION_MODE_FIELD => permission_mode_label(config.ai.permission_mode()),
+            AI_AUTO_REVIEWER_FIELD => auto_reviewer_label(&config.ai.auto_reviewer),
+            _ => String::new(),
+        },
+        // Read from the open connection by the modal, not the config alone.
+        SettingsTab::Connection => String::new(),
         SettingsTab::Keybindings => String::new(),
     }
 }
 
-fn bool_str(v: bool) -> String {
+/// A string field's value, or the `(unset)` placeholder when it is empty.
+pub(super) fn empty_or(value: &str) -> String {
+    if value.is_empty() {
+        i18n::t().settings_value_unset().to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+/// Display label for a provider value: the wire protocol is stored, but the
+/// row shows that the endpoint is free-form (base_url picks the real server).
+pub(super) fn provider_label(value: &str) -> String {
+    match value {
+        "anthropic_compatible" | "anthropic" => "Anthropic compatible".to_string(),
+        "openai_compatible" | "openai" => "OpenAI compatible".to_string(),
+        "claude_code" => "Claude Code".to_string(),
+        "codex" => "Codex".to_string(),
+        "gemini_cli" => "Gemini CLI".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// The AI provider values offered in the dropdown, and their labels, sorted by
+/// label. `claude_code`, `codex` and `gemini_cli` drive the matching CLI over ACP (they own
+/// their own model, endpoint and auth), so they are named after the tool, not
+/// "subscription" — the CLI may sign in with a subscription or an API key.
+pub(super) const PROVIDER_VALUES: [&str; 5] = [
+    "anthropic_compatible",
+    "claude_code",
+    "codex",
+    "gemini_cli",
+    "openai_compatible",
+];
+
+pub(super) fn bool_str(v: bool) -> String {
     if v {
         "true".to_string()
     } else {
@@ -347,6 +453,54 @@ pub(super) fn enum_options(config: &Config, tab: SettingsTab, index: usize) -> O
                 .collect();
             (values.clone(), values, config.logging.min_level.clone())
         }
+        (SettingsTab::Ai, 1) => {
+            let values: Vec<String> = termide_config::ThinkingLevel::ALL
+                .iter()
+                .map(|level| level.label().to_string())
+                .collect();
+            (
+                values.clone(),
+                values,
+                config.ai.reasoning.label().to_string(),
+            )
+        }
+        (SettingsTab::Ai, 2) => {
+            let values: Vec<String> = termide_config::FoldBlocks::ALL
+                .iter()
+                .map(|f| f.label().to_string())
+                .collect();
+            let labels = termide_config::FoldBlocks::ALL
+                .iter()
+                .map(|f| fold_blocks_label(*f))
+                .collect();
+            (values, labels, config.ai.fold_blocks.label().to_string())
+        }
+        (SettingsTab::Ai, 3) => {
+            let values = strings(&termide_config::WEB_BACKENDS);
+            (values.clone(), values, config.ai.web.backend.clone())
+        }
+        (SettingsTab::Ai, 4) => {
+            // The shipped engines, plus a user-defined one when it is set.
+            let mut values = strings(&termide_config::builtin_web_engines());
+            if !values.contains(&config.ai.web.engine) {
+                values.push(config.ai.web.engine.clone());
+            }
+            (values.clone(), values, config.ai.web.engine.clone())
+        }
+        (SettingsTab::Ai, 5) => {
+            let values = strings(&termide_config::WEB_DISPLAYS);
+            (values.clone(), values, config.ai.web.display.clone())
+        }
+        (SettingsTab::Ai, AI_PERMISSION_MODE_FIELD) => {
+            let values = strings(&termide_config::permission_modes());
+            let labels = values.iter().map(|v| permission_mode_label(v)).collect();
+            (values, labels, config.ai.permission_mode().to_string())
+        }
+        (SettingsTab::Ai, AI_AUTO_REVIEWER_FIELD) => {
+            let values = auto_reviewer_choices(config);
+            let labels = values.iter().map(|v| auto_reviewer_label(v)).collect();
+            (values, labels, config.ai.auto_reviewer.clone())
+        }
         _ => return None,
     };
 
@@ -371,9 +525,162 @@ pub(super) fn apply_enum_value(config: &mut Config, tab: SettingsTab, index: usi
             }
         }
         (SettingsTab::Logging, 1) => config.logging.min_level = value.to_string(),
+        (SettingsTab::Ai, 1) => {
+            if let Some(level) = termide_config::ThinkingLevel::parse(value) {
+                config.ai.reasoning = level;
+            }
+        }
+        (SettingsTab::Ai, 2) => {
+            if let Some(fold) = termide_config::FoldBlocks::ALL
+                .into_iter()
+                .find(|f| f.label() == value)
+            {
+                config.ai.fold_blocks = fold;
+            }
+        }
+        (SettingsTab::Ai, 3) => config.ai.web.backend = value.to_string(),
+        (SettingsTab::Ai, 4) => config.ai.web.engine = value.to_string(),
+        (SettingsTab::Ai, 5) => config.ai.web.display = value.to_string(),
+        (SettingsTab::Ai, AI_PERMISSION_MODE_FIELD) => config.ai.set_permission_mode(value),
+        (SettingsTab::Ai, AI_AUTO_REVIEWER_FIELD) => config.ai.auto_reviewer = value.to_string(),
         _ => {}
     }
 }
+
+/// A fold mode's localized name.
+fn fold_blocks_label(fold: termide_config::FoldBlocks) -> String {
+    let t = i18n::t();
+    match fold {
+        termide_config::FoldBlocks::Immediately => t.settings_agent_fold_immediately(),
+        termide_config::FoldBlocks::OnFinish => t.settings_agent_fold_on_finish(),
+        termide_config::FoldBlocks::Never => t.settings_agent_fold_never(),
+    }
+    .to_string()
+}
+
+/// Step the fold mode to the next (or previous) one, wrapping.
+fn cycle_fold_blocks(config: &mut Config, forward: bool) {
+    let all = termide_config::FoldBlocks::ALL;
+    let pos = all
+        .iter()
+        .position(|f| *f == config.ai.fold_blocks)
+        .unwrap_or(0);
+    let len = all.len();
+    config.ai.fold_blocks = all[if forward {
+        (pos + 1) % len
+    } else {
+        (pos + len - 1) % len
+    }];
+}
+
+/// The AI tab's field for the permission mode new sessions start in.
+pub(super) const AI_PERMISSION_MODE_FIELD: usize = 7;
+
+/// A permission mode's localized name, as the agent panel's mode picker
+/// shows it.
+fn permission_mode_label(mode: &str) -> String {
+    let t = i18n::t();
+    match mode {
+        "ask" => t.agent_mode_ask(),
+        "plan" => t.agent_mode_plan(),
+        "edit" => t.agent_mode_edit(),
+        "auto" => t.agent_mode_auto(),
+        "all" => t.agent_mode_all(),
+        _ => t.agent_mode_configured(),
+    }
+    .to_string()
+}
+
+/// The AI tab's field for the connection whose model reviews in `auto` mode.
+pub(super) const AI_AUTO_REVIEWER_FIELD: usize = 8;
+
+/// What the `auto` mode reviewer can be: the session's model (empty), or a
+/// connection to a model — a CLI agent reviews nothing.
+fn auto_reviewer_choices(config: &Config) -> Vec<String> {
+    std::iter::once(String::new())
+        .chain(
+            config
+                .ai
+                .connections
+                .iter()
+                .filter(|(_, c)| !termide_config::is_cli_provider(&c.provider))
+                .map(|(name, _)| name.clone()),
+        )
+        .collect()
+}
+
+fn auto_reviewer_label(value: &str) -> String {
+    if value.is_empty() {
+        i18n::t().settings_agent_auto_reviewer_session().to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+fn cycle_auto_reviewer(config: &mut Config, forward: bool) {
+    let choices = auto_reviewer_choices(config);
+    step_value(&mut config.ai.auto_reviewer, &choices, forward);
+}
+
+/// Step the permission mode to the next (or previous) one, wrapping.
+fn cycle_permission_mode(config: &mut Config, forward: bool) {
+    let modes = termide_config::permission_modes();
+    let mut value = config.ai.permission_mode().to_string();
+    step_value(&mut value, &strings(&modes), forward);
+    config.ai.set_permission_mode(&value);
+}
+
+fn strings(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| value.to_string()).collect()
+}
+
+/// Step a string enum field through `options`, wrapping; a value outside
+/// the list starts from the first option.
+pub(super) fn step_value(value: &mut String, options: &[String], forward: bool) {
+    let len = options.len();
+    if len == 0 {
+        return;
+    }
+    let next = match options.iter().position(|option| option == value) {
+        Some(pos) if forward => (pos + 1) % len,
+        Some(pos) => (pos + len - 1) % len,
+        None => 0,
+    };
+    *value = options[next].clone();
+}
+
+/// Step the reasoning level new sessions ask for, wrapping.
+fn cycle_reasoning(config: &mut Config, forward: bool) {
+    let all = termide_config::ThinkingLevel::ALL;
+    let pos = all
+        .iter()
+        .position(|level| *level == config.ai.reasoning)
+        .unwrap_or(0);
+    let len = all.len();
+    config.ai.reasoning = all[if forward {
+        (pos + 1) % len
+    } else {
+        (pos + len - 1) % len
+    }];
+}
+
+/// Cycle one of the AI tab's web enum fields (3 to 5).
+fn cycle_web_field(config: &mut Config, index: usize, forward: bool) {
+    let Some(options) = enum_options(config, SettingsTab::Ai, index) else {
+        return;
+    };
+    let field = match index {
+        3 => &mut config.ai.web.backend,
+        4 => &mut config.ai.web.engine,
+        5 => &mut config.ai.web.display,
+        _ => return,
+    };
+    step_value(field, &options.values, forward);
+}
+
+/// The model dropdown's value that stands for "type an id by hand" instead
+/// of choosing a listed model.
+pub(super) const MODEL_TYPE_SENTINEL: &str = "\u{0}type-a-model-id";
 
 /// Cycle an enum field to the next variant.
 pub(super) fn cycle_enum_forward(config: &mut Config, tab: SettingsTab, index: usize) {
@@ -414,6 +721,14 @@ pub(super) fn cycle_enum_forward(config: &mut Config, tab: SettingsTab, index: u
                 };
             }
         }
+        SettingsTab::Ai => match index {
+            1 => cycle_reasoning(config, true),
+            2 => cycle_fold_blocks(config, true),
+            3..=5 => cycle_web_field(config, index, true),
+            AI_PERMISSION_MODE_FIELD => cycle_permission_mode(config, true),
+            AI_AUTO_REVIEWER_FIELD => cycle_auto_reviewer(config, true),
+            _ => {}
+        },
         _ => {}
     }
 }
@@ -458,6 +773,14 @@ pub(super) fn cycle_enum_backward(config: &mut Config, tab: SettingsTab, index: 
                 };
             }
         }
+        SettingsTab::Ai => match index {
+            1 => cycle_reasoning(config, false),
+            2 => cycle_fold_blocks(config, false),
+            3..=5 => cycle_web_field(config, index, false),
+            AI_PERMISSION_MODE_FIELD => cycle_permission_mode(config, false),
+            AI_AUTO_REVIEWER_FIELD => cycle_auto_reviewer(config, false),
+            _ => {}
+        },
         _ => {}
     }
 }
@@ -505,6 +828,37 @@ mod field_index_tests {
             Config::default().general.bell_on_operation_complete
         );
     }
+
+    #[test]
+    fn web_fields_read_and_write_their_own_settings() {
+        let mut config = Config::default();
+        let fields = fields_for_tab(SettingsTab::Ai);
+        assert_eq!(
+            fields.len(),
+            9,
+            "the permission mode and its reviewer follow the web fields"
+        );
+        assert!(matches!(fields[6].field_type, FieldType::OptionalText));
+        assert!(matches!(fields[7].field_type, FieldType::Enum));
+
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, 3), "auto");
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, 4), "duckduckgo");
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, 5), "headless");
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, 6), "(auto)");
+
+        apply_enum_value(&mut config, SettingsTab::Ai, 4, "bing");
+        assert_eq!(config.ai.web.engine, "bing");
+        cycle_enum_forward(&mut config, SettingsTab::Ai, 3);
+        assert_eq!(config.ai.web.backend, "chrome");
+        cycle_enum_backward(&mut config, SettingsTab::Ai, 5);
+        assert_eq!(config.ai.web.display, "visible");
+
+        // A user-defined engine stays selectable.
+        config.ai.web.engine = "intranet".into();
+        let options = enum_options(&config, SettingsTab::Ai, 4).unwrap();
+        assert_eq!(options.values.last().map(String::as_str), Some("intranet"));
+        assert_eq!(options.current, Some(options.values.len() - 1));
+    }
 }
 
 #[cfg(test)]
@@ -525,6 +879,7 @@ mod enum_option_tests {
             SettingsTab::Lsp,
             SettingsTab::Logging,
             SettingsTab::Vfs,
+            SettingsTab::Ai,
         ];
 
         for tab in tabs {
@@ -545,6 +900,88 @@ mod enum_option_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn blocks_fold_immediately_on_finish_or_never() {
+        let mut config = Config::default();
+        let options = enum_options(&config, SettingsTab::Ai, 2).unwrap();
+        assert_eq!(options.values, ["immediately", "on-finish", "never"]);
+        assert_eq!(options.current, Some(0));
+        assert_eq!(
+            get_field_value(&config, SettingsTab::Ai, 2),
+            i18n::t().settings_agent_fold_immediately()
+        );
+        apply_enum_value(&mut config, SettingsTab::Ai, 2, "never");
+        assert_eq!(config.ai.fold_blocks, termide_config::FoldBlocks::Never);
+        cycle_enum_forward(&mut config, SettingsTab::Ai, 2);
+        assert_eq!(
+            config.ai.fold_blocks,
+            termide_config::FoldBlocks::Immediately
+        );
+        cycle_enum_backward(&mut config, SettingsTab::Ai, 2);
+        assert_eq!(config.ai.fold_blocks, termide_config::FoldBlocks::Never);
+    }
+
+    #[test]
+    fn the_permission_mode_for_new_sessions_is_chosen_from_the_six() {
+        let mut config = Config::default();
+        let field = AI_PERMISSION_MODE_FIELD;
+        // Auto by default, shown by its localized name.
+        assert_eq!(config.ai.permission_mode(), "auto");
+        let options = enum_options(&config, SettingsTab::Ai, field).unwrap();
+        assert_eq!(
+            options.values,
+            ["ask", "plan", "edit", "configured", "auto", "all"]
+        );
+        assert_eq!(options.current, Some(4));
+        assert_eq!(
+            get_field_value(&config, SettingsTab::Ai, field),
+            i18n::t().agent_mode_auto()
+        );
+        apply_enum_value(&mut config, SettingsTab::Ai, field, "edit");
+        assert_eq!(config.ai.permission_mode(), "edit");
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.permission_mode(), "configured");
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.permission_mode(), "auto");
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.permission_mode(), "all");
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.permission_mode(), "ask");
+        cycle_enum_backward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.permission_mode(), "all");
+    }
+
+    #[test]
+    fn the_auto_reviewer_is_the_session_model_or_a_model_connection() {
+        let mut config = Config::default();
+        for (name, provider) in [("cloud", "anthropic_compatible"), ("cli", "claude_code")] {
+            config.ai.connections.insert(
+                name.to_string(),
+                termide_config::Connection {
+                    provider: provider.to_string(),
+                    ..termide_config::Connection::default()
+                },
+            );
+        }
+        let field = AI_AUTO_REVIEWER_FIELD;
+        assert_eq!(fields_for_tab(SettingsTab::Ai).len(), field + 1);
+        let options = enum_options(&config, SettingsTab::Ai, field).unwrap();
+        // A CLI agent cannot review.
+        assert_eq!(options.values, ["", "cloud"]);
+        assert_eq!(options.current, Some(0));
+        assert_eq!(
+            get_field_value(&config, SettingsTab::Ai, field),
+            i18n::t().settings_agent_auto_reviewer_session()
+        );
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.auto_reviewer, "cloud");
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, field), "cloud");
+        cycle_enum_backward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.auto_reviewer, "");
+        apply_enum_value(&mut config, SettingsTab::Ai, field, "cloud");
+        assert_eq!(config.ai.auto_reviewer, "cloud");
     }
 
     /// Choosing from the dropdown and cycling with Left/Right must write the

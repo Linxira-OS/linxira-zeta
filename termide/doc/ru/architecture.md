@@ -158,7 +158,7 @@ pub trait Panel {
 
 **Editor** (`crates/panel-editor/src/lib.rs`)
 - Редактирование текста с отменой/повтором
-- Подсветка синтаксиса через tree-sitter (15+ языков)
+- Подсветка синтаксиса через tree-sitter (23 языка)
 - Поиск и замена со встроенными строками поиска
 - Номера строк, позиция курсора, перенос строк
 - Навигация по словам (Ctrl+Left/Right), навигация по параграфам/символам (Ctrl+Up/Down)
@@ -302,7 +302,7 @@ while !state.should_quit {
   - `settings/fields.rs` — декларативные данные полей (`FieldType`, `FieldDescriptor`, `ContentRow`, функции `fields_for_tab`, `get_field_value`, `toggle_field`, `cycle_enum_*`)
   - `settings/kb.rs` — макросы и таблицы keybindings (`kb_get!`/`kb_set!`, `KB_SECTIONS`, `kb_binding_names`, `get/set_kb_value`, `format_key_event`)
 - **Progress** — progress-bar для длительных операций
-- **Commit** / **Conflict** / **RenamePattern** / **Sessions** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — специализированные диалоги для отдельных операций
+- **Commit** / **Conflict** / **RenamePattern** / **Projects** / **DirectoryPicker** / **SaveAs** / **BookmarkAdd** / **Calendar** / **CommandPalette** / **ScriptCreate** — специализированные диалоги для отдельных операций
 
 Общие утилиты вынесены в `crates/modal/src/base.rs` (`render_modal_block`, `render_modal_frame`, `button_style`, `CursorNavigation` trait).
 
@@ -508,7 +508,7 @@ crates/i18n/
 - Управление raw режимом
 
 **Tree-sitter** - Подсветка синтаксиса
-- Генераторы парсеров для 15+ языков
+- Генераторы парсеров для 23 языков
 - Инкрементальный парсинг для производительности
 - Система запросов для подсветки синтаксиса
 
@@ -597,7 +597,7 @@ crates/i18n/
 | Git-статус по записям FileManager           | `crates/panel-file-manager/src/git_status.rs`                   | `check_git_status_async`; `apply_git_statuses` переприменяет, если чтение опередило    |
 | Обновление панелей Git status / log         | `crates/panel-git-status/src/lib.rs`, `panel-git-log/src/lib.rs`| `poll_refresh` в `tick` каждой панели                                                  |
 | Поиск сабмодулей (RepoManager)              | `crates/git/src/repo_manager.rs` (`spawn_submodule_walk`)       | `RepoManager::poll` из `tick` git-панели                                               |
-| Восстановление сессии — панели параллельно  | `crates/app/src/layout_session.rs` (`construct_panel` на панель)| Джойнятся синхронно после запуска, так что самая медленная панель гейтит первый кадр   |
+| Восстановление раскладки — панели параллельно | `crates/app/src/layout_store.rs` (`construct_panel` на панель)| Джойнятся синхронно после запуска, так что самая медленная панель гейтит первый кадр   |
 | Регистрация репозиториев вотчером           | `crates/watcher/src/lib.rs` (`watch_repository`)                | `poll_pending` в главном цикле; inotify ставится чанками по `INSTALL_CHUNK` за тик, FSEvents (macOS) — один рекурсивный вотч на корень с фильтрацией по `.gitignore` при доставке |
 | Обход размера каталогов (широкий вид)        | `crates/panel-file-manager/src/utils.rs` (`shared_dir_size_cache`) | Покадровый `try_recv` к общему кэшу; бюджет ограничен на каждый обход                |
 
@@ -607,23 +607,31 @@ crates/i18n/
 паузы/отмены, поэтому приостановленная передача оставляет актор свободным для
 обслуживания запросов метаданных от других панелей.
 
-### 8. Управление сессиями
+### 8. Раскладки проектов
 
-**Расположение:** `crates/session/src/lib.rs`
+**Расположение:** `crates/project/src/lib.rs`
 
-Сохранение сессий позволяет сохранять и восстанавливать компоновку панелей:
+Раскладка панелей каждого проекта сохраняется и восстанавливается (`ProjectLayout`):
 
 **Расположение хранилища:**
-- Linux: `~/.local/share/termide/sessions/<путь_проекта>/session.toml`
-- macOS: `~/Library/Application Support/termide/sessions/<путь_проекта>/session.toml`
+- Linux: `~/.local/share/termide/projects/<путь_проекта>/session.toml`
+- macOS: `~/Library/Application Support/termide/projects/<путь_проекта>/session.toml`
+
+Каталог данных, оставшийся от версий до переименования, `sessions/`,
+переносится в `projects/` при первом запуске. То, что старая версия termide
+запишет в `sessions/` после этого, при следующем запуске сливается в
+`projects/`; из двух копий одного файла остаётся более новая. Каждый перенос и
+каждая ошибка записываются в панель **Журнал**.
 
 **Возможности:**
-- Автоматическое сохранение сессии при выходе
-- Восстановление компоновки панелей при запуске
-- Переключение между сессиями через меню (переключение между разными проектами)
-- Автоматическая очистка старых сессий
+- Автоматическое сохранение раскладки при выходе
+- Восстановление раскладки панелей при запуске
+- Переключение между проектами через меню «Проекты»
+- Автоматическая очистка старых раскладок (`project_retention_days`)
 
-**Формат файла сессии:**
+Файл сохраняет историческое имя `session.toml`.
+
+**Формат файла раскладки:**
 ```toml
 focused_group = 0
 
@@ -642,7 +650,7 @@ type = "editor"
 path = "/home/user/project/main.rs"
 ```
 
-Поле `mode = "accordion"` из старых сессий по-прежнему читается и инициирует одноразовую миграцию в fullscreen-пресет (текущий код его не пишет).
+Поле `mode = "accordion"` из старых раскладок проектов по-прежнему читается и инициирует одноразовую миграцию в fullscreen-пресет (текущий код его не пишет).
 
 ### 9. VFS (удалённые файловые системы)
 

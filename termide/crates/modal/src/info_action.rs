@@ -172,6 +172,15 @@ impl InfoActionModal {
         }
     }
 
+    /// The text the modal shows, joined for assertions and logging.
+    pub fn message_text(&self) -> String {
+        self.lines
+            .iter()
+            .map(|(_, v)| v.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     /// Add permissions editor widget (Unix mode bits with access control)
     pub fn with_permissions(mut self, mode: u32, access: PermAccess) -> Self {
         self.permissions = Some(PermissionsState::from_mode(mode, access));
@@ -423,29 +432,16 @@ impl Modal for InfoActionModal {
             let wrapped_values = Self::wrap_text(&display_value, available_value_width);
 
             if !wrapped_values.is_empty() {
-                let spans = if key.is_empty() {
-                    vec![
-                        Span::styled(
-                            format!("  {}{}", key, padding),
-                            Style::default()
-                                .fg(theme.accented_fg)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw("  "),
-                        Span::styled(wrapped_values[0].clone(), Style::default().fg(theme.fg)),
-                    ]
-                } else {
-                    vec![
-                        Span::styled(
-                            format!("  {}{}", key, padding),
-                            Style::default()
-                                .fg(theme.accented_fg)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::raw(": "),
-                        Span::styled(wrapped_values[0].clone(), Style::default().fg(theme.fg)),
-                    ]
-                };
+                let spans = vec![
+                    Span::styled(
+                        format!("  {}{}", key, padding),
+                        Style::default()
+                            .fg(theme.accented_fg)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("  "),
+                    Span::styled(wrapped_values[0].clone(), Style::default().fg(theme.fg)),
+                ];
                 text_lines.push(Line::from(spans));
 
                 let indent = " ".repeat(max_key_len + 4);
@@ -534,7 +530,7 @@ impl Modal for InfoActionModal {
                     let idx = row * 3 + col;
                     let bit = perms.bits[idx];
                     let is_locked = perms.locked[idx];
-                    let checkbox = if bit { "[x]" } else { "[ ]" };
+                    let checkbox = termide_ui::checkbox(bit);
 
                     let is_cursor =
                         is_focused && perms.cursor_row == row && perms.cursor_col == col;
@@ -807,5 +803,36 @@ impl Modal for InfoActionModal {
         }
 
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Keys and values are divided by two spaces, as in [`crate::InfoModal`].
+    #[test]
+    fn keys_are_divided_from_values_by_spaces() {
+        let _ = i18n::init();
+        let mut modal = InfoActionModal::new(
+            "Info",
+            vec![("Size".into(), "4 KB".into())],
+            vec![ActionButton::new("OK", "ok")],
+        );
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buf = Buffer::empty(area);
+        modal.render(area, &mut buf, &Theme::default());
+        let text = (0..area.height)
+            .map(|y| {
+                (0..area.width)
+                    .map(|x| buf[(x, y)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            text.contains("Size  4 KB") && !text.contains("Size:"),
+            "{text}"
+        );
     }
 }

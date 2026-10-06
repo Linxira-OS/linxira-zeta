@@ -44,7 +44,7 @@ impl App {
 
         if let Ok(terminal_panel) = result {
             self.add_panel(Box::new(terminal_panel));
-            self.auto_save_session();
+            self.auto_save_layout();
         }
         Ok(())
     }
@@ -85,7 +85,7 @@ impl App {
         };
 
         self.add_panel(Box::new(fm_panel));
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -104,7 +104,7 @@ impl App {
 
         let editor_panel = Editor::with_config(config);
         self.add_panel(Box::new(editor_panel));
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl App {
         self.close_help_panels();
         let journal_panel = Journal::new(self.state.theme);
         self.add_panel(Box::new(journal_panel));
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -146,7 +146,7 @@ impl App {
     pub(super) fn handle_new_help(&mut self) -> Result<()> {
         let help = Help::new(&self.state.config);
         self.add_panel(Box::new(help));
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -183,10 +183,49 @@ impl App {
         let project_override_active =
             termide_config::project_config_path(&self.project_root).exists();
         let modal = SettingsModal::new(config, project_override_active);
+        self.settings_model_fetch = None;
         self.state.set_pending_action(
             crate::state::PendingAction::Settings,
             ActiveModal::Settings(Box::new(modal)),
         );
+    }
+
+    /// Start the model fetch the settings modal asks for when it opens a
+    /// connection, and feed the list into the modal once it arrives; drop the
+    /// fetch if the modal has since closed. Cheap and safe to call every loop
+    /// — a no-op with nothing asked and no fetch in flight.
+    pub(super) fn poll_settings_model_fetch(&mut self) {
+        use termide_modal::ActiveModal;
+        if let Some(ActiveModal::Settings(modal)) = self.state.active_modal.as_mut() {
+            // A newer request replaces the fetch in flight: its list is for a
+            // connection no longer open.
+            if let Some(connection) = modal.take_model_fetch_request() {
+                self.settings_model_fetch =
+                    super::agent_panel::spawn_settings_model_fetch(&connection);
+            }
+        }
+        if self.settings_model_fetch.is_none() {
+            return;
+        }
+        if !matches!(self.state.active_modal, Some(ActiveModal::Settings(_))) {
+            self.settings_model_fetch = None;
+            return;
+        }
+        let received = self
+            .settings_model_fetch
+            .as_ref()
+            .and_then(|rx| rx.try_recv().ok());
+        let Some(result) = received else {
+            return;
+        };
+        self.settings_model_fetch = None;
+        if let Ok(models) = result {
+            let ids: Vec<String> = models.into_iter().map(|m| m.id).collect();
+            if let Some(ActiveModal::Settings(modal)) = self.state.active_modal.as_mut() {
+                modal.set_model_options(ids);
+                self.state.needs_redraw = true;
+            }
+        }
     }
 
     /// Open or refresh the References panel with LSP find-references results.
@@ -233,7 +272,7 @@ impl App {
         }
         // On first open: populate from any available editor
         self.populate_outline_from_any_editor();
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -252,7 +291,7 @@ impl App {
 
             self.add_panel(Box::new(diagnostics_panel));
         }
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -267,7 +306,7 @@ impl App {
         let paths = self.collect_repo_search_paths();
         let git_status_panel = termide_panel_git_status::GitStatusPanel::new(&paths);
         self.add_panel(Box::new(git_status_panel));
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 
@@ -280,7 +319,7 @@ impl App {
             let git_log_panel = termide_panel_git_log::GitLogPanel::new(&paths);
             self.add_panel(Box::new(git_log_panel));
         }
-        self.auto_save_session();
+        self.auto_save_layout();
         Ok(())
     }
 }
