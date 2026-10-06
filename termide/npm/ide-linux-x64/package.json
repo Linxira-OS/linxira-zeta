@@ -20,5 +20,8 @@
   ],
   "cpu": [
     "x64"
-  ]
+  ],
+  "scripts": {
+    "postinstall": "node -e \"if(process.platform!=='win32'){try{require('fs').chmodSync(require('path').join('bin','termide-linux-x64'),0o755)}catch(e){}}\""
+  }
 }
