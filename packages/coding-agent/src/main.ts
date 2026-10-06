@@ -112,6 +112,7 @@ import {
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
 import { resolveResumableSession, type SessionInfo, normalizeResumeSessionArg } from "./session/session-listing";
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
+import { moveSessionToTrash, scheduleTrashSweep } from "./session/session-trash";
 import { shouldShowStartupSplash } from "./startup-splash";
 import {
 	discoverSystemPromptOverride,
@@ -208,7 +209,7 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 				return query => history.matchingSessionIds(query);
 			},
 			deleteSession: async session => {
-				await storage.deleteSessionWithArtifacts(session.path);
+				await moveSessionToTrash(session.path);
 				return true;
 			},
 			loadAllSessions: () => SessionManager.listAllForPicker(storage),
@@ -673,6 +674,8 @@ async function runInteractiveMode(
 			}),
 		);
 		startDeferredStartupWork?.();
+		// Fire-and-forget: expire stale trash entries without delaying startup.
+		scheduleTrashSweep();
 
 		if (setupWizard && playStartupSplash) {
 			await setupWizard.runStartupSplash(mode);

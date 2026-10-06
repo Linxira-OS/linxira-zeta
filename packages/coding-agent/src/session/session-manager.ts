@@ -99,6 +99,7 @@ import {
 } from "./session-paths";
 import { prepareEntryForPersistence } from "./session-persistence";
 import { loadPinnedSessionIds, sortPinnedFirst } from "./session-pins";
+import { moveSessionToTrash } from "./session-trash";
 import {
 	FileSessionStorage,
 	MemorySessionStorage,
@@ -2258,11 +2259,16 @@ export class SessionManager {
 		return sessionFile;
 	}
 
-	/** Delete a session file and its artifact directory. ENOENT is treated as success. */
+	/**
+	 * Soft-delete a session: move the transcript, artifacts directory, and
+	 * stale backups into the session trash (`~/.zeta/trash/sessions/`) so
+	 * `/trash` can list and `/restore` can recover it. ENOENT is treated as
+	 * success.
+	 */
 	async dropSession(sessionPath: string): Promise<void> {
 		await this.#drainAndCloseWriter();
 		try {
-			await this.#storage.deleteSessionWithArtifacts(sessionPath);
+			await moveSessionToTrash(sessionPath);
 		} catch (err) {
 			if (!isEnoent(err)) throw err;
 		}

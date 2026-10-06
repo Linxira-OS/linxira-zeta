@@ -23,6 +23,7 @@ import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
+import { moveSessionToTrash } from "../../session/session-trash";
 import { serializeTitleSlot } from "../../session/session-title-slot";
 import { getRpcSession } from "./agents";
 import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
@@ -652,7 +653,8 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		const webConfig = await WebConfig.load();
 		const disposed = await disposeSessionRegistryEntry(webConfig, filePath);
 		if (disposed === "relay-protected") {
-			return json({ error: "relay 会话不可删除" }, 400);
+			// `code` lets API clients localize; the message keeps the legacy copy.
+			return json({ error: "relay 会话不可删除", code: "relay-protected" }, 400);
 		}
 
 		// Read only the bounded header before deleting.
@@ -688,7 +690,10 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		}
 
 		removeRunningSession(sessionId);
-		fs.unlinkSync(filePath);
+		// Soft-delete: the transcript (plus artifacts and stale backups) moves to
+		// `~/.zeta/trash/sessions/<timestamp>_<id>/` so `/trash` + `/restore` can
+		// recover it until the retention sweeper expires it.
+		await moveSessionToTrash(filePath);
 		invalidateSessionPathCache(sessionId);
 		invalidateSessionListCache();
 		await maybeRemoveWorktreeAfterSessionDelete(sessionCwd);
