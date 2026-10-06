@@ -156,12 +156,13 @@ describe("BTW session boundaries", () => {
 		const panel = await picker(action === "picker delete" ? sourceFile : await targetSession());
 		const done = Promise.withResolvers<void>();
 		if (action === "picker delete") {
-			const remove = FileSessionStorage.prototype.deleteSessionWithArtifacts;
-			vi.spyOn(FileSessionStorage.prototype, "deleteSessionWithArtifacts").mockImplementation(
+			const remove = FileSessionStorage.prototype.moveSessionWithArtifactsToTrash;
+			vi.spyOn(FileSessionStorage.prototype, "moveSessionWithArtifactsToTrash").mockImplementation(
 				async function (this: FileSessionStorage, file) {
 					try {
-						await remove.call(this, file);
+						const result = await remove.call(this, file);
 						done.resolve();
+						return result;
 					} catch (error) {
 						done.reject(error);
 						throw error;
@@ -262,11 +263,12 @@ describe("BTW session boundaries", () => {
 		const target = await targetSession();
 		const panel = await picker(target);
 		const removed = Promise.withResolvers<void>();
-		const remove = FileSessionStorage.prototype.deleteSessionWithArtifacts;
-		vi.spyOn(FileSessionStorage.prototype, "deleteSessionWithArtifacts").mockImplementation(
+		const remove = FileSessionStorage.prototype.moveSessionWithArtifactsToTrash;
+		vi.spyOn(FileSessionStorage.prototype, "moveSessionWithArtifactsToTrash").mockImplementation(
 			async function (this: FileSessionStorage, file) {
-				await remove.call(this, file);
+				const result = await remove.call(this, file);
 				removed.resolve();
+				return result;
 			},
 		);
 		panel.handleInput("\x1b[3~");

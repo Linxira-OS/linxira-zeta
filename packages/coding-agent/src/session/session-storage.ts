@@ -19,6 +19,7 @@ import {
 	type SessionTitleUpdate,
 	serializeTitleSlot,
 } from "./session-title-slot";
+import { moveSessionToTrash, type TrashMoveOptions, type TrashMoveResult } from "./session-trash";
 
 /** Shared base flags for the held transcript descriptor; callers add `O_APPEND` or `O_TRUNC`. */
 const SESSION_WRITE_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT;
@@ -1141,6 +1142,16 @@ export class FileSessionStorage implements SessionStorage {
 			return true;
 		});
 		return Promise.resolve(deleted);
+	}
+
+	/**
+	 * Soft-delete a session: move the transcript, artifacts directory, and
+	 * stale `.bak` backups into the session trash. A missing session file is a
+	 * no-op. Kept as a prototype method (like {@link deleteSessionWithArtifacts})
+	 * so tests can spy the picker-delete completion seam.
+	 */
+	moveSessionWithArtifactsToTrash(sessionPath: string, options?: TrashMoveOptions): Promise<TrashMoveResult> {
+		return moveSessionToTrash(sessionPath, options);
 	}
 
 	/**

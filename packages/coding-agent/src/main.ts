@@ -112,7 +112,7 @@ import {
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
 import { resolveResumableSession, type SessionInfo, normalizeResumeSessionArg } from "./session/session-listing";
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
-import { moveSessionToTrash, scheduleTrashSweep } from "./session/session-trash";
+import { scheduleTrashSweep } from "./session/session-trash";
 import { shouldShowStartupSplash } from "./startup-splash";
 import {
 	discoverSystemPromptOverride,
@@ -209,7 +209,7 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 				return query => history.matchingSessionIds(query);
 			},
 			deleteSession: async session => {
-				await moveSessionToTrash(session.path);
+				await storage.moveSessionWithArtifactsToTrash(session.path);
 				return true;
 			},
 			loadAllSessions: () => SessionManager.listAllForPicker(storage),

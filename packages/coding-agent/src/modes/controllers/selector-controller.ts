@@ -76,7 +76,6 @@ import type { SessionEntry, SessionTreeNode } from "../../session/session-entrie
 import type { SessionInfo } from "../../session/session-listing";
 import { SessionManager } from "../../session/session-manager";
 import { loadPinnedSessionIds } from "../../session/session-pins";
-import { moveSessionToTrash } from "../../session/session-trash";
 import { FileSessionStorage } from "../../session/session-storage";
 import { toLogoutAccounts } from "../../slash-commands/helpers/logout";
 import type {
@@ -1965,8 +1964,9 @@ export class SelectorController {
 					if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) {
 						return false;
 					}
+					const storage = new FileSessionStorage();
 					try {
-						await moveSessionToTrash(session.path);
+						await storage.moveSessionWithArtifactsToTrash(session.path);
 						return true;
 					} catch (error) {
 						throw new Error(
@@ -2139,7 +2139,7 @@ export class SelectorController {
 		}
 
 		// Move the session file, artifacts, and stale backups into the trash
-		await moveSessionToTrash(sessionFile);
+		await storage.moveSessionWithArtifactsToTrash(sessionFile);
 
 		// Show session selector
 		this.ctx.showStatus("Session deleted");

@@ -21,8 +21,8 @@ import { isEnoent, logger } from "@linxiraos/pi-utils";
 // session-trash — and the Settings singleton is only dereferenced at sweep
 // time (inside the function body), never at module-eval time.
 import { Settings } from "../config/settings";
-import { cfgSessionTrashRetentionDays } from "./settings";
-import { parseSessionContent } from "./session-loader";
+import { cfgSessionTrashRetentionDays } from "./trash-settings";
+import { parseTitleSlotFromContent } from "./session-title-slot";
 
 const JSONL_SUFFIX = ".jsonl";
 const JSONL_SUFFIX_LENGTH = JSONL_SUFFIX.length;
@@ -61,6 +61,12 @@ export interface TrashMoveResult {
 	entry: TrashEntry | null;
 }
 
+/** Optional overrides for {@link moveSessionToTrash} (tests and redirections). */
+export interface TrashMoveOptions {
+	trashDir?: string;
+	now?: Date;
+}
+
 export interface RestoreTrashResult {
 	sessionFile: string;
 	artifactsDir: string | null;
@@ -87,9 +93,27 @@ function sessionIdFromFileName(sessionFile: string): string {
 function readHeaderInfo(sessionPath: string): { sessionId: string | undefined; title: string | null } {
 	try {
 		const content = fs.readFileSync(sessionPath, "utf8");
-		const { entries } = parseSessionContent(content);
-		const header = entries.find(entry => entry.type === "session") as { id?: string; title?: string } | undefined;
-		return { sessionId: header?.id, title: header?.title ?? null };
+		// The title slot line (when present) carries the current display title,
+		// mirroring how the loader applies it to the session header entry.
+		const slot = parseTitleSlotFromContent(content);
+		// Without a slot line the header is the first line, so scan everything.
+		const newline = content.indexOf("\n");
+		const body = slot && newline >= 0 ? content.slice(newline + 1) : content;
+		for (const line of body.split("\n")) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			try {
+				const parsed = JSON.parse(trimmed) as { type?: string; id?: string; title?: string };
+				if (parsed.type !== "session") continue;
+				return {
+					sessionId: parsed.id,
+					title: (slot?.title && slot.title.length > 0 ? slot.title : parsed.title) ?? null,
+				};
+			} catch {
+				// Skip malformed lines; keep scanning for the header entry.
+			}
+		}
+		return { sessionId: undefined, title: slot?.title ?? null };
 	} catch {
 		return { sessionId: undefined, title: null };
 	}
@@ -127,10 +151,7 @@ async function moveInto(from: string, toDir: string, toName?: string): Promise<s
  * failure there logs a warning instead of failing the delete the user asked
  * for (the transcript is already safely in the trash).
  */
-export async function moveSessionToTrash(
-	sessionPath: string,
-	options?: { trashDir?: string; now?: Date },
-): Promise<TrashMoveResult> {
+export async function moveSessionToTrash(sessionPath: string, options?: TrashMoveOptions): Promise<TrashMoveResult> {
 	const resolved = path.resolve(sessionPath);
 	let stat: Stats;
 	try {
