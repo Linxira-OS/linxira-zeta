@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
 ## [1.1.27] - 2026-10-06
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
@@ -376,6 +374,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.1.27] - 2026-10-06
+
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 
 ## [1.1.27] - 2026-10-06
 

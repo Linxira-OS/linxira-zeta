@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
 ## [1.1.27] - 2026-10-06
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
@@ -776,6 +774,10 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
+
+## [1.1.27] - 2026-10-06
+
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 
 ## [1.1.27] - 2026-10-06
 
