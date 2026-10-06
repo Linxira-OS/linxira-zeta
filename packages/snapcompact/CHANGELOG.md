@@ -4,14 +4,6 @@
 
 ## [1.1.27] - 2026-10-06
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
 ### Breaking Changes
 
 - `maxFramesForDataBudget()` now takes the frame shape instead of a byte budget, so the default 1568px shapes get 26 frames instead of 17 ([#14277](https://github.com/can1357/oh-my-pi/pull/14277) by [@will-bogusz](https://github.com/will-bogusz)).

@@ -4,14 +4,6 @@
 
 ## [1.1.27] - 2026-10-06
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-06
-
 ### Breaking Changes
 
 - Replaced the `cursorPosition` option of `TerminalQueryResponder` with `hostCursorHandshake`, which leaves only the PTY host's own session-start cursor query unanswered instead of every cursor-position query
