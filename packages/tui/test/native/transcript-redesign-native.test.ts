@@ -126,7 +126,7 @@ describe("native transcript redesign", () => {
 		const component = new AssistantMessageComponent(message);
 		harness = await TspHarness.start();
 		harness.tui.addChild(component);
-		const thought = () => harness!.find(node => node.k === "section" && node.p?.role === "omp.thinking");
+		const thought = () => harness!.find(node => node.k === "section" && node.p?.role === "zeta.thinking");
 		await harness.render();
 		expect(thought()?.p).toMatchObject({ collapsed: true });
 
@@ -196,7 +196,7 @@ describe("native transcript redesign", () => {
 			harness = await TspHarness.start(undefined, { hour12 });
 			harness.tui.addChild(new UserMessageComponent("Fix the build", { timestamp: at }));
 			await harness.render();
-			const time = harness.find(node => node.p?.role === "omp.user.time");
+			const time = harness.find(node => node.p?.role === "zeta.user.time");
 			expect(texts(time)).toMatch(shown);
 			expect(String(prop(time, "title"))).toMatch(hour12 ? /pm/i : /18:05/);
 			harness.stop();

@@ -3,7 +3,7 @@
  *
  * The MV3 extension can only dial OUT (service workers cannot listen on
  * sockets), so a native process must own the relay port. Instead of making
- * the user run `omp browser-relay` by hand, the relay kind lazily starts one
+ * the user run `zeta-c browser-relay` by hand, the relay kind lazily starts one
  * under a profile-independent, machine-global daemon broker. Every relay
  * consumer holds a connection to that broker, so one project exiting cannot
  * tear down the fixed-port singleton while another project still uses it.
@@ -24,11 +24,11 @@ const DEFAULT_RELAY_PORT = new URL(DEFAULT_RELAY_URL).port;
 
 /** Broker daemon name for the relay on `port`; one per port, so relays on different ports never replace each other. */
 function relayDaemonName(port: string): string {
-	return port === DEFAULT_RELAY_PORT ? "omp.browser.relay" : `omp.browser.relay.${port}`;
+	return port === DEFAULT_RELAY_PORT ? "zeta.browser.relay" : `zeta.browser.relay.${port}`;
 }
 
 const RELAY_BROKER_SCOPE = "browser-relay";
-/** Matches the serve banner (`omp browser relay listening on http://…`). */
+/** Matches the serve banner (`zeta-c browser relay listening on http://…`). */
 const READY_LOG_PATTERN = String.raw`browser relay listening on http://\S+`;
 const READY_TIMEOUT_MS = 15_000;
 const PROBE_TIMEOUT_MS = 1_500;

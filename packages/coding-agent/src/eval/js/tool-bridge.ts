@@ -19,13 +19,14 @@ import {
 import { EVAL_JUDGMENT_BRIDGE_NAME, type EvalJudgmentResult, runEvalJudgment } from "../judgment-bridge";
 import {
 	EVAL_CANCEL_BRIDGE_NAME,
-	type EvalHandleSnapshot,
 	EVAL_STATUS_BRIDGE_NAME,
 	EVAL_WAIT_BRIDGE_NAME,
+	type EvalHandleSnapshot,
 	runEvalCancel,
 	runEvalStatus,
 	runEvalWait,
 } from "../handle-bridge";
+
 import type { EvalShadowCellSession } from "../speculation/cell-session";
 import { getActiveEvalShadowCell } from "../speculation/runtime-context";
 import { EVAL_WORKPOOL_BRIDGE_NAME, type EvalWorkpoolResult, runEvalWorkpool } from "../workpool-bridge";

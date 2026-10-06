@@ -1030,7 +1030,7 @@ export function requestRpcSelect(
 	options: ExtensionUISelectItem[],
 	dialogOptions?: ExtensionUIDialogOptions,
 ): Promise<string | undefined> {
-	// oxlint-disable-next-line unicorn/no-new-array -- length preallocation
+	// [suppressed] length preallocation
 	const labels = new Array<string>(options.length);
 	let optionDetails: RpcExtensionUISelectOptionDetail[] | undefined;
 	for (let index = 0; index < options.length; index++) {
@@ -1231,7 +1231,7 @@ export function requestRpcDialog<T>(
 		opts?.signal?.removeEventListener("abort", onAbort);
 		pendingRequests.delete(id);
 	};
-	// Tells the host to close a dialog omp has already settled, so a late answer
+	// Tells the host to close a dialog zeta has already settled, so a late answer
 	// cannot look actionable after abort or timeout.
 	const cancelHostDialog = () =>
 		output({
@@ -2300,8 +2300,8 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			case "get_available_thinking_levels": {
 				// Pi-compatible discovery: the selectable levels for the live model,
 				// including `off` (which `set_thinking_level` accepts but the
-				// effort-only helper excludes). OMP-only `auto`/`inherit` are
-				// intentionally omitted — that selector stays an OMP dialect.
+				// effort-only helper excludes). ZETA-only `auto`/`inherit` are
+				// intentionally omitted — that selector stays an ZETA dialect.
 				return success(id, "get_available_thinking_levels", {
 					levels: [ThinkingLevel.Off, ...session.getAvailableThinkingLevels()],
 				});
@@ -2605,7 +2605,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			// reaper (releaseTabsForOwner) and other bounded teardown run before
 			// the process exits. dispose() also emits `session_shutdown`, so we
 			// must NOT emit it separately here or the event fires twice. Skipping
-			// dispose left OMP-owned Chromium alive after RPC shutdown (#5643).
+			// dispose left ZETA-owned Chromium alive after RPC shutdown (#5643).
 			await disposeAndExit();
 		},
 	});
