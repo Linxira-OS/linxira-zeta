@@ -19,11 +19,11 @@ use ratatui::{
 /// frame (small); mutations go through the mouse path which owns `&mut self`.
 #[derive(Clone, Default)]
 pub struct WidgetState {
-	pub pomodoro:          Pomodoro,
+	pub pomodoro: Pomodoro,
 	/// Most recent first, de-duplicated, capped.
-	pub clipboard:         Vec<String>,
+	pub clipboard: Vec<String>,
 	/// Calendar month offset from the current month (mouse ‹/› navigation).
-	pub calendar_offset:   i64,
+	pub calendar_offset: i64,
 	/// Selected day of the shown month (1-based, 0 = none).
 	pub calendar_selected: u32,
 }
@@ -131,12 +131,8 @@ pub fn render_time_calendar(state: &WidgetState, area: Rect, buf: &mut Buffer) {
 pub fn calendar_nav_rects(area: Rect) -> (Rect, Rect) {
 	let row = area.y + 4;
 	let left = Rect { x: area.x + area.width / 5, y: row, width: 2, height: 1 };
-	let right = Rect {
-		x:      area.right().saturating_sub(area.width / 5 + 2),
-		y:      row,
-		width:  2,
-		height: 1,
-	};
+	let right =
+		Rect { x: area.right().saturating_sub(area.width / 5 + 2), y: row, width: 2, height: 1 };
 	(left, right)
 }
 
@@ -217,11 +213,11 @@ pub enum Phase {
 #[derive(Clone, Debug, Default)]
 pub struct Pomodoro {
 	/// When the current run started (None = paused).
-	pub running:          Option<std::time::Instant>,
+	pub running: Option<std::time::Instant>,
 	/// Seconds accumulated into the current phase before the last pause.
 	pub accumulated_secs: u64,
-	pub phase:            Phase,
-	pub completed_work:   u32,
+	pub phase: Phase,
+	pub completed_work: u32,
 }
 
 impl Pomodoro {
@@ -404,12 +400,7 @@ pub fn clipboard_capture_rect(area: Rect) -> Option<Rect> {
 	if area.height < 4 || area.width < 16 {
 		return None;
 	}
-	Some(Rect {
-		x:      area.x + area.width / 4,
-		y:      area.y + 1,
-		width:  area.width / 2,
-		height: 1,
-	})
+	Some(Rect { x: area.x + area.width / 4, y: area.y + 1, width: area.width / 2, height: 1 })
 }
 
 /// Read the system clipboard and record it (newest first, de-duplicated).

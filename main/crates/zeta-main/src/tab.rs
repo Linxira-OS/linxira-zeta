@@ -34,7 +34,7 @@ pub enum PaneKind {
 	/// runs inside a modern chained shell (never cmd.exe), the pane stays
 	/// open afterwards, and the title stays readable (`install · zeta-c`).
 	Install {
-		tool:    String,
+		tool: String,
 		command: String,
 	},
 }
@@ -135,7 +135,7 @@ pub struct Page {
 /// A single embedded pane: a stack of sub-pages plus which one shows.
 pub struct Pane {
 	pub pages: Vec<Page>,
-	pub page:  usize,
+	pub page: usize,
 }
 
 impl Pane {
@@ -241,37 +241,27 @@ impl Pane {
 
 /// A workspace tab: a pane store plus the layout tree tiling them.
 pub struct Tab {
-	pub panes:     Vec<Pane>,
+	pub panes: Vec<Pane>,
 	/// Minimized panes docked below the workspace. Their PTYs stay alive
 	/// while docked; the dock is per-tab — switching top-level tabs shows
 	/// that tab's own minimized panes.
 	pub minimized: Vec<Pane>,
-	pub active:    usize,
-	pub tree:      PaneNode,
+	pub active: usize,
+	pub tree: PaneNode,
 }
 
 impl Tab {
 	/// A tab starts with a single shell pane; the layout grows by splitting.
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
 		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
-		Ok(Self {
-			panes:     vec![pane],
-			minimized: Vec::new(),
-			active:    0,
-			tree:      PaneNode::single(0),
-		})
+		Ok(Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) })
 	}
 
 	/// A tab around an existing pane — the promote-pane move: the Pane
 	/// object (and its live PTY pages) travels here by value, never
 	/// respawned or cloned.
 	pub fn with_pane(pane: Pane) -> Self {
-		Self {
-			panes:     vec![pane],
-			minimized: Vec::new(),
-			active:    0,
-			tree:      PaneNode::single(0),
-		}
+		Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) }
 	}
 
 	/// The pane's unnumbered title: the child's OSC 0/2 name when its active
@@ -602,7 +592,7 @@ mod tests {
 	#[test]
 	fn install_pane_title_is_readable_and_never_a_command_line() {
 		let kind = PaneKind::Install {
-			tool:    "zetacode".into(),
+			tool: "zetacode".into(),
 			command: "npm install -g @linxiraos/zeta".into(),
 		};
 		assert_eq!(kind.label(), "install · zetacode");
@@ -675,16 +665,22 @@ mod tests {
 	/// (0 | 1) | (2 | 3): a three-level tree with two splits at the root.
 	fn nested_tree() -> PaneNode {
 		PaneNode::Split {
-			axis:     crate::layout::Axis::Row,
+			axis: crate::layout::Axis::Row,
 			children: vec![
-				(1000, PaneNode::Split {
-					axis:     crate::layout::Axis::Column,
-					children: vec![(1000, PaneNode::Leaf(0)), (1000, PaneNode::Leaf(1))],
-				}),
-				(1000, PaneNode::Split {
-					axis:     crate::layout::Axis::Row,
-					children: vec![(1000, PaneNode::Leaf(2)), (1000, PaneNode::Leaf(3))],
-				}),
+				(
+					1000,
+					PaneNode::Split {
+						axis: crate::layout::Axis::Column,
+						children: vec![(1000, PaneNode::Leaf(0)), (1000, PaneNode::Leaf(1))],
+					},
+				),
+				(
+					1000,
+					PaneNode::Split {
+						axis: crate::layout::Axis::Row,
+						children: vec![(1000, PaneNode::Leaf(2)), (1000, PaneNode::Leaf(3))],
+					},
+				),
 			],
 		}
 	}
@@ -792,7 +788,7 @@ mod tests {
 		// The composition the workbench types into the new pane: resolved bin
 		// word + one shell-correct argument covering spaces and the position.
 		let shell = crate::shell::Shell {
-			path:   "powershell.exe".into(),
+			path: "powershell.exe".into(),
 			flavor: crate::shell::ShellFlavor::PowerShell,
 		};
 		let target = link_target_text(std::path::Path::new("C:/repo/a b.rs"), Some(4), Some(2));

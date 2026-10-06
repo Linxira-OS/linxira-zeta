@@ -38,7 +38,7 @@ pub enum ShellFlavor {
 /// A spawnable shell: its full path plus the behavior family.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Shell {
-	pub path:   PathBuf,
+	pub path: PathBuf,
 	pub flavor: ShellFlavor,
 }
 
@@ -103,7 +103,7 @@ fn as_shell(path: PathBuf) -> Option<Shell> {
 
 /// Platform probes, injectable so tests can fake the machine.
 pub struct Probes<'a> {
-	pub env:    &'a dyn Fn(&str) -> Option<String>,
+	pub env: &'a dyn Fn(&str) -> Option<String>,
 	pub where_: &'a dyn Fn(&str) -> Option<String>,
 	pub exists: &'a dyn Fn(&Path) -> bool,
 }
@@ -200,7 +200,7 @@ fn chain_unix(p: &Probes) -> Vec<Shell> {
 
 fn real_probes() -> Probes<'static> {
 	Probes {
-		env:    &|name: &str| std::env::var(name).ok(),
+		env: &|name: &str| std::env::var(name).ok(),
 		where_: &|bin: &str| {
 			let output = Command::new("where.exe").arg(bin).output().ok()?;
 			if !output.status.success() {
@@ -575,9 +575,9 @@ mod tests {
 	// `#[cfg(windows)]` tests, so non-Windows builds see it as dead code.
 	#[allow(dead_code)]
 	struct Fake {
-		env:    HashMap<&'static str, String>,
+		env: HashMap<&'static str, String>,
 		where_: HashMap<&'static str, String>,
-		paths:  HashSet<&'static str>,
+		paths: HashSet<&'static str>,
 	}
 
 	#[allow(dead_code)]
@@ -627,8 +627,7 @@ mod tests {
 
 	#[test]
 	fn quote_exec_powershell_call_operator_and_quote_doubling() {
-		let shell =
-			Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
+		let shell = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
 		assert_eq!(
 			shell.quote_exec(Path::new(r"C:\Program Files\App\zeta-c.ps1")),
 			r"& 'C:\Program Files\App\zeta-c.ps1'"
@@ -886,13 +885,16 @@ mod tests {
 			&["", ".exe", ".ps1", ".cmd", ".bat"],
 			|path| path.is_file(),
 		);
-		assert_eq!(found, vec![
-			first.join("tool"),
-			first.join("tool.exe"),
-			first.join("tool.ps1"),
-			first.join("tool.cmd"),
-			second.join("tool.exe"),
-		]);
+		assert_eq!(
+			found,
+			vec![
+				first.join("tool"),
+				first.join("tool.exe"),
+				first.join("tool.ps1"),
+				first.join("tool.cmd"),
+				second.join("tool.exe"),
+			]
+		);
 		std::fs::remove_dir_all(&temp).ok();
 	}
 
@@ -905,11 +907,14 @@ mod tests {
 			Some(r"C:\Users\u\AppData\Local"),
 			Some(r"C:\Users\u"),
 		);
-		assert_eq!(dirs, vec![
-			PathBuf::from(r"C:\Users\u\AppData\Roaming\npm"),
-			PathBuf::from(r"C:\Users\u\AppData\Local\pnpm"),
-			PathBuf::from(r"C:\Users\u\.bun\bin"),
-		]);
+		assert_eq!(
+			dirs,
+			vec![
+				PathBuf::from(r"C:\Users\u\AppData\Roaming\npm"),
+				PathBuf::from(r"C:\Users\u\AppData\Local\pnpm"),
+				PathBuf::from(r"C:\Users\u\.bun\bin"),
+			]
+		);
 		assert!(augmented_windows_dirs(None, None, None).is_empty());
 	}
 

@@ -89,36 +89,36 @@ impl PaneNode {
 		let col =
 			|children: Vec<(u32, PaneNode)>| (1000, PaneNode::Split { axis: Axis::Column, children });
 		let two_thirds_top = || {
-			(1000, PaneNode::Split {
-				axis:     Axis::Row,
-				children: vec![leaf(0), (2000, PaneNode::Leaf(1))],
-			})
+			(
+				1000,
+				PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), (2000, PaneNode::Leaf(1))] },
+			)
 		};
 		vec![
 			("single", PaneNode::Leaf(0)),
-			("1+2", PaneNode::Split {
-				axis:     Axis::Row,
-				children: vec![leaf(0), (2000, PaneNode::Leaf(1))],
-			}),
-			("thirds", PaneNode::Split {
-				axis:     Axis::Row,
-				children: vec![leaf(0), leaf(1), leaf(2)],
-			}),
-			("T", PaneNode::Split {
-				axis:     Axis::Column,
-				children: vec![two_thirds_top(), leaf(2)],
-			}),
-			("quad", PaneNode::Split {
-				axis:     Axis::Column,
-				children: vec![row(vec![leaf(0), leaf(1)]), row(vec![leaf(2), leaf(3)])],
-			}),
-			("columns", PaneNode::Split {
-				axis:     Axis::Row,
-				children: vec![
-					col(vec![leaf(0), leaf(1)]),
-					(2000, PaneNode::Split { axis: Axis::Column, children: vec![leaf(2), leaf(3)] }),
-				],
-			}),
+			(
+				"1+2",
+				PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), (2000, PaneNode::Leaf(1))] },
+			),
+			("thirds", PaneNode::Split { axis: Axis::Row, children: vec![leaf(0), leaf(1), leaf(2)] }),
+			("T", PaneNode::Split { axis: Axis::Column, children: vec![two_thirds_top(), leaf(2)] }),
+			(
+				"quad",
+				PaneNode::Split {
+					axis: Axis::Column,
+					children: vec![row(vec![leaf(0), leaf(1)]), row(vec![leaf(2), leaf(3)])],
+				},
+			),
+			(
+				"columns",
+				PaneNode::Split {
+					axis: Axis::Row,
+					children: vec![
+						col(vec![leaf(0), leaf(1)]),
+						(2000, PaneNode::Split { axis: Axis::Column, children: vec![leaf(2), leaf(3)] }),
+					],
+				},
+			),
 		]
 	}
 
@@ -447,24 +447,24 @@ pub fn boundary_grabs(areas: &[(usize, Rect)]) -> Vec<(Axis, usize, usize, Rect)
 				let top = a.top().max(b.top());
 				let bottom = a.bottom().min(b.bottom());
 				if bottom > top {
-					out.push((Axis::Row, low, high, Rect {
-						x:      b.left() - 1,
-						y:      top,
-						width:  2,
-						height: bottom - top,
-					}));
+					out.push((
+						Axis::Row,
+						low,
+						high,
+						Rect { x: b.left() - 1, y: top, width: 2, height: bottom - top },
+					));
 				}
 			}
 			if b.top() != 0 && a.bottom() == b.top() && a.right() > b.left() && b.right() > a.left() {
 				let left = a.left().max(b.left());
 				let right = a.right().min(b.right());
 				if right > left {
-					out.push((Axis::Column, low, high, Rect {
-						x:      left,
-						y:      b.top() - 1,
-						width:  right - left,
-						height: 2,
-					}));
+					out.push((
+						Axis::Column,
+						low,
+						high,
+						Rect { x: left, y: b.top() - 1, width: right - left, height: 2 },
+					));
 				}
 			}
 		}
@@ -517,15 +517,12 @@ mod tests {
 	use super::*;
 
 	fn row(children: Vec<PaneNode>) -> PaneNode {
-		PaneNode::Split {
-			axis:     Axis::Row,
-			children: children.into_iter().map(|n| (1, n)).collect(),
-		}
+		PaneNode::Split { axis: Axis::Row, children: children.into_iter().map(|n| (1, n)).collect() }
 	}
 
 	fn col(children: Vec<PaneNode>) -> PaneNode {
 		PaneNode::Split {
-			axis:     Axis::Column,
+			axis: Axis::Column,
 			children: children.into_iter().map(|n| (1, n)).collect(),
 		}
 	}
@@ -606,7 +603,7 @@ mod tests {
 	#[test]
 	fn deduplicate_repairs_a_corrupted_tree() {
 		let mut tree = PaneNode::Split {
-			axis:     Axis::Row,
+			axis: Axis::Row,
 			children: vec![(1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(0)), (1, PaneNode::Leaf(1))],
 		};
 		assert!(tree.has_duplicates());

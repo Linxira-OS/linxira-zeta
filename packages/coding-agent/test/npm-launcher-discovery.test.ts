@@ -126,6 +126,14 @@ describe("npm launcher shim discovery (e2e)", () => {
 		const binDir = path.join(tree, "bin");
 		fs.mkdirSync(binDir, { recursive: true });
 		fs.copyFileSync(SHIM, path.join(binDir, "zeta.js"));
+		// Seed leaf packages WITHOUT their bin files: require.resolve must
+		// fail deterministically (package boundary matched, file ENOENT) so
+		// bun's global-cache download fallback can never satisfy tier ③.
+		for (const leaf of ["@linxiraos/main-windows-x64", "@linxiraos/main-linux-x64"]) {
+			const pkgDir = path.join(tree, "node_modules", leaf);
+			fs.mkdirSync(pkgDir, { recursive: true });
+			fs.writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify({ name: leaf, version: "0.0.0" }));
+		}
 		const { code, stderr } = await runShim(path.join(binDir, "zeta.js"), envWith({}));
 		expect(code).toBe(1);
 		expect(stderr).toContain("no native zetawork/zeta on PATH");

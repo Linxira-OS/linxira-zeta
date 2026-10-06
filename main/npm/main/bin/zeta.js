@@ -27,7 +27,9 @@ function die(msg) {
 
 /** Native-executable test so PATH probes never pick up another JS shim
  * (npm's .cmd/.ps1/sh launchers for this very package live on PATH —
- * re-executing them would recurse into this script). */
+ * re-executing them would recurse into this script). POSIX also demands
+ * the exec bit: a non-executable ELF (broken extract, cache artifact)
+ * would only die later with a raw spawn EACCES. */
 function isNativeBinary(candidate) {
   let stat;
   try {
@@ -39,6 +41,7 @@ function isNativeBinary(candidate) {
   if (process.platform === "win32") {
     return candidate.toLowerCase().endsWith(".exe");
   }
+  if (!isExecutable(candidate)) return false;
   let head;
   try {
     const fd = fs.openSync(candidate, "r");
@@ -50,6 +53,17 @@ function isNativeBinary(candidate) {
     return false;
   }
   return head !== null && head.equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])); // \x7fELF
+}
+
+/** POSIX exec-bit probe; Windows access(X_OK) always succeeds, which is
+ * fine there — a named .exe is the platform's native form. */
+function isExecutable(candidate) {
+  try {
+    fs.accessSync(candidate, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Native executable candidates for one bin name per directory entry:
@@ -88,14 +102,17 @@ const fromNative = findNativeIn([...explicitDirs(), ...pathDirs()]);
 
 let bin = fromNative;
 if (!bin) {
-  // ③ npm vendored platform leaf
+  // ③ npm vendored platform leaf. A resolved but non-executable leaf
+  // (broken extract, cache artifact) must fall through to the install
+  // hint instead of dying later with a raw spawn EACCES.
   try {
-    bin = require.resolve(`${PKG_PREFIX}${PKG_PLATFORM}-${process.arch}/bin/${EXE}`);
+    const leaf = require.resolve(`${PKG_PREFIX}${PKG_PLATFORM}-${process.arch}/bin/${EXE}`);
+    if (process.platform === "win32" || isExecutable(leaf)) bin = leaf;
   } catch {
     // Fall back to a repo-layout location (dev / source checkout):
     // <repo>/main/target/release/<exe> next to this package.
     const local = path.join(__dirname, "..", "..", "..", "target", "release", EXE);
-    if (fs.existsSync(local)) bin = local;
+    if (fs.existsSync(local) && (process.platform === "win32" || isExecutable(local))) bin = local;
   }
 }
 
