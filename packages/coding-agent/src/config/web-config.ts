@@ -175,6 +175,16 @@ export function isKnownWebConfigPath(value: unknown): value is string {
 	return typeof value === "string" && value in KNOWN_PATHS;
 }
 
+/**
+ * Case- and separator-insensitive transcript path key (Windows paths compare
+ * case-insensitively), mirroring the gateway's `sessionPathKey` semantics
+ * without importing the gateway graph.
+ */
+function botSessionPathKey(filePath: string): string {
+	const normalized = path.normalize(filePath);
+	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
 function validateValue(leafType: LeafType, value: unknown): void {
 	switch (leafType) {
 		case "boolean":
@@ -480,6 +490,16 @@ export class WebConfig {
 	/** Registered default-space bot sessions. */
 	getBotSessions(): BotSessionEntry[] {
 		return this.#data.remote.botSessions ?? [];
+	}
+
+	/**
+	 * The `relay`-tagged coordinator session bound to `sessionFile`, if any.
+	 * Used by `/delete` (and the gateway's DELETE handler) to refuse deleting
+	 * the IM-channel-hub transcript the relay runtime still points at.
+	 */
+	findRelayBotSession(sessionFile: string): BotSessionEntry | undefined {
+		const key = botSessionPathKey(sessionFile);
+		return this.getBotSessions().find(entry => entry.tag === "relay" && botSessionPathKey(entry.sessionFile) === key);
 	}
 
 	/** One registered bot session by id. */

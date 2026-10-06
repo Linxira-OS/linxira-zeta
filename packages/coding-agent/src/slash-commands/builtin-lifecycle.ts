@@ -1,6 +1,7 @@
 import { clearSubmittedText } from "./helpers/draft";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { Spacer, Text } from "@linxiraos/pi-tui";
 import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { logger, setProjectDir } from "@linxiraos/pi-utils";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
@@ -13,6 +14,7 @@ import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
 import { buildReplanTitleContext, USER_INTERRUPT_LABEL } from "../session/messages";
 import { resolveResumableSession } from "../session/session-listing";
 import { toggleSessionPin } from "../session/session-pins";
+import { listTrashSessions, restoreSessionFromTrash } from "../session/session-trash";
 import {
 	cleanSourceCheckoutIfConfigured,
 	createSessionWorktree,
@@ -37,6 +39,61 @@ import type {
 function formatFreshSessionResult(result: FreshSessionResult): string {
 	const stateLabel = result.closedProviderSessions === 1 ? "provider state" : "provider states";
 	return `Fresh provider session started (${result.closedProviderSessions} ${stateLabel} pruned).`;
+}
+
+function formatTrashDate(iso: string): string {
+	const parsed = Date.parse(iso);
+	return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : iso;
+}
+
+/** Render `/trash` output: header, numbered entries (newest first), restore hint. */
+async function formatTrashListing(): Promise<string> {
+	const entries = await listTrashSessions();
+	if (entries.length === 0) return M.trashEmpty;
+	const lines = [M.trashHeaderFmt.replace("%s", String(entries.length))];
+	entries.forEach((entry, index) => {
+		lines.push(
+			M.trashEntryFmt
+				.replace("%s", String(index + 1))
+				.replace("%s", entry.manifest.title ?? entry.manifest.sessionId),
+		);
+		lines.push(
+			`   ${M.trashEntryMetaFmt
+				.replace("%s", formatTrashDate(entry.manifest.trashedAt))
+				.replace("%s", entry.manifest.originalPath)}`,
+		);
+	});
+	lines.push(M.trashRestoreHint);
+	return lines.join("\n");
+}
+
+/** Shared `/restore <number>` body: resolve the 1-based index and move the entry back. */
+async function restoreFromTrashArgs(
+	args: string,
+	emit: (text: string) => Promise<void> | void,
+): Promise<SlashCommandResult | undefined> {
+	const requested = Number.parseInt(args.trim(), 10);
+	if (args.trim() === "" || !Number.isInteger(requested) || requested <= 0) {
+		await emit(M.trashRestoreUsage);
+		return commandConsumed();
+	}
+	const entries = await listTrashSessions();
+	const entry = entries[requested - 1];
+	if (!entry) {
+		await emit(M.trashRestoreBadIndexFmt.replace("%s", String(requested)));
+		return commandConsumed();
+	}
+	try {
+		const restored = await restoreSessionFromTrash(entry);
+		await emit(
+			M.trashRestoredFmt
+				.replace("%s", entry.manifest.title ?? entry.manifest.sessionId)
+				.replace("%s", restored.sessionFile),
+		);
+	} catch (err) {
+		await emit(`Restore failed: ${errorMessage(err)}`);
+	}
+	return commandConsumed();
 }
 
 /** Null reports no usable title; undefined silently discards an invalidated request. */
@@ -223,6 +280,35 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleDeleteCommand();
+		},
+	},
+	{
+		name: "trash",
+		icon: "trash",
+		description: () => M.cmdTrash,
+		handle: async (_command, runtime) => {
+			await runtime.output(await formatTrashListing());
+			return commandConsumed();
+		},
+		handleTui: async (_command, runtime) => {
+			clearSubmittedText(runtime);
+			const listing = await formatTrashListing();
+			runtime.ctx.present([new Spacer(1), new Text(listing, 1, 1)]);
+		},
+	},
+	{
+		name: "restore",
+		icon: "restart",
+		description: () => M.cmdRestore,
+		acpInputHint: "<number>",
+		inlineHint: "<number>",
+		allowArgs: true,
+		handle: async (command, runtime) => restoreFromTrashArgs(command.args, text => runtime.output(text)),
+		handleTui: async (command, runtime) => {
+			clearSubmittedText(runtime);
+			await restoreFromTrashArgs(command.args, text => {
+				runtime.ctx.present([new Spacer(1), new Text(text, 1, 1)]);
+			});
 		},
 	},
 	{

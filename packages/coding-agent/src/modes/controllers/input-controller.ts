@@ -81,6 +81,15 @@ import {
 	cfgTuiMouse,
 } from "../settings";
 import { cfgHideThinkingBlock } from "../../session/settings";
+import { disarmDeleteConfirm } from "./delete-confirm";
+
+/**
+ * Any submission other than the exact armed confirm (`/delete`) disarms the
+ * triple-press delete confirmation, per the `/delete` UX contract.
+ */
+function disarmDeleteConfirmUnlessArming(text: string | undefined): void {
+	if (text?.trim() !== "/delete") disarmDeleteConfirm();
+}
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
 const BARE_EXIT_WORDS: Record<string, true> = { exit: true, quit: true, q: true };
@@ -453,6 +462,8 @@ export class InputController {
 			this.ctx.ui.addInputListener(data => this.#handleInlineMouse(data));
 		}
 		this.ctx.editor.onEscape = () => {
+			// Esc always disarms the /delete triple-press confirmation.
+			disarmDeleteConfirm();
 			// `/mcp test` advertises Esc until each owner's post-settlement grace expires.
 			// Cancel every overlapping test before any main-turn or side-channel action.
 			if (this.ctx.mcpTestEscapeHandlers.size > 0) {
@@ -1030,6 +1041,8 @@ export class InputController {
 
 			if (!text && !hasInputImages) return;
 
+			disarmDeleteConfirmUnlessArming(text);
+
 			const queueBody = parseQueueShorthand(text);
 			if (queueBody !== undefined) {
 				await this.#queueForYield(queueBody, {
@@ -1429,6 +1442,7 @@ export class InputController {
 
 	/** Submit editor text to the focused subagent session (chat and continue shortcuts only). */
 	async #submitToFocusedSession(text: string, streamingBehavior: "steer" | "followUp"): Promise<void> {
+		disarmDeleteConfirmUnlessArming(text);
 		const target = this.ctx.viewSession;
 		const images = this.ctx.editor.pendingImages.length > 0 ? [...this.ctx.editor.pendingImages] : undefined;
 		const imageLinks =
@@ -1871,6 +1885,8 @@ export class InputController {
 		let imageLinks =
 			images && this.ctx.editor.pendingImageLinks.length > 0 ? [...this.ctx.editor.pendingImageLinks] : undefined;
 		if (!text && !images) return;
+
+		disarmDeleteConfirmUnlessArming(text);
 
 		// Focused subagent session: follow-ups go to it; non-chat input is gated.
 		if (this.ctx.focusedAgentId) {

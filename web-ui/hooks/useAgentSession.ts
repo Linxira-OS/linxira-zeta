@@ -18,6 +18,7 @@ import type {
 } from "@/lib/types";
 import { normalizeToolCalls } from "@/lib/normalize";
 import { sendAgentCommand } from "@/lib/agent-client";
+import { deleteSession, SessionApiError } from "@/lib/session-api";
 import { getToolNamesForPreset, type ToolEntry } from "@/lib/tool-presets";
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import { useI18n } from "@/hooks/useI18n";
@@ -255,6 +256,8 @@ const BASH_STATE_RECONCILE_MS = 1_000;
 const EVENT_STREAM_CONNECT_TIMEOUT_MS = 5_000;
 const MAX_NOTICES = 5;
 const NOTICE_VISIBLE_MS = 5000;
+/** /delete triple-press window (matches the CLI contract). */
+const DELETE_CONFIRM_WINDOW_MS = 15_000;
 const NOTICE_EXIT_ANIMATION_MS = 180;
 const SCROLL_KEYS = new Set([
   "ArrowUp",
@@ -605,6 +608,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const initialScrollDoneRef = useRef(false);
   const lastUserMsgRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToUserRef = useRef(false);
+  // /delete triple-press state (15s window from the first press). Purely
+  // in-memory: a page reload always starts disarmed, matching the CLI.
+  const deleteArmRef = useRef<{ at: number; count: number } | null>(null);
   const completionScrollAllowedRef = useRef(true);
   const newSessionModelOverrideRef = useRef<SelectedModel | null>(null);
   const thinkingLevelOverrideRef = useRef<Exclude<
@@ -1788,6 +1794,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       const trimmedMessage = message.trim();
       if (!trimmedMessage && !images?.length) return;
       if (agentRunningRef.current || bashRunningRef.current) return;
+      // A prompt submission is not the armed /delete confirm — disarm.
+      deleteArmRef.current = null;
       const isSlashCommandPrompt =
         !images?.length && trimmedMessage.startsWith("/");
 
@@ -2242,6 +2250,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       const [, commandName, rawArgs = ""] = match;
       const args = rawArgs.trim();
       const sid = sessionIdRef.current ?? (await ensureNewSession());
+      // Any other command disarms the /delete triple-press (timeout does too;
+      // see DELETE_CONFIRM_WINDOW_MS).
+      if (commandName !== "delete") deleteArmRef.current = null;
       const complete = (
         result: BuiltinSlashCommandResult,
       ): BuiltinSlashCommandResult => {
@@ -2549,6 +2560,55 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
               message:
                 "Use the sidebar session tree to switch or resume sessions",
             });
+          }
+
+          case "delete": {
+            if (!sid)
+              return complete({
+                handled: true,
+                error: t("chat.deleteNoSession"),
+              });
+            const now = Date.now();
+            const armed = deleteArmRef.current;
+            if (!armed || now - armed.at > DELETE_CONFIRM_WINDOW_MS) {
+              deleteArmRef.current = { at: now, count: 1 };
+              return complete({
+                handled: true,
+                error: t("chat.deleteArmed"),
+              });
+            }
+            if (armed.count < 2) {
+              deleteArmRef.current = { at: armed.at, count: armed.count + 1 };
+              return complete({
+                handled: true,
+                error: t("chat.deleteArmedFinal"),
+              });
+            }
+            // Third press inside the window: reset, then soft-delete through
+            // the gateway (relay-tagged sessions are refused server-side).
+            deleteArmRef.current = null;
+            try {
+              await deleteSession(sid);
+            } catch (e) {
+              if (e instanceof SessionApiError && e.code === "relay-protected") {
+                return complete({
+                  handled: true,
+                  error: t("chat.deleteRelayProtected"),
+                });
+              }
+              throw e;
+            }
+            onSessionCreated?.({
+              id: "",
+              path: "",
+              cwd: newSessionCwd ?? process.cwd(),
+              name: undefined,
+              created: new Date().toISOString(),
+              modified: new Date().toISOString(),
+              messageCount: 0,
+              firstMessage: "(new session)",
+            });
+            return complete({ handled: true, message: t("chat.deleteDone") });
           }
 
           case "new":

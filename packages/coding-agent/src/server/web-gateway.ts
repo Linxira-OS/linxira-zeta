@@ -25,6 +25,7 @@ import {
 	triggerWechatUnbind,
 } from "../channels";
 import { WebConfig } from "../config/web-config";
+import { scheduleTrashSweep } from "../session/session-trash";
 import {
 	handleAgentCommand,
 	handleAgentEvents,
@@ -236,6 +237,9 @@ export async function authorizedForAccess(req: Request, remoteAddr?: string): Pr
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
 export async function webGatewayFetch(req: Request, remoteAddr?: string): Promise<Response> {
 	ensureAgentDirEnv();
+	// Fire-and-forget trash sweeper (first gateway activity ≈ startup; the
+	// timers are unref'd and the guard keeps it once-per-process).
+	scheduleTrashSweep();
 
 	// Access control: non-loopback clients need the remote token.
 	const loopback = hostIsLoopback(req, remoteAddr);

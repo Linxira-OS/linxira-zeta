@@ -1966,7 +1966,7 @@ export class SelectorController {
 					}
 					const storage = new FileSessionStorage();
 					try {
-						await storage.deleteSessionWithArtifacts(session.path);
+						await storage.moveSessionWithArtifactsToTrash(session.path);
 						return true;
 					} catch (error) {
 						throw new Error(
@@ -2125,7 +2125,7 @@ export class SelectorController {
 
 		const confirmed = await this.ctx.showHookConfirm(
 			"Delete Session",
-			"This will permanently delete the current session.\nYou will be returned to the session selector.",
+			"This will move the current session to the trash (~/.zeta/trash/sessions; /restore brings it back).\nYou will be returned to the session selector.",
 		);
 
 		if (!confirmed) {
@@ -2138,8 +2138,8 @@ export class SelectorController {
 			return;
 		}
 
-		// Delete the session file and artifacts directory
-		await storage.deleteSessionWithArtifacts(sessionFile);
+		// Move the session file, artifacts, and stale backups into the trash
+		await storage.moveSessionWithArtifactsToTrash(sessionFile);
 
 		// Show session selector
 		this.ctx.showStatus("Session deleted");
