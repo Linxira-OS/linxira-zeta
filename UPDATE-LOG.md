@@ -79,6 +79,7 @@
 - **统一二进制发现（发行版原生包一等公民）**：五个发现面（工作台 zetawork 的 shell/tab 探测、CLI `update` 自身定位、桌面壳 `zeta serve` 解析、npm 启动 shim、网关 zeta-ide/zeta-editor 探测）全部对齐同一发现序——①显式 `ZETA_BIN_DIR`（分隔符目录列表，先于 PATH；桌面另有既有 `ZETA_SERVE_COMMAND` 全命令覆盖）→ ②PATH 原生二进制（发行版 pacman 装 `/usr/bin/zetawork` 等，命中直接用，不做任何跨组件版本校验）→ ③Node.js/npm 形态兜底（vendored 平台叶二进制/npm 全局 bin 目录）。桌面壳发现序由「bundled 优先」改为按同一裁决排序（env→PATH→vendored）；npm shim 增加 env/PATH 层并保留 vendored 叶兜底。Rust 侧公共 helper 收敛在 zeta-main `shell.rs`（`resolve_bin_candidates` 家族），TS 侧收敛在 coding-agent `utils/bin-discovery.ts`。
 - **统计面板内嵌**（PR #52）：顶部「统计」按钮直接开右 dock 统计窗格（iframe 内嵌本机 stats 仪表盘），不再弹中间面板 + Open 二次点击 + 新窗口；stats 服务未运行时优雅降级提示（含重试按钮）。新增运行时 `/api/webui/stats-url` 路由修复打包桌面版 NEXT_PUBLIC 构建期内联导致回退 Open 按钮的根因。
 - **侧栏折叠消歧**（PR #52）：「切换为图标栏」（56px 图标栏模式）与工具栏「隐藏/显示侧边栏」（完全隐藏）实为两个不同功能，重命名消歧并加注释说明——非重复入口不删。
+- **CLI 指令描述 i18n 补齐（75 条）**：`builtin-session`（54）与 `builtin-collaboration`（21）的静态英文 `description` 全部改接 `M.*` 目录（en 原文照搬、zh 沿用目录既有翻译），CLI 指令面在 zh 环境下完整本地化；新增 `scripts/check-i18n-commands.ts` gate 纳入 `check:tools`（slash-commands 的 `description` 出现静态串即红），`check-i18n-consistency` 抽取修复（多行续行与函数值条目此前全部误报缺失，117 假红归零）。
 
 ### 修复
 

@@ -14,22 +14,29 @@ async function readLines(file: string): Promise<string[]> {
 	return (await Bun.file(file).text()).split("\n");
 }
 
-/** Interface keys: `\tname: string;` (optionally with a trailing comment). */
+/** Interface keys: `\tname: <type>;` — any member shape (string, function, …). */
 async function extractInterfaceKeys(file: string): Promise<Set<string>> {
 	const keys = new Set<string>();
 	for (const line of await readLines(file)) {
-		const match = /^\t([A-Za-z][A-Za-z0-9]*): string;/.exec(line);
+		const match = /^\t([A-Za-z][A-Za-z0-9]*):/.exec(line);
 		if (match) keys.add(match[1]);
 	}
 	return keys;
 }
 
-/** Catalogue keys: `\tname: "value",` (single/double/template literal value). */
+/** Catalogue keys: `\tname: <value>` — any value shape (string literal, function,
+ *  multiline continuation). Presence is what set equality cares about; the
+ *  same-line remainder (plus the next line for continuations) backs the
+ *  zh-emptiness check. */
 async function extractCatalogueKeys(file: string): Promise<Map<string, string>> {
 	const keys = new Map<string, string>();
-	for (const line of await readLines(file)) {
-		const match = /^\t([A-Za-z][A-Za-z0-9]*): ["'`](.*)["'`],?$/.exec(line);
-		if (match) keys.set(match[1], match[2]);
+	const lines = await readLines(file);
+	for (let i = 0; i < lines.length; i++) {
+		const match = /^\t([A-Za-z][A-Za-z0-9]*):\s?(.*)$/.exec(lines[i]);
+		if (!match) continue;
+		let value = match[2];
+		if (value.trim() === "" && i + 1 < lines.length) value = lines[i + 1].trim();
+		keys.set(match[1], value);
 	}
 	return keys;
 }
