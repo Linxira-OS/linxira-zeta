@@ -26,6 +26,14 @@ Both write the same file, so you can move between them freely.
 | `theme` | string | `""` | Theme name (e.g. `"default-dark"`) |
 | `debugMode` | bool | `false` | Enable debug logging |
 
+## Appearance
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `appearance.icons` | string | `"none"` | Icons in the explorer, Changes panel, and commit history: `"nerd-font"` or `"none"`. The glyphs need a [Nerd Font](https://www.nerdfonts.com) in your terminal and show as boxes without one, so this defaults off; turn it on here, in Settings > Advanced, or via **Options > Font Icons**. Colors come from the theme's `fileIcons` section |
+| `appearance.chevrons.collapsed` | string | `▶` | Glyph drawn beside a collapsed folder or group in trees, and on a collapsed foldable line in the editor gutter. Must be a single-width character, for example a Nerd Font chevron such as `\ueab6`; anything else falls back to the default. |
+| `appearance.chevrons.expanded` | string | `▼` | Glyph drawn beside an expanded folder or group, and on an expanded foldable line while hovering the gutter. Same rules as above. |
+
 ## Editor
 
 All editor settings are nested under the `editor` key.
@@ -61,12 +69,27 @@ All editor settings are nested under the `editor` key.
 |-----|------|---------|-------------|
 | `explorer.showHidden` | bool | `true` | Show hidden files (dot-prefixed) in the file explorer |
 | `explorer.showGitIgnored` | bool | `true` | Show gitignored files in the file explorer |
+| `explorer.gitStatusColors` | bool | `true` | Color files and folders in the file explorer by their git status (modified, new, deleted, conflicted). Colors come from the theme's `warning`, `success`, `danger`, and `conflict` colors |
+| `explorer.dimStagedGitColors` | bool | `false` | Render staged changes in a dimmed version of their status color, telling them apart from pending ones. Off by default: the Changes panel already separates staged from unstaged, and the extra shades make the explorer busier. Needs `explorer.gitStatusColors` |
 
 ## Sidebar
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `sidebar.panelOrder` | string[] | built-in order | Preferred sidebar panel-header order. Dragging a header or using **Move Panel Left/Right** updates it automatically. Unknown plugin panel IDs are retained until that plugin loads. |
+
+## Panel
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `panel.position` | string | `"bottom"` | Where the panel (terminal, diagnostics, output) is docked: `"bottom"` or `"right"`. **Dock Panel Right/Bottom** updates it automatically. |
+
+## Welcome
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `welcome.showOnHome` | bool | `false` | Start on the welcome page instead of opening `$HOME` when ttt runs there with no arguments, as desktop launchers do. `ttt --welcome` does the same from anywhere. Also in **Settings > Advanced**. |
+| `welcome.favorites` | string[] | `[]` | Folders listed on the welcome page, opened with one click. `~` is expanded; missing folders are skipped. **Add to Favorites** / **Remove from Favorites** in an Explorer root's right-click menu (or **Welcome: Add/Remove Folder to/from Favorites** in the palette) update it automatically. |
 
 ## Git
 
@@ -152,6 +175,13 @@ When `editor.formatOnSave` is `true`, external formatters take priority over LSP
   "version": 1,
   "theme": "default-dark",
   "debugMode": false,
+  "appearance": {
+    "icons": "none",
+    "chevrons": {
+      "collapsed": "▶",
+      "expanded": "▼"
+    }
+  },
   "editor": {
     "tabSize": 4,
     "insertSpaces": true,
@@ -180,7 +210,9 @@ When `editor.formatOnSave` is `true`, external formatters take priority over LSP
   },
   "explorer": {
     "showHidden": true,
-    "showGitIgnored": true
+    "showGitIgnored": true,
+    "gitStatusColors": true,
+    "dimStagedGitColors": false
   },
   "sidebar": {
     "panelOrder": ["explorer", "search", "changes", "outline"]

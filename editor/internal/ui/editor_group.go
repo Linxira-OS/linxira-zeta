@@ -1,8 +1,12 @@
 package ui
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
+	"unicode/utf8"
+
 	"github.com/eugenioenko/ttt/internal/config"
 	"github.com/eugenioenko/ttt/internal/core/buffer"
 	"github.com/eugenioenko/ttt/internal/core/clipboard"
@@ -88,6 +92,9 @@ type EditorGroupWidget struct {
 	DiffWordWrap            bool
 	DiffHighContrast        bool
 	DiffCollapsedEmphasis   bool
+	ImageProtocol           string
+	ImageCellW              int
+	ImageCellH              int
 	SyntaxHighlight         bool
 	BracketPairColorization bool
 	BracketColorStyles      []term.Style
@@ -100,10 +107,16 @@ type EditorGroupWidget struct {
 	OnFileChange            func(path, lang, text string)
 	OnFileClose             func(path, lang string)
 	OnContentTabClose       func(id string)
-	OnError                 func(msg string)
-	OnNotify                func(msg string)
-	pendingNotify           []string
-	focused                 bool
+	// OnEmpty fires after the last tab closes and the untitled placeholder
+	// takes its place.
+	OnEmpty func()
+	// EmptyStateID names a content tab that stands in for the placeholder:
+	// like it, it has no close button while it is the only tab.
+	EmptyStateID  string
+	OnError       func(msg string)
+	OnNotify      func(msg string)
+	pendingNotify []string
+	focused       bool
 	// diagSources holds diagnostics keyed by source ("lsp", "plugin:<name>")
 	// then by file path. Merged per-path into each tab's Diagnostics.
 	diagSources map[string]map[string][]Diagnostic
@@ -303,15 +316,35 @@ func (g *EditorGroupWidget) MoveActiveTab(direction int) bool {
 }
 
 func (g *EditorGroupWidget) OpenFile(path string) {
+	if isSpecialFile(path) {
+		g.reportError("Cannot open " + path + ": not a regular file")
+		return
+	}
 	for i := range g.tabs {
 		if g.tabs[i].FilePath == path {
 			g.tabs[i].Preview = false
+			if g.tabs[i].Content != nil {
+				g.applyImagePrefs(g.tabs[i].Content)
+				if refresher, ok := g.tabs[i].Content.(interface{ Refresh() }); ok {
+					refresher.Refresh()
+				}
+				g.SwitchTab(i)
+				return
+			}
 			if g.tabs[i].Buf != nil && !g.tabs[i].Buf.Dirty {
 				g.tabs[i].Buf.LoadFile(path)
 			}
 			g.SwitchTab(i)
 			return
 		}
+	}
+	switch sniffFileKind(path) {
+	case fileKindImage:
+		g.openContentFileTab(path, NewImageViewWidget(path))
+		return
+	case fileKindBinary:
+		g.openContentFileTab(path, NewBinaryFileWidget(path))
+		return
 	}
 	newBuf := &buffer.Buffer{Lines: []string{""}, InsertFinalNewline: g.InsertFinalNewline, ShowTrailingNewline: g.ShowTrailingNewline, TrimTrailingWhitespace: g.TrimTrailingWhitespace}
 	ec := config.LoadEditorConfig(path)
@@ -360,7 +393,8 @@ func (g *EditorGroupWidget) OpenFile(path string) {
 	if g.SyntaxHighlight {
 		newTab.Highlighter = highlight.New(path)
 	}
-	if t := g.activeTab(); t != nil && t.Preview && t.Content == nil && t.Buf != nil && !t.Buf.Dirty {
+	if t := g.activeTab(); t != nil && t.Preview && (isFileViewerTab(t) || (t.Content == nil && t.Buf != nil && !t.Buf.Dirty)) {
+		g.notifyContentTabClose(*t)
 		g.tabs[g.active] = newTab
 		g.syncTabs()
 	} else {
@@ -370,6 +404,93 @@ func (g *EditorGroupWidget) OpenFile(path string) {
 	if g.OnFileOpen != nil && newTab.Highlighter != nil {
 		g.OnFileOpen(path, newTab.Highlighter.Language(), strings.Join(newBuf.Lines, "\n"))
 	}
+}
+
+func isFileViewerTab(t *editorTab) bool {
+	switch t.Content.(type) {
+	case *ImageViewWidget, *BinaryFileWidget:
+		return true
+	}
+	return false
+}
+
+func (g *EditorGroupWidget) applyImagePrefs(content Widget) {
+	if iv, ok := content.(*ImageViewWidget); ok {
+		iv.Protocol = g.ImageProtocol
+		iv.CellW, iv.CellH = g.ImageCellW, g.ImageCellH
+	}
+}
+
+const specialFileMask = os.ModeNamedPipe | os.ModeSocket | os.ModeDevice | os.ModeCharDevice | os.ModeIrregular
+
+// Reading a pipe or device blocks until a peer shows up, which freezes the UI thread.
+func isSpecialFile(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.Mode()&specialFileMask != 0
+}
+
+type fileKind int
+
+const (
+	fileKindText fileKind = iota
+	fileKindImage
+	fileKindBinary
+)
+
+// The binary check mirrors isBinaryContent in internal/app/current_changes.go, which this package cannot import without a cycle.
+func sniffFileKind(path string) fileKind {
+	f, err := os.Open(path)
+	if err != nil {
+		return fileKindText
+	}
+	defer f.Close()
+	var head [512]byte
+	n, _ := f.Read(head[:])
+	sample := head[:n]
+	ct := http.DetectContentType(sample)
+	switch ct {
+	case "image/png", "image/jpeg", "image/gif":
+		return fileKindImage
+	}
+	if len(sample) == 0 {
+		return fileKindText
+	}
+	// A rune cut by the 512-byte window is not invalid UTF-8.
+	if n == len(head) {
+		for i := len(sample) - 1; i >= len(sample)-utf8.UTFMax && i >= 0; i-- {
+			if utf8.RuneStart(sample[i]) {
+				if !utf8.FullRune(sample[i:]) {
+					sample = sample[:i]
+				}
+				break
+			}
+		}
+	}
+	if bytes.IndexByte(sample, 0) >= 0 || !utf8.Valid(sample) {
+		return fileKindBinary
+	}
+	if !strings.HasPrefix(ct, "text/") {
+		return fileKindBinary
+	}
+	return fileKindText
+}
+
+// Content tabs carry no buffer.
+func (g *EditorGroupWidget) openContentFileTab(path string, content Widget) {
+	g.applyImagePrefs(content)
+	newTab := editorTab{
+		FilePath: path,
+		Content:  content,
+		Preview:  true,
+	}
+	if t := g.activeTab(); t != nil && t.Preview && (t.Content != nil || (t.Buf != nil && !t.Buf.Dirty)) {
+		g.notifyContentTabClose(*t)
+		g.tabs[g.active] = newTab
+		g.syncTabs()
+		return
+	}
+	g.tabs = append(g.tabs, newTab)
+	g.SwitchTab(len(g.tabs) - 1)
 }
 
 func (g *EditorGroupWidget) NewFile() {
@@ -479,6 +600,26 @@ func (g *EditorGroupWidget) SetDiffCollapsedEmphasis(enabled bool) {
 	}
 }
 
+// An empty protocol means auto-detection.
+func (g *EditorGroupWidget) SetImageProtocol(protocol string) {
+	g.ImageProtocol = protocol
+	for _, tab := range g.tabs {
+		if iv, ok := tab.Content.(*ImageViewWidget); ok {
+			iv.Protocol = protocol
+		}
+	}
+}
+
+// w and h are pixels per cell.
+func (g *EditorGroupWidget) SetImageCellSize(w, h int) {
+	g.ImageCellW, g.ImageCellH = w, h
+	for _, tab := range g.tabs {
+		if iv, ok := tab.Content.(*ImageViewWidget); ok {
+			iv.CellW, iv.CellH = w, h
+		}
+	}
+}
+
 func (g *EditorGroupWidget) OpenPluginTab(id, title string, content Widget) {
 	for i, t := range g.tabs {
 		if t.FilePath == id {
@@ -498,6 +639,24 @@ func (g *EditorGroupWidget) OpenPluginTab(id, title string, content Widget) {
 	g.SwitchTab(len(g.tabs) - 1)
 }
 
+func (g *EditorGroupWidget) placeholderTab() editorTab {
+	return editorTab{
+		FilePath: "untitled",
+		Buf:      &buffer.Buffer{Lines: []string{""}},
+		Cur:      &cursor.Cursor{},
+		Vp:       &view.Viewport{},
+		Undo:     g.newUndoStack(),
+		Sel:      &selection.Selection{},
+		Virtual:  true,
+	}
+}
+
+func (g *EditorGroupWidget) notifyEmpty() {
+	if g.OnEmpty != nil {
+		g.OnEmpty()
+	}
+}
+
 func (g *EditorGroupWidget) ClosePluginTab(id string) {
 	for i, t := range g.tabs {
 		if t.FilePath == id {
@@ -506,21 +665,17 @@ func (g *EditorGroupWidget) ClosePluginTab(id string) {
 				g.pinnedCount--
 			}
 			g.tabs = append(g.tabs[:i], g.tabs[i+1:]...)
-			if len(g.tabs) == 0 {
-				g.tabs = []editorTab{{
-					FilePath: "untitled",
-					Buf:      &buffer.Buffer{Lines: []string{""}},
-					Cur:      &cursor.Cursor{},
-					Vp:       &view.Viewport{},
-					Undo:     g.newUndoStack(),
-					Sel:      &selection.Selection{},
-					Virtual:  true,
-				}}
+			emptied := len(g.tabs) == 0
+			if emptied {
+				g.tabs = []editorTab{g.placeholderTab()}
 				g.active = 0
 			} else if g.active >= len(g.tabs) {
 				g.active = len(g.tabs) - 1
 			}
 			g.syncTabs()
+			if emptied {
+				g.notifyEmpty()
+			}
 			return
 		}
 	}
@@ -798,21 +953,17 @@ func (g *EditorGroupWidget) CloseTab() {
 		g.pinnedCount--
 	}
 	g.tabs = append(g.tabs[:g.active], g.tabs[g.active+1:]...)
-	if len(g.tabs) == 0 {
-		g.tabs = []editorTab{{
-			FilePath: "untitled",
-			Buf:      &buffer.Buffer{Lines: []string{""}},
-			Cur:      &cursor.Cursor{},
-			Vp:       &view.Viewport{},
-			Undo:     g.newUndoStack(),
-			Sel:      &selection.Selection{},
-			Virtual:  true,
-		}}
+	emptied := len(g.tabs) == 0
+	if emptied {
+		g.tabs = []editorTab{g.placeholderTab()}
 		g.active = 0
 	} else if g.active >= len(g.tabs) {
 		g.active = len(g.tabs) - 1
 	}
 	g.syncTabs()
+	if emptied {
+		g.notifyEmpty()
+	}
 }
 
 func (g *EditorGroupWidget) CloseOtherTabs() {
@@ -884,21 +1035,17 @@ func (g *EditorGroupWidget) CloseAllTabs() {
 		g.notifyContentTabClose(g.tabs[i])
 	}
 	kept := slices.Clone(g.tabs[:g.pinnedCount])
-	if len(kept) == 0 {
-		kept = []editorTab{{
-			FilePath: "untitled",
-			Buf:      &buffer.Buffer{Lines: []string{""}},
-			Cur:      &cursor.Cursor{},
-			Vp:       &view.Viewport{},
-			Undo:     g.newUndoStack(),
-			Sel:      &selection.Selection{},
-			Virtual:  true,
-		}}
+	emptied := len(kept) == 0
+	if emptied {
+		kept = []editorTab{g.placeholderTab()}
 		g.pinnedCount = 0
 	}
 	g.tabs = kept
 	g.active = 0
 	g.syncTabs()
+	if emptied {
+		g.notifyEmpty()
+	}
 }
 
 func (g *EditorGroupWidget) CloseAllSaved() {
@@ -910,16 +1057,9 @@ func (g *EditorGroupWidget) CloseAllSaved() {
 		}
 		g.notifyContentTabClose(g.tabs[i])
 	}
-	if len(kept) == 0 {
-		kept = []editorTab{{
-			FilePath: "untitled",
-			Buf:      &buffer.Buffer{Lines: []string{""}},
-			Cur:      &cursor.Cursor{},
-			Vp:       &view.Viewport{},
-			Undo:     g.newUndoStack(),
-			Sel:      &selection.Selection{},
-			Virtual:  true,
-		}}
+	emptied := len(kept) == 0
+	if emptied {
+		kept = []editorTab{g.placeholderTab()}
 		g.pinnedCount = 0
 	}
 	g.tabs = kept
@@ -927,6 +1067,9 @@ func (g *EditorGroupWidget) CloseAllSaved() {
 		g.active = len(g.tabs) - 1
 	}
 	g.syncTabs()
+	if emptied {
+		g.notifyEmpty()
+	}
 }
 
 func (g *EditorGroupWidget) HasDirtyTabs() bool {
@@ -1866,7 +2009,8 @@ func (g *EditorGroupWidget) syncTabs() {
 		}
 		isEmptyUntitledTab := ts.Virtual && ts.Buf != nil && !ts.Buf.Dirty &&
 			len(ts.Buf.Lines) <= 1 && (len(ts.Buf.Lines) == 0 || ts.Buf.Lines[0] == "")
-		closable := !(len(g.tabs) == 1 && isEmptyUntitledTab)
+		isEmptyState := g.EmptyStateID != "" && ts.FilePath == g.EmptyStateID
+		closable := !(len(g.tabs) == 1 && (isEmptyUntitledTab || isEmptyState))
 		name := ts.FilePath
 		if ts.Title != "" {
 			name = ts.Title

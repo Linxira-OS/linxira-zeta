@@ -102,3 +102,21 @@ func TestSpawnTerminalSizedToBottomPanel(t *testing.T) {
 		t.Errorf("terminal rows = %d, want %d (bottom panel height %d, full content split height %d)", gotRows, wantRows, h.app.ContentSplit.BottomH, fullH)
 	}
 }
+
+func TestPanelDockedRightKeepsEditorAndCorner(t *testing.T) {
+	h := newTestHarness(t, 80, 14)
+	defer h.stop()
+
+	h.app.Settings.Terminal.Shell = "/bin/cat"
+	h.exec("terminal.toggle")
+	h.exec("panel.dockRight")
+	h.redraw()
+	for _, tt := range h.app.Terminals {
+		defer tt.Term.Close()
+	}
+
+	h.assertContains("untitled")
+	if row := []rune(h.screenRow(2)); row[len(row)-1] != '╮' {
+		t.Errorf("right edge of row 2 = %q, want '╮'\n%s", row[len(row)-1], h.screenText())
+	}
+}

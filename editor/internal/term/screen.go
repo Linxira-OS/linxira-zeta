@@ -44,6 +44,12 @@ const (
 	StyleSuccess
 	StyleDanger
 	StyleWarning
+	StyleGitConflict
+	// Dimmed variants for staged git changes.
+	StyleSuccessStaged
+	StyleDangerStaged
+	StyleWarningStaged
+	StyleGitConflictStaged
 	StyleDiagError
 	StyleDiagWarning
 	StyleDiagInfo
@@ -66,6 +72,12 @@ const (
 	StyleButton
 	StyleButtonFocused
 	StyleSelectedTab
+	StyleFileIconRed
+	StyleFileIconYellow
+	StyleFileIconGreen
+	StyleFileIconCyan
+	StyleFileIconBlue
+	StyleFileIconMagenta
 	styleCount
 )
 

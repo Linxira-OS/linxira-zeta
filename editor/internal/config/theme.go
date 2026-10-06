@@ -109,6 +109,15 @@ type SyntaxStyles struct {
 	Attribute   StyleDef `json:"attribute"`
 }
 
+type FileIconStyles struct {
+	Red     StyleDef `json:"red"`
+	Yellow  StyleDef `json:"yellow"`
+	Green   StyleDef `json:"green"`
+	Cyan    StyleDef `json:"cyan"`
+	Blue    StyleDef `json:"blue"`
+	Magenta StyleDef `json:"magenta"`
+}
+
 type TerminalColors struct {
 	Foreground    string `json:"foreground,omitempty"`
 	Background    string `json:"background,omitempty"`
@@ -128,6 +137,9 @@ type TerminalColors struct {
 	BrightMagenta string `json:"brightMagenta,omitempty"`
 	BrightCyan    string `json:"brightCyan,omitempty"`
 	BrightWhite   string `json:"brightWhite,omitempty"`
+	// Selection is the highlight background for selected terminal text; it
+	// inherits editor.selection.bg when empty.
+	Selection string `json:"selection,omitempty"`
 }
 
 func DefaultTerminalColors() TerminalColors {
@@ -206,28 +218,35 @@ type HoverStyles struct {
 }
 
 type ThemeConfig struct {
-	Default      StyleDef       `json:"default"`
-	Muted        StyleDef       `json:"muted"`
-	Success      StyleDef       `json:"success"`
-	Danger       StyleDef       `json:"danger"`
-	Warning      StyleDef       `json:"warning"`
-	StatusBar    StyleDef       `json:"statusBar"`
-	CommitHeader StyleDef       `json:"commitHeader"`
-	Tabs         TabStyles      `json:"tabs"`
-	Sidebar      SidebarStyles  `json:"sidebar"`
-	Dialog       DialogStyles   `json:"dialog"`
-	Editor       EditorStyles   `json:"editor"`
-	Menu         MenuStyles     `json:"menu"`
-	Input        InputStyles    `json:"input"`
-	Button       ButtonStyles   `json:"button"`
-	Hover        HoverStyles    `json:"hover"`
-	Border       StyleDef       `json:"border"`
-	BorderActive StyleDef       `json:"borderActive"`
-	Diff         DiffStyles     `json:"diff"`
-	Scrollbar    StyleDef       `json:"scrollbar"`
-	Syntax       SyntaxStyles   `json:"syntax"`
-	Borders      BorderChars    `json:"borders"`
-	Terminal     TerminalColors `json:"terminal,omitempty"`
+	Default  StyleDef `json:"default"`
+	Muted    StyleDef `json:"muted"`
+	Success  StyleDef `json:"success"`
+	Danger   StyleDef `json:"danger"`
+	Warning  StyleDef `json:"warning"`
+	Conflict StyleDef `json:"conflict"`
+	// Derived by ResolveColors, not theme-file settings.
+	SuccessStaged  StyleDef       `json:"-"`
+	DangerStaged   StyleDef       `json:"-"`
+	WarningStaged  StyleDef       `json:"-"`
+	ConflictStaged StyleDef       `json:"-"`
+	StatusBar      StyleDef       `json:"statusBar"`
+	CommitHeader   StyleDef       `json:"commitHeader"`
+	Tabs           TabStyles      `json:"tabs"`
+	Sidebar        SidebarStyles  `json:"sidebar"`
+	Dialog         DialogStyles   `json:"dialog"`
+	Editor         EditorStyles   `json:"editor"`
+	Menu           MenuStyles     `json:"menu"`
+	Input          InputStyles    `json:"input"`
+	Button         ButtonStyles   `json:"button"`
+	Hover          HoverStyles    `json:"hover"`
+	Border         StyleDef       `json:"border"`
+	BorderActive   StyleDef       `json:"borderActive"`
+	Diff           DiffStyles     `json:"diff"`
+	Scrollbar      StyleDef       `json:"scrollbar"`
+	Syntax         SyntaxStyles   `json:"syntax"`
+	FileIcons      FileIconStyles `json:"fileIcons"`
+	Borders        BorderChars    `json:"borders"`
+	Terminal       TerminalColors `json:"terminal,omitempty"`
 }
 
 func DefaultTheme() ThemeConfig {
@@ -336,6 +355,11 @@ func (t *ThemeConfig) ResolveColors() {
 	fillFg(&t.Success, "#73c991")
 	fillFg(&t.Danger, "#f14c4c")
 	fillFg(&t.Warning, "#e2c08d")
+	fillFg(&t.Conflict, "#c586c0")
+	t.SuccessStaged = fadeStyleDef(t.Success, t.Default.Bg)
+	t.DangerStaged = fadeStyleDef(t.Danger, t.Default.Bg)
+	t.WarningStaged = fadeStyleDef(t.Warning, t.Default.Bg)
+	t.ConflictStaged = fadeStyleDef(t.Conflict, t.Default.Bg)
 	fillFg(&t.Editor.Diagnostics.Error, t.Danger.Fg)
 	fillFg(&t.Editor.Diagnostics.Warning, t.Warning.Fg)
 	fillFg(&t.Editor.Diagnostics.Info, t.Default.Fg)
@@ -349,6 +373,15 @@ func (t *ThemeConfig) ResolveColors() {
 	fillFg(&t.Hover.Bold, t.Default.Fg)
 	fillFg(&t.Hover.Italic, t.Default.Fg)
 	fillFg(&t.Hover.Code, t.Syntax.String.Fg)
+	fillFg(&t.FileIcons.Red, t.Terminal.Red)
+	fillFg(&t.FileIcons.Yellow, t.Terminal.Yellow)
+	fillFg(&t.FileIcons.Green, t.Terminal.Green)
+	fillFg(&t.FileIcons.Cyan, t.Terminal.Cyan)
+	fillFg(&t.FileIcons.Blue, t.Terminal.Blue)
+	fillFg(&t.FileIcons.Magenta, t.Terminal.Magenta)
+	if t.Terminal.Selection == "" {
+		t.Terminal.Selection = t.Editor.Selection.Bg
+	}
 }
 
 func fillFg(s *StyleDef, color string) {
@@ -399,6 +432,25 @@ func themeContrast(foreground, background themeRGB) float64 {
 
 func formatThemeRGB(color themeRGB) string {
 	return fmt.Sprintf("#%02x%02x%02x", int(math.Round(color.r)), int(math.Round(color.g)), int(math.Round(color.b)))
+}
+
+// stagedFadeAmount blends a status color toward the background to fake a
+// dimmed variant, since terminals don't support real alpha/opacity.
+const stagedFadeAmount = 0.45
+
+func fadeStyleDef(base StyleDef, bg string) StyleDef {
+	faded := base
+	fg, fgOK := parseThemeRGB(base.Fg)
+	target, bgOK := parseThemeRGB(bg)
+	if !fgOK || !bgOK {
+		return faded
+	}
+	faded.Fg = formatThemeRGB(themeRGB{
+		r: fg.r + (target.r-fg.r)*stagedFadeAmount,
+		g: fg.g + (target.g-fg.g)*stagedFadeAmount,
+		b: fg.b + (target.b-fg.b)*stagedFadeAmount,
+	})
+	return faded
 }
 
 func contrastSafeForeground(foreground, background, fallback string) string {

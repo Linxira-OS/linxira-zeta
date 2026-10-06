@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/eugenioenko/ttt/internal/command"
 	"github.com/eugenioenko/ttt/internal/core/diff"
@@ -172,6 +173,11 @@ func (a *App) NavigateToSearchMatch(path string, line, col int) {
 	}
 	a.EditorGroup.OpenFile(path)
 	a.EditorGroup.GoToLine(line)
+	if a.EditorGroup.IsEditorActive() {
+		text := a.EditorGroup.Editor.Buf.Lines[a.EditorGroup.Editor.Cursor.Line]
+		runeCol := utf8.RuneCountInString(text[:min(col, len(text))])
+		a.EditorGroup.GoToLineCol(line, runeCol+1)
+	}
 	if a.Search.Input.Text != "" {
 		matches, _ := ui.FindInLines(a.EditorGroup.Editor.Buf.Lines, a.Search.Input.Text, a.Search.Options)
 		a.EditorGroup.SetSearch(a.Search.Input.Text, matches)
@@ -500,7 +506,12 @@ func registerWidgetCallbacks(app *App) {
 		handleRightClick(app, mx, my)
 	}
 
+	// A click that opened a dialog (a welcome or empty-Explorer action runs on
+	// the press) must leave the focus in it, or typing goes nowhere.
 	app.SplitPanel.OnLeftClick = func() {
+		if app.Root.HasOverlay() {
+			return
+		}
 		reg.Execute("sidebar.focus")
 	}
 	app.SplitPanel.OnRightClick = func() {}
@@ -605,6 +616,12 @@ func registerWidgetCallbacks(app *App) {
 		openContextMenu(app, tabContextMenu, sx, sy)
 	}
 
+	app.Explorer.OnAction = func(id string) { reg.Execute(id) }
+	app.EditorGroup.OnEmpty = func() {
+		if app.welcomeWhenEmpty && len(app.Workspace.Paths()) == 0 {
+			app.ShowEmptyState()
+		}
+	}
 	app.Explorer.OnOpenFile = func(path string) {
 		app.EditorGroup.OpenFile(path)
 		app.FocusEditorIfEnabled()
@@ -632,10 +649,15 @@ func registerWidgetCallbacks(app *App) {
 	}
 	app.Explorer.OnRootMenu = func(node *widgets.TreeNode, sx, sy int) {
 		app.ExplorerContextNode = node
+		favorite := ui.ContextMenuItem{Label: "Add to Favorites", Command: "welcome.addFavorite"}
+		if app.favoriteIndex(node.ID) >= 0 {
+			favorite = ui.ContextMenuItem{Label: "Remove from Favorites", Command: "welcome.removeFavorite"}
+		}
 		items := []ui.ContextMenuItem{
 			{Label: "Refresh", Command: "explorer.refresh"},
 			{Label: "Copy Path", Command: "explorer.copyAbsolutePath"},
 			ui.MenuSep(),
+			favorite,
 			{Label: "Remove from Workspace", Command: "explorer.removeRoot"},
 			ui.MenuSep(),
 			{Label: "Expand All", Command: "explorer.expandAll"},
@@ -689,12 +711,16 @@ func registerWidgetCallbacks(app *App) {
 	}
 	app.Changes.Split.OnResize = app.persistCommitHistoryHeight
 
-	app.ContentSplit.OnResize = func(height int) {
-		if height <= 0 {
+	app.ContentSplit.OnResize = func(size int) {
+		if size <= 0 {
 			app.ContentSplit.ShowBottom = false
 		} else {
 			app.ContentSplit.ShowBottom = true
-			app.ContentSplit.BottomH = height
+			if app.ContentSplit.Position == ui.SplitRight {
+				app.ContentSplit.RightW = size
+			} else {
+				app.ContentSplit.BottomH = size
+			}
 			if len(app.Terminals) == 0 {
 				app.SpawnTerminal()
 			} else {
@@ -704,10 +730,16 @@ func registerWidgetCallbacks(app *App) {
 	}
 
 	app.ContentSplit.OnTopClick = func() {
+		if app.Root.HasOverlay() {
+			return
+		}
 		app.Root.SetFocus(app.EditorGroup)
 	}
 
 	app.ContentSplit.OnBottomClick = func() {
+		if app.Root.HasOverlay() {
+			return
+		}
 		if w := app.BottomPanel.ActiveWidget(); w != nil {
 			app.Root.SetFocus(w)
 		}
@@ -730,11 +762,16 @@ func registerWidgetCallbacks(app *App) {
 			reg.Execute("terminal.new")
 		}},
 		{Icon: "⋮", OnClick: func(sx, sy int) {
+			dock := ui.ContextMenuItem{Label: "Dock Right", Command: "panel.dockRight"}
+			if app.ContentSplit.Position == ui.SplitRight {
+				dock = ui.ContextMenuItem{Label: "Dock Bottom", Command: "panel.dockBottom"}
+			}
 			items := []ui.ContextMenuItem{
 				{Label: "New Terminal", Command: "terminal.new"},
 				ui.MenuSep(),
 				{Label: "Close All Terminals", Command: "terminal.closeAll"},
 				ui.MenuSep(),
+				dock,
 				{Label: "Close Panel", Command: "panel.toggle"},
 			}
 			openContextMenu(app, items, sx, sy)

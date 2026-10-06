@@ -296,6 +296,75 @@ func TestTreeRenderEmptyNoEmptyText(t *testing.T) {
 	}
 }
 
+func TestTreeRenderLabelStyle(t *testing.T) {
+	tree := NewTreeWidget(TreeConfig{
+		Items: []*TreeNode{
+			{ID: "a", Label: "plain.go"},
+			{ID: "b", Label: "changed.go", LabelStyle: term.StyleWarning},
+		},
+	})
+	tree.SetFocused(true)
+	s := renderWidget(tree, 0, 0, 20, 10)
+
+	// "a" is selected by default and unaffected by LabelStyle.
+	if s.cells[0][0].Style != term.StyleSidebarSelected {
+		t.Errorf("selected row should use StyleSidebarSelected, got %v", s.cells[0][0].Style)
+	}
+	// "b" is unselected, so its LabelStyle should color the row.
+	if s.cells[1][0].Style != term.StyleWarning {
+		t.Errorf("unselected node with LabelStyle should use it, got %v", s.cells[1][0].Style)
+	}
+
+	tree.SelectByID("b")
+	s = renderWidget(tree, 0, 0, 20, 10)
+	if s.cells[1][0].Style != term.StyleSidebarSelected {
+		t.Errorf("selected row keeps selection highlight over LabelStyle, got %v", s.cells[1][0].Style)
+	}
+}
+
+func TestTreeRenderLabelStyleSurvivesUnfocusedSelection(t *testing.T) {
+	tree := NewTreeWidget(TreeConfig{
+		Items: []*TreeNode{
+			{ID: "a", Label: "changed.go", LabelStyle: term.StyleWarning},
+		},
+	})
+	// "a" is selected, but an unfocused tree draws no selection highlight, so
+	// there is nothing for the selection to take precedence over.
+	tree.SetFocused(false)
+	s := renderWidget(tree, 0, 0, 20, 10)
+	if s.cells[0][0].Style != term.StyleWarning {
+		t.Errorf("unhighlighted selected row should keep its LabelStyle, got %v", s.cells[0][0].Style)
+	}
+}
+
+func TestTreeRenderActiveIDHighlightOverridesLabelStyle(t *testing.T) {
+	tree := NewTreeWidget(TreeConfig{
+		Items: []*TreeNode{
+			{ID: "a", Label: "plain.go"},
+			{ID: "b", Label: "changed.go", LabelStyle: term.StyleWarning},
+		},
+	})
+	tree.SetActiveID("b")
+	s := renderWidget(tree, 0, 0, 20, 10)
+	if s.cells[1][0].Style != term.StyleSidebarSelected {
+		t.Errorf("active row highlight should win over LabelStyle, got %v", s.cells[1][0].Style)
+	}
+}
+
+func TestTreeRenderMutedOverridesLabelStyle(t *testing.T) {
+	tree := NewTreeWidget(TreeConfig{
+		Items: []*TreeNode{
+			{ID: "root", Label: "root.go"},
+			{ID: "a", Label: "ignored.go", LabelStyle: term.StyleWarning, Muted: true},
+		},
+	})
+	tree.SetFocused(false)
+	s := renderWidget(tree, 0, 0, 20, 10)
+	if s.cells[1][0].Style != term.StyleMuted {
+		t.Errorf("Muted should take precedence over LabelStyle, got %v", s.cells[1][0].Style)
+	}
+}
+
 func TestTreeRenderIcon(t *testing.T) {
 	tree := NewTreeWidget(TreeConfig{
 		Items: []*TreeNode{
@@ -311,6 +380,20 @@ func TestTreeRenderIcon(t *testing.T) {
 	row := surfaceRowText(s, 0)
 	if len(row) < 6 || row[2:6] != "File" {
 		t.Errorf("label should follow icon+space, got %q", row)
+	}
+}
+
+func TestTreeRenderLabelIconSitsBetweenIconAndLabel(t *testing.T) {
+	tree := NewTreeWidget(TreeConfig{Items: []*TreeNode{
+		{ID: "a", Label: "a.go", Icon: "M", LabelIcon: "g"},
+		{ID: "b", Label: "b.go", LabelIcon: "g"},
+	}})
+	s := renderWidget(tree, 0, 0, 20, 5)
+	if row := surfaceRowText(s, 0); row[:6] != "M g a." {
+		t.Fatalf("row with Icon and LabelIcon = %q, want status, label icon, label", row)
+	}
+	if row := surfaceRowText(s, 1); row[:6] != "g b.go" {
+		t.Fatalf("row with only LabelIcon = %q", row)
 	}
 }
 
@@ -1557,5 +1640,62 @@ func TestTreeAppendItemFlattensChildren(t *testing.T) {
 	}
 	if got := tree.FlatList()[2].ID; got != "b1" {
 		t.Errorf("child at index 2 = %q, want %q", got, "b1")
+	}
+}
+
+func TestTreeRenderCustomChevrons(t *testing.T) {
+	open := &TreeNode{ID: "open", Label: "open", Expandable: true, Expanded: true, Children: []*TreeNode{{ID: "c", Label: "c"}}}
+	shut := &TreeNode{ID: "shut", Label: "shut", Expandable: true}
+	tree := NewTreeWidget(TreeConfig{Items: []*TreeNode{open, shut}, ChevronCollapsed: '>', ChevronExpanded: 'v'})
+
+	s := renderWidget(tree, 0, 0, 20, 5)
+	if got := s.cells[0][0].Ch; got != 'v' {
+		t.Errorf("expanded chevron = %c, want v", got)
+	}
+	if got := s.cells[2][0].Ch; got != '>' {
+		t.Errorf("collapsed chevron = %c, want >", got)
+	}
+
+	plain := NewTreeWidget(TreeConfig{Items: []*TreeNode{{ID: "d", Label: "d", Expandable: true}}})
+	s = renderWidget(plain, 0, 0, 20, 5)
+	if got := s.cells[0][0].Ch; got != '▶' {
+		t.Errorf("unset chevron = %c, want the default", got)
+	}
+}
+
+// Holding the button on a row must activate it once, not on every report the
+// terminal sends while the button stays down and the pointer drifts: in the
+// Explorer that toggled a held folder over and over.
+func TestTreeHeldPressActivatesOnce(t *testing.T) {
+	activations := 0
+	tree := NewTreeWidget(TreeConfig{
+		ActivateExpandable: true,
+		OnCommand: func(cmd string, _ *TreeNode) {
+			if cmd == "activate" {
+				activations++
+			}
+		},
+	})
+	tree.SetItems([]*TreeNode{{ID: "dir", Label: "dir", Children: []*TreeNode{{ID: "dir/a", Label: "a"}}}})
+	renderWidget(tree, 0, 0, 20, 5)
+	y := tree.contentY
+
+	press := func(x int, btn tcell.ButtonMask) {
+		tree.HandleEvent(tcell.NewEventMouse(x, y, btn, tcell.ModNone))
+	}
+	press(4, tcell.Button1)
+	for x := 5; x < 10; x++ {
+		press(x, tcell.Button1)
+	}
+	if activations != 1 {
+		t.Fatalf("held press activated %d times, want 1", activations)
+	}
+
+	// A report without the button (the release, or the pointer coming back)
+	// arms the next press.
+	press(9, tcell.ButtonNone)
+	press(9, tcell.Button1)
+	if activations != 2 {
+		t.Fatalf("a new press after the release gave %d activations, want 2", activations)
 	}
 }

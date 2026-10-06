@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/eugenioenko/vt10x"
+	"github.com/gitpod-io/xterm-go"
 )
 
 func newTestTerminal(t *testing.T) *Terminal {
@@ -51,12 +52,30 @@ func TestNewDefaultsScrollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
+	updated := make(chan struct{}, 100)
+	term.OnUpdate = func() {
+		term.AckUpdate()
+		select {
+		case updated <- struct{}{}:
+		default:
+		}
+	}
 	term.Run()
 	defer term.Close()
+
 	// A non-positive scrollbackMax must fall back to the default rather than
 	// producing a terminal with no history.
-	if term.vt == nil {
-		t.Fatal("expected vt to be initialized")
+	// Output more lines than the viewport height (24 rows) and assert that lines
+	// accumulate into scrollback.
+	term.WriteString("for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do echo line $i; done\n")
+
+	deadline := time.After(5 * time.Second)
+	for term.ScrollbackLen() <= 0 {
+		select {
+		case <-updated:
+		case <-deadline:
+			t.Fatalf("timed out waiting for scrollback lines to appear: ScrollbackLen() = %d", term.ScrollbackLen())
+		}
 	}
 }
 
@@ -154,6 +173,7 @@ func TestWriteStringAndReadLoopUpdatesView(t *testing.T) {
 
 	updated := make(chan struct{}, 100)
 	term.OnUpdate = func() {
+		term.AckUpdate()
 		select {
 		case updated <- struct{}{}:
 		default:
@@ -168,8 +188,8 @@ func TestWriteStringAndReadLoopUpdatesView(t *testing.T) {
 	for !found {
 		select {
 		case <-updated:
-			term.Snapshot(func(v vt10x.View) {
-				if strings.Contains(v.String(), "hello_ttt_test") {
+			term.Snapshot(func(xt *xterm.Terminal) {
+				if strings.Contains(xt.String(), "hello_ttt_test") {
 					found = true
 				}
 			})
@@ -185,6 +205,7 @@ func TestRawTailCapturesWrittenBytes(t *testing.T) {
 
 	updated := make(chan struct{}, 100)
 	term.OnUpdate = func() {
+		term.AckUpdate()
 		select {
 		case updated <- struct{}{}:
 		default:
@@ -243,5 +264,137 @@ func TestRawTailSingleWriteLargerThanMax(t *testing.T) {
 	}
 	if !bytes.HasSuffix(got, bytes.Repeat([]byte{'y'}, 10)) {
 		t.Error("expected the tail to keep the end of an oversized single write")
+	}
+}
+
+func TestPrimaryDeviceAttributesResponse(t *testing.T) {
+	term, err := New("/bin/sh", 80, 24, 0, nil, "")
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	updated := make(chan struct{}, 100)
+	term.OnUpdate = func() {
+		term.AckUpdate()
+		select {
+		case updated <- struct{}{}:
+		default:
+		}
+	}
+
+	term.Run()
+	defer term.Close()
+
+	term.WriteString("stty raw -echo; printf '\\033[0c'; exec cat\n")
+
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case <-updated:
+			if strings.Contains(string(term.RawTail()), "\x1b[?1;2c") {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("timed out waiting for DA1 response, got rawtail: %q", string(term.RawTail()))
+		}
+	}
+}
+
+// go-pty keeps its own copy of the slave fd open in this process, so the master
+// never reports EOF when the child dies. Detecting exit therefore has to come
+// from waiting on the process, not from the read loop erroring out.
+func TestOnExitFiresWhenShellExits(t *testing.T) {
+	term := newTestTerminal(t)
+	exited := make(chan struct{})
+	var once sync.Once
+	term.OnExit = func() { once.Do(func() { close(exited) }) }
+	term.Run()
+	defer term.Close()
+
+	term.WriteString("exit\n")
+
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("OnExit never fired after the shell exited")
+	}
+	term.mu.Lock()
+	exitedFlag := term.exited
+	term.mu.Unlock()
+	if !exitedFlag {
+		t.Fatal("exited = false after the shell exited")
+	}
+}
+
+// Close() tears the tab down on its own; OnExit firing there too would close it twice.
+func TestOnExitDoesNotFireOnClose(t *testing.T) {
+	term := newTestTerminal(t)
+	var fired atomic.Bool
+	term.OnExit = func() { fired.Store(true) }
+	term.Run()
+
+	term.Close()
+
+	if fired.Load() {
+		t.Fatal("OnExit fired on an explicit Close()")
+	}
+}
+
+func TestOnUpdateCoalescesUntilAcknowledged(t *testing.T) {
+	term, err := New("/bin/cat", 80, 24, 0, nil, "")
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	defer term.Close()
+	updates := make(chan struct{}, 100)
+	term.OnUpdate = func() { updates <- struct{}{} }
+	term.Run()
+
+	// cat prints each line twice: the tty echo and cat's own output.
+	waitForLine := func(text string) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			count := 0
+			term.Snapshot(func(xt *xterm.Terminal) {
+				b := xt.Buffer()
+				for y := 0; y < xt.Rows(); y++ {
+					if strings.Contains(b.TranslateBufferLineToString(b.YBase+y, true, 0, xt.Cols()), text) {
+						count++
+					}
+				}
+			})
+			if count == 2 {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("timed out waiting for %q", text)
+	}
+	drain := func() int {
+		time.Sleep(50 * time.Millisecond)
+		n := 0
+		for {
+			select {
+			case <-updates:
+				n++
+			default:
+				return n
+			}
+		}
+	}
+
+	term.WriteString("first\n")
+	waitForLine("first")
+	term.WriteString("second\n")
+	waitForLine("second")
+	if n := drain(); n != 1 {
+		t.Fatalf("got %d updates for several reads before AckUpdate, want 1", n)
+	}
+
+	term.AckUpdate()
+	term.WriteString("third\n")
+	waitForLine("third")
+	if n := drain(); n != 1 {
+		t.Fatalf("got %d updates after AckUpdate, want 1", n)
 	}
 }

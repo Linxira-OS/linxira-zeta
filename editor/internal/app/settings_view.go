@@ -156,6 +156,9 @@ func settingsCategories() []settingsCategory {
 				SetInt: func(s *config.Settings, v int) { s.Autocomplete.Debounce = v }},
 		}},
 		{Title: t("Advanced"), Fields: []settingField{
+			{Label: t("Welcome page in home folder"), Kind: settingBool,
+				GetBool: func(s *config.Settings) bool { return s.Welcome.ShowOnHome },
+				SetBool: func(s *config.Settings, v bool) { s.Welcome.ShowOnHome = v }},
 			{Label: t("Git: file view"), Kind: settingEnum, Options: gitFileViewItems,
 				GetString: func(s *config.Settings) string { return s.Git.FileView },
 				SetString: func(s *config.Settings, v string) { s.Git.FileView = v }},
@@ -165,6 +168,21 @@ func settingsCategories() []settingsCategory {
 			{Label: t("Explorer: git-ignored files"), Kind: settingBool,
 				GetBool: func(s *config.Settings) bool { return s.Explorer.ShowGitIgnored },
 				SetBool: func(s *config.Settings, v bool) { s.Explorer.ShowGitIgnored = v }},
+			{Label: t("Explorer: git status colors"), Kind: settingBool,
+				GetBool: func(s *config.Settings) bool { return s.Explorer.GitStatusColors },
+				SetBool: func(s *config.Settings, v bool) { s.Explorer.GitStatusColors = v }},
+			{Label: t("Explorer: dim staged colors"), Kind: settingBool,
+				GetBool: func(s *config.Settings) bool { return s.Explorer.DimStagedGitColors },
+				SetBool: func(s *config.Settings, v bool) { s.Explorer.DimStagedGitColors = v }},
+			{Label: t("Icons"), Kind: settingEnum, Options: iconModeItems,
+				GetString: func(s *config.Settings) string { return s.Appearance.Icons },
+				SetString: func(s *config.Settings, v string) { s.Appearance.Icons = v }},
+			{Label: t("Chevron: collapsed"), Kind: settingString,
+				GetString: func(s *config.Settings) string { return s.Appearance.Chevrons.Collapsed },
+				SetString: func(s *config.Settings, v string) { s.Appearance.Chevrons.Collapsed = v }},
+			{Label: t("Chevron: expanded"), Kind: settingString,
+				GetString: func(s *config.Settings) string { return s.Appearance.Chevrons.Expanded },
+				SetString: func(s *config.Settings, v string) { s.Appearance.Chevrons.Expanded = v }},
 			{Label: t("Terminal shell"), Kind: settingString, Restart: true,
 				GetString: func(s *config.Settings) string { return s.Terminal.Shell },
 				SetString: func(s *config.Settings, v string) { s.Terminal.Shell = v }},
@@ -204,6 +222,13 @@ func languageItems() []widgets.SelectItem {
 		{ID: "", Label: t("Default")},
 		{ID: "en", Label: "English"},
 		{ID: "zh", Label: "中文（简体）"},
+	}
+}
+
+func iconModeItems() []widgets.SelectItem {
+	return []widgets.SelectItem{
+		{ID: config.IconsNerdFont, Label: t("Nerd Font")},
+		{ID: config.IconsNone, Label: t("None")},
 	}
 }
 

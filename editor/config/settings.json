@@ -1,6 +1,13 @@
 {
   "version": 1,
   "theme": "default-dark",
+  "appearance": {
+    "icons": "none",
+    "chevrons": {
+      "collapsed": "▶",
+      "expanded": "▼"
+    }
+  },
   "editor": {
     "tabSize": 4,
     "insertSpaces": true,
@@ -23,7 +30,9 @@
   },
   "explorer": {
     "showHidden": true,
-    "showGitIgnored": true
+    "showGitIgnored": true,
+    "gitStatusColors": true,
+    "dimStagedGitColors": false
   },
   "git": {
     "fileView": "list"
@@ -43,6 +52,9 @@
   },
   "markdown": {
     "wrapWidth": 80
+  },
+  "image": {
+    "protocol": "auto"
   },
   "agent": {
     "enabled": true,

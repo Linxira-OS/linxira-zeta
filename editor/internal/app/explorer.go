@@ -18,16 +18,21 @@ type NavigationPanel struct {
 	Tree     *widgets.TreeWidget
 	Adapter  *ui.WidgetAdapter
 	Settings config.ExplorerSettings
+	Icons    string
 	Roots    []string
 
+	gitStyles map[string]term.Style
+
 	OnOpenFile   func(path string)
+	OnAction     func(commandID string)
 	OnRightClick func(node *widgets.TreeNode, sx, sy int)
 	OnRootMenu   func(node *widgets.TreeNode, sx, sy int)
 }
 
-func NewNavigationPanel(settings config.ExplorerSettings, paths ...string) *NavigationPanel {
+func NewNavigationPanel(settings config.ExplorerSettings, icons string, paths ...string) *NavigationPanel {
 	n := &NavigationPanel{
 		Settings: settings,
+		Icons:    icons,
 		Roots:    paths,
 	}
 
@@ -49,7 +54,16 @@ func NewNavigationPanel(settings config.ExplorerSettings, paths ...string) *Navi
 			n.loadChildren(node)
 		},
 		OnCommand: func(cmd string, node *widgets.TreeNode) {
-			if cmd == "activate" && n.OnOpenFile != nil {
+			if cmd != "activate" {
+				return
+			}
+			if id, ok := strings.CutPrefix(node.ID, explorerActionPrefix); ok {
+				if n.OnAction != nil {
+					n.OnAction(id)
+				}
+				return
+			}
+			if n.OnOpenFile != nil && node.ID != "" {
 				n.OnOpenFile(node.ID)
 			}
 		},
@@ -62,6 +76,9 @@ func NewNavigationPanel(settings config.ExplorerSettings, paths ...string) *Navi
 			return false
 		},
 		OnMenu: func(_ []widgets.MenuEntry, node *widgets.TreeNode, sx, sy int) {
+			if len(n.Roots) == 0 {
+				return
+			}
 			if n.isRoot(node) {
 				if n.OnRootMenu != nil {
 					n.OnRootMenu(node, sx, sy)
@@ -77,6 +94,9 @@ func NewNavigationPanel(settings config.ExplorerSettings, paths ...string) *Navi
 		if root.Expanded {
 			n.loadChildren(root)
 		}
+	}
+	if len(paths) == 0 {
+		items = emptyExplorerNodes()
 	}
 	tree.SetItems(items)
 
@@ -160,8 +180,20 @@ func (n *NavigationPanel) SetRoots(paths []string) {
 		}
 		items[i] = root
 	}
+	if len(paths) == 0 {
+		items = emptyExplorerNodes()
+	}
 	n.Tree.SetItems(items)
 	n.Tree.RestoreExpanded(expanded)
+}
+
+const explorerActionPrefix = "command:"
+
+func emptyExplorerNodes() []*widgets.TreeNode {
+	return []*widgets.TreeNode{
+		{Label: "No folder open", Muted: true},
+		{ID: explorerActionPrefix + "workspace.openFolder", Label: "Open Folder…"},
+	}
 }
 
 // WatchedDirs returns every root plus every expanded folder: the directories
@@ -205,6 +237,37 @@ func (n *NavigationPanel) loadChildren(node *widgets.TreeNode) {
 			Expandable: de.IsDir,
 			Muted:      de.GitIgnored || strings.HasPrefix(de.Name, "."),
 		}
+		child.LabelStyle = n.gitStyleFor(child.ID)
+		if n.Icons == config.IconsNerdFont && !de.IsDir {
+			setFileIcon(child)
+		}
 		node.Children = append(node.Children, child)
 	}
+}
+
+// ApplyGitStatus repaints already-loaded nodes in place instead of reloading
+// from disk, since it runs on every status poll (every couple of seconds).
+func (n *NavigationPanel) ApplyGitStatus(styles map[string]term.Style) {
+	n.gitStyles = styles
+	for _, root := range n.Tree.Config.Items {
+		n.applyGitStyles(root)
+	}
+	n.Tree.SetItems(n.Tree.Config.Items)
+}
+
+func (n *NavigationPanel) applyGitStyles(node *widgets.TreeNode) {
+	node.LabelStyle = n.gitStyleFor(node.ID)
+	for _, child := range node.Children {
+		n.applyGitStyles(child)
+	}
+}
+
+func (n *NavigationPanel) gitStyleFor(path string) term.Style {
+	if !n.Settings.GitStatusColors {
+		return term.StyleDefault
+	}
+	if !n.Settings.DimStagedGitColors {
+		return ui.GitDecorationLive(n.gitStyles[path])
+	}
+	return n.gitStyles[path]
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/eugenioenko/ttt/internal/config"
 	"github.com/eugenioenko/ttt/internal/core/clipboard"
 	"github.com/eugenioenko/ttt/internal/github"
+	"github.com/eugenioenko/ttt/internal/image"
 	"github.com/eugenioenko/ttt/internal/lsp"
 	"github.com/eugenioenko/ttt/internal/plugin"
 	"github.com/eugenioenko/ttt/internal/render"
@@ -117,9 +118,12 @@ func parseFlags() cliFlags {
 	return f
 }
 
-func initTerminalScreen() *term.TcellScreen {
+func initTerminalScreen(listen bool) *term.TcellScreen {
 	screen, err := term.NewTcellScreen()
 	if err != nil {
+		if listen {
+			panic(fmt.Errorf("--listen needs a real terminal (TTY); for headless use --exec instead: %w", err))
+		}
 		panic(err)
 	}
 	return screen
@@ -161,6 +165,8 @@ Options:
   --help, -h          Show this help message
   --version, -v       Show version
   --workspace <file>  Open a saved workspace (.ttt file)
+  --welcome           Start on the welcome page instead of opening the
+                      current directory (for desktop launchers)
   --config <file>     Use a custom config file
   --exec "commands"   Execute semicolon-separated commands after startup
                       (wait-for TEXT [timeout=MS] waits for visible text;
@@ -215,7 +221,7 @@ Source: https://github.com/Linxira-OS/linxira-zeta
 		clipboard.DisableSystem()
 		screen = initSimulationScreen(flags.sizeW, flags.sizeH)
 	} else {
-		screen = initTerminalScreen()
+		screen = initTerminalScreen(flags.listen)
 	}
 	defer screen.Fini()
 	defer handlePanic(screen)
@@ -232,12 +238,15 @@ Source: https://github.com/Linxira-OS/linxira-zeta
 	defer lspManager.Shutdown()
 
 	renderer := &render.Renderer{}
+	imageLayer := image.NewLayer()
 	cmdRegistry := command.NewRegistry()
 	borders := app.BuildBorderSet(cfg.Theme.Borders)
 
 	editor, prURLs, fileTargets := app.BuildApp(&cfg, &borders)
 	editor.ApplyBorderStyle()
-	editor.Init(screen, renderer, lspManager)
+	editor.Init(screen, renderer, lspManager, imageLayer)
+	// Registered after handlePanic so it runs before it and before Fini: placements are deleted while the tty is still alive, on exit and crash.
+	defer func() { editor.CloseImageLayer() }()
 
 	// A handoff from the agent CLI fills in whatever the command line did not
 	// ask for: explicit arguments and --workspace win, the handoff only opens
@@ -366,6 +375,9 @@ Source: https://github.com/Linxira-OS/linxira-zeta
 	editor.Root.SetSize(w, h)
 
 	editor.PendingFileTargets = fileTargets
+	if len(editor.Workspace.Paths()) == 0 && len(fileTargets) == 0 && len(prURLs) == 0 {
+		editor.ShowEmptyState()
+	}
 
 	if flags.pluginFile != "" {
 		app.LoadPluginFromFile(editor, flags.pluginFile)

@@ -393,24 +393,39 @@ func registerViewCommands(app *App) {
 	})
 
 	reg.Register(command.Command{
-		ID: "panel.taller", Title: "View: Increase Panel Height",
-		Keywords: []string{"view", "resize", "bottom"},
+		ID: "panel.taller", Title: "View: Increase Panel Size",
+		Keywords: []string{"view", "resize", "bottom", "right", "height", "width"},
 		Handler: func() {
 			if !app.ContentSplit.ShowBottom {
 				app.ShowBottomPanel()
 			}
-			app.ContentSplit.BottomH++
+			app.ContentSplit.ResizePanel(1)
+			resizeTerminals(app)
 		},
 	})
 
 	reg.Register(command.Command{
-		ID: "panel.shorter", Title: "View: Decrease Panel Height",
-		Keywords: []string{"view", "resize", "bottom"},
+		ID: "panel.shorter", Title: "View: Decrease Panel Size",
+		Keywords: []string{"view", "resize", "bottom", "right", "height", "width"},
 		Handler: func() {
-			if app.ContentSplit.ShowBottom && app.ContentSplit.BottomH > 1 {
-				app.ContentSplit.BottomH--
+			if !app.ContentSplit.ShowBottom {
+				return
 			}
+			app.ContentSplit.ResizePanel(-1)
+			resizeTerminals(app)
 		},
+	})
+
+	reg.Register(command.Command{
+		ID: "panel.dockRight", Title: "View: Dock Panel Right",
+		Keywords: []string{"view", "panel", "terminal", "dock", "position", "side"},
+		Handler:  func() { app.SetPanelPosition(ui.SplitRight) },
+	})
+
+	reg.Register(command.Command{
+		ID: "panel.dockBottom", Title: "View: Dock Panel Bottom",
+		Keywords: []string{"view", "panel", "terminal", "dock", "position", "down"},
+		Handler:  func() { app.SetPanelPosition(ui.SplitBottom) },
 	})
 
 	reg.Register(command.Command{

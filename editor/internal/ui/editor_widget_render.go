@@ -63,6 +63,10 @@ func (e *EditorPaneWidget) Render(surface Surface) {
 
 	e.Viewport.Width = editorW
 	e.Viewport.Height = h
+	if e.hScrollPending {
+		e.hScrollPending = false
+		e.scrollViewport()
+	}
 
 	if e.WordWrap {
 		e.Viewport.LeftCol = 0
@@ -146,12 +150,15 @@ func (e *EditorPaneWidget) Render(surface Surface) {
 			if e.Folds != nil && !e.WordWrap && lineIdx < totalLines && !isWrapContinuation {
 				if fr := e.Folds.FoldAt(lineIdx); fr != nil {
 					chevronCol := gutterW - 2
-					collapsedCh := '▶'
-					expandedCh := '▼'
+					collapsedCh, expandedCh := e.FoldChevronCollapsed, e.FoldChevronExpanded
+					if collapsedCh == 0 {
+						collapsedCh = '▶'
+					}
+					if expandedCh == 0 {
+						expandedCh = '▼'
+					}
 					if e.GutterStyle == "minimal" {
 						chevronCol = gutterW - 1
-						collapsedCh = '▸'
-						expandedCh = '▾'
 					}
 					if e.Folds.IsCollapsed(lineIdx) {
 						surface.SetCell(chevronCol, y, term.Cell{Ch: collapsedCh, Style: gutterStyle})
@@ -388,8 +395,12 @@ type screenCell struct {
 	bufCol int
 }
 
+// The returned slice is reused by the next call.
 func (e *EditorPaneWidget) renderLineToScreen(line []rune, spans []highlight.Span, collapsed bool, ann []rune, tabW, leftCol, width int) []screenCell {
-	cells := make([]screenCell, width)
+	if cap(e.lineScratch) < width {
+		e.lineScratch = make([]screenCell, width)
+	}
+	cells := e.lineScratch[:width]
 	for i := range cells {
 		cells[i] = screenCell{ch: ' ', style: term.StyleDefault, bufCol: -1}
 	}
