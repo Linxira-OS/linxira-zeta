@@ -75,6 +75,7 @@
 
 ### 新增
 
+- **editor 内核 vendor bump（TTT v1.5.0 → v1.6.0）**：上游 40 commits——终端模拟器 vt10x→xterm-go（输出爆发不再冻结 UI、选区高亮可主题化）、**编辑器内嵌图像查看落地（Kitty 图形协议，打开图片文件即内嵌渲染；与终端侧图像主线互补：工作台窗格走 WT sixel（PR #59），editor 面走 Kitty 协议）**、欢迎页空态、Explorer/Changes 按 git 状态着色 + Nerd Font 文件/大纲图标（默认关）、底部面板可停靠右缘、git commit 无暂存时自动 stage、搜索结果定位到匹配列/`-` 开头查询按文本处理、折叠块随 Move Line 整体移动、symlink 目录浏览、管道/设备文件拒开防冻结等；我方品牌适配、汉化 i18n 层（含上游新设置面词条补齐）、handoff、鼠标沿检测四层逐项重放，另修上游 Windows file URI 缺陷（第 13 修改层，`file://C:%5C` 盘符落 authority 废掉 LSP 面），账目见 `editor/VENDOR.md`。
 - **统一二进制发现（发行版原生包一等公民）**：五个发现面（工作台 zetawork 的 shell/tab 探测、CLI `update` 自身定位、桌面壳 `zeta serve` 解析、npm 启动 shim、网关 zeta-ide/zeta-editor 探测）全部对齐同一发现序——①显式 `ZETA_BIN_DIR`（分隔符目录列表，先于 PATH；桌面另有既有 `ZETA_SERVE_COMMAND` 全命令覆盖）→ ②PATH 原生二进制（发行版 pacman 装 `/usr/bin/zetawork` 等，命中直接用，不做任何跨组件版本校验）→ ③Node.js/npm 形态兜底（vendored 平台叶二进制/npm 全局 bin 目录）。桌面壳发现序由「bundled 优先」改为按同一裁决排序（env→PATH→vendored）；npm shim 增加 env/PATH 层并保留 vendored 叶兜底。Rust 侧公共 helper 收敛在 zeta-main `shell.rs`（`resolve_bin_candidates` 家族），TS 侧收敛在 coding-agent `utils/bin-discovery.ts`。
 - **统计面板内嵌**（PR #52）：顶部「统计」按钮直接开右 dock 统计窗格（iframe 内嵌本机 stats 仪表盘），不再弹中间面板 + Open 二次点击 + 新窗口；stats 服务未运行时优雅降级提示（含重试按钮）。新增运行时 `/api/webui/stats-url` 路由修复打包桌面版 NEXT_PUBLIC 构建期内联导致回退 Open 按钮的根因。
 - **侧栏折叠消歧**（PR #52）：「切换为图标栏」（56px 图标栏模式）与工具栏「隐藏/显示侧边栏」（完全隐藏）实为两个不同功能，重命名消歧并加注释说明——非重复入口不删。

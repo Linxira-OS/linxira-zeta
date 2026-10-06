@@ -76,6 +76,9 @@ Below is a complete theme file showing every configurable section. Ordinary colo
   "warning": {
     "fg": "#e6db74"
   },
+  "conflict": {
+    "fg": "#c586c0"
+  },
   "border": {
     "fg": "#75715e"
   },
@@ -199,6 +202,14 @@ Below is a complete theme file showing every configurable section. Ordinary colo
       "fg": "#a6e22e"
     }
   },
+  "fileIcons": {
+    "red": { "fg": "#f92672" },
+    "yellow": { "fg": "#e6db74" },
+    "green": { "fg": "#a6e22e" },
+    "cyan": { "fg": "#a1efe4" },
+    "blue": { "fg": "#66d9ef" },
+    "magenta": { "fg": "#ae81ff" }
+  },
   "terminal": {
     "black": "#272822",
     "red": "#f92672",
@@ -215,7 +226,8 @@ Below is a complete theme file showing every configurable section. Ordinary colo
     "brightBlue": "#78dce8",
     "brightMagenta": "#c0a0ff",
     "brightCyan": "#a4f4e8",
-    "brightWhite": "#f9f8f5"
+    "brightWhite": "#f9f8f5",
+    "selection": "#49483e"
   },
   "borders": {
     "horizontal": "─",
@@ -238,6 +250,7 @@ Below is a complete theme file showing every configurable section. Ordinary colo
 |---------|-------------|
 | `default` | Base foreground and background colors inherited by all other sections |
 | `success`, `danger`, `warning` | Semantic colors used for status indicators and messages |
+| `conflict` | Color for merge-conflicted files, e.g. in the explorer's git status decoration |
 | `border` | Color for UI borders and dividers |
 | `statusBar` | Status bar at the bottom of the editor |
 | `tabs` | Active and inactive editor tab colors |
@@ -248,5 +261,6 @@ Below is a complete theme file showing every configurable section. Ordinary colo
 | `diff` | Diff presentation styles: `added`, `deleted`, and `modified` backgrounds; `gutterAdded`, `gutterDeleted`, and `gutterModified` semantic foregrounds; `collapsedEmphasis` for opt-in emphasized idle rows; and the `collapsedHover` accent. Emphasis defaults to contrast-safe normal theme colors with bold text, while an omitted `collapsedHover` background inherits the editor active-line background. The legacy `collapsed` field remains accepted only as a `collapsedHover` migration alias. |
 | `scrollbar` | Scrollbar thumb (`fg`) and track (`bg`) colors |
 | `syntax` | Syntax highlighting colors for language tokens |
-| `terminal` | ANSI color palette for the integrated terminal (16 colors) |
+| `fileIcons` | File icon colors in the Explorer and Changes panel, by hue family (`red`, `yellow`, `green`, `cyan`, `blue`, `magenta`). Each entry defaults to the matching `terminal` color, so most themes need no `fileIcons` section. Neutral icons use the row's normal text color |
+| `terminal` | ANSI color palette for the integrated terminal (16 colors), plus `selection`, the highlight background for selected terminal text. `selection` inherits `editor.selection.bg` when omitted. |
 | `borders` | Unicode characters used for drawing box borders. Overridden when `borderStyle` in settings is set to a named preset (e.g. `"rounded"`, `"double"`). Use `"default"` or `"theme"` to respect the theme's borders. |

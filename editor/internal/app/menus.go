@@ -26,6 +26,7 @@ var menuBarMenus = [][]ui.ContextMenuItem{
 		ui.MenuSep(),
 		{Label: "Open Workspace", Command: "workspace.open"},
 		{Label: "Save Workspace", Command: "workspace.save"},
+		{Label: "Close Workspace", Command: "workspace.close"},
 		ui.MenuSep(),
 		{Label: "Open PR Diff", Command: "pr.openDiff"},
 		ui.MenuSep(),
@@ -121,6 +122,11 @@ var commitDetailContextMenu = []ui.ContextMenuItem{
 	ui.MenuSep(),
 	{Label: "Expand All Files", Command: "changes.expandAllCommitDetail"},
 	{Label: "Collapse All Files", Command: "changes.collapseAllCommitDetail"},
+}
+
+var terminalContextMenu = []ui.ContextMenuItem{
+	{Label: "Copy", Command: "editor.copy"},
+	{Label: "Paste", Command: "editor.paste"},
 }
 
 var changesContextMenuStaged = []ui.ContextMenuItem{
@@ -336,6 +342,19 @@ func handleRightClick(app *App, mx, my int) {
 		ev := tcell.NewEventMouse(mx, my, tcell.Button2, 0)
 		app.EditorGroup.TabBar.HandleEvent(ev)
 		return
+	}
+
+	if app.ContentSplit != nil && app.ContentSplit.ShowBottom {
+		divY := app.ContentSplit.DividerScreenY()
+		if divY >= 0 && my > divY {
+			if app.BottomPanel != nil && app.BottomPanel.ActivePanel == "terminal" {
+				if app.TerminalPanel != nil {
+					app.Root.SetFocus(app.TerminalPanel)
+				}
+				openContextMenu(app, terminalContextMenu, mx, my)
+			}
+			return
+		}
 	}
 
 	if app.EditorGroup.ActiveCommitDetailWidget() != nil {

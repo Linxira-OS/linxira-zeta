@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"github.com/eugenioenko/ttt/internal/image"
 	"github.com/eugenioenko/ttt/internal/term"
 	"github.com/gdamore/tcell/v3"
 )
@@ -137,6 +138,13 @@ type Surface interface {
 	ClearRect(x, y, w, h int, style term.Style)
 	Fill(c term.Cell)
 	Sub(r Rect) Surface
+}
+
+// ImagePlacer stays out of Surface so virtualSurface and test doubles keep working.
+type ImagePlacer interface {
+	PlaceImage(x, y, w, h int, src *image.Source)
+	// ImageReleaser outlives the per-frame surface, so a widget can free its image on close.
+	ImageReleaser() func(id uint64)
 }
 
 type BoxModel struct {

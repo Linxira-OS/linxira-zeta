@@ -12,6 +12,8 @@ import (
 
 	"github.com/eugenioenko/ttt/internal/command"
 	"github.com/eugenioenko/ttt/internal/config"
+	"github.com/eugenioenko/ttt/internal/core/clipboard"
+	"github.com/eugenioenko/ttt/internal/image"
 	"github.com/eugenioenko/ttt/internal/lsp"
 	"github.com/eugenioenko/ttt/internal/plugin"
 	"github.com/eugenioenko/ttt/internal/render"
@@ -50,7 +52,11 @@ type App struct {
 	Borders                *term.BorderSet
 	Screen                 *term.TcellScreen
 	Renderer               *render.Renderer
+	ImageLayer             *image.Layer
+	imageCellW             int
+	imageCellH             int
 	Settings               *config.Settings
+	State                  config.State
 	Workspace              *workspace.Workspace
 	Palette                *ui.TerminalColorPalette
 	TerminalPanel          *ui.TerminalPanelWidget
@@ -106,7 +112,16 @@ type App struct {
 	pendingCurrentChangesOpen bool
 	// appliedSettings is the last value ApplySettings acted on. Callers routinely
 	// mutate a.Settings before calling it, so a.Settings cannot serve as "before".
-	appliedSettings    config.Settings
+	appliedSettings config.Settings
+	// welcomeIsEmptyState is set while the welcome page stands in for an
+	// empty editor, as opposed to being opened from Help.
+	welcomeIsEmptyState bool
+	// welcomeWhenEmpty is set once the session reaches the welcome page with no
+	// folder, and cleared when a folder opens: only then does closing every tab
+	// bring the page back. Loose files opened from the command line still end
+	// on an untitled tab.
+	welcomeWhenEmpty   bool
+	welcomeView        *welcomeView
 	eventLoopDoneOnce  sync.Once
 	eventLoopCloseOnce sync.Once
 	eventLoopDone      chan struct{}
@@ -203,9 +218,27 @@ func (a *App) SetSidebarWidth(w int) {
 
 func (a *App) persistSidebarWidth(w int) {
 	a.SetSidebarWidth(w)
-	a.Settings.Sidebar.Width = a.SplitPanel.DividerPos
-	if err := config.SaveSettings(*a.Settings); err != nil {
+	a.State.SidebarWidth = a.SplitPanel.DividerPos
+	if err := config.SaveState(a.State); err != nil {
 		a.StatusError("Failed to save sidebar width: " + err.Error())
+	}
+}
+
+// The panel's new rect only exists after the next render, so the terminal
+// resize rides along with the caller's redraw.
+func (a *App) SetPanelPosition(pos ui.SplitPosition) {
+	if a.ContentSplit.Position == pos {
+		return
+	}
+	a.ContentSplit.Position = pos
+
+	name := "bottom"
+	if pos == ui.SplitRight {
+		name = "right"
+	}
+	a.State.PanelPosition = name
+	if err := config.SaveState(a.State); err != nil {
+		a.StatusError("Failed to save panel position: " + err.Error())
 	}
 }
 
@@ -257,12 +290,22 @@ func (a *App) ToggleBottomPanel() {
 
 func (a *App) SpawnTerminal() {
 	r := a.ContentSplit.GetRect()
-	cols := r.W - terminalStripWidth
-	bottomH := a.ContentSplit.BottomH
-	if bottomH <= 1 {
-		bottomH = min(r.H/2, r.H-4)
+	var cols, rows int
+	if a.ContentSplit.Position == ui.SplitRight {
+		panelW := a.ContentSplit.RightW
+		if panelW <= 1 {
+			panelW = min(r.W/2, r.W-4)
+		}
+		cols = panelW - terminalStripWidth
+		rows = r.H - 2
+	} else {
+		panelH := a.ContentSplit.BottomH
+		if panelH <= 1 {
+			panelH = min(r.H/2, r.H-4)
+		}
+		cols = r.W - terminalStripWidth
+		rows = panelH - 2
 	}
-	rows := bottomH - 2
 	if cols <= 0 {
 		cols = 80
 	}
@@ -325,10 +368,22 @@ func (a *App) CloseTerminal(panelID string) {
 	a.TerminalPanel.RemoveTerminal(idx)
 
 	if a.TerminalPanel.Count() == 0 {
-		a.FocusEditor()
+		a.hideBottomPanelIfTerminalActive()
 	} else {
 		a.Root.SetFocus(a.TerminalPanel)
 	}
+}
+
+// hideBottomPanelIfTerminalActive collapses the bottom panel once the last
+// terminal is gone, so `exit` in the shell closes the panel instead of leaving
+// a dead one on screen. The panel also hosts Problems, References and Output,
+// so it only collapses when the terminal is the tab actually being shown.
+func (a *App) hideBottomPanelIfTerminalActive() {
+	if a.BottomPanel != nil && a.BottomPanel.ActivePanel != "terminal" {
+		a.FocusEditor()
+		return
+	}
+	a.HideBottomPanel()
 }
 
 func (a *App) CloseAllTerminals() {
@@ -340,13 +395,25 @@ func (a *App) CloseAllTerminals() {
 	for _, tt := range terms {
 		tt.Term.Close()
 	}
-	a.FocusEditor()
+	a.hideBottomPanelIfTerminalActive()
 }
 
 func (a *App) refreshWorkspaceWidgets() {
 	paths := a.Workspace.Paths()
+	wasEmpty := len(a.Explorer.Roots) == 0
 
 	a.Explorer.SetRoots(paths)
+	switch {
+	case len(paths) == 0 && (a.editorIsBlank() || a.welcomeIsEmptyState):
+		a.ShowEmptyState()
+	case len(paths) == 0:
+		// Files are still open: the welcome page waits for them to close.
+		a.welcomeWhenEmpty = true
+	case wasEmpty:
+		a.welcomeWhenEmpty = false
+		a.closeWelcome()
+		a.ShowSidebar()
+	}
 
 	a.Search.SetWorkDirs(paths)
 	if a.Repository != nil {
@@ -449,10 +516,22 @@ func (a *App) DismissHover() {
 	a.HoverGen++
 }
 
-func (a *App) Init(screen *term.TcellScreen, renderer *render.Renderer, lspManager *lsp.Manager) {
+func (a *App) Init(screen *term.TcellScreen, renderer *render.Renderer, lspManager *lsp.Manager, imageLayer *image.Layer) {
 	a.Screen = screen
 	a.Renderer = renderer
 	a.LspManager = lspManager
+	a.ImageLayer = imageLayer
+	if a.Root != nil {
+		a.Root.ImageLayer = imageLayer
+	}
+	if imageLayer != nil {
+		imageLayer.SetLockFunc(func(r image.Rect, locked bool) {
+			if a.Screen != nil {
+				a.Screen.LockRegion(r.X, r.Y, r.W, r.H, locked)
+			}
+		})
+	}
+	a.RefreshImageCellSize()
 	a.EditorGroup.TabBar.PostDragAutoScrollTick = func(generation uint64) {
 		screen.PostEvent(tcell.NewEventInterrupt(&ui.TabDragAutoScrollTick{Generation: generation}))
 	}
@@ -583,7 +662,25 @@ func (a *App) FlushEditorOnChange() {
 	}
 }
 
+func (a *App) focusedTerminalWidget() *ui.TerminalWidget {
+	if a.Root == nil {
+		return nil
+	}
+	if tp, ok := a.Root.Focused.(*ui.TerminalPanelWidget); ok {
+		if tw, ok := tp.ActiveWidget().(*ui.TerminalWidget); ok {
+			return tw
+		}
+	} else if tw, ok := a.Root.Focused.(*ui.TerminalWidget); ok {
+		return tw
+	}
+	return nil
+}
+
 func (a *App) Copy() {
+	if tw := a.focusedTerminalWidget(); tw != nil {
+		tw.CopySelection()
+		return
+	}
 	if holder, ok := a.Root.Focused.(ui.InputHolder); ok {
 		if inp := holder.FocusedInput(); inp != nil {
 			inp.CopySelection()
@@ -594,6 +691,10 @@ func (a *App) Copy() {
 }
 
 func (a *App) Cut() {
+	if tw := a.focusedTerminalWidget(); tw != nil {
+		tw.CopySelection()
+		return
+	}
 	if holder, ok := a.Root.Focused.(ui.InputHolder); ok {
 		if inp := holder.FocusedInput(); inp != nil {
 			inp.CutSelection()
@@ -604,6 +705,15 @@ func (a *App) Cut() {
 }
 
 func (a *App) Paste() {
+	if tw := a.focusedTerminalWidget(); tw != nil {
+		text := clipboard.Get()
+		if text != "" {
+			tw.PasteText(text)
+		} else {
+			tw.ClearSelection()
+		}
+		return
+	}
 	if holder, ok := a.Root.Focused.(ui.InputHolder); ok {
 		if inp := holder.FocusedInput(); inp != nil {
 			inp.PasteClipboard()
@@ -614,10 +724,8 @@ func (a *App) Paste() {
 }
 
 func (a *App) PasteText(text string) {
-	if tp, ok := a.Root.Focused.(*ui.TerminalPanelWidget); ok && tp.WantsRawKeys() {
-		if tw, ok := tp.ActiveWidget().(*ui.TerminalWidget); ok {
-			tw.PasteText(text)
-		}
+	if tw := a.focusedTerminalWidget(); tw != nil && tw.WantsRawKeys() {
+		tw.PasteText(text)
 		return
 	}
 	if holder, ok := a.Root.Focused.(ui.InputHolder); ok {

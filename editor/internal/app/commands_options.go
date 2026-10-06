@@ -68,6 +68,18 @@ func (a *App) UseListGitFileView() {
 	a.SaveAndApplySettings()
 }
 
+func (a *App) ToggleFileIcons() {
+	a.Settings.Appearance.Icons = toggledIconMode(a.Settings.Appearance.Icons)
+	a.SaveAndApplySettings()
+}
+
+func toggledIconMode(mode string) string {
+	if mode == config.IconsNone {
+		return config.IconsNerdFont
+	}
+	return config.IconsNone
+}
+
 func (a *App) ExpandAllGitFiles() {
 	if detail := a.EditorGroup.ActiveCommitDetailWidget(); detail != nil {
 		detail.ExpandAllFiles()
@@ -334,6 +346,8 @@ func (a *App) BuildOptionsMenu() []ui.ContextMenuItem {
 		transparentBgChecked = ui.MenuChecked
 	}
 
+	fontIconsChecked := menuChecked(a.Settings.Appearance.Icons == config.IconsNerdFont)
+
 	items := []ui.ContextMenuItem{
 		{Label: "Line Numbers", Command: "options.toggleLineNumbers", Checked: lineNumbersChecked},
 		{Label: "Word Wrap", Command: "options.toggleWordWrap", Checked: wordWrapChecked},
@@ -343,6 +357,7 @@ func (a *App) BuildOptionsMenu() []ui.ContextMenuItem {
 		{Label: "Bracket Colors", Command: "options.toggleBracketColors", Checked: bracketColorChecked},
 		{Label: "LSP Code Assist", Command: "options.toggleLSP", Checked: lspChecked},
 		{Label: "Git Gutter", Command: "options.toggleGitGutter", Checked: gitGutterChecked},
+		{Label: "Font Icons", Command: "options.toggleFontIcons", Checked: fontIconsChecked},
 		{Label: "Menu Bar", Command: menuBarToggleCommand, Checked: menuBarChecked},
 		{Label: "Transparent BG", Command: "options.toggleTransparentBackground", Checked: transparentBgChecked},
 		ui.MenuSep(),
@@ -391,6 +406,7 @@ func (a *App) buildGitFileOptions(expandCommand, collapseCommand string) []ui.Co
 	return []ui.ContextMenuItem{
 		{Label: "Tree", Command: "options.useGitFileTree", Checked: menuChecked(a.Settings.Git.FileView == config.GitFileViewTree)},
 		{Label: "List", Command: "options.useGitFileList", Checked: menuChecked(a.Settings.Git.FileView != config.GitFileViewTree)},
+		{Label: "File Icons", Command: "options.toggleFontIcons", Checked: menuChecked(a.Settings.Appearance.Icons == config.IconsNerdFont)},
 		ui.MenuSep(),
 		{Label: "Expand All", Command: expandCommand},
 		{Label: "Collapse All", Command: collapseCommand},
@@ -482,6 +498,12 @@ func registerOptionsCommands(app *App) {
 		ID: "options.useGitFileList", Title: "View Git Files as List",
 		Keywords: []string{"preferences", "settings", "git", "changes", "history", "files", "flat", "list"},
 		Handler:  app.UseListGitFileView,
+	})
+
+	reg.Register(command.Command{
+		ID: "options.toggleFontIcons", Title: "Toggle Font Icons",
+		Keywords: []string{"preferences", "settings", "explorer", "git", "files", "icons", "nerd font"},
+		Handler:  app.ToggleFileIcons,
 	})
 
 	reg.Register(command.Command{

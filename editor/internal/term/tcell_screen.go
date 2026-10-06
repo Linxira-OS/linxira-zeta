@@ -187,3 +187,8 @@ func (t *TcellScreen) GetContent(x, y int) (string, tcell.Style, int) {
 func (t *TcellScreen) Tty() (tcell.Tty, bool) {
 	return t.scr.Tty()
 }
+
+// tcell drops all locks on resize, so the image layer re-asserts them every frame.
+func (t *TcellScreen) LockRegion(x, y, w, h int, lock bool) {
+	t.scr.LockRegion(x, y, w, h, lock)
+}

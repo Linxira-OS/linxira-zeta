@@ -6,9 +6,9 @@ require (
 	github.com/alecthomas/chroma/v2 v2.24.1
 	github.com/aymanbagabas/go-pty v0.2.3
 	github.com/clipperhouse/displaywidth v0.11.0
-	github.com/eugenioenko/vt10x v0.0.0-20260821213843-4d7cdc5e1dc1
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gdamore/tcell/v3 v3.4.1
+	github.com/gitpod-io/xterm-go v0.0.0-20260907130418-dae5128cb6b3
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/sys v0.47.0

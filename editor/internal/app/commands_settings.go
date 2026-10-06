@@ -5,6 +5,7 @@ import (
 	"github.com/eugenioenko/ttt/internal/config"
 	"github.com/eugenioenko/ttt/internal/term"
 	"github.com/eugenioenko/ttt/internal/ui"
+	"github.com/eugenioenko/ttt/internal/widgets"
 )
 
 func configuredDiffMode(mode string) ui.DiffMode {
@@ -25,6 +26,33 @@ func (a *App) ReloadSettings() {
 	s := config.LoadSettings()
 	a.ApplySettings(s)
 	a.StatusNotify("Settings reloaded")
+}
+
+func (a *App) applyChevrons(ap config.AppearanceSettings) {
+	collapsed, expanded := ap.ChevronRunes()
+	var trees []*widgets.TreeWidget
+	if a.Explorer != nil {
+		trees = append(trees, a.Explorer.Tree)
+	}
+	if a.Changes != nil {
+		trees = append(trees, a.Changes.Tree, a.Changes.CommitLog)
+	}
+	if a.Symbols != nil {
+		trees = append(trees, a.Symbols.Tree)
+	}
+	for _, tree := range trees {
+		if tree != nil {
+			tree.Config.ChevronCollapsed = collapsed
+			tree.Config.ChevronExpanded = expanded
+		}
+	}
+	if a.Search != nil {
+		a.Search.ChevronCollapsed = collapsed
+		a.Search.ChevronExpanded = expanded
+	}
+	if a.EditorGroup != nil && a.EditorGroup.Editor != nil {
+		a.EditorGroup.Editor.FoldChevronCollapsed, a.EditorGroup.Editor.FoldChevronExpanded = collapsed, expanded
+	}
 }
 
 // ApplySettings is the single live-apply path: anything that can take effect
@@ -55,6 +83,7 @@ func (a *App) ApplySettings(s config.Settings) {
 	a.EditorGroup.BracketPairColorization = s.Editor.BracketPairColorization
 	a.EditorGroup.UndoDeleteCursorStart = s.Editor.UndoDeleteCursorStart
 	a.EditorGroup.ApplyUndoDeleteCursorStart(s.Editor.UndoDeleteCursorStart)
+	a.EditorGroup.SetImageProtocol(s.Image.Protocol)
 	if a.Sidebar != nil {
 		a.Sidebar.SetPanelOrder(s.Sidebar.PanelOrder)
 	}
@@ -90,12 +119,19 @@ func (a *App) ApplySettings(s config.Settings) {
 		}
 	}
 
-	if a.Explorer != nil && a.Explorer.Settings != s.Explorer {
+	a.applyChevrons(s.Appearance)
+
+	if a.Explorer != nil && (a.Explorer.Settings != s.Explorer || a.Explorer.Icons != s.Appearance.Icons) {
 		a.Explorer.Settings = s.Explorer
+		a.Explorer.Icons = s.Appearance.Icons
 		a.Explorer.Reload()
 	}
 	if a.Changes != nil {
 		a.Changes.SetFileView(s.Git.FileView)
+		a.Changes.SetIcons(s.Appearance.Icons)
+	}
+	if a.Symbols != nil {
+		a.Symbols.SetIcons(s.Appearance.Icons)
 	}
 
 	// An empty theme name means the built-in default, and must still be applied —
@@ -114,6 +150,7 @@ func (a *App) ApplySettings(s config.Settings) {
 			*a.Borders = borders
 			themeBorders = &borders
 			a.Renderer.Clear()
+			a.invalidateImageLayer()
 		}
 	}
 

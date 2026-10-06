@@ -83,9 +83,10 @@ func resolveLineColArg(arg string) (FileTarget, bool) {
 	return FileTarget{Path: abs, Line: line, Col: col}, true
 }
 
-func resolveArgs() (ws *workspace.Workspace, openFiles []FileTarget, configFile string, prURLs []string) {
+func resolveArgs(welcomeOnHome bool) (ws *workspace.Workspace, openFiles []FileTarget, configFile string, prURLs []string) {
 	var folders []string
 	var wsFile string
+	welcome := false
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -119,6 +120,10 @@ func resolveArgs() (ws *workspace.Workspace, openFiles []FileTarget, configFile 
 			continue
 		}
 		if args[i] == "--listen" {
+			continue
+		}
+		if args[i] == "--welcome" {
+			welcome = true
 			continue
 		}
 		if isPRURL(args[i]) {
@@ -165,16 +170,20 @@ func resolveArgs() (ws *workspace.Workspace, openFiles []FileTarget, configFile 
 	}
 
 	// Opening only files intentionally creates no workspace — a folder must be passed explicitly.
-	if len(folders) == 0 && len(prURLs) == 0 && len(openFiles) == 0 {
+	// --welcome, or starting in $HOME with welcome.showOnHome, opens no folder
+	// so the welcome page shows instead.
+	if len(folders) == 0 && len(prURLs) == 0 && len(openFiles) == 0 && !welcome {
 		cwd, _ := os.Getwd()
-		folders = append(folders, cwd)
+		if home, err := os.UserHomeDir(); !welcomeOnHome || err != nil || filepath.Clean(cwd) != filepath.Clean(home) {
+			folders = append(folders, cwd)
+		}
 	}
 	ws = workspace.New(folders)
 	return
 }
 
 func BuildApp(cfg *config.AppConfig, borders *term.BorderSet) (*App, []string, []FileTarget) {
-	ws, openFiles, _, prURLs := resolveArgs()
+	ws, openFiles, _, prURLs := resolveArgs(cfg.Settings.Welcome.ShowOnHome)
 	return BuildAppFromConfig(cfg, borders, ws, openFiles), prURLs, openFiles
 }
 
@@ -220,6 +229,7 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	editorGroup.UndoDeleteCursorStart = cfg.Settings.Editor.UndoDeleteCursorStart
 	editorGroup.BracketPairColorization = cfg.Settings.Editor.BracketPairColorization
 	editorGroup.Editor.BracketPairColorization = cfg.Settings.Editor.BracketPairColorization
+	editorGroup.SetImageProtocol(cfg.Settings.Image.Protocol)
 	editorGroup.BracketColorStyles = bracketStyles
 	editorGroup.Editor.BracketColorStyles = bracketStyles
 	for _, f := range openFiles {
@@ -269,20 +279,30 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	search.Debounce.DelayMs = cfg.Settings.Search.Debounce
 	changes := NewChangesPanel(ws.Paths()...)
 	changes.SetFileView(cfg.Settings.Git.FileView)
-	if cfg.Settings.Sidebar.CommitHistoryHeight > 0 {
-		changes.Split.BottomH = cfg.Settings.Sidebar.CommitHistoryHeight
+	changes.SetIcons(cfg.Settings.Appearance.Icons)
+	state := config.LoadState()
+	if h := state.CommitHistoryHeight; h > 0 {
+		changes.Split.BottomH = h
+		changes.Split.BottomRatio = 0
+	} else if h := cfg.Settings.Sidebar.CommitHistoryHeight; h > 0 {
+		changes.Split.BottomH = h
 		changes.Split.BottomRatio = 0
 	}
 	symbols := NewSymbolsPanel()
+	symbols.SetIcons(cfg.Settings.Appearance.Icons)
 
-	explorer := NewNavigationPanel(cfg.Settings.Explorer, ws.Paths()...)
+	explorer := NewNavigationPanel(cfg.Settings.Explorer, cfg.Settings.Appearance.Icons, ws.Paths()...)
 
 	sidebar := ui.NewSidebarWidget()
 	sidebar.AddPanel("explorer", "Explore", explorer.Adapter)
 	sidebar.AddPanel("search", "Find", search)
 	sidebar.AddPanel("changes", "Changes", changes.Adapter)
 	sidebar.AddPanel("outline", "Outline", symbols.Adapter)
-	sidebar.SetPanelOrder(cfg.Settings.Sidebar.PanelOrder)
+	if len(state.SidebarPanelOrder) > 0 {
+		sidebar.SetPanelOrder(state.SidebarPanelOrder)
+	} else {
+		sidebar.SetPanelOrder(cfg.Settings.Sidebar.PanelOrder)
+	}
 	sidebar.Tabs.Config.Reorderable = true
 	hasFolders := len(ws.Paths()) > 0
 	sidebar.Visible = hasFolders
@@ -293,8 +313,17 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 	splitPanel.Right = contentSplit
 	splitPanel.Borders = borders
 	splitPanel.DividerPos = ui.DefaultSidebarWidth
-	if cfg.Settings.Sidebar.Width > 0 {
+	if state.SidebarWidth > 0 {
+		splitPanel.DividerPos = state.SidebarWidth
+	} else if cfg.Settings.Sidebar.Width > 0 {
 		splitPanel.DividerPos = cfg.Settings.Sidebar.Width
+	}
+	panelPos := state.PanelPosition
+	if panelPos == "" {
+		panelPos = cfg.Settings.Panel.Position
+	}
+	if panelPos == "right" {
+		contentSplit.Position = ui.SplitRight
 	}
 	splitPanel.ShowLeft = sidebar.Visible
 	splitPanel.RightBorderStartY = 2
@@ -329,6 +358,7 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 		Status:              status,
 		Borders:             borders,
 		Settings:            &cfg.Settings,
+		State:               state,
 		Workspace:           ws,
 		Palette:             BuildTerminalPalettePtr(cfg.Theme, WithTransparentBackground(cfg.Settings.Editor.TransparentBackground)),
 		TerminalPanel:       terminalPanel,
@@ -340,11 +370,13 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 		pluginDetailWidgets: make(map[string]*pluginDetailState),
 	}
 	app.Repository = NewRepositoryState(changes, ws.Paths())
+	app.Repository.SetExplorer(explorer)
 	app.Repository.SetCurrentChangesHandler(app.ApplyCurrentChanges)
 	app.applyMenuBarVisibility(cfg.Settings.Editor.IsMenuBarVisible())
 	// Rebuild the Diagnostics panel whenever any source (LSP or a plugin)
 	// changes its diagnostics.
 	app.EditorGroup.OnDiagnosticsChanged = app.refreshProblems
+	app.applyChevrons(cfg.Settings.Appearance)
 	return app
 }
 

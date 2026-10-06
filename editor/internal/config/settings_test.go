@@ -355,3 +355,68 @@ func TestSettingsEmptyExtraByteIdentical(t *testing.T) {
 		t.Errorf("empty-Extra MarshalJSON diverged from struct encoding:\n got: %s\nwant: %s", got, want)
 	}
 }
+
+func TestDefaultImageSettings(t *testing.T) {
+	s := DefaultSettings()
+	if s.Image.Protocol != ImageProtocolAuto {
+		t.Errorf("expected image protocol %q, got %q", ImageProtocolAuto, s.Image.Protocol)
+	}
+}
+
+func TestNormalizeImageProtocol(t *testing.T) {
+	for _, valid := range []string{ImageProtocolAuto, ImageProtocolKitty, ImageProtocolNone} {
+		s := DefaultSettings()
+		s.Image.Protocol = valid
+		normalizeSettings(&s)
+		if s.Image.Protocol != valid {
+			t.Errorf("valid protocol %q was rewritten to %q", valid, s.Image.Protocol)
+		}
+	}
+	s := DefaultSettings()
+	s.Image.Protocol = "sixel"
+	normalizeSettings(&s)
+	if s.Image.Protocol != ImageProtocolAuto {
+		t.Errorf("invalid protocol should reset to %q, got %q", ImageProtocolAuto, s.Image.Protocol)
+	}
+}
+
+func TestEveryTopLevelSettingsKeyIsKnown(t *testing.T) {
+	data, err := json.Marshal(DefaultSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	for key := range m {
+		if !knownSettingsKeys[key] {
+			t.Errorf("top-level key %q is missing from knownSettingsKeys and would be treated as a plugin key", key)
+		}
+	}
+}
+
+func TestPanelPositionSurvivesRoundTrip(t *testing.T) {
+	first, err := json.Marshal(Settings{Panel: PanelSettings{Position: "right"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var loaded Settings
+	if err := json.Unmarshal(first, &loaded); err != nil {
+		t.Fatal(err)
+	}
+	loaded.Panel.Position = "bottom"
+
+	second, err := json.Marshal(loaded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var final Settings
+	if err := json.Unmarshal(second, &final); err != nil {
+		t.Fatal(err)
+	}
+	if final.Panel.Position != "bottom" {
+		t.Fatalf("panel.position = %q after round trip, want \"bottom\"\n%s", final.Panel.Position, second)
+	}
+}

@@ -173,6 +173,13 @@ var zhFieldLabels = map[string]string{
 	"Search debounce (ms)":          "搜索防抖（毫秒）",
 	"Enable plugins":                "启用插件",
 	"Debug mode":                    "调试模式",
+	"Language":                      "语言",
+	"Welcome page in home folder":   "主目录欢迎页",
+	"Explorer: git status colors":   "资源管理器：Git 状态着色",
+	"Explorer: dim staged colors":   "资源管理器：暂存改动淡化",
+	"Icons":                         "图标",
+	"Chevron: collapsed":            "折叠箭头（收起）",
+	"Chevron: expanded":             "折叠箭头（展开）",
 }
 
 // zhEnumLabels translates enum option labels (Diff mode, Border style, ...).
@@ -196,6 +203,8 @@ var zhEnumLabels = map[string]string{
 	"None":                 "无",
 	"On":                   "开",
 	"Off":                  "关",
+	"Changes Only":         "仅变更",
+	"Full File":            "完整文件",
 }
 
 // t translates a label through the active locale, falling back to the source

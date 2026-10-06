@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"slices"
+
+	"github.com/eugenioenko/ttt/internal/textwidth"
 )
 
 // Validated by normalizeSettings and used to populate the settings UI pickers.
@@ -13,6 +15,7 @@ var (
 	DiffModes    = []string{"split", "unified"}
 	DiffContexts = []string{"changes", "full"}
 	GitFileViews = []string{"tree", "list"}
+	IconModes    = []string{IconsNerdFont, IconsNone}
 )
 
 const (
@@ -22,6 +25,8 @@ const (
 	DiffContextFull    = "full"
 	GitFileViewTree    = "tree"
 	GitFileViewList    = "list"
+	IconsNone          = "none"
+	IconsNerdFont      = "nerd-font"
 )
 
 type TerminalSettings struct {
@@ -162,14 +167,64 @@ func DefaultSearchSettings() SearchSettings {
 }
 
 type ExplorerSettings struct {
-	ShowHidden     bool `json:"showHidden"`
-	ShowGitIgnored bool `json:"showGitIgnored"`
+	ShowHidden         bool `json:"showHidden"`
+	ShowGitIgnored     bool `json:"showGitIgnored"`
+	GitStatusColors    bool `json:"gitStatusColors"`
+	DimStagedGitColors bool `json:"dimStagedGitColors"`
+}
+
+const (
+	DefaultChevronCollapsed = "▶"
+	DefaultChevronExpanded  = "▼"
+)
+
+type ChevronSettings struct {
+	Collapsed string `json:"collapsed"`
+	Expanded  string `json:"expanded"`
+}
+
+type AppearanceSettings struct {
+	Icons    string          `json:"icons"`
+	Chevrons ChevronSettings `json:"chevrons"`
+}
+
+func DefaultAppearanceSettings() AppearanceSettings {
+	return AppearanceSettings{
+		Icons: IconsNone,
+		Chevrons: ChevronSettings{
+			Collapsed: DefaultChevronCollapsed,
+			Expanded:  DefaultChevronExpanded,
+		},
+	}
+}
+
+// ChevronRunes falls back to the defaults for any value that is not exactly one
+// single-width rune, since trees and the fold gutter draw the chevron in one
+// cell and reserve exactly two columns for it.
+func (a AppearanceSettings) ChevronRunes() (collapsed, expanded rune) {
+	return chevronRune(a.Chevrons.Collapsed, DefaultChevronCollapsed),
+		chevronRune(a.Chevrons.Expanded, DefaultChevronExpanded)
+}
+
+func chevronRune(value, fallback string) rune {
+	if r := []rune(value); len(r) == 1 && textwidth.Rune(r[0]) == 1 {
+		return r[0]
+	}
+	return []rune(fallback)[0]
 }
 
 type SidebarSettings struct {
 	PanelOrder          []string `json:"panelOrder,omitempty"`
 	Width               int      `json:"width,omitempty"`
 	CommitHistoryHeight int      `json:"commitHistoryHeight,omitempty"`
+}
+
+func DefaultSidebarSettings() SidebarSettings {
+	return SidebarSettings{}
+}
+
+type PanelSettings struct {
+	Position string `json:"position,omitempty"`
 }
 
 type GitSettings struct {
@@ -182,8 +237,9 @@ func DefaultGitSettings() GitSettings {
 
 func DefaultExplorerSettings() ExplorerSettings {
 	return ExplorerSettings{
-		ShowHidden:     true,
-		ShowGitIgnored: true,
+		ShowHidden:      true,
+		ShowGitIgnored:  true,
+		GitStatusColors: true,
 	}
 }
 
@@ -228,6 +284,30 @@ func DefaultMarkdownSettings() MarkdownSettings {
 	}
 }
 
+const (
+	ImageProtocolAuto  = "auto"
+	ImageProtocolKitty = "kitty"
+	ImageProtocolNone  = "none"
+)
+
+type ImageSettings struct {
+	Protocol string `json:"protocol"`
+}
+
+func DefaultImageSettings() ImageSettings {
+	return ImageSettings{
+		Protocol: ImageProtocolAuto,
+	}
+}
+
+type WelcomeSettings struct {
+	// ShowOnHome shows the welcome page instead of opening $HOME when ttt
+	// starts there with no arguments, as desktop launchers do.
+	ShowOnHome bool `json:"showOnHome,omitempty"`
+	// Favorites are folders listed on the welcome page to open in one step.
+	Favorites []string `json:"favorites,omitempty"`
+}
+
 type Settings struct {
 	Version   int    `json:"version"`
 	Theme     string `json:"theme,omitempty"`
@@ -236,19 +316,23 @@ type Settings struct {
 	// These sections must NOT use omitzero: their defaults are non-zero, so an
 	// all-false/all-zero section would be omitted on save and silently revert to
 	// the defaults on the next load.
+	Appearance   AppearanceSettings   `json:"appearance"`
 	Editor       EditorSettings       `json:"editor"`
 	Search       SearchSettings       `json:"search"`
 	Explorer     ExplorerSettings     `json:"explorer"`
 	Sidebar      SidebarSettings      `json:"sidebar,omitzero"`
+	Panel        PanelSettings        `json:"panel,omitzero"`
 	Git          GitSettings          `json:"git"`
 	Terminal     TerminalSettings     `json:"terminal"`
 	LSP          LSPSettings          `json:"lsp"`
 	Autocomplete AutocompleteSettings `json:"autocomplete"`
 	Markdown     MarkdownSettings     `json:"markdown"`
+	Image        ImageSettings        `json:"image"`
 	// Plugins is safe: its only field is a tri-state *bool where nil means the
 	// default, so the zero value and "unset" mean the same thing.
 	Agent      AgentSettings     `json:"agent,omitzero"`
 	Plugins    PluginSettings    `json:"plugins,omitzero"`
+	Welcome    WelcomeSettings   `json:"welcome,omitzero"`
 	Formatters map[string]string `json:"formatters,omitempty"`
 	// Extra holds top-level keys that are not part of the core schema — chiefly
 	// plugin-namespaced settings (e.g. "vim"). Without this, json.Unmarshal into
@@ -260,9 +344,10 @@ type Settings struct {
 // knownSettingsKeys is the set of top-level JSON keys owned by the core schema.
 // Any other top-level key is preserved via Settings.Extra.
 var knownSettingsKeys = map[string]bool{
-	"version": true, "theme": true, "debugMode": true, "editor": true,
-	"search": true, "explorer": true, "sidebar": true, "git": true, "terminal": true, "lsp": true,
-	"autocomplete": true, "markdown": true, "plugins": true, "formatters": true, "agent": true,
+	"version": true, "theme": true, "debugMode": true, "appearance": true, "editor": true,
+	"search": true, "explorer": true, "sidebar": true, "panel": true, "git": true, "terminal": true, "lsp": true,
+	"autocomplete": true, "markdown": true, "image": true, "plugins": true, "formatters": true, "agent": true,
+	"welcome": true,
 }
 
 func (s Settings) MarshalJSON() ([]byte, error) {
@@ -312,9 +397,11 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 func DefaultSettings() Settings {
 	return Settings{
 		Version:      1,
+		Appearance:   DefaultAppearanceSettings(),
 		Editor:       DefaultEditorSettings(),
 		Search:       DefaultSearchSettings(),
 		Explorer:     DefaultExplorerSettings(),
+		Sidebar:      DefaultSidebarSettings(),
 		Git:          DefaultGitSettings(),
 		Terminal:     DefaultTerminalSettings(),
 		LSP:          DefaultLSPSettings(),
@@ -327,6 +414,7 @@ func DefaultSettings() Settings {
 			Enabled:     boolPtr(true),
 			HandoffFile: boolPtr(true),
 		},
+		Image: DefaultImageSettings(),
 	}
 }
 
@@ -360,6 +448,8 @@ func normalizeSettings(s *Settings) {
 	if s.Sidebar.CommitHistoryHeight < 0 {
 		s.Sidebar.CommitHistoryHeight = 0
 	}
+	collapsed, expanded := s.Appearance.ChevronRunes()
+	s.Appearance.Chevrons = ChevronSettings{Collapsed: string(collapsed), Expanded: string(expanded)}
 	if !slices.Contains(DiffModes, s.Editor.DiffMode) {
 		s.Editor.DiffMode = DiffModeSplit
 	}
@@ -368,6 +458,12 @@ func normalizeSettings(s *Settings) {
 	}
 	if !slices.Contains(GitFileViews, s.Git.FileView) {
 		s.Git.FileView = GitFileViewList
+	}
+	if !slices.Contains([]string{ImageProtocolAuto, ImageProtocolKitty, ImageProtocolNone}, s.Image.Protocol) {
+		s.Image.Protocol = ImageProtocolAuto
+	}
+	if !slices.Contains(IconModes, s.Appearance.Icons) {
+		s.Appearance.Icons = IconsNone
 	}
 }
 

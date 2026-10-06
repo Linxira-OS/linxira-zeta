@@ -8,20 +8,24 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/eugenioenko/ttt/internal/core/clipboard"
 	"github.com/eugenioenko/ttt/internal/term"
 	"github.com/eugenioenko/ttt/internal/terminal"
 
-	"github.com/eugenioenko/vt10x"
 	"github.com/gdamore/tcell/v3"
+	"github.com/gitpod-io/xterm-go"
 )
 
 type TerminalColorPalette struct {
-	Fg       term.DirectColor
-	Bg       term.DirectColor
-	ANSI     [16]term.DirectColor
-	Color256 [256]term.DirectColor
+	Fg term.DirectColor
+	Bg term.DirectColor
+	// SelectionBg is the theme's terminal selection background; unset means the
+	// theme defines none.
+	SelectionBg term.DirectColor
+	ANSI        [16]term.DirectColor
+	Color256    [256]term.DirectColor
 }
 
 type termSelPos struct {
@@ -57,8 +61,15 @@ type TerminalWidget struct {
 	scrollbar    Scrollbar
 	selecting    bool
 	hasSelection bool
-	selAnchor    termSelPos
-	selCurrent   termSelPos
+	// Cursor state captured during Render, from the same emulator snapshot the
+	// cells come from. Reading it separately afterwards would pair this frame's
+	// content with a later cursor, which is what made TUIs running inside the
+	// terminal (Claude Code, for one) draw their cursor away from the box they
+	// had just painted, until an unrelated event forced another frame.
+	curX, curY int
+	curVisible bool
+	selAnchor  termSelPos
+	selCurrent termSelPos
 
 	OnOpenURL  func(url string)
 	OnOpenFile func(path string, line, col int)
@@ -89,7 +100,7 @@ func (tw *TerminalWidget) PasteText(text string) {
 	if tw.Term == nil || text == "" {
 		return
 	}
-	if tw.Term.Mode()&vt10x.ModeBracketedPaste != 0 {
+	if tw.Term.DecPrivateModes().BracketedPasteMode {
 		tw.Term.WriteString("\x1b[200~")
 		tw.Term.WriteString(text)
 		tw.Term.WriteString("\x1b[201~")
@@ -100,16 +111,31 @@ func (tw *TerminalWidget) PasteText(text string) {
 	tw.scrollOffset = 0
 }
 
+func (tw *TerminalWidget) CopySelection() bool {
+	if !tw.hasSelection {
+		return false
+	}
+	text := tw.selectedText()
+	if text != "" {
+		clipboard.Set(text)
+	}
+	tw.ClearSelection()
+	return true
+}
+
+func (tw *TerminalWidget) HasSelection() bool {
+	return tw.hasSelection
+}
+
 func (tw *TerminalWidget) CursorPosition() (x, y int, visible bool) {
 	if tw.Term == nil {
 		return 0, 0, false
 	}
-	if tw.scrollOffset > 0 || tw.hasSelection {
+	if tw.scrollOffset > 0 || tw.hasSelection || !tw.curVisible {
 		return 0, 0, false
 	}
 	r := tw.GetRect()
-	cx, cy := tw.Term.CursorPos()
-	return r.X + cx, r.Y + cy, tw.focused
+	return r.X + tw.curX, r.Y + tw.curY, tw.focused
 }
 
 func byteToRunePos(s string, byteIdx int) int {
@@ -215,40 +241,19 @@ func resolveFilePath(path string, workDir string) string {
 	return ""
 }
 
-func extractLineText(view vt10x.View, unifiedLine int, maxCols int) string {
-	cols, rows := view.Size()
-	if maxCols > cols {
-		maxCols = cols
+func extractLineText(buf *xterm.Buffer, unifiedLine int, maxCols int) string {
+	if unifiedLine < 0 || unifiedLine >= buf.Lines.Length() {
+		return ""
 	}
-	sbLen := view.ScrollbackLen()
-
-	var sb strings.Builder
-	if unifiedLine < sbLen {
-		sl := view.ScrollbackLine(unifiedLine)
-		for x := 0; x < maxCols; x++ {
-			if sl != nil && x < len(sl) {
-				ch := sl[x].Char
-				if ch == 0 {
-					ch = ' '
-				}
-				sb.WriteRune(ch)
-			} else {
-				sb.WriteByte(' ')
-			}
-		}
-	} else {
-		liveRow := unifiedLine - sbLen
-		if liveRow >= 0 && liveRow < rows {
-			for x := 0; x < maxCols; x++ {
-				ch := view.Cell(x, liveRow).Char
-				if ch == 0 {
-					ch = ' '
-				}
-				sb.WriteRune(ch)
-			}
-		}
+	line := buf.Lines.Get(unifiedLine)
+	if line == nil {
+		return ""
 	}
-	return sb.String()
+	endCol := maxCols
+	if endCol > line.Len {
+		endCol = line.Len
+	}
+	return line.TranslateToString(false, 0, endCol)
 }
 
 // linksForLine returns the link spans for a line of terminal text, memoized
@@ -295,10 +300,16 @@ func (tw *TerminalWidget) Render(surface Surface) {
 	w, h := surface.Size()
 	r := tw.GetRect()
 
-	tw.Term.Snapshot(func(view vt10x.View) {
-		cols, rows := view.Size()
-		sbLen := view.ScrollbackLen()
-		totalLines := sbLen + rows
+	tw.Term.AckUpdate()
+	tw.Term.Snapshot(func(xt *xterm.Terminal) {
+		buf := xt.Buffer()
+		cols := xt.Cols()
+		rows := xt.Rows()
+		sbLen := buf.YBase
+		totalLines := buf.Lines.Length()
+
+		tw.curX, tw.curY = xt.CursorX(), xt.CursorY()
+		tw.curVisible = !xt.IsCursorHidden()
 
 		if tw.scrollOffset > sbLen {
 			tw.scrollOffset = sbLen
@@ -316,24 +327,34 @@ func (tw *TerminalWidget) Render(surface Surface) {
 			tw.linkCache = nil
 		}
 
+		cellData := xterm.NewCellData()
+
 		if tw.scrollOffset == 0 {
 			for y := 0; y < h && y < rows; y++ {
 				unifiedLine := sbLen + y
 				if tw.ctrlHeld {
-					lineText := extractLineText(view, unifiedLine, contentW)
+					lineText := extractLineText(buf, unifiedLine, contentW)
 					tw.linkCache[unifiedLine] = tw.linksForLine(lineText)
 				}
 
+				var bl *xterm.BufferLine
+				if unifiedLine >= 0 && unifiedLine < totalLines {
+					bl = buf.Lines.Get(unifiedLine)
+				}
+
 				for x := 0; x < contentW && x < cols; x++ {
-					c := tw.glyphToCell(view.Cell(x, y))
+					var c term.Cell
+					if bl != nil && x < bl.Len {
+						c = tw.lineCell(bl, x, cellData)
+					} else {
+						var bg term.DirectColor
+						if tw.Palette != nil {
+							bg = tw.Palette.Bg
+						}
+						c = term.Cell{Ch: ' ', Direct: true, Bg: bg}
+					}
 					if tw.isCellSelected(unifiedLine, x) {
-						c.Fg, c.Bg = c.Bg, c.Fg
-						if !c.Fg.Set {
-							c.Fg = tw.Palette.Bg
-						}
-						if !c.Bg.Set {
-							c.Bg = tw.Palette.Fg
-						}
+						tw.highlightSelected(&c)
 					} else if tw.linkAt(unifiedLine, x) != nil {
 						c.Attrs |= term.CellAttrUnderline
 					}
@@ -349,51 +370,32 @@ func (tw *TerminalWidget) Render(surface Surface) {
 			for screenY := 0; screenY < h; screenY++ {
 				srcLine := startLine + screenY
 				if tw.ctrlHeld {
-					lineText := extractLineText(view, srcLine, contentW)
+					lineText := extractLineText(buf, srcLine, contentW)
 					tw.linkCache[srcLine] = tw.linksForLine(lineText)
 				}
 
-				if srcLine < sbLen {
-					sl := view.ScrollbackLine(srcLine)
-					for x := 0; x < contentW; x++ {
-						var c term.Cell
-						if sl != nil && x < len(sl) {
-							c = tw.glyphToCell(sl[x])
-						} else {
-							c = term.Cell{Ch: ' ', Direct: true, Bg: tw.Palette.Bg}
+				var bl *xterm.BufferLine
+				if srcLine >= 0 && srcLine < totalLines {
+					bl = buf.Lines.Get(srcLine)
+				}
+
+				for x := 0; x < contentW; x++ {
+					var c term.Cell
+					if bl != nil && x < bl.Len {
+						c = tw.lineCell(bl, x, cellData)
+					} else {
+						var bg term.DirectColor
+						if tw.Palette != nil {
+							bg = tw.Palette.Bg
 						}
-						if tw.isCellSelected(srcLine, x) {
-							c.Fg, c.Bg = c.Bg, c.Fg
-							if !c.Fg.Set {
-								c.Fg = tw.Palette.Bg
-							}
-							if !c.Bg.Set {
-								c.Bg = tw.Palette.Fg
-							}
-						} else if tw.linkAt(srcLine, x) != nil {
-							c.Attrs |= term.CellAttrUnderline
-						}
-						surface.SetCell(x, screenY, c)
+						c = term.Cell{Ch: ' ', Direct: true, Bg: bg}
 					}
-				} else {
-					liveRow := srcLine - sbLen
-					if liveRow >= 0 && liveRow < rows {
-						for x := 0; x < contentW && x < cols; x++ {
-							c := tw.glyphToCell(view.Cell(x, liveRow))
-							if tw.isCellSelected(srcLine, x) {
-								c.Fg, c.Bg = c.Bg, c.Fg
-								if !c.Fg.Set {
-									c.Fg = tw.Palette.Bg
-								}
-								if !c.Bg.Set {
-									c.Bg = tw.Palette.Fg
-								}
-							} else if tw.linkAt(srcLine, x) != nil {
-								c.Attrs |= term.CellAttrUnderline
-							}
-							surface.SetCell(x, screenY, c)
-						}
+					if tw.isCellSelected(srcLine, x) {
+						tw.highlightSelected(&c)
+					} else if tw.linkAt(srcLine, x) != nil {
+						c.Attrs |= term.CellAttrUnderline
 					}
+					surface.SetCell(x, screenY, c)
 				}
 			}
 		}
@@ -413,58 +415,91 @@ func (tw *TerminalWidget) Render(surface Surface) {
 	})
 }
 
-func (tw *TerminalWidget) glyphToCell(g vt10x.Glyph) term.Cell {
-	ch := g.Char
-	if ch == 0 {
-		ch = ' '
+// Avoids BufferLine.LoadCell, which allocates an ExtendedAttrs per cell.
+func (tw *TerminalWidget) lineCell(bl *xterm.BufferLine, x int, cd *xterm.CellData) term.Cell {
+	cd.Fg = bl.GetFg(x)
+	cd.Bg = bl.GetBg(x)
+	if cd.Bg&xterm.BgFlagHasExtended != 0 {
+		cd.Extended = bl.GetExtended(x)
+	}
+
+	ch := ' '
+	if bl.IsCombined(x) != 0 {
+		if r, size := utf8.DecodeRuneInString(bl.GetString(x)); size > 0 {
+			ch = r
+		}
+	} else if cp := bl.GetCodePoint(x); cp != 0 {
+		ch = rune(cp)
 	}
 
 	cell := term.Cell{
 		Ch:     ch,
 		Direct: true,
-		Fg:     tw.resolveColor(g.FG, true),
-		Bg:     tw.resolveColor(g.BG, false),
+		Fg:     tw.resolveFgColor(cd),
+		Bg:     tw.resolveBgColor(cd),
 	}
 
-	if g.Mode&terminal.AttrBold != 0 {
+	if cd.IsBold() != 0 {
 		cell.Attrs |= term.CellAttrBold
 	}
-	if g.Mode&terminal.AttrUnderline != 0 {
+	if cd.IsUnderline() != 0 {
 		cell.Attrs |= term.CellAttrUnderline
 	}
-	if g.Mode&terminal.AttrItalic != 0 {
+	if cd.IsItalic() != 0 {
 		cell.Attrs |= term.CellAttrItalic
 	}
-	if g.Mode&terminal.AttrReverse != 0 {
+	if cd.IsInverse() != 0 {
 		cell.Attrs |= term.CellAttrReverse
 	}
-	if g.Mode&terminal.AttrBlink != 0 {
+	if cd.IsBlink() != 0 {
 		cell.Attrs |= term.CellAttrBlink
 	}
 
 	return cell
 }
 
-func (tw *TerminalWidget) resolveColor(c vt10x.Color, isFg bool) term.DirectColor {
-	if c == vt10x.DefaultFG {
+func (tw *TerminalWidget) resolveFgColor(cd *xterm.CellData) term.DirectColor {
+	if tw.Palette == nil {
+		return term.DirectColor{}
+	}
+	if cd.IsFgDefault() {
 		return tw.Palette.Fg
 	}
-	if c == vt10x.DefaultBG {
+	if cd.IsFgRGB() {
+		rgb := xterm.ToColorRGB(uint32(cd.GetFgColor()))
+		return term.DirectColor{R: rgb[0], G: rgb[1], B: rgb[2], Set: true}
+	}
+	if cd.IsFgPalette() {
+		idx := cd.GetFgColor()
+		if idx >= 0 && idx < 16 {
+			return tw.Palette.ANSI[idx]
+		}
+		if idx >= 16 && idx < 256 {
+			return tw.Palette.Color256[idx]
+		}
+	}
+	return tw.Palette.Fg
+}
+
+func (tw *TerminalWidget) resolveBgColor(cd *xterm.CellData) term.DirectColor {
+	if tw.Palette == nil {
+		return term.DirectColor{}
+	}
+	if cd.IsBgDefault() {
 		return tw.Palette.Bg
 	}
-	if c.TrueColor() {
-		r, g, b := c.RGB()
-		return term.DirectColor{R: r, G: g, B: b, Set: true}
+	if cd.IsBgRGB() {
+		rgb := xterm.ToColorRGB(uint32(cd.GetBgColor()))
+		return term.DirectColor{R: rgb[0], G: rgb[1], B: rgb[2], Set: true}
 	}
-	idx := int(c)
-	if idx >= 0 && idx < 16 {
-		return tw.Palette.ANSI[idx]
-	}
-	if idx >= 16 && idx < 256 {
-		return tw.Palette.Color256[idx]
-	}
-	if isFg {
-		return tw.Palette.Fg
+	if cd.IsBgPalette() {
+		idx := cd.GetBgColor()
+		if idx >= 0 && idx < 16 {
+			return tw.Palette.ANSI[idx]
+		}
+		if idx >= 16 && idx < 256 {
+			return tw.Palette.Color256[idx]
+		}
 	}
 	return tw.Palette.Bg
 }
@@ -488,27 +523,23 @@ func (tw *TerminalWidget) HandleEvent(ev tcell.Event) EventResult {
 			}
 		}
 
-		if tev.Key() == tcell.KeyCtrlC && tw.hasSelection {
-			text := tw.selectedText()
-			if text != "" {
-				clipboard.Set(text)
-			}
-			tw.ClearSelection()
+		r := term.KeyRune(tev)
+		isCopy := (tev.Key() == tcell.KeyCtrlC) ||
+			(tev.Key() == tcell.KeyRune && (r == 'c' || r == 'C') && tev.Modifiers()&tcell.ModCtrl != 0)
+		if isCopy && tw.hasSelection {
+			tw.CopySelection()
 			return EventConsumed
 		}
 
-		if tev.Key() == tcell.KeyCtrlV {
+		isPaste := (tev.Key() == tcell.KeyCtrlV) ||
+			(tev.Key() == tcell.KeyRune && (r == 'v' || r == 'V') && tev.Modifiers()&tcell.ModCtrl != 0)
+		if isPaste {
 			text := clipboard.Get()
 			if text != "" {
-				if tw.Term.Mode()&vt10x.ModeBracketedPaste != 0 {
-					tw.Term.WriteString("\x1b[200~")
-					tw.Term.WriteString(text)
-					tw.Term.WriteString("\x1b[201~")
-				} else {
-					tw.Term.WriteString(text)
-				}
+				tw.PasteText(text)
+			} else {
+				tw.ClearSelection()
 			}
-			tw.ClearSelection()
 			return EventConsumed
 		}
 
@@ -540,7 +571,8 @@ func (tw *TerminalWidget) HandleEvent(ev tcell.Event) EventResult {
 		}
 		btn := tev.Buttons()
 		mx, my := tev.Position()
-		mouseReporting := tw.Term.Mode()&vt10x.ModeMouseMask != 0 && tw.Term.Mode()&vt10x.ModeMouseSgr != 0
+		dm := tw.Term.DecPrivateModes()
+		mouseReporting := dm.MouseTrackingMode != "NONE" && dm.MouseEncoding == "SGR"
 
 		if btn&(tcell.WheelUp|tcell.WheelDown|tcell.WheelLeft|tcell.WheelRight) != 0 {
 			if mouseReporting {
@@ -575,7 +607,7 @@ func (tw *TerminalWidget) HandleEvent(ev tcell.Event) EventResult {
 		if mouseReporting && !tw.ctrlHeld {
 			if code, ok := sgrButtonCode(btn); ok {
 				held := tw.mouseButtonHeld == code
-				if !held || tw.Term.Mode()&(vt10x.ModeMouseMotion|vt10x.ModeMouseMany) != 0 {
+				if !held || dm.MouseTrackingMode == "DRAG" || dm.MouseTrackingMode == "ANY" {
 					sgrCode := code
 					if held {
 						sgrCode |= sgrMotionFlag
@@ -596,7 +628,7 @@ func (tw *TerminalWidget) HandleEvent(ev tcell.Event) EventResult {
 					tw.mouseButtonHeld = -1
 					return EventConsumed
 				}
-				if tw.Term.Mode()&vt10x.ModeMouseMany != 0 {
+				if dm.MouseTrackingMode == "ANY" {
 					col, row := tw.mousePTYCoords(mx, my)
 					tw.Term.WriteString(encodeSGRMouse(sgrButtonNone|sgrMotionFlag|sgrModifiers(tev.Modifiers()), col, row, false))
 					return EventConsumed
@@ -734,6 +766,10 @@ func (tw *TerminalWidget) mousePTYCoords(mx, my int) (col, row int) {
 	return col, row
 }
 
+func (tw *TerminalWidget) OwnsPointerCapture() bool {
+	return tw.selecting || tw.mouseButtonHeld >= 0 || tw.scrollbar.IsDragging()
+}
+
 func (tw *TerminalWidget) ClearSelection() {
 	tw.hasSelection = false
 	tw.selecting = false
@@ -753,10 +789,10 @@ func (tw *TerminalWidget) screenToLine(mx, my int) termSelPos {
 	screenY := my - r.Y
 	unifiedLine := 0
 
-	tw.Term.Snapshot(func(view vt10x.View) {
-		_, rows := view.Size()
-		sbLen := view.ScrollbackLen()
-		totalLines := sbLen + rows
+	tw.Term.Snapshot(func(xt *xterm.Terminal) {
+		buf := xt.Buffer()
+		sbLen := buf.YBase
+		totalLines := buf.Lines.Length()
 
 		if tw.scrollOffset == 0 {
 			unifiedLine = sbLen + screenY
@@ -769,6 +805,23 @@ func (tw *TerminalWidget) screenToLine(mx, my int) termSelPos {
 		}
 	})
 	return termSelPos{Line: unifiedLine, Col: col}
+}
+
+// highlightSelected matches the editor: the theme's terminal selection
+// background with the text color left alone. A theme with no selection color
+// falls back to swapping foreground and background.
+func (tw *TerminalWidget) highlightSelected(c *term.Cell) {
+	if tw.Palette != nil && tw.Palette.SelectionBg.Set {
+		c.Bg = tw.Palette.SelectionBg
+		return
+	}
+	c.Fg, c.Bg = c.Bg, c.Fg
+	if !c.Fg.Set && tw.Palette != nil {
+		c.Fg = tw.Palette.Bg
+	}
+	if !c.Bg.Set && tw.Palette != nil {
+		c.Bg = tw.Palette.Fg
+	}
 }
 
 func (tw *TerminalWidget) isCellSelected(unifiedLine, col int) bool {
@@ -798,11 +851,21 @@ func (tw *TerminalWidget) selectedText() string {
 	start, end := tw.selectionRange()
 	var lines []string
 
-	tw.Term.Snapshot(func(view vt10x.View) {
-		cols, rows := view.Size()
-		sbLen := view.ScrollbackLen()
+	tw.Term.Snapshot(func(xt *xterm.Terminal) {
+		buf := xt.Buffer()
+		cols := xt.Cols()
+		totalLines := buf.Lines.Length()
 
 		for line := start.Line; line <= end.Line; line++ {
+			if line < 0 || line >= totalLines {
+				continue
+			}
+			bl := buf.Lines.Get(line)
+			if bl == nil {
+				lines = append(lines, "")
+				continue
+			}
+
 			startCol := 0
 			endCol := cols
 			if line == start.Line {
@@ -811,34 +874,20 @@ func (tw *TerminalWidget) selectedText() string {
 			if line == end.Line {
 				endCol = end.Col
 			}
-
-			var sb strings.Builder
-			if line < sbLen {
-				sl := view.ScrollbackLine(line)
-				for x := startCol; x < endCol; x++ {
-					if sl != nil && x < len(sl) {
-						ch := sl[x].Char
-						if ch == 0 {
-							ch = ' '
-						}
-						sb.WriteRune(ch)
-					} else {
-						sb.WriteByte(' ')
-					}
-				}
-			} else {
-				liveRow := line - sbLen
-				if liveRow >= 0 && liveRow < rows {
-					for x := startCol; x < endCol && x < cols; x++ {
-						ch := view.Cell(x, liveRow).Char
-						if ch == 0 {
-							ch = ' '
-						}
-						sb.WriteRune(ch)
-					}
-				}
+			if startCol < 0 {
+				startCol = 0
 			}
-			lines = append(lines, strings.TrimRight(sb.String(), " "))
+			if endCol < 0 {
+				endCol = 0
+			}
+			if endCol > bl.Len {
+				endCol = bl.Len
+			}
+			if startCol > endCol {
+				startCol = endCol
+			}
+			text := bl.TranslateToString(false, startCol, endCol)
+			lines = append(lines, strings.TrimRight(text, " "))
 		}
 	})
 
@@ -881,6 +930,10 @@ func keyToVT(ev *tcell.EventKey) string {
 			return "\x1b" + term.KeyStr(ev)
 		}
 		return term.KeyStr(ev)
+	}
+
+	if seq := modifiedKeyToVT(ev); seq != "" {
+		return seq
 	}
 
 	switch ev.Key() {
@@ -944,6 +997,68 @@ func keyToVT(ev *tcell.EventKey) string {
 		return string(rune(ev.Key() - tcell.KeyCtrlA + 1))
 	}
 
+	return ""
+}
+
+// vtModParam is xterm's modifier parameter: 1 plus shift(1), alt(2), ctrl(4).
+func vtModParam(mod tcell.ModMask) int {
+	p := 1
+	if mod&tcell.ModShift != 0 {
+		p += 1
+	}
+	if mod&tcell.ModAlt != 0 {
+		p += 2
+	}
+	if mod&tcell.ModCtrl != 0 {
+		p += 4
+	}
+	return p
+}
+
+// modifiedKeyToVT returns "" when the unmodified encoding applies.
+func modifiedKeyToVT(ev *tcell.EventKey) string {
+	mod := ev.Modifiers()
+	p := vtModParam(mod)
+	if p == 1 {
+		return ""
+	}
+
+	switch ev.Key() {
+	case tcell.KeyEnter:
+		// Legacy encoding has no modified Enter, and the kitty keyboard
+		// protocol is off because nothing here encodes keys as CSI u. ESC+CR
+		// is what VSCode, Alacritty and Zed send for shift+enter, and what
+		// readline reads as meta+enter.
+		if mod&(tcell.ModShift|tcell.ModAlt) != 0 {
+			return "\x1b\r"
+		}
+		return ""
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		if mod&tcell.ModAlt != 0 {
+			return "\x1b\x7f"
+		}
+		return ""
+	case tcell.KeyUp:
+		return fmt.Sprintf("\x1b[1;%dA", p)
+	case tcell.KeyDown:
+		return fmt.Sprintf("\x1b[1;%dB", p)
+	case tcell.KeyRight:
+		return fmt.Sprintf("\x1b[1;%dC", p)
+	case tcell.KeyLeft:
+		return fmt.Sprintf("\x1b[1;%dD", p)
+	case tcell.KeyHome:
+		return fmt.Sprintf("\x1b[1;%dH", p)
+	case tcell.KeyEnd:
+		return fmt.Sprintf("\x1b[1;%dF", p)
+	case tcell.KeyInsert:
+		return fmt.Sprintf("\x1b[2;%d~", p)
+	case tcell.KeyDelete:
+		return fmt.Sprintf("\x1b[3;%d~", p)
+	case tcell.KeyPgUp:
+		return fmt.Sprintf("\x1b[5;%d~", p)
+	case tcell.KeyPgDn:
+		return fmt.Sprintf("\x1b[6;%d~", p)
+	}
 	return ""
 }
 

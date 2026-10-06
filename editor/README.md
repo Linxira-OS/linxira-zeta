@@ -1,7 +1,7 @@
 # TTT Editor: Terminal Text Tool
 
 > **Zeta 仓库内 vendor 说明**：本目录是 [TTT Editor](https://github.com/eugenioenko/ttt)
-> v1.5.0（MIT）的 vendor 快照，作为 zeta 的终端 IDE 面。仓库侧的修改（品牌适配、
+> v1.6.0（MIT）的 vendor 快照，作为 zeta 的终端 IDE 面。仓库侧的修改（品牌适配、
 > 汉化 i18n 层等）逐项登记在 [VENDOR.md](./VENDOR.md)。上游更新采用 vendor bump
 > 单 commit 流程（见 AGENTS.md editor/ 段落）。
 
@@ -170,6 +170,7 @@ Multi-root file tree in the sidebar (Ctrl+K E). When multiple folders are open, 
 - Expand/collapse with Enter or arrow keys
 - Right-click context menu: **New File**, **New Folder**, **Rename**, **Delete**
 - Sidebar actions button for **Refresh** and **New File**
+- File-type icons, colored by the theme (glyph mappings from [nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons)). They need a [Nerd Font](https://www.nerdfonts.com) in your terminal, so they default off; turn them on with `"appearance": { "icons": "nerd-font" }` or **Options > Font Icons**
 
 ### Search
 
@@ -187,7 +188,7 @@ See [Search](docs-web/src/content/docs/guides/search.md).
 
 Changes panel in the sidebar (Ctrl+K C) with full staging workflow.
 
-Working-tree files and files under expanded commits can be shown as a compact directory **Tree** or a full-path **List** (the default). The choice persists in `git.fileView`. Changes, commit details, and Explorer expose safe **Expand All** and **Collapse All** actions in their relevant menus.
+Working-tree files and files under expanded commits can be shown as a compact directory **Tree** or a full-path **List** (the default). The choice persists in `git.fileView`. File-type icons sit between the status letter and the file name; like the Explorer's, they follow the shared `appearance.icons` setting, need a Nerd Font, and default off — **Options > Font Icons** toggles them. Changes, commit details, and Explorer expose safe **Expand All** and **Collapse All** actions in their relevant menus.
 
 **Staging:**
 - **Spacebar** — toggle stage/unstage on the selected file
@@ -254,7 +255,7 @@ The bottom panel (Ctrl+K B to toggle) contains the **Terminal**, **Problems**, a
 Built-in terminal emulator. Press Ctrl+T to toggle the terminal panel, or Alt+T for fullscreen.
 
 - **Ctrl+K T** to spawn a new terminal tab; multiple tabs with a vertical inner tab bar on the left edge
-- Full VT escape sequence support via [`hinshun/vt10x`](https://github.com/hinshun/vt10x) and PTY management via [`creack/pty`](https://github.com/creack/pty)
+- Full VT escape sequence support via [`gitpod-io/xterm-go`](https://github.com/gitpod-io/xterm-go) and PTY management via [`aymanbagabas/go-pty`](https://github.com/aymanbagabas/go-pty)
 - True color (24-bit) and 256-color rendering
 - When the terminal is focused, all keys go to the PTY except force keys (Ctrl+T, Alt+T, Ctrl+Q, Ctrl+P, Ctrl+K P, Ctrl+B, F6)
 - Terminal shell and scrollback are configurable in `settings.json`; ANSI colors are theme-configurable via the `terminal` field in `theme.json`

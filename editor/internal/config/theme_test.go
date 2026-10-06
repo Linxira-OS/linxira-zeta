@@ -184,6 +184,7 @@ func TestResolveColors(t *testing.T) {
 	th.Success.Fg = ""
 	th.Danger.Fg = ""
 	th.Warning.Fg = ""
+	th.Conflict.Fg = ""
 	th.Input.Item.Bg = ""
 	th.Input.Item.Fg = ""
 	th.Input.Placeholder.Fg = ""
@@ -211,6 +212,9 @@ func TestResolveColors(t *testing.T) {
 	if th.Warning.Fg == "" {
 		t.Error("expected Warning.Fg to be filled by ResolveColors")
 	}
+	if th.Conflict.Fg == "" {
+		t.Error("expected Conflict.Fg to be filled by ResolveColors")
+	}
 	if th.Input.Item.Bg == "" {
 		t.Error("expected Input.Item.Bg to be filled by ResolveColors")
 	}
@@ -225,10 +229,49 @@ func TestResolveColors(t *testing.T) {
 	}
 }
 
+func TestResolveColorsDerivesStagedVariants(t *testing.T) {
+	th := DefaultTheme()
+	th.ResolveColors()
+
+	cases := []struct {
+		name   string
+		live   StyleDef
+		staged StyleDef
+	}{
+		{"Success", th.Success, th.SuccessStaged},
+		{"Danger", th.Danger, th.DangerStaged},
+		{"Warning", th.Warning, th.WarningStaged},
+		{"Conflict", th.Conflict, th.ConflictStaged},
+	}
+	for _, c := range cases {
+		if c.staged.Fg == "" {
+			t.Errorf("%s: expected staged Fg to be derived, got empty", c.name)
+		}
+		if c.staged.Fg == c.live.Fg {
+			t.Errorf("%s: expected staged Fg to differ from the live color, both are %q", c.name, c.live.Fg)
+		}
+		liveLum := testColorLuminance(c.live.Fg)
+		stagedLum := testColorLuminance(c.staged.Fg)
+		bgLum := testColorLuminance(th.Default.Bg)
+		// The staged variant should sit strictly between the live color and the
+		// background on the luminance scale, i.e. actually faded toward it.
+		if bgLum > liveLum {
+			if !(stagedLum > liveLum && stagedLum < bgLum) {
+				t.Errorf("%s: staged luminance %v should be between live %v and background %v", c.name, stagedLum, liveLum, bgLum)
+			}
+		} else {
+			if !(stagedLum < liveLum && stagedLum > bgLum) {
+				t.Errorf("%s: staged luminance %v should be between live %v and background %v", c.name, stagedLum, liveLum, bgLum)
+			}
+		}
+	}
+}
+
 func TestResolveColorsPreservesExisting(t *testing.T) {
 	th := DefaultTheme()
 	th.Success.Fg = "#custom"
 	th.Danger.Fg = "#custom2"
+	th.Conflict.Fg = "#custom6"
 	th.Diff.Added.Bg = "#custom3"
 	th.Diff.CollapsedHover = StyleDef{Fg: "#custom4", Bg: "#custom5", Bold: true}
 
@@ -239,6 +282,9 @@ func TestResolveColorsPreservesExisting(t *testing.T) {
 	}
 	if th.Danger.Fg != "#custom2" {
 		t.Errorf("expected Danger.Fg to remain '#custom2', got %q", th.Danger.Fg)
+	}
+	if th.Conflict.Fg != "#custom6" {
+		t.Errorf("expected Conflict.Fg to remain '#custom6', got %q", th.Conflict.Fg)
 	}
 	if th.Diff.Added.Bg != "#custom3" {
 		t.Errorf("expected Diff.Added.Bg to remain '#custom3', got %q", th.Diff.Added.Bg)
@@ -405,5 +451,75 @@ func TestDefaultThemeBorders(t *testing.T) {
 	}
 	if th.Borders.TopLeft != "╭" {
 		t.Errorf("expected Borders.TopLeft '╭', got %q", th.Borders.TopLeft)
+	}
+}
+
+func TestResolveColorsDefaultsFileIconsToTerminalPalette(t *testing.T) {
+	var th ThemeConfig
+	if err := json.Unmarshal([]byte(`{
+		"terminal": {"red": "#110000", "yellow": "#111100", "green": "#001100", "cyan": "#001111", "blue": "#000011", "magenta": "#110011"},
+		"fileIcons": {"blue": {"fg": "#abcdef"}}
+	}`), &th); err != nil {
+		t.Fatal(err)
+	}
+	th.ResolveColors()
+
+	want := FileIconStyles{
+		Red:     StyleDef{Fg: "#110000"},
+		Yellow:  StyleDef{Fg: "#111100"},
+		Green:   StyleDef{Fg: "#001100"},
+		Cyan:    StyleDef{Fg: "#001111"},
+		Blue:    StyleDef{Fg: "#abcdef"},
+		Magenta: StyleDef{Fg: "#110011"},
+	}
+	if th.FileIcons != want {
+		t.Fatalf("file icon styles = %+v, want %+v (terminal palette with explicit blue override)", th.FileIcons, want)
+	}
+}
+
+func TestResolveColorsTerminalSelectionInheritsEditorSelection(t *testing.T) {
+	var inherited ThemeConfig
+	if err := json.Unmarshal([]byte(`{"editor": {"selection": {"bg": "#123456"}}}`), &inherited); err != nil {
+		t.Fatal(err)
+	}
+	inherited.ResolveColors()
+	if inherited.Terminal.Selection != "#123456" {
+		t.Errorf("terminal.selection = %q, want it inherited from editor.selection.bg", inherited.Terminal.Selection)
+	}
+
+	var explicit ThemeConfig
+	if err := json.Unmarshal([]byte(`{"editor": {"selection": {"bg": "#123456"}}, "terminal": {"selection": "#abcdef"}}`), &explicit); err != nil {
+		t.Fatal(err)
+	}
+	explicit.ResolveColors()
+	if explicit.Terminal.Selection != "#abcdef" {
+		t.Errorf("terminal.selection = %q, want the explicit value", explicit.Terminal.Selection)
+	}
+}
+
+func TestBundledThemesResolveEveryFileIconColor(t *testing.T) {
+	entries, err := themes.FS.ReadDir(".")
+	if err != nil {
+		t.Fatalf("failed to read embedded themes: %v", err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		data, err := themes.FS.ReadFile(name)
+		if err != nil {
+			t.Fatalf("failed to read %s: %v", name, err)
+		}
+		th := DefaultTheme()
+		if err := json.Unmarshal(data, &th); err != nil {
+			t.Fatalf("failed to parse %s: %v", name, err)
+		}
+		th.ResolveColors()
+		for hue, style := range map[string]StyleDef{
+			"red": th.FileIcons.Red, "yellow": th.FileIcons.Yellow, "green": th.FileIcons.Green,
+			"cyan": th.FileIcons.Cyan, "blue": th.FileIcons.Blue, "magenta": th.FileIcons.Magenta,
+		} {
+			if style.Fg == "" {
+				t.Errorf("%s: fileIcons.%s has no foreground", name, hue)
+			}
+		}
 	}
 }

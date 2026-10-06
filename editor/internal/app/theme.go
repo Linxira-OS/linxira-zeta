@@ -110,6 +110,17 @@ func BuildStyleMap(theme config.ThemeConfig, opts ...StyleMapOption) term.StyleM
 	applyStyleDef(&m, term.StyleSuccess, theme.Success)
 	applyStyleDef(&m, term.StyleDanger, theme.Danger)
 	applyStyleDef(&m, term.StyleWarning, theme.Warning)
+	applyStyleDef(&m, term.StyleGitConflict, theme.Conflict)
+	applyStyleDef(&m, term.StyleSuccessStaged, theme.SuccessStaged)
+	applyStyleDef(&m, term.StyleDangerStaged, theme.DangerStaged)
+	applyStyleDef(&m, term.StyleWarningStaged, theme.WarningStaged)
+	applyStyleDef(&m, term.StyleGitConflictStaged, theme.ConflictStaged)
+	applyStyleDef(&m, term.StyleFileIconRed, theme.FileIcons.Red)
+	applyStyleDef(&m, term.StyleFileIconYellow, theme.FileIcons.Yellow)
+	applyStyleDef(&m, term.StyleFileIconGreen, theme.FileIcons.Green)
+	applyStyleDef(&m, term.StyleFileIconCyan, theme.FileIcons.Cyan)
+	applyStyleDef(&m, term.StyleFileIconBlue, theme.FileIcons.Blue)
+	applyStyleDef(&m, term.StyleFileIconMagenta, theme.FileIcons.Magenta)
 
 	applyDiagStyle(&m, term.StyleDiagError, theme.Editor.Diagnostics.Error)
 	applyDiagStyle(&m, term.StyleDiagWarning, theme.Editor.Diagnostics.Warning)
@@ -228,9 +239,10 @@ func BuildTerminalPalette(theme config.ThemeConfig, opts ...StyleMapOption) ui.T
 	}
 	ansi := tc.ANSIPalette()
 	p := ui.TerminalColorPalette{
-		Fg:       ui.ParseHexColor(fg),
-		Bg:       ui.ParseHexColor(bg),
-		Color256: ui.Build256Palette(),
+		Fg:          ui.ParseHexColor(fg),
+		Bg:          ui.ParseHexColor(bg),
+		SelectionBg: ui.ParseHexColor(tc.Selection),
+		Color256:    ui.Build256Palette(),
 	}
 	for i, hex := range ansi {
 		p.ANSI[i] = ui.ParseHexColor(hex)

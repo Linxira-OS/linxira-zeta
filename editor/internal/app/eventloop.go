@@ -156,18 +156,22 @@ func RunEventLoop(
 	}
 
 	redraw := func() {
-		cells := make([][]term.Cell, app.Root.Height)
-		for y := range cells {
-			cells[y] = make([]term.Cell, app.Root.Width)
+		// Every event path ends here, including scripted commands.
+		app.SyncEmptyState()
+		cells := renderer.NextFrame(app.Root.Width, app.Root.Height)
+		if app.ImageLayer != nil {
+			app.ImageLayer.Begin()
 		}
 		app.Root.Render(cells)
-		renderer.SetCurrent(cells)
 		if cx, cy, visible := app.Root.CursorPosition(); visible {
 			screen.ShowCursor(cx, cy)
 		} else {
 			screen.HideCursor()
 		}
 		renderer.Render(screen)
+		if app.commitImageLayer(screen) {
+			screen.Show()
+		}
 		// Must run after Render/CursorPosition, else content and cursor read different Term states mid-frame.
 		resizeTerminals(app)
 	}
@@ -262,6 +266,8 @@ func RunEventLoop(
 			app.Root.SetSize(w, h)
 			resizeTerminals(app)
 			renderer.Clear()
+			app.invalidateImageLayer()
+			app.RefreshImageCellSize()
 			redraw()
 
 		case *tcell.EventInterrupt:
