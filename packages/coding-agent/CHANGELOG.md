@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-06
+
 ### Changed
 
 - Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
@@ -70,12 +72,12 @@
 - Hardened Linux Chromium executable detection to filter out non-executable files, invalid wrappers, and candidates that hang during version probes.
 - Fixed Bash command preview crashes caused by malformed tool arguments containing non-string environment values.
 - Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
+- Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
+- 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
 
 ## [1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
-
-## [1.1.25] - 2026-10-03
 
 ## [1.1.24] - 2026-10-03
 
@@ -177,8 +179,6 @@
 
 - 修复中文系统下 CLI 汉化自动检测失效（`language` 默认值不再顶掉环境检测，中文系统自动切换中文界面）。
 
-## [1.1.3] - 2026-08-25
-
 ## [1.1.2] - 2026-08-25
 
 ### Fixed
@@ -196,11 +196,6 @@
 ### Changed
 
 - TUI 渲染升级至上游 v18.0.3 架构（provider window + resize 重绘），终端尺寸变化即时重绘。
-
-### Fixed
-
-- Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
-- 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
 
 ## [1.0.10] - 2026-08-19
 

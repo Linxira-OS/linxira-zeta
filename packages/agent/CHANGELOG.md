@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-06
+
 ### Breaking Changes
 
 - `Agent.withdrawUndeliveredQueuedMessages()` replaces `withdrawLiveSteering()` and returns `{ steering, followUp }`: it also takes back queued input already dequeued for the next model call, which the aborted run then neither records nor reports in `agent_end` ([#14179](https://github.com/can1357/oh-my-pi/pull/14179) by [@andrebrait](https://github.com/andrebrait))
@@ -391,8 +393,6 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
-
-## [1.1.26] - 2026-10-03
 
 ## [1.1.25] - 2026-10-03
 

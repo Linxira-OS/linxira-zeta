@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-06
+
 ### Breaking Changes
 
 - `isoResolve` now returns a Promise and runs off the JavaScript thread; a backend found available is not re-probed ([#14528](https://github.com/can1357/oh-my-pi/pull/14528) by [@H4vC](https://github.com/H4vC))
@@ -679,8 +681,6 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
-
-## [1.1.26] - 2026-10-03
 
 ## [1.1.25] - 2026-10-03
 

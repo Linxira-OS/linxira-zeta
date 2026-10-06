@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-06
+
 - Inline images now retire to native scrollback as soon as their transcript block finalizes instead of waiting for row pressure or shutdown, so terminals whose live-region sixel does not stick (Windows Terminal) show images in real time; the exit-time history flush remains as the fallback.
 
 ## [14.9.8] - 2026-05-12

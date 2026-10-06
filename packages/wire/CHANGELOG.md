@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-06
+
 ### Fixed
 
 - Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
@@ -77,12 +79,6 @@
 ### Changed
 
 - 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
-
-## [1.1.3] - 2026-08-25
-
-## [1.1.2] - 2026-08-25
-
-## [1.1.1] - 2026-08-25
 
 ## [1.1.0] - 2026-08-25
 
