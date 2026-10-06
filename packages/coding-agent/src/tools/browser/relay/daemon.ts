@@ -3,7 +3,7 @@
  *
  * The MV3 extension can only dial OUT (service workers cannot listen on
  * sockets), so a native process must own the relay port. Instead of making
- * the user run `zeta-c browser-relay` by hand, the relay kind lazily starts one
+ * the user run `omp browser-relay` by hand, the relay kind lazily starts one
  * under a profile-independent, machine-global daemon broker. Every relay
  * consumer holds a connection to that broker, so one project exiting cannot
  * tear down the fixed-port singleton while another project still uses it.
@@ -18,11 +18,17 @@ import { describeQuietly, stopQuietly, waitReady } from "../../../launch/ensure"
 import { resolveWorkerSpawnCmd } from "../../../subprocess/worker-client";
 import { throwIfAborted } from "../../tool-errors";
 import { probeCdpStatus } from "../attach";
+import { DEFAULT_RELAY_URL } from "./kind";
 
-/** Stable broker daemon name for the relay server. */
-export const RELAY_DAEMON_NAME = "zeta.browser.relay";
+const DEFAULT_RELAY_PORT = new URL(DEFAULT_RELAY_URL).port;
+
+/** Broker daemon name for the relay on `port`; one per port, so relays on different ports never replace each other. */
+function relayDaemonName(port: string): string {
+	return port === DEFAULT_RELAY_PORT ? "omp.browser.relay" : `omp.browser.relay.${port}`;
+}
+
 const RELAY_BROKER_SCOPE = "browser-relay";
-/** Matches the serve banner (`zeta-c browser relay listening on http://…`). */
+/** Matches the serve banner (`omp browser relay listening on http://…`). */
 const READY_LOG_PATTERN = String.raw`browser relay listening on http://\S+`;
 const READY_TIMEOUT_MS = 15_000;
 const PROBE_TIMEOUT_MS = 1_500;
@@ -58,6 +64,7 @@ export async function ensureRelayDaemon(opts: { cdpUrl: string; signal?: AbortSi
 	} catch {
 		return false;
 	}
+	const name = relayDaemonName(port);
 	// Open the lazy client before probing. Merely caching SocketDaemonClient
 	// would not create the broker connection (and therefore would hold no lease).
 	const client = await daemonClientForGlobal(RELAY_BROKER_SCOPE);
@@ -70,12 +77,12 @@ export async function ensureRelayDaemon(opts: { cdpUrl: string; signal?: AbortSi
 		// A manual serve or concurrent global-broker start may have won the
 		// port since the last round; adopt it instead of fighting the bind.
 		if (await probeRelayServer(opts.cdpUrl)) return true;
-		const existing = await describeQuietly(client, RELAY_DAEMON_NAME, "Browser relay", opts.signal);
+		const existing = await describeQuietly(client, name, "Browser relay", opts.signal);
 		if (existing && existing.state !== "exited" && existing.state !== "failed") {
-			if (existing.readyAt === undefined) await waitReady(client, RELAY_DAEMON_NAME, "Browser relay", opts.signal);
+			if (existing.readyAt === undefined) await waitReady(client, name, "Browser relay", opts.signal);
 			if (await probeRelayServer(opts.cdpUrl)) return true;
 			// Live record but nothing listening: replace the wedged daemon.
-			await stopQuietly(client, RELAY_DAEMON_NAME, "Browser relay", opts.signal);
+			await stopQuietly(client, name, "Browser relay", opts.signal);
 			continue;
 		}
 		try {
@@ -83,7 +90,7 @@ export async function ensureRelayDaemon(opts: { cdpUrl: string; signal?: AbortSi
 				{
 					op: "start",
 					spec: {
-						name: RELAY_DAEMON_NAME,
+						name,
 						application: spawn.cmd[0]!,
 						args: [...spawn.cmd.slice(1), "--port", port],
 						env: {},
@@ -99,12 +106,12 @@ export async function ensureRelayDaemon(opts: { cdpUrl: string; signal?: AbortSi
 			);
 			if (started.op !== "start") continue;
 			if (await probeRelayServer(opts.cdpUrl)) return true;
-			await stopQuietly(client, RELAY_DAEMON_NAME, "Browser relay", opts.signal);
+			await stopQuietly(client, name, "Browser relay", opts.signal);
 		} catch (error) {
 			throwIfAborted(opts.signal);
 			// Lost a cross-process start race; the next round adopts the winner.
 			logger.debug("Browser relay start contention", {
-				name: RELAY_DAEMON_NAME,
+				name,
 				error: error instanceof Error ? error.message : String(error),
 			});
 		}

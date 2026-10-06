@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-# ZETA prelude helpers (loaded once into the runner namespace)
-if "__zeta_prelude_loaded__" not in globals():
-    __zeta_prelude_loaded__ = True
+# OMP prelude helpers (loaded once into the runner namespace)
+if "__omp_prelude_loaded__" not in globals():
+    __omp_prelude_loaded__ = True
     from pathlib import Path
     import asyncio, collections.abc, contextvars, inspect, os, json, math, re, time, types, typing
     from urllib.parse import unquote
 
 
-    # __zeta_display is injected by runner.py before the prelude executes; it
+    # __omp_display is injected by runner.py before the prelude executes; it
     # mirrors IPython's display() semantics with the same MIME bundle output.
-    _zeta_display = __zeta_display  # type: ignore[name-defined]
+    _omp_display = __omp_display  # type: ignore[name-defined]
 
     _PRESENTABLE_REPRS = (
         "_repr_mimebundle_",
@@ -25,21 +25,24 @@ if "__zeta_prelude_loaded__" not in globals():
 
     def display(value):
         """Render a value. Falls back to a JSON+text/plain bundle for plain dict/list/tuple."""
+        if isinstance(value, dict) and value.get("type") == "image":
+            _omp_display(value)
+            return
         if any(hasattr(value, attr) for attr in _PRESENTABLE_REPRS):
-            _zeta_display(value)
+            _omp_display(value)
             return
         if isinstance(value, (dict, list, tuple)):
             try:
                 bundle = {"application/json": value, "text/plain": repr(value)}
-                _zeta_display(bundle, raw=True)
+                _omp_display(bundle, raw=True)
                 return
             except Exception:
                 pass
-        _zeta_display(value)
+        _omp_display(value)
 
     def _emit_status(op: str, **data):
         """Emit structured status event for TUI rendering."""
-        _zeta_display({"application/x-zeta-status": {"op": op, **data}}, raw=True)
+        _omp_display({"application/x-omp-status": {"op": op, **data}}, raw=True)
 
     def env(key: str | None = None, value: str | None = None):
         """Get/set environment variables."""
@@ -388,7 +391,7 @@ if "__zeta_prelude_loaded__" not in globals():
     _OMP_CALL_IDENTITY = contextvars.ContextVar("omp_call_identity", default=None)
     _OMP_CALL_OCCURRENCES = contextvars.ContextVar("omp_call_occurrences", default=None)
 
-    def __zeta_reset_call_occurrences__():
+    def __omp_reset_call_occurrences__():
         _OMP_CALL_OCCURRENCES.set(None)
 
     async def __omp_with_call_site__(site_id: str, action, args):
@@ -415,11 +418,11 @@ if "__zeta_prelude_loaded__" not in globals():
     def _bridge_call(name: str, args: dict):
         """POST one request to the host tool bridge and return its `value`."""
         base, token, session = _tool_proxy_from_env()
-        _run_id_getter = globals().get("__zeta_current_run_id__")
+        _run_id_getter = globals().get("__omp_current_run_id__")
         _run_id = (
             _run_id_getter()
             if callable(_run_id_getter)
-            else globals().get("__zeta_run_id__")
+            else globals().get("__omp_run_id__")
         )
         payload = {
             "session": session,
@@ -471,7 +474,7 @@ if "__zeta_prelude_loaded__" not in globals():
             mime_type = image.get("mimeType")
             if not isinstance(data, str) or not isinstance(mime_type, str):
                 continue
-            _zeta_display({mime_type: data}, raw=True)
+            _omp_display({"application/x-omp-image": image}, raw=True)
             displayed += 1
         if displayed == 0:
             return value
@@ -624,8 +627,8 @@ if "__zeta_prelude_loaded__" not in globals():
                 "parameters": self.parameters,
             }
 
-    __zeta_tools__: dict[str, _EvalTool] = {}
-    globals()["__zeta_tools__"] = __zeta_tools__
+    __omp_tools__: dict[str, _EvalTool] = {}
+    globals()["__omp_tools__"] = __omp_tools__
     _TOOL_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
     class _ToolProxy:
@@ -660,7 +663,7 @@ if "__zeta_prelude_loaded__" not in globals():
                 if isinstance(description, str) and description
                 else inspect.getdoc(fn) or f"Python tool {resolved_name}"
             )
-            __zeta_tools__[resolved_name] = _EvalTool(
+            __omp_tools__[resolved_name] = _EvalTool(
                 resolved_name,
                 fn,
                 resolved_description,
@@ -674,10 +677,10 @@ if "__zeta_prelude_loaded__" not in globals():
             return fn
 
         def defined(self) -> list[str]:
-            return list(__zeta_tools__)
+            return list(__omp_tools__)
 
         def undefine(self, name) -> bool:
-            return __zeta_tools__.pop(name, None) is not None
+            return __omp_tools__.pop(name, None) is not None
 
         def __getattr__(self, name: str) -> _ToolCallable:
             if name.startswith("_"):
@@ -1092,7 +1095,7 @@ if "__zeta_prelude_loaded__" not in globals():
 
     def phase(title):
         """Record the current readable phase and emit a status ``phase`` event."""
-        globals()["__zeta_current_phase__"] = str(title)
+        globals()["__omp_current_phase__"] = str(title)
         _emit_status("phase", title=str(title))
         return None
 

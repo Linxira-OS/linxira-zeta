@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { isPidRunning } from "@linxiraos/pi-utils/procmgr";
 import { runCli } from "../src/cli";
 
 // The worker-host re-entry seam dispatches any `__zeta_worker_*` selector to
@@ -58,4 +59,151 @@ describe("worker selector dispatch", () => {
 		expect(stdout).toHaveBeenCalled();
 		expect(stderr).not.toHaveBeenCalledWith(expect.stringContaining("unknown worker selector"));
 	});
+
+	it("exits promptly when an IPC worker selector is launched without an IPC channel", async () => {
+		const proc = Bun.spawn({
+			cmd: [process.execPath, "packages/coding-agent/src/cli.ts", "__zeta_worker_js_eval_process"],
+			cwd: path.resolve(__dirname, "../../.."),
+			stdin: "ignore",
+			stdout: "ignore",
+			stderr: "ignore",
+		});
+		const exited = await Promise.race([proc.exited.then(() => true), Bun.sleep(2000).then(() => false)]);
+		if (!exited) {
+			proc.kill("SIGKILL");
+		}
+		expect(exited).toBe(true);
+	});
+
+	it("reaps orphaned IPC worker when parent process terminates", async () => {
+		const repoRoot = path.resolve(__dirname, "../../..");
+		const parent = Bun.spawn({
+			cmd: [
+				process.execPath,
+				"-e",
+				`
+				const child = Bun.spawn({
+					cmd: [process.execPath, "packages/coding-agent/src/cli.ts", "__zeta_worker_js_eval_process"],
+					cwd: ${JSON.stringify(repoRoot)},
+					ipc(msg) {},
+					serialization: "advanced",
+					windowsHide: true,
+					stdin: "ignore",
+					stdout: "ignore",
+					stderr: "ignore",
+				});
+				console.log("CHILD_PID:" + child.pid);
+				setTimeout(() => process.exit(0), 500);
+				`,
+			],
+			cwd: repoRoot,
+			stdout: "pipe",
+		});
+
+		const text = await new Response(parent.stdout).text();
+		const match = text.match(/CHILD_PID:(\d+)/);
+		expect(match).not.toBeNull();
+		const childPid = Number(match?.[1]);
+		expect(childPid).toBeGreaterThan(0);
+
+		await parent.exited;
+
+		let running = isPidRunning(childPid);
+		try {
+			for (let i = 0; i < 30 && running; i++) {
+				await Bun.sleep(100);
+				running = isPidRunning(childPid);
+			}
+		} finally {
+			if (running) {
+				try {
+					process.kill(childPid, "SIGKILL");
+				} catch {}
+			}
+		}
+		expect(running).toBe(false);
+	});
+
+	it("reaps orphaned IPC worker using fallback watchdog when native process handles are unavailable", async () => {
+		const repoRoot = path.resolve(__dirname, "../../..");
+		const parent = Bun.spawn({
+			cmd: [
+				process.execPath,
+				"-e",
+				`
+				const child = Bun.spawn({
+					cmd: [process.execPath, "packages/coding-agent/src/cli.ts", "__zeta_worker_js_eval_process"],
+					cwd: ${JSON.stringify(repoRoot)},
+					env: { ...process.env, PI_TEST_NO_NATIVES: "1" },
+					ipc() {},
+					serialization: "advanced",
+					windowsHide: true,
+					stdin: "ignore",
+					stdout: "ignore",
+					stderr: "ignore",
+				});
+				console.log("CHILD_PID:" + child.pid);
+				setTimeout(() => process.exit(0), 500);
+				`,
+			],
+			cwd: repoRoot,
+			stdout: "pipe",
+		});
+
+		const text = await new Response(parent.stdout).text();
+		const match = text.match(/CHILD_PID:(\d+)/);
+		expect(match).not.toBeNull();
+		const childPid = Number(match?.[1]);
+		expect(childPid).toBeGreaterThan(0);
+
+		await parent.exited;
+
+		let running = isPidRunning(childPid);
+		try {
+			for (let i = 0; i < 30 && running; i++) {
+				await Bun.sleep(100);
+				running = isPidRunning(childPid);
+			}
+		} finally {
+			if (running) {
+				try {
+					process.kill(childPid, "SIGKILL");
+				} catch {}
+			}
+		}
+		expect(running).toBe(false);
+	});
+
+	// The parent-liveness probe runs on a worker thread (`parent-watchdog-worker.ts`)
+	// with its own `process` object, so only the parent pid read on the main thread
+	// can be faked; the probe then checks the host's real PID 1. That is the container
+	// init on POSIX. Windows has no PID 1 (pids are multiples of 4; 0 is Idle, 4 is
+	// System), so the probe gets ESRCH and the watchdog correctly reaps the worker.
+	it.skipIf(process.platform === "win32")(
+		"does not treat PID 1 as an immediate orphan at boot in container environments",
+		async () => {
+			const repoRoot = path.resolve(__dirname, "../../..");
+			const childScript = `
+			Object.defineProperty(process, "ppid", { value: 1, configurable: true });
+			process.env.PI_TEST_NO_NATIVES = "1";
+			const { runCli } = await import("./packages/coding-agent/src/cli.ts");
+			await runCli(["__zeta_worker_js_eval_process"]);
+		`;
+
+			const child = Bun.spawn({
+				cmd: [process.execPath, "-e", childScript],
+				cwd: repoRoot,
+				ipc() {},
+				serialization: "advanced",
+				stdin: "ignore",
+				stdout: "ignore",
+				stderr: "ignore",
+			});
+
+			await Bun.sleep(400);
+			const alive = !child.killed && child.exitCode === null;
+			child.kill("SIGKILL");
+			expect(alive).toBe(true);
+		},
+	);
 });

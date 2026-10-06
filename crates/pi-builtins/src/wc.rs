@@ -6,11 +6,11 @@ mod count_fast {
 	use std::io::{self, ErrorKind, Read};
 	#[cfg(unix)]
 	use std::os::fd::AsRawFd;
-
+	
 	#[cfg(unix)]
 	use libc::{_SC_PAGESIZE, S_IFREG, sysconf};
 	use uucore::hardware::SimdPolicy;
-
+	
 	use super::WordCountable;
 	use super::{wc_simd_allowed, word_count::WordCount};
 	#[cfg(windows)]
@@ -19,17 +19,17 @@ mod count_fast {
 	const FILE_ATTRIBUTE_ARCHIVE: u32 = 32;
 	#[cfg(windows)]
 	const FILE_ATTRIBUTE_NORMAL: u32 = 128;
-
+	
 	#[cfg(any(target_os = "linux", target_os = "android"))]
 	use std::os::fd::AsFd;
-
+	
 	#[cfg(any(target_os = "linux", target_os = "android"))]
 	use libc::S_IFIFO;
 	#[cfg(any(target_os = "linux", target_os = "android"))]
 	use uucore::pipes::{MAX_ROOTLESS_PIPE_SIZE, pipe, splice, splice_exact};
-
+	
 	const BUF_SIZE: usize = 256 * 1024;
-
+	
 	/// This is a Linux-specific function to count the number of bytes using the
 	/// `splice` system call, which is faster than using `read`.
 	///
@@ -42,7 +42,7 @@ mod count_fast {
 		// todo: avoid generating broker if input is pipe (fcntl_setpipe_size succeed)
 		// and directly splice() to /dev/null to save RAM usage
 		let (pipe_rd, pipe_wr) = pipe().map_err(|_| 0_usize)?;
-
+	
 		let mut byte_count = 0;
 		// improve throughput from pipe
 		let _ = rustix::pipe::fcntl_setpipe_size(fd, MAX_ROOTLESS_PIPE_SIZE);
@@ -59,10 +59,10 @@ mod count_fast {
 				Err(_) => return Err(byte_count),
 			}
 		}
-
+	
 		Ok(byte_count)
 	}
-
+	
 	/// In the special case where we only need to count the number of bytes. There
 	/// are several optimizations we can do:
 	///   1. On Unix,  we can simply `stat` the file if it is regular.
@@ -76,9 +76,12 @@ mod count_fast {
 	/// The descriptor shortcuts apply only to handles backed by a native host
 	/// file; provider-backed files always take the `read` path.
 	#[inline]
-	pub(crate) fn count_bytes_fast<T: WordCountable>(handle: &mut T) -> (usize, Option<io::Error>) {
+	pub(crate) fn count_bytes_fast<T: WordCountable>(
+		handle: &mut T,
+		buffer: &mut AlignedBuffer,
+	) -> (usize, Option<io::Error>) {
 		let mut byte_count = 0;
-
+	
 		#[cfg(unix)]
 		if let Some(fd) = handle.inner_fd() {
 			let stat = rustix::fs::fstat(fd);
@@ -111,7 +114,7 @@ mod count_fast {
 				}
 			}
 		}
-
+	
 		#[cfg(windows)]
 		{
 			use std::io::{Seek as _, SeekFrom};
@@ -134,11 +137,10 @@ mod count_fast {
 				}
 			}
 		}
-
+	
 		// Fall back on `read`, but without the overhead of counting words and lines.
-		let mut buf = [0_u8; BUF_SIZE];
 		loop {
-			match handle.read(&mut buf) {
+			match handle.read(&mut buffer.data) {
 				Ok(0) => return (byte_count, None),
 				Ok(n) => {
 					byte_count += n;
@@ -148,22 +150,24 @@ mod count_fast {
 			}
 		}
 	}
-
-	/// A simple structure used to align a [`BUF_SIZE`] buffer to 32-byte boundary.
+	
+	/// A [`BUF_SIZE`] read buffer aligned to a 32-byte boundary.
 	///
 	/// This is useful as bytecount uses 256-bit wide vector operations that run
-	/// much faster on aligned data (at least on x86 with AVX2 support).
+	/// much faster on aligned data (at least on x86 with AVX2 support). One
+	/// serves every input of an invocation: zero-filling 256 KiB per file
+	/// dwarfs counting a small one.
 	#[repr(align(32))]
-	struct AlignedBuffer {
+	pub(crate) struct AlignedBuffer {
 		data: [u8; BUF_SIZE],
 	}
-
-	impl Default for AlignedBuffer {
-		fn default() -> Self {
-			Self { data: [0; BUF_SIZE] }
+	
+	impl AlignedBuffer {
+		pub(crate) fn boxed() -> Box<Self> {
+			Box::new(Self { data: [0; BUF_SIZE] })
 		}
 	}
-
+	
 	/// Returns a [`WordCount`] that counts the number of bytes, lines, and/or the
 	/// number of Unicode characters encoded in UTF-8 read via a Reader.
 	///
@@ -179,9 +183,10 @@ mod count_fast {
 		const COUNT_LINES: bool,
 	>(
 		handle: &mut R,
+		buffer: &mut AlignedBuffer,
 	) -> (WordCount, Option<io::Error>) {
 		let mut total = WordCount::default();
-		let buf: &mut [u8] = &mut AlignedBuffer::default().data;
+		let buf: &mut [u8] = &mut buffer.data;
 		let policy = SimdPolicy::detect();
 		let simd_allowed = wc_simd_allowed(policy);
 		loop {
@@ -276,11 +281,12 @@ mod countable {
 }
 
 mod utf8 {
-
+	
+	
 	use std::{cmp, str};
-
+	
 	pub use read::{BufReadDecoder, BufReadDecoderError};
-
+	
 	///
 	/// Incremental, zero-copy UTF-8 decoding with error handling
 	///
@@ -288,35 +294,35 @@ mod utf8 {
 	/// `uu_wc` used to depend on that crate.
 	/// The author archived the repository <https://github.com/SimonSapin/rust-utf8>.
 	/// They suggested incorporating the source directly into `uu_wc` <https://github.com/uutils/coreutils/issues/4289>.
-
+	
 	#[derive(Debug, Copy, Clone)]
 	pub struct Incomplete {
-		pub buffer: [u8; 4],
+		pub buffer:     [u8; 4],
 		pub buffer_len: u8,
 	}
-
+	
 	impl Incomplete {
 		pub fn empty() -> Self {
 			Self { buffer: [0, 0, 0, 0], buffer_len: 0 }
 		}
-
+	
 		pub fn is_empty(self) -> bool {
 			self.buffer_len == 0
 		}
-
+	
 		pub fn new(bytes: &[u8]) -> Self {
 			let mut buffer = [0, 0, 0, 0];
 			let len = bytes.len();
 			buffer[..len].copy_from_slice(bytes);
 			Self { buffer, buffer_len: len as u8 }
 		}
-
+	
 		fn take_buffer(&mut self) -> &[u8] {
 			let len = self.buffer_len as usize;
 			self.buffer_len = 0;
 			&self.buffer[..len]
 		}
-
+	
 		/// `(consumed_from_input, None)`: not enough input
 		/// `(consumed_from_input, Some(Err(())))`: error bytes in buffer
 		/// `(consumed_from_input, Some(Ok(())))`: UTF-8 string in buffer
@@ -382,18 +388,18 @@ mod utf8 {
 	// DEALINGS IN THE SOFTWARE.
 	mod read {
 		use std::io::{self, BufRead};
-
+		
 		use thiserror::Error;
-
+		
 		use super::{Incomplete, str};
-
+		
 		/// Wraps a `std::io::BufRead` buffered byte stream and decode it as UTF-8.
 		pub struct BufReadDecoder<B: BufRead> {
-			buf_read: B,
+			buf_read:       B,
 			bytes_consumed: usize,
-			incomplete: Incomplete,
+			incomplete:     Incomplete,
 		}
-
+		
 		#[derive(Debug, Error)]
 		pub enum BufReadDecoderError<'a> {
 			/// Represents one UTF-8 error in the byte stream.
@@ -402,17 +408,17 @@ mod utf8 {
 			/// (See `BufReadDecoder::next_lossy` and `BufReadDecoderError::lossy`.)
 			#[error("invalid byte sequence: {:02x?}", .0)]
 			InvalidByteSequence(&'a [u8]),
-
+		
 			/// An I/O error from the underlying byte stream
 			#[error("underlying bytestream error: {}", .0)]
 			Io(#[source] io::Error),
 		}
-
+		
 		impl<B: BufRead> BufReadDecoder<B> {
 			pub fn new(buf_read: B) -> Self {
 				Self { buf_read, bytes_consumed: 0, incomplete: Incomplete::empty() }
 			}
-
+		
 			/// Decode and consume the next chunk of UTF-8 input.
 			///
 			/// This method is intended to be called repeatedly until it returns `None`,
@@ -441,7 +447,7 @@ mod utf8 {
 						self.bytes_consumed = 0;
 					}
 					let buf = try_io!(self.buf_read.fill_buf());
-
+		
 					// Force loop iteration to go through an explicit `continue`
 					enum Unreachable {}
 					let _: Unreachable = if self.incomplete.is_empty() {
@@ -501,30 +507,30 @@ mod word_count {
 		cmp::max,
 		ops::{Add, AddAssign},
 	};
-
+	
 	#[derive(Debug, Default, Copy, Clone)]
 	pub struct WordCount {
-		pub bytes: usize,
-		pub chars: usize,
-		pub lines: usize,
-		pub words: usize,
+		pub bytes:           usize,
+		pub chars:           usize,
+		pub lines:           usize,
+		pub words:           usize,
 		pub max_line_length: usize,
 	}
-
+	
 	impl Add for WordCount {
 		type Output = Self;
-
+	
 		fn add(self, other: Self) -> Self {
 			Self {
-				bytes: self.bytes + other.bytes,
-				chars: self.chars + other.chars,
-				lines: self.lines + other.lines,
-				words: self.words + other.words,
+				bytes:           self.bytes + other.bytes,
+				chars:           self.chars + other.chars,
+				lines:           self.lines + other.lines,
+				words:           self.words + other.words,
 				max_line_length: max(self.max_line_length, other.max_line_length),
 			}
 		}
 	}
-
+	
 	impl AddAssign for WordCount {
 		fn add_assign(&mut self, other: Self) {
 			*self = *self + other;
@@ -553,7 +559,7 @@ use uucore::{
 };
 
 use self::{
-	count_fast::{count_bytes_chars_and_lines_fast, count_bytes_fast},
+	count_fast::{AlignedBuffer, count_bytes_chars_and_lines_fast, count_bytes_fast},
 	countable::WordCountable,
 	word_count::WordCount,
 };
@@ -563,30 +569,30 @@ use crate::host::{Host, Utility, format_usage, matches_parser, os_bytes_lossy, u
 const MINIMUM_WIDTH: usize = 7;
 
 struct Settings {
-	show_bytes: bool,
-	show_chars: bool,
-	show_lines: bool,
-	show_words: bool,
+	show_bytes:           bool,
+	show_chars:           bool,
+	show_lines:           bool,
+	show_words:           bool,
 	show_max_line_length: bool,
-	debug: bool,
-	posixly_correct: bool,
-	files0_from: Option<Input>,
-	total_when: TotalWhen,
+	debug:                bool,
+	posixly_correct:      bool,
+	files0_from:          Option<Input>,
+	total_when:           TotalWhen,
 }
 
 impl Default for Settings {
 	fn default() -> Self {
 		// Defaults if none of -c, -m, -l, -w, nor -L are specified.
 		Self {
-			show_bytes: true,
-			show_chars: false,
-			show_lines: true,
-			show_words: true,
+			show_bytes:           true,
+			show_chars:           false,
+			show_lines:           true,
+			show_words:           true,
 			show_max_line_length: false,
-			debug: false,
-			posixly_correct: false,
-			files0_from: None,
-			total_when: TotalWhen::default(),
+			debug:                false,
+			posixly_correct:      false,
+			files0_from:          None,
+			total_when:           TotalWhen::default(),
 		}
 	}
 }
@@ -690,11 +696,7 @@ impl Inputs {
 					Input::Stdin(_) => files0_iter_stdin(host).collect(),
 				};
 				let items = validate_files0(items, &input);
-				if small {
-					Ok(Self::Paths(items))
-				} else {
-					Ok(Self::Files0From(items))
-				}
+				if small { Ok(Self::Paths(items)) } else { Ok(Self::Files0From(items)) }
 			},
 			(Some(mut files), Some(_)) => Err(WcError::files_disabled(files.next().unwrap())),
 		}
@@ -810,7 +812,7 @@ enum WcError {
 	Io {
 		context: String,
 		#[source]
-		source: io::Error,
+		source:  io::Error,
 	},
 }
 
@@ -941,6 +943,7 @@ fn app() -> Command {
 fn word_count_from_reader<T: WordCountable>(
 	mut reader: T,
 	settings: &Settings,
+	buffer: &mut AlignedBuffer,
 ) -> (WordCount, Option<io::Error>) {
 	match (
 		settings.show_bytes,
@@ -955,119 +958,131 @@ fn word_count_from_reader<T: WordCountable>(
 		// show_bytes
 		(true, false, false, false, false) => {
 			// Fast path when only show_bytes is true.
-			let (bytes, error) = count_bytes_fast(&mut reader);
+			let (bytes, error) = count_bytes_fast(&mut reader, buffer);
 			(WordCount { bytes, ..WordCount::default() }, error)
 		},
 
 		// Fast paths that can be computed without Unicode decoding.
 		// show_lines
 		(false, false, true, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, false, false, true>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, false, false, true>(&mut reader, buffer)
 		},
 		// show_chars
 		(false, true, false, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, false, true, false>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, false, true, false>(&mut reader, buffer)
 		},
 		// show_chars, show_lines
 		(false, true, true, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, false, true, true>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, false, true, true>(&mut reader, buffer)
 		},
 		// show_bytes, show_lines
 		(true, false, true, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, true, false, true>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, true, false, true>(&mut reader, buffer)
 		},
 		// show_bytes, show_chars
 		(true, true, false, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, true, true, false>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, true, true, false>(&mut reader, buffer)
 		},
 		// show_bytes, show_chars, show_lines
 		(true, true, true, false, false) => {
-			count_bytes_chars_and_lines_fast::<_, true, true, true>(&mut reader)
+			count_bytes_chars_and_lines_fast::<_, true, true, true>(&mut reader, buffer)
 		},
 		// show_words
-		(_, false, false, false, true) => {
-			word_count_from_reader_specialized::<_, false, false, false, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, false, false, true) => word_count_from_reader_specialized::<
+			_,
+			false,
+			false,
+			false,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_max_line_length
-		(_, false, false, true, false) => {
-			word_count_from_reader_specialized::<_, false, false, true, false>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, false, true, false) => word_count_from_reader_specialized::<
+			_,
+			false,
+			false,
+			true,
+			false,
+		>(reader, settings.posixly_correct),
 		// show_max_line_length, show_words
-		(_, false, false, true, true) => {
-			word_count_from_reader_specialized::<_, false, false, true, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, false, true, true) => word_count_from_reader_specialized::<
+			_,
+			false,
+			false,
+			true,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_lines, show_words
-		(_, false, true, false, true) => {
-			word_count_from_reader_specialized::<_, false, true, false, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, true, false, true) => word_count_from_reader_specialized::<
+			_,
+			false,
+			true,
+			false,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_lines, show_max_line_length
-		(_, false, true, true, false) => {
-			word_count_from_reader_specialized::<_, false, true, true, false>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, true, true, false) => word_count_from_reader_specialized::<
+			_,
+			false,
+			true,
+			true,
+			false,
+		>(reader, settings.posixly_correct),
 		// show_lines, show_max_line_length, show_words
-		(_, false, true, true, true) => {
-			word_count_from_reader_specialized::<_, false, true, true, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, false, true, true, true) => word_count_from_reader_specialized::<
+			_,
+			false,
+			true,
+			true,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_words
-		(_, true, false, false, true) => {
-			word_count_from_reader_specialized::<_, true, false, false, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, false, false, true) => word_count_from_reader_specialized::<
+			_,
+			true,
+			false,
+			false,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_max_line_length
-		(_, true, false, true, false) => {
-			word_count_from_reader_specialized::<_, true, false, true, false>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, false, true, false) => word_count_from_reader_specialized::<
+			_,
+			true,
+			false,
+			true,
+			false,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_max_line_length, show_words
-		(_, true, false, true, true) => {
-			word_count_from_reader_specialized::<_, true, false, true, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, false, true, true) => word_count_from_reader_specialized::<
+			_,
+			true,
+			false,
+			true,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_lines, show_words
-		(_, true, true, false, true) => {
-			word_count_from_reader_specialized::<_, true, true, false, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, true, false, true) => word_count_from_reader_specialized::<
+			_,
+			true,
+			true,
+			false,
+			true,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_lines, show_max_line_length
-		(_, true, true, true, false) => {
-			word_count_from_reader_specialized::<_, true, true, true, false>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, true, true, false) => word_count_from_reader_specialized::<
+			_,
+			true,
+			true,
+			true,
+			false,
+		>(reader, settings.posixly_correct),
 		// show_chars, show_lines, show_max_line_length, show_words
-		(_, true, true, true, true) => {
-			word_count_from_reader_specialized::<_, true, true, true, true>(
-				reader,
-				settings.posixly_correct,
-			)
-		},
+		(_, true, true, true, true) => word_count_from_reader_specialized::<
+			_,
+			true,
+			true,
+			true,
+			true,
+		>(reader, settings.posixly_correct),
 	}
 }
 
@@ -1194,11 +1209,16 @@ enum CountResult {
 ///
 /// Therefore, the reading implementations always return a total and sometimes
 /// return an error: ([`WordCount`], `Option<io::Error>`).
-fn word_count_from_input(input: &Input, settings: &Settings, host: &mut Host) -> CountResult {
+fn word_count_from_input(
+	input: &Input,
+	settings: &Settings,
+	host: &mut Host,
+	buffer: &mut AlignedBuffer,
+) -> CountResult {
 	let (total, maybe_err) = match input {
-		Input::Stdin(_) => word_count_from_reader(&mut host.stdin, settings),
+		Input::Stdin(_) => word_count_from_reader(&mut host.stdin, settings, buffer),
 		Input::Path(path) => match host.fs().open(host.resolve(path)) {
-			Ok(file) => word_count_from_reader(file, settings),
+			Ok(file) => word_count_from_reader(file, settings, buffer),
 			Err(error) => return CountResult::Failure(error),
 		},
 	};
@@ -1280,51 +1300,55 @@ fn files0_iter_file(
 	path: &Path,
 	host: &Host,
 ) -> Result<impl Iterator<Item = InputIterItem>, WcError> {
-	let file = host
-		.fs()
-		.open(host.resolve(path))
-		.map_err(|source| WcError::Io {
-			context: format!(
-				"cannot open {} for reading",
-				quoting_style::locale_aware_escape_name(
-					path.as_os_str(),
-					QuotingStyle::SHELL_ESCAPE_QUOTE,
-				)
-				.into_string()
-				.expect("escaped names are valid strings")
-			),
-			source,
-		})?;
+	let file = host.fs().open(host.resolve(path)).map_err(|source| WcError::Io {
+		context: format!(
+			"cannot open {} for reading",
+			quoting_style::locale_aware_escape_name(
+				path.as_os_str(),
+				QuotingStyle::SHELL_ESCAPE_QUOTE,
+			)
+			.into_string()
+			.expect("escaped names are valid strings")
+		),
+		source,
+	})?;
 	Ok(files0_iter(file, path.into()))
 }
 
-fn files0_iter(reader: impl io::Read, err_path: OsString) -> impl Iterator<Item = InputIterItem> {
+fn files0_iter(
+	reader: impl io::Read,
+	err_path: OsString,
+) -> impl Iterator<Item = InputIterItem> {
 	use std::io::BufRead;
-	let mut iterator = Some(io::BufReader::new(reader).split(b'\0').map(
-		move |result| match result {
-			Ok(path) if path == STDIN_REPR.as_bytes() => Ok(Input::Stdin(StdinKind::Explicit)),
-			Ok(path) => {
-				#[cfg(unix)]
-				{
-					use std::os::unix::ffi::OsStringExt;
-					Ok(Input::Path(PathBuf::from(OsString::from_vec(path))))
-				}
-				#[cfg(not(unix))]
-				{
-					String::from_utf8(path)
-						.map(|path| Input::Path(PathBuf::from(path)))
-						.map_err(|error| WcError::Io {
-							context: format!("{}: read error", escape_name_wrapper(&err_path)),
-							source: io::Error::other(error),
-						})
-				}
-			},
-			Err(source) => Err(WcError::Io {
-				context: format!("{}: read error", escape_name_wrapper(&err_path)),
-				source,
+	let mut iterator = Some(
+		io::BufReader::new(reader)
+			.split(b'\0')
+			.map(move |result| match result {
+				Ok(path) if path == STDIN_REPR.as_bytes() => {
+					Ok(Input::Stdin(StdinKind::Explicit))
+				},
+				Ok(path) => {
+					#[cfg(unix)]
+					{
+						use std::os::unix::ffi::OsStringExt;
+						Ok(Input::Path(PathBuf::from(OsString::from_vec(path))))
+					}
+					#[cfg(not(unix))]
+					{
+						String::from_utf8(path)
+							.map(|path| Input::Path(PathBuf::from(path)))
+							.map_err(|error| WcError::Io {
+								context: format!("{}: read error", escape_name_wrapper(&err_path)),
+								source: io::Error::other(error),
+							})
+					}
+				},
+				Err(source) => Err(WcError::Io {
+					context: format!("{}: read error", escape_name_wrapper(&err_path)),
+					source,
+				}),
 			}),
-		},
-	));
+	);
 	iter::from_fn(move || {
 		let next = iterator.as_mut().and_then(Iterator::next);
 		if matches!(next, Some(Err(_)) | None) {
@@ -1379,8 +1403,8 @@ fn is_simd_debug_feature(feature: HardwareFeature) -> bool {
 }
 
 struct WcSimdFeatures {
-	enabled: Vec<HardwareFeature>,
-	disabled: Vec<HardwareFeature>,
+	enabled:          Vec<HardwareFeature>,
+	disabled:         Vec<HardwareFeature>,
 	disabled_runtime: Vec<HardwareFeature>,
 }
 
@@ -1428,18 +1452,10 @@ fn wc(inputs: &Inputs, settings: &Settings, host: &mut Host) {
 	if settings.debug {
 		let policy = SimdPolicy::detect();
 		let features = wc_simd_features(policy);
-		let enabled: Vec<_> = features
-			.enabled
-			.iter()
-			.copied()
-			.map(hardware_feature_label)
-			.collect();
-		let disabled: Vec<_> = features
-			.disabled
-			.iter()
-			.copied()
-			.map(hardware_feature_label)
-			.collect();
+		let enabled: Vec<_> =
+			features.enabled.iter().copied().map(hardware_feature_label).collect();
+		let disabled: Vec<_> =
+			features.disabled.iter().copied().map(hardware_feature_label).collect();
 		let enabled_empty = enabled.is_empty();
 		let disabled_empty = disabled.is_empty();
 		let runtime_disabled = !features.disabled_runtime.is_empty();
@@ -1468,6 +1484,7 @@ fn wc(inputs: &Inputs, settings: &Settings, host: &mut Host) {
 		}
 	}
 
+	let mut buffer = AlignedBuffer::boxed();
 	for maybe_input in inputs.iter() {
 		// An aborted invocation prints no partial total.
 		if host.is_cancelled() {
@@ -1482,22 +1499,30 @@ fn wc(inputs: &Inputs, settings: &Settings, host: &mut Host) {
 			},
 		};
 
-		let (word_count, deferred_error) = match word_count_from_input(&input, settings, host) {
+		let (word_count, deferred_error) = match word_count_from_input(&input, settings, host, &mut buffer) {
 			CountResult::Success(word_count) => (word_count, None),
-			CountResult::Interrupted(word_count, source) => {
-				(word_count, Some(WcError::Io { context: input.path_display(), source }))
-			},
+			CountResult::Interrupted(word_count, source) => (
+				word_count,
+				Some(WcError::Io { context: input.path_display(), source }),
+			),
 			CountResult::Failure(source) => {
-				record_error(host, WcError::Io { context: input.path_display(), source });
+				record_error(
+					host,
+					WcError::Io { context: input.path_display(), source },
+				);
 				continue;
 			},
 		};
 		total_word_count += word_count;
 		if are_stats_visible {
 			let title = input.to_title();
-			if let Err(source) =
-				print_stats(&mut host.stdout, settings, &word_count, title.as_deref(), number_width)
-			{
+			if let Err(source) = print_stats(
+				&mut host.stdout,
+				settings,
+				&word_count,
+				title.as_deref(),
+				number_width,
+			) {
 				let title = title.as_deref().unwrap_or(OsStr::new("<stdin>"));
 				record_error(
 					host,
@@ -1520,7 +1545,10 @@ fn wc(inputs: &Inputs, settings: &Settings, host: &mut Host) {
 		if let Err(source) =
 			print_stats(&mut host.stdout, settings, &total_word_count, title, number_width)
 		{
-			record_error(host, WcError::Io { context: "failed to print total".to_string(), source });
+			record_error(
+				host,
+				WcError::Io { context: "failed to print total".to_string(), source },
+			);
 		}
 	}
 }
@@ -1540,17 +1568,22 @@ fn print_stats(
 		(settings.show_max_line_length, result.max_line_length),
 	];
 
+	// Rendered whole, then written once: the raw stdout would otherwise take
+	// a write per column, space and title, and a concurrent writer could tear
+	// the line.
+	let mut line = Vec::with_capacity(64);
 	let mut space = "";
 	for (_, num) in maybe_cols.iter().filter(|(show, _)| *show) {
-		write!(stdout, "{space}{num:number_width$}")?;
+		write!(line, "{space}{num:number_width$}")?;
 		space = " ";
 	}
 
 	if let Some(title) = title {
-		write!(stdout, "{space}")?;
-		stdout.write_all(&os_bytes_lossy(title))?;
+		line.extend_from_slice(space.as_bytes());
+		line.extend_from_slice(&os_bytes_lossy(title));
 	}
-	writeln!(stdout)
+	line.push(b'\n');
+	stdout.write_all(&line)
 }
 
 /// Creates the `wc` builtin registration.
@@ -1564,7 +1597,11 @@ mod tests {
 
 	use pi_vfs::BlockingFs;
 
-	use super::{Wc, count_fast::count_bytes_fast, word_count::WordCount};
+	use super::{
+		Wc,
+		count_fast::{AlignedBuffer, count_bytes_fast},
+		word_count::WordCount,
+	};
 	use crate::host::run_util;
 
 	#[test]
@@ -1615,15 +1652,27 @@ mod tests {
 		std::fs::write(&path, b"abcdef").unwrap();
 		let mut file = BlockingFs::default().open(&path).unwrap();
 		file.seek(SeekFrom::Start(2)).unwrap();
-		let (bytes, error) = count_bytes_fast(&mut file);
+		let (bytes, error) = count_bytes_fast(&mut file, &mut AlignedBuffer::boxed());
 		assert_eq!(bytes, 4);
 		assert!(error.is_none());
 	}
 
 	#[test]
 	fn word_counts_add_componentwise_and_take_longest_line() {
-		let mut total = WordCount { bytes: 2, chars: 2, lines: 1, words: 1, max_line_length: 2 };
-		total += WordCount { bytes: 3, chars: 3, lines: 1, words: 2, max_line_length: 1 };
+		let mut total = WordCount {
+			bytes: 2,
+			chars: 2,
+			lines: 1,
+			words: 1,
+			max_line_length: 2,
+		};
+		total += WordCount {
+			bytes: 3,
+			chars: 3,
+			lines: 1,
+			words: 2,
+			max_line_length: 1,
+		};
 		assert_eq!(total.bytes, 5);
 		assert_eq!(total.chars, 5);
 		assert_eq!(total.lines, 2);

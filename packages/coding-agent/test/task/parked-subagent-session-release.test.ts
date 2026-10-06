@@ -12,10 +12,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { cfgContextPromotionEnabled } from "@linxiraos/zeta/session/context-settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
@@ -47,7 +49,7 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 
 beforeEach(async () => {
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-parked-release-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-parked-release-"));
 	const home = path.join(root, "home");
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
@@ -66,6 +68,9 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const key of ENV_KEYS) restoreEnvValue(key, savedEnv[key]);
 	__resetDirsFromEnvForTests();
+	// The subagent session opened agent.db and models.db under root; Windows cannot delete open files.
+	AgentStorage.close();
+	closeModelCache();
 	await removeWithRetries(root);
 });
 
@@ -96,7 +101,10 @@ function writeAndObserveLiveSettings(id: string): WeakRef<Settings> {
 
 /** Runs `AGENT_ID` to a finished keep-alive state; `release` drops the mock's session-bound recordings. */
 async function runKeptAliveSubagent(): Promise<{ release(): void; close(): void }> {
-	const cwd = path.join(root, "work");
+	// Under the isolated HOME: project discovery walks up from cwd and stops at os.homedir(). On Windows
+	// os.tmpdir() lives under the real home, so a cwd outside the fake HOME would walk into the real
+	// ~/.zeta and load the developer's installed plugins as project plugins.
+	const cwd = path.join(root, "home", "work");
 	const artifactsDir = path.join(root, "artifacts");
 	await fs.mkdir(cwd, { recursive: true });
 	await fs.mkdir(artifactsDir, { recursive: true });

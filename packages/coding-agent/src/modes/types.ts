@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
-import type { Component, Container, EditorTheme, Loader, TUI, Spacer, Text } from "@linxiraos/pi-tui";
+import type { Component, Container, EditorTheme, KeyId, Loader, TUI } from "@linxiraos/pi-tui";
 import type { TspText } from "@linxiraos/pi-wire";
 import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
 import type { CollabController } from "../collab/controller";
@@ -47,12 +47,10 @@ import type { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-mar
 import type { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
 import type { ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
 import type { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import type { RecentSession } from "@linxiraos/pi-tui/prompt/welcome";
 import type { EventController } from "./controllers/event-controller";
 import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
 import type { OAuthManualInputManager } from "./oauth-manual-input";
-import type { SidebarComponent } from "./components/sidebar";
 import type { Theme } from "@linxiraos/pi-tui/theme";
 import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 
@@ -139,9 +137,6 @@ export interface InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
-	sidebar: SidebarComponent;
-	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
-	applySidebar(): void;
 	syncComposerShape(): void;
 
 	// Session access
@@ -226,6 +221,7 @@ export interface InteractiveModeContext {
 	/** Record a message whose thinking content makes Ctrl+T meaningful even at thinking level "off"; returns true on first observation. */
 	noteDisplayableThinkingContent(message: AgentMessage): boolean;
 	proseOnlyThinking: boolean;
+	expandThinkingBlocks: boolean;
 	compactionQueuedMessages: CompactionQueuedMessage[];
 	/** Settled user/assistant components reusable across post-compaction transcript rebuilds. */
 	transcriptMessageComponents: WeakMap<AgentMessage, Component>;
@@ -347,7 +343,7 @@ export interface InteractiveModeContext {
 	applyPendingWorkingMessage(): void;
 	ensureLoadingAnimation(): void;
 	/** Interrupt key id for a maintenance working row's stop control; undefined while Esc would not cancel it. */
-	maintenanceInterruptKey(): string | undefined;
+	maintenanceInterruptKey(): KeyId | undefined;
 	/** A click on a working row's stop control: the interrupt key's handler. */
 	interruptFromPointer(): void;
 	/** Reconcile the idle "F5 to Retry" status row with the transcript tail. */
@@ -432,7 +428,6 @@ export interface InteractiveModeContext {
 	setTodoExpanded(expanded: boolean): void;
 	// Command handling
 	handleExportCommand(text: string): Promise<void>;
-	handleSidebarToggle(): void;
 	handleTraceCommand(): Promise<void>;
 	handleShareCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
@@ -585,10 +580,6 @@ export interface InteractiveModeContext {
 	setToolsExpanded(expanded: boolean): void;
 	toggleThinkingBlockVisibility(): void;
 	handlePlanModeCommand(
-		initialPrompt?: string,
-		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
-	): Promise<boolean>;
-	handlePlanUltraCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
 	): Promise<boolean>;

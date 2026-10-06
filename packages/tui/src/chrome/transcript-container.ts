@@ -1,10 +1,10 @@
 import { type Component, Container, type HistoryBatch } from "../tui";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { popLoopPhase, pushLoopPhase } from "@linxiraos/pi-utils";
+import { renderForScrollback } from "../components/image";
 import { col } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { isNativeSettled, settleNative } from "../native/settle";
-import { TERMINAL } from "../terminal-capabilities";
 import { isUsageRowBlock } from "../overlays/usage-row";
 import { isToolActivityComponent } from "./tool-activity";
 
@@ -90,13 +90,6 @@ interface TranscriptEntry {
 	 * state for emitted-row slicing but never emits another mid-stream row.
 	 */
 	stableFrozen: boolean;
-	/**
-	 * Cached "renders at least one image line" result for the settled-image
-	 * flush, keyed by width and image protocol (the probe upgrade re-encodes
-	 * text-fallback blocks into graphics). Rows of a settled block are frozen,
-	 * so a hit is exact.
-	 */
-	imageScan: { width: number; protocol: string | null; hasImageRows: boolean } | undefined;
 }
 
 type RetirementPolicy = "pressure" | "flush";
@@ -226,7 +219,6 @@ export class TranscriptContainer extends Container {
 			stableRowCountByWidth: new Map(),
 			emitted: 0,
 			stableFrozen: false,
-			imageScan: undefined,
 		});
 		// Callers may splice a just-added block into place (insert after an
 		// anchor); re-check the whole list once instead of trusting positions.
@@ -668,20 +660,9 @@ export class TranscriptContainer extends Container {
 			if (!fits && appendHead === undefined) break;
 		}
 		const overflowing = keep > 0 || this.#liveCount() >= MAX_LIVE_BLOCKS;
-		// Graphics rows must reach native scrollback as soon as their block is
-		// finalized, not when the screen next overflows: live placements are
-		// repainted into the reserved-row block every frame, and on terminals
-		// whose live-region sixel does not stick (Windows Terminal) the image
-		// stays invisible until the exit flush commits the block.
-		// Retire the settled prefix through its last image-bearing block; the
-		// flush-at-stop path remains the fallback for what is still live then.
-		let imageFlushLimit = -1;
 		if (policy === "pressure" && !overflowing) {
-			imageFlushLimit = this.#settledImageFlushLimit(width);
-			if (imageFlushLimit < 0) {
-				this.#pinnedFrontier = undefined;
-				return undefined;
-			}
+			this.#pinnedFrontier = undefined;
+			return undefined;
 		}
 
 		if (appendHead !== undefined && keep > 0) {
@@ -707,11 +688,8 @@ export class TranscriptContainer extends Container {
 		}
 
 		// Shutdown retires everything eligible; pressure retires exactly the
-		// blocks that no longer fit, plus whatever the live-block cap demands
-		// — or, without overflow, the settled prefix through its last
-		// image-bearing block (graphics must land in scrollback promptly).
+		// blocks that no longer fit, plus whatever the live-block cap demands.
 		let limit = this.#frontier + keep;
-		if (imageFlushLimit >= 0) limit = Math.max(limit, imageFlushLimit);
 		if (this.#liveCount() >= MAX_LIVE_BLOCKS) {
 			limit = Math.max(limit, this.#frontier + (this.#liveCount() - (MAX_LIVE_BLOCKS - 1)));
 		}
@@ -817,7 +795,7 @@ export class TranscriptContainer extends Container {
 	/** Embedded as a child (transcript viewers): a stack of the {@link nativeBlocks}. */
 	override describe(): NativeNode {
 		const blocks = this.nativeBlocks();
-		this.#nativeNode ??= col(blocks, { role: "zeta.transcript" });
+		this.#nativeNode ??= col(blocks, { role: "omp.transcript" });
 		return this.#nativeNode;
 	}
 
@@ -1023,9 +1001,11 @@ export class TranscriptContainer extends Container {
 			// Only the range head is sliced by its emitted stable prefix; every other
 			// entry renders whole, so the append-only verification pass (a second
 			// full render of the block's stable prefix) is skipped for them. This
-			// keeps a complete-ledger replay at one render per block.
-			const rendered =
-				index === start ? this.#renderEntry(entry, width) : trimBlankEdges(entry.component.render(width));
+			// keeps a complete-ledger replay at one render per block. These rows go
+			// to native scrollback, where nothing can repaint them.
+			const rendered = renderForScrollback(() =>
+				index === start ? this.#renderEntry(entry, width) : trimBlankEdges(entry.component.render(width)),
+			);
 			const emittedRows = index === start ? this.#renderStablePrefix(entry, entry.emitted, width).length : 0;
 			const block = rendered.slice(emittedRows);
 			reached = index + 1;
@@ -1191,42 +1171,6 @@ export class TranscriptContainer extends Container {
 		}
 	}
 
-	/**
-	 * End (exclusive) of the settled prefix that must retire for its graphics
-	 * rows to land in native scrollback now: one past the last image-bearing
-	 * settled entry, or -1 when the prefix holds no image block. Entries after
-	 * a non-settled block cannot retire yet, so the walk stops at the first
-	 * one — an unfinalized image keeps waiting, exactly like at stop.
-	 */
-	#settledImageFlushLimit(width: number): number {
-		let last = -1;
-		for (let index = this.#frontier; index < this.#entries.length; index++) {
-			const entry = this.#entries[index]!;
-			if (entry.state !== "settled") break;
-			if (this.#hasImageRows(entry, width)) last = index;
-		}
-		return last < 0 ? -1 : last + 1;
-	}
-
-	/** Whether the block's measured rows carry an image sequence (cached per width and protocol). */
-	#hasImageRows(entry: TranscriptEntry, width: number): boolean {
-		const protocol = TERMINAL.imageProtocol;
-		const cached = entry.imageScan;
-		if (cached !== undefined && cached.width === width && cached.protocol === protocol) return cached.hasImageRows;
-		let hasImageRows = false;
-		if (protocol !== null) {
-			const rows = this.#measuredRows(entry, width);
-			for (let index = 0; index < rows.length; index++) {
-				if (TERMINAL.isImageLine(rows[index]!)) {
-					hasImageRows = true;
-					break;
-				}
-			}
-		}
-		entry.imageScan = { width, protocol, hasImageRows };
-		return hasImageRows;
-	}
-
 	#liveEntries(): Array<{ entry: TranscriptEntry; index: number }> {
 		const start = this.#offered?.kind === "commit" ? this.#offered.end : this.#frontier;
 		const live: Array<{ entry: TranscriptEntry; index: number }> = [];
@@ -1271,7 +1215,6 @@ export class TranscriptContainer extends Container {
 					stableRowCountByWidth: new Map(),
 					emitted: 0,
 					stableFrozen: false,
-					imageScan: undefined,
 				},
 		);
 		this.#frontier = this.#entries.findIndex(entry => entry.state !== "committed");

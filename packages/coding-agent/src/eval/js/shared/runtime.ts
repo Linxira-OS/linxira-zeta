@@ -6,8 +6,12 @@ import * as path from "node:path";
 import { Writable } from "node:stream";
 import * as util from "node:util";
 
+// Subpath imports only: the computer worker's readiness graph includes this runtime and must not
+// load pi_natives (verified under `--no-addons`); the `@linxiraos/pi-utils` barrel loads it eagerly.
 import * as logger from "@linxiraos/pi-utils/logger";
+import { isRecord } from "@linxiraos/pi-utils/type-guards";
 
+import { evalImageMetadata } from "../../types";
 import type { EvalPreludeSource } from "../worker-protocol";
 import { createHelpers, type HelperBundle } from "./helpers";
 import { awaitMaybePromise, indirectEval } from "./indirect-eval";
@@ -39,15 +43,15 @@ export interface RuntimeHooks {
  * with base64.
  */
 function surfaceBridgedToolImages(value: unknown, hooks: RuntimeHooks): unknown {
-	if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-	const { images, ...rest } = value as { images?: unknown } & Record<string, unknown>;
+	if (!isRecord(value)) return value;
+	const { images, ...rest } = value;
 	if (!Array.isArray(images) || images.length === 0) return value;
 	let displayed = 0;
 	for (const image of images) {
-		if (!image || typeof image !== "object") continue;
-		const { data, mimeType } = image as { data?: unknown; mimeType?: unknown };
+		if (!isRecord(image)) continue;
+		const { data, mimeType } = image;
 		if (typeof data !== "string" || typeof mimeType !== "string") continue;
-		hooks.onDisplay({ type: "image", data, mimeType });
+		hooks.onDisplay({ type: "image", data, mimeType, ...evalImageMetadata(image) });
 		displayed++;
 	}
 	if (displayed === 0) return value;
@@ -68,7 +72,7 @@ export interface RuntimeOptions {
 	initialCwd: string;
 	sessionId: string;
 	/**
-	 * Extra globals installed alongside `__zeta_helpers__` / prelude. Use for stable, lifetime-
+	 * Extra globals installed alongside `__omp_helpers__` / prelude. Use for stable, lifetime-
 	 * of-the-worker bindings (e.g. browser's `page`, `browser`). Per-run scope should be set
 	 * via `setRunScope()` instead.
 	 */
@@ -89,8 +93,8 @@ const BASE64_STRICT_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 const DECIMAL_CSV_RE = /^\d{1,3}(?:,\d{1,3})*$/;
 
 const PRELUDE_GLOBAL_KEYS = [
-	"__zeta_js_prelude_loaded__",
-	"__zeta_tools__",
+	"__omp_js_prelude_loaded__",
+	"__omp_tools__",
 	"console",
 	"print",
 	"display",
@@ -139,12 +143,12 @@ export type ShadowInitialGlobals = Readonly<{
 	"Object.prototype.toString"?: boolean;
 	/**
 	 * Whether the prelude tool bridge dispatcher still has its installed
-	 * identity. The proxy resolves `__zeta_call_tool__` per call, so the flag
+	 * identity. The proxy resolves `__omp_call_tool__` per call, so the flag
 	 * must track this binding; it also joins the snapshot digest, invalidating
 	 * plans if the installation ever changes under them. Absent only for
 	 * hand-built snapshots, where the bridge is assumed intact.
 	 */
-	__zeta_call_tool__?: boolean;
+	__omp_call_tool__?: boolean;
 }>;
 
 export type ShadowSnapshot = Readonly<{
@@ -362,7 +366,7 @@ export class JsRuntime {
 				currentJSON.stringify === this.#initialIntrinsics.stringify,
 			"Array.prototype.join": Array.prototype.join === this.#initialIntrinsics.arrayJoin,
 			"Object.prototype.toString": Object.prototype.toString === this.#initialIntrinsics.objectToString,
-			__zeta_call_tool__: (globalThis as Record<string, unknown>).__zeta_call_tool__ === this.#installedCallTool,
+			__omp_call_tool__: (globalThis as Record<string, unknown>).__omp_call_tool__ === this.#installedCallTool,
 		};
 		return Object.freeze({
 			revision: this.#namespaceRevision,
@@ -555,11 +559,11 @@ export class JsRuntime {
 			return;
 		}
 		if (value && typeof value === "object") {
-			const record = value as Record<string, unknown>;
+			const record = isRecord(value) ? value : {};
 			if (record.type === "image" && typeof record.mimeType === "string") {
 				const data = coerceImageBase64(record.data);
 				if (data !== null) {
-					hooks.onDisplay({ type: "image", data, mimeType: record.mimeType });
+					hooks.onDisplay({ type: "image", data, mimeType: record.mimeType, ...evalImageMetadata(record) });
 					return;
 				}
 				logger.warn("js displayValue: dropping image with unrecognized data shape", {
@@ -639,8 +643,8 @@ export class JsRuntime {
 		// init-failed instead of corrupting the active run.
 		assertCanUseGlobalOwner(this.#globalOwner, "initialize a JS runtime");
 		const injected: Record<string, unknown> = {
-			__zeta_session__: this.#session,
-			__zeta_helpers__: this.helpers,
+			__omp_session__: this.#session,
+			__omp_helpers__: this.helpers,
 			__omp_with_call_site__: <T>(siteId: string, action: () => T): T => {
 				const context = this.#als.getStore();
 				if (!context) return action();
@@ -648,18 +652,18 @@ export class JsRuntime {
 				context.callOccurrences.set(siteId, occurrence + 1);
 				return this.#callSiteAls.run({ siteId, occurrence }, action);
 			},
-			__zeta_call_tool__: async (name: string, args: unknown) => {
+			__omp_call_tool__: async (name: string, args: unknown) => {
 				const hooks = this.#activeHooks("tool");
 				if (!hooks) return undefined;
 				return surfaceBridgedToolImages(await hooks.callTool(name, args, this.#callSiteAls.getStore()), hooks);
 			},
-			__zeta_prelude__: async (name: string, parameters: unknown) => {
+			__omp_prelude__: async (name: string, parameters: unknown) => {
 				const hooks = this.#activeHooks("prelude");
 				if (!hooks) return undefined;
 				const payload = { name, parameters };
 				return surfaceBridgedToolImages(await hooks.callTool("__prelude__", payload), hooks);
 			},
-			__zeta_import__: async (source: string, options?: ImportCallOptions) => {
+			__omp_import__: async (source: string, options?: ImportCallOptions) => {
 				const filename = this.#activeFilename();
 				const baseDir = filename ? path.dirname(filename) : this.#activeCwd();
 				const resolved = await this.#moduleLoader.resolveForRun(baseDir, source);
@@ -667,25 +671,25 @@ export class JsRuntime {
 				const target = resolved.target;
 				return options !== undefined ? await import(target, options) : await import(target);
 			},
-			__zeta_import_from__: async (moduleUrl: string, source: string, options?: ImportCallOptions) => {
+			__omp_import_from__: async (moduleUrl: string, source: string, options?: ImportCallOptions) => {
 				const resolved = await this.#moduleLoader.resolveForModule(moduleUrl, source, this.#activeCwd());
 				if (resolved.mode === "local") return resolved.value;
 				const target = resolved.target;
 				return options !== undefined ? await import(target, options) : await import(target);
 			},
-			__zeta_get_require__: (moduleUrl?: string) => this.#activeRequire(moduleUrl),
-			__zeta_get_filename__: (moduleUrl?: string) => this.#moduleFilename(moduleUrl),
-			__zeta_get_dirname__: (moduleUrl?: string) => this.#moduleDirname(moduleUrl),
-			__zeta_emit_status__: (op: string, data: Record<string, unknown> = {}) => {
+			__omp_get_require__: (moduleUrl?: string) => this.#activeRequire(moduleUrl),
+			__omp_get_filename__: (moduleUrl?: string) => this.#moduleFilename(moduleUrl),
+			__omp_get_dirname__: (moduleUrl?: string) => this.#moduleDirname(moduleUrl),
+			__omp_emit_status__: (op: string, data: Record<string, unknown> = {}) => {
 				const event: JsStatusEvent = { op, ...data };
 				this.#activeHooks("emitStatus")?.onDisplay({ type: "status", event });
 			},
-			__zeta_log__: (level: string, ...args: unknown[]) => {
+			__omp_log__: (level: string, ...args: unknown[]) => {
 				const prefix = level === "error" ? "[error] " : level === "warn" ? "[warn] " : "";
 				const text = `${prefix}${formatConsoleArgs(args)}`;
 				this.#activeHooks("log")?.onText(text.endsWith("\n") ? text : `${text}\n`);
 			},
-			__zeta_table__: (...args: unknown[]) => {
+			__omp_table__: (...args: unknown[]) => {
 				const hooks = this.#activeHooks("table");
 				if (!hooks) return;
 				let buffer = "";
@@ -702,8 +706,8 @@ export class JsRuntime {
 				tableCapable.table(...args);
 				hooks.onText(buffer.endsWith("\n") ? buffer : `${buffer}\n`);
 			},
-			__zeta_display__: (value: unknown) => this.displayValue(value),
-			__zeta_set_final_expr__: (value: unknown) => {
+			__omp_display__: (value: unknown) => this.displayValue(value),
+			__omp_set_final_expr__: (value: unknown) => {
 				const context = this.#als.getStore();
 				if (!context) {
 					logger.warn("js runtime final expression set outside an active run");
@@ -738,13 +742,13 @@ export class JsRuntime {
 		indirectEval(JAVASCRIPT_PRELUDE_SOURCE);
 		for (const key of allGlobalKeys) recordGlobalValue(key, this.#globalOwner);
 		// Capture the installed bridge dispatcher for the snapshot identity
-		// flag below. The prelude tool proxy resolves `__zeta_call_tool__` per
+		// flag below. The prelude tool proxy resolves `__omp_call_tool__` per
 		// call, so the flag must track this binding. (Steady-state retained
 		// replacements self-heal: owned-global activation restores the recorded
 		// value before any observation. The `tool` binding itself needs no
 		// flag: the prelude declares it as a lexical const, which shadows any
 		// `globalThis.tool` replacement for bare references.)
-		this.#installedCallTool = (globalThis as Record<string, unknown>).__zeta_call_tool__;
+		this.#installedCallTool = (globalThis as Record<string, unknown>).__omp_call_tool__;
 		RUN_HOOK_RESOLVERS.add(this.#runHookResolver);
 		patchStdioOnce();
 	}

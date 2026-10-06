@@ -1,15 +1,17 @@
 //! `grep` builtin implemented on top of the ripgrep libraries.
 //!
 //! Matching uses `grep-regex`/`grep-searcher`; recursive walks use `pi-walker`.
+//! Also hosts the plumbing `rg` and pi-natives' grep binding share with it:
+//! [`CompiledMatcher`], the PCRE2 JIT toggle, exit status, and record layout.
+
 
 use std::{
 	ffi::{OsStr, OsString},
+	fmt,
 	io::{self, Read, Write},
 	path::{Path, PathBuf},
 };
 
-use crate::bre;
-use crate::host::{Host, Utility, util};
 use brush_core::{ShellExtensions, builtins::Registration};
 use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, ValueEnum, parser::ValueSource};
 use globset::{Glob, GlobMatcher};
@@ -19,15 +21,201 @@ use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{
 	BinaryDetection, Searcher, SearcherBuilder, Sink, SinkContext, SinkFinish, SinkMatch,
 };
+use crate::bre;
+use crate::host::{Host, Utility, util};
 
-/// PCRE2 JIT toggle: `OMP_PCRE2_JIT=1` forces JIT on, `0`/`false` forces it
-/// off. Unset, JIT stays on everywhere except macOS, where PCRE2's SLJIT
-/// executable allocator can fault while compiling patterns (issue #7399).
-pub(crate) fn pcre2_jit_enabled(host: &Host) -> bool {
-	match host.var("OMP_PCRE2_JIT") {
+/// PCRE2 JIT toggle for an `OMP_PCRE2_JIT` value: `1` forces JIT on,
+/// `0`/`false` forces it off. Unset or empty, JIT stays on everywhere except
+/// macOS, where PCRE2's SLJIT executable allocator can fault while compiling
+/// patterns (issue #7399). The caller reads the variable from its own
+/// environment: the builtins see the shell's exported variables, which the
+/// host process environment does not carry.
+pub fn pcre2_jit_enabled(setting: Option<&str>) -> bool {
+	match setting {
 		Some(value) if !value.is_empty() => value != "0" && !value.eq_ignore_ascii_case("false"),
 		_ => !cfg!(target_os = "macos"),
 	}
+}
+
+/// A pattern compiled by one of the two engines: Rust `regex`, or PCRE2 for
+/// syntax it lacks (look-around, back-references).
+///
+/// Hot search loops match on the variant and run monomorphized per engine;
+/// the [`Matcher`] impl serves one-shot callers that only need an answer.
+pub enum CompiledMatcher {
+	Rust(RegexMatcher),
+	Pcre(PcreMatcher),
+}
+
+/// Search error from either engine behind a [`CompiledMatcher`].
+#[derive(Debug)]
+pub enum CompiledMatcherError {
+	Rust(grep_matcher::NoError),
+	Pcre(grep_pcre2::Error),
+}
+
+impl fmt::Display for CompiledMatcherError {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Rust(err) => err.fmt(formatter),
+			Self::Pcre(err) => err.fmt(formatter),
+		}
+	}
+}
+
+impl Matcher for CompiledMatcher {
+	type Captures = grep_matcher::NoCaptures;
+	type Error = CompiledMatcherError;
+
+	fn find_at(
+		&self,
+		haystack: &[u8],
+		at: usize,
+	) -> Result<Option<grep_matcher::Match>, Self::Error> {
+		match self {
+			Self::Rust(matcher) => matcher
+				.find_at(haystack, at)
+				.map_err(CompiledMatcherError::Rust),
+			Self::Pcre(matcher) => matcher
+				.find_at(haystack, at)
+				.map_err(CompiledMatcherError::Pcre),
+		}
+	}
+
+	fn new_captures(&self) -> Result<Self::Captures, Self::Error> {
+		Ok(grep_matcher::NoCaptures::new())
+	}
+}
+
+/// Exit status of a `grep` or `rg` run: 0 when a line was selected, 1 when
+/// none was, 2 on any error, except that under `-q` a match outranks errors.
+pub(crate) const fn exit_status(quiet: bool, any_match: bool, had_error: bool) -> i32 {
+	if quiet && any_match {
+		0
+	} else if had_error {
+		2
+	} else if any_match {
+		0
+	} else {
+		1
+	}
+}
+
+/// How `grep` and `rg` lay out the file name and record ends they print.
+#[derive(Clone, Copy)]
+pub(crate) struct RecordFormat {
+	/// Byte printed in place of each `/` in a path (`rg --path-separator`).
+	pub path_separator: Option<u8>,
+	/// End a printed path with NUL instead of its separator or terminator
+	/// (`grep -Z`, `rg -0`).
+	pub null_paths:     bool,
+	/// Ends each record: `\n`, or NUL under `grep -z`.
+	pub terminator:     u8,
+}
+
+impl RecordFormat {
+	fn write_path<W: Write + ?Sized>(&self, out: &mut W, path: &[u8]) -> io::Result<()> {
+		let Some(separator) = self.path_separator else {
+			return out.write_all(path);
+		};
+		let mut rest = path;
+		while let Some(pos) = rest.iter().position(|&byte| byte == b'/') {
+			out.write_all(&rest[..pos])?;
+			out.write_all(&[separator])?;
+			rest = &rest[pos + 1..];
+		}
+		out.write_all(rest)
+	}
+
+	/// Writes the `PATH:LINE:COLUMN:OFFSET:` prefix of a line record, skipping
+	/// absent fields; under `null_paths` NUL replaces the separator after the
+	/// path. Returns whether any field was written.
+	pub fn write_prefix<W: Write + ?Sized>(
+		&self,
+		out: &mut W,
+		path: Option<&[u8]>,
+		line_number: Option<u64>,
+		column: Option<usize>,
+		byte_offset: Option<u64>,
+		separator: u8,
+	) -> io::Result<bool> {
+		if let Some(path) = path {
+			self.write_path(out, path)?;
+			out.write_all(&[if self.null_paths { b'\0' } else { separator }])?;
+		}
+		if let Some(number) = line_number {
+			write!(out, "{number}")?;
+			out.write_all(&[separator])?;
+		}
+		if let Some(column) = column {
+			write!(out, "{column}")?;
+			out.write_all(&[separator])?;
+		}
+		if let Some(offset) = byte_offset {
+			write!(out, "{offset}")?;
+			out.write_all(&[separator])?;
+		}
+		Ok(path.is_some() || line_number.is_some() || column.is_some() || byte_offset.is_some())
+	}
+
+	/// Writes a file-name record (`-l`, `-L`, `rg --files`): the path ended
+	/// by NUL under `null_paths`, else by the terminator. An unnamed input
+	/// prints only the terminator, and nothing under `null_paths`.
+	pub fn write_path_record<W: Write + ?Sized>(
+		&self,
+		out: &mut W,
+		path: Option<&[u8]>,
+	) -> io::Result<()> {
+		match path {
+			Some(path) => {
+				self.write_path(out, path)?;
+				out.write_all(&[if self.null_paths { b'\0' } else { self.terminator }])
+			},
+			None if self.null_paths => Ok(()),
+			None => out.write_all(&[self.terminator]),
+		}
+	}
+
+	/// Writes a `-c` record: the optional `PATH:` prefix, then `count`.
+	pub fn write_count_record<W: Write + ?Sized>(
+		&self,
+		out: &mut W,
+		path: Option<&[u8]>,
+		count: u64,
+	) -> io::Result<()> {
+		self.write_prefix(out, path, None, None, None, b':')?;
+		write!(out, "{count}")?;
+		out.write_all(&[self.terminator])
+	}
+}
+
+/// Calls `visit` with each non-empty match in `line`, left to right as `-o`
+/// prints them, plus its absolute byte offset given the line's `line_offset`.
+pub(crate) fn for_each_nonempty_match<M: Matcher>(
+	matcher: &M,
+	line: &[u8],
+	line_offset: u64,
+	mut visit: impl FnMut(grep_matcher::Match, u64) -> io::Result<()>,
+) -> io::Result<()> {
+	let mut at = 0usize;
+	while at <= line.len() {
+		let Some(found) = matcher
+			.find_at(line, at)
+			.map_err(|error| io::Error::other(error.to_string()))?
+		else {
+			break;
+		};
+		if found.is_empty() {
+			at = found.end() + 1;
+			continue;
+		}
+		let match_offset = line_offset.saturating_add(
+			u64::try_from(found.start()).map_err(|error| io::Error::other(error.to_string()))?,
+		);
+		visit(found, match_offset)?;
+		at = found.end();
+	}
+	Ok(())
 }
 
 #[derive(Parser, Debug)]
@@ -276,12 +464,8 @@ pub(crate) struct Grep {
 }
 
 impl CommandFactory for Grep {
-	fn command() -> clap::Command {
-		GrepArgs::command()
-	}
-	fn command_for_update() -> clap::Command {
-		GrepArgs::command_for_update()
-	}
+	fn command() -> clap::Command { GrepArgs::command() }
+	fn command_for_update() -> clap::Command { GrepArgs::command_for_update() }
 }
 
 impl FromArgMatches for Grep {
@@ -327,28 +511,22 @@ enum MatchMode {
 
 /// Resolved, flag-free options shared with the search [`Sink`].
 struct Options {
-	line_number: bool,
-	byte_offset: bool,
-	count: bool,
-	files_with_matches: bool,
+	line_number:         bool,
+	byte_offset:         bool,
+	count:               bool,
+	files_with_matches:  bool,
 	files_without_match: bool,
-	only_matching: bool,
-	before: usize,
-	after: usize,
-	no_messages: bool,
-	quiet: bool,
-	prefix_filename: bool,
-	initial_tab: bool,
-	null_paths: bool,
-	record_terminator: u8,
-	group_separator: Option<Vec<u8>>,
-	line_buffered: bool,
-	binary_files: BinaryFiles,
-}
-
-enum CompiledMatcher {
-	Rust(RegexMatcher),
-	Pcre(PcreMatcher),
+	only_matching:       bool,
+	before:              usize,
+	after:               usize,
+	no_messages:         bool,
+	quiet:               bool,
+	prefix_filename:     bool,
+	initial_tab:         bool,
+	record:              RecordFormat,
+	group_separator:     Option<Vec<u8>>,
+	line_buffered:       bool,
+	binary_files:        BinaryFiles,
 }
 
 struct PathRule {
@@ -357,7 +535,7 @@ struct PathRule {
 }
 
 struct RuleSpec {
-	index: usize,
+	index:   usize,
 	include: bool,
 	pattern: String,
 }
@@ -365,7 +543,7 @@ struct RuleSpec {
 #[derive(Default)]
 struct PathRules {
 	files: Vec<PathRule>,
-	dirs: Vec<PathRule>,
+	dirs:  Vec<PathRule>,
 }
 
 impl PathRules {
@@ -559,29 +737,11 @@ fn resolve_max_count(cli: &GrepArgs) -> Result<Option<u64>, String> {
 }
 
 fn option_takes_next_value(arg: &str) -> bool {
-	matches!(
-		arg,
-		"-e"
-			| "-f" | "-m"
-			| "-A" | "-B"
-			| "-C" | "-D"
-			| "-d" | "--regexp"
-			| "--file"
-			| "--max-count"
-			| "--after-context"
-			| "--before-context"
-			| "--context"
-			| "--label"
-			| "--group-separator"
-			| "--binary-files"
-			| "--devices"
-			| "--directories"
-			| "--include"
-			| "--exclude"
-			| "--exclude-from"
-			| "--exclude-dir"
-			| "--include-dir"
-	)
+	matches!(arg, "-e" | "-f" | "-m" | "-A" | "-B" | "-C" | "-D" | "-d"
+		| "--regexp" | "--file" | "--max-count" | "--after-context" | "--before-context"
+		| "--context" | "--label" | "--group-separator" | "--binary-files" | "--devices"
+		| "--directories" | "--include" | "--exclude" | "--exclude-from" | "--exclude-dir"
+		| "--include-dir")
 }
 
 fn normalize_context_args(argv: Vec<OsString>) -> Vec<OsString> {
@@ -594,18 +754,10 @@ fn normalize_context_args(argv: Vec<OsString>) -> Vec<OsString> {
 			normalized.push(arg);
 			continue;
 		}
-		let Some(text) = arg.to_str() else {
-			normalized.push(arg);
-			continue;
-		};
-		if text == "--" {
-			literal = true;
-			normalized.push(arg);
-			continue;
-		}
+		let Some(text) = arg.to_str() else { normalized.push(arg); continue };
+		if text == "--" { literal = true; normalized.push(arg); continue }
 		if let Some(digits) = text.strip_prefix('-')
-			&& !digits.is_empty()
-			&& digits.bytes().all(|byte| byte.is_ascii_digit())
+			&& !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
 		{
 			normalized.push(OsString::from(format!("--context={digits}")));
 			continue;
@@ -614,21 +766,6 @@ fn normalize_context_args(argv: Vec<OsString>) -> Vec<OsString> {
 		normalized.push(arg);
 	}
 	normalized
-}
-
-/// Escape regular-expression meta-characters so a pattern is matched literally,
-/// mirroring `regex::escape` (used to implement `-F`/`--fixed-strings`).
-fn escape_literal(pat: &str) -> String {
-	const META: &[char] =
-		&['\\', '.', '+', '*', '?', '(', ')', '|', '[', ']', '{', '}', '^', '$', '#', '&', '-', '~'];
-	let mut out = String::with_capacity(pat.len());
-	for ch in pat.chars() {
-		if META.contains(&ch) {
-			out.push('\\');
-		}
-		out.push(ch);
-	}
-	out
 }
 
 /// Build a matcher, falling back to a literal match for any pattern the engine
@@ -659,7 +796,7 @@ fn build_default_matcher<P: AsRef<str>, F: AsRef<str>>(
 			if builder.build(pattern).is_ok() {
 				pattern.to_owned()
 			} else {
-				escape_literal(fallback.as_ref())
+				regex::escape(fallback.as_ref())
 			}
 		})
 		.collect();
@@ -684,7 +821,7 @@ fn build_matcher(
 			.whole_line(cli.line_regexp)
 			.utf(true)
 			.ucp(true)
-			.jit_if_available(pcre2_jit_enabled(host));
+			.jit_if_available(pcre2_jit_enabled(host.var("OMP_PCRE2_JIT")));
 		return builder
 			.build_many(patterns)
 			.map(CompiledMatcher::Pcre)
@@ -700,10 +837,7 @@ fn build_matcher(
 		builder.line_terminator(Some(b'\0'));
 	}
 	if mode == MatchMode::Fixed {
-		let escaped: Vec<String> = patterns
-			.iter()
-			.map(|pattern| escape_literal(pattern))
-			.collect();
+		let escaped: Vec<String> = patterns.iter().map(|pattern| regex::escape(pattern)).collect();
 		return builder
 			.build_many(&escaped)
 			.map(CompiledMatcher::Rust)
@@ -733,10 +867,8 @@ fn build_matcher(
 	// `regex` crate refuses the whole pattern, so `grep -E '{a}'` failed on
 	// patterns real grep matches. An attempted-but-unterminated interval
 	// stays an error in both.
-	let patterns: Vec<std::borrow::Cow<'_, str>> = patterns
-		.iter()
-		.map(|p| bre::ere_literalize_braces(p))
-		.collect();
+	let patterns: Vec<std::borrow::Cow<'_, str>> =
+		patterns.iter().map(|p| bre::ere_literalize_braces(p)).collect();
 
 	// `regex` accepts `^+` and compiles it as `(?:^)+`, which matches at every
 	// line start. GNU and BSD grep both reject the pattern, so returning every
@@ -756,13 +888,13 @@ fn build_matcher(
 
 /// A search sink that renders GNU-compatible records and tracks selection.
 struct GrepSink<'a, M: Matcher, W: Write> {
-	out: &'a mut W,
-	matcher: &'a M,
-	display: &'a [u8],
-	opts: &'a Options,
+	out:         &'a mut W,
+	matcher:     &'a M,
+	display:     &'a [u8],
+	opts:        &'a Options,
 	match_count: u64,
-	any_match: bool,
-	binary: bool,
+	any_match:   bool,
+	binary:      bool,
 }
 
 impl<M: Matcher, W: Write> GrepSink<'_, M, W> {
@@ -779,28 +911,14 @@ impl<M: Matcher, W: Write> GrepSink<'_, M, W> {
 		byte_offset: u64,
 		separator: u8,
 	) -> io::Result<()> {
-		let mut has_prefix = false;
-		if self.opts.prefix_filename {
-			self.out.write_all(self.display)?;
-			if self.opts.null_paths {
-				self.out.write_all(b"\0")?;
-			} else {
-				self.out.write_all(&[separator])?;
-			}
-			has_prefix = true;
-		}
-		if self.opts.line_number
-			&& let Some(number) = line_number
-		{
-			write!(self.out, "{number}")?;
-			self.out.write_all(&[separator])?;
-			has_prefix = true;
-		}
-		if self.opts.byte_offset {
-			write!(self.out, "{byte_offset}")?;
-			self.out.write_all(&[separator])?;
-			has_prefix = true;
-		}
+		let has_prefix = self.opts.record.write_prefix(
+			self.out,
+			self.opts.prefix_filename.then_some(self.display),
+			line_number.filter(|_| self.opts.line_number),
+			None,
+			self.opts.byte_offset.then_some(byte_offset),
+			separator,
+		)?;
 		if self.opts.initial_tab && has_prefix {
 			self.out.write_all(b"\t")?;
 		}
@@ -809,20 +927,14 @@ impl<M: Matcher, W: Write> GrepSink<'_, M, W> {
 
 	fn write_record(&mut self, record: &[u8]) -> io::Result<()> {
 		self.out.write_all(record)?;
-		if record.last().copied() != Some(self.opts.record_terminator) {
-			self.out.write_all(&[self.opts.record_terminator])?;
+		if record.last().copied() != Some(self.opts.record.terminator) {
+			self.out.write_all(&[self.opts.record.terminator])?;
 		}
 		self.flush_record()
 	}
 
 	fn write_path_record(&mut self) -> io::Result<()> {
-		self.out.write_all(self.display)?;
-		let terminator = if self.opts.null_paths {
-			b'\0'
-		} else {
-			self.opts.record_terminator
-		};
-		self.out.write_all(&[terminator])?;
+		self.opts.record.write_path_record(self.out, Some(self.display))?;
 		self.flush_record()
 	}
 
@@ -832,27 +944,10 @@ impl<M: Matcher, W: Write> GrepSink<'_, M, W> {
 		line_number: Option<u64>,
 		line_offset: u64,
 	) -> io::Result<()> {
-		let mut at = 0usize;
-		while at <= line.len() {
-			let Some(found) = self
-				.matcher
-				.find_at(line, at)
-				.map_err(|error| io::Error::other(error.to_string()))?
-			else {
-				break;
-			};
-			if found.is_empty() {
-				at = found.end() + 1;
-				continue;
-			}
-			let match_offset = line_offset.saturating_add(
-				u64::try_from(found.start()).map_err(|error| io::Error::other(error.to_string()))?,
-			);
+		for_each_nonempty_match(self.matcher, line, line_offset, |found, match_offset| {
 			self.write_prefix(line_number, match_offset, b':')?;
-			self.write_record(&line[found.start()..found.end()])?;
-			at = found.end();
-		}
-		Ok(())
+			self.write_record(&line[found.start()..found.end()])
+		})
 	}
 
 	fn normal_output_is_suppressed(&self) -> bool {
@@ -913,7 +1008,7 @@ impl<M: Matcher, W: Write> Sink for GrepSink<'_, M, W> {
 			&& let Some(separator) = &self.opts.group_separator
 		{
 			self.out.write_all(separator)?;
-			self.out.write_all(&[self.opts.record_terminator])?;
+			self.out.write_all(&[self.opts.record.terminator])?;
 			self.flush_record()?;
 		}
 		Ok(true)
@@ -941,7 +1036,7 @@ impl<M: Matcher, W: Write> Sink for GrepSink<'_, M, W> {
 			self.out.write_all(b"Binary file ")?;
 			self.out.write_all(self.display)?;
 			self.out.write_all(b" matches")?;
-			self.out.write_all(&[self.opts.record_terminator])?;
+			self.out.write_all(&[self.opts.record.terminator])?;
 			return self.flush_record();
 		}
 		if self.opts.files_with_matches {
@@ -953,16 +1048,11 @@ impl<M: Matcher, W: Write> Sink for GrepSink<'_, M, W> {
 				self.write_path_record()?;
 			}
 		} else if self.opts.count {
-			if self.opts.prefix_filename {
-				self.out.write_all(self.display)?;
-				if self.opts.null_paths {
-					self.out.write_all(b"\0")?;
-				} else {
-					self.out.write_all(b":")?;
-				}
-			}
-			write!(self.out, "{}", self.match_count)?;
-			self.out.write_all(&[self.opts.record_terminator])?;
+			self.opts.record.write_count_record(
+				self.out,
+				self.opts.prefix_filename.then_some(self.display),
+				self.match_count,
+			)?;
 			self.flush_record()?;
 		}
 		Ok(())
@@ -1016,8 +1106,11 @@ fn search_file_path<M: Matcher, W: Write>(
 				Err(error) => {
 					*had_error = true;
 					if !opts.no_messages {
-						let _ =
-							writeln!(host.stderr, "grep: {}: {error}", display_path.to_string_lossy());
+						let _ = writeln!(
+							host.stderr,
+							"grep: {}: {error}",
+							display_path.to_string_lossy()
+						);
 					}
 					Ok(false)
 				},
@@ -1026,7 +1119,11 @@ fn search_file_path<M: Matcher, W: Write>(
 		Err(error) => {
 			*had_error = true;
 			if !opts.no_messages {
-				let _ = writeln!(host.stderr, "grep: {}: {error}", display_path.to_string_lossy());
+				let _ = writeln!(
+					host.stderr,
+					"grep: {}: {error}",
+					display_path.to_string_lossy()
+				);
 			}
 			Ok(false)
 		},
@@ -1073,16 +1170,9 @@ fn search_dir<M: Matcher, W: Write>(
 	let request = grep_walk_request(host.fs(), resolved, follow_links);
 	let mut any = false;
 	let had_error_state = std::cell::Cell::new(*had_error);
-	let cancel = host.cancel_flag();
 	let mut walk_err = host.stderr_clone();
 	let walk = request.for_each_entry_with_heartbeat(
-		|| {
-			if cancel.load(std::sync::atomic::Ordering::Relaxed) {
-				Err(io::Error::from(io::ErrorKind::Interrupted))
-			} else {
-				Ok::<(), io::Error>(())
-			}
-		},
+		host.cancel_heartbeat(),
 		|entry: pi_walker::EntryMeta<'_>| {
 			if opts.quiet && any {
 				return Ok(pi_walker::WalkDecision::Stop);
@@ -1122,7 +1212,12 @@ fn search_dir<M: Matcher, W: Write>(
 			had_error_state.set(true);
 			if !opts.no_messages {
 				let display_path = display_path_for_operand(operand, resolved, error.path);
-				let _ = writeln!(walk_err, "grep: {}: {}", display_path.to_string_lossy(), error.error);
+				let _ = writeln!(
+					walk_err,
+					"grep: {}: {}",
+					display_path.to_string_lossy(),
+					error.error
+				);
 			}
 			Ok(pi_walker::WalkDecision::Include)
 		},
@@ -1152,7 +1247,11 @@ fn search_dir<M: Matcher, W: Write>(
 			*had_error = true;
 			if !opts.no_messages {
 				let display_path = display_path_for_operand(operand, resolved, &path);
-				let _ = writeln!(host.stderr, "grep: {}: {message}", display_path.to_string_lossy());
+				let _ = writeln!(
+					host.stderr,
+					"grep: {}: {message}",
+					display_path.to_string_lossy()
+				);
 			}
 			Ok(any)
 		},
@@ -1179,10 +1278,7 @@ fn pattern_file_lines(bytes: &[u8]) -> Vec<String> {
 		.collect()
 }
 
-fn resolve_patterns(
-	host: &mut Host,
-	cli: &GrepArgs,
-) -> Result<(Vec<String>, Vec<OsString>), String> {
+fn resolve_patterns(host: &mut Host, cli: &GrepArgs) -> Result<(Vec<String>, Vec<OsString>), String> {
 	let has_explicit_patterns = !cli.patterns.is_empty() || !cli.pattern_files.is_empty();
 	let mut patterns = Vec::new();
 	let mut files = Vec::new();
@@ -1257,11 +1353,7 @@ fn compile_rules(mut specs: Vec<RuleSpec>) -> Result<Vec<PathRule>, String> {
 		.collect()
 }
 
-fn build_path_rules(
-	host: &mut Host,
-	cli: &GrepArgs,
-	matches: &ArgMatches,
-) -> Result<PathRules, String> {
+fn build_path_rules(host: &mut Host, cli: &GrepArgs, matches: &ArgMatches) -> Result<PathRules, String> {
 	let (files, dirs) = collect_rule_specs(host, cli, matches)?;
 	Ok(PathRules { files: compile_rules(files)?, dirs: compile_rules(dirs)? })
 }
@@ -1322,7 +1414,14 @@ fn execute_search<M: Matcher>(
 				.as_deref()
 				.unwrap_or_else(|| OsStr::new("(standard input)"))
 				.as_encoded_bytes();
-			match process_reader(matcher, &mut searcher, &mut host.stdin, display, opts, &mut out) {
+			match process_reader(
+				matcher,
+				&mut searcher,
+				&mut host.stdin,
+				display,
+				opts,
+				&mut out,
+			) {
 				Ok(matched) => any_match |= matched,
 				// Abort remaining work; the host maps the BrokenPipe status.
 				Err(error) if error.kind() == io::ErrorKind::BrokenPipe => {
@@ -1367,7 +1466,11 @@ fn execute_search<M: Matcher>(
 				DirectoryAction::Skip => {},
 				DirectoryAction::Read => {
 					had_error = true;
-					let _ = writeln!(host.stderr, "grep: {}: Is a directory", operand.to_string_lossy());
+					let _ = writeln!(
+						host.stderr,
+						"grep: {}: Is a directory",
+						operand.to_string_lossy()
+					);
 				},
 			},
 			Ok(metadata) => {
@@ -1395,7 +1498,8 @@ fn execute_search<M: Matcher>(
 			Err(error) => {
 				had_error = true;
 				if !opts.no_messages {
-					let _ = writeln!(host.stderr, "grep: {}: {error}", operand.to_string_lossy());
+					let _ =
+						writeln!(host.stderr, "grep: {}: {error}", operand.to_string_lossy());
 				}
 			},
 		}
@@ -1410,21 +1514,7 @@ fn execute_search<M: Matcher>(
 			return crate::host::SIGPIPE_EXIT_CODE;
 		}
 	}
-	if opts.quiet {
-		if any_match {
-			0
-		} else if had_error {
-			2
-		} else {
-			1
-		}
-	} else if had_error {
-		2
-	} else if any_match {
-		0
-	} else {
-		1
-	}
+	exit_status(opts.quiet, any_match, had_error)
 }
 
 impl Utility for Grep {
@@ -1439,107 +1529,110 @@ impl Utility for Grep {
 		let cli = self.cli;
 		let matches = self.matches;
 
-		let (mut patterns, mut files) = match resolve_patterns(host, &cli) {
-			Ok(resolved) => resolved,
-			Err(error) => {
-				let _ = writeln!(host.stderr, "grep: {error}");
-				return 2;
-			},
-		};
-		let directory_action = resolve_directory_action(&cli, &matches);
-		if files.is_empty() {
-			files.push(OsString::from(if directory_action == DirectoryAction::Recurse {
-				"."
-			} else {
-				"-"
-			}));
-		}
-
-		let max_count = match resolve_max_count(&cli) {
-			Ok(max_count) => max_count,
-			Err(error) => {
-				let _ = writeln!(host.stderr, "grep: {error}");
-				return 2;
-			},
-		};
-		let rules = match build_path_rules(host, &cli, &matches) {
-			Ok(rules) => rules,
-			Err(error) => {
-				let _ = writeln!(host.stderr, "grep: {error}");
-				return 2;
-			},
-		};
-		let matcher = match build_matcher(
-			host,
-			&patterns,
-			&cli,
-			resolve_match_mode(&matches),
-			resolve_ignore_case(&matches),
-		) {
-			Ok(matcher) => matcher,
-			Err(error) => {
-				let _ = writeln!(host.stderr, "grep: {error}");
-				return 2;
-			},
-		};
-		patterns.clear();
-
-		let (files_with_matches, files_without_match) = resolve_file_list_modes(&matches);
-		let suppress_context =
-			cli.count || files_with_matches || files_without_match || cli.quiet || cli.only_matching;
-		let (before, after) = if suppress_context {
-			(0, 0)
+	let (mut patterns, mut files) = match resolve_patterns(host, &cli) {
+		Ok(resolved) => resolved,
+		Err(error) => {
+			let _ = writeln!(host.stderr, "grep: {error}");
+			return 2;
+		},
+	};
+	let directory_action = resolve_directory_action(&cli, &matches);
+	if files.is_empty() {
+		files.push(OsString::from(if directory_action == DirectoryAction::Recurse {
+			"."
 		} else {
-			resolve_context(&cli, &matches)
-		};
-		let prefix_filename = resolve_filename_prefix(&matches)
-			.unwrap_or(directory_action == DirectoryAction::Recurse || files.len() > 1);
-		let opts = Options {
-			line_number: cli.line_number,
-			byte_offset: cli.byte_offset,
-			count: cli.count,
-			files_with_matches,
-			files_without_match,
-			only_matching: cli.only_matching,
-			before,
-			after,
-			no_messages: cli.no_messages,
-			quiet: cli.quiet,
-			prefix_filename,
-			initial_tab: cli.initial_tab,
-			null_paths: cli.null_paths,
-			record_terminator: if cli.null_data { b'\0' } else { b'\n' },
-			group_separator: resolve_group_separator(&cli, &matches),
-			line_buffered: cli.line_buffered,
-			binary_files: resolve_binary_files(&cli, &matches),
-		};
-		let follow_links = resolve_follow_links(&cli, &matches);
-
-		match matcher {
-			CompiledMatcher::Rust(matcher) => execute_search(
-				host,
-				&cli,
-				&matcher,
-				&files,
-				directory_action,
-				follow_links,
-				&rules,
-				&opts,
-				max_count,
-			),
-			CompiledMatcher::Pcre(matcher) => execute_search(
-				host,
-				&cli,
-				&matcher,
-				&files,
-				directory_action,
-				follow_links,
-				&rules,
-				&opts,
-				max_count,
-			),
-		}
+			"-"
+		}));
 	}
+
+	let max_count = match resolve_max_count(&cli) {
+		Ok(max_count) => max_count,
+		Err(error) => {
+			let _ = writeln!(host.stderr, "grep: {error}");
+			return 2;
+		},
+	};
+	let rules = match build_path_rules(host, &cli, &matches) {
+		Ok(rules) => rules,
+		Err(error) => {
+			let _ = writeln!(host.stderr, "grep: {error}");
+			return 2;
+		},
+	};
+	let matcher = match build_matcher(
+		host,
+		&patterns,
+		&cli,
+		resolve_match_mode(&matches),
+		resolve_ignore_case(&matches),
+	) {
+		Ok(matcher) => matcher,
+		Err(error) => {
+			let _ = writeln!(host.stderr, "grep: {error}");
+			return 2;
+		},
+	};
+	patterns.clear();
+
+	let (files_with_matches, files_without_match) = resolve_file_list_modes(&matches);
+	let suppress_context =
+		cli.count || files_with_matches || files_without_match || cli.quiet || cli.only_matching;
+	let (before, after) = if suppress_context {
+		(0, 0)
+	} else {
+		resolve_context(&cli, &matches)
+	};
+	let prefix_filename = resolve_filename_prefix(&matches)
+		.unwrap_or(directory_action == DirectoryAction::Recurse || files.len() > 1);
+	let opts = Options {
+		line_number: cli.line_number,
+		byte_offset: cli.byte_offset,
+		count: cli.count,
+		files_with_matches,
+		files_without_match,
+		only_matching: cli.only_matching,
+		before,
+		after,
+		no_messages: cli.no_messages,
+		quiet: cli.quiet,
+		prefix_filename,
+		initial_tab: cli.initial_tab,
+		record: RecordFormat {
+			path_separator: None,
+			null_paths:     cli.null_paths,
+			terminator:     if cli.null_data { b'\0' } else { b'\n' },
+		},
+		group_separator: resolve_group_separator(&cli, &matches),
+		line_buffered: cli.line_buffered,
+		binary_files: resolve_binary_files(&cli, &matches),
+	};
+	let follow_links = resolve_follow_links(&cli, &matches);
+
+	match matcher {
+		CompiledMatcher::Rust(matcher) => execute_search(
+			host,
+			&cli,
+			&matcher,
+			&files,
+			directory_action,
+			follow_links,
+			&rules,
+			&opts,
+			max_count,
+		),
+		CompiledMatcher::Pcre(matcher) => execute_search(
+			host,
+			&cli,
+			&matcher,
+			&files,
+			directory_action,
+			follow_links,
+			&rules,
+			&opts,
+			max_count,
+		),
+	}
+}
 }
 
 /// Creates the GNU `grep` builtin registration.
@@ -1557,13 +1650,13 @@ mod tests {
 	use parking_lot::Mutex;
 
 	use super::*;
-	use crate::host::{Host, run_caught, run_util};
 	use brush_core::openfiles;
+	use crate::host::{Host, run_caught, run_util};
 
 	struct SnapshottingStdin {
-		pos: usize,
-		snapped: bool,
-		stdout: Arc<Mutex<Option<Arc<Mutex<Vec<u8>>>>>>,
+		pos:      usize,
+		snapped:  bool,
+		stdout:   Arc<Mutex<Option<Arc<Mutex<Vec<u8>>>>>>,
 		snapshot: Arc<Mutex<Vec<u8>>>,
 	}
 
@@ -1580,11 +1673,7 @@ mod tests {
 			// Input exhausted: grep is back asking for more. Whatever it has
 			// already flushed to stdout is what a live consumer would see now.
 			if !self.snapped {
-				let stdout = self
-					.stdout
-					.lock()
-					.clone()
-					.expect("stdout buffer is initialized");
+				let stdout = self.stdout.lock().clone().expect("stdout buffer is initialized");
 				*self.snapshot.lock() = stdout.lock().clone();
 				self.snapped = true;
 			}
@@ -1605,9 +1694,9 @@ mod tests {
 	impl openfiles::Stream for SnapshottingStdin {
 		fn clone_box(&self) -> Box<dyn openfiles::Stream> {
 			Box::new(Self {
-				pos: self.pos,
-				snapped: self.snapped,
-				stdout: Arc::clone(&self.stdout),
+				pos:      self.pos,
+				snapped:  self.snapped,
+				stdout:   Arc::clone(&self.stdout),
 				snapshot: Arc::clone(&self.snapshot),
 			})
 		}
@@ -1690,11 +1779,7 @@ mod tests {
 		std::fs::write(tree.path().join("drop.txt"), "hit\n").unwrap();
 		std::fs::create_dir(tree.path().join("vendor")).unwrap();
 		std::fs::write(tree.path().join("vendor/hidden.rs"), "hit\n").unwrap();
-		let (code, capture) = run_util::<Grep>(
-			&["-r", "--include=*.rs", "--exclude-dir=vendor", "hit", "."],
-			"",
-			tree.path(),
-		);
+		let (code, capture) = run_util::<Grep>(&["-r", "--include=*.rs", "--exclude-dir=vendor", "hit", "."], "", tree.path());
 		assert_eq!(code, 0, "{}", capture.err());
 		assert!(capture.out().contains("keep.rs:hit"));
 		assert!(!capture.out().contains("drop.txt"));
@@ -1747,7 +1832,8 @@ mod tests {
 		// behaviour; `/usr/bin/grep -e 'fo+' -e 'bar)' -h` on this input
 		// prints `bar)` alone on both GNU and BSD grep. Use `fo\+` for the
 		// quantifier.
-		let (code, out, err) = run(&["-e", "fo+", "-e", "bar)", "-h"], "foooo\nbar)\nbaz\n");
+		let (code, out, err) =
+			run(&["-e", "fo+", "-e", "bar)", "-h"], "foooo\nbar)\nbaz\n");
 		assert_eq!(code, 0, "{err}");
 		assert_eq!(out, "bar)\n");
 		let (code, out, err) = run(&["-e", r"fo\+", "-h"], "foooo\nbar)\nbaz\n");
@@ -1832,7 +1918,8 @@ mod tests {
 		// and GNU grep accepts it, because a `{` that opens no interval is a
 		// literal. An earlier revision of this guard exited 2 on it.
 		let input = "{\"a\":1}\n{foo\nplain\n";
-		for args in [vec!["-c", "^{"], vec!["-Ec", "^\\{"], vec!["-Ec", "^\\{\""], vec!["-c", "{foo"]]
+		for args in
+			[vec!["-c", "^{"], vec!["-Ec", "^\\{"], vec!["-Ec", "^\\{\""], vec!["-c", "{foo"]]
 		{
 			let (code, _, err) = run(&args, input);
 			assert!(code == 0 || code == 1, "{args:?} must not error: {err}");
@@ -1961,3 +2048,4 @@ mod tests {
 		}
 	}
 }
+

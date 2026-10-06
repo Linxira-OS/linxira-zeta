@@ -1,4 +1,6 @@
 import type { TspProps } from "@linxiraos/pi-wire";
+import { formatTooltipKey } from "../key-hint-format";
+import type { KeyId } from "../keys";
 import { elapsed, kbd, keyed, node, row, span, text } from "../native/describe";
 import { plainText } from "../native/spans";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
@@ -29,7 +31,7 @@ export type WorkingRowVariant =
 	  }
 	| { readonly kind: "compaction" };
 
-/** What the dock's working row (§8.1, role `zeta.working`) shows. */
+/** What the dock's working row (§8.1, role `omp.working`) shows. */
 export interface WorkingRowSpec {
 	/** The intent, or the variant's label ("Retrying · attempt 1 of 3", "Compacting context…"). */
 	readonly label: string;
@@ -38,22 +40,15 @@ export interface WorkingRowSpec {
 	readonly variant?: WorkingRowVariant;
 	/** Shimmer palette of the label (a session-accented intent). */
 	readonly palette?: ShimmerPalette;
-	/** Live tok/s, docked before the stop control. */
-	readonly rate?: number;
 	/** Key id that interrupts (`escape`); undefined hides the stop control (Esc would not cancel). */
-	readonly interruptKey?: string;
-}
-
-/** A key id as tooltip keys: `escape` reads `esc`, the rest as bound. */
-function titleKey(key: string): string {
-	return key === "escape" ? "esc" : key;
+	readonly interruptKey?: KeyId;
 }
 
 /**
  * The dock's working row: `starburst` spinner (or a retry countdown ring),
- * the intent shimmering, `·`, the elapsed time, a grow spacer, then the stop
- * control whose click sends `interrupt`. Compaction adds an indeterminate
- * `progress` before the stop control; a retry says "Cancel".
+ * the elapsed time, the `·` divider, the intent shimmering, a grow spacer,
+ * then the stop control whose click sends `interrupt`. Compaction adds an
+ * indeterminate `progress` before the stop control; a retry says "Cancel".
  */
 export function describeWorkingRow(spec: WorkingRowSpec, cx: DescribeContext, now = Date.now()): NativeNode {
 	const variant = spec.variant;
@@ -67,31 +62,30 @@ export function describeWorkingRow(spec: WorkingRowSpec, cx: DescribeContext, no
 	}
 	const label = describeShimmer([{ text: spec.label, palette: spec.palette }], "label");
 	children.push(
-		node(label.k, { ...label.p, role: "zeta.working.label" } as TspProps, label.c, label.key),
-		node("text", { text: "·", role: "zeta.working.sep" }, undefined, "sep"),
 		keyed(elapsed(now - spec.startedAt), "elapsed"),
+		node("text", { text: "·", role: "omp.working.sep" }, undefined, "sep"),
+		node(label.k, { ...label.p, role: "omp.working.label" } as TspProps, label.c, label.key),
 		node("row", { grow: 1 }, undefined, "fill"),
 	);
 	if (variant?.kind === "compaction") children.push(node("progress", { value: null }, undefined, "progress"));
-	if (spec.rate !== undefined) children.push(node("rate", { value: spec.rate, unit: "tok/s" }, undefined, "rate"));
 	if (spec.interruptKey !== undefined) {
 		const verb = variant?.kind === "retry" ? "Cancel" : "Stop";
 		children.push(
 			node(
 				"row",
 				{
-					role: "zeta.working.stop",
+					role: "omp.working.stop",
 					gap: "xs",
 					align: "center",
-					title: `${verb}  ${titleKey(spec.interruptKey)}`,
+					title: `${verb}  ${formatTooltipKey(spec.interruptKey)}`,
 					actions: { click: "interrupt" },
 				},
-				[kbd(titleKey(spec.interruptKey)), text(verb)],
+				[kbd(spec.interruptKey), text(verb)],
 				"stop",
 			),
 		);
 	}
-	return row(children, { role: "zeta.working", align: "center", gap: "sm" });
+	return row(children, { role: "omp.working", align: "center", gap: "sm" });
 }
 
 type ColorFn = (str: string) => string;
@@ -250,7 +244,7 @@ export class Loader extends Text {
 			: node("text", { spans: [span(message, "muted")] }, undefined, "message");
 		const children: NativeChild[] = [row([indicator, label], { gap: "sm", align: "baseline" })];
 		if (trailer) children.push(text(trailer, { wrap: "none", truncate: "end" }));
-		const described = row(children, { justify: "between", role: "zeta.loader" });
+		const described = row(children, { justify: "between", role: "omp.loader" });
 		this.#native = { message, trailer, shimmer, node: described };
 		return described;
 	}
@@ -285,7 +279,6 @@ export class Loader extends Text {
 			variant?.kind,
 			variant?.kind === "retry" ? `${variant.attempt}/${variant.max}` : "",
 			countdown,
-			spec.rate,
 			spec.interruptKey,
 			spec.palette?.mid,
 			shimmerEnabled(),
