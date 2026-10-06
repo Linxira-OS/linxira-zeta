@@ -189,6 +189,33 @@ Choose the setting by the desired outcome:
    - No subprocess created.
    - Returns a `ToolError` pointing the model at the dedicated tool or named service mode.
 
+## Elevated commands (sudo / UAC)
+
+Two user-consented paths exist for commands requiring elevated privileges. Never
+attempt silent elevation; never store or echo credentials.
+
+**Path 1 — in-TUI PTY overlay (default; output visible to you).** Set
+`pty: true`. The command runs in the interactive terminal overlay on the
+user's screen: `sudo` prompts for the password there (the user types it), and
+Windows UAC dialogs pop on the user's desktop. Output streams back to you. Use
+for one-off privileged commands whose output you need (package installs,
+service management, system configuration).
+
+**Path 2 — popped-out elevated terminal (visible window; output via file).**
+When the user prefers a dedicated elevated window, or the PTY overlay is
+unavailable:
+- Windows: `Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile -Command "<cmd> *>&1 | Tee-Object -FilePath <temp>\elevated-out.txt"'` — the UAC prompt appears first; the elevated PowerShell window stays visible while the command runs. Read the output file afterwards, then delete it.
+- Linux: launch the user's terminal emulator running `sudo <cmd>` (for example `x-terminal-emulator -e bash -lc 'sudo <cmd> 2>&1 | tee <tmp>/elevated-out.txt'`) — the sudo password prompt appears in the new window and the user types it there. Read the output file after the window closes.
+
+The elevated window is fully visible to the user — they see exactly what runs
+and consent via UAC / password. Both paths are one-shot: no persistent
+elevation session, no credential storage.
+
+**Rules**: try non-elevated first and elevate only on a genuine permission
+failure; state the exact command to the user before elevating; the critical
+command deny list applies equally to both paths (a denied command stays
+denied); never use Path 2 for a command the deny list blocks.
+
 ## Side Effects
 - Filesystem
   - Validates `cwd` with `fs.stat()`.

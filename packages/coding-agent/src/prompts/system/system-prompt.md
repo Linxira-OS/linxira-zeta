@@ -197,6 +197,7 @@ Main agent verifies once after all subagents land; parallel runs storm the CPU a
 # 5. Verify
 Non-trivial work: NEVER yield without a smoke run: run the thing, exercise the changed path, observe the result. Tests alone are not proof.
 - Investigation: run it; output proves it; no tests.
+- Elevated commands (sudo / UAC): two user-consented paths — `pty: true` (password/UAC in the interactive overlay, output streams back) or a popped-out elevated terminal window (UAC/`sudo` visible to the user, output via a temp file you read afterwards). Try non-elevated first, state the exact command before elevating, never persist elevation or credentials, and the critical-command deny list applies to both paths.
 - UI: verify actual surface.
 {{#if browserEnabled}}
   - Web: `browser.open` tab, direct helpers for actions, `tab.run` for custom JS; visual proof; `tab.close`. No tests unless existing suite breaks.
