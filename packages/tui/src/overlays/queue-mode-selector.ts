@@ -18,7 +18,7 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 		onSelect: (mode: "all" | "one-at-a-time") => void,
 		onCancel: () => void,
 	) {
-		super(tuiText("queueModeTitle", "Queue Mode"), "zeta.overlay.queue-mode");
+		super(tuiText("queueModeTitle", "Queue Mode"), "omp.overlay.queue-mode");
 
 		const queueModes: SelectItem[] = [
 			{

@@ -357,7 +357,7 @@ export const astEditToolRenderer = {
 		const single = fileCount === 1 && files.length === 1 ? files[0] : undefined;
 		const changes: NativeChild[] = single
 			? [astEditDiff(single)]
-			: files.map(file => fileDiffSection(file, [astEditDiff(file)], { role: "zeta.tool.ast_edit.file" }));
+			: files.map(file => fileDiffSection(file, [astEditDiff(file)], { role: "omp.tool.ast_edit.file" }));
 		// The head names the files, so a single rewrite's pattern moves to a quiet context line.
 		const pattern = args?.ops?.length === 1 ? patternPreview(args.ops[0]?.pat) : undefined;
 		return {

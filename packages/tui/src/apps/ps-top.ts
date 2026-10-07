@@ -533,7 +533,7 @@ export class PsTopComponent implements Component {
 			return keyed(
 				col(
 					[
-						text("No broker scopes", { role: "zeta.app.empty-title" }),
+						text("No broker scopes", { role: "omp.app.empty-title" }),
 						text([
 							span("No omp process broker runs here. ", "muted"),
 							span(this.#all ? "Nothing runs anywhere." : "Show every scope with ", "muted"),

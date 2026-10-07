@@ -949,7 +949,7 @@ class GitTuiComponent implements Component {
 				]),
 				{ role: "omp.app.git.main" },
 			);
-			return node(narrow ? "col" : "row", { role: narrow ? "zeta.app.git-narrow" : "omp.app.git" }, [
+			return node(narrow ? "col" : "row", { role: narrow ? "omp.app.git-narrow" : "omp.app.git" }, [
 				keyed(main, "main"),
 				keyed(side, "side"),
 			]);

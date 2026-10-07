@@ -923,7 +923,7 @@ export class AssistantMessageComponent extends Container {
 			children.push(
 				node(
 					"badge",
-					{ text: "↺ rewound", tone: "muted", role: "zeta.assistant.rewound-tag" },
+					{ text: "↺ rewound", tone: "muted", role: "omp.assistant.rewound-tag" },
 					undefined,
 					"rewound",
 				),

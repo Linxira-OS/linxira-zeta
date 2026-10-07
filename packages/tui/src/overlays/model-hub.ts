@@ -2775,7 +2775,7 @@ export class ModelHubComponent implements Component {
 		if (strip) footer.push(strip);
 		footer.push(hintsRow(this.#footerHints()));
 		const described = describeHubFrame(
-			"zeta.overlay.model-hub",
+			"omp.overlay.model-hub",
 			"Models",
 			describeHubSidebar(this.#entries, this.#activeEntryId, this.#nativeSidebarStyle, "scopes"),
 			this.#describeBody(),

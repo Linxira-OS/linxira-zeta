@@ -29,7 +29,7 @@ import { col, node, span, text } from "../native/describe";
 import type { TspPrefsControl, TspPrefsSection } from "@linxiraos/pi-wire";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 
-const PLUGIN_SETTINGS_ROLE = "zeta.overlay.plugin-settings";
+const PLUGIN_SETTINGS_ROLE = "omp.overlay.plugin-settings";
 /** A plugin row's control on the native settings page: open the plugin's settings. */
 const PLUGIN_CONFIGURE: TspPrefsControl = { k: "action", label: "Configure", act: "open" };
 

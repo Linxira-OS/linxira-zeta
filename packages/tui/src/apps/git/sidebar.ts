@@ -1353,7 +1353,7 @@ export class Sidebar {
 					layout: "grid",
 				}),
 			]),
-			{ gap: "sm", role: "zeta.app.git.commit-info" },
+			{ gap: "sm", role: "omp.app.git.commit-info" },
 		);
 		const out: NativeChild[] = [keyed(commit, "head")];
 		if (!head.filesLoaded) {

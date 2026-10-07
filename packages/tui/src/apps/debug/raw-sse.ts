@@ -269,7 +269,7 @@ export class RawSseViewerComponent implements Component {
 				: keyed(
 						col(
 							[
-								text("No raw SSE frames captured yet", { role: "zeta.app.empty-title" }),
+								text("No raw SSE frames captured yet", { role: "omp.app.empty-title" }),
 								text([
 									span("HTTP SSE providers populate this view while a model response is streaming.", "muted"),
 								]),
