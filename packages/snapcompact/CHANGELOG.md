@@ -1,7 +1,8 @@
 # Changelog
 
-
 ## [Unreleased]
+
+## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 
@@ -16,7 +17,6 @@
 ### Fixed
 
 - Fixed snapcompact frame token estimates following the gateway instead of the model reading the frames, which mispriced Claude behind OpenRouter or Vertex and Claude 4.6 and older ([#14286](https://github.com/can1357/oh-my-pi/pull/14286) by [@will-bogusz](https://github.com/will-bogusz)).
-
 
 ## [1.1.25] - 2026-10-03
 
