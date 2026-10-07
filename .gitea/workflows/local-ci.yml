@@ -1,0 +1,30 @@
+name: local-ci
+on:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain inventory
+        run: |
+          echo "=== node/bun/cargo/rustc ==="
+          node --version 2>/dev/null || echo "node: absent"
+          bun --version 2>/dev/null || echo "bun: absent"
+          cargo --version 2>/dev/null || echo "cargo: absent"
+          rustc --version 2>/dev/null || echo "rustc: absent"
+
+      - name: Rust check (pi-natives)
+        run: cargo check -p pi-natives 2>&1 | tail -5
+
+      - name: TS gate (if bun present)
+        run: |
+          if command -v bun >/dev/null 2>&1; then
+            bun install
+            bun run check:ts 2>&1 | tail -5
+          else
+            echo "SKIP: bun not on runner"
+          fi
