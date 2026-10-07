@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.27] - 2026-10-07
+
 - 会话回收站：`/delete` 需 15 秒内三次输入确认；删除改为软删（`~/.zeta/trash/sessions/` 保留 30 天，`session.trashRetentionDays` 可配置），`/trash` 列出、`/restore` 恢复；Zeta Bot (Relay) 协调者会话禁删。
 - 子代理会话恢复 AsyncJobManager 继承（v18.6.3 合并回归修复——focused-subagent 手动 yield 投递链断）。
 
