@@ -91,7 +91,9 @@ env:
    # rest. Together they must equal //:natives-all (checked in the cross job),
    # so a filegroup addition cannot silently skip both.
    NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
-   NATIVES_CROSS_TARGETS: natives-darwin-arm64 natives-darwin-x64-baseline natives-linux-arm64 natives-linux-musl-arm64 natives-linux-musl-x64-baseline natives-win32-arm64 natives-win32-x64-baseline
+   # 2026-10-08 裁定: darwin×2 与全 arm 注释退出(见 BUILD.bazel natives-all 注),
+   # 稳妥构建机上线后恢复。保留: musl-x64 + win32-x64。
+   NATIVES_CROSS_TARGETS: natives-linux-musl-x64-baseline natives-win32-x64-baseline
    # Per-test wall-clock ceiling (seconds) for scripts/ci-test-ts.ts. omp-kata
    # runners with reclaim_guest_freed_memory (infra/tune-kata-runtime.sh) run
    # the SQLite/subprocess-heavy coding-agent suites 1.5-2x slower, which put
@@ -600,19 +602,21 @@ jobs:
                 diff <(echo "$expected") <(echo "$actual") || true
                 exit 1
               fi
-         - name: Verify Apple Foundation Models bridge
-           run: |
-              set -euo pipefail
-              addon=bazel-bin/natives-darwin-arm64/pi_natives.darwin-arm64.node
-              # The bridge is embedded as a separate dylib (module OmpAppleFm),
-              # never linked: a linked Swift runtime crashes the addon on load
-              # on older macOS.
-              grep -aqF OmpAppleFm "$addon" ||
-                 { echo "::error::Darwin arm64 addon was built without the Apple Foundation Models bridge"; exit 1; }
-              dylibs="$(llvm-objdump --macho --dylibs-used "$addon")"
-              if grep -E 'libswift|FoundationModels' <<< "$dylibs"; then
-                 echo "::error::Darwin arm64 addon links the Swift runtime or FoundationModels directly"; exit 1
-              fi
+         # 2026-10-08 裁定: darwin-arm64 addon 不再构建,Apple FM 桥验证随之挂起;
+         # 恢复 darwin 目标时连同本段一起取消注释。
+         # - name: Verify Apple Foundation Models bridge
+         # run: |
+         # set -euo pipefail
+         # addon=bazel-bin/natives-darwin-arm64/pi_natives.darwin-arm64.node
+         # # The bridge is embedded as a separate dylib (module OmpAppleFm),
+         # # never linked: a linked Swift runtime crashes the addon on load
+         # # on older macOS.
+         # grep -aqF OmpAppleFm "$addon" ||
+         # { echo "::error::Darwin arm64 addon was built without the Apple Foundation Models bridge"; exit 1; }
+         # dylibs="$(llvm-objdump --macho --dylibs-used "$addon")"
+         # if grep -E 'libswift|FoundationModels' <<< "$dylibs"; then
+         # echo "::error::Darwin arm64 addon links the Swift runtime or FoundationModels directly"; exit 1
+         # fi
          - name: Report bazel cache stats
            shell: bash
            run: |
