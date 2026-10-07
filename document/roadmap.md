@@ -622,6 +622,19 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **tea CLI 工具套件(2026-10-07 用户裁决:下一批次一次性到位,下一版本发布前交付)**:为
+  自托管 Gitea 与 gitea.com 提供 gh 工具族对等集成。侦察完成,配方:①`utils/gitea.ts`
+  运行器(克隆 github.ts:which("tea")/非交互 env/5min deadline/8MiB 截断,错误映射
+  "运行 `tea login`")②`tea-common.ts`(owner/repo 解析,实例→login 读 tea config.yml)
+  ③`tea.ts` 单工具 op 判别联合(omptype),createIf 判二进制,approval 按操作分类
+  ④注册三点(builtin-names/BUILTIN_TOOLS/isToolAllowed `gitea.enabled` 默认 false)
+  ⑤prompts/tools/gitea.md + docs/tools/gitea.md + test/tools/tea.test.ts。二期:
+  issue://、pr:// 内部 URL 族 + SQLite 缓存(凭据指纹法)+ run watch(Gitea Actions,
+  runs-on 仅认 self-hosted/ubuntu-latest)。设计输入:tea repo create 静默失败
+  (URL 打印但仓不存在),push-create 可靠——建仓操作优先 push-create 或 API 回读验证。
+  实测环境:LAN NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙
+  BHYS-gitea-lan;git 调用需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
+
 - **上游合并队列**:v18.4.3(五 tag 直拉,v18.3.5/40/41/42/43 一次并入,
   288 冲突,账本见 upstream-sync.md)已落 dev/main;dev→main 合并待决策。
   上游性能大年获益:cache-warming、投机 task 启动、grep 流式背压、
