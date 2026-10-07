@@ -1705,7 +1705,7 @@ export class Editor implements Component, Focusable {
 		}
 
 		const layout = this.describeLayout?.(editor.node, cx) ?? {
-			role: "zeta.field",
+			role: "omp.field",
 			children: [editor.node],
 			caret: "input",
 		};
@@ -1718,12 +1718,7 @@ export class Editor implements Component, Focusable {
 				this.#nativeOverlay = {
 					list,
 					caret: layout.caret,
-					node: node(
-						"overlay",
-						{ anchor: { caret: layout.caret }, role: "zeta.autocomplete" },
-						[list],
-						"complete",
-					),
+					node: node("overlay", { anchor: { caret: layout.caret }, role: "omp.autocomplete" }, [list], "complete"),
 				};
 			}
 			children.push(this.#nativeOverlay!.node);

@@ -6,15 +6,8 @@ import type {
 	getOAuthCredentialProvider as GetOAuthCredentialProvider,
 } from "@linxiraos/pi-ai/oauth";
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
-import type {
-	Component,
-	OverlayHandle,
-	ResizeScrollbackMode,
-	Loader,
-	Spacer,
-	Text,
-	setTuiTight,
-} from "@linxiraos/pi-tui";
+import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
+import { Loader, Spacer, Text, setTuiTight } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
@@ -508,7 +501,6 @@ export class SelectorController {
 			const defaultAdvisorModel = advisorRoleSel?.model;
 			const deps: AdvisorConfigDeps = {
 				getAvailableModels: () => this.ctx.session.modelRegistry.getAvailable(),
-				browserSource: createModelBrowserSource(this.ctx.settings, this.ctx.session.modelRegistry),
 				browserSource: createModelBrowserSource(this.ctx.settings, model =>
 					this.ctx.session.effectiveServiceTier(model),
 				),
@@ -1081,7 +1073,6 @@ export class SelectorController {
 		};
 		const picker = new ModelPickerComponent(
 			this.ctx.ui,
-			createModelBrowserSource(this.ctx.settings, this.ctx.session.modelRegistry),
 			createModelBrowserSource(this.ctx.settings, model => this.ctx.session.effectiveServiceTier(model)),
 			this.ctx.session.modelRegistry,
 			this.ctx.session.scopedModels,
@@ -1164,7 +1155,6 @@ export class SelectorController {
 		};
 		const hub = new ModelHubComponent(
 			this.ctx.ui,
-			createModelBrowserSource(this.ctx.settings, this.ctx.session.modelRegistry),
 			createModelBrowserSource(this.ctx.settings, model => this.ctx.session.effectiveServiceTier(model)),
 			this.ctx.session.modelRegistry,
 			this.ctx.session.scopedModels,

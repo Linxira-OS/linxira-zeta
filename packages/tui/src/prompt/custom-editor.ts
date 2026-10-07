@@ -1103,7 +1103,7 @@ export class CustomEditor extends Editor {
 								rate !== undefined &&
 									node(
 										"rate",
-										{ value: rate, unit: "tok/s", role: "zeta.composer.rate", title: "Generation rate" },
+										{ value: rate, unit: "tok/s", role: "omp.composer.rate", title: "Generation rate" },
 										undefined,
 										"rate",
 									),
@@ -1112,16 +1112,16 @@ export class CustomEditor extends Editor {
 								facts?.usage,
 								controls.submit,
 							]),
-							{ role: "zeta.composer.bar", gap: "sm", align: "center" },
+							{ role: "omp.composer.bar", gap: "sm", align: "center" },
 						),
 						"bar",
 					);
 		const line = keyed(
-			row(compact([controls.mode, input]), { role: "zeta.composer.line", align: "start", gap: "sm" }),
+			row(compact([controls.mode, input]), { role: "omp.composer.line", align: "start", gap: "sm" }),
 			"line",
 		);
 		const layout: NativeEditorLayout = {
-			role: shell ? `zeta.editor.${shell.kind}` : "zeta.editor",
+			role: shell ? `zeta.editor.${shell.kind}` : "omp.editor",
 			tone: state.running ? "pending" : undefined,
 			children: compact([facts?.context, controls.focus, chips, line, bar]),
 			caret: "line/input",
@@ -1144,7 +1144,7 @@ export class CustomEditor extends Editor {
 			node(
 				"text",
 				{
-					role: "zeta.composer.crumb",
+					role: "omp.composer.crumb",
 					text: id,
 					wrap: "none",
 					title: `View ${id}`,
@@ -1160,11 +1160,11 @@ export class CustomEditor extends Editor {
 					node("icon", { name: "eye" }, undefined, "icon"),
 					node("text", { text: "Viewing", wrap: "none" }, undefined, "label"),
 					...crumbs,
-					node("text", { role: "zeta.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
+					node("text", { role: "omp.composer.agent", text: agent, wrap: "none" }, undefined, "agent"),
 					node(
 						"row",
 						{
-							role: "zeta.composer.exit",
+							role: "omp.composer.exit",
 							gap: "xs",
 							align: "center",
 							title: `Back to the main session  ${back}`,
@@ -1178,7 +1178,7 @@ export class CustomEditor extends Editor {
 					),
 				],
 				{
-					role: "zeta.composer.focus",
+					role: "omp.composer.focus",
 					gap: "xs",
 					align: "center",
 					title: `Viewing subagent ${agent}: what you send goes to it`,
@@ -1208,7 +1208,7 @@ export class CustomEditor extends Editor {
 						"effort",
 						{
 							level: thinking,
-							role: "zeta.composer.model.effort",
+							role: "omp.composer.model.effort",
 							title: `Thinking effort: ${thinking}${thinkingHint}`,
 							actions: { click: "thinking.cycle" },
 						},
@@ -1221,7 +1221,7 @@ export class CustomEditor extends Editor {
 			node(
 				"row",
 				{
-					role: "zeta.composer.model",
+					role: "omp.composer.model",
 					gap: "xs",
 					align: "center",
 					tone: facts.model.tone,
@@ -1241,7 +1241,7 @@ export class CustomEditor extends Editor {
 				? node(
 						"row",
 						{
-							role: "zeta.composer.effort",
+							role: "omp.composer.effort",
 							gap: "xs",
 							align: "center",
 							title: `Thinking effort${thinkingHint}`,
@@ -1265,7 +1265,7 @@ export class CustomEditor extends Editor {
 			? node(
 					"text",
 					{
-						role: "zeta.composer.stop",
+						role: "omp.composer.stop",
 						text: "Stop",
 						tone: "error",
 						title: `Stop  ${formatTooltipKey(interruptKey)}`,
@@ -1277,7 +1277,7 @@ export class CustomEditor extends Editor {
 			: node(
 					"kbd",
 					{
-						role: "zeta.composer.send",
+						role: "omp.composer.send",
 						keys: ["enter"],
 						title: `Send  ${formatTooltipKey("enter")}`,
 						actions: { click: "submit" },
@@ -1300,7 +1300,7 @@ export class CustomEditor extends Editor {
 					),
 				]),
 				{
-					role: "zeta.composer.mode",
+					role: "omp.composer.mode",
 					gap: "xs",
 					align: "center",
 					title: shell.excluded ? `${runs} · not sent to the model` : runs,

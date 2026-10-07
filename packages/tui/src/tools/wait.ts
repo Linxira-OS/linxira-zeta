@@ -604,7 +604,7 @@ function describeJob(job: JobSnapshot, isPartial: boolean): NativeNode {
 	);
 	return node(
 		"col",
-		{ role: "zeta.wait.job", tone },
+		{ role: "omp.wait.job", tone },
 		compact([
 			row(
 				compact([
@@ -672,7 +672,7 @@ function describeJobsResult(
 		body.push(
 			node(
 				"row",
-				{ gap: "sm", role: "zeta.wait.agent" },
+				{ gap: "sm", role: "omp.wait.agent" },
 				[
 					node("badge", {
 						text: agent.live ? "agent" : "agent · no turn",

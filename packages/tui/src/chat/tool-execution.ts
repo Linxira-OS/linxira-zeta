@@ -960,7 +960,7 @@ export class ToolExecutionComponent extends Container {
 		const section =
 			sections.length === 1
 				? sections[0]
-				: node("col", { gap: "sm", role: "zeta.tool.diagnostics" }, sections, "late");
+				: node("col", { gap: "sm", role: "omp.tool.diagnostics" }, sections, "late");
 		return {
 			section,
 			chip: { text: count === 1 ? "1 diagnostic" : `${count} diagnostics`, tone: errored ? "error" : "warning" },

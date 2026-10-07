@@ -371,7 +371,7 @@ export const astEditToolRenderer = {
 			tone: limitReached ? "warning" : undefined,
 			body: compact<NativeChild>([
 				pattern !== undefined &&
-					text([span(pattern, "code")], { lines: 1, truncate: "end", role: "zeta.tool.context" }),
+					text([span(pattern, "code")], { lines: 1, truncate: "end", role: "omp.tool.context" }),
 				...(changes.length > 0 ? changes : [noteText(kept.join("\n"))]),
 				parseNote,
 				astEditScopeStats(details),

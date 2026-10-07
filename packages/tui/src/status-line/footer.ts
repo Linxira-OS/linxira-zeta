@@ -236,18 +236,16 @@ export class FooterComponent implements Component {
 			model += ` • ${level}`;
 		}
 		seg("model", { side: "right", priority: 5, icon: "model", spans: [span(model, "dim")] });
-		const bar = node("status", { role: "zeta.footer" }, segs, "bar");
+		const bar = node("status", { role: "omp.footer" }, segs, "bar");
 		const children: NativeNode[] = [bar];
 		if (this.#extensionStatuses.size > 0) {
 			const statuses = Array.from(this.#extensionStatuses.entries())
 				.sort(([a], [b]) => a.localeCompare(b))
 				.map(([, value]) => sanitizeStatusText(value))
 				.join(" ");
-			children.push(
-				node("text", { text: statuses, wrap: "none", role: "zeta.footer.extensions" }, undefined, "ext"),
-			);
+			children.push(node("text", { text: statuses, wrap: "none", role: "omp.footer.extensions" }, undefined, "ext"));
 		}
-		const built = children.length === 1 ? bar : col(children, { role: "zeta.footer.panel" });
+		const built = children.length === 1 ? bar : col(children, { role: "omp.footer.panel" });
 		const fingerprint = JSON.stringify(built);
 		if (this.#nativeMemo?.fingerprint === fingerprint) return this.#nativeMemo.node;
 		this.#nativeMemo = { node: built, fingerprint };

@@ -729,7 +729,7 @@ interface RunningPillSpec {
 function describeRunningPill(spec: RunningPillSpec, running: number): NativeNode {
 	return node(
 		"row",
-		{ role: "zeta.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
+		{ role: "omp.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
 		[
 			node("icon", { name: spec.icon }, undefined, "icon"),
 			node("spinner", { style: "dots", tone: "accent" }, undefined, "spinner"),
@@ -798,7 +798,7 @@ class DeferredCommandPreview implements Component {
 				col(this.items, { max: { h: `${this.maxRows}lines` } }),
 				text([span(`${queued} — shown in full in the transcript when the agent pauses`, "dim")]),
 			],
-			{ role: "zeta.hud.deferred" },
+			{ role: "omp.hud.deferred" },
 		);
 		return this.#native;
 	}
@@ -1412,7 +1412,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#hudPillsNative;
 		if (memo && sameItems(memo.children, children)) return memo.node;
 		const described = row(children, {
-			role: "zeta.hud",
+			role: "omp.hud",
 			justify: "end",
 			gap: "sm",
 			hidden: children.length === 0 || undefined,
@@ -1434,11 +1434,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#statusHudNative;
 		if (memo && memo.todo === todo && memo.slot === slot && sameItems(memo.children, children)) return memo.node;
 		const parts: NativeChild[] = [];
-		if (children.length > 0) parts.push(node("col", { role: "zeta.hud.status" }, children.slice(), "status"));
+		if (children.length > 0) parts.push(node("col", { role: "omp.hud.status" }, children.slice(), "status"));
 		if (todo) parts.push(todo);
 		if (slot) parts.push(slot);
 		const described =
-			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "zeta.hud.activity", align: "center", gap: "sm" });
+			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "omp.hud.activity", align: "center", gap: "sm" });
 		this.#statusHudNative = { children: children.slice(), todo, slot, node: described };
 		return described;
 	}
@@ -4342,7 +4342,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		const fallback = node(
 			"col",
-			{ role: "zeta.hud.todo" },
+			{ role: "omp.hud.todo" },
 			[
 				row(
 					[
@@ -4382,7 +4382,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#todoHudNative = {
 			checklist: node(
 				"checklist",
-				{ phases: checklistPhases, mode: "hud", role: "zeta.hud.todo" },
+				{ phases: checklistPhases, mode: "hud", role: "omp.hud.todo" },
 				undefined,
 				"todo",
 			),
@@ -7568,7 +7568,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			row([node("icon", { name: "loop", tone: "muted" }), kbd(retryKey, "key"), text([span("to retry", "muted")])], {
 				gap: "sm",
 				align: "center",
-				role: "zeta.hint.retry",
+				role: "omp.hint.retry",
 			}),
 		);
 		this.statusContainer.addChild(this.#retryHintRow);

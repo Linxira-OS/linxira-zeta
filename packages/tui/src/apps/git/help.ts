@@ -67,7 +67,7 @@ const GROUPS: readonly { readonly title: string; readonly rows: readonly Shortcu
 
 /** The shortcuts overlay; any of `?`, escape or `q` closes it. */
 export class GitHelpSheet implements Component {
-	readonly nativeOverlay = { role: "zeta.overlay.hotkeys", head: "Keyboard shortcuts", size: "lg" } as const;
+	readonly nativeOverlay = { role: "omp.overlay.hotkeys", head: "Keyboard shortcuts", size: "lg" } as const;
 	readonly #close: () => void;
 	#native: NativeNode | undefined;
 
@@ -84,10 +84,10 @@ export class GitHelpSheet implements Component {
 			GROUPS.map(group =>
 				node(
 					"section",
-					{ head: group.title, role: "zeta.hotkeys.group" },
+					{ head: group.title, role: "omp.hotkeys.group" },
 					[
 						node("table", {
-							role: "zeta.hotkeys.table",
+							role: "omp.hotkeys.table",
 							cols: [
 								{ id: "keys", head: "Keys" },
 								{ id: "does", head: "Action", grow: 1 },
@@ -101,7 +101,7 @@ export class GitHelpSheet implements Component {
 					group.title,
 				),
 			),
-			{ gap: "lg", role: "zeta.app.git.help" },
+			{ gap: "lg", role: "omp.app.git.help" },
 		);
 		return this.#native;
 	}

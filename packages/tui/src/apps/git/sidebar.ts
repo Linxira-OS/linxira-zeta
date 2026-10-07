@@ -239,7 +239,7 @@ class GitFileTree {
 
 /** A quiet text button (`Stage all`): a clickable row the role sheet draws as `.btn.quiet`. */
 function quietButton(label: string, act: string, title: string): NativeNode {
-	return node("row", { role: "zeta.app.qbtn", actions: { click: act }, title }, [text(label)], act);
+	return node("row", { role: "omp.app.qbtn", actions: { click: act }, title }, [text(label)], act);
 }
 
 /** A text field at rest: its value (or placeholder) as text; a click starts editing it. */
@@ -248,7 +248,7 @@ function fieldText(
 	placeholder: string,
 	act: string,
 	selected: boolean,
-	role = "zeta.app.git.field",
+	role = "omp.app.git.field",
 ): NativeNode {
 	return text(value ? value : [span(placeholder, "dim")], {
 		truncate: "end",
@@ -989,13 +989,13 @@ export class Sidebar {
 										...this.#describeSection("unstaged", selectedKey, on, aiInput),
 										...this.#describeSection("staged", selectedKey, on, undefined),
 									],
-									{ role: "zeta.app.git.changes", gap: "sm" },
+									{ role: "omp.app.git.changes", gap: "sm" },
 								),
 								"changes",
 							),
 							this.#describeCommit(on, summaryInput, descriptionEditor),
 						];
-				return col(children, { role: "zeta.app.git.side" });
+				return col(children, { role: "omp.app.git.side" });
 			},
 		);
 	}
@@ -1087,13 +1087,13 @@ export class Sidebar {
 						text([span(`${total} change${total === 1 ? "" : "s"}`, "strong")]),
 						this.#model.branch !== null && text([span("on", "muted")]),
 						this.#model.branch !== null &&
-							text([span(this.#model.branch, "mono")], { role: "zeta.app.git.branch", truncate: "middle" }),
+							text([span(this.#model.branch, "mono")], { role: "omp.app.git.branch", truncate: "middle" }),
 					]),
-					{ gap: "xs", align: "center", role: "zeta.app.git.title" },
+					{ gap: "xs", align: "center", role: "omp.app.git.title" },
 				),
 				this.#describeStyleToggle(),
 			],
-			{ justify: "between", align: "center", role: "zeta.app.git.head" },
+			{ justify: "between", align: "center", role: "omp.app.git.head" },
 		);
 		return keyed(head, "head");
 	}
@@ -1107,7 +1107,7 @@ export class Sidebar {
 					{ id: "tree", label: "Tree" },
 				],
 				active: this.viewStyle,
-				role: "zeta.app.seg",
+				role: "omp.app.seg",
 			},
 			undefined,
 			"style",
@@ -1132,7 +1132,7 @@ export class Sidebar {
 							"icon",
 							{
 								name: "wand",
-								role: "zeta.app.ibtn",
+								role: "omp.app.ibtn",
 								title: "Stage by description…",
 								aria: "Stage by description",
 								actions: { click: "stage-ai" },
@@ -1148,16 +1148,16 @@ export class Sidebar {
 					[
 						node("icon", { name: folded ? "chev-r" : "chev" }),
 						text(area === "unstaged" ? "Unstaged" : "Staged"),
-						text([span(String(files.length), "num")], { role: "zeta.app.git.count" }),
+						text([span(String(files.length), "num")], { role: "omp.app.git.count" }),
 					],
 					{ gap: "xs", align: "center", actions: { click: `fold-${area}` }, title: folded ? "Show" : "Hide" },
 				),
-				row(files.length > 0 ? actions : [], { gap: "xs", align: "center", role: "zeta.app.git.acts" }),
+				row(files.length > 0 ? actions : [], { gap: "xs", align: "center", role: "omp.app.git.acts" }),
 			],
 			{
 				justify: "between",
 				align: "center",
-				role: on(section) ? "zeta.app.git.sechead.on" : "zeta.app.git.sechead",
+				role: on(section) ? "omp.app.git.sechead.on" : "omp.app.git.sechead",
 			},
 		);
 		const out: NativeChild[] = [keyed(head, `${area}-head`)];
@@ -1169,7 +1169,7 @@ export class Sidebar {
 						? node("input", {
 								...inputProps(aiInput),
 								placeholder: "What should we stage?",
-								role: "zeta.app.git.field.on",
+								role: "omp.app.git.field.on",
 							})
 						: fieldText(this.aiInput.getValue(), "What should we stage?", "edit-ai", on(target)),
 					"ai",
@@ -1185,7 +1185,7 @@ export class Sidebar {
 					{
 						selected: selected ? this.#nativeKey(selected.target) : null,
 						empty: area === "unstaged" ? "Nothing to stage" : "Nothing staged yet",
-						role: "zeta.app.git.files",
+						role: "omp.app.git.files",
 						actions: { click: "select", dblclick: "activate" },
 					},
 					area,
@@ -1244,24 +1244,24 @@ export class Sidebar {
 			? row(
 					[
 						node("input", { ...inputProps(summaryInput), placeholder: "Summary", grow: 1 }),
-						text([span(String(left), left < 0 ? "warning num" : "num")], { role: "zeta.app.git.count" }),
+						text([span(String(left), left < 0 ? "warning num" : "num")], { role: "omp.app.git.count" }),
 					],
-					{ gap: "sm", align: "center", role: "zeta.app.git.summary.on" },
+					{ gap: "sm", align: "center", role: "omp.app.git.summary.on" },
 				)
-			: fieldText(summary, "Summary", "edit-summary", on({ kind: "summary" }), "zeta.app.git.summary");
+			: fieldText(summary, "Summary", "edit-summary", on({ kind: "summary" }), "omp.app.git.summary");
 		const bodyField = descriptionEditor
 			? node("editor", {
 					...editorProps(descriptionEditor),
 					placeholder: "Description",
 					maxLines: 5,
-					role: "zeta.app.git.body.on",
+					role: "omp.app.git.body.on",
 				})
 			: fieldText(
 					description.split("\n", 1)[0] + (description.includes("\n") ? " …" : ""),
 					"Description",
 					"edit-description",
 					on({ kind: "description" }),
-					"zeta.app.git.body",
+					"omp.app.git.body",
 				);
 		const hasChanges = this.#model.staged.length > 0 || this.#model.unstaged.length > 0 || this.amend;
 		const canCommit =
@@ -1292,7 +1292,7 @@ export class Sidebar {
 							row(compact([this.generating && node("spinner", { style: "dots" }), text(label)]), {
 								gap: "xs",
 								align: "center",
-								role: "zeta.btn",
+								role: "omp.btn",
 								tone: commitTone,
 								actions: canCommit ? { click: "commit" } : undefined,
 								title:
@@ -1301,12 +1301,12 @@ export class Sidebar {
 										: "Stage everything, then commit",
 							}),
 						],
-						{ justify: "between", align: "center", role: "zeta.app.git.foot" },
+						{ justify: "between", align: "center", role: "omp.app.git.foot" },
 					),
 					"foot",
 				),
 			],
-			{ gap: "sm", role: "zeta.app.git.commit" },
+			{ gap: "sm", role: "omp.app.git.commit" },
 		);
 	}
 
@@ -1314,7 +1314,7 @@ export class Sidebar {
 	#describeHead(selectedKey: string | undefined): NativeChild[] {
 		const head = this.#model.headCommit;
 		if (!head) {
-			return [keyed(text([span("No commits yet", "muted")], { role: "zeta.app.git.empty" }), "empty")];
+			return [keyed(text([span("No commits yet", "muted")], { role: "omp.app.git.empty" }), "empty")];
 		}
 		const when = head.authorDate ? new Date(head.authorDate) : null;
 		const initials = head.authorName
@@ -1325,11 +1325,11 @@ export class Sidebar {
 			.join("");
 		const commit = col(
 			compact([
-				text([span(head.subject, "strong")], { wrap: "word", role: "zeta.app.git.subject" }),
-				head.body.trim() !== "" && text(head.body.trim(), { wrap: "word", lines: 8, role: "zeta.app.git.message" }),
+				text([span(head.subject, "strong")], { wrap: "word", role: "omp.app.git.subject" }),
+				head.body.trim() !== "" && text(head.body.trim(), { wrap: "word", lines: 8, role: "omp.app.git.message" }),
 				row(
 					[
-						text(initials || "?", { role: "zeta.app.git.avatar", title: head.authorEmail }),
+						text(initials || "?", { role: "omp.app.git.avatar", title: head.authorEmail }),
 						col(
 							compact([
 								text([span(head.authorName, "strong")], { truncate: "end" }),
@@ -1338,7 +1338,7 @@ export class Sidebar {
 							{ gap: "none" },
 						),
 					],
-					{ gap: "sm", align: "center", role: "zeta.app.git.author" },
+					{ gap: "sm", align: "center", role: "omp.app.git.author" },
 				),
 				node("kv", {
 					items: compact([
@@ -1376,7 +1376,7 @@ export class Sidebar {
 						]),
 						this.#describeStyleToggle(),
 					],
-					{ justify: "between", align: "center", role: "zeta.app.git.head" },
+					{ justify: "between", align: "center", role: "omp.app.git.head" },
 				),
 				"files-head",
 			),
@@ -1388,7 +1388,7 @@ export class Sidebar {
 				entries.map(entry => this.#describeEntry(entry)),
 				{
 					selected: selected ? this.#nativeKey(selected.target) : null,
-					role: "zeta.app.git.files",
+					role: "omp.app.git.files",
 					actions: { click: "select", dblclick: "activate" },
 				},
 				"commit-files",

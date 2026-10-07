@@ -941,15 +941,15 @@ class GitTuiComponent implements Component {
 						keyed(
 							text([span(this.#status, this.#statusTone === "dim" ? "muted" : this.#statusTone)], {
 								truncate: "end",
-								role: "zeta.app.status",
+								role: "omp.app.status",
 							}),
 							"status",
 						),
 					body,
 				]),
-				{ role: "zeta.app.git.main" },
+				{ role: "omp.app.git.main" },
 			);
-			return node(narrow ? "col" : "row", { role: narrow ? "zeta.app.git-narrow" : "zeta.app.git" }, [
+			return node(narrow ? "col" : "row", { role: narrow ? "zeta.app.git-narrow" : "omp.app.git" }, [
 				keyed(main, "main"),
 				keyed(side, "side"),
 			]);
@@ -999,14 +999,14 @@ class GitTuiComponent implements Component {
 			left.push(
 				text([span(file.path.slice(0, slash + 1), "dim"), span(file.path.slice(slash + 1), "strong")], {
 					truncate: "start",
-					role: "zeta.app.git.path",
+					role: "omp.app.git.path",
 					title: file.origPath ? `${file.origPath} → ${file.path}` : file.path,
 				}),
 			);
 			if (doc) {
 				left.push(
 					text([span(`+${doc.additions}`, "ins num"), span(" "), span(`−${doc.deletions}`, "del num")], {
-						role: "zeta.app.git.stat",
+						role: "omp.app.git.stat",
 					}),
 				);
 			}
@@ -1018,12 +1018,12 @@ class GitTuiComponent implements Component {
 						: { text: this.#model.headCommit?.shortSha ?? "commit", tone: "accent" as const };
 			left.push(node("badge", { text: scope.text, tone: scope.tone }));
 		} else {
-			left.push(text([span(this.#model.branch ?? "detached", "muted")], { role: "zeta.app.git.path" }));
+			left.push(text([span(this.#model.branch ?? "detached", "muted")], { role: "omp.app.git.path" }));
 		}
 		const iconButton = (name: string, act: string, title: string, on?: boolean): NativeNode =>
 			node(
 				"icon",
-				{ name, title, aria: title, role: on ? "zeta.app.ibtn.set" : "zeta.app.ibtn", actions: { click: act } },
+				{ name, title, aria: title, role: on ? "omp.app.ibtn.set" : "omp.app.ibtn", actions: { click: act } },
 				undefined,
 				act,
 			);
@@ -1040,7 +1040,7 @@ class GitTuiComponent implements Component {
 				{
 					items: VIEW_TABS.map(tab => ({ id: tab.id, label: tab.label })),
 					active: this.#pane.mode,
-					role: "zeta.app.seg",
+					role: "omp.app.seg",
 				},
 				undefined,
 				"views",
@@ -1076,10 +1076,10 @@ class GitTuiComponent implements Component {
 		return keyed(
 			row(
 				[
-					row(left, { gap: "sm", align: "center", role: "zeta.app.git.where" }),
-					row(right, { gap: "sm", align: "center", role: "zeta.app.git.tools" }),
+					row(left, { gap: "sm", align: "center", role: "omp.app.git.where" }),
+					row(right, { gap: "sm", align: "center", role: "omp.app.git.tools" }),
 				],
-				{ justify: "between", align: "center", role: "zeta.app.git.bar" },
+				{ justify: "between", align: "center", role: "omp.app.git.bar" },
 			),
 			"bar",
 		);
@@ -1096,7 +1096,7 @@ class GitTuiComponent implements Component {
 					text: unifiedDiff(doc, this.#pane.mode === "file"),
 					path: doc.filePath,
 					mode: this.#pane.mode === "split" ? "split" : "unified",
-					role: "zeta.app.git.diff",
+					role: "omp.app.git.diff",
 				},
 				undefined,
 				"diff",
@@ -1116,7 +1116,7 @@ class GitTuiComponent implements Component {
 							layout: "grid",
 						}),
 					],
-					{ gap: "sm", role: "zeta.app.git.state" },
+					{ gap: "sm", role: "omp.app.git.state" },
 				),
 				"asset",
 			);
@@ -1126,7 +1126,7 @@ class GitTuiComponent implements Component {
 				row([node("spinner", { style: "dots" }), text([span(`Loading ${file?.path ?? "diff"}…`, "muted")])], {
 					gap: "sm",
 					align: "center",
-					role: "zeta.app.git.state",
+					role: "omp.app.git.state",
 				}),
 				"loading",
 			);
@@ -1142,7 +1142,7 @@ class GitTuiComponent implements Component {
 						),
 					]),
 				],
-				{ gap: "xs", role: "zeta.app.git.empty" },
+				{ gap: "xs", role: "omp.app.git.empty" },
 			),
 			"empty",
 		);

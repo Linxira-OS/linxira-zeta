@@ -875,7 +875,7 @@ export class AssistantMessageComponent extends Container {
 								"row",
 								{ gap: "sm", title },
 								[
-									node("spinner", { style: "starburst", role: "zeta.thinking.spin" }),
+									node("spinner", { style: "starburst", role: "omp.thinking.spin" }),
 									text([span("Thinking…", "muted")]),
 									elapsed(performance.now() - (this.#thinkingClock.get(index)?.start ?? performance.now())),
 									...(rate >= 0.05 ? [node("rate", { value: rate, unit: "tok/s" })] : []),
@@ -889,7 +889,7 @@ export class AssistantMessageComponent extends Container {
 							"section",
 							{
 								// `.live` while streaming: the body clamps to its tail under a fade.
-								role: thinkingLive ? "zeta.thinking.live" : "zeta.thinking",
+								role: thinkingLive ? "omp.thinking.live" : "omp.thinking",
 								collapsible: true,
 								// Open while it streams; a finished thought folds to its "Thought for 12s" line unless the user keeps thinking expanded.
 								collapsed:
@@ -934,7 +934,7 @@ export class AssistantMessageComponent extends Container {
 			children.push(
 				node(
 					"row",
-					{ role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title },
+					{ role: "omp.turn.usage", gap: "xs", align: "center", title: usage.title },
 					[
 						node("icon", { name: "time" }, undefined, "icon"),
 						node("text", { text: usage.text }, undefined, "text"),
@@ -943,7 +943,7 @@ export class AssistantMessageComponent extends Container {
 				),
 			);
 		}
-		return col(children, { role: this.#rewound ? "zeta.assistant.rewound" : "zeta.assistant" });
+		return col(children, { role: this.#rewound ? "omp.assistant.rewound" : "omp.assistant" });
 	}
 
 	/**
@@ -963,7 +963,7 @@ export class AssistantMessageComponent extends Container {
 			return node(
 				"section",
 				{
-					role: "zeta.assistant.recovered",
+					role: "omp.assistant.recovered",
 					head: [span(`↻ Recovered after ${attempt} ${attempt === 1 ? "retry" : "retries"}`, "muted")],
 					collapsible: true,
 					collapsed: true,
@@ -975,7 +975,7 @@ export class AssistantMessageComponent extends Container {
 		if (presentation.kind !== "full" || message.content.some(content => content.type === "toolCall"))
 			return undefined;
 		if (message.stopReason === "aborted") {
-			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "zeta.assistant.abort" });
+			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "omp.assistant.abort" });
 		}
 		const lines = presentation.text
 			.split("\n")
@@ -993,14 +993,14 @@ export class AssistantMessageComponent extends Container {
 				{ gap: "sm" },
 				[
 					text([span("Request failed", "error strong")]),
-					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "zeta.error.code" })] : []),
+					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "omp.error.code" })] : []),
 				],
 				"head",
 			),
 			text([span(errorText, "mono")], {
 				wrap: "word",
 				lines: this.#errorExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
-				role: "zeta.error.message",
+				role: "omp.error.message",
 				key: "message",
 			}),
 		];
@@ -1008,14 +1008,14 @@ export class AssistantMessageComponent extends Container {
 			const button = (act: string, label: string, keys: readonly string[], title: string): NativeNode =>
 				node(
 					"row",
-					{ gap: "xs", role: "zeta.error.action", actions: { click: act }, title },
+					{ gap: "xs", role: "omp.error.action", actions: { click: act }, title },
 					keys.length > 0 ? [text(label), node("kbd", { keys })] : [text(label)],
 					act,
 				);
 			children.push(
 				node(
 					"row",
-					{ gap: "sm", role: "zeta.error.actions" },
+					{ gap: "sm", role: "omp.error.actions" },
 					[
 						button("retry", "Retry", ["F5"], "Retry the failed turn"),
 						button("copy-error", "Copy error", [], "Copy the error message"),
@@ -1026,7 +1026,7 @@ export class AssistantMessageComponent extends Container {
 			);
 		}
 		this.#errorText = errorText;
-		return card({ role: "zeta.error", tone: "error", key: "error" }, children);
+		return card({ role: "omp.error", tone: "error", key: "error" }, children);
 	}
 
 	/** Error frame action clicks: zeta's own retry, clipboard and model-picker paths. */

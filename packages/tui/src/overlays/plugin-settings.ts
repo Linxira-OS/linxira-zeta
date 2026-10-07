@@ -66,7 +66,7 @@ function prefsDetailPage(title: string, lead: string, list: SettingsList | undef
 		})),
 		focus: list.prefsFocus().row ?? null,
 		editing: null,
-		editor: open ? col([open.component], { role: "zeta.prefs.editor" }) : undefined,
+		editor: open ? col([open.component], { role: "omp.prefs.editor" }) : undefined,
 	};
 }
 

@@ -195,7 +195,7 @@ export class HookEditorComponent extends OverlayPanel implements Focusable {
 			nativeChildren.push(
 				node(
 					"md",
-					{ text: replaceTabs(sanitizeCarriageReturns(question)), role: "zeta.ask.question" },
+					{ text: replaceTabs(sanitizeCarriageReturns(question)), role: "omp.ask.question" },
 					undefined,
 					"question",
 				),

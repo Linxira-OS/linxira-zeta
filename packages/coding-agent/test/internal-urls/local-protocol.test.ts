@@ -103,11 +103,11 @@ describe("LocalProtocolHandler", () => {
 		);
 	});
 
-	it("keeps the fallback root inside its own session dir under omp-local", () => {
+	it("keeps the fallback root inside its own session dir under zeta-local", () => {
 		for (const sessionId of ["..", "."]) {
 			const getSessionId = () => sessionId;
 			expect(resolveLocalRoot({ getSessionId, getArtifactsDir: () => null })).toBe(
-				path.join(os.tmpdir(), "omp-local", "session"),
+				path.join(os.tmpdir(), "zeta-local", "session"),
 			);
 		}
 	});

@@ -47,7 +47,7 @@ export function hintsRow(hints: readonly (NativeHint | undefined)[], key = "hint
 		group.push(text([span(hint.label, "muted")]));
 		children.push(row(group, { gap: "xs", align: "center" }));
 	}
-	return node("row", { gap: "md", wrap: true, role: "zeta.overlay.hints" }, children, key);
+	return node("row", { gap: "md", wrap: true, role: "omp.overlay.hints" }, children, key);
 }
 
 /** A wrapping footer: a status line (`✓ Clean`, `⚠ Cancelled`) followed by key hints. */
@@ -106,7 +106,7 @@ export function actionButton(label: string, act: string, options: ActionButtonOp
 	return node(
 		"row",
 		{
-			role: "zeta.btn",
+			role: "omp.btn",
 			gap: "xs",
 			align: "center",
 			actions: { click: act },
@@ -122,7 +122,7 @@ export function actionButton(label: string, act: string, options: ActionButtonOp
 /** A row of {@link actionButton}s (role `zeta.actions`); `null` entries become the spacer that end-aligns what follows. */
 export function actionBar(buttons: readonly (NativeNode | null)[], key = "actions"): NativeNode {
 	const children = buttons.map(button => button ?? node("spacer", { grow: 1 }));
-	return node("row", { role: "zeta.actions", gap: "sm", align: "center" }, children, key);
+	return node("row", { role: "omp.actions", gap: "sm", align: "center" }, children, key);
 }
 
 /** Spans of an annotation callout: a dim `label:` then the note. */

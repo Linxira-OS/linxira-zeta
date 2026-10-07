@@ -260,7 +260,7 @@ export class RawSseViewerComponent implements Component {
 				? {
 						...node(
 							"ansi",
-							{ text: stream, follow: true, role: "zeta.debug.stream", max: { h: 1 } },
+							{ text: stream, follow: true, role: "omp.debug.stream", max: { h: 1 } },
 							undefined,
 							"stream",
 						),
@@ -274,12 +274,12 @@ export class RawSseViewerComponent implements Component {
 									span("HTTP SSE providers populate this view while a model response is streaming.", "muted"),
 								]),
 							],
-							{ gap: "xs", align: "center", role: "zeta.app.empty" },
+							{ gap: "xs", align: "center", role: "omp.app.empty" },
 						),
 						"empty",
 					),
 		);
-		return { role: "zeta.debug", main: [head, body], dock: [this] };
+		return { role: "omp.debug", main: [head, body], dock: [this] };
 	}
 
 	/** The docked bar under the stream page: the copy status and the buttons. */
@@ -291,7 +291,7 @@ export class RawSseViewerComponent implements Component {
 						keyed(
 							text([span(this.#statusMessage, this.#statusFailed ? "error" : "success")], {
 								wrap: "word",
-								role: "zeta.app.status",
+								role: "omp.app.status",
 							}),
 							"status",
 						),
@@ -301,7 +301,7 @@ export class RawSseViewerComponent implements Component {
 						actionButton("Close", "close", { keys: "escape" }),
 					]),
 				]),
-				{ role: "zeta.debug.bar", gap: "sm" },
+				{ role: "omp.debug.bar", gap: "sm" },
 			),
 		);
 	}
@@ -322,10 +322,10 @@ export class RawSseViewerComponent implements Component {
 				: span("waiting for first frame", "muted"),
 		);
 		return keyed(
-			row([text("Raw provider stream", { role: "zeta.app.title" }), text(stats, { truncate: "end" })], {
+			row([text("Raw provider stream", { role: "omp.app.title" }), text(stats, { truncate: "end" })], {
 				gap: "sm",
 				align: "center",
-				role: "zeta.app.head",
+				role: "omp.app.head",
 			}),
 			"head",
 		);

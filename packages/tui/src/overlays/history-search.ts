@@ -188,7 +188,7 @@ export class HistorySearchComponent extends OverlayPanel {
 	#pickerItems: { items: readonly HistorySearchEntry[]; rows: readonly TspPickerItem[] } | undefined;
 
 	constructor(historyStorage: HistorySource, onSelect: (prompt: string) => void, onCancel: () => void) {
-		super("History", "zeta.overlay.history");
+		super("History", "omp.overlay.history");
 		this.#historyStorage = historyStorage;
 		this.#onSelect = onSelect;
 		this.#onCancel = onCancel;
