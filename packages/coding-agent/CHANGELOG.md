@@ -1,8 +1,7 @@
 # Changelog
 
-## [Unreleased]
 
-## [1.1.27] - 2026-10-07
+## [Unreleased]
 
 - 会话回收站：`/delete` 需 15 秒内三次输入确认；删除改为软删（`~/.zeta/trash/sessions/` 保留 30 天，`session.trashRetentionDays` 可配置），`/trash` 列出、`/restore` 恢复；Zeta Bot (Relay) 协调者会话禁删。
 - 子代理会话恢复 AsyncJobManager 继承（v18.6.3 合并回归修复——focused-subagent 手动 yield 投递链断）。
@@ -77,6 +76,8 @@
 - Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
 - Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
 - 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
+
+
 ## [1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
