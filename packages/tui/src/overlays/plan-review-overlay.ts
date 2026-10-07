@@ -1629,7 +1629,7 @@ export class PlanReviewOverlay implements Component {
 			return item(`h${sectionIndex}`, {
 				label: section.title || "(untitled)",
 				value: count > 0 ? [span(`✎${count}`, "warning")] : undefined,
-				role: `zeta.plan.toc.depth${section.level - this.#tocBaseLevel}`,
+				role: `omp.plan.toc.depth${section.level - this.#tocBaseLevel}`,
 			});
 		});
 		this.#nativeContent = { sections: this.#sections, rev: this.#annotationRev, body, toc };

@@ -1121,7 +1121,7 @@ export class CustomEditor extends Editor {
 			"line",
 		);
 		const layout: NativeEditorLayout = {
-			role: shell ? `zeta.editor.${shell.kind}` : "omp.editor",
+			role: shell ? `omp.editor.${shell.kind}` : "omp.editor",
 			tone: state.running ? "pending" : undefined,
 			children: compact([facts?.context, controls.focus, chips, line, bar]),
 			caret: "line/input",

@@ -1285,7 +1285,7 @@ export class Sidebar {
 							row([node("icon", { name: this.amend ? "check" : "commit" }), text("Amend")], {
 								gap: "xs",
 								align: "center",
-								role: `zeta.app.git.toggle${this.amend ? ".set" : ""}${on({ kind: "amend" }) ? ".on" : ""}`,
+								role: `omp.app.git.toggle${this.amend ? ".set" : ""}${on({ kind: "amend" }) ? ".on" : ""}`,
 								actions: { click: "amend" },
 								title: "Amend the previous commit",
 							}),

@@ -560,7 +560,7 @@ export function createIrcMessageCard(
 	// Terminal-local collapse replaces `getExpanded`; the node never changes after creation.
 	const described = cardNode(
 		{
-			role: `zeta.irc.${card.kind}`,
+			role: `omp.irc.${card.kind}`,
 			tone: "info",
 			head: [
 				span(plainText(title), "toolTitle strong"),

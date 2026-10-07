@@ -3543,7 +3543,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const push = (key: string, side: "left" | "right", priority: number, view: SegmentView): void => {
 			const pinned = PINNED_NATIVE_SEGMENTS[key] === true;
 			const props: TspProps<"seg"> = {
-				role: `zeta.status.${key}`,
+				role: `omp.status.${key}`,
 				side,
 				priority: pinned ? PINNED_NATIVE_PRIORITY + priority : priority,
 			};

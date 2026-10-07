@@ -24,7 +24,7 @@ const DEFAULT_RELAY_PORT = new URL(DEFAULT_RELAY_URL).port;
 
 /** Broker daemon name for the relay on `port`; one per port, so relays on different ports never replace each other. */
 function relayDaemonName(port: string): string {
-	return port === DEFAULT_RELAY_PORT ? "omp.browser.relay" : `zeta.browser.relay.${port}`;
+	return port === DEFAULT_RELAY_PORT ? "omp.browser.relay" : `omp.browser.relay.${port}`;
 }
 
 const RELAY_BROKER_SCOPE = "browser-relay";

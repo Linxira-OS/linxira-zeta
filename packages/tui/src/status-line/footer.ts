@@ -194,7 +194,7 @@ export class FooterComponent implements Component {
 		}
 		const segs: NativeNode[] = [];
 		const seg = (key: string, props: TspProps<"seg">): void => {
-			segs.push(node("seg", { role: `zeta.footer.${key}`, ...props }, undefined, key));
+			segs.push(node("seg", { role: `omp.footer.${key}`, ...props }, undefined, key));
 		};
 		const pathSpans: TspSpan[] = [span(shortenPath(getProjectDir()), "path dim")];
 		const branch = this.#getCurrentBranch();

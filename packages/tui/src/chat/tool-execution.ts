@@ -989,7 +989,7 @@ export class ToolExecutionComponent extends Container {
 		return node(
 			"tool",
 			{
-				role: `zeta.tool.${this.#toolName}`,
+				role: `omp.tool.${this.#toolName}`,
 				key: this.#toolCallId,
 				name: this.#toolName,
 				// `title` here is the head verb (TspToolProps), not the common tooltip.
@@ -1066,7 +1066,7 @@ export class ToolExecutionComponent extends Container {
 			...this.#nativeResultImages(),
 			...(late.section ? [late.section] : []),
 		];
-		const role = `zeta.tool.${this.#toolName}`;
+		const role = `omp.tool.${this.#toolName}`;
 		if (view.inline) return col(children, { role });
 		const hasBody = children.length > 1;
 		return card(

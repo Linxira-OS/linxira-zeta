@@ -622,7 +622,7 @@ class TreeList implements Component {
 		} else if (entry.type === "message") {
 			const message = entry.message;
 			if (message.role === "assistant") kind = "assistant";
-			else if (message.role === "toolResult") [kind, role] = ["tool", `zeta.tool.${message.toolName}`];
+			else if (message.role === "toolResult") [kind, role] = ["tool", `omp.tool.${message.toolName}`];
 			else if (message.role === "bashExecution") [kind, role] = ["tool", "omp.tool.bash"];
 			else if (message.role === "pythonExecution") [kind, role] = ["tool", "omp.tool.eval"];
 		}

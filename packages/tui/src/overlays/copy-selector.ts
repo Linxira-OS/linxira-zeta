@@ -81,7 +81,7 @@ function turnSummary(entry: TranscriptEntry): { label: string; role: string } {
 			return { label, role: "omp.assistant" };
 		}
 		case "toolResult":
-			return { label: `${message.toolName} result`, role: `zeta.tool.${message.toolName}` };
+			return { label: `${message.toolName} result`, role: `omp.tool.${message.toolName}` };
 		case "bashExecution":
 			return { label: `$ ${firstLine(message.command)}`, role: "omp.tool.bash" };
 		case "pythonExecution":
@@ -190,7 +190,7 @@ function timelineItem(target: OutlineTarget): TspPickerItem {
 				id,
 				label: calls.map(call => toolCallLabel(call.name, call.arguments)).join(" · "),
 				node: "tool",
-				role: `zeta.tool.${calls[0]!.name}`,
+				role: `omp.tool.${calls[0]!.name}`,
 			};
 		}
 		case "toolResult":
