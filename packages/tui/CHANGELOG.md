@@ -1,89 +1,31 @@
-# Changelog
-
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
 
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-- Inline images now retire to native scrollback as soon as their transcript block finalizes instead of waiting for row pressure or shutdown, so terminals whose live-region sixel does not stick (Windows Terminal) show images in real time; the exit-time history flush remains as the fallback.
-
-## [14.9.8] - 2026-05-12
-
 ### Added
 
-- Added `Terminal.setProgress(active)` to emit OSC 9;4 progress sequences with a ~1s keepalive interval so Ghostty does not clear the indicator during long-running work (ports pi-mono `a900d251` + `76bc605a`)
-- Added optional `argumentHint?: string` to `SlashCommand`; rendered before the description in the autocomplete dropdown (ports pi-mono `aa25726e`)
-- Added `VirtualTerminal.waitForRender()` test helper for the throttled render pipeline (ports pi-mono `41377ee8`)
+- Assistant SVG code blocks now render as inline, theme-colored images on terminals with graphics support, updating as responses stream and adapting to terminal width; SVG that cannot be rendered remains available as code.
+- Numeric tables in assistant responses can now include automatically selected, themed charts based on the table’s structure and units.
 
 ### Changed
 
-- `ProcessTerminal` `columns`/`rows` getters consult `Bun.env.COLUMNS` / `Bun.env.LINES` before falling back to 80×24, so piped/non-TTY runs honour environment-provided dimensions (ports pi-mono `32f7fc6a`)
-- `requestRender()` non-force calls are coalesced to a ~16ms frame budget; `requestRender(true)` still flushes immediately via `process.nextTick` (ports pi-mono `6f5f37f8`)
-- `KNOWN_TERMINALS.base` / `KNOWN_TERMINALS.trueColor` default `hyperlinks: false`; tmux and screen (`TMUX` env or `TERM` starts with `tmux`/`screen`) force `hyperlinks: false` even when the outer terminal would advertise OSC 8 (adapts pi-mono `30a8a41f`)
-- `SlashCommand.getArgumentCompletions()` may return a `Promise`; results are now awaited and non-array returns are ignored (ports pi-mono `a1e10789`)
-- Fuzzy `@` autocomplete now follows symlinked directories via `ScanOptions.follow_links` plumbed through the native walker (ports pi-mono `780d5367`)
-- Plain `@<query>` (no slash) fuzzy matches by basename only, so `@plan` no longer surfaces every file whose ancestor directories contain `plan` (ports pi-mono `968430f6`)
-- Changed slash-command autocomplete list rendering to combine command hint and description in a single displayed suggestion text
-- Changed render scheduling to throttle `requestRender` calls to roughly 60fps by batching updates
-- Changed terminal input handling to process complete cell-size responses without buffering partial input
-- Changed `KeyId` to accept super-modifier combinations and improve typed key-id validation
+- The status line now recognizes projects located in the user’s `repos` directory.
+- Model mentions, `/switch` completions, and model-picker search now update immediately while typing, including with large model catalogs.
 
 ### Fixed
 
-- Fixed editor corruption on Thai Sara Am (U+0E33) and Lao AM (U+0EB3) vowels by normalizing to their compatibility decompositions on the terminal-write path while keeping editor content logically unchanged (ports pi-mono `bc668826` + `338ce3a3` + `20ca45d5`)
-- Fixed cell-size detection (`CSI 6;h;w t` response) to consume only exact replies, so a bare `Escape` keystroke is no longer swallowed while waiting for terminal image metadata (ports pi-mono `49c0d860`)
-- Fixed Kitty CSI-u printable input duplicating on layouts (e.g. Italian) where the terminal also emits the raw character: the immediately-following matching codepoint is now suppressed (ports pi-mono `bdb416cb`)
-- Fixed bracketed-paste CSI-u `Ctrl+<letter>` re-encoding (tmux popup with `extended-keys-format=csi-u`) leaking literal `[<code>;5u` into the editor; control bytes are decoded back to their literal byte before per-char filtering (ports pi-mono `d06db09a`)
-- Fixed xterm `modifyOtherKeys` shifted printable input so uppercase letters inserted via `CSI 27;mod;codepoint~` reach the editor correctly (ports pi-mono `6b55d685`)
-- Fixed `super`-modified Kitty shortcuts (`super+k`, `ctrl+super+enter`, …) to parse and match via the new `KITTY_MOD_SUPER` mask (ports pi-mono `ddb8454c` + `5ed46003`)
-- Fixed `ctrl+alt+<letter>` in tmux falling through to CSI-u / `modifyOtherKeys` when the legacy `ESC<ctrl-char>` form does not match (ports pi-mono `6cf5098f`)
-- Fixed Markdown strikethrough requiring strict `~~text~~` delimiters with non-whitespace boundaries; single tildes no longer render strikethrough (ports pi-mono `db5274b4`)
-- Allowed `SlashCommand.getArgumentCompletions` to return asynchronous results by accepting Promise-based completions
-- Added `argumentHint` support to slash command definitions and displayed it in command suggestion descriptions
-- Added support for xterm `modifyOtherKeys` printable key sequences by decoding `CSI 27;mod;key~` into text input
-- Normalized line output during rendering to correct Thai/Lao AM glyph composition for displayed text
-- Fixed duplicated Kitty key input emissions by dropping the matching unmodified follow-up sequence after a Kitty CSI-u printable-key event
+- Fixed terminal resizing issues that could cause flicker or briefly display an empty frame.
+- Improved `/annotate` handling for long source lines and filenames, preserving indentation and typed note text.
+- Fixed fullscreen inputs that could hide the cursor when hardware-cursor support was enabled.
+- Fixed model picker and mention-list ordering for same-provider `-latest` models so results remain alphabetically stable.
+- Model browser performance metrics now show the correct measurements for each service tier and identify the tier.
+- Fixed plan review keyboard navigation so horizontal options use Left/Right and model-slider adjustments use Shift+Left/Right.
+- Improved the Ask dialog footer so question-switching keyboard shortcuts are clearly labeled.
+- Fixed creating a new agent when its generated system prompt contains a Markdown code fence.
+- Timed-out `glob` scans are now labeled as timed out rather than truncated.
+- Ctrl+Delete now deletes the word after the cursor, matching Ctrl+Backspace behavior.
 
-## [14.9.5] - 2026-05-12
-
-### Fixed
-
-- Fixed rapidly blinking cursor artifact during task execution by consolidating cursor control sequences into the synchronized output buffer ([#992](https://github.com/can1357/oh-my-pi/issues/992))
-
-## [14.5.7] - 2026-04-29
-
-### Fixed
-
-- Fixed editor Ctrl+Enter handling to recognize NumLock and keypad Enter variants.
-
-## [14.3.0] - 2026-04-25
-
-### Fixed
-
-- Fixed shared Markdown Mermaid fenced-block rendering to resolve diagrams from fenced source text instead of external prerender state
-
-## [14.1.1] - 2026-04-14
-
-### Breaking Changes
-
-- Removed the `searchDb` constructor argument from `CombinedAutocompleteProvider`, requiring callers to use the built-in search behavior
-
-### Changed
-
-- Changed truncation debug logging to run only when `debugRedraw` is enabled
-
-## [14.0.5] - 2026-04-11
-
-### Changed
-
-- Updated hash computation to use `Bun.hash()` instead of `Bun.hash.xxHash64()`, which may return `number` in addition to `bigint`
-- Simplified cache key computation in Box component by removing intermediate hash updates and consolidating hash operations
-- Wrapped native text utility functions (`sliceWithWidth`, `truncateToWidth`, `wrapTextWithAnsi`, `extractSegments`) to automatically pass the current default tab width, simplifying the API for consumers
-- Added `getIndentationNoescape` wrapper that uses `process.cwd()` as the project root for relative file paths
-- Re-export `getDefaultTabWidth`, `getIndentation`, and `setDefaultTabWidth` from `@linxiraos/pi-utils`; native text helpers still receive tab width via wrappers that read the JS default
-
-## [13.16.1] - 2026-03-27
+13.16.1] - 2026-03-27
 
 ### Added
 
@@ -1033,3 +975,4 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 - `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
+Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).

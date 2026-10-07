@@ -3403,7 +3403,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 				const view = describeSegment(id, ctx);
 				if (!view) return;
 				const props: TspProps<"seg"> = {
-					role: "zeta.composer.fact",
+					role: "omp.composer.fact",
 					priority: statusSegmentPriority(side, index, ids.length),
 				};
 				facts.push(describeSeg(id, props, view, dim));
@@ -3416,7 +3416,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 			this.#sortedHookStatuses.forEach((status, index) => {
 				const text = sanitizeStatusText(status);
 				if (!text) return;
-				const props: TspProps<"seg"> = { role: "zeta.composer.fact", priority: 0 };
+				const props: TspProps<"seg"> = { role: "omp.composer.fact", priority: 0 };
 				facts.push(describeSeg(`hook-${index}`, props, { spans: [span(text)] }, dim));
 			});
 		}
@@ -3458,7 +3458,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const context = node(
 			"meter",
 			{
-				role: "zeta.composer.context",
+				role: "omp.composer.context",
 				value: used,
 				style: "bar",
 				thresholds: getContextMeterThresholds(window),
@@ -3483,7 +3483,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const usage = node(
 			"text",
 			{
-				role: "zeta.composer.usage",
+				role: "omp.composer.usage",
 				text: cost,
 				wrap: "none",
 				...(cost ? { title: `Session cost ${cost}` } : {}),
@@ -3501,7 +3501,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		return {
 			context,
 			model: describeSegment("model", modelCtx) ?? { spans: [] },
-			extras: node("status", { role: "zeta.composer.extras", transparent: true, grow: 1 }, facts, "extras"),
+			extras: node("status", { role: "omp.composer.extras", transparent: true, grow: 1 }, facts, "extras"),
 			usage,
 		};
 	}
@@ -3543,7 +3543,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const push = (key: string, side: "left" | "right", priority: number, view: SegmentView): void => {
 			const pinned = PINNED_NATIVE_SEGMENTS[key] === true;
 			const props: TspProps<"seg"> = {
-				role: `zeta.status.${key}`,
+				role: `omp.status.${key}`,
 				side,
 				priority: pinned ? PINNED_NATIVE_PRIORITY + priority : priority,
 			};
@@ -3581,7 +3581,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		});
 		const bar = node(
 			"status",
-			{ role: "zeta.status", transparent: effectiveSettings.transparent === true },
+			{ role: "omp.status", transparent: effectiveSettings.transparent === true },
 			segs,
 			"bar",
 		);
@@ -3593,13 +3593,13 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 				...this.#sortedHookStatuses.map((status, index) =>
 					node(
 						"text",
-						{ text: sanitizeStatusText(status), wrap: "none", role: "zeta.status.hook" },
+						{ text: sanitizeStatusText(status), wrap: "none", role: "omp.status.hook" },
 						undefined,
 						`hook-${index}`,
 					),
 				),
 			],
-			{ role: "zeta.status.panel" },
+			{ role: "omp.status.panel" },
 		);
 	}
 

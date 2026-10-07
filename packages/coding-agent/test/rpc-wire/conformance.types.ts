@@ -61,6 +61,7 @@ import type { SessionStats } from "@linxiraos/zeta/session/agent-session";
 import type { BtwHistoryRecord, BtwHistoryTurn } from "@linxiraos/zeta/session/btw-history";
 import type { UsageLimitState } from "@linxiraos/zeta/session/usage-limit";
 import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
+import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
 import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 
@@ -272,6 +273,7 @@ export type State = Assert<
 		subagentMessages: Outbound<RpcSubagentMessagesResult, Wire.SubagentMessages>;
 		btwHistoryRecord: Outbound<BtwHistoryRecord, Wire.BtwHistoryRecord>;
 		btwHistoryTurn: Outbound<BtwHistoryTurn, Wire.BtwHistoryTurn>;
+		logoutAccount: Outbound<LogoutAccount, Wire.LogoutAccount>;
 		btwStatuses: Same<BtwHistoryTurn["status"], Wire.BtwStatus>;
 		model: OutboundSubset<Model, Wire.ModelInfo>;
 		modelCost: OutboundSubset<Model["cost"], Wire.ModelCost>;

@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Model, ServiceTier } from "@linxiraos/pi-ai";
 import type { AgentsHubDeps } from "@linxiraos/pi-tui/overlays/agents-hub";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { isEnoent, prompt } from "@linxiraos/pi-utils";
@@ -59,9 +60,10 @@ export function createAgentsHubDeps(
 	extensionRoots: () => EffectiveExtensionRoots,
 	activeModelPattern?: string,
 	defaultModelPattern?: string,
+	sessionServiceTier?: (model: Model) => ServiceTier | undefined,
 ): AgentsHubDeps {
 	return {
-		browserSource: createModelBrowserSource(settings, modelRegistry),
+		browserSource: createModelBrowserSource(settings, sessionServiceTier),
 		loadAgents: async () => {
 			const { agents } = await discoverAgents(cwd, undefined, extensionRoots());
 			const disabled = new Set(cfgTaskDisabledAgents.get(settings));

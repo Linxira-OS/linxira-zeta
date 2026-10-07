@@ -276,6 +276,7 @@ describe("selector setting side effects", () => {
 			settings,
 			session: {
 				model: nextModel,
+				effectiveServiceTier: () => undefined,
 				modelRegistry: {
 					getAll: () => [previousModel, nextModel],
 					getAvailable: () => [previousModel, nextModel],
@@ -372,6 +373,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: activeModel,
 				modelRegistry: {
 					getAll: () => [activeModel, taskModel],
@@ -456,6 +458,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model,
 				modelRegistry: {
 					getAll: () => [model],
@@ -545,6 +548,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -644,6 +648,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -745,6 +750,7 @@ describe("selector setting side effects", () => {
 				editor: {},
 				settings,
 				session: {
+					effectiveServiceTier: () => undefined,
 					model: liveModel,
 					modelRegistry: {
 						getAll: () => [projectModel, globalModel],
@@ -859,6 +865,7 @@ describe("selector setting side effects", () => {
 				editor: {},
 				settings,
 				session: {
+					effectiveServiceTier: () => undefined,
 					model: overlayModel,
 					modelRegistry: {
 						getAll: () => [overlayModel, projectModel],
@@ -970,6 +977,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -1046,6 +1054,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: undefined,
 				modelRegistry: {
 					getAll: () => [fallback],
@@ -1144,6 +1153,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: slow,
 				modelRegistry: {
 					getAll: () => [smol, slow],
@@ -1215,6 +1225,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -1300,6 +1311,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: runtimeModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel, runtimeModel],
@@ -1387,6 +1399,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -1471,6 +1484,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel],
@@ -1574,6 +1588,7 @@ describe("selector setting side effects", () => {
 				editor: {},
 				settings,
 				session: {
+					effectiveServiceTier: () => undefined,
 					model: projectModel,
 					modelRegistry: {
 						getAll: () => [projectModel, globalModel, overlayModel],
@@ -1688,6 +1703,7 @@ describe("selector setting side effects", () => {
 				editor: {},
 				settings,
 				session: {
+					effectiveServiceTier: () => undefined,
 					model: projectModel,
 					modelRegistry: {
 						getAll: () => [projectModel, sharedModel],
@@ -1785,6 +1801,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
@@ -1866,6 +1883,7 @@ describe("selector setting side effects", () => {
 			editor: {},
 			settings,
 			session: {
+				effectiveServiceTier: () => undefined,
 				model: projectModel,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],

@@ -407,6 +407,27 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "渲染 Mermaid 图表",
 		description: "将 Mermaid 围栏代码块渲染为 ASCII 图表",
 	},
+	"tui.renderSvg": {
+		label: "渲染 SVG 图形",
+		description: "邀请智能体以 SVG 绘制图表与图示，并在支持图形显示的终端上内联渲染为图像",
+	},
+	"tui.autoGraph": {
+		label: "表格自动图表",
+		description: "在回答中的数字表格下方绘制图表（使用你的主题配色，仅限支持图形显示的终端）",
+	},
+	"tui.maxInlineImageColumns": {
+		label: "内联图像最大宽度",
+		description: "内联图像的最大宽度（终端列数，默认 100）。设为 0 表示不限（仅受终端宽度约束）。",
+	},
+	"tui.maxInlineImageRows": {
+		label: "内联图像最大高度",
+		description: "内联图像的最大高度（终端行数，默认 20）。设为 0 表示仅使用视口比例限制（终端高度的 60%）。",
+	},
+	"tui.maxInlineImages": {
+		label: "内联图像上限",
+		description:
+			"作为终端实时图形保留的内联图像最大数量（默认 8）。超限后较旧的图像通过整屏重绘回退为文字占位符。设为 0 表示全部保留（不限）。",
+	},
 	"tui.codexResetFireworks": {
 		label: "Codex 重置烟花",
 		description: "以顶部三分之一区域的烟花动画庆祝非计划内的 Codex 每周用量重置和新存入的保存重置，直到按 Esc 才消失",

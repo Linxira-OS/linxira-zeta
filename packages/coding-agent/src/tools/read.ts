@@ -91,6 +91,7 @@ import {
 	formatPathRelativeToCwd,
 	probeLiteralPathExists,
 	resolveReadPathAsync,
+	specialFileKind,
 	splitDelimitedPathEntry,
 	splitMixedUrlPathList,
 	splitPathAndSelPreferringLiteral,
@@ -155,6 +156,7 @@ import {
 import { splitAddressableFileLines } from "@linxiraos/pi-tui/tools/hashline-format";
 import { readBinary, resolveBinaryViewPath } from "./read-binary";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
+import { readJson, resolveJsonReadPath, splitJsonQueryTarget } from "./read-json";
 import {
 	getReadTextFileBridge,
 	isProseSummaryPath,
@@ -658,19 +660,6 @@ function formatLocatedFileNotice(url: string, backingPath: string, size: number,
 }
 
 /**
- * Kind of a non-regular, non-directory file, or undefined. Reading one in-process can block
- * forever (a FIFO, `/dev/stdin` on the TUI's terminal) or never end (`/dev/zero`).
- */
-function specialFileKind(stat: Stats): string | undefined {
-	if (stat.isFile() || stat.isDirectory()) return undefined;
-	if (stat.isCharacterDevice()) return "character device";
-	if (stat.isBlockDevice()) return "block device";
-	if (stat.isFIFO()) return "FIFO";
-	if (stat.isSocket()) return "socket";
-	return "special file";
-}
-
-/**
  * Peel `?q=<question>` (ask a vision model about an image) from a plain path or a URL whose
  * scheme declares {@link SchemeSpec.imageQuestion}; every other URL owns its query string.
  */
@@ -680,6 +669,7 @@ export function splitImageQuestionTarget(readPath: string): { path: string; ques
 		if (!scheme || !InternalUrlRouter.instance().spec(scheme)?.imageQuestion) return { path: readPath };
 	}
 	if (parseSqlitePathCandidates(readPath).length > 0) return { path: readPath };
+	if (splitJsonQueryTarget(readPath)) return { path: readPath };
 
 	const queryIndex = readPath.indexOf("?");
 	if (queryIndex === -1) return { path: readPath };
@@ -1734,6 +1724,10 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			const sqlitePath = await resolveSqliteReadPath(this.session, readPath, suffixCache, signal);
 			if (sqlitePath) {
 				return readSqlite(sqlitePath, signal);
+			}
+			const jsonPath = await resolveJsonReadPath(this.session, literalSplit.path, suffixCache, signal);
+			if (jsonPath) {
+				return readJson(this.session, jsonPath, literalSplit.sel, signal);
 			}
 
 			// `bin:main`, `bin:imports`, `bin:main:10-40`: an executable/IDB prefix

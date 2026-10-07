@@ -737,6 +737,16 @@ export interface LoginProvider {
 	authenticated: boolean;
 }
 
+/** A stored credential `logout` can remove; `active` marks credentials the session may be using. */
+export interface LogoutAccount {
+	credentialId: number;
+	provider: string;
+	label: string;
+	detail: string;
+	type: "api_key" | "oauth";
+	active: boolean;
+}
+
 export interface HandoffResult {
 	savedPath?: string;
 }
@@ -1721,6 +1731,23 @@ export interface LoginResult {
 	providerId: string;
 }
 
+export interface GetLogoutAccountsParams {
+	providerId: string;
+}
+
+export interface GetLogoutAccountsResult {
+	accounts: LogoutAccount[];
+}
+
+export interface LogoutParams {
+	providerId: string;
+	credentialId: number;
+}
+
+export interface LogoutResult {
+	remainingSource?: string;
+}
+
 export interface PredictWordParams {
 	text: string;
 	cursor: number;
@@ -1820,6 +1847,8 @@ export interface RpcWireCommands {
 	get_messages_page: { params: GetMessagesPageParams; result: MessagesPage };
 	get_login_providers: { params: undefined; result: GetLoginProvidersResult };
 	login: { params: LoginParams; result: LoginResult };
+	get_logout_accounts: { params: GetLogoutAccountsParams; result: GetLogoutAccountsResult };
+	logout: { params: LogoutParams; result: LogoutResult };
 	predict_word: { params: PredictWordParams; result: PredictWordResult };
 	predict_word_feedback: { params: PredictWordFeedbackParams; result: undefined };
 	btw: { params: BtwParams; result: BtwResult };

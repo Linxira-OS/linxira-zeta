@@ -116,7 +116,7 @@ function describeSvgPreview(result: TaggedWriteResult, content: string, alt: str
 	const preview = node("image", {
 		blob,
 		alt,
-		role: "zeta.tool.write.image",
+		role: "omp.tool.write.image",
 		max: { h: `${NATIVE_SVG_PREVIEW_LINES}lines` },
 	});
 	result[kSvgPreview] = { content, node: preview };

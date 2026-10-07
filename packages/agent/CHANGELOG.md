@@ -1,121 +1,14 @@
-# Changelog
-
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 
-### Breaking Changes
-
-- `Agent.withdrawUndeliveredQueuedMessages()` replaces `withdrawLiveSteering()` and returns `{ steering, followUp }`: it also takes back queued input already dequeued for the next model call, which the aborted run then neither records nor reports in `agent_end` ([#14179](https://github.com/can1357/oh-my-pi/pull/14179) by [@andrebrait](https://github.com/andrebrait))
-
-### Added
-
-- Added `Agent.setOnModelCallSystemPrompt`, called with the exact system prompt each model call is built from ([#14338](https://github.com/can1357/oh-my-pi/pull/14338) by [@will-bogusz](https://github.com/will-bogusz))
-
-### Changed
-
-- `SessionInitEntry.systemPrompt` holds the system prompt blocks as sent; session files written earlier keep one joined string ([#14338](https://github.com/can1357/oh-my-pi/pull/14338) by [@will-bogusz](https://github.com/will-bogusz))
-- Image token estimates now use the catalog's `imageTokens()` formula with its OpenAI Responses wire rule; values are unchanged ([#14286](https://github.com/can1357/oh-my-pi/pull/14286) by [@will-bogusz](https://github.com/will-bogusz)).
-
 ### Fixed
 
-- Fixed the context count and auto-compaction trigger pricing every snapcompact archive frame at Opus's high-res rate, which overcounted Codex and Gemini sessions and could re-trigger compaction right after compacting ([#14291](https://github.com/can1357/oh-my-pi/pull/14291) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed native (OpenAI) compaction being refused as over the context window in sessions with many screenshots. Images were counted as about 1,200 tokens when deciding to compact but 12,000 when checking whether the compaction request fits; both checks now estimate images from their actual dimensions, and a request is no longer refused when only the image estimate pushes it over the window ([#14260](https://github.com/can1357/oh-my-pi/pull/14260) by [@H4vC](https://github.com/H4vC)).
-- Fixed OpenAI and Codex Remote Compaction V2 dropping your recent messages instead of keeping them next to the compaction summary ([#14247](https://github.com/can1357/oh-my-pi/pull/14247) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed the failed V2 remote compaction warning claiming a V1 fallback on Codex, where V1 does not run ([#14245](https://github.com/can1357/oh-my-pi/pull/14245) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed Anthropic native compaction being rejected with `Invalid signature in thinking block` (or silently dropping the summarized thinking) on models with preserved thinking ([#14251](https://github.com/can1357/oh-my-pi/pull/14251) by [@will-bogusz](https://github.com/will-bogusz))
+- Fixed interrupted runs so assistant message boundaries are emitted reliably, allowing subscribers to persist and recover the interrupted turn.
 
-## [14.9.5] - 2026-05-12
-
-### Added
-
-- Added an `isError?: boolean` field on `AgentToolResult` so tools can flag a non-throwing failure (e.g. an aggregator that catches per-entry errors). `coerceToolResult` preserves the flag and the agent loop surfaces it as a tool error on the wire.
-
-## [14.9.3] - 2026-05-10
-
-### Added
-
-- Added `onHarmonyLeak` option on `Agent`/loop config to receive GPT-5 Harmony leak audit callbacks
-- Added harmony-leak detection and audit exports to the package index for programmatic leak detection and recovery hooks
-
-### Changed
-
-- Changed OpenAI Codex model runs to detect GPT-5 Harmony protocol leakage during streaming and automatically retry or recover tool calls instead of sending contaminated arguments downstream
-
-### Security
-
-- Hardened tool-call handling against leaked `to=functions.*` protocol tails by truncating or retrying before execution
-- Hardened failure handling so repeated GPT-5 Harmony leak mitigation is retried only up to two times before escalating to an explicit error
-
-## [14.9.0] - 2026-05-10
-
-### Added
-
-- Added `Agent#metadata` field forwarded to every API request; callers can set arbitrary provider metadata (e.g. `metadata.user_id`) once and have it applied to all subsequent stream calls without modifying per-call options
-- Added `Agent#setMetadataResolver(fn)` for installing a function that resolves request metadata at call time. The `metadata` getter dispatches through the resolver on every read (including the snapshot taken per `prompt()`), so callers reflect mutable external state (e.g. live OAuth account UUID after a token refresh) without manual re-syncs. Plain `agent.metadata = …` continues to set a static value and clears any installed resolver.
-- Added an `onSseEvent` agent option and loop config forwarding path for raw provider SSE diagnostics.
-
-## [14.7.6] - 2026-05-07
-
-### Added
-
-- Added `hideThinkingSummary` option/getter/setter on `Agent` and `AgentLoopConfig`. Forwarded to the underlying stream call so providers can omit reasoning/thinking summaries on demand.
-
-## [14.7.2] - 2026-05-06
-
-### Added
-
-- Added `loadMode` option to `AgentTool` to mark built-in tools as `essential` for initial loading or `discoverable` for search activation
-- Added optional `summary` field to `AgentTool` definitions for one-line text used in tool discovery indexes
-
-## [14.7.0] - 2026-05-04
-
-### Breaking Changes
-
-- Changed `Agent` API types so `systemPrompt` is now a list of prompt strings, requiring callers to pass and update system prompts via string arrays
-
-### Changed
-
-- Removed automatic project-context injection into each model call from loop logic
-
-### Removed
-
-- Removed the `projectPrompt` field from agent state/context and the `setProjectPrompt` mutator
-
-## [14.6.2] - 2026-05-03
-
-### Fixed
-
-- Fixed unhandled promise rejection when `getApiKey` or any other async error occurs during `streamAssistantResponse`: agent loop IIFEs now catch and route errors through `EventStream.fail()`, which terminates the `for await` loop and lets `Agent#runLoop`'s catch block create a proper error assistant message instead of crashing
-
-## [14.6.0] - 2026-05-02
-
-### Fixed
-
-- Fixed request cancellation before provider events by emitting an aborted assistant message and ending the stream with `stopReason: "aborted"`
-
-## [14.5.10] - 2026-04-30
-
-### Added
-
-- Added an `onResponse` stream option for observing provider response metadata after response headers arrive.
-
-## [14.2.0] - 2026-04-23
-
-### Changed
-
-- Changed tool dispatch to match model-returned tool calls by either internal tool name or custom wire name, enabling custom OpenAI tool names such as `apply_patch`.
-
-## [14.0.1] - 2026-04-08
-
-### Added
-
-- Added `onAssistantMessageEvent` callback option to inspect assistant streaming events before they are emitted, enabling abort decisions before buffered events continue flowing
-- Added `setAssistantMessageEventInterceptor()` method to dynamically set or update the assistant message event interceptor
-
-## [13.13.0] - 2026-03-18
+13.13.0] - 2026-03-18
 
 ### Added
 

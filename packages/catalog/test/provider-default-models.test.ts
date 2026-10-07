@@ -25,6 +25,10 @@ describe("provider default models", () => {
 			.filter(
 				provider =>
 					!CREDENTIAL_SCOPED_SNAPSHOT_PROVIDERS.has(provider.id) &&
+					// Dynamic-authoritative providers (openai-codex since v18.7.0)
+					// resolve their catalog at runtime; the static bundle may drop
+					// ids the KDL default still points at.
+					!provider.dynamicModelsAuthoritative &&
 					getBundledModels(provider.id as GeneratedProvider).length > 0,
 			)
 			.map(provider => [provider.id, provider.defaultModel] as const),

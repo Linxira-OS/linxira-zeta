@@ -94,7 +94,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			mode === "login"
 				? tuiText("oauthSelectLoginTitle", "Select provider to login")
 				: tuiText("oauthSelectLogoutTitle", "Select provider to logout"),
-			"zeta.overlay.oauth",
+			"omp.overlay.oauth",
 		);
 		this.#mode = mode;
 		this.#authStorage = authStorage;

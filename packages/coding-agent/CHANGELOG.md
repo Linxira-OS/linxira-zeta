@@ -1,84 +1,54 @@
-# Changelog
-
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
 
-- 会话回收站：`/delete` 需 15 秒内三次输入确认；删除改为软删（`~/.zeta/trash/sessions/` 保留 30 天，`session.trashRetentionDays` 可配置），`/trash` 列出、`/restore` 恢复；Zeta Bot (Relay) 协调者会话禁删。
-- 子代理会话恢复 AsyncJobManager 继承（v18.6.3 合并回归修复——focused-subagent 手动 yield 投递链断）。
+### Added
+
+- Added last-chance consumption of eligible banked Codex and Claude resets expiring within five minutes when auto-redeem is enabled, even with low usage or reserved credits.
+- Added inline rendering of agent-generated SVG diagrams, charts, and mockups, with theme-aware colors and a `tui.renderSvg` setting to disable it.
+- Added automatic chart generation for numeric tables, configurable with `tui.autoGraph` (`always`, `smart`, or `off`). The agent now chooses suitable visual formats—including charts, Mermaid, SVG, tables, or prose—based on the content. Charts and this guidance apply to the main TUI session only, not to subagents, print, RPC, or ACP.
+- Added first-class JSON and JSONL querying to the `read` tool with `?q=<jq-filter>`, including in-process filtering, raw or compact output, and offset/limit pagination for efficient large-file access.
+- Added `/prewalk off` to cancel a pending model handoff without changing the active model, saved prewalk setting, or continuation history.
+- Added logout support to RPC clients through `get_logout_accounts` and `logout`, with matching methods in the TypeScript, Python, Go, and Rust SDKs.
+- Added custom model-kind declarations for providers and extensions, allowing image, speech, embedding, judge, and other supported model roles to be registered and routed correctly.
+- Added working-directory reporting for Tern terminal sessions so the native composer bar can display the current folder.
 
 ### Changed
 
-- Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
-- Replaced `arktype` with `@linxiraos/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
-- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
-- Streaming edit guard 改为异步增量验证，大文件编辑不再卡顿。
+- Improved JSON and JSONL query streaming and pagination to reduce resource usage, support partial results, and provide clearer continuation between result pages.
+- Clarified the `read` tool documentation with complete examples for requesting line ranges.
 
 ### Fixed
 
-- Fixed OAuth provider `modifyModels` projections being silently dropped after a discovery refresh introduced live-config headers.
-- Edit-tool `＋`/`－` line operations now match their anchors leniently across whitespace drift (indentation, blank-line miscounts) instead of failing with a byte-for-byte error; a note reports the lenient match.
-- Fixed an edit-tool REWRITE consisting only of `＋` add lines silently replacing (deleting) the matched text; it now inserts after the kept MATCH.
-- Edit-tool no-match errors now name MATCH lines that exist nowhere in the file and suggest marking them with `＋`, and errors without a located region no longer append a misleading file-head "closest match" preview.
-- Fixed ordinary CLI startup eagerly loading the computer worker graph (native desktop addon and early environment), restoring lazy startup and profile `.env` ordering.
-- Fixed online auto-thinking classifier usage being omitted from session token and cost totals.
-- Fixed image generation with custom provider endpoints when using `openai-codex` credentials and a non-OpenAI chat model.
-- Fixed custom hook UI factories not receiving the documented `keybindings` argument.
-- Fixed MCP OAuth token exchange for authorization endpoints that use a different resource indicator.
-- Fixed custom extension `web_search` tools being shadowed by the built-in search tool.
-- Fixed Agent Hub task boards collapsing to summary rows after returning from a focused session.
-- Improved Linux ARM64 browser startup messaging when managed Chrome for Testing builds are unavailable, with guidance for using system Chromium or `PUPPETEER_EXECUTABLE_PATH`.
-- Fixed resuming image-heavy sessions that previously terminated while replaying transcripts.
-- Fixed custom agents declaring `hub` being incorrectly treated as read-only.
-- Restored compatibility for legacy Pi extensions that import `calculateContextTokens` or use the synchronous `SettingsManager.create()` API.
-- Fixed custom model overrides being lost during configuration updates.
-- Clarified that the default task-delegation setting follows the selected model's policy.
-- Fixed `/rename` without a title interrupting active session activity.
-- Fixed the Nerd Font notification persisting incorrectly after theme configuration.
-- Fixed sampling parameter errors with newer Anthropic models.
-- Long OpenCode Go usage-limit waits now switch replay-safe turns to a configured alternate provider when the delay exceeds `retry.maxDelayMs`.
-- Fixed OpenAI Codex Responses tool results being lost when composite and plain tool-call identifiers did not match.
-- Fixed `/tan` background agents failing to resolve credentials for providers supplied by extensions.
-- Fixed Mnemopi saving session transcripts on exit when automatic retention is disabled.
-- Fixed configuration writes through chained symlinks so the final target and intermediate links are preserved.
-- Fixed direct tool calls using full `xd://` device URLs.
-- Fixed command-backed headers in custom discovery providers being resolved for discovered models.
-- Fixed Windows drive paths pasted under WSL being resolved through their `/mnt/<drive>` mounts for images and file reads.
-- Improved sloppy/SPARSE edit no-match guidance so low-confidence matches are clearly presented without unsafe copy-ready operations.
-- Fixed agents in Hub wait loops failing to respond to user steering messages.
-- Fixed `/tan` sessions inheriting parent costs and overstating subagent totals.
-- Fixed prompt action labels being truncated.
-- Fixed assistant text being truncated when a tool call begins during streaming.
-- Fixed the advisor dropping concerns when catching up on multiple turns and improved review context with bounded tool-result excerpts plus complete `ask` exchanges.
-- Fixed bash command timeouts being delayed by child processes holding output pipes open, while improving timeout reporting and cleanup.
-- Fixed retry countdowns and capped-wait errors displaying floating-point noise in millisecond durations.
-- Prevented browser `app.path` from terminating existing same-executable applications when no reusable CDP endpoint is available.
-- Fixed top-level errors overwriting the active composer before terminal restoration.
-- Fixed Enter being ignored during the first turn when zeta starts with an initial prompt.
-- Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
-- Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
-- Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
-- Restored mouse clicks, hover, and wheel scrolling in Plan Review.
-- Approved plan content is now inlined into approve-and-execute prompts instead of forcing the executor to re-read the durable plan file ([#10923](https://github.com/can1357/oh-my-pi/issues/10923)).
-- Fixed WorkPool child sessions crashing during startup while constructing their incremental `yield` tool schema.
-- Commit summaries written in Vietnamese, Korean, and other accented scripts are no longer rejected for exceeding the length limit, and keep their accents as typed.
-- Tool-scoped TTSR rules now match finalized arguments reliably when providers stream short or throttled tool calls ([#10910](https://github.com/can1357/oh-my-pi/issues/10910)).
-- Restored `getSupportedThinkingLevels` in the legacy `pi-ai` shim so extensions importing it from `@earendil-works/pi-ai` (e.g. `@companion-ai/feynman`) pass Bun's named-export check and load ([#10800](https://github.com/can1357/oh-my-pi/issues/10800)).
-- Fixed panel commands (such as `/usage` and `/advisor status`) appearing unresponsive during active turns by flushing the deferred-panel queue at every settle, terminal or not. The deferral itself stays silent: mounting a status line into the transcript mid-turn re-renders rows below the live block and duplicates them in native scrollback (issues #4806/#6767).
-- Fixed the bundled `ts-no-tiny-functions` rule failing to match one-line arrow functions in files with trailing newlines.
-- Fixed advisor refusals skipping the model fallback chain, and bounded refusal recovery to a single attempt per model to prevent infinite fallback loops.
-- Fixed repeated `/mcp reauth` commands getting stuck by ensuring new reauthorization requests cancel and clean up any pending MCP OAuth login flows.
-- Fixed WSL host-home resolution to build `/mnt/<drive>/...` fallback paths using POSIX semantics regardless of the host platform.
-- Fixed Python evaluation shell helpers (`!cmd`, `%%bash`, `%pip`) letting child processes inherit the runner's stdin, which previously caused deadlocks on Windows. Additionally, `%%bash` now correctly resolves Git Bash on Windows.
-- Fixed subagents spawned via model-role aliases incorrectly falling back to the `default` role's retry chain instead of their own configured role chain.
-- Fixed Linux/X11 clipboard reads failing when `xclip` is missing but `xsel` is available.
-- Hardened Linux Chromium executable detection to filter out non-executable files, invalid wrappers, and candidates that hang during version probes.
-- Fixed Bash command preview crashes caused by malformed tool arguments containing non-string environment values.
-- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
-- Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
-- 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
+- Fixed model-preset tests failing when provider credentials are configured in the environment.
+- Fixed unauthenticated Macs auto-selecting the on-device Apple model when the default prompt exceeds its context window; Apple remains selectable explicitly.
+- Fixed replay and compaction tests failing after bundled model roster changes.
+- Fixed standalone builds failing when the native addon archive could not be resolved.
+- Fixed JSON query parsing and parameter decoding for filters beginning with hyphens and other encoded query values.
+- Fixed task execution after settings could not be saved; subagents now use the current in-memory settings while the save failure is reported as a warning.
+- Fixed prewalk and model-recovery state across `/new`, handoffs, cancellations, and automatic recovery.
+- Fixed login, logout, model refresh, and provider-status reporting for aliased providers such as `openai-codex-device`.
+- Fixed model speed statistics mixing fast service-tier results into standard-tier averages; `/models` now reports the applicable tier separately.
+- Fixed the `write` and `edit` tools hanging or consuming excessive resources when given FIFOs, terminals, device files, or other non-regular targets; unsupported targets are now rejected safely.
+- Fixed long conversations losing user or tool-result images because assistant-generated images were counted against provider image limits.
+- Fixed local session paths for special session IDs such as `.` and `..` so they cannot escape the intended storage directory.
+- Fixed `omp gc --archive --apply` leaving orphaned session-title records behind.
+- Fixed `/retry` after an interrupted process exit while an extension-driven prompt was reopening.
+- Fixed browser relay sessions failing to discover or interact with cross-origin iframe content that loaded before the tab was opened.
+- Fixed browser clicks on visually styled radios and checkboxes whose underlying inputs are hidden.
+- Fixed `/model` failing to switch when selecting the model already assigned to a project's default role.
+- Fixed `wait` returning early when a background completion had already been consumed by another operation.
+- Fixed symlinked routing configurations failing to reload after their target links were replaced.
+- Fixed repeated coding-plan fallback confirmations in cases involving changing thinking settings, unavailable quota information, or account recovery.
+- Fixed Python evaluation failing when a shared runner temporary directory was created by another user.
+- Fixed RPC clients being unable to complete multi-select questions in multi-question `ask` prompts.
+- Corrected inaccurate tool and setting descriptions, including `read` ranges, background `bash` behavior, Python evaluation capabilities, edit replacement guidance, goal removal behavior, and `advisor.immuneTurns`.
+- Fixed custom glob backends hanging indefinitely; scans now honor tool deadlines and cancellation.
+- Fixed `--resume <path>` silently creating a new session when the specified path did not exist; it now reports the missing path.
+- Fixed `/settings` opening duplicate menus when invoked while the settings menu was already open.
+- Fixed native Git operations resolving repositories incorrectly when run through symbolic links.
 
-## [1.1.26] - 2026-10-03
+1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
 
@@ -228,3 +198,4 @@
 - Fixed browser reuse for Chromium installed behind Linux wrapper scripts and prevented duplicate launches when a profile is locked ([#12236](https://github.com/can1357/oh-my-pi/pull/12236) by [@shivamklr](https://github.com/shivamklr)).
 
 Older entries are archived in [packages/coding-agent/CHANGELOG.md@5ae2ef3569ca](https://github.com/can1357/oh-my-pi/blob/5ae2ef3569ca9299b7eb101ad7ef0d316d30f551/packages/coding-agent/CHANGELOG.md).
+Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](https://github.com/can1357/oh-my-pi/blob/1e3cc3ab94d05617e79fb12d95711d58161747d3/packages/coding-agent/CHANGELOG.md).

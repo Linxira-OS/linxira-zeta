@@ -244,7 +244,7 @@ export class WelcomeComponent implements Component {
 							builtin: "zeta",
 							alt: APP_NAME,
 							w: 128,
-							role: "zeta.welcome.logo",
+							role: "omp.welcome.logo",
 						},
 						undefined,
 						"logo",
@@ -265,7 +265,7 @@ export class WelcomeComponent implements Component {
 		const shortcut = (key: string, label: string): NativeNode =>
 			keyed(row([kbd(key), line([span(label, "muted")])], { gap: "sm" }), label);
 		const info: NativeChild[] = [
-			line([span(this.version, "dim mono")], "zeta.welcome.version"),
+			line([span(this.version, "dim mono")], "omp.welcome.version"),
 			section("tips", "Tips", [
 				shortcut("#", "prompt actions"),
 				shortcut("/", "commands"),
@@ -340,14 +340,14 @@ export class WelcomeComponent implements Component {
 			const isNew = NEW_TIP_MARKER.test(tip);
 			const tipText = plainLine(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
 			const tipRow: NativeChild[] = [
-				node("icon", { name: "lightbulb", role: "zeta.welcome.tip-icon" }),
-				text(tipText, { wrap: "word", role: "zeta.welcome.tip-text" }),
+				node("icon", { name: "lightbulb", role: "omp.welcome.tip-icon" }),
+				text(tipText, { wrap: "word", role: "omp.welcome.tip-text" }),
 			];
-			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "zeta.welcome.new" }));
-			body.push(node("row", { gap: "sm", align: "start", role: "zeta.welcome.tip" }, tipRow, "tip"));
+			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "omp.welcome.new" }));
+			body.push(node("row", { gap: "sm", align: "start", role: "omp.welcome.tip" }, tipRow, "tip"));
 		}
 		// No head row or chevron: the card is the hero; the version sits in the info column.
-		const described = card({ role: "zeta.welcome" }, body);
+		const described = card({ role: "omp.welcome" }, body);
 		this.#native = { tip, node: described };
 		return described;
 	}
@@ -692,7 +692,7 @@ export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode
 				wrap: "none",
 			}),
 		),
-		{ align: "center", role: "zeta.setup.logo" },
+		{ align: "center", role: "omp.setup.logo" },
 	);
 }
 

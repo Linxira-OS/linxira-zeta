@@ -27,6 +27,10 @@ import { type ServedModelMismatch, ServedModelMarkerComponent } from "./served-m
 import { isReactionTarget, type ReactionSplit, type ReactionTarget, splitReaction } from "./reaction";
 import { isRowPrefix, type TranscriptStableRow, trimBlankEdges } from "../chrome/transcript-container";
 import { formatTurnUsage, type TurnUsageSummary } from "../overlays/usage-row";
+import { FigureMarkdown } from "./figure-markdown";
+import { svgFigureRendering } from "./svg-figure";
+import { hasSvgFence } from "./svg-source";
+import { describeTableChart, hasChartTable, lookupTableChart, splitTableCharts } from "./table-chart";
 
 /**
  * Max wrapped rows of a turn-ending provider error rendered inline in the
@@ -46,6 +50,15 @@ function thoughtLabel(clock: { start: number; end?: number } | undefined): strin
 }
 
 type ThinkingContentBlock = Extract<AssistantMessage["content"][number], { type: "thinking" }>;
+/** Renders one text or thinking block: Markdown, or {@link FigureMarkdown} for text holding a ```svg fence. */
+type ProseBlock = Markdown | FigureMarkdown;
+/** A streamed block the fast path updates in place. */
+interface FastPathItem {
+	md: ProseBlock;
+	contentIndex: number;
+	blockType: "text" | "thinking";
+	lastText: string;
+}
 type DisplayThinkingContentBlock = ThinkingContentBlock & { rawThinking?: string };
 type StablePartKind = "thinking" | "text";
 type StablePart = { kind: StablePartKind; text: string } | { kind: "spacer" };
@@ -230,7 +243,7 @@ export class AssistantMessageComponent extends Container {
 	#cacheMarker?: CacheInvalidationMarkerComponent;
 	#servedModelMarker?: ServedModelMarkerComponent;
 	#lastMessage?: AssistantMessage;
-	#emergencyText?: Markdown;
+	#emergencyText?: ProseBlock;
 	#toolImagesByCallId = new Map<string, ImageContent[]>();
 	/**
 	 * Payload keys ({@link imagePayloadKey}) whose Kitty PNG conversion this
@@ -246,6 +259,8 @@ export class AssistantMessageComponent extends Container {
 	#kittyConverted = new Map<string, ImageContent>();
 	#showImages = true;
 	#showToolResultImages = true;
+	/** Charts under numeric tables; off for subagent transcripts. */
+	#showTableCharts = true;
 	#transcriptBlockFinalized: boolean;
 	/** See {@link setMidStreamPublication}; the wire's `stream-revision` axis decides it. */
 	#midStreamPublication = true;
@@ -293,9 +308,13 @@ export class AssistantMessageComponent extends Container {
 	#lastUpdateTransient = false;
 	// Fast-path state: reuse Markdown children when message shape is stable during streaming.
 	#fastPathKey: string | undefined;
-	#fastPathItems:
-		| Array<{ md: Markdown; contentIndex: number; blockType: "text" | "thinking"; lastText: string }>
-		| undefined;
+	#fastPathItems: FastPathItem[] | undefined;
+	/**
+	 * Text blocks whose ```svg fences are lifted into figures, by content index.
+	 * Kept across slow-path rebuilds so a figure keeps its raster (and its
+	 * in-flight one) instead of starting over on every update.
+	 */
+	#figureBlocks = new Map<number, FigureMarkdown>();
 	/** Live "thinking" pulse shown in place of a hidden thinking block while it
 	 *  streams; undefined when not animating. Driven by {@link #thinkingDotsTimer}. */
 	#thinkingDots: Text | undefined;
@@ -356,6 +375,8 @@ export class AssistantMessageComponent extends Container {
 	/** Markdown nodes by key, reused while their text and streaming flag are unchanged. */
 	#nativeParts = new Map<string, { text: string; stream: boolean; node: NativeNode }>();
 	readonly #nativeImages = new NativeImageCache();
+	/** Smart table chart picks a TSP describe is waiting on. */
+	readonly #chartPicks = new Set<Promise<void>>();
 
 	setTextColorTransform(transform?: (text: string) => string): void {
 		this.#textColorTransform = transform;
@@ -387,6 +408,7 @@ export class AssistantMessageComponent extends Container {
 		this.#markdownTheme = undefined;
 		this.#fastPathKey = undefined;
 		this.#fastPathItems = undefined;
+		for (const block of this.#figureBlocks.values()) block.restyle();
 		if (this.#lastMessage) {
 			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
 		}
@@ -537,6 +559,7 @@ export class AssistantMessageComponent extends Container {
 		this.#markdownTheme = undefined;
 		this.#fastPathKey = undefined;
 		this.#fastPathItems = undefined;
+		for (const block of this.#figureBlocks.values()) block.restyle();
 		if (this.#lastMessage) {
 			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
 		}
@@ -713,6 +736,12 @@ export class AssistantMessageComponent extends Container {
 		return this.#transcriptBlockFinalized;
 	}
 
+	/** Whether a figure still waits for the raster of its final source; the transcript holds retirement meanwhile. */
+	isTranscriptBlockPending(): boolean {
+		for (const block of this.#figureBlocks.values()) if (block.pending) return true;
+		return false;
+	}
+
 	override render(width: number): readonly string[] {
 		const rows = super.render(width);
 		this.#publishStableSnapshot(rows, width);
@@ -806,7 +835,25 @@ export class AssistantMessageComponent extends Container {
 				const content = message.content[index]!;
 				const streaming = live && index === tailIndex;
 				if (content.type === "text" && canonicalizeMessage(content.text)) {
-					children.push(markdown(`t${index}`, `t${index}`, content.text.trim(), streaming));
+					const source = content.text.trim();
+					if (!this.#showImages || !this.#showTableCharts || !hasChartTable(source)) {
+						children.push(markdown(`t${index}`, `t${index}`, source, streaming));
+						continue;
+					}
+					// A chart follows its table as an SVG image node; the prose splits around it.
+					const segments = splitTableCharts(source, streaming);
+					segments.forEach((segment, part) => {
+						const slot = part === 0 ? `t${index}` : `t${index}.${part}`;
+						if (segment.kind === "markdown") {
+							children.push(
+								markdown(slot, slot, segment.text.trim(), streaming && part === segments.length - 1),
+							);
+							return;
+						}
+						const chart = lookupTableChart(segment.table);
+						if (chart instanceof Promise) this.#awaitChart(chart);
+						else if (chart) children.push(describeTableChart(chart, slot));
+					});
 				} else if (content.type === "thinking") {
 					const display = resolveThinkingDisplay(content, this.#proseOnlyThinking);
 					if (!display.visible) continue;
@@ -828,7 +875,7 @@ export class AssistantMessageComponent extends Container {
 								"row",
 								{ gap: "sm", title },
 								[
-									node("spinner", { style: "starburst", role: "zeta.thinking.spin" }),
+									node("spinner", { style: "starburst", role: "omp.thinking.spin" }),
 									text([span("Thinking…", "muted")]),
 									elapsed(performance.now() - (this.#thinkingClock.get(index)?.start ?? performance.now())),
 									...(rate >= 0.05 ? [node("rate", { value: rate, unit: "tok/s" })] : []),
@@ -842,7 +889,7 @@ export class AssistantMessageComponent extends Container {
 							"section",
 							{
 								// `.live` while streaming: the body clamps to its tail under a fade.
-								role: thinkingLive ? "zeta.thinking.live" : "zeta.thinking",
+								role: thinkingLive ? "omp.thinking.live" : "omp.thinking",
 								collapsible: true,
 								// Open while it streams; a finished thought folds to its "Thought for 12s" line unless the user keeps thinking expanded.
 								collapsed:
@@ -876,7 +923,7 @@ export class AssistantMessageComponent extends Container {
 			children.push(
 				node(
 					"badge",
-					{ text: "↺ rewound", tone: "muted", role: "zeta.assistant.rewound-tag" },
+					{ text: "↺ rewound", tone: "muted", role: "omp.assistant.rewound-tag" },
 					undefined,
 					"rewound",
 				),
@@ -887,7 +934,7 @@ export class AssistantMessageComponent extends Container {
 			children.push(
 				node(
 					"row",
-					{ role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title },
+					{ role: "omp.turn.usage", gap: "xs", align: "center", title: usage.title },
 					[
 						node("icon", { name: "time" }, undefined, "icon"),
 						node("text", { text: usage.text }, undefined, "text"),
@@ -896,7 +943,7 @@ export class AssistantMessageComponent extends Container {
 				),
 			);
 		}
-		return col(children, { role: this.#rewound ? "zeta.assistant.rewound" : "zeta.assistant" });
+		return col(children, { role: this.#rewound ? "omp.assistant.rewound" : "omp.assistant" });
 	}
 
 	/**
@@ -916,7 +963,7 @@ export class AssistantMessageComponent extends Container {
 			return node(
 				"section",
 				{
-					role: "zeta.assistant.recovered",
+					role: "omp.assistant.recovered",
 					head: [span(`↻ Recovered after ${attempt} ${attempt === 1 ? "retry" : "retries"}`, "muted")],
 					collapsible: true,
 					collapsed: true,
@@ -928,7 +975,7 @@ export class AssistantMessageComponent extends Container {
 		if (presentation.kind !== "full" || message.content.some(content => content.type === "toolCall"))
 			return undefined;
 		if (message.stopReason === "aborted") {
-			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "zeta.assistant.abort" });
+			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "omp.assistant.abort" });
 		}
 		const lines = presentation.text
 			.split("\n")
@@ -946,14 +993,14 @@ export class AssistantMessageComponent extends Container {
 				{ gap: "sm" },
 				[
 					text([span("Request failed", "error strong")]),
-					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "zeta.error.code" })] : []),
+					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "omp.error.code" })] : []),
 				],
 				"head",
 			),
 			text([span(errorText, "mono")], {
 				wrap: "word",
 				lines: this.#errorExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
-				role: "zeta.error.message",
+				role: "omp.error.message",
 				key: "message",
 			}),
 		];
@@ -961,14 +1008,14 @@ export class AssistantMessageComponent extends Container {
 			const button = (act: string, label: string, keys: readonly string[], title: string): NativeNode =>
 				node(
 					"row",
-					{ gap: "xs", role: "zeta.error.action", actions: { click: act }, title },
+					{ gap: "xs", role: "omp.error.action", actions: { click: act }, title },
 					keys.length > 0 ? [text(label), node("kbd", { keys })] : [text(label)],
 					act,
 				);
 			children.push(
 				node(
 					"row",
-					{ gap: "sm", role: "zeta.error.actions" },
+					{ gap: "sm", role: "omp.error.actions" },
 					[
 						button("retry", "Retry", ["F5"], "Retry the failed turn"),
 						button("copy-error", "Copy error", [], "Copy the error message"),
@@ -979,7 +1026,7 @@ export class AssistantMessageComponent extends Container {
 			);
 		}
 		this.#errorText = errorText;
-		return card({ role: "zeta.error", tone: "error", key: "error" }, children);
+		return card({ role: "omp.error", tone: "error", key: "error" }, children);
 	}
 
 	/** Error frame action clicks: zeta's own retry, clipboard and model-picker paths. */
@@ -1089,12 +1136,18 @@ export class AssistantMessageComponent extends Container {
 		for (const child of this.#contentContainer.children) {
 			const item = items[itemIndex];
 			if (item?.md === child) {
+				const md = item.md;
+				if (md instanceof FigureMarkdown) {
+					// Plain Markdown reproduces only the prose ahead of the first figure.
+					if (md.leadingProse) parts.push({ kind: item.blockType, text: md.leadingProse });
+					break;
+				}
 				if (itemIndex === items.length - 1) {
 					// Streaming child: publish Markdown's frozen prefix, and only
 					// once non-blank content exists past it — the block's last
 					// non-blank line is still being written (thinking's prose fold
 					// may rewrite it) and must stay out of published bytes.
-					const raw = item.md.getLastRenderStableText();
+					const raw = md.getLastRenderStableText();
 					const frozen = raw.trim();
 					if (frozen.length > 0 && /\S/.test(item.lastText.slice(raw.length))) {
 						parts.push({ kind: item.blockType, text: frozen });
@@ -1122,7 +1175,7 @@ export class AssistantMessageComponent extends Container {
 	/**
 	 * Render the first `partCount` stable parts, the final one cut to
 	 * `lastLength`. Rows match fresh Markdown renders of each part byte for
-	 * byte — {@link #createStableMarkdown} mirrors the live children — but a
+	 * byte — {@link #createMarkdown} builds the live children too — but a
 	 * closed part renders once per width, and the growing final part reuses one
 	 * Markdown instance so its already-frozen blocks are not re-lexed.
 	 */
@@ -1172,7 +1225,7 @@ export class AssistantMessageComponent extends Container {
 		// Trim like the live children, dropping the trailing blank line a frozen
 		// prefix still carries.
 		const trimmed = text.trim();
-		if (this.#transcriptBlockFinalized) return this.#createStableMarkdown(kind, trimmed).render(width);
+		if (this.#transcriptBlockFinalized) return this.#createMarkdown(kind, trimmed).render(width);
 		const head = this.#stableHeadRenderer;
 		const replay = this.#stableReplayRenderer;
 		const renderer = role === "head" ? head : role === "replay" ? replay : head?.index === index ? head : replay;
@@ -1180,14 +1233,14 @@ export class AssistantMessageComponent extends Container {
 			renderer.md.setText(trimmed);
 			return renderer.md.render(width);
 		}
-		const md = this.#createStableMarkdown(kind, trimmed);
+		const md = this.#createMarkdown(kind, trimmed);
 		if (role === "head") this.#stableHeadRenderer = { index, kind, md };
 		else if (role === "replay") this.#stableReplayRenderer = { index, kind, md };
 		return md.render(width);
 	}
 
-	/** Constructor args mirror the live child Markdown so stable rows prefix the block render. */
-	#createStableMarkdown(kind: StablePartKind, text: string): Markdown {
+	/** Markdown for a text or thinking block; live children and stable-row renders share it so stable rows prefix the block render. */
+	#createMarkdown(kind: StablePartKind, text: string): Markdown {
 		return kind === "text"
 			? new Markdown(
 					text,
@@ -1201,6 +1254,58 @@ export class AssistantMessageComponent extends Container {
 					color: (value: string) => theme.fg("thinkingText", value),
 					italic: true,
 				});
+	}
+
+	/**
+	 * Whether `text` holds a ```svg fence this terminal draws as a figure, or a
+	 * table it draws a chart under. Native (TSP) terminals receive the fence
+	 * verbatim in the `md` node and draw it themselves, and get charts as image
+	 * nodes from {@link describe}; image-less terminals keep fences as code and
+	 * tables as tables.
+	 */
+	#liftsFigures(text: string): boolean {
+		return (
+			this.#showImages &&
+			TERMINAL.imageProtocol !== null &&
+			!isNativeRendering() &&
+			((svgFigureRendering() && hasSvgFence(text)) || (this.#showTableCharts && hasChartTable(text)))
+		);
+	}
+
+	/** Re-describe once a smart table chart pick lands. */
+	#awaitChart(pick: Promise<void>): void {
+		if (this.#chartPicks.has(pick)) return;
+		this.#chartPicks.add(pick);
+		void pick.then(() => {
+			this.#chartPicks.delete(pick);
+			this.#blockVersion++;
+			this.#onImageUpdate?.();
+		});
+	}
+
+	/**
+	 * The component for text block `index`: Markdown, or a {@link FigureMarkdown}
+	 * when it holds a ```svg fence to lift or a table to chart — taken over from
+	 * `previous` so its figures keep their rasters across rebuilds.
+	 */
+	#proseBlock(index: number, text: string, previous: ReadonlyMap<number, FigureMarkdown>): ProseBlock {
+		if (!this.#liftsFigures(text)) return this.#createMarkdown("text", text);
+		let block = previous.get(index);
+		if (block) {
+			block.setText(text);
+		} else {
+			block = new FigureMarkdown(text, {
+				markdown: value => this.#createMarkdown("text", value),
+				charts: this.#showTableCharts,
+				budget: this.#imageBudget,
+				onChange: () => {
+					this.#blockVersion++;
+					this.#onImageUpdate?.();
+				},
+			});
+		}
+		this.#figureBlocks.set(index, block);
+		return block;
 	}
 
 	#stableLedger(width: number): StableRowLedger {
@@ -1317,6 +1422,18 @@ export class AssistantMessageComponent extends Container {
 	setImagesVisible(visible: boolean): void {
 		if (this.#showImages === visible) return;
 		this.#showImages = visible;
+		if (this.#lastMessage) {
+			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
+		}
+	}
+
+	/** Toggle charts under numeric tables (the main session's transcript only, never a subagent's). */
+	setTableChartsVisible(visible: boolean): void {
+		if (this.#showTableCharts === visible) return;
+		this.#showTableCharts = visible;
+		// Figure blocks bake the switch in; rebuild them rather than reuse.
+		for (const block of this.#figureBlocks.values()) block.dispose();
+		this.#figureBlocks.clear();
 		if (this.#lastMessage) {
 			this.updateContent(this.#lastMessage, { transient: this.#lastUpdateTransient });
 		}
@@ -1440,7 +1557,9 @@ export class AssistantMessageComponent extends Container {
 		];
 		for (const content of message.content) {
 			if (content.type === "text") {
-				parts.push(canonicalizeMessage(content.text) ? "T1" : "T0");
+				parts.push(
+					!canonicalizeMessage(content.text) ? "T0" : this.#liftsFigures(content.text.trim()) ? "TF" : "T1",
+				);
 			} else if (content.type === "thinking") {
 				if (this.#hideThinkingBlock) {
 					// Match the pulse's empty/nonempty transition without formatting hidden text.
@@ -1601,9 +1720,9 @@ export class AssistantMessageComponent extends Container {
 
 		// Determine if we should capture Markdown instances for next fast path
 		const shouldCapture = this.#canFastPath(message);
-		const captureItems:
-			| Array<{ md: Markdown; contentIndex: number; blockType: "text" | "thinking"; lastText: string }>
-			| undefined = shouldCapture ? [] : undefined;
+		const captureItems: FastPathItem[] | undefined = shouldCapture ? [] : undefined;
+		const previousFigures = this.#figureBlocks;
+		this.#figureBlocks = new Map();
 
 		const hasVisibleContent = message.content.some(
 			c =>
@@ -1622,8 +1741,7 @@ export class AssistantMessageComponent extends Container {
 			if (content.type === "text" && canonicalizeMessage(content.text)) {
 				// Set paddingY=0 to avoid extra spacing before tool executions
 				const trimmed = content.text.trim();
-				const mdOptions = this.#textColorTransform ? { color: this.#textColorTransform } : undefined;
-				const md = new Markdown(trimmed, 1, 0, this.#getProseTheme(), mdOptions, 0);
+				const md = this.#proseBlock(i, trimmed, previousFigures);
 				this.#contentContainer.addChild(md);
 				this.#emergencyText = md;
 				captureItems?.push({ md, contentIndex: i, blockType: "text", lastText: trimmed });
@@ -1648,10 +1766,7 @@ export class AssistantMessageComponent extends Container {
 					);
 
 				// Thinking traces in thinkingText color, italic
-				const md = new Markdown(thinkingText, 1, 0, getMarkdownTheme(), {
-					color: (text: string) => theme.fg("thinkingText", text),
-					italic: true,
-				});
+				const md = this.#createMarkdown("thinking", thinkingText);
 				md.transientRenderCache = this.#lastUpdateTransient;
 				this.#contentContainer.addChild(md);
 				captureItems?.push({ md, contentIndex: i, blockType: "thinking", lastText: thinkingText });
@@ -1665,6 +1780,9 @@ export class AssistantMessageComponent extends Container {
 				this.#renderImageEntries([{ image: content, key: `native:${i}` }], hasRenderedContent);
 				hasRenderedContent ||= this.#showImages;
 			}
+		}
+		for (const [index, block] of previousFigures) {
+			if (this.#figureBlocks.get(index) !== block) block.dispose();
 		}
 
 		if (this.#shouldAnimateThinking(message)) {

@@ -204,7 +204,7 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 				const at = new Date(this.#timestamp);
 				tools.push(
 					text([span(at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")], {
-						role: "zeta.user.time",
+						role: "omp.user.time",
 						title: at.toLocaleString([], { hour12 }),
 					}),
 				);
@@ -212,19 +212,19 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 			tools.push(
 				// `copy-message`, not Tern's local `copy` (that would copy the label).
 				text("Copy", {
-					role: "zeta.user.tool",
+					role: "omp.user.tool",
 					actions: { click: "copy-message" },
 					title: "Copy message",
 					key: "copy",
 				}),
 				text("Rewind", {
-					role: "zeta.user.tool",
+					role: "omp.user.tool",
 					actions: { click: "rewind" },
 					title: "Rewind the conversation to an earlier message",
 					key: "rewind",
 				}),
 			);
-			children.push(node("row", { gap: "xs", role: "zeta.user.tools" }, tools, "tools"));
+			children.push(node("row", { gap: "xs", role: "omp.user.tools" }, tools, "tools"));
 		}
 		// Videos keep their chip only: the native image node decodes stills.
 		const thumbs: NativeNode[] = [];
@@ -239,7 +239,7 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 			});
 		}
 		if (thumbs.length > 0) {
-			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "zeta.user.images" }));
+			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "omp.user.images" }));
 		}
 		const marks = this.#synthetic ? [] : tokenMarks(this.#text, this.#tokens);
 		children.push(md(this.#text, marks.length > 0 ? { marks } : undefined));
@@ -253,11 +253,11 @@ export class UserMessageComponent extends Container implements ReactionTarget {
 				}),
 			);
 		}
-		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "zeta.reaction" }));
+		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "omp.reaction" }));
 		if (badges.length > 0)
-			children.push(node("row", { gap: "xs", justify: "end", role: "zeta.user.badges" }, badges, "badges"));
+			children.push(node("row", { gap: "xs", justify: "end", role: "omp.user.badges" }, badges, "badges"));
 		this.#native = card(
-			{ role: this.#synthetic ? "zeta.user.synthetic" : "zeta.user", tone: this.#synthetic ? "muted" : "user" },
+			{ role: this.#synthetic ? "omp.user.synthetic" : "omp.user", tone: this.#synthetic ? "muted" : "user" },
 			children,
 		);
 		return this.#native;
@@ -400,7 +400,7 @@ export class CollapsedSyntheticMessageComponent implements Component {
 		return this.#native.get([this.#expanded], () =>
 			card(
 				{
-					role: "zeta.user.synthetic",
+					role: "omp.user.synthetic",
 					tone: "muted",
 					head: [span(summarizeSyntheticInput(this.#text), "dim")],
 					collapsible: true,

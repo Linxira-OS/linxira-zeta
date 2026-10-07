@@ -201,6 +201,8 @@ export class AgentTranscriptViewer implements Component {
 			hideThinkingBlock: deps.hideThinkingBlock,
 			proseOnlyThinking: deps.proseOnlyThinking,
 			expandThinkingBlocks: deps.expandThinkingBlocks,
+			// Charts are for the main session's answers, not parked subagent, advisor, or guest transcripts.
+			tableCharts: false,
 			requestRender: deps.requestRender,
 		});
 		this.#browser = new TranscriptBrowser({
@@ -699,7 +701,7 @@ export class AgentTranscriptViewer implements Component {
 			]),
 		);
 		const head = [span("Agent Hub", "accent"), span(` ${theme.sep.dot} `, "dim"), span(id, "accent")];
-		const described = overlayCard("zeta.hub.transcript", head, children);
+		const described = overlayCard("omp.hub.transcript", head, children);
 		this.#nativeCache = { signature, node: described };
 		return described;
 	}

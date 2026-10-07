@@ -13,8 +13,9 @@
  * Focus regions (`toc`/`body`/`actions`) cycle with Tab/Shift+Tab; arrows move
  * within the focused region and step left into the sidebar. The default focus is
  * `actions`, so the muscle memory of the old single-target overlay carries over:
- * ↑/↓ select options, Enter confirms, ←/→ drives the slider when there is no
- * sidebar, g/G + PgUp/PgDn scroll, and the external-editor key opens the plan.
+ * ↑/↓ select options, Enter confirms, ←/→ drives the slider, g/G + PgUp/PgDn
+ * scroll, and the external-editor key opens the plan. Under Tern the options
+ * are a horizontal bar, so ←/→ select options and Shift+←/→ drive the slider.
  */
 import {
 	type Component,
@@ -58,6 +59,7 @@ import type { KeyName } from "../key-hint-format";
 import { col, item, keyed, md, node, row as rowNode, span, text } from "../native/describe";
 import { leafKey, type NativeChild, type NativeNode, type NativeUiEvent } from "../native/node";
 import { actionButton, actionHint, hintsRow, itemIndex, type NativeHint, selectList } from "../native/overlay";
+import { isNativeRendering } from "../native/state";
 import { getKeybindings } from "../keybindings";
 
 /** Title shown in the overlay's top border. */
@@ -666,6 +668,10 @@ export class PlanReviewOverlay implements Component {
 	}
 
 	#handleActions(data: string): void {
+		if (isNativeRendering()) {
+			this.#handleNativeActions(data);
+			return;
+		}
 		// Left/right always drive the slider. The sidebar sits beside the body
 		// (above this row), not the slider, so stealing left for it would strand
 		// the operator unable to step the model tier back — reach the ToC via Tab.
@@ -688,6 +694,37 @@ export class PlanReviewOverlay implements Component {
 			this.#moveSelection(1);
 			return;
 		}
+		if (matchesKey(data, "enter") || matchesKey(data, "return") || data === "\n") {
+			this.#confirmSelection();
+			return;
+		}
+		this.#handleBodyScroll(data);
+	}
+
+	/** Tern lays the options out as a horizontal decision bar: ←/→ step through
+	 *  it, ↑ returns to the body above, and the model slider moves to Shift+←/→. */
+	#handleNativeActions(data: string): void {
+		if (matchesKey(data, "shift+left")) {
+			this.#moveSlider(-1);
+			return;
+		}
+		if (matchesKey(data, "shift+right")) {
+			this.#moveSlider(1);
+			return;
+		}
+		if (matchesKey(data, "left") || matchesKey(data, "h")) {
+			this.#moveSelection(-1);
+			return;
+		}
+		if (matchesKey(data, "right") || matchesKey(data, "l")) {
+			this.#moveSelection(1);
+			return;
+		}
+		if (matchesSelectUp(data) || matchesKey(data, "k")) {
+			this.#setFocus("body");
+			return;
+		}
+		if (matchesSelectDown(data) || matchesKey(data, "j")) return;
 		if (matchesKey(data, "enter") || matchesKey(data, "return") || data === "\n") {
 			this.#confirmSelection();
 			return;
@@ -1435,7 +1472,7 @@ export class PlanReviewOverlay implements Component {
 			: content.body;
 		const bodyCol = node(
 			"col",
-			{ role: "zeta.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
+			{ role: "omp.plan.body", grow: 1, gap: "md", tone: this.#focus === "body" ? "accent" : undefined },
 			content.body,
 			"body",
 		);
@@ -1443,7 +1480,7 @@ export class PlanReviewOverlay implements Component {
 			const tocSection = this.#toc[this.#tocCursor];
 			const toc = selectList("toc", content.toc, {
 				selected: tocSection === undefined ? null : `h${tocSection}`,
-				role: "zeta.plan.toc",
+				role: "omp.plan.toc",
 				tone: this.#focus === "toc" ? "accent" : undefined,
 			});
 			const sidebar = node("col", { max: { w: "32ch" }, shrink: 0 }, [toc], "sidebar");
@@ -1452,7 +1489,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(bodyCol);
 		}
 		if (this.#promptTitle) {
-			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "zeta.plan.prompt" }), "prompt"));
+			children.push(keyed(text([span(this.#promptTitle, "muted")], { role: "omp.plan.prompt" }), "prompt"));
 		}
 		if (this.#committed) {
 			const label = this.#committedLabel ? `${this.#committedLabel} — submitting…` : "Submitting…";
@@ -1478,7 +1515,7 @@ export class PlanReviewOverlay implements Component {
 			children.push(
 				selectList("options", optionItems, {
 					selected: this.#selectedIndex >= 0 ? `o${this.#selectedIndex}` : null,
-					role: "zeta.plan.options",
+					role: "omp.plan.options",
 					tone: this.#focus === "actions" ? "accent" : undefined,
 				}),
 			);
@@ -1504,7 +1541,7 @@ export class PlanReviewOverlay implements Component {
 			buttons.push(actionButton("Edit in $EDITOR", "externalEditor", editorKeyId ? { keys: editorKeyId } : {}));
 		}
 		if (buttons.length === 0) return undefined;
-		return node("row", { role: "zeta.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
+		return node("row", { role: "omp.plan.tools", gap: "sm", align: "center", justify: "end" }, buttons, "tools");
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
@@ -1582,7 +1619,7 @@ export class PlanReviewOverlay implements Component {
 					note.push(text([span(annotation.target.context, "muted")], { truncate: "end", lines: 1 }));
 				}
 				note.push(text(sanitizeText(annotation.note), { wrap: "word" }));
-				children.push(node("col", { role: "zeta.plan.note", gap: "xs" }, note, `n${n}`));
+				children.push(node("col", { role: "omp.plan.note", gap: "xs" }, note, `n${n}`));
 			}
 			body.push(keyed(col(children, { gap: "sm" }), key));
 		}
@@ -1592,7 +1629,7 @@ export class PlanReviewOverlay implements Component {
 			return item(`h${sectionIndex}`, {
 				label: section.title || "(untitled)",
 				value: count > 0 ? [span(`✎${count}`, "warning")] : undefined,
-				role: `zeta.plan.toc.depth${section.level - this.#tocBaseLevel}`,
+				role: `omp.plan.toc.depth${section.level - this.#tocBaseLevel}`,
 			});
 		});
 		this.#nativeContent = { sections: this.#sections, rev: this.#annotationRev, body, toc };
@@ -1608,7 +1645,7 @@ export class PlanReviewOverlay implements Component {
 				items: slider.segments.map((segment, i) => ({ id: `t${i}`, label: segment.label })),
 				active: `t${this.#sliderIndex}`,
 				actions: { click: "select" },
-				role: "zeta.plan.strategy",
+				role: "omp.plan.strategy",
 			},
 			undefined,
 			"tabs",
@@ -1660,7 +1697,7 @@ export class PlanReviewOverlay implements Component {
 			return [
 				node(
 					"col",
-					{ role: "zeta.plan.feedback", gap: "xs" },
+					{ role: "omp.plan.feedback", gap: "xs" },
 					[
 						keyed(
 							text([span("Note on ", "muted"), span(location, "accent")], { truncate: "end" }),
@@ -1686,8 +1723,8 @@ export class PlanReviewOverlay implements Component {
 		const hints: (NativeHint | undefined)[] = [];
 		switch (this.#focus) {
 			case "actions":
-				hints.push(upDown("select"), key("enter", "confirm"));
-				if (this.#slider) hints.push(key(["left", "right"], "model"));
+				hints.push(key(["left", "right"], "select"), key("enter", "confirm"));
+				if (this.#slider) hints.push(key(["shift+left", "shift+right"], "model"));
 				break;
 			case "toc":
 				hints.push(

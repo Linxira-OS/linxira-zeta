@@ -69,6 +69,7 @@ import {
 } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { M } from "../i18n";
+import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
 import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
@@ -207,9 +208,9 @@ import {
 	initTerminalTitleState,
 	popTerminalTitle,
 	pushTerminalTitle,
-	reportTernSessionFile,
+	reportTernSession,
 	setSessionTerminalTitle,
-	setTerminalSessionFileSource,
+	setTerminalSessionSource,
 	setTerminalTitlePullRequest,
 	setTerminalTitleSpinnerStyle,
 	setTerminalTitleStateEnabled,
@@ -221,6 +222,8 @@ import {
 	VibeSessionRegistry,
 } from "../vibe/runtime";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { setSvgFigureRendering } from "@linxiraos/pi-tui/chat/svg-figure";
+import { setTableCharts } from "@linxiraos/pi-tui/chat/table-chart";
 import { setTranscriptActionHandler } from "@linxiraos/pi-tui/chat/transcript-actions";
 import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
 import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
@@ -364,8 +367,10 @@ import {
 	cfgTuiHyperlinks,
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
+	cfgTuiAutoGraph,
 	cfgTuiMouse,
 	cfgTuiRenderMermaid,
+	cfgTuiRenderSvg,
 	cfgTuiResizeScrollback,
 	cfgTuiTextSizing,
 	cfgTuiTight,
@@ -432,6 +437,8 @@ const cfgLiveUiSettings = combine({
 	"display.showTokenUsage": cfgDisplayShowTokenUsage,
 	"display.showTurnTime": cfgDisplayShowTurnTime,
 	"tui.renderMermaid": cfgTuiRenderMermaid,
+	"tui.renderSvg": cfgTuiRenderSvg,
+	"tui.autoGraph": cfgTuiAutoGraph,
 	"tui.textSizing": cfgTuiTextSizing,
 	"tui.tight": cfgTuiTight,
 	"tui.hyperlinks": cfgTuiHyperlinks,
@@ -722,7 +729,7 @@ interface RunningPillSpec {
 function describeRunningPill(spec: RunningPillSpec, running: number): NativeNode {
 	return node(
 		"row",
-		{ role: "zeta.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
+		{ role: "omp.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
 		[
 			node("icon", { name: spec.icon }, undefined, "icon"),
 			node("spinner", { style: "dots", tone: "accent" }, undefined, "spinner"),
@@ -791,7 +798,7 @@ class DeferredCommandPreview implements Component {
 				col(this.items, { max: { h: `${this.maxRows}lines` } }),
 				text([span(`${queued} — shown in full in the transcript when the agent pauses`, "dim")]),
 			],
-			{ role: "zeta.hud.deferred" },
+			{ role: "omp.hud.deferred" },
 		);
 		return this.#native;
 	}
@@ -1405,7 +1412,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#hudPillsNative;
 		if (memo && sameItems(memo.children, children)) return memo.node;
 		const described = row(children, {
-			role: "zeta.hud",
+			role: "omp.hud",
 			justify: "end",
 			gap: "sm",
 			hidden: children.length === 0 || undefined,
@@ -1427,11 +1434,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#statusHudNative;
 		if (memo && memo.todo === todo && memo.slot === slot && sameItems(memo.children, children)) return memo.node;
 		const parts: NativeChild[] = [];
-		if (children.length > 0) parts.push(node("col", { role: "zeta.hud.status" }, children.slice(), "status"));
+		if (children.length > 0) parts.push(node("col", { role: "omp.hud.status" }, children.slice(), "status"));
 		if (todo) parts.push(todo);
 		if (slot) parts.push(slot);
 		const described =
-			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "zeta.hud.activity", align: "center", gap: "sm" });
+			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "omp.hud.activity", align: "center", gap: "sm" });
 		this.#statusHudNative = { children: children.slice(), todo, slot, node: described };
 		return described;
 	}
@@ -1582,6 +1589,9 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 	get assistantImagesVisible(): boolean {
 		return cfgTerminalShowImages.get(this.settings);
+	}
+	get tableChartsVisible(): boolean {
+		return this.#focusController.target === undefined;
 	}
 	resolveAssistantMessageLinks(texts: readonly string[]): Promise<ReadonlyMap<string, string>> {
 		const session = this.viewSession;
@@ -1782,6 +1792,8 @@ export class InteractiveMode implements InteractiveModeContext {
 
 		setTuiTight(cfgTuiTight.get(settings));
 		setMarkdownMermaidRendering(cfgTuiRenderMermaid.get(settings));
+		setSvgFigureRendering(cfgTuiRenderSvg.get(settings));
+		this.#applyAutoGraphSetting();
 		this.#applyTextSizingSetting();
 		// Keep generic pi-tui renderers aligned with the coding-agent setting.
 		applyHyperlinkSetting();
@@ -2257,7 +2269,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		initTerminalTitleState();
 		setTerminalTitleStateEnabled(cfgTuiTitleState.get(this.settings));
 		setTerminalTitleSpinnerStyle(cfgTuiTitleSpinner.get(this.settings));
-		setTerminalSessionFileSource(() => this.sessionManager.getSessionFile());
+		setTerminalSessionSource({
+			file: () => this.sessionManager.getSessionFile(),
+			cwd: () => this.sessionManager.getCwd(),
+		});
 		setSessionTerminalTitle(this.sessionManager.getSessionName(), this.sessionManager.getCwd());
 		// Seeds the border, the status-line `vim` segment, and the cursor shape in one call.
 		// Deliberately here rather than beside #applyVimMode in the constructor: that runs before
@@ -2284,7 +2299,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.#handleSessionAccentInputsChanged();
 			}),
 			// Fork and branch adopt a new session file without retitling.
-			this.session.registerSessionChangeCallback(reportTernSessionFile),
+			this.session.registerSessionChangeCallback(reportTernSession),
 		);
 		this.#syncEditorMaxHeight();
 		this.isInitialized = true;
@@ -3422,6 +3437,15 @@ export class InteractiveMode implements InteractiveModeContext {
 		setTerminalTextSizing(cfgTuiTextSizing.get(this.settings) && TERMINAL.supportsTextSizing);
 	}
 
+	/** Charts under assistant tables per `tui.autoGraph`; `smart` picks multi-series charts through the session's judge. */
+	#applyAutoGraphSetting(): void {
+		const mode = cfgTuiAutoGraph.get(this.settings);
+		setTableCharts(
+			mode,
+			mode === "smart" ? request => pickTableChart(request, this.session.tableChartJudge()) : undefined,
+		);
+	}
+
 	/**
 	 * Apply live UI side effects for settings changed through any path (`/settings`,
 	 * `cfg://`, `settings.set()`, on-disk reload). One coalesced {@link cfgLiveUiSettings}
@@ -3531,6 +3555,14 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		if (any("tui.renderMermaid")) {
 			setMarkdownMermaidRendering(cfgTuiRenderMermaid.get(this.settings));
+			rebuildChat = true;
+		}
+		if (any("tui.renderSvg")) {
+			setSvgFigureRendering(cfgTuiRenderSvg.get(this.settings));
+			rebuildChat = true;
+		}
+		if (any("tui.autoGraph")) {
+			this.#applyAutoGraphSetting();
 			rebuildChat = true;
 		}
 		if (any("tui.textSizing")) {
@@ -4310,7 +4342,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		const fallback = node(
 			"col",
-			{ role: "zeta.hud.todo" },
+			{ role: "omp.hud.todo" },
 			[
 				row(
 					[
@@ -4350,7 +4382,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#todoHudNative = {
 			checklist: node(
 				"checklist",
-				{ phases: checklistPhases, mode: "hud", role: "zeta.hud.todo" },
+				{ phases: checklistPhases, mode: "hud", role: "omp.hud.todo" },
 				undefined,
 				"todo",
 			),
@@ -7536,7 +7568,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			row([node("icon", { name: "loop", tone: "muted" }), kbd(retryKey, "key"), text([span("to retry", "muted")])], {
 				gap: "sm",
 				align: "center",
-				role: "zeta.hint.retry",
+				role: "omp.hint.retry",
 			}),
 		);
 		this.statusContainer.addChild(this.#retryHintRow);

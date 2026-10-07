@@ -960,7 +960,7 @@ export class ToolExecutionComponent extends Container {
 		const section =
 			sections.length === 1
 				? sections[0]
-				: node("col", { gap: "sm", role: "zeta.tool.diagnostics" }, sections, "late");
+				: node("col", { gap: "sm", role: "omp.tool.diagnostics" }, sections, "late");
 		return {
 			section,
 			chip: { text: count === 1 ? "1 diagnostic" : `${count} diagnostics`, tone: errored ? "error" : "warning" },
@@ -989,7 +989,7 @@ export class ToolExecutionComponent extends Container {
 		return node(
 			"tool",
 			{
-				role: `zeta.tool.${this.#toolName}`,
+				role: `omp.tool.${this.#toolName}`,
 				key: this.#toolCallId,
 				name: this.#toolName,
 				// `title` here is the head verb (TspToolProps), not the common tooltip.
@@ -1066,7 +1066,7 @@ export class ToolExecutionComponent extends Container {
 			...this.#nativeResultImages(),
 			...(late.section ? [late.section] : []),
 		];
-		const role = `zeta.tool.${this.#toolName}`;
+		const role = `omp.tool.${this.#toolName}`;
 		if (view.inline) return col(children, { role });
 		const hasBody = children.length > 1;
 		return card(

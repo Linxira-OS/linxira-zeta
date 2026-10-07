@@ -10,6 +10,7 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
+import { isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import {
 	CLI_BIN_NAME,
 	directoryIsMissing,
@@ -1147,7 +1148,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.continue = false;
 	parsed.messages.splice(messageIndex, 1);
 }
-const FORK_NOT_FOUND_HINT =
+const SESSION_NOT_FOUND_HINT =
 	"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
@@ -1182,20 +1183,20 @@ export async function createSessionManager(
 				return await SessionManager.forkFrom(forkSource, cwd, parsed.sessionDir);
 			} catch (err) {
 				if (err instanceof ForkSourceNotFoundError) {
-					throw new SessionResolutionError(err.message, FORK_NOT_FOUND_HINT);
+					throw new SessionResolutionError(err.message, SESSION_NOT_FOUND_HINT);
 				}
 				throw err;
 			}
 		}
 		const match = await resolveResumableSession(forkSource, cwd, parsed.sessionDir);
 		if (!match) {
-			throw new SessionResolutionError(`Session "${forkSource}" not found.`, FORK_NOT_FOUND_HINT);
+			throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
 		}
 		try {
 			return await SessionManager.forkFrom(match.session.path, cwd, parsed.sessionDir);
 		} catch (err) {
 			if (err instanceof ForkSourceNotFoundError) {
-				throw new SessionResolutionError(`Session "${forkSource}" not found.`, FORK_NOT_FOUND_HINT);
+				throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
 			}
 			throw err;
 		}
@@ -2204,6 +2205,7 @@ export async function runRootCommand(
 		sessionOptions.hasUI = isInteractive || mode === "rpc-ui";
 		sessionOptions.allowSessionModelFallback = isInteractive;
 		sessionOptions.settingsApproval = isInteractive;
+		sessionOptions.tuiTranscript = isInteractive;
 		sessionOptions.settings = settingsInstance;
 		sessionOptions.onPrewalkWarning = warning => {
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });

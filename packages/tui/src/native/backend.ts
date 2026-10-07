@@ -114,7 +114,7 @@ const RECENT_FRAMES = 64;
 /** An unanswered frame older than this no longer holds rendering back. */
 const STALLED_ACK_MS = 5000;
 /** Role of the session's surfaces; a screen page may name its own. */
-const SESSION_ROLE = "zeta.session";
+const SESSION_ROLE = "omp.session";
 
 class NativeContext implements DescribeContext {
 	cols: number;

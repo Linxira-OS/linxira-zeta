@@ -49,6 +49,7 @@ describe("repro", () => {
 			settings,
 			session: {
 				model: projectModel,
+				effectiveServiceTier: () => undefined,
 				modelRegistry: {
 					getAll: () => [projectModel, globalModel],
 					getAvailable: () => [projectModel, globalModel],

@@ -125,7 +125,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
 		expect(cardNode?.p).toMatchObject({ status: "done", collapsible: true, collapsed: true });
 
 		h.event({ ev: "toggle", sf: h.terminal.surface!, id: cardNode!.id, collapsed: false });
@@ -190,7 +190,7 @@ describe("native transcript", () => {
 			builder.append(toolTranscript());
 			h.tui.addChild(builder.container);
 		});
-		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "zeta.tool.lookup_thing");
+		const cardNode = h.find(node => node.k === "tool" && node.p?.role === "omp.tool.lookup_thing");
 		expect(opsSince(h, 0)).toContainEqual(["settle", cardNode!.id]);
 
 		const before = h.frames.length;
@@ -311,21 +311,21 @@ describe("native transcript", () => {
 		const roles = h.findAll(node => typeof node.p?.role === "string").map(node => node.p!.role);
 		expect(roles).toEqual(
 			expect.arrayContaining([
-				"zeta.tool.lookup_thing",
-				"zeta.user",
-				"zeta.user.synthetic",
-				"zeta.assistant",
-				"zeta.thinking",
-				"zeta.bash",
-				"zeta.eval",
-				"zeta.compaction",
-				"zeta.custom",
-				"zeta.notice.ttsr",
-				"zeta.notice.todo",
-				"zeta.diagnostics.late",
-				"zeta.marker.cache-miss",
-				"zeta.status-block",
-				"zeta.advisor",
+				"omp.tool.lookup_thing",
+				"omp.user",
+				"omp.user.synthetic",
+				"omp.assistant",
+				"omp.thinking",
+				"omp.bash",
+				"omp.eval",
+				"omp.compaction",
+				"omp.custom",
+				"omp.notice.ttsr",
+				"omp.notice.todo",
+				"omp.diagnostics.late",
+				"omp.marker.cache-miss",
+				"omp.status-block",
+				"omp.advisor",
 			]),
 		);
 		expect(h.errors).toEqual([]);

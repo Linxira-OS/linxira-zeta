@@ -30,7 +30,7 @@ export { runStartupSplash } from "@linxiraos/pi-tui/setup/startup-splash";
 
 /** Bind application preferences and runtime effects to the setup presentation. */
 export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
-	const modelSource = createModelBrowserSource(ctx.settings, ctx.session?.modelRegistry);
+	const modelSource = createModelBrowserSource(ctx.settings, model => ctx.session.effectiveServiceTier(model));
 	return {
 		ui: ctx.ui,
 		get statusLine() {

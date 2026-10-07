@@ -115,7 +115,7 @@ class GlyphSceneController implements SetupSceneController {
 		return this.#native.get([this.#selectList], () =>
 			col(
 				[text([span("If a row shows boxes, tofu, or misaligned icons, pick another.", "muted")]), this.#selectList],
-				{ gap: "sm", role: "zeta.setup.glyph" },
+				{ gap: "sm", role: "omp.setup.glyph" },
 			),
 		);
 	}

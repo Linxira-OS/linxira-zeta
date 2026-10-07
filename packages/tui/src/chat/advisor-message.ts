@@ -191,11 +191,11 @@ export function createAdvisorMessageCard(
 		];
 		if (blockers > 0) head.push(span(`${uiTheme.sep.dot}${blockers} blocker${blockers === 1 ? "" : "s"}`, "error"));
 		const body = notes.map((entry, index) =>
-			text(advisorNoteSpans(entry), { wrap: "word", role: "zeta.advisor.note", key: `n${index}` }),
+			text(advisorNoteSpans(entry), { wrap: "word", role: "omp.advisor.note", key: `n${index}` }),
 		);
 		return card(
 			{
-				role: "zeta.advisor",
+				role: "omp.advisor",
 				tone: blockers > 0 ? "error" : "info",
 				head,
 				collapsible: notes.length > COLLAPSED_NOTES,

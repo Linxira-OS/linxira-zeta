@@ -199,7 +199,7 @@ export class MoveOverlay implements Component, Focusable {
 				actionHint("tui.select.cancel", "cancel"),
 			],
 		);
-		const described = overlayCard("zeta.dialog.move", "Move to directory", [this.#field, list, hints]);
+		const described = overlayCard("omp.dialog.move", "Move to directory", [this.#field, list, hints]);
 		this.#native = { revision: this.#revision, node: described };
 		return described;
 	}

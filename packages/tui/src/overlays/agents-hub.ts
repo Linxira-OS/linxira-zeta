@@ -141,6 +141,11 @@ export interface AgentsHubCallbacks {
 const IDENTIFIER_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+){1,5}$/;
 
 function extractJsonObject(raw: string): string {
+	// A bare JSON object may legitimately contain code fences inside string values; keep it intact.
+	try {
+		JSON.parse(raw);
+		return raw;
+	} catch {}
 	const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
 	if (fenceMatch?.[1]) return fenceMatch[1].trim();
 	const start = raw.indexOf("{");
@@ -149,7 +154,15 @@ function extractJsonObject(raw: string): string {
 	return raw.trim();
 }
 
-function parseGeneratedAgentSpec(raw: string): GeneratedAgentSpec {
+/**
+ * Parse model output into a {@link GeneratedAgentSpec}. Accepts a bare JSON object
+ * (tried first) or one wrapped in a code fence. Returns the spec with trimmed fields.
+ * Throws if the output is not valid JSON or not an object, if `identifier`, `whenToUse`
+ * or `systemPrompt` is missing or not a string, if the identifier is not lowercase
+ * kebab-case with 2+ words, if `whenToUse` does not start with "Use this agent when",
+ * or if `systemPrompt` is empty.
+ */
+export function parseGeneratedAgentSpec(raw: string): GeneratedAgentSpec {
 	const parsed = JSON.parse(extractJsonObject(raw)) as Partial<GeneratedAgentSpec>;
 	if (!parsed || typeof parsed !== "object") {
 		throw new Error("Model output is not a JSON object");
@@ -1269,7 +1282,7 @@ export class AgentsHubComponent implements Component {
 		if (strip) footer.push(strip);
 		footer.push(hintsRow(this.#footerHints()));
 		const described = describeHubFrame(
-			"zeta.hub.agents",
+			"omp.hub.agents",
 			"Agents",
 			describeHubSidebar(this.#entries, this.#activeEntryId, this.#sidebarStyle, "scopes"),
 			this.#describeBody(),
@@ -1508,7 +1521,7 @@ export class AgentsHubComponent implements Component {
 		if (!rowDef) return [];
 		if (rowDef.kind === "new") {
 			return [
-				text("New agent", { role: "zeta.picker.title" }),
+				text("New agent", { role: "omp.picker.title" }),
 				md(
 					"Describe what the agent should do; the architect drafts its name, when to use it and its system prompt.",
 				),
@@ -1534,7 +1547,7 @@ export class AgentsHubComponent implements Component {
 			facts.push({ k: "File", v: [span(shortenPath(agent.filePath), "path", href)] });
 		}
 		const out: NativeChild[] = [
-			node("text", { text: agent.name, role: "zeta.picker.title" }, undefined, "title"),
+			node("text", { text: agent.name, role: "omp.picker.title" }, undefined, "title"),
 			node("md", { text: agent.description }, undefined, "description"),
 			node("kv", { items: facts, layout: "grid" }, undefined, "facts"),
 		];
@@ -1542,7 +1555,7 @@ export class AgentsHubComponent implements Component {
 			out.push(
 				node(
 					"section",
-					{ head: "System prompt", role: "zeta.agents.prompt" },
+					{ head: "System prompt", role: "omp.agents.prompt" },
 					[code(agent.systemPrompt, { lang: "md", wrap: true })],
 					"prompt",
 				),
