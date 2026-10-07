@@ -2265,6 +2265,7 @@ export interface Messages {
 	cmdVisionAcp: string;
 	cmdPrewalkAcp: string;
 	cmdPrewalkRestart: string;
+	cmdPrewalkOff: string;
 	cmdTodoAcp: string;
 	cmdSessionAcp: string;
 	cmdJobsAcp: string;

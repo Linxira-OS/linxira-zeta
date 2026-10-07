@@ -10,15 +10,16 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
-import * as attach from "@linxiraos/zeta/tools/browser/attach";
-import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
-import * as registry from "@linxiraos/zeta/tools/browser/registry";
-import { getTabsMapForTest, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import type { ToolSession } from "@linxiraos/zeta/tools/index";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
+import * as attach from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
+import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
+import * as registry from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import { getTabsMapForTest, releaseTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { TimeoutError } from "puppeteer-core";
 
 function makeSession(): ToolSession {
 	return {
@@ -176,6 +177,9 @@ describe("browser open — failed spawned-app acquisition reaps its owned proces
 				wsEndpoint: () => "ws://127.0.0.1/devtools/browser/test",
 				targets: () => [],
 				pages: async () => [],
+				waitForTarget: async () => {
+					throw new TimeoutError("No page target appeared");
+				},
 			},
 			pid: 4242,
 			subprocess: { pid: 4242, exitCode: null },
@@ -192,7 +196,7 @@ describe("browser open — failed spawned-app acquisition reaps its owned proces
 				app: { path: "/tmp/chrome-headless-shell" },
 				timeout: 1,
 			}),
-		).rejects.toThrow("No page targets available on the attached browser");
+		).rejects.toBeInstanceOf(ToolError);
 
 		expect(disconnectSpy).toHaveBeenCalledTimes(1);
 		expect(killSpy).toHaveBeenCalledTimes(1);

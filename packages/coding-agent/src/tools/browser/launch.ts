@@ -1,11 +1,20 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $which, getPuppeteerDir, logger, removeWithRetries, untilAborted } from "@linxiraos/pi-utils";
-import type * as BrowsersNs from "@linxiraos/pi-utils/browsers";
+import {
+	$which,
+	getPuppeteerDir,
+	isRecord,
+	logger,
+	removeWithRetries,
+	toError,
+	untilAborted,
+} from "@oh-my-pi/pi-utils";
+import type * as BrowsersNs from "@oh-my-pi/pi-utils/browsers";
 import type {
 	Browser,
 	CDPSession,
+	ConnectOptions,
 	Device,
 	JSHandle,
 	NetworkConditions,
@@ -27,7 +36,7 @@ import stealthPluginsScript from "../puppeteer/10_stealth_plugins.txt" with { ty
 import stealthHardwareScript from "../puppeteer/11_stealth_hardware.txt" with { type: "text" };
 import stealthCodecsScript from "../puppeteer/12_stealth_codecs.txt" with { type: "text" };
 import stealthWorkerScript from "../puppeteer/13_stealth_worker.txt" with { type: "text" };
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { withDownload } from "../../downloads/activity";
 
 export const DEFAULT_VIEWPORT = { width: 1365, height: 768, deviceScaleFactor: 1.25 };
@@ -183,6 +192,20 @@ export async function loadPuppeteerInWorker(safeDir: string): Promise<typeof Pup
 	return loaded;
 }
 
+/** Normalize transport event rejections before they cross browser or worker boundaries. */
+export async function connectPuppeteer(puppeteer: typeof Puppeteer, options: ConnectOptions): Promise<Browser> {
+	try {
+		return await puppeteer.connect(options);
+	} catch (error) {
+		// The WebSocket transports can reject with ErrorEvent rather than Error.
+		// Its message includes the actual debugger endpoint and handshake failure.
+		if (!(error instanceof Error) && isRecord(error) && typeof error.message === "string") {
+			throw new Error(error.message, { cause: error });
+		}
+		throw toError(error);
+	}
+}
+
 /** Return device descriptors from the already-loaded Puppeteer module. */
 export function loadedKnownDevices(): Readonly<Record<string, Device>> {
 	if (!knownDevices) throw new ToolError("Puppeteer device descriptors are not loaded");
@@ -198,7 +221,7 @@ export function loadedNetworkConditions(): Readonly<Record<string, NetworkCondit
 let browsersModule: typeof BrowsersNs | undefined;
 async function loadBrowsers(): Promise<typeof BrowsersNs> {
 	if (!browsersModule) {
-		browsersModule = await import("@linxiraos/pi-utils/browsers");
+		browsersModule = await import("@oh-my-pi/pi-utils/browsers");
 	}
 	return browsersModule;
 }
@@ -216,7 +239,7 @@ async function loadBrowsers(): Promise<typeof BrowsersNs> {
  * system Chrome is used on macOS only when Chrome for Testing cannot be
  * obtained. Other platforms keep the download-avoiding system Chrome
  * preference and fall back to Chrome for Testing. The managed browser is
- * cached under ~/.zeta/puppeteer (getPuppeteerDir). Returns undefined when
+ * cached under ~/.omp/puppeteer (getPuppeteerDir). Returns undefined when
  * platform detection fails (puppeteer default resolution takes over).
  * Exported so real-browser tests can probe launchability and skip on hosts
  * missing Chrome's system libraries.

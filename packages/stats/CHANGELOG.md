@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
+## [18.7.0] - 2026-10-06
+
+### Fixed
+
+- Fixed Ultrafast turns not being counted toward the Premium Requests statistic.
+- Fixed the desktop stats dashboard menu button so it no longer appears unnecessarily or dims the page without opening navigation.
+
+## [18.6.0] - 2026-10-03
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 

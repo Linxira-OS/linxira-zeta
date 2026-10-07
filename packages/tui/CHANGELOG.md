@@ -3,6 +3,32 @@
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
+## [18.7.0] - 2026-10-06
+
+### Added
+
+- Assistant SVG code blocks now render as inline, theme-colored images on terminals with graphics support, updating as responses stream and adapting to terminal width; SVG that cannot be rendered remains available as code.
+- Numeric tables in assistant responses can now include automatically selected, themed charts based on the table’s structure and units.
+
+### Changed
+
+- The status line now recognizes projects located in the user’s `repos` directory.
+- Model mentions, `/switch` completions, and model-picker search now update immediately while typing, including with large model catalogs.
+
+### Fixed
+
+- Fixed terminal resizing issues that could cause flicker or briefly display an empty frame.
+- Improved `/annotate` handling for long source lines and filenames, preserving indentation and typed note text.
+- Fixed fullscreen inputs that could hide the cursor when hardware-cursor support was enabled.
+- Fixed model picker and mention-list ordering for same-provider `-latest` models so results remain alphabetically stable.
+- Model browser performance metrics now show the correct measurements for each service tier and identify the tier.
+- Fixed plan review keyboard navigation so horizontal options use Left/Right and model-slider adjustments use Shift+Left/Right.
+- Improved the Ask dialog footer so question-switching keyboard shortcuts are clearly labeled.
+- Fixed creating a new agent when its generated system prompt contains a Markdown code fence.
+- Timed-out `glob` scans are now labeled as timed out rather than truncated.
+- Ctrl+Delete now deletes the word after the cursor, matching Ctrl+Backspace behavior.
+
+## [18.6.3] - 2026-10-06
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 
@@ -1033,3 +1059,4 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 - `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
+Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).

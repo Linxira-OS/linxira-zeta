@@ -4,7 +4,7 @@ import {
 	splitThinkingSuffix,
 	parseModelString,
 	splitUpstreamRouting,
-} from "@linxiraos/pi-tui/overlays/model-selector";
+} from "@oh-my-pi/pi-tui/overlays/model-selector";
 /**
  * Model resolution, scoping, and initial selection.
  *
@@ -22,21 +22,22 @@ import {
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { ModelRoleLookup } from "@linxiraos/pi-tui/overlays/model-browser";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@linxiraos/pi-ai";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resolveBareVariantSelector, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
-import { collapseVariantId, stripThinkingVariantSuffix } from "@linxiraos/pi-catalog/compat/taxonomy";
-import { modelMatchesHost } from "@linxiraos/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { modelKind } from "@linxiraos/pi-catalog/types";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
-import { fuzzyMatch } from "@linxiraos/pi-tui";
-import { logger } from "@linxiraos/pi-utils";
-import chalk from "@linxiraos/pi-utils/chalk";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { ModelRoleLookup } from "@oh-my-pi/pi-tui/overlays/model-browser";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@oh-my-pi/pi-ai";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { resolveBareVariantSelector, resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
+import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
+import { collapseVariantId, stripThinkingVariantSuffix } from "@oh-my-pi/pi-catalog/compat/taxonomy";
+import { modelMatchesHost } from "@oh-my-pi/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@oh-my-pi/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
+import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
+import { modelKind } from "@oh-my-pi/pi-catalog/types";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
+import { fuzzyMatch } from "@oh-my-pi/pi-tui";
+import { logger } from "@oh-my-pi/pi-utils";
+import chalk from "@oh-my-pi/pi-utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import {
 	AUTO_THINKING,
@@ -44,7 +45,7 @@ import {
 	concreteThinkingLevel,
 	parseConfiguredThinkingLevel,
 	resolveThinkingLevelForModel,
-} from "@linxiraos/pi-tui/thinking";
+} from "@oh-my-pi/pi-tui/thinking";
 import { isAuthenticated, kNoAuth, type ModelRegistry } from "./model-registry";
 import {
 	DEFAULT_MODEL_ROLE_ALIAS,
@@ -65,7 +66,7 @@ function isKnownProvider(provider: string): provider is KnownProvider {
 }
 
 /**
- * Pick the first provider-default model in availability order.
+ * Pick the first auto-selectable provider-default model in availability order.
  *
  * When `hasConcreteCredential` is supplied and at least one available model
  * belongs to a provider with a concrete credential, the candidate pool is
@@ -79,24 +80,27 @@ function isKnownProvider(provider: string): provider is KnownProvider {
  * If multiple providers expose that same default id, rank only that shared-id
  * group by canonical provider priority so native/OAuth transports beat mirrors
  * without changing unrelated provider fallback precedence.
+ * Providers with `automatic-default #false` remain available to explicit model
+ * selectors but cannot become the startup fallback.
  */
 export function pickDefaultAvailableModel(
 	availableModels: Model<Api>[],
 	hasConcreteCredential?: (provider: string) => boolean,
 ): Model<Api> | undefined {
+	const autoSelectable = availableModels.filter(model => providerEntry(model.provider)?.automaticDefault !== false);
 	const models =
 		hasConcreteCredential === undefined
-			? availableModels
+			? autoSelectable
 			: (() => {
 					const concreteAuthByProvider = new Map<string, boolean>();
-					const concrete = availableModels.filter(model => {
+					const concrete = autoSelectable.filter(model => {
 						const cached = concreteAuthByProvider.get(model.provider);
 						if (cached !== undefined) return cached;
 						const hasConcreteAuth = hasConcreteCredential(model.provider);
 						concreteAuthByProvider.set(model.provider, hasConcreteAuth);
 						return hasConcreteAuth;
 					});
-					return concrete.length > 0 ? concrete : availableModels;
+					return concrete.length > 0 ? concrete : autoSelectable;
 				})();
 	const firstDefault = models.find(
 		model => isKnownProvider(model.provider) && DEFAULT_MODEL_PER_PROVIDER[model.provider] === model.id,
@@ -2225,7 +2229,7 @@ function resolveCliModelInScope(
 			model: undefined,
 			selector: undefined,
 			warning: undefined,
-			error: `Unknown provider "${cliProvider}". Run "zeta-c models" to see available providers/models.`,
+			error: `Unknown provider "${cliProvider}". Run "omp models" to see available providers/models.`,
 		};
 	}
 
@@ -2310,7 +2314,7 @@ function resolveCliModelInScope(
 					selector: undefined,
 					thinkingLevel: undefined,
 					warning: resolved.warning,
-					error: `Model "${trimmedModel}" not found. Run "zeta-c models" to see available models.`,
+					error: `Model "${trimmedModel}" not found. Run "omp models" to see available models.`,
 				};
 			}
 		}
@@ -2370,7 +2374,7 @@ function resolveCliModelInScope(
 			selector: undefined,
 			thinkingLevel: undefined,
 			warning,
-			error: `Model "${display}" not found. Run "zeta-c models" to see available models.`,
+			error: `Model "${display}" not found. Run "omp models" to see available models.`,
 		};
 	}
 

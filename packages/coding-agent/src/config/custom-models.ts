@@ -1,15 +1,16 @@
-import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@linxiraos/pi-ai/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { getVariantAliasSources, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
+import type { Api, Model, ModelSpec, RemoteCompactionConfig } from "@oh-my-pi/pi-ai/types";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { getVariantAliasSources, resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
 import {
 	getBundledModelReferenceIndex,
 	inheritReferenceThinking,
 	resolveModelReference,
-} from "@linxiraos/pi-catalog/identity";
-import { logger } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-catalog/identity";
+import { runnerApiKind } from "@oh-my-pi/pi-catalog/types";
+import { logger } from "@oh-my-pi/pi-utils";
 import { type ConfigHeaderResolver, type ConfigHeaderSource, createConfigHeaderResolver } from "./resolve-config-value";
 import { type ModelPatch, mergeCompat, mergeRemoteCompactionConfig } from "./model-patch";
-import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
+import { parseModelString } from "@oh-my-pi/pi-tui/overlays/model-selector";
 import type { ModelOverride, ProviderAuthMode } from "./models-config-schema";
 export interface CustomModelDefinitionLike extends ModelPatch {
 	id: string;
@@ -82,6 +83,7 @@ export function buildCustomModelOverlay(
 		api,
 		baseUrl: modelDef.baseUrl ?? providerBaseUrl,
 		name: modelDef.name,
+		kind: modelDef.kind ?? runnerApiKind(api),
 		reasoning: modelDef.reasoning,
 		thinking: modelDef.thinking,
 		input: modelDef.input,
@@ -127,6 +129,7 @@ export function finalizeCustomModel(model: CustomModelOverlay, options: CustomMo
 		id: resolvedModel.id,
 		name: resolvedModel.name ?? (options.useDefaults ? resolvedModel.id : undefined),
 		api: resolvedModel.api,
+		kindConfig: resolvedModel.kind,
 		provider: resolvedModel.provider,
 		baseUrl: resolvedModel.baseUrl,
 		reasoning: resolvedModel.reasoning ?? reference?.reasoning ?? (options.useDefaults ? false : undefined),

@@ -1,18 +1,18 @@
-import type { WriteToolDetails } from "@linxiraos/pi-tui/tools/write";
+import type { WriteToolDetails } from "@oh-my-pi/pi-tui/tools/write";
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@oh-my-pi/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
 	AgentToolResult,
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
-} from "@linxiraos/pi-agent-core";
+} from "@oh-my-pi/pi-agent-core";
 
-import { isEnoent, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
+import { isEnoent, isRecord, prompt, untilAborted } from "@oh-my-pi/pi-utils";
 import {
 	type ArchiveMemberContent,
 	archiveFormatFromPath,
@@ -20,7 +20,7 @@ import {
 	parseArchivePathCandidates,
 	readArchiveEntries,
 	writeArchive,
-} from "@linxiraos/pi-utils/ar";
+} from "@oh-my-pi/pi-utils/ar";
 import { normalizeToLF } from "../edit/normalize";
 
 import { InternalUrlRouter, sessionResolveContext, sessionWriteContext } from "../internal-urls";
@@ -38,13 +38,13 @@ import { routeWriteThroughBridge, shouldRouteWriteThroughBridge } from "./acp-br
 import { truncateForPrompt } from "./approval";
 import { assertEditableFile } from "./auto-generated-guard";
 
-import { isReadTruncationNotice } from "@linxiraos/pi-tui/tools/hashline-format";
+import { isReadTruncationNotice } from "@oh-my-pi/pi-tui/tools/hashline-format";
 import { recoverConflictUriPrefix } from "./conflict-detect";
 import { invalidateFsScanAfterWrite } from "./fs-cache-invalidation";
 
 import { outputMeta } from "./output-meta";
-import { formatPathRelativeToCwd, probeLiteralPathExists } from "./path-utils";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { formatPathRelativeToCwd, probeLiteralPathExists, specialFileKind } from "./path-utils";
+import { splitPathAndSel } from "@oh-my-pi/pi-tui/tools/read";
 import {
 	enforcePlanModeWrite,
 	resolvePlanPath,
@@ -53,7 +53,7 @@ import {
 } from "./plan-mode-guard";
 import { decodeUtf8Text } from "./read-format";
 import { routeReadThroughBridge } from "./read-summary";
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
 
 import {
 	deleteRowByKey,
@@ -65,7 +65,7 @@ import {
 	updateRowByKey,
 	updateRowByRowId,
 } from "./sqlite-reader";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 import { maybeWriteSnapshotHeader, stripWriteContent } from "./write-content";
 
@@ -630,6 +630,12 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 				if (stat.isDirectory()) {
 					continue;
 				}
+				const kind = specialFileKind(stat);
+				if (kind) {
+					throw new ToolError(
+						`Cannot write '${candidate.sqlitePath}': it is a ${kind}, not a regular file or directory.`,
+					);
+				}
 				if (!(await isSqliteFile(absolutePath))) {
 					sawExistingNonSqlite = true;
 					continue;
@@ -895,6 +901,10 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
 			const existing = await fs.stat(absolutePath).catch(() => undefined);
 			if (target && existing?.isDirectory()) {
 				throw new ToolError(`${target.url.protocol}// URL must resolve to a file: ${path}`);
+			}
+			const kind = existing && specialFileKind(existing);
+			if (kind) {
+				throw new ToolError(`Cannot write '${path}': it is a ${kind}, not a regular file or directory.`);
 			}
 			// Check if file exists and is auto-generated before overwriting.
 			if (existing) {

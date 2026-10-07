@@ -1,6 +1,6 @@
 import * as path from "node:path";
-import { ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { ImageContent } from "@linxiraos/pi-ai";
+import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
 import {
 	type AutocompleteProvider,
 	type Component,
@@ -8,41 +8,41 @@ import {
 	parseSgrMouse,
 	type PasteOptions,
 	type SlashCommand,
-} from "@linxiraos/pi-tui";
-import { isEnoent, logger, postmortem, sanitizeText } from "@linxiraos/pi-utils";
-import { formatDoubleTap } from "@linxiraos/pi-tui/app-keybindings";
-import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
+} from "@oh-my-pi/pi-tui";
+import { isEnoent, logger, postmortem, sanitizeText } from "@oh-my-pi/pi-utils";
+import { formatDoubleTap } from "@oh-my-pi/pi-tui/app-keybindings";
+import { appKey, editorKey } from "@oh-my-pi/pi-tui/chrome/keybinding-hints";
 import { formatModelRoleAlias, roleCandidatePool } from "../../config/model-roles";
 import { resolveModelRoleValue } from "../../config/model-resolver";
 import { isSettingsInitialized, settings } from "../../config/settings";
 import { InternalUrlRouter, resolveLocalRoot } from "../../internal-urls";
-import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
-import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { extractImagePathFromText } from "@linxiraos/pi-tui/prompt/custom-editor";
-import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
-import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
-import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
-import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
+import { AskDialogComponent } from "@oh-my-pi/pi-tui/overlays/ask-dialog";
+import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
+import { extractImagePathFromText } from "@oh-my-pi/pi-tui/prompt/custom-editor";
+import { HistorySearchComponent } from "@oh-my-pi/pi-tui/overlays/history-search";
+import { HookEditorComponent } from "@oh-my-pi/pi-tui/overlays/hook-editor";
+import { ReadToolGroupComponent } from "@oh-my-pi/pi-tui/chat/read-tool-group";
+import { ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
+import { TreeSelectorComponent } from "@oh-my-pi/pi-tui/overlays/tree-selector";
 import {
 	chipLabel,
 	compactImageMarkers,
 	formatVisionMarker,
 	shiftImageMarkers,
-} from "@linxiraos/pi-tui/prompt/composer-attachments";
-import { expandEmoticons } from "@linxiraos/pi-tui/prompt/emoji-autocomplete";
-import { materializeImageReferenceLinks, setCachedImageDimensions } from "@linxiraos/pi-tui/prompt/image-references";
-import { createPromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt/prompt-action-autocomplete";
-import { createModelMentionSource } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
+} from "@oh-my-pi/pi-tui/prompt/composer-attachments";
+import { expandEmoticons } from "@oh-my-pi/pi-tui/prompt/emoji-autocomplete";
+import { materializeImageReferenceLinks, setCachedImageDimensions } from "@oh-my-pi/pi-tui/prompt/image-references";
+import { createPromptActionAutocompleteProvider } from "@oh-my-pi/pi-tui/prompt/prompt-action-autocomplete";
+import { createModelMentionSource } from "@oh-my-pi/pi-tui/prompt/model-mention-autocomplete";
 import { createModelBrowserSource } from "../model-browser-source";
-import { parseQueueShorthand, splitQueuedMessages } from "@linxiraos/pi-tui/prompt/queue-input";
+import { parseQueueShorthand, splitQueuedMessages } from "@oh-my-pi/pi-tui/prompt/queue-input";
 import { invokeSkillCommandFromText, isKnownSkillCommand } from "../../modes/skill-command";
 import type { InteractiveModeContext, SubmittedUserInput } from "../../modes/types";
 import manualContinuePrompt from "../../prompts/system/manual-continue.md" with { type: "text" };
 import { AgentRegistry } from "../../registry/agent-registry";
 import type { RestoredQueuedMessage } from "../../session/agent-session-types";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@oh-my-pi/pi-tui/prompt/composer";
 import { pickRecentFocusableAgentId } from "./session-focus-controller";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { restoreDetachedDraft } from "../../slash-commands/helpers/draft";
@@ -50,7 +50,7 @@ import { parseSlashCommand, parseSubcommand } from "../../slash-commands/helpers
 import { isTinyLocalModelKey } from "../../tiny/models";
 import { tinyTitleClient } from "../../tiny/title-client";
 import { resolveReadPath } from "../../tools/path-utils";
-import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
+import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@oh-my-pi/pi-tui/render/render-utils";
 import { vocalizer } from "../../tts/vocalizer";
 import {
 	copyToClipboard,
@@ -62,11 +62,11 @@ import { commandUsage, hintUsage } from "../../utils/usage-counter";
 import { EnhancedPasteController } from "../../utils/enhanced-paste";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { loadImageInput } from "../../utils/image-loading";
-import { ensureSupportedImageInput, ImageInputTooLargeError } from "@linxiraos/pi-tui/chat/image-loading";
-import { type ImageAttachmentSource, tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
-import { blobExtensionForImageMimeType } from "@linxiraos/pi-tui/prompt/image-format";
+import { ensureSupportedImageInput, ImageInputTooLargeError } from "@oh-my-pi/pi-tui/chat/image-loading";
+import { type ImageAttachmentSource, tagImageAttachmentSource } from "@oh-my-pi/pi-tui/prompt/image-source";
+import { blobExtensionForImageMimeType } from "@oh-my-pi/pi-tui/prompt/image-format";
 import { VideoError, buildVideoContactSheetPng, probeVideo } from "../../utils/video";
-import { isVideoPath } from "@linxiraos/pi-tui/prompt/video";
+import { isVideoPath } from "@oh-my-pi/pi-tui/prompt/video";
 import { resizeImage } from "../../utils/image-resize";
 
 import { cfgCycleOrder } from "../../config/model-settings";
@@ -81,15 +81,6 @@ import {
 	cfgTuiMouse,
 } from "../settings";
 import { cfgHideThinkingBlock } from "../../session/settings";
-import { disarmDeleteConfirm } from "./delete-confirm";
-
-/**
- * Any submission other than the exact armed confirm (`/delete`) disarms the
- * triple-press delete confirmation, per the `/delete` UX contract.
- */
-function disarmDeleteConfirmUnlessArming(text: string | undefined): void {
-	if (text?.trim() !== "/delete") disarmDeleteConfirm();
-}
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
 const BARE_EXIT_WORDS: Record<string, true> = { exit: true, quit: true, q: true };
@@ -462,8 +453,6 @@ export class InputController {
 			this.ctx.ui.addInputListener(data => this.#handleInlineMouse(data));
 		}
 		this.ctx.editor.onEscape = () => {
-			// Esc always disarms the /delete triple-press confirmation.
-			disarmDeleteConfirm();
 			// `/mcp test` advertises Esc until each owner's post-settlement grace expires.
 			// Cancel every overlapping test before any main-turn or side-channel action.
 			if (this.ctx.mcpTestEscapeHandlers.size > 0) {
@@ -1041,8 +1030,6 @@ export class InputController {
 
 			if (!text && !hasInputImages) return;
 
-			disarmDeleteConfirmUnlessArming(text);
-
 			const queueBody = parseQueueShorthand(text);
 			if (queueBody !== undefined) {
 				await this.#queueForYield(queueBody, {
@@ -1442,7 +1429,6 @@ export class InputController {
 
 	/** Submit editor text to the focused subagent session (chat and continue shortcuts only). */
 	async #submitToFocusedSession(text: string, streamingBehavior: "steer" | "followUp"): Promise<void> {
-		disarmDeleteConfirmUnlessArming(text);
 		const target = this.ctx.viewSession;
 		const images = this.ctx.editor.pendingImages.length > 0 ? [...this.ctx.editor.pendingImages] : undefined;
 		const imageLinks =
@@ -1598,15 +1584,15 @@ export class InputController {
 			// for a given SignalKind permanently replaces the kernel-default
 			// handler for the lifetime of the process. So once the user has
 			// issued even one bash command — e.g. `/usr/bin/true` — SIGTSTP no
-			// longer stops zeta: tokio swallows it and the TUI ends up torn down
+			// longer stops omp: tokio swallows it and the TUI ends up torn down
 			// while the process keeps running with no live terminal (issue
 			// [#3461]). SIGSTOP cannot be caught, blocked, or ignored, so the
 			// kernel stops the process regardless of installed handlers.
 			//
-			// pid=0 (foreground process group, not just our PID): zeta is not
+			// pid=0 (foreground process group, not just our PID): omp is not
 			// always the shell's direct child. Package-manager launchers (`npx`,
 			// `pnpm exec`, `bunx`, …) wait on the real CLI from a parent shim
-			// that shares zeta's process group, and a `zeta … | tee log` style
+			// that shares omp's process group, and a `omp … | tee log` style
 			// pipeline puts a sibling foreground job member in the same group
 			// too. The shell sees the job as stopped only when its direct
 			// child / pipeline leader is stopped, so suspending only our PID
@@ -1885,8 +1871,6 @@ export class InputController {
 		let imageLinks =
 			images && this.ctx.editor.pendingImageLinks.length > 0 ? [...this.ctx.editor.pendingImageLinks] : undefined;
 		if (!text && !images) return;
-
-		disarmDeleteConfirmUnlessArming(text);
 
 		// Focused subagent session: follow-ups go to it; non-chat input is gated.
 		if (this.ctx.focusedAgentId) {
@@ -2631,7 +2615,7 @@ export class InputController {
 			basePath,
 			commandUsage: name => commandUsage.get(name),
 			modelMentions: createModelMentionSource({
-				source: createModelBrowserSource(this.ctx.settings, this.ctx.session.modelRegistry),
+				source: createModelBrowserSource(this.ctx.settings, model => this.ctx.session.effectiveServiceTier(model)),
 				registry: this.ctx.session.modelRegistry,
 				scopedModels: () => this.ctx.session.scopedModels.map(s => s.model),
 			}),
@@ -2835,7 +2819,7 @@ export class InputController {
 
 		try {
 			this.ctx.ui.stop();
-			const result = await openInEditor(editorCmd, currentText, { extension: ".zeta.md" });
+			const result = await openInEditor(editorCmd, currentText, { extension: ".omp.md" });
 			if (result !== null) {
 				this.ctx.editor.setText(result);
 			}

@@ -5,6 +5,13 @@
 ## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
+## [18.7.0] - 2026-10-06
+
+### Fixed
+
+- Fixed interrupted runs so assistant message boundaries are emitted reliably, allowing subscribers to persist and recover the interrupted turn.
+
+## [18.6.3] - 2026-10-06
 
 ### Breaking Changes
 

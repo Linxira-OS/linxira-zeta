@@ -895,12 +895,24 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdPrewalk,
 		allowArgs: true,
 		acpDescription: M.cmdPrewalkAcp,
-		acpInputHint: "[restart]",
-		subcommands: [{ name: "restart", description: () => M.cmdPrewalkRestart }],
-
+		acpInputHint: "[restart|off]",
+		subcommands: [
+			{ name: "restart", description: () => M.cmdPrewalkRestart },
+			{ name: "off", description: () => M.cmdPrewalkOff },
+		],
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
-			if (arg && arg !== "restart") return usage("Usage: /prewalk [restart]", runtime);
+			if (arg && arg !== "restart" && arg !== "off") return usage("Usage: /prewalk [restart|off]", runtime);
+			if (arg === "off") {
+				const armed = runtime.session.getPrewalkState() !== undefined;
+				runtime.session.disarmPrewalk();
+				await runtime.output(
+					armed
+						? "Prewalk off: canceled this session's pending handoff; keeping the active model."
+						: "Prewalk already off for this session; keeping the active model.",
+				);
+				return commandConsumed();
+			}
 			const target = resolveSessionModelSelector("@smol", runtime.session, runtime.settings);
 			if (target.error || !target.model) {
 				return usage(target.error ?? 'Model "@smol" not found', runtime);

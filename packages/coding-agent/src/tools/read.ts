@@ -1,10 +1,8 @@
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import type { Stats } from "node:fs";
+import type { ReadToolDetails } from "@oh-my-pi/pi-tui/tools/read";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { readTargetsPlan } from "../plan-mode/plan-protection";
-import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
+import { type EditStore, notebookToEditableText } from "@oh-my-pi/pi-natives";
+import { type } from "@oh-my-pi/omptype";
 import type {
 	AgentTool,
 	AgentToolContext,
@@ -16,8 +14,8 @@ import type {
 	ToolSpeculationDiscardContext,
 	ToolSpeculationExecutionContext,
 	ToolTier,
-} from "@linxiraos/pi-agent-core";
-import { completeSimple, type ImageContent, type TextContent } from "@linxiraos/pi-ai";
+} from "@oh-my-pi/pi-agent-core";
+import { completeSimple, type ImageContent, type TextContent } from "@oh-my-pi/pi-ai";
 import {
 	BINARY_SNIFF_BYTES,
 	type ImageMetadata,
@@ -29,7 +27,7 @@ import {
 	parseImageMetadata,
 	prompt,
 	readImageMetadata,
-} from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-utils";
 import {
 	cfgIdaAvailable,
 	EXECUTABLE_SNIFF_BYTES,
@@ -46,7 +44,7 @@ import {
 	type SchemeSpec,
 	sessionResolveContext,
 } from "../internal-urls";
-import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
+import { isMarkdownPath } from "@oh-my-pi/pi-tui/lang-from-path";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import {
@@ -56,7 +54,7 @@ import {
 	truncateHead,
 	truncateHeadBytes,
 	truncateLine,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+} from "@oh-my-pi/pi-tui/tools/streaming-output";
 import {
 	buildLineEntriesWithBlockContext,
 	lineEntriesToPlainText,
@@ -71,7 +69,7 @@ import {
 	InvalidImageDataError,
 	MAX_IMAGE_INPUT_BYTES,
 	webpExclusionForModel,
-} from "@linxiraos/pi-tui/chat/image-loading";
+} from "@oh-my-pi/pi-tui/chat/image-loading";
 import { askImageQuestion, resolveImageQuestionModel } from "../utils/image-question";
 import { CONVERTIBLE_EXTENSIONS, convertFileWithMarkit } from "../utils/markit";
 import { isSampleProfilePath, renderSampleProfile } from "../utils/sample-profile";
@@ -91,12 +89,13 @@ import {
 	formatPathRelativeToCwd,
 	probeLiteralPathExists,
 	resolveReadPathAsync,
+	specialFileKind,
 	splitDelimitedPathEntry,
 	splitMixedUrlPathList,
 	splitPathAndSelPreferringLiteral,
 } from "./path-utils";
-import { type LineRange } from "@linxiraos/pi-tui/tools/line-ranges";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { type LineRange } from "@oh-my-pi/pi-tui/tools/line-ranges";
+import { splitPathAndSel } from "@oh-my-pi/pi-tui/tools/read";
 import { readArchive, resolveArchiveReadPath } from "./read-archive";
 import {
 	BRACKET_CONTEXT_ELLIPSIS,
@@ -142,7 +141,7 @@ import {
 	type VideoMetadata,
 	type VideoPng,
 } from "../utils/video";
-import { isVideoPath } from "@linxiraos/pi-tui/prompt/video";
+import { isVideoPath } from "@oh-my-pi/pi-tui/prompt/video";
 import {
 	isMultiRange,
 	isRawSelector,
@@ -152,9 +151,10 @@ import {
 	resolveTailSelector,
 	selToOffsetLimit,
 } from "./read-selector";
-import { splitAddressableFileLines } from "@linxiraos/pi-tui/tools/hashline-format";
+import { splitAddressableFileLines } from "@oh-my-pi/pi-tui/tools/hashline-format";
 import { readBinary, resolveBinaryViewPath } from "./read-binary";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
+import { readJson, resolveJsonReadPath, splitJsonQueryTarget } from "./read-json";
 import {
 	getReadTextFileBridge,
 	isProseSummaryPath,
@@ -163,9 +163,9 @@ import {
 	trySummarize,
 } from "./read-summary";
 import { parseSqlitePathCandidates } from "./sqlite-reader";
-import { formatBytes, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { formatBytes, shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import {
@@ -658,19 +658,6 @@ function formatLocatedFileNotice(url: string, backingPath: string, size: number,
 }
 
 /**
- * Kind of a non-regular, non-directory file, or undefined. Reading one in-process can block
- * forever (a FIFO, `/dev/stdin` on the TUI's terminal) or never end (`/dev/zero`).
- */
-function specialFileKind(stat: Stats): string | undefined {
-	if (stat.isFile() || stat.isDirectory()) return undefined;
-	if (stat.isCharacterDevice()) return "character device";
-	if (stat.isBlockDevice()) return "block device";
-	if (stat.isFIFO()) return "FIFO";
-	if (stat.isSocket()) return "socket";
-	return "special file";
-}
-
-/**
  * Peel `?q=<question>` (ask a vision model about an image) from a plain path or a URL whose
  * scheme declares {@link SchemeSpec.imageQuestion}; every other URL owns its query string.
  */
@@ -680,6 +667,7 @@ export function splitImageQuestionTarget(readPath: string): { path: string; ques
 		if (!scheme || !InternalUrlRouter.instance().spec(scheme)?.imageQuestion) return { path: readPath };
 	}
 	if (parseSqlitePathCandidates(readPath).length > 0) return { path: readPath };
+	if (splitJsonQueryTarget(readPath)) return { path: readPath };
 
 	const queryIndex = readPath.indexOf("?");
 	if (queryIndex === -1) return { path: readPath };
@@ -1015,17 +1003,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		} finally {
 			this.#speculativeReads.delete(context.toolCall.id);
 		}
-	}
-
-	/**
-	 * True when `readPath` targets the session plan file: the canonical
-	 * `local://PLAN.md` alias or the session plan reference path. Plan files
-	 * read without an explicit selector get the full default window so
-	 * incremental plan amendments never operate on a truncated view.
-	 */
-	#isPlanRead(readPath: string): boolean {
-		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
-		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
 	}
 
 	/**
@@ -1611,7 +1588,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return executeReadUrl(this.session, { path: parsedUrlTarget.path, raw: urlRaw }, signal);
 		}
 
-		// Handle native ZETA URLs and custom-scheme resources advertised by MCP servers.
+		// Handle native OMP URLs and custom-scheme resources advertised by MCP servers.
 		const internalRouter = InternalUrlRouter.instance();
 		const delimitedInternalResult = internalRouter.canResolve(readPath)
 			? await this.#tryReadDelimitedPaths(readPath, signal, entry => internalRouter.canResolve(entry))
@@ -1652,7 +1629,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question,
 			questionPath: readPath,
 			signal,
-			planTargetedRead: this.#isPlanRead(readPath),
 		});
 		const details: ReadToolDetails = result.details ?? {};
 		details.resolvedPath ??= located.path;
@@ -1682,8 +1658,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question?: string;
 			/** Model-facing path for `?q=` hints; defaults to the displayed file path. */
 			questionPath?: string;
-			/** The read targeted the session plan URL: raise the default line window to the full cap. */
-			planTargetedRead?: boolean;
 			signal?: AbortSignal;
 			onBufferedFile?: (normalizedText: string) => void;
 			onConflictMarkers?: () => void;
@@ -1692,7 +1666,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	): Promise<AgentToolResult<ReadToolDetails>> {
 		const { located, question, questionPath, signal, onBufferedFile, onConflictMarkers, lexicalAbsolutePath } =
 			options;
-		const planTargetedRead = options.planTargetedRead === true;
 		const immutable = located?.spec.immutable === true;
 		const displayMode = resolveFileDisplayMode(this.session, { immutable });
 		// In-body continuation hints name the URL for located reads, so paging stays on the URL.
@@ -1734,6 +1707,10 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			const sqlitePath = await resolveSqliteReadPath(this.session, readPath, suffixCache, signal);
 			if (sqlitePath) {
 				return readSqlite(sqlitePath, signal);
+			}
+			const jsonPath = await resolveJsonReadPath(this.session, literalSplit.path, suffixCache, signal);
+			if (jsonPath) {
+				return readJson(this.session, jsonPath, literalSplit.sel, signal);
 			}
 
 			// `bin:main`, `bin:imports`, `bin:main:10-40`: an executable/IDB prefix
@@ -2188,7 +2165,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					const startLineDisplay = startLine + 1;
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
-					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
+					const effectiveLimit = limit ?? DEFAULT_LIMIT;
 					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
 					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.

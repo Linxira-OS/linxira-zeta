@@ -3,6 +3,19 @@
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
+## [18.7.0] - 2026-10-06
+
+### Added
+
+- Added `getOAuthCredentialProvider()` to resolve login aliases, such as `openai-codex-device`, to the provider where their credentials are stored.
+
+### Fixed
+
+- Fixed Ultrafast service-tier billing and usage accounting: GPT-6 Astra now applies its published premium rates—6× on the OpenAI API and 8× included usage on Codex—and is counted toward the premium-request limit.
+- Fixed Vertex AI authentication on Windows when credentials are created with `gcloud auth application-default login`.
+- Fixed selecting Cursor accounts by email through `auth.accountPolicies` and `/session pin`; newly refreshed and existing accounts now retain the account email.
+
+## [18.6.3] - 2026-10-06
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
 
