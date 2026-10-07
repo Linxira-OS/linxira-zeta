@@ -6,6 +6,12 @@ import { cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import type { TrackingStatus } from "../tools/tracking";
+import {
+	activeModeId,
+	buildDynamicToolNotice,
+	DYNAMIC_TOOL_NOTICE_TYPE,
+	toggleDynamicTool,
+} from "../tools/dynamic-tools";
 import { commandConsumed, usage } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
@@ -120,6 +126,32 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			const cwd = runtime.ctx.sessionManager.getCwd();
 			runtime.ctx.showStatus(await buildTrackingReport(command, cwd));
 			runtime.ctx.editor.setText("");
+		},
+	},
+	{
+		name: "tool",
+		description: () => M.cmdTool,
+		acpDescription: "Toggle a dynamic tool on or off",
+		acpInputHint: "<name> on|off",
+		inlineHint: "<name> on|off",
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const result = toggleDynamicTool(runtime.settings, command.args);
+			if ("error" in result) return usage(result.error, runtime);
+			// The settings write re-gates the session's built-ins (cfgSessionToolGates
+			// reconcile); the notice teaches the model what just appeared or vanished.
+			if (result.changed) {
+				await runtime.session.sendCustomMessage(
+					{
+						customType: DYNAMIC_TOOL_NOTICE_TYPE,
+						content: buildDynamicToolNotice(result.name, result.enabled, activeModeId(runtime.session)),
+						display: false,
+					},
+					{ deliverAs: "nextTurn" },
+				);
+			}
+			await runtime.output(`${result.name}: ${result.enabled ? "on" : "off"}`);
+			return commandConsumed();
 		},
 	},
 ];

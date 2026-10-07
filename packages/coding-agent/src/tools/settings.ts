@@ -1012,12 +1012,24 @@ export const cfgDevAutoqaConsent = register({
 	default: "unset" as const,
 });
 
+/**
+ * Enabled dynamic tool categories (`/tool <name> on|off`), persisted as one
+ * record entry per tool. Dynamic tools are absent from the toolset until their
+ * entry is `true`; the entry is removed when toggled off.
+ */
+export const cfgSessionDynamicTools = register({
+	id: "session.dynamicTools",
+	type: "record",
+	default: {} as Record<string, boolean>,
+});
+
 /** Settings read by `resolveBuiltinToolPlan` (`tools/index.ts`); a live session reconciles its built-ins when any changes. */
 export const cfgBuiltinToolGates = combine({
 	ask: cfgAskEnabled,
 	astEdit: cfgAstEditEnabled,
 	astGrep: cfgAstGrepEnabled,
 	async: cfgAsyncEnabled,
+	dynamicTools: cfgSessionDynamicTools,
 	autolearn: cfgAutolearnEnabled,
 	bash: cfgBashEnabled,
 	checkpoint: cfgCheckpointEnabled,

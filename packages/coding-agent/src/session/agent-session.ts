@@ -258,6 +258,7 @@ import {
 	releaseTabsForOwner,
 } from "../tools/browser/tab-supervisor";
 import type { CheckpointState, CompletedRewindState } from "../tools/checkpoint";
+import { applyTimeSendTimestamp } from "../tools/dynamic-tools";
 import { releaseComputerSessionsForOwner, revokeComputerControlForOwner } from "../tools/computer/supervisor";
 import { isAutoQaEnabled } from "../tools/report-tool-issue";
 import {
@@ -7749,7 +7750,14 @@ export class AgentSession implements SettingsScope {
 		const attachmentSourceNotices = this.#createAttachmentSourceNotices(options?.images, submittedAt);
 		const normalizedImages = await this.#normalizeImagesForModel(options?.images);
 
-		const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: expandedText }];
+		// Dynamic `time` tool: stamp genuine user submissions with their send
+		// instant (see #queueUserMessage for the streaming/queued paths).
+		const dispatchedText = applyTimeSendTimestamp(this.settings, expandedText, {
+			synthetic: options?.synthetic,
+			attribution: options?.attribution,
+			now: new Date(submittedAt),
+		});
+		const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: dispatchedText }];
 		if (normalizedImages?.length) {
 			userContent.push(...normalizedImages);
 		}
@@ -8723,7 +8731,13 @@ export class AgentSession implements SettingsScope {
 		// vision-model request for the same attachment.
 		const attachmentSourceNotices = this.#createAttachmentSourceNotices(images, timestamp ?? Date.now());
 		const normalizedImages = preprocessed ? preprocessed.images : await this.#normalizeImagesForModel(images);
-		const content: (TextContent | ImageContent)[] = [{ type: "text", text }];
+		// Dynamic `time` tool: stamp user-attributed submissions with their send
+		// instant so the model can tell message time from current time.
+		const stampedText = applyTimeSendTimestamp(this.settings, text, {
+			attribution,
+			now: timestamp !== undefined ? new Date(timestamp) : new Date(),
+		});
+		const content: (TextContent | ImageContent)[] = [{ type: "text", text: stampedText }];
 		if (normalizedImages?.length) {
 			content.push(...normalizedImages);
 		}

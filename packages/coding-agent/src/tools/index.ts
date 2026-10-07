@@ -77,6 +77,8 @@ import { SecurityScanTool } from "./security-scan";
 import { SshExecTool } from "./ssh-exec";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { TodoTool } from "./todo";
+import { isDynamicToolEnabled, isDynamicToolName } from "./dynamic-tools";
+import { TimeTool } from "./time";
 import { TrackingTool } from "./tracking";
 import { WorkspaceRunTool } from "./workspace-run";
 import { WriteTool } from "./write";
@@ -148,6 +150,8 @@ export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./security-scan";
 export * from "./think";
+export * from "./dynamic-tools";
+export * from "./time";
 export * from "./todo";
 export * from "./tts";
 export * from "./vibe";
@@ -600,6 +604,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	wait: s => new WaitTool(s),
 	todo: s => new TodoTool(s),
 	web_search: s => new WebSearchTool(s),
+	time: () => new TimeTool(),
 	write: s => new WriteTool(s),
 	memory_edit: MemoryEditTool.createIf,
 	retain: MemoryRetainTool.createIf,
@@ -824,6 +829,8 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "task") {
 			return canSpawnAtDepth(cfgTaskMaxRecursionDepth.get(session.settings), session.taskDepth ?? 0);
 		}
+		// Dynamic tools are present only while their `session.dynamicTools` entry is on.
+		if (isDynamicToolName(name)) return isDynamicToolEnabled(session.settings, name);
 		return true;
 	};
 	if (includeYield && requestedTools && !requestedTools.includes("yield")) {

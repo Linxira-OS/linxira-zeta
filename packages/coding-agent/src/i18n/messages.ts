@@ -46,6 +46,15 @@ export interface Messages {
 	languageZhLabel: string; // local name of Chinese
 	cmdLanguage: string; // /language menu description
 
+	// /tool command (dynamic tools framework)
+	cmdTool: string; // /tool menu description
+	dynamicToolUsage: string; // usage line for /tool
+	dynamicToolUnknownFmt: string; // "Unknown dynamic tool: %s. Available: %s"
+	dynamicToolEnabledFmt: string; // "%s enabled. %s. Current mode: %s" notice
+	dynamicToolDisabledFmt: string; // "%s disabled" notice
+	dynamicToolModeDefault: string; // mode name when no mode is active
+	timeCapability: string; // one-line capability of the time tool
+
 	// setup wizard shell
 	setupFallbackTitle: string; // wizard scene-title fallback
 	setupStepFmt: string; // "Setup step %s of %s" header line
