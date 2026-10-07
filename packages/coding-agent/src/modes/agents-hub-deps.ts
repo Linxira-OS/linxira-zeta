@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { Model, ServiceTier } from "@oh-my-pi/pi-ai";
-import type { AgentsHubDeps } from "@oh-my-pi/pi-tui/overlays/agents-hub";
-import { shortenPath } from "@oh-my-pi/pi-tui/render/render-utils";
-import { isEnoent, prompt } from "@oh-my-pi/pi-utils";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Model, ServiceTier } from "@linxiraos/pi-ai";
+import type { AgentsHubDeps } from "@linxiraos/pi-tui/overlays/agents-hub";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import { isEnoent, prompt } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { getConfigDirs } from "../config";

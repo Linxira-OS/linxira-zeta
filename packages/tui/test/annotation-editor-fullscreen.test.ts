@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { getKeybindings, Input, setKeybindings, TUI } from "@oh-my-pi/pi-tui";
-import { AnnotationOverlay } from "@oh-my-pi/pi-tui/overlays/annotation-overlay";
-import type { TextReviewSource } from "@oh-my-pi/pi-tui/overlays/annotation-types";
-import { getThemeByName, setThemeInstance, type Theme } from "@oh-my-pi/pi-tui/theme";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { getKeybindings, Input, setKeybindings, TUI } from "@linxiraos/pi-tui";
+import { AnnotationOverlay } from "@linxiraos/pi-tui/overlays/annotation-overlay";
+import type { TextReviewSource } from "@linxiraos/pi-tui/overlays/annotation-types";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

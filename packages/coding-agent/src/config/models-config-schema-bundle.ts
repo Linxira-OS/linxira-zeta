@@ -1,6 +1,6 @@
-import { type NarrowContext, type } from "@oh-my-pi/omptype";
-import { MODEL_KINDS, RUNNER_API_KINDS } from "@oh-my-pi/pi-catalog/types";
-import { once } from "@oh-my-pi/pi-utils";
+import { type NarrowContext, type } from "@linxiraos/pi-omptype";
+import { MODEL_KINDS, RUNNER_API_KINDS } from "@linxiraos/pi-catalog/types";
+import { once } from "@linxiraos/pi-utils";
 
 function validateMaxContextWindow(
 	value: { maxContextWindow?: number; contextWindow?: number },

@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Shell } from "@oh-my-pi/pi-natives";
-import type { ReadToolDetails } from "@oh-my-pi/pi-tui/tools/read";
-import { DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@oh-my-pi/pi-tui/tools/streaming-output";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
-import { isEnoent } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Shell } from "@linxiraos/pi-natives";
+import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import { DEFAULT_MAX_LINES, truncateHead, truncateTail } from "@linxiraos/pi-tui/tools/streaming-output";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { isEnoent } from "@linxiraos/pi-utils";
 import type { ToolSession } from "../sdk";
 import { quotePosixPath } from "../ssh/utils";
 import { resolveReadPath } from "./path-utils";

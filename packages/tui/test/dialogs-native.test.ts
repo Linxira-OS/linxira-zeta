@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { setKeybindings, type TUI } from "@oh-my-pi/pi-tui";
-import type { DescribeContext, NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@oh-my-pi/pi-tui/overlays/ask-dialog";
-import { LoginDialogComponent } from "@oh-my-pi/pi-tui/overlays/login-dialog";
-import { PlanReviewOverlay } from "@oh-my-pi/pi-tui/overlays/plan-review-overlay";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { setKeybindings, type TUI } from "@linxiraos/pi-tui";
+import type { DescribeContext, NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { AskDialogComponent, type ExtensionAskDialogQuestion } from "@linxiraos/pi-tui/overlays/ask-dialog";
+import { LoginDialogComponent } from "@linxiraos/pi-tui/overlays/login-dialog";
+import { PlanReviewOverlay } from "@linxiraos/pi-tui/overlays/plan-review-overlay";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
 const ENTER = "\n";
 const UP = "\x1b[A";

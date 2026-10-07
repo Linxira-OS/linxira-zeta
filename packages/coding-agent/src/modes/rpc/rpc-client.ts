@@ -5,11 +5,11 @@
  */
 
 import { isPromise } from "node:util/types";
-import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { CompactionResult } from "@oh-my-pi/pi-agent-core/compaction";
-import type { ImageContent, Model } from "@oh-my-pi/pi-ai";
-import { isRecord, ptree, readJsonl } from "@oh-my-pi/pi-utils";
-import type { LogoutAccount } from "@oh-my-pi/pi-tui/overlays/logout-account-selector";
+import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import type { ImageContent, Model } from "@linxiraos/pi-ai";
+import { isRecord, ptree, readJsonl } from "@linxiraos/pi-utils";
+import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
 import type { FileSink } from "bun";
 import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";

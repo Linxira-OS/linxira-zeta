@@ -5,11 +5,11 @@
  * the label column and fills in what a judge cannot answer. An on-device
  * judge only picks the kind (keyword answers), keeping the guessed columns.
  */
-import type { ChoiceQuestion, NoulQuestion } from "@oh-my-pi/pi-ai";
-import type { ChartKind, ChartPlan } from "@oh-my-pi/pi-tui/charts/chart-plan";
-import type { TableColumn } from "@oh-my-pi/pi-tui/charts/table-data";
-import type { TableChartRequest } from "@oh-my-pi/pi-tui/chat/table-chart";
-import { prompt } from "@oh-my-pi/pi-utils";
+import type { ChoiceQuestion, NoulQuestion } from "@linxiraos/pi-ai";
+import type { ChartKind, ChartPlan } from "@linxiraos/pi-tui/charts/chart-plan";
+import type { TableColumn } from "@linxiraos/pi-tui/charts/table-data";
+import type { TableChartRequest } from "@linxiraos/pi-tui/chat/table-chart";
+import { prompt } from "@linxiraos/pi-utils";
 import type { ChainJudge } from "../judgment";
 import columnQuestionTemplate from "../prompts/system/auto-graph-column-question.md" with { type: "text" };
 import kindQuestionInstructions from "../prompts/system/auto-graph-kind-question.md" with { type: "text" };

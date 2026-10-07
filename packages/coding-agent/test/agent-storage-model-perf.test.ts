@@ -1,17 +1,17 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createSubagentSettings } from "@oh-my-pi/pi-coding-agent/task/executor";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const MODEL_PERF_FLUSH_DELAY_MS = 60_000;
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -367,7 +367,7 @@ describe("AgentStorage model perf aggregates", () => {
 			USERPROFILE: homeDir,
 			OMP_PROFILE: "",
 			PI_CODING_AGENT_DIR: agentDir,
-			PI_CONFIG_DIR: ".omp",
+			PI_CONFIG_DIR: ".zeta",
 			PI_PROFILE: "",
 			XDG_CACHE_HOME: tempDir.join("xdg-cache"),
 			XDG_CONFIG_HOME: tempDir.join("xdg-config"),
@@ -379,7 +379,7 @@ describe("AgentStorage model perf aggregates", () => {
 				'import { Database } from "bun:sqlite";',
 				'import * as fs from "node:fs";',
 				'import * as path from "node:path";',
-				'import { getAgentDbPath, getStatsDbPath } from "@oh-my-pi/pi-utils";',
+				'import { getAgentDbPath, getStatsDbPath } from "@linxiraos/pi-utils";',
 				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 				// A stale stats.db that never saw the live Astra turns.
 				"const statsPath = getStatsDbPath();",
@@ -429,7 +429,7 @@ describe("AgentStorage model perf aggregates", () => {
 			USERPROFILE: homeDir,
 			OMP_PROFILE: "",
 			PI_CODING_AGENT_DIR: agentDir,
-			PI_CONFIG_DIR: ".omp",
+			PI_CONFIG_DIR: ".zeta",
 			PI_PROFILE: "",
 			XDG_CACHE_HOME: tempDir.join("xdg-cache"),
 			XDG_CONFIG_HOME: tempDir.join("xdg-config"),
@@ -441,7 +441,7 @@ describe("AgentStorage model perf aggregates", () => {
 				'import { Database } from "bun:sqlite";',
 				'import * as fs from "node:fs";',
 				'import * as path from "node:path";',
-				'import { getStatsDbPath } from "@oh-my-pi/pi-utils";',
+				'import { getStatsDbPath } from "@linxiraos/pi-utils";',
 				`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 				"const statsPath = getStatsDbPath();",
 				"fs.mkdirSync(path.dirname(statsPath), { recursive: true });",

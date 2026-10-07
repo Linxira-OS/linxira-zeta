@@ -1,9 +1,6 @@
-# Changelog
-
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
-## [18.7.0] - 2026-10-06
 
 ### Added
 
@@ -51,83 +48,7 @@
 - Fixed `/settings` opening duplicate menus when invoked while the settings menu was already open.
 - Fixed native Git operations resolving repositories incorrectly when run through symbolic links.
 
-## [18.6.3] - 2026-10-06
-
-- 会话回收站：`/delete` 需 15 秒内三次输入确认；删除改为软删（`~/.zeta/trash/sessions/` 保留 30 天，`session.trashRetentionDays` 可配置），`/trash` 列出、`/restore` 恢复；Zeta Bot (Relay) 协调者会话禁删。
-- 子代理会话恢复 AsyncJobManager 继承（v18.6.3 合并回归修复——focused-subagent 手动 yield 投递链断）。
-
-### Changed
-
-- Reworked the Ctrl+S Agent Hub into a responsive fullscreen roster and selected-agent inspector, featuring aggregate status/usage metrics, detailed per-agent views (task, model, activity, usage, lineage), roster and spawn-tree views, stable ordering, asynchronous persisted-session discovery, restored historical metadata, and improved keyboard and mouse navigation.
-- Replaced `arktype` with `@linxiraos/omptype` for all tool parameter and configuration schemas, resulting in significantly faster startup times. Configuration schema errors are now reported via `OmpErrors` entries using the standard `path`/`problem` format.
-- Subagent `yield` now takes `data`/`error` directly instead of nesting them under a `result` wrapper.
-- Streaming edit guard 改为异步增量验证，大文件编辑不再卡顿。
-
-### Fixed
-
-- Fixed OAuth provider `modifyModels` projections being silently dropped after a discovery refresh introduced live-config headers.
-- Edit-tool `＋`/`－` line operations now match their anchors leniently across whitespace drift (indentation, blank-line miscounts) instead of failing with a byte-for-byte error; a note reports the lenient match.
-- Fixed an edit-tool REWRITE consisting only of `＋` add lines silently replacing (deleting) the matched text; it now inserts after the kept MATCH.
-- Edit-tool no-match errors now name MATCH lines that exist nowhere in the file and suggest marking them with `＋`, and errors without a located region no longer append a misleading file-head "closest match" preview.
-- Fixed ordinary CLI startup eagerly loading the computer worker graph (native desktop addon and early environment), restoring lazy startup and profile `.env` ordering.
-- Fixed online auto-thinking classifier usage being omitted from session token and cost totals.
-- Fixed image generation with custom provider endpoints when using `openai-codex` credentials and a non-OpenAI chat model.
-- Fixed custom hook UI factories not receiving the documented `keybindings` argument.
-- Fixed MCP OAuth token exchange for authorization endpoints that use a different resource indicator.
-- Fixed custom extension `web_search` tools being shadowed by the built-in search tool.
-- Fixed Agent Hub task boards collapsing to summary rows after returning from a focused session.
-- Improved Linux ARM64 browser startup messaging when managed Chrome for Testing builds are unavailable, with guidance for using system Chromium or `PUPPETEER_EXECUTABLE_PATH`.
-- Fixed resuming image-heavy sessions that previously terminated while replaying transcripts.
-- Fixed custom agents declaring `hub` being incorrectly treated as read-only.
-- Restored compatibility for legacy Pi extensions that import `calculateContextTokens` or use the synchronous `SettingsManager.create()` API.
-- Fixed custom model overrides being lost during configuration updates.
-- Clarified that the default task-delegation setting follows the selected model's policy.
-- Fixed `/rename` without a title interrupting active session activity.
-- Fixed the Nerd Font notification persisting incorrectly after theme configuration.
-- Fixed sampling parameter errors with newer Anthropic models.
-- Long OpenCode Go usage-limit waits now switch replay-safe turns to a configured alternate provider when the delay exceeds `retry.maxDelayMs`.
-- Fixed OpenAI Codex Responses tool results being lost when composite and plain tool-call identifiers did not match.
-- Fixed `/tan` background agents failing to resolve credentials for providers supplied by extensions.
-- Fixed Mnemopi saving session transcripts on exit when automatic retention is disabled.
-- Fixed configuration writes through chained symlinks so the final target and intermediate links are preserved.
-- Fixed direct tool calls using full `xd://` device URLs.
-- Fixed command-backed headers in custom discovery providers being resolved for discovered models.
-- Fixed Windows drive paths pasted under WSL being resolved through their `/mnt/<drive>` mounts for images and file reads.
-- Improved sloppy/SPARSE edit no-match guidance so low-confidence matches are clearly presented without unsafe copy-ready operations.
-- Fixed agents in Hub wait loops failing to respond to user steering messages.
-- Fixed `/tan` sessions inheriting parent costs and overstating subagent totals.
-- Fixed prompt action labels being truncated.
-- Fixed assistant text being truncated when a tool call begins during streaming.
-- Fixed the advisor dropping concerns when catching up on multiple turns and improved review context with bounded tool-result excerpts plus complete `ask` exchanges.
-- Fixed bash command timeouts being delayed by child processes holding output pipes open, while improving timeout reporting and cleanup.
-- Fixed retry countdowns and capped-wait errors displaying floating-point noise in millisecond durations.
-- Prevented browser `app.path` from terminating existing same-executable applications when no reusable CDP endpoint is available.
-- Fixed top-level errors overwriting the active composer before terminal restoration.
-- Fixed Enter being ignored during the first turn when zeta starts with an initial prompt.
-- Fixed idle compaction discarding context while the session was still waiting on a backgrounded async job ([#10223](https://github.com/can1357/oh-my-pi/pull/10223) by [@mattwilkinsonn](https://github.com/mattwilkinsonn)).
-- Fixed LSP idle timeout clobbering in multi-workspace sessions and unmanaged timer spawning on pure config reads ([#10237](https://github.com/can1357/oh-my-pi/pull/10237) by [@harshaygadekar](https://github.com/harshaygadekar)).
-- Fixed Codex V2 remote compaction rebuilding the request prefix differently from normal turns, restoring prompt-cache reuse ([#10786](https://github.com/can1357/oh-my-pi/issues/10786)).
-- Restored mouse clicks, hover, and wheel scrolling in Plan Review.
-- Approved plan content is now inlined into approve-and-execute prompts instead of forcing the executor to re-read the durable plan file ([#10923](https://github.com/can1357/oh-my-pi/issues/10923)).
-- Fixed WorkPool child sessions crashing during startup while constructing their incremental `yield` tool schema.
-- Commit summaries written in Vietnamese, Korean, and other accented scripts are no longer rejected for exceeding the length limit, and keep their accents as typed.
-- Tool-scoped TTSR rules now match finalized arguments reliably when providers stream short or throttled tool calls ([#10910](https://github.com/can1357/oh-my-pi/issues/10910)).
-- Restored `getSupportedThinkingLevels` in the legacy `pi-ai` shim so extensions importing it from `@earendil-works/pi-ai` (e.g. `@companion-ai/feynman`) pass Bun's named-export check and load ([#10800](https://github.com/can1357/oh-my-pi/issues/10800)).
-- Fixed panel commands (such as `/usage` and `/advisor status`) appearing unresponsive during active turns by flushing the deferred-panel queue at every settle, terminal or not. The deferral itself stays silent: mounting a status line into the transcript mid-turn re-renders rows below the live block and duplicates them in native scrollback (issues #4806/#6767).
-- Fixed the bundled `ts-no-tiny-functions` rule failing to match one-line arrow functions in files with trailing newlines.
-- Fixed advisor refusals skipping the model fallback chain, and bounded refusal recovery to a single attempt per model to prevent infinite fallback loops.
-- Fixed repeated `/mcp reauth` commands getting stuck by ensuring new reauthorization requests cancel and clean up any pending MCP OAuth login flows.
-- Fixed WSL host-home resolution to build `/mnt/<drive>/...` fallback paths using POSIX semantics regardless of the host platform.
-- Fixed Python evaluation shell helpers (`!cmd`, `%%bash`, `%pip`) letting child processes inherit the runner's stdin, which previously caused deadlocks on Windows. Additionally, `%%bash` now correctly resolves Git Bash on Windows.
-- Fixed subagents spawned via model-role aliases incorrectly falling back to the `default` role's retry chain instead of their own configured role chain.
-- Fixed Linux/X11 clipboard reads failing when `xclip` is missing but `xsel` is available.
-- Hardened Linux Chromium executable detection to filter out non-executable files, invalid wrappers, and candidates that hang during version probes.
-- Fixed Bash command preview crashes caused by malformed tool arguments containing non-string environment values.
-- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
-- Julia 内核可用性探测加固（超时上限 + 进程组击杀），冷启动不再误判为不可用。
-- 中文界面本地化覆盖（zh overlay，随 v18.0.4 合并）。
-
-## [1.1.26] - 2026-10-03
+1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。
 

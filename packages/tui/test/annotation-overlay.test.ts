@@ -1,15 +1,15 @@
 import { beforeAll, beforeEach, describe, expect, afterEach, it } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { getKeybindings, setKeybindings, type TUI } from "@oh-my-pi/pi-tui";
-import { getThemeByName, setThemeInstance, type Theme } from "@oh-my-pi/pi-tui/theme";
-import { AnnotationOverlay, type AnnotationOverlayCallbacks } from "@oh-my-pi/pi-tui/overlays/annotation-overlay";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { getKeybindings, setKeybindings, type TUI } from "@linxiraos/pi-tui";
+import { getThemeByName, setThemeInstance, type Theme } from "@linxiraos/pi-tui/theme";
+import { AnnotationOverlay, type AnnotationOverlayCallbacks } from "@linxiraos/pi-tui/overlays/annotation-overlay";
 import type {
 	CodeReviewOverlayResult,
 	ReviewDiffFile,
 	TextReviewOverlayResult,
 	TextReviewSource,
-} from "@oh-my-pi/pi-tui/overlays/annotation-types";
+} from "@linxiraos/pi-tui/overlays/annotation-types";
 import { sliceByColumn, visibleWidth } from "../src/utils";
 
 const ENTER = "\r";

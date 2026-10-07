@@ -1,4 +1,4 @@
-import type { Tokens } from "@oh-my-pi/pi-utils/marked";
+import type { Tokens } from "@linxiraos/pi-utils/marked";
 import type { ImageBudget } from "../components/image";
 import type { Markdown } from "../components/markdown";
 import { Spacer } from "../components/spacer";

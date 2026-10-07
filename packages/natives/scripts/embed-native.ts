@@ -33,7 +33,7 @@ export interface EmbedOptions extends NativeEmbedTarget {
  * writing the archive cannot resolve it; in-memory files bypass that lookup.
  *
  * @throws when no addon exists for the target, or when an addon lacks the
- * `@oh-my-pi/pi-natives@<version>` version stamp and legacy sentinel.
+ * `@linxiraos/pi-natives@<version>` version stamp and legacy sentinel.
  */
 export async function embeddedAddonFiles({
 	platform,

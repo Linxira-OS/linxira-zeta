@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 
 export interface OwnerPrivateDirStat {
 	isSymlink: boolean;

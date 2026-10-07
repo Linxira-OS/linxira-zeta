@@ -1,4 +1,4 @@
-import { getOAuthCredentialProvider } from "@oh-my-pi/pi-ai/oauth";
+import { getOAuthCredentialProvider } from "@linxiraos/pi-ai/oauth";
 import type { ModelRegistry } from "../../config/model-registry";
 import type { AuthStorage, OAuthAccountIdentity, StoredAuthCredential } from "../../session/auth-storage";
 

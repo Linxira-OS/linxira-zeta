@@ -348,15 +348,6 @@ import {
 	cfgTierOpenai,
 } from "./session/settings";
 import {
-	cfgInterruptMode,
-	cfgFollowUpMode,
-	cfgSteeringMode,
-	cfgImagesBlockImages,
-	cfgStartupQuiet,
-	cfgTuiReactions,
-	cfgTuiRenderMermaid,
-} from "./modes/settings";
-import {
 	cfgCommandsEnableClaudeProject,
 	cfgCommandsEnableClaudeUser,
 	cfgCommandsEnableOpencodeProject,
@@ -371,6 +362,9 @@ import { cfgDisabledProviders, cfgEnabledModels, cfgEnabledProviders, cfgModelRo
 import { cfgEditRecoverInlineEdits } from "./edit/settings";
 import { cfgGoalEnabled } from "./goals/settings";
 import {
+	cfgInterruptMode,
+	cfgFollowUpMode,
+	cfgSteeringMode,
 	cfgImagesBlockImages,
 	cfgStartupQuiet,
 	cfgTuiReactions,

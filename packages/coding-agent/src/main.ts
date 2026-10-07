@@ -1148,7 +1148,7 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.continue = false;
 	parsed.messages.splice(messageIndex, 1);
 }
-const FORK_NOT_FOUND_HINT =
+const SESSION_NOT_FOUND_HINT =
 	"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {

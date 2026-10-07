@@ -4,7 +4,7 @@ import {
 	splitThinkingSuffix,
 	parseModelString,
 	splitUpstreamRouting,
-} from "@oh-my-pi/pi-tui/overlays/model-selector";
+} from "@linxiraos/pi-tui/overlays/model-selector";
 /**
  * Model resolution, scoping, and initial selection.
  *
@@ -22,22 +22,22 @@ import {
  *   CLI flags, scope globs — onto that pipeline.
  */
 
-import { ThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { ModelRoleLookup } from "@oh-my-pi/pi-tui/overlays/model-browser";
-import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@oh-my-pi/pi-ai";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveBareVariantSelector, resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
-import { providerEntry } from "@oh-my-pi/pi-catalog/compat/providers";
-import { collapseVariantId, stripThinkingVariantSuffix } from "@oh-my-pi/pi-catalog/compat/taxonomy";
-import { modelMatchesHost } from "@oh-my-pi/pi-catalog/hosts";
-import { buildModelProviderPriorityRank } from "@oh-my-pi/pi-catalog/identity";
-import { clampThinkingLevelForModel } from "@oh-my-pi/pi-catalog/model-thinking";
-import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@oh-my-pi/pi-catalog/models";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { DEFAULT_MODEL_PER_PROVIDER } from "@oh-my-pi/pi-catalog/provider-models";
-import { fuzzyMatch } from "@oh-my-pi/pi-tui";
-import { logger } from "@oh-my-pi/pi-utils";
-import chalk from "@oh-my-pi/pi-utils/chalk";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core";
+import type { ModelRoleLookup } from "@linxiraos/pi-tui/overlays/model-browser";
+import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@linxiraos/pi-ai";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveBareVariantSelector, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
+import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
+import { collapseVariantId, stripThinkingVariantSuffix } from "@linxiraos/pi-catalog/compat/taxonomy";
+import { modelMatchesHost } from "@linxiraos/pi-catalog/hosts";
+import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import { type GeneratedProvider, getBundledModels, modelsAreEqual } from "@linxiraos/pi-catalog/models";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models";
+import { fuzzyMatch } from "@linxiraos/pi-tui";
+import { logger } from "@linxiraos/pi-utils";
+import chalk from "@linxiraos/pi-utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import {
 	AUTO_THINKING,
@@ -45,7 +45,7 @@ import {
 	concreteThinkingLevel,
 	parseConfiguredThinkingLevel,
 	resolveThinkingLevelForModel,
-} from "@oh-my-pi/pi-tui/thinking";
+} from "@linxiraos/pi-tui/thinking";
 import { isAuthenticated, kNoAuth, type ModelRegistry } from "./model-registry";
 import {
 	DEFAULT_MODEL_ROLE_ALIAS,

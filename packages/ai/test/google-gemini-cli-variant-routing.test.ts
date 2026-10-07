@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { Effort, type FetchImpl } from "@oh-my-pi/pi-ai";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveVariantSelector } from "@oh-my-pi/pi-catalog/compat/collapse";
-import { fetchAntigravityDiscoveryModels } from "@oh-my-pi/pi-catalog/discovery/antigravity";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
+import { fetchAntigravityDiscoveryModels } from "@linxiraos/pi-catalog/discovery/antigravity";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
 interface CapturedRequestBody {
 	model?: string;

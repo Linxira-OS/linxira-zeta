@@ -1,6 +1,6 @@
-import { quotaTierFor } from "@oh-my-pi/pi-catalog/compat/behavior";
-import { CURSOR_DEFAULT_BASE_URL } from "@oh-my-pi/pi-catalog/wire/cursor";
-import { toNumber } from "@oh-my-pi/pi-catalog/utils";
+import { quotaTierFor } from "@linxiraos/pi-catalog/compat/behavior";
+import { CURSOR_DEFAULT_BASE_URL } from "@linxiraos/pi-catalog/wire/cursor";
+import { toNumber } from "@linxiraos/pi-catalog/utils";
 import {
 	cursorSessionHeaders,
 	extractCursorAccessTokenUserId,

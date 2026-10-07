@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import type { Context, Model } from "@oh-my-pi/pi-ai/types";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { Context, Model } from "@linxiraos/pi-ai/types";
 import { minimaxTokenPlanOpenAIModel } from "./helpers";
 
 const context: Context = {

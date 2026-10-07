@@ -34,7 +34,7 @@ The package exports five entrypoints:
 | `@linxiraos/pi-natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)` and defers addon loading until it is called.    |
 | `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
 
-The other lazy entrypoints are `@oh-my-pi/pi-natives/path` (`native/path.js` / `path.d.ts`) and `@oh-my-pi/pi-natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
+The other lazy entrypoints are `@linxiraos/pi-natives/path` (`native/path.js` / `path.d.ts`) and `@linxiraos/pi-natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
 
 There is no `packages/natives/src` wrapper layer. Most root exports bind N-API values directly; `DesktopSession` passes through `desktop-adapter.js`, which adapts older capture/execute/close addons and leaves current classes unchanged. The lazy subpaths defer loading until native functionality is needed.
 
