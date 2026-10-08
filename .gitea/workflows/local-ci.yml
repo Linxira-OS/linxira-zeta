@@ -9,7 +9,8 @@ defaults:
 
 # 本地全量验证:非发布类 CI 全部交由 NAS runner 处理(带缓存,增量编译)。
 # 发布链(build-binaries/publish)不在本地跑——那仍是 GitHub Actions 的职责。
-# 自举步全部幂等:self-hosted 的 HOME 持久,bun/rustup/nightly 只装一次。
+# act 的 HOME 是每次运行独立的临时目录——工具链一律装进持久的
+# $GITHUB_WORKSPACE/.tools(随 runner 工作区跨运行保留),同步骤内显式 PATH。
 jobs:
   verify:
     runs-on: self-hosted
@@ -17,34 +18,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Toolchain inventory
-        run: |
-          set -uo pipefail
-          echo "PATH=$PATH"
-          for t in bun node cargo rustc rustup; do
-            command -v "$t" >/dev/null && echo "$t: $($t --version 2>&1 | head -1)" || echo "$t: ABSENT"
-          done
-
-      - name: Bootstrap bun (idempotent)
+      - name: Bootstrap toolchains (persistent .tools)
         run: |
           set -euo pipefail
-          if ! command -v bun >/dev/null; then
-            curl -fsSL https://bun.sh/install | bash
+          TOOLS="$GITHUB_WORKSPACE/.tools"
+          mkdir -p "$TOOLS/bin"
+          # bun
+          if [ ! -x "$TOOLS/bin/bun" ]; then
+            curl -fsSL https://bun.sh/install | BUN_INSTALL="$TOOLS" bash
           fi
-          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
-
-      - name: Bootstrap rustup + pinned nightly (idempotent)
-        run: |
-          set -euo pipefail
-          if ! command -v rustup >/dev/null; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          # rustup + 钉定 nightly(ustc 镜像加速)
+          if [ ! -x "$TOOLS/rustup/bin/rustup" ]; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | RUSTUP_HOME="$TOOLS/rustup" CARGO_HOME="$TOOLS/cargo" sh -s -- -y --profile minimal --no-modify-path
           fi
+          export RUSTUP_HOME="$TOOLS/rustup" CARGO_HOME="$TOOLS/cargo"
+          export PATH="$TOOLS/bin:$TOOLS/rustup/bin:$TOOLS/cargo/bin:$PATH"
           export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
           rustup toolchain install nightly-2026-10-06 --profile minimal -c rustfmt,clippy
           rustup default nightly-2026-10-06
+          # 持久化到后续步骤
+          echo "$TOOLS/bin" >> "$GITHUB_PATH"
+          echo "$TOOLS/rustup/bin" >> "$GITHUB_PATH"
+          echo "$TOOLS/cargo/bin" >> "$GITHUB_PATH"
+          echo "RUSTUP_HOME=$TOOLS/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$TOOLS/cargo" >> "$GITHUB_ENV"
+          echo "BUN_INSTALL=$TOOLS" >> "$GITHUB_ENV"
 
-      - name: Toolchain after bootstrap
+      - name: Toolchain verify
         run: |
           set -uo pipefail
           bun --version
