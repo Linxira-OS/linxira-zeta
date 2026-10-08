@@ -6,7 +6,7 @@
  * The system browser is never opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, screen, shell, Tray } from "electron";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -18,6 +18,19 @@ import {
 	validateGatewayOpenTarget,
 	type DesktopOpenTarget,
 } from "./open-bridge";
+import { resolveToolIn, type ToolResolutionDeps } from "./tool-resolution";
+import {
+	DEFAULT_WORKSPACE_STATE,
+	isBoundsValid,
+	isToolId,
+	lastZetacodeLaunch,
+	newestSessionFile,
+	readWorkspaceState,
+	type WindowBounds,
+	type WorkspaceState,
+	withLaunch,
+	writeWorkspaceStateAtomic,
+} from "./workspace-state";
 import {
 	DEFAULT_DESKTOP_SETTINGS,
 	parseRunningSessions,
@@ -125,6 +138,151 @@ ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promi
 let mainWindow: BrowserWindow | null = null;
 let statsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let workspaceState: WorkspaceState = { ...DEFAULT_WORKSPACE_STATE, launches: [] };
+let boundsSaveTimer: NodeJS.Timeout | null = null;
+
+/** Persist the current window bounds (debounced caller; force flushes at quit). */
+function saveWorkspaceState(): void {
+	if (boundsSaveTimer) {
+		clearTimeout(boundsSaveTimer);
+		boundsSaveTimer = null;
+	}
+	try {
+		writeWorkspaceStateAtomic(app.getPath("userData"), workspaceState);
+	} catch (err) {
+		writeDesktopLog(`Could not persist workspace state: ${err instanceof Error ? err.message : String(err)}`);
+	}
+}
+
+function scheduleBoundsSave(): void {
+	if (boundsSaveTimer) clearTimeout(boundsSaveTimer);
+	boundsSaveTimer = setTimeout(saveWorkspaceState, 500);
+}
+
+function captureCurrentBounds(win: BrowserWindow): void {
+	if (win.isDestroyed() || win.isMinimized()) return;
+	// getNormalBounds keeps the pre-maximize rect when maximized.
+	const bounds = win.getNormalBounds();
+	workspaceState = { ...workspaceState, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }, maximized: win.isMaximized() };
+	scheduleBoundsSave();
+}
+
+/** Restore the persisted bounds only when they still land on a live display. */
+function restoredWindowBounds(): { bounds: WindowBounds; maximized: boolean } | null {
+	const persisted = workspaceState.bounds;
+	if (!persisted) return null;
+	const workAreas = screen.getAllDisplays().map(display => display.workArea as WindowBounds);
+	if (!isBoundsValid(persisted, workAreas)) return null;
+	return { bounds: persisted, maximized: workspaceState.maximized };
+}
+
+// ---------------------------------------------------------------------------
+// Topbar tool launchers (zetacode / zetaide / zetaeditor)
+// ---------------------------------------------------------------------------
+
+function toolResolutionDeps(): ToolResolutionDeps {
+	return {
+		isPackaged: app.isPackaged,
+		platform: process.platform,
+		resourcesPath: process.resourcesPath,
+		env: process.env,
+		exists: candidate => {
+			try {
+				return fs.existsSync(candidate);
+			} catch {
+				return false;
+			}
+		},
+		readTextFile: candidate => {
+			try {
+				return fs.readFileSync(candidate, "utf8");
+			} catch {
+				return null;
+			}
+		},
+		dirname: __dirname,
+		cwd: process.cwd(),
+		probePath: name => {
+			const lookup = process.platform === "win32" ? "where" : "which";
+			const probe = spawnSync(lookup, [name], { encoding: "utf8" });
+			if (probe.status !== 0) return null;
+			const lines = probe.stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+			if (lines.length === 0) return null;
+			// Prefer a real executable over cmd/bat shims so spawn works without a shell.
+			return lines.find(line => !/\.(cmd|bat)$/i.test(line)) ?? lines[0];
+		},
+		serviceBinaryName: SERVICE_BINARY_NAME,
+		webRuntimeName: WEB_RUNTIME_NAME,
+	};
+}
+
+interface SpawnToolOptions {
+	resume?: boolean;
+}
+
+ipcMain.handle(
+	"pi:spawn-tool",
+	async (
+		_event,
+		toolId: unknown,
+		cwd: unknown,
+		opts: unknown,
+	): Promise<{ tool: string; cwd: string; pid: number | null; sessionDir?: string }> => {
+		if (!isToolId(toolId)) throw new Error(`Unknown toolId: ${String(toolId)}`);
+		// Renderer must pass an existing directory; default to the service workspace.
+		const targetCwd =
+			typeof cwd === "string" && cwd.length > 0 ? cwd : currentWorkspacePath();
+		if (!path.isAbsolute(targetCwd)) throw new Error("cwd must be an absolute path");
+		try {
+			if (!fs.statSync(targetCwd).isDirectory()) throw new Error("not a directory");
+		} catch {
+			throw new Error(`cwd does not exist or is not a directory: ${targetCwd}`);
+		}
+		const options: SpawnToolOptions =
+			opts !== null && typeof opts === "object" && !Array.isArray(opts) ? (opts as SpawnToolOptions) : {};
+
+		const resolved = resolveToolIn(toolId, toolResolutionDeps());
+		if (!resolved) {
+			throw new Error(`Could not find the ${toolId} binary on this machine (PATH / ZETA_BIN_DIR / repo build).`);
+		}
+
+		const args = [...resolved.args];
+		const ts = new Date().toISOString();
+		let sessionDir: string | undefined;
+		if (toolId === "zetacode") {
+			// Isolated session archive per launch; `opts.resume` reuses the newest
+			// session file from the last zetacode launch in the same cwd.
+			const prior = options.resume === true ? lastZetacodeLaunch(workspaceState, targetCwd) : null;
+			sessionDir = prior?.sessionDir ?? path.join(app.getPath("userData"), "zeta-sessions", ts.replace(/[:.]/g, "-"));
+			args.push("--session-dir", sessionDir);
+			if (options.resume === true) {
+				const latest = newestSessionFile(sessionDir);
+				if (latest) args.push("--resume", latest);
+			}
+		}
+
+		let child: ChildProcess;
+		try {
+			child = spawn(resolved.file, args, {
+				cwd: targetCwd,
+				env: process.env,
+				detached: true,
+				stdio: "ignore",
+				windowsHide: true,
+				shell: resolved.needsShell,
+			});
+		} catch (err) {
+			throw new Error(`Could not launch ${toolId}: ${err instanceof Error ? err.message : String(err)}`);
+		}
+		child.on("error", err => writeDesktopLog(`Failed to launch ${toolId}: ${err.message}`));
+		child.unref();
+
+		workspaceState = withLaunch(workspaceState, { tool: toolId, cwd: targetCwd, pid: child.pid ?? null, ts, sessionDir });
+		saveWorkspaceState();
+		writeDesktopLog(`Launched ${toolId} (pid ${child.pid ?? "unknown"}) in ${targetCwd}`);
+		return { tool: toolId, cwd: targetCwd, pid: child.pid ?? null, sessionDir };
+	},
+);
 
 // ---------------------------------------------------------------------------
 // Window controls for the self-drawn titlebar (`window.piDesktop`).
@@ -454,9 +612,12 @@ function loadFailurePage(win: BrowserWindow, detail: string): void {
 }
 
 function createWindow(prefs: TrayPrefs): BrowserWindow {
+	const restored = restoredWindowBounds();
 	const win = new BrowserWindow({
-		width: 1440,
-		height: 900,
+		width: restored?.bounds.width ?? 1440,
+		height: restored?.bounds.height ?? 900,
+		x: restored?.bounds.x,
+		y: restored?.bounds.y,
 		minWidth: 960,
 		minHeight: 600,
 		autoHideMenuBar: true,
@@ -479,14 +640,22 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
 		// destroys the window.
+		captureCurrentBounds(win);
 		if (prefs.minimizeToTray && tray !== null && !quitting) {
 			event.preventDefault();
 			win.hide();
+			saveWorkspaceState();
 			return;
 		}
 		mainWindow = null;
+		saveWorkspaceState();
 	});
 	mainWindow = win;
+	if (restored?.maximized) win.maximize();
+	// Keep the persisted window position in sync (debounced) so the next
+	// launch restores the same geometry.
+	win.on("resize", () => captureCurrentBounds(win));
+	win.on("move", () => captureCurrentBounds(win));
 	// Keep the self-drawn titlebar in sync with the real window state.
 	win.on("maximize", () => pushWindowState(win));
 	win.on("unmaximize", () => pushWindowState(win));
@@ -773,6 +942,7 @@ async function boot(): Promise<void> {
 	const prefs = await readTrayPrefs();
 	applyAutostart(prefs.autostart);
 	desktopSettings = readDesktopSettings(app.getPath("userData"));
+	workspaceState = readWorkspaceState(app.getPath("userData"));
 	buildMenu(prefs.desktopLabels);
 	createTray(prefs.desktopLabels);
 	createWindow(prefs);
@@ -803,6 +973,8 @@ if (!app.hasSingleInstanceLock()) {
 	app.on("before-quit", () => {
 		quitting = true;
 		stopSessionMonitor();
+		if (mainWindow && !mainWindow.isDestroyed()) captureCurrentBounds(mainWindow);
+		saveWorkspaceState();
 		killServe();
 	});
 

@@ -19,6 +19,12 @@ declare global {
 			onWindowState?: (callback: (state: { maximized: boolean }) => void) => () => void;
 			getOpenTargets?: () => Promise<{ id: string; label: string }[]>;
 			openTarget?: (targetId: string, gatewayPath: { path: string; token: string }) => Promise<void>;
+			// Topbar tool launchers (frameless desktop shell only).
+			spawnTool?: (
+				toolId: string,
+				cwd?: string,
+				opts?: { resume?: boolean },
+			) => Promise<{ tool: string; cwd: string; pid: number | null; sessionDir?: string }>;
 		};
 	}
 }
@@ -61,6 +67,23 @@ export function hasDesktopOpenBridge(): boolean {
 	return typeof window !== "undefined"
 		&& typeof window.piDesktop?.getOpenTargets === "function"
 		&& typeof window.piDesktop?.openTarget === "function";
+}
+
+/** Topbar tool launcher availability (frameless desktop shell only). */
+export function hasDesktopToolLauncher(): boolean {
+	return typeof window !== "undefined" && typeof window.piDesktop?.spawnTool === "function";
+}
+
+export type DesktopToolId = "zetacode" | "zetaide" | "zetaeditor";
+
+/** Spawn a companion tool; rejects with the desktop shell's error message. */
+export async function spawnDesktopTool(
+	toolId: DesktopToolId,
+	cwd?: string,
+	opts?: { resume?: boolean },
+): Promise<{ tool: string; cwd: string; pid: number | null; sessionDir?: string } | null> {
+	if (!hasDesktopToolLauncher()) return null;
+	return (await window.piDesktop?.spawnTool?.(toolId, cwd, opts)) ?? null;
 }
 
 export async function getDesktopOpenTargets(): Promise<DesktopOpenTarget[]> {
