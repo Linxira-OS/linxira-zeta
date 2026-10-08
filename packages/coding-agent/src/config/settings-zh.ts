@@ -1397,6 +1397,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"启用 github 工具（基于 op 的仓库、issue、pull request、diff、search、checkout、push 和 Actions 监视工作流分派）",
 	},
+	"gitea.enabled": {
+		label: "Gitea CLI 集成",
+		description: "启用 tea 工具（面向自托管 Gitea 的仓库、issue、pull request、checkout、合并和发行版工作流分派）",
+	},
 	"github.cache.enabled": {
 		label: "GitHub 视图缓存",
 		description: "将渲染后的 issue/PR 视图输出缓存在 ~/.zeta/cache/github-cache.db 中，重复读取不再计费",
@@ -1547,6 +1551,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"goal.continuationModes": {
 		label: "目标延续模式",
 		description: "活动目标可在轮次间自动延续的运行模式",
+	},
+	"title.icons": {
+		label: "标题图标",
+		description: "新生成的会话标题开头显示的图标与短编码",
+	},
+	"title.generator": {
+		label: "标题生成器",
+		description: "无标题会话根据用户消息命名时使用的方式",
 	},
 	"title.refreshOnReplan": {
 		label: "重新规划时刷新标题",
@@ -2244,6 +2256,26 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tui.titleSpinner::dots": {
 		label: "单点",
 		description: "单个盲文点循环",
+	},
+	"title.icons::nf+emoji": {
+		label: "Nerd Font + Emoji",
+		description: "Nerd Font 字形可渲染时用之，否则回退 emoji（默认）",
+	},
+	"title.icons::emoji": {
+		label: "Emoji",
+		description: "始终使用 emoji",
+	},
+	"title.icons::boring": {
+		label: "朴素",
+		description: "纯标题：无图标、无编码",
+	},
+	"title.generator::fork": {
+		label: "Fork",
+		description: "回复的旁支轮次，复用会话模型的提示缓存，带卡片图标（默认）",
+	},
+	"title.generator::tiny": {
+		label: "Tiny",
+		description: "仅用标题模型角色；生成不带卡片的纯标题",
 	},
 	"tui.titleSpinner::line": {
 		label: "线条",
