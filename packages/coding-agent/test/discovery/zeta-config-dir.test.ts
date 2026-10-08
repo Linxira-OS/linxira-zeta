@@ -7,13 +7,13 @@ import { getConfigDirs } from "@linxiraos/zeta/config";
 import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
 import { getUserPath } from "@linxiraos/zeta/discovery/helpers";
 
-describe("PI_CONFIG_DIR", () => {
-	const original = process.env.PI_CONFIG_DIR;
+describe("ZETA_CONFIG_DIR", () => {
+	const original = process.env.ZETA_CONFIG_DIR;
 	afterEach(() => {
 		if (original === undefined) {
-			delete process.env.PI_CONFIG_DIR;
+			delete process.env.ZETA_CONFIG_DIR;
 		} else {
-			process.env.PI_CONFIG_DIR = original;
+			process.env.ZETA_CONFIG_DIR = original;
 		}
 	});
 
@@ -31,8 +31,8 @@ describe("PI_CONFIG_DIR", () => {
 		expect(getUserPath(ctx, "native", "commands")).not.toContain(ctx.home);
 	});
 
-	test("getConfigDirs respects PI_CONFIG_DIR for user base", () => {
-		process.env.PI_CONFIG_DIR = ".config/omp";
+	test("getConfigDirs respects ZETA_CONFIG_DIR for user base", () => {
+		process.env.ZETA_CONFIG_DIR = ".config/omp";
 		const result = getConfigDirs("commands", { project: false });
 		const expected = path.resolve(path.join(os.homedir(), ".config/omp", "agent", "commands"));
 		expect(result[0]).toEqual({ path: expected, source: ".zeta", level: "user" });

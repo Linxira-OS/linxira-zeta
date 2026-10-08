@@ -2237,10 +2237,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 	try {
 		const getActiveModelString = (): string | undefined => {
-			const activeModel = agent?.state.model;
-			if (activeModel) return formatModelString(activeModel);
-			if (model) return formatModelString(model);
-			return undefined;
+			const activeModel = agent?.state.model ?? model;
+			if (!activeModel) return undefined;
+			// Inherit the live route and effective effort (Zeta vibe rehydration and
+			// spawn-path workers track the reopened session's model). Upstream removed
+			// this in 31876ff with the per-call subagent selectors; our vibe feature
+			// still depends on the routed+effort form.
+			const effort = agent?.state.model ? agent.state.thinkingLevel : effectiveThinkingLevel;
+			return formatModelSelectorValue(formatModelStringWithRouting(activeModel), effort);
 		};
 		// Per-path mutation counter shared across edit/write tools. Late-diagnostics
 		// entries capture it at fetch time and are dropped at injection if a newer

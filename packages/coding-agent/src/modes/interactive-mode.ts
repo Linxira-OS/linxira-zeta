@@ -74,6 +74,7 @@ import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
 import type { CollabHost } from "../collab/host";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { formatModelString, formatModelStringWithRouting, type ResolvedModelRoleValue } from "../config/model-resolver";
 import { isSettingsInitialized, Settings, settings } from "../config/settings";
@@ -4583,7 +4584,13 @@ export class InteractiveMode implements InteractiveModeContext {
 			// (same as the spawn-path ToolSession), not the settings default. This is
 			// the primary fallback in resolveAgentModelPatterns, so the `good` worker's
 			// pi/task inheritance tracks the reopened session's model.
-			getActiveModelString: () => (this.session.model ? formatModelString(this.session.model) : undefined),
+			// Vibe rehydration tracks the reopened session's model AND its live
+			// effort (the `:level` suffix parses back through the pattern resolver),
+			// not the settings default.
+			getActiveModelString: () =>
+				this.session.model
+					? formatModelSelectorValue(formatModelString(this.session.model), this.session.thinkingLevel)
+					: undefined,
 		};
 	}
 

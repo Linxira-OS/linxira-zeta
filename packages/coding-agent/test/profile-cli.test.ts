@@ -52,9 +52,9 @@ describe("global --profile flag", () => {
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
-		originalConfigDir = process.env.PI_CONFIG_DIR;
-		configDir = `.omp-profile-cli-test-${Snowflake.next()}`;
-		process.env.PI_CONFIG_DIR = configDir;
+		originalConfigDir = process.env.ZETA_CONFIG_DIR;
+		configDir = `.zeta-profile-cli-test-${Snowflake.next()}`;
+		process.env.ZETA_CONFIG_DIR = configDir;
 		process.exitCode = 0;
 	});
 
@@ -62,9 +62,9 @@ describe("global --profile flag", () => {
 		vi.restoreAllMocks();
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.PI_CONFIG_DIR;
+			delete process.env.ZETA_CONFIG_DIR;
 		} else {
-			process.env.PI_CONFIG_DIR = originalConfigDir;
+			process.env.ZETA_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalProfile) {
 			setProfile(originalProfile);
@@ -184,7 +184,7 @@ describe("global --profile flag", () => {
 				HOME: home,
 				// os.homedir() reads USERPROFILE on Windows, HOME elsewhere.
 				USERPROFILE: home,
-				PI_CONFIG_DIR: configDir,
+				ZETA_CONFIG_DIR: configDir,
 				PI_NO_TITLE: "1",
 				NO_COLOR: "1",
 			};
@@ -238,7 +238,7 @@ describe("global --profile flag", () => {
 				...process.env,
 				HOME: home,
 				USERPROFILE: home,
-				PI_CONFIG_DIR: ".omp-profile-cli-env-bad",
+				ZETA_CONFIG_DIR: ".omp-profile-cli-env-bad",
 				ZETA_PROFILE: "..",
 				NO_COLOR: "1",
 			};
