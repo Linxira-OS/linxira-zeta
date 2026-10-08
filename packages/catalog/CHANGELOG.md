@@ -3,6 +3,12 @@
 ## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
+## [18.8.4] - 2026-10-08
+
+### Fixed
+
+- Fixed Claude Haiku 5.5 opening at its full 1M window on Amazon Bedrock, Google Vertex, and other non-Anthropic hosts: every priced host now carries the 5x pricing band above 100K input tokens, so the window stays at 100K unless extended context is on ([#14903](https://github.com/can1357/oh-my-pi/pull/14903) by [@H4vC](https://github.com/H4vC)).
+
 ## [18.8.3] - 2026-10-07
 
 ### Added
