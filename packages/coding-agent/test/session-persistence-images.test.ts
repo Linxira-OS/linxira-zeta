@@ -4,16 +4,9 @@ import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { BlobStore, isBlobRef, lazyImageDataSync, parseBlobRef } from "@linxiraos/zeta/session/blob-store";
-import type {
-	CompactionEntry,
-	FileEntry,
-	SessionMessageEntry,
-} from "@linxiraos/zeta/session/session-entries";
+import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { resolveBlobRefsInEntries } from "@linxiraos/zeta/session/session-loader";
-import {
-	forgetExternalizedImages,
-	prepareEntryForPersistence,
-} from "@linxiraos/zeta/session/session-persistence";
+import { forgetExternalizedImages, prepareEntryForPersistence } from "@linxiraos/zeta/session/session-persistence";
 import { TempDir } from "@linxiraos/pi-utils";
 import type { Archive } from "@linxiraos/pi-snapcompact";
 import * as snapcompact from "@linxiraos/pi-snapcompact";

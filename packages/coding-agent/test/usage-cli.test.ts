@@ -1200,7 +1200,7 @@ describe("usage command configuration", () => {
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				PI_CODING_AGENT_DIR: tempDir.path(),
+				ZETA_CODING_AGENT_DIR: tempDir.path(),
 				PI_CONFIG_FILES: overlayPath,
 			},
 		});

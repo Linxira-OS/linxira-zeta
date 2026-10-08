@@ -1,24 +1,10 @@
-# Changelog
-
 ## [Unreleased]
-
-## [1.1.27] - 2026-10-07
-## [18.8.0] - 2026-10-07
 
 ### Changed
 
 - Updated `TspEditorProps.placeholder` and `TspInputProps.placeholder` to accept `TspText`, enabling styled placeholder text.
 
-## [18.5.1] - 2026-10-03
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
-- Republished as 1.1.3 to reset the latest tag after the broken 1.1.2 (no functional change over 1.1.1).
-
+## [1.1.27] - 2026-10-07
 ## [1.1.26] - 2026-10-03
 
 - 版本线推进至 1.1.26；本版无独立用户可见变化。

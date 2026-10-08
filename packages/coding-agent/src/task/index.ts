@@ -6,8 +6,8 @@ import { taskSubprocessRenderer } from "@linxiraos/pi-tui/tools/subprocess";
  *
  * Discovers agent definitions from:
  *   - Bundled agents (shipped with omp-coding-agent)
- *   - ~/.omp/agent/agents/*.md (user-level)
- *   - .omp/agents/*.md (project-level)
+ *   - ~/.zeta/agent/agents/*.md (user-level)
+ *   - .zeta/agents/*.md (project-level)
  *
  * Supports:
  *   - Single agent spawn per call (parallelism = parallel task calls)

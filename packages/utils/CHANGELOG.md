@@ -1,18 +1,4 @@
-# Changelog
-
 ## [Unreleased]
-
-## [1.1.27] - 2026-10-07
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-## [18.8.1] - 2026-10-07
-
-### Added
-
-- Added `PI_NATIVES_DIR` support to `getNativesDir()` for configuring the native addon directory.
-- Added `ZipPackage` for lazily reading ZIP-based document packages with a total decompressed-size limit, along with `DocxImage.readBytes()` for accessing raw DOCX image data.
-
-## [18.8.0] - 2026-10-07
 
 ### Added
 
@@ -28,12 +14,9 @@
 - Fixed memory growth in long-lived child processes, streaming readers, prompt template compilation, and retried HTTP requests by releasing buffers, cache entries, and discarded response bodies promptly.
 - Fixed prompt templates rejecting `{{else if …}}` chains as unclosed blocks; a chain now closes with its opening block's single closing tag, as in Handlebars.
 
-## [18.6.3] - 2026-10-06
+## [1.1.27] - 2026-10-07
 
-### Breaking Changes
-
-- Replaced the `cursorPosition` option of `TerminalQueryResponder` with `hostCursorHandshake`, which leaves only the PTY host's own session-start cursor query unanswered instead of every cursor-position query
-
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 ## [1.1.25] - 2026-10-03
 
 - 版本线推进至 1.1.25；本版无独立用户可见变化。
