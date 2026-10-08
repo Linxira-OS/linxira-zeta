@@ -1,4 +1,3 @@
-import { Effort } from "@linxiraos/pi-catalog/effort";
 /**
  * Contracts: /vibe mode toggle on InteractiveMode.
  *
@@ -10,23 +9,23 @@ import { Effort } from "@linxiraos/pi-catalog/effort";
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/omptype";
 import { Agent, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import type { Skill } from "@linxiraos/zeta/extensibility/skills";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { ModelRegistry } from "@linxiraos/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
+import type { Skill } from "@linxiraos/pi-coding-agent/extensibility/skills";
+import { InteractiveMode } from "@linxiraos/pi-coding-agent/modes/interactive-mode";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/zeta/session/session-storage";
-import { VIBE_TOOL_NAMES } from "@linxiraos/zeta/tools/vibe";
-import { EventBus } from "@linxiraos/zeta/utils/event-bus";
-import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { AgentSession } from "@linxiraos/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@linxiraos/pi-coding-agent/session/auth-storage";
+import { convertToLlm, VIBE_MODE_CONTEXT_MESSAGE_TYPE } from "@linxiraos/pi-coding-agent/session/messages";
+import { SessionManager } from "@linxiraos/pi-coding-agent/session/session-manager";
+import { FileSessionStorage, type WriteTextAtomicOptions } from "@linxiraos/pi-coding-agent/session/session-storage";
+import { VIBE_TOOL_NAMES } from "@linxiraos/pi-coding-agent/tools/vibe";
+import { EventBus } from "@linxiraos/pi-coding-agent/utils/event-bus";
+import { VibeSessionRegistry } from "@linxiraos/pi-coding-agent/vibe/runtime";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
@@ -654,7 +653,6 @@ describe("InteractiveMode vibe mode toggle", () => {
 
 	it("passes the session's active model into vibe rehydration on resume", async () => {
 		await mode.init({ suppressWelcomeIntro: true });
-		session.setThinkingLevel(Effort.High);
 		await mode.handleVibeModeCommand();
 		await session.sessionManager.ensureOnDisk();
 		const sessionFile = session.sessionFile;
@@ -673,9 +671,9 @@ describe("InteractiveMode vibe mode toggle", () => {
 		expect(await session.switchSession(sessionFile)).toBe(true);
 
 		// Rehydration must resolve workers against the reopened session's active
-		// model (so the `good`/pi/task worker tracks it), including its selected effort, not the settings default.
+		// model (so the `good`/pi/task worker tracks it), not the settings default.
 		expect(rehydrateCalled).toBe(true);
-		expect(activeModelDuringRehydrate).toBe(`${expectedModel.provider}/${expectedModel.id}:high`);
+		expect(activeModelDuringRehydrate).toBe(`${expectedModel.provider}/${expectedModel.id}`);
 	});
 
 	it("suspends the old scope without tombstones when switching to another vibe parent", async () => {

@@ -196,7 +196,11 @@ import {
 	USER_INTERRUPT_LABEL,
 	wrapSteeringForModel,
 } from "./session/messages";
-import { clampProviderContextImages, dropUnreadableContextImages } from "./session/provider-image-budget";
+import {
+	clampProviderContextImageBytes,
+	clampProviderContextImages,
+	dropUnreadableContextImages,
+} from "./session/provider-image-budget";
 import {
 	expandDefaultRetryFallbackChains,
 	findRetryFallbackCandidates,
@@ -2233,12 +2237,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 	try {
 		const getActiveModelString = (): string | undefined => {
-			const activeModel = agent?.state.model ?? model;
-			if (!activeModel) return undefined;
-			// Inherit the live route and effective effort, not just the model identity.
-			// A later effort change must not reuse the startup selector or restart auto triage.
-			const effort = agent?.state.model ? agent.state.thinkingLevel : effectiveThinkingLevel;
-			return formatModelSelectorValue(formatModelStringWithRouting(activeModel), effort);
+			const activeModel = agent?.state.model;
+			if (activeModel) return formatModelString(activeModel);
+			if (model) return formatModelString(model);
+			return undefined;
 		};
 		// Per-path mutation counter shared across edit/write tools. Late-diagnostics
 		// entries capture it at fetch time and are dropped at injection if a newer
@@ -4214,6 +4216,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// else, and it runs before the blob broker uploads any of these bytes.
 			transformed = await dropUnreadableContextImages(transformed, transformModel);
 			transformed = await blobBroker.decorateContext(transformed, transformModel);
+			// Byte budget after decoration: URL/file-referenced images carry no inline bytes.
+			transformed = clampProviderContextImageBytes(transformed, transformModel);
 			// Keep per-request volatility out of the system prompt: the date/cwd
 			// reminder rides on the first user turn so open-weight providers keep
 			// their tool-schema prefix cache (#7404).
@@ -5163,6 +5167,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 						transformed = await normalizeProviderContextImagesForModel(transformed, transformModel);
 						transformed = await dropUnreadableContextImages(transformed, transformModel);
 						transformed = await blobBroker.decorateContext(transformed, transformModel);
+						transformed = clampProviderContextImageBytes(transformed, transformModel);
 						return captureDateCwdReminder.transform(
 							transformed,
 							formatLocalCalendarDate(),

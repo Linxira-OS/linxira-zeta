@@ -3,6 +3,12 @@
 ## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。
+## [18.8.2] - 2026-10-07
+
+### Fixed
+
+- Fixed Anthropic requests carrying too many inline screenshot bytes by exposing a provider image-byte budget, applied only on the official endpoint ([#14453](https://github.com/can1357/oh-my-pi/issues/14453)).
+
 ## [18.8.1] - 2026-10-07
 
 ### Fixed
