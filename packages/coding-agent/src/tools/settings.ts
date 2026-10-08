@@ -736,6 +736,19 @@ export const cfgGithubEnabled = register({
 	},
 });
 
+export const cfgGiteaEnabled = register({
+	id: "gitea.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Gitea CLI",
+		description:
+			"Enable the tea tool (op-based dispatch for self-hosted Gitea repositories, issues, pull requests, checkout, merge, and release workflows)",
+	},
+});
+
 export const cfgGithubCacheEnabled = register({
 	id: "github.cache.enabled",
 	type: "boolean",
@@ -1026,6 +1039,7 @@ export const cfgBuiltinToolGates = combine({
 	evalJs: cfgEvalJs,
 	evalPy: cfgEvalPy,
 	find: cfgFindEnabled,
+	gitea: cfgGiteaEnabled,
 	github: cfgGithubEnabled,
 	glob: cfgGlobEnabled,
 	grep: cfgGrepEnabled,

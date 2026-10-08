@@ -1731,6 +1731,10 @@ export interface Messages {
 	ghFailedJobLogsLabel: string;
 	ghItemTitleFmt: string;
 	ghRepoItemFmt: string;
+	teaLabel: string;
+	teaSummary: string;
+	teaNoDescription: string;
+	teaUntitled: string;
 	ftErrCannotSearchUrl: string;
 	ftErrUrlDisabled: string;
 	ftInternalProtocolUrl: string;

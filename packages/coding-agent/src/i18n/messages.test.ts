@@ -34,6 +34,7 @@ const intentionallyIdentical: Partial<Record<keyof typeof en, true>> = {
 	mhModelsScopeSuffix: true,
 	ftPluralS: true,
 	agwPluralS: true,
+	teaLabel: true,
 	scpAutoLabelFmt: true,
 };
 
