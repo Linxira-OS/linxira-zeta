@@ -207,11 +207,29 @@ function loadProviderAuthUi(): ProviderAuthUiModules {
 	};
 }
 
+<<<<<<< .mrg/selector-controller_ours.ts
+interface ProviderToggleModules {
+	disableProvider: typeof DisableProvider;
+	enableProvider: typeof EnableProvider;
+}
+
+/** Settings-only boundary for provider discovery mutations. */
+function loadProviderToggles(): ProviderToggleModules {
+	const discovery = require("../../discovery") as {
+		disableProvider: typeof DisableProvider;
+		enableProvider: typeof EnableProvider;
+	};
+	return { disableProvider: discovery.disableProvider, enableProvider: discovery.enableProvider };
+}
+/** The open `/settings` menu: set when the command runs, filled once theme discovery resolves. */
+interface SettingsMenu {
+=======
 /** Menus that open at most once: a repeat request focuses the open one. */
 type MenuKind = "settings" | "model-picker" | "model-hub" | "agents-dashboard" | "agent-hub";
 
 /** An open menu: registered when the request runs, filled once its component mounts. */
 interface OpenMenu {
+>>>>>>> .mrg/selector-controller_theirs.ts
 	component?: Component;
 	handle?: OverlayHandle;
 	/** Shows `component` as a new overlay and focuses it; also raises a covered menu. */

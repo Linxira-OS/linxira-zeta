@@ -1,6 +1,12 @@
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07
+## [18.8.3] - 2026-10-07
+
+### Fixed
+
+- Fixed repeat opens of the model picker, model hub, or agents views stacking duplicates; the open one is brought forward instead ([#14846](https://github.com/can1357/oh-my-pi/pull/14846) by [@H4vC](https://github.com/H4vC))
+
 ## [18.8.2] - 2026-10-07
 
 ### Fixed

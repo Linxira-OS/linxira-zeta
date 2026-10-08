@@ -1,5 +1,3 @@
-import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@linxiraos/pi-ai";
 import type { AuthApiKeyOptions } from "@linxiraos/pi-ai/auth-storage";
@@ -137,7 +135,6 @@ import {
 	validateProviderConfiguration,
 } from "./models-config";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
-import { type OmpCompatSnapshot, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
 
 import { cfgDisabledProviders } from "./model-settings";
@@ -240,15 +237,10 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * Online discovery (`strategy: "online"`) is independent of credential minting:
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
- * refresh (`zeta-c models refresh`, TUI F5).
- *
- * `forceStatic` re-runs the static load (local models.yml + OMP overlay) even
- * when neither file changed — for credential-state changes (web api-key save,
- * copy-from-OMP, settings reload) that alter what the overlay should inject.
+ * refresh (`omp models refresh`, TUI F5).
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
-	forceStatic?: boolean;
 }
 
 /** Authentication material returned to legacy extensions for one model request. */
@@ -345,17 +337,6 @@ export class ModelRegistry {
 	#ignoreLocalModelConfig: boolean;
 	#fetch: FetchImpl;
 	#settings: Settings | undefined;
-	// Upstream OMP compatibility (read-only probe): every provider id injected
-	// from upstream state (models.yml providers + agent.db api-key credentials),
-	// the models.yml-only subset (mirrored read-only by the web config API), and
-	// the filtered upstream config those providers were built from.
-	#ompOriginProviders: Set<string> = new Set();
-	#ompConfigProviders: Set<string> = new Set();
-	#ompCompatConfig: ModelsConfig | undefined;
-	/** Test seam: upstream agent dir override; undefined = default `~/.zeta/agent`. */
-	#ompAgentDir: string | undefined;
-	/** mtime fingerprint of the upstream files at last static load; drives reload detection. */
-	#lastOmpCompatFingerprint: string | null = null;
 
 	#captureCatalogMetrics(models: readonly Model<Api>[], replace: boolean): void {
 		if (replace) {
@@ -430,22 +411,16 @@ export class ModelRegistry {
 	}
 
 	#reloadStaticModelsForRefresh(options?: ModelRegistryRefreshOptions, providerId?: string): void {
-		if (options?.refreshCommandCredentials || options?.forceStatic) {
-			if (options.refreshCommandCredentials) {
-				if (providerId) this.#invalidateProviderCommandConfigs(providerId);
-				else invalidateAllCommandConfigs();
-			}
+		if (options?.refreshCommandCredentials) {
+			if (providerId) this.#invalidateProviderCommandConfigs(providerId);
+			else invalidateAllCommandConfigs();
 			this.#reloadStaticModels({ force: true, preserveRuntimeDiscovery: true });
 			return;
 		}
 		this.#reloadStaticModels();
 	}
 
-	#installProviderApiKey(
-		provider: string,
-		keyConfig: string,
-		options?: { fallback?: boolean; mirror?: boolean },
-	): void {
+	#installProviderApiKey(provider: string, keyConfig: string, options?: { fallback?: boolean }): void {
 		this.#customProviderApiKeys.set(provider, keyConfig);
 		this.authStorage.keys.setConfig(provider, keyConfig, options);
 	}
@@ -474,17 +449,11 @@ export class ModelRegistry {
 			settings?: Settings;
 			/** Model discovery cache database. Defaults beside an explicit models config. */
 			cacheDbPath?: string;
-			/**
-			 * Upstream OMP agent directory for the read-only compatibility probe.
-			 * Defaults to `~/.zeta/agent`; tests point this at a fixture directory.
-			 */
-			ompAgentDir?: string;
 			fetch?: FetchImpl;
 		},
 	) {
 		this.#ignoreLocalModelConfig = options?.ignoreLocalModelConfig ?? false;
 		this.#settings = options?.settings;
-		this.#ompAgentDir = options?.ompAgentDir;
 		this.#fetch =
 			options?.fetch ??
 			(isBunTestRuntime()
@@ -839,9 +808,7 @@ export class ModelRegistry {
 
 	#reloadStaticModels(options?: { force?: boolean; preserveRuntimeDiscovery?: boolean }): void {
 		const currentMtime = this.#modelsConfigFile.getMtimeMs();
-		const currentOmpFingerprint = this.#ompCompatFingerprint();
-		const staticConfigUnchanged =
-			currentMtime === this.#lastStaticLoadMtime && currentOmpFingerprint === this.#lastOmpCompatFingerprint;
+		const staticConfigUnchanged = currentMtime === this.#lastStaticLoadMtime;
 		if (!options?.force && currentMtime !== null && staticConfigUnchanged) {
 			// Models config unchanged since last load; reloading would be redundant.
 			return;
@@ -965,7 +932,6 @@ export class ModelRegistry {
 		this.#customModelOverlays = customModels;
 		this.#providerOverrides = overrides;
 		this.#modelOverrides = modelOverrides;
-		this.#applyOmpCompatOverlay(configuredProviders);
 
 		this.#addImplicitDiscoverableProviders(configuredProviders);
 		const configuredDiscoveryProviders = new Set(this.#discoverableProviders.map(provider => provider.provider));
@@ -979,149 +945,6 @@ export class ModelRegistry {
 			this.#applyHardcodedModelPolicies(this.#loadCachedDiscoverableModels()),
 		);
 		this.#lastStaticLoadMtime = this.#modelsConfigFile.getMtimeMs();
-	}
-
-	/**
-	 * Providers injected from upstream OMP state: models.yml providers plus
-	 * bundled provider ids backed only by an upstream agent.db API key.
-	 */
-	getOmpOriginProviders(): ReadonlySet<string> {
-		return this.#ompOriginProviders;
-	}
-
-	/**
-	 * Providers that came from the upstream models.yml specifically (excludes
-	 * bundled providers that merely gained an upstream credential). The web
-	 * config API mirrors these as read-only `origin: "omp"` entries.
-	 */
-	getOmpConfigProviders(): ReadonlySet<string> {
-		return this.#ompConfigProviders;
-	}
-
-	/** The filtered upstream models.yml config behind {@link getOmpConfigProviders}. */
-	getOmpCompatConfig(): ModelsConfig | undefined {
-		return this.#ompCompatConfig;
-	}
-
-	/**
-	 * Merge the upstream OMP configuration (read-only probe) into the freshly
-	 * loaded local composition. Runs after local models.yml ingestion so Zeta's
-	 * own configuration always wins:
-	 *
-	 * - a provider name defined in local models.yml skips the upstream provider
-	 *   entirely (the user's explicit local intent replaces the upstream mirror);
-	 * - upstream models colliding with a local custom model (provider+id) are
-	 *   dropped — later overlays would otherwise replace the local definition;
-	 * - an upstream agent.db credential is only installed when Zeta has no
-	 *   credential source at all for that provider.
-	 *
-	 * Upstream API keys travel through the lowest cascade tier (`keys.setConfig`
-	 * with `mirror: true`): they live only in process memory, are re-read from
-	 * upstream on every static load, and sit below every stored credential —
-	 * a key the user saves into agent.db later always wins over the upstream
-	 * fallback without waiting for a reload to evict it.
-	 */
-	#applyOmpCompatOverlay(localConfiguredProviders: ReadonlySet<string>): void {
-		this.#ompOriginProviders = new Set();
-		this.#ompConfigProviders = new Set();
-		this.#ompCompatConfig = undefined;
-		this.#lastOmpCompatFingerprint = this.#ompCompatFingerprint();
-		if (this.#ignoreLocalModelConfig) return;
-		const snapshot = this.#probeOmpCompatSafe();
-		if (!snapshot) return;
-		try {
-			// Upstream providers: local names win outright; upstream auth-gateway
-			// transport (`pi-native`) points at upstream infrastructure and is
-			// not routable from Zeta.
-			const ompEntries = Object.entries(snapshot.config.providers ?? {}).filter(
-				([name, providerConfig]) => !localConfiguredProviders.has(name) && providerConfig.transport !== "pi-native",
-			);
-			// Model-level dedup: keep the first definition per provider+id.
-			const seenModelIds = new Set<string>();
-			const filteredEntries = ompEntries.map(([name, providerConfig]) => {
-				const models = (providerConfig.models ?? []).filter(modelDef => {
-					const key = `${name}\u0000${modelDef.id}`;
-					if (seenModelIds.has(key)) return false;
-					seenModelIds.add(key);
-					return true;
-				});
-				return [
-					name,
-					models.length > 0 || (providerConfig.models?.length ?? 0) === 0
-						? { ...providerConfig, models }
-						: providerConfig,
-				] as const;
-			});
-			const ompConfig: ModelsConfig = { providers: Object.fromEntries(filteredEntries) };
-
-			const {
-				models: ompOverlays = [],
-				overrides = new Map<string, ProviderOverride>(),
-				modelOverrides = new Map<string, Map<string, ModelOverride>>(),
-				keylessProviders = new Set<string>(),
-				discoverableProviders = [],
-			} = this.#loadCustomModels(ompConfig);
-			this.#customModelOverlays.push(...ompOverlays);
-			for (const [name, override] of overrides) this.#providerOverrides.set(name, override);
-			for (const [name, perModel] of modelOverrides) this.#modelOverrides.set(name, perModel);
-			for (const name of keylessProviders) this.#keylessProviders.add(name);
-			this.#discoverableProviders.push(...discoverableProviders);
-			this.#ompCompatConfig = ompConfig;
-			this.#ompConfigProviders = new Set(Object.keys(ompConfig.providers ?? {}));
-			this.#ompOriginProviders = new Set(this.#ompConfigProviders);
-
-			// Upstream stored credentials are keyed by provider id and mostly map
-			// onto bundled catalog providers; give those a credential (and with it
-			// an OMP provenance marker) only when nothing local already resolves.
-			// The key lands in the lowest mirror tier, so a credential stored
-			// later (web api-key save, login) outranks it immediately.
-			for (const [provider, key] of Object.entries(snapshot.credentialKeys)) {
-				if (this.#ompOriginProviders.has(provider)) continue; // upstream yml provider: its apiKey already installed
-				if (this.#customProviderApiKeys.has(provider)) continue;
-				if (this.authStorage.keys.source(provider) !== undefined) continue;
-				this.#installProviderApiKey(provider, key, { mirror: true });
-				this.#ompOriginProviders.add(provider);
-			}
-		} catch (error) {
-			// The overlay must never break catalog composition.
-			this.#ompOriginProviders = new Set();
-			this.#ompConfigProviders = new Set();
-			this.#ompCompatConfig = undefined;
-			logger.debug("omp compat overlay skipped", {
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-	}
-
-	#probeOmpCompatSafe(): OmpCompatSnapshot | undefined {
-		try {
-			return probeOmpCompat(this.#ompAgentDir);
-		} catch (error) {
-			logger.debug("omp compat probe failed; compatibility disabled", {
-				error: error instanceof Error ? error.message : String(error),
-			});
-			return undefined;
-		}
-	}
-
-	/**
-	 * Cheap change detector for the upstream files (mtimes only, no parsing) so
-	 * `#reloadStaticModels` re-runs the probe — and picks up upstream
-	 * upgrades/rollbacks — whenever upstream state actually changed on disk.
-	 */
-	#ompCompatFingerprint(): string | null {
-		if (this.#ignoreLocalModelConfig) return null;
-		const dir = this.#ompAgentDir;
-		const agentDir = dir ?? path.join(os.homedir(), ".zeta", "agent");
-		const parts = [agentDir];
-		for (const name of ["models.yml", "agent.db"]) {
-			try {
-				parts.push(String(fs.statSync(path.join(agentDir, name)).mtimeMs));
-			} catch {
-				parts.push("-");
-			}
-		}
-		return parts.join("|");
 	}
 
 	#resetStaticComposition(): void {
@@ -1750,15 +1573,14 @@ export class ModelRegistry {
 		}
 	}
 
-	#loadCustomModels(sourceConfig?: ModelsConfig): CustomModelsResult {
+	#loadCustomModels(): CustomModelsResult {
 		// Gateway mode: serve bundled + broker-discovered catalog metadata only.
 		// Local models.yml provider overrides (baseUrl/apiKey/headers/transport),
 		// custom models, custom discovery, and config API keys are all client-side
 		// routing that MUST NOT reach a broker-backed gateway — applying them would
 		// send broker bearers to a configured endpoint, install config keys that
 		// shadow broker credentials (bypassing account pooling/refresh/accounting),
-		// or route a pi-native gateway back into itself. The same exclusion covers
-		// the upstream OMP compatibility overlay (also client-side routing).
+		// or route a pi-native gateway back into itself.
 		if (this.#ignoreLocalModelConfig) {
 			return {
 				models: [],
@@ -1769,10 +1591,6 @@ export class ModelRegistry {
 				configuredProviders: new Set(),
 				found: false,
 			};
-		}
-		if (sourceConfig) {
-			// Explicit config (upstream OMP compatibility overlay) — no file I/O.
-			return this.#buildCustomModelsResult(sourceConfig);
 		}
 		const { value, error, status } = this.#modelsConfigFile.tryLoad();
 
@@ -1798,10 +1616,7 @@ export class ModelRegistry {
 				found: false,
 			};
 		}
-		return this.#buildCustomModelsResult(value);
-	}
 
-	#buildCustomModelsResult(value: ModelsConfig): CustomModelsResult {
 		for (const keyPath of getUnknownCompatKeys(value)) {
 			if (this.#warnedCompatKeys.has(keyPath)) continue;
 			this.#warnedCompatKeys.add(keyPath);
@@ -2976,7 +2791,7 @@ export class ModelRegistry {
 	/**
 	 * Check whether auth is configured for a model's provider.
 	 *
-	 * Mirrors the upstream `@mariozechner/zeta` API surface so that
+	 * Mirrors the upstream `@mariozechner/pi-coding-agent` API surface so that
 	 * external plugins/extensions and downstream wrappers (e.g. subagent launch
 	 * paths that pre-flight auth before model resolution) can probe a model
 	 * without resolving an API key. Returns true for keyless providers as well
@@ -3078,7 +2893,7 @@ export class ModelRegistry {
 
 	/**
 	 * Whether a config-declared discovery provider has not yet produced a
-	 * catalog in this process. A cold discovery cache (e.g. after `zeta-c update`
+	 * catalog in this process. A cold discovery cache (e.g. after `omp update`
 	 * bumps the cache namespace) leaves the provider in its initial `idle`
 	 * state with no models, so a selector the provider will supply looks
 	 * unknown until background discovery lands (#10048).
@@ -3121,7 +2936,7 @@ export class ModelRegistry {
 	 * discovered model that defines one.
 	 *
 	 * The overrides lead because a model-derived answer is only available once
-	 * discovery has populated the registry. `zeta-c usage` builds a `ModelRegistry`
+	 * discovery has populated the registry. `omp usage` builds a `ModelRegistry`
 	 * and probes credentials immediately, and providers whose roster is
 	 * discovery-only (no bundled rows) have no model to read a URL from at that
 	 * point — so deriving solely from models returned `undefined` cache-cold and
