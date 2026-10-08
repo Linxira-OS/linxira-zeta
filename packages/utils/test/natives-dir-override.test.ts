@@ -7,9 +7,8 @@ import { __resetDirsFromEnvForTests, getAgentDir, getNativesDir } from "@linxira
 const ENV_KEYS = [
 	"HOME",
 	"USERPROFILE",
-	"OMP_PROFILE",
-	"PI_PROFILE",
-	"PI_CONFIG_DIR",
+	"ZETA_PROFILE",
+	"ZETA_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
 	"PI_NATIVES_DIR",
 	"XDG_DATA_HOME",
@@ -53,15 +52,15 @@ describe("native directory override", () => {
 		const cache = path.join(tempRoot, "cache");
 		const data = path.join(tempRoot, "data");
 		const shared = path.join(tempRoot, "shared");
-		await fs.mkdir(path.join(cache, "omp", "profiles", "isolated"), { recursive: true });
-		await fs.mkdir(path.join(data, "omp", "profiles", "isolated"), { recursive: true });
+		await fs.mkdir(path.join(cache, "zeta", "profiles", "isolated"), { recursive: true });
+		await fs.mkdir(path.join(data, "zeta", "profiles", "isolated"), { recursive: true });
 		process.env.XDG_CACHE_HOME = cache;
 		process.env.XDG_DATA_HOME = data;
-		process.env.PI_CONFIG_DIR = ".alternate";
-		process.env.OMP_PROFILE = "isolated";
+		process.env.ZETA_CONFIG_DIR = ".alternate";
+		process.env.ZETA_PROFILE = "isolated";
 		__resetDirsFromEnvForTests();
 		const defaultNatives = path.join(
-			xdgPlatform ? path.join(cache, "omp") : path.join(home, ".alternate"),
+			xdgPlatform ? path.join(cache, "zeta") : path.join(home, ".alternate"),
 			"profiles",
 			"isolated",
 			"natives",

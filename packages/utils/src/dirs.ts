@@ -308,9 +308,9 @@ export function getSafeProjectCwd(): string {
 	return os.homedir();
 }
 
-/** Get the config directory name relative to home (e.g. ".zeta" or PI_CONFIG_DIR override). */
+/** Get the config directory name relative to home (e.g. ".zeta" or ZETA_CONFIG_DIR override). */
 export function getConfigDirName(): string {
-	return process.env.PI_CONFIG_DIR || CONFIG_DIR_NAME;
+	return process.env.ZETA_CONFIG_DIR || CONFIG_DIR_NAME;
 }
 
 /** Get the config agent directory name relative to home (e.g. ".zeta/agent" or PI_CONFIG_DIR + "/agent"). */
