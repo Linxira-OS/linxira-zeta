@@ -3,28 +3,38 @@ on:
   push:
     branches: [main]
 
+# 本地全量验证:非发布类 CI 全部交由 NAS runner 处理(带缓存,增量编译)。
+# 发布链(build-binaries/publish)不在本地跑——那仍是 GitHub Actions 的职责。
 jobs:
-  smoke:
+  verify:
     runs-on: self-hosted
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
       - name: Toolchain inventory
         run: |
-          echo "=== node/bun/cargo/rustc ==="
-          node --version 2>/dev/null || echo "node: absent"
+          echo "=== bun/node/cargo/rustc ==="
           bun --version 2>/dev/null || echo "bun: absent"
+          node --version 2>/dev/null || echo "node: absent"
           cargo --version 2>/dev/null || echo "cargo: absent"
           rustc --version 2>/dev/null || echo "rustc: absent"
 
-      - name: Rust check (pi-natives)
-        run: cargo check -p pi-natives 2>&1 | tail -5
+      - name: Install workspace deps
+        run: bun install
 
-      - name: TS gate (if bun present)
+      - name: Build native addon (linux-x64, modern+baseline)
         run: |
-          if command -v bun >/dev/null 2>&1; then
-            bun install
-            bun run check:ts 2>&1 | tail -5
-          else
-            echo "SKIP: bun not on runner"
-          fi
+          cargo build --release -p pi-natives
+          cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-modern.node
+          cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-baseline.node
+
+      - name: Static gates
+        run: |
+          bun scripts/check-version-consistency.ts
+          bun run check:ts
+          bun scripts/brand/brand-check.ts
+          bun scripts/check-zeta-sentinels.ts
+
+      - name: Full verification (all TS buckets + Rust nextest)
+        run: bun run ci:test:full
