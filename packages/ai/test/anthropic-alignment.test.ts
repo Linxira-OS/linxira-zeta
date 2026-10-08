@@ -22,7 +22,8 @@ import {
 } from "@linxiraos/pi-ai/providers/anthropic";
 import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
 import { getClaudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
-import { getEnvApiKey, streamSimple } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type {
 	AssistantMessage,
 	CacheRetention,

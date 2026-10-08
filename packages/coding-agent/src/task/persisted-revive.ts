@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { logger } from "@linxiraos/pi-utils";
 
 import { MAIN_AGENT_RULE_NAME, SUB_AGENT_RULE_NAME } from "../capability/rule";
+import { validateAgentAccountPools } from "../config/account-pools";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelRoleAlias } from "../config/model-roles";
 import type { Settings } from "../config/settings";
@@ -24,6 +25,7 @@ import {
 	followMCPTools,
 	subagentRetryFallbackRole,
 } from "./executor";
+import { cfgTaskAgentAccountPools } from "./settings";
 import type { AgentDefinition } from "./types";
 
 /**
@@ -143,6 +145,11 @@ export function createPersistedSubagentReviverFactory(
 			if (init.retryFallback) {
 				installRetryFallbackRole(subagentSettings, subagentRetryFallbackRole(ref.id), init.retryFallback);
 			}
+			// Account pools are owner policy, like the extension roots below: take the
+			// live exact-name `task.agentAccountPools` entry, never a transcript copy.
+			const agentAccountPools = validateAgentAccountPools(cfgTaskAgentAccountPools.get(ctx.settings));
+			const oauthAccountPools =
+				init.agent && Object.hasOwn(agentAccountPools, init.agent) ? agentAccountPools[init.agent] : undefined;
 			const persistedModelPattern =
 				init.modelRole && init.modelRole !== "default"
 					? [formatModelRoleAlias(init.modelRole), ...(init.resolvedModel ? [init.resolvedModel] : [])]
@@ -198,6 +205,7 @@ export function createPersistedSubagentReviverFactory(
 							: ref.displayName,
 					parentTaskPrefix: ref.id,
 					parentAgentId: ref.parentId,
+					oauthAccountPools,
 					expectedAgentRef: expectedRef,
 					taskDepth,
 					toolNames: revivedToolNames,

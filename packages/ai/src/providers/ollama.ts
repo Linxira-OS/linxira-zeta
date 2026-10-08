@@ -2,7 +2,7 @@ import { calculateCost } from "@linxiraos/pi-catalog/models";
 import { fetchWithRetry, parseStreamingJson, readJsonl } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
-import { getEnvApiKey } from "../stream";
+import { getEnvApiKey } from "../env-api-key";
 import type {
 	Api,
 	AssistantMessage,

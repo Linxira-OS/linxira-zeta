@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import * as aiStream from "@linxiraos/pi-ai/stream";
+import * as envApiKey from "@linxiraos/pi-ai/env-api-key";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -96,7 +96,7 @@ describe("Claude saved-reset trigger integration", () => {
 	});
 
 	beforeEach(() => {
-		vi.spyOn(aiStream, "getEnvApiKey").mockReturnValue(undefined);
+		vi.spyOn(envApiKey, "getEnvApiKey").mockReturnValue(undefined);
 		sessions = [];
 		managers = [];
 		tempDir = TempDir.createSync("@pi-claude-reset-");

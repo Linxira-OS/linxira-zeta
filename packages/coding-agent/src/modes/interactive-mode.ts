@@ -1,4 +1,3 @@
-import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 /**
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
@@ -138,7 +137,8 @@ import { HistoryStorage } from "../session/history-storage";
 import { syncTextPrediction, textPredictionBackend } from "../predict/client";
 import { setWordPredictionHost } from "@linxiraos/pi-tui/prompt/word-completion";
 import { USER_INTERRUPT_LABEL } from "../session/messages";
-import { resolveMarkdownLinkTargets } from "../internal-urls/hyperlink-targets";
+import { resolveMarkdownLinkHrefs } from "../internal-urls/hyperlink-targets";
+import type { ResolveContext } from "../internal-urls/index";
 import { modelMentionDisplayName } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import { modelMentionChipLabel, shiftImageMarkers } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import type { SessionContext } from "../session/session-context";
@@ -1593,9 +1593,12 @@ export class InteractiveMode implements InteractiveModeContext {
 	get tableChartsVisible(): boolean {
 		return this.#focusController.target === undefined;
 	}
-	resolveAssistantMessageLinks(texts: readonly string[]): Promise<ReadonlyMap<string, string>> {
+	resolveAssistantMessageLinkHrefs(hrefs: readonly string[]): Promise<ReadonlyMap<string, string>> {
+		return resolveMarkdownLinkHrefs(hrefs, this.#linkResolveContext());
+	}
+	#linkResolveContext(): ResolveContext {
 		const session = this.viewSession;
-		return resolveMarkdownLinkTargets(texts, {
+		return {
 			cwd: session.sessionManager.getCwd(),
 			sessionFile: session.sessionFile,
 			settings: session.settings,
@@ -1605,7 +1608,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			},
 			skills: session.skills,
 			rules: session.ttsrManager?.getRules(),
-		});
+		};
 	}
 	get focusedAgentId(): string | undefined {
 		return this.#focusController.focusedAgentId;
@@ -1698,6 +1701,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	/** Repaints the subagent HUD so live-preview elapsed markers advance between progress events. */
 	#subagentPreviewTickTimer?: NodeJS.Timeout;
 	#observerUiSyncNeedsTodoReconcile = false;
+	/** Active subagent descriptions the todo HUD last rendered with (joined); see #flushObserverUiSync. */
+	#todoHudSubagentKey: string | undefined;
 	#runningSubagentCount = 0;
 	#agentRegistryUnsubscribe?: () => void;
 	#agentRegistrySubscriptionTarget?: AgentHubRegistry;
@@ -3780,7 +3785,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	/**
 	 * What the TSP composer shows: the draft's shell mode, the effort chip
 	 * (the viewed agent's, like the model chip beside it) or the model chip's
-	 * effort icon, the tok/s readout after it, and send vs Stop.
+	 * effort icon, the tok/s readout after it, send vs Stop, and the session
+	 * title the empty composer's placeholder quotes.
 	 */
 	#composerNativeState(): ComposerNativeState {
 		const draft = this.editor.getText().trimStart();
@@ -3795,6 +3801,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			rate: this.#nativeTokenRate(),
 			running: this.loadingAnimation !== undefined || this.session.isStreaming,
 			viewing: this.#viewingLineage(),
+			title: this.sessionManager.getSessionName(),
 		};
 	}
 
@@ -4165,9 +4172,16 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (this.#observerUiSyncNeedsTodoReconcile) {
 			this.#observerUiSyncNeedsTodoReconcile = false;
 			this.#reconcileTodosWithSubagents();
+			this.#syncTodoHudState(this.#todoPhasesOwner ?? this.session);
+			this.#renderTodoList();
+		} else if (this.#getActiveSubagentDescriptions().join("\n") !== this.#todoHudSubagentKey) {
+			// Progress-only ticks (10 Hz while subagents run) cannot change the
+			// todo phases or their persisted visibility — re-syncing would also
+			// re-arm the auto-clear timer so it could never fire. Only the HUD's
+			// subagent highlight depends on them, so repaint just when the active
+			// descriptions change.
+			this.#renderTodoList();
 		}
-		this.#syncTodoHudState(this.#todoPhasesOwner ?? this.session);
-		this.#renderTodoList();
 		this.#renderSubagentList();
 		this.ui.requestRender();
 	}
@@ -4184,6 +4198,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	#renderTodoList(): void {
 		this.todoContainer.clear();
 		this.#todoHudNative = undefined;
+		const activeDescs = this.#getActiveSubagentDescriptions();
+		this.#todoHudSubagentKey = activeDescs.join("\n");
 		if (this.#todoHudHidden) return;
 		const phases = this.todoPhases.filter(phase => phase.tasks.length > 0);
 		if (phases.length === 0) return;
@@ -4194,7 +4210,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		const subsequentStageCap = 4; // stages shown after the active one (a trailing summary row covers the rest)
 		const activeTaskCap = 5; // open tasks previewed for the active stage
 
-		const activeDescs = this.#getActiveSubagentDescriptions();
 		// A pending todo "lights up" (accent) when an in-flight subagent is doing
 		// its work, matched by normalized content overlap.
 		const isMatched = (todo: TodoItem): boolean =>
@@ -4568,10 +4583,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			// (same as the spawn-path ToolSession), not the settings default. This is
 			// the primary fallback in resolveAgentModelPatterns, so the `good` worker's
 			// pi/task inheritance tracks the reopened session's model.
-			getActiveModelString: () =>
-				this.session.model
-					? formatModelSelectorValue(formatModelStringWithRouting(this.session.model), this.session.thinkingLevel)
-					: undefined,
+			getActiveModelString: () => (this.session.model ? formatModelString(this.session.model) : undefined),
 		};
 	}
 
@@ -4749,8 +4761,10 @@ export class InteractiveMode implements InteractiveModeContext {
 	async #clearTransientModeState(options?: {
 		preserveVibe?: boolean;
 		vibeScopeAlreadySuspended?: boolean;
+		restorePlanModel?: boolean;
 	}): Promise<void> {
 		if (this.planModeEnabled || this.planModePaused) {
+			const previousModel = this.#planModePreviousModelState;
 			this.session.setPlanModeState(undefined);
 			try {
 				const previousPresentation = this.#planModePreviousToolPresentation;
@@ -4771,6 +4785,9 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.#pendingPlanModelSwitch = false;
 				this.#planModeHasEntered = false;
 				this.#updatePlanModeStatus();
+			}
+			if (options?.restorePlanModel && previousModel) {
+				await this.#restorePlanPreviousModel(previousModel);
 			}
 		}
 
@@ -4830,9 +4847,13 @@ export class InteractiveMode implements InteractiveModeContext {
 		// flags and settings, and that set — not a historical one — is what exiting
 		// vibe must restore.
 		const vibeToolsetLostToTeardown = this.vibeModeEnabled && !preserveVibe;
+		// A session that records no model (a `/new` boundary) keeps the live model,
+		// which during plan mode is the transient plan-role model; hand it the
+		// pre-plan model instead. A recorded model was already restored by switchSession.
 		await this.#clearTransientModeState({
 			preserveVibe,
 			vibeScopeAlreadySuspended,
+			restorePlanModel: Object.keys(sessionContext.models).length === 0,
 		});
 		await VibeSessionRegistry.global().rehydrate(vibeSession);
 		const goalEnabled = cfgGoalEnabled.get(this.session.settings);

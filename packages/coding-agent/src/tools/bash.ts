@@ -5,7 +5,6 @@ import {
 	formatExitCodeNotice,
 } from "@linxiraos/pi-tui/tools/bash";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import type {
 	AgentTool,
@@ -20,9 +19,6 @@ import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { isPosixShell } from "@linxiraos/pi-utils/procmgr";
 import { raceJobSettlement, resolveAutoBackgroundWaitMs } from "../async";
 import type { Settings } from "../config/settings";
-import { EDIT_BLACKBOX_FILE } from "../edit/blackbox";
-import { cfgEditBlackboxEnabled } from "../edit/settings";
-import { collectDestructiveFiles, segmentsForCapture } from "./destructive-capture";
 import { applyDirenvPreflight, type BashResult, executeBash } from "../exec/bash-executor";
 import { InternalUrlRouter } from "../internal-urls";
 import { sessionResolveContext } from "../internal-urls/context";
@@ -33,12 +29,7 @@ import type {
 	ClientBridgeTerminalHandle,
 	ClientBridgeTerminalOutput,
 } from "../session/client-bridge";
-import {
-	DEFAULT_MAX_BYTES,
-	enforceInlineByteCap,
-	streamTailUpdates,
-	TailBuffer,
-} from "@linxiraos/pi-tui/tools/streaming-output";
+import { DEFAULT_MAX_BYTES, enforceInlineByteCap } from "@linxiraos/pi-tui/tools/streaming-output";
 import { resolveCliEntryCmd } from "../subprocess/worker-client";
 import { TerminalGraphicsDecoder } from "../utils/terminal-graphics";
 import type { ToolSession } from ".";
@@ -51,7 +42,8 @@ import { resolveEvalBackends } from "./eval-backends";
 import { invalidateGithubCacheForBashCommand } from "./gh-cache-invalidation";
 import { startService, type ServiceReady } from "../launch/services";
 import { isFindEnabled } from "./jfind";
-import { formatArtifactErrorNotice, formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatArtifactErrorNotice } from "@linxiraos/pi-tui/tools/output-meta";
+import { formatOutputNotice } from "@linxiraos/pi-tui/tools/output-meta";
 import { resolveInlineByteCapBudget } from "./output-meta";
 import { resolveToCwd } from "./path-utils";
 import { extractLeadingCdTarget, extractLiteralAndChainSegments, tokenizeShellSegments } from "./shell-tokenize";
@@ -161,7 +153,7 @@ const BASH_PATTERN_APPROVAL_VALUES = new Set(["allow", "deny", "prompt"]);
  * preserves `bash` tool semantics (`$VAR`, `$(...)`, `source`, POSIX quoting,
  * `-l`) wherever a POSIX shell is available. The agent host's shell path is
  * used as a proxy for the client's, matching the near-universal ACP
- * deployment shape of an editor spawning zeta as a co-hosted subprocess.
+ * deployment shape of an editor spawning omp as a co-hosted subprocess.
  */
 export function wrapShellLineForClientTerminal(
 	line: string,
@@ -638,49 +630,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 
 	constructor(private readonly session: ToolSession) {}
 
-	/**
-	 * Record the content of files this command is about to destroy.
-	 *
-	 * A no-op unless the blackbox is enabled, and never allowed to fail the
-	 * command: the shell is about to run either way, and refusing to execute
-	 * because a backup could not be written would be a worse outcome than
-	 * running without one.
-	 */
-	async #captureDestructiveTargets(command: string, cwd: string | undefined): Promise<void> {
-		if (!cfgEditBlackboxEnabled.get(this.session.settings)) return;
-		const workingDir = cwd ?? process.cwd();
-		try {
-			const targets = collectDestructiveFiles(segmentsForCapture(command), workingDir);
-			if (targets.length === 0) return;
-			const logPath = path.join(this.session.settings.getAgentDir(), EDIT_BLACKBOX_FILE);
-			// One record per file, tagged `bash` so the capture is distinguishable
-			// from an edit-tool change. `new` is empty because the content after a
-			// delete is nothing — and `/edits revert` refuses to write when the
-			// file no longer matches `new`, which is the right behaviour here: a
-			// deleted file is restored by writing the captured `prev` back, not by
-			// the normal edit-revert path.
-			await fs.promises.appendFile(
-				logPath,
-				`${targets
-					.map(target =>
-						JSON.stringify({
-							path: target.path,
-							prev: target.prev,
-							new: "",
-							model: "bash",
-							variant: target.op,
-							arg: { cwd: workingDir },
-						}),
-					)
-					.join("\n")}\n`,
-			);
-		} catch (error) {
-			logger.debug("Failed to capture pre-destruction contents", {
-				error: error instanceof Error ? error.message : String(error),
-			});
-		}
-	}
-
 	/** URL filesystem for one embedded-shell run: this session's context, cancelled by the run's own signal. */
 	#urlFilesystem(signal: AbortSignal | undefined, tier: ToolTier): InternalUrlFilesystem {
 		return new InternalUrlFilesystem({ context: sessionResolveContext(this.session, { signal }), tier });
@@ -894,12 +843,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			label,
 			async ({ jobId, signal: runSignal, reportProgress }) => {
 				const { path: artifactPath, id: artifactId } = (await this.session.allocateOutputArtifact?.("bash")) ?? {};
-				const tailBuffer = new TailBuffer(DEFAULT_MAX_BYTES);
 				const wallTimeStart = performance.now();
-				// Capture before the command runs: once the shell has removed or
-				// truncated a file, its content is gone. Recorded here rather than
-				// in the edit tool because bash is where destructive work actually
-				// happens — the edit tool's own history already covers its path.
 				try {
 					const result = await executeBash(options.command, {
 						cwd: options.commandCwd,
@@ -910,11 +854,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 						filesystem: this.#urlFilesystem(runSignal, options.approvalTier).shellFilesystem(),
 						artifactPath,
 						artifactId,
-						onChunk: chunk => {
-							tailBuffer.append(chunk);
-							latestText = tailBuffer.text();
-							void reportProgress(latestText, {
-								output: latestText,
+						onPreview: text => {
+							latestText = text;
+							void reportProgress(text, {
+								output: text,
 								async: { state: "running", jobId, type: "bash" },
 							});
 						},
@@ -1037,13 +980,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			// running the command the caller did ask for beats failing the call.
 			pendingNotices.push("Ignored ready: service-only, and no service name was given.");
 		}
-		// Capture before any execution path (synchronous, PTY, async or bang) runs
-		// the command: once the shell has removed or truncated a file, its content
-		// is gone. Recorded here rather than at each call site so no path can skip
-		// it. `command` is used, not `rawCommand`, so a leading `cd x && rm y` is
-		// resolved against the directory it actually runs in.
-		await this.#captureDestructiveTargets(command, cwd ?? this.session.cwd);
-
 		if (asyncRequested && !cfgAsyncEnabled.get(this.session.settings)) {
 			throw new ToolError("Async bash execution is disabled. Enable async.enabled to use async mode.");
 		}
@@ -1154,7 +1090,7 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 		}
 
 		// A timeout of 0 is an explicit long-running-command contract: the user
-		// must still cancel the call or job, but ZETA does not impose a deadline.
+		// must still cancel the call or job, but OMP does not impose a deadline.
 		const requestedTimeoutSec = rawTimeout ?? 300;
 		const timeoutDisabled = requestedTimeoutSec === 0;
 		const maxTimeout = cfgToolsMaxTimeout.get(this.session.settings);
@@ -1393,39 +1329,48 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 				// Emit partial update so the editor can embed the live terminal card.
 				onUpdate?.({ content: [], details: { terminalId: handle.terminalId } });
 
-				const exitPromise = handle.waitForExit();
-				let exitStatus!: ClientBridgeTerminalExitStatus;
-
-				type BridgeRaceResult =
+				// Exit, timeout, and abort are each subscribed once and latch the first
+				// outcome. Every wait below races only a fresh per-iteration promise, so
+				// a long command does not pile reactions onto promises that stay pending.
+				type BridgeOutcome =
 					| { kind: "exit"; status: ClientBridgeTerminalExitStatus }
-					| { kind: "poll" }
 					| { kind: "timeout" }
-					| { kind: "aborted" };
-
-				const exitRacer = exitPromise.then(status => ({ kind: "exit" as const, status }));
-				const abortRacer = abortedP.then(() => ({ kind: "aborted" as const }));
-				const abortPollRacer = abortedP.then(() => undefined as ClientBridgeTerminalOutput | undefined);
-				const timeoutPollRacer = timeoutPromise.then(() => undefined as ClientBridgeTerminalOutput | undefined);
+					| { kind: "aborted" }
+					| { kind: "failed"; error: unknown };
+				// Held on an object: TypeScript would narrow a closure-assigned `let` to `undefined`.
+				const bridge: { outcome?: BridgeOutcome; wake?: () => void } = {};
+				const settle = (next: BridgeOutcome): void => {
+					bridge.outcome ??= next;
+					bridge.wake?.();
+				};
+				void handle.waitForExit().then(
+					status => settle({ kind: "exit", status }),
+					(error: unknown) => settle({ kind: "failed", error }),
+				);
+				void timeoutPromise.then(settle);
+				void abortedP.then(() => settle({ kind: "aborted" }));
+				let exitStatus!: ClientBridgeTerminalExitStatus;
 				let lastPolledOutput: ClientBridgeTerminalOutput = { output: "", truncated: false };
 
 				// Poll until the process exits, times out, or the caller aborts.
 				for (;;) {
-					const racers: Array<Promise<BridgeRaceResult>> = [
-						exitRacer,
-						timeoutPromise,
-						Bun.sleep(250).then(() => ({ kind: "poll" as const })),
-					];
-					if (signal) {
-						racers.push(abortRacer);
+					if (!bridge.outcome) {
+						// The sleep settles within one tick even when an outcome wakes us first.
+						const tick = Promise.withResolvers<void>();
+						bridge.wake = tick.resolve;
+						void Bun.sleep(250).then(tick.resolve);
+						await tick.promise;
 					}
-					const raced = await Promise.race(racers);
+					const outcome = bridge.outcome;
 
-					if (raced.kind === "aborted" || signal?.aborted) {
+					if (outcome?.kind === "failed") throw outcome.error;
+
+					if (outcome?.kind === "aborted" || signal?.aborted) {
 						await Promise.race([fireKill(), Bun.sleep(killGraceMs)]);
 						throw new ToolAbortError("Command aborted");
 					}
 
-					if (raced.kind === "timeout") {
+					if (outcome?.kind === "timeout") {
 						// Kill before reading final output so a slow `terminal/output`
 						// RPC cannot let a timed-out command keep running past the
 						// enforced timeout. The handle stays valid post-kill so the
@@ -1463,18 +1408,20 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 						});
 					}
 
-					if (raced.kind === "exit") {
-						exitStatus = raced.status;
+					if (outcome?.kind === "exit") {
+						exitStatus = outcome.status;
 						break;
 					}
 
 					// Poll tick: push current output so agent-loop transcript stays consistent.
-					// Race the read against abort/timeout so a stuck `terminal/output` RPC does
+					// Race the read against the outcomes so a stuck `terminal/output` RPC does
 					// not delay cancellation or let the command outlive its deadline.
-					const pollOutput = await Promise.race([handle.currentOutput(), abortPollRacer, timeoutPollRacer]);
+					const interrupted = Promise.withResolvers<undefined>();
+					bridge.wake = () => interrupted.resolve(undefined);
+					const pollOutput = await Promise.race([handle.currentOutput(), interrupted.promise]);
 					if (pollOutput === undefined) {
-						// Abort or timeout fired during the poll-tick read; let the next loop
-						// iteration exit via the matching abort/timeout branch.
+						// An outcome landed during the poll-tick read; let the next loop
+						// iteration exit via the matching branch.
 						continue;
 					}
 					lastPolledOutput = pollOutput;
@@ -1546,9 +1493,6 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			}
 		}
 
-		// Track output for streaming updates (tail only)
-		const tailBuffer = new TailBuffer(DEFAULT_MAX_BYTES);
-
 		// Allocate artifact for truncated output storage
 		const { path: artifactPath, id: artifactId } = (await this.session.allocateOutputArtifact?.("bash")) ?? {};
 
@@ -1580,7 +1524,8 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					filesystem: this.#urlFilesystem(signal, approvalTier).shellFilesystem(),
 					artifactPath,
 					artifactId,
-					onChunk: streamTailUpdates(tailBuffer, onUpdate),
+					// Stream the sink's own inline view rather than re-buffering chunks.
+					onPreview: onUpdate ? text => onUpdate({ content: [{ type: "text", text }], details: {} }) : undefined,
 					onMinimizedSave: originalText => saveBashOriginalArtifact(this.session, originalText),
 				});
 		const wallTimeMs = performance.now() - wallTimeStart;

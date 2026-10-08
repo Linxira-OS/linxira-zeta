@@ -2,6 +2,7 @@
  * Centralized path helpers for zeta-c config directories.
  *
  * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
+ * Uses ZETA_CONFIG_DIR (default ".zeta") for the config root and
  * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
@@ -123,6 +124,14 @@ export function getBaseConfigRoot(): string {
 function getProfileConfigRoot(profile: string | undefined): string {
 	const root = getBaseConfigRoot();
 	return profile ? path.join(root, "profiles", profile) : root;
+}
+
+function readPiProfileFromEnvSafe(): string | undefined {
+	try {
+		return normalizeProfileName(process.env.ZETA_PROFILE);
+	} catch {
+		return undefined;
+	}
 }
 
 function getProfileAgentDir(profile: string): string {
@@ -454,8 +463,12 @@ class DirResolver {
  * without exporting it). Returns `undefined` in those cases so reset falls back
  * to the standard `~/.zeta/agent`.
  */
-function resolvePreProfileAgentDir(profile: string | undefined, agentDirEnv: string | undefined): string | undefined {
-	return isProfileDerivedAgentDir(profile, agentDirEnv) ? undefined : agentDirEnv;
+function resolvePreProfileAgentDir(
+	profile: string | undefined,
+	agentDirEnv: string | undefined,
+	profileAgentDirSource: string | undefined = profile,
+): string | undefined {
+	return isProfileDerivedAgentDir(profile ?? profileAgentDirSource, agentDirEnv) ? undefined : agentDirEnv;
 }
 
 let activeProfile = readProfileFromEnvSafe();
@@ -478,6 +491,9 @@ function resolveActiveAgentDirOverride(): string | undefined {
 	const env = process.env.ZETA_CODING_AGENT_DIR;
 	if (env && /[/\\]profiles[/\\][^/\\]+[/\\]agent$/.test(env.replace(/\\/g, "/"))) return undefined;
 	return resolvePreProfileAgentDir(undefined, env);
+	return activeProfile
+		? undefined
+		: resolvePreProfileAgentDir(undefined, process.env.ZETA_CODING_AGENT_DIR, readPiProfileFromEnvSafe());
 }
 
 let dirs = new DirResolver({
@@ -495,7 +511,11 @@ let dirs = new DirResolver({
  * — and refreshed on `setAgentDir`, since that call is the user explicitly
  * redefining the baseline.
  */
-let preProfileAgentDirEnv: string | undefined = resolveActiveAgentDirOverride();
+let preProfileAgentDirEnv: string | undefined = resolvePreProfileAgentDir(
+	activeProfile,
+	process.env.ZETA_CODING_AGENT_DIR,
+	activeProfile ?? readPiProfileFromEnvSafe(),
+);
 // Anchor home for the resolver. Captured at module load to stay stable across
 // test mocks of `os.homedir()`. `getPluginsDir(home)` compares against this so
 // production callers (`home === RESOLVER_HOME`) hit the XDG-aware resolver while
@@ -548,7 +568,11 @@ export function setAgentDir(dir: string): void {
  * no business clearing it.
  */
 export function __resetProfileSnapshotForTests(): void {
-	preProfileAgentDirEnv = resolveActiveAgentDirOverride();
+	preProfileAgentDirEnv = resolvePreProfileAgentDir(
+		activeProfile,
+		process.env.ZETA_CODING_AGENT_DIR,
+		activeProfile ?? readPiProfileFromEnvSafe(),
+	);
 }
 
 /**
@@ -573,11 +597,18 @@ export function setProfile(profile: string | undefined): void {
 		// snapshot — the "pre-profile" baseline is the state before profiles
 		// entered the picture, not the state between two activations.
 		preProfileAgentDirEnv = resolveActiveAgentDirOverride();
+		preProfileAgentDirEnv = resolvePreProfileAgentDir(
+			undefined,
+			process.env.ZETA_CODING_AGENT_DIR,
+			readPiProfileFromEnvSafe(),
+		);
 	}
 	activeProfile = next;
 	if (activeProfile) {
 		dirs = new DirResolver({ profile: activeProfile });
 		process.env.ZETA_PROFILE = activeProfile;
+		process.env.OMP_PROFILE = activeProfile;
+		process.env.PI_PROFILE = activeProfile;
 		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
 		for (const key of PROFILE_ENV_KEYS) {
@@ -765,8 +796,14 @@ export function getRemoteDir(): string {
  * (PR checkout, task isolation) and cleanup (`zeta worktree`). A relative value
  * would resolve against whatever cwd happened to launch `zeta`, so checkout and
  * cleanup could disagree — we refuse it rather than silently bind it to cwd.
+ * Worktree bases and the natives directory are process-global: a worktree base
+ * is consumed by both creation (PR checkout, task isolation) and cleanup
+ * (`omp worktree`), and every launch extracts or loads the native addon from
+ * the same natives directory. A relative value would resolve against whatever
+ * cwd happened to launch `omp`, so those readers could disagree — we refuse it
+ * rather than silently bind it to cwd.
  */
-function resolveWorktreeBase(value: string | undefined): string | undefined {
+function resolveAbsoluteDir(value: string | undefined): string | undefined {
 	const trimmed = value?.trim();
 	if (!trimmed) return undefined;
 	let p = trimmed;
@@ -783,13 +820,13 @@ let worktreesDirOverride: string | undefined;
  * `worktree.base` setting in coding-agent; pass `undefined`/empty to clear and
  * fall back to `OMP_WORKTREE_DIR` or the `~/.zeta/wt` default.
  *
- * `~` is expanded and a relative path is rejected (see {@link resolveWorktreeBase}).
+ * `~` is expanded and a relative path is rejected (see {@link resolveAbsoluteDir}).
  * Returns the absolute path that took effect, or `undefined` if the input was
  * cleared or rejected — callers can warn on a non-empty input that returns
  * `undefined`.
  */
 export function setWorktreesDir(dir: string | undefined): string | undefined {
-	worktreesDirOverride = resolveWorktreeBase(dir);
+	worktreesDirOverride = resolveAbsoluteDir(dir);
 	return worktreesDirOverride;
 }
 
@@ -801,7 +838,7 @@ export function setWorktreesDir(dir: string | undefined): string | undefined {
  * ignored and resolution falls through.
  */
 export function getWorktreesDir(): string {
-	return resolveWorktreeBase(process.env.OMP_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
+	return resolveAbsoluteDir(process.env.OMP_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
 }
 
 /** Get the SSH control socket directory (~/.zeta/ssh-control). */
@@ -928,8 +965,9 @@ export function getFastembedRuntimeDir(): string {
 }
 
 /** Get the natives directory (~/.zeta/natives). */
+/** Get the natives directory. PI_NATIVES_DIR overrides the usual cache root; relative values are ignored. */
 export function getNativesDir(): string {
-	return dirs.rootSubdir("natives", "cache");
+	return resolveAbsoluteDir(process.env.PI_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");
 }
 
 /** Get the stats database path (~/.zeta/stats.db). */

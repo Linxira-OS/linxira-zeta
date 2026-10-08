@@ -8,6 +8,7 @@ import type { StreamFn } from "@linxiraos/pi-agent-core";
 import type { Context } from "@linxiraos/pi-ai";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { logger } from "@linxiraos/pi-utils";
+import { clampProviderContextImageBytes } from "../session/provider-image-budget";
 import { contextHasImageUrls, contextHasProviderFiles } from "./context-images";
 import type { ImageUrlService } from "./service";
 
@@ -52,7 +53,10 @@ export function wrapStreamFnWithBlobUrlFallback(
 						continue;
 					}
 					if (event.type === "error" && !sawAttemptContent && event.error.stopReason === "error") {
-						const fallback = await broker.fallbackContext(attemptContext, model);
+						const fallback = clampProviderContextImageBytes(
+							await broker.fallbackContext(attemptContext, model),
+							model,
+						);
 						const fallbackSource = imageSource(fallback);
 						if (source !== "inline" && fallbackSource !== source) {
 							logger.warn("blob-broker: provider rejected image source; retrying with fallback", {

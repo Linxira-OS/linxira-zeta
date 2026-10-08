@@ -34,7 +34,7 @@ The package exports five entrypoints:
 | `@linxiraos/pi-natives/desktop`   | `native/desktop.js`   | `native/desktop.d.ts`   | Exposes `createDesktopSession(options)` and defers addon loading until it is called.    |
 | `@linxiraos/pi-natives/clipboard` | `native/clipboard.js` | `native/clipboard.d.ts` | Exposes lazy `copyToClipboard` and `readImageFromClipboard` wrappers.                   |
 
-The other lazy entrypoints are `@oh-my-pi/pi-natives/path` (`native/path.js` / `path.d.ts`) and `@oh-my-pi/pi-natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
+The other lazy entrypoints are `@linxiraos/pi-natives/path` (`native/path.js` / `path.d.ts`) and `@linxiraos/pi-natives/vcs` (`native/vcs.js` / `vcs.d.ts`). The path wrapper loads only for Windows path operations and returns its input unchanged elsewhere. The VCS wrapper memoizes bindings on its first native-backed operation; its error predicates and watch helper can be imported without loading the addon.
 
 There is no `packages/natives/src` wrapper layer. Most root exports bind N-API values directly; `DesktopSession` passes through `desktop-adapter.js`, which adapts older capture/execute/close addons and leaves current classes unchanged. The lazy subpaths defer loading until native functionality is needed.
 
@@ -71,7 +71,7 @@ The published core package contains loader JS, declarations, and metadata but no
 
 For a normal installed package, the platform leaf is probed before the core package's `native/` directory and `process.execPath` directory. Workspace development skips leaf resolution so local artifacts win.
 
-Compiled mode is detected by a populated embedded manifest, `PI_COMPILED`, or a Bun embedded marker in `import.meta.url`. It probes the versioned cache and legacy user-data directory before package/executable locations. `getNativesDir()` is `$XDG_DATA_HOME/omp/natives` only when `$XDG_DATA_HOME/omp` already exists; otherwise it is `~/.omp/natives`.
+Compiled mode is detected by a populated embedded manifest, `PI_COMPILED`, or a Bun embedded marker in `import.meta.url`. It probes the versioned cache and legacy user-data directory before package/executable locations. `getNativesDir()` first honors `PI_NATIVES_DIR` (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then uses `$XDG_DATA_HOME/omp/natives` only when `$XDG_DATA_HOME/omp` already exists; otherwise it is `~/.omp/natives`.
 
 A populated manifest references `embedded-addons.<tag>.tar.gz`. Extraction validates archive entries as basename-only regular files, writes pending manifest-listed files atomically into `<getNativesDir()>/<version>`, and validates their sizes. Safe unlisted regular entries are ignored. On Windows `node_modules` installs, the loader instead stages a leaf/core addon in that versioned directory so a running process does not lock the copy Bun must replace during an update.
 

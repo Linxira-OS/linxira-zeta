@@ -41,7 +41,7 @@ import {
 } from "./composer-attachments";
 import { type MacOSSpellingFeatures, MacOSSpellingProvider } from "./macos-spelling";
 import { hasMagicKeyword, highlightMagicKeywords, magicKeywordRanges } from "./magic-keywords";
-import type { TspEditorDecoration } from "@linxiraos/pi-wire";
+import type { TspEditorDecoration, TspText } from "@linxiraos/pi-wire";
 import { isNativeRendering } from "../native/state";
 import { isQueuedMessageList, parseQueueShorthand, QUEUE_LIST_MARKER_RE } from "./queue-input";
 import { type WordCompletionMethod, WordCompletionProvider } from "./word-completion";
@@ -50,8 +50,8 @@ import { fgOrPlain, theme } from "../theme/theme";
 /** A shell-mode draft's sigil (`!`, `!!`, `$`, `$$`) with its surrounding blanks; the mode chip stands in for it natively. */
 const SHELL_SIGIL_RE = /^\s*(?:!!?|\$\$?)[ \t]?/;
 
-/** The composer's TSP placeholder; the rotating ANSI hints (thinking effort, …) move into control tooltips. */
-const NATIVE_COMPOSER_PLACEHOLDER = "Ask zeta — / commands · @ files · ! bash";
+/** The untitled session's TSP placeholder; the rotating ANSI hints (thinking effort, …) move into control tooltips. */
+const NATIVE_COMPOSER_PLACEHOLDER = "What are we cooking?";
 
 /** Live composer state the TSP layout shows; the interactive host wires {@link CustomEditor.composerState}. */
 export interface ComposerNativeState {
@@ -67,6 +67,8 @@ export interface ComposerNativeState {
 	readonly running: boolean;
 	/** The viewed subagent's lineage, outermost first and the viewed agent last; undefined on the main session. */
 	readonly viewing?: readonly string[];
+	/** The session's title, quoted in italics as the TSP placeholder; undefined until it has one. */
+	readonly title?: string;
 }
 
 /** Action code prefix of the viewing header's links: `focus:<agent id>`, {@link MAIN_AGENT_ID} for the main session. */
@@ -220,7 +222,7 @@ function normalizePastedPath(path: string): string {
 			}
 		}
 	}
-	return unquoted.replace(SHELL_ESCAPED_PATH_CHAR_REGEX, "$1");
+	return (unquoted.startsWith("\\~/") ? unquoted.slice(1) : unquoted).replace(SHELL_ESCAPED_PATH_CHAR_REGEX, "$1");
 }
 
 function isExplicitPastedPath(path: string): boolean {
@@ -408,7 +410,7 @@ export function extractImagePathFromText(text: string): string | undefined {
 
 /**
  * Resolve the {@link EditorTheme} from a `CustomEditor`/`Editor` constructor
- * argument list, tolerating both the zeta `(theme)` and upstream-pi
+ * argument list, tolerating both the omp `(theme)` and upstream-pi
  * `(tui, theme, keybindings)` conventions (see {@link CustomEditor}'s
  * constructor). A real `EditorTheme` is identified structurally — it exposes a
  * `borderColor` function and a `symbols` object — so a `TUI` passed in the first
@@ -484,7 +486,7 @@ export class CustomEditor extends Editor {
 
 	/**
 	 * The host {@link TUI}, captured when a plugin constructs this editor through
-	 * the upstream-pi `(tui, theme, keybindings)` convention. Undefined for zeta's
+	 * the upstream-pi `(tui, theme, keybindings)` convention. Undefined for omp's
 	 * own `new CustomEditor(theme)` callers (they drive repaints through the
 	 * interactive-mode wiring instead). Plugins that call `this.tui.requestRender()`
 	 * in their overrides read it here (issue #4766).
@@ -492,7 +494,7 @@ export class CustomEditor extends Editor {
 	tui?: TUI;
 
 	/**
-	 * Accept both the zeta constructor convention — `new CustomEditor(theme)` —
+	 * Accept both the omp constructor convention — `new CustomEditor(theme)` —
 	 * and the upstream-pi `Editor` convention — `new Editor(tui, theme, keybindings)`
 	 * — that {@link ExtensionUIContext.setEditorComponent}'s factory contract
 	 * advertises `(tui, theme, keybindings)`. Plugins written against upstream pi
@@ -798,10 +800,21 @@ export class CustomEditor extends Editor {
 	 *  indivisible: a stray backspace deletes the whole token instead of corrupting it. */
 	override atomicTokenPattern = COMPOSER_TOKEN_REGEX;
 
+	/** Atom-table revision and pattern the composer token matcher was last built for. */
+	#tokenPatternAtomsRevision = -1;
+	#tokenPattern: RegExp | undefined;
+
 	#syncComposerTokenPattern(): void {
-		const labels = [...this.atoms].filter(([, expansion]) => expansion.startsWith("^")).map(([label]) => label);
+		// Rebuild only when the atom table changed or someone replaced the pattern since the last sync.
+		if (this.#tokenPatternAtomsRevision === this.atomsRevision && this.#tokenPattern === this.atomicTokenPattern) {
+			return;
+		}
+		const labels: string[] = [];
+		for (const [label, expansion] of this.atoms) if (expansion.startsWith("^")) labels.push(label);
 		const next = composerTokenRegex(labels);
 		if (next.source !== this.atomicTokenPattern.source) this.atomicTokenPattern = next;
+		this.#tokenPatternAtomsRevision = this.atomsRevision;
+		this.#tokenPattern = this.atomicTokenPattern;
 	}
 
 	/** Magic-keyword shimmer cadence — drives one editor repaint every 70 ms while
@@ -819,27 +832,35 @@ export class CustomEditor extends Editor {
 	 *  timer to request the next animation frame. Undefined when nobody is
 	 *  listening (tests, headless callers); the timer chain still self-cleans. */
 	#requestShimmerRepaint: (() => void) | undefined;
-	#queueDecorationText: string | undefined;
+	/** Text revision the per-revision decoration inputs below were computed for. */
+	#decorationRevision = -1;
+	#decorationText = "";
 	#decorationLines: readonly string[] = [""];
 	#queueShorthandActive = false;
 	#queueListActive = false;
 
 	/** Decorate magic keywords, attachments, and the queue-composer header/list markers.
 	 *  Queue shorthand reserves its first logical line as a dim `Queueing` label; sequential
-	 *  item markers use the accent color so separate follow-ups remain visible while composing. */
+	 *  item markers use the accent color so separate follow-ups remain visible while composing.
+	 *  Called once per layout segment, so whole-buffer inputs are computed once per text revision. */
 	override decorateText = (text: string, context: EditorTextDecorationContext): string => {
 		this.#syncComposerTokenPattern();
-		const editorText = this.getText();
+		if (this.#decorationRevision !== this.textRevision) {
+			this.#decorationRevision = this.textRevision;
+			const editorText = this.getText();
+			if (this.#decorationText !== editorText) {
+				this.#decorationText = editorText;
+				this.#decorationLines = this.getLines();
+				const queueBody = parseQueueShorthand(editorText);
+				this.#queueShorthandActive = queueBody !== undefined;
+				this.#queueListActive = queueBody !== undefined && isQueuedMessageList(queueBody);
+			}
+		}
+		// One string instance per revision: whole-buffer memos downstream hit on identity.
+		const editorText = this.#decorationText;
 		const animated = this.focused && this.#shimmerEnabled() && hasMagicKeyword(editorText);
 		const phase = animated ? (Date.now() % CustomEditor.SHIMMER_PERIOD_MS) / CustomEditor.SHIMMER_PERIOD_MS : 0;
 		if (animated) this.#scheduleShimmerFrame();
-		if (this.#queueDecorationText !== editorText) {
-			this.#queueDecorationText = editorText;
-			this.#decorationLines = this.getLines();
-			const queueBody = parseQueueShorthand(editorText);
-			this.#queueShorthandActive = queueBody !== undefined;
-			this.#queueListActive = queueBody !== undefined && isQueuedMessageList(queueBody);
-		}
 		let sourceSearchOffset = 0;
 		const locateSource = (value: string): number => {
 			const offset = text.indexOf(value, sourceSearchOffset);
@@ -1018,10 +1039,18 @@ export class CustomEditor extends Editor {
 	protected override get nativeSendable(): boolean {
 		return this.onSubmit !== undefined && !this.disableSubmit;
 	}
-	/** Viewing a subagent, the draft goes to it: the placeholder names it. */
-	override describePlaceholder = (): string => {
-		const agent = this.composerState().viewing?.at(-1);
-		return agent === undefined ? NATIVE_COMPOSER_PLACEHOLDER : `Message ${agent}`;
+	/** The quoted-title placeholder, kept while the title stands so the editor node stays reused. */
+	#titlePlaceholder: { title: string; text: TspText } | undefined;
+	/** Viewing a subagent, the draft goes to it: the placeholder names it; else the session's title, quoted in italics. */
+	override describePlaceholder = (): TspText => {
+		const { viewing, title } = this.composerState();
+		const agent = viewing?.at(-1);
+		if (agent !== undefined) return `Message ${agent}`;
+		if (!title) return NATIVE_COMPOSER_PLACEHOLDER;
+		if (this.#titlePlaceholder?.title !== title) {
+			this.#titlePlaceholder = { title, text: [{ t: `“${title}”`, s: "em" }] };
+		}
+		return this.#titlePlaceholder.text;
 	};
 	/** A shell-mode draft highlights as its language. */
 	override describeLanguage = (): string | undefined => this.composerState().shell?.kind;
@@ -1045,7 +1074,7 @@ export class CustomEditor extends Editor {
 		| undefined;
 
 	/**
-	 * The TSP composer: role `zeta.editor[.bash|.python]` (tone `pending` while
+	 * The TSP composer: role `omp.editor[.bash|.python]` (tone `pending` while
 	 * a turn runs) over the context hairline, the viewing header while a
 	 * subagent is focused, the attachment chips, a `line` row of the
 	 * shell-mode chip and the input, and the `bar`: model chip, effort chip
@@ -1131,10 +1160,10 @@ export class CustomEditor extends Editor {
 	};
 
 	/**
-	 * The viewing header (`zeta.composer.focus`) while a subagent is focused:
-	 * an eye, the agent's ancestors as `zeta.composer.crumb` links, the agent
-	 * itself (`zeta.composer.agent`), then the way back to the main session
-	 * (`zeta.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
+	 * The viewing header (`omp.composer.focus`) while a subagent is focused:
+	 * an eye, the agent's ancestors as `omp.composer.crumb` links, the agent
+	 * itself (`omp.composer.agent`), then the way back to the main session
+	 * (`omp.composer.exit`, the interrupt key's keycap: Esc on an empty draft).
 	 */
 	#describeViewing(viewing: readonly string[], interruptKey: KeyId): NativeNode | undefined {
 		const agent = viewing.at(-1);

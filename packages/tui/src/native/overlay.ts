@@ -57,7 +57,7 @@ export function statusHintsRow(status: TspText, hints: readonly (NativeHint | un
 
 /**
  * Root card of an overlay. `head` is the overlay title (whitespace runs
- * collapse; empty means no head); `role` is `zeta.overlay.<name>`.
+ * collapse; empty means no head); `role` is `omp.overlay.<name>`.
  */
 export function overlayCard(
 	role: string,
@@ -96,7 +96,7 @@ export interface ActionButtonOptions {
 }
 
 /**
- * A native button (role `zeta.btn`): a label plus an optional keycap. A click
+ * A native button (role `omp.btn`): a label plus an optional keycap. A click
  * sends `act` back as an `action` event (or runs a terminal-local `open`/`copy`),
  * which the component routes to the same code path as the key.
  */
@@ -119,7 +119,20 @@ export function actionButton(label: string, act: string, options: ActionButtonOp
 	);
 }
 
-/** A row of {@link actionButton}s (role `zeta.actions`); `null` entries become the spacer that end-aligns what follows. */
+/**
+ * A bare `esc` keycap button for a view's top-right corner: a click sends
+ * `act` (default `close`), which the component routes to its Esc path.
+ */
+export function escCloseButton(act = "close", key = "esc-close"): NativeNode {
+	return node(
+		"row",
+		{ role: "omp.btn", align: "center", actions: { click: act }, title: `Close  ${formatTooltipKey("escape")}` },
+		[kbd("escape")],
+		key,
+	);
+}
+
+/** A row of {@link actionButton}s (role `omp.actions`); `null` entries become the spacer that end-aligns what follows. */
 export function actionBar(buttons: readonly (NativeNode | null)[], key = "actions"): NativeNode {
 	const children = buttons.map(button => button ?? node("spacer", { grow: 1 }));
 	return node("row", { role: "omp.actions", gap: "sm", align: "center" }, children, key);

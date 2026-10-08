@@ -3,13 +3,14 @@ import { type ChildProcess, execSync, spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Effort } from "@linxiraos/pi-ai";
 import { __resetVertexTokenCache } from "@linxiraos/pi-ai/providers/google-auth";
-import { complete, getEnvApiKey, stream } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { complete, stream } from "@linxiraos/pi-ai/stream";
 import type { Api, Context, ImageContent, Model, OptionsForApi, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
 import { $which } from "@linxiraos/pi-utils";
 import { removeWithRetries } from "../../utils/src/temp";
 import { e2eApiKey, resolveApiKey } from "./oauth";
@@ -681,7 +682,7 @@ describe("Generate E2E Tests", () => {
 			const originalLocation = Bun.env.VERTEX_LOCATION;
 			const originalApiKey = Bun.env.GOOGLE_CLOUD_API_KEY;
 			const originalGac = Bun.env.GOOGLE_APPLICATION_CREDENTIALS;
-			const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-vertex-impersonation-"));
+			const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-vertex-impersonation-"));
 			const adcPath = path.join(tmpDir, "impersonated-adc.json");
 			await Bun.write(
 				adcPath,

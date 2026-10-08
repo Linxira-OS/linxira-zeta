@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
-import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";

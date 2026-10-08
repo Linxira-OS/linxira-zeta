@@ -1,5 +1,3 @@
-# Changelog
-
 ## [Unreleased]
 
 ## [1.1.27] - 2026-10-07

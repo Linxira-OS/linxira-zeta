@@ -13,7 +13,7 @@ import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { logger, ptree } from "@linxiraos/pi-utils";
-import { MessageFramer } from "../../jsonrpc/message-framing";
+import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
 import { daemonRuntimeDir } from "../../launch/paths";
@@ -114,8 +114,7 @@ function requestOnSocket(
 	socket.on("data", onData);
 	socket.once("close", onClose);
 	socket.once("error", onClose);
-	const content = JSON.stringify(request);
-	socket.write(`Content-Length: ${Buffer.byteLength(content, "utf-8")}\r\n\r\n${content}`);
+	socket.write(encodeMessageFrame(request));
 	return promise;
 }
 
@@ -323,8 +322,8 @@ export async function connectSharedLspTransport(opts: {
 export async function smokeTestLspMux(): Promise<void> {
 	const endpoint =
 		process.platform === "win32"
-			? `\\\\.\\pipe\\zeta-lsp-mux-smoke-${process.pid.toString(16)}`
-			: path.join(os.tmpdir(), `zeta-lsp-mux-smoke-${process.pid.toString(36)}.sock`);
+			? `\\\\.\\pipe\\omp-lsp-mux-smoke-${process.pid.toString(16)}`
+			: path.join(os.tmpdir(), `omp-lsp-mux-smoke-${process.pid.toString(36)}.sock`);
 	const spawn = resolveWorkerSpawnCmd(LSP_MUX_WORKER_ARG);
 	const proc = ptree.spawn(spawn.cmd, {
 		cwd: spawn.cwd,

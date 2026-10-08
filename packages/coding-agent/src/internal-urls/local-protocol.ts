@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import localDoc from "../prompts/internal-urls/local.md" with { type: "text" };
 import { AgentRegistry } from "../registry/agent-registry";
 import {
@@ -41,7 +42,7 @@ function shortLocalRoot(options: LocalProtocolOptions): string {
 	// Derive the short root from the stable session id, never the artifact path,
 	// so `SessionManager.moveTo()` and the resume-after-move flow keep finding
 	// the same `local://` directory the session wrote pre-move.
-	return path.join(os.tmpdir(), "zeta-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
 }
 
 const LOCAL_TEXT_SNIFF_BYTES = 8 * 1024;
@@ -151,28 +152,38 @@ async function buildFileResource(
 }
 
 async function listFilesRecursively(rootPath: string): Promise<string[]> {
-	const pending = [""];
 	const files: string[] = [];
-
-	while (pending.length > 0) {
-		const relativeDir = pending.pop();
-		if (relativeDir === undefined) continue;
-		const absoluteDir = path.join(rootPath, relativeDir);
-		const entries = await fs.readdir(absoluteDir, { withFileTypes: true });
-
+	// Sibling directories are read concurrently; the final sort fixes the order.
+	const walk = async (relativeDir: string): Promise<void> => {
+		const entries = await fs.readdir(path.join(rootPath, relativeDir), { withFileTypes: true });
+		const subdirs: Promise<void>[] = [];
 		for (const entry of entries) {
 			const entryPath = path.join(relativeDir, entry.name);
 			if (entry.isDirectory()) {
-				pending.push(entryPath);
-				continue;
-			}
-			if (entry.isFile()) {
+				subdirs.push(walk(entryPath));
+			} else if (entry.isFile()) {
 				files.push(entryPath.replaceAll(path.sep, "/"));
 			}
 		}
-	}
-
+		await Promise.all(subdirs);
+	};
+	await walk("");
 	return files.sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * `complete()` runs on every keystroke; reuse a root's sorted listing for a
+ * short window instead of re-walking and re-sorting the tree each time.
+ */
+const completionListings = new LRUCache<string, Promise<string[]>>({ max: 16, ttl: 2000 });
+
+function listCompletionFiles(localRoot: string): Promise<string[]> {
+	const cached = completionListings.get(localRoot);
+	if (cached) return cached;
+	const listing = listFilesRecursively(localRoot);
+	completionListings.set(localRoot, listing);
+	listing.catch(() => completionListings.delete(localRoot));
+	return listing;
 }
 
 async function buildListing(url: InternalUrl, localRoot: string): Promise<InternalResource> {
@@ -236,7 +247,7 @@ export function resolveLocalRoot(options: LocalProtocolOptions, platform: NodeJS
 		return candidate;
 	}
 
-	return path.join(os.tmpdir(), "zeta-local", safeSessionId(options));
+	return path.join(os.tmpdir(), "omp-local", safeSessionId(options));
 }
 
 /**
@@ -517,7 +528,7 @@ export class LocalProtocolHandler implements ProtocolHandler {
 		if (!opts) return [];
 		const localRoot = path.resolve(resolveLocalRoot(opts));
 		try {
-			const files = await listFilesRecursively(localRoot);
+			const files = await listCompletionFiles(localRoot);
 			return files.map(value => ({ value }));
 		} catch (err) {
 			if (isEnoent(err)) return [];
