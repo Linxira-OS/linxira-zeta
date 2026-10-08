@@ -5,14 +5,14 @@ import {
 	extractMarkdownLinks,
 	Markdown,
 	renderInlineMarkdown,
-} from "@oh-my-pi/pi-tui/components/markdown";
-import { setTerminalTextSizing, TERMINAL } from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { loadTheme } from "@oh-my-pi/pi-tui/theme/loader";
-import { getSymbolTheme, setThemeInstance } from "@oh-my-pi/pi-tui/theme/theme";
-import { type Component, TUI } from "@oh-my-pi/pi-tui/tui";
-import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
-import { Chalk } from "@oh-my-pi/pi-utils/chalk";
-import { mathStartIndex } from "@oh-my-pi/pi-utils/math-delimiters";
+} from "@linxiraos/pi-tui/components/markdown";
+import { setTerminalTextSizing, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { loadTheme } from "@linxiraos/pi-tui/theme/loader";
+import { getSymbolTheme, setThemeInstance } from "@linxiraos/pi-tui/theme/theme";
+import { type Component, TUI } from "@linxiraos/pi-tui/tui";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
+import { Chalk } from "@linxiraos/pi-utils/chalk";
+import { mathStartIndex } from "@linxiraos/pi-utils/math-delimiters";
 import { defaultMarkdownTheme } from "./test-themes.js";
 import { VirtualTerminal } from "./virtual-terminal.js";
 

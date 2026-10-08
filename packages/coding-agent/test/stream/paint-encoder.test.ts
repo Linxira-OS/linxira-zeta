@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { StreamPaintEncoder } from "@oh-my-pi/pi-coding-agent/stream/paint-encoder";
-import { StreamRedactor } from "@oh-my-pi/pi-coding-agent/stream/redactor";
+import { StreamPaintEncoder } from "@linxiraos/zeta/stream/paint-encoder";
+import { StreamRedactor } from "@linxiraos/zeta/stream/redactor";
 
 const SIZE = { columns: 40, rows: 2 };
 

@@ -1,6 +1,6 @@
-import type { Token } from "@oh-my-pi/pi-utils/marked";
-import { Marked } from "@oh-my-pi/pi-utils/marked";
-import { listMayContinueAt } from "@oh-my-pi/pi-utils/marked-list";
+import type { Token } from "@linxiraos/pi-utils/marked";
+import { Marked } from "@linxiraos/pi-utils/marked";
+import { listMayContinueAt } from "@linxiraos/pi-utils/marked-list";
 import type { ReactNode } from "react";
 import { memo, useMemo, useRef } from "react";
 import { escapeHtml } from "../../lib/format";

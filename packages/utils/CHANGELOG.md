@@ -16,7 +16,7 @@
 
 ### Added
 
-- Added `ZipPackage` to `@oh-my-pi/pi-utils/ar` for lazily reading ZIP-based document packages with a configurable total-inflation limit, plus `DocxImage.readBytes()` for accessing raw DOCX image data.
+- Added `ZipPackage` to `@linxiraos/pi-utils/ar` for lazily reading ZIP-based document packages with a configurable total-inflation limit, plus `DocxImage.readBytes()` for accessing raw DOCX image data.
 
 ### Changed
 

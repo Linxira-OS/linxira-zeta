@@ -4,22 +4,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LocalProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/local-protocol";
-import { resolveMarkdownLinkHrefs } from "@oh-my-pi/pi-coding-agent/internal-urls/hyperlink-targets";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls/router";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { getMarkdownTheme, initTheme } from "@oh-my-pi/pi-tui/theme";
-import * as terminalCaps from "@oh-my-pi/pi-tui";
-import { isHyperlinkEnabled } from "@oh-my-pi/pi-tui/render/hyperlink";
-import { isFeedModelBadgeEnabled, resolveImageOptions } from "@oh-my-pi/pi-tui/render/render-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { LocalProtocolHandler } from "@linxiraos/zeta/internal-urls/local-protocol";
+import { resolveMarkdownLinkHrefs } from "@linxiraos/zeta/internal-urls/hyperlink-targets";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { getMarkdownTheme, initTheme } from "@linxiraos/pi-tui/theme";
+import * as terminalCaps from "@linxiraos/pi-tui";
+import { isHyperlinkEnabled } from "@linxiraos/pi-tui/render/hyperlink";
+import { isFeedModelBadgeEnabled, resolveImageOptions } from "@linxiraos/pi-tui/render/render-utils";
 
-import { cfgTaskShowResolvedModelBadge } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgTaskShowResolvedModelBadge } from "@linxiraos/zeta/task/settings";
 import {
 	cfgTuiHyperlinks,
 	cfgTuiMaxInlineImageColumns,
 	cfgTuiMaxInlineImageRows,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
 function extractAnyTerminatorLinkUri(text: string): string | undefined {
 	return text.match(/\x1b\]8;[^;]*;([^\x1b\x07]+)(?:\x1b\\|\x07)/)?.[1];

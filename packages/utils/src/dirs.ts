@@ -14,7 +14,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { expandWindowsLongPath } from "@oh-my-pi/pi-natives/path";
+import { expandWindowsLongPath } from "@linxiraos/pi-natives/path";
 import { engines, version } from "../package.json" with { type: "json" };
 import { isEnoent, isEnotdir } from "./fs-error";
 
@@ -57,7 +57,7 @@ const WINDOWS_RESERVED_BASENAME_RE = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(?:\
  * default (empty string, whitespace, or the explicit "default" sentinel) and
  * throws for syntactically invalid or platform-reserved names.
  *
- * Exported so consumers of `@oh-my-pi/pi-utils/dirs` (CLI bootstrap, tests,
+ * Exported so consumers of `@linxiraos/pi-utils/dirs` (CLI bootstrap, tests,
  * downstream tools) can validate user input without re-deriving the rules.
  */
 export function normalizeProfileName(profile: string | undefined): string | undefined {

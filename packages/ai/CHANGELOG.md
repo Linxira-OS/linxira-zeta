@@ -48,7 +48,7 @@
 
 ### Breaking Changes
 
-- The environment API-key helpers (`getEnvApiKey`, `getEnvApiKeyName`, and `listProvidersWithEnvKey`) are no longer exported from `@oh-my-pi/pi-ai/stream`; import them from `@oh-my-pi/pi-ai` or `@oh-my-pi/pi-ai/env-api-key` instead.
+- The environment API-key helpers (`getEnvApiKey`, `getEnvApiKeyName`, and `listProvidersWithEnvKey`) are no longer exported from `@linxiraos/pi-ai/stream`; import them from `@linxiraos/pi-ai` or `@linxiraos/pi-ai/env-api-key` instead.
 - `TranscriptionRequest.audio` now accepts `Uint8Array | Blob`. Consumers must handle `Blob` values when reading transcription requests.
 
 ### Changed
@@ -350,7 +350,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Breaking Changes
 
-- Anthropic streaming and provider request helpers must now be imported from `@oh-my-pi/pi-ai/providers/anthropic` instead of the package root.
+- Anthropic streaming and provider request helpers must now be imported from `@linxiraos/pi-ai/providers/anthropic` instead of the package root.
 - Moved the public `NO_AUTH_SENTINEL` export from `providers/openai-shared` to `auth-retry`.
 
 ### Fixed
@@ -1016,7 +1016,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Breaking Changes
 
-- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@oh-my-pi/omptype/zod`.
+- Removed the `zod` dependency and `z`/`ZodType` re-exports. Tool schemas now use `omptype` `type()` schemas, with Zod-style authoring still available via `@linxiraos/pi-omptype/zod`.
 
 ## [17.2.9] - 2026-08-05
 
@@ -1033,7 +1033,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Changed
 
-- Replaced `arktype` with `@oh-my-pi/omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
+- Replaced `arktype` with `@linxiraos/pi-omptype` for schema validation, delivering up to 100x faster schema construction and 60-100x faster validation while maintaining full compatibility with existing `type`/`Type` exports and the `isArkSchema` contract.
 
 ### Fixed
 
@@ -1091,7 +1091,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Added
 
-- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@oh-my-pi/pi-catalog`.
+- Added support for the `gmi-cloud` provider registry, including API-key paste login validation and integration with `@linxiraos/pi-catalog`.
 
 ### Changed
 
@@ -1869,7 +1869,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Breaking Changes
 
-- Removed the `@oh-my-pi/pi-ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@oh-my-pi/pi-utils` to be shared across utilities.
+- Removed the `@linxiraos/pi-ai/utils/json-parse` module. The JSON repair and parsing helpers (`repairJson`, `parseJsonWithRepair`, `parseStreamingJson`, `parseStreamingJsonThrottled`) have been moved to `@linxiraos/pi-utils` to be shared across utilities.
 
 ### Added
 
@@ -1927,7 +1927,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Fixed
 
-- Restored the `pollOAuthDeviceCodeFlow` export from `@oh-my-pi/pi-ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
+- Restored the `pollOAuthDeviceCodeFlow` export from `@linxiraos/pi-ai/oauth` so legacy provider extensions can reuse the host OAuth device-code poller. ([#3508](https://github.com/can1357/oh-my-pi/issues/3508))
 
 ## [16.1.20] - 2026-06-25
 
@@ -2266,7 +2266,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Added
 
-- Exported `renderDelimitedThinking` from the `@oh-my-pi/pi-ai/dialect` barrel so consumers can reuse the dialect's `<thinking>` envelope unwrap-and-rewrap logic (the only `./dialect/rendering` primitive re-exported; the rest stay dialect-internal).
+- Exported `renderDelimitedThinking` from the `@linxiraos/pi-ai/dialect` barrel so consumers can reuse the dialect's `<thinking>` envelope unwrap-and-rewrap logic (the only `./dialect/rendering` primitive re-exported; the rest stay dialect-internal).
 
 ### Fixed
 
@@ -2281,7 +2281,7 @@ Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://gi
 
 ### Fixed
 
-- A single MCP tool whose input schema can't be emitted as a valid strict tool schema for the active provider no longer fails the whole turn with HTTP 400. `convertTools` (openai-responses) now validates each tool's emitted parameter schema for `enum`/`const`-vs-`type` contradictions that pass structural JSON-Schema validation but the provider rejects — e.g. a non-null `enum` on a `type: "null"` node, or an `enum` on an `array` node — and quarantines just the offending tool with a `logger.warn` naming the tool and schema path, keeping every other tool usable. Adds `findStrictToolSchemaViolation` to `@oh-my-pi/pi-ai/utils/schema` ([#2652](https://github.com/can1357/oh-my-pi/issues/2652))
+- A single MCP tool whose input schema can't be emitted as a valid strict tool schema for the active provider no longer fails the whole turn with HTTP 400. `convertTools` (openai-responses) now validates each tool's emitted parameter schema for `enum`/`const`-vs-`type` contradictions that pass structural JSON-Schema validation but the provider rejects — e.g. a non-null `enum` on a `type: "null"` node, or an `enum` on an `array` node — and quarantines just the offending tool with a `logger.warn` naming the tool and schema path, keeping every other tool usable. Adds `findStrictToolSchemaViolation` to `@linxiraos/pi-ai/utils/schema` ([#2652](https://github.com/can1357/oh-my-pi/issues/2652))
 - Fixed OpenAI Responses-compatible streams from Ollama/local hosts dropping arguments for parallel tool calls whose deltas use `fc_<call_id>` item ids, which left earlier `ast_grep` calls with `{}` and failed validation. ([#2715](https://github.com/can1357/oh-my-pi/issues/2715))
 - Fixed dialect transcript rendering so literal thinking envelopes are unwrapped before adding the dialect's own thinking tags, preventing nested `<thinking>` output in advisor raw dumps ([#2700](https://github.com/can1357/oh-my-pi/issues/2700)).
 - Fixed Anthropic-compatible Umans requests escaping client tool names and forwarding gateway web search headers so Kimi answers normally instead of returning raw gateway search results.

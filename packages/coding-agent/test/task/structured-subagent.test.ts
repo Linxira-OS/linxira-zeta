@@ -8,33 +8,33 @@ import {
 	getDisabledProviders,
 	isProviderEnabled,
 	setDisabledProviders,
-} from "@oh-my-pi/pi-coding-agent/capability";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { AgentCompactionThresholdOverride } from "@oh-my-pi/pi-coding-agent/config/compaction-threshold";
-import type { BeforeSubagentSpawnEvent } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+} from "@linxiraos/zeta/capability";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { AgentCompactionThresholdOverride } from "@linxiraos/zeta/config/compaction-threshold";
+import type { BeforeSubagentSpawnEvent } from "@linxiraos/zeta/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,
-} from "@oh-my-pi/pi-coding-agent/internal-urls/registry-helpers";
-import * as planHandoff from "@oh-my-pi/pi-coding-agent/plan-mode/plan-handoff";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { createEvalCustomTools } from "@oh-my-pi/pi-coding-agent/task/eval-tools";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import * as isolationRunner from "@oh-my-pi/pi-coding-agent/task/isolation-runner";
+} from "@linxiraos/zeta/internal-urls/registry-helpers";
+import * as planHandoff from "@linxiraos/zeta/plan-mode/plan-handoff";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { createEvalCustomTools } from "@linxiraos/zeta/task/eval-tools";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import * as isolationRunner from "@linxiraos/zeta/task/isolation-runner";
 import {
 	buildStructuredSubagentRecoveryHint,
 	resolveEffectiveSubagentPolicy,
 	runStructuredSubagent,
 	StructuredSubagentError,
 	type StructuredSubagentRequest,
-} from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { SingleResult } from "@oh-my-pi/pi-tui/tools/task";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+} from "@linxiraos/zeta/task/structured-subagent";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
-import { cfgRetryModelFallback } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgRetryModelFallback } from "@linxiraos/zeta/session/settings";
+import { cfgTaskAgentModelOverrides, cfgTaskEnableEffort } from "@linxiraos/zeta/task/settings";
 
 const AGENT: AgentDefinition = {
 	name: "worker",

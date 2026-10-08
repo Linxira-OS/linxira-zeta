@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { HistorySearchComponent } from "@oh-my-pi/pi-tui/overlays/history-search";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
-import type { HistoryEntry, HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
+import type { HistoryEntry, HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 
 beforeAll(async () => {
 	await initTheme();

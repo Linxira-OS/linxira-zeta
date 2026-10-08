@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { HighlightStream } from "@oh-my-pi/pi-natives";
+import type { HighlightStream } from "@linxiraos/pi-natives";
 import type { Component } from "../tui";
 import { fencedCode } from "../components/markdown";
 import { Text } from "../components/text";
@@ -32,7 +32,7 @@ import {
 	type ProcWriteAction,
 	type ProcWriteDetails,
 } from "./proc-render";
-import type { TspTone } from "@oh-my-pi/pi-wire";
+import type { TspTone } from "@linxiraos/pi-wire";
 import { code, compact, md, node, span } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { diagnosticsBadge, diagnosticsSection, displayPath, errorText, fileHref, resultText } from "./native-view";

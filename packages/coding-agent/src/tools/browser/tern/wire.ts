@@ -16,7 +16,7 @@
  * the hello and hangs up.
  */
 import * as net from "node:net";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 /** Frames larger than this are a protocol error (the daemon's own cap). */
 const MAX_FRAME_BYTES = 256 << 20;

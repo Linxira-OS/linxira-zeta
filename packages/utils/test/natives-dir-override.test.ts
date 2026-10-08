@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, getAgentDir, getNativesDir } from "@oh-my-pi/pi-utils/dirs";
+import { __resetDirsFromEnvForTests, getAgentDir, getNativesDir } from "@linxiraos/pi-utils/dirs";
 
 const ENV_KEYS = [
 	"HOME",

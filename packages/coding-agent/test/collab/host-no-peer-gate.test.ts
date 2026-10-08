@@ -6,13 +6,13 @@
  * mistaken for one guests already have.
  */
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
-import { COLLAB_PROTO, type CollabFrame } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
+import { COLLAB_PROTO, type CollabFrame } from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
 interface Fixture {

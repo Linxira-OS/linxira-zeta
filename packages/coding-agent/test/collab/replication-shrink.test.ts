@@ -29,17 +29,17 @@
  * `id`/`parentId` so the guest's branch chain stays connected.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import type { ImageContent } from "@oh-my-pi/pi-ai";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { CollabHost } from "@oh-my-pi/pi-coding-agent/collab/host";
+import type { ImageContent } from "@linxiraos/pi-ai";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { CollabHost } from "@linxiraos/zeta/collab/host";
 import {
 	COLLAB_PROTO,
 	type CollabFrame,
 	parseCollabLink,
 	rewriteEnvelopePeer,
 	unpackEnvelope,
-} from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+} from "@linxiraos/zeta/collab/protocol";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import {
 	COLLAB_ENTRY_OMITTED_CUSTOM_TYPE,
 	copyForReplication,
@@ -48,12 +48,12 @@ import {
 	replicationByteLength,
 	serializeReplicatedEntry,
 	serializeReplicatedEvent,
-} from "@oh-my-pi/pi-coding-agent/collab/replication-shrink";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+} from "@linxiraos/zeta/collab/replication-shrink";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 
 interface RelayData {
 	role: "host" | "guest";

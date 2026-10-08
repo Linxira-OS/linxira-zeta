@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import type { UsageReport } from "@oh-my-pi/pi-ai";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { UsageReport } from "@linxiraos/pi-ai";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	buildRedactionMap,
 	collectHistoryIdentityStrings,
@@ -11,13 +11,13 @@ import {
 	formatUsageHistory,
 	runUsageCommand,
 	type UsagePolicyDiagnosticsOptions,
-} from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+} from "@linxiraos/zeta/cli/usage-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
 import {
 	collectUnreportedAccounts,
 	type UsageAccountIdentity,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/usage-accounts";
+} from "@linxiraos/zeta/slash-commands/helpers/usage-accounts";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const HOUR = 3_600_000;

@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { runUsageCommand } from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { runUsageCommand } from "@linxiraos/zeta/cli/usage-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
 
 let db: Database;
 let authStorage: AuthStorage;

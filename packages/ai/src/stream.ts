@@ -3,18 +3,18 @@ import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl, resolveVertexEndpointHost } from "@oh-my-pi/pi-catalog/hosts";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import { isVertexExpressOpenAIUrl, isVertexRawPredictUrl, resolveVertexEndpointHost } from "@linxiraos/pi-catalog/hosts";
 import {
 	defaultSupportedEffort,
 	mapEffortToAnthropicAdaptiveEffort,
 	mapEffortToGoogleThinkingLevel,
 	requireSupportedEffort,
 	resolveWireModelId,
-} from "@oh-my-pi/pi-catalog/model-thinking";
-import { CODEX_BASE_URL } from "@oh-my-pi/pi-catalog/wire/codex";
-import { $env, getProviderInFlightRoot, isEnoent, logger, untilAborted } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-catalog/model-thinking";
+import { CODEX_BASE_URL } from "@linxiraos/pi-catalog/wire/codex";
+import { $env, getProviderInFlightRoot, isEnoent, logger, untilAborted } from "@linxiraos/pi-utils";
 import { getCustomApi } from "./api-registry";
 import { createAuthRetryKeyState, isApiKeyResolver, resolvedApiKeyBearer, resolveNextAuthRetryKey } from "./auth-retry";
 import type { OAuthRequestIdentity } from "./auth/types";

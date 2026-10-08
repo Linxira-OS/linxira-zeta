@@ -1,10 +1,10 @@
-import { runExperimentToolRenderer } from "@oh-my-pi/pi-tui/tools/autoresearch";
+import { runExperimentToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { type } from "@linxiraos/pi-omptype";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 
-import { formatBytes, procmgr } from "@oh-my-pi/pi-utils";
+import { formatBytes, procmgr } from "@linxiraos/pi-utils";
 import { Settings } from "../../config/settings";
 import { executeBash } from "../../exec/bash-executor";
 import type { ToolDefinition } from "../../extensibility/extensions";
@@ -15,7 +15,7 @@ import {
 	TailBuffer,
 	type TruncationResult,
 	truncateTail,
-} from "@oh-my-pi/pi-tui/tools/streaming-output";
+} from "@linxiraos/pi-tui/tools/streaming-output";
 
 import { parseWorkDirDirtyPaths } from "../git";
 import {
@@ -25,13 +25,13 @@ import {
 	tryGitPrefix,
 	tryGitStatus,
 } from "../helpers";
-import { formatNum } from "@oh-my-pi/pi-tui/tools/autoresearch";
-import { formatElapsed } from "@oh-my-pi/pi-tui/apps/autoresearch-data";
+import { formatNum } from "@linxiraos/pi-tui/tools/autoresearch";
+import { formatElapsed } from "@linxiraos/pi-tui/apps/autoresearch-data";
 import { buildExperimentState } from "../state";
 import { openAutoresearchStorageIfExists } from "../storage";
 import type { AutoresearchToolFactoryOptions } from "../types";
-import type { ASIData, RunDetails, RunExperimentProgressDetails } from "@oh-my-pi/pi-tui/tools/autoresearch";
-import { DEFAULT_HARNESS_COMMAND, HARNESS_FILENAME } from "@oh-my-pi/pi-tui/tools/autoresearch";
+import type { ASIData, RunDetails, RunExperimentProgressDetails } from "@linxiraos/pi-tui/tools/autoresearch";
+import { DEFAULT_HARNESS_COMMAND, HARNESS_FILENAME } from "@linxiraos/pi-tui/tools/autoresearch";
 
 const runExperimentSchema = type({
 	"timeout_seconds?": type("number").describe("timeout in seconds (default 600)"),

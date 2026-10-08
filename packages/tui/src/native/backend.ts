@@ -26,7 +26,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import * as logger from "@linxiraos/pi-utils/logger";
 import {
 	TSP_DEFAULT_APC_LIMIT,
 	TSP_DEFAULT_CREDITS,
@@ -37,7 +37,7 @@ import {
 	type TspKind,
 	type TspNode,
 	type TspOp,
-} from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-wire";
 import type { Terminal } from "../terminal";
 import {
 	bindTheme,

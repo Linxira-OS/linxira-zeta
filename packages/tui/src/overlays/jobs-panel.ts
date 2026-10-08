@@ -5,8 +5,8 @@
  * `elapsed`, lists every job and inspects the selected one (command, cwd, live
  * pids, exit code, output tail).
  */
-import type { TspAgentProps, TspSpan } from "@oh-my-pi/pi-wire";
-import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { TspAgentProps, TspSpan } from "@linxiraos/pi-wire";
+import { formatDuration } from "@linxiraos/pi-utils";
 import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";

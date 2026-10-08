@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
-import { formatDimensionNote, formatScreenshot, resizeImage } from "@oh-my-pi/pi-coding-agent/utils/image-resize";
+import { formatDimensionNote, formatScreenshot, resizeImage } from "@linxiraos/zeta/utils/image-resize";
 
 describe("formatScreenshot", () => {
 	function fakeResized(

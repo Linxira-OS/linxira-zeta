@@ -23,7 +23,7 @@ import {
 	type TSchema,
 	toolWireSchema,
 	type UserMessage,
-} from "@oh-my-pi/pi-ai";
+} from "@linxiraos/pi-ai";
 import {
 	type Dialect,
 	encodeInbandToolHistory,
@@ -31,17 +31,17 @@ import {
 	renderInbandToolPrompt,
 	renderToolExamples,
 	wrapInbandToolStream,
-} from "@oh-my-pi/pi-ai/dialect";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { appendDuplicateSuffix, MAX_TOOL_CALL_ID_LENGTH } from "@oh-my-pi/pi-ai/providers/transform-messages";
+} from "@linxiraos/pi-ai/dialect";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { appendDuplicateSuffix, MAX_TOOL_CALL_ID_LENGTH } from "@linxiraos/pi-ai/providers/transform-messages";
 import {
 	type CursorExecResolvedCarrier,
 	copyCursorExecResolved,
 	getStreamingPartialJson,
 	kCursorExecResolved,
-} from "@oh-my-pi/pi-ai/utils/block-symbols";
-import { schemaDefinesProperty } from "@oh-my-pi/pi-ai/utils/schema/json-schema-validator";
-import { stamp } from "@oh-my-pi/pi-ai/utils/schema/stamps";
+} from "@linxiraos/pi-ai/utils/block-symbols";
+import { schemaDefinesProperty } from "@linxiraos/pi-ai/utils/schema/json-schema-validator";
+import { stamp } from "@linxiraos/pi-ai/utils/schema/stamps";
 import {
 	createHarmonyAuditEvent,
 	detectHarmonyLeakInAssistantMessage,
@@ -51,10 +51,10 @@ import {
 	isHarmonyLeakMitigationTarget,
 	recoverHarmonyToolCall,
 	signalListLabel,
-} from "@oh-my-pi/pi-ai/utils/harmony-leak";
-import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@oh-my-pi/pi-ai/utils/dsml-leak";
-import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@oh-my-pi/pi-utils";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+} from "@linxiraos/pi-ai/utils/harmony-leak";
+import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@linxiraos/pi-ai/utils/dsml-leak";
+import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@linxiraos/pi-utils";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { LiveSteeringChannel } from "./live-steering";
 import { agentPauseGate } from "./pause";
 import { type AgentRunCoverage, type AgentRunSummary, ToolCallBlockedError } from "./run-collector";

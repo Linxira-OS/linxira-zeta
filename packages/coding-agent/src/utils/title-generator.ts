@@ -13,13 +13,13 @@ import {
 	type Message,
 	type Model,
 	retryTransientCompletion,
-} from "@oh-my-pi/pi-ai";
-import { StreamMarkupHealing } from "@oh-my-pi/pi-ai/utils/stream-markup-healing";
-import { writeTerminalSequence } from "@oh-my-pi/pi-tui";
-import { isNativeRendering, onNativeRenderingChange } from "@oh-my-pi/pi-tui/native/state";
-import { theme } from "@oh-my-pi/pi-tui/theme";
-import { SPINNER_FRAMES } from "@oh-my-pi/pi-tui/theme/symbols";
-import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { StreamMarkupHealing } from "@linxiraos/pi-ai/utils/stream-markup-healing";
+import { writeTerminalSequence } from "@linxiraos/pi-tui";
+import { isNativeRendering, onNativeRenderingChange } from "@linxiraos/pi-tui/native/state";
+import { theme } from "@linxiraos/pi-tui/theme";
+import { SPINNER_FRAMES } from "@linxiraos/pi-tui/theme/symbols";
+import { $env, isTerminalHeadless, isWsl, logger, prompt } from "@linxiraos/pi-utils";
 import type { ModelRegistry } from "../config/model-registry";
 
 import { roleCandidatePool } from "../config/model-roles";

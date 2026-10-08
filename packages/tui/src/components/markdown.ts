@@ -1,4 +1,4 @@
-import { LRUCache } from "@oh-my-pi/pi-utils/lru";
+import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	Lexer,
 	Marked,
@@ -7,7 +7,7 @@ import {
 	type TokenizerThis,
 	type Tokens,
 	type TokensList,
-} from "@oh-my-pi/pi-utils/marked";
+} from "@linxiraos/pi-utils/marked";
 import {
 	type MathBlockOpener,
 	mathBlockCloserIndex,
@@ -16,8 +16,8 @@ import {
 	mathBlockOpenerAt,
 	mathSpanInContext,
 	mathStartIndex,
-} from "@oh-my-pi/pi-utils/math-delimiters";
-import { listMayContinueAt } from "@oh-my-pi/pi-utils/marked-list";
+} from "@linxiraos/pi-utils/math-delimiters";
+import { listMayContinueAt } from "@linxiraos/pi-utils/marked-list";
 import { latexToBlock } from "../latex-block";
 import { isBareMathEnvironment, latexToUnicode } from "../latex-to-unicode";
 import { plainText } from "../native/spans";
@@ -643,7 +643,7 @@ const customHrExtension: TokenizerAndRendererExtension = {
 	},
 };
 
-// Delimiters come from `@oh-my-pi/pi-utils/math-delimiters`; rendering policy stays here.
+// Delimiters come from `@linxiraos/pi-utils/math-delimiters`; rendering policy stays here.
 const mathExtension: TokenizerAndRendererExtension = {
 	name: "math",
 	level: "inline",

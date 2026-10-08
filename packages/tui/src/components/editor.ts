@@ -1,5 +1,5 @@
-import { getProjectDir } from "@oh-my-pi/pi-utils/dirs";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import { getProjectDir } from "@linxiraos/pi-utils/dirs";
+import * as logger from "@linxiraos/pi-utils/logger";
 import {
 	type AutocompleteItem,
 	type AutocompleteProvider,
@@ -14,7 +14,7 @@ import { BracketedPasteHandler, decodeReencodedPasteControls } from "../brackete
 import { canonicalKeyId, getKeybindings, type KeybindingsManager } from "../keybindings";
 import { extractPrintableText, matchesKey, parseKey } from "../keys";
 import { KillRing } from "../kill-ring";
-import type { TspEditorDecoration, TspEditorProps, TspText, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspEditorDecoration, TspEditorProps, TspText, TspTone } from "@linxiraos/pi-wire";
 import { col, node } from "../native/describe";
 import { sameItems, sameProps } from "../native/memo";
 import { plainText } from "../native/spans";

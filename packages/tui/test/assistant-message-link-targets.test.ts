@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, TextContent } from "@oh-my-pi/pi-ai";
-import { assistantMessageLinkTargets } from "@oh-my-pi/pi-tui/prompt/interactive-context-helpers";
+import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
+import { assistantMessageLinkTargets } from "@linxiraos/pi-tui/prompt/interactive-context-helpers";
 
 function assistant(block: TextContent): AssistantMessage {
 	return {

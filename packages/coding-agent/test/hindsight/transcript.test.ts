@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { countUserTurns, extractMessages } from "@oh-my-pi/pi-coding-agent/hindsight/transcript";
-import { stripImagesFromMessage } from "@oh-my-pi/pi-coding-agent/session/messages";
-import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { countUserTurns, extractMessages } from "@linxiraos/zeta/hindsight/transcript";
+import { stripImagesFromMessage } from "@linxiraos/zeta/session/messages";
+import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 
 describe("countUserTurns", () => {
 	it("recounts a user message after its images are stripped in place", () => {

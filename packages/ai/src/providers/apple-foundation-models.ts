@@ -9,9 +9,9 @@
  * Tool calls are returned, not executed, so the agent loop runs them and
  * resumes by sending their outputs in the next request.
  */
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { appleFmAvailability, appleFmCancel, appleFmGenerate } from "@oh-my-pi/pi-natives";
-import { parseStreamingJsonThrottled } from "@oh-my-pi/pi-utils";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
+import { appleFmAvailability, appleFmCancel, appleFmGenerate } from "@linxiraos/pi-natives";
+import { parseStreamingJsonThrottled } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {

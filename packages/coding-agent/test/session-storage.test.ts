@@ -7,14 +7,14 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@oh-my-pi/pi-coding-agent/session/indexed-session-storage";
+} from "@linxiraos/zeta/session/indexed-session-storage";
 import {
 	FileSessionStorage,
 	SessionLockError,
 	SessionWriteConflictError,
 	type WriteTextAtomicOptions,
-} from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { type SessionTitleUpdate, serializeTitleSlot } from "@oh-my-pi/pi-coding-agent/session/session-title-slot";
+} from "@linxiraos/zeta/session/session-storage";
+import { type SessionTitleUpdate, serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
 
 class ControlledTitleUpdateBackend implements SessionStorageBackend {
 	readonly #sessionPath: string;

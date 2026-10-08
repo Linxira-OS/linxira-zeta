@@ -11,9 +11,9 @@ import {
 	type ToolCall,
 	type ToolResultMessage,
 	type Usage,
-} from "@oh-my-pi/pi-ai";
-import { classifyModel } from "@oh-my-pi/pi-catalog/compat/taxonomy";
-import { getSessionsDir, isEnoent, readLines } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
+import { getSessionsDir, isEnoent, readLines } from "@linxiraos/pi-utils";
 import type {
 	AgentType,
 	MessageStatsInput,
