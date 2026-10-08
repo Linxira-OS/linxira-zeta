@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use brush_core::{
-	ExecutionContext, ExecutionExitCode, ExecutionResult, builtins, sys, traps::TrapSignal,
+	ExecutionExitCode, ExecutionResult, builtins, sys, traps::TrapSignal, ExecutionContext,
 };
 use clap::Parser;
 
@@ -17,16 +17,16 @@ use crate::proc_snapshot::{ProcInfo, ProcessStatus};
 pub(crate) struct KillCommand {
 	/// Name of the signal to send.
 	#[arg(short = 's', value_name = "SIG_NAME")]
-	signal_name: Option<String>,
+	signal_name:      Option<String>,
 	/// Number of the signal to send.
 	#[arg(short = 'n', value_name = "SIG_NUM")]
-	signal_number: Option<usize>,
+	signal_number:    Option<usize>,
 	/// List known signal names.
 	#[arg(short = 'l', short_alias = 'L')]
-	list_signals: bool,
+	list_signals:     bool,
 	// Interpretation of these depends on whether -l is present.
 	#[arg(allow_hyphen_values = true)]
-	args: Vec<String>,
+	args:             Vec<String>,
 	/// Process/job operands given after the `--` end-of-options marker. clap
 	/// consumes `--` before `execute`, so these are captured separately and are
 	/// always operands — never signal specifications (preserves negative PIDs).
@@ -134,11 +134,7 @@ impl builtins::Command for KillCommand {
 		// will actually be delivered: `-l` and the signal-0 probe touch nothing.
 		// Every guard below reads this same resolved chain.
 		let host = signal.sends_signal().then(HostProcesses::resolve);
-		let blocks = |target: i32| {
-			host
-				.as_ref()
-				.is_some_and(|host| blocks_target(host, target))
-		};
+		let blocks = |target: i32| host.as_ref().is_some_and(|host| blocks_target(host, target));
 
 		// `kill -0` asks only whether a target exists. Unix answers per target with
 		// one syscall; elsewhere there is no such call, so the table is walked once
@@ -173,6 +169,28 @@ impl builtins::Command for KillCommand {
 					had_failure = true;
 					continue;
 				};
+				// A job running inside the shell has no process to deliver the signal
+				// to; a signal that would end a process ends the job instead.
+				if job.has_internal_tasks() {
+					let delivered = match signal {
+						KillSignal::Probe => true,
+						KillSignal::Signal(signal) if ends_process(signal) => {
+							job.abort_internal_tasks();
+							true
+						},
+						KillSignal::Signal(_) => false,
+					};
+					if !delivered {
+						writeln!(
+							context.stderr(),
+							"{}: {}: failed to send signal",
+							context.command_name,
+							operand
+						)?;
+						had_failure = true;
+					}
+					continue;
+				}
 				#[cfg(unix)]
 				{
 					let mut targets: Vec<i32> = job
@@ -475,10 +493,7 @@ fn printed_signal(value: &str) -> std::result::Result<PrintedSignal, brush_core:
 			}
 		})?;
 		Ok(PrintedSignal::Name(
-			signal
-				.as_str()
-				.strip_prefix("SIG")
-				.unwrap_or(signal.as_str()),
+			signal.as_str().strip_prefix("SIG").unwrap_or(signal.as_str()),
 		))
 	} else {
 		let signal = TrapSignal::try_from(value)?;
@@ -490,8 +505,7 @@ fn printed_signal(value: &str) -> std::result::Result<PrintedSignal, brush_core:
 impl KillCommand {
 	fn listed_signals(&self) -> impl Iterator<Item = &String> {
 		let mut consumed_marker = false;
-		self
-			.args
+		self.args
 			.iter()
 			.filter(move |arg| {
 				if !consumed_marker && *arg == "--" {
@@ -581,14 +595,19 @@ mod tests {
 	/// operands (and negative PIDs) are never split.
 	#[test]
 	fn rewrite_leaves_operand_region_alone() {
-		let rewritten = rewrite_attached_short_options(["kill", "--", "-s9"].map(String::from));
+		let rewritten = rewrite_attached_short_options(
+			["kill", "--", "-s9"].map(String::from),
+		);
 		assert_eq!(rewritten, ["kill", "--", "-s9"]);
 
-		let rewritten = rewrite_attached_short_options(["kill", "-9", "-s9"].map(String::from));
+		let rewritten = rewrite_attached_short_options(
+			["kill", "-9", "-s9"].map(String::from),
+		);
 		assert_eq!(rewritten, ["kill", "-9", "-s9"]);
 
-		let rewritten =
-			rewrite_attached_short_options(["kill", "-s", "KILL", "-123"].map(String::from));
+		let rewritten = rewrite_attached_short_options(
+			["kill", "-s", "KILL", "-123"].map(String::from),
+		);
 		assert_eq!(rewritten, ["kill", "-s", "KILL", "-123"]);
 	}
 
@@ -627,6 +646,36 @@ impl KillSignal {
 
 	const fn sends_signal(self) -> bool {
 		matches!(self, Self::Signal(_))
+	}
+}
+
+/// Whether `signal`'s default action ends the process it is sent to — the only
+/// effect `kill` can give a job that runs inside the shell. Stop, continue, and
+/// default-ignored signals leave such a job alone.
+fn ends_process(signal: TrapSignal) -> bool {
+	#[cfg(unix)]
+	{
+		match i32::try_from(signal) {
+			Ok(
+				libc::SIGCHLD
+				| libc::SIGCONT
+				| libc::SIGSTOP
+				| libc::SIGTSTP
+				| libc::SIGTTIN
+				| libc::SIGTTOU
+				| libc::SIGURG
+				| libc::SIGWINCH,
+			) => false,
+			#[cfg(target_os = "macos")]
+			Ok(libc::SIGINFO | libc::SIGIO) => false,
+			Ok(number) => number > 0,
+			Err(_) => false,
+		}
+	}
+	// Every signal `kill` sends on Windows terminates the process.
+	#[cfg(not(unix))]
+	{
+		matches!(signal, TrapSignal::Signal(_))
 	}
 }
 

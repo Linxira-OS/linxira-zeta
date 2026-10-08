@@ -1,15 +1,15 @@
 import * as fs from "node:fs/promises";
 import http2 from "node:http2";
-import { cursorModelParameters } from "@linxiraos/pi-catalog/compat/behavior";
-import { isCursorMaxModeWireId } from "@linxiraos/pi-catalog/compat/collapse";
+import { cursorModelParameters } from "@oh-my-pi/pi-catalog/compat/behavior";
+import { isCursorMaxModeWireId } from "@oh-my-pi/pi-catalog/compat/collapse";
 import { scheduler } from "node:timers/promises";
-import { classifyModel, collapseVariantId } from "@linxiraos/pi-catalog/compat/taxonomy";
+import { classifyModel, collapseVariantId } from "@oh-my-pi/pi-catalog/compat/taxonomy";
 import type {
 	ConversationStep,
 	CursorRule,
 	McpToolDefinition,
 	RequestedModel_ModelParameterbytes,
-} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
 import {
 	CURSOR_BIDI_APPEND_PATH,
 	CURSOR_CLIENT_VERSION,
@@ -17,7 +17,7 @@ import {
 	CURSOR_RUN_PATH,
 	CURSOR_RUN_SSE_PATH,
 	cursorClientHeaders,
-} from "@linxiraos/pi-catalog/wire/cursor";
+} from "@oh-my-pi/pi-catalog/wire/cursor";
 import {
 	AgentClientMessageSchema,
 	AgentConversationTurnStructureSchema,
@@ -162,7 +162,7 @@ import {
 	WriteShellStdinErrorSchema,
 	WriteShellStdinResultSchema,
 	WriteSuccessSchema,
-} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
 import {
 	create,
 	decodeJsonValue,
@@ -171,9 +171,9 @@ import {
 	type JsonValue,
 	toBinary,
 	toJson,
-} from "@linxiraos/pi-catalog/discovery/protobuf";
-import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
-import { calculateCost } from "@linxiraos/pi-catalog/models";
+} from "@oh-my-pi/pi-catalog/discovery/protobuf";
+import { THINKING_EFFORTS } from "@oh-my-pi/pi-catalog/effort";
+import { calculateCost } from "@oh-my-pi/pi-catalog/models";
 import {
 	$env,
 	isRecord,
@@ -181,8 +181,9 @@ import {
 	parseJsonWithRepair,
 	parseStreamingJsonThrottled,
 	sanitizeText,
-} from "@linxiraos/pi-utils";
-import { classifyJsonPrefix } from "@linxiraos/pi-utils/json-parse";
+} from "@oh-my-pi/pi-utils";
+import { classifyJsonPrefix } from "@oh-my-pi/pi-utils/json-parse";
+import { LRUCache } from "@oh-my-pi/pi-utils/lru";
 import * as AIError from "../error";
 import { parseToolCallArguments } from "../utils/tool-call-arguments";
 import type {
@@ -227,6 +228,7 @@ import { connectProxiedSocket, getProxyForUrl, wrapFetchForProxy } from "../util
 import { createRequestDebugSession, isRequestDebugEnabled, type RequestDebugResponseLog } from "../utils/request-debug";
 import { sanitizeSchemaForCursor, toolWireSchema } from "../utils/schema";
 import { formatConnectEndStreamError, hasRetryableCursorErrorDetail } from "./connect-error-detail";
+import { CONNECT_END_STREAM_FLAG, ConnectFrameDecoder, frameConnectMessage } from "./connect-frame";
 import mcpExternalHandoffMessage from "./cursor-external-tool-handoff.md" with { type: "text" };
 import {
 	buildMcpStateResult,
@@ -260,7 +262,7 @@ import {
 	piTimeout,
 	shellTimeoutSeconds,
 } from "./cursor/exec-modern";
-import { frameConnectMessage, handleInteractionQuery, protoUnknownFields } from "./cursor/interaction-query";
+import { handleInteractionQuery, protoUnknownFields } from "./cursor/interaction-query";
 
 export const CURSOR_API_URL = CURSOR_DEFAULT_BASE_URL;
 export { CURSOR_CLIENT_VERSION };
@@ -349,8 +351,18 @@ const CURSOR_MAX_STREAM_RETRIES = 5;
 const CURSOR_RETRY_BASE_DELAY_MS = 500;
 const NOT_IMPLEMENTED = `Not implemented by this client`;
 
-const conversationStateCache = new Map<string, ConversationStateStructure>();
-const conversationBlobStores = new Map<string, Map<string, Uint8Array>>();
+/**
+ * Per-conversation checkpoint and the blob store its blob refs point into, kept
+ * in one entry so they are always evicted together. Bounded: each blob store
+ * holds the serialized history, and an evicted conversation rebuilds from
+ * `context` exactly like the first request after a restart.
+ */
+interface CursorConversationEntry {
+	state: ConversationStateStructure | undefined;
+	blobs: Map<string, Uint8Array>;
+}
+const CURSOR_CONVERSATION_CACHE_MAX = 128;
+const cursorConversations = new LRUCache<string, CursorConversationEntry>({ max: CURSOR_CONVERSATION_CACHE_MAX });
 const warnedCursorKimiK3ReplayMessages = new Set<string>();
 /**
  * Base conversation id → rotated wire id (#8345). Cursor's backend can pin a
@@ -419,8 +431,6 @@ interface CursorTransportRequest extends CursorGrpcRequest {
 	/** Exact discovery id eligible for a retry because the normalized effort payload was serialized unchanged. */
 	fallbackWireModelId?: string;
 }
-
-const CONNECT_END_STREAM_FLAG = 0b00000010;
 
 interface CursorLogEntry {
 	ts: number;
@@ -1051,20 +1061,24 @@ function streamCursorWithWireMode(
 		// Once aborted, the Agent finalizes from the abort error and discards
 		// late results regardless, so skipping the rest of the drain loses
 		// nothing that could still be delivered.
-		let abortSettled: Promise<void> | undefined;
 		const drainInFlightDispatches = async (): Promise<void> => {
 			const signal = options?.signal;
-			while (inFlightDispatches.size > 0) {
-				if (signal?.aborted) return;
-				const settled = Promise.all(inFlightDispatches);
-				if (!signal) {
-					await settled;
-					continue;
+			if (!signal) {
+				while (inFlightDispatches.size > 0) await Promise.all(inFlightDispatches);
+				return;
+			}
+			if (inFlightDispatches.size === 0 || signal.aborted) return;
+			const { promise: aborted, resolve } = Promise.withResolvers<void>();
+			const onAbort = (): void => resolve();
+			signal.addEventListener("abort", onAbort, { once: true });
+			try {
+				while (inFlightDispatches.size > 0 && !signal.aborted) {
+					await Promise.race([Promise.all(inFlightDispatches), aborted]);
 				}
-				abortSettled ??= new Promise<void>(resolve =>
-					signal.addEventListener("abort", () => resolve(), { once: true }),
-				);
-				await Promise.race([settled, abortSettled]);
+			} finally {
+				// The request signal outlives this stream (it spans the agent's tool
+				// loop); a lingering listener would pin this request's whole scope.
+				signal.removeEventListener("abort", onAbort);
 			}
 		};
 
@@ -1119,6 +1133,14 @@ function streamCursorWithWireMode(
 		let serializedFallbackWireModelId: string | undefined;
 		let activeBlobStore: Map<string, Uint8Array> | undefined;
 		let originalRequestId: string | undefined;
+		// Removed in `finally`: the request signal outlives this stream, and a
+		// listener left on it would retain this request's scope (request bytes,
+		// output, blob store) until the caller's whole prompt ends.
+		let onTransportAbort: (() => void) | undefined;
+		// A call without conversation/session id mints a one-off conversation that
+		// no later request can address; its cache entries are released at the end.
+		const ephemeralConversation =
+			!retryContext && options?.conversationId === undefined && options?.sessionId === undefined;
 		try {
 			const apiKey = options?.apiKey;
 			if (!apiKey) {
@@ -1135,12 +1157,12 @@ function streamCursorWithWireMode(
 			// and result, so the turn resumes where it stopped instead of replaying
 			// the last user message.
 			const rotatedFresh = retryContext ? false : freshRotatedConversationIds.has(conversationId);
-			activeBlobStore =
-				retryContext?.blobStore ?? conversationBlobStores.get(conversationId) ?? new Map<string, Uint8Array>();
+			const cachedConversation = cursorConversations.get(conversationId);
+			activeBlobStore = retryContext?.blobStore ?? cachedConversation?.blobs ?? new Map<string, Uint8Array>();
 			const blobStore = activeBlobStore;
-			conversationBlobStores.set(conversationId, blobStore);
-			const cachedState =
-				retryContext?.checkpoint ?? (rotatedFresh ? undefined : conversationStateCache.get(conversationId));
+			const conversationEntry: CursorConversationEntry = { state: cachedConversation?.state, blobs: blobStore };
+			cursorConversations.set(conversationId, conversationEntry);
+			const cachedState = retryContext?.checkpoint ?? (rotatedFresh ? undefined : cachedConversation?.state);
 			const builtRequest = await buildGrpcRequestForWireMode(
 				model,
 				context,
@@ -1155,7 +1177,7 @@ function streamCursorWithWireMode(
 			);
 			const { requestBytes, conversationState } = builtRequest;
 			serializedFallbackWireModelId = builtRequest.fallbackWireModelId;
-			conversationStateCache.set(conversationId, conversationState);
+			conversationEntry.state = conversationState;
 			const requestContextTools = buildMcpToolDefinitions(
 				context.tools,
 				model.requiresCursorToolSchemaProjection === true,
@@ -1227,7 +1249,7 @@ function streamCursorWithWireMode(
 
 			if (!retryContext) stream.push({ type: "start", partial: output });
 
-			let pendingBuffer: Buffer = Buffer.alloc(0);
+			const frameDecoder = new ConnectFrameDecoder();
 			const previousState = retryContext?.blockState;
 			let currentTextBlock = previousState?.currentTextBlock ?? null;
 			let currentThinkingBlock = previousState?.currentThinkingBlock ?? null;
@@ -1268,7 +1290,8 @@ function streamCursorWithWireMode(
 			openBlockState = state;
 
 			const onConversationCheckpoint = (checkpoint: ConversationStateStructure) => {
-				conversationStateCache.set(conversationId!, checkpoint);
+				conversationEntry.state = checkpoint;
+				cursorConversations.set(conversationId!, conversationEntry);
 			};
 
 			// Client replies that carry a local result (exec output, exec control,
@@ -1299,18 +1322,7 @@ function streamCursorWithWireMode(
 						log?.write(chunk);
 					});
 				}
-				// Steady state drains fully per chunk; alias a fresh transport chunk
-				// instead of copying it through Buffer.concat (see aws-eventstream.ts).
-				pendingBuffer = pendingBuffer.length === 0 ? chunk : Buffer.concat([pendingBuffer, chunk]);
-
-				while (pendingBuffer.length >= 5) {
-					const flags = pendingBuffer[0];
-					const msgLen = pendingBuffer.readUInt32BE(1);
-					if (pendingBuffer.length < 5 + msgLen) break;
-
-					const messageBytes = pendingBuffer.subarray(5, 5 + msgLen);
-					pendingBuffer = pendingBuffer.subarray(5 + msgLen);
-
+				for (const { flags, payload: messageBytes } of frameDecoder.decode(chunk)) {
 					if (flags & CONNECT_END_STREAM_FLAG) {
 						const endError = parseConnectEndStream(messageBytes);
 						if (endError) {
@@ -1341,7 +1353,8 @@ function streamCursorWithWireMode(
 							latestCheckpoint = serverMessage.message.value;
 							latestCheckpointProgressVersion = progressVersion;
 							latestCheckpointTerminal = sawTurnEnded;
-							conversationStateCache.set(conversationId!, latestCheckpoint);
+							conversationEntry.state = latestCheckpoint;
+							cursorConversations.set(conversationId!, conversationEntry);
 						}
 						const isTurnEnded = interactionCase === "turnEnded";
 						// Dispatch is fire-and-forget so the socket keeps draining while a
@@ -1423,12 +1436,13 @@ function streamCursorWithWireMode(
 			});
 
 			if (options?.signal) {
-				options.signal.addEventListener("abort", () => {
+				onTransportAbort = () => {
 					runTransport?.close();
 					void closeDebugLog().finally(() => {
 						settleH2(new AIError.AbortError());
 					});
-				});
+				};
+				options.signal.addEventListener("abort", onTransportAbort, { once: true });
 			}
 
 			runTransport.write(frameConnectMessage(requestBytes));
@@ -1689,6 +1703,8 @@ function streamCursorWithWireMode(
 				if (currentRotated) successfulRotatedConversationIds.delete(currentRotated);
 				rotatedConversationIds.set(baseConversationId, rotated);
 				freshRotatedConversationIds.add(rotated);
+				// The poisoned id is never addressed again; release its side state.
+				cursorConversations.delete(conversationId);
 				logger.debug("cursor conversation rotated", {
 					base: baseConversationId,
 					from: conversationId,
@@ -1717,6 +1733,17 @@ function streamCursorWithWireMode(
 			}
 			runTransport?.close();
 			h2Client?.close();
+			if (onTransportAbort) options?.signal?.removeEventListener("abort", onTransportAbort);
+			if (ephemeralConversation && baseConversationId !== undefined) {
+				const rotated = rotatedConversationIds.get(baseConversationId);
+				for (const id of [baseConversationId, rotated]) {
+					if (id === undefined) continue;
+					cursorConversations.delete(id);
+					successfulRotatedConversationIds.delete(id);
+					freshRotatedConversationIds.delete(id);
+				}
+				rotatedConversationIds.delete(baseConversationId);
+			}
 		}
 	})();
 
@@ -1735,6 +1762,19 @@ export type ToolCallState = ToolCall & {
 	[kStreamingEnvelopeId]?: string;
 	[kCursorExecResolved]?: true;
 };
+
+/**
+ * Content index of a streamed block. Blocks are stamped with their index on
+ * push and Cursor never reorders `output.content`, so this is O(1) per delta;
+ * the identity check keeps a foreign block resolvable.
+ */
+function streamedBlockIndex(
+	output: AssistantMessage,
+	block: AssistantMessage["content"][number] & { [kStreamingBlockIndex]: number },
+): number {
+	const index = block[kStreamingBlockIndex];
+	return output.content[index] === block ? index : output.content.indexOf(block);
+}
 
 export interface BlockState {
 	currentTextBlock: (TextContent & { [kStreamingBlockIndex]: number }) | null;
@@ -2378,7 +2418,7 @@ async function handleExecServerMessage(
 			const args = execMsg.message.value;
 			if (!args.toolCallId) args.toolCallId = crypto.randomUUID();
 			// Bridge maps `ls` onto the coding-agent `read` tool (see
-			// `CursorExecHandlers.ls` in `zeta/src/cursor.ts`); mirror
+			// `CursorExecHandlers.ls` in `pi-coding-agent/src/cursor.ts`); mirror
 			// that here so the synthesized block matches the toolResult's `toolName`.
 			synthesizeCursorExecToolCall(output, stream, state, args.toolCallId, "read", { path: args.path });
 			const { execResult } = await resolveExecHandler(
@@ -4450,7 +4490,7 @@ export function flushOpenToolCalls(
 	const openBlocks = new Set<ToolCallState>(state.openToolCalls.values());
 	if (state.currentToolCall) openBlocks.add(state.currentToolCall);
 	for (const block of openBlocks) {
-		const idx = output.content.indexOf(block);
+		const idx = streamedBlockIndex(output, block);
 		const partialJson = block[kStreamingPartialJson];
 		if (partialJson !== undefined) {
 			block.arguments = parseToolCallArguments(partialJson);
@@ -4857,7 +4897,7 @@ export function mergeCursorMcpToolCallArgs(
 function endCurrentTextBlock(output: AssistantMessage, stream: AssistantMessageEventStream, state: BlockState): void {
 	const block = state.currentTextBlock;
 	if (!block) return;
-	const idx = output.content.indexOf(block);
+	const idx = streamedBlockIndex(output, block);
 	stream.push({
 		type: "text_end",
 		contentIndex: idx,
@@ -4874,7 +4914,7 @@ function endCurrentThinkingBlock(
 ): void {
 	const block = state.currentThinkingBlock;
 	if (!block) return;
-	const idx = output.content.indexOf(block);
+	const idx = streamedBlockIndex(output, block);
 	stream.push({
 		type: "thinking_end",
 		contentIndex: idx,
@@ -4996,7 +5036,7 @@ export function processInteractionUpdate(
 			stream.push({ type: "text_start", contentIndex: output.content.length - 1, partial: output });
 		}
 		state.currentTextBlock!.text += delta;
-		const idx = output.content.indexOf(state.currentTextBlock!);
+		const idx = streamedBlockIndex(output, state.currentTextBlock!);
 		stream.push({ type: "text_delta", contentIndex: idx, delta, partial: output });
 	} else if (updateCase === "thinkingDelta") {
 		state.setFirstTokenTime();
@@ -5012,7 +5052,7 @@ export function processInteractionUpdate(
 			stream.push({ type: "thinking_start", contentIndex: output.content.length - 1, partial: output });
 		}
 		state.currentThinkingBlock!.thinking += delta;
-		const idx = output.content.indexOf(state.currentThinkingBlock!);
+		const idx = streamedBlockIndex(output, state.currentThinkingBlock!);
 		stream.push({ type: "thinking_delta", contentIndex: idx, delta, partial: output });
 	} else if (updateCase === "thinkingCompleted") {
 		endCurrentThinkingBlock(output, stream, state);
@@ -5150,7 +5190,7 @@ export function processInteractionUpdate(
 			if (target?.[kStreamingBlockKind] === "cursor-edit") {
 				const current = stringToolArg(target.arguments, "stream_content") ?? "";
 				target.arguments = { ...target.arguments, stream_content: current + editDelta };
-				const idx = output.content.indexOf(target);
+				const idx = streamedBlockIndex(output, target);
 				stream.push({ type: "toolcall_delta", contentIndex: idx, delta: editDelta, partial: output });
 				return;
 			}
@@ -5180,7 +5220,7 @@ export function processInteractionUpdate(
 				target.arguments = throttled.value;
 				target[kStreamingLastParseLen] = throttled.parsedLen;
 			}
-			const idx = output.content.indexOf(target);
+			const idx = streamedBlockIndex(output, target);
 			stream.push({ type: "toolcall_delta", contentIndex: idx, delta: chunk, partial: output });
 		}
 	} else if (updateCase === "toolCallCompleted") {
@@ -5319,7 +5359,7 @@ export function processInteractionUpdate(
 					});
 				}
 			}
-			const idx = output.content.indexOf(settled);
+			const idx = streamedBlockIndex(output, settled);
 			clearStreamingPartialJson(settled);
 			stream.push({ type: "toolcall_end", contentIndex: idx, toolCall: settled, partial: output });
 			releaseStreamedCall(state, settled);
@@ -5413,13 +5453,13 @@ function readCursorBlob(blobStore: Map<string, Uint8Array>, blobId: Uint8Array):
 /**
  * Cursor AgentService reconstructs the model prompt from `requestContext.rules`,
  * not from the client-supplied `rootPromptMessagesJson` system blobs. Map each
- * ZETA system-prompt entry to a global CursorRule so always-apply rules survive
+ * OMP system-prompt entry to a global CursorRule so always-apply rules survive
  * that reconstruction.
  */
 export function buildCursorRequestContextRules(systemPrompt: readonly string[] | undefined): CursorRule[] {
 	return normalizeSystemPrompts(systemPrompt).map((content, index) =>
 		create(CursorRuleSchema, {
-			fullPath: `/zeta/system-prompt/${index}.mdc`,
+			fullPath: `/omp/system-prompt/${index}.mdc`,
 			content,
 			source: CursorRuleSource.USER,
 			type: create(CursorRuleTypeSchema, {

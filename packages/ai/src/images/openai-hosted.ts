@@ -1,4 +1,4 @@
-import { type Api, type Model, modelKind } from "@linxiraos/pi-catalog/types";
+import { type Api, type Model, modelKind } from "@oh-my-pi/pi-catalog/types";
 import {
 	applyCodexResidencyHeader,
 	CODEX_BASE_URL,
@@ -6,11 +6,19 @@ import {
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 	URL_PATHS,
-} from "@linxiraos/pi-catalog/wire/codex";
-import { parseImageMetadata, readSseJson, USER_AGENT } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-catalog/wire/codex";
+import { readSseJson, USER_AGENT } from "@oh-my-pi/pi-utils";
 import { withAuth } from "../auth-retry";
 import * as AIError from "../error";
-import { errorMessage, ImageApiError, modelHeaders, resolveOpenAIImageSize, toDataUrl, usageFromWire } from "./shared";
+import {
+	errorMessage,
+	ImageApiError,
+	modelHeaders,
+	resolveOpenAIImageSize,
+	sniffBase64ImageMimeType,
+	toDataUrl,
+	usageFromWire,
+} from "./shared";
 import type { GeneratedImage, ImageGenerationOptions, ImageGenerationRequest, ImageGenerationResult } from "./types";
 
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
@@ -86,10 +94,9 @@ function collectResponse(response: HostedResponse): ImageGenerationResult {
 	const texts: string[] = [];
 	for (const output of response.output ?? []) {
 		if (output.type === "image_generation_call" && output.result) {
-			const bytes = Buffer.from(output.result, "base64");
 			images.push({
 				data: output.result,
-				mimeType: parseImageMetadata(bytes)?.mimeType ?? "image/webp",
+				mimeType: sniffBase64ImageMimeType(output.result) ?? "image/webp",
 				...(output.size ? { size: output.size } : {}),
 				...(output.quality ? { quality: output.quality } : {}),
 			});

@@ -1,6 +1,6 @@
-import type { CredentialsApi, KeysApi } from "@linxiraos/pi-ai";
-import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
-import type { OAuthProviderInfo } from "@linxiraos/pi-ai/oauth/types";
+import type { CredentialsApi, KeysApi } from "@oh-my-pi/pi-ai";
+import { getOAuthProviders } from "@oh-my-pi/pi-ai/oauth";
+import type { OAuthProviderInfo } from "@oh-my-pi/pi-ai/oauth/types";
 import {
 	Container,
 	extractPrintableText,
@@ -11,14 +11,13 @@ import {
 	TruncatedText,
 	visibleWidth,
 } from "../index";
-import { tuiText, tuiTextFmt } from "../i18n";
 import { theme } from "../theme/theme";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { Input } from "../components/input";
 import { MenuSelection } from "../components/menu-selection";
 import { centeredViewportRange } from "../components/scroll-viewport";
-import type { TspPickerItem, TspSpan, TspTone } from "@linxiraos/pi-wire";
+import type { TspPickerItem, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
 import { node, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent, pickerQuery } from "../native/picker";
@@ -52,6 +51,8 @@ const ORIGIN_LABELS = {
  */
 export class OAuthSelectorComponent extends OverlayPanel {
 	#listContainer: Container;
+	/** Provider rows viewport of the last {@link #updateList}; spinner ticks repaint only its rows. */
+	#listView: ScrollView | undefined;
 	#menu: MenuSelection<OAuthProviderInfo>;
 	/** The provider search field; its value drives `#menu`'s query. */
 	#search = Object.assign(new Input(), { prompt: "" });
@@ -90,12 +91,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			requestRender?: () => void;
 		},
 	) {
-		super(
-			mode === "login"
-				? tuiText("oauthSelectLoginTitle", "Select provider to login")
-				: tuiText("oauthSelectLogoutTitle", "Select provider to logout"),
-			"omp.overlay.oauth",
-		);
+		super(mode === "login" ? "Select provider to login" : "Select provider to logout", "omp.overlay.oauth");
 		this.#mode = mode;
 		this.#authStorage = authStorage;
 		this.#onSelectCallback = onSelect;
@@ -219,7 +215,13 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			if (frameCount > 0) {
 				this.#spinnerFrame = (this.#spinnerFrame + 1) % frameCount;
 			}
-			this.#updateList();
+			// Only the provider rows carry the spinner glyph; the window is unchanged.
+			if (this.#listView) {
+				const start = this.#scrollStart;
+				this.#listView.setLines(this.#providerRows(start, start + this.#visibleCount));
+			} else {
+				this.#updateList();
+			}
 			this.#requestRenderCallback?.();
 		}, 80);
 	}
@@ -238,27 +240,8 @@ export class OAuthSelectorComponent extends OverlayPanel {
 	#getSourceLabel(providerId: string): string {
 		const origin = this.#authStorage.keys.source(providerId);
 		if (!origin) return "";
-		const detail =
-			origin.kind === "env" && origin.envVar
-				? `${tuiText("oauthOriginEnv", "env")}: ${origin.envVar}`
-				: this.#originDisplayLabel(origin.kind);
+		const detail = origin.kind === "env" && origin.envVar ? `env: ${origin.envVar}` : ORIGIN_LABELS[origin.kind];
 		return theme.fg("muted", ` (${detail})`);
-	}
-
-	/** Localized display tag for a credential-origin leg; `--api-key` stays a verbatim CLI flag. */
-	#originDisplayLabel(kind: keyof typeof ORIGIN_LABELS): string {
-		switch (kind) {
-			case "runtime":
-				return ORIGIN_LABELS.runtime;
-			case "config":
-				return tuiText("oauthOriginConfig", ORIGIN_LABELS.config);
-			case "oauth":
-				return tuiText("oauthOriginLogin", ORIGIN_LABELS.oauth);
-			case "api_key":
-				return tuiText("oauthOriginApiKey", ORIGIN_LABELS.api_key);
-			case "env":
-				return tuiText("oauthOriginEnv", ORIGIN_LABELS.env);
-		}
 	}
 
 	#getStatusIndicator(providerId: string): string {
@@ -267,16 +250,16 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		if (state === "checking") {
 			const frameCount = theme.spinnerFrames.length;
 			const spinner = frameCount > 0 ? theme.spinnerFrames[this.#spinnerFrame % frameCount] : theme.status.pending;
-			return theme.fg("warning", ` ${spinner} ${tuiText("oauthStatusChecking", "checking")}`) + source;
+			return theme.fg("warning", ` ${spinner} checking`) + source;
 		}
 		if (state === "invalid") {
-			return theme.fg("error", ` ${theme.status.error} ${tuiText("oauthStatusInvalid", "invalid")}`) + source;
+			return theme.fg("error", ` ${theme.status.error} invalid`) + source;
 		}
 		if (state === "valid") {
-			return theme.fg("success", ` ${theme.status.enabled} ${tuiText("oauthStatusLoggedIn", "logged in")}`) + source;
+			return theme.fg("success", ` ${theme.status.enabled} logged in`) + source;
 		}
 		return this.#hasSelectableAuth(providerId)
-			? theme.fg("success", ` ${theme.status.enabled} ${tuiText("oauthStatusLoggedIn", "logged in")}`) + source
+			? theme.fg("success", ` ${theme.status.enabled} logged in`) + source
 			: "";
 	}
 
@@ -290,9 +273,9 @@ export class OAuthSelectorComponent extends OverlayPanel {
 
 	#renderStatusLine(_total: number): string {
 		const query = this.#menu.query.trim();
-		if (!query) return theme.fg("muted", tuiText("oauthTypeToSearch", "Type to search"));
+		if (!query) return theme.fg("muted", "Type to search");
 		const width = visibleWidth(this.#search.getValue()) + 1;
-		return theme.fg("muted", tuiText("oauthSearchLabel", "Search: ")) + (this.#search.render(width)[0] ?? "");
+		return theme.fg("muted", "Search: ") + (this.#search.render(width)[0] ?? "");
 	}
 
 	#getProviderSearchText(provider: OAuthProviderInfo): string {
@@ -335,14 +318,50 @@ export class OAuthSelectorComponent extends OverlayPanel {
 		this.#nativeRoot = undefined;
 		this.#pickerRoot = undefined;
 		this.#listContainer.clear();
+		this.#listView = undefined;
 
-		const items = this.#menu.visibleItems;
-		const total = items.length;
+		const total = this.#menu.visibleItems.length;
 		const maxVisible = this.#maxVisible;
 		const { start: startIndex, end: endIndex } = centeredViewportRange(this.#menu.selectedIndex, total, maxVisible);
 		this.#scrollStart = startIndex;
 		this.#visibleCount = endIndex - startIndex;
 
+		const rows = this.#providerRows(startIndex, endIndex);
+		if (rows.length > 0) {
+			const sv = new ScrollView(rows, {
+				height: rows.length,
+				scrollbar: "auto",
+				totalRows: total,
+				theme: { track: t => theme.fg("muted", t), thumb: t => theme.fg("accent", t) },
+			});
+			sv.setScrollOffset(startIndex);
+			this.#listView = sv;
+			this.#listContainer.addChild(sv);
+		}
+
+		// Search status line (scrollbar covers overflow indication)
+		if (this.#shouldRenderSearchStatus()) {
+			this.#listContainer.addChild(new TruncatedText(this.#renderStatusLine(total), 0, 0));
+		}
+
+		if (total === 0) {
+			const message =
+				this.#menu.items.length === 0
+					? this.#mode === "login"
+						? "No OAuth providers available"
+						: "No stored provider credentials to log out"
+					: "No matching providers";
+			this.#listContainer.addChild(new TruncatedText(theme.fg("muted", message), 0, 0));
+		}
+		if (this.#statusMessage) {
+			this.#listContainer.addChild(new Spacer(1));
+			this.#listContainer.addChild(new TruncatedText(theme.fg("warning", this.#statusMessage), 0, 0));
+		}
+	}
+
+	/** Styled rows for visible providers `[startIndex, endIndex)`: cursor, name, auth status and provenance. */
+	#providerRows(startIndex: number, endIndex: number): string[] {
+		const items = this.#menu.visibleItems;
 		const rows: string[] = [];
 		for (let i = startIndex; i < endIndex; i++) {
 			const provider = items[i];
@@ -365,36 +384,7 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			}
 			rows.push(line);
 		}
-
-		if (rows.length > 0) {
-			const sv = new ScrollView(rows, {
-				height: rows.length,
-				scrollbar: "auto",
-				totalRows: total,
-				theme: { track: t => theme.fg("muted", t), thumb: t => theme.fg("accent", t) },
-			});
-			sv.setScrollOffset(startIndex);
-			this.#listContainer.addChild(sv);
-		}
-
-		// Search status line (scrollbar covers overflow indication)
-		if (this.#shouldRenderSearchStatus()) {
-			this.#listContainer.addChild(new TruncatedText(this.#renderStatusLine(total), 0, 0));
-		}
-
-		if (total === 0) {
-			const message =
-				this.#menu.items.length === 0
-					? this.#mode === "login"
-						? tuiText("oauthNoProvidersAvailable", "No OAuth providers available")
-						: tuiText("oauthNoStoredCredentials", "No stored provider credentials to log out")
-					: tuiText("oauthNoMatchingProviders", "No matching providers");
-			this.#listContainer.addChild(new TruncatedText(theme.fg("muted", message), 0, 0));
-		}
-		if (this.#statusMessage) {
-			this.#listContainer.addChild(new Spacer(1));
-			this.#listContainer.addChild(new TruncatedText(theme.fg("warning", this.#statusMessage), 0, 0));
-		}
+		return rows;
 	}
 	handleInput(keyData: string): void {
 		// Escape or Ctrl+C
@@ -444,7 +434,8 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			this.stopValidation();
 			this.#onSelectCallback(selectedProvider.id);
 		} else if (selectedProvider) {
-			this.#statusMessage = tuiText("oauthProviderUnavailable", "Provider unavailable in this environment.");
+			this.#statusMessage = "Provider unavailable in this environment.";
+			this.#updateList();
 		}
 	}
 
@@ -666,12 +657,5 @@ export class OAuthSelectorComponent extends OverlayPanel {
 			this.#statusMessage = undefined;
 		}
 		this.#confirmSelection();
-	}
-	override render(width: number): readonly string[] {
-		this.title =
-			this.#mode === "login"
-				? tuiText("oauthSelectLoginTitle", "Select provider to login")
-				: tuiText("oauthSelectLogoutTitle", "Select provider to logout");
-		return super.render(width);
 	}
 }

@@ -7,9 +7,14 @@ import {
 	IndexedSessionStorage,
 	type SessionStorageBackend,
 	type SessionStorageIndexEntry,
-} from "@linxiraos/zeta/session/indexed-session-storage";
-import { FileSessionStorage, SessionLockError } from "@linxiraos/zeta/session/session-storage";
-import { type SessionTitleUpdate, serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
+} from "@oh-my-pi/pi-coding-agent/session/indexed-session-storage";
+import {
+	FileSessionStorage,
+	SessionLockError,
+	SessionWriteConflictError,
+	type WriteTextAtomicOptions,
+} from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import { type SessionTitleUpdate, serializeTitleSlot } from "@oh-my-pi/pi-coding-agent/session/session-title-slot";
 
 class ControlledTitleUpdateBackend implements SessionStorageBackend {
 	readonly #sessionPath: string;
@@ -92,7 +97,7 @@ describe("FileSessionStorage writer", () => {
 	let storage: FileSessionStorage;
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-session-writer-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-writer-"));
 		storage = new FileSessionStorage();
 	});
 
@@ -291,7 +296,7 @@ describe("FileSessionStorage.deleteSessionWithArtifacts", () => {
 	let storage: FileSessionStorage;
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-session-storage-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-storage-"));
 		storage = new FileSessionStorage();
 	});
 
@@ -343,7 +348,7 @@ describe("FileSessionStorage.writeTextSync", () => {
 	let tempDir: string;
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-session-storage-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-storage-"));
 	});
 
 	afterEach(async () => {
@@ -532,12 +537,65 @@ describe("FileSessionStorage.writeTextSync", () => {
 	});
 });
 
+describe("FileSessionStorage line streaming", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-storage-lines-"));
+	});
+
+	afterEach(async () => {
+		await fsp.rm(tempDir, { recursive: true, force: true });
+	});
+
+	// Multi-byte text and a line past the 1 MiB chunk size cross every chunk boundary.
+	const lines = ['{"title":"é 😀"}\n', `${"x".repeat((1 << 20) + 7)}\n`, '{"tail":"ü"}\n'];
+	const body = lines.join("");
+
+	it("publishes the joined lines under the same size check as text", async () => {
+		const storage = new FileSessionStorage();
+		const sessionPath = path.join(tempDir, "session.jsonl");
+
+		storage.writeLinesSync(sessionPath, lines, { expectedSize: null });
+		expect(fs.readFileSync(sessionPath, "utf8")).toBe(body);
+		await storage.writeLinesAtomic(sessionPath, [...lines].reverse(), { expectedSize: Buffer.byteLength(body) });
+		expect(fs.readFileSync(sessionPath, "utf8")).toBe([...lines].reverse().join(""));
+
+		expect(() => storage.writeLinesSync(sessionPath, ["stale\n"], { expectedSize: 1 })).toThrow(
+			SessionWriteConflictError,
+		);
+		expect(fs.readdirSync(tempDir).filter(name => name.endsWith(".tmp"))).toEqual([]);
+	});
+
+	it("routes streamed rewrites through overridden text writers", async () => {
+		const seen: string[] = [];
+		class InterceptingStorage extends FileSessionStorage {
+			override writeTextSync(fpath: string, content: string): void {
+				seen.push(`sync:${content}`);
+				super.writeTextSync(fpath, content);
+			}
+			override async writeTextAtomic(fpath: string, content: string, options?: WriteTextAtomicOptions) {
+				seen.push(`atomic:${content}`);
+				await super.writeTextAtomic(fpath, content, options);
+			}
+		}
+		const storage = new InterceptingStorage();
+		const sessionPath = path.join(tempDir, "session.jsonl");
+
+		storage.writeLinesSync(sessionPath, ["a\n", "b\n"]);
+		await storage.writeLinesAtomic(sessionPath, ["c\n", "d\n"]);
+
+		expect(seen).toEqual(["sync:a\nb\n", "atomic:c\nd\n"]);
+		expect(fs.readFileSync(sessionPath, "utf8")).toBe("c\nd\n");
+	});
+});
+
 describe("FileSessionStorage.updateSessionTitle", () => {
 	let tempDir: string;
 	let storage: FileSessionStorage;
 
 	beforeEach(async () => {
-		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-session-storage-"));
+		tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-session-storage-"));
 		storage = new FileSessionStorage();
 	});
 

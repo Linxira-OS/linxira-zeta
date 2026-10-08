@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
-import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
-import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
+import { getEnvApiKey } from "@oh-my-pi/pi-ai/env-api-key";
+import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
 
 const originalOpenRouterApiKey = Bun.env.OPENROUTER_API_KEY;
 

@@ -29,20 +29,21 @@
  * queued/planning until `tool_execution_start`, and only then delegate to the
  * wrapped tool's own renderer with the decoded inner args.
  */
-import type {
-	AgentToolContext,
-	AgentToolResult,
-	AgentToolUpdateCallback,
-	ToolLoadMode,
-} from "@linxiraos/pi-agent-core";
-import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema, validateToolArguments } from "@linxiraos/pi-ai";
+import {
+	type AgentToolContext,
+	type AgentToolResult,
+	type AgentToolUpdateCallback,
+	type ToolLoadMode,
+	validateAgentToolArguments,
+} from "@oh-my-pi/pi-agent-core";
+import { type Tool as AiTool, jsonSchemaToTypeScript, toolWireSchema } from "@oh-my-pi/pi-ai";
 import { schemaDeclaresIntentField } from "../utils/tool-schema";
-import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
-import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
+import { stripXdUrlPrefix, XD_URL_PREFIX } from "@oh-my-pi/pi-tui/tools/xd-url";
+import { truncateHeadBytes } from "@oh-my-pi/pi-tui/tools/streaming-output";
 import { resolveToolTier, type ToolTier } from "./approval";
 import type { Tool } from "./index";
 import { renderError, ToolAbortError } from "./tool-errors";
-import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
 
 /**
  * Discoverable built-ins that must stay top-level even when xdev mounting is
@@ -131,9 +132,9 @@ function renderDocs(inst: Tool, heading = "#", descriptionCap?: number): string 
  * tool bridge honor (`AgentTool.lenientArgValidation`) — so a tool that owns
  * its own refusal/repair (e.g. `todo` inferring an omitted `op`) is never
  * pre-empted by the host's generic wording plus the full docs. Lenience covers
- * schema mismatch only: malformed JSON and non-object content still throw. The
- * `__parseError`/`__rawJson` strip keeps a payload from forging the agent
- * loop's parse-failure sentinels.
+ * schema mismatch only: malformed JSON and non-object content still throw.
+ * Content is a model-written payload, so lenience strips forged
+ * `__parseError`/`__rawJson` sentinels (see `validateAgentToolArguments`).
  */
 function parseDeviceArgs(
 	device: Tool,
@@ -159,19 +160,12 @@ function parseDeviceArgs(
 	const args: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
 	if ("i" in args && !schemaDeclaresIntentField(toolWireSchema(device))) delete args.i;
 	try {
-		return validateToolArguments(device, {
-			type: "toolCall",
-			id: toolCallId,
-			name: device.name,
-			arguments: args,
-		});
+		return validateAgentToolArguments(
+			device,
+			{ type: "toolCall", id: toolCallId, name: device.name, arguments: args },
+			"payload",
+		);
 	} catch (error) {
-		if (device.lenientArgValidation) {
-			const fallback = { ...args };
-			delete fallback.__parseError;
-			delete fallback.__rawJson;
-			return fallback;
-		}
 		const message = error instanceof Error ? error.message : String(error);
 		throw new ToolError(`Invalid args for ${XD_URL_PREFIX}${device.name}: ${message}\n\n${docs()}`);
 	}
@@ -271,7 +265,7 @@ export function resolveMountedXdevTool(state: XdevState, name: string): Tool | u
  * Resolve a mounted tool with its execution-only permission decorator.
  *
  * Mounted-only, matching {@link resolveMountedXdevTool}, and a published export
- * under `@linxiraos/zeta/tools/xdev`, so its semantics must not
+ * under `@oh-my-pi/pi-coding-agent/tools/xdev`, so its semantics must not
  * drift. `sdk.ts` composes this with the calling agent's advertised tools to
  * recover a Claude Code-spelled MCP name: the union has to be resolved in one
  * pass for the ambiguity rule to hold, so that composition lives with the

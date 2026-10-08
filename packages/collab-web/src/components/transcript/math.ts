@@ -1,11 +1,10 @@
-import type { MarkedExtension, Tokens } from "@linxiraos/pi-utils/marked";
+import type { MarkedExtension, Tokens } from "@oh-my-pi/pi-utils/marked";
 import {
-	mathBlockAt,
 	type MathSpan,
-	mathSpanAt,
+	mathBlockInContext,
 	mathSpanInContext,
 	mathStartIndex,
-} from "@linxiraos/pi-utils/math-delimiters";
+} from "@oh-my-pi/pi-utils/math-delimiters";
 import { renderToString } from "katex";
 import { escapeHtml } from "../../lib/format";
 
@@ -45,7 +44,7 @@ function renderMath(token: Tokens.Generic): string | false {
 /**
  * Renders LaTeX in transcript Markdown: `$…$` and `\(…\)` inline, `$$…$$` and
  * `\[…\]` in display mode, plus own-line `$$`/`\[` blocks. Delimiters and the
- * scan hint come from `@linxiraos/pi-utils/math-delimiters`, so this renderer and
+ * scan hint come from `@oh-my-pi/pi-utils/math-delimiters`, so this renderer and
  * the TUI agree on what counts as math; only presentation policy lives here.
  *
  * Two limits follow from that shared behavior, both matching the TUI: a rejected
@@ -62,7 +61,7 @@ export const mathExtension: MarkedExtension = {
 			// No `start` hint: this parser probes block extensions only at a block
 			// boundary and never consults their hints.
 			tokenizer(source) {
-				const block = mathBlockAt(source);
+				const block = mathBlockInContext(this, source);
 				if (!block) return undefined;
 				return { type: "math", raw: block.raw, text: block.body, display: true };
 			},

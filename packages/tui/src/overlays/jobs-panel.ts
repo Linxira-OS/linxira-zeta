@@ -5,9 +5,9 @@
  * `elapsed`, lists every job and inspects the selected one (command, cwd, live
  * pids, exit code, output tail).
  */
-import type { TspAgentProps, TspSpan } from "@linxiraos/pi-wire";
-import { formatDuration } from "@linxiraos/pi-utils";
-import { type Component, Container } from "../tui";
+import type { TspAgentProps, TspSpan } from "@oh-my-pi/pi-wire";
+import { formatDuration } from "@oh-my-pi/pi-utils";
+import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";
 import { truncateToWidth } from "../utils";
@@ -91,31 +91,6 @@ const DOT: Record<JobsPanelJob["status"], TspSpan> = {
 /** Output tail rows the terminal fallback shows under the selected job. */
 const FALLBACK_TAIL_LINES = 8;
 
-/** The `/jobs` block: `ansi` renders in the terminal, the snapshot describes the native frame. */
-export class JobsPanel extends Container {
-	readonly #snapshot: JobsPanelSnapshot;
-	readonly #nowMs: number;
-	#native: { agent: boolean; node: NativeNode } | undefined;
-
-	constructor(snapshot: JobsPanelSnapshot, nowMs: number, ansi: readonly Component[]) {
-		super();
-		this.#snapshot = snapshot;
-		this.#nowMs = nowMs;
-		for (const child of ansi) this.addChild(child);
-	}
-
-	override describe(cx: DescribeContext): NativeNode {
-		const agent = cx.supports("agent");
-		if (this.#native?.agent === agent) return this.#native.node;
-		const head: TspSpan[] = [span("Background jobs", "strong")];
-		const running = this.#snapshot.running.length;
-		if (running > 0) head.push(span(` · ${running} running`, "muted"));
-		const described = card({ role: "zeta.jobs", head }, describeJobs(this.#snapshot, this.#nowMs, agent));
-		this.#native = { agent, node: described };
-		return described;
-	}
-}
-
 /**
  * The jobs pill's sheet: a centred `lg` glass sheet titled Background jobs.
  * A selectable list of every job (running first) sits over the selected
@@ -135,6 +110,8 @@ export class JobsSheet implements Component {
 	readonly #source: JobsSheetSource;
 	#selectedId: string | undefined;
 	#native: { key: string; output: string | undefined; node: NativeNode } | undefined;
+	/** Fallback output tail, reused while the selected job's output is unchanged. */
+	#tail: { id: string; output: string; lines: readonly string[] } | undefined;
 
 	constructor(source: JobsSheetSource) {
 		this.#source = source;
@@ -202,8 +179,9 @@ export class JobsSheet implements Component {
 				detail.artifactId && `artifact://${detail.artifactId}`,
 			]);
 			if (facts.length > 0) lines.push(truncateToWidth(`   ${facts.join(" · ")}`, width));
-			const tail = (detail.output ?? "").trimEnd().split("\n").slice(-FALLBACK_TAIL_LINES);
-			for (const line of tail) if (line) lines.push(truncateToWidth(`   ${line}`, width));
+			for (const line of this.#tailLines(selected.id, detail.output ?? "")) {
+				if (line) lines.push(truncateToWidth(`   ${line}`, width));
+			}
 		}
 		return lines;
 	}
@@ -235,6 +213,14 @@ export class JobsSheet implements Component {
 		return { jobs, selected };
 	}
 
+	#tailLines(id: string, output: string): readonly string[] {
+		const cached = this.#tail;
+		if (cached?.id === id && cached.output === output) return cached.lines;
+		const lines = tailLines(output, FALLBACK_TAIL_LINES);
+		this.#tail = { id, output, lines };
+		return lines;
+	}
+
 	#move(delta: number): void {
 		const { jobs, selected } = this.#current();
 		if (!selected) return;
@@ -253,25 +239,21 @@ function jobAge(job: JobsPanelJob, nowMs: number): number {
 	return Math.max(0, (job.endTime ?? nowMs) - job.startTime);
 }
 
-/** The body the `/jobs` panel draws: running rows, then a Recent section; an empty note when there are none. */
-function describeJobs(snapshot: JobsPanelSnapshot, nowMs: number, agent: boolean): NativeChild[] {
-	const { running, recent } = snapshot;
-	const children: NativeChild[] = [];
-	if (running.length === 0 && recent.length === 0) {
-		children.push(node("text", { text: "No background jobs", role: "zeta.jobs.empty" }, undefined, "empty"));
+/**
+ * The last `count` pieces of `text.trimEnd().split("\n")`, found by scanning
+ * back from the end so a long running output is never split as a whole.
+ */
+function tailLines(text: string, count: number): string[] {
+	const trimmed = text.trimEnd();
+	const lines: string[] = [];
+	let end = trimmed.length;
+	while (lines.length < count) {
+		const newline = end > 0 ? trimmed.lastIndexOf("\n", end - 1) : -1;
+		lines.push(trimmed.slice(newline + 1, end));
+		if (newline < 0) break;
+		end = newline;
 	}
-	for (const job of running) children.push(describeJob(job, nowMs, agent));
-	if (recent.length > 0) {
-		children.push(
-			node(
-				"section",
-				{ head: [span("Recent", "muted")] },
-				recent.map(job => describeJob(job, nowMs, agent)),
-				"recent",
-			),
-		);
-	}
-	return children;
+	return lines.reverse();
 }
 
 /** A task job as an `agent` node when the terminal draws them, else a one-line dot row. */

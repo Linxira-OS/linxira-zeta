@@ -28,7 +28,13 @@ import {
 } from "./rank";
 import { mergeRefreshedCredential, OAUTH_REFRESH_SKEW_MS, type OAuthRefresher } from "./refresh";
 import type { AuthCredentialStore } from "./store";
-import type { ApiKeyCredential, AuthApiKeyOptions, AuthCredential, OAuthCredential } from "./types";
+import type {
+	ApiKeyCredential,
+	AuthApiKeyOptions,
+	AuthCredential,
+	OAuthCredential,
+	StoredAuthCredential,
+} from "./types";
 import type { UsageService } from "./usage";
 import {
 	isUsageLimitReached,
@@ -510,14 +516,17 @@ export class CredentialSelector {
 		options?: AuthApiKeyOptions,
 	): Promise<OAuthResolutionResult | undefined> {
 		await this.#deps.pool.adoptExternalChanges();
-		const credentials = this.#deps.pool
+		const stored = this.#deps.pool
 			.credentials(provider)
 			.map((credential, index) => ({ credential, index }))
 			.filter((entry): entry is { credential: OAuthCredential; index: number } => entry.credential.type === "oauth");
 		this.#deps.policies.validateFor(
 			provider,
-			credentials.map(entry => entry.credential),
+			stored.map(entry => entry.credential),
 		);
+		// A session restriction drops every other account before ranking, pins,
+		// and the fallback passes below, so none of them can route back to it.
+		const credentials = stored.filter(entry => this.#deps.affinity.allows(provider, sessionId, entry.credential));
 
 		if (credentials.length === 0) return undefined;
 		this.#deps.policies.validateUsageCapability(provider, this.#deps.usage.canFetchOAuthUsage(provider));
@@ -690,6 +699,10 @@ export class CredentialSelector {
 		const forceRefreshIndex = options?.forceRefresh
 			? (sessionPreferredIndex ?? candidates[0]?.selection.index)
 			: undefined;
+		// Each candidate's synchronous prefix below runs back to back inside `map`,
+		// before any await, so one provider re-list serves every initial rebind.
+		// Resyncs after an await (refresh, disable) re-read the store.
+		let preflightRows: StoredAuthCredential[] | undefined;
 		await Promise.all(
 			candidates.map(async candidate => {
 				const force = forceRefreshIndex !== undefined && candidate.selection.index === forceRefreshIndex;
@@ -697,7 +710,8 @@ export class CredentialSelector {
 				let syncedPeerCredential = false;
 				if (initialCredentialId !== undefined) {
 					const beforeSync = candidate.selection.credential;
-					if (!this.#syncOAuthSelectionFromStore(provider, candidate.selection, initialCredentialId)) return;
+					preflightRows ??= this.#reloadProviderRows(provider);
+					if (!this.#rebindOAuthSelection(preflightRows, candidate.selection, initialCredentialId)) return;
 					syncedPeerCredential = !authCredentialEquals(beforeSync, candidate.selection.credential);
 				}
 				const hasFreshAccess = Date.now() + OAUTH_REFRESH_SKEW_MS < candidate.selection.credential.expires;
@@ -881,11 +895,25 @@ export class CredentialSelector {
 		selection: { credential: OAuthCredential; index: number },
 		credentialId: number,
 	): boolean {
+		return this.#rebindOAuthSelection(this.#reloadProviderRows(provider), selection, credentialId);
+	}
+
+	/** Re-list one provider's active rows and adopt them in the pool. */
+	#reloadProviderRows(provider: string): StoredAuthCredential[] {
 		const latestRows = this.#deps.store.listAuthCredentials(provider);
 		this.#deps.pool.replace(
 			provider,
 			latestRows.map(row => ({ id: row.id, credential: row.credential })),
 		);
+		return latestRows;
+	}
+
+	/** Point `selection` at row `credentialId` in `latestRows`; false when it is gone or no longer OAuth. */
+	#rebindOAuthSelection(
+		latestRows: readonly StoredAuthCredential[],
+		selection: { credential: OAuthCredential; index: number },
+		credentialId: number,
+	): boolean {
 		const latestIndex = latestRows.findIndex(row => row.id === credentialId);
 		if (latestIndex === -1) return false;
 		const latest = latestRows[latestIndex];
