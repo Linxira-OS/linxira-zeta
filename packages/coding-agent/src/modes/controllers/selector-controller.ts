@@ -172,6 +172,20 @@ import { applyHyperlinkSetting } from "@linxiraos/pi-tui/render/hyperlink";
 import type { disableProvider as DisableProvider, enableProvider as EnableProvider } from "../../discovery";
 import { applyProviderGlobalsFromSettings } from "../../config/provider-globals";
 
+interface ProviderToggleModules {
+	disableProvider: typeof DisableProvider;
+	enableProvider: typeof EnableProvider;
+}
+
+/** Settings-only boundary for provider discovery mutations. */
+function loadProviderToggles(): ProviderToggleModules {
+	const discovery = require("../../discovery") as {
+		disableProvider: typeof DisableProvider;
+		enableProvider: typeof EnableProvider;
+	};
+	return { disableProvider: discovery.disableProvider, enableProvider: discovery.enableProvider };
+}
+
 interface ModelOverlayModules {
 	ModelHubComponent: typeof ModelHubComponentType;
 	ModelPickerComponent: typeof ModelPickerComponentType;

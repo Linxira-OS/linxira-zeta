@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test";
-import { resetSettingsForTest, Settings } from "@linxiraos/pi-coding-agent/config/settings";
-import { SelectorController } from "@linxiraos/pi-coding-agent/modes/controllers/selector-controller";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
 import type { Component, OverlayHandle, OverlayOptions, TUI } from "@linxiraos/pi-tui";
 import { AgentsHubComponent } from "@linxiraos/pi-tui/overlays/agents-hub";
 import * as themeModule from "@linxiraos/pi-tui/theme";

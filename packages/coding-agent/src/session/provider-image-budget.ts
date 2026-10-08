@@ -14,7 +14,7 @@ import { decodeDataUri } from "@linxiraos/pi-ai/providers/openai-data-uri";
 import { resolveInlineImageByteBudget } from "@linxiraos/pi-catalog/compat/request-size";
 import { isRecord } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { providerImageBudget } from "@linxiraos/snapcompact";
+import { providerImageBudget } from "@linxiraos/pi-snapcompact";
 import { supportsRemoteImageUrls } from "../blob-broker/context-images";
 import { imageDecodeFailureReason } from "@linxiraos/pi-tui/chat/image-loading";
 

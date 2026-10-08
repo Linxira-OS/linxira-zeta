@@ -2,7 +2,7 @@
  * Centralized path helpers for zeta-c config directories.
  *
  * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
- * Uses PI_CONFIG_DIR (default ".omp") for the config root and
+ * Uses ZETA_CONFIG_DIR (default ".zeta") for the config root and
  * ZETA_CODING_AGENT_DIR to override the agent directory.
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
@@ -463,8 +463,12 @@ class DirResolver {
  * without exporting it). Returns `undefined` in those cases so reset falls back
  * to the standard `~/.zeta/agent`.
  */
-function resolvePreProfileAgentDir(profile: string | undefined, agentDirEnv: string | undefined): string | undefined {
-	return isProfileDerivedAgentDir(profile, agentDirEnv) ? undefined : agentDirEnv;
+function resolvePreProfileAgentDir(
+	profile: string | undefined,
+	agentDirEnv: string | undefined,
+	profileAgentDirSource: string | undefined = profile,
+): string | undefined {
+	return isProfileDerivedAgentDir(profile ?? profileAgentDirSource, agentDirEnv) ? undefined : agentDirEnv;
 }
 
 let activeProfile = readProfileFromEnvSafe();

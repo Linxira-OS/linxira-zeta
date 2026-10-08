@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { Context, ImageContent, ModelSpec, TextContent } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { decorateContextImages } from "@linxiraos/pi-coding-agent/blob-broker/context-images";
+import { decorateContextImages } from "@linxiraos/zeta/blob-broker/context-images";
 import {
 	clampProviderContextImageBytes,
 	clampProviderContextImages,
-} from "@linxiraos/pi-coding-agent/session/provider-image-budget";
+} from "@linxiraos/zeta/session/provider-image-budget";
 
 const UMANS_MODEL = buildModel({
 	id: "umans-glm-5.2",

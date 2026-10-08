@@ -32,6 +32,7 @@ export class KeyOverrides {
 	#runtimeOverrides: Map<string, string> = new Map();
 	#configOverrides: Map<string, string> = new Map();
 	#configFallbacks: Map<string, string> = new Map();
+	#mirrorKeys: Map<string, string> = new Map();
 	#configValueResolver: (config: string) => Promise<string | undefined>;
 
 	constructor(resolver?: (config: string) => Promise<string | undefined>) {
@@ -64,6 +65,16 @@ export class KeyOverrides {
 	/** Config value consulted only after stored OAuth/login credentials. */
 	fallbackKey(provider: string): string | undefined {
 		return this.#configFallbacks.get(provider);
+	}
+
+	/**
+	 * Config value consulted only after every other source, including stored
+	 * api_key credentials — the lowest cascade tier. The OMP compatibility
+	 * overlay uses it so an upstream key is a pure fallback: any credential
+	 * the user later stores locally wins without needing to evict the mirror.
+	 */
+	mirrorKey(provider: string): string | undefined {
+		return this.#mirrorKeys.get(provider);
 	}
 
 	/** Resolve a config value (env var name, "!command", literal) to the secret. */
@@ -100,8 +111,19 @@ export class KeyOverrides {
 	 * credentials (at the env-var tier). Providers that own a `/login` flow use
 	 * this so their default key reference (e.g. an unset env-var name, which
 	 * resolves to its literal text) cannot shadow the key the user logged in with.
+	 *
+	 * `mirror: true` ranks the value below everything else, under stored
+	 * api_key credentials — a read-only compatibility mirror (upstream OMP
+	 * agent.db key) that must never shadow a key the user stores locally.
 	 */
-	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean }): void {
+	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean; mirror?: boolean }): void {
+		if (options?.mirror) {
+			this.#configOverrides.delete(provider);
+			this.#configFallbacks.delete(provider);
+			this.#mirrorKeys.set(provider, apiKeyConfig);
+			return;
+		}
+		this.#mirrorKeys.delete(provider);
 		if (options?.fallback) {
 			this.#configOverrides.delete(provider);
 			this.#configFallbacks.set(provider, apiKeyConfig);
@@ -112,11 +134,12 @@ export class KeyOverrides {
 	}
 
 	/**
-	 * Remove a single config-sourced API key (override or fallback).
+	 * Remove a single config-sourced API key (override, fallback, or mirror).
 	 */
 	removeConfig(provider: string): void {
 		this.#configOverrides.delete(provider);
 		this.#configFallbacks.delete(provider);
+		this.#mirrorKeys.delete(provider);
 	}
 
 	/**
@@ -126,6 +149,7 @@ export class KeyOverrides {
 	clearConfig(): void {
 		this.#configOverrides.clear();
 		this.#configFallbacks.clear();
+		this.#mirrorKeys.clear();
 	}
 
 	/**
@@ -150,7 +174,7 @@ export interface KeyCascadeDeps {
 	sourceLabel?: string;
 }
 
-/** The provider auth precedence cascade (runtime → config → OAuth → login key → env → stored key). */
+/** The provider auth precedence cascade (runtime → config → OAuth → login key → env → stored key → compat mirror). */
 export class KeyCascade implements KeysApi {
 	#deps: KeyCascadeDeps;
 
@@ -207,8 +231,8 @@ export class KeyCascade implements KeysApi {
 	/**
 	 * Classify where a provider's auth comes from, following the same precedence
 	 * as {@link KeyCascade.get}: runtime override → config override →
-	 * stored OAuth → login-stored api_key → config fallback → env var → stored api_key.
-	 * Returns undefined when no auth is configured.
+	 * stored OAuth → login-stored api_key → config fallback → env var →
+	 * stored api_key → compat mirror. Returns undefined when no auth is configured.
 	 *
 	 * Compact, structured counterpart to {@link KeyCascade.describe}; `env`
 	 * selects dedicated-only, alias-aware, or no environment fallback.
@@ -230,6 +254,7 @@ export class KeyCascade implements KeysApi {
 			return { kind: "env", envVar: getEnvApiKeyName(provider), concrete };
 		}
 		if (bearing.some(credential => credential.type === "api_key")) return { kind: "api_key", concrete: true };
+		if (this.#deps.overrides.mirrorKey(provider) !== undefined) return { kind: "config", concrete: true };
 		return undefined;
 	}
 
@@ -305,6 +330,8 @@ export class KeyCascade implements KeysApi {
 		if (apiKeySelection) {
 			return this.#deps.overrides.resolve(apiKeySelection.credential.key);
 		}
+		const mirrorKey = this.#deps.overrides.mirrorKey(provider);
+		if (mirrorKey !== undefined) return this.#deps.overrides.resolve(mirrorKey);
 		return undefined;
 	}
 
@@ -332,6 +359,8 @@ export class KeyCascade implements KeysApi {
 	/**
 	 * Get API key for a provider.
 	 * Priority (first match wins): runtime override, config override, OAuth,
+	 * login API key, environment variable, another stored API key, then the
+	 * lowest-tier OMP compat mirror.
 	 * login API key, environment variable, then another stored API key.
 	 * A session restricted by `sessions.restrict` resolves only its allowed
 	 * OAuth accounts and throws {@link AIError.MissingApiKeyError} when none
@@ -449,6 +478,8 @@ export class KeyCascade implements KeysApi {
 			if (apiKey !== undefined && credentialId !== undefined) onCredentialId?.(credentialId);
 			return apiKey;
 		}
+		const mirrorKey = this.#deps.overrides.mirrorKey(provider);
+		if (mirrorKey !== undefined) return this.#deps.overrides.resolve(mirrorKey);
 		if (oauthRefreshFailure) throw oauthRefreshFailure;
 		return undefined;
 	}
@@ -516,6 +547,7 @@ export class KeyCascade implements KeysApi {
 	 *   4. API key persisted by a successful `/login`.
 	 *   5. Env var — overrides a stored static api_key (e.g. a stale broker copy).
 	 *   6. Stored api_key credential.
+	 *   7. OMP compatibility mirror (upstream agent.db fallback key).
 	 *
 	 * The string is purely informational; consumers must not parse it.
 	 */
@@ -566,6 +598,7 @@ export class KeyCascade implements KeysApi {
 			credential => credential.type !== "api_key" || credential.source !== "login",
 		);
 		if (apiKeySource) return apiKeySource;
+		if (this.#deps.overrides.mirrorKey(provider) !== undefined) return "OMP compatibility mirror (upstream agent.db)";
 		return undefined;
 	}
 
@@ -577,7 +610,7 @@ export class KeyCascade implements KeysApi {
 		this.#deps.overrides.removeRuntime(provider);
 	}
 
-	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean }): void {
+	setConfig(provider: string, apiKeyConfig: string, options?: { fallback?: boolean; mirror?: boolean }): void {
 		this.#deps.overrides.setConfig(provider, apiKeyConfig, options);
 	}
 
