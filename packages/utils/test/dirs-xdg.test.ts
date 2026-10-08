@@ -16,7 +16,7 @@ import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 const ENV_KEYS = [
 	"OMP_PROFILE",
 	"PI_PROFILE",
-	"PI_CONFIG_DIR",
+	"ZETA_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
 	"XDG_DATA_HOME",
 	"XDG_STATE_HOME",
@@ -41,7 +41,7 @@ describe("XDG-aware runtime paths", () => {
 		configDir = `.zeta-dirs-xdg-${Snowflake.next()}`;
 		defaultAgentDir = path.join(os.homedir(), configDir, "agent");
 		await fs.mkdir(tempRoot, { recursive: true });
-		process.env.PI_CONFIG_DIR = configDir;
+		process.env.ZETA_CONFIG_DIR = configDir;
 		delete process.env.ZETA_CODING_AGENT_DIR;
 		delete process.env.XDG_DATA_HOME;
 		delete process.env.XDG_STATE_HOME;
@@ -80,6 +80,48 @@ describe("XDG-aware runtime paths", () => {
 	it.skipIf(!xdgPlatform)("adopts legacy predict state once when XDG relocates it", async () => {
 		const legacy = path.join(defaultAgentDir, "predict", "ngram");
 		await fs.mkdir(legacy, { recursive: true });
+		await Bun.write(path.join(legacy, "cursor.json"), JSON.stringify({ historyId: 42 }));
+		const xdgData = path.join(tempRoot, "data");
+		await fs.mkdir(path.join(xdgData, "zeta"), { recursive: true });
+		process.env.XDG_DATA_HOME = xdgData;
+		setAgentDir(defaultAgentDir);
+
+		const stateDir = getPredictStateDir(defaultAgentDir, "ngram");
+		expect(await Bun.file(path.join(stateDir, "cursor.json")).json()).toEqual({ historyId: 42 });
+
+		// Once adopted, XDG state is authoritative: later legacy writes by older versions are not re-copied.
+		await Bun.write(path.join(legacy, "cursor.json"), JSON.stringify({ historyId: 7 }));
+		getPredictStateDir(defaultAgentDir, "ngram");
+		expect(await Bun.file(path.join(stateDir, "cursor.json")).json()).toEqual({ historyId: 42 });
+	});
+
+	it.skipIf(!xdgPlatform)("shares the global daemon runtime dir across profiles and custom agent dirs", async () => {
+		const xdgState = path.join(tempRoot, "state");
+		await fs.mkdir(path.join(xdgState, "zeta"), { recursive: true });
+		process.env.XDG_STATE_HOME = xdgState;
+		const shared = path.join(xdgState, "zeta", "run", "daemons", "global", "text-predict");
+
+		setAgentDir(defaultAgentDir);
+		expect(getGlobalDaemonRuntimeDir("text-predict")).toBe(shared);
+		setProfile("profile-a");
+		expect(getGlobalDaemonRuntimeDir("text-predict")).toBe(shared);
+		setProfile(undefined);
+		setAgentDir(path.join(tempRoot, "custom-agent"));
+		expect(getGlobalDaemonRuntimeDir("text-predict")).toBe(shared);
+	});
+
+	it("keeps paths under an explicit custom agent dir, ignoring XDG", async () => {
+		const custom = path.join(tempRoot, "custom-agent");
+		await fs.mkdir(custom, { recursive: true });
+		const xdgData = path.join(tempRoot, "data");
+		await fs.mkdir(path.join(xdgData, "zeta"), { recursive: true });
+		process.env.XDG_DATA_HOME = xdgData;
+		setAgentDir(custom);
+
+		expect(getSkillDescriptionsDbPath()).toBe(path.join(custom, "skill-descriptions.db"));
+		expect(getPredictStateDir(custom, "ngram")).toBe(path.join(custom, "predict", "ngram"));
+	});
+});acy, { recursive: true });
 		await Bun.write(path.join(legacy, "cursor.json"), JSON.stringify({ historyId: 42 }));
 		const xdgData = path.join(tempRoot, "data");
 		await fs.mkdir(path.join(xdgData, "zeta"), { recursive: true });

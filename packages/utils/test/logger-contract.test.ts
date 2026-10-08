@@ -55,7 +55,7 @@ async function runScenario(
 				// os.homedir() on Windows reads USERPROFILE, not HOME: without
 				// this the default-file scenario logs into the real profile.
 				USERPROFILE: primaryDir,
-				PI_CONFIG_DIR: ".zeta",
+				ZETA_CONFIG_DIR: ".zeta",
 				OMP_PROFILE: "",
 				PI_PROFILE: "",
 				XDG_DATA_HOME: "",

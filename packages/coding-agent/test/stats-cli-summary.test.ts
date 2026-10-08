@@ -18,12 +18,12 @@ describe("omp stats --summary", () => {
 
 	beforeEach(() => {
 		tempDir = TempDir.createSync("@omp-stats-summary-");
-		for (const key of [...XDG_KEYS, "PI_CONFIG_DIR"]) {
+		for (const key of [...XDG_KEYS, "ZETA_CONFIG_DIR"]) {
 			originalEnv[key] = process.env[key];
 			delete process.env[key];
 		}
 		const configDir = path.relative(os.homedir(), tempDir.join("config"));
-		process.env.PI_CONFIG_DIR = configDir;
+		process.env.ZETA_CONFIG_DIR = configDir;
 		setAgentDir(path.join(os.homedir(), configDir, "agent"));
 	});
 

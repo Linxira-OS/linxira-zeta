@@ -53,14 +53,14 @@ describe("profile directories", () => {
 		originalProfile = getActiveProfile();
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalZetaProfileEnv = process.env.ZETA_PROFILE;
-		originalConfigDir = process.env.PI_CONFIG_DIR;
+		originalConfigDir = process.env.ZETA_CONFIG_DIR;
 		originalXdgDataHome = process.env.XDG_DATA_HOME;
 		originalXdgStateHome = process.env.XDG_STATE_HOME;
 		originalXdgCacheHome = process.env.XDG_CACHE_HOME;
 		tempRoot = path.join(os.tmpdir(), "pi-utils-profiles", Snowflake.next());
 		configDir = `.zeta-profile-test-${Snowflake.next()}`;
 		await fs.mkdir(tempRoot, { recursive: true });
-		process.env.PI_CONFIG_DIR = configDir;
+		process.env.ZETA_CONFIG_DIR = configDir;
 		// Other suites that run before this one (e.g. dirs-python-gateway) may have
 		// called `setAgentDir`, which permanently mutates the module-level
 		// pre-profile snapshot. Reset it here so each test starts from a clean
@@ -75,9 +75,9 @@ describe("profile directories", () => {
 	afterEach(async () => {
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.PI_CONFIG_DIR;
+			delete process.env.ZETA_CONFIG_DIR;
 		} else {
-			process.env.PI_CONFIG_DIR = originalConfigDir;
+			process.env.ZETA_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalXdgDataHome === undefined) {
 			delete process.env.XDG_DATA_HOME;
@@ -376,7 +376,7 @@ describe("dirs module import behavior", () => {
 
 				const childEnv: Record<string, string | undefined> = {
 					...process.env,
-					PI_CONFIG_DIR: probeConfigDir,
+					ZETA_CONFIG_DIR: probeConfigDir,
 					ZETA_PROFILE: zetaProfile,
 					ZETA_CODING_AGENT_DIR: workAgentDir,
 				};
@@ -439,7 +439,7 @@ describe("dirs module import behavior", () => {
 			const childEnv: Record<string, string | undefined> = {
 				...process.env,
 				HOME: homeDir,
-				PI_CONFIG_DIR: profileConfigDir,
+				ZETA_CONFIG_DIR: profileConfigDir,
 				ZETA_PROFILE: "work",
 			};
 			delete childEnv.ZETA_CODING_AGENT_DIR;

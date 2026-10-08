@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { SkillDescriptionStore } from "../src/extensibility/skill-descriptions";
 
-const ENV_KEYS = ["PI_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["ZETA_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -28,7 +28,7 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			xdgData = path.join(tempRoot, "data");
 			await fs.promises.mkdir(path.join(xdgData, "zeta"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.PI_CONFIG_DIR = configDir;
+			process.env.ZETA_CONFIG_DIR = configDir;
 			delete process.env.ZETA_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});

@@ -136,7 +136,7 @@ describe("collab host registry (two-process smoke)", () => {
 			OMP_SMOKE_MARKER: marker,
 			OMP_SMOKE_INSTANCE_ID: instanceId,
 		};
-		delete env.PI_CONFIG_DIR;
+		delete env.ZETA_CONFIG_DIR;
 		delete env.PI_PROFILE;
 		delete env.OMP_PROFILE;
 		delete env.ZETA_CODING_AGENT_DIR;
