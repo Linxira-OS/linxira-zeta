@@ -3,38 +3,75 @@ on:
   push:
     branches: [main]
 
+defaults:
+  run:
+    shell: bash
+
 # 本地全量验证:非发布类 CI 全部交由 NAS runner 处理(带缓存,增量编译)。
 # 发布链(build-binaries/publish)不在本地跑——那仍是 GitHub Actions 的职责。
+# 自举步全部幂等:self-hosted 的 HOME 持久,bun/rustup/nightly 只装一次。
 jobs:
   verify:
     runs-on: self-hosted
-    timeout-minutes: 240
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
 
       - name: Toolchain inventory
         run: |
-          echo "=== bun/node/cargo/rustc ==="
-          bun --version 2>/dev/null || echo "bun: absent"
-          node --version 2>/dev/null || echo "node: absent"
-          cargo --version 2>/dev/null || echo "cargo: absent"
-          rustc --version 2>/dev/null || echo "rustc: absent"
+          set -uo pipefail
+          echo "PATH=$PATH"
+          for t in bun node cargo rustc rustup; do
+            command -v "$t" >/dev/null && echo "$t: $($t --version 2>&1 | head -1)" || echo "$t: ABSENT"
+          done
+
+      - name: Bootstrap bun (idempotent)
+        run: |
+          set -euo pipefail
+          if ! command -v bun >/dev/null; then
+            curl -fsSL https://bun.sh/install | bash
+          fi
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap rustup + pinned nightly (idempotent)
+        run: |
+          set -euo pipefail
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
+          export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+          rustup toolchain install nightly-2026-10-06 --profile minimal -c rustfmt,clippy
+          rustup default nightly-2026-10-06
+
+      - name: Toolchain after bootstrap
+        run: |
+          set -uo pipefail
+          bun --version
+          cargo --version
+          rustc --version
 
       - name: Install workspace deps
-        run: bun install
+        run: |
+          set -euo pipefail
+          bun install
 
       - name: Build native addon (linux-x64, modern+baseline)
         run: |
+          set -euo pipefail
           cargo build --release -p pi-natives
           cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-modern.node
           cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-baseline.node
 
       - name: Static gates
         run: |
+          set -euo pipefail
           bun scripts/check-version-consistency.ts
           bun run check:ts
           bun scripts/brand/brand-check.ts
           bun scripts/check-zeta-sentinels.ts
 
       - name: Full verification (all TS buckets + Rust nextest)
-        run: bun run ci:test:full
+        run: |
+          set -euo pipefail
+          bun run ci:test:full
