@@ -3326,11 +3326,8 @@ export class SessionManager {
 	 * mutate what this returns and must serialize it synchronously, before any
 	 * such rewrite can run.
 	 */
-	snapshotForReplication(copy: <T>(value: T) => T = structuredClone): {
-		header: SessionHeader;
-		entries: SessionEntry[];
-	} {
-		return { header: copy(this.#header), entries: copy(this.#entries) };
+	snapshotForReplication(): { header: SessionHeader; entries: readonly SessionEntry[] } {
+		return { header: this.#header, entries: this.#entries };
 	}
 
 	/**

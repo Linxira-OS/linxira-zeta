@@ -170,6 +170,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "terminal title brand character (registry row 1)",
 	},
 	{
+		file: "packages/coding-agent/src/utils/title-generator.ts",
+		needle: 'const NATIVE_TERMINAL_TITLE = "zeta";',
+		why: "native TSP tab title brand word while no session is named (the OMP_PATH_ALLOW exemption for the \\uE000omp-title-visible\\uE000 wire sentinel otherwise hides upstream omp here)",
+	},
+	{
 		file: "packages/utils/src/logger.ts",
 		needle: 'filenamePrefix: "zeta",',
 		why: "rotating log file identity (upstream v18.1.17+ writes omp.*.log; test pair must match)",

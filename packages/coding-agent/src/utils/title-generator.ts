@@ -41,7 +41,7 @@ const TITLE_MARKER_INSTRUCTION = prompt.render(titleMarkerInstruction);
 // OS UI font, which has no nerd-font PUA coverage.
 const DEFAULT_TERMINAL_TITLE = "ζ";
 /** The native tab title without a session name. */
-const NATIVE_TERMINAL_TITLE = "omp";
+const NATIVE_TERMINAL_TITLE = "zeta";
 const TERMINAL_TITLE_CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
 
 interface WindowsConsoleTitleApi {
@@ -859,7 +859,7 @@ export function buildTerminalTitleWithState(
 }
 
 /**
- * The tab title while a TSP terminal renders: the session name (`omp` before
+ * The tab title while a TSP terminal renders: the session name (`zeta` before
  * there is one) and the branch's pull request. The terminal shows run state
  * itself, so there is no brand or state separator.
  */

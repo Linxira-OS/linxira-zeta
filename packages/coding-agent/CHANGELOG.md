@@ -4,6 +4,12 @@
 
 - 新增 tea 工具套件：面向自托管 Gitea（及 gitea.com）的 `tea` CLI 集成，提供仓库/议题/拉取请求/检出/合并/发行版等 op（`repo_view`、`repo_create`、`issue_*`、`pr_*`、`release_*`），创建类操作一律 API 回读验证（`tea repo create` 有静默失败史）；通过 `gitea.enabled` 启用，默认关闭。
 
+### Fixed
+
+- 终端 tab 标题在无会话名时不再回退为 `omp`，改为 `zeta`。
+- 协作（collab）replication 快照恢复上游 v18.8.4 的 no-copy 契约（live header + entries），宿主与哨兵同步。
+- 去重 CHANGELOG 中重复的 `[1.1.27]` 节头，修复 changelog 解析。
+
 ## [1.1.27] - 2026-10-07
 
 ### Added
@@ -38,7 +44,6 @@
 - Fixed documents served as `application/octet-stream` being downloaded twice.
 - Fixed collaboration guests rebuilding the transcript excessively during streaming.
 
-## [1.1.27] - 2026-10-07
 ## [1.1.24] - 2026-10-03
 
 ### Added
