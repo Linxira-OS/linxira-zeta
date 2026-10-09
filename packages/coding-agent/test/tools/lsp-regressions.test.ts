@@ -1314,7 +1314,7 @@ describe("lsp regressions", () => {
 	it("answers defined server→client requests with spec no-op results", async () => {
 		// Same failure class as #3029: a defined server→client request
 		// (window/showMessage{Request}, window/showDocument, workspace/*/refresh)
-		// must receive a spec-shaped reply, not a -32601. Headless omp can't
+		// must receive a spec-shaped reply, not a -32601. Headless zeta 't
 		// surface UI prompts but still owes a defined no-op.
 		const tempDir = TempDir.createSync("@omp-lsp-server-requests-");
 		try {

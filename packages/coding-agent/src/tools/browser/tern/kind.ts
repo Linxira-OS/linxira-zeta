@@ -36,7 +36,7 @@ export interface ResolveTernKindOptions {
 }
 
 /**
- * Resolve the Tern browser kind, or null when omp is not in a Tern pane or
+ * Resolve the Tern browser kind, or null when zeta  not in a Tern pane or
  * Tern mode is off. Mirrors `resolveCmuxKind`: the setting opts in, the env
  * var is the final override in both directions.
  */
