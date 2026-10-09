@@ -185,9 +185,23 @@ async function executeSearch(
 					: [];
 			})()
 		: resolveRoleChain("web", settings, pool);
+	const forcedProvider = params.provider !== undefined && params.provider !== "auto" ? params.provider : undefined;
+	// Zeta pins the engine with `provider`, not the upstream `model` role: a forced
+	// provider is the only candidate, and it must not silently fall through to
+	// another engine when it fails.
+	const scopedCandidates =
+		forcedProvider === undefined
+			? candidates
+			: candidates.filter(candidate => {
+					if (candidate.model.id === forcedProvider) return true;
+					const webSearch = candidate.model.webSearch as string | undefined;
+					return webSearch !== undefined && webSearch === forcedProvider;
+				});
+	const finalCandidates =
+		scopedCandidates.length > 0 ? scopedCandidates : forcedProvider === undefined ? [] : candidates.slice(0, 1);
 	const parsedQuery = parseSearchQuery(params.query);
 	let expanded = rankXAIProviders(
-		candidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool)),
+		finalCandidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool)),
 		candidate => candidate.model,
 		settings,
 	);

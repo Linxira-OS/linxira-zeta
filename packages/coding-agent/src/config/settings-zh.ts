@@ -1564,6 +1564,38 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
 	},
+	"worktree.onStart": {
+		label: "启动时创建工作树",
+		description: "新建的交互式会话是否默认在新建的链接工作树中启动",
+	},
+	"worktree.onExit": {
+		label: "退出时处理工作树",
+		description: "退出时如何处理本次运行期间创建的工作树（启动时创建或用 `/wt` 创建）",
+	},
+	"worktree.onStart::off": {
+		label: "关闭",
+		description: "在当前检出中启动",
+	},
+	"worktree.onStart::ask": {
+		label: "询问",
+		description: "会话启动时询问",
+	},
+	"worktree.onStart::create": {
+		label: "创建",
+		description: "总是在新的 `wt/*` 分支工作树中启动",
+	},
+	"worktree.onExit::keep": {
+		label: "保留",
+		description: "保留工作树不动",
+	},
+	"worktree.onExit::ask": {
+		label: "询问",
+		description: "退出时询问",
+	},
+	"worktree.onExit::remove": {
+		label: "移除",
+		description: "移除干净的工作树；有未提交修改或新提交时询问。被 gitignore 的文件（如 `.env`）也会删除",
+	},
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
