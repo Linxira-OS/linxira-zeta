@@ -156,8 +156,8 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		needle: "APP_NAME} v${this.version}",
-		why: "the welcome version line is `zeta v<package version>` driven by APP_NAME (registry: 版本行); a hardcoded upstream version literal or omp wordmark here is the v18.6.0 regression shape",
+		needle: "alt: APP_NAME,",
+		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); upstream replaced it with a wordmark lockup and the π art, which must not return (v18.0.3/v18.6.0 lessons)",
 	},
 	{
 		file: "packages/tui/src/theme/symbols.ts",

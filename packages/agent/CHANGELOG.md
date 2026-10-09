@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+
+### Added
+
+- Added support for warm-cache-aware conversation pruning, keeping pruned history within the model’s prompt-cache lookback window while preserving Anthropic prompt-cache efficiency.
+- Added `AgentLoopConfig.hasQueuedAsides` (also available on `Agent`) to allow interruptible waits to detect queued asides without consuming them or signaling other tools.
+
+
+### Added
+
+- Added the public `validateAgentToolArguments()` API for consistent, lenient-aware validation of agent tool arguments across agent and coding-agent workflows.
+
+
 ### Changed
 
 - Improved performance when pruning tool output and capturing telemetry messages during long-running sessions.

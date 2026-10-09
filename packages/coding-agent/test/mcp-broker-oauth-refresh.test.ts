@@ -1,7 +1,7 @@
 /**
  * End-to-end regression for broker-backed MCP OAuth refresh (issue #8933).
  *
- * Topology mirrors `zetacode auth-broker serve` fronting a sandboxed client:
+ * Topology mirrors `omp auth-broker serve` fronting a sandboxed client:
  *   client (RemoteAuthCredentialStore) → broker (SqliteAuthCredentialStore
  *   + refreshBrokerOAuthCredential override) → MCP token endpoint.
  *
@@ -31,11 +31,11 @@ import {
 	RemoteAuthCredentialStore,
 	startAuthBroker,
 } from "@linxiraos/pi-ai/auth-broker";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { refreshBrokerOAuthCredential } from "@linxiraos/zeta/cli/auth-broker-cli";
+import { createBrokerAuthStorage } from "@linxiraos/zeta/cli/auth-broker-cli";
 import { MCPManager } from "@linxiraos/zeta/mcp/manager";
 import { mcpOAuthCredentialId } from "@linxiraos/zeta/mcp/oauth-flow";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import type { Server } from "bun";
 
 const SERVER_URL = "https://mcp.granola.ai/mcp";
@@ -61,7 +61,7 @@ describe("broker-backed MCP OAuth refresh", () => {
 	let manager: MCPManager | undefined;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-broker-mcp-refresh-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-broker-mcp-refresh-"));
 		tokenRequests = [];
 		const server = Bun.serve({
 			port: 0,
@@ -79,20 +79,16 @@ describe("broker-backed MCP OAuth refresh", () => {
 		const tokenUrl = `http://127.0.0.1:${server.port}/token`;
 
 		serverStore = await SqliteAuthCredentialStore.open(path.join(tempDir, "broker.db"));
-		// The serve process constructs AuthStorage with this exact override.
-		serverStorage = new AuthStorage(serverStore, {
-			refreshOAuthCredential: (provider, _credentialId, credential, signal) =>
-				refreshBrokerOAuthCredential(provider, credential, signal),
-		});
+		serverStorage = createBrokerAuthStorage(serverStore);
 		await serverStorage.credentials.reload();
 
 		// Expired MCP OAuth credential with embedded refresh material, as the
 		// vault holds it. Spread bypasses the excess-property check for the
 		// MCP-only extension fields the base OAuthCredential type omits.
 		const credential: OAuthCredential = {
-			//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: spread bypasses excess-property checking
+			// oxlint-disable-next-line unicorn/no-useless-spread -- spread bypasses excess-property checking
 			...{ type: "oauth", access: "stale-access", refresh: "real-refresh-token", expires: Date.now() - 60_000 },
-			//DISABLED(biome-unknown-rule) lint/complexity/noUselessSpread: spread bypasses excess-property checking
+			// oxlint-disable-next-line unicorn/no-useless-spread -- spread bypasses excess-property checking
 			...{ tokenUrl, clientId: "client-xyz" },
 		};
 		await serverStorage.credentials.set(MCP_PROVIDER, credential);

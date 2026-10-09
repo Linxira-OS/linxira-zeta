@@ -86,7 +86,7 @@ npx @linxiraos/zeta-web@latest
 
 ## 注意事项
 
-- **数据目录**：默认读取 `~/.zeta/agent/sessions`。可通过环境变量 `ZETA_CODING_AGENT_DIR` 指定其他 agent 目录（兼容旧版：同样支持 `OMP_CODING_AGENT_DIR` 和 `PI_CODING_AGENT_DIR`，`ZETA_*` 优先级最高）。
+- **数据目录**：默认读取 `~/.zeta/agent/sessions`。可通过环境变量 `ZETA_CODING_AGENT_DIR` 指定其他 agent 目录（兼容旧版：同样支持 `OMP_CODING_AGENT_DIR` 和 `ZETA_CODING_AGENT_DIR`，`ZETA_*` 优先级最高）。
 - **会话文件**：路径形如 `~/.zeta/agent/sessions/<编码后的工作目录>/<时间戳>_<uuid>.jsonl`。
 - **模型配置**：Models 面板读写 Zeta agent 目录下的 `models.json`，模型列表和默认值来自兼容配置。
 - **文件访问**：文件浏览和预览面向当前选择的项目目录，以及会话中已出现过的工作目录。

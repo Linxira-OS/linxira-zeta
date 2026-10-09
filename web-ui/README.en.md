@@ -85,7 +85,7 @@ npx @linxiraos/zeta-web@latest
 
 ## Notes
 
-- **Data directory**: reads `~/.zeta/agent/sessions` by default. Set `ZETA_CODING_AGENT_DIR` to point at another agent directory (falls back to `OMP_CODING_AGENT_DIR` and `PI_CODING_AGENT_DIR` for compatibility).
+- **Data directory**: reads `~/.zeta/agent/sessions` by default. Set `ZETA_CODING_AGENT_DIR` to point at another agent directory (falls back to `OMP_CODING_AGENT_DIR` and `ZETA_CODING_AGENT_DIR` for compatibility).
 - **Session files**: stored as `~/.zeta/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`.
 - **Model config**: the Models panel reads and writes `models.json` in the Zeta agent directory.
 - **File access**: file browsing and preview are scoped to the selected project directory and working directories that appear in sessions.

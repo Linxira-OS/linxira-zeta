@@ -1,5 +1,5 @@
 /**
- * Render `zetacode gallery` output to PNG screenshots via VHS.
+ * Render `omp gallery` output to PNG screenshots via VHS.
  *
  * ANSI escapes are invisible to anything that can only read raw bytes (e.g.
  * agents), so `--screenshot` drives the rendered gallery through a real virtual
@@ -16,6 +16,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { $which } from "@linxiraos/pi-utils";
 import { theme } from "@linxiraos/pi-tui/theme";
+import { quotePosixArgument } from "../utils/shell-quote";
 import type { GallerySection } from "./gallery-cli";
 
 /** Nerd Font family so the gallery's icon glyphs (PUA) render instead of tofu. */
@@ -62,7 +63,7 @@ export async function captureGalleryScreenshots(
 	const vhs = $which("vhs");
 	if (!vhs) {
 		throw new Error(
-			"`zetacode gallery --screenshot` requires VHS, which is not installed. " +
+			"`omp gallery --screenshot` requires VHS, which is not installed. " +
 				"Install it (e.g. `brew install vhs`, or see https://github.com/charmbracelet/vhs) and retry.",
 		);
 	}
@@ -77,7 +78,7 @@ export async function captureGalleryScreenshots(
 
 	const baseDir = options.out
 		? path.dirname(path.resolve(options.out))
-		: fs.mkdtempSync(path.join(os.tmpdir(), "zeta-gallery-"));
+		: fs.mkdtempSync(path.join(os.tmpdir(), "omp-gallery-"));
 	await fs.promises.mkdir(baseDir, { recursive: true });
 
 	const outPaths: string[] = [];
@@ -164,7 +165,7 @@ function buildTape(args: TapeArgs): string {
 	// is captured from the final visible frame. Setup is hidden so the typed
 	// `cat` command and shell prompt never appear in the capture, and a trailing
 	// `sleep` keeps the shell from drawing a fresh prompt under the output.
-	const shellCommand = `clear; cat ${shellSingleQuote(args.ansiPath)}; sleep 120`;
+	const shellCommand = `clear; cat ${quotePosixArgument(args.ansiPath)}; sleep 120`;
 	return `${[
 		`Output ${JSON.stringify(args.gifPath)}`,
 		`Set Width ${args.widthPx}`,
@@ -194,7 +195,7 @@ function buildVhsTheme(): string {
 	const foreground = theme.isLight ? "#1a1a1a" : "#d4d4d4";
 	const selection = theme.isLight ? "#c8d6ff" : "#404862";
 	return JSON.stringify({
-		name: "zeta-gallery",
+		name: "omp-gallery",
 		background,
 		foreground,
 		cursor: foreground,
@@ -224,11 +225,6 @@ function parseAnsiRgb(ansi: string): string | undefined {
 	if (!match) return undefined;
 	const hex = (value: string) => Number(value).toString(16).padStart(2, "0");
 	return `#${hex(match[1])}${hex(match[2])}${hex(match[3])}`;
-}
-
-/** POSIX single-quote a path for embedding in the VHS shell command. */
-function shellSingleQuote(value: string): string {
-	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 /**

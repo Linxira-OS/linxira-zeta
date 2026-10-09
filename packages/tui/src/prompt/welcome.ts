@@ -6,17 +6,22 @@ import { getKeybindings, type Keybinding } from "../keybindings";
 import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";
-import { plainLine } from "../native/spans";
+import { compactText, plainLine, plainText } from "../native/spans";
 import { isNativeRendering } from "../native/state";
+import { isHyperlinkEnabled, urlHyperlink, urlLinkSpan } from "../render/hyperlink";
 import { TERMINAL } from "../terminal-capabilities";
 import { theme } from "../theme/theme";
 import type { Component } from "../tui";
 import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
 import tipsText from "./tips.txt" with { type: "text" };
 
-/** Tips embedded at build time, one per line; blanks dropped. Key placeholders
+/** Leading marker for a tip that pitches Tern: shown only while no TSP surface
+ *  is live, since a live one means the user is already in Tern. */
+const NO_TERN_TIP_MARKER = /^\[NO-TERN\]\s*/;
+
+/** tips.txt lines embedded at build time; blanks dropped. Key placeholders
  *  (see {@link expandTipKeys}) stay raw until render time. */
-const TIPS: readonly string[] = tipsText
+const TIP_LINES: readonly string[] = tipsText
 	.split("\n")
 	.map(line => line.trim())
 	.filter(line => line.length > 0);
@@ -32,6 +37,12 @@ export const WELCOME_SESSION_SLOTS = 4;
  * the box height is constant regardless of how many servers a project has.
  */
 export const WELCOME_LSP_SLOTS = 4;
+
+/** Tips for the classic renderer: every tip, {@link NO_TERN_TIP_MARKER} stripped. */
+const TIPS: readonly string[] = TIP_LINES.map(line => line.replace(NO_TERN_TIP_MARKER, ""));
+
+/** Tips for a live TSP surface: those marked {@link NO_TERN_TIP_MARKER} dropped. */
+const TSP_TIPS: readonly string[] = TIP_LINES.filter(line => !NO_TERN_TIP_MARKER.test(line));
 
 /** Trailing marker that flags a tip as a "what's new" callout. Stripped before
  *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
@@ -120,14 +131,44 @@ function expandTipKeys(tip: string): string {
 	});
 }
 
-export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): string[] {
+/** Markdown-style links in tips.txt: `[Tern](https://scl.so/tern)` shows the label, linked to the URL. */
+const TIP_LINK = /\[([^\]]+)\]\(([^\s)]+)\)/g;
+
+/** Tip links as underlined OSC 8 labels, or `label (url)` where the terminal cannot link. */
+function linkTipText(tip: string): string {
+	const linkable = isHyperlinkEnabled();
+	return tip.replace(TIP_LINK, (_link, label: string, url: string) =>
+		linkable ? urlHyperlink(url, theme.underline(label)) : `${label} (${url})`,
+	);
+}
+
+/** The tip as native text: escapes dropped, links as `href` spans. */
+function tipSpans(tip: string): TspSpan[] {
+	const spans: TspSpan[] = [];
+	let cursor = 0;
+	for (const match of tip.matchAll(TIP_LINK)) {
+		const [link, label, url] = match;
+		if (match.index > cursor) spans.push(span(plainText(tip.slice(cursor, match.index))));
+		spans.push(urlLinkSpan(url, label));
+		cursor = match.index + link.length;
+	}
+	if (cursor < tip.length) spans.push(span(plainText(tip.slice(cursor))));
+	return spans;
+}
+
+/**
+ * The welcome tip as lines of at most `width` columns: `Tip:` and the body
+ * wrapped together, with no indent, so the banner can center each line.
+ * `[]` when `width` leaves no room for a useful line.
+ */
+export function renderWelcomeTip(tip: string, width: number, phase = 0): string[] {
 	const label = "Tip: ";
 	const labelWidth = visibleWidth(label);
-	const bodyBudget = boxWidth - labelWidth;
+	const bodyBudget = width - labelWidth;
 	if (bodyBudget < 8) return [];
 
 	const isNew = NEW_TIP_MARKER.test(tip);
-	const body = expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip);
+	const body = linkTipText(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
 
 	const wrappedBody = wrapTextWithAnsi(replaceTabs(body), bodyBudget);
 	if (wrappedBody.length === 0) return [];
@@ -152,7 +193,7 @@ export function renderWelcomeTip(tip: string, boxWidth: number, phase = 0): stri
 		const tag = renderNewTag(phase, encoding);
 		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
 		const lastLine = lines[lines.length - 1];
-		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= boxWidth) {
+		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= width) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
 		} else {
 			lines.push(continuationIndent + tag);
@@ -183,9 +224,10 @@ export class WelcomeComponent implements Component {
 	#animTimer: Timer | null = null;
 	#requestRender: (() => void) | null = null;
 	// Tip randomness is latched once so the tip is stable across renders, but
-	// the nerdfont-nag gate re-reads the live preset: the startup prepaint can
-	// run under the default "unicode" preset before settings resolve the real
-	// one, and a memoized nag would survive the switch to "nerd".
+	// the nerdfont-nag gate re-reads the live preset and the pool re-reads the
+	// live TSP state: the startup prepaint can run under the default "unicode"
+	// preset before settings resolve the real one, and an optimistic Tern start
+	// falls back to the classic renderer when `hello` never confirms.
 	#nagRoll: number | undefined;
 	#tipRoll: number | undefined;
 	// Render cache: the welcome box is the first transcript-area component, so
@@ -209,7 +251,7 @@ export class WelcomeComponent implements Component {
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
 			return "Please use nerdfont 😭.";
 		}
-		return pickWeightedTip(TIPS, this.#tipRoll) || undefined;
+		return pickWeightedTip(isNativeRendering() ? TSP_TIPS : TIPS, this.#tipRoll) || undefined;
 	}
 
 	invalidate(): void {
@@ -244,7 +286,7 @@ export class WelcomeComponent implements Component {
 							builtin: "zeta",
 							alt: APP_NAME,
 							w: 128,
-							role: "omp.welcome.logo",
+							role: "zeta.welcome.logo",
 						},
 						undefined,
 						"logo",
@@ -265,7 +307,7 @@ export class WelcomeComponent implements Component {
 		const shortcut = (key: string, label: string): NativeNode =>
 			keyed(row([kbd(key), line([span(label, "muted")])], { gap: "sm" }), label);
 		const info: NativeChild[] = [
-			line([span(this.version, "dim mono")], "omp.welcome.version"),
+			line([span(this.version, "dim mono")], "zeta.welcome.version"),
 			section("tips", "Tips", [
 				shortcut("#", "prompt actions"),
 				shortcut("/", "commands"),
@@ -338,16 +380,16 @@ export class WelcomeComponent implements Component {
 		];
 		if (tip) {
 			const isNew = NEW_TIP_MARKER.test(tip);
-			const tipText = plainLine(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
+			const tipText = compactText(tipSpans(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip)));
 			const tipRow: NativeChild[] = [
-				node("icon", { name: "lightbulb", role: "omp.welcome.tip-icon" }),
-				text(tipText, { wrap: "word", role: "omp.welcome.tip-text" }),
+				node("icon", { name: "lightbulb", role: "zeta.welcome.tip-icon" }),
+				text(tipText, { wrap: "word", role: "zeta.welcome.tip-text" }),
 			];
-			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "omp.welcome.new" }));
-			body.push(node("row", { gap: "sm", align: "start", role: "omp.welcome.tip" }, tipRow, "tip"));
+			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "zeta.welcome.new" }));
+			body.push(node("row", { gap: "sm", align: "start", role: "zeta.welcome.tip" }, tipRow, "tip"));
 		}
 		// No head row or chevron: the card is the hero; the version sits in the info column.
-		const described = card({ role: "omp.welcome" }, body);
+		const described = card({ role: "zeta.welcome" }, body);
 		this.#native = { tip, node: described };
 		return described;
 	}

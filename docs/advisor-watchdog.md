@@ -276,7 +276,7 @@ Especially watch for:
 
 `discoverWatchdogFiles(cwd, agentDir)` loads every readable candidate from these locations:
 
-1. user level: `<active agent dir>/WATCHDOG.md` (`~/.zeta/agent/WATCHDOG.md` by default; relocated by `PI_CODING_AGENT_DIR`)
+1. user level: `<active agent dir>/WATCHDOG.md` (`~/.zeta/agent/WATCHDOG.md` by default; relocated by `ZETA_CODING_AGENT_DIR`)
 2. project levels while walking from `cwd` upward to the git repository root, or to the home directory when no repo root is found:
    - `<dir>/WATCHDOG.md`
    - `<dir>/.zeta/WATCHDOG.md`
@@ -373,7 +373,7 @@ A continuation an advisor delivery itself starts — a steer while the primary i
 
 `WATCHDOG.yml`/`WATCHDOG.yaml` share the same user + project search path as `WATCHDOG.md`: the user-level `<active agent dir>/WATCHDOG.yml` plus every `WATCHDOG.yml`/`.zeta/WATCHDOG.yml` encountered while walking from `cwd` up to the repository root (or the home directory when no repo root is found). All discovered files are loaded together; a more-specific file (project leaf > project ancestor > user) replaces an earlier entry with the same advisor slug.
 
-At the same directory depth, `.yml` candidates precede `.yaml` candidates, and `.omp/<filename>` precedes the standalone `<filename>`. Later entries win slug collisions; top-level instructions still concatenate.
+At the same directory depth, `.yml` candidates precede `.yaml` candidates, and `.zeta/<filename>` precedes the standalone `<filename>`. Later entries win slug collisions; top-level instructions still concatenate.
 
 ## Subagents
 
