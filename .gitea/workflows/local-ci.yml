@@ -182,7 +182,7 @@ jobs:
               } >> "$GITHUB_ENV"
 
          - name: Verify toolchains
-         shell: bash
+           shell: bash
            run: |
               set -euo pipefail
               echo "bun   $(bun --version)"
@@ -193,7 +193,7 @@ jobs:
               echo "bazel $(bazelisk --version 2>/dev/null | head -1 || echo '<absent>')"
 
          - name: Install workspace dependencies
-         shell: bash
+           shell: bash
            run: |
               set -euo pipefail
               # 与 GitHub 的 bun-install action 同一条命令（--frozen-lockfile），
@@ -231,6 +231,10 @@ jobs:
            run: bun scripts/check-ci-surface.ts
          - name: Build collab web
            run: bun run collab:web:build
+         - name: Local-CI parity guard
+           # 镜像漂移检测：GitHub 侧新增/改名 job 或仓库脚本时，本地镜像
+           # 必须同步更新（或显式登记为"有意排除"），否则这里红。
+           run: bun scripts/check-local-ci-parity.ts
 
    # ── 3. web-ui（镜像 web_ui_build）───────────────────────────────────────
    web_ui_build:
@@ -539,6 +543,31 @@ jobs:
          - name: Rustfmt
            shell: bash
            run: bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=rustfmt //crates/...
+
+   # GitHub 的 desktop_linux/desktop_windows 都是发布态才跑的
+   #（if: is-release == 'true'），本地镜像只取它的**测试半边**：desktop 的
+   # npm test 平台契约 + web-ui 依赖。打包（electron-builder）、冒烟与产物
+   # 上传属于发布链，不在此处。
+   desktop_tests:
+      name: Test desktop platform contracts (Linux)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Install Web UI dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         - name: Test desktop platform contracts
+           working-directory: desktop
+           run: npm test
 
    # ── 8. vendor 工作区（镜像 editor_tests / termide_tests / main_tests）────
    editor_tests:
