@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/main",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "description": "zeta — the Zeta workspace: a nested-terminal workbench with tabs, panes, and the Zeta tool suite",
   "license": "MIT",
   "publishConfig": {
@@ -22,8 +22,8 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "@linxiraos/main-windows-x64": "1.1.27",
-    "@linxiraos/main-linux-x64": "1.1.27"
+    "@linxiraos/main-windows-x64": "1.1.28",
+    "@linxiraos/main-linux-x64": "1.1.28"
   },
   "engines": {
     "node": ">=18"

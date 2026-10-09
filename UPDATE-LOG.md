@@ -71,25 +71,46 @@
 
 ### OMP 同步基线
 
-- 进行中：v18.4.11 → v18.6.0 一轮直上（586 commits；含上游 v18.4.12/v18.5.0/v18.5.1/v18.6.0 四 tag，谱系 gate 精确通过）。
+- 未同步（基线保持 v18.8.6）。
 
 ### 新增
 
-- **`/delete` 三连确认 + 可恢复回收站**：CLI `/delete` 15 秒窗口内需连按三次（第 1 次预备、第 2 次加强警告、第 3 次执行），超时/Esc/输入其他命令即解除；确认状态纯内存、重启即清零，确认词（`/delete` 本身）不引入任何补全词表。删除改为软删——会话 `.jsonl`、artifacts 目录与陈旧 `.bak` 一并移入 `~/.zeta/trash/sessions/<时间戳>_<id>/`（含 `manifest.json` 记录原路径），新命令 `/trash`（倒序列表）与 `/restore <序号>`（移回原目录，占用时落 `.restored-<时间戳>` 名）；保留期设置键 `session.trashRetentionDays`（files 域，默认 30 天，0 永久保留，zh/en 双语设置页可见），启动/定期清扫超期条目且不阻塞启动。协调者会话（Zeta Bot Relay，tag=relay）禁删：`/delete` 直接拒绝并提示原因（IM 通道枢纽）。web 对齐：网关 sessions DELETE 端点同步切软删（400 带回 `code:"relay-protected"`），web 端 `/delete` 分派加同样的 15 秒三连计数（ref 内存，刷新即清零），侧栏既有确认弹窗不动。
-
-- **editor 内核 vendor bump（TTT v1.5.0 → v1.6.0）**：上游 40 commits——终端模拟器 vt10x→xterm-go（输出爆发不再冻结 UI、选区高亮可主题化）、**编辑器内嵌图像查看落地（Kitty 图形协议，打开图片文件即内嵌渲染；与终端侧图像主线互补：工作台窗格走 WT sixel（PR #59），editor 面走 Kitty 协议）**、欢迎页空态、Explorer/Changes 按 git 状态着色 + Nerd Font 文件/大纲图标（默认关）、底部面板可停靠右缘、git commit 无暂存时自动 stage、搜索结果定位到匹配列/`-` 开头查询按文本处理、折叠块随 Move Line 整体移动、symlink 目录浏览、管道/设备文件拒开防冻结等；我方品牌适配、汉化 i18n 层（含上游新设置面词条补齐）、handoff、鼠标沿检测四层逐项重放，另修上游 Windows file URI 缺陷（第 13 修改层，`file://C:%5C` 盘符落 authority 废掉 LSP 面），账目见 `editor/VENDOR.md`。
-- **统一二进制发现（发行版原生包一等公民）**：五个发现面（工作台 zetawork 的 shell/tab 探测、CLI `update` 自身定位、桌面壳 `zeta serve` 解析、npm 启动 shim、网关 zeta-ide/zeta-editor 探测）全部对齐同一发现序——①显式 `ZETA_BIN_DIR`（分隔符目录列表，先于 PATH；桌面另有既有 `ZETA_SERVE_COMMAND` 全命令覆盖）→ ②PATH 原生二进制（发行版 pacman 装 `/usr/bin/zetawork` 等，命中直接用，不做任何跨组件版本校验）→ ③Node.js/npm 形态兜底（vendored 平台叶二进制/npm 全局 bin 目录）。桌面壳发现序由「bundled 优先」改为按同一裁决排序（env→PATH→vendored）；npm shim 增加 env/PATH 层并保留 vendored 叶兜底。Rust 侧公共 helper 收敛在 zeta-main `shell.rs`（`resolve_bin_candidates` 家族），TS 侧收敛在 coding-agent `utils/bin-discovery.ts`。
-- **统计面板内嵌**（PR #52）：顶部「统计」按钮直接开右 dock 统计窗格（iframe 内嵌本机 stats 仪表盘），不再弹中间面板 + Open 二次点击 + 新窗口；stats 服务未运行时优雅降级提示（含重试按钮）。新增运行时 `/api/webui/stats-url` 路由修复打包桌面版 NEXT_PUBLIC 构建期内联导致回退 Open 按钮的根因。
-- **侧栏折叠消歧**（PR #52）：「切换为图标栏」（56px 图标栏模式）与工具栏「隐藏/显示侧边栏」（完全隐藏）实为两个不同功能，重命名消歧并加注释说明——非重复入口不删。
-- **CLI 指令描述 i18n 补齐（75 条）**：`builtin-session`（54）与 `builtin-collaboration`（21）的静态英文 `description` 全部改接 `M.*` 目录（en 原文照搬、zh 沿用目录既有翻译），CLI 指令面在 zh 环境下完整本地化；新增 `scripts/check-i18n-commands.ts` gate 纳入 `check:tools`（slash-commands 的 `description` 出现静态串即红），`check-i18n-consistency` 抽取修复（多行续行与函数值条目此前全部误报缺失，117 假红归零）。
+- 无。
 
 ### 修复
 
-- **工作台窗格图像实时可见**（Windows Terminal sixel 路径）：zetacode 在工作台窗格内渲染内嵌图像时，实时区的 sixel 中途刷新粘不住，此前只能等退出时历史冲刷把图像块补写进 scrollback 才可见（运行期间只剩占位空行）。现在图像块终结（finalized）后即刻退役进原生 scrollback，不再等行压力或退出；退出冲刷保留兜底。
-- **工作台环境身份泄漏修复**：工作台窗格子进程此前透传外层 `TERM_PROGRAM`/`WT_SESSION`/`COLORTERM`，导致 zetacode 把工作台误判为外部终端（如 WT）而选错图像协议；`panel-terminal` 的 `set_env` 现显式清除这三个变量，工作台身份仅由 `ZETA_WORKBENCH=1` 表达。
-- **既有会话斜杠目录缺 builtin 命令**：web 斜杠弹窗在 agent 忙碌/网关命令列表为空时只搜扩展/提示词/技能，`/plan` 等内置模式命令集体消失（「0 个匹配项」）。目录构建统一为单一 `buildSlashCommandCatalog`（builtin 清单与网关列表合并、builtin 优先去重），hero 欢迎卡与既有会话 docked 输入框、空闲与流式状态同源；流式中回车补全的内置命令走命令通道（/plan 族进入模式并 steer 在跑回合）而非把原文塞给模型。
-- **web `/plan <任务>` 激活后任务无下文**：前端 mode_enter 后未挂接事件流，steer 出的规划回合在前端不可见（后端早已派发）；`enterPlanMode` 在已启用计划模式时提前返回会把任务整个丢弃。现在 get_state 带回 `contextUsage`、前端在 mode_enter 后桥接运行态与 SSE，`/goal <目标>` 对齐 CLI「进入模式 + 提交首回合」。顶栏与侧栏 context 用量在未回流前显示 `0%` 而非 `? / 128k` 占位。
-- **桌面版选择工作路径闪退加固**：1.1.25/26 新 Open 流在部分 Windows 环境下点选目录弹窗（原生弹窗切换/新建文件夹/进入目录）即整窗消失且无任何日志。分层加固：web-ui 增加应用级 `ErrorBoundary`（此前任何渲染异常都会整树白屏，现提供带错误信息的一键恢复页，en/zh 文案）；桌面壳 `render-process-gone` 由仅记日志改为限次自动重载（GPU/合成器闪崩自愈），补 `child-process-gone` 日志（此前 GPU 崩溃完全不可见）；`zeta serve` 子进程意外退出不再立即 `app.quit()` 陪葬，改为一次监督重启（渲染层已有连接拒绝自动重试，窗口随之自愈），策略逻辑抽到 `desktop/src/service-supervision.ts`；`pi:select-directory` 加固（defaultPath 仅接受已存在目录、dialog 锚定主窗口、异常吞掉并记日志返回 null、`createDirectory` 仅 macOS）。`/api/fs/directories` GET/POST 路由行为测试（真实临时目录：仅列目录/自然排序/跳过回收站/404/400/409/建盘校验）与 ErrorBoundary、监督策略测试入库。
+- 无。
+
+### 移除
+
+- 无。
+
+## 1.1.28（2026-10-09）
+
+### OMP 同步基线
+
+- v18.7.0 → v18.8.6 六 tag 串联合并（524 upstream commits；本轮窗口 v18.8.4→v18.8.6 为 292 commits / 244 文件 / +10555 / −2660）。谱系 gate 精确通过（`git merge-base HEAD v18.8.6` == v18.7.0 peeled `e0fc1cf4ea35`），合并后 `v18.8.6` 为 HEAD 祖先（真双亲合并，未 squash）。账本见 `document/upstream-sync.md`。
+
+### 新增
+
+- **Zetawork 工作区状态持久化 + 顶栏快捷启动**：桌面壳 `<userData>/workspace-state.json` 记录窗口位置/最大化状态与最近启动历史（工具、cwd、pid、zetacode 隔离 `--session-dir`），顶栏新增 zetacode / zetaide / zetaeditor 三个按钮，在当前会话目录启动对应产品（浏览器模式下自动隐藏）。恢复一律走 `--resume`（jsonl 仍是唯一事实源；运行中的 CLI 会话无法热接管，单写者约束）。
+- **tea 工具套件（自托管 Gitea 一等公民）**：`repo_view`/`repo_create`/`issue_*`/`pr_*`/`release_*`/`checkout`/`merge` 等 op，创建类操作一律 API 回读验证（`tea repo create` 有静默失败史）；开关 `gitea.enabled` 默认关闭。
+- **每会话 Git worktree（上游）**：`worktree.onStart` / `worktree.onExit` 两组设置，新建交互式会话可在独立链接工作树中启动并在退出时清理。
+- **xAI 搜索与 X 内容读取（上游）**：X 帖子/话题/作者检索、作者排除、日期与新鲜度过滤，凭据可用时自动路由 xAI；已登录时可读帖子、串、回复与话题页（替代失效的 Nitter 镜像）。
+
+### 变更
+
+- **命令行标准指令名定为 `zetacode`**：四件套标准名统一无连字符（zetawork / zetacode / zetaide / zetaeditor），`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成脚本与文档全部改用标准名；`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 保留为 npm bin 兼容别名，垫片与发行资产文件名（`zeta-c.cmd`、`zeta-cli-*`、`zeta-capture-*`）不变。
+- 桌面 `serve` 命令解析改为标准名优先（zetacode 先于历史别名），发行版原生包路径不再被别名遮蔽。
+
+### 修复
+
+- **合并期 Zeta 面丢失修复**：web_search 的 `provider` 强制钉（显式引擎不回落）、模型注册表只读 OMP 兼容面（`getOmpOriginProviders`/`getOmpCompatConfig`/`forceStatic`）、`setThinkToolEnabled`、provider 排序全局（web search + image-gen）、sdk 的 `channelSend`/`workspaceRun`/`imControl` 三 sink 全部恢复。
+- **shell 快照环境变量重导出**：上游把快照脚本临时变量改为 `__omp_funcs`/`__omp_emit_referenced_exports`，而我们自有的 fn-env helper 仍定义 `__zeta_*`，两侧对不上导致被快照函数引用的环境变量在 Linux 上整片不再导出；两侧统一回 `__zeta_*`，快照文件头改 `generated by zeta agent`。
+- **zh 本地化回填**：`worktree.onStart`/`worktree.onExit` 及其选项文案。
+- `update` 横幅与 `update-cli` 拒绝文案改为跟随 `CLI_BIN_NAME`（不再硬编码 `omp update`）。
+- 终端标题无会话名时回退 `zeta`；协作 replication 快照回到上游 no-copy 契约（活页眉 + 只读条目）；CHANGELOG 重复节头修复。
+- `MODULE.bazel.lock` 按 crate_universe 哈希链刷新（从 CI 工件取回，未删除 freshness 校验）；`packages/catalog/src/compat/rules.json` 随新模型集重新生成。
 
 ### 移除
 

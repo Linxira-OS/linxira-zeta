@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/ide-linux-x64",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "description": "Linux x64 binary for @linxiraos/ide (zeta-ide)",
   "license": "MIT",
   "repository": {

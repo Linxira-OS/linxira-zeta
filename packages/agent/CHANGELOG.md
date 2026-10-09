@@ -1,24 +1,14 @@
 ## [Unreleased]
 
-
 ### Added
 
 - Added support for warm-cache-aware conversation pruning, keeping pruned history within the model’s prompt-cache lookback window while preserving Anthropic prompt-cache efficiency.
 - Added `AgentLoopConfig.hasQueuedAsides` (also available on `Agent`) to allow interruptible waits to detect queued asides without consuming them or signaling other tools.
 
-
-### Added
-
-- Added the public `validateAgentToolArguments()` API for consistent, lenient-aware validation of agent tool arguments across agent and coding-agent workflows.
-
-
 ### Changed
 
 - Improved performance when pruning tool output and capturing telemetry messages during long-running sessions.
 
-## [1.1.27] - 2026-10-07
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
 ## [9.2.2] - 2026-01-31
 
 ### Added
@@ -148,6 +138,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.1.27] - 2026-10-07
+
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 
 ## [1.1.25] - 2026-10-03
 

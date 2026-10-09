@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-stats",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "description": "Local observability dashboard for omp AI usage statistics",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Linxira-OS",

@@ -8,9 +8,6 @@
 
 - Fixed background shell builtins and other in-process commands so they terminate when their subshell exits and can be stopped with `kill %N`, matching the behavior of external commands.
 
-## [1.1.27] - 2026-10-07
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
 ## [9.8.0] - 2026-02-01
 
 ### Breaking Changes
@@ -159,6 +156,10 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.1.27] - 2026-10-07
+
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 
 ## [1.1.25] - 2026-10-03
 

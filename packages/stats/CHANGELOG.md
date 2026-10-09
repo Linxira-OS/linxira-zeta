@@ -6,6 +6,7 @@
 - Dashboard requests are now cancelled when no longer needed, improving responsiveness when switching sessions or closing trace views during loading.
 
 ## [1.1.27] - 2026-10-07
+
 ## [1.1.25] - 2026-10-03
 
 - 版本线推进至 1.1.25；本版无独立用户可见变化。
