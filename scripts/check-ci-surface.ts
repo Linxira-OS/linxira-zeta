@@ -125,7 +125,7 @@ function checkMatrixCoverage(
 				continue;
 			}
 			const keys = new Set<string>();
-			let lineNo = entry.keyLine + i;
+			const lineNo = entry.keyLine + i;
 			for (let j = i + 1; j < window.length; j++) {
 				const inner = window[j];
 				if (MATRIX_ITEM_CLOSE.test(inner)) {
