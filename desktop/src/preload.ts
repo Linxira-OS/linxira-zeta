@@ -36,6 +36,13 @@ const api = {
 	 * Subscribe to window-state changes (maximize / restore / full screen).
 	 * Returns an unsubscribe function.
 	 */
+	/**
+	 * Spawn a companion tool (zetacode / zetaide / zetaeditor) in a directory.
+	 * zetacode launches get an isolated --session-dir so `opts.resume` can
+	 * continue the newest session there on the next launch.
+	 */
+	spawnTool: (toolId: string, cwd?: string, opts?: { resume?: boolean }): Promise<{ tool: string; cwd: string; pid: number | null; sessionDir?: string }> =>
+		ipcRenderer.invoke("pi:spawn-tool", toolId, cwd, opts),
 	onWindowState: (callback: (state: { maximized: boolean }) => void): (() => void) => {
 		const listener = (_event: IpcRendererEvent, state: { maximized: boolean }): void => callback(state);
 		ipcRenderer.on("pi:window-state", listener);
