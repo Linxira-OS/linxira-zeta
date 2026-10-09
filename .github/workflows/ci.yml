@@ -847,18 +847,26 @@ jobs:
                  }
                - {
                     platform: linux,
+                    libc: musl,
                     target_id: linux-musl-x64,
                     binary_path: packages/coding-agent/binaries/zeta-cli-linux-musl-x64,
                     native_targets: linux-musl-x64-baseline,
                  }
                - {
-                    os: ubuntu-22.04,
                     platform: win32,
                     target_id: win32-x64,
                     binary_path: packages/coding-agent/binaries/zeta-cli-windows-x64.exe,
                     native_targets: win32-x64-baseline,
                  }
-      runs-on: ${{ matrix.os }}
+      # Every leg cross-compiles on one hosted Linux runner (the win32 binary
+      # via bun's windows target, the musl one via its musl target) — the same
+      # shape upstream uses. This must stay a literal: an `os` matrix key that
+      # only some entries set leaves `matrix.os` empty for the rest, GitHub then
+      # cannot expand the matrix at all, and the job vanishes from the run. Its
+      # `success` result still gates release_native_leaves / release_npm /
+      # release_github, so that silently skips the whole publish tail (damage
+      # class 7/12 in AGENTS.md).
+      runs-on: ubuntu-22.04
       permissions:
          contents: read
       steps:
