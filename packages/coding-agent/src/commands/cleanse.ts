@@ -38,7 +38,7 @@ export default class Cleanse extends Command {
 	static examples = [
 		"zeta cleanse",
 		"zeta cleanse --all",
-		'zeta-c cleanse "ts errors"',
+		'zetacode cleanse "ts errors"',
 		"zeta cleanse -n 8",
 		"zeta cleanse -m opus",
 		"zeta cleanse -t",

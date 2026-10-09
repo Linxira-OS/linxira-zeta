@@ -27,10 +27,10 @@ export default class Collab extends Command {
 	};
 
 	static examples = [
-		"zeta-c collab list",
-		"zeta-c collab list --json",
-		"zeta-c collab link <instanceId|pid>",
-		"zeta-c collab link <pid> --view",
+		"zetacode collab list",
+		"zetacode collab list --json",
+		"zetacode collab link <instanceId|pid>",
+		"zetacode collab link <pid> --view",
 	];
 
 	async run(): Promise<void> {

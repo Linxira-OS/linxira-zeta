@@ -1,5 +1,5 @@
 /**
- * `zeta-c auth-gateway` — run a forward proxy that injects auth from the broker.
+ * `zetacode auth-gateway` — run a forward proxy that injects auth from the broker.
  */
 
 import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
@@ -40,16 +40,16 @@ export default class AuthGateway extends Command {
 	};
 
 	static examples = [
-		"# Boot the gateway against the configured broker\n  zeta-c auth-gateway serve",
-		"# Boot on a non-default port\n  zeta-c auth-gateway serve --bind=127.0.0.1:4000",
-		"# Trust client IP headers from a trusted reverse proxy\n  zeta-c auth-gateway serve --trust-proxy-headers",
-		"# Print the gateway bearer token (creates one on first run)\n  zeta-c auth-gateway token",
-		"# Rotate the gateway bearer token\n  zeta-c auth-gateway token --regenerate",
-		"# Run on loopback without any bearer (anyone on this host can call)\n  zeta-c auth-gateway serve --no-auth",
-		"# Show local gateway + broker config status\n  zeta-c auth-gateway status",
-		"# Probe each broker credential to see which one is producing 401s\n  zeta-c auth-gateway check",
-		"# Same, machine-readable for scripts\n  zeta-c auth-gateway check --json",
-		"# Strict check — also exercises each credential with a real chat-completion ping\n  zeta-c auth-gateway check --strict",
+		"# Boot the gateway against the configured broker\n  zetacode auth-gateway serve",
+		"# Boot on a non-default port\n  zetacode auth-gateway serve --bind=127.0.0.1:4000",
+		"# Trust client IP headers from a trusted reverse proxy\n  zetacode auth-gateway serve --trust-proxy-headers",
+		"# Print the gateway bearer token (creates one on first run)\n  zetacode auth-gateway token",
+		"# Rotate the gateway bearer token\n  zetacode auth-gateway token --regenerate",
+		"# Run on loopback without any bearer (anyone on this host can call)\n  zetacode auth-gateway serve --no-auth",
+		"# Show local gateway + broker config status\n  zetacode auth-gateway status",
+		"# Probe each broker credential to see which one is producing 401s\n  zetacode auth-gateway check",
+		"# Same, machine-readable for scripts\n  zetacode auth-gateway check --json",
+		"# Strict check — also exercises each credential with a real chat-completion ping\n  zetacode auth-gateway check --strict",
 	];
 
 	async run(): Promise<void> {

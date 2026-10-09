@@ -1,5 +1,5 @@
 /**
- * `zeta-c models` — list, search, and refresh available models.
+ * `zetacode models` — list, search, and refresh available models.
  *
  * Subcommands:
  * - `ls` (default): list available chat models grouped by provider.
@@ -50,7 +50,7 @@ export interface ModelsCommandArgs {
 /**
  * Known action keywords. Any other first token (e.g. `openai-codex`) is treated
  * as a provider/substring filter for the default `ls` view, so every provider
- * name doubles as a `zeta-c models <provider>` shortcut.
+ * name doubles as a `zetacode models <provider>` shortcut.
  */
 const KNOWN_ACTIONS: Record<string, ModelsAction> = {
 	ls: "ls",
@@ -188,7 +188,7 @@ export interface ModelsListingSource {
 }
 
 /**
- * Render `zeta-c models ls`/`find` as one box table per provider, selecting chat
+ * Render `zetacode models ls`/`find` as one box table per provider, selecting chat
  * models by default or the caller-requested catalog kind.
  */
 export function renderProviderModels(
@@ -376,7 +376,7 @@ export async function runModelsListing(options: RunModelsListingOptions): Promis
 }
 
 /**
- * Entry point for the standalone `zeta-c models` command: bootstraps auth storage,
+ * Entry point for the standalone `zetacode models` command: bootstraps auth storage,
  * settings, and the model registry, force/cache-refreshes built-in providers per
  * the chosen action, then delegates to {@link runModelsListing}.
  */
@@ -386,7 +386,7 @@ export async function runModelsCommand(command: ModelsCommandArgs): Promise<void
 	const kind = command.flags.kind ?? "chat";
 
 	if (action === "find" && (!pattern || pattern.trim().length === 0)) {
-		process.stderr.write("`zeta-c models find` requires a search substring, e.g. `zeta-c models find minimax`\n");
+		process.stderr.write("`zetacode models find` requires a search substring, e.g. `zetacode models find minimax`\n");
 		process.exitCode = 1;
 		return;
 	}

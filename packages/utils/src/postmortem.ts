@@ -332,7 +332,7 @@ function faultWorkerIpcChannels(err: Error): void {
 /**
  * Graceful shutdown driven by `process.stdout`'s own `error` event.
  *
- * A closed stdout consumer (`zeta-c --help | head`, an ACP client dropping the
+ * A closed stdout consumer (`zetacode --help | head`, an ACP client dropping the
  * pipe) delivers the broken-pipe write here — attributable to stdout by
  * construction, unlike a process-wide `syscall: "write"` match that a closed
  * subprocess stdin or socket would also satisfy — so it runs cleanup and exits

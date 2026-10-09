@@ -1,5 +1,5 @@
 /**
- * Centralized path helpers for zeta-c config directories.
+ * Centralized path helpers for zetacode config directories.
  *
  * Uses PI_CONFIG_DIR (default ".zeta") for the config root and
  * Uses ZETA_CONFIG_DIR (default ".zeta") for the config root and
@@ -7,7 +7,7 @@
  *
  * On Linux, if XDG_DATA_HOME / XDG_STATE_HOME / XDG_CACHE_HOME environment
  * variables are set, paths are redirected to XDG-compliant locations under
- * $XDG_*_HOME/zeta/. This requires running `zeta-c config migrate` first to
+ * $XDG_*_HOME/zeta/. This requires running `zetacode config migrate` first to
  * move data to the new locations. No filesystem existence checks are performed
  * — if the env var is set, zeta trusts that the migration has been done.
  */
@@ -23,11 +23,11 @@ import { isEnoent, isEnotdir } from "./fs-error";
  * names, provider attribution headers, splash wordmark. NOT the CLI command. */
 export const APP_NAME: string = "zeta";
 
-/** CLI binary name (`npm i -g @linxiraos/zeta` installs `zeta-c`, with
- * `zeta-cli` and `zetacode` as aliases). Every user-facing "run this command"
- * string and process title uses this; the bare `zeta` name belongs to the
- * @linxiraos/main workspace product, not this package. */
-export const CLI_BIN_NAME: string = "zeta-c";
+/** CLI binary name (`npm i -g @linxiraos/zeta` installs `zetacode`, with
+ * `zetacode` and `zeta-cli` as compatibility aliases). Every user-facing "run
+ * this command" string and process title uses this; the bare `zeta` name
+ * belongs to the @linxiraos/main workspace product, not this package. */
+export const CLI_BIN_NAME: string = "zetacode";
 
 /** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit our traffic to. */
 export const APP_URL: string = "https://linxira-os.github.io/zeta/";
@@ -354,7 +354,7 @@ class DirResolver {
 		const isDefault = this.agentDir === defaultAgent;
 
 		// XDG is a Linux convention. On supported platforms, default profile state
-		// resolves under $XDG_*_HOME/zeta once `zeta-c config init-xdg` has migrated
+		// resolves under $XDG_*_HOME/zeta once `zetacode config init-xdg` has migrated
 		// the user's data. Named profiles follow a stricter rule: the XDG choice
 		// is keyed on the profile-specific XDG path, never the base app root.
 		//

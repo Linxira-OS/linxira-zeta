@@ -93,7 +93,7 @@ afterEach(async () => {
 	await Promise.all(tempDirs.splice(0).map(dir => removeWithRetries(dir)));
 });
 const TEST_CONFIG: CliConfig = {
-	bin: "zeta-c",
+	bin: "zetacode",
 	version: "0.0.0-test",
 	commands: new Map(),
 };
@@ -194,8 +194,8 @@ describe("parseReportedVersion", () => {
 		// Regression: dropping `-canary.1` made a correctly installed canary
 		// build look like a stale `X.Y.Z` launcher, triggering a binary repair
 		// that rejects the prerelease GitHub release.
-		expect(parseReportedVersion("zeta-c/18.0.6-canary.1")).toBe("18.0.6-canary.1");
-		expect(parseReportedVersion("zeta-c/18.0.5")).toBe("18.0.5");
+		expect(parseReportedVersion("zetacode/18.0.6-canary.1")).toBe("18.0.6-canary.1");
+		expect(parseReportedVersion("zetacode/18.0.5")).toBe("18.0.5");
 		expect(parseReportedVersion("not a version")).toBeUndefined();
 	});
 
@@ -230,7 +230,7 @@ describe("update-cli libc detection", () => {
 describe("update-cli install target detection", () => {
 	it("leaves Nix store installations under Nix management", () => {
 		const method = resolveUpdateMethodForTest(
-			"/nix/store/0123456789-omp-17.2.15/bin/zeta-c",
+			"/nix/store/0123456789-omp-17.2.15/bin/zetacode",
 			"/nix/store/9876543210-bun-1.3.14/bin",
 		);
 
@@ -238,13 +238,13 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses bun update when prioritized omp is inside bun global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.bun/bin/zeta-c", "/Users/test/.bun/bin");
+		const method = resolveUpdateMethodForTest("/Users/test/.bun/bin/zetacode", "/Users/test/.bun/bin");
 
 		expect(method).toBe("bun");
 	});
 
 	it("uses npm update when prioritized omp is inside an npm global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.npm-global/bin/zeta-c", undefined, {
+		const method = resolveUpdateMethodForTest("/Users/test/.npm-global/bin/zetacode", undefined, {
 			npmBinDir: "/Users/test/.npm-global/bin",
 		});
 
@@ -264,7 +264,7 @@ describe("update-cli install target detection", () => {
 		// to overwrite the existing executable. POSIX layout: on Windows an
 		// extensionless launcher is npm's sh shim (covered by the win32 cases).
 		const method = withPlatform("linux", () =>
-			resolveUpdateMethodForTest("/home/u/.local/bin/zeta-c", undefined, {
+			resolveUpdateMethodForTest("/home/u/.local/bin/zetacode", undefined, {
 				npmBinDir: "/home/u/.local/bin",
 				ompIsRegularFile: true,
 			}),
@@ -275,7 +275,7 @@ describe("update-cli install target detection", () => {
 
 	it("uses binary update when a plain file in the bun global bin dir is the standalone binary", () => {
 		const method = withPlatform("linux", () =>
-			resolveUpdateMethodForTest("/home/u/.local/bin/zeta-c", "/home/u/.local/bin", {
+			resolveUpdateMethodForTest("/home/u/.local/bin/zetacode", "/home/u/.local/bin", {
 				ompIsRegularFile: true,
 			}),
 		);
@@ -290,7 +290,7 @@ describe("update-cli install target detection", () => {
 		// only a bun-managed launcher has. Paths use forward slashes so the
 		// lexical containment check works on the POSIX host running this suite.
 		const method = withPlatform("win32", () =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta-c.exe", "C:/Users/test/.bun/bin", {
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zetacode.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 				bunShimMarker: true,
 			}),
@@ -306,7 +306,7 @@ describe("update-cli install target detection", () => {
 		// running .exe — bun tolerates that EBUSY — so the install stayed pinned
 		// to the old version with no way forward.
 		const method = withPlatform("win32", () =>
-			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zeta-c.exe", "C:/Users/test/.bun/bin", {
+			resolveUpdateMethodForTest("C:/Users/test/.bun/bin/zetacode.exe", "C:/Users/test/.bun/bin", {
 				ompIsRegularFile: true,
 			}),
 		);
@@ -315,7 +315,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("still uses npm update when the npm global bin entry is a package-manager symlink, not a plain file", () => {
-		const method = resolveUpdateMethodForTest("/home/u/.local/bin/zeta-c", undefined, {
+		const method = resolveUpdateMethodForTest("/home/u/.local/bin/zetacode", undefined, {
 			npmBinDir: "/home/u/.local/bin",
 			ompIsRegularFile: false,
 		});
@@ -326,8 +326,8 @@ describe("update-cli install target detection", () => {
 	it("updates the standalone binary behind a foreign npm-bin alias without replacing the alias", async () => {
 		const dir = await makeTempDir();
 		const npmBinDir = path.join(dir, ".npm-global", "bin");
-		const standalonePath = path.join(dir, ".local", "bin", "zeta-c");
-		const aliasPath = path.join(npmBinDir, "zeta-c");
+		const standalonePath = path.join(dir, ".local", "bin", "zetacode");
+		const aliasPath = path.join(npmBinDir, "zetacode");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
 		await fs.symlink(standalonePath, aliasPath);
@@ -353,7 +353,7 @@ describe("update-cli install target detection", () => {
 		const packagePath = path.join(nodeModulesDir, "@linxiraos", "zeta");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
-		const aliasPath = path.join(npmBinDir, "zeta-c");
+		const aliasPath = path.join(npmBinDir, "zetacode");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(packagePath), { recursive: true });
 		await Bun.write(checkoutCli, "linked checkout");
@@ -374,8 +374,8 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const bunDir = path.join(dir, ".bun");
 		const bunBinDir = path.join(bunDir, "bin");
-		const standalonePath = path.join(bunDir, "custom", "zeta-c");
-		const aliasPath = path.join(bunBinDir, "zeta-c");
+		const standalonePath = path.join(bunDir, "custom", "zetacode");
+		const aliasPath = path.join(bunBinDir, "zetacode");
 		await fs.mkdir(bunBinDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
 		await fs.symlink(path.relative(bunBinDir, standalonePath), aliasPath);
@@ -399,10 +399,10 @@ describe("update-cli install target detection", () => {
 		// beside a root-owned symlink (EACCES) or replaces it with a split-brain
 		// copy that shadows the shared install (#8732).
 		const dir = await makeTempDir();
-		const sharedBinDir = path.join(dir, "opt", "zeta-c", "bin");
-		const standalonePath = path.join(sharedBinDir, "zeta-c");
+		const sharedBinDir = path.join(dir, "opt", "zetacode", "bin");
+		const standalonePath = path.join(sharedBinDir, "zetacode");
 		const launcherDir = path.join(dir, "usr", "local", "bin");
-		const launcherPath = path.join(launcherDir, "zeta-c");
+		const launcherPath = path.join(launcherDir, "zetacode");
 		await fs.mkdir(sharedBinDir, { recursive: true });
 		await fs.mkdir(launcherDir, { recursive: true });
 		await Bun.write(standalonePath, "binary");
@@ -426,7 +426,7 @@ describe("update-cli install target detection", () => {
 		async () => {
 			const dir = await makeTempDir();
 			const dispatcherPath = path.join(dir, "launch");
-			const aliasPath = path.join(dir, "zeta-c");
+			const aliasPath = path.join(dir, "zetacode");
 			const dispatcher = "#!/bin/sh\necho dispatcher\n";
 			await Bun.write(dispatcherPath, dispatcher);
 			await fs.chmod(dispatcherPath, 0o755);
@@ -451,11 +451,11 @@ describe("update-cli install target detection", () => {
 	);
 
 	it.skipIf(process.platform === "win32")(
-		"refuses a foreign native target that does not report a zeta-c version",
+		"refuses a foreign native target that does not report a zetacode version",
 		async () => {
 			const dir = await makeTempDir();
 			const foreignPath = path.join(dir, "foreign");
-			const aliasPath = path.join(dir, "zeta-c");
+			const aliasPath = path.join(dir, "zetacode");
 			await fs.copyFile(process.execPath, foreignPath);
 			await fs.chmod(foreignPath, 0o755);
 			await fs.symlink(foreignPath, aliasPath);
@@ -471,7 +471,7 @@ describe("update-cli install target detection", () => {
 					fetchImpl,
 					validateExistingTarget: target.validateExistingTarget,
 				}),
-			).rejects.toThrow("does not report a zeta-c version when run directly");
+			).rejects.toThrow("does not report a zetacode version when run directly");
 			expect(fetchImpl).not.toHaveBeenCalled();
 		},
 	);
@@ -483,8 +483,8 @@ describe("update-cli install target detection", () => {
 		const dir = await makeTempDir();
 		const npmPrefix = path.join(dir, ".npm-global");
 		const { binDir: npmBinDir, nodeModulesDir } = npmGlobalLayout(npmPrefix);
-		const managedBinary = path.join(nodeModulesDir, "@linxiraos", "zeta", "zeta-c");
-		const aliasPath = path.join(npmBinDir, "zeta-c");
+		const managedBinary = path.join(nodeModulesDir, "@linxiraos", "zeta", "zetacode");
+		const aliasPath = path.join(npmBinDir, "zetacode");
 		await fs.mkdir(npmBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(managedBinary), { recursive: true });
 		await Bun.write(managedBinary, "binary");
@@ -510,7 +510,7 @@ describe("update-cli install target detection", () => {
 		const packagePath = path.join(bunGlobalDir, "node_modules", "@linxiraos", "zeta");
 		const checkoutPath = path.join(dir, "checkout");
 		const checkoutCli = path.join(checkoutPath, "dist", "cli.js");
-		const aliasPath = path.join(bunBinDir, "zeta-c");
+		const aliasPath = path.join(bunBinDir, "zetacode");
 		await fs.mkdir(bunBinDir, { recursive: true });
 		await fs.mkdir(path.dirname(packagePath), { recursive: true });
 		await Bun.write(checkoutCli, "linked checkout");
@@ -528,27 +528,27 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses binary update when prioritized omp is outside bun global bin", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zeta-c", "/Users/test/.bun/bin");
+		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zetacode", "/Users/test/.bun/bin");
 
 		expect(method).toBe("binary");
 	});
 
 	it("uses binary update when bun global bin cannot be resolved", () => {
-		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zeta-c", undefined);
+		const method = resolveUpdateMethodForTest("/Users/test/.local/bin/zetacode", undefined);
 
 		expect(method).toBe("binary");
 	});
 
-	it("uses Homebrew update when the prioritized zeta-c resolves into the Homebrew formula", async () => {
+	it("uses Homebrew update when the prioritized zetacode resolves into the Homebrew formula", async () => {
 		const dir = await makeTempDir();
-		const prefix = path.join(dir, "opt", "zeta-c");
+		const prefix = path.join(dir, "opt", "zetacode");
 		const linkedBin = path.join(dir, "bin");
 		await fs.mkdir(path.join(prefix, "bin"), { recursive: true });
 		await fs.mkdir(linkedBin, { recursive: true });
-		await Bun.write(path.join(prefix, "bin", "zeta-c"), "binary");
-		await fs.symlink(path.join(prefix, "bin", "zeta-c"), path.join(linkedBin, "zeta-c"));
+		await Bun.write(path.join(prefix, "bin", "zetacode"), "binary");
+		await fs.symlink(path.join(prefix, "bin", "zetacode"), path.join(linkedBin, "zetacode"));
 
-		const method = resolveUpdateMethodForTest(path.join(linkedBin, "zeta-c"), "/Users/test/.bun/bin", {
+		const method = resolveUpdateMethodForTest(path.join(linkedBin, "zetacode"), "/Users/test/.bun/bin", {
 			homebrewPrefix: prefix,
 		});
 
@@ -557,7 +557,7 @@ describe("update-cli install target detection", () => {
 
 	it("uses mise update when prioritized omp is in an active mise bin path", () => {
 		const method = resolveUpdateMethodForTest(
-			"/Users/test/.local/share/mise/installs/github-can1357-zeta/latest/bin/zeta-c",
+			"/Users/test/.local/share/mise/installs/github-can1357-zeta/latest/bin/zetacode",
 			undefined,
 			{
 				miseBinDirs: ["/Users/test/.local/share/mise/installs/github-can1357-zeta/latest/bin"],
@@ -749,8 +749,8 @@ describe("migrateRenamedInstall transaction", () => {
 				async verify() {
 					calls.push("verify");
 					return script.verify[verifies++]
-						? { ok: true, actual: "999.1.0", path: "/bin/zeta-c" }
-						: { ok: false, path: "/bin/zeta-c" };
+						? { ok: true, actual: "999.1.0", path: "/bin/zetacode" }
+						: { ok: false, path: "/bin/zetacode" };
 				},
 			},
 		};
@@ -1174,8 +1174,8 @@ describe("update-cli release binary integrity", () => {
 	it("rejects an altered version-reporting executable before replacing the installed binary", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
-		const installed = "#!/bin/sh\necho zeta-c/17.0.8\n";
-		const altered = "#!/bin/sh\necho zeta-c/17.1.2\n";
+		const installed = "#!/bin/sh\necho zetacode/17.0.8\n";
+		const altered = "#!/bin/sh\necho zetacode/17.1.2\n";
 		const expectedDigest = `sha256:${Bun.SHA256.hash("x".repeat(Buffer.byteLength(altered)), "hex")}`;
 		await Bun.write(targetPath, installed);
 		await fs.chmod(targetPath, 0o755);
@@ -1326,7 +1326,7 @@ describe("update-cli release binary integrity", () => {
 describe("update-cli binary replacement", () => {
 	it("restores the previous binary when the replacement fails verification", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
+		const targetPath = path.join(dir, "zetacode");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1340,7 +1340,7 @@ describe("update-cli binary replacement", () => {
 				expectedVersion: "15.1.8",
 				verifyInstalledVersion: async () => ({ ok: false, path: targetPath }),
 			}),
-		).rejects.toThrow("restored previous zeta-c binary");
+		).rejects.toThrow("restored previous zetacode binary");
 
 		expect(await Bun.file(targetPath).text()).toBe("old binary");
 		expect(await Bun.file(tempPath).exists()).toBe(false);
@@ -1349,7 +1349,7 @@ describe("update-cli binary replacement", () => {
 
 	it("keeps the replacement only after it reports the expected version", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
+		const targetPath = path.join(dir, "zetacode");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1372,7 +1372,7 @@ describe("update-cli binary replacement", () => {
 		// is nothing to move aside, so the swap must still land instead of
 		// aborting on ENOENT and leaving the user without a launcher.
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
+		const targetPath = path.join(dir, "zetacode");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.bak`;
 		await Bun.write(tempPath, "new binary");
@@ -1397,7 +1397,7 @@ describe("update-cli binary replacement on locked backups", () => {
 		// the running process image, so unlinking it throws EPERM. That cleanup
 		// failure must not turn a verified swap into "Update failed" (issue #845).
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c.exe");
+		const targetPath = path.join(dir, "zetacode.exe");
 		const tempPath = `${targetPath}.new`;
 		const backupPath = `${targetPath}.1700000000000.4242.bak`;
 		await Bun.write(targetPath, "old binary");
@@ -1436,7 +1436,7 @@ describe("update-cli binary replacement on locked backups", () => {
 describe("update-cli stale update artifact sweep", () => {
 	it("reclaims timestamped and legacy backups and orphaned temps while sparing in-progress temps and unrelated files", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c.exe");
+		const targetPath = path.join(dir, "zetacode.exe");
 		await Bun.write(targetPath, "current binary");
 		await Bun.write(`${targetPath}.bak`, "legacy backup");
 		await Bun.write(`${targetPath}.1700000000000.4242.bak`, "timestamped backup");
@@ -1481,7 +1481,7 @@ describe.skipIf(process.platform !== "darwin")("update-cli macOS live backup ima
 	// macOS when executed from a new path, so they cannot serve here.)
 	it("retains a backup whose image a live process runs across cleanup and sweep, then reclaims it after the process exits", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
+		const targetPath = path.join(dir, "zetacode");
 		await fs.copyFile(process.execPath, targetPath);
 		const live = Bun.spawn([targetPath, "-e", "await Bun.sleep(30000)"], { stdout: "ignore", stderr: "ignore" });
 		try {
@@ -1605,9 +1605,9 @@ describe("update-cli script-shim takeover", () => {
 	}
 
 	const shims: Record<string, string> = {
-		"zeta-c": "#!/bin/sh\nnode zeta-c.js\n",
-		"zeta-c.cmd": "@node zeta-c.js %*\n",
-		"zeta-c.ps1": "node zeta-c.js @args\n",
+		zetacode: "#!/bin/sh\nnode zeta-c.js\n",
+		"zetacode.cmd": "@node zeta-c.js %*\n",
+		"zetacode.ps1": "node zeta-c.js @args\n",
 	};
 
 	async function writeShims(dir: string): Promise<void> {
@@ -1618,7 +1618,7 @@ describe("update-cli script-shim takeover", () => {
 
 	/**
 	 * The fake release binaries are `#!/bin/sh` scripts, which Windows cannot
-	 * launch as `zeta-c.exe`. There, "run" the explicit path the takeover verifies
+	 * launch as `zetacode.exe`. There, "run" the explicit path the takeover verifies
 	 * by reading the version the script echoes; POSIX hosts execute it for real.
 	 */
 	const verifyBinary =
@@ -1630,22 +1630,22 @@ describe("update-cli script-shim takeover", () => {
 				}
 			: undefined;
 
-	it("installs zeta-c.exe beside the shims and retires them", async () => {
+	it("installs zetacode.exe beside the shims and retires them", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Real executable, no injected verifier: the takeover must verify the
 		// exe by explicit path — $which cached the shim path before it was
 		// renamed away, so a PATH re-resolution would fail here.
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 
-		await updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe),
 			githubToken: "test-token",
 			verifyBinary,
 		});
 
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).text()).toBe(exe);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).exists()).toBe(false);
 		}
@@ -1656,30 +1656,30 @@ describe("update-cli script-shim takeover", () => {
 	it("installs a canary prerelease binary only when the caller opts in", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 
 		// A canary release is published as a prerelease: without opt-in the
 		// takeover refuses the asset and leaves the shims intact.
 		await expect(
-			updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe, true),
 				githubToken: "test-token",
 				verifyBinary,
 			}),
 		).rejects.toThrow("is a prerelease");
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).exists()).toBe(false);
 
 		// allowPrerelease threads through to the asset resolver, so the canary
 		// exe installs and the shims are retired.
-		await updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+		await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 			binaryName,
 			fetchImpl: makeFetch(exe, true),
 			allowPrerelease: true,
 			githubToken: "test-token",
 			verifyBinary,
 		});
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).text()).toBe(exe);
 	});
 
 	it("drops bun's launcher metadata when the standalone binary takes the .exe over", async () => {
@@ -1688,11 +1688,11 @@ describe("update-cli script-shim takeover", () => {
 		// the next update through `bun install -g`, which cannot overwrite the
 		// running `.exe` and would pin the install to the old version.
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c.exe");
-		const marker = path.join(dir, "zeta-c.bunx");
+		const targetPath = path.join(dir, "zetacode.exe");
+		const marker = path.join(dir, "zetacode.bunx");
 		await Bun.write(targetPath, "bun shim");
 		await Bun.write(marker, "bun launcher metadata");
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 
 		await updateViaBinaryAt(targetPath, version, {
 			binaryName,
@@ -1707,8 +1707,8 @@ describe("update-cli script-shim takeover", () => {
 
 	it.skipIf(process.platform === "win32")("reports the physical binary path verified after an update", async () => {
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const targetPath = path.join(dir, "zetacode");
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 		await Bun.write(targetPath, "old binary");
 		const logSpy = spyOn(console, "log").mockImplementation(() => {});
 
@@ -1729,18 +1729,18 @@ describe("update-cli script-shim takeover", () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
 		// Executable runs but reports the previous version -> full rollback.
-		const exe = "#!/bin/sh\necho zeta-c/17.2.12\n";
+		const exe = "#!/bin/sh\necho zetacode/17.2.12\n";
 
 		await expect(
-			updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+			updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
 				verifyBinary,
 			}),
-		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zeta-c launcher/);
+		).rejects.toThrow(/still reports 17\.2\.12 \(expected 18\.0\.0\); restored previous zetacode launcher/);
 
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1751,7 +1751,7 @@ describe("update-cli script-shim takeover", () => {
 	function renameLockingPs1(): Mock<typeof nodeFs.promises.rename> {
 		const realRename = nodeFs.promises.rename;
 		return spyOn(nodeFs.promises, "rename").mockImplementation(async (from, to) => {
-			if (path.basename(String(from)) === "zeta-c.ps1") {
+			if (path.basename(String(from)) === "zetacode.ps1") {
 				throw Object.assign(new Error("EPERM: file is locked"), { code: "EPERM" });
 			}
 			return await realRename(from, to);
@@ -1761,10 +1761,10 @@ describe("update-cli script-shim takeover", () => {
 	it("rewrites an immovable precedence-winning shim as a forwarder to the exe", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = `#!/bin/sh\necho zeta-c/${version}\n`;
+		const exe = `#!/bin/sh\necho zetacode/${version}\n`;
 		const renameSpy = renameLockingPs1();
 		try {
-			await updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+			await updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 				binaryName,
 				fetchImpl: makeFetch(exe),
 				githubToken: "test-token",
@@ -1774,33 +1774,33 @@ describe("update-cli script-shim takeover", () => {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).text()).toBe(exe);
-		expect(await Bun.file(path.join(dir, "zeta-c")).exists()).toBe(false);
-		expect(await Bun.file(path.join(dir, "zeta-c.cmd")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).text()).toBe(exe);
+		expect(await Bun.file(path.join(dir, "zetacode")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.cmd")).exists()).toBe(false);
 		// PowerShell resolves .ps1 before .exe: the locked shim must now exec
 		// the new binary instead of keeping its old body.
-		expect(await Bun.file(path.join(dir, "zeta-c.ps1")).text()).toContain('& "$PSScriptRoot\\zeta-c.exe" @args');
+		expect(await Bun.file(path.join(dir, "zetacode.ps1")).text()).toContain('& "$PSScriptRoot\\zetacode.exe" @args');
 	});
 
 	it("restores a forwarded shim's original body when verification fails", async () => {
 		const dir = await makeTempDir();
 		await writeShims(dir);
-		const exe = "#!/bin/sh\necho zeta-c/17.2.12\n";
+		const exe = "#!/bin/sh\necho zetacode/17.2.12\n";
 		const renameSpy = renameLockingPs1();
 		try {
 			await expect(
-				updateViaShimTakeover(path.join(dir, "zeta-c.cmd"), version, {
+				updateViaShimTakeover(path.join(dir, "zetacode.cmd"), version, {
 					binaryName,
 					fetchImpl: makeFetch(exe),
 					githubToken: "test-token",
 					verifyBinary,
 				}),
-			).rejects.toThrow("restored previous zeta-c launcher");
+			).rejects.toThrow("restored previous zetacode launcher");
 		} finally {
 			renameSpy.mockRestore();
 		}
 
-		expect(await Bun.file(path.join(dir, "zeta-c.exe")).exists()).toBe(false);
+		expect(await Bun.file(path.join(dir, "zetacode.exe")).exists()).toBe(false);
 		for (const name in shims) {
 			expect(await Bun.file(path.join(dir, name)).text()).toBe(shims[name]);
 		}
@@ -1838,7 +1838,7 @@ describe("update-cli concurrent binary updates", () => {
 		setThemeInstance(loadedTheme);
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const dir = await makeTempDir();
-		const targetPath = path.join(dir, "zeta-c");
+		const targetPath = path.join(dir, "zetacode");
 		await Bun.write(targetPath, "old binary");
 		return { dir, targetPath };
 	}
@@ -2049,7 +2049,7 @@ describe("update-cli manager update recovery", () => {
 describe("update-cli self discovery (unified tiers)", () => {
 	const isWin = process.platform === "win32";
 	const ext = isWin ? ".cmd" : "";
-	const CLI_BIN = "zeta-c";
+	const CLI_BIN = "zetacode";
 
 	function treeWith(layout: Record<string, string[]>): { root: string; dirs: Record<string, string> } {
 		const root = nodeFs.mkdtempSync(path.join(os.tmpdir(), "zeta-update-disc-"));

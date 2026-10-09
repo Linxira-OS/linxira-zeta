@@ -2,7 +2,7 @@
  * Cross-process contract for the broker-owned blob daemon.
  *
  * One blob daemon runs per project scope (launched through the same daemon
- * broker that owns the shared Chromium and LSP mux), so every zeta-c process in
+ * broker that owns the shared Chromium and LSP mux), so every zetacode process in
  * the project shares one exposure (tunnel or uploader) and one URL per blob.
  * Control traffic rides HTTP over a Unix socket in the daemon runtime dir;
  * public traffic reaches the same store through the exposure.
@@ -24,11 +24,11 @@ export const BLOB_BROKER_CONFIG_ENV = "OMP_BLOB_BROKER_CONFIG";
 export const BLOB_BROKER_DAEMON_NAME = "omp.blob.broker";
 
 /** Broker readiness regex matched against the banner printed by the worker. */
-export const BLOB_BROKER_READY_PATTERN = String.raw`zeta-c blob broker serving \S+`;
+export const BLOB_BROKER_READY_PATTERN = String.raw`zetacode blob broker serving \S+`;
 
 /** Banner printed on stdout once the exposure is up and control is listening. */
 export function blobBrokerReadyBanner(baseUrl: string): string {
-	return `zeta-c blob broker serving ${baseUrl}`;
+	return `zetacode blob broker serving ${baseUrl}`;
 }
 
 /** Resolve the control socket path for one project scope. */

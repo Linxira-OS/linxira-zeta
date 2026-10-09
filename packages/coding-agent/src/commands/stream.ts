@@ -19,7 +19,7 @@ export default class Stream extends Command {
 
 	static examples = [
 		"zeta stream",
-		'zeta-c stream --title "Building a parser"',
+		'zetacode stream --title "Building a parser"',
 		"zeta stream --server https://live.example.com",
 	];
 

@@ -1,7 +1,7 @@
 {
   "name": "safety-hook",
   "version": "1.0.0",
-  "description": "zeta-c extension example: block rm -rf / via tool_call hook",
+  "description": "zetacode extension example: block rm -rf / via tool_call hook",
   "homepage": "https://linxira-os.github.io/zeta/",
   "omp": {
     "extensions": [

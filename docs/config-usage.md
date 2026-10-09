@@ -75,13 +75,13 @@ Project-level bases:
 
 ## Profiles
 
-A named profile (`zeta-c --profile <name>`, `OMP_PROFILE`, or the legacy fallback `PI_PROFILE`) relocates the OMP user base. `OMP_PROFILE` wins when it is defined, including when it is explicitly empty; `default`, empty, or whitespace selects the default profile. When a profile is active, every OMP-native user-level path written here as `~/.omp/agent/...` normally resolves to `~/.omp/profiles/<name>/agent/...`. `--alias <command>` does not select a profile by itself: paired with `--profile`, it creates a shell shortcut for that profile.
+A named profile (`zetacode --profile <name>`, `OMP_PROFILE`, or the legacy fallback `PI_PROFILE`) relocates the OMP user base. `OMP_PROFILE` wins when it is defined, including when it is explicitly empty; `default`, empty, or whitespace selects the default profile. When a profile is active, every OMP-native user-level path written here as `~/.omp/agent/...` normally resolves to `~/.omp/profiles/<name>/agent/...`. `--alias <command>` does not select a profile by itself: paired with `--profile`, it creates a shell shortcut for that profile.
 
 The relocation is uniform across the native provider (`builtin.ts`) and the generic `config.ts` helpers, so it covers slash commands, rules, prompts, instructions, hooks, tools, extensions, settings, skills, and MCP, plus the top-level `SYSTEM.md` / `RULES.md` / `AGENTS.md` files and runtime state (sessions, blobs, `agent.db`). A profile sees only its own OMP config, never the default profile's agent config.
 
 Keybindings are the one exception: a named profile merges the default profile's `~/.omp/agent/keybindings.*` under its own `~/.omp/profiles/<name>/agent/keybindings.*`, with the profile file overriding per binding ([#4867](https://github.com/can1357/oh-my-pi/issues/4867)). Keybindings describe the terminal/keyboard in front of the user, which doesn't change with the active profile, so user-level remaps keep working in every profile unless the profile explicitly overrides them. The inherited file is read-only for the profile process — legacy-format migration of the default profile's file only happens when the default profile itself runs.
 
-On macOS and Linux, an existing `$XDG_DATA_HOME/zeta-c`, `$XDG_STATE_HOME/zeta-c`, or `$XDG_CACHE_HOME/zeta-c` can relocate the corresponding data, state, or cache paths. For a named profile, OMP uses an XDG category only when that category already contains `zeta-c/profiles/<name>`; otherwise that category remains under `~/.omp/profiles/<name>`. Run `zeta-c config init-xdg` before relying on XDG paths.
+On macOS and Linux, an existing `$XDG_DATA_HOME/zetacode`, `$XDG_STATE_HOME/zetacode`, or `$XDG_CACHE_HOME/zetacode` can relocate the corresponding data, state, or cache paths. For a named profile, OMP uses an XDG category only when that category already contains `zetacode/profiles/<name>`; otherwise that category remains under `~/.omp/profiles/<name>`. Run `zetacode config init-xdg` before relying on XDG paths.
 
 The other source bases are not profile-scoped and load identically under every profile: the external-tool bases (`~/.claude`, `~/.codex`, `~/.gemini`) belong to those tools, and the project-level bases (`<cwd>/.omp`, `<cwd>/.claude`, ...) are keyed to the working directory. Throughout this document, read `~/.omp/agent` as shorthand for the active profile's agent directory unless an environment override or XDG path is being discussed.
 
@@ -157,7 +157,7 @@ Each setting is declared once with `register({ id, type, default, env?, protocol
 
 - `cfgX.get(scope)` — effective value; `scope` is a `Settings` instance or anything carrying one (`AgentSession`, `ToolSession`). Reads are memoized per scope.
 - `cfgX.set(scope, v)` — writes the **global** layer and queues a background save; values the definition's type rejects throw.
-- `cfgX.unset(scope)` — removes the key from the global layer (what `zeta-c config reset` and clearing a settings-panel text field do), so later default changes still apply.
+- `cfgX.unset(scope)` — removes the key from the global layer (what `zetacode config reset` and clearing a settings-panel text field do), so later default changes still apply.
 - `cfgX.setEntry(scope, key, v)` / `cfgX.setMember(scope, item, { member })` — write one entry of a record setting (`undefined` removes it) or add/remove one item of a list setting in the global layer; the save changes only that entry or item in `config.yml`, so entries another layer (a `--config` overlay) supplies never land there.
 - `cfgX.override(scope, v)` / `cfgX.clearOverride(scope)` — runtime-only override, never persisted.
 - `cfgX.map(fn)` / `combine({...}, fn)` — memoized derived values; `.listen(scope, cb)` observes changes of a handle or derivation.
@@ -172,7 +172,7 @@ Effective precedence, highest first:
 
 1. Environment variable declared on the definition (`env: "NAME"`), parsed by the setting's type; unparseable text counts as unset. Booleans follow `parseFlag`: empty is unset, `1`/`y`/`true`/`yes`/`on` (lower or upper case) is true, any other text is false
 2. Runtime overrides: in-memory, non-persistent
-3. Config overlays: `PI_CONFIG_FILES` (platform path-list), followed by repeated `zeta-c --config <path>` files; all are loaded as `config.yml`-style YAML for this process only
+3. Config overlays: `PI_CONFIG_FILES` (platform path-list), followed by repeated `zetacode --config <path>` files; all are loaded as `config.yml`-style YAML for this process only
 4. Project settings: discovered via the settings capability (`settings.json` and `config.yml` from providers)
 5. Global settings: the first present file among `~/.omp/agent/config.yml` and `config.yaml`
 6. Definition default

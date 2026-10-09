@@ -1,7 +1,7 @@
 /**
- * Session recordings (`/record`, `zeta-c play`).
+ * Session recordings (`/record`, `zetacode play`).
  *
- * A recording is the single-pane `zeta-c stream` feed persisted to disk: the same
+ * A recording is the single-pane `zetacode stream` feed persisted to disk: the same
  * normalized, redacted screen frames {@link StreamPaintEncoder} produces for
  * live viewers, stamped with their offset from the start of the recording.
  *
@@ -37,7 +37,7 @@ export interface RecordingHeader {
 	rows: number;
 	title: string;
 	createdAt: string;
-	/** Clip description, set by `zeta-c clip --description`. */
+	/** Clip description, set by `zetacode clip --description`. */
 	description?: string;
 	/** Uploading Stencil username, stamped by the clip server. */
 	owner?: string;

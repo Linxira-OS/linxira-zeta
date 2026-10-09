@@ -119,7 +119,7 @@ describe("BlobStore content-addressed writes", () => {
 		fs.utimesSync(first.path, old, old);
 
 		// A new reference to an hour-old blob is not on disk yet; without a
-		// fresh mtime a concurrent `zeta-c gc` would sweep the blob it points to.
+		// fresh mtime a concurrent `zetacode gc` would sweep the blob it points to.
 		store.putSync(data);
 
 		expect(Date.now() - fs.statSync(first.path).mtimeMs).toBeLessThan(60_000);

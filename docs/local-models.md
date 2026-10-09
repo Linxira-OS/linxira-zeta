@@ -22,7 +22,7 @@ retry:
 
 An explicit empty chain keeps each workload local. Leaving a model-kind chain unset instead uses that role's built-in priority list. The `default` fallback chain does not apply to `speech`, `dictation`, or `judge`.
 
-Inspect the catalog with `zeta-c models --kind tiny`, `zeta-c models --kind tts`, and `zeta-c models --kind stt`. Download tiny models with `zeta tiny-models list`, `zeta tiny-models download <model-id>`, or `zeta tiny-models download all`. Run `zeta-c setup speech` to choose, persist, and download the local speech and dictation models selected by their roles.
+Inspect the catalog with `zetacode models --kind tiny`, `zetacode models --kind tts`, and `zetacode models --kind stt`. Download tiny models with `zeta tiny-models list`, `zeta tiny-models download <model-id>`, or `zeta tiny-models download all`. Run `zetacode setup speech` to choose, persist, and download the local speech and dictation models selected by their roles.
 
 The tiny-model CLI and source registry retain **title** and **memory** groupings because those are the workloads used to benchmark and recommend model sizes. They are not runtime model classes: every entry in both groups has catalog kind `tiny`, and any compatible entry can be assigned to `tiny`, `memory`, or `judge`. Choose based on quality and resource needs rather than the CLI grouping alone.
 
@@ -77,7 +77,7 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
   loads it with `mlx_lm.load`, and speaks the exact protocol the ONNX worker speaks, so titles,
   memory completions, and local typed judgments use the same backend. Inference runs in the
   Python worker. `PI_TINY_DTYPE` is ignored by MLX. If the venv bootstrap fails (no Python,
-  install error, non-Apple host) zeta-c logs a warning and uses the ONNX CPU worker for the rest of
+  install error, non-Apple host) zetacode logs a warning and uses the ONNX CPU worker for the rest of
   the process. Measured on an M4 Max: cold venv install + LFM2.5-230M download + load 15.7s; a
   second zeta instance attaches to a running worker in well under a second; titles 15–60ms after
   warmup; Qwen3-1.7B (blocked on onnxruntime-node) downloads 984MB and answers a memory
@@ -204,7 +204,7 @@ fallback still ignores lines of 10 characters or fewer, so a short fact such as
 
 ## Local speech and dictation models
 
-The `speech` role accepts TTS catalog models and the `dictation` role accepts STT catalog models. `zeta-c setup speech` offers the local entries accepted by those roles, persists the selected `modelRoles.speech` and `modelRoles.dictation` values, and downloads their model/runtime files.
+The `speech` role accepts TTS catalog models and the `dictation` role accepts STT catalog models. `zetacode setup speech` offers the local entries accepted by those roles, persists the selected `modelRoles.speech` and `modelRoles.dictation` values, and downloads their model/runtime files.
 
 ### Text to speech
 
@@ -230,7 +230,7 @@ Kokoro and the transformers.js Whisper models read `providers.tinyModelDevice` /
 ## Integration notes
 
 - Local tiny inference for title, memory, or judgment workloads is selected with a `local/<model-id>` role assignment. An unset `tiny` role stays on its online default; an unset `memory` role follows the effective `tiny` role and can therefore become local when `tiny` is local. Unset `speech` and `dictation` roles use their own built-in priority lists, whose first candidates are local.
-- Local inference runs **in a worker** (off the main thread); weights are downloaded only when a local candidate is used or explicitly prefetched with `zeta tiny-models` or `zeta-c setup speech`, then cached on disk.
+- Local inference runs **in a worker** (off the main thread); weights are downloaded only when a local candidate is used or explicitly prefetched with `zeta tiny-models` or `zetacode setup speech`, then cached on disk.
 - Session-title generation uses `modelRoles.tiny`; Mnemopi extraction and consolidation use `modelRoles.memory` when its LLM mode is enabled. Their distinct prompts and benchmark groups do not impose separate runtime model types.
 - Auto-thinking, Smart unexpected-stop detection, typed Eval judgments, and AI-assisted git staging use the `judge` role. Assign `typesafe/jev-latest` for TypeSafe or a compatible local tiny model for on-device judgment; order alternatives under `retry.fallbackChains.judge`.
 - Managed memory extraction uses the shared line-format, small-talk-guarded system prompt on both local and online transports. A local primary additionally selects the local consolidation prompt. Explicit external Mnemopi endpoints remain authoritative instead of being replaced by the memory role.

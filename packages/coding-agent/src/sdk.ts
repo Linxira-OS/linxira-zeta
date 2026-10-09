@@ -1099,13 +1099,13 @@ export async function loadSessionExtensions(
 /**
  * Load discovered/configured extensions and register their providers into
  * `modelRegistry`, then discover the dynamic provider catalogs. One-shot CLIs
- * (`zeta-c bench`, dry-balance) build a bare {@link ModelRegistry} that only knows
+ * (`zetacode bench`, dry-balance) build a bare {@link ModelRegistry} that only knows
  * built-in catalog providers; without this, providers contributed by an
  * extension (e.g. a custom OpenAI-compatible provider under
  * `~/.zeta/agent/extensions/`) never reach model resolution. Mirrors the
- * session / `zeta-c models` path: drain the queued provider registrations, then
+ * session / `zetacode models` path: drain the queued provider registrations, then
  * `refreshRuntimeProviders` so dynamically-discovered models exist before
- * selectors are resolved, unless `discoverModels: false` (e.g. `zeta-c usage`,
+ * selectors are resolved, unless `discoverModels: false` (e.g. `zetacode usage`,
  * which needs only registered usage providers).
  */
 export async function loadCliExtensionProviders(
@@ -2757,7 +2757,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		// Hydrate cached runtime (extension) provider catalogs before model
 		// resolution. Dynamic-only providers have no synchronous registration side
 		// effect, so a cold --model/provider resume must see the same fresh SQLite
-		// cache that `zeta-c models find` uses before the online refresh continues in
+		// cache that `zetacode models find` uses before the online refresh continues in
 		// the background.
 		await modelRegistry.refreshRuntimeProviders("offline");
 		// Online runtime discovery must not steal the event loop from the first UI
@@ -3198,7 +3198,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// so on a cache-cold boot the configured default stays unresolved
 				// and `pick` silently degrades to an unrelated authed provider's
 				// default (#6162) or "No models available" (#6114) — even though
-				// `zeta-c models` (which awaits discovery) lists the model. Await one
+				// `zetacode models` (which awaits discovery) lists the model. Await one
 				// cache-aware discovery pass and retry when a default role is
 				// configured (must win over `pick`) or nothing resolved at all.
 				// The common path — role already resolved, or a `pick` with no

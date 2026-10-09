@@ -27,7 +27,7 @@ describe("install command is registered as a top-level subcommand", () => {
 
 	test("CLI runner rejects only bare reserved management words", () => {
 		expect(resolveCliArgv(["extensions"])).toEqual({
-			error: '`zeta-c extensions` is not a management command. Use `zeta-c plugin list` / `zeta-c plugin install`, or run `zeta-c launch extensions` if you meant to send "extensions" as a prompt.',
+			error: '`zetacode extensions` is not a management command. Use `zetacode plugin list` / `zetacode plugin install`, or run `zetacode launch extensions` if you meant to send "extensions" as a prompt.',
 		});
 		expect(resolveCliArgv(["extensions", "are", "not", "loading"])).toEqual({
 			argv: ["launch", "extensions", "are", "not", "loading"],

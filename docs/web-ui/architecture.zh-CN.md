@@ -1,7 +1,7 @@
 # Web UI 架构
 
 Zeta 的 Web 界面是一个独立的 Next.js 应用（`web-ui/`），通过 HTTP 与本地
-运行时通信。`zeta-c serve` 启动一个 Bun 进程，同时托管三个后端并把它们
+运行时通信。`zetacode serve` 启动一个 Bun 进程，同时托管三个后端并把它们
 代理到单个端口之后，浏览器只看到一个源（origin）。
 
 ## 进程布局

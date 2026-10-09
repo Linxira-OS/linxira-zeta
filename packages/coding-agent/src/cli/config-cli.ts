@@ -1,7 +1,7 @@
 /**
  * Config CLI command handlers.
  *
- * Handles `zeta-c config <command>` subcommands for managing settings.
+ * Handles `zetacode config <command>` subcommands for managing settings.
  * The settings registry (`config/registry.ts`) is the source of truth for available settings.
  */
 

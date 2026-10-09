@@ -1,6 +1,6 @@
 # im_control
 
-> Natural-language control of the IM relay (WeChat / Feishu / Telegram through `zeta-c serve`): workspaces, default-space sessions, reply language, and model. The coordinator (and each bot session) calls it when the user asks — in any language — to manage those, instead of requiring `!` commands.
+> Natural-language control of the IM relay (WeChat / Feishu / Telegram through `zetacode serve`): workspaces, default-space sessions, reply language, and model. The coordinator (and each bot session) calls it when the user asks — in any language — to manage those, instead of requiring `!` commands.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/im-control.ts`
@@ -8,7 +8,7 @@
 - Model-facing prompt: `packages/coding-agent/src/prompts/tools/im-control.md`
 
 ## Registration / Visibility
-- Web/desktop mode only: available when the session runs under `zeta-c serve` with a channel runtime and `channels.enabled` is not `false`.
+- Web/desktop mode only: available when the session runs under `zetacode serve` with a channel runtime and `channels.enabled` is not `false`.
 - Rejected in plain CLI sessions (`isToolAllowed` returns `false` when `ToolSession.imControl` is undefined).
 - Exposed on both the relay coordinator and every default-space bot session (both are `AgentSession`s created through the same tool wiring).
 

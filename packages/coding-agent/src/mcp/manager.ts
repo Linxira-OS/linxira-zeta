@@ -1235,7 +1235,7 @@ export class MCPManager {
 	/**
 	 * Wait for every in-flight connect, tool load, and reconnect to settle.
 	 *
-	 * One-shot callers (e.g. `zeta-c read <mcp-resource>`) discover servers and read
+	 * One-shot callers (e.g. `zetacode read <mcp-resource>`) discover servers and read
 	 * immediately; a server whose handshake outlasts the {@link connectServers}
 	 * startup race is still tracked in {@link #pendingConnections} /
 	 * {@link #pendingToolLoads} and therefore invisible to

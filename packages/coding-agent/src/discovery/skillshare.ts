@@ -37,9 +37,9 @@ async function loadLockedSkill(
 	// Ids are validated when the lock is parsed.
 	const { scope, name } = parseSkillId(id)!;
 	const storeDir = getSkillStorePath(scope, name, entry.version);
-	// Only a completed unpack of the locked bytes counts; anything else is restored by `zeta-c skill update`.
+	// Only a completed unpack of the locked bytes counts; anything else is restored by `zetacode skill update`.
 	if ((await readStoredIntegrity(storeDir)) !== entry.integrity) {
-		logger.debug("Skillshare skill missing from store; run `zeta-c skill update` to restore it", {
+		logger.debug("Skillshare skill missing from store; run `zetacode skill update` to restore it", {
 			id,
 			version: entry.version,
 			storeDir,
@@ -101,7 +101,7 @@ export async function loadSkillshareSkills(ctx: LoadContext): Promise<LoadResult
 registerProvider<Skill>(skillCapability.id, {
 	id: SKILLSHARE_PROVIDER_ID,
 	displayName: "Skillshare",
-	description: "Registry skills installed with `zeta-c skill install` (skills.lock.json)",
+	description: "Registry skills installed with `zetacode skill install` (skills.lock.json)",
 	priority: PRIORITY,
 	load: loadSkillshareSkills,
 });

@@ -29,12 +29,18 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
 
 **四产品线**（bin 命名 2026-09-30 定稿）：
 
-| 产品线 | 包 | bin（canonical 展示） | 连字符别名（仅内部） | 形态 |
+| 产品线 | 包 | 标准名（唯一对外文案） | 兼容别名 | 形态 |
 |---|---|---|---|---|
-| Zetawork 工作台 | `@linxiraos/main`（`main/` 独立 Rust workspace） | `zeta` / `zetawork` | `zeta-work` | 嵌套终端工作台：tab = 窗格布局快照，窗格 = 真 PTY 终端（zeta-c / zeta-e / shell 为子进程）；零快捷键基线——一切元素可鼠标高效点击，快捷键只是可选加速器 |
-| Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` / `zeta-c` / `zeta-cli` | — | 编码 agent CLI + `zeta serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
-| Zetaide | `@linxiraos/ide`（termide） | `zetaide` / `zeta-i` / `zeta-ide` | — | 终端 IDE |
-| Zeta editor | `@linxiraos/editor`（vendored TTT） | `zetaeditor` / `zeta-e` / `zeta-editor` | — | 终端编辑器 |
+| Zetawork 工作台 | `@linxiraos/main`（`main/` 独立 Rust workspace） | `zetawork`（裸 `zeta` 同指工作台） | `zeta-work` | 嵌套终端工作台：tab = 窗格布局快照，窗格 = 真 PTY 终端（zetacode / zetaeditor / shell 为子进程）；零快捷键基线——一切元素可鼠标高效点击，快捷键只是可选加速器 |
+| Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` | `zeta-c` / `zeta-cli` | 编码 agent CLI + `zeta serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
+| Zetaide | `@linxiraos/ide`（termide） | `zetaide` | `zeta-i` / `zeta-ide` | 终端 IDE |
+| Zetaeditor | `@linxiraos/editor`（vendored TTT） | `zetaeditor` | `zeta-e` / `zeta-editor` | 终端编辑器 |
+
+**命名裁定（2026-10-09）**：四个标准名一律**无连字符**（zetawork / zetacode /
+zetaide / zetaeditor）。连字符形式只作为 `package.json` `bin` 兼容别名存在，
+用户可见文案、`CLI_BIN_NAME`、提示串、示例一律写标准名；`zeta code` 这类带空格
+写法不是 bin，任何文案不得出现。文件/垫片名语境（`zeta-c.cmd`、`zeta-capture-*`、
+`zeta-cli-*` 资产名）是例外，机械 sweep 的正则须排除 `[\w.-]` 后缀。
 
 两个 IDE（ttt 与 termide）并存观察，不二选一。壳坚定 Rust（真 PTY 窗格；
 参照系 fresh：绘制时登记命中区，渲染几何即命中几何）。

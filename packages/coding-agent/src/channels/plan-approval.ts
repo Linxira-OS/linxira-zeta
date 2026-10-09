@@ -1,5 +1,5 @@
 /**
- * plan-approval — remote plan-approval execution for `zeta-c serve` (no TUI).
+ * plan-approval — remote plan-approval execution for `zetacode serve` (no TUI).
  *
  * Replicates the core branches of interactive-mode's `#approvePlan` for the
  * web/IM path, operating directly on the `AgentSession`:

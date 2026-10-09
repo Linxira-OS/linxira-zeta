@@ -320,35 +320,35 @@ export function isSubcommand(first: string | undefined): boolean {
 }
 
 // Documented-looking plugin/marketplace verbs that are NOT registered top-level
-// commands. Without a guard `resolveCliArgv` rewrites e.g. `zeta-c marketplace add
-// xyz` to `zeta-c launch marketplace add xyz`, silently forwarding the argv to the
+// commands. Without a guard `resolveCliArgv` rewrites e.g. `zetacode marketplace add
+// xyz` to `zetacode launch marketplace add xyz`, silently forwarding the argv to the
 // model as a prompt instead of managing plugins (#4845; same class as the
 // `list`/`remove` leak fixed in #2935 and the `install` leak in #1496/#1498).
-// The real commands live under `zeta-c plugin <action>`; each entry maps a verb to
+// The real commands live under `zetacode plugin <action>`; each entry maps a verb to
 // a hint pointing there. See {@link reservedTopLevelWordMessage} for when a hint
 // fires vs. when the argv still falls through to `launch`.
 const RESERVED_TOP_LEVEL_WORDS: Record<string, string> = {
 	extensions:
-		'`zeta-c extensions` is not a management command. Use `zeta-c plugin list` / `zeta-c plugin install`, or run `zeta-c launch extensions` if you meant to send "extensions" as a prompt.',
-	list: '`zeta-c list` is not a top-level command. Use `zeta-c plugin list` to list installed plugins, or run `zeta-c launch list` if you meant to send "list" as a prompt.',
+		'`zetacode extensions` is not a management command. Use `zetacode plugin list` / `zetacode plugin install`, or run `zetacode launch extensions` if you meant to send "extensions" as a prompt.',
+	list: '`zetacode list` is not a top-level command. Use `zetacode plugin list` to list installed plugins, or run `zetacode launch list` if you meant to send "list" as a prompt.',
 	remove:
-		'`zeta-c remove` is not a top-level command. Use `zeta-c plugin uninstall <name>` to remove a plugin, or run `zeta-c launch remove` if you meant to send "remove" as a prompt.',
+		'`zetacode remove` is not a top-level command. Use `zetacode plugin uninstall <name>` to remove a plugin, or run `zetacode launch remove` if you meant to send "remove" as a prompt.',
 	uninstall:
-		'`zeta-c uninstall` is not a top-level command. Use `zeta-c plugin uninstall <name@marketplace>` to remove a plugin, or run `zeta-c launch uninstall` if you meant to send "uninstall" as a prompt.',
+		'`zetacode uninstall` is not a top-level command. Use `zetacode plugin uninstall <name@marketplace>` to remove a plugin, or run `zetacode launch uninstall` if you meant to send "uninstall" as a prompt.',
 	marketplace:
-		'`zeta-c marketplace` is not a top-level command. Use `zeta-c plugin marketplace <add|remove|update|list>` to manage marketplaces, or run `zeta-c launch marketplace` if you meant to send "marketplace" as a prompt.',
+		'`zetacode marketplace` is not a top-level command. Use `zetacode plugin marketplace <add|remove|update|list>` to manage marketplaces, or run `zetacode launch marketplace` if you meant to send "marketplace" as a prompt.',
 	discover:
-		'`zeta-c discover` is not a top-level command. Use `zeta-c plugin discover [marketplace]` to browse available plugins, or run `zeta-c launch discover` if you meant to send "discover" as a prompt.',
+		'`zetacode discover` is not a top-level command. Use `zetacode plugin discover [marketplace]` to browse available plugins, or run `zetacode launch discover` if you meant to send "discover" as a prompt.',
 	upgrade:
-		'`zeta-c upgrade` is not a top-level command. Use `zeta-c plugin upgrade [name]` to upgrade plugins, or run `zeta-c launch upgrade` if you meant to send "upgrade" as a prompt.',
+		'`zetacode upgrade` is not a top-level command. Use `zetacode plugin upgrade [name]` to upgrade plugins, or run `zetacode launch upgrade` if you meant to send "upgrade" as a prompt.',
 	enable:
-		'`zeta-c enable` is not a top-level command. Use `zeta-c plugin enable <name@marketplace>` to enable a plugin, or run `zeta-c launch enable` if you meant to send "enable" as a prompt.',
+		'`zetacode enable` is not a top-level command. Use `zetacode plugin enable <name@marketplace>` to enable a plugin, or run `zetacode launch enable` if you meant to send "enable" as a prompt.',
 	disable:
-		'`zeta-c disable` is not a top-level command. Use `zeta-c plugin disable <name@marketplace>` to disable a plugin, or run `zeta-c launch disable` if you meant to send "disable" as a prompt.',
+		'`zetacode disable` is not a top-level command. Use `zetacode plugin disable <name@marketplace>` to disable a plugin, or run `zetacode launch disable` if you meant to send "disable" as a prompt.',
 };
 
-// Sub-actions that make `zeta-c marketplace <sub>` unambiguously a management
-// command even when multi-word (the reporter's `zeta-c marketplace add xyz`,
+// Sub-actions that make `zetacode marketplace <sub>` unambiguously a management
+// command even when multi-word (the reporter's `zetacode marketplace add xyz`,
 // #4845). Mirrors the switch in `handleMarketplace` (cli/plugin-cli.ts).
 const MARKETPLACE_SUBCOMMANDS: Record<string, true> = { add: true, remove: true, rm: true, update: true, list: true };
 
@@ -356,11 +356,11 @@ const MARKETPLACE_SUBCOMMANDS: Record<string, true> = { add: true, remove: true,
  * Hint for a reserved plugin/marketplace verb used as a top-level command, or
  * `undefined` when the argv should fall through to `launch`.
  *
- * A bare verb (`zeta-c marketplace`) always hints. A multi-word invocation only
+ * A bare verb (`zetacode marketplace`) always hints. A multi-word invocation only
  * hints when the arguments follow the documented plugin grammar — a marketplace
- * sub-action (`zeta-c marketplace add …`) or a `name@marketplace` plugin id
- * (`zeta-c uninstall foo@bar`) — so genuine prompts that merely begin with one of
- * these words (`zeta-c list all my files`, `zeta-c upgrade the deps`) still launch.
+ * sub-action (`zetacode marketplace add …`) or a `name@marketplace` plugin id
+ * (`zetacode uninstall foo@bar`) — so genuine prompts that merely begin with one of
+ * these words (`zetacode list all my files`, `zetacode upgrade the deps`) still launch.
  *
  * Flags (`-…`) and `@file` arguments in the verb slot are never management
  * commands; those fall through to the default `launch` command.
@@ -449,11 +449,11 @@ export function resolveCliArgv(argv: string[]): ResolvedCliArgv {
 	}
 	if (isSubcommand(first)) return { argv };
 	// A subcommand can hide behind leading global option flags
-	// (`zeta-c --approval-mode=yolo acp`). `run` dispatches strictly on argv[0], so
+	// (`zetacode --approval-mode=yolo acp`). `run` dispatches strictly on argv[0], so
 	// hoist the subcommand to the front. Launch-shaped commands share the launch
 	// flag surface, so their leading flags are forwarded and applied; every other
 	// subcommand parses only its own flags, so launch-global flags placed before
-	// it (`zeta-c --cwd <dir> update`) are stripped rather than forwarded into a
+	// it (`zetacode --cwd <dir> update`) are stripped rather than forwarded into a
 	// crash (#8891). Genuine launch prompts (no trailing subcommand) are untouched.
 	const subIndex = leadingSubcommandIndex(argv);
 	if (subIndex >= 0) {

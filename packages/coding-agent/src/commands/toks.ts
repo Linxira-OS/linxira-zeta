@@ -72,7 +72,7 @@ export default class Toks extends Command {
 
 	static examples = [
 		"zeta toks README.md",
-		'zeta-c toks "The quick brown fox jumps over the lazy dog"',
+		'zetacode toks "The quick brown fox jumps over the lazy dog"',
 		"zeta toks src/main.ts --json",
 	];
 

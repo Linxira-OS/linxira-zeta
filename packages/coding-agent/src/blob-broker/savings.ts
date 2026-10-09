@@ -28,7 +28,7 @@ export interface BlobBrokerSavingsCounters {
 	readonly savedBytes: number;
 }
 
-/** Durable savings summary exposed by `zeta-c images status`. */
+/** Durable savings summary exposed by `zetacode images status`. */
 export interface BlobBrokerSavingsStatus extends BlobBrokerSavingsCounters {
 	readonly journalPath: string;
 	readonly byDestination: Readonly<Record<string, BlobBrokerSavingsCounters>>;

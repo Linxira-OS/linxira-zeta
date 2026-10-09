@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 /**
- * `zeta-c ttsr` — inspect and test Time-Traveling Stream Rules.
+ * `zetacode ttsr` — inspect and test Time-Traveling Stream Rules.
  *
- * `zeta-c ttsr test` feeds a snippet (inline, --file, or stdin) through the real
- * TTSR matching pipeline and reports which rules would trigger. `zeta-c ttsr list`
+ * `zetacode ttsr test` feeds a snippet (inline, --file, or stdin) through the real
+ * TTSR matching pipeline and reports which rules would trigger. `zetacode ttsr list`
  * shows every TTSR-registered rule the current project/user config would load.
  */
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
@@ -62,18 +62,18 @@ export default class Ttsr extends Command {
 	};
 
 	static examples = [
-		"zeta-c ttsr list",
-		"zeta-c ttsr test 'const x: any = 1'",
-		"zeta-c ttsr test src/foo.ts",
-		"zeta-c ttsr test --file src/foo.ts",
-		"zeta-c ttsr test --file src/foo.ts --source text",
-		"zeta-c ttsr test --rule .zeta/rules/no-any.md --source tool --path src/foo.ts 'const x: any = 1'",
-		"zeta-c ttsr test --agent scout 'const x: any = 1'",
+		"zetacode ttsr list",
+		"zetacode ttsr test 'const x: any = 1'",
+		"zetacode ttsr test src/foo.ts",
+		"zetacode ttsr test --file src/foo.ts",
+		"zetacode ttsr test --file src/foo.ts --source text",
+		"zetacode ttsr test --rule .zeta/rules/no-any.md --source tool --path src/foo.ts 'const x: any = 1'",
+		"zetacode ttsr test --agent scout 'const x: any = 1'",
 		"echo 'Box::leak(&mut v)' | zeta ttsr test --file - --path src/lib.rs",
-		"zeta-c ttsr test --source tool --tool edit --path src/foo.ts 'const x: any = 1'",
-		"zeta-c ttsr scan",
-		"zeta-c ttsr scan src/",
-		"zeta-c ttsr scan -r .zeta/rules/no-any.md src/",
+		"zetacode ttsr test --source tool --tool edit --path src/foo.ts 'const x: any = 1'",
+		"zetacode ttsr scan",
+		"zetacode ttsr scan src/",
+		"zetacode ttsr scan -r .zeta/rules/no-any.md src/",
 	];
 
 	async run(): Promise<void> {
@@ -81,7 +81,7 @@ export default class Ttsr extends Command {
 		const action = (args.action ?? "list") as (typeof TTSR_ACTIONS)[number];
 
 		// A positional that resolves to an existing file is a snippet file, not
-		// inline text — so `zeta-c ttsr test src/foo.ts` works without --file.
+		// inline text — so `zetacode ttsr test src/foo.ts` works without --file.
 		// --file always wins over the positional.
 		let file = flags.file;
 		let snippet = args.snippet;

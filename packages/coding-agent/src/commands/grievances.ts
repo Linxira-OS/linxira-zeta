@@ -10,7 +10,7 @@ export default class Grievances extends Command {
 	static description = commandHelp.description;
 	static args = {
 		// Positional action: "list" (default), "clean", or "push". A positional
-		// arg keeps the historical `zeta-c grievances` invocation working unchanged
+		// arg keeps the historical `zetacode grievances` invocation working unchanged
 		// while reusing the same command surface for the clean/push verbs.
 		action: Args.string({
 			description: "list (default), clean, or push",
@@ -29,12 +29,12 @@ export default class Grievances extends Command {
 	};
 
 	static examples = [
-		"zeta-c grievances",
-		"zeta-c grievances list --tool find",
-		"zeta-c grievances clean --id 209",
-		"zeta-c grievances clean --tool find",
-		"zeta-c grievances clean --all",
-		"zeta-c grievances push",
+		"zetacode grievances",
+		"zetacode grievances list --tool find",
+		"zetacode grievances clean --id 209",
+		"zetacode grievances clean --tool find",
+		"zetacode grievances clean --all",
+		"zetacode grievances push",
 	];
 
 	async run(): Promise<void> {

@@ -15,7 +15,7 @@ In the TUI, `/marketplace` with no arguments opens the interactive plugin browse
 
 A **marketplace** is a Git repository (or local directory) containing a catalog file at `.zeta-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
 
-A **plugin** is a directory containing Claude/ZETA plugin content such as skills, commands, agents, rules, hooks, tools, MCP servers, LSP servers, or DAP adapters. Root `plugin.json` packages declaring the Agent Plugins 1.0.0 schema use the portable `agent-plugins` discovery provider for skills and `mcp.json`; hybrid packages can still expose ZETA-specific content. Marketplace installs also load extension modules declared by `package.json` `zeta.extensions`: installation symlinks the cached plugin into the scope's `node_modules` tree and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zeta-c plugin link`ed plugins. Plugins are identified by `name@marketplace` (e.g. `code-review@claude-plugins-official`).
+A **plugin** is a directory containing Claude/ZETA plugin content such as skills, commands, agents, rules, hooks, tools, MCP servers, LSP servers, or DAP adapters. Root `plugin.json` packages declaring the Agent Plugins 1.0.0 schema use the portable `agent-plugins` discovery provider for skills and `mcp.json`; hybrid packages can still expose ZETA-specific content. Marketplace installs also load extension modules declared by `package.json` `zeta.extensions`: installation symlinks the cached plugin into the scope's `node_modules` tree and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins. Plugins are identified by `name@marketplace` (e.g. `code-review@claude-plugins-official`).
 
 **Scopes**: marketplace plugins can be installed at two scopes:
 
@@ -24,7 +24,7 @@ A **plugin** is a directory containing Claude/ZETA plugin content such as skills
 
 Enabled project-scoped installs shadow enabled user-scoped installs of the same plugin. A disabled project install does not shadow the user install.
 
-On Linux and macOS, `zeta-c config init-xdg` initializes the XDG data, state, and cache roots; it does not move existing data. With `XDG_DATA_HOME` set and its `zeta/` directory initialized, user marketplace/plugin state resolves under `$XDG_DATA_HOME/zeta` (including `marketplaces.json` and `plugins/`). Named profiles use their own roots; XDG routing requires the corresponding `zeta/profiles/<name>/` directory. The `~/.zeta` paths below are the default-profile, non-XDG defaults.
+On Linux and macOS, `zetacode config init-xdg` initializes the XDG data, state, and cache roots; it does not move existing data. With `XDG_DATA_HOME` set and its `zeta/` directory initialized, user marketplace/plugin state resolves under `$XDG_DATA_HOME/zeta` (including `marketplaces.json` and `plugins/`). Named profiles use their own roots; XDG routing requires the corresponding `zeta/profiles/<name>/` directory. The `~/.zeta` paths below are the default-profile, non-XDG defaults.
 
 On first XDG registry resolution, an existing config-root `marketplaces.json` is copied best-effort if the XDG target is absent; the old file remains. Plugin installation trees are not copied by this helper.
 
@@ -63,17 +63,17 @@ On first XDG registry resolution, an existing config-root `marketplaces.json` is
 The same operations are available from the command line:
 
 ```
-zeta-c plugin marketplace add <source>
-zeta-c plugin marketplace remove <name>
-zeta-c plugin marketplace update [name]
-zeta-c plugin marketplace list
-zeta-c plugin discover [marketplace]
-zeta-c plugin install [--dry-run] [--force] [--scope user|project] name@marketplace
-zeta-c plugin uninstall [--dry-run] [--scope user|project] name@marketplace
-zeta-c plugin upgrade [--scope user|project] [name@marketplace]
-zeta-c plugin enable [--scope user|project] name@marketplace
-zeta-c plugin disable [--scope user|project] name@marketplace
-zeta-c plugin list
+zetacode plugin marketplace add <source>
+zetacode plugin marketplace remove <name>
+zetacode plugin marketplace update [name]
+zetacode plugin marketplace list
+zetacode plugin discover [marketplace]
+zetacode plugin install [--dry-run] [--force] [--scope user|project] name@marketplace
+zetacode plugin uninstall [--dry-run] [--scope user|project] name@marketplace
+zetacode plugin upgrade [--scope user|project] [name@marketplace]
+zetacode plugin enable [--scope user|project] name@marketplace
+zetacode plugin disable [--scope user|project] name@marketplace
+zetacode plugin list
 
 ```
 
@@ -219,7 +219,7 @@ Invalid catalog JSON or invalid required top-level fields reject the catalog. An
 ## Updates, removal, and scope
 
 - `/marketplace update [name]` refreshes catalogs only; it does not reinstall plugins.
-- `zeta-c plugin upgrade name@marketplace` reinstalls every installed scope when `--scope` is omitted. `/marketplace upgrade name@marketplace`, uninstall, and enable/disable require `--scope user|project` when the plugin exists in both scopes.
+- `zetacode plugin upgrade name@marketplace` reinstalls every installed scope when `--scope` is omitted. `/marketplace upgrade name@marketplace`, uninstall, and enable/disable require `--scope user|project` when the plugin exists in both scopes.
 - Upgrading all plugins compares only catalog entries that declare `version`. Semver versions must be newer; non-semver versions are treated as changed when unequal. Each installed scope is checked independently. Per-plugin failures are skipped, so an all-plugin upgrade can partially succeed. CLI `--scope` is ignored when upgrading all plugins.
 - Reinstall/upgrade preserves disabled state, feature selection, and settings. User and project installs share version-keyed cache directories, so forcing a reinstall of the same version replaces content used by both scopes. Runtime package-name and cache-path collisions with other plugins are rejected.
 - `marketplace.autoUpdate` controls startup checks: `off`, `notify` (default), or `auto`. Catalogs older than 24 hours are refreshed best-effort before version checks. Despite its name, current `notify` mode writes update availability only to the debug log; it does not show a user-facing notification.
