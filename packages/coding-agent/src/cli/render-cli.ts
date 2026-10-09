@@ -1,5 +1,5 @@
 /**
- * `zeta-c render` — draw a session's entire thread through the production
+ * `zetacode render` — draw a session's entire thread through the production
  * transcript pipeline, headlessly.
  *
  * Replays the session into a real `InteractiveMode` + `TUI` wired to an
@@ -269,7 +269,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 			mode?.stop();
 			await session?.dispose();
 		} catch (err) {
-			logger.debug("zeta-c render teardown failed", { error: String(err) });
+			logger.debug("zetacode render teardown failed", { error: String(err) });
 		}
 		tempDir.removeSync();
 	}

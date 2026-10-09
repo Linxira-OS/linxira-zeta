@@ -1,7 +1,7 @@
 /**
  * Web search CLI command handlers.
  *
- * Handles `zeta-c q`/`zeta-c web-search` subcommands for testing web search models.
+ * Handles `zetacode q`/`zetacode web-search` subcommands for testing web search models.
  */
 
 import { CLI_BIN_NAME, getProjectDir } from "@linxiraos/pi-utils";

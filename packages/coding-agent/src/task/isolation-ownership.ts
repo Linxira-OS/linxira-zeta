@@ -3,7 +3,7 @@
  *
  * Each isolation base dir (`ensureIsolation` in {@link ./worktree}) holds a
  * compact `m` mount plus this marker file naming the zeta process that created
- * it. `zeta-c worktree clear` consults the marker so it can distinguish a live
+ * it. `zetacode worktree clear` consults the marker so it can distinguish a live
  * subagent's sandbox from a crashed run's leftover instead of deleting both.
  */
 import * as path from "node:path";
@@ -65,7 +65,7 @@ async function processStartToken(pid: number): Promise<string | null> {
  * Record the current process as owner of the sandbox rooted at `baseDir`.
  *
  * Written before the isolation backend materialises `m` so a concurrent
- * `zeta-c worktree clear` never sees an owner-less sandbox mid-creation.
+ * `zetacode worktree clear` never sees an owner-less sandbox mid-creation.
  */
 export async function writeIsolationOwner(baseDir: string, id: string): Promise<void> {
 	const startToken = await processStartToken(process.pid);
@@ -113,7 +113,7 @@ export async function hasLiveIsolationOwner(baseDir: string): Promise<boolean> {
 export const RETAINED_BACKEND_FILE = ".omp-retained-backend.json";
 
 /**
- * Backends whose workspaces `zeta-c worktree clear` must not remove with plain
+ * Backends whose workspaces `zetacode worktree clear` must not remove with plain
  * recursive `rm`, but route through native `isoStop` teardown instead:
  * mounts (overlayfs, projfs), where `rm` destroys the preserved layer and
  * fails on the mountpoint, and Btrfs subvolumes, whose root is only removable

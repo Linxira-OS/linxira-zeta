@@ -13,7 +13,7 @@ export default class Worktree extends Command {
 	static aliases = ["wt"];
 
 	static args = {
-		// A positional action keeps `zeta-c worktree` (the no-arg form) useful.
+		// A positional action keeps `zetacode worktree` (the no-arg form) useful.
 		action: Args.string({
 			description: "list (default), clear, or add",
 			required: false,
@@ -68,14 +68,14 @@ export default class Worktree extends Command {
 	};
 
 	static examples = [
-		"zeta-c worktree",
-		"zeta-c worktree list --json",
-		"zeta-c worktree add ../feature",
-		"zeta-c worktree add -b feature ../feature origin/main",
-		"zeta-c worktree add --detach ../review HEAD~2",
-		"zeta-c worktree clear",
-		"zeta-c worktree clear --dry-run",
-		"zeta-c worktree clear --all",
+		"zetacode worktree",
+		"zetacode worktree list --json",
+		"zetacode worktree add ../feature",
+		"zetacode worktree add -b feature ../feature origin/main",
+		"zetacode worktree add --detach ../review HEAD~2",
+		"zetacode worktree clear",
+		"zetacode worktree clear --dry-run",
+		"zetacode worktree clear --all",
 	];
 
 	async run(): Promise<void> {

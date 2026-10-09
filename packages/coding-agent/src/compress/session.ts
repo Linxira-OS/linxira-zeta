@@ -1,5 +1,5 @@
 /**
- * Session factory for `zeta-c compress`.
+ * Session factory for `zetacode compress`.
  *
  * Deliberately minimal: two custom tools, no extensions, no MCP, no IRC, no LSP,
  * no file or shell access. Everything the agent needs arrives in the conversation,

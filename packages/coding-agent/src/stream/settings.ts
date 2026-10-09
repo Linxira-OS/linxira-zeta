@@ -17,7 +17,7 @@ export const cfgStreamServerUrl = register({
 		group: "Stream",
 		label: "Stream Server",
 		description:
-			"Live stream server used by `zeta-c stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
+			"Live stream server used by `zetacode stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
 	},
 });
 

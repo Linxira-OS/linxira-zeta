@@ -27,10 +27,10 @@ export interface ProfileAliasProcessOptions {
 }
 
 const DEFAULT_ALIAS_COMMAND: ProfileAliasCommand = {
-	display: "zeta-c",
-	posix: "zeta-c",
-	fish: "zeta-c",
-	powerShell: "zeta-c",
+	display: "zetacode",
+	posix: "zetacode",
+	fish: "zetacode",
+	powerShell: "zetacode",
 };
 
 export interface ProfileAliasInstallOptions {
@@ -155,7 +155,7 @@ function validateAliasName(aliasName: string, shell: ProfileAliasShell): string 
 		throw new Error(`Invalid alias "${aliasName}". Alias names must match ${ALIAS_NAME_RE.source}.`);
 	}
 	if (normalized.toLowerCase() === "zeta") {
-		throw new Error('Invalid alias "zeta". Refusing to shadow the base zeta-c command.');
+		throw new Error('Invalid alias "zeta". Refusing to shadow the base zetacode command.');
 	}
 	if (getReservedAliasNames(shell).has(normalized.toLowerCase())) {
 		throw new Error(`Invalid alias "${aliasName}". Refusing to create a ${shell} reserved word.`);
@@ -289,7 +289,7 @@ function renderAliasBlock(
 	switch (shell) {
 		case "fish":
 			body = [
-				`function ${aliasName} --wraps zeta-c --description 'Zeta profile ${profile}'`,
+				`function ${aliasName} --wraps zetacode --description 'Zeta profile ${profile}'`,
 				`    command ${command.fish} --profile=${profile} $argv`,
 				"end",
 			].join("\n");

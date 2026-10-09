@@ -1,5 +1,5 @@
 /**
- * Types for `zeta-c gallery` sample data. See {@link ./index} for the aggregated
+ * Types for `zetacode gallery` sample data. See {@link ./index} for the aggregated
  * fixture registry and the contract each fixture must satisfy.
  */
 import type { EditMode } from "@linxiraos/pi-tui/tools/edit";

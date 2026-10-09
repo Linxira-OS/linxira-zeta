@@ -1,5 +1,5 @@
 /**
- * The two-tool protocol behind `zeta-c compress`.
+ * The two-tool protocol behind `zetacode compress`.
  *
  * The agent sees exactly two tools. `rewrite` submits a complete draft plus every
  * loss the agent chose to accept; `approve` accepts the newest draft and ends the

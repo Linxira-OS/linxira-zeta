@@ -1,7 +1,7 @@
 # pi-native auth-gateway transport
 
 `pi-native` is the lossless transport between a pi-ai client and an
-`zeta-c auth-gateway`. It is **not a textual tool-call dialect**: there is no
+`zetacode auth-gateway`. It is **not a textual tool-call dialect**: there is no
 `<call:NAME>` grammar, parser, renderer, or `PI_DIALECT=pi-native` value in the
 current implementation. Tool calls remain canonical pi-ai `ToolCall` content
 blocks inside `Context` and `AssistantMessageEvent`.
@@ -13,14 +13,14 @@ routes translate and can lose pi-specific fields; pi-native sends the
 canonical types directly, preserving service tier, cache markers, thinking
 budgets, tool-choice variants, images, and tool-call IDs.
 
-### Removed zeta-c tool-call dialect
+### Removed zetacode tool-call dialect
 
 Historically, "pi-native" named an in-band tool-call serialization: an XML
 dialect of `<call:NAME …>` blocks, replaced by a sigil-delimited format
 (v16.0.10, `f743ddc`, 2026-06-18), then deleted outright (v16.2.2,
 `053da98`, 2026-06-27) along with its selection knobs (`tools.format: "pi"`,
 `PI_DIALECT=pi`). Nothing in `packages/ai` emits or parses either spelling.
-Old references to `<call:…>` blocks or `§` headers as "the zeta-c tool-call
+Old references to `<call:…>` blocks or `§` headers as "the zetacode tool-call
 format" describe a format that no longer exists; the in-band dialects that
 remain serve third-party model families (the live list is the registry in
 `packages/ai/src/dialect/factory.ts`).
@@ -38,7 +38,7 @@ The provider's `transport` and gateway `baseUrl` apply to every model under
 that provider, including custom models. The resolved model carries
 `transport: "pi-native"`; this is independent of `tools.format`.
 
-`baseUrl` MUST identify an `zeta-c auth-gateway` (or compatible service). Missing
+`baseUrl` MUST identify an `zetacode auth-gateway` (or compatible service). Missing
 `baseUrl` fails with:
 
 ```text

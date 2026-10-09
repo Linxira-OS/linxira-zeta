@@ -1,5 +1,5 @@
 /**
- * Web UI 启动工具 — 被 `zeta-c serve` 和 `zeta-c web` 共用。
+ * Web UI 启动工具 — 被 `zetacode serve` 和 `zetacode web` 共用。
  *
  * 按优先级尝试启动 Web UI：
  * 1. 编译后二进制内嵌的 web-ui（PI_COMPILED 模式）

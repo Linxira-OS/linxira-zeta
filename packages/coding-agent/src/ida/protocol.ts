@@ -2,7 +2,7 @@
  * Cross-process contract between omp processes and the broker-supervised IDA host daemon.
  *
  * Each open database runs in one daemon named {@link idaDaemonName} under the project's daemon
- * broker (so it shows up in `zeta-c ps`). The daemon is an omp worker (`host.ts`) that owns the
+ * broker (so it shows up in `zetacode ps`). The daemon is an omp worker (`host.ts`) that owns the
  * IDB lock and one Python worker, and serves NDJSON requests on {@link idaHostEndpoint}.
  */
 import type * as net from "node:net";
@@ -20,11 +20,11 @@ export const IDA_DAEMON_PREFIX = "omp.ida.";
 const DAEMON_NAME_MAX = 48;
 
 /** Broker readiness regex matched against the banner the host prints once it listens. */
-export const IDA_HOST_READY_PATTERN = String.raw`zeta-c ida host listening on \S+`;
+export const IDA_HOST_READY_PATTERN = String.raw`zetacode ida host listening on \S+`;
 
 /** Banner printed on stdout once the host socket accepts connections. */
 export function idaHostReadyBanner(endpoint: string): string {
-	return `zeta-c ida host listening on ${endpoint}`;
+	return `zetacode ida host listening on ${endpoint}`;
 }
 
 /** Message text of any thrown value, for logs and wire errors. */

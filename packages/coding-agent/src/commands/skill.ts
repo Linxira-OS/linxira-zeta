@@ -35,14 +35,14 @@ export default class Skill extends Command {
 	};
 
 	static examples = [
-		"zeta-c skill install @alice/pdf-tools",
-		"zeta-c skill install -g @alice/pdf-tools@^1.2",
-		'zeta-c skill search "pdf" --sort downloads',
-		"zeta-c skill version minor && omp skill publish",
-		"zeta-c skill publish ./skills/pdf-tools --dry-run",
-		"zeta-c skill tag @alice/pdf-tools@2.0.0-beta.1 next",
-		'zeta-c skill deprecate @alice/pdf-tools@"<1.0.0" "use 1.x"',
-		"zeta-c skill token create ci --package @alice/pdf-tools --expires 90",
+		"zetacode skill install @alice/pdf-tools",
+		"zetacode skill install -g @alice/pdf-tools@^1.2",
+		'zetacode skill search "pdf" --sort downloads',
+		"zetacode skill version minor && omp skill publish",
+		"zetacode skill publish ./skills/pdf-tools --dry-run",
+		"zetacode skill tag @alice/pdf-tools@2.0.0-beta.1 next",
+		'zetacode skill deprecate @alice/pdf-tools@"<1.0.0" "use 1.x"',
+		"zetacode skill token create ci --package @alice/pdf-tools --expires 90",
 	];
 
 	async run(): Promise<void> {

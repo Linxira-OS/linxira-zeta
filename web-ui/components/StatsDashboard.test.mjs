@@ -44,12 +44,12 @@ test("StatsDashboard with an injected stats URL embeds the iframe directly", () 
 test("StatsDownNotice shows the start command and a retry button", () => {
   const html = renderPane(React.createElement(StatsDownNotice, { onRetry: () => {} }));
   assert.match(html, /data-testid="stats-pane-down-message"/);
-  assert.match(html, /<code[^>]*>zeta-c stats<\/code>/);
+  assert.match(html, /<code[^>]*>zetacode stats<\/code>/);
   assert.match(html, /<button/);
 });
 
 test("StatsDownNotice omits the retry button without a handler", () => {
   const html = renderPane(React.createElement(StatsDownNotice));
-  assert.match(html, /zeta-c stats/);
+  assert.match(html, /zetacode stats/);
   assert.doesNotMatch(html, /<button/);
 });

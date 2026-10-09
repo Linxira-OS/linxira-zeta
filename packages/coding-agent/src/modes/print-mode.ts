@@ -2,8 +2,8 @@
  * Print mode (single-shot): Send prompts, output result, exit.
  *
  * Used for:
- * - `zeta-c -p "prompt"` - text output
- * - `zeta-c --mode json "prompt"` - JSON event stream
+ * - `zetacode -p "prompt"` - text output
+ * - `zetacode --mode json "prompt"` - JSON event stream
  */
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";

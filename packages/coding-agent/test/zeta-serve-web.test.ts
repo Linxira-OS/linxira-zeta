@@ -1,12 +1,12 @@
 /**
  * Zeta serve/web command tests — validate the CLI command definitions
- * for `zeta-c serve` and `zeta-c web`.
+ * for `zetacode serve` and `zetacode web`.
  */
 import { describe, expect, it } from "bun:test";
 import Serve from "@linxiraos/zeta/commands/serve";
 import Web from "@linxiraos/zeta/commands/web";
 
-describe("zeta-c serve command", () => {
+describe("zetacode serve command", () => {
 	it("has the expected description", () => {
 		expect(Serve.description).toBe("Start the Stats Dashboard and Web UI services (no browser)");
 	});
@@ -43,7 +43,7 @@ describe("zeta-c serve command", () => {
 	});
 });
 
-describe("zeta-c web command", () => {
+describe("zetacode web command", () => {
 	it("has the expected description", () => {
 		expect(Web.description).toBe("Start the Web UI server (no browser)");
 	});

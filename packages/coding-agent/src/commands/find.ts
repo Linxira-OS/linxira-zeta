@@ -1,5 +1,5 @@
 /**
- * Semantic search from the shell: `zeta-c find "<query>" [path]`.
+ * Semantic search from the shell: `zetacode find "<query>" [path]`.
  */
 
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";

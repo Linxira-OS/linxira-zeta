@@ -1,6 +1,6 @@
 /**
- * `zeta-c install <target>` — top-level convenience over `zeta-c plugin install` /
- * `zeta-c plugin link`.
+ * `zetacode install <target>` — top-level convenience over `zetacode plugin install` /
+ * `zetacode plugin link`.
  *
  * The docs (omp.sh/docs/extension-authoring) advertise
  *
@@ -26,7 +26,7 @@ import { type PluginAction, type PluginCommandArgs, runPluginCommand } from "../
 import { initTheme } from "@linxiraos/pi-tui/theme";
 
 /**
- * Heuristic used to decide whether `zeta-c install <target>` should `link` a
+ * Heuristic used to decide whether `zetacode install <target>` should `link` a
  * local directory or `install` a remote spec. Exported for tests.
  */
 export function looksLikeLocalPath(target: string, cwd?: string): boolean {
@@ -66,7 +66,7 @@ export default class Install extends Command {
 		const targets = Array.isArray(args.targets) ? args.targets : args.targets ? [args.targets] : [];
 
 		if (targets.length === 0) {
-			process.stderr.write("Usage: zeta-c install <path | npm-spec | name@marketplace> [...]\n");
+			process.stderr.write("Usage: zetacode install <path | npm-spec | name@marketplace> [...]\n");
 			process.exit(1);
 		}
 

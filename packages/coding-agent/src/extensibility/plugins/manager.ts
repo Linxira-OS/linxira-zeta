@@ -1162,7 +1162,7 @@ export class PluginManager {
 					status: fixed ? "ok" : "error",
 					message: fixed
 						? `Reconciled version drift: node_modules now matches lock v${recordedVersion}`
-						: `Version drift: lock records v${recordedVersion} but node_modules has v${pluginPkg.version} (run \`zeta-c plugin install ${name} --force\`)`,
+						: `Version drift: lock records v${recordedVersion} but node_modules has v${pluginPkg.version} (run \`zetacode plugin install ${name} --force\`)`,
 					fixed,
 				});
 				if (fixed) {
@@ -1182,7 +1182,7 @@ export class PluginManager {
 				status: hasManifest ? "ok" : "warning",
 				message: hasManifest
 					? `v${pluginPkg.version}${pluginPkg.description ? ` - ${pluginPkg.description}` : ""}`
-					: `v${pluginPkg.version} - No zeta/pi manifest (not an zeta-c plugin)`,
+					: `v${pluginPkg.version} - No zeta/pi manifest (not an zetacode plugin)`,
 			});
 
 			// Check tools path exists if specified

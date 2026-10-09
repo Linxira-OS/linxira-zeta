@@ -1,7 +1,7 @@
 /**
  * End-to-end regression for broker-backed MCP OAuth refresh (issue #8933).
  *
- * Topology mirrors `zeta-c auth-broker serve` fronting a sandboxed client:
+ * Topology mirrors `zetacode auth-broker serve` fronting a sandboxed client:
  *   client (RemoteAuthCredentialStore) → broker (SqliteAuthCredentialStore
  *   + refreshBrokerOAuthCredential override) → MCP token endpoint.
  *

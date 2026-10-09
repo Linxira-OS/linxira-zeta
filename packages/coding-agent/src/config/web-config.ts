@@ -4,7 +4,7 @@
  *
  * Deliberately independent from the CLI `Settings` singleton: this file holds
  * tray/autostart behavior, IM channel credentials, and remote-access state
- * that only the web/desktop runtime consumes. `zeta-c serve` and the desktop
+ * that only the web/desktop runtime consumes. `zetacode serve` and the desktop
  * shell read and write it; CLI-only sessions never touch it. Not shipped in
  * the npm package.
  */

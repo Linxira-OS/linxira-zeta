@@ -159,7 +159,7 @@ export const cfgWorktreeBase = register({
 		group: "Isolation",
 		label: "Worktree Base Directory",
 		description:
-			"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zeta-c worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
+			"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zetacode worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
 	},
 });
 effect(cfgWorktreeBase, value => {

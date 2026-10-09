@@ -1,5 +1,5 @@
 /**
- * `zeta-c browser-relay` implementation: serve the local CDP relay and install
+ * `zetacode browser-relay` implementation: serve the local CDP relay and install
  * its Chrome extension. Standalone CLI command — console output here is
  * intentional user-facing output.
  */
@@ -59,10 +59,10 @@ async function runInstall(dirOverride: string | undefined): Promise<void> {
 	console.log("Finish setup in Chrome:");
 	console.log("  1. Open chrome://extensions and enable Developer mode.");
 	console.log(`  2. Click "Load unpacked" and select: ${dir}`);
-	console.log("  3. Enable the mode:  zeta-c config set browser.relay true");
+	console.log("  3. Enable the mode:  zetacode config set browser.relay true");
 	console.log("");
 	console.log("Zeta starts the relay automatically when the browser prelude needs it;");
-	console.log("run `zeta-c browser-relay` yourself only for --token or --no-group.");
+	console.log("run `zetacode browser-relay` yourself only for --token or --no-group.");
 	console.log("The extension badge shows 'on' once it reaches a relay.");
 	console.log(
 		"Old connection-refused entries in chrome://extensions > Errors may persist after reconnect; use Clear all.",
@@ -83,7 +83,7 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 		// broker (or by hand): losing the bind to a live relay is success.
 		if (err instanceof Error && "code" in err && err.code === "EADDRINUSE") {
 			if (await probeRelayServer(`http://127.0.0.1:${args.port}`)) {
-				console.log(`zeta-c browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
+				console.log(`zetacode browser relay already running on http://127.0.0.1:${args.port}; nothing to do.`);
 				return;
 			}
 			console.error(`Port ${args.port} is in use by something that is not a zeta browser relay.`);
@@ -92,16 +92,16 @@ async function runServe(args: BrowserRelayCommandArgs): Promise<void> {
 		throw err;
 	}
 
-	console.log(`zeta-c browser relay listening on http://127.0.0.1:${args.port}`);
+	console.log(`zetacode browser relay listening on http://127.0.0.1:${args.port}`);
 	console.log(`  extension endpoint  ws://127.0.0.1:${args.port}/ext${args.token ? "?token=***" : ""}`);
 	if (args.port === DEFAULT_RELAY_PORT) {
-		console.log("  enable with         zeta-c config set browser.relay true");
+		console.log("  enable with         zetacode config set browser.relay true");
 	} else {
 		console.log(
-			`  enable with         zeta-c config set browser.relay true && zeta-c config set browser.relayUrl http://127.0.0.1:${args.port}`,
+			`  enable with         zetacode config set browser.relay true && zetacode config set browser.relayUrl http://127.0.0.1:${args.port}`,
 		);
 	}
-	console.log("Waiting for the Zeta Browser Relay extension to connect (zeta-c browser-relay install)...");
+	console.log("Waiting for the Zeta Browser Relay extension to connect (zetacode browser-relay install)...");
 
 	let announced = false;
 	const readiness = setInterval(() => {

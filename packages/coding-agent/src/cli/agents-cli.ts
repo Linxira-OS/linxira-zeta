@@ -1,7 +1,7 @@
 /**
  * Agents CLI command handlers.
  *
- * Handles `zeta-c agents unpack` for writing bundled agent definitions to disk.
+ * Handles `zetacode agents unpack` for writing bundled agent definitions to disk.
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

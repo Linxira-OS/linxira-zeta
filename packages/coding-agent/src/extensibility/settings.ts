@@ -21,7 +21,7 @@ export const cfgSkillsRegistryUrl = register({
 		group: "Skills",
 		label: "Skill Registry",
 		description:
-			"Skillshare registry used by `zeta-c skill` to install, search, and publish skills (https://host[:port])",
+			"Skillshare registry used by `zetacode skill` to install, search, and publish skills (https://host[:port])",
 	},
 });
 
@@ -86,7 +86,7 @@ export const cfgSkillsIncludeSkills = register({
 	default: EMPTY_STRING_ARRAY,
 });
 
-/** Skill discovery options (`skills.*` except the `zeta-c skill` registry URL). */
+/** Skill discovery options (`skills.*` except the `zetacode skill` registry URL). */
 export const cfgSkills = combine({
 	enabled: cfgSkillsEnabled,
 	enableSkillCommands: cfgSkillsEnableSkillCommands,

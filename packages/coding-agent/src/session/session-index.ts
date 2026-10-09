@@ -11,7 +11,7 @@
  * - `session_recaps`: append-only journal of idle recaps
  *   ({@link SessionManager.recordRecap}). Recaps are side-channel output that
  *   never enters the session JSONL or LLM context; this table is their only
- *   durable record. `zeta-c gc` drops rows of archived sessions.
+ *   durable record. `zetacode gc` drops rows of archived sessions.
  *
  * Holds its own lazily-opened connection instead of {@link HistoryStorage}'s
  * path-pinned singleton: the db path is re-resolved on every call so

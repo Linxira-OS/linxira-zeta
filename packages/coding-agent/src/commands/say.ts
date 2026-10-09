@@ -39,9 +39,9 @@ export default class Say extends Command {
 	};
 
 	static examples = [
-		'zeta-c say "hello world"',
+		'zetacode say "hello world"',
 		"zeta say --file notes.md --voice bm_fable",
-		'zeta-c say "hello world" --out /tmp/hello.wav',
+		'zetacode say "hello world" --out /tmp/hello.wav',
 	];
 
 	async run(): Promise<void> {
@@ -154,7 +154,7 @@ export default class Say extends Command {
 	#synthesisFailed(model: string): void {
 		process.stderr.write(
 			chalk.red(
-				`error: could not synthesize with local TTS model "${model}". Run \`zeta-c setup speech\` to install it.\n`,
+				`error: could not synthesize with local TTS model "${model}". Run \`zetacode setup speech\` to install it.\n`,
 			),
 		);
 	}

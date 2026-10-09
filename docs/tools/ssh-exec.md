@@ -1,6 +1,6 @@
 # ssh_exec
 
-> Run a shell command on a configured remote host over SSH and return its output. The host must already be registered through `/ssh add` (or `zeta-c ssh add`); the agent cannot create connections itself.
+> Run a shell command on a configured remote host over SSH and return its output. The host must already be registered through `/ssh add` (or `zetacode ssh add`); the agent cannot create connections itself.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/ssh-exec.ts`

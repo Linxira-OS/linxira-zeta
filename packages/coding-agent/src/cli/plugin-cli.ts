@@ -1,7 +1,7 @@
 /**
  * Plugin CLI command handlers.
  *
- * Handles `zeta-c plugin <command>` subcommands for plugin lifecycle management.
+ * Handles `zetacode plugin <command>` subcommands for plugin lifecycle management.
  */
 
 import * as path from "node:path";
@@ -354,7 +354,7 @@ async function handleUpgrade(
 			if (flags.scope) {
 				console.error(
 					chalk.yellow(
-						`Warning: --scope is ignored when upgrading all plugins. Use 'zeta-c plugin upgrade <id> --scope ${flags.scope}' to target a specific plugin and scope.`,
+						`Warning: --scope is ignored when upgrading all plugins. Use 'zetacode plugin upgrade <id> --scope ${flags.scope}' to target a specific plugin and scope.`,
 					),
 				);
 			}
@@ -475,7 +475,7 @@ async function handleInstall(
 		if (target.type === "local") {
 			// Local paths route to link(): symlink the directory into the plugins
 			// node_modules tree so source edits show up without a reinstall. Matches
-			// `zeta-c plugin link <path>` so users can use either verb interchangeably.
+			// `zetacode plugin link <path>` so users can use either verb interchangeably.
 			if (flags.scope) {
 				console.error(
 					chalk.yellow(

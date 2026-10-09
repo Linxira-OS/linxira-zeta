@@ -143,7 +143,7 @@ approval: (args) =>
 
 ## ACP sessions
 
-ACP (`zeta-c acp`) uses the same settings resolver as normal OMP launches. Global `~/.zeta/agent/config.yml` applies, project config for the ACP session `cwd` applies, and any `--config <file>` overlays passed to the ACP server process apply to sessions created by that process.
+ACP (`zetacode acp`) uses the same settings resolver as normal OMP launches. Global `~/.zeta/agent/config.yml` applies, project config for the ACP session `cwd` applies, and any `--config <file>` overlays passed to the ACP server process apply to sessions created by that process.
 
 To auto-approve ACP tool calls, set the mode in global or project config:
 
@@ -155,13 +155,13 @@ tools:
 Or launch the ACP server with a runtime override or a one-process config overlay:
 
 ```bash
-zeta-c acp --yolo
-zeta-c acp --auto-approve
-zeta-c acp --approval-mode yolo
-zeta-c acp --config ./acp-yolo.yml   # file contains tools.approvalMode: yolo
+zetacode acp --yolo
+zetacode acp --auto-approve
+zetacode acp --approval-mode yolo
+zetacode acp --config ./acp-yolo.yml   # file contains tools.approvalMode: yolo
 ```
 
-Precedence is the normal settings precedence: runtime flags (`--approval-mode`, `--auto-approve`, `--yolo`) override `--config` overlays, which override project config, which overrides global config. ACP does not currently define a `session/new`, `session/load`, or `session/resume` approval-policy field, so ACP clients that need per-session yolo should launch a separate `zeta-c acp` process with one of the flags above or with a session-specific `--config` overlay.
+Precedence is the normal settings precedence: runtime flags (`--approval-mode`, `--auto-approve`, `--yolo`) override `--config` overlays, which override project config, which overrides global config. ACP does not currently define a `session/new`, `session/load`, or `session/resume` approval-policy field, so ACP clients that need per-session yolo should launch a separate `zetacode acp` process with one of the flags above or with a session-specific `--config` overlay.
 
 `tools.approvalMode: yolo` fully applies to ACP when it is explicitly configured or supplied by a runtime flag. It skips ordinary tier-based OMP prompts and also skips the ACP client permission gate for `bash` and destructive `edit`/`delete`/`move` actions unless a per-tool policy requires that gate. Explicit tool policies and provider safety checks still apply. The schema default is `yolo`, but default-config ACP sessions still keep the client permission gate; set `tools.approvalMode: yolo` explicitly when the client wants unattended execution.
 

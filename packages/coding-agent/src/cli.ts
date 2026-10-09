@@ -447,7 +447,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
 			// ZETA_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `ZETA_PROFILE=.. zeta-c --version` into a clean error;
+			// validation here turns `ZETA_PROFILE=.. zetacode --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
 			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));

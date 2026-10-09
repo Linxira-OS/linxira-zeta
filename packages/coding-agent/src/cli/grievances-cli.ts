@@ -1,5 +1,5 @@
 /**
- * CLI handler for `zeta-c grievances` — view, clean, and manually push reported tool issues.
+ * CLI handler for `zetacode grievances` — view, clean, and manually push reported tool issues.
  */
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
@@ -167,7 +167,7 @@ export async function cleanGrievances(options: CleanGrievancesOptions): Promise<
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Manual push (`zeta-c grievances push`)
+// Manual push (`zetacode grievances push`)
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
@@ -255,7 +255,7 @@ export async function pushGrievances(options: PushGrievancesOptions): Promise<vo
 		if (rejected > 0) {
 			console.log(
 				chalk.yellow(
-					`${rejected} grievance${rejected === 1 ? " was" : "s were"} refused by the server and marked rejected (see \`zeta-c grievances list\`).`,
+					`${rejected} grievance${rejected === 1 ? " was" : "s were"} refused by the server and marked rejected (see \`zetacode grievances list\`).`,
 				),
 			);
 		}
