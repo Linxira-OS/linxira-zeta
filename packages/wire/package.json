@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@linxiraos/pi-wire",
-  "version": "1.1.28",
+  "version": "1.1.29",
   "description": "Shared wire protocol types for omp packages",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Can Boluk",
