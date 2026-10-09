@@ -34,11 +34,11 @@ describe("WelcomeComponent", () => {
 		// Brand column: greeting plus the terminal's builtin zeta logo mark.
 		const brand = find(grid, "zeta.welcome.brand");
 		expect(props(find(brand, "zeta.welcome.greeting"))?.spans?.[0]).toMatchObject({ t: "Welcome back!" });
-		expect(find(brand, "omp.welcome.logo")?.k).toBe("image");
+		expect(find(brand, "zeta.welcome.logo")?.k).toBe("image");
 
 		// Info column: the version sits at its head, ahead of tips/LSP/sessions.
 		const info = find(grid, "zeta.welcome.info");
-		expect(props(find(info, "omp.welcome.version"))?.spans?.[0]).toMatchObject({ t: "18.4.12" });
+		expect(props(find(info, "zeta.welcome.version"))?.spans?.[0]).toMatchObject({ t: "18.4.12" });
 	});
 
 	it("selects standard tip when preset is not unicode", () => {

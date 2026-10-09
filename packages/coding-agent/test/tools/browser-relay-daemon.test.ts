@@ -134,7 +134,7 @@ process.stdout.write(String(await probeRelayServer(url)));`,
 		const secondProject = path.join(home, "project-b");
 		const firstMarker = path.join(home, "first-ready");
 		const secondMarker = path.join(home, "second-ready");
-		const globalRuntimeDir = path.join(home, ".omp", "run", "daemons", "global", "browser-relay");
+		const globalRuntimeDir = path.join(home, ".zeta", "run", "daemons", "global", "browser-relay");
 		const cdpUrl = `http://127.0.0.1:${await findFreeCdpPort()}`;
 		const scriptPath = path.join(home, "consumer.ts");
 		await Promise.all([fs.mkdir(firstProject), fs.mkdir(secondProject)]);
@@ -168,7 +168,7 @@ try {
 						...process.env,
 						HOME: home,
 						USERPROFILE: home,
-						ZETA_CONFIG_DIR: ".omp",
+						ZETA_CONFIG_DIR: ".zeta",
 						OMP_PROFILE: profile,
 						OMP_DAEMON_IDLE_GRACE_MS: "200",
 						OMP_TEST_RELAY_URL: cdpUrl,
@@ -222,7 +222,7 @@ try {
 
 	it("keeps one port's relay running when another relay starts on a different port", async () => {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-ports-"));
-		const globalRuntimeDir = path.join(home, ".omp", "run", "daemons", "global", "browser-relay");
+		const globalRuntimeDir = path.join(home, ".zeta", "run", "daemons", "global", "browser-relay");
 		const firstPort = await findFreeCdpPort();
 		let secondPort = await findFreeCdpPort();
 		// The finder releases its probe listener, so it can hand back the same port twice.
@@ -250,7 +250,7 @@ try {
 					...process.env,
 					HOME: home,
 					USERPROFILE: home,
-					ZETA_CONFIG_DIR: ".omp",
+					ZETA_CONFIG_DIR: ".zeta",
 					OMP_DAEMON_IDLE_GRACE_MS: "200",
 					OMP_TEST_FIRST_RELAY_URL: firstUrl,
 					OMP_TEST_SECOND_RELAY_URL: secondUrl,

@@ -6,7 +6,7 @@ import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
 import { type Component, Spacer, Text } from "@linxiraos/pi-tui";
 import { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
 import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
-import { logger } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { InternalUrlRouter } from "../../internal-urls";
 import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
@@ -1168,7 +1168,7 @@ export class UiHelpers {
 		block.addChild(new DynamicBorder(text => theme.fg("warning", text)));
 		const title = "Update Available";
 		const prefix = `New version ${newVersion} is available. Run: `;
-		const command = "omp update";
+		const command = `${CLI_BIN_NAME} update`;
 		block.addChild(
 			new Text(`${title}\n${prefix}${command}`, 1, 0).setStyleFn(
 				() =>

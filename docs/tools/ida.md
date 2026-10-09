@@ -80,7 +80,7 @@ Persistent per DB and shared by all agents. Preloaded: `db` (ida_domain `Databas
 - Hosts are non-persistent broker daemons: they stop (SIGTERM, 2 s grace) when the broker idles out after the project's last omp process exits. `omp ps kill` gives 100 ms, so unflushed changes are lost.
 - DBs idle for `ida.idleCloseSec` (default 900, `0` = never) are saved and closed and their host exits; reopening resets the `exec` namespace.
 - DBs are not tied to session disposal; they outlive compaction and subagents.
-- IDB store paths use the configured agent directory (`getAgentDir()`); `~/.omp/agent/idbs` is the ordinary default.
+- IDB store paths use the configured agent directory (`getAgentDir()`); `~/.zeta/agent/idbs` is the ordinary default.
 - Each host holds the IDB's file lock; a host in another project opening the same IDB fails with `IDB <id> is in use by another omp process outside this project`.
 
 ## Errors
