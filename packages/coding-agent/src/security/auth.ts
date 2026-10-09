@@ -1,8 +1,8 @@
 import type { AgentOptions } from "@linxiraos/pi-agent-core";
-import type { OAuthAccessResolution } from "@linxiraos/pi-ai";
+import type { OAuthAccessResolution, OAuthRefreshReason } from "@linxiraos/pi-ai";
 import type { ApiKeyResolver } from "@linxiraos/pi-ai/auth-retry";
+import * as AIError from "@linxiraos/pi-ai/error";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-
 import type { AuthStorage } from "../session/auth-storage";
 import type { SecurityAccountRef, SecurityAuthRef } from "./contracts";
 
@@ -118,7 +118,7 @@ export function selectSecurityAuth(
 export async function resolveExactSecurityOAuthAccess(
 	authStorage: AuthStorage,
 	account: SecurityAccountRef,
-	options: { forceRefresh: boolean; signal?: AbortSignal },
+	options: { forceRefresh: boolean; refreshReason?: OAuthRefreshReason; signal?: AbortSignal },
 ): Promise<Extract<OAuthAccessResolution, { ok: true }>> {
 	const resolution = await authStorage.oauth.accessById(account.provider, account.credentialId, options);
 	if (!resolution) throw new Error("The pinned security OAuth credential is unavailable");
@@ -146,6 +146,7 @@ export function createExactSecurityOAuthResolver(
 			if (context.lastChance) return undefined;
 			const resolution = await resolveExactSecurityOAuthAccess(authStorage, account, {
 				forceRefresh: context.error !== undefined,
+				refreshReason: AIError.status(context.error) === 401 ? "auth-recovery" : undefined,
 				signal: context.signal,
 			});
 			return resolution.accessToken;

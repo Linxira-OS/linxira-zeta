@@ -70,6 +70,11 @@
 
 ## [1.1.4] - 2026-08-26
 
+### Fixed
+
+- Fixed new memories gaining graph links (`related_to`, `references`, `ctx`) to memories that were already invalidated, superseded, or expired; proactive linking and consolidation now link only to memories recall can still return, so the graph stops growing toward retired memories ([#14427](https://github.com/can1357/oh-my-pi/pull/14427) by [@tickernelz](https://github.com/tickernelz)).
+
+
 ### Changed
 
 - 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
