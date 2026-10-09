@@ -100,7 +100,13 @@ async function finalizeChangelogsForRelease(version: string, packageDirs: readon
 
 		content = removeEmptyVersionEntries(content);
 		content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
-		content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
+		// Re-open a fresh [Unreleased] for the next cycle. Most package
+		// changelogs have no `# Changelog` title, so anchoring the insert on
+		// that header alone left them without an [Unreleased] section at all
+		// (check-version-consistency then flagged the drift).
+		content = /^# Changelog\n\n/.test(content)
+			? content.replace(/^(# Changelog\n\n)/, () => `$1## [Unreleased]\n\n`)
+			: `## [Unreleased]\n\n${content}`;
 
 		await Bun.write(changelog, content);
 		console.log(`  Updated ${changelog}`);
