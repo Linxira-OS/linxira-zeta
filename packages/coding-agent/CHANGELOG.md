@@ -1,4 +1,4 @@
-## [Unreleased]
+## [1.1.28] - 2026-10-09
 
 ### Added
 
@@ -194,8 +194,6 @@
 ### Fixed
 
 - Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
-## [1.1.1] - 2026-08-25
 
 ## [1.1.0] - 2026-08-25
 

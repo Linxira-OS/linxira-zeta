@@ -1,10 +1,8 @@
-## [Unreleased]
+## [1.1.28] - 2026-10-09
 
 ### Changed
 
 - Updated `TspEditorProps.placeholder` and `TspInputProps.placeholder` to accept `TspText`, enabling styled placeholder text.
-
-## [1.1.27] - 2026-10-07
 
 ## [1.1.26] - 2026-10-03
 

@@ -1,4 +1,4 @@
-## [Unreleased]
+## [1.1.28] - 2026-10-09
 
 ### Added
 
@@ -398,8 +398,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `getText()` method to Text component for retrieving current text content
-
-## [1.1.27] - 2026-10-07
 
 ## [1.1.26] - 2026-10-03
 

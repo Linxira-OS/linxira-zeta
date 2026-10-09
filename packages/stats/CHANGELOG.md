@@ -1,11 +1,9 @@
-## [Unreleased]
+## [1.1.28] - 2026-10-09
 
 ### Changed
 
 - Improved dashboard responsiveness and efficiency by reducing unnecessary data refreshes and re-rendering, speeding up session synchronization, database access, package imports, and usage, model, and time-series requests, and avoiding repeated downloads of unchanged traces.
 - Dashboard requests are now cancelled when no longer needed, improving responsiveness when switching sessions or closing trace views during loading.
-
-## [1.1.27] - 2026-10-07
 
 ## [1.1.25] - 2026-10-03
 
