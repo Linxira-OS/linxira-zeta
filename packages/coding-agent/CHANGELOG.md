@@ -1,18 +1,22 @@
 ## [Unreleased]
 
-
 ### Added
 
+- Zetawork（桌面工作台）保存工作区状态：窗口位置/大小与最近启动记录写入 `workspace-state.json`；顶栏新增 zetacode / zetaide / zetaeditor 三个快捷启动按钮，在当前会话目录启动对应产品（zetacode 启动使用隔离 `--session-dir`，便于之后精确 `--resume`）。
+- 新增 tea 工具套件：面向自托管 Gitea（及 gitea.com）的 `tea` CLI 集成，提供仓库/议题/拉取请求/检出/合并/发行版等 op（`repo_view`、`repo_create`、`issue_*`、`pr_*`、`release_*`），创建类操作一律 API 回读验证（`tea repo create` 有静默失败史）；通过 `gitea.enabled` 启用，默认关闭。
+- 同步上游 OMP v18.8.5 与 v18.8.6（双 tag 串联合并，非 squash）：每会话 Git worktree（`worktree.onStart`/`worktree.onExit`）、xAI 搜索与 X 内容读取、judge 角色链刷新等。
 - Added per-session Git worktree support with `worktree.onStart` and `worktree.onExit` settings to create an isolated worktree for each session and clean it up when the session ends.
 - Expanded xAI web search with X post search, including X-only and author-specific queries, author exclusions, date and recency filters, and automatic xAI routing when credentials are available.
 - Added xAI-powered reading of X posts, threads and replies, profiles, searches, and hashtags when logged in, replacing the unavailable Nitter mirrors.
 
 ### Changed
 
+- 命令行标准指令名定为 `zetacode`（四件套标准名无连字符：zetawork / zetacode / zetaide / zetaeditor）：`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成、各命令说明与文档全部改用标准名。`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 仍是 npm bin 兼容别名，垫片与资产文件名不变。
 - Web search now prefers an authenticated `xai-oauth` login over an `xai` API key when both are available, unless `modelProviderOrder` specifies a different order.
 
 ### Fixed
 
+- 合入上游 v18.8.5/.6 后修复：`worktree.onStart`/`worktree.onExit` 补齐中文设置文案；web_search 的 `provider` 强制钉恢复；shell 快照的环境变量重导出（函数体引用的 env）恢复；终端标题无会话名时回退 `zeta`；协作 replication 快照回到上游 no-copy 契约；CHANGELOG 重复节头修复。
 - Fixed judge-gated features continuing to use a stale model chain after switching judge roles.
 - Improved Anthropic prompt-cache reuse when pruning tool results from long conversations.
 - Fixed resumed Claude sessions losing earlier thinking context and prompt-cache reuse when extensions or MCP tools were registered before the first message.
