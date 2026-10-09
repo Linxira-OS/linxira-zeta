@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
 - 终端 tab 标题在无会话名时不再回退为 `omp`，改为 `zeta`。
 - 协作（collab）replication 快照恢复上游 v18.8.4 的 no-copy 契约（live header + entries），宿主与哨兵同步。
 - 去重 CHANGELOG 中重复的 `[1.1.27]` 节头，修复 changelog 解析。

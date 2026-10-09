@@ -52,14 +52,45 @@ interface CachedArchiveReader {
 	/** Change time: moves on every write and permission change and cannot be set back, unlike mtime. */
 	ctimeMs: number;
 	size: number;
+	/** Content probe; see {@link fingerprintArchive} for why timestamps alone are not an identity. */
+	fingerprint: number;
 	entryCount: number;
+}
+
+/** Bytes of each end of the archive that go into {@link fingerprintArchive}. */
+const FINGERPRINT_WINDOW = 32 * 1024;
+
+/**
+ * Fingerprint the head and tail of an archive on disk.
+ *
+ * Timestamps alone are not a sound identity. A rewrite that keeps the file size
+ * and puts the mtime back is only visible through ctime, and ctime advances in
+ * filesystem-timestamp steps: when the gap between the two writes is smaller
+ * than one step, the inode reports the *same* ctime and the rewrite is
+ * invisible. Measured: re-indexing an archive between the two writes advances
+ * ctime by ~1 ms, which collides on filesystems whose clock is coarser than
+ * that (reproduced with same-size rewrites on NTFS; coarse clocks are also
+ * available on tmpfs/overlay/network mounts). Reading the ends catches exactly
+ * that case — zip keeps its central directory at the end, asar its header at
+ * the front — and every extra byte of identity can only turn a stale hit into a
+ * correct miss.
+ */
+async function fingerprintArchive(absolutePath: string, size: number): Promise<number> {
+	const file = Bun.file(absolutePath);
+	const head = new Uint8Array(await file.slice(0, Math.min(size, FINGERPRINT_WINDOW)).arrayBuffer());
+	const tailStart = Math.max(0, size - FINGERPRINT_WINDOW);
+	const tail = tailStart > 0 ? new Uint8Array(await file.slice(tailStart, size).arrayBuffer()) : new Uint8Array(0);
+	// Mixed with the window boundaries so two probes over different regions
+	// cannot cancel out.
+	return Number(Bun.hash(head, tailStart)) ^ Number(Bun.hash(tail, size));
 }
 
 /**
  * Recently opened archives, so paging through members does not re-read and
  * re-index the archive per read. Bounded by count and by total indexed entries;
- * an entry is reused only while the file's identity (inode, mtime, ctime, size)
- * holds, so a rewrite or a permission change reopens the archive.
+ * an entry is reused only while the file's identity (inode, mtime, ctime, size,
+ * content fingerprint) holds, so a rewrite or a permission change reopens the
+ * archive.
  */
 const archiveReaderCache = new LRUCache<string, CachedArchiveReader>({
 	max: 4,
@@ -79,7 +110,8 @@ async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
 		cached.ino === stat.ino &&
 		cached.mtimeMs === stat.mtimeMs &&
 		cached.ctimeMs === stat.ctimeMs &&
-		cached.size === stat.size
+		cached.size === stat.size &&
+		cached.fingerprint === (await fingerprintArchive(absolutePath, stat.size))
 	) {
 		return cached.reader;
 	}
@@ -96,6 +128,7 @@ async function openArchiveCached(absolutePath: string): Promise<ArchiveReader> {
 		mtimeMs: stat.mtimeMs,
 		ctimeMs: stat.ctimeMs,
 		size: stat.size,
+		fingerprint: await fingerprintArchive(absolutePath, stat.size),
 		entryCount,
 	});
 	return reader;
