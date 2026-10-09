@@ -1,78 +1,668 @@
 name: local-ci
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 本地 CI（仅 Gitea 执行）。定位：**GitHub CI 的 Linux 精简镜像**。
+#
+# 与 .github/workflows/ci.yml 的对应关系（逐 job）：
+#   镜像：check / web_ui_build / bazel_lock / rust_validate / native_addons /
+#        test_coding_agent_native / test_workspace / test_coding_agent_singleton /
+#        test_ts_native / test_coding_agent_ui / test_coding_agent_runtime /
+#        test_smoke / install_methods / editor_tests / termide_tests / main_tests
+#   裁掉：release_metadata / release_gate / release_binary /
+#        release_product_binaries / release_native_leaves / release_github /
+#        release_npm / release_{editor,main,ide}_packages（发布链，永不在此跑）
+#        desktop_windows、native_addons_cross 的 win32/darwin 腿（Windows/macOS）
+#
+# 与 GitHub 侧刻意保持一致的地方：命令行入口全部走仓库脚本
+# （`bun run ci:test:*`、`bun scripts/*.ts`、`cargo fmt/check/clippy/nextest`），
+# 脚本本身共用，因此两边跑的是同一段代码。
+#
+# 与 GitHub 侧**故意不同**的地方（本地专用，都是为了让"同一台常驻 Linux 机"
+# 跑得更快，而不是换一套判定标准）：
+#   1. 不做 GitHub artifact/cache 往返：native addon 直接构建到工作区的
+#      `packages/natives/native/`，后续 job 直接用（省掉上传/下载与 cache key）。
+#   2. 工具链装进 `$GITHUB_WORKSPACE/.tools`（跨运行常驻），rustup/cargo 的
+#      target 目录天然增量 → Rust 复跑是秒级到分钟级，而不是冷编译。
+#   3. `OMP_TEST_CHUNK_TIMEOUT=900`：NAS 机器比 GitHub runner 慢，600s 看门狗
+#      在这里会误杀（已见误杀：scripts/release.test.ts chunk）。
+#   4. 分片全部按单片跑（`1/1`）：本地不并发多 runner。
+#
+# 触发：只认 main 的分支 push + 手动 dispatch。`branches:` 不匹配 tag ref，
+# 因此**推 tag 不会触发本工作流的任何 job**；preflight 再断言一次"HEAD 无
+# v* tag"，双重保险，确保本地永不产生发布语义。
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
-  push:
-    branches: [main]
+   push:
+      branches: [main]
+   workflow_dispatch:
+      inputs:
+         suite:
+            description: 本次要跑哪一组（其余 job 直接跳过）
+            type: choice
+            default: full
+            options:
+               - full
+               - gates
+               - ts
+               - rust
 
 defaults:
-  run:
-    shell: bash
+   run:
+      shell: bash
 
-# 本地全量验证:非发布类 CI 全部交由 NAS runner 处理(带缓存,增量编译)。
-# 发布链(build-binaries/publish)不在本地跑——那仍是 GitHub Actions 的职责。
-# act 的 HOME 是每次运行独立的临时目录——工具链一律装进持久的
-# $GITHUB_WORKSPACE/.tools(随 runner 工作区跨运行保留),同步骤内显式 PATH。
+env:
+   LOCAL_CI_TOOLS: ${{ github.workspace }}/.tools
+   NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
+
 jobs:
-  verify:
-    runs-on: self-hosted
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v4
+   # ── 0. 触发面护栏 ─────────────────────────────────────────────────────────
+   preflight:
+      name: Preflight (no-release guard)
+      runs-on: self-hosted
+      timeout-minutes: 10
+      steps:
+         - uses: actions/checkout@v4
+           with:
+              fetch-depth: 0
+         - name: Assert this run can never be a release
+           shell: bash
+           run: |
+              set -euo pipefail
+              case "${{ github.ref }}" in
+                refs/tags/*)
+                   echo "::error::local-ci refuses tag refs (${GITHUB_REF}); tags are GitHub-only"
+                   exit 1
+                   ;;
+              esac
+              # HEAD 上挂着 v* tag 时，本地跑测试没有意义（那是发布态）。
+              # 提前失败而不是安静跑完，避免"本地绿了就以为能发"。
+              if git tag --points-at HEAD | grep -qE '^v[0-9]'; then
+                 echo "::error::HEAD carries a v* release tag; local-ci is for pre-release verification only"
+                 git tag --points-at HEAD | grep -E '^v[0-9]' >&2
+                 exit 1
+              fi
+              echo "ref=${{ github.ref }} (no release tag at HEAD) — OK"
 
-      - name: Bootstrap toolchains (persistent .tools)
-        run: |
-          set -euo pipefail
-          TOOLS="$GITHUB_WORKSPACE/.tools"
-          mkdir -p "$TOOLS/bin"
-          # bun
-          if [ ! -x "$TOOLS/bin/bun" ]; then
-            curl -fsSL https://bun.sh/install | BUN_INSTALL="$TOOLS" bash
-          fi
-          # rustup + 钉定 nightly(ustc 镜像加速)
-          if [ ! -x "$TOOLS/rustup/bin/rustup" ]; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-              | RUSTUP_HOME="$TOOLS/rustup" CARGO_HOME="$TOOLS/cargo" sh -s -- -y --profile minimal --no-modify-path
-          fi
-          export RUSTUP_HOME="$TOOLS/rustup" CARGO_HOME="$TOOLS/cargo"
-          export PATH="$TOOLS/bin:$TOOLS/rustup/bin:$TOOLS/cargo/bin:$PATH"
-          export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
-          rustup toolchain install nightly-2026-10-06 --profile minimal -c rustfmt,clippy
-          rustup default nightly-2026-10-06
-          # 持久化到后续步骤
-          echo "$TOOLS/bin" >> "$GITHUB_PATH"
-          echo "$TOOLS/rustup/bin" >> "$GITHUB_PATH"
-          echo "$TOOLS/cargo/bin" >> "$GITHUB_PATH"
-          echo "RUSTUP_HOME=$TOOLS/rustup" >> "$GITHUB_ENV"
-          echo "CARGO_HOME=$TOOLS/cargo" >> "$GITHUB_ENV"
-          echo "BUN_INSTALL=$TOOLS" >> "$GITHUB_ENV"
+   # ── 1. 工具链（常驻，跨运行复用）─────────────────────────────────────────
+   toolchains:
+      name: Toolchains (persistent .tools)
+      needs: [preflight]
+      runs-on: self-hosted
+      timeout-minutes: 60
+      env:
+         TOOLS: ${{ github.workspace }}/.tools
+      steps:
+         - name: Bootstrap toolchains
+           shell: bash
+           run: |
+              set -euo pipefail
+              TOOLS="${{ env.TOOLS }}"
+              mkdir -p "$TOOLS/bin"
+              export RUSTUP_HOME="$TOOLS/rustup"
+              export CARGO_HOME="$TOOLS/cargo"
+              export PATH="$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$PATH"
+              export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
 
-      - name: Toolchain verify
-        run: |
-          set -uo pipefail
-          bun --version
-          cargo --version
-          rustc --version
+              # bun —— 版本必须满足 package.json 的 packageManager pin，
+              # 否则 gen:tool-views 之类的代码生成会和 CI 产生版本偏差。
+              want="$(sed -n 's/.*"packageManager": *"bun@\([^"]*\)".*/\1/p' package.json)"
+              if [ -z "$want" ]; then
+                 echo "::error::could not read pinned bun version from package.json packageManager"
+                 exit 1
+              fi
+              have="$(command -v bun >/dev/null 2>&1 && bun --version || echo)"
+              case "$want" in
+                '>='*)
+                   floor="${want#>=}"
+                   [ -n "$have" ] && [ "$(printf '%s\n%s\n' "$floor" "$have" | sort -V | head -n1)" = "$floor" ] && ok=true || ok=false
+                   ;;
+                *)
+                   [ "$have" = "$want" ] && ok=true || ok=false
+                   ;;
+              esac
+              if [ "${ok:-false}" != true ]; then
+                 case "$want" in
+                   '>='*) BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" ;;
+                   *)     BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" -s -- "bun-v$want" ;;
+                 esac
+              fi
+              "$TOOLS/bin/bun" --version
 
-      - name: Install workspace deps
-        run: |
-          set -euo pipefail
-          bun install
+              # rustup —— 仓库钉 nightly（rust-toolchain.toml），两个 vendor
+              # 工作区各钉 1.91.1（termide/ main/）。三个都要装，否则
+              # `cargo fmt/clippy/test` 在 vendor 目录里会触发重编译。
+              if [ ! -x "$RUSTUP_HOME/bin/rustup" ]; then
+                 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+                   | RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" sh -s -- -y --profile minimal --no-modify-path
+              fi
+              repo_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' rust-toolchain.toml)"
+              vendor_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' termide/rust-toolchain.toml)"
+              for tc in "$repo_pin" "$vendor_pin"; do
+                 case "$tc" in
+                   nightly*) rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                   *)        rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                 esac
+              done
+              rustup default "$repo_pin"
 
-      - name: Build native addon (linux-x64, modern+baseline)
-        run: |
-          set -euo pipefail
-          cargo build --release -p pi-natives
-          cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-modern.node
-          cp target/release/libpi_natives.so packages/natives/native/pi_natives.linux-x64-baseline.node
+              # bazelisk —— .bazelversion 钉版本，交给 bazelisk 自己解析。
+              if ! command -v bazelisk >/dev/null 2>&1; then
+                 curl -fsSL --retry 3 -o "$TOOLS/bin/bazelisk" \
+                   "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64"
+                 chmod +x "$TOOLS/bin/bazelisk"
+              fi
 
-      - name: Static gates
-        run: |
-          set -euo pipefail
-          bun scripts/check-version-consistency.ts
-          bun run check:ts
-          bun scripts/brand/brand-check.ts
-          bun scripts/check-zeta-sentinels.ts
+              # cargo 工具：nextest（vendor 工作区用）与 deny（license 面）。
+              for tool in cargo-nextest cargo-deny; do
+                 command -v "$tool" >/dev/null 2>&1 || cargo install "$tool" --locked || true
+              done
 
-      - name: Full verification (all TS buckets + Rust nextest)
-        run: |
-          set -euo pipefail
-          bun run ci:test:full
+              # node —— web-ui 与 editor functional harness 用（GitHub 侧 22/24）。
+              if ! command -v node >/dev/null 2>&1; then
+                 curl -fsSL --retry 3 -o /tmp/node.tar.xz \
+                   https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz
+                 mkdir -p "$TOOLS/node"
+                 tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
+              fi
+
+              # go —— editor（TTT）测试。
+              if ! command -v go >/dev/null 2>&1; then
+                 curl -fsSL --retry 3 -o /tmp/go.tar.gz \
+                   https://go.dev/dl/go1.24.5.linux-amd64.tar.gz
+                 mkdir -p "$TOOLS/go"
+                 tar -xzf /tmp/go.tar.gz -C "$TOOLS/go" --strip-components=1
+              fi
+
+              {
+                 echo "RUSTUP_HOME=$RUSTUP_HOME"
+                 echo "CARGO_HOME=$CARGO_HOME"
+                 echo "BUN_INSTALL=$TOOLS"
+                 echo "PATH_EXTRA=$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin"
+              } >> "$GITHUB_ENV"
+
+         - name: Verify toolchains
+         shell: bash
+           run: |
+              set -euo pipefail
+              echo "bun   $(bun --version)"
+              echo "cargo $(cargo --version)"
+              echo "rustc $(rustc --version)"
+              echo "node  $(node --version 2>/dev/null || echo '<absent: web-ui/editor jobs will install it>')"
+              echo "go    $(go version 2>/dev/null || echo '<absent: editor job will install it>')"
+              echo "bazel $(bazelisk --version 2>/dev/null | head -1 || echo '<absent>')"
+
+         - name: Install workspace dependencies
+         shell: bash
+           run: |
+              set -euo pipefail
+              # 与 GitHub 的 bun-install action 同一条命令（--frozen-lockfile），
+              # 只是缓存来自常驻工作区而不是 actions/cache。
+              if bun install --frozen-lockfile; then exit 0; fi
+              echo "::warning title=bun install retry::retrying with a clean job-local cache"
+              retry_cache="$(mktemp -d "${RUNNER_TEMP:-/tmp}/bun-cache-retry.XXXXXX")"
+              bun install --frozen-lockfile --cache-dir="$retry_cache"
+
+   # ── 2. 静态门禁（镜像 check）────────────────────────────────────────────
+   check:
+      name: Lint, type check & web build
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Verify Rust license compliance (cargo-deny)
+           shell: bash
+           run: |
+              set -euo pipefail
+              cargo fetch --locked
+              cargo deny --locked check licenses sources
+         - name: Type check workspace
+           run: bun run ci:check:full
+         - name: Brand residue guard
+           run: bun scripts/brand/brand-check.ts
+         - name: Zeta-only sentinel guard
+           run: bun scripts/check-zeta-sentinels.ts
+         - name: Check CI surface
+           run: bun scripts/check-ci-surface.ts
+         - name: Build collab web
+           run: bun run collab:web:build
+
+   # ── 3. web-ui（镜像 web_ui_build）───────────────────────────────────────
+   web_ui_build:
+      name: Web UI build
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
+      runs-on: self-hosted
+      timeout-minutes: 45
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Install dependencies
+           working-directory: web-ui
+           run: npm ci
+         - name: Type check
+           working-directory: web-ui
+           run: npx tsc --noEmit
+         - name: Lint
+           working-directory: web-ui
+           run: npm run lint
+         - name: Build
+           working-directory: web-ui
+           run: npm run build
+
+   # ── 4. MODULE.bazel.lock 新鲜度（镜像 bazel_lock）───────────────────────
+   bazel_lock:
+      name: Check MODULE.bazel.lock freshness
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates' || inputs.suite == 'rust') }}
+      runs-on: self-hosted
+      timeout-minutes: 30
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Check crate_universe entry
+           run: bun scripts/gen-bazel-lock.ts --check
+         - name: Report how to refresh
+           if: failure()
+           run: echo "::error::MODULE.bazel.lock is stale — run 'bun run gen:bazel-lock' locally and commit"
+
+   # ── 5. native addon（镜像 native_addons 的 linux-x64 一对）──────────────
+   native_addons:
+      name: Build native addons (linux-x64)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts' || inputs.suite == 'rust') }}
+      runs-on: self-hosted
+      timeout-minutes: 180
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Compose bazel cache config
+           id: cache
+           shell: bash
+           run: |
+              set -euo pipefail
+              # GitHub 侧用 actions/cache 存 disk cache；这里是常驻工作区，
+              # 目录本身就是缓存（跨运行保留），所以只写 rc。
+              mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
+              find "$HOME/.cache/omp-bazel-disk" -type f -mtime +14 -delete 2>/dev/null || true
+              rc="$RUNNER_TEMP/bazel-cache.rc"
+              {
+                 echo "common --config=ci"
+                 echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
+                 echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+              } > "$rc"
+              echo "rc=$rc" >> "$GITHUB_OUTPUT"
+         - name: Build linux-x64 native addons
+           shell: bash
+           env:
+              NATIVE_TARGETS: ${{ env.NATIVES_X64_TARGETS }}
+           run: |
+              set -eo pipefail
+              if [ "$(ulimit -Sn)" != unlimited ] && [ "$(ulimit -Sn)" -lt 65536 ]; then ulimit -Sn 65536 || true; fi
+              # 一个 addon 一次调用（与 GitHub 同）：并发链接会 OOM，
+              # bazel server 会被一起带走；analysis 与 action 靠常驻 server 复用。
+              for target in $NATIVE_TARGETS; do
+                 bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build "//:$target"
+              done
+              for target in $NATIVE_TARGETS; do
+                 mkdir -p "ci-natives/$target"
+                 cp -L "bazel-bin/$target"/*.node "ci-natives/$target/"
+              done
+         - name: Install native addon targets
+           shell: bash
+           env:
+              NATIVE_TARGETS: ${{ env.NATIVES_X64_TARGETS }}
+           run: bun scripts/bazel-natives.ts $NATIVE_TARGETS --source ci-natives --dest packages/natives/native
+         - name: Smoke native addons
+           shell: bash
+           run: |
+              set -euo pipefail
+              # `bun -e 'require(...)'` 会吞掉 dlopen 失败；脚本文件在 bun/node
+              # 下都会真报错（与 GitHub 侧同一份校验）。
+              cat > "$RUNNER_TEMP/smoke-addons.js" <<'EOF'
+              for (const f of process.argv.slice(2)) {
+               const m = require(f);
+               if (!m || Object.keys(m).length === 0) {
+               	console.error(`addon failed to load: ${f}`);
+               	process.exit(1);
+               }
+              }
+              EOF
+              loader=node
+              if command -v bun >/dev/null 2>&1; then loader=bun; fi
+              "$loader" "$RUNNER_TEMP/smoke-addons.js" \
+                "$PWD/packages/natives/native/pi_natives.linux-x64-baseline.node" \
+                "$PWD/packages/natives/native/pi_natives.linux-x64-modern.node"
+
+   # ── 6. TS 测试桶（镜像 test_* 系列，命令逐字相同）─────────────────────
+   test_coding_agent_native:
+      name: "Test coding-agent native/unit (TS)"
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 90
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Reuse built addons
+           shell: bash
+           run: |
+              set -euo pipefail
+              # 常驻工作区里 addon 已经在 packages/natives/native/；
+              # 只需确认它存在（job 单独重跑时给出明确报错而不是 dlopen 谜题）。
+              ls -1 packages/natives/native/pi_natives.linux-x64-*.node
+         - name: Test coding-agent native/unit bucket
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_SHARD: "1/1"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:coding-agent:native
+
+   test_workspace:
+      name: Test TS workspace fast
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Test workspace packages and repo scripts (TS)
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: |
+              bun run ci:test:ts:workspace
+              # 不跑 `test:scripts`：scripts/musl-release.test.ts 在 main 上就是红的
+              #（install.sh 冒烟会执行假二进制），与本 job 无关。与 GitHub 同款拆分。
+              bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+
+   test_coding_agent_singleton:
+      name: Test coding-agent singleton/global-state (TS)
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Test coding-agent singleton/global-state bucket
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:coding-agent:singleton
+
+   test_ts_native:
+      name: Test TS native/integration packages
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Test native/TUI/browser-ish packages (TS)
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:ts:native
+
+   test_coding_agent_ui:
+      name: Test coding-agent UI/TUI (TS)
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Test coding-agent UI/TUI bucket
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:coding-agent:ui
+
+   test_coding_agent_runtime:
+      name: Test coding-agent runtime/session (TS)
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Test coding-agent runtime bucket
+           env:
+              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:coding-agent:runtime
+
+   test_smoke:
+      name: Test CLI smoke (TS)
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 30
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: CLI smoke test
+           run: bun run ci:test:smoke
+
+   install_methods:
+      name: Install method smoke tests
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 60
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Install method smoke tests
+           env:
+              OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
+           run: bun run ci:test:install-methods
+
+   # ── 7. Rust 工作区门禁（镜像 rust_validate，bazel 侧）──────────────────
+   rust_validate:
+      name: Validate Rust workspace (bazel)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'rust') }}
+      runs-on: self-hosted
+      timeout-minutes: 180
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - id: cache
+           name: Compose bazel cache config
+           shell: bash
+           run: |
+              set -euo pipefail
+              mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
+              rc="$RUNNER_TEMP/bazel-cache.rc"
+              {
+                 echo "common --config=ci"
+                 echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
+                 echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+              } > "$rc"
+              echo "rc=$rc" >> "$GITHUB_OUTPUT"
+         - name: Rust tests
+           shell: bash
+           run: |
+              set -eo pipefail
+              if [ "$(ulimit -Sn)" != unlimited ] && [ "$(ulimit -Sn)" -lt 65536 ]; then ulimit -Sn 65536 || true; fi
+              bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" test //crates/...
+         - name: Clippy (workspace lint policy on opted-in crates)
+           shell: bash
+           run: |
+              bazelisk query "kind('rust_library|rust_shared_library', //crates/pi-ast/... + //crates/pi-diff/... + //crates/pi-edit/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-vcs/... + //crates/pi-voice/... + //crates/pi-walker/...)" \
+                | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy-strict --
+         - name: Clippy (default lints elsewhere)
+           shell: bash
+           run: |
+              bazelisk query "kind('rust_library|rust_shared_library', //crates/... - (//crates/pi-ast/... + //crates/pi-diff/... + //crates/pi-edit/... + //crates/pi-iso/... + //crates/pi-natives/... + //crates/pi-shell/... + //crates/pi-vcs/... + //crates/pi-voice/... + //crates/pi-walker/...) - //crates/pi-builtins/... - //crates/vendor/brush-core/...)" \
+                | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy --
+         - name: Clippy (manifest allows on ported pi-builtins)
+           shell: bash
+           run: |
+              bazelisk query "kind('rust_library|rust_shared_library', //crates/pi-builtins/...)" \
+                | xargs bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=clippy-ported --
+         - name: Rustfmt
+           shell: bash
+           run: bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build --config=rustfmt //crates/...
+
+   # ── 8. vendor 工作区（镜像 editor_tests / termide_tests / main_tests）────
+   editor_tests:
+      name: Test editor (vendored TTT)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
+      runs-on: self-hosted
+      timeout-minutes: 90
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Go tests (unit + e2e)
+           working-directory: editor
+           run: go test ./...
+         - name: Build editor binary for functional harness
+           working-directory: editor
+           run: go build -ldflags="-s -w -X main.version=ci-test" -o bin/ttt ./cmd/ttt
+         - name: Install ripgrep for global-search e2e
+           working-directory: editor
+           run: bash ./scripts/install-prerequisites.sh
+         - name: Functional vitest suite
+           working-directory: editor/tests/functional
+           run: npm install --no-audit --no-fund && npx vitest run
+
+   termide_tests:
+      name: Test termide (vendored TermIDE)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates' || inputs.suite == 'rust') }}
+      runs-on: self-hosted
+      timeout-minutes: 120
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Detect termide/ changes
+           id: termide
+           shell: bash
+           env:
+              BEFORE: ${{ github.event.before }}
+           run: |
+              set -euo pipefail
+              base=""
+              if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                 base="$BEFORE"
+              fi
+              if [ -z "$base" ]; then
+                 echo "No base revision (manual dispatch) - running the full gate"
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+                 exit 0
+              fi
+              git fetch --no-tags --depth=1 origin "$base" || true
+              if git diff --name-only "$base" HEAD -- termide/ | grep -q .; then
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+              else
+                 echo "termide/ untouched - skipping the vendored Rust gate"
+                 echo "skip=true" >> "$GITHUB_OUTPUT"
+              fi
+         - name: Check formatting
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo fmt --all -- --check
+         - name: Check compilation
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo check --workspace --all-targets
+         - name: Run clippy (strict mode)
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo clippy --workspace --all-targets -- -D warnings
+         - name: Run tests
+           if: steps.termide.outputs.skip != 'true'
+           working-directory: termide
+           run: cargo nextest run --workspace || cargo test --workspace
+
+   main_tests:
+      name: Test main workspace (zeta workbench)
+      needs: [preflight, toolchains]
+      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates' || inputs.suite == 'rust') }}
+      runs-on: self-hosted
+      timeout-minutes: 120
+      steps:
+         - uses: actions/checkout@v4
+         - name: Toolchain PATH
+           shell: bash
+           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+         - name: Detect main/ changes
+           id: main
+           shell: bash
+           env:
+              BEFORE: ${{ github.event.before }}
+           run: |
+              set -euo pipefail
+              base=""
+              if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                 base="$BEFORE"
+              fi
+              if [ -z "$base" ]; then
+                 echo "No base revision (manual dispatch) - running the full gate"
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+                 exit 0
+              fi
+              git fetch --no-tags --depth=1 origin "$base" || true
+              if git diff --name-only "$base" HEAD -- main/ | grep -q .; then
+                 echo "skip=false" >> "$GITHUB_OUTPUT"
+              else
+                 echo "main/ untouched - skipping the workspace Rust gate"
+                 echo "skip=true" >> "$GITHUB_OUTPUT"
+              fi
+         - name: Check formatting
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo fmt --all -- --check
+         - name: Check compilation
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo check --workspace --all-targets
+         - name: Run clippy (strict mode)
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo clippy --workspace --all-targets -- -D warnings
+         - name: Run tests
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo nextest run --workspace || cargo test --workspace
