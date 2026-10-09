@@ -51,7 +51,6 @@ import {
 	readToolSupersedeKey,
 } from "@linxiraos/pi-agent-core/compaction/pruning";
 import type { ProtectedToolMatcher } from "@linxiraos/pi-agent-core/compaction/tool-protection";
-
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -61,9 +60,10 @@ import type {
 	ProviderSessionState,
 } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
+import { resolvePromptCacheLookback } from "@linxiraos/pi-catalog/compat/prompt-cache-lookback";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
-import { isRecord, logger, prompt, Snowflake, stringifyJson } from "@linxiraos/pi-utils";
+import { isRecord, logger, prompt, Snowflake } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { writeArtifact } from "./artifacts";
 import type { ModelRegistry } from "../config/model-registry";
@@ -78,7 +78,6 @@ import { computeNonMessageTokens, type NonMessageTokenSource } from "@linxiraos/
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import { isCompleteReadResult } from "../tools/read-supersede";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { TrackingRecorder } from "../tools/tracking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";
@@ -552,7 +551,6 @@ export class SessionMaintenance {
 	/** Latest rollover boundary that already received its pre-threshold notebook reminder. */
 	#experimentalNotesReminderBoundaryId: string | undefined;
 	readonly #host: SessionMaintenanceHost;
-	readonly #trackingRecorder: TrackingRecorder;
 
 	get #model(): Model | undefined {
 		return this.#host.model();
@@ -573,7 +571,6 @@ export class SessionMaintenance {
 
 	constructor(host: SessionMaintenanceHost) {
 		this.#host = host;
-		this.#trackingRecorder = new TrackingRecorder(host.settings);
 	}
 
 	/** Experimental rollover is safe only when the current effective tool surface can recover its state. */
@@ -685,6 +682,7 @@ export class SessionMaintenance {
 	async #pruneToolOutputs(): Promise<{ prunedCount: number; tokensSaved: number } | undefined> {
 		const branchEntries = this.#host.sessionManager.getBranchView();
 		const keepBoundaryId = getLatestCompactionEntry(branchEntries)?.firstKeptEntryId;
+		const model = this.#host.model();
 		const result = pruneToolOutputs(
 			branchEntries,
 			this.#tokenizer,
@@ -695,8 +693,9 @@ export class SessionMaintenance {
 				// (deep stale/age victims) or summarized-away entries every turn.
 				keepBoundaryId,
 				// Prefix-bound thinking cannot survive rewrites inside a warm provider prefix.
-				cacheWarmSuffixTokens:
-					this.#host.model()?.thinking?.prefixBinding === true ? 0 : PRUNE_CACHE_WARM_SUFFIX_TOKENS,
+				cacheWarmSuffixTokens: model?.thinking?.prefixBinding === true ? 0 : PRUNE_CACHE_WARM_SUFFIX_TOKENS,
+				cacheLookbackPositions: model ? resolvePromptCacheLookback(model) : undefined,
+				convertToLlm,
 			}),
 		);
 		if (result.prunedCount === 0) {
@@ -730,6 +729,7 @@ export class SessionMaintenance {
 		if (!supersedeReads && !dropUseless) return undefined;
 		const branchEntries = this.#host.sessionManager.getBranchView();
 		const keepBoundaryId = getLatestCompactionEntry(branchEntries)?.firstKeptEntryId;
+		const model = this.#host.model();
 		const result = pruneSupersededToolResults(
 			branchEntries,
 			this.#tokenizer,
@@ -743,7 +743,9 @@ export class SessionMaintenance {
 				keepBoundaryId,
 				idleFlushMs: PRUNE_IDLE_FLUSH_MS,
 				// Prefix-bound thinking cannot survive rewrites inside a warm provider prefix.
-				suffixTokenLimit: this.#host.model()?.thinking?.prefixBinding === true ? 0 : undefined,
+				suffixTokenLimit: model?.thinking?.prefixBinding === true ? 0 : undefined,
+				cacheLookbackPositions: model ? resolvePromptCacheLookback(model) : undefined,
+				convertToLlm,
 			}),
 		);
 		if (result.prunedCount === 0) {
@@ -2450,9 +2452,6 @@ export class SessionMaintenance {
 		const savedCompactionEntry = newEntries.find(e => e.type === "compaction" && e.id === entryId) as
 			| CompactionEntry
 			| undefined;
-		if (savedCompactionEntry) {
-			await this.#trackingRecorder.recordCompaction(this.#host.sessionManager.getCwd(), savedCompactionEntry);
-		}
 		if (this.#host.extensionRunner && savedCompactionEntry) {
 			const compactEmit = this.#host.extensionRunner.emit({
 				type: "session_compact",
@@ -3774,7 +3773,6 @@ export class SessionMaintenance {
 			this.#tokenizer,
 			this.#host.settings.revision,
 		);
-
 		const branch = this.#host.sessionManager.getBranch();
 		const leaf = branch.at(-1);
 		const archive = snapcompact.getPreservedArchive(args.preserveData);

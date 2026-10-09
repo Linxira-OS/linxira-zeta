@@ -5,14 +5,12 @@
 - v18.1.10 sync baseline (collab session UI updates).
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
-## [18.8.0] - 2026-10-07
 
 ### Changed
 
 - Improved streaming transcript performance by reducing unnecessary guest updates and Markdown re-rendering, including faster rendering for transcripts with many unclosed LaTeX delimiters.
 - Stopped tracking finished or no-longer-listed subagents, reducing unnecessary polling and memory usage in the agent drawer.
 
-## [18.4.10] - 2026-10-02
 
 ## [1.0.2] - 2026-08-15
 

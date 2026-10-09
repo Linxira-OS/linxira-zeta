@@ -21,7 +21,7 @@ import (
 //
 //	OMP_RPC_SMOKE=1 go test -run TestSmoke -v ./...
 //
-// PI_CODING_AGENT_DIR points at a fresh directory so no user configuration
+// ZETA_CODING_AGENT_DIR points at a fresh directory so no user configuration
 // applies. TestSmoke has no model and never prompts; TestSmokeModel prompts a
 // scripted local model (packages/coding-agent/test/rpc-wire/fake-openai-server.ts).
 
@@ -70,7 +70,7 @@ func startServer(t *testing.T, root, agentDir string, args []string, options ...
 	defer cancel()
 	cmd := exec.Command("bun", append([]string{"packages/coding-agent/src/cli.ts", "--mode", "rpc", "--no-session"}, args...)...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "PI_CODING_AGENT_DIR="+agentDir)
+	cmd.Env = append(os.Environ(), "ZETA_CODING_AGENT_DIR="+agentDir)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	client, err := Start(ctx, cmd, options...)

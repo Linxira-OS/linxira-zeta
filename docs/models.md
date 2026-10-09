@@ -24,7 +24,7 @@ Default-profile config paths, in precedence order:
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
 `~/.omp/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
-`PI_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
 Legacy behavior still present:
