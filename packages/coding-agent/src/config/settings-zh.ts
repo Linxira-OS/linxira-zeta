@@ -1771,10 +1771,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "空闲时",
 		description: "在两次运行之间也会刷新 5 分钟级缓存条目，只要预期节省仍高于成本下限",
 	},
-	"telemetry.otlpExportEnabled": {
-		label: "OTLP 遥测导出",
-		description: "允许通过 OTEL_* 端点导出 traces、logs 与 metrics。更改在下次启动时生效。",
-	},
 	"providers.fireworksTier": {
 		label: "Fireworks 层级",
 		description:
