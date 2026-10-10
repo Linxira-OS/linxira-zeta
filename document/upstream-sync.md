@@ -1,5 +1,30 @@
 # Upstream Sync Ledger
 
+## Integrated through: v18.8.4
+
+This line is the machine-readable answer to "which upstream tag is actually
+in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
+deliberately distinct from a merge entry's **Baseline** field, which records
+what a round *started* from. Those are different questions: the v18.8.1–v18.8.6
+round started at v18.7.0 but only v18.8.4 ever landed on main as a real
+two-parent tag merge.
+
+- **Integrated through**: `v18.8.4` (`153b37c3b65b`, confirmed by
+  `git merge-base HEAD <tag>`).
+- **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
+  `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
+  `082bb1ac490`) but that branch was never merged into main. What landed was
+  `dab5fa80ac4`, titled "Merge OMP v18.8.5 + v18.8.6 into Zeta (#76)", which
+  is a **single-parent** commit (`parents=696ada8241d`). The ledger below
+  claimed ancestry was verified; it was not — `git merge-base --is-ancestor
+  v18.8.6 HEAD` returns false. Corrected here rather than left as a claim.
+- **Upstream moved the v18.8.4 tag** after we merged it: the remote now
+  advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
+  the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
+- **Next merge** therefore starts from `153b37c3b65b`, which is exactly what
+  `git merge v18.8.7` computes as its own merge-base. The increment applied is
+  upstream's, not a whole-tree comparison against our branch.
+
 ## v18.8.1鈥搗18.8.6 incremental merge (Zeta 鈥?branches `sync/omp-release/v18.8.4` + `sync/omp-release/v18.8.6`, PRs #76/#77)
 
 - **Baseline**: v18.7.0 (peeled `e0fc1cf4ea35`, merge-base gate passed exactly) 鈫?Zeta start `ca4cef1b00f` (main @ local CI tooling). **Source tags**: `v18.8.1`鈫抦erge `4f5cd0598f3`, `v18.8.2`鈫抈67dacf9d123`, `v18.8.3`鈫抈187a2084275`, `v18.8.4`鈫抈3151cc088ae`, then the follow-up window `v18.8.5`鈫抈77c3e5b2bf1` (peeled `4bf0d9d3e9f9`) and `v18.8.6`鈫抈082bb1ac490` (peeled `f068751e2f1d`) 鈥?all true two-parent `git merge <tag>` commits; ancestry verified (`git merge-base --is-ancestor v18.8.6 HEAD` passes). PR #76 landed on main as `dab5fa80ac4`.

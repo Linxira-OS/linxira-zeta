@@ -58,9 +58,14 @@ function peel(ref: string): string {
 }
 
 /**
- * The last upstream tag named as a baseline in the sync ledger. The ledger is
- * the human record of what we integrated; deriving the gate from it keeps the
- * machine check and the written history from drifting apart.
+ * The last upstream tag actually present in our history, per the ledger's
+ * "Integrated through" line.
+ *
+ * This is NOT the same as a merge entry's **Baseline** field. Baseline records
+ * what a round *started* from; the v18.8.1-v18.8.6 round started at v18.7.0
+ * but only v18.8.4 ever landed on main as a real two-parent tag merge. Reading
+ * Baseline here made the gate compare against a tag we have long since moved
+ * past, which fails even when the lineage is perfectly intact.
  */
 function baselineFromLedger(): string | undefined {
 	let text: string;
@@ -69,9 +74,14 @@ function baselineFromLedger(): string | undefined {
 	} catch {
 		return undefined;
 	}
-	// Entries look like: - **Baseline**: v18.7.0 (peeled `e0fc1cf4ea35`, ...)
-	const found = [...text.matchAll(/\*\*Baseline\*\*:\s*(v[\w.]+)/g)].map(m => m[1]);
-	return found[0];
+	const integrated = /\*\*Integrated through\*\*:\s*`(v[\w.]+)`/.exec(text);
+	if (integrated) return integrated[1];
+	// Fall back for ledgers written before the field existed. Prefer the most
+	// recent entry's *source tag* over its Baseline for the same reason.
+	const sourceTags = [...text.matchAll(/\*\*Source tags\*\*:(.+)/g)].flatMap(m =>
+		[...m[1].matchAll(/`(v[\d.]+)`/g)].map(t => t[1]),
+	);
+	return sourceTags[0];
 }
 
 // ── checks ──────────────────────────────────────────────────────────────────
