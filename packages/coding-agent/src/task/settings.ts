@@ -129,7 +129,7 @@ export const cfgWorktreeOnExit = register({
 		tab: "tasks",
 		group: "Isolation",
 		label: "Worktree on Exit",
-		description: "What to do on exit with worktrees created since zetacode started (on start or with `/wt`)",
+		description: "What to do on exit with worktrees created since omp started (on start or with `/wt`)",
 		options: [
 			{ value: "keep", label: "Keep", description: "Leave worktrees in place" },
 			{ value: "ask", label: "Ask", description: "Ask on exit" },

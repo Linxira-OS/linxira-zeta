@@ -6,17 +6,17 @@ Start your prompt with `$ ` to run Python — `$$ ` runs it without adding the o
 You can /btw to ask a side question
 Use /tan to fork the current conversation into a background agent
 With default keybindings, {key:ctrl+d} deletes the character under the cursor instead of quitting your draft — see /hotkeys for your exit key
-Find out which model you emotionally abuse the most with `zeta stats`
+Find out which model you emotionally abuse the most with `zetacode stats`
 Try task isolation to create CoW worktrees
-Need a cheap nested model call? Use `completion(x...)`. Have a big batch of tasks? Ask a subagent to use it!
+Need a cheap nested model call? Use `completion(x...)`
 Spaghetti code? Try complaining with /omfg
-Did you know? Each kitty/tmux/cmux/zellij/wezterm split keeps its own session — `zeta -c` resumes the right one
+Did you know? Each kitty/tmux/cmux/zellij/wezterm split keeps its own session — `zetacode -c` resumes the right one
 Drop the word `ultrathink` in your message for harder multi-step reasoning — watch it glow rainbow as you type
 Say `orchestrate` in your message to drive a multi-phase task with parallel subagents — watch it glow as you type
 Say `workflowz` in your message to drive the task with parallel subagents in eval — watch it glow as you type
 Bulk data to classify or triage? Say `jevify` in your message — the eval kernel's `judge()` processes the batch and you read only what it flags — watch it glow as you type
 Log in to several accounts of the same provider — `/login` again — and zeta load-balances across them automatically
-Run `zeta auth-broker serve` once and every machine pulls live tokens over the wire — refresh keys never leave the host; `zeta auth-gateway` fronts it as a drop-in proxy any OpenAI-compatible client can hit
+Run `zetacode auth-broker serve` once and every machine pulls live tokens over the wire — refresh keys never leave the host; `zetacode auth-gateway` fronts it as a drop-in proxy any OpenAI-compatible client can hit
 Press {key:alt+p} (or /switch) to switch provider, and {key:ctrl+p} to cycle role models smol -> slow -> etc
 Press {key:ctrl+r} to search your prompt history and reuse a past message
 `/force read` pins the next turn to one specific tool when the model keeps reaching for the wrong one

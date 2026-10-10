@@ -2,7 +2,7 @@ use std::{
 	collections::VecDeque,
 	io::Write,
 	path::{Path, PathBuf},
-	sync::Arc,
+	sync::{Arc, atomic::AtomicBool},
 };
 
 use brush_parser::ast::{self, CommandPrefixOrSuffixItem};
@@ -26,28 +26,28 @@ use crate::{
 /// Encapsulates the context of execution in a command pipeline.
 struct PipelineExecutionContext<'a, SE: extensions::ShellExtensions> {
 	/// The shell in which the command should be executed.
-	shell: commands::ShellForCommand<'a, SE>,
+	shell:            commands::ShellForCommand<'a, SE>,
 	/// Process group ID for spawned processes.
 	process_group_id: Option<i32>,
 	/// Whether this command is part of a multi-command pipeline.
-	in_pipeline: bool,
+	in_pipeline:       bool,
 }
 
 /// Information about an expanded external command launch.
 pub struct ExternalCommandInfo<'a> {
 	/// Shell command name before path resolution.
-	pub command_name: &'a str,
+	pub command_name:    &'a str,
 	/// Resolved executable path used for the process launch.
 	pub executable_path: &'a str,
 	/// Expanded process arguments, excluding `argv[0]`.
-	pub args: Vec<&'a str>,
+	pub args:            Vec<&'a str>,
 }
 
 /// Marker strings written around a launched command's output.
 #[derive(Clone)]
 pub struct ExternalCommandOutputMarkers {
 	/// Marker written immediately before the process is spawned.
-	pub start_marker: String,
+	pub start_marker:      String,
 	/// Prefix for the completion marker; the numeric exit code is inserted
 	/// between this prefix and [`Self::end_marker_suffix`].
 	pub end_marker_prefix: String,
@@ -86,7 +86,7 @@ pub trait SpawnObserver: Send + Sync {
 #[derive(Clone, Default)]
 pub struct ExecutionParameters {
 	/// The open files tracked by the current context.
-	open_files: openfiles::OpenFiles,
+	open_files:               openfiles::OpenFiles,
 	/// Policy for how to manage spawned external processes.
 	pub process_group_policy: ProcessGroupPolicy,
 	/// Whether external commands spawned in this context should reparent out of
@@ -95,17 +95,20 @@ pub struct ExecutionParameters {
 	/// background wrapper such as `nohup cmd &`.
 	pub detach_reparent: bool,
 	/// Optional cancellation token shared with callers.
-	cancel_token: Option<CancellationToken>,
+	cancel_token:             Option<CancellationToken>,
 	/// Optional command-output marker hook.
-	command_output_marker: Option<Arc<dyn ExternalCommandOutputMarker>>,
+	command_output_marker:    Option<Arc<dyn ExternalCommandOutputMarker>>,
 	/// Whether command-output marking was disabled by shell syntax that can
 	/// consume or redirect command output.
-	command_output_disabled: bool,
+	command_output_disabled:  bool,
 	/// Whether `errexit` (exit on error) behavior should be
 	/// suppressed in this execution context. Defaults to `false`.
-	pub suppress_errexit: bool,
+	pub suppress_errexit:     bool,
 	/// Optional hook reporting spawned external children for scoped teardown.
-	spawn_observer: Option<Arc<dyn SpawnObserver>>,
+	spawn_observer:           Option<Arc<dyn SpawnObserver>>,
+	/// Optional flag a command raises when it reports an error yet goes on,
+	/// so its exit status does not show the failure.
+	reported_error:           Option<Arc<AtomicBool>>,
 }
 
 impl ExecutionParameters {
@@ -154,6 +157,17 @@ impl ExecutionParameters {
 	/// Returns the active spawn-observer hook, if any.
 	pub fn spawn_observer(&self) -> Option<&Arc<dyn SpawnObserver>> {
 		self.spawn_observer.as_ref()
+	}
+
+	/// Assigns the flag commands raise when they report an error yet go on.
+	pub fn set_reported_error(&mut self, flag: Arc<AtomicBool>) {
+		self.reported_error = Some(flag);
+	}
+
+	/// Returns the flag commands raise when they report an error yet go on,
+	/// if any.
+	pub fn reported_error(&self) -> Option<&Arc<AtomicBool>> {
+		self.reported_error.as_ref()
 	}
 
 	/// Returns the standard input file; usable with `write!` et al.
@@ -297,6 +311,7 @@ fn ensure_not_cancelled(params: &ExecutionParameters) -> Result<(), error::Error
 	}
 	Ok(())
 }
+
 
 #[derive(Clone, Debug, Default)]
 /// Policy for how to manage spawned external processes.
@@ -694,9 +709,7 @@ impl Execute for ast::Pipeline {
 		// committed contents, and so a failed commit fails this pipeline.
 		if let Err(close_error) = shell.filesystem().drain_closes().await {
 			let close_error = error::Error::from(close_error);
-			let _ = shell
-				.display_error(&mut params.stderr(shell), &close_error)
-				.await;
+			let _ = shell.display_error(&mut params.stderr(shell), &close_error).await;
 			result.exit_code = ExecutionExitCode::GeneralError;
 		}
 
@@ -800,6 +813,7 @@ async fn spawn_pipeline_processes(
 			cmd_params.disable_command_output_marking();
 		}
 
+
 		// Install pipes.
 		if let Some(Some(reader)) = pipe_readers.pop() {
 			cmd_params.open_files.set_fd(OpenFiles::STDIN_FD, reader);
@@ -870,16 +884,8 @@ async fn wait_for_pipeline_processes_and_update_status(
 		ExecutionSpawnResult::StartedProcess(child) => child.pid(),
 		ExecutionSpawnResult::Completed(_) | ExecutionSpawnResult::StartedTask(_) => None,
 	};
-	if process_spawn_results
-		.iter()
-		.filter_map(external_pid)
-		.nth(1)
-		.is_some()
-	{
-		let pipeline_pids: Arc<[_]> = process_spawn_results
-			.iter()
-			.filter_map(external_pid)
-			.collect();
+	if process_spawn_results.iter().filter_map(external_pid).nth(1).is_some() {
+		let pipeline_pids: Arc<[_]> = process_spawn_results.iter().filter_map(external_pid).collect();
 		for result in &mut process_spawn_results {
 			if let ExecutionSpawnResult::StartedProcess(child) = result {
 				child.set_stop_pids(Arc::clone(&pipeline_pids));
@@ -1143,9 +1149,9 @@ impl Execute for ast::CoprocessCommand {
 		let cancel_token = child_params.cancel_token();
 		let join_handle = tokio::spawn(async move {
 			let pipeline_context = PipelineExecutionContext {
-				shell: commands::ShellForCommand::ParentShell(&mut child_shell),
+				shell:            commands::ShellForCommand::ParentShell(&mut child_shell),
 				process_group_id: None,
-				in_pipeline: false,
+				in_pipeline:       false,
 			};
 			let spawn_result = body
 				.execute_in_pipeline(pipeline_context, child_params)
@@ -1672,11 +1678,12 @@ impl<SE: extensions::ShellExtensions> ExecuteInPipeline<SE> for ast::SimpleComma
 				commands::ShellForCommand::ParentShell(parent_shell)
 			};
 
-			let context = PipelineExecutionContext {
-				shell,
-				process_group_id: context.process_group_id,
-				in_pipeline: context.in_pipeline,
-			};
+			let context =
+				PipelineExecutionContext {
+					shell,
+					process_group_id: context.process_group_id,
+					in_pipeline: context.in_pipeline,
+				};
 
 			match execute_command(context, params, cmd_name, assignments, args).await {
 				Ok(result) => Ok(result),
@@ -2096,12 +2103,10 @@ pub(crate) async fn setup_redirect(
 						ast::IoFileRedirectKind::DuplicateInput => 0,
 						ast::IoFileRedirectKind::DuplicateOutput => 1,
 						_ => {
-							return Err(
-								error::ErrorKind::InternalError(format!(
-									"unexpected redirect kind for file descriptor target: {kind:?}"
-								))
-								.into(),
-							);
+							return Err(error::ErrorKind::InternalError(format!(
+								"unexpected redirect kind for file descriptor target: {kind:?}"
+							))
+							.into());
 						},
 					};
 
@@ -2121,12 +2126,10 @@ pub(crate) async fn setup_redirect(
 						ast::IoFileRedirectKind::DuplicateInput => 0,
 						ast::IoFileRedirectKind::DuplicateOutput => 1,
 						_ => {
-							return Err(
-								error::ErrorKind::InternalError(format!(
-									"unexpected redirect kind for duplicate target: {kind:?}"
-								))
-								.into(),
-							);
+							return Err(error::ErrorKind::InternalError(format!(
+								"unexpected redirect kind for duplicate target: {kind:?}"
+							))
+							.into());
 						},
 					};
 
@@ -2199,12 +2202,10 @@ pub(crate) async fn setup_redirect(
 							params.open_files.set_fd(fd_num, target_file);
 						},
 						_ => {
-							return Err(
-								error::ErrorKind::InternalError(format!(
-									"process substitution used with invalid redirect kind: {kind:?}"
-								))
-								.into(),
-							);
+							return Err(error::ErrorKind::InternalError(format!(
+								"process substitution used with invalid redirect kind: {kind:?}"
+							))
+							.into());
 						},
 					}
 				},
@@ -2346,6 +2347,7 @@ fn setup_process_substitution(
 			.execute(&mut subshell, &child_params)
 			.await;
 	});
+
 
 	Ok((candidate_fd_num, target_file))
 }

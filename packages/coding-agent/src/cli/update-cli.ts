@@ -9,13 +9,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, $which, APP_NAME, CLI_BIN_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
-import { discoverBin } from "../utils/bin-discovery";
+import {
+	$env,
+	$which,
+	APP_NAME,
+	CLI_BIN_NAME,
+	compareVersions,
+	getProjectDir,
+	isCompiledBinary,
+	isEnoent,
+	VERSION,
+} from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
-import { settings } from "../config/settings";
+import { Settings, settings } from "../config/settings";
 import { theme } from "@linxiraos/pi-tui/theme";
+import { discoverBin } from "../utils/bin-discovery";
 import {
 	isTimeoutError,
 	isUnsupportedProxyError,
@@ -592,6 +602,38 @@ function tryRealpath(p: string): string | undefined {
 	}
 }
 
+/**
+ * Whether this omp runs from a source checkout (the dev launcher or a `bun link` of
+ * `src/cli.ts`) rather than a compiled binary or a package-manager install, which
+ * always lives under `node_modules`. Checkouts update through git, so update
+ * prompts are noise there.
+ */
+export function isSourceCheckout(): boolean {
+	return !isCompiledBinary() && !import.meta.dir.split(path.sep).includes("node_modules");
+}
+
+/**
+ * Name of the app that manages the omp at `binaryPath`, or undefined when none does.
+ *
+ * A manager (Tern) keeps `manager.json` (`{"manager": "tern", "name": "Tern"}`) two
+ * directories above every binary it installs (`<root>/versions/<version>`,
+ * `<root>/bin/omp.exe`) and updates them itself, so `zetacode update` must leave them alone.
+ * A missing or unreadable manifest means unmanaged.
+ */
+export async function managedInstallName(binaryPath: string): Promise<string | undefined> {
+	const resolved = tryRealpath(binaryPath);
+	if (!resolved) return undefined;
+	let manifest: unknown;
+	try {
+		manifest = await Bun.file(path.join(path.dirname(path.dirname(resolved)), "manager.json")).json();
+	} catch {
+		return undefined;
+	}
+	if (!isRecord(manifest)) return undefined;
+	const name = typeof manifest.name === "string" && manifest.name ? manifest.name : manifest.manager;
+	return typeof name === "string" && name ? name : undefined;
+}
+
 function isSymlinkPath(p: string): boolean {
 	try {
 		return fs.lstatSync(p).isSymbolicLink();
@@ -737,8 +779,8 @@ function resolveUpdateMethod(
 	// a binary install through npm/bun, whose reinstall then collides with the
 	// existing file (npm EEXIST). Fall through to binary replacement instead.
 	// On Windows every launcher is a regular file, so ownership keys off the
-	// manager's own artifacts instead: npm's script shims (`zetacode`, `zeta.cmd`,
-	// `zeta.ps1`) and bun's `zeta.bunx` sidecar. A bare `.exe` with neither is the
+	// manager's own artifacts instead: npm's script shims (`zetacode`, `omp.cmd`,
+	// `omp.ps1`) and bun's `omp.bunx` sidecar. A bare `.exe` with neither is the
 	// standalone binary a binary-only release installed over the launcher —
 	// routing that back through bun reinstalls a package which no longer owns
 	// the launcher, and bun silently tolerates failing to overwrite the running
@@ -1307,16 +1349,13 @@ function getBinaryName(): string {
 	}
 
 	if (os === "windows") {
-		return `zeta-cli-${os}-${archName}.exe`;
+		return `${CLI_BIN_NAME}-${os}-${archName}.exe`;
 	}
-	return `zeta-cli-${os}-${archName}`;
+	return `${CLI_BIN_NAME}-${os}-${archName}`;
 }
 
 /**
- * Resolve the path that `zeta-c` maps to in the unified discovery order:
- * ① explicit `ZETA_BIN_DIR` ② PATH ③ the npm-form global-bin dirs. No
- * version validation at discovery — `update` verifies the launcher's own
- * version only after installing a new one.
+ * Resolve the path that `zetacode` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
 	return discoverBin([CLI_BIN_NAME]) ?? undefined;
@@ -1371,7 +1410,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 
 	const reason = hasShebang
 		? "is a shebang script, not an OMP binary"
-		: `does not report a ${CLI_BIN_NAME} version when run directly`;
+		: "does not report an OMP version when run directly";
 	throw new Error(
 		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
 	);
@@ -2064,7 +2103,7 @@ export async function updateViaBinaryAt(
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
  * renamed aside during a script-shim takeover; each execs the sibling
- * `zetacode.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * `omp.exe`. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
@@ -2080,8 +2119,8 @@ const SHIM_FORWARDERS: Record<string, string> = {
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`zetacode`/`zeta.cmd`/`zeta.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `zetacode.exe` beside them and
+ * (`zetacode`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
+ * executable. The release binary is installed as `omp.exe` beside them and
  * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every
@@ -2238,6 +2277,16 @@ export async function runUpdateCommand(opts: {
 	check: boolean;
 	channel?: UpdateChannel;
 }): Promise<void> {
+	const ompPath = resolveOmpPath();
+	const manager = ompPath ? await managedInstallName(ompPath) : undefined;
+	if (manager) {
+		console.log(
+			chalk.yellow(`${ompPath} is installed and kept up to date by ${manager}; update it from ${manager}.`),
+		);
+		return;
+	}
+	// `update.channel` picks the channel; --canary/--stable switch and persist it.
+	await Settings.init({ cwd: getProjectDir() });
 	console.log(chalk.dim(`Current version: ${VERSION}`));
 	const persistedChannel = readPersistedChannel() ?? "stable";
 	const channel = opts.channel ?? persistedChannel;
@@ -2264,7 +2313,7 @@ export async function runUpdateCommand(opts: {
 	if (isChannelSwitch) {
 		console.log(
 			chalk.yellow(
-				`Switching to ${channel} ${release.version}${comparison <= 0 ? ` (downgrade from ${VERSION})` : ""}`,
+				`Switching to ${channel} ${release.version}${comparison < 0 ? ` (downgrade from ${VERSION})` : ""}`,
 			),
 		);
 	} else if (comparison > 0) {

@@ -72,7 +72,7 @@ interface XAIResponsesUsage {
 	server_side_tool_usage_details?: { x_posts_fetched?: number; x_users_fetched?: number } | null;
 }
 
-/** Body of a non-streaming xAI Responses API reply, as far as zetacode reads it. */
+/** Body of a non-streaming xAI Responses API reply, as far as omp reads it. */
 export interface XAIResponsesResponse {
 	id?: string;
 	model?: string;
@@ -163,6 +163,17 @@ function xHandleFilter(parsed: StructuredQuery): { allowed: string[]; excluded: 
  */
 export function targetsX(parsed: StructuredQuery): boolean {
 	return xHandleFilter(parsed).allowed.length > 0 || (parsed.sites.length > 0 && parsed.sites.every(isXSite));
+}
+
+/** Providers serving xAI models; a Set because `getAvailableForProviders` takes one. */
+const XAI_PROVIDERS: ReadonlySet<string> = new Set(["xai", "xai-oauth"]);
+
+/**
+ * Whether X search can run: an xAI-grounded model with credentials exists.
+ * Gates the X operators in the `web_search` tool description.
+ */
+export function xSearchAvailable(modelRegistry: ModelRegistry): boolean {
+	return modelRegistry.getAvailableForProviders(XAI_PROVIDERS).some(model => model.webSearch === "xai");
 }
 
 /** UTC start date (`YYYY-MM-DD`) of a `recency` window ending now. */

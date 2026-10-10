@@ -1,10 +1,10 @@
-// Apple Foundation Models bridge for omp, linked into the pi-natives addon.
+// Apple Foundation Models bridge for zeta, linked into the pi-natives addon.
 //
 // Drives the on-device system language model through the stateless
 // `LanguageModelExecutor` API (macOS 27+): every generation request carries the
 // full transcript (instructions + tool definitions, prompts, responses, tool
 // calls, tool outputs) and streams exactly one model turn back. Tool calls are
-// surfaced to the caller instead of being executed, so omp's agent loop owns
+// surfaced to the caller instead of being executed, so zeta's agent loop owns
 // tool execution and resumes by sending the tool outputs in the next request.
 //
 // C ABI (declared in `mod.rs`):
@@ -421,7 +421,7 @@ struct ChannelDecoder {
 
 // MARK: - Generation
 
-let sentinel = "omp.end"
+let sentinel = "zeta.end"
 
 @available(macOS 27, *)
 func generate(_ request: Request, emit: Emitter) async throws {
@@ -535,7 +535,7 @@ func describe(_ error: NSError) -> String {
 }
 
 func log(_ message: String) {
-	FileHandle.standardError.write(Data("omp-applefm: \(message)\n".utf8))
+	FileHandle.standardError.write(Data("zeta-applefm: \(message)\n".utf8))
 }
 
 let unsupportedOS = BridgeError(code: "unsupported_os", message: "Apple Foundation Models requires macOS 27 or later")

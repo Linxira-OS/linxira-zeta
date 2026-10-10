@@ -225,6 +225,7 @@ import planModeUltraActivePrompt from "../prompts/system/plan-mode-ultra-active.
 import rewindReportTemplate from "../prompts/system/rewind-report.md" with { type: "text" };
 import sessionStopBlockedPrompt from "../prompts/system/session-stop-blocked.md" with { type: "text" };
 import sideChannelNoToolsReminder from "../prompts/system/side-channel-no-tools.md" with { type: "text" };
+import titleCardPrompt from "../prompts/system/title-card.md" with { type: "text" };
 import titleForkPrompt from "../prompts/system/title-fork.md" with { type: "text" };
 import skillfulNoticePrompt from "../prompts/system/skillful-notice.md" with { type: "text" };
 import vibeModeActivePrompt from "../prompts/system/vibe-mode-active.md" with { type: "text" };
@@ -281,6 +282,7 @@ import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { extractFileMentions, generateFileMentionMessages } from "../utils/file-mentions";
 import { normalizeModelContextImages } from "../utils/image-loading";
+import { parseCardReply, formatCardTitle, keepTitleCard } from "../utils/title-card";
 import { TokenRateMeter } from "../utils/token-rate";
 import { resumeCommand } from "../utils/resume-command";
 import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
@@ -540,7 +542,7 @@ import {
 	cfgExtendedContext,
 	cfgWorkspaceAdditionalDirectories,
 } from "./context-settings";
-import { cfgTitleGenerator, cfgTitleIcons, cfgTitleRefreshOnReplan } from "../utils/title-settings";
+import { cfgTitleGenerator, cfgTitleIcons, cfgTitleRefreshOnReplan, type TitleIcons } from "../utils/title-settings";
 import {
 	cfgArchiveEnabled,
 	cfgComputerEnabled,
@@ -14026,6 +14028,40 @@ export class AgentSession implements SettingsScope {
 	 */
 	consumeActiveFallbackCreditRedemption(targetModel?: Model): AnthropicFallbackCreditHandle | undefined {
 		return this.#recovery.consumeActiveFallbackCreditRedemption(targetModel);
+	}
+
+	async renameTitle(title?: string, signal?: AbortSignal): Promise<string | null | undefined> {
+		const icons = this.#cardIcons();
+		const needsCard = (name: string) => icons !== "boring" && !splitCardTitle(name);
+		if (title && !needsCard(title)) return title;
+		const context = title ? undefined : this.#buildReplanTitleContext();
+		if (context !== undefined && (!context || isLowSignalTitleInput(context))) return null;
+		const { sessionManager } = this;
+		const revision = sessionManager.reserveTitleRevision();
+		const sessionId = sessionManager.getSessionId();
+		const titleSignal = this.titleGenerationSignal;
+		const stale = () =>
+			(!title && titleSignal.aborted) ||
+			sessionManager.getSessionId() !== sessionId ||
+			sessionManager.titleRevision !== revision;
+		const named = context === undefined ? title : await this.#retitle(context, signal);
+		if (stale()) return undefined;
+		if (!named || !needsCard(named)) return named ?? null;
+		const cardPrompt = prompt.render(titleCardPrompt, { nerdFonts: icons === "nf+emoji" });
+		const reply = await this.generateTitle(named, cardPrompt, signal);
+		if (stale()) return undefined;
+		const card = reply ? parseCardReply(reply, icons) : undefined;
+		return card ? formatCardTitle(card, named) : named;
+	}
+
+	#cardIcons(): TitleIcons {
+		const icons = cfgTitleIcons.get(this.settings);
+		return icons === "nf+emoji" && !nerdGlyphsActive() ? "emoji" : icons;
+	}
+
+	async #retitle(context: string, signal?: AbortSignal): Promise<string | null> {
+		const title = await this.generateTitle(context, undefined, signal);
+		return title && keepTitleCard(this.sessionName, title);
 	}
 }
 

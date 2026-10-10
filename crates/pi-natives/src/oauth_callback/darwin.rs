@@ -1054,7 +1054,9 @@ mod tests {
 	#[test]
 	fn live_legacy_owner_is_not_recovered() {
 		let root = TempDir::new();
-		let legacy_app = root.0.join("home/Applications/Zeta OAuth Callback live.app");
+		let legacy_app = root
+			.0
+			.join("home/Applications/Zeta OAuth Callback live.app");
 		fs::create_dir_all(&legacy_app).unwrap();
 		let (context, _) = context(&root, ApplicationState::Absent);
 		let recovery_path = legacy_recovery_path(&context);

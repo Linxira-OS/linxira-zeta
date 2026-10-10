@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { normalizeProfileName } from "@linxiraos/pi-utils/dirs";
+import { APP_NAME, CLI_BIN_NAME, normalizeProfileName } from "@linxiraos/pi-utils/dirs";
 import { quotePosixArgument } from "../utils/shell-quote";
 
 export type ProfileAliasShell = "bash" | "zsh" | "fish" | "powershell" | "pwsh";
@@ -151,8 +151,10 @@ function validateAliasName(aliasName: string, shell: ProfileAliasShell): string 
 	if (!ALIAS_NAME_RE.test(normalized)) {
 		throw new Error(`Invalid alias "${aliasName}". Alias names must match ${ALIAS_NAME_RE.source}.`);
 	}
-	if (normalized.toLowerCase() === "zeta") {
-		throw new Error('Invalid alias "zeta". Refusing to shadow the base zetacode command.');
+	// `zeta` is the workbench bin (`zetawork`'s installed name), not the CLI's
+	// `zetacode`, so that is the name an alias must never take over.
+	if (normalized.toLowerCase() === APP_NAME) {
+		throw new Error(`Invalid alias "${APP_NAME}". Refusing to shadow the base ${CLI_BIN_NAME} command.`);
 	}
 	if (getReservedAliasNames(shell).has(normalized.toLowerCase())) {
 		throw new Error(`Invalid alias "${aliasName}". Refusing to create a ${shell} reserved word.`);
@@ -286,7 +288,7 @@ function renderAliasBlock(
 	switch (shell) {
 		case "fish":
 			body = [
-				`function ${aliasName} --wraps zeta --description 'Zeta profile ${profile}'`,
+				`function ${aliasName} --wraps zetacode --description 'Zeta profile ${profile}'`,
 				`    command ${command.fish} --profile=${profile} $argv`,
 				"end",
 			].join("\n");

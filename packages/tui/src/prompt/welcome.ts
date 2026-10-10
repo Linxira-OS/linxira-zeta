@@ -7,6 +7,7 @@ import { card, col, kbd, keyed, node, row, span, text } from "../native/describe
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";
 import { compactText, plainLine, plainText } from "../native/spans";
+
 import { isNativeRendering } from "../native/state";
 import { isHyperlinkEnabled, urlHyperlink, urlLinkSpan } from "../render/hyperlink";
 import { TERMINAL } from "../terminal-capabilities";
