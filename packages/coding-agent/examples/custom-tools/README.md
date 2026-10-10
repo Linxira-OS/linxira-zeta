@@ -23,7 +23,7 @@ Full-featured example demonstrating:
 
 ```bash
 # Test directly (can point to any .ts file)
-omp --tool examples/custom-tools/todo/index.ts
+zetacode --tool examples/custom-tools/todo/index.ts
 
 # Or copy entire folder to tools directory for persistent use
 cp -r todo ~/.zeta/agent/tools/

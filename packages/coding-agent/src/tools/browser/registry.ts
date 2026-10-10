@@ -260,7 +260,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "extension-gone") {
 			throw new ToolError(
-				`omp browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
+				`zetacode browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
 			);
 		}
 		if (outcome === "outdated-relay") {
@@ -462,7 +462,7 @@ async function openSharedHeadlessHandle(
 		});
 		if (!shared) {
 			throw new ToolError(
-				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zetacode ps` for omp.browser.* daemons and ~/.zeta/logs for details",
+				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zetacode ps` for zeta.browser.* daemons and ~/.zeta/logs for details",
 			);
 		}
 		const puppeteer = await loadPuppeteer();

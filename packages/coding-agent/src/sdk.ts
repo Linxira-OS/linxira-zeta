@@ -91,7 +91,7 @@ import { LiveImageUrlService } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { initializeWithSettings } from "./discovery";
-import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
+import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/zeta-extension-roots";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";

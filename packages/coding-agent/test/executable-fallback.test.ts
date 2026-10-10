@@ -106,7 +106,7 @@ describe("executable fallback on unlinked binary", () => {
 
 	it("does not treat Windows drive-relative paths (e.g. C:zeta) as bare commands", () => {
 		vi.spyOn(utils, "isCompiledBinary").mockReturnValue(true);
-		const missingPath = "C:\\Tools\\omp.exe";
+		const missingPath = "C:\\Tools\\zetacode.exe";
 		setProcessProp("execPath", missingPath);
 		setProcessProp("argv0", "C:zeta");
 

@@ -1,6 +1,6 @@
 # @linxiraos/zeta
 
-Core implementation package for the `omp` coding agent in the `omp` monorepo.
+Core implementation package for the `zetacode` coding agent in the `zetacode` monorepo.
 
 For installation, setup, provider configuration, model roles, slash commands, and full CLI reference, see:
 - [Monorepo README (local)](../../README.md)

@@ -109,9 +109,9 @@ function arkJsonAstToWire(value: unknown): unknown {
 }
 
 /** `stamp` cache keys; the entries themselves live in a weak side table keyed by schema identity. */
-const kJsonWireSchema = Symbol("omp.schema.json.wire");
-const kArkWireSchema = Symbol("omp.schema.ark.wire");
-const kStrippedSchema = Symbol("omp.schema.descriptions.stripped");
+const kJsonWireSchema = Symbol("zeta.schema.json.wire");
+const kArkWireSchema = Symbol("zeta.schema.ark.wire");
+const kStrippedSchema = Symbol("zeta.schema.descriptions.stripped");
 
 function postProcessJsonSchema(schema: Record<string, unknown>): Record<string, unknown> {
 	walk(schema);

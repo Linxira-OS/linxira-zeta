@@ -330,7 +330,7 @@ export class ToolCard implements Component {
 			head: headSpans,
 			meta: snapshot.headerMeta ? compactText(styledSpans(snapshot.headerMeta)) : undefined,
 			state,
-			role: "omp.tool",
+			role: "zeta.tool",
 			tone:
 				snapshot.borderColor !== undefined
 					? (colorTone(snapshot.borderColor) ?? "neutral")

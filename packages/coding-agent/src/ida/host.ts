@@ -2,7 +2,7 @@
  * IDA host daemon: the broker-supervised process behind one open database.
  *
  * `acquireIdaDatabase` (`client.ts`) starts it under the project's daemon broker, so `zetacode ps`
- * lists it as `omp.ida.<id>`. The host listens on its endpoint first, then takes the IDB lock and
+ * lists it as `zeta.ida.<id>`. The host listens on its endpoint first, then takes the IDB lock and
  * opens the database in an {@link IdaWorker}; every omp process in the project shares that worker
  * over NDJSON ({@link IdaHostRequest}). The host exits once the worker does (`close`, idle close,
  * crash). SIGTERM (broker shutdown after the last omp process leaves, `zetacode ps stop`) closes the

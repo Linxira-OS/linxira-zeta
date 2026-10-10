@@ -396,17 +396,34 @@ export function initializeWithSettings(activeSettings: Settings): () => void {
 }
 
 /**
+ * Provider ids that were renamed. The Zeta name is canonical and is what we
+ * write; the upstream spelling stays accepted so a `disabledProviders` list
+ * written before the rename keeps working. Read-both/write-new is deliberate:
+ * the plugin ecosystem needs a stable Zeta identity to grow around, and an
+ * existing user's settings must not silently stop applying.
+ */
+const PROVIDER_ID_ALIASES: Readonly<Record<string, string>> = {
+	"omp-plugins": "zeta-plugins",
+};
+
+/** Map any accepted spelling of a provider id onto its canonical Zeta name. */
+export function canonicalProviderId(providerId: string): string {
+	return PROVIDER_ID_ALIASES[providerId] ?? providerId;
+}
+
+/**
  * Disable a provider globally (across all capabilities).
  */
 export function disableProvider(providerId: string): void {
-	setDisabledProviders([...disabledProviders(), providerId]);
+	setDisabledProviders([...disabledProviders(), canonicalProviderId(providerId)]);
 }
 
 /**
  * Enable a previously disabled provider.
  */
 export function enableProvider(providerId: string): void {
-	setDisabledProviders([...disabledProviders()].filter(id => id !== providerId));
+	const canonical = canonicalProviderId(providerId);
+	setDisabledProviders([...disabledProviders()].filter(id => canonicalProviderId(id) !== canonical));
 }
 
 /**
@@ -415,14 +432,18 @@ export function enableProvider(providerId: string): void {
  * {@link isUserSourceEnabled}.
  */
 export function isProviderEnabled(providerId: string): boolean {
-	return !disabledProviders().has(providerId);
+	const canonical = canonicalProviderId(providerId);
+	for (const id of disabledProviders()) {
+		if (canonicalProviderId(id) === canonical) return false;
+	}
+	return true;
 }
 
 /**
- * Get list of all disabled provider IDs.
+ * Get list of all disabled provider IDs, in canonical spelling.
  */
 export function getDisabledProviders(): string[] {
-	return Array.from(disabledProviders());
+	return Array.from(new Set(Array.from(disabledProviders(), canonicalProviderId)));
 }
 
 /**

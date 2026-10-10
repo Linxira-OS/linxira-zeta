@@ -102,10 +102,10 @@ export class AttachmentChipsBand implements Component {
 			const children: NativeNode[] = [content];
 			if (caption) children.push(node("text", { spans: [span(caption, "dim")], wrap: "none" }));
 			cards.push(
-				node("card", { role: "omp.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
+				node("card", { role: "zeta.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
 			);
 		}
-		const described = row(cards, { gap: "sm", wrap: true, role: "omp.composer.chips", hidden: cards.length === 0 });
+		const described = row(cards, { gap: "sm", wrap: true, role: "zeta.composer.chips", hidden: cards.length === 0 });
 		this.#native = { chips, node: described };
 		return described;
 	}

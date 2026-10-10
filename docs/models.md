@@ -167,7 +167,7 @@ Loading models.yml checks a `modelOverrides` `kind` only against an api the file
 - `auth`: `apiKey` (default), `none`, or `oauth`. `none` and `oauth` waive the custom-provider `apiKey` requirement, but `oauth` does not create credentials or register a login flow. It forces OAuth-style request shaping; a usable credential must come from stored auth, environment, or a configured key. Custom `anthropic-messages` models also use OAuth-style shaping when `auth` is omitted; set `auth: apiKey` for plain API-key shaping.
 - `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, `litellm`, or `apple-foundation-models`. Apple's transport is registered implicitly on supported Macs; `apple-foundation-models` is not an allowed `api` value in this YAML schema.
 - `discovery.injectV1`: optional boolean, default `true`, for `openai-models-list`. Set `false` to fetch the model list from `{baseUrl}/models` without injecting `/v1` — for gateways that root their OpenAI-compatible surface at a versioned path (e.g. `https://api.opper.ai/v3/compat`) where the forced `/v1/models` returns a different, smaller model list. Query strings in `baseUrl` are ignored, matching the default mode.
-- `transport`: `pi-native` only. When set, every model under that provider is sent to an `omp auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
+- `transport`: `pi-native` only. When set, every model under that provider is sent to an `zetacode auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
 - `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; OMP converts attached and historical WebP images before provider dispatch.
 - `tokenizer`: opt into a specific embedded local tokenizer when a proxy's model id is ambiguous or noncanonical. Allowed values: `claude-v3`, `claude-v47`, `claude-v5`, `claude-v5-sonnet`, `qwen3`, `deepseek-v3`, `kimi-k2`, and `glm5`. Omit it to use catalog identity policy; unknown models retain the fast local estimate.
 
@@ -239,7 +239,7 @@ providers:
   openai:
     apiKey: "!op read op://dev/openai/api-key"
     headers:
-      X-Team-Key: "!bw get password omp-team-key"
+      X-Team-Key: "!bw get password zeta-team-key"
 ```
 
 Successful command outputs are cached for the process lifetime, and concurrent requests share an in-flight execution. Failures back off for 30 seconds. Refresh callers that request `refreshCommandCredentials` (including the model hub's explicit refresh) and 401 credential recovery invalidate the relevant cached API keys and headers; an ordinary catalog refresh does not. Runtime API-key overrides, including `--api-key`, take precedence over configured credentials.
@@ -449,7 +449,7 @@ Anthropic-routed models use an 8,192-token fallback output cap.
 
 A row advertising only image output becomes an image-generation runner; embedding-only output
 becomes an embedding runner. Mixed outputs remain chat models. These runners are visible with
-`omp models --kind all`, not the default chat listing.
+`zetacode models --kind all`, not the default chat listing.
 
 ### Explicit provider discovery
 
@@ -711,13 +711,13 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for either provider setting, or `values` for any of them.
 
-## `/model` and `omp models`
+## `/model` and `zetacode models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
 
 - `/model` / `/models` opens the model hub with role assignments and provider catalogs; the session-only picker changes the active model without saving a role assignment.
-- `omp models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
-- `omp models find <substring>` filters by provider, id, or name; `omp models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `omp models openai-codex`).
+- `zetacode models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
+- `zetacode models find <substring>` filters by provider, id, or name; `zetacode models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `zetacode models openai-codex`).
 - Other flags: `--json`, `-e <path>` / `--extension <path>` (repeatable), `--no-extensions` (skip ambient discovery; explicit `-e` still loads), and `--config <overlay>` (repeatable).
 
 JSON includes `provider`, `kind`, `id`, `selector`, `name`, limits, reasoning/thinking metadata,

@@ -142,7 +142,7 @@ export function wrapRegisteredTools(registeredTools: RegisteredTool[], runner: E
 	return registeredTools.map(rt => wrapRegisteredTool(rt, runner));
 }
 
-const LOOP_DISPATCH_CONTEXT = Symbol("omp.loop-dispatch");
+const LOOP_DISPATCH_CONTEXT = Symbol("zeta.loop-dispatch");
 type LoopAwareToolContext = AgentToolContext & { [LOOP_DISPATCH_CONTEXT]?: true };
 
 function computerSafetyChecks(context: AgentToolContext | undefined): ComputerSafetyCheck[] {

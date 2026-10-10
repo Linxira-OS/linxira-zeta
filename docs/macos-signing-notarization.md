@@ -1,6 +1,6 @@
 # macOS signing & notarization
 
-The compiled macOS `omp` binaries shipped on GitHub Releases can be signed with a
+The compiled macOS `zetacode` binaries shipped on GitHub Releases can be signed with a
 **Developer ID Application** certificate and **notarized** by Apple. This makes
 them eligible for Gatekeeper acceptance when the notarization ticket is
 available. The repository also maintains a Homebrew tap; formula installs
@@ -26,7 +26,7 @@ script signs with the Developer ID and notarizes; with none, it signs ad hoc
    - signs with the Developer ID certificate, the hardened runtime
      (`--code-signature-flags runtime`), a secure timestamp
      (`--for-notarization`), and `scripts/macos-entitlements.plist`, keeping
-     the file name (`omp-darwin-<arch>`) as the signing identifier;
+     the file name (`zeta-darwin-<arch>`) as the signing identifier;
    - packages the binary in a ZIP and submits it with
      `rcodesign notary-submit --wait`, retrying a failed submission up to three
      times. Credential files are removed on exit.
@@ -97,7 +97,7 @@ signing to engage.
 
 ### Producing the credential files
 
-Drop these into a working directory (default `~/omp-signing`):
+Drop these into a working directory (default `~/zeta-signing`):
 
 | File                 | How                                                                                                                                                                                                                                     |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -123,8 +123,8 @@ can appear in that subprocess's arguments. The script prints the filenames
 and Key ID.
 
 ```sh
-scripts/ci-macos-upload-secrets.sh ~/omp-signing --dry-run   # validate first
-scripts/ci-macos-upload-secrets.sh ~/omp-signing             # upload all five
+scripts/ci-macos-upload-secrets.sh ~/zeta-signing --dry-run   # validate first
+scripts/ci-macos-upload-secrets.sh ~/zeta-signing             # upload all five
 gh secret list --repo can1357/oh-my-pi                       # confirm
 ```
 
@@ -152,7 +152,7 @@ API key) by exporting the five env vars and running:
 RELEASE_TARGETS=darwin-arm64 bun run ci:release:build-binaries
 APPLE_CERTIFICATE_P12=… APPLE_CERTIFICATE_PASSWORD=… \
 APPLE_API_KEY_ID=… APPLE_API_ISSUER_ID=… APPLE_API_KEY=… \
-  bash scripts/ci-macos-sign.sh packages/coding-agent/binaries/omp-darwin-arm64
+  bash scripts/ci-macos-sign.sh packages/coding-agent/binaries/zeta-darwin-arm64
 ```
 
 Without the env vars the same command signs ad hoc.

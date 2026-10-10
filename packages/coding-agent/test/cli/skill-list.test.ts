@@ -139,7 +139,7 @@ describe("handleSkillList", () => {
 			await removeWithRetries(directory);
 		}
 
-		// `omp skill list | cut -f1` must see skill rows only.
+		// `zetacode skill list | cut -f1` must see skill rows only.
 		const rows = stdout.split("\n").filter(Boolean);
 		expect(rows).toContain("calendar\tfirst calendar.");
 		for (const row of rows) expect(row).toMatch(/^[^\t]+\t/);

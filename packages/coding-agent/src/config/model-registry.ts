@@ -1087,7 +1087,7 @@ export class ModelRegistry {
 			this.#ompOriginProviders = new Set();
 			this.#ompConfigProviders = new Set();
 			this.#ompCompatConfig = undefined;
-			logger.debug("omp compat overlay skipped", {
+			logger.debug("zeta compat overlay skipped", {
 				error: error instanceof Error ? error.message : String(error),
 			});
 		}
@@ -1097,7 +1097,7 @@ export class ModelRegistry {
 		try {
 			return probeOmpCompat(this.#ompAgentDir);
 		} catch (error) {
-			logger.debug("omp compat probe failed; compatibility disabled", {
+			logger.debug("zeta compat probe failed; compatibility disabled", {
 				error: error instanceof Error ? error.message : String(error),
 			});
 			return undefined;

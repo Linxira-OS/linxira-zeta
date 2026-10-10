@@ -10,7 +10,7 @@
  * which can be cheaper/faster than the main conversation model.
  *
  * Usage:
- *   omp --hook examples/hooks/custom-compaction.ts
+ *   zetacode --hook examples/hooks/custom-compaction.ts
  */
 import { serializeConversation } from "@linxiraos/pi-agent-core/compaction";
 import { complete } from "@linxiraos/pi-ai";

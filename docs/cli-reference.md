@@ -1,38 +1,38 @@
 # CLI reference
 
-`omp` is invoked as:
+`zetacode` is invoked as:
 
 ```sh
 omp [command] [flags] [messages...]
 ```
 
-When the first positional argument is **not** a registered subcommand, `omp`
+When the first positional argument is **not** a registered subcommand, `zetacode`
 normally routes to the default [`launch`](#launch-the-default-command) command.
-So `omp "fix the build"` launches a session with that message, while `omp models`
+So `zetacode "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
-`uninstall`, or `extensions` instead produce a hint to use `omp plugin …`;
-use `omp launch <word>` when such a word is the intended prompt.
+`uninstall`, or `extensions` instead produce a hint to use `zetacode plugin …`;
+use `zetacode launch <word>` when such a word is the intended prompt.
 
 A recognized subcommand can follow leading launch flags. Those flags are
 forwarded to `launch` and `acp`, but recognized launch-only flags before other
-subcommands are stripped, not applied (for example, `omp --cwd dir update`).
+subcommands are stripped, not applied (for example, `zetacode --cwd dir update`).
 
 `--profile` is applied before subcommand routing, so it also scopes commands
 such as `config`, `models`, and `update`.
 
 Runtime help is also available:
 
-- `omp --help` lists user-facing subcommands and common launch flags.
+- `zetacode --help` lists user-facing subcommands and common launch flags.
 - `omp <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
-flags accepted by `omp` / `omp launch`) and every top-level **subcommand**.
-Per-subcommand flags (for example `omp auth-broker --json`) are documented by
+flags accepted by `zetacode` / `zetacode launch`) and every top-level **subcommand**.
+Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
 
-`omp` and `omp launch` start a coding session. Positional arguments become the
+`zetacode` and `zetacode launch` start a coding session. Positional arguments become the
 initial message(s):
 
 ```sh
@@ -40,7 +40,7 @@ initial message(s):
 omp
 
 # Interactive session with an initial prompt
-omp "List all .ts files in src/"
+zetacode "List all .ts files in src/"
 
 # Attach files/images to the initial message (prefix with @)
 omp @prompt.md @image.png "What color is the sky?"
@@ -49,7 +49,7 @@ omp @prompt.md @image.png "What color is the sky?"
 omp -p "List all .ts files in src/"
 
 # Continue the previous session
-omp --continue "What did we discuss?"
+zetacode --continue "What did we discuss?"
 ```
 
 Argument handling:
@@ -179,12 +179,12 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 
 | Flag | Description |
 | --- | --- |
-| `--help`, `-h` | Show help for `omp` or a subcommand and exit. |
+| `--help`, `-h` | Show help for `zetacode` or a subcommand and exit. |
 | `--version`, `-v` | Print the installed version and exit. |
 
 ### Headless / print mode
 
-`--print` / `-p` runs `omp` non-interactively: it processes the prompts, writes
+`--print` / `-p` runs `zetacode` non-interactively: it processes the prompts, writes
 the last assistant response to stdout, and exits without entering the TUI. Text
 output is emitted after the turn completes, not token-by-token; a `Working...`
 indicator goes to stderr. This is the entry point for scripting and automation.
@@ -241,7 +241,7 @@ Run `omp <command> --help` for each command's own flags and examples.
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
 | `acp` | Run omp as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
-| `auth-broker` | Manage the omp auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
+| `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |

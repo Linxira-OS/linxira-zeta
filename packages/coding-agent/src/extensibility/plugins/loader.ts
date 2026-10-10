@@ -11,12 +11,13 @@ import {
 	getPluginDataDir,
 	getPluginStateDir,
 	getPluginsDir,
-	getPluginsLockfile,
 	hasFsCode,
 	isEacces,
 	isEnoent,
 	logger,
 	normalizePathForComparison,
+	PLUGINS_LOCKFILE_CANONICAL,
+	PLUGINS_LOCKFILE_LEGACY,
 } from "@linxiraos/pi-utils";
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -73,21 +74,51 @@ registerPluginCacheInvalidator(clearEnabledPluginsCache);
 // =============================================================================
 
 /**
- * Load plugin runtime config from lock file.
+ * Load plugin runtime config from lock file, migrating the legacy filename.
  *
- * `home` controls which `<plugins>/omp-plugins.lock.json` is read — pass it
- * through whenever the caller is loading plugins for a tempdir-rooted
- * scenario (tests, discovery sub-surfaces that need to mirror an alternate
- * `LoadContext.home`).
+ * Read-old / write-new: the lockfile carries per-plugin runtime state (enabled
+ * flag, version), so an upgrade must not orphan it. The Zeta-named file is
+ * canonical; when only the pre-rename file exists we read it, write the new
+ * one, and remove the old — a one-time, idempotent migration.
+ *
+ * `home` controls which `<plugins>/` directory is used — pass it through
+ * whenever the caller is loading plugins for a tempdir-rooted scenario (tests,
+ * discovery sub-surfaces that need to mirror an alternate `LoadContext.home`).
  */
 async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
-	const lockPath = getPluginsLockfile(home);
+	const dir = getPluginsDir(home);
+	const canonical = path.join(dir, PLUGINS_LOCKFILE_CANONICAL);
+	const legacy = path.join(dir, PLUGINS_LOCKFILE_LEGACY);
+
+	/** Missing file, or a path we cannot read at all. */
+	const readIfPossible = async (p: string): Promise<Partial<PluginRuntimeConfig> | undefined> => {
+		try {
+			return (await Bun.file(p).json()) as Partial<PluginRuntimeConfig>;
+		} catch {
+			// Anything unreadable — absent, a directory, EACCES — is treated as
+			// "no config here" so a broken path cannot take every plugin down
+			// with it. A legacy file with real state is still preferred below.
+			return undefined;
+		}
+	};
+
+	const canonicalData = await readIfPossible(canonical);
+	if (canonicalData !== undefined) return normalizePluginRuntimeConfig(canonicalData);
+
+	const legacyData = await readIfPossible(legacy);
+	if (legacyData === undefined) return normalizePluginRuntimeConfig({});
+
+	// First run after the rename: carry the state forward, then drop the old
+	// file so the migration cannot run twice or drift.
+	const migrated = normalizePluginRuntimeConfig(legacyData);
 	try {
-		return normalizePluginRuntimeConfig(await Bun.file(lockPath).json());
-	} catch (err) {
-		if (isEnoent(err)) return normalizePluginRuntimeConfig({});
-		throw err;
+		await Bun.write(canonical, `${JSON.stringify(migrated, null, "\t")}\n`);
+		await fs.promises.unlink(legacy);
+	} catch {
+		// A read-only or concurrently-locked plugins dir must not break loading;
+		// the legacy file simply stays authoritative until the write succeeds.
 	}
+	return migrated;
 }
 
 /**
@@ -221,7 +252,7 @@ async function collectPluginsAtRoot(
 
 		const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
 		if (!manifest) {
-			// Not an omp plugin, skip
+			// Not an zetacode plugin, skip
 			continue;
 		}
 		manifest.version = pluginPkg.version;
@@ -359,12 +390,12 @@ const PLUGIN_EXTENSION_DIRECTORY_OPTIONS = {
  * - a file entry → that file
  * - a directory:
  *   - when `expandDirectory` (the `extensions` key), resolved by
- *     {@link resolveExtensionDirectory} — its own package.json `omp`/`pi`
+ *     {@link resolveExtensionDirectory} — its own package.json `zetacode`/`pi`
  *     `extensions`, then a direct index, then a one-level scan of
  *     sub-extensions — matching the pi `extensions/<name>/index.ts` convention
  *     and OMP's configured-directory (`-e`) extension loader
  *   - otherwise (tools/hooks/commands) only a direct index.{ts,js,mjs,cjs}.
- *     The sub-extension scan and the `omp`/`pi` `extensions` manifest are
+ *     The sub-extension scan and the `zetacode`/`pi` `extensions` manifest are
  *     extensions-specific and must not hijack a non-extension directory entry
  *     (e.g. a `tools: "."` entry must still resolve `./index.ts`).
  *
@@ -535,8 +566,12 @@ export async function getAllPluginExtensionPaths(cwd: string): Promise<string[]>
  * Get plugin settings for use in tool/hook contexts.
  * Merges global settings with project overrides.
  */
-export async function getPluginSettings(pluginName: string, cwd: string): Promise<Record<string, unknown>> {
-	const runtimeConfig = await loadRuntimeConfig();
+export async function getPluginSettings(
+	pluginName: string,
+	cwd: string,
+	home?: string,
+): Promise<Record<string, unknown>> {
+	const runtimeConfig = await loadRuntimeConfig(home);
 	const projectOverrides = await loadProjectOverrides(cwd);
 
 	const global = runtimeConfig.settings[pluginName] || {};

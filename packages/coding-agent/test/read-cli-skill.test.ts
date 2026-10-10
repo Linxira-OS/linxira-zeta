@@ -7,7 +7,7 @@ import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const CLI_ENTRY = path.join(import.meta.dir, "..", "src", "cli.ts");
 
-describe("omp read skill resources", () => {
+describe("zetacode read skill resources", () => {
 	let root: string;
 	let projectDir: string;
 	let agentDir: string;

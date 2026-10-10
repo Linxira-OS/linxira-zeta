@@ -12,8 +12,13 @@
 
 ### Changed
 
+- OTLP 遥测导出改为**硬关闭**：删除 `telemetry.otlpExportEnabled` 设置（原先默认开启），产品启动改由写死的 `TELEMETRY_EXPORT_ENABLED = false` 门控。我们没有遥测服务端，任何 `OTEL_EXPORTER_OTLP*` 端点都不会导出，且不存在任何开启入口（无设置项、无环境变量、无命令行开关）。等我们自建采集端后再有意识地加回。门控由 `brand-check` 的 MUST_CONTAIN/MUST_NOT_CONTAIN 守卫锁定，上游合并改不回来。OTLP `service.name` 兜底值同时由 `oh-my-pi` 改为 `zeta`。
 - 命令行的标准指令名定为 `zetacode`（四件套标准名：zetawork / zetacode / zetaide / zetaeditor，无连字符）：`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成、各命令说明与文档全部改用标准名。`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 仍是 npm bin 兼容别名，行为不变；垫片与资产文件名（`zeta-c.cmd` 等）不受影响。
 - Web search now prefers an authenticated `xai-oauth` login over an `xai` API key when both are available, unless `modelProviderOrder` specifies a different order.
+- **上游品牌残留全量清除**：把产品对外暴露的每一个上游标识换成 Zeta 名，包括操作系统/浏览器层面可见的部分 —— macOS bundle id 与 App 名（`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`）、Windows HKCU 注册表事务名、Linux desktop entry 与 `zeta-auth` 协议、文件描述符 URL 协议（`zeta-descriptor://`）、文件锁前缀、XDG 状态目录；进程标题（`zetacode lsp mux`）、IDA 守护进程名（`zeta.ida.*`）、命名管道与 socket 路径、User-Agent、AWS STS `RoleSessionName`、遥测指标与 TUI 语义 role、导出 HTML 的自定义元素名。会话录制格式扩展名 `.ompcast` → `.zetacast`。开发期 wrapper 与链接脚本改为 `scripts/zetacode` / `scripts/link-zetacode.sh`，不再往全局 bin 写入 `omp`。
+- **⚠️ 存储键命名空间变更（需要迁移）**：Redis 会话存储的默认键前缀由 `omp:sessions:` 改为 `zeta:sessions:`，SQL 会话存储的默认表名由 `omp_session_files` 改为 `zeta_session_files`。已有部署若沿用默认值，历史数据将不可见 —— 迁移方式是把旧键/旧表重命名到新名字，或在配置中显式写回旧前缀。两者都是纯改名，不涉及格式变化。
+- **⚠️ OAuth 回调协议处理器改名**：macOS LaunchServices、Windows 注册表与 Linux desktop entry 中可能残留旧标识（`dev.omp.oauth-callback.*` / `omp OAuth Callback` / `omp-auth`）的注册项，它们指向的路径已不存在。升级后首次执行一次 OAuth 登录即可写入新注册；如系统里仍有旧条目，可在系统的"默认应用/协议关联"设置中移除。
+- **SDK 更名（无兼容别名）**：`sdk/go/omp-rpc`、`sdk/python/omp-rpc`、`sdk/rust/omp-rpc` 改名为 `zeta-rpc`，Python 包名 `omp_rpc` → `zeta_rpc`，Go 包名 `omprpc` → `zetarpc`。三者均为 `gen:rpc` 的入库生成产物，版本 0.1.0（pre-1.0），此前未发布到任何 registry，因此不提供 `omp-rpc` 过渡别名。顺带修正 Go module 路径：此前误指向上游仓库 `github.com/can1357/oh-my-pi/sdk/go/...`，现为 `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`。
 
 ### Fixed
 

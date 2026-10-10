@@ -63,7 +63,7 @@ const BRAVO: HostFixture = {
 
 const publications: CollabHostPublication[] = [];
 const tmpDirs: string[] = [];
-const CONFIG: CliConfig = { bin: "omp", version: "0.0.0-test", commands: new Map() };
+const CONFIG: CliConfig = { bin: "zetacode", version: "0.0.0-test", commands: new Map() };
 
 async function makeTmpDir(): Promise<string> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-collab-cli-"));

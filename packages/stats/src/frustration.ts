@@ -44,7 +44,7 @@ export interface StatsJudge extends Judge {
 	primaryModel(): Model | undefined;
 }
 
-/** Lazily resolves the host judge on first estimate/run so `omp stats` startup stays fast. */
+/** Lazily resolves the host judge on first estimate/run so `zetacode stats` startup stays fast. */
 export type StatsJudgeProvider = () => Promise<StatsJudge>;
 
 /** Where the user's annoyance is aimed. */

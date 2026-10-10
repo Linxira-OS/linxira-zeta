@@ -1,5 +1,5 @@
 // stencil.so account. Not a model provider: the credential authorizes
-// omp-hosted Stencil services such as `omp stream` (live.omp.sh).
+// Zeta-hosted Stencil services such as `zetacode stream` (live.omp.sh).
 //
 // Two hosts: the Stencil API at api.stencil.so (`{base}`, STENCIL_BASE_URL)
 // and the OIDC issuer at auth.stencil.so (`{auth}`, STENCIL_AUTH_URL) which

@@ -105,14 +105,14 @@ export class SkillMessageComponent extends Container {
 				children.push(
 					node(
 						"section",
-						{ head: [span("prompt", "muted")], role: "omp.skill.prompt" },
+						{ head: [span("prompt", "muted")], role: "zeta.skill.prompt" },
 						[md(promptText)],
 						"prompt",
 					),
 				);
 			}
 			return card(
-				{ role: "omp.skill", tone: "user", head, collapsible: true, collapsed: !this.#expanded },
+				{ role: "zeta.skill", tone: "user", head, collapsible: true, collapsed: !this.#expanded },
 				children.length > 0 ? children : [text([span(label, "muted")])],
 			);
 		});

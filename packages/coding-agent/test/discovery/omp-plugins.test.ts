@@ -4,7 +4,7 @@
  * The native `zeta` discovery provider only walks `.zeta/` and `~/.zeta/agent/`.
  * Extension packages registered via `extensions:` in settings or
  * `--extension` on the CLI ship their own `skills/`, `hooks/`, `tools/`,
- * `commands/`, `rules/`, `prompts/`, and `.mcp.json`. The `omp-plugins`
+ * `commands/`, `rules/`, `prompts/`, and `.mcp.json`. The `zeta-plugins`
  * provider (`src/discovery/omp-plugins.ts`) is what wires those sub-trees
  * into the standard capability surfaces.
  *
@@ -35,10 +35,10 @@ import {
 	listOmpExtensionRoots,
 	setInvocationConfiguredExtensions,
 	withOmpExtensionRootScope,
-} from "@linxiraos/zeta/discovery/omp-extension-roots";
+} from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
 
-const PROVIDER_ID = "omp-plugins";
+const PROVIDER_ID = "zeta-plugins";
 
 let tempDir: string;
 let home: string;
@@ -614,7 +614,7 @@ test("path-like command stays rooted at the plugin package root even with a subd
 	expect(local?.cwd).toBe(path.join(ext, "work"));
 });
 
-test("installed plugins under `<plugins>/node_modules/` are surfaced (e.g. via `omp plugin link`/`install`)", async () => {
+test("installed plugins under `<plugins>/node_modules/` are surfaced (e.g. via `zetacode plugin link`/`install`)", async () => {
 	// Simulate what `plugin install` / `plugin link` produces: a plugins root
 	// with `package.json#dependencies` and a populated `node_modules/<pkg>/`.
 	const pluginsDir = path.join(home, ".zeta", "plugins");
@@ -626,9 +626,9 @@ test("installed plugins under `<plugins>/node_modules/` are surfaced (e.g. via `
 		path.join(pluginsDir, "package.json"),
 		JSON.stringify({ name: "omp-plugins", dependencies: { "my-installed-ext": "1.0.0" } }),
 	);
-	// Plugin's own package.json must carry an `omp`/`pi` manifest for the
+	// Plugin's own package.json must carry an `zetacode`/`pi` manifest for the
 	// loader to recognise it; the buildExtensionPackage fixture already wrote
-	// one with `omp.extensions`, which is sufficient.
+	// one with `zeta.extensions`, which is sufficient.
 
 	const skills = await loadFromPlugin<{ name: string; path: string }>(skillCapability.id, ctx());
 	const found = skills.find(s => s.name === "my-skill" && s.path.includes("my-installed-ext"));
@@ -675,10 +675,10 @@ test("disabled installed plugins do not contribute sub-discovery", async () => {
 });
 
 test("linked plugins (only in lockfile, not in package.json#dependencies) are surfaced", async () => {
-	// `omp plugin link ./local-ext` creates a symlink under
+	// `zetacode plugin link ./local-ext` creates a symlink under
 	// `<plugins>/node_modules/<pkg>` plus a lockfile entry, but it never
 	// touches `<plugins>/package.json#dependencies`. The discovery path must
-	// still find the package — otherwise the documented `omp install
+	// still find the package — otherwise the documented `zetacode install
 	// ./local-extension` workflow leaves the sibling skills/hooks/tools
 	// invisible (see PR #1498 review).
 	const pluginsDir = path.join(home, ".zeta", "plugins");

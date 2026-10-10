@@ -122,7 +122,7 @@ export function getAddonFilenames({ tag, arch, variant }) {
  * Decide whether the loader should mirror the package's `native/<filename>.node`
  * into the per-version cache directory (`~/.zeta/natives/<version>/`) before loading.
  *
- * Windows-only safety net for `bun install -g` updates: when a previous `omp`
+ * Windows-only safety net for `bun install -g` updates: when a previous `zetacode`
  * process is running, bun cannot overwrite the locked `.node` inside
  * `node_modules/@linxiraos/pi-natives/native/`, leaving an old binary next to a
  * newer `index.js` and producing `<sym> is not a function` crashes on the next

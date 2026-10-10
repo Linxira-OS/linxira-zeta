@@ -3,16 +3,16 @@ import { isFullyQualifiedPath, stripWindowsExtendedLengthPathPrefix, windowsPath
 
 describe("stripWindowsExtendedLengthPathPrefix", () => {
 	it("removes drive and UNC extended-length prefixes on Windows", () => {
-		expect(stripWindowsExtendedLengthPathPrefix("\\\\?\\C:\\Users\\Shi Xin\\omp.exe", "win32")).toBe(
-			"C:\\Users\\Shi Xin\\omp.exe",
+		expect(stripWindowsExtendedLengthPathPrefix("\\\\?\\C:\\Users\\Shi Xin\\zetacode.exe", "win32")).toBe(
+			"C:\\Users\\Shi Xin\\zetacode.exe",
 		);
-		expect(stripWindowsExtendedLengthPathPrefix("\\\\?\\UNC\\server\\share\\omp.exe", "win32")).toBe(
-			"\\\\server\\share\\omp.exe",
+		expect(stripWindowsExtendedLengthPathPrefix("\\\\?\\UNC\\server\\share\\zetacode.exe", "win32")).toBe(
+			"\\\\server\\share\\zetacode.exe",
 		);
 	});
 
 	it("leaves non-Windows paths unchanged", () => {
-		const path = "\\\\?\\C:\\Users\\Shi Xin\\omp.exe";
+		const path = "\\\\?\\C:\\Users\\Shi Xin\\zetacode.exe";
 		expect(stripWindowsExtendedLengthPathPrefix(path, "linux")).toBe(path);
 	});
 });
@@ -29,10 +29,10 @@ describe("windowsPathToWslMount", () => {
 
 describe("isFullyQualifiedPath", () => {
 	it("identifies fully qualified Windows paths across platforms", () => {
-		expect(isFullyQualifiedPath("C:\\omp\\bin\\omp.exe", "win32")).toBe(true);
-		expect(isFullyQualifiedPath("c:/omp/bin/omp.exe", "win32")).toBe(true);
-		expect(isFullyQualifiedPath("\\\\server\\share\\omp.exe", "win32")).toBe(true);
-		expect(isFullyQualifiedPath("//server/share/omp.exe", "win32")).toBe(true);
+		expect(isFullyQualifiedPath("C:\\omp\\bin\\zetacode.exe", "win32")).toBe(true);
+		expect(isFullyQualifiedPath("c:/zetacode/bin/zetacode.exe", "win32")).toBe(true);
+		expect(isFullyQualifiedPath("\\\\server\\share\\zetacode.exe", "win32")).toBe(true);
+		expect(isFullyQualifiedPath("//server/share/zetacode.exe", "win32")).toBe(true);
 		expect(isFullyQualifiedPath("C:omp", "win32")).toBe(false);
 		expect(isFullyQualifiedPath(".\\omp", "win32")).toBe(false);
 		expect(isFullyQualifiedPath("\\bin\\omp", "win32")).toBe(false);
@@ -42,8 +42,8 @@ describe("isFullyQualifiedPath", () => {
 	});
 
 	it("identifies absolute POSIX paths", () => {
-		expect(isFullyQualifiedPath("/usr/local/bin/omp", "darwin")).toBe(true);
-		expect(isFullyQualifiedPath("/usr/local/bin/omp", "linux")).toBe(true);
+		expect(isFullyQualifiedPath("/usr/local/bin/zetacode", "darwin")).toBe(true);
+		expect(isFullyQualifiedPath("/usr/local/bin/zetacode", "linux")).toBe(true);
 		expect(isFullyQualifiedPath("./omp", "darwin")).toBe(false);
 		expect(isFullyQualifiedPath("omp", "linux")).toBe(false);
 	});

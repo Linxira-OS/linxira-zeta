@@ -66,7 +66,7 @@ import {
 	preloadPluginRoots,
 	resolveActiveProjectRegistryPath,
 } from "./discovery/helpers";
-import { injectOmpExtensionCliRoots } from "./discovery/omp-extension-roots";
+import { injectOmpExtensionCliRoots } from "./discovery/zeta-extension-roots";
 import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
 import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
@@ -123,7 +123,6 @@ import {
 } from "./system-prompt";
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
-import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
 import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
@@ -304,6 +303,21 @@ export async function readPipedInput(): Promise<string | undefined> {
 // zero-output indefinite hangs (stuck discovery read, network wait, stdin
 // pipe) into self-diagnosing reports instead of "it just hangs" (see the
 // PI_DEBUG_STARTUP markers for the synchronous-hang counterpart).
+
+/**
+ * Zeta policy: OTLP telemetry export is hard-off.
+ *
+ * We operate no telemetry collector, so there is nowhere for events to be
+ * processed. This is a hard gate, not a default: there is deliberately no
+ * settings key, env var, or CLI flag that can turn export on. Setting an
+ * `OTEL_EXPORTER_OTLP*` endpoint changes nothing. Revisit only when we run our
+ * own backend — then add the opt-in back here, deliberately.
+ *
+ * Merge-protected by `scripts/brand/brand-rules.ts` (MUST_CONTAIN): an
+ * upstream merge that re-adds the setting, or flips this constant, fails
+ * `brand-check` in CI.
+ */
+const TELEMETRY_EXPORT_ENABLED = false;
 
 const STARTUP_WATCHDOG_INTERVAL_MS = 10_000;
 let startupWatchdogTimer: NodeJS.Timeout | undefined;
@@ -2228,16 +2242,13 @@ export async function runRootCommand(
 			else process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
 		};
 
-		// OTEL: unless `telemetry.otlpExportEnabled` is off, register global OTLP
-		// exporters when an endpoint is configured via env, then switch on the agent
-		// loop's telemetry hooks so traces, run-level metrics, and structured logs
-		// have source events to export. Content capture remains governed by
+		// OTEL: gated by TELEMETRY_EXPORT_ENABLED, which is hard-off (see its
+		// doc comment). When that gate is ever opened, an endpoint configured via
+		// env registers global OTLP exporters and switches on the agent loop's
+		// telemetry hooks so traces, run-level metrics, and structured logs have
+		// source events to export. Content capture remains governed by
 		// OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
-		await logger.time(
-			"initTelemetryExport",
-			initTelemetryExport,
-			cfgTelemetryOtlpExportEnabled.get(settingsInstance),
-		);
+		await logger.time("initTelemetryExport", initTelemetryExport, TELEMETRY_EXPORT_ENABLED);
 		if (isTelemetryExportEnabled()) {
 			// Chat telemetry reports each request's provider-computed cost. A model
 			// without a known rate card reports an unavailable reason instead of $0.

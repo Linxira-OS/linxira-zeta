@@ -198,7 +198,7 @@ export class TinyWorkerServer {
 			cleanupLabel: "tiny-worker",
 			subject: "tiny worker",
 			idleMs: options.idleMs,
-			banner: endpoint => `omp tiny worker listening on ${endpoint}`,
+			banner: endpoint => `zeta tiny worker listening on ${endpoint}`,
 			onRequest: (request, reply) => this.#dispatch(request, reply),
 		});
 	}

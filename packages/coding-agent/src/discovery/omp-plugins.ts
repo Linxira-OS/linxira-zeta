@@ -5,15 +5,15 @@
  * `--extension`/`-e` (on the CLI), the docs promise that the package's
  * sibling directories — `skills/`, `hooks/pre|post/`, `tools/`, `commands/`,
  * `rules/`, `prompts/`, and `.mcp.json` — are picked up by omp's standard
- * discovery surfaces. The native `omp` provider in `builtin.ts` only walks
+ * discovery surfaces. The native `zetacode` provider in `builtin.ts` only walks
  * `.zeta/` and `~/.zeta/agent/`, so without this provider those sub-trees are
  * silently ignored.
  *
- * Provider priority is set below the native `omp` provider (100) so an
+ * Provider priority is set below the native `zetacode` provider (100) so an
  * extension package never shadows the user's own `.zeta/` configuration on
  * dedup.
  *
- * @see ./omp-extension-roots.ts
+ * @see ./zeta-extension-roots.ts
  * @see ../../docs/extension-loading.md
  */
 import * as path from "node:path";
@@ -37,11 +37,16 @@ import {
 	parseRequestIdFormat,
 	scanSkillsFromDir,
 } from "./helpers";
-import { listOmpExtensionRoots, type OmpExtensionRoot } from "./omp-extension-roots";
+import { listOmpExtensionRoots, type OmpExtensionRoot } from "./zeta-extension-roots";
 import { resolvePluginStdioPaths } from "./substitute-plugin-root";
 
-const PROVIDER_ID = "omp-plugins";
-const DISPLAY_NAME = "OMP Extension Packages";
+/**
+ * Canonical provider id. The pre-rename `omp-plugins` spelling is still accepted
+ * wherever provider ids are read (see `canonicalProviderId` in `../capability`),
+ * so a `disabledProviders` list written before the rename keeps applying.
+ */
+const PROVIDER_ID = "zeta-plugins";
+const DISPLAY_NAME = "Zeta Extension Packages";
 const DESCRIPTION =
 	"Sub-discovery (skills, hooks, tools, commands, rules, prompts, .mcp.json) inside extension packages";
 const PRIORITY = 90;

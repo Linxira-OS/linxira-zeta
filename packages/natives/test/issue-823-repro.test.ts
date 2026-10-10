@@ -2,7 +2,7 @@
  * Regression for https://github.com/can1357/oh-my-pi/issues/823.
  *
  * On WSL (and any host where the user moves the standalone binary away from the
- * build-time native artifacts), the compiled `omp` binary fails to load
+ * build-time native artifacts), the compiled `zetacode` binary fails to load
  * `pi_natives.linux-x64-*.node`. Root cause: the old loader's
  * `isCompiledBinary` detection relied on signals that are unreliable in a Bun
  * standalone binary:
@@ -113,7 +113,7 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 
 		// Versioned cache and user-data dir candidates must exist for compiled binaries —
 		// these are where the embedded-addon extraction lands (~/.zeta/natives/<v>) and where
-		// `omp update` writes the standalone binary on linux (~/.local/bin).
+		// `zetacode update` writes the standalone binary on linux (~/.local/bin).
 		expect(candidates).toContain(versionedModern);
 		expect(candidates).toContain(versionedBaseline);
 		expect(candidates).toContain(userDataModern);

@@ -1,6 +1,6 @@
 # @linxiraos/pi-mnemopi
 
-Local SQLite memory engine for omp agents.
+Local SQLite memory engine for zetacode agents.
 
 This package is the Bun/TypeScript port of the Mnemosyne memory engine. It provides:
 

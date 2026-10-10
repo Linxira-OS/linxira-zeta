@@ -115,7 +115,7 @@ export class LateDiagnosticsMessageComponent extends Container {
 			if (input?.summary) head.push(span(` (${plainText(input.summary)})`, "dim"));
 			const diagnostics = card(
 				{
-					role: "omp.diagnostics.late",
+					role: "zeta.diagnostics.late",
 					tone: input?.errored ? "error" : "warning",
 					head,
 					collapsible: true,

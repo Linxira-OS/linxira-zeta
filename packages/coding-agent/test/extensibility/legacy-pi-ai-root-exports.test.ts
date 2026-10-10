@@ -17,7 +17,7 @@ import {
 // helpers moved to `@linxiraos/pi-utils`, so `export * from "@linxiraos/pi-ai"` left
 // them off the shim surface and a named import tripped Bun's static
 // "No matching export" check during plugin validation (e.g.
-// `omp plugin install pi-blackhole`). This pins the bridged root surface so it
+// `zetacode plugin install pi-blackhole`). This pins the bridged root surface so it
 // cannot silently regress the way #6583 / #6648 did one symbol at a time.
 function createErrorMessage(errorMessage: string): AssistantMessage {
 	return {

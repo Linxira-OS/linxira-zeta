@@ -23,9 +23,9 @@ from rich.table import Table
 from rich.text import Text
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "sdk/python/omp-rpc/src"))
+sys.path.insert(0, str(REPO_ROOT / "sdk/python/zeta-rpc/src"))
 
-from omp_rpc import (  # noqa: E402
+from zeta_rpc import (  # noqa: E402
     AgentEndEvent,
     AutoRetryEndEvent,
     AutoRetryStartEvent,
@@ -951,7 +951,7 @@ def resolve_omp_bin(raw: str | None) -> str:
         return raw
     found = shutil.which("omp")
     if not found:
-        raise SystemExit("Could not find `omp` on PATH. Set --omp-bin or OMP_BIN.")
+        raise SystemExit("Could not find `zetacode` on PATH. Set --omp-bin or OMP_BIN.")
     return found
 
 

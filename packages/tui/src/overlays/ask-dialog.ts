@@ -712,7 +712,7 @@ export class AskDialogComponent implements Component {
 
 	/**
 	 * In the dock, in the composer's place and framed as the composer is: a
-	 * `col` with the prompt editor's root role (`omp.editor`), so the terminal
+	 * `col` with the prompt editor's root role (`zeta.editor`), so the terminal
 	 * gives it the composer's insets and spacing. Not a modal `overlay` sheet:
 	 * one anchored at the bottom covered the transcript rows that explain the
 	 * question and blocked scrolling until the question was answered.
@@ -731,7 +731,7 @@ export class AskDialogComponent implements Component {
 		if (this.#isSubmitTab()) this.#describeSubmitBody(children);
 		else this.#describeQuestionBody(children);
 		children.push(this.#describeActions(blocked));
-		this.#native = col(children, { role: "omp.editor", gap: "md" });
+		this.#native = col(children, { role: "zeta.editor", gap: "md" });
 		this.#nativeBlocked = blocked;
 		return this.#native;
 	}
@@ -747,7 +747,12 @@ export class AskDialogComponent implements Component {
 			items.push({ id: "submit", label: REVIEW_TAB });
 			const active = this.#isSubmitTab() ? "submit" : String(this.#activeTabIndex);
 			children.push(
-				node("tabs", { items, active, role: "omp.ask.questions", actions: { click: "select" } }, undefined, "tabs"),
+				node(
+					"tabs",
+					{ items, active, role: "zeta.ask.questions", actions: { click: "select" } },
+					undefined,
+					"tabs",
+				),
 			);
 		}
 		if (this.#countdown) {
@@ -774,7 +779,7 @@ export class AskDialogComponent implements Component {
 			}
 		}
 		if (children.length === 0) return undefined;
-		return node("row", { role: "omp.ask.head", gap: "sm", align: "center" }, children, "head");
+		return node("row", { role: "zeta.ask.head", gap: "sm", align: "center" }, children, "head");
 	}
 
 	/** Question tab: the question as markdown and its answers as radio/check rows (label, description, badge). */
@@ -787,12 +792,12 @@ export class AskDialogComponent implements Component {
 		children.push(
 			node(
 				"md",
-				{ text: replaceTabs(sanitizeCarriageReturns(question.question)), role: "omp.ask.question" },
+				{ text: replaceTabs(sanitizeCarriageReturns(question.question)), role: "zeta.ask.question" },
 				undefined,
 				"question",
 			),
 		);
-		const optionRole = question.multi ? "omp.ask.check" : "omp.ask.option";
+		const optionRole = question.multi ? "zeta.ask.check" : "zeta.ask.option";
 		const items = rows.map(rowItem => {
 			const option = rowItem.kind === "option" ? question.options[rowItem.optionIndex ?? -1] : undefined;
 			const checked =
@@ -823,7 +828,7 @@ export class AskDialogComponent implements Component {
 									? [span(piece.slice(1, -1), "code")]
 									: [span(piece)],
 						),
-					role: rowItem.kind === "other" ? "omp.ask.other" : optionRole,
+					role: rowItem.kind === "other" ? "zeta.ask.other" : optionRole,
 					...(detail ? { detail } : {}),
 					...(recommended ? { value: [span("Recommended", "accent")] } : {}),
 					...(checked ? { icon: "check", tone: "success" as const } : {}),
@@ -836,7 +841,7 @@ export class AskDialogComponent implements Component {
 		children.push(
 			node(
 				"list",
-				{ selected: rows[state.cursorIndex]?.key ?? null, role: "omp.ask.options" },
+				{ selected: rows[state.cursorIndex]?.key ?? null, role: "zeta.ask.options" },
 				items,
 				`q${this.#currentQuestionIndex()}`,
 			),

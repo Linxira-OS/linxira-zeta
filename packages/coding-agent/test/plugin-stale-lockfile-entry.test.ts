@@ -20,11 +20,11 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 }
 
 // Regression: a package removed from the plugins package.json outside
-// `omp plugin remove` leaves its lockfile entry and (because bun install
+// `zetacode plugin remove` leaves its lockfile entry and (because bun install
 // never prunes undeclared directories) its node_modules tree behind. The
 // loader must not load that orphan — doing so double-loads its extensions
 // (every envoy message was delivered twice). Lockfile-only entries are
-// legitimate only as symlinks (`omp plugin link`, marketplace runtime
+// legitimate only as symlinks (`zetacode plugin link`, marketplace runtime
 // registration), which must keep loading.
 test("stale lockfile-only directory plugin is skipped while declared and linked plugins load", async () => {
 	const root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-stale-"));
@@ -53,7 +53,7 @@ test("stale lockfile-only directory plugin is skipped while declared and linked 
 		omp: { extensions: ["ext.ts"] },
 	});
 
-	// Lockfile-only entry backed by a symlink (omp plugin link): loads.
+	// Lockfile-only entry backed by a symlink (zetacode plugin link): loads.
 	const linkedSource = path.join(root, "linked-plugin-src");
 	await fs.mkdir(linkedSource, { recursive: true });
 	await writeJson(path.join(linkedSource, "package.json"), {

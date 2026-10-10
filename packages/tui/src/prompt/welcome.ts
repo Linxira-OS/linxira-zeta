@@ -734,7 +734,7 @@ export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode
 				wrap: "none",
 			}),
 		),
-		{ align: "center", role: "omp.setup.logo" },
+		{ align: "center", role: "zeta.setup.logo" },
 	);
 }
 

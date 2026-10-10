@@ -1739,7 +1739,7 @@ export class ModelBrowser implements Component {
 		const listNode = node(
 			"list",
 			{
-				role: "omp.model-browser.list",
+				role: "zeta.model-browser.list",
 				selected,
 				filter: filter || undefined,
 				empty: empty ? [span(empty, "muted")] : undefined,
@@ -1850,7 +1850,7 @@ export class ModelBrowser implements Component {
 				if (chips.length > 0) children.push(text(chips, { wrap: "word" }));
 			}
 		}
-		const detailNode = node("col", { role: "omp.model-browser.detail", gap: "none" }, children, "detail");
+		const detailNode = node("col", { role: "zeta.model-browser.detail", gap: "none" }, children, "detail");
 		this.#nativeDetail = { item: selected, epoch: this.#nativeEpoch, roles: this.#roles, node: detailNode };
 		return detailNode;
 	}
@@ -2142,7 +2142,7 @@ export class ModelBrowser implements Component {
 		}
 
 		const children: NativeChild[] = [
-			text(model.name, { role: "omp.picker.title" }),
+			text(model.name, { role: "zeta.picker.title" }),
 			text([span(selector, "mono")], { actions: { click: "copy" }, title: "Copy model id", truncate: "middle" }),
 		];
 		const badges: NativeChild[] = [];

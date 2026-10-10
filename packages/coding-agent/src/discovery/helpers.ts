@@ -430,7 +430,7 @@ export interface ScanSkillsFromDirOptions {
 	/**
 	 * Registry/CLI origin of the plugin root supplying these skills, forwarded
 	 * to {@link SourceMeta.origin} so user-scope gating can tell omp's own
-	 * installs (`omp`, `plugin-dir`) from the foreign Claude tree (`claude`).
+	 * installs (`zetacode`, `plugin-dir`) from the foreign Claude tree (`claude`).
 	 */
 	origin?: string;
 	/**

@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as piUtils from "@linxiraos/pi-utils";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
-import { listOmpExtensionRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { listOmpExtensionRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import {

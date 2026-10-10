@@ -170,7 +170,7 @@ describe("postmortem expected cleanup errors", () => {
 
 			postmortem.registerFatalRecoveryHint(() => ({
 				label: "Main",
-				command: "omp --resume 019cafe0-dead-beef",
+				command: "zetacode --resume 019cafe0-dead-beef",
 			}));
 			Promise.reject(new Error("session crashed"));
 			await Promise.resolve();
@@ -178,7 +178,7 @@ describe("postmortem expected cleanup errors", () => {
 
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain("[Unhandled Rejection] Error: session crashed");
-		expect(result.stderr).toContain("[Recovery]\n  Main: omp --resume 019cafe0-dead-beef");
+		expect(result.stderr).toContain("[Recovery]\n  Main: zetacode --resume 019cafe0-dead-beef");
 	});
 
 	it("exits after an uncaught exception when terminal stderr is revoked", async () => {

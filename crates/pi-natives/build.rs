@@ -148,7 +148,7 @@ fn build_oauth_callback_relay(target_os: &str) {
 	command
 		.current_dir(&manifest_dir)
 		.arg("--crate-name")
-		.arg("omp_oauth_callback_relay")
+		.arg("zeta_oauth_callback_relay")
 		.arg("--crate-type=bin")
 		.arg("--edition=2024")
 		.arg("--target")

@@ -19,7 +19,7 @@ if (!outPath) {
 }
 
 const loaderJs = await Bun.file(new URL("../src/export/html/share-loader.js", import.meta.url).pathname).text();
-// Public artifacts use the bundled omp web themes rather than TUI themes.
+// Public artifacts use the bundled zetacode web themes rather than TUI themes.
 const themeStyles = await generateThemeStyles("web");
 
 const html = getTemplate()

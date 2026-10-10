@@ -13,7 +13,7 @@ const FIXTURE_PATH = path.join(import.meta.dir, "fixtures", "resources-no-templa
 // still handshaking when `connectServers` returns and the read begins.
 const HANDSHAKE_DELAY_MS = 700;
 
-describe("omp read MCP resource with a slow-connecting server", () => {
+describe("zetacode read MCP resource with a slow-connecting server", () => {
 	let root: string;
 	let projectDir: string;
 	let agentDir: string;

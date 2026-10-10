@@ -171,7 +171,7 @@ export function renderSearchResult(
 		if (renderedAnswer.length === 0) {
 			answerLines = [theme.fg("muted", tuiText("wsNoAnswerText", "No answer text returned"))];
 		} else if (args?.maxAnswerLines !== undefined && !expanded) {
-			// CLI compact mode (`omp q`) caps the answer; the TUI passes no cap and shows it in full.
+			// CLI compact mode (`zetacode q`) caps the answer; the TUI passes no cap and shows it in full.
 			// `renderedAnswer` is the Markdown component's shared cache — slice copies before appending.
 			const capped = renderedAnswer.slice(0, args.maxAnswerLines);
 			const remaining = renderedAnswer.length - capped.length;
@@ -282,7 +282,7 @@ function sourceRow(src: SearchResponse["sources"][number], index: number): Nativ
 	const initial = (domain.replace(/^www\./, "")[0] ?? "?").toUpperCase();
 	return node(
 		"row",
-		{ gap: "sm", align: "baseline", role: "omp.tool.source", href: url || undefined },
+		{ gap: "sm", align: "baseline", role: "zeta.tool.source", href: url || undefined },
 		compact([
 			node("badge", { text: initial, title: domain || undefined }),
 			text([span(plainText(title), "link", url ? { href: url } : undefined)], { lines: 1, truncate: "end" }),
@@ -345,7 +345,7 @@ function describeSearchResult(
 		body: compact([
 			answer ? { ...md(plainText(answer), { title: tooltip }), key: "answer" } : noteText("No answer text returned"),
 			sources.length > 0
-				? node("col", { role: "omp.tool.files" }, sources.map(sourceRow), "sources")
+				? node("col", { role: "zeta.tool.files" }, sources.map(sourceRow), "sources")
 				: noteText("No sources returned"),
 		]),
 	};

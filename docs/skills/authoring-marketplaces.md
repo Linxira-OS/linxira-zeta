@@ -212,7 +212,7 @@ my-plugin/
 
 > Note: MCP servers may instead be declared by the manifest's `mcpServers` field — either an inline server map or a path to a config file inside the plugin root (`{ "mcpServers": "./mcp-zeta.json" }`). zeta reads `.zeta-plugin/plugin.json` first, then `.claude-plugin/plugin.json`; a manifest declaration replaces the default `.mcp.json` rather than merging with it, so one published tree can carry a per-harness MCP config.
 
-> Note: extension modules declared via `package.json` `zeta.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins.
+> Note: extension modules declared via `package.json` `zeta.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `omp-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins.
 
 ## Install command
 
