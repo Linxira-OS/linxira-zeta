@@ -17,7 +17,7 @@ import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
 import type { Terminal, TerminalAppearance, TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
 import type { RenderScheduler } from "@linxiraos/pi-tui/tui";
-import { formatBytes, getProjectDir, isEnoent, logger, TempDir } from "@linxiraos/pi-utils";
+import { formatBytes, getProjectDir, logger, TempDir } from "@linxiraos/pi-utils";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../config/model-registry";
 import { Settings } from "../config/settings";
@@ -26,7 +26,7 @@ import { InteractiveMode } from "../modes/interactive-mode";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "../session/agent-session";
 import { AuthStorage, SqliteAuthCredentialStore } from "../session/auth-storage";
-import { findMostRecentSession, resolveResumableSession } from "../session/session-listing";
+import { resolveSessionFileArg } from "./session-arg";
 import { SessionManager } from "../session/session-manager";
 
 export interface RenderCommandArgs {
@@ -132,28 +132,6 @@ class DrainScheduler implements RenderScheduler {
 	}
 }
 
-/** Resolve the target session file from a path, id prefix, or cwd default. */
-async function resolveTargetSession(sessionArg: string | undefined, cwd: string): Promise<string> {
-	if (sessionArg) {
-		if (sessionArg.includes("/") || sessionArg.includes("\\") || sessionArg.endsWith(".jsonl")) {
-			const resolved = path.resolve(sessionArg);
-			try {
-				await fs.access(resolved);
-				return resolved;
-			} catch (err) {
-				if (isEnoent(err)) throw new Error(`Session file not found: ${resolved}`);
-				throw err;
-			}
-		}
-		const match = await resolveResumableSession(sessionArg, cwd);
-		if (!match) throw new Error(`Session "${sessionArg}" not found.`);
-		return match.session.path;
-	}
-	const recent = await findMostRecentSession(SessionManager.getDefaultSessionDir(cwd));
-	if (!recent) throw new Error(`No sessions found for ${cwd}. Pass a session file or id.`);
-	return recent;
-}
-
 function formatMs(ms: number): string {
 	return `${ms.toFixed(0)} ms`;
 }
@@ -164,12 +142,12 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 	const settings = await Settings.init({ cwd });
 	await initTheme();
 
-	const sourcePath = await resolveTargetSession(args.session, cwd);
+	const sourcePath = await resolveSessionFileArg(args.session, cwd);
 	const sourceSize = (await fs.stat(sourcePath)).size;
 
 	// Copy before opening: SessionManager.open takes the single-writer lock and
 	// session teardown appends a session_exit entry — neither may touch a live
-	// session file the user has open in another omp.
+	// session file the user has open in another zeta.
 	const tempDir = TempDir.createSync("@zeta-render-");
 	const workingCopy = path.join(tempDir.path(), path.basename(sourcePath));
 
@@ -269,7 +247,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 			mode?.stop();
 			await session?.dispose();
 		} catch (err) {
-			logger.debug("zetacode render teardown failed", { error: String(err) });
+			logger.debug("zeta render teardown failed", { error: String(err) });
 		}
 		tempDir.removeSync();
 	}

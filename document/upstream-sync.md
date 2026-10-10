@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.8.7
+## Integrated through: v18.8.8
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,9 +9,9 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.8.7` (`f261ed9faf16`, confirmed by
-  `git merge-base HEAD <tag>`). The previous value was `v18.8.4`
-  (`153b37c3b65b`), which is the merge-base this round started from.
+- **Integrated through**: `v18.8.8` (`1ca13863a828`, confirmed by
+  `git merge-base HEAD <tag>`). The previous value was `v18.8.7`
+  (`f261ed9faf16`), which is the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -27,6 +27,71 @@ two-parent tag merge.
   upstream's, not a whole-tree comparison against our branch.
 
 
+
+## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.8`)
+
+- **Baseline**: v18.8.7 (peeled `f261ed9faf16`; merge-base gate passed exactly,
+  so the window is upstream's own increment). **Source tag**: `v18.8.8` →
+  `1ca13863a828`, a real two-parent `git merge v18.8.8`.
+- **Scale**: v18.8.7→v18.8.8 = 173 files / +10891 −2435. Conflicts: **32 UU**
+  (116 files auto-merged) — a fifth of the previous round's 100, because the
+  brand sweep had already landed and there was less identity left to disagree
+  about.
+- **Method**: the same shape-first classification as v18.8.7. 23 of the 32
+  conflicts were generated files (`bun.lock`, `Cargo.lock` — taken from upstream
+  and regenerated) or pure scope renames; the rest took upstream's shape and were
+  then run through the brand overlay.
+- **The agent-session near-miss** (the substantive lesson of this round):
+  taking upstream's `session/agent-session.ts` wholesale silently removed **45**
+  members — the entire mode API (`ModeId` / `enterMode` / `exitMode` /
+  `enterPlanMode` / `getPlanFileContent` …), `setIrcAutoReplyListener`,
+  `setThinkToolEnabled`, and the title-fork state helpers. AGENTS damage class 4.
+  Restoring them took three attempts, and the first two failed instructively:
+  - Re-inserting the members by hand compiled no better than not restoring
+    them, because each closes over private fields (`#planModePreviousTools`,
+    `#applyPlanModeModel`, …) that were deleted in the same 862-line removal.
+    Methods and their state have to move together.
+  - A three-way merge naming **v18.8.7 as the base** was worse than useless: it
+    reported "0 conflicts" while deleting the mode API, because that API never
+    existed upstream, so declaring v18.8.7 the base *is* a declaration that those
+    members were deleted. A clean conflict count is not evidence of a clean merge.
+  - What worked was applying upstream's **increment** (`git diff v18.8.7 v18.8.8`,
+    12 hunks / +129 −21) onto our own file with `git apply --3way`. One conflict
+    remained, brand-only. The mode API and upstream's new title subsystem both
+    survived.
+  The loss audit from the previous round paid for itself here: the before/after
+  member diff over 2633 modules is what made "45 members gone" visible at all.
+  `check:ts` alone reported four unrelated-looking errors.
+- **Encoding hazard**: `git merge-file` on this path reports "Cannot merge binary
+  files" because PowerShell's `>` redirect had re-encoded the working copy as
+  UTF-16 (578919 NUL bytes). Read and write blobs through node's `fs` with
+  explicit utf8, or take them straight from the git object store — a shell
+  redirect is enough to corrupt a source file mid-merge.
+- **Brand overlay**: scope rewritten across 36 files (+226 imports), then 47
+  `omp` identity hits re-applied by category. Beyond the usual command/prose/path
+  split, this round turned up a `".omp": true` entry in
+  `session-anonymizer.ts`'s bundle-exclusion list — our config directory had
+  silently stopped being excluded from anonymized shares, so `.zeta` replaced it.
+- **TUI role identifiers are a cross-face contract with no user-visible spelling.**
+  Upstream's v18.8.8 rewrite of \	ui/src/tools/native-view.ts\ brought its own
+  \omp.tool.file\ / \omp.tool.error\ role names back in the source while the
+  tests kept asserting \zeta.tool.*\. Three views rendered zero nodes and the
+  assertions reported a bare length mismatch with nothing pointing at the cause.
+  Neither overlay layer can see this: the scope overlay keys on imports, the
+  identity overlay on user-visible strings, and a role id is an internal token
+  with no spelling a user would ever read. **46 role identifiers across 6 files**
+  were rewritten \omp.<ns>.\ -> \zeta.<ns>.\ by hand. If a future merge touches
+  \packages/tui/src/**\, check the role names against the tests before trusting
+  a green type check — nothing in the type system connects the two.
+- **CHANGELOG**: **53** entries folded into `[Unreleased]` from the tag-to-tag
+  diff. The package list is derived from the diff rather than hardcoded: this
+  round added `packages/wire` and `packages/browser-relay`, and a hand-written
+  list goes stale exactly when a new CHANGELOG appears — which is when the
+  version gate starts failing.
+- **Gates at handoff**: `check:ts` ✅ 0 errors · `brand-check` ✅ 0 hits ·
+  `check-zeta-sentinels` ✅ · `check-version-consistency` ✅ ·
+  `check-ci-surface` ✅ · `check-merge-lineage` ✅ · `cargo fmt --all --check` ✅ ·
+  conflict markers 0 · member-loss audit 0 (bar one known false positive).
 ## v18.8.7 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`)
 
 - **Baseline**: v18.8.4 (peeled `153b37c3b65b` — merge-base gate passed exactly;

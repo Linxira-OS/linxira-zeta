@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { isCompiledBinary, logger, withTimeout, workerHostEntry } from "@linxiraos/pi-utils";
+import { isCompiledBinary, logger, untilAborted, withTimeout, workerHostEntry } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { ToolAbortError } from "../tool-errors";
@@ -90,8 +90,11 @@ export interface ReleaseBrowserOptions {
 }
 
 const browsers = new Map<string, BrowserHandle>();
-/** In-flight opens by browser key, so concurrent acquisitions share one launch instead of storming Chromium. */
-const pendingOpens = new Map<string, Promise<BrowserHandle>>();
+/**
+ * In-flight opens by browser key, so concurrent acquisitions share one launch instead of storming Chromium.
+ * `settled` resolves once the open settles or its caller aborts, whichever comes first.
+ */
+const pendingOpens = new Map<string, { settled: Promise<void> }>();
 
 export function browserKey(kind: BrowserKind): string {
 	switch (kind.kind) {
@@ -139,12 +142,33 @@ export async function acquireBrowser(kind: BrowserKind, opts: AcquireBrowserOpti
 		// leaking the rest as unreferenced process trees.
 		const pending = pendingOpens.get(key);
 		if (pending) {
-			await pending.catch(() => undefined);
+			await untilAborted(opts.signal, () => pending.settled);
 			continue;
 		}
-		const open = openBrowserHandle(kind, opts).finally(() => pendingOpens.delete(key));
-		pendingOpens.set(key, open);
-		const handle = await open;
+		const open = openBrowserHandle(kind, opts);
+		const settled = Promise.withResolvers<void>();
+		const entry = { settled: settled.promise };
+		// An open whose caller aborted is disposed below, never published, so it
+		// stops being this key's single flight the moment its caller gives up:
+		// waiters start a fresh attempt instead of waiting out a launch or connect
+		// that may never return. Only the registered entry is removed, so a late
+		// settlement cannot drop a replacement already in flight. A spawned app
+		// keeps its key until its abandoned open has been disposed: that kills
+		// the app, which a fresh attempt could otherwise adopt as a reusable endpoint.
+		const clearEntry = () => {
+			opts.signal?.removeEventListener("abort", clearEntry);
+			if (pendingOpens.get(key) === entry) pendingOpens.delete(key);
+			settled.resolve();
+		};
+		if (kind.kind !== "spawned") opts.signal?.addEventListener("abort", clearEntry, { once: true });
+		pendingOpens.set(key, entry);
+		let handle: BrowserHandle;
+		try {
+			handle = await open;
+		} catch (error) {
+			clearEntry();
+			throw error;
+		}
 		// The launch may resolve AFTER the caller has already aborted (the outer
 		// `untilAborted` rejects immediately on abort but does not cancel the
 		// inner promise, and `launchHeadlessBrowser` does not accept a signal).
@@ -159,9 +183,11 @@ export async function acquireBrowser(kind: BrowserKind, opts: AcquireBrowserOpti
 					error: err instanceof Error ? err.message : String(err),
 				});
 			});
+			clearEntry();
 			throw new ToolAbortError("Browser open aborted");
 		}
 		browsers.set(key, handle);
+		clearEntry();
 		return handle;
 	}
 }
@@ -194,7 +220,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		return { key: browserKey(kind), kind, tern, refCount: 0 };
 	}
 	if (kind.kind === "headless") {
-		// Every real zeta process (session, subagent, worker — anything with a CLI
+		// Every real omp process (session, subagent, worker — anything with a CLI
 		// worker host) MUST go through the project-shared broker-owned Chromium:
 		// per-process launches are what produced launch storms and orphaned
 		// process trees. The process-local launch survives only for hosts that
@@ -266,7 +292,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "extension-gone") {
 			throw new ToolError(
-				`zetacode browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the OMP Browser Relay extension and check the toolbar badge shows "on".`,
+				`zetacode browser relay is serving at ${cdpUrl} but its extension disconnected and has not come back. Open Chrome with the Zeta Browser Relay extension and check the toolbar badge shows "on".`,
 			);
 		}
 		if (outcome === "outdated-relay") {
@@ -276,7 +302,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "outdated-extension") {
 			throw new ToolError(
-				"The OMP Browser Relay extension is out of date. Run `zeta browser-relay install` and reload the extension in Chrome.",
+				"The Zeta Browser Relay extension is out of date. Run `zetacode browser-relay install` and reload the extension in Chrome.",
 			);
 		}
 		const puppeteer = await loadPuppeteer();
@@ -484,7 +510,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by zeta processes that died without teardown — bounds
+		// left behind by omp processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });
