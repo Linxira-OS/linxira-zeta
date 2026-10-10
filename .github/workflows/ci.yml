@@ -211,6 +211,11 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         # Audits the standing upstream lineage on every push, so a squash /
+         # force-push / skipped tag becomes visible before anyone attempts a
+         # merge. The pre-merge form (--tag) runs on sync/omp-release/*.
+         - name: Upstream merge lineage guard
+           run: bun scripts/check-merge-lineage.ts
          - name: Build collab web
            run: bun run collab:web:build
 
@@ -906,7 +911,7 @@ jobs:
               binary="$(realpath "${{ matrix.binary_path }}")"
               # Bun's musl-target binaries link libstdc++/libgcc dynamically;
               # Alpine users install them alongside the binary (same as bun itself).
-              docker run --rm -v "$binary:/usr/local/bin/omp:ro" alpine:3.22 sh -ec '
+              docker run --rm -v "$binary:/usr/local/bin/zetacode:ro" alpine:3.22 sh -ec '
                 apk add --no-cache libstdc++ libgcc >/dev/null
                 runtime_dir="$(mktemp -d)"
                 HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" omp --version
