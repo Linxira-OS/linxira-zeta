@@ -284,6 +284,41 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: 'Symbol("zeta.imagePng")',
 		why: 'the PNG-cache symbol description is zeta-branded (upstream Symbol("omp.imagePng"))',
 	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/dto.ts",
+		needle: 'export const SKILLS_CLI_AGENT = "pi";',
+		why: "the third-party `skills` CLI validates --agent against its own registry and rejects `omp` (Invalid agents: omp — installs nothing); `pi` writes to .agents/skills, which our `agents` skill provider and .skill-lock.json reader use",
+	},
+	{
+		file: "packages/coding-agent/src/dap/session.ts",
+		needle: "clientID: APP_NAME,",
+		why: "DAP initialize identity is the product name, not upstream's literal",
+	},
+	{
+		file: "packages/coding-agent/src/hindsight/bank.ts",
+		needle: 'const DEFAULT_BANK_NAME = "zeta";',
+		why: "the fallback Hindsight bank is zeta (docs/memory.md records the rename and the continuity note)",
+	},
+	{
+		file: "packages/coding-agent/src/tools/report-tool-issue.ts",
+		needle: "agent: { name: APP_NAME, version: VERSION },",
+		why: "bug-report attribution is the product name",
+	},
+	{
+		file: "packages/catalog/src/compat/rules/auth/openai-codex.kdl",
+		needle: 'originator "zeta"',
+		why: "the Codex authorize param must equal OPENAI_HEADER_VALUES.ORIGINATOR_CODEX, which every API-request header already sends (packages/catalog/src/wire/codex.ts)",
+	},
+	{
+		file: "packages/coding-agent/src/modes/rpc/wire/index.ts",
+		needle: "linxira-zeta/main/packages/coding-agent/src/modes/rpc/wire/rpc-wire.schema.json",
+		why: "the generated RPC wire $id points at the Zeta repo, like the mcp/theme schema URLs",
+	},
+	{
+		file: "packages/browser-relay/extension/manifest.json",
+		needle: '"name": "Zeta Browser Relay"',
+		why: "the shipped browser extension is branded Zeta",
+	},
 ];
 
 /**

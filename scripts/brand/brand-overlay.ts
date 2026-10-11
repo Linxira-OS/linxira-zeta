@@ -56,6 +56,11 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		to: "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta/main/packages/coding-agent/src/modes/theme/theme-schema.json",
 	},
 	{
+		name: "rpc-wire-schema-url",
+		from: /https:\/\/omp\.sh\/schemas\/rpc-wire\.json/g,
+		to: "https://raw.githubusercontent.com/Linxira-OS/linxira-zeta/main/packages/coding-agent/src/modes/rpc/wire/rpc-wire.schema.json",
+	},
+	{
 		// Doc comments and non-interop strings describing paths that actually
 		// resolve under the zeta config root (dirs.ts docs, log paths, etc.).
 		name: "omp-doc-path",

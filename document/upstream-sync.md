@@ -236,6 +236,19 @@ gates could not see, and each is now fixed:
   collapsed, matching the TUI, which gates on the terminal protocol rather than
   expansion), and the web-ui origin proxies `/api/blobs` in the `next dev` /
   standalone topology (`zeta serve` already routes `/api/*` to the gateway).
+- **Upstream identity literals cut.** Several protocol-identity strings still named
+  upstream. The Codex OAuth `originator` in `compat/rules/auth/openai-codex.kdl`
+  contradicted the value every API request header and the browser-login default
+  already send (`OPENAI_HEADER_VALUES.ORIGINATOR_CODEX` = "zeta"); the DAP
+  `clientID`/`clientName`, the bug-report `agent.name`, the Hindsight
+  `DEFAULT_BANK_NAME`, the RPC-wire schema `$id` and the browser-relay manifest
+  carried it too, and are now the Zeta identity (the bank rename costs recall
+  continuity for old default-bank memories — migration note in `docs/memory.md`).
+  The web panel's skill install was worse off: it passed `--agent omp`, which the
+  third-party `skills` CLI rejects (`Invalid agents: omp`, installing nothing).
+  It now sends `SKILLS_CLI_AGENT` (`pi`), whose layout is `.agents/skills` — the
+  directory our `agents` skill provider and `.skill-lock.json` reader use. Eight
+  `MUST_CONTAIN` rules pin the new forms so a merge cannot revert them.
 - **Local CI**: the Gitea mirror's runs 520–535 all died before any test ran —
   first a missing `actions/checkout`, then repeated NAS→github.com failures
   (`curl: (56)` on a release asset; `TLS handshake timeout` fetching the action
