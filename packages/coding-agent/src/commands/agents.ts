@@ -3,6 +3,7 @@
  */
 
 import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { agentsHelp as commandHelp } from "../cli/command-help";
 import { initTheme } from "@linxiraos/pi-tui/theme";
@@ -37,7 +38,7 @@ export default class Agents extends Command {
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Agents);
 		if (!args.action) {
-			renderCommandHelp("zeta", "agents", Agents);
+			renderCommandHelp(CLI_BIN_NAME, "agents", Agents);
 			return;
 		}
 

@@ -812,6 +812,7 @@ const SHELL_COMMANDS = new Set([
 	"zsh",
 	"nu",
 	"omp",
+	"zetacode",
 	"gcc",
 	"clang",
 	"dotnet",
@@ -1085,7 +1086,7 @@ const ENV_NAMES = new Set([
 	"NO_PROXY",
 ]);
 
-/** URI schemes kept verbatim: standard web/file schemes and omp's built-in internal schemes. */
+/** URI schemes kept verbatim: standard web/file schemes and zeta's built-in internal schemes. */
 const KNOWN_SCHEMES = new Set([
 	"http",
 	"https",
@@ -1106,6 +1107,7 @@ const KNOWN_SCHEMES = new Set([
 	"mcp",
 	"memory",
 	"omp",
+	"zeta",
 	"pr",
 	"proc",
 	"rule",

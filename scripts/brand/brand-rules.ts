@@ -27,6 +27,7 @@ export const SKIP_PREFIXES = [
 	".zeta/", // in-repo dev-tool directory (not the product config dir)
 	".oxlintrc.json", // lint-glob config; tooling cleanup tracked separately
 	"scripts/brand/", // the guard's own rule table names the tokens it bans
+	"scripts/scan-brand-regressions.ts", // the merge-diff scanner names the same tokens as match patterns
 	".zcode/",
 ];
 

@@ -1,5 +1,6 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Effort } from "@linxiraos/pi-ai";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import {
 	type Component,
 	Container,
@@ -878,7 +879,7 @@ export class SettingsSelectorComponent implements Component {
 		}
 
 		const props: TspPrefsProps = {
-			title: "omp settings",
+			title: `${CLI_BIN_NAME} settings`,
 			pages,
 			page: searching ? this.#preSearchTabId : this.#currentTabId,
 			lead: searching ? undefined : (pluginPage?.lead ?? (tab ? TAB_LEADS[tab] : undefined)),
