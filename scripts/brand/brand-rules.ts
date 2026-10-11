@@ -170,6 +170,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "status-line brand icon (registry: icon.omp=ζ; nerd U+F0D57 preserved separately)",
 	},
 	{
+		file: "packages/tui/src/theme/symbols.ts",
+		needle: '"icon.omp": "zeta",',
+		why: "the ascii preset of the same icon — on terminals that cannot draw ζ this literal word is what users see, and upstream's ascii fallback is `pi` (their brand), so a merge re-introduces it silently unless the exact form is pinned (registry: icon.omp ascii preset `zeta`)",
+	},
+	{
 		file: "packages/coding-agent/src/utils/title-generator.ts",
 		needle: 'const DEFAULT_TERMINAL_TITLE = "ζ";',
 		why: "terminal title brand character (registry row 1)",

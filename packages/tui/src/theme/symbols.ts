@@ -1258,7 +1258,7 @@ const ASCII_SYMBOLS: SymbolMap = {
 	"icon.advisor": "(adv)",
 	"icon.advisorClosed": "(adv)",
 	"icon.time": "t:",
-	"icon.omp": "pi",
+	"icon.omp": "zeta",
 	"icon.ghost": "@",
 	"icon.agents": "AG",
 	"icon.job": "bg",
