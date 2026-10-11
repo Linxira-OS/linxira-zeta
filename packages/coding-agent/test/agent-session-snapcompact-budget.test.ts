@@ -31,7 +31,7 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { cfgSnapcompactShape } from "@linxiraos/zeta/session/context-settings";
-import * as snapcompact from "@linxiraos/snapcompact";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;

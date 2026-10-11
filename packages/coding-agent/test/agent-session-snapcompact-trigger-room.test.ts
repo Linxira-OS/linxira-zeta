@@ -15,7 +15,7 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
-import * as snapcompact from "@linxiraos/snapcompact";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { rejectionOf } from "./helpers/rejection";
 
 const SHARE = 0.5;
