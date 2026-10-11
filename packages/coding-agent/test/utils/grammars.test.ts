@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WasmGrammarInfo } from "@linxiraos/pi-natives";
-import { installGrammar } from "@linxiraos/zeta/utils/grammars";
+import { ensureGrammar, ensureGrammars, installGrammar } from "@linxiraos/zeta/utils/grammars";
 import { TempDir } from "@linxiraos/pi-utils";
 
 const RELEASE = "grammars-test";
@@ -70,5 +70,17 @@ describe("wasm grammar install", () => {
 		expect(fs.existsSync(dest)).toBe(false);
 		expect(fs.existsSync(`${dest}.part`)).toBe(false);
 		expect(fs.existsSync(`${dest}.zst.part`)).toBe(false);
+	});
+});
+
+describe("wasm grammar lookup", () => {
+	// An addon built without the on-demand grammar table reports
+	// `wasmGrammarFor` as an absent export — a bare `undefined` on a current
+	// addon, a rebuild-naming stub on a stale one. The absence is a capability
+	// probe, not an error: read summaries and AST tools keep the compiled-in
+	// grammars instead of rejecting over the missing optional export.
+	it("answers a built-in or unknown query from the compiled-in grammars", async () => {
+		expect(await ensureGrammar({ path: "code.ts" })).toBe(true);
+		expect(await ensureGrammars(["not-a-real-language"])).toBe(false);
 	});
 });

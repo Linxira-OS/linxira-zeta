@@ -109,12 +109,20 @@ export function installGrammar(info: WasmGrammarInfo, dir: string = getNativeGra
 /**
  * Make sure the wasm grammar for `query` (a `lang` alias or a file `path`) is
  * installed, downloading it on first use. Returns `true` without network
- * access for built-in, unknown, or already installed languages; otherwise
- * whether the install succeeded. Offline or integrity failures log and return
- * `false`; native AST APIs then treat the language as unsupported.
+ * access for built-in, unknown, already installed, or unavailable languages;
+ * otherwise whether the install succeeded. Offline or integrity failures log
+ * and return `false`; native AST APIs then treat the language as unsupported.
  */
 export async function ensureGrammar(query: WasmGrammarQuery): Promise<boolean> {
-	const info = wasmGrammarFor(query);
+	let info: WasmGrammarInfo | null;
+	try {
+		info = wasmGrammarFor(query) ?? null;
+	} catch {
+		// Absent export on an addon built without the on-demand grammar table (a
+		// bare `undefined`, or a stale addon's rebuild-naming stub): the absence is
+		// a capability probe, so the addon's compiled-in grammars stand in.
+		return true;
+	}
 	if (!info || info.installed) return true;
 	return installGrammar(info);
 }
@@ -122,12 +130,18 @@ export async function ensureGrammar(query: WasmGrammarQuery): Promise<boolean> {
 /**
  * Install the wasm grammars of `languages` (typically a native result's
  * `missingGrammars`). Returns `true` when at least one of them is now
- * installed, i.e. a caller that saw them missing should re-run.
+ * installed, i.e. a caller that saw them missing should re-run. `false` when
+ * none can be installed, including on an addon without the on-demand table.
  */
 export async function ensureGrammars(languages: readonly string[]): Promise<boolean> {
 	const installed = await Promise.all(
-		languages.map(lang => {
-			const info = wasmGrammarFor({ lang });
+		languages.map(async lang => {
+			let info: WasmGrammarInfo | null;
+			try {
+				info = wasmGrammarFor({ lang }) ?? null;
+			} catch {
+				return false;
+			}
 			if (!info) return false;
 			return info.installed || installGrammar(info);
 		}),
