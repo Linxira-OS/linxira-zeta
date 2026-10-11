@@ -36,6 +36,15 @@ const intentionallyIdentical: Partial<Record<keyof typeof en, true>> = {
 	agwPluralS: true,
 	teaLabel: true,
 	scpAutoLabelFmt: true,
+	// Composer-shape names are proper nouns ("Claude Code", "Pi"), like the
+	// glyph/theme names above.
+	composerShapeClaudeLabel: true,
+	composerShapePiLabel: true,
+	// Language-neutral technical tokens: a token count reads the same in zh
+	// (`ctxTokensPctFmt` likewise keeps "tokens"), and "env" is a credential
+	// origin tag next to `psBadgeNpm`'s "[npm]".
+	ctxTokensOfFmt: true,
+	oauthOriginEnv: true,
 };
 
 describe("catalogue completeness", () => {

@@ -84,6 +84,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Subagents: "子代理",
 	Isolation: "隔离",
 	"Commands & Skills": "命令与技能",
+	Skills: "技能",
 	Services: "服务",
 	Fireworks: "Fireworks 模型",
 	"Tiny Model": "微型模型",

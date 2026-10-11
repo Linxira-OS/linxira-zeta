@@ -23,7 +23,7 @@ export const cfgLanguage = register({
 		description: "CLI language for user-facing text (system prompts stay English)",
 		options: [
 			{ value: "en", label: "English", description: "English UI text (default)" },
-			{ value: "zh", label: "中文", description: "简体中文界面" },
+			{ value: "zh", label: "中文", description: "Simplified Chinese UI" },
 		],
 	},
 });
