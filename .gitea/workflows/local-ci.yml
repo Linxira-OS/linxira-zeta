@@ -268,6 +268,11 @@ jobs:
               # is absent from their own environment).
               printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" > "$TOOLS/env.path"
 
+              # PATH_EXTRA 只是变量，不会进 PATH：本 job 自己的后续步骤
+              # （Verify toolchains / Install workspace dependencies）必须靠
+              # GITHUB_PATH 拿到 bun，否则 `bun install` 直接 127。
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" >> "$GITHUB_PATH"
+
          - name: Verify toolchains
            shell: bash
            run: |
