@@ -25,10 +25,10 @@ export default class Render extends Command {
 	};
 
 	static examples = [
-		"zeta render",
-		"zeta render 01a0285c --plain",
-		"zeta render ~/.zeta/agent/sessions/--work-pi--/big.jsonl -q -t --repaint 5",
-		"zeta render -w 200 > thread.ansi",
+		"zetacode render",
+		"zetacode render 01a0285c --plain",
+		"zetacode render ~/.zeta/agent/sessions/--work-pi--/big.jsonl -q -t --repaint 5",
+		"zetacode render -w 200 > thread.ansi",
 	];
 
 	async run(): Promise<void> {

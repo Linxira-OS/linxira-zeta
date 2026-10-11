@@ -347,7 +347,7 @@ export class ZetaServer {
 		try {
 			const { statsPort, webOnly, statsOnly } = this.#options;
 
-			// 1. Start Stats Dashboard (always when not statsOnly — zeta web
+			// 1. Start Stats Dashboard (always when not statsOnly — zetacode web
 			//    single-mode also serves it for the Stats iframe tab)
 			if (!statsOnly) {
 				await this.#startStats(statsPort);

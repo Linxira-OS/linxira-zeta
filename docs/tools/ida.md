@@ -10,8 +10,8 @@
   - `packages/coding-agent/src/ida/install.ts` — local install detection (`cfgIdaAvailable`, `cfgIdaInstall`)
   - `packages/coding-agent/src/ida/runtime.ts` — Python interpreter discovery (must import `ida_domain` + `idapro`)
   - `packages/coding-agent/src/ida/store.ts` — executable sniffing, universal Mach-O slice selection, IDB location (`~/.zeta/agent/idbs/<sha16>-<name>[.<arch>]/` or in place)
-  - `packages/coding-agent/src/ida/client.ts` — omp-side registry: starts/attaches hosts via the project broker, LRU eviction, request forwarding, flush on exit
-  - `packages/coding-agent/src/ida/host.ts` — `omp.ida.<id>` daemon (`__zeta_worker_ida_host`): IDB lock, socket server, SIGTERM save/close
+  - `packages/coding-agent/src/ida/client.ts` — zeta-side registry: starts/attaches hosts via the project broker, LRU eviction, request forwarding, flush on exit
+  - `packages/coding-agent/src/ida/host.ts` — `zeta.ida.<id>` daemon (`__zeta_worker_ida_host`): IDB lock, socket server, SIGTERM save/close
   - `packages/coding-agent/src/ida/protocol.ts` — daemon naming, endpoints, host config and NDJSON wire schemas
   - `packages/coding-agent/src/ida/supervisor.ts` — `IdaWorker`: the Python worker process inside a host, request queue, idle autosave/close
   - `packages/coding-agent/src/ida/worker.py` — idalib worker: views, edits, `exec` namespace and helpers
@@ -58,8 +58,8 @@
 - `details`: `{ action, db?: <id>, meta?: OutputMeta }`. No custom renderer.
 
 ## Flow
-1. `#resolveDb`: omitted `db` → the single open DB; an open id or `omp.ida.*` daemon name → that DB; otherwise the path must be a file. Mutating actions and `exec` call `acquireIdaDatabase` (opens or creates); `save`/`close` look up `locateIdb(path).id` among open DBs.
-2. Each DB runs in its own host daemon `omp.ida.<id>` under the project's daemon broker (`zetacode ps` lists, stops, and tails it). The host is an omp worker that holds the IDB lock and one long-lived Python worker (idalib allows one DB per process), and serves NDJSON on a Unix socket / named pipe in the broker runtime dir. `acquireIdaDatabase` attaches to a running host or asks the broker to start one, then waits for the open; concurrent callers share one open, and aborting a caller only stops its wait (idalib ignores SIGINT while opening).
+1. `#resolveDb`: omitted `db` → the single open DB; an open id or `zeta.ida.*` daemon name → that DB; otherwise the path must be a file. Mutating actions and `exec` call `acquireIdaDatabase` (opens or creates); `save`/`close` look up `locateIdb(path).id` among open DBs.
+2. Each DB runs in its own host daemon `zeta.ida.<id>` under the project's daemon broker (`zetacode ps` lists, stops, and tails it). The host is an omp worker that holds the IDB lock and one long-lived Python worker (idalib allows one DB per process), and serves NDJSON on a Unix socket / named pipe in the broker runtime dir. `acquireIdaDatabase` attaches to a running host or asks the broker to start one, then waits for the open; concurrent callers share one open, and aborting a caller only stops its wait (idalib ignores SIGINT while opening).
 3. Starting a host beyond `ida.maxOpen` (default 4) hosts in the project first saves and closes the least recently used idle one; when every host is busy the open fails with `IDA database limit reached`.
 4. Requests from every omp process are serialized per DB in the host. The request timeout covers the queue wait: a request still queued at its deadline fails with `IDA <id> busy: <method> running for <n>s` without interrupting the running request.
 5. Timeouts/aborts of a running request send SIGINT; the worker gets 5 s to respond, then it is SIGKILLed. A response during a timeout's grace period can still be returned; a caller abort stops that caller's wait and targets only its request.

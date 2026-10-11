@@ -31,7 +31,7 @@ import {
 import { AuthBrokerClient, DEFAULT_AUTH_BROKER_BIND, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
 import { refreshOAuthToken } from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
-import { $which, CLI_BIN_NAME, getAgentDbPath, getConfigRootDir, isEnoent, logger, VERSION } from "@linxiraos/pi-utils";
+import { $which, APP_NAME, CLI_BIN_NAME, getAgentDbPath, getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { setTransports as setLoggerTransports } from "@linxiraos/pi-utils/logger";
 import { $ } from "bun";

@@ -3,6 +3,7 @@
  */
 
 import { Args, Command, Flags, renderCommandHelp } from "@linxiraos/pi-utils/cli";
+import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { type AgentsAction, type AgentsCommandArgs, runAgentsCommand } from "../cli/agents-cli";
 import { agentsHelp as commandHelp } from "../cli/command-help";
 import { initTheme } from "@linxiraos/pi-tui/theme";
@@ -28,16 +29,16 @@ export default class Agents extends Command {
 	};
 
 	static examples = [
-		"# Export bundled agents into user config (default)\n  zeta agents unpack",
-		"# Export bundled agents into project config\n  zeta agents unpack --project",
-		"# Overwrite existing local agent files\n  zeta agents unpack --project --force",
-		"# Export into a custom directory\n  zeta agents unpack --dir ./tmp/agents --json",
+		"# Export bundled agents into user config (default)\n  zetacode agents unpack",
+		"# Export bundled agents into project config\n  zetacode agents unpack --project",
+		"# Overwrite existing local agent files\n  zetacode agents unpack --project --force",
+		"# Export into a custom directory\n  zetacode agents unpack --dir ./tmp/agents --json",
 	];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Agents);
 		if (!args.action) {
-			renderCommandHelp("zeta", "agents", Agents);
+			renderCommandHelp(CLI_BIN_NAME, "agents", Agents);
 			return;
 		}
 

@@ -418,7 +418,6 @@ describe("Composer prepaint", () => {
 			await releaseInit.promise;
 		});
 		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});
-		vi.spyOn(testSession.session, "maybeStartTitleGeneration").mockImplementation(() => {});
 		const prompt = vi.spyOn(testSession.session, "prompt").mockResolvedValue(true);
 
 		try {
@@ -468,14 +467,13 @@ describe("Composer prepaint", () => {
 		);
 		lease.adopt();
 		vi.spyOn(mode.statusLine, "watchBranch").mockImplementation(() => {});
-		vi.spyOn(testSession.session, "maybeStartTitleGeneration").mockImplementation(() => {});
 		const turn = Promise.withResolvers<boolean>();
 		const prompt = vi.spyOn(testSession.session, "prompt").mockResolvedValue(true);
 
 		try {
 			await mode.init({ suppressWelcomeIntro: true });
 
-			// The `omp "prompt"` launch shape: the CLI message is dispatched after
+			// The `zetacode "prompt"` launch shape: the CLI message is dispatched after
 			// init and its first turn is still in flight when the user types. The
 			// input loop has not reached getUserInput yet.
 			prompt.mockReturnValueOnce(turn.promise);

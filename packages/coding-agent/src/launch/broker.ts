@@ -375,7 +375,7 @@ async function holdsLiveForeignLease(pidPath: string, endpoint: string): Promise
  * Claim the one-broker-per-scope lease. The native lock is process-owned, so
  * the OS releases it however the broker dies — a crashed broker can never wedge
  * the scope behind a stale lease again (issue #11080). `broker.pid` stays as
- * human-readable metadata for `zeta ps` and dead-scope pruning.
+ * human-readable metadata for `zetacode ps` and dead-scope pruning.
  */
 async function acquireBrokerLease(runtimeDir: string, endpoint: string): Promise<BrokerLease | null> {
 	const pidPath = path.join(runtimeDir, PID_FILE);
@@ -660,7 +660,9 @@ class DaemonBroker {
 				return this.#send(operation);
 			case "stop": {
 				const record = this.#record(operation.name);
-				await this.#stopRecord(record, operation.timeoutMs);
+				if (operation.id === undefined || operation.id === record.snapshot.id) {
+					await this.#stopRecord(record, operation.timeoutMs);
+				}
 				return { op: "stop", daemon: record.snapshot };
 			}
 			case "restart":
@@ -1573,7 +1575,7 @@ export async function startDaemonBrokerFromEnvironment(options: DaemonBrokerStar
 	const lease = await acquireBrokerLease(runtimeDir, endpoint);
 	if (!lease) return;
 	setProcessName("zetacode daemon broker");
-	// Record the scope's project dir so `zeta ps` can map this hash-keyed runtime
+	// Record the scope's project dir so `zetacode ps` can map this hash-keyed runtime
 	// dir back to its project (and derive the Windows pipe name) offline.
 	void writeDaemonScopeMeta(runtimeDir, projectDir).catch(error => {
 		logger.warn("Failed to record daemon scope metadata", {

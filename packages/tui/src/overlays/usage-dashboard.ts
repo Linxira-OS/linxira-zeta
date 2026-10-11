@@ -86,8 +86,10 @@ export interface ProviderCard {
 	unavailableAccounts: string[];
 	/** Window rows in provider-declared order (e.g. 5h → weekly → monthly); the fullest CARD_MAX_WINDOWS lead. */
 	windows: CardWindowRow[];
-	/** True when every account reports no limits (e.g. enterprise plans). */
+	/** True when every account reports no limits (e.g. enterprise plans, providers without a quota API). */
 	unlimited: boolean;
+	/** Distinct report notes across accounts (e.g. why a provider exposes no quota windows). */
+	notes: string[];
 	/** True when nothing is used anywhere (or there are no limits): collapses to a tick. */
 	idle: boolean;
 	resetCredits?: {
@@ -262,6 +264,7 @@ export function buildProviderCards(
 			unavailableAccounts: unavailable,
 			windows,
 			unlimited: windows.length === 0 && unavailable.length === 0,
+			notes: [...new Set(providerReports.flatMap(report => report.notes ?? []))],
 			idle:
 				unavailable.length === 0 &&
 				!resetCredits &&
@@ -451,6 +454,25 @@ function mutedText(content: string, wrap = false): NativeNode {
 	return text([span(content, "muted")], wrap ? { wrap: "word" } : { truncate: "end" });
 }
 
+/**
+ * A quiet line under the provider grid naming the providers that get no
+ * frame (`Untouched: Kimi Code, Zai`); `title` says why on hover.
+ */
+function footnote(key: string, label: string, cards: readonly ProviderCard[], title?: string): NativeNode {
+	const names = cards.map(card => card.name).join(", ");
+	return node(
+		"text",
+		{
+			spans: [span(`${label}: `, "dim"), span(names)],
+			wrap: "word",
+			role: "zeta.usage.footnote",
+			...(title ? { title: sanitizeDisplayLine(title) } : {}),
+		},
+		undefined,
+		key,
+	);
+}
+
 /** Stable, human account name for a report in the detail view. */
 function reportAccountLabel(report: UsageReport, limit: UsageLimit | undefined, index: number): string {
 	const metadata = report.metadata;
@@ -541,7 +563,7 @@ interface CardRowLayout {
 
 export class UsageDashboardComponent implements Component {
 	/** The terminal draws the sheet: a large glass overlay titled Usage. */
-	readonly nativeOverlay = { role: "omp.overlay.usage", size: "lg", anchor: "center", head: "Usage" } as const;
+	readonly nativeOverlay = { role: "zeta.overlay.usage", size: "lg", anchor: "center", head: "Usage" } as const;
 	#options: UsageDashboardOptions;
 	#reports: UsageReport[];
 	#cards: ProviderCard[];
@@ -1013,43 +1035,66 @@ export class UsageDashboardComponent implements Component {
 			),
 		];
 		if (this.#options.refresh) children.push(actionButton("Refresh", "refresh", { keys: "r" }));
-		return node("row", { role: "omp.usage.head", gap: "sm", align: "center" }, children, "head");
+		return node("row", { role: "zeta.usage.head", gap: "sm", align: "center" }, children, "head");
 	}
 
 	#describeOverview(meter: boolean, chart: boolean): NativeChild[] {
 		const children: NativeChild[] = [];
 		if (this.#cards.length === 0) {
 			children.push(
-				node("text", { spans: [span("No usage data available.")], role: "omp.usage.untouched" }, undefined, "none"),
+				node("text", { spans: [span("No usage data available.")], role: "zeta.usage.footnote" }, undefined, "none"),
 			);
 		} else {
-			// Unlimited providers keep a frame reading "No limits"; only untouched ones collapse.
-			const active = this.#cards.filter(entry => !entry.idle || entry.unlimited);
-			const idle = this.#cards.filter(entry => entry.idle && !entry.unlimited);
-			if (active.length > 0) {
+			// Only providers with something to show get a frame: the rest are
+			// named in footnotes, whether untouched, unreadable or quota-less.
+			const framed: ProviderCard[] = [];
+			const untouched: ProviderCard[] = [];
+			const unreported: ProviderCard[] = [];
+			const unmetered: ProviderCard[] = [];
+			for (const entry of this.#cards) {
+				const shown =
+					entry.windows.length > 0 || entry.resetCredits !== undefined || entry.daybreakAccounts !== undefined;
+				if (!shown) (entry.unavailableAccounts.length > 0 ? unreported : unmetered).push(entry);
+				else if (entry.idle) untouched.push(entry);
+				else framed.push(entry);
+			}
+			if (framed.length > 0) {
 				children.push(
 					node(
 						"row",
-						{ wrap: true, gap: "md", role: "omp.usage.grid" },
-						active.map(entry => this.#describeCard(entry, meter)),
+						{ wrap: true, gap: "md", role: "zeta.usage.grid" },
+						framed.map(entry => this.#describeCard(entry, meter)),
 						"providers",
 					),
 				);
 			}
-			if (idle.length > 0) {
-				children.push(
-					node(
-						"text",
-						{
-							spans: [span(`Untouched: ${idle.map(entry => entry.name).join(", ")}`)],
-							wrap: "word",
-							role: "omp.usage.untouched",
-						},
-						undefined,
-						"idle",
+			const notes: NativeNode[] = [];
+			if (untouched.length > 0) notes.push(footnote("idle", "Untouched", untouched));
+			if (unreported.length > 0) {
+				const accounts = unreported.flatMap(entry =>
+					entry.unavailableAccounts.map(account => `${entry.name} (${account})`),
+				);
+				notes.push(
+					footnote(
+						"unreported",
+						"No usage data",
+						unreported,
+						`No usage report came back for ${accounts.join(", ")}: the sign-in expired, the request failed, or the plan has no quotas`,
 					),
 				);
 			}
+			if (unmetered.length > 0) {
+				const why = unmetered.flatMap(entry => entry.notes.map(note => `${entry.name}: ${note}`));
+				notes.push(
+					footnote(
+						"unmetered",
+						"No quotas reported",
+						unmetered,
+						why.length > 0 ? why.join(" • ") : "These providers report no quota windows to track",
+					),
+				);
+			}
+			if (notes.length > 0) children.push(node("col", { gap: "xs" }, notes, "footnotes"));
 		}
 		children.push(this.#describeActivity(chart));
 		return children;
@@ -1066,7 +1111,7 @@ export class UsageDashboardComponent implements Component {
 		if (entry.accounts > 1) head.push(text([span(`${entry.accounts} accounts`, "muted")]));
 		head.push(node("spacer", { grow: 1 }), statusDot(cardStatus));
 		const children: NativeChild[] = [
-			node("row", { role: "omp.usage.provider.head", gap: "sm", align: "center" }, head, "title"),
+			node("row", { role: "zeta.usage.provider.head", gap: "sm", align: "center" }, head, "title"),
 		];
 		for (const account of entry.daybreakAccounts ?? []) {
 			children.push(text([span(`Daybreak · ${sanitizeDisplayLine(account)}`, "success")], { truncate: "end" }));
@@ -1100,39 +1145,41 @@ export class UsageDashboardComponent implements Component {
 			);
 		}
 		for (const account of entry.unavailableAccounts) {
-			children.push(mutedText(`${sanitizeDisplayLine(account)}: usage unavailable`, true));
+			children.push(mutedText(`${sanitizeDisplayLine(account)}: no usage data`, true));
 		}
 		if (entry.unlimited) {
-			children.push(mutedText("No limits"));
+			children.push(mutedText("No quotas reported"));
 		} else {
 			for (const [index, window] of entry.windows.slice(0, CARD_MAX_WINDOWS).entries()) {
 				const label: TspSpan[] = [span(sanitizeDisplayLine(window.label))];
 				if (window.windowTag) label.push(span(` ${sanitizeDisplayLine(window.windowTag)}`, "dim"));
 				const cells: NativeChild[] = [
-					text(label, { role: "omp.usage.label", truncate: "middle", title: sanitizeDisplayLine(window.label) }),
+					text(label, { role: "zeta.usage.label", truncate: "middle", title: sanitizeDisplayLine(window.label) }),
 				];
 				if (window.fraction === undefined) {
-					cells.push(text([span(window.usedText ?? "No data", "muted")], { truncate: "end" }));
+					cells.push(
+						text([span(window.usedText ?? "No data", "muted")], { role: "zeta.usage.amount", truncate: "end" }),
+					);
 				} else {
 					const token =
 						window.status === "exhausted" ? "error" : window.status === "warning" ? "warning" : undefined;
 					cells.push(
 						usageMeter(window.fraction, window.status, meter),
-						text([span(leftText(window.fraction), token)], { role: "omp.usage.pct" }),
+						text([span(leftText(window.fraction), token)], { role: "zeta.usage.pct" }),
 					);
 					if (window.resetMs !== undefined) {
 						const reset = resetLabel(this.#nowMs, window.resetMs);
-						cells.push(text([span(reset.text, "dim")], { role: "omp.usage.reset", title: reset.title }));
+						cells.push(text([span(reset.text, "dim")], { role: "zeta.usage.reset", title: reset.title }));
 					}
 				}
-				children.push(node("row", { role: "omp.usage.window", gap: "sm", align: "center" }, cells, `w${index}`));
+				children.push(node("row", { role: "zeta.usage.window", gap: "sm", align: "center" }, cells, `w${index}`));
 			}
 			const hidden = entry.windows.length - CARD_MAX_WINDOWS;
 			if (hidden > 0) children.push(mutedText(`+${hidden} more`));
 		}
 		return node(
 			"card",
-			{ role: "omp.usage.provider", grow: 1, min: { w: `${CARD_MIN_WIDTH}ch` } },
+			{ role: "zeta.usage.provider", grow: 1, min: { w: `${CARD_MIN_WIDTH}ch` } },
 			children,
 			entry.provider,
 		);
@@ -1158,7 +1205,7 @@ export class UsageDashboardComponent implements Component {
 					: `No activity in the last ${NATIVE_HEATMAP_WEEKS} weeks`;
 			children.push(chart ? this.#heatmapChart(layout, points, summary) : this.#heatmapTable(layout, summary));
 		}
-		return node("col", { role: "omp.usage.activity", gap: "sm" }, children, "activity");
+		return node("col", { role: "zeta.usage.activity", gap: "sm" }, children, "activity");
 	}
 
 	/** The heatmap as a `chart`: 0–1 intensities, month columns, M/W/F rows, per-day tooltips. */
@@ -1229,7 +1276,7 @@ export class UsageDashboardComponent implements Component {
 			const children: NativeChild[] = [];
 			for (const account of unavailable) {
 				if (account.provider !== entry.provider) continue;
-				children.push(mutedText(`${sanitizeDisplayLine(account.label)}: usage unavailable`, true));
+				children.push(mutedText(`${sanitizeDisplayLine(account.label)}: no usage data`, true));
 			}
 
 			const facts: { k: TspText; v: TspText }[] = [];
@@ -1321,12 +1368,12 @@ export class UsageDashboardComponent implements Component {
 				children.push(node("table", { cols, rows }, undefined, "limits"));
 				for (const note of new Set(limitNotes)) children.push(mutedText(note, true));
 			} else if (unavailable.every(account => account.provider !== entry.provider)) {
-				children.push(mutedText("No limits"));
+				children.push(mutedText("No quotas reported"));
 			}
 			sections.push(
 				node(
 					"section",
-					{ head: [span(entry.name, "strong")], role: "omp.usage.report" },
+					{ head: [span(entry.name, "strong")], role: "zeta.usage.report" },
 					[col(children, { gap: "sm" })],
 					entry.provider,
 				),

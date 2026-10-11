@@ -98,6 +98,7 @@ Plain provider credential names come from `env` entries in `packages/catalog/src
 | `ALIBABA_CODING_PLAN_API_KEY`   | Alibaba Coding Plan auth                         | Using `alibaba-coding-plan` provider                           |                                                                                                     |
 | `ALIBABA_TOKEN_PLAN_API_KEY`    | QwenCloud Token Plan auth                        | Using `alibaba-token-plan` provider                            | Preferred provider-specific name                                                                    |
 | `BAILIAN_TOKEN_PLAN_API_KEY`    | QwenCloud Token Plan auth                        | Using `alibaba-token-plan` provider                            | Compatible with Qwen Code's Token Plan preset                                                       |
+| `CORAL_API_KEY`                 | CoralBricks auth (alias: `CORALBRICKS_API_KEY`)  | Using `coralbricks` provider                                   |                                                                                                     |
 | `DEEPINFRA_API_KEY`             | DeepInfra auth                                   | Using `deepinfra` provider                                     |                                                                                                     |
 | `DEEPSEEK_API_KEY`              | DeepSeek auth                                    | Using DeepSeek models                                          |                                                                                                     |
 | `SILICONFLOW_API_KEY`           | SiliconFlow auth                                 | Using `siliconflow` provider                                   |                                                                                                     |
@@ -485,7 +486,7 @@ Shell subprocess filtering is separate (`packages/utils/src/env.ts`): it strips 
 | `PI_AUTO_QA_PUSH`            | `1`/`true` bypasses the consent dialog and forces tool-issue push recording in headless/non-interactive environments                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `ZETA_ISSUE_REPO`            | GitHub `owner/repo` that receives Auto-QA reports as issues (default `Linxira-OS/linxira-zeta`); malformed values fall back to the default. Auth uses `GITHUB_TOKEN`, then `GH_TOKEN`, then `gh auth token`; with no token the report is printed with a prefilled new-issue URL instead of being sent |
 | `PI_BROWSER_RELAY`           | `0`/`1` kill switch for the browser relay; overrides the `browser.relay` setting (relay auto-starts when Eval's browser API needs it)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `OMP_DAEMON_IDLE_GRACE_MS`   | Milliseconds a daemon broker waits after its last `omp` client disconnects before it shuts down and stops the non-detached daemons it supervises, such as services started with the bash tool's `name` (default `3000`). Read once when an `omp` process launches the broker, using the base-10 `parseInt` prefix (`5s` reads as `5`, `2.5` as `2`); `0` shuts the broker down as soon as the last client disconnects, and negative values or values without leading digits use the default |
+| `OMP_DAEMON_IDLE_GRACE_MS`   | Milliseconds a daemon broker waits after its last `zetacode` client disconnects before it shuts down and stops the non-detached daemons it supervises, such as services started with the bash tool's `name` (default `3000`). Read once when an `zetacode` process launches the broker, using the base-10 `parseInt` prefix (`5s` reads as `5`, `2.5` as `2`); `0` shuts the broker down as soon as the last client disconnects, and negative values or values without leading digits use the default |
 
 ### Hindsight memory backend
 
@@ -534,14 +535,15 @@ These affect where coding-agent stores data and which process-local settings ove
 | `PI_CONFIG_DIR`                                     | Config root dirname under home (default `.zeta`)                                                                            |
 | `ZETA_CODING_AGENT_DIR`                               | Full agent-directory override for the default profile only; named profiles ignore it                                       |
 | `PI_CODING_AGENT_SESSION_DIR`                       | Initial session-directory override consumed by launch argument parsing                                                     |
-| `PI_NATIVES_DIR`                                    | Native addon extraction/staging root override, before XDG/default paths; the loader appends `<version>`. Trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Does not move sessions, plugins, or other data. Must be writable only by the user(s) running `omp`: an existing addon of the expected size is reused without re-extraction, and its version is checked only after it loads |
+| `PI_NATIVES_DIR`                                    | Native addon extraction/staging root override, before XDG/default paths; the loader appends `<version>`. Trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Also moves downloaded tree-sitter grammars (`grammars/`); does not move sessions, plugins, or other data. Must be writable only by the user(s) running `zetacode`: an existing addon of the expected size is reused without re-extraction, and its version is checked only after it loads |
 | `PI_CONFIG_FILES`                                   | Platform path-list of settings overlays (`:` on Unix, `;` on Windows); loaded in order before explicit `--config` overlays |
 | `CLAUDE_CONFIG_DIR` | Claude Code user-config directory override (trimmed, resolved relative to process cwd); also moves Claude's `.claude.json` to `<override>/.claude.json`. Does not relocate project `.claude` directories |
 | `OMP_AUTORESEARCH_DB_DIR`                           | Directory override for per-project autoresearch DB and project-artifact roots                                              |
-| `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` | On macOS/Linux, redirect corresponding OMP paths only when the target `omp` root (or named-profile root) already exists    |
+| `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` | On macOS/Linux, redirect corresponding OMP paths only when the target `zetacode` root (or named-profile root) already exists    |
 | `PWD`                                               | Used when matching canonical current working directory in path helpers                                                     |
 | `OMP_WORKTREE_DIR`                                  | Agent-managed worktrees directory override (default `~/.zeta/wt`); must be absolute or `~`-relative, relative paths are ignored; wins over the `worktree.base` setting                      |
 | `OMP_GITHUB_CACHE_DB`                               | Overrides the GitHub view cache database path (default `~/.zeta/cache/github-cache.db`)                                                                                                     |
+| `PI_GRAMMARS_URL`                                   | Base URL for on-demand WebAssembly tree-sitter grammars (default `https://github.com/stencil-hq/wasm-grammars/releases/download`); assets are fetched as `<base>/<release>/<file>.zst` and verified against the addon's pinned SHA-256 before landing in `<natives dir>/grammars` (`~/.zeta/natives/grammars`) |
 
 ---
 
@@ -626,7 +628,12 @@ These are read as runtime signals; they are usually set by the terminal/OS rathe
 
 ## 11) OpenTelemetry export
 
-OMP initializes OTLP export only when at least one signal has an endpoint. Set `telemetry.otlpExportEnabled: false` (`/settings` → Providers → Privacy) to skip export even when endpoints are configured. `OTEL_SDK_DISABLED=true` also disables initialization.
+**Telemetry export is off, and cannot be turned on.** Zeta operates no telemetry
+collector, so the agent ships with a hard-off gate and no opt-in surface: there
+is no setting, environment variable, or flag that enables export. Every
+`OTEL_EXPORTER_OTLP*` variable below is read only by transport code that the
+gate currently keeps unreachable — setting an endpoint sends nothing anywhere.
+The table documents the contract for when we run our own backend.
 
 | Variable group                                                                                                  | Behavior                                                                                        |
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -637,7 +644,7 @@ OMP initializes OTLP export only when at least one signal has an endpoint. Set `
 | `OTEL_TRACES_EXPORTER`, `OTEL_LOGS_EXPORTER`, `OTEL_METRICS_EXPORTER`                                           | A list containing `none` disables that signal                                                   |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` and per-signal `..._PROTOCOL` variants                                            | Only `http/protobuf` is enabled by this runtime; another explicit protocol disables that signal |
 | `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`                                                                 | OpenTelemetry resource metadata                                                                 |
-| `OTEL_LOG_LEVEL`                                                                                                | Minimum exported OMP log level                                                                  |
+| `OTEL_LOG_LEVEL`                                                                                                | Minimum exported Zeta log level                                                                  |
 
 Header values are percent-decoded, so encode spaces and the `,`/`=` delimiters:
 

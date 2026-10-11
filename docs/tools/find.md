@@ -18,7 +18,7 @@
 The cascade follows the semantic-search strategy of [jegrep](https://github.com/can1357/jegrep): lexical pre-ranking, filename judgments, passage sketches, then full-passage verification.
 
 ## CLI
-`zeta find "<query>" [path] [-k keyword]... [--hidden] [--json] [-q]` runs the same cascade from the shell (`packages/coding-agent/src/cli/find-cli.ts`): progress goes to stderr and the ranked digest (or JSON with hits and stats) to stdout. A host-directory scope supplies the settings/extensions used to resolve the `judge` role; file/URL scopes use the caller's cwd. Hits are cwd-relative within the cwd, absolute outside it, or internal URLs. Exits 1 for an invalid query/root or when every judgment request failed.
+`zetacode find "<query>" [path] [-k keyword]... [--hidden] [--json] [-q]` runs the same cascade from the shell (`packages/coding-agent/src/cli/find-cli.ts`): progress goes to stderr and the ranked digest (or JSON with hits and stats) to stdout. A host-directory scope supplies the settings/extensions used to resolve the `judge` role; file/URL scopes use the caller's cwd. Hits are cwd-relative within the cwd, absolute outside it, or internal URLs. Exits 1 for an invalid query/root or when every judgment request failed.
 
 ## Inputs
 
@@ -62,7 +62,7 @@ Each judged phase drains through a dispatcher with 16 requests in flight before 
 ## Limits & Caps
 - Candidates judged by name: 128; files read: 20; windows per file: 24; window size: 8 KB; sketch: 384 B; passages verified: 40; sketch cutoff 0.45; hit threshold 0.20 (`packages/coding-agent/src/tools/jfind/cascade.ts`).
 - Native lexical scan timeout: 30 s. Native System One judgments use `TypeSafeJudge` (10 s per attempt, up to three attempts); the tool's 20 s wall budget can abort them earlier.
-- Per-call wall-clock budget: `20_000ms` (`FIND_TIMEOUT_MS` in `packages/coding-agent/src/tools/jfind/index.ts`); hitting it raises `find timed out after 20.0s` instead of blocking the turn. The `zeta find` CLI is not bounded this way.
+- Per-call wall-clock budget: `20_000ms` (`FIND_TIMEOUT_MS` in `packages/coding-agent/src/tools/jfind/index.ts`); hitting it raises `find timed out after 20.0s` instead of blocking the turn. The `zetacode find` CLI is not bounded this way.
 - Files over 4 MB are scanned by the lexical pass only up to the native grep cap and read only up to 4 MB (trimmed to the last full line).
 
 ## Errors

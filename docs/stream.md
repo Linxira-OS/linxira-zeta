@@ -1,6 +1,6 @@
 # Stream: Livestream Your Terminal
 
-`zetacode stream` broadcasts your zetacode sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
+`zetacode stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
 
 Stream is independent from [Collab](collab.md). Collab replicates the session itself (entries, events, prompts) to guests who can drive the agent; Stream sends only rendered screen rows, one way, to an audience.
 
@@ -23,7 +23,7 @@ prints
   waiting for sessions in /work/proj …
 ```
 
-Then start interactive omp in the same directory from another terminal (as many times as you like). Each interactive session started while `zetacode stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
+Then start interactive zetacode in the same directory from another terminal (as many times as you like). Each interactive session started while `zetacode stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
 
 Sessions that were already running before `zetacode stream` started are not attached — restart them.
 
@@ -84,7 +84,7 @@ Redaction cannot know about secrets it has never seen: a token pasted from elsew
 
 `/record` in any interactive session captures that one session's screen through the same pipeline — normalized, redacted rows, viewport patches, scrollback commits — into a local file instead of a socket. No account or streamer is needed, and it works alongside a live stream. The footer shows `● REC` while recording; `/record` again stops it and prints the path.
 
-Recordings are written to `<tmpdir>/omp-recordings/<utc-time>-<session>.ompcast`, a JSON Lines file similar to asciicast: a header line `{"ompcast":1,"cols":…,"rows":…,"title":…,"createdAt":…}`, then one `[ms, frame]` line per screen frame (`reset`, `history`, `resize`, `viewport`, `patch`).
+Recordings are written to `<tmpdir>/zeta-recordings/<utc-time>-<session>.zetacast`, a JSON Lines file similar to asciicast: a header line `{"zetacast":1,"cols":…,"rows":…,"title":…,"createdAt":…}`, then one `[ms, frame]` line per screen frame (`reset`, `history`, `resize`, `viewport`, `patch`).
 
 ```
 zetacode play                      # newest recording

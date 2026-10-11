@@ -4,7 +4,7 @@
  *
  * The docs (omp.sh/docs/extension-authoring) advertise
  *
- *   zeta install ./my-extension
+ *   zetacode install ./my-extension
  *
  * as a third loading mechanism that "symlinks the directory into the plugin
  * set and watches it for changes". Before this command existed, `install` was

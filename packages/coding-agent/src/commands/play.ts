@@ -19,7 +19,7 @@ export default class Play extends Command {
 
 	static examples = [
 		"zetacode play",
-		"zetacode play /tmp/omp-recordings/2026-09-22T10-00-00-1a2b3c4d.ompcast -s 2 -i 1",
+		"zetacode play /tmp/zeta-recordings/2026-09-22T10-00-00-1a2b3c4d.zetacast -s 2 -i 1",
 	];
 
 	async run(): Promise<void> {

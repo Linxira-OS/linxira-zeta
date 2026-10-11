@@ -1,5 +1,5 @@
 /**
- * Minimal IM channel abstraction for `zeta serve` (web/desktop mode only).
+ * Minimal IM channel abstraction for `zetacode serve` (web/desktop mode only).
  *
  * A `ChatChannel` owns one platform connection: start/stop lifecycle plus
  * outbound text/image delivery. Inbound messages are pushed through the

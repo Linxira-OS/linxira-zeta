@@ -4,7 +4,7 @@
  * `prompt()` checks `isStreaming` at the top, but image normalization (and the
  * vision-description call) suspend before `#promptWithMessage` increments the
  * in-flight count. Two callers that both saw an idle session — the CLI initial
- * message of an `omp "prompt"` launch and a submission typed right after the
+ * message of an `zetacode "prompt"` launch and a submission typed right after the
  * startup composer opens its submit gate — used to both dispatch: the loser
  * died with AgentBusyError and the prompts could land out of order. The
  * post-await re-check queues the loser as a steer into the winner's turn.

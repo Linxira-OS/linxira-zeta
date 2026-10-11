@@ -6,6 +6,12 @@
  * startup race used to assign `this.#tools = allTools` from only this call's
  * tasks, dropping every other server's tools even though those connections
  * stayed open.
+ *
+ * `connectServers` deliberately returns without waiting for a connect that
+ * outlives the non-blocking window (`resolveMCPStartupTimeoutMs`, 250 ms by
+ * default; issue #2100), so a CI-slow fixture can leave its tool load in
+ * flight. These cases pass an explicit 60 s window: the contract under test is
+ * the incremental tool union, not the startup budget.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
@@ -43,14 +49,14 @@ describe("MCP incremental connectServers", () => {
 	});
 
 	it("keeps server A tools after incrementally connecting server B", async () => {
-		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {});
+		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {}, undefined, 60_000);
 		expect(manager.getConnectionStatus(SERVER_A)).toBe("connected");
 		const afterA = manager.getTools();
 		expect(afterA.map(t => t.name)).toContain(TOOL_A);
 		expect(afterA).toHaveLength(MANY_TOOL_COUNT);
 		expect(afterA.every(t => t.mcpServerName === SERVER_A)).toBe(true);
 
-		const result = await manager.connectServers({ [SERVER_B]: fixtureConfig() }, {});
+		const result = await manager.connectServers({ [SERVER_B]: fixtureConfig() }, {}, undefined, 60_000);
 		expect(manager.getConnectionStatus(SERVER_A)).toBe("connected");
 		expect(manager.getConnectionStatus(SERVER_B)).toBe("connected");
 
@@ -65,7 +71,7 @@ describe("MCP incremental connectServers", () => {
 	}, 20_000);
 
 	it("applyMcpToggleRuntime enable of B refreshes the A+B union", async () => {
-		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {});
+		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {}, undefined, 60_000);
 		expect(manager.getTools()).toHaveLength(MANY_TOOL_COUNT);
 
 		const refreshed: string[][] = [];
@@ -105,7 +111,7 @@ describe("MCP incremental connectServers", () => {
 				name: event.type === "connecting" ? event.serverNames[0] : event.serverName,
 			});
 		});
-		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {});
+		await manager.connectServers({ [SERVER_A]: fixtureConfig() }, {}, undefined, 60_000);
 		expect(events.some(event => event.type === "connecting" && event.name === SERVER_A)).toBe(true);
 		expect(events.some(event => event.type === "connected" && event.name === SERVER_A)).toBe(true);
 

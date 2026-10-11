@@ -4,7 +4,7 @@ import Stats from "../src/commands/stats";
 import * as theme from "@linxiraos/pi-tui/theme";
 import { parseStatsDashboardArgs } from "../src/slash-commands/helpers/stats-dashboard";
 
-const TEST_CONFIG = { bin: "omp", version: "0.0.0-test", commands: new Map() };
+const TEST_CONFIG = { bin: "zetacode", version: "0.0.0-test", commands: new Map() };
 
 afterEach(() => {
 	vi.restoreAllMocks();

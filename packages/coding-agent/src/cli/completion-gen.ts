@@ -448,7 +448,7 @@ ${aliasArms}
 # startup file. When autoloaded, funcstack[1] is _omp and we invoke it; when
 # sourced/eval'd we register it with compdef instead.
 if [ "$funcstack[1]" = "_omp" ]; then
-	_omp "$@"
+	_zetacode "$@"
 else
 	compdef _omp ${bin}
 fi`);

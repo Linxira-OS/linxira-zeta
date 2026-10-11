@@ -1,5 +1,5 @@
 /**
- * Emits `omp_rpc/_wire.py`: Python types, decoders, and client methods for the
+ * Emits `zeta_rpc/_wire.py`: Python types, decoders, and client methods for the
  * RPC wire bundle.
  *
  * Mapping:
@@ -805,7 +805,7 @@ function unionLeavesForListeners(model: WireModel, name: string, binding: Python
 	return members.flatMap(member => unionLeavesForListeners(model, member, binding));
 }
 
-/** Renders `omp_rpc/_wire.py`. */
+/** Renders `zeta_rpc/_wire.py`. */
 export function emitPython(model: WireModel): string {
 	return new PythonEmitter(model, PYTHON_BINDING).emit();
 }

@@ -7,7 +7,7 @@ Every release addon is built by Bazel (`rules_rust` + `crate_universe` + hermeti
 It follows the architecture terms from `docs/natives-architecture.md`:
 
 - **build-time artifact production** (Bazel `//:natives-<target>` or the Cargo-backed `host` target via `scripts/bazel-natives.ts`)
-- **embedded addon manifest + archive generation** (`scripts/embed-native.ts`, in memory during binary compilation)
+- **embedded addon manifest + zstd frame generation** (`scripts/embed-native.ts`, in memory during binary compilation)
 - **runtime addon loading** (`native/index.js`, `native/loader-state.js`)
 
 ## Implementation files
@@ -157,7 +157,7 @@ build --tls_certificate=infra/bazel-remote/ca.crt
 
 **Pull requests never build or validate Rust.** Native-affecting PRs are rare enough that they don't warrant a PR-side bazel build: `rust_validate` is skipped entirely (`if: github.event_name != 'pull_request'`), and `native_addons` restores the linux-x64 pair main built for the same native sources from actions/cache (`natives-linux-x64-v1-<hash>`, hashed over every native build input: Cargo/Bazel/toolchain settings plus `crates/**` and root `BUILD.bazel`). Without an exact entry (the PR changes native inputs, or main has not built that state yet) it takes main's newest entry, and without any entry the latest `@linxiraos/pi-pi-natives-linux-x64` npm release. It smoke-loads the pair, uploads it as the `natives-linux-x64` workflow artifact, and emits a notice whenever the addons are not source-matched. The loader skips its version sentinel for workspace loads, so any of these load fine under a newer checkout; a symbol added after that build is a throwing stub that names the addon and the rebuild command, rather than `undefined`. A PR whose TypeScript tests depend on its own native changes fails visibly; the Rust side is validated post-merge on main and again at release. Only main saves the cache entry (other refs' entries are unreadable elsewhere but still count against the 10 GB repo quota) and prunes all but the newest two.
 
-On non-PR events all three jobs run on `omp-kata` pods against the cluster remote cache. `rust_validate` runs:
+On non-PR events all three jobs run on GitHub-hosted `ubuntu-22.04` runners against an actions/cache-backed disk cache. `rust_validate` runs:
 
 ```bash
 bazelisk --bazelrc="$rc" test //crates/...                 # full Rust suite
@@ -176,9 +176,9 @@ bazelisk --bazelrc="$rc" build --config=rustfmt //crates/...
 - `--config=clippy-ported` retains zero rustc warnings while allowing the clippy groups permitted by the ported `pi-builtins` manifest.
 - `--config=rustfmt` = rustfmt aspect against the workspace `rustfmt.toml`.
 
-On main, `native_addons` builds `NATIVES_X64_TARGETS` and `native_addons_cross` builds `NATIVES_CROSS_TARGETS` in parallel, each one target per invocation to avoid concurrent-link OOMs; the cross job then checks that the two lists together equal the `//:natives-all` srcs, and that the darwin-arm64 addon embeds the Apple Foundation Models bridge dylib while linking neither the Swift runtime nor FoundationModels (the addon dlopens the bridge only on macOS 27+). The TS fan-out waits only for the pair. `native_addons` uploads the pair as `natives-linux-x64` and also stashes it content-addressed on the shared runner-cache PVC (`/opt/bazel-repo-cache/ci-natives/<sha256>.node`, pruned after two days); `native_addons_cross` uploads everything else as `native-addons`. Downstream jobs use `.github/actions/native-artifacts`: on omp-kata it restores the pair from the stash by the digests in `native_addons`' `stash` output (re-verified, falling back to the artifact on any miss), elsewhere it downloads `natives-linux-x64`; it adds `native-addons` only when a requested target is outside that pair, and installs the requested target set without invoking Bazel.
+On main, `native_addons` builds `NATIVES_X64_TARGETS` and `native_addons_cross` builds `NATIVES_CROSS_TARGETS` in parallel, each one target per invocation to avoid concurrent-link OOMs; the cross job then checks that the two lists together equal the `//:natives-all` srcs, and that the darwin-arm64 addon embeds the Apple Foundation Models bridge dylib while linking neither the Swift runtime nor FoundationModels (the addon dlopens the bridge only on macOS 27+). The TS fan-out waits only for the pair. `native_addons` uploads the pair as `natives-linux-x64` and also stashes it content-addressed on the shared runner-cache PVC (`/opt/bazel-repo-cache/ci-natives/<sha256>.node`, pruned after two days); `native_addons_cross` uploads everything else as `native-addons`. Downstream jobs use `.github/actions/native-artifacts`: where a self-hosted in-cluster stash is reachable it restores the pair from the stash by the digests in `native_addons`' `stash` output (re-verified, falling back to the artifact on any miss), elsewhere it downloads `natives-linux-x64`; it adds `native-addons` only when a requested target is outside that pair, and installs the requested target set without invoking Bazel.
 
-Bazel native jobs need no toolchain setup: bazelisk is baked into the kata runner image, while Bazel fetches Rust/zig/LLVM/xwin/Swift and the macOS SDK hermetically (the SDK unpack needs the image's python3). `macos-15` and `windows-11-arm` only run the release smoke tests; they build nothing.
+Bazel native jobs need no toolchain setup: the CI runner provides bazelisk, while Bazel fetches Rust/zig/LLVM/xwin/Swift and the macOS SDK hermetically (the SDK unpack needs the runner's python3). `macos-15` and `windows-11-arm` only run the release smoke tests; they build nothing.
 
 ### Bun store warmer
 
@@ -186,7 +186,7 @@ Bazel native jobs need no toolchain setup: bazelisk is baked into the kata runne
 
 ### `bazel-cache` action (`.github/actions/bazel-cache`)
 
-Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc` output) that consumers pass via `bazelisk --bazelrc=...` or `OMP_BAZEL_RC`. Every Bazel job runs on omp-kata, where the pod env's `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` select the cluster remote cache: a temporary output root, `--config=ci`, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel`. Without those credentials the fragment carries only `--config=ci` and the build runs uncached. The remote endpoint resolves only inside the cluster.
+Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc` output) that consumers pass via `bazelisk --bazelrc=...` or `OMP_BAZEL_RC`. Zeta's Bazel jobs run on GitHub-hosted `ubuntu-22.04` runners, where the cluster credentials are absent, so the fragment carries `--config=ci` plus an actions/cache-backed disk cache (`--disk_cache`/`--repository_cache` under `~/.cache/zeta-bazel-*`) and nothing else. The optional self-hosted infra branch — selected only when `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` are set — adds a temporary output root, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel`; that endpoint resolves only inside the cluster.
 
 ### Native artifact actions
 
@@ -226,17 +226,17 @@ bazelisk build --nobuild //:natives-win32-x64-baseline
 | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | musl build "succeeds" but emits no `.node`                                                     | musl defaults to `+crt-static`; rustc silently emits no cdylib                                       | `-Ctarget-feature=-crt-static` select in `crates/pi-natives/BUILD.bazel`                                                                                                       |
 | Opus objects pull the host UBSan runtime                                                       | zig cc enables UBSan by default                                                                      | `CFLAGS=-fno-sanitize=undefined` in the `opusic-sys` annotation (`MODULE.bazel`)                                                                                              |
-| `tree-sitter-just` scanner.c `#error` under opt                                                | scanner hard-errors when `NDEBUG` is set (opt-mode cc default)                                       | `CFLAGS=-UNDEBUG` annotation (cc-rs appends env CFLAGS last, so `-U` wins)                                                                                                     |
 | blake3 msvc: `ml64.exe` not found                                                              | cc-rs resolves MASM from build-script PATH on non-windows hosts                                      | `bin/ml64.exe → llvm-ml -m64` shim in `@msvc_cc`, prepended via the `blake3` annotation PATH                                                                                   |
 | `opusic-sys` msvc needs the cross CMake toolchain                                               | bundled Opus is configured on Linux/macOS for the Windows target                                     | `@msvc_cc`'s `toolchain.cmake` via `CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc`; the sys crate selects Ninja, static try-compile, and `/MT`                                  |
 | win32 link oddities generally                                                                  | —                                                                                                    | read `bazel/toolchains/msvc/NOTES.md` first: wrapper self-location, `lld-link` flavor/driver-link behavior, `LIB`, `/MT` static CRT choice, xwin splat caveats                        |
 | `rust_test(crate = ...)` "can't find crate" at macro expansion                                 | rmeta-only pipelined deps break macro_rules re-export harness compiles                               | rust pipelined_compilation stays OFF (`.bazelrc` note)                                                                                                                         |
 | build script can't find cmake/ninja                                                            | `--incompatible_strict_action_env` — no host env leaks                                               | explicit `PATH` in the crate annotation (`MODULE.bazel`), not host env                                                                                                         |
+| build script can't find a dependency's generated headers (`wasm.h` in tree-sitter)             | rules_rust 0.71.3 writes `DEP_<links>_*` out_dir paths with an `${out_dir}` token dependents never resolve | `bazel/patches/rules_rust-dep-env-exec-root-paths.patch` (`single_version_override` in `MODULE.bazel`) keeps them exec-root relative                                            |
 
 ### Cache behavior
 
-- **omp-kata:** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build.
-- **GitHub-hosted:** no cluster access and no Bazel builds; PR runs restore main's linux-x64 pair from actions/cache.
+- **Self-hosted infra (optional, upstream `omp-kata`):** read-write gRPC to the in-cluster bazel-remote (`grpcs://bazel-remote.bazel-cache.svc.cluster.local:9092`, TLS via the committed `infra/bazel-remote/ca.crt`, htpasswd user `ci`). `--remote_local_fallback` plus retries make an outage degrade to local execution rather than fail the build. Engaged only where `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` are set; Zeta CI does not set them.
+- **GitHub-hosted (the Zeta default):** no cluster access; Bazel runs against an actions/cache-backed disk cache (see the `bazel-cache` action), and PR runs additionally restore main's linux-x64 addon pair from actions/cache.
 - **darwin repos:** `@llvm_darwin_tools` (~2 GiB LLVM 23.1.3), `@swift_linux` (~1.1 GiB Swift 6.4.0) and `@macos_sdk` (~70 MiB Command Line Tools package) are sha256-pinned, repository-cache backed and opt into the repo contents cache. The SDK input set is ~50k files, staged into every darwin compile/link sandbox.
 - **msvc repos:** the ~2 GiB LLVM download is sha256-pinned and repository-cache backed; the ~1 GiB xwin CRT/SDK splat is fetched from the Microsoft CDN inside the repo rule and is **not** repo-cache backed — a cold output base re-downloads it. Microsoft advances the VS channel payload over time, so remote-cache hit rates for win32 actions degrade gracefully after an MS bump (same property the previous cross toolchain had). Win32 link actions also don't share cache entries across host OSes (linux vs mac clang binaries).
 - Server-side operations (deploy, TLS/auth, egress, poisoning boundary): `infra/docs/04-arc-and-caching.md` §5.
@@ -267,7 +267,7 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
 
 ## Runtime flags
 
-- `PI_NATIVES_DIR`: overrides the native addon extraction/staging root before XDG/default paths; the loader appends the package version. Values are trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Other application data stays at its usual location. The directory must be writable only by the user(s) running `omp`: reuse checks only the file size, and the version sentinel is read after the addon is loaded, so a same-sized file planted by another user would be loaded.
+- `PI_NATIVES_DIR`: overrides the native addon extraction/staging root before XDG/default paths; the loader appends the package version. Values are trimmed, `~`-expanded, and normalized; empty or relative values are ignored. Downloaded tree-sitter grammars live in its `grammars/` subdirectory, which the loader passes to the addon and version cleanup leaves alone; other application data stays at its usual location. The directory must be writable only by the user(s) running `omp`: reuse checks only the file size, and the version sentinel is read after the addon is loaded, so a same-sized file planted by another user would be loaded.
   A directory shared by several `omp` versions is subject to the normal stale-version cleanup: a newer version's successful load removes older version directories idle for ten minutes, so a long-running older-version run whose directory was deleted re-extracts on its next fresh process start.
 - `PI_NATIVE_VARIANT`: x64 runtime override; valid values are `modern` and `baseline`. Invalid values are ignored; the inherited variant cache is consulted before detection.
 - `PI_DEBUG_STARTUP`: writes synchronous `[startup] native:…` markers to stderr around loader entry, embedded extraction, candidate loads, and native Tokio runtime installation; use it to localize startup hangs.
@@ -282,10 +282,12 @@ Runtime x64 candidate order also includes the unsuffixed default filename after 
    - x64 looks for `modern` and `baseline` files;
    - non-x64 looks for one default file.
 3. **Validate availability**: at least one expected file must exist in `packages/natives/native`.
-4. **Validate release and generate archive + manifest**: every available addon must contain the current version stamp or legacy version sentinel. Build an in-memory `native/embedded-addons.<platform>-<arch>.tar.gz` containing those files and an in-memory `native/embedded-addon.js` replacement with package version, archive metadata, and sizes.
+4. **Validate release and generate frames + manifest**: every available addon must contain the current version stamp or legacy version sentinel. Compress each addon into its own in-memory `native/<addon>.node.zst` zstd frame (level 19, variants in parallel) and build an in-memory `native/embedded-addon.js` replacement with package version, filenames, decompressed sizes, and frame paths.
 5. **Runtime extraction ready** for compiled mode.
 
-The overrides stay in memory on purpose: `Bun.build` shares the runtime's directory cache and does not re-read it on a miss, so a build process that imported pi-natives before writing an archive to `native/` could not resolve it.
+The frames are a pure function of the addon bytes: no container, file names, or timestamps. A release whose addon only changes its version stamp therefore embeds nearly identical bytes, so consecutive binaries differ only where the addon did. Do not reintroduce tar/gzip or per-build metadata into the embedded data.
+
+The overrides stay in memory on purpose: `Bun.build` shares the runtime's directory cache and does not re-read it on a miss, so a build process that imported pi-natives before writing frames to `native/` could not resolve them.
 
 ## Dev workflow vs shipped/compiled behavior
 
@@ -304,7 +306,7 @@ Typical local loop:
 In compiled mode (`PI_COMPILED`, Bun embedded URL markers, or populated embedded manifest):
 
 1. Loader computes versioned cache dir: `<getNativesDir()>/<packageVersion>`. The root is `PI_NATIVES_DIR` first (trimmed, `~`-expanded, and normalized; empty or relative values are ignored), then `$XDG_DATA_HOME/omp/natives` when `$XDG_DATA_HOME/omp` already exists, otherwise `~/.omp/natives`.
-2. If the embedded manifest matches platform+version and has a selectable file, loader extracts all missing or wrong-sized manifest files from `embedded-addons.<tag>.tar.gz` into that versioned directory.
+2. If the embedded manifest matches platform+version and has a selectable file, loader decompresses all missing or wrong-sized manifest files from their embedded `<addon>.node.zst` frames into that versioned directory.
 3. Runtime candidate order includes:
    - extracted versioned cache path, if available,
    - versioned cache dir,
@@ -340,7 +342,7 @@ Generated declarations currently include exports from these Rust modules:
 
 - Unsupported platform tag: throws with supported platform list after probing fails.
 - No candidate could load: throws with full candidate error list and mode-specific remediation hints.
-- Embedded extraction and Windows staging problems: archive/mkdir/write/copy errors are recorded and included in final diagnostics if load fails.
+- Embedded extraction and Windows staging problems: decompress/mkdir/write/copy errors are recorded and included in final diagnostics if load fails.
 - Version mismatch: install/compiled loads normally require the package version through a stamp or legacy sentinel. Pre-sentinel addons with no release identity can pass the loader's narrow compatibility check. Driver installs, local binding builds, and Nix builds stamp artifacts; a raw `bazel-bin` output copied elsewhere is unstamped and reports no version. Workspace loads skip release validation.
 
 ## Troubleshooting matrix
@@ -351,7 +353,7 @@ Generated declarations currently include exports from these Rust modules:
 | Export is missing at runtime but present in TypeScript                 | Stale `.node` loaded, generated declarations newer than binary, or Rust export not compiled | Require the actual candidate and inspect `Object.keys(mod)`       | Rebuild native package and remove stale candidate/cache paths                                                                        |
 | x64 machine loads baseline when modern expected                        | `PI_NATIVE_VARIANT=baseline`, no AVX2 detected, or modern file unavailable                  | Check env and filenames in `native/`                              | Build and ship the modern target (`bun scripts/bazel-natives.ts linux-x64-modern --dest packages/natives/native`)                    |
 | gnu addon overwritten by musl (or vice versa)                          | Both built into one dest — they share canonical basenames by design                         | Compare `bazel-bin/natives-<t>/` sources vs installed file        | Separate invocations with separate `--dest` dirs (release matrix already does this)                                                  |
-| Compiled binary fails after upgrade                                    | Stale extracted cache, embedded archive mismatch, or embedded manifest version mismatch     | Inspect `<getNativesDir()>/<version>` and loader error list       | Delete versioned cache for the package version; regenerate embedded archive/manifest during packaging                                |
+| Compiled binary fails after upgrade                                    | Stale extracted cache, embedded frame/size mismatch, or embedded manifest version mismatch  | Inspect `<getNativesDir()>/<version>` and loader error list       | Delete versioned cache for the package version; regenerate embedded frames/manifest during packaging                                 |
 | Binary build fails with `No native addons found`                       | Required platform artifact was not built before embedding                                   | Check expected list in error text                                 | Build at least one expected artifact for the target, then rerun the binary build                                                     |
 
 ## Operational commands

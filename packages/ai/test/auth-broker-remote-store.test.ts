@@ -349,7 +349,7 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 	});
 
 	test("a process that quits before the flush interval still reports its observed usage", async () => {
-		// Mirrors `omp -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
+		// Mirrors `zetacode -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
 		const script = [
 			'import { postmortem } from "@linxiraos/pi-utils";',
 			`import { AuthBrokerClient, RemoteAuthCredentialStore } from ${JSON.stringify(AUTH_BROKER_MODULE)};`,

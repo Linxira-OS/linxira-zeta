@@ -69,7 +69,7 @@ function loadOmpModelsConfig(agentDir: string): ModelsConfig | undefined {
 	}
 	const config = parseOmpModelsConfig(content);
 	if (!config) {
-		logger.debug("omp compat: upstream models.yml unparsable; compatibility disabled", { path: ymlPath });
+		logger.debug("zeta compat: upstream models.yml unparsable; compatibility disabled", { path: ymlPath });
 		return undefined;
 	}
 	return config;
@@ -127,7 +127,7 @@ function loadOmpCredentialKeys(agentDir: string): Record<string, string> | undef
 		}
 		return keys;
 	} catch (error) {
-		logger.debug("omp compat: upstream agent.db unreadable; credentials not mapped", {
+		logger.debug("zeta compat: upstream agent.db unreadable; credentials not mapped", {
 			path: dbPath,
 			error: error instanceof Error ? error.message : String(error),
 		});

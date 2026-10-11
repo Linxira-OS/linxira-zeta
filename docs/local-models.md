@@ -22,7 +22,7 @@ retry:
 
 An explicit empty chain keeps each workload local. Leaving a model-kind chain unset instead uses that role's built-in priority list. The `default` fallback chain does not apply to `speech`, `dictation`, or `judge`.
 
-Inspect the catalog with `zetacode models --kind tiny`, `zetacode models --kind tts`, and `zetacode models --kind stt`. Download tiny models with `zeta tiny-models list`, `zeta tiny-models download <model-id>`, or `zeta tiny-models download all`. Run `zetacode setup speech` to choose, persist, and download the local speech and dictation models selected by their roles.
+Inspect the catalog with `zetacode models --kind tiny`, `zetacode models --kind tts`, and `zetacode models --kind stt`. Download tiny models with `zetacode tiny-models list`, `zetacode tiny-models download <model-id>`, or `zetacode tiny-models download all`. Run `zetacode setup speech` to choose, persist, and download the local speech and dictation models selected by their roles.
 
 The tiny-model CLI and source registry retain **title** and **memory** groupings because those are the workloads used to benchmark and recommend model sizes. They are not runtime model classes: every entry in both groups has catalog kind `tiny`, and any compatible entry can be assigned to `tiny`, `memory`, or `judge`. Choose based on quality and resource needs rather than the CLI grouping alone.
 
@@ -132,7 +132,7 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
 | LFM2.5-350M        | 292MB |     166 / 266ms |        4/30 | Aggressively terse, often a one-word label       |
 
 **Shipped local options**: `lfm2.5-230m`, `lfm2.5-350m`, `falcon-h1-90m`.
-When `modelRoles.tiny` is unset, title generation resolves its built-in online role path; no local weights are downloaded automatically. A local primary is an explicit no-billing boundary: if its worker fails or returns no title, the session stays untitled instead of falling through to an online model. The default download for a bare `zeta tiny-models` command is `lfm2.5-230m`.
+When `modelRoles.tiny` is unset, title generation resolves its built-in online role path; no local weights are downloaded automatically. A local primary is an explicit no-billing boundary: if its worker fails or returns no title, the session stays untitled instead of falling through to an online model. The default download for a bare `zetacode tiny-models` command is `lfm2.5-230m`.
 
 ## Task 2: Mnemopi memory (`modelRoles.memory`)
 
@@ -185,7 +185,7 @@ The experiments favored **Qwen3-1.7B** for extraction precision. Its shipped ONN
 disabled because `onnxruntime-node` does not support its RotaryEmbedding cache updates;
 the ONNX worker rejects it before loading the runtime. It is available through the MLX
 backend on Apple silicon (`providers.tinyModelDevice: mlx` or `PI_TINY_DEVICE=mlx`).
-`zeta tiny-models download all` skips ONNX-disabled models unless MLX is active.
+`zetacode tiny-models download all` skips ONNX-disabled models unless MLX is active.
 
 Of the runnable options, `lfm2-1.2b` loads fastest and is a solid all-rounder; nothing selects it automatically.
 `gemma-3-1b` favors consolidation quality, while `qwen2.5-1.5b` favors fine-grained extraction.
@@ -212,7 +212,7 @@ The `speech` role accepts TTS catalog models and the `dictation` role accepts ST
 | -------------- | ----------------------------------------- | --------- | -------- | -------------------------------------- |
 | `local/kokoro` | `onnx-community/Kokoro-82M-v1.0-ONNX`    | q8        | ~100 MB  | 24 kHz Kokoro-82M, fully local ONNX TTS |
 
-Kokoro voice selection remains independent of the model role. Set `tts.localVoice` for the `tts` tool and `speech.voice` for assistant-output vocalization. Available local voice ids are `af_heart` (default), `af_bella`, `af_nicole`, `af_aoede`, `af_kore`, `af_sarah`, `am_michael`, `am_fenrir`, `am_puck`, `bf_emma`, `bm_george`, and `bm_fable`. Changing voices does not download another model.
+Kokoro voice selection remains independent of the model role. Set `tts.localVoice` for the `tts` tool and `speech.voice` for assistant-output vocalization. Available local voice ids are `af_heart` (default), `af_bella`, `af_nicole`, `af_aoede`, `af_kore`, `af_sarah`, `am_michael`, `am_fenrir`, `am_puck`, `bf_emma`, `bm_george`, and `bm_fable`. Changing voices does not download another model. Speaking rate is likewise split: `tts.localSpeed` for the `tts` tool and `zetacode say`, `speech.speed` for vocalization (both default `1`, clamped to `0.5`–`2.5`).
 
 ### Speech to text
 
@@ -230,7 +230,7 @@ Kokoro and the transformers.js Whisper models read `providers.tinyModelDevice` /
 ## Integration notes
 
 - Local tiny inference for title, memory, or judgment workloads is selected with a `local/<model-id>` role assignment. An unset `tiny` role stays on its online default; an unset `memory` role follows the effective `tiny` role and can therefore become local when `tiny` is local. Unset `speech` and `dictation` roles use their own built-in priority lists, whose first candidates are local.
-- Local inference runs **in a worker** (off the main thread); weights are downloaded only when a local candidate is used or explicitly prefetched with `zeta tiny-models` or `zetacode setup speech`, then cached on disk.
+- Local inference runs **in a worker** (off the main thread); weights are downloaded only when a local candidate is used or explicitly prefetched with `zetacode tiny-models` or `zetacode setup speech`, then cached on disk.
 - Session-title generation uses `modelRoles.tiny`; Mnemopi extraction and consolidation use `modelRoles.memory` when its LLM mode is enabled. Their distinct prompts and benchmark groups do not impose separate runtime model types.
 - Auto-thinking, Smart unexpected-stop detection, typed Eval judgments, and AI-assisted git staging use the `judge` role. Assign `typesafe/jev-latest` for TypeSafe or a compatible local tiny model for on-device judgment; order alternatives under `retry.fallbackChains.judge`.
 - Managed memory extraction uses the shared line-format, small-talk-guarded system prompt on both local and online transports. A local primary additionally selects the local consolidation prompt. Explicit external Mnemopi endpoints remain authoritative instead of being replaced by the memory role.

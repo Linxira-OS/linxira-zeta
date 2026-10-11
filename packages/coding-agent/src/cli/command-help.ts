@@ -10,6 +10,11 @@ export const attachHelp = {
 
 export const agentsHelp = { description: "Manage bundled task agents" } satisfies CommandMetadata;
 
+export const anonymizeHelp = {
+	description:
+		"Write a shareable copy of a session and its subagents: turn contents redacted, metadata kept, paths and literals replaced by consistent mock tokens",
+} satisfies CommandMetadata;
+
 export const authBrokerHelp = {
 	description: "Manage the zetacode auth-broker (credential vault)",
 } satisfies CommandMetadata;

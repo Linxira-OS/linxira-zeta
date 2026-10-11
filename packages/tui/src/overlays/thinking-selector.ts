@@ -21,7 +21,7 @@ export class ThinkingSelectorComponent extends OverlayPanel {
 		onSelect: (level: ConfiguredThinkingLevel) => void,
 		onCancel: () => void,
 	) {
-		super(tuiText("thinkingSelectorTitle", "Thinking Level"), "omp.overlay.thinking");
+		super(tuiText("thinkingSelectorTitle", "Thinking Level"), "zeta.overlay.thinking");
 
 		const thinkingLevels: SelectItem[] = availableLevels.map(getConfiguredThinkingLevelMetadata);
 

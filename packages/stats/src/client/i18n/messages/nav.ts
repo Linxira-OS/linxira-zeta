@@ -18,7 +18,7 @@ export const nav = {
 		"nav.frustration": "Frustration",
 		"nav.projects": "Projects",
 		"nav.gain": "Gain",
-		"nav.dashboard": "zeta stats",
+		"nav.dashboard": "zetacode stats",
 		"nav.breadcrumb-stats": "stats",
 		"nav.pages": "Pages",
 		"nav.open-navigation": "Open navigation",

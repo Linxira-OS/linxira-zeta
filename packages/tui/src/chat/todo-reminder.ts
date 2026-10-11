@@ -50,7 +50,7 @@ export class TodoReminderComponent extends Container {
 					),
 				],
 			}),
-			role: "omp.notice.todo",
+			role: "zeta.notice.todo",
 		});
 		this.addChild(this.#notice);
 	}
@@ -65,7 +65,7 @@ export class TodoReminderComponent extends Container {
 		if (cx?.supports("checklist") !== true) return this.#notice.describe();
 		const phases = todoChecklistPhases([{ name: "", tasks: this.#todos }]);
 		return withHidden(
-			node("checklist", { mode: "reminder", phases, note: this.#note, role: "omp.notice.todo" }),
+			node("checklist", { mode: "reminder", phases, note: this.#note, role: "zeta.notice.todo" }),
 			this.#hidden,
 		);
 	}
