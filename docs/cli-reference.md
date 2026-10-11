@@ -3,7 +3,7 @@
 `zetacode` is invoked as:
 
 ```sh
-omp [command] [flags] [messages...]
+zetacode [command] [flags] [messages...]
 ```
 
 When the first positional argument is **not** a registered subcommand, `zetacode`
@@ -23,7 +23,7 @@ such as `config`, `models`, and `update`.
 Runtime help is also available:
 
 - `zetacode --help` lists user-facing subcommands and common launch flags.
-- `omp <command> --help` prints that command's public flags and examples.
+- `zetacode <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
 flags accepted by `zetacode` / `zetacode launch`) and every top-level **subcommand**.
@@ -37,16 +37,16 @@ initial message(s):
 
 ```sh
 # Interactive session
-omp
+zetacode
 
 # Interactive session with an initial prompt
 zetacode "List all .ts files in src/"
 
 # Attach files/images to the initial message (prefix with @)
-omp @prompt.md @image.png "What color is the sky?"
+zetacode @prompt.md @image.png "What color is the sky?"
 
 # Non-interactive: process the prompt and exit (headless / print mode)
-omp -p "List all .ts files in src/"
+zetacode -p "List all .ts files in src/"
 
 # Continue the previous session
 zetacode --continue "What did we discuss?"
@@ -191,16 +191,16 @@ indicator goes to stderr. This is the entry point for scripting and automation.
 
 ```sh
 # Print the answer and exit
-omp -p "Summarize the changes in the last commit"
+zetacode -p "Summarize the changes in the last commit"
 
 # Include the model's thinking blocks in the printed text
-omp -p --print-thoughts "Explain your reasoning for this refactor"
+zetacode -p --print-thoughts "Explain your reasoning for this refactor"
 
 # Machine-readable output for pipelines
-omp -p --mode json "List every TODO in src/" > todos.json
+zetacode -p --mode json "List every TODO in src/" > todos.json
 
 # Pipe a prompt via stdin
-echo "review this diff" | omp -p
+echo "review this diff" | zetacode -p
 ```
 
 Related flags for headless runs:
@@ -235,12 +235,12 @@ print-mode disposal semantics when the advisor runtime is enabled.
 
 ## Subcommands
 
-Run `omp <command> --help` for each command's own flags and examples.
+Run `zetacode <command> --help` for each command's own flags and examples.
 
 | Command | Purpose | See also |
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
-| `acp` | Run omp as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
+| `acp` | Run zetacode as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
 | `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |

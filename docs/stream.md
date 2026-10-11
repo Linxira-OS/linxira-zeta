@@ -23,7 +23,7 @@ prints
   waiting for sessions in /work/proj …
 ```
 
-Then start interactive omp in the same directory from another terminal (as many times as you like). Each interactive session started while `zetacode stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
+Then start interactive zetacode in the same directory from another terminal (as many times as you like). Each interactive session started while `zetacode stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
 
 Sessions that were already running before `zetacode stream` started are not attached — restart them.
 
