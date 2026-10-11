@@ -89,7 +89,7 @@ jobs:
       name: Toolchains (persistent .tools)
       needs: [preflight]
       runs-on: self-hosted
-      timeout-minutes: 60
+      timeout-minutes: 120
       env:
          TOOLS: ${{ github.workspace }}/.tools
       steps:
@@ -186,6 +186,11 @@ jobs:
                  echo "PATH_EXTRA=$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin"
               } >> "$GITHUB_ENV"
 
+              # GITHUB_ENV is job-scoped, so persist the same PATH for the
+              # downstream jobs (they fall back to this file when PATH_EXTRA
+              # is absent from their own environment).
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" > "$TOOLS/env.path"
+
          - name: Verify toolchains
            shell: bash
            run: |
@@ -219,7 +224,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |
@@ -254,7 +268,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install dependencies
            working-directory: web-ui
            run: npm ci
@@ -279,7 +302,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Check crate_universe entry
            run: bun scripts/gen-bazel-lock.ts --check
          - name: Report how to refresh
@@ -297,7 +329,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Compose bazel cache config
            id: cache
            shell: bash
@@ -367,7 +408,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Reuse built addons
            shell: bash
            run: |
@@ -392,7 +442,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test workspace packages and repo scripts (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -413,7 +472,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent singleton/global-state bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -430,7 +498,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test native/TUI/browser-ish packages (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -447,7 +524,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent UI/TUI bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -464,7 +550,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent runtime bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -481,7 +576,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: CLI smoke test
            run: bun run ci:test:smoke
 
@@ -495,7 +599,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install method smoke tests
            env:
               OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
@@ -512,7 +625,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - id: cache
            name: Compose bazel cache config
            shell: bash
@@ -565,7 +687,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -587,7 +718,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Go tests (unit + e2e)
            working-directory: editor
            run: go test ./...
@@ -611,7 +751,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Detect termide/ changes
            id: termide
            shell: bash
@@ -662,7 +811,16 @@ jobs:
          - uses: actions/checkout@v4
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${{ github.workspace }}/.tools"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Detect main/ changes
            id: main
            shell: bash
