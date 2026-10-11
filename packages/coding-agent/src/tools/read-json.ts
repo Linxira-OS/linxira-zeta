@@ -287,7 +287,13 @@ async function runJq(
 		const stderr = truncateTail(sanitizeText(await readStderr(stderrPath)).trim(), {
 			maxBytes: JSON_QUERY_ERROR_MAX_BYTES,
 		}).content;
-		if (!stopped && (result.exitCode !== 0 || callbackError)) {
+		// An input that fails inside the file is reported on stderr while the run
+		// keeps going and still emits every other result — `withStderr` leads the
+		// result with it (`test/tools/json-query.test.ts` asserts exactly that
+		// shape: "[jq stderr: …]" followed by the surviving values). Only a run
+		// that produced no output at all is a hard failure: a compile error, a
+		// usage error, or a transport error.
+		if (!stopped && output === "" && (result.exitCode !== 0 || callbackError)) {
 			throw new ToolError(`Failed to execute JSON query: ${stderr || `jq exited with code ${result.exitCode}`}`);
 		}
 		return { output, stopped, stderr };
