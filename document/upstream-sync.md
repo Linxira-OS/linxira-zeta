@@ -115,6 +115,69 @@ two-parent tag merge.
   `check-zeta-sentinels` ✅ · `check-version-consistency` ✅ ·
   `check-ci-surface` ✅ · `check-merge-lineage` ✅ · `cargo fmt --all --check` ✅ ·
   conflict markers 0 · member-loss audit 0 (bar one known false positive).
+
+## v18.8.7 + v18.8.8 post-merge repair pass (Zeta — branch `sync/omp-release/v18.8.7`, 2026-10-11)
+
+Both tag merges are correct at the *window* level (base `153b37c3b65b`, SHA-verified;
+merge-base gate exact for each), but the conflict resolution left damage that only CI
+plus a pre-merge worktree comparison made visible. Recorded because every class here
+recurs on every sync.
+
+- **The bulk scans were green while the failures were live.** A whole-window
+  added-line scan (upstream `v18.8.4→v18.8.8` lines present in HEAD) reports 0 files
+  missing upstream's increment, and `scripts/audit-merge-members.ts --base <pre-merge>`
+  reports 0 dropped members. Both are necessary; the losses below are *individual
+  hunks inside otherwise-present files*, invisible to either.
+
+- **Class 1 — brand surface reverted (195 sites), overlay rules too narrow.**
+  `docs/context-files.md` + `docs/environment-variables.md` reverted wholesale to
+  `.omp` / `~/.omp` / `PI_CODING_AGENT_DIR`; `agentInfo.name/title = "omp"`;
+  `` `${CLI_BIN_NAME} update` `` → `"omp update"`; TUI role ids `omp.composer.chip`
+  and `omp.run.status` (the class with no user-visible spelling that no overlay layer
+  keys on); `omp.browser.relay`; `.omp-tmp.`; `omp-plugins` provider comments;
+  `__omp_funcs` in `shell-snapshot-fn-env.sh` piped into the still-`__zeta_*` helper
+  (broken, not cosmetic). Repair: restore the pre-merge spelling per file, then 21
+  `MUST_NOT_CONTAIN` + 6 `MUST_CONTAIN` rules in `scripts/brand/brand-rules.ts`.
+  Detector added: `scripts/scan-brand-regressions.ts --base <pre-merge-ref>`.
+
+- **Class 2 — individual upstream hunks dropped in conflict resolution.** Found by
+  running each failing suite against a pre-merge worktree (`temp/base` at the branch
+  base): `event-controller.ts` lost the whole OSC-7501 run-status wiring
+  (`setRunStatus` ×5 + `#settledRunStatus`); `agent-session.ts` lost the
+  `#flushPendingAgentEnd` guard move; `model-registry.ts` lost the
+  `#mergeResolvedModels` identity-preserving early return (the WeakMap window tiers
+  hang off it); the merge pasted upstream's duplicate `it()` block into
+  `legacy-pi-bundled-subpath-overrides.test.ts`. Method per the playbook: apply
+  upstream's increment (`git diff <prev-tag> <tag> -- <file>`) onto our file — never a
+  wholesale take. `test/fixtures/cli-initial-title-probe.ts` was deleted by the merge
+  while its Zeta test survived (modify/delete asymmetry) — restored.
+
+- **Class 3 — generated files taken from upstream.** `bun.lock` was upstream's
+  (workspace named `omp`, dependency versions downgraded below the pinned ones) and
+  `MODULE.bazel.lock` was stale after the `Cargo.lock` re-pin. Both are ours:
+  `bun.lock` restored to the pre-merge bytes, `MODULE.bazel.lock` re-taken from the CI
+  freshness job's uploaded artifact.
+
+- **AST/TTSR cluster: PR-environmental ∩ real defect.** `ci.yml` gates
+  `Build linux-x64 native addons` to `github.event_name != 'pull_request'`, so PR runs
+  test against main's addon, which lacks this merge's new `wasmGrammarFor` /
+  `__ompSetGrammarDir` exports. The real defect was that `ensureGrammar()` treated the
+  absent export as fatal, killing every AST path (TTSR, `ast_grep`, read-summary) on
+  such an addon; it is now a capability probe, matching the contract pinned by
+  `packages/natives/test/stale-addon-export.test.ts`. A self-built addon is unaffected.
+
+- **CI guard repaired.** `check-merge-lineage.ts` failed on every PR run
+  ("v18.8.8 does not resolve locally") because the PR checkout is shallow and has no
+  `omp-upstream` remote; the step now unshallows and fetches the ledger's
+  `Integrated through` tag.
+
+- **Gates after the repair**: `check:ts` ✅ 0 · `brand-check` ✅ 0 ·
+  `check-zeta-sentinels` ✅ · `check-version-consistency` ✅ · `check-ci-surface` ✅ ·
+  `check-merge-lineage` ✅ · `cargo fmt --all --check` ✅ · member-loss audit 0 · the
+  eleven suites the merge reddened are green (117 + 63 tests, plus the `/tmp`-backed
+  title probe restored). Next sync target is `v18.8.9` (`fa5ff4a3a977`, 58 commits /
+  124 files from v18.8.8).
+
 ## v18.8.7 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`)
 
 - **Baseline**: v18.8.4 (peeled `153b37c3b65b` — merge-base gate passed exactly;
@@ -514,9 +577,10 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.8.6` (six-tag serial merge, `sync/omp-release/v18.8.4` +
-  `sync/omp-release/v18.8.6`, both landed on main 鈥?see the ledger above)
-- Zeta: `1.1.28` (version line holds across the published `@linxiraos/*`
-  packages)
-- In flight: none (the next sync starts from v18.8.6; `git merge-base HEAD
-  <tag>` must equal `f068751e2f1d`)
+- OMP: `v18.8.8` (`1ca13863a828`; two-parent merges `9362fef9d66` → v18.8.7,
+  `110331518bc` → v18.8.8 — see the entries above). Next sync target: `v18.8.9`
+  (`fa5ff4a3a977`, 58 commits / 124 files).
+- Zeta: `1.1.29` (version line holds across the published `@linxiraos/*`
+  packages; the tag is not cut yet).
+- In flight: `sync/omp-release/v18.8.7` (PR #79) — the v18.8.7 + v18.8.8 merges
+  plus the repair pass above; `git merge-base HEAD v18.8.8` must equal `1ca13863a828`.
