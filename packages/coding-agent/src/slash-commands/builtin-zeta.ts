@@ -3,7 +3,6 @@ import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { cfgLanguage } from "../zeta-settings";
-import type { Settings } from "../config/settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
