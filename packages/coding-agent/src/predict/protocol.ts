@@ -21,14 +21,14 @@ export const TEXT_PREDICT_SOCKET_ENV = "OMP_TEXT_PREDICT_SOCKET";
 export const TEXT_PREDICT_AGENT_DIR_ENV = "OMP_TEXT_PREDICT_AGENT_DIR";
 
 /** Broker readiness regex matched against {@link textPredictReadyBanner}. */
-export const TEXT_PREDICT_READY_PATTERN = String.raw`zeta text-predict listening on \S+`;
+export const TEXT_PREDICT_READY_PATTERN = String.raw`zetacode text-predict listening on \S+`;
 
 /** Engines the daemon can open (`TextPredictor` methods); clients resolve `auto` before asking. */
 export type TextPredictMethod = "ngram" | "smollm" | "apple";
 
 /** Banner printed on stdout once the daemon accepts connections. */
 export function textPredictReadyBanner(endpoint: string): string {
-	return `zeta text-predict listening on ${endpoint}`;
+	return `zetacode text-predict listening on ${endpoint}`;
 }
 
 /**
