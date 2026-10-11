@@ -15,7 +15,7 @@ export const SKIP_PREFIXES = [
 	"temp/", // local reference clones, never committed
 	"document/", // internal docs: upstream provenance lives here by design
 	"docs/", // runtime docs may reference upstream interop surfaces
-	"python/", // robomp harness: OMP-native by design; brand decision tracked separately
+	"python/", // robomp harness: Zeta-native by design; brand decision tracked separately
 	"AGENTS.md", // the registry prose itself discusses the tokens
 	"UPDATE-LOG.md", // released entries are immutable history
 	"crates/vendor/", // vendored upstream code
@@ -81,7 +81,7 @@ export const OH_MY_PI_ALLOW_PATTERNS = [/github\.com\/can1357\/oh-my-pi/, /oh-my
 /**
  * `.zeta` path-segment strings are flagged in src files unless the line matches
  * an allow pattern. Each entry: the interop surface that must keep reading or
- * writing OMP-native locations. Test fixtures are exempt (self-consistent
+ * writing Zeta-native locations. Test fixtures are exempt (self-consistent
  * temp paths; the per-bucket merge procedure resolves them when CI proves a
  * real divergence — the skillful-toggle lesson).
  */
@@ -199,6 +199,42 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: "@oh-my-pi/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
 	},
+	// ── Prompt corpus + listener identities (2026-10-11 round) ───────────────
+	// Upstream's own `chore: branding` commit (d35a9067233, 2026-09-24) rewrote
+	// upstream's comments and prompt prose to say "omp" and rode in with the
+	// v18.8.x merges, silently overwriting Zeta identity in model-visible prompts
+	// (the model introduced itself to the user as "omp's coding assistant") and
+	// splitting process-to-process banner pairs. These pins fail the next merge.
+	{
+		file: "packages/coding-agent/src/prompts/system/system-prompt.md",
+		needle: "You are Zeta's trusted coding assistant.",
+		why: "first line the model reads; it must name Zeta (2026-10-11: said omp, and the model repeated it to the user)",
+	},
+	{
+		file: "packages/coding-agent/src/predict/protocol.ts",
+		needle: "zetacode text-predict listening on",
+		why: "writer + TEXT_PREDICT_READY_PATTERN reader must both name the zetacode bin",
+	},
+	{
+		file: "packages/coding-agent/src/tiny/worker-server.ts",
+		needle: "zetacode tiny worker listening on",
+		why: "writer side of the tiny-worker banner",
+	},
+	{
+		file: "packages/coding-agent/src/tiny/title-client.ts",
+		needle: '"zetacode tiny worker listening on "',
+		why: "reader side: the client filters the worker's banner lines — a one-sided spelling silently stops filtering (found split omp/zetacode, 2026-10-11)",
+	},
+	{
+		file: "packages/coding-agent/src/lsp/mux/server.ts",
+		needle: '"zetacode lsp mux"',
+		why: "process title must match LSP_MUX_READY_PATTERN's zetacode prefix",
+	},
+	{
+		file: "packages/coding-agent/src/modes/rpc/wire/index.ts",
+		needle: '"Zeta RPC wire protocol"',
+		why: "protocol identity string surfaced in the wire handshake",
+	},
 ];
 
 /**
@@ -297,6 +333,27 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /\$\{APP_NAME\} [a-z]{2,}/,
 		why: "usage/help run-strings must interpolate CLI_BIN_NAME (the CLI command), not APP_NAME (product identity: bare `zeta` is the workbench bin). Product-identity contexts (splash wordmark, log-file names, attribution) use no space-separated command word and do not match",
+	},
+	// ── Bare upstream brand in user/model-visible text (2026-10-11 round) ────
+	// Classes d35a9067233 (`chore: branding`) re-introduces in prose and help
+	// text. Kept interop literals — `~/.omp` probes, `.omp-plugin`,
+	// `omp-plugins.lock.json`, the `omp compat` overlay, `OMP_*` env vars,
+	// `__omp*` runtime globals, `@oh-my-pi/*` in the merge driver — do not match.
+	{
+		needle: /You are omp'?s/,
+		why: "model-visible identity lines name Zeta (system-prompt.md and the commit agent's prompt were both on the omp spelling until 2026-10-11)",
+	},
+	{
+		needle: /\bOMP-native\b|\bOMP only harness\b/,
+		why: "the security-scan prompt family speaks as the product, not as upstream",
+	},
+	{
+		needle: /\bomp (auth-broker|bench|usage|commit|predict|skill|setup|gallery|worktree|ps|collab|clip|play|text-predict|lsp|tiny|tiny-models)\b/,
+		why: "user/model-visible command mentions must name the zetacode bin (registry: 用户可见文案与 CLI_BIN_NAME 一律用 zetacode) — help text, banner builders, log lines and prompt examples",
+	},
+	{
+		needle: /\bomp-owned\b/,
+		why: "browser-profile prose is model-visible (prompt + settings copy): write Zeta-owned",
 	},
 ];
 

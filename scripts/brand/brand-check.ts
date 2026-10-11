@@ -55,7 +55,12 @@ for (const file of trackedFiles()) {
 
 	const relPath = rel.replaceAll("\\", "/");
 	// MUST_NOT_CONTAIN: whole-tree token bans.
+	// CHANGELOG.md is exempt: released entries are immutable history (repo rule)
+	// and the pre-split changelogs legitimately quote upstream command names
+	// (`omp usage`, `omp commit`) from before this tree was Zeta.
+	const isChangelog = relPath.endsWith("CHANGELOG.md");
 	for (const rule of MUST_NOT_CONTAIN) {
+		if (isChangelog) break;
 		lines.forEach((line, index) => {
 			if (rule.needle.test(line)) {
 				hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: rule.why });
