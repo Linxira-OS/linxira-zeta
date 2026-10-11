@@ -2052,6 +2052,14 @@ export interface Messages {
 	cmdTrackingLog: string;
 	cmdTrackingIndex: string;
 	cmdTrackingStart: string;
+	cmdTrackingOn: string;
+	cmdTrackingOff: string;
+	cmdTrackingEnabledFmt: string;
+	cmdTrackingDisabledFmt: string;
+	cmdTrackingUnchanged: string;
+	cmdTrackingDisabledHint: string;
+	cmdTrackingNoticeOn: string;
+	cmdTrackingNoticeOff: string;
 
 	cmdAdvisor: string;
 	cmdAdvisorOn: string;
