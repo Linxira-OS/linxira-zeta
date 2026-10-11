@@ -23,7 +23,7 @@ import { formatDumpArchiveReport } from "../session/session-dump-format";
 import type { SlashCommandSpec } from "./types";
 import { Spacer } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
-import { APP_NAME, CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, formatAge } from "@linxiraos/pi-utils";
 
 /** Join hint printed by /collab: compact terminal link + clickable browser deep link. */
 function collabLinkHint(host: CollabHost, heading: string, view = false): string {

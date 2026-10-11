@@ -48,10 +48,7 @@ describe("gateway blob reads", () => {
 
 	test("serves image blobs with their real type so an <img> can render them", async () => {
 		await setup();
-		const png = Buffer.concat([
-			Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-			Buffer.alloc(8, 0x41),
-		]);
+		const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8, 0x41)]);
 		const stored = await new BlobStore(getBlobsDir()).put(png);
 
 		const response = await webGatewayFetch(request(stored.hash), "127.0.0.1");

@@ -254,7 +254,32 @@ gates could not see, and each is now fixed:
   (`curl: (56)` on a release asset; `TLS handshake timeout` fetching the action
   itself). The workflow now clones from the Gitea remote (no action download) and
   retries every toolchain download; the cold-bootstrap timeout was raised to 120
-  minutes.
+  minutes. Run 535 then reached `Install workspace dependencies` and died at
+  `bun: command not found` (exit 127): `PATH_EXTRA` lands in `GITHUB_ENV`, which
+  carries *variables* only, and the toolchains job was the one job without the
+  `Toolchain PATH` step that every downstream job has — its own later steps
+  (including that install) saw no toolchain. Bootstrap now also appends the
+  PATH to `GITHUB_PATH`, which applies to the same job's later steps.
+- **CI-triage round (same branch)**: two merged-test failures were real product
+  damage, not environment.
+  - `test/run-status.test.ts` (upstream's OSC 7501 suite, merged intact) asserted
+    `app=omp` ten times while `src/utils/run-status.ts` emits `:app=${APP_NAME}`
+    (`zeta`). The **test** was the stale face — upstream identity inside a
+    third-party terminal protocol — so it was adapted to `app=zeta`; the
+    implementation now carries a `MUST_CONTAIN` pin plus an `app=omp`
+    `MUST_NOT_CONTAIN` twin (class-11 cross-face pair). 5/5 green after.
+  - `test/tools/json-query.test.ts` "reports a line that fails mid-file
+    alongside the other lines' results": `runJq` threw whenever the callback
+    reported an error, so a single failing input inside the file aborted the
+    whole query instead of surfacing `[jq stderr: …]` ahead of the surviving
+    values (the shape the merged test and `withStderr` both specify). The throw
+    is now limited to runs that produced **no** output (compile/usage/transport
+    errors). The remaining red in that file is the local stale native addon
+    (the shell's bundled jaq is Rust-side and byte-identical to `v18.8.8`;
+    PR-run CI tests main's cached addon, so the same one case fails there).
+  - Also fixed from the CI log: an oxfmt miss in `blobs.test.ts` and an unused
+    `APP_NAME` import in `slash-commands/builtin-collaboration.ts` — the
+    `check` job was red on `check:tools` alone.
 
 ## v18.8.7 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`)
 
