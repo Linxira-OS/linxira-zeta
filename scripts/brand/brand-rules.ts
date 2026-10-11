@@ -319,6 +319,11 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: '"name": "Zeta Browser Relay"',
 		why: "the shipped browser extension is branded Zeta",
 	},
+	{
+		file: "packages/coding-agent/src/utils/run-status.ts",
+		needle: ":app=${APP_NAME}",
+		why: "the OSC 7501 `app=` field is our identity in a terminal protocol — pinned by APP_NAME so a merge cannot swap it back to upstream's literal (the merged run-status.test.ts asserted `app=omp`; see the MUST_NOT_CONTAIN twin)",
+	},
 ];
 
 /**
@@ -448,6 +453,10 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 	{
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
+	},
+	{
+		needle: /app=omp(?![A-Za-z0-9])/,
+		why: "the OSC 7501 program-status `app=` field is our product identity in a third-party terminal protocol; the implementation emits `:app=${APP_NAME}` (= zeta), so an `app=omp` in code or its test is upstream identity left by a merge (v18.8.8 merged run-status.test.ts with `app=omp` ×10 while utils/run-status.ts emitted zeta — the suite was red on CI and locally)",
 	},
 	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
 	// The stats client shipped with upstream branding since the fork (never
