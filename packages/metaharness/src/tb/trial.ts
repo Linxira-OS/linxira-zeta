@@ -18,11 +18,11 @@ const EMPTY_USAGE: TrialUsage = {
 
 /**
  * omp's daemon broker stops the services the agent started (bash `name` + `ready`) once its last
- * client has been gone for `OMP_DAEMON_IDLE_GRACE_MS` (default 3 s). The verifier runs after omp
+ * client has been gone for `ZETA_DAEMON_IDLE_GRACE_MS` (default 3 s). The verifier runs after omp
  * exits, in the same guest, and grades those services, so keep them alive until the guest is
  * removed. An explicit `--env` value wins.
  */
-const SERVICE_GRACE_ENV: Record<string, string> = { OMP_DAEMON_IDLE_GRACE_MS: String(24 * 60 * 60 * 1_000) };
+const SERVICE_GRACE_ENV: Record<string, string> = { ZETA_DAEMON_IDLE_GRACE_MS: String(24 * 60 * 60 * 1_000) };
 
 function elapsedMs(startedAt: number): number {
 	return Math.round(performance.now() - startedAt);

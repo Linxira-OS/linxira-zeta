@@ -242,3 +242,26 @@ test("recognizes JSON request content types", async () => {
 		false,
 	);
 });
+
+test("reads the hostname the Zeta launcher exports", async () => {
+	const { isApiRequestAllowed } = await loadSubject();
+	const request = () =>
+		new Request("http://zeta.example.test:30141/api/test", {
+			method: "POST",
+			headers: {
+				host: "zeta.example.test:30141",
+				origin: "http://zeta.example.test:30141",
+				"sec-fetch-site": "same-origin",
+			},
+		});
+	const previous = process.env.ZETA_WEB_HOSTNAME;
+	try {
+		delete process.env.ZETA_WEB_HOSTNAME;
+		assert.equal(isApiRequestAllowed(request()), false);
+		process.env.ZETA_WEB_HOSTNAME = "zeta.example.test";
+		assert.equal(isApiRequestAllowed(request()), true);
+	} finally {
+		if (previous === undefined) delete process.env.ZETA_WEB_HOSTNAME;
+		else process.env.ZETA_WEB_HOSTNAME = previous;
+	}
+});
