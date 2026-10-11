@@ -95,6 +95,8 @@ export interface SegmentContext {
 	planMode: {
 		enabled: boolean;
 		paused: boolean;
+		/** Plan workflow variant; `ultra` renders as `Plan-Ultra` in the mode segment. */
+		workflow?: "parallel" | "iterative" | "ultra";
 	} | null;
 	prewalk: {
 		enabled: boolean;

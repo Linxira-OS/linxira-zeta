@@ -4514,6 +4514,9 @@ export class InteractiveMode implements InteractiveModeContext {
 				? {
 						enabled: this.planModeEnabled,
 						paused: this.planModePaused,
+						// The ultra workflow keeps its own status-line label ("Plan-Ultra"); the
+						// session owns the workflow, the status line just renders it.
+						workflow: this.session.getPlanModeState()?.workflow,
 					}
 				: undefined;
 		this.statusLine.setPlanModeStatus(status);

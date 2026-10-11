@@ -735,7 +735,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	 * round-trips because the same {@link StatusLineSession} ref is reused.
 	 */
 	#activeMeters: WeakMap<TSession, ActiveMeter> = new WeakMap();
-	#planModeStatus: { enabled: boolean; paused: boolean } | null = null;
+	#planModeStatus: { enabled: boolean; paused: boolean; workflow?: "parallel" | "iterative" | "ultra" } | null = null;
 	#loopModeStatus: SegmentContext["loopMode"] = null;
 	#goalModeStatus: { enabled: boolean; paused: boolean } | null = null;
 	#vibeModeStatus: { enabled: boolean } | null = null;
@@ -1107,11 +1107,15 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		return meter;
 	}
 
-	setPlanModeStatus(status: { enabled: boolean; paused: boolean } | undefined): void {
+	setPlanModeStatus(
+		status: { enabled: boolean; paused: boolean; workflow?: "parallel" | "iterative" | "ultra" } | undefined,
+	): void {
 		const next = status ?? null;
 		if (
 			this.#planModeStatus === next ||
-			(this.#planModeStatus?.enabled === next?.enabled && this.#planModeStatus?.paused === next?.paused)
+			(this.#planModeStatus?.enabled === next?.enabled &&
+				this.#planModeStatus?.paused === next?.paused &&
+				this.#planModeStatus?.workflow === next?.workflow)
 		) {
 			return;
 		}
