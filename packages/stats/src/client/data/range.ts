@@ -4,7 +4,7 @@
  * formatting, and the contiguous bucket axis charts plot against.
  */
 
-import { format } from "@linxiraos/pi-utils/dates";
+import { getLocale, type MessageKey } from "../i18n";
 import type { TimeRange } from "../types";
 
 const MINUTE_MS = 60 * 1000;
@@ -12,10 +12,10 @@ const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
 export interface RangeMeta {
-	/** Short selector label ("24h"). */
-	label: string;
+	/** Short selector label ("24h"); translated so the selector reads in the host language. */
+	labelKey: MessageKey;
 	/** Prose label for subtitles ("the last 24 hours"). */
-	windowLabel: string;
+	windowKey: MessageKey;
 	/** Span covered by the range; `null` for all time. */
 	spanMs: number | null;
 	/** Bucket size of the server's primary time series for this range. */
@@ -23,12 +23,12 @@ export interface RangeMeta {
 }
 
 const RANGE_META: Record<TimeRange, RangeMeta> = {
-	"1h": { label: "1h", windowLabel: "the last hour", spanMs: HOUR_MS, bucketMs: 5 * MINUTE_MS },
-	"24h": { label: "24h", windowLabel: "the last 24 hours", spanMs: DAY_MS, bucketMs: HOUR_MS },
-	"7d": { label: "7d", windowLabel: "the last 7 days", spanMs: 7 * DAY_MS, bucketMs: DAY_MS },
-	"30d": { label: "30d", windowLabel: "the last 30 days", spanMs: 30 * DAY_MS, bucketMs: DAY_MS },
-	"90d": { label: "90d", windowLabel: "the last 90 days", spanMs: 90 * DAY_MS, bucketMs: DAY_MS },
-	all: { label: "All", windowLabel: "all time", spanMs: null, bucketMs: DAY_MS },
+	"1h": { labelKey: "common.range-1h", windowKey: "common.window-1h", spanMs: HOUR_MS, bucketMs: 5 * MINUTE_MS },
+	"24h": { labelKey: "common.range-24h", windowKey: "common.window-24h", spanMs: DAY_MS, bucketMs: HOUR_MS },
+	"7d": { labelKey: "common.range-7d", windowKey: "common.window-7d", spanMs: 7 * DAY_MS, bucketMs: DAY_MS },
+	"30d": { labelKey: "common.range-30d", windowKey: "common.window-30d", spanMs: 30 * DAY_MS, bucketMs: DAY_MS },
+	"90d": { labelKey: "common.range-90d", windowKey: "common.window-90d", spanMs: 90 * DAY_MS, bucketMs: DAY_MS },
+	all: { labelKey: "common.range-all", windowKey: "common.window-all", spanMs: null, bucketMs: DAY_MS },
 };
 
 const MAX_BUCKETS = 1500;
@@ -40,16 +40,36 @@ export function rangeMeta(range: TimeRange): RangeMeta {
 	return RANGE_META[range];
 }
 
+/** Layouts shared by the axis and its tooltips. */
+const HOUR_OPTIONS = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } as const;
+const DAY_OPTIONS = { month: "short", day: "numeric" } as const;
+
+/** One formatter per locale+layout: charts re-render on every tick, so this must not allocate per call. */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function formatter(layout: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+	const locale = getLocale();
+	const key = `${locale}:${layout}`;
+	let cached = formatterCache.get(key);
+	if (!cached) {
+		cached = new Intl.DateTimeFormat(locale, options);
+		formatterCache.set(key, cached);
+	}
+	return cached;
+}
+
 /** Tick/tooltip label for a bucket start, precise enough for the bucket size. */
 export function formatBucket(timestamp: number, bucketMs: number): string {
-	if (bucketMs < DAY_MS) return format(new Date(timestamp), bucketMs < HOUR_MS ? "HH:mm" : "MMM d HH:mm");
-	return format(new Date(timestamp), "MMM d");
+	if (bucketMs < HOUR_MS) return formatter("hm", HOUR_OPTIONS).format(timestamp);
+	if (bucketMs < DAY_MS) return formatter("mdhm", { ...DAY_OPTIONS, ...HOUR_OPTIONS }).format(timestamp);
+	return formatter("md", DAY_OPTIONS).format(timestamp);
 }
 
 /** Compact axis tick for a bucket start. */
 export function formatTick(timestamp: number, bucketMs: number): string {
-	if (bucketMs < DAY_MS) return format(new Date(timestamp), "HH:mm");
-	return format(new Date(timestamp), "MMM d");
+	return bucketMs < DAY_MS
+		? formatter("hm", HOUR_OPTIONS).format(timestamp)
+		: formatter("md", DAY_OPTIONS).format(timestamp);
 }
 
 /**

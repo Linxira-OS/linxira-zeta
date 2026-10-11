@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { t } from "../i18n";
 
 export interface SearchInputProps {
 	value: string;
@@ -8,7 +9,7 @@ export interface SearchInputProps {
 }
 
 /** Text filter with a leading search glyph. */
-export function SearchInput({ value, onChange, placeholder = "Filter…", width }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder = t("common.filter"), width }: SearchInputProps) {
 	return (
 		<label className="search">
 			<Search size={14} />

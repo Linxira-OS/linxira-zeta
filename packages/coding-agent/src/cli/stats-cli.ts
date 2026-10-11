@@ -7,6 +7,7 @@
 import { formatKeyHint } from "@linxiraos/pi-tui/key-hint-format";
 import { truncateToWidth } from "@linxiraos/pi-tui/utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { currentLanguage } from "../i18n";
 import { openStandaloneJudge } from "../judgment/standalone";
 import { openPath } from "../utils/open";
 
@@ -103,6 +104,7 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	const cwd = process.cwd();
 	const { hostname, port } = await startServer(cmd.port, cmd.host, {
 		judge: async () => (await openStandaloneJudge(cwd, "stats_frustration")).judge,
+		language: currentLanguage(),
 	});
 	const url = formatStatsDashboardUrl(hostname, port);
 	console.log(chalk.green(`Dashboard available at: ${url}`));

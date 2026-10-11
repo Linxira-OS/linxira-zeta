@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { t } from "../i18n";
 import "./modal.css";
 
 export interface ModalAction {
@@ -26,7 +27,7 @@ export interface ModalProps {
  * containers cannot clip it. Focus lands on the primary action (or the cancel
  * button when there is none) and returns to the opener on close.
  */
-export function Modal({ open, title, onClose, primaryAction, cancelLabel = "Cancel", children }: ModalProps) {
+export function Modal({ open, title, onClose, primaryAction, cancelLabel = t("common.cancel"), children }: ModalProps) {
 	const primaryRef = useRef<HTMLButtonElement>(null);
 	const cancelRef = useRef<HTMLButtonElement>(null);
 	const onCloseRef = useRef(onClose);
@@ -76,7 +77,7 @@ export function Modal({ open, title, onClose, primaryAction, cancelLabel = "Canc
 						data-icon="true"
 						data-size="sm"
 						onClick={onClose}
-						aria-label="Close"
+						aria-label={t("common.close")}
 					>
 						<X size={15} />
 					</button>

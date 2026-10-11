@@ -4,6 +4,7 @@
  */
 
 import { formatDurationMs, formatInteger } from "../data/formatters";
+import { t } from "../i18n";
 import type { TraceToolStat } from "../types";
 import { Badge, Card, type Column, MeterCell, Table } from "../ui";
 
@@ -16,21 +17,26 @@ export function AggregatesPanel({ toolStats, index }: AggregatesPanelProps) {
 	if (toolStats.length === 0) return null;
 	const maxTotal = Math.max(...toolStats.map(stat => stat.totalMs));
 	const columns: Column<TraceToolStat>[] = [
-		{ key: "tool", header: "Tool", render: row => <span className="mono">{row.tool}</span>, sort: row => row.tool },
+		{
+			key: "tool",
+			header: t("trace.tool"),
+			render: row => <span className="mono">{row.tool}</span>,
+			sort: row => row.tool,
+		},
 		{
 			key: "calls",
-			header: "Calls",
+			header: t("trace.calls"),
 			align: "right",
 			render: row => <span className="num">{formatInteger(row.calls)}</span>,
 			sort: row => row.calls,
 		},
 		{
 			key: "errors",
-			header: "Errors",
+			header: t("trace.errors"),
 			align: "right",
 			render: row =>
 				row.errors > 0 ? (
-					<Badge tone="bad">{formatInteger(row.errors)} failed</Badge>
+					<Badge tone="bad">{t("trace.failed-n", { count: formatInteger(row.errors) })}</Badge>
 				) : (
 					<span className="num dim">0</span>
 				),
@@ -38,7 +44,7 @@ export function AggregatesPanel({ toolStats, index }: AggregatesPanelProps) {
 		},
 		{
 			key: "total",
-			header: "Total",
+			header: t("common.total"),
 			align: "right",
 			width: 200,
 			render: row => (
@@ -48,21 +54,26 @@ export function AggregatesPanel({ toolStats, index }: AggregatesPanelProps) {
 		},
 		{
 			key: "avg",
-			header: "Avg",
+			header: t("trace.avg"),
 			align: "right",
 			render: row => <span className="num">{formatDurationMs(row.calls > 0 ? row.totalMs / row.calls : 0)}</span>,
 			sort: row => (row.calls > 0 ? row.totalMs / row.calls : 0),
 		},
 		{
 			key: "max",
-			header: "Max",
+			header: t("trace.max"),
 			align: "right",
 			render: row => <span className="num">{formatDurationMs(row.maxMs)}</span>,
 			sort: row => row.maxMs,
 		},
 	];
 	return (
-		<Card title="Tool aggregates" description={`${toolStats.length} tools, by total time`} flush index={index}>
+		<Card
+			title={t("trace.tool-aggregates")}
+			description={t("trace.tool-aggregates-desc", { count: toolStats.length })}
+			flush
+			index={index}
+		>
 			<Table columns={columns} rows={toolStats} rowKey={row => row.tool} dense limit={12} />
 		</Card>
 	);

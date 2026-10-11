@@ -7,6 +7,7 @@ import {
 	startFrustrationRun,
 } from "../api";
 import { Chart, type ChartSeries, Legend, useHiddenSeries } from "../charts";
+import { t } from "../i18n";
 import { SERIES_COLORS } from "../data/colors";
 import { formatCost, formatInteger, formatPercent } from "../data/formatters";
 import { useQuery } from "../data/query";
@@ -73,8 +74,8 @@ export function FrustrationRoute({ active, range }: FrustrationRouteProps) {
 	return (
 		<div className="page">
 			<PageHeader
-				title="Frustration"
-				description={`How often your messages sound annoyed, per model version, in ${meta.windowLabel}.`}
+				title={t("frustration.title")}
+				description={t("frustration.description", { window: t(meta.windowKey) })}
 			/>
 
 			<QueryView query={stats} skeleton={<ChartSkeleton height={96} />}>
@@ -101,7 +102,7 @@ export function FrustrationRoute({ active, range }: FrustrationRouteProps) {
 			<QueryView
 				query={stats}
 				skeleton={
-					<Card index={2} title="Frustration by model version">
+					<Card index={2} title={t("frustration.by-model")}>
 						<ChartSkeleton height={340} />
 						<TableSkeleton rows={6} />
 					</Card>
@@ -135,38 +136,45 @@ function formatElapsed(ms: number): string {
 
 function FrustrationSummary({ overall }: { overall: FrustrationCounts }) {
 	const regex = overall.messages - overall.judged;
+	const unscored =
+		overall.unscored > 0 ? t("frustration.coverage-unscored", { count: formatInteger(overall.unscored) }) : "";
 	return (
-		<StatGrid min={170}>
-			<Stat
-				label="User messages"
-				title="User messages with prose in range"
-				value={formatInteger(overall.messages)}
-			/>
-			<Stat
-				label="Judge coverage"
-				title="Messages with a cached judge verdict; the rest use regex signals"
-				value={rate(overall.judged, overall.messages)}
-				hint={`${formatInteger(overall.judged)} judged · ${formatInteger(regex)} regex`}
-			/>
-			<Stat
-				label="Annoyed"
-				title="Messages annoyed at any target"
-				value={rate(overall.annoyed, overall.messages)}
-				hint={`${formatInteger(overall.annoyed)} messages`}
-			/>
-			<Stat
-				label="At assistant"
-				title="Messages annoyed at the assistant"
-				value={rate(overall.atAssistant, overall.messages)}
-				hint={`${formatInteger(overall.atAssistant)} messages`}
-			/>
-			<Stat
-				label="Angry"
-				title="Messages angry or hostile toward the assistant"
-				value={rate(overall.angry, overall.messages)}
-				hint={`${formatInteger(overall.angry)} messages`}
-			/>
-		</StatGrid>
+		<>
+			<StatGrid min={170}>
+				<Stat
+					label={t("frustration.user-messages")}
+					title={t("frustration.user-messages-title")}
+					value={formatInteger(overall.messages)}
+				/>
+				<Stat
+					label={t("frustration.judge-coverage")}
+					title={t("frustration.judge-coverage-title")}
+					value={rate(overall.judged, overall.messages)}
+					hint={`${t("frustration.coverage-hint", { judged: formatInteger(overall.judged), regex: formatInteger(regex) })}${unscored}`}
+				/>
+				<Stat
+					label={t("frustration.annoyed")}
+					title={t("frustration.annoyed-title")}
+					value={rate(overall.annoyed, overall.messages)}
+					hint={t("frustration.messages-n", { count: formatInteger(overall.annoyed) })}
+				/>
+				<Stat
+					label={t("frustration.at-assistant")}
+					title={t("frustration.at-assistant-title")}
+					value={rate(overall.atAssistant, overall.messages)}
+					hint={t("frustration.messages-n", { count: formatInteger(overall.atAssistant) })}
+				/>
+				<Stat
+					label={t("frustration.angry")}
+					title={t("frustration.angry-title")}
+					value={rate(overall.angry, overall.messages)}
+					hint={t("frustration.messages-n", { count: formatInteger(overall.angry) })}
+				/>
+			</StatGrid>
+			{overall.unscored > 0 && (
+				<p className="micro dim">{t("frustration.unscored-line", { count: formatInteger(overall.unscored) })}</p>
+			)}
+		</>
 	);
 }
 
@@ -279,10 +287,10 @@ function JudgePanel({ active, range, judgeAvailable, job, onRunStarted, onRunCha
 			index={1}
 			title={
 				<>
-					Judge classification <JobBadge job={job} judgeAvailable={judgeAvailable} />
+					{t("frustration.judge-panel")} <JobBadge job={job} judgeAvailable={judgeAvailable} />
 				</>
 			}
-			description="Cached LLM verdicts replace the regex heuristics; unjudged messages fall back to regex signals."
+			description={t("frustration.judge-description")}
 			actions={
 				<button
 					type="button"
@@ -295,11 +303,11 @@ function JudgePanel({ active, range, judgeAvailable, job, onRunStarted, onRunCha
 						!judgeAvailable
 							? UNAVAILABLE_HINT
 							: running
-								? "A judge run is in progress"
-								: "Quote the cost of judging every unjudged message in range"
+								? t("frustration.judge-running")
+								: t("frustration.quote-title")
 					}
 				>
-					<Sparkles size={13} /> Classify with judge
+					<Sparkles size={13} /> {t("frustration.classify")}
 				</button>
 			}
 		>
@@ -317,7 +325,7 @@ function JudgePanel({ active, range, judgeAvailable, job, onRunStarted, onRunCha
 				)}
 			</div>
 
-			<Modal open={modalOpen} title="Classify with judge" onClose={closeModal} primaryAction={primaryAction}>
+			<Modal open={modalOpen} title={t("frustration.classify")} onClose={closeModal} primaryAction={primaryAction}>
 				<EstimateBody estimate={estimate} />
 				{startError && (
 					<p className="micro tone-bad" role="alert">
@@ -334,46 +342,43 @@ function JobBadge({ job, judgeAvailable }: { job: FrustrationJobStatus; judgeAva
 		case "running":
 			return (
 				<Badge tone="ok">
-					<Dot tone="live" pulse /> Running
+					<Dot tone="live" pulse /> {t("frustration.running")}
 				</Badge>
 			);
 		case "done":
-			return <Badge tone="ok">Last run done</Badge>;
+			return <Badge tone="ok">{t("frustration.last-run-done")}</Badge>;
 		case "cancelled":
-			return <Badge tone="warn">Last run cancelled</Badge>;
+			return <Badge tone="warn">{t("frustration.last-run-cancelled")}</Badge>;
 		case "failed":
-			return <Badge tone="bad">Last run failed</Badge>;
+			return <Badge tone="bad">{t("frustration.last-run-failed")}</Badge>;
 		case "idle":
-			return <Badge>{judgeAvailable ? "Not run yet" : "Regex only"}</Badge>;
+			return <Badge>{judgeAvailable ? t("frustration.not-run-yet") : t("frustration.regex-only")}</Badge>;
 	}
 }
 
 function EstimateBody({ estimate }: { estimate: EstimateState }) {
-	if (estimate.status === "loading") return <p className="muted">Estimating cost…</p>;
+	if (estimate.status === "loading") return <p className="muted">{t("frustration.estimating")}</p>;
 	if (estimate.status === "error") return <p className="tone-bad">{estimate.message}</p>;
 	const quote = estimate.estimate;
 	if (!quote.available) return <p>{quote.reason}</p>;
 	if (quote.messages === 0) {
-		return <p>Everything in this range is already judged. There is nothing left to classify.</p>;
+		return <p>{t("frustration.all-judged")}</p>;
 	}
 	return (
 		<>
 			<div className="frustration-quote">
-				<span className="dim micro">Estimated cost</span>
+				<span className="dim micro">{t("frustration.estimated-cost")}</span>
 				<span className="num frustration-quote-value">≈ {formatCost(quote.cost)}</span>
 			</div>
 			<KeyValues
 				items={[
-					{ key: "messages", label: "Unjudged unique messages", value: formatInteger(quote.messages) },
-					{ key: "chars", label: "Prose characters", value: formatInteger(quote.chars) },
-					{ key: "tokens", label: "Estimated input tokens", value: formatInteger(quote.inputTokens) },
-					{ key: "judge", label: "Judge", value: quote.judge },
+					{ key: "messages", label: t("frustration.unjudged-messages"), value: formatInteger(quote.messages) },
+					{ key: "chars", label: t("frustration.prose-chars"), value: formatInteger(quote.chars) },
+					{ key: "tokens", label: t("frustration.input-tokens"), value: formatInteger(quote.inputTokens) },
+					{ key: "judge", label: t("frustration.judge-model"), value: quote.judge },
 				]}
 			/>
-			<p className="micro dim">
-				Identical messages share one verdict, and verdicts are cached, so later runs only pay for new messages.
-				Nothing is spent until you proceed.
-			</p>
+			<p className="micro dim">{t("frustration.estimate-note")}</p>
 		</>
 	);
 }
@@ -405,7 +410,7 @@ function JudgeProgress({
 					onClick={onCancel}
 					disabled={cancelling}
 				>
-					{cancelling ? "Cancelling…" : "Cancel run"}
+					{cancelling ? t("frustration.cancelling") : t("frustration.cancel-run")}
 				</button>
 			</div>
 			<div
@@ -418,58 +423,70 @@ function JudgeProgress({
 				<div className="meter-fill frustration-progress-fill" style={{ width: `${share * 100}%` }} />
 			</div>
 			<div className="row micro muted frustration-progress-meta">
-				<span className={job.failed > 0 ? "tone-bad" : undefined}>{formatInteger(job.failed)} failed</span>
+				<span className={job.failed > 0 ? "tone-bad" : undefined}>
+					{t("frustration.failed-n", { count: formatInteger(job.failed) })}
+				</span>
 				<span>
-					cost so far <span className="num">{formatCost(job.cost)}</span>
+					{t("frustration.cost-so-far")} <span className="num">{formatCost(job.cost)}</span>
 				</span>
 				{job.judge && <span className="mono">{job.judge}</span>}
-				{job.startedAt !== null && <span>elapsed {formatElapsed(Date.now() - job.startedAt)}</span>}
+				{job.startedAt !== null && (
+					<span>{t("frustration.elapsed", { time: formatElapsed(Date.now() - job.startedAt) })}</span>
+				)}
 				{job.startedAt !== null && job.done > 0 && (
 					<span className="num">{(job.done / Math.max(1, (Date.now() - job.startedAt) / 1000)).toFixed(0)}/s</span>
 				)}
-				{job.concurrency > 0 && <span className="num">{formatInteger(job.concurrency)} in flight</span>}
+				{job.concurrency > 0 && (
+					<span className="num">{t("frustration.in-flight", { count: formatInteger(job.concurrency) })}</span>
+				)}
 			</div>
 		</div>
 	);
 }
 
 function JudgeResultLine({ job }: { job: FrustrationJobStatus }) {
-	const progress = `${formatInteger(job.done)}/${formatInteger(job.total)} messages`;
-	const failed = job.failed > 0 ? `, ${formatInteger(job.failed)} failed` : "";
-	const judge = job.judge ? ` with ${job.judge}` : "";
+	const progress = t("frustration.messages-progress", {
+		done: formatInteger(job.done),
+		total: formatInteger(job.total),
+	});
+	const failed = job.failed > 0 ? t("frustration.failed-suffix", { count: formatInteger(job.failed) }) : "";
+	const judge = job.judge ? t("frustration.judge-with", { judge: job.judge }) : "";
 	const elapsed =
-		job.startedAt !== null && job.finishedAt !== null ? ` in ${formatElapsed(job.finishedAt - job.startedAt)}` : "";
+		job.startedAt !== null && job.finishedAt !== null
+			? t("frustration.in-time", { time: formatElapsed(job.finishedAt - job.startedAt) })
+			: "";
 	switch (job.state) {
 		case "idle":
-			return (
-				<p className="muted">
-					No judge run yet. Classify the unjudged messages to replace regex estimates with verdicts.
-				</p>
-			);
+			return <p className="muted">{t("frustration.no-run-yet")}</p>;
 		case "running":
 			return null;
 		case "done":
 			return (
 				<p className="muted">
-					Last run judged {progress}
-					{failed}
-					{judge}
-					{elapsed} for <span className="num">{formatCost(job.cost)}</span>.
+					{t("frustration.run-done-line", {
+						progress,
+						failed,
+						judge,
+						elapsed,
+						cost: formatCost(job.cost),
+					})}
 				</p>
 			);
 		case "cancelled":
 			return (
 				<p className="muted">
-					Last run cancelled after {progress}
-					{failed}; spent <span className="num">{formatCost(job.cost)}</span>.
+					{t("frustration.run-cancelled-line", { progress, failed, cost: formatCost(job.cost) })}
 				</p>
 			);
 		case "failed":
 			return (
 				<p className="muted">
-					Last run failed after {progress}
-					{failed}: <span className="tone-bad">{job.error ?? "unknown error"}</span>. Spent{" "}
-					<span className="num">{formatCost(job.cost)}</span>.
+					{t("frustration.run-failed-line", {
+						progress,
+						failed,
+						error: job.error ?? t("frustration.unknown-error"),
+						cost: formatCost(job.cost),
+					})}
 				</p>
 			);
 	}
@@ -638,8 +655,8 @@ function FrustrationModelsSection({ models, stale }: { models: FrustrationModelS
 
 	if (models.length === 0) {
 		return (
-			<Card index={2} title="Frustration by model version" stale={stale}>
-				<EmptyState title="No user messages in this range" hint="Try a longer range." />
+			<Card index={2} title={t("frustration.by-model")} stale={stale}>
+				<EmptyState title={t("frustration.no-messages")} hint={t("frustration.try-longer-range")} />
 			</Card>
 		);
 	}
@@ -650,15 +667,15 @@ function FrustrationModelsSection({ models, stale }: { models: FrustrationModelS
 		<>
 			<Card
 				index={2}
-				title="Frustration by model version"
-				description="Share of user messages per model version. Each bar reaches the annoyed rate; the subsets aimed at the assistant stack inside it."
+				title={t("frustration.by-model")}
+				description={t("frustration.by-model-description")}
 				stale={stale}
 			>
 				<div className="stack frustration-chart-body">
 					<div className="frustration-classes">
 						<Segmented
 							size="sm"
-							aria-label="Model class"
+							aria-label={t("frustration.model-class")}
 							options={classOptions}
 							value={activeClass}
 							onChange={setSelectedClass}
@@ -676,14 +693,12 @@ function FrustrationModelsSection({ models, stale }: { models: FrustrationModelS
 							onToggle={toggleFamily}
 						/>
 						<span className="frustration-spacer" />
-						<label className="check" title={`Models with fewer than ${MIN_MESSAGES} messages have noisy rates`}>
+						<label className="check" title={t("frustration.small-models-title", { count: MIN_MESSAGES })}>
 							<input type="checkbox" checked={showSmall} onChange={e => setShowSmall(e.target.checked)} />
-							Include &lt; {MIN_MESSAGES} messages{smallCount > 0 ? ` (${smallCount})` : ""}
+							{t("frustration.include-small", { count: MIN_MESSAGES })}
+							{smallCount > 0 ? ` (${smallCount})` : ""}
 						</label>
-						<label
-							className="check"
-							title={`Hide models with under ${MIN_JUDGED_SHARE * 100}% judged messages (rates from regex signals)`}
-						>
+						<label className="check" title={t("frustration.hide-regex-title", { share: MIN_JUDGED_SHARE * 100 })}>
 							<input type="checkbox" checked={hideRegex} onChange={e => setHideRegex(e.target.checked)} />
 							Hide mostly regex{regexCount > 0 ? ` (${regexCount})` : ""}
 						</label>
@@ -715,16 +730,16 @@ function EncodingKey({ hasRegexRows }: { hasRegexRows: boolean }) {
 			</span>
 			<span className="legend-item">
 				<span className="frustration-key-line" />
-				At assistant trend
+				{t("frustration.legend-trend")}
 			</span>
 			<span
 				className="legend-item frustration-key-wide"
-				title={`Under ${MIN_JUDGED_SHARE * 100}% of these messages are judged; their rates come from regex signals`}
+				title={t("frustration.hatch-title", { share: MIN_JUDGED_SHARE * 100 })}
 			>
 				<span className="swatch frustration-key-swatch" data-variant="hatch" />
-				Hatched: mostly regex fallback{hasRegexRows ? " (run the judge)" : ""}
+				{hasRegexRows ? t("frustration.legend-hatched-run") : t("frustration.legend-hatched")}
 			</span>
-			<span className="legend-item dim">Hue = model family</span>
+			<span className="legend-item dim">{t("frustration.legend-hue")}</span>
 		</div>
 	);
 }
@@ -777,7 +792,7 @@ function FrustrationChart({
 	if (rows.length === 0) {
 		return (
 			<div className="frustration-chart-empty">
-				<EmptyState title="No model versions match the filters" />
+				<EmptyState title={t("frustration.no-model-match")} />
 			</div>
 		);
 	}
@@ -797,12 +812,12 @@ function FrustrationChart({
 				return (
 					<div className="frustration-tooltip-extra">
 						<div className="chart-tooltip-row chart-tooltip-total">
-							<span className="chart-tooltip-label">Annoyed, any target</span>
+							<span className="chart-tooltip-label">{t("frustration.legend-annoyed-any")}</span>
 							<span className="chart-tooltip-value">{rate(row.annoyed, row.messages)}</span>
 						</div>
 						<div className="micro dim">
 							{formatInteger(row.messages)} messages · judged {formatInteger(row.judged)} (
-							{rate(row.judged, row.messages)}){isMostlyRegex(row) ? " · mostly regex fallback" : ""}
+							{rate(row.judged, row.messages)}){isMostlyRegex(row) ? t("frustration.row-mostly-regex") : ""}
 						</div>
 					</div>
 				);
@@ -824,7 +839,7 @@ function FrustrationTable({
 		(): Column<FrustrationModelStats>[] => [
 			{
 				key: "model",
-				header: "Model",
+				header: t("common.model"),
 				sort: row => row.label,
 				render: row => (
 					<span className="row" title={row.key}>
@@ -838,29 +853,26 @@ function FrustrationTable({
 			},
 			{
 				key: "ids",
-				header: "Model IDs",
+				header: t("frustration.column-model-ids"),
 				wrap: true,
 				render: row => <span className="mono micro dim">{row.models.join(", ")}</span>,
 			},
 			{
 				key: "messages",
-				header: "Messages",
+				header: t("frustration.column-messages"),
 				align: "right",
 				sort: row => row.messages,
 				render: row => <span className="num">{formatInteger(row.messages)}</span>,
 			},
 			{
 				key: "judged",
-				header: "Judged",
+				header: t("frustration.column-judged"),
 				align: "right",
 				sort: row => (row.messages > 0 ? row.judged / row.messages : 0),
 				render: row =>
 					isMostlyRegex(row) ? (
-						<span
-							className="row frustration-judged"
-							title="Mostly regex fallback: run the judge for accurate rates"
-						>
-							<Badge tone="warn">regex</Badge>
+						<span className="row frustration-judged" title={t("frustration.mostly-regex")}>
+							<Badge tone="warn">{t("frustration.regex-badge")}</Badge>
 							<span className="num dim">{rate(row.judged, row.messages)}</span>
 						</span>
 					) : (
@@ -869,33 +881,36 @@ function FrustrationTable({
 			},
 			{
 				key: "annoyed",
-				header: "Annoyed",
+				header: t("frustration.annoyed"),
 				align: "right",
 				sort: row => percent(row.annoyed, row.messages),
 				render: row => (
-					<span className="num" title={`${formatInteger(row.annoyed)} messages`}>
+					<span className="num" title={t("frustration.messages-n", { count: formatInteger(row.annoyed) })}>
 						{rate(row.annoyed, row.messages)}
 					</span>
 				),
 			},
 			{
 				key: "atAssistant",
-				header: "At assistant",
+				header: t("frustration.at-assistant"),
 				align: "right",
 				sort: row => percent(row.atAssistant, row.messages),
 				render: row => (
-					<span className="num" title={`${formatInteger(row.atAssistant)} messages`}>
+					<span className="num" title={t("frustration.messages-n", { count: formatInteger(row.atAssistant) })}>
 						{rate(row.atAssistant, row.messages)}
 					</span>
 				),
 			},
 			{
 				key: "angry",
-				header: "Angry",
+				header: t("frustration.angry"),
 				align: "right",
 				sort: row => percent(row.angry, row.messages),
 				render: row => (
-					<span className={row.angry > 0 ? "num tone-bad" : "num"} title={`${formatInteger(row.angry)} messages`}>
+					<span
+						className={row.angry > 0 ? "num tone-bad" : "num"}
+						title={t("frustration.messages-n", { count: formatInteger(row.angry) })}
+					>
 						{rate(row.angry, row.messages)}
 					</span>
 				),
@@ -907,8 +922,8 @@ function FrustrationTable({
 	return (
 		<Card
 			index={3}
-			title="Model versions"
-			description="Rates are shares of user messages; rows follow the chart filters."
+			title={t("frustration.model-versions")}
+			description={t("frustration.table-description")}
 			flush
 			stale={stale}
 		>
@@ -917,7 +932,7 @@ function FrustrationTable({
 				rowKey={row => row.key}
 				columns={columns}
 				dense
-				empty={<EmptyState title="No model versions match the filters" />}
+				empty={<EmptyState title={t("frustration.no-model-match")} />}
 			/>
 		</Card>
 	);

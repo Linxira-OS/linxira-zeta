@@ -4,6 +4,7 @@
  */
 
 import { formatCompact, formatElapsed, formatEstimatedCost, formatInteger, formatPercent } from "../data/formatters";
+import { t } from "../i18n";
 import type { TraceSummary } from "../types";
 import { Stat, StatGrid } from "../ui";
 
@@ -12,23 +13,38 @@ export interface SummaryStripProps {
 }
 
 export function SummaryStrip({ summary }: SummaryStripProps) {
-	const share = (ms: number) => (summary.wallMs > 0 ? `${formatPercent(ms / summary.wallMs)} of wall` : undefined);
+	const share = (ms: number) =>
+		summary.wallMs > 0 ? t("trace.of-wall", { percent: formatPercent(ms / summary.wallMs) }) : undefined;
 	return (
 		<StatGrid min={112}>
-			<Stat size="sm" label="Wall time" value={formatElapsed(summary.wallMs)} />
-			<Stat size="sm" label="Model time" value={formatElapsed(summary.modelMs)} hint={share(summary.modelMs)} />
-			<Stat size="sm" label="Tool time" value={formatElapsed(summary.toolMs)} hint={share(summary.toolMs)} />
-			<Stat size="sm" label="Idle" value={formatElapsed(summary.idleMs)} hint={share(summary.idleMs)} />
-			<Stat size="sm" label="Turns" value={formatInteger(summary.turns)} />
+			<Stat size="sm" label={t("trace.wall-time")} value={formatElapsed(summary.wallMs)} />
 			<Stat
 				size="sm"
-				label="Requests"
-				value={formatInteger(summary.requests)}
-				hint={`${formatInteger(summary.toolCalls)} tool calls`}
+				label={t("trace.model-time")}
+				value={formatElapsed(summary.modelMs)}
+				hint={share(summary.modelMs)}
 			/>
-			<Stat size="sm" label="Agents" value={formatInteger(summary.subagents)} />
-			<Stat size="sm" label="Tokens" value={formatCompact(summary.totalTokens)} />
-			<Stat size="sm" label="Cost" value={formatEstimatedCost(summary.costTotal, summary.unpricedRequests)} />
+			<Stat
+				size="sm"
+				label={t("trace.tool-time")}
+				value={formatElapsed(summary.toolMs)}
+				hint={share(summary.toolMs)}
+			/>
+			<Stat size="sm" label={t("trace.idle")} value={formatElapsed(summary.idleMs)} hint={share(summary.idleMs)} />
+			<Stat size="sm" label={t("trace.turns")} value={formatInteger(summary.turns)} />
+			<Stat
+				size="sm"
+				label={t("common.requests")}
+				value={formatInteger(summary.requests)}
+				hint={t("trace.tool-calls-n", { count: formatInteger(summary.toolCalls) })}
+			/>
+			<Stat size="sm" label={t("trace.agents")} value={formatInteger(summary.subagents)} />
+			<Stat size="sm" label={t("common.tokens")} value={formatCompact(summary.totalTokens)} />
+			<Stat
+				size="sm"
+				label={t("common.cost")}
+				value={formatEstimatedCost(summary.costTotal, summary.unpricedRequests)}
+			/>
 		</StatGrid>
 	);
 }

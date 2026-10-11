@@ -1,25 +1,29 @@
-import { format, formatDistanceToNow } from "@linxiraos/pi-utils/dates";
+import { getLocale, t } from "../i18n";
 import type { MessageStats } from "../types";
 
 /**
- * Every number on the dashboard uses one fixed locale. Labels, percents
- * (`toFixed`), durations and dates are English, so following the browser
- * locale mixed conventions (e.g. `1,4 Mr` beside `97.0%` on a tr-TR browser).
+ * One locale drives every number and date, and it is the *product's* — the
+ * host CLI's language injected into the page, not the browser's. Mixing
+ * conventions (e.g. `1,4 Mr` beside `97.0%` on a tr-TR browser) stays
+ * impossible; the difference from the pre-i18n build is only that a `zh-CN`
+ * dashboard now formats in `zh-CN` throughout.
  */
-const NUMBER_LOCALE = "en-US";
+function numberLocale(): string {
+	return getLocale();
+}
 
 export function formatInteger(value: number): string {
-	return value.toLocaleString(NUMBER_LOCALE);
+	return value.toLocaleString(numberLocale());
 }
 
 export function formatCompact(value: number): string {
-	return value.toLocaleString(NUMBER_LOCALE, { notation: "compact" });
+	return value.toLocaleString(numberLocale(), { notation: "compact" });
 }
 
 export function formatCost(value: number, digits?: number): string {
 	if (value === 0) return "$0";
 	const fractionDigits = digits !== undefined ? digits : value > 0 && value < 0.01 ? 4 : 2;
-	return `$${value.toLocaleString(NUMBER_LOCALE, {
+	return `$${value.toLocaleString(numberLocale(), {
 		minimumFractionDigits: fractionDigits,
 		maximumFractionDigits: fractionDigits,
 	})}`;
@@ -83,18 +87,74 @@ export function formatTokensPerSecond(value: number | null): string {
 	return value.toFixed(1);
 }
 
-export function formatRelativeTime(timestamp: number): string {
-	return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+const RELATIVE_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
+	["second", 1_000],
+	["minute", 60_000],
+	["hour", 3_600_000],
+	["day", 86_400_000],
+	["month", 2_629_800_000],
+	["year", 31_557_600_000],
+];
+
+const relativeFormatters = new Map<string, Intl.RelativeTimeFormat>();
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** "2 minutes ago" / "2 分钟前" — the ladder picks the largest unit the delta reaches. */
+export function formatRelativeTime(timestamp: number, now = Date.now()): string {
+	const locale = getLocale();
+	let formatter = relativeFormatters.get(locale);
+	if (!formatter) {
+		formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+		relativeFormatters.set(locale, formatter);
+	}
+	const delta = timestamp - now;
+	let unitIndex = 0;
+	for (let i = 1; i < RELATIVE_UNITS.length; i++) {
+		if (Math.abs(delta) >= RELATIVE_UNITS[i][1]) unitIndex = i;
+	}
+	const [unit, ms] = RELATIVE_UNITS[unitIndex];
+	return formatter.format(Math.round(delta / ms), unit);
 }
 
-/** Absolute local date and time to the second ("Sep 28, 14:03:22"). */
+/** Local month/day plus minute ("Sep 28 14:03" / "9月28日 14:03") for chart range captions. */
+export function formatDateTimeShort(timestamp: number): string {
+	const locale = getLocale();
+	const key = `${locale}:mdhm`;
+	let formatter = dateFormatters.get(key);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			hourCycle: "h23",
+		});
+		dateFormatters.set(key, formatter);
+	}
+	return formatter.format(timestamp);
+}
+
+/** Absolute local date and time to the second ("Sep 28, 14:03:22" / "9月28日 14:03:22"). */
 export function formatTimestamp(timestamp: number): string {
-	return format(new Date(timestamp), "MMM d, HH:mm:ss");
+	const locale = getLocale();
+	let formatter = dateFormatters.get(locale);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			hourCycle: "h23",
+		});
+		dateFormatters.set(locale, formatter);
+	}
+	return formatter.format(timestamp);
 }
 
 /** Project folder as stored by ingest (`/work-pi/`), without the slashes. */
 export function formatFolder(folder: string): string {
-	return folder.replace(/^\/+|\/+$/g, "") || "(root)";
+	return folder.replace(/^\/+|\/+$/g, "") || t("common.root");
 }
 
 export function formatBytes(value: number): string {
