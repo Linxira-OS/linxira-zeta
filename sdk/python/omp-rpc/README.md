@@ -1,12 +1,12 @@
 # omp-rpc
 
-Typed Python bindings for the `omp --mode rpc` protocol used by the coding agent.
+Typed Python bindings for the `zetacode --mode rpc` protocol used by the coding agent.
 
 This package wraps the newline-delimited JSON RPC transport exposed by the CLI and
 provides:
 
 - typed command methods for the stable RPC surface
-- typed startup options for common `omp --mode rpc` flags such as thinking level,
+- typed startup options for common `zetacode --mode rpc` flags such as thinking level,
   tool selection, prompt appends, provider session IDs, and headless session toggles
 - typed protocol models for state, bash results, compaction, and session stats
 - automatic protocol v2 negotiation, lossless chunk reassembly, and stable message pagination
@@ -109,7 +109,7 @@ phases, and `get_state().todo_phases` returns the typed current todo state.
 By default the client runs:
 
 ```bash
-omp --mode rpc
+zetacode --mode rpc
 ```
 
 You can also point it at a custom command, which is useful inside this repo while
@@ -266,7 +266,7 @@ off) raise `RpcCommandError`.
 
 ## History, Commands, and Thinking Levels
 
-- `get_entries(since=None)` returns `SessionEntries`: OMP-native `SessionEntry`
+- `get_entries(since=None)` returns `SessionEntries`: Zeta-native `SessionEntry`
   objects (raw dicts) in append order plus `leaf_id`. With `since`, only entries
   strictly after that entry id; an unknown id raises `RpcCommandError` with
   `code == "unknown_since"`.

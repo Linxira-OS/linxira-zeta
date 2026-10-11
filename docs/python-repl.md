@@ -236,7 +236,7 @@ Output is streamed through `OutputSink` in `packages/tui/src/tools/streaming-out
 ## Operational troubleshooting
 
 - **Python backend not available** — Check `eval.py`, `PI_PY`, and that `python`/`python3` is on PATH. If another backend is enabled, use its advertised language token.
-- **No working Python** — Install a modern Python 3 interpreter, configure `python.interpreter`, or place a compatible venv at the managed Python path (default `~/.zeta/python-env`). `omp setup python --check` reports the resolved interpreter.
+- **No working Python** — Install a modern Python 3 interpreter, configure `python.interpreter`, or place a compatible venv at the managed Python path (default `~/.zeta/python-env`). `zetacode setup python --check` reports the resolved interpreter.
 - **Execution hangs then times out** — Increase `timeout` for legitimate work or set it to `0` to disable the watchdog. For stuck native code, cancellation sends `SIGINT` first and then escalates; session mode recreates the kernel on the next request if it had to be killed.
 - **stdin/input prompts in Python code** — `input()` is not supported; pass data programmatically.
 - **Working directory errors** — Python starts each cell in the session cwd. Use `%cd` or `os.chdir()` within the cell when needed; the next call starts back in the host session cwd.

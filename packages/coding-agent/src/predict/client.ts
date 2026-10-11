@@ -119,7 +119,7 @@ class DaemonConnection {
 	}
 }
 
-/** Connect and confirm the daemon speaks this omp version; `undefined` when nothing usable listens. */
+/** Connect and confirm the daemon speaks this zetacode version; `undefined` when nothing usable listens. */
 async function connectDaemon(endpoint: string): Promise<DaemonConnection | undefined> {
 	let socket: net.Socket;
 	try {
@@ -131,7 +131,7 @@ async function connectDaemon(endpoint: string): Promise<DaemonConnection | undef
 	try {
 		const pong = await connection.request(id => ({ id, op: "ping" }), REQUEST_TIMEOUT_MS);
 		if (pong.ok && pong.op === "ping" && pong.version === VERSION) return connection;
-		// A daemon from another omp version: retire it so this version's starts.
+		// A daemon from another zetacode version: retire it so this version's starts.
 		await connection.request(id => ({ id, op: "shutdown" }), REQUEST_TIMEOUT_MS).catch(() => undefined);
 	} catch (error) {
 		logger.debug("text-predict: daemon ping failed", { endpoint, error: String(error) });
@@ -291,7 +291,7 @@ export function textPredictionBackend(method: WordCompletionEngine): WordPredict
 
 /**
  * One completion from the daemon with its confidence, for diagnostics such as
- * `omp predict`. Unlike the editor backend, failures reject instead of
+ * `zetacode predict`. Unlike the editor backend, failures reject instead of
  * degrading to no ghost text.
  */
 export function requestTextPrediction(
@@ -305,7 +305,7 @@ export function requestTextPrediction(
 
 /**
  * Close this process's daemon connection (the daemon keeps running). For
- * short-lived commands such as `omp predict`; the composer keeps its
+ * short-lived commands such as `zetacode predict`; the composer keeps its
  * connection for the process lifetime.
  */
 export function closeTextPrediction(): void {

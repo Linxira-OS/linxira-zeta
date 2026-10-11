@@ -1,7 +1,7 @@
 /**
  * Agent discovery from filesystem.
  *
- * Discovers agent definitions from OMP-native task-agent roots:
+ * Discovers agent definitions from Zeta-native task-agent roots:
  *   - ~/.zeta/agent/agents/*.md (user-level)
  *   - .zeta/agents/*.md (project-level)
  *   - <ext>/agents/*.md for every OMP extension package wired through
@@ -140,7 +140,7 @@ export async function discoverAgents(
 		// registry that supplied it: foreign Claude roots (origin "claude") always
 		// use Claude aliases, and an omp-installed or --plugin-dir root can still
 		// ship a `.claude-plugin` package. Claude-dialect frontmatter is dropped so
-		// its aliases are not misread as OMP selectors (#7966); OMP-native and
+		// its aliases are not misread as OMP selectors (#7966); Zeta-native and
 		// Agent-Plugins-standard plugin agents keep their selectors (#12028).
 		sortedPluginRoots.map(
 			async plugin => plugin.origin === "claude" || (await pluginUsesClaudeModelDialect(plugin.path)),

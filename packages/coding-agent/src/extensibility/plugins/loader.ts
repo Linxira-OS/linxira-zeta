@@ -221,7 +221,7 @@ async function collectPluginsAtRoot(
 
 		const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
 		if (!manifest) {
-			// Not an omp plugin, skip
+			// Not an zetacode plugin, skip
 			continue;
 		}
 		manifest.version = pluginPkg.version;

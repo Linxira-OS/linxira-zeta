@@ -253,7 +253,7 @@ the task/eval wire formats do not expose a tier field or automatic Fast policy.
 Account selection is independent of model and service-tier selection: an exact, case-sensitive
 `task.agentAccountPools[agentName]` entry maps provider ids to OAuth identity keys (the `identityKey`
 values broker [client account pools](./auth-broker-gateway.md#client-account-pools-routing-not-authorization)
-use, such as `email:<address>|org:<id>` for Anthropic; [`omp usage accounts`](./cli-reference.md)
+use, such as `email:<address>|org:<id>` for Anthropic; [`zetacode usage accounts`](./cli-reference.md)
 lists them). For each listed provider the child authenticates
 only with those accounts: ranking, the parent's copied account affinity, restored pins, fallback
 passes, and credential rotation stay inside the pool, and runtime, environment, and stored API keys

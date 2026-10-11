@@ -136,7 +136,7 @@ describe("extractProfileFlags", () => {
 	});
 
 	it("stops extracting global flags at a subcommand boundary", () => {
-		// `omp grep --profile <path>` must reach the grep subcommand intact; the
+		// `zetacode grep --profile <path>` must reach the grep subcommand intact; the
 		// bootstrap must not treat `--profile <path>` as a profile selection.
 		const result = extractProfileFlags(["grep", "--profile", "packages/coding-agent/src/cli.ts"]);
 		expect(result.profile).toBeUndefined();
@@ -197,7 +197,7 @@ describe("extractProfileFlags", () => {
 
 	it("exempts known value-less launch flags so a trailing profile still activates", () => {
 		// Boolean launch flags (--print, --yolo, --no-tools, -p) take no value, so
-		// the token after them is a fresh argument: `omp --print --profile work`
+		// the token after them is a fresh argument: `zetacode --print --profile work`
 		// must still select the profile.
 		expect(extractProfileFlags(["--print", "--profile", "work"])).toEqual({
 			argv: ["--print"],
@@ -242,7 +242,7 @@ describe("extractProfileFlags", () => {
 	it("does not hide a global --profile/--alias behind an unknown flag with a flag-looking successor", () => {
 		// `parseArgs` never hands a flag-looking successor to an extension flag:
 		// boolean extension flags consume nothing, and string extension flags only
-		// consume value-like (non-`-`) successors. So `omp --some-ext-flag --profile
+		// consume value-like (non-`-`) successors. So `zetacode --some-ext-flag --profile
 		// work` must still select profile `work`; the prior bootstrap forwarded
 		// `--profile` as a protected successor and silently fell back to default.
 		expect(extractProfileFlags(["--some-ext-flag", "--profile", "work"])).toEqual({

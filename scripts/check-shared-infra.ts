@@ -24,13 +24,7 @@ const SCAN_ROOTS = ["packages", "scripts", ".github", "desktop", "crates"];
 const SCAN_EXT = /\.(ts|tsx|js|mjs|cjs|json|kdl|rs|sh|ps1|yml|yaml|html|txt)$/;
 const DOMAIN_RE = /https?:\/\/[a-zA-Z0-9._-]*(?:omp\.sh|stencil\.so|scl\.so)[a-zA-Z0-9./_@?=&%#-]*/g;
 
-type Status =
-	| "keep"
-	| "keep-code-user-credential"
-	| "replace-P1"
-	| "replace-P2"
-	| "replace-P3"
-	| "replace-brand";
+type Status = "keep" | "keep-code-user-credential" | "replace-P1" | "replace-P2" | "replace-P3" | "replace-brand";
 
 interface Placement {
 	/** URL prefix this entry governs (longest match wins). */
@@ -75,10 +69,7 @@ const INVENTORY: Placement[] = [
 	{
 		domain: "https://catalog.stencil.so",
 		status: "keep",
-		files: [
-			"packages/catalog/scripts/generate-models.ts",
-			"packages/catalog/src/provider-models/openai-compat.ts",
-		],
+		files: ["packages/catalog/scripts/generate-models.ts", "packages/catalog/src/provider-models/openai-compat.ts"],
 		why: "model-discovery data source; replacing it needs a self-hosted catalog service, not planned",
 	},
 	{
@@ -174,6 +165,17 @@ const INVENTORY: Placement[] = [
 
 const hits: string[] = [];
 
+const SELF = "scripts/check-shared-infra.ts";
+
+/**
+ * The guard's own `INVENTORY` names every pinned endpoint by design; scanning
+ * itself would report 15 fake placements. The ledger document is excluded by
+ * `SCAN_ROOTS` (it lives in `document/`).
+ */
+function isSelf(rel: string): boolean {
+	return rel === SELF;
+}
+
 function isTest(rel: string): boolean {
 	return (
 		rel.startsWith("test/") ||
@@ -201,7 +203,8 @@ const files = out.stdout
 	.filter(Boolean)
 	.filter(file => SCAN_ROOTS.some(root => file === root || file.startsWith(`${root}/`)))
 	.filter(file => SCAN_EXT.test(file))
-	.filter(file => !isTest(file.replaceAll("\\", "/")));
+	.filter(file => !isTest(file.replaceAll("\\", "/")))
+	.filter(file => !isSelf(file.replaceAll("\\", "/")));
 
 for (const file of files) {
 	const rel = file.replaceAll("\\", "/");

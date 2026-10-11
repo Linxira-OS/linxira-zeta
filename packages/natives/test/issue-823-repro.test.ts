@@ -113,7 +113,7 @@ describe("issue 823: standalone-binary native loader path resolution", () => {
 
 		// Versioned cache and user-data dir candidates must exist for compiled binaries —
 		// these are where the embedded-addon extraction lands (~/.zeta/natives/<v>) and where
-		// `omp update` writes the standalone binary on linux (~/.local/bin).
+		// `zetacode update` writes the standalone binary on linux (~/.local/bin).
 		expect(candidates).toContain(versionedModern);
 		expect(candidates).toContain(versionedBaseline);
 		expect(candidates).toContain(userDataModern);

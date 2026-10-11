@@ -41,7 +41,7 @@ describe("broker unknown operations", () => {
 		const previousTitle = process.title;
 		const broker = startBroker(projectDir, runtimeDir);
 		try {
-			// After `omp update`, a newer client can reach a broker that predates one of its operations.
+			// After `zetacode update`, a newer client can reach a broker that predates one of its operations.
 			// A rejection without the request id leaves the call pending until the connection closes
 			// or the client's 30 s timeout fires, instead of surfacing the broker's error.
 			const fromNewerClient = { op: "from-a-newer-omp" } as unknown as DaemonOperation;

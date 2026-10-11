@@ -1,6 +1,6 @@
 # omp-rpc (Go)
 
-Go client for the omp RPC protocol (`omp --mode rpc`, JSON lines over stdio).
+Go client for the omp RPC protocol (`zetacode --mode rpc`, JSON lines over stdio).
 Module `github.com/can1357/oh-my-pi/sdk/go/omp-rpc`, package `omprpc`, standard library only.
 
 ## Layout

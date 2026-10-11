@@ -1,9 +1,9 @@
 /**
- * `omp read <image>?q=<question>` delegates to a vision model, which requires a
+ * `zetacode read <image>?q=<question>` delegates to a vision model, which requires a
  * model registry to resolve modelRoles.vision / @default and fetch credentials.
  * The read CLI built a lightweight session with no registry, so the read tool
  * aborted with "Model registry is unavailable for image questions." before any
- * resolution (issue #11338). This drives the real `omp read` command in an
+ * resolution (issue #11338). This drives the real `zetacode read` command in an
  * isolated agent dir carrying a custom vision provider and asserts it reaches
  * the completion attempt instead of the registry guard.
  */
@@ -41,7 +41,7 @@ const MODELS_YML = `providers:
 
 const READ_CLI_URL = new URL("../src/cli/read-cli.ts", import.meta.url).href;
 
-describe("omp read <image>?q=", () => {
+describe("zetacode read <image>?q=", () => {
 	it("resolves a vision model instead of failing with the registry guard", async () => {
 		const tempDir = TempDir.createSync("@pi-read-cli-imgq-");
 		try {

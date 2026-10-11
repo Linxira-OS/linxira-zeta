@@ -578,7 +578,7 @@ export class SecurityCoordinator {
 			if (signal.aborted) throw signal.reason ?? new Error("Security scan cancelled");
 			await prepareSecurityOutputDirectory(plan.output, record.snapshot.scanId);
 			this.#update(record, "preparing");
-			await reportProgress?.("Preparing OMP-native security scan");
+			await reportProgress?.("Preparing Zeta-native security scan");
 			executionTarget = await prepareSecurityExecutionTarget(
 				plan,
 				store,

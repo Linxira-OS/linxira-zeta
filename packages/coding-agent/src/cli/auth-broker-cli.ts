@@ -124,7 +124,7 @@ export function refreshBrokerOAuthCredential(
 	return refreshOAuthToken(provider as OAuthProvider, credential);
 }
 
-/** The `omp auth-broker serve` vault: tokens refresh in this process through {@link refreshBrokerOAuthCredential}. */
+/** The `zetacode auth-broker serve` vault: tokens refresh in this process through {@link refreshBrokerOAuthCredential}. */
 export function createBrokerAuthStorage(store: SqliteAuthCredentialStore): AuthStorage {
 	return new AuthStorage(store, {
 		refreshOAuthCredential: (provider, _credentialId, credential, signal) =>

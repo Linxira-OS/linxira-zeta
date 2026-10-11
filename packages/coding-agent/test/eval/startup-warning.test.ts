@@ -5,7 +5,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import * as pyKernel from "@linxiraos/zeta/eval/py/kernel";
 import { resolveFirstLaunchPythonEvalWarning, resolvePythonEvalWarning } from "@linxiraos/zeta/eval/startup-warning";
 
-const FIX_HINT = "Install Python 3.8+ or set python.interpreter, then verify with `omp setup python --check`.";
+const FIX_HINT = "Install Python 3.8+ or set python.interpreter, then verify with `zetacode setup python --check`.";
 const CWD = "/tmp/eval-startup-warning";
 
 let savedPiPy: string | undefined;

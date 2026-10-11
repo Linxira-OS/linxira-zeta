@@ -108,7 +108,7 @@ async function openModel(modelSpec: string): Promise<RewriteModel> {
 		const apiKey = await storage.keys.get(provider);
 		if (!apiKey) {
 			throw new Error(
-				`no credentials for provider "${provider}" via ${sourceLabel} (check broker or run \`omp login\`)`,
+				`no credentials for provider "${provider}" via ${sourceLabel} (check broker or run \`zetacode login\`)`,
 			);
 		}
 		return { model, apiKey, spec: modelSpec };
