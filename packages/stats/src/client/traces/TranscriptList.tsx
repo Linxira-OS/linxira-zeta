@@ -6,6 +6,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationMs } from "../data/formatters";
+import { t } from "../i18n";
 import { EmptyState } from "../ui";
 import type { TraceMarker, TraceSpan, TraceTrack } from "../types";
 import { formatOffset } from "./time-scale";
@@ -114,7 +115,7 @@ export const TranscriptList = memo(function TranscriptList({
 								<span className="traces-row-label truncate">{label}</span>
 								{detail && <span className="traces-row-detail truncate">{detail}</span>}
 								<span className="traces-row-meta num">
-									{row.span?.isError && <span className="tone-bad">error</span>}
+									{row.span?.isError && <span className="tone-bad">{t("common.error")}</span>}
 									<span>{duration}</span>
 									<span>{formatOffset(row.time - traceStart)}</span>
 								</span>
@@ -140,7 +141,7 @@ export const TranscriptList = memo(function TranscriptList({
 					})}
 				</div>
 			</div>
-			{rows.length === 0 && <EmptyState title="No matching events" />}
+			{rows.length === 0 && <EmptyState title={t("trace.no-matching-events")} />}
 		</div>
 	);
 });

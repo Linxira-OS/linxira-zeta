@@ -130,12 +130,17 @@ function extractUserText(content: unknown): string {
 /**
  * Build user-message stats from an entry. Returns null for empty/synthetic content.
  */
-function extractUserStats(sessionFile: string, folder: string, entry: SessionMessageEntry): UserMessageStats | null {
+function extractUserStats(
+	sessionFile: string,
+	folder: string,
+	entry: SessionMessageEntry,
+	prevText: string,
+): UserMessageStats | null {
 	const msg = entry.message as { role: "user"; content?: unknown; synthetic?: boolean };
 	if (msg.role !== "user" || msg.synthetic) return null;
 	const text = extractUserText(msg.content);
 	if (!text.trim()) return null;
-	const metrics = computeUserMessageMetrics(text);
+	const metrics = computeUserMessageMetrics(text, { prevText });
 	const prose = judgeProse(text);
 	const ts = Date.parse(entry.timestamp);
 	return {
@@ -153,6 +158,8 @@ function extractUserStats(sessionFile: string, folder: string, entry: SessionMes
 		negation: metrics.negation,
 		repetition: metrics.repetition,
 		blame: metrics.blame,
+		emphasis: metrics.emphasis,
+		unsupportedScript: metrics.unsupportedScript,
 		prose,
 		proseHash: prose ? Bun.hash(prose).toString(16) : "",
 	};
@@ -554,6 +561,11 @@ export async function parseSessionFile(
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
 
+	// The previous user message, for the whole-message repetition signal. An
+	// incremental parse starts mid-session, so the first message of a resumed
+	// pass simply carries no predecessor.
+	let prevUserText = "";
+
 	// Reduce each entry immediately so full replays do not retain tool-output/message bodies.
 	const visit = (entry: SessionEntry): void => {
 		if (isServiceTierChange(entry)) {
@@ -561,8 +573,11 @@ export async function parseSessionFile(
 			return;
 		}
 		if (isUserMessage(entry)) {
-			const userMsg = extractUserStats(sessionPath, folder, entry);
-			if (userMsg) userStats.push(userMsg);
+			const userMsg = extractUserStats(sessionPath, folder, entry, prevUserText);
+			if (userMsg) {
+				userStats.push(userMsg);
+				prevUserText = userMsg.prose || prevUserText;
+			}
 			return;
 		}
 		if (isToolResultMessage(entry)) {

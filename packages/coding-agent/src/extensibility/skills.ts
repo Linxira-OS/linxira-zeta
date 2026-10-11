@@ -311,7 +311,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 	}
 	function isSourceEnabled(source: SourceMeta): boolean {
 		const { provider, level } = source;
-		// Managed skills (auto-learn) are OMP-native and discovered unconditionally
+		// Managed skills (auto-learn) are Zeta-native and discovered unconditionally
 		// — third-party CLI toggles must never silently hide them (cf. #2401). The
 		// master `enabled` flag above still gates them.
 		if (provider === MANAGED_SKILLS_PROVIDER_ID) return true;
@@ -322,7 +322,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		if (provider === "native" && level === "project") return enablePiProject;
 		if (provider === "agents" && level === "user") return enableAgentsUser;
 		if (provider === "agents" && level === "project") return enableAgentsProject;
-		// Official bundled pack (`zeta-official`) is OMP-native, so it skips the
+		// Official bundled pack (`zeta-official`) is Zeta-native, so it skips the
 		// foreign `~/` opt-in registry below; `skills.enableOfficial` is its
 		// dedicated user-facing switch (default on).
 		if (provider === OFFICIAL_SKILLS_PROVIDER_ID) return enableOfficial;

@@ -193,5 +193,5 @@ known-correct fix for a failed task), `--concurrency` (default 8).
   in the same container or VM, so both runners set
   `OMP_DAEMON_IDLE_GRACE_MS` to 24 h for the Zeta process: services the agent
   started with the bash tool's `name` stay up until teardown instead of
-  stopping 3 s after omp exits. An explicit `--env OMP_DAEMON_IDLE_GRACE_MS=<ms>`
+  stopping 3 s after omp exits. An explicit `--env ZETA_DAEMON_IDLE_GRACE_MS=<ms>`
   wins.

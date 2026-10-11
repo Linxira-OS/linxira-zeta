@@ -10,6 +10,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatDurationMs, formatInteger } from "../data/formatters";
+import { t } from "../i18n";
 import type { TraceMarker, TraceSpan, TraceSpanKind, TraceTrack } from "../types";
 import { buildTicks, formatOffset, type TraceScale } from "./time-scale";
 import { type TraceTheme, useTraceTheme } from "./trace-colors";
@@ -49,11 +50,11 @@ const SPAN_RADIUS = 3;
 const DIM_ALPHA = 0.3;
 
 const LANE_ORDER: Array<{ kind: TraceSpanKind; label: string }> = [
-	{ kind: "turn", label: "Input" },
-	{ kind: "model", label: "Model" },
-	{ kind: "tool", label: "Tools" },
-	{ kind: "subagent", label: "Agents" },
-	{ kind: "background", label: "Bg" },
+	{ kind: "turn", label: t("common.input") },
+	{ kind: "model", label: t("common.model") },
+	{ kind: "tool", label: t("trace.tools") },
+	{ kind: "subagent", label: t("trace.agents") },
+	{ kind: "background", label: t("trace.bg") },
 ];
 
 interface LaneRow {
@@ -520,8 +521,8 @@ export function TimelineCanvas({
 									onClick={() => onToggleCollapse(block.track.id)}
 									aria-label={
 										collapsed.has(block.track.id)
-											? `Expand ${block.track.label}`
-											: `Collapse ${block.track.label}`
+											? t("trace.expand-track", { track: block.track.label })
+											: t("trace.collapse-track", { track: block.track.label })
 									}
 									className="traces-chevron"
 								>
@@ -561,7 +562,7 @@ export function TimelineCanvas({
 					style={cssSize}
 					tabIndex={0}
 					role="application"
-					aria-label="Trace timeline. W and S zoom, A and D pan, 0 fits all, F focuses the selection."
+					aria-label={t("trace.canvas-aria")}
 					onPointerDown={handlePointerDown}
 					onPointerMove={handlePointerMove}
 					onPointerUp={handlePointerUp}
@@ -853,14 +854,23 @@ function renderTooltip(hover: Hit, traceStart: number, ref: React.RefObject<HTML
 			<div className="traces-tooltip-title truncate">{span.label}</div>
 			<div className="muted num">
 				{formatDurationMs(span.end - span.start)} · {new Date(span.start).toLocaleTimeString()} (
-				{formatOffset(span.start - traceStart)}){span.unterminated ? " · unterminated" : ""}
+				{formatOffset(span.start - traceStart)}){span.unterminated ? ` · ${t("trace.unterminated")}` : ""}
 			</div>
 			{span.kind === "model" && (
 				<div className="muted num">
-					{span.tokens !== undefined && <>{formatInteger(span.tokens)} tok</>}
+					{span.tokens !== undefined && (
+						<>
+							{formatInteger(span.tokens)} {t("trace.tok")}
+						</>
+					)}
 					{span.cost !== undefined && <> · ${span.cost.toFixed(4)}</>}
-					{span.ttft !== undefined && <> · TTFT {formatDurationMs(span.ttft)}</>}
-					{span.isError && <> · error</>}
+					{span.ttft !== undefined && (
+						<>
+							{" "}
+							· {t("trace.ttft")} {formatDurationMs(span.ttft)}
+						</>
+					)}
+					{span.isError && <> · {t("common.error")}</>}
 				</div>
 			)}
 			{span.kind === "subagent" && span.model && <div className="muted num">{span.model}</div>}

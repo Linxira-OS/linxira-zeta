@@ -3083,7 +3083,7 @@ func (v *AvailableSlashCommand) decodeFrom(raw map[string]json.RawMessage) error
 	return nil
 }
 
-// OMP-native session entries in append order.
+// Zeta-native session entries in append order.
 type SessionEntries struct {
 	Entries []map[string]json.RawMessage `json:"entries"`
 	LeafID  *string                      `json:"leafId"`

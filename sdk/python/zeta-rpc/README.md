@@ -266,7 +266,7 @@ off) raise `RpcCommandError`.
 
 ## History, Commands, and Thinking Levels
 
-- `get_entries(since=None)` returns `SessionEntries`: OMP-native `SessionEntry`
+- `get_entries(since=None)` returns `SessionEntries`: Zeta-native `SessionEntry`
   objects (raw dicts) in append order plus `leaf_id`. With `since`, only entries
   strictly after that entry id; an unknown id raises `RpcCommandError` with
   `code == "unknown_since"`.

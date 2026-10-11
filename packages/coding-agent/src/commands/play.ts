@@ -23,7 +23,7 @@ export default class Play extends Command {
 		const { args, flags } = await this.parse(Play);
 		const speed = parsePositive("--speed", flags.speed) ?? 1;
 		const idleLimit = parsePositive("--idle-limit", flags["idle-limit"]);
-		if (!process.stdout.isTTY) throw new CliUsageError("zeta play needs an interactive terminal");
+		if (!process.stdout.isTTY) throw new CliUsageError("zetacode play needs an interactive terminal");
 
 		const file = args.file ? path.resolve(args.file) : await latestRecording();
 		if (!file) throw new CliUsageError(`no recordings in ${recordingsDir()}; start one with /record`);

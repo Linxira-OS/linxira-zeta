@@ -961,10 +961,10 @@ Command discovery is intentionally an OMP dialect: Pi's `get_commands` (a
 not served because OMP's richer catalog (builtins/custom/MCP/file commands,
 broader `source` enum, no Pi `sourceInfo`) is not wire-compatible with it.
 
-### Pi-compatible history/tree commands with OMP-native entry payloads
+### Pi-compatible history/tree commands with Zeta-native entry payloads
 
 The commands and reconciliation semantics below are Pi-compatible, but the
-returned `SessionEntry` payload union is OMP-native, not wire-identical to
+returned `SessionEntry` payload union is Zeta-native, not wire-identical to
 Pi. Concretely: Pi `model_change` carries `provider` + `modelId` while OMP
 carries a combined `model` plus role/fallback metadata; Pi uses a `usage`
 entry where OMP uses `model_usage`; and OMP has additional entry types (for

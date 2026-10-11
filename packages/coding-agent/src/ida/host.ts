@@ -115,7 +115,7 @@ class IdaHost {
 		const { loc, runtime, idleCloseMs } = this.#config;
 		if (loc.kind === "store") await fs.promises.mkdir(loc.dir, { recursive: true });
 		const lock = await acquireFileLock(loc.lockTarget, { retries: 1 }).catch(() => {
-			throw new ToolError(`IDB ${loc.id} is in use by another omp process outside this project`);
+			throw new ToolError(`IDB ${loc.id} is in use by another Zeta process outside this project`);
 		});
 		try {
 			await prepareStoreDir(loc);

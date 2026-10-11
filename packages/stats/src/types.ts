@@ -183,6 +183,10 @@ export interface UserMessageStats {
 	repetition: number;
 	/** Second-person reproach ("you didnt", "why did you", "stop X-ing") */
 	blame: number;
+	/** Emphatic CJK/voice markers the caps-based yelling cannot see (see `UserMessageMetrics.emphasis`). */
+	emphasis: number;
+	/** 1 when the prose leans on a script no lexicon covers; such rows are unscored, not calm. */
+	unsupportedScript: number;
 	/** Judge-facing prose (see `judgeProse`); empty when the message was all markup. */
 	prose: string;
 	/** Hex `Bun.hash` of `prose`, keying the shared verdict cache; empty when `prose` is. */

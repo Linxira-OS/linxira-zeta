@@ -3322,7 +3322,7 @@ pub struct AvailableSlashCommand {
 	pub subcommands: Option<Vec<SlashSubcommand>>,
 }
 
-/// OMP-native session entries in append order.
+/// Zeta-native session entries in append order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionEntries {
 	pub entries: Vec<Map<String, Value>>,

@@ -37,6 +37,7 @@ import {
 	seedAlreadyExists,
 	summarizeMentalModel,
 } from "../../hindsight";
+import { currentLanguage } from "../../i18n";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../../memory-backend";
 import { BashExecutionComponent, bashPtyViewport } from "@linxiraos/pi-tui/chat/bash-execution";
 import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -296,7 +297,7 @@ export class CommandController {
 			// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 			// matching src/cli/stats-cli.ts, to keep CLI startup fast.
 			const { formatStatsDashboardUrl, startServer } = await import("@linxiraos/pi-stats");
-			const { hostname, port } = await startServer();
+			const { hostname, port } = await startServer(undefined, undefined, { language: currentLanguage() });
 			const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 			this.openInBrowser(url);
 			this.ctx.showStatus(`Trace: ${url}`);

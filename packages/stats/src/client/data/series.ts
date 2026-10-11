@@ -4,6 +4,7 @@
  */
 
 import type { ChartSeries } from "../charts/types";
+import { t } from "../i18n";
 import { OTHER_COLOR, SERIES_COLORS } from "./colors";
 
 /** Sum `value(point)` into a dense array aligned to `buckets`. Out-of-axis points are dropped. */
@@ -73,7 +74,12 @@ export function pivotSeries<P extends { timestamp: number }>(
 	if (tail.length > 0) {
 		const other = Array.from({ length: opts.buckets.length }, () => 0);
 		for (const entry of tail) for (let i = 0; i < other.length; i++) other[i] += entry.values[i];
-		series.push({ key: "__other__", label: `Other (${tail.length})`, color: OTHER_COLOR, values: other });
+		series.push({
+			key: "__other__",
+			label: t("common.other-n", { count: tail.length }),
+			color: OTHER_COLOR,
+			values: other,
+		});
 	}
 	return series;
 }

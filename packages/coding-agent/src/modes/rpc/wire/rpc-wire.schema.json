@@ -3160,7 +3160,7 @@
 				"entries",
 				"leafId"
 			],
-			"description": "OMP-native session entries in append order."
+			"description": "Zeta-native session entries in append order."
 		},
 		"SessionTree": {
 			"type": "object",
