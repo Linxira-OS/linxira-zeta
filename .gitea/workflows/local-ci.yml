@@ -62,9 +62,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 10
       steps:
-         - uses: actions/checkout@v4
-           with:
-              fetch-depth: 0
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Assert this run can never be a release
            shell: bash
            run: |
@@ -97,7 +125,37 @@ jobs:
          # so this job needs the workspace; without it `sed: package.json: No
          # such file` exits 2 and every downstream job is skipped (the run
          # still reports "completed" in ~50s, which is how this stayed hidden).
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Bootstrap toolchains
            shell: bash
            run: |
@@ -240,7 +298,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -284,7 +372,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 45
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -318,7 +436,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 30
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -345,7 +493,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 180
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -424,7 +602,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 90
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -458,7 +666,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -488,7 +726,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -514,7 +782,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -540,7 +838,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -566,7 +894,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -592,7 +950,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 30
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -615,7 +1003,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -641,7 +1059,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 180
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -703,7 +1151,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -734,7 +1212,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 90
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -767,7 +1275,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 120
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
@@ -827,7 +1365,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 120
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
            run: |
