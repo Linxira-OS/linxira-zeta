@@ -12,7 +12,7 @@ import type { FileEntry } from "./session-entries";
 const MAX_PERSIST_CHARS = 500_000;
 const TRUNCATION_NOTICE = "\n\n[Session persistence truncated large content]";
 /** Minimum base64 length to externalize to blob store (skip tiny inline images) */
-const BLOB_EXTERNALIZE_THRESHOLD = 1024;
+export const BLOB_EXTERNALIZE_THRESHOLD = 1024;
 const TEXT_CONTENT_KEY = "content";
 /** Parent key under which snapcompact persists its base64 PNG frame archive
  *  (`preserveData.snapcompact.frames[]`). Frame objects are image payloads, so
