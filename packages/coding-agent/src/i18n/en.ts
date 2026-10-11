@@ -3332,4 +3332,32 @@ export const en = {
 	adQuotaResetsWord: "resets",
 	adQuotaTitleFmt: "Quota: %s",
 	adQuotaResetsInFmt: "%s in %s",
+
+	// grievances → GitHub Issues (grievances/client.ts, cli/grievances-cli.ts)
+	grNoToken: "No GitHub token found (set GITHUB_TOKEN or GH_TOKEN, or run `gh auth login`)",
+	grErrTokenRejected:
+		"GitHub rejected the token (HTTP 401). Set GITHUB_TOKEN to a valid token with issue write access.",
+	grErrForbiddenFmt:
+		"GitHub refused the request (HTTP 403) for %s — the token lacks issue write access or the API rate limit was hit.",
+	grErrRepoNotFoundFmt: "GitHub returned 404 for %s — the repository does not exist or the token cannot see it.",
+	grErrUnprocessableFmt: "GitHub rejected the issue payload (HTTP 422): %s",
+	grErrNoDetail: "(no detail)",
+	grErrHttpFmt: "HTTP %s: %s",
+	grErrHttpStatusFmt: "HTTP %s",
+	grErrNetworkFmt: "GitHub request failed: %s",
+	grPushSkippedDisabled: "Push skipped — Auto-QA reporting is disabled.",
+	grPushNothingToPush: "Nothing to push — all grievances are already shipped.",
+	grPushRejectedOne: "1 grievance was refused by GitHub and parked as rejected (see `zetacode grievances list`).",
+	grPushRejectedManyFmt:
+		"%s grievances were refused by GitHub and parked as rejected (see `zetacode grievances list`).",
+	grPushFiledOne: "Filed 1 grievance on GitHub:",
+	grPushFiledManyFmt: "Filed %s grievances on GitHub:",
+	grPushFailedFmt: "Push failed after %s/%s; %s still unpushed.",
+	grPushServerSaidFmt: "GitHub said: %s",
+	grManualHeaderFmt: "No GitHub token — this report was NOT submitted to GitHub Issues (%s).",
+	grManualPrefilledFmt: "To file it by hand, open: %s",
+	grManualComposedHeader: "Composed issue (not submitted):",
+	grManualTitleFmt: "Title: %s",
+	grManualLabelsFmt: "Labels: %s",
+	grManualBodyLabel: "Body:",
 } satisfies Messages;

@@ -31,7 +31,7 @@ bun scripts/brand/brand-check.ts
 |---|---|---|
 | **保留** | `my.omp.sh`（中继/分享）、`https://omp.sh/install`（安装提示）、`catalog.stencil.so`（模型发现数据源）、`build.stencil.so`（CI 匿名上传通道）、`scl.so`（文案链接） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>`、模型发现或安装路径 |
 | **保留代码，凭证自填** | `api.stencil.so` / `auth.stencil.so`（Stencil 账号体系）、`client-id "omp"`、Tern 客户端适配 | 代码留着（将来可能有同类商业产品），凭证改成用户自填 `STENCIL_API_KEY`；OIDC public client id 与 issuer/scope 名是协议契约，**改名即登录失败** |
-| **待替代** | `qa.omp.sh/v1/grievances`（P1）、`skills.omp.sh`（P2）、`live.omp.sh`（P3） | 用户可主动触达的外部依赖，上游关停即失效 |
+| **待替代** | `skills.omp.sh`（P2）、`live.omp.sh`（P3）；`qa.omp.sh` 已替换 ✓（见 §3c） | 用户可主动触达的外部依赖，上游关停即失效 |
 
 ## 1. 保留：共享基础设施
 
@@ -61,22 +61,17 @@ bun scripts/brand/brand-check.ts
 
 ## 3. 待替代（按优先级）
 
-1. **`qa.omp.sh/v1/grievances`（P1）** — 未替代。落点
-   `packages/coding-agent/src/cli/grievances-cli.ts`、
-   `src/tools/report-tool-issue.ts`、`src/tools/settings.ts`。
-   方案：改 GitHub Issues API；自建表单系统放到租服务器之后。纯 HTTP 客户端，
-   抽象清晰，替换风险低。
-2. **`skills.omp.sh`（P2）** — 支持但未改默认源。落点
+1. **`skills.omp.sh`（P2）** — 支持但未改默认源。落点
    `src/skillshare/client.ts`、`src/commands/skill.ts`、
    `src/slash-commands/builtin-skills.ts`、`src/cli/command-help.ts`、
    `packages/wire/src/skillshare.ts`。已有 npm 包
    `@linxiraos/linxira-skills`（v0.1.1，96 技能，npm+git，零服务器依赖）。
-3. **`live.omp.sh`（P3）** — 语音服务，与 Stencil 账号同源，依赖服务决策，
+2. **`live.omp.sh`（P3）** — 语音服务，与 Stencil 账号同源，依赖服务决策，
    优先级最低。落点 `src/stream/clip-upload.ts`、`src/cli/command-help.ts`、
    `packages/wire/src/stream.ts`、`catalog/.../stencil.kdl` 注释。
 
-> ⚠️ 改 URL 时：`qa.omp.sh` 3 处、`skills.omp.sh` 5 处都在 **CLI 可见文案**里，
-> 必须同时改提示文本，否则用户看到「提交反馈到上游」而请求发到我们这边。
+> ⚠️ 改 URL 时：`skills.omp.sh` 5 处都在 **CLI 可见文案**里，必须同时改提示
+> 文本，否则用户看到「提交反馈到上游」而请求发到我们这边。
 
 ### 3b. 品牌指向待替换（`replace-brand`，非功能风险）
 
@@ -93,7 +88,8 @@ bun scripts/brand/brand-check.ts
 
 | 项 | 结果 |
 |---|---|
-| 安装站点脚本 | `F:\Linxira-OS\Linxira-OS.github.io`（Astro，推 `master` 自动部署）：安装脚本原本下载 `zeta-windows-x64.exe` / `zeta-linux-x64`，而 CI 实际发布 `zeta-cli-*` —— **两个平台的安装脚本都必然失败**。已改为 `zeta-cli-*` 并安装为 `zetacode`（裸 `zeta` 是工作台 bin，会互相遮蔽）。站点仓库提交 `90d2e14`。 |
+| **`qa.omp.sh/v1/grievances` → GitHub Issues（2026-10-11）** | 三处落点（`src/cli/grievances-cli.ts`、`src/tools/report-tool-issue.ts`、`src/tools/settings.ts`）改走新客户端 `packages/coding-agent/src/grievances/client.ts`：目标仓库取 `ZETA_ISSUE_REPO`（默认 `Linxira-OS/linxira-zeta`），令牌链 `GITHUB_TOKEN` → `GH_TOKEN` → `dev.autoqaPush.token` → `gh auth token`；401/403/404/422 有各自可操作提示；**无令牌不发请求**，改为打印成文 issue + 预填 `issues/new` URL；每条 body 明示"将公开发布"。标签：工具缺陷 `bug`、手动反馈 `feedback`。已删除 `dev.autoqaPush.endpoint` 与 `PI_AUTO_QA_PUSH_URL`/`_TOKEN`。守卫把该端点标为 `replaced` 且 `files: []`——任何落点回归即红。 |
+| 安装站点脚本 | `F:\Linxira-OS\Linxira-OS.github.io`（Astro，推 `master` 自动部署）：安装脚本原本下载 `zeta-windows-x64.exe` / `zeta-linux-x64`，而 CI 实际发布 `zeta-cli-*` —— **两个平台的安装脚本都必然失败**。已改为 `zeta-cli-*` 并安装为 `zetacode`（裸 `zeta` 是工作台 bin，会互相遮蔽）。站点仓库提交 `90d2e14`，已推送。 |
 | `.ompcast` → `.zetacast` | 已改完。 |
 
 另有两处**保留**的引用需要知晓：`src/discovery/builtin.ts` 的

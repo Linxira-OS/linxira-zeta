@@ -982,19 +982,7 @@ export const cfgDevAutoqa = register({
 		group: "Developer",
 		label: "Auto QA",
 		description:
-			"Automated tool issue reporting (xd://report_issue). On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
-	},
-});
-
-export const cfgDevAutoqaPushEndpoint = register({
-	id: "dev.autoqaPush.endpoint",
-	type: "string",
-	default: "https://qa.omp.sh/v1/grievances" as const,
-	ui: {
-		tab: "tools",
-		group: "Developer",
-		label: "Auto QA Push Endpoint",
-		description: "Full URL receiving Auto QA JSON reports (default https://qa.omp.sh/v1/grievances)",
+			"Automated tool issue reporting (xd://report_issue). Reports are filed as GitHub issues on ZETA_ISSUE_REPO. On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
 	},
 });
 
