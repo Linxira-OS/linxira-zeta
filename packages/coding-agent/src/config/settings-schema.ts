@@ -6109,18 +6109,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Developer",
 			label: "Auto QA",
 			description:
-				"Automated tool issue reporting (xd://report_issue). On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
-		},
-	},
-
-	"dev.autoqaPush.endpoint": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "tools",
-			group: "Developer",
-			label: "Auto QA Push Endpoint",
-			description: "Full URL receiving Auto QA JSON reports (leave empty to disable push)",
+				"Automated tool issue reporting (xd://report_issue). Reports are filed as GitHub issues on ZETA_ISSUE_REPO. On by default; the first report asks for consent, and denying it disables reporting until re-enabled explicitly",
 		},
 	},
 

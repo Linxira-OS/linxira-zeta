@@ -1947,11 +1947,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"dev.autoqa": {
 		label: "自动 QA",
 		description:
-			"自动化工具问题上报（xd://report_issue）。默认开启；首次上报请求同意，拒绝后上报被禁用，直到显式重新启用",
-	},
-	"dev.autoqaPush.endpoint": {
-		label: "自动 QA 推送端点",
-		description: "接收自动 QA JSON 报告的完整 URL（留空则禁用推送）",
+			"自动化工具问题上报（xd://report_issue）。报告以 GitHub issue 形式提交到 ZETA_ISSUE_REPO。默认开启；首次上报请求同意，拒绝后上报被禁用，直到显式重新启用",
 	},
 	"zeta.contextCache.enabled": {
 		label: "启用上下文缓存",
@@ -2089,10 +2085,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"dev.autoqaConsent": {
 		label: "AutoQA 同意",
 		description: "确认允许 AutoQA 自动化质量检查流程",
-	},
-	"dev.autoqaPush.token": {
-		label: "AutoQA 推送令牌",
-		description: "AutoQA 结果推送使用的认证令牌",
 	},
 	"edit.recoverInlineEdits": {
 		label: "恢复内联编辑载荷",

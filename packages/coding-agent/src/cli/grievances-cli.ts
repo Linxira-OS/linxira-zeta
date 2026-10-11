@@ -3,7 +3,9 @@
  */
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Settings } from "../config/settings";
-import { flushGrievances, openAutoQaDb } from "../tools/report-tool-issue";
+import { resolveIssueRepo } from "../grievances/client";
+import { M } from "../i18n";
+import { flushGrievances, type FlushResult, openAutoQaDb } from "../tools/report-tool-issue";
 
 interface GrievanceRow {
 	id: number;
@@ -203,11 +205,29 @@ function makeProgressBar(total: number, width = 30): ProgressBar {
 }
 
 /**
- * Manually drain every unpushed grievance to the configured backend,
- * ignoring the user-facing consent gate (manual push is the user's
- * explicit "yes ship these now" intent).
+ * Print the composed issue and the prefilled new-issue URL when no GitHub
+ * token was available. Nothing was submitted; say so plainly.
+ */
+function printManualFallback(result: FlushResult): void {
+	console.log(chalk.yellow(M.grManualHeaderFmt.replace("%s", resolveIssueRepo())));
+	if (result.manualUrl) console.log(chalk.underline(M.grManualPrefilledFmt.replace("%s", result.manualUrl)));
+	if (!result.composed) return;
+	console.log(chalk.dim(M.grManualComposedHeader));
+	console.log(chalk.dim(M.grManualTitleFmt.replace("%s", result.composed.title)));
+	console.log(chalk.dim(M.grManualLabelsFmt.replace("%s", result.composed.labels.join(", "))));
+	console.log(chalk.dim(M.grManualBodyLabel));
+	console.log(result.composed.body);
+}
+
+/**
+ * Manually drain every unpushed grievance to GitHub Issues, ignoring the
+ * user-facing consent gate (manual push is the user's explicit "yes ship these
+ * now" intent).
  *
- * Requires endpoint configuration (default `qa.omp.sh/v1/grievances`).
+ * Destination repo: `ZETA_ISSUE_REPO` (default {@link DEFAULT_ISSUE_REPO}).
+ * Auth: `GITHUB_TOKEN` / `GH_TOKEN` / `dev.autoqaPush.token` / `gh auth token`.
+ * Without a token the composed issues are printed with a prefilled
+ * `github.com/<repo>/issues/new` URL and nothing is sent.
  */
 export async function pushGrievances(options: PushGrievancesOptions): Promise<void> {
 	const db = openAutoQaDb();
@@ -226,6 +246,7 @@ export async function pushGrievances(options: PushGrievancesOptions): Promise<vo
 	try {
 		const result = await flushGrievances(db, settings, {
 			bypassConsent: true,
+			kind: "feedback",
 			onStart: t => {
 				total = t;
 				if (!options.json) bar = makeProgressBar(t);
@@ -240,36 +261,46 @@ export async function pushGrievances(options: PushGrievancesOptions): Promise<vo
 		}
 
 		if (result.skipped) {
-			console.log(
-				chalk.yellow(
-					"Push skipped — no endpoint configured. Set `dev.autoqaPush.endpoint` or `PI_AUTO_QA_PUSH_URL`.",
-				),
-			);
+			console.log(chalk.yellow(M.grPushSkippedDisabled));
 			return;
 		}
 		if (total === 0) {
-			console.log(chalk.dim("Nothing to push — all grievances are already shipped."));
+			console.log(chalk.dim(M.grPushNothingToPush));
+			return;
+		}
+		if (result.unauthenticated) {
+			printManualFallback(result);
+			process.exitCode = 1;
 			return;
 		}
 		const rejected = result.rejected ?? 0;
 		if (rejected > 0) {
 			console.log(
 				chalk.yellow(
-					`${rejected} grievance${rejected === 1 ? " was" : "s were"} refused by the server and marked rejected (see \`zetacode grievances list\`).`,
+					rejected === 1 ? M.grPushRejectedOne : M.grPushRejectedManyFmt.replace("%s", String(rejected)),
 				),
 			);
 		}
 		if (result.ok) {
-			console.log(chalk.green(`Pushed ${result.pushed}/${total} grievance${result.pushed === 1 ? "" : "s"}.`));
+			const urls = result.urls ?? [];
+			console.log(
+				chalk.green(
+					result.pushed === 1 ? M.grPushFiledOne : M.grPushFiledManyFmt.replace("%s", String(result.pushed)),
+				),
+			);
+			for (const url of urls) console.log(chalk.dim(url));
 			return;
 		}
 		const remaining = total - result.pushed - rejected;
 		console.log(
 			chalk.red(
-				`Push failed after ${result.pushed}/${total}; ${remaining} grievance${remaining === 1 ? "" : "s"} remain unpushed.`,
+				M.grPushFailedFmt
+					.replace("%s", String(result.pushed))
+					.replace("%s", String(total))
+					.replace("%s", String(remaining)),
 			),
 		);
-		if (result.error) console.log(chalk.red(`Server said: ${result.error}`));
+		if (result.error) console.log(chalk.red(M.grPushServerSaidFmt.replace("%s", result.error)));
 		process.exitCode = 1;
 	} finally {
 		db.close();

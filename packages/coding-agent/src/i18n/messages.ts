@@ -3286,6 +3286,31 @@ export interface Messages {
 	adQuotaResetsWord: string; // "resets"
 	adQuotaTitleFmt: string; // "Quota: %s"
 	adQuotaResetsInFmt: string; // "%s in %s"
+
+	// grievances → GitHub Issues (grievances/client.ts, cli/grievances-cli.ts)
+	grNoToken: string; // no GitHub token available; nothing was sent
+	grErrTokenRejected: string; // HTTP 401 from the GitHub API
+	grErrForbiddenFmt: string; // HTTP 403; %s = owner/repo
+	grErrRepoNotFoundFmt: string; // HTTP 404; %s = owner/repo
+	grErrUnprocessableFmt: string; // HTTP 422; %s = API detail (or grErrNoDetail)
+	grErrNoDetail: string; // placeholder when the API returned no detail
+	grErrHttpFmt: string; // "HTTP %s: %s"
+	grErrHttpStatusFmt: string; // "HTTP %s"
+	grErrNetworkFmt: string; // transport failure; %s = error text
+	grPushSkippedDisabled: string; // auto-QA reporting off / consent missing
+	grPushNothingToPush: string; // queue already drained
+	grPushRejectedOne: string; // exactly one row parked as rejected
+	grPushRejectedManyFmt: string; // %s parked rows
+	grPushFiledOne: string; // exactly one issue created
+	grPushFiledManyFmt: string; // %s issues created
+	grPushFailedFmt: string; // "Push failed after %s/%s; %s still unpushed."
+	grPushServerSaidFmt: string; // "GitHub said: %s"
+	grManualHeaderFmt: string; // unauthenticated fallback header; %s = owner/repo
+	grManualPrefilledFmt: string; // prefilled new-issue URL; %s = URL
+	grManualComposedHeader: string; // composed-issue preview header
+	grManualTitleFmt: string; // "Title: %s"
+	grManualLabelsFmt: string; // "Labels: %s"
+	grManualBodyLabel: string; // "Body:"
 }
 
 export { M } from "./index";

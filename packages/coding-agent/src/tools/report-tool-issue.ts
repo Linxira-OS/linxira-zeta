@@ -21,21 +21,22 @@
  * read the persisted decision live without prompting. `PI_AUTO_QA_PUSH=1` bypasses
  * the dialog for headless environments.
  *
- * When the user grants consent, push is automatically active against the
- * bundled endpoint (`dev.autoqaPush.endpoint`, default `qa.omp.sh`). Each
- * insert schedules a background flush that POSTs pending rows and marks them
- * pushed on HTTP 2xx. Rows the collector permanently refuses (400/413/422) are
- * isolated by bisecting the batch and parked with the server's error, so a
- * single bad row can't block the queue. `PI_AUTO_QA_PUSH=1` forces push in
- * non-interactive environments where the consent dialog never fires. Device
- * execution is never blocked on the network and never throws.
+ * When the user grants consent, push is automatically active: each insert
+ * schedules a background flush that files pending rows as GitHub issues (one
+ * issue per grievance, on `ZETA_ISSUE_REPO`). Rows GitHub permanently refuses
+ * (HTTP 400/413/422 — an unacceptable payload) are parked with the API's error
+ * so a single bad row can't block the queue. Transient failures (network, 5xx,
+ * rate limit, auth/permission, missing repo) leave rows queued for the next
+ * flush. `PI_AUTO_QA_PUSH=1` forces push in non-interactive environments where
+ * the consent dialog never fires. Device execution is never blocked on the
+ * network and never throws.
  */
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { FetchImpl } from "@linxiraos/pi-ai";
-import { $env, $flag, getAutoQaDbPath, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
+import { $flag, getAutoQaDbPath, logger, VERSION } from "@linxiraos/pi-utils";
 import type { Settings } from "..";
 import type { ToolSession } from "./index";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
@@ -44,7 +45,8 @@ import type { XdevDispatch } from "./xdev";
 import { REPORT_ISSUE_DEVICE_NAME, REPORT_ISSUE_DEVICE_PATH } from "@linxiraos/pi-tui/tools/report-tool-issue";
 import { truncateHeadBytes } from "@linxiraos/pi-tui/tools/streaming-output";
 
-import { cfgDevAutoqa, cfgDevAutoqaConsent, cfgDevAutoqaPushEndpoint, cfgDevAutoqaPushToken } from "./settings";
+import { type ComposedIssue, type GhTokenRunner, type GrievanceKind, submitGrievance } from "../grievances/client";
+import { cfgDevAutoqa, cfgDevAutoqaConsent, cfgDevAutoqaPushToken } from "./settings";
 
 /** Usage text for `read xd://report_issue`. */
 export function reportIssueDeviceUsage(): string {
@@ -61,15 +63,16 @@ export function isReportIssueToolCall(toolCall: { name: string; arguments?: Reco
 }
 
 /**
- * Maximum `tool` length the collector accepts, in UTF-8 bytes. An oversized
- * entry makes the collector reject the *whole* batch with HTTP 400, so
- * grievances are clamped at record time and again at send time — rows recorded
- * before the clamp existed still sit in users' databases.
+ * Maximum `tool` length retained in the local row, in UTF-8 bytes. Historical
+ * limit imposed by the retired upstream collector: an oversized entry made it
+ * reject the whole batch. Grievances recorded before the clamp existed still
+ * sit in users' databases, so the send-time clamp keeps their rows tidy even
+ * though GitHub imposes no such limit.
  */
 const MAX_TOOL_BYTES = 128;
 
 /**
- * Clamp a grievance to the collector's field limits.
+ * Clamp a legacy grievance's `tool` field.
  *
  * An over-long `tool` is prose the model put on line 1 instead of a tool name,
  * so the original line is kept at the head of the report and only the stored
@@ -292,17 +295,25 @@ export function openAutoQaDb(): Database | null {
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface FlushResult {
-	/** Rows the collector accepted this flush. */
+	/** Rows the backend accepted this flush. */
 	pushed: number;
 	ok: boolean;
 	skipped?: boolean;
 	/**
-	 * Rows the collector permanently refused. They are parked as `pushed = -1`
+	 * Rows GitHub permanently refused. They are parked as `pushed = -1`
 	 * and never retried; only present when non-zero.
 	 */
 	rejected?: number;
-	/** Last collector error (`HTTP <status>: <body>`), for CLI reporting. */
+	/** Last error, for CLI reporting. */
 	error?: string;
+	/** `html_url` of every issue created this flush, in send order. */
+	urls?: string[];
+	/** Set when no GitHub token was available: nothing was sent. */
+	unauthenticated?: boolean;
+	/** Prefilled new-issue URL for the first unsent row (unauthenticated only). */
+	manualUrl?: string;
+	/** Composed issue for the first unsent row (unauthenticated only). */
+	composed?: ComposedIssue;
 }
 
 /**
@@ -312,16 +323,24 @@ export interface FlushResult {
  */
 export interface FlushOptions {
 	/**
-	 * Skip the `dev.autoqaConsent === "granted"` gate in
-	 * {@link resolvePushConfig}. Endpoint configuration is still required.
-	 * Reserved for explicit user-driven pushes (CLI `grievances push`,
-	 * future debug recipes); never set from the device's auto-flush path.
+	 * Skip the `dev.autoqaConsent === "granted"` gate. Reserved for explicit
+	 * user-driven pushes (CLI `grievances push`, future debug recipes); never
+	 * set from the device's auto-flush path.
 	 */
 	bypassConsent?: boolean;
 	/**
-	 * Fetch implementation for the push POST. Defaults to global fetch.
+	 * Fetch implementation for the issue POSTs. Defaults to global fetch.
 	 */
 	fetch?: FetchImpl;
+	/**
+	 * Label the created issues carry. Tool-defect rows skip this and default
+	 * to `"bug"`; the manual `zetacode grievances push` uses `"feedback"`.
+	 */
+	kind?: GrievanceKind;
+	/** `gh` binary path for `gh auth token`; `null` disables that fallback (tests). */
+	ghPath?: string | null;
+	/** `gh auth token` runner (tests). */
+	runGhAuthToken?: GhTokenRunner;
 	/**
 	 * Fires once at the start of the loop with the snapshot count of
 	 * unpushed rows. Subsequent inserts won't be reflected (the count is
@@ -329,29 +348,14 @@ export interface FlushOptions {
 	 */
 	onStart?: (totalUnpushed: number) => void;
 	/**
-	 * Fires after every successfully shipped batch with the running pushed
+	 * Fires after every successfully filed issue with the running pushed
 	 * count. Reporters compare against the `totalUnpushed` they saw in
 	 * `onStart` to advance their bar.
 	 */
 	onProgress?: (pushedSoFar: number) => void;
 }
 
-interface PushConfig {
-	endpoint: string;
-	token: string | undefined;
-}
-
-const FLUSH_TIMEOUT_MS = 5_000;
 const FAILURE_COOLDOWN_MS = 30_000;
-/**
- * Per-request batch size. The worker loops until no unpushed rows remain,
- * shipping `FLUSH_BATCH_SIZE` rows per POST. Tunes the trade-off between
- * request count and request size — 50 keeps each payload well under the
- * default `maxBody` limit on the autoqa collector while letting a
- * realistic backlog (a few hundred legacy rows on first flush after the
- * consent grant) drain in single-digit requests.
- */
-const FLUSH_BATCH_SIZE = 50;
 
 let inFlightFlush: Promise<FlushResult> | null = null;
 let lastFailureAt = 0;
@@ -362,32 +366,17 @@ export function __resetAutoQaFlushStateForTests(): void {
 	lastFailureAt = 0;
 }
 
-function envOverrideString(name: string): string | undefined {
-	const value = $env[name];
-	if (typeof value !== "string") return undefined;
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function resolvePushConfig(settings: Settings | undefined, bypassConsent: boolean): PushConfig | null {
-	if (!isAutoQaEnabled(settings)) return null;
-
-	// Consent IS the push opt-in for the auto-flush path. `bypassConsent`
-	// covers explicit user-driven pushes (`zetacode grievances push`) where the
-	// user clearly intends to ship regardless of dialog state. The
-	// `PI_AUTO_QA_PUSH` env flag stays as a CI/headless override too.
-	if (!bypassConsent) {
-		const consented = (settings ? cfgDevAutoqaConsent.get(settings) : undefined) === "granted";
-		if (!consented && !$flag("PI_AUTO_QA_PUSH")) return null;
-	}
-
-	const endpoint =
-		envOverrideString("PI_AUTO_QA_PUSH_URL") ?? (settings ? cfgDevAutoqaPushEndpoint.get(settings) : undefined);
-	if (!endpoint || endpoint.trim().length === 0) return null;
-
-	const token =
-		envOverrideString("PI_AUTO_QA_PUSH_TOKEN") ?? (settings ? cfgDevAutoqaPushToken.get(settings) : undefined);
-	return { endpoint: endpoint.trim(), token: token && token.length > 0 ? token : undefined };
+/**
+ * Whether the flush path may run: Auto-QA enabled, and — unless the push is
+ * explicitly user-driven — consent granted (or the `PI_AUTO_QA_PUSH`
+ * CI/headless override). The repo and token are resolved by the shared GitHub
+ * client, so there is no endpoint to configure here.
+ */
+function pushAllowed(settings: Settings | undefined, bypassConsent: boolean): boolean {
+	if (!isAutoQaEnabled(settings)) return false;
+	if (bypassConsent) return true;
+	const consented = (settings ? cfgDevAutoqaConsent.get(settings) : undefined) === "granted";
+	return consented || $flag("PI_AUTO_QA_PUSH");
 }
 
 interface GrievanceRow {
@@ -398,31 +387,13 @@ interface GrievanceRow {
 	report: string;
 }
 
-/** Cap on collector error text kept for logs, `FlushResult`, and `push_error`. */
-const MAX_PUSH_ERROR_CHARS = 300;
-
-async function describeErrorResponse(response: Response): Promise<string> {
-	let detail = "";
-	try {
-		detail = (await response.text()).trim();
-	} catch {
-		/* body already consumed or not readable — status alone is the error */
-	}
-	if (detail.length > MAX_PUSH_ERROR_CHARS) detail = `${detail.slice(0, MAX_PUSH_ERROR_CHARS)}…`;
-	return detail ? `HTTP ${response.status}: ${detail}` : `HTTP ${response.status}`;
-}
-
-type BatchOutcome =
-	/** Collector accepted every entry. */
-	| { kind: "sent" }
-	/** Collector refused the payload; retrying the same bytes is pointless. */
-	| { kind: "rejected"; error: string }
-	/** Transient failure (network, 5xx, rate limit, auth) — try again later. */
-	| { kind: "retry"; error: string };
-
-async function performFlush(db: Database, config: PushConfig, options: FlushOptions = {}): Promise<FlushResult> {
+async function performFlush(
+	db: Database,
+	settings: Settings | undefined,
+	options: FlushOptions = {},
+): Promise<FlushResult> {
 	const selectStmt = db.prepare(
-		"SELECT id, model, version, tool, report FROM grievances WHERE pushed = 0 ORDER BY id ASC LIMIT ?",
+		"SELECT id, model, version, tool, report FROM grievances WHERE pushed = 0 ORDER BY id ASC LIMIT 1",
 	);
 	// Planning snapshot — fires once so progress reporters can size their bar.
 	// Mid-flight inserts are NOT folded in (the worker drains them too, but
@@ -431,118 +402,95 @@ async function performFlush(db: Database, config: PushConfig, options: FlushOpti
 		const totalRow = db.prepare("SELECT COUNT(*) AS n FROM grievances WHERE pushed = 0").get() as { n: number };
 		options.onStart(totalRow.n);
 	}
-	const fetchImpl = options.fetch ?? fetch;
+	const settingsToken = settings ? cfgDevAutoqaPushToken.get(settings) : undefined;
+	const submitOptions = {
+		settingsToken,
+		fetch: options.fetch,
+		ghPath: options.ghPath,
+		runGhAuthToken: options.runGhAuthToken,
+	};
+	const urls: string[] = [];
 	let totalPushed = 0;
 	let totalRejected = 0;
 	let lastError: string | undefined;
+	let manualUrl: string | undefined;
+	let composed: ComposedIssue | undefined;
 
-	const postBatch = async (batch: GrievanceRow[]): Promise<BatchOutcome> => {
-		const body = JSON.stringify({
-			agent: { name: "omp", version: VERSION },
-			installId: getInstallId(),
-			// Coarse host fingerprint for triage — `darwin`/`linux`/`win32` +
-			// `arm64`/`x64`. Useful for "is this bug arch-specific?" without
-			// leaking the user's machine name.
-			platform: process.platform,
-			arch: process.arch,
-			// Clamped on the way out so rows recorded before the record-time
-			// clamp existed still ship instead of poisoning every batch.
-			entries: batch.map(row => ({ ...row, ...clampGrievance(row.tool, row.report) })),
-		});
-		const headers: Record<string, string> = { "content-type": "application/json" };
-		if (config.token) headers.authorization = `Bearer ${config.token}`;
-
-		let response: Response;
-		try {
-			response = await fetchImpl(config.endpoint, {
-				method: "POST",
-				headers,
-				body,
-				signal: AbortSignal.timeout(FLUSH_TIMEOUT_MS),
-			});
-		} catch (error) {
-			return { kind: "retry", error: String(error) };
-		}
-		if (response.ok) return { kind: "sent" };
-		const error = await describeErrorResponse(response);
-		// 400/413/422 mean the payload itself is unacceptable — retrying the same
-		// bytes can only fail again. 5xx, 408, 429 and auth failures (401/403) say
-		// nothing about the rows, so they stay retryable.
-		const status = response.status;
-		const permanent = status === 400 || status === 413 || status === 422;
-		return permanent ? { kind: "rejected", error } : { kind: "retry", error };
-	};
-
-	/**
-	 * Ship one batch, bisecting on payload rejections until the offending rows
-	 * are isolated and parked. `false` means a transient failure — the caller
-	 * stops the flush and leaves everything queued for the next attempt.
-	 */
-	const shipBatch = async (batch: GrievanceRow[]): Promise<boolean> => {
-		const outcome = await postBatch(batch);
-		if (outcome.kind === "sent") {
-			const ids = batch.map(r => r.id);
-			const placeholders = ids.map(() => "?").join(",");
-			db.prepare(`UPDATE grievances SET pushed = 1 WHERE id IN (${placeholders})`).run(...ids);
-			totalPushed += batch.length;
-			options.onProgress?.(totalPushed);
-			return true;
-		}
-		lastError = outcome.error;
-		if (outcome.kind === "retry") return false;
-		if (batch.length === 1) {
-			const row = batch[0];
-			if (!row) return true;
-			db.prepare("UPDATE grievances SET pushed = -1, push_error = ? WHERE id = ?").run(outcome.error, row.id);
-			totalRejected += 1;
-			logger.warn("autoqa grievance rejected", {
-				endpoint: config.endpoint,
-				id: row.id,
-				tool: row.tool,
-				error: outcome.error,
-			});
-			return true;
-		}
-		const mid = Math.floor(batch.length / 2);
-		return (await shipBatch(batch.slice(0, mid))) && (await shipBatch(batch.slice(mid)));
-	};
-
-	let ok = true;
 	for (;;) {
-		const rows = selectStmt.all(FLUSH_BATCH_SIZE) as GrievanceRow[];
-		if (rows.length === 0) break;
-		if (!(await shipBatch(rows))) {
-			lastFailureAt = Date.now();
-			logger.warn("autoqa push failed", {
-				endpoint: config.endpoint,
-				error: lastError,
-				batchSize: rows.length,
-				pushedSoFar: totalPushed,
-			});
-			ok = false;
-			break;
+		const row = selectStmt.get() as GrievanceRow | undefined;
+		if (!row) break;
+		// Clamped on the way out so rows recorded before the record-time clamp
+		// existed still produce a well-formed issue title.
+		const { tool, report } = clampGrievance(row.tool, row.report);
+		const result = await submitGrievance(
+			{ tool, report, model: row.model, version: row.version, kind: options.kind },
+			submitOptions,
+		);
+		if (result.ok) {
+			db.prepare("UPDATE grievances SET pushed = 1 WHERE id = ?").run(row.id);
+			totalPushed += 1;
+			urls.push(result.url);
+			options.onProgress?.(totalPushed);
+			continue;
 		}
+		lastError = result.error;
+		manualUrl = result.manualUrl;
+		composed = result.composed;
+		if (result.reason === "permanent") {
+			db.prepare("UPDATE grievances SET pushed = -1, push_error = ? WHERE id = ?").run(result.error, row.id);
+			totalRejected += 1;
+			logger.warn("autoqa grievance rejected", { id: row.id, tool: row.tool, error: result.error });
+			continue;
+		}
+		// No token: nothing was sent, so leave the whole queue untouched and let
+		// the caller surface the prefilled URL. The cooldown keeps the device's
+		// auto-flush from recomposing a report on every later insert.
+		if (result.reason === "unauthenticated") {
+			lastFailureAt = Date.now();
+			logger.warn("autoqa push skipped: no GitHub token", { manualUrl: result.manualUrl });
+			return {
+				pushed: totalPushed,
+				ok: false,
+				unauthenticated: true,
+				manualUrl,
+				composed,
+				error: lastError,
+				...(urls.length > 0 ? { urls } : {}),
+			};
+		}
+		// Transient failure — stop and leave the remaining rows queued.
+		lastFailureAt = Date.now();
+		logger.warn("autoqa push failed", { error: lastError, pushedSoFar: totalPushed });
+		return {
+			pushed: totalPushed,
+			ok: false,
+			error: lastError,
+			manualUrl,
+			composed,
+			...(totalRejected > 0 ? { rejected: totalRejected } : {}),
+			...(urls.length > 0 ? { urls } : {}),
+		};
 	}
 	return {
 		pushed: totalPushed,
-		ok,
+		ok: true,
 		...(totalRejected > 0 ? { rejected: totalRejected } : {}),
 		...(lastError ? { error: lastError } : {}),
+		...(urls.length > 0 ? { urls } : {}),
 	};
 }
 
 /**
- * Flush queued grievances to the configured backend.
+ * Flush queued grievances to GitHub Issues.
  */
 export async function flushGrievances(
 	db?: Database,
 	settings?: Settings,
 	options: FlushOptions = {},
 ): Promise<FlushResult> {
-	const config = resolvePushConfig(settings, options.bypassConsent === true);
-	if (!config) return { pushed: 0, ok: false, skipped: true };
-
 	const bypass = options.bypassConsent === true;
+	if (!pushAllowed(settings, bypass)) return { pushed: 0, ok: false, skipped: true };
+
 	if (!bypass && inFlightFlush) return inFlightFlush;
 
 	if (!bypass && lastFailureAt > 0 && Date.now() - lastFailureAt < FAILURE_COOLDOWN_MS) {
@@ -554,10 +502,10 @@ export async function flushGrievances(
 
 	const promise = (async () => {
 		try {
-			return await performFlush(handle, config, options);
+			return await performFlush(handle, settings, options);
 		} catch (error) {
 			lastFailureAt = Date.now();
-			logger.warn("autoqa push failed", { endpoint: config.endpoint, error: String(error) });
+			logger.warn("autoqa push failed", { error: String(error) });
 			return { pushed: 0, ok: false };
 		}
 	})();
