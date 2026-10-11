@@ -26,12 +26,12 @@ export default class Git extends Command {
 		dir: Flags.string({ char: "C", description: "Run in another directory instead of the current one" }),
 	};
 
-	static examples = ["zeta git", "zeta git HEAD~2", "zeta git -C ~/projects/app"];
+	static examples = ["zetacode git", "zetacode git HEAD~2", "zetacode git -C ~/projects/app"];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Git);
 		if (process.stdout.isTTY !== true || process.stdin.isTTY !== true) {
-			console.error("zeta git is interactive and requires a TTY");
+			console.error("zetacode git is interactive and requires a TTY");
 			process.exit(1);
 		}
 		// Load settings first so the user's configured theme/symbol preset apply

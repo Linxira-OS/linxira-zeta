@@ -215,6 +215,73 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'id: "tracking.enabled"',
 		why: "tracking tool gate setting (registry, since v18.3.1)",
 	},
+	{
+		file: "packages/coding-agent/src/tools/index.ts",
+		symbol: "tracking_update: s => new TrackingTool(s),",
+		why: "tracking tool registration in BUILTIN_TOOLS (upstream-owned file)",
+	},
+	{
+		file: "packages/coding-agent/src/tools/index.ts",
+		symbol: 'if (name === "tracking_update") return cfgTrackingEnabled.get(session.settings);',
+		why: "tracking_update is opt-in: the settings gate lives in the shared isToolAllowed (upstream-owned file)",
+	},
+	{
+		file: "packages/coding-agent/src/session/todo-tracker.ts",
+		symbol: 'this.#host.getActiveToolNames().includes("tracking_update")',
+		why: "todo-phase tracking mirror nudge guard (upstream-owned file)",
+	},
+	{
+		file: "packages/coding-agent/src/session/prewalk.ts",
+		symbol: "await mirrorPlanToTracking({",
+		why: "approved-plan mirror into tracking/plans (upstream-owned file)",
+	},
+	{
+		file: "packages/coding-agent/src/prompts/system/plan-mode-approved.md",
+		symbol: '{{#has tools "tracking_update"}}',
+		why: "plan-approved prompt teaches the tracking phase mirror only when the tool is present (upstream-owned file)",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway.ts",
+		symbol: "const TRACKING_RE = /^\\/api\\/tracking\\/?$/;",
+		why: "tracking point-in-time read route constant / dispatch wiring",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway.ts",
+		symbol: "const TRACKING_EVENTS_RE = /^\\/api\\/tracking\\/events$/;",
+		why: "tracking SSE route constant / dispatch wiring",
+	},
+	{
+		file: "packages/coding-agent/src/config/settings-schema.ts",
+		symbol: '"tracking.enabled": {',
+		why: "schema twin of the tracking setting — keeps it in the web settings panel (getPathsForTab) and the AppShell dock gate",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/tracking.ts",
+		symbol: "export async function handleTrackingEvents(req: Request): Promise<Response> {",
+		why: "tracking SSE watcher handler (tracking_changed notification)",
+	},
+	// -- Tracking web-ui surface (vendored from omp-web: these files are
+	//    upstream-owned copies, so a re-vendor can silently drop the panel) -----
+	{
+		file: "web-ui/components/AppShell.tsx",
+		symbol: 'label: t("dock.window.tracking")',
+		why: "tracking dock entry label (tracking.enabled-gated dock window)",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/en.ts",
+		symbol: '"dock.window.tracking": "Tracking"',
+		why: "EN dock label for the tracking window",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/zh-CN.ts",
+		symbol: '"dock.window.tracking": "追踪"',
+		why: "zh-CN dock label for the tracking window",
+	},
+	{
+		file: "web-ui/next.config.ts",
+		symbol: '"/api/tracking/:path*"',
+		why: "beforeFiles rewrite routing /api/tracking + /events to the runtime gateway",
+	},
 	// -- Brand surface (duplicate of brand-check MUST_CONTAIN but merges can hit
 	//    files brand-check skips, and these need per-merge re-verification) -----
 	{

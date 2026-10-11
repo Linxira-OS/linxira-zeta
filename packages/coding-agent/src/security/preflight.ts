@@ -363,7 +363,7 @@ export async function createSecurityScanPlan(
 	const material = await buildPlanMaterial(request, adapter);
 	const fingerprint = `omp-security-plan/v1:sha256:${Bun.SHA256.hash(canonicalSecurityJson(material), "hex")}`;
 	return parseSecurityScanPlan({
-		documentType: "omp-security.scan-plan",
+		documentType: "zeta-security.scan-plan",
 		schemaVersion: "1.0",
 		id: createSecurityPlanId(fingerprint),
 		createdAt: request.createdAt ?? new Date().toISOString(),

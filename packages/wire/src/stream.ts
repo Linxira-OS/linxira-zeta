@@ -145,7 +145,7 @@ export const STREAM_AUTH_ENV = "STENCIL_API_KEY";
 export const CLIP_DESCRIPTION_MAX = 5000;
 
 /**
- * `POST /api/clips` answer. The body is an `.ompcast` recording (optionally
+ * `POST /api/clips` answer. The body is an `.zetacast` recording (optionally
  * `Content-Encoding: gzip`) whose header may carry `title` and `description`;
  * the bearer identifies the uploading Stencil account.
  */

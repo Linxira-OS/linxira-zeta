@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "sdk/python/omp-rpc/src"))
+sys.path.insert(0, str(REPO_ROOT / "sdk/python/zeta-rpc/src"))
 
-from omp_rpc import (
+from zeta_rpc import (
     MessageEndEvent,
     MessageStartEvent,
     MessageUpdateEvent,
@@ -642,7 +642,7 @@ def resolve_omp_bin(raw: str | None) -> str:
     found = shutil.which("omp")
     if not found:
         raise SystemExit(
-            "Could not find `omp` on PATH and could not resolve the repo CLI. Set --omp-bin or OMP_BIN."
+            "Could not find `zetacode` on PATH and could not resolve the repo CLI. Set --omp-bin or OMP_BIN."
         )
     return found
 
@@ -912,7 +912,7 @@ def parse_args(description: str) -> argparse.Namespace:
     parser.add_argument(
         "--omp-bin",
         default=os.environ.get("OMP_BIN"),
-        help="Executable to launch. Defaults to the repo checkout CLI, then falls back to `omp` on PATH.",
+        help="Executable to launch. Defaults to the repo checkout CLI, then falls back to `zetacode` on PATH.",
     )
     parser.add_argument(
         "--timeout", type=float, default=60.0, help="Per-turn timeout in seconds."

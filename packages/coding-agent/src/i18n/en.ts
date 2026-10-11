@@ -2163,6 +2163,7 @@ export const en = {
 	cmdSessionPin: "Pin the current provider to a stored OAuth account",
 	cmdJobs: "Show async background jobs status",
 	cmdJobsFull: "Show full, untruncated command lines",
+	cmdJobsKill: "Cancel a running background job",
 	cmdRatchet: "Build (or reuse) an eval for an LLM flow, then hillclimb it unattended",
 	cmdModelpreset: "Save and switch model presets (role models + thinking level)",
 	cmdModelpresetList: "List saved presets",
@@ -2310,6 +2311,7 @@ export const en = {
 	cmdAdvisorAcp: "Toggle advisor",
 	cmdDumpAcp: "Return full transcript as plain text, with LLM request JSON path",
 	cmdDumpAll: "Write a zip with the main transcript, LLM request JSON, and one file per subagent",
+	cmdDumpAnon: "Write a zip of anonymized session JSONL (contents redacted, metadata kept) plus subagents",
 	cmdEffortFmt: "Set reasoning effort (thinking level, intelligence) for this session; %s cycles levels",
 	cmdEffortOff: "No reasoning",
 	cmdEffortMinimal: "Very brief reasoning (~1k tokens)",
@@ -2428,8 +2430,8 @@ export const en = {
 	stateActive: "active",
 	stateInactive: "inactive",
 
-	compactModeSoft: "Summarize locally with the active model (skip remote endpoints)",
-	compactModeRemote: "Summarize via the remote endpoint / provider-native compaction",
+	compactModeSoft: "Summarize locally with the active model (skip server compaction)",
+	compactModeRemote: "Summarize via OpenAI-compatible server compaction, then fall back to a local summary",
 	compactModeSnapcompact: "Archive history onto dense bitmap images the model reads back (no LLM call)",
 
 	setEnterSaveHint: "Enter to save · Esc to cancel · Clear field to unset",

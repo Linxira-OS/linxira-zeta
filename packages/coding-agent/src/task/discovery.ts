@@ -26,7 +26,7 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import { findAllNearestProjectConfigDirs, getConfigDirs } from "../config";
 import { pluginUsesClaudeModelDialect } from "../discovery/agent-plugin-format";
 import { listClaudePluginRoots } from "../discovery/helpers";
-import { listOmpExtensionRoots } from "../discovery/omp-extension-roots";
+import { listOmpExtensionRoots } from "../discovery/zeta-extension-roots";
 import { loadBundledAgents, parseAgent } from "./agents";
 import type { AgentSource } from "@linxiraos/pi-tui/tools/task";
 import type { AgentDefinition } from "./types";

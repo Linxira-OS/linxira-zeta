@@ -951,12 +951,16 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			return { ...item, depth, open: this.#childrenByParent.has(ref.id) ? true : undefined };
 		}
 		if (!metrics) return item;
+		// A running agent's active time ticks terminal-side from the age at send; a settled one
+		// is frozen text. Progress `durationMs` was current when its frame arrived, so age it to now
+		// — re-sending the stale value on every repaint rewinds Tern's clock. A first frame can
+		// report 0 ms, so a progress timestamp alone makes the row clockable.
+		const progressAt = observed?.progress ? observed.progressAt : undefined;
 		const facts: Record<string, string | number> = {
 			cost: formatCost(metrics.cost),
-			// A running agent's active time ticks terminal-side; a settled one is frozen text.
 			time:
-				ref.status === "running" && metrics.durationMs > 0
-					? metrics.durationMs
+				ref.status === "running" && (metrics.durationMs > 0 || progressAt !== undefined)
+					? metrics.durationMs + (progressAt === undefined ? 0 : Math.max(0, Date.now() - progressAt))
 					: formatDuration(metrics.durationMs),
 			req: metrics.requests,
 			tools: metrics.tools,
@@ -979,10 +983,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		const out: NativeChild[] = [
 			node(
 				"row",
-				{ role: "omp.hub.title", gap: "sm", align: "center" },
+				{ role: "zeta.hub.title", gap: "sm", align: "center" },
 				[
 					text(sanitizeDisplaySingleLine(ref.displayName || ref.id), {
-						role: "omp.picker.title",
+						role: "zeta.picker.title",
 						truncate: "end",
 					}),
 					node("badge", { text: ref.status, tone: statusDot(ref.status) }),
@@ -1006,7 +1010,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			}
 			facts.splice(facts[0]?.k === "Task" ? 1 : 0, 0, { k: "Model", v: model });
 		}
-		out.push(node("kv", { items: facts, layout: "grid", role: "omp.hub.kv" }, undefined, "facts"));
+		out.push(node("kv", { items: facts, layout: "grid", role: "zeta.hub.kv" }, undefined, "facts"));
 		if (metrics?.contextTokens !== undefined && metrics.contextWindow) {
 			const ratio = Math.max(0, Math.min(1, metrics.contextTokens / metrics.contextWindow));
 			const label = `${formatNumber(metrics.contextTokens)} / ${formatNumber(metrics.contextWindow)} · ${Math.round(ratio * 100)}%`;
@@ -1035,7 +1039,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			return node(
 				"row",
 				{
-					role: "omp.hub.activity.row",
+					role: "zeta.hub.activity.row",
 					gap: "sm",
 					align: "baseline",
 					actions: { click: "transcript" },
@@ -1051,7 +1055,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			);
 		});
 		if (rows.length === 0) rows.push(text([span("No response or tool activity yet", "dim")]));
-		out.push(node("section", { head: "Recent activity", role: "omp.hub.activity" }, rows, "recentActivity"));
+		out.push(node("section", { head: "Recent activity", role: "zeta.hub.activity" }, rows, "recentActivity"));
 		return out;
 	}
 

@@ -28,11 +28,24 @@ import { isDimension, isSessionFrame, type StreamScreenFrame } from "./protocol"
 import type { StreamRedactor } from "./redactor";
 
 export const RECORDING_VERSION = 1;
-export const RECORDING_EXTENSION = ".ompcast";
+export const RECORDING_EXTENSION = ".zetacast";
+
+/**
+ * Header key written by versions before the `.ompcast` -> `.zetacast` rename.
+ * Kept readable so recordings captured by an older install still play after an
+ * in-place upgrade; new files always carry the canonical key.
+ */
+const LEGACY_RECORDING_KEY = "ompcast";
+/** Extension written before the rename; still listed so old clips stay reachable. */
+const LEGACY_RECORDING_EXTENSION = ".ompcast";
+
+function isRecordingFilename(name: string): boolean {
+	return name.endsWith(RECORDING_EXTENSION) || name.endsWith(LEGACY_RECORDING_EXTENSION);
+}
 
 /** First line of a recording file. */
 export interface RecordingHeader {
-	ompcast: number;
+	zetacast: number;
 	cols: number;
 	rows: number;
 	title: string;
@@ -80,7 +93,7 @@ export async function latestRecording(): Promise<string | null> {
 	}
 	let latest: { file: string; mtimeMs: number } | null = null;
 	for (const name of names) {
-		if (!name.endsWith(RECORDING_EXTENSION)) continue;
+		if (!isRecordingFilename(name)) continue;
 		const file = path.join(dir, name);
 		const { mtimeMs } = await fs.stat(file);
 		if (!latest || mtimeMs > latest.mtimeMs) latest = { file, mtimeMs };
@@ -98,8 +111,9 @@ export function parseRecording(text: string): Recording {
 	const { values, error } = Bun.JSONL.parseChunk(text);
 	if (error) throw new Error(`malformed recording: ${error.message}`);
 	const [header, ...lines] = values;
-	if (!isRecordingHeader(header)) throw new Error("not an omp recording (missing ompcast header)");
-	if (header.ompcast !== RECORDING_VERSION) throw new Error(`unsupported recording version ${header.ompcast}`);
+	if (!isRecordingHeader(header)) throw new Error(`not a recording (missing ${RECORDING_EXTENSION} header)`);
+	const version = header.zetacast;
+	if (version !== RECORDING_VERSION) throw new Error(`unsupported recording version ${version}`);
 	const events: RecordingEvent[] = [];
 	for (const [index, line] of lines.entries()) {
 		if (
@@ -120,13 +134,21 @@ export function parseRecording(text: string): Recording {
 function isRecordingHeader(value: unknown): value is RecordingHeader {
 	if (!value || typeof value !== "object") return false;
 	const header = value as Record<string, unknown>;
-	return (
-		typeof header.ompcast === "number" &&
-		isDimension(header.cols) &&
-		isDimension(header.rows) &&
-		typeof header.title === "string" &&
-		typeof header.createdAt === "string"
-	);
+	// Accept the pre-rename key so recordings from an older install stay
+	// playable; normalize it to the canonical field so the rest of the parser
+	// (and the clip upload path) never sees two shapes.
+	const version = header.zetacast ?? header[LEGACY_RECORDING_KEY];
+	if (
+		typeof version !== "number" ||
+		!isDimension(header.cols) ||
+		!isDimension(header.rows) ||
+		typeof header.title !== "string" ||
+		typeof header.createdAt !== "string"
+	) {
+		return false;
+	}
+	if (header.zetacast === undefined) header.zetacast = version;
+	return true;
 }
 
 export interface SessionRecorderOptions {
@@ -159,7 +181,7 @@ export class SessionRecorder {
 		this.#encoder = new StreamPaintEncoder(size, options.redactor);
 		this.#writer = Bun.file(options.path).writer();
 		const header: RecordingHeader = {
-			ompcast: RECORDING_VERSION,
+			zetacast: RECORDING_VERSION,
 			cols: size.columns,
 			rows: size.rows,
 			title: options.title,

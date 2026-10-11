@@ -14,7 +14,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createTools, type ToolSession } from "@linxiraos/zeta/tools";
 
-// Regression for #8272: with plan.defaultOnStartup:true, a headless `omp -p`
+// Regression for #8272: with plan.defaultOnStartup:true, a headless `zetacode -p`
 // used to arm plan mode before the initial prompt. The only headless plan-exit
 // was a watcher that fires on a successful `xd://propose` execute-dispatch, so a
 // model that never emits exactly that dispatch (the natural plan-mode behavior:

@@ -18,11 +18,11 @@ export default class Compress extends Command {
 	};
 
 	static examples = [
-		"zeta compress prompts/tools/read.md",
-		"zeta compress notes.md -o notes.compressed.md",
-		"zeta compress 'src/prompts/**/*.md' -i",
-		"zeta compress a.md b.md c.md -i -n 8",
-		"zeta compress spec.md -r 5 -m opus",
+		"zetacode compress prompts/tools/read.md",
+		"zetacode compress notes.md -o notes.compressed.md",
+		"zetacode compress 'src/prompts/**/*.md' -i",
+		"zetacode compress a.md b.md c.md -i -n 8",
+		"zetacode compress spec.md -r 5 -m opus",
 	];
 
 	async run(): Promise<void> {

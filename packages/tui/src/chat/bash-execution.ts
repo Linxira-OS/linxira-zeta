@@ -185,7 +185,7 @@ export class BashExecutionComponent extends Container {
 						]),
 			);
 			const common = {
-				role: "omp.bash",
+				role: "zeta.bash",
 				status: this.#status,
 				startedAt: this.#startedAt,
 				expanded: this.#expanded,

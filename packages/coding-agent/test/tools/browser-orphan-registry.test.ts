@@ -26,7 +26,7 @@ import {
 } from "@linxiraos/zeta/tools/browser/orphan-registry";
 import type { Browser } from "puppeteer-core";
 
-const DAEMON_NAME = "omp.browser.headless";
+const DAEMON_NAME = "zeta.browser.headless";
 
 /** Unique per-test scope so registry dirs never collide across the suite. */
 function makeScope(): SharedTargetScope {

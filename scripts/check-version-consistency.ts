@@ -25,6 +25,21 @@ import * as path from "node:path";
 
 const root = path.resolve(import.meta.dir, "..");
 
+/**
+ * Rust workspace members whose version rides the single Zeta line, so
+ * `Cargo.lock` must pin them the same way `Cargo.toml` does. Vendored crates
+ * (`crates/vendor/**`) are deliberately absent — they keep their own upstream
+ * version, and `brush-core` rides 0.5.0 while we ride 1.1.x.
+ */
+const RUST_MEMBERS = [
+	"crates/pi-edit/Cargo.toml",
+	"crates/pi-natives/Cargo.toml",
+	"crates/pi-voice/Cargo.toml",
+	"crates/pi-predict/Cargo.toml",
+	"crates/pi-iso/Cargo.toml",
+	"crates/pi-shell/Cargo.toml",
+];
+
 // Must match ALL_PACKAGES in scripts/release-v2.ts / set-version.ts.
 const ALL_PACKAGES = [
 	"utils",
@@ -141,6 +156,33 @@ function main(): void {
 		if (!content.includes(needle)) problems.push(`${file}: missing ${needle} (natives build-version mechanism)`);
 	}
 
+	// Cargo.lock workspace members. A merge that takes the lock wholesale brings
+	// upstream's version line with it, and `cargo metadata --locked` then refuses
+	// to run — which takes `cargo deny --locked --offline` down before it reaches
+	// the license check. Nothing above catches it: this file verifies manifests,
+	// catalog keys, Cargo.toml and the README badge, and never read the lock.
+	// Members come from the manifests, not a `pi-*` pattern, so vendored crates
+	// riding their own line (brush-core) are left alone.
+	const lockPath = path.join(root, "Cargo.lock");
+	if (fs.existsSync(lockPath)) {
+		const lock = fs.readFileSync(lockPath, "utf8");
+		const lockLines = lock.split(/\r?\n/);
+		for (const manifest of RUST_MEMBERS) {
+			const manifestPath = path.join(root, manifest);
+			if (!fs.existsSync(manifestPath)) continue;
+			const name = /^name\s*=\s*"([^"]+)"/m.exec(fs.readFileSync(manifestPath, "utf8"))?.[1];
+			if (!name) continue;
+			for (let i = 0; i < lockLines.length; i++) {
+				if (lockLines[i] !== `name = "${name}"`) continue;
+				const pinned = /^version = "([^"]+)"$/.exec(lockLines[i + 1] ?? "")?.[1];
+				if (pinned && pinned !== expected) {
+					problems.push(`Cargo.lock: ${name} pinned at ${pinned}, expected ${expected}`);
+				}
+				break;
+			}
+		}
+	}
+
 	// Desktop rides the same line (electron-builder + ZETA_APP_VERSION read it).
 	const desktopVersion = readVersion("desktop/package.json");
 	if (desktopVersion !== expected) problems.push(`desktop/package.json: ${desktopVersion} != ${expected}`);
@@ -173,7 +215,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + sentinel + desktop + README badge + crates/*/BUILD.bazel (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + sentinel + desktop + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
 	);
 }
 

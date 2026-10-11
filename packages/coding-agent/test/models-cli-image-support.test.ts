@@ -6,7 +6,7 @@ import { renderProviderModels } from "@linxiraos/zeta/cli/models-cli";
 import Models from "@linxiraos/zeta/commands/models";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
 
-const TEST_CONFIG: CliConfig = { bin: "omp", version: "test", commands: new Map() };
+const TEST_CONFIG: CliConfig = { bin: "zetacode", version: "test", commands: new Map() };
 
 afterEach(() => {
 	vi.restoreAllMocks();

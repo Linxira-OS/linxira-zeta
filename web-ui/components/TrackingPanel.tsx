@@ -27,6 +27,8 @@ interface TrackingData {
 	status: TrackingStatus | null;
 	actions: TrackingAction[];
 	sessions: { name: string; content: string }[];
+	plans: { name: string; content: string }[];
+	summaries: { name: string; content: string }[];
 }
 
 type SubTab = "overview" | "status" | "plans" | "logs" | "sessions" | "charts";
@@ -148,12 +150,12 @@ export function TrackingPanel({ cwd }: Props) {
 
 	const renderPlans = () => {
 		if (!data) return null;
-		if (data.sessions.length === 0) {
+		if (data.plans.length === 0) {
 			return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyPlans")}</div>;
 		}
 		return (
 			<div style={{ padding: "12px 16px", overflow: "auto", flex: 1 }}>
-				{data.sessions.map(s => (
+				{data.plans.map(s => (
 					<details key={s.name} style={{ marginBottom: 12 }}>
 						<summary
 							style={{
@@ -373,7 +375,7 @@ export function TrackingPanel({ cwd }: Props) {
 						{ label: t("tracking.stat.totalOps"), value: data.actions.length },
 						{ label: t("tracking.stat.opTypes"), value: opCounts.size },
 						{ label: t("tracking.stat.activeDays"), value: dateCounts.size },
-						{ label: t("tracking.stat.plans"), value: data.sessions.length },
+						{ label: t("tracking.stat.plans"), value: data.plans.length },
 					].map(s => (
 						<div
 							key={s.label}

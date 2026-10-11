@@ -17,7 +17,7 @@ import {
 	type TerminalNotification,
 	Text,
 } from "@linxiraos/pi-tui";
-import { getSessionsDir } from "@linxiraos/pi-utils";
+import { APP_NAME, getSessionsDir } from "@linxiraos/pi-utils";
 import { editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { DynamicBorder } from "@linxiraos/pi-tui/chrome/dynamic-border";
 import { OverlayPanel } from "@linxiraos/pi-tui/chrome/overlay-box";
@@ -479,7 +479,7 @@ export class DebugSelectorComponent extends OverlayPanel {
 		if (!suppressed) {
 			const sessionName = this.ctx.sessionManager.getSessionName();
 			const notification: TerminalNotification = {
-				title: sessionName || "omp",
+				title: sessionName || APP_NAME,
 				body: "Terminal protocol test",
 				type: "test",
 				actions: "focus",

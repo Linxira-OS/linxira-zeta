@@ -87,7 +87,7 @@ describe("TernSocketClient", () => {
 		const failure = await client.connect().catch((error: unknown) => error);
 		expect(failure).toBeInstanceOf(TernError);
 		expect((failure as TernError).kind).toBe("connect");
-		expect((failure as TernError).message).toContain("without omp's JSON protocol");
+		expect((failure as TernError).message).toContain("without Zeta's JSON protocol");
 		expect(isTernUnavailable(failure)).toBe(true);
 	});
 

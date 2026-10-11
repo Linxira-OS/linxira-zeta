@@ -72,9 +72,9 @@ export class ReportPanel extends OverlayPanel {
 	#native: { scroll: NativeScroll | undefined; node: NativeNode } | undefined;
 
 	constructor(options: ReportPanelOptions) {
-		super(options.title, "omp.overlay.report");
+		super(options.title, "zeta.overlay.report");
 		this.nativeOverlay = {
-			role: "omp.overlay.report",
+			role: "zeta.overlay.report",
 			size: "lg",
 			anchor: "center",
 			head: options.head ?? options.title,

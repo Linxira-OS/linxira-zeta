@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { disableProvider, enableProvider } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { clearAgentPluginRootCache } from "@linxiraos/zeta/discovery/agent-plugin-format";
-import { clearOmpExtensionCliRoots, injectOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/omp-extension-roots";
+import { clearOmpExtensionCliRoots, injectOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@linxiraos/zeta/discovery/helpers";
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 import { removeWithRetries } from "@linxiraos/pi-utils";

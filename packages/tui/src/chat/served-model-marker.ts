@@ -86,7 +86,7 @@ export class ServedModelMarkerComponent extends MessageDividerComponent {
 			labelColor: "warning",
 			ruleColor: "dim",
 			ruleWidth: 10,
-			role: "omp.marker.served-model",
+			role: "zeta.marker.served-model",
 			native: {
 				icon: "warn",
 				label: () => {

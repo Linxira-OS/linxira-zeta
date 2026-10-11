@@ -6,7 +6,7 @@ import { getBlobsDir, refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { webGatewayFetch } from "../../src/server/web-gateway";
 import { BlobStore } from "../../src/session/blob-store";
 
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR", "ZETA_CODING_AGENT_DIR"];
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
 const savedEnv = new Map<string, string | undefined>();
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -14,7 +14,6 @@ async function setup(token?: string): Promise<void> {
 	const agentDir = await mkdtemp(join(tmpdir(), "zeta-gw-blobs-"));
 	cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 	for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
-	process.env.ZETA_CODING_AGENT_DIR = agentDir;
 	process.env.ZETA_CODING_AGENT_DIR = agentDir;
 	if (token) await writeFile(join(agentDir, "web.yml"), `remote:\n  token: ${token}\n`, "utf8");
 	refreshDirsFromEnv();
@@ -45,6 +44,17 @@ describe("gateway blob reads", () => {
 		expect(response.headers.get("content-type")).toBe("application/octet-stream");
 		expect(response.headers.get("cache-control")).toBe("no-store");
 		expect(await response.text()).toBe("gateway blob bytes");
+	});
+
+	test("serves image blobs with their real type so an <img> can render them", async () => {
+		await setup();
+		const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8, 0x41)]);
+		const stored = await new BlobStore(getBlobsDir()).put(png);
+
+		const response = await webGatewayFetch(request(stored.hash), "127.0.0.1");
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toBe("image/png");
+		expect(Buffer.from(await response.arrayBuffer()).equals(png)).toBe(true);
 	});
 
 	test("supports bodyless HEAD reads and rejects unsupported methods", async () => {

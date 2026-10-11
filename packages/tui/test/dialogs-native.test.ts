@@ -82,7 +82,7 @@ describe("dialogs under a native surface", () => {
 		const viaPointer = vi.fn();
 		const pointed = ask(viaPointer);
 		const press = (act: string) => {
-			const button = find(pointed.describe(CX), node => node.p?.role === "omp.btn" && node.key === act);
+			const button = find(pointed.describe(CX), node => node.p?.role === "zeta.btn" && node.key === act);
 			if (!button) throw new Error(`no ${act} button`);
 			pointed.handleNativeEvent({ type: "action", key: button.path, act, mods: [] });
 		};
@@ -104,7 +104,7 @@ describe("dialogs under a native surface", () => {
 		const dialog = ask(onSubmit);
 		const tabs = find(dialog.describe(CX), node => node.k === "tabs");
 		dialog.handleNativeEvent({ type: "select", key: tabs!.path, item: "1" });
-		const options = find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const options = find(dialog.describe(CX), node => node.p?.role === "zeta.ask.options");
 		expect(options?.node.key).toBe("q1");
 		dialog.handleNativeEvent({ type: "activate", key: options!.path, item: "option:0" });
 		dialog.handleNativeEvent({ type: "action", key: "x", act: "submit", mods: [] });
@@ -129,8 +129,8 @@ describe("dialogs under a native surface", () => {
 			expect(harness.region("layer")?.c ?? []).toEqual([]);
 			const dock = harness.region("dock")!;
 			// Framed as the prompt composer (its root role), so Tern spaces it the same way.
-			const root = dock.c?.find(node => node.p?.role === "omp.editor");
-			expect(root?.c?.some(node => node.p?.role === "omp.ask.options")).toBe(true);
+			const root = dock.c?.find(node => node.p?.role === "zeta.editor");
+			expect(root?.c?.some(node => node.p?.role === "zeta.ask.options")).toBe(true);
 			expect(harness.findAll(node => node.k === "overlay")).toEqual([]);
 		} finally {
 			harness.stop();
@@ -163,7 +163,7 @@ describe("dialogs under a native surface", () => {
 		);
 		expect(pointed.nativeOverlay.head).toBe("Ship credits");
 		const body = pointed.describe();
-		expect(JSON.stringify(find(body, node => node.p?.role === "omp.plan.body")?.node)).not.toContain(
+		expect(JSON.stringify(find(body, node => node.p?.role === "zeta.plan.body")?.node)).not.toContain(
 			"# Ship credits",
 		);
 		pointed.handleNativeEvent({ type: "action", key: "tools/copyPlan", act: "copyPlan", mods: [] });
@@ -211,7 +211,7 @@ describe("dialogs under a native surface", () => {
 		dialog.showAuth("https://auth.example.com/authorize?x=1", "Enter code: ABCD-1234");
 		const pending = dialog.showManualInput("Paste the authorization code:");
 		const described = dialog.describe();
-		expect(find(described, node => node.p?.role === "omp.login.code")?.node.p).toMatchObject({
+		expect(find(described, node => node.p?.role === "zeta.login.code")?.node.p).toMatchObject({
 			spans: [{ t: "ABCD-1234", s: "mono" }],
 		});
 		dialog.pasteText("code-123");

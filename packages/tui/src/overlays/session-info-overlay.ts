@@ -73,13 +73,13 @@ function copyLine(
 			gap: "sm",
 			align: "center",
 			grow: 1,
-			role: "omp.info.copy",
+			role: "zeta.info.copy",
 			actions: { click: "copy" },
 			title,
 		},
 		[
 			text(spans, { ...props, grow: 1, shrink: 1 }),
-			node("icon", { name: "copy", role: "omp.info.copy.ic", aria: title }),
+			node("icon", { name: "copy", role: "zeta.info.copy.ic", aria: title }),
 		],
 		key,
 	);
@@ -178,7 +178,7 @@ export class SessionInfoOverlay implements Component {
 			let items: { k: string; v: TspSpan[] }[] = [];
 			const flush = (): void => {
 				if (items.length === 0) return;
-				children.push(node("kv", { items, layout: "grid", role: "omp.info.kv" }));
+				children.push(node("kv", { items, layout: "grid", role: "zeta.info.kv" }));
 				items = [];
 			};
 			for (const entry of section.entries) {
@@ -201,7 +201,7 @@ export class SessionInfoOverlay implements Component {
 							{
 								gap: "md",
 								align: "start",
-								role: "omp.info.file",
+								role: "zeta.info.file",
 							},
 						),
 					);

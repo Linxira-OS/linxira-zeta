@@ -52,6 +52,10 @@ class AdvisorHeader implements Component {
 		this.#uiTheme = uiTheme;
 	}
 
+	releaseRenderCaches(): void {
+		this.#cache = undefined;
+	}
+
 	invalidate(): void {
 		this.#cache = undefined;
 	}
@@ -80,6 +84,10 @@ class AdvisorNotes implements Component {
 		this.#entries = entries;
 		this.#hidden = hidden;
 		this.#uiTheme = uiTheme;
+	}
+
+	releaseRenderCaches(): void {
+		this.#cache = undefined;
 	}
 
 	invalidate(): void {
@@ -191,11 +199,11 @@ export function createAdvisorMessageCard(
 		];
 		if (blockers > 0) head.push(span(`${uiTheme.sep.dot}${blockers} blocker${blockers === 1 ? "" : "s"}`, "error"));
 		const body = notes.map((entry, index) =>
-			text(advisorNoteSpans(entry), { wrap: "word", role: "omp.advisor.note", key: `n${index}` }),
+			text(advisorNoteSpans(entry), { wrap: "word", role: "zeta.advisor.note", key: `n${index}` }),
 		);
 		return card(
 			{
-				role: "omp.advisor",
+				role: "zeta.advisor",
 				tone: blockers > 0 ? "error" : "info",
 				head,
 				collapsible: notes.length > COLLAPSED_NOTES,
@@ -235,6 +243,9 @@ export function createAdvisorMessageCard(
 		},
 		invalidate(): void {
 			disclosure.invalidate();
+		},
+		releaseRenderCaches(): void {
+			disclosure.releaseRenderCaches();
 		},
 		dispose(): void {
 			disclosure.dispose();

@@ -36,13 +36,13 @@ export default class Cleanse extends Command {
 	};
 
 	static examples = [
-		"zeta cleanse",
-		"zeta cleanse --all",
+		"zetacode cleanse",
+		"zetacode cleanse --all",
 		'zetacode cleanse "ts errors"',
-		"zeta cleanse -n 8",
-		"zeta cleanse -m opus",
-		"zeta cleanse -t",
-		"zeta cleanse --agents 12 --model anthropic/claude-opus-4-6",
+		"zetacode cleanse -n 8",
+		"zetacode cleanse -m opus",
+		"zetacode cleanse -t",
+		"zetacode cleanse --agents 12 --model anthropic/claude-opus-4-6",
 	];
 
 	async run(): Promise<void> {

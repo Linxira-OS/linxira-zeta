@@ -391,7 +391,7 @@ describe("handleModelsConfigDiscover", () => {
 		expect(empty).toHaveLength(1);
 	});
 
-	it("resolves env-named request keys through zeta config-value rules", async () => {
+	it("resolves env-named request keys through zetacode config-value rules", async () => {
 		process.env.ACME_DISCOVERY_KEY = "resolved-acme-key";
 		try {
 			const calls = spyFetch(() => jsonResponse({ data: [{ id: "m-1" }] }));

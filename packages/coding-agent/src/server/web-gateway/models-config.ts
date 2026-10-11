@@ -618,7 +618,7 @@ function stringRecord(value: unknown): Record<string, string> {
  * Resolve the credentials for a provider config coming from the browser.
  *
  * The upstream reference ran the config through a throwaway external
- * `ModelRuntime`; here the same resolution uses the zeta config-value rules
+ * `ModelRuntime`; here the same resolution uses the zetacode config-value rules
  * for `!command` / env-var indirections, then a throwaway `ModelRegistry` over
  * a temp models file sharing the gateway auth storage (the same isolation
  * pattern as `handleModelsConfigTest` in `models.ts`) for stored credentials.

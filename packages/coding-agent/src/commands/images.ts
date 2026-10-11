@@ -22,12 +22,12 @@ export default class Images extends Command {
 		timeout: Flags.integer({ description: "External health probe timeout in seconds" }),
 	};
 	static examples = [
-		"zeta images",
-		"zeta images status --json",
-		"zeta images doctor",
-		"zeta images probe --timeout 15",
-		"zeta images purge",
-		"zeta images purge --all --apply",
+		"zetacode images",
+		"zetacode images status --json",
+		"zetacode images doctor",
+		"zetacode images probe --timeout 15",
+		"zetacode images purge",
+		"zetacode images purge --all --apply",
 	];
 
 	async run(): Promise<void> {

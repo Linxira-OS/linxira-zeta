@@ -649,7 +649,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 			"tool",
 			{
 				...head,
-				role: "omp.tool.read",
+				role: "zeta.tool.read",
 				name: "read",
 				title: "Read",
 				status,
@@ -729,7 +729,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		const hidden = lines.length - shown;
 		if (hidden > 0) {
 			blocks.push(
-				keyed(text([span(formatCount("more line", hidden), "muted")], { role: "omp.tool.stats" }), "more"),
+				keyed(text([span(formatCount("more line", hidden), "muted")], { role: "zeta.tool.stats" }), "more"),
 			);
 		}
 		return blocks;
@@ -788,7 +788,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 				node(
 					"card",
 					{
-						role: "omp.tool.read.preview",
+						role: "zeta.tool.read.preview",
 						tone: READ_STATUS_TONE[entry.status],
 						head: pathValue ? [title, span(" "), span(pathValue, "path")] : [title],
 						collapsible: true,
@@ -810,7 +810,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		}
 		return card(
 			{
-				role: "omp.tool.read",
+				role: "zeta.tool.read",
 				// A group is plain rows: the per-file previews are the only frames.
 				variant: "bare",
 				status,
@@ -851,7 +851,7 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 
 	#nativeUsage(usage: ReadUsageRow, key: string): NativeNode {
 		const line = formatUsageRow(usage.usage, usage.durationMs, usage.ttftMs, usage.timestamp, usage.turnElapsedMs);
-		return text([span(plainText(line), "dim")], { wrap: "word", key, role: "omp.usage" });
+		return text([span(plainText(line), "dim")], { wrap: "word", key, role: "zeta.usage" });
 	}
 
 	#updateDisplay(): void {
@@ -1143,6 +1143,10 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 		const title = pathDisplay ? `Read ${pathDisplay}` : "Read";
 		let cachedWidth: number | undefined;
 		let cachedLines: string[] | undefined;
+		const dropCache = () => {
+			cachedWidth = undefined;
+			cachedLines = undefined;
+		};
 		const expanded = this.#expanded;
 		const component: Component = {
 			render: (width: number) => {
@@ -1164,10 +1168,8 @@ export class ReadToolGroupComponent extends Container implements ToolExecutionHa
 				cachedWidth = width;
 				return cachedLines;
 			},
-			invalidate: () => {
-				cachedWidth = undefined;
-				cachedLines = undefined;
-			},
+			invalidate: dropCache,
+			releaseRenderCaches: dropCache,
 		};
 		this.addChild(component);
 	}

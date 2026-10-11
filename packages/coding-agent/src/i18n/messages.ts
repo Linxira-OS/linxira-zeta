@@ -2163,6 +2163,7 @@ export interface Messages {
 	cmdSessionPin: string;
 	cmdJobs: string;
 	cmdJobsFull: string;
+	cmdJobsKill: string;
 	cmdRatchet: string;
 	cmdModelpreset: string;
 	cmdModelpresetList: string;
@@ -2301,6 +2302,7 @@ export interface Messages {
 	cmdAdvisorAcp: string;
 	cmdDumpAcp: string;
 	cmdDumpAll: string;
+	cmdDumpAnon: string;
 	cmdEffortFmt: string; // %s = shift+tab key hint
 	cmdEffortOff: string;
 	cmdEffortMinimal: string;
@@ -2787,8 +2789,8 @@ export interface Messages {
 	pluginSelectorNoPluginsInMarketplaces: string; // "Configured marketplaces have no plugins"
 	// ── Plugin settings panel (pi-tui overlays/plugin-settings.ts) ──────────
 	pluginSettingsNoPlugins: string; // "No plugins installed"
-	pluginSettingsInstallNpmHint: string; // "Install npm plugins:        zeta plugin install <package>"
-	pluginSettingsInstallMarketplaceHint: string; // "Install marketplace plugins: zeta plugin install <name>@<marketplace>"
+	pluginSettingsInstallNpmHint: string; // "Install npm plugins:        zetacode plugin install <package>"
+	pluginSettingsInstallMarketplaceHint: string; // "Install marketplace plugins: zetacode plugin install <name>@<marketplace>"
 	pluginSettingsListFooter: string; // "Enter to configure · Esc to go back"
 	pluginSettingsFeaturesFmt: string; // "%d/%d features"
 	pluginSettingsShadowedByFmt: string; // "shadowed by %s"

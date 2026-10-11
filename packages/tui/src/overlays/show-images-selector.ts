@@ -14,7 +14,7 @@ export class ShowImagesSelectorComponent extends OverlayPanel {
 	#sheet: SelectListSheet;
 
 	constructor(currentValue: boolean, onSelect: (show: boolean) => void, onCancel: () => void) {
-		super(tuiText("showImagesTitle", "Show Images"), "omp.overlay.show-images");
+		super(tuiText("showImagesTitle", "Show Images"), "zeta.overlay.show-images");
 
 		const items: SelectItem[] = [
 			{

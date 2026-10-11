@@ -19,7 +19,7 @@ export const LSP_MUX_SOCKET_ENV = "OMP_LSP_MUX_SOCKET";
 export const LSP_MUX_PROJECT_DIR_ENV = "OMP_LSP_MUX_PROJECT_DIR";
 
 /** Stable broker daemon name for the shared LSP mux. */
-export const LSP_MUX_DAEMON_NAME = "omp.lsp.mux";
+export const LSP_MUX_DAEMON_NAME = "zeta.lsp.mux";
 
 /** Broker readiness regex matched against the banner printed by the worker. */
 export const LSP_MUX_READY_PATTERN = String.raw`zetacode lsp mux listening on \S+`;
@@ -48,7 +48,7 @@ export function lspMuxEndpoint(projectDir: string, runtimeDir: string): string {
  * result: {@link MuxConnectResult}. After the response the link carries
  * ordinary LSP traffic for that server.
  */
-export const MUX_CONNECT_METHOD = "omp/muxConnect";
+export const MUX_CONNECT_METHOD = "zeta/muxConnect";
 
 /**
  * Liveness probe answered with {@link MUX_PING_RESULT} without binding the

@@ -1,6 +1,6 @@
 /**
- * Set the OS-visible process name (`/proc/self/comm`) so `omp` shows up as
- * `omp` — not `bun` — in `ps`, `pgrep`, `killall`, `top`, `htop`, and systemd.
+ * Set the OS-visible process name (`/proc/self/comm`) so `zetacode` shows up as
+ * `zetacode` — not `bun` — in `ps`, `pgrep`, `killall`, `top`, `htop`, and systemd.
  *
  * Bun's `process.title` setter only stores the value on the JS side; unlike
  * Node/libuv it never calls `prctl(PR_SET_NAME)`, so the kernel's `comm` stays

@@ -34,11 +34,13 @@ import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-roles";
 import { loadCapability } from "../discovery";
+import { registerLanguageConfigOverride } from "../i18n";
 import { AgentStorage } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { isRegisteredSearchEngine } from "../web/search/provider";
+import { cfgLanguage } from "../zeta-settings";
 import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
 import {
 	type AnySetting,
@@ -4062,6 +4064,16 @@ export const settings = new Proxy({} as Settings, {
 		}
 		return value;
 	},
+});
+
+// Wire the persisted `language` setting into the i18n catalogue resolver. The
+// indirection lives here — `i18n/index.ts` never imports the settings graph, so
+// the catalogues stay out of the startup-prepaint module weight. Detection
+// consults this lazily (config > env > system locale); an unconfigured setting
+// yields to environment detection instead of pinning the schema default.
+registerLanguageConfigOverride(() => {
+	if (!isSettingsInitialized()) return undefined;
+	return cfgLanguage.isConfigured(settings) ? cfgLanguage.get(settings) : undefined;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

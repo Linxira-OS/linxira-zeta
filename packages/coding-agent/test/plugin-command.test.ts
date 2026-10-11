@@ -3,7 +3,7 @@ import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import Plugin from "@linxiraos/zeta/commands/plugin";
 
 const TEST_CONFIG: CliConfig = {
-	bin: "omp",
+	bin: "zetacode",
 	version: "0.0.0-test",
 	commands: new Map(),
 };
