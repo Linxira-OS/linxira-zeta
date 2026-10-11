@@ -15,6 +15,13 @@
  * pre-fix writer used) runs in the same child so the assertions cannot pass
  * vacuously. /proc makes this Linux-only; the helper's flag handling is
  * covered on every platform by `packages/utils/test/fs-open.test.ts`.
+ *
+ * The control depends on the runtime, not only on zeta: on bun 1.4.3 — the
+ * build CI resolved while `packageManager` was a `>=1.4` range — a freshly
+ * `fs.openSync`-ed descriptor no longer reaches the exec'd child, so the control
+ * cannot be constructed there and the test fails on a runtime change rather
+ * than a product one (bun 1.4.2 hands it over). `package.json` therefore pins
+ * an exact bun and `scripts/check-ci-surface.ts` keeps that pin exact.
  */
 import { afterAll, expect, test } from "bun:test";
 import * as fs from "node:fs";
