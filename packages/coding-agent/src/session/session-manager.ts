@@ -1055,7 +1055,7 @@ export class SessionManager {
 	/**
 	 * Hold this process's ownership claim on `#sessionFile`, moving it off a
 	 * previous path. Only write paths claim, so the first process to write a
-	 * file owns it and inspection (`zeta share`, `--export`, `render`) never
+	 * file owns it and inspection (`zetacode share`, `--export`, `render`) never
 	 * does. A failed claim is retried on the next write, so a writer takes over
 	 * once the owner closed the session or exited.
 	 */

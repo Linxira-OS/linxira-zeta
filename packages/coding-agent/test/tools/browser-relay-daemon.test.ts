@@ -284,7 +284,7 @@ try {
 		}
 	}, 60_000);
 
-	it("replaces a broker-owned relay from an older omp version, also after another omp stopped it, but not a starting replacement, a newer relay, or a manually started one", async () => {
+	it("replaces a broker-owned relay from an older zetacode version, also after another zetacode stopped it, but not a starting replacement, a newer relay, or a manually started one", async () => {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-restart-"));
 		const ownedPort = await findFreeCdpPort();
 		let manualPort = await findFreeCdpPort();

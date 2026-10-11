@@ -806,7 +806,7 @@ export function getRemoteDir(): string {
  * empty/whitespace input or a path that is still relative after expansion.
  *
  * A worktree base is process-global and consumed by both creation
- * (PR checkout, task isolation) and cleanup (`zeta worktree`). A relative value
+ * (PR checkout, task isolation) and cleanup (`zetacode worktree`). A relative value
  * would resolve against whatever cwd happened to launch `zeta`, so checkout and
  * cleanup could disagree — we refuse it rather than silently bind it to cwd.
  * Worktree bases and the natives directory are process-global: a worktree base
@@ -829,7 +829,7 @@ let worktreesDirOverride: string | undefined;
 
 /**
  * Relocate the base directory for agent-managed worktrees (PR checkouts, task
- * isolation, and `zeta worktree` cleanup all read the same base). Driven by the
+ * isolation, and `zetacode worktree` cleanup all read the same base). Driven by the
  * `worktree.base` setting in coding-agent; pass `undefined`/empty to clear and
  * fall back to `OMP_WORKTREE_DIR` or the `~/.zeta/wt` default.
  *

@@ -179,7 +179,7 @@ describe("daemon metadata writes", () => {
 		expect(JSON.parse(metadata)).toMatchObject({ daemon: { state: "exited" } });
 	}, 20_000);
 
-	it("lists split-layout and legacy records in `zeta ps` offline and while the broker is live", async () => {
+	it("lists split-layout and legacy records in `zetacode ps` offline and while the broker is live", async () => {
 		using tempDir = TempDir.createSync("@zeta-broker-ps-");
 		const projectDir = path.join(tempDir.path(), "project");
 		const runtimeDir = path.join(tempDir.path(), "runtime");

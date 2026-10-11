@@ -87,7 +87,7 @@ function spawnZetaWebBin(bin: string, port: number, statsUrl?: string): WebUiChi
 		...process.env,
 		ZETA_WEB_HOSTNAME: "127.0.0.1",
 		ZETA_WEB_PORT: String(port),
-		ZETA_WEB_NO_OPEN: "1", // zeta serve handles browser opening
+		ZETA_WEB_NO_OPEN: "1", // zetacode serve handles browser opening
 		...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
 	};
 

@@ -82,7 +82,7 @@ export interface ComposerStatusCache {
 /** Optional dependencies and initial state for a standalone composer. */
 export interface ComposerOptions {
 	readonly terminal?: Terminal;
-	/** Extra TUI construction options (render scheduler injection for tests and `zeta render`). */
+	/** Extra TUI construction options (render scheduler injection for tests and `zetacode render`). */
 	readonly tuiOptions?: TUIOptions;
 	readonly preferences?: Partial<ComposerPreferences>;
 	readonly welcome?: ComposerWelcomeUpdate;

@@ -2241,7 +2241,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Startup & Updates",
 			label: "Update Channel",
-			description: "Update channel used by zeta update and the startup update check",
+			description: "Update channel used by zetacode update and the startup update check",
 			options: [
 				{ value: "stable", label: "Stable" },
 				{ value: "canary", label: "Canary" },
@@ -2425,13 +2425,13 @@ export const SETTINGS_SCHEMA = {
 			group: "Collab",
 			label: "Auto Start",
 			description:
-				"Host every interactive session via collab.relayUrl as it starts and publish it to the local registry (zeta collab list); rooms rotate on session switch",
+				"Host every interactive session via collab.relayUrl as it starts and publish it to the local registry (zetacode collab list); rooms rotate on session switch",
 			options: [
 				{ value: "off", label: "Off", description: "Share only when /collab is run" },
 				{
 					value: "view",
 					label: "View",
-					description: "Auto-host; the registry hands out view-only links (zeta collab link --view)",
+					description: "Auto-host; the registry hands out view-only links (zetacode collab link --view)",
 				},
 				{
 					value: "control",

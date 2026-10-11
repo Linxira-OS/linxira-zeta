@@ -833,7 +833,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"collab.autoStart": {
 		label: "自动开启",
 		description:
-			"会话启动时即通过 collab.relayUrl 发布每个交互式会话并登记到本地注册表（zeta collab list）；切换会话时房间随之切换",
+			"会话启动时即通过 collab.relayUrl 发布每个交互式会话并登记到本地注册表（zetacode collab list）；切换会话时房间随之切换",
 	},
 	"share.serverUrl": {
 		label: "分享服务器",

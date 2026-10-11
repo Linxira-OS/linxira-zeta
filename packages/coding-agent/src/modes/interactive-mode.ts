@@ -7913,7 +7913,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			await active.stop();
 			this.statusLine.setRecording(false);
 			this.showStatus(
-				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: zeta play · share: zeta clip`,
+				`Saved ${formatDuration(elapsed)} recording to ${active.path} · replay: zetacode play · share: zetacode clip`,
 			);
 			return;
 		}

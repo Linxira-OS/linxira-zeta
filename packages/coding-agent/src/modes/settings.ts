@@ -1100,7 +1100,7 @@ export const cfgUpdateChannel = register({
 		tab: "interaction",
 		group: "Startup & Updates",
 		label: "Update Channel",
-		description: "Update channel used by zeta update and the startup update check",
+		description: "Update channel used by zetacode update and the startup update check",
 		options: [
 			{ value: "stable", label: "Stable" },
 			{ value: "canary", label: "Canary" },
