@@ -3,11 +3,21 @@ import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { cfgLanguage } from "../zeta-settings";
-import { cfgTrackingEnabled } from "../tools/settings";
+import type { Settings } from "../config/settings";
+import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import { TRACKING_TOGGLE_NOTICE_TYPE } from "../session/todo-tracker";
 import type { TrackingStatus } from "../tools/tracking";
+import {
+	activeModeId,
+	buildDynamicToolNotice,
+	buildTimeStatusLine,
+	DYNAMIC_TOOL_NOTICE_TYPE,
+	formatMessage,
+	isDynamicToolEnabled,
+	toggleDynamicTool,
+} from "../tools/dynamic-tools";
 import { commandConsumed, usage } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
@@ -132,6 +142,64 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			runtime.ctx.editor.setText("");
 		},
 	},
+	{
+		name: "tool",
+		description: () => M.cmdTool,
+		acpDescription: "Toggle a dynamic tool on or off",
+		acpInputHint: "<name> on|off",
+		inlineHint: "<name> on|off",
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const result = toggleDynamicTool(runtime.settings, command.args);
+			if ("error" in result) return usage(result.error, runtime);
+			// The settings write re-gates the session's built-ins (cfgSessionToolGates
+			// reconcile); the notice teaches the model what just appeared or vanished.
+			if (result.changed) {
+				await runtime.session.sendCustomMessage(
+					{
+						customType: DYNAMIC_TOOL_NOTICE_TYPE,
+						content: buildDynamicToolNotice(result.name, result.enabled, activeModeId(runtime.session)),
+						display: false,
+					},
+					{ deliverAs: "nextTurn" },
+				);
+			}
+			await runtime.output(`${result.name}: ${result.enabled ? "on" : "off"}`);
+			return commandConsumed();
+		},
+	},
+	{
+		name: "time",
+		description: () => M.cmdTime,
+		acpDescription: "Show or toggle the time injection feature",
+		acpInputHint: "[status|on|off|interval <n>]",
+		inlineHint: "[status|on|off|interval <n>]",
+		subcommands: [
+			{ name: "status", description: () => M.cmdTimeStatus },
+			{ name: "on", description: () => M.cmdTimeOn },
+			{ name: "off", description: () => M.cmdTimeOff },
+			{ name: "interval", description: () => M.cmdTimeInterval },
+		],
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			const result = applyTimeCommand(runtime.settings, command.args);
+			if ("error" in result) return usage(result.error, runtime);
+			// on/off reuses the /tool toggle path: the same settings write and the
+			// same model-visible notice, gated on an actual state change.
+			if (result.changed) {
+				await runtime.session.sendCustomMessage(
+					{
+						customType: DYNAMIC_TOOL_NOTICE_TYPE,
+						content: buildDynamicToolNotice("time", result.enabled, activeModeId(runtime.session)),
+						display: false,
+					},
+					{ deliverAs: "nextTurn" },
+				);
+			}
+			await runtime.output(result.status);
+			return commandConsumed();
+		},
+	},
 ];
 
 /** Operator text plus the optional model notice for one `/tracking` invocation. */
@@ -169,6 +237,38 @@ async function resolveTrackingCommand(
 		return { text: M.cmdTrackingDisabledHint };
 	}
 	return { text: await buildTrackingReport(command, cwd) };
+}
+
+type TimeCommandResult = { error: string } | { status: string; enabled: boolean; changed: boolean };
+
+/**
+ * Apply `/time [status|on|off|interval <n>]` to `settings`. Toggling delegates
+ * to `toggleDynamicTool` so `/time on|off` and `/tool time on|off` share one
+ * implementation; the caller owns the model notice, which needs the session's
+ * active mode.
+ */
+function applyTimeCommand(settings: Settings, args: string): TimeCommandResult {
+	const tokens = args.trim().split(/\s+/).filter(Boolean);
+	const verb = (tokens[0] ?? "status").toLowerCase();
+	const rest = tokens.slice(1);
+	if (verb === "status" && rest.length === 0) {
+		return { status: buildTimeStatusLine(settings), enabled: isDynamicToolEnabled(settings, "time"), changed: false };
+	}
+	if ((verb === "on" || verb === "off") && rest.length === 0) {
+		const toggled = toggleDynamicTool(settings, `time ${verb}`);
+		if ("error" in toggled) return { error: toggled.error };
+		return { status: buildTimeStatusLine(settings), enabled: toggled.enabled, changed: toggled.changed };
+	}
+	if (verb === "interval" && rest.length === 1) {
+		const raw = rest[0] as string;
+		const value = Number(raw);
+		if (!/^\d+$/.test(raw) || !Number.isInteger(value) || value < 1) {
+			return { error: formatMessage(M.timeIntervalInvalidFmt, raw) };
+		}
+		settings.writeValue(cfgSessionTimeInjectEvery, value, "global");
+		return { status: buildTimeStatusLine(settings), enabled: isDynamicToolEnabled(settings, "time"), changed: false };
+	}
+	return { error: M.timeUsage };
 }
 
 /**

@@ -23,6 +23,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"wait",
 	"todo",
 	"web_search",
+	"time",
 	"write",
 	"memory_edit",
 	"retain",

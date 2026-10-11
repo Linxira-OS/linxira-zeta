@@ -486,6 +486,9 @@ function formatLoopLimit(
 	return `${seconds}s left`;
 }
 
+/** Zeta-only: the ultra plan workflow gets its own status-line label (lost in the v18.8.8 merge once already). */
+export const PLAN_ULTRA_LABEL = "Plan-Ultra";
+
 const modeSegment: StatusLineSegment = {
 	id: "mode",
 	render(ctx) {
@@ -493,7 +496,8 @@ const modeSegment: StatusLineSegment = {
 
 		const plan = ctx.planMode;
 		if (plan && (plan.enabled || plan.paused)) {
-			const label = plan.paused ? `Plan${pauseSuffix}` : "Plan";
+			const title = plan.workflow === "ultra" ? PLAN_ULTRA_LABEL : "Plan";
+			const label = plan.paused ? `${title}${pauseSuffix}` : title;
 			const content = withIcon(theme.icon.plan, label);
 			return {
 				content: plan.paused ? theme.fg("warning", content) : accentFg(ctx, "accent", content),
@@ -538,9 +542,10 @@ const modeSegment: StatusLineSegment = {
 	describe(ctx) {
 		const plan = ctx.planMode;
 		if (plan && (plan.enabled || plan.paused)) {
+			const title = plan.workflow === "ultra" ? PLAN_ULTRA_LABEL : "Plan";
 			return plan.paused
-				? segView([span("Plan (paused)", "warning")], "plan", "warning")
-				: segView([span("Plan", accentToken(ctx, "accent"))], "plan");
+				? segView([span(`${title} (paused)`, "warning")], "plan", "warning")
+				: segView([span(title, accentToken(ctx, "accent"))], "plan");
 		}
 		if (ctx.prewalk?.enabled) return segView([span("Prewalk", accentToken(ctx, "accent"))], "prewalk");
 		const goal = ctx.goalMode;

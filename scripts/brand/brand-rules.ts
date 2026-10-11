@@ -166,9 +166,19 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); upstream replaced it with a wordmark lockup and the π art, which must not return (v18.0.3/v18.6.0 lessons)",
 	},
 	{
+		file: "packages/tui/src/status-line/segments.ts",
+		needle: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
+		why: "the ultra plan workflow keeps its own status-line label; the upstream status-line refactor (v18.8.8) dropped it because only the plain `Plan` string survived, so the exact form is pinned",
+	},
+	{
 		file: "packages/tui/src/theme/symbols.ts",
 		needle: '"icon.omp": "ζ",',
 		why: "status-line brand icon (registry: icon.omp=ζ; nerd U+F0D57 preserved separately)",
+	},
+	{
+		file: "packages/tui/src/theme/symbols.ts",
+		needle: '"icon.omp": "zeta",',
+		why: "the ascii preset of the same icon — on terminals that cannot draw ζ this literal word is what users see, and upstream's ascii fallback is `pi` (their brand), so a merge re-introduces it silently unless the exact form is pinned (registry: icon.omp ascii preset `zeta`)",
 	},
 	{
 		file: "packages/coding-agent/src/utils/title-generator.ts",

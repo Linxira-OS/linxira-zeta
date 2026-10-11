@@ -78,6 +78,7 @@ import { SecurityScanTool } from "./security-scan";
 import { SshExecTool } from "./ssh-exec";
 import { supportsExternalThinking, ThinkTool } from "./think";
 import { TodoTool } from "./todo";
+import { TimeTool } from "./time";
 import { TrackingTool } from "./tracking";
 import { WorkspaceRunTool } from "./workspace-run";
 import { WriteTool } from "./write";
@@ -151,6 +152,8 @@ export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./security-scan";
 export * from "./think";
+export * from "./dynamic-tools";
+export * from "./time";
 export * from "./todo";
 export * from "./tts";
 export * from "./vibe";
@@ -605,6 +608,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	wait: s => new WaitTool(s),
 	todo: s => new TodoTool(s),
 	web_search: s => new WebSearchTool(s),
+	time: s => new TimeTool(s.settings),
 	write: s => new WriteTool(s),
 	memory_edit: MemoryEditTool.createIf,
 	retain: MemoryRetainTool.createIf,
@@ -834,6 +838,10 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "task") {
 			return canSpawnAtDepth(cfgTaskMaxRecursionDepth.get(session.settings), session.taskDepth ?? 0);
 		}
+		// `session.dynamicTools` deliberately does not gate tool presence: `time`
+		// must stay registered even while its injection is off, because the model
+		// needs the tool itself (action: "on") to turn the feature back on. Only
+		// the injection behavior follows the toggle.
 		return true;
 	};
 	if (includeYield && requestedTools && !requestedTools.includes("yield")) {
