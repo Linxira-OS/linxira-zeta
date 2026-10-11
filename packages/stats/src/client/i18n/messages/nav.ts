@@ -1,0 +1,46 @@
+/**
+ * Sidebar labels and group headings. Keys are slugs (`nav.<route>`); the
+ * English text is the source of truth and every locale overrides it.
+ */
+export const nav = {
+	en: {
+		"nav.usage": "Usage",
+		"nav.activity": "Activity",
+		"nav.insights": "Insights",
+		"nav.overview": "Overview",
+		"nav.models": "Models",
+		"nav.providers": "Providers",
+		"nav.costs": "Costs",
+		"nav.requests": "Requests",
+		"nav.errors": "Errors",
+		"nav.traces": "Traces",
+		"nav.tools": "Tools",
+		"nav.frustration": "Frustration",
+		"nav.projects": "Projects",
+		"nav.gain": "Gain",
+		"nav.dashboard": "zeta stats",
+		"nav.breadcrumb-stats": "stats",
+		"nav.pages": "Pages",
+		"nav.open-navigation": "Open navigation",
+	},
+	"zh-CN": {
+		"nav.usage": "用量",
+		"nav.activity": "活动",
+		"nav.insights": "洞察",
+		"nav.overview": "总览",
+		"nav.models": "模型",
+		"nav.providers": "服务商",
+		"nav.costs": "费用",
+		"nav.requests": "请求",
+		"nav.errors": "错误",
+		"nav.traces": "调用链",
+		"nav.tools": "工具",
+		"nav.frustration": "情绪压力",
+		"nav.projects": "项目",
+		"nav.gain": "收益",
+		"nav.dashboard": "zeta 统计",
+		"nav.breadcrumb-stats": "统计",
+		"nav.pages": "导航",
+		"nav.open-navigation": "打开导航",
+	},
+} as const;

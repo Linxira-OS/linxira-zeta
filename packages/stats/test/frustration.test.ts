@@ -9,6 +9,7 @@ import {
 } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { initDb, insertUserMessageStats, upsertFrustrationVerdicts } from "@linxiraos/pi-stats/db";
+import { computeUserMessageMetrics } from "@linxiraos/pi-stats/user-metrics";
 import {
 	cancelFrustrationRun,
 	estimateFrustrationRun,
@@ -28,7 +29,7 @@ afterEach(() => {
 });
 
 type Signals = Partial<
-	Pick<UserMessageStats, "yelling" | "profanity" | "anguish" | "negation" | "repetition" | "blame">
+	Pick<UserMessageStats, "yelling" | "profanity" | "anguish" | "negation" | "repetition" | "blame" | "emphasis">
 >;
 
 let entrySeq = 0;
@@ -59,6 +60,8 @@ function userMessage(
 		negation: 0,
 		repetition: 0,
 		blame: 0,
+		emphasis: 0,
+		unsupportedScript: 0,
 		...signals,
 		prose,
 		proseHash: hashOf(prose),
@@ -172,12 +175,13 @@ describe("frustration dashboard", () => {
 
 		const stats = await getFrustrationDashboardStats("all");
 
-		expect(stats.overall).toEqual({ messages: 7, judged: 3, annoyed: 6, atAssistant: 2, angry: 1 });
+		expect(stats.overall).toEqual({ messages: 7, judged: 3, unscored: 0, annoyed: 6, atAssistant: 2, angry: 1 });
 		expect(stats.byModel).toHaveLength(1);
 		expect(stats.byModel[0]).toMatchObject({
 			label: "gpt 5.4",
 			messages: 6,
 			judged: 3,
+			unscored: 0,
 			annoyed: 5,
 			atAssistant: 2,
 			angry: 1,
@@ -294,7 +298,7 @@ describe("frustration dashboard", () => {
 			judge: "fake/judge-1",
 		});
 		const stats = await getFrustrationDashboardStats("all");
-		expect(stats.overall).toEqual({ messages: 4, judged: 4, annoyed: 3, atAssistant: 3, angry: 3 });
+		expect(stats.overall).toEqual({ messages: 4, judged: 4, unscored: 0, annoyed: 3, atAssistant: 3, angry: 3 });
 		expect(stats.judgeAvailable).toBe(true);
 		expect(await estimateFrustrationRun("all")).toMatchObject({ available: true, messages: 0 });
 	});
@@ -342,5 +346,27 @@ describe("frustration dashboard", () => {
 	it("reports why a run is unavailable without a host judge", async () => {
 		expect(await estimateFrustrationRun("all")).toMatchObject({ available: false });
 		expect(await startFrustrationRun("all")).toMatchObject({ started: false, status: 503 });
+	});
+	it("reports prose in an uncovered script as unscored instead of counting it as calm", async () => {
+		await initDb();
+		const before = await getFrustrationDashboardStats("all");
+		const t = Date.now() - 60_000;
+		const kana = "ビルドが失敗しました もう一度お願いします";
+		insertUserMessageStats([
+			userMessage(kana, "unscored-probe", "probe", computeUserMessageMetrics(kana), t),
+			userMessage(
+				"这个接口还是不行",
+				"unscored-probe",
+				"probe",
+				computeUserMessageMetrics("这个接口还是不行"),
+				t + 1,
+			),
+		]);
+		const after = await getFrustrationDashboardStats("all");
+		// No shipped lexicon covers Kana, so that message scores zero regex
+		// signals. It has to show up as unscored, never as "not annoyed" - a
+		// dashboard that counts a coverage gap as calm is lying about its data.
+		expect(after.overall.unscored - before.overall.unscored).toBe(1);
+		expect(after.overall.annoyed - before.overall.annoyed).toBe(1);
 	});
 });

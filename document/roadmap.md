@@ -710,6 +710,16 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   Alt+T 等全部热键)、Windows 默认 shell 修正(pwsh/powershell,不再
   落 System32 bash.exe 的 WSL 陷阱)、无色 chrome(终端自身底色)。
 
+- **模型侧「AI 崩溃度」统计(2026-10-11 用户裁决:用户侧先落,本项排队;用户复核「这是比较重要的统计量」,但先保主线稳定,按本队列延后)**:Frustration
+  页面目前只测**用户侧**。另一半是模型侧(用户原话:「统计 ai 的崩溃程度」),它的文本形态
+  完全不同——markdown/代码围栏/工具调用与结果/emoji——所以要复用 `stripStructuredContent`
+  一类剥离逻辑再加自己的信号(致歉与自责标记、反复重述、含糊兜底、工具失败螺旋、啰嗦度)。
+  **混语言硬约束(2026-10-11 用户裁定)**:模型思维链绝大多数是英文,正文可能英文、中文或
+  中英混杂,少数情况下思维链被强制成中文;所以模型侧分析必须语言中立、en+zh 词典同时生效,
+  绝不能按 UI 语言选词典——中文用户的统计天生是双语的。用户侧已据此落地(每条消息同时跑
+  en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
+  为语言中立且适配单条消息内混语言。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after

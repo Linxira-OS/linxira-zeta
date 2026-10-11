@@ -204,6 +204,8 @@ export async function initDb(): Promise<Database> {
 			negation INTEGER NOT NULL DEFAULT 0,
 			repetition INTEGER NOT NULL DEFAULT 0,
 			blame INTEGER NOT NULL DEFAULT 0,
+			emphasis INTEGER NOT NULL DEFAULT 0,
+			unsupported_script INTEGER NOT NULL DEFAULT 0,
 			prose TEXT NOT NULL DEFAULT '',
 			prose_hash TEXT NOT NULL DEFAULT '',
 			UNIQUE(session_file, entry_id)
@@ -310,6 +312,11 @@ export async function initDb(): Promise<Database> {
 	//   v6 -> v7: dropped dot runs from `anguish`, technical-collision and
 	//             opinion words from the profanity list; gated yelling on
 	//             multi-word caps and bare `no` on interjection use.
+	//   v9 -> v10: added `emphasis` (full-width bursts, repeated Han runs and
+	//             repeated denials - the shouting proxy capitalisation cannot
+	//             see) and `unsupported_script` (prose whose script no lexicon
+	//             covers, so its zero counts mean "unscored", not "calm"),
+	//             together with the Chinese/voice-input lexicon layer.
 	//   v7 -> v8: `no-op` compounds no longer count as negation; recovered
 	//             measured false negatives: `:(` emoticons -> anguish,
 	//             `why (would|did) you` -> blame, `makes no sense` -> negation.
@@ -322,8 +329,9 @@ export async function initDb(): Promise<Database> {
 			userMessageColumns.some(column => column.name === "drama_runs") ||
 			userMessageColumns.some(column => column.name === "yelling_sentences"));
 	const hasV4Columns = userMessageColumns.some(column => column.name === "negation");
+	const hasV10Columns = userMessageColumns.some(column => column.name === "emphasis");
 	const hasOldUserMessages = userMessageColumns.length > 0;
-	if (hasStaleColumn || (hasOldUserMessages && !hasV4Columns)) {
+	if (hasStaleColumn || (hasOldUserMessages && (!hasV4Columns || !hasV10Columns))) {
 		db.run("DROP TABLE user_messages");
 		db.run(`
 			CREATE TABLE user_messages (
@@ -342,6 +350,8 @@ export async function initDb(): Promise<Database> {
 				negation INTEGER NOT NULL DEFAULT 0,
 				repetition INTEGER NOT NULL DEFAULT 0,
 				blame INTEGER NOT NULL DEFAULT 0,
+				emphasis INTEGER NOT NULL DEFAULT 0,
+				unsupported_script INTEGER NOT NULL DEFAULT 0,
 				prose TEXT NOT NULL DEFAULT '',
 				prose_hash TEXT NOT NULL DEFAULT '',
 				UNIQUE(session_file, entry_id)
@@ -1103,6 +1113,12 @@ export async function getDailyActivity(days = 371): Promise<DailyActivityPoint[]
  * - v9: stored judge prose (`prose` / `prose_hash`) for the frustration
  *   judge, so every session re-parses once to populate it. Verdicts live in
  *   `frustration_verdicts`, keyed by prose hash, which this reset never touches.
+ * - v10: the Chinese and voice-input lexicon layer landed (boundary-free
+ *   patterns, because speech transcription emits one unpunctuated line), plus
+ *   two columns: `emphasis` (the shouting proxy capitalisation cannot see -
+ *   full-width bursts, repeated Han runs, repeated denials) and
+ *   `unsupported_script` (prose in a script no lexicon covers, which the
+ *   dashboard reports as unscored instead of counting as not annoyed).
  *
  * Existing `messages` rows are unaffected - `INSERT OR IGNORE` keeps them.
  */
@@ -1331,9 +1347,10 @@ export function insertUserMessageStats(stats: Iterable<UserMessageStats>): numbe
 		INSERT OR IGNORE INTO user_messages (
 			session_file, entry_id, folder, timestamp, model, provider,
 			chars, words, yelling, profanity, anguish,
-			negation, repetition, blame, prose, prose_hash
+			negation, repetition, blame, emphasis, unsupported_script,
+			prose, prose_hash
 		)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		WHERE NOT EXISTS (
 			SELECT 1 FROM user_messages
 			WHERE entry_id = ? AND timestamp = ? AND session_file <> ?
@@ -1358,6 +1375,8 @@ export function insertUserMessageStats(stats: Iterable<UserMessageStats>): numbe
 				s.negation,
 				s.repetition,
 				s.blame,
+				s.emphasis,
+				s.unsupportedScript,
 				s.prose,
 				s.proseHash,
 				// `WHERE NOT EXISTS` binds: skip when a different session_file
@@ -1432,6 +1451,7 @@ export interface FrustrationVerdict {
 interface FrustrationCountsRow {
 	messages: number;
 	judged: number;
+	unscored: number;
 	annoyed: number;
 	at_assistant: number;
 	angry: number;
@@ -1453,12 +1473,13 @@ const REGEX_AT_ASSISTANT_SQL = "u.negation + u.repetition + u.blame > 0";
 const FRUSTRATION_COUNTS_SQL = `
 	COUNT(*) AS messages,
 	COALESCE(SUM(${JUDGED_SQL}), 0) AS judged,
+	COALESCE(SUM(CASE WHEN NOT ${JUDGED_SQL} AND u.unsupported_script = 1 THEN 1 ELSE 0 END), 0) AS unscored,
 	COALESCE(SUM(CASE WHEN ${JUDGED_SQL} THEN ${JUDGED_ANNOYED_SQL}
-		ELSE u.yelling + u.profanity + u.anguish + u.negation + u.repetition + u.blame > 0 END), 0) AS annoyed,
+		ELSE u.yelling + u.profanity + u.anguish + u.negation + u.repetition + u.blame + u.emphasis > 0 END), 0) AS annoyed,
 	COALESCE(SUM(CASE WHEN ${JUDGED_SQL} THEN ${JUDGED_AT_ASSISTANT_SQL}
 		ELSE ${REGEX_AT_ASSISTANT_SQL} END), 0) AS at_assistant,
 	COALESCE(SUM(CASE WHEN ${JUDGED_SQL} THEN ${JUDGED_AT_ASSISTANT_SQL} AND v.p_angry >= 0.5
-		ELSE ${REGEX_AT_ASSISTANT_SQL} AND (u.profanity > 0 OR u.yelling > 0) END), 0) AS angry
+		ELSE ${REGEX_AT_ASSISTANT_SQL} AND (u.profanity > 0 OR u.yelling > 0 OR u.emphasis > 0) END), 0) AS angry
 `;
 
 function hasRangeCutoff(cutoff: number | null | undefined): cutoff is number {
@@ -1469,6 +1490,7 @@ function toFrustrationCounts(row: FrustrationCountsRow | undefined): Frustration
 	return {
 		messages: row?.messages ?? 0,
 		judged: row?.judged ?? 0,
+		unscored: row?.unscored ?? 0,
 		annoyed: row?.annoyed ?? 0,
 		atAssistant: row?.at_assistant ?? 0,
 		angry: row?.angry ?? 0,

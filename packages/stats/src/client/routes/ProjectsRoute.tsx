@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { getFolderStats } from "../api";
+import { t } from "../i18n";
 import { BarList } from "../charts";
 import {
 	formatCompact,
@@ -67,47 +68,54 @@ export function ProjectsRoute({ active, range }: ProjectsRouteProps) {
 		[scoped],
 	);
 	const topEmpty = (
-		<EmptyState
-			title={view.rows.length === 0 ? "No project folders in this range" : "Only temporary folders in this range"}
-		/>
+		<EmptyState title={t(view.rows.length === 0 ? "projects.empty-no-folders" : "projects.empty-only-temporary")} />
 	);
 	// Meter scales follow the whole range so a bar's length does not change while filtering.
 	const columns = useMemo(() => folderColumns(view.maxRequests, view.maxCost), [view]);
 
 	return (
 		<div className="page">
-			<PageHeader title="Projects" description={`Usage by session folder in ${meta.windowLabel}.`} />
+			<PageHeader
+				title={t("projects.title")}
+				description={t("projects.description", { window: t(meta.windowKey) })}
+			/>
 
 			<QueryView query={folders} skeleton={<ChartSkeleton height={96} />}>
 				{() => (
 					<div data-stale={folders.stale}>
 						<StatGrid min={180}>
 							<Stat
-								label="Folders"
+								label={t("projects.folders")}
 								value={formatInteger(view.rows.length)}
-								hint={view.temporaryCount > 0 ? `${formatInteger(view.temporaryCount)} temporary` : undefined}
-							/>
-							<Stat
-								label="Requests"
-								value={formatInteger(view.totalRequests)}
-								hint={`${formatInteger(view.failedRequests)} failed`}
-							/>
-							<Stat
-								label="API-equivalent cost"
-								title="What this usage would cost at public API rates"
-								value={formatEstimatedCost(view.totalCost, view.unpricedRequests)}
 								hint={
-									view.unpricedRequests > 0 ? `${formatInteger(view.unpricedRequests)} unpriced` : undefined
+									view.temporaryCount > 0
+										? t("projects.temporary-n", { count: formatInteger(view.temporaryCount) })
+										: undefined
 								}
 							/>
 							<Stat
-								label="Conversation tokens"
-								title="Uncached input + cache reads + cache writes + output"
+								label={t("common.requests")}
+								value={formatInteger(view.totalRequests)}
+								hint={t("projects.failed-n", { count: formatInteger(view.failedRequests) })}
+							/>
+							<Stat
+								label={t("projects.api-equivalent-cost")}
+								title={t("projects.api-equivalent-cost-hint")}
+								value={formatEstimatedCost(view.totalCost, view.unpricedRequests)}
+								hint={
+									view.unpricedRequests > 0
+										? t("projects.unpriced-n", { count: formatInteger(view.unpricedRequests) })
+										: undefined
+								}
+							/>
+							<Stat
+								label={t("projects.conversation-tokens")}
+								title={t("projects.conversation-tokens-hint")}
 								value={formatCompact(view.conversationTokens)}
 							/>
 							<Stat
-								label="Cache rate"
-								title="Cache reads ÷ (uncached input + cache reads), across every folder"
+								label={t("projects.cache-rate")}
+								title={t("projects.cache-rate-hint-all")}
 								value={formatPercent(view.cacheRate)}
 							/>
 						</StatGrid>
@@ -116,7 +124,12 @@ export function ProjectsRoute({ active, range }: ProjectsRouteProps) {
 			</QueryView>
 
 			<div className="grid grid-2">
-				<Card index={1} title="Top by cost" description="Share of API-equivalent cost" stale={folders.stale}>
+				<Card
+					index={1}
+					title={t("projects.top-by-cost")}
+					description={t("projects.top-by-cost-description")}
+					stale={folders.stale}
+				>
 					<QueryView
 						query={folders}
 						skeleton={<ChartSkeleton height={236} />}
@@ -137,7 +150,12 @@ export function ProjectsRoute({ active, range }: ProjectsRouteProps) {
 						)}
 					</QueryView>
 				</Card>
-				<Card index={2} title="Top by requests" description="Share of all requests" stale={folders.stale}>
+				<Card
+					index={2}
+					title={t("projects.top-by-requests")}
+					description={t("projects.top-by-requests-description")}
+					stale={folders.stale}
+				>
 					<QueryView
 						query={folders}
 						skeleton={<ChartSkeleton height={236} />}
@@ -161,27 +179,35 @@ export function ProjectsRoute({ active, range }: ProjectsRouteProps) {
 
 			<Card
 				index={3}
-				title="Folders"
+				title={t("projects.folders")}
 				description={
 					folders.data
 						? matching.length === view.rows.length
-							? `${formatInteger(view.rows.length)} folders`
-							: `${formatInteger(matching.length)} of ${formatInteger(view.rows.length)} folders`
+							? t("projects.folders-n", { count: formatInteger(view.rows.length) })
+							: t("projects.folders-of-n", {
+									count: formatInteger(matching.length),
+									total: formatInteger(view.rows.length),
+								})
 						: undefined
 				}
 				actions={
 					<>
 						{view.temporaryCount > 0 && (
-							<label className="check" title="Session folders under /tmp or /var/folders">
+							<label className="check" title={t("projects.hide-temporary-hint")}>
 								<input
 									type="checkbox"
 									checked={hideTemporary}
 									onChange={e => setHideTemporary(e.target.checked)}
 								/>
-								Hide temporary ({formatInteger(view.temporaryCount)})
+								{t("projects.hide-temporary", { count: formatInteger(view.temporaryCount) })}
 							</label>
 						)}
-						<SearchInput value={search} onChange={setSearch} placeholder="Filter folders…" width={240} />
+						<SearchInput
+							value={search}
+							onChange={setSearch}
+							placeholder={t("projects.filter-placeholder")}
+							width={240}
+						/>
 					</>
 				}
 				flush
@@ -198,12 +224,12 @@ export function ProjectsRoute({ active, range }: ProjectsRouteProps) {
 							dense
 							empty={
 								<EmptyState
-									title={view.rows.length === 0 ? "No project folders in this range" : "No folders match"}
+									title={t(view.rows.length === 0 ? "projects.empty-no-folders" : "projects.empty-no-match")}
 									hint={
 										view.rows.length === 0
-											? "Try a longer range."
+											? t("projects.hint-longer-range")
 											: hideTemporary && view.temporaryCount > 0
-												? "Temporary folders are hidden."
+												? t("projects.hint-temporary-hidden")
 												: undefined
 									}
 								/>
@@ -220,34 +246,34 @@ function folderColumns(maxRequests: number, maxCost: number): Column<FolderRowVi
 	return [
 		{
 			key: "folder",
-			header: "Folder",
+			header: t("projects.folder"),
 			sort: row => row.folder,
 			render: row => (
-				<span className="row projects-folder" title={row.folder || "(root)"}>
+				<span className="row projects-folder" title={row.folder || t("common.root")}>
 					<span className="mono truncate">{formatFolder(row.folder)}</span>
-					{row.temporary && <Badge>temp</Badge>}
+					{row.temporary && <Badge>{t("projects.temp")}</Badge>}
 				</span>
 			),
 		},
 		{
 			key: "requests",
-			header: "Requests",
+			header: t("common.requests"),
 			align: "right",
 			sort: row => row.totalRequests,
 			render: row => (
-				<span title={`${formatPercent(row.requestShare)} of all requests`}>
+				<span title={t("projects.share-of-requests", { share: formatPercent(row.requestShare) })}>
 					<MeterCell value={row.totalRequests} max={maxRequests} display={formatInteger(row.totalRequests)} />
 				</span>
 			),
 		},
 		{
 			key: "cost",
-			header: "Cost",
-			title: "API-equivalent cost at public API rates",
+			header: t("common.cost"),
+			title: t("projects.api-equivalent-cost-rates"),
 			align: "right",
 			sort: row => row.totalCost,
 			render: row => (
-				<span title={`${formatPercent(row.costShare)} of all cost`}>
+				<span title={t("projects.share-of-cost", { share: formatPercent(row.costShare) })}>
 					<MeterCell
 						value={row.totalCost}
 						max={maxCost}
@@ -259,8 +285,8 @@ function folderColumns(maxRequests: number, maxCost: number): Column<FolderRowVi
 		},
 		{
 			key: "tokens",
-			header: "Tokens",
-			title: "Uncached input + cache reads + cache writes + output",
+			header: t("common.tokens"),
+			title: t("projects.conversation-tokens-hint"),
 			align: "right",
 			sort: row => row.conversationTokens,
 			render: row => (
@@ -271,16 +297,16 @@ function folderColumns(maxRequests: number, maxCost: number): Column<FolderRowVi
 		},
 		{
 			key: "cacheRate",
-			header: "Cache rate",
-			title: "Cache reads ÷ (uncached input + cache reads)",
+			header: t("projects.cache-rate"),
+			title: t("projects.cache-rate-hint"),
 			align: "right",
 			sort: row => row.cacheRate,
 			render: row => <span className="num">{formatPercent(row.cacheRate)}</span>,
 		},
 		{
 			key: "cacheSavings",
-			header: "Cache savings",
-			title: "Prompt-input cost saved versus billing the same tokens uncached",
+			header: t("projects.cache-savings"),
+			title: t("projects.cache-savings-hint"),
 			align: "right",
 			sort: row => row.cacheSavings,
 			render: row => (
@@ -291,11 +317,11 @@ function folderColumns(maxRequests: number, maxCost: number): Column<FolderRowVi
 		},
 		{
 			key: "errorRate",
-			header: "Errors",
+			header: t("projects.errors"),
 			align: "right",
 			sort: row => row.errorRate,
 			render: row => (
-				<span title={`${formatInteger(row.failedRequests)} failed`}>
+				<span title={t("projects.failed-n", { count: formatInteger(row.failedRequests) })}>
 					<Badge tone={row.failedRequests > 0 ? errorRateTone(row.errorRate) : "neutral"} mono>
 						{formatErrorRate(row.errorRate)}
 					</Badge>
@@ -304,14 +330,14 @@ function folderColumns(maxRequests: number, maxCost: number): Column<FolderRowVi
 		},
 		{
 			key: "duration",
-			header: "Avg duration",
+			header: t("projects.avg-duration"),
 			align: "right",
 			sort: row => row.avgDuration ?? -1,
 			render: row => <span className="num">{formatDurationMs(row.avgDuration)}</span>,
 		},
 		{
 			key: "last",
-			header: "Last active",
+			header: t("projects.last-active"),
 			align: "right",
 			sort: row => row.lastTimestamp,
 			render: row => <span className="dim">{formatRelativeTime(row.lastTimestamp)}</span>,
