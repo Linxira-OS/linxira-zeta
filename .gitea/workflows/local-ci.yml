@@ -108,6 +108,24 @@ jobs:
               export CARGO_HOME="$TOOLS/cargo"
               export PATH="$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$PATH"
               export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+              export CARGO_NET_RETRY=10
+
+              # The runner's egress to GitHub/nodejs.org/go.dev resets mid-transfer
+              # (observed: curl exit 56 "SSL unexpected eof"), and plain `--retry`
+              # does not cover that class, so retry every download explicitly.
+              fetch() { # fetch <url> <dest>
+                 local url="$1" dst="$2" attempt
+                 for attempt in 1 2 3 4 5; do
+                    if curl -fsSL --connect-timeout 20 --retry 5 --retry-all-errors \
+                       --retry-delay 5 --retry-connrefused -o "$dst" "$url"; then
+                       return 0
+                    fi
+                    echo "::warning::download attempt $attempt failed: $url"
+                    sleep $((attempt * 5))
+                 done
+                 echo "::error::cannot download $url"
+                 return 1
+              }
 
               # bun —— 版本必须满足 package.json 的 packageManager pin，
               # 否则 gen:tool-views 之类的代码生成会和 CI 产生版本偏差。
@@ -127,9 +145,10 @@ jobs:
                    ;;
               esac
               if [ "${ok:-false}" != true ]; then
+                 fetch https://bun.sh/install "$TOOLS/bun-install.sh"
                  case "$want" in
-                   '>='*) BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" ;;
-                   *)     BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" -s -- "bun-v$want" ;;
+                   '>='*) BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" ;;
+                   *)     BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" -s -- "bun-v$want" ;;
                  esac
               fi
               "$TOOLS/bin/bun" --version
@@ -138,8 +157,9 @@ jobs:
               # 工作区各钉 1.91.1（termide/ main/）。三个都要装，否则
               # `cargo fmt/clippy/test` 在 vendor 目录里会触发重编译。
               if [ ! -x "$RUSTUP_HOME/bin/rustup" ]; then
-                 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-                   | RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" sh -s -- -y --profile minimal --no-modify-path
+                 fetch https://sh.rustup.rs "$TOOLS/rustup-init.sh"
+                 RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" \
+                   sh "$TOOLS/rustup-init.sh" -y --profile minimal --no-modify-path
               fi
               repo_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' rust-toolchain.toml)"
               vendor_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' termide/rust-toolchain.toml)"
@@ -153,28 +173,27 @@ jobs:
 
               # bazelisk —— .bazelversion 钉版本，交给 bazelisk 自己解析。
               if ! command -v bazelisk >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o "$TOOLS/bin/bazelisk" \
-                   "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64"
+                 fetch "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
+                   "$TOOLS/bin/bazelisk"
                  chmod +x "$TOOLS/bin/bazelisk"
               fi
 
               # cargo 工具：nextest（vendor 工作区用）与 deny（license 面）。
               for tool in cargo-nextest cargo-deny; do
-                 command -v "$tool" >/dev/null 2>&1 || cargo install "$tool" --locked || true
+                 command -v "$tool" >/dev/null 2>&1 || cargo install "$tool" --locked ||
+                   (echo "::warning::cargo install $tool failed"; true)
               done
 
               # node —— web-ui 与 editor functional harness 用（GitHub 侧 22/24）。
               if ! command -v node >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o /tmp/node.tar.xz \
-                   https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz
+                 fetch https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz /tmp/node.tar.xz
                  mkdir -p "$TOOLS/node"
                  tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
               fi
 
               # go —— editor（TTT）测试。
               if ! command -v go >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o /tmp/go.tar.gz \
-                   https://go.dev/dl/go1.24.5.linux-amd64.tar.gz
+                 fetch https://go.dev/dl/go1.24.5.linux-amd64.tar.gz /tmp/go.tar.gz
                  mkdir -p "$TOOLS/go"
                  tar -xzf /tmp/go.tar.gz -C "$TOOLS/go" --strip-components=1
               fi
