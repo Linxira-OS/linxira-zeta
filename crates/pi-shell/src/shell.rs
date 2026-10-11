@@ -5843,6 +5843,54 @@ mod tests {
 		let _ = std::fs::remove_dir_all(&tmp);
 	}
 
+	/// The read tool's `?q=` path runs jq through `Shell::run` with the command's
+	/// stderr redirected to a file and stdout captured as chunks. A file whose
+	/// middle input fails must still emit the later results — `["2", "4"]` after
+	/// the stderr notice, the shape `test/tools/json-query.test.ts` asserts.
+	/// This covers the capture path, which the in-process builtin tests in
+	/// `pi-builtins` cannot reach.
+	#[tokio::test(flavor = "multi_thread")]
+	async fn uutils_jq_failing_input_keeps_going_through_shell_capture() {
+		let tmp = std::env::temp_dir().join(format!("pi-jq-mid-{}", std::process::id()));
+		let _ = std::fs::remove_dir_all(&tmp);
+		std::fs::create_dir_all(&tmp).expect("temp dir");
+		let data = tmp.join("failing.jsonl");
+		std::fs::write(&data, "{\"n\":1}\n{\"n\":\"x\"}\n{\"n\":3}\n").expect("failing.jsonl");
+		let stderr_path = tmp.join("stderr.txt");
+
+		let shell = Shell::new(None);
+		let command = format!(
+			"jq -c '.n + 1' {} 2>{}",
+			quote_arg(&data.to_string_lossy()),
+			quote_arg(&stderr_path.to_string_lossy()),
+		);
+		let (tx, rx) = flume::unbounded();
+		let result = shell
+			.run(
+				ShellRunOptions {
+					command,
+					cwd: Some(tmp.to_string_lossy().into_owned()),
+					..Default::default()
+				},
+				Some(tx),
+				CancelToken::default(),
+			)
+			.await
+			.expect("jq run");
+		let mut out = String::new();
+		for chunk in rx.drain() {
+			out.push_str(&chunk);
+		}
+		assert_eq!(out, "2\n4\n");
+		assert_eq!(result.exit_code, Some(0));
+		assert_eq!(
+			std::fs::read_to_string(&stderr_path).unwrap_or_default(),
+			"Error: cannot calculate \"x\" + 1\n"
+		);
+
+		let _ = std::fs::remove_dir_all(&tmp);
+	}
+
 	/// A stdin-reading builtin blocked on an open pipe must honor abort/timeout:
 	/// the context's cancel flag makes the read return EOF so the utility
 	/// unwinds promptly and the command reports interrupted (130) — it must not
