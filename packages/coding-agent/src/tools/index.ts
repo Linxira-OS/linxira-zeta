@@ -101,6 +101,7 @@ import {
 	cfgSecurityEnabled,
 	cfgTodoEnabled,
 	cfgToolsXdev,
+	cfgTrackingEnabled,
 	cfgWebSearchEnabled,
 } from "./settings";
 import { cfgAutolearnEnabled } from "../autolearn/settings";
@@ -776,6 +777,10 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "ida") return cfgIdaAvailable.get(session.settings);
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && cfgTodoEnabled.get(session.settings);
+		// Project tracking is opt-in (`tracking.enabled`, off by default): when the
+		// setting is off the agent must not receive `tracking_update` at all — the
+		// plan-approved prompt and todo-phase nudge already key off its presence.
+		if (name === "tracking_update") return cfgTrackingEnabled.get(session.settings);
 		if (name === "glob") return cfgGlobEnabled.get(session.settings);
 		if (name === "grep") return cfgGrepEnabled.get(session.settings);
 		if (name === "find") return isFindEnabled(session);

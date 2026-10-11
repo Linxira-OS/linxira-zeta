@@ -582,7 +582,7 @@ export const SETTINGS_SCHEMA = {
 			description: "CLI language for user-facing text (system prompts stay English)",
 			options: [
 				{ value: "en", label: "English", description: "English UI text (default)" },
-				{ value: "zh", label: "中文", description: "简体中文界面" },
+				{ value: "zh", label: "中文", description: "Simplified Chinese UI" },
 			],
 		},
 	},
@@ -4239,6 +4239,18 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Project tracking tool (off by default; opt-in per AGENTS.md direction)
+	// Registry entry lives in tools/settings.ts (`cfgTrackingEnabled`); this
+	// schema twin keeps it in the web settings panel + `getPathsForTab`.
+	"tracking.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Project Tracking",
+			description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+		},
+	},
 
 	// IM channel tools (web/desktop only; CLI sessions reject them regardless)
 	"channels.enabled": {
