@@ -433,6 +433,7 @@ import {
 	sanitizeAssistantForReparentedHistory,
 	USER_INTERRUPT_LABEL,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
+	operatorTitleText,
 } from "./messages";
 import { ModelControls, type ModelControlsHost } from "./model-controls";
 import {
@@ -779,6 +780,16 @@ interface TitleFork {
 	onAbort: () => void;
 }
 
+interface TitleInput {
+	sessionId: string;
+	/** Title-model text: the typed prompt, or a `/skill:` chip rather than the expanded skill body. */
+	text: string;
+	/** Its reply has started a non-thinking block for a title fork to read. */
+	replied: boolean;
+	/** A title request ran for it; an interrupt clears this so its next reply tries again. */
+	tried: boolean;
+}
+
 const kPersistedSessionEntryId = Symbol("persistedSessionEntryId");
 type PersistedAssistantMessage = AssistantMessage & { [kPersistedSessionEntryId]?: string };
 
@@ -998,18 +1009,21 @@ export class AgentSession implements SettingsScope {
 	 *  generation path. Refresh via {@link AgentSession.setTitleSystemPrompt} when
 	 *  the session cwd changes. */
 	#titleSystemPrompt: string | undefined;
+	/** Name the session from the operator's messages (see {@link AgentSessionConfig.autoTitle}). */
+	readonly #autoTitle: boolean;
+	/** First-message auto-title that may be retried from conversation context.
+	 *  Once the title model declines the message (greeting-like or too ambiguous,
+	 *  e.g. a pasted image plus "help") AND the assistant has replied, the title is
+	 *  regenerated once from the recent user/assistant/thinking turns. */
+	/** What the next automatic title names (see {@link #maybeStartTitle}). */
+	#titleInput: TitleInput | undefined;
 	#titleGenerationInFlightFor: string | undefined;
 	/** First-message auto-title that may be retried from conversation context.
 	 *  Once the title model declines the message (greeting-like or too ambiguous,
 	 *  e.g. a pasted image plus "help") AND the assistant has replied, the title is
 	 *  regenerated once from the recent user/assistant/thinking turns. */
 	#deferredTitle: { sessionId: string; declined: boolean; replied: boolean; words: number } | undefined;
-	/** Title waiting to fork the reply (see {@link maybeStartTitleGeneration}). */
-	#titleFork: TitleFork | undefined;
-	/** The latest message that arrived while a title request ran; it gets its own
-	 *  try if that request leaves the session unnamed (see {@link #retryWaitingTitle}).
-	 *  `signal` is the session-lifecycle signal at arrival: an interrupt since cancels it. */
-	#waitingTitle: { sessionId: string; input: string; signal: AbortSignal } | undefined;
+	/** Title waiting to fork the reply (see {@link #maybeStartTitle}). */
 	#titleProviderSessionId: string | undefined;
 	#titleProviderParentSessionId: string | undefined;
 	/** Host hook invoked when a typed user prompt is dropped before dispatch;
@@ -2424,6 +2438,7 @@ export class AgentSession implements SettingsScope {
 		// session `serviceTier` that drives `/fast` and OpenAI/Anthropic priority.
 		this.agent.serviceTierResolver = model => this.#models.effectiveServiceTier(model);
 		this.#titleSystemPrompt = config.titleSystemPrompt;
+		this.#autoTitle = config.autoTitle === true;
 		this.#transformContext = config.transformContext ?? (messages => messages);
 		this.#sideStreamFn = config.sideStreamFn ?? streamSimple;
 		this.#onPayload = config.onPayload;
@@ -4345,14 +4360,16 @@ export class AgentSession implements SettingsScope {
 				if (deferred.words >= DEFERRED_TITLE_MIN_WORDS) this.#advanceDeferredTitle("replied");
 			}
 		}
-		// Fork the title request synchronously, at the reply's first non-thinking
-		// block: the side turn snapshots the streaming reply before its first await.
-		if (this.#titleFork) {
-			if (event.type === "message_update") {
-				const kind = event.assistantMessageEvent.type;
-				if (kind === "text_start" || kind === "toolcall_start") this.#startTitleFork();
-			} else if (event.type === "agent_end") {
-				this.#abandonTitleFork("no-reply-block");
+		// Title the session once the reply to the operator's latest message starts
+		// a non-thinking block, synchronously: a title fork snapshots the streaming
+		// reply before its first await.
+		if (event.type === "message_end") {
+			this.#noteTitleInput(event.message);
+		} else if (this.#titleInput && event.type === "message_update") {
+			const kind = event.assistantMessageEvent.type;
+			if (kind === "text_start" || kind === "toolcall_start") {
+				this.#titleInput.replied = true;
+				this.#maybeStartTitle();
 			}
 		}
 		// Expected internal transitions stamp a structural suppression flag on the
@@ -8096,13 +8113,6 @@ export class AgentSession implements SettingsScope {
 				if ("args" in details && typeof details.args === "string") skillArgs = details.args;
 			}
 			keywordNotices = this.#createMagicKeywordNotices(skillArgs);
-			this.maybeStartTitleGeneration(
-				skillPromptTitleInput({
-					name: skillName,
-					args: skillArgs,
-					queueChipText: options?.queueChipText,
-				}),
-			);
 		}
 
 		if (options?.queueOnly || this.isStreaming) {
@@ -9844,153 +9854,74 @@ export class AgentSession implements SettingsScope {
 	 * One title request runs at a time: a message arriving meanwhile waits for it
 	 * and gets its own try if that request leaves the session unnamed.
 	 */
-	maybeStartTitleGeneration(firstMessage: string): void {
-		const extensionCommandSpace = firstMessage.indexOf(" ");
-		const isLocalExtensionCommand =
-			firstMessage.startsWith("/") &&
-			this.#extensionRunner?.getCommand(
-				extensionCommandSpace === -1 ? firstMessage.slice(1) : firstMessage.slice(1, extensionCommandSpace),
-			) !== undefined;
-		if (isLocalExtensionCommand || this.sessionName || $env.PI_NO_TITLE || isLowSignalTitleInput(firstMessage)) {
-			return;
-		}
-		const sessionId = this.sessionManager.getSessionId();
-		if (this.#titleGenerationInFlightFor === sessionId) {
-			this.#waitingTitle = { sessionId, input: firstMessage, signal: this.#titleGenerationAbortController.signal };
-			return;
-		}
-		this.#startTitleAttempt(firstMessage, sessionId, { waited: false });
+	/** Record an operator message as the title source while an auto-titled session is unnamed. */
+	#noteTitleInput(message: AgentMessage): void {
+		if (!this.#autoTitle || this.sessionName || $env.PI_NO_TITLE) return;
+		const text = operatorTitleText(message);
+		if (!text || isLowSignalTitleInput(text)) return;
+		this.#titleInput = { sessionId: this.sessionManager.getSessionId(), text, replied: false, tried: false };
 	}
 
 	/**
-	 * Name the session from the user message `input`: fork its reply, else ask the
-	 * title model. A message that `waited` on an earlier title request already has
-	 * its reply under way or done, so its fork runs at that reply's next block, or
-	 * at once when the session is idle.
+	 * Name the unnamed session from {@link #titleInput} once its reply has begun:
+	 * one request at a time, one try per operator message.
+	 *
+	 * Under `title.generator: fork` the request is an ephemeral side turn forked
+	 * from the streaming reply on the same model, system prompt, tools and
+	 * prompt-cache key, so it reads the whole prefix from cache, sees the model's
+	 * own reading of the task, and asks for a card (icon and code, unless
+	 * `title.icons` is `boring`) to head the title. The title model
+	 * ({@link generateTitle}) takes over when the fork fails, times out or
+	 * declines, and is the only path under `tiny` or a TITLE_SYSTEM.md override.
+	 *
+	 * Returns whether a request started.
 	 */
-	#startTitleAttempt(input: string, sessionId: string, options: { waited: boolean }): void {
-		// A request that only points at an attachment ("fix [Image #1]") names no
-		// task the text-only title model can see; without a fork, skip straight to
-		// retitling from the assistant's own description of it.
-		const attachmentOnly = isAttachmentOnlyTitleInput(input);
+	#maybeStartTitle(): boolean {
+		const input = this.#titleInput;
+		const sessionId = this.sessionManager.getSessionId();
+		if (!input?.replied || input.tried || input.sessionId !== sessionId || this.sessionName) return false;
+		if (this.#titleGenerationInFlightFor === sessionId) return false;
+		input.tried = true;
 		this.#deferredTitle = { sessionId, declined: false, replied: false, words: 0 };
-		// The fork gives way to a TITLE_SYSTEM.md override, which only the title
-		// model applies, and needs a reply to branch from: a busy session queues a
-		// fresh message behind another turn.
 		const forkable =
 			cfgTitleGenerator.get(this.settings) === "fork" &&
 			this.model !== undefined &&
-			this.#titleSystemPrompt === undefined &&
-			(options.waited || !this.isStreaming);
-		if (!forkable) {
-			this.#titleWithTitleModel(input, sessionId, attachmentOnly);
-			return;
-		}
-		this.#armTitleFork(input, sessionId, attachmentOnly);
-		if (options.waited && !this.isStreaming) this.#startTitleFork();
-	}
-
-	/**
-	 * A title request ended: start the message that waited on it while the session
-	 * is still unnamed and that message was not interrupted. False when none starts.
-	 */
-	#retryWaitingTitle(): boolean {
-		const waiting = this.#waitingTitle;
-		this.#waitingTitle = undefined;
-		if (
-			!waiting ||
-			waiting.signal.aborted ||
-			waiting.sessionId !== this.sessionManager.getSessionId() ||
-			this.sessionName
-		) {
-			return false;
-		}
-		this.#startTitleAttempt(waiting.input, waiting.sessionId, { waited: true });
+			this.#titleSystemPrompt === undefined;
+		if (forkable) this.#forkTitle(input);
+		else this.#titleWithTitleModel(input);
 		return true;
 	}
 
 	/** The title model's turn at naming the session from `input`. */
-	#titleWithTitleModel(input: string, sessionId: string, attachmentOnly: boolean): void {
-		if (!attachmentOnly) this.#startAutoTitle(input, sessionId);
-		else if (!this.#retryWaitingTitle()) this.#advanceDeferredTitle("declined");
-	}
-
-	#armTitleFork(input: string, sessionId: string, attachmentOnly: boolean): void {
-		this.#titleGenerationInFlightFor = sessionId;
-		const signal = this.#titleGenerationAbortController.signal;
-		const timer = setTimeout(() => this.#abandonTitleFork("reply-not-started"), TITLE_FORK_START_TIMEOUT_MS);
-		timer.unref?.();
-		const fork: TitleFork = {
-			sessionId,
-			input,
-			attachmentOnly,
-			timer,
-			signal,
-			// An interrupted title is cancelled, not declined: no title model either.
-			onAbort: () => {
-				if (this.#titleFork !== fork) return;
-				this.#takeTitleFork();
-				this.#deferredTitle = undefined;
-			},
-		};
-		signal.addEventListener("abort", fork.onAbort, { once: true });
-		this.#titleFork = fork;
-	}
-
-	/** Disarm the armed title fork and release its in-flight claim. */
-	#takeTitleFork(): TitleFork | undefined {
-		const fork = this.#titleFork;
-		if (!fork) return undefined;
-		this.#titleFork = undefined;
-		clearTimeout(fork.timer);
-		fork.signal.removeEventListener("abort", fork.onAbort);
-		if (this.#titleGenerationInFlightFor === fork.sessionId) this.#titleGenerationInFlightFor = undefined;
-		return fork;
-	}
-
-	/** The armed fork never got a reply to branch from: the title model names the session. */
-	#abandonTitleFork(reason: string): void {
-		const fork = this.#takeTitleFork();
-		if (!fork) return;
-		logger.debug("title-generator: fork not started", { sessionId: fork.sessionId, reason });
-		this.#fallBackFromTitleFork(fork);
-	}
-
-	#fallBackFromTitleFork(fork: TitleFork): void {
-		if (fork.signal.aborted) {
-			this.#deferredTitle = undefined;
-			this.#retryWaitingTitle();
-			return;
-		}
-		if (this.sessionManager.getSessionId() !== fork.sessionId || this.sessionName) return;
-		this.#titleWithTitleModel(fork.input, fork.sessionId, fork.attachmentOnly);
+	#titleWithTitleModel(input: TitleInput): void {
+		// A request that only points at an attachment ("fix [Image #1]") names no
+		// task the text-only title model can see; skip straight to retitling from
+		// the assistant's own description of it.
+		if (isAttachmentOnlyTitleInput(input.text)) this.#afterTitleRequest();
+		else this.#startAutoTitle(input.text, input.sessionId);
 	}
 
 	/**
-	 * Fork the reply that just started into the title request. Synchronous up to
+	 * Fork the streaming reply into the title request. Synchronous up to
 	 * {@link runEphemeralTurn}'s snapshot, so the side turn branches from exactly
 	 * this point while the main turn streams on undisturbed.
 	 */
-	#startTitleFork(): void {
-		const fork = this.#takeTitleFork();
-		if (!fork) return;
-		const { sessionId } = fork;
-		if (this.sessionManager.getSessionId() !== sessionId || this.sessionName) return;
+	#forkTitle(input: TitleInput): void {
+		const { sessionId } = input;
 		this.#titleGenerationInFlightFor = sessionId;
+		const signal = this.#titleGenerationAbortController.signal;
 		const started = performance.now();
-		// Ask only for the icons the title can show: an emoji without Nerd Fonts, no card when boring.
-		const configuredIcons = cfgTitleIcons.get(this.settings);
-		const icons = configuredIcons === "nf+emoji" && !nerdGlyphsActive() ? "emoji" : configuredIcons;
+		const icons = this.#cardIcons();
 		this.runEphemeralTurn({
 			promptText: prompt.render(titleForkPrompt, {
 				card: icons !== "boring",
 				nerdFonts: icons === "nf+emoji",
 			}),
-			signal: AbortSignal.any([fork.signal, AbortSignal.timeout(TITLE_FORK_TIMEOUT_MS)]),
+			signal: AbortSignal.any([signal, AbortSignal.timeout(TITLE_FORK_TIMEOUT_MS)]),
 		})
 			.then(
 				async ({ replyText, assistantMessage }) => {
-					const title = parseCardTitleReply(replyText, icons, fork.input);
+					const title = parseCardTitleReply(replyText, icons, input.text);
 					logger.debug("title-generator: fork reply", {
 						sessionId,
 						ms: Math.round(performance.now() - started),
@@ -9999,8 +9930,8 @@ export class AgentSession implements SettingsScope {
 						title,
 					});
 					if (this.#titleGenerationInFlightFor === sessionId) this.#titleGenerationInFlightFor = undefined;
-					if (fork.signal.aborted || !title) {
-						this.#fallBackFromTitleFork(fork);
+					if (signal.aborted || !title) {
+						this.#fallBackFromTitleFork(input, signal);
 						return;
 					}
 					if (this.sessionManager.getSessionId() !== sessionId || this.sessionName) return;
@@ -10014,7 +9945,7 @@ export class AgentSession implements SettingsScope {
 						error: err instanceof Error ? err.message : String(err),
 					});
 					if (this.#titleGenerationInFlightFor === sessionId) this.#titleGenerationInFlightFor = undefined;
-					this.#fallBackFromTitleFork(fork);
+					this.#fallBackFromTitleFork(input, signal);
 				},
 			)
 			.catch(err => {
@@ -10025,16 +9956,29 @@ export class AgentSession implements SettingsScope {
 			});
 	}
 
+	/** The icons a new card may show: `title.icons`, an emoji where Nerd Fonts glyphs do not render, no card when boring. */
+	#cardIcons(): TitleIcons {
+		const icons = cfgTitleIcons.get(this.settings);
+		return icons === "nf+emoji" && !nerdGlyphsActive() ? "emoji" : icons;
+	}
+
+	#fallBackFromTitleFork(input: TitleInput, signal: AbortSignal): void {
+		if (signal.aborted) {
+			this.#cancelTitle(input.sessionId);
+			return;
+		}
+		if (this.sessionManager.getSessionId() !== input.sessionId || this.sessionName) return;
+		this.#titleWithTitleModel(input);
+	}
+
 	/**
-	 * Run one automatic title generation for `sessionId`, applying the result
-	 * unless the session was renamed or replaced meanwhile. A settled request
-	 * that left the session unnamed starts the message that waited on it, else
-	 * advances {@link #deferredTitle}.
+	 * Run one title-model request for `sessionId`, applying the result unless the
+	 * session was renamed or replaced meanwhile.
 	 */
-	#startAutoTitle(input: string, sessionId: string): void {
+	#startAutoTitle(text: string, sessionId: string): void {
 		this.#titleGenerationInFlightFor = sessionId;
 		const signal = this.#titleGenerationAbortController.signal;
-		this.generateTitle(input)
+		this.generateTitle(text)
 			.then(async title => {
 				// Re-check after generation so a later completion cannot replace
 				// the first title, and a request from a replaced session cannot
@@ -10055,11 +9999,31 @@ export class AgentSession implements SettingsScope {
 				if (this.#titleGenerationInFlightFor === sessionId) {
 					this.#titleGenerationInFlightFor = undefined;
 				}
-				if (this.#retryWaitingTitle()) return;
-				// An interrupted request is cancelled inference, not a decline.
-				if (signal.aborted) this.#deferredTitle = undefined;
-				else this.#advanceDeferredTitle("declined");
+				if (signal.aborted) this.#cancelTitle(sessionId);
+				else this.#afterTitleRequest();
 			});
+	}
+
+	/**
+	 * A title request settled uninterrupted: a newer message whose reply began
+	 * while it ran gets its own try, else a decline counts toward
+	 * {@link #deferredTitle}.
+	 */
+	#afterTitleRequest(): void {
+		if (!this.#maybeStartTitle()) this.#advanceDeferredTitle("declined");
+	}
+
+	/**
+	 * An interrupt cancelled `sessionId`'s title request: no title model and no
+	 * context retitle, but the operator's latest message tries again when its
+	 * next reply begins (a flushed steer or a continue).
+	 */
+	#cancelTitle(sessionId: string): void {
+		this.#deferredTitle = undefined;
+		const input = this.#titleInput;
+		if (input?.sessionId !== sessionId) return;
+		input.tried = false;
+		input.replied = false;
 	}
 
 	/**
@@ -10139,6 +10103,22 @@ export class AgentSession implements SettingsScope {
 	get titleGenerationSignal(): AbortSignal {
 		return this.#titleGenerationAbortController.signal;
 	}
+
+	/**
+	 * The title `/rename` gives the session: `title` as typed, else a fresh
+	 * title-model title for the recent conversation that keeps the current
+	 * title's card. A result without a card is headed by one the title model
+	 * names for it, unless `title.icons` is `boring`; a failed card leaves it plain.
+	 *
+	 * A request that asks a model reserves a title revision first, which
+	 * discards an older rename still generating; one with nothing to generate
+	 * leaves it running.
+	 *
+	 * Resolves `null` when the conversation names no task or title generation
+	 * fails, and `undefined` when a session switch or newer rename invalidated
+	 * the request, or an interrupt cancelled a generated title (a typed title
+	 * still applies, without the card it was waiting for).
+	 */
 
 	async #refreshTitleAfterReplan(context: string, sessionId: string): Promise<void> {
 		const title = await this.generateTitle(context);
@@ -14138,6 +14118,21 @@ export class AgentSession implements SettingsScope {
 		return this.#recovery.consumeActiveFallbackCreditRedemption(targetModel);
 	}
 
+	/**
+	 * The title `/rename` gives the session: `title` as typed, else a fresh
+	 * title-model title for the recent conversation that keeps the current
+	 * title's card. A result without a card is headed by one the title model
+	 * names for it, unless `title.icons` is `boring`; a failed card leaves it plain.
+	 *
+	 * A request that asks a model reserves a title revision first, which
+	 * discards an older rename still generating; one with nothing to generate
+	 * leaves it running.
+	 *
+	 * Resolves `null` when the conversation names no task or title generation
+	 * fails, and `undefined` when a session switch or newer rename invalidated
+	 * the request, or an interrupt cancelled a generated title (a typed title
+	 * still applies, without the card it was waiting for).
+	 */
 	async renameTitle(title?: string, signal?: AbortSignal): Promise<string | null | undefined> {
 		const icons = this.#cardIcons();
 		const needsCard = (name: string) => icons !== "boring" && !splitCardTitle(name);
@@ -14162,11 +14157,7 @@ export class AgentSession implements SettingsScope {
 		return card ? formatCardTitle(card, named) : named;
 	}
 
-	#cardIcons(): TitleIcons {
-		const icons = cfgTitleIcons.get(this.settings);
-		return icons === "nf+emoji" && !nerdGlyphsActive() ? "emoji" : icons;
-	}
-
+	/** A fresh title-model title for `context` that keeps the current title's card; null when generation fails. */
 	async #retitle(context: string, signal?: AbortSignal): Promise<string | null> {
 		const title = await this.generateTitle(context, undefined, signal);
 		return title && keepTitleCard(this.sessionName, title);
