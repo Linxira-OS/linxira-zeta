@@ -562,7 +562,7 @@ async function runWithIsolatedBroker(home: string, script: string, env: Record<s
 			HOME: home,
 			USERPROFILE: home,
 			PI_CONFIG_DIR: ".omp",
-			OMP_DAEMON_IDLE_GRACE_MS: "200",
+			ZETA_DAEMON_IDLE_GRACE_MS: "200",
 			...env,
 		},
 		stdout: "pipe",
