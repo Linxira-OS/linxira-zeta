@@ -12,7 +12,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { SkillInstallInfo, SkillUpdateResult } from "./dto";
+import { SKILLS_CLI_AGENT, type SkillInstallInfo, type SkillUpdateResult } from "./dto";
 
 const CHECK_TIMEOUT_MS = 15_000;
 const GIT_CHECK_TIMEOUT_MS = 30_000;
@@ -69,7 +69,7 @@ export function buildSkillUpdateArgs(install: SkillInstallInfo): string[] {
 		skillNameFromPackage(install.package),
 		"-y",
 		"--agent",
-		"omp",
+		SKILLS_CLI_AGENT,
 	];
 	if (install.scope === "global") args.push("-g");
 	return args;
