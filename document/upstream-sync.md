@@ -181,7 +181,12 @@ recurs on every sync.
   `packages/natives/test/stale-addon-export.test.ts`. A self-built addon is unaffected.
   The same policy explains this round's `json-query` red — main's cached addon carries
   main's jaq 2.3.0 port, which stops at a failing input, while the branch ships the
-  jaq 3.1.1 port that continues (see the CI-triage round below).
+  jaq 3.1.1 port that continues (see the CI-triage round below). The operative detail is
+  the cache step: on a pull request `natives-cache` restores with
+  `restore-keys: natives-linux-x64-v1-`, so an exact-key miss still lands on whatever
+  `v1-` entry main saved (here: one created 2026-10-09), and a non-empty
+  `cache-matched-key` also skips the npm fallback. A push builds instead, which is why
+  the merged `main` run is the one that reflects the tree.
 
 - **CI guard repaired.** `check-merge-lineage.ts` failed on every PR run
   ("v18.8.8 does not resolve locally") because the PR checkout is shallow and has no
