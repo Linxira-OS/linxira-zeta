@@ -1,5 +1,6 @@
 import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { type ThemePreference, useThemePreference } from "../useSystemTheme";
+import { t } from "../i18n";
 
 const NEXT_PREFERENCE: Record<ThemePreference, ThemePreference> = {
 	system: "light",
@@ -14,9 +15,9 @@ const PREFERENCE_ICON: Record<ThemePreference, LucideIcon> = {
 };
 
 const PREFERENCE_LABEL: Record<ThemePreference, string> = {
-	system: "System theme",
-	light: "Light theme",
-	dark: "Dark theme",
+	system: t("shell.system-theme"),
+	light: t("shell.light-theme"),
+	dark: t("shell.dark-theme"),
 };
 
 /** Cycles system → light → dark. */

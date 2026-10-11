@@ -19,6 +19,7 @@ import {
 } from "./aggregator";
 import { initDb } from "./db";
 import { decodeEmbeddedClientArchive, hasEmbeddedClientArchive } from "./embedded-client";
+import { resolveLocaleTag, type StatsLocale } from "./locale";
 import embeddedClientArchiveTxt from "./embedded-client.generated.txt";
 import {
 	cancelFrustrationRun,
@@ -64,6 +65,9 @@ const IS_PREBUILT = IS_BUN_COMPILED || Boolean(process.env.PI_BUNDLED || Bun.env
 // Sniff the base64 gzip magic instead of decoding: importing this module (every
 // TUI start) must not pay for a multi-megabyte archive nobody may serve.
 const USE_EMBEDDED_CLIENT = hasEmbeddedClientArchive(embeddedClientArchiveTxt) || IS_PREBUILT;
+
+/** Host UI language for the served shell; `startServer` sets it from `StartServerOptions.language`. */
+let dashboardLocale: StatsLocale = "en";
 
 let embeddedClientFilesPromise: Promise<Map<string, Blob>> | null = null;
 
@@ -338,10 +342,12 @@ export async function handleApi(req: Request): Promise<Response> {
  * Handle static file requests.
  */
 async function handleStatic(requestPath: string): Promise<Response> {
+	const wantsIndex = requestPath === "/" || requestPath.endsWith("index.html");
 	if (USE_EMBEDDED_CLIENT) {
 		const files = await getEmbeddedClientFiles();
 		const file = files.get(requestPath.slice(1)) ?? files.get("index.html");
-		return file ? new Response(file) : new Response("Not Found", { status: 404 });
+		if (!file) return new Response("Not Found", { status: 404 });
+		return wantsIndex ? shellResponse(await file.text()) : new Response(file);
 	}
 
 	const filePath = requestPath === "/" ? "/index.html" : requestPath;
@@ -349,16 +355,29 @@ async function handleStatic(requestPath: string): Promise<Response> {
 
 	const file = Bun.file(fullPath);
 	if (await file.exists()) {
-		return new Response(file);
+		return filePath.endsWith("index.html") ? shellResponse(await file.text()) : new Response(file);
 	}
 
 	// SPA fallback
 	const index = Bun.file(path.join(STATIC_DIR, "index.html"));
 	if (await index.exists()) {
-		return new Response(index);
+		return shellResponse(await index.text());
 	}
 
 	return new Response("Not Found", { status: 404 });
+}
+
+/**
+ * The shell HTML with the host's language stamped in — `<html lang>` plus an
+ * inline global the client reads at boot (`resolveInitialLocale`), the same
+ * pre-paint pattern the persisted theme uses.
+ */
+function shellResponse(html: string): Response {
+	const locale = dashboardLocale;
+	const stamped = html
+		.replace(/<html lang="[^"]*"/, `<html lang="${locale}"`)
+		.replace("</head>", `<script>window.__ZETA_STATS_LOCALE__=${JSON.stringify(locale)}</script></head>`);
+	return new Response(stamped, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
 
 /** Format a dashboard origin, including brackets required by IPv6 literals. */
@@ -494,6 +513,12 @@ let liveServers = 0;
 export interface StartServerOptions {
 	/** Host judge for the Frustration dashboard's judge runs; replaces any previously registered one. */
 	judge?: StatsJudgeProvider;
+	/**
+	 * Host UI language (`zh`, `zh-CN`, `en`, …). Stamped into the served page so
+	 * the dashboard renders in the same language as the CLI that launched it;
+	 * anything unrecognized resolves to English.
+	 */
+	language?: string;
 }
 
 export async function startServer(
@@ -502,6 +527,7 @@ export async function startServer(
 	options: StartServerOptions = {},
 ): Promise<StatsServerHandle> {
 	if (options.judge) setStatsJudgeProvider(options.judge);
+	dashboardLocale = resolveLocaleTag(options.language);
 	const activeKey = `${hostname}:${port}`;
 	if (port !== 0) {
 		const active = activeServers.get(activeKey);

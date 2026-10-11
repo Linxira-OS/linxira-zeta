@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { t } from "../i18n";
 import type { TraceSpanKind, TraceTrack } from "../types";
 import type { TimelineViewport } from "./TimelineCanvas";
 import type { TraceScale } from "./time-scale";
@@ -183,7 +184,7 @@ export function Minimap({ tracks, scale, viewport, onViewportChange }: MinimapPr
 			className="traces-minimap"
 			style={{ height: HEIGHT }}
 			role="slider"
-			aria-label="Timeline overview brush"
+			aria-label={t("trace.minimap-aria")}
 			aria-valuemin={0}
 			aria-valuemax={100}
 			aria-valuenow={Math.round(((viewport.u0 - d0) / dSpan) * 100)}

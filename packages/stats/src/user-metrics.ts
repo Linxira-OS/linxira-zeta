@@ -61,6 +61,10 @@ export interface UserMessageMetrics {
 	 *
 	 * Bare `still` / `again` are too ambiguous to count alone (they show up
 	 * in normal speech like "try again" or "still works").
+	 *
+	 * Also counts the Chinese recall/still markers (`我说过`, `还是不行`, `又错了`)
+	 * and whole-message repetition of the previous user message (`prevText`),
+	 * which is the signal that survives both languages and voice input.
 	 */
 	repetition: number;
 	/**
@@ -69,8 +73,24 @@ export interface UserMessageMetrics {
 	 * - `you (didn't|did not|broke|missed|forgot|keep|always|never|still|ignored)`
 	 * - `why (would|did) (you|u)`
 	 * - sentence-leading `stop <verb>ing` imperatives
+	 * - the Chinese forms (`你怎么又`, `你没改`, `我明明说过`, `不是让你`)
 	 */
 	blame: number;
+	/**
+	 * Emphatic markers the caps-based {@link yelling} cannot see, because they
+	 * are how Chinese - and any voice-transcribed text - shouts: full-width
+	 * `！？` bursts, a Han character or short word repeated three or more times
+	 * (`不不不`, `不对不对不对`), and elongated interjections (`啊啊啊`).
+	 * English text scores 0 here; its shouting is already in {@link yelling}.
+	 */
+	emphasis: number;
+	/**
+	 * 1 when the prose is dominated by a script no shipped lexicon covers
+	 * (Kana, Hangul, Cyrillic, Arabic, …). The other counts are then *not*
+	 * evidence of calm - they are evidence of a missing lexicon, and the
+	 * dashboard reports those messages as unscored rather than as content.
+	 */
+	unsupportedScript: number;
 }
 
 /**
@@ -517,6 +537,171 @@ const BLAME_WHY_RE = /\bwhy\s+(?:would|did)\s+(?:you|u)\b/gi;
 // to start a sentence (line start or after a sentence-terminating punctuator).
 const BLAME_STOP_RE = /(?:^|(?<=[.!?\n]))\s*stop\s+\w+ing\b/gim;
 
+// --- Chinese and voice-input signals ----------------------------------------
+// Chinese has no word boundaries and no letter case, so every pattern below is
+// boundary-free (`\b` never fires between two Han characters) and independent
+// of punctuation. That independence is the point: most Chinese traffic reaches
+// the agent through voice transcription, which emits one long unpunctuated
+// line and renders swearing as whichever homophone the recognizer chose
+// (`卧槽`/`我艹`/`淦`). A pattern that needed `!` or a space would score zero on
+// exactly the messages this layer exists for.
+//
+// Every list is deliberately narrow: a term earns its place only when its
+// dominant use in a coding chat is frustration. So `沙雕` (playful) and `呵呵`
+// (merely dry) are out, bare `草`/`靠` are out (`草莓`, `草稿`, `依靠` are far
+// more common), and repeated agreement forms (`好好好`, `对对对`, `哈哈哈`) are
+// out because they are at least as often genuine.
+const ZH_PROFANITY: readonly string[] = [
+	"傻逼",
+	"傻b",
+	"煞笔",
+	"傻x",
+	"智障",
+	"弱智",
+	"废物",
+	"垃圾",
+	"滚蛋",
+	"去死",
+	"妈的",
+	"他妈的",
+	"特么",
+	"卧槽",
+	"我操",
+	"我艹",
+	"我草",
+	"操你",
+	"草你",
+	"艹你",
+	"操蛋",
+	"淦",
+	"我靠",
+	"哇靠",
+	"靠北",
+	"狗屎",
+	"什么破",
+	"破玩意",
+	"烂死",
+];
+const ZH_PROFANITY_RE = new RegExp(ZH_PROFANITY.join("|"), "gi");
+
+// Exasperation. `唉`/`哎` are the Chinese `ugh`; the internet registers
+// (`服了`, `醉了`, `无语`, `离谱`, `逆天`, `绝了`) are what a Chinese user
+// actually types when the agent has failed twice in a row. `干什么` is out on
+// purpose: `这个是干什么用的` is an ordinary question, while its exasperated twin
+// `搞什么呢` is in.
+const ZH_ANGUISH: readonly string[] = [
+	"哎呀",
+	"哎哟",
+	"哎呦",
+	"天哪",
+	"天啊",
+	"妈呀",
+	"我的天",
+	"不是吧",
+	"不会吧",
+	"救命",
+	"崩溃",
+	"崩了",
+	"麻了",
+	"服了",
+	"服气",
+	"醉了",
+	"无语",
+	"离谱",
+	"逆天",
+	"绝了",
+	"要命",
+	"疯了",
+	"烦死",
+	"气死",
+	"急死",
+	"完蛋",
+	"搞什么",
+	"什么鬼",
+	"咋回事",
+];
+const ZH_ANGUISH_RE = new RegExp(ZH_ANGUISH.join("|"), "g");
+
+// Corrective negation. Anchored to the start of the prose body like the
+// English lead (`不对`, `错了`, `搞错`); mid-sentence occurrences are usually
+// ordinary description. Bare `不是` only counts as the interjection form -
+// when nothing Han follows it - so the very common `不是我做的` / `不是这个
+// 问题` stay neutral.
+const ZH_NEGATION_LEAD_RE =
+	/^[ \t]*(?:不对|不是(?![\p{Script=Han}])|错了|搞错|弄错|怎么可能|怎么会|咋会|什么鬼|不可能|哪里对|哪儿对)/gu;
+const ZH_NEGATION_PHRASE_RE =
+	/(?:不是(?:这个|这|那个|那)?意思|搞错(?:了|了吧)?|弄错(?:了)?|我说的是|我指的是|我要的是|不应该(?:是)?这样|不该这样|(?:又|还是)(?:错|不对)(?:了)?)/g;
+
+// "You already made me say this." Pronoun-free forms (`又错了`, `还是不行`)
+// matter more than the ones that need `你`, because a recognizer may drop the
+// subject entirely.
+const ZH_REPETITION_RE =
+	/(?:我说过|我说了|我早就说|我已经说|跟你说过?|重复(?:了)?|又(?:错|来|是|搞|弄|要|不)|还是(?:不行|不对|没|这样|那样|一样|老样子)|(?:依旧|依然|仍然)(?:没|不|一样|这样|错|是)|老样子|没变|没改|又来了|第[二三]次|再来一次|重来|重新来过?|白做|白干|白弄|浪费时间)/g;
+
+// Direct reproach. `你怎么` needs a follow-up that only a complaint uses -
+// `你怎么看` (what do you think?) is neutral - and `你能不能` needs the
+// exasperated tail (`认真点`, `别…`).
+const ZH_BLAME_RE =
+	/(?:你怎么(?:又|还|这么|那么|回事|搞|弄|能|不|没|老是|总是)|你干嘛|你干吗|你搞的|你弄的|你没(?:有)?(?:改|做|弄|看|听|按)|你(?:又|老是|总是)|谁让你|我让你|我明明(?:说|要|让|告诉|讲)|不是让你|我是不是(?:说|讲)过|你到底(?:想|要|在)|你能不能(?:认真|好好|别))/g;
+
+// Shouting without capital letters: a denial/vent character run (`不不不`,
+// `啊啊啊`, `唉唉唉`) or a repeated short denial (`不对不对`, `不是不是`).
+// Long vowel-free Han runs are unambiguous; 2x repeats of ordinary words
+// (`谢谢`) are common, so runs need three in a row and words come from a
+// negative list.
+const ZH_REPEAT_CHAR_RE = /([不别没错唉哎啊呀呜])\1{2,}/gu;
+const ZH_REPEAT_WORD_RE = /(不对|不是|不行|不要|没用|没变|又错)(?:\1)+/gu;
+// Full-width bursts (`？？？`, `？！？`). The first mark must be full-width so a
+// pure-ASCII `!!!` stays where it belongs, in the English `anguish` bucket.
+const ZH_DRAMA_RE = /[！？][！？!?]{2,}/g;
+
+// Scripts no shipped lexicon covers. Kana/Hangul/Cyrillic/Arabic/… text scores
+// zero on every signal above, and a dashboard that reported those zeros as
+// "not annoyed" would be lying about its coverage.
+const SCRIPT_LETTER_RE = /\p{L}/gu;
+const UNSUPPORTED_SCRIPT_RE =
+	/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Cyrillic}\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thai}\p{Script=Devanagari}\p{Script=Greek}]/gu;
+const UNSUPPORTED_SCRIPT_SHARE = 0.3;
+
+/** 1 when the prose leans on a script the lexicons do not cover. */
+function detectUnsupportedScript(prose: string): number {
+	const letters = countMatches(prose, SCRIPT_LETTER_RE);
+	if (letters < 4) return 0;
+	return countMatches(prose, UNSUPPORTED_SCRIPT_RE) / letters > UNSUPPORTED_SCRIPT_SHARE ? 1 : 0;
+}
+
+/** Whole-message repetition: normalised character-bigram Jaccard similarity. */
+const REPEATED_MESSAGE_SIMILARITY = 0.7;
+const REPEATED_MESSAGE_MIN_CHARS = 8;
+
+function normalizeForComparison(text: string): string {
+	return text.replace(/[\s\p{P}\p{S}]/gu, "").toLowerCase();
+}
+
+function bigrams(normalized: string): Set<string> {
+	const grams = new Set<string>();
+	for (let i = 0; i + 1 < normalized.length; i++) grams.add(normalized.slice(i, i + 2));
+	return grams;
+}
+
+/**
+ * 1 when the message says essentially the same thing as the one before it -
+ * the one frustration signal that needs no lexicon and therefore works for
+ * any language and survives every transcription error.
+ */
+function detectRepeatedMessage(prose: string, prevProse: string): number {
+	const current = normalizeForComparison(prose);
+	const previous = normalizeForComparison(prevProse);
+	if (current.length < REPEATED_MESSAGE_MIN_CHARS || previous.length < REPEATED_MESSAGE_MIN_CHARS) return 0;
+	if (current === previous) return 1;
+	const a = bigrams(current);
+	const b = bigrams(previous);
+	if (a.size === 0 || b.size === 0) return 0;
+	let shared = 0;
+	for (const gram of a) if (b.has(gram)) shared++;
+	return shared / (a.size + b.size - shared) >= REPEATED_MESSAGE_SIMILARITY ? 1 : 0;
+}
+
 // Stripped from the analyzed body before scoring so that structured
 // content (code, XML/HTML, URLs, file mentions, quoted blocks) doesn't
 // pollute behavior signals. We replace with a newline so line counts
@@ -637,7 +822,12 @@ function countNonEmptyLines(text: string): number {
  *
  * `text` may be empty or whitespace; in that case every metric is 0.
  */
-export function computeUserMessageMetrics(text: string): UserMessageMetrics {
+export function computeUserMessageMetrics(
+	text: string,
+	options: {
+		/** The user message before this one in the same session, for whole-message repetition. */ prevText?: string;
+	} = {},
+): UserMessageMetrics {
 	const trimmed = text.trim();
 	if (!trimmed) {
 		return {
@@ -649,6 +839,8 @@ export function computeUserMessageMetrics(text: string): UserMessageMetrics {
 			negation: 0,
 			repetition: 0,
 			blame: 0,
+			emphasis: 0,
+			unsupportedScript: 0,
 		};
 	}
 
@@ -669,6 +861,8 @@ export function computeUserMessageMetrics(text: string): UserMessageMetrics {
 			negation: 0,
 			repetition: 0,
 			blame: 0,
+			emphasis: 0,
+			unsupportedScript: detectUnsupportedScript(prose),
 		};
 	}
 
@@ -676,22 +870,40 @@ export function computeUserMessageMetrics(text: string): UserMessageMetrics {
 		countMatches(prose, DRAMA_RE) +
 		countMatches(prose, ANGUISH_RE) +
 		countMatches(prose, DUDE_RE) +
-		countMatches(prose, SAD_EMOTICON_RE);
+		countMatches(prose, SAD_EMOTICON_RE) +
+		countMatches(prose, ZH_ANGUISH_RE);
 
-	const negation = countMatches(prose, NEGATION_LEAD_RE) + countMatches(prose, NEGATION_PHRASE_RE);
-	const repetition = countMatches(prose, REPETITION_RECALL_RE) + countMatches(prose, REPETITION_STILL_RE);
+	const negation =
+		countMatches(prose, NEGATION_LEAD_RE) +
+		countMatches(prose, NEGATION_PHRASE_RE) +
+		countMatches(prose, ZH_NEGATION_LEAD_RE) +
+		countMatches(prose, ZH_NEGATION_PHRASE_RE);
+	const repetition =
+		countMatches(prose, REPETITION_RECALL_RE) +
+		countMatches(prose, REPETITION_STILL_RE) +
+		countMatches(prose, ZH_REPETITION_RE) +
+		detectRepeatedMessage(prose, options.prevText ?? "");
 	const blame =
-		countMatches(prose, BLAME_YOU_RE) + countMatches(prose, BLAME_WHY_RE) + countMatches(prose, BLAME_STOP_RE);
+		countMatches(prose, BLAME_YOU_RE) +
+		countMatches(prose, BLAME_WHY_RE) +
+		countMatches(prose, BLAME_STOP_RE) +
+		countMatches(prose, ZH_BLAME_RE);
+	const emphasis =
+		countMatches(prose, ZH_REPEAT_CHAR_RE) +
+		countMatches(prose, ZH_REPEAT_WORD_RE) +
+		countMatches(prose, ZH_DRAMA_RE);
 
 	return {
 		chars,
 		words,
 		yelling: countYellingSentences(prose),
-		profanity: countMatches(prose, PROFANITY_RE),
+		profanity: countMatches(prose, PROFANITY_RE) + countMatches(prose, ZH_PROFANITY_RE),
 		anguish,
 		negation,
 		repetition,
 		blame,
+		emphasis,
+		unsupportedScript: detectUnsupportedScript(prose),
 	};
 }
 
@@ -705,4 +917,6 @@ export const EMPTY_USER_METRICS: UserMessageMetrics = Object.freeze({
 	negation: 0,
 	repetition: 0,
 	blame: 0,
+	emphasis: 0,
+	unsupportedScript: 0,
 });

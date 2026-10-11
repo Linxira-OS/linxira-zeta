@@ -203,6 +203,13 @@ export interface FrustrationCounts {
 	messages: number;
 	/** Messages whose prose has a cached judge verdict; the rest use regex fallback. */
 	judged: number;
+	/**
+	 * Unjudged messages whose prose is written in a script no lexicon covers
+	 * (Kana, Hangul, Cyrillic, …). Their regex counts are zeros because there is
+	 * no lexicon, not because the user was calm - the dashboard says so instead
+	 * of folding them into "not annoyed", and the judge is the fix for them.
+	 */
+	unscored: number;
 	/** Annoyed at anything (the assistant, tooling, other people, ...). */
 	annoyed: number;
 	/** Annoyed and aimed at the assistant. Subset of `annoyed`. */
