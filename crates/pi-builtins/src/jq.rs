@@ -2179,6 +2179,22 @@ mod tests {
 	}
 
 	#[test]
+	fn error_in_one_input_of_a_file_does_not_stop_the_rest() {
+		// The read tool hands jq a file operand (a `.jsonl` path), not stdin.
+		let dir = tempfile::TempDir::new().expect("tempdir");
+		std::fs::write(dir.path().join("in.jsonl"), "{\"n\":1}\n{\"n\":\"x\"}\n{\"n\":3}\n")
+			.expect("write input");
+		let (code, out, err) = run_jq_in(
+			dir.path().to_path_buf(),
+			HashMap::new(),
+			&["-c", ".n + 1", "in.jsonl"],
+			"",
+		);
+		assert_eq!((code, out.as_str()), (0, "2\n4\n"));
+		assert_eq!(err, "Error: cannot calculate \"x\" + 1\n");
+	}
+
+	#[test]
 	fn printer_writes_each_value_at_once() {
 		let mut out = Writes::default();
 		assert_eq!(run_jq_into(&mut out, &["."], "{\"a\":[1,\"x\"]} 2"), 0);

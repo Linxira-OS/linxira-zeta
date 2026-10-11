@@ -179,6 +179,9 @@ recurs on every sync.
   absent export as fatal, killing every AST path (TTSR, `ast_grep`, read-summary) on
   such an addon; it is now a capability probe, matching the contract pinned by
   `packages/natives/test/stale-addon-export.test.ts`. A self-built addon is unaffected.
+  The same policy explains this round's `json-query` red — main's cached addon carries
+  main's jaq 2.3.0 port, which stops at a failing input, while the branch ships the
+  jaq 3.1.1 port that continues (see the CI-triage round below).
 
 - **CI guard repaired.** `check-merge-lineage.ts` failed on every PR run
   ("v18.8.8 does not resolve locally") because the PR checkout is shallow and has no
@@ -287,12 +290,20 @@ gates could not see, and each is now fixed:
     values (the shape the merged test and `withStderr` both specify). The throw
     is now limited to runs that produced **no** output (compile/usage/transport
     errors). A remaining red in that file on a *local* run is the stale native
-    addon (the shell's bundled jaq is Rust-side and byte-identical to `v18.8.8`).
-    The PR's own CI is a different story and was misread here first: `Build
-    native addons (bazel)` **succeeds** on the PR, so a fresh addon *is* what the
-    test jobs use — the buckets that stay red (`packages/ai` TextJudge,
-    `session-storage-fd-inheritance`) are red on `main` itself, which is the
-    real baseline to compare against.
+    addon (the shell's bundled jaq is Rust-side) — and the *reason* it is stale on a
+    PR was misread here first: `Build native addons (bazel)` does run and succeed on
+    the PR, but the test jobs do not consume that build. `native_addons`'s cache key
+    is deliberately event-independent ("PRs look up the entry main saved for the same
+    inputs"), so on GitHub-hosted runners a PR restores **main's** cached addon. The
+    local addon reports `jaq 2.3.0` (main's port) while this branch's source is the
+    jaq 3.1.1 port, and 2.3.0 stops at a failing input — the exact PR failure. Settled
+    2026-10-11 by running the port's own tests in WSL against the branch source:
+    `cargo test -p pi-builtins --lib jq::tests::error_in_one_input` → both the stdin
+    and the file-operand case pass (the file case is new this round: `2\n4\n`, the
+    stderr report, exit 0). The `json-query` red is therefore PR-environmental, not
+    product damage. The bucket reds that *are* baseline (`packages/ai` TextJudge,
+    `session-storage-fd-inheritance`) are red on `main` itself, which is the real
+    baseline to compare against.
   - Also fixed from the CI log: an oxfmt miss in `blobs.test.ts` and an unused
     `APP_NAME` import in `slash-commands/builtin-collaboration.ts` — the
     `check` job was red on `check:tools` alone.
