@@ -221,15 +221,21 @@ gates could not see, and each is now fixed:
   scoped docs rule rather than the whole-tree one; tracking has lock-free
   read-modify-write of `status.json` and the global index, an unbounded
   `actions.jsonl`, and a `summaries/` family that no panel tab renders.
-- **Agent images do not reach the web conversation.** Screenshots (computer-use,
-  browser, `read` of an image file) become inline image blocks and render in the
-  terminal (kitty/iTerm2/SIXEL, 8-image inline budget, text fallback). The
-  gateway's SSE stream forwards them, but the web-ui's transcript reload asks for
-  `deferMedia=1`, and `omitToolResultBase64Images` replaces every tool-result
-  image with `[N tool result images omitted …]`; `session_entry` then triggers
-  that refetch, so the live image is clobbered. The bytes are not lost — they are
-  externalized to a content-addressed blob store and `/api/blobs/<sha256>` is
-  already routed — but no web-ui code consumes that route.
+- **Agent images did not reach the web conversation — fixed in this round.**
+  Screenshots (computer-use, browser, `read` of an image file) become inline image
+  blocks and render in the terminal (kitty/iTerm2/SIXEL, 8-image inline budget,
+  text fallback). The gateway's SSE stream forwarded them live, but the web-ui's
+  transcript reload asks for `deferMedia=1`, and `omitToolResultBase64Images`
+  replaced every tool-result image with `[N tool result images omitted …]`;
+  `session_entry` then triggered that refetch, so the live image was clobbered.
+  The gateway now rewrites such a payload to the blob URL it already has
+  (`/api/blobs/<sha256>`, the bytes persistence externalized, inline when the
+  blob is absent or the payload is below the threshold), the blob route reports
+  the real image type instead of `application/octet-stream`, `MessageView` renders
+  both the assistant-native and tool-result arms (visible while the tool block is
+  collapsed, matching the TUI, which gates on the terminal protocol rather than
+  expansion), and the web-ui origin proxies `/api/blobs` in the `next dev` /
+  standalone topology (`zeta serve` already routes `/api/*` to the gateway).
 - **Local CI**: the Gitea mirror's runs 520–535 all died before any test ran —
   first a missing `actions/checkout`, then repeated NAS→github.com failures
   (`curl: (56)` on a release asset; `TLS handshake timeout` fetching the action
