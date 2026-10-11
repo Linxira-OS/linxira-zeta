@@ -274,9 +274,13 @@ gates could not see, and each is now fixed:
     whole query instead of surfacing `[jq stderr: …]` ahead of the surviving
     values (the shape the merged test and `withStderr` both specify). The throw
     is now limited to runs that produced **no** output (compile/usage/transport
-    errors). The remaining red in that file is the local stale native addon
-    (the shell's bundled jaq is Rust-side and byte-identical to `v18.8.8`;
-    PR-run CI tests main's cached addon, so the same one case fails there).
+    errors). A remaining red in that file on a *local* run is the stale native
+    addon (the shell's bundled jaq is Rust-side and byte-identical to `v18.8.8`).
+    The PR's own CI is a different story and was misread here first: `Build
+    native addons (bazel)` **succeeds** on the PR, so a fresh addon *is* what the
+    test jobs use — the buckets that stay red (`packages/ai` TextJudge,
+    `session-storage-fd-inheritance`) are red on `main` itself, which is the
+    real baseline to compare against.
   - Also fixed from the CI log: an oxfmt miss in `blobs.test.ts` and an unused
     `APP_NAME` import in `slash-commands/builtin-collaboration.ts` — the
     `check` job was red on `check:tools` alone.
