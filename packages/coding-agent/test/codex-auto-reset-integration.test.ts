@@ -1,23 +1,23 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@oh-my-pi/pi-ai";
-import * as envApiKey from "@oh-my-pi/pi-ai/env-api-key";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { createAcpExtensionUiContext } from "@oh-my-pi/pi-coding-agent/modes/acp/acp-agent";
-import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { ResetCreditAccountStatus, ResetCreditTarget, UsageReport } from "@linxiraos/pi-ai";
+import * as envApiKey from "@linxiraos/pi-ai/env-api-key";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { createAcpExtensionUiContext } from "@linxiraos/zeta/modes/acp/acp-agent";
+import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	type CodexAutoRedeemCoordinator,
 	createCodexAutoRedeemCoordinator,
-} from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import type { AgentSideConnection, CreateElicitationRequest } from "@oh-my-pi/pi-utils/acp";
+} from "@linxiraos/zeta/session/codex-auto-reset";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
+import type { AgentSideConnection, CreateElicitationRequest } from "@linxiraos/pi-utils/acp";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 import { getTestModel } from "./helpers/model-fixtures";
 

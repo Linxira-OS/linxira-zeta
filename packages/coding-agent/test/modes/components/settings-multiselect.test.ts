@@ -2,19 +2,19 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { SettingsSelectorComponent } from "@oh-my-pi/pi-tui/overlays/settings-selector";
-import { createSettingsHost } from "@oh-my-pi/pi-coding-agent/config/settings-ui";
-import { createPluginSettingsHost } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/settings-host";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { TspDocument } from "@oh-my-pi/pi-tui/native/apply";
-import { Reconciler } from "@oh-my-pi/pi-tui/native/reconcile";
-import type { TspNode } from "@oh-my-pi/pi-wire";
-import { getProjectAgentDir, removeWithRetries } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
+import { createSettingsHost } from "@linxiraos/zeta/config/settings-ui";
+import { createPluginSettingsHost } from "@linxiraos/zeta/extensibility/plugins/settings-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { TspDocument } from "@linxiraos/pi-tui/native/apply";
+import { Reconciler } from "@linxiraos/pi-tui/native/reconcile";
+import type { TspNode } from "@linxiraos/pi-wire";
+import { getProjectAgentDir, removeWithRetries } from "@linxiraos/pi-utils";
 
-import { cfgDevAutoqa } from "@oh-my-pi/pi-coding-agent/tools/settings";
-import { cfgContextFilesExtra } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgDevAutoqa } from "@linxiraos/zeta/tools/settings";
+import { cfgContextFilesExtra } from "@linxiraos/zeta/session/context-settings";
 
 beforeAll(async () => {
 	await initTheme();

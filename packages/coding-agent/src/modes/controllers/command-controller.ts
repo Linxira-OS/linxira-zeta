@@ -1493,7 +1493,7 @@ export class CommandController {
 			// Pin only non-secret scope variables.
 			const command = [
 				...forkScopeEnvCommand({
-					PI_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
+					ZETA_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
 					PI_CONFIG_DIR: getConfigDirName(),
 					OMP_PROFILE: activeProfile,
 					PI_PROFILE: activeProfile,

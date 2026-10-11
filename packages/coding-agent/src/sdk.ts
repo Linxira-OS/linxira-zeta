@@ -841,8 +841,6 @@ export interface CreateAgentSessionOptions {
 	 * manage workspaces / sessions / language / model on the user's behalf.
 	 */
 	imControl?: (params: ImControlParams) => Promise<ImControlResult>;
-	/** Explicit parent AsyncJobManager (subagents inherit the parent's manager; top-level sessions get their own when omitted). */
-	asyncJobManager?: AsyncJobManager;
 	/**
 	 * Registry id of the spawning agent, recorded as this subagent's parent in
 	 * the agent registry. Distinct from `parentTaskPrefix`, which is this agent's

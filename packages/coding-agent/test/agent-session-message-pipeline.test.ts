@@ -6,7 +6,7 @@ import {
 	AppendOnlyContextManager,
 	type StreamFn,
 	ThinkingLevel,
-} from "@oh-my-pi/pi-agent-core";
+} from "@linxiraos/pi-agent-core";
 import {
 	type Api,
 	type Context,
@@ -19,34 +19,34 @@ import {
 	type SimpleStreamOptions,
 	type TextContent,
 	type ToolCall,
-} from "@oh-my-pi/pi-ai";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
+} from "@linxiraos/pi-ai";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import {
 	ExtensionRunner,
 	EXTENSION_HANDLER_TIMEOUT_MS,
 	testSetExtensionHandlerTimeoutMs,
-} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { RegisteredToolAdapter } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
-import * as memoryBackend from "@oh-my-pi/pi-coding-agent/memory-backend";
-import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/memory-backend/recall-entry";
-import type { MemoryBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/types";
-import { type MnemopiSessionState, setMnemopiSessionState } from "@oh-my-pi/pi-coding-agent/mnemopi/state";
-import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
-import { obfuscateProviderContext, SecretObfuscator } from "@oh-my-pi/pi-coding-agent/secrets";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { convertToLlm, wrapSteeringForModel } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/extensibility/extensions/runner";
+import { RegisteredToolAdapter } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
+import * as memoryBackend from "@linxiraos/zeta/memory-backend";
+import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@linxiraos/zeta/memory-backend/recall-entry";
+import type { MemoryBackend } from "@linxiraos/zeta/memory-backend/types";
+import { type MnemopiSessionState, setMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
+import { createAgentSession, type ExtensionContext, type ExtensionFactory } from "@linxiraos/zeta/sdk";
+import { obfuscateProviderContext, SecretObfuscator } from "@linxiraos/zeta/secrets";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 function createAgent(): Agent {

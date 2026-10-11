@@ -1,4 +1,4 @@
-import { logger } from "@oh-my-pi/pi-utils";
+import { logger } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type {
 	AuthAccountPolicies,

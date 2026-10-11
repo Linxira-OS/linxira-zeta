@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { AuthStorage } from "@oh-my-pi/pi-ai/auth-storage";
-import type { UsageReport } from "@oh-my-pi/pi-ai/usage";
-import { claudeUsageProvider } from "@oh-my-pi/pi-ai/usage/claude";
+import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
+import type { UsageReport } from "@linxiraos/pi-ai/usage";
+import { claudeUsageProvider } from "@linxiraos/pi-ai/usage/claude";
 import { withEnv } from "./helpers";
 
 async function probeEnvUsage(apiKey: string) {

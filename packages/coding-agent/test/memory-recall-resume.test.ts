@@ -9,24 +9,24 @@
  * another memory store, a context reset, or a branch that edits the first prompt.
  */
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
-import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@oh-my-pi/pi-coding-agent/memory-backend/recall-entry";
-import type { MemoryPromptPreparation } from "@oh-my-pi/pi-coding-agent/memory-backend/types";
-import { mnemopiBackend } from "@oh-my-pi/pi-coding-agent/mnemopi/backend";
-import { loadMnemopiConfig } from "@oh-my-pi/pi-coding-agent/mnemopi/config";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { HindsightApi } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import { MEMORY_RECALL_CHANGES_MESSAGE_TYPE } from "@linxiraos/zeta/memory-backend/recall-entry";
+import type { MemoryPromptPreparation } from "@linxiraos/zeta/memory-backend/types";
+import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
+import { loadMnemopiConfig } from "@linxiraos/zeta/mnemopi/config";
 import {
 	getMnemopiSessionState,
 	loadMnemopi,
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@oh-my-pi/pi-coding-agent/mnemopi/state";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { clipRecallContent } from "@oh-my-pi/pi-mnemopi";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/mnemopi/state";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { clipRecallContent } from "@linxiraos/pi-mnemopi";
+import { TempDir } from "@linxiraos/pi-utils";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);

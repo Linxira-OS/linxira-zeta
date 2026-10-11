@@ -2,8 +2,8 @@
  * The browser blocks of a Tern window (Tern's `blocks` op) and how
  * `app.target` picks the one an open adopts.
  */
-import { isRecord } from "@oh-my-pi/pi-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { isRecord } from "@linxiraos/pi-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { TernSocketClient } from "./wire";
 
 /**

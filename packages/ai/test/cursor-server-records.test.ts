@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import * as http2 from "node:http2";
-import { type CursorOptions, buildGrpcRequest, streamCursor } from "@oh-my-pi/pi-ai/providers/cursor";
-import type { AssistantMessage, Context, Message, Model, ToolResultMessage } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { type CursorOptions, buildGrpcRequest, streamCursor } from "@linxiraos/pi-ai/providers/cursor";
+import type { AssistantMessage, Context, Message, Model, ToolResultMessage } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import {
 	type AgentClientMessage,
 	AgentClientMessageSchema,
@@ -27,8 +27,8 @@ import {
 	ToolCallSchema,
 	ToolCallStartedUpdateSchema,
 	TurnEndedUpdateSchema,
-} from "@oh-my-pi/pi-catalog/discovery/cursor-proto";
-import { create, fromBinary, toBinary } from "@oh-my-pi/pi-catalog/discovery/protobuf";
+} from "@linxiraos/pi-catalog/discovery/cursor-proto";
+import { create, fromBinary, toBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 
 // Records as Cursor's server writes them for one Kimi K3 turn that read a file:
 // its reasoning names the server's own model, and the tool record is Cursor's.

@@ -1,4 +1,4 @@
-import { untilAborted } from "@oh-my-pi/pi-utils";
+import { untilAborted } from "@linxiraos/pi-utils";
 import { MCPManager } from "../mcp/manager";
 import type { MCPResourceReadResult } from "../mcp/types";
 import mcpDoc from "../prompts/internal-urls/mcp.md" with { type: "text" };

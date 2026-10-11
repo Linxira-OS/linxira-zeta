@@ -1,5 +1,5 @@
 import { scheduler } from "node:timers/promises";
-import type { Effort } from "@oh-my-pi/pi-catalog/effort";
+import type { Effort } from "@linxiraos/pi-catalog/effort";
 import {
 	$flag,
 	cloneJsonTree,

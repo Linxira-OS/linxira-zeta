@@ -19,19 +19,19 @@
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { effectiveReserveTokens, prepareCompaction, resolveThresholdTokens } from "@oh-my-pi/pi-agent-core/compaction";
-import { base64ImageSize } from "@oh-my-pi/pi-agent-core/image-tokens";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-frame";
-import { computeNonMessageTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { cfgSnapcompactShape } from "@oh-my-pi/pi-coding-agent/session/context-settings";
-import * as snapcompact from "@oh-my-pi/snapcompact";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { effectiveReserveTokens, prepareCompaction, resolveThresholdTokens } from "@linxiraos/pi-agent-core/compaction";
+import { base64ImageSize } from "@linxiraos/pi-agent-core/image-tokens";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@linxiraos/zeta/modes/rpc/rpc-frame";
+import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { cfgSnapcompactShape } from "@linxiraos/zeta/session/context-settings";
+import * as snapcompact from "@linxiraos/snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;

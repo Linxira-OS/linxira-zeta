@@ -488,6 +488,11 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		why: "agent-dir env contract: dirs.ts reads only ZETA_CODING_AGENT_DIR — a test setting PI_CODING_AGENT_DIR silently isolates nothing (v18.4.3: agent-storage CANTOPEN)",
 	},
 	{
+		needle: /@linxiraos\/pi-coding-agent\//,
+		why: "package-name mapping (damage class 3): our product package is @linxiraos/zeta (registry: pi-coding-agent→zeta), and it is the one workspace member that is NOT linked under its upstream leaf name — a plain scope swap from @oh-my-pi/pi-coding-agent/ yields a specifier that resolves nowhere, so every self-import breaks check:ts (v18.9.1: 62 files swept back to @linxiraos/zeta/)",
+		exempt: ["scripts/brand/brand-rules.ts"],
+	},
+	{
 		needle: /USER_AGENT = `omp\//,
 		why: "(duplicate guard on the test side) any UA producer/consumer pair must both say zeta/",
 	},

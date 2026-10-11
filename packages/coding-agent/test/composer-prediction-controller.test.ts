@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { Message, Model } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message, Model } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
 	ComposerPredictionController,
 	parseComposerPrediction,
-} from "@oh-my-pi/pi-coding-agent/modes/controllers/composer-prediction-controller";
-import type { EphemeralTurnOptions, EphemeralTurnResult } from "@oh-my-pi/pi-coding-agent/session/agent-session-types";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+} from "@linxiraos/zeta/modes/controllers/composer-prediction-controller";
+import type { EphemeralTurnOptions, EphemeralTurnResult } from "@linxiraos/zeta/session/agent-session-types";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 describe("parseComposerPrediction", () => {
 	it("normalizes a reply to the single line the composer shows", () => {

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { carriesReasoning } from "@oh-my-pi/pi-catalog/compat/reasoning-carry";
+import { carriesReasoning } from "@linxiraos/pi-catalog/compat/reasoning-carry";
 import { renderDemotedThinking } from "../dialect/demotion";
 import type {
 	Api,

@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadSkillsFromDir } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
-import type { ReadToolDetails } from "@oh-my-pi/pi-tui/tools/read";
-import { withTimeout } from "@oh-my-pi/pi-utils";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadSkillsFromDir } from "@linxiraos/zeta/extensibility/skills";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPResource, MCPResourceReadResult, MCPResourceTemplate } from "@linxiraos/zeta/mcp/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
+import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import { withTimeout } from "@linxiraos/pi-utils";
 
 function createMockManager(opts: {
 	servers?: string[];

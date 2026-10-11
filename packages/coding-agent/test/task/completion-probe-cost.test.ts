@@ -1,15 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model, Usage } from "@oh-my-pi/pi-ai";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { registerPersistedSubagents } from "@oh-my-pi/pi-coding-agent/registry/persisted-agents";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { startCompletionProbe } from "@oh-my-pi/pi-coding-agent/task/completion-probe";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { startCompletionProbe } from "@linxiraos/zeta/task/completion-probe";
+import { TempDir } from "@linxiraos/pi-utils";
 import * as path from "node:path";
 import { mkdir } from "node:fs/promises";
 

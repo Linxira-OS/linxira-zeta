@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { SvgFigure } from "@oh-my-pi/pi-tui/chat/svg-figure";
-import { getKittyGraphics, setKittyGraphics } from "@oh-my-pi/pi-tui/kitty-graphics";
+import { SvgFigure } from "@linxiraos/pi-tui/chat/svg-figure";
+import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import {
 	type CellDimensions,
 	getCellDimensions,
@@ -8,9 +8,9 @@ import {
 	setCellDimensions,
 	setTerminalImageProtocol,
 	TERMINAL,
-} from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { TUI } from "@oh-my-pi/pi-tui/tui";
+} from "@linxiraos/pi-tui/terminal-capabilities";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { TUI } from "@linxiraos/pi-tui/tui";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";

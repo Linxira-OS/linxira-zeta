@@ -5,8 +5,8 @@ import {
 	type TerminalFrameProvider,
 	TUI,
 	type ViewportSize,
-} from "@oh-my-pi/pi-tui";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@oh-my-pi/pi-tui/terminal-multiplexer";
+} from "@linxiraos/pi-tui";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@linxiraos/pi-tui/terminal-multiplexer";
 import { VirtualTerminal } from "./virtual-terminal";
 
 // Regression coverage for the SIGWINCH-side pre-erase archiving the unfinished

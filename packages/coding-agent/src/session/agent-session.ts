@@ -184,19 +184,7 @@ import { type BashPtyOptions, type BashResult, releaseShellSessions } from "../e
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
-import type {
-	ExtensionCommandContext,
-	ExtensionRunner,
-	ExtensionUIContext,
-	PreparedExtension,
-	SessionBeforeBranchResult,
-	SessionBeforeSwitchResult,
-	SessionBeforeTreeResult,
-	SessionStopEventResult,
-	ToolInfo,
-	TreePreparation,
-} from "../extensibility/extensions";
-import { emitSessionShutdownEvent, TOP_LEVEL_AGENT, UNAVAILABLE_ANNOTATIONS } from "../extensibility/extensions";
+import { UNAVAILABLE_ANNOTATIONS } from "../extensibility/extensions";
 import { extensionEventFromSessionEvent } from "../extensibility/extensions/lifecycle-mirror";
 import { ManagedTimers } from "../extensibility/extensions/managed-timers";
 import { createExtensionModelQuery } from "../extensibility/extensions/model-api";

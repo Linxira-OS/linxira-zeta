@@ -260,7 +260,7 @@ export class MCPManager {
 
 	/**
 	 * Install or clear a loader that creates the process-global instance on first {@link load}, so a
-	 * one-shot host (`omp read`) starts MCP servers only when a request actually reaches them.
+	 * one-shot host (`zetacode read`) starts MCP servers only when a request actually reaches them.
 	 */
 	static setDeferredInstance(load: (() => Promise<MCPManager>) | undefined): void {
 		MCPManager.#deferred = load;

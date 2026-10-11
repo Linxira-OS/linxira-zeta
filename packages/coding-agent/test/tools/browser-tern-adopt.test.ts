@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { acquireBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { acquireTab, releaseTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { pickTernBlock, type TernBlockEntry } from "@oh-my-pi/pi-coding-agent/tools/browser/tern/blocks";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { acquireTab, releaseTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { pickTernBlock, type TernBlockEntry } from "@linxiraos/zeta/tools/browser/tern/blocks";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 const PANE = 3;

@@ -1,4 +1,4 @@
-import { createAgentHubRuntime } from "@oh-my-pi/pi-coding-agent/modes/agent-hub-runtime";
+import { createAgentHubRuntime } from "@linxiraos/zeta/modes/agent-hub-runtime";
 /**
  * Hub Enter contract: activating a non-remote agent row delegates to the
  * `focusAgent` dep (session focus proxy) and closes the hub on success; a
@@ -7,30 +7,30 @@ import { createAgentHubRuntime } from "@oh-my-pi/pi-coding-agent/modes/agent-hub
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model, Usage } from "@oh-my-pi/pi-ai";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { IrcBus } from "@oh-my-pi/pi-coding-agent/irc/bus";
-import { AgentHubOverlayComponent } from "@oh-my-pi/pi-tui/overlays/agent-hub";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { SessionObserverRegistry } from "@oh-my-pi/pi-tui/overlays/session-observer-registry";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { visitEntriesFromFileStream } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { getBundledAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
-import { TempDir } from "@oh-my-pi/pi-utils";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { Agent } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, Usage } from "@linxiraos/pi-ai";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { AgentHubOverlayComponent } from "@linxiraos/pi-tui/overlays/agent-hub";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { visitEntriesFromFileStream } from "@linxiraos/zeta/session/session-loader";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { getBundledAgent } from "@linxiraos/zeta/task/agents";
+import { TempDir } from "@linxiraos/pi-utils";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	aggregateMetrics,
 	hubFallbackStatsSession,
 	hubRowMetrics,
 	type AgentMetrics,
-} from "@oh-my-pi/pi-tui/overlays/agent-hub-projection";
+} from "@linxiraos/pi-tui/overlays/agent-hub-projection";
 
 const AGENT_ID = "Worker";
 const TEST_CWD = path.resolve("agent-hub-cwd");

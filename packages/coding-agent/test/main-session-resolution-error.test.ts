@@ -9,17 +9,14 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
-import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@oh-my-pi/pi-coding-agent/main";
-import {
-	collectPendingToolCalls,
-	TOOL_EXECUTION_START_CUSTOM_TYPE,
-} from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
-import * as sessionListingModule from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { loadEntriesFromFile, loadSessionFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
-import { ForkSourceNotFoundError, SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
+import type { Args } from "@linxiraos/zeta/cli/args";
+import type { Settings } from "@linxiraos/zeta/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@linxiraos/zeta/main";
+import { collectPendingToolCalls, TOOL_EXECUTION_START_CUSTOM_TYPE } from "@linxiraos/zeta/session/exit-diagnostics";
+import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
+import { loadEntriesFromFile, loadSessionFile } from "@linxiraos/zeta/session/session-loader";
+import { ForkSourceNotFoundError, SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 
 function buildResumeArgs(resume: string, sessionDir?: string): Args {
 	return {
@@ -117,7 +114,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 
 			// Confirm it's the exported class so `runRootCommand`'s `instanceof` check works.
@@ -148,7 +145,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -170,7 +167,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -189,7 +186,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 		} finally {
 			vi.restoreAllMocks();
@@ -328,7 +325,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingPath}" not found.`,
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -401,7 +398,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${forkId}" not found.`,
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -422,7 +419,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${enotdirChild}" not found.`,
-				hint: expect.stringContaining("omp --resume"),
+				hint: expect.stringContaining("zetacode --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {

@@ -317,7 +317,7 @@ describe("eval native run boxes", () => {
 					{ expanded, isPartial: false },
 				).body,
 			);
-			return nodes(nodes(box?.c).find(child => role(child) === "omp.run.status")?.c).map(spansText);
+			return nodes(nodes(box?.c).find(child => role(child) === "zeta.run.status")?.c).map(spansText);
 		};
 
 		const folded = statusLines(false);

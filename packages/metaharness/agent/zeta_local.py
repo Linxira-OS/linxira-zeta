@@ -464,7 +464,7 @@ class OmpLocal(BaseInstalledAgent):
             ),
             timeout_sec=900,
         )
-        return f"{app}/node_modules/@linxiraos/pi-coding-agent/dist/cli.js"
+        return f"{app}/node_modules/@linxiraos/zeta/dist/cli.js"
 
     async def _write_models_yaml(self, environment: BaseEnvironment) -> None:
         if self._models_yaml_path and os.path.isfile(self._models_yaml_path):

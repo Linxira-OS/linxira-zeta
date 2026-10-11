@@ -14,6 +14,7 @@ import {
 } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
 import { getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
 import { expandTilde } from "../tools/path-utils";
+import { resolveCommandDescription } from "./builtin-registry";
 import type { SubcommandDef, TuiSlashCommandRuntime } from "./types";
 
 /** Options shared by the declarative subcommand completers. */
@@ -48,7 +49,7 @@ export function buildArgumentCompletions(
 			.map(s => ({
 				value: `${s.name} `,
 				label: s.name,
-				description: s.description,
+				description: resolveCommandDescription(s.description),
 				hint: subcommandRemainderHint(s, lower),
 			}));
 		return matches.length > 0 ? matches : null;

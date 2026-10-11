@@ -8,7 +8,7 @@ import {
 	type ResizedImage,
 	resizeImage,
 	type ScreenshotArea,
-} from "@oh-my-pi/pi-coding-agent/utils/image-resize";
+} from "@linxiraos/zeta/utils/image-resize";
 
 describe("formatScreenshot", () => {
 	function fakeResized(

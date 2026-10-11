@@ -2,27 +2,27 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { CfgProtocolHandler, setCfgApprovalHost } from "@oh-my-pi/pi-coding-agent/internal-urls/cfg-protocol";
-import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
-import { ExtensionUiController } from "@oh-my-pi/pi-coding-agent/modes/controllers/extension-ui-controller";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { CfgProtocolHandler, setCfgApprovalHost } from "@linxiraos/zeta/internal-urls/cfg-protocol";
+import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
+import { ExtensionUiController } from "@linxiraos/zeta/modes/controllers/extension-ui-controller";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupCheckUpdate,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
-import { resetSessionIndexForTests } from "@oh-my-pi/pi-coding-agent/session/session-index";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { Composer } from "@oh-my-pi/pi-tui/prompt/composer";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { getProjectDir, setProjectDir, Snowflake } from "@oh-my-pi/pi-utils";
-import * as utils from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { Composer } from "@linxiraos/pi-tui/prompt/composer";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { getProjectDir, setProjectDir, Snowflake } from "@linxiraos/pi-utils";
+import * as utils from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { createTestSession, type TestSessionContext } from "./utilities";
 

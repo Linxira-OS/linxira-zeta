@@ -10,17 +10,17 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { DaemonBrokerClient } from "@oh-my-pi/pi-coding-agent/launch/client";
-import * as daemonClient from "@oh-my-pi/pi-coding-agent/launch/client";
-import { daemonRuntimeDir } from "@oh-my-pi/pi-coding-agent/launch/paths";
-import type { DaemonOperation, DaemonRpcResult } from "@oh-my-pi/pi-coding-agent/launch/protocol";
-import * as browserAttach from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import * as browserLaunch from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { removeUserDataDir, seedOwnedProfilePreferences } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { type BrowserHandle, releaseBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { ensureSharedBrowser, sharedBrowserDaemonName } from "@oh-my-pi/pi-coding-agent/tools/browser/shared-daemon";
-import type { DaemonSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
-import * as piUtils from "@oh-my-pi/pi-utils";
+import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
+import * as daemonClient from "@linxiraos/zeta/launch/client";
+import { daemonRuntimeDir } from "@linxiraos/zeta/launch/paths";
+import type { DaemonOperation, DaemonRpcResult } from "@linxiraos/zeta/launch/protocol";
+import * as browserAttach from "@linxiraos/zeta/tools/browser/attach";
+import * as browserLaunch from "@linxiraos/zeta/tools/browser/launch";
+import { removeUserDataDir, seedOwnedProfilePreferences } from "@linxiraos/zeta/tools/browser/launch";
+import { type BrowserHandle, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { ensureSharedBrowser, sharedBrowserDaemonName } from "@linxiraos/zeta/tools/browser/shared-daemon";
+import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
+import * as piUtils from "@linxiraos/pi-utils";
 
 async function makeProfileDir(): Promise<string> {
 	const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "omp-chrome-profile-test-"));

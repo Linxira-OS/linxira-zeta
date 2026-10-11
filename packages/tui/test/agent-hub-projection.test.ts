@@ -4,9 +4,9 @@ import {
 	aggregateMetrics,
 	hubFallbackStatsSession,
 	hubRowMetrics,
-} from "@oh-my-pi/pi-tui/overlays/agent-hub-projection";
+} from "@linxiraos/pi-tui/overlays/agent-hub-projection";
 import type { ObservableSession } from "../src/overlays/session-observer-registry";
-import type { AgentRecordLike } from "@oh-my-pi/pi-tui/overlays/agent-hub-types";
+import type { AgentRecordLike } from "@linxiraos/pi-tui/overlays/agent-hub-types";
 
 function assistant(output: number, cost = output / 1000) {
 	return {

@@ -2,17 +2,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock,
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@oh-my-pi/omptype";
-import type { AuthStorage } from "@oh-my-pi/pi-ai";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import type { MCPToolDefinition } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { type CustomTool, type ExtensionFactory, createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
-import { getAgentDir, setAgentDir } from "@oh-my-pi/pi-utils/dirs";
+import { type } from "@linxiraos/pi-omptype";
+import type { AuthStorage } from "@linxiraos/pi-ai";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPToolDefinition } from "@linxiraos/zeta/mcp/types";
+import { type CustomTool, type ExtensionFactory, createAgentSession } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 // Contract for B1 (interactive MCP deferral): when `hasUI` is true, MCP
@@ -132,9 +132,9 @@ describe("createAgentSession MCP catalog handoff", () => {
 		// Discovery also reads user-level MCP config; point it at an empty home so
 		// only the fixture server is ever contacted.
 		const home = path.join(tempDir, "home");
-		fs.mkdirSync(path.join(home, ".omp", "agent"), { recursive: true });
+		fs.mkdirSync(path.join(home, ".zeta", "agent"), { recursive: true });
 		originalAgentDir = getAgentDir();
-		setAgentDir(path.join(home, ".omp", "agent"));
+		setAgentDir(path.join(home, ".zeta", "agent"));
 		spyOn(os, "homedir").mockReturnValue(home);
 	});
 

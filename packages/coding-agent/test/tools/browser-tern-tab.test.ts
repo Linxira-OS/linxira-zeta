@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { RunOutput } from "@oh-my-pi/pi-coding-agent/tools/browser/run-output";
-import type { ScreenshotResult } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
-import { TernElementHandle, TernTab, userSourceFunction } from "@oh-my-pi/pi-coding-agent/tools/browser/tern/tern-tab";
-import { TernSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/tern/wire";
-import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
+import { RunOutput } from "@linxiraos/zeta/tools/browser/run-output";
+import type { ScreenshotResult } from "@linxiraos/zeta/tools/browser/tab-protocol";
+import { TernElementHandle, TernTab, userSourceFunction } from "@linxiraos/zeta/tools/browser/tern/tern-tab";
+import { TernSocketClient } from "@linxiraos/zeta/tools/browser/tern/wire";
+import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
 
 interface FakePage {

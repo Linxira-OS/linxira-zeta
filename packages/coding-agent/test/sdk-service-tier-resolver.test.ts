@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { Model, ServiceTierByFamily } from "@oh-my-pi/pi-ai";
-import { resolveAgentServiceTierOverride } from "@oh-my-pi/pi-coding-agent/config/service-tier";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { createAgentSession, type ExtensionFactory } from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
+import type { Model, ServiceTierByFamily } from "@linxiraos/pi-ai";
+import { resolveAgentServiceTierOverride } from "@linxiraos/zeta/config/service-tier";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { createAgentSession, type ExtensionFactory } from "@linxiraos/zeta/sdk";
+import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const runtimeProviderExtension: ExtensionFactory = pi => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { JsonLexer } from "@oh-my-pi/pi-utils/json-lexer";
+import { JsonLexer } from "@linxiraos/pi-utils/json-lexer";
 
 const QUOTE = 0x22;
 

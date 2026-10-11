@@ -1174,7 +1174,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 		}
 	}
 	await tab.worker.terminate().catch(() => undefined);
-	// A recycled worker adopted the omp-owned headless page and leaves it open on close, so close it here.
+	// A recycled worker adopted the Zeta-owned headless page and leaves it open on close, so close it here.
 	if ((forced || (wasAlive && tab.reattached)) && tab.kindTag === "headless") {
 		try {
 			// `false` is "not confirmed closed" (the CDP session could not be

@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@oh-my-pi/omptype";
-import { Agent, type AgentTool } from "@oh-my-pi/pi-agent-core";
-import { createCompactionSummaryMessage } from "@oh-my-pi/pi-agent-core/compaction";
+import { type } from "@linxiraos/pi-omptype";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
+import { createCompactionSummaryMessage } from "@linxiraos/pi-agent-core/compaction";
 import {
 	type AnthropicFallbackCreditHandle,
 	type Api,
@@ -14,35 +14,32 @@ import {
 	type ModelUsageHealth,
 	type ProviderSessionState,
 	type ToolCall,
-} from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildParams } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { parseModelString } from "@oh-my-pi/pi-tui/overlays/model-selector";
-import { parseModelPattern } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { editVariantForModel } from "@oh-my-pi/pi-coding-agent/utils/edit-mode";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import {
-	type ServingModel,
-	validateRetryFallbackChains,
-} from "@oh-my-pi/pi-coding-agent/session/retry-fallback-chains";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
+import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
+import { parseModelPattern } from "@linxiraos/zeta/config/model-resolver";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { editVariantForModel } from "@linxiraos/zeta/utils/edit-mode";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { type ServingModel, validateRetryFallbackChains } from "@linxiraos/zeta/session/retry-fallback-chains";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { TempDir } from "@linxiraos/pi-utils";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
-import { cfgRetryUsageReservePolicy } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgRetryUsageReservePolicy } from "@linxiraos/zeta/session/settings";
 
 type AutoRetryStartEvent = Extract<AgentSessionEvent, { type: "auto_retry_start" }>;
 type AutoRetryEndEvent = Extract<AgentSessionEvent, { type: "auto_retry_end" }>;

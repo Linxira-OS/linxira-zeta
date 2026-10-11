@@ -1,32 +1,32 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@oh-my-pi/pi-agent-core";
+import { Agent } from "@linxiraos/pi-agent-core";
 import type {
 	ResetCreditAccountStatus,
 	ResetCreditTarget,
 	SessionRestrictionLease,
 	UsageReport,
-} from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import * as envApiKey from "@oh-my-pi/pi-ai/env-api-key";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { runUsageCommand } from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { initializeExtensions } from "@oh-my-pi/pi-coding-agent/modes/runtime-init";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+} from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import * as envApiKey from "@linxiraos/pi-ai/env-api-key";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { runUsageCommand } from "@linxiraos/zeta/cli/usage-cli";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { initializeExtensions } from "@linxiraos/zeta/modes/runtime-init";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	type CodexAutoRedeemCoordinator,
 	createCodexAutoRedeemCoordinator,
-} from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/codex-auto-reset";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
-import { cfgClaudeResetsAutoRedeem } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgClaudeResetsAutoRedeem } from "@linxiraos/zeta/session/settings";
 
 const ACCOUNT_ID = "claude-account";
 const EMAIL = "claude@example.com";
@@ -724,9 +724,9 @@ describe("Claude saved-reset trigger integration", () => {
 		expect(pooled.session.agent.state.messages.at(-1)).toMatchObject({ role: "assistant", stopReason: "error" });
 	});
 
-	it("adopts a reset `omp usage reset` just spent instead of spending again", async () => {
+	it("adopts a reset `zetacode usage reset` just spent instead of spending again", async () => {
 		const originalEnv = {
-			PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+			ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 			OMP_PROFILE: process.env.OMP_PROFILE,
 			PI_PROFILE: process.env.PI_PROFILE,
 		};

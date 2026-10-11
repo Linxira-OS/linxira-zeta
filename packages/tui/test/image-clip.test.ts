@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Image, ImageBudget } from "@oh-my-pi/pi-tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@oh-my-pi/pi-tui/kitty-graphics";
+import { Image, ImageBudget } from "@linxiraos/pi-tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import {
 	type CellDimensions,
 	encodeKittyPlacementLine,
@@ -10,8 +10,8 @@ import {
 	setCellDimensions,
 	TERMINAL,
 	wrapTmuxPassthrough,
-} from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { type HistoryBatch, TUI } from "@oh-my-pi/pi-tui/tui";
+} from "@linxiraos/pi-tui/terminal-capabilities";
+import { type HistoryBatch, TUI } from "@linxiraos/pi-tui/tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";

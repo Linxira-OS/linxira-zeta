@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL, TUI } from "@oh-my-pi/pi-tui";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL, TUI } from "@linxiraos/pi-tui";
 import { VirtualTerminal } from "./virtual-terminal";
 import {
 	createProcessTerminalRenderHarness,

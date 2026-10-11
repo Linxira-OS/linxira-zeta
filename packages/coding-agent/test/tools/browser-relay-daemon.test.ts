@@ -437,16 +437,16 @@ Bun.serve({
 	fetch: () =>
 		Response.json({ Browser: "Chrome/1", ompRelayVersion: version, ...(clients ? { ompRelayCdpClients: Number(clients) } : {}) }),
 });
-console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
+console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 `,
 		);
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { VERSION } from "@oh-my-pi/pi-utils/dirs";
+			`import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [ownedPort, manualPort, standIn] = [Bun.env.OMP_TEST_OWNED_PORT!, Bun.env.OMP_TEST_MANUAL_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
-const name = \`omp.browser.relay.\${ownedPort}\`;
+const name = \`zeta.browser.relay.\${ownedPort}\`;
 const ownedUrl = \`http://127.0.0.1:\${ownedPort}\`;
 const manual = Bun.spawn([process.execPath, standIn, manualPort, "18.0.0", "0"], { stdout: "pipe" });
 try {
@@ -671,7 +671,7 @@ Bun.serve({
 			ompRelayCdpClients: 0,
 		}),
 });
-console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
+console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 `,
 		);
 		// The acquiring omp is also the worker host the registry spawns its replacement relay through.
@@ -688,10 +688,10 @@ import { startRelayServer } from ${source("tools/browser/relay/server.ts")};
 if (process.argv[2] === "browser-relay") {
 	const port = Number(process.argv[process.argv.indexOf("--port") + 1]);
 	startRelayServer({ port });
-	console.log(\`omp browser relay listening on http://127.0.0.1:\${port}\`);
+	console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 } else {
 	const [port, standIn] = [Bun.env.OMP_TEST_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
-	const name = \`omp.browser.relay.\${port}\`;
+	const name = \`zeta.browser.relay.\${port}\`;
 	const cdpUrl = \`http://127.0.0.1:\${port}\`;
 	// Stands in for the extension: redials until a relay accepts it, as the real one does after its relay stops.
 	const connectExtension = async (): Promise<WebSocket> => {
@@ -761,7 +761,7 @@ if (process.argv[2] === "browser-relay") {
 		const home = await fs.mkdtemp(path.join(os.tmpdir(), "omp-relay-idle-raced-"));
 		const result = await runWithIsolatedBroker(
 			home,
-			`import { declareWorkerHostEntry } from "@oh-my-pi/pi-utils/worker-host";
+			`import { declareWorkerHostEntry } from "@linxiraos/pi-utils/worker-host";
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { acquireBrowser } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/registry.ts"))};
 import { DISCARDED_TABS_PROTOCOL_VERSION } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/protocol.ts"))};
@@ -813,14 +813,14 @@ async function runWithIsolatedBroker(
 	script: string | { file: string },
 	env: Record<string, string>,
 ): Promise<unknown> {
-	const globalRuntimeDir = path.join(home, ".omp", "run", "daemons", "global", "browser-relay");
+	const globalRuntimeDir = path.join(home, ".zeta", "run", "daemons", "global", "browser-relay");
 	const child = Bun.spawn([process.execPath, ...(typeof script === "string" ? ["-e", script] : [script.file])], {
 		cwd: path.resolve(import.meta.dir, "../.."),
 		env: {
 			...process.env,
 			HOME: home,
 			USERPROFILE: home,
-			PI_CONFIG_DIR: ".omp",
+			PI_CONFIG_DIR: ".zeta",
 			ZETA_DAEMON_IDLE_GRACE_MS: "200",
 			...env,
 		},

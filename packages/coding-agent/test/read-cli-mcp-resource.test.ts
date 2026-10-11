@@ -18,7 +18,7 @@ describe("zetacode read MCP resources", () => {
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-read-mcp-"));
 		projectDir = path.join(root, "project");
 		agentDir = path.join(root, "agent");
-		const localSkillDir = path.join(projectDir, ".omp", "skills", "local-skill");
+		const localSkillDir = path.join(projectDir, ".zeta", "skills", "local-skill");
 		await Promise.all([fs.mkdir(localSkillDir, { recursive: true }), fs.mkdir(agentDir)]);
 		await Bun.write(
 			path.join(localSkillDir, "SKILL.md"),

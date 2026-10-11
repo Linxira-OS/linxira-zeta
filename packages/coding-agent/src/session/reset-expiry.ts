@@ -1,6 +1,6 @@
 /**
  * How soon an account's saved rate-limit resets expire, and whether anything
- * will spend them first. Shared by `omp usage` and the TUI status line so both
+ * will spend them first. Shared by `zetacode usage` and the TUI status line so both
  * warn about the accounts the salvage planners would act on.
  */
 import type {
@@ -9,10 +9,10 @@ import type {
 	UsageResetCredit,
 	UsageResetCreditDetail,
 	UsageResetCredits,
-} from "@oh-my-pi/pi-ai";
-import { truncateToWidth } from "@oh-my-pi/pi-tui";
-import { bankedResetCreditExpiryMs } from "@oh-my-pi/pi-tui/overlays/usage-display";
-import { formatDuration, sanitizeText } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { truncateToWidth } from "@linxiraos/pi-tui";
+import { bankedResetCreditExpiryMs } from "@linxiraos/pi-tui/overlays/usage-display";
+import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { formatActiveAccountLabel, usageReportIdentity } from "../slash-commands/helpers/active-oauth-account";
 import { formatResetProviderName } from "../slash-commands/helpers/reset-usage";

@@ -32,19 +32,14 @@ import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CmuxKind } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/rpc";
-import { CmuxSocketClient } from "@oh-my-pi/pi-coding-agent/tools/browser/cmux/socket-client";
-import { acquireBrowser } from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import {
-	acquireTab,
-	getTabsMapForTest,
-	releaseTab,
-	runInTab,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { encodeRawPng } from "@oh-my-pi/pi-coding-agent/utils/png-encode";
-import * as logger from "@oh-my-pi/pi-utils/logger";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { CmuxKind } from "@linxiraos/zeta/tools/browser/cmux/rpc";
+import { CmuxSocketClient } from "@linxiraos/zeta/tools/browser/cmux/socket-client";
+import { acquireBrowser } from "@linxiraos/zeta/tools/browser/registry";
+import { acquireTab, getTabsMapForTest, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
+import * as logger from "@linxiraos/pi-utils/logger";
 
 function makeKind(socketSuffix: string): CmuxKind {
 	return {

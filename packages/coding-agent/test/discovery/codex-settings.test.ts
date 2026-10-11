@@ -2,15 +2,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import {
-	type Settings as SettingsCapabilityItem,
-	settingsCapability,
-} from "@oh-my-pi/pi-coding-agent/capability/settings";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { cfgPersonality } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type Settings as SettingsCapabilityItem, settingsCapability } from "@linxiraos/zeta/capability/settings";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { loadCapability } from "@linxiraos/zeta/discovery";
+import { cfgPersonality } from "@linxiraos/zeta/session/settings";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("Codex config.toml settings", () => {
 	let root = "";
@@ -59,7 +56,7 @@ describe("Codex config.toml settings", () => {
 		]);
 	});
 
-	test("applies matching omp settings from project config.toml", async () => {
+	test("applies matching Zeta settings from project config.toml", async () => {
 		const agentDir = path.join(root, "agent");
 		const projectConfig = path.join(project, ".codex", "config.toml");
 		await fs.mkdir(agentDir, { recursive: true });

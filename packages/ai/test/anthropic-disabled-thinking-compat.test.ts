@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { streamAnthropic } from "@oh-my-pi/pi-ai/providers/anthropic";
-import type { AnthropicCompat, AssistantMessage, Context, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import type { AnthropicCompat, AssistantMessage, Context, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 
 /**
  * A direct Anthropic model carrying the disabled-thinking dialect a KDL route

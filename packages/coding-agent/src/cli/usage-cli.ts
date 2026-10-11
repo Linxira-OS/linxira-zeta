@@ -1250,7 +1250,7 @@ function formatOAuthIdentityKeys(rows: readonly OAuthIdentityKeyRow[]): string {
 	return lines.join("\n");
 }
 
-const RESET_COMMAND = "omp usage reset";
+const RESET_COMMAND = "zetacode usage reset";
 
 function failUsageReset(message: string): void {
 	process.stderr.write(chalk.red(`${message}\n`));
@@ -1276,7 +1276,7 @@ function identityTextMasker(redaction: Map<string, string>): (text: string) => s
 }
 
 /**
- * `omp usage reset [<provider>/<credential id>]`: list every stored Codex and
+ * `zetacode usage reset [<provider>/<credential id>]`: list every stored Codex and
  * Claude account's saved resets, or spend one on the named account. Both run in
  * this process with the store's tokens, so a broker client works like the host.
  */
@@ -1387,7 +1387,9 @@ async function runUsageResetCommand(
 		}
 		if (accounts.length === 0) {
 			const names = providers.map(formatResetProviderName).join(" or ");
-			process.stderr.write(chalk.yellow(`No ${names} accounts found. Run \`omp\` and use /login to add one.\n`));
+			process.stderr.write(
+				chalk.yellow(`No ${names} accounts found. Run \`zetacode\` and use /login to add one.\n`),
+			);
 			process.exitCode = 1;
 			return;
 		}
@@ -1407,7 +1409,7 @@ async function runUsageResetCommand(
 	const lockKey = resetAccountLockKey(target);
 	if (!lockKey) {
 		failUsageReset(
-			`${who}: this login stores no account id or email to fence the spend against other omp processes, so nothing was spent. Run \`omp\` and use /login to sign in to it again.`,
+			`${who}: this login stores no account id or email to fence the spend against other zetacode processes, so nothing was spent. Run \`zetacode\` and use /login to sign in to it again.`,
 		);
 		return;
 	}
@@ -1442,7 +1444,7 @@ async function runUsageResetCommand(
 		const ago = formatDuration(Date.now() - result.atMs);
 		failUsageReset(
 			result.state === "reset"
-				? `${who}: another omp process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`omp usage\` before spending another.`
+				? `${who}: another omp process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`zetacode usage\` before spending another.`
 				: `${who}: another omp process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
 		);
 		return;

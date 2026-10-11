@@ -3,9 +3,9 @@ import {
 	collectTerminalState,
 	formatTerminalState,
 	type TerminalStateInfo,
-} from "@oh-my-pi/pi-tui/apps/debug/terminal-info";
-import { TERMINAL } from "@oh-my-pi/pi-tui";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@oh-my-pi/pi-tui/terminal-multiplexer";
+} from "@linxiraos/pi-tui/apps/debug/terminal-info";
+import { TERMINAL } from "@linxiraos/pi-tui";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@linxiraos/pi-tui/terminal-multiplexer";
 
 const sample: TerminalStateInfo = {
 	detectedId: "kitty",

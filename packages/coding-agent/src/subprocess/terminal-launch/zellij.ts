@@ -1,4 +1,4 @@
-import { hasTerminalMultiplexerSession } from "@oh-my-pi/pi-tui/terminal-multiplexer";
+import { hasTerminalMultiplexerSession } from "@linxiraos/pi-tui/terminal-multiplexer";
 import { launchError, oneLineId, runStep } from "./shared";
 import type {
 	SupportedMultiplexerCapabilities,

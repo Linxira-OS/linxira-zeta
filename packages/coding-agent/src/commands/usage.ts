@@ -15,7 +15,8 @@ export default class Usage extends Command {
 			options: ["invalidate", "clients", "accounts", "reset"],
 		}),
 		target: Args.string({
-			description: "Saved reset to spend with `reset`: <provider>/<credential id> as `omp usage reset` lists it",
+			description:
+				"Saved reset to spend with `reset`: <provider>/<credential id> as `zetacode usage reset` lists it",
 			required: false,
 		}),
 	};

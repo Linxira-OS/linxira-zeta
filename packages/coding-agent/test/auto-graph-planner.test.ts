@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { Answer } from "@oh-my-pi/pi-ai";
-import { judgeRequest, planFromAnswers } from "@oh-my-pi/pi-coding-agent/auto-graph/planner";
-import { planChart } from "@oh-my-pi/pi-tui/charts/chart-plan";
-import { analyzeTable } from "@oh-my-pi/pi-tui/charts/table-data";
-import type { TableChartRequest } from "@oh-my-pi/pi-tui/chat/table-chart";
+import type { Answer } from "@linxiraos/pi-ai";
+import { judgeRequest, planFromAnswers } from "@linxiraos/zeta/auto-graph/planner";
+import { planChart } from "@linxiraos/pi-tui/charts/chart-plan";
+import { analyzeTable } from "@linxiraos/pi-tui/charts/table-data";
+import type { TableChartRequest } from "@linxiraos/pi-tui/chat/table-chart";
 
 /** A smart-mode request for a table given as rows of cells, header first. */
 function request(rows: string[][]): TableChartRequest {

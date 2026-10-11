@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.8.8
+## Integrated through: v18.9.1
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,9 +9,9 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.8.8` (`1ca13863a828`, confirmed by
-  `git merge-base HEAD <tag>`). The previous value was `v18.8.7`
-  (`f261ed9faf16`), which is the merge-base this round started from.
+- **Integrated through**: `v18.9.1` (`a4d6f0adc63dda4ccdf4d25c26422219820f865b`,
+  confirmed by `git merge-base HEAD <tag>`). The previous value was `v18.8.8`
+  (`1ca13863a828`), which is the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -27,6 +27,67 @@ two-parent tag merge.
   upstream's, not a whole-tree comparison against our branch.
 
 
+
+## v18.9.1 incremental merge (Zeta — branch `sync/omp-release/v18.9.1`; merge commit `fb4dcded44d`)
+
+- **Baseline**: v18.8.8 (peeled `1ca13863a828`; merge-base gate passed exactly, so
+  the window is upstream's own increment: v18.8.9 → v18.9.0 → v18.9.1).
+  **Source tag**: `v18.9.1` → `a4d6f0adc63dda4ccdf4d25c26422219820f865b`, a real
+  two-parent `git merge v18.9.1` (no squash; lineage preserved).
+- **Zeta start**: `509a5fa31a6` (main). **Final merge commit**: `fb4dcded44d`.
+  Before push, main moved to `5bf080a4393` (PRs #89/#90) and was merged in
+  (`54eb5d48b0b`) per the branch rule that an integration branch is never behind
+  main.
+- **Scale**: v18.8.8→v18.9.1 = 645 commits / 712 files / +66906 −9234 across three
+  tags. Conflicts: **168 UU** (544 auto-merged). Unlike the v18.8.x rounds the
+  conflicts were mostly *substance*, not identity — the brand sweep had already
+  converged, so what disagreed was code.
+- **Method**: shape-first classification per file, then the `packages/coding-agent`
+  slice split three ways across parallel subagents (cli/update slice, misc slice,
+  session/sdk/main slice) with the shared contracts fixed up front (scope names,
+  `.zeta` dirs, Zeta-only members, the build-service cut). Upstream is the
+  substance; the Zeta surface is re-applied on top.
+- **Commercial-surface cut (maintainer instruction)**: upstream's
+  build/distribution service is not merged. `cli/build-service.ts` + its test
+  deleted; `cli/update-cli.ts` restored to our self-update path verbatim
+  (upstream's only commits there were the migration itself and a CI fix, so
+  nothing else was lost); `scripts/install.{sh,ps1}` and `ci-update-brew-formula`
+  kept on our side. No `fetchBuild` / `PI_BUILD_URL` reference remains.
+- **Relocations accepted**: `commit/cli.ts` → `commands/commit.ts` (no references
+  on our side); `auto-thinking-bucket-question.md` →
+  `prompts/judge/auto-thinking.json`.
+- **Structural repairs (stage 2)**: `bun install`; `gen:compat` regenerated
+  `catalog/src/compat/rules.json` from our `.kdl` (991 rules / 21 classes /
+  86 catalog providers / 95 auth providers / 231 files) instead of keeping
+  upstream's compiled blob; `gen:rpc` refreshed the SDK wire artifacts. The merge
+  had overwritten our exact bun pin with upstream's floor (`bun@1.4.0` →
+  `bun@>=1.4`) — `check-ci-surface`'s `bun-pin-exact` rule caught it (class 2).
+  It also pulled 192 upstream `## [1x.y]` sections into our nine package
+  CHANGELOGs — stripped (CHANGELOG is Zeta-owned; the version-line gate forbids
+  them and requires `[Unreleased]`).
+- **Brand overlay (stage 3)**: `brand-overlay.ts` rewrote its 7 files / 11 tokens;
+  the rest was a rule-based sweep driven by `brand-check`'s own hit list —
+  **859 → 0**. Classes worth naming: upstream scope leaks in auto-merged files and
+  wholesale-taken tests (`@oh-my-pi/pi-catalog/...`), and `@oh-my-pi/omptype` →
+  `@linxiraos/pi-omptype` (the class-3 rename that is *not* a plain scope swap);
+  the cross-face env contract `PI_CODING_AGENT_DIR` → `ZETA_CODING_AGENT_DIR`
+  (class 11 — `dirs.ts` reads only `ZETA_*`); `omp` CLI references in
+  help/test/prose → `zetacode`; `.omp` fixtures → `.zeta`; relay daemon
+  `omp.browser.relay.<port>` → `zeta.browser.relay.<port>`; TUI role
+  `omp.run.status` → `zeta.run.status`; the macOS display-awake reason string.
+- **Silent auto-merge mixes (this round's lesson)**: two files came out of
+  conflict-free auto-merges with *semantically* mixed sides, and only `check:ts`
+  saw them: (a) `slash-commands/builtin-completions.ts` kept upstream's raw
+  `description: s.description` while our `SubcommandDef.description` is a thunk
+  (`string | (() => string)`) — main's own pattern is
+  `resolveCommandDescription(s.description)`, so the resolver was re-applied;
+  (b) `sdk.ts` ended up with two `asyncJobManager` declarations (our sink block
+  and upstream's options block) — upstream's duplicate removed. A third,
+  different-shaped case: `session/agent-session.ts` got a duplicate type-import
+  block because "take theirs" was applied next to an auto-merged copy of the same
+  imports. Lesson: after resolving conflicts, run the *whole* gate — auto-merged
+  files are not safe just because they have no markers.
+- **Checks**: [pending — filled when the round is green].
 
 ## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`; the merge commit itself is titled `sync/omp-release/v18.8.8`)
 

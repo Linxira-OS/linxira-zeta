@@ -3,28 +3,28 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@oh-my-pi/pi-ai";
-import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { streamSimple } from "@oh-my-pi/pi-ai/stream";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveMaxContextWindow } from "@oh-my-pi/pi-catalog/compat/context-window";
-import { factoryDroidRegistry, resolveFactoryDroidPolicy } from "@oh-my-pi/pi-catalog/compat/factory-droid";
-import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { fingerprintStaticModels } from "@oh-my-pi/pi-catalog/model-manager";
-import * as catalogModels from "@oh-my-pi/pi-catalog/models";
-import { calculateUsageCost, getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { modelKind } from "@oh-my-pi/pi-catalog/types";
-import { finalizeCustomModel } from "@oh-my-pi/pi-coding-agent/config/custom-models";
-import { applyModelPatch, mergeDiscoveredModel } from "@oh-my-pi/pi-coding-agent/config/model-patch";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { resolveRoleChain } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
-import { roleCandidatePool } from "@oh-my-pi/pi-coding-agent/config/model-roles";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
+import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@linxiraos/pi-ai";
+import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
+import { resolveOpenAIRequestSetup } from "@linxiraos/pi-ai/providers/openai-shared";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveMaxContextWindow } from "@linxiraos/pi-catalog/compat/context-window";
+import { factoryDroidRegistry, resolveFactoryDroidPolicy } from "@linxiraos/pi-catalog/compat/factory-droid";
+import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { fingerprintStaticModels } from "@linxiraos/pi-catalog/model-manager";
+import * as catalogModels from "@linxiraos/pi-catalog/models";
+import { calculateUsageCost, getBundledModels } from "@linxiraos/pi-catalog/models";
+import { modelKind } from "@linxiraos/pi-catalog/types";
+import { finalizeCustomModel } from "@linxiraos/zeta/config/custom-models";
+import { applyModelPatch, mergeDiscoveredModel } from "@linxiraos/zeta/config/model-patch";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resolveRoleChain } from "@linxiraos/zeta/config/model-resolver";
+import { roleCandidatePool } from "@linxiraos/zeta/config/model-roles";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
-import { cfgCompactionModelThresholds, cfgExtendedContext } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgCompactionModelThresholds, cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
 
 describe("ModelRegistry", () => {
 	let tempDir: string;
@@ -632,7 +632,7 @@ describe("ModelRegistry", () => {
 		});
 
 		test("refresh keeps transport override on built-in provider (#2555 openrouter gateway)", async () => {
-			// Reporter ran `omp` with the auth-gateway broker proxying OpenRouter.
+			// Reporter ran `zetacode` with the auth-gateway broker proxying OpenRouter.
 			// Default model worked; switching via `/model` produced
 			// `404 No route: POST /chat/completions` until restart. Root cause:
 			// background discovery refresh re-fetched the openrouter catalog and

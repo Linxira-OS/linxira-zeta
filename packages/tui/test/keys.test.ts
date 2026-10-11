@@ -6,8 +6,8 @@ import {
 	matchesRawBackspace,
 	parseKey,
 	setKittyProtocolActive,
-} from "@oh-my-pi/pi-tui/keys";
-import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@oh-my-pi/pi-tui/terminal-multiplexer";
+} from "@linxiraos/pi-tui/keys";
+import { TERMINAL_MULTIPLEXER_ENV_KEYS } from "@linxiraos/pi-tui/terminal-multiplexer";
 
 describe("matchesKey", () => {
 	it("matches ctrl+letter sequences", () => {

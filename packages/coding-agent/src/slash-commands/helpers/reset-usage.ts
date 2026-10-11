@@ -1,10 +1,10 @@
 /**
- * Shared helpers for `/usage reset` (TUI selector + ACP) and `omp usage reset`:
+ * Shared helpers for `/usage reset` (TUI selector + ACP) and `zetacode usage reset`:
  * turn the live per-account reset-credit status into rows, resolve a typed
  * `<provider>/<credential id>` target, and map a redeem outcome code to a
  * human message.
  */
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { sanitizeText } from "@linxiraos/pi-utils";
 import type { ResetCreditAccountStatus, ResetCreditRedeemOutcome, ResetCreditTarget } from "../../session/auth-storage";
 import type { ResetUsageAccount } from "@linxiraos/pi-tui/overlays/reset-usage-selector";
 import { summarizeUsageResetCredits } from "@linxiraos/pi-tui/overlays/usage-display";
