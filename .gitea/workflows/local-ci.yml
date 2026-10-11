@@ -52,7 +52,11 @@ defaults:
       shell: bash
 
 env:
-   LOCAL_CI_TOOLS: ${{ github.workspace }}/.tools
+   # Tools deliberately live under `$HOME/.local-ci-tools`, resolved in bash at
+   # each use site (`${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}`). A
+   # `$GITHUB_WORKSPACE/.tools` path cannot be shared: the host executor gives
+   # every job its own `act/<hash>/hostexecutor` workdir. Set LOCAL_CI_TOOLS in
+   # the runner environment to move the store.
    NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
 
 jobs:
@@ -114,12 +118,10 @@ jobs:
 
    # ── 1. 工具链（常驻，跨运行复用）─────────────────────────────────────────
    toolchains:
-      name: Toolchains (persistent .tools)
+      name: Toolchains (persistent $HOME/.local-ci-tools)
       needs: [preflight]
       runs-on: self-hosted
       timeout-minutes: 120
-      env:
-         TOOLS: ${{ github.workspace }}/.tools
       steps:
          # The bootstrap reads package.json (bun pin) and rust-toolchain.toml,
          # so this job needs the workspace; without it `sed: package.json: No
@@ -160,7 +162,12 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              TOOLS="${{ env.TOOLS }}"
+              # Stable across jobs and runs: the host executor hands every job
+              # its own `act/<hash>/hostexecutor` workdir, so a workspace-relative
+              # path is invisible to the jobs that consume this bootstrap (run
+              # 538: downstream `Toolchain PATH` could not find `.tools/env.path`).
+              TOOLS="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              echo "TOOLS=$TOOLS" >> "$GITHUB_ENV"
               mkdir -p "$TOOLS/bin"
               export RUSTUP_HOME="$TOOLS/rustup"
               export CARGO_HOME="$TOOLS/cargo"
@@ -338,7 +345,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -412,7 +419,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -476,7 +483,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -533,7 +540,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -642,7 +649,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -706,7 +713,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -766,7 +773,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -822,7 +829,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -878,7 +885,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -934,7 +941,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -990,7 +997,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1043,7 +1050,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1099,7 +1106,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1191,7 +1198,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1252,7 +1259,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1315,7 +1322,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
@@ -1405,7 +1412,7 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
-              tools="${{ github.workspace }}/.tools"
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
               extra="${PATH_EXTRA:-}"
               if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
               if [ -z "$extra" ]; then
