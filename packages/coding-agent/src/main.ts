@@ -995,6 +995,14 @@ function notifyResumeCwdFallback(parsedArgs: Args, resumedProject: ResumedProjec
 }
 
 /**
+ * How long the first prompt waits for an online discovery pass when a project has
+ * no cache yet. Discovery is per-provider and serial, so an unreachable local
+ * engine can hold it for 10s each; past this budget the prompt appears and the
+ * background pass is adopted later by {@link rebuildScopedModelsAfterDiscovery}.
+ */
+const FIRST_PROMPT_DISCOVERY_BUDGET_MS = 2_500;
+
+/**
  * Resolve the effective model allow-list from an explicit `--models` scope or,
  * failing that, the active project's `enabledModels`. A totally collapsed scope
  * gets one cache-aware discovery pass before session construction: otherwise an
@@ -1021,7 +1029,11 @@ export async function resolveScopedModels(
 	if (scopedModels.length > 0 || modelRegistry.getDiscoverableProviders().length === 0) {
 		return scopedModels;
 	}
-	await modelRegistry.refresh("online-if-uncached");
+	// First run in a project has no discovery cache, and the online pass can take tens of
+	// seconds when a configured local engine is unreachable (10s per provider, serially).
+	// Budget it instead of blocking the prompt: whatever the pass finds later lands through
+	// `rebuildScopedModelsAfterDiscovery`, which adopts the fuller scope when it arrives.
+	await Promise.race([modelRegistry.refresh("online-if-uncached"), Bun.sleep(FIRST_PROMPT_DISCOVERY_BUDGET_MS)]);
 	return await resolveModelScope(modelPatterns, modelRegistry, preferences, activeSettings);
 }
 

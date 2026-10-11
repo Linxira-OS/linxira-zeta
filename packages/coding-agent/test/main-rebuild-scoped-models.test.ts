@@ -210,3 +210,34 @@ describe("buildSessionOptions --models scope selection", () => {
 		expect(options.scopedModels?.map(entry => entry.model.id)).toEqual(["a"]);
 	});
 });
+
+describe("resolveScopedModels online-discovery budget", () => {
+	it("returns without waiting for an online refresh that never settles", async () => {
+		const settings = Settings.isolated({ enabledModels: ["prov/b"] });
+		const registry = new FakeRegistry([model("a")]);
+		let refreshCalls = 0;
+		registry.refresh = () => {
+			refreshCalls += 1;
+			return new Promise<void>(() => {});
+		};
+
+		const started = Date.now();
+		const scoped = await resolveScopedModels(parseArgs([]), registry, settings);
+		const elapsed = Date.now() - started;
+
+		expect(refreshCalls).toBe(1);
+		expect(scoped).toHaveLength(0);
+		expect(elapsed).toBeLessThan(4_000);
+	});
+
+	it("adopts the models an in-budget refresh materializes", async () => {
+		const settings = Settings.isolated({ enabledModels: ["prov/b"] });
+		const registry = new FakeRegistry([model("a")], () => {
+			registry.available = [model("a"), model("b")];
+		});
+
+		const scoped = await resolveScopedModels(parseArgs([]), registry, settings);
+
+		expect(scoped.map(entry => entry.model.id)).toEqual(["b"]);
+	});
+});

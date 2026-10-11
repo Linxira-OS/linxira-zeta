@@ -2028,6 +2028,15 @@ export const zh = {
 	cmdTrackingLog: "显示追踪操作摘要",
 	cmdTrackingIndex: "显示追踪索引",
 	cmdTrackingStart: "开始维护项目追踪文档",
+	cmdTrackingOn: "启用项目追踪",
+	cmdTrackingOff: "关闭项目追踪",
+	cmdTrackingEnabledFmt: "项目追踪已开启。tracking_update 已加入工具集，阶段提醒生效；文档位于 %s。",
+	cmdTrackingDisabledFmt: "项目追踪已关闭。tracking_update 与阶段提醒停止；%s 下的文档原样保留在磁盘上。",
+	cmdTrackingUnchanged: "项目追踪已是该状态，未做改动。",
+	cmdTrackingDisabledHint:
+		"项目追踪已关闭。用 /tracking on 开启，或在 /settings → tools → Project Tracking（tracking.enabled）中启用。",
+	cmdTrackingNoticeOn: "项目追踪已开启：用 tracking_update 维护追踪文档（状态、索引、日志、计划），文档跨压缩保留。",
+	cmdTrackingNoticeOff: "项目追踪已关闭：不再调用 tracking_update，阶段提醒停止，磁盘上的文档原样保留。",
 
 	cmdAdvisor: "切换顾问（第二个模型，审查每轮并注入笔记）",
 	cmdAdvisorOn: "启用顾问",

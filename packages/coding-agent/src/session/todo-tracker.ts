@@ -24,6 +24,8 @@ import {
 const MID_RUN_NUDGE_MUTATION_THRESHOLD = 12;
 const MID_RUN_NUDGE_MAX_PER_CYCLE = 2;
 const TRACKING_PHASE_NUDGE_MESSAGE_TYPE = "tracking-phase-nudge";
+/** Custom-message type carrying a `tracking.enabled` toggle notice to the model. */
+export const TRACKING_TOGGLE_NOTICE_TYPE = "tracking-toggle-notice";
 const MUTATING_TOOLS: Record<string, true> = {
 	bash: true,
 	eval: true,
