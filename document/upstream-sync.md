@@ -191,8 +191,10 @@ recurs on every sync.
 - **Gates after the repair**: `check:ts` ✅ 0 · `brand-check` ✅ 0 ·
   `check-zeta-sentinels` ✅ · `check-version-consistency` ✅ · `check-ci-surface` ✅ ·
   `check-merge-lineage` ✅ · `cargo fmt --all --check` ✅ · member-loss audit 0 · the
-  eleven suites the merge reddened are green (117 + 63 tests, plus the `/tmp`-backed
-  title probe restored). Next sync target is `v18.8.9` (`fa5ff4a3a977`, 58 commits /
+  eleven suites the merge reddened are green (117 + 63 tests). The `/tmp`-backed title
+  probe restored in that round was deleted again on 2026-10-11 together with its test:
+  the new reply-gated title generator removed the caller-side entry point they drove
+  (see Class 2 above). Next sync target is `v18.8.9` (`fa5ff4a3a977`, 58 commits /
   124 files from v18.8.8).
 
 ### Post-repair audit pass (2026-10-11, same branch)
