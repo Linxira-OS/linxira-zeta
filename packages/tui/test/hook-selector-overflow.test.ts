@@ -47,7 +47,7 @@ describe("HookSelectorComponent", () => {
 
 	it("wraps outlined option text without omitting the tail", () => {
 		const options = [
-			"Option A: Move to OMP-native only by migrating reusable shared AI instructions into .zeta/AGENTS.md, .zeta/rules, .zeta/skills, and .zeta/agents while deliberately not creating a root .github directory.",
+			"Option A: Move to Zeta-native only by migrating reusable shared AI instructions into .zeta/AGENTS.md, .zeta/rules, .zeta/skills, and .zeta/agents while deliberately not creating a root .github directory.",
 			"Option B: Keep dual support by migrating canonical instructions into .zeta while also maintaining a root .github/copilot-instructions.md compatibility bridge for editors that do not understand OMP resources yet.",
 		];
 		const component = new HookSelectorComponent(

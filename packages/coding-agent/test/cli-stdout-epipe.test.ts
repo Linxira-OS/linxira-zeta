@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 // Regression for #10930: a one-shot CLI run whose stdout consumer closes before
-// the write drains (`omp --help | head`, `| less` then `q`, `| grep -m1`,
+// the write drains (`zetacode --help | head`, `| less` then `q`, `| grep -m1`,
 // `| true`) used to take the fatal path — Bun surfaced the broken-pipe EPIPE as
 // an unhandled rejection/uncaught exception and `omp` exited 1 with an
 // `[Uncaught Exception] Error: EPIPE: broken pipe, write` dump. The CLI

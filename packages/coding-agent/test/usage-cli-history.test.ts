@@ -53,7 +53,7 @@ afterEach(async () => {
 	}
 });
 
-test("omp usage --history reads the broker host's record, not the client's own store", async () => {
+test("zetacode usage --history reads the broker host's record, not the client's own store", async () => {
 	const now = Date.now();
 	brokerStore.recordUsageSnapshots([
 		snapshot("anthropic", now - 3 * HOUR_MS, 0.25),

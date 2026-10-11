@@ -553,7 +553,7 @@ function readSessionHeaderIdSync(sessionPath: string): string | undefined {
 /**
  * Take a session's ownership lease without waiting, or `null` while another
  * process holds it. A process writing the session holds it (see
- * `FileSessionStorage.claimSession`) until it exits; `omp gc` probes it to tell
+ * `FileSessionStorage.claimSession`) until it exits; `zetacode gc` probes it to tell
  * whether a session is live. Keyed by the session id from the journal's
  * header, not by the file's path, so every process that reaches the journal
  * (through a symlink, a hard link, or after a move) meets the same lease. Ids

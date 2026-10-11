@@ -500,7 +500,7 @@ describe("setup wizard glyph scene", () => {
 	});
 });
 
-describe("omp setup onboarding trigger", () => {
+describe("zetacode setup onboarding trigger", () => {
 	it("starts the normal interactive command with forced setup wizard", async () => {
 		let forceSetupWizard: boolean | undefined;
 		await runOnboardingSetup({

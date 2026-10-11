@@ -67,7 +67,7 @@ export function idaDaemonName(id: string): string {
 /** Unix socket or Windows named pipe the host for `daemonName` listens on. */
 export function idaHostEndpoint(projectDir: string, runtimeDir: string, daemonName: string): string {
 	if (process.platform === "win32") {
-		return `\\\\.\\pipe\\omp-ida-${hash16(`${path.resolve(projectDir)}\0${daemonName}`)}`;
+		return `\\\\.\\pipe\\zeta-ida-${hash16(`${path.resolve(projectDir)}\0${daemonName}`)}`;
 	}
 	// Hashed to stay under the ~104-byte Unix socket path limit.
 	return path.join(runtimeDir, `ida-${hash16(daemonName)}.sock`);

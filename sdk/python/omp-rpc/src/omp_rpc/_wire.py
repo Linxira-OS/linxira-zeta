@@ -843,7 +843,7 @@ class AvailableSlashCommand:
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class SessionEntries:
-    """OMP-native session entries in append order."""
+    """Zeta-native session entries in append order."""
     entries: tuple[JsonObject, ...]
     leaf_id: str | None
 

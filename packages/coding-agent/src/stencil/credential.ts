@@ -24,7 +24,7 @@ export class StencilCredential {
 
 	/** Human guidance for a missing credential. */
 	static get missingMessage(): string {
-		return `a stencil.so account is required: run omp and use /login → Stencil, or set ${STREAM_AUTH_ENV}`;
+		return `a stencil.so account is required: run zetacode and use /login → Stencil, or set ${STREAM_AUTH_ENV}`;
 	}
 
 	close(): void {

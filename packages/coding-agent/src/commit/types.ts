@@ -1,5 +1,5 @@
 /**
- * Types for the omp commit pipeline.
+ * Types for the zetacode commit pipeline.
  */
 /** Conventional commit classifications accepted by commit generation. */
 export type CommitType =

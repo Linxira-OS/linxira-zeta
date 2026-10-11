@@ -109,7 +109,7 @@ export class SecurityScanTool implements AgentTool<typeof securityScanSchema, Se
 	readonly approval: ToolTier = "exec";
 	readonly label = "Security Scan";
 	readonly loadMode = "discoverable";
-	readonly summary = "Run OMP-native scans and explicit Codex Security cloud operations";
+	readonly summary = "Run Zeta-native scans and explicit Codex Security cloud operations";
 	readonly description = securityScanDescription.trim();
 	readonly parameters = securityScanSchema;
 	readonly strict = true;

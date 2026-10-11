@@ -798,7 +798,7 @@ export function getRemoteDir(): string {
  * cleanup could disagree — we refuse it rather than silently bind it to cwd.
  * Worktree bases and the natives directory are process-global: a worktree base
  * is consumed by both creation (PR checkout, task isolation) and cleanup
- * (`omp worktree`), and every launch extracts or loads the native addon from
+ * (`zetacode worktree`), and every launch extracts or loads the native addon from
  * the same natives directory. A relative value would resolve against whatever
  * cwd happened to launch `omp`, so those readers could disagree — we refuse it
  * rather than silently bind it to cwd.
