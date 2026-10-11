@@ -3,8 +3,8 @@
 The auth broker centralizes credential storage and OAuth refreshes. The auth gateway lets clients make provider requests without receiving provider credentials. Direct broker clients are trusted: snapshots expose OAuth access tokens and stored API keys, but never the real OAuth refresh token.
 
 - **`zetacode auth-broker serve`** holds the canonical SQLite credential vault, performs OAuth refreshes, and exposes snapshot, credential, block, usage, and health APIs under `/v1`.
-- **`omp auth-gateway serve`** is a forward-proxy. It accepts OpenAI Chat Completions, Anthropic Messages, OpenAI Responses, pi-native stream, TypeSafe System One judgment, and OpenAI/OpenRouter-style image, speech, transcription, embedding, rerank, and video requests, resolves the broker-backed credential, and dispatches through `pi-ai` provider logic. Clients (containerised omp, llm-git, the macOS usage widget, …) never see the access token.
-- **`omp auth-gateway stdio`** serves the same routes to its parent process as JSON lines on stdin/stdout, on the CLI's own credentials and model roles; see [stdio](#stdio).
+- **`zetacode auth-gateway serve`** is a forward-proxy. It accepts OpenAI Chat Completions, Anthropic Messages, OpenAI Responses, pi-native stream, TypeSafe System One judgment, and OpenAI/OpenRouter-style image, speech, transcription, embedding, rerank, and video requests, resolves the broker-backed credential, and dispatches through `pi-ai` provider logic. Clients (containerised omp, llm-git, the macOS usage widget, …) never see the access token.
+- **`zetacode auth-gateway stdio`** serves the same routes to its parent process as JSON lines on stdin/stdout, on the CLI's own credentials and model roles; see [stdio](#stdio).
 
 Transport security between operator, broker, and gateway is delegated to the operator (Tailscale / Wireguard / reverse proxy + TLS). Every endpoint except `/v1/healthz` (broker) and `/healthz` (gateway) requires a bearer token by default. The gateway also answers CORS `OPTIONS` preflights without authentication; `--no-auth` disables inbound gateway authentication.
 
@@ -25,7 +25,7 @@ Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packag
                 │            │  bearer ($CONFIG_DIR/auth-broker.token)       │
                 │            ▼                                               │
                 │  ┌──────────────────────────┐                              │
-                │  │  omp auth-gateway serve  │  RemoteAuthCredentialStore   │
+                │  │  zetacode auth-gateway serve  │  RemoteAuthCredentialStore   │
                 │  │  /v1/{chat,messages,…}   │  receives snapshot stream,   │
                 │  │  /v1/usage,/v1/models    │  refreshes credentials by id │
                 │  │  /v1/credentials/check   │  via the broker on expiry    │
@@ -150,11 +150,11 @@ The CLI broker refresh hook also handles managed `mcp_oauth:*` credentials using
 ### CLI
 
 ```
-omp auth-gateway serve   [--bind=host:port] [--no-auth] [--trust-proxy-headers]
-omp auth-gateway stdio
-omp auth-gateway token   [--regenerate] [--json]
-omp auth-gateway status  [--json]
-omp auth-gateway check   [--strict] [--json]
+zetacode auth-gateway serve   [--bind=host:port] [--no-auth] [--trust-proxy-headers]
+zetacode auth-gateway stdio
+zetacode auth-gateway token   [--regenerate] [--json]
+zetacode auth-gateway status  [--json]
+zetacode auth-gateway check   [--strict] [--json]
 ```
 
 - `serve` requires `OMP_AUTH_BROKER_URL` (or `auth.broker.url` in `config.yml`) — the gateway is itself a broker client. It fetches a live snapshot, wraps it in `RemoteAuthCredentialStore`, and constructs `AuthStorage` with the configured account pool and account policies. Unlike normal client discovery, gateway startup does not use the encrypted snapshot cache. Default bind is `127.0.0.1:4000`. The gateway token is stored at `<config-dir>/auth-gateway.token` (`0600`); `--no-auth` disables the bearer check entirely. Use that flag only on trusted loopback listeners; it does not enforce a loopback bind.
@@ -164,7 +164,7 @@ omp auth-gateway check   [--strict] [--json]
 
 ### stdio
 
-`omp auth-gateway stdio` is the gateway for one trusted parent process (an editor, a terminal's git UI, a script): no listener, no token, no broker requirement. It uses the credentials, models (`models.yml` and extension providers included) and settings any other `omp` command would: the broker when one is configured, else the local store. Requests and responses are JSON lines:
+`zetacode auth-gateway stdio` is the gateway for one trusted parent process (an editor, a terminal's git UI, a script): no listener, no token, no broker requirement. It uses the credentials, models (`models.yml` and extension providers included) and settings any other `omp` command would: the broker when one is configured, else the local store. Requests and responses are JSON lines:
 
 ```
 → {"id": 1, "path": "/v1/chat/completions", "body": {"model": "@commit,@smol", "messages": [...]}}
@@ -282,7 +282,7 @@ Broker-backed credential storage is **off** unless `OMP_AUTH_BROKER_URL` (or `au
 
 | Variable                            | Purpose                                                                                                                                                                | Required when                                                                                                             |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the omp client should resolve credentials through a broker (and required by `omp auth-gateway serve`).           |
+| `OMP_AUTH_BROKER_URL`               | Base URL of the remote auth-broker (e.g. `https://broker.tailnet:8765`). Selecting this puts the client in broker mode — local SQLite is bypassed.                     | Any time the omp client should resolve credentials through a broker (and required by `zetacode auth-gateway serve`).           |
 | `OMP_AUTH_BROKER_TOKEN`             | Bearer token used for every broker endpoint except `/v1/healthz`.                                                                                                      | When `OMP_AUTH_BROKER_URL` is set and no token is available from `auth.broker.token` or `<config-dir>/auth-broker.token`. |
 | `OMP_AUTH_BROKER_SNAPSHOT_TTL_MS`   | Freshness window for the encrypted local snapshot cache. Default `3600000` (1 h); `0` disables cache reads and writes.                                                 | Optional in broker mode.                                                                                                  |
 | `OMP_AUTH_BROKER_SNAPSHOT_CACHE`    | Path override for the encrypted local snapshot cache. Default `~/.zeta/cache/auth-broker-snapshot.enc` (or XDG cache equivalent).                                       | Optional in broker mode.                                                                                                  |
@@ -324,7 +324,7 @@ That ranking picks the account for a **new** session. A running session remember
 | Path                              | Owner                                                | Mode                          |
 | --------------------------------- | ---------------------------------------------------- | ----------------------------- |
 | `<config-dir>/auth-broker.token`  | `zetacode auth-broker token` or `serve` | `0600`; new parent directory `0700` |
-| `<config-dir>/auth-gateway.token` | `omp auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
+| `<config-dir>/auth-gateway.token` | `zetacode auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
 
 `<config-dir>` is `getConfigRootDir()`: `~/.zeta/` by default, respecting `PI_CONFIG_DIR` and the active profile (`~/.zeta/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.
 

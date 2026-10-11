@@ -2489,7 +2489,7 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Live streaming (omp stream)
+	// Live streaming (zetacode stream)
 	"stream.serverUrl": {
 		type: "string",
 		default: DEFAULT_STREAM_URL,

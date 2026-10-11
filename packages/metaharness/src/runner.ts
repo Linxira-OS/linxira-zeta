@@ -63,7 +63,7 @@ export interface Config {
 	agentArgs: string[];
 	/** omp tool allowlist (`--tools`); `null` keeps omp's default tool set. */
 	tools: string[] | null;
-	/** Extra omp settings written into the container config (dotted key → JSON value). */
+	/** Extra zetacode settings written into the container config (dotted key → JSON value). */
 	settings: Record<string, unknown>;
 
 	agent: string;

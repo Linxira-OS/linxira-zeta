@@ -7,7 +7,7 @@ import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire";
 
 const EMPTY_STRING_ARRAY: string[] = [];
 
-// Live streaming (omp stream)
+// Live streaming (zetacode stream)
 export const cfgStreamServerUrl = register({
 	id: "stream.serverUrl",
 	type: "string",

@@ -136,7 +136,7 @@ describe("extractProfileFlags", () => {
 	});
 
 	it("stops extracting global flags at a subcommand boundary", () => {
-		// `omp grep --profile <path>` must reach the grep subcommand intact; the
+		// `zetacode grep --profile <path>` must reach the grep subcommand intact; the
 		// bootstrap must not treat `--profile <path>` as a profile selection.
 		const result = extractProfileFlags(["grep", "--profile", "packages/coding-agent/src/cli.ts"]);
 		expect(result.profile).toBeUndefined();

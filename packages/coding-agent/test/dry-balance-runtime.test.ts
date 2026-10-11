@@ -8,7 +8,7 @@ import { getModelDbPath, TempDir } from "@linxiraos/pi-utils";
 
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
-test("omp dry-balance resolves credential-scoped models from the model cache", async () => {
+test("zetacode dry-balance resolves credential-scoped models from the model cache", async () => {
 	const tempDir = TempDir.createSync("@omp-dry-balance-runtime-");
 	const apiKey = "dry-balance-cache-test-key";
 	const modelId = "cached-dry-balance-model";

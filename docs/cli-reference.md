@@ -10,8 +10,8 @@ When the first positional argument is **not** a registered subcommand, `omp`
 normally routes to the default [`launch`](#launch-the-default-command) command.
 So `omp "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
-`uninstall`, or `extensions` instead produce a hint to use `omp plugin …`;
-use `omp launch <word>` when such a word is the intended prompt.
+`uninstall`, or `extensions` instead produce a hint to use `zetacode plugin …`;
+use `zetacode launch <word>` when such a word is the intended prompt.
 
 A recognized subcommand can follow leading launch flags. Those flags are
 forwarded to `launch` and `acp`, but recognized launch-only flags before other
@@ -26,13 +26,13 @@ Runtime help is also available:
 - `omp <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
-flags accepted by `omp` / `omp launch`) and every top-level **subcommand**.
+flags accepted by `omp` / `zetacode launch`) and every top-level **subcommand**.
 Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
 
-`omp` and `omp launch` start a coding session. Positional arguments become the
+`omp` and `zetacode launch` start a coding session. Positional arguments become the
 initial message(s):
 
 ```sh

@@ -1,5 +1,5 @@
 /**
- * Judge for commands that run outside an agent session (`omp find`, `zetacode stats`,
+ * Judge for commands that run outside an agent session (`zetacode find`, `zetacode stats`,
  * the git TUI's AI staging): project settings, a fresh auth store, the model
  * registry, and CLI extension providers, resolved the same way everywhere.
  */

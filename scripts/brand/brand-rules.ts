@@ -306,8 +306,8 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	// deliberate `omp` process-match keepers are narrower literals and do not
 	// match any of these.
 	{
-		needle: /<title>omp stats<\/>/,
-		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'omp stats' since the fork)",
+		needle: /<title>zetacode stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'zetacode stats' since the fork)",
 	},
 	{
 		needle: /Everything omp did/,
@@ -348,8 +348,8 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		why: "the security-scan prompt family speaks as the product, not as upstream",
 	},
 	{
-		needle: /\bomp (auth-broker|bench|usage|commit|predict|skill|setup|gallery|worktree|ps|collab|clip|play|text-predict|lsp|tiny|tiny-models)\b/,
-		why: "user/model-visible command mentions must name the zetacode bin (registry: 用户可见文案与 CLI_BIN_NAME 一律用 zetacode) — help text, banner builders, log lines and prompt examples",
+		needle: /\bomp (acp|agents|attach|auth-broker|auth-gateway|bench|browser-relay|cleanse|clip|collab|commit|complete|completions|compress|config|dry-balance|find|gallery|gc|git|grep|grievances|if-bench|images|install|join|launch|launch-help|login|models|play|plugin|predict|ps|read|render|say|serve|settings|setup|share|shell|skill|ssh|stats|stream|tiny|tiny-models|token|toks|ttsr|update|usage|web-search|web-ui-launcher|web|worktree|text-predict|lsp|mcp|debug|sessions|resume|help|version)\b/,
+		why: "user/model-visible command mentions must name the zetacode bin (registry: 用户可见文案与 CLI_BIN_NAME 一律用 zetacode) — help text, banner builders, log lines, prompt examples, comments and docs. The alternation is the CLI's own subcommand list; product-context phrases are written Zeta (e.g. 'Zeta settings', 'Zeta web themes') and do not match",
 	},
 	{
 		needle: /\bomp-owned\b/,
