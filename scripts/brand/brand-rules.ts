@@ -597,6 +597,11 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md"],
 	},
 	{
+		needle: /\.omp\/config\.yml/,
+		why: "the project config dir is .zeta — copy pointing at .omp/config.yml sends users to a path the product never reads (v18.9.1: docs/context-files.md taught it)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
 		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer\.chips?|run)(?![A-Za-z0-9_-])/,
 		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips, image cache symbol, run box/foot/state/time/facts/status/caption)",
 		exempt: ["CHANGELOG.md"],
