@@ -28,11 +28,13 @@ two-parent tag merge.
 
 
 
-## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.8`)
+## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`; the merge commit itself is titled `sync/omp-release/v18.8.8`)
 
 - **Baseline**: v18.8.7 (peeled `f261ed9faf16`; merge-base gate passed exactly,
   so the window is upstream's own increment). **Source tag**: `v18.8.8` →
   `1ca13863a828`, a real two-parent `git merge v18.8.8`.
+- **Zeta start**: `9362fef9d66` (the v18.8.7 merge). **Final merge commit**:
+  `110331518bc` (two parents: `9362fef9d66` + `1ca13863a828`).
 - **Scale**: v18.8.7→v18.8.8 = 173 files / +10891 −2435. Conflicts: **32 UU**
   (116 files auto-merged) — a fifth of the previous round's 100, because the
   brand sweep had already landed and there was less identity left to disagree
@@ -178,6 +180,63 @@ recurs on every sync.
   title probe restored). Next sync target is `v18.8.9` (`fa5ff4a3a977`, 58 commits /
   124 files from v18.8.8).
 
+### Post-repair audit pass (2026-10-11, same branch)
+
+Three audit sweeps ran against the repaired tree. Each found live damage the
+gates could not see, and each is now fixed:
+
+- **i18n**: the v18.8.8 merge reverted 53 slash-command descriptions in
+  `builtin-session.ts` from `() => M.cmd*` thunks back to static English
+  (`110331518bc^` had 0 static sites, the merge left 56, three were repaired at
+  the time); 46 more static descriptions in `builtin-lifecycle.ts` were
+  pre-existing. The TUI settings panel resolved `ZH_OPTION_TEXTS[option.value]`
+  while every overlay key is `path::value`, so 574 of 750 option labels were dead
+  in zh mode, and the persisted `language` setting was never consulted at startup
+  (`registerLanguageConfigOverride` had no caller). `check-i18n-commands.ts`
+  99 failures → 0; catalogues verified 1:1 at 3167 keys.
+- **tracking** (Zeta-only, upstream-absent): `tracking_update` was never gated on
+  `tracking.enabled` (`isToolAllowed` fell through to `true`) and the setting had
+  no `SETTINGS_SCHEMA` twin, so `getPathsForTab` never returned it and the web
+  dock entry could never appear; the panel's Plans tab rendered `data.sessions`.
+  An end-to-end probe (sandbox HOME + project) proves the tool writes
+  `INDEX.md`/`status.json`/`actions.jsonl`/`sessions/`/`summaries/`/`plans/`, the
+  gateway reads every family, and the SSE `tracking_changed` fires on write.
+  Sentinels extended to 60 so the upstream-owned halves (`tools/index.ts`,
+  `todo-tracker`, `prewalk`, `plan-mode-approved.md`, `web-gateway.ts`,
+  `settings-schema.ts`) cannot be dropped by a later merge.
+- **brand/compat**: rules corrupted by an earlier sweep were restored — AGENTS.md
+  and `merge-playbook.md` carried `.zeta` on *both* sides of the "no
+  compatibility surface" rule, making it self-nullifying. The packaged `docs/`
+  corpus's CLI references were fixed (`cli-reference`, `stream`, `settings`),
+  along with the bare `"omp"` identity literals in `commands/anonymize`,
+  `commands/auth-broker` (help usage line), `tools/ask` and `debug`
+  notifications, the TUI settings overlay title, and the session anonymizer's
+  program/scheme tables.
+- **Still open (reported, not fixed)**: the headless CLI (`src/cli/**`) has no
+  i18n imports at all, so `--help` is English-only by construction; hardcoded
+  Chinese without a language guard in `/tracking` output, IM channel replies,
+  `PLAN_APPROVAL_INSTRUCTIONS` and two gateway error strings; `docs/` remains a
+  brand-check blind spot (`SKIP_PREFIXES` skips the packaged corpus, so product
+  prose such as `docs/stream.md` "your omp sessions" survives), which needs a
+  scoped docs rule rather than the whole-tree one; tracking has lock-free
+  read-modify-write of `status.json` and the global index, an unbounded
+  `actions.jsonl`, and a `summaries/` family that no panel tab renders.
+- **Agent images do not reach the web conversation.** Screenshots (computer-use,
+  browser, `read` of an image file) become inline image blocks and render in the
+  terminal (kitty/iTerm2/SIXEL, 8-image inline budget, text fallback). The
+  gateway's SSE stream forwards them, but the web-ui's transcript reload asks for
+  `deferMedia=1`, and `omitToolResultBase64Images` replaces every tool-result
+  image with `[N tool result images omitted …]`; `session_entry` then triggers
+  that refetch, so the live image is clobbered. The bytes are not lost — they are
+  externalized to a content-addressed blob store and `/api/blobs/<sha256>` is
+  already routed — but no web-ui code consumes that route.
+- **Local CI**: the Gitea mirror's runs 520–535 all died before any test ran —
+  first a missing `actions/checkout`, then repeated NAS→github.com failures
+  (`curl: (56)` on a release asset; `TLS handshake timeout` fetching the action
+  itself). The workflow now clones from the Gitea remote (no action download) and
+  retries every toolchain download; the cold-bootstrap timeout was raised to 120
+  minutes.
+
 ## v18.8.7 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`)
 
 - **Baseline**: v18.8.4 (peeled `153b37c3b65b` — merge-base gate passed exactly;
@@ -185,6 +244,9 @@ recurs on every sync.
   the tag upstream has since *moved*, so the SHA not the name is the anchor).
   **Source tag**: `v18.8.7` → `f261ed9faf16`, a real two-parent
   `git merge v18.8.7`; `git merge-base --is-ancestor v18.8.7 HEAD` passes.
+- **Zeta start**: `9a2f4426f2a` (pre-merge HEAD of `sync/omp-release/v18.8.7`).
+  **Final merge commit**: `9362fef9d66` (two parents: `9a2f4426f2a` +
+  `f261ed9faf16`).
 - **Scale**: v18.8.4→v18.8.7 = 482 upstream commits / 493 files / +23482 −6005.
   Conflicts: **100 UU** (208 files auto-merged), all resolved in-merge.
 - **Method**: conflict blocks were classified by shape before touching any file.

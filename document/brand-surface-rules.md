@@ -73,7 +73,8 @@ party's registry carries the string.
 
 | Surface | Protects | Owner |
 |---|---|---|
-| Reading upstream plugin packages (`omp.rename`, `omp.dist`, `pkg.omp`) | Consuming the upstream ecosystem | `update-cli.ts`, `plugins/manager.ts` |
+| Reading upstream npm release manifests (`omp.rename`, `omp.dist`) | Consuming the upstream ecosystem | `cli/update-cli.ts` |
+| Reading upstream plugin packages (`pkg.zeta \|\| pkg.omp \|\| pkg.pi`) | Consuming the upstream ecosystem | `plugins/manager.ts` |
 | `.omp-plugin` manifest dir | OMP/Claude compatibility | AGENTS registry |
 | `omp.sh`, `live.omp.sh`, `my.omp.sh`, `skills.omp.sh`, `qa.omp.sh` | Shared upstream infrastructure | AGENTS registry |
 | `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
@@ -100,18 +101,6 @@ Reading upstream plugins is COMPAT and stays. **Publishing** ours under our own
 name is SUBSTITUTE and happens immediately. The two are not in tension: one is
 about consuming their ecosystem, the other about not being invisible inside our
 own.
-| `omp_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
-| `~/.omp/agent` read-only probe | Migration from OMP installs: `models.yml` + plaintext keys in `agent.db`. Never written. | `config/omp-compat.ts` |
-| `omp.rename` / `omp.dist` | Reading upstream npm release manifests | `cli/update-cli.ts` |
-| `pkg.zeta \|\| pkg.omp \|\| pkg.pi` | Reading upstream plugin packages | `plugins/manager.ts` |
-| `.omp-plugin` manifest dir | OMP/Claude compatibility | AGENTS registry |
-| `omp.sh`, `live.omp.sh`, `my.omp.sh`, `skills.omp.sh`, `qa.omp.sh` | Shared upstream infrastructure | AGENTS registry |
-| `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
-| `omp/muxConnect`-style handshakes | Same, as a single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |
-| `OMP_NUM_THREADS`, `OMP_THREAD_LIMIT`, `OMP_PCRE2_JIT`, `OMP_MINIMIZER_LEGACY_FILTERS` | GNU toolchain contract — external tools read them | `pi-builtins/nproc.rs`, `grep.rs` |
-| `omp` as the Stencil OAuth client id | Registered client id at a third-party issuer; changing it breaks auth | `catalog/.../stencil.kdl` |
-| `OMP_*` (174 vars) | Documented user configuration in `docs/environment-variables.md` | AGENTS registry |
-| `python/robomp` | OMP-native upstream bot | `SKIP_PREFIXES` |
 
 ### OVERTURN — old decision reversed on 2026-10-10
 

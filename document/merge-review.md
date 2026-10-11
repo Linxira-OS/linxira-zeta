@@ -23,7 +23,7 @@ duplicate the content here; the link target is merge-protected:
    sync policy, tag verification, ledger) and `AGENTS.md` (OMP Release Sync
    Policy section).
 2. **Damage classes** — `AGENTS.md` post-merge release-surface checklist
-   (8 classes) and `document/release.md` damage table. Triage fingerprints
+   (14 classes) and `document/release.md` damage table. Triage fingerprints
    live there; do not re-derive them.
 3. **Procedure** — `document/merge-playbook.md` six-stage pipeline.
 4. **Brand surface** — `AGENTS.md` Brand Surface Registry + `scripts/brand/`
@@ -37,7 +37,11 @@ duplicate the content here; the link target is merge-protected:
 
 Every file resolved by hand or with `--theirs`/`--ours` in an OMP release
 merge gets a row here (append, never rewrite history rows). A merge reaching
-`main` with a conflict file not recorded here is invalid.
+`main` with a conflict file not recorded here is invalid. The v18.8.7 and
+v18.8.8 rounds recorded their ~100 hand-resolved files in
+`document/upstream-sync.md`; for those rounds that ledger is the authoritative
+decision record, so this table deliberately stops at v18.1.10 rather than
+duplicating (or inventing) rows for them.
 
 | Merge (tag) | File | Resolution | Reason |
 |---|---|---|---|
@@ -56,6 +60,8 @@ merge gets a row here (append, never rewrite history rows). A merge reaching
 | Type check | `bun run ci:check:full` | every push | `check` |
 | Rust format | `cargo fmt --all --check` | when `crates/` touched | `rust_validate` |
 | **Upstream merge lineage** (tag-to-tag only) | `bun scripts/check-merge-lineage.ts --tag <tag>` | **before every upstream merge** | `sync/omp-release/*`, `port/*` |
+| **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree, exit 1 when any are gone | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>` | **before pushing an upstream merge** (not wired into CI yet) | — |
+| **Brand regression in the merge diff** — added lines carrying an upstream `omp` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet) | — |
 | Native pipeline smoke | desktop smoke | release runs | `desktop_*` |
 
 ## The lineage gate — why it exists and how to use it
