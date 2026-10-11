@@ -123,7 +123,7 @@ _CONFIG_DST = "/tmp/omp-config.yml"
 _OUTPUT_FILENAME = "omp.txt"
 
 # omp's daemon broker stops the services the agent started (bash `name` +
-# `ready`) once its last client has been gone for OMP_DAEMON_IDLE_GRACE_MS
+# `ready`) once its last client has been gone for ZETA_DAEMON_IDLE_GRACE_MS
 # (default 3 s). The verifier runs after omp exits, in the same container, and
 # grades those services, so keep them alive until the container is torn down.
 _SERVICE_GRACE_ENV = {"OMP_DAEMON_IDLE_GRACE_MS": str(24 * 60 * 60 * 1000)}

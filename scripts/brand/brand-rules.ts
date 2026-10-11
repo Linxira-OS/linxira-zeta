@@ -125,6 +125,11 @@ export const PI_FAMILY = /[\u03A0\u03C0\u03D6\u220F\u213C\u{1D6A2}-\u{1D7CB}]/u;
 /** Exact assertions: each entry must appear in the named file (merge-protected). */
 export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> = [
 	{
+		file: "packages/coding-agent/src/launch/protocol.ts",
+		needle: "ZETA_DAEMON_IDLE_GRACE_MS",
+		why: "the broker's idle-grace env key stays the Zeta spelling the broker actually reads (producer/consumer pair: broker.ts + launch client)",
+	},
+	{
 		file: "packages/utils/src/dirs.ts",
 		needle: "USER_AGENT = `zeta/${" + "VERSION}`;",
 		why: "UA constant drives every provider request (v18.1.10 merge reverted it to omp/)",
@@ -249,6 +254,14 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	{
 		needle: /Run `omp /,
 		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
+	},
+	{
+		needle: /ZETA_NO_TITLE/,
+		why: "titling gate is PI_NO_TITLE on both sides: main.ts sets it for --no-title/rpc/acp and agent-session.ts/interactive-mode.ts read it. A ZETA_ spelling on the read (or a test setting it) silently disables the check instead of failing",
+	},
+	{
+		needle: /OMP_DAEMON_IDLE_GRACE_MS/,
+		why: "the daemon broker reads DAEMON_IDLE_GRACE_ENV, which this tree spells ZETA_DAEMON_IDLE_GRACE_MS (all three DAEMON_*_ENV keys are Zeta-owned). A caller setting the upstream spelling is ignored — the browser-relay test then waits the 3 s default instead of its 200 ms override",
 	},
 	// ── Stats dashboard brand surface (added after the v18.4.4 round) ─────────
 	// The stats client shipped with upstream branding since the fork (never

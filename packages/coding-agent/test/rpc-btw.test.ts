@@ -30,7 +30,7 @@ describe("RPC /btw", () => {
 		const rpc = new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "btw-rpc-agent.ts")],
 			cwd: directory,
-			env: { ZETA_CODING_AGENT_DIR: directory, ZETA_NO_TITLE: "1" },
+			env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 		});
 		client = rpc;
 		const deltas: string[] = [];
@@ -227,7 +227,7 @@ describe("RPC /btw", () => {
 		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-btw-"));
 		const child = Bun.spawn([process.execPath, path.join(import.meta.dir, "fixtures", "btw-rpc-agent.ts")], {
 			cwd: directory,
-			env: { ...process.env, ZETA_CODING_AGENT_DIR: directory, ZETA_NO_TITLE: "1" },
+			env: { ...process.env, ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1" },
 			stdin: "pipe",
 			stdout: "pipe",
 			stderr: "ignore",

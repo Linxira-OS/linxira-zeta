@@ -38,9 +38,18 @@ function isLoopbackHostname(hostname: string): boolean {
 }
 
 function configuredHostnamesFromEnvironment(): string[] {
+  // The launcher (packages/coding-agent/src/commands/web-ui-launcher.ts) sets
+  // the ZETA_ spelling; OMP_/PI_ stay readable so an operator's older config
+  // keeps working. Reading only the legacy name silently ignored the
+  // configured hostname and disabled the loopback allowlist entry.
   return [
-    process.env.PI_WEB_HOSTNAME,
-    ...(process.env.PI_WEB_ALLOWED_HOSTS?.split(",") ?? []),
+    process.env.ZETA_WEB_HOSTNAME ?? process.env.OMP_WEB_HOSTNAME ?? process.env.PI_WEB_HOSTNAME,
+    ...(
+      process.env.ZETA_WEB_ALLOWED_HOSTS ??
+      process.env.OMP_WEB_ALLOWED_HOSTS ??
+      process.env.PI_WEB_ALLOWED_HOSTS ??
+      ""
+    ).split(","),
   ].filter((value): value is string => Boolean(value?.trim()));
 }
 
