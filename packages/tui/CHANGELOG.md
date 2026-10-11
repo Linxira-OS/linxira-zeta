@@ -1,6 +1,76 @@
 ## [Unreleased]
 
 - Added cache-release hooks for TUI components and tool cards, allowing extensions to discard derived render data without rebuilding content ([#13632](https://github.com/can1357/oh-my-pi/pull/13632) by [@iliaal](https://github.com/iliaal)).
+## [18.9.1] - 2026-10-11
+
+### Fixed
+
+- Fixed inline charts and images leaving overlapping copies over text when moved, resized, replaced, or hidden, while preserving images in scrollback.
+
+## [18.9.0] - 2026-10-11
+
+### Added
+
+- Added opt-in JSON editing for free-form array settings while keeping credential values masked; settings editors now surface submission and validation errors.
+- Added ghost-text predictions to the editor via the new `Editor.prediction` callback. Press Tab or Right at the end of a line to accept the suggested text without submitting.
+- Expanded table-chart support with stacked, waterfall, timeline, dots, range, slope, butterfly, bullet, ladder, histogram, and stat charts, including error whiskers, share bars, status matrices, and richer before/after visualizations.
+- Added richer table-chart planning and presentation controls, including titles, ordering, grouping, shading, normalization, reference lines, polarity, rivals, focus rows, and model-driven selection for smart mode. Charts now identify key findings, highlight best values and changes, and adapt scales and labels for clearer comparisons.
+- Added the optional `assistantMessageText` theme token for coloring assistant reply prose while preserving the terminal default when unset or empty.
+- Added optional status-line support for showing saved usage resets that expire soon and warning once per conversation when a reset expires within 24 hours.
+
+### Changed
+
+- Improved table-chart planning to prefer waterfall charts over share bars for complex data sets and enforce segment limits for share-chart legibility
+- Reduced the time required to rebuild long sessions on resume, particularly sessions with repeated wait polls or todo updates.
+- Output summaries now identify the first and last lines omitted by column limits, and truncation notices point to the `:raw` selector for retrieving complete lines.
+
+### Fixed
+
+- Fixed session model selection and setup displaying role chips for roles that resolve to a non-chat runner rather than the model used by the session.
+- Improved table-chart parsing and rendering across repeated labels, grouped and paired values, percentages, units, currency, durations, model sizes, links, identifiers, and sparse or side-by-side tables. Charts now avoid duplicate or misleading plots and preserve meaningful comparisons.
+- Fixed table-chart scaling for outliers, stacked groups, zeros, logarithmic shading, and values spanning multiple orders of magnitude.
+- Fixed `/tree` stalling or using excessive memory when opened on long sessions with many branch points.
+- Fixed extension status messages losing SGR colors and text styles in the status line.
+- Fixed the eval status list omitting status events discarded from long-running cells.
+- Fixed loop-blocked diagnostics to attribute stalls to the correct work phase or terminal writes instead of reporting misleading unknown causes.
+- Fixed Agent Hub and status-line spending totals losing cumulative subagent costs after compaction, parking, or follow-up turns.
+- Fixed dead-key input on older Windows Terminal versions so quotes are entered correctly with Space, Enter, and Tab.
+- Fixed SIXEL graphics detection on terminals, including native Windows Terminal, so SVG figures and inline images work without forcing a graphics protocol.
+- Fixed overflow transcript rendering so user messages no longer appear as blank padding bars or leave stray prompt markers across terminal rows.
+
+## [18.8.9] - 2026-10-10
+
+### Breaking Changes
+
+- Removed the `isInsideTmux()`, `isInsideZellij()`, and `isInsideHerdr()` exports; use `hasTerminalMultiplexerSession("tmux" | "zellij" | "herdr", env)` instead ([#13620](https://github.com/can1357/oh-my-pi/pull/13620) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
+
+### Added
+
+- `classifyTerminalMultiplexer()` reports `"orca"` inside Orca terminals while `isInsideTerminalMultiplexer()` stays false there, so Orca keeps the direct-terminal render path; `TERMINAL_MULTIPLEXER_ENV_KEYS` lists every environment variable multiplexer detection reads ([#13620](https://github.com/can1357/oh-my-pi/pull/13620) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
+- Added `terminalMultiplexerSessions()`, `terminalMultiplexerForTerm()`, `classifyTerminalMultiplexerModule()`, and `routeTerminalMultiplexerNotification()`, driven by one multiplexer registry that now owns notification routing and per-multiplexer capability overrides ([#13620](https://github.com/can1357/oh-my-pi/pull/13620) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
+- Added `change` and `progress` table-chart kinds with `ChartSpec.baseline` and `TableColumn.scores`: a before/after table whose rows have their own units charts each metric as a factor of the baseline column (rows without two numbers are named in the caption), and `analyzeTable` reads whole-number scores (`12/12`, `154/160`) as the percent of their total, keeping `a / b` pairs and lists as written
+
+### Changed
+
+- `StatusLineComponent.describeComposerFacts()` includes the configured `git` segment among the composer's facts (branch and status, the `status.git` click action, pinned so it outlasts the other facts) instead of leaving the branch to Tern's pane header ([#15220](https://github.com/can1357/oh-my-pi/pull/15220) by [@H4vC](https://github.com/H4vC))
+- Small-multiple table charts with more than three panels and at most six categories draw as bands of per-metric panels with a color legend, and `worthCharting` counts their panels like categories
+- Table charts take the look of Apple's charts and Tern: a UI sans, hairline gridlines, rounded bars and cells, smooth lines over a soft area fill, dot legends, left-aligned category labels that never run off the edge, and axes labeled in one unit (`0, 5k, 10k`)
+- Line charts whose series differ 8× or more in size stack panels on their own axes instead of flattening the smaller lines, and their end labels no longer overlap
+- SVG figure series colors `--c1`…`--c6` are an even-weight palette led by the theme accent's hue instead of syntax colors
+
+### Fixed
+
+- Fixed `parseCell` throwing on table cells such as `3 constructor` or `2 valueOf calls`, and reading a `constructor` cell as a missing value
+
+## [18.8.8] - 2026-10-10
+
+### Breaking Changes
+
+- `ModelHubCallbacks.onCompactionPointChange` now receives a `confirmed` flag and returns a `CompactionPointChangeResult` (`{ kind: "error" }` or `{ kind: "confirm" }`) instead of an error string; a `confirm` result shows a warning that a second Enter on the same input accepts ([#15048](https://github.com/can1357/oh-my-pi/pull/15048) by [@H4vC](https://github.com/H4vC))
+- `ModelCompactionPoint.percent` is replaced by `basis`, a short explanation of why the model compacts there (`fixed`, `85% of 400K base`, `80% of window`) that the model hub preview shows next to the trigger ([#15065](https://github.com/can1357/oh-my-pi/pull/15065) by [@H4vC](https://github.com/H4vC))
+
+### Added
+
 - Added an `inline` option to `HookSelectorComponent` that keeps a selector in the composer slot in Tern instead of opening it as a sheet over the screen ([#15058](https://github.com/can1357/oh-my-pi/pull/15058) by [@H4vC](https://github.com/H4vC))
 - Added `ModelHubCallbacks.previewCompactionPoint`, whose line the compaction limit field shows while you type instead of the input syntax ([#15065](https://github.com/can1357/oh-my-pi/pull/15065) by [@H4vC](https://github.com/H4vC))
 - Added Vim find and till motions (`f`, `F`, `t`, `T`) in the prompt editor, with `;` and `,` to repeat them ([#15100](https://github.com/can1357/oh-my-pi/pull/15100) by [@Shadorain](https://github.com/Shadorain))
@@ -679,3 +749,4 @@ Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://g
 Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).
 
 Older entries are archived in [packages/tui/CHANGELOG.md@fa14205f838f](https://github.com/can1357/oh-my-pi/blob/fa14205f838f282fcea048c64fca74026789a492/packages/tui/CHANGELOG.md).
+Older entries are archived in [packages/tui/CHANGELOG.md@60347ef0f214](https://github.com/can1357/oh-my-pi/blob/60347ef0f214fa63df596d143477268da3f0c904/packages/tui/CHANGELOG.md).

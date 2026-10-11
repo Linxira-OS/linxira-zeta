@@ -1,7 +1,8 @@
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { writeTerminalSequence } from "@linxiraos/pi-tui/terminal";
-import { isInsideTmux, wrapTmuxPassthrough } from "@linxiraos/pi-tui/terminal-capabilities";
+import { hasTerminalMultiplexerSession } from "@linxiraos/pi-tui/terminal-multiplexer";
+import { wrapTmuxPassthrough } from "@linxiraos/pi-tui/terminal-capabilities";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions/types";
 import { isSilentAbort, isUserInterruptAbort, SKILL_PROMPT_MESSAGE_TYPE } from "../session/messages";
@@ -65,7 +66,7 @@ export function createWarpEventEmitter(options: WarpEventEmitterOptions): WarpEv
 				plugin_version: VERSION,
 			};
 			const osc = `\x1b]777;notify;${WARP_CLI_AGENT_SENTINEL};${JSON.stringify(body)}\x07`;
-			if (!isInsideTmux()) {
+			if (!hasTerminalMultiplexerSession("tmux")) {
 				writeTerminalSequence(osc);
 				return;
 			}

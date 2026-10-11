@@ -214,6 +214,10 @@ const files = out.stdout
 
 for (const file of files) {
 	const rel = file.replaceAll("\\", "/");
+	// A tracked file can be missing from the worktree mid-merge (a side deleted it, the
+	// conflict is unresolved). Skip it instead of dying with ENOENT and masking every
+	// other finding; a committed tree cannot be in that state.
+	if (!(await Bun.file(path.join(ROOT, file)).exists())) continue;
 	const text = await Bun.file(path.join(ROOT, file)).text();
 	const seen = new Set<string>();
 	for (const url of text.match(DOMAIN_RE) ?? []) {

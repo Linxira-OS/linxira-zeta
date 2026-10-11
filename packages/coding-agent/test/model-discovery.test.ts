@@ -3,26 +3,28 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { FetchImpl, Model } from "@linxiraos/pi-ai";
-import type { OAuthCredentials } from "@linxiraos/pi-ai/oauth/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { Effort } from "@linxiraos/pi-catalog/effort";
-import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
-import type { ModelKind, ModelSpec, OpenAICompat } from "@linxiraos/pi-catalog/types";
-import { CODEX_CLIENT_VERSION } from "@linxiraos/pi-catalog/wire/codex";
+import type { FetchImpl, Model } from "@oh-my-pi/pi-ai";
+import type { OAuthCredentials } from "@oh-my-pi/pi-ai/oauth/types";
+import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { Effort } from "@oh-my-pi/pi-catalog/effort";
+import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { resolveModelCacheProviderId, resolveOllamaModelCacheProviderId } from "@oh-my-pi/pi-catalog/provider-models";
+import type { ModelKind, ModelSpec, OpenAICompat } from "@oh-my-pi/pi-catalog/types";
+import { CODEX_CLIENT_VERSION } from "@oh-my-pi/pi-catalog/wire/codex";
 import {
+	discoverLiteLLMModels,
 	discoverOllamaModels,
 	discoverOpenAIModelsList,
 	discoveryProbeTimeoutMs,
-} from "@linxiraos/zeta/config/model-discovery";
-import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@linxiraos/zeta/config/model-provider-discovery";
-import { kNoAuth, ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { ProviderDiscoverySchema } from "@linxiraos/zeta/config/models-config-schema";
-import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/config/model-discovery";
+import { RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS } from "@oh-my-pi/pi-coding-agent/config/model-provider-discovery";
+import { kNoAuth, ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { ProviderDiscoverySchema } from "@oh-my-pi/pi-coding-agent/config/models-config-schema";
+import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 
 describe("ModelRegistry runtime discovery", () => {
 	let tempDir: string;
@@ -45,7 +47,7 @@ describe("ModelRegistry runtime discovery", () => {
 		delete Bun.env.OLLAMA_HOST;
 		delete Bun.env.OLLAMA_CONTEXT_LENGTH;
 		delete Bun.env.ANTHROPIC_API_KEY;
-		// The developer's shell or ~/.zeta/agent/.env must not redirect llama.cpp discovery probes.
+		// The developer's shell or ~/.omp/agent/.env must not redirect llama.cpp discovery probes.
 		originalLlamaCppBaseUrl = Bun.env.LLAMA_CPP_BASE_URL;
 		delete Bun.env.LLAMA_CPP_BASE_URL;
 		tempDir = path.join(os.tmpdir(), `pi-test-model-registry-${Snowflake.next()}`);
@@ -3099,14 +3101,6 @@ describe("ModelRegistry runtime discovery", () => {
 	});
 
 	test("litellm discovery maps rich model metadata and keeps runtime /v1 baseUrl", async () => {
-		writeRawModelsJson({
-			"litellm-test": {
-				baseUrl: "http://127.0.0.1:4000",
-				api: "openai-completions",
-				auth: "none",
-				discovery: { type: "litellm" },
-			},
-		});
 		const fetchMock: FetchImpl = async input => {
 			const url = String(input);
 			if (url === "http://127.0.0.1:4000/model_group/info") {
@@ -3126,9 +3120,17 @@ describe("ModelRegistry runtime discovery", () => {
 			}
 			throw new Error(`Unexpected URL: ${url}`);
 		};
-		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
-		await registry.refresh();
-		const model = registry.find("litellm-test", "gpt-big");
+		const models = await discoverLiteLLMModels(
+			{
+				provider: "litellm-test",
+				baseUrl: "http://127.0.0.1:4000",
+				api: "openai-completions",
+				discovery: { type: "litellm" },
+			},
+			{ fetch: fetchMock, getBearerApiKeyResolver: async () => undefined },
+		);
+		const model = models.find(model => model.id === "gpt-big");
+		if (!model) throw new Error("Missing discovered LiteLLM model");
 
 		expect(model?.baseUrl).toBe("http://127.0.0.1:4000/v1");
 		expect(model?.contextWindow).toBe(262_144);
@@ -3136,17 +3138,19 @@ describe("ModelRegistry runtime discovery", () => {
 		expect(model?.input).toEqual(["text", "image"]);
 		expect(model?.reasoning).toBe(true);
 		expect(model?.api).toBe("openai-responses");
+		expect(model.provider).toBe("litellm-test");
+		expect(model.providerType).toBe("litellm");
+		if (model.api !== "openai-responses") throw new Error("Expected discovered Responses API");
+		expect(
+			resolveOpenAIRequestSetup(model as Model<"openai-responses">, {
+				apiKey: "test",
+				messages: [],
+				sessionId: "rich-alias-session",
+			}).requestHeaders["x-litellm-session-id"],
+		).toBe("rich-alias-session");
 	});
 
 	test("litellm discovery falls back to /v1/models when the rich phase times out (#10964)", async () => {
-		writeRawModelsJson({
-			"litellm-test": {
-				baseUrl: "http://127.0.0.1:4013/v1",
-				api: "openai-completions",
-				auth: "none",
-				discovery: { type: "litellm", timeoutMs: 50 },
-			},
-		});
 		const { promise: richHang } = Promise.withResolvers<Response>(); // never resolves
 		const richEndpoints = ["/model_group/info", "/v2/model/info", "/model/info", "/v1/model/info"];
 		let v1ModelsHits = 0;
@@ -3166,11 +3170,31 @@ describe("ModelRegistry runtime discovery", () => {
 			}
 			throw new Error(`Unexpected URL: ${url}`);
 		};
-		const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
-		await registry.refresh();
+		const models = await discoverLiteLLMModels(
+			{
+				provider: "litellm-test",
+				baseUrl: "http://127.0.0.1:4013/v1",
+				api: "openai-responses",
+				discovery: { type: "litellm", timeoutMs: 50 },
+			},
+			{ fetch: fetchMock, getBearerApiKeyResolver: async () => undefined },
+		);
+		const model = models.find(model => model.id === "vendor-7/model-7");
+		if (!model) throw new Error("Missing fallback LiteLLM model");
 
 		expect(v1ModelsHits).toBeGreaterThan(0);
-		expect(registry.find("litellm-test", "vendor-7/model-7")?.baseUrl).toBe("http://127.0.0.1:4013/v1");
+		expect(model.baseUrl).toBe("http://127.0.0.1:4013/v1");
+		expect(model.provider).toBe("litellm-test");
+		expect(model.providerType).toBe("litellm");
+		expect(model.api).toBe("openai-responses");
+		if (model.api !== "openai-responses") throw new Error("Expected fallback Responses API");
+		expect(
+			resolveOpenAIRequestSetup(model as Model<"openai-responses">, {
+				apiKey: "test",
+				messages: [],
+				sessionId: "fallback-alias-session",
+			}).requestHeaders["x-litellm-session-id"],
+		).toBe("fallback-alias-session");
 	});
 
 	test("configured litellm discovery omits non-conversational rich modes", async () => {

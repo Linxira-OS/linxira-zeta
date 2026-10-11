@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
-import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import type { Skill } from "@linxiraos/zeta/capability/skill";
+import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
+import { disableUserSource, enableProvider, loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
-} from "@linxiraos/zeta/discovery/helpers";
-import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
-import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
-import "@linxiraos/zeta/discovery/claude-plugins";
+} from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import type { Skill } from "@oh-my-pi/pi-coding-agent/capability/skill";
+import { loadSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
+import { loadAllExtensions } from "@oh-my-pi/pi-coding-agent/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
 	test("returns null for invalid JSON", () => {
@@ -51,15 +51,17 @@ describe("listClaudePluginRoots", () => {
 	let testAgentDir: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalZetaProfileEnv: string | undefined;
+	let originalOmpProfileEnv: string | undefined;
+	let originalPiProfileEnv: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
 
 	beforeEach(async () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalZetaProfileEnv = process.env.ZETA_PROFILE;
+		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-plugins-test-"));
@@ -67,7 +69,7 @@ describe("listClaudePluginRoots", () => {
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 		// Point the agent dir at a temp dir so user-scope discovery (native MCP
-		// config, skills, etc.) cannot read the real ~/.zeta/agent profile.
+		// config, skills, etc.) cannot read the real ~/.omp/agent profile.
 		setAgentDir(testAgentDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");
@@ -81,8 +83,9 @@ describe("listClaudePluginRoots", () => {
 		// setAgentDir() clears the profile env vars and snapshots the agent dir,
 		// so restore every env var it can touch before rebuilding the resolver.
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
-		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
+		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");
 		disableUserSource("claude-plugins");
@@ -96,6 +99,39 @@ describe("listClaudePluginRoots", () => {
 		const result = await listClaudePluginRoots(tempDir);
 		expect(result.roots).toEqual([]);
 		expect(result.warnings).toEqual([]);
+	});
+
+	test("logs registry warnings once per cached computation", async () => {
+		const pluginsDir = path.join(tempDir, ".claude", "plugins");
+		await fs.mkdir(pluginsDir, { recursive: true });
+		const registryPath = path.join(pluginsDir, "installed_plugins.json");
+		await fs.writeFile(registryPath, "not json");
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		const first = await listClaudePluginRoots(tempDir);
+		const second = await listClaudePluginRoots(tempDir);
+
+		expect(first.warnings).toEqual([`Failed to parse Claude Code plugin registry: ${registryPath}`]);
+		expect(second).toBe(first);
+		expect(warnSpy.mock.calls.filter(([message]) => message === first.warnings[0])).toHaveLength(1);
+	});
+
+	test("logs registry warnings once for concurrent callers", async () => {
+		const pluginsDir = path.join(tempDir, ".claude", "plugins");
+		await fs.mkdir(pluginsDir, { recursive: true });
+		const registryPath = path.join(pluginsDir, "installed_plugins.json");
+		await fs.writeFile(registryPath, "not json");
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		const results = await Promise.all([
+			listClaudePluginRoots(tempDir),
+			listClaudePluginRoots(tempDir),
+			listClaudePluginRoots(tempDir),
+		]);
+
+		const message = `Failed to parse Claude Code plugin registry: ${registryPath}`;
+		for (const result of results) expect(result.warnings).toEqual([message]);
+		expect(warnSpy.mock.calls.filter(([m]) => m === message)).toHaveLength(1);
 	});
 
 	test("parses plugin with user scope", async () => {
@@ -466,7 +502,7 @@ describe("listClaudePluginRoots", () => {
 			[firstHome, "first@market"],
 			[secondHome, "second@market"],
 		] as const) {
-			const pluginsDir = path.join(home, ".zeta", "plugins");
+			const pluginsDir = path.join(home, ".omp", "plugins");
 			await fs.mkdir(pluginsDir, { recursive: true });
 			await fs.writeFile(
 				path.join(pluginsDir, "installed_plugins.json"),
@@ -502,10 +538,7 @@ describe("listClaudePluginRoots", () => {
 		const marketRoot = path.join(tempDir, ".claude", "plugins", "cache", "test-market");
 		const pluginARoot = path.join(marketRoot, "plugin-a", "1.0.0");
 		const pluginBRoot = path.join(marketRoot, "plugin-b", "1.0.0");
-		// Zeta brand divergence (merge decision): the OMP plugin registry lives
-		// under `.zeta` here, not upstream's `.omp` — Zeta's config dir is
-		// `.zeta` only (AGENTS.md brand surface).
-		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 
 		await Promise.all([
 			fs.mkdir(path.join(pluginARoot, "skills", "shared-skill"), { recursive: true }),
@@ -545,9 +578,9 @@ describe("listClaudePluginRoots", () => {
 	});
 
 	test("loads OMP user skills without opting into foreign Claude skills", async () => {
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
@@ -569,7 +602,7 @@ describe("listClaudePluginRoots", () => {
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -595,9 +628,9 @@ describe("listClaudePluginRoots", () => {
 		// with origin !== "claude", but isSourceEnabled() in extensibility/skills.ts
 		// re-dropped them via isUserSourceEnabled("claude-plugins"). The origin now
 		// rides SourceMeta, so the foreign gate applies only to claude-origin roots.
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
@@ -619,7 +652,7 @@ describe("listClaudePluginRoots", () => {
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -644,15 +677,15 @@ describe("listClaudePluginRoots", () => {
 	});
 
 	test("dashboard marks omp-origin plugin capabilities active without enabling the Claude source (#12776)", async () => {
-		// Regression (#12776): the loader exempts ~/.zeta/plugins marketplace roots
+		// Regression (#12776): the loader exempts ~/.omp/plugins marketplace roots
 		// (origin !== "claude") from the foreign user opt-in gate, but the
 		// /extensions dashboard's resolveState re-dropped them as "user-opt-in".
 		// The omp-origin skill AND rule must render active; the claude-origin skill
 		// must stay opt-in disabled. The rule proves origin now rides the
 		// non-skill _source built by loadFilesFromDir, not just skills.
-		const ompPluginPath = path.join(tempDir, "plugins", "Zeta-owned");
+		const ompPluginPath = path.join(tempDir, "plugins", "omp-owned");
 		const claudePluginPath = path.join(tempDir, "plugins", "claude-owned");
-		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		const ompRegistryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 		const claudeRegistryPath = path.join(tempDir, ".claude", "plugins", "installed_plugins.json");
 		await Promise.all([
 			fs.mkdir(path.join(ompPluginPath, "skills", "omp-demo"), { recursive: true }),
@@ -676,7 +709,7 @@ describe("listClaudePluginRoots", () => {
 				JSON.stringify({
 					version: 2,
 					plugins: {
-						"Zeta-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
+						"omp-owned@market": [{ scope: "user", installPath: ompPluginPath, version: "1.0.0" }],
 					},
 				}),
 			),
@@ -706,7 +739,7 @@ describe("listClaudePluginRoots", () => {
 	for (const catalogDir of [".claude-plugin", ".omp-plugin"]) {
 		test(`marketplace-root ${catalogDir} entry limits shared skills to declared paths`, async () => {
 			const pluginPath = path.join(tempDir, "plugins", "anthropic-skills");
-			const registryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+			const registryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
 			await Promise.all([
 				fs.mkdir(path.join(pluginPath, "skills", "xlsx"), { recursive: true }),
 				fs.mkdir(path.join(pluginPath, "skills", "skill-creator"), { recursive: true }),

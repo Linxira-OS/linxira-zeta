@@ -8,34 +8,45 @@ Each example uses the `subdirectory/index.ts` structure required for tool discov
 
 ### hello/
 
-Minimal example showing the basic structure of a custom tool.
-
-### todo/
-
-Full-featured example demonstrating:
-
-- `onSession` for state reconstruction from session history
-- Custom `renderCall` and `renderResult`
-- Proper branching support via details storage
-- State management without external files
+Minimal example showing the basic structure of a custom tool. The factory
+registers one tool named `hello` that takes a name and returns a greeting.
 
 ## Usage
 
-```bash
-# Test directly (can point to any .ts file)
-zetacode --tool examples/custom-tools/todo/index.ts
+zetacode discovers custom tools in two places: `.zeta/tools/` in the current project
+and `~/.zeta/agent/tools/` in your home directory. Both locations pick up `.ts`
+and `.js` modules, plus any immediate subdirectory that contains an `index.ts`.
 
-# Or copy entire folder to tools directory for persistent use
-cp -r todo ~/.zeta/agent/tools/
+From this directory, install the example into one project:
+
+```bash
+mkdir -p /path/to/your-project/.zeta/tools
+cp -r hello /path/to/your-project/.zeta/tools/
+cd /path/to/your-project
+zetacode --tools hello
 ```
+
+Or install it for every project (default profile):
+
+```bash
+mkdir -p ~/.zeta/agent/tools
+cp -r hello ~/.zeta/agent/tools/
+```
+
+With a named profile (`OMP_PROFILE` or `--profile`), use that profile's tools
+dir instead: `~/.zeta/profiles/<name>/agent/tools`.
+
+`--tools` selects registered tool names, never file paths. `hello` is the name
+the factory in `hello/index.ts` returns. Without the flag the tool is still
+discovered and loaded alongside the built-in tools. `--tools hello` restricts
+the session's tools to just `hello`, which keeps the demo focused but drops
+built-ins such as `read` and `bash`; list them too (`--tools read,bash,hello`)
+to keep them.
 
 Then in omp:
 
 ```
-> add a todo "test custom tools"
-> list todos
-> toggle todo #1
-> clear todos
+> greet Ada with the hello tool
 ```
 
 ## Writing Custom Tools

@@ -235,12 +235,13 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 		return;
 	}
 	try {
-		// Checkouts update through git and a manager (Tern) updates its omp itself:
-		// "run zetacode update" would be wrong advice for both.
+		// Checkouts update through git, and a manager (Tern) updates its own CLI:
+		// "run `zetacode update`" would be wrong advice for both.
 		if (isSourceCheckout() || (await managedInstallName(process.execPath))) return;
 		const channel = cfgUpdateChannel.get(settings);
-		const release = await getLatestRelease({ timeoutMs: 5_000, channel });
-		return Bun.semver.order(release.version, currentVersion) > 0 ? release.version : undefined;
+		// We update from our own release channel, never from upstream's build service.
+		const { version } = await getLatestRelease({ timeoutMs: 5_000, channel });
+		return Bun.semver.order(version, currentVersion) > 0 ? version : undefined;
 	} catch {
 		return undefined;
 	}
@@ -1199,7 +1200,9 @@ export async function createSessionManager(
 		const forkSource = parsed.fork;
 		if (forkSource.includes("/") || forkSource.includes("\\") || forkSource.endsWith(".jsonl")) {
 			try {
-				return await SessionManager.forkFrom(forkSource, cwd, parsed.sessionDir);
+				return await SessionManager.forkFrom(forkSource, cwd, parsed.sessionDir, undefined, {
+					repairInterruptedTail: true,
+				});
 			} catch (err) {
 				if (err instanceof ForkSourceNotFoundError) {
 					throw new SessionResolutionError(err.message, SESSION_NOT_FOUND_HINT);
@@ -1212,7 +1215,9 @@ export async function createSessionManager(
 			throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
 		}
 		try {
-			return await SessionManager.forkFrom(match.session.path, cwd, parsed.sessionDir);
+			return await SessionManager.forkFrom(match.session.path, cwd, parsed.sessionDir, undefined, {
+				repairInterruptedTail: true,
+			});
 		} catch (err) {
 			if (err instanceof ForkSourceNotFoundError) {
 				throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);

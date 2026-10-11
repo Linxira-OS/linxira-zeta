@@ -63,6 +63,32 @@ describe("zetacode read skill resources", () => {
 		expect(error).toBe("");
 	}, 60_000);
 
+	it("starts MCP servers only for a skill URL no local skill owns", async () => {
+		const marker = path.join(root, "mcp-started");
+		await Bun.write(
+			path.join(projectDir, ".mcp.json"),
+			JSON.stringify({
+				mcpServers: {
+					probe: {
+						type: "stdio",
+						command: process.execPath,
+						args: ["-e", `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "")`],
+					},
+				},
+			}),
+		);
+
+		const local = await runReadProbe("skill://standalone-skill;skill://standalone-skill/SKILL.md");
+		expect(local.exitCode).toBe(0);
+		expect(local.output).toContain("# Standalone Skill");
+		expect(await Bun.file(marker).exists()).toBe(false);
+
+		const unknown = await runReadProbe("skill://nope");
+		expect(unknown.exitCode).toBe(1);
+		expect(unknown.error).toContain("Unknown skill: nope");
+		expect(await Bun.file(marker).exists()).toBe(true);
+	}, 60_000);
+
 	it("honors the codex opt-in when reading a user skill through the standalone CLI", async () => {
 		// Upstream fixture omits this: the probe spawns with cwd=projectDir, which
 		// only exists once a project-scope scenario has created it.

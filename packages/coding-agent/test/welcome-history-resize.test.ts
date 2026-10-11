@@ -1,15 +1,14 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/pi-tui/prompt/composer";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import { type Component, Container, type RenderScheduler, visibleWidth } from "@linxiraos/pi-tui";
-import { Image } from "@linxiraos/pi-tui/components/image";
-import { getKittyGraphics, setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
-import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
+import { COMPOSER_DEFAULTS, Composer } from "@oh-my-pi/pi-tui/prompt/composer";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import { type Component, Container, type RenderScheduler, visibleWidth } from "@oh-my-pi/pi-tui";
+import { Image } from "@oh-my-pi/pi-tui/components/image";
+import { getKittyGraphics, setKittyGraphics } from "@oh-my-pi/pi-tui/kitty-graphics";
+import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@oh-my-pi/pi-tui/terminal-capabilities";
 import { VirtualRenderScheduler } from "../../tui/test/virtual-render-scheduler";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
-import { setLanguage } from "../src/i18n";
-import { withoutTerminalMultiplexer } from "../../tui/test/terminal-multiplexer-environment";
+import { withoutTerminalMultiplexer } from "../../tui/test/helpers/terminal-multiplexer";
 
 const BASE64_ONE_PIXEL_PNG =
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNgAAAAAgABSK+kcQAAAABJRU5ErkJggg==";
@@ -123,7 +122,6 @@ function startRetiredWelcome(version: string): { composer: Composer; terminal: T
 }
 
 beforeAll(async () => {
-	setLanguage("en");
 	await initTheme();
 });
 

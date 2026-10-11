@@ -20,6 +20,7 @@ import { getCodexAttestationHeader } from "@linxiraos/pi-ai/providers/openai-cod
 import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import { applyCodexResponsesLiteShape } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
 import { createOpenAICodexCompatibilityMetadata } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { applySessionHeader } from "@linxiraos/pi-ai/providers/inference-headers";
 import {
 	encodeResponsesToolResultOutput,
 	hoistInterleavedResponsesToolBatchMessages,
@@ -862,6 +863,7 @@ export async function requestOpenAiRemoteCompaction(
 				Authorization: `Bearer ${apiKey}`,
 				...model.headers,
 			};
+	applySessionHeader(headers, model.compat, opts?.sessionId);
 
 	// Codex endpoints require additional auth headers
 	if (isCodexResponses) {

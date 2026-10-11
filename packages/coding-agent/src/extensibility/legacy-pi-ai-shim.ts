@@ -183,12 +183,15 @@ export function streamSimpleOpenAIResponses(
  * legacy extensions importing it from the pi-ai root resolving through Bun's
  * static named-export check (e.g. `zetacode plugin install pi-blackhole`).
  *
- * This is the full set derived from an audit of the upstream root surface: the
- * error-classification predicate `isContextOverflow` (now under
- * `@linxiraos/pi-ai/error`) and the JSON-repair helpers that omp relocated to
- * `@linxiraos/pi-utils`. Upstream root symbols with no omp equivalent are
- * intentionally not shimmed — the package has diverged and there is nothing to
- * forward.
+ * The error-classification predicate `isContextOverflow` (now under
+ * `@linxiraos/pi-ai/error`) and the JSON-repair helpers (relocated to
+ * `@linxiraos/pi-utils`) still exist in the host graph and are re-exported.
+ * Upstream pi-ai 1.x additionally exposes a transcript-replay module
+ * (`src/utils/transcript.ts`, present since at least 1.0.2) that omp's fork
+ * predates and has no equivalent of anywhere; that family is ported verbatim
+ * in `legacy-pi-transcript.ts` (observed consumer:
+ * `pi-optchat` importing `getCurrentSystemMessage`).
  */
 export { isContextOverflow } from "@linxiraos/pi-ai/error";
 export { parseJsonWithRepair, parseStreamingJson, repairJson } from "@linxiraos/pi-utils";
+export * from "./legacy-pi-transcript";

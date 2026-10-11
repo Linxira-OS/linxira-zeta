@@ -6,7 +6,7 @@ import { type Component, Container, Text } from "@linxiraos/pi-tui";
 import { AskDialogComponent } from "@linxiraos/pi-tui/overlays/ask-dialog";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
-import { withoutTerminalMultiplexer } from "./terminal-multiplexer-environment";
+import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 
 withoutTerminalMultiplexer();
 

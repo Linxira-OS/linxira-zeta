@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [18.9.0] - 2026-10-11
+
+### Fixed
+
+- Fixed stale queue updates when queued steering is adopted, withdrawn, or added to the transcript, ensuring queue listeners consistently receive the latest state.
+
+## [18.8.8] - 2026-10-10
+
+### Added
+
 - Added `Agent.setModelResolver()` to fit every model an agent adopts (via `setModel`, starting with the current one) before it is used ([#15048](https://github.com/can1357/oh-my-pi/pull/15048) by [@H4vC](https://github.com/H4vC))
 - Added `CompactionSettings.baseWindowTokens`: when set, `resolveThresholdTokens()` scales its percentage or reserve-based threshold from that base instead of the full context window ([#15065](https://github.com/can1357/oh-my-pi/pull/15065) by [@H4vC](https://github.com/H4vC))
 ### Added

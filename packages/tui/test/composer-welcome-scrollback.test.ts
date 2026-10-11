@@ -5,7 +5,7 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import { Text } from "@linxiraos/pi-tui";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
-import { withoutTerminalMultiplexer } from "./terminal-multiplexer-environment";
+import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 
 withoutTerminalMultiplexer();
 beforeAll(async () => {

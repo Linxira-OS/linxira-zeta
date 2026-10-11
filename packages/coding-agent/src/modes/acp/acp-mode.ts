@@ -1,8 +1,7 @@
 import * as stream from "node:stream";
 import { inspect } from "node:util";
-import { postmortem } from "@linxiraos/pi-utils";
+import { getLogsDir, postmortem } from "@linxiraos/pi-utils";
 import { AgentSideConnection, ndJsonStream, type Stream } from "@linxiraos/pi-utils/acp";
-
 import type { ExtensionUIContext } from "../../extensibility/extensions/types";
 import type { AgentSession } from "../../session/agent-session";
 import { AcpAgent } from "./acp-agent";
@@ -81,7 +80,7 @@ export async function runAcpMode(createSession: AcpSessionFactory, initialSessio
 		process.stderr.write(
 			"zetacode acp: ACP server speaking JSON-RPC over stdio.\n" +
 				'This command is meant to be spawned by an ACP client (e.g. Zed\'s "agent_servers" config), not run directly.\n' +
-				"Waiting for protocol frames on stdin; logs: ~/.zeta/logs/\n",
+				`Waiting for protocol frames on stdin; logs: ${getLogsDir()}\n`,
 		);
 	}
 	let agent: AcpAgent | undefined;

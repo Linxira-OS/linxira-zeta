@@ -9,13 +9,17 @@ import { describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Args } from "@linxiraos/zeta/cli/args";
-import type { Settings } from "@linxiraos/zeta/config/settings";
-import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@linxiraos/zeta/main";
-import * as sessionListingModule from "@linxiraos/zeta/session/session-listing";
-import { loadSessionFile } from "@linxiraos/zeta/session/session-loader";
-import { ForkSourceNotFoundError, SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import type { Args } from "@oh-my-pi/pi-coding-agent/cli/args";
+import type { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { createSessionManager, SessionResolutionError, writeStartupNotice } from "@oh-my-pi/pi-coding-agent/main";
+import {
+	collectPendingToolCalls,
+	TOOL_EXECUTION_START_CUSTOM_TYPE,
+} from "@oh-my-pi/pi-coding-agent/session/exit-diagnostics";
+import * as sessionListingModule from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { loadEntriesFromFile, loadSessionFile } from "@oh-my-pi/pi-coding-agent/session/session-loader";
+import { ForkSourceNotFoundError, SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
 
 function buildResumeArgs(resume: string, sessionDir?: string): Args {
 	return {
@@ -113,7 +117,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 
 			// Confirm it's the exported class so `runRootCommand`'s `instanceof` check works.
@@ -144,7 +148,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -166,7 +170,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingId}" not found.`,
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			await fsp.rm(cwd, { recursive: true, force: true });
@@ -185,7 +189,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: 'Session "019ea530-0000-7000-0000-000000000000" not found.',
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 		} finally {
 			vi.restoreAllMocks();
@@ -201,6 +205,119 @@ describe("createSessionManager — missing session (#2084)", () => {
 			hint: undefined,
 		});
 	});
+	it.each(["path", "selector"] as const)(
+		"preserves an unknown started-tool outcome in a CLI --fork via %s",
+		async route => {
+			const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-live-tail-"));
+			const sessionDir = path.join(cwd, "sessions");
+			const source = path.join(sessionDir, "source.jsonl");
+			const id = "019ea530-0000-7000-0000-000000000000";
+			const timestamp = new Date().toISOString();
+			const sourceEntries = [
+				{ type: "session", version: 3, id, timestamp, cwd },
+				{
+					type: "message",
+					id: "m1",
+					parentId: null,
+					timestamp,
+					message: {
+						role: "assistant",
+						content: [{ type: "toolCall", id: "toolu_live", name: "bash", arguments: { command: "sleep 40" } }],
+						api: "anthropic-messages",
+						provider: "anthropic",
+						model: "claude",
+						stopReason: "toolUse",
+						timestamp: Date.now(),
+						usage: {
+							input: 10,
+							output: 5,
+							cacheRead: 0,
+							cacheWrite: 0,
+							totalTokens: 15,
+							cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+						},
+					},
+				},
+				{
+					type: "custom",
+					id: "m2",
+					parentId: "m1",
+					timestamp,
+					customType: TOOL_EXECUTION_START_CUSTOM_TYPE,
+					data: { toolCallId: "toolu_live", toolName: "bash", startedAt: timestamp },
+				},
+			];
+			const sourceText = `${sourceEntries.map(entry => JSON.stringify(entry)).join("\n")}\n`;
+			await Bun.write(source, sourceText);
+			if (route === "selector") {
+				vi.spyOn(sessionListingModule, "resolveResumableSession").mockResolvedValue({
+					session: {
+						id,
+						path: source,
+						cwd,
+						title: "live parent",
+						created: new Date(0),
+						modified: new Date(0),
+						messageCount: 1,
+						size: 0,
+						firstMessage: "",
+						allMessagesText: "",
+					},
+					scope: "local",
+				});
+			}
+			try {
+				const forked = await createSessionManager(
+					buildForkArgs(route === "path" ? source : id, false, sessionDir),
+					cwd,
+					stubSettings,
+				);
+				if (!forked) throw new Error("Expected a persisted fork");
+				const branch = forked.getBranch();
+				expect(branch.some(entry => entry.type === "message" && entry.message.role === "assistant")).toBe(true);
+				expect(collectPendingToolCalls(branch)).toEqual([]);
+				expect(await Bun.file(source).text()).toBe(sourceText);
+
+				const resultEntry = branch.find(
+					entry =>
+						entry.type === "message" &&
+						entry.message.role === "toolResult" &&
+						entry.message.toolCallId === "toolu_live",
+				);
+				if (resultEntry?.type !== "message" || resultEntry.message.role !== "toolResult") {
+					throw new Error("expected the unknown tool result");
+				}
+				expect(resultEntry.message.isError).toBe(true);
+				expect(resultEntry.message).not.toHaveProperty("details");
+				expect(
+					resultEntry.message.content.some(
+						block => block.type === "text" && block.text.includes("may still be running this tool"),
+					),
+				).toBe(true);
+
+				const forkFile = forked.getSessionFile();
+				if (!forkFile) throw new Error("Expected a persisted fork file");
+				const persistedEntries = await loadEntriesFromFile(forkFile);
+				const forkHeader = persistedEntries.find(entry => entry.type === "session");
+				expect(forkHeader?.parentSession).toBe(id);
+				const persistedResult = persistedEntries.find(
+					entry =>
+						entry.type === "message" &&
+						entry.message.role === "toolResult" &&
+						entry.message.toolCallId === "toolu_live",
+				);
+				if (persistedResult?.type !== "message" || persistedResult.message.role !== "toolResult") {
+					throw new Error("expected the unknown result to be persisted");
+				}
+				expect(persistedResult.message.isError).toBe(true);
+				expect(persistedResult.message).not.toHaveProperty("details");
+			} finally {
+				vi.restoreAllMocks();
+				await fsp.rm(cwd, { recursive: true, force: true });
+			}
+		},
+	);
+
 	it("rejects --fork with missing path without writing a session (#11491)", async () => {
 		const cwd = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-fork-missing-path-"));
 		const sessionDir = path.join(cwd, "sessions");
@@ -211,7 +328,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${missingPath}" not found.`,
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -284,7 +401,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${forkId}" not found.`,
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {
@@ -305,7 +422,7 @@ describe("createSessionManager — missing session (#2084)", () => {
 			).rejects.toMatchObject({
 				name: "SessionResolutionError",
 				message: `Session "${enotdirChild}" not found.`,
-				hint: expect.stringContaining("zetacode --resume"),
+				hint: expect.stringContaining("omp --resume"),
 			});
 			await expect(fsp.readdir(sessionDir)).resolves.toEqual([]);
 		} finally {

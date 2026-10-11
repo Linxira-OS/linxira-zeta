@@ -11,13 +11,13 @@ import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { HindsightApi } from "@linxiraos/zeta/hindsight/client";
-import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
-import { HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
-import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
-import { loadMnemopiConfig, type MnemopiBackendConfig } from "@linxiraos/zeta/mnemopi/config";
+import { getManagedSkillsDir } from "@oh-my-pi/pi-coding-agent/autolearn/managed-skills";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { HindsightApi } from "@oh-my-pi/pi-coding-agent/hindsight/client";
+import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
+import { HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
+import { mnemopiBackend } from "@oh-my-pi/pi-coding-agent/mnemopi/backend";
+import { loadMnemopiConfig, type MnemopiBackendConfig } from "@oh-my-pi/pi-coding-agent/mnemopi/config";
 import {
 	getMnemopiScopedDbPaths,
 	getMnemopiSessionState,
@@ -25,17 +25,17 @@ import {
 	loadMnemopiCore,
 	MnemopiSessionState,
 	setMnemopiSessionState,
-} from "@linxiraos/zeta/mnemopi/state";
-import type { AgentSessionEventListener } from "@linxiraos/zeta/session/agent-session";
-import type { Tool, ToolSession } from "@linxiraos/zeta/tools/index";
-import { LearnTool } from "@linxiraos/zeta/tools/learn";
-import { MemoryEditTool } from "@linxiraos/zeta/tools/memory-edit";
-import { MemoryRecallTool } from "@linxiraos/zeta/tools/memory-recall";
-import { MemoryReflectTool } from "@linxiraos/zeta/tools/memory-reflect";
-import { MemoryRetainTool } from "@linxiraos/zeta/tools/memory-retain";
-import { resetMemoryForTests } from "@linxiraos/pi-mnemopi";
-import { logger, TempDir } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
+} from "@oh-my-pi/pi-coding-agent/mnemopi/state";
+import type { AgentSessionEventListener } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+import { LearnTool } from "@oh-my-pi/pi-coding-agent/tools/learn";
+import { MemoryEditTool } from "@oh-my-pi/pi-coding-agent/tools/memory-edit";
+import { MemoryRecallTool } from "@oh-my-pi/pi-coding-agent/tools/memory-recall";
+import { MemoryReflectTool } from "@oh-my-pi/pi-coding-agent/tools/memory-reflect";
+import { MemoryRetainTool } from "@oh-my-pi/pi-coding-agent/tools/memory-retain";
+import { resetMemoryForTests } from "@oh-my-pi/pi-mnemopi";
+import { currentLoopPhase, logger, TempDir } from "@oh-my-pi/pi-utils";
+import { getAgentDir, setAgentDir } from "@oh-my-pi/pi-utils/dirs";
 
 // Mnemopi is lazy-loaded at runtime; preload it for synchronous state construction.
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -187,6 +187,8 @@ function registerMnemopiState(
 			} as never,
 			sessionManager: {
 				getEntries: options.entries ?? (() => []),
+				getBranch: options.entries ?? (() => []),
+				appendCustomEntry: () => "",
 				getCwd: () => options.cwd ?? "/tmp",
 			} as never,
 			emitNotice: () => {},
@@ -992,6 +994,51 @@ describe("Mnemopi backend lifecycle", () => {
 		expect(rows.map(row => row.retainedThroughUserTurn)).toEqual([2, 4, 6]);
 	});
 
+	it("labels the synchronous retain gate on turns that do not retain", async () => {
+		let observing = false;
+		const phases: (string | undefined)[] = [];
+		const state = registerMnemopiState(makeMnemopiConfig({ retainEveryNTurns: 4 }), {
+			cwd: "/work/project-alpha",
+			entries: () => {
+				if (observing) phases.push(currentLoopPhase());
+				return [{ type: "message", message: { role: "user", content: "turn 1" } }];
+			},
+		});
+		const retainSpy = vi.spyOn(state, "retainMessages");
+
+		observing = true;
+		await state.maybeRetainOnAgentEnd([] as never);
+		observing = false;
+
+		// 1 of 4 turns: the gate skips extraction, but still labels its cursor scan and turn count.
+		expect(retainSpy).not.toHaveBeenCalled();
+		expect(phases.length).toBeGreaterThan(0);
+		expect(phases.every(phase => phase === "mnemopi.retain")).toBe(true);
+		expect(currentLoopPhase()).toBeUndefined();
+	});
+
+	it("reads retain-turn history under mnemopi.retain", async () => {
+		let observing = false;
+		const phases: (string | undefined)[] = [];
+		const state = registerMnemopiState(makeMnemopiConfig({ retainEveryNTurns: 1 }), {
+			cwd: "/work/project-alpha",
+			entries: () => {
+				if (observing) phases.push(currentLoopPhase());
+				return [{ type: "message", message: { role: "user", content: "turn 1" } }];
+			},
+		});
+		const retainSpy = vi.spyOn(state, "retainMessages");
+
+		observing = true;
+		await state.maybeRetainOnAgentEnd([] as never);
+		observing = false;
+
+		expect(retainSpy).toHaveBeenCalledTimes(1);
+		expect(phases.length).toBeGreaterThan(0);
+		expect(phases.every(phase => phase === "mnemopi.retain")).toBe(true);
+		expect(currentLoopPhase()).toBeUndefined();
+	});
+
 	it("does not over-count legacy cumulative resumed rows when restoring the cursor", async () => {
 		const entries = Array.from({ length: 8 }, (_, index) => ({
 			type: "message",
@@ -1055,6 +1102,21 @@ describe("Mnemopi backend lifecycle", () => {
 		expect(options.embedText).toContain("I never use semicolons");
 		expect(options.embedText).not.toContain("[role:");
 		expect(options.embedText).not.toContain(":end]");
+	});
+
+	it("labels retention's synchronous work as mnemopi.retain for the loop watchdog", async () => {
+		const state = registerMnemopiState(makeMnemopiConfig(), { cwd: "/work/project-alpha" });
+		let phaseDuringRemember: string | undefined;
+		vi.spyOn(state, "rememberInScope").mockImplementation(() => {
+			phaseDuringRemember = currentLoopPhase();
+			return "memory-id";
+		});
+
+		await state.retainMessages([{ role: "user", content: "I always prefer tabs" }], "source-1");
+
+		// remember()'s SQLite writes and graph linking block the UI loop on large banks.
+		expect(phaseDuringRemember).toBe("mnemopi.retain");
+		expect(currentLoopPhase()).toBeUndefined();
 	});
 
 	it("flushes extractions and closes every owned bank on session shutdown (#2320)", async () => {

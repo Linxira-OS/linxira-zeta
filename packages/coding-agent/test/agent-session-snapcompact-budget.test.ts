@@ -19,19 +19,19 @@
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
-import { effectiveReserveTokens, prepareCompaction } from "@linxiraos/pi-agent-core/compaction";
-import { base64ImageSize } from "@linxiraos/pi-agent-core/image-tokens";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@linxiraos/zeta/modes/rpc/rpc-frame";
-import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
-import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { cfgSnapcompactShape } from "@linxiraos/zeta/session/context-settings";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import { effectiveReserveTokens, prepareCompaction, resolveThresholdTokens } from "@oh-my-pi/pi-agent-core/compaction";
+import { base64ImageSize } from "@oh-my-pi/pi-agent-core/image-tokens";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { encodeRpcFrame, MAX_RPC_FRAME_BYTES } from "@oh-my-pi/pi-coding-agent/modes/rpc/rpc-frame";
+import { computeNonMessageTokens } from "@oh-my-pi/pi-tui/status-line/context-usage";
+import { AgentSession, type AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { cfgSnapcompactShape } from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import * as snapcompact from "@oh-my-pi/snapcompact";
 
 describe("AgentSession snapcompact frame-budget sizing", () => {
 	let session: AgentSession;
@@ -307,11 +307,11 @@ describe("AgentSession snapcompact frame-budget sizing", () => {
 		const shape = snapcompact.resolveShape(model, "5x8-bw");
 		expect(shape.frameTokenEstimate).toBe(Math.ceil(81 ** 2 * 1.2));
 
-		// ~180k tokens of kept-recent traffic leaves room for several frames, so the
-		// token budget, not the byte or provider caps, decides the frame count.
+		// ~45k tokens of kept-recent traffic leaves room under the trigger for several
+		// frames, so the token budget, not the byte or provider caps, decides the count.
 		sessionManager.appendMessage({
 			role: "user",
-			content: [{ type: "text", text: "the quick brown fox jumps over the lazy dog. ".repeat(16_000) }],
+			content: [{ type: "text", text: "the quick brown fox jumps over the lazy dog. ".repeat(4_000) }],
 			timestamp: Date.now(),
 		});
 		const branchEntries = sessionManager.getBranch();
@@ -336,7 +336,8 @@ describe("AgentSession snapcompact frame-budget sizing", () => {
 		expect(maxFrames).toBeLessThan(snapcompact.maxFramesForDataBudget(shape));
 
 		const settings = { enabled: true as const, reserveTokens: 16384, keepRecentTokens: 4000 };
-		const budget = model.contextWindow - effectiveReserveTokens(model.contextWindow, settings);
+		// The archive plans within 60% of the trigger.
+		const budget = 0.6 * resolveThresholdTokens(model.contextWindow, settings);
 		const preparation = prepareCompaction(branchEntries, settings);
 		if (!preparation) throw new Error("Expected non-empty preparation");
 		const tokenizer = session.agent.tokenizer;

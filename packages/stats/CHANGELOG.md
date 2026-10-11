@@ -5,6 +5,13 @@
 
 - 看板按宿主语言渲染:CLI 的语言设置(或浏览器偏好)注入页面,侧栏、卡片、表头、图例、空状态与日期/数字格式全部跟随;首发简体中文,英文为回退。语言在启动时固定(页面内无切换器),因为看板随 `zetacode stats` 一起启动。
 - 「情绪压力」页:判据覆盖卡会区分「已评判 / 正则 / 未评分」——词典未覆盖的语言(如日语、韩语、西里尔文)显示为**未评分**而不是判定为平静。
+## [18.9.0] - 2026-10-11
+
+### Fixed
+
+- Fixed the stats dashboard favicon so dashboard tabs and bookmarks display the OMP icon correctly.
+
+## [18.8.0] - 2026-10-07
 
 ### Changed
 

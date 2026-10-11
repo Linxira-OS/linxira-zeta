@@ -3,27 +3,28 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, te
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@linxiraos/pi-ai";
-import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
-import { streamSimple } from "@linxiraos/pi-ai/stream";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resolveMaxContextWindow } from "@linxiraos/pi-catalog/compat/context-window";
-import { factoryDroidRegistry, resolveFactoryDroidPolicy } from "@linxiraos/pi-catalog/compat/factory-droid";
-import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { fingerprintStaticModels } from "@linxiraos/pi-catalog/model-manager";
-import * as catalogModels from "@linxiraos/pi-catalog/models";
-import { calculateUsageCost, getBundledModels } from "@linxiraos/pi-catalog/models";
-import { modelKind } from "@linxiraos/pi-catalog/types";
-import { finalizeCustomModel } from "@linxiraos/zeta/config/custom-models";
-import { applyModelPatch, mergeDiscoveredModel } from "@linxiraos/zeta/config/model-patch";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resolveRoleChain } from "@linxiraos/zeta/config/model-resolver";
-import { roleCandidatePool } from "@linxiraos/zeta/config/model-roles";
-import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
+import { Effort, type FetchImpl, type Model, type OpenAICompat, type ThinkingConfig } from "@oh-my-pi/pi-ai";
+import { streamOpenAICompletions } from "@oh-my-pi/pi-ai/providers/openai-completions";
+import { resolveOpenAIRequestSetup } from "@oh-my-pi/pi-ai/providers/openai-shared";
+import { streamSimple } from "@oh-my-pi/pi-ai/stream";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { resolveMaxContextWindow } from "@oh-my-pi/pi-catalog/compat/context-window";
+import { factoryDroidRegistry, resolveFactoryDroidPolicy } from "@oh-my-pi/pi-catalog/compat/factory-droid";
+import { writeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { fingerprintStaticModels } from "@oh-my-pi/pi-catalog/model-manager";
+import * as catalogModels from "@oh-my-pi/pi-catalog/models";
+import { calculateUsageCost, getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import { modelKind } from "@oh-my-pi/pi-catalog/types";
+import { finalizeCustomModel } from "@oh-my-pi/pi-coding-agent/config/custom-models";
+import { applyModelPatch, mergeDiscoveredModel } from "@oh-my-pi/pi-coding-agent/config/model-patch";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resolveRoleChain } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { roleCandidatePool } from "@oh-my-pi/pi-coding-agent/config/model-roles";
+import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { removeSyncWithRetries, Snowflake } from "@oh-my-pi/pi-utils";
 
-import { cfgCompactionModelThresholds, cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
+import { cfgCompactionModelThresholds, cfgExtendedContext } from "@oh-my-pi/pi-coding-agent/session/context-settings";
 
 describe("ModelRegistry", () => {
 	let tempDir: string;
@@ -631,7 +632,7 @@ describe("ModelRegistry", () => {
 		});
 
 		test("refresh keeps transport override on built-in provider (#2555 openrouter gateway)", async () => {
-			// Reporter ran `zetacode` with the auth-gateway broker proxying OpenRouter.
+			// Reporter ran `omp` with the auth-gateway broker proxying OpenRouter.
 			// Default model worked; switching via `/model` produced
 			// `404 No route: POST /chat/completions` until restart. Root cause:
 			// background discovery refresh re-fetched the openrouter catalog and
@@ -1135,6 +1136,25 @@ describe("ModelRegistry", () => {
 			expect(flash).toMatchObject({
 				api: "openai-completions",
 				baseUrl: "https://api.z.ai/api/coding/paas/v4",
+			});
+		});
+
+		test("unscoped OpenRouter relay override keeps Decisions judges on the relay /api/alpha root", () => {
+			const relayRegistry = readonlyRegistry({
+				providers: {
+					openrouter: {
+						baseUrl: "http://127.0.0.1:7700/agents/openrouter/api/v1",
+						auth: "none",
+					},
+				},
+			});
+			expect(relayRegistry.find("openrouter", "~typesafe/jev-latest")).toMatchObject({
+				api: "openrouter-decisions",
+				baseUrl: "http://127.0.0.1:7700/agents/openrouter/api/alpha",
+			});
+			expect(relayRegistry.find("openrouter", "openai/gpt-5.5")).toMatchObject({
+				api: "openrouter",
+				baseUrl: "http://127.0.0.1:7700/agents/openrouter/api/v1",
 			});
 		});
 
@@ -3423,7 +3443,7 @@ describe("ModelRegistry", () => {
 				buildModel({
 					id: "minimax/minimax-m3",
 					name,
-					api: "openai-completions",
+					api: "openai-responses",
 					provider: "litellm-proxy",
 					baseUrl: "http://litellm-proxy.example:4000/v1",
 					reasoning: true,
@@ -3533,10 +3553,21 @@ describe("ModelRegistry", () => {
 			expect(getModelsForProvider(litellmStaleNamespaceCache, "litellm-proxy")).toHaveLength(0);
 		});
 
-		test("loads litellm discovery rows cached under the rich-v5 namespace", () => {
+		test("restores LiteLLM backend session policy from rich-v5 alias rows without changing their API", () => {
 			const model = litellmCurrentNamespaceCache.find("litellm-proxy", "minimax/minimax-m3");
 			expect(model?.name).toBe("MiniMax-M3");
 			expect(model?.provider).toBe("litellm-proxy");
+			if (!model) throw new Error("Missing cached LiteLLM model");
+			expect(model.api).toBe("openai-responses");
+			expect(model.providerType).toBe("litellm");
+			if (model.api !== "openai-responses") throw new Error("Expected cached Responses API");
+			expect(
+				resolveOpenAIRequestSetup(model as Model<"openai-responses">, {
+					apiKey: "test",
+					messages: [],
+					sessionId: "cached-alias-session",
+				}).requestHeaders["x-litellm-session-id"],
+			).toBe("cached-alias-session");
 		});
 
 		test("ignores openai-models-list rows cached under the retired context-v2 namespace", () => {
