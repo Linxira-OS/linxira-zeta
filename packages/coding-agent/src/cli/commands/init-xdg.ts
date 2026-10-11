@@ -22,5 +22,5 @@ export async function initXdg(): Promise<void> {
 
 	console.log("\nXDG directories initialized.");
 	console.log("Ensure XDG_DATA_HOME, XDG_STATE_HOME, and XDG_CACHE_HOME");
-	console.log("are set in your shell profile for zeta-c to use them.");
+	console.log("are set in your shell profile for zetacode to use them.");
 }

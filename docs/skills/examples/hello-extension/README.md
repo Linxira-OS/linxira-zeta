@@ -12,7 +12,7 @@ cp -r . ~/.zeta/agent/extensions/hello-extension
 
 Restart `zeta`. You will see the startup notification immediately.
 
-With `zeta-c --profile <name>`, use `~/.zeta/profiles/<name>/agent/extensions/hello-extension` under the default layout. `ZETA_CODING_AGENT_DIR` changes the default profile's agent directory, not a named profile's. Initialized XDG roots can change these locations.
+With `zetacode --profile <name>`, use `~/.zeta/profiles/<name>/agent/extensions/hello-extension` under the default layout. `ZETA_CODING_AGENT_DIR` changes the default profile's agent directory, not a named profile's. Initialized XDG roots can change these locations.
 
 **Option B — point the settings `extensions` array at it:**
 
@@ -25,7 +25,7 @@ extensions:
 **Option C — load once via CLI flag:**
 
 ```
-zeta-c --extension ./hello-extension
+zetacode --extension ./hello-extension
 ```
 
 ## Usage

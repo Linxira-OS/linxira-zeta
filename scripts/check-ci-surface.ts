@@ -88,6 +88,78 @@ function parseWorkflow(lines: string[]): ParsedWorkflow | null {
 	return { jobsLine: jobsLineIdx + 1, jobs };
 }
 
+const MATRIX_INCLUDE = /^\s*include:\s*$/;
+const MATRIX_ITEM_OPEN = /^\s*-\s*\{\s*$/;
+const MATRIX_ITEM_CLOSE = /^\s*\}\s*,?\s*$/;
+const MATRIX_ITEM_KEY = /^\s*([A-Za-z_][A-Za-z0-9_-]*):/;
+const MATRIX_REFERENCE = /\$\{\{\s*matrix\.([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}/g;
+
+/**
+ * Every `matrix.<key>` a job reads must be defined by *every* `include` entry.
+ *
+ * A key that only some entries set leaves the rest with an empty value at
+ * expansion time. For `runs-on` that is not a partial failure: GitHub cannot
+ * expand the matrix at all, so the job never appears in the run — while the
+ * `needs.<job>.result == 'success'` gates downstream keep evaluating against a
+ * job that does not exist, and the whole publish tail is skipped without a
+ * single failing step. That is how `release_binary` silently stopped building
+ * the `zeta-cli-*` release assets (AGENTS.md damage class 7/12).
+ */
+function checkMatrixCoverage(
+	file: string,
+	lines: string[],
+	jobs: Map<string, JobEntry>,
+	violations: Violation[],
+): void {
+	for (const [name, entry] of jobs) {
+		const window = lines.slice(entry.keyLine - 1, entry.endLine);
+		const includeAt = window.findIndex(line => MATRIX_INCLUDE.test(line));
+		if (includeAt === -1) continue;
+
+		const entries: Array<{ keys: Set<string>; line: number }> = [];
+		for (let i = includeAt + 1; i < window.length; i++) {
+			const line = window[i];
+			if (!MATRIX_ITEM_OPEN.test(line)) {
+				if (entries.length > 0 && MATRIX_ITEM_CLOSE.test(line))
+					entries[entries.length - 1].line = entry.keyLine + i;
+				continue;
+			}
+			const keys = new Set<string>();
+			const lineNo = entry.keyLine + i;
+			for (let j = i + 1; j < window.length; j++) {
+				const inner = window[j];
+				if (MATRIX_ITEM_CLOSE.test(inner)) {
+					i = j;
+					break;
+				}
+				const key = MATRIX_ITEM_KEY.exec(inner);
+				if (key) keys.add(key[1]);
+			}
+			entries.push({ keys, line: lineNo });
+		}
+		if (entries.length === 0) continue;
+
+		const referenced = new Set<string>();
+		for (const line of window) {
+			for (const match of line.matchAll(MATRIX_REFERENCE)) referenced.add(match[1]);
+		}
+
+		for (const key of referenced) {
+			const missing = entries.filter(item => !item.keys.has(key));
+			if (missing.length === 0) continue;
+			violations.push({
+				file,
+				line: missing[0].line,
+				rule: "matrix-key-coverage",
+				text: `${name}: matrix.${key} is read but ${missing.length}/${entries.length} include entr${
+					missing.length === 1 ? "y" : "ies"
+				} do not define it`,
+				why: "a partially defined matrix key expands to empty — an unusable runs-on hides the whole job from the run",
+			});
+		}
+	}
+}
+
 function checkSurface(surface: WorkflowSurface): { violations: Violation[]; jobCount: number } {
 	const violations: Violation[] = [];
 	const abs = path.join(ROOT, surface.file);
@@ -206,6 +278,8 @@ function checkSurface(surface: WorkflowSurface): { violations: Violation[]; jobC
 		}
 	});
 
+	checkMatrixCoverage(surface.file, lines, parsed.jobs, violations);
+
 	return { violations, jobCount: jobNames.length };
 }
 
@@ -228,6 +302,27 @@ if (totalRequired < MIN_CI_JOBS) {
 		rule: "registry-floor",
 		text: `${totalRequired} required job(s) across registry, floor is ${MIN_CI_JOBS}`,
 		why: "registry truncated or deleted? (MIN_CI_JOBS)",
+	});
+}
+
+// Runner-version floor: the shared bun-install action reads its pin from
+// package.json `packageManager`, and a *range* pin makes it install latest bun.
+// That silently moves CI off the build the tree is developed on — bun's YAML
+// stringifier and its descriptor-inheritance behavior both changed between
+// 1.4.0 and 1.4.3, which reddened `packages/ai` TextJudge and the fd-inheritance
+// oracle while they pass on the pinned build. Require an exact pin so the
+// version CI runs is a deliberate, reviewable choice.
+const packageJsonFile = "package.json";
+const pinnedBun = /"packageManager":\s*"bun@(\d+\.\d+\.\d+)"/.exec(
+	fs.readFileSync(path.join(ROOT, packageJsonFile), "utf8"),
+)?.[1];
+if (!pinnedBun) {
+	violations.push({
+		file: packageJsonFile,
+		line: 0,
+		rule: "bun-pin-exact",
+		text: `packageManager is not an exact "bun@<major>.<minor>.<patch>" pin`,
+		why: "a range pin makes .github/actions/bun-install fetch latest bun, moving CI off the tested runtime (see the fd-inheritance test and TextJudge)",
 	});
 }
 

@@ -5,7 +5,7 @@ import { useI18n } from "@/hooks/useI18n";
 
 /**
  * Stats dashboard pane (dock window). Embeds the local stats dashboard
- * (default http://127.0.0.1:3847, started by `zeta serve` / `zeta-c stats`)
+ * (default http://127.0.0.1:3847, started by `zeta serve` / `zetacode stats`)
  * in an iframe instead of opening a separate browser window.
  *
  * URL resolution, in order:
@@ -45,7 +45,7 @@ export function StatsDownNotice({ onRetry }: { onRetry?: () => void }) {
 		<div style={{ display: "grid", gap: 12, justifyItems: "center" }}>
 			<div data-testid="stats-pane-down-message">
 				{t("stats.notRunningPrefix")}{" "}
-				<code style={{ fontFamily: "var(--font-mono)", margin: "0 4px" }}>zeta-c stats</code>
+				<code style={{ fontFamily: "var(--font-mono)", margin: "0 4px" }}>zetacode stats</code>
 				{t("stats.notRunningSuffix")}
 			</div>
 			{onRetry && (

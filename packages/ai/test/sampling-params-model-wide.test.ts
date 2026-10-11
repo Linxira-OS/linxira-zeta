@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { clearCustomApis, registerCustomApi } from "@linxiraos/pi-ai/api-registry";
-import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
-import { setBedrockProviderModule } from "@linxiraos/pi-ai/providers/register-builtins";
 import { stream, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Api, Context, Model, SimpleStreamOptions } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
@@ -28,7 +26,6 @@ const emptyResponse = async () => new Response(new Uint8Array(), { status: 200 }
 const wire = (payload: unknown): Record<string, unknown> => JSON.parse(JSON.stringify(payload));
 
 function simplePayload(model: Model<Api>): Promise<Record<string, unknown>> {
-	setBedrockProviderModule({ streamBedrock });
 	const { promise, resolve } = Promise.withResolvers<Record<string, unknown>>();
 	void streamSimple(model, context, {
 		apiKey: "test-key",
@@ -121,7 +118,6 @@ describe("sampling params are gated by model, on every provider", () => {
 	});
 
 	test("the non-simple stream() entry applies the same gate", async () => {
-		setBedrockProviderModule({ streamBedrock });
 		const { promise, resolve } = Promise.withResolvers<Record<string, unknown>>();
 		void stream(bundled<"bedrock-converse-stream">("amazon-bedrock", "global.openai.gpt-6-luna"), context, {
 			bearerToken: "test-token",

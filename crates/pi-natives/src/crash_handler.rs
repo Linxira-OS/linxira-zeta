@@ -552,8 +552,9 @@ mod tests {
 	#[cfg(any(target_os = "linux", target_os = "macos"))]
 	#[test]
 	fn xdg_state_logs_skipped_when_agent_dir_overridden() {
-		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault ===
-		// false` branch in `packages/utils/src/dirs.ts` and must disable XDG.
+		// `ZETA_CODING_AGENT_DIR` pointing elsewhere mirrors the JS `isDefault
+		// === false` branch in `packages/utils/src/dirs.ts` and must
+		// disable XDG.
 		let dir = xdg_state_logs(
 			Some(OsStr::new("/xdg/state")),
 			Some(OsStr::new("/some/custom/agent")),

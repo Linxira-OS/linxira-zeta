@@ -124,7 +124,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/coding-agent/src/session/session-manager.ts",
-		symbol: "snapshotForReplication(copy: <T>(value: T) => T = structuredClone): {",
+		symbol: "snapshotForReplication(): { header: SessionHeader; entries: readonly SessionEntry[] }",
 		why: "collab/multi-end replication snapshot path",
 	},
 	{

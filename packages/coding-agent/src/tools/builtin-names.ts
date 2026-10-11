@@ -9,6 +9,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"ida",
 	"eval",
 	"github",
+	"tea",
 	"glob",
 	"grep",
 	"find",

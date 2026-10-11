@@ -9,7 +9,7 @@ import {
 	unregisterOAuthProviders,
 } from "@linxiraos/pi-ai/registry/oauth";
 import type { OAuthCredentials, OAuthProvider } from "@linxiraos/pi-ai/registry/oauth/types";
-import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
 
 const FIXTURE_SOURCE = "provider-registry-test";
 const ENV_KEYS = [

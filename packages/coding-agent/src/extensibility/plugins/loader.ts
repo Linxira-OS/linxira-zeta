@@ -99,7 +99,14 @@ async function loadProjectOverrides(cwd: string): Promise<ProjectPluginOverrides
 			return await Bun.file(overridesPath).json();
 		} catch (err) {
 			if (isEnoent(err)) continue;
-			// JSON parse error - continue to next path
+			// Malformed or unreadable overrides would otherwise silently act
+			// as {} — project-disabled plugins re-enable and project settings
+			// vanish without a trace. Report it, then fall through like a
+			// missing file so plugin collection still degrades gracefully.
+			logger.warn("plugins: failed to load project plugin overrides, ignoring them", {
+				path: overridesPath,
+				error: String(err),
+			});
 		}
 	}
 	return {};
@@ -184,7 +191,7 @@ async function collectPluginsAtRoot(
 	const plugins: ScopedInstalledPlugin[] = [];
 	for (const name of names) {
 		// When a package manifest exists, a lockfile-only entry is legitimate
-		// only for linked plugins (`zeta-c plugin link`, marketplace runtime
+		// only for linked plugins (`zetacode plugin link`, marketplace runtime
 		// registration), which are symlinks into node_modules. Without a
 		// manifest, retain the established lockfile-only directory layout.
 		if (hasPackageManifest && !depsKeys.includes(name) && !(await isSymlink(path.join(nodeModulesPath, name)))) {

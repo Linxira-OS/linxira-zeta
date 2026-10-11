@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Fragment, type ReactNode, useMemo, useState } from "react";
 import { formatInteger } from "../data/formatters";
+import { t } from "../i18n";
 import { EmptyState } from "./States";
 
 export interface Column<T> {
@@ -155,7 +156,10 @@ export function Table<T>({
 			{limit !== undefined && sorted.length > limit && (
 				<div className="table-more">
 					<span className="micro">
-						{formatInteger(visible.length)} of {formatInteger(sorted.length)}
+						{t("ui.table-shown-of", {
+							shown: formatInteger(visible.length),
+							total: formatInteger(sorted.length),
+						})}
 					</span>
 					{sorted.length > shown && (
 						<button
@@ -165,7 +169,7 @@ export function Table<T>({
 							data-variant="ghost"
 							onClick={() => setShown(n => n + limit * 4)}
 						>
-							Show more
+							{t("common.show-more")}
 						</button>
 					)}
 					{shown > limit && (
@@ -176,7 +180,7 @@ export function Table<T>({
 							data-variant="ghost"
 							onClick={() => setShown(limit)}
 						>
-							Show fewer
+							{t("ui.show-fewer")}
 						</button>
 					)}
 				</div>

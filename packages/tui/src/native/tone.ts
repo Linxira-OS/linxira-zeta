@@ -32,19 +32,19 @@ export interface BackgroundChrome {
 export function backgroundChrome(bg: ThemeBg | undefined): BackgroundChrome {
 	switch (bg) {
 		case "userMessageBg":
-			return { tone: "user", role: "zeta.user" };
+			return { tone: "user", role: "omp.user" };
 		case "customMessageBg":
-			return { tone: "info", role: "zeta.custom" };
+			return { tone: "info", role: "omp.custom" };
 		case "toolPendingBg":
-			return { tone: "pending", role: "zeta.tool" };
+			return { tone: "pending", role: "omp.tool" };
 		case "toolSuccessBg":
-			return { tone: "success", role: "zeta.tool" };
+			return { tone: "success", role: "omp.tool" };
 		case "toolErrorBg":
-			return { tone: "error", role: "zeta.tool" };
+			return { tone: "error", role: "omp.tool" };
 		case "selectedBg":
 			return { tone: "accent", selected: true };
 		case "statusLineBg":
-			return { tone: "neutral", role: "zeta.status" };
+			return { tone: "neutral", role: "omp.status" };
 		default:
 			return {};
 	}

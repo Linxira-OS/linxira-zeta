@@ -4,7 +4,7 @@
  *
  *   ① explicit env — `ZETA_SERVE_COMMAND` (full command override) and
  *     `ZETA_BIN_DIR` (delimiter-separated dirs probed before PATH)
- *   ② PATH — native `zeta-c`/`zeta-cli`/`zetacode` as installed (a distro
+ *   ② PATH — native `zetacode`/`zeta-c`/`zeta-cli` as installed (a distro
  *     or npm install puts them here); a PATH hit is used directly, with no
  *     cross-component version validation
  *   ③ vendored form — the packaged desktop's own resources, then the dev
@@ -23,7 +23,7 @@ import * as path from "node:path";
 export const SERVE_BIN_DIR_ENV = "ZETA_BIN_DIR";
 
 /** Serve-capable launcher names in alias-priority order. */
-export const SERVE_BIN_NAMES = ["zeta-c", "zeta-cli", "zetacode"] as const;
+export const SERVE_BIN_NAMES = ["zetacode", "zeta-c", "zeta-cli"] as const;
 
 export interface ServeCommand {
 	file: string;
@@ -173,5 +173,5 @@ export function resolveServeCommandIn(deps: ServeResolutionDeps): ServeCommand |
 
 	// Dev last resort: rely on spawn-time PATH resolution.
 	if (deps.isPackaged) return null;
-	return { file: "zeta-c", args: ["serve"], cwd: deps.cwd, env: baseEnv };
+	return { file: SERVE_BIN_NAMES[0], args: ["serve"], cwd: deps.cwd, env: baseEnv };
 }

@@ -97,6 +97,13 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
 
 - The `check` job also runs the brand-residue guard
   (`bun scripts/brand/brand-check.ts`, see `document/merge-playbook.md`).
+- **Gitea never runs this workflow.** A separate, Linux-only mirror of the
+  verification jobs lives in `.gitea/workflows/local-ci.yml` for pre-release
+  verification on our own hardware; it contains no release/publish job and
+  cannot be triggered by a tag ref. Job map, suites, the drift guard
+  (`scripts/check-local-ci-parity.ts`) and the one-time Gitea-side setting are
+  documented in `document/local-ci.md`. Release tags are pushed to `origin`
+  (GitHub) only — never to the `gitea` remote.
 
 ### Trigger discipline (dual-mode CI: push validates, tagged HEAD releases)
 

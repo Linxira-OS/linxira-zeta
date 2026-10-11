@@ -58,6 +58,12 @@ export interface AppendOnlyTranscriptBlock {
 
 interface FinalizableBlock {
 	isTranscriptBlockFinalized?(): boolean;
+	/**
+	 * A finalized block whose rows still wait on async work (an SVG figure's
+	 * raster). Retirement holds until it lands: committed rows can never be
+	 * repainted, so retiring early would freeze a placeholder into scrollback.
+	 */
+	isTranscriptBlockPending?(): boolean;
 	/** Render the row that must remain represented under emergency viewport pressure. */
 	renderTranscriptBlockEmergencyRow?(width: number): string | undefined;
 }
@@ -129,7 +135,7 @@ const EMPTY_STABLE_ROWS: readonly TranscriptStableRow[] = [];
 
 function isFinalized(component: Component): boolean {
 	const block = component as Component & FinalizableBlock;
-	return block.isTranscriptBlockFinalized?.() ?? true;
+	return (block.isTranscriptBlockFinalized?.() ?? true) && block.isTranscriptBlockPending?.() !== true;
 }
 
 function blockMode(component: Component): TranscriptBlockMode {
@@ -818,7 +824,7 @@ export class TranscriptContainer extends Container {
 	/** Embedded as a child (transcript viewers): a stack of the {@link nativeBlocks}. */
 	override describe(): NativeNode {
 		const blocks = this.nativeBlocks();
-		this.#nativeNode ??= col(blocks, { role: "zeta.transcript" });
+		this.#nativeNode ??= col(blocks, { role: "omp.transcript" });
 		return this.#nativeNode;
 	}
 

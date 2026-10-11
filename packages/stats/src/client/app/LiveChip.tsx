@@ -1,12 +1,13 @@
 import { RefreshCw } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { formatInteger } from "../data/formatters";
-import { useLive } from "../data/live";
+import { t } from "../i18n";
+import { useLiveStatus } from "../data/live";
 import { Dot } from "../ui";
 
 /** Topbar ingest status; click to sync now. */
 export function LiveChip() {
-	const { sync, indexingHours, connected, requestSync } = useLive();
+	const { sync, indexingHours, connected, requestSync } = useLiveStatus();
 	const now = useNow(sync.phase === "idle" ? 15_000 : null);
 
 	let body: ReactNode;
@@ -15,15 +16,15 @@ export function LiveChip() {
 		body = (
 			<>
 				<Dot tone="warn" />
-				<span>Reconnecting</span>
+				<span>{t("shell.reconnecting")}</span>
 			</>
 		);
-		title = "Lost the live connection to the stats server; retrying";
+		title = t("shell.lost-connection");
 	} else if (sync.phase === "syncing") {
 		body = (
 			<>
 				<RefreshCw size={13} className="spin" />
-				<span>Syncing</span>
+				<span>{t("shell.syncing")}</span>
 				{sync.total > 0 && (
 					<span className="live-chip-count">
 						{formatInteger(sync.current)}/{formatInteger(sync.total)}
@@ -31,33 +32,33 @@ export function LiveChip() {
 				)}
 			</>
 		);
-		title = "Ingesting session files";
+		title = t("shell.ingesting");
 	} else if (sync.phase === "error") {
 		body = (
 			<>
 				<Dot tone="bad" />
-				<span>Sync failed</span>
+				<span>{t("shell.sync-failed")}</span>
 			</>
 		);
-		title = `${sync.error ?? "Sync failed"} — click to retry`;
+		title = `${sync.error ?? t("shell.sync-failed")} — click to retry`;
 	} else if (indexingHours > INDEXING_VISIBLE_HOURS) {
 		body = (
 			<>
 				<RefreshCw size={13} className="spin" />
-				<span>Indexing</span>
+				<span>{t("shell.indexing")}</span>
 				<span className="live-chip-count">{formatInteger(indexingHours)}h left</span>
 			</>
 		);
-		title = "Building hourly rollups; older ranges fill in as it goes";
+		title = t("shell.building-rollups");
 	} else {
 		body = (
 			<>
 				<Dot tone="live" pulse />
-				<span>Live</span>
+				<span>{t("shell.live")}</span>
 				{sync.lastSyncedAt !== null && <span className="live-chip-count">{ago(now - sync.lastSyncedAt)}</span>}
 			</>
 		);
-		title = "Click to sync session files now";
+		title = t("shell.sync-now");
 	}
 
 	return (
@@ -89,7 +90,7 @@ function useNow(intervalMs: number | null): number {
 
 function ago(ms: number): string {
 	const s = Math.max(0, Math.round(ms / 1000));
-	if (s < 45) return "just now";
+	if (s < 45) return t("shell.just-now");
 	const m = Math.round(s / 60);
 	if (m < 60) return `${m}m ago`;
 	const h = Math.round(m / 60);

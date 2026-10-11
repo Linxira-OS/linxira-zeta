@@ -212,7 +212,7 @@ my-plugin/
 
 > Note: MCP servers may instead be declared by the manifest's `mcpServers` field — either an inline server map or a path to a config file inside the plugin root (`{ "mcpServers": "./mcp-zeta.json" }`). zeta reads `.zeta-plugin/plugin.json` first, then `.claude-plugin/plugin.json`; a manifest declaration replaces the default `.mcp.json` rather than merging with it, so one published tree can carry a per-harness MCP config.
 
-> Note: extension modules declared via `package.json` `zeta.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zeta-c plugin link`ed plugins.
+> Note: extension modules declared via `package.json` `zeta.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins.
 
 ## Install command
 
@@ -225,13 +225,13 @@ my-plugin/
 CLI equivalent:
 
 ```
-zeta-c plugin marketplace add owner/repo
-zeta-c plugin install name@marketplace-name
+zetacode plugin marketplace add owner/repo
+zetacode plugin install name@marketplace-name
 ```
 
 Scope behavior:
 
-- **user** (default) — installed in the user plugins data root's `installed_plugins.json` (`~/.zeta/plugins/installed_plugins.json` by default), available in all projects. On Linux and macOS, `zeta-c config init-xdg` creates (but does not migrate data into) the XDG roots; once the relevant roots exist and the XDG variables are set, new user state uses `$XDG_DATA_HOME/zeta/plugins/installed_plugins.json`.
+- **user** (default) — installed in the user plugins data root's `installed_plugins.json` (`~/.zeta/plugins/installed_plugins.json` by default), available in all projects. On Linux and macOS, `zetacode config init-xdg` creates (but does not migrate data into) the XDG roots; once the relevant roots exist and the XDG variables are set, new user state uses `$XDG_DATA_HOME/zeta/plugins/installed_plugins.json`.
 - **project** — installed in `<project>/.zeta/plugins/installed_plugins.json`, available only in that project
 
 An enabled project-scoped install shadows an enabled user-scoped install of the same `name@marketplace` ID. A disabled project copy leaves the user copy active.

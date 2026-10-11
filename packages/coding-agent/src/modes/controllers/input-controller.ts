@@ -31,7 +31,7 @@ import {
 	shiftImageMarkers,
 } from "@linxiraos/pi-tui/prompt/composer-attachments";
 import { expandEmoticons } from "@linxiraos/pi-tui/prompt/emoji-autocomplete";
-import { materializeImageReferenceLinks, setCachedImageDimensions } from "@linxiraos/pi-tui/prompt/image-references";
+import { setCachedImageDimensions } from "@linxiraos/pi-tui/prompt/image-references";
 import { createPromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt/prompt-action-autocomplete";
 import { createModelMentionSource } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
 import { createModelBrowserSource } from "../model-browser-source";
@@ -62,6 +62,7 @@ import { commandUsage, hintUsage } from "../../utils/usage-counter";
 import { EnhancedPasteController } from "../../utils/enhanced-paste";
 import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { loadImageInput } from "../../utils/image-loading";
+import { materializeImageChipLinks } from "../utils/ui-helpers";
 import { ensureSupportedImageInput, ImageInputTooLargeError } from "@linxiraos/pi-tui/chat/image-loading";
 import { type ImageAttachmentSource, tagImageAttachmentSource } from "@linxiraos/pi-tui/prompt/image-source";
 import { blobExtensionForImageMimeType } from "@linxiraos/pi-tui/prompt/image-format";
@@ -81,15 +82,6 @@ import {
 	cfgTuiMouse,
 } from "../settings";
 import { cfgHideThinkingBlock } from "../../session/settings";
-import { disarmDeleteConfirm } from "./delete-confirm";
-
-/**
- * Any submission other than the exact armed confirm (`/delete`) disarms the
- * triple-press delete confirmation, per the `/delete` UX contract.
- */
-function disarmDeleteConfirmUnlessArming(text: string | undefined): void {
-	if (text?.trim() !== "/delete") disarmDeleteConfirm();
-}
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
 const BARE_EXIT_WORDS: Record<string, true> = { exit: true, quit: true, q: true };
@@ -462,8 +454,6 @@ export class InputController {
 			this.ctx.ui.addInputListener(data => this.#handleInlineMouse(data));
 		}
 		this.ctx.editor.onEscape = () => {
-			// Esc always disarms the /delete triple-press confirmation.
-			disarmDeleteConfirm();
 			// `/mcp test` advertises Esc until each owner's post-settlement grace expires.
 			// Cancel every overlapping test before any main-turn or side-channel action.
 			if (this.ctx.mcpTestEscapeHandlers.size > 0) {
@@ -940,10 +930,7 @@ export class InputController {
 		if (result?.text !== undefined) text = result.text.trim();
 		if (result?.images !== undefined) {
 			images = result.images;
-			imageLinks = await materializeImageReferenceLinks(
-				images,
-				this.ctx.sessionManager.putBlob.bind(this.ctx.sessionManager),
-			);
+			imageLinks = await materializeImageChipLinks(images, this.ctx.sessionManager);
 		}
 		if (!text && !images?.length) return undefined;
 		return { text, images, imageLinks };
@@ -1040,8 +1027,6 @@ export class InputController {
 			}
 
 			if (!text && !hasInputImages) return;
-
-			disarmDeleteConfirmUnlessArming(text);
 
 			const queueBody = parseQueueShorthand(text);
 			if (queueBody !== undefined) {
@@ -1442,7 +1427,6 @@ export class InputController {
 
 	/** Submit editor text to the focused subagent session (chat and continue shortcuts only). */
 	async #submitToFocusedSession(text: string, streamingBehavior: "steer" | "followUp"): Promise<void> {
-		disarmDeleteConfirmUnlessArming(text);
 		const target = this.ctx.viewSession;
 		const images = this.ctx.editor.pendingImages.length > 0 ? [...this.ctx.editor.pendingImages] : undefined;
 		const imageLinks =
@@ -1598,15 +1582,15 @@ export class InputController {
 			// for a given SignalKind permanently replaces the kernel-default
 			// handler for the lifetime of the process. So once the user has
 			// issued even one bash command — e.g. `/usr/bin/true` — SIGTSTP no
-			// longer stops zeta: tokio swallows it and the TUI ends up torn down
+			// longer stops omp: tokio swallows it and the TUI ends up torn down
 			// while the process keeps running with no live terminal (issue
 			// [#3461]). SIGSTOP cannot be caught, blocked, or ignored, so the
 			// kernel stops the process regardless of installed handlers.
 			//
-			// pid=0 (foreground process group, not just our PID): zeta is not
+			// pid=0 (foreground process group, not just our PID): zeta  not
 			// always the shell's direct child. Package-manager launchers (`npx`,
 			// `pnpm exec`, `bunx`, …) wait on the real CLI from a parent shim
-			// that shares zeta's process group, and a `zeta … | tee log` style
+			// that shares omp's process group, and a `omp … | tee log` style
 			// pipeline puts a sibling foreground job member in the same group
 			// too. The shell sees the job as stopped only when its direct
 			// child / pipeline leader is stopped, so suspending only our PID
@@ -1886,8 +1870,6 @@ export class InputController {
 			images && this.ctx.editor.pendingImageLinks.length > 0 ? [...this.ctx.editor.pendingImageLinks] : undefined;
 		if (!text && !images) return;
 
-		disarmDeleteConfirmUnlessArming(text);
-
 		// Focused subagent session: follow-ups go to it; non-chat input is gated.
 		if (this.ctx.focusedAgentId) {
 			await this.#submitToFocusedSession(text, "followUp");
@@ -2063,13 +2045,9 @@ export class InputController {
 		const image: ImageContent = source
 			? tagImageAttachmentSource(imageData, source.path, source.kind)
 			: { type: "image", data: imageData.data, mimeType: imageData.mimeType };
-		// File-backed attachments link to their file (so the chip opens it); payloads
-		// without one (a failed clipboard persist) materialize a clickable blob copy.
-		const imageLink =
-			source?.path ??
-			(
-				await materializeImageReferenceLinks([image], this.ctx.sessionManager.putBlob.bind(this.ctx.sessionManager))
-			)?.[0];
+		// The source URL stays on the image for the model; the chip opens the file itself,
+		// or a stable blob copy of the original bytes behind an internal URL (else the payload).
+		const [imageLink] = await materializeImageChipLinks([image], this.ctx.sessionManager);
 		this.ctx.editor.pendingImages.push(image);
 		this.ctx.editor.pendingImageLinks.push(imageLink);
 		this.ctx.editor.imageLinks = this.ctx.editor.pendingImageLinks;
@@ -2631,7 +2609,7 @@ export class InputController {
 			basePath,
 			commandUsage: name => commandUsage.get(name),
 			modelMentions: createModelMentionSource({
-				source: createModelBrowserSource(this.ctx.settings, this.ctx.session.modelRegistry),
+				source: createModelBrowserSource(this.ctx.settings, model => this.ctx.session.effectiveServiceTier(model)),
 				registry: this.ctx.session.modelRegistry,
 				scopedModels: () => this.ctx.session.scopedModels.map(s => s.model),
 			}),
@@ -2835,7 +2813,7 @@ export class InputController {
 
 		try {
 			this.ctx.ui.stop();
-			const result = await openInEditor(editorCmd, currentText, { extension: ".zeta.md" });
+			const result = await openInEditor(editorCmd, currentText, { extension: ".omp.md" });
 			if (result !== null) {
 				this.ctx.editor.setText(result);
 			}

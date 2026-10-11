@@ -13,6 +13,7 @@ import {
 	formatRelativeTime,
 } from "../data/formatters";
 import { useQuery } from "../data/query";
+import { t } from "../i18n";
 import { TraceView } from "../traces/TraceView";
 import type { SessionSummary } from "../types";
 import {
@@ -49,10 +50,11 @@ function ModelList({ models }: { models: string[] }) {
 
 export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps) {
 	const [filter, setFilter] = useState("");
-	const sessions = useQuery(["sessions", SESSION_LIMIT], () => getSessions(SESSION_LIMIT), {
-		pollMs: 30000,
-		enabled: active && session === null,
-	});
+	const sessions = useQuery(
+		["sessions", SESSION_LIMIT],
+		({ signal }) => getSessions(SESSION_LIMIT, undefined, signal),
+		{ pollMs: 30000, enabled: active && session === null },
+	);
 
 	const filtered = useMemo(() => {
 		const rows = sessions.data ?? [];
@@ -72,7 +74,7 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 		() => [
 			{
 				key: "title",
-				header: "Session",
+				header: t("trace.session"),
 				width: "32%",
 				render: row => (
 					<LabelCell
@@ -82,10 +84,10 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 				),
 				sort: row => (row.title ?? row.file).toLowerCase(),
 			},
-			{ key: "models", header: "Models", render: row => <ModelList models={row.models} /> },
+			{ key: "models", header: t("common.models"), render: row => <ModelList models={row.models} /> },
 			{
 				key: "started",
-				header: "Started",
+				header: t("common.started"),
 				align: "right",
 				render: row => (
 					<span className="muted" title={new Date(row.startedAt).toLocaleString()}>
@@ -96,28 +98,28 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 			},
 			{
 				key: "duration",
-				header: "Duration",
+				header: t("common.duration"),
 				align: "right",
 				render: row => <span className="num">{formatElapsed(row.endedAt - row.startedAt)}</span>,
 				sort: row => row.endedAt - row.startedAt,
 			},
 			{
 				key: "requests",
-				header: "Requests",
+				header: t("common.requests"),
 				align: "right",
 				render: row => <span className="num">{formatInteger(row.requests)}</span>,
 				sort: row => row.requests,
 			},
 			{
 				key: "toolCalls",
-				header: "Tools",
+				header: t("trace.tools"),
 				align: "right",
 				render: row => <span className="num">{formatInteger(row.toolCalls)}</span>,
 				sort: row => row.toolCalls,
 			},
 			{
 				key: "subagents",
-				header: "Agents",
+				header: t("trace.agents"),
 				align: "right",
 				render: row =>
 					row.subagents > 0 ? (
@@ -129,14 +131,14 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 			},
 			{
 				key: "tokens",
-				header: "Tokens",
+				header: t("common.tokens"),
 				align: "right",
 				render: row => <span className="num">{formatCompact(row.totalTokens)}</span>,
 				sort: row => row.totalTokens,
 			},
 			{
 				key: "cost",
-				header: "Cost",
+				header: t("common.cost"),
 				align: "right",
 				width: 150,
 				render: row => (
@@ -159,24 +161,24 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 	const total = sessions.data?.length ?? 0;
 	return (
 		<div className="stack traces-page">
-			<PageHeader
-				title="Traces"
-				description="Recent sessions with subagent activity folded in. Open one to inspect its timeline."
-			/>
+			<PageHeader title={t("trace.title")} description={t("trace.description")} />
 			<Card
-				title="Sessions"
+				title={t("trace.sessions")}
 				description={
 					sessions.data
 						? filter.trim()
-							? `${formatInteger(filtered.length)} of ${formatInteger(total)} most recent`
-							: `${formatInteger(total)} most recent`
+							? t("trace.most-recent-filtered", {
+									shown: formatInteger(filtered.length),
+									total: formatInteger(total),
+								})
+							: t("trace.most-recent", { count: formatInteger(total) })
 						: undefined
 				}
 				actions={
 					<SearchInput
 						value={filter}
 						onChange={setFilter}
-						placeholder="Filter by title, project, model…"
+						placeholder={t("trace.filter-placeholder")}
 						width={260}
 					/>
 				}
@@ -188,7 +190,7 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 					query={sessions}
 					skeleton={<TableSkeleton rows={10} />}
 					isEmpty={rows => rows.length === 0}
-					empty={<EmptyState title="No sessions found" hint="Run a sync to index recent activity." />}
+					empty={<EmptyState title={t("trace.empty-title")} hint={t("trace.empty-hint")} />}
 				>
 					{() => (
 						<Table
@@ -198,7 +200,7 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 							onRowClick={row => onOpenSession(row.file)}
 							initialSort={{ key: "started", dir: "desc" }}
 							limit={50}
-							empty={<EmptyState title="No matching sessions" hint="Try a different filter." />}
+							empty={<EmptyState title={t("trace.no-matching-title")} hint={t("trace.no-matching-hint")} />}
 						/>
 					)}
 				</QueryView>

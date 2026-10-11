@@ -1,7 +1,7 @@
 # Web UI architecture
 
 Zeta's web interface is a standalone Next.js app (`web-ui/`) that talks to a
-local runtime over HTTP. `zeta-c serve` starts one Bun process that hosts three
+local runtime over HTTP. `zetacode serve` starts one Bun process that hosts three
 backends and proxies them behind a single port, so the browser only ever sees
 one origin.
 

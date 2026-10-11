@@ -1,17 +1,17 @@
 /**
  * TTSR CLI command handlers.
  *
- * `zeta-c ttsr test` — feed a snippet (inline text, `--file`, or stdin) through the
+ * `zetacode ttsr test` — feed a snippet (inline text, `--file`, or stdin) through the
  * real TTSR matching pipeline (`TtsrManager.checkSnapshot` for regex conditions,
  * `checkAstSnapshot` for ast-grep conditions) and report which rules would
  * trigger. The match context (`--source`, `--tool`, `--path`) is honored so
  * glob/AST/scope-scoped rules evaluate the same way they do in a live session.
  *
- * `zeta-c ttsr list` — show every TTSR-registered rule the current project/user
+ * `zetacode ttsr list` — show every TTSR-registered rule the current project/user
  * config would load, with its conditions, scope, and source.
  *
- * `--agent <name>` on `zeta-c ttsr test` evaluates the rule's `agents` frontmatter
- * scoping as that agent (default "main"); `zeta-c ttsr list`/`scan` stay unfiltered.
+ * `--agent <name>` on `zetacode ttsr test` evaluates the rule's `agents` frontmatter
+ * scoping as that agent (default "main"); `zetacode ttsr list`/`scan` stay unfiltered.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -411,7 +411,7 @@ async function runTest(args: TtsrTestArgs, json: boolean, cwd: string): Promise<
 	if (rules.length === 0) {
 		const msg = args.rule
 			? "Rule registered but produced no TTSR entry."
-			: `No TTSR rules registered for this project as agent "${agent}". Rules scoped to other agents via \`agents\` are excluded — run \`zeta-c ttsr list\` to see every rule, or pass --agent <name>.`;
+			: `No TTSR rules registered for this project as agent "${agent}". Rules scoped to other agents via \`agents\` are excluded — run \`zetacode ttsr list\` to see every rule, or pass --agent <name>.`;
 		if (json) {
 			process.stdout.write(`${JSON.stringify({ error: msg })}\n`);
 		} else {

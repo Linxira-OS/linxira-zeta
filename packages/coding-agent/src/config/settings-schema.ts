@@ -341,7 +341,7 @@ export const SETTINGS_SCHEMA = {
 	// ────────────────────────────────────────────────────────────────────────
 	setupVersion: { type: "number", default: 0 },
 
-	// Auth broker — credentials proxied through a remote `zeta-c auth-broker serve`
+	// Auth broker — credentials proxied through a remote `zetacode auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
 	// Env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) takes precedence so
 	// per-machine overrides remain trivial.
@@ -2498,7 +2498,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Stream",
 			label: "Stream Server",
 			description:
-				"Live stream server used by `zeta-c stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
+				"Live stream server used by `zetacode stream` (https://host[:port]); viewers watch at <base>/<your Stencil username>",
 		},
 	},
 
@@ -2523,7 +2523,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Skills",
 			label: "Skill Registry",
 			description:
-				"Skillshare registry used by `zeta-c skill` to install, search, and publish skills (https://host[:port])",
+				"Skillshare registry used by `zetacode skill` to install, search, and publish skills (https://host[:port])",
 		},
 	},
 
@@ -4662,7 +4662,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Grep & Browser",
 			label: "Browser Relay",
 			description:
-				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`zeta-c browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
+				"Drive your own Chrome tabs through the omp browser relay. Install the extension once (`zetacode browser-relay install`); the relay server auto-starts when the browser prelude needs it. Takes precedence over Browser CDP URL; set PI_BROWSER_RELAY=0 or PI_BROWSER_RELAY=1 to override.",
 		},
 	},
 
@@ -4673,7 +4673,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "tools",
 			group: "Grep & Browser",
 			label: "Browser Relay URL",
-			description: "zeta-c browser relay endpoint (default http://127.0.0.1:9224).",
+			description: "zetacode browser relay endpoint (default http://127.0.0.1:9224).",
 		},
 	},
 
@@ -5155,7 +5155,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Isolation",
 			label: "Worktree Base Directory",
 			description:
-				"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zeta-c worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
+				"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zetacode worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
 		},
 	},
 
@@ -6537,7 +6537,7 @@ export interface SkillsSettings {
 	ignoredSkills?: string[];
 	includeSkills?: string[];
 	disabledExtensions?: string[];
-	/** Skillshare registry base URL (`zeta-c skill`). */
+	/** Skillshare registry base URL (`zetacode skill`). */
 	registryUrl?: string;
 }
 

@@ -110,7 +110,7 @@ export class SnapcompactShapePreview implements Component {
 		}
 		const described = col(
 			[text([span(`Sample (zoomed) · ${label} · ${stats}`, "muted")], { wrap: "word" }), sample],
-			{ role: "zeta.preview.snapcompact-shape", gap: "sm" },
+			{ role: "omp.preview.snapcompact-shape", gap: "sm" },
 		);
 		this.#native = { variant: this.#variant, entry, node: described };
 		return described;

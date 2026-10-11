@@ -8,7 +8,8 @@ import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSessionTrace } from "../api";
 import { useQuery } from "../data/query";
-import type { TraceSpan, TraceSpanKind, TraceTrack } from "../types";
+import { t } from "../i18n";
+import type { SessionTrace, TraceSpan, TraceSpanKind, TraceTrack } from "../types";
 import { Card, ChartSkeleton, PageHeader, QueryView, SearchInput, Segmented } from "../ui";
 import { AggregatesPanel } from "./AggregatesPanel";
 import { Minimap } from "./Minimap";
@@ -26,21 +27,25 @@ export interface TraceViewProps {
 }
 
 const MODE_OPTIONS: Array<{ value: AxisMode; label: string; title?: string }> = [
-	{ value: "time", label: "Duration", title: "Real wall-clock time" },
-	{ value: "turns", label: "Turns", title: "Equal width per user turn" },
-	{ value: "calls", label: "Calls", title: "Equal width per model/tool call boundary" },
+	{ value: "time", label: t("common.duration"), title: t("trace.mode-time-title") },
+	{ value: "turns", label: t("trace.turns"), title: t("trace.mode-turns-title") },
+	{ value: "calls", label: t("trace.calls"), title: t("trace.mode-calls-title") },
 ];
 
 const LEGEND: Array<{ kind: TraceSpanKind; label: string }> = [
-	{ kind: "turn", label: "Input" },
-	{ kind: "model", label: "Model" },
-	{ kind: "tool", label: "Tool" },
-	{ kind: "subagent", label: "Agent" },
-	{ kind: "background", label: "Background" },
+	{ kind: "turn", label: t("common.input") },
+	{ kind: "model", label: t("common.model") },
+	{ kind: "tool", label: t("trace.tool") },
+	{ kind: "subagent", label: t("trace.agent") },
+	{ kind: "background", label: t("trace.background") },
 ];
 
 export function TraceView({ file, active, onBack }: TraceViewProps) {
-	const query = useQuery(["trace", file], () => getSessionTrace(file), { pollMs: 15000, enabled: active });
+	const query = useQuery<SessionTrace>(
+		["trace", file],
+		({ signal }, previous) => getSessionTrace(file, signal, previous),
+		{ pollMs: 15000, enabled: active },
+	);
 	// A previous session's trace must never render under this file's header.
 	const trace = query.stale ? null : query.data;
 
@@ -89,7 +94,10 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 		});
 	}, [scale]);
 
-	const effectiveViewport: TimelineViewport = viewport ?? { u0: scale.domain[0], u1: scale.domain[1] };
+	const effectiveViewport = useMemo<TimelineViewport>(
+		() => viewport ?? { u0: scale.domain[0], u1: scale.domain[1] },
+		[viewport, scale],
+	);
 
 	const allSpans = useMemo(() => {
 		const spans: Array<{ span: TraceSpan; track: TraceTrack }> = [];
@@ -105,6 +113,11 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 		if (!needle) return [];
 		return allSpans.filter(({ span }) => `${span.label} ${span.detail ?? ""}`.toLowerCase().includes(needle));
 	}, [allSpans, search]);
+	// Shared with the canvas and transcript so the match test runs once per search.
+	const matchIds = useMemo(
+		() => (search.trim() ? new Set(matches.map(({ span }) => span.id)) : null),
+		[matches, search],
+	);
 
 	const centerOnSpan = useCallback(
 		(span: TraceSpan) => {
@@ -198,6 +211,15 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 		[tracks],
 	);
 
+	const openFromTranscript = useCallback(
+		(spanId: string) => {
+			selectAndReveal(spanId);
+			setDrawerOpen(true);
+		},
+		[selectAndReveal],
+	);
+	const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
 	const traceStart = trace?.startedAt ?? 0;
 
 	const traceQuery = { ...query, data: trace };
@@ -207,7 +229,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 			<div>
 				<button type="button" className="btn" data-variant="ghost" data-size="sm" onClick={onBack}>
 					<ArrowLeft size={14} aria-hidden="true" />
-					Sessions
+					{t("trace.sessions")}
 				</button>
 			</div>
 			<PageHeader
@@ -220,8 +242,8 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 						data-variant="ghost"
 						data-icon="true"
 						onClick={query.refetch}
-						aria-label="Refresh trace"
-						title="Refresh trace"
+						aria-label={t("trace.refresh")}
+						title={t("trace.refresh")}
 					>
 						<RefreshCw size={14} className={query.refreshing ? "traces-spin" : undefined} />
 					</button>
@@ -235,8 +257,8 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 
 						<Card
 							index={1}
-							title="Timeline"
-							description="W/S zoom · A/D pan · drag pan · wheel zoom · 0 fit · F focus selection · dbl-click focus · Esc deselect"
+							title={t("trace.timeline")}
+							description={t("trace.timeline-hint")}
 							actions={
 								<>
 									<button
@@ -246,7 +268,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 										data-size="sm"
 										onClick={() => collapseAll(false)}
 									>
-										Expand all
+										{t("trace.expand-all")}
 									</button>
 									<button
 										type="button"
@@ -255,7 +277,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 										data-size="sm"
 										onClick={() => collapseAll(true)}
 									>
-										Collapse all
+										{t("trace.collapse-all")}
 									</button>
 								</>
 							}
@@ -267,7 +289,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 										value={mode}
 										onChange={setMode}
 										size="sm"
-										aria-label="Axis mode"
+										aria-label={t("trace.axis-mode")}
 									/>
 									{mode === "time" && (
 										<label className="traces-check">
@@ -276,7 +298,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 												checked={compressIdle}
 												onChange={event => setCompressIdle(event.target.checked)}
 											/>
-											Compress idle
+											{t("trace.compress-idle")}
 										</label>
 									)}
 									<div className="traces-search">
@@ -286,7 +308,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 												setSearch(value);
 												setMatchIndex(0);
 											}}
-											placeholder="Search spans…"
+											placeholder={t("trace.search-placeholder")}
 											width={200}
 										/>
 										{search.trim() && (
@@ -303,7 +325,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 													data-size="sm"
 													data-icon="true"
 													onClick={() => cycleMatch(-1)}
-													aria-label="Previous match"
+													aria-label={t("trace.previous-match")}
 													disabled={matches.length === 0}
 												>
 													<ChevronLeft size={14} />
@@ -315,7 +337,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 													data-size="sm"
 													data-icon="true"
 													onClick={() => cycleMatch(1)}
-													aria-label="Next match"
+													aria-label={t("trace.next-match")}
 													disabled={matches.length === 0}
 												>
 													<ChevronRight size={14} />
@@ -346,9 +368,9 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 									scale={scale}
 									viewport={effectiveViewport}
 									onViewportChange={setViewport}
-									selection={selection}
+									selected={selected}
 									onSelect={selectAndOpen}
-									search={search}
+									matchIds={matchIds}
 									collapsed={collapsed}
 									onToggleCollapse={toggleCollapse}
 									traceStart={traceStart}
@@ -356,20 +378,13 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 							</div>
 						</Card>
 
-						<Card
-							index={2}
-							title="Transcript"
-							description="Every span and marker in order; click to inspect"
-							flush
-						>
+						<Card index={2} title={t("trace.transcript")} description={t("trace.transcript-description")} flush>
 							<TranscriptList
 								tracks={tracks}
 								selection={selection}
-								onSelect={spanId => {
-									selectAndReveal(spanId);
-									setDrawerOpen(true);
-								}}
+								onSelect={openFromTranscript}
 								search={search}
+								matchIds={matchIds}
 								traceStart={traceStart}
 							/>
 						</Card>
@@ -381,7 +396,7 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 			<SpanDrawer
 				span={drawerOpen ? (selected?.span ?? null) : null}
 				track={selected?.track ?? null}
-				onClose={() => setDrawerOpen(false)}
+				onClose={closeDrawer}
 				onOpenChildTrack={openChildTrack}
 			/>
 		</div>

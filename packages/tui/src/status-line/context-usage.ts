@@ -785,10 +785,10 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 	const children = [
 		node(
 			"row",
-			{ role: "zeta.context.body" },
+			{ role: "omp.context.body" },
 			[
 				node("meter", { value: used, style: "blocks", size: "lg", parts, aria: "Context usage by category" }),
-				node("kv", { items, layout: "grid", role: "zeta.context.legend" }),
+				node("kv", { items, layout: "grid", role: "omp.context.legend" }),
 			],
 			"body",
 		),
@@ -810,7 +810,7 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 			),
 		);
 	}
-	return col(children, { gap: "md", role: "zeta.context" });
+	return col(children, { gap: "md", role: "omp.context" });
 }
 
 /** The `/context` title: the model and its window once a model is selected. */
@@ -849,7 +849,7 @@ export function describeContextUsage(breakdown: ContextBreakdown): NativeNode {
 	return row([col(grid), col(legend)], {
 		gap: "lg",
 		wrap: true,
-		role: "zeta.context.usage",
+		role: "omp.context.usage",
 	});
 }
 

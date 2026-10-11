@@ -47,7 +47,7 @@ export const CHANGELOG_CATEGORIES: ChangelogCategory[] = [
 	"Security",
 ];
 
-/** Arguments accepted by the `zeta-c commit` command. */
+/** Arguments accepted by the `zetacode commit` command. */
 export interface CommitCommandArgs {
 	/** Push after commit */
 	push: boolean;

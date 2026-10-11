@@ -12,7 +12,7 @@ import {
 } from "@linxiraos/pi-agent-core";
 import { type BlockState, handleServerMessage, type ToolCallState } from "@linxiraos/pi-ai/providers/cursor";
 import { piTruncation } from "@linxiraos/pi-ai/providers/cursor/exec-modern";
-import type { AssistantMessage } from "@linxiraos/pi-ai/types";
+import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import {
 	AgentClientMessageSchema,
@@ -39,7 +39,9 @@ import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions";
 import { BUILTIN_TOOLS, GrepTool, ReadTool, type Tool, type ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { TodoTool } from "@linxiraos/zeta/tools/todo";
 import type { TruncationMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AdviseTool } from "../src/advisor/advise-tool";
 
@@ -952,6 +954,115 @@ describe("CursorExecHandlers error results", () => {
 		if (keepStart?.type !== "tool_execution_start") throw new Error("expected tool_execution_start");
 		expect(keepStart.args).toEqual({ command: "pwd", cwd: "/tmp", timeout: 12 });
 		expect(executeArgs[0]).toEqual({ command: "pwd", cwd: "/tmp", timeout: 12 });
+	});
+});
+
+describe("CursorExecHandlers argument validation", () => {
+	function recordingBridge(parameters: AgentTool["parameters"]) {
+		const calls: unknown[] = [];
+		const tool: AgentTool = {
+			name: "bash",
+			label: "Bash",
+			description: "Records validated command arguments",
+			parameters,
+			async execute(_id, args) {
+				calls.push(args);
+				return { content: [{ type: "text", text: "executed" }] };
+			},
+		};
+		return { handlers: new CursorExecHandlers({ cwd: ".", tools: new Map([[tool.name, tool]]) }), calls };
+	}
+
+	function mcp(
+		handlers: CursorExecHandlers,
+		toolName: string,
+		args: Record<string, unknown>,
+	): Promise<ToolResultMessage> {
+		return handlers.mcp({
+			name: toolName,
+			providerIdentifier: "pi-agent",
+			toolName,
+			toolCallId: "validation",
+			args,
+			rawArgs: {},
+		});
+	}
+
+	function todoBridge() {
+		let phases: TodoPhase[] = [];
+		const tool = new TodoTool(
+			createTestSession(".", {
+				getTodoPhases: () => phases,
+				setTodoPhases: value => {
+					phases = value;
+				},
+			}),
+		);
+		return {
+			handlers: new CursorExecHandlers({ cwd: ".", tools: new Map([["todo", tool as AgentTool]]) }),
+			phases: () => phases,
+		};
+	}
+
+	it("returns missing-command validation errors without executing a Cursor MCP tool", async () => {
+		const { handlers, calls } = recordingBridge(new BashTool(createTestSession(".")).parameters);
+		const result = await mcp(handlers, "bash", {});
+		expect(result.isError).toBe(true);
+		expect(result.content).toEqual([
+			expect.objectContaining({ text: expect.stringContaining('Validation failed for tool "bash"') }),
+		]);
+		expect(calls).toEqual([]);
+	});
+
+	it("refuses unsupported enum arguments before dispatching a Cursor MCP tool", async () => {
+		const { handlers, calls } = recordingBridge(type({ op: "'read' | 'write'" }));
+		const result = await mcp(handlers, "bash", { op: "erase" });
+		expect(result.isError).toBe(true);
+		expect(result.content).toEqual([
+			expect.objectContaining({ text: expect.stringContaining('Validation failed for tool "bash"') }),
+		]);
+		expect(calls).toEqual([]);
+	});
+
+	it("passes schema-normalized scalar and optional values to Cursor MCP tools", async () => {
+		const { handlers, calls } = recordingBridge(new BashTool(createTestSession(".")).parameters);
+		const result = await mcp(handlers, "bash", { command: 42, cwd: null, timeout: null });
+		expect(result.isError).toBe(false);
+		expect(calls).toEqual([{ command: "42" }]);
+	});
+
+	it("preserves a lenient todo tool's omitted-operation repair", async () => {
+		const { handlers, phases } = todoBridge();
+		const result = await mcp(handlers, "todo", {
+			list: [{ phase: "Recovered", items: ["From Cursor"] }],
+			__rawJson: "metadata",
+		});
+		expect(result.isError).toBe(false);
+		expect(phases()).toEqual([{ name: "Recovered", tasks: [{ content: "From Cursor", status: "in_progress" }] }]);
+	});
+
+	it("refuses parse-error metadata instead of executing even a lenient Cursor tool", async () => {
+		const { handlers, phases } = todoBridge();
+		const result = await mcp(handlers, "todo", {
+			list: [{ phase: "Rejected", items: ["Must not execute"] }],
+			__parseError: "Unexpected token",
+			__rawJson: "{broken",
+		});
+		expect(result.isError).toBe(true);
+		expect(result.content).toEqual([
+			expect.objectContaining({ text: expect.stringContaining("Tool call arguments are not valid JSON") }),
+		]);
+		expect(phases()).toEqual([]);
+	});
+
+	it("applies the same validation before native shell-stream execution", async () => {
+		const { handlers, calls } = recordingBridge(type({ command: "'safe-command'" }));
+		const result = await handlers.shellStream(
+			create(ShellArgsSchema, { toolCallId: "invalid-stream", command: "unsafe-command" }),
+			{ onStdout: () => {}, onStderr: () => {} },
+		);
+		expect(result.isError).toBe(true);
+		expect(calls).toEqual([]);
 	});
 });
 

@@ -1,11 +1,11 @@
 import type * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
 import {
 	type AssistantMessage,
 	coerceServiceTierByFamily,
-	getPriorityPremiumRequests,
+	getPremiumServiceTierRequests,
+	parseServiceTier,
 	resolveModelServiceTier,
 	type ServiceTierByFamily,
 	type ToolCall,
@@ -65,53 +65,6 @@ export function extractFolderFromPath(sessionPath: string): string {
 	const projectDir = rel.split(path.sep)[0];
 	// Convert --work--pi-- to /work/pi
 	return projectDir.replace(/^--/, "/").replace(/--/g, "/");
-}
-
-/**
- * Decode a session project folder name back to its source cwd, mirroring the
- * encoder in the coding agent's session-paths module: home-relative cwds
- * encode as `-<segments>`, temp-relative ones as `-tmp<segments>`, and legacy
- * absolute ones as `--<absolute>--`, with `/`, `\`, and `:` collapsed to `-`.
- * Returns null when the name carries no decodable cwd.
- */
-export function decodeProjectFolderCwd(projectDir: string): string | null {
-	if (projectDir === "-tmp" || projectDir.startsWith("-tmp-")) return os.tmpdir();
-	if (projectDir.startsWith("--")) {
-		const inner = projectDir.replace(/^--/, "").replace(/--$/, "");
-		if (!inner) return path.resolve("/");
-		// POSIX legacy names had their leading `/` stripped, so restore it;
-		// Windows names collapsed a drive letter's `:` into a dash too
-		// (`C--Users` decodes to `C:\Users`), so re-attach the colon.
-		if (path.sep === "/") return path.resolve(`/${inner.replaceAll("-", "/")}`);
-		return path.resolve(inner.replaceAll("-", "\\").replace(/^([A-Za-z])\\/, "$1:\\"));
-	}
-	if (projectDir.startsWith("-")) {
-		const inner = projectDir.replace(/^-/, "");
-		return path.resolve(os.homedir(), inner.replaceAll("-", path.sep));
-	}
-	// Folder names without the leading marker predate the encoder; no cwd is
-	// recoverable, so they are never treated as temp.
-	return null;
-}
-
-/**
- * Whether a session project folder decodes to a cwd inside the OS temp dir.
- * Test suites spawn agents under `os.tmpdir()` and re-create their transcripts
- * on every run; those sessions are throwaway usage that must not reach the
- * stats DB. The `-` collapse in the encoder is lossy (a literal `-` inside a
- * path segment is indistinguishable from a separator), which can only produce
- * false positives here — a skipped ingestion, never a misattributed row.
- */
-export function isTempProjectFolder(projectDir: string): boolean {
-	const decoded = decodeProjectFolderCwd(projectDir);
-	if (!decoded) return false;
-	const tmp = path.resolve(os.tmpdir());
-	const candidate = path.resolve(decoded);
-	// NTFS comparisons are case-insensitive; resolve() normalizes separators.
-	const caseFold = process.platform === "win32";
-	const normalizedTmp = caseFold ? tmp.toLowerCase() : tmp;
-	const normalizedCandidate = caseFold ? candidate.toLowerCase() : candidate;
-	return normalizedCandidate === normalizedTmp || normalizedCandidate.startsWith(normalizedTmp + path.sep);
 }
 
 /**
@@ -177,12 +130,17 @@ function extractUserText(content: unknown): string {
 /**
  * Build user-message stats from an entry. Returns null for empty/synthetic content.
  */
-function extractUserStats(sessionFile: string, folder: string, entry: SessionMessageEntry): UserMessageStats | null {
+function extractUserStats(
+	sessionFile: string,
+	folder: string,
+	entry: SessionMessageEntry,
+	prevText: string,
+): UserMessageStats | null {
 	const msg = entry.message as { role: "user"; content?: unknown; synthetic?: boolean };
 	if (msg.role !== "user" || msg.synthetic) return null;
 	const text = extractUserText(msg.content);
 	if (!text.trim()) return null;
-	const metrics = computeUserMessageMetrics(text);
+	const metrics = computeUserMessageMetrics(text, { prevText });
 	const prose = judgeProse(text);
 	const ts = Date.parse(entry.timestamp);
 	return {
@@ -200,6 +158,8 @@ function extractUserStats(sessionFile: string, folder: string, entry: SessionMes
 		negation: metrics.negation,
 		repetition: metrics.repetition,
 		blame: metrics.blame,
+		emphasis: metrics.emphasis,
+		unsupportedScript: metrics.unsupportedScript,
 		prose,
 		proseHash: prose ? Bun.hash(prose).toString(16) : "",
 	};
@@ -284,20 +244,26 @@ function extractStats(
 	const rawUsage = msg.usage as Partial<Usage> | undefined;
 	if (!rawUsage || typeof rawUsage !== "object") return null;
 
-	// Backfill: when the session recorded `priority` as the active service tier
-	// at this point but the AI usage payload was captured before priority
-	// requests were folded into `premiumRequests`, derive the count here so the
-	// "Premium Reqs" stat aggregates priority traffic on re-sync. Trust any
-	// non-zero value already in `usage.premiumRequests` (Copilot multipliers or
-	// the new AI code path) and only synthesise when the field is missing/zero.
+	// Backfill: when the session recorded a premium tier (`priority`/`ultrafast`)
+	// as the active service tier at this point but the AI usage payload was
+	// captured before premium requests were folded into `premiumRequests`, derive
+	// the count here so the "Premium Reqs" stat aggregates premium traffic on
+	// re-sync. The tier the provider reported serving the turn (`msg.serviceTier`)
+	// is authoritative — it is proof the tier reached the wire, so the
+	// discovery-metadata gate is skipped; the session's live setting is only a
+	// fallback for turns recorded before that field existed. Trust any non-zero
+	// value already in `usage.premiumRequests` (Copilot multipliers or the new AI
+	// code path) and only synthesise when the field is missing/zero.
 	const recorded = rawUsage.premiumRequests ?? 0;
 	const model = {
 		provider: msg.provider,
 		api: msg.api,
 		identity: classifyModel(msg.provider, msg.model, { lenient: true }),
 	};
-	const tier = resolveModelServiceTier(currentServiceTier, model);
-	const derived = recorded > 0 ? recorded : getPriorityPremiumRequests(tier, model);
+	const servedTier = parseServiceTier(msg.serviceTier);
+	const tier = servedTier ?? resolveModelServiceTier(currentServiceTier, model);
+	const derived =
+		recorded > 0 ? recorded : getPremiumServiceTierRequests(tier, model, { served: servedTier !== undefined });
 	const wellFormed =
 		isFiniteCount(rawUsage.input) &&
 		isFiniteCount(rawUsage.output) &&
@@ -339,6 +305,7 @@ function extractStats(
 		errorMessage: msg.errorMessage ?? null,
 		usage,
 		agentType,
+		serviceTier: servedTier ?? null,
 	};
 }
 
@@ -594,6 +561,11 @@ export async function parseSessionFile(
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
 
+	// The previous user message, for the whole-message repetition signal. An
+	// incremental parse starts mid-session, so the first message of a resumed
+	// pass simply carries no predecessor.
+	let prevUserText = "";
+
 	// Reduce each entry immediately so full replays do not retain tool-output/message bodies.
 	const visit = (entry: SessionEntry): void => {
 		if (isServiceTierChange(entry)) {
@@ -601,8 +573,11 @@ export async function parseSessionFile(
 			return;
 		}
 		if (isUserMessage(entry)) {
-			const userMsg = extractUserStats(sessionPath, folder, entry);
-			if (userMsg) userStats.push(userMsg);
+			const userMsg = extractUserStats(sessionPath, folder, entry, prevUserText);
+			if (userMsg) {
+				userStats.push(userMsg);
+				prevUserText = userMsg.prose || prevUserText;
+			}
 			return;
 		}
 		if (isToolResultMessage(entry)) {
@@ -728,17 +703,7 @@ export async function listSessionFiles(folderPath: string): Promise<string[]> {
  */
 export async function listAllSessionFiles(): Promise<string[]> {
 	const folders = await listSessionFolders();
-	const allFiles: string[] = [];
-
-	for (const folder of folders) {
-		// Skip at enumeration: temp-cwd project folders re-create their
-		// transcripts on every test run and must never reach the parser or DB.
-		if (isTempProjectFolder(path.basename(folder))) continue;
-		const files = await listSessionFiles(folder);
-		allFiles.push(...files);
-	}
-
-	return allFiles;
+	return (await Promise.all(folders.map(listSessionFiles))).flat();
 }
 
 /**

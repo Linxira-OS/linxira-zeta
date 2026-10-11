@@ -2,7 +2,7 @@
  * Web Gateway POST /api/settings/reload — cross-process credential sync.
  *
  * The gateway caches one AuthStorage (in-memory credential pool) and one
- * ModelRegistry per process. Writes made by another process — `zeta-c`
+ * ModelRegistry per process. Writes made by another process — `zetacode`
  * login/logout in a terminal, another desktop window — land in agent.db but
  * were invisible to every gateway auth handler until restart. The reload
  * endpoint must re-read the pool from disk (soft-deleted rows excluded, so a

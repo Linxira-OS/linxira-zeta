@@ -19,6 +19,7 @@ import webSearchSystemPrompt from "../../prompts/system/web-search.md" with { ty
 import webSearchDescription from "../../prompts/tools/web-search.md" with { type: "text" };
 import { resolveConfiguredModelTarget } from "../../session/role-models";
 import { discoverAuthStorage } from "../../sdk";
+import type { SearchEngineId } from "./types";
 import type { ToolSession } from "../../tools";
 import { throwIfAborted } from "../../tools/tool-errors";
 import {
@@ -28,18 +29,17 @@ import {
 	getSearchProvider,
 	type SearchProvider,
 } from "./provider";
+import { rankXAIProviders, targetsX, xaiModelChain } from "./providers/xai";
 import { applyQueryConstraints, parseSearchQuery } from "./query";
 import {
 	DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS,
 	MAX_WEB_SEARCH_TIMEOUT_SECONDS,
 	SearchProviderError,
-	type SearchProviderId,
 	type SearchResponse,
 	type SearchResultDetails,
 } from "./types";
 
 import { cfgProvidersAntigravityEndpoint, cfgProvidersWebSearchTimeoutSeconds } from "../../session/settings";
-import { cfgProvidersWebSearchGeminiModel } from "./provider-order-settings";
 
 /** Web search tool parameters schema */
 export const webSearchSchema = type({
@@ -54,7 +54,8 @@ export const webSearchSchema = type({
 export type SearchToolParams = typeof webSearchSchema.infer;
 
 export interface SearchQueryParams extends SearchToolParams {
-	provider?: SearchProviderId | "auto";
+	/** Zeta: pin the search engine directly (`auto` resolves the configured chain). */
+	provider?: SearchEngineId | "auto";
 	/** Explicit model id override; resolved through the model role when absent. */
 	model?: string;
 }
@@ -156,6 +157,17 @@ function expandHostedCandidate(
 	return models.map(model => ({ ...candidate, model }));
 }
 
+/**
+ * Move the chain's xAI-grounded candidates to the front, keeping their order,
+ * or prepend {@link xaiModelChain} when the chain has none. Unchanged without
+ * xAI credentials.
+ */
+function preferXAI(chain: RoleChainCandidate[], modelRegistry: ModelRegistry): RoleChainCandidate[] {
+	const xai = chain.filter(candidate => candidate.model.webSearch === "xai");
+	if (xai.length > 0) return [...xai, ...chain.filter(candidate => candidate.model.webSearch !== "xai")];
+	return [...xaiModelChain(modelRegistry, settings).map(model => ({ model, explicit: false })), ...chain];
+}
+
 /** Execute web search */
 async function executeSearch(
 	_toolCallId: string,
@@ -165,7 +177,6 @@ async function executeSearch(
 	const { authStorage, sessionId, signal } = options;
 	const modelRegistry = options.modelRegistry ?? new ModelRegistry(authStorage, undefined, { settings });
 	const pool = roleCandidatePool("web", settings, modelRegistry);
-	const forcedProvider = params.provider !== undefined && params.provider !== "auto" ? params.provider : undefined;
 	const candidates = params.model
 		? (() => {
 				const resolved = resolveModelRoleValue(params.model, pool, { settings });
@@ -174,20 +185,28 @@ async function executeSearch(
 					: [];
 			})()
 		: resolveRoleChain("web", settings, pool);
+	const forcedProvider = params.provider !== undefined && params.provider !== "auto" ? params.provider : undefined;
 	// Zeta pins the engine with `provider`, not the upstream `model` role: a forced
 	// provider is the only candidate, and it must not silently fall through to
 	// another engine when it fails.
 	const scopedCandidates =
 		forcedProvider === undefined
 			? candidates
-			: candidates.filter(
-					candidate => candidate.model.id === forcedProvider || candidate.model.webSearch === forcedProvider,
-				);
+			: candidates.filter(candidate => {
+					if (candidate.model.id === forcedProvider) return true;
+					const webSearch = candidate.model.webSearch as string | undefined;
+					return webSearch !== undefined && webSearch === forcedProvider;
+				});
 	const finalCandidates =
 		scopedCandidates.length > 0 ? scopedCandidates : forcedProvider === undefined ? [] : candidates.slice(0, 1);
-	const expanded = finalCandidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool));
-
 	const parsedQuery = parseSearchQuery(params.query);
+	let expanded = rankXAIProviders(
+		finalCandidates.flatMap(candidate => expandHostedCandidate(candidate, options.sessionModel, pool)),
+		candidate => candidate.model,
+		settings,
+	);
+	// Only xAI reaches X posts; X-only queries try it first even when the role prefers another engine.
+	if (!params.model && targetsX(parsedQuery)) expanded = preferXAI(expanded, modelRegistry);
 
 	// Invariant across candidates; resolve once before walking the role chain.
 	let antigravityEndpointMode: "auto" | "production" | "sandbox" | undefined;
@@ -195,13 +214,6 @@ async function executeSearch(
 		antigravityEndpointMode = cfgProvidersAntigravityEndpoint.get(settings);
 	} catch {
 		antigravityEndpointMode = undefined;
-	}
-
-	let geminiModel: string | undefined;
-	try {
-		geminiModel = cfgProvidersWebSearchGeminiModel.get(settings);
-	} catch {
-		geminiModel = undefined;
 	}
 
 	let timeoutMs = DEFAULT_WEB_SEARCH_TIMEOUT_SECONDS * 1_000;
@@ -267,7 +279,6 @@ async function executeSearch(
 				explicit: candidate.explicit,
 				sessionId,
 				antigravityEndpointMode,
-				geminiModel,
 			});
 
 			// A host that silently drops the hosted search tool still answers from the
@@ -451,6 +462,13 @@ export function getSearchTools(): CustomTool<typeof webSearchSchema, SearchResul
 	return [webSearchCustomTool];
 }
 
-export { getSearchProvider, setExcludedSearchProviders, setSearchProviderOrder } from "./provider";
+export {
+	getGroundedSearchProvider,
+	getSearchProvider,
+	isSearchProviderExcluded,
+	resolveProviderCandidates,
+	setExcludedSearchProviders,
+	setSearchProviderOrder,
+} from "./provider";
 export { isSearchProviderId, isSearchProviderPreference } from "./types";
-export type { SearchProviderId as SearchProvider, SearchResponse } from "./types";
+export type { SearchEngineId, SearchEngineId as SearchProvider, SearchResponse } from "./types";

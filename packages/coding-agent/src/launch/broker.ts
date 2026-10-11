@@ -40,6 +40,7 @@ import {
 } from "./protocol";
 import { resolveDaemonSpawnOptions } from "./spawn-options";
 import { renderTerminalOutput } from "./terminal-output";
+import { quotePosixArgv } from "../utils/shell-quote";
 
 const DEFAULT_IDLE_GRACE_MS = 3_000;
 const MAX_REQUEST_BYTES = 1024 * 1024;
@@ -121,10 +122,6 @@ interface DaemonLogRead {
 	text: string;
 	terminalOutput: string;
 	cursor: number;
-}
-
-function quoteShellArg(value: string): string {
-	return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 function terminalState(state: DaemonSnapshot["state"]): boolean {
@@ -870,7 +867,7 @@ class DaemonBroker {
 			);
 		} else {
 			const argv = [record.spec.application, ...record.spec.args];
-			const command = `exec ${argv.map(quoteShellArg).join(" ")}`;
+			const command = `exec ${quotePosixArgv(argv)}`;
 			const shell = procmgr.getShellConfig().shell;
 			run = session.start({ command, shell, ...options }, onChunk, onStart);
 		}
@@ -1575,7 +1572,7 @@ export async function startDaemonBrokerFromEnvironment(options: DaemonBrokerStar
 	// releases on exit, so keeping `lease` referenced keeps the scope owned.
 	const lease = await acquireBrokerLease(runtimeDir, endpoint);
 	if (!lease) return;
-	setProcessName("zeta-c daemon broker");
+	setProcessName("zetacode daemon broker");
 	// Record the scope's project dir so `zeta ps` can map this hash-keyed runtime
 	// dir back to its project (and derive the Windows pipe name) offline.
 	void writeDaemonScopeMeta(runtimeDir, projectDir).catch(error => {

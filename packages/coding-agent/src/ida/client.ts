@@ -1,7 +1,7 @@
 /**
  * zeta-side access to IDA databases hosted by broker-supervised daemons (`host.ts`).
  *
- * Every open database is one `zeta.ida.<id>` daemon in the project's daemon broker, so `zeta-c ps`
+ * Every open database is one `zeta.ida.<id>` daemon in the project's daemon broker, so `zetacode ps`
  * lists, stops, and tails it, and every zeta process in the project shares it. This module starts
  * hosts on demand (evicting the least recently used idle one beyond `ida.maxOpen`), attaches to
  * hosts other processes started, and forwards requests over each host's socket.
@@ -96,7 +96,7 @@ class HostConnection {
 		socket.on("error", error => logger.debug("IDA host connection error", { name, error: errorMessage(error) }));
 		socket.on("close", () => {
 			this.#open = false;
-			const error = new IdaHostGoneError(`IDA host ${name} exited; see \`zeta-c ps logs ${name}\``);
+			const error = new IdaHostGoneError(`IDA host ${name} exited; see \`zetacode ps logs ${name}\``);
 			for (const entry of this.#pending.values()) entry.reject(error);
 			this.#pending.clear();
 			onClose();
@@ -116,7 +116,7 @@ class HostConnection {
 	call(request: IdaHostRequest): Promise<unknown> {
 		if (!this.#open) {
 			return Promise.reject(
-				new IdaHostGoneError(`IDA host ${this.#name} exited; see \`zeta-c ps logs ${this.#name}\``),
+				new IdaHostGoneError(`IDA host ${this.#name} exited; see \`zetacode ps logs ${this.#name}\``),
 			);
 		}
 		const entry = Promise.withResolvers<unknown>();
@@ -155,7 +155,7 @@ class HostConnection {
  * last reported {@link IdaHostStatus}. Shared by every agent in the process.
  */
 export class IdaDatabase {
-	/** Broker daemon name (`zeta-c ps` row, `zeta-c ps logs <name>`). */
+	/** Broker daemon name (`zetacode ps` row, `zetacode ps logs <name>`). */
 	readonly name: string;
 	readonly #conn: HostConnection;
 	#status: IdaHostStatus;
@@ -357,7 +357,7 @@ async function startHost(
 			spec: {
 				name,
 				application: spawn.cmd[0]!,
-				// The trailing ref is ignored by the host; it labels the `zeta-c ps` COMMAND column.
+				// The trailing ref is ignored by the host; it labels the `zetacode ps` COMMAND column.
 				args: [...spawn.cmd.slice(1), idbRef(loc)],
 				env: { [IDA_HOST_CONFIG_ENV]: JSON.stringify(config) },
 				cwd: spawn.cwd ?? broker.projectDir,
@@ -377,7 +377,7 @@ async function startHost(
 	}
 	if (TERMINAL_STATES[started.state]) {
 		const reason = started.exitReason ?? `code ${started.exitCode}`;
-		throw new ToolError(`IDA host ${name} exited during startup (${reason}); see \`zeta-c ps logs ${name}\``);
+		throw new ToolError(`IDA host ${name} exited during startup (${reason}); see \`zetacode ps logs ${name}\``);
 	}
 }
 
@@ -395,7 +395,7 @@ async function openIdaDatabase(session: ToolSession, loc: IdbLocation): Promise<
 		});
 		if (db) return db;
 		if (attempt === ENSURE_ATTEMPTS) {
-			throw new ToolError(`IDA host ${name} did not come up; see \`zeta-c ps logs ${name}\``);
+			throw new ToolError(`IDA host ${name} did not come up; see \`zetacode ps logs ${name}\``);
 		}
 		const existing = await describeQuietly(broker, name, HOST_LABEL);
 		if (existing && !TERMINAL_STATES[existing.state]) {

@@ -6,7 +6,7 @@ import * as url from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
 import { LocalProtocolHandler } from "@linxiraos/zeta/internal-urls/local-protocol";
-import { resolveMarkdownLinkTargets } from "@linxiraos/zeta/internal-urls/hyperlink-targets";
+import { resolveMarkdownLinkHrefs } from "@linxiraos/zeta/internal-urls/hyperlink-targets";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { getMarkdownTheme, initTheme } from "@linxiraos/pi-tui/theme";
@@ -132,7 +132,7 @@ describe("resource links in chat markdown", () => {
 	let originalHyperlinks: boolean;
 
 	beforeEach(async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-markdown-links-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-markdown-links-"));
 		originalHyperlinks = terminalCaps.TERMINAL.hyperlinks;
 		terminalCaps.setTerminalHyperlinks(true);
 		await initTheme();
@@ -158,7 +158,7 @@ describe("resource links in chat markdown", () => {
 			"",
 			"[output]: artifact://42",
 		].join("\n");
-		const targets = await resolveMarkdownLinkTargets([text], {
+		const targets = await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), {
 			localProtocolOptions: { getArtifactsDir: () => tempDir },
 		});
 		const localUri = url.pathToFileURL(await fs.realpath(localFile)).href;
@@ -182,7 +182,7 @@ describe("resource links in chat markdown", () => {
 		const relative = "src/my%20file.ts#L7";
 		const absolute = file.replaceAll("\\", "/").replaceAll(" ", "%20");
 		const text = `[Source](${relative}) and [Absolute](${absolute}) and [Missing](src/missing.ts) and [Heading](#heading)`;
-		const targets = await resolveMarkdownLinkTargets([text], { cwd: tempDir });
+		const targets = await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), { cwd: tempDir });
 		const fileUri = url.pathToFileURL(file).href;
 		const output = new terminalCaps.Markdown(text, 0, 0, {
 			...getMarkdownTheme(),
@@ -200,6 +200,19 @@ describe("resource links in chat markdown", () => {
 		expect(visible).not.toContain("file://");
 	});
 
+	it("stops linking a file once it is deleted", async () => {
+		const file = path.join(tempDir, "gone.txt");
+		await Bun.write(file, "x");
+		const text = "[Gone](gone.txt)";
+		expect([
+			...(await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), { cwd: tempDir })).keys(),
+		]).toEqual(["gone.txt"]);
+		await fs.rm(file);
+		expect([
+			...(await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), { cwd: tempDir })).keys(),
+		]).toEqual([]);
+	});
+
 	it("leaves missing, escaping, remote, and non-link destinations unexpanded", async () => {
 		await Bun.write(path.join(tempDir, "local", "report.json"), "{}");
 		await Bun.write(path.join(tempDir, "outside.json"), "{}");
@@ -215,7 +228,7 @@ describe("resource links in chat markdown", () => {
 			"[remote](mcp://server/resource)",
 			"[web](https://example.com/report)",
 		].join("\n\n");
-		const targets = await resolveMarkdownLinkTargets([text], {
+		const targets = await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), {
 			localProtocolOptions: { getArtifactsDir: () => tempDir },
 		});
 		expect([...targets]).toEqual([]);
@@ -236,7 +249,7 @@ describe("resource links in chat markdown", () => {
 			const artifactsDir = path.join(tempDir, session);
 			const file = path.join(artifactsDir, "local", "report.json");
 			await Bun.write(file, session);
-			const targets = await resolveMarkdownLinkTargets([text], {
+			const targets = await resolveMarkdownLinkHrefs(terminalCaps.getMarkdownLinkUrls(text), {
 				localProtocolOptions: { getArtifactsDir: () => artifactsDir },
 			});
 			const output = new terminalCaps.Markdown(text, 0, 0, {
@@ -259,8 +272,8 @@ describe("applyHyperlinkSetting on project-scoped reload", () => {
 	// value while path links already track the new one (#10196 review).
 	it("reapplies the effective policy so the runtime flag tracks the reloaded setting", async () => {
 		const origHyperlinks = terminalCaps.TERMINAL.hyperlinks;
-		const dirA = path.join(os.tmpdir(), "zeta-hyperlink-reload-a");
-		const dirB = path.join(os.tmpdir(), "zeta-hyperlink-reload-b");
+		const dirA = path.join(os.tmpdir(), "omp-hyperlink-reload-a");
+		const dirB = path.join(os.tmpdir(), "omp-hyperlink-reload-b");
 		try {
 			terminalCaps.setTerminalHyperlinks(false);
 			cfgTuiHyperlinks.override(settings, "always");

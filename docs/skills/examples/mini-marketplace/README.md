@@ -12,8 +12,8 @@ A minimal `linxira-zeta` marketplace catalog that demonstrates the `marketplace.
 Or from the CLI:
 
 ```
-zeta-c plugin marketplace add ./docs/skills/examples/mini-marketplace
-zeta-c plugin install my-plugin@example-marketplace
+zetacode plugin marketplace add ./docs/skills/examples/mini-marketplace
+zetacode plugin install my-plugin@example-marketplace
 ```
 
 Run these paths from the repository root. Start or reload `omp` after CLI installation to load the extension; its `session_start` handler shows a notification in interactive mode.

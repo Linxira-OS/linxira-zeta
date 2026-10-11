@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { getEnvApiKey, stream, streamSimple } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { stream, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Context, Tool } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";

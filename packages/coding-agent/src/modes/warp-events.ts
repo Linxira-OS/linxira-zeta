@@ -199,7 +199,7 @@ export function createWarpEventBridgeExtension(): ExtensionFactory {
 			emitter?.emit({
 				event: "permission_request",
 				tool_name: event.toolName,
-				summary: `zeta-c wants to run ${event.toolName}`,
+				summary: `zetacode wants to run ${event.toolName}`,
 			});
 		});
 

@@ -32,13 +32,13 @@ export interface CollabLinkCommandArgs {
 	registry?: CollabListOptions;
 }
 
-/** Versioned top-level JSON shape for `zeta-c collab list --json`. */
+/** Versioned top-level JSON shape for `zetacode collab list --json`. */
 export interface CollabListJsonOutput {
 	version: number;
 	hosts: CollabHostSnapshot[];
 }
 
-/** Versioned capability response for `zeta-c collab link --json`. */
+/** Versioned capability response for `zetacode collab link --json`. */
 export interface CollabLinkJsonOutput extends CollabResolvedLink {
 	version: number;
 }
@@ -83,7 +83,7 @@ export async function runCollabListCommand(
 		print(`${host.instanceId}  ${session}  ${chalk.dim(cwd)}`);
 		print(`  ${chalk.dim(details.join(" · "))}`);
 	}
-	print(chalk.dim("Get a link: zeta-c collab link <instanceId|pid> [--view]"));
+	print(chalk.dim("Get a link: zetacode collab link <instanceId|pid> [--view]"));
 }
 
 export async function runCollabLinkCommand(

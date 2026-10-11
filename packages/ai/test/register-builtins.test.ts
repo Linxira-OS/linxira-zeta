@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as AIError from "@linxiraos/pi-ai/error";
+import * as BedrockProvider from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import { setBedrockProviderModule, streamBedrock } from "@linxiraos/pi-ai/providers/register-builtins";
 import type { AssistantMessage, Context, Model } from "@linxiraos/pi-ai/types";
 import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+
+// The transport override is process-global: put the built-in back so later files stream for real.
+afterEach(() => setBedrockProviderModule(BedrockProvider));
 
 async function drainMicrotasksUntil(predicate: () => boolean, errorMessage: string): Promise<void> {
 	for (let i = 0; i < 1000; i++) {

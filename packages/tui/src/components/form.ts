@@ -188,7 +188,7 @@ export class FormField implements Component, Focusable, MouseRoutable {
 			this.#afterControl.addChild(options.footer);
 			native.push(options.footer);
 		}
-		this.#native = col(native, { gap: "sm", role: "zeta.form.field" });
+		this.#native = col(native, { gap: "sm", role: "omp.form.field" });
 	}
 
 	/** Label, description, details, preview, the control, error, summary, hint and footer as one column. */
@@ -550,7 +550,7 @@ export class Form implements Component, Focusable, MouseRoutable {
 	constructor(options: FormOptions) {
 		this.#options = options;
 		this.#fields = options.fields;
-		this.#native = col(this.#fields, { gap: "md", role: "zeta.form" });
+		this.#native = col(this.#fields, { gap: "md", role: "omp.form" });
 		this.#syncFocus();
 	}
 

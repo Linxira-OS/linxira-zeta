@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getRecentRequests } from "../api";
+import { t } from "../i18n";
 import {
 	formatCompact,
 	formatDurationMs,
@@ -47,7 +48,7 @@ type StatusFilter = "all" | RequestStatus;
 export function RequestsRoute({ active, range, onRequestClick }: RequestsRouteProps) {
 	const [step, setStep] = useState(0);
 	const limit = LOAD_STEPS[step];
-	const log = useQuery(["requests-log", limit], () => getRecentRequests(limit), { enabled: active });
+	const log = useQuery(["requests-log", limit], ({ signal }) => getRecentRequests(limit, signal), { enabled: active });
 	const [search, setSearch] = useState("");
 	const [status, setStatus] = useState<StatusFilter>("all");
 	const meta = rangeMeta(range);
@@ -88,7 +89,9 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 				disabled={log.refreshing}
 				onClick={() => setStep(step + 1)}
 			>
-				{log.refreshing && log.stale ? "Loading…" : `Load latest ${formatInteger(nextStep)}`}
+				{log.refreshing && log.stale
+					? t("requests.loading")
+					: t("requests.load-latest", { count: formatInteger(nextStep) })}
 			</button>
 		) : undefined;
 
@@ -96,7 +99,7 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 		value,
 		label: (
 			<>
-				{value === "all" ? "All" : REQUEST_STATUS[value].label}{" "}
+				{value === "all" ? t("requests.status-all") : REQUEST_STATUS[value].label}{" "}
 				<span className="dim num">{formatCompact(counts[value])}</span>
 			</>
 		),
@@ -105,8 +108,8 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 	return (
 		<div className="page">
 			<PageHeader
-				title="Requests"
-				description={`Every model call zeta made in ${meta.windowLabel}, newest first. Open a row for its full payload.`}
+				title={t("common.requests")}
+				description={t("requests.description", { window: t(meta.windowKey) })}
 			/>
 
 			<QueryView query={log} skeleton={<Skeleton height={96} style={{ borderRadius: 12 }} />}>
@@ -114,38 +117,45 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 					<div data-stale={log.stale}>
 						<StatGrid min={160}>
 							<Stat
-								label="Requests"
+								label={t("common.requests")}
 								value={formatInteger(summary.requests)}
 								hint={
 									summary.oldest === null
-										? `none in ${meta.windowLabel}`
-										: `since ${formatRelativeTime(summary.oldest)}`
+										? t("requests.none-in-window", { window: t(meta.windowKey) })
+										: t("requests.since", { time: formatRelativeTime(summary.oldest) })
 								}
 							/>
 							<Stat
-								label="Failed"
+								label={t("common.failed")}
 								value={formatInteger(summary.failed)}
-								hint={`${summary.requests > 0 ? formatErrorRate(summary.failed / summary.requests) : "–"} · ${formatInteger(summary.aborted)} aborted`}
+								hint={t("requests.failed-hint", {
+									rate: summary.requests > 0 ? formatErrorRate(summary.failed / summary.requests) : "–",
+									count: formatInteger(summary.aborted),
+								})}
 							/>
 							<Stat
-								label="Tokens"
-								title="Total tokens across these requests"
+								label={t("common.tokens")}
+								title={t("requests.tokens-hint")}
 								value={formatCompact(summary.tokens)}
 							/>
 							<Stat
-								label="API-equivalent cost"
-								title="What these requests would cost at public API rates"
+								label={t("requests.api-equivalent-cost")}
+								title={t("requests.cost-hint")}
 								value={formatEstimatedCost(summary.cost, summary.unpriced)}
-								hint={summary.unpriced > 0 ? `${formatInteger(summary.unpriced)} unpriced` : undefined}
+								hint={
+									summary.unpriced > 0
+										? t("requests.unpriced-n", { count: formatInteger(summary.unpriced) })
+										: undefined
+								}
 							/>
 							<Stat
-								label="Median duration"
+								label={t("requests.median-duration")}
 								value={formatDurationMs(summary.medianDuration)}
-								hint={`p95 ${formatDurationMs(summary.p95Duration)}`}
+								hint={t("requests.p95", { value: formatDurationMs(summary.p95Duration) })}
 							/>
 							<Stat
-								label="Median TTFT"
-								title="Time to first token"
+								label={t("requests.median-ttft")}
+								title={t("requests.ttft-hint")}
 								value={formatDurationMs(summary.medianTtft)}
 							/>
 						</StatGrid>
@@ -155,20 +165,27 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 
 			<Card
 				index={1}
-				title="Request log"
+				title={t("requests.log-title")}
 				description={
 					log.data === null
-						? "Loading the latest requests…"
+						? t("requests.log-loading")
 						: complete
-							? `${formatInteger(filtered.length)} of ${formatInteger(summary.requests)} requests in ${meta.windowLabel}`
-							: `${formatInteger(filtered.length)} of the latest ${formatInteger(summary.requests)} requests`
+							? t("requests.log-count-in-window", {
+									shown: formatInteger(filtered.length),
+									total: formatInteger(summary.requests),
+									window: t(meta.windowKey),
+								})
+							: t("requests.log-count-latest", {
+									shown: formatInteger(filtered.length),
+									total: formatInteger(summary.requests),
+								})
 				}
 				actions={
 					<>
-						<SearchInput value={search} onChange={setSearch} placeholder="Model, provider or project" />
+						<SearchInput value={search} onChange={setSearch} placeholder={t("requests.search-placeholder")} />
 						<Segmented
 							size="sm"
-							aria-label="Status"
+							aria-label={t("requests.status")}
 							options={statusOptions}
 							value={status}
 							onChange={setStatus}
@@ -181,9 +198,11 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 					log.data !== null && !complete ? (
 						<>
 							<span>
-								Showing the latest {formatInteger(view.loaded)} requests, back to{" "}
-								{summary.oldest === null ? "–" : formatTimestamp(summary.oldest)}. Older requests in{" "}
-								{meta.windowLabel} are not loaded.
+								{t("requests.footer", {
+									count: formatInteger(view.loaded),
+									time: summary.oldest === null ? "–" : formatTimestamp(summary.oldest),
+									window: t(meta.windowKey),
+								})}
 							</span>
 							{loadMore}
 						</>
@@ -202,8 +221,12 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 							dense
 							empty={
 								<EmptyState
-									title={summary.requests === 0 ? `No requests in ${meta.windowLabel}` : "No requests match"}
-									hint={summary.requests === 0 ? undefined : "Clear the search or status filter."}
+									title={
+										summary.requests === 0
+											? t("requests.empty-in-window", { window: t(meta.windowKey) })
+											: t("requests.empty-no-match")
+									}
+									hint={summary.requests === 0 ? undefined : t("requests.empty-no-match-hint")}
 								/>
 							}
 						/>
@@ -217,13 +240,13 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 const REQUEST_COLUMNS: readonly Column<MessageStats>[] = [
 	{
 		key: "model",
-		header: "Model",
+		header: t("common.model"),
 		sort: row => row.model,
 		render: row => <LabelCell primary={<span className="mono">{row.model}</span>} secondary={row.provider} />,
 	},
 	{
 		key: "time",
-		header: "When",
+		header: t("requests.when"),
 		sort: row => row.timestamp,
 		render: row => (
 			<span className="muted" title={formatTimestamp(row.timestamp)}>
@@ -233,7 +256,7 @@ const REQUEST_COLUMNS: readonly Column<MessageStats>[] = [
 	},
 	{
 		key: "project",
-		header: "Project",
+		header: t("common.project"),
 		sort: row => row.folder,
 		render: row => (
 			<span className="mono muted truncate" title={row.folder} style={{ display: "block", maxWidth: 180 }}>
@@ -243,57 +266,57 @@ const REQUEST_COLUMNS: readonly Column<MessageStats>[] = [
 	},
 	{
 		key: "input",
-		header: "Input",
-		title: "Uncached input tokens",
+		header: t("common.input"),
+		title: t("requests.uncached-input"),
 		align: "right",
 		sort: row => row.usage.input,
 		render: row => <span className="num">{formatCompact(row.usage.input)}</span>,
 	},
 	{
 		key: "cache",
-		header: "Cache read",
-		title: "Cache read tokens (hover a cell for cache writes)",
+		header: t("common.cache-read"),
+		title: t("requests.cache-read-title"),
 		align: "right",
 		sort: row => row.usage.cacheRead,
 		render: row => (
-			<span className="num" title={`Cache write: ${formatInteger(row.usage.cacheWrite)}`}>
+			<span className="num" title={t("requests.cache-write", { count: formatInteger(row.usage.cacheWrite) })}>
 				{formatCompact(row.usage.cacheRead)}
 			</span>
 		),
 	},
 	{
 		key: "output",
-		header: "Output",
+		header: t("common.output"),
 		align: "right",
 		sort: row => row.usage.output,
 		render: row => <span className="num">{formatCompact(row.usage.output)}</span>,
 	},
 	{
 		key: "cost",
-		header: "Cost",
-		title: "API-equivalent estimate",
+		header: t("common.cost"),
+		title: t("requests.cost-estimate"),
 		align: "right",
 		sort: row => row.usage.cost.total,
 		render: row => <span className="num">{formatMessageCost(row, 4)}</span>,
 	},
 	{
 		key: "duration",
-		header: "Duration",
+		header: t("common.duration"),
 		align: "right",
 		sort: row => row.duration ?? -1,
 		render: row => <span className="num">{formatDurationMs(row.duration)}</span>,
 	},
 	{
 		key: "ttft",
-		header: "TTFT",
-		title: "Time to first token",
+		header: t("requests.ttft"),
+		title: t("requests.ttft-hint"),
 		align: "right",
 		sort: row => row.ttft ?? -1,
 		render: row => <span className="num muted">{formatDurationMs(row.ttft)}</span>,
 	},
 	{
 		key: "status",
-		header: "Status",
+		header: t("requests.status"),
 		sort: row => requestStatus(row),
 		render: row => {
 			const status = REQUEST_STATUS[requestStatus(row)];

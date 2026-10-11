@@ -1,6 +1,6 @@
 ---
 name: authoring-hooks
-description: Use when creating a new zeta-c hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
+description: Use when creating a new zetacode hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
 ---
 
 # Authoring Hooks

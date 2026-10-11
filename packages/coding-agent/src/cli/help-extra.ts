@@ -63,7 +63,7 @@ export function getExtraHelpText(): string {
 
   ${chalk.dim("# Configuration")}
   ZETA_PROFILE                - Named profile for isolated agent state (same as --profile)
-  Use \`zeta-c --profile <name> --alias <command>\` to create a shell shortcut for a profile
+  Use \`zetacode --profile <name> --alias <command>\` to create a shell shortcut for a profile
   ZETA_CODING_AGENT_DIR      - Session storage directory (default: ~/${CONFIG_DIR_NAME}/agent)
   PI_PACKAGE_DIR             - Override package directory (for Nix/Guix store paths)
   PI_SMOL_MODEL              - Override smol/fast model (see --smol)
@@ -93,14 +93,14 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Companion Tools (separate npm packages):")}
-  zeta-ide / zeta-i       - Zeta terminal IDE (TermIDE): file manager, panels,
-                           git, and embedded virtual terminal panes
-                           (npm: @linxiraos/ide)
-  zeta-editor / zeta-e    - Zeta terminal editor; /editor inside zeta hands off the
-                           current directory, repo root and session to it
-                           (npm: @linxiraos/editor)
+  zetaide                  - Zeta terminal IDE (TermIDE): file manager, panels,
+  (aliases: zeta-ide,          git, and embedded virtual terminal panes
+   zeta-i)                     (npm: @linxiraos/ide)
+  zetaeditor               - Zeta terminal editor; /editor inside zeta hands off
+  (aliases: zeta-editor,        the current directory, repo root and session to it
+   zeta-e)                     (npm: @linxiraos/editor)
 
 ${chalk.bold("Useful Commands:")}
-  zeta-c agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)
-  zeta-c agents unpack --project - Export bundled subagents to ./.zeta/agents`;
+  zetacode agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)
+  zetacode agents unpack --project - Export bundled subagents to ./.zeta/agents`;
 }

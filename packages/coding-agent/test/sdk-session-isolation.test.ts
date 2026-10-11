@@ -57,20 +57,20 @@ async function withClearedSecretEnv<T>(run: () => Promise<T>): Promise<T> {
 
 async function withTempConfigRoot<T>(run: () => Promise<T>): Promise<T> {
 	const originalProfile = getActiveProfile();
-	const originalConfigDir = process.env.PI_CONFIG_DIR;
+	const originalConfigDir = process.env.ZETA_CONFIG_DIR;
 	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const configDirName = `.omp-sdk-session-${Snowflake.next()}`;
 	const configRoot = path.join(os.homedir(), configDirName);
 	try {
-		process.env.PI_CONFIG_DIR = configDirName;
+		process.env.ZETA_CONFIG_DIR = configDirName;
 		setProfile(undefined);
 		return await run();
 	} finally {
 		setProfile(undefined);
 		if (originalConfigDir === undefined) {
-			delete process.env.PI_CONFIG_DIR;
+			delete process.env.ZETA_CONFIG_DIR;
 		} else {
-			process.env.PI_CONFIG_DIR = originalConfigDir;
+			process.env.ZETA_CONFIG_DIR = originalConfigDir;
 		}
 		if (originalAgentDir === undefined) {
 			delete process.env.ZETA_CODING_AGENT_DIR;

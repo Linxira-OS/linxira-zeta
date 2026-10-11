@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
@@ -20,8 +21,8 @@ import { settings } from "../config/settings";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import imageGenDescription from "../prompts/tools/image-gen.md" with { type: "text" };
 import { resolveConfiguredModelTarget } from "../session/role-models";
-import { type ImageProvider, isImageProviderId } from "./image-providers";
-import { resolveReadPath } from "./path-utils";
+import type { ImageProvider } from "./image-providers";
+import { resolveReadPath, specialFileKind } from "./path-utils";
 
 const IMAGE_TIMEOUT = 3 * 60 * 1000;
 const MAX_IMAGE_SIZE = 35 * 1024 * 1024;
@@ -33,6 +34,22 @@ const inputImageSchema = type({
 	"data?": type("string").describe("base64 image data"),
 	"mime_type?": type("string").describe("mime type"),
 });
+
+/**
+ * Zeta: the providers settings tab owns the image-provider order.
+ * `applyProviderGlobalsFromSettings` seeds it at session start.
+ */
+let zetaImageProviderOrder: ImageProvider[] | undefined;
+
+/** Zeta: apply the configured image-provider order. */
+export function setImageProviderOrder(order: ImageProvider[]): void {
+	zetaImageProviderOrder = [...order];
+}
+
+/** Zeta: the configured order, if the tab has written one. */
+export function getImageProviderOrder(): readonly ImageProvider[] | undefined {
+	return zetaImageProviderOrder;
+}
 
 export const imageGenSchema = type({
 	subject: type("string").describe("main subject"),
@@ -90,6 +107,10 @@ function normalizeDataUrl(data: string): { data: string; mimeType?: string } {
 async function loadImageFromPath(imagePath: string, cwd: string): Promise<{ data: string; mimeType: string }> {
 	const resolved = resolveReadPath(imagePath, cwd);
 	try {
+		const stat = await fs.stat(resolved);
+		const kind = specialFileKind(stat);
+		if (kind) throw new Error(`Cannot load '${imagePath}': it is a ${kind}, not a regular file or directory.`);
+		if (stat.size > MAX_IMAGE_SIZE) throw new Error(`Image file too large: ${imagePath}`);
 		const buffer = await Bun.file(resolved).bytes();
 		if (buffer.length > MAX_IMAGE_SIZE) throw new Error(`Image file too large: ${imagePath}`);
 		const mimeType = parseImageMetadata(buffer)?.mimeType;
@@ -150,19 +171,6 @@ function resolveHostedImageCarrier(
 		if (!carrier || model.cost.input < carrier.cost.input) carrier = model;
 	}
 	return carrier;
-}
-
-/**
- * Configured provider priority set via `providers.imageOrder` (default: none).
- * Seeded by `applyProviderGlobalsFromSettings`; the role-chain resolution
- * above supersedes the pre-v18.4 provider-candidate loop that consumed it,
- * and the priority re-integration against the chain is queued as follow-up.
- */
-let configuredImageProviderOrder: readonly ImageProvider[] = [];
-
-/** Set the configured image-provider priority from settings; invalid IDs are dropped. */
-export function setImageProviderOrder(providers: readonly string[]): void {
-	configuredImageProviderOrder = providers.filter(isImageProviderId);
 }
 
 /**

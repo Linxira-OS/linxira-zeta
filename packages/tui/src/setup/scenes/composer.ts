@@ -130,7 +130,7 @@ class ComposerSceneController implements SetupSceneController {
 						}),
 					]),
 				],
-				{ gap: "sm", role: "zeta.setup.composer" },
+				{ gap: "sm", role: "omp.setup.composer" },
 			),
 		);
 	}

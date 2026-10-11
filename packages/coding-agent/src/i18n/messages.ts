@@ -1740,6 +1740,10 @@ export interface Messages {
 	ghFailedJobLogsLabel: string;
 	ghItemTitleFmt: string;
 	ghRepoItemFmt: string;
+	teaLabel: string;
+	teaSummary: string;
+	teaNoDescription: string;
+	teaUntitled: string;
 	ftErrCannotSearchUrl: string;
 	ftErrUrlDisabled: string;
 	ftInternalProtocolUrl: string;
@@ -2274,6 +2278,7 @@ export interface Messages {
 	cmdVisionAcp: string;
 	cmdPrewalkAcp: string;
 	cmdPrewalkRestart: string;
+	cmdPrewalkOff: string;
 	cmdTodoAcp: string;
 	cmdSessionAcp: string;
 	cmdJobsAcp: string;

@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { Agent, AgentBusyError } from "@linxiraos/pi-agent-core";
 import type { ApiKey, AssistantMessage, AssistantRetryRecovery, Model, Usage } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import * as aiStream from "@linxiraos/pi-ai/stream";
+import * as envApiKey from "@linxiraos/pi-ai/env-api-key";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -137,7 +137,7 @@ describe("AgentSession retry recovery", () => {
 
 	beforeEach(async () => {
 		tempDir = TempDir.createSync("@pi-retry-recovery-");
-		vi.spyOn(aiStream, "getEnvApiKey").mockReturnValue(undefined);
+		vi.spyOn(envApiKey, "getEnvApiKey").mockReturnValue(undefined);
 		await authStorage.credentials.remove("anthropic");
 		authStorage.keys.removeRuntime("anthropic");
 		modelRegistry.clearSuppressedSelectors();

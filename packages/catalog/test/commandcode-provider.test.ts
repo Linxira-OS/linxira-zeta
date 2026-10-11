@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import { getEnvApiKey, streamSimple } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { streamSimple } from "@linxiraos/pi-ai/stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { getBundledModels } from "@linxiraos/pi-catalog/models";

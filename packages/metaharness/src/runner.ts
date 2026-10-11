@@ -20,7 +20,7 @@ import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/m
  *   metaharness harbor --help
  */
 import type { Server } from "bun";
-import { harborRunnerArgs, type LaunchRequest } from "./launch-args";
+import { defaultJobName, harborRunnerArgs, type LaunchRequest } from "./launch-args";
 
 // ────────────────────────────────────────────────────────────────────── config
 
@@ -682,7 +682,7 @@ function parseTrial(dir: string, name: string): Trial | null {
 		}
 
 		// Realtime cost from the live agent zeta.txt log, parsed incrementally.
-		const probe = probeTrialCost(path.join(dir, "agent", "zeta.txt"));
+		const probe = probeTrialCost(path.join(dir, "agent", "omp.txt"));
 		const costUsd = probe?.costUsd ?? 0;
 		const tokIn = probe?.tokIn ?? 0;
 		const tokOut = probe?.tokOut ?? 0;
@@ -701,7 +701,7 @@ function parseTrial(dir: string, name: string): Trial | null {
 		};
 	}
 	// Trial finished: usage now comes from result.json; drop the live-parse state.
-	costProbes.delete(path.join(dir, "agent", "zeta.txt"));
+	costProbes.delete(path.join(dir, "agent", "omp.txt"));
 	const raw = readJson(resultPath);
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
@@ -1622,9 +1622,7 @@ async function runBenchmark(cfg: Config): Promise<BenchmarkRun> {
 		);
 	}
 
-	const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-	const modelSlug = (cfg.models[0] ?? "model").replace(/[^a-zA-Z0-9]+/g, "-");
-	const jobName = cfg.jobName ?? `${modelSlug}-${stamp}`;
+	const jobName = cfg.jobName ?? defaultJobName(cfg.models[0] ?? "model");
 	const jobDir = path.join(cfg.jobsDir, jobName);
 	const benchDir = path.join(cfg.jobsDir, "_bench", jobName);
 	fs.mkdirSync(benchDir, { recursive: true });

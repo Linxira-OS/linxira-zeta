@@ -17,7 +17,7 @@ import * as path from "node:path";
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const SHIM = path.join(REPO_ROOT, "main", "npm", "main", "bin", "zeta.js");
 const IS_WIN = process.platform === "win32";
-const EXE = IS_WIN ? "zeta.exe" : "zeta-linux-x64";
+const EXE = IS_WIN ? "omp.exe" : "zeta-linux-x64";
 const LEAF = IS_WIN ? "@linxiraos/main-windows-x64" : "@linxiraos/main-linux-x64";
 
 /** Bun's own executable doubles as the stub native binary: it is a real
@@ -103,7 +103,7 @@ describe("npm launcher shim discovery (e2e)", () => {
 
 	test("ZETA_BIN_DIR stub outranks PATH", async () => {
 		const explicitDir = tempDir("zeta-shim-explicit-");
-		installStub(explicitDir, IS_WIN ? "zeta.exe" : "zeta");
+		installStub(explicitDir, IS_WIN ? "omp.exe" : "zeta");
 		const { code, stdout } = await runShim(SHIM, envWith({ ZETA_BIN_DIR: explicitDir }));
 		expect(code).toBe(0);
 		expect(stdout).toMatch(/^\d+\.\d+\.\d+/m);

@@ -19,7 +19,7 @@ describe("RPC queued-message editing", () => {
 		return new RpcClient({
 			command: [process.execPath, path.join(import.meta.dir, "fixtures", "queued-message-rpc-agent.ts")],
 			cwd: directory,
-			env: { ZETA_CODING_AGENT_DIR: directory, ZETA_NO_TITLE: "1", QUEUED_RPC_SCRIPT: script ?? "" },
+			env: { ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1", QUEUED_RPC_SCRIPT: script ?? "" },
 		});
 	}
 
@@ -333,7 +333,7 @@ describe("RPC queued-message editing", () => {
 				[process.execPath, path.join(import.meta.dir, "fixtures", "queued-message-rpc-agent.ts")],
 				{
 					cwd: directory,
-					env: { ...Bun.env, ZETA_CODING_AGENT_DIR: directory, ZETA_NO_TITLE: "1", QUEUED_RPC_SCRIPT: "hold" },
+					env: { ...Bun.env, ZETA_CODING_AGENT_DIR: directory, PI_NO_TITLE: "1", QUEUED_RPC_SCRIPT: "hold" },
 					stdin: "pipe",
 					stdout: "pipe",
 					stderr: "ignore",

@@ -1,5 +1,5 @@
 /**
- * Git data model for the `zeta-c git` fullscreen TUI.
+ * Git data model for the `zetacode git` fullscreen TUI.
  *
  * Owns porcelain status parsing into staged/unstaged file lists, HEAD commit
  * metadata for the clean-tree view, per-file old/new content resolution for
@@ -219,7 +219,7 @@ function mapNumstat(entries: VcsNumstatEntry[]): NumstatEntry[] {
 export class GitModel {
 	readonly cwd: string;
 	readonly #repo: VcsGitRepo;
-	/** Resolved SHA when the TUI is pinned to one commit (`zeta-c git <rev>`). */
+	/** Resolved SHA when the TUI is pinned to one commit (`zetacode git <rev>`). */
 	readonly pinnedSha: string | null;
 	branch: string | null = null;
 	unstaged: ChangedFile[] = [];

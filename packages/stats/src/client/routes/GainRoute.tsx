@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getGainDashboardStats } from "../api";
+import { t } from "../i18n";
 import { Chart, type ChartSeries, Legend } from "../charts";
 import { formatBytes, formatCompact, formatInteger, formatPercent } from "../data/formatters";
 import { useQuery } from "../data/query";
@@ -39,7 +40,9 @@ interface SourceRow extends GainSourceTotals {
 
 export function GainRoute({ active, range }: GainRouteProps) {
 	const [project, setProject] = useState<string | null>(null);
-	const gain = useQuery(["gain", range, project], () => getGainDashboardStats(range, project), { enabled: active });
+	const gain = useQuery(["gain", range, project], ({ signal }) => getGainDashboardStats(range, project, signal), {
+		enabled: active,
+	});
 	const meta = rangeMeta(range);
 	const data = gain.data;
 
@@ -69,13 +72,12 @@ export function GainRoute({ active, range }: GainRouteProps) {
 	const projects = data?.projects ?? [];
 	// Keep the chosen project selectable even when the current range never saw it.
 	const projectOptions = project !== null && !projects.includes(project) ? [project, ...projects] : projects;
-	const scope = project ? ` for ${project}` : "";
 
 	const chartSeries: ChartSeries[] = [
-		{ key: "daily", label: "Saved per day", color: "var(--chart-primary)", values: series.daily },
+		{ key: "daily", label: t("gain.saved-per-day"), color: "var(--chart-primary)", values: series.daily },
 		{
 			key: "cumulative",
-			label: "Cumulative",
+			label: t("gain.cumulative"),
 			color: "var(--chart-secondary)",
 			values: series.cumulative,
 			kind: "line",
@@ -86,18 +88,22 @@ export function GainRoute({ active, range }: GainRouteProps) {
 	return (
 		<div className="page">
 			<PageHeader
-				title="Gain"
-				description={`Tokens snapcompact kept out of context${scope} in ${meta.windowLabel}.`}
+				title={t("gain.title")}
+				description={
+					project
+						? t("gain.description-scoped", { project, window: t(meta.windowKey) })
+						: t("gain.description", { window: t(meta.windowKey) })
+				}
 				actions={
 					projectOptions.length > 0 && (
 						<select
 							className="input"
-							aria-label="Project"
+							aria-label={t("common.project")}
 							value={project ?? ""}
 							onChange={e => setProject(e.target.value || null)}
 							style={{ maxWidth: 320 }}
 						>
-							<option value="">All projects</option>
+							<option value="">{t("gain.all-projects")}</option>
 							{projectOptions.map(p => (
 								<option key={p} value={p}>
 									{p}
@@ -115,12 +121,12 @@ export function GainRoute({ active, range }: GainRouteProps) {
 				empty={
 					<Card>
 						<EmptyState
-							title={`No savings recorded${scope} in ${meta.windowLabel}`}
-							hint={
-								range === "all"
-									? "Savings appear here once snapcompact compacts tool output."
-									: "Try a longer range."
+							title={
+								project
+									? t("gain.empty-title-scoped", { project, window: t(meta.windowKey) })
+									: t("gain.empty-title", { window: t(meta.windowKey) })
 							}
+							hint={range === "all" ? t("gain.empty-hint-all") : t("gain.empty-hint-longer-range")}
 						/>
 					</Card>
 				}
@@ -130,31 +136,31 @@ export function GainRoute({ active, range }: GainRouteProps) {
 						<div data-stale={gain.stale}>
 							<StatGrid min={180}>
 								<Stat
-									label="Saved tokens"
+									label={t("gain.saved-tokens")}
 									value={formatCompact(overall.savedTokens)}
 									hint={formatInteger(overall.savedTokens)}
 									spark={series.daily}
 								/>
-								<Stat label="Saved bytes" value={formatBytes(overall.savedBytes)} />
+								<Stat label={t("gain.saved-bytes")} value={formatBytes(overall.savedBytes)} />
 								<Stat
-									label="Reduction"
-									title="Saved bytes ÷ original bytes, when the original size is known"
+									label={t("gain.reduction")}
+									title={t("gain.reduction-title")}
 									value={overall.reductionPercent !== null ? formatPercent(overall.reductionPercent) : "–"}
-									hint={overall.reductionPercent === null ? "original size not recorded" : undefined}
+									hint={overall.reductionPercent === null ? t("gain.reduction-unknown") : undefined}
 								/>
-								<Stat label="Hits" value={formatInteger(overall.hits)} />
+								<Stat label={t("gain.hits")} value={formatInteger(overall.hits)} />
 								<Stat
-									label="Saved per hit"
+									label={t("gain.saved-per-hit")}
 									value={overall.hits > 0 ? formatCompact(overall.savedTokens / overall.hits) : "–"}
-									hint="tokens"
+									hint={t("common.tokens")}
 								/>
 							</StatGrid>
 						</div>
 
 						<Card
 							index={1}
-							title="Savings over time"
-							description="Tokens saved per UTC day, with the running total"
+							title={t("gain.savings-over-time")}
+							description={t("gain.savings-over-time-description")}
 							actions={<Legend items={chartSeries.map(s => ({ key: s.key, label: s.label, color: s.color }))} />}
 							stale={gain.stale}
 						>
@@ -168,7 +174,13 @@ export function GainRoute({ active, range }: GainRouteProps) {
 							/>
 						</Card>
 
-						<Card index={2} title="By source" description="Savings per subsystem" flush stale={gain.stale}>
+						<Card
+							index={2}
+							title={t("gain.by-source")}
+							description={t("gain.by-source-description")}
+							flush
+							stale={gain.stale}
+						>
 							<Table rows={sourceRows} rowKey={row => row.source} columns={SOURCE_COLUMNS} />
 						</Card>
 					</>
@@ -181,13 +193,13 @@ export function GainRoute({ active, range }: GainRouteProps) {
 const SOURCE_COLUMNS: Column<SourceRow>[] = [
 	{
 		key: "source",
-		header: "Source",
+		header: t("gain.source"),
 		sort: row => row.source,
 		render: row => <span className="cell-primary">{SOURCE_LABEL[row.source]}</span>,
 	},
 	{
 		key: "tokens",
-		header: "Saved tokens",
+		header: t("gain.saved-tokens"),
 		align: "right",
 		sort: row => row.savedTokens,
 		render: row => (
@@ -198,28 +210,28 @@ const SOURCE_COLUMNS: Column<SourceRow>[] = [
 	},
 	{
 		key: "share",
-		header: "Share",
+		header: t("common.share"),
 		align: "right",
 		sort: row => row.share,
 		render: row => <span className="num muted">{formatPercent(row.share)}</span>,
 	},
 	{
 		key: "bytes",
-		header: "Saved bytes",
+		header: t("gain.saved-bytes"),
 		align: "right",
 		sort: row => row.savedBytes,
 		render: row => <span className="num">{formatBytes(row.savedBytes)}</span>,
 	},
 	{
 		key: "hits",
-		header: "Hits",
+		header: t("gain.hits"),
 		align: "right",
 		sort: row => row.hits,
 		render: row => <span className="num">{formatInteger(row.hits)}</span>,
 	},
 	{
 		key: "reduction",
-		header: "Reduction",
+		header: t("gain.reduction"),
 		align: "right",
 		sort: row => row.reductionPercent ?? -1,
 		render: row => (

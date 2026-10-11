@@ -1,14 +1,14 @@
-# `zeta-c serve` and `zeta-c web` Commands
+# `zetacode serve` and `zetacode web` Commands
 
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-## `zeta-c serve`
+## `zetacode serve`
 
 Start both the Stats Dashboard and Web UI simultaneously.
 
 ```bash
-zeta-c serve
+zetacode serve
 ```
 
 ### Flags
@@ -25,24 +25,24 @@ zeta-c serve
 
 ```bash
 # Default: both services on standard ports
-zeta-c serve
+zetacode serve
 
 # Custom ports
-zeta-c serve --stats-port 9000 --web-port 8080
+zetacode serve --stats-port 9000 --web-port 8080
 
 # Stats only
-zeta-c serve --stats-only
+zetacode serve --stats-only
 
 # Don't open browser
-zeta-c serve --no-browser
+zetacode serve --no-browser
 ```
 
-## `zeta-c web`
+## `zetacode web`
 
-Start only the Web UI. Equivalent to `zeta-c serve --web-only`.
+Start only the Web UI. Equivalent to `zetacode serve --web-only`.
 
 ```bash
-zeta-c web
+zetacode web
 ```
 
 ### Flags
@@ -56,10 +56,10 @@ zeta-c web
 
 ```bash
 # Default port
-zeta-c web
+zetacode web
 
 # Custom port
-zeta-c web --port 8080
+zetacode web --port 8080
 ```
 
 ## Programmatic Equivalent
@@ -67,13 +67,13 @@ zeta-c web --port 8080
 ```typescript
 import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
-// Equivalent to: zeta-c serve
+// Equivalent to: zetacode serve
 await startZetaServer();
 
-// Equivalent to: zeta-c web
+// Equivalent to: zetacode web
 await startZetaServer({ webOnly: true });
 
-// Equivalent to: zeta-c serve --stats-only
+// Equivalent to: zetacode serve --stats-only
 await startZetaServer({ statsOnly: true });
 ```
 
@@ -96,14 +96,14 @@ Command resolution contract — the two installs never collide on PATH:
 
 | Command | Owner | Behavior |
 |---|---|---|
-| `zeta-c` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
+| `zetacode` | npm/source install | Always the CLI/TUI; never the desktop bundle. |
 | `zeta-d` | Desktop install only | No args → the bundled CLI/TUI. |
 | `zeta-d -d [cwd]` | Desktop install only | Opens the desktop GUI at `cwd` (default: current directory). |
-| `zeta-c --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
+| `zetacode --desktop [cwd]` | npm/source install | Probes for a desktop install and opens its GUI; exits 1 listing probed paths when none is found. |
 
 Mechanics:
 
-- The desktop package ships a two-line shim (`resources/bin/zeta-d`, `.cmd` on Windows) that sets `ZETA_DESKTOP_ENTRY=1` and re-enters the bundled zeta-c binary. The NSIS installer adds `resources\bin` to the user PATH (`build/installer.nsh` + `add-to-path.ps1`); the Linux installer symlinks `~/.local/bin/zeta-d`.
+- The desktop package ships a two-line shim (`resources/bin/zeta-d`, `.cmd` on Windows) that sets `ZETA_DESKTOP_ENTRY=1` and re-enters the bundled zetacode binary. The NSIS installer adds `resources\bin` to the user PATH (`build/installer.nsh` + `add-to-path.ps1`); the Linux installer symlinks `~/.local/bin/zeta-d`.
 - Dispatch lives in `src/cli/desktop-entry.ts` (`dispatchDesktopEntry`), runs before profile bootstrap in `runCli`. In entry mode it resolves the GUI relative to the running binary (`<install>/resources/zeta` → `<install>` root; the staging folder keeps its literal `zeta` name — desktop-entry.ts treats that basename as the bundled-runtime marker); otherwise it probes `%LOCALAPPDATA%\Programs\Zeta`, `/opt/zeta-desktop`, `~/.local/lib/zeta-desktop`, and the macOS app locations. The GUI receives `--cwd=<dir>` and starts its service in that workspace.
 - The bundled binary refuses standalone self-updates (`isDesktopBundledRuntime()` guard in `update-cli.ts`) — desktop installs update through the desktop updater, which replaces the whole bundle atomically.
 

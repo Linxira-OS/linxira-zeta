@@ -2,7 +2,7 @@
  * SessionRouter — multi-workspace session registry for the coordinator agent.
  *
  * The coordinator session (default workspace, alias `main`, created by
- * `zeta-c serve`) receives every inbound channel message unless that chat is
+ * `zetacode serve`) receives every inbound channel message unless that chat is
  * bound to a workspace. When it calls `workspace_run`, the router delivers a
  * subtask to the target workspace's session via `deliverIrcMessage` and waits
  * for that session's final `turn_end` reply. Target sessions never message

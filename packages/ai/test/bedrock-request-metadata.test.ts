@@ -1,11 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
-import { setBedrockProviderModule } from "@linxiraos/pi-ai/providers/register-builtins";
 import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Model } from "@linxiraos/pi-ai/types";
 import {
-	BEDROCK_TEST_CONTEXT,
 	bedrockTestModel,
+	BEDROCK_TEST_CONTEXT,
 	capturingBedrockFetch,
 	withSkippedBedrockAuth,
 } from "./helpers/bedrock-stream";
@@ -110,9 +109,6 @@ describe("amazon-bedrock requestMetadata via streamSimple mapper", () => {
 	// mapper on a direct (non pi-native) model, rather than only proving it
 	// survives `streamBedrock` called directly as the tests above do.
 	it("carries per-call requestMetadata from streamSimple through to the serialized body", async () => {
-		// Earlier files in the same process install mock Bedrock modules through
-		// `setBedrockProviderModule` and never restore them; pin the real one.
-		setBedrockProviderModule({ streamBedrock });
 		const seen: { body?: unknown } = {};
 		await withSkippedBedrockAuth(async () => {
 			await streamSimple(bedrockTestModel(), BEDROCK_TEST_CONTEXT, {

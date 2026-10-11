@@ -9,6 +9,7 @@ import type { CmuxKind } from "./cmux/rpc";
 import { CmuxSocketClient } from "./cmux/socket-client";
 import {
 	BROWSER_PROTOCOL_TIMEOUT_MS,
+	connectPuppeteer,
 	DEFAULT_VIEWPORT,
 	launchHeadlessBrowser,
 	loadPuppeteer,
@@ -220,7 +221,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		const cdpUrl = normalizeConnectedCdpUrl(kind.cdpUrl);
 		await waitForCdp(cdpUrl, 5_000, opts.signal);
 		const puppeteer = await loadPuppeteer();
-		const browser = await puppeteer.connect({
+		const browser = await connectPuppeteer(puppeteer, {
 			browserURL: cdpUrl,
 			defaultViewport: null,
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
@@ -249,12 +250,12 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		const outcome = await waitForRelayExtension(cdpUrl, opts.signal);
 		if (outcome === "unreachable") {
 			throw new ToolError(
-				`zeta-c browser relay is not reachable at ${cdpUrl}. Start it with \`zeta-c browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
+				`zetacode browser relay is not reachable at ${cdpUrl}. Start it with \`zetacode browser-relay\` (or check the endpoint), and make sure the Zeta Browser Relay extension is loaded in Chrome.`,
 			);
 		}
 		if (outcome === "no-extension") {
 			throw new ToolError(
-				`zeta-c browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`zeta-c browser-relay install\` and check the toolbar badge shows "on".`,
+				`zetacode browser relay is serving at ${cdpUrl} but its extension never connected. Install it with \`zetacode browser-relay install\` and check the toolbar badge shows "on".`,
 			);
 		}
 		if (outcome === "extension-gone") {
@@ -273,7 +274,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 			);
 		}
 		const puppeteer = await loadPuppeteer();
-		const browser = await puppeteer.connect({
+		const browser = await connectPuppeteer(puppeteer, {
 			browserURL: cdpUrl,
 			defaultViewport: null,
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
@@ -329,7 +330,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 	const puppeteer = await loadPuppeteer();
 	let browser: Browser;
 	try {
-		browser = await puppeteer.connect({
+		browser = await connectPuppeteer(puppeteer, {
 			browserURL: cdpUrl,
 			defaultViewport: null,
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
@@ -461,11 +462,11 @@ async function openSharedHeadlessHandle(
 		});
 		if (!shared) {
 			throw new ToolError(
-				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zeta-c ps` for omp.browser.* daemons and ~/.zeta/logs for details",
+				"Shared browser daemon unavailable (broker start or Chromium launch failed); check `zetacode ps` for omp.browser.* daemons and ~/.zeta/logs for details",
 			);
 		}
 		const puppeteer = await loadPuppeteer();
-		const browser = await puppeteer.connect({
+		const browser = await connectPuppeteer(puppeteer, {
 			browserWSEndpoint: shared.wsEndpoint,
 			defaultViewport: kind.headless
 				? {

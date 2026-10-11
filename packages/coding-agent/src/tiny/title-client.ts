@@ -113,7 +113,7 @@ function normalizeTinyTitleGenerateOptions(
 
 // ── Device / dtype resolution ────────────────────────────────────────
 
-/** Setting value (its env var included); only the env var when settings are uninitialized (e.g. `zeta-c --smoke-test`). */
+/** Setting value (its env var included); only the env var when settings are uninitialized (e.g. `zetacode --smoke-test`). */
 function readTinyModelSetting(setting: Setting<string>): string | undefined {
 	return isSettingsInitialized() ? setting.get(settings) : setting.envValue();
 }

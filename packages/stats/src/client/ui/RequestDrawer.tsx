@@ -1,5 +1,6 @@
 import { GitBranch } from "lucide-react";
 import { getRequestDetails } from "../api";
+import { t } from "../i18n";
 import {
 	formatCost,
 	formatDurationMs,
@@ -22,9 +23,9 @@ import "./request-drawer.css";
 
 /** Label and tone for each request outcome; shared by the request tables. */
 export const REQUEST_STATUS: Record<RequestStatus, { label: string; tone: Tone }> = {
-	ok: { label: "OK", tone: "ok" },
-	aborted: { label: "Aborted", tone: "warn" },
-	failed: { label: "Failed", tone: "bad" },
+	ok: { label: t("ui.status-ok"), tone: "ok" },
+	aborted: { label: t("common.aborted"), tone: "warn" },
+	failed: { label: t("common.failed"), tone: "bad" },
 };
 
 export interface RequestDrawerProps {
@@ -34,7 +35,9 @@ export interface RequestDrawerProps {
 
 /** Full detail sheet for one model request: timing, tokens, cost, ids, error, and the raw session entry. */
 export function RequestDrawer({ id, onClose }: RequestDrawerProps) {
-	const query = useQuery(["request", id], () => getRequestDetails(id ?? 0), { enabled: id !== null });
+	const query = useQuery(["request", id], ({ signal }) => getRequestDetails(id ?? 0, signal), {
+		enabled: id !== null,
+	});
 	// Never show the previous request's payload under a new id.
 	const details = query.stale ? null : query.data;
 	const status = details ? REQUEST_STATUS[requestStatus(details)] : null;
@@ -44,7 +47,7 @@ export function RequestDrawer({ id, onClose }: RequestDrawerProps) {
 			open={id !== null}
 			onClose={onClose}
 			width={620}
-			title={details ? <span className="mono">{details.model}</span> : "Request"}
+			title={details ? <span className="mono">{details.model}</span> : t("common.request")}
 			subtitle={
 				details ? (
 					<>
@@ -68,7 +71,7 @@ export function RequestDrawer({ id, onClose }: RequestDrawerProps) {
 								session: details.sessionFile,
 							})}
 							onClick={onClose}
-							title="Open this request's session in the trace view"
+							title={t("ui.open-trace")}
 						>
 							<GitBranch size={13} /> Trace
 						</a>
@@ -106,35 +109,35 @@ function RequestDetailsBody({ details, aborted }: { details: RequestDetails; abo
 		<>
 			{details.errorMessage && (
 				<section className="request-drawer-error" data-tone={aborted ? "warn" : "bad"} role="note">
-					<div className="request-drawer-error-label">{aborted ? "Aborted" : "Error"}</div>
+					<div className="request-drawer-error-label">{aborted ? t("common.aborted") : t("common.error")}</div>
 					<pre className="request-drawer-error-text">{details.errorMessage}</pre>
 				</section>
 			)}
 
 			<section>
-				<div className="section-label">Timing</div>
+				<div className="section-label">{t("ui.section-timing")}</div>
 				<KeyValues
 					items={[
-						{ key: "at", label: "Started", value: formatTimestamp(details.timestamp) },
-						{ key: "duration", label: "Duration", value: formatDurationMs(details.duration) },
-						{ key: "ttft", label: "Time to first token", value: formatDurationMs(details.ttft) },
-						{ key: "tps", label: "Output tokens/s", value: formatTokensPerSecond(throughput) },
+						{ key: "at", label: t("common.started"), value: formatTimestamp(details.timestamp) },
+						{ key: "duration", label: t("common.duration"), value: formatDurationMs(details.duration) },
+						{ key: "ttft", label: t("ui.time-to-first-token"), value: formatDurationMs(details.ttft) },
+						{ key: "tps", label: t("common.output-tokens-per-second"), value: formatTokensPerSecond(throughput) },
 					]}
 				/>
 			</section>
 
 			<section>
-				<div className="section-label">Tokens</div>
+				<div className="section-label">{t("common.tokens")}</div>
 				<KeyValues
 					items={[
-						{ key: "input", label: "Uncached input", value: formatInteger(usage.input) },
-						{ key: "cacheRead", label: "Cache read", value: formatInteger(usage.cacheRead) },
-						{ key: "cacheWrite", label: "Cache write", value: formatInteger(usage.cacheWrite) },
-						{ key: "output", label: "Output", value: formatInteger(usage.output) },
-						{ key: "total", label: "Total", value: formatInteger(usage.totalTokens) },
+						{ key: "input", label: t("ui.uncached-input"), value: formatInteger(usage.input) },
+						{ key: "cacheRead", label: t("common.cache-read"), value: formatInteger(usage.cacheRead) },
+						{ key: "cacheWrite", label: t("common.cache-write"), value: formatInteger(usage.cacheWrite) },
+						{ key: "output", label: t("common.output"), value: formatInteger(usage.output) },
+						{ key: "total", label: t("common.total"), value: formatInteger(usage.totalTokens) },
 						{
 							key: "premium",
-							label: "Premium requests",
+							label: t("common.premium-requests"),
 							value: formatInteger(Math.round((usage.premiumRequests ?? 0) * 100) / 100),
 						},
 					]}
@@ -142,11 +145,11 @@ function RequestDetailsBody({ details, aborted }: { details: RequestDetails; abo
 			</section>
 
 			<section>
-				<div className="section-label">API-equivalent cost</div>
+				<div className="section-label">{t("ui.section-cost")}</div>
 				<KeyValues
 					items={[
 						{ key: "total", label: "Total", value: formatMessageCost(details, 4) },
-						{ key: "input", label: "Input", value: formatCost(usage.cost.input, 4) },
+						{ key: "input", label: t("common.input"), value: formatCost(usage.cost.input, 4) },
 						{ key: "cacheRead", label: "Cache read", value: formatCost(usage.cost.cacheRead, 4) },
 						{ key: "cacheWrite", label: "Cache write", value: formatCost(usage.cost.cacheWrite, 4) },
 						{ key: "output", label: "Output", value: formatCost(usage.cost.output, 4) },
@@ -155,29 +158,29 @@ function RequestDetailsBody({ details, aborted }: { details: RequestDetails; abo
 			</section>
 
 			<section>
-				<div className="section-label">Identity</div>
+				<div className="section-label">{t("ui.section-identity")}</div>
 				<KeyValues
 					items={[
-						{ key: "id", label: "Request id", value: details.id ?? "–" },
-						{ key: "entry", label: "Entry id", value: details.entryId },
-						{ key: "stop", label: "Stop reason", value: details.stopReason },
+						{ key: "id", label: t("common.request-id"), value: details.id ?? "–" },
+						{ key: "entry", label: t("common.entry-id"), value: details.entryId },
+						{ key: "stop", label: t("ui.stop-reason"), value: details.stopReason },
 						{ key: "api", label: "API", value: details.api },
 						{
 							key: "project",
-							label: "Project",
+							label: t("common.project"),
 							value: <span title={details.folder}>{formatFolder(details.folder)}</span>,
 						},
 					]}
 				/>
 				<div className="request-drawer-file">
-					<span className="kv-key">Session file</span>
+					<span className="kv-key">{t("ui.session-file")}</span>
 					<span className="kv-value">{details.sessionFile}</span>
 				</div>
 			</section>
 
-			{output != null && <JsonBlock data={output} title="Output message" />}
-			<JsonBlock data={messages} title="Session entry" initialCollapsed />
-			<JsonBlock data={row} title="Stats row" initialCollapsed />
+			{output != null && <JsonBlock data={output} title={t("common.output-message")} />}
+			<JsonBlock data={messages} title={t("common.session-entry")} initialCollapsed />
+			<JsonBlock data={row} title={t("ui.stats-row")} initialCollapsed />
 		</>
 	);
 }

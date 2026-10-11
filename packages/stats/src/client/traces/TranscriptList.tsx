@@ -4,8 +4,9 @@
  * selection. Hand-rolled fixed-row virtualization (32px rows, spacer divs).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationMs } from "../data/formatters";
+import { t } from "../i18n";
 import { EmptyState } from "../ui";
 import type { TraceMarker, TraceSpan, TraceTrack } from "../types";
 import { formatOffset } from "./time-scale";
@@ -25,6 +26,8 @@ export interface TranscriptListProps {
 	selection: string | null;
 	onSelect: (spanId: string) => void;
 	search: string;
+	/** Spans matching `search` (from the trace view); `null` when not searching. */
+	matchIds: ReadonlySet<string> | null;
 	traceStart: number;
 }
 
@@ -49,20 +52,26 @@ export function buildTranscriptRows(tracks: TraceTrack[]): TranscriptRow[] {
 	return rows;
 }
 
-export function TranscriptList({ tracks, selection, onSelect, search, traceStart }: TranscriptListProps) {
+export const TranscriptList = memo(function TranscriptList({
+	tracks,
+	selection,
+	onSelect,
+	search,
+	matchIds,
+	traceStart,
+}: TranscriptListProps) {
 	const colors = useTraceTheme();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [scrollTop, setScrollTop] = useState(0);
 
 	const allRows = useMemo(() => buildTranscriptRows(tracks), [tracks]);
 	const rows = useMemo(() => {
+		if (!matchIds) return allRows;
 		const needle = search.trim().toLowerCase();
-		if (!needle) return allRows;
-		return allRows.filter(row => {
-			const text = row.span ? `${row.span.label} ${row.span.detail ?? ""}` : (row.marker?.label ?? "");
-			return text.toLowerCase().includes(needle);
-		});
-	}, [allRows, search]);
+		return allRows.filter(row =>
+			row.span ? matchIds.has(row.span.id) : (row.marker?.label ?? "").toLowerCase().includes(needle),
+		);
+	}, [allRows, search, matchIds]);
 
 	// Scroll the selected row into view when selection changes externally.
 	useEffect(() => {
@@ -106,7 +115,7 @@ export function TranscriptList({ tracks, selection, onSelect, search, traceStart
 								<span className="traces-row-label truncate">{label}</span>
 								{detail && <span className="traces-row-detail truncate">{detail}</span>}
 								<span className="traces-row-meta num">
-									{row.span?.isError && <span className="tone-bad">error</span>}
+									{row.span?.isError && <span className="tone-bad">{t("common.error")}</span>}
 									<span>{duration}</span>
 									<span>{formatOffset(row.time - traceStart)}</span>
 								</span>
@@ -132,7 +141,7 @@ export function TranscriptList({ tracks, selection, onSelect, search, traceStart
 					})}
 				</div>
 			</div>
-			{rows.length === 0 && <EmptyState title="No matching events" />}
+			{rows.length === 0 && <EmptyState title={t("trace.no-matching-events")} />}
 		</div>
 	);
-}
+});

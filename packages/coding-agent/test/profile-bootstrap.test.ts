@@ -18,7 +18,7 @@ describe("extractProfileFlags", () => {
 	});
 
 	it("does not eat the value of known string-valued flags", () => {
-		// `zeta-c --system-prompt --profile foo` must pass the literal `--profile`
+		// `zetacode --system-prompt --profile foo` must pass the literal `--profile`
 		// through to the launch parser (it's the system prompt) and `foo` is the
 		// positional message. The previous implementation would silently activate
 		// profile `foo` here, dropping the user's prompt.

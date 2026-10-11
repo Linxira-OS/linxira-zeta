@@ -71,7 +71,7 @@ async function runConfigSet(tempDir: TempDir, settingsInit: SettingsInitMode): P
 	// The child must resolve its agent dir from the isolated home, not an inherited override or profile.
 	const env: Record<string, string | undefined> = { ...process.env, HOME: home, USERPROFILE: home, NO_COLOR: "1" };
 	delete env.ZETA_CODING_AGENT_DIR;
-	delete env.PI_CONFIG_DIR;
+	delete env.ZETA_CONFIG_DIR;
 	delete env.OMP_PROFILE;
 	delete env.PI_PROFILE;
 	delete env.XDG_CACHE_HOME;
@@ -98,7 +98,7 @@ describe("one-shot CLI command settlement", () => {
 
 		expect(run.exitCode, run.stderr).toBe(1);
 		// Names the stalled subcommand so automation logs show what failed, without its arguments.
-		expect(run.stderr).toContain(`\`zeta-c config\` ${DIAGNOSTIC}`);
+		expect(run.stderr).toContain(`\`zetacode config\` ${DIAGNOSTIC}`);
 		expect(run.stderr).not.toContain("collab.autoStart");
 		expect(run.stdout).toBe("");
 		expect(fs.existsSync(run.configPath)).toBe(false);

@@ -4,7 +4,9 @@ import * as path from "node:path";
 import {
 	type AuthCredential,
 	type AuthCredentialStore,
+	parseServiceTier,
 	SqliteAuthCredentialStore,
+	type ServiceTier,
 	type StoredAuthCredential,
 } from "@linxiraos/pi-ai";
 import {
@@ -42,7 +44,7 @@ type ModelPerfRow = {
 	ttft_ms: number;
 };
 
-/** Row shape read from a `zeta-c stats` messages table during backfill. */
+/** Row shape read from a `zetacode stats` messages table during backfill. */
 type StatsMessageRow = {
 	rowid: number;
 	timestamp: number;
@@ -51,6 +53,8 @@ type StatsMessageRow = {
 	output_tokens: number;
 	duration: number;
 	ttft: number | null;
+	/** Served service tier; absent on stats databases written before the column existed. */
+	service_tier?: string | null;
 };
 
 /** Per-model running sums accumulated during a backfill walk. */
@@ -98,7 +102,14 @@ export interface ModelPerfStats {
  */
 const MODEL_PERF_DECAY_AT = 256;
 /** meta-table marker set once historical stats.db rows have been imported into model_perf. */
-const MODEL_PERF_BACKFILL_KEY = "model_perf_backfill";
+const MODEL_PERF_BACKFILL_KEY = "model_perf_backfill_v2";
+/**
+ * Marker the v1 import wrote. Its presence means the aggregates already hold
+ * the stats history (tierless, so blended into the bare rows), so the v2 pass
+ * keeps the live aggregates and only records itself complete instead of adding
+ * the same history again.
+ */
+const MODEL_PERF_BACKFILL_V1_KEY = "model_perf_backfill";
 /**
  * Batch window for deferred model_perf writes. Perf aggregates are advisory, so
  * one transaction per minute replaces one per turn; the timer is unref'd and the
@@ -113,6 +124,18 @@ const MODEL_PERF_BACKFILL_MAX_AGE_MS = 90 * 86_400_000;
 const MODEL_PERF_BACKFILL_CHUNK = 2048;
 /** Hard ceiling on rows scanned per backfill run, whatever the age cutoff admits — bounds total CPU on very high-volume databases (models only seen earlier than the newest N measurable rows get no backfill). */
 const MODEL_PERF_BACKFILL_MAX_ROWS = 250_000;
+
+/**
+ * `model_perf` row key: the model, plus the service tier when the turn ran on a
+ * non-default one (`provider/model@ultrafast`). Tier rows keep a fast serving
+ * path's throughput from blending into the standard average — a 300 t/s
+ * ultrafast turn and a 25 t/s standard turn are different measurements, not one
+ * 160 t/s model. Readers that do not know the tier read the bare
+ * `provider/model` row, which stays the standard/default-tier aggregate.
+ */
+export function modelPerfKey(modelKey: string, serviceTier?: ServiceTier | null): string {
+	return serviceTier && serviceTier !== "auto" && serviceTier !== "default" ? `${modelKey}@${serviceTier}` : modelKey;
+}
 
 /**
  * Validates one request timing and shapes it for the model_perf upsert.
@@ -200,8 +223,10 @@ ON CONFLICT(model_key) DO UPDATE SET
 	ttft_ms = (CASE WHEN model_perf.samples >= ${MODEL_PERF_DECAY_AT} THEN model_perf.ttft_ms * 0.5 ELSE model_perf.ttft_ms END) + excluded.ttft_ms,
 	updated_at = ${SQLITE_NOW_EPOCH}`,
 		);
+		// `model_key TEXT PRIMARY KEY` admits NULL (SQLite rowid-table quirk); a NULL
+		// key would break every consumer that treats perf keys as selectors.
 		this.#listModelPerfStmt = this.#db.prepare(
-			"SELECT model_key, samples, output_tokens, gen_ms, ttft_samples, ttft_ms FROM model_perf",
+			"SELECT model_key, samples, output_tokens, gen_ms, ttft_samples, ttft_ms FROM model_perf WHERE model_key IS NOT NULL",
 		);
 		this.#usageStmts = {
 			command: this.#prepareUsageStatements("command"),
@@ -560,9 +585,11 @@ FROM model_usage_legacy
 	 * the turn-completion hot path. Fire-and-forget safe — flush failures are
 	 * logged, never thrown; await the returned promise only to observe the flush.
 	 * @param modelKey - Model key in "provider/modelId" format
+	 * @param serviceTier - Tier the turn ran on; non-default tiers aggregate in
+	 * their own row (see {@link modelPerfKey})
 	 */
-	recordModelPerf(modelKey: string, sample: ModelPerfSample): Promise<void> {
-		const row = normalizeModelPerfSample(modelKey, sample);
+	recordModelPerf(modelKey: string, sample: ModelPerfSample, serviceTier?: ServiceTier | null): Promise<void> {
+		const row = normalizeModelPerfSample(modelPerfKey(modelKey, serviceTier), sample);
 		if (!row) return Promise.resolve();
 		return this.#perfDrain.push(row, rows => this.#flushModelPerf(rows));
 	}
@@ -613,12 +640,12 @@ FROM model_usage_legacy
 
 	/**
 	 * One-time, non-blocking import of historical request timings from the
-	 * `zeta-c stats` database (`~/.zeta/stats.db`) into model_perf. Fire-and-forget:
+	 * `zetacode stats` database (`~/.zeta/stats.db`) into model_perf. Fire-and-forget:
 	 * the walk runs in bounded chunks with event-loop yields between them
 	 * (bun:sqlite is synchronous — an unbounded scan here froze the TUI for
 	 * ~30s on multi-million-row stats databases), and the persistent meta
 	 * marker is only set on success so a crash or error retries next process.
-	 * A missing stats.db leaves the marker unset so a later `zeta-c stats` run
+	 * A missing stats.db leaves the marker unset so a later `zetacode stats` run
 	 * still gets imported. No-op for non-default db paths.
 	 */
 	#kickModelPerfBackfill(): void {
@@ -628,6 +655,15 @@ FROM model_usage_legacy
 			using markerStmt = this.#db.prepare("SELECT value FROM meta WHERE key = ?");
 			const marker = markerStmt.get(MODEL_PERF_BACKFILL_KEY);
 			if (marker) return;
+			// The v1 import already folded the stats history into the bare rows, and no
+			// stats row written before the served-tier field carries a tier, so
+			// re-importing would only double-count it. Keep the live aggregates (blended
+			// history decays out of them) and just record v2.
+			if (markerStmt.get(MODEL_PERF_BACKFILL_V1_KEY)) {
+				using markCompleteStmt = this.#db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)");
+				markCompleteStmt.run(MODEL_PERF_BACKFILL_KEY, "complete");
+				return;
+			}
 			const statsDbPath = getStatsDbPath();
 			if (!fs.existsSync(statsDbPath)) return;
 			void this.backfillModelPerfFromStats(statsDbPath)
@@ -645,7 +681,7 @@ FROM model_usage_legacy
 	}
 
 	/**
-	 * Imports recent measurable request rows from a `zeta-c stats` database
+	 * Imports recent measurable request rows from a `zetacode stats` database
 	 * (`messages` table) into the model_perf aggregates. Walks newest-first
 	 * over the timestamp index in {@link MODEL_PERF_BACKFILL_CHUNK}-row chunks,
 	 * yielding to the event loop between chunks, and keeps at most
@@ -663,8 +699,14 @@ FROM model_usage_legacy
 		const statsDb = new Database(statsDbPath, { readonly: true });
 		try {
 			statsDb.run(`PRAGMA busy_timeout = ${getDbBusyTimeoutMs()}`);
+			// Stats databases written before the served-tier column existed cannot
+			// separate a fast serving path's samples from standard ones; those rows
+			// import as standard-tier history.
+			const hasTier = (statsDb.prepare("PRAGMA table_info(messages)").all() as { name: string }[]).some(
+				column => column.name === "service_tier",
+			);
 			using select = statsDb.prepare(
-				`SELECT rowid, timestamp, provider, model, output_tokens, duration, ttft
+				`SELECT rowid, timestamp, provider, model, output_tokens, duration, ttft${hasTier ? ", service_tier" : ""}
 FROM messages
 WHERE (timestamp < ?1 OR (timestamp = ?1 AND rowid < ?2))
 	AND timestamp >= ?3
@@ -687,7 +729,7 @@ LIMIT ?4`,
 				cursorTimestamp = last.timestamp;
 				cursorRowid = last.rowid;
 				for (const row of rows) {
-					const key = `${row.provider}/${row.model}`;
+					const key = modelPerfKey(`${row.provider}/${row.model}`, parseServiceTier(row.service_tier));
 					let accum = sums.get(key);
 					if (accum && accum.samples >= MODEL_PERF_DECAY_AT) continue;
 					const normalized = normalizeModelPerfSample(key, {

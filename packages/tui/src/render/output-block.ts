@@ -302,7 +302,7 @@ export function describeOutputBlock(options: NativeOutputBlockOptions): NativeNo
 	return node(
 		"card",
 		{
-			role: options.role ?? "zeta.output",
+			role: options.role ?? "omp.output",
 			tone: options.tone ?? outputStateTone(options.state),
 			status: outputStateStatus(options.state),
 			head,

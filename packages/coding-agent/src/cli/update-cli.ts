@@ -1371,7 +1371,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 
 	const reason = hasShebang
 		? "is a shebang script, not an OMP binary"
-		: "does not report a zeta-c version when run directly";
+		: `does not report a ${CLI_BIN_NAME} version when run directly`;
 	throw new Error(
 		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
 	);

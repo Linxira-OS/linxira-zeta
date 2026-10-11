@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import { getEnvApiKey } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { isCatalogDescriptor, resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
 import { DEFAULT_MODEL_PER_PROVIDER, PROVIDER_DESCRIPTORS } from "@linxiraos/pi-catalog/provider-models/descriptors";

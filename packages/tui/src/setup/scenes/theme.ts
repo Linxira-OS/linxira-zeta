@@ -174,7 +174,7 @@ function describeThemePreview(): NativeNode {
 				),
 			]),
 		],
-		{ role: "zeta.setup.theme.preview" },
+		{ role: "omp.setup.theme.preview" },
 	);
 }
 
@@ -325,7 +325,7 @@ class ThemeSceneController implements SetupSceneController {
 				];
 				if (this.#message)
 					children.push(node("text", { spans: [span(this.#message, "error")] }, undefined, "status"));
-				return col(children, { gap: "sm", role: "zeta.setup.theme" });
+				return col(children, { gap: "sm", role: "omp.setup.theme" });
 			},
 		);
 	}

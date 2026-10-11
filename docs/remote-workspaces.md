@@ -1,6 +1,6 @@
 # Remote Workspaces & IM Relay
 
-When IM channels are enabled (`zeta-c serve`, desktop app, or `--channels`), the
+When IM channels are enabled (`zetacode serve`, desktop app, or `--channels`), the
 **coordinator** session of the default workspace receives every inbound chat
 message. From an ordinary IM chat (WeChat / Feishu / Telegram — plain text
 only) you drive Zeta with the `!` command grammar below.

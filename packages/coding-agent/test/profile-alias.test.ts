@@ -23,9 +23,9 @@ describe("profile alias installer", () => {
 		});
 
 		expect(result.configPath).toBe("/home/me/.bashrc");
-		expect(result.command).toBe("zeta-c --profile=work");
+		expect(result.command).toBe("zetacode --profile=work");
 		expect(files.get("/home/me/.bashrc")).toContain("zeta-work() {");
-		expect(files.get("/home/me/.bashrc")).toContain('command zeta-c --profile=work "$@"');
+		expect(files.get("/home/me/.bashrc")).toContain('command zetacode --profile=work "$@"');
 	});
 
 	it("resolves source invocations without forcing the source checkout as cwd", () => {
@@ -52,10 +52,10 @@ describe("profile alias installer", () => {
 		});
 
 		expect(command).toEqual({
-			display: "zeta-c",
-			posix: "zeta-c",
-			fish: "zeta-c",
-			powerShell: "zeta-c",
+			display: "zetacode",
+			posix: "zetacode",
+			fish: "zetacode",
+			powerShell: "zetacode",
 		});
 	});
 
@@ -144,7 +144,7 @@ describe("profile alias installer", () => {
 
 		const content = files.get("/Users/me/.config/fish/conf.d/zeta-profiles.fish") ?? "";
 		expect(content).toContain("function zeta-work --wraps zeta");
-		expect(content).toContain("command zeta-c --profile=work $argv");
+		expect(content).toContain("command zetacode --profile=work $argv");
 	});
 
 	it("installs the fish alias under XDG_CONFIG_HOME when set", async () => {
@@ -185,7 +185,7 @@ describe("profile alias installer", () => {
 		const psConfigPath = path.join("C:\\Users\\me", "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
 		const content = files.get(psConfigPath) ?? "";
 		expect(content).toContain("function zeta-work");
-		expect(content).toContain("& zeta-c --profile=work @args");
+		expect(content).toContain("& zetacode --profile=work @args");
 	});
 
 	it("detects pwsh from PSModulePath when SHELL is unset on Windows", async () => {
@@ -209,7 +209,7 @@ describe("profile alias installer", () => {
 		expect(result.shell).toBe("pwsh");
 		const psConfigPath = path.join("C:\\Users\\me", "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
 		expect(result.configPath).toBe(psConfigPath);
-		expect(files.get(result.configPath)).toContain("& zeta-c --profile=work @args");
+		expect(files.get(result.configPath)).toContain("& zetacode --profile=work @args");
 	});
 
 	it("selects Windows PowerShell when only WindowsPowerShell modules are present", async () => {
@@ -289,7 +289,7 @@ describe("profile alias installer", () => {
 		const content = files.get("/home/me/.zshrc") ?? "";
 		expect(content).toContain("before");
 		expect(content).toContain("after");
-		expect(content).toContain('command zeta-c --profile=work "$@"');
+		expect(content).toContain('command zetacode --profile=work "$@"');
 		expect(content).not.toContain("--profile=old");
 	});
 

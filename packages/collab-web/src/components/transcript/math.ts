@@ -1,8 +1,7 @@
 import type { MarkedExtension, Tokens } from "@linxiraos/pi-utils/marked";
 import {
-	mathBlockAt,
 	type MathSpan,
-	mathSpanAt,
+	mathBlockInContext,
 	mathSpanInContext,
 	mathStartIndex,
 } from "@linxiraos/pi-utils/math-delimiters";
@@ -62,7 +61,7 @@ export const mathExtension: MarkedExtension = {
 			// No `start` hint: this parser probes block extensions only at a block
 			// boundary and never consults their hints.
 			tokenizer(source) {
-				const block = mathBlockAt(source);
+				const block = mathBlockInContext(this, source);
 				if (!block) return undefined;
 				return { type: "math", raw: block.raw, text: block.body, display: true };
 			},

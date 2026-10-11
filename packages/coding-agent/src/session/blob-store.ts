@@ -12,7 +12,7 @@ export const BLOB_HASH_RE = /^[a-f0-9]{64}$/;
 
 /**
  * A reused blob older than this gets its mtime refreshed (metadata only, never
- * its bytes) so `zeta-c gc`'s write-grace window still covers a blob whose new
+ * its bytes) so `zetacode gc`'s write-grace window still covers a blob whose new
  * reference has not reached a session file yet. Younger blobs are left alone.
  */
 const BLOB_REUSE_TOUCH_MS = 60_000;
@@ -20,7 +20,7 @@ const BLOB_REUSE_TOUCH_MS = 60_000;
 /**
  * Staging file an atomic blob or sidecar write renames into place:
  * `.<hash>[.<ext>].<snowflake>.tmp`. Only a killed or crashed writer leaves one
- * behind, so `zeta-c gc` removes the ones older than its write grace.
+ * behind, so `zetacode gc` removes the ones older than its write grace.
  */
 export const BLOB_STAGING_RE = /^\.[a-f0-9]{64}(?:\.[A-Za-z0-9][A-Za-z0-9._-]{0,31})?\.[0-9a-f]{16}\.tmp$/;
 
@@ -32,6 +32,17 @@ export function blobStagingPath(target: string): string {
 export interface BlobPutOptions {
 	/** Optional file extension for a sidecar hardlink/copy that OS openers can type-detect. */
 	extension?: string;
+	/**
+	 * SHA-256 hex digest of `data` the caller already computed; skips re-hashing.
+	 * Must be exactly that digest — a mismatch would file the bytes under the wrong
+	 * address. Ignored (the data is hashed) unless it matches {@link BLOB_HASH_RE}.
+	 */
+	hash?: string;
+}
+
+function blobHash(data: Buffer, precomputed: string | undefined): string {
+	if (precomputed !== undefined && BLOB_HASH_RE.test(precomputed)) return precomputed;
+	return new Bun.SHA256().update(data).digest("hex");
 }
 
 export interface BlobPutResult {
@@ -174,7 +185,7 @@ export class BlobStore {
 	 * @returns SHA-256 hex hash of the data
 	 */
 	async put(data: Buffer, options?: BlobPutOptions): Promise<BlobPutResult> {
-		const hash = new Bun.SHA256().update(data).digest("hex");
+		const hash = blobHash(data, options?.hash);
 		const blobPath = path.join(this.dir, hash);
 		const extension = normalizeBlobExtension(options?.extension);
 		const displayPath = extension ? `${blobPath}.${extension}` : blobPath;
@@ -208,7 +219,7 @@ export class BlobStore {
 	 * Returns once the bytes are in the kernel page cache.
 	 */
 	putSync(data: Buffer, options?: BlobPutOptions): BlobPutResult {
-		const hash = new Bun.SHA256().update(data).digest("hex");
+		const hash = blobHash(data, options?.hash);
 		const blobPath = path.join(this.dir, hash);
 		const extension = normalizeBlobExtension(options?.extension);
 		const displayPath = extension ? `${blobPath}.${extension}` : blobPath;

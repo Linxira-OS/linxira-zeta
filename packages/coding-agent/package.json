@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/zeta",
-  "version": "1.1.27",
+  "version": "1.1.29",
   "description": "Coding agent CLI with read, bash, edit, write tools and session management",
   "keywords": [
     "coding-agent",
@@ -533,8 +533,6 @@
     "gen:tool-views": "bun --cwd=../collab-web run gen:tool-views",
     "gen:bundle": "bun scripts/bundle-dist.ts",
     "gen:rpc": "bun scripts/gen-rpc/index.ts",
-    "gen:native": "bun --cwd=../natives run gen:native",
-    "gen:native:reset": "bun --cwd=../natives run gen:native:reset",
     "prepack": "bun run gen:tool-views && bun run gen:bundle",
     "bench:guard": "bun scripts/bench-guard.ts"
   },

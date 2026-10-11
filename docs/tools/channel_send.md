@@ -1,13 +1,13 @@
 # channel_send
 
-> Push a message to the remote IM channel (WeChat / Feishu / Telegram) the user talks to through `zeta-c serve`. The agent decides what is worth forwarding; working-tool output is never sent automatically.
+> Push a message to the remote IM channel (WeChat / Feishu / Telegram) the user talks to through `zetacode serve`. The agent decides what is worth forwarding; working-tool output is never sent automatically.
 
 ## Source
 - Entry: `packages/coding-agent/src/tools/channel-send.ts`
 - Model-facing prompt: `packages/coding-agent/src/prompts/tools/channel-send.md`
 
 ## Registration / Visibility
-- Web/desktop mode only: available when the session runs under `zeta-c serve` with a channel runtime and `channels.enabled` is not `false`.
+- Web/desktop mode only: available when the session runs under `zetacode serve` with a channel runtime and `channels.enabled` is not `false`.
 - Rejected in plain CLI sessions (`isToolAllowed` returns `false` when `ToolSession.channelSend` is undefined).
 
 ## Inputs

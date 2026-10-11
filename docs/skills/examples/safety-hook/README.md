@@ -23,7 +23,7 @@ For a named profile, use that profile's agent extensions directory. `ZETA_CODING
 Or load once:
 
 ```
-zeta-c --extension ./safety-hook
+zetacode --extension ./safety-hook
 ```
 
 ## How it works

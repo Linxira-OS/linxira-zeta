@@ -222,7 +222,7 @@ export class OverlayPanel implements Component {
 	#memo: OverlayPanelMemo | undefined;
 	#nativeMemo: OverlayPanelNativeMemo | undefined;
 
-	constructor(title = "", role = "zeta.overlay") {
+	constructor(title = "", role = "omp.overlay") {
 		this.#title = collapseTitle(title);
 		this.#role = role;
 	}

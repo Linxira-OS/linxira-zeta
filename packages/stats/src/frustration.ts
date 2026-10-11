@@ -59,7 +59,7 @@ export const FRUSTRATION_QUESTIONS: { annoyed: ScoreQuestion; target: ChoiceQues
 	annoyed: {
 		type: "score",
 		instructions:
-			"A user typed this message to an AI coding assistant (code blocks and markup were removed). Rate how frustrated or annoyed the user sounds. Judge tone and wording only (caps, swearing, 'again', 'why did you', 'stop', 'wtf', exasperation), not task difficulty. Plain instructions or questions are neutral.",
+			"The user typed or dictated this message to an AI coding assistant, and code blocks and markup were removed. It may be written in ANY language: judge the tone in the language it is written in, by what the speaker means, not by English markers alone. Rate how frustrated or annoyed the user sounds, using that language's own signals — swearing and insults (English 'wtf', 'shut up', 'why did you'; Chinese '卧槽', '服了', '垃圾', '怎么回事'), repetition and recall ('again', 'still', 'I said'; '我说过', '还是不行', '又错了'), shouting and exasperation (ALL CAPS or its Chinese equivalent: '！！！', '啊啊啊', '唉', elongated sounds), terseness right after a long request, and orders to redo the work. A single message may mix languages (a Chinese speaker quoting English identifiers or tool output, an English speaker pasting Chinese logs) — judge the whole text, not its dominant language. Speech-to-text input is often unpunctuated, colloquial, and homophone-mangled: judge the intent, not the spelling. Judge tone and wording only, not task difficulty. Plain instructions or questions are neutral.",
 		criteria: [
 			"neutral / no frustration",
 			"mild irritation or impatience",
@@ -72,7 +72,7 @@ export const FRUSTRATION_QUESTIONS: { annoyed: ScoreQuestion; target: ChoiceQues
 		instructions: "If the user sounds annoyed, what is the annoyance aimed at?",
 		criteria: {
 			assistant:
-				"the AI's own behavior in this session: what it did, wrote, ignored, repeated, took too long on, or misunderstood (incl. reacting to its output with 'wtf', 'no', 'stop', 'again', 'why did you')",
+				"the AI's own behavior in this session: what it did, wrote, ignored, repeated, took too long on, or misunderstood — including reacting to its output with 'wtf', 'no', 'stop', 'again', 'why did you' or their equivalents in the message's own language ('你怎么又', '还是错的', '我说过')",
 			other: "build tools, third-party libraries/services, pre-existing code or tests, the user's own past design, other people, or general product/UX feedback about the thing being built",
 			none: "not annoyed: a plain question, instruction, design musing, or casual chat",
 		},
@@ -166,6 +166,7 @@ export function mergeFrustrationRows(rows: readonly FrustrationModelRow[]): Frus
 		if (existing) {
 			existing.messages += row.messages;
 			existing.judged += row.judged;
+			existing.unscored += row.unscored;
 			existing.annoyed += row.annoyed;
 			existing.atAssistant += row.atAssistant;
 			existing.angry += row.angry;
@@ -186,6 +187,7 @@ export function mergeFrustrationRows(rows: readonly FrustrationModelRow[]): Frus
 			firstSeen: row.firstSeen,
 			messages: row.messages,
 			judged: row.judged,
+			unscored: row.unscored,
 			annoyed: row.annoyed,
 			atAssistant: row.atAssistant,
 			angry: row.angry,

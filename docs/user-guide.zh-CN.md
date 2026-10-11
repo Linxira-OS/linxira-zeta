@@ -15,26 +15,26 @@ npm install -g @linxiraos/zeta
 bun add -g @linxiraos/zeta
 ```
 
-安装后用 `zeta-c --version` 验证。`zeta-c` 二进制是 CLI、Web 服务器与桌面壳的
+安装后用 `zetacode --version` 验证。`zetacode` 二进制是 CLI、Web 服务器与桌面壳的
 统一入口。
 
-**桌面版：** 安装对应平台的桌面构建。桌面应用运行同一个 `zeta-c` 运行时，
+**桌面版：** 安装对应平台的桌面构建。桌面应用运行同一个 `zetacode` 运行时，
 并额外提供系统托盘图标（关闭窗口时最小化到托盘）。
 
 ## 启动 Web 界面
 
-运行 `zeta-c serve` 启动完整栈——Web UI、Web Gateway、Stats Dashboard——
+运行 `zetacode serve` 启动完整栈——Web UI、Web Gateway、Stats Dashboard——
 统一代理到一个端口：
 
 ```bash
-zeta-c serve
+zetacode serve
 ```
 
 - Web UI 地址为 `http://127.0.0.1:30141`。
 - Web Gateway 监听 `127.0.0.1:30142`（dev 模式访问）。
 - Stats Dashboard 运行在 `127.0.0.1:3847`。
 
-`zeta-c web` 启动 Web UI（不带桌面壳）。可在 `web.yml` 中配置域名、端口、
+`zetacode web` 启动 Web UI（不带桌面壳）。可在 `web.yml` 中配置域名、端口、
 远程访问，以及是否常驻系统托盘。
 
 ## 使用 Web 界面
@@ -124,17 +124,17 @@ Web / 消息渠道 → “关闭窗口时最小化到托盘”）；通过托盘
 或退出。
 
 
-## 桌面入口：`zeta-d` 与 `zeta-c`
+## 桌面入口：`zeta-d` 与 `zetacode`
 
 桌面安装只向 PATH 注册一个命令：`zeta-d`。
 
-- `zeta-d` — 运行捆绑的 CLI/TUI（与 `zeta-c` 体验一致）。
+- `zeta-d` — 运行捆绑的 CLI/TUI（与 `zetacode` 体验一致）。
 - `zeta-d -d` — 在当前目录打开桌面 GUI；也可传路径（`zeta-d -d
   ~/projects/foo`）指定工作区。
 
-裸 `zeta-c` 永远属于 npm/源码安装，桌面捆绑包绝不注册该名称，两者共存零冲突。
-npm 安装也可以用 `zeta-c --desktop [cwd]` 打开桌面 GUI；未找到桌面安装时会列出
-探测路径并以错误退出。桌面应用自带更新器；在捆绑二进制上运行 `zeta-c update`
+裸 `zetacode` 永远属于 npm/源码安装，桌面捆绑包绝不注册该名称，两者共存零冲突。
+npm 安装也可以用 `zetacode --desktop [cwd]` 打开桌面 GUI；未找到桌面安装时会列出
+探测路径并以错误退出。桌面应用自带更新器；在捆绑二进制上运行 `zetacode update`
 会被刻意拒绝。
 
 ## CLI 侧边栏与回合遥测
@@ -153,13 +153,13 @@ npm 安装也可以用 `zeta-c --desktop [cwd]` 打开桌面 GUI；未找到桌�
 检查新版本：
 
 ```bash
-zeta-c update --check
+zetacode update --check
 ```
 
 应用更新：
 
 ```bash
-zeta-c update
+zetacode update
 ```
 
 桌面应用也可以在 Web UI 中更新（设置 → 检查更新）。更新保留

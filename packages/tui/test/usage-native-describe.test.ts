@@ -78,14 +78,14 @@ describe("UsageDashboardComponent.describe", () => {
 		];
 		const meters = findAll(dashboard(reports).describe(cx), n => n.k === "meter").map(n => n.p);
 		expect(meters).toEqual([
-			expect.objectContaining({ value: 1, style: "bar", tone: "error" }),
 			expect.objectContaining({ value: 0.9, style: "bar", tone: "warning" }),
+			expect.objectContaining({ value: 1, style: "bar", tone: "error" }),
 		]);
 		const fallback = dashboard(reports).describe(plainCx);
 		expect(findAll(fallback, n => n.k === "meter" || n.k === "chart")).toEqual([]);
 		expect(findAll(fallback, n => n.k === "progress").map(n => n.p)).toEqual([
-			expect.objectContaining({ value: 1, tone: "error" }),
 			expect.objectContaining({ value: 0.9, tone: "warning" }),
+			expect.objectContaining({ value: 1, tone: "error" }),
 		]);
 	});
 
@@ -161,7 +161,7 @@ describe("SessionInfoOverlay.describe", () => {
 		const overlay = new SessionInfoOverlay({ terminal: { rows: 20 } }, info, () => {});
 		const root = overlay.describe(cx);
 		const kvs = findAll(root, n => n.k === "kv").map(n => n.p);
-		const copies = findAll(root, n => n.p?.role === "zeta.info.copy");
+		const copies = findAll(root, n => n.p?.role === "omp.info.copy");
 		expect(copies.map(n => n.p?.title)).toEqual(["Copy file path"]);
 		expect(JSON.stringify(copies[0])).toContain("/tmp/s.jsonl");
 		expect(kvs).toEqual([
@@ -226,7 +226,7 @@ describe("ContextUsageView.describe", () => {
 	it("keeps the glyph grid on terminals without `meter`", () => {
 		const described = new ContextUsageView(breakdown, theme).describe(plainCx);
 		expect(findAll(described, n => n.k === "meter")).toEqual([]);
-		expect(findAll(described, n => n.p?.role === "zeta.context.usage")).toHaveLength(1);
+		expect(findAll(described, n => n.p?.role === "omp.context.usage")).toHaveLength(1);
 	});
 });
 

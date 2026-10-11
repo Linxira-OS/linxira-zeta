@@ -1,7 +1,7 @@
 {
   "name": "@linxiraos/editor",
-  "version": "1.1.27",
-  "description": "Zeta terminal IDE (vendored TTT Editor v1.6.0) — single-binary terminal text editor",
+  "version": "1.1.29",
+  "description": "zetaeditor — the Zeta terminal editor (vendored TTT Editor v1.6.0): single-binary terminal text editor",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,8 +14,8 @@
     "zeta-e": "./bin/zeta-editor.js"
   },
   "optionalDependencies": {
-    "@linxiraos/editor-windows-x64": "1.1.27",
-    "@linxiraos/editor-linux-x64": "1.1.27"
+    "@linxiraos/editor-windows-x64": "1.1.28",
+    "@linxiraos/editor-linux-x64": "1.1.28"
   },
   "publishConfig": {
     "access": "public"

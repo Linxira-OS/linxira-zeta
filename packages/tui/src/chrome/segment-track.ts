@@ -68,13 +68,13 @@ export function describeSegmentTrack(segments: readonly TrackSegment[], activeIn
 				{
 					spans: [{ t: segment.label, s: palette[index % palette.length] }],
 					wrap: "none",
-					role: index === activeIndex ? "zeta.track.active" : "zeta.track.item",
+					role: index === activeIndex ? "omp.track.active" : "omp.track.item",
 				},
 				undefined,
 				`${index}`,
 			),
 		),
-		{ gap: "sm", align: "center", role: "zeta.track" },
+		{ gap: "sm", align: "center", role: "omp.track" },
 	);
 }
 

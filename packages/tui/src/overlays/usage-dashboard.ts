@@ -84,7 +84,7 @@ export interface ProviderCard {
 	/** Number of represented accounts, including unavailable usage lookups. */
 	accounts: number;
 	unavailableAccounts: string[];
-	/** Window rows sorted most-pressing first. */
+	/** Window rows in provider-declared order (e.g. 5h → weekly → monthly); the fullest CARD_MAX_WINDOWS lead. */
 	windows: CardWindowRow[];
 	/** True when every account reports no limits (e.g. enterprise plans). */
 	unlimited: boolean;
@@ -146,8 +146,10 @@ function compactWindowTag(window: NonNullable<UsageLimit["window"]>): string {
  * Collapse usage reports into one compact card per provider: limits grouped by
  * quota bucket (label + window), each bucket showing the mean used fraction
  * across accounts (matching the classic report's aggregate "% free") with the
- * most-used account's reset countdown. Cards sort most-pressing first so
- * what's burning is on top-left; fully idle providers collapse into a tick.
+ * most-used account's reset countdown. Rows keep the provider's declared window
+ * order so 5h → week → month reads the same every time; cards sort by their
+ * fullest window so what's burning is on top-left; fully idle providers
+ * collapse into a tick.
  */
 export function buildProviderCards(
 	reports: UsageReport[],
@@ -181,7 +183,7 @@ export function buildProviderCards(
 			}
 		}
 
-		const windows: CardWindowRow[] = [...buckets.values()].map(bucket => {
+		const declared: CardWindowRow[] = [...buckets.values()].map(bucket => {
 			const fractions = bucket.limits
 				.map(limit => resolveUsedFraction(limit))
 				.filter((value): value is number => value !== undefined);
@@ -200,7 +202,13 @@ export function buildProviderCards(
 				usedText: fraction === undefined ? formatAbsoluteOnlyAmount(bucket.limits) : undefined,
 			};
 		});
-		windows.sort((a, b) => (b.fraction ?? -1) - (a.fraction ?? -1));
+		// Cards render at most CARD_MAX_WINDOWS rows; when a provider declares
+		// more, keep the fullest ones visible (still in declared order) so an
+		// exhausted bucket never hides behind "+N more".
+		const visible = new Set(
+			[...declared].sort((a, b) => (b.fraction ?? -1) - (a.fraction ?? -1)).slice(0, CARD_MAX_WINDOWS),
+		);
+		const windows = [...declared.filter(row => visible.has(row)), ...declared.filter(row => !visible.has(row))];
 		// The window tag earns its columns only when sibling rows would otherwise
 		// be indistinguishable (e.g. Antigravity's daily vs weekly "Usage (Google)").
 		for (const window of windows) {
@@ -264,9 +272,12 @@ export function buildProviderCards(
 		});
 	}
 
+	const worstFraction = new Map(
+		cards.map(card => [card, card.windows.reduce((max, window) => Math.max(max, window.fraction ?? -1), -1)]),
+	);
 	cards.sort((a, b) => {
-		const aWorst = a.windows[0]?.fraction ?? -1;
-		const bWorst = b.windows[0]?.fraction ?? -1;
+		const aWorst = worstFraction.get(a)!;
+		const bWorst = worstFraction.get(b)!;
 		if (aWorst !== bWorst) return bWorst - aWorst;
 		return a.name.localeCompare(b.name);
 	});
@@ -463,16 +474,14 @@ function detailWindowLabel(label: string, limit: UsageLimit): string | undefined
 	return sanitizeDisplayLine(windowLabel);
 }
 
+const WHOLE_DOLLARS = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+const COMPACT_COUNT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+
 /** `$1,234 · 5.6K requests` totals for the activity summary. */
 function formatActivityTotals(layout: HeatmapLayout): string {
 	const cost =
-		layout.totalCost >= 1
-			? `$${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(layout.totalCost)}`
-			: `$${layout.totalCost.toFixed(2)}`;
-	const requests = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(
-		layout.totalRequests,
-	);
-	return `${cost} · ${requests} requests`;
+		layout.totalCost >= 1 ? `$${WHOLE_DOLLARS.format(layout.totalCost)}` : `$${layout.totalCost.toFixed(2)}`;
+	return `${cost} · ${COMPACT_COUNT.format(layout.totalRequests)} requests`;
 }
 
 // =============================================================================
@@ -532,7 +541,7 @@ interface CardRowLayout {
 
 export class UsageDashboardComponent implements Component {
 	/** The terminal draws the sheet: a large glass overlay titled Usage. */
-	readonly nativeOverlay = { role: "zeta.overlay.usage", size: "lg", anchor: "center", head: "Usage" } as const;
+	readonly nativeOverlay = { role: "omp.overlay.usage", size: "lg", anchor: "center", head: "Usage" } as const;
 	#options: UsageDashboardOptions;
 	#reports: UsageReport[];
 	#cards: ProviderCard[];
@@ -547,6 +556,8 @@ export class UsageDashboardComponent implements Component {
 	#activityError: string | null = null;
 	#syncing = true;
 	#detailCache: { width: number; lines: string[] } | null = null;
+	/** ANSI overview rows; rebuilt when the revision or width changes. */
+	#overviewCache: { revision: number; width: number; lines: string[] } | null = null;
 	#lastViewportRows = 10;
 	#closed = false;
 	readonly #panel: OverlayPanel;
@@ -592,6 +603,7 @@ export class UsageDashboardComponent implements Component {
 
 	invalidate(): void {
 		this.#detailCache = null;
+		this.#overviewCache = null;
 		this.#panel.invalidate();
 	}
 
@@ -836,15 +848,8 @@ export class UsageDashboardComponent implements Component {
 		const ramp = this.#heatRamp();
 		const reset = "\x1b[39m";
 
-		const cost =
-			layout.totalCost >= 1
-				? `$${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(layout.totalCost)}`
-				: `$${layout.totalCost.toFixed(2)}`;
-		const requests = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(
-			layout.totalRequests,
-		);
 		summary.push(
-			`${theme.bold(theme.fg("accent", "Activity"))} ${theme.fg("dim", `${cost} · ${requests} requests · last ${weeks} weeks`)}${this.#syncing ? theme.fg("dim", " · syncing…") : ""}`,
+			`${theme.bold(theme.fg("accent", "Activity"))} ${theme.fg("dim", `${formatActivityTotals(layout)} · last ${weeks} weeks`)}${this.#syncing ? theme.fg("dim", " · syncing…") : ""}`,
 		);
 		summary.push("");
 
@@ -876,10 +881,13 @@ export class UsageDashboardComponent implements Component {
 	// ---------------------------------------------------------------------------
 
 	#overviewLines(innerWidth: number): string[] {
+		const cached = this.#overviewCache;
+		if (cached?.revision === this.#revision && cached.width === innerWidth) return cached.lines;
 		const lines: string[] = [];
 		lines.push(...this.#renderCardsGrid(innerWidth));
 		lines.push("");
 		lines.push(...this.#renderHeatmap(innerWidth));
+		this.#overviewCache = { revision: this.#revision, width: innerWidth, lines };
 		return lines;
 	}
 
@@ -1005,19 +1013,14 @@ export class UsageDashboardComponent implements Component {
 			),
 		];
 		if (this.#options.refresh) children.push(actionButton("Refresh", "refresh", { keys: "r" }));
-		return node("row", { role: "zeta.usage.head", gap: "sm", align: "center" }, children, "head");
+		return node("row", { role: "omp.usage.head", gap: "sm", align: "center" }, children, "head");
 	}
 
 	#describeOverview(meter: boolean, chart: boolean): NativeChild[] {
 		const children: NativeChild[] = [];
 		if (this.#cards.length === 0) {
 			children.push(
-				node(
-					"text",
-					{ spans: [span("No usage data available.")], role: "zeta.usage.untouched" },
-					undefined,
-					"none",
-				),
+				node("text", { spans: [span("No usage data available.")], role: "omp.usage.untouched" }, undefined, "none"),
 			);
 		} else {
 			// Unlimited providers keep a frame reading "No limits"; only untouched ones collapse.
@@ -1027,7 +1030,7 @@ export class UsageDashboardComponent implements Component {
 				children.push(
 					node(
 						"row",
-						{ wrap: true, gap: "md", role: "zeta.usage.grid" },
+						{ wrap: true, gap: "md", role: "omp.usage.grid" },
 						active.map(entry => this.#describeCard(entry, meter)),
 						"providers",
 					),
@@ -1040,7 +1043,7 @@ export class UsageDashboardComponent implements Component {
 						{
 							spans: [span(`Untouched: ${idle.map(entry => entry.name).join(", ")}`)],
 							wrap: "word",
-							role: "zeta.usage.untouched",
+							role: "omp.usage.untouched",
 						},
 						undefined,
 						"idle",
@@ -1063,7 +1066,7 @@ export class UsageDashboardComponent implements Component {
 		if (entry.accounts > 1) head.push(text([span(`${entry.accounts} accounts`, "muted")]));
 		head.push(node("spacer", { grow: 1 }), statusDot(cardStatus));
 		const children: NativeChild[] = [
-			node("row", { role: "zeta.usage.provider.head", gap: "sm", align: "center" }, head, "title"),
+			node("row", { role: "omp.usage.provider.head", gap: "sm", align: "center" }, head, "title"),
 		];
 		for (const account of entry.daybreakAccounts ?? []) {
 			children.push(text([span(`Daybreak · ${sanitizeDisplayLine(account)}`, "success")], { truncate: "end" }));
@@ -1106,7 +1109,7 @@ export class UsageDashboardComponent implements Component {
 				const label: TspSpan[] = [span(sanitizeDisplayLine(window.label))];
 				if (window.windowTag) label.push(span(` ${sanitizeDisplayLine(window.windowTag)}`, "dim"));
 				const cells: NativeChild[] = [
-					text(label, { role: "zeta.usage.label", truncate: "middle", title: sanitizeDisplayLine(window.label) }),
+					text(label, { role: "omp.usage.label", truncate: "middle", title: sanitizeDisplayLine(window.label) }),
 				];
 				if (window.fraction === undefined) {
 					cells.push(text([span(window.usedText ?? "No data", "muted")], { truncate: "end" }));
@@ -1115,21 +1118,21 @@ export class UsageDashboardComponent implements Component {
 						window.status === "exhausted" ? "error" : window.status === "warning" ? "warning" : undefined;
 					cells.push(
 						usageMeter(window.fraction, window.status, meter),
-						text([span(leftText(window.fraction), token)], { role: "zeta.usage.pct" }),
+						text([span(leftText(window.fraction), token)], { role: "omp.usage.pct" }),
 					);
 					if (window.resetMs !== undefined) {
 						const reset = resetLabel(this.#nowMs, window.resetMs);
-						cells.push(text([span(reset.text, "dim")], { role: "zeta.usage.reset", title: reset.title }));
+						cells.push(text([span(reset.text, "dim")], { role: "omp.usage.reset", title: reset.title }));
 					}
 				}
-				children.push(node("row", { role: "zeta.usage.window", gap: "sm", align: "center" }, cells, `w${index}`));
+				children.push(node("row", { role: "omp.usage.window", gap: "sm", align: "center" }, cells, `w${index}`));
 			}
 			const hidden = entry.windows.length - CARD_MAX_WINDOWS;
 			if (hidden > 0) children.push(mutedText(`+${hidden} more`));
 		}
 		return node(
 			"card",
-			{ role: "zeta.usage.provider", grow: 1, min: { w: `${CARD_MIN_WIDTH}ch` } },
+			{ role: "omp.usage.provider", grow: 1, min: { w: `${CARD_MIN_WIDTH}ch` } },
 			children,
 			entry.provider,
 		);
@@ -1155,7 +1158,7 @@ export class UsageDashboardComponent implements Component {
 					: `No activity in the last ${NATIVE_HEATMAP_WEEKS} weeks`;
 			children.push(chart ? this.#heatmapChart(layout, points, summary) : this.#heatmapTable(layout, summary));
 		}
-		return node("col", { role: "zeta.usage.activity", gap: "sm" }, children, "activity");
+		return node("col", { role: "omp.usage.activity", gap: "sm" }, children, "activity");
 	}
 
 	/** The heatmap as a `chart`: 0–1 intensities, month columns, M/W/F rows, per-day tooltips. */
@@ -1323,7 +1326,7 @@ export class UsageDashboardComponent implements Component {
 			sections.push(
 				node(
 					"section",
-					{ head: [span(entry.name, "strong")], role: "zeta.usage.report" },
+					{ head: [span(entry.name, "strong")], role: "omp.usage.report" },
 					[col(children, { gap: "sm" })],
 					entry.provider,
 				),

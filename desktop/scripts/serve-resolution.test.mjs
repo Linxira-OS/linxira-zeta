@@ -100,9 +100,10 @@ test("tier 2: the PATH probe wins over the packaged bundle; bare zeta never prob
 				return name === "zeta-c";
 			},
 		});
-		// Alias-major: the loop stops at the first serving-capable hit, and
-		// the workbench bin is never probed at all.
-		assert.deepEqual(probed, ["zeta-c"]);
+		// Canonical-first: the loop probes `zetacode` before its aliases and
+		// stops at the first serving-capable hit; the workbench bin is never
+		// probed at all.
+		assert.deepEqual(probed, ["zetacode", "zeta-c"]);
 		assert.ok(!probed.includes("zeta"), "workbench bin must never be a serve candidate");
 		assert.equal(cmd.file, "zeta-c");
 		assert.equal(cmd.args[0], "serve");
@@ -157,7 +158,7 @@ test("tier 3 dev: repo dist binary, then bun-run source, then the bare launcher"
 	assert.deepEqual(withSrc.args, [path.join(repoRoot, "packages", "coding-agent", "src", "cli.ts"), "serve"]);
 
 	const bare = resolveServeCommandIn({ ...deps, exists: () => false });
-	assert.deepEqual([bare.file, bare.args[0]], ["zeta-c", "serve"]);
+	assert.deepEqual([bare.file, bare.args[0]], ["zetacode", "serve"]);
 });
 
 test("repo-root walk finds the monorepo manifest", () => {

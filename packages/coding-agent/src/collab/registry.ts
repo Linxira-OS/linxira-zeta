@@ -126,7 +126,7 @@ export interface CollabRegistryOptions {
 
 export interface CollabPublishOptions extends CollabRegistryOptions {
 	/**
-	 * Identity recorded in the metadata and matched by `zeta-c collab link <id>`.
+	 * Identity recorded in the metadata and matched by `zetacode collab link <id>`.
 	 * Defaults to a fresh random ID; a host that rotates rooms passes its
 	 * process-lifetime instance ID so the replacement room keeps the same id.
 	 * The metadata file and endpoint are always named per publication, so a
@@ -366,7 +366,7 @@ function handleConnection(socket: net.Socket, token: string, source: CollabHostR
  * The registry must be a real directory; POSIX also verifies its owner.
  * Both publication and listing check this: listing prunes malformed
  * entries, so following a symlink into an unrelated directory would let a
- * planted link turn `zeta-c collab list` into a deletion tool.
+ * planted link turn `zetacode collab list` into a deletion tool.
  */
 async function assertPrivateDir(dir: string): Promise<fs.Stats | null> {
 	const stat = await fs.promises.lstat(dir);
@@ -416,7 +416,7 @@ function socketFallbackDir(dir: string, base: string): string {
  * Where this publication's Unix socket lives. The canonical location is next
  * to the metadata, but a deep config root (long home directory, nested
  * `PI_CONFIG_DIR`) can push that past `sun_path`, and a host that cannot bind
- * would silently stay absent from `zeta-c collab list`. Listers never guess the
+ * would silently stay absent from `zetacode collab list`. Listers never guess the
  * relocated path; the metadata records the endpoint.
  */
 async function resolveSocketEndpoint(dir: string, entryId: string, fallbackBase: string): Promise<string> {

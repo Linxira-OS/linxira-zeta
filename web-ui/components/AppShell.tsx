@@ -36,12 +36,15 @@ import { CommandPalette, type CommandPaletteAction } from "./command-palette";
 import { useSidebar } from "@/hooks/useSidebar";
 import {
 	fetchDesktopInfo,
+	hasDesktopToolLauncher,
 	hasDesktopWindowControls,
 	isWindowMaximized,
 	subscribeWindowState,
 	minimizeWindow,
 	maximizeWindow,
 	closeWindow,
+	spawnDesktopTool,
+	type DesktopToolId,
 } from "@/lib/pi-desktop";
 import {
 	getDefaultRightPanelWidth,
@@ -138,12 +141,23 @@ function AppShellContent() {
 	// only detected after mount so SSR and the browser build paint identically.
 	const [desktopChrome, setDesktopChrome] = useState(false);
 	const [windowMaximized, setWindowMaximized] = useState(false);
+	const [canLaunchTools, setCanLaunchTools] = useState(false);
 	useEffect(() => {
+		setCanLaunchTools(hasDesktopToolLauncher());
 		if (!hasDesktopWindowControls()) return;
 		setDesktopChrome(true);
 		void isWindowMaximized().then(setWindowMaximized);
 		return subscribeWindowState(state => setWindowMaximized(state.maximized));
 	}, []);
+	const launchTool = useCallback(
+		(tool: DesktopToolId) => {
+			const cwd = selectedSession?.cwd ?? activeCwd ?? newSessionCwd ?? undefined;
+			void spawnDesktopTool(tool, cwd).catch((err: unknown) => {
+				console.error(`Failed to launch ${tool}:`, err);
+			});
+		},
+		[activeCwd, newSessionCwd, selectedSession],
+	);
 	// Sidebar defaults to closed (user preference, persisted); sessions stay
 	// reachable through the top-bar toggle. The initializer stays
 	// window-independent for SSR; the preference applies right after mount.
@@ -1368,6 +1382,45 @@ function AppShellContent() {
 						}}
 					>
 						Zeta
+						{canLaunchTools && (
+							<div
+								style={
+									{
+										display: "flex",
+										alignItems: "center",
+										gap: 4,
+										marginLeft: 6,
+										WebkitAppRegion: "no-drag",
+									} as React.CSSProperties
+								}
+							>
+								{(["zetacode", "zetaide", "zetaeditor"] as const).map(tool => (
+									<button
+										key={tool}
+										type="button"
+										onClick={() => launchTool(tool)}
+										title={tool}
+										aria-label={tool}
+										style={
+											{
+												padding: "2px 8px",
+												border: "1px solid var(--border)",
+												borderRadius: 4,
+												background: "transparent",
+												color: "var(--text-muted)",
+												fontSize: 10.5,
+												fontWeight: 500,
+												letterSpacing: "0.02em",
+												cursor: "pointer",
+												WebkitAppRegion: "no-drag",
+											} as React.CSSProperties
+										}
+									>
+										{tool}
+									</button>
+								))}
+							</div>
+						)}
 					</div>
 					<div style={{ display: "flex", alignItems: "stretch", height: "100%" }}>
 						<TitlebarButton label={t("titlebar.minimize")} onClick={() => void minimizeWindow()}>

@@ -1302,7 +1302,7 @@ const kit = {
 
 Object.defineProperty(globalThis, "__ompTernKit", { value: kit, configurable: true });
 
-// Child frames announce their index path so omp can address them by name.
+// Child frames announce their index path so zeta  address them by name.
 if (window !== window.parent) {
 	const path = [];
 	try {

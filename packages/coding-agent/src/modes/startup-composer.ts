@@ -1,7 +1,7 @@
 import type { Terminal } from "@linxiraos/pi-tui";
 import { scheduler } from "node:timers/promises";
 import * as logger from "@linxiraos/pi-utils/logger";
-import type { LspServerInfo, RecentSession } from "@linxiraos/pi-tui/prompt/welcome";
+
 import {
 	COMPOSER_DEFAULTS,
 	Composer,

@@ -16,7 +16,7 @@ import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 const ENV_KEYS = [
 	"OMP_PROFILE",
 	"PI_PROFILE",
-	"PI_CONFIG_DIR",
+	"ZETA_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
 	"XDG_DATA_HOME",
 	"XDG_STATE_HOME",
@@ -41,7 +41,7 @@ describe("XDG-aware runtime paths", () => {
 		configDir = `.zeta-dirs-xdg-${Snowflake.next()}`;
 		defaultAgentDir = path.join(os.homedir(), configDir, "agent");
 		await fs.mkdir(tempRoot, { recursive: true });
-		process.env.PI_CONFIG_DIR = configDir;
+		process.env.ZETA_CONFIG_DIR = configDir;
 		delete process.env.ZETA_CODING_AGENT_DIR;
 		delete process.env.XDG_DATA_HOME;
 		delete process.env.XDG_STATE_HOME;

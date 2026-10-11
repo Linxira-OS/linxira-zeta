@@ -23,6 +23,12 @@ target/
 # VS Build Tools; never committed
 .wsl-env/
 
+# Gitea local-ci toolchain home (.gitea/workflows/local-ci.yml installs bun /
+# rustup / cargo / node / go here so runs stay incremental across executions).
+# It lives inside the runner workspace on purpose — a per-run ephemeral HOME
+# would throw the caches away after every job.
+/.tools/
+
 # Editors
 .vscode/
 .zed/

@@ -102,10 +102,10 @@ export class AttachmentChipsBand implements Component {
 			const children: NativeNode[] = [content];
 			if (caption) children.push(node("text", { spans: [span(caption, "dim")], wrap: "none" }));
 			cards.push(
-				node("card", { role: "zeta.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
+				node("card", { role: "omp.composer.chip", tone: "accent", head }, children, `${chip.kind}:${chip.n}`),
 			);
 		}
-		const described = row(cards, { gap: "sm", wrap: true, role: "zeta.composer.chips", hidden: cards.length === 0 });
+		const described = row(cards, { gap: "sm", wrap: true, role: "omp.composer.chips", hidden: cards.length === 0 });
 		this.#native = { chips, node: described };
 		return described;
 	}
@@ -249,7 +249,8 @@ export class AttachmentChipsBand implements Component {
 
 	/** Leading 4 rows x 12 cols of the pasted text, muted. */
 	#textInterior(entry: TextAttachment): string[] {
-		const lines = entry.content.split("\n");
+		// Only the leading rows are drawn; don't split a multi-KB paste every frame.
+		const lines = entry.content.split("\n", INNER_ROWS);
 		const rows: string[] = [];
 		for (let r = 0; r < INNER_ROWS; r++) {
 			const cut = truncateToWidth(replaceTabs(lines[r] ?? ""), INNER_COLS);

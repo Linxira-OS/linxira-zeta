@@ -100,7 +100,13 @@ async function finalizeChangelogsForRelease(version: string, packageDirs: readon
 
 		content = removeEmptyVersionEntries(content);
 		content = content.replace("## [Unreleased]", `## [${version}] - ${date}`);
-		content = content.replace(/^(# Changelog\n\n)/, `$1## [Unreleased]\n\n`);
+		// Re-open a fresh [Unreleased] for the next cycle. Most package
+		// changelogs have no `# Changelog` title, so anchoring the insert on
+		// that header alone left them without an [Unreleased] section at all
+		// (check-version-consistency then flagged the drift).
+		content = /^# Changelog\n\n/.test(content)
+			? content.replace(/^(# Changelog\n\n)/, () => `$1## [Unreleased]\n\n`)
+			: `## [Unreleased]\n\n${content}`;
 
 		await Bun.write(changelog, content);
 		console.log(`  Updated ${changelog}`);
@@ -432,6 +438,24 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	const updatedLock = cargoLock.replace(/^(name = "pi-[^"]+"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
 	await Bun.write("Cargo.lock", updatedLock);
 	console.log(`  Cargo.lock: pi-* members -> ${version}`);
+
+	// Step 2d-bis: MODULE.bazel.lock caches the crate_universe (@crates)
+	// extension result, keyed by Cargo.toml/Cargo.lock hashes - so every
+	// release bump invalidates it, and a stale lock fails the `Check
+	// MODULE.bazel.lock freshness` job, which release_gate depends on. Refresh
+	// it here when bazel is available; without bazel on PATH, say so loudly
+	// instead of shipping a known-stale lock (the failing CI job uploads a
+	// refreshed lockfile as an artifact - harvest it, commit, re-tag).
+	const bazel = Bun.which("bazelisk") ?? Bun.which("bazel");
+	if (bazel) {
+		console.log("Refreshing MODULE.bazel.lock for the bumped Cargo inputs...");
+		await $`bun scripts/gen-bazel-lock.ts`;
+		await $`git add MODULE.bazel.lock`;
+	} else {
+		console.warn("WARNING: bazel/bazelisk not on PATH - MODULE.bazel.lock left as is.");
+		console.warn('         If the release run fails "Check MODULE.bazel.lock freshness", harvest the');
+		console.warn("         refreshed lockfile from that job's uploaded artifact, commit it, then re-tag.");
+	}
 
 	// Step 2e: bazel-face crate versions — the hand-written crates/*/BUILD.bazel
 	// rust targets carry a `version` attr printed in bazel logs and cache keys;

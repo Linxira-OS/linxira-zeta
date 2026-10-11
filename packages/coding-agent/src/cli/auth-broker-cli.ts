@@ -1,8 +1,8 @@
 /**
- * `zeta-c auth-broker` command handlers.
+ * `zetacode auth-broker` command handlers.
  *
  * Sub-verbs:
- *   - `serve [--bind=…]` — boots the broker against the local SQLite store.
+ *   - `serve [--bind=…] [--trust-proxy-headers]` — boots the broker against the local SQLite store.
  *   - `token` / `token --regenerate` — manages the bearer token file.
  *   - `login <provider> [--via=user@host]` — logs into a provider locally, or
  *     via SSH tunnel into a remote broker host.
@@ -48,6 +48,7 @@ export interface AuthBrokerCommandArgs {
 	flags: {
 		json?: boolean;
 		bind?: string;
+		trustProxyHeaders?: boolean;
 		regenerate?: boolean;
 		via?: string;
 		provider?: string;
@@ -96,7 +97,7 @@ async function ensureToken(): Promise<string> {
 }
 
 /**
- * OAuth refresh handler for `zeta-c auth-broker serve`'s {@link AuthStorage}.
+ * OAuth refresh handler for `zetacode auth-broker serve`'s {@link AuthStorage}.
  *
  * The vault holds provider OAuth rows AND OMP-managed `mcp_oauth:*` rows.
  * Provider rows refresh through the per-provider registry. MCP rows are
@@ -123,6 +124,15 @@ export function refreshBrokerOAuthCredential(
 	return refreshOAuthToken(provider as OAuthProvider, credential);
 }
 
+/** The `omp auth-broker serve` vault: tokens refresh in this process through {@link refreshBrokerOAuthCredential}. */
+export function createBrokerAuthStorage(store: SqliteAuthCredentialStore): AuthStorage {
+	return new AuthStorage(store, {
+		refreshOAuthCredential: (provider, _credentialId, credential, signal) =>
+			refreshBrokerOAuthCredential(provider, credential, signal),
+		refreshOAuthCredentialMints: true,
+	});
+}
+
 async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	// The broker is a long-running headless service: route structured logs to
 	// stdout so a process supervisor (pm2, journald, k8s) captures them, and
@@ -133,15 +143,13 @@ async function runServe(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const token = await ensureToken();
 	const dbPath = getAgentDbPath();
 	const store = await SqliteAuthCredentialStore.open(dbPath);
-	const storage = new AuthStorage(store, {
-		refreshOAuthCredential: (provider, _credentialId, credential, signal) =>
-			refreshBrokerOAuthCredential(provider, credential, signal),
-	});
+	const storage = createBrokerAuthStorage(store);
 	await storage.credentials.reload();
 	const handle = startAuthBroker({
 		storage,
 		bind,
 		bearerTokens: [token],
+		trustProxyHeaders: flags.trustProxyHeaders,
 		version: VERSION,
 	});
 	logger.info("auth-broker listening", { url: handle.url });
@@ -182,7 +190,7 @@ async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	if (flags.via && !flags.provider) {
 		throw new Error(
-			"Usage: zeta-c auth-broker login <provider> --via=user@host (provider required for remote login)",
+			"Usage: zetacode auth-broker login <provider> --via=user@host (provider required for remote login)",
 		);
 	}
 	const providers = getOAuthProviders();
@@ -394,7 +402,7 @@ async function loadImportPlan(
 		if (!provider) {
 			skipped.push({
 				file,
-				reason: `cannot determine the zeta-c provider from type=${json.type ?? "?"} (pass --provider to override)`,
+				reason: `cannot determine the zetacode provider from type=${json.type ?? "?"} (pass --provider to override)`,
 			});
 			continue;
 		}
@@ -440,7 +448,9 @@ function describeImportEntry(entry: ImportPlanEntry): string {
 async function runImport(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const target = flags.source;
 	if (!target) {
-		throw new Error("Usage: zeta-c auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]");
+		throw new Error(
+			"Usage: zetacode auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]",
+		);
 	}
 	const resolvedTarget = path.resolve(target.startsWith("~") ? target.replace(/^~/, os.homedir()) : target);
 	const { entries, skipped } = await loadImportPlan(resolvedTarget, flags.provider, flags.includeDisabled === true);
@@ -603,7 +613,7 @@ async function runMigrate(flags: AuthBrokerCommandArgs["flags"]): Promise<void> 
 	}
 	if (flags.fromLocal !== true) {
 		throw new Error(
-			"`zeta-c auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
+			"`zetacode auth-broker migrate` requires an explicit source. Pass `--from-local` to migrate from the local SQLite store and env vars.",
 		);
 	}
 

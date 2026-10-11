@@ -11,12 +11,12 @@ import { mergeDeps, zetaKeyFor } from "./merge-package-json";
  */
 
 const UPSTREAM_CATALOG: Record<string, string> = {
-	"@oh-my-pi/pi-agent-core": "18.1.15",
-	"@oh-my-pi/pi-ai": "18.1.15",
-	"@oh-my-pi/pi-omptype": "18.1.15",
-	"@oh-my-pi/omp-stats": "18.1.15",
-	"@oh-my-pi/pi-coding-agent": "18.1.15",
-	"@oh-my-pi/pi-natives": "18.1.15",
+	"@linxiraos/pi-agent-core": "18.1.15",
+	"@linxiraos/pi-ai": "18.1.15",
+	"@linxiraos/pi-omptype": "18.1.15",
+	"@linxiraos/omp-stats": "18.1.15",
+	"@linxiraos/zeta": "18.1.15",
+	"@linxiraos/pi-natives": "18.1.15",
 	zod: "4.0.0",
 };
 
@@ -33,10 +33,10 @@ const ZETA_CATALOG: Record<string, string> = {
 
 describe("zetaKeyFor", () => {
 	it("maps the upstream scope to the Zeta scope with rename awareness", () => {
-		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@oh-my-pi/pi-omptype")).toBe("@linxiraos/pi-omptype");
-		expect(zetaKeyFor("@oh-my-pi/omp-stats")).toBe("@linxiraos/pi-stats");
-		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
+		expect(zetaKeyFor("@linxiraos/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@linxiraos/pi-omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@linxiraos/omp-stats")).toBe("@linxiraos/pi-stats");
+		expect(zetaKeyFor("@linxiraos/zeta")).toBe("@linxiraos/zeta");
 	});
 
 	it("maps upstream's original @mariozechner author scope the same way", () => {
@@ -79,7 +79,7 @@ describe("mergeDeps", () => {
 
 	it("adopts the upstream version for packages Zeta does not have yet", () => {
 		const merged = mergeDeps(ZETA_CATALOG, {
-			"@oh-my-pi/pi-newcomer": "18.1.15",
+			"@linxiraos/pi-newcomer": "18.1.15",
 		});
 		expect(merged["@linxiraos/pi-newcomer"]).toBe("18.1.15");
 	});

@@ -7,7 +7,7 @@
  * (`{ error: "Not implemented" }`).
  *
  * Two access paths share one handler:
- * - `zeta-c serve` → ZetaServer dispatches `webGatewayFetch` in-process for
+ * - `zetacode serve` → ZetaServer dispatches `webGatewayFetch` in-process for
  *   `/api/*` before proxying to Next.
  * - `next dev` / `next start` standalone → next.config `beforeFiles` rewrites
  *   forward the gateway-owned families to the standalone listener started by
@@ -345,7 +345,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		// clients don't need to know the persistent session id ahead of time.
 		if (req.method === "GET") {
 			const sessionId = getMainSessionId();
-			if (!sessionId) return json({ error: "no shared session; start zeta-c serve" }, 404);
+			if (!sessionId) return json({ error: "no shared session; start zetacode serve" }, 404);
 			return json({ sessionId });
 		}
 		return json({ error: "Method not allowed" }, 405);

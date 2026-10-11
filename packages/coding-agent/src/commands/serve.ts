@@ -1,5 +1,5 @@
 /**
- * `zeta-c serve` — 一键启动 Stats Dashboard + Web UI
+ * `zetacode serve` — 一键启动 Stats Dashboard + Web UI
  *
  * 使用 ZetaServer 统一 HTTP 反向代理，将 Web UI（Next.js）和 Stats Dashboard
  * 作为内部后端，用户只需访问一个端口。

@@ -2,13 +2,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@linxiraos/pi-ai";
-import type { AuthApiKeyOptions } from "@linxiraos/pi-ai/auth-storage";
+import { type AuthApiKeyOptions, oauthAccountKey } from "@linxiraos/pi-ai/auth-storage";
 import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { registerOAuthProvider, unregisterOAuthProvider, unregisterOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@linxiraos/pi-ai/oauth/types";
 import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
-import { getEnvApiKey, isOfficialCodexApiUrl } from "@linxiraos/pi-ai/stream";
+import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
+import { OAuthRefreshUnavailableError } from "@linxiraos/pi-ai/error";
+import { isOfficialCodexApiUrl } from "@linxiraos/pi-ai/stream";
 import type {
 	Api,
 	Context,
@@ -47,7 +49,7 @@ import {
 	resolveOllamaModelCacheProviderId,
 } from "@linxiraos/pi-catalog/provider-models";
 import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
-import { modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
+import { apiServesKind, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
 import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
 import { resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
@@ -100,6 +102,7 @@ import {
 	resolveProviderBaseUrl,
 	type ProviderOverride,
 	providersWithAuthoritativeProjectCatalog,
+	unservedOverrideKind,
 } from "./model-patch";
 import {
 	BUILT_IN_DISCOVERY_CACHE_TTL_MS,
@@ -113,7 +116,7 @@ import {
 	kNoAuth,
 	type ProviderDiscoveryState,
 	RUNTIME_DYNAMIC_MODEL_FETCH_TIMEOUT_MS,
-	resolveCodexDiscoveryAccounts,
+	resolveOAuthDiscoveryAccounts,
 	SPECIAL_MODEL_MANAGER_PROVIDER_IDS,
 	STARTUP_MODEL_CACHE_PROVIDER_IDS,
 	withModelDiscoveryTimeout,
@@ -127,7 +130,12 @@ export {
 	type ProviderDiscoveryStatus,
 } from "./model-provider-discovery";
 
-import { ModelsConfigFile, type ProviderValidationModel, validateProviderConfiguration } from "./models-config";
+import {
+	getUnknownCompatKeys,
+	ModelsConfigFile,
+	type ProviderValidationModel,
+	validateProviderConfiguration,
+} from "./models-config";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { type OmpCompatSnapshot, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
@@ -232,7 +240,7 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * Online discovery (`strategy: "online"`) is independent of credential minting:
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
- * refresh (`zeta-c models refresh`, TUI F5).
+ * refresh (`zetacode models refresh`, TUI F5).
  *
  * `forceStatic` re-runs the static load (local models.yml + OMP overlay) even
  * when neither file changed — for credential-state changes (web api-key save,
@@ -276,8 +284,7 @@ export class ModelRegistry {
 	#catalogMetrics = new CatalogMetricsIndex();
 	#internedStaticModels: Map<string, Model<Api>> = new Map();
 	#providerLookupSnapshots: Map<string, Model<Api>[]> = new Map();
-	#fullKindSnapshotSource: Model<Api>[] | undefined;
-	#fullKindSnapshots: Partial<Record<ModelKind, Model<Api>[]>> = {};
+	#fullKindSnapshots = new WeakMap<Model<Api>[], Partial<Record<ModelKind, Model<Api>[]>>>();
 	#customProviderApiKeys: Map<string, string> = new Map();
 	// Every command-backed (`!cmd`) config value a provider carries — apiKey plus
 	// provider/model-override header values — keyed by provider. The 401 auth
@@ -289,7 +296,12 @@ export class ModelRegistry {
 	#customModelOverlays: CustomModelOverlay[] = [];
 	#providerOverrides: Map<string, ProviderOverride> = new Map();
 	#modelOverrides: Map<string, Map<string, ModelOverride>> = new Map();
+	// `provider/id:kind` of modelOverrides kinds already reported as unserved, so
+	// every rebuild does not log the same ignored override again.
+	#warnedUnservedOverrideKinds: Set<string> = new Set();
 	#configError: ConfigError | undefined = undefined;
+	#warnedCompatKeys = new Set<string>();
+	#configWarnings: string[] = [];
 	#modelsConfigFile: ConfigFile<ModelsConfig>;
 	#lastStaticLoadMtime: number | null = null;
 	#registeredProviderSources: Set<string> = new Set();
@@ -926,6 +938,13 @@ export class ModelRegistry {
 	 */
 	getError(): ConfigError | undefined {
 		return this.#configError;
+	}
+
+	/** Drain non-fatal file diagnostics, reporting each key path once per registry. */
+	drainConfigWarnings(): string[] {
+		const warnings = this.#configWarnings;
+		this.#configWarnings = [];
+		return warnings;
 	}
 
 	#loadModels() {
@@ -1783,6 +1802,14 @@ export class ModelRegistry {
 	}
 
 	#buildCustomModelsResult(value: ModelsConfig): CustomModelsResult {
+		for (const keyPath of getUnknownCompatKeys(value)) {
+			if (this.#warnedCompatKeys.has(keyPath)) continue;
+			this.#warnedCompatKeys.add(keyPath);
+			this.#configWarnings.push(
+				`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
+			);
+		}
+
 		const overrides = new Map<string, ProviderOverride>();
 		const allModelOverrides = new Map<string, Map<string, ModelOverride>>();
 		const keylessProviders = new Set<string>();
@@ -2317,7 +2344,19 @@ export class ModelRegistry {
 				resolveKey: extractGoogleOAuthToken,
 				createOptions: oauthToken =>
 					googleAntigravityModelManagerOptions({
-						oauthToken,
+						resolveAccounts: async () => {
+							const accounts = await resolveOAuthDiscoveryAccounts(
+								this.authStorage,
+								"google-antigravity",
+								oauthToken,
+							);
+							return (
+								accounts?.map(account => ({
+									accessToken: account.accessToken,
+									accountKey: oauthAccountKey(account),
+								})) ?? null
+							);
+						},
 						endpoint: this.#descriptorBaseUrl("google-antigravity"),
 						fetch: this.#fetch,
 					}),
@@ -2352,7 +2391,8 @@ export class ModelRegistry {
 					if (officialCredential || isOfficialCodexApiUrl(configuredBaseUrl)) {
 						return openaiCodexModelManagerOptions({
 							baseUrl: officialCredential ? undefined : configuredBaseUrl,
-							resolveAccounts: () => resolveCodexDiscoveryAccounts(this.authStorage, accessToken),
+							resolveAccounts: () =>
+								resolveOAuthDiscoveryAccounts(this.authStorage, "openai-codex", accessToken),
 							fetch: this.#fetch,
 						});
 					}
@@ -2728,6 +2768,7 @@ export class ModelRegistry {
 	 * both, so the clamp must hold on both.
 	 */
 	#applyModelOverrideWithClamp(model: Model<Api>, override: ModelOverride): Model<Api> {
+		this.#warnUnservedOverrideKind(model, override);
 		const overridden = applyModelOverride(model, override);
 		if (
 			override.contextWindow === undefined ||
@@ -2739,6 +2780,21 @@ export class ModelRegistry {
 		const clamped = clampCodexContextWindow(model, overridden.contextWindow);
 		if (clamped === overridden.contextWindow) return overridden;
 		return applyModelOverride(overridden, { contextWindow: clamped });
+	}
+
+	/** Logs, once per model and kind, a `modelOverrides` kind that `applyModelOverride` ignores. */
+	#warnUnservedOverrideKind(model: Model<Api>, override: ModelOverride): void {
+		const unservedKind = unservedOverrideKind(model, override);
+		if (unservedKind === undefined) return;
+		const warningKey = `${model.provider}/${model.id}:${unservedKind}`;
+		if (this.#warnedUnservedOverrideKinds.has(warningKey)) return;
+		this.#warnedUnservedOverrideKinds.add(warningKey);
+		logger.warn("modelOverrides kind ignored: the model's api does not serve it", {
+			provider: model.provider,
+			model: model.id,
+			kind: unservedKind,
+			api: override.api ?? model.api,
+		});
 	}
 
 	#applyHardcodedModelPolicies(models: Model<Api>[]): Model<Api>[] {
@@ -2793,6 +2849,7 @@ export class ModelRegistry {
 		if (!overrides) {
 			return applyModelOverride(model, { contextWindow: 1_000_000 });
 		}
+		this.#warnUnservedOverrideKind(model, overrides);
 		return applyModelOverride(model, {
 			contextWindow: overrides.contextWindow ?? 1_000_000,
 			...overrides,
@@ -2853,14 +2910,15 @@ export class ModelRegistry {
 	getAll(kind: ModelKind | "all" = "chat"): Model<Api>[] {
 		const models = this.#ensureFullSnapshot();
 		if (kind === "all") return models;
-		if (this.#fullKindSnapshotSource !== models) {
-			this.#fullKindSnapshotSource = models;
-			this.#fullKindSnapshots = {};
+		let snapshots = this.#fullKindSnapshots.get(models);
+		if (!snapshots) {
+			snapshots = {};
+			this.#fullKindSnapshots.set(models, snapshots);
 		}
-		const cached = this.#fullKindSnapshots[kind];
+		const cached = snapshots[kind];
 		if (cached) return cached;
 		const filtered = models.filter(model => modelKind(model) === kind);
-		this.#fullKindSnapshots[kind] = filtered;
+		snapshots[kind] = filtered;
 		return filtered;
 	}
 
@@ -3033,7 +3091,7 @@ export class ModelRegistry {
 
 	/**
 	 * Whether a config-declared discovery provider has not yet produced a
-	 * catalog in this process. A cold discovery cache (e.g. after `zeta-c update`
+	 * catalog in this process. A cold discovery cache (e.g. after `zetacode update`
 	 * bumps the cache namespace) leaves the provider in its initial `idle`
 	 * state with no models, so a selector the provider will supply looks
 	 * unknown until background discovery lands (#10048).
@@ -3076,7 +3134,7 @@ export class ModelRegistry {
 	 * discovered model that defines one.
 	 *
 	 * The overrides lead because a model-derived answer is only available once
-	 * discovery has populated the registry. `zeta-c usage` builds a `ModelRegistry`
+	 * discovery has populated the registry. `zetacode usage` builds a `ModelRegistry`
 	 * and probes credentials immediately, and providers whose roster is
 	 * discovery-only (no bundled rows) have no model to read a URL from at that
 	 * point — so deriving solely from models returned `undefined` cache-cold and
@@ -3149,20 +3207,35 @@ export class ModelRegistry {
 	}
 
 	/**
-	 * Resolve a provider's request credential or the no-auth sentinel.
+	 * Resolve a provider's credential or the no-auth sentinel, for availability
+	 * checks. A transient OAuth refresh failure resolves `undefined` (like
+	 * `authStorage.keys.get`); request paths use
+	 * {@link getApiKeyWithCredentialForProvider}, which surfaces it.
 	 *
-	 * `options.forceRefresh` powers step (b) of the auth-retry policy — it
-	 * re-mints the session-sticky OAuth token even when the cached copy still
-	 * looks valid. `options.signal` is threaded into any broker-bound refresh.
+	 * `options.forceRefresh` re-mints the session-sticky OAuth token even when
+	 * the cached copy still looks valid. `options.signal` is threaded into any
+	 * broker-bound refresh.
 	 */
 	async getApiKeyForProvider(
 		provider: string,
 		sessionId?: string,
 		options?: AuthApiKeyOptions,
 	): Promise<string | undefined> {
-		return (await this.getApiKeyWithCredentialForProvider(provider, sessionId, options))?.apiKey;
+		try {
+			return (await this.getApiKeyWithCredentialForProvider(provider, sessionId, options))?.apiKey;
+		} catch (error) {
+			if (error instanceof OAuthRefreshUnavailableError) return undefined;
+			throw error;
+		}
 	}
 
+	/**
+	 * Resolve a provider's request credential or the no-auth sentinel.
+	 *
+	 * `options.forceRefresh` powers step (b) of the auth-retry policy. Rejects
+	 * with `OAuthRefreshUnavailableError` (transient, retryable) when OAuth
+	 * refresh failed with a retryable error and nothing else can serve.
+	 */
 	async getApiKeyWithCredentialForProvider(
 		provider: string,
 		sessionId?: string,
@@ -3492,7 +3565,18 @@ export class ModelRegistry {
 							config.remoteCompaction,
 							modelDef as CustomModelDefinitionLike,
 						);
-						if (overlay) results.push(finalizeCustomModel(overlay, { useDefaults: true }));
+						if (!overlay) continue;
+						// Static registrations fail validation on this mismatch; a live row is dropped instead.
+						if (overlay.kind !== undefined && !apiServesKind(overlay.api, overlay.kind)) {
+							logger.warn("fetchDynamicModels row dropped: its api does not serve its kind", {
+								provider: providerName,
+								model: overlay.id,
+								kind: overlay.kind,
+								api: overlay.api,
+							});
+							continue;
+						}
+						results.push(finalizeCustomModel(overlay, { useDefaults: true }));
 					}
 					return results.map(toModelSpec);
 				},
@@ -3617,6 +3701,7 @@ export interface ProviderConfigInput {
 		id: string;
 		name: string;
 		api?: Api;
+		kind?: ModelKind;
 		baseUrl?: string;
 		reasoning: boolean;
 		thinking?: ThinkingConfig;

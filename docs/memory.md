@@ -1,6 +1,6 @@
 # Autonomous Memory
 
-zeta-c supports five memory modes. Memory is disabled by default; select one backend via `/settings` or `config.yml`:
+zetacode supports five memory modes. Memory is disabled by default; select one backend via `/settings` or `config.yml`:
 
 | `memory.backend` | Storage and behavior                                                   | Guide                                                   |
 | ---------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |

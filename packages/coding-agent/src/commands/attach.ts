@@ -1,5 +1,5 @@
 /**
- * `zeta-c attach` — attach a full session view to the serve process's shared
+ * `zetacode attach` — attach a full session view to the serve process's shared
  * session over the web-gateway protocol.
  *
  * The serve process hosts one coordinator session shared by the web UI's
@@ -50,7 +50,7 @@ interface AgentStateSnapshot {
 async function resolveSharedSessionId(baseUrl: string): Promise<string> {
 	const res = await fetch(`${baseUrl}/api/agent/current`);
 	if (res.status === 404) {
-		throw new Error("no shared session; start `zeta-c serve` first");
+		throw new Error("no shared session; start `zetacode serve` first");
 	}
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	const body = (await res.json()) as { sessionId?: string; error?: string };

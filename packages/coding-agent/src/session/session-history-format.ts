@@ -8,7 +8,7 @@
  */
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ImageContent, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
-import { escapeXmlText } from "@linxiraos/pi-utils";
+import { countNewlines, escapeXmlText } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import type {
 	BashExecutionMessage,
@@ -129,7 +129,7 @@ function contentToText(content: string | readonly (TextContent | ImageContent)[]
 
 function lineCount(text: string): number {
 	if (!text) return 0;
-	return text.split("\n").length;
+	return countNewlines(text) + 1;
 }
 
 function primaryArgValue(value: unknown): string {

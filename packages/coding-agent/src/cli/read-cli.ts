@@ -1,7 +1,7 @@
 /**
  * Read CLI command handler.
  *
- * Handles `zeta-c read` — invokes the `read` agent tool against a path/URL and
+ * Handles `zetacode read` — invokes the `read` agent tool against a path/URL and
  * prints the resulting content blocks exactly as the model would receive them
  * (including truncation/limit notices appended by the meta-notice wrapper).
  */
@@ -20,9 +20,11 @@ import { MCPManager } from "../mcp/manager";
 import { discoverAuthStorage, loadCliExtensionProviders } from "../sdk";
 import type { AuthStorage } from "../session/auth-storage";
 import type { ToolSession } from "../tools";
+import { parseReadUrlTarget } from "../tools/fetch";
 import { wrapToolWithMetaNotice } from "../tools/output-meta";
 import { ReadTool, splitImageQuestionTarget } from "../tools/read";
 import { renderError } from "../tools/tool-errors";
+import { parseXUrl } from "../web/x";
 
 import { cfgDisabledExtensions, cfgExtensions, cfgSkills } from "../extensibility/settings";
 import { cfgMcpEnableProjectConfig } from "../mcp/settings";
@@ -32,7 +34,7 @@ export interface ReadCommandArgs {
 }
 
 /**
- * Session state `zeta-c read <path>` must load before resolving: the caller's
+ * Session state `zetacode read <path>` must load before resolving: the caller's
  * skills for skill:// and MCP servers for MCP resources — `mcp://` or any
  * scheme with no registered handler that the router's MCP fallback accepts.
  * Filesystem paths, web URLs, and other registered schemes need neither.
@@ -89,7 +91,7 @@ export async function runReadCommand(cmd: ReadCommandArgs): Promise<void> {
 			const result = await discoverAndLoadMCPTools(cwd, {
 				enableProjectConfig: cfgMcpEnableProjectConfig.get(settings),
 				filterExa: true,
-				// `zeta-c read` has no Eval prelude, so browser MCP remains available.
+				// `zetacode read` has no Eval prelude, so browser MCP remains available.
 				filterBrowser: false,
 				cacheStorage: settings.getStorage(),
 				authStorage,
@@ -99,13 +101,15 @@ export async function runReadCommand(cmd: ReadCommandArgs): Promise<void> {
 			MCPManager.setInstance(mcpManager);
 		}
 
-		// `read <image>?q=<question>` delegates to a vision model, which needs a
-		// model registry to resolve modelRoles.vision / @default and fetch its
-		// credentials. The lightweight session above omits it (plain reads never
-		// touch a model), so build one on demand — otherwise the tool aborts with
-		// "Model registry is unavailable for image questions." before resolving
-		// anything (issue #11338).
-		if (splitImageQuestionTarget(cmd.path).question) {
+		// `read <image>?q=<question>` delegates to a vision model, and X URLs read
+		// through Grok's X tools; both need a model registry to resolve models and
+		// fetch credentials. The lightweight session above omits it (other reads
+		// never touch a model), so build one on demand — otherwise image questions
+		// abort with "Model registry is unavailable for image questions." before
+		// resolving anything (issue #11338), and X reads report missing xAI
+		// credentials.
+		const urlTarget = parseReadUrlTarget(cmd.path);
+		if (splitImageQuestionTarget(cmd.path).question || (urlTarget && parseXUrl(urlTarget.path))) {
 			authStorage ??= await discoverAuthStorage(undefined, { settings });
 			const modelRegistry = new ModelRegistry(authStorage);
 			await modelRegistry.hydrateCredentialScopedModelCaches();

@@ -1,6 +1,6 @@
 ---
 name: authoring-extensions
-description: Use when creating a new zeta-c extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
+description: Use when creating a new zetacode extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
 ---
 
 # Authoring Extensions
@@ -82,14 +82,14 @@ zeta loads extension modules from these sources:
    - `~/.zeta/agent/extensions/`
    - legacy extension paths listed in `.zeta/settings.json#extensions` or `~/.zeta/agent/settings.json#extensions`
 2. Discovered JavaScript/TypeScript hook factories (`hooks/pre/` and `hooks/post/`), bound through the extension runner.
-3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zeta-c plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
-4. Explicit configured paths passed by the CLI (`zeta-c --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
+3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zetacode plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
+4. Explicit configured paths passed by the CLI (`zetacode --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
 
 `--no-extensions` disables ambient discovery but still permits explicit `--extension`/`--hook` paths and their bundled capabilities. For an exact module-file allowlist, repeat `--trusted-extension /absolute/path/to/module.ts`: paths must exist and be files, ambient extension discovery is disabled, and those files are not treated as package roots for sibling capability discovery. It cannot be combined with `--extension`, `-e`, or `--hook`; a trusted-module load error aborts startup. This is discovery control, not a sandbox for extension code.
 
-The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zeta-c --profile <name>` uses `~/.zeta/profiles/<name>/agent` under the default layout. `ZETA_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
+The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zetacode --profile <name>` uses `~/.zeta/profiles/<name>/agent` under the default layout. `ZETA_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
 
 When a path points to a directory, zeta resolves the entry point in this order:
 

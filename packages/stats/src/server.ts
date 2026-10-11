@@ -14,9 +14,12 @@ import {
 	getRecentErrors,
 	getRecentRequests,
 	getRequestDetails,
+	getTimeRangeConfig,
 	getToolDashboardStats,
 } from "./aggregator";
-import { decodeEmbeddedClientArchive } from "./embedded-client";
+import { initDb } from "./db";
+import { decodeEmbeddedClientArchive, hasEmbeddedClientArchive } from "./embedded-client";
+import { resolveLocaleTag, type StatsLocale } from "./locale";
 import embeddedClientArchiveTxt from "./embedded-client.generated.txt";
 import {
 	cancelFrustrationRun,
@@ -36,17 +39,16 @@ import {
 	STATS_DASHBOARD_HOSTNAME_HEADER,
 	STATS_DASHBOARD_SECURITY_VERSION,
 } from "./port-conflict";
-import type { LiveStatus } from "./shared-types";
+import { getStatsByModel, getTimeSeries } from "./rollup";
 import {
 	buildSessionTrace,
 	getTraceEntry,
 	listSessionSummaries,
 	TRACE_ETAG_VERSION,
+	type TraceFingerprint,
 	traceFingerprintForEtag,
 	TracePathError,
 } from "./trace";
-
-const EMBEDDED_CLIENT_ARCHIVE = decodeEmbeddedClientArchive(embeddedClientArchiveTxt);
 
 const CLIENT_DIR = path.join(import.meta.dir, "client");
 const STATIC_DIR = path.join(import.meta.dir, "..", "dist", "client");
@@ -60,21 +62,27 @@ const IS_BUN_COMPILED =
 // dashboard sources or prebuilt dist/client next to the bundle, so the
 // embedded archive is the only viable asset source.
 const IS_PREBUILT = IS_BUN_COMPILED || Boolean(process.env.PI_BUNDLED || Bun.env.PI_BUNDLED);
-const USE_EMBEDDED_CLIENT = EMBEDDED_CLIENT_ARCHIVE !== null || IS_PREBUILT;
+// Sniff the base64 gzip magic instead of decoding: importing this module (every
+// TUI start) must not pay for a multi-megabyte archive nobody may serve.
+const USE_EMBEDDED_CLIENT = hasEmbeddedClientArchive(embeddedClientArchiveTxt) || IS_PREBUILT;
+
+/** Host UI language for the served shell; `startServer` sets it from `StartServerOptions.language`. */
+let dashboardLocale: StatsLocale = "en";
 
 let embeddedClientFilesPromise: Promise<Map<string, Blob>> | null = null;
 
 async function getEmbeddedClientFiles(): Promise<Map<string, Blob>> {
 	if (embeddedClientFilesPromise) return embeddedClientFilesPromise;
 
-	if (!EMBEDDED_CLIENT_ARCHIVE) {
+	const archive = decodeEmbeddedClientArchive(embeddedClientArchiveTxt);
+	if (!archive) {
 		throw new Error(
 			"Embedded stats client bundle missing. Rebuild the zeta binary or npm bundle with embedded stats assets.",
 		);
 	}
 
 	// Keep bundled assets in memory so OS temporary-file cleanup cannot break a live dashboard.
-	embeddedClientFilesPromise = new Bun.Archive(EMBEDDED_CLIENT_ARCHIVE).files().then(files => {
+	embeddedClientFilesPromise = new Bun.Archive(archive).files().then(files => {
 		for (const [name, file] of files) {
 			// Archive entries are untyped blobs; infer MIME types just as disk-backed Bun files do.
 			files.set(name, new File([file], name, { type: Bun.file(name).type }));
@@ -241,8 +249,9 @@ export async function handleApi(req: Request): Promise<Response> {
 	}
 
 	if (path === "/api/stats/models") {
-		const stats = await getDashboardStats(range);
-		return Response.json(stats.byModel);
+		// Also the port-conflict identity probe: keep it to the one query it serves.
+		await initDb();
+		return Response.json(getStatsByModel(getTimeRangeConfig(range).cutoff));
 	}
 
 	if (path === "/api/stats/folders") {
@@ -251,8 +260,8 @@ export async function handleApi(req: Request): Promise<Response> {
 	}
 
 	if (path === "/api/stats/timeseries") {
-		const stats = await getDashboardStats(range);
-		return Response.json(stats.timeSeries);
+		await initDb();
+		return Response.json(getTimeSeries(getTimeRangeConfig(range)));
 	}
 
 	if (path.startsWith("/api/request/")) {
@@ -293,14 +302,15 @@ export async function handleApi(req: Request): Promise<Response> {
 			// The fingerprint covers child transcripts, so a subagent-only
 			// append changes the ETag and never 304s stale.
 			const clientEtag = req.headers.get("if-none-match");
+			let fingerprint: TraceFingerprint | undefined;
 			if (clientEtag) {
-				const fingerprint = await traceFingerprintForEtag(file);
+				fingerprint = await traceFingerprintForEtag(file);
 				if (fingerprint !== undefined) {
-					const etag = `"${TRACE_ETAG_VERSION}:${fingerprint}"`;
+					const etag = `"${TRACE_ETAG_VERSION}:${fingerprint.rootMtimeMs}:${fingerprint.childFingerprint}"`;
 					if (clientEtag === etag) return new Response(null, { status: 304 });
 				}
 			}
-			const trace = await buildSessionTrace(file);
+			const trace = await buildSessionTrace(file, fingerprint);
 			const etag = `"${TRACE_ETAG_VERSION}:${trace.etag}"`;
 			if (clientEtag === etag) return new Response(null, { status: 304 });
 			return Response.json(trace, { headers: { ETag: etag } });
@@ -332,10 +342,12 @@ export async function handleApi(req: Request): Promise<Response> {
  * Handle static file requests.
  */
 async function handleStatic(requestPath: string): Promise<Response> {
+	const wantsIndex = requestPath === "/" || requestPath.endsWith("index.html");
 	if (USE_EMBEDDED_CLIENT) {
 		const files = await getEmbeddedClientFiles();
 		const file = files.get(requestPath.slice(1)) ?? files.get("index.html");
-		return file ? new Response(file) : new Response("Not Found", { status: 404 });
+		if (!file) return new Response("Not Found", { status: 404 });
+		return wantsIndex ? shellResponse(await file.text()) : new Response(file);
 	}
 
 	const filePath = requestPath === "/" ? "/index.html" : requestPath;
@@ -343,16 +355,29 @@ async function handleStatic(requestPath: string): Promise<Response> {
 
 	const file = Bun.file(fullPath);
 	if (await file.exists()) {
-		return new Response(file);
+		return filePath.endsWith("index.html") ? shellResponse(await file.text()) : new Response(file);
 	}
 
 	// SPA fallback
 	const index = Bun.file(path.join(STATIC_DIR, "index.html"));
 	if (await index.exists()) {
-		return new Response(index);
+		return shellResponse(await index.text());
 	}
 
 	return new Response("Not Found", { status: 404 });
+}
+
+/**
+ * The shell HTML with the host's language stamped in — `<html lang>` plus an
+ * inline global the client reads at boot (`resolveInitialLocale`), the same
+ * pre-paint pattern the persisted theme uses.
+ */
+function shellResponse(html: string): Response {
+	const locale = dashboardLocale;
+	const stamped = html
+		.replace(/<html lang="[^"]*"/, `<html lang="${locale}"`)
+		.replace("</head>", `<script>window.__ZETA_STATS_LOCALE__=${JSON.stringify(locale)}</script></head>`);
+	return new Response(stamped, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
 
 /** Format a dashboard origin, including brackets required by IPv6 literals. */
@@ -383,7 +408,7 @@ function createDashboardServer(port: number, hostname: string): Server<undefined
 			if (path === "/api/events") {
 				// Long-lived stream: exempt from the idle timeout.
 				server.timeout(req, 0);
-				return liveEventStream(dashboardHeaders);
+				return liveEventStream(dashboardHeaders, req.signal);
 			}
 
 			try {
@@ -423,8 +448,9 @@ const EVENT_HEARTBEAT_MS = 15_000;
 /**
  * Server-sent events of {@link LiveStatus}: the current status immediately,
  * then every change (sync progress, data version bumps, indexing backlog).
+ * Disconnects unsubscribe, so ingest winds down once no page is listening.
  */
-function liveEventStream(headers: Record<string, string>): Response {
+function liveEventStream(headers: Record<string, string>, signal: AbortSignal): Response {
 	const live = statsLive();
 	// Ingest starts when the first page connects, not when the server binds.
 	live.start();
@@ -432,19 +458,26 @@ function liveEventStream(headers: Record<string, string>): Response {
 	let cleanup = () => {};
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
-			const send = (status: LiveStatus) => {
-				controller.enqueue(encoder.encode(`data: ${JSON.stringify(status)}\n\n`));
+			const write = (chunk: string) => {
+				try {
+					controller.enqueue(encoder.encode(chunk));
+				} catch {
+					// Stream already closed: the client left without a cancel.
+					cleanup();
+				}
 			};
-			send(live.status());
-			const unsubscribe = live.subscribe(send);
-			const heartbeat = setInterval(
-				() => controller.enqueue(encoder.encode(": keep-alive\n\n")),
-				EVENT_HEARTBEAT_MS,
-			);
+			write(`data: ${JSON.stringify(live.status())}\n\n`);
+			const unsubscribe = live.subscribe((_status, frame) => write(`data: ${frame}\n\n`));
+			const heartbeat = setInterval(() => write(": keep-alive\n\n"), EVENT_HEARTBEAT_MS);
+			const onAbort = () => cleanup();
 			cleanup = () => {
+				cleanup = () => {};
 				unsubscribe();
 				clearInterval(heartbeat);
+				signal.removeEventListener("abort", onAbort);
 			};
+			if (signal.aborted) cleanup();
+			else signal.addEventListener("abort", onAbort, { once: true });
 		},
 		cancel() {
 			cleanup();
@@ -480,6 +513,12 @@ let liveServers = 0;
 export interface StartServerOptions {
 	/** Host judge for the Frustration dashboard's judge runs; replaces any previously registered one. */
 	judge?: StatsJudgeProvider;
+	/**
+	 * Host UI language (`zh`, `zh-CN`, `en`, …). Stamped into the served page so
+	 * the dashboard renders in the same language as the CLI that launched it;
+	 * anything unrecognized resolves to English.
+	 */
+	language?: string;
 }
 
 export async function startServer(
@@ -488,6 +527,7 @@ export async function startServer(
 	options: StartServerOptions = {},
 ): Promise<StatsServerHandle> {
 	if (options.judge) setStatsJudgeProvider(options.judge);
+	dashboardLocale = resolveLocaleTag(options.language);
 	const activeKey = `${hostname}:${port}`;
 	if (port !== 0) {
 		const active = activeServers.get(activeKey);

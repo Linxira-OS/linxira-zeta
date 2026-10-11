@@ -622,6 +622,19 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **tea CLI 工具套件(2026-10-07 用户裁决:下一批次一次性到位,下一版本发布前交付)**:为
+  自托管 Gitea 与 gitea.com 提供 gh 工具族对等集成。侦察完成,配方:①`utils/gitea.ts`
+  运行器(克隆 github.ts:which("tea")/非交互 env/5min deadline/8MiB 截断,错误映射
+  "运行 `tea login`")②`tea-common.ts`(owner/repo 解析,实例→login 读 tea config.yml)
+  ③`tea.ts` 单工具 op 判别联合(omptype),createIf 判二进制,approval 按操作分类
+  ④注册三点(builtin-names/BUILTIN_TOOLS/isToolAllowed `gitea.enabled` 默认 false)
+  ⑤prompts/tools/gitea.md + docs/tools/gitea.md + test/tools/tea.test.ts。二期:
+  issue://、pr:// 内部 URL 族 + SQLite 缓存(凭据指纹法)+ run watch(Gitea Actions,
+  runs-on 仅认 self-hosted/ubuntu-latest)。设计输入:tea repo create 静默失败
+  (URL 打印但仓不存在),push-create 可靠——建仓操作优先 push-create 或 API 回读验证。
+  实测环境:LAN NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙
+  BHYS-gitea-lan;git 调用需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
+
 - **上游合并队列**:v18.4.3(五 tag 直拉,v18.3.5/40/41/42/43 一次并入,
   288 冲突,账本见 upstream-sync.md)已落 dev/main;dev→main 合并待决策。
   上游性能大年获益:cache-warming、投机 task 启动、grep 流式背压、
@@ -696,6 +709,16 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   窗格内一键 npm 快装(cmd /k 保窗可见)、帮助层非模态(曾吞掉
   Alt+T 等全部热键)、Windows 默认 shell 修正(pwsh/powershell,不再
   落 System32 bash.exe 的 WSL 陷阱)、无色 chrome(终端自身底色)。
+
+- **模型侧「AI 崩溃度」统计(2026-10-11 用户裁决:用户侧先落,本项排队;用户复核「这是比较重要的统计量」,但先保主线稳定,按本队列延后)**:Frustration
+  页面目前只测**用户侧**。另一半是模型侧(用户原话:「统计 ai 的崩溃程度」),它的文本形态
+  完全不同——markdown/代码围栏/工具调用与结果/emoji——所以要复用 `stripStructuredContent`
+  一类剥离逻辑再加自己的信号(致歉与自责标记、反复重述、含糊兜底、工具失败螺旋、啰嗦度)。
+  **混语言硬约束(2026-10-11 用户裁定)**:模型思维链绝大多数是英文,正文可能英文、中文或
+  中英混杂,少数情况下思维链被强制成中文;所以模型侧分析必须语言中立、en+zh 词典同时生效,
+  绝不能按 UI 语言选词典——中文用户的统计天生是双语的。用户侧已据此落地(每条消息同时跑
+  en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
+  为语言中立且适配单条消息内混语言。
 
 ## Notes
 

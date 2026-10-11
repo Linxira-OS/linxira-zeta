@@ -10,6 +10,7 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
+import { isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import {
 	CLI_BIN_NAME,
 	directoryIsMissing,
@@ -725,7 +726,11 @@ async function runInteractiveMode(
 			}
 		}
 
-		// `zeta-c join <link>`: dispatch through the same builtin path as a typed
+		if (!resuming && joinLink === undefined) {
+			await mode.maybeAutoCreateWorktree();
+		}
+
+		// `zetacode join <link>`: dispatch through the same builtin path as a typed
 		// `/join` so collab guards and error rendering stay in one place.
 		if (joinLink !== undefined) {
 			const executeBuiltinSlashCommand = await loadBuiltinSlashCommandExecutor();
@@ -874,33 +879,37 @@ async function moveMissingCwdSessionIfNeeded(
 		return { status: "not-needed" };
 	}
 
-	const movePromptResult = await askToMoveSession(session);
-	if (movePromptResult === "unavailable") {
-		throw new SessionResolutionError(
-			`Session "${sessionArg}" belongs to a directory that no longer exists (${sourceCwd}); run interactively to move it into the current project.`,
-		);
+	// A removed worktree of this checkout's repository: its session belongs here, no question to ask.
+	if (!(await SessionManager.isFromRemovedWorktree(session, cwd, sessionDir))) {
+		const movePromptResult = await askToMoveSession(session);
+		if (movePromptResult === "unavailable") {
+			throw new SessionResolutionError(
+				`Session "${sessionArg}" belongs to a directory that no longer exists (${sourceCwd}); run interactively to move it into the current project.`,
+			);
+		}
+		if (movePromptResult === "declined") {
+			return { status: "declined" };
+		}
 	}
-	if (movePromptResult === "declined") {
-		return { status: "declined" };
-	}
+	return { status: "moved", manager: await openRelocatedSession(session, cwd, sessionDir) };
+}
 
-	// Open anchored at the (now-missing) recorded cwd: `open` otherwise falls back
-	// to the launch cwd, which would make the `moveTo` below a no-op whenever the
-	// move target equals the current project dir. moveTo never chdirs, so the
-	// stale cwd is only a relocation source, not a directory we enter.
-	const manager = await SessionManager.open(session.path, sessionDir, undefined, { initialCwd: sourceCwd });
+/** {@link SessionManager.openRelocated} into `cwd`, reporting a live-writer refusal as a CLI error. */
+async function openRelocatedSession(
+	session: SessionInfo,
+	cwd: string,
+	sessionDir: string | undefined,
+): Promise<SessionManager> {
 	try {
-		await manager.moveTo(cwd, sessionDir);
+		return await SessionManager.openRelocated(session.path, session.cwd, cwd, sessionDir);
 	} catch (err) {
 		if (!(err instanceof SessionMoveRefusedError)) throw err;
-		await manager.close();
 		// Its directory is gone, so it cannot be resumed in place either.
 		throw new SessionResolutionError(
 			err.message,
 			"Close the session in the other omp process, then resume it again.",
 		);
 	}
-	return { status: "moved", manager };
 }
 
 type ResumedProjectResult = { cwd: string; chdirFailed?: string };
@@ -1046,7 +1055,7 @@ export interface ScopedModelSink {
  * whose model first materializes through runtime discovery (e.g.
  * `opencode-go/ox-alpha-free` on a fresh launch with no cache row) is absent from
  * the frozen scoped `/models` list even though it is in `enabledModels`, invokable
- * via `--model`, and listed by `zeta-c models find`. Once the initial refresh settles,
+ * via `--model`, and listed by `zetacode models find`. Once the initial refresh settles,
  * re-resolve the scope and, when the set changed, push the fuller list into the
  * session so the scoped picker and Ctrl+P cycle include it. A scope that resolved
  * to zero models may become active here when the startup discovery pass returned
@@ -1147,8 +1156,8 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 	parsed.continue = false;
 	parsed.messages.splice(messageIndex, 1);
 }
-const FORK_NOT_FOUND_HINT =
-	"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.";
+const SESSION_NOT_FOUND_HINT =
+	"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.";
 
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
@@ -1182,20 +1191,20 @@ export async function createSessionManager(
 				return await SessionManager.forkFrom(forkSource, cwd, parsed.sessionDir);
 			} catch (err) {
 				if (err instanceof ForkSourceNotFoundError) {
-					throw new SessionResolutionError(err.message, FORK_NOT_FOUND_HINT);
+					throw new SessionResolutionError(err.message, SESSION_NOT_FOUND_HINT);
 				}
 				throw err;
 			}
 		}
 		const match = await resolveResumableSession(forkSource, cwd, parsed.sessionDir);
 		if (!match) {
-			throw new SessionResolutionError(`Session "${forkSource}" not found.`, FORK_NOT_FOUND_HINT);
+			throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
 		}
 		try {
 			return await SessionManager.forkFrom(match.session.path, cwd, parsed.sessionDir);
 		} catch (err) {
 			if (err instanceof ForkSourceNotFoundError) {
-				throw new SessionResolutionError(`Session "${forkSource}" not found.`, FORK_NOT_FOUND_HINT);
+				throw new SessionResolutionError(`Session "${forkSource}" not found.`, SESSION_NOT_FOUND_HINT);
 			}
 			throw err;
 		}
@@ -1227,7 +1236,7 @@ export async function createSessionManager(
 				if (code === "ENOENT" || code === "ENOTDIR") {
 					throw new SessionResolutionError(
 						`Session file "${normalizedSessionArg}" not found.`,
-						"Pass the session id from the exit tip (`zeta-c --resume <id>`), or run `zeta-c --resume` without an argument to pick from recent sessions.",
+						"Pass the session id from the exit tip (`zetacode --resume <id>`), or run `zetacode --resume` without an argument to pick from recent sessions.",
 					);
 				}
 				throw error;
@@ -1237,7 +1246,7 @@ export async function createSessionManager(
 		if (!match) {
 			throw new SessionResolutionError(
 				`Session "${normalizedSessionArg}" not found.`,
-				"Run `zeta-c --resume` without an argument to pick from recent sessions, or `zeta-c` to start a new one.",
+				"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.",
 			);
 		}
 		if (match.scope === "local") {
@@ -2144,8 +2153,16 @@ export async function runRootCommand(
 				stopStartupWatchdog();
 				process.exit(0);
 			}
-			sessionManager = await SessionManager.open(selected.path);
+			try {
+				sessionManager = (await SessionManager.isFromRemovedWorktree(selected, cwd, parsedArgs.sessionDir))
+					? await openRelocatedSession(selected, cwd, parsedArgs.sessionDir)
+					: await SessionManager.open(selected.path);
+			} catch (error: unknown) {
+				if (error instanceof SessionResolutionError) exitForSessionResolutionError(error);
+				throw error;
+			}
 			const previousCwd = cwd;
+			// A relocated session's `selected.cwd` is the removed worktree: missing, so the launch cwd stays.
 			const recordedCwd = selected.cwd || sessionManager.getRecordedCwd() || sessionManager.getCwd();
 			const resumedProject = await switchToResumedProject(
 				recordedCwd,
@@ -2204,6 +2221,7 @@ export async function runRootCommand(
 		sessionOptions.hasUI = isInteractive || mode === "rpc-ui";
 		sessionOptions.allowSessionModelFallback = isInteractive;
 		sessionOptions.settingsApproval = isInteractive;
+		sessionOptions.tuiTranscript = isInteractive;
 		sessionOptions.settings = settingsInstance;
 		sessionOptions.onPrewalkWarning = warning => {
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });
@@ -2330,7 +2348,7 @@ export async function runRootCommand(
 					process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
 				}
 			}
-			// Fail fast on stale/typo flags (e.g. `zeta-c --list-models`) and invalid
+			// Fail fast on stale/typo flags (e.g. `zetacode --list-models`) and invalid
 			// built-in enum values now that we know the real extension flag set —
 			// an extension may shadow `--mode`/`--thinking`/`--approval-mode`, so
 			// neither can be judged by the pre-extension parse. Without this check
@@ -2494,6 +2512,10 @@ export async function runRootCommand(
 			}
 
 			const modelRegistryError = modelRegistry.getError();
+			for (const warning of modelRegistry.drainConfigWarnings()) {
+				if (isInteractive) notifs.push({ kind: "warn", message: warning });
+				else process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
+			}
 			if (modelRegistryError) {
 				notifs.push({ kind: "error", message: modelRegistryError.message });
 			}

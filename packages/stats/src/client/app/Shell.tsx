@@ -1,7 +1,8 @@
 import { Menu } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { rangeMeta, TIME_RANGES } from "../data/range";
-import { useLive } from "../data/live";
+import { t } from "../i18n";
+import { useLiveStatus } from "../data/live";
 import type { TimeRange } from "../types";
 import { Segmented } from "../ui";
 import { LiveChip } from "./LiveChip";
@@ -18,8 +19,8 @@ export interface ShellProps {
 
 const RANGE_OPTIONS = TIME_RANGES.map((range, i) => ({
 	value: range,
-	label: rangeMeta(range).label,
-	title: `${rangeMeta(range).windowLabel} (${i + 1})`,
+	label: t(rangeMeta(range).labelKey),
+	title: `${t(rangeMeta(range).windowKey)} (${i + 1})`,
 }));
 
 /**
@@ -30,7 +31,7 @@ const RANGE_OPTIONS = TIME_RANGES.map((range, i) => ({
 export function Shell({ section, onSectionChange, range, onRangeChange, children }: ShellProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const scrolled = useScrolled();
-	const { sync } = useLive();
+	const { sync } = useLiveStatus();
 	useShortcuts(onSectionChange, onRangeChange);
 
 	const go = (next: DashboardSection) => {
@@ -51,7 +52,7 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 					data-variant="ghost"
 					data-icon="true"
 					onClick={() => setMenuOpen(true)}
-					aria-label="Open navigation"
+					aria-label={t("nav.open-navigation")}
 				>
 					<Menu size={16} />
 				</button>
@@ -78,14 +79,19 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 					</svg>
 					<span>zeta</span>
 					<span className="topbar-slash">/</span>
-					<span className="topbar-title">stats</span>
+					<span className="topbar-title">{t("nav.breadcrumb-stats")}</span>
 				</div>
 				<div className="topbar-spacer" />
 				<div className="topbar-actions">
 					<span className="topbar-hide-narrow">
 						<LiveChip />
 					</span>
-					<Segmented options={RANGE_OPTIONS} value={range} onChange={onRangeChange} aria-label="Time range" />
+					<Segmented
+						options={RANGE_OPTIONS}
+						value={range}
+						onChange={onRangeChange}
+						aria-label={t("common.time-range")}
+					/>
 					<ThemeToggle />
 				</div>
 				{progress !== undefined && (
@@ -100,10 +106,10 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 			</header>
 
 			{menuOpen && <div className="drawer-scrim" onClick={() => setMenuOpen(false)} role="presentation" />}
-			<nav className="sidebar" data-open={menuOpen} aria-label="Pages">
+			<nav className="sidebar" data-open={menuOpen} aria-label={t("nav.pages")}>
 				{NAV.map(group => (
-					<div key={group.heading} className="nav-group">
-						<div className="nav-heading">{group.heading}</div>
+					<div key={group.headingKey} className="nav-group">
+						<div className="nav-heading">{t(group.headingKey)}</div>
 						{group.items.map(item => (
 							<button
 								key={item.id}
@@ -114,7 +120,7 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 								onClick={() => go(item.id)}
 							>
 								<item.icon size={15} />
-								<span className="nav-row-label">{item.label}</span>
+								<span className="nav-row-label">{t(item.labelKey)}</span>
 								<kbd>G {item.hotkey.toUpperCase()}</kbd>
 							</button>
 						))}
@@ -122,10 +128,10 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 				))}
 				<div className="sidebar-foot micro">
 					<span>
-						<span className="kbd">1</span>–<span className="kbd">6</span> range
+						<span className="kbd">1</span>–<span className="kbd">6</span> {t("shell.range-suffix")}
 					</span>
 					<span>
-						<span className="kbd">G</span> then letter to jump
+						<span className="kbd">G</span> {t("shell.jump-hint")}
 					</span>
 				</div>
 			</nav>

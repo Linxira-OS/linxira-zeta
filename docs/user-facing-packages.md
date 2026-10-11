@@ -16,7 +16,7 @@ This page indexes README-only user-facing package CLIs and features that need ro
 Sources: [`python/robomp/README.md`](../python/robomp/README.md), [`python/robomp/pyproject.toml`](../python/robomp/pyproject.toml), [`python/robomp/.env.example`](../python/robomp/.env.example), [`python/robomp/docker-compose.yml`](../python/robomp/docker-compose.yml).
 
 - Python package: `robomp` (Python 3.11 or newer); bin: `robomp`, with `serve`, `triage`, `replay`, `status`, and `cleanup` commands.
-- Feature: self-hosted service that receives GitHub webhooks for allowlisted repositories, classifies issues, resumes an `zeta-c --mode rpc` session per issue, comments or opens a fix PR, and handles follow-up issue and PR conversations. Incoming PR review is enabled by default; the opt-in release sentinel handles failed release CI (`ROBOMP_RELEASE_SENTINEL_ENABLED`, default false).
+- Feature: self-hosted service that receives GitHub webhooks for allowlisted repositories, classifies issues, resumes an `zetacode --mode rpc` session per issue, comments or opens a fix PR, and handles follow-up issue and PR conversations. Incoming PR review is enabled by default; the opt-in release sentinel handles failed release CI (`ROBOMP_RELEASE_SENTINEL_ENABLED`, default false).
 - Dashboard/API: FastAPI serves the operator dashboard at `/` alongside health, event, issue, and replay endpoints. The bundled Compose deployment publishes it at `http://localhost:6543/`; `bun run robomp:web:dev` runs the dashboard frontend in development, and `bun run robomp:web:build` rebuilds its static bundle.
 - Inputs/storage: Compose interpolates `python/robomp/.env` through explicit per-service environment allowlists and mounts `~/.zeta/agent/models.container.yml` as agent `models.yml`. Host CLI configuration uses process environment and `.env` relative to cwd. GitHub webhook events feed a SQLite-backed queue; Compose persists the database, workspaces, session transcripts, and logs in the `robomp_data` volume under `/data`.
 - Root commands: `bun run robomp:install` installs the Python package for host development; `bun run robomp:serve` runs it on the host; `bun run robomp:build`/`bun run robomp:rebuild`, `bun run robomp:up`, `bun run robomp:down`, `bun run robomp:restart`, `bun run robomp:logs`, `bun run robomp:dev`, and `bun run robomp:reset` manage the container deployment.
@@ -26,13 +26,13 @@ Sources: [`python/robomp/README.md`](../python/robomp/README.md), [`python/robom
 
 Sources: [`packages/stats/README.md`](../packages/stats/README.md), [`packages/stats/package.json`](../packages/stats/package.json), [`packages/coding-agent/src/cli/stats-cli.ts`](../packages/coding-agent/src/cli/stats-cli.ts).
 
-- Package: `@linxiraos/pi-stats`; bin: `zeta-stats`; main user path: `zeta-c stats`.
+- Package: `@linxiraos/pi-stats`; bin: `zeta-stats`; main user path: `zetacode stats`.
 - Feature: local observability dashboard for AI usage statistics from session JSONL logs.
-- CLI modes: `zeta-c stats` starts or reuses the dashboard at `http://127.0.0.1:3847`, opens it in the browser, and keeps running. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `zeta-stats` uses `--sync` for its summary mode and does not automatically open a browser.
+- CLI modes: `zetacode stats` starts or reuses the dashboard at `http://127.0.0.1:3847`, opens it in the browser, and keeps running. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `zeta-stats` uses `--sync` for its summary mode and does not automatically open a browser.
 - Programmatic API: exports helpers such as `syncAllSessions()` and `getDashboardStats()` for embedding.
 - Inputs/storage: scans the active profile's session directory recursively, including nested subagent transcripts; stores aggregates in that profile's stats database. Default paths are `~/.zeta/agent/sessions/` and `~/.zeta/stats.db`; initialized XDG data roots and named profiles change them through the shared directory resolver.
 - Outputs: request/token/cost, provider, model, folder, tool, gain, and frustration dashboards. API endpoints include `/api/stats`, `/api/stats/models`, `/api/stats/folders`, `/api/stats/timeseries`, `/api/stats/tools`, `/api/stats/gain`, `/api/status`, `/api/events` (SSE), and `/api/sync` (POST).
-- Side effects/limits: one-shot reports finish ingestion and rollups before printing. The dashboard binds immediately and starts background ingestion when a page connects to its event stream; `Ctrl+C` closes the CLI's stats database and exits. Frustration judging in `zeta-c stats` lazily uses the configured `judge` role (telemetry purpose `stats_frustration`) and can make model calls; standalone `zeta-stats` does not supply a judge.
+- Side effects/limits: one-shot reports finish ingestion and rollups before printing. The dashboard binds immediately and starts background ingestion when a page connects to its event stream; `Ctrl+C` closes the CLI's stats database and exits. Frustration judging in `zetacode stats` lazily uses the configured `judge` role (telemetry purpose `stats_frustration`) and can make model calls; standalone `zeta-stats` does not supply a judge.
 
 ### `packages/omptype` — schema validation library
 
@@ -73,15 +73,15 @@ Sources: [`packages/metaharness/README.md`](../packages/metaharness/README.md), 
 
 Sources: [`packages/browser-relay/README.md`](../packages/browser-relay/README.md), [`packages/browser-relay/package.json`](../packages/browser-relay/package.json), [`packages/coding-agent/src/tools/browser/relay/`](../packages/coding-agent/src/tools/browser/relay/).
 
-- Package: private `@linxiraos/browser-relay`; user command: `zeta-c browser-relay`.
-- Setup: run `zeta-c browser-relay install`, load the unpacked extension from
+- Package: private `@linxiraos/browser-relay`; user command: `zetacode browser-relay`.
+- Setup: run `zetacode browser-relay install`, load the unpacked extension from
   `~/.zeta/browser-relay/extension`, then opt in per call with `app.relay: true` — or set
   `browser.relay`, which makes the relay the profile-wide default across projects (scope
   details in the package README).
 - Behavior: the relay auto-starts through the profile-independent global daemon broker; consumers
   across projects hold leases, and the relay stops after the last lease is released. `app.target`
   selects a tab by URL/title substring, otherwise the visible tab is adopted. Supplying a URL
-  navigates that adopted tab. `zeta-c browser-relay --no-group` disables automatic tab grouping.
+  navigates that adopted tab. `zetacode browser-relay --no-group` disables automatic tab grouping.
 - Security/limits: it binds loopback; use `--token` when local processes are untrusted. Chrome
   internal pages, DevTools, Web Store, extension pages, and tabs with DevTools open cannot attach.
 

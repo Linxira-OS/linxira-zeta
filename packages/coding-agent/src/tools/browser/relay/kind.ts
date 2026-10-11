@@ -1,8 +1,8 @@
 /**
  * Browser relay mode: drive the user's own Chrome tabs through the local CDP
- * relay served by `zeta-c browser-relay` (sibling `server.ts`/`bridge.ts`) plus
+ * relay served by `zetacode browser-relay` (sibling `server.ts`/`bridge.ts`) plus
  * its companion extension (`packages/browser-relay`, installed via
- * `zeta-c browser-relay install`). The relay impersonates Chrome's CDP discovery
+ * `zetacode browser-relay install`). The relay impersonates Chrome's CDP discovery
  * endpoint, so beyond kind resolution the entire connected-browser machinery
  * (registry, tab supervisor, tab workers) applies unchanged.
  */

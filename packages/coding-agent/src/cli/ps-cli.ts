@@ -1,8 +1,8 @@
 /**
- * CLI handler for `zeta-c ps` — inspect and control processes supervised by the
+ * CLI handler for `zetacode ps` — inspect and control processes supervised by the
  * daemon broker from outside the harness.
  *
- * A bare `zeta-c ps` on a TTY opens the interactive alt-screen monitor
+ * A bare `zetacode ps` on a TTY opens the interactive alt-screen monitor
  * (`pi-tui/apps/ps-top`); `--plain`, `--json`, and non-TTY outputs use the static
  * listing. Actions (`stop`, `kill`, `restart`, `logs`, `info`) connect through
  * the regular client, which revives a dead broker so it can re-adopt detached
@@ -127,7 +127,7 @@ export async function runPsCommand(cmd: PsCommandArgs): Promise<void> {
 			return;
 		}
 		if (!cmd.name) {
-			console.error(chalk.red(`${cmd.action} requires a process name. Run \`zeta-c ps\` to list processes.`));
+			console.error(chalk.red(`${cmd.action} requires a process name. Run \`zetacode ps\` to list processes.`));
 			process.exitCode = 1;
 			return;
 		}

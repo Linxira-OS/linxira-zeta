@@ -56,7 +56,7 @@ export function refreshStatusLine(ctx: InteractiveModeContext): void {
 }
 
 /**
- * Resolve a `/model` / `/switch` selector the way `zeta-c bench` and `--model`
+ * Resolve a `/model` / `/switch` selector the way `zetacode bench` and `--model`
  * do: exact `provider/id`, fuzzy ids (`opus`), role aliases (`@smol`, `smol`),
  * and `:level` thinking suffixes. Unqualified selectors prefer the session's
  * `--models` scope, else the authenticated set, before the full catalog.
@@ -895,12 +895,24 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdPrewalk,
 		allowArgs: true,
 		acpDescription: M.cmdPrewalkAcp,
-		acpInputHint: "[restart]",
-		subcommands: [{ name: "restart", description: () => M.cmdPrewalkRestart }],
-
+		acpInputHint: "[restart|off]",
+		subcommands: [
+			{ name: "restart", description: () => M.cmdPrewalkRestart },
+			{ name: "off", description: () => M.cmdPrewalkOff },
+		],
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
-			if (arg && arg !== "restart") return usage("Usage: /prewalk [restart]", runtime);
+			if (arg && arg !== "restart" && arg !== "off") return usage("Usage: /prewalk [restart|off]", runtime);
+			if (arg === "off") {
+				const armed = runtime.session.getPrewalkState() !== undefined;
+				runtime.session.disarmPrewalk();
+				await runtime.output(
+					armed
+						? "Prewalk off: canceled this session's pending handoff; keeping the active model."
+						: "Prewalk already off for this session; keeping the active model.",
+				);
+				return commandConsumed();
+			}
 			const target = resolveSessionModelSelector("@smol", runtime.session, runtime.settings);
 			if (target.error || !target.model) {
 				return usage(target.error ?? 'Model "@smol" not found', runtime);

@@ -407,6 +407,27 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "渲染 Mermaid 图表",
 		description: "将 Mermaid 围栏代码块渲染为 ASCII 图表",
 	},
+	"tui.renderSvg": {
+		label: "渲染 SVG 图形",
+		description: "邀请智能体以 SVG 绘制图表与图示，并在支持图形显示的终端上内联渲染为图像",
+	},
+	"tui.autoGraph": {
+		label: "表格自动图表",
+		description: "在回答中的数字表格下方绘制图表（使用你的主题配色，仅限支持图形显示的终端）",
+	},
+	"tui.maxInlineImageColumns": {
+		label: "内联图像最大宽度",
+		description: "内联图像的最大宽度（终端列数，默认 100）。设为 0 表示不限（仅受终端宽度约束）。",
+	},
+	"tui.maxInlineImageRows": {
+		label: "内联图像最大高度",
+		description: "内联图像的最大高度（终端行数，默认 20）。设为 0 表示仅使用视口比例限制（终端高度的 60%）。",
+	},
+	"tui.maxInlineImages": {
+		label: "内联图像上限",
+		description:
+			"作为终端实时图形保留的内联图像最大数量（默认 8）。超限后较旧的图像通过整屏重绘回退为文字占位符。设为 0 表示全部保留（不限）。",
+	},
 	"tui.codexResetFireworks": {
 		label: "Codex 重置烟花",
 		description: "以顶部三分之一区域的烟花动画庆祝非计划内的 Codex 每周用量重置和新存入的保存重置，直到按 Esc 才消失",
@@ -824,7 +845,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"stream.serverUrl": {
 		label: "直播服务器",
 		description:
-			"`zeta-c stream` 使用的直播服务器（https://host[:port]）；观众通过 <base>/<你的 Stencil 用户名> 观看",
+			"`zetacode stream` 使用的直播服务器（https://host[:port]）；观众通过 <base>/<你的 Stencil 用户名> 观看",
 	},
 	"stream.redactPatterns": {
 		label: "额外脱敏正则",
@@ -1376,6 +1397,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"启用 github 工具（基于 op 的仓库、issue、pull request、diff、search、checkout、push 和 Actions 监视工作流分派）",
 	},
+	"gitea.enabled": {
+		label: "Gitea CLI 集成",
+		description: "启用 tea 工具（面向自托管 Gitea 的仓库、issue、pull request、checkout、合并和发行版工作流分派）",
+	},
 	"github.cache.enabled": {
 		label: "GitHub 视图缓存",
 		description: "将渲染后的 issue/PR 视图输出缓存在 ~/.zeta/cache/github-cache.db 中，重复读取不再计费",
@@ -1412,11 +1437,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"browser.relay": {
 		label: "浏览器中继（Browser Relay）",
 		description:
-			"通过 zeta-c browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zeta-c browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
+			"通过 zetacode browser relay 驱动你自己的 Chrome 标签页。安装一次扩展（`zetacode browser-relay install`）；browser 工具需要时中继服务器自动启动。优先于 Browser CDP URL；可设置 PI_BROWSER_RELAY=0 或 PI_BROWSER_RELAY=1 覆盖。",
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "zeta-c browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "zetacode browser relay 端点（默认 http://127.0.0.1:9224）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -1527,14 +1552,54 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "目标延续模式",
 		description: "活动目标可在轮次间自动延续的运行模式",
 	},
+	"title.icons": {
+		label: "标题图标",
+		description: "新生成的会话标题开头显示的图标与短编码",
+	},
+	"title.generator": {
+		label: "标题生成器",
+		description: "无标题会话根据用户消息命名时使用的方式",
+	},
 	"title.refreshOnReplan": {
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
 	},
+	"worktree.onStart": {
+		label: "启动时创建工作树",
+		description: "新建的交互式会话是否默认在新建的链接工作树中启动",
+	},
+	"worktree.onExit": {
+		label: "退出时处理工作树",
+		description: "退出时如何处理本次运行期间创建的工作树（启动时创建或用 `/wt` 创建）",
+	},
+	"worktree.onStart::off": {
+		label: "关闭",
+		description: "在当前检出中启动",
+	},
+	"worktree.onStart::ask": {
+		label: "询问",
+		description: "会话启动时询问",
+	},
+	"worktree.onStart::create": {
+		label: "创建",
+		description: "总是在新的 `wt/*` 分支工作树中启动",
+	},
+	"worktree.onExit::keep": {
+		label: "保留",
+		description: "保留工作树不动",
+	},
+	"worktree.onExit::ask": {
+		label: "询问",
+		description: "退出时询问",
+	},
+	"worktree.onExit::remove": {
+		label: "移除",
+		description: "移除干净的工作树；有未提交修改或新提交时询问。被 gitignore 的文件（如 `.env`）也会删除",
+	},
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
-			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zeta-c worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zetacode worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
 	},
 	"worktree.cleanSource": {
 		label: "/wt 时清理源检出",
@@ -1942,7 +2007,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"update.channel": {
 		label: "更新通道",
-		description: "zeta-c update 和启动更新检查使用的更新通道",
+		description: "zetacode update 和启动更新检查使用的更新通道",
 	},
 	"edit.blackbox.enabled": {
 		label: "记录解析回归",
@@ -2223,6 +2288,26 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tui.titleSpinner::dots": {
 		label: "单点",
 		description: "单个盲文点循环",
+	},
+	"title.icons::nf+emoji": {
+		label: "Nerd Font + Emoji",
+		description: "Nerd Font 字形可渲染时用之，否则回退 emoji（默认）",
+	},
+	"title.icons::emoji": {
+		label: "Emoji",
+		description: "始终使用 emoji",
+	},
+	"title.icons::boring": {
+		label: "朴素",
+		description: "纯标题：无图标、无编码",
+	},
+	"title.generator::fork": {
+		label: "Fork",
+		description: "回复的旁支轮次，复用会话模型的提示缓存，带卡片图标（默认）",
+	},
+	"title.generator::tiny": {
+		label: "Tiny",
+		description: "仅用标题模型角色；生成不带卡片的纯标题",
 	},
 	"tui.titleSpinner::line": {
 		label: "线条",

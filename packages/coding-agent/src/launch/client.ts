@@ -325,7 +325,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 			`Failed to start daemon broker at ${this.#endpoint} after ${CONNECT_TIMEOUT_MS / 1000}s: ` +
 				`${lastError?.message ?? "socket unavailable"}. Scope: ${this.#runtimeDir}. ` +
 				`${await brokerStderrTail(path.join(this.#runtimeDir, "broker.err.log"))}` +
-				"Run `zeta-c --smoke-test` to verify broker startup, or `zeta-c ps` to inspect supervised processes.",
+				"Run `zetacode --smoke-test` to verify broker startup, or `zetacode ps` to inspect supervised processes.",
 		);
 	}
 
