@@ -606,7 +606,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 		const signature = JSON.stringify(props);
 		const prev = this.#nativePrefs;
 		if (prev && prev.signature === signature && prev.editor === editor) return prev.node;
-		const children: NativeChild[] = editor ? [col([editor], { role: "omp.prefs.editor" })] : [];
+		const children: NativeChild[] = editor ? [col([editor], { role: "zeta.prefs.editor" })] : [];
 		const root = node("prefs", props, children);
 		this.#nativePrefs = { signature, editor, node: root };
 		return root;
@@ -728,7 +728,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 			: node("col", { grow: 1 }, [this.#active], "body");
 		const children: NativeChild[] = [body];
 		if (hints) children.push(node("rule", undefined, undefined, "divider"), hints);
-		const card = overlayCard("omp.overlay.advisor", head, children);
+		const card = overlayCard("zeta.overlay.advisor", head, children);
 		this.#nativeRoot = { screen: this.#screen, active: this.#active, title, preview, hints, node: card };
 		return card;
 	}

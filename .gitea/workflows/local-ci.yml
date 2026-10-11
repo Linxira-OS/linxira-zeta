@@ -52,7 +52,11 @@ defaults:
       shell: bash
 
 env:
-   LOCAL_CI_TOOLS: ${{ github.workspace }}/.tools
+   # Tools deliberately live under `$HOME/.local-ci-tools`, resolved in bash at
+   # each use site (`${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}`). A
+   # `$GITHUB_WORKSPACE/.tools` path cannot be shared: the host executor gives
+   # every job its own `act/<hash>/hostexecutor` workdir. Set LOCAL_CI_TOOLS in
+   # the runner environment to move the store.
    NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
 
 jobs:
@@ -62,9 +66,37 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 10
       steps:
-         - uses: actions/checkout@v4
-           with:
-              fetch-depth: 0
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Assert this run can never be a release
            shell: bash
            run: |
@@ -86,23 +118,92 @@ jobs:
 
    # ── 1. 工具链（常驻，跨运行复用）─────────────────────────────────────────
    toolchains:
-      name: Toolchains (persistent .tools)
+      name: Toolchains (persistent $HOME/.local-ci-tools)
       needs: [preflight]
       runs-on: self-hosted
-      timeout-minutes: 60
-      env:
-         TOOLS: ${{ github.workspace }}/.tools
+      timeout-minutes: 120
       steps:
+         # The bootstrap reads package.json (bun pin) and rust-toolchain.toml,
+         # so this job needs the workspace; without it `sed: package.json: No
+         # such file` exits 2 and every downstream job is skipped (the run
+         # still reports "completed" in ~50s, which is how this stayed hidden).
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Bootstrap toolchains
            shell: bash
            run: |
               set -euo pipefail
-              TOOLS="${{ env.TOOLS }}"
+              # Stable across jobs and runs: the host executor hands every job
+              # its own `act/<hash>/hostexecutor` workdir, so a workspace-relative
+              # path is invisible to the jobs that consume this bootstrap (run
+              # 538: downstream `Toolchain PATH` could not find `.tools/env.path`).
+              TOOLS="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              echo "TOOLS=$TOOLS" >> "$GITHUB_ENV"
               mkdir -p "$TOOLS/bin"
               export RUSTUP_HOME="$TOOLS/rustup"
               export CARGO_HOME="$TOOLS/cargo"
               export PATH="$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$PATH"
               export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+              export CARGO_NET_RETRY=10
+
+              # The runner's egress to GitHub/nodejs.org/go.dev resets mid-transfer
+              # (observed: curl exit 56 "SSL unexpected eof"), and plain `--retry`
+              # does not cover that class, so retry every download explicitly.
+              fetch() { # fetch <url> <dest>
+                 local url="$1" dst="$2" attempt
+                 for attempt in 1 2 3 4 5; do
+                    if curl -fsSL --connect-timeout 20 --retry 5 --retry-all-errors \
+                       --retry-delay 5 --retry-connrefused -o "$dst" "$url"; then
+                       return 0
+                    fi
+                    echo "::warning::download attempt $attempt failed: $url"
+                    sleep $((attempt * 5))
+                 done
+                 echo "::error::cannot download $url"
+                 return 1
+              }
+              # Same failure class, but for tools that download *inside* their own
+              # installer (bun's zip, rustup's toolchains): `fetch` cannot cover
+              # those, so retry the command itself.
+              retry() { # retry <cmd...>
+                 local attempt
+                 for attempt in 1 2 3 4 5; do
+                    if "$@"; then return 0; fi
+                    echo "::warning::attempt $attempt failed: $*"
+                    sleep $((attempt * 5))
+                 done
+                 echo "::error::giving up after 5 attempts: $*"
+                 return 1
+              }
 
               # bun —— 版本必须满足 package.json 的 packageManager pin，
               # 否则 gen:tool-views 之类的代码生成会和 CI 产生版本偏差。
@@ -122,9 +223,15 @@ jobs:
                    ;;
               esac
               if [ "${ok:-false}" != true ]; then
+                 fetch https://bun.sh/install "$TOOLS/bun-install.sh"
+                 # The installer takes the release tag as its first positional
+                 # argument when run from the downloaded file. `-s --` belongs to
+                 # the `curl | bash` form only: passed here it becomes two extra
+                 # script arguments and the installer refuses with "Too many
+                 # arguments, only 2 are allowed".
                  case "$want" in
-                   '>='*) BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" ;;
-                   *)     BUN_INSTALL="$TOOLS" bash -c "$(curl -fsSL https://bun.sh/install)" -s -- "bun-v$want" ;;
+                   '>='*) retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" ;;
+                   *)     retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" "bun-v$want" ;;
                  esac
               fi
               "$TOOLS/bin/bun" --version
@@ -133,43 +240,43 @@ jobs:
               # 工作区各钉 1.91.1（termide/ main/）。三个都要装，否则
               # `cargo fmt/clippy/test` 在 vendor 目录里会触发重编译。
               if [ ! -x "$RUSTUP_HOME/bin/rustup" ]; then
-                 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-                   | RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" sh -s -- -y --profile minimal --no-modify-path
+                 fetch https://sh.rustup.rs "$TOOLS/rustup-init.sh"
+                 retry env RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" \
+                   sh "$TOOLS/rustup-init.sh" -y --profile minimal --no-modify-path
               fi
               repo_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' rust-toolchain.toml)"
               vendor_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' termide/rust-toolchain.toml)"
               for tc in "$repo_pin" "$vendor_pin"; do
                  case "$tc" in
-                   nightly*) rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
-                   *)        rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                   nightly*) retry rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                   *)        retry rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
                  esac
               done
               rustup default "$repo_pin"
 
               # bazelisk —— .bazelversion 钉版本，交给 bazelisk 自己解析。
               if ! command -v bazelisk >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o "$TOOLS/bin/bazelisk" \
-                   "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64"
+                 fetch "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
+                   "$TOOLS/bin/bazelisk"
                  chmod +x "$TOOLS/bin/bazelisk"
               fi
 
               # cargo 工具：nextest（vendor 工作区用）与 deny（license 面）。
               for tool in cargo-nextest cargo-deny; do
-                 command -v "$tool" >/dev/null 2>&1 || cargo install "$tool" --locked || true
+                 command -v "$tool" >/dev/null 2>&1 || cargo install "$tool" --locked ||
+                   (echo "::warning::cargo install $tool failed"; true)
               done
 
               # node —— web-ui 与 editor functional harness 用（GitHub 侧 22/24）。
               if ! command -v node >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o /tmp/node.tar.xz \
-                   https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz
+                 fetch https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz /tmp/node.tar.xz
                  mkdir -p "$TOOLS/node"
                  tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
               fi
 
               # go —— editor（TTT）测试。
               if ! command -v go >/dev/null 2>&1; then
-                 curl -fsSL --retry 3 -o /tmp/go.tar.gz \
-                   https://go.dev/dl/go1.24.5.linux-amd64.tar.gz
+                 fetch https://go.dev/dl/go1.24.5.linux-amd64.tar.gz /tmp/go.tar.gz
                  mkdir -p "$TOOLS/go"
                  tar -xzf /tmp/go.tar.gz -C "$TOOLS/go" --strip-components=1
               fi
@@ -180,6 +287,16 @@ jobs:
                  echo "BUN_INSTALL=$TOOLS"
                  echo "PATH_EXTRA=$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin"
               } >> "$GITHUB_ENV"
+
+              # GITHUB_ENV is job-scoped, so persist the same PATH for the
+              # downstream jobs (they fall back to this file when PATH_EXTRA
+              # is absent from their own environment).
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" > "$TOOLS/env.path"
+
+              # PATH_EXTRA 只是变量，不会进 PATH：本 job 自己的后续步骤
+              # （Verify toolchains / Install workspace dependencies）必须靠
+              # GITHUB_PATH 拿到 bun，否则 `bun install` 直接 127。
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" >> "$GITHUB_PATH"
 
          - name: Verify toolchains
            shell: bash
@@ -211,10 +328,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |
@@ -229,6 +385,8 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         - name: Upstream merge lineage guard
+           run: bun scripts/check-merge-lineage.ts
          - name: Build collab web
            run: bun run collab:web:build
          - name: Local-CI parity guard
@@ -244,10 +402,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 45
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install dependencies
            working-directory: web-ui
            run: npm ci
@@ -269,10 +466,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 30
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Check crate_universe entry
            run: bun scripts/gen-bazel-lock.ts --check
          - name: Report how to refresh
@@ -287,10 +523,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 180
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Compose bazel cache config
            id: cache
            shell: bash
@@ -357,10 +632,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 90
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Reuse built addons
            shell: bash
            run: |
@@ -382,10 +696,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test workspace packages and repo scripts (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -403,10 +756,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent singleton/global-state bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -420,10 +812,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test native/TUI/browser-ish packages (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -437,10 +868,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent UI/TUI bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -454,10 +924,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Test coding-agent runtime bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -471,10 +980,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 30
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: CLI smoke test
            run: bun run ci:test:smoke
 
@@ -485,10 +1033,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install method smoke tests
            env:
               OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
@@ -502,10 +1089,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 180
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - id: cache
            name: Compose bazel cache config
            shell: bash
@@ -555,10 +1181,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 60
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -577,10 +1242,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 90
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Go tests (unit + e2e)
            working-directory: editor
            run: go test ./...
@@ -601,10 +1305,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 120
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Detect termide/ changes
            id: termide
            shell: bash
@@ -652,10 +1395,49 @@ jobs:
       runs-on: self-hosted
       timeout-minutes: 120
       steps:
-         - uses: actions/checkout@v4
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
          - name: Toolchain PATH
            shell: bash
-           run: echo "$PATH_EXTRA:$PATH" >> "$GITHUB_PATH"
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
          - name: Detect main/ changes
            id: main
            shell: bash

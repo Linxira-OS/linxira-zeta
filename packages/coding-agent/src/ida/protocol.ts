@@ -14,7 +14,7 @@ export { IDA_HOST_WORKER_ARG } from "../cli/worker-selectors";
 export const IDA_HOST_CONFIG_ENV = "OMP_IDA_HOST_CONFIG";
 
 /** Name prefix of every IDA daemon in a broker scope. */
-export const IDA_DAEMON_PREFIX = "omp.ida.";
+export const IDA_DAEMON_PREFIX = "zeta.ida.";
 
 /** Broker daemon names are capped at 48 characters (`broker.ts`). */
 const DAEMON_NAME_MAX = 48;
@@ -164,7 +164,7 @@ const hostConfigSchema = type({
 	idleCloseMs: "number",
 });
 
-/** Everything the host needs to open its database; built by the omp process that starts it. */
+/** Everything the host needs to open its database; built by the Zeta process that starts it. */
 export type IdaHostConfig = typeof hostConfigSchema.infer;
 
 /** Decode the host config from {@link IDA_HOST_CONFIG_ENV}; throws on a malformed value. */

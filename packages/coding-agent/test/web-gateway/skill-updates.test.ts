@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { SkillInstallInfo } from "../../src/server/web-gateway/dto";
+import { SKILLS_CLI_AGENT, type SkillInstallInfo } from "../../src/server/web-gateway/dto";
 import {
 	buildSkillUpdateArgs,
 	checkSkillUpdate,
@@ -129,7 +129,7 @@ describe("buildSkillUpdateArgs", () => {
 			"example-skill",
 			"-y",
 			"--agent",
-			"omp",
+			SKILLS_CLI_AGENT,
 			"-g",
 		]);
 		expect(buildSkillUpdateArgs(install({ scope: "project" }))).toEqual([
@@ -140,7 +140,7 @@ describe("buildSkillUpdateArgs", () => {
 			"example-skill",
 			"-y",
 			"--agent",
-			"omp",
+			SKILLS_CLI_AGENT,
 		]);
 		expect(buildSkillUpdateArgs(install({ ref: "release/v2" }))).toEqual([
 			"skills",
@@ -150,7 +150,7 @@ describe("buildSkillUpdateArgs", () => {
 			"example-skill",
 			"-y",
 			"--agent",
-			"omp",
+			SKILLS_CLI_AGENT,
 			"-g",
 		]);
 	});

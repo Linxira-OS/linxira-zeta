@@ -53,9 +53,9 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.agentsHelp,
 	},
 	{
-		name: "attach",
-		load: () => import("./commands/attach").then(m => m.default),
-		help: commandHelp.attachHelp,
+		name: "anonymize",
+		load: () => import("./commands/anonymize").then(m => m.default),
+		help: commandHelp.anonymizeHelp,
 	},
 	{
 		name: "bench",
@@ -238,20 +238,9 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.sshHelp,
 	},
 	{
-		name: "serve",
-		load: () => import("./commands/serve").then(m => m.default),
-		help: commandHelp.serveHelp,
-	},
-	{
 		name: "stats",
 		load: () => import("./commands/stats").then(m => m.default),
 		help: commandHelp.statsHelp,
-	},
-	{
-		name: "web",
-		load: () => import("./commands/web").then(m => m.default),
-		aliases: ["web-ui"],
-		help: commandHelp.webHelp,
 	},
 	{
 		name: "stream",

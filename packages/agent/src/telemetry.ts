@@ -2,7 +2,7 @@
  * OpenTelemetry instrumentation for the agent loop.
  *
  * Implements the OpenTelemetry GenAI semantic conventions
- * (https://opentelemetry.io/docs/specs/semconv/gen-ai/) plus `omp.gen_ai.*`
+ * (https://opentelemetry.io/docs/specs/semconv/gen-ai/) plus `zeta.gen_ai.*`
  * extension attributes for run summaries, dashboard summaries, and cost hints
  * that are useful to downstream observability UIs.
  *
@@ -126,47 +126,47 @@ export const enum OpenAIAttr {
 
 /** Project extension attributes. Kept out of the reserved `gen_ai.*` namespace. */
 export const enum OmpGenAIAttr {
-	AgentStepNumber = "omp.gen_ai.agent.step.number",
-	AgentStepCount = "omp.gen_ai.agent.step.count",
-	RequestReasoningEffort = "omp.gen_ai.request.reasoning.effort",
-	RequestToolChoice = "omp.gen_ai.request.tool.choice",
-	RequestAvailableTools = "omp.gen_ai.request.available_tools",
-	RequestMessages = "omp.gen_ai.request.messages",
-	ResponseText = "omp.gen_ai.response.text",
-	ResponseToolCalls = "omp.gen_ai.response.tool_calls",
-	ResponseUpstreamProvider = "omp.gen_ai.response.upstream_provider",
-	UsageTotalTokens = "omp.gen_ai.usage.total_tokens",
-	UsageServerSideTools = "omp.gen_ai.usage.server_tool_requests",
-	CostEstimatedUsd = "omp.gen_ai.cost.estimated_usd",
-	CostInputUsd = "omp.gen_ai.cost.input_usd",
-	CostOutputUsd = "omp.gen_ai.cost.output_usd",
-	CostUnavailableReason = "omp.gen_ai.cost.unavailable_reason",
-	ToolStatus = "omp.gen_ai.tool.status",
-	ToolCallIntent = "omp.gen_ai.tool.call.intent",
-	HandoffFromAgentName = "omp.gen_ai.handoff.from_agent.name",
-	HandoffFromAgentId = "omp.gen_ai.handoff.from_agent.id",
-	HandoffToAgentName = "omp.gen_ai.handoff.to_agent.name",
-	HandoffToAgentId = "omp.gen_ai.handoff.to_agent.id",
+	AgentStepNumber = "zeta.gen_ai.agent.step.number",
+	AgentStepCount = "zeta.gen_ai.agent.step.count",
+	RequestReasoningEffort = "zeta.gen_ai.request.reasoning.effort",
+	RequestToolChoice = "zeta.gen_ai.request.tool.choice",
+	RequestAvailableTools = "zeta.gen_ai.request.available_tools",
+	RequestMessages = "zeta.gen_ai.request.messages",
+	ResponseText = "zeta.gen_ai.response.text",
+	ResponseToolCalls = "zeta.gen_ai.response.tool_calls",
+	ResponseUpstreamProvider = "zeta.gen_ai.response.upstream_provider",
+	UsageTotalTokens = "zeta.gen_ai.usage.total_tokens",
+	UsageServerSideTools = "zeta.gen_ai.usage.server_tool_requests",
+	CostEstimatedUsd = "zeta.gen_ai.cost.estimated_usd",
+	CostInputUsd = "zeta.gen_ai.cost.input_usd",
+	CostOutputUsd = "zeta.gen_ai.cost.output_usd",
+	CostUnavailableReason = "zeta.gen_ai.cost.unavailable_reason",
+	ToolStatus = "zeta.gen_ai.tool.status",
+	ToolCallIntent = "zeta.gen_ai.tool.call.intent",
+	HandoffFromAgentName = "zeta.gen_ai.handoff.from_agent.name",
+	HandoffFromAgentId = "zeta.gen_ai.handoff.from_agent.id",
+	HandoffToAgentName = "zeta.gen_ai.handoff.to_agent.name",
+	HandoffToAgentId = "zeta.gen_ai.handoff.to_agent.id",
 	// Marks chat spans emitted outside the agent loop (compaction, handoff, branch
 	// summary, image inspection, …). Lets dashboards split oneshot cost / latency
 	// from main-turn cost without overloading the semconv `gen_ai.operation.name`.
-	OneshotKind = "omp.gen_ai.oneshot.kind",
+	OneshotKind = "zeta.gen_ai.oneshot.kind",
 	// Gateway / proxy (LiteLLM, Helicone, Portkey, …) — populated when a known
 	// gateway header pattern is detected on the upstream response. The base
 	// `gen_ai.provider.name` continues to track the *upstream* provider (e.g.
 	// `anthropic`) that the gateway routed to.
-	GatewayName = "omp.gen_ai.gateway.name",
-	GatewayEndpoint = "omp.gen_ai.gateway.endpoint",
-	GatewayCallId = "omp.gen_ai.gateway.call_id",
-	GatewayRoutedTo = "omp.gen_ai.gateway.routed_to",
+	GatewayName = "zeta.gen_ai.gateway.name",
+	GatewayEndpoint = "zeta.gen_ai.gateway.endpoint",
+	GatewayCallId = "zeta.gen_ai.gateway.call_id",
+	GatewayRoutedTo = "zeta.gen_ai.gateway.routed_to",
 	/** Cloudflare AI Gateway response-cache status (`cf-aig-cache-status`), never prompt-cache. */
-	GatewayResponseCacheStatus = "omp.gen_ai.gateway.response_cache.status",
+	GatewayResponseCacheStatus = "zeta.gen_ai.gateway.response_cache.status",
 	/** Caller-level reason a judgment ran (`find`, `ttsr`, `judge_batch`, …). */
-	JudgmentPurpose = "omp.gen_ai.judgment.purpose",
+	JudgmentPurpose = "zeta.gen_ai.judgment.purpose",
 	/** Questions the caller asked in one judgment request. */
-	JudgmentQuestions = "omp.gen_ai.judgment.questions",
+	JudgmentQuestions = "zeta.gen_ai.judgment.questions",
 	/** Questions answered from the local judgment cache instead of the provider. */
-	JudgmentCachedQuestions = "omp.gen_ai.judgment.cached_questions",
+	JudgmentCachedQuestions = "zeta.gen_ai.judgment.cached_questions",
 }
 
 /** GenAI operation names — values for {@link GenAIAttr.OperationName}. */
@@ -220,9 +220,9 @@ export interface CostEstimatorContext {
 
 /**
  * Cost estimator result.
- *   { usd: number }                — cost is known; emitted as omp.gen_ai.cost.estimated_usd
+ *   { usd: number }                — cost is known; emitted as zeta.gen_ai.cost.estimated_usd
  *   { unavailable: string }        — cost is intentionally unknown; emitted as
- *                                    omp.gen_ai.cost.unavailable_reason
+ *                                    zeta.gen_ai.cost.unavailable_reason
  *   undefined                      — no opinion; nothing emitted
  */
 export type CostEstimate =
@@ -271,7 +271,7 @@ export interface ChatUsageEvent {
 	 *
 	 * Use this to reconcile gateway-issued ids (e.g. `x-litellm-call-id`) with
 	 * downstream billing / spend dashboards. Known gateway patterns are also
-	 * auto-stamped on the chat span as `omp.gen_ai.gateway.*` attributes.
+	 * auto-stamped on the chat span as `zeta.gen_ai.gateway.*` attributes.
 	 */
 	readonly headers: Readonly<Record<string, string>> | undefined;
 }
@@ -1789,7 +1789,7 @@ export interface InstrumentedChatSpanOptions {
 	/** Step index recorded on the span; defaults to `-1` for non-loop calls. */
 	readonly stepNumber?: number;
 	/**
-	 * Tag stamped onto `omp.gen_ai.oneshot.kind`. Values used by the agent:
+	 * Tag stamped onto `zeta.gen_ai.oneshot.kind`. Values used by the agent:
 	 * `compaction_summary`, `compaction_short_summary`, `compaction_turn_prefix`,
 	 * `handoff`, `branch_summary`, `image_question`, `skill_description`. Free-form
 	 * to allow callers outside this package to add new kinds without bumping the helper.
@@ -2117,33 +2117,33 @@ export function fireOnRunEnd(telemetry: AgentTelemetry, summary: AgentRunSummary
 	}
 }
 
-/** Aggregate `omp.gen_ai.agent.*` attributes stamped on the `invoke_agent` span. */
+/** Aggregate `zeta.gen_ai.agent.*` attributes stamped on the `invoke_agent` span. */
 export const enum OmpGenAIAggregateAttr {
-	ChatsCount = "omp.gen_ai.agent.chats.count",
-	ChatsTotalLatencyMs = "omp.gen_ai.agent.chats.total_latency_ms",
-	ChatsStopReasonPrefix = "omp.gen_ai.agent.chats.stop_reason.",
-	ToolsCount = "omp.gen_ai.agent.tools.count",
-	ToolsOkCount = "omp.gen_ai.agent.tools.ok.count",
-	ToolsErrorCount = "omp.gen_ai.agent.tools.error.count",
-	ToolsSkippedCount = "omp.gen_ai.agent.tools.skipped.count",
-	ToolsBlockedCount = "omp.gen_ai.agent.tools.blocked.count",
-	ToolsTimeoutCount = "omp.gen_ai.agent.tools.timeout.count",
-	ToolsAbortedCount = "omp.gen_ai.agent.tools.aborted.count",
-	ToolsTotalLatencyMs = "omp.gen_ai.agent.tools.total_latency_ms",
-	ToolsInvoked = "omp.gen_ai.agent.tools.invoked",
-	ToolsAvailable = "omp.gen_ai.agent.tools.available",
-	ToolsUnused = "omp.gen_ai.agent.tools.unused",
-	UsageInputTokensTotal = "omp.gen_ai.agent.usage.input_tokens.total",
-	UsageOutputTokensTotal = "omp.gen_ai.agent.usage.output_tokens.total",
-	UsageCacheReadInputTokensTotal = "omp.gen_ai.agent.usage.cache_read.input_tokens.total",
-	UsageCacheCreationInputTokensTotal = "omp.gen_ai.agent.usage.cache_creation.input_tokens.total",
-	UsageReasoningOutputTokensTotal = "omp.gen_ai.agent.usage.reasoning.output_tokens.total",
-	UsageTotalTokensTotal = "omp.gen_ai.agent.usage.total_tokens.total",
-	CostEstimatedUsdTotal = "omp.gen_ai.agent.cost.estimated_usd.total",
-	ErrorsCount = "omp.gen_ai.agent.errors.count",
+	ChatsCount = "zeta.gen_ai.agent.chats.count",
+	ChatsTotalLatencyMs = "zeta.gen_ai.agent.chats.total_latency_ms",
+	ChatsStopReasonPrefix = "zeta.gen_ai.agent.chats.stop_reason.",
+	ToolsCount = "zeta.gen_ai.agent.tools.count",
+	ToolsOkCount = "zeta.gen_ai.agent.tools.ok.count",
+	ToolsErrorCount = "zeta.gen_ai.agent.tools.error.count",
+	ToolsSkippedCount = "zeta.gen_ai.agent.tools.skipped.count",
+	ToolsBlockedCount = "zeta.gen_ai.agent.tools.blocked.count",
+	ToolsTimeoutCount = "zeta.gen_ai.agent.tools.timeout.count",
+	ToolsAbortedCount = "zeta.gen_ai.agent.tools.aborted.count",
+	ToolsTotalLatencyMs = "zeta.gen_ai.agent.tools.total_latency_ms",
+	ToolsInvoked = "zeta.gen_ai.agent.tools.invoked",
+	ToolsAvailable = "zeta.gen_ai.agent.tools.available",
+	ToolsUnused = "zeta.gen_ai.agent.tools.unused",
+	UsageInputTokensTotal = "zeta.gen_ai.agent.usage.input_tokens.total",
+	UsageOutputTokensTotal = "zeta.gen_ai.agent.usage.output_tokens.total",
+	UsageCacheReadInputTokensTotal = "zeta.gen_ai.agent.usage.cache_read.input_tokens.total",
+	UsageCacheCreationInputTokensTotal = "zeta.gen_ai.agent.usage.cache_creation.input_tokens.total",
+	UsageReasoningOutputTokensTotal = "zeta.gen_ai.agent.usage.reasoning.output_tokens.total",
+	UsageTotalTokensTotal = "zeta.gen_ai.agent.usage.total_tokens.total",
+	CostEstimatedUsdTotal = "zeta.gen_ai.agent.cost.estimated_usd.total",
+	ErrorsCount = "zeta.gen_ai.agent.errors.count",
 }
 
-/** Stamp the aggregate `omp.gen_ai.agent.*` attributes on the given span. */
+/** Stamp the aggregate `zeta.gen_ai.agent.*` attributes on the given span. */
 function applyAggregateAttributes(span: Span, summary: AgentRunSummary, coverage: AgentRunCoverage): void {
 	span.setAttribute(OmpGenAIAggregateAttr.ChatsCount, summary.chats.total);
 	span.setAttribute(OmpGenAIAggregateAttr.ChatsTotalLatencyMs, summary.chats.totalLatencyMs);

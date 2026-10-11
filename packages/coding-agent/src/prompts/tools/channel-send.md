@@ -1,4 +1,4 @@
-Proactive push to the remote IM channel (WeChat/Feishu/Telegram) that the user talks to through `zeta serve`.
+Proactive push to the remote IM channel (WeChat/Feishu/Telegram) that the user talks to through `zetacode serve`.
 
 Call this when the remote user asked for a progress update, a task finished and
 needs their attention, or something requires manual confirmation. Decide what is

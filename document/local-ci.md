@@ -58,11 +58,17 @@ Local-only jobs: `preflight` (tag guard), `toolchains` (persistent toolchain +
 
 The runner workspace is persistent, so:
 
-- toolchains live in `$GITHUB_WORKSPACE/.tools` (bun pinned to
+- toolchains live in `$HOME/.local-ci-tools` (bun pinned to
   `package.json#packageManager`, rustup with the repo nightly plus the two
-  vendor pins, bazelisk, cargo-nextest, cargo-deny, node, go). A per-run
-  ephemeral `HOME` would throw all of that away — that was the failure the
-  `.tools` layout was introduced to fix.
+  vendor pins, bazelisk, cargo-nextest, cargo-deny, node, go). Two properties
+  matter: the directory must outlive the run (a per-run ephemeral `HOME` would
+  throw it away) and it must be the *same* directory for every job. The host
+  executor gives each job its own `act/<hash>/hostexecutor` workdir, so
+  `$GITHUB_WORKSPACE/.tools` was per-job: the bootstrap job populated its copy and
+  every consumer then failed its `Toolchain PATH` step with
+  `…/.tools/env.path is missing` (run 538). Jobs resolve the store as
+  `${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}`; the bootstrap job exports `TOOLS`
+  through `$GITHUB_ENV` for its own later steps.
 - cargo `target/` dirs and the bazel disk cache (`~/.cache/omp-bazel-disk`)
   survive between runs, so Rust re-verification is incremental.
 - the native addon is built once, in place; no artifact upload/download

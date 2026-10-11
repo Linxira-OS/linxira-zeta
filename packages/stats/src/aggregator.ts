@@ -114,7 +114,7 @@ export interface SyncOptions {
 
 function defaultWorkerCount(): number {
 	// Bun 1.3.x can abort the macOS process when stats sync workers re-enter
-	// the compiled `omp` binary. Keep macOS on the documented serial path.
+	// the compiled `zetacode` binary. Keep macOS on the documented serial path.
 	if (process.platform === "darwin") return 1;
 	// `navigator.hardwareConcurrency` is the portable answer in Bun; fall
 	// back to a small fixed pool if it's somehow unavailable.

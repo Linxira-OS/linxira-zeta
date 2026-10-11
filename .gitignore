@@ -53,6 +53,11 @@ tui-debug.log
 coverage/
 .nyc_output/
 packages/ai/test/.temp-images/
+# Scratch workspace for local end-to-end runs (gateway/next dev + a throwaway
+# agent home). Committed once by accident in c8e65428bd0 — it holds SQLite
+# databases (agent.db / models.db / skill-descriptions.db) that are local state,
+# not repo content.
+.tmp-e2e/
 
 # Project specific
 .zeta/

@@ -16,13 +16,14 @@ import * as path from "node:path";
 // Upstream v18.0.9 deleted src/utils/git.ts — worktree operations now go
 // through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { logger } from "@linxiraos/pi-utils";
+import { getBlobsDir, logger } from "@linxiraos/pi-utils";
 import { WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
+import { BLOB_EXTERNALIZE_THRESHOLD } from "../../session/session-persistence";
 import { moveSessionToTrash } from "../../session/session-trash";
 import { serializeTitleSlot } from "../../session/session-title-slot";
 import { getRpcSession } from "./agents";
@@ -302,46 +303,52 @@ function normalizeToolCalls(msg: AgentMessage): AgentMessage {
 	return { ...msg, content: normalized };
 }
 
-function base64ImageInfo(block: unknown): { bytes: number; mime?: string } | null {
+/** Inline base64 payload of an image block, whichever of the two shapes it uses. */
+function inlineImagePayload(block: unknown): { data: string; mime?: string } | null {
 	if (!isRecord(block) || block.type !== "image") return null;
 
-	let data: string | undefined;
-	let mime: string | undefined;
-	if (typeof block.data === "string") {
-		data = block.data;
-		mime = typeof block.mimeType === "string" ? block.mimeType : undefined;
-	} else if (isRecord(block.source) && block.source.type === "base64" && typeof block.source.data === "string") {
-		data = block.source.data;
-		mime = typeof block.source.media_type === "string" ? block.source.media_type : undefined;
+	if (typeof block.data === "string" && block.data !== "") {
+		return { data: block.data, mime: typeof block.mimeType === "string" ? block.mimeType : undefined };
 	}
-	if (!data) return null;
-
-	const padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0;
-	return { bytes: Math.max(0, Math.floor((data.length * 3) / 4) - padding), mime };
+	if (isRecord(block.source) && block.source.type === "base64" && typeof block.source.data === "string") {
+		return {
+			data: block.source.data,
+			mime: typeof block.source.media_type === "string" ? block.source.media_type : undefined,
+		};
+	}
+	return null;
 }
 
-function omitToolResultBase64Images(message: AgentMessage): AgentMessage {
+/**
+ * `deferMedia` history loads have to stay small, but dropping the images meant
+ * the web conversation could never show an agent screenshot. Persistence already
+ * externalizes any payload of at least {@link BLOB_EXTERNALIZE_THRESHOLD}
+ * characters into the content-addressed blob store, so the block is pointed at
+ * `GET /api/blobs/<sha256>` — the same bytes, fetched on demand — instead of the
+ * base64 it carried. Payloads below the threshold, and any whose blob is not on
+ * disk, stay inline: an `<img>` at a 404 is worse than a small inline payload.
+ */
+function deferToolResultImages(message: AgentMessage): AgentMessage {
 	if (message.role !== "toolResult") return message;
 
-	let omitted = 0;
-	let bytes = 0;
-	const mimes = new Set<string>();
-	const content = message.content.filter(block => {
-		const image = base64ImageInfo(block);
-		if (!image) return true;
-		omitted += 1;
-		bytes += image.bytes;
-		if (image.mime) mimes.add(image.mime);
-		return false;
+	let rewritten = 0;
+	const content = message.content.map(block => {
+		const image = inlineImagePayload(block);
+		if (!image || image.data.length < BLOB_EXTERNALIZE_THRESHOLD) return block;
+		const hash = new Bun.SHA256().update(Buffer.from(image.data, "base64")).digest("hex");
+		if (!fs.existsSync(path.join(getBlobsDir(), hash))) return block;
+		rewritten += 1;
+		return {
+			type: "image",
+			source: {
+				type: "url",
+				url: `/api/blobs/${hash}`,
+				...(image.mime ? { media_type: image.mime } : {}),
+			},
+		};
 	});
-	if (omitted === 0) return message;
-
-	const mimeText = mimes.size > 0 ? `: ${[...mimes].join(", ")}` : "";
-	content.push({
-		type: "text",
-		text: `[${omitted} tool result image${omitted === 1 ? "" : "s"} omitted from initial history payload${mimeText}, ~${bytes} bytes]`,
-	});
-	return { ...message, content };
+	if (rewritten === 0) return message;
+	return { ...message, content } as unknown as AgentMessage;
 }
 
 /** Convert a session entry on the active branch into a UI message. */
@@ -352,7 +359,7 @@ function entryToUiMessage(
 	switch (entry.type) {
 		case "message": {
 			const message = options.deferToolResultImages
-				? omitToolResultBase64Images(normalizeToolCalls(entry.message))
+				? deferToolResultImages(normalizeToolCalls(entry.message))
 				: normalizeToolCalls(entry.message);
 			if (!options.deferThinking || message.role !== "assistant") return message;
 			return {

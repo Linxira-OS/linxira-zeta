@@ -71,9 +71,9 @@ export default class Toks extends Command {
 	};
 
 	static examples = [
-		"zeta toks README.md",
+		"zetacode toks README.md",
 		'zetacode toks "The quick brown fox jumps over the lazy dog"',
-		"zeta toks src/main.ts --json",
+		"zetacode toks src/main.ts --json",
 	];
 
 	async run(): Promise<void> {

@@ -96,7 +96,7 @@ fn environment(extra: &[(&str, &str)]) -> BTreeMap<String, String> {
 fn core(home: PathBuf, env: BTreeMap<String, String>) -> Core {
 	Core {
 		home,
-		scheme: "omp-test".to_owned(),
+		scheme: "zeta-test".to_owned(),
 		env,
 		state: Mutex::new(State {
 			phase:     Phase::Idle,
@@ -171,9 +171,9 @@ fn activation_failure_restores_even_after_mutating_os_state() {
 		.err()
 		.expect("activation should fail");
 	assert!(error.to_string().contains("injected activation failure"));
-	assert!(!home.join(".oauth-owner-omp-test").exists());
+	assert!(!home.join(".oauth-owner-zeta-test").exists());
 	assert!(
-		!storage_root(&home, "omp-test")
+		!storage_root(&home, "zeta-test")
 			.join("registration.json")
 			.exists()
 	);
@@ -190,9 +190,9 @@ fn uncertain_restore_retains_journal_and_ownership() {
 		.err()
 		.expect("restoration should fail");
 	assert!(error.to_string().contains("recovery journal retained"));
-	assert!(home.join(".oauth-owner-omp-test").exists());
+	assert!(home.join(".oauth-owner-zeta-test").exists());
 	assert!(
-		storage_root(&home, "omp-test")
+		storage_root(&home, "zeta-test")
 			.join("registration.json")
 			.exists()
 	);
@@ -203,14 +203,14 @@ fn uncertain_restore_retains_journal_and_ownership() {
 fn stale_journal_is_recovered_before_successor_activation() {
 	let _serial = TEST_SERIAL.blocking_lock();
 	let home = temp_home("stale");
-	let root = storage_root(&home, "omp-test");
+	let root = storage_root(&home, "zeta-test");
 	ensure_storage_root(&root).unwrap();
 	let old_id = "0123456789abcdef0123456789abcdef";
 	let old_env = environment(&[]);
 	let old_context = Context::new(
 		home.clone(),
 		root.join(old_id),
-		"omp-test".to_owned(),
+		"zeta-test".to_owned(),
 		old_id.to_owned(),
 		old_env.clone(),
 		CancelToken::default(),
@@ -221,7 +221,7 @@ fn stale_journal_is_recovered_before_successor_activation() {
 	let journal = Journal {
 		version: JOURNAL_VERSION,
 		id: old_id.to_owned(),
-		scheme: "omp-test".to_owned(),
+		scheme: "zeta-test".to_owned(),
 		environment: journal_environment(&old_env),
 		snapshot,
 	};
@@ -232,7 +232,7 @@ fn stale_journal_is_recovered_before_successor_activation() {
 	let mut registration = active(start_blocking(&core, CancelToken::default()).unwrap());
 	assert_ne!(registration.context.id, old_id);
 	assert_eq!(
-		fs::read_to_string(home.join(".oauth-owner-omp-test")).unwrap(),
+		fs::read_to_string(home.join(".oauth-owner-zeta-test")).unwrap(),
 		registration.context.id
 	);
 	cleanup_registration(&mut registration, CancelToken::default()).unwrap();
@@ -268,17 +268,17 @@ async fn cancellation_prevents_start_and_wait_claims_once() {
 	assert!(!home.join(".zeta").exists());
 
 	let callback = home.join("callback.url");
-	fs::write(&callback, b"omp-test://callback?code=one").unwrap();
+	fs::write(&callback, b"zeta-test://callback?code=one").unwrap();
 	let url = wait_for_callback_async(
 		&callback,
-		"omp-test",
+		"zeta-test",
 		"0123456789abcdef0123456789abcdef",
 		1,
 		&CancelToken::default(),
 	)
 	.await
 	.unwrap();
-	assert_eq!(url, "omp-test://callback?code=one");
+	assert_eq!(url, "zeta-test://callback?code=one");
 	assert!(!callback.exists());
 	let mut cancelled_wait = CancelToken::default();
 	cancelled_wait
@@ -287,7 +287,7 @@ async fn cancellation_prevents_start_and_wait_claims_once() {
 	assert!(
 		wait_for_callback_async(
 			&callback,
-			"omp-test",
+			"zeta-test",
 			"0123456789abcdef0123456789abcdef",
 			2,
 			&cancelled_wait,
@@ -310,13 +310,13 @@ async fn wait_wakes_on_callback_published_after_it_starts() {
 			// Lets the wait fail its first claim and park on the watch.
 			tokio::time::sleep(Duration::from_millis(50)).await;
 			let published = std::time::Instant::now();
-			publication::publish_once(&callback, b"omp-test://callback?code=late").unwrap();
+			publication::publish_once(&callback, b"zeta-test://callback?code=late").unwrap();
 			published
 		})
 	};
 	let url = wait_for_callback_async(
 		&callback,
-		"omp-test",
+		"zeta-test",
 		"0123456789abcdef0123456789abcdef",
 		1,
 		&CancelToken::default(),
@@ -324,7 +324,7 @@ async fn wait_wakes_on_callback_published_after_it_starts() {
 	.await
 	.unwrap();
 	let latency = publisher.await.unwrap().elapsed();
-	assert_eq!(url, "omp-test://callback?code=late");
+	assert_eq!(url, "zeta-test://callback?code=late");
 	// The directory watch must wake the wait well under POLL_INTERVAL; the
 	// generous slack absorbs CI runner load spikes without weakening the
 	// functional contract (a real poll would cost POLL_INTERVAL itself).
@@ -342,9 +342,9 @@ fn journal_rejects_traversal_and_unknown_fields() {
 	let json = br#"{
 		"version":1,
 		"id":"0123456789abcdef0123456789abcdef",
-		"scheme":"omp-test",
+		"scheme":"zeta-test",
 		"environment":{},
-		"snapshot":{"version":1,"id":"0123456789abcdef0123456789abcdef","scheme":"omp-test"},
+		"snapshot":{"version":1,"id":"0123456789abcdef0123456789abcdef","scheme":"zeta-test"},
 		"extra":true
 	}"#;
 	assert!(serde_json::from_slice::<Journal>(json).is_err());

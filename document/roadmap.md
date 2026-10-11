@@ -635,13 +635,42 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   实测环境:LAN NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙
   BHYS-gitea-lan;git 调用需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
 
-- **上游合并队列**:v18.4.3(五 tag 直拉,v18.3.5/40/41/42/43 一次并入,
-  288 冲突,账本见 upstream-sync.md)已落 dev/main;dev→main 合并待决策。
-  上游性能大年获益:cache-warming、投机 task 启动、grep 流式背压、
-  Oniguruma 高亮、TUI 每帧渲染清扫。**后续遗留**:image
-  `providers.imageOrder` 的 role-chain 重集成(运行时消费随上游旧 candidate
-  循环删除而失活,设置面/测试契约保留);v18.4.4 在 sync worktree
-  在途(4 commits 未进 main)。
+- **上游同步队列：切割点 v18.9.1（2026-10-11 用户裁定）**：完整 tag 合并到上游
+  v18.9.1 `a4d6f0adc6` 为止，此后转入 cherry-pick 模式（只同步致命 bug 与关键
+  改动），策略见根 `USER.MD`。**已并入 main**：v18.8.7 `f261ed9faf16`、v18.8.8
+  `1ca13863a828`（PR #79；谱系硬校验两者均为祖先，member 审计 0 丢失）。
+  **待并入**：v18.8.9 `fa5ff4a3a977` → v18.9.0 `eec114a922` → v18.9.1（窗口
+  645 提交 / 712 文件；perf 全在 v18.8.9→v18.9.0：TUI tree/transcript、内嵌
+  shell 启动加速、json-lexer、macOS AX 批量读；**不含**模型发现/启动探测修复，
+  该项由我方自理）。**合并时必须切除的上游商业服务面**：`4585b144ff8` 分发迁移
+  （新增 `PI_BUILD_URL` 默认 `https://build.stencil.so`、`cli/build-service.ts`、
+  `scripts/install.sh`/`.ps1` 改写、`ci.yml` 发布链改动）一律不并入，保留 Zeta
+  自建发布链；`stencil.so` 账号认证（`stencil/credential.ts`、`stream/*`）与
+  `auth-broker`/`auth-gateway` 逐项裁定去留。历史遗留：`providers.imageOrder`
+  的 role-chain 重集成（v18.4.3 起未做）。
+- **v18.8.8 合并后专项排查产出（2026-10-11）**：
+  - **需补回的合并遗漏**：①状态栏 `Plan-Ultra` 标签——原 `005aef5fdbc` 的三行
+    改造在状态栏搬入 `packages/tui/src/status-line/` 时未重放（`segments.ts`
+    只渲染 "Plan"/"Plan (paused)"，`types.ts:95` 的 ctx 缺 `workflow`，测试与
+    gallery fixture 均无覆盖）；②`icon.omp` **ascii 预设**被上游
+    `0d6dbd32fcd` 写成 `"pi"`，注册表要求 `zeta`，守卫只钉了 unicode 那行。
+  - **待设计**：①AI 自行进入/退出模式（plan/ultra/goal/vibe）——现有入口全是
+    用户侧（`/plan`、`/plan-ultra`、`/goal`、`/vibe`）或 API 侧（web-gateway、
+    ACP），主系统提示词零提及 plan mode，模型没有可调用入口；②提权
+    （UAC/sudo）——`system-prompt.md:214` 承诺"弹出提权窗口"，`src` 与
+    `crates/pi-shell` 均无实现；③启动慢——根因已定位
+    （`config/model-discovery.ts:96` 远程 10s×N 超时 +
+    `main.ts:1023/1084` 阻塞首屏的 `await`），上游未修，我方修；④tracking
+    架构项（`status.json` 无锁、`actions.jsonl` 无上限、`summaries/` 无面板、
+    `updatedAt` 取请求时刻）。
+  - **文档漂移（改文档即可）**：AGENTS.md 的 `IrcBridgeHost.onAutoReply` 实际是
+    `ChannelHost#onAutoReply`（`channels/src/host.ts:71,129`）；
+    `__piNativesVX_Y_Z` 哨兵行已由 v18.3.3 起的 `__piNativesBuildVersion()`
+    值戳取代。
+  - **已定方案待实施（time/tracking 批次）**：`/time` 短指令（on|off / interval N
+    / status，兼容 `/tool <name>`）+ 注入间隔默认 50、设置页可调、中英文齐备；
+    模型可调用的动态工具开关；`/tracking on|off` + 开/关动态提示 + 目录角色
+    说明统一。
 
 - **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
   基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方

@@ -1340,6 +1340,28 @@ function BlockView({
       />
     );
   }
+  if (block.type === "image") {
+    // Assistant-native images (image generation, and the blob-URL form the
+    // gateway now emits for tool results).
+    const src = imageSource(block as ImageContent);
+    if (!src) return null;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        style={{
+          maxWidth: 480,
+          maxHeight: 480,
+          borderRadius: 6,
+          objectFit: "contain",
+          display: "block",
+          margin: "6px 0",
+          border: "1px solid var(--border)",
+        }}
+      />
+    );
+  }
   return null;
 }
 
@@ -1509,6 +1531,14 @@ function ToolCallBlock({
     resultText === null
       ? false
       : resultText.trim() === "(no output)" || resultText.trim() === "";
+  // Tool-result images arrive either inline (payloads below the blob threshold)
+  // or as `/api/blobs/<sha256>` URLs (`deferMedia` history loads); render both.
+  const resultImages = result
+    ? result.content
+        .filter((b): b is ImageContent => b.type === "image")
+        .map((b) => imageSource(b))
+        .filter((src) => src !== "")
+    : [];
   const isError = result?.isError ?? false;
 
   return (
@@ -1670,6 +1700,37 @@ function ToolCallBlock({
             isError={isError}
           />
         ))}
+
+      {/* ── Tool-result images (screenshots) — visible while collapsed too ── */}
+      {resultImages.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            flexWrap: "wrap",
+            padding: "8px 10px",
+            borderTop: "1px solid var(--chat-tool-border)",
+            background: "var(--bg)",
+          }}
+        >
+          {resultImages.map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={src}
+              alt=""
+              style={{
+                maxWidth: 320,
+                maxHeight: 320,
+                borderRadius: 6,
+                objectFit: "contain",
+                display: "block",
+                border: "1px solid var(--border)",
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

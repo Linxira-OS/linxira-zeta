@@ -327,7 +327,7 @@ export async function loadSkills(options: LoadSkillsOptions = {}): Promise<LoadS
 		// dedicated user-facing switch (default on).
 		if (provider === OFFICIAL_SKILLS_PROVIDER_ID) return enableOfficial;
 		// User-scope claude-plugins skills carry the root's origin (#10743). omp's
-		// own installs (`omp` registry, `--plugin-dir`) are not the foreign
+		// own installs (`zetacode` registry, `--plugin-dir`) are not the foreign
 		// ~/.claude/plugins tree, so the foreign opt-in gate applies only to
 		// claude-origin roots — parity with allowedRoots() in
 		// discovery/claude-plugins.ts. Without this, #10666's root-level fix is

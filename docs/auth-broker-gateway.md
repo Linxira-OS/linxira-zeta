@@ -164,7 +164,7 @@ zetacode auth-gateway check   [--strict] [--json]
 
 ### stdio
 
-`zetacode auth-gateway stdio` is the gateway for one trusted parent process (an editor, a terminal's git UI, a script): no listener, no token, no broker requirement. It uses the credentials, models (`models.yml` and extension providers included) and settings any other `omp` command would: the broker when one is configured, else the local store. Requests and responses are JSON lines:
+`zetacode auth-gateway stdio` is the gateway for one trusted parent process (an editor, a terminal's git UI, a script): no listener, no token, no broker requirement. It uses the credentials, models (`models.yml` and extension providers included) and settings any other `zetacode` command would: the broker when one is configured, else the local store. Requests and responses are JSON lines:
 
 ```
 → {"id": 1, "path": "/v1/chat/completions", "body": {"model": "@commit,@smol", "messages": [...]}}
@@ -209,7 +209,7 @@ The served catalog includes bundled, cached, and broker-discovered models. The g
 
 Live OpenRouter discovery covers image and Decisions rosters, `/embeddings/models`, `/videos/models`, and rerank-flagged `/models` rows. Speech/transcription models use catalog kinds and seeds. Bundled fallbacks and `kind-apis` runner mappings are authored in `packages/catalog/src/compat/rules/providers/openrouter.kdl`. Per-search, per-second, and per-character billing have no catalog cost axis, so those rows carry zero token cost and the provider-reported `cost` in the response is authoritative.
 
-Inference routes record observed usage against `x-omp-install-id`, `x-omp-hostname`, and `x-omp-app`; unlabeled requests fall back to the gateway host's identity. These attribution headers are not forwarded upstream. Completed non-streaming responses carry computed cost in `x-litellm-response-cost` when known; streaming chat responses send headers before usage arrives and do not include that cost header. Video cost may become available only while polling. Upstreams that report tokens only (TypeSafe) are priced from the catalog model; the response body's own `cost` field (OpenRouter shape) is only present when the upstream billed one.
+Inference routes record observed usage against `x-zeta-install-id`, `x-zeta-hostname`, and `x-zeta-app`; unlabeled requests fall back to the gateway host's identity. These attribution headers are not forwarded upstream. Completed non-streaming responses carry computed cost in `x-litellm-response-cost` when known; streaming chat responses send headers before usage arrives and do not include that cost header. Video cost may become available only while polling. Upstreams that report tokens only (TypeSafe) are priced from the catalog model; the response body's own `cost` field (OpenRouter shape) is only present when the upstream billed one.
 
 TypeSafe clients using the default base-URL resolver can set `TYPESAFE_BASE_URL=http://gateway:4000` with `TYPESAFE_API_KEY=<gateway token>`. omp's catalog-backed `judge` role passes the model's explicit `baseUrl`, which takes precedence over that environment fallback; configure the TypeSafe provider's `baseUrl` and `apiKey` in `models.yml` to use the gateway. OpenAI-SDK-style clients use `http://gateway:4000/v1`.
 

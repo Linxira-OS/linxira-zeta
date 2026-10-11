@@ -57,11 +57,11 @@ export interface VmonConfig {
 	arch: GuestArch;
 }
 
-/** Per-run omp configuration installed into every guest. */
+/** Per-run zetacode configuration installed into every guest. */
 export interface AgentConfig {
 	/** Tool allowlist passed to omp as `--tools`. */
 	tools: string[];
-	/** Extra environment for the omp process only; never reaches the verifier. */
+	/** Extra environment for the Zeta process only; never reaches the verifier. */
 	env: Record<string, string>;
 }
 
@@ -103,7 +103,7 @@ export type OpenRouterVariant = "default" | "nitro" | "floor" | "online" | "exac
 export interface GatewayConfig {
 	/** Local gateway URL; each trial rewrites it to its guest-visible tunnel endpoint. */
 	url: string;
-	/** Gateway bearer (`zeta auth-gateway token`); `"no-auth"` when the gateway runs open. */
+	/** Gateway bearer (`zetacode auth-gateway token`); `"no-auth"` when the gateway runs open. */
 	token: string;
 	/** Provider ids routed through the gateway (derived from the model pool). */
 	providers: string[];

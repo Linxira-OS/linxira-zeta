@@ -12,7 +12,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { SkillInstallInfo, SkillUpdateResult } from "./dto";
+import { SKILLS_CLI_AGENT, type SkillInstallInfo, type SkillUpdateResult } from "./dto";
 
 const CHECK_TIMEOUT_MS = 15_000;
 const GIT_CHECK_TIMEOUT_MS = 30_000;
@@ -69,7 +69,7 @@ export function buildSkillUpdateArgs(install: SkillInstallInfo): string[] {
 		skillNameFromPackage(install.package),
 		"-y",
 		"--agent",
-		"omp",
+		SKILLS_CLI_AGENT,
 	];
 	if (install.scope === "global") args.push("-g");
 	return args;
@@ -126,7 +126,7 @@ async function resolveGitTreeHash(install: SkillInstallInfo): Promise<string> {
 	const repository = `https://github.com/${install.source}.git`;
 	const ref = install.ref || "HEAD";
 	const folder = skillFolder(install.skillPath!);
-	const gitDir = await mkdtemp(join(tmpdir(), "omp-web-skill-check-"));
+	const gitDir = await mkdtemp(join(tmpdir(), "zeta-web-skill-check-"));
 
 	try {
 		await execFileAsync("git", ["init", "--bare", gitDir], {
@@ -157,7 +157,7 @@ async function checkGlobalSkill(
 	const url = `https://api.github.com/repos/${install.source}/git/trees/${encodeURIComponent(ref)}?recursive=1`;
 	const headers: Record<string, string> = {
 		Accept: "application/vnd.github.v3+json",
-		"User-Agent": "omp-web",
+		"User-Agent": "zeta-web",
 	};
 	if (options.githubToken) headers.Authorization = `Bearer ${options.githubToken}`;
 	const folder = skillFolder(install.skillPath!);

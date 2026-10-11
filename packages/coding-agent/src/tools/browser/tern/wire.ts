@@ -395,7 +395,7 @@ export class TernSocketClient {
 					? new TernError("closed", "Tern daemon closed the connection")
 					: new TernError(
 							"connect",
-							`Tern daemon at ${this.#socketPath} closed the connection before greeting: a Tern without omp's JSON protocol cannot read its hello (update Tern)`,
+							`Tern daemon at ${this.#socketPath} closed the connection before greeting: a Tern without Zeta's JSON protocol cannot read its hello (update Tern)`,
 						),
 			);
 		});

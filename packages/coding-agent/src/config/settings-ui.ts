@@ -73,7 +73,7 @@ export function createSettingsHost(): SettingsHost {
 						// (values computed at read time), which has nothing to translate.
 						options: Array.isArray(ui.options)
 							? ui.options.map(option => {
-									const optionText = zh ? ZH_OPTION_TEXTS[option.value] : undefined;
+									const optionText = zh ? ZH_OPTION_TEXTS[`${setting.id}::${option.value}`] : undefined;
 									return optionText
 										? {
 												...option,

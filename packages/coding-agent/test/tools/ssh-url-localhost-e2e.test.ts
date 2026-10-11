@@ -87,7 +87,7 @@ describe.skipIf(!SSH_OK)("ssh:// handler against a real localhost ssh", () => {
 		const back = await handler.resolve(parseInternalUrl(`ssh://localhost${dest}`));
 		expect(back.content).toBe("hi\n\t!\n");
 		// The uniquely-named temp must have been renamed away (no leftovers).
-		const leftovers = await Bun.$`ssh -o BatchMode=yes localhost ls ${TMP} | grep -c omp-tmp || true`.text();
+		const leftovers = await Bun.$`ssh -o BatchMode=yes localhost ls ${TMP} | grep -c zeta-tmp || true`.text();
 		expect(leftovers.trim()).toBe("0");
 	});
 

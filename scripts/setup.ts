@@ -33,10 +33,10 @@ interface Step {
 }
 
 /**
- * Native equivalent of `scripts/link-omp.sh` for Windows, where `sh` is
+ * Native equivalent of `scripts/link-zetacode.sh` for Windows, where `sh` is
  * unavailable (issue #12483). Same semantics: verify the wrapper target,
  * resolve Bun's global bin dir (`bun pm -g bin`, then
- * `${BUN_INSTALL:-$HOME/.bun}/bin`), and link `omp` to it — symlink first,
+ * `${BUN_INSTALL:-$HOME/.bun}/bin`), and link `zetacode` to it — symlink first,
  * plain copy as a fallback when links need privileges the user lacks.
  * Returns a process-like exit code for the shared runner below.
  */
@@ -45,7 +45,7 @@ function linkOmpWindows(repoRoot: string): number {
 	try {
 		fs.accessSync(target, fs.constants.F_OK);
 	} catch {
-		console.error(`link-omp: target wrapper not found: ${target}`);
+		console.error(`link-zetacode: target wrapper not found: ${target}`);
 		return 1;
 	}
 	let globalBin = "";
@@ -65,16 +65,16 @@ function linkOmpWindows(repoRoot: string): number {
 			// nothing to replace
 		}
 		fs.symlinkSync(target, linkPath, "file");
-		console.log(`link-omp: linked ${linkPath} -> ${target}`);
+		console.log(`link-zetacode: linked ${linkPath} -> ${target}`);
 		return 0;
 	} catch (error) {
-		console.error(`link-omp: symlink failed (${error}), falling back to copy`);
+		console.error(`link-zetacode: symlink failed (${error}), falling back to copy`);
 		try {
 			fs.copyFileSync(target, linkPath);
-			console.log(`link-omp: copied ${target} -> ${linkPath}`);
+			console.log(`link-zetacode: copied ${target} -> ${linkPath}`);
 			return 0;
 		} catch (copyError) {
-			console.error(`link-omp: copy failed: ${copyError}`);
+			console.error(`link-zetacode: copy failed: ${copyError}`);
 			return 1;
 		}
 	}
@@ -84,7 +84,7 @@ const steps: Step[] = [
 	{ label: "bun install", cmd: ["bun", "install"] },
 	{ label: "build:native", cmd: ["bun", "run", "build:native", ...passthrough] },
 	{ label: "coding-agent link", cmd: ["bun", "--cwd=packages/coding-agent", "link"] },
-	{ label: "link zeta", cmd: ["sh", "scripts/link-omp.sh"] },
+	{ label: "link zeta", cmd: ["sh", "scripts/link-zetacode.sh"] },
 ];
 
 for (const step of steps) {

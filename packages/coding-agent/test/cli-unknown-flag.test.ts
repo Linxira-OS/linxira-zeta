@@ -67,7 +67,7 @@ describe("parseArgs — unrecognized flag tracking (#2459)", () => {
 	});
 
 	it("treats every token after `--` as a positional, even flag-shaped ones (#2461 review)", () => {
-		// `omp -p -- --explain-this` must forward `--explain-this` as the
+		// `zetacode -p -- --explain-this` must forward `--explain-this` as the
 		// prompt body. Without after-separator semantics the unknown-flag guard
 		// trips on it and the CLI exits before any session work.
 		const parsed = parseArgs(["-p", "--", "--explain-this", "-x", "plain"]);

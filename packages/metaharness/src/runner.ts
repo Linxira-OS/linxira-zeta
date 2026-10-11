@@ -150,7 +150,7 @@ Commands:
 Model / agent:
   -m, --model <provider/model>   Model (repeatable). Default anthropic/claude-sonnet-4-6
       --agent <name>             zeta (default) | oracle | nop | any harbor agent
-      --install <source|local|published> zeta install mode (default: source).
+      --install <source|local|published> zetacode install mode (default: source).
                                  source = mount /work/pi read-only + prebuilt linux deps tree; TS changes
                                  apply per-trial with no rebuild. local = pack a tarball. published = npm.
       --version <v>              zeta version for published install (default: latest)
@@ -682,7 +682,7 @@ function parseTrial(dir: string, name: string): Trial | null {
 		}
 
 		// Realtime cost from the live agent zeta.txt log, parsed incrementally.
-		const probe = probeTrialCost(path.join(dir, "agent", "omp.txt"));
+		const probe = probeTrialCost(path.join(dir, "agent", "zeta.txt"));
 		const costUsd = probe?.costUsd ?? 0;
 		const tokIn = probe?.tokIn ?? 0;
 		const tokOut = probe?.tokOut ?? 0;
@@ -701,7 +701,7 @@ function parseTrial(dir: string, name: string): Trial | null {
 		};
 	}
 	// Trial finished: usage now comes from result.json; drop the live-parse state.
-	costProbes.delete(path.join(dir, "agent", "omp.txt"));
+	costProbes.delete(path.join(dir, "agent", "zeta.txt"));
 	const raw = readJson(resultPath);
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;

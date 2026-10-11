@@ -19,7 +19,7 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "omp",
+			bin: "zetacode",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -39,7 +39,7 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "omp",
+			bin: "zetacode",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -59,7 +59,7 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "omp",
+			bin: "zetacode",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});
@@ -77,7 +77,7 @@ describe("zetacode commit command lifecycle (issue #1041)", () => {
 		const quitSpy = vi.spyOn(postmortem, "quit").mockResolvedValue(undefined);
 
 		const command = new CommitCommand([], {
-			bin: "omp",
+			bin: "zetacode",
 			version: "0.0.0-test",
 			commands: new Map(),
 		});

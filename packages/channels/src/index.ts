@@ -1,5 +1,5 @@
 /**
- * Channel bootstrapping for `zeta serve` (web/desktop mode only).
+ * Channel bootstrapping for `zetacode serve` (web/desktop mode only).
  *
  * Enables every channel marked `enabled` in the web config and routes its
  * inbound messages into the coordinator session through `ChannelHost`.
@@ -62,7 +62,7 @@ export function getPendingWechatQr(): WeChatQrStatus | null {
 
 /**
  * Register the serve process's shared coordinator session id (zeta-server
- * wires this). External clients (web-ui default chat, `zeta attach`) resolve
+ * wires this). External clients (web-ui default chat, `zetacode attach`) resolve
  * the shared session through `GET /api/agent/current`, which reads this.
  */
 export function registerMainSessionId(id: string | null): void {
