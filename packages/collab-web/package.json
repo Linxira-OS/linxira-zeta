@@ -3,7 +3,7 @@
   "name": "@linxiraos/collab-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Browser guest client and local relay tools for omp collab live sessions",
+  "description": "Browser guest client and local relay tools for zeta collab live sessions",
   "homepage": "https://linxira-os.github.io/zeta/",
   "author": "Linxira-OS",
   "license": "MIT",

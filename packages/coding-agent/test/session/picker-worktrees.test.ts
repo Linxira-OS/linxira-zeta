@@ -100,7 +100,7 @@ describe.skipIf(process.platform === "win32")("resume picker across git worktree
 
 	it("keeps a removed worktree's session listed and relocates it into the checkout on resume", async () => {
 		const moved = await sessionMovedByWt("wt/gone");
-		// `omp worktree clear` removes and prunes: git no longer knows the worktree.
+		// `zetacode worktree clear` removes and prunes: git no longer knows the worktree.
 		await $`git worktree remove --force ${moved.worktree} && git worktree prune`.cwd(repo).quiet();
 
 		const listed = (await SessionManager.listForPicker(repo)).find(s => s.id === moved.id);

@@ -19,7 +19,7 @@ Primary implementation:
 ## Startup
 
 ```bash
-omp --mode rpc [regular CLI options]
+zetacode --mode rpc [regular CLI options]
 ```
 
 Behavior notes:
@@ -961,10 +961,10 @@ Command discovery is intentionally an OMP dialect: Pi's `get_commands` (a
 not served because OMP's richer catalog (builtins/custom/MCP/file commands,
 broader `source` enum, no Pi `sourceInfo`) is not wire-compatible with it.
 
-### Pi-compatible history/tree commands with OMP-native entry payloads
+### Pi-compatible history/tree commands with Zeta-native entry payloads
 
 The commands and reconciliation semantics below are Pi-compatible, but the
-returned `SessionEntry` payload union is OMP-native, not wire-identical to
+returned `SessionEntry` payload union is Zeta-native, not wire-identical to
 Pi. Concretely: Pi `model_change` carries `provider` + `modelId` while OMP
 carries a combined `model` plus role/fallback metadata; Pi uses a `usage`
 entry where OMP uses `model_usage`; and OMP has additional entry types (for
@@ -1640,4 +1640,4 @@ with RpcClient(provider="anthropic", model="claude-sonnet-4-5") as client:
     print(turn.require_assistant_text())
 ```
 
-By default, `RpcClient` starts `omp --mode rpc`; pass `command=[...]` to own the exact child command. It handles request correlation, typed notifications, v2 negotiation and chunk reassembly, message pagination, extension UI (including the opt-in `ask` dialog), and host-owned tools and URI schemes. Its command methods and `on_<frame type>` listeners are generated from the wire schema, so it wraps every command above; the `messageUpdates: "delta"` projection stays raw-protocol only. The Python package owns that client API and process lifecycle; this document and `rpc-types.ts` remain the canonical wire contract. Use raw protocol frames when a client library does not wrap the surface you need.
+By default, `RpcClient` starts `zetacode --mode rpc`; pass `command=[...]` to own the exact child command. It handles request correlation, typed notifications, v2 negotiation and chunk reassembly, message pagination, extension UI (including the opt-in `ask` dialog), and host-owned tools and URI schemes. Its command methods and `on_<frame type>` listeners are generated from the wire schema, so it wraps every command above; the `messageUpdates: "delta"` projection stays raw-protocol only. The Python package owns that client API and process lifecycle; this document and `rpc-types.ts` remain the canonical wire contract. Use raw protocol frames when a client library does not wrap the surface you need.

@@ -41,7 +41,7 @@ function makeModel(spec: {
 	} as ModelSpec);
 }
 
-/** Render one model through `omp models ls` and return its `images` cell. */
+/** Render one model through `zetacode models ls` and return its `images` cell. */
 function imagesCell(model: Model<Api>): string {
 	const output: string[] = [];
 	spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
@@ -62,7 +62,7 @@ function imagesCell(model: Model<Api>): string {
 	return cells.at(-1) ?? "";
 }
 
-describe("omp models kind filtering", () => {
+describe("zetacode models kind filtering", () => {
 	it("accepts every advertised kind and rejects invalid values", async () => {
 		for (const kind of [...MODEL_KINDS, "all"]) {
 			const command = new Models(["--kind", kind], TEST_CONFIG);
@@ -119,7 +119,7 @@ describe("omp models kind filtering", () => {
 	});
 });
 
-describe("omp models image support column", () => {
+describe("zetacode models image support column", () => {
 	it("reports wire truth for a DeepSeek-class id served by a proxy that accepts images", () => {
 		// The catalog strips images for the DeepSeek class on any provider, so the
 		// listing must not advertise the declared `input: [text, image]`.

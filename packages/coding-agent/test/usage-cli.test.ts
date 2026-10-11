@@ -1261,7 +1261,7 @@ describe("usage command configuration", () => {
 	});
 });
 
-describe("omp usage accounts", () => {
+describe("zetacode usage accounts", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});

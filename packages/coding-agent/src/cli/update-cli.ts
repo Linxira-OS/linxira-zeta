@@ -1,7 +1,7 @@
 /**
  * Update CLI command handler.
  *
- * Handles `omp update` to check for and install updates.
+ * Handles `zetacode update` to check for and install updates.
  * Uses the installer that owns the active omp executable when it can be detected.
  */
 import * as fs from "node:fs";
@@ -1331,7 +1331,7 @@ export function resolveOmpPathForTest(
 }
 
 /**
- * Parse the version a launcher reports from `omp --version` output
+ * Parse the version a launcher reports from `zetacode --version` output
  * (`omp/X.Y.Z`, or a prerelease such as `omp/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
@@ -1370,10 +1370,10 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 	if (!hasShebang && (await reportedVersionAtPath(targetPath)) !== undefined) return;
 
 	const reason = hasShebang
-		? "is a shebang script, not an OMP binary"
+		? "is a shebang script, not a Zeta binary"
 		: `does not report a ${CLI_BIN_NAME} version when run directly`;
 	throw new Error(
-		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
+		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the Zeta binary you want to update, or reinstall with: ${installerHint()}`,
 	);
 }
 
@@ -1578,7 +1578,7 @@ function buildVersionedPackageInstallArgs(
 }
 
 /**
- * Build the bun argv used to globally install a specific omp version.
+ * Build the bun argv used to globally install a specific zetacode version.
  *
  * The version is selected by querying the resolved registry in
  * {@link getLatestRelease} ({@link ReleaseInfo.registry}), so the install
@@ -1592,7 +1592,7 @@ function buildVersionedPackageInstallArgs(
  * - `--no-cache` tells bun to ignore its on-disk manifest snapshot so it
  *   re-fetches metadata from that registry on every invocation.
  *
- * Together these two flags make `omp update` produce exactly the registry
+ * Together these two flags make `zetacode update` produce exactly the registry
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
@@ -2001,7 +2001,7 @@ export async function updateViaBinaryAt(
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
 	const binaryName = options.binaryName ?? getBinaryName();
-	// Unique per attempt so two overlapping `omp update` runs never share a temp
+	// Unique per attempt so two overlapping `zetacode update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
 	// first kept writing to its open fd (size + digest still passed), then chmod
@@ -2031,7 +2031,7 @@ export async function updateViaBinaryAt(
 	console.log(chalk.dim(`Verified ${asset.digest}`));
 
 	// Serialize the target swap and stale-artifact sweep per target so two
-	// overlapping `omp update` runs never replace the same binary concurrently
+	// overlapping `zetacode update` runs never replace the same binary concurrently
 	// or reclaim each other's live backup/temp files. The download above writes
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {
@@ -2295,7 +2295,7 @@ export async function runUpdateCommand(opts: {
 		}
 		if (target.method === "nix") {
 			console.log(chalk.yellow("This installation is managed by Nix and cannot update itself."));
-			console.log(chalk.dim("Update the flake input or profile that provides omp, then rebuild."));
+			console.log(chalk.dim("Update the flake input or profile that provides zetacode, then rebuild."));
 			return;
 		} else if (target.method === "brew") {
 			await updateViaHomebrew(release.version, opts.force);

@@ -13,7 +13,7 @@ import {
 import { setWorktreesDir } from "@linxiraos/pi-utils";
 
 /**
- * Regression for #6761: `omp worktree clear` (no `--all`) must delete only
+ * Regression for #6761: `zetacode worktree clear` (no `--all`) must delete only
  * task-isolation sandboxes whose owner process is gone. A sandbox owned by a
  * live omp process holds a running subagent's uncaptured work and must survive.
  */

@@ -13,7 +13,7 @@ import { removeWithRetries } from "@linxiraos/pi-utils";
 const ZETA_AGENT_MD = [
 	"---",
 	"name: zeta-test-agent",
-	"description: OMP-native test agent.",
+	"description: Zeta-native test agent.",
 	"---",
 	"You are an OMP task agent.",
 ].join("\n");
@@ -63,7 +63,7 @@ function agentMd(name: string, model: string): string {
 // Register an omp-installed marketplace plugin via the OMP plugin registry
 // (`~/.zeta/plugins/installed_plugins.json`), the path listClaudePluginRoots
 // reads as origin "omp" — distinct from the node_modules path above. `manifest`
-// controls the declared plugin dialect: `.omp-plugin/plugin.json` (OMP-native),
+// controls the declared plugin dialect: `.omp-plugin/plugin.json` (Zeta-native),
 // `.claude-plugin/plugin.json` (Claude Code), `both` (OMP wins by precedence),
 // or `none` (bare directory).
 async function writeOmpMarketplacePlugin(
@@ -254,9 +254,9 @@ describe("discoverAgents", () => {
 		expect(names).toContain("plugin-dir-agent");
 	});
 
-	test("honors model frontmatter of OMP-native omp-installed marketplace plugin agents (#12028)", async () => {
+	test("honors model frontmatter of Zeta-native omp-installed marketplace plugin agents (#12028)", async () => {
 		// omp-installed marketplace plugins ride the shared plugin registry as
-		// origin "omp" roots. An OMP-native package (no Claude manifest) uses OMP
+		// origin "omp" roots. An Zeta-native package (no Claude manifest) uses OMP
 		// model selectors, so `model:` must survive discovery.
 		enableProvider("claude-plugins");
 		await writeOmpMarketplacePlugin(tempHome, {

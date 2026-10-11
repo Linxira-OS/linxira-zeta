@@ -84,7 +84,7 @@ export const DEFAULT_CONVENTIONAL_GENERATION_CONFIG: ConventionalGenerationConfi
 	cacheEnabled: true,
 	cacheTtlDays: 14,
 };
-/** Build generation configuration from exact defaults plus omp settings. */
+/** Build generation configuration from exact defaults plus Zeta settings. */
 export function conventionalGenerationConfig(settings: CommitSettings): ConventionalGenerationConfig {
 	return {
 		...DEFAULT_CONVENTIONAL_GENERATION_CONFIG,
