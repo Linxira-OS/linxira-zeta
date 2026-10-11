@@ -1137,6 +1137,27 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"删除的会话在回收站（~/.zeta/trash/sessions）保留的天数，超过后自动清理。0 表示永久保留。可用 /trash 查看、/restore <序号> 找回。",
 	},
+	"session.timeInjectEvery": {
+		label: "时间注入间隔（工具调用次数）",
+		description: "启用动态 time 工具后，每 N 次工具调用注入一次当前时间；用户自身的时间要求优先",
+	},
+	"session.timeInjectEvery::10": {
+		label: "10 次",
+		description: "频繁",
+	},
+	"session.timeInjectEvery::25": {
+		label: "25 次",
+	},
+	"session.timeInjectEvery::50": {
+		label: "50 次",
+		description: "默认",
+	},
+	"session.timeInjectEvery::100": {
+		label: "100 次",
+	},
+	"session.timeInjectEvery::200": {
+		label: "200 次",
+	},
 	"session.trashRetentionDays::7": {
 		label: "7 天",
 	},

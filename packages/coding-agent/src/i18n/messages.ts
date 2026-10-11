@@ -55,6 +55,17 @@ export interface Messages {
 	dynamicToolModeDefault: string; // mode name when no mode is active
 	timeCapability: string; // one-line capability of the time tool
 
+	// /time command (time injection)
+	cmdTime: string; // /time menu description
+	cmdTimeStatus: string; // /time status subcommand description
+	cmdTimeOn: string; // /time on subcommand description
+	cmdTimeOff: string; // /time off subcommand description
+	cmdTimeInterval: string; // /time interval subcommand description
+	timeUsage: string; // usage line for /time
+	timeStatusIntervalFmt: string; // "interval: every %s tool calls"
+	timeStatusPolicy: string; // last-injection policy line
+	timeIntervalInvalidFmt: string; // "invalid interval: %s"
+
 	// setup wizard shell
 	setupFallbackTitle: string; // wizard scene-title fallback
 	setupStepFmt: string; // "Setup step %s of %s" header line

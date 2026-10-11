@@ -259,7 +259,13 @@ import {
 	releaseTabsForOwner,
 } from "../tools/browser/tab-supervisor";
 import type { CheckpointState, CompletedRewindState } from "../tools/checkpoint";
-import { applyTimeSendTimestamp } from "../tools/dynamic-tools";
+import {
+	applyTimeSendTimestamp,
+	isDynamicToolEnabled,
+	TIME_INJECT_NOTICE_TYPE,
+	timeInjectInterval,
+} from "../tools/dynamic-tools";
+import { sendTimestampLine } from "../tools/time";
 import { releaseComputerSessionsForOwner, revokeComputerControlForOwner } from "../tools/computer/supervisor";
 import { isAutoQaEnabled } from "../tools/report-tool-issue";
 import {
@@ -1036,6 +1042,11 @@ export class AgentSession implements SettingsScope {
 	 */
 	#fallbackExtensionTimers: ManagedTimers | undefined = undefined;
 	#turnIndex = 0;
+	/**
+	 * Finished tool calls since the last `time` injection or genuine user
+	 * submission. Drives the periodic timestamp injection in #afterToolCall.
+	 */
+	#timeInjectToolCalls = 0;
 	#messageEndPersistenceTail: Promise<void> = Promise.resolve();
 	#pendingMessageEndPersistence = new Map<string, Promise<void>>();
 	#persistedMessageKeys: { anchor: string; keys: Set<string> } | undefined;
@@ -5375,7 +5386,35 @@ export class AgentSession implements SettingsScope {
 			this.#synchronouslyTerminatedYieldToolCallIds.add(ctx.toolCall.id);
 			this.agent.abort(TERMINAL_TOOL_RESULT_ABORT_REASON);
 		}
+		this.#maybeInjectTimeOnToolCalls();
 		return this.#ttsr.afterToolCall(ctx);
+	}
+
+	/**
+	 * Count finished tool calls; every `session.timeInjectEvery` calls while the
+	 * dynamic `time` tool is enabled, fold just the send-instant line into the
+	 * running turn as a hidden custom message (time only — no urging, no task
+	 * language; the user's own time requirements always take precedence). No
+	 * timers: the counter only advances on real tool completions and resets when
+	 * the feature is off or after each injection.
+	 */
+	#maybeInjectTimeOnToolCalls(): void {
+		if (!isDynamicToolEnabled(this.settings, "time")) {
+			this.#timeInjectToolCalls = 0;
+			return;
+		}
+		this.#timeInjectToolCalls += 1;
+		if (this.#timeInjectToolCalls < timeInjectInterval(this.settings)) return;
+		this.#timeInjectToolCalls = 0;
+		void this.sendCustomMessage(
+			{
+				customType: TIME_INJECT_NOTICE_TYPE,
+				content: sendTimestampLine(new Date()),
+				display: false,
+				attribution: "agent",
+			},
+			{ deliverAs: "aside" },
+		);
 	}
 	/**
 	 * Emits the extension `tool_call` event for a loop-dispatched call at
@@ -8802,6 +8841,10 @@ export class AgentSession implements SettingsScope {
 	): Promise<boolean> {
 		const attribution = options?.attribution ?? "user";
 		const timestamp = options?.timestamp;
+		// A genuine user submission opens a fresh exchange and carries its own
+		// timestamp, so the periodic tool-call counter starts over. Asides are
+		// non-interrupting injected context, not a new user turn.
+		if (attribution === "user" && mode !== "aside") this.#timeInjectToolCalls = 0;
 		const rawText = options?.rawText ?? text;
 		const preprocessed = options?.preprocessed;
 		const prependMessages = options?.prependMessages ?? [];

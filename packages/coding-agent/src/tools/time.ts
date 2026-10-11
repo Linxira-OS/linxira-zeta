@@ -2,9 +2,23 @@ import { type } from "@linxiraos/pi-omptype";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
+import type { Settings } from "../config/settings";
 import timeDescription from "../prompts/tools/time.md" with { type: "text" };
+import {
+	buildDynamicToolNotice,
+	buildTimeStatusLine,
+	isDynamicToolEnabled,
+	setDynamicToolEnabled,
+	timeInjectInterval,
+} from "./dynamic-tools";
+
+/** The `time` tool's modes: report now, toggle injection, or report its state. */
+export type TimeAction = "now" | "on" | "off" | "status";
 
 const timeSchema = type({
+	"action?": type('"now" | "on" | "off" | "status"').describe(
+		"now (default): report the current time; on/off: enable or disable time injection; status: report injection state and interval",
+	),
 	"timezone?": type("string").describe(
 		'IANA timezone name (e.g. "Asia/Shanghai"); omitted uses this machine\'s local zone',
 	),
@@ -13,10 +27,13 @@ const timeSchema = type({
 type TimeParams = typeof timeSchema.infer;
 
 interface TimeToolDetails {
-	timezone: string;
-	local: string;
-	utc: string;
-	epochMs: number;
+	action: TimeAction;
+	enabled: boolean;
+	interval: number;
+	timezone?: string;
+	local?: string;
+	utc?: string;
+	epochMs?: number;
 }
 
 /** Wall-clock rendering of one instant in one IANA zone. */
@@ -154,16 +171,40 @@ export class TimeTool implements AgentTool<typeof timeSchema, TimeToolDetails> {
 
 	/** Substitutable clock source; production reads the real current time. */
 	readonly #now: () => Date;
+	/** Settings backing the `on`/`off`/`status` actions. */
+	readonly #settings: Settings;
 
-	constructor(now: () => Date = () => new Date()) {
+	constructor(settings: Settings, now: () => Date = () => new Date()) {
+		this.#settings = settings;
 		this.#now = now;
 	}
 
 	async execute(_toolCallId: string, params: TimeParams): Promise<AgentToolResult<TimeToolDetails>> {
+		const action = params.action ?? "now";
+		const interval = timeInjectInterval(this.#settings);
+		const enabled = isDynamicToolEnabled(this.#settings, "time");
+		if (action === "status") {
+			return {
+				content: [{ type: "text", text: buildTimeStatusLine(this.#settings) }],
+				details: { action, enabled, interval },
+			};
+		}
+		if (action === "on" || action === "off") {
+			// `time` stays registered while injection is off so the model can switch
+			// the feature back on; the action toggles the behavior, not the presence.
+			setDynamicToolEnabled(this.#settings, "time", action === "on");
+			return {
+				content: [{ type: "text", text: buildDynamicToolNotice("time", action === "on", undefined) }],
+				details: { action, enabled: action === "on", interval },
+			};
+		}
 		const report = timeReport(this.#now(), params.timezone);
 		return {
 			content: [{ type: "text", text: report.text }],
 			details: {
+				action,
+				enabled,
+				interval,
 				timezone: report.timezone,
 				local: report.local,
 				utc: report.utc,

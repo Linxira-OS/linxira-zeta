@@ -1027,13 +1027,39 @@ export const cfgDevAutoqaConsent = register({
 
 /**
  * Enabled dynamic tool categories (`/tool <name> on|off`), persisted as one
- * record entry per tool. Dynamic tools are absent from the toolset until their
- * entry is `true`; the entry is removed when toggled off.
+ * record entry per tool. The entry gates the category's capability, not the
+ * tool's presence: `time` stays registered so the model can re-enable it, and
+ * the entry is removed when toggled off.
  */
 export const cfgSessionDynamicTools = register({
 	id: "session.dynamicTools",
 	type: "record",
 	default: {} as Record<string, boolean>,
+});
+
+/**
+ * Tool-call count between periodic `time` injections while the dynamic `time`
+ * tool is enabled: every N finished tool calls the session injects the send
+ * instant as a hidden, time-only custom message. Integer >= 1; readers clamp.
+ */
+export const cfgSessionTimeInjectEvery = register({
+	id: "session.timeInjectEvery",
+	type: "number",
+	default: 50,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Time Injection Interval (tool calls)",
+		description:
+			"Inject the current time every N tool calls while the dynamic time tool is enabled; user time requirements take precedence",
+		options: [
+			{ value: "10", label: "10", description: "Frequent" },
+			{ value: "25", label: "25" },
+			{ value: "50", label: "50", description: "Default" },
+			{ value: "100", label: "100" },
+			{ value: "200", label: "200" },
+		],
+	},
 });
 
 /** Settings read by `resolveBuiltinToolPlan` (`tools/index.ts`); a live session reconciles its built-ins when any changes. */

@@ -1,17 +1,18 @@
 /**
  * Dynamic small-tool framework.
  *
- * A dynamic tool is an ordinary built-in tool whose presence in the toolset is
- * user-toggled at runtime via `/tool <name> on|off` (persisted as entries of
- * the `session.dynamicTools` record setting). `resolveBuiltinToolPlan` gates
- * every registered category on its entry; a live session reconciles its
- * built-ins when the setting changes because `cfgBuiltinToolGates` includes
- * it. Each successful toggle also injects a one-line, model-visible system
- * notice so the agent learns the tool appeared or disappeared.
+ * A dynamic tool is an ordinary built-in tool whose feature state is toggled at
+ * runtime via `/tool <name> on|off` (persisted as entries of the
+ * `session.dynamicTools` record setting). Its capability (not its presence) is
+ * gated on that entry — the `time` tool stays registered even while injection is
+ * off so the model can switch it back on with `action: "on"`. Each successful
+ * toggle also injects a one-line, model-visible system notice so the agent
+ * learns the capability appeared or vanished; a live session reconciles its
+ * built-ins when the setting changes because `cfgBuiltinToolGates` includes it.
  */
 import { M } from "../i18n";
 import type { Settings } from "../config/settings";
-import { cfgSessionDynamicTools } from "./settings";
+import { cfgSessionDynamicTools, cfgSessionTimeInjectEvery } from "./settings";
 import { sendTimestampLine } from "./time";
 
 /** Registered dynamic tool category. */
@@ -45,6 +46,15 @@ export function setDynamicToolEnabled(scope: Settings, name: string, enabled: bo
 
 /** Custom-message type carrying dynamic-tool toggle notices to the model. */
 export const DYNAMIC_TOOL_NOTICE_TYPE = "dynamic-tool-notice";
+
+/**
+ * Custom-message type carrying the periodic tool-call time injection.
+ *
+ * A distinct sibling of {@link DYNAMIC_TOOL_NOTICE_TYPE} because the payload is
+ * time only — no capability sentence and no toggle wording — so surfaces must
+ * not mistake it for an enable/disable notice.
+ */
+export const TIME_INJECT_NOTICE_TYPE = "time-inject-notice";
 
 /** Session modes whose enabled state names the "current mode" in toggle notices. */
 const NOTICE_MODE_IDS = ["plan", "goal", "vibe"] as const;
@@ -82,6 +92,29 @@ export function buildDynamicToolNotice(name: string, enabled: boolean, mode: Dyn
 }
 
 export type DynamicToolToggleResult = { error: string } | { name: string; enabled: boolean; changed: boolean };
+
+/**
+ * Effective tool-call interval between `time` injections for `settings`: the
+ * persisted `session.timeInjectEvery`, clamped to an integer >= 1 so a
+ * hand-edited config cannot disable the feature by writing 0 or a fraction.
+ */
+export function timeInjectInterval(settings: Settings): number {
+	const raw = cfgSessionTimeInjectEvery.get(settings);
+	return Number.isFinite(raw) && raw >= 1 ? Math.trunc(raw) : 1;
+}
+
+/**
+ * Operator status line for the time injection feature: on/off state, the
+ * tool-call interval, and the last-injection policy. Shared by the `/time`
+ * command and the `time` tool's `status` action so both read identically.
+ */
+export function buildTimeStatusLine(settings: Settings): string {
+	return [
+		`time: ${isDynamicToolEnabled(settings, "time") ? "on" : "off"}`,
+		formatMessage(M.timeStatusIntervalFmt, String(timeInjectInterval(settings))),
+		M.timeStatusPolicy,
+	].join("\n");
+}
 
 /**
  * Apply `/tool <name> on|off` to `settings`. Returns the parsed outcome; the

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { buildDynamicToolNotice, isDynamicToolEnabled } from "@linxiraos/zeta/tools/dynamic-tools";
 import { sendTimestampLine, TimeTool, timeReport, wallClock } from "@linxiraos/zeta/tools/time";
 
 describe("wallClock", () => {
@@ -85,26 +87,64 @@ describe("sendTimestampLine", () => {
 	});
 });
 
+/** First text block of a tool result, asserted to be text. */
+function firstText(result: { content: readonly { type: string; text?: string }[] }): string {
+	const block = result.content[0];
+	if (!block || block.type !== "text" || block.text === undefined) throw new Error("expected a text block");
+	return block.text;
+}
+
 describe("TimeTool", () => {
 	test("reports the frozen current time", async () => {
 		const frozen = () => new Date("2026-10-07T06:30:05.123Z");
-		const result = await new TimeTool(frozen).execute("call-1", {});
+		const result = await new TimeTool(Settings.isolated(), frozen).execute("call-1", {});
 		expect(result.content).toEqual([{ type: "text", text: timeReport(frozen()).text }]);
 		expect(result.details).toMatchObject({
+			action: "now",
+			interval: 50,
 			timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 			epochMs: Date.parse("2026-10-07T06:30:05.123Z"),
 		});
 	});
 
 	test("forwards an explicit timezone", async () => {
-		const result = await new TimeTool(() => new Date("2026-10-07T06:30:05.123Z")).execute("call-2", {
-			timezone: "Asia/Shanghai",
-		});
+		const result = await new TimeTool(Settings.isolated(), () => new Date("2026-10-07T06:30:05.123Z")).execute(
+			"call-2",
+			{ timezone: "Asia/Shanghai" },
+		);
 		expect(result.details?.timezone).toBe("Asia/Shanghai");
-		expect((result.content[0] as { text: string }).text).toContain("14:30:05 +08:00");
+		expect(firstText(result)).toContain("14:30:05 +08:00");
 	});
 
 	test("invalid timezone surfaces as ToolError", async () => {
-		await expect(new TimeTool().execute("call-3", { timezone: "Not/AZone" })).rejects.toThrow(ToolError);
+		await expect(new TimeTool(Settings.isolated()).execute("call-3", { timezone: "Not/AZone" })).rejects.toThrow(
+			ToolError,
+		);
+	});
+});
+
+describe("TimeTool actions", () => {
+	test("on/off toggle the injection feature and return the model notice", async () => {
+		const settings = Settings.isolated();
+		const tool = new TimeTool(settings, () => new Date("2026-10-07T06:30:05.123Z"));
+		const on = await tool.execute("call-on", { action: "on" });
+		expect(isDynamicToolEnabled(settings, "time")).toBe(true);
+		expect(firstText(on)).toBe(buildDynamicToolNotice("time", true, undefined));
+		expect(on.details).toMatchObject({ action: "on", enabled: true });
+
+		const off = await tool.execute("call-off", { action: "off" });
+		expect(isDynamicToolEnabled(settings, "time")).toBe(false);
+		expect(firstText(off)).toBe(buildDynamicToolNotice("time", false, undefined));
+		expect(off.details).toMatchObject({ action: "off", enabled: false });
+	});
+
+	test("status reports state and the interval", async () => {
+		const settings = Settings.isolated();
+		const tool = new TimeTool(settings);
+		const status = await tool.execute("call-status", { action: "status" });
+		const text = firstText(status);
+		expect(text).toContain("time: off");
+		expect(text).toContain("50");
+		expect(status.details).toMatchObject({ action: "status", enabled: false, interval: 50 });
 	});
 });

@@ -10,9 +10,11 @@ import {
 	activeModeId,
 	applyTimeSendTimestamp,
 	buildDynamicToolNotice,
+	buildTimeStatusLine,
 	DYNAMIC_TOOL_CATEGORIES,
 	isDynamicToolEnabled,
 	isDynamicToolName,
+	timeInjectInterval,
 	toggleDynamicTool,
 } from "@linxiraos/zeta/tools/dynamic-tools";
 import { sendTimestampLine } from "@linxiraos/zeta/tools/time";
@@ -95,24 +97,46 @@ describe("session.dynamicTools persistence", () => {
 });
 
 describe("builtin tool plan gating", () => {
-	test("time is excluded by default and included once enabled", async () => {
+	test("time stays registered even while injection is off (the model needs it to enable)", async () => {
 		const settings = Settings.isolated();
 		const session = toolSession(settings);
-		expect((await resolveBuiltinToolPlan(session)).names).not.toContain("time");
+		expect((await resolveBuiltinToolPlan(session)).names).toContain("time");
 
 		toggleDynamicTool(settings, "time on");
 		expect((await resolveBuiltinToolPlan(session)).names).toContain("time");
 
 		toggleDynamicTool(settings, "time off");
-		expect((await resolveBuiltinToolPlan(session)).names).not.toContain("time");
+		expect((await resolveBuiltinToolPlan(session)).names).toContain("time");
 	});
 
-	test("an explicit tool list still honors the dynamic gate", async () => {
+	test("an explicit tool list still includes time", async () => {
 		const settings = Settings.isolated();
 		const session = toolSession(settings);
-		expect((await resolveBuiltinToolPlan(session, ["read", "time"])).names).not.toContain("time");
-		toggleDynamicTool(settings, "time on");
 		expect((await resolveBuiltinToolPlan(session, ["read", "time"])).names).toContain("time");
+	});
+});
+
+describe("time injection interval", () => {
+	test("defaults to 50 tool calls", () => {
+		expect(timeInjectInterval(Settings.isolated())).toBe(50);
+	});
+
+	test("clamps a hand-edited config to an integer >= 1", () => {
+		expect(timeInjectInterval(Settings.isolated({ "session.timeInjectEvery": 0 }))).toBe(1);
+		expect(timeInjectInterval(Settings.isolated({ "session.timeInjectEvery": -5 }))).toBe(1);
+		expect(timeInjectInterval(Settings.isolated({ "session.timeInjectEvery": 12.7 }))).toBe(12);
+		expect(timeInjectInterval(Settings.isolated({ "session.timeInjectEvery": 7 }))).toBe(7);
+	});
+
+	test("the status line reports state, interval, and policy", () => {
+		const off = buildTimeStatusLine(Settings.isolated());
+		expect(off).toContain("time: off");
+		expect(off).toContain("50");
+		const settings = Settings.isolated({ "session.timeInjectEvery": 10 });
+		toggleDynamicTool(settings, "time on");
+		const on = buildTimeStatusLine(settings);
+		expect(on).toContain("time: on");
+		expect(on).toContain("10");
 	});
 });
 

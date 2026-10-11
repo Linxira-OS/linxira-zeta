@@ -4,7 +4,7 @@ import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/ac
 import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { setLanguage } from "@linxiraos/zeta/i18n/index";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { isDynamicToolEnabled } from "@linxiraos/zeta/tools/dynamic-tools";
+import { isDynamicToolEnabled, timeInjectInterval } from "@linxiraos/zeta/tools/dynamic-tools";
 
 function createRuntime() {
 	const settings = Settings.isolated();
@@ -80,5 +80,61 @@ describe("/tool slash command", () => {
 		await executeAcpBuiltinSlashCommand("/tool time", h.runtime);
 		expect(h.output).toHaveBeenCalledWith("用法：/tool <name> on|off");
 		expect(isDynamicToolEnabled(h.settings, "time")).toBe(false);
+	});
+});
+
+describe("/time slash command", () => {
+	beforeEach(() => {
+		setLanguage("zh");
+	});
+
+	test("bare /time reports on/off state, interval, and policy without a notice", async () => {
+		const h = createRuntime();
+		await executeAcpBuiltinSlashCommand("/time", h.runtime);
+		const status = String(h.output.mock.calls[0]?.[0]);
+		expect(status).toContain("time: off");
+		expect(status).toContain("50");
+		expect(h.sendCustomMessage).not.toHaveBeenCalled();
+	});
+
+	test("on/off reuse the /tool toggle and inject the model notice", async () => {
+		const h = createRuntime();
+		await executeAcpBuiltinSlashCommand("/time on", h.runtime);
+		expect(isDynamicToolEnabled(h.settings, "time")).toBe(true);
+		expect(h.sendCustomMessage).toHaveBeenCalledTimes(1);
+		const [message] = h.sendCustomMessage.mock.calls[0] as unknown as [{ customType: string; content: string }];
+		expect(message.customType).toBe("dynamic-tool-notice");
+		expect(message.content).toBe("time已启用。获取当前准确日期时间（本地/UTC/epoch 毫秒，支持时区）。当前模式：plan");
+
+		await executeAcpBuiltinSlashCommand("/time off", h.runtime);
+		expect(isDynamicToolEnabled(h.settings, "time")).toBe(false);
+		expect(h.sendCustomMessage).toHaveBeenCalledTimes(2);
+	});
+
+	test("interval sets the persisted value and confirms it", async () => {
+		const h = createRuntime();
+		await executeAcpBuiltinSlashCommand("/time interval 5", h.runtime);
+		expect(timeInjectInterval(h.settings)).toBe(5);
+		const status = String(h.output.mock.calls[0]?.[0]);
+		expect(status).toContain("time: off");
+		expect(status).toContain("5");
+	});
+
+	test("interval rejects non-numeric and out-of-range values without writing", async () => {
+		const h = createRuntime();
+		for (const bad of ["abc", "0", "-3", "1.5"]) {
+			h.output.mockClear();
+			await executeAcpBuiltinSlashCommand(`/time interval ${bad}`, h.runtime);
+			const status = String(h.output.mock.calls[0]?.[0]);
+			expect(status).toContain(bad);
+			expect(timeInjectInterval(h.settings)).toBe(50);
+		}
+	});
+
+	test("a malformed invocation prints usage and writes nothing", async () => {
+		const h = createRuntime();
+		await executeAcpBuiltinSlashCommand("/time interval 2 3", h.runtime);
+		expect(h.output).toHaveBeenCalledWith("用法：/time [status|on|off|interval <n>]");
+		expect(timeInjectInterval(h.settings)).toBe(50);
 	});
 });
