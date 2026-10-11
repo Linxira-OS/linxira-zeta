@@ -449,7 +449,7 @@ Anthropic-routed models use an 8,192-token fallback output cap.
 
 A row advertising only image output becomes an image-generation runner; embedding-only output
 becomes an embedding runner. Mixed outputs remain chat models. These runners are visible with
-`omp models --kind all`, not the default chat listing.
+`zetacode models --kind all`, not the default chat listing.
 
 ### Explicit provider discovery
 
@@ -711,13 +711,13 @@ disabledProviders:
 
 String entries apply everywhere. Scoped entries apply when the current working directory is the configured path or one of its subdirectories. Use `path`, `paths`, `pathPrefix`, or `pathPrefixes`; use `models` for `enabledModels`, `providers` for either provider setting, or `values` for any of them.
 
-## `/model` and `omp models`
+## `/model` and `zetacode models`
 
 Both surfaces keep provider-prefixed concrete models visible and selectable.
 
 - `/model` / `/models` opens the model hub with role assignments and provider catalogs; the session-only picker changes the active model without saving a role assignment.
-- `omp models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
-- `omp models find <substring>` filters by provider, id, or name; `omp models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `omp models openai-codex`).
+- `zetacode models` (default `ls` action) prints provider-grouped tables of available **chat** models; `--kind <kind>` selects another catalog kind and `--kind all` includes every kind.
+- `zetacode models find <substring>` filters by provider, id, or name; `zetacode models refresh` forces an online catalog re-fetch ignoring the model cache TTL; a provider name doubles as an `ls` filter (e.g. `zetacode models openai-codex`).
 - Other flags: `--json`, `-e <path>` / `--extension <path>` (repeatable), `--no-extensions` (skip ambient discovery; explicit `-e` still loads), and `--config <overlay>` (repeatable).
 
 JSON includes `provider`, `kind`, `id`, `selector`, `name`, limits, reasoning/thinking metadata,

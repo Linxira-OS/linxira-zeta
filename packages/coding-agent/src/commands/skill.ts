@@ -38,7 +38,7 @@ export default class Skill extends Command {
 		"zetacode skill install @alice/pdf-tools",
 		"zetacode skill install -g @alice/pdf-tools@^1.2",
 		'zetacode skill search "pdf" --sort downloads',
-		"zetacode skill version minor && omp skill publish",
+		"zetacode skill version minor && zetacode skill publish",
 		"zetacode skill publish ./skills/pdf-tools --dry-run",
 		"zetacode skill tag @alice/pdf-tools@2.0.0-beta.1 next",
 		'zetacode skill deprecate @alice/pdf-tools@"<1.0.0" "use 1.x"',

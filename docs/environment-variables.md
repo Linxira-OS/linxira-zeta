@@ -335,8 +335,8 @@ therefore completes through the paste-code path.
 | `PI_CODEX_WEBSOCKET_RETRY_DELAY_MS`         | Positive integer base backoff override (default `500`)                                                                                                                                                        |
 | `PI_STREAM_FIRST_EVENT_TIMEOUT_MS`          | Generic stream first-event timeout; `0` disables                                                                                                                                                              |
 | `PI_STREAM_IDLE_TIMEOUT_MS`                 | Generic stream idle timeout; `0` disables                                                                                                                                                                     |
-| `PI_OPENAI_STREAM_FIRST_EVENT_TIMEOUT_MS`   | OpenAI-specific first-event timeout override; `0` disables and takes precedence over the generic value. `omp config set providers.streamFirstEventTimeoutSeconds <seconds>` provides the persisted equivalent |
-| `PI_OPENAI_STREAM_IDLE_TIMEOUT_MS`          | OpenAI-specific idle timeout override; `0` disables and takes precedence over the generic value. `omp config set providers.streamIdleTimeoutSeconds <seconds>` provides the persisted equivalent              |
+| `PI_OPENAI_STREAM_FIRST_EVENT_TIMEOUT_MS`   | OpenAI-specific first-event timeout override; `0` disables and takes precedence over the generic value. `zetacode config set providers.streamFirstEventTimeoutSeconds <seconds>` provides the persisted equivalent |
+| `PI_OPENAI_STREAM_IDLE_TIMEOUT_MS`          | OpenAI-specific idle timeout override; `0` disables and takes precedence over the generic value. `zetacode config set providers.streamIdleTimeoutSeconds <seconds>` provides the persisted equivalent              |
 
 ### Cursor provider debug
 

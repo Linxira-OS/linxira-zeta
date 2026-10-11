@@ -1,4 +1,4 @@
-OMP-native repository security scans: plan, start, inspect, cancel, validate.
+Zeta-native repository security scans: plan, start, inspect, cancel, validate.
 `preflight`: immutable plan pinned to repository snapshot, model, exact OAuth credential.
 `start`: plan → background OMP job.
 `status`, `cancel`: returned operation ID.

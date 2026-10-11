@@ -2,7 +2,7 @@
 
 The auth broker centralizes credential storage and OAuth refreshes. The auth gateway lets clients make provider requests without receiving provider credentials. Direct broker clients are trusted: snapshots expose OAuth access tokens and stored API keys, but never the real OAuth refresh token.
 
-- **`omp auth-broker serve`** holds the canonical SQLite credential vault, performs OAuth refreshes, and exposes snapshot, credential, block, usage, and health APIs under `/v1`.
+- **`zetacode auth-broker serve`** holds the canonical SQLite credential vault, performs OAuth refreshes, and exposes snapshot, credential, block, usage, and health APIs under `/v1`.
 - **`omp auth-gateway serve`** is a forward-proxy. It accepts OpenAI Chat Completions, Anthropic Messages, OpenAI Responses, pi-native stream, TypeSafe System One judgment, and OpenAI/OpenRouter-style image, speech, transcription, embedding, rerank, and video requests, resolves the broker-backed credential, and dispatches through `pi-ai` provider logic. Clients (containerised omp, llm-git, the macOS usage widget, …) never see the access token.
 - **`omp auth-gateway stdio`** serves the same routes to its parent process as JSON lines on stdin/stdout, on the CLI's own credentials and model roles; see [stdio](#stdio).
 
@@ -17,7 +17,7 @@ Source: `packages/ai/src/auth-broker/`, `packages/ai/src/auth-gateway/`, `packag
                 │ broker host                                                │
                 │                                                            │
   developer ──▶ │  ┌──────────────────────────┐    ┌────────────────────┐    │
-  laptop /      │  │  omp auth-broker serve   │◀──▶│  SQLite agent.db    │    │
+  laptop /      │  │  zetacode auth-broker serve   │◀──▶│  SQLite agent.db    │    │
   CI / robomp   │  │  - holds refresh tokens  │    │  (canonical writer)│    │
                 │  │  - background refresher  │    └────────────────────┘    │
                 │  │  /v1/{snapshot,refresh,…}│                              │
@@ -47,20 +47,20 @@ The broker is the only writer of OAuth refresh tokens. Clients (including the ga
 ### CLI
 
 ```
-omp auth-broker serve     [--bind=host:port] [--trust-proxy-headers]  # boot the broker
-omp auth-broker token     [--regenerate] [--json]               # print or rotate the bearer token
-omp auth-broker login     [<provider>] [--via=user@host] [--dry-run]
-omp auth-broker logout    [<provider>]
-omp auth-broker list      [--json]
-omp auth-broker import    <file|dir> [--provider=<id>] [--include-disabled] [--dry-run] [--json]
-omp auth-broker migrate   --from-local [--include-oauth] [--include-env] [--dry-run] [--json]
-omp auth-broker status    [--json]
+zetacode auth-broker serve     [--bind=host:port] [--trust-proxy-headers]  # boot the broker
+zetacode auth-broker token     [--regenerate] [--json]               # print or rotate the bearer token
+zetacode auth-broker login     [<provider>] [--via=user@host] [--dry-run]
+zetacode auth-broker logout    [<provider>]
+zetacode auth-broker list      [--json]
+zetacode auth-broker import    <file|dir> [--provider=<id>] [--include-disabled] [--dry-run] [--json]
+zetacode auth-broker migrate   --from-local [--include-oauth] [--include-env] [--dry-run] [--json]
+zetacode auth-broker status    [--json]
 ```
 
 - `serve` opens the local SQLite store at `getAgentDbPath()` and binds an HTTP listener (default `127.0.0.1:8765`). On startup a token is ensured at `<config-dir>/auth-broker.token` (mode `0600`, newly created parent directory `0700`). The background refresher runs immediately and then every `refreshIntervalMs` (default 60 s), targeting OAuth credentials whose expiry is within `refreshSkewMs` (default 5 min).
 - Logs attribute requests to the socket peer address. Behind a trusted reverse proxy, pass `--trust-proxy-headers` to use `X-Forwarded-For` / `X-Real-IP` for authenticated requests; unauthorized requests are always logged with the socket peer, and paths outside the broker's routes are logged as `<unrouted>`.
 - `token` prints the stored bearer or generates a new one. `--regenerate` replaces the token file; restart a running broker to load the replacement into its in-memory allow-list.
-- `login [<provider>]` runs the registered sign-in flow locally (OAuth or a provider's API-key login). With no provider it shows an interactive numbered picker. With `--via=user@host` it runs `ssh -L <callback-port>:127.0.0.1:<callback-port> -o ExitOnForwardFailure=yes user@host omp auth-broker login <provider>`; the credential is written on the remote host (`--via` requires `<provider>`, and `--dry-run` applies only to this remote path). Ports are derived from the auth registry: `anthropic:54545`, `openai-codex:1455`, `google-gemini-cli:8085`, `google-antigravity:51121`, `gitlab-duo:8080`, `devin:59653`, `openrouter:54549`, `stencil:54547`. `gitlab-duo-agent` and `zai-coding-plan` use non-loopback/manual callbacks rather than the old `8080`/`9999` listeners; run those flows on the host directly. Login is driven in-process through `AuthStorage.oauth.login()`.
+- `login [<provider>]` runs the registered sign-in flow locally (OAuth or a provider's API-key login). With no provider it shows an interactive numbered picker. With `--via=user@host` it runs `ssh -L <callback-port>:127.0.0.1:<callback-port> -o ExitOnForwardFailure=yes user@host zetacode auth-broker login <provider>`; the credential is written on the remote host (`--via` requires `<provider>`, and `--dry-run` applies only to this remote path). Ports are derived from the auth registry: `anthropic:54545`, `openai-codex:1455`, `google-gemini-cli:8085`, `google-antigravity:51121`, `gitlab-duo:8080`, `devin:59653`, `openrouter:54549`, `stencil:54547`. `gitlab-duo-agent` and `zai-coding-plan` use non-loopback/manual callbacks rather than the old `8080`/`9999` listeners; run those flows on the host directly. Login is driven in-process through `AuthStorage.oauth.login()`.
 - `logout [<provider>]` disables the provider's active rows with cause `logged out by user`; disabled tombstones remain available through the broker API. With no argument it shows an interactive numbered picker of stored providers.
 - `list` enumerates the sign-in providers returned by `getOAuthProviders()` (visible built-ins plus `registerOAuthProvider` custom providers), not the stored accounts. `--json` emits an array of `{ id, name }`.
 - `import <file|dir>` imports CLIProxyAPI-style JSON credentials into the local SQLite store. Maps `type` field → omp provider (`claude → anthropic`, `codex → openai-codex`, `gemini → google-gemini-cli`, `antigravity → google-antigravity`, `gemini-cli → google-gemini-cli`).
@@ -272,7 +272,7 @@ This is a **trusted-client routing policy, not an authorization boundary**. The 
 
 ### Per-agent and per-session pools
 
-A process-wide pool decides which accounts a client sees; a session pool narrows one session further with the same identity keys, which `omp usage accounts` lists for every OAuth account the process sees (with organization names and no tokens). Set `task.agentAccountPools` to pool a task agent by exact name ([Settings](./settings.md#providers-and-services)), pass `oauthAccountPools` to `createAgentSession()`, or call `authStorage.sessions.restrict(provider, sessionId, identityKeys)` directly. For each listed provider the session authenticates only with visible OAuth accounts in its list: selection, pins, fallback passes, and rotation stay inside it, stored, runtime, and environment API keys are never used, and a request fails rather than borrow another account when none can serve. A config key (a `models.yml` `apiKey`, often for a proxy `baseUrl`) also fails a pooled request, so no pooled OAuth token is sent to that endpoint. An empty list allows no account. A session created with `oauthAccountPools` enforces its pools on every key lookup through its model registry, whatever provider session id the lookup carries (title generation, skill compression, advisors, and subagents it spawns without their own entry); a lookup with no session id resolves under the session's own id. It lifts its pools when it is disposed, or, when a run outlives the dispose deadline, once that run settles. A direct `restrict` caller passes the lease that `restrict` returned to `authStorage.sessions.unrestrict(provider, sessionId, lease)` once that session ends; a lease never lifts a restriction installed on the same session since. Session pools are the same trusted-client routing policy as client pools, not an authorization boundary.
+A process-wide pool decides which accounts a client sees; a session pool narrows one session further with the same identity keys, which `zetacode usage accounts` lists for every OAuth account the process sees (with organization names and no tokens). Set `task.agentAccountPools` to pool a task agent by exact name ([Settings](./settings.md#providers-and-services)), pass `oauthAccountPools` to `createAgentSession()`, or call `authStorage.sessions.restrict(provider, sessionId, identityKeys)` directly. For each listed provider the session authenticates only with visible OAuth accounts in its list: selection, pins, fallback passes, and rotation stay inside it, stored, runtime, and environment API keys are never used, and a request fails rather than borrow another account when none can serve. A config key (a `models.yml` `apiKey`, often for a proxy `baseUrl`) also fails a pooled request, so no pooled OAuth token is sent to that endpoint. An empty list allows no account. A session created with `oauthAccountPools` enforces its pools on every key lookup through its model registry, whatever provider session id the lookup carries (title generation, skill compression, advisors, and subagents it spawns without their own entry); a lookup with no session id resolves under the session's own id. It lifts its pools when it is disposed, or, when a run outlives the dispose deadline, once that run settles. A direct `restrict` caller passes the lease that `restrict` returned to `authStorage.sessions.unrestrict(provider, sessionId, lease)` once that session ends; a lease never lifts a restriction installed on the same session since. Session pools are the same trusted-client routing policy as client pools, not an authorization boundary.
 
 ## Operator opt-in
 
@@ -323,7 +323,7 @@ That ranking picks the account for a **new** session. A running session remember
 
 | Path                              | Owner                                                | Mode                          |
 | --------------------------------- | ---------------------------------------------------- | ----------------------------- |
-| `<config-dir>/auth-broker.token`  | `omp auth-broker token` or `serve` | `0600`; new parent directory `0700` |
+| `<config-dir>/auth-broker.token`  | `zetacode auth-broker token` or `serve` | `0600`; new parent directory `0700` |
 | `<config-dir>/auth-gateway.token` | `omp auth-gateway token` or `serve` (serve skips it under `--no-auth`) | `0600`; new parent directory `0700` |
 
 `<config-dir>` is `getConfigRootDir()`: `~/.zeta/` by default, respecting `PI_CONFIG_DIR` and the active profile (`~/.zeta/profiles/<name>/` for the default profile layout). Creating a token does not tighten permissions on an already-existing parent directory.

@@ -8,7 +8,7 @@ omp [command] [flags] [messages...]
 
 When the first positional argument is **not** a registered subcommand, `omp`
 normally routes to the default [`launch`](#launch-the-default-command) command.
-So `omp "fix the build"` launches a session with that message, while `omp models`
+So `omp "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
 `uninstall`, or `extensions` instead produce a hint to use `omp plugin …`;
 use `omp launch <word>` when such a word is the intended prompt.
@@ -27,7 +27,7 @@ Runtime help is also available:
 
 This page is the consolidated reference for the shared **launch surface** (the
 flags accepted by `omp` / `omp launch`) and every top-level **subcommand**.
-Per-subcommand flags (for example `omp auth-broker --json`) are documented by
+Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
@@ -241,7 +241,7 @@ Run `omp <command> --help` for each command's own flags and examples.
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
 | `acp` | Run omp as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
-| `auth-broker` | Manage the omp auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
+| `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |

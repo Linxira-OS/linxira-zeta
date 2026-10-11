@@ -677,7 +677,7 @@ describe("ACP builtin slash commands", () => {
 		expect(configNotified).toBe(0);
 	});
 
-	// /switch resolves like `omp bench`: fuzzy ids, @role aliases, :level suffixes
+	// /switch resolves like `zetacode bench`: fuzzy ids, @role aliases, :level suffixes
 	it("switch opus:low: fuzzy-resolves a session-only model with the thinking suffix", async () => {
 		const { output, runtime, session } = createRuntime();
 		const available = [

@@ -1,5 +1,5 @@
 /**
- * Regression: OMP-native user-level config discovery must follow the active
+ * Regression: Zeta-native user-level config discovery must follow the active
  * profile. A profile relocates the agent directory to ~/.zeta/profiles/<name>/agent;
  * the native provider used to read user config (commands, skills, rules, etc.)
  * from the literal home (~/.zeta/agent) via `ctx.home`, leaking the default

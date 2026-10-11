@@ -664,7 +664,7 @@ export interface AvailableSlashCommand {
 	subcommands?: SlashSubcommand[];
 }
 
-/** OMP-native session entries in append order. */
+/** Zeta-native session entries in append order. */
 export interface SessionEntries {
 	entries: Record<string, unknown>[];
 	leafId: string | null;

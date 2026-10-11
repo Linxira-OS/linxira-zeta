@@ -61,7 +61,7 @@ describe("legacy shim compaction helpers", () => {
 	});
 });
 
-// Issue #11796: `omp install git:github.com/NVlabs/SoL-Pi` failed Bun's static
+// Issue #11796: `zetacode install git:github.com/NVlabs/SoL-Pi` failed Bun's static
 // export check because the shim never forwarded `findCutPoint`. omp's canonical
 // `findCutPoint` also grew a required `Tokenizer` parameter, so the shim exposes
 // an upstream-signature (tokenizer-less, 4-arg) wrapper backed by the shared

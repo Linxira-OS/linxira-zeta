@@ -141,7 +141,7 @@ describe("run() usage errors", () => {
 		}
 		const out = errs.join("");
 		expect(out).toContain("error: Missing required argument: models");
-		expect(out).toContain("$ omp bench MODELS... [FLAGS]");
+		expect(out).toContain("$ zetacode bench MODELS... [FLAGS]");
 		expect(out).not.toContain("dist/cli.js");
 	});
 
@@ -160,7 +160,7 @@ describe("run() usage errors", () => {
 			stdoutSpy.mockRestore();
 		}
 		const out = writes.join("");
-		expect(out).toContain("$ omp bench MODELS... [FLAGS]");
+		expect(out).toContain("$ zetacode bench MODELS... [FLAGS]");
 		expect(out).not.toContain("[MODELS]");
 	});
 
@@ -182,6 +182,6 @@ describe("run() usage errors", () => {
 		}
 		const out = errs.join("");
 		expect(out).toContain("error: Unknown option '--unknown'");
-		expect(out).toContain("$ omp bench MODELS... [FLAGS]");
+		expect(out).toContain("$ zetacode bench MODELS... [FLAGS]");
 	});
 });

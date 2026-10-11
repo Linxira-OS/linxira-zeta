@@ -1,6 +1,6 @@
 # Stream: Livestream Your Terminal
 
-`omp stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
+`omp stream` broadcasts your zetacode sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
 
 Stream is independent from [Collab](collab.md). Collab replicates the session itself (entries, events, prompts) to guests who can drive the agent; Stream sends only rendered screen rows, one way, to an audience.
 
@@ -87,8 +87,8 @@ Redaction cannot know about secrets it has never seen: a token pasted from elsew
 Recordings are written to `<tmpdir>/omp-recordings/<utc-time>-<session>.ompcast`, a JSON Lines file similar to asciicast: a header line `{"ompcast":1,"cols":…,"rows":…,"title":…,"createdAt":…}`, then one `[ms, frame]` line per screen frame (`reset`, `history`, `resize`, `viewport`, `patch`).
 
 ```
-omp play                      # newest recording
-omp play <file> -s 2 -i 1     # 2× speed, pauses capped at 1s
+zetacode play                      # newest recording
+zetacode play <file> -s 2 -i 1     # 2× speed, pauses capped at 1s
 ```
 
 Playback requires an interactive terminal and runs on the normal screen: the recorded viewport occupies the bottom of the terminal and recorded scrollback scrolls into your terminal's scrollback, so the output stays after playback ends. Space pauses/resumes; `q`, Esc, or Ctrl-C quits.
@@ -96,11 +96,11 @@ Playback requires an interactive terminal and runs on the normal screen: the rec
 ### Clips
 
 ```
-omp clip                                          # newest recording
-omp clip <file> -t "Streaming the lexer" -d "…"   # title and description
+zetacode clip                                          # newest recording
+zetacode clip <file> -t "Streaming the lexer" -d "…"   # title and description
 ```
 
-`omp clip` uploads a recording to `live.omp.sh` with the same Stencil credential as `omp stream` and prints its page, `live.omp.sh/c/<id>`. `--server <url>` overrides `stream.serverUrl`; titles are limited to 120 characters and descriptions to 5000. The page plays the clip in the live viewer's terminal pane, with the title, description, and a comment thread underneath; signing in with Stencil lets viewers comment and the owner edit the title and description. Rows were already redacted when recorded; nothing is re-read from your machine at upload time.
+`zetacode clip` uploads a recording to `live.omp.sh` with the same Stencil credential as `omp stream` and prints its page, `live.omp.sh/c/<id>`. `--server <url>` overrides `stream.serverUrl`; titles are limited to 120 characters and descriptions to 5000. The page plays the clip in the live viewer's terminal pane, with the title, description, and a comment thread underneath; signing in with Stencil lets viewers comment and the owner edit the title and description. Rows were already redacted when recorded; nothing is re-read from your machine at upload time.
 
 ## Server
 

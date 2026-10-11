@@ -476,7 +476,7 @@ export async function resolveStartupChangelogForDisplay(options: {
 export { getChangelogPath } from "../config";
 
 /**
- * Last omp version whose changelog the user has seen. Stored as a plain-text
+ * Last zetacode version whose changelog the user has seen. Stored as a plain-text
  * marker file (`~/.zeta/agent/last-changelog-version`) rather than in
  * `config.yml`, so version bumps never dirty user-tracked config files.
  */
