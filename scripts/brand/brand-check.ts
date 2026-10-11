@@ -141,6 +141,13 @@ for (const surface of USER_SURFACE_FILES) {
 for (const rule of MUST_CONTAIN) {
 	const abs = path.resolve(ROOT, rule.file);
 	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard
+	// A pinned file that is missing is a missing assertion, not a crash: a rule
+	// can legitimately be ahead of the tree it is merged into, and the guard must
+	// keep reporting every other rule instead of dying with ENOENT.
+	if (!fs.existsSync(abs)) {
+		missing.push({ file: rule.file, needle: rule.needle, why: rule.why });
+		continue;
+	}
 	const text = fs.readFileSync(abs, "utf8");
 	if (!text.includes(rule.needle)) missing.push({ file: rule.file, needle: rule.needle, why: rule.why });
 }
