@@ -88,6 +88,29 @@ two-parent tag merge.
   round added `packages/wire` and `packages/browser-relay`, and a hand-written
   list goes stale exactly when a new CHANGELOG appears — which is when the
   version gate starts failing.
+- **The title subsystem had to be replaced, not merged (found by CI).**
+  Upstream's `579da1d661c` (v18.8.7) rebuilt auto-titling around a reply-gated
+  `#maybeStartTitle` and removed the `maybeStartTitleGeneration` entry point along
+  with its input-controller, CLI bootstrap and skill-dispatch callers. Both sync
+  rounds took `agent-session.ts` wholesale and removed the new generation while
+  leaving its *configuration* side intact — `autoTitle?: boolean` in
+  `agent-session-types.ts`, the newer `runEphemeralTurn` shape, and tests written
+  against `autoTitle: true`. The file compiled and then timed out on every title
+  test, because nothing started a title.
+  The two generations collide by name with different signatures
+  (`#titleWithTitleModel` takes three arguments here, one upstream), so they cannot
+  coexist. The mechanism was replaced wholesale: implementation block, private
+  state, the streaming-handler gate and the prompt-submit hook, all from the tag.
+  `skillPromptTitleInput` went with it — it does not exist upstream any more, the
+  skill chip now reaching the title through `#noteTitleInput` like any other
+  operator message. Kept: the deferred-title word count at `message_end`, the mode
+  API, every other Zeta-only surface.
+  Worth recording as process: the member-loss audit run with `--base v18.8.8` is
+  what surfaced this. `check:ts` reported four unrelated-looking errors, and the
+  failure only became legible as "five title members are gone" once the audit
+  named them. Two earlier attempts to patch the loss in place failed for the same
+  reason the mode API did — the methods and their state are one unit.
+
 - **Gates at handoff**: `check:ts` ✅ 0 errors · `brand-check` ✅ 0 hits ·
   `check-zeta-sentinels` ✅ · `check-version-consistency` ✅ ·
   `check-ci-surface` ✅ · `check-merge-lineage` ✅ · `cargo fmt --all --check` ✅ ·
