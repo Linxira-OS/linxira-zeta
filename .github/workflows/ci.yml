@@ -214,8 +214,22 @@ jobs:
          # Audits the standing upstream lineage on every push, so a squash /
          # force-push / skipped tag becomes visible before anyone attempts a
          # merge. The pre-merge form (--tag) runs on sync/omp-release/*.
+         #
+         # The guard compares HEAD against the last integrated upstream tag, so
+         # it needs that tag in history. The default PR checkout is shallow and
+         # carries no upstream remote, which made the guard fail with
+         # "v18.8.8 does not resolve locally" on every run (run 38113627265).
+         # Unshallow and fetch the ledger's baseline tag before running it.
          - name: Upstream merge lineage guard
-           run: bun scripts/check-merge-lineage.ts
+           run: |
+              set -euo pipefail
+              git fetch --unshallow --tags origin 2>/dev/null || git fetch --tags origin
+              git remote add omp-upstream https://github.com/can1357/oh-my-pi.git 2>/dev/null || true
+              baseline=$(sed -n 's/.*\*\*Integrated through\*\*: *`\(v[0-9.]*\)`.*/\1/p' document/upstream-sync.md | head -n1)
+              if [ -n "$baseline" ]; then
+                git fetch --no-filter omp-upstream tag "$baseline"
+              fi
+              bun scripts/check-merge-lineage.ts
          - name: Build collab web
            run: bun run collab:web:build
 
