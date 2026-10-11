@@ -93,6 +93,11 @@ jobs:
       env:
          TOOLS: ${{ github.workspace }}/.tools
       steps:
+         # The bootstrap reads package.json (bun pin) and rust-toolchain.toml,
+         # so this job needs the workspace; without it `sed: package.json: No
+         # such file` exits 2 and every downstream job is skipped (the run
+         # still reports "completed" in ~50s, which is how this stayed hidden).
+         - uses: actions/checkout@v4
          - name: Bootstrap toolchains
            shell: bash
            run: |
