@@ -107,6 +107,13 @@ two-parent tag merge.
   skill chip now reaching the title through `#noteTitleInput` like any other
   operator message. Kept: the deferred-title word count at `message_end`, the mode
   API, every other Zeta-only surface.
+  The Zeta-only CLI-level coverage went with the old generation as well:
+  `main-initial-message-title.test.ts` stubbed `prompt()` and asserted that a
+  caller triggered titling — exactly the seam this replacement deletes — so the test
+  and its `cli-initial-title-probe.ts` fixture are removed rather than re-pinned.
+  `main.ts` still dispatches the positional message into `session.prompt` (line 787),
+  which is what feeds `#noteTitleInput`, and the stream-derived behaviour is covered
+  by `agent-session-title-fork.test.ts` over a mocked model.
   Worth recording as process: the member-loss audit run with `--base v18.8.8` is
   what surfaced this. `check:ts` reported four unrelated-looking errors, and the
   failure only became legible as "five title members are gone" once the audit
@@ -152,7 +159,12 @@ recurs on every sync.
   `legacy-pi-bundled-subpath-overrides.test.ts`. Method per the playbook: apply
   upstream's increment (`git diff <prev-tag> <tag> -- <file>`) onto our file — never a
   wholesale take. `test/fixtures/cli-initial-title-probe.ts` was deleted by the merge
-  while its Zeta test survived (modify/delete asymmetry) — restored.
+  while its Zeta test survived (modify/delete asymmetry) — restored, and then deleted
+  again together with `main-initial-message-title.test.ts`: both belonged to the old
+  title generation's caller-side entry point, which the subsystem replacement above
+  removes (see the title paragraph under Decisions). The behaviour they covered —
+  a positional CLI message ending up titled — now runs through `#noteTitleInput` on
+  the real event stream and is what `agent-session-title-fork.test.ts` exercises.
 
 - **Class 3 — generated files taken from upstream.** `bun.lock` was upstream's
   (workspace named `omp`, dependency versions downgraded below the pinned ones) and
