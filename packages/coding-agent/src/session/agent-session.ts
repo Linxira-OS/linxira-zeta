@@ -261,6 +261,13 @@ import {
 	releaseTabsForOwner,
 } from "../tools/browser/tab-supervisor";
 import type { CheckpointState, CompletedRewindState } from "../tools/checkpoint";
+import {
+	applyTimeSendTimestamp,
+	isDynamicToolEnabled,
+	TIME_INJECT_NOTICE_TYPE,
+	timeInjectInterval,
+} from "../tools/dynamic-tools";
+import { sendTimestampLine } from "../tools/time";
 import { releaseComputerSessionsForOwner, revokeComputerControlForOwner } from "../tools/computer/supervisor";
 import { isAutoQaEnabled } from "../tools/report-tool-issue";
 import {
@@ -1096,6 +1103,11 @@ export class AgentSession implements SettingsScope {
 	 */
 	#fallbackExtensionTimers: ManagedTimers | undefined = undefined;
 	#turnIndex = 0;
+	/**
+	 * Finished tool calls since the last `time` injection or genuine user
+	 * submission. Drives the periodic timestamp injection in #afterToolCall.
+	 */
+	#timeInjectToolCalls = 0;
 	#messageEndPersistenceTail: Promise<void> = Promise.resolve();
 	#pendingMessageEndPersistence = new Map<string, Promise<void>>();
 	#persistedMessageKeys: { anchor: string; keys: Set<string> } | undefined;
@@ -5449,7 +5461,35 @@ export class AgentSession implements SettingsScope {
 			this.#synchronouslyTerminatedYieldToolCallIds.add(ctx.toolCall.id);
 			this.agent.abort(TERMINAL_TOOL_RESULT_ABORT_REASON);
 		}
+		this.#maybeInjectTimeOnToolCalls();
 		return this.#ttsr.afterToolCall(ctx);
+	}
+
+	/**
+	 * Count finished tool calls; every `session.timeInjectEvery` calls while the
+	 * dynamic `time` tool is enabled, fold just the send-instant line into the
+	 * running turn as a hidden custom message (time only — no urging, no task
+	 * language; the user's own time requirements always take precedence). No
+	 * timers: the counter only advances on real tool completions and resets when
+	 * the feature is off or after each injection.
+	 */
+	#maybeInjectTimeOnToolCalls(): void {
+		if (!isDynamicToolEnabled(this.settings, "time")) {
+			this.#timeInjectToolCalls = 0;
+			return;
+		}
+		this.#timeInjectToolCalls += 1;
+		if (this.#timeInjectToolCalls < timeInjectInterval(this.settings)) return;
+		this.#timeInjectToolCalls = 0;
+		void this.sendCustomMessage(
+			{
+				customType: TIME_INJECT_NOTICE_TYPE,
+				content: sendTimestampLine(new Date()),
+				display: false,
+				attribution: "agent",
+			},
+			{ deliverAs: "aside" },
+		);
 	}
 	/**
 	 * Emits the extension `tool_call` event for a loop-dispatched call at
@@ -7919,7 +7959,14 @@ export class AgentSession implements SettingsScope {
 		const attachmentSourceNotices = this.#createAttachmentSourceNotices(options?.images, submittedAt);
 		const normalizedImages = await this.#normalizeImagesForModel(options?.images);
 
-		const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: expandedText }];
+		// Dynamic `time` tool: stamp genuine user submissions with their send
+		// instant (see #queueUserMessage for the streaming/queued paths).
+		const dispatchedText = applyTimeSendTimestamp(this.settings, expandedText, {
+			synthetic: options?.synthetic,
+			attribution: options?.attribution,
+			now: new Date(submittedAt),
+		});
+		const userContent: (TextContent | ImageContent)[] = [{ type: "text", text: dispatchedText }];
 		if (normalizedImages?.length) {
 			userContent.push(...normalizedImages);
 		}
@@ -8865,6 +8912,10 @@ export class AgentSession implements SettingsScope {
 	): Promise<boolean> {
 		const attribution = options?.attribution ?? "user";
 		const timestamp = options?.timestamp;
+		// A genuine user submission opens a fresh exchange and carries its own
+		// timestamp, so the periodic tool-call counter starts over. Asides are
+		// non-interrupting injected context, not a new user turn.
+		if (attribution === "user" && mode !== "aside") this.#timeInjectToolCalls = 0;
 		const rawText = options?.rawText ?? text;
 		const preprocessed = options?.preprocessed;
 		const prependMessages = options?.prependMessages ?? [];
@@ -8886,7 +8937,13 @@ export class AgentSession implements SettingsScope {
 		// vision-model request for the same attachment.
 		const attachmentSourceNotices = this.#createAttachmentSourceNotices(images, timestamp ?? Date.now());
 		const normalizedImages = preprocessed ? preprocessed.images : await this.#normalizeImagesForModel(images);
-		const content: (TextContent | ImageContent)[] = [{ type: "text", text }];
+		// Dynamic `time` tool: stamp user-attributed submissions with their send
+		// instant so the model can tell message time from current time.
+		const stampedText = applyTimeSendTimestamp(this.settings, text, {
+			attribution,
+			now: timestamp !== undefined ? new Date(timestamp) : new Date(),
+		});
+		const content: (TextContent | ImageContent)[] = [{ type: "text", text: stampedText }];
 		if (normalizedImages?.length) {
 			content.push(...normalizedImages);
 		}

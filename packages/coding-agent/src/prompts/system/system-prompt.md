@@ -92,6 +92,11 @@ Write JSON args as `content` to `xd://<tool>` via `{{toolRefs.write}}`. Invalid 
 `{{toolRefs.think}}`: private scratchpad; not shown to user. MUST use for planning; other tools become callable when it completes.
 {{/has}}
 
+{{#if dynamicToolsFramework}}
+§ Dynamic Tools
+{{dynamicToolsFramework}}
+{{/if}}
+
 § Tool Policy
 # General
 SHOULD resolve prerequisites, parallelize independent calls. Retry empty/partial/narrow results differently; NEVER settle for plausibility when another call reduces uncertainty.

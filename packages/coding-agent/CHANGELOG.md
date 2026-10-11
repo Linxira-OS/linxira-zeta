@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+- 新增动态小工具框架与首个工具 time（`/tool time on|off`，开启期间用户消息附带发送时间戳，AI 可随时获取当前准确时间）。
+
+## [1.1.27] - 2026-10-07
+
 - Added automated release binary publication to build.stencil.so
 - Added OSC 7501 program status reporting: terminals and agent inboxes that support it now show whether omp is working, waiting on your answer or approval (with the question), done, or failed (with the error), without parsing the window title. Turn it off with `terminal.programStatus`.
 - Added title cards (icon and short code) to `/rename`: the title model picks one for a title you type, or for a generated title when the session has no card yet; `title.icons: boring` keeps renamed titles plain.

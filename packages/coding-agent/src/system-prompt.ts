@@ -30,9 +30,11 @@ import projectPromptTemplate from "./prompts/system/project-prompt.md" with { ty
 import systemPromptTemplate from "./prompts/system/system-prompt.md" with { type: "text" };
 import userAppendPromptTemplate from "./prompts/system/user-append.md" with { type: "text" };
 import { normalizeConcurrencyLimit } from "./task/parallel";
+import dynamicToolsFrameworkPrompt from "./prompts/tools/dynamic-tools.md" with { type: "text" };
 import type { ActiveRepoContext } from "@linxiraos/pi-tui/status-line/host";
 import { XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url";
 import { resolveActiveRepoContext } from "./utils/active-repo-context";
+import { isDynamicToolName } from "./tools/dynamic-tools";
 import { normalizePromptPath } from "./utils/prompt-path";
 import { AGENTS_MD_LIMIT, buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
 import { combine } from "./config/registry";
@@ -976,6 +978,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		inlineToolDescriptors,
 		toolListMode,
 		toolRefs,
+		dynamicToolsFramework: toolNames.some(isDynamicToolName) ? dynamicToolsFrameworkPrompt : "",
 		environment,
 		contextFiles,
 		agentsMdSearch: { files: agentsMdFiles },
