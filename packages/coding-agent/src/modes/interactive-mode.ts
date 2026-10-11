@@ -738,7 +738,7 @@ interface RunningPillSpec {
 function describeRunningPill(spec: RunningPillSpec, running: number): NativeNode {
 	return node(
 		"row",
-		{ role: "omp.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
+		{ role: "zeta.hud.pill", gap: "xs", align: "center", title: spec.title, actions: { click: spec.act } },
 		[
 			node("icon", { name: spec.icon }, undefined, "icon"),
 			node("spinner", { style: "dots", tone: "accent" }, undefined, "spinner"),
@@ -807,7 +807,7 @@ class DeferredCommandPreview implements Component {
 				col(this.items, { max: { h: `${this.maxRows}lines` } }),
 				text([span(`${queued} — shown in full in the transcript when the agent pauses`, "dim")]),
 			],
-			{ role: "omp.hud.deferred" },
+			{ role: "zeta.hud.deferred" },
 		);
 		return this.#native;
 	}
@@ -1421,7 +1421,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#hudPillsNative;
 		if (memo && sameItems(memo.children, children)) return memo.node;
 		const described = row(children, {
-			role: "omp.hud",
+			role: "zeta.hud",
 			justify: "end",
 			gap: "sm",
 			hidden: children.length === 0 || undefined,
@@ -1443,11 +1443,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		const memo = this.#statusHudNative;
 		if (memo && memo.todo === todo && memo.slot === slot && sameItems(memo.children, children)) return memo.node;
 		const parts: NativeChild[] = [];
-		if (children.length > 0) parts.push(node("col", { role: "omp.hud.status" }, children.slice(), "status"));
+		if (children.length > 0) parts.push(node("col", { role: "zeta.hud.status" }, children.slice(), "status"));
 		if (todo) parts.push(todo);
 		if (slot) parts.push(slot);
 		const described =
-			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "omp.hud.activity", align: "center", gap: "sm" });
+			parts.length === 0 ? EMPTY_HUD : row(parts, { role: "zeta.hud.activity", align: "center", gap: "sm" });
 		this.#statusHudNative = { children: children.slice(), todo, slot, node: described };
 		return described;
 	}
@@ -2534,6 +2534,14 @@ export class InteractiveMode implements InteractiveModeContext {
 			// replay with the newly detected palette.
 			onTerminalAppearanceChange(mode, appearanceRefreshWasRequested ? {} : undefined);
 		});
+
+		// Keys pressed while a Tern startup loaded were held until hooks ran, the
+		// session mode settled, the draft was restored and every subscription
+		// above was installed. They replay into the restored draft, never over
+		// it, a startup shortcut (Alt+P, Ctrl+G, extension shortcuts) acts on the
+		// final mode, editor contents and observed session, and a held Enter
+		// still meets the bootstrap submit gate lifted just below.
+		this.ui.releaseHeldInput();
 
 		// Everything is wired: subscriptions observe agent events, the session
 		// mode is reconciled, and the submit handler is installed. Lift the
@@ -3714,7 +3722,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.editor.borderColor = theme.getPythonModeBorderColor();
 		} else if (vimMode === "visual" || vimMode === "visual-line") {
 			this.editor.borderColor = (str: string) => theme.fg("warning", str);
-		} else if (vimMode === "normal") {
+		} else if (vimMode === "normal" || vimMode === "replace") {
 			this.editor.borderColor = (str: string) => theme.fg("accent", str);
 		} else if (vimMode === "insert") {
 			// Insert gets its own colour rather than falling through to the session accent: with Normal
@@ -4367,7 +4375,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		const fallback = node(
 			"col",
-			{ role: "omp.hud.todo" },
+			{ role: "zeta.hud.todo" },
 			[
 				row(
 					[
@@ -4407,7 +4415,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#todoHudNative = {
 			checklist: node(
 				"checklist",
-				{ phases: checklistPhases, mode: "hud", role: "omp.hud.todo" },
+				{ phases: checklistPhases, mode: "hud", role: "zeta.hud.todo" },
 				undefined,
 				"todo",
 			),
@@ -7160,6 +7168,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		nextEditor.onAutocompleteUpdate = () => {
 			this.ui.requestRender();
 		};
+		// A swap during startup keeps the bootstrap submit gate until init lifts it.
+		nextEditor.disableSubmit = previousEditor.disableSubmit;
 		nextEditor.setShimmerRepaintHandler(() => this.ui.requestComponentRender(nextEditor));
 		this.editor = nextEditor;
 		this.composer.setEditor(nextEditor);
@@ -7641,7 +7651,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			row([node("icon", { name: "loop", tone: "muted" }), kbd(retryKey, "key"), text([span("to retry", "muted")])], {
 				gap: "sm",
 				align: "center",
-				role: "omp.hint.retry",
+				role: "zeta.hint.retry",
 			}),
 		);
 		this.statusContainer.addChild(this.#retryHintRow);
@@ -7693,6 +7703,10 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	async handleDumpAllCommand(): Promise<void> {
 		return this.#commandController.handleDumpAllCommand();
+	}
+
+	async handleDumpAnonCommand(): Promise<void> {
+		return this.#commandController.handleDumpAnonCommand();
 	}
 
 	handleAdvisorDumpCommand(isRaw?: boolean) {
@@ -8076,8 +8090,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		await runProviderSetupWizard(this);
 	}
 
-	showHookConfirm(title: string, message: string): Promise<boolean> {
-		return this.#extensionUiController.showHookConfirm(title, message);
+	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean> {
+		return this.#extensionUiController.showHookConfirm(title, message, dialogOptions);
 	}
 
 	// Input handling

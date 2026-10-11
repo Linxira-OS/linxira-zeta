@@ -158,8 +158,8 @@ interface ResolverRegistration {
 	stubs: Record<string, string>;
 }
 
-const REGISTRY = Symbol.for("omp.runtimeModuleResolver.registry");
-const PATCHED = Symbol.for("omp.runtimeModuleResolver.patched");
+const REGISTRY = Symbol.for("zeta.runtimeModuleResolver.registry");
+const PATCHED = Symbol.for("zeta.runtimeModuleResolver.patched");
 
 /**
  * The registration list lives on `globalThis` so a bundled copy and a

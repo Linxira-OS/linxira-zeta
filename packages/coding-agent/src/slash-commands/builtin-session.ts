@@ -1,5 +1,4 @@
 import { clearSubmittedText } from "./helpers/draft";
-import { M } from "../i18n";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { AgentSession } from "../session/agent-session";
@@ -14,6 +13,7 @@ import {
 import { formatTokenCount, refreshStatusLine } from "./builtin-modes";
 import { buildContextReportText } from "./helpers/context-report";
 import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
+import { truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { handleMcpAcp } from "./helpers/mcp";
 import { markdownFenceFor } from "../utils/markdown-fence";
@@ -118,6 +118,51 @@ async function handleUsageResetCommand(
 	await output(safe(describeRedeemOutcome(outcome, target.label)));
 }
 
+/**
+ * `/jobs kill <id>|all`: cancel one running background job this session owns,
+ * or every running one. Routes through the same owner-scoped
+ * `AgentSession.cancelAsyncJob` the jobs sheet's `x`-to-cancel and
+ * `proc://<id>/kill` use, so it can only touch jobs `/jobs` lists.
+ */
+async function handleJobsKillCommand(
+	arg: string,
+	session: AgentSession,
+	output: SlashCommandRuntime["output"],
+): Promise<void> {
+	const target = arg.trim();
+	if (!target) {
+		await output("Usage: /jobs kill <id>|all");
+		return;
+	}
+	const snapshot = session.getAsyncJobSnapshot({ recentLimit: 0 });
+	if (!snapshot) {
+		await output("Async background jobs are unavailable in this session.");
+		return;
+	}
+	if (target === "all") {
+		let cancelled = 0;
+		for (const job of snapshot.running) {
+			if (session.cancelAsyncJob(job.id)) cancelled += 1;
+		}
+		await output(
+			cancelled === 0
+				? "No running background jobs to cancel."
+				: `Cancelled ${cancelled} background job${cancelled === 1 ? "" : "s"}.`,
+		);
+		return;
+	}
+	const safeTarget = truncateToWidth(sanitizeText(target).replace(/\s+/g, " ").trim(), 60);
+	if (!snapshot.running.some(job => job.id === target)) {
+		await output(`No running background job with id "${safeTarget}".`);
+		return;
+	}
+	await output(
+		session.cancelAsyncJob(target)
+			? `Cancelled background job ${safeTarget}.`
+			: `Could not cancel background job ${safeTarget}.`,
+	);
+}
+
 async function handleSessionPinCommand(
 	arg: string,
 	session: AgentSession,
@@ -208,25 +253,25 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "todo",
 		icon: "todo",
-		description: () => M.cmdTodo,
+		description: "View or modify the agent's todo list",
 		acpDescription: "Manage todos",
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "edit", description: () => M.cmdTodoEdit },
-			{ name: "copy", description: () => M.cmdTodoCopy },
-			{ name: "expand", description: () => M.cmdShowEveryPhaseAndTaskInTheHud },
-			{ name: "collapse", description: () => M.cmdRestoreTheBoundedHudPreview },
-			{ name: "export", description: () => M.cmdTodoExport, usage: "[<path>]" },
-			{ name: "import", description: () => M.cmdTodoImport, usage: "[<path>]" },
+			{ name: "edit", description: "Open todos in $EDITOR (Markdown round-trip)" },
+			{ name: "copy", description: "Copy todos as Markdown to clipboard" },
+			{ name: "expand", description: "Show every phase and task in the HUD" },
+			{ name: "collapse", description: "Restore the bounded HUD preview" },
+			{ name: "export", description: "Write todos as Markdown to a file (default: TODO.md)", usage: "[<path>]" },
+			{ name: "import", description: "Replace todos from a Markdown file (default: TODO.md)", usage: "[<path>]" },
 			{
 				name: "append",
-				description: () => M.cmdTodoAppend,
+				description: "Append a task; phase fuzzy-matched or auto-created",
 				usage: "[<phase>] <task...>",
 			},
-			{ name: "start", description: () => M.cmdTodoStart, usage: "<task>" },
-			{ name: "done", description: () => M.cmdTodoDone, usage: "[<task|phase>]" },
-			{ name: "drop", description: () => M.cmdTodoDrop, usage: "[<task|phase>]" },
-			{ name: "rm", description: () => M.cmdTodoRm, usage: "[<task|phase>]" },
+			{ name: "start", description: "Mark task in_progress (fuzzy-matched)", usage: "<task>" },
+			{ name: "done", description: "Mark task/phase/all completed (fuzzy-matched)", usage: "[<task|phase>]" },
+			{ name: "drop", description: "Mark task/phase/all abandoned (fuzzy-matched)", usage: "[<task|phase>]" },
+			{ name: "rm", description: "Remove task/phase/all (fuzzy-matched)", usage: "[<task|phase>]" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
@@ -246,15 +291,15 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "session",
 		icon: "session",
-		description: () => M.cmdSession,
+		description: "Session management commands",
 		acpDescription: "Show or configure the current session",
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
-			{ name: "info", description: () => M.cmdSessionInfo },
-			{ name: "delete", description: () => M.cmdSessionDelete },
+			{ name: "info", description: "Show session info and stats" },
+			{ name: "delete", description: "Delete current session and return to selector" },
 			{
 				name: "pin",
-				description: () => M.cmdSessionPin,
+				description: "Pin the current provider to a stored OAuth account",
 				usage: "[account]",
 			},
 		],
@@ -324,10 +369,13 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "jobs",
 		icon: "jobs",
-		description: () => M.cmdJobs,
+		description: "Show async background jobs status",
 		acpDescription: "Show background jobs",
-		acpInputHint: "[full]",
-		subcommands: [{ name: "full", description: () => M.cmdJobsFull }],
+		acpInputHint: "[full|kill <id>|kill all]",
+		subcommands: [
+			{ name: "full", description: "Show full, untruncated command lines" },
+			{ name: "kill", description: "Cancel a running background job", usage: "<id>|all" },
+		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
@@ -336,7 +384,11 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
-			if (rest || (verb && verb !== "full")) return usage("Usage: /jobs [full]", runtime);
+			if (verb === "kill") {
+				await handleJobsKillCommand(rest, runtime.session, runtime.output);
+				return commandConsumed();
+			}
+			if (rest || (verb && verb !== "full")) return usage("Usage: /jobs [full|kill <id>|kill all]", runtime);
 			const full = verb === "full";
 			const snapshot = runtime.session.getAsyncJobSnapshot({ recentLimit: 5 });
 			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) {
@@ -374,8 +426,10 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 		handleTui: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
-			if (rest || (verb && verb !== "full")) {
-				runtime.ctx.showStatus("Usage: /jobs [full]");
+			if (verb === "kill") {
+				await handleJobsKillCommand(rest, runtime.ctx.session, text => runtime.ctx.showStatus(text));
+			} else if (rest || (verb && verb !== "full")) {
+				runtime.ctx.showStatus("Usage: /jobs [full|kill <id>|kill all]");
 			} else {
 				await runtime.ctx.handleJobsCommand({ full: verb === "full" });
 			}
@@ -385,14 +439,14 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "usage",
 		icon: "gauge",
-		description: () => M.cmdUsage,
+		description: "Show provider usage and limits",
 		acpDescription: "Show token usage",
 		acpInputHint: "[show|reset [provider/credential-id|provider/active]]",
 		subcommands: [
-			{ name: "show", description: () => M.cmdUsage },
+			{ name: "show", description: "Show provider usage and limits" },
 			{
 				name: "reset",
-				description: () => M.cmdUsageReset,
+				description: "Spend a saved provider rate-limit reset",
 				usage: "[provider/credential-id|provider/active]",
 			},
 		],
@@ -432,7 +486,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "stats",
 		icon: "stats",
-		description: () => M.cmdStats,
+		description: "Launch the local stats dashboard",
 		inlineHint: "[--port <port>] [--host <host>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -467,12 +521,12 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "changelog",
 		icon: "news",
-		description: () => M.cmdChangelog,
+		description: "Show changelog entries",
 		acpDescription: "Show changelog",
 		acpInputHint: "[full|last [N]]",
 		subcommands: [
-			{ name: "full", description: () => M.cmdChangelogFull },
-			{ name: "last", description: () => M.cmdChangelogLast, usage: "[N]" },
+			{ name: "full", description: "Show complete changelog" },
+			{ name: "last", description: "Show the last N releases (default 1)", usage: "[N]" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -496,7 +550,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "hotkeys",
 		icon: "keyboard",
-		description: () => M.cmdHotkeys,
+		description: "Show all keyboard shortcuts",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleHotkeysCommand();
 			clearSubmittedText(runtime);
@@ -505,7 +559,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tools",
 		icon: "tools",
-		description: () => M.cmdTools,
+		description: "Show tools currently visible to the agent",
 		acpDescription: "Show available tools",
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
@@ -534,7 +588,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "context",
 		icon: "context",
-		description: () => M.cmdContext,
+		description: "Show estimated context usage breakdown",
 		acpDescription: "Show context usage",
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
@@ -554,7 +608,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "extensions",
 		aliases: ["status"],
 		icon: "extension",
-		description: () => M.cmdExtensions,
+		description: "Open Extension Control Center dashboard",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showExtensionsDashboard();
 			clearSubmittedText(runtime);
@@ -563,7 +617,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "agents",
 		icon: "agents",
-		description: () => M.cmdAgents,
+		description: "Open the agents hub (per-agent model, prewalk, and advisor)",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentsDashboard();
 			clearSubmittedText(runtime);
@@ -572,7 +626,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "git",
 		icon: "branch",
-		description: () => M.cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer,
+		description: "Open the git UI (split diff viewer, staging, commit composer)",
 		inlineHint: "[revision]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -583,7 +637,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "hub",
 		icon: "agents",
-		description: () => M.cmdOpenTheLiveAgentHub,
+		description: "Open the live Agent Hub",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentHub({ initialSection: "activity" });
 			clearSubmittedText(runtime);
@@ -593,7 +647,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "branch",
 		aliases: ["rewind"],
 		icon: "branch",
-		description: () => M.cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch,
+		description: "Rewind to a previous message, keeping the old path as a branch",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showUserMessageSelector();
 			clearSubmittedText(runtime);
@@ -602,7 +656,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fork",
 		icon: "branch",
-		description: () => M.cmdFork,
+		description: "Create a new fork from a previous message",
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleForkCommand();
@@ -611,7 +665,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tree",
 		icon: "tree",
-		description: () => M.cmdTree,
+		description: "Navigate session tree (switch branches)",
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showTreeSelector();
 			clearSubmittedText(runtime);
@@ -620,7 +674,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "login",
 		icon: "signIn",
-		description: () => M.cmdLogin,
+		description: "Login with OAuth provider",
 		inlineHint: "[provider|redirect URL]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -673,7 +727,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "logout",
 		icon: "signOut",
-		description: () => M.cmdLogout,
+		description: "Logout from OAuth provider",
 		inlineHint: "[provider]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -696,35 +750,35 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "mcp",
 		icon: "mcp",
-		description: () => M.cmdMcp,
+		description: "Manage MCP servers (add, list, remove, test)",
 		acpDescription: "Manage MCP servers",
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: () => M.cmdMcpAdd,
+				description: "Add a new MCP server",
 				usage: "<name> [--scope project|user] [--url <url>] [-- <command...>]",
 			},
-			{ name: "list", description: () => M.cmdMcpList },
-			{ name: "remove", description: () => M.cmdMcpRemove, usage: "<name> [--scope project|user]" },
-			{ name: "test", description: () => M.cmdMcpTest, usage: "<name>" },
-			{ name: "reauth", description: () => M.cmdMcpReauth, usage: "<name>" },
-			{ name: "unauth", description: () => M.cmdMcpUnauth, usage: "<name>" },
-			{ name: "enable", description: () => M.cmdMcpEnable, usage: "<name>" },
-			{ name: "disable", description: () => M.cmdMcpDisable, usage: "<name>" },
+			{ name: "list", description: "List all configured MCP servers" },
+			{ name: "remove", description: "Remove an MCP server", usage: "<name> [--scope project|user]" },
+			{ name: "test", description: "Test connection to a server", usage: "<name>" },
+			{ name: "reauth", description: "Reauthorize OAuth for a server", usage: "<name>" },
+			{ name: "unauth", description: "Remove OAuth auth from a server", usage: "<name>" },
+			{ name: "enable", description: "Enable an MCP server", usage: "<name>" },
+			{ name: "disable", description: "Disable an MCP server", usage: "<name>" },
 			{
 				name: "smithery-search",
-				description: () => M.cmdSmitherySearch,
+				description: "Search Smithery registry and deploy an MCP server",
 				usage: "<keyword> [--scope project|user] [--limit <1-100>] [--semantic]",
 			},
-			{ name: "smithery-login", description: () => M.cmdSmitheryLogin },
-			{ name: "smithery-logout", description: () => M.cmdSmitheryLogout },
-			{ name: "reconnect", description: () => M.cmdMcpReconnect, usage: "<name>" },
-			{ name: "reload", description: () => M.cmdMcpReload },
-			{ name: "resources", description: () => M.cmdMcpResources },
-			{ name: "prompts", description: () => M.cmdMcpPrompts },
-			{ name: "notifications", description: () => M.cmdMcpNotifications },
-			{ name: "help", description: () => M.cmdMcpHelp },
+			{ name: "smithery-login", description: "Login to Smithery and cache API key" },
+			{ name: "smithery-logout", description: "Remove cached Smithery API key" },
+			{ name: "reconnect", description: "Reconnect to a specific MCP server", usage: "<name>" },
+			{ name: "reload", description: "Force reload MCP runtime tools" },
+			{ name: "resources", description: "List available resources from connected servers" },
+			{ name: "prompts", description: "List available prompts from connected servers" },
+			{ name: "notifications", description: "Show notification capabilities and subscriptions" },
+			{ name: "help", description: "Show help message" },
 		],
 		allowArgs: true,
 		handle: handleMcpAcp,

@@ -1,5 +1,5 @@
 /**
- * Regression for #12008 review: `omp --no-session --resume` (bare, native) must
+ * Regression for #12008 review: `zetacode --no-session --resume` (bare, native) must
  * fail with `--resume requires session persistence` instead of falling through
  * to the startup session picker. The picker branch runs before the deferred
  * (extension-flag-aware) persistence validation, so it has to be skipped under

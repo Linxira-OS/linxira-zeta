@@ -10,9 +10,9 @@ import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
-import { isEnoent, isEnotdir } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import {
-	CLI_BIN_NAME,
+	APP_NAME,
 	directoryIsMissing,
 	getLogPath,
 	getProjectDir,
@@ -40,7 +40,7 @@ import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
 import { applyStartupCwd } from "./cli/startup-cwd";
-import { getLatestRelease } from "./cli/update-cli";
+import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
 import { findConfigFile } from "./config";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
@@ -66,7 +66,7 @@ import {
 	preloadPluginRoots,
 	resolveActiveProjectRegistryPath,
 } from "./discovery/helpers";
-import { injectOmpExtensionCliRoots } from "./discovery/omp-extension-roots";
+import { injectOmpExtensionCliRoots } from "./discovery/zeta-extension-roots";
 import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
 import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
@@ -111,9 +111,8 @@ import {
 	persistForeignSession,
 } from "./session/foreign-session-import";
 import type { ForeignSessionInfo, ForeignSessionSource, ForeignSessionStore } from "./session/foreign-session-store";
-import { resolveResumableSession, type SessionInfo, normalizeResumeSessionArg } from "./session/session-listing";
+import { resolveResumableSession, type SessionInfo } from "./session/session-listing";
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
-import { scheduleTrashSweep } from "./session/session-trash";
 import { shouldShowStartupSplash } from "./startup-splash";
 import {
 	discoverSystemPromptOverride,
@@ -123,7 +122,6 @@ import {
 } from "./system-prompt";
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
-import { cfgTelemetryOtlpExportEnabled } from "./telemetry-settings";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
 import { concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
@@ -210,7 +208,7 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 				return query => history.matchingSessionIds(query);
 			},
 			deleteSession: async session => {
-				await storage.moveSessionWithArtifactsToTrash(session.path);
+				await storage.deleteSessionWithArtifacts(session.path);
 				return true;
 			},
 			loadAllSessions: () => SessionManager.listAllForPicker(storage),
@@ -237,6 +235,9 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 		return;
 	}
 	try {
+		// Checkouts update through git and a manager (Tern) updates its omp itself:
+		// "run omp update" would be wrong advice for both.
+		if (isSourceCheckout() || (await managedInstallName(process.execPath))) return;
 		const channel = cfgUpdateChannel.get(settings);
 		const release = await getLatestRelease({ timeoutMs: 5_000, channel });
 		return Bun.semver.order(release.version, currentVersion) > 0 ? release.version : undefined;
@@ -245,7 +246,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 	}
 }
 
-// Protocol hosts inherit ZETA's neutral defaults for settings declaring `protocolDefault`
+// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
 // configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
 // `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
@@ -304,6 +305,21 @@ export async function readPipedInput(): Promise<string | undefined> {
 // zero-output indefinite hangs (stuck discovery read, network wait, stdin
 // pipe) into self-diagnosing reports instead of "it just hangs" (see the
 // PI_DEBUG_STARTUP markers for the synchronous-hang counterpart).
+
+/**
+ * Zeta policy: OTLP telemetry export is hard-off.
+ *
+ * We operate no telemetry collector, so there is nowhere for events to be
+ * processed. This is a hard gate, not a default: there is deliberately no
+ * settings key, env var, or CLI flag that can turn export on. Setting an
+ * `OTEL_EXPORTER_OTLP*` endpoint changes nothing. Revisit only when we run our
+ * own backend — then add the opt-in back here, deliberately.
+ *
+ * Merge-protected by `scripts/brand/brand-rules.ts` (MUST_CONTAIN): an
+ * upstream merge that re-adds the setting, or flips this constant, fails
+ * `brand-check` in CI.
+ */
+const TELEMETRY_EXPORT_ENABLED = false;
 
 const STARTUP_WATCHDOG_INTERVAL_MS = 10_000;
 let startupWatchdogTimer: NodeJS.Timeout | undefined;
@@ -675,8 +691,6 @@ async function runInteractiveMode(
 			}),
 		);
 		startDeferredStartupWork?.();
-		// Fire-and-forget: expire stale trash entries without delaying startup.
-		scheduleTrashSweep();
 
 		if (setupWizard && playStartupSplash) {
 			await setupWizard.runStartupSplash(mode);
@@ -756,7 +770,6 @@ async function runInteractiveMode(
 	}
 
 	if (startupGoal !== undefined) {
-		session.maybeStartTitleGeneration(startupGoal);
 		try {
 			await mode.startGoalAtStartup(startupGoal);
 		} catch (error: unknown) {
@@ -765,7 +778,6 @@ async function runInteractiveMode(
 	}
 
 	if (initialMessage !== undefined) {
-		session.maybeStartTitleGeneration(initialMessage);
 		try {
 			using _keepalive = new EventLoopKeepalive();
 			// `steer` covers the race where the user submits a prompt of their own
@@ -780,7 +792,6 @@ async function runInteractiveMode(
 	}
 
 	for (const message of initialMessages) {
-		session.maybeStartTitleGeneration(message);
 		try {
 			using _keepalive = new EventLoopKeepalive();
 			await session.prompt(message, { streamingBehavior: "steer" });
@@ -1221,37 +1232,23 @@ export async function createSessionManager(
 
 	if (typeof parsed.resume === "string") {
 		const sessionArg = parsed.resume;
-		// Copy-paste noise (`<id>/`, `<id>.jsonl`) must not re-route an id into
-		// the path branch below: a missing file there used to mint a fresh
-		// empty session with no explanation. After normalization a separator
-		// can only come from a deliberate explicit transcript path.
-		const normalizedSessionArg = normalizeResumeSessionArg(sessionArg);
-		if (/[\\/]/.test(normalizedSessionArg)) {
+		if (sessionArg.includes("/") || sessionArg.includes("\\") || sessionArg.endsWith(".jsonl")) {
 			try {
-				return await SessionManager.open(normalizedSessionArg, parsed.sessionDir, undefined, {
-					throwIfMissing: true,
-				});
-			} catch (error) {
-				const code = (error as NodeJS.ErrnoException | undefined)?.code;
-				if (code === "ENOENT" || code === "ENOTDIR") {
-					throw new SessionResolutionError(
-						`Session file "${normalizedSessionArg}" not found.`,
-						"Pass the session id from the exit tip (`zetacode --resume <id>`), or run `zetacode --resume` without an argument to pick from recent sessions.",
-					);
+				return await SessionManager.open(sessionArg, parsed.sessionDir, undefined, { throwIfMissing: true });
+			} catch (err) {
+				if (isEnoent(err) || isEnotdir(err)) {
+					throw new SessionResolutionError(`Session "${sessionArg}" not found.`, SESSION_NOT_FOUND_HINT);
 				}
-				throw error;
+				throw err;
 			}
 		}
-		const match = await resolveResumableSession(normalizedSessionArg, cwd, parsed.sessionDir);
+		const match = await resolveResumableSession(sessionArg, cwd, parsed.sessionDir);
 		if (!match) {
-			throw new SessionResolutionError(
-				`Session "${normalizedSessionArg}" not found.`,
-				"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.",
-			);
+			throw new SessionResolutionError(`Session "${sessionArg}" not found.`, SESSION_NOT_FOUND_HINT);
 		}
 		if (match.scope === "local") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				normalizedSessionArg,
+				sessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,
@@ -1266,7 +1263,7 @@ export async function createSessionManager(
 		}
 		if (match.scope === "global") {
 			const moveResult = await moveMissingCwdSessionIfNeeded(
-				normalizedSessionArg,
+				sessionArg,
 				match.session,
 				cwd,
 				parsed.sessionDir,
@@ -1800,7 +1797,7 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
@@ -1997,7 +1994,7 @@ export async function runRootCommand(
 		normalizeContinueSessionArgs(parsedArgs, rawArgs);
 
 		// Resolve native resume/fork flags or import one foreign transcript into a
-		// fresh persisted ZETA session before constructing the AgentSession.
+		// fresh persisted OMP session before constructing the AgentSession.
 		let sessionManager: SessionManager | undefined;
 		let foreignSource: ForeignSessionSource | undefined;
 		try {
@@ -2222,22 +2219,20 @@ export async function runRootCommand(
 		sessionOptions.allowSessionModelFallback = isInteractive;
 		sessionOptions.settingsApproval = isInteractive;
 		sessionOptions.tuiTranscript = isInteractive;
+		sessionOptions.autoTitle = isInteractive;
 		sessionOptions.settings = settingsInstance;
 		sessionOptions.onPrewalkWarning = warning => {
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });
 			else process.stderr.write(`${chalk.yellow(`Warning: ${warning}`)}\n`);
 		};
 
-		// OTEL: unless `telemetry.otlpExportEnabled` is off, register global OTLP
-		// exporters when an endpoint is configured via env, then switch on the agent
-		// loop's telemetry hooks so traces, run-level metrics, and structured logs
-		// have source events to export. Content capture remains governed by
+		// OTEL: gated by TELEMETRY_EXPORT_ENABLED, which is hard-off (see its
+		// doc comment). When that gate is ever opened, an endpoint configured via
+		// env registers global OTLP exporters and switches on the agent loop's
+		// telemetry hooks so traces, run-level metrics, and structured logs have
+		// source events to export. Content capture remains governed by
 		// OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT.
-		await logger.time(
-			"initTelemetryExport",
-			initTelemetryExport,
-			cfgTelemetryOtlpExportEnabled.get(settingsInstance),
-		);
+		await logger.time("initTelemetryExport", initTelemetryExport, TELEMETRY_EXPORT_ENABLED);
 		if (isTelemetryExportEnabled()) {
 			// Chat telemetry reports each request's provider-computed cost. A model
 			// without a known rate card reports an unavailable reason instead of $0.

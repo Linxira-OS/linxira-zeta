@@ -73,8 +73,10 @@ export function createTelemetryExportConfig(
  * configured through env. Idempotent, and a no-op when disabled, no signal has
  * an endpoint, or the OTEL kill-switch is engaged.
  *
- * @param exportEnabled `telemetry.otlpExportEnabled`; required so every caller
- *   decides whether the user's opt-out applies.
+ * @param exportEnabled The caller's policy gate. Zeta's product entry point
+ *   passes `TELEMETRY_EXPORT_ENABLED`, which is hard-off: we run no collector,
+ *   so there is no opt-in and no settings key that reaches this transport.
+ *   Tests pass `true` to exercise the transport path.
  */
 export async function initTelemetryExport(exportEnabled: boolean): Promise<void> {
 	if (initPromise) return initPromise;

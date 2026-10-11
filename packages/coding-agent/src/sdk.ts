@@ -91,7 +91,7 @@ import { LiveImageUrlService } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { initializeWithSettings } from "./discovery";
-import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/omp-extension-roots";
+import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/zeta-extension-roots";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/preludes";
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
@@ -888,6 +888,11 @@ export interface CreateAgentSessionOptions {
 	 * Print, RPC, ACP and subagent sessions read replies as text. Default: false.
 	 */
 	tuiTranscript?: boolean;
+	/**
+	 * Name the unnamed session from the operator's messages once each reply begins
+	 * (see `title.generator`). Only the interactive TUI sets this; ignored for subagents. Default: false.
+	 */
+	autoTitle?: boolean;
 	/**
 	 * Defer `confirm` reserve-policy fallback until AgentSession prompt-time UI is configured.
 	 * ACP uses this while capabilities are negotiated without enabling UI-only tools.
@@ -4457,6 +4462,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					: undefined
 				: undefined,
 		});
+		// Catalog rows carry the registry settings' extended-window opt-ins; this
+		// session adopts every model with the window its own settings select (a
+		// subagent with a compaction override must not inherit the parent's).
+		agent.setModelResolver(next => modelRegistry.fitContextWindow(next, settings));
 
 		cursorEventEmitter = event => agent.emitExternalEvent(event);
 
@@ -4698,6 +4707,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// resource frame would otherwise report every server as empty.
 			advisorMcpResources: cursorMcpResources,
 			titleSystemPrompt: options.titleSystemPrompt,
+			autoTitle: options.autoTitle === true && !isSubagentSession,
 		});
 		hasSession = true;
 		credentialNoticeSession = session;

@@ -319,7 +319,7 @@ class Server:
         self.socket_path = socket_path
         server = self._bind(socket_path)
         threading.Thread(target=self._idle_watchdog, daemon=True).start()
-        sys.stdout.write(f"omp tiny worker listening on {socket_path}\n")
+        sys.stdout.write(f"zeta tiny worker listening on {socket_path}\n")
         sys.stdout.flush()
         while True:
             conn, _ = server.accept()

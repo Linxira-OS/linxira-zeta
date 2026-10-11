@@ -11,7 +11,7 @@ import {
 
 export * from "@linxiraos/pi-omptype/typebox";
 
-const VALIDATION_FAILURE = Symbol("omp.typebox.validationFailure");
+const VALIDATION_FAILURE = Symbol("zeta.typebox.validationFailure");
 
 interface ValidationFailure {
 	message: string;

@@ -69,7 +69,7 @@ function turnSummary(entry: TranscriptEntry): { label: string; role: string } {
 	const message = transcriptEntryMessage(entry);
 	switch (message?.role) {
 		case "user":
-			return { label: userMessageLabel(message.content), role: "omp.user" };
+			return { label: userMessageLabel(message.content), role: "zeta.user" };
 		case "assistant": {
 			let prose = "";
 			const tools: string[] = [];
@@ -78,26 +78,26 @@ function turnSummary(entry: TranscriptEntry): { label: string; role: string } {
 				else if (content.type === "toolCall") tools.push(content.name);
 			}
 			const label = firstLine(prose) || tools.join(", ") || "thinking";
-			return { label, role: "omp.assistant" };
+			return { label, role: "zeta.assistant" };
 		}
 		case "toolResult":
-			return { label: `${message.toolName} result`, role: `omp.tool.${message.toolName}` };
+			return { label: `${message.toolName} result`, role: `zeta.tool.${message.toolName}` };
 		case "bashExecution":
-			return { label: `$ ${firstLine(message.command)}`, role: "omp.tool.bash" };
+			return { label: `$ ${firstLine(message.command)}`, role: "zeta.tool.bash" };
 		case "pythonExecution":
-			return { label: firstLine(message.code), role: "omp.tool.eval" };
+			return { label: firstLine(message.code), role: "zeta.tool.eval" };
 		case "compactionSummary":
-			return { label: "Compaction summary", role: "omp.summary" };
+			return { label: "Compaction summary", role: "zeta.summary" };
 		case "branchSummary":
-			return { label: "Branch summary", role: "omp.summary" };
+			return { label: "Branch summary", role: "zeta.summary" };
 		case "custom":
 		case "hookMessage": {
 			const draft = userTurnDraft(entry);
-			if (draft !== undefined) return { label: firstLine(draft), role: "omp.user" };
-			return { label: firstLine(textContent(message.content, " ")) || message.customType, role: "omp.custom" };
+			if (draft !== undefined) return { label: firstLine(draft), role: "zeta.user" };
+			return { label: firstLine(textContent(message.content, " ")) || message.customType, role: "zeta.custom" };
 		}
 		default:
-			return { label: entry.id, role: "omp.message" };
+			return { label: entry.id, role: "zeta.message" };
 	}
 }
 
@@ -190,7 +190,7 @@ function timelineItem(target: OutlineTarget): TspPickerItem {
 				id,
 				label: calls.map(call => toolCallLabel(call.name, call.arguments)).join(" · "),
 				node: "tool",
-				role: `omp.tool.${calls[0]!.name}`,
+				role: `zeta.tool.${calls[0]!.name}`,
 			};
 		}
 		case "toolResult":
@@ -255,7 +255,7 @@ function previewSection(
 		"section",
 		{
 			head: caption,
-			role: focused ? "omp.picker.block.focused" : "omp.picker.block",
+			role: focused ? "zeta.picker.block.focused" : "zeta.picker.block",
 			...(focused ? { tone: "accent" as const } : {}),
 			...(href ? { href } : {}),
 			actions: { click: whole ? "copy" : "pick", ...(href ? { menu: ["copy", "open"] } : {}) },
@@ -828,7 +828,7 @@ export class CopySelectorComponent implements Component {
 			span("Copy", "strong"),
 			span(`${theme.sep.dot}pick what to put on the clipboard`, "dim"),
 		];
-		const root = overlayCard("omp.overlay.copy", head, children);
+		const root = overlayCard("zeta.overlay.copy", head, children);
 		this.#native = { memo, targets: this.#targets, blocks: this.#blocks, node: root };
 		return root;
 	}

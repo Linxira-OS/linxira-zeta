@@ -859,7 +859,7 @@ function diagnosticRow(diag: ParsedDiagnostic, key: string): NativeNode {
 				diag.source ? node("badge", { text: diag.source }) : undefined,
 				text(message, { wrap: "word", grow: 1 }),
 			]),
-			{ role: "omp.tool.diagnostic" },
+			{ role: "zeta.tool.diagnostic" },
 		),
 		key,
 	);
@@ -869,7 +869,7 @@ function diagnosticRow(diag: ParsedDiagnostic, key: string): NativeNode {
 function statusRow(message: string, tone: "error" | "warning", key: string): NativeNode {
 	return keyed(
 		row([diagnosticGlyph(tone), text([span(plainText(message), tone)], { wrap: "word", grow: 1 })], {
-			role: tone === "error" ? "omp.tool.error" : "omp.tool.diagnostic",
+			role: tone === "error" ? "zeta.tool.error" : "zeta.tool.diagnostic",
 		}),
 		key,
 	);

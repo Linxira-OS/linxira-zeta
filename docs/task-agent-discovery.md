@@ -158,7 +158,7 @@ Because bundled parsing uses `level: "fatal"`, unrecoverable YAML errors or inva
 4. Claude marketplace plugin roots (`listClaudePluginRoots(home, cwd)`) with `agents/` subdirs — only when `isProviderEnabled("claude-plugins")`; project-scope plugins sort before user-scope. User-scope roots additionally require the `claude-plugins` or `claude` user source to be enabled (`isUserSourceEnabled`: normally via `enabledProviders`, e.g. `["claude-plugins"]`; `claude` is also enabled implicitly when `CLAUDE_CONFIG_DIR` is set), except roots whose origin is not the foreign `~/.claude/plugins` tree (zeta's own installs with `origin: "zeta"` and `--plugin-dir` roots) — mirroring the skills path's exemption.
 5. Bundled agents (`loadBundledAgents()`)
 
-The ZETA extension-package surface is disabled when the `zeta-plugins` capability provider is disabled. Marketplace roots are excluded from `listOmpExtensionRoots` and enter only through the separately gated Claude-plugin path.
+The ZETA extension-package surface is disabled when the `omp-plugins` capability provider is disabled. Marketplace roots are excluded from `listOmpExtensionRoots` and enter only through the separately gated Claude-plugin path.
 
 Claude-dialect plugin agents discard their frontmatter `model` so Claude aliases are not misread as ZETA selectors. This applies to foreign Claude roots and packages whose manifest declares the Claude format, including ZETA installs or `--plugin-dir` roots. ZETA-native and Agent-Plugins-standard packages retain their model selectors.
 
@@ -253,7 +253,7 @@ the task/eval wire formats do not expose a tier field or automatic Fast policy.
 Account selection is independent of model and service-tier selection: an exact, case-sensitive
 `task.agentAccountPools[agentName]` entry maps provider ids to OAuth identity keys (the `identityKey`
 values broker [client account pools](./auth-broker-gateway.md#client-account-pools-routing-not-authorization)
-use, such as `email:<address>|org:<id>` for Anthropic; [`omp usage accounts`](./cli-reference.md)
+use, such as `email:<address>|org:<id>` for Anthropic; [`zetacode usage accounts`](./cli-reference.md)
 lists them). For each listed provider the child authenticates
 only with those accounts: ranking, the parent's copied account affinity, restored pins, fallback
 passes, and credential rotation stay inside the pool, and runtime, environment, and stored API keys

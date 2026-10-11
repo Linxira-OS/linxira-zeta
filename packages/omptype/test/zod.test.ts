@@ -185,7 +185,7 @@ describe("zod-like trim and superRefine", () => {
 		expect(z.string().trim().regex(/^omp$/).safeParse("  nope  ").success).toBe(false);
 		expect(z.string().trim().url().parse("  https://omp.sh  ")).toBe("https://omp.sh");
 		expect(z.string().trim().url().safeParse("  not-a-url  ").success).toBe(false);
-		expect(z.object({ name: z.string().default(" omp ").trim() }).parse({})).toEqual({ name: "omp" });
+		expect(z.object({ name: z.string().default(" zetacode ").trim() }).parse({})).toEqual({ name: "omp" });
 	});
 
 	it("supports superRefine with addIssue", () => {

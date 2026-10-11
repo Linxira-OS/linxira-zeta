@@ -126,8 +126,8 @@ export interface ResolvedModelRoleValue {
 export interface ModelCompactionPoint {
 	/** Context tokens that trigger auto-compaction; undefined when auto-compaction is off or the window is unknown. */
 	tokens: number | undefined;
-	/** The configured percentage of the window, when the trigger is percent-based. */
-	percent?: number;
+	/** Why it triggers there, in a few words: `fixed`, `85% of 400K base`, `80% of window`. */
+	basis?: string;
 	/** What sets it: the matching `compaction.modelThresholds` key, `global`, or `default`. */
 	source: string;
 	/** The model's own exact entry as editable text (`90k`, `80%`); absent when it has none. */
@@ -1739,7 +1739,7 @@ export class ModelBrowser implements Component {
 		const listNode = node(
 			"list",
 			{
-				role: "omp.model-browser.list",
+				role: "zeta.model-browser.list",
 				selected,
 				filter: filter || undefined,
 				empty: empty ? [span(empty, "muted")] : undefined,
@@ -1850,7 +1850,7 @@ export class ModelBrowser implements Component {
 				if (chips.length > 0) children.push(text(chips, { wrap: "word" }));
 			}
 		}
-		const detailNode = node("col", { role: "omp.model-browser.detail", gap: "none" }, children, "detail");
+		const detailNode = node("col", { role: "zeta.model-browser.detail", gap: "none" }, children, "detail");
 		this.#nativeDetail = { item: selected, epoch: this.#nativeEpoch, roles: this.#roles, node: detailNode };
 		return detailNode;
 	}
@@ -2142,7 +2142,7 @@ export class ModelBrowser implements Component {
 		}
 
 		const children: NativeChild[] = [
-			text(model.name, { role: "omp.picker.title" }),
+			text(model.name, { role: "zeta.picker.title" }),
 			text([span(selector, "mono")], { actions: { click: "copy" }, title: "Copy model id", truncate: "middle" }),
 		];
 		const badges: NativeChild[] = [];
@@ -2174,7 +2174,7 @@ export class ModelBrowser implements Component {
 			const value =
 				compaction.tokens === undefined
 					? "off"
-					: `${compaction.tokens.toLocaleString("en-US")}${compaction.percent !== undefined ? ` · ${compaction.percent}%` : ""}`;
+					: `${compaction.tokens.toLocaleString("en-US")}${compaction.basis !== undefined ? ` · ${compaction.basis}` : ""}`;
 			facts.push({
 				k: [span("Compacts at", "muted")],
 				v: [span(value, "mono"), span(` · ${compaction.source}`, "dim")],

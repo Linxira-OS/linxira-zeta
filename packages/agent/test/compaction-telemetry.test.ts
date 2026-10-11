@@ -208,7 +208,7 @@ describe("compaction oneshot telemetry", () => {
 });
 
 describe("handoff oneshot telemetry", () => {
-	it("tags generateHandoff with omp.gen_ai.oneshot.kind = handoff and toolChoice = none", async () => {
+	it("tags generateHandoff with zeta.gen_ai.oneshot.kind = handoff and toolChoice = none", async () => {
 		const spy = vi.spyOn(ai, "completeSimple").mockResolvedValueOnce(makeAssistantMessage("## Goal\nContinue"));
 
 		const telemetry = resolveTelemetry(makeTelemetryConfig(), "session-handoff");
@@ -233,7 +233,7 @@ describe("handoff oneshot telemetry", () => {
 });
 
 describe("branch summary oneshot telemetry", () => {
-	it("tags generateBranchSummary with omp.gen_ai.oneshot.kind = branch_summary", async () => {
+	it("tags generateBranchSummary with zeta.gen_ai.oneshot.kind = branch_summary", async () => {
 		const spy = vi
 			.spyOn(ai, "completeSimple")
 			.mockResolvedValueOnce(makeAssistantMessage("branch summary text", makeUsage(50, 30)));

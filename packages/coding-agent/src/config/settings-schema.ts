@@ -2489,7 +2489,7 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Live streaming (omp stream)
+	// Live streaming (zetacode stream)
 	"stream.serverUrl": {
 		type: "string",
 		default: DEFAULT_STREAM_URL,
@@ -2514,7 +2514,7 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Skill registry (omp skill)
+	// Skill registry (zetacode skill)
 	"skills.registryUrl": {
 		type: "string",
 		default: DEFAULT_SKILLS_URL,

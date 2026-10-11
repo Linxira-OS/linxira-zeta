@@ -78,7 +78,7 @@ Options:
       --forever                 Run epochs until interrupted
       --budget <usd>            Stop scheduling in an epoch after this spend
       --tools <a,b,c>           omp tool allowlist (default ${DEFAULT_TOOLS.join(",")})
-      --env <KEY[=VALUE]>       Extra env for the omp process only (repeatable; bare KEY forwards the host value)
+      --env <KEY[=VALUE]>       Extra env for the Zeta process only (repeatable; bare KEY forwards the host value)
       --jobs-dir <path>         Artifacts directory (default <repo>/runs/tb)
       --gateway-url <url>       Local zeta auth gateway (default http://127.0.0.1:4000)
       --gateway-token <token>   Gateway token (default no-auth)

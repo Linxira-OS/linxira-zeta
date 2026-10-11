@@ -17,7 +17,7 @@ export default class Play extends Command {
 		"idle-limit": Flags.string({ char: "i", description: "Cap pauses between frames to this many seconds" }),
 	};
 
-	static examples = ["zeta play", "zeta play /tmp/omp-recordings/2026-09-22T10-00-00-1a2b3c4d.ompcast -s 2 -i 1"];
+	static examples = ["zeta play", "zeta play /tmp/zeta-recordings/2026-09-22T10-00-00-1a2b3c4d.zetacast -s 2 -i 1"];
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Play);

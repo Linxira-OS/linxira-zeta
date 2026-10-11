@@ -266,8 +266,26 @@ export const observed = buildModel({
 const { plainLine } = await BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-tui/native/spans"]();
 export const observed = { role: actionBar([actionButton("Go", "go")]).p.role, line: plainLine("\\x1b[1ma\\n b\\x1b[0m") };`,
 		);
-		expect(observed).toEqual({ role: "omp.actions", line: "a b" });
+		expect(observed).toEqual({ role: "zeta.actions", line: "a b" });
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
 		for (const key of keys) expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
+	});
+
+	it("loads pi-tui native/* modules through the bundled registry in compiled mode (issue #14834)", async () => {
+		// `native/*` was only reachable through pi-tui's root `./*` catch-all, which
+		// the generator skips, so extensions importing it failed inside the binary.
+		const keys = ["@linxiraos/pi-tui/native/overlay", "@linxiraos/pi-tui/native/spans"] as const;
+		const entries = bundledEntries.filter(entry => (keys as readonly string[]).includes(entry.key));
+		expect(entries.map(entry => entry.key).sort()).toEqual([...keys]);
+
+		const observed = await runRegistryProbe(
+			entries,
+			`const { actionBar, actionButton } = await BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-tui/native/overlay"]();
+const { plainLine } = await BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-tui/native/spans"]();
+export const observed = { role: actionBar([actionButton("Go", "go")]).p.role, line: plainLine("\\x1b[1ma\\n b\\x1b[0m") };`,
+		);
+		expect(observed).toEqual({ role: "omp.actions", line: "a b" });
+		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
+		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
 	});
 });

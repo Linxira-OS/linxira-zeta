@@ -222,7 +222,7 @@ class UsageRowBlock extends Container {
 			);
 		}
 		this.#nativeNode = row(children, {
-			role: "omp.usage.turn",
+			role: "zeta.usage.turn",
 			gap: "none",
 			align: "baseline",
 			...(stamped ? { title: formatUsageTimestamp(timestamp, hour12) } : {}),

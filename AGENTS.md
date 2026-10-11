@@ -164,6 +164,9 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
 | 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
 | 安装提示 URL | `https://omp.sh/install` | 共享基础设施，勿改 |
+| **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
+| OTLP `service.name` 兜底 | `zeta` | 合并会带回 `oh-my-pi`；用户在自建 OTLP 里看到的身份面 |
+| **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
 | 品牌残留守卫 | `bun scripts/brand/brand-check.ts`（已进 CI check job） | 机械规则进 `scripts/brand/brand-rules.ts`，散文只留判断 |
 | 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
 

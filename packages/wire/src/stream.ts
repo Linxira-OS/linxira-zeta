@@ -1,8 +1,8 @@
 /**
- * Wire types for `omp stream`: Twitch-style live screen sharing at
+ * Wire types for `zetacode stream`: Twitch-style live screen sharing at
  * `live.omp.sh/<username>`.
  *
- * Independent from collab. A publisher (`omp stream`) sends plaintext JSON
+ * Independent from collab. A publisher (`zetacode stream`) sends plaintext JSON
  * screen deltas for one or more panes (one pane per omp session attached in
  * the same working directory); the stream server materializes each pane
  * (viewport + bounded history) so late viewers receive a snapshot without
@@ -145,7 +145,7 @@ export const STREAM_AUTH_ENV = "STENCIL_API_KEY";
 export const CLIP_DESCRIPTION_MAX = 5000;
 
 /**
- * `POST /api/clips` answer. The body is an `.ompcast` recording (optionally
+ * `POST /api/clips` answer. The body is an `.zetacast` recording (optionally
  * `Content-Encoding: gzip`) whose header may carry `title` and `description`;
  * the bearer identifies the uploading Stencil account.
  */

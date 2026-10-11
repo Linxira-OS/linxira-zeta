@@ -361,7 +361,7 @@ function textResult(result: AgentToolResult<LspToolDetails>): string {
 }
 
 /**
- * `loadConfig` walks the user config directories (~/.zeta/agent, ~/.pi/agent,
+ * `loadConfig` walks the user config directories (~/.omp/agent, ~/.pi/agent,
  * ~/.claude), which resolve from os.homedir(). A developer with a real
  * lsp.json there flips loadConfig off its auto-detect path onto the override
  * path, where their rootMarkers replace the packaged ones — so these tests
@@ -487,14 +487,14 @@ describe("lsp regressions", () => {
 		const syncedFilePath = path.join(tempDir.path(), "unsaved.gd");
 		try {
 			await Bun.write(
-				path.join(tempDir.path(), ".zeta", "lsp.json"),
+				path.join(tempDir.path(), ".omp", "lsp.json"),
 				JSON.stringify({
 					servers: {
 						"fake-gd": {
 							command: process.execPath,
 							fileTypes: [".gd"],
 							languageId: "gdscript",
-							rootMarkers: [".zeta"],
+							rootMarkers: [".omp"],
 						},
 					},
 				}),
@@ -1314,7 +1314,7 @@ describe("lsp regressions", () => {
 	it("answers defined server→client requests with spec no-op results", async () => {
 		// Same failure class as #3029: a defined server→client request
 		// (window/showMessage{Request}, window/showDocument, workspace/*/refresh)
-		// must receive a spec-shaped reply, not a -32601. Headless zeta 't
+		// must receive a spec-shaped reply, not a -32601. Headless omp can't
 		// surface UI prompts but still owes a defined no-op.
 		const tempDir = TempDir.createSync("@omp-lsp-server-requests-");
 		try {
@@ -5052,9 +5052,9 @@ describe("lsp regressions", () => {
 		expect(output).toContain("typescript-language-server (ready)");
 	});
 
-	it("reload * invalidates the per-cwd config cache so newly written .zeta/lsp.json is observed", async () => {
+	it("reload * invalidates the per-cwd config cache so newly written .omp/lsp.json is observed", async () => {
 		// #3546: `getConfig` caches the first `loadConfig` result per cwd
-		// permanently. Creating `.zeta/lsp.json` after the first LSP call left
+		// permanently. Creating `.omp/lsp.json` after the first LSP call left
 		// the tool stuck on "No language servers configured" until the process
 		// restarted. `reload *` (the user's explicit refresh) must invalidate
 		// that cache so subsequent calls observe the fresh config from disk.

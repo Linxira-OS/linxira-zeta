@@ -57,11 +57,11 @@ export interface VmonConfig {
 	arch: GuestArch;
 }
 
-/** Per-run omp configuration installed into every guest. */
+/** Per-run zetacode configuration installed into every guest. */
 export interface AgentConfig {
 	/** Tool allowlist passed to omp as `--tools`. */
 	tools: string[];
-	/** Extra environment for the omp process only; never reaches the verifier. */
+	/** Extra environment for the Zeta process only; never reaches the verifier. */
 	env: Record<string, string>;
 }
 

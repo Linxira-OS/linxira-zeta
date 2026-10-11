@@ -229,6 +229,8 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         - name: Upstream merge lineage guard
+           run: bun scripts/check-merge-lineage.ts
          - name: Build collab web
            run: bun run collab:web:build
          - name: Local-CI parity guard

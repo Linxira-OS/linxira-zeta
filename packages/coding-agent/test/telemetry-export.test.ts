@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { fileURLToPath } from "node:url";
 import type { CostEstimatorContext } from "@linxiraos/pi-agent-core";
-import { Settings } from "@linxiraos/zeta/config/settings";
 import { initTelemetryExport, isTelemetryExportEnabled } from "@linxiraos/zeta/telemetry-export";
 import { estimateProviderCost } from "@linxiraos/zeta/telemetry-export-otlp";
-import { cfgTelemetryOtlpExportEnabled } from "@linxiraos/zeta/telemetry-settings";
 
 /**
  * Gating contract for the OTLP export bootstrap. These cases all short-circuit
@@ -48,10 +46,14 @@ describe("initTelemetryExport gating", () => {
 		expect(isTelemetryExportEnabled()).toBe(false);
 	});
 
-	it("keeps OTLP export disabled when the user opts out despite configured endpoints", async () => {
+	it("keeps OTLP export disabled under the product's hard-off gate despite configured endpoints", async () => {
 		process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = "http://localhost:4318/v1/traces";
-		const settings = Settings.isolated({ "telemetry.otlpExportEnabled": false });
-		await initTelemetryExport(cfgTelemetryOtlpExportEnabled.get(settings));
+		process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT = "http://localhost:4318/v1/logs";
+		process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT = "http://localhost:4318/v1/metrics";
+		// Zeta runs with TELEMETRY_EXPORT_ENABLED = false (main.ts): we operate no
+		// collector, so export is hard-off with no opt-in surface. This case is the
+		// product invariant — configured endpoints must not start an exporter.
+		await initTelemetryExport(false);
 		expect(isTelemetryExportEnabled()).toBe(false);
 	});
 

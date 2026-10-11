@@ -8,7 +8,7 @@
  * `{"id":N,KIND:ANSWER}` correlated by `id`, where ANSWER is `{"ok": result}`
  * or `{"error": {"kind", "message"}}`:
  * - `browser`: Tern's browser op protocol, REQUEST `{"op": …}`.
- * - `fork`: REQUEST `{"block":P,"dir":"right"|"down"}` opens `omp --fork` of
+ * - `fork`: REQUEST `{"block":P,"dir":"right"|"down"}` opens `zetacode --fork` of
  *   pane P's session in a new pane beside it; result `{"block":M}`.
  *
  * Members and message kinds either side does not know are skipped, so the
@@ -205,7 +205,7 @@ export interface TernRequestOptions {
 	onLateAnswer?: (value: unknown) => void;
 }
 
-/** A `fork` request: open `omp --fork` of pane `block`'s session in a new pane beside it. */
+/** A `fork` request: open `zetacode --fork` of pane `block`'s session in a new pane beside it. */
 export interface TernForkRequest {
 	/** The pane whose omp session to fork (`TERN_PANE`). */
 	block: number;
@@ -395,7 +395,7 @@ export class TernSocketClient {
 					? new TernError("closed", "Tern daemon closed the connection")
 					: new TernError(
 							"connect",
-							`Tern daemon at ${this.#socketPath} closed the connection before greeting: a Tern without omp's JSON protocol cannot read its hello (update Tern)`,
+							`Tern daemon at ${this.#socketPath} closed the connection before greeting: a Tern without Zeta's JSON protocol cannot read its hello (update Tern)`,
 						),
 			);
 		});

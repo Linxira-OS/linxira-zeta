@@ -42,7 +42,7 @@ import type { TabSession } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 
-const DAEMON_NAME = "omp.browser.headless";
+const DAEMON_NAME = "zeta.browser.headless";
 /** The target id the incident log names for the tab whose close never landed. */
 const TARGET_ID = "D6895F960DB1F4D842FD7B0286F3F818";
 

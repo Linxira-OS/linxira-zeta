@@ -1,12 +1,12 @@
 /**
  * Regression test for `loadCliExtensionProviders`.
  *
- * One-shot CLIs (`omp bench`, dry-balance) build a bare `ModelRegistry` that
+ * One-shot CLIs (`zetacode bench`, dry-balance) build a bare `ModelRegistry` that
  * only knows built-in catalog providers. Before the helper existed they never
  * loaded extensions, so a provider contributed by an extension
  * (`pi.registerProvider(...)`, e.g. a custom OpenAI-compatible gateway under
  * `~/.zeta/agent/extensions/`) was invisible to model resolution and
- * `omp bench <provider>/<model>` failed with "Model not found".
+ * `zetacode bench <provider>/<model>` failed with "Model not found".
  *
  * Contract under test: after `loadCliExtensionProviders` drains the extension's
  * provider registrations into the registry, a `provider/id` selector for that

@@ -168,7 +168,7 @@ describe("profile directories", () => {
 		const firstAgentDir = getAgentDir();
 		expect(firstAgentDir).toBe(path.join(os.homedir(), configDir, "profiles", "work", "agent"));
 
-		// Later, the base XDG app dir materializes (e.g. via `omp config init-xdg`
+		// Later, the base XDG app dir materializes (e.g. via `zetacode config init-xdg`
 		// migrating only the default-profile data). The named profile must stay
 		// in its original location until the user explicitly migrates it.
 		await fs.mkdir(path.join(process.env.XDG_DATA_HOME, "zeta"), { recursive: true });

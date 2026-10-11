@@ -638,9 +638,9 @@ class TreeList implements Component {
 		} else if (entry.type === "message") {
 			const message = entry.message;
 			if (message.role === "assistant") kind = "assistant";
-			else if (message.role === "toolResult") [kind, role] = ["tool", `omp.tool.${message.toolName}`];
-			else if (message.role === "bashExecution") [kind, role] = ["tool", "omp.tool.bash"];
-			else if (message.role === "pythonExecution") [kind, role] = ["tool", "omp.tool.eval"];
+			else if (message.role === "toolResult") [kind, role] = ["tool", `zeta.tool.${message.toolName}`];
+			else if (message.role === "bashExecution") [kind, role] = ["tool", "zeta.tool.bash"];
+			else if (message.role === "pythonExecution") [kind, role] = ["tool", "zeta.tool.eval"];
 		}
 		return {
 			id: row.key,
@@ -678,11 +678,11 @@ class TreeList implements Component {
 					entries: [entry],
 				};
 				const copy = targetCopy(target, collectBlocks(target.entries));
-				preview.push(text(`${copy.label[0]!.toUpperCase()}${copy.label.slice(1)}`, { role: "omp.picker.title" }));
+				preview.push(text(`${copy.label[0]!.toUpperCase()}${copy.label.slice(1)}`, { role: "zeta.picker.title" }));
 				if (selected.label) preview.push(text([span(plainText(selected.label), "warning")]));
 				preview.push(turnPreview(target, copy.content || parts));
 			} else {
-				preview.push(text(parts, { role: "omp.picker.title" }));
+				preview.push(text(parts, { role: "zeta.picker.title" }));
 				if (selected.label) preview.push(text([span(plainText(selected.label), "warning")]));
 			}
 		}
@@ -1305,7 +1305,7 @@ class LabelInput implements Component {
 	/** The picker preview while editing: the prompt and the label `Input` (save/cancel sit in the action bar). */
 	get preview(): readonly NativeChild[] {
 		this.#preview ??= [
-			text("Label", { role: "omp.picker.title" }),
+			text("Label", { role: "zeta.picker.title" }),
 			text([span("Empty to remove", "muted")]),
 			this.#input,
 		];
@@ -1565,7 +1565,7 @@ export class TreeSelectorComponent extends OverlayPanel {
 				{ keys: ["ctrl+o"], label: "filter" },
 			]),
 		];
-		const result = overlayCard("omp.overlay.tree", "Session Tree", children);
+		const result = overlayCard("zeta.overlay.tree", "Session Tree", children);
 		this.#nativeMemo = { content, query, cursor, filterMode, node: result };
 		return result;
 	}

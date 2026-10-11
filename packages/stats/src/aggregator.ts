@@ -114,7 +114,7 @@ export interface SyncOptions {
 
 function defaultWorkerCount(): number {
 	// Bun 1.3.x can abort the macOS process when stats sync workers re-enter
-	// the compiled `omp` binary. Keep macOS on the documented serial path.
+	// the compiled `zetacode` binary. Keep macOS on the documented serial path.
 	if (process.platform === "darwin") return 1;
 	// `navigator.hardwareConcurrency` is the portable answer in Bun; fall
 	// back to a small fixed pool if it's somehow unavailable.
@@ -191,7 +191,7 @@ function dispatch(handle: WorkerHandle, request: SyncWorkerRequest): Promise<Par
 
 /**
  * Smoke test: spawns one sync worker, pings it, asserts the pong response,
- * then terminates. Used by `omp --smoke-test` so the install-method CI jobs
+ * then terminates. Used by `zetacode --smoke-test` so the install-method CI jobs
  * catch the silent worker-load failure that hit compiled binaries in #1011
  * and #1027 — neither `--version` nor `stats --summary` exercises the worker
  * spawn path on a fresh install (no session files = early return), so a

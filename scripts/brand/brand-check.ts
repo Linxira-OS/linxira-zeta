@@ -50,12 +50,20 @@ for (const file of trackedFiles()) {
 	const rel = file.replaceAll("\\", "/");
 	const abs = path.resolve(ROOT, file);
 	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard for index paths
+	// An index entry whose worktree file is gone (deleted but not yet staged, or
+	// `git stash` round-trip) has no content to brand-check. Skipping keeps the
+	// guard reporting instead of dying with ENOENT and masking every other rule.
+	if (!fs.existsSync(abs)) continue;
 	const text = fs.readFileSync(abs, "utf8");
 	const lines = text.split("\n");
 
 	const relPath = rel.replaceAll("\\", "/");
-	// MUST_NOT_CONTAIN: whole-tree token bans.
+	// MUST_NOT_CONTAIN: whole-tree token bans. A rule may exempt paths it cannot
+	// police — same idiom as the oh-my-pi check below, which exempts changelogs
+	// because released entries describe the residue itself (a removal entry has
+	// to name what it removed).
 	for (const rule of MUST_NOT_CONTAIN) {
+		if (rule.exempt?.some(suffix => relPath.endsWith(suffix))) continue;
 		lines.forEach((line, index) => {
 			if (rule.needle.test(line)) {
 				hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: rule.why });

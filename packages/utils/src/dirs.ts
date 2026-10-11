@@ -700,12 +700,25 @@ export function getPluginsPackageJson(home?: string): string {
 	return path.join(getPluginsDir(home), "package.json");
 }
 
-/** Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json). The on-disk
- * filename stays upstream-compatible so existing installs keep their runtime
- * state (enabled features, versions) across upgrades — never rebrand it. */
+/**
+ * Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json).
+ *
+ * The on-disk filename stays upstream-compatible: it carries per-plugin runtime
+ * state (enabled flag, version), so renaming it would reset every existing
+ * install's plugins on upgrade. That is the reason for the compat, not a
+ * general rule — see `document/brand-surface-rules.md`, which classifies this
+ * surface as DUAL (read both spellings, write the Zeta one) rather than
+ * permanently frozen.
+ */
 export function getPluginsLockfile(home?: string): string {
 	return path.join(getPluginsDir(home), "omp-plugins.lock.json");
 }
+
+/** Zeta-named lockfile, written going forward; `getPluginsLockfile` is read first. */
+export const PLUGINS_LOCKFILE_CANONICAL = "zeta-plugins.lock.json";
+
+/** Pre-rename lockfile name still produced by earlier installs. */
+export const PLUGINS_LOCKFILE_LEGACY = "omp-plugins.lock.json";
 
 /**
  * Normalize a plugin id into a safe single path segment (spec §4.2): lowercased,
@@ -798,9 +811,9 @@ export function getRemoteDir(): string {
  * cleanup could disagree — we refuse it rather than silently bind it to cwd.
  * Worktree bases and the natives directory are process-global: a worktree base
  * is consumed by both creation (PR checkout, task isolation) and cleanup
- * (`omp worktree`), and every launch extracts or loads the native addon from
+ * (`zetacode worktree`), and every launch extracts or loads the native addon from
  * the same natives directory. A relative value would resolve against whatever
- * cwd happened to launch `omp`, so those readers could disagree — we refuse it
+ * cwd happened to launch `zetacode`, so those readers could disagree — we refuse it
  * rather than silently bind it to cwd.
  */
 function resolveAbsoluteDir(value: string | undefined): string | undefined {
@@ -965,6 +978,15 @@ export function getFastembedRuntimeDir(): string {
 }
 
 /** Get the natives directory (~/.zeta/natives). */
+/**
+ * Get the directory the native addon loads downloaded tree-sitter wasm
+ * grammars from (`<natives dir>/grammars`, `~/.zeta/natives/grammars`). The
+ * natives loader configures the addon with the same path.
+ */
+export function getNativeGrammarsDir(): string {
+	return path.join(getNativesDir(), "grammars");
+}
+
 /** Get the natives directory. PI_NATIVES_DIR overrides the usual cache root; relative values are ignored. */
 export function getNativesDir(): string {
 	return resolveAbsoluteDir(process.env.PI_NATIVES_DIR) ?? dirs.rootSubdir("natives", "cache");

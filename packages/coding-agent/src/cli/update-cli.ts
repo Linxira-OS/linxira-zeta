@@ -1,7 +1,7 @@
 /**
  * Update CLI command handler.
  *
- * Handles `omp update` to check for and install updates.
+ * Handles `zetacode update` to check for and install updates.
  * Uses the installer that owns the active omp executable when it can be detected.
  */
 import * as fs from "node:fs";
@@ -9,13 +9,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { $env, $which, APP_NAME, CLI_BIN_NAME, compareVersions, isEnoent, VERSION } from "@linxiraos/pi-utils";
-import { discoverBin } from "../utils/bin-discovery";
+import {
+	$env,
+	$which,
+	APP_NAME,
+	CLI_BIN_NAME,
+	compareVersions,
+	getProjectDir,
+	isCompiledBinary,
+	isEnoent,
+	VERSION,
+} from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { $ } from "bun";
-import { settings } from "../config/settings";
+import { Settings, settings } from "../config/settings";
 import { theme } from "@linxiraos/pi-tui/theme";
+import { discoverBin } from "../utils/bin-discovery";
 import {
 	isTimeoutError,
 	isUnsupportedProxyError,
@@ -592,6 +602,38 @@ function tryRealpath(p: string): string | undefined {
 	}
 }
 
+/**
+ * Whether this omp runs from a source checkout (the dev launcher or a `bun link` of
+ * `src/cli.ts`) rather than a compiled binary or a package-manager install, which
+ * always lives under `node_modules`. Checkouts update through git, so update
+ * prompts are noise there.
+ */
+export function isSourceCheckout(): boolean {
+	return !isCompiledBinary() && !import.meta.dir.split(path.sep).includes("node_modules");
+}
+
+/**
+ * Name of the app that manages the omp at `binaryPath`, or undefined when none does.
+ *
+ * A manager (Tern) keeps `manager.json` (`{"manager": "tern", "name": "Tern"}`) two
+ * directories above every binary it installs (`<root>/versions/<version>`,
+ * `<root>/bin/omp.exe`) and updates them itself, so `zetacode update` must leave them alone.
+ * A missing or unreadable manifest means unmanaged.
+ */
+export async function managedInstallName(binaryPath: string): Promise<string | undefined> {
+	const resolved = tryRealpath(binaryPath);
+	if (!resolved) return undefined;
+	let manifest: unknown;
+	try {
+		manifest = await Bun.file(path.join(path.dirname(path.dirname(resolved)), "manager.json")).json();
+	} catch {
+		return undefined;
+	}
+	if (!isRecord(manifest)) return undefined;
+	const name = typeof manifest.name === "string" && manifest.name ? manifest.name : manifest.manager;
+	return typeof name === "string" && name ? name : undefined;
+}
+
 function isSymlinkPath(p: string): boolean {
 	try {
 		return fs.lstatSync(p).isSymbolicLink();
@@ -737,7 +779,7 @@ function resolveUpdateMethod(
 	// a binary install through npm/bun, whose reinstall then collides with the
 	// existing file (npm EEXIST). Fall through to binary replacement instead.
 	// On Windows every launcher is a regular file, so ownership keys off the
-	// manager's own artifacts instead: npm's script shims (`omp`, `omp.cmd`,
+	// manager's own artifacts instead: npm's script shims (`zetacode`, `omp.cmd`,
 	// `omp.ps1`) and bun's `omp.bunx` sidecar. A bare `.exe` with neither is the
 	// standalone binary a binary-only release installed over the launcher —
 	// routing that back through bun reinstalls a package which no longer owns
@@ -1135,7 +1177,7 @@ async function removeCacheEntries(paths: string[]): Promise<number> {
  *
  * Bun stores package cache entries as both a package marker directory
  * (`react/19.2.6@@@1`) and a materialized package directory
- * (`react@19.2.6@@@1`). Global `omp` updates can leave one full copy per
+ * (`react@19.2.6@@@1`). Global `zetacode` updates can leave one full copy per
  * release. The marker and materialized entries are removed together so the
  * cache stays internally consistent.
  */
@@ -1307,16 +1349,13 @@ function getBinaryName(): string {
 	}
 
 	if (os === "windows") {
-		return `zeta-cli-${os}-${archName}.exe`;
+		return `${CLI_BIN_NAME}-${os}-${archName}.exe`;
 	}
-	return `zeta-cli-${os}-${archName}`;
+	return `${CLI_BIN_NAME}-${os}-${archName}`;
 }
 
 /**
- * Resolve the path that `zeta-c` maps to in the unified discovery order:
- * ① explicit `ZETA_BIN_DIR` ② PATH ③ the npm-form global-bin dirs. No
- * version validation at discovery — `update` verifies the launcher's own
- * version only after installing a new one.
+ * Resolve the path that `zetacode` maps to in the user's PATH.
  */
 function resolveOmpPath(): string | undefined {
 	return discoverBin([CLI_BIN_NAME]) ?? undefined;
@@ -1331,8 +1370,8 @@ export function resolveOmpPathForTest(
 }
 
 /**
- * Parse the version a launcher reports from `omp --version` output
- * (`omp/X.Y.Z`, or a prerelease such as `omp/X.Y.Z-canary.1`).
+ * Parse the version a launcher reports from `zetacode --version` output
+ * (`zetacode/X.Y.Z`, or a prerelease such as `zetacode/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build
  * verifies as up to date instead of appearing to report a stale `X.Y.Z` and
@@ -1371,7 +1410,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 
 	const reason = hasShebang
 		? "is a shebang script, not an OMP binary"
-		: `does not report a ${CLI_BIN_NAME} version when run directly`;
+		: "does not report an OMP version when run directly";
 	throw new Error(
 		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
 	);
@@ -1592,7 +1631,7 @@ function buildVersionedPackageInstallArgs(
  * - `--no-cache` tells bun to ignore its on-disk manifest snapshot so it
  *   re-fetches metadata from that registry on every invocation.
  *
- * Together these two flags make `omp update` produce exactly the registry
+ * Together these two flags make `zetacode update` produce exactly the registry
  * lookup the version check just performed. See #1686.
  *
  * Also pins {@link NATIVES_PACKAGE} and the platform-specific
@@ -1629,10 +1668,10 @@ export function buildBunInstallArgs(
  * Pins `--registry` to the checked registry for the same reason as
  * {@link buildBunInstallArgs}.
  *
- * `force` is set only for rename migrations: npm refuses to write the `omp`
+ * `force` is set only for rename migrations: npm refuses to write the `zetacode`
  * bin while the old package still owns it (`EEXIST`), and the migration
  * installs the new package BEFORE removing the old one so a failed install
- * never leaves the user without a working `omp`.
+ * never leaves the user without a working `zetacode`.
  */
 export function buildNpmInstallArgs(
 	expectedVersion: string,
@@ -1700,11 +1739,11 @@ export function buildRenameCleanupPackages(
 
 /** Injectable shell steps for {@link migrateRenamedInstall}; commands return process exit codes. */
 export interface RenameMigrationSteps {
-	/** Globally install the new package names. MUST be idempotent: re-running re-links the `omp` bin. */
+	/** Globally install the new package names. MUST be idempotent: re-running re-links the `zetacode` bin. */
 	install(): Promise<number>;
 	/** Remove the old-name globals. */
 	removeOld(): Promise<number>;
-	/** Check the PATH-resolved `omp` against the expected version. */
+	/** Check the PATH-resolved `zetacode` against the expected version. */
 	verify(): Promise<InstalledVersionVerification>;
 }
 
@@ -1745,13 +1784,13 @@ function packageManagerMigrationSteps(manager: "bun" | "npm", release: ReleaseIn
 
 /**
  * Migrate a package-manager install across an `omp.rename` hop without a
- * window where no working `omp` exists:
+ * window where no working `zetacode` exists:
  *
  * 1. Install the new package FIRST. Nothing has been removed yet, so a
  *    failure here leaves the old install fully functional.
  * 2. Remove the old-name globals. Failure is non-fatal: a stale package
  *    wastes disk, but the bin already points at the new install.
- * 3. Verify the PATH-resolved `omp`. If the removal deleted the shared bin
+ * 3. Verify the PATH-resolved `zetacode`. If the removal deleted the shared bin
  *    link (manager-dependent), re-run the idempotent install to restore it
  *    and verify again; only a repeated failure aborts, with a recovery hint.
  */
@@ -2001,7 +2040,7 @@ export async function updateViaBinaryAt(
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
 	const binaryName = options.binaryName ?? getBinaryName();
-	// Unique per attempt so two overlapping `omp update` runs never share a temp
+	// Unique per attempt so two overlapping `zetacode update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
 	// first kept writing to its open fd (size + digest still passed), then chmod
@@ -2031,7 +2070,7 @@ export async function updateViaBinaryAt(
 	console.log(chalk.dim(`Verified ${asset.digest}`));
 
 	// Serialize the target swap and stale-artifact sweep per target so two
-	// overlapping `omp update` runs never replace the same binary concurrently
+	// overlapping `zetacode update` runs never replace the same binary concurrently
 	// or reclaim each other's live backup/temp files. The download above writes
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {
@@ -2080,7 +2119,7 @@ const SHIM_FORWARDERS: Record<string, string> = {
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`omp`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
+ * (`zetacode`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
  * executable. The release binary is installed as `omp.exe` beside them and
  * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
@@ -2238,6 +2277,16 @@ export async function runUpdateCommand(opts: {
 	check: boolean;
 	channel?: UpdateChannel;
 }): Promise<void> {
+	const ompPath = resolveOmpPath();
+	const manager = ompPath ? await managedInstallName(ompPath) : undefined;
+	if (manager) {
+		console.log(
+			chalk.yellow(`${ompPath} is installed and kept up to date by ${manager}; update it from ${manager}.`),
+		);
+		return;
+	}
+	// `update.channel` picks the channel; --canary/--stable switch and persist it.
+	await Settings.init({ cwd: getProjectDir() });
 	console.log(chalk.dim(`Current version: ${VERSION}`));
 	const persistedChannel = readPersistedChannel() ?? "stable";
 	const channel = opts.channel ?? persistedChannel;
@@ -2264,7 +2313,7 @@ export async function runUpdateCommand(opts: {
 	if (isChannelSwitch) {
 		console.log(
 			chalk.yellow(
-				`Switching to ${channel} ${release.version}${comparison <= 0 ? ` (downgrade from ${VERSION})` : ""}`,
+				`Switching to ${channel} ${release.version}${comparison < 0 ? ` (downgrade from ${VERSION})` : ""}`,
 			),
 		);
 	} else if (comparison > 0) {

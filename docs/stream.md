@@ -1,6 +1,6 @@
 # Stream: Livestream Your Terminal
 
-`omp stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
+`zetacode stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
 
 Stream is independent from [Collab](collab.md). Collab replicates the session itself (entries, events, prompts) to guests who can drive the agent; Stream sends only rendered screen rows, one way, to an audience.
 
@@ -8,12 +8,12 @@ Stream is independent from [Collab](collab.md). Collab replicates the session it
 
 Streaming needs a stencil.so account. Sign in once from any omp session with `/login` → **Stencil (invite only)**; the credential is stored with your other logins and refreshed automatically. For scripts and local development, `STENCIL_API_KEY=<token>` overrides the stored credential; `STENCIL_AUTH_URL` re-bases the sign-in (`auth.stencil.so`) and `STENCIL_BASE_URL` the Stencil API (`api.stencil.so`) at a local server.
 
-Your Stencil username is the channel. The server derives it from the bearer token, so `omp stream` takes no channel argument.
+Your Stencil username is the channel. The server derives it from the bearer token, so `zetacode stream` takes no channel argument.
 
 In the directory you work in:
 
 ```
-omp stream --title "Refactoring the parser"
+zetacode stream --title "Refactoring the parser"
 ```
 
 prints
@@ -23,15 +23,15 @@ prints
   waiting for sessions in /work/proj …
 ```
 
-Then start interactive omp in the same directory from another terminal (as many times as you like). Each interactive session started while `omp stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
+Then start interactive omp in the same directory from another terminal (as many times as you like). Each interactive session started while `zetacode stream` runs attaches automatically and shows `● LIVE 3` in its footer (`3` = current viewers). The viewer page shows each session as its own pane; a pane disappears when its session exits. Ctrl-C in the streamer ends the broadcast and every attached session drops its badge.
 
-Sessions that were already running before `omp stream` started are not attached — restart them.
+Sessions that were already running before `zetacode stream` started are not attached — restart them.
 
-Only one `omp stream` process can listen for a given directory, and the server rejects a second live host for the same channel. If the remote connection drops, the streamer reconnects and replays each pane's current viewport and bounded history; it does not replay missed chat.
+Only one `zetacode stream` process can listen for a given directory, and the server rejects a second live host for the same channel. If the remote connection drops, the streamer reconnects and replays each pane's current viewport and bounded history; it does not replay missed chat.
 
 ### Streamer console
 
-On a terminal, `omp stream` is a full-screen chat console: header with the live badge, channel, title, your stencil.so handle, viewer URL, viewer count and attached panes; a log of chat and events; and an input line at the bottom.
+On a terminal, `zetacode stream` is a full-screen chat console: header with the live badge, channel, title, your stencil.so handle, viewer URL, viewer count and attached panes; a log of chat and events; and an input line at the bottom.
 
 | Input            | Effect                                                  |
 | ---------------- | ------------------------------------------------------- |
@@ -63,7 +63,7 @@ The screen feed contains terminal rows and pane metadata (title and dimensions),
 3. **Redacts** the row (below).
 4. Diffs against the last sent viewport and sends row patches — never session entries, prompts, tool arguments, or file contents as data.
 
-Rows cross a private local Unix socket (`0600`, under the per-directory omp runtime dir; a named pipe on Windows) to the `omp stream` process, which multiplexes sessions into panes and forwards JSON screen frames to the server over WSS by default. Custom `http`/`ws` servers use unencrypted WS. The server keeps each pane's viewport and the last 2000 history rows in memory so late viewers get a snapshot; nothing is persisted.
+Rows cross a private local Unix socket (`0600`, under the per-directory omp runtime dir; a named pipe on Windows) to the `zetacode stream` process, which multiplexes sessions into panes and forwards JSON screen frames to the server over WSS by default. Custom `http`/`ws` servers use unencrypted WS. The server keeps each pane's viewport and the last 2000 history rows in memory so late viewers get a snapshot; nothing is persisted.
 
 ### Redaction
 
@@ -84,11 +84,11 @@ Redaction cannot know about secrets it has never seen: a token pasted from elsew
 
 `/record` in any interactive session captures that one session's screen through the same pipeline — normalized, redacted rows, viewport patches, scrollback commits — into a local file instead of a socket. No account or streamer is needed, and it works alongside a live stream. The footer shows `● REC` while recording; `/record` again stops it and prints the path.
 
-Recordings are written to `<tmpdir>/omp-recordings/<utc-time>-<session>.ompcast`, a JSON Lines file similar to asciicast: a header line `{"ompcast":1,"cols":…,"rows":…,"title":…,"createdAt":…}`, then one `[ms, frame]` line per screen frame (`reset`, `history`, `resize`, `viewport`, `patch`).
+Recordings are written to `<tmpdir>/zeta-recordings/<utc-time>-<session>.zetacast`, a JSON Lines file similar to asciicast: a header line `{"zetacast":1,"cols":…,"rows":…,"title":…,"createdAt":…}`, then one `[ms, frame]` line per screen frame (`reset`, `history`, `resize`, `viewport`, `patch`).
 
 ```
-omp play                      # newest recording
-omp play <file> -s 2 -i 1     # 2× speed, pauses capped at 1s
+zetacode play                      # newest recording
+zetacode play <file> -s 2 -i 1     # 2× speed, pauses capped at 1s
 ```
 
 Playback requires an interactive terminal and runs on the normal screen: the recorded viewport occupies the bottom of the terminal and recorded scrollback scrolls into your terminal's scrollback, so the output stays after playback ends. Space pauses/resumes; `q`, Esc, or Ctrl-C quits.
@@ -96,11 +96,11 @@ Playback requires an interactive terminal and runs on the normal screen: the rec
 ### Clips
 
 ```
-omp clip                                          # newest recording
-omp clip <file> -t "Streaming the lexer" -d "…"   # title and description
+zetacode clip                                          # newest recording
+zetacode clip <file> -t "Streaming the lexer" -d "…"   # title and description
 ```
 
-`omp clip` uploads a recording to `live.omp.sh` with the same Stencil credential as `omp stream` and prints its page, `live.omp.sh/c/<id>`. `--server <url>` overrides `stream.serverUrl`; titles are limited to 120 characters and descriptions to 5000. The page plays the clip in the live viewer's terminal pane, with the title, description, and a comment thread underneath; signing in with Stencil lets viewers comment and the owner edit the title and description. Rows were already redacted when recorded; nothing is re-read from your machine at upload time.
+`zetacode clip` uploads a recording to `live.omp.sh` with the same Stencil credential as `zetacode stream` and prints its page, `live.omp.sh/c/<id>`. `--server <url>` overrides `stream.serverUrl`; titles are limited to 120 characters and descriptions to 5000. The page plays the clip in the live viewer's terminal pane, with the title, description, and a comment thread underneath; signing in with Stencil lets viewers comment and the owner edit the title and description. Rows were already redacted when recorded; nothing is re-read from your machine at upload time.
 
 ## Server
 

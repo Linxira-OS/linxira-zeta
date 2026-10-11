@@ -59,7 +59,7 @@ describe("SessionManager + SqlSessionStorage (SQLite)", () => {
 		await storage.drain();
 		await manager.close();
 
-		const rows = (await client.unsafe(`SELECT content FROM omp_session_files WHERE path = ?`, [
+		const rows = (await client.unsafe(`SELECT content FROM zeta_session_files WHERE path = ?`, [
 			sessionFilePath,
 		])) as Array<{ content: string }>;
 		expect(rows).toHaveLength(1);

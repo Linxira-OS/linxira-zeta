@@ -87,7 +87,7 @@ import {
 	selectChangelogEntries,
 } from "../../utils/changelog";
 import { copyToClipboard } from "../../utils/clipboard";
-import { formatDumpArchiveReport } from "../../session/session-dump-format";
+import { formatDumpArchiveReport, type SessionDumpArchive } from "../../session/session-dump-format";
 import { openPath } from "../../utils/open";
 import { resumeCommand } from "../../utils/resume-command";
 import { setSessionTerminalTitle } from "../../utils/title-generator";
@@ -334,9 +334,17 @@ export class CommandController {
 		}
 	}
 
-	async handleDumpAllCommand(): Promise<void> {
+	handleDumpAllCommand(): Promise<void> {
+		return this.#writeDumpArchive(() => this.ctx.session.dumpSessionArchiveToTmpDir());
+	}
+
+	handleDumpAnonCommand(): Promise<void> {
+		return this.#writeDumpArchive(() => this.ctx.session.dumpAnonymizedArchiveToTmpDir());
+	}
+
+	async #writeDumpArchive(write: () => Promise<SessionDumpArchive | undefined>): Promise<void> {
 		try {
-			const archive = await this.ctx.session.dumpSessionArchiveToTmpDir();
+			const archive = await write();
 			if (!archive) {
 				this.ctx.showError("No messages to dump yet.");
 				return;
@@ -1325,7 +1333,7 @@ export class CommandController {
 	}
 
 	/**
-	 * `/fork` inside a Tern pane: ask Tern to run `omp --fork` of this session in a new pane beside
+	 * `/fork` inside a Tern pane: ask Tern to run `zetacode --fork` of this session in a new pane beside
 	 * this one, which keeps the original session. False means fork in place instead: outside Tern,
 	 * an unsaved session, a Tern without `fork`, or Tern refusing it. Once the request is out, an
 	 * unconfirmed one is reported rather than retried in place, since Tern may still open the pane.
@@ -1344,7 +1352,7 @@ export class CommandController {
 				return false;
 			}
 			if (!client.supports("fork")) return false;
-			// The new pane's omp reads the session file as it starts.
+			// The new pane's zetacode reads the session file as it starts.
 			await this.ctx.session.flushToDisk();
 			try {
 				await client.fork({ block: tern.pane }, { timeoutMs: TERN_FORK_TIMEOUT_MS });

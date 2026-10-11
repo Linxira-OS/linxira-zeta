@@ -283,7 +283,7 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 		expect(reported.hostname).toBe(os.hostname());
 		// Default identity carries the app label so broker-side attribution can
 		// answer "what did app X use" even for broker-direct installs.
-		expect(reported.providers.every(p => p.app === "zeta")).toBe(true);
+		expect(reported.providers.every(p => p.app === "omp")).toBe(true);
 
 		const anthropic = reported.providers.find(p => p.provider === "anthropic");
 		expect(anthropic).toMatchObject({
@@ -349,7 +349,7 @@ describe("RemoteAuthCredentialStore SSE integration", () => {
 	});
 
 	test("a process that quits before the flush interval still reports its observed usage", async () => {
-		// Mirrors `omp -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
+		// Mirrors `zetacode -p`: one turn, then postmortem.quit() well inside the default 10s flush interval.
 		const script = [
 			'import { postmortem } from "@linxiraos/pi-utils";',
 			`import { AuthBrokerClient, RemoteAuthCredentialStore } from ${JSON.stringify(AUTH_BROKER_MODULE)};`,

@@ -3,16 +3,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 
-// Regression: `omp config set collab.autoStart control` on a fresh Windows profile over WinRM
+// Regression: `zetacode config set collab.autoStart control` on a fresh Windows profile over WinRM
 // exited 0 with no output and never wrote config.yml. The CLI entry is a floating `runCli()`
 // call (top-level await breaks `--bytecode` builds), so a one-shot command whose await never
 // settles and holds no live handle let the event loop drain, and Bun exited 0: an unfinished
 // command reported as success. The process entry now fails that drain with exit 1 and a
 // diagnostic. A preload makes `Settings.init` never settle to reach the same state. #12441
-// reports the same silent exit 0 for `omp auth-broker token` on a fresh Windows profile; the
+// reports the same silent exit 0 for `zetacode auth-broker token` on a fresh Windows profile; the
 // stalled await itself is still unidentified.
 //
-// Regression #13470: on Windows Bun emits `beforeExit` while `omp update` still has I/O in
+// Regression #13470: on Windows Bun emits `beforeExit` while `zetacode update` still has I/O in
 // flight, then keeps running the loop; the command completed but exited 1 with the diagnostic.
 // Preloads that resume work from a `beforeExit` listener reproduce that runtime state.
 

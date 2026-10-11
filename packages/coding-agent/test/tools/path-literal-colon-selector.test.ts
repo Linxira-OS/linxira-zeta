@@ -520,7 +520,7 @@ describe("leading-colon path recovery (issue #5508)", () => {
 	});
 });
 
-// Regression: the `omp grep` CLI subcommand resolved its path argument with a
+// Regression: the `zetacode grep` CLI subcommand resolved its path argument with a
 // bare `path.resolve`, bypassing `expandPath`, so the leading-colon strip from
 // #5529 never reached it — see issue #5624.
 describe("grep CLI subcommand leading-colon path (issue #5624)", () => {

@@ -6,7 +6,7 @@ export interface ClipUploadOptions {
 	serverUrl: string;
 	/** Stencil bearer (see `StencilCredential`); the clip belongs to its account. */
 	token: string;
-	/** `.ompcast` file contents. */
+	/** `.zetacast` file contents. */
 	recording: string;
 	/** Replaces the recording's title. */
 	title?: string;

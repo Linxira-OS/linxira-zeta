@@ -119,7 +119,7 @@ export function createDashboardController(): DashboardController {
 						...renderDashboardLines(runtime, width, theme, 8),
 					];
 					return new DashboardWidget(lines.join("\n"), cx =>
-						card({ role: "omp.widget.autoresearch", head: describeTitle(runtime) }, [
+						card({ role: "zeta.widget.autoresearch", head: describeTitle(runtime) }, [
 							...describeDashboard(runtime, 8, cx.supports("chart")),
 							hintsRow([
 								{ keys: ["ctrl+x"], label: "collapse" },
@@ -151,7 +151,7 @@ export function createDashboardController(): DashboardController {
 					return {
 						/** A glass sheet titled by the experiment (the panels' sheet style); the body is borderless. */
 						get nativeOverlay() {
-							return { role: "omp.overlay.autoresearch", head: describeTitle(runtime), size: "lg" as const };
+							return { role: "zeta.overlay.autoresearch", head: describeTitle(runtime), size: "lg" as const };
 						},
 						describe(cx: DescribeContext): NativeNode {
 							const state = runtime.state;
@@ -193,7 +193,7 @@ export function createDashboardController(): DashboardController {
 										]),
 									);
 									children.push(actionBar([null, actionButton("Close", "close", { keys: "escape" })]));
-									return col(children, { gap: "md", role: "omp.app.autoresearch" });
+									return col(children, { gap: "md", role: "zeta.app.autoresearch" });
 								},
 							);
 						},
@@ -272,12 +272,12 @@ function describeRunningOnly(runtime: AutoresearchDashboardRuntime, state: Exper
 	if (state.name) details.push(span(`| ${replaceTabs(state.name)}`, "dim"));
 	if (runtime.runningExperiment) details.push(span(` | ${replaceTabs(runtime.runningExperiment.command)}`, "dim"));
 	if (details.length > 0) children.push(text(details, { truncate: "end" }));
-	return row(children, { gap: "sm", role: "omp.widget.autoresearch" });
+	return row(children, { gap: "sm", role: "zeta.widget.autoresearch" });
 }
 
 /** One-line collapsed widget: run counts, best/baseline, confidence and mode. */
 function describeCollapsed(runtime: AutoresearchDashboardRuntime, state: ExperimentState): NativeNode {
-	const role = "omp.widget.autoresearch";
+	const role = "zeta.widget.autoresearch";
 	const hint = hintsRow([{ keys: ["ctrl+x"], label: "expand" }]);
 	if (runtime.lastRunSummary) {
 		const spans = [
@@ -499,7 +499,7 @@ function describeDashboard(runtime: AutoresearchDashboardRuntime, maxRows: numbe
 						...(best ? [span(` · best ${formatNum(best.result.metric, state.metricUnit)}`, "success")] : []),
 					],
 					size: "md",
-					role: "omp.autoresearch.trend",
+					role: "zeta.autoresearch.trend",
 				},
 				undefined,
 				"trend",
@@ -509,7 +509,7 @@ function describeDashboard(runtime: AutoresearchDashboardRuntime, maxRows: numbe
 	if (visible.length < indexed.length) {
 		children.push(keyed(text([span(`… ${indexed.length - visible.length} earlier runs hidden`, "dim")]), "hidden"));
 	}
-	children.push(node("table", { cols, rows, role: "omp.autoresearch.runs" }, undefined, "runs"));
+	children.push(node("table", { cols, rows, role: "zeta.autoresearch.runs" }, undefined, "runs"));
 	return [keyed(col(children, { gap: "sm" }), "dashboard")];
 }
 

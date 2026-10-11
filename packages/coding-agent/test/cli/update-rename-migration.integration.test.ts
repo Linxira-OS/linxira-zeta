@@ -53,7 +53,7 @@ afterAll(async () => {
 	await fixtureDir.remove();
 });
 
-/** Two shared, read-only packages that expose the same `omp` bin. */
+/** Two shared, read-only packages that expose the same `zetacode` bin. */
 async function makeFixtures(root: string): Promise<{ oldDir: string; newDir: string }> {
 	const mkpkg = async (name: string, version: string): Promise<string> => {
 		const dir = path.join(root, name);

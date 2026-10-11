@@ -3,7 +3,7 @@
  * - `dist/extension/` — unpacked extension (load via chrome://extensions)
  * - `dist/zeta-browser-relay-extension.zip` — packaged extension for GH releases
  * - `../coding-agent/src/tools/browser/relay/extension-assets/*.txt` —
- *   generated text assets embedded into the omp CLI so `omp browser-relay
+ *   generated text assets embedded into the omp CLI so `zetacode browser-relay
  *   install` works from the compiled binary (same committed-generated-output
  *   pattern as tool-views.generated.js). Re-run this script after touching
  *   anything under `extension/` and commit the regenerated assets.

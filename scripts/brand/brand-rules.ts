@@ -194,6 +194,61 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: "@oh-my-pi/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
 	},
+	{
+		file: "packages/coding-agent/src/main.ts",
+		needle: "const TELEMETRY_EXPORT_ENABLED = false;",
+		why: "OTLP export is hard-off by policy (no collector to process events); flipping this constant or restoring the opt-in setting requires a deliberate decision, not a merge (see the doc comment above it)",
+	},
+	{
+		file: "packages/coding-agent/src/main.ts",
+		needle: "initTelemetryExport, TELEMETRY_EXPORT_ENABLED);",
+		why: "the call site must read the hard-off constant, not a settings lookup or literal — otherwise a merge can leave the constant alone while exporting anyway",
+	},
+	// ── External-identity surface (2026-10-10 sweep) ────────────────────────
+	// These are the names the OS, the browser, the desktop environment and our
+	// own peers see. A merge that restores the upstream spelling silently
+	// re-registers the product as `zetacode` at the platform level, which no
+	// docs/sources-only guard can catch.
+	{
+		file: "crates/pi-natives/src/oauth_callback/darwin.rs",
+		needle: 'const BUNDLE_PREFIX: &str = "dev.zeta.oauth-callback.";',
+		why: "macOS bundle id for the OAuth callback handler; upstream is dev.omp.oauth-callback and appears in LaunchServices + any bundle inventory",
+	},
+	{
+		file: "crates/pi-natives/src/oauth_callback/windows.rs",
+		needle: 'const MARKER_NAME: &str = "Zeta OAuth Callback Transaction";',
+		why: "HKCU registry transaction name for the Windows URL protocol handler",
+	},
+	{
+		file: "crates/pi-natives/src/oauth_callback/linux.rs",
+		needle: 'const DESKTOP_ID_PREFIX: &str = "dev.zeta.oauth-callback.";',
+		why: "XDG desktop-entry id for the Linux URL protocol handler",
+	},
+	{
+		file: "crates/pi-builtins/src/host.rs",
+		needle: "zeta-descriptor://",
+		why: "file-descriptor URL scheme handed to the opener; upstream omp-descriptor:// registers under his name",
+	},
+	{
+		file: "crates/pi-natives/src/lib.rs",
+		needle: "pub fn omp_install_tokio_runtime()",
+		why: "the Tokio install export keeps its upstream name ON PURPOSE — sweeping it to __zeta* made Tokio silently fail to install (v18.0.10)",
+	},
+	{
+		file: "packages/coding-agent/src/ida/protocol.ts",
+		needle: 'export const IDA_DAEMON_PREFIX = "zeta.ida.";',
+		why: "IDA daemon name shown in `zetacode ps`; upstream is omp.ida.*",
+	},
+	{
+		file: "packages/coding-agent/src/stream/recording.ts",
+		needle: 'export const RECORDING_EXTENSION = ".zetacast";',
+		why: "session-recording file extension; upstream is .ompcast",
+	},
+	{
+		file: "packages/utils/src/dirs.ts",
+		needle: '"omp-plugins.lock.json"',
+		why: "the plugin lockfile keeps its upstream filename on purpose — existing installs carry runtime state (enabled features, versions) in it, so renaming would reset every user's plugins on upgrade. The doc comment above getPluginsLockfile says the same; do not rebrand it",
+	},
 ];
 
 /**
@@ -203,8 +258,82 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
  * allow-listed files, and MUST_CONTAIN asserts the scope survives), and the
  * oh-my-pi token scan in brand-check.ts covers every other file.
  */
-export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
+export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: string[] }> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
+	// ── The three-name hierarchy (2026-10-10) ────────────────────────────────
+	// Zeta has three distinct names and swapping them is a real defect, not a
+	// style preference:
+	//   zeta     — product/app identity: config root, log names, UA product
+	//              token, splash, attribution headers, process-global identity
+	//   zetawork — the workbench CLI (@linxiraos/main, bin `zeta`/`zetawork`)
+	//   zetacode — the coding-agent CLI (@linxiraos/zeta, bin `zetacode`)
+	// A config path or product token spelled `zetacode` points users at a
+	// directory that does not exist; a command spelled `zeta` invokes the
+	// workbench instead of the agent.
+	{
+		needle: /\.zetacode(?![A-Za-z0-9-])/,
+		why: "the config/app identity is `zeta`, never `zetacode` — `.zetacode/` would be a directory no install ever creates",
+	},
+	{
+		needle: /XDG_[A-Z_]*HOME\/zetacode/,
+		why: "XDG roots are keyed by APP_NAME (`zeta`), not the CLI binary name",
+	},
+	{
+		needle: /USER_AGENT = `zetacode\//,
+		why: "the UA product token is the app name (`zeta/`); CLI_BIN_NAME appears in user-facing command strings, not in the UA template",
+	},
+	{
+		needle: /telemetry\.otlpExportEnabled/,
+		why: "the OTLP export opt-in was deleted, not defaulted off — Zeta runs no collector, so export has no on-switch at all; a merge must not resurrect the setting (hard-off policy in main.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	// ── External-identity bans (2026-10-10 sweep) ───────────────────────────
+	// Names the operating system, the browser, or our own peers would use to
+	// identify this product as upstream. Word-boundary anchored so ordinary
+	// English words containing the letters (Component, composite) never match.
+	{
+		needle: /dev\.omp\.oauth-callback/,
+		why: "OAuth callback bundle/desktop id belongs to Zeta; upstream spelling re-registers the handler under his name",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp-descriptor(?![A-Za-z0-9])/,
+		why: "file-descriptor URL scheme is zeta-descriptor://",
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp\.ida\./,
+		why: "IDA daemon name is zeta.ida.<id>",
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp-file-lock-/,
+		why: "advisory lock path prefix is zeta-file-lock-",
+	},
+	{
+		needle: /zeta-plugins\.lock\.json/,
+		why: "the lockfile we WRITE is Zeta-named (DUAL verdict: read the legacy name, write ours) — but the legacy name must stay, it holds every existing install's plugin state",
+		exempt: [
+			"CHANGELOG.md",
+			"packages/utils/src/dirs.ts",
+			"document/brand-surface-rules.md",
+			// The migration test must name both spellings to assert the contract.
+			"test/plugins/lockfile-migration.test.ts",
+		],
+	},
+	{
+		needle: /(?<![A-Za-z0-9])ompcast/,
+		why: "session-recording extension/format key is zetacast; the two read-old sites are the deliberate upgrade path for recordings captured by an earlier install, not brand residue",
+		exempt: ["CHANGELOG.md", "src/stream/recording.ts", "test/stream/recording-compat.test.ts"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9`])omp --/,
+		why: "there is no `omp` binary in this product — the CLI is zetacode; `omp --flag` in prose or a help string is a leaked upstream invocation",
+		exempt: ["CHANGELOG.md", "python/robomp/", "document/upstream-sync.md"],
+	},
+	{
+		needle: /`omp(?![A-Za-z0-9-._])/,
+		why: "a backticked bare `omp` is a CLI reference; the CLI is zetacode. Excluded by design: plain prose ('the omp process'), hyphenated temp prefixes (`omp-which-${pid}`), the upstream manifest fields `omp.rename` / `omp.dist`, and stencil.kdl where `omp` is the OAuth public client id registered with a third-party issuer",
+		exempt: ["CHANGELOG.md", "python/robomp/", "document/upstream-sync.md", "compat/rules/auth/stencil.kdl"],
+	},
 	{ needle: /USER_AGENT = `omp\//, why: "upstream UA template" },
 	{ needle: /const PREVIEW_TITLE = "omp"/, why: "shape-preview stand-in title is ζ" },
 	{ needle: /const APP_NAME = "omp"/, why: "init-xdg must import APP_NAME from pi-utils" },
@@ -254,7 +383,7 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	// The stats client shipped with upstream branding since the fork (never
 	// overlayed) and regressed visually every release merge. These pin the
 	// user-visible dashboard tokens to the Zeta spelling; port-conflict's
-	// deliberate `omp` process-match keepers are narrower literals and do not
+	// deliberate `zetacode` process-match keepers are narrower literals and do not
 	// match any of these.
 	{
 		needle: /<title>omp stats<\/>/,

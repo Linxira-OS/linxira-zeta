@@ -133,7 +133,7 @@ export class EvalExecutionComponent extends Container {
 		return this.#native.get(key, () => {
 			const title = this.#language === "js" ? "JavaScript" : "Python";
 			const common = {
-				role: "omp.eval",
+				role: "zeta.eval",
 				status: this.#status,
 				startedAt: this.#startedAt,
 				expanded: this.#expanded,

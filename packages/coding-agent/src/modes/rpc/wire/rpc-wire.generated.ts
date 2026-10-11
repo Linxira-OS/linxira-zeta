@@ -1010,7 +1010,7 @@ export type PromptStatus = "completed" | "aborted" | "error";
 /** Failure detail of a `prompt_result` with `status: "error"`. */
 export interface PromptError {
 	message: string;
-	/** Transient: resubmitting later may succeed (omp's own retries are exhausted). */
+	/** Transient: resubmitting later may succeed (Zeta's own retries are exhausted). */
 	retryable: boolean;
 	provider?: string;
 	model?: string;

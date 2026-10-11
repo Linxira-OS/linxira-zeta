@@ -16,6 +16,7 @@ import {
 	downloadVerifiedBinary,
 	type InstalledVersionVerification,
 	isMuslLinuxForTest,
+	managedInstallName,
 	type ManagerUpdateSteps,
 	migrateRenamedInstall,
 	parseReportedVersion,
@@ -252,7 +253,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses npm update for Windows npm command shims even when no package-manager bin dirs were detected", () => {
-		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\omp.cmd", undefined);
+		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\zeta.cmd", undefined);
 
 		expect(method).toBe("npm");
 	});
@@ -1684,7 +1685,7 @@ describe("update-cli script-shim takeover", () => {
 
 	it("drops bun's launcher metadata when the standalone binary takes the .exe over", async () => {
 		// After the takeover the launcher is no longer bun-managed. A leftover
-		// `omp.bunx` would keep classifying the install as bun-managed and send
+		// `zeta.bunx` would keep classifying the install as bun-managed and send
 		// the next update through `bun install -g`, which cannot overwrite the
 		// running `.exe` and would pin the install to the old version.
 		const dir = await makeTempDir();
@@ -1843,7 +1844,7 @@ describe("update-cli concurrent binary updates", () => {
 		return { dir, targetPath };
 	}
 
-	// Regression for #8434: two overlapping `omp update` runs must not share a
+	// Regression for #8434: two overlapping `zetacode update` runs must not share a
 	// temp path. Run A downloads slowly and only finishes after run B has fully
 	// installed. With the old fixed `<binary>.new` temp name, B's pre-download
 	// unlink deleted A's temp file, so A's chmod failed with ENOENT even though
@@ -1927,6 +1928,49 @@ describe("update-cli concurrent binary updates", () => {
 	});
 });
 
+describe("managedInstallName", () => {
+	async function managedRoot(): Promise<string> {
+		const root = await makeTempDir();
+		await fs.mkdir(path.join(root, "versions"));
+		await fs.mkdir(path.join(root, "bin"));
+		await Bun.write(path.join(root, "versions", "1.0.0"), "omp");
+		await Bun.write(path.join(root, "manager.json"), JSON.stringify({ manager: "tern", name: "Tern" }));
+		return root;
+	}
+
+	it.skipIf(process.platform === "win32")(
+		"names the manager through the launcher symlink and a link outside the root",
+		async () => {
+			const root = await managedRoot();
+			const launcher = path.join(root, "bin", "omp");
+			await fs.symlink(path.join("..", "versions", "1.0.0"), launcher);
+			const outside = path.join(await makeTempDir(), "omp");
+			await fs.symlink(launcher, outside);
+
+			expect(await managedInstallName(launcher)).toBe("Tern");
+			expect(await managedInstallName(outside)).toBe("Tern");
+		},
+	);
+
+	it("names the manager of a copied launcher (Windows layout)", async () => {
+		const root = await managedRoot();
+		const copy = path.join(root, "bin", "omp.exe");
+		await Bun.write(copy, "omp");
+
+		expect(await managedInstallName(copy)).toBe("Tern");
+	});
+
+	it("treats a binary without a readable manifest as unmanaged", async () => {
+		const plain = path.join(await makeTempDir(), "bin", "omp");
+		await Bun.write(plain, "omp");
+		expect(await managedInstallName(plain)).toBeUndefined();
+
+		const root = await managedRoot();
+		await Bun.write(path.join(root, "manager.json"), "{not json");
+		expect(await managedInstallName(path.join(root, "versions", "1.0.0"))).toBeUndefined();
+	});
+});
+
 describe("update-cli manager update recovery", () => {
 	const release: ReleaseInfo = {
 		tag: "v18.0.1",
@@ -1934,7 +1978,7 @@ describe("update-cli manager update recovery", () => {
 		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 		registry: "https://registry.npmjs.org/",
 	};
-	const launcherPath = "C:/Users/test/AppData/Roaming/npm/omp.cmd";
+	const launcherPath = "C:/Users/test/AppData/Roaming/npm/zeta.cmd";
 
 	function scriptedSteps(script: {
 		install: InstalledVersionVerification | Error | undefined;
@@ -1966,7 +2010,7 @@ describe("update-cli manager update recovery", () => {
 	it("takes the launcher over when the manager install left nothing on PATH", async () => {
 		// npm retires the global bin shims before unpacking and restores them
 		// only if its own rollback succeeds; a locked file (the loaded native
-		// addon on Windows) can leave the user with no `omp` at all.
+		// addon on Windows) can leave the user with no `zetacode` at all.
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const { steps, calls } = scriptedSteps({ install: new Error("npm install failed with exit code 1") });
 

@@ -11,7 +11,7 @@ import { resolveUpdateMethodForTest } from "@linxiraos/zeta/cli/update-cli";
 // path strings (one through the junction, one through the real target).
 // `isPathInDirectory` did purely lexical comparison via path.resolve, which
 // does not follow filesystem links, so it misclassified Bun-installed omp
-// as "binary" and tried to swap omp.exe in place – which fails on Windows
+// as "binary" and tried to swap zetacode.exe in place – which fails on Windows
 // because Bun has the file open (EPERM on unlink of .bak).
 //
 // We reproduce the realpath-resolution bug with a symlink (works on macOS /

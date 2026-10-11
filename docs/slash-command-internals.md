@@ -7,7 +7,7 @@ This document describes how slash commands are discovered, deduplicated, surface
 - [`src/extensibility/slash-commands.ts`](../packages/coding-agent/src/extensibility/slash-commands.ts)
 - [`src/capability/slash-command.ts`](../packages/coding-agent/src/capability/slash-command.ts)
 - [`src/discovery/builtin.ts`](../packages/coding-agent/src/discovery/builtin.ts)
-- [`src/discovery/zeta-plugins.ts`](../packages/coding-agent/src/discovery/zeta-plugins.ts)
+- [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts)
 - [`src/discovery/claude.ts`](../packages/coding-agent/src/discovery/claude.ts)
 - [`src/discovery/codex.ts`](../packages/coding-agent/src/discovery/codex.ts)
 - [`src/discovery/claude-plugins.ts`](../packages/coding-agent/src/discovery/claude-plugins.ts)
@@ -37,7 +37,7 @@ The capability registry loads enabled providers in parallel, consumes their resu
 Current slash-command providers and priorities:
 
 1. `native` (ZETA) — priority `100`
-2. `zeta-plugins` (extension packages) — priority `90`
+2. `omp-plugins` (extension packages) — priority `90`
 3. `claude` — priority `80`
 4. `claude-plugins` — priority `70`
 5. `agents` (`.agent`/`.agents` standard dirs) — priority `70`
@@ -83,7 +83,7 @@ Search roots come from `.zeta` directories:
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
 The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `ZETA_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
 
-## `zeta-plugins` provider (`zeta-plugins.ts`)
+## `omp-plugins` provider (`omp-plugins.ts`)
 
 Scans `commands/*.md` in explicit extension-package directories, the effective `extensions` setting, and enabled npm/link plugins, in that order. The configured array follows settings replacement precedence; project and user arrays are not concatenated. Session-supplied effective roots are reused on reload. Explicit-only discovery omits configured and installed roots, and file entrypoints contribute no subdirectory resources. Marketplace roots are excluded here to avoid duplicate discovery and are handled by `claude-plugins`.
 
@@ -452,7 +452,7 @@ Without an interactive UI, `code-review` delegates to `/review` instead of openi
 
 **ANSI layout.** Diff and text source lines hard-wrap by terminal cells, preserving indentation, expanded tabs, internal/trailing spaces, empty lines, and intact graphemes rather than wrapping prose words. Diff continuation rows align with the content, with foreground styling closed on each physical row; every continuation retains the same original logical note anchor. PgUp/PgDn page through visual rows, and `g`/`G` reach the beginning/end, including continuations of a single long source line. A focused truncated filename floats over existing rows without reflowing the file list, moves upward if needed to fit, and collapses when focus leaves. Paths taller than the whole pane show an explicit omission marker and retain the filename suffix. Like ask-tool notes, the note editor follows the configured terminal hardware-cursor preference, using the terminal's native cursor when enabled and a software cursor when disabled. The final glyph stays visible at the exact text width; the first overflow glyph wraps.
 
-**Overlay keys.** `a` adds a line note, `A` a whole-file/whole-text note, `e` edits the note(s) at the cursor (with a chooser when several apply), `u` undoes the last add/edit/delete. In the note editor, Enter saves, Shift+Enter inserts a newline, Escape discards the draft, and the configured external-editor key replaces the draft without saving it. Notes are trimmed on save; saving an empty edit deletes the note, and an empty new note is ignored. Line anchors (quoted source line, diff hunk header and raw row) are kept exactly.
+**Overlay keys.** `a` adds a line note, `A` a whole-file/whole-text note, `e` edits the note(s) at the cursor (with a chooser when several apply), `u` undoes the last add/edit/delete. The external-editor key (`app.editor.external`, Ctrl+G by default) opens `$VISUAL` or `$EDITOR`. While writing a note, it replaces the draft without saving it. Otherwise, for a file source it edits the file in place and re-reads it; for a typed prompt it replaces the text the paste uses; for a local diff review (not a PR) it opens the current file from the repository root, and the review still uses the frozen snapshot. Session messages are not editable, since the paste omits or summarizes them and notes on edited text would quote lines the model never sees. After a source edit, a line note whose quote still matches its row is kept; a quote that moved to exactly one row is retargeted; any other line note is dropped and undo history is cleared. A non-zero editor exit warns but still uses what the editor saved. In the note editor, Enter saves, Shift+Enter inserts a newline, Escape discards the draft. Notes are trimmed on save; saving an empty edit deletes the note, and an empty new note is ignored. Line anchors (quoted source line, diff hunk header and raw row) are kept exactly.
 
 ## 13) Built-in command note: `/plan-review`
 

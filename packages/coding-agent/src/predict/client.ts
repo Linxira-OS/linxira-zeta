@@ -291,7 +291,7 @@ export function textPredictionBackend(method: WordCompletionEngine): WordPredict
 
 /**
  * One completion from the daemon with its confidence, for diagnostics such as
- * `omp predict`. Unlike the editor backend, failures reject instead of
+ * `zetacode predict`. Unlike the editor backend, failures reject instead of
  * degrading to no ghost text.
  */
 export function requestTextPrediction(
@@ -305,7 +305,7 @@ export function requestTextPrediction(
 
 /**
  * Close this process's daemon connection (the daemon keeps running). For
- * short-lived commands such as `omp predict`; the composer keeps its
+ * short-lived commands such as `zetacode predict`; the composer keeps its
  * connection for the process lifetime.
  */
 export function closeTextPrediction(): void {

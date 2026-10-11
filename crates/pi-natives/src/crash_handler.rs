@@ -312,14 +312,14 @@ fn xdg_state_logs_from_env(_home: &Path, _config_dir_override: Option<&OsStr>) -
 }
 
 /// Pure XDG-eligibility computation extracted for unit testing — no env
-/// reads, no fs reads. `omp_dir_exists` decides whether the candidate
-/// `<xdg_state_home>/omp` actually lives on disk.
+/// reads, no fs reads. `zeta_dir_exists` decides whether the candidate
+/// `<xdg_state_home>/zeta` actually lives on disk.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn xdg_state_logs(
 	xdg_state_home: Option<&OsStr>,
 	agent_dir_override: Option<&OsStr>,
 	default_agent_dir: &Path,
-	omp_dir_exists: impl FnOnce(&Path) -> bool,
+	zeta_dir_exists: impl FnOnce(&Path) -> bool,
 ) -> Option<PathBuf> {
 	if let Some(ov) = agent_dir_override.filter(|s| !s.is_empty()) {
 		// `path.resolve(value)` on the JS side: make absolute against cwd
@@ -331,11 +331,11 @@ fn xdg_state_logs(
 		}
 	}
 	let xdg = xdg_state_home.filter(|s| !s.is_empty())?;
-	let omp_dir = Path::new(xdg).join(APP_NAME);
-	if !omp_dir_exists(&omp_dir) {
+	let zeta_dir = Path::new(xdg).join(APP_NAME);
+	if !zeta_dir_exists(&zeta_dir) {
 		return None;
 	}
-	Some(omp_dir.join("logs"))
+	Some(zeta_dir.join("logs"))
 }
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn default_agent_dir(home: &Path, config_dir_override: Option<&OsStr>) -> PathBuf {

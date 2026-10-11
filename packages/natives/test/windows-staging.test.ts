@@ -1,5 +1,5 @@
 /**
- * Regression for the Windows `bun install -g` update path: when an `omp`
+ * Regression for the Windows `bun install -g` update path: when an `zetacode`
  * process is running, bun cannot overwrite a locked
  * `node_modules/@linxiraos/pi-natives/native/pi_natives.win32-x64.node` during
  * package update and silently keeps the old binary next to the new ESM

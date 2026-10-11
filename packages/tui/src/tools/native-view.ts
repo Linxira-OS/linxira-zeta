@@ -6,7 +6,7 @@
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TspSpan, TspText, TspTone } from "@linxiraos/pi-wire";
-import { code, keyed, node, row, span, text } from "../native/describe";
+import { ansi, code, compact, keyed, node, row, span, text } from "../native/describe";
 import type { NativeChild, NativeNode } from "../native/node";
 import { type ParsedDiagnostic, parseDiagnosticMessage, shortenPath } from "../render/render-utils";
 import { plainText } from "../native/spans";
@@ -89,7 +89,7 @@ export function fileRow(
 		const detail = typeof p.detail === "string" ? [span(plainText(p.detail), "muted")] : p.detail;
 		children.push(text(detail, { lines: 1, truncate: "end", shrink: 1 }));
 	}
-	return keyed(row(children, { role: "omp.tool.file", tone: p.tone }), p.key ?? filePath);
+	return keyed(row(children, { role: "zeta.tool.file", tone: p.tone }), p.key ?? filePath);
 }
 
 /** Longest error excerpt an inline head carries before the body takes the full message. */
@@ -140,8 +140,8 @@ export function toolHead(title: string, ...details: readonly (TspSpan | string |
 export function errorText(message: string): NativeNode {
 	const body = plainText(message).trim();
 	return body.includes("\n") && /^[{[]/.test(body)
-		? code(body, { lang: "json", tone: "error", role: "omp.tool.error" })
-		: text([span(body, "error")], { wrap: "word", role: "omp.tool.error" });
+		? code(body, { lang: "json", tone: "error", role: "zeta.tool.error" })
+		: text([span(body, "error")], { wrap: "word", role: "zeta.tool.error" });
 }
 
 /** Error card view: error tone, the tool head and the error body (`<title> failed` when empty). */
@@ -161,7 +161,7 @@ export function noteText(message: string, token = "muted", lines?: number): Nati
 /** Muted `a · b · c` metadata line, or undefined when there are no parts. */
 export function statsText(parts: readonly string[]): NativeNode | undefined {
 	if (parts.length === 0) return undefined;
-	return text([span(parts.join(" · "), "muted")], { wrap: "word", role: "omp.tool.stats" });
+	return text([span(parts.join(" · "), "muted")], { wrap: "word", role: "zeta.tool.stats" });
 }
 
 /** Warning line for truncation / artifact capture failures, or undefined. */
@@ -170,7 +170,7 @@ export function truncationNotice(meta: OutputMeta | undefined): NativeNode | und
 	const parts: string[] = [];
 	if (meta.truncation) parts.push(formatTruncationMetaNotice(meta.truncation, meta.source));
 	if (meta.artifactError) parts.push(formatArtifactErrorNotice(meta.artifactError));
-	return text([span(parts.join(". "), "warning")], { wrap: "word", role: "omp.tool.notice" });
+	return text([span(parts.join(". "), "warning")], { wrap: "word", role: "zeta.tool.notice" });
 }
 
 /**
@@ -186,10 +186,111 @@ export function footnoteText(parts: readonly string[], meta?: OutputMeta): Nativ
 	return {
 		...text([span(all.join(" · "), "muted")], {
 			wrap: "word",
-			role: notice ? "omp.tool.notice" : "omp.tool.stats",
+			role: notice ? "zeta.tool.notice" : "zeta.tool.stats",
 		}),
 		key: "foot",
 	};
+}
+
+/** Drawn lines of a run's input (command, cell code) before its "N more lines" button. */
+export const RUN_INPUT_PREVIEW_LINES = 6;
+
+/**
+ * What a run's foot names: `running` (live clock), `background` (an async job
+ * outlives the call), and the settled outcomes. A failure with an exit code
+ * reads `exit N`; without one, `Failed`.
+ */
+export type RunState = "running" | "background" | "done" | "failed" | "cancelled" | "timed-out";
+
+const RUN_STATE: Record<RunState, { readonly word: string; readonly tone: TspTone }> = {
+	running: { word: "Running", tone: "pending" },
+	background: { word: "In background", tone: "pending" },
+	done: { word: "Done", tone: "success" },
+	failed: { word: "Failed", tone: "error" },
+	cancelled: { word: "Cancelled", tone: "muted" },
+	"timed-out": { word: "Timed out", tone: "warning" },
+};
+
+/** Inputs of {@link runFoot}. */
+export interface RunFootInput {
+	readonly state: RunState;
+	/** Exit code of a `failed` run; a non-zero code names the state `exit N`. */
+	readonly exitCode?: number;
+	/** Milliseconds run so far (`running`) or in total; the time is omitted when undefined. */
+	readonly elapsedMs?: number;
+	/** Quiet facts (job id, service state, artifact), muted and ` · `-joined. */
+	readonly facts?: readonly string[];
+	/** Truncation / artifact-capture notices, appended to the facts in `warning`. */
+	readonly meta?: OutputMeta;
+}
+
+/**
+ * The foot line of a run box (`omp.run.foot`): the state word in its tone,
+ * the run time (a live clock while running, frozen once settled) and the
+ * quiet facts. Glyphs are the terminal's styling, never text.
+ */
+export function runFoot(input: RunFootInput): NativeNode {
+	const failedWithCode = input.state === "failed" && input.exitCode !== undefined && input.exitCode !== 0;
+	const state = failedWithCode
+		? { word: `exit ${input.exitCode}`, tone: RUN_STATE.failed.tone }
+		: RUN_STATE[input.state];
+	const facts = (input.facts ?? []).map(fact => plainText(fact).trim()).filter(fact => fact.length > 0);
+	const notices: string[] = [];
+	if (input.meta?.truncation) notices.push(formatTruncationMetaNotice(input.meta.truncation, input.meta.source));
+	if (input.meta?.artifactError) notices.push(formatArtifactErrorNotice(input.meta.artifactError));
+	const factSpans: TspSpan[] = [];
+	if (facts.length > 0) factSpans.push(span(facts.join(" · "), "muted"));
+	for (const notice of notices) {
+		if (factSpans.length > 0) factSpans.push(span(" · ", "muted"));
+		factSpans.push(span(notice, "warning"));
+	}
+	const ms = input.elapsedMs === undefined ? undefined : Math.max(0, Math.round(input.elapsedMs));
+	const time =
+		ms === undefined
+			? undefined
+			: node(
+					"elapsed",
+					input.state === "running"
+						? { role: "omp.run.time", age: ms, format: "short" }
+						: { role: "omp.run.time", age: ms, stopped: ms, format: "short" },
+					undefined,
+					"time",
+				);
+	return node(
+		"row",
+		{ role: "omp.run.foot", gap: "sm", align: "center" },
+		compact<NativeNode>([
+			keyed(text([span(state.word)], { role: "omp.run.state", tone: state.tone }), "state"),
+			time,
+			factSpans.length > 0 && keyed(text(factSpans, { role: "omp.run.facts", wrap: "word" }), "facts"),
+		]),
+		"foot",
+	);
+}
+
+/** A run's input section: the command or cell source, clamped to {@link RUN_INPUT_PREVIEW_LINES}. */
+export function runInput(source: string, p: { role: string; lang: string; wrap: boolean }): NativeNode {
+	return keyed(
+		code(source.trimEnd(), { role: p.role, lang: p.lang, wrap: p.wrap, preview: { lines: RUN_INPUT_PREVIEW_LINES } }),
+		"input",
+	);
+}
+
+/** A run's terminal output: follows its tail, clamped to the last `previewLines` lines while folded. */
+export function runOutput(output: string, p: { role: string; previewLines: number; key?: string }): NativeNode {
+	return keyed(ansi(output, { role: p.role, follow: true, preview: { lines: p.previewLines } }), p.key ?? "output");
+}
+
+/**
+ * One run as one box (`omp.run`): input, output, status lines and foot in
+ * order. `tone` tints the box: `error` for a failed run, `warning` for a
+ * timed-out one.
+ */
+export function runBox(
+	children: readonly (NativeChild | undefined | false)[],
+	p: { key: string; tone?: TspTone },
+): NativeNode {
+	return node("col", { role: "omp.run", gap: "none", tone: p.tone }, compact(children), p.key);
 }
 
 /** Diagnostic rows shown before `+N more`. */
@@ -230,7 +331,7 @@ function diagnosticRow(diagnostic: ParsedDiagnostic, withPath: boolean, key: str
 			text([span(where, "muted")], { wrap: "none" }),
 			text(message, { wrap: "word" }),
 		],
-		{ role: "omp.tool.diagnostic", key },
+		{ role: "zeta.tool.diagnostic", key },
 	);
 }
 
@@ -259,20 +360,20 @@ export function diagnosticsSection(
 	const rows: NativeNode[] = [
 		...parsed.map((d, i) => diagnosticRow(d, withPath, `d${i}`)),
 		...unparsed.map((message, i) =>
-			text([span(message)], { wrap: "word", role: "omp.tool.diagnostic", key: `u${i}` }),
+			text([span(message)], { wrap: "word", role: "zeta.tool.diagnostic", key: `u${i}` }),
 		),
 	];
 	const shown = rows.slice(0, DIAGNOSTIC_ROWS);
 	const hidden = rows.length - shown.length;
 	if (hidden > 0) {
-		shown.push(text([span(`+${hidden} more`, "muted")], { role: "omp.tool.stats", key: "more" }));
+		shown.push(text([span(`+${hidden} more`, "muted")], { role: "zeta.tool.stats", key: "more" }));
 	}
 	return node(
 		"section",
 		{
 			head: [span("Diagnostics")],
 			tone: diagnostics.errored ? "error" : "warning",
-			role: "omp.tool.diagnostics",
+			role: "zeta.tool.diagnostics",
 		},
 		shown,
 		"diagnostics",
