@@ -12,11 +12,13 @@
 
 ### Changed
 
+- 品牌面回归修复：上游自带的 `chore: branding` 提交（`d35a9067233`，2026-09-24）随 v18.8.x 合并带入，把模型可见的提示词与用户可见的 CLI 文案改回了 `omp`——系统提示词首行（模型据此自称「omp 的编程助手」）、`cfg://`/browser/ida/isolation-error/security/cleanse/live/commit 各提示词、help 与示例文案（`zetacode bench` 等）、`text-predict`/`tiny worker`/`lsp mux`/RPC wire 进程横幅，以及相关 `docs/` 页面全部回归 Zeta 命名；`brand-rules.ts` 新增 6 条 MUST_CONTAIN + 4 条 MUST_NOT_CONTAIN 守卫，CHANGELOG 按「发布条目不可变」惯例豁免 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
 - 命令行的标准指令名定为 `zetacode`（四件套标准名：zetawork / zetacode / zetaide / zetaeditor，无连字符）：`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成、各命令说明与文档全部改用标准名。`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 仍是 npm bin 兼容别名，行为不变；垫片与资产文件名（`zeta-c.cmd` 等）不受影响。
 - Web search now prefers an authenticated `xai-oauth` login over an `xai` API key when both are available, unless `modelProviderOrder` specifies a different order.
 
 ### Fixed
 
+- 修复 tiny worker 横幅读写两侧拼写分裂：worker 打印 `omp tiny worker listening on`，而 title-client 过滤的是 `zeta tiny worker listening on `（永不匹配，本该滤掉的横幅行照旧混入）；两侧统一为 `zetacode`，`text-predict`/`lsp mux` 的进程标识与 IDA 命名管道前缀一并对齐 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
 - Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
 - 终端 tab 标题在无会话名时不再回退为 `omp`，改为 `zeta`。
 - 协作（collab）replication 快照恢复上游 v18.8.4 的 no-copy 契约（live header + entries），宿主与哨兵同步。
