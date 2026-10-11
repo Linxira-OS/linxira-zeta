@@ -225,7 +225,7 @@ export interface RunFootInput {
 }
 
 /**
- * The foot line of a run box (`omp.run.foot`): the state word in its tone,
+ * The foot line of a run box (`zeta.run.foot`): the state word in its tone,
  * the run time (a live clock while running, frozen once settled) and the
  * quiet facts. Glyphs are the terminal's styling, never text.
  */
@@ -251,18 +251,18 @@ export function runFoot(input: RunFootInput): NativeNode {
 			: node(
 					"elapsed",
 					input.state === "running"
-						? { role: "omp.run.time", age: ms, format: "short" }
-						: { role: "omp.run.time", age: ms, stopped: ms, format: "short" },
+						? { role: "zeta.run.time", age: ms, format: "short" }
+						: { role: "zeta.run.time", age: ms, stopped: ms, format: "short" },
 					undefined,
 					"time",
 				);
 	return node(
 		"row",
-		{ role: "omp.run.foot", gap: "sm", align: "center" },
+		{ role: "zeta.run.foot", gap: "sm", align: "center" },
 		compact<NativeNode>([
-			keyed(text([span(state.word)], { role: "omp.run.state", tone: state.tone }), "state"),
+			keyed(text([span(state.word)], { role: "zeta.run.state", tone: state.tone }), "state"),
 			time,
-			factSpans.length > 0 && keyed(text(factSpans, { role: "omp.run.facts", wrap: "word" }), "facts"),
+			factSpans.length > 0 && keyed(text(factSpans, { role: "zeta.run.facts", wrap: "word" }), "facts"),
 		]),
 		"foot",
 	);
@@ -282,7 +282,7 @@ export function runOutput(output: string, p: { role: string; previewLines: numbe
 }
 
 /**
- * One run as one box (`omp.run`): input, output, status lines and foot in
+ * One run as one box (`zeta.run`): input, output, status lines and foot in
  * order. `tone` tints the box: `error` for a failed run, `warning` for a
  * timed-out one.
  */
@@ -290,7 +290,7 @@ export function runBox(
 	children: readonly (NativeChild | undefined | false)[],
 	p: { key: string; tone?: TspTone },
 ): NativeNode {
-	return node("col", { role: "omp.run", gap: "none", tone: p.tone }, compact(children), p.key);
+	return node("col", { role: "zeta.run", gap: "none", tone: p.tone }, compact(children), p.key);
 }
 
 /** Diagnostic rows shown before `+N more`. */

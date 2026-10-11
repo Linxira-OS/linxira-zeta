@@ -220,7 +220,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		return { key: browserKey(kind), kind, tern, refCount: 0 };
 	}
 	if (kind.kind === "headless") {
-		// Every real omp process (session, subagent, worker — anything with a CLI
+		// Every real zeta process (session, subagent, worker — anything with a CLI
 		// worker host) MUST go through the project-shared broker-owned Chromium:
 		// per-process launches are what produced launch storms and orphaned
 		// process trees. The process-local launch survives only for hosts that
@@ -510,7 +510,7 @@ async function openSharedHeadlessHandle(
 			protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
 		});
 		// Attaching to the shared daemon is the natural point to sweep targets
-		// left behind by omp processes that died without teardown — bounds
+		// left behind by zeta processes that died without teardown — bounds
 		// accumulation without a background timer. Best-effort and detached so a
 		// slow reap never delays the open (issue #10022).
 		void reapOrphanSharedTargets(browser, { projectDir: shared.projectDir, daemonName: shared.daemonName });

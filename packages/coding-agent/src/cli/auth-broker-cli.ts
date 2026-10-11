@@ -189,7 +189,9 @@ async function runToken(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 
 async function runLogin(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	if (flags.via && !flags.provider) {
-		throw new Error("Usage: omp auth-broker login <provider> --via=user@host (provider required for remote login)");
+		throw new Error(
+			"Usage: zetacode auth-broker login <provider> --via=user@host (provider required for remote login)",
+		);
 	}
 	const providers = getOAuthProviders();
 	// One interface for picker + login prompts; closed before `--via` hands
@@ -400,7 +402,7 @@ async function loadImportPlan(
 		if (!provider) {
 			skipped.push({
 				file,
-				reason: `cannot determine omp provider from type=${json.type ?? "?"} (pass --provider to override)`,
+				reason: `cannot determine the zetacode provider from type=${json.type ?? "?"} (pass --provider to override)`,
 			});
 			continue;
 		}
@@ -446,7 +448,9 @@ function describeImportEntry(entry: ImportPlanEntry): string {
 async function runImport(flags: AuthBrokerCommandArgs["flags"]): Promise<void> {
 	const target = flags.source;
 	if (!target) {
-		throw new Error("Usage: omp auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]");
+		throw new Error(
+			"Usage: zetacode auth-broker import <file|dir> [--provider=<id>] [--include-disabled] [--dry-run]",
+		);
 	}
 	const resolvedTarget = path.resolve(target.startsWith("~") ? target.replace(/^~/, os.homedir()) : target);
 	const { entries, skipped } = await loadImportPlan(resolvedTarget, flags.provider, flags.includeDisabled === true);

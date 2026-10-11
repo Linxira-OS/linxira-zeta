@@ -236,7 +236,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 	}
 	try {
 		// Checkouts update through git and a manager (Tern) updates its omp itself:
-		// "run omp update" would be wrong advice for both.
+		// "run zetacode update" would be wrong advice for both.
 		if (isSourceCheckout() || (await managedInstallName(process.execPath))) return;
 		const channel = cfgUpdateChannel.get(settings);
 		const release = await getLatestRelease({ timeoutMs: 5_000, channel });
@@ -246,7 +246,7 @@ async function checkForNewVersion(currentVersion: string): Promise<string | unde
 	}
 }
 
-// Protocol hosts inherit OMP's neutral defaults for settings declaring `protocolDefault`
+// Protocol hosts inherit ZETA's neutral defaults for settings declaring `protocolDefault`
 // instead of the local user's interactive preferences. The pin holds only while nothing
 // configures the setting — caller `Settings.isolated` overrides, project `.claude/settings.yml`,
 // `--config` overlays, or global `config.yml` always win (#2598, #3207), including a config
@@ -1797,7 +1797,7 @@ export async function runRootCommand(
 		// sibling hooks/tools/commands/MCP content could be discovered implicitly.
 		if (!parsedArgs.trustedExtensions?.length) {
 			// Register CLI-provided extension package paths (`--extension`, `--hook`) so
-			// the `omp-plugins` discovery provider can surface their `skills/`, `hooks/`,
+			// the `zeta-plugins` discovery provider can surface their `skills/`, `hooks/`,
 			// `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json` sub-trees.
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.

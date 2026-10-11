@@ -306,7 +306,7 @@ console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [ownedPort, manualPort, standIn] = [Bun.env.OMP_TEST_OWNED_PORT!, Bun.env.OMP_TEST_MANUAL_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
-const name = \`omp.browser.relay.\${ownedPort}\`;
+const name = \`zeta.browser.relay.\${ownedPort}\`;
 const ownedUrl = \`http://127.0.0.1:\${ownedPort}\`;
 const versionAt = async (port: string) => {
 	const response = await fetch(\`http://127.0.0.1:\${port}/json/version\`).catch(() => null);
@@ -370,7 +370,7 @@ try {
 	const newerVersion = await versionAt(ownedPort);
 	const manualRestarted = await restartRelayDaemon({ cdpUrl: \`http://127.0.0.1:\${manualPort}\` });
 	const manualRecord = await client
-		.request({ op: "describe", name: \`omp.browser.relay.\${manualPort}\` })
+		.request({ op: "describe", name: \`zeta.browser.relay.\${manualPort}\` })
 		.then(response => response.daemon ?? null, () => null);
 	process.stdout.write(
 		JSON.stringify({
@@ -438,7 +438,7 @@ console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 import { closeDaemonClients, daemonClientForGlobal } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/launch/client.ts"))};
 import { restartRelayDaemon } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/daemon.ts"))};
 const [port, standIn] = [Bun.env.OMP_TEST_PORT!, Bun.env.OMP_TEST_STALE_RELAY!];
-const name = \`omp.browser.relay.\${port}\`;
+const name = \`zeta.browser.relay.\${port}\`;
 const cdpUrl = \`http://127.0.0.1:\${port}\`;
 try {
 	const client = await daemonClientForGlobal("browser-relay");

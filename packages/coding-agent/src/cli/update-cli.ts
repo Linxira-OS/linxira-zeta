@@ -617,7 +617,7 @@ export function isSourceCheckout(): boolean {
  *
  * A manager (Tern) keeps `manager.json` (`{"manager": "tern", "name": "Tern"}`) two
  * directories above every binary it installs (`<root>/versions/<version>`,
- * `<root>/bin/omp.exe`) and updates them itself, so `zetacode update` must leave them alone.
+ * `<root>/bin/zetacode.exe`) and updates them itself, so `zetacode update` must leave them alone.
  * A missing or unreadable manifest means unmanaged.
  */
 export async function managedInstallName(binaryPath: string): Promise<string | undefined> {
@@ -779,8 +779,8 @@ function resolveUpdateMethod(
 	// a binary install through npm/bun, whose reinstall then collides with the
 	// existing file (npm EEXIST). Fall through to binary replacement instead.
 	// On Windows every launcher is a regular file, so ownership keys off the
-	// manager's own artifacts instead: npm's script shims (`zetacode`, `omp.cmd`,
-	// `omp.ps1`) and bun's `omp.bunx` sidecar. A bare `.exe` with neither is the
+	// manager's own artifacts instead: npm's script shims (`zetacode`, `zetacode.cmd`,
+	// `zetacode.ps1`) and bun's `zetacode.bunx` sidecar. A bare `.exe` with neither is the
 	// standalone binary a binary-only release installed over the launcher —
 	// routing that back through bun reinstalls a package which no longer owns
 	// the launcher, and bun silently tolerates failing to overwrite the running
@@ -1410,7 +1410,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 
 	const reason = hasShebang
 		? "is a shebang script, not an OMP binary"
-		: "does not report an OMP version when run directly";
+		: `does not report a ${CLI_BIN_NAME} version when run directly`;
 	throw new Error(
 		`Refusing to replace ${targetPath}: the resolved foreign symlink target ${reason}. Point PATH directly at the OMP binary you want to update, or reinstall with: ${installerHint()}`,
 	);
@@ -2103,7 +2103,7 @@ export async function updateViaBinaryAt(
 /**
  * In-place forwarder bodies, by shim extension, for launchers that cannot be
  * renamed aside during a script-shim takeover; each execs the sibling
- * `omp.exe`. Rewriting matters for the shims that outrank `.exe` at command
+ * `zetacode.exe`. Rewriting matters for the shims that outrank `.exe` at command
  * resolution: PowerShell prefers `.ps1` and Git Bash resolves the
  * extensionless sh shim first, so leaving the old body behind would keep
  * launching the replaced install.
@@ -2119,8 +2119,8 @@ const SHIM_FORWARDERS: Record<string, string> = {
  * Take over a Windows script-launcher install for a binary-only release.
  *
  * npm-managed Windows installs are launched through script shims
- * (`zetacode`/`omp.cmd`/`omp.ps1`) that cannot be overwritten with a native
- * executable. The release binary is installed as `omp.exe` beside them and
+ * (`zetacode`/`zetacode.cmd`/`zetacode.ps1`) that cannot be overwritten with a native
+ * executable. The release binary is installed as `zetacode.exe` beside them and
  * the shims are then renamed aside: cmd.exe would already prefer `.exe` via
  * PATHEXT, but PowerShell resolves `.ps1` first, so the takeover only sticks
  * once the shims are out of the way. A working launcher exists at every

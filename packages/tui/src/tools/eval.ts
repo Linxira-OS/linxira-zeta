@@ -730,7 +730,7 @@ function evalOutputNodes(output: string, markdown: boolean, previewLines: number
 const RUN_STATUS_TAIL = 8;
 
 /**
- * A cell's status events (`omp.run.status`): all of them when expanded, else
+ * A cell's status events (`zeta.run.status`): all of them when expanded, else
  * the newest {@link RUN_STATUS_TAIL} after a muted `N earlier` line.
  */
 function evalStatusSection(events: readonly EvalStatusEvent[], expanded: boolean): NativeNode | undefined {
@@ -739,7 +739,7 @@ function evalStatusSection(events: readonly EvalStatusEvent[], expanded: boolean
 	const lines = events.slice(hidden).map((event, i) => keyed(describeStatusEvent(event), `s${hidden + i}`));
 	return node(
 		"col",
-		{ role: "omp.run.status", gap: "none" },
+		{ role: "zeta.run.status", gap: "none" },
 		compact<NativeNode>([hidden > 0 && keyed(text([span(`${hidden} earlier`, "muted")]), "earlier"), ...lines]),
 		"status",
 	);
@@ -780,7 +780,7 @@ function evalCellBox(cell: EvalCellRun, index: number, total: number): NativeNod
 		const spans: TspSpan[] = [span(`${index + 1}/${total}`, "muted")];
 		const title = plainText(cell.title ?? "").trim();
 		if (title) spans.push(span(` ${title}`, "toolTitle"));
-		caption = keyed(text(spans, { role: "omp.run.caption" }), "caption");
+		caption = keyed(text(spans, { role: "zeta.run.caption" }), "caption");
 	}
 	return runBox(
 		[

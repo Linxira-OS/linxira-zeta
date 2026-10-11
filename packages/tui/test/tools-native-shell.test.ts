@@ -49,12 +49,12 @@ function sections(box: NativeNode | undefined): string[] {
 
 /** The foot a consumer reads: state word and tone, time (age / stopped), facts text. */
 function foot(box: NativeNode | undefined) {
-	const row = nodes(box?.c).find(child => role(child) === "omp.run.foot");
+	const row = nodes(box?.c).find(child => role(child) === "zeta.run.foot");
 	if (!row) return undefined;
 	const parts = nodes(row.c);
-	const state = parts.find(part => role(part) === "omp.run.state");
-	const time = parts.find(part => role(part) === "omp.run.time");
-	const facts = parts.find(part => role(part) === "omp.run.facts");
+	const state = parts.find(part => role(part) === "zeta.run.state");
+	const time = parts.find(part => role(part) === "zeta.run.time");
+	const facts = parts.find(part => role(part) === "zeta.run.facts");
 	return {
 		state: spansText(state),
 		tone: props(state).tone,
@@ -81,10 +81,10 @@ describe("bash native run box", () => {
 		expect(view.preview).toBe("children");
 		const [box, ...rest] = nodes(view.body);
 		expect(rest).toEqual([]);
-		expect(role(box)).toBe("omp.run");
+		expect(role(box)).toBe("zeta.run");
 		expect(box?.key).toBe("run");
 		expect(props(box).tone).toBeUndefined();
-		expect(sections(box)).toEqual(["code:zeta.tool.bash.command", "ansi:zeta.tool.bash.output", "row:omp.run.foot"]);
+		expect(sections(box)).toEqual(["code:zeta.tool.bash.command", "ansi:zeta.tool.bash.output", "row:zeta.run.foot"]);
 		const [input, output] = nodes(box?.c);
 		expect(props(input)).toMatchObject({ text: 'CI="1" make', wrap: true, preview: { lines: 6 } });
 		expect(props(output)).toMatchObject({ text: "built", follow: true, preview: { lines: 10 } });
@@ -206,7 +206,7 @@ describe("bash native run box", () => {
 			const described = tool.describe(cx(["tool", "ansi", "code", "image"]));
 			expect(props(described).preview).toBe("children");
 			expect(props(described).command).toBe("plot");
-			expect(nodes(described.c).map(child => role(child) ?? child.k)).toEqual(["omp.run", "image"]);
+			expect(nodes(described.c).map(child => role(child) ?? child.k)).toEqual(["zeta.run", "image"]);
 		} finally {
 			tool.dispose();
 		}
@@ -239,7 +239,7 @@ describe("eval native run boxes", () => {
 		expect(rest).toEqual([]);
 		expect(box?.key).toBe("cell-0");
 		// A single cell has no caption; its source keeps no trailing blank line.
-		expect(sections(box)).toEqual(["code:zeta.tool.eval.input", "ansi:zeta.tool.eval.output", "row:omp.run.foot"]);
+		expect(sections(box)).toEqual(["code:zeta.tool.eval.input", "ansi:zeta.tool.eval.output", "row:zeta.run.foot"]);
 		expect(props(nodes(box?.c)[0])).toMatchObject({ text: "x = 1\nprint(x)", wrap: false, preview: { lines: 6 } });
 		expect(props(nodes(box?.c)[1])).toMatchObject({ follow: true, preview: { lines: 10 } });
 		expect(foot(box)).toMatchObject({ state: "Done", tone: "success", time: { age: 120, stopped: 120 } });
@@ -286,7 +286,7 @@ describe("eval native run boxes", () => {
 		expect(foot(folded[3])).toBeUndefined();
 		expect(foot(folded[2])?.facts?.map(s => s.s)).toEqual(["warning"]);
 
-		const status = nodes(folded[2]?.c).find(child => role(child) === "omp.run.status");
+		const status = nodes(folded[2]?.c).find(child => role(child) === "zeta.run.status");
 		const lines = nodes(status?.c);
 		expect(lines).toHaveLength(9);
 		expect(spansText(lines[0])).toBe("3 earlier");
@@ -294,7 +294,7 @@ describe("eval native run boxes", () => {
 		expect(spansText(lines.at(-1))).toContain("n=10");
 
 		const expanded = describeCells({ expanded: true, isPartial: true, executionStarted: true, elapsedMs: 4000 });
-		const allLines = nodes(nodes(expanded[2]?.c).find(child => role(child) === "omp.run.status")?.c);
+		const allLines = nodes(nodes(expanded[2]?.c).find(child => role(child) === "zeta.run.status")?.c);
 		expect(allLines).toHaveLength(11);
 		expect(spansText(allLines[0])).toContain("n=0");
 	});
@@ -306,12 +306,12 @@ describe("eval native run boxes", () => {
 			{ cells: [{ code: "x = 1" }, { code: "raise" }] },
 		);
 		const [first, last] = nodes(view.body);
-		expect(sections(first)).toEqual(["text:omp.run.caption", "code:zeta.tool.eval.input"]);
+		expect(sections(first)).toEqual(["text:zeta.run.caption", "code:zeta.tool.eval.input"]);
 		expect(sections(last)).toEqual([
-			"text:omp.run.caption",
+			"text:zeta.run.caption",
 			"code:zeta.tool.eval.input",
 			"ansi:zeta.tool.eval.output",
-			"row:omp.run.foot",
+			"row:zeta.run.foot",
 		]);
 		expect(props(last).tone).toBe("error");
 		expect(foot(last)).toMatchObject({ state: "Failed", time: { stopped: 800 } });
@@ -366,9 +366,9 @@ describe("user shell runs", () => {
 		expect(p.collapsed).toBe(true);
 		expect((p.badges as { text: string }[]).map(badge => badge.text)).toEqual(["you", "not sent"]);
 		const [box, image] = nodes(described.c);
-		expect(role(box)).toBe("omp.run");
+		expect(role(box)).toBe("zeta.run");
 		expect(props(box).tone).toBe("error");
-		expect(sections(box)).toEqual(["code:zeta.tool.bash.command", "ansi:zeta.tool.bash.output", "row:omp.run.foot"]);
+		expect(sections(box)).toEqual(["code:zeta.tool.bash.command", "ansi:zeta.tool.bash.output", "row:zeta.run.foot"]);
 		expect(props(nodes(box?.c)[1])).toMatchObject({ follow: true, preview: { lines: 10 } });
 		expect(foot(box)).toMatchObject({ state: "exit 1", tone: "error" });
 		expect(foot(box)?.time?.stopped).toBeNumber();
