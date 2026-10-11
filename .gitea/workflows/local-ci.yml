@@ -224,9 +224,14 @@ jobs:
               esac
               if [ "${ok:-false}" != true ]; then
                  fetch https://bun.sh/install "$TOOLS/bun-install.sh"
+                 # The installer takes the release tag as its first positional
+                 # argument when run from the downloaded file. `-s --` belongs to
+                 # the `curl | bash` form only: passed here it becomes two extra
+                 # script arguments and the installer refuses with "Too many
+                 # arguments, only 2 are allowed".
                  case "$want" in
                    '>='*) retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" ;;
-                   *)     retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" -s -- "bun-v$want" ;;
+                   *)     retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" "bun-v$want" ;;
                  esac
               fi
               "$TOOLS/bin/bun" --version
