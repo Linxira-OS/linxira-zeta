@@ -191,6 +191,19 @@ jobs:
                  echo "::error::cannot download $url"
                  return 1
               }
+              # Same failure class, but for tools that download *inside* their own
+              # installer (bun's zip, rustup's toolchains): `fetch` cannot cover
+              # those, so retry the command itself.
+              retry() { # retry <cmd...>
+                 local attempt
+                 for attempt in 1 2 3 4 5; do
+                    if "$@"; then return 0; fi
+                    echo "::warning::attempt $attempt failed: $*"
+                    sleep $((attempt * 5))
+                 done
+                 echo "::error::giving up after 5 attempts: $*"
+                 return 1
+              }
 
               # bun —— 版本必须满足 package.json 的 packageManager pin，
               # 否则 gen:tool-views 之类的代码生成会和 CI 产生版本偏差。
@@ -212,8 +225,8 @@ jobs:
               if [ "${ok:-false}" != true ]; then
                  fetch https://bun.sh/install "$TOOLS/bun-install.sh"
                  case "$want" in
-                   '>='*) BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" ;;
-                   *)     BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" -s -- "bun-v$want" ;;
+                   '>='*) retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" ;;
+                   *)     retry env BUN_INSTALL="$TOOLS" bash "$TOOLS/bun-install.sh" -s -- "bun-v$want" ;;
                  esac
               fi
               "$TOOLS/bin/bun" --version
@@ -223,15 +236,15 @@ jobs:
               # `cargo fmt/clippy/test` 在 vendor 目录里会触发重编译。
               if [ ! -x "$RUSTUP_HOME/bin/rustup" ]; then
                  fetch https://sh.rustup.rs "$TOOLS/rustup-init.sh"
-                 RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" \
+                 retry env RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" \
                    sh "$TOOLS/rustup-init.sh" -y --profile minimal --no-modify-path
               fi
               repo_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' rust-toolchain.toml)"
               vendor_pin="$(sed -n 's/^channel = "\([^"]*\)".*/\1/p' termide/rust-toolchain.toml)"
               for tc in "$repo_pin" "$vendor_pin"; do
                  case "$tc" in
-                   nightly*) rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
-                   *)        rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                   nightly*) retry rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
+                   *)        retry rustup toolchain install "$tc" --profile minimal -c rustfmt,clippy ;;
                  esac
               done
               rustup default "$repo_pin"
