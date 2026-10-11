@@ -134,7 +134,7 @@ export function mintSessionId(): string {
 }
 
 /**
- * `moveTo` refused before anything moved: another live omp process writes the
+ * `moveTo` refused before anything moved: another live Zeta process writes the
  * session, or the session file at the destination.
  */
 export class SessionMoveRefusedError extends Error {
@@ -2462,7 +2462,7 @@ export class SessionManager {
 			const release = this.#storage.claimSession?.(id, file);
 			if (release === null) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session to "${file}": another live omp process writes the session there. Nothing was moved.`,
+					`Cannot move session to "${file}": another live Zeta process writes the session there. Nothing was moved.`,
 				);
 			}
 			destination?.release();
@@ -2486,7 +2486,7 @@ export class SessionManager {
 			this.#claimSession();
 			if (this.#sessionClaim?.release === undefined) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session "${this.#sessionFile}": another live omp process writes it. Nothing was moved.`,
+					`Cannot move session "${this.#sessionFile}": another live Zeta process writes it. Nothing was moved.`,
 				);
 			}
 			if (expectedSessionFile && path.resolve(this.#sessionFile) !== path.resolve(expectedSessionFile)) {
@@ -4143,7 +4143,7 @@ export class SessionManager {
 	 * Open a session whose recorded directory `recordedCwd` is gone and move it,
 	 * artifacts included, into `cwd` so it resumes from there.
 	 * @param sessionDir Target session directory; defaults to `cwd`'s.
-	 * @throws {SessionMoveRefusedError} when another live omp process writes the session.
+	 * @throws {SessionMoveRefusedError} when another live Zeta process writes the session.
 	 */
 	static async openRelocated(
 		sessionPath: string,

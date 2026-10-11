@@ -755,7 +755,7 @@ describe("resolveSpawnArgs", () => {
 		expect(resolveSpawnArgs("/Applications/Slack.app/Contents/MacOS/Slack", ["--foo"])).toEqual(["--foo"]);
 	});
 
-	test("bypasses the OS keystore only for omp-owned Chromium profiles", () => {
+	test("bypasses the OS keystore only for Zeta-owned Chromium profiles", () => {
 		const owned = resolveSpawnArgs("/usr/bin/google-chrome-stable", ["--password-store=gnome"]);
 		expect(owned).toContain("--use-mock-keychain");
 		expect(owned).toContain("--password-store=gnome");

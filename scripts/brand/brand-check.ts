@@ -62,7 +62,11 @@ for (const file of trackedFiles()) {
 	// police — same idiom as the oh-my-pi check below, which exempts changelogs
 	// because released entries describe the residue itself (a removal entry has
 	// to name what it removed).
+	const isChangelog = relPath.endsWith("CHANGELOG.md");
 	for (const rule of MUST_NOT_CONTAIN) {
+		// Released changelog entries are immutable history (repo rule): every token
+		// ban exempts them wholesale, in addition to any per-rule `exempt` list.
+		if (isChangelog) break;
 		if (rule.exempt?.some(suffix => relPath.endsWith(suffix))) continue;
 		lines.forEach((line, index) => {
 			if (rule.needle.test(line)) {

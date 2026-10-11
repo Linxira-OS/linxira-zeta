@@ -450,7 +450,7 @@ async function logTail(logPath: string): Promise<string> {
 		const text = await Bun.file(logPath).text();
 		return text
 			.split("\n")
-			.filter(line => !line.startsWith("zeta tiny worker listening on "))
+			.filter(line => !line.startsWith("zetacode tiny worker listening on "))
 			.join("\n")
 			.trim()
 			.slice(-500);

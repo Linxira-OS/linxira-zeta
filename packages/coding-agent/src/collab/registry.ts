@@ -641,7 +641,7 @@ async function listEntry(dir: string, name: string, timeoutMs: number): Promise<
 		return null;
 	}
 	if (meta.version !== COLLAB_REGISTRY_VERSION) {
-		// A different omp version owns this entry. Never show it; prune only
+		// A different zetacode version owns this entry. Never show it; prune only
 		// once the owning process is gone so newer versions keep their state.
 		if (!pidAlive(meta.pid)) await pruneEntry(dir, name, meta);
 		return null;

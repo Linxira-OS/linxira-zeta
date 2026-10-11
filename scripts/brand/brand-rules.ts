@@ -329,6 +329,36 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: ":app=${APP_NAME}",
 		why: "the OSC 7501 `app=` field is our identity in a terminal protocol — pinned by APP_NAME so a merge cannot swap it back to upstream's literal (the merged run-status.test.ts asserted `app=omp`; see the MUST_NOT_CONTAIN twin)",
 	},
+	{
+		file: "packages/coding-agent/src/prompts/system/system-prompt.md",
+		needle: "You are Zeta's trusted coding assistant.",
+		why: "first line the model reads; it must name Zeta (2026-10-11: said omp, and the model repeated it to the user)",
+	},
+	{
+		file: "packages/coding-agent/src/predict/protocol.ts",
+		needle: "zetacode text-predict listening on",
+		why: "writer + TEXT_PREDICT_READY_PATTERN reader must both name the zetacode bin",
+	},
+	{
+		file: "packages/coding-agent/src/tiny/worker-server.ts",
+		needle: "zetacode tiny worker listening on",
+		why: "writer side of the tiny-worker banner",
+	},
+	{
+		file: "packages/coding-agent/src/tiny/title-client.ts",
+		needle: '"zetacode tiny worker listening on "',
+		why: "reader side: the client filters the worker's banner lines — a one-sided spelling silently stops filtering (found split omp/zetacode, 2026-10-11)",
+	},
+	{
+		file: "packages/coding-agent/src/lsp/mux/server.ts",
+		needle: '"zetacode lsp mux"',
+		why: "process title must match LSP_MUX_READY_PATTERN's zetacode prefix",
+	},
+	{
+		file: "packages/coding-agent/src/modes/rpc/wire/index.ts",
+		needle: '"Zeta RPC wire protocol"',
+		why: "protocol identity string surfaced in the wire handshake",
+	},
 ];
 
 /**
@@ -615,6 +645,27 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		needle: /as far as omp reads it/,
 		why: "the xAI response doc comment reads `zetacode` (web/search/providers/xai.ts)",
 		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /<title>zetacode stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'zetacode stats' since the fork)",
+	},
+	{
+		needle: /You are omp'?s/,
+		why: "model-visible identity lines name Zeta (system-prompt.md and the commit agent's prompt were both on the omp spelling until 2026-10-11)",
+	},
+	{
+		needle: /\bOMP-native\b|\bOMP only harness\b/,
+		why: "the security-scan prompt family speaks as the product, not as upstream",
+	},
+	{
+		needle:
+			/\bomp (acp|agents|attach|auth-broker|auth-gateway|bench|browser-relay|cleanse|clip|collab|commit|complete|completions|compress|config|dry-balance|find|gallery|gc|git|grep|grievances|if-bench|images|install|join|launch|launch-help|login|models|play|plugin|predict|ps|read|render|say|serve|settings|setup|share|shell|skill|ssh|stats|stream|tiny|tiny-models|token|toks|ttsr|update|usage|web-search|web-ui-launcher|web|worktree|text-predict|lsp|mcp|debug|sessions|resume|help|version)\b/,
+		why: "user/model-visible command mentions must name the zetacode bin (registry: 用户可见文案与 CLI_BIN_NAME 一律用 zetacode) — help text, banner builders, log lines, prompt examples, comments and docs. The alternation is the CLI's own subcommand list; product-context phrases are written Zeta (e.g. 'Zeta settings', 'Zeta web themes') and do not match",
+	},
+	{
+		needle: /\bomp-owned\b/,
+		why: "browser-profile prose is model-visible (prompt + settings copy): write Zeta-owned",
 	},
 ];
 
