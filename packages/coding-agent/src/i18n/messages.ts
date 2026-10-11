@@ -2143,6 +2143,7 @@ export interface Messages {
 	cmdSessionPin: string;
 	cmdJobs: string;
 	cmdJobsFull: string;
+	cmdJobsKill: string;
 	cmdRatchet: string;
 	cmdModelpreset: string;
 	cmdModelpresetList: string;
@@ -2281,6 +2282,7 @@ export interface Messages {
 	cmdAdvisorAcp: string;
 	cmdDumpAcp: string;
 	cmdDumpAll: string;
+	cmdDumpAnon: string;
 	cmdEffortFmt: string; // %s = shift+tab key hint
 	cmdEffortOff: string;
 	cmdEffortMinimal: string;

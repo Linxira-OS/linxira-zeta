@@ -2123,6 +2123,7 @@ export const zh = {
 	cmdSessionPin: "将当前提供商固定到已存储的 OAuth 账户",
 	cmdJobs: "显示异步后台任务状态",
 	cmdJobsFull: "显示完整、不截断的命令行",
+	cmdJobsKill: "取消正在运行的后台任务",
 	cmdRatchet: "为 LLM 流程构建（或复用）评估，然后自动爬山优化",
 	cmdModelpreset: "保存并切换模型预设（角色模型 + 思考级别）",
 	cmdModelpresetList: "列出已保存的预设",
@@ -2267,6 +2268,7 @@ export const zh = {
 	cmdAdvisorAcp: "切换顾问",
 	cmdDumpAcp: "以纯文本返回完整对话记录，并附 LLM 请求 JSON 路径",
 	cmdDumpAll: "写入一个 zip：包含主对话记录、LLM 请求 JSON，以及每个子代理一个文件",
+	cmdDumpAnon: "写入一个 zip：匿名化的会话 JSONL（内容已脱敏，保留元数据），以及子代理",
 	cmdEffortFmt: "设置本会话的推理强度（思考级别、智能）；%s 循环切换级别",
 	cmdEffortOff: "不推理",
 	cmdEffortMinimal: "极简推理（约 1k token）",
@@ -2367,8 +2369,8 @@ export const zh = {
 	stateActive: "激活",
 	stateInactive: "未激活",
 
-	compactModeSoft: "使用当前模型在本地总结（跳过远程端点）",
-	compactModeRemote: "通过远程端点 / 提供方原生压缩进行总结",
+	compactModeSoft: "使用当前模型在本地总结（跳过服务端压缩）",
+	compactModeRemote: "通过 OpenAI 兼容的服务端压缩进行总结，失败时回退到本地总结",
 	compactModeSnapcompact: "将历史归档为模型可读回的密集位图图像（不调用 LLM）",
 
 	setEnterSaveHint: "回车保存 · Esc 取消 · 清空字段以取消设置",

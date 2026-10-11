@@ -398,6 +398,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "原生终端进度",
 		description: "在智能体或上下文维护运行时发送 OSC 9;4 不确定进度",
 	},
+	"terminal.programStatus": {
+		label: "程序状态（OSC 7501）",
+		description: "通过 OSC 7501 上报智能体正在工作、等待你输入、已完成或失败，供终端标签页指示器与智能体收件箱使用",
+	},
 	"tui.textSizing": {
 		label: "大标题（Kitty）",
 		description:
@@ -1241,6 +1245,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Bash 审批模式",
 		description: "有序的 bash 命令审批规则。每个条目包含 match 和 approval 字段；仅支持 '*' 通配符。",
 	},
+	"bash.gitGuard": {
+		label: "Git 防护",
+		description:
+			"在 bash 工具中拒绝会丢弃或移动共享工作的 git 命令：stash、reset --hard 或重置到其他提交，以及合并/变基冲突之外的 checkout/switch/restore",
+	},
 	"bashInterceptor.enabled": {
 		label: "Bash 拦截器",
 		description: "阻止有专用工具的 shell 命令",
@@ -1792,6 +1801,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "本地 TTS 音色",
 		description: "本地 TTS 后端使用的 Kokoro 音色（美式/英式，女声/男声）",
 	},
+	"tts.localSpeed": {
+		label: "本地 TTS 语速",
+		description: "本地 TTS 后端的朗读语速（tts 工具、zetacode say）。1 = 正常；限制在 0.5–2.5",
+	},
 	"speech.enabled": {
 		label: "语音朗读",
 		description: "流式输出时通过扬声器朗读助手的输出",
@@ -1808,6 +1821,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"speech.voice": {
 		label: "语音朗读音色",
 		description: "朗读助手输出时使用的 Kokoro 音色",
+	},
+	"speech.speed": {
+		label: "语音朗读语速",
+		description: "朗读助手输出时的语速。1 = 正常；限制在 0.5–2.5",
 	},
 	"providers.judgmentProvider": {
 		label: "判定服务商",

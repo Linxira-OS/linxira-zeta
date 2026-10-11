@@ -5,6 +5,7 @@ import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
 import { logger, setProjectDir } from "@linxiraos/pi-utils";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import { rebindMemoryBackendForCwd } from "../hindsight/backend";
+import { M } from "../i18n";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../memory-backend";
 import type { FreshSessionResult, HandoffResult } from "../session/agent-session";
 import { COMPACT_MODES, parseCompactArgs } from "../session/compact-modes";
@@ -209,11 +210,16 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "compact",
 		icon: "compress",
-		description: "Manually compact the session context",
-		acpDescription: "Compact the conversation",
+		description: () => M.cmdCompact,
+		acpDescription: M.cmdCompactAcp,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
-			description: mode.description,
+			description:
+				mode.name === "soft"
+					? M.compactModeSoft
+					: mode.name === "remote"
+						? M.compactModeRemote
+						: M.compactModeSnapcompact,
 			usage: mode.rejectsFocus ? undefined : "[focus]",
 		})),
 		acpInputHint: `[${COMPACT_MODES.map(mode => mode.name).join("|")}] [focus]`,
@@ -837,7 +843,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "restart",
 		icon: "restart",
-		description: "Restart omp with the same launch flags, resuming this session",
+		description: () => M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.restart();

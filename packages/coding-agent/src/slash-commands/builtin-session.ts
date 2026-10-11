@@ -1,4 +1,5 @@
 import { clearSubmittedText } from "./helpers/draft";
+import { M } from "../i18n";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { AgentSession } from "../session/agent-session";
@@ -369,12 +370,12 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "jobs",
 		icon: "jobs",
-		description: "Show async background jobs status",
+		description: () => M.cmdJobs,
 		acpDescription: "Show background jobs",
 		acpInputHint: "[full|kill <id>|kill all]",
 		subcommands: [
-			{ name: "full", description: "Show full, untruncated command lines" },
-			{ name: "kill", description: "Cancel a running background job", usage: "<id>|all" },
+			{ name: "full", description: () => M.cmdJobsFull },
+			{ name: "kill", description: () => M.cmdJobsKill, usage: "<id>|all" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {

@@ -240,7 +240,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			},
 			{
 				name: "anon",
-				description: "Write a zip of anonymized session JSONL (contents redacted, metadata kept) plus subagents",
+				description: () => M.cmdDumpAnon,
 			},
 		],
 		allowArgs: true,
