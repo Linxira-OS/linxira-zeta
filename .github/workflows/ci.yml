@@ -381,8 +381,8 @@ jobs:
               # saved for the same inputs.
               NATIVE_INPUTS_HASH: ${{ hashFiles('Cargo.toml', 'Cargo.lock', 'MODULE.bazel', 'MODULE.bazel.lock', 'rust-toolchain.toml', 'rustfmt.toml', '.bazelrc', '.bazelignore', '.bazelversion', 'bazel/**', 'crates/**', 'BUILD.bazel') }}
            run: |
-              echo "prefix=natives-linux-x64-v2-" >> "$GITHUB_OUTPUT"
-              echo "key=natives-linux-x64-v2-$NATIVE_INPUTS_HASH" >> "$GITHUB_OUTPUT"
+              echo "prefix=natives-linux-x64-v1-" >> "$GITHUB_OUTPUT"
+              echo "key=natives-linux-x64-v1-$NATIVE_INPUTS_HASH" >> "$GITHUB_OUTPUT"
 
          # ---- PR path: main-built addons from actions/cache, else npm ----
          # `ci-natives` is a plain workspace-relative path on purpose: the
