@@ -20,7 +20,7 @@ import {
 	type Skill as LoaderSkill,
 	parseFrontmatter,
 } from "../../extensibility/legacy-pi-coding-agent-shim";
-import type { SkillInfo, SkillSearchResult } from "./dto";
+import { SKILLS_CLI_AGENT, type SkillInfo, type SkillSearchResult } from "./dto";
 import { runNpx } from "./npx";
 import { buildSkillUpdateArgs, checkSkillUpdates } from "./skill-updates";
 import { annotateSkillsWithInstallInfo } from "./skills-lock";
@@ -135,7 +135,7 @@ export async function handleSkillsInstall(req: Request): Promise<Response> {
 			if (!cwd) return json({ error: "cwd required for project install" }, 400);
 			if (!isDirectory(cwd)) return json({ error: "Access denied" }, 403);
 		}
-		const args = ["skills", "add", pkg, "-y", "--agent", "omp"];
+		const args = ["skills", "add", pkg, "-y", "--agent", SKILLS_CLI_AGENT];
 		if (isGlobal) args.push("-g");
 
 		logger.debug("skills install", { args });

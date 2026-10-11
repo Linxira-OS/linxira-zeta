@@ -82,7 +82,7 @@ function writeFixtureJob(jobsDir: string, jobName: string): void {
 			},
 		}),
 	].join("\n");
-	fs.writeFileSync(path.join(jobDir, "alpha__abc", "agent", "omp.txt"), transcript);
+	fs.writeFileSync(path.join(jobDir, "alpha__abc", "agent", "zeta.txt"), transcript);
 }
 
 describe("RunStore", () => {

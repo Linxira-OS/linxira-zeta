@@ -26,7 +26,7 @@ export default class Clip extends Command {
 	static examples = [
 		"zetacode clip",
 		'zetacode clip -t "Streaming the lexer" -d "Rewrote the tokenizer live"',
-		"zetacode clip /tmp/omp-recordings/2026-09-22T10-00-00-1a2b3c4d.ompcast",
+		"zetacode clip /tmp/zeta-recordings/2026-09-22T10-00-00-1a2b3c4d.zetacast",
 	];
 
 	async run(): Promise<void> {

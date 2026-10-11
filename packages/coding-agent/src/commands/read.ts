@@ -18,14 +18,14 @@ export default class Read extends Command {
 	};
 
 	static examples = [
-		"zeta read src/foo.ts",
-		"zeta read src/foo.ts:50-100",
-		"zeta read src/foo.ts:raw",
-		"zeta read https://example.com",
-		"zeta read zeta://",
-		"zeta read issue://123",
-		"zeta read path/to/archive.zip:dir/file.ts",
-		"zeta read path/to/db.sqlite:users:42",
+		"zetacode read src/foo.ts",
+		"zetacode read src/foo.ts:50-100",
+		"zetacode read src/foo.ts:raw",
+		"zetacode read https://example.com",
+		"zetacode read zeta://",
+		"zetacode read issue://123",
+		"zetacode read path/to/archive.zip:dir/file.ts",
+		"zetacode read path/to/db.sqlite:users:42",
 	];
 
 	async run(): Promise<void> {

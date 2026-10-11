@@ -447,7 +447,7 @@ export async function acquireIdaDatabase(
 		const since = await openingSince(session, name);
 		const age = since === undefined ? "" : ` for ${Math.round((Date.now() - since) / 60_000)}m`;
 		throw new ToolError(
-			`IDA is still analyzing ${idbRef(loc)} (opening${age}); the analysis continues in \`${name}\`. Retry later, or stop it with \`zeta ps stop ${name}\``,
+			`IDA is still analyzing ${idbRef(loc)} (opening${age}); the analysis continues in \`${name}\`. Retry later, or stop it with \`zetacode ps stop ${name}\``,
 		);
 	}
 }

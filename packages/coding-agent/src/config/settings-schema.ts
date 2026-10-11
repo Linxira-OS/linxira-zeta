@@ -582,7 +582,7 @@ export const SETTINGS_SCHEMA = {
 			description: "CLI language for user-facing text (system prompts stay English)",
 			options: [
 				{ value: "en", label: "English", description: "English UI text (default)" },
-				{ value: "zh", label: "中文", description: "简体中文界面" },
+				{ value: "zh", label: "中文", description: "Simplified Chinese UI" },
 			],
 		},
 	},
@@ -2241,7 +2241,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Startup & Updates",
 			label: "Update Channel",
-			description: "Update channel used by zeta update and the startup update check",
+			description: "Update channel used by zetacode update and the startup update check",
 			options: [
 				{ value: "stable", label: "Stable" },
 				{ value: "canary", label: "Canary" },
@@ -2425,13 +2425,13 @@ export const SETTINGS_SCHEMA = {
 			group: "Collab",
 			label: "Auto Start",
 			description:
-				"Host every interactive session via collab.relayUrl as it starts and publish it to the local registry (zeta collab list); rooms rotate on session switch",
+				"Host every interactive session via collab.relayUrl as it starts and publish it to the local registry (zetacode collab list); rooms rotate on session switch",
 			options: [
 				{ value: "off", label: "Off", description: "Share only when /collab is run" },
 				{
 					value: "view",
 					label: "View",
-					description: "Auto-host; the registry hands out view-only links (zeta collab link --view)",
+					description: "Auto-host; the registry hands out view-only links (zetacode collab link --view)",
 				},
 				{
 					value: "control",
@@ -4239,6 +4239,18 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Project tracking tool (off by default; opt-in per AGENTS.md direction)
+	// Registry entry lives in tools/settings.ts (`cfgTrackingEnabled`); this
+	// schema twin keeps it in the web settings panel + `getPathsForTab`.
+	"tracking.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Project Tracking",
+			description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+		},
+	},
 
 	// IM channel tools (web/desktop only; CLI sessions reject them regardless)
 	"channels.enabled": {

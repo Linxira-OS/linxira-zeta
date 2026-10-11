@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Sign a compiled macOS `omp` binary on Linux: with a Developer ID identity
+# Sign a compiled macOS `zetacode` binary on Linux: with a Developer ID identity
 # and notarization when the credentials are configured, ad hoc otherwise.
 #
 # The release build (`ci:release:build-binaries`) cross-compiles the binary on

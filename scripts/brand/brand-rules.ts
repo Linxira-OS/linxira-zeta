@@ -15,7 +15,7 @@ export const SKIP_PREFIXES = [
 	"temp/", // local reference clones, never committed
 	"document/", // internal docs: upstream provenance lives here by design
 	"docs/", // runtime docs may reference upstream interop surfaces
-	"python/", // robomp harness: Zeta-native by design; brand decision tracked separately
+	"python/", // robomp harness: OMP-native by design; brand decision tracked separately
 	"AGENTS.md", // the registry prose itself discusses the tokens
 	"UPDATE-LOG.md", // released entries are immutable history
 	"crates/vendor/", // vendored upstream code
@@ -27,6 +27,7 @@ export const SKIP_PREFIXES = [
 	".zeta/", // in-repo dev-tool directory (not the product config dir)
 	".oxlintrc.json", // lint-glob config; tooling cleanup tracked separately
 	"scripts/brand/", // the guard's own rule table names the tokens it bans
+	"scripts/scan-brand-regressions.ts", // the merge-diff scanner names the same tokens as match patterns
 	".zcode/",
 ];
 
@@ -81,7 +82,7 @@ export const OH_MY_PI_ALLOW_PATTERNS = [/github\.com\/can1357\/oh-my-pi/, /oh-my
 /**
  * `.zeta` path-segment strings are flagged in src files unless the line matches
  * an allow pattern. Each entry: the interop surface that must keep reading or
- * writing Zeta-native locations. Test fixtures are exempt (self-consistent
+ * writing OMP-native locations. Test fixtures are exempt (self-consistent
  * temp paths; the per-bucket merge procedure resolves them when CI proves a
  * real divergence — the skillful-toggle lesson).
  */
@@ -204,12 +205,135 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: "@oh-my-pi/",
 		why: "driver-test upstream fixtures must carry the real upstream scope or this guard pair cannot fail",
 	},
-	// ── Prompt corpus + listener identities (2026-10-11 round) ───────────────
-	// Upstream's own `chore: branding` commit (d35a9067233, 2026-09-24) rewrote
-	// upstream's comments and prompt prose to say "omp" and rode in with the
-	// v18.8.x merges, silently overwriting Zeta identity in model-visible prompts
-	// (the model introduced itself to the user as "omp's coding assistant") and
-	// splitting process-to-process banner pairs. These pins fail the next merge.
+	{
+		file: "packages/coding-agent/src/main.ts",
+		needle: "const TELEMETRY_EXPORT_ENABLED = false;",
+		why: "OTLP export is hard-off by policy (no collector to process events); flipping this constant or restoring the opt-in setting requires a deliberate decision, not a merge (see the doc comment above it)",
+	},
+	{
+		file: "packages/coding-agent/src/main.ts",
+		needle: "initTelemetryExport, TELEMETRY_EXPORT_ENABLED);",
+		why: "the call site must read the hard-off constant, not a settings lookup or literal — otherwise a merge can leave the constant alone while exporting anyway",
+	},
+	// ── External-identity surface (2026-10-10 sweep) ────────────────────────
+	// These are the names the OS, the browser, the desktop environment and our
+	// own peers see. A merge that restores the upstream spelling silently
+	// re-registers the product as `zetacode` at the platform level, which no
+	// docs/sources-only guard can catch.
+	{
+		file: "crates/pi-natives/src/oauth_callback/darwin.rs",
+		needle: 'const BUNDLE_PREFIX: &str = "dev.zeta.oauth-callback.";',
+		why: "macOS bundle id for the OAuth callback handler; upstream is dev.omp.oauth-callback and appears in LaunchServices + any bundle inventory",
+	},
+	{
+		file: "crates/pi-natives/src/oauth_callback/windows.rs",
+		needle: 'const MARKER_NAME: &str = "Zeta OAuth Callback Transaction";',
+		why: "HKCU registry transaction name for the Windows URL protocol handler",
+	},
+	{
+		file: "crates/pi-natives/src/oauth_callback/linux.rs",
+		needle: 'const DESKTOP_ID_PREFIX: &str = "dev.zeta.oauth-callback.";',
+		why: "XDG desktop-entry id for the Linux URL protocol handler",
+	},
+	{
+		file: "crates/pi-builtins/src/host.rs",
+		needle: "zeta-descriptor://",
+		why: "file-descriptor URL scheme handed to the opener; upstream omp-descriptor:// registers under his name",
+	},
+	{
+		file: "crates/pi-natives/src/lib.rs",
+		needle: "pub fn omp_install_tokio_runtime()",
+		why: "the Tokio install export keeps its upstream name ON PURPOSE — sweeping it to __zeta* made Tokio silently fail to install (v18.0.10)",
+	},
+	{
+		file: "packages/coding-agent/src/ida/protocol.ts",
+		needle: 'export const IDA_DAEMON_PREFIX = "zeta.ida.";',
+		why: "IDA daemon name shown in `zetacode ps`; upstream is omp.ida.*",
+	},
+	{
+		file: "packages/coding-agent/src/stream/recording.ts",
+		needle: 'export const RECORDING_EXTENSION = ".zetacast";',
+		why: "session-recording file extension; upstream is .ompcast",
+	},
+	{
+		file: "packages/utils/src/dirs.ts",
+		needle: '"omp-plugins.lock.json"',
+		why: "the plugin lockfile keeps its upstream filename on purpose — existing installs carry runtime state (enabled features, versions) in it, so renaming would reset every user's plugins on upgrade. The doc comment above getPluginsLockfile says the same; do not rebrand it",
+	},
+	// ── v18.8.7/v18.8.8 merge-residue pins (2026-10-11 sweep) ──────────────
+	// These are file-local strings the whole-tree token bans cannot express
+	// (an `omp` in the same file may be a deliberate interop token); pin the
+	// exact Zeta form so a merge that restores upstream's spelling fails here.
+	{
+		file: "packages/coding-agent/src/modes/acp/acp-agent.ts",
+		needle: 'name: "zeta",',
+		why: "ACP agentInfo advertises the product identity `zeta`; upstream's `omp` mislabels the agent at initialize (acp-initialize-conformance asserts name+title)",
+	},
+	{
+		file: "packages/coding-agent/src/modes/acp/acp-agent.ts",
+		needle: '"Set up zeta in terminal"',
+		why: "ACP terminal-auth method name is Zeta-branded (upstream is 'Set up omp in terminal')",
+	},
+	{
+		file: "packages/coding-agent/src/modes/utils/ui-helpers.ts",
+		needle: "const command = `${CLI_BIN_NAME} update`;",
+		why: "the update hint must interpolate CLI_BIN_NAME; a literal 'omp update' is upstream residue (theme-lazy-status-color asserts the rendered line)",
+	},
+	{
+		file: "packages/coding-agent/src/cli/update-cli.ts",
+		needle: "does not report a ${CLI_BIN_NAME} version when run directly",
+		why: "the version-probe refusal interpolates CLI_BIN_NAME; upstream hardcodes an 'OMP version' string",
+	},
+	{
+		file: "packages/coding-agent/src/main.ts",
+		needle: "the `zeta-plugins` discovery provider",
+		why: "main.ts's trusted-extension comment names our discovery provider id (zeta-plugins is the canonical write form; `omp-plugins` is read-only interop, kept elsewhere)",
+	},
+	{
+		file: "packages/tui/src/prompt/attachment-chips.ts",
+		needle: 'Symbol("zeta.imagePng")',
+		why: 'the PNG-cache symbol description is zeta-branded (upstream Symbol("omp.imagePng"))',
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/dto.ts",
+		needle: 'export const SKILLS_CLI_AGENT = "pi";',
+		why: "the third-party `skills` CLI validates --agent against its own registry and rejects `omp` (Invalid agents: omp — installs nothing); `pi` writes to .agents/skills, which our `agents` skill provider and .skill-lock.json reader use",
+	},
+	{
+		file: "packages/coding-agent/src/dap/session.ts",
+		needle: "clientID: APP_NAME,",
+		why: "DAP initialize identity is the product name, not upstream's literal",
+	},
+	{
+		file: "packages/coding-agent/src/hindsight/bank.ts",
+		needle: 'const DEFAULT_BANK_NAME = "zeta";',
+		why: "the fallback Hindsight bank is zeta (docs/memory.md records the rename and the continuity note)",
+	},
+	{
+		file: "packages/coding-agent/src/tools/report-tool-issue.ts",
+		needle: "agent: { name: APP_NAME, version: VERSION },",
+		why: "bug-report attribution is the product name",
+	},
+	{
+		file: "packages/catalog/src/compat/rules/auth/openai-codex.kdl",
+		needle: 'originator "zeta"',
+		why: "the Codex authorize param must equal OPENAI_HEADER_VALUES.ORIGINATOR_CODEX, which every API-request header already sends (packages/catalog/src/wire/codex.ts)",
+	},
+	{
+		file: "packages/coding-agent/src/modes/rpc/wire/index.ts",
+		needle: "linxira-zeta/main/packages/coding-agent/src/modes/rpc/wire/rpc-wire.schema.json",
+		why: "the generated RPC wire $id points at the Zeta repo, like the mcp/theme schema URLs",
+	},
+	{
+		file: "packages/browser-relay/extension/manifest.json",
+		needle: '"name": "Zeta Browser Relay"',
+		why: "the shipped browser extension is branded Zeta",
+	},
+	{
+		file: "packages/coding-agent/src/utils/run-status.ts",
+		needle: ":app=${APP_NAME}",
+		why: "the OSC 7501 `app=` field is our identity in a terminal protocol — pinned by APP_NAME so a merge cannot swap it back to upstream's literal (the merged run-status.test.ts asserted `app=omp`; see the MUST_NOT_CONTAIN twin)",
+	},
 	{
 		file: "packages/coding-agent/src/prompts/system/system-prompt.md",
 		needle: "You are Zeta's trusted coding assistant.",
@@ -249,8 +373,82 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
  * allow-listed files, and MUST_CONTAIN asserts the scope survives), and the
  * oh-my-pi token scan in brand-check.ts covers every other file.
  */
-export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
+export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: string[] }> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
+	// ── The three-name hierarchy (2026-10-10) ────────────────────────────────
+	// Zeta has three distinct names and swapping them is a real defect, not a
+	// style preference:
+	//   zeta     — product/app identity: config root, log names, UA product
+	//              token, splash, attribution headers, process-global identity
+	//   zetawork — the workbench CLI (@linxiraos/main, bin `zeta`/`zetawork`)
+	//   zetacode — the coding-agent CLI (@linxiraos/zeta, bin `zetacode`)
+	// A config path or product token spelled `zetacode` points users at a
+	// directory that does not exist; a command spelled `zeta` invokes the
+	// workbench instead of the agent.
+	{
+		needle: /\.zetacode(?![A-Za-z0-9-])/,
+		why: "the config/app identity is `zeta`, never `zetacode` — `.zetacode/` would be a directory no install ever creates",
+	},
+	{
+		needle: /XDG_[A-Z_]*HOME\/zetacode/,
+		why: "XDG roots are keyed by APP_NAME (`zeta`), not the CLI binary name",
+	},
+	{
+		needle: /USER_AGENT = `zetacode\//,
+		why: "the UA product token is the app name (`zeta/`); CLI_BIN_NAME appears in user-facing command strings, not in the UA template",
+	},
+	{
+		needle: /telemetry\.otlpExportEnabled/,
+		why: "the OTLP export opt-in was deleted, not defaulted off — Zeta runs no collector, so export has no on-switch at all; a merge must not resurrect the setting (hard-off policy in main.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	// ── External-identity bans (2026-10-10 sweep) ───────────────────────────
+	// Names the operating system, the browser, or our own peers would use to
+	// identify this product as upstream. Word-boundary anchored so ordinary
+	// English words containing the letters (Component, composite) never match.
+	{
+		needle: /dev\.omp\.oauth-callback/,
+		why: "OAuth callback bundle/desktop id belongs to Zeta; upstream spelling re-registers the handler under his name",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp-descriptor(?![A-Za-z0-9])/,
+		why: "file-descriptor URL scheme is zeta-descriptor://",
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp\.ida\./,
+		why: "IDA daemon name is zeta.ida.<id>",
+	},
+	{
+		needle: /(?<![A-Za-z0-9])omp-file-lock-/,
+		why: "advisory lock path prefix is zeta-file-lock-",
+	},
+	{
+		needle: /zeta-plugins\.lock\.json/,
+		why: "the lockfile we WRITE is Zeta-named (DUAL verdict: read the legacy name, write ours) — but the legacy name must stay, it holds every existing install's plugin state",
+		exempt: [
+			"CHANGELOG.md",
+			"packages/utils/src/dirs.ts",
+			"document/brand-surface-rules.md",
+			// The migration test must name both spellings to assert the contract.
+			"test/plugins/lockfile-migration.test.ts",
+		],
+	},
+	{
+		needle: /(?<![A-Za-z0-9])ompcast/,
+		why: "session-recording extension/format key is zetacast; the two read-old sites are the deliberate upgrade path for recordings captured by an earlier install, not brand residue",
+		exempt: ["CHANGELOG.md", "src/stream/recording.ts", "test/stream/recording-compat.test.ts"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9`])omp --/,
+		why: "there is no `omp` binary in this product — the CLI is zetacode; `omp --flag` in prose or a help string is a leaked upstream invocation",
+		exempt: ["CHANGELOG.md", "python/robomp/", "document/upstream-sync.md"],
+	},
+	{
+		needle: /`omp(?![A-Za-z0-9-._])/,
+		why: "a backticked bare `omp` is a CLI reference; the CLI is zetacode. Excluded by design: plain prose ('the omp process'), hyphenated temp prefixes (`omp-which-${pid}`), the upstream manifest fields `omp.rename` / `omp.dist`, and stencil.kdl where `omp` is the OAuth public client id registered with a third-party issuer",
+		exempt: ["CHANGELOG.md", "python/robomp/", "document/upstream-sync.md", "compat/rules/auth/stencil.kdl"],
+	},
 	{ needle: /USER_AGENT = `omp\//, why: "upstream UA template" },
 	{ needle: /const PREVIEW_TITLE = "omp"/, why: "shape-preview stand-in title is ζ" },
 	{ needle: /const APP_NAME = "omp"/, why: "init-xdg must import APP_NAME from pi-utils" },
@@ -294,7 +492,11 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	},
 	{
 		needle: /Run `omp /,
-		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `zetacode --resume`' broke the session-resolution contract)",
+		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
+	},
+	{
+		needle: /app=omp(?![A-Za-z0-9])/,
+		why: "the OSC 7501 program-status `app=` field is our product identity in a third-party terminal protocol; the implementation emits `:app=${APP_NAME}` (= zeta), so an `app=omp` in code or its test is upstream identity left by a merge (v18.8.8 merged run-status.test.ts with `app=omp` ×10 while utils/run-status.ts emitted zeta — the suite was red on CI and locally)",
 	},
 	{
 		needle: /ZETA_NO_TITLE/,
@@ -308,11 +510,11 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	// The stats client shipped with upstream branding since the fork (never
 	// overlayed) and regressed visually every release merge. These pin the
 	// user-visible dashboard tokens to the Zeta spelling; port-conflict's
-	// deliberate `omp` process-match keepers are narrower literals and do not
+	// deliberate `zetacode` process-match keepers are narrower literals and do not
 	// match any of these.
 	{
-		needle: /<title>zetacode stats<\/>/,
-		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'zetacode stats' since the fork)",
+		needle: /<title>omp stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'omp stats' since the fork)",
 	},
 	{
 		needle: /Everything omp did/,
@@ -339,11 +541,120 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		needle: /\$\{APP_NAME\} [a-z]{2,}/,
 		why: "usage/help run-strings must interpolate CLI_BIN_NAME (the CLI command), not APP_NAME (product identity: bare `zeta` is the workbench bin). Product-identity contexts (splash wordmark, log-file names, attribution) use no space-separated command word and do not match",
 	},
-	// ── Bare upstream brand in user/model-visible text (2026-10-11 round) ────
-	// Classes d35a9067233 (`chore: branding`) re-introduces in prose and help
-	// text. Kept interop literals — `~/.omp` probes, `.omp-plugin`,
-	// `omp-plugins.lock.json`, the `omp compat` overlay, `OMP_*` env vars,
-	// `__omp*` runtime globals, `@oh-my-pi/*` in the merge driver — do not match.
+	// ── v18.8.7/v18.8.8 merge residue (2026-10-11 sweep) ─────────────────────
+	// The overlay's token table had no rule for these prose/identifier variants,
+	// so the merge silently reverted a Zeta spelling and brand-check stayed
+	// green. Each pins the class the pre-merge tree spelled the Zeta way.
+	{
+		needle: /"Usage: omp /,
+		why: "throw-string CLI usage names the zetacode binary — there is no `omp` command in this product (v18.8.7: auth-broker login/import usage reverted)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9_.-])omp update(?![A-Za-z0-9_.-])/,
+		why: "the update hint is `zetacode update`: ui-helpers.ts must interpolate CLI_BIN_NAME, not a literal (theme-lazy-status-color asserts the rendered line)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9_.-])omp say(?![A-Za-z0-9_.-])/,
+		why: "the say command's examples and TTS settings copy name the zetacode command",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /since omp started/,
+		why: "worktree-on-exit description counts worktrees since zetacode started (task/settings.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9_])omp\.browser\.relay/,
+		why: "the relay daemon name is zeta.browser.relay.<port>; the restart tests describe the same name, so pinning one side alone leaves the pair mismatched (sweep both or neither)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle:
+			/echo "# Shell snapshot - generated by omp agent"|__omp_funcs|__omp_emit_referenced_exports|__omp_sq_quote/,
+		why: "the shell-snapshot script and its helper names are __zeta_*; the generator and shell-snapshot-fn-env.sh must agree or the snapshot sources a function that does not exist",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /\.omp-tmp\./,
+		why: "the ssh staging-file prefix is .zeta-tmp. (ssh/file-transfer.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /\.omp-sessions/,
+		why: "the session-file comment example is .zeta-sessions/ (session/session-paths.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer\.chips?|run)(?![A-Za-z0-9_-])/,
+		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips, image cache symbol, run box/foot/state/time/facts/status/caption)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /`omp\.(cmd|ps1|bunx|exe)`/,
+		why: "the CLI's npm/bun shims and release binary are named after CLI_BIN_NAME (zetacode.*); the bare `omp.*` spelling is upstream's. The stale pre-merge `zeta.cmd` is not the target either",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /does not report an OMP version/,
+		why: "the version-probe refusal must interpolate CLI_BIN_NAME, not name upstream (cli/update-cli.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /^\s*name: "omp",\s*$/,
+		why: "the ACP agentInfo name is the product identity `zeta`; acp-initialize-conformance asserts name+title=zeta at initialize",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /Set up omp in terminal/,
+		why: "the ACP terminal-auth method name is Zeta-branded (modes/acp/acp-agent.ts)",
+		exempt: ["CHANGELOG.md", "test/hook-selector-overflow.test.ts"], // changelog history + an arbitrary label fixture unrelated to the ACP method
+	},
+	{
+		needle: /Launch the omp TUI/,
+		why: "the ACP terminal-auth description is Zeta-branded (modes/acp/acp-agent.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /configured under ~\/\.omp\./,
+		why: "the ACP auth description names the Zeta config root ~/.zeta (modes/acp/acp-agent.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /TempDir\.createSync\("@omp-lsp-/,
+		why: "LSP regression fixtures use the @zeta-lsp- prefix (the merge reverted ~109 of them to @omp-)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /"\.omp", "plugins"|"\.omp", "plugin-overrides\.json"|path\.join\(cwd, "\.omp"\)/,
+		why: "issue-14518 plugin-override fixtures resolve under .zeta, not the upstream root",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /p\.app === "omp"/,
+		why: "the broker client app label defaults to zeta (getAppName); the assertion must expect zeta, and no producer emits `omp`",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /TempDir\.createSync\("@omp-agent-live-/,
+		why: "the internal-url agent-protocol live fixture temp dir is zeta-agent-live-",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /Every real omp process|left behind by omp processes/,
+		why: "browser/orphan-registry comments name zeta processes (tools/browser/registry.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /as far as omp reads it/,
+		why: "the xAI response doc comment reads `zetacode` (web/search/providers/xai.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /<title>zetacode stats<\/>/,
+		why: "stats dashboard tab/window title is 'zeta stats' (v18.4.4: shipped as 'zetacode stats' since the fork)",
+	},
 	{
 		needle: /You are omp'?s/,
 		why: "model-visible identity lines name Zeta (system-prompt.md and the commit agent's prompt were both on the omp spelling until 2026-10-11)",

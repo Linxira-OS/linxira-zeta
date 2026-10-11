@@ -18,9 +18,9 @@ export default class Stream extends Command {
 	};
 
 	static examples = [
-		"zeta stream",
+		"zetacode stream",
 		'zetacode stream --title "Building a parser"',
-		"zeta stream --server https://live.example.com",
+		"zetacode stream --server https://live.example.com",
 	];
 
 	async run(): Promise<void> {

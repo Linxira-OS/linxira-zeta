@@ -79,7 +79,7 @@ export async function runAcpMode(createSession: AcpSessionFactory, initialSessio
 	// before the transport starts.
 	if (process.stdin.isTTY) {
 		process.stderr.write(
-			"zeta acp: ACP server speaking JSON-RPC over stdio.\n" +
+			"zetacode acp: ACP server speaking JSON-RPC over stdio.\n" +
 				'This command is meant to be spawned by an ACP client (e.g. Zed\'s "agent_servers" config), not run directly.\n' +
 				"Waiting for protocol frames on stdin; logs: ~/.zeta/logs/\n",
 		);

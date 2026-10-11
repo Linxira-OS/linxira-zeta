@@ -42,7 +42,7 @@ export function textPredictDaemon(runtimeDir: string, agentDir: string): { name:
 		process.platform === "win32"
 			? `\\\\.\\pipe\\omp-text-predict-${Bun.hash.wyhash(runtimeDir).toString(16)}-${key}`
 			: path.join(runtimeDir, `text-predict-${key}.sock`);
-	return { name: `omp.text-predict.${key}`, endpoint };
+	return { name: `zeta.text-predict.${key}`, endpoint };
 }
 
 /** Client → daemon request. */

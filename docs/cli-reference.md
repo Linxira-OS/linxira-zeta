@@ -1,14 +1,14 @@
 # CLI reference
 
-`omp` is invoked as:
+`zetacode` is invoked as:
 
 ```sh
-omp [command] [flags] [messages...]
+zetacode [command] [flags] [messages...]
 ```
 
-When the first positional argument is **not** a registered subcommand, `omp`
+When the first positional argument is **not** a registered subcommand, `zetacode`
 normally routes to the default [`launch`](#launch-the-default-command) command.
-So `omp "fix the build"` launches a session with that message, while `zetacode models`
+So `zetacode "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
 `uninstall`, or `extensions` instead produce a hint to use `zetacode plugin …`;
 use `zetacode launch <word>` when such a word is the intended prompt.
@@ -26,27 +26,27 @@ Runtime help is also available:
 - `zetacode <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
-flags accepted by `omp` / `zetacode launch`) and every top-level **subcommand**.
+flags accepted by `zetacode` / `zetacode launch`) and every top-level **subcommand**.
 Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
 
-`omp` and `zetacode launch` start a coding session. Positional arguments become the
+`zetacode` and `zetacode launch` start a coding session. Positional arguments become the
 initial message(s):
 
 ```sh
 # Interactive session
-omp
+zetacode
 
 # Interactive session with an initial prompt
-omp "List all .ts files in src/"
+zetacode "List all .ts files in src/"
 
 # Attach files/images to the initial message (prefix with @)
-omp @prompt.md @image.png "What color is the sky?"
+zetacode @prompt.md @image.png "What color is the sky?"
 
 # Non-interactive: process the prompt and exit (headless / print mode)
-omp -p "List all .ts files in src/"
+zetacode -p "List all .ts files in src/"
 
 # Continue the previous session
 zetacode --continue "What did we discuss?"
@@ -179,28 +179,28 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 
 | Flag | Description |
 | --- | --- |
-| `--help`, `-h` | Show help for `omp` or a subcommand and exit. |
+| `--help`, `-h` | Show help for `zetacode` or a subcommand and exit. |
 | `--version`, `-v` | Print the installed version and exit. |
 
 ### Headless / print mode
 
-`--print` / `-p` runs `omp` non-interactively: it processes the prompts, writes
+`--print` / `-p` runs `zetacode` non-interactively: it processes the prompts, writes
 the last assistant response to stdout, and exits without entering the TUI. Text
 output is emitted after the turn completes, not token-by-token; a `Working...`
 indicator goes to stderr. This is the entry point for scripting and automation.
 
 ```sh
 # Print the answer and exit
-omp -p "Summarize the changes in the last commit"
+zetacode -p "Summarize the changes in the last commit"
 
 # Include the model's thinking blocks in the printed text
-omp -p --print-thoughts "Explain your reasoning for this refactor"
+zetacode -p --print-thoughts "Explain your reasoning for this refactor"
 
 # Machine-readable output for pipelines
-omp -p --mode json "List every TODO in src/" > todos.json
+zetacode -p --mode json "List every TODO in src/" > todos.json
 
 # Pipe a prompt via stdin
-echo "review this diff" | omp -p
+echo "review this diff" | zetacode -p
 ```
 
 Related flags for headless runs:
@@ -240,7 +240,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | Command | Purpose | See also |
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
-| `acp` | Run omp as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
+| `acp` | Run zetacode as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
 | `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |

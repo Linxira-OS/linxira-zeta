@@ -1595,12 +1595,12 @@ type as omptype schemas. `bun run gen:rpc` emits:
     frame, and `x-scalar-or-array` marks an array older servers sent as a bare
     scalar.
 - `rpc-wire.generated.ts`: the wire types in TypeScript.
-- `sdk/python/omp-rpc/src/omp_rpc/_wire.py`: Python types, decoders, command methods,
-  and frame listeners for the `omp-rpc` package.
-- `sdk/rust/omp-rpc/src/wire.rs`: Rust serde types, frame decoders, and a `Command`
-  trait implemented by one params struct per command (crate `omp-rpc`).
-- `sdk/go/omp-rpc/wire.go`: Go types, frame decoders, and one `Commands` method per
-  command (module `github.com/can1357/oh-my-pi/sdk/go/omp-rpc`).
+- `sdk/python/zeta-rpc/src/zeta_rpc/_wire.py`: Python types, decoders, command methods,
+  and frame listeners for the `zeta-rpc` package.
+- `sdk/rust/zeta-rpc/src/wire.rs`: Rust serde types, frame decoders, and a `Command`
+  trait implemented by one params struct per command (crate `zeta-rpc`).
+- `sdk/go/zeta-rpc/wire.go`: Go types, frame decoders, and one `Commands` method per
+  command (module `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`).
 
 The Rust and Go packages ship hand-written process transports on top of the
 generated types: they negotiate v2 and reassemble chunks, page message history,
@@ -1629,10 +1629,10 @@ Current helper characteristics:
 
 ### Python package
 
-The bundled [`omp-rpc`](../sdk/python/omp-rpc/pyproject.toml) distribution provides the process-backed Python client. Its import package is `omp_rpc`; the package API, typed commands and events, host-tool/host-URI helpers, and orchestration examples are maintained in the [`omp-rpc` README](../sdk/python/omp-rpc/README.md).
+The bundled [`zeta-rpc`](../sdk/python/zeta-rpc/pyproject.toml) distribution provides the process-backed Python client. Its import package is `zeta_rpc`; the package API, typed commands and events, host-tool/host-URI helpers, and orchestration examples are maintained in the [`zeta-rpc` README](../sdk/python/zeta-rpc/README.md).
 
 ```python
-from omp_rpc import RpcClient
+from zeta_rpc import RpcClient
 
 with RpcClient(provider="anthropic", model="claude-sonnet-4-5") as client:
     state = client.get_state()

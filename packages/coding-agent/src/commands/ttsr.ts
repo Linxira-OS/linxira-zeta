@@ -69,7 +69,7 @@ export default class Ttsr extends Command {
 		"zetacode ttsr test --file src/foo.ts --source text",
 		"zetacode ttsr test --rule .zeta/rules/no-any.md --source tool --path src/foo.ts 'const x: any = 1'",
 		"zetacode ttsr test --agent scout 'const x: any = 1'",
-		"echo 'Box::leak(&mut v)' | zeta ttsr test --file - --path src/lib.rs",
+		"echo 'Box::leak(&mut v)' | zetacode ttsr test --file - --path src/lib.rs",
 		"zetacode ttsr test --source tool --tool edit --path src/foo.ts 'const x: any = 1'",
 		"zetacode ttsr scan",
 		"zetacode ttsr scan src/",

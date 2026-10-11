@@ -543,7 +543,7 @@ ZETA drops recognized browser-automation servers at config load, before any conn
 
 The drop is quiet, but not equally visible everywhere: servers from any source other than the two primary files (`~/.zeta/agent/mcp.json` and `.zeta/mcp.json`) never reach `/mcp list`. Third-party configs, root `mcp.json` / `.mcp.json` fallbacks, and servers from ZETA extension packages all vanish once filtered. An entry in one of the two primary files still shows up there as `not connected`, so a missing server with a primary-file entry may have been filtered. No error or warning is recorded either way.
 
-To run a browser MCP server instead of the native browser tool, set `browser.enabled: false` in your settings. `zeta read` does not apply this filter.
+To run a browser MCP server instead of the native browser tool, set `browser.enabled: false` in your settings. `zetacode read` does not apply this filter.
 
 ### A namespaced server works but the editor rejects its name
 

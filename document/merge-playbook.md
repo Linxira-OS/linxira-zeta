@@ -62,11 +62,11 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
   documented conflict decisions, then make any required Zeta brand, package,
   Bun, CI, or product adaptations in separate commits after the merge. Do not
   use later untagged upstream work to resolve conflicts.
-- **无 `.zeta` 兼容面。** Zeta's config dir is `.zeta` and `~/.zeta` only; we do
-  not maintain legacy `.zeta` path aliases — the compatibility cost outweighs
-  the value. Upstream tests or docs that carry `.zeta` paths must be adapted to
+- **无 `.omp` 兼容面。** Zeta's config dir is `.zeta` and `~/.zeta` only; we do
+  not maintain legacy `.omp` path aliases — the compatibility cost outweighs
+  the value. Upstream tests or docs that carry `.omp` paths must be adapted to
   `.zeta` during the merge and that decision recorded in the ledger
-  (e.g. `acp-agent.test.ts` wrote `path.join(cwd, ".zeta", "agents")`; zeta
+  (e.g. `acp-agent.test.ts` wrote `path.join(cwd, ".omp", "agents")`; zeta
   resolves `.zeta/agents`).
 - **产品前门是 Zeta 资产。** Treat the root `README.md`, Zeta logo assets,
   product name, homepage, install instructions, and public examples as
@@ -102,7 +102,7 @@ bun scripts/brand/brand-overlay.ts         # apply：直接改写工作树
 - apply 模式基于 `git ls-files` 扫描受跟踪产品源码，把 brand-rules.ts 里
   **Zeta 规范形无歧义**的机械 token 批量改写：`USER_AGENT = \`omp/\${VERSION}\``
   → `zeta/`、`PREVIEW_TITLE`/`APP_NAME`/profile alias 的 `"omp"` → `"ζ"`/`"zeta"`、
-  `name: "oh-my-pi"` → `"zeta"`、`.zeta` 路径 fixture → `.zeta`（skills/agent/
+  `name: "oh-my-pi"` → `"zeta"`、`.omp` 路径 fixture → `.zeta`（skills/agent/
   plugins/cache 等参数面）、mcp/theme schema URL 指向 Zeta 仓库 raw 地址、
   doc-comment 与 `$XDG_*/omp/` 文档路径、`.omp\` Windows 路径等。
 - **幂等且刻意窄**：只改无歧义 token。语义面（测试契约、上游互操作面）留给
@@ -140,6 +140,21 @@ scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 `PI_FREE_FILES` + `PI_FAMILY` 守护 ζ 品牌面文件（title-generator、welcome、
 splash/outro、wizard-overlay）不得出现 π 族字符。出现新的标记类别：先扩
 brand-rules.ts 规则表并注释理由，再让脚本吃掉它——不要靠散文记忆。
+
+### 共享基础设施台账（商业面，与代码合并无关）
+
+上游把一批共享/商业服务的域名硬编码在客户端里（中继 `my.omp.sh`、OIDC 登录
+`auth.stencil.so`、模型发现源 `catalog.stencil.so`、安装/更新提示
+`omp.sh/install`、CI 上传通道 `build.stencil.so`）。它们在品牌注册表里被显式
+列为「刻意保留」，`brand-check` 因此**不覆盖**——机械守卫是
+`bun scripts/check-shared-infra.ts`（CI `check` job）：出现未登记域名、或已知
+域名出现在未登记的落点（测试文件豁免）即 exit 1；只改台账不改 `INVENTORY`
+不会生效，只改代码不改台账会红。
+
+逐项现状、保留依据、待替代方案（`qa.omp.sh` → GitHub Issues、`skills.omp.sh`
+→ `@linxiraos/linxira-skills`、`live.omp.sh`）与「明确不改」清单见
+`document/upstream-commercial-assets.md`。**每次 release 合并后照表核对一次**，
+顺序是：改台账 → 改 `INVENTORY` → 改代码。
 
 ### 预存 main 欠账清单
 

@@ -24,11 +24,11 @@ export default class DryBalance extends Command {
 	};
 
 	static examples = [
-		"# Dry-run the configured default model with 100 random session ids\n  zeta dry-balance",
-		"# Dry-run a specific model\n  zeta dry-balance anthropic/claude-sonnet-4-5",
-		"# Larger run with bounded concurrency\n  zeta dry-balance --model openai-codex/gpt-5-codex --count 1000 --concurrency 64",
-		"# Benchmark every OAuth account in parallel\n  zeta dry-balance --bench",
-		"# Machine-readable output\n  zeta dry-balance --json",
+		"# Dry-run the configured default model with 100 random session ids\n  zetacode dry-balance",
+		"# Dry-run a specific model\n  zetacode dry-balance anthropic/claude-sonnet-4-5",
+		"# Larger run with bounded concurrency\n  zetacode dry-balance --model openai-codex/gpt-5-codex --count 1000 --concurrency 64",
+		"# Benchmark every OAuth account in parallel\n  zetacode dry-balance --bench",
+		"# Machine-readable output\n  zetacode dry-balance --json",
 	];
 
 	async run(): Promise<void> {
