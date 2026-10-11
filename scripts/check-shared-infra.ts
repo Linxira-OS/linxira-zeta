@@ -24,7 +24,14 @@ const SCAN_ROOTS = ["packages", "scripts", ".github", "desktop", "crates"];
 const SCAN_EXT = /\.(ts|tsx|js|mjs|cjs|json|kdl|rs|sh|ps1|yml|yaml|html|txt)$/;
 const DOMAIN_RE = /https?:\/\/[a-zA-Z0-9._-]*(?:omp\.sh|stencil\.so|scl\.so)[a-zA-Z0-9./_@?=&%#-]*/g;
 
-type Status = "keep" | "keep-code-user-credential" | "replace-P1" | "replace-P2" | "replace-P3" | "replace-brand";
+type Status =
+	| "keep"
+	| "keep-code-user-credential"
+	| "replace-P1"
+	| "replace-P2"
+	| "replace-P3"
+	| "replace-brand"
+	| "replaced";
 
 interface Placement {
 	/** URL prefix this entry governs (longest match wins). */
@@ -92,13 +99,12 @@ const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://qa.omp.sh",
-		status: "replace-P1",
-		files: [
-			"packages/coding-agent/src/cli/grievances-cli.ts",
-			"packages/coding-agent/src/tools/report-tool-issue.ts",
-			"packages/coding-agent/src/tools/settings.ts",
-		],
-		why: "grievances endpoint: user-reachable, dies if upstream shuts it down; replacement = GitHub Issues API",
+		status: "replaced",
+		// Deliberately empty: the transport moved to the GitHub Issues API and no
+		// placement may come back. A merge that re-introduces the upstream endpoint
+		// trips "registered endpoint (replaced) but not whitelisted".
+		files: [],
+		why: "grievances endpoint — replaced by the GitHub Issues client (src/grievances/client.ts, ZETA_ISSUE_REPO) on 2026-10-11; any placement is a regression",
 	},
 	{
 		domain: "https://skills.omp.sh",
@@ -234,7 +240,9 @@ if (hits.length > 0) {
 	process.exit(1);
 }
 
-const replaceCount = INVENTORY.filter(entry => entry.status.startsWith("replace")).length;
+const replaceCount = INVENTORY.filter(
+	entry => entry.status.startsWith("replace") && entry.status !== "replaced",
+).length;
 console.log(
 	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement).`,
 );

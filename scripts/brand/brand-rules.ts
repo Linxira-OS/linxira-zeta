@@ -305,9 +305,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the fallback Hindsight bank is zeta (docs/memory.md records the rename and the continuity note)",
 	},
 	{
-		file: "packages/coding-agent/src/tools/report-tool-issue.ts",
-		needle: "agent: { name: APP_NAME, version: VERSION },",
-		why: "bug-report attribution is the product name",
+		file: "packages/coding-agent/src/grievances/client.ts",
+		needle: "agent: APP_NAME,",
+		why: "bug-report attribution is the product name — the composition moved from report-tool-issue.ts to the GitHub Issues client, the source of truth stays APP_NAME",
 	},
 	{
 		file: "packages/catalog/src/compat/rules/auth/openai-codex.kdl",

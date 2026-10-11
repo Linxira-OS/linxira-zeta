@@ -18,7 +18,7 @@
  * report is posted publicly and keeps the diagnostics the upstream client
  * already attached (agent, version, model, platform, arch, install id).
  */
-import { $env, $which, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
+import { $env, $which, APP_NAME, getInstallId, logger, VERSION } from "@linxiraos/pi-utils";
 import type { FetchImpl } from "@linxiraos/pi-ai";
 import { $ } from "bun";
 import { M } from "../i18n";
@@ -172,7 +172,7 @@ function truncateTitle(text: string): string {
 export function composeIssue(
 	input: GrievanceInput,
 	diagnostics: GrievanceDiagnostics = {
-		agent: "zeta",
+		agent: APP_NAME,
 		version: VERSION,
 		platform: process.platform,
 		arch: process.arch,
@@ -266,7 +266,7 @@ export async function submitGrievance(
 ): Promise<SubmitGrievanceResult> {
 	const repo = resolveIssueRepo(options.repo);
 	const composed = composeIssue(input, {
-		agent: "zeta",
+		agent: APP_NAME,
 		version: VERSION,
 		platform: process.platform,
 		arch: process.arch,
