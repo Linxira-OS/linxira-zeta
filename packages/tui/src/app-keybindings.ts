@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 // Subpaths, not the `@linxiraos/pi-utils` barrel: the barrel loads the native
 // addon (file-lock), and key-hint formatting runs on addon-free CLI paths
-// (`omp --version`, help) through cli/command-help.ts.
+// (`zetacode --version`, help) through cli/command-help.ts.
 import { getActiveProfile, getAgentDir, getProfileRootDir } from "@linxiraos/pi-utils/dirs";
 import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import * as logger from "@linxiraos/pi-utils/logger";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { parseArgs, reportUnrecognizedFlags } from "@linxiraos/zeta/cli/args";
 import { applyExtensionFlags } from "@linxiraos/zeta/cli/extension-flags";
 
-// Regression coverage for issue #2459: `omp --list-models` (a stale flag) was
+// Regression coverage for issue #2459: `zetacode --list-models` (a stale flag) was
 // silently consumed as a prompt instead of failing fast — the agent started a
 // real session, connected to MCP, and hung waiting for the model. Any
 // `--`-prefixed token that does not match a built-in OR an extension-registered

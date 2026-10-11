@@ -1331,7 +1331,7 @@ export function resolveOmpPathForTest(
 }
 
 /**
- * Parse the version a launcher reports from `omp --version` output
+ * Parse the version a launcher reports from `zetacode --version` output
  * (`omp/X.Y.Z`, or a prerelease such as `omp/X.Y.Z-canary.1`).
  *
  * The prerelease suffix is preserved so a correctly installed canary build

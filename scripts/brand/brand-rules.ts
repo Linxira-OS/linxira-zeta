@@ -289,7 +289,7 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 	},
 	{
 		needle: /Run `omp /,
-		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `omp --resume`' broke the session-resolution contract)",
+		why: "user-facing CLI hints name the zeta binary (v18.4.3: 'Run `zetacode --resume`' broke the session-resolution contract)",
 	},
 	{
 		needle: /ZETA_NO_TITLE/,
@@ -348,7 +348,8 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string }> = [
 		why: "the security-scan prompt family speaks as the product, not as upstream",
 	},
 	{
-		needle: /\bomp (acp|agents|attach|auth-broker|auth-gateway|bench|browser-relay|cleanse|clip|collab|commit|complete|completions|compress|config|dry-balance|find|gallery|gc|git|grep|grievances|if-bench|images|install|join|launch|launch-help|login|models|play|plugin|predict|ps|read|render|say|serve|settings|setup|share|shell|skill|ssh|stats|stream|tiny|tiny-models|token|toks|ttsr|update|usage|web-search|web-ui-launcher|web|worktree|text-predict|lsp|mcp|debug|sessions|resume|help|version)\b/,
+		needle:
+			/\bomp (acp|agents|attach|auth-broker|auth-gateway|bench|browser-relay|cleanse|clip|collab|commit|complete|completions|compress|config|dry-balance|find|gallery|gc|git|grep|grievances|if-bench|images|install|join|launch|launch-help|login|models|play|plugin|predict|ps|read|render|say|serve|settings|setup|share|shell|skill|ssh|stats|stream|tiny|tiny-models|token|toks|ttsr|update|usage|web-search|web-ui-launcher|web|worktree|text-predict|lsp|mcp|debug|sessions|resume|help|version)\b/,
 		why: "user/model-visible command mentions must name the zetacode bin (registry: 用户可见文案与 CLI_BIN_NAME 一律用 zetacode) — help text, banner builders, log lines, prompt examples, comments and docs. The alternation is the CLI's own subcommand list; product-context phrases are written Zeta (e.g. 'Zeta settings', 'Zeta web themes') and do not match",
 	},
 	{

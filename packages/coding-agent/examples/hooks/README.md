@@ -6,7 +6,7 @@ Example hooks for omp-coding-agent. Hook modules load through the extension runn
 
 ```bash
 # Load a hook with --hook flag
-omp --hook examples/hooks/permission-gate.ts
+zetacode --hook examples/hooks/permission-gate.ts
 
 # Or copy to a hooks/pre (or hooks/post) directory for auto-discovery
 cp permission-gate.ts ~/.zeta/agent/hooks/pre/

@@ -15,15 +15,15 @@ use `zetacode launch <word>` when such a word is the intended prompt.
 
 A recognized subcommand can follow leading launch flags. Those flags are
 forwarded to `launch` and `acp`, but recognized launch-only flags before other
-subcommands are stripped, not applied (for example, `omp --cwd dir update`).
+subcommands are stripped, not applied (for example, `zetacode --cwd dir update`).
 
 `--profile` is applied before subcommand routing, so it also scopes commands
 such as `config`, `models`, and `update`.
 
 Runtime help is also available:
 
-- `omp --help` lists user-facing subcommands and common launch flags.
-- `omp <command> --help` prints that command's public flags and examples.
+- `zetacode --help` lists user-facing subcommands and common launch flags.
+- `zetacode <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
 flags accepted by `omp` / `zetacode launch`) and every top-level **subcommand**.
@@ -49,7 +49,7 @@ omp @prompt.md @image.png "What color is the sky?"
 omp -p "List all .ts files in src/"
 
 # Continue the previous session
-omp --continue "What did we discuss?"
+zetacode --continue "What did we discuss?"
 ```
 
 Argument handling:
@@ -235,7 +235,7 @@ print-mode disposal semantics when the advisor runtime is enabled.
 
 ## Subcommands
 
-Run `omp <command> --help` for each command's own flags and examples.
+Run `zetacode <command> --help` for each command's own flags and examples.
 
 | Command | Purpose | See also |
 | --- | --- | --- |

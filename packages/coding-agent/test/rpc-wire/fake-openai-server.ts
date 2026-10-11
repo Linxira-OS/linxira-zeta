@@ -1,6 +1,6 @@
 /**
  * Scripted OpenAI-compatible chat completions server for the RPC client smoke
- * tests (Rust, Go): lets a real `omp --mode rpc` run full prompt turns, host
+ * tests (Rust, Go): lets a real `zetacode --mode rpc` run full prompt turns, host
  * tool calls included, without a real model.
  *
  * `bun test/rpc-wire/fake-openai-server.ts <agentDir>` listens on a free
