@@ -305,6 +305,27 @@ if (totalRequired < MIN_CI_JOBS) {
 	});
 }
 
+// Runner-version floor: the shared bun-install action reads its pin from
+// package.json `packageManager`, and a *range* pin makes it install latest bun.
+// That silently moves CI off the build the tree is developed on — bun's YAML
+// stringifier and its descriptor-inheritance behavior both changed between
+// 1.4.0 and 1.4.3, which reddened `packages/ai` TextJudge and the fd-inheritance
+// oracle while they pass on the pinned build. Require an exact pin so the
+// version CI runs is a deliberate, reviewable choice.
+const packageJsonFile = "package.json";
+const pinnedBun = /"packageManager":\s*"bun@(\d+\.\d+\.\d+)"/.exec(
+	fs.readFileSync(path.join(ROOT, packageJsonFile), "utf8"),
+)?.[1];
+if (!pinnedBun) {
+	violations.push({
+		file: packageJsonFile,
+		line: 0,
+		rule: "bun-pin-exact",
+		text: `packageManager is not an exact "bun@<major>.<minor>.<patch>" pin`,
+		why: "a range pin makes .github/actions/bun-install fetch latest bun, moving CI off the tested runtime (see the fd-inheritance test and TextJudge)",
+	});
+}
+
 if (process.argv.includes("--json")) {
 	console.log(JSON.stringify({ violations, files: census }, null, 2));
 } else {
