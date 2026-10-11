@@ -1,10 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
+import type { Settings } from "../config/settings";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
+import { TRACKING_TOGGLE_NOTICE_TYPE } from "../session/todo-tracker";
 import type { TrackingStatus } from "../tools/tracking";
 import { commandConsumed, usage } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
@@ -92,9 +94,11 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdTracking,
 		icon: "eye",
 		acpDescription: M.cmdTrackingAcp,
-		acpInputHint: "<status|plan|log|index|start>",
+		acpInputHint: "<status|plan|log|index|start|on|off>",
 		subcommands: [
 			{ name: "status", description: () => M.cmdTrackingStatus },
+			{ name: "on", description: () => M.cmdTrackingOn },
+			{ name: "off", description: () => M.cmdTrackingOff },
 			{ name: "plan", description: () => M.cmdTrackingPlan },
 			{ name: "log", description: () => M.cmdTrackingLog },
 			{ name: "index", description: () => M.cmdTrackingIndex },
@@ -102,27 +106,70 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
-			if (!cfgTrackingEnabled.get(runtime.settings)) {
-				await runtime.output(
-					"项目追踪默认关闭。用 /settings 打开 tools → Project Tracking（tracking.enabled）后，再用 /tracking 维护项目追踪文档。",
+			const { text, notice } = await resolveTrackingCommand(runtime.settings, command, runtime.cwd);
+			if (notice) {
+				await runtime.session.sendCustomMessage(
+					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
+					{ deliverAs: "nextTurn" },
 				);
-				return commandConsumed();
 			}
-			await runtime.output(await buildTrackingReport(command, runtime.cwd));
+			await runtime.output(text);
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			if (!cfgTrackingEnabled.get(runtime.ctx.settings)) {
-				runtime.ctx.showStatus("项目追踪默认关闭。请先开启 tracking.enabled（/settings → tools）。");
-				runtime.ctx.editor.setText("");
-				return;
+			const { text, notice } = await resolveTrackingCommand(
+				runtime.ctx.settings,
+				command,
+				runtime.ctx.sessionManager.getCwd(),
+			);
+			if (notice) {
+				await runtime.ctx.session.sendCustomMessage(
+					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
+					{ deliverAs: "nextTurn" },
+				);
 			}
-			const cwd = runtime.ctx.sessionManager.getCwd();
-			runtime.ctx.showStatus(await buildTrackingReport(command, cwd));
+			runtime.ctx.showStatus(text);
 			runtime.ctx.editor.setText("");
 		},
 	},
 ];
+
+/** Operator text plus the optional model notice for one `/tracking` invocation. */
+interface TrackingCommandOutcome {
+	/** Text either surface renders (status line, report, or disabled hint). */
+	text: string;
+	/** Model-visible notice; present only when `tracking.enabled` actually flipped. */
+	notice?: string;
+}
+
+/**
+ * Resolve `/tracking <args>` into the text both surfaces render plus, on a real
+ * flip of `tracking.enabled`, the model-visible notice to deliver. `on`/`off`
+ * are handled before the enabled gate; all command logic lives here so the
+ * text-mode and TUI handlers cannot drift.
+ */
+async function resolveTrackingCommand(
+	settings: Settings,
+	command: ParsedSlashCommand,
+	cwd: string,
+): Promise<TrackingCommandOutcome> {
+	const arg = command.args.trim().toLowerCase();
+	if (arg === "on" || arg === "off") {
+		const enabled = arg === "on";
+		if (cfgTrackingEnabled.get(settings) === enabled) {
+			return { text: M.cmdTrackingUnchanged };
+		}
+		settings.writeValue(cfgTrackingEnabled, enabled, "global");
+		const dir = getProjectTrackingDir(cwd);
+		return enabled
+			? { text: M.cmdTrackingEnabledFmt.replace("%s", dir), notice: M.cmdTrackingNoticeOn }
+			: { text: M.cmdTrackingDisabledFmt.replace("%s", dir), notice: M.cmdTrackingNoticeOff };
+	}
+	if (!cfgTrackingEnabled.get(settings)) {
+		return { text: M.cmdTrackingDisabledHint };
+	}
+	return { text: await buildTrackingReport(command, cwd) };
+}
 
 /**
  * Read the project tracking documents (<project>/.zeta/tracking) and render a

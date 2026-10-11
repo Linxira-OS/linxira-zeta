@@ -9,6 +9,7 @@ import * as path from "node:path";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { M } from "@linxiraos/zeta/i18n/index";
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "@linxiraos/zeta/slash-commands/builtin-zeta";
 import type { ParsedSlashCommand, SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -49,15 +50,25 @@ describe("/tracking slash command", () => {
 	it("is registered with i18n descriptions and subcommands", () => {
 		expect(trackingCmd).toBeDefined();
 		expect(trackingCmd!.description).toBeTruthy();
-		expect(trackingCmd!.subcommands?.map(s => s.name)).toEqual(["status", "plan", "log", "index", "start"]);
+		expect(trackingCmd!.subcommands?.map(s => s.name)).toEqual([
+			"status",
+			"on",
+			"off",
+			"plan",
+			"log",
+			"index",
+			"start",
+		]);
 	});
 
-	it("refuses to run when tracking.enabled is off (default) and points at /settings", async () => {
+	it("refuses to run when tracking.enabled is off (default) and points at the toggle command", async () => {
 		const cwd = path.join(tempDir, "gated");
 		await fs.mkdir(cwd, { recursive: true });
 		const capture = { text: "" };
 		await trackingCmd!.handle!(command("start"), mockRuntime(cwd, capture, false));
-		expect(capture.text).toContain("默认关闭");
+		// Localized hint, naming both the /tracking on command and the settings path.
+		expect(capture.text).toBe(M.cmdTrackingDisabledHint);
+		expect(capture.text).toContain("/tracking on");
 		expect(capture.text).toContain("tracking.enabled");
 		// Nothing is written while the feature is disabled.
 		expect(await fs.readdir(cwd)).toEqual([]);

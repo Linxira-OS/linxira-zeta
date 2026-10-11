@@ -2034,6 +2034,19 @@ export const en = {
 	cmdTrackingLog: "Show tracked actions summary",
 	cmdTrackingIndex: "Show tracking index",
 	cmdTrackingStart: "Start maintaining project tracking documents",
+	cmdTrackingOn: "Enable project tracking",
+	cmdTrackingOff: "Disable project tracking",
+	cmdTrackingEnabledFmt:
+		"Project tracking on. tracking_update is in the toolset and the phase nudge is active; documents live under %s.",
+	cmdTrackingDisabledFmt:
+		"Project tracking off. tracking_update and the phase nudge stop; documents under %s stay on disk untouched.",
+	cmdTrackingUnchanged: "Project tracking is already in that state; nothing changed.",
+	cmdTrackingDisabledHint:
+		"Project tracking is off. Run /tracking on to enable it, or turn on tools → Project Tracking (tracking.enabled) in /settings.",
+	cmdTrackingNoticeOn:
+		"Project tracking is on: maintain the tracking documents via tracking_update (status, index, log, plan); they survive compaction.",
+	cmdTrackingNoticeOff:
+		"Project tracking is off: stop calling tracking_update; phase nudges no longer fire and existing documents stay on disk untouched.",
 
 	cmdAdvisor: "Toggle the advisor (a second model that reviews each turn and injects notes)",
 	cmdAdvisorOn: "Enable the advisor",
