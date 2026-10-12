@@ -119,6 +119,11 @@ two-parent tag merge.
   grep-concurrency timing test; `packages/coding-agent` ModelRegistry compat (3;
   path rendering in the warning differs from the fixture). Main's Linux CI shows
   those buckets green, which is why they are local-only.
+- **Next merge**: starts from this round's final commit. Upstream's next tag is
+  `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
+  pure window is 166 commits / 165 files / +5870 −972). Maintainer decision
+  (2026-10-12): a **separate round** after this one lands, not chained onto this
+  branch — one tag per round keeps the review surface and the conflict count small.
 
 ## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`; the merge commit itself is titled `sync/omp-release/v18.8.8`)
 
