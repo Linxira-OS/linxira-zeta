@@ -1,6 +1,9 @@
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
 - Added `getNativeGrammarsDir()`, where the native addon loads downloaded tree-sitter grammars from (`~/.zeta/natives/grammars`).
+
 ## [1.1.27] - 2026-10-07
 
 - 版本线推进至 1.1.27；本版无独立用户可见变化。

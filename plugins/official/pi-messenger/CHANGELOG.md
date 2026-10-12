@@ -1,6 +1,6 @@
-# Changelog
+$1## [Unreleased]
 
-## [Unreleased]
+## [1.2.0] - 2026-10-12
 
 - **Crew subprocesses run the zeta CLI, not upstream `pi`**: worker/lobby spawns resolve the CLI that loaded the extension (compiled binary or runtime + entry, `PI_SUBPROCESS_CMD` override, then PATH lookup of `zeta-c`/`zetacode`/`zeta-cli`; never bare `pi`/`zeta`). The spawn flag surface (`--mode json`, `--no-session`, `-p`, `--provider/--model`, `--thinking`, `--tools`, `--extension`, `--append-system-prompt`) is equivalent on the zeta CLI. Windows `.cmd` shims are deliberately not spawned shell-less (EINVAL under Bun/Node, command-injection risk through a shell).
 - **State moved from the `~/.pi` tree to the zeta tree**: global messenger state `~/.zeta/agent/messenger` (was `~/.pi/agent/messenger`), project state `<project>/.zeta/messenger` (was `.pi/messenger`), config `~/.zeta/agent/pi-messenger.json` / `<project>/.zeta/pi-messenger.json`. One-time migrations move pre-existing state on first load (global) or first touch per project; the upstream `settings.json` "messenger" config source is no longer read.

@@ -1,11 +1,14 @@
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
+### Added
+
+- Added `TspToolProps.command` (the command line Copy command copies), `TspToolProps.preview: "children"` (the collapsed body stays whole while its children clamp) and `TspCodeProps.preview`
+
 ### Changed
 
 - Updated `TspEditorProps.placeholder` and `TspInputProps.placeholder` to accept `TspText`, enabling styled placeholder text.
-
-### Added
-- Added `TspToolProps.command` (the command line Copy command copies), `TspToolProps.preview: "children"` (the collapsed body stays whole while its children clamp) and `TspCodeProps.preview`
 
 ## [1.1.26] - 2026-10-03
 

@@ -1,11 +1,70 @@
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
 - Added cache-release hooks for TUI components and tool cards, allowing extensions to discard derived render data without rebuilding content ([#13632](https://github.com/can1357/oh-my-pi/pull/13632) by [@iliaal](https://github.com/iliaal)).
-## [9.8.0] - 2026-02-01
+
+### Breaking Changes
+
+- **Key detection functions removed**: All `isXxx()` key detection functions (`isEnter()`, `isEscape()`, `isCtrlC()`, etc.) have been removed. Use `matchesKey(data, keyId)` instead (e.g., `matchesKey(data, "enter")`, `matchesKey(data, "ctrl+c")`). This affects hooks and custom tools that use `ctx.ui.custom()` with keyboard input handling. ([#405](https://github.com/badlogic/pi-mono/pull/405))
+
+### Added
+
+- Add backslash+enter newline fallback for terminals without Kitty protocol
+- Overlay compositing via `TUI.showOverlay()` and `TUI.hideOverlay()` for `ctx.ui.custom()` with `{ overlay: true }`
+- Kitty keyboard protocol flag 2 support for key release events (`isKeyRelease()`, `isKeyRepeat()`, `KeyEventType`)
+- `setKittyProtocolActive()`, `isKittyProtocolActive()` for Kitty protocol state management
+- `kittyProtocolActive` property on Terminal interface to query Kitty protocol state
+- `Component.wantsKeyRelease` property to opt-in to key release events (default false)
+- Input component `onEscape` callback for handling escape key presses
+- Emergency terminal restore to prevent corrupted state on crashes
+- Overhauled UI with welcome screen and powerline footer
+- Theme-configurable HTML export colors
+- `ctx.ui.theme` getter for styling status text with theme colors
+- Added `PI_TUI_WRITE_LOG` environment variable to capture raw ANSI output for debugging
+- Added legacy Alt+letter handling and Alt+D delete word forward support in the editor keymap. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
+- `showOverlay()` now returns `OverlayHandle` with `hide()`, `setHidden(boolean)`, `isHidden()` for programmatic visibility control ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- New exported types: `OverlayAnchor`, `OverlayHandle`, `OverlayMargin`, `OverlayOptions`, `SizeValue` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- `truncateToWidth()` now accepts optional `pad` parameter to pad result with spaces to exactly `maxWidth` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- **Experimental:** Overlay compositing for `ctx.ui.custom()` with `{ overlay: true }` option ([#558](https://github.com/badlogic/pi-mono/pull/558) by [@nicobailon](https://github.com/nicobailon))
+- `EditorComponent` interface for custom editor implementations
+- `StdinBuffer` class to split batched stdin into individual sequences (adapted from [OpenTUI](https://github.com/anomalyco/opentui), MIT license)
+- `Editor.getExpandedText()` method that returns text with paste markers expanded to their actual content ([#444](https://github.com/badlogic/pi-mono/pull/444) by [@aliou](https://github.com/aliou))
 
 ### Changed
 
 - Moved `wrapTextWithAnsi` export to `@linxiraos/pi-natives` package
+- Default editor `newLine` binding now uses `shift+enter` only
+- Hardware cursor is now disabled by default for better terminal compatibility. Set `PI_HARDWARE_CURSOR=1` to enable (replaces `PI_NO_HARDWARE_CURSOR=1` which disabled it).
+
+### Fixed
+
+- Remove trailing space padding from Text, Markdown, and TruncatedText components when no background color is set (fixes copied text including unwanted whitespace)
+- Fixed Ctrl+Enter sequences to insert new lines in the editor
+- Fixed `fd` tool detection to automatically find `fd` or `fdfind` in PATH when not explicitly configured
+- Fixed editor multi-line insertion handling and lastAction tracking ([#945](https://github.com/badlogic/pi-mono/pull/945) by [@Perlence](https://github.com/Perlence))
+- Fixed editor word wrapping to reserve a cursor column ([#934](https://github.com/badlogic/pi-mono/pull/934) by [@Perlence](https://github.com/Perlence))
+- Fixed editor word wrapping to use single-pass backtracking for whitespace handling ([#924](https://github.com/badlogic/pi-mono/pull/924) by [@Perlence](https://github.com/Perlence))
+- Fixed Kitty image ID allocation and cleanup to prevent image ID collisions between modules
+- Fixed viewport tracking and cursor positioning for overlays and content shrink scenarios
+- Autocomplete now allows searches with `/` characters (e.g., `folder1/folder2`) ([#882](https://github.com/badlogic/pi-mono/pull/882) by [@richardgill](https://github.com/richardgill))
+- Directory completions for `@` file attachments no longer add trailing space, allowing continued autocomplete into subdirectories
+- `visibleWidth()` and `extractAnsiCode()` now handle APC escape sequences (`ESC _ ... BEL`), fixing width calculation and string slicing for strings containing cursor markers
+- SelectList now handles multi-line descriptions by replacing newlines with spaces ([#728](https://github.com/badlogic/pi-mono/pull/728) by [@richardgill](https://github.com/richardgill))
+- Reset ANSI styles after each rendered line to prevent style leakage
+- Cursor position tracking when content shrinks with unchanged remaining lines
+- TUI renders with wrong dimensions after suspend/resume if terminal was resized while suspended ([#599](https://github.com/badlogic/pi-mono/issues/599))
+- Pasted content containing Kitty key release patterns (e.g., `:3F` in MAC addresses) was incorrectly filtered out ([#623](https://github.com/badlogic/pi-mono/pull/623) by [@ogulcancelik](https://github.com/ogulcancelik))
+- `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
+
+Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
+Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).
+
+### Removed
+
+- Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
+
+## [9.8.0] - 2026-02-01
 
 ### Fixed
 
@@ -34,7 +93,6 @@
 
 ### Removed
 
-- Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
 - Removed `ellipsis` property from `SymbolTheme` interface
 - Removed `extractAnsiCode` function from public API
 
@@ -219,19 +277,12 @@
 - Fixed numbered list items showing "1." for all items when code blocks break list continuity
 - Fixed width overflow protection in overlay compositing to prevent TUI crashes
 
-## [4.7.0] - 2026-01-12
-
-### Fixed
-
-- Remove trailing space padding from Text, Markdown, and TruncatedText components when no background color is set (fixes copied text including unwanted whitespace)
-
 ## [4.6.0] - 2026-01-12
 
 ### Added
 
 - Add fuzzy matching module (`fuzzyMatch`, `fuzzyFilter`) for command autocomplete
 - Add `getExpandedText()` to editor for expanding paste markers
-- Add backslash+enter newline fallback for terminals without Kitty protocol
 
 ### Fixed
 
@@ -239,12 +290,6 @@
 - Add bracketed paste check to prevent false key release/repeat detection
 - Rendering optimizations: only re-render changed lines
 - Refactor input component to use keybindings manager
-
-## [4.4.4] - 2026-01-11
-
-### Fixed
-
-- Fixed Ctrl+Enter sequences to insert new lines in the editor
 
 ## [4.2.1] - 2026-01-11
 
@@ -255,7 +300,6 @@
 ### Fixed
 
 - Fixed editor redraw glitch when canceling autocomplete suggestions
-- Fixed `fd` tool detection to automatically find `fd` or `fdfind` in PATH when not explicitly configured
 
 ## [4.1.0] - 2026-01-10
 
@@ -269,17 +313,10 @@
 
 - `EditorComponent` interface for custom editor implementations
 - `StdinBuffer` class to split batched stdin into individual sequences
-- Overlay compositing via `TUI.showOverlay()` and `TUI.hideOverlay()` for `ctx.ui.custom()` with `{ overlay: true }`
-- Kitty keyboard protocol flag 2 support for key release events (`isKeyRelease()`, `isKeyRepeat()`, `KeyEventType`)
-- `setKittyProtocolActive()`, `isKittyProtocolActive()` for Kitty protocol state management
-- `kittyProtocolActive` property on Terminal interface to query Kitty protocol state
-- `Component.wantsKeyRelease` property to opt-in to key release events (default false)
-- Input component `onEscape` callback for handling escape key presses
 
 ### Changed
 
 - Terminal startup now queries Kitty protocol support before enabling event reporting
-- Default editor `newLine` binding now uses `shift+enter` only
 
 ### Fixed
 
@@ -350,10 +387,6 @@
 ### Added
 
 - TabBar component for horizontal tab navigation
-- Emergency terminal restore to prevent corrupted state on crashes
-- Overhauled UI with welcome screen and powerline footer
-- Theme-configurable HTML export colors
-- `ctx.ui.theme` getter for styling status text with theme colors
 
 ### Changed
 
@@ -405,17 +438,12 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Added
 
 - Added `fullRedraws` readonly property to TUI class for tracking full screen redraws
-- Added `PI_TUI_WRITE_LOG` environment variable to capture raw ANSI output for debugging
 
 ### Fixed
 
 - Fixed appended lines not being committed to scrollback, causing earlier content to be overwritten when viewport fills ([#954](https://github.com/badlogic/pi-mono/issues/954))
 - Slash command menu now only triggers when the editor input is otherwise empty ([#904](https://github.com/badlogic/pi-mono/issues/904))
 - Center-anchored overlays now stay vertically centered when resizing the terminal taller after a shrink ([#950](https://github.com/badlogic/pi-mono/pull/950) by [@nicobailon](https://github.com/nicobailon))
-- Fixed editor multi-line insertion handling and lastAction tracking ([#945](https://github.com/badlogic/pi-mono/pull/945) by [@Perlence](https://github.com/Perlence))
-- Fixed editor word wrapping to reserve a cursor column ([#934](https://github.com/badlogic/pi-mono/pull/934) by [@Perlence](https://github.com/Perlence))
-- Fixed editor word wrapping to use single-pass backtracking for whitespace handling ([#924](https://github.com/badlogic/pi-mono/pull/924) by [@Perlence](https://github.com/Perlence))
-- Fixed Kitty image ID allocation and cleanup to prevent image ID collisions between modules
 
 ## [0.49.3] - 2026-01-22
 
@@ -431,9 +459,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Autolinked emails no longer display redundant `(mailto:...)` suffix in markdown output ([#888](https://github.com/badlogic/pi-mono/pull/888) by [@terrorobe](https://github.com/terrorobe))
-- Fixed viewport tracking and cursor positioning for overlays and content shrink scenarios
-- Autocomplete now allows searches with `/` characters (e.g., `folder1/folder2`) ([#882](https://github.com/badlogic/pi-mono/pull/882) by [@richardgill](https://github.com/richardgill))
-- Directory completions for `@` file attachments no longer add trailing space, allowing continued autocomplete into subdirectories
 
 ## [0.49.1] - 2026-01-18
 
@@ -448,17 +473,12 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 - Added `showHardwareCursor` getter and setter to control cursor visibility while keeping IME positioning active. ([#800](https://github.com/badlogic/pi-mono/pull/800) by [@ghoulr](https://github.com/ghoulr))
 - Added Emacs-style kill ring editing with yank and yank-pop keybindings. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
-- Added legacy Alt+letter handling and Alt+D delete word forward support in the editor keymap. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
 
 ## [0.48.0] - 2026-01-16
 
 ### Added
 
 - `EditorOptions` with optional `paddingX` for horizontal content padding, plus `getPaddingX()`/`setPaddingX()` methods ([#791](https://github.com/badlogic/pi-mono/pull/791) by [@ferologics](https://github.com/ferologics))
-
-### Changed
-
-- Hardware cursor is now disabled by default for better terminal compatibility. Set `PI_HARDWARE_CURSOR=1` to enable (replaces `PI_NO_HARDWARE_CURSOR=1` which disabled it).
 
 ### Fixed
 
@@ -481,8 +501,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Editor no longer corrupts terminal display when text exceeds screen height. Content now scrolls vertically with indicators showing lines above/below the viewport. Max height is 30% of terminal (minimum 5 lines). ([#732](https://github.com/badlogic/pi-mono/issues/732))
-- `visibleWidth()` and `extractAnsiCode()` now handle APC escape sequences (`ESC _ ... BEL`), fixing width calculation and string slicing for strings containing cursor markers
-- SelectList now handles multi-line descriptions by replacing newlines with spaces ([#728](https://github.com/badlogic/pi-mono/pull/728) by [@richardgill](https://github.com/richardgill))
 
 ## [0.46.0] - 2026-01-15
 
@@ -496,9 +514,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 - `OverlayOptions` API for overlay positioning and sizing with CSS-like values: `width`, `maxHeight`, `row`, `col` accept numbers (absolute) or percentage strings (e.g., `"50%"`). Also supports `minWidth`, `anchor`, `offsetX`, `offsetY`, `margin`. ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
 - `OverlayOptions.visible` callback for responsive overlays - receives terminal dimensions, return false to hide ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- `showOverlay()` now returns `OverlayHandle` with `hide()`, `setHidden(boolean)`, `isHidden()` for programmatic visibility control ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- New exported types: `OverlayAnchor`, `OverlayHandle`, `OverlayMargin`, `OverlayOptions`, `SizeValue` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- `truncateToWidth()` now accepts optional `pad` parameter to pad result with spaces to exactly `maxWidth` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
 
 ### Fixed
 
@@ -525,29 +540,14 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Cursor now moves to end of content on exit, preventing status line from being overwritten ([#629](https://github.com/badlogic/pi-mono/pull/629) by [@tallshort](https://github.com/tallshort))
-- Reset ANSI styles after each rendered line to prevent style leakage
 
 ## [0.42.5] - 2026-01-11
 
 ### Fixed
 
 - Reduced flicker by only re-rendering changed lines ([#617](https://github.com/badlogic/pi-mono/pull/617) by [@ogulcancelik](https://github.com/ogulcancelik))
-- Cursor position tracking when content shrinks with unchanged remaining lines
-- TUI renders with wrong dimensions after suspend/resume if terminal was resized while suspended ([#599](https://github.com/badlogic/pi-mono/issues/599))
-- Pasted content containing Kitty key release patterns (e.g., `:3F` in MAC addresses) was incorrectly filtered out ([#623](https://github.com/badlogic/pi-mono/pull/623) by [@ogulcancelik](https://github.com/ogulcancelik))
-
-## [0.39.0] - 2026-01-08
-
-### Added
-
-- **Experimental:** Overlay compositing for `ctx.ui.custom()` with `{ overlay: true }` option ([#558](https://github.com/badlogic/pi-mono/pull/558) by [@nicobailon](https://github.com/nicobailon))
 
 ## [0.38.0] - 2026-01-08
-
-### Added
-
-- `EditorComponent` interface for custom editor implementations
-- `StdinBuffer` class to split batched stdin into individual sequences (adapted from [OpenTUI](https://github.com/anomalyco/opentui), MIT license)
 
 ### Fixed
 
@@ -587,17 +587,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 - Symbol key support in keybinding system: `SymbolKey` type with 32 symbol keys, `Key` constants (e.g., `Key.backtick`, `Key.comma`), updated `matchesKey()` and `parseKey()` to handle symbol input ([#450](https://github.com/badlogic/pi-mono/pull/450) by [@kaofelix](https://github.com/kaofelix))
 
-## [0.34.0] - 2026-01-04
-
-### Added
-
-- `Editor.getExpandedText()` method that returns text with paste markers expanded to their actual content ([#444](https://github.com/badlogic/pi-mono/pull/444) by [@aliou](https://github.com/aliou))
-
 ## [0.33.0] - 2026-01-04
-
-### Breaking Changes
-
-- **Key detection functions removed**: All `isXxx()` key detection functions (`isEnter()`, `isEscape()`, `isCtrlC()`, etc.) have been removed. Use `matchesKey(data, keyId)` instead (e.g., `matchesKey(data, "enter")`, `matchesKey(data, "ctrl+c")`). This affects hooks and custom tools that use `ctx.ui.custom()` with keyboard input handling. ([#405](https://github.com/badlogic/pi-mono/pull/405))
 
 ### Added
 
@@ -625,12 +615,5 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 - Shift+Space, Shift+Backspace, and Shift+Delete now work correctly in Kitty-protocol terminals (Kitty, WezTerm, etc.) instead of being silently ignored ([#411](https://github.com/badlogic/pi-mono/pull/411) by [@nathyong](https://github.com/nathyong))
 
 ## [0.31.1] - 2026-01-02
-
-### Fixed
-
-- `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
-
-Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
-Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).
 
 Older entries are archived in [packages/tui/CHANGELOG.md@fa14205f838f](https://github.com/can1357/oh-my-pi/blob/fa14205f838f282fcea048c64fca74026789a492/packages/tui/CHANGELOG.md).

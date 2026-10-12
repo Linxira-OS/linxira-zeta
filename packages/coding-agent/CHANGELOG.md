@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
 - tracking 四项完整性：`status.json` 与全局追踪索引的读-改-写整体进 `withFileLock` 租约（锁覆盖整个过程，不只包住写）并改为原子替换，`tracking_update` 同时声明同批次串行——两个写者不再互相丢更新；`actions.jsonl` 改为按 5 MB × 3 份轮转的 `actions.<日期>.jsonl.log`，所有读者（Web 面板、`/tracking log`）改为有界尾读；Web UI 追踪面板补上 `summaries/` 摘要标签页（此前只声明不渲染）；`GET /api/tracking` 的 `updatedAt` 改为内容派生（追踪目录最新 mtime），内容未变时不再每次请求都前进。
 - 内存吃紧时自动收紧子代理扇出：`task` 每次取并发许可时采样（进程 rss + 系统可用内存），低于阈值就把该次决策的实际并发上限降下来（紧张 ≤8、危急 ≤2，已设更小的值只会保留不会抬高），并在日志里逐级告警一次；`task.maxConcurrency` 设置本身不动，跑着的工作不杀不加，内存恢复即回到配置值。
 - 崩溃报告（stderr 与 `~/.zeta/logs/native-*.log`）新增进程与系统内存计数：进程 rss/峰值/提交、系统可用/总量/提交上限。读数走 syscall、经预分配栈缓冲无分配写入，因此真正的 OOM 下数字也能先落到 stderr，再谈报告本体。
@@ -7,6 +9,31 @@
 - 新增 `mode` 工具：AI 可自行进入计划模式（含 `parallel`/`iterative`/`ultra` 工作流），且只能退出**自己开启的**计划模式；用户开启的计划模式、以及 `goal`/`vibe` 模式的进出一律拒绝（这两个模式授予自主权，只能由用户开启，AI 只能请求）。计划模式的来源记录在会话状态里（缺省视为用户开启），因此代理无法绕过用户放行计划的那道门。
 - 系统提示词补上 host CLI 的专用工具规则：GitHub（CI 运行、PR、议题、搜索）用 `github` 工具而非 shell `gh`，轮询 CI 用 `op: run_watch`（省略 `run` 即当前 HEAD）而非 `gh run watch` 循环；Gitea 同理用 `tea` 工具而非 shell `tea`。此前这条规则只存在于「把 CI 弄绿」这一条件提示词里，日常会话中模型仍会用 shell 轮询。
 - bash 工具的提权与凭据规则同时落地到模型面提示词：默认**绝不落盘**——本机、或本机上的容器，其 SSH key / root 密码只保存在上下文记忆里为该目标复用（凭据库、设置、笔记、计划、工件、日志都不写，也不回显；上下文记忆会进入你自己的会话记录 `.zeta/sessions/`，那是你的数据目录、不在仓库内）；远端主机与第三方服务默认完全不存，由用户在可见窗口里键入。**用户明确要求时以用户为准**：让你记住、或让你把用法写进文档，就照做。此前"绝不存凭据"是一刀切，且提权的两条路径（`pty: true` 覆盖层、弹出提权窗口）只写在 `docs/` 里按需查阅，模型面提示词零提及。
+
+### Added
+
+- 新增 tea 工具套件：面向自托管 Gitea（及 gitea.com）的 `tea` CLI 集成，提供仓库/议题/拉取请求/检出/合并/发行版等 op（`repo_view`、`repo_create`、`issue_*`、`pr_*`、`release_*`），创建类操作一律 API 回读验证（`tea repo create` 有静默失败史）；通过 `gitea.enabled` 启用，默认关闭。
+- Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
+
+### Changed
+
+- OTLP 遥测导出改为**硬关闭**：删除 `telemetry.otlpExportEnabled` 设置（原先默认开启），产品启动改由写死的 `TELEMETRY_EXPORT_ENABLED = false` 门控。我们没有遥测服务端，任何 `OTEL_EXPORTER_OTLP*` 端点都不会导出，且不存在任何开启入口（无设置项、无环境变量、无命令行开关）。等我们自建采集端后再有意识地加回。门控由 `brand-check` 的 MUST_CONTAIN/MUST_NOT_CONTAIN 守卫锁定，上游合并改不回来。OTLP `service.name` 兜底值同时由 `oh-my-pi` 改为 `zeta`。
+- 品牌面回归修复：上游自带的 `chore: branding` 提交（`d35a9067233`，2026-09-24）随 v18.8.x 合并带入，把模型可见的提示词与用户可见的 CLI 文案改回了 `omp`——系统提示词首行（模型据此自称「omp 的编程助手」）、`cfg://`/browser/ida/isolation-error/security/cleanse/live/commit 各提示词、help 与示例文案（`zetacode bench` 等）、`text-predict`/`tiny worker`/`lsp mux`/RPC wire 进程横幅，以及相关 `docs/` 页面全部回归 Zeta 命名；`brand-rules.ts` 新增 6 条 MUST_CONTAIN + 4 条 MUST_NOT_CONTAIN 守卫，CHANGELOG 按「发布条目不可变」惯例豁免 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
+- 命令行的标准指令名定为 `zetacode`（四件套标准名：zetawork / zetacode / zetaide / zetaeditor，无连字符）：`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成、各命令说明与文档全部改用标准名。`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 仍是 npm bin 兼容别名，行为不变；垫片与资产文件名（`zeta-c.cmd` 等）不受影响。
+- **上游品牌残留全量清除**：把产品对外暴露的每一个上游标识换成 Zeta 名，包括操作系统/浏览器层面可见的部分 —— macOS bundle id 与 App 名（`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`）、Windows HKCU 注册表事务名、Linux desktop entry 与 `zeta-auth` 协议、文件描述符 URL 协议（`zeta-descriptor://`）、文件锁前缀、XDG 状态目录；进程标题（`zetacode lsp mux`）、IDA 守护进程名（`zeta.ida.*`）、命名管道与 socket 路径、User-Agent、AWS STS `RoleSessionName`、遥测指标与 TUI 语义 role、导出 HTML 的自定义元素名。会话录制格式扩展名 `.ompcast` → `.zetacast`。开发期 wrapper 与链接脚本改为 `scripts/zetacode` / `scripts/link-zetacode.sh`，不再往全局 bin 写入 `omp`。
+- **⚠️ 存储键命名空间变更（需要迁移）**：Redis 会话存储的默认键前缀由 `omp:sessions:` 改为 `zeta:sessions:`，SQL 会话存储的默认表名由 `omp_session_files` 改为 `zeta_session_files`。已有部署若沿用默认值，历史数据将不可见 —— 迁移方式是把旧键/旧表重命名到新名字，或在配置中显式写回旧前缀。两者都是纯改名，不涉及格式变化。
+- **⚠️ OAuth 回调协议处理器改名**：macOS LaunchServices、Windows 注册表与 Linux desktop entry 中可能残留旧标识（`dev.omp.oauth-callback.*` / `omp OAuth Callback` / `omp-auth`）的注册项，它们指向的路径已不存在。升级后首次执行一次 OAuth 登录即可写入新注册；如系统里仍有旧条目，可在系统的"默认应用/协议关联"设置中移除。
+- **SDK 更名（无兼容别名）**：`sdk/go/omp-rpc`、`sdk/python/omp-rpc`、`sdk/rust/omp-rpc` 改名为 `zeta-rpc`，Python 包名 `omp_rpc` → `zeta_rpc`，Go 包名 `omprpc` → `zetarpc`。三者均为 `gen:rpc` 的入库生成产物，版本 0.1.0（pre-1.0），此前未发布到任何 registry，因此不提供 `omp-rpc` 过渡别名。顺带修正 Go module 路径：此前误指向上游仓库 `github.com/can1357/oh-my-pi/sdk/go/...`，现为 `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`。
+
+### Fixed
+
+- 修复 tiny worker 横幅读写两侧拼写分裂：worker 打印 `omp tiny worker listening on`，而 title-client 过滤的是 `zeta tiny worker listening on `（永不匹配，本该滤掉的横幅行照旧混入）；两侧统一为 `zetacode`，`text-predict`/`lsp mux` 的进程标识与 IDA 命名管道前缀一并对齐 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
+- Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
+- 终端 tab 标题在无会话名时不再回退为 `omp`，改为 `zeta`。
+- 协作（collab）replication 快照恢复上游 v18.8.4 的 no-copy 契约（live header + entries），宿主与哨兵同步。
+- 去重 CHANGELOG 中重复的 `[1.1.27]` 节头，修复 changelog 解析。
+- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
+
 ## [1.1.27] - 2026-10-07
 
 - Added automated release binary publication to build.stencil.so
@@ -20,15 +47,13 @@
 - Added message times to `/dump` transcripts (assistant turns also show request duration and time to first token), and live status, last activity, pending tool calls, and the partially streamed turn to `/dump all` files for subagents still running, so a stuck subagent can be diagnosed from the archive ([#15121](https://github.com/can1357/oh-my-pi/pull/15121) by [@H4vC](https://github.com/H4vC))
 - Added `contextFiles.extra` to load extra instruction files, such as `AGENTS.local.md`, beside the usual context file ([#15147](https://github.com/can1357/oh-my-pi/pull/15147) by [@Shadorain](https://github.com/Shadorain)).
 - `/annotate` opens the note you are writing, a file or typed-prompt source, or (for local diff reviews) the current working-tree file in `$VISUAL` or `$EDITOR` with the external-editor key (Ctrl+G by default); a file source is saved back and its notes follow the edited text ([#15151](https://github.com/can1357/oh-my-pi/pull/15151) by [@Shadorain](https://github.com/Shadorain))
+
 ### Added
 
-- 新增 tea 工具套件：面向自托管 Gitea（及 gitea.com）的 `tea` CLI 集成，提供仓库/议题/拉取请求/检出/合并/发行版等 op（`repo_view`、`repo_create`、`issue_*`、`pr_*`、`release_*`），创建类操作一律 API 回读验证（`tea repo create` 有静默失败史）；通过 `gitea.enabled` 启用，默认关闭。
 - Added per-session Git worktree support with `worktree.onStart` and `worktree.onExit` settings to create an isolated worktree for each session and clean it up when the session ends.
 - Expanded xAI web search with X post search, including X-only and author-specific queries, author exclusions, date and recency filters, and automatic xAI routing when credentials are available.
 - Added xAI-powered reading of X posts, threads and replies, profiles, searches, and hashtags when logged in, replacing the unavailable Nitter mirrors.
 - Added per-model auto-compaction points: the `/models` preview shows where each model compacts, and in the Roles view `k` (or the **Compaction limit** button) sets it for the selected role's or fallback's model (`90000`, `90k`, `1M`, `80%`; empty resets). Also configurable as `compaction.modelThresholds` with `provider/model-id` or `provider/*` keys ([#14952](https://github.com/can1357/oh-my-pi/pull/14952) by [@H4vC](https://github.com/H4vC))
-- Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
-
 - Updated `write` tool error message to mention local:// scratch support
 - Web search now tells the agent about its X post operators (`site:x.com`, `from:<handle>`) when you are logged in to xAI, so questions about reactions on X reach X search.
 - Reduced memory retained after merging unchanged discovered and cached models ([#14252](https://github.com/can1357/oh-my-pi/pull/14252) by [@iliaal](https://github.com/iliaal)).
@@ -43,17 +68,13 @@
 - The startup update notice no longer appears when omp runs from a source checkout.
 - A `/models` compaction limit set past a model's standard context window now runs that model on its extended window instead of being silently clamped; the hub warns (noting long-context pricing) and saves on a second Enter, in the terminal and in Tern, and rejects limits past the model's largest window ([#15048](https://github.com/can1357/oh-my-pi/pull/15048) by [@H4vC](https://github.com/H4vC))
 - A token compaction limit set in `/models` (or `compaction.modelThresholds`) is now the base omp scales with its usual policy, as if it were the model's window (85% of it by default for bases above ~109k, or `compaction.thresholdPercent` of it), instead of the exact point. Plain numbers saved since 18.8.5 therefore compact earlier; rewrite one as `"f<tokens>"` (or type `f400k` in the hub) to keep it an exact trigger. The `/models` limit field shows where the model would compact as you type (`compacts at 340K · 85% of 400K base`), the preview's **Compacts at** row says why, and the saved message repeats it ([#15065](https://github.com/can1357/oh-my-pi/pull/15065) by [@H4vC](https://github.com/H4vC))
+- Write-tool previews now render as files stream: SVG files appear as images, and Mermaid files (`.mmd` and `.mermaid`) appear as diagrams. Tern also previews supported 3D model formats (`.obj`, `.ply`, `.wrl`, `.x3dv`, `.stl`, `.gltf`, and `.usda`) and renders SVG writes as SVG figures.
+- Added the `title.icons` setting to show session title cards with a Nerd Font glyph and emoji fallback (`nf+emoji`, default), always the emoji (`emoji`), or as plain titles (`boring`).
+- Added the `title.generator` setting to name sessions from a fork of the reply (`fork`, default) or with the title model only (`tiny`).
+
 ### Changed
 
-- OTLP 遥测导出改为**硬关闭**：删除 `telemetry.otlpExportEnabled` 设置（原先默认开启），产品启动改由写死的 `TELEMETRY_EXPORT_ENABLED = false` 门控。我们没有遥测服务端，任何 `OTEL_EXPORTER_OTLP*` 端点都不会导出，且不存在任何开启入口（无设置项、无环境变量、无命令行开关）。等我们自建采集端后再有意识地加回。门控由 `brand-check` 的 MUST_CONTAIN/MUST_NOT_CONTAIN 守卫锁定，上游合并改不回来。OTLP `service.name` 兜底值同时由 `oh-my-pi` 改为 `zeta`。
-- 品牌面回归修复：上游自带的 `chore: branding` 提交（`d35a9067233`，2026-09-24）随 v18.8.x 合并带入，把模型可见的提示词与用户可见的 CLI 文案改回了 `omp`——系统提示词首行（模型据此自称「omp 的编程助手」）、`cfg://`/browser/ida/isolation-error/security/cleanse/live/commit 各提示词、help 与示例文案（`zetacode bench` 等）、`text-predict`/`tiny worker`/`lsp mux`/RPC wire 进程横幅，以及相关 `docs/` 页面全部回归 Zeta 命名；`brand-rules.ts` 新增 6 条 MUST_CONTAIN + 4 条 MUST_NOT_CONTAIN 守卫，CHANGELOG 按「发布条目不可变」惯例豁免 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
-- 命令行的标准指令名定为 `zetacode`（四件套标准名：zetawork / zetacode / zetaide / zetaeditor，无连字符）：`--help` 用法与示例、`update` 横幅、`--resume` 提示、profile alias 生成、各命令说明与文档全部改用标准名。`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` 仍是 npm bin 兼容别名，行为不变；垫片与资产文件名（`zeta-c.cmd` 等）不受影响。
 - Web search now prefers an authenticated `xai-oauth` login over an `xai` API key when both are available, unless `modelProviderOrder` specifies a different order.
-- **上游品牌残留全量清除**：把产品对外暴露的每一个上游标识换成 Zeta 名，包括操作系统/浏览器层面可见的部分 —— macOS bundle id 与 App 名（`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`）、Windows HKCU 注册表事务名、Linux desktop entry 与 `zeta-auth` 协议、文件描述符 URL 协议（`zeta-descriptor://`）、文件锁前缀、XDG 状态目录；进程标题（`zetacode lsp mux`）、IDA 守护进程名（`zeta.ida.*`）、命名管道与 socket 路径、User-Agent、AWS STS `RoleSessionName`、遥测指标与 TUI 语义 role、导出 HTML 的自定义元素名。会话录制格式扩展名 `.ompcast` → `.zetacast`。开发期 wrapper 与链接脚本改为 `scripts/zetacode` / `scripts/link-zetacode.sh`，不再往全局 bin 写入 `omp`。
-- **⚠️ 存储键命名空间变更（需要迁移）**：Redis 会话存储的默认键前缀由 `omp:sessions:` 改为 `zeta:sessions:`，SQL 会话存储的默认表名由 `omp_session_files` 改为 `zeta_session_files`。已有部署若沿用默认值，历史数据将不可见 —— 迁移方式是把旧键/旧表重命名到新名字，或在配置中显式写回旧前缀。两者都是纯改名，不涉及格式变化。
-- **⚠️ OAuth 回调协议处理器改名**：macOS LaunchServices、Windows 注册表与 Linux desktop entry 中可能残留旧标识（`dev.omp.oauth-callback.*` / `omp OAuth Callback` / `omp-auth`）的注册项，它们指向的路径已不存在。升级后首次执行一次 OAuth 登录即可写入新注册；如系统里仍有旧条目，可在系统的"默认应用/协议关联"设置中移除。
-- **SDK 更名（无兼容别名）**：`sdk/go/omp-rpc`、`sdk/python/omp-rpc`、`sdk/rust/omp-rpc` 改名为 `zeta-rpc`，Python 包名 `omp_rpc` → `zeta_rpc`，Go 包名 `omprpc` → `zetarpc`。三者均为 `gen:rpc` 的入库生成产物，版本 0.1.0（pre-1.0），此前未发布到任何 registry，因此不提供 `omp-rpc` 过渡别名。顺带修正 Go module 路径：此前误指向上游仓库 `github.com/can1357/oh-my-pi/sdk/go/...`，现为 `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`。
-
 - Reduced memory growth after one-shot side requests without interrupting ongoing conversations ([#14334](https://github.com/can1357/oh-my-pi/pull/14334) by [@iliaal](https://github.com/iliaal)).
 - Fixed sessions staying untitled when you interrupted the first reply to send a queued steer message.
 - Fixed browser downloads saving into another tab's `downloads` folder, and `tab.waitForDownload()` saving into the system Downloads folder once another tab closed; each tab in a Chromium omp launched or spawned now saves into its own, iframe downloads included. In those browsers a download no tab tracks (started by a page omp did not open, or finishing after its tab closed) now keeps Chromium's GUID file name instead of its suggested name; connected and relay browsers keep real file names ([#14544](https://github.com/can1357/oh-my-pi/pull/14544) by [@will-bogusz](https://github.com/will-bogusz))
@@ -78,13 +99,21 @@
 - Fixed auto-compaction overflowing the context window every cycle when `compaction.thresholdTokens` or an `f<tokens>` model limit is at or past a window the provider caps lower (such as Factory's 196K Kimi K3); it now compacts at the window less the reserve, and `/models` shows the trigger as capped ([#15146](https://github.com/can1357/oh-my-pi/pull/15146) by [@will-bogusz](https://github.com/will-bogusz))
 - Fixed resumed xAI, Factory Droid and OpenAI sessions forgetting earlier reasoning on their first request, while a retry after a stale Responses item error still rebuilds history ([#15148](https://github.com/can1357/oh-my-pi/pull/15148) by [@will-bogusz](https://github.com/will-bogusz))
 - Fixed the startup default ignoring the model a provider's discovery names as the account's default: with no model chosen, Devin Pro now starts on SWE-2 at High instead of SWE-1.6 ([#15115](https://github.com/can1357/oh-my-pi/pull/15115) by [@will-bogusz](https://github.com/will-bogusz))
+- Session titles are generated using the session's model when possible, with a fallback to the lightweight title model; `TITLE_SYSTEM.md` continues to override the title prompt.
+- Session titles now include a card index, icon, and short code, with appropriate Nerd Font rendering in Tern panes.
+- When Nerd Font symbols are unavailable, session titling requests only an emoji.
+- Subagent completion indicators now advance to 99% when the subagent submits its result.
+- In Tern panes, headed and headless browser opens are shown in Tern picture-in-picture by default; set `app.tern: false`, `browser.tern`, or `PI_BROWSER_TERN=0` to open Chromium instead.
+- In Tern panes, `/fork` opens the fork in a neighboring pane while preserving the original session.
+- Tern's empty composer now shows the session title, or “What are we cooking?” when no title is available.
+- Tern todo cards now display their checklist by default and can be collapsed by clicking the card header.
+- Improved performance across browser extraction, web and document fetching, file tools, search, session handling, LSP/DAP, MCP, subagents, SSH file operations, image processing, voice and dictation, collaboration, and large-output or large-file workflows.
+- Prompt history search now updates shortly after typing stops while Enter and mouse selections use the latest query.
+- Improved responsiveness and reduced resource usage for long sessions, large files and documents, streaming evaluations, terminal graphics, live voice calls, and other high-volume workflows.
+- Hosts that are not supported Mastodon, Lemmy, or Discourse instances are no longer repeatedly probed for those services, improving URL-fetch performance.
+
 ### Fixed
 
-- 修复 tiny worker 横幅读写两侧拼写分裂：worker 打印 `omp tiny worker listening on`，而 title-client 过滤的是 `zeta tiny worker listening on `（永不匹配，本该滤掉的横幅行照旧混入）；两侧统一为 `zetacode`，`text-predict`/`lsp mux` 的进程标识与 IDA 命名管道前缀一并对齐 ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
-- Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
-- 终端 tab 标题在无会话名时不再回退为 `omp`，改为 `zeta`。
-- 协作（collab）replication 快照恢复上游 v18.8.4 的 no-copy 契约（live header + entries），宿主与哨兵同步。
-- 去重 CHANGELOG 中重复的 `[1.1.27]` 节头，修复 changelog 解析。
 - Fixed judge-gated features continuing to use a stale model chain after switching judge roles.
 - Improved Anthropic prompt-cache reuse when pruning tool results from long conversations.
 - Fixed resumed Claude sessions losing earlier thinking context and prompt-cache reuse when extensions or MCP tools were registered before the first message.
@@ -115,36 +144,6 @@
 - Fixed the terminal title and Tern busy state staying in the working state after an interrupt cancels a scheduled retry or continuation before it starts ([#14917](https://github.com/can1357/oh-my-pi/pull/14917) by [@wolfiesch](https://github.com/wolfiesch))
 - Fixed Anthropic web search through a custom `anthropic-messages` provider sending a plain API-key request even though the provider's conversations use Claude Code request shaping; search now honors the model's `isOAuth` like the main conversation, so keys that only work with that shaping no longer fail with HTTP 429 `rate_limit_error` ([#14919](https://github.com/can1357/oh-my-pi/pull/14919) by [@farnoy](https://github.com/farnoy))
 - Fixed Anthropic web search spreading the model's configured headers under its own without the main conversation's case-insensitive merge and enforced-header filtering, so a configured `authorization` header could replace the credential or join it comma-separated on the wire ([#14919](https://github.com/can1357/oh-my-pi/pull/14919) by [@farnoy](https://github.com/farnoy))
-- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
-
-### Removed
-
-- Removed the `PI_SUBPROCESS_CMD` environment variable; subagents run in-process and never read it ([#14632](https://github.com/can1357/oh-my-pi/pull/14632) by [@jorgoose](https://github.com/jorgoose))
-
-
-### Added
-
-- Write-tool previews now render as files stream: SVG files appear as images, and Mermaid files (`.mmd` and `.mermaid`) appear as diagrams. Tern also previews supported 3D model formats (`.obj`, `.ply`, `.wrl`, `.x3dv`, `.stl`, `.gltf`, and `.usda`) and renders SVG writes as SVG figures.
-- Added the `title.icons` setting to show session title cards with a Nerd Font glyph and emoji fallback (`nf+emoji`, default), always the emoji (`emoji`), or as plain titles (`boring`).
-- Added the `title.generator` setting to name sessions from a fork of the reply (`fork`, default) or with the title model only (`tiny`).
-
-### Changed
-
-- Session titles are generated using the session's model when possible, with a fallback to the lightweight title model; `TITLE_SYSTEM.md` continues to override the title prompt.
-- Session titles now include a card index, icon, and short code, with appropriate Nerd Font rendering in Tern panes.
-- When Nerd Font symbols are unavailable, session titling requests only an emoji.
-- Subagent completion indicators now advance to 99% when the subagent submits its result.
-- In Tern panes, headed and headless browser opens are shown in Tern picture-in-picture by default; set `app.tern: false`, `browser.tern`, or `PI_BROWSER_TERN=0` to open Chromium instead.
-- In Tern panes, `/fork` opens the fork in a neighboring pane while preserving the original session.
-- Tern's empty composer now shows the session title, or “What are we cooking?” when no title is available.
-- Tern todo cards now display their checklist by default and can be collapsed by clicking the card header.
-- Improved performance across browser extraction, web and document fetching, file tools, search, session handling, LSP/DAP, MCP, subagents, SSH file operations, image processing, voice and dictation, collaboration, and large-output or large-file workflows.
-- Prompt history search now updates shortly after typing stops while Enter and mouse selections use the latest query.
-- Improved responsiveness and reduced resource usage for long sessions, large files and documents, streaming evaluations, terminal graphics, live voice calls, and other high-volume workflows.
-- Hosts that are not supported Mastodon, Lemmy, or Discourse instances are no longer repeatedly probed for those services, improving URL-fetch performance.
-
-### Fixed
-
 - Fixed a message sent while an earlier title request was still running never getting its own try at naming the session when that request came back empty.
 - Fixed `/new` incorrectly carrying plan mode, its plan-specific model, or goal mode into the new session.
 - Fixed todo lists failing to auto-clear while subagents streamed progress.
@@ -153,6 +152,10 @@
 - Fixed slowdowns when processing long evaluation output, large Python kernel results, compiler/linter output, and ephemeral side-channel replies.
 - Fixed documents served as `application/octet-stream` being downloaded twice.
 - Fixed collaboration guests rebuilding the transcript excessively during streaming.
+
+### Removed
+
+- Removed the `PI_SUBPROCESS_CMD` environment variable; subagents run in-process and never read it ([#14632](https://github.com/can1357/oh-my-pi/pull/14632) by [@jorgoose](https://github.com/jorgoose))
 
 ## [1.1.24] - 2026-10-03
 
