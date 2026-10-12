@@ -192,7 +192,17 @@ Choose the setting by the desired outcome:
 ## Elevated commands (sudo / UAC)
 
 Two user-consented paths exist for commands requiring elevated privileges. Never
-attempt silent elevation; never store or echo credentials.
+attempt silent elevation.
+
+**Credentials.** Where a secret may live depends on the target:
+- **Inside the operator's own boundary** — this machine, or a container on this
+  host — the user may hand over its SSH key or root password for the agent to
+  keep **in context memory** and reuse for that target. It is **never written to
+  a file**: no credential store, no settings entry, no notes/plan/artifact/log
+  file — and never echoed back in tool output, summaries, or reports.
+- **Outside that boundary** — remote hosts, third-party services — nothing is
+  stored at all: the user types the secret into the visible prompt (PTY overlay
+  or popped-out window) and the agent neither reads it back nor repeats it.
 
 **Path 1 — in-TUI PTY overlay (default; output visible to you).** Set
 `pty: true`. The command runs in the interactive terminal overlay on the
@@ -209,7 +219,7 @@ unavailable:
 
 The elevated window is fully visible to the user — they see exactly what runs
 and consent via UAC / password. Both paths are one-shot: no persistent
-elevation session, no credential storage.
+elevation session, and the credential rules above still apply.
 
 **Rules**: try non-elevated first and elevate only on a genuine permission
 failure; state the exact command to the user before elevating; the critical

@@ -357,6 +357,17 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: '{{#has tools "github"}}- GitHub (CI runs, PRs, issues, search)',
 		why: "Zeta-only rule: GitHub/Gitea work goes through the `github`/`tea` tools, never shell `gh`/`tea` (CI polling via `op: run_watch`). Upstream's Specialized Tools list covers files/search/LSP but has no host-CLI entry, so an upstream take of this file silently restores the shell-`gh` habit the CI-green prompt already tried to prevent.",
 	},
+	// -- bash: elevated commands + credential policy -------------------------------
+	{
+		file: "packages/coding-agent/src/prompts/tools/bash.md",
+		symbol: "Elevated commands (`sudo`/UAC): user-consented only, NEVER silent.",
+		why: "Zeta-only rule (2026-10-12 user decision): the elevated-command recipes (`pty: true` overlay; popped-out `-Verb RunAs` / `x-terminal-emulator` window) and the per-target credential policy exist upstream only in `docs/tools/bash.md`, which the model reads on demand — this prompt line is what makes it follow them instead of guessing at shell `sudo`.",
+	},
+	{
+		file: "docs/tools/bash.md",
+		symbol: "keep **in context memory** and reuse for that target",
+		why: "Zeta-only credential policy (2026-10-12 user decision): a target inside the operator's own boundary (this machine, a container here) may have its SSH key / root password held in context memory and reused, but NEVER written to any file; upstream's rule is a flat \"never store or echo credentials\". An upstream take of this doc silently re-tightens it and contradicts the prompt line above.",
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",
