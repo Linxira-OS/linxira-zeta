@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import { loadCustomCommands } from "../../../src/extensibility/custom-commands/loader";
+import type { CustomCommandsLoadResult } from "../../../src/extensibility/custom-commands/types";
 
 let tempRoot: string | undefined;
 
@@ -43,5 +44,32 @@ describe("custom command loader", () => {
 
 		expect((type as typeof type & { type?: typeof type }).type).toBeUndefined();
 		expect(Object.prototype.propertyIsEnumerable.call(type, "type")).toBeFalse();
+	});
+
+	it("re-evaluates an edited command module on the next load", async () => {
+		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-custom-command-reload-"));
+		const commandDir = path.join(tempRoot, "commands", "live-edit");
+		await fs.mkdir(commandDir, { recursive: true });
+		const commandPath = path.join(commandDir, "index.js");
+		const source = (description: string): string =>
+			[
+				"export default () => ({",
+				'\tname: "live-edit",',
+				`\tdescription: ${JSON.stringify(description)},`,
+				"\texecute() {},",
+				"});",
+			].join("\n");
+		const descriptionOf = (result: CustomCommandsLoadResult): string | undefined =>
+			result.commands.find(({ command }) => command.name === "live-edit")?.command.description;
+
+		await Bun.write(commandPath, source("first description"));
+		expect(descriptionOf(await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot }))).toBe("first description");
+
+		// The two bodies differ in length, so the cache-busting tag differs even
+		// when both writes land inside one filesystem timestamp tick.
+		await Bun.write(commandPath, source("second description, longer"));
+		expect(descriptionOf(await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot }))).toBe(
+			"second description, longer",
+		);
 	});
 });

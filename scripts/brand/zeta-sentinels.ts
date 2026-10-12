@@ -368,6 +368,27 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "keep **in context memory** and reuse for that target",
 		why: "Zeta-only credential policy (2026-10-12 user decision): a target inside the operator's own boundary (this machine, a container here) may have its SSH key / root password held in context memory and reused, but NEVER written to any file; upstream's rule is a flat \"never store or echo credentials\". An upstream take of this doc silently re-tightens it and contradicts the prompt line above.",
 	},
+	// -- Custom commands: hot reload -----------------------------------------------
+	{
+		file: "packages/coding-agent/src/extensibility/custom-commands/watcher.ts",
+		symbol: "export class CustomCommandWatcher {",
+		why: "Zeta-only command hot reload: upstream (re)loads TypeScript custom commands only at session construction, so an upstream take of the custom-commands directory drops live reload with no compile error left behind.",
+	},
+	{
+		file: "packages/coding-agent/src/extensibility/custom-commands/loader.ts",
+		symbol: "async function commandImportSpecifier(commandPath: string): Promise<string> {",
+		why: "cache-bust for the command module import: without the `?mtime` tag a reload re-imports the first evaluation out of Bun's module cache and every edit is silently ignored (see the Windows caveat in docs/extension-loading.md).",
+	},
+	{
+		file: "packages/coding-agent/src/session/agent-session.ts",
+		symbol: "applyCustomCommandReload(result: CustomCommandsLoadResult): void {",
+		why: "keep-last-good adoption of a reloaded command set plus the command-metadata notification; an upstream take of agent-session.ts drops the reload path while the watcher keeps running.",
+	},
+	{
+		file: "packages/coding-agent/src/sdk.ts",
+		symbol: "void customCommandWatcher.start();",
+		why: "main-session watcher wiring — sdk.ts survives a merge, so losing only this line leaves `CustomCommandWatcher` unreachable and hot reload silently dead.",
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",

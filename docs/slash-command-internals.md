@@ -5,6 +5,8 @@ This document describes how slash commands are discovered, deduplicated, surface
 ## Implementation files
 
 - [`src/extensibility/slash-commands.ts`](../packages/coding-agent/src/extensibility/slash-commands.ts)
+- [`src/extensibility/custom-commands/loader.ts`](../packages/coding-agent/src/extensibility/custom-commands/loader.ts)
+- [`src/extensibility/custom-commands/watcher.ts`](../packages/coding-agent/src/extensibility/custom-commands/watcher.ts)
 - [`src/capability/slash-command.ts`](../packages/coding-agent/src/capability/slash-command.ts)
 - [`src/discovery/builtin.ts`](../packages/coding-agent/src/discovery/builtin.ts)
 - [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts)
@@ -186,9 +188,9 @@ Slash command state is refreshed:
 - after cwd changes, including `/move` (`applyCwdChange` reloads project settings, clears plugin-root caches, and refreshes session skills/commands)
 - when the editor component is swapped
 - by explicit plugin reload flows such as `/reload-plugins`
-- when session command-metadata notifications arrive, including live settings changes, skill management, and MCP prompt updates (autocomplete rebuilds from current session state)
+- when session command-metadata notifications arrive, including live settings changes, skill management, MCP prompt updates, and TypeScript custom-command reloads (autocomplete rebuilds from current session state)
 
-There is no continuous file watcher for command directories.
+TypeScript custom commands are watched while a session is live: `CustomCommandWatcher` (`src/extensibility/custom-commands/watcher.ts`) arms one non-recursive `fs.watch` per command root (so command directories appearing or disappearing are seen) plus one per command directory, filtered to its depth-1 `index.*` entry. Writes are debounced (200 ms), and each reload re-reads the module through a `?mtime`-tagged specifier so Bun re-evaluates the edited file; the tag rides a bare path rather than a `file://` URL because Bun ignores query strings on file URLs (the Windows caveat in `docs/extension-loading.md`). Only the entry module is re-read — files it imports are not watched and follow normal module caching. A module that fails to load keeps the last version that did and raises one visible warning, so a malformed edit never breaks the session. File-based (markdown) commands have no watcher; they refresh on the lifecycle events above.
 
 ### Other surfacing
 

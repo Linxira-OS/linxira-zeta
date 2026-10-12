@@ -181,7 +181,7 @@ import { formatEvalStateContext } from "../eval/state";
 import { WorkPoolRegistry } from "../task/workpool";
 import { type BashPtyOptions, type BashResult, releaseShellSessions } from "../exec/bash-executor";
 import type { TtsrManager } from "../export/ttsr";
-import type { LoadedCustomCommand } from "../extensibility/custom-commands";
+import type { CustomCommandsLoadResult, LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import { UNAVAILABLE_ANNOTATIONS } from "../extensibility/extensions";
 import { extensionEventFromSessionEvent } from "../extensibility/extensions/lifecycle-mirror";
@@ -883,6 +883,15 @@ function ephemeralMaxTokensRejection(model: Model): string | undefined {
 	// policy says the output limit will be omitted or overwritten.
 	if (!supportsOutputTokenLimit(model)) return "does not support maxTokens for ephemeral turns";
 	return undefined;
+}
+
+/**
+ * The custom-command metadata a picker renders (TUI autocomplete, RPC/ACP
+ * command lists): name and description. Used to skip a command-metadata
+ * notification when a reload read back the same commands.
+ */
+function commandMetadataSignature(commands: readonly LoadedCustomCommand[]): string {
+	return commands.map(({ command }) => `${command.name}\u0000${command.description}`).join("\u0001");
 }
 
 export class AgentSession implements SettingsScope {
@@ -7004,6 +7013,57 @@ export class AgentSession implements SettingsScope {
 			});
 		this.#skillsAndCommandsRefresh = refresh;
 		return refresh;
+	}
+
+	/**
+	 * Adopt a hot-reloaded custom-command discovery result and notify
+	 * command-metadata listeners (TUI autocomplete, RPC/ACP command lists).
+	 *
+	 * Keep-last-good: a module that no longer loads keeps the version that did, so
+	 * a half-written or malformed file never drops a working command, and the
+	 * failure surfaces as one visible warning instead of a crash. A module that
+	 * was deleted disappears — only load failures retain their previous version.
+	 *
+	 * The notification fires only for a change the pickers render (name,
+	 * description, MCP-prompt source) or a load failure, so a reload that read
+	 * back the same commands does not re-advertise the palette.
+	 */
+	applyCustomCommandReload(result: CustomCommandsLoadResult): void {
+		const failed = new Map(result.errors.map(({ path: errorPath, error }) => [path.resolve(errorPath), error]));
+		const fresh = new Map(result.commands.map(command => [command.resolvedPath, command]));
+		// A stale version is kept only while its name stays unique: when another path
+		// now owns that name, the fresh command wins and the old one is dropped.
+		const freshNames = new Set(result.commands.map(({ command }) => command.name));
+		const previousSignature = commandMetadataSignature(this.#customCommands);
+		const merged: LoadedCustomCommand[] = [];
+		// Walk the live order first so an edit that only replaces a module's body
+		// keeps its position; entries the reload dropped (a deleted file, or a
+		// bundled command now overridden) fall out here unless they failed to load.
+		for (const previous of this.#customCommands) {
+			const reloaded = fresh.get(previous.resolvedPath);
+			fresh.delete(previous.resolvedPath);
+			if (reloaded) {
+				merged.push(reloaded);
+			} else if (failed.has(path.resolve(previous.path)) && !freshNames.has(previous.command.name)) {
+				merged.push(previous);
+			}
+		}
+		// Newly discovered commands (and everything at startup) trail the live set.
+		merged.push(...fresh.values());
+		const signatureChanged = commandMetadataSignature(merged) !== previousSignature;
+		this.#customCommands = merged;
+
+		const failures = [...failed.entries()];
+		if (failures.length > 0) {
+			const [failedPath, failure] = failures[0];
+			const more = failures.length > 1 ? ` (+${failures.length - 1} more)` : "";
+			this.emitNotice(
+				"warning",
+				`Failed to reload custom command ${failedPath}: ${failure}${more}. Keeping the last successfully loaded version.`,
+				"commands",
+			);
+		}
+		if (signatureChanged || failures.length > 0) this.#notifyCommandMetadataChanged();
 	}
 
 	/**
