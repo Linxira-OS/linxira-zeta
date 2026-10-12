@@ -187,7 +187,7 @@ async function main(): Promise<void> {
 		unchanged.push(mainCargoRel);
 	}
 
-	// 4. Desktop shell.
+	// 3. Desktop shell.
 	for (const rel of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = readJson(rel) as { version?: string; packages?: Record<string, { version?: string }> };
 		let touched = false;
@@ -208,7 +208,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 4b. Vendored editor npm distribution (not a Bun workspace).
+	// 3b. Vendored editor npm distribution (not a Bun workspace).
 	for (const rel of EDITOR_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string };
 		if (manifest.version === version) {
@@ -220,7 +220,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 4c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
+	// 3c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
 	// platform leaves exactly, so the optionalDependencies refs move too.
 	for (const rel of IDE_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
@@ -238,7 +238,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 4d. The zeta workspace (main) npm distribution; same leaf-pinning move.
+	// 3d. The zeta workspace (main) npm distribution; same leaf-pinning move.
 	for (const rel of MAIN_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
 		if (manifest.version === version) {
@@ -255,7 +255,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 5. Root catalog @linxiraos keys.
+	// 4. Root catalog @linxiraos keys.
 	const rootPkg = readJson("package.json");
 	if (!hasCatalog(rootPkg)) {
 		fail("Root package.json has no workspaces.catalog");
@@ -275,7 +275,7 @@ async function main(): Promise<void> {
 	}
 	writeJson("package.json", rootPkg);
 
-	// 6. Bazel-face crate versions: the hand-written crates/*/BUILD.bazel
+	// 5. Bazel-face crate versions: the hand-written crates/*/BUILD.bazel
 	// rust_library/rust_shared_library targets carry a `version` attr that
 	// shows up in bazel build logs and cache keys. Keep it on the line so CI
 	// logs stop printing a ghost version next to the real one.
@@ -300,7 +300,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 7. README version badge (shields.io `badge/zeta-<version>-…`), kept in
+	// 6. README version badge (shields.io `badge/zeta-<version>-…`), kept in
 	// lock-step so the product front door shows the release version.
 	const readmeRel = "README.md";
 	if (replaceInFile(readmeRel, /badge\/zeta-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-/, `badge/zeta-${version}-`)) {
