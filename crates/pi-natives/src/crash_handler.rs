@@ -263,24 +263,24 @@ mod mem_stats {
 	/// Stack buffer the snapshot is rendered into; the block never exceeds it.
 	pub(super) const BUFFER_LEN: usize = 512;
 
-	/// Integer-only memory counters. Every field is optional because no single
-	/// platform reports all of them.
+	/// Integer-only memory counters, every value in bytes. Each field is
+	/// optional because no single platform reports all of them.
 	#[derive(Clone, Copy, Default)]
 	pub(super) struct Snapshot {
 		/// Resident set size of this process.
-		pub(super) rss_bytes:                     Option<u64>,
+		pub(super) rss:                     Option<u64>,
 		/// Peak resident set size of this process.
-		pub(super) peak_rss_bytes:                Option<u64>,
+		pub(super) peak_rss:                Option<u64>,
 		/// Committed private bytes of this process.
-		pub(super) commit_bytes:                  Option<u64>,
+		pub(super) commit:                  Option<u64>,
 		/// Physical memory available to the system.
-		pub(super) system_available_bytes:        Option<u64>,
+		pub(super) system_available:        Option<u64>,
 		/// Physical memory installed in the system.
-		pub(super) system_total_bytes:            Option<u64>,
+		pub(super) system_total:            Option<u64>,
 		/// Commit charge the system can still hand out.
-		pub(super) system_commit_available_bytes: Option<u64>,
+		pub(super) system_commit_available: Option<u64>,
 		/// System commit limit.
-		pub(super) system_commit_limit_bytes:     Option<u64>,
+		pub(super) system_commit_limit:     Option<u64>,
 	}
 
 	impl Snapshot {
@@ -288,41 +288,32 @@ mod mem_stats {
 		/// no counter was readable or `buf` cannot hold the first line.
 		pub(super) fn render<'b>(&self, buf: &'b mut [u8]) -> &'b [u8] {
 			let mut out = SliceWriter { buf: &mut *buf, len: 0 };
-			if self.rss_bytes.is_none()
-				&& self.peak_rss_bytes.is_none()
-				&& self.system_total_bytes.is_none()
-			{
+			if self.rss.is_none() && self.peak_rss.is_none() && self.system_total.is_none() {
 				return &[];
 			}
-			if self.rss_bytes.is_some() || self.peak_rss_bytes.is_some() || self.commit_bytes.is_some()
-			{
+			if self.rss.is_some() || self.peak_rss.is_some() || self.commit.is_some() {
 				let _ = write!(&mut out, "memory:    ");
 				let mut first = true;
-				write_optional_mib(&mut out, &mut first, "rss", self.rss_bytes);
-				write_optional_mib(&mut out, &mut first, "peak", self.peak_rss_bytes);
-				write_optional_mib(&mut out, &mut first, "commit", self.commit_bytes);
+				write_optional_mib(&mut out, &mut first, "rss", self.rss);
+				write_optional_mib(&mut out, &mut first, "peak", self.peak_rss);
+				write_optional_mib(&mut out, &mut first, "commit", self.commit);
 				let _ = writeln!(&mut out);
 			}
-			if self.system_total_bytes.is_some()
-				|| self.system_available_bytes.is_some()
-				|| self.system_commit_limit_bytes.is_some()
+			if self.system_total.is_some()
+				|| self.system_available.is_some()
+				|| self.system_commit_limit.is_some()
 			{
 				let _ = write!(&mut out, "system:    ");
 				let mut first = true;
-				write_optional_mib(&mut out, &mut first, "available", self.system_available_bytes);
-				write_optional_mib(&mut out, &mut first, "total", self.system_total_bytes);
+				write_optional_mib(&mut out, &mut first, "available", self.system_available);
+				write_optional_mib(&mut out, &mut first, "total", self.system_total);
 				write_optional_mib(
 					&mut out,
 					&mut first,
 					"commit available",
-					self.system_commit_available_bytes,
+					self.system_commit_available,
 				);
-				write_optional_mib(
-					&mut out,
-					&mut first,
-					"commit limit",
-					self.system_commit_limit_bytes,
-				);
+				write_optional_mib(&mut out, &mut first, "commit limit", self.system_commit_limit);
 				let _ = writeln!(&mut out);
 			}
 			&out.buf[..out.len]
@@ -378,20 +369,24 @@ mod mem_stats {
 			if page_size > 0 {
 				// statm: size resident shared text lib data dt, in pages.
 				if let Some(pages) = field_as_u64(&buf[..len], b' ', 1) {
-					snap.rss_bytes = Some(pages.saturating_mul(page_size));
+					snap.rss = Some(pages.saturating_mul(page_size));
 				}
 			}
 		}
 		if let Some(len) = read_proc(c"/proc/meminfo", &mut buf) {
 			let info = &buf[..len];
-			snap.system_total_bytes = meminfo_field(info, b"MemTotal:");
-			snap.system_available_bytes = meminfo_field(info, b"MemAvailable:");
+			snap.system_total = meminfo_field(info, b"MemTotal:");
+			snap.system_available = meminfo_field(info, b"MemAvailable:");
 		}
 		snap
 	}
 
 	#[cfg(target_os = "linux")]
 	fn page_size_bytes() -> u64 {
+		// SAFETY: `sysconf` only reads process configuration, takes no pointers,
+		// and `_SC_PAGESIZE` is a valid name on Linux; the result is
+		// range-checked below, so no precondition can be violated by this
+		// call itself.
 		let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
 		if size > 0 { size as u64 } else { 0 }
 	}
@@ -400,6 +395,9 @@ mod mem_stats {
 	/// returning the byte count actually read.
 	#[cfg(target_os = "linux")]
 	fn read_proc(path: &core::ffi::CStr, buf: &mut [u8]) -> Option<usize> {
+		// SAFETY: `path` is a `CStr`, so it is NUL-terminated and lives for the
+		// call; the flags are plain constants. Failure is reported as a negative
+		// descriptor, which is checked below.
 		let fd = unsafe {
 			libc::open(path.as_ptr().cast::<libc::c_char>(), libc::O_RDONLY | libc::O_CLOEXEC)
 		};
@@ -408,6 +406,9 @@ mod mem_stats {
 		}
 		let mut total = 0usize;
 		while total < buf.len() {
+			// SAFETY: `fd` is a descriptor this function opened and has not closed
+			// yet, and the pointer/length describe the unread tail of a live stack
+			// buffer, so the kernel's write stays inside it.
 			let read = unsafe {
 				libc::read(fd, buf[total..].as_mut_ptr().cast::<libc::c_void>(), buf.len() - total)
 			};
@@ -416,6 +417,8 @@ mod mem_stats {
 			}
 			total += usize::try_from(read).unwrap_or(0);
 		}
+		// SAFETY: `fd` was opened above and this is the only close on any path
+		// that reaches it (the early return happens before a descriptor exists).
 		unsafe { libc::close(fd) };
 		Some(total)
 	}
@@ -503,21 +506,26 @@ mod mem_stats {
 		}
 
 		let mut snap = Snapshot::default();
+		// SAFETY: both structs are `#[repr(C)]` integer mirrors of the documented
+		// ABI and every bit pattern is valid for them; each call receives a
+		// pointer to a local whose size field is set to that local's size,
+		// and both report failure with a zero return, which is checked
+		// before any field is read.
 		unsafe {
 			let mut counters: ProcessMemoryCounters = core::mem::zeroed();
 			counters.cb = core::mem::size_of::<ProcessMemoryCounters>() as u32;
 			if K32GetProcessMemoryInfo(GetCurrentProcess(), &raw mut counters, counters.cb) != 0 {
-				snap.rss_bytes = Some(counters.working_set_size as u64);
-				snap.peak_rss_bytes = Some(counters.peak_working_set_size as u64);
-				snap.commit_bytes = Some(counters.pagefile_usage as u64);
+				snap.rss = Some(counters.working_set_size as u64);
+				snap.peak_rss = Some(counters.peak_working_set_size as u64);
+				snap.commit = Some(counters.pagefile_usage as u64);
 			}
 			let mut status: MemoryStatusEx = core::mem::zeroed();
 			status.length = core::mem::size_of::<MemoryStatusEx>() as u32;
 			if GlobalMemoryStatusEx(&raw mut status) != 0 {
-				snap.system_total_bytes = Some(status.total_phys);
-				snap.system_available_bytes = Some(status.avail_phys);
-				snap.system_commit_limit_bytes = Some(status.total_page_file);
-				snap.system_commit_available_bytes = Some(status.avail_page_file);
+				snap.system_total = Some(status.total_phys);
+				snap.system_available = Some(status.avail_phys);
+				snap.system_commit_limit = Some(status.total_page_file);
+				snap.system_commit_available = Some(status.avail_page_file);
 			}
 		}
 		snap
@@ -750,11 +758,11 @@ mod tests {
 	#[test]
 	fn memory_block_renders_known_values_without_allocating() {
 		let snap = mem_stats::Snapshot {
-			rss_bytes: Some(1024 * 1_048_576),
-			peak_rss_bytes: Some(2048 * 1_048_576),
-			commit_bytes: Some(512 * 1_048_576),
-			system_available_bytes: Some(4096 * 1_048_576),
-			system_total_bytes: Some(32768 * 1_048_576),
+			rss: Some(1024 * 1_048_576),
+			peak_rss: Some(2048 * 1_048_576),
+			commit: Some(512 * 1_048_576),
+			system_available: Some(4096 * 1_048_576),
+			system_total: Some(32768 * 1_048_576),
 			..mem_stats::Snapshot::default()
 		};
 		let mut buf = [0u8; mem_stats::BUFFER_LEN];
@@ -768,10 +776,8 @@ mod tests {
 
 	#[test]
 	fn memory_block_truncates_into_a_small_buffer() {
-		let snap = mem_stats::Snapshot {
-			rss_bytes: Some(1024 * 1_048_576),
-			..mem_stats::Snapshot::default()
-		};
+		let snap =
+			mem_stats::Snapshot { rss: Some(1024 * 1_048_576), ..mem_stats::Snapshot::default() };
 		// One byte short of the label: the block is cut at the buffer edge and
 		// the write machinery stops there instead of growing a byte to fit.
 		let mut tiny = [0u8; 12];
@@ -792,10 +798,8 @@ mod tests {
 	#[test]
 	fn snapshot_reads_process_and_system_memory() {
 		let snap = mem_stats::take();
-		let rss = snap.rss_bytes.expect("rss from /proc/self/statm");
-		let total = snap
-			.system_total_bytes
-			.expect("MemTotal from /proc/meminfo");
+		let rss = snap.rss.expect("rss from /proc/self/statm");
+		let total = snap.system_total.expect("MemTotal from /proc/meminfo");
 		assert!(rss > 0, "rss must be positive, got {rss}");
 		assert!(total > 0, "system total must be positive, got {total}");
 		assert!(rss <= total, "rss {rss} cannot exceed installed memory {total}");

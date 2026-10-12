@@ -272,6 +272,32 @@ Test the contract the system exposes — not the easiest internal detail to asse
 - Don't add tests for tiny low-risk changes unless they protect a real contract or fix a regression-prone edge case.
 - Prefer focused package-local verification for the changed area.
 
+### Rust changes: the PR run proves nothing about them
+
+`Validate Rust workspace (bazel)` is skipped on `pull_request` events (AGENTS.md
+merge-damage class 8 — "validate job 在 PR 事件整跳过"), so a green PR run says
+nothing about a Rust change; the post-merge push run on `main` is what finds it.
+Two checks catch that class locally without a full cargo build:
+
+1. **Lint** with the real driver against the changed file, translating the
+   workspace's own lint table (`[workspace.lints.clippy]` in the root
+   `Cargo.toml`) into flags — the `allow`s there are what keep pedantic casts
+   quiet, so a run without them reports false positives:
+   `clippy-driver --edition <crate edition> --crate-type lib --emit=metadata --target <target> -D warnings -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::undocumented-unsafe-blocks … <file>`.
+   Run it for the target CI lints (linux) **and** for windows: cfg'd-out blocks
+   in the other platform are exactly what the linux pass never sees. Compile the
+   real `libc` from the cargo registry with `--emit=metadata` (no linker needed)
+   to reach linux-only code; `rust-std-x86_64-unknown-linux-gnu` is installed
+   even on a Windows host.
+2. **Tests**: extract the test bodies verbatim from the file and run them
+   (`rustc --target x86_64-pc-windows-gnu`), or use the sanctioned
+   `bun run test:rs` when a build is acceptable.
+
+Keep the harness faithful: wrap the extracted module in its real parent module (a
+flat scratch reports `redundant_pub_crate`), and expect `-A dead_code`/`-A
+unused` noise from the scaffolding — never let those allowances hide a diagnostic
+that matters.
+
 ## Changelog
 
 Location: `packages/*/CHANGELOG.md` (per package).
