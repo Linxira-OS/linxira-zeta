@@ -25,7 +25,7 @@ test("MermaidBlock renders source by default", () => {
 
   assert.match(html, />Preview</);
   assert.match(html, /Alice/);
-  assert.doesNotMatch(html, /mermaid-block-loading/);
+  assert.doesNotMatch(html, /figure-block-loading/);
 });
 
 test("MermaidBlock can render preview by default", () => {
@@ -36,7 +36,7 @@ test("MermaidBlock can render preview by default", () => {
   );
 
   assert.match(html, />Source</);
-  assert.match(html, /mermaid-block-loading/);
+  assert.match(html, /figure-block-loading/);
   assert.doesNotMatch(html, /Alice/);
 });
 
@@ -60,8 +60,8 @@ test("MermaidBlock renders empty graph without error", () => {
     ),
   );
 
-  assert.doesNotMatch(html, /mermaid-block-error/);
-  assert.match(html, /mermaid-block-loading/);
+  assert.doesNotMatch(html, /figure-block-error/);
+  assert.match(html, /figure-block-loading/);
 });
 
 test("MermaidBlock handles Chinese characters in diagram", () => {
@@ -75,6 +75,6 @@ test("MermaidBlock handles Chinese characters in diagram", () => {
     ),
   );
 
-  assert.doesNotMatch(html, /mermaid-block-error/);
-  assert.match(html, /mermaid-block/);
+  assert.doesNotMatch(html, /figure-block-error/);
+  assert.match(html, /figure-block/);
 });

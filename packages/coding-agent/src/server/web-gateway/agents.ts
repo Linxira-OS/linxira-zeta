@@ -1036,6 +1036,9 @@ export async function startRpcSession(
 			// resolves them via the `extension_ui_response` command. Declaring
 			// hasUI here lets UI-gated tools (AskTool) register at all.
 			hasUI: true,
+			// Every session this entry point creates is read in the web UI's chat
+			// surface, which draws ```svg figures.
+			chatSvgRendering: true,
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);

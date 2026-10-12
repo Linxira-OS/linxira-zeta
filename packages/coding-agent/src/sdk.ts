@@ -897,6 +897,18 @@ export interface CreateAgentSessionOptions {
 	 */
 	tuiTranscript?: boolean;
 	/**
+	 * The reply is read in a chat surface that draws ```svg fences as figures
+	 * but has no diagram renderer of its own (the serve-hosted web UI): the
+	 * prompt then invites ```svg, exactly as `tuiTranscript` does for the
+	 * terminal. Mermaid stays TUI-only — the web UI shows Mermaid fences as
+	 * source behind a preview toggle — so the prompt keeps pointing these
+	 * sessions at ```svg alone. Immutable per session: the prompt cache is keyed
+	 * on the base prompt bytes, so a settings read would drift. Set by the
+	 * session path every web/desktop client shares (`startRpcSession`).
+	 * Default: false.
+	 */
+	chatSvgRendering?: boolean;
+	/**
 	 * Name the unnamed session from the operator's messages once each reply begins
 	 * (see `title.generator`). Only the interactive TUI sets this; ignored for subagents. Default: false.
 	 */
@@ -2134,6 +2146,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const agentKind: AgentKind = isSubagentSession ? SUB_AGENT_RULE_NAME : MAIN_AGENT_RULE_NAME;
 	// Visuals (Mermaid, SVG figures, table charts) are drawn only in the top-level TUI transcript.
 	const tuiTranscript = options.tuiTranscript === true && !isSubagentSession;
+	// A browser chat surface draws ```svg fences too, but neither Mermaid nor table charts.
+	const chatSvgRendering = options.chatSvgRendering === true && !isSubagentSession;
 	const resolvedAgentName = (options.agentName ?? agentKind).trim().toLowerCase();
 
 	// Discover rules and bucket them in one pass to avoid repeated scans over large rule sets.
@@ -3986,7 +4000,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				personality: agentKind === "sub" ? "none" : cfgPersonality.get(settings),
 				subagent: agentKind === "sub",
 				renderMermaid: tuiTranscript && cfgTuiRenderMermaid.get(settings),
-				renderSvg: tuiTranscript && cfgTuiRenderSvg.get(settings),
+				renderSvg: (tuiTranscript || chatSvgRendering) && cfgTuiRenderSvg.get(settings),
 				autoGraph: tuiTranscript && cfgTuiAutoGraph.get(settings) !== "off",
 				reactions: agentKind === "main" && options.hasUI === true && cfgTuiReactions.get(settings),
 				activeRepoContext,

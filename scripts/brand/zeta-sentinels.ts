@@ -318,6 +318,37 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: '"/api/tracking/:path*"',
 		why: "beforeFiles rewrite routing /api/tracking + /events to the runtime gateway",
 	},
+	// -- Web chat surface: ```svg figures -----------------------------------------
+	{
+		file: "packages/coding-agent/src/sdk.ts",
+		symbol: "chatSvgRendering?: boolean;",
+		why: "Zeta-only prompt surface flag: the web UI draws ```svg fences, so serve/web-gateway sessions advertise them. Upstream OMP gates every visual on tuiTranscript, so a merge taking sdk.ts wholesale leaves browser clients the only surface that cannot draw what the prompt promises.",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/agents.ts",
+		symbol: "chatSvgRendering: true,",
+		why: "the serve/web-gateway session path is what sets the flag above (every web/desktop session funnels through startRpcSession); losing the line silently reverts browser chats to text-only replies",
+	},
+	{
+		file: "web-ui/components/SvgBlock.tsx",
+		symbol: "export function SvgBlock(",
+		why: "web-ui renders ```svg fences as figures (vendored file: a re-vendor drops the block, and every emitted figure degrades to a code block)",
+	},
+	{
+		file: "web-ui/components/MarkdownBody.tsx",
+		symbol: 'lang === "svg"',
+		why: "the markdown renderer's ```svg branch, closed fences only — without it an emitted SVG fence stays plain code even with SvgBlock present",
+	},
+	{
+		file: "web-ui/lib/svg-sanitize.ts",
+		symbol: 'FORBID_TAGS: ["script", "foreignObject", "style"],',
+		why: "the security contract for model-authored ```svg: the SVG profile alone, no script/foreignObject/style elements, and (via the afterSanitizeAttributes hook) no reference that leaves the figure. A weakened or dropped policy is an XSS surface on the gateway",
+	},
+	{
+		file: "web-ui/app/globals.css",
+		symbol: "--c6: var(--chart-6);",
+		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless",
+	},
 	// -- Brand surface (duplicate of brand-check MUST_CONTAIN but merges can hit
 	//    files brand-check skips, and these need per-merge re-verification) -----
 	{
