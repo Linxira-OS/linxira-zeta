@@ -114,7 +114,7 @@ function verifyRemoteTag(tag: string): void {
 }
 
 function mergeBase(tag: string): string {
-	const base = git(["merge-base", "main", tag]).trim();
+	const base = git(["merge-base", "refs/heads/main", tag]).trim();
 	if (!base) throw new Error("no merge base between main and the tag");
 	return base;
 }
@@ -128,7 +128,7 @@ function diffFiles(from: string, to: string): string[] {
 }
 
 function conflictFiles(tag: string): string[] {
-	const raw = git(["merge-tree", "--write-tree", "--name-only", "main", tag]);
+	const raw = git(["merge-tree", "--write-tree", "--name-only", "refs/heads/main", tag]);
 	// --name-only prints the merged tree oid first, then one
 	// "CONFLICT (<kind>): Merge conflict in <path>" line per conflict.
 	// Noise arriving on the same stream: "Auto-merging <path>" progress lines
@@ -164,7 +164,7 @@ function report(opts: Options): void {
 
 	const upstream = diffFiles(base, tagRef);
 	const conflicts = conflictFiles(tagRef);
-	const zetaSide = new Set(diffFiles(base, "main"));
+	const zetaSide = new Set(diffFiles(base, "refs/heads/main"));
 	const intersection = upstream.filter(f => zetaSide.has(f));
 	const silent = intersection.filter(f => !conflicts.includes(f));
 

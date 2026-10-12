@@ -118,8 +118,8 @@ async function checkUpToDate(): Promise<void> {
 // Shared functions
 // =============================================================================
 
-export async function watchCI(): Promise<boolean> {
-	const commitSha = (await git(["rev-parse", "HEAD"]).text()).trim();
+export async function watchCI(commitShaOverride?: string): Promise<boolean> {
+	const commitSha = commitShaOverride ?? (await git(["rev-parse", "HEAD"]).text()).trim();
 	console.log(`  Commit: ${commitSha.slice(0, 8)}`);
 
 	while (true) {

@@ -219,29 +219,37 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    不等 → 谱系受损，停止，先修复谱系（联系维护者评估），禁止带病合并。
 3. **增量预览**：`git diff --stat v18.2.5 v18.2.6` 一眼确认本轮增量规模；
    `git log --oneline v18.2.5..v18.2.6` 逐条过一遍提交主题。
-4. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
+4. **注册 manifest 合并 driver（合并前强制）**：`.gitattributes` 把 `package.json`
+   与 `packages/*/package.json`（共 13 个 manifest）绑到 `merge=zeta-package`，
+   而该 driver 的定义**只在本机 git config**（且带绝对路径）——fresh worktree、
+   新 clone、CI runner 都不会继承。缺它时这 13 个 manifest 会退化成手工冲突。
+   开始合并前先在工作 worktree 里注册：
+   `git config merge.zeta-package.driver "bun <repo>/scripts/merge-package-json.ts %A %O %B"`
+   （`<repo>` 为仓库绝对路径；`git config --get merge.zeta-package.driver`
+   应回显该值。driver 定义见 `scripts/merge-package-json.ts` 头部注释）。
+5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
    映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
    Zeta-only 功能存活清单）。
-5. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
+6. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
    `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
    → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：
    rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
-6. **收口扫描（无扩展名白名单）**：
+7. **收口扫描（无扩展名白名单）**：
    - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
    - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
      （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
    - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
      扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
-7. **门禁**：`bun scripts/check-version-consistency.ts` +
+8. **门禁**：`bun scripts/check-version-consistency.ts` +
    `bun run check:ts` + `bun scripts/brand/brand-check.ts` +
    `bun scripts/check-zeta-sentinels.ts`（双守卫都要）+
    `bunx oxfmt --check <既有 glob>` + 动过 crates/ 时 `cargo fmt --all --check`。
-8. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
+9. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
    `bun run test:rs`；已知环境噪声按豁免清单排除（本地 .node 陈旧造成的
    natives 符号缺失属环境噪声，但必须先按 §natives 恢复再判定）。
-9. **推送**：分段/staging 分支按「推送前核对」节；merge commit 含上游 tag
+10. **推送**：分段/staging 分支按「推送前核对」节；merge commit 含上游 tag
    对象，注意 pack 体积。
 
 ### squash sync【已废弃】
