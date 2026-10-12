@@ -273,7 +273,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 3. **整文件取 theirs 的已知盲区**：stage-3 是 v14 全文件，会抹掉 ours 侧
    **冲突块之外**的 Zeta 独有内容。哨兵检查（`check-zeta-sentinels.ts`）兜住符号级
    丢失；符号之外还要防 **身份行丢失**（APP_NAME、ZETA_PROFILE、KEY_NAME、
-   biome-ignore 注释、i18n key）。用"Zeta 行计数对比"扫描
+   本仓库专属 disable 注释、i18n key）。用"Zeta 行计数对比"扫描
    （main 与工作树逐文件比 `/zeta|Zeta|linxiraos/` 行数差 >5 即嫌疑）收口。
 4. **版本线三件套每次 merge 后必跑**：`set-version.ts` → `package.json` catalog
    13 键对齐 main → `bun install` → `check-version-consistency.ts`。changelog
@@ -281,10 +281,9 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    （`1[5-8].`），只重键当次版本会漏历史段。
 5. **工具链是 Zeta 资产**：每次 merge 都会被上游 oxlint/oxfmt scripts 覆盖
    （根 + 12 个 per-package `check`/`lint`/`fmt`/`fix`）。逐文件从 main 恢复
-   `check:tools` 等脚本与 `.oxlintrc.json`/`.oxfmtrc.json`/`biome.json`，
-   然后把上游新代码里的 `oxlint-disable-next-line` 注释批量迁移成
-   `biome-ignore`（noThenable→noThenProperty、no-eval→noGlobalEval、
-   no-template-curly-in-string→noTemplateCurlyInString、
+   `check:tools` 等脚本与 `.oxlintrc.json`/`.oxfmtrc.json`；上游新代码里的
+   disable 注释按同一套 oxlint 规则核对（noThenable→noThenProperty、
+   no-eval→noGlobalEval、no-template-curly-in-string→noTemplateCurlyInString、
    no-unused-private-class-members→noUnusedPrivateClassMembers）。
 6. **上游功能性 delta 必须手工移植**，整文件恢复 main 后逐 hunk 补：
    v14 的 IPC worker 父进程 watchdog（cli.ts +67 行，win32 ppid≤0 分支 +
@@ -295,7 +294,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    ——契约不变，改测试的 fixture 寻址方式（读 shipped section body 过 summarize）
    而不是删断言。
 8. **收口顺序固定**：scope 重写 → set-version/catalog/lockfile → 哨兵 → brand
-   归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
+   归零 → oxlint 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
 
 ### v18.3.2 → v18.3.4 实测：双 tag 步长的第二个数据点（2026-09-29）

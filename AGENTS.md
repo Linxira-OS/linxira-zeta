@@ -401,8 +401,8 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
    `port/*`, `feat/*`): merge the latest `main` into it first
    (`git merge main`), then run the local minimum gate —
-   `bun scripts/check-version-consistency.ts`, `bun run check:ts`, biome on
-   the changed files, plus a re-run of any suite that was red in the last CI
+   `bun scripts/check-version-consistency.ts`, `bun run check:ts`, `oxlint`/`oxfmt`
+   on the changed files, plus a re-run of any suite that was red in the last CI
    round. Never push a branch that is behind `main`; a PR CI failure triage
    starts with "is this already fixed on `main`, and is `main` fully merged
    into this branch?" before touching the branch itself.
