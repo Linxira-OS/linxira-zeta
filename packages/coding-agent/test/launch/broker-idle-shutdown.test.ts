@@ -149,7 +149,7 @@ describe("daemon broker idle shutdown", () => {
 			// Release the holder so nothing keeps the broker up, then await the broker's
 			// own run() promise rather than a guessed duration.
 			const stopper = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
-			await stopper.request({ op: "stop", name: "persist-holder" });
+			await stopper.request({ op: "stop", name: "persist-holder", timeoutMs: 2_000 });
 			stopper.close();
 			await broker;
 		}
