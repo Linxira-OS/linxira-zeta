@@ -25,6 +25,13 @@ import type {
 } from "@linxiraos/pi-agent-core";
 import type { Usage } from "@linxiraos/pi-ai";
 import { $env, logger, prompt } from "@linxiraos/pi-utils";
+import {
+	describePressure,
+	effectiveFanOutCap,
+	memoryPressureLevel,
+	readMemorySample,
+	type MemoryPressureLevel,
+} from "./fanout-pressure";
 import type { ToolSession } from "..";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { Theme } from "@linxiraos/pi-tui/theme";
@@ -624,9 +631,13 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	 * subagents across parallel `task` calls within the session. Resized in
 	 * place from `task.maxConcurrency` before every acquire/release so a
 	 * mid-session settings change (UI toggle, `/settings`) applies to both new
-	 * spawns and work already parked in the semaphore queue.
+	 * spawns and work already parked in the semaphore queue. Lowered further
+	 * (never raised) while the machine is short on memory — see
+	 * `fanout-pressure.ts`; the configured setting is never modified.
 	 */
 	#spawnSemaphore: Semaphore | undefined;
+	/** Last pressure level announced to the log, so one squeeze logs once. */
+	#pressureNotice: MemoryPressureLevel | undefined;
 	readonly #permit: SpawnPermit = {
 		acquire: signal => this.#getSpawnSemaphore().acquire(signal),
 		release: () => this.#releaseSpawnSemaphore(),
@@ -780,11 +791,22 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	}
 
 	#getSpawnSemaphore(): Semaphore {
-		const max = cfgTaskMaxConcurrency.get(this.session.settings);
+		const sample = readMemorySample();
+		const level = memoryPressureLevel(sample);
+		const max = effectiveFanOutCap(cfgTaskMaxConcurrency.get(this.session.settings), level);
 		if (this.#spawnSemaphore) {
 			this.#spawnSemaphore.resize(max);
 		} else {
 			this.#spawnSemaphore = new Semaphore(max);
+		}
+		// Announce each squeeze exactly once. A ceiling that quietly drops is the
+		// kind of thing that later reads as a bug rather than as a rescue.
+		if (level === "ok") {
+			this.#pressureNotice = undefined;
+		} else if (this.#pressureNotice !== level) {
+			this.#pressureNotice = level;
+			const notice = describePressure(level, sample);
+			if (notice) logger.warn(`task: ${notice}`);
 		}
 		return this.#spawnSemaphore;
 	}
