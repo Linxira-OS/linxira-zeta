@@ -28,21 +28,23 @@ import * as path from "node:path";
 const repoRoot = path.join(import.meta.dir, "..");
 const DRY_RUN = process.argv.includes("--dry-run");
 
-// Mirrors scripts/release-v2.ts ALL_PACKAGES. Keep in lock-step.
+// Mirrors scripts/release-v2.ts ALL_PACKAGES. Keep in lock-step. Entries are
+// repo-relative package directories: official plugins ride the same line.
 const ALL_PACKAGES = [
-	"utils",
-	"agent",
-	"catalog",
-	"ai",
-	"tui",
-	"mnemopi",
-	"snapcompact",
-	"stats",
-	"coding-agent",
-	"channels",
-	"natives",
-	"omptype",
-	"wire",
+	"packages/utils",
+	"packages/agent",
+	"packages/catalog",
+	"packages/ai",
+	"packages/tui",
+	"packages/mnemopi",
+	"packages/snapcompact",
+	"packages/stats",
+	"packages/coding-agent",
+	"packages/channels",
+	"packages/natives",
+	"packages/omptype",
+	"packages/wire",
+	"plugins/official/pi-messenger",
 ] as const;
 
 // Vendored editor npm distribution (published by `ci-release-publish.ts --editor`).
@@ -158,7 +160,7 @@ async function main(): Promise<void> {
 
 	// 1. All published packages.
 	for (const pkg of ALL_PACKAGES) {
-		const rel = `packages/${pkg}/package.json`;
+		const rel = `${pkg}/package.json`;
 		const manifest = readJson(rel) as { version?: string };
 		if (manifest.version === version) {
 			unchanged.push(rel);

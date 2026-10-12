@@ -8,7 +8,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import * as zod from "@linxiraos/pi-omptype/zod";
-import { getAgentDir, getProjectDir, isEnoent, logger } from "@linxiraos/pi-utils";
+import {
+	getAgentDir,
+	getProjectDir,
+	isEnoent,
+	logger,
+	stripWindowsExtendedLengthPathPrefix,
+} from "@linxiraos/pi-utils";
 import { getConfigDirs } from "../../config";
 
 import { execCommand } from "../../exec/exec";
@@ -30,6 +36,28 @@ import type {
 const arktype = Object.assign(Function.prototype.bind.call(type, undefined) as typeof type, type, { type });
 
 /**
+ * Import specifier that re-reads an edited command module inside this process.
+ *
+ * The `?mtime` tag rewrites the module's cache key, so a hot reload observes the
+ * edited file instead of Bun's cached evaluation. Bun keys query strings for
+ * bare filesystem-path specifiers but ignores them on `file://` URLs (see the
+ * documented Windows caveat in docs/extension-loading.md), so the tag rides a
+ * forward-slashed path rather than a file URL.
+ */
+async function commandImportSpecifier(commandPath: string): Promise<string> {
+	try {
+		const stats = await fs.promises.stat(commandPath);
+		// mtime alone collides for edits inside one filesystem timestamp tick;
+		// the size distinguishes them.
+		const tag = `${stats.mtimeMs}-${stats.size}`;
+		return `${stripWindowsExtendedLengthPathPrefix(commandPath).replaceAll("\\", "/")}?mtime=${tag}`;
+	} catch {
+		// Unreadable or missing: import the bare path and let the caller report it.
+		return commandPath;
+	}
+}
+
+/**
  * Load a single command module using native Bun import.
  */
 async function loadCommandModule(
@@ -38,7 +66,9 @@ async function loadCommandModule(
 	sharedApi: CustomCommandAPI,
 ): Promise<{ commands: CustomCommand[] | null; error: string | null }> {
 	try {
-		const module = await import(commandPath);
+		// Dynamic import is required: the module path is chosen at runtime from the
+		// user's command directories and its cache-buster changes with each edit.
+		const module = await import(await commandImportSpecifier(commandPath));
 		const factory = (module.default ?? module) as CustomCommandFactory;
 
 		if (typeof factory !== "function") {
@@ -78,7 +108,16 @@ export interface DiscoverCustomCommandsOptions {
 export interface DiscoverCustomCommandsResult {
 	/** Paths to command modules */
 	paths: Array<{ path: string; source: CustomCommandSource }>;
+	/**
+	 * Command roots that were scanned, in precedence order, existing directories
+	 * only. Reported so the hot-reload watcher can watch exactly the directories
+	 * discovery reads from, including roots that currently hold no command.
+	 */
+	dirs: Array<{ path: string; source: CustomCommandSource }>;
 }
+
+/** Index filenames a command directory may expose, in precedence order. */
+export const CUSTOM_COMMAND_INDEX_FILENAMES = ["index.ts", "index.js", "index.mjs", "index.cjs"] as const;
 
 /**
  * Discover custom command modules (TypeScript slash commands).
@@ -114,7 +153,6 @@ export async function discoverCustomCommands(
 		}
 	}
 
-	const indexCandidates = ["index.ts", "index.js", "index.mjs", "index.cjs"];
 	for (const { path: commandsDir, source } of commandDirs) {
 		let entries: fs.Dirent[];
 		try {
@@ -129,7 +167,7 @@ export async function discoverCustomCommands(
 			if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
 			const commandDir = path.join(commandsDir, entry.name);
 
-			for (const filename of indexCandidates) {
+			for (const filename of CUSTOM_COMMAND_INDEX_FILENAMES) {
 				const candidate = path.join(commandDir, filename);
 				if (fs.existsSync(candidate)) {
 					addPath(candidate, source);
@@ -139,7 +177,7 @@ export async function discoverCustomCommands(
 		}
 	}
 
-	return { paths };
+	return { paths, dirs: commandDirs };
 }
 
 export interface LoadCustomCommandsOptions {

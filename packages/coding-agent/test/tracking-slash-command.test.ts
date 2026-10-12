@@ -90,6 +90,8 @@ describe("/tracking slash command", () => {
 		await trackingCmd!.handle!(command("start"), mockRuntime(cwd, capture));
 		expect(capture.text).toContain("开始维护项目追踪文档");
 		expect(capture.text).toContain("tracking_update");
+		// D2 memory boundary: tracking holds process state, never knowledge facts.
+		expect(capture.text).toContain("绝不存学到的知识事实");
 	});
 
 	it("status reads a status.json written by tracking_update", async () => {
@@ -111,7 +113,7 @@ describe("/tracking slash command", () => {
 		expect(capture.text).toContain("CI failing");
 	});
 
-	it("log summarizes recent entries from actions.jsonl", async () => {
+	it("log summarizes recent entries from the rotated action log", async () => {
 		const cwd = path.join(tempDir, "p2");
 		await fs.mkdir(cwd, { recursive: true });
 		const tool = new TrackingTool({ cwd, hasUI: false } as ToolSession);

@@ -39,6 +39,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Web-ui stats iframe                            | `web-ui/components/StatsDashboard.tsx`                                      | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL`                                                                                                     |
 | Web-ui trajectory view                         | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell                  | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector                                                               |
 | Mermaid rendering (web + TUI)                  | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on)                                            |
+| SVG fence rendering (web + TUI)                | `web-ui/components/SvgBlock.tsx`, `packages/tui/src/chat/svg-figure.ts`     | Web-ui draws closed ```svg fences as themed inline SVG (DOMPurify SVG-profile policy + `svg-figure` token aliases); TUI rasterizes them under `tui.renderSvg` (default on); serve/web-gateway sessions set `chatSvgRendering` so the prompt advertises them |
 | Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zeta share` encrypted link                                                                                                     |
 
 | Linux packaging lane (1.1.19)                  | `document/release.md` (`### Linux downstream packaging contract`)           | Repo-side contract frozen as the release-asset PKGBUILD lane; asset name `zeta-desktop-<version>-linux-x64.tar.gz` (Linxira-OS `[linxira]` repo)         |
@@ -104,8 +105,7 @@ OpenCode commands fall into three kinds; migrate them in that order:
    operations — implemented as code, not text.
 2. **Prompt-substitution** (expand to a prompt): `/init` and `/update` have
    shipped (`cmdInitGenerateAgentsMd` bundled zh overlay; CLI `/update`);
-   `/recipe` remains deferred with the removed-feature backlog — manage
-   remaining prompt-substitution gaps together with the user-defined
+   manage remaining prompt-substitution gaps together with the user-defined
    commands gaps below. (`/review` and `/share` already shipped as
    bundled/builtin commands.)
 3. **Combined** (template + arguments), using V2's command schema
@@ -166,37 +166,7 @@ Compacted summaries lose specifics that later turns need. Design distillation
 with the tracking document as the durable store, so compaction never
 singlesources context that must survive long sessions.
 
-### P2 — Mermaid/SVG chat rendering: remaining gaps
-
-The revival shipped in a different shape than the original `render_mermaid`
-tool plan, and most of it is done: web-ui renders ```mermaid fences via
-`MermaidBlock.tsx` (`mermaid@^11`, `securityLevel: "strict"`, source/preview
-
-- zoom dialog); the TUI renders ASCII under `tui.renderMermaid` (default on,
-  `packages/utils/src/mermaid-ascii.ts`); the system prompt advertises mermaid
-  blocks. Remaining:
-
-* **SVG fenced blocks in chat**: raw inline SVG is sanitized away today
-  (`rehype-sanitize` default schema in `web-ui/lib/markdown.ts`), and
-  `MarkdownBody.tsx` has no ```svg block path at all — an emitted SVG block
-  renders as plain code even on desktop. Add the render path behind a
-  security-reviewed sanitize decision (the XSS surface grows once the gateway
-  is exposed to phones/WAN). No DOMPurify second layer exists today;
-  mermaid's strict output is the only trusted SVG source.
-* **Dynamic prompt adjustment (decided design)**: add an immutable
-  per-session `chatSvgRendering` surface option set at `createAgentSession`
-  (CLI → false, serve → true; serve's only client is web-ui, so a
-  process-level binary suffices — no per-client provenance needed). Extend
-  the `{{#if renderMermaid}}` block in `prompts/system/system-prompt.md` into
-  a three-branch template: SVG surfaces advertise that the model MAY emit
-  ```svg blocks (rendered for the user); the `{{else}}` branch keeps today's
-  ASCII wording. Do not read the flag from settings: prompt-render options
-  sit outside the applied-tool signature and the web settings POST never
-  refreshes running-session prompts — an immutable constructor value avoids
-  cache drift entirely.
-* A dedicated `render_mermaid` tool is no longer required for web/mobile;
-  if a real `render_svg` tool is ever warranted, follow the surface-scoped
-  sink pattern (see Surface-scoped tool exposure contract below).
+* ~~P2 — Mermaid/SVG chat rendering: remaining gaps~~ 已解决（1.2.0 / PR #114）：web-ui 现在把**闭合的** ```svg 围栏渲染为主题化内联 SVG（`SvgBlock.tsx`、DOMPurify SVG-profile 消毒、`svg-figure` 令牌别名），TUI 早已在 `tui.renderSvg` 下栅格化；提示词侧新增不可变 `chatSvgRendering`（serve/web-gateway 会话置真，CLI 保持关闭），模板分支原本就在。`render_mermaid` 工具不需要；将来真要 `render_svg` 工具，走 surface-scoped sink 契约。
 
 * ~~P0 — Channel tool sink wiring regression~~ 已解决（1.1.9）：`sdk.ts` sinks 接线 + 顶层会话门控随 v18.1.10 同步落地。
 
@@ -455,7 +425,22 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   中英混杂,少数情况下思维链被强制成中文;所以模型侧分析必须语言中立、en+zh 词典同时生效,
   绝不能按 UI 语言选词典——中文用户的统计天生是双语的。用户侧已据此落地(每条消息同时跑
   en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
-  为语言中立且适配单条消息内混语言。
+  改为语言中立且适配单条消息内混语言。
+
+- **插件宿主 i18n 机制(2026-10-13 用户裁决;官方插件标准的 `locales/{zh,en}.json` 同步降级为预留)**:
+  官方插件标准模板里的 `locales/{zh,en}.json` + 宿主注入 `t()` **只有文档、没有实现**——
+  `ExtensionAPI`/`ExtensionContext`(`packages/coding-agent/src/extensibility/extensions/types.ts`)
+  无 i18n / `t` 成员,`PluginManifest`
+  (`packages/coding-agent/src/extensibility/plugins/types.ts:27`)无 `locales` 字段,
+  `plugins/loader.ts`/`manager.ts`/`parser.ts` 均不读 `locales/*.json`。故标准措辞已统一降级为
+  **预留目录**(新建插件可选携带,存量插件豁免;`plugins/official/README.md`、
+  `plugins/official/INDEX.md`、`document/plugin-system.md` 三处同步,本轮只改文档、不动实现)。
+  **待开发三步**:① `ExtensionContext.t()` 注入;② 清单 `locales` 字段与解析;③ loader 读取
+  `locales/*.json` 并按宿主语言选表(语言源现成:`packages/coding-agent/src/i18n` 的
+  `currentLanguage()`/`M`)。**前置事实**:pi-messenger 的用户可见字符串目前全是硬编码
+  (overlay / 命令 / 工具描述 / handler 文案,11 个文件量级、约 200+ 条字面量),抽取前必须
+  先划清「用户可见 UI 文案」与「模型可见提示词(工具 description、crew/skills)」的边界——
+  后者本地化会改变模型行为。
 
 ## Notes
 

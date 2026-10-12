@@ -24,7 +24,8 @@ import {
 import { buildWorkPoolOutputSchema, type WorkPoolYieldItem } from "./workpool-yield";
 
 import { cfgEvalWorkpoolFreshAgents } from "../eval/settings";
-import { effectiveFanOutCap, memoryPressureLevel } from "./fanout-pressure";
+import { effectiveFanOutCap, memoryPressureLevel, readMemorySample } from "./fanout-pressure";
+import { shedUnderMemoryPressure } from "./memory-shed";
 import { cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
 
 /** One user-supplied unit tracked through a workpool batch. */
@@ -155,7 +156,12 @@ export class WorkPool {
 	 * ("Unlimited") stays unbounded only while memory is healthy.
 	 */
 	limit(): number {
-		const cap = effectiveFanOutCap(cfgTaskMaxConcurrency.get(this.session.settings), memoryPressureLevel());
+		const sample = readMemorySample();
+		const level = memoryPressureLevel(sample);
+		// Same sample drives the ceiling and the shed: a workpool that lowers its
+		// ceiling under pressure also drops the memory it can drop right now.
+		void shedUnderMemoryPressure(level, sample, { session: this.session, source: "workpool limit" });
+		const cap = effectiveFanOutCap(cfgTaskMaxConcurrency.get(this.session.settings), level);
 		// `0` is the sentinel `effectiveFanOutCap` reproduces for an unlimited
 		// setting; this call site has always surfaced it as Infinity.
 		return cap > 0 ? cap : Number.POSITIVE_INFINITY;

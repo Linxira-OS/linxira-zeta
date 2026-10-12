@@ -219,29 +219,37 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    不等 → 谱系受损，停止，先修复谱系（联系维护者评估），禁止带病合并。
 3. **增量预览**：`git diff --stat v18.2.5 v18.2.6` 一眼确认本轮增量规模；
    `git log --oneline v18.2.5..v18.2.6` 逐条过一遍提交主题。
-4. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
+4. **注册 manifest 合并 driver（合并前强制）**：`.gitattributes` 把 `package.json`
+   与 `packages/*/package.json`（共 13 个 manifest）绑到 `merge=zeta-package`，
+   而该 driver 的定义**只在本机 git config**（且带绝对路径）——fresh worktree、
+   新 clone、CI runner 都不会继承。缺它时这 13 个 manifest 会退化成手工冲突。
+   开始合并前先在工作 worktree 里注册：
+   `git config merge.zeta-package.driver "bun <repo>/scripts/merge-package-json.ts %A %O %B"`
+   （`<repo>` 为仓库绝对路径；`git config --get merge.zeta-package.driver`
+   应回显该值。driver 定义见 `scripts/merge-package-json.ts` 头部注释）。
+5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
    映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
    Zeta-only 功能存活清单）。
-5. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
+6. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
    `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
    → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：
    rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
-6. **收口扫描（无扩展名白名单）**：
+7. **收口扫描（无扩展名白名单）**：
    - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
    - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
      （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
    - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
      扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
-7. **门禁**：`bun scripts/check-version-consistency.ts` +
+8. **门禁**：`bun scripts/check-version-consistency.ts` +
    `bun run check:ts` + `bun scripts/brand/brand-check.ts` +
    `bun scripts/check-zeta-sentinels.ts`（双守卫都要）+
    `bunx oxfmt --check <既有 glob>` + 动过 crates/ 时 `cargo fmt --all --check`。
-8. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
+9. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
    `bun run test:rs`；已知环境噪声按豁免清单排除（本地 .node 陈旧造成的
    natives 符号缺失属环境噪声，但必须先按 §natives 恢复再判定）。
-9. **推送**：分段/staging 分支按「推送前核对」节；merge commit 含上游 tag
+10. **推送**：分段/staging 分支按「推送前核对」节；merge commit 含上游 tag
    对象，注意 pack 体积。
 
 ### squash sync【已废弃】
@@ -273,7 +281,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 3. **整文件取 theirs 的已知盲区**：stage-3 是 v14 全文件，会抹掉 ours 侧
    **冲突块之外**的 Zeta 独有内容。哨兵检查（`check-zeta-sentinels.ts`）兜住符号级
    丢失；符号之外还要防 **身份行丢失**（APP_NAME、ZETA_PROFILE、KEY_NAME、
-   biome-ignore 注释、i18n key）。用"Zeta 行计数对比"扫描
+   本仓库专属 disable 注释、i18n key）。用"Zeta 行计数对比"扫描
    （main 与工作树逐文件比 `/zeta|Zeta|linxiraos/` 行数差 >5 即嫌疑）收口。
 4. **版本线三件套每次 merge 后必跑**：`set-version.ts` → `package.json` catalog
    13 键对齐 main → `bun install` → `check-version-consistency.ts`。changelog
@@ -281,10 +289,9 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    （`1[5-8].`），只重键当次版本会漏历史段。
 5. **工具链是 Zeta 资产**：每次 merge 都会被上游 oxlint/oxfmt scripts 覆盖
    （根 + 12 个 per-package `check`/`lint`/`fmt`/`fix`）。逐文件从 main 恢复
-   `check:tools` 等脚本与 `.oxlintrc.json`/`.oxfmtrc.json`/`biome.json`，
-   然后把上游新代码里的 `oxlint-disable-next-line` 注释批量迁移成
-   `biome-ignore`（noThenable→noThenProperty、no-eval→noGlobalEval、
-   no-template-curly-in-string→noTemplateCurlyInString、
+   `check:tools` 等脚本与 `.oxlintrc.json`/`.oxfmtrc.json`；上游新代码里的
+   disable 注释按同一套 oxlint 规则核对（noThenable→noThenProperty、
+   no-eval→noGlobalEval、no-template-curly-in-string→noTemplateCurlyInString、
    no-unused-private-class-members→noUnusedPrivateClassMembers）。
 6. **上游功能性 delta 必须手工移植**，整文件恢复 main 后逐 hunk 补：
    v14 的 IPC worker 父进程 watchdog（cli.ts +67 行，win32 ppid≤0 分支 +
@@ -295,7 +302,7 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    ——契约不变，改测试的 fixture 寻址方式（读 shipped section body 过 summarize）
    而不是删断言。
 8. **收口顺序固定**：scope 重写 → set-version/catalog/lockfile → 哨兵 → brand
-   归零 → biome 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
+   归零 → oxlint 归零 → `check:ts` → 行为测试（逐个 triage，区分 Windows-local
    已知噪声：natives 5s 加载超时、ENAMETOOLONG、symlink EPERM）。
 
 ### v18.3.2 → v18.3.4 实测：双 tag 步长的第二个数据点（2026-09-29）

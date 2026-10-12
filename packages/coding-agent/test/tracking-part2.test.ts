@@ -12,6 +12,12 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { TrackingRecorder, TrackingTool } from "@linxiraos/zeta/tools/tracking";
+import {
+	appendTrackingActionRow,
+	readTrackingActionRows,
+	trackingActionLogFiles,
+	TRACKING_ACTIONS_MAX_FILES,
+} from "@linxiraos/zeta/tools/tracking-actions-log";
 
 function createMockSession(cwd: string): ToolSession {
 	return { cwd, hasUI: false } as ToolSession;
@@ -32,7 +38,7 @@ describe("TrackingTool (part 2)", () => {
 		await fs.rm(tempDir, { recursive: true, force: true });
 	});
 
-	it("log_action: appends entries to actions.jsonl", async () => {
+	it("log_action: appends entries to the action log", async () => {
 		const cwd = path.join(tempDir, "p1");
 		await fs.mkdir(cwd, { recursive: true });
 		const tool = new TrackingTool(createMockSession(cwd));
@@ -40,12 +46,12 @@ describe("TrackingTool (part 2)", () => {
 		await tool.execute("t1", { op: "log_action", action: "git commit", detail: "Fixed CI" });
 		await tool.execute("t2", { op: "log_action", action: "npm publish", detail: "v1.0.0" });
 
-		const lines = (await Bun.file(path.join(cwd, ".zeta", "tracking", "actions.jsonl")).text()).trim().split("\n");
+		const lines = await readTrackingActionRows(path.join(cwd, ".zeta", "tracking"));
 		expect(lines).toHaveLength(2);
-		expect(JSON.parse(lines[0]).action).toBe("git commit");
-		expect(JSON.parse(lines[0]).detail).toBe("Fixed CI");
-		expect(JSON.parse(lines[0]).timestamp).toBeDefined();
-		expect(JSON.parse(lines[1]).action).toBe("npm publish");
+		expect(JSON.parse(lines[0]!).action).toBe("git commit");
+		expect(JSON.parse(lines[0]!).detail).toBe("Fixed CI");
+		expect(JSON.parse(lines[0]!).timestamp).toBeDefined();
+		expect(JSON.parse(lines[1]!).action).toBe("npm publish");
 	});
 
 	it("log_action: defaults to 'unknown' when action is missing", async () => {
@@ -53,10 +59,40 @@ describe("TrackingTool (part 2)", () => {
 		await fs.mkdir(cwd, { recursive: true });
 		const tool = new TrackingTool(createMockSession(cwd));
 
-		await tool.execute("t1", { op: "log_action" } as any);
+		await tool.execute("t1", { op: "log_action" });
 
-		const entry = JSON.parse((await Bun.file(path.join(cwd, ".zeta", "tracking", "actions.jsonl")).text()).trim());
-		expect(entry.action).toBe("unknown");
+		const lines = await readTrackingActionRows(path.join(cwd, ".zeta", "tracking"));
+		expect(lines).toHaveLength(1);
+		expect(JSON.parse(lines[0]!).action).toBe("unknown");
+	});
+
+	it("action log: rolls at 5 MB, keeps the rolled-over file readable, and reads a bounded tail", async () => {
+		const cwd = path.join(tempDir, "p9");
+		const dir = path.join(cwd, ".zeta", "tracking");
+		await fs.mkdir(dir, { recursive: true });
+
+		// 40 rows × 200 KB ≈ 8 MB — one roll-over past the 5 MB file bound.
+		const detail = "x".repeat(200_000);
+		for (let i = 0; i < 40; i++) {
+			appendTrackingActionRow(
+				dir,
+				JSON.stringify({ timestamp: new Date().toISOString(), action: `bulk-${i}`, detail }),
+			);
+		}
+
+		const files = trackingActionLogFiles(dir);
+		expect(files.length).toBe(2);
+		expect(files.length).toBeLessThanOrEqual(TRACKING_ACTIONS_MAX_FILES);
+
+		// The predecessor is still on disk with the oldest rows in it.
+		const rollover = await fs.readFile(files[0]!, "utf8");
+		expect(rollover).toContain('"action":"bulk-0"');
+
+		// Readers take the newest rows from the active file's tail only.
+		const rows = await readTrackingActionRows(dir);
+		expect(rows.length).toBeGreaterThan(0);
+		expect(rows.length).toBeLessThan(20);
+		expect(JSON.parse(rows[rows.length - 1]!).action).toBe("bulk-39");
 	});
 
 	it("sync_plan: copies plan file to sessions directory", async () => {

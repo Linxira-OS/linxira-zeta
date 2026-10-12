@@ -34,6 +34,7 @@ import type { PlanModeState } from "../../plan-mode/state";
 import { createAgentSession } from "../../sdk";
 import type { AgentSession, ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
+import type { SessionClient } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
 import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
@@ -990,7 +991,9 @@ async function openSessionManagerForAgent(filePath: string, cwd?: string): Promi
  * promise. `sessionFile` empty means a brand-new session rooted at `cwd`.
  * `channelHooks` wire the IM channel tools (`channel_send` / `workspace_run`)
  * into the session's ToolSession — only the coordinator session (web/desktop
- * mode) supplies them.
+ * mode) supplies them. `client` stamps provenance on a session created here
+ * (the default covers the gateway's own browser callers; the serve coordinator
+ * passes what its process is).
  */
 export interface SessionChannelHooks {
 	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
@@ -1005,6 +1008,7 @@ export async function startRpcSession(
 	cwd?: string,
 	toolNames?: string[],
 	channelHooks?: SessionChannelHooks,
+	client: SessionClient = "web",
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -1014,7 +1018,7 @@ export async function startRpcSession(
 		if (sessionFile) {
 			manager = await openSessionManagerForAgent(sessionFile, cwd);
 		} else {
-			manager = SessionManager.create(cwd ?? process.cwd());
+			manager = SessionManager.create(cwd ?? process.cwd(), undefined, undefined, { client });
 		}
 
 		const realSessionId = manager.getSessionId();
@@ -1036,6 +1040,9 @@ export async function startRpcSession(
 			// resolves them via the `extension_ui_response` command. Declaring
 			// hasUI here lets UI-gated tools (AskTool) register at all.
 			hasUI: true,
+			// Every session this entry point creates is read in the web UI's chat
+			// surface, which draws ```svg figures.
+			chatSvgRendering: true,
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);

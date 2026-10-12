@@ -99,6 +99,7 @@ import { defaultEvalSessionId } from "./eval/session-id";
 import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 
 import {
+	CustomCommandWatcher,
 	type CustomCommandsLoadResult,
 	type LoadedCustomCommand,
 	loadCustomCommands as loadCustomCommandsInternal,
@@ -217,6 +218,7 @@ import {
 } from "./session/retry-fallback-chains";
 import { describeUsageFallback } from "./session/retry-fallback-reason";
 import { getRestorableSessionModels } from "./session/session-context";
+import type { SessionClient } from "./session/session-entries";
 import { SessionManager } from "./session/session-manager";
 import {
 	collectMountedMCPToolRoutes,
@@ -853,6 +855,15 @@ export interface CreateAgentSessionOptions {
 	/** Session manager. Default: session stored under the configured agentDir sessions root */
 	sessionManager?: SessionManager;
 
+	/**
+	 * Client this session is created for, stamped on the durable header when the
+	 * SDK is the one creating the session (i.e. no `sessionManager` was passed).
+	 * A caller that supplies its own manager stamps it there instead — the
+	 * creator owns the provenance. Default: undefined, which reads as a session
+	 * from before the stamp existed.
+	 */
+	client?: SessionClient;
+
 	/** Override local:// protocol options for subagent local:// sharing. Default: uses the session's own artifacts dir and session ID. */
 	localProtocolOptions?: LocalProtocolOptions;
 
@@ -896,6 +907,18 @@ export interface CreateAgentSessionOptions {
 	 * Print, RPC, ACP and subagent sessions read replies as text. Default: false.
 	 */
 	tuiTranscript?: boolean;
+	/**
+	 * The reply is read in a chat surface that draws ```svg fences as figures
+	 * but has no diagram renderer of its own (the serve-hosted web UI): the
+	 * prompt then invites ```svg, exactly as `tuiTranscript` does for the
+	 * terminal. Mermaid stays TUI-only — the web UI shows Mermaid fences as
+	 * source behind a preview toggle — so the prompt keeps pointing these
+	 * sessions at ```svg alone. Immutable per session: the prompt cache is keyed
+	 * on the base prompt bytes, so a settings read would drift. Set by the
+	 * session path every web/desktop client shares (`startRpcSession`).
+	 * Default: false.
+	 */
+	chatSvgRendering?: boolean;
 	/**
 	 * Name the unnamed session from the operator's messages once each reply begins
 	 * (see `title.generator`). Only the interactive TUI sets this; ignored for subagents. Default: false.
@@ -1877,7 +1900,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const sessionManager =
 		options.sessionManager ??
 		logger.time("sessionManager", () =>
-			SessionManager.create(cwd, SessionManager.getDefaultSessionDir(cwd, agentDir)),
+			SessionManager.create(cwd, SessionManager.getDefaultSessionDir(cwd, agentDir), undefined, {
+				client: options.client,
+			}),
 		);
 	const configuredDirs = options.additionalDirectories
 		? options.additionalDirectories
@@ -2134,6 +2159,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const agentKind: AgentKind = isSubagentSession ? SUB_AGENT_RULE_NAME : MAIN_AGENT_RULE_NAME;
 	// Visuals (Mermaid, SVG figures, table charts) are drawn only in the top-level TUI transcript.
 	const tuiTranscript = options.tuiTranscript === true && !isSubagentSession;
+	// A browser chat surface draws ```svg fences too, but neither Mermaid nor table charts.
+	const chatSvgRendering = options.chatSvgRendering === true && !isSubagentSession;
 	const resolvedAgentName = (options.agentName ?? agentKind).trim().toLowerCase();
 
 	// Discover rules and bucket them in one pass to avoid repeated scans over large rule sets.
@@ -3986,7 +4013,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				personality: agentKind === "sub" ? "none" : cfgPersonality.get(settings),
 				subagent: agentKind === "sub",
 				renderMermaid: tuiTranscript && cfgTuiRenderMermaid.get(settings),
-				renderSvg: tuiTranscript && cfgTuiRenderSvg.get(settings),
+				renderSvg: (tuiTranscript || chatSvgRendering) && cfgTuiRenderSvg.get(settings),
 				autoGraph: tuiTranscript && cfgTuiAutoGraph.get(settings) !== "off",
 				reactions: agentKind === "main" && options.hasUI === true && cfgTuiReactions.get(settings),
 				activeRepoContext,
@@ -4971,6 +4998,23 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				extensionReconcile = next;
 				return next;
 			});
+			// Live TypeScript custom commands: editing `commands/<name>/index.*`
+			// reloads that module in place, and `applyCustomCommandReload` re-advertises
+			// the palette to every subscriber (TUI autocomplete, RPC and ACP command
+			// lists). Sessions built without extension discovery loaded no commands,
+			// so they get no watcher either.
+			if (!options.disableExtensionDiscovery && !restrictToolNames) {
+				const customCommandWatcher = new CustomCommandWatcher({
+					cwd,
+					agentDir,
+					onChange: async () => session.applyCustomCommandReload(await discoverCustomTSCommands(cwd, agentDir)),
+				});
+				// Not awaited: arming only reads directories, and session creation stays
+				// off the command-I/O path. The arm-time catch-up reload settles any
+				// write that lands before the watch goes live.
+				void customCommandWatcher.start();
+				disposeCallbacks.add(() => customCommandWatcher.stop());
+			}
 		}
 		session.yieldQueue.register<McpNotificationEntry>("mcp-notification", {
 			build: buildMcpNotificationBatchMessage,

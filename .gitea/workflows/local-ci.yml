@@ -3,6 +3,11 @@ name: local-ci
 # ─────────────────────────────────────────────────────────────────────────────
 # 本地 CI（仅 Gitea 执行）。定位：**GitHub CI 的 Linux 精简镜像**。
 #
+# 保留（不得删除）：本工作流不是上游残留，而是产品面的一部分——我们依赖 Gitea，
+# 发行版会随附 Gitea，本地 CI 便随其一起交付；将来在我们自己的 Linux 上自举开发
+# 时也有用。它当前靠手动 push 到盒子唤醒（盒子冻结期不动）。因此**不得**以
+# "与 ci.yml 重复 / 会漂移"为由删除：与 ci.yml 的逐 job 对应关系是刻意维护的。
+#
 # 与 .github/workflows/ci.yml 的对应关系（逐 job）：
 #   镜像：check / web_ui_build / bazel_lock / rust_validate / native_addons /
 #        test_coding_agent_native / test_workspace / test_coding_agent_singleton /

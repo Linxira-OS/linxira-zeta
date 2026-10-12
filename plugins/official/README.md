@@ -1,6 +1,7 @@
 # 官方插件标准模板
 
-官方插件位于 `plugins/official/<plugin-id>/`，每个插件必须携带以下文件。
+官方插件位于 `plugins/official/<plugin-id>/`，每个插件必须携带以下文件
+（`locales/` 除外：预留目录，机制未实现，见下）。
 完整目录说明见 `document/plugin-system.md`；登记表见 `INDEX.md`。
 
 ```
@@ -10,10 +11,25 @@ plugins/official/<plugin-id>/
 ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
 ├── crew/agents/*.md             # 团队代理定义（agent-team 等）
 ├── skills/                      # 自带 skills
-├── locales/{zh,en}.json         # i18n 字符串表（宿主注入 t()）
+├── locales/{zh,en}.json         # i18n 字符串表（预留目录：宿主 i18n 机制未实现，见下）
 ├── README.md / CHANGELOG.md
 └── tests/
 ```
+
+## `locales/` 与宿主 i18n（预留；机制未实现）
+
+标准模板里的 `locales/{zh,en}.json` 是**预留目录**。宿主 i18n 机制——宿主注入
+`t()`（`ExtensionContext.t()`）+ 清单 `locales` 字段 + loader 读取
+`locales/*.json`——**尚未实现**，仓库内只有文档约定（本文件、
+`document/plugin-system.md`）。因此：
+
+- 新建插件**可选**携带 `locales/{zh,en}.json`，为机制落地做准备；
+- 存量插件**豁免**：`plugins/official/pi-messenger` 的用户可见字符串目前仍是英文
+  硬编码（overlay / 命令 / 工具描述 / handler 文案），尚未抽出。
+
+机制本身登记在 `document/roadmap.md` 的 Deferred Queue。**在机制落地之前，
+"必须携带 locales" 不是插件准入的硬要求**，`INDEX.md` 的登记表也不因缺少
+`locales/` 而拒绝收录。
 
 ## 依赖改写（常驻构建步骤）
 

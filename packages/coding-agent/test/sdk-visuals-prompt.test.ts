@@ -56,4 +56,15 @@ describe("visuals guidance in the system prompt", () => {
 			expect(prompt).not.toContain("charts it underneath");
 		}
 	});
+
+	it("offers svg — but not Mermaid or table charts — to a browser chat surface", async () => {
+		const web = await promptFor({ hasUI: true, chatSvgRendering: true });
+		expect(web).toContain("```svg");
+		// The web UI has no diagram renderer of its own and no table charting.
+		expect(web).not.toContain("```mermaid");
+		expect(web).not.toContain("charts it underneath");
+
+		const subagent = await promptFor({ hasUI: true, chatSvgRendering: true, taskDepth: 1 });
+		expect(subagent).not.toContain("```svg");
+	});
 });

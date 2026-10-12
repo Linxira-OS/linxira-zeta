@@ -1985,6 +1985,10 @@ export class SessionManager {
 			id: this.#sessionId,
 			timestamp,
 			cwd: this.#cwd,
+			// A session started from inside a client stays that client's session:
+			// `/new`, branch and fork inherit, and only a creator that knows better
+			// passes one explicitly.
+			client: options?.client ?? this.#header?.client,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 		};
@@ -2432,6 +2436,8 @@ export class SessionManager {
 			timestamp,
 			cwd: this.#cwd,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
+			// The fork is the same conversation read by the same client.
+			client: this.#header.client,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: this.#header.providerPromptCacheKey ?? parentSessionId,
 		};
@@ -2679,7 +2685,9 @@ export class SessionManager {
 		const sessionDir = options?.sessionDir ?? SessionManager.getDefaultSessionDir(this.#cwd, undefined, storage);
 		const manager = new SessionManager(this.#cwd, sessionDir, true, storage);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
-		manager.#resetToNewSession();
+		// The copy is this same conversation under a new id, so it keeps the client
+		// that was reading it.
+		manager.#resetToNewSession({ client: this.#header.client });
 		manager.#sessionName = this.#sessionName;
 		manager.#titleSource = this.#titleSource;
 		manager.#titleUpdatedAt = this.#titleUpdatedAt;
@@ -3924,11 +3932,19 @@ export class SessionManager {
 	 * Create a new session.
 	 * @param cwd Working directory (stored in the session header)
 	 * @param sessionDir Optional session directory; defaults to the cwd-derived dir.
+	 * @param storage Session storage backend; defaults to the filesystem.
+	 * @param options Seed options for the new header — a creator stamps its
+	 * `SessionClient` here so the session records where it came from.
 	 */
-	static create(cwd: string, sessionDir?: string, storage: SessionStorage = new FileSessionStorage()): SessionManager {
+	static create(
+		cwd: string,
+		sessionDir?: string,
+		storage: SessionStorage = new FileSessionStorage(),
+		options?: NewSessionOptions,
+	): SessionManager {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const manager = new SessionManager(cwd, dir, true, storage);
-		manager.#resetToNewSession();
+		manager.#resetToNewSession(options);
 		return manager;
 	}
 
@@ -3999,6 +4015,8 @@ export class SessionManager {
 		manager.#resetToNewSession(
 			{
 				parentSession: sourceHeader?.id,
+				// A fork of a transcript is read by whoever read the original.
+				client: sourceHeader?.client,
 				providerPromptCacheKey: sourceHeader?.providerPromptCacheKey ?? sourceHeader?.id,
 			},
 			options?.sessionFile,
@@ -4206,11 +4224,16 @@ export class SessionManager {
 		if (!header) return null;
 		return { cwd: header.cwd ?? getProjectDir(), init: extractSessionInit(initEntries) };
 	}
-	/** Continue the most recent session, or create a new one if none exists. */
+	/**
+	 * Continue the most recent session, or create a new one if none exists.
+	 * @param options Seed options for the session created when there is nothing
+	 * to continue — a creator stamps its `SessionClient` here.
+	 */
 	static async continueRecent(
 		cwd: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
+		options?: NewSessionOptions,
 	): Promise<SessionManager> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const resolvedCwd = path.resolve(cwd);
@@ -4230,7 +4253,7 @@ export class SessionManager {
 				(!sessionDir || pathIsWithin(dir, path.dirname(breadcrumb.sessionFile)))
 			) {
 				const manager = new SessionManager(cwd, dir, true, storage);
-				manager.#resetToNewSession();
+				manager.#resetToNewSession(options);
 				return manager;
 			}
 
@@ -4315,7 +4338,7 @@ export class SessionManager {
 
 		const manager = new SessionManager(cwd, dir, true, storage);
 		if (chosenSession) await manager.setSessionFile(chosenSession);
-		else manager.#resetToNewSession();
+		else manager.#resetToNewSession(options);
 		return manager;
 	}
 

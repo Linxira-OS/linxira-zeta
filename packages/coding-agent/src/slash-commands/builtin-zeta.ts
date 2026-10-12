@@ -7,6 +7,7 @@ import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import { TRACKING_TOGGLE_NOTICE_TYPE } from "../session/todo-tracker";
+import { readTrackingActionRows } from "../tools/tracking-actions-log";
 import type { TrackingStatus } from "../tools/tracking";
 import {
 	activeModeId,
@@ -280,8 +281,8 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 	const dir = getProjectTrackingDir(cwd);
 	const statusPath = path.join(dir, "status.json");
 	const indexPath = path.join(dir, "INDEX.md");
-	const actionsPath = path.join(dir, "actions.jsonl");
 	const sessionsDir = path.join(dir, "sessions");
+
 	const emptyHint = `（无追踪数据。用 /tracking start 开始维护项目追踪文档。）`;
 
 	switch (arg) {
@@ -296,8 +297,9 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 			}
 			return (
 				"开始维护项目追踪文档：我会在里程碑、重要决策、阶段完成与阻塞解除后调用 tracking_update 工具，\n" +
-				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.jsonl）、阶段（sync_todo）与计划（sessions/）写入 ${dir}。\n` +
+				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.<日期>.jsonl.log，5 MB × 3 份轮转）、阶段（sync_todo）与计划（sessions/）写入 ${dir}。\n` +
 				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。三读者定位：人 / agent / 协作者。\n" +
+				"追踪只记过程状态（阶段 / 阻塞 / 计划镜像），绝不存学到的知识事实——事实请用记忆工具；动态状态先写入追踪文档，再由读者读取文档。\n" +
 				seededNote
 			);
 		}
@@ -323,21 +325,17 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 			}
 		}
 		case "log": {
-			try {
-				const lines = (await Bun.file(actionsPath).text()).trim().split("\n").filter(Boolean);
-				if (lines.length === 0) return `操作日志为空: ${actionsPath}`;
-				const rows = lines.slice(-10).map(line => {
-					try {
-						const entry = JSON.parse(line) as { timestamp?: string; action?: string; detail?: string };
-						return `${entry.timestamp ?? "—"}  ${entry.action ?? ""}${entry.detail ? `（${entry.detail}）` : ""}`;
-					} catch {
-						return line;
-					}
-				});
-				return `最近 ${rows.length} 条操作（共 ${lines.length} 条）:\n${rows.join("\n")}`;
-			} catch {
-				return `操作日志不存在: ${actionsPath}\n${emptyHint}`;
-			}
+			const lines = await readTrackingActionRows(dir);
+			if (lines.length === 0) return `操作日志为空: ${dir}\n${emptyHint}`;
+			const rows = lines.slice(-10).map(line => {
+				try {
+					const entry = JSON.parse(line) as { timestamp?: string; action?: string; detail?: string };
+					return `${entry.timestamp ?? "—"}  ${entry.action ?? ""}${entry.detail ? `（${entry.detail}）` : ""}`;
+				} catch {
+					return line;
+				}
+			});
+			return `最近 ${rows.length} 条操作（共 ${lines.length} 条）:\n${rows.join("\n")}`;
 		}
 		case "plan": {
 			try {

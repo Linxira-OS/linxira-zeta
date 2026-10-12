@@ -71,6 +71,11 @@ __pycache__/
 
 # Scratch files
 temp/
+.tmp-triage/
+test-auth-repro*
+sdk-active-selector-*
+tmp-repro-*
+.tmp-parse-check.cjs
 /modernization-plan*.md
 syntax.jsonl
 out.jsonl

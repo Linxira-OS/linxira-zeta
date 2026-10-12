@@ -168,6 +168,8 @@ const LANG_ALIASES: Record<string, BundledLanguage> = {
 	docker: "dockerfile",
 	objc: "objective-c",
 	posh: "powershell",
+	// ```svg fences have no grammar of their own; highlight them as XML.
+	svg: "xml",
 };
 
 /**
