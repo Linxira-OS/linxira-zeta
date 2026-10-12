@@ -812,7 +812,7 @@ gates could not see, and each is now fixed:
    - Class-4 variant (lost upstream hunks in conflict resolution): `packages/ai/src/auth-storage.ts` merged-block contract (`priorBlockedUntilMs`/`providerTimed`), `session/turn-recovery.ts` provider-timing params, `ai/src/error/flags.ts` `auth-gateway 5xx` retryable pattern, `utils/src/fetch-retry.ts` longest-wins parser rewrite, `openai-codex-responses.ts` abort-cause chain, `session-advisors.ts` `providerTimed` field, `agent-session-retry-cap.test.ts` (+1480 lines) and `auth-storage-force-refresh-rotate.test.ts` 鈥?all restored from v18.1.16 with scope rekey. Systematic hunk-level scan against `u-v18.1.14鈫抲-v18.1.16` additions confirms zero remaining losses (excluding intentional Zeta surfaces).
    - Tests: `task`/`modes`/`session` buckets show zero HEAD-unique failures vs main; `ai` bucket zero HEAD-unique (6 main flakes fixed); `retry-cap` 51/51. Remaining local failures are Windows-only noise (git-worktree tests writing `:(glob)*` paths, native `.node` stale per class 5) 鈥?CI bazel unaffected.
    - Upstream changelog sections (## [18.x]) dropped from package CHANGELOGs; version line realigned to 1.1.12 via `set-version.ts` + `bun install`.
-- **Note**: upstream replaced biome with oxfmt/oxlint (+oxfmt); Zeta keeps its own check pipeline 鈥?`prefer-const` on definite-assignment `let` (8 sites) is a pre-existing main debt, unchanged by this merge.
+- **Note**: upstream migrated its lint/format toolchain to oxfmt/oxlint; Zeta's check pipeline now mirrors upstream 鈥?`prefer-const` on definite-assignment `let` (8 sites) is a pre-existing main debt, unchanged by this merge.
 
 ## v18.1.13 + v18.1.14 (Zeta 鈥?merged as PR #14, dual-tag serial merge)
 

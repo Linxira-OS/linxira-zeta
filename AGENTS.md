@@ -401,8 +401,8 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
    `port/*`, `feat/*`): merge the latest `main` into it first
    (`git merge main`), then run the local minimum gate —
-   `bun scripts/check-version-consistency.ts`, `bun run check:ts`, biome on
-   the changed files, plus a re-run of any suite that was red in the last CI
+   `bun scripts/check-version-consistency.ts`, `bun run check:ts`, `oxlint`/`oxfmt`
+   on the changed files, plus a re-run of any suite that was red in the last CI
    round. Never push a branch that is behind `main`; a PR CI failure triage
    starts with "is this already fixed on `main`, and is `main` fully merged
    into this branch?" before touching the branch itself.
@@ -449,6 +449,7 @@ tag）；结论成立则写入 `document/merge-playbook.md`。
 ## Commands
 
 - NEVER commit unless asked.
+- Scratch artifacts go in `temp/` (already gitignored); ad-hoc outputs and one-off debugging files MUST never be committed — the repo root tracks product files only.
 - Never use `tsc`/`npx tsc` — always `bun check`.
 - Never run `cargo test` directly for Rust tests — use `bun run test:rs`. It runs `cargo nextest run` (config: `.config/nextest.toml`) followed by a `cargo test --doc` pass, because nextest does not execute doctests. The doctest pass runs every runnable doctest in the workspace's lib crates; today that is tree-sitter-go's one example (pi-natives is a `cdylib`, which rustdoc skips; pi-builtins' examples are `ignore`d vendored uutils docs).
 - Merge commits (maintainer merges of PRs) follow: `Merge PR #<number>: <conventional PR subject> (@<author>)` — e.g. `Merge PR #6386: feat(catalog): add native Meta Model API provider (@eggpeat)`.
