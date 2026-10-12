@@ -41,212 +41,30 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Mermaid rendering (web + TUI)                  | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on)                                            |
 | Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zeta share` encrypted link                                                                                                     |
 
+| Linux packaging lane (1.1.19)                  | `document/release.md` (`### Linux downstream packaging contract`)           | Repo-side contract frozen as the release-asset PKGBUILD lane; asset name `zeta-desktop-<version>-linux-x64.tar.gz` (Linxira-OS `[linxira]` repo)         |
+| Plan-mode detail ceiling (length-bound plans)  | `packages/coding-agent/src/plan-mode/plan-protection.ts`                    | `readTargetsPlan` wired into the read tool: plan files get the full default read window so long plans are never amended blind                            |
+| Web-ui settings coverage + reload button       | `POST /api/settings/reload` + `web-ui/lib/settings-client.ts`               | SettingsPanel mirrors the full settings schema (all tabs/groups from `GET /api/settings`); "Reload config" button wired to the reload endpoint           |
+| Full-surface CLI i18n                          | `packages/tui/src/i18n.ts` + `src/i18n/wire-tui.ts`                         | Host-injectable `tuiText` layer, `settings-zh.ts` overlay; ~700 keys across all TUI panels; `scripts/check-i18n-consistency.ts` guards en/zh parity      |
+| Plan-surface completion A+B                    | `webui-desktop-overhaul-plan.md` §14                                        | Shell wrap-up, command palette (Ctrl+K), Shiki, windowed searchable settings, gateway plan endpoint + sidebar Plan card, Tracking v2, U2 (9e7c4e4251f)   |
+| `ssh_exec` remote command tool (v1.1.17)       | `src/ssh/` + `ctx.registerTool`                                             | Wraps the retained connection manager (`zeta ssh` CLI, `/ssh`); PR #34                                                                                   |
+
 ## Priorities
-
-### P1 — Linux mainline distribution (from 1.1.19)
-
-Starting with **1.1.19**, Zeta ships through the Linxira-OS Linux mainline as
-a system package (user decision, 2026-09-22 — 1.1.18 remains npm/desktop-only
-while the packaging lane is set up):
-
-- **Repos (local clones under `F:/Linxira-OS/`, upstream on GitHub)**.
-  Scope: the `zeta-desktop` shell (+ bundled `zeta` CLI) only — the vendored
-  editor npm packages (`@linxiraos/editor*`) remain npm-only and are out of
-  the system-package lane:
-   - `Linxira-OS/packages` — PKGBUILD definitions; every package pinned to an
-     upstream commit (`_commit` + codeload + sha256), built in a clean
-     `archlinux:base-devel` container, signed, `repo-add`-ed.
-   - `Linxira-OS/linxira-packages` — the published `[linxira]` pacman repo
-     (x86_64 db + packages + signatures, GitHub Pages).
-   - `Linxira-OS/linxira-update` — Arch-Update fork; the system update
-     notifier/applier. **Zero extra config needed on our side**: once `zeta`
-     is in `[linxira]`, update discovery and delivery are automatic.
-- **Wiring checklist for 1.1.19**:
-   1. `packages/packages/zeta/PKGBUILD` — decide packaging shape: install the
-      pinned GitHub Release linux binary asset (simplest, sha256-pinned) vs
-      source build via `bun` (heavier; Arch `bun` package dependency).
-   2. `upstream-sync.toml`: add `[[track]] package = "zeta" repo =
-"Linxira-OS/linxira-zeta"` — the daily scanner bumps the PKGBUILD from
-      `releases/latest` automatically (draft/prerelease ignored), so every
-      normal `release-v2.ts` release propagates with no manual step.
-   3. Verify end-to-end: release v1.1.19 → sync bot bumps PKGBUILD → CI
-      build/sign/repo-add → `pacman -Sy zeta` on a clean system →
-      linxira-update offers the upgrade.
 
 ### P0 - Web workbench foundation and desktop handoff
 
-Zeta Web is a local-first coding workbench built on the OMP Web snapshot. It
-must remain one product with the CLI and desktop shell: all three clients read
-and continue the same durable sessions, but each client exposes only the
-capabilities that its execution environment can actually provide.
+The delivery-order items have landed: Web UI typecheck plus desktop/Web CI
+restored (item 1), project grouping and concurrent-session status preserved
+through the visual recomposition (item 2), the desktop file-manager/editor
+bridge (item 3), AppImage packaging + Linux CI artifact validation (item 5),
+and the workbench visual recomposition (item 6 — see Shipped). These landed on
+the locked design/typography/port-boundary contracts; the full spec stays in
+`document/webui-desktop-overhaul-plan.md` §14. One item remains open:
 
-#### Information architecture and existing contract
-
-- The left rail groups sessions by project root, including linked worktrees;
-  it is the project switcher and session list, not a separate global history.
-- The center is the selected session's conversation and composer. The right
-  rail is project/session context: open file tabs, file explorer, Git changes,
-  task progress, and later terminal or review surfaces. It must not become a
-  second unrelated navigation system.
-- The current OMP Web baseline already supports multiple concurrently running
-  sessions in one window. `runningSessionIds`, the running-session SSE stream,
-  project grouping, and unread-completion markers are a preserved contract.
-  One center conversation is selected at a time while other agents continue in
-  the background.
-- Multiple visible center-chat tabs or split chat panes are not a shared Pi Web
-  feature. They are a future Zeta UX decision, not part of the initial Web
-  recovery or a Pi Web port. File tabs in the right rail remain independent.
-
-#### Desktop project opening
-
-- The top bar will offer `Open in editor` and `Open in file manager` for the
-  trusted, selected project directory. These controls appear only when a local
-  desktop host can perform the action; browser-only Web UI must not pretend it
-  has native process access.
-- `Open in file manager` always delegates to the operating system's default
-  handler. It must use generic wording: the default may be Dolphin on Linux,
-  File Explorer on Windows, Finder on macOS, or another user-selected manager.
-  Do not hard-code a distribution, desktop environment, or file-manager name.
-- `Open in editor` must be backed by a host-owned editor discovery and launch
-  capability. The renderer may select only an editor ID returned by the host;
-  it must never send an executable path, shell command, or arbitrary arguments
-  across IPC. A default-editor or OS `Open with` handoff is an acceptable
-  fallback when a selectable editor cannot be resolved.
-- Electron's `shell.openPath()` is sufficient for the default file-manager
-  action but not for a selectable editor. Add a narrow preload/context bridge
-  and validated main-process IPC before exposing this UI. The current desktop
-  shell intentionally has neither bridge nor IPC handler.
-- OpenCode is interaction reference only. Its current static list of known app
-  commands is not sufficient for Zeta's requirement to support system-registered
-  editors, so do not copy that list as the product implementation.
-
-#### Client identity and launcher contract
-
-- The npm `zeta` binary remains the CLI and must never launch the desktop app
-  implicitly. Desktop installation must not replace or shadow that command.
-- A later `zeta desktop [directory]` subcommand and `zeta-d [directory]` alias
-  launch an installed desktop host for the supplied directory, defaulting to
-  the current working directory. If no compatible desktop host is installed,
-  they return a clear unavailable result rather than opening a browser or
-  silently changing CLI behavior.
-- The desktop executable stays separately named, for example `zeta-desktop`,
-  so platform registration and PATH discovery cannot collide with the npm CLI.
-- Session/run provenance needs an explicit cross-client contract. `cli`, `web`,
-  `desktop`, and non-interactive automation must be recorded by the initiating
-  client rather than inferred by another UI from a cwd or URL. The Web UI can
-  then label client-specific actions accurately while all clients keep one
-  transcript and session identity. Define this as durable metadata or a
-  compatible event before adding presentation badges.
-
-#### Upstream port boundary
-
-- `web-ui/` remains the OMP Web snapshot. OMP UI behavior is the baseline;
-  Pi Web is a semantic-port source only.
-- A Pi Web change may be ported only when its user-visible UI behavior is shared
-  with, or cleanly extends, the OMP Web product without replacing OMP session,
-  auth, model, plugin, or configuration architecture. Record the source
-  evidence and use a focused `port/pi-web/<scope>` branch.
-- Preserve the OMP running-session SSE implementation. Pi Web's polling
-  implementation is not an upgrade candidate.
-- Do not import Pi-only runtime facades or migrate Pi-only product features just
-  because their components compile. In particular, Pi `ModelRuntime`, service
-  factories, legacy package management, and their storage assumptions are not
-  Web UI compatibility layers for Zeta.
-
-#### Typography and visual work
-
-- HarmonyOS Sans is rejected for the default Web UI. Do not make UI readability
-  depend on it, or on an arbitrary locally installed font.
-- Until a reviewed redistributable font is selected, use a system UI stack with
-  CJK fallbacks: `ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-"Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif`.
-  Maple Mono may remain an optional code font with normal monospace fallbacks;
-  it is not the UI chrome font.
-- A future bundled font must have a documented redistributable license and
-  source. Do not add a remote Google font dependency for the desktop default.
-- The current Starfield treatment is an optional legacy theme only. The later
-  default workbench redesign uses compact neutral surfaces, semantic state
-  colors, and stable panels rather than decorative grids, display fonts, or
-  themed feature chrome.
-
-#### Desktop reference projects (upstream GUI clones)
-
-Two upstream desktop shells are kept as local reference clones under `temp/`
-(reference-only, never committed) and are the primary prior art for the next
-batch of desktop work, together with the OMP Web snapshot (`temp/omp-web`):
-
-- `temp/oh-my-pi-gui` — "omp GUI" (`@linxiraos/omp-gui`, Electron 35 + React
-  19). Native desktop control center: parallel agent sessions, per-tool-call
-  inspection, model and usage management. Closest match to Zeta's desktop
-  shell ambitions (tray + workbench + session control).
-- `temp/oh-my-pi-UI` — "OMP Codex" (`omp-gui`, Electron 38 beta + Vite +
-  React 18). Codex-style desktop GUI driving the agent over `--mode rpc-ui`
-  NDJSON-over-stdio, one subprocess per session, with a multi-session sidebar
-  and per-directory session archiving. Reference for the rpc-ui transport
-  contract and session-shell UX.
-
-Of the three, the two GUI projects are the same category (desktop shells);
-`omp-web` is the web surface, not a desktop shell. When the desktop track
-starts, mine these for: session lifecycle over rpc-ui vs the gateway HTTP
-contract, the parallel-session process model, tool-call timeline UX, and the
-multi-session sidebar/archive interaction patterns. `temp/` is ignored and
-must never be committed; nothing in these clones gets deleted — they are
-sync sources for upstream work.
-
-#### Linux desktop delivery
-
-- WSL, including an Arch-based environment, is suitable for local functional
-  development. Ubuntu CI is the authoritative environment for reproducible
-  Linux packaging and artifact validation.
-- Required Linux x64 release assets are `.deb` and AppImage. The existing
-  archive may remain a build/smoke artifact until a separate release-policy
-  decision changes it.
-- Do not create, publish, or modify an AUR package or an organization package
-  repository. AUR support is explicitly deferred.
-- Linux desktop CI must build the Web UI and desktop shell, run platform and
-  unpacked-app smoke checks, verify the `.deb` and AppImage exist, upload both
-  release assets, and feed them into the GitHub release checksum step.
-
-#### Delivery order
-
-1. DONE — Web UI typecheck and desktop Linux/Windows/mac CI restored in the
-   root `ci.yml`. Re-verified 2026-08-29 (v18.0.9 fallout-repair series on
-   `main`; v18.0.10 sync PR #5).
-2. Preserve and test project grouping plus concurrent-session status before any
-   visual rework. **Constraints locked for the redesign**: final-answer fold
-   grouping (`splitFinalAssistantBlocks`, compaction-anchor, live-tail
-   non-folding), project grouping + running-session SSE contract stay intact.
-3. Add the desktop bridge for file-manager/editor opening and its trusted-path
-   contract.
-4. Add the CLI desktop launcher and durable client/automation provenance.
-5. Add AppImage packaging and Linux CI artifact validation; keep AUR deferred.
-6. Recompose the workbench visual system and evaluate any multi-chat-pane UX as
-   a separate Zeta design. **Scheduled for v1.1.10** — approved design: migrate
-   the OpenChamber design language (CSS-var token system, full JSON theme
-   engine, shadcn-style primitives, icon sprites) and adopt the three-pane
-   Codex/ZCode desktop layout (project-grouped sidebar, surface tabs +
-   context-usage ring in the header, right ContextPanel + icon rail).
-   Connection-layer code is excluded by contract: all data stays on the Zeta
-   gateway (`/api/sessions*`, `/api/agent/*`, `/api/settings`, `/api/git/*`,
-   `/api/fs/*`); the OpenChamber settings page and CLI link logic are not
-   ported — settings become a windowed, searchable surface over the existing
-   gateway settings + `web.yml` contracts. Includes Tracking v2 (todo-phase
-   binding, compaction-derived summaries under `<project>/.zeta/tracking/`,
-   the memory-boundary prompt contract below, default-on) and a
-   per-platform `web_ui_build` CI matrix (ubuntu/windows/macos). Steps 3-5
-   (desktop bridge / launcher / AppImage) proceed as a parallel desktop track
-   and gate the desktop-handoff completion, not the Web visual recomposition.
-   Theme-system constraints from "Typography and visual work" above apply as
-   hard rules: default `zeta-dark` (first launch dark), compact neutral
-   surfaces, system UI font stack with CJK fallbacks (no remote font
-   dependency), Starfield retained as a legacy optional theme only. Full
-   design spec (locked decisions, layout tree, token inventory, tracking v2
-   detail, acceptance): `document/webui-desktop-overhaul-plan.md` §14（收编自 plan-zeta-ui-carryover.md）— amend that
-   document in place; this entry stays a pointer.
-   Status (2026-09-03): Sidebar 重构红线 + openchamber 头部布局已落地
-   (feat/webui-sidebar-overhaul；头部红线见 webui-desktop-overhaul-plan.md §14)；会话地图
-   设计已登记 (`document/session-map-web.md`)；agent-team 插件设计已登记
-   （本计划 §14 Z5+U11 批）。
+- **Cross-client provenance (item 4)**: session/run provenance must record the
+  initiating client — `cli`, `web`, `desktop`, or non-interactive `automation`
+  — rather than letting another UI infer it from a cwd or URL (no
+  `initiatedBy`/`clientKind` field exists yet). Define it as durable metadata
+  or a compatible event before adding presentation badges.
 
 ### P0 — Compaction as a service (not a command)
 
@@ -427,32 +245,6 @@ The v18.1.10 sync has merged (PR #8) and rides the 1.1.9 release; everything
 lands as Zeta overlay commits on that baseline, except item 1, which is
 build-infra and can land independently.
 
-### P1 — Plan mode detail ceiling (length-bound plans)
-
-Two mechanical caps keep long plans from being written or amended in
-detail (root-caused 2026-08-30):
-
-1. **Single-response output ceiling**: a full-replacement `write` of the
-   plan must fit one model response's tool arguments
-   (`model.maxTokens`, often the legacy 32000 catalog value; providers
-   clamp at 64k, `packages/ai/src/stream.ts:1712-1722`). On overflow the
-   entire tool call is abandoned (`packages/agent/src/agent-loop.ts`
-   stop-reason handling), so models self-compress plans.
-2. **300-line read window**: `read.defaultLimit` defaults to 300
-   (`config/settings-schema.ts`), and plan mode instructs the model to
-   re-read and incrementally amend its plan — every amendment beyond line
-   300 operated blind, silently dropping details across rounds; the
-   executor's mandatory plan read had the same window. (The approval,
-   export, and compaction chain never truncates: the file is read and
-   written whole end to end.)
-
-Fixes: the read tool now gives plan files the full default window
-(`readTargetsPlan` on `local://PLAN.md` / the plan reference path,
-explicit selectors still win), and `/plan-ultra` (workflow `ultra`)
-carries an always-on incremental-write discipline (edit `PUT >N*`
-appends + `CUT` deletions, never full-replacement writes; explicit
-high-limit re-reads). The original plan-mode prompt is unchanged.
-
 ### P1 — Surface-scoped tool exposure contract
 
 The channel-trio pattern is the canonical mechanism for surface-targeted
@@ -490,12 +282,6 @@ coding-agent types. `getProjectTrackingDir` is already exported from
 `packages/utils`; the stats-side endpoint + type remain. (Web UI already has a
 TrackingPanel wired to the gateway; this is the stats-dashboard-side panel.)
 
-### P2 — SSH remote command tool — DONE (v1.1.17)
-
-The `ssh_exec` agent tool shipped in v1.1.17 (PR #34): `ctx.registerTool`
-wrapping the retained connection manager (`zeta ssh` CLI, `/ssh`, and
-`src/ssh/` plumbing). Done.
-
 ### P3 — Vim input mode extension
 
 `pi-vimmode` (github.com/pekochan069/pi-vimmode, npm `pi-vimmode`, install via
@@ -513,13 +299,6 @@ low-priority; build in-house on demand: calc / recipe tools, code_search, python
 tool, `/background`, `/shake` summary, oracle/plan subagents, `notebook.enabled`,
 git context, shimmer, `plan://`, `jobs://`. Each needs its own scoping pass
 before work starts.
-
-### P1 — Web-ui settings coverage + refresh button
-
-SettingsPanel now renders the full schema (all tabs/groups mirrored from
-`GET /api/settings`). Remaining: wire a "Reload config" button to the existing
-`POST /api/settings/reload` endpoint (built in `web-gateway/settings.ts`, no
-UI caller yet).
 
 ### P1 — Mobile remote control (phone-first web access)
 
@@ -563,47 +342,6 @@ each is an adapter over the same minimal channel interface; add on demand,
 reference `temp/openclaw-ref` (checked out for this survey) for wire
 protocols and auth flows.
 
-### DONE — Full-surface CLI i18n (feat/i18n-overlay, post v1.1.17)
-
-v1.1.16's renderer migration into `@linxiraos/pi-tui` (0d6dbd32fc) orphaned
-the i18n bundle from every migrated panel — zh fell back to English across
-Settings, the MCP wizard, selectors, setup, and chat chrome. Fixed with a
-host-injectable text layer:
-
-- `packages/tui/src/i18n.ts`: `setTuiTextSource` / `tuiText(key, fallback)` —
-  inline English is the permanent fallback; the coding-agent wires the source
-  to the live `M` proxy (`src/i18n/wire-tui.ts`, registered at
-  `InteractiveMode` boot), so `/language` switches apply on the next render.
-- Settings rows localize host-side: `createSettingsHost` applies the
-  `settings-zh.ts` overlay (`localizeSettingUi`) to labels, descriptions,
-  groups, and submenu options — same data the gateway panel uses.
-- ~700 keys wired across all tui panels, setup scenes, chat/status-line/tool
-  meta, and coding-agent controllers; `scripts/check-i18n-consistency.ts`
-  guards en/zh/messages parity (baseline drift pre-dates this branch).
-- Desktop tray "Open Settings" fixed: `/?panel=settings` deep link
-  (web-ui `initial-navigation` + AppShell) and a `/settings` 307 redirect;
-  the tray click now shows the window before navigating.
-- Sentinels stay byte-stable: `USER_INTERRUPT_LABEL`,
-  `GENERIC_ABORT_SENTINEL`, `GUEST_ACTION_LABELS` — only render sites map.
-
-Remaining (non-blocking): the ~27 welcome tips have zh entries but are
-English-only content pools for other locales; the git-TUI and debug apps
-carry the last ~40 low-priority strings.
-
-### DONE — plan-surface completion A+B (feat/plan-surface-completion, 2026-09-22)
-
-The A+B remainder of
-[webui-desktop-overhaul-plan.md](./webui-desktop-overhaul-plan.md) (§14, folded 2026-10-02) has
-landed: minimal shell wrap-up (settings-only bottom entry, collapse rail,
-welcome dual selector), command palette (Ctrl+K), Shiki over
-react-syntax-highlighter, windowed searchable settings, gateway plan endpoint
-
-- sidebar Plan card, tracking.enabled gating, and Tracking v2 (sync_todo,
-  index template, object index, status stage/phases, plan mirroring, phase
-  nudge). C-level items (CM6, PTY terminal, team agent M0-M2, 7 remaining
-  skills, onboarding) stay in §11.2 for separate plans; per-section status is
-  annotated inline in that document. U2 (9e7c4e4251f) has landed as well.
-
 ### P2 — TTT editor About branding (remaining scope; zh UI done)
 
 The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
@@ -622,79 +360,49 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
-- **tea CLI 工具套件(2026-10-07 用户裁决:下一批次一次性到位,下一版本发布前交付)**:为
-  自托管 Gitea 与 gitea.com 提供 gh 工具族对等集成。侦察完成,配方:①`utils/gitea.ts`
-  运行器(克隆 github.ts:which("tea")/非交互 env/5min deadline/8MiB 截断,错误映射
-  "运行 `tea login`")②`tea-common.ts`(owner/repo 解析,实例→login 读 tea config.yml)
-  ③`tea.ts` 单工具 op 判别联合(omptype),createIf 判二进制,approval 按操作分类
-  ④注册三点(builtin-names/BUILTIN_TOOLS/isToolAllowed `gitea.enabled` 默认 false)
-  ⑤prompts/tools/gitea.md + docs/tools/gitea.md + test/tools/tea.test.ts。二期:
-  issue://、pr:// 内部 URL 族 + SQLite 缓存(凭据指纹法)+ run watch(Gitea Actions,
-  runs-on 仅认 self-hosted/ubuntu-latest)。设计输入:tea repo create 静默失败
-  (URL 打印但仓不存在),push-create 可靠——建仓操作优先 push-create 或 API 回读验证。
-  实测环境:LAN NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙
-  BHYS-gitea-lan;git 调用需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
+- **tea CLI 工具套件(2026-10-07 用户裁决)**:自托管 Gitea 与 gitea.com 的 gh 工具族
+  对等集成。**一期已落**:`packages/coding-agent/src/tools/tea.ts`(单工具 op 判别联合,
+  omptype)+ `packages/coding-agent/src/tools/tea-common.ts`(owner/repo 解析、实例→login)
+  + `packages/coding-agent/src/utils/gitea.ts` 运行器;注册三点经 `gitea.enabled` 门控
+  (默认 false);提示词 `packages/coding-agent/src/prompts/tools/gitea.md`;文档
+  `docs/tools/tea.md`(真实文件名 `tea.md`,原条目写的 `gitea.md` 只是配方细节);测试
+  `packages/coding-agent/test/tools/tea.test.ts`。**剩余仅二期**:`issue://`/`pr://`
+  内部 URL 族 + Gitea Actions run watch。设计输入:tea repo create 静默失败(URL 打印但
+  仓不存在),push-create 可靠——建仓操作优先 push-create 或 API 回读验证。实测环境:LAN
+  NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙 BHYS-gitea-lan;git 调用
+  需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
 
-- **上游同步队列：切割点 v18.9.1（2026-10-11 用户裁定）**：完整 tag 合并到上游
-  v18.9.1 `a4d6f0adc6` 为止，此后转入 cherry-pick 模式（只同步致命 bug 与关键
-  改动），策略见根 `USER.MD`。**已并入 main**：v18.8.7 `f261ed9faf16`、v18.8.8
-  `1ca13863a828`（PR #79；谱系硬校验两者均为祖先，member 审计 0 丢失）。
-  **待并入**：v18.8.9 `fa5ff4a3a977` → v18.9.0 `eec114a922` → v18.9.1（窗口
-  645 提交 / 712 文件；perf 全在 v18.8.9→v18.9.0：TUI tree/transcript、内嵌
-  shell 启动加速、json-lexer、macOS AX 批量读；**不含**模型发现/启动探测修复，
-  该项由我方自理）。**合并时必须切除的上游商业服务面**：`4585b144ff8` 分发迁移
-  （新增 `PI_BUILD_URL` 默认 `https://build.stencil.so`、`cli/build-service.ts`、
-  `scripts/install.sh`/`.ps1` 改写、`ci.yml` 发布链改动）一律不并入，保留 Zeta
-  自建发布链；`stencil.so` 账号认证（`stencil/credential.ts`、`stream/*`）与
-  `auth-broker`/`auth-gateway` 逐项裁定去留。历史遗留：`providers.imageOrder`
-  的 role-chain 重集成（v18.4.3 起未做）。
 - **v18.8.8 合并后专项排查产出（2026-10-11）**：
-  - **需补回的合并遗漏**：①状态栏 `Plan-Ultra` 标签——原 `005aef5fdbc` 的三行
-    改造在状态栏搬入 `packages/tui/src/status-line/` 时未重放（`segments.ts`
-    只渲染 "Plan"/"Plan (paused)"，`types.ts:95` 的 ctx 缺 `workflow`，测试与
-    gallery fixture 均无覆盖）；②`icon.omp` **ascii 预设**被上游
-    `0d6dbd32fcd` 写成 `"pi"`，注册表要求 `zeta`，守卫只钉了 unicode 那行。
-  - **待设计**：①AI 自行进入/退出模式（plan/ultra/goal/vibe）——现有入口全是
-    用户侧（`/plan`、`/plan-ultra`、`/goal`、`/vibe`）或 API 侧（web-gateway、
-    ACP），主系统提示词零提及 plan mode，模型没有可调用入口；②提权
-    （UAC/sudo）——`system-prompt.md:214` 承诺"弹出提权窗口"，`src` 与
-    `crates/pi-shell` 均无实现；③启动慢——根因已定位
-    （`config/model-discovery.ts:96` 远程 10s×N 超时 +
-    `main.ts:1023/1084` 阻塞首屏的 `await`），上游未修，我方修；④tracking
-    架构项（`status.json` 无锁、`actions.jsonl` 无上限、`summaries/` 无面板、
-    `updatedAt` 取请求时刻）。
-  - **文档漂移（改文档即可）**：AGENTS.md 的 `IrcBridgeHost.onAutoReply` 实际是
-    `ChannelHost#onAutoReply`（`channels/src/host.ts:71,129`）；
-    `__piNativesVX_Y_Z` 哨兵行已由 v18.3.3 起的 `__piNativesBuildVersion()`
-    值戳取代。
-  - **已定方案待实施（time/tracking 批次）**：`/time` 短指令（on|off / interval N
-    / status，兼容 `/tool <name>`）+ 注入间隔默认 50、设置页可调、中英文齐备；
-    模型可调用的动态工具开关；`/tracking on|off` + 开/关动态提示 + 目录角色
-    说明统一。
+  - **待设计**：④tracking 架构项（`status.json` 无锁、`actions.jsonl` 无上限、
+    `summaries/` 无面板、`updatedAt` 取请求时刻）。
+  - **文档漂移（已收尾）**：版本线叙述已全树对齐到机制——稳定符号
+    `pi_natives_build_version()` + `__piNativesBuildVersion` 构建期值戳，逐版本
+    哨兵名（含 set-version 的改名步骤）已无残留；涉及 AGENTS.md、
+    `document/release.md`、`document/dev-conventions.md`、`document/merge-playbook.md`、
+    `document/design-principles.md`、`document/merge-review.md`、
+    `scripts/set-version.ts`、`scripts/release-v2.ts`。本条备注至此收尾。
 
 - **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
   基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方
   基线 977ec83(2026-07-31)距其 1389 提交。裁决:**durable 子系统暂缓**——
-  OMP 作者有主动引入意愿,等上游带进来再随 release 合并吸收,不自建。其余按
-  优先级排队:①codemode/tool_search 官方内置扩展激活(defaultTools 设置页
-  组,默认关)②cacheWarming 三档(上游已合并面,核对设置页暴露)③TUI/UX
-  开关包(默认关清单逐项裁断)④provider stream events 语义移植。官方插件
-  生态参照:llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true 让位
-  机制,tuiText(key,fallback) 宿主注入 i18n。
-- **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:必修①user scope
-  死目录(~/.zeta/agents → getAgentDir()/agents);强烈建议②默认 scope 与官
-  方安全姿态相反(project 需 opt-in+trust 确认,isProjectTrusted 勿桩 true)
-  ③非编辑角色缺 tools 最小权限④thinking-level→thinkingLevel 键名⑤删除失
-  实重启提示;小项:usage 文案、--user/--project 冲突不报错、零测试覆盖、
-  .pi 品牌路径残留(crew/team/*)。随 feat 分支落地,不经 dev/*。
-- **web-ui/桌面侧栏大修(2026-10-02 用户裁决,发布硬门)**:下一次发布 CI
-  前必须完成,否则不许上线。执行计划见 document/webui-desktop-overhaul-plan
-  .md(项目分组 IA、hover 浮现 + 新建入口、会话命名/空会话折叠、死代码清
-  理;桌面壳零代码改动,仅重建嵌入)。
-- **stats dashboard 品牌面修复(2026-10-02 用户裁决)**:π logo/omp 字样/
-  "Everything omp did" 全量 Zeta 化;数据源若解析上游目录需切回 .zeta 根。
-- **rail 拖拽排序**:dnd-kit 垂直排序 + localStorage 持久化(随 U6
-  SidePane 框架一起评估)。
+  OMP 作者有主动引入意愿,等上游带进来再随 release 合并吸收,不自建。②
+  cacheWarming 三档**已落**(`providers.cacheWarming`,默认 `idle`)。仍排队:
+  ①codemode/tool_search 官方内置扩展激活(defaultTools 设置页组,默认关)
+  ③TUI/UX 开关包(默认关清单逐项裁断)④provider stream events 语义移植。官方
+  插件生态参照:llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true
+  让位机制,tuiText(key,fallback) 宿主注入 i18n。
+- **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:①user scope 目录
+  (getAgentDir()/agents)、②project scope opt-in + trust 门控、⑤重启提示失实
+  ——三项均已修并带测试。**④仍开放,是真 bug**:role 写入端发的是 kebab 键
+  `thinking-level:`(`plugins/official/pi-messenger/teamagent-command.ts:72`),而发现端
+  读 `thinkingLevel`/`thinking`(`packages/coding-agent/src/discovery/helpers.ts:361-368`),
+  角色的 thinking level 被静默丢弃。③(非编辑角色缺 tools 最小权限)仍是未验证项。
+  小项:usage 文案、--user/--project 冲突不报错、零测试覆盖、.pi 品牌路径残留
+  (crew/team/*)。随 feat 分支落地,不经 dev/*。
+- **rail 拖拽排序**:`@dnd-kit/*` 已在 `web-ui/package.json` 声明却从未使用
+  (`useSortable`/`arrayMove`/`DndContext` 全库零命中);实际出货的是排序菜单,且
+  没有持久化任何顺序。要么接线 dnd-kit + localStorage 持久化,要么删掉未用的依赖
+  (随 U6 SidePane 框架一起评估)。
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
   修复,可修则 revert matrix 裁剪提交。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的

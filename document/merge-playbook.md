@@ -23,8 +23,8 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
    包含不在 catalog 的 `@linxiraos/zeta-web`）对齐 Zeta
    键名与版本线；npm scope 按"上游包名 → Zeta 发布名"**映射改写**（`omptype` →
    `@linxiraos/pi-omptype`，不是机械 scope 替换）；Cargo workspace 版本 +
-   natives 哨兵 + committed bindings 用 `bun scripts/set-version.ts <当前 Zeta
-   版本>` 整线对齐，再 `bun install` 刷新 lockfile；逐项恢复冲突解决中静默丢失
+   committed bindings 用 `bun scripts/set-version.ts <当前 Zeta
+   版本>` 整线对齐（natives 版本线由稳定机制符号 + 构建期值戳承载，无逐版本哨兵名可改），再 `bun install` 刷新 lockfile；逐项恢复冲突解决中静默丢失
    的 Zeta-only 代码（清单见 AGENTS.md 损伤表第 4 类）。**Gate：`bun scripts/
    check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误**，两关都过
    才进品牌阶段。

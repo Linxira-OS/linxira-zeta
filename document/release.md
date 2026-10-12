@@ -7,7 +7,7 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
 ## Version line format
 
 Zeta rides **one semver line** across every published surface (14 packages,
-catalog keys, Cargo workspace, natives sentinel, desktop, README badge,
+catalog keys, Cargo workspace, natives build-version stamp, desktop, README badge,
 `crates/*/BUILD.bazel`). The format conventions below are enforced by
 `scripts/set-version.ts` and verified by `scripts/check-version-consistency.ts`.
 
@@ -39,11 +39,14 @@ Build time belongs in the changelog and the git tag, not the version.
 - A prerelease publish must pass `--tag next` (or `alpha`/`rc`) so it cannot
   win the `latest` tag, and it does not produce GitHub Release assets or the
   desktop installer set — those are stable-line only.
-- `cargo`/`Cargo.toml` and the `__piNativesV` sentinel ride the same string:
-  the sentinel derivation maps every non-alphanumeric character to `_`
-  (`1.1.20-rc.2` → `__piNativesV1_1_20_rc_2`). The checker and the setter
-  must stay in lock-step on that rule — they once disagreed (dots-only vs
-  all-non-alphanumeric), which would have failed every prerelease line.
+- `cargo`/`Cargo.toml` and the natives line ride the same version string; the
+  natives addon carries the stable mechanism symbols
+  (`pi_natives_build_version()` + `__piNativesBuildVersion`) with its version
+  written as a build-time value stamp (`scripts/stamp-native-version.ts`).
+  The per-release `__piNativesVX_Y_Z` sentinel name — and the derivation rule
+  that mapped every non-alphanumeric character to `_` (`1.1.20-rc.2` →
+  `__piNativesV1_1_20_rc_2`) — was removed upstream in v18.3.3, so there is no
+  derived name for the checker and the setter to disagree on.
 
 ## CI and Release
 
@@ -254,9 +257,9 @@ Always move the version with a script:
 
 | Script                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                            |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, the `__piNativesVX_Y_Z` sentinel (lib.rs + committed bindings), `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
+| `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
 | `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
-| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives sentinel, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
+| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
 | `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, push → wait for green push-run CI on that SHA → tag push (`--no-ci-wait` restores the old atomic push).                                                                                                                 |
 
 Rules:

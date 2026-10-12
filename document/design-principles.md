@@ -299,7 +299,8 @@ Deferred Queue，不另立计划文）；③架构设计文档（本文即此类
 | `typescript-edit-benchmark` | TS 源码变异编辑基准套件 |
 
 **native 层**：`crates/pi-natives` Rust crate + committed bindings
-`packages/natives/native/index.{js,d.ts}` + 版本哨兵 `__piNativesV1_X_Y`；
+`packages/natives/native/index.{js,d.ts}` + 版本机制 `pi_natives_build_version()`／
+`__piNativesBuildVersion` 值戳（v18.3.3 起取代逐版本哨兵名 `__piNativesV1_X_Y`）；
 CI 由 bazel 现场构建（本地 `.node` 预编译产物不入库、合并后需重建——损伤
 类别 5）。Zeta 自有能力（tracking、autoresearch、custom commands、
 marketplace、ACP、渠道、远程 token 鉴权、trajectory、mermaid、`/share`）

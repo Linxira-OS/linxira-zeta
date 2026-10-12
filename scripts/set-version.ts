@@ -6,7 +6,6 @@
  * Rewrites every hard-coded release version to <version> in one pass:
  *   - all 14 published @linxiraos packages (packages/{pkg}/package.json)
  *   - Cargo.toml workspace version
- *   - the __piNativesVX_Y_Z sentinel (lib.rs + committed bindings)
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
  *   - web-ui/package.json (zeta-web) version AND its @linxiraos/* dependency
@@ -85,13 +84,6 @@ const CATALOG_KEYS = [
 	"@linxiraos/pi-omptype",
 	"@linxiraos/pi-wire",
 ] as const;
-
-// Files carrying the pi-natives sentinel, same set as release-v2.ts.
-const SENTINEL_FILES = [
-	"crates/pi-natives/src/lib.rs",
-	"packages/natives/native/index.js",
-	"packages/natives/native/index.d.ts",
-];
 
 function readJson(rel: string): unknown {
 	return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), "utf8"));
@@ -195,18 +187,7 @@ async function main(): Promise<void> {
 		unchanged.push(mainCargoRel);
 	}
 
-	// 3. pi-natives version sentinel.
-	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
-	const sentinelName = `__piNativesV${sentinelJsId}`;
-	for (const rel of SENTINEL_FILES) {
-		if (replaceInFile(rel, /__piNativesV[A-Za-z0-9_]+/g, sentinelName)) {
-			changed.push(rel);
-		} else {
-			unchanged.push(rel);
-		}
-	}
-
-	// 4. Desktop shell.
+	// 3. Desktop shell.
 	for (const rel of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = readJson(rel) as { version?: string; packages?: Record<string, { version?: string }> };
 		let touched = false;
@@ -227,7 +208,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 4b. Vendored editor npm distribution (not a Bun workspace).
+	// 3b. Vendored editor npm distribution (not a Bun workspace).
 	for (const rel of EDITOR_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string };
 		if (manifest.version === version) {
@@ -239,7 +220,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 4c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
+	// 3c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
 	// platform leaves exactly, so the optionalDependencies refs move too.
 	for (const rel of IDE_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
@@ -257,7 +238,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 4d. The zeta workspace (main) npm distribution; same leaf-pinning move.
+	// 3d. The zeta workspace (main) npm distribution; same leaf-pinning move.
 	for (const rel of MAIN_NPM_PACKAGES) {
 		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
 		if (manifest.version === version) {
@@ -274,7 +255,7 @@ async function main(): Promise<void> {
 		changed.push(rel);
 	}
 
-	// 5. Root catalog @linxiraos keys.
+	// 4. Root catalog @linxiraos keys.
 	const rootPkg = readJson("package.json");
 	if (!hasCatalog(rootPkg)) {
 		fail("Root package.json has no workspaces.catalog");
@@ -294,7 +275,7 @@ async function main(): Promise<void> {
 	}
 	writeJson("package.json", rootPkg);
 
-	// 6. Bazel-face crate versions: the hand-written crates/*/BUILD.bazel
+	// 5. Bazel-face crate versions: the hand-written crates/*/BUILD.bazel
 	// rust_library/rust_shared_library targets carry a `version` attr that
 	// shows up in bazel build logs and cache keys. Keep it on the line so CI
 	// logs stop printing a ghost version next to the real one.
@@ -319,7 +300,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 7. README version badge (shields.io `badge/zeta-<version>-…`), kept in
+	// 6. README version badge (shields.io `badge/zeta-<version>-…`), kept in
 	// lock-step so the product front door shows the release version.
 	const readmeRel = "README.md";
 	if (replaceInFile(readmeRel, /badge\/zeta-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-/, `badge/zeta-${version}-`)) {
