@@ -1532,12 +1532,15 @@ class DaemonBroker {
 					this.#scheduleIdleShutdown();
 					return;
 				}
-				// Nobody is left who could own a oneshot daemon, so stop those now.
-				// The project-shared browser is one (`persist: false`): before this
-				// sweep, any `persist` daemon elsewhere in the scope (lsp mux, stats)
-				// kept the broker — and with it an unattached Chromium and its whole
-				// process tree — alive until the machine was rebooted, which is the
-				// "Chrome is still in the background after zeta exited" report.
+				// Zeta-only (upstream OMP still vetoes the sweep on `livePersistent`
+				// — issues #14379/#15014): nobody is left who could own a oneshot
+				// daemon, so stop those now. The project-shared browser is one
+				// (`persist: false`): before this sweep, any `persist` daemon
+				// elsewhere in the scope (lsp mux, stats) kept the broker — and with
+				// it an unattached Chromium and its whole process tree — alive until
+				// the machine was rebooted: the "Chrome is still in the background
+				// after zeta exited" report. `scripts/brand/zeta-sentinels.ts` pins
+				// this so a merge cannot drop it silently.
 				await this.#stopUnownedOneShotDaemons();
 				if (this.#clients.size > 0) return;
 				const livePersistent = [...this.#records.values()].some(
