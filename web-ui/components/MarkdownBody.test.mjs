@@ -9,7 +9,7 @@ const jiti = createJiti(import.meta.url, {
   tsconfigPaths: true,
 });
 const { MarkdownBody } = await jiti.import("./MarkdownBody.tsx");
-const { normalizeDisplayMath } = await jiti.import("../lib/markdown.ts");
+const { closedSvgFences, normalizeDisplayMath } = await jiti.import("../lib/markdown.ts");
 
 function renderMarkdown(markdown) {
   return renderToStaticMarkup(
@@ -82,4 +82,52 @@ test("does not normalize escaped delimiters or link destinations", () => {
 
   assert.equal(normalizeDisplayMath(escaped), escaped);
   assert.equal(normalizeDisplayMath(link), link);
+});
+
+test("draws a closed svg fence as a figure, not as code", () => {
+  const html = renderMarkdown('```svg\n<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>\n```');
+
+  assert.match(html, /figure-block-loading/);
+  assert.match(html, />Source</);
+  assert.doesNotMatch(html, /&lt;svg/);
+});
+
+test("keeps an unclosed svg fence as code while the reply streams", () => {
+  const html = renderMarkdown('```svg\n<svg viewBox="0 0 10 10">\n  <circle cx="5" cy="5" r="4"/>');
+
+  assert.doesNotMatch(html, /figure-block-loading/);
+  assert.match(html, /&lt;svg/);
+});
+
+test("keeps a non-svg fence as code", () => {
+  const html = renderMarkdown('```xml\n<svg viewBox="0 0 10 10"/>\n```');
+
+  assert.doesNotMatch(html, /figure-block-loading/);
+  assert.match(html, /&lt;svg/);
+});
+
+test("closedSvgFences reports the source of closed svg fences only", () => {
+  const fences = closedSvgFences(
+    [
+      "```ts",
+      "const a = 1;",
+      "```",
+      "",
+      "```svg",
+      '<svg viewBox="0 0 4 4" />',
+      "```",
+      "",
+      "```svg",
+      '<svg viewBox="0 0 8 8">',
+      "  <rect width=\"8\" height=\"8\" />",
+    ].join("\n"),
+  );
+
+  assert.deepEqual([...fences], ['<svg viewBox="0 0 4 4" />']);
+});
+
+test("closedSvgFences dedents content up to the opening fence's indentation", () => {
+  const fences = closedSvgFences(["  ```svg", "  <svg />", "  ```"].join("\n"));
+
+  assert.deepEqual([...fences], ["<svg />"]);
 });
