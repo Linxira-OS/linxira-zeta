@@ -20,14 +20,18 @@ export function collectGarbage(): Promise<void> {
 /**
  * Whether `target` becomes collectible within `deadlineMs`; a retained target never does.
  *
- * The bound is deliberately generous: the timer-callback GC in {@link collectGarbage} is what
- * makes collection possible at all, but a loaded CI runner still needs several passes, and the
- * TUI bucket runs with `--parallel=2`, which makes the timing load-dependent. Widening the bound
- * cannot weaken the assertion — an unreachable target passes either way, and a pinned one still
- * fails, just later. (main, 2026-10-12: the assertion failed on the post-#92 push run while its
- * sibling run of the same commit stayed green.)
+ * The bound is only a latency ceiling for a target that *can* go: {@link collectGarbage} runs one
+ * timer-callback GC per pass and the loop yields between passes, so a few seconds buys hundreds of
+ * passes even on a loaded runner. It cannot rescue a target pinned by a stale native stack slot —
+ * JSC scans the whole stack region conservatively, so the object dropped last may stay reachable for
+ * the life of the process no matter how many passes run (see the survivor tolerance in
+ * `packages/coding-agent/test/task/spawn-run.test.ts`). Callers probing the last-dropped object
+ * should tolerate that one survivor; widening this bound does not help.
+ *
+ * (Widened 3s → 8s on 2026-10-12 for the post-#92 flake, then reverted the same day: the flake was
+ * the stale slot, not too few passes.)
  */
-export async function becomesCollectible(target: WeakRef<object>, deadlineMs = 8_000): Promise<boolean> {
+export async function becomesCollectible(target: WeakRef<object>, deadlineMs = 3_000): Promise<boolean> {
 	const deadline = performance.now() + deadlineMs;
 	do {
 		await collectGarbage();

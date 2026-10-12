@@ -1056,6 +1056,11 @@ describe("Agent hub row ordering", () => {
 	});
 
 	it("renders parent lineage with bash-style tree connectors", () => {
+		// Equal activity timestamps keep the sibling order used by the connector
+		// assertions deterministic. With distinct millisecond stamps the roster is
+		// newest-first, so `Last` would render before `First` and `First` would flip
+		// from a middle child to the last one — the CI flake this pins.
+		setSystemTime(1_000);
 		geometry = stubStdoutGeometry(120);
 		geometry.setRows(32);
 		const agents = new AgentRegistry();
