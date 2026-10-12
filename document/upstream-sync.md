@@ -188,6 +188,35 @@ two-parent tag merge.
   `prelude-agent` + `browser-relay-probe` 30/30, `computer` 57/57, both i18n
   suites 11/11; `browser-relay-daemon` and `python-tool-bridge` were left to CI.
   `brand-check` stays 0 under the two new rules.
+- **PR #91 CI round, third pass (run `38196263375`) and its two fixes**: `Lint` went green (the
+  `Messages` keys) and the tui GC cases passed, confirming them as load-sensitive
+  flakes. Three families left, two of them ours to fix:
+  1. **`scripts/ci-test-ts.ts` lost `export` on `runTestCommandsInParallel`** —
+     same shape as `selectShard`. Our runner-watchdog test imports it from inside a
+     template string, so `check:ts` cannot see it: the child died at import (exit 1,
+     empty stdout) and only the runtime assertion caught it. Restored from `main`
+     (line 782).
+  2. **`Messages` interface** — `en.ts`/`zh.ts` are annotated with it, so the new
+     `/fork` keys needed it too (TS2353 + a TS2339 at every `M.cmdFork*`).
+  3. **The watchdog test's budget** — this test file is Zeta's (upstream v18.9.1
+     ships none). Upstream's merged kill path now runs the process-tree
+     diagnostics *before* the SIGKILL, and those shell out to `ps` plus
+     `ss -tuanpH -p`, which resolves every socket's owning process — tens of
+     seconds on a busy runner. The chunk timeout stays at 1 s; the harness budget
+     moves to 45 s (test 50 s) so the diagnostics are not mistaken for a watchdog
+     that never fired.
+  4. **`browser-tab-worker-startup` crash cases** (ours to tolerate, not to weaken):
+     the inline-run case is a pure detection-latency race — `#unanswered` is set
+     for the whole run, so `#onPageCrashed` does abort the run's signal, just later
+     than the fixture's 2 s window on a loaded runner (the caller's crash error did
+     arrive, so the abort path ran). Its window is now `LEFT_GOING_WINDOW_MS` (8 s)
+     with the run budget and post-sleep derived from it. The released-tab case polls
+     `Target.getTargets` for up to 7 s instead of reading once, because the release
+     closes the crashed page through a 5 s bounded close; a page that is *never*
+     closed still fails.
+  Still unfixed and left to a re-run: one native/unit chunk (`test/cli/*`, 10
+  files) died without reporting a test failure and re-ran 66 pass / 0 fail in the
+  same job — a process-level flake, not merge damage.
 - **Next merge**: starts from this round's final commit. Upstream's next tag is
   `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
   pure window is 166 commits / 165 files / +5870 −972). Maintainer decision

@@ -19,6 +19,11 @@ describe("test runner watchdog", () => {
 			{ label: "stalled chunk", cwd: ".", command: stalledCommand },
 			{ label: "following chunk", cwd: ".", command: nextCommand },
 		];
+		// The budget covers the watchdog *and* the diagnostics upstream's kill path now
+		// runs first (v18.9.1): it shells out to `ps` and `ss -tuanpH -p`, and `ss -p`
+		// resolves every socket's owning process, which costs tens of seconds on a
+		// busy CI runner. The chunk timeout itself stays at 1 s, so a watchdog that
+		// never fired still shows up here as a timeout.
 		const result = await ptree.exec(
 			[
 				process.execPath,
@@ -27,7 +32,7 @@ describe("test runner watchdog", () => {
 			],
 			{
 				env: { ...Bun.env, OMP_TEST_CHUNK_TIMEOUT: "1", NO_COLOR: "1" },
-				timeout: 10_000,
+				timeout: 45_000,
 				detached: true,
 				allowNonZero: true,
 			},
@@ -38,7 +43,7 @@ describe("test runner watchdog", () => {
 		expect(await Bun.file(started).exists()).toBe(true);
 		expect(await Bun.file(completed).exists()).toBe(false);
 		expect(await Bun.file(continued).text()).toBe("continued");
-	}, 15_000);
+	}, 50_000);
 });
 
 describe("OMP_TEST_SHARD", () => {

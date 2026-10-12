@@ -627,6 +627,12 @@ describe("browser tabs whose renderer crashed", () => {
 		45_000,
 	);
 
+	// The run's own timer doubles as the crash-detection budget: the page error must
+	// reach the worker (which aborts the run's signal) before it elapses, and only a
+	// run left going reaches the second fetch. Detection takes seconds longer on a
+	// loaded CI runner than on a dev box, so the window stays generous next to the
+	// 2 s a fast machine needs.
+	const LEFT_GOING_WINDOW_MS = 8_000;
 	it.skipIf(!CHROMIUM_AVAILABLE)(
 		"cancels an inline worker's run whose renderer crashed instead of letting it go on after its caller was told",
 		async () => {
@@ -661,15 +667,15 @@ describe("browser tabs whose renderer crashed", () => {
 				}
 				expect(getTab(name)).toMatchObject({ worker: { mode: "inline" } });
 				const run = runInTab(name, {
-					code: `await fetch("http://127.0.0.1:${server.port}/started"); await wait(2_000); await fetch("http://127.0.0.1:${server.port}/after-crash");`,
-					timeoutMs: 10_000,
+					code: `await fetch("http://127.0.0.1:${server.port}/started"); await wait(${LEFT_GOING_WINDOW_MS}); await fetch("http://127.0.0.1:${server.port}/after-crash");`,
+					timeoutMs: LEFT_GOING_WINDOW_MS + 4_000,
 					session,
 				}).catch((error: unknown) => error);
 				await started.promise;
 				await crashRenderer(browser, url);
 				expect(String(await run)).toContain("the tab could not be reattached and was closed");
-				// A run left going reaches the second fetch two seconds after it started; nothing marks that it did not.
-				await Bun.sleep(2_500);
+				// A run left going reaches the second fetch when its window elapses; nothing marks that it did not.
+				await Bun.sleep(LEFT_GOING_WINDOW_MS + 500);
 				expect(requests).toBe(0);
 			} finally {
 				await releaseTab(name, { kill: true });
@@ -900,9 +906,19 @@ describe("browser tabs whose renderer crashed", () => {
 				expect(String(failure)).toContain("its page reloaded");
 				await releaseTab(name, { kill: false });
 				const watcher = await browser.browser.target().createCDPSession();
-				const { targetInfos } = await watcher.send("Target.getTargets");
+				// The release closes the crashed page through a bounded close (5 s), so on a
+				// loaded runner the target can still be listed right after the tab is gone.
+				// Poll instead of reading once; a page that is never closed still fails.
+				const deadline = performance.now() + 7_000;
+				let listed = true;
+				do {
+					const { targetInfos } = await watcher.send("Target.getTargets");
+					listed = targetInfos.some(info => info.targetId === targetId);
+					if (!listed) break;
+					await Bun.sleep(100);
+				} while (performance.now() < deadline);
 				await watcher.detach();
-				expect(targetInfos.map(info => info.targetId)).not.toContain(targetId);
+				expect(listed).toBe(false);
 			} finally {
 				await releaseTab(name, { kill: true });
 				await releaseBrowser(browser, { kill: true });
