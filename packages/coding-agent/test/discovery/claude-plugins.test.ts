@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
-import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
-import type { Skill } from "@linxiraos/zeta/capability/skill";
+import { disableUserSource, enableProvider, loadCapability } from "@linxiraos/zeta/capability";
 import {
 	clearClaudePluginRootsCache,
 	listClaudePluginRoots,
 	parseClaudePluginsRegistry,
 } from "@linxiraos/zeta/discovery/helpers";
+import type { Skill } from "@linxiraos/zeta/capability/skill";
 import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
 import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/state-manager";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import "@linxiraos/zeta/discovery/claude-plugins";
 
 describe("parseClaudePluginsRegistry", () => {
@@ -51,7 +51,8 @@ describe("listClaudePluginRoots", () => {
 	let testAgentDir: string;
 	let originalHome: string | undefined;
 	let originalAgentDirEnv: string | undefined;
-	let originalZetaProfileEnv: string | undefined;
+	let originalOmpProfileEnv: string | undefined;
+	let originalPiProfileEnv: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
 
 	beforeEach(async () => {
@@ -59,7 +60,8 @@ describe("listClaudePluginRoots", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalZetaProfileEnv = process.env.ZETA_PROFILE;
+		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-plugins-test-"));
@@ -81,7 +83,8 @@ describe("listClaudePluginRoots", () => {
 		// setAgentDir() clears the profile env vars and snapshots the agent dir,
 		// so restore every env var it can touch before rebuilding the resolver.
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");
@@ -96,6 +99,39 @@ describe("listClaudePluginRoots", () => {
 		const result = await listClaudePluginRoots(tempDir);
 		expect(result.roots).toEqual([]);
 		expect(result.warnings).toEqual([]);
+	});
+
+	test("logs registry warnings once per cached computation", async () => {
+		const pluginsDir = path.join(tempDir, ".claude", "plugins");
+		await fs.mkdir(pluginsDir, { recursive: true });
+		const registryPath = path.join(pluginsDir, "installed_plugins.json");
+		await fs.writeFile(registryPath, "not json");
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		const first = await listClaudePluginRoots(tempDir);
+		const second = await listClaudePluginRoots(tempDir);
+
+		expect(first.warnings).toEqual([`Failed to parse Claude Code plugin registry: ${registryPath}`]);
+		expect(second).toBe(first);
+		expect(warnSpy.mock.calls.filter(([message]) => message === first.warnings[0])).toHaveLength(1);
+	});
+
+	test("logs registry warnings once for concurrent callers", async () => {
+		const pluginsDir = path.join(tempDir, ".claude", "plugins");
+		await fs.mkdir(pluginsDir, { recursive: true });
+		const registryPath = path.join(pluginsDir, "installed_plugins.json");
+		await fs.writeFile(registryPath, "not json");
+		const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+		const results = await Promise.all([
+			listClaudePluginRoots(tempDir),
+			listClaudePluginRoots(tempDir),
+			listClaudePluginRoots(tempDir),
+		]);
+
+		const message = `Failed to parse Claude Code plugin registry: ${registryPath}`;
+		for (const result of results) expect(result.warnings).toEqual([message]);
+		expect(warnSpy.mock.calls.filter(([m]) => m === message)).toHaveLength(1);
 	});
 
 	test("parses plugin with user scope", async () => {
@@ -502,9 +538,6 @@ describe("listClaudePluginRoots", () => {
 		const marketRoot = path.join(tempDir, ".claude", "plugins", "cache", "test-market");
 		const pluginARoot = path.join(marketRoot, "plugin-a", "1.0.0");
 		const pluginBRoot = path.join(marketRoot, "plugin-b", "1.0.0");
-		// Zeta brand divergence (merge decision): the OMP plugin registry lives
-		// under `.zeta` here, not upstream's `.omp` — Zeta's config dir is
-		// `.zeta` only (AGENTS.md brand surface).
 		const ompRegistryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
 
 		await Promise.all([

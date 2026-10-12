@@ -12,7 +12,12 @@ export default class Usage extends Command {
 		action: Args.string({
 			description: "Optional subcommand to execute",
 			required: false,
-			options: ["invalidate", "clients", "accounts"],
+			options: ["invalidate", "clients", "accounts", "reset"],
+		}),
+		target: Args.string({
+			description:
+				"Saved reset to spend with `reset`: <provider>/<credential id> as `zetacode usage reset` lists it",
+			required: false,
 		}),
 	};
 
@@ -47,6 +52,8 @@ export default class Usage extends Command {
 		"# Usage-limit trend over the last 30 days\n  zetacode usage --history --days 30",
 		"# Per-client token burn (which machine/app spent what) over the last 30 days\n  zetacode usage clients --days 30",
 		"# OAuth identity keys for task.agentAccountPools (no tokens)\n  zetacode usage accounts",
+		"# Saved Codex and Claude rate-limit resets per account, with each account's credential id\n  zetacode usage reset",
+		"# Spend one saved reset on a listed account\n  zetacode usage reset codex/3",
 		"# Invalidate cached usage reports for all providers\n  zetacode usage invalidate",
 		"# Invalidate cached usage reports for a specific provider\n  zetacode usage invalidate --provider anthropic",
 	];
@@ -57,6 +64,7 @@ export default class Usage extends Command {
 			action: args.action,
 			json: flags.json,
 			provider: flags.provider,
+			target: args.target,
 			redact: flags.redact,
 			history: flags.history,
 			days: flags.days,

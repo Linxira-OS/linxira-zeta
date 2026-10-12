@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { StatsLive } from "@linxiraos/pi-omp-stats/live";
-import type { LiveStatus } from "@linxiraos/pi-omp-stats/shared-types";
+import { StatsLive } from "@linxiraos/pi-stats/live";
+import type { LiveStatus } from "@linxiraos/pi-stats/shared-types";
 import { getStatsDbPath } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";
 

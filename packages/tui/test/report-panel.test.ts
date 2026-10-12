@@ -5,7 +5,7 @@ import { ReportPanel } from "@linxiraos/pi-tui/overlays/report-panel";
 import { editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
 import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { initTheme } from "@linxiraos/pi-tui/theme";
-import { withoutTerminalMultiplexer } from "./terminal-multiplexer-environment";
+import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
 import { VirtualRenderScheduler } from "./virtual-render-scheduler";
 import { VirtualTerminal } from "./virtual-terminal";
 

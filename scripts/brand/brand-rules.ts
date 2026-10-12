@@ -74,6 +74,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
 	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
 	"scripts/merge-package-json.test.ts", // driver test: fixtures carry the upstream scope to prove the mapping
+	"scripts/check-scope-imports.ts", // the class-3 guard documents the exact upstream→Zeta leaf mappings it exists to catch
 ];
 
 /** `oh-my-pi` is allowed when embedded in these patterns (issue/URL provenance). */
@@ -488,6 +489,11 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		why: "agent-dir env contract: dirs.ts reads only ZETA_CODING_AGENT_DIR — a test setting PI_CODING_AGENT_DIR silently isolates nothing (v18.4.3: agent-storage CANTOPEN)",
 	},
 	{
+		needle: /@linxiraos\/pi-coding-agent\//,
+		why: "package-name mapping (damage class 3): our product package is @linxiraos/zeta (registry: pi-coding-agent→zeta), and it is the one workspace member that is NOT linked under its upstream leaf name — a plain scope swap from @oh-my-pi/pi-coding-agent/ yields a specifier that resolves nowhere, so every self-import breaks check:ts (v18.9.1: 62 files swept back to @linxiraos/zeta/)",
+		exempt: ["scripts/brand/brand-rules.ts"],
+	},
+	{
 		needle: /USER_AGENT = `omp\//,
 		why: "(duplicate guard on the test side) any UA producer/consumer pair must both say zeta/",
 	},
@@ -592,9 +598,45 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md"],
 	},
 	{
-		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer\.chips?|run)(?![A-Za-z0-9_-])/,
-		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips, image cache symbol, run box/foot/state/time/facts/status/caption)",
+		needle: /\.omp\/config\.yml/,
+		why: "the project config dir is .zeta — copy pointing at .omp/config.yml sends users to a path the product never reads (v18.9.1: docs/context-files.md taught it)",
 		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run)(?![A-Za-z0-9_-])/,
+		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /f=b21w|i=omp-probe-/,
+		why: "the OSC 99 notification probe id and its base64 `f=` app field carry our identity (terminal.ts emits zeta-probe-<n> and base64 zeta); the v18.9.1 merge brought upstream's test asserting omp/b21w",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /__omp_(fn|re)(?![\w])|__omp_(prelude|helpers|display|call_tool|current_run_id)__/,
+		why: "runtime globals the sources inject as __zeta_* (computer/browser preludes serialize __zeta_fn/__zeta_re, the eval prelude reads __zeta_helpers__/__zeta_call_tool__/__zeta_display__, runtime.ts installs __zeta_prelude__, runner.py's run-id getter is __zeta_current_run_id__). The v18.9.1 merge swept the producer side but left test fixtures and one consumer on the upstream spelling, failing as 'not a function'/'not an object' plus one silent degrade. Only source-defined globals belong here: internal protocol markers (__omp_with_call_site__, __omp_tool_bridge__, __omp_final_expr__, mcp__omp__*) and test-local probes stay upstream-shaped",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
+	},
+	{
+		needle: /ompRelayVersion:\s*"18\.|restartOwned\("18\./,
+		why: "relay fixtures must not hardcode the upstream 18.x line: isOlderRelayVersion compares with Bun.semver.order against our VERSION (1.x), so '18.0.0' reads as *newer* and every older-relay case inverts into 'a newer zeta owns it' (v18.9.1 PR CI). Use OLDER_RELAY_VERSION in test/tools/browser-relay-*.test.ts",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle:
+			/complete -F _omp\b|compdef _omp\b|(?<![\w_])_omp\(\)|_omp_(comma|root|call|cmd_|tools|models_list)\b|__fish_omp/,
+		why: "the completion generator emits shell function names into the user's shell — the bash/zsh dispatcher `_zeta`, `complete -F _zeta <bin>`, `compdef _zeta <bin>`, `_zeta_comma`/`_zeta_call`, fish's `__fish_zeta_no_subcommand`. Upstream's `_omp` spellings survived a branding pass on main. Only these emitted shapes: `_omp/…` ACP extMethod names and `_omp_prelude` are upstream protocol/private names and stay",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
+	},
+	{
+		needle: /\$which\(\s*"zeta"\)/,
+		why: "resolving the CLI on PATH must go through CLI_BIN_NAME: a bare `zeta` is the separate workbench (@linxiraos/main), so this spawns the wrong program once an upgrade leaves process.execPath stale (worker-client.ts carried `zeta` from before the v18.9.1 merge, and the merged fallback test pinned it)",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /\bzeta\.(cmd|ps1)\b/,
+		why: "our CLI's npm/bun shims are named after CLI_BIN_NAME (zetacode.cmd/.ps1); bare `zeta.cmd` is the workbench's (@linxiraos/main). A resolver or fixture naming it is upstream's omp.cmd swept one step short (v18.9.1: test/update-cli.test.ts)",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{
 		needle: /`omp\.(cmd|ps1|bunx|exe)`/,

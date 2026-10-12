@@ -1,14 +1,14 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
-import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-omp-stats/db";
+import { closeDb, getRecentRequests, initDb, insertMessageStats } from "@linxiraos/pi-stats/db";
 import {
 	getCostTimeSeries,
 	getOverallStats,
 	getSessionRollups,
 	getStatsByModel,
 	getStatsByProvider,
-} from "@linxiraos/pi-omp-stats/rollup";
-import type { MessageStats } from "@linxiraos/pi-omp-stats/types";
+} from "@linxiraos/pi-stats/rollup";
+import type { MessageStats } from "@linxiraos/pi-stats/types";
 import { getBundledModel, getBundledModels } from "@linxiraos/pi-catalog/models";
 import { getStatsDbPath, VERSION } from "@linxiraos/pi-utils";
 import { installStatsTestIsolation } from "./helpers/temp-agent";

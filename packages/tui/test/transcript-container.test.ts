@@ -1,12 +1,12 @@
-import { beforeAll, afterEach, describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { UserMessageComponent } from "@linxiraos/pi-tui/chat/user-message";
 import {
 	TranscriptContainer,
 	type TranscriptStableRow,
 	trimBlankEdges,
 } from "@linxiraos/pi-tui/chrome/transcript-container";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { Component } from "@linxiraos/pi-tui";
 
@@ -580,6 +580,67 @@ describe("TranscriptContainer", () => {
 		expect(out).toEqual(["A3", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4"]);
 	});
 
+	it("renders user message text in emergency layout and omits OSC 133 prompt markers (issue 13835)", () => {
+		const transcript = new TranscriptContainer();
+		transcript.addChild(new Block(["stuck tool"], false)); // pins retirement
+		for (let i = 0; i < 6; i++) transcript.addChild(new Block([`settled ${i}`], true));
+		const userMsg = new UserMessageComponent("is there a reason we haven't tested against the real device yet?");
+		transcript.addChild(userMsg);
+		transcript.addChild(new Block(["after 1"], true));
+		transcript.addChild(new Block(["after 2"], true));
+
+		const rendered = transcript.renderViewport(80, 5, frame);
+		expect(rendered).toHaveLength(5);
+		const userRow = rendered[2]!;
+		expect(userRow).toContain("is there a reason we haven't tested against the real device yet?");
+		expect(userRow).not.toContain("\x1b]133;A");
+		expect(userRow).not.toContain("\x1b]133;B");
+	});
+
+	it("recovers user message text as emergency row when behind viewport (issue 13835)", () => {
+		const transcript = new TranscriptContainer();
+		transcript.addChild(new Block(["stuck tool"], false)); // pins retirement
+		const userMsg = new UserMessageComponent("first prompt behind viewport");
+		transcript.addChild(userMsg);
+		for (let i = 0; i < 10; i++) transcript.addChild(new Block([`settled ${i}`], true));
+
+		const rendered = transcript.renderViewport(80, 2, frame);
+		expect(rendered[0]).toContain("first prompt behind viewport");
+		expect(rendered[0]).not.toContain("\x1b]133;A");
+	});
+
+	it("UserMessageComponent emergency row renders first content line and omits shell integration", () => {
+		const userMsg = new UserMessageComponent("first line\nsecond line");
+		const row = userMsg.renderTranscriptBlockEmergencyRow(80);
+		expect(row).toBeDefined();
+		expect(row).toContain("first line");
+		expect(row).not.toContain("second line");
+		expect(row).not.toContain("\x1b]133;A");
+		expect(row).not.toContain("\x1b]133;B");
+	});
+
+	it("UserMessageComponent reuses measured lines under one-row allocation without duplicate child render", () => {
+		const userMsg = new UserMessageComponent("single render test");
+		userMsg.setTranscriptAllocation(1);
+		let superRenderCalls = 0;
+		const superProto = Object.getPrototypeOf(UserMessageComponent.prototype) as {
+			render: (width: number) => readonly string[];
+		};
+		const origSuperRender = superProto.render;
+		superProto.render = function (this: unknown, width: number) {
+			superRenderCalls++;
+			return origSuperRender.call(this, width);
+		};
+		try {
+			const rows = userMsg.render(80);
+			expect(rows).toHaveLength(1);
+			expect(rows[0]).toContain("single render test");
+			expect(superRenderCalls).toBe(1);
+		} finally {
+			superProto.render = origSuperRender;
+		}
+	});
+
 	it("keeps a completed assistant answer visible behind an active prefix", () => {
 		const transcript = new TranscriptContainer();
 		transcript.addChild(new Block(["stale active"], false));
@@ -630,6 +691,68 @@ describe("TranscriptContainer", () => {
 		expect(transcript.canRemoveBlock(settled)).toBe(false);
 		transcript.removeChild(settled);
 		expect(transcript.blockStates()).toEqual(["committed", "active"]);
+	});
+
+	it("removes live blocks behind a settled one without disturbing committed or settled bookkeeping", () => {
+		const transcript = new TranscriptContainer();
+		const committedA = new Block(["committed a"], true);
+		const committedB = new Block(["committed b"], true);
+		transcript.addChild(committedA);
+		transcript.addChild(committedB);
+		const commit = transcript.peekFinalizedBatch(80, 0);
+		expect(commit?.rows).toEqual(["committed a", "", "committed b", ""]);
+		transcript.acknowledgeFinalizedBatch(commit!.id);
+
+		const settled = new Block(["settled"], true);
+		const live = [1, 2, 3, 4, 5].map(n => new Block([`live ${n}`], false));
+		transcript.addChild(settled);
+		for (const block of live) transcript.addChild(block);
+		// Room for every live row: the finalized block settles and nothing is offered.
+		expect(transcript.peekFinalizedBatch(80, 20)).toBeUndefined();
+		expect(transcript.blockStates()).toEqual([
+			"committed",
+			"committed",
+			"settled",
+			"active",
+			"active",
+			"active",
+			"active",
+			"active",
+		]);
+
+		transcript.removeChild(live[0]!);
+		transcript.removeChild(live[4]!);
+
+		expect(transcript.blockStates()).toEqual(["committed", "committed", "settled", "active", "active", "active"]);
+		const expected = [committedA, committedB, settled, live[1]!, live[2]!, live[3]!];
+		expect(transcript.children).toHaveLength(expected.length);
+		expected.forEach((component, index) => expect(transcript.children[index]).toBe(component));
+
+		// Pressure retires the settled block next; committed rows are never offered again.
+		const retire = transcript.peekFinalizedBatch(80, 5);
+		expect(retire?.rows).toEqual(["settled", ""]);
+	});
+
+	it("refuses to remove an append-only block once its stable rows are offered or emitted", () => {
+		const transcript = new TranscriptContainer();
+		const block = new AppendBlock(["one", "two"], ["one"]);
+		transcript.addChild(block);
+
+		// Offered: the stable row is mid-write to native scrollback.
+		const append = transcript.peekFinalizedBatch(80, 0)!;
+		expect(append.rows).toEqual(["one"]);
+		transcript.removeChild(block);
+		expect(transcript.children).toHaveLength(1);
+		expect(transcript.children[0]).toBe(block);
+		expect(transcript.blockStates()).toEqual(["active"]);
+
+		// Emitted: the row is in scrollback, so the block can no longer be retracted.
+		transcript.acknowledgeFinalizedBatch(append.id);
+		expect(transcript.emittedStableRows()).toEqual([1]);
+		transcript.removeChild(block);
+		expect(transcript.children).toHaveLength(1);
+		expect(transcript.children[0]).toBe(block);
+		expect(transcript.blockStates()).toEqual(["active"]);
 	});
 
 	it("replays committed history without rewinding lifecycle state", () => {
@@ -839,108 +962,5 @@ describe("TranscriptContainer viewport click spans", () => {
 		transcript.renderViewport(80, 10, frame);
 		transcript.clear();
 		expect(transcript.getLastViewportSpans()).toEqual([]);
-	});
-});
-
-/**
- * Graphics rows must land in native scrollback the moment their block
- * finalizes: live placements are repainted into the reserved-row block every
- * frame, and on terminals whose live-region sixel does not stick (Windows
- * Terminal) the image stays invisible until the exit flush commits the block.
- * These tests mirror the row shape {@link Image.render} builds — reserved
- * escape-only rows plus one cursor-anchored sequence line — with literal
- * strings so the container policy is exercised against the real
- * `TERMINAL.isImageLine` predicate without a native sixel encoder.
- */
-describe("TranscriptContainer settled image flush", () => {
-	const originalProtocol = TERMINAL.imageProtocol;
-
-	afterEach(() => {
-		setTerminalImageProtocol(originalProtocol);
-	});
-
-	/** Image.render's direct-placement shape: rows-1 reserved rows + anchor line. */
-	function imageBlockRows(): string[] {
-		return ["\x1b[0m", "\x1b[0m", "\x1b[0m", "\x1b7\x1b[3A\x1bPq#0;2;0;0;0#0~~!!\x1b\\"];
-	}
-
-	it("flushes a settled image block without waiting for row pressure", () => {
-		setTerminalImageProtocol(ImageProtocol.Sixel);
-		const transcript = new TranscriptContainer();
-		transcript.addChild(new Block(["analysis"], true));
-		transcript.addChild(new Block(imageBlockRows(), true));
-
-		// Everything fits the generous capacity, yet the image block still
-		// retires: live-region graphics do not stick on all terminals.
-		const batch = transcript.peekFinalizedBatch(80, 40);
-		expect(batch?.rows).toEqual(["analysis", "", ...imageBlockRows(), ""]);
-		if (!batch) throw new Error("Expected image flush batch");
-		transcript.acknowledgeFinalizedBatch(batch.id);
-
-		expect(transcript.renderViewport(80, 40, frame)).toEqual([]);
-		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
-	});
-
-	it("retires through the last image block and keeps trailing settled blocks live", () => {
-		setTerminalImageProtocol(ImageProtocol.Sixel);
-		const transcript = new TranscriptContainer();
-		transcript.addChild(new Block(["before"], true));
-		transcript.addChild(new Block(imageBlockRows(), true));
-		const after = new Block(["after"], true);
-		transcript.addChild(after);
-
-		const batch = transcript.peekFinalizedBatch(80, 40);
-		expect(batch?.rows).toEqual(["before", "", ...imageBlockRows(), ""]);
-		if (!batch) throw new Error("Expected image flush batch");
-		transcript.acknowledgeFinalizedBatch(batch.id);
-
-		expect(transcript.renderViewport(80, 40, frame)).toEqual(["after"]);
-		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
-		// The stop-time flush remains the fallback for what the image flush
-		// deliberately left live.
-		expect(transcript.peekFlushBatch(80)?.rows).toEqual(["after", ""]);
-	});
-
-	it("waits for the image block to finalize before flushing", () => {
-		setTerminalImageProtocol(ImageProtocol.Sixel);
-		const transcript = new TranscriptContainer();
-		const image = new Block(imageBlockRows(), false);
-		transcript.addChild(image);
-
-		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
-
-		image.finalize(imageBlockRows());
-		const batch = transcript.peekFinalizedBatch(80, 40);
-		expect(batch?.rows).toEqual([...imageBlockRows(), ""]);
-		if (!batch) throw new Error("Expected image flush batch");
-		transcript.acknowledgeFinalizedBatch(batch.id);
-	});
-
-	it("leaves text-only transcripts to pressure retirement", () => {
-		setTerminalImageProtocol(ImageProtocol.Sixel);
-		const transcript = new TranscriptContainer();
-		transcript.addChild(new Block(["one"], true));
-		transcript.addChild(new Block(["two"], true));
-
-		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
-		expect(transcript.renderViewport(80, 40, frame)).toEqual(["one", "", "two"]);
-	});
-
-	it("skips image rows without a protocol and re-scans once one arrives", () => {
-		setTerminalImageProtocol(null);
-		const transcript = new TranscriptContainer();
-		const image = new Block(["[Image: image/png 100x100]"], true);
-		transcript.addChild(image);
-
-		expect(transcript.peekFinalizedBatch(80, 40)).toBeUndefined();
-
-		// The runtime probe upgrade re-renders text-fallback blocks as
-		// graphics; the flush must pick the block up on the next peek.
-		setTerminalImageProtocol(ImageProtocol.Kitty);
-		image.finalize(["\x1b_Ga=p,q=1,v=1\x1b\\"]);
-		const batch = transcript.peekFinalizedBatch(80, 40);
-		expect(batch?.rows).toEqual(["\x1b_Ga=p,q=1,v=1\x1b\\", ""]);
-		if (!batch) throw new Error("Expected image flush batch");
-		transcript.acknowledgeFinalizedBatch(batch.id);
 	});
 });

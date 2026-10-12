@@ -213,6 +213,8 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         - name: Scope import guard
+           run: bun scripts/check-scope-imports.ts
          # Audits the standing upstream lineage on every push, so a squash /
          # force-push / skipped tag becomes visible before anyone attempts a
          # merge. The pre-merge form (--tag) runs on sync/omp-release/*.

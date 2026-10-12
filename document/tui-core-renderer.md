@@ -152,6 +152,15 @@ partial replies until their terminator and must not leak probe bytes as user
 input. New probes need a typed sentinel owner and byte-by-byte split-reply
 coverage.
 
+SIXEL discovery accepts either a positive XTSMGRAPHICS geometry reply or DA1
+attribute 4. `ProcessTerminal.onSixelSupport` publishes and caches the DA1
+advertisement while consuming the reply bytes and preserving sentinel ownership.
+A missing DA1 attribute does not reject support reported by XTSMGRAPHICS.
+Selecting SIXEL from DA1 does not end a pending XTSMGRAPHICS query: its input
+consumer remains until the graphics reply arrives or the probe times out.
+Explicit `PI_FORCE_IMAGE_PROTOCOL` choices, including `none`/`off`, take priority;
+native TSP surfaces keep their own image transport.
+
 ### Native rendering (Tern Surface Protocol)
 
 `ProcessTerminal` also sends the TSP `hello` query (APC `tsp`) behind a `tsp`
@@ -210,7 +219,7 @@ with an `e` message:
 ```
 
 `sf` must name a live surface and `id` its editable composer node (the
-`editor` descendant of the `omp.editor` role, normally `<component>.line/input`),
+`editor` descendant of the `zeta.editor` role, normally `<component>.line/input`),
 not the composer wrapper or its Send button. All three payload fields are
 required strings; surface and node ids must be nonempty. Malformed payloads,
 unknown or closed surfaces, and stale/noneditable node targets are ignored.

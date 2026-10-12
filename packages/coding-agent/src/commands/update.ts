@@ -20,9 +20,9 @@ export default class Update extends Command {
 	};
 
 	static examples = [
-		"zeta-c update",
-		"zeta-c update --check",
-		"zeta-c update --canary",
+		"zetacode update",
+		"zetacode update --check",
+		"zetacode update --canary",
 		"# If GitHub rate-limits release metadata, set GITHUB_TOKEN or GH_TOKEN\n  GITHUB_TOKEN=... zetacode update",
 	];
 

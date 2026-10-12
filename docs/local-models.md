@@ -34,7 +34,7 @@ The tiny-model CLI and source registry retain **title** and **memory** groupings
 - **Non-FHS distros (NixOS, and any host without `libstdc++.so.6` on the loader path)**: the
   on-demand `onnxruntime-node` / `sherpa-onnx-node` / `sharp` addons are prebuilt binaries that
   `dlopen` `libstdc++.so.6` and `libgcc_s.so.1`, and they carry their own `DT_RUNPATH`, so nothing in
-  the zeta executable's own RPATH can resolve them. Set `OMP_NATIVE_LIBRARY_PATH` to the
+  the zeta executable's own RPATH can resolve them. Set `ZETA_NATIVE_LIBRARY_PATH` to the
   colon-separated directories holding those libraries; zeta appends it to `LD_LIBRARY_PATH` for the
   inference worker subprocesses only (never for shell/eval/daemon children). The Nix package
   (`nix/package.nix`) sets this by default.

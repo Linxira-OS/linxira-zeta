@@ -116,7 +116,6 @@
 
 - Removed the `PI_SUBPROCESS_CMD` environment variable; subagents run in-process and never read it ([#14632](https://github.com/can1357/oh-my-pi/pull/14632) by [@jorgoose](https://github.com/jorgoose))
 
-## [1.1.27] - 2026-10-07
 
 ### Added
 

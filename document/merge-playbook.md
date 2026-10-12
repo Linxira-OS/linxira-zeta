@@ -664,6 +664,22 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 
 ### 测试契约迭代的流程教训（v18.6.0 轮实测）
 
+### v18.9.1 轮实测：sweep 的判据不能复用 sweep 自己的模式（2026-10-12 归纳）
+
+**结论 28（替换的正则带 lookbehind 时，"复查"必须换一种办法）**：把补全脚本里
+的 shell 函数名从上游 `_omp*` 归到 `_zeta*` 时，替换与复查都用了
+`(?<![_\w])_omp_`。而 JS 字符串里的 `\n\t\t\t_omp_comma` 是**字面反斜杠 + 字母
+`t`**——`_omp_` 前面是单词字符，lookbehind 一律拦下：生成器 1 处、测试 3 处
+（`_omp_cmd_`/`_omp_comma`/`_omp_call`）漏扫；复查复用同一模式自然报 0，
+**自证通过**，直到 hosted CI 在 `completions.test.ts:69` 报错才暴露。
+
+规则三条：①替换后换一种判据验收——裸子串计数（`grep -c "_omp"`）不共享同一盲点；
+②**守卫规则同样不能复用坏判据**，否则它对同一盲点失明：把守卫去盲点
+（去掉 lookbehind，用 `_omp_(comma|root|call|cmd_|tools|models_list)\b` 精确点名）后
+**先跑一次确认它抓到已知残留（4 处）**，再清理——"守卫抓到已知现场"才算验证过，
+不是"跑出 0"；③凡是"前/后不是单词字符"式的边界，遇到 `\t`/`\n` 这类转义序列一律
+失效，涉及字符串字面量的 sweep 一律用**纯子串**做判据。
+
 1. **子代理在飞时禁止 `git add -A`**：会把子代理的半成品（dump-*.txt、中途形态测试）扫进提交——CI 把 scratch 测试当真测试跑（v18.6.0 第三轮 hfp-debug.test.ts 事故）。stage 显式列文件，或等子代理完成后 gate。
 2. **TUI 锚点保持的正确机制**：transient 行（autocomplete 建议帧等）造成增长时，头部裁剪（head-clip）在持续 provider 增长（jump list）下错误——写入时无法区分 transient/persistent 增长。正确机制：增长照常滚动 + 未提交推挤记账 + 收缩时 CSI Ps +T 回拉锚点。
 3. **fixture 字面量漂移是品牌守卫盲区**：测试契约 resolve 的类型几乎全是类 11/22 字面量漂移（ZETA_PROFILE、omp. 日志名、zeta/task/ 前缀、omp fixtures/URL/shim 名）——它们活在测试 fixture 的上游形字面量里，brand-rules 跨面 token 守卫不覆盖。合并时对上游触碰的测试目录跑 fixture 字面量专项 grep。

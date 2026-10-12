@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { PtySession } from "@linxiraos/pi-natives";
 import { CURSOR_MARKER, Text, TUI, type TerminalFramePlan, type ViewportSize } from "@linxiraos/pi-tui";
+import { tmuxMultiplexer } from "@linxiraos/pi-tui/multiplexers/tmux";
 import type { PrivateModeReportHandler } from "@linxiraos/pi-tui/terminal";
 import * as capabilities from "@linxiraos/pi-tui/terminal-capabilities";
 import * as multiplexer from "@linxiraos/pi-tui/terminal-multiplexer";
@@ -99,7 +100,7 @@ function replayWriteIndex(written: readonly string[]): number {
 
 describe("tmux synchronized rebuild", () => {
 	beforeEach(() => {
-		spyOn(multiplexer, "classifyTerminalMultiplexer").mockReturnValue("tmux");
+		spyOn(multiplexer, "classifyTerminalMultiplexerModule").mockReturnValue(tmuxMultiplexer);
 		spyOn(capabilities, "isInsideTerminalMultiplexer").mockReturnValue(true);
 		spyOn(capabilities, "shouldEnableSynchronizedOutputByDefault").mockReturnValue(false);
 		spyOn(capabilities, "synchronizedOutputUserOverride").mockReturnValue(null);

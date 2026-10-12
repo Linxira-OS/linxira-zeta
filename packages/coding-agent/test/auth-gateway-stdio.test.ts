@@ -3,9 +3,9 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { selectorCandidates } from "@linxiraos/zeta/cli/auth-gateway-stdio";
 import { Settings } from "@linxiraos/zeta/config/settings";
 
-const fast = getBundledModel("google", "gemini-2.5-flash")!;
+const fast = getBundledModel("google", "gemini-3.5-flash")!;
 const mini = getBundledModel("openai", "gpt-4o-mini")!;
-const vertex = getBundledModel("google-vertex", "gemini-2.5-flash")!;
+const vertex = getBundledModel("google-vertex", "gemini-3.5-flash")!;
 const models = [fast, mini, vertex];
 const registry = { getAll: () => models, getAvailable: () => models };
 const key = (model: typeof fast) => `${model.provider}/${model.id}`;

@@ -73,22 +73,6 @@ function isJsonArray(value: JudgmentState): value is readonly JsonValue[] {
 	return Array.isArray(value);
 }
 
-/**
- * Bun's built-in YAML is not byte-stable across runtime versions: some releases
- * emit a trailing space after a key whose value is a block sequence
- * (`labels: ` followed by `  - fast`), others do not. The rendered state is the
- * cacheable part of a judgment prompt, so its bytes (and therefore the cache
- * key) must not depend on the Bun the process happens to run under. Strip the
- * trailing whitespace Bun is inconsistent about.
- */
-function stableYaml(value: JsonValue): string {
-	return YAML.stringify(value, null, 2)
-		.trimEnd()
-		.split("\n")
-		.map(line => line.replace(/[ \t]+$/, ""))
-		.join("\n");
-}
-
 /** Render judgment state as top-level XML fields; nested values use block YAML. */
 export function renderJudgmentState(state: JudgmentState): string {
 	if (typeof state !== "object" || state === null || isJsonArray(state)) {
@@ -109,7 +93,15 @@ function renderStateField(key: string, value: JsonValue): string {
 	if (typeof value !== "object" || value === null) {
 		return `${open}${escapeXmlText(value === null ? "null" : String(value))}${close}`;
 	}
-	const yaml = stableYaml(value);
+	const yaml = YAML.stringify(value, null, 2)
+		// Bun <=1.4.2 emits `key: ` before a nested block and puts an empty
+		// collection on its own line; 1.4.3 emits `key:` and `key: {}`. Pin the
+		// newer form so prompt bytes (and prompt-cache keys) do not depend on the
+		// Bun build. Values with edge whitespace are always quoted, so trimming
+		// line ends never alters data.
+		.replace(/[ \t]+$/gm, "")
+		.replace(/:\n +(\{\}|\[\])$/gm, ": $1")
+		.trimEnd();
 	return `${open}\n${escapeXmlText(yaml)}\n${close}`;
 }
 

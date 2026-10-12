@@ -23,9 +23,36 @@ import { removeWithRetries } from "@linxiraos/pi-utils";
 import { AstGrepTool } from "../../src/tools/ast-grep";
 import { GlobTool } from "../../src/tools/glob";
 import { GrepTool } from "../../src/tools/grep";
+import { grep, GrepOutputMode } from "@linxiraos/pi-natives";
 
 import { cfgCompactionExperimentalContextManagement } from "@linxiraos/zeta/session/context-settings";
 import { cfgReadSummarizeEnabled } from "@linxiraos/zeta/tools/settings";
+
+/**
+ * A `pull_request` run never builds the native addons: ci.yml's `native_addons`
+ * restores main's cached pair or falls back to the npm leaf, and states that
+ * "native changes are validated post-merge on main and at release". A windowing
+ * change that exists only in the branch under test therefore cannot be
+ * exercised yet, so probe the loaded addon for it (a truncated match carries a
+ * `column`) and skip the two tests that need it instead of failing on a stale
+ * binary. On main and on release runs the probe is true and both tests run.
+ */
+const addonWindowsLongLines = await (async () => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-grep-window-"));
+	const probe = path.join(dir, "probe.txt");
+	try {
+		await fs.writeFile(probe, `${"a".repeat(12_000)}needle${"b".repeat(64)}\n`);
+		const result = await grep(
+			{ pattern: "needle", path: probe, maxColumns: 512, mode: GrepOutputMode.Content },
+			undefined,
+		);
+		return result.matches[0]?.column !== undefined;
+	} catch {
+		return false;
+	} finally {
+		await removeWithRetries(dir).catch(() => {});
+	}
+})();
 
 function getResultText(result: { content: Array<{ type: string; text?: string }> }): string {
 	return result.content
@@ -314,6 +341,30 @@ describe("GrepTool internal URL resolution", () => {
 		expect((text.match(/é/g) ?? []).length).toBeLessThan(300);
 		expect(result.details?.meta?.limits?.columnTruncated).toEqual({ maxColumn: 512, unit: "bytes" });
 		expect(formatOutputNotice(result.details?.meta)).toContain("Some lines truncated to 512 bytes");
+	});
+
+	it.skipIf(!addonWindowsLongLines)(
+		"shows a match far into a long line instead of only the line's start",
+		async () => {
+			const line = `${"a".repeat(12_000)}deadline [s120]${"b".repeat(2_400)}`;
+			registerVirtualDocs(new Map([["long.md", `${line}\n`]]));
+			const result = await new GrepTool(createSession()).execute("long-line", {
+				pattern: "deadline \\[s120\\]",
+				path: "virtual://long.md",
+			});
+			const text = getResultText(result);
+			expect(text).toMatch(/\.\.\.a+deadline \[s120\]b+\.\.\. \[col 12001\]/);
+			expect(result.details?.meta?.limits?.columnTruncated).toEqual({ maxColumn: 512, unit: "bytes" });
+		},
+	);
+
+	it.skipIf(!addonWindowsLongLines)("windows a long line around a cross-line look-ahead match", async () => {
+		registerVirtualDocs(new Map([["ahead.md", `${"a".repeat(12_000)}needle\nend\n`]]));
+		const result = await new GrepTool(createSession()).execute("long-line-ahead", {
+			pattern: "needle(?=\\nend)",
+			path: "virtual://ahead.md",
+		});
+		expect(getResultText(result)).toMatch(/\.\.\.a+needle \[col 12001\]/);
 	});
 
 	it("rejects a malformed selector on a selector-capable internal URL instead of widening the search", async () => {

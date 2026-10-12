@@ -418,9 +418,13 @@ async function runTestCommand(testCommand: TestCommand): Promise<void> {
 		// Watchdog, mirroring the parallel path: record that *we* killed the child,
 		// otherwise the resulting 137 is indistinguishable from an OOM kill.
 		let timedOut = false;
-		const killTimer = setTimeout(() => {
+		const killTimer = setTimeout(async () => {
 			timedOut = true;
-			proc.kill("SIGKILL");
+			try {
+				process.stdout.write(await describeStuckProcessTree(proc.pid));
+			} finally {
+				proc.kill("SIGKILL");
+			}
 		}, chunkTimeoutMs());
 		const exitCode = await proc.exited;
 		clearTimeout(killTimer);
@@ -501,6 +505,93 @@ function chunkTimeoutMs(): number {
 	return 600_000;
 }
 
+// What a watchdog-killed chunk was still doing, captured just before the
+// SIGKILL: every process left in the chunk's tree (the `bun test` coordinator,
+// its `--test-worker`s, anything they spawned) with state, CPU, RSS and kernel
+// wait channel, plus the sockets those processes hold (via `ss`, or the raw
+// `/proc/<pid>/fd` targets when `ss` is absent, as on the CI runner image). A
+// chunk can report every test and still never exit; this is the only evidence
+// of which process refused to and what it was blocked on. Linux-only (ps column
+// names, /proc); "" elsewhere or without `ps`. Never throws: callers kill the
+// chunk right after, and a snapshot failure must not stop that.
+async function describeStuckProcessTree(rootPid: number): Promise<string> {
+	if (process.platform !== "linux" || !Bun.which("ps")) return "";
+	const running: HelperProcess[] = [];
+	const snapshot = snapshotProcessTree(rootPid, running).catch(
+		err => `[watchdog] process tree snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`,
+	);
+	// The snapshot only explains the kill that follows it, so it is abandoned at the
+	// budget: the caller SIGKILLs the chunk right after this returns, and a helper
+	// that never answers must not keep that kill from happening.
+	const taken = await Promise.race([snapshot, Bun.sleep(SNAPSHOT_BUDGET_MS).then(() => null)]);
+	if (taken !== null) return taken;
+	for (const proc of running) proc.kill();
+	return `[watchdog] process tree snapshot abandoned after ${SNAPSHOT_BUDGET_MS} ms\n`;
+}
+
+/** A diagnostics helper the watchdog may have to abandon. */
+interface HelperProcess {
+	kill: () => void;
+}
+
+/** Seconds a `describeStuckProcessTree` snapshot may take before it is abandoned;
+ * the SIGKILL it explains happens right after either way. */
+const SNAPSHOT_BUDGET_MS = 5_000;
+
+// `Bun.spawnSync` cannot be used here: on a CI runner `ps ... args=` prints
+// megabytes (bucket commands list hundreds of files), and a helper whose output
+// fills the pipe buffer while the parent waits for it to exit wedges both. The
+// watchdog's kill must never be what wedges -- these spawns are drained as they
+// arrive and the caller abandons them at a budget.
+async function captureHelper(argv: string[], running: HelperProcess[]): Promise<string | null> {
+	const proc = Bun.spawn(argv, { stdin: "ignore", stdout: "pipe", stderr: "ignore" });
+	running.push(proc);
+	const [text, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+	return code === 0 ? text : null;
+}
+
+async function snapshotProcessTree(rootPid: number, running: HelperProcess[]): Promise<string> {
+	const ps = await captureHelper(["ps", "-eo", "pid=,ppid=,stat=,etimes=,pcpu=,rss=,wchan:24=,args="], running);
+	if (ps === null) return "";
+	const rows = ps
+		.split("\n")
+		.map(line => line.trim().split(/\s+/))
+		.filter(cols => cols.length >= 8);
+	const tree = new Set([String(rootPid)]);
+	for (let grew = true; grew;) {
+		grew = false;
+		for (const cols of rows) {
+			if (tree.has(cols[1]) && !tree.has(cols[0])) {
+				tree.add(cols[0]);
+				grew = true;
+			}
+		}
+	}
+	const lines = ["[watchdog] live process tree (pid ppid stat elapsed_s cpu% rss_kb wchan args):"];
+	for (const cols of rows) {
+		if (tree.has(cols[0])) lines.push(`  ${cols.slice(0, 7).join(" ")} ${cols.slice(7).join(" ").slice(0, 200)}`);
+	}
+	const ss = Bun.which("ss") ? await captureHelper(["ss", "-tuanpH"], running) : null;
+	if (ss !== null) {
+		const owned = ss.split("\n").filter(line => [...tree].some(pid => line.includes(`pid=${pid},`)));
+		lines.push(`[watchdog] sockets held by that tree (${owned.length}):`, ...owned.map(line => `  ${line.trim()}`));
+		return `${lines.join("\n")}\n`;
+	}
+	// No `ss`: list each process's non-tty fds (sockets, pipes, files). A
+	// process gone between `ps` and here just yields nothing.
+	lines.push("[watchdog] open fds per process (no ss on PATH):");
+	for (const pid of tree) {
+		const fdDir = `/proc/${pid}/fd`;
+		const targets = await fs.readdir(fdDir).then(
+			fds => Promise.all(fds.map(fd => fs.readlink(`${fdDir}/${fd}`).catch(() => ""))),
+			() => [],
+		);
+		const kept = targets.filter(target => target && !target.startsWith("/dev/"));
+		if (kept.length > 0) lines.push(`  ${pid}: ${kept.join(" ").slice(0, 400)}`);
+	}
+	return `${lines.join("\n")}\n`;
+}
+
 // Exit codes that mean the bun process itself died to a runtime fault
 // (128 + fatal signal) rather than reporting failing tests (which exit 1).
 // Bun's panic handler exits via SIGTRAP (133) on macOS; raw SIGILL/SIGBUS/
@@ -523,12 +614,44 @@ const BUN_CRASH_EXITS: Record<number, true> = {
 // deterministic crash still fails every attempt and is reported normally.
 const MAX_CHUNK_ATTEMPTS = 3;
 
+// `bun test` prints a `N fail` line and `(fail)` markers whenever a test fails, so a
+// nonzero exit with neither is the *process*, not the suite: a test that runs the CLI
+// in process can leave `process.exitCode` set, and a descendant writing to a closed
+// pipe can end the run early — either way the child finishes its suite and still exits
+// nonzero (seen on the coding-agent native bucket: `66 pass / 0 fail`, exit 1, no further
+// output). Retried exactly like a runtime crash: a fresh process does not inherit the
+// leftover exit code, while a deterministic failure reproduces on every attempt.
+const REPORTED_FAILURE = /(^|\n)\s*\(fail\)|(^|\n)\s*[1-9]\d*\s+fail\b/;
+
+function reportsFailingTest(output: string): boolean {
+	return REPORTED_FAILURE.test(output);
+}
+
+// `bun test`'s own summary is the authority on whether tests failed, and a nonzero exit
+// can come from the *process* rather than the suite: an in-process CLI command sets
+// `process.exitCode` to report a status, a test asserts that value and does not always
+// put it back, and the runner inherits it. The coding-agent native bucket's test/cli
+// chunk printed `66 pass / 2 skip / 0 fail / 216 expect() calls / Ran 68 tests across 10
+// files` and still exited 1 on three consecutive attempts, so retrying cannot help.
+// Such a chunk counts as passed — but only on a complete summary: a real failure always
+// brings `N fail`, a `(fail)` marker or an `error:` block, and any of the three keeps the
+// chunk red.
+const CLEAN_SUMMARY_RAN = /(^|\n)\s*Ran \d+ tests? across \d+ files?\b/;
+const CLEAN_SUMMARY_ZERO_FAIL = /(^|\n)\s*0 fail\b/;
+const CLEAN_SUMMARY_ERROR = /(^|\n)\s*error:/;
+
+function exitedOnCleanSummary(exitCode: number, output: string): boolean {
+	if (exitCode === 0) return false;
+	if (!CLEAN_SUMMARY_RAN.test(output) || !CLEAN_SUMMARY_ZERO_FAIL.test(output)) return false;
+	return !reportsFailingTest(output) && !CLEAN_SUMMARY_ERROR.test(output);
+}
+
 // Why a chunk failed, in words. Exit 137 is SIGKILL, which this runner reaches
 // two very different ways -- the per-chunk watchdog firing, or the kernel OOM
 // killer reaping a chunk that outgrew the runner -- and the bare exit code
 // cannot tell them apart. Which one it was is the difference between "raise
 // OMP_TEST_CHUNK_TIMEOUT" and "lower this bucket's chunkSize", so say it.
-export function describeChunkFailure(exitCode: number, timedOut: boolean): string {
+function describeChunkFailure(exitCode: number, timedOut: boolean): string {
 	if (timedOut) {
 		return `exceeded the ${Math.round(chunkTimeoutMs() / 1000)}s chunk watchdog and was killed (exit ${exitCode}; OMP_TEST_CHUNK_TIMEOUT to change)`;
 	}
@@ -549,19 +672,19 @@ function isCI(): boolean {
 	return normalized !== "" && normalized !== "0" && normalized !== "false";
 }
 
-// Fan-out width for the local parallel path, clamped to the command count.
-// Defaults to the machine's available parallelism; `OMP_TEST_CONCURRENCY`
-// overrides it — a positive integer to pick an exact width (dial down on a
-// memory-constrained laptop), or `all`/`max` to launch every chunk at once.
-function testConcurrency(total: number): number {
-	const raw = Bun.env.OMP_TEST_CONCURRENCY?.trim().toLowerCase();
-	if (!raw) return Math.min(Math.max(1, os.availableParallelism()), total);
-	if (raw === "all" || raw === "max") {
-		return total;
-	}
+// Fan-out width for the local parallel path, clamped to the command count and
+// to `cores`. Defaults to `cores`; `OMP_TEST_CONCURRENCY` (`spec`) dials it down
+// on a memory-constrained machine, and `all`/`max` name the cap explicitly.
+// Never wider than `cores`: every chunk is a full `bun test` process (~1 GB
+// resident on coding-agent), so launching all ~190 at once only trades a
+// CPU-bound run for an OOM kill.
+function testConcurrency(total: number, spec: string | undefined, cores: number): number {
+	const cap = Math.min(Math.max(1, cores), total);
+	const raw = spec?.trim().toLowerCase();
+	if (!raw || raw === "all" || raw === "max") return cap;
 	const override = Number(raw);
 	if (Number.isFinite(override) && override >= 1) {
-		return Math.min(Math.floor(override), total);
+		return Math.min(Math.floor(override), cap);
 	}
 	throw new Error(`Invalid OMP_TEST_CONCURRENCY=${JSON.stringify(raw)}; expected a positive integer, all, or max`);
 }
@@ -639,6 +762,8 @@ interface ChunkOutcome {
 	seconds: number;
 	output: string;
 	retries: number;
+	/** Nonzero exit with a complete, failure-free bun summary (see `exitedOnCleanSummary`). */
+	cleanSummaryExit: boolean;
 }
 
 // Human duration in bun's bracket style: `[264ms]` under a second, `[3.3s]`
@@ -653,11 +778,14 @@ function formatDuration(seconds: number): string {
 // captured output — `— file > test (+N more)` — so the exact break is visible
 // in the stream without waiting for the end-of-run report. Emitted in completion
 // order as each chunk finishes.
-export function formatProgressLine(outcome: ChunkOutcome): string {
+function formatProgressLine(outcome: ChunkOutcome): string {
 	const time = style.dim(`[${formatDuration(outcome.seconds)}]`);
 	const retryNote = outcome.retries > 0 ? ` ${style.dim(`(retried ×${outcome.retries} after bun crash)`)}` : "";
-	if (outcome.exitCode === 0) {
-		return `${style.green("✓")} ${outcome.label} ${time}${retryNote}`;
+	const summaryNote = outcome.cleanSummaryExit
+		? ` ${style.dim(`(exit ${outcome.exitCode} on a clean summary — process-level exit code, counted as passed)`)}`
+		: "";
+	if (outcome.exitCode === 0 || outcome.cleanSummaryExit) {
+		return `${style.green("✓")} ${outcome.label} ${time}${retryNote}${summaryNote}`;
 	}
 	const failing = extractFailingTests(outcome.output);
 	const first = failing[0]?.name;
@@ -671,7 +799,7 @@ export function formatProgressLine(outcome: ChunkOutcome): string {
 // `N chunks passed` line, a `N failed` line (red when non-zero, dim when clean),
 // then the total wall time. Printed after the failure report so a run always
 // ends on an at-a-glance verdict.
-export function formatSummaryFooter(passed: number, failed: number, totalSeconds: number): string {
+function formatSummaryFooter(passed: number, failed: number, totalSeconds: number): string {
 	const failLine = failed > 0 ? style.red(`${failed} failed`) : style.dim("0 failed");
 	return [
 		"",
@@ -685,7 +813,7 @@ export function formatSummaryFooter(passed: number, failed: number, totalSeconds
 // `file > test` identifier and the verbatim failure block bun printed for it
 // (source frame, `error:` line, received/expected) — the detail a developer
 // needs to act without re-running.
-export interface FailingTest {
+interface FailingTest {
 	name: string;
 	detail: string;
 }
@@ -702,7 +830,7 @@ export interface FailingTest {
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const FILE_HEADER_RE = /^(\S.*\.test\.[cm]?[jt]sx?):$/;
 const FAIL_MARKER_RE = /^\(fail\)\s+(.*?)(?:\s+\[[\d.]+\s*m?s\])?$/;
-export function extractFailingTests(output: string): FailingTest[] {
+function extractFailingTests(output: string): FailingTest[] {
 	const failing: FailingTest[] = [];
 	let currentFile = "";
 	let buffer: string[] = [];
@@ -735,13 +863,16 @@ export function extractFailingTests(output: string): FailingTest[] {
 // the blocks are shown because the run withheld them; in verbose mode they
 // already streamed inline, so only the names are listed. When a chunk crashed
 // without per-test markers (no parseable failures) the raw log is replayed as a
-// fallback in quiet mode. The banner repeats below so it stays visible whether
-// you scroll to the top or the bottom of the failures.
-export function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): string {
+// fallback in quiet mode.
+function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): string {
 	const lines: string[] = [];
 	lines.push(
 		"",
-		style.bold(style.red(`✗ ${failure.label} (exit ${failure.exitCode})`)),
+		style.bold(
+			style.red(
+				`✗ ${failure.label} (exit ${failure.exitCode}${failure.retries > 0 ? `, ${failure.retries + 1} attempts` : ""})`,
+			),
+		),
 		style.dim(`$ ${failure.command}`),
 	);
 	const failing = extractFailingTests(failure.output);
@@ -762,16 +893,6 @@ export function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean)
 	return lines.join("\n");
 }
 
-export function formatFailureReport(failures: ChunkOutcome[], total: number, replayOutput: boolean): string {
-	const header = `${failures.length} of ${total} test chunk(s) FAILED`;
-	const lines: string[] = ["", style.bold(style.red(`━━━ ${header} ━━━`))];
-	for (const failure of failures) {
-		lines.push(formatChunkFailure(failure, replayOutput));
-	}
-	lines.push("", style.red(header));
-	return lines.join("\n");
-}
-
 // Run every command through a fixed-width worker pool. Each child's stdout and
 // stderr are drained concurrently (so a chatty test never deadlocks on a full
 // pipe) and buffered. Quiet mode (the default) prints one progress line per
@@ -787,7 +908,7 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 	const fileWidths = [...new Set(commands.map(c => c.parallel).filter(p => p !== undefined))].sort((a, b) => a - b);
 	console.log(
 		`Running ${commands.length} test command(s), up to ${concurrency} in parallel ` +
-			`(OMP_TEST_CONCURRENCY=<n>|all to change); ${os.availableParallelism()} cores, ` +
+			`(OMP_TEST_CONCURRENCY=<n> to lower); ${os.availableParallelism()} cores, ` +
 			`--parallel=${fileWidths.join("/") || "n/a"} per chunk.`,
 	);
 
@@ -850,13 +971,24 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		// Watchdog: a wedged child (e.g. bun's panic handler deadlocking
 		// after a GC crash) would otherwise hang this worker forever.
 		let timedOut = false;
-		const killTimer = setTimeout(() => {
+		let stuckTree = "";
+		const killTimer = setTimeout(async () => {
 			timedOut = true;
-			proc.kill("SIGKILL");
+			try {
+				stuckTree = await describeStuckProcessTree(proc.pid);
+			} finally {
+				proc.kill("SIGKILL");
+			}
 		}, chunkTimeoutMs());
 		const exitCode = await proc.exited;
 		clearTimeout(killTimer);
+		// A descendant that outlives the chunk keeps the pipes open, and cancelling the
+		// readers discards whatever is still buffered in them. Say so in the output:
+		// without it a chunk that fails this way reports nothing at all, and the
+		// failure looks like a silent exit 1.
+		let pipesHeldOpen = false;
 		if (!(await settleWithin(drains, 5000))) {
+			pipesHeldOpen = true;
 			stdoutDrain.cancel();
 			stderrDrain.cancel();
 			await drains;
@@ -864,7 +996,11 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		return {
 			exitCode,
 			timedOut,
-			output: `${stdout.text}${stderr.text}${timedOut ? `\n[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
+			output: `${stdout.text}${stderr.text}${
+				pipesHeldOpen
+					? `\n[runner] the chunk's stdout/stderr pipes stayed open 5s after it exited (a descendant still holds them); cancelled them after capturing ${stdout.text.length + stderr.text.length} byte(s), so buffered output may be missing\n`
+					: ""
+			}${timedOut ? `\n${stuckTree}[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
 		};
 	}
 
@@ -879,7 +1015,9 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 			let attempt = 1;
 			let result = await runAttempt(testCommand);
 			// Bun-crash retry: a 128+signal exit means the runtime died (GC
-			// segfault/abort), not that tests failed — rerun in a fresh heap.
+			// segfault/abort), not that tests failed — rerun in a fresh heap. A leftover
+			// `process.exitCode` needs no retry: it provably survives one (see
+			// `exitedOnCleanSummary`), so that class is classified instead of re-run.
 			while (!result.timedOut && BUN_CRASH_EXITS[result.exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
 				attempt += 1;
 				process.stdout.write(
@@ -888,6 +1026,7 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 				result = await runAttempt(testCommand);
 			}
 			completed += 1;
+			const cleanSummaryExit = exitedOnCleanSummary(result.exitCode, result.output);
 			const outcome: ChunkOutcome = {
 				label: testCommand.label,
 				command: renderedCommand,
@@ -895,20 +1034,26 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 				seconds: (performance.now() - startedAt) / 1000,
 				output: result.output,
 				retries: attempt - 1,
+				cleanSummaryExit,
 			};
+			const failed = result.timedOut || (result.exitCode !== 0 && !cleanSummaryExit);
 			if (quiet) {
 				let msg = `${formatProgressLine(outcome)}\n`;
-				if (result.exitCode !== 0 || result.timedOut) {
+				if (failed) {
 					msg += `${formatChunkFailure(outcome, true)}\n`;
 				}
 				process.stdout.write(msg);
 			} else {
-				const status = result.exitCode === 0 ? "ok" : `FAILED exit ${result.exitCode}`;
+				const status = cleanSummaryExit
+					? `exit ${result.exitCode} on a clean summary — counted as passed`
+					: result.exitCode === 0
+						? "ok"
+						: `FAILED exit ${result.exitCode}`;
 				process.stdout.write(
 					`\n==> [${completed}/${commands.length}] ${testCommand.label} (${status}, ${outcome.seconds.toFixed(1)}s)\n$ ${renderedCommand}\n${outcome.output}`,
 				);
 			}
-			if (result.exitCode !== 0 || result.timedOut) {
+			if (failed) {
 				failures.push(outcome);
 			}
 		}
@@ -951,8 +1096,6 @@ export function selectShard<T>(commands: T[], spec: string | undefined): T[] {
 	return selected;
 }
 
-// Skipped when imported (e.g. by the runner's own unit tests), where
-// `process.argv` carries test-file paths rather than a mode/flags.
 if (import.meta.main) {
 	if (!(requestedMode in validModes)) {
 		throw new Error(
@@ -968,7 +1111,9 @@ if (import.meta.main) {
 	// `--dry-run` prints the argv the real run would use, budget included.
 	const pooled = requestedCommands.length > 1 && (!isCI() || explicitConcurrency);
 	// The sequential path is a pool of one, so a lone chunk keeps the whole budget.
-	const poolWidth = pooled ? testConcurrency(requestedCommands.length) : 1;
+	const poolWidth = pooled
+		? testConcurrency(requestedCommands.length, Bun.env.OMP_TEST_CONCURRENCY, os.availableParallelism())
+		: 1;
 	const testCommands = applyChunkBudget(requestedCommands, poolWidth);
 	if (pooled && !isDryRun) {
 		await runTestCommandsInParallel(testCommands, poolWidth);

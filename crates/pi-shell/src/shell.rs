@@ -5737,6 +5737,38 @@ mod tests {
 		assert_eq!(host_umask(), before, "the host process umask must not change");
 	}
 
+	#[cfg(unix)]
+	#[tokio::test(flavor = "multi_thread")]
+	async fn executable_text_without_shebang_preserves_arguments_and_exit_status() {
+		use std::os::unix::fs::PermissionsExt;
+
+		let dir = tempfile::tempdir().expect("temp dir");
+		let script = dir.path().join("plain-script");
+		std::fs::write(&script, "printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$SCRIPT_TOKEN\"\nexit 23\n")
+			.expect("write executable text");
+		std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700))
+			.expect("make script executable");
+		for invocation in ["./plain-script", "plain-script"] {
+			let (result, output) = execute_captured(format!(
+				"cd {} && SCRIPT_TOKEN=from-env PATH=\"$PWD:$PATH\" {invocation} 'two words' \
+				 ';literal' > captured; status=$?; cat captured; exit \"$status\"",
+				quote_arg(dir.path().to_str().expect("utf8 path")),
+			))
+			.await;
+			assert_eq!(result.exit_code, Some(23), "{invocation}: {output}");
+			assert_eq!(output, "two words|;literal|from-env\n", "{invocation}");
+		}
+	}
+
+	#[cfg(unix)]
+	#[tokio::test(flavor = "multi_thread")]
+	async fn external_command_receives_extra_file_descriptor() {
+		let (result, output) =
+			execute_captured("sh -c 'printf descriptor-output >&3' 3>&1".into()).await;
+		assert_eq!(result.exit_code, Some(0), "{output}");
+		assert_eq!(output, "descriptor-output");
+	}
+
 	/// The `xargs` builtin spawns real child processes, but their stdout must
 	/// flow back into the shell pipeline (ctx streams, not the host fds), items
 	/// must batch per `-n`, and a failing invocation must surface GNU's 123.
@@ -5843,12 +5875,12 @@ mod tests {
 		let _ = std::fs::remove_dir_all(&tmp);
 	}
 
-	/// The read tool's `?q=` path runs jq through `Shell::run` with the command's
-	/// stderr redirected to a file and stdout captured as chunks. A file whose
-	/// middle input fails must still emit the later results — `["2", "4"]` after
-	/// the stderr notice, the shape `test/tools/json-query.test.ts` asserts.
-	/// This covers the capture path, which the in-process builtin tests in
-	/// `pi-builtins` cannot reach.
+	/// The read tool's `?q=` path runs jq through `Shell::run` with the
+	/// command's stderr redirected to a file and stdout captured as chunks. A
+	/// file whose middle input fails must still emit the later results —
+	/// `["2", "4"]` after the stderr notice, the shape
+	/// `test/tools/json-query.test.ts` asserts. This covers the capture path,
+	/// which the in-process builtin tests in `pi-builtins` cannot reach.
 	#[tokio::test(flavor = "multi_thread")]
 	async fn uutils_jq_failing_input_keeps_going_through_shell_capture() {
 		let tmp = std::env::temp_dir().join(format!("pi-jq-mid-{}", std::process::id()));

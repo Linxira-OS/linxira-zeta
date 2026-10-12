@@ -418,6 +418,8 @@ export interface ContextUsage {
 export interface QueuedMessagesState {
 	steering: string[];
 	followUp: string[];
+	/** Leading `steering` entries are live steering already sent into the streaming response; `remove_queued_message` cannot reach them. */
+	liveSteered?: number;
 }
 
 export interface ToolDescriptor {
@@ -985,6 +987,8 @@ export interface QueueUpdateEvent {
 	type: "queue_update";
 	steering: string[];
 	followUp: string[];
+	/** Leading `steering` entries are live steering already sent into the streaming response; `remove_queued_message` cannot reach them. */
+	liveSteered?: number;
 }
 
 /** Zeta extension: the session's mode/model state version changed (mode API `bumpStateVersion`). */
