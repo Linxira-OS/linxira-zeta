@@ -1,5 +1,31 @@
 # Zeta 更新日志
 
+## 下一版本（Unreleased）
+
+### OMP 同步基线
+
+- v18.8.6 → v18.9.1 → v18.9.2 两 tag 串联合并（PR #91 / #92；均为真双亲合并、谱系 gate 精确通过；账本见 `document/upstream-sync.md`，Integrated through `v18.9.2` = `bd4dffd5e617`）。
+
+### 新增
+
+- **会话来源标记**：每个会话头记录创建它的客户端（`cli` / `web` / `desktop` / `automation`）——CLI、ACP、`zeta serve` 协调器与 IM bot 会话各自盖章；`/new` 与原地分支继承，fork / persistCopy 显式复制，旧会话读取为 unknown。
+- **自定义命令热重载**：改一个 TS 自定义命令文件无需重开会话——命令目录 watcher（200 ms 防抖）刷新会话命令表并广播给 TUI / ACP / RPC 三处订阅者；坏文件保留上一个好版本并给出可见警告。
+- **Web UI 渲染模型产出的 ```svg 围栏**：闭合围栏渲染为图形块（缩放对话框与 mermaid 共用），流式中未闭合的围栏保持代码显示；DOMPurify svg+svgFilters 清洗，禁 `script`/`foreignObject`/`style`、丢弃外部引用，无 DOM 时失败关闭。
+- **追踪四项完整性**：`status.json` 与全局索引的读-改-写整体进文件锁并原子替换、`tracking_update` 同批次串行；`actions.jsonl` 改为 5 MB × 3 轮转、所有读者有界尾读；Web 面板补上摘要标签页；`GET /api/tracking` 的 `updatedAt` 改为内容派生。
+- **内存吃紧自动收紧子代理扇出**：`task` 取并发许可时采样进程与系统内存，紧张 ≤8、危急 ≤2（只降不升），恢复即回配置值；危急时同时挂起空闲 tab 缓存与 mnemopi worker。
+- **崩溃报告带内存计数**：`~/.zeta/logs/native-*.log` 与 stderr 增加进程 rss/峰值/提交与系统内存读数，走 syscall 无分配路径，真 OOM 下数字先落地再谈报告本体。
+- **插件成为一等 workspace 成员**：`plugins/*` 进根 workspaces 与版本线（pi-messenger 1.1.3 → 1.1.29 对齐），`plugins/**` 进 CI 触发路径；官方插件标准里 `locales/` 由硬要求降为预留（宿主 i18n 机制未实现，已登记 roadmap）。
+- **web-ui 单元测试进 CI**：`web_ui_build` 在 Lint 与 Build 之间执行 web-ui 自身的 `npm test`（42 个测试文件）；首次执行即抓出 4 个从未被运行过的测试缺陷（含一个 fail-closed 真 bug）。
+
+### 修复
+
+- **teamagent 键名双读者兼容**：命令端同时写 `thinking`（镜像端字面读取）与 `thinkingLevel`（CLI 优先），镜像端读 `data.skills ?? data.autoloadSkills`——此前 `/teamagent add --thinking` 写的键没有任何读取者。
+- **追踪提示契约**：追踪与记忆的边界、缓存顺序规则写进提示词（含 `/tracking start` 一行），并补两条渲染器回归测试。
+
+### 移除
+
+- 无。
+
 ## 1.1.24（2026-10-03）
 
 ### OMP 同步基线
@@ -67,7 +93,7 @@
 
 - 无。
 
-## 下一版本（Unreleased）
+## 1.1.27（2026-10-07）
 
 
 ### OMP 同步基线
