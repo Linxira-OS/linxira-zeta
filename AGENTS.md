@@ -32,6 +32,24 @@ that OMP updates remain mergeable. Four upstreams, fixed roles:
 - `temp/` holds local reference clones only. It is ignored and must never be
   committed.
 
+## Product Posture (operator decision, 2026-10-12)
+
+Zeta's default is **YOLO** — `tools.approvalMode` defaults to `yolo`
+(`packages/coding-agent/src/tools/settings.ts`), and `tools/approval.ts` falls
+back to `yolo` when the setting is unset. That is deliberate, and it constrains
+future design:
+
+- **Never add another approval layer** to gate normal work — not for paths, not
+  for content classes, not for "risky-looking" operations. Approval fatigue is
+  real: a user who is asked to judge stops judging, flips on YOLO / accept-all,
+  and the gate becomes theater that also spends their attention.
+- **Do not push judgment onto the user** where the product can decide: pick the
+  conservative, standard behavior, state it plainly, and ask only when the
+  alternatives are materially different and the user is the only one who can
+  choose.
+- Rules that must hold — credential placement, brand surface, merge discipline —
+  are enforced as rules and sentinels, never as prompts-for-permission.
+
 ## OMP Release Sync Policy
 
 Zeta integrates OMP only at complete, official OMP release tags. This is a

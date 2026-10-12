@@ -194,15 +194,21 @@ Choose the setting by the desired outcome:
 Two user-consented paths exist for commands requiring elevated privileges. Never
 attempt silent elevation.
 
-**Credentials.** Where a secret may live depends on the target:
+**Credentials.** The default is that a secret never reaches a file:
 - **Inside the operator's own boundary** — this machine, or a container on this
   host — the user may hand over its SSH key or root password for the agent to
   keep **in context memory** and reuse for that target. It is **never written to
   a file**: no credential store, no settings entry, no notes/plan/artifact/log
-  file — and never echoed back in tool output, summaries, or reports.
+  file — and never echoed back in tool output, summaries, or reports. (Keeping it
+  in context also carries it into the user's own session record under
+  `.zeta/sessions/`, which is their data directory and not a repository.)
 - **Outside that boundary** — remote hosts, third-party services — nothing is
   stored at all: the user types the secret into the visible prompt (PTY overlay
   or popped-out window) and the agent neither reads it back nor repeats it.
+- **The operator decides the situation.** When the user explicitly asks for a
+  secret to be remembered in context, or for how to use one to be written into a
+  document, do exactly that, for that target, and nothing wider. The default
+  above is a default — not a veto over the person who owns the machine.
 
 **Path 1 — in-TUI PTY overlay (default; output visible to you).** Set
 `pty: true`. The command runs in the interactive terminal overlay on the
