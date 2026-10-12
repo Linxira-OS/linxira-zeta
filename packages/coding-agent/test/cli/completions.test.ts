@@ -52,15 +52,17 @@ describe("generateCompletion — bash", () => {
 	const out = generateCompletion("bash", spec);
 
 	it("registers the dispatcher and resolves alias arms to the canonical handler", () => {
-		expect(out).toContain(`complete -F _omp ${CLI_BIN_NAME}`);
-		expect(out).toContain("_omp_cmd_commit");
+		expect(out).toContain(`complete -F _zeta ${CLI_BIN_NAME}`);
+		expect(out).toContain("_zeta_cmd_commit");
 		// worktree + its alias dispatch to the same function
 		expect(out).toContain("worktree|wt)");
 	});
 
 	it("completes enum, dynamic, and comma-list flag values by previous flag", () => {
 		expect(out).toContain('--thinking)\n\t\t\tCOMPREPLY=( $(compgen -W "low high"');
-		expect(out).toContain(`--model)\n\t\t\tCOMPREPLY=( $(compgen -W "$(command ${CLI_BIN_NAME} __complete models -- "$cur"`);
+		expect(out).toContain(
+			`--model)\n\t\t\tCOMPREPLY=( $(compgen -W "$(command ${CLI_BIN_NAME} __complete models -- "$cur"`,
+		);
 		expect(out).toContain("--resume|-r)");
 		expect(out).toContain(`command ${CLI_BIN_NAME} __complete sessions`);
 		// static comma list routes through the comma-aware helper
@@ -74,9 +76,9 @@ describe("generateCompletion — bash", () => {
 	});
 
 	it("completes a subcommand's positional enum and its own flags", () => {
-		expect(out).toContain("_omp_cmd_worktree()");
+		expect(out).toContain("_zeta_cmd_worktree()");
 		expect(out).toContain('compgen -W "list clear"');
-		expect(out).toContain("_omp_cmd_commit()");
+		expect(out).toContain("_zeta_cmd_commit()");
 		expect(out).toContain('compgen -W "--push"');
 	});
 });
@@ -92,7 +94,7 @@ const hasZsh = (() => {
 describe.skipIf(!hasZsh)("zsh action helper under _arguments' calling convention", () => {
 	it("reads the completion kind past the compadd options zsh prepends", () => {
 		const script = generateCompletion("zsh", spec);
-		const start = script.indexOf("_omp_call() {");
+		const start = script.indexOf("_zeta_call() {");
 		expect(start).toBeGreaterThanOrEqual(0);
 		const fn = script.slice(start, script.indexOf("\n}\n", start) + 3);
 
@@ -133,25 +135,25 @@ describe("generateCompletion — zsh", () => {
 
 	it("emits the compdef header and dual-mode (autoload + eval) tail", () => {
 		expect(out.startsWith(`#compdef ${CLI_BIN_NAME}`)).toBe(true);
-		expect(out).toContain('if [ "$funcstack[1]" = "_omp" ]; then');
-		expect(out).toContain(`compdef _omp ${CLI_BIN_NAME}`);
+		expect(out).toContain('if [ "$funcstack[1]" = "_zeta" ]; then');
+		expect(out).toContain(`compdef _zeta ${CLI_BIN_NAME}`);
 	});
 
 	it("maps value sources to the right _arguments actions", () => {
-		expect(out).toContain("'--model[Model to use]:model:_omp_call models'");
-		expect(out).toContain("'--models[Model list]:models:_omp_models_list'");
+		expect(out).toContain("'--model[Model to use]:model:_zeta_call models'");
+		expect(out).toContain("'--models[Model list]:models:_zeta_models_list'");
 		expect(out).toContain("'--thinking[Effort]:value:(low high)'");
-		expect(out).toContain("'--tools[Tools]:value:_omp_tools'");
-		expect(out).toContain("'(-r --resume)'{-r,--resume}'[Resume]:session:_omp_call sessions'");
+		expect(out).toContain("'--tools[Tools]:value:_zeta_tools'");
+		expect(out).toContain("'(-r --resume)'{-r,--resume}'[Resume]:session:_zeta_call sessions'");
 		expect(out).toContain("'--session-dir[Dir]:dir:_files -/'");
 		// repeatable short+long flag uses the `*{...}` form
 		expect(out).toContain("'*'{-e,--extension}'[Ext]:file:_files'");
 		// the static tool list helper is baked
-		expect(out).toContain("_omp_tools() { _values -s , 'tools' read bash }");
+		expect(out).toContain("_zeta_tools() { _values -s , 'tools' read bash }");
 	});
 
 	it("dispatches aliased subcommands and completes positional enums", () => {
-		expect(out).toContain("worktree|wt) _omp_cmd_worktree ;;");
+		expect(out).toContain("worktree|wt) _zeta_cmd_worktree ;;");
 		expect(out).toContain("':action:(list clear)'");
 	});
 });
@@ -160,7 +162,7 @@ describe("generateCompletion — fish", () => {
 	const out = generateCompletion("fish", spec);
 
 	it("declares the no-subcommand predicate over every command token", () => {
-		expect(out).toContain("function __fish_omp_no_subcommand");
+		expect(out).toContain("function __fish_zeta_no_subcommand");
 		expect(out).toContain("if contains -- $i commit worktree wt");
 	});
 
@@ -170,7 +172,9 @@ describe("generateCompletion — fish", () => {
 	});
 
 	it("maps value sources to fish completion args", () => {
-		expect(out).toContain(`-l model -d 'Model to use' -x -a '(command ${CLI_BIN_NAME} __complete models -- (commandline -ct))'`);
+		expect(out).toContain(
+			`-l model -d 'Model to use' -x -a '(command ${CLI_BIN_NAME} __complete models -- (commandline -ct))'`,
+		);
 		expect(out).toContain("-l thinking -d 'Effort' -x -a 'low high'");
 		expect(out).toContain("-l tools -d 'Tools' -x -a 'read bash'");
 		expect(out).toContain(`-s r -l resume -d 'Resume' -x -a '(command ${CLI_BIN_NAME} __complete sessions`);
@@ -251,15 +255,15 @@ describe("live completion surface", () => {
 		expect(stdout).toContain(":value:(off minimal low medium high xhigh max auto)");
 		expect(stdout).toContain(":value:(always-ask write yolo)");
 		// Real subcommands present; dynamic callbacks wired.
-		expect(stdout).toContain("_omp_cmd_commit");
+		expect(stdout).toContain("_zeta_cmd_commit");
 		expect(stdout).toContain("'completions:");
-		// zsh routes single-value dynamic flags through the _omp_call action, which
+		// zsh routes single-value dynamic flags through the _zeta_call action, which
 		// itself shells out to `<CLI_BIN_NAME> __complete $kind`.
-		expect(stdout).toContain("_omp_call models");
-		expect(stdout).toContain("_omp_call sessions");
+		expect(stdout).toContain("_zeta_call models");
+		expect(stdout).toContain("_zeta_call sessions");
 		expect(stdout).toContain(`command ${CLI_BIN_NAME} __complete $kind`);
 		// Hidden/default commands must NOT surface as completable subcommands.
-		expect(stdout).not.toContain("_omp_cmd_launch");
-		expect(stdout).not.toContain("_omp_cmd___complete");
+		expect(stdout).not.toContain("_zeta_cmd_launch");
+		expect(stdout).not.toContain("_zeta_cmd___complete");
 	}, 30_000);
 });

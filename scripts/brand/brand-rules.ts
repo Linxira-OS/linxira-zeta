@@ -623,6 +623,12 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{
+		needle:
+			/complete -F _omp\b|compdef _omp\b|(?<![\w_])_omp\(\)|(?<![\w_])_omp_(comma|root|call|cmd_|tools|models_list)|__fish_omp/,
+		why: "the completion generator emits shell function names into the user's shell — the bash/zsh dispatcher `_zeta`, `complete -F _zeta <bin>`, `compdef _zeta <bin>`, `_zeta_comma`/`_zeta_call`, fish's `__fish_zeta_no_subcommand`. Upstream's `_omp` spellings survived a branding pass on main. Only these emitted shapes: `_omp/…` ACP extMethod names and `_omp_prelude` are upstream protocol/private names and stay",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
+	},
+	{
 		needle: /\$which\(\s*"zeta"\)/,
 		why: "resolving the CLI on PATH must go through CLI_BIN_NAME: a bare `zeta` is the separate workbench (@linxiraos/main), so this spawns the wrong program once an upgrade leaves process.execPath stale (worker-client.ts carried `zeta` from before the v18.9.1 merge, and the merged fallback test pinned it)",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],

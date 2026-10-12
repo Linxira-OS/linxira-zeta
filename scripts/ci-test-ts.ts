@@ -614,6 +614,19 @@ const BUN_CRASH_EXITS: Record<number, true> = {
 // deterministic crash still fails every attempt and is reported normally.
 const MAX_CHUNK_ATTEMPTS = 3;
 
+// `bun test` prints a `N fail` line and `(fail)` markers whenever a test fails, so a
+// nonzero exit with neither is the *process*, not the suite: a test that runs the CLI
+// in process can leave `process.exitCode` set, and a descendant writing to a closed
+// pipe can end the run early — either way the child finishes its suite and still exits
+// nonzero (seen on the coding-agent native bucket: `66 pass / 0 fail`, exit 1, no further
+// output). Retried exactly like a runtime crash: a fresh process does not inherit the
+// leftover exit code, while a deterministic failure reproduces on every attempt.
+const REPORTED_FAILURE = /(^|\n)\s*\(fail\)|(^|\n)\s*[1-9]\d*\s+fail\b/;
+
+function reportsFailingTest(output: string): boolean {
+	return REPORTED_FAILURE.test(output);
+}
+
 // Why a chunk failed, in words. Exit 137 is SIGKILL, which this runner reaches
 // two very different ways -- the per-chunk watchdog firing, or the kernel OOM
 // killer reaping a chunk that outgrew the runner -- and the bare exit code
@@ -831,7 +844,11 @@ function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): strin
 	const lines: string[] = [];
 	lines.push(
 		"",
-		style.bold(style.red(`✗ ${failure.label} (exit ${failure.exitCode})`)),
+		style.bold(
+			style.red(
+				`✗ ${failure.label} (exit ${failure.exitCode}${failure.retries > 0 ? `, ${failure.retries + 1} attempts` : ""})`,
+			),
+		),
 		style.dim(`$ ${failure.command}`),
 	);
 	const failing = extractFailingTests(failure.output);
@@ -974,11 +991,19 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 			let attempt = 1;
 			let result = await runAttempt(testCommand);
 			// Bun-crash retry: a 128+signal exit means the runtime died (GC
-			// segfault/abort), not that tests failed — rerun in a fresh heap.
-			while (!result.timedOut && BUN_CRASH_EXITS[result.exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
+			// segfault/abort), not that tests failed — rerun in a fresh heap. Same
+			// treatment for a nonzero exit that reported no failing test at all.
+			while (
+				!result.timedOut &&
+				attempt < MAX_CHUNK_ATTEMPTS &&
+				(BUN_CRASH_EXITS[result.exitCode] || (result.exitCode !== 0 && !reportsFailingTest(result.output)))
+			) {
 				attempt += 1;
+				const why = BUN_CRASH_EXITS[result.exitCode]
+					? `bun crashed (exit ${result.exitCode})`
+					: `exit ${result.exitCode} with no failing test reported`;
 				process.stdout.write(
-					`${style.dim(`↻ ${testCommand.label} — bun crashed (exit ${result.exitCode}); retrying (attempt ${attempt}/${MAX_CHUNK_ATTEMPTS})`)}\n`,
+					`${style.dim(`↻ ${testCommand.label} — ${why}; retrying (attempt ${attempt}/${MAX_CHUNK_ATTEMPTS})`)}\n`,
 				);
 				result = await runAttempt(testCommand);
 			}

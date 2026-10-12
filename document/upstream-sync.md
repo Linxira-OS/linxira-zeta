@@ -241,6 +241,25 @@ two-parent tag merge.
      Its sibling in the tui bucket is not merge damage: `becomesCollectible` polls
      `Bun.gc(true)` under `--parallel=2`, and the same code passed in two runs and failed in
      three, so the deadline went 3 s → 8 s: a pinned target still fails, just later.
+     The template literals that fix introduced were not formatter-clean, which `check:tools`
+     caught as an `oxfmt --check` failure naming the file; `bun run fmt:tools` reflowed them.
+  7. **The completion script's own function names were never swept** (maintainer decision,
+     2026-10-12): `completion-gen.ts` emits shell helpers into the user's shell — `_omp()`,
+     `complete -F _omp <bin>`, `compdef _omp <bin>`, `_omp_comma`, `_omp_call`,
+     `__fish_omp_no_subcommand` — and every one carried upstream's brand. They survived an
+     earlier branding pass on main, so this is not merge damage, but it is user-visible;
+     swept to `_zeta*` across the generator and its test. The brand rule pins only the
+     emitted shapes: `_omp/…` ACP extMethod names, `_omp_prelude` and the `_omp_ida_stub`
+     test module are upstream protocol/private names and stay.
+  8. **A chunk that reports no failing test but exits nonzero is now retried** — the
+     coding-agent native bucket's `test/cli` chunk ran its whole suite (`66 pass / 0 fail`,
+     `Ran 68 tests across 10 files`) and still exited 1 with nothing else printed, so the
+     report was a blank `(exit 1)`. `bun test` prints `N fail`/`(fail)` whenever a test
+     fails, so a nonzero exit with neither is the *process*: a test that runs the CLI in
+     process leaving `process.exitCode` set, or a descendant writing to a closed pipe. Such
+     a chunk now gets the fresh-process retry bun crashes already get (up to
+     `MAX_CHUNK_ATTEMPTS`), and the final report states how many attempts it took; a
+     deterministic failure reproduces on every attempt and is reported exactly as before.
   The reds this list could not explain were item 3's: the rerun carrying its guard fix
   (`2672871f63e`) failed exactly two tests — both `executable-fallback.test.ts` (item 5)
   — with `Test TS workspace fast` green, and the native/unit chunk that had died
