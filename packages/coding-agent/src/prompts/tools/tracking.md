@@ -7,6 +7,14 @@ Update project tracking documents in `<project>/.zeta/tracking/`. Use this to ma
 - The tracking directory is project-local and survives agent session resets.
 </instruction>
 
+<contract>
+**Cache ordering.** Dynamic state MUST land in the tracking documents first; readers read the documents, never the base prompt. NEVER expect a base-prompt edit to make injected state visible. The provider prompt-cache key is invalidated only when the base-prompt bytes change, and tracking deliberately leaves that base untouched — so this ordering is a **prompt-only convention with no enforcement point**: nothing in the runtime validates it. Do not assume a guard exists.
+
+**Sanctioned delivery path.** The cache-neutral way to carry a mid-run update is the existing hidden phase-progress nudge (the tracking-phase nudge emitted when a todo phase completes). It rides as a custom message, so it never touches the cached base prompt; prefer it over any base-prompt mutation.
+
+**Memory boundary.** Tracking records *process* state only — phase, progress, blockers, plan mirrors, the action log. It is NEVER a store for learned knowledge facts: durable facts belong to the memory tools (`retain`, `recall`, `memory_edit`). Keep the two stores disjoint.
+</contract>
+
 ## Operations
 
 ### `update_status`
