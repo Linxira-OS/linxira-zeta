@@ -47,6 +47,7 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { startRpcSession } from "./web-gateway/agents";
+import { serveSessionClient } from "./web-gateway/desktop";
 import { getSharedModelRegistry } from "./web-gateway/auth";
 import { setBotSessionDispose } from "./web-gateway/running-sessions";
 
@@ -509,6 +510,7 @@ export class ZetaServer {
 				},
 				imControl: params => this.#imControlHook("coordinator", params),
 			},
+			serveSessionClient(),
 		);
 		this.#channelCoordinator = session.getSession();
 		// Give the coordinator a recognizable name in the session list ("Zeta Bot"
@@ -542,6 +544,7 @@ export class ZetaServer {
 						workspaceRun: opts => this.#workspaceRunHook(opts),
 						imControl: params => this.#imControlHook(entry.id, params),
 					},
+					serveSessionClient(),
 				);
 				return session.getSession();
 			},

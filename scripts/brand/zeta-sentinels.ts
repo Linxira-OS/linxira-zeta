@@ -349,6 +349,32 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "--c6: var(--chart-6);",
 		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless",
 	},
+	// -- Cross-client session provenance -------------------------------------------
+	{
+		file: "packages/coding-agent/src/session/session-entries.ts",
+		symbol: "client?: SessionClient;",
+		why: "Zeta-only provenance stamp on the durable session header (+ the NewSessionOptions seed). Upstream OMP's header has no notion of the client that created a session, so a wholesale take silently drops the field and every session reads as pre-stamp.",
+	},
+	{
+		file: "packages/coding-agent/src/session/session-manager.ts",
+		symbol: "client: options?.client ?? this.#header?.client,",
+		why: "the /new, branch and fork inheritance rule: a session created from inside a client stays that client's. Without it every /new would lose its provenance even though the field still exists.",
+	},
+	{
+		file: "packages/coding-agent/src/main.ts",
+		symbol: 'const CLI_SESSION = { client: "cli" } as const;',
+		why: "the CLI/ACP entry stamp (terminal sessions and editor-hosted ACP sessions); the terminal CLI is the one entry point whose sessions the SDK creates, so the seed is also passed as CreateAgentSessionOptions.client",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/agents.ts",
+		symbol: 'client: SessionClient = "web",',
+		why: 'startRpcSession\'s default provenance for the gateway\'s own callers (the web UI), with the serve coordinator passing "desktop"/"automation" explicitly',
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/desktop.ts",
+		symbol: "export function serveSessionClient(",
+		why: "ZETA_DESKTOP-based desktop-vs-automation provenance for the sessions a serve process creates (coordinator + IM bot sessions)",
+	},
 	// -- Brand surface (duplicate of brand-check MUST_CONTAIN but merges can hit
 	//    files brand-check skips, and these need per-merge re-verification) -----
 	{

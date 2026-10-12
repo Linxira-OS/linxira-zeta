@@ -546,7 +546,7 @@ async function loadTrustedSessionExtensions(
 export function createAcpSessionFactory(args: AcpSessionFactoryOptions): AcpSessionFactory {
 	return async (cwd, factoryOptions) => {
 		const nextSettings = await args.settings.cloneForCwd(cwd);
-		const nextSessionManager = SessionManager.create(cwd, args.sessionDir);
+		const nextSessionManager = SessionManager.create(cwd, args.sessionDir, undefined, CLI_SESSION);
 		const agentId = `acp:${nextSessionManager.getSessionId()}`;
 		// `baseOptions.titleSystemPrompt` is resolved from the launch cwd; an ACP
 		// host can open `session/new` for any client-supplied workspace, so
@@ -1183,6 +1183,13 @@ export function normalizeContinueSessionArgs(parsed: Args, rawArgs?: readonly st
 const SESSION_NOT_FOUND_HINT =
 	"Run `zetacode --resume` without an argument to pick from recent sessions, or `zetacode` to start a new one.";
 
+/**
+ * Provenance seed for every session this process creates: the terminal CLI, and
+ * ACP sessions hosted by an editor — both are CLI-mode sessions. `zeta serve`
+ * stamps its own (desktop or automation).
+ */
+const CLI_SESSION = { client: "cli" } as const;
+
 function validateSessionPersistenceArgs(parsed: Pick<Args, "continue" | "noSession" | "resume">): void {
 	if (!parsed.noSession) return;
 	if (parsed.resume !== undefined) {
@@ -1296,12 +1303,12 @@ export async function createSessionManager(
 		return await SessionManager.open(match.session.path, parsed.sessionDir);
 	}
 	if (parsed.continue) {
-		return await SessionManager.continueRecent(cwd, parsed.sessionDir);
+		return await SessionManager.continueRecent(cwd, parsed.sessionDir, undefined, CLI_SESSION);
 	}
 	// --resume without value is handled separately (needs picker UI)
 	// If --session-dir provided without --continue/--resume, create new session there
 	if (parsed.sessionDir) {
-		return SessionManager.create(cwd, parsed.sessionDir);
+		return SessionManager.create(cwd, parsed.sessionDir, undefined, CLI_SESSION);
 	}
 	// Auto-resume: behave like --continue if the setting is enabled and a prior
 	// session exists. When a prior session is resumed, mark parsed.continue so
@@ -1309,7 +1316,7 @@ export async function createSessionManager(
 	// overriding them with CLI defaults.
 	// An explicit startup goal starts fresh even when implicit auto-resume is configured.
 	if (parsed.goal === undefined && cfgAutoResume.get(activeSettings)) {
-		const manager = await SessionManager.continueRecent(cwd, parsed.sessionDir);
+		const manager = await SessionManager.continueRecent(cwd, parsed.sessionDir, undefined, CLI_SESSION);
 		if (manager.getEntries().length > 0) {
 			parsed.continue = true;
 		}
@@ -2237,6 +2244,8 @@ export async function runRootCommand(
 		sessionOptions.settingsApproval = isInteractive;
 		sessionOptions.tuiTranscript = isInteractive;
 		sessionOptions.autoTitle = isInteractive;
+		// Provenance: every session this process creates is a CLI-mode session.
+		sessionOptions.client = CLI_SESSION.client;
 		sessionOptions.settings = settingsInstance;
 		sessionOptions.onPrewalkWarning = warning => {
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });
