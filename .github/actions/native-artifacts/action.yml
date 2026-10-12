@@ -3,9 +3,10 @@ description: >
    Downloads the native addons built once by the native_addons jobs and
    installs exact targets without invoking Bazel. The linux-x64 pair ships as
    its own small `natives-linux-x64` artifact; the rest (`native-addons`) is
-   fetched only when a requested target needs it. On omp-kata pods the pair is
-   first restored from the in-cluster stash native_addons writes to the shared
-   runner-cache PVC, skipping the artifact download.
+   fetched only when a requested target needs it. On the optional self-hosted
+   infra, where native_addons writes an in-cluster stash to the shared repo
+   cache, the pair is restored from that stash first, skipping the artifact
+   download; GitHub-hosted runners always download the artifact.
 
 inputs:
    targets:

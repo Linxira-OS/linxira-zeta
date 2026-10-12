@@ -206,6 +206,16 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "tracking_update tool",
 	},
 	{
+		file: "packages/coding-agent/src/tools/tracking.ts",
+		symbol: "function trackingLockPath(dir: string): string {",
+		why: "status.json read-modify-write lease (the lock covers the whole RMW, not just the write)",
+	},
+	{
+		file: "packages/coding-agent/src/tools/tracking-actions-log.ts",
+		symbol: "export function appendTrackingActionRow(dir: string, row: string): void {",
+		why: "bounded action log: append through the size-rotating sink (5 MB × 3) with a bounded tail read for readers",
+	},
+	{
 		file: "packages/coding-agent/src/tools/builtin-names.ts",
 		symbol: '"tracking_update",',
 		why: "tracking tool registered in the builtin tool name table",
@@ -260,12 +270,38 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "export async function handleTrackingEvents(req: Request): Promise<Response> {",
 		why: "tracking SSE watcher handler (tracking_changed notification)",
 	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/tracking.ts",
+		symbol:
+			"function deriveTrackingUpdatedAt(trackingDir: string, markdown: readonly { mtimeMs: number }[]): string {",
+		why: "content-derived tracking freshness stamp (newest file mtime, not the request clock)",
+	},
 	// -- Tracking web-ui surface (vendored from omp-web: these files are
 	//    upstream-owned copies, so a re-vendor can silently drop the panel) -----
 	{
 		file: "web-ui/components/AppShell.tsx",
 		symbol: 'label: t("dock.window.tracking")',
 		why: "tracking dock entry label (tracking.enabled-gated dock window)",
+	},
+	{
+		file: "web-ui/components/TrackingPanel.tsx",
+		symbol: "export function TrackingMarkdownList({",
+		why: "tracking sub-tab markdown listing — carries the Summaries tab that used to be declared but never rendered",
+	},
+	{
+		file: "web-ui/components/TrackingPanel.tsx",
+		symbol: '{ id: "summaries", labelKey: "tracking.tab.summaries" },',
+		why: "summaries sub-tab entry in the tracking panel",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/en.ts",
+		symbol: '"tracking.tab.summaries": "Summaries"',
+		why: "EN label for the tracking Summaries tab",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/zh-CN.ts",
+		symbol: '"tracking.tab.summaries": "摘要"',
+		why: "zh-CN label for the tracking Summaries tab",
 	},
 	{
 		file: "web-ui/lib/i18n/messages/en.ts",
@@ -281,6 +317,37 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "web-ui/next.config.ts",
 		symbol: '"/api/tracking/:path*"',
 		why: "beforeFiles rewrite routing /api/tracking + /events to the runtime gateway",
+	},
+	// -- Web chat surface: ```svg figures -----------------------------------------
+	{
+		file: "packages/coding-agent/src/sdk.ts",
+		symbol: "chatSvgRendering?: boolean;",
+		why: "Zeta-only prompt surface flag: the web UI draws ```svg fences, so serve/web-gateway sessions advertise them. Upstream OMP gates every visual on tuiTranscript, so a merge taking sdk.ts wholesale leaves browser clients the only surface that cannot draw what the prompt promises.",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/agents.ts",
+		symbol: "chatSvgRendering: true,",
+		why: "the serve/web-gateway session path is what sets the flag above (every web/desktop session funnels through startRpcSession); losing the line silently reverts browser chats to text-only replies",
+	},
+	{
+		file: "web-ui/components/SvgBlock.tsx",
+		symbol: "export function SvgBlock(",
+		why: "web-ui renders ```svg fences as figures (vendored file: a re-vendor drops the block, and every emitted figure degrades to a code block)",
+	},
+	{
+		file: "web-ui/components/MarkdownBody.tsx",
+		symbol: 'lang === "svg"',
+		why: "the markdown renderer's ```svg branch, closed fences only — without it an emitted SVG fence stays plain code even with SvgBlock present",
+	},
+	{
+		file: "web-ui/lib/svg-sanitize.ts",
+		symbol: 'FORBID_TAGS: ["script", "foreignObject", "style"],',
+		why: "the security contract for model-authored ```svg: the SVG profile alone, no script/foreignObject/style elements, and (via the afterSanitizeAttributes hook) no reference that leaves the figure. A weakened or dropped policy is an XSS surface on the gateway",
+	},
+	{
+		file: "web-ui/app/globals.css",
+		symbol: "--c6: var(--chart-6);",
+		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless",
 	},
 	// -- Brand surface (duplicate of brand-check MUST_CONTAIN but merges can hit
 	//    files brand-check skips, and these need per-merge re-verification) -----
@@ -335,6 +402,17 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "packages/coding-agent/src/launch/broker.ts",
 		symbol: "#stopUnownedOneShotDaemons",
 		why: "Zeta-only fix: the idle sweep stops non-`persist`, non-`detached` daemons once no client and no project presence remain, so the project-shared Chromium (a `persist: false` daemon whose process IS Chrome) cannot outlive zeta. Upstream OMP still vetoes the whole shutdown on `livePersistent` (issues #14379, #15014), so a merge taking their broker.ts wholesale reopens the leaked-headless-Chrome class.",
+	},
+	// -- Pull-driven memory-pressure shed ------------------------------------------
+	{
+		file: "packages/coding-agent/src/task/memory-shed.ts",
+		symbol: "export async function shedUnderMemoryPressure(",
+		why: "Zeta-only pull-driven memory shed (roadmap M3a): the repo has no push-style memory-pressure event, so shedding hangs off the checkpoints that already sample (spawn permit, workpool limit, turn end). Upstream OMP has no counterpart, so a merge that takes these files wholesale silently drops the whole shed (caches, idle tabs, mnemopi worker, idle broker daemons).",
+	},
+	{
+		file: "packages/coding-agent/src/session/agent-session.ts",
+		symbol: "void this.#shedMemoryAtTurnEnd();",
+		why: "Zeta-only turn-end shed checkpoint (roadmap M3a). agent-session.ts is a shared file a merge can take wholesale; losing only this line leaves the module compiling but the turn-end sample unreachable, so memory shedding would only fire on spawn/workpool decisions.",
 	},
 	// -- Agent-side mode switching (`mode` tool) -----------------------------------
 	{

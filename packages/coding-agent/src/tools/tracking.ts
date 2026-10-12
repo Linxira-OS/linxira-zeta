@@ -5,7 +5,7 @@
  * 文件存放在 `<project>/.zeta/tracking/` 目录下。
  */
 
-import { cfgTrackingEnabled } from "./settings";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
@@ -13,6 +13,7 @@ import { type } from "@linxiraos/pi-omptype";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";
+import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import type { Settings } from "../config/settings";
 import type { RenderResultOptions } from "../extensibility/custom-tools/types";
 import { M } from "../i18n";
@@ -20,6 +21,9 @@ import trackingDescription from "../prompts/tools/tracking.md" with { type: "tex
 import indexTemplate from "../prompts/tracking/index-template.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import type { CompactionEntry } from "../session/session-entries";
+import { replaceFileAtomically } from "../utils/atomic-file";
+import { cfgTrackingEnabled } from "./settings";
+import { appendTrackingActionRow } from "./tracking-actions-log";
 
 // =============================================================================
 // Types
@@ -87,7 +91,6 @@ type TrackingSchema = typeof trackingSchema.infer;
 
 const STATUS_FILE = "status.json";
 const INDEX_FILE = "INDEX.md";
-const ACTIONS_FILE = "actions.jsonl";
 const SESSIONS_DIR = "sessions";
 const SUMMARIES_DIR = "summaries";
 const PLANS_DIR = "plans";
@@ -186,58 +189,42 @@ async function ensureTrackingDir(cwd: string): Promise<string> {
 	return dir;
 }
 
-async function updateTrackingIndex(cwd: string): Promise<void> {
-	const indexPath = getTrackingIndexPath();
-	const lastUpdated = new Date().toISOString();
-	const byPath = new Map<string, TrackingIndexEntry>();
-
-	try {
-		const existing: unknown = await Bun.file(indexPath).json();
-		if (Array.isArray(existing)) {
-			for (const row of existing) {
-				// v1 rows are bare path strings; v2 rows are objects keyed by path.
-				if (typeof row === "string") {
-					byPath.set(row, trackingIndexEntryFromPath(row, lastUpdated));
-				} else if (row && typeof row === "object" && typeof (row as TrackingIndexEntry).path === "string") {
-					const entry = row as TrackingIndexEntry;
-					byPath.set(entry.path, entry);
-				}
-			}
-		}
-	} catch {
-		// Missing or corrupt index — rebuild from scratch.
-	}
-
-	const existingEntry = byPath.get(cwd);
-	const refreshed: TrackingIndexEntry = existingEntry
-		? { ...existingEntry, lastUpdated }
-		: trackingIndexEntryFromPath(cwd, lastUpdated);
-
-	// Merge live status fields when status.json already exists.
-	try {
-		const statusPath = path.join(getProjectTrackingDir(cwd), STATUS_FILE);
-		const status: TrackingStatus = await Bun.file(statusPath).json();
-		refreshed.phase = status.phase ?? refreshed.phase;
-		refreshed.progress = status.progress ?? refreshed.progress;
-		refreshed.lastActiveSessionId = status.lastSessionId ?? refreshed.lastActiveSessionId;
-	} catch {
-		// No status yet — keep defaults.
-	}
-
-	byPath.set(cwd, refreshed);
-	await fs.mkdir(path.dirname(indexPath), { recursive: true });
-	await Bun.write(indexPath, `${JSON.stringify([...byPath.values()], null, 2)}\n`);
+/**
+ * Lease key for one tracking directory's read-modify-write. The native lease
+ * lives in process memory on Windows and Linux (named mutex / abstract socket)
+ * and as `<tracking>/.lock.lock` under `flock(2)`; the path is the lease's
+ * identity, so every writer of a project derives the same key.
+ */
+function trackingLockPath(dir: string): string {
+	return path.join(dir, ".lock");
 }
 
-async function handleUpdateStatus(cwd: string, params: TrackingSchema, sessionId: string | null): Promise<string> {
-	const dir = await ensureTrackingDir(cwd);
-	const statusPath = path.join(dir, STATUS_FILE);
-
-	let status: TrackingStatus;
+/** Stage `value` as JSON beside `filePath`, then publish it in one rename. */
+async function writeJsonFileAtomically(filePath: string, value: unknown): Promise<void> {
+	const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+	let removeTemp = false;
 	try {
-		status = await Bun.file(statusPath).json();
+		const handle = await fs.open(tempPath, "wx", 0o600);
+		removeTemp = true;
+		try {
+			await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8");
+			await handle.sync();
+		} finally {
+			await handle.close();
+		}
+		await replaceFileAtomically(tempPath, filePath);
+		removeTemp = false;
+	} finally {
+		if (removeTemp) await fs.rm(tempPath, { force: true }).catch(() => {});
+	}
+}
+
+/** Current `status.json`, or the empty status a first write starts from. */
+async function readStatusOrDefault(statusPath: string): Promise<TrackingStatus> {
+	try {
+		return await Bun.file(statusPath).json();
 	} catch {
-		status = {
+		return {
 			phase: "",
 			progress: "",
 			blockers: [],
@@ -245,17 +232,91 @@ async function handleUpdateStatus(cwd: string, params: TrackingSchema, sessionId
 			lastUpdated: new Date().toISOString(),
 		};
 	}
+}
 
-	if (params.phase) status.phase = params.phase;
-	if (params.progress) status.progress = params.progress;
-	if (params.blockers) status.blockers = params.blockers;
-	if (params.decisions) {
-		status.decisions = [...new Set([...status.decisions, ...params.decisions])];
-	}
-	status.lastUpdated = new Date().toISOString();
-	status.lastSessionId = sessionId;
+async function updateTrackingIndex(cwd: string): Promise<void> {
+	const indexPath = getTrackingIndexPath();
+	await fs.mkdir(path.dirname(indexPath), { recursive: true });
+	// Projects share one index file: the whole read-merge-write runs under the
+	// lease, or two projects registering at once drop each other's row.
+	await withFileLock(indexPath, async () => {
+		const lastUpdated = new Date().toISOString();
+		const byPath = new Map<string, TrackingIndexEntry>();
 
-	await Bun.write(statusPath, `${JSON.stringify(status, null, 2)}\n`);
+		try {
+			const existing: unknown = await Bun.file(indexPath).json();
+			if (Array.isArray(existing)) {
+				for (const row of existing) {
+					// v1 rows are bare path strings; v2 rows are objects keyed by path.
+					if (typeof row === "string") {
+						byPath.set(row, trackingIndexEntryFromPath(row, lastUpdated));
+					} else if (row && typeof row === "object" && typeof (row as TrackingIndexEntry).path === "string") {
+						const entry = row as TrackingIndexEntry;
+						byPath.set(entry.path, entry);
+					}
+				}
+			}
+		} catch {
+			// Missing or corrupt index — rebuild from scratch.
+		}
+
+		const existingEntry = byPath.get(cwd);
+		const refreshed: TrackingIndexEntry = existingEntry
+			? { ...existingEntry, lastUpdated }
+			: trackingIndexEntryFromPath(cwd, lastUpdated);
+
+		// Merge live status fields when status.json already exists.
+		try {
+			const statusPath = path.join(getProjectTrackingDir(cwd), STATUS_FILE);
+			const status: TrackingStatus = await Bun.file(statusPath).json();
+			refreshed.phase = status.phase ?? refreshed.phase;
+			refreshed.progress = status.progress ?? refreshed.progress;
+			refreshed.lastActiveSessionId = status.lastSessionId ?? refreshed.lastActiveSessionId;
+		} catch {
+			// No status yet — keep defaults.
+		}
+
+		byPath.set(cwd, refreshed);
+		await writeJsonFileAtomically(indexPath, [...byPath.values()]);
+	});
+}
+
+/**
+ * Read-modify-write `status.json` under the project's tracking lease.
+ * `apply` runs inside the critical section, so it may also record what only a
+ * serialized view of the previous status can decide (a stage advance).
+ */
+async function updateStatusLocked(
+	dir: string,
+	apply: (status: TrackingStatus) => void,
+	sessionId: string | null,
+): Promise<TrackingStatus> {
+	const statusPath = path.join(dir, STATUS_FILE);
+	return await withFileLock(trackingLockPath(dir), async () => {
+		const status = await readStatusOrDefault(statusPath);
+		apply(status);
+		status.lastUpdated = new Date().toISOString();
+		status.lastSessionId = sessionId;
+		await writeJsonFileAtomically(statusPath, status);
+		return status;
+	});
+}
+
+async function handleUpdateStatus(cwd: string, params: TrackingSchema, sessionId: string | null): Promise<string> {
+	const dir = await ensureTrackingDir(cwd);
+
+	const status = await updateStatusLocked(
+		dir,
+		current => {
+			if (params.phase) current.phase = params.phase;
+			if (params.progress) current.progress = params.progress;
+			if (params.blockers) current.blockers = params.blockers;
+			if (params.decisions) {
+				current.decisions = [...new Set([...current.decisions, ...params.decisions])];
+			}
+		},
+		sessionId,
+	);
 	await updateTrackingIndex(cwd);
 
 	return `Status updated: phase="${status.phase}", progress="${status.progress}", blockers=[${status.blockers.join(", ")}]`;
@@ -266,58 +327,47 @@ async function handleUpdateStatus(cwd: string, params: TrackingSchema, sessionId
  *  without the agent re-describing phases by hand. */
 async function handleSyncTodo(cwd: string, params: TrackingSchema, sessionId: string | null): Promise<string> {
 	const dir = await ensureTrackingDir(cwd);
-	const statusPath = path.join(dir, STATUS_FILE);
-
-	let status: TrackingStatus;
-	try {
-		status = await Bun.file(statusPath).json();
-	} catch {
-		status = {
-			phase: "",
-			progress: "",
-			blockers: [],
-			decisions: [],
-			lastUpdated: new Date().toISOString(),
-		};
-	}
-
-	const previousStage = status.stage ?? null;
 	const currentPhase = params.current_phase ?? "";
 	const phaseNames = params.phases ?? [];
 
-	if (currentPhase) {
-		status.stage = currentPhase;
-		if (!status.phase) status.phase = currentPhase;
-	}
-	if (phaseNames.length > 0) {
-		const currentIndex = currentPhase ? phaseNames.indexOf(currentPhase) : -1;
-		status.phases = phaseNames.map((name, index) => ({
-			name,
-			status:
-				index < currentIndex
-					? ("completed" as const)
-					: index === currentIndex
-						? ("in_progress" as const)
-						: ("pending" as const),
-		}));
-		// A current phase outside the declared list still shows as in_progress.
-		if (currentIndex === -1 && currentPhase) {
-			status.phases.push({ name: currentPhase, status: "in_progress" });
-		}
-	}
-	status.lastUpdated = new Date().toISOString();
-	status.lastSessionId = sessionId;
+	const status = await updateStatusLocked(
+		dir,
+		current => {
+			const previousStage = current.stage ?? null;
 
-	await Bun.write(statusPath, `${JSON.stringify(status, null, 2)}\n`);
-
-	if (previousStage && currentPhase && previousStage !== currentPhase) {
-		const entry: TrackingAction = {
-			timestamp: new Date().toISOString(),
-			action: "phase_complete",
-			detail: previousStage,
-		};
-		await fs.appendFile(path.join(dir, ACTIONS_FILE), `${JSON.stringify(entry)}\n`);
-	}
+			if (currentPhase) {
+				current.stage = currentPhase;
+				if (!current.phase) current.phase = currentPhase;
+			}
+			if (phaseNames.length > 0) {
+				const currentIndex = currentPhase ? phaseNames.indexOf(currentPhase) : -1;
+				current.phases = phaseNames.map((name, index) => ({
+					name,
+					status:
+						index < currentIndex
+							? ("completed" as const)
+							: index === currentIndex
+								? ("in_progress" as const)
+								: ("pending" as const),
+				}));
+				// A current phase outside the declared list still shows as in_progress.
+				if (currentIndex === -1 && currentPhase) {
+					current.phases.push({ name: currentPhase, status: "in_progress" });
+				}
+			}
+			// Logged inside the critical section: only the serialized view of the
+			// previous stage can tell a real advance from a repeat call.
+			if (previousStage && currentPhase && previousStage !== currentPhase) {
+				const entry: TrackingAction = {
+					timestamp: new Date().toISOString(),
+					action: "phase_complete",
+					detail: previousStage,
+				};
+				appendTrackingActionRow(dir, JSON.stringify(entry));
+			}
+		},
+		sessionId,
+	);
 	await updateTrackingIndex(cwd);
 
 	return `Todo synced: stage="${status.stage ?? ""}", phases=[${(status.phases ?? []).map(p => p.name).join(" → ")}]`;
@@ -339,7 +389,6 @@ async function handleUpdateIndex(cwd: string, params: TrackingSchema): Promise<s
 
 async function handleLogAction(cwd: string, params: TrackingSchema): Promise<string> {
 	const dir = await ensureTrackingDir(cwd);
-	const actionsPath = path.join(dir, ACTIONS_FILE);
 
 	const entry: TrackingAction = {
 		timestamp: new Date().toISOString(),
@@ -347,8 +396,7 @@ async function handleLogAction(cwd: string, params: TrackingSchema): Promise<str
 		detail: params.detail,
 	};
 
-	const line = `${JSON.stringify(entry)}\n`;
-	await fs.appendFile(actionsPath, line);
+	appendTrackingActionRow(dir, JSON.stringify(entry));
 	await updateTrackingIndex(cwd);
 
 	return `Action logged: ${entry.action}`;
@@ -423,6 +471,10 @@ export class TrackingTool implements AgentTool<typeof trackingSchema, TrackingTo
 	readonly parameters = trackingSchema;
 	readonly approval = "read" as const;
 	readonly loadMode = "discoverable" as const;
+	// Sibling calls in one batch would otherwise read-modify-write the same
+	// status.json concurrently; the file lease covers other processes, this
+	// covers the in-process batch.
+	readonly concurrency = "exclusive";
 	readonly summary = M.toolTrackingSummary;
 
 	constructor(private readonly session: ToolSession) {}

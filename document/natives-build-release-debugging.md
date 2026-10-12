@@ -180,10 +180,6 @@ On main, `native_addons` builds `NATIVES_X64_TARGETS` and `native_addons_cross` 
 
 Bazel native jobs need no toolchain setup: the CI runner provides bazelisk, while Bazel fetches Rust/zig/LLVM/xwin/Swift and the macOS SDK hermetically (the SDK unpack needs the runner's python3). `macos-15` and `windows-11-arm` only run the release smoke tests; they build nothing.
 
-### Bun store warmer
-
-`.github/workflows/bun-cache-warm.yml` seeds the shared bun store entry PR jobs restore but never save. It triggers only on pushes that can change it (`bun.lock`, the `bun-install` action).
-
 ### `bazel-cache` action (`.github/actions/bazel-cache`)
 
 Single source of truth for cache wiring, emitted as a bazelrc fragment (its `rc` output) that consumers pass via `bazelisk --bazelrc=...` or `OMP_BAZEL_RC`. Zeta's Bazel jobs run on GitHub-hosted `ubuntu-22.04` runners, where the cluster credentials are absent, so the fragment carries `--config=ci` plus an actions/cache-backed disk cache (`--disk_cache`/`--repository_cache` under `~/.cache/zeta-bazel-*`) and nothing else. The optional self-hosted infra branch — selected only when `BAZEL_REMOTE_USER`/`BAZEL_REMOTE_PASSWORD` are set — adds a temporary output root, the PVC-backed repository/xwin caches, `--config=cache-rw`, the in-cluster TLS remote-cache endpoint and masked Basic-auth header, plus `--remote_download_toplevel`; that endpoint resolves only inside the cluster.
