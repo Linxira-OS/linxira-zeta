@@ -71,7 +71,7 @@ function readRoleFile(filePath: string, sourceLabel: string): TeamRoleDefinition
 		...(data.description ? { description: data.description } : {}),
 		...(data.model ? { model: data.model } : {}),
 		...(data.thinking ? { thinking: data.thinking } : {}),
-		...(data.skills ? { skills: splitList(data.skills) } : {}),
+		...((data.skills ?? data.autoloadSkills) ? { skills: splitList(data.skills ?? data.autoloadSkills) } : {}),
 		...(body ? { prompt: body.slice(0, 4000) } : {}),
 		promptSource: `${sourceLabel}:${name}`,
 	};

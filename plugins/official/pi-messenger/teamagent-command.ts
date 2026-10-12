@@ -69,7 +69,7 @@ export function renderAgentMarkdown(role: {
 }): string {
 	const lines: string[] = ["---", `name: ${yamlString(role.name)}`, `description: ${yamlString(role.description)}`];
 	if (role.model) lines.push(`model: ${yamlString(role.model)}`);
-	if (role.thinking) lines.push(`thinking-level: ${yamlString(role.thinking)}`);
+	if (role.thinking) lines.push(`thinking: ${yamlString(role.thinking)}`);
 	if (role.skills && role.skills.length > 0) lines.push(`autoloadSkills: ${yamlString(role.skills)}`);
 	lines.push("---", "");
 	lines.push(role.prompt?.trim() || `You are the ${role.name} role. ${role.description}`);
