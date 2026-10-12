@@ -87,7 +87,38 @@ two-parent tag merge.
   block because "take theirs" was applied next to an auto-merged copy of the same
   imports. Lesson: after resolving conflicts, run the *whole* gate — auto-merged
   files are not safe just because they have no markers.
-- **Checks**: [pending — filled when the round is green].
+- **Checks (local, all green)**: version line (1.1.29 — 13 packages + catalog keys +
+  Cargo + main workspace + sentinel + desktop + README badge + BUILD.bazel + lock
+  members); `bun run check:ts` zero errors (after the repairs below);
+  `brand-check` 0 hits (859 → 0); `check-zeta-sentinels` (60 sentinels);
+  `check-ci-surface` (29 jobs); `check-shared-infra` (15 endpoints / 4223 files);
+  `check-merge-lineage --tag v18.9.1` → "lineage intact — safe to merge";
+  `check-scope-imports` (new guard, 18,517 specifiers); `ci:test:smoke`
+  (`zetacode stats --help` + `smoke-test: ok`); `bun install --frozen-lockfile`;
+  `cargo fmt --all --check` clean.
+- **Main's CI was red when this round started** (run `38152035457`, PR #90's merge;
+  both jobs fail on main itself):
+  1. `Validate Rust workspace (bazel)` → `Rustfmt`, `crates/pi-shell/src/shell.rs:5843`
+     — introduced by main-side `0c58c560bbd`. This branch is fmt-clean, so the merge
+     restores it.
+  2. `Test coding-agent native/unit (TS)` chunk 87/93 —
+     `test/utils/changelog.test.ts > parseChangelog > reads current source release data
+     and filters versions newer than the previous release`. `packages/coding-agent/
+     CHANGELOG.md` carried **two** `## [1.1.27]` headings, so the parsed list was not
+     descending and "entries newer than entries[1]" came back empty. Main-side
+     regression: the same duplicate was already fixed in the 1.1.28 round
+     (`d2ba11788db`) and re-broken by a later merge. Fixed here by folding the second
+     heading away without dropping a note (`e772c1628a2`, test now 17/17).
+  - Maintainer decision (2026-10-12): **no separate main-fix PR** — both fixes ride
+    the sync PR.
+- **Local test failures are environmental, not merge damage** — each set was diffed
+  against the same command on the base tree and matches name-for-name:
+  `packages/utils` `ensureRuntimeInstalled` lock tests (4; `EPERM: failed copying
+  files from cache … omp-runtime-fixture`, a Windows cache-copy issue);
+  `packages/natives` DesktopSession (5; no desktop capture on Windows) plus one
+  grep-concurrency timing test; `packages/coding-agent` ModelRegistry compat (3;
+  path rendering in the warning differs from the fixture). Main's Linux CI shows
+  those buckets green, which is why they are local-only.
 
 ## v18.8.8 incremental merge (Zeta — branch `sync/omp-release/v18.8.7`; the merge commit itself is titled `sync/omp-release/v18.8.8`)
 
