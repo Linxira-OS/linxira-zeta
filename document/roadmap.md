@@ -39,6 +39,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Web-ui stats iframe                            | `web-ui/components/StatsDashboard.tsx`                                      | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL`                                                                                                     |
 | Web-ui trajectory view                         | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell                  | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector                                                               |
 | Mermaid rendering (web + TUI)                  | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on)                                            |
+| SVG fence rendering (web + TUI)                | `web-ui/components/SvgBlock.tsx`, `packages/tui/src/chat/svg-figure.ts`     | Web-ui draws closed ```svg fences as themed inline SVG (DOMPurify SVG-profile policy + `svg-figure` token aliases); TUI rasterizes them under `tui.renderSvg` (default on); serve/web-gateway sessions set `chatSvgRendering` so the prompt advertises them |
 | Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zeta share` encrypted link                                                                                                     |
 
 | Linux packaging lane (1.1.19)                  | `document/release.md` (`### Linux downstream packaging contract`)           | Repo-side contract frozen as the release-asset PKGBUILD lane; asset name `zeta-desktop-<version>-linux-x64.tar.gz` (Linxira-OS `[linxira]` repo)         |
@@ -166,37 +167,7 @@ Compacted summaries lose specifics that later turns need. Design distillation
 with the tracking document as the durable store, so compaction never
 singlesources context that must survive long sessions.
 
-### P2 — Mermaid/SVG chat rendering: remaining gaps
-
-The revival shipped in a different shape than the original `render_mermaid`
-tool plan, and most of it is done: web-ui renders ```mermaid fences via
-`MermaidBlock.tsx` (`mermaid@^11`, `securityLevel: "strict"`, source/preview
-
-- zoom dialog); the TUI renders ASCII under `tui.renderMermaid` (default on,
-  `packages/utils/src/mermaid-ascii.ts`); the system prompt advertises mermaid
-  blocks. Remaining:
-
-* **SVG fenced blocks in chat**: raw inline SVG is sanitized away today
-  (`rehype-sanitize` default schema in `web-ui/lib/markdown.ts`), and
-  `MarkdownBody.tsx` has no ```svg block path at all — an emitted SVG block
-  renders as plain code even on desktop. Add the render path behind a
-  security-reviewed sanitize decision (the XSS surface grows once the gateway
-  is exposed to phones/WAN). No DOMPurify second layer exists today;
-  mermaid's strict output is the only trusted SVG source.
-* **Dynamic prompt adjustment (decided design)**: add an immutable
-  per-session `chatSvgRendering` surface option set at `createAgentSession`
-  (CLI → false, serve → true; serve's only client is web-ui, so a
-  process-level binary suffices — no per-client provenance needed). Extend
-  the `{{#if renderMermaid}}` block in `prompts/system/system-prompt.md` into
-  a three-branch template: SVG surfaces advertise that the model MAY emit
-  ```svg blocks (rendered for the user); the `{{else}}` branch keeps today's
-  ASCII wording. Do not read the flag from settings: prompt-render options
-  sit outside the applied-tool signature and the web settings POST never
-  refreshes running-session prompts — an immutable constructor value avoids
-  cache drift entirely.
-* A dedicated `render_mermaid` tool is no longer required for web/mobile;
-  if a real `render_svg` tool is ever warranted, follow the surface-scoped
-  sink pattern (see Surface-scoped tool exposure contract below).
+* ~~P2 — Mermaid/SVG chat rendering: remaining gaps~~ 已解决（1.2.0 / PR #114）：web-ui 现在把**闭合的** ```svg 围栏渲染为主题化内联 SVG（`SvgBlock.tsx`、DOMPurify SVG-profile 消毒、`svg-figure` 令牌别名），TUI 早已在 `tui.renderSvg` 下栅格化；提示词侧新增不可变 `chatSvgRendering`（serve/web-gateway 会话置真，CLI 保持关闭），模板分支原本就在。`render_mermaid` 工具不需要；将来真要 `render_svg` 工具，走 surface-scoped sink 契约。
 
 * ~~P0 — Channel tool sink wiring regression~~ 已解决（1.1.9）：`sdk.ts` sinks 接线 + 顶层会话门控随 v18.1.10 同步落地。
 
