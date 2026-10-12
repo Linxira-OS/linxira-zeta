@@ -836,7 +836,7 @@ function formatChunkFailure(failure: ChunkOutcome, replayOutput: boolean): strin
 // at the end; `--full` streams every chunk's output inline as it completes. All
 // failures are collected and reported together instead of failing fast, so one
 // run surfaces every broken chunk and exits non-zero without a runner stack trace.
-async function runTestCommandsInParallel(commands: TestCommand[], concurrency: number): Promise<void> {
+export async function runTestCommandsInParallel(commands: TestCommand[], concurrency: number): Promise<void> {
 	const env = buildChildEnv();
 	const queue = [...commands];
 	const failures: ChunkOutcome[] = [];

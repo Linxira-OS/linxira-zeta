@@ -2192,6 +2192,9 @@ export interface Messages {
 	cmdAgents: string;
 	cmdBranch: string;
 	cmdFork: string;
+	cmdForkPane: string;
+	cmdForkWindow: string;
+	cmdForkTab: string;
 	cmdTree: string;
 	cmdLogin: string;
 	cmdLogout: string;
