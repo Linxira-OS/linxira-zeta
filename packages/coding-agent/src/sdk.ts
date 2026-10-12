@@ -99,6 +99,7 @@ import { defaultEvalSessionId } from "./eval/session-id";
 import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 
 import {
+	CustomCommandWatcher,
 	type CustomCommandsLoadResult,
 	type LoadedCustomCommand,
 	loadCustomCommands as loadCustomCommandsInternal,
@@ -4985,6 +4986,23 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				extensionReconcile = next;
 				return next;
 			});
+			// Live TypeScript custom commands: editing `commands/<name>/index.*`
+			// reloads that module in place, and `applyCustomCommandReload` re-advertises
+			// the palette to every subscriber (TUI autocomplete, RPC and ACP command
+			// lists). Sessions built without extension discovery loaded no commands,
+			// so they get no watcher either.
+			if (!options.disableExtensionDiscovery && !restrictToolNames) {
+				const customCommandWatcher = new CustomCommandWatcher({
+					cwd,
+					agentDir,
+					onChange: async () => session.applyCustomCommandReload(await discoverCustomTSCommands(cwd, agentDir)),
+				});
+				// Not awaited: arming only reads directories, and session creation stays
+				// off the command-I/O path. The arm-time catch-up reload settles any
+				// write that lands before the watch goes live.
+				void customCommandWatcher.start();
+				disposeCallbacks.add(() => customCommandWatcher.stop());
+			}
 		}
 		session.yieldQueue.register<McpNotificationEntry>("mcp-notification", {
 			build: buildMcpNotificationBatchMessage,
