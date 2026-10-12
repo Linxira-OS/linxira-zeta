@@ -5,6 +5,13 @@
 
 - 看板按宿主语言渲染:CLI 的语言设置(或浏览器偏好)注入页面,侧栏、卡片、表头、图例、空状态与日期/数字格式全部跟随;首发简体中文,英文为回退。语言在启动时固定(页面内无切换器),因为看板随 `zetacode stats` 一起启动。
 - 「情绪压力」页:判据覆盖卡会区分「已评判 / 正则 / 未评分」——词典未覆盖的语言(如日语、韩语、西里尔文)显示为**未评分**而不是判定为平静。
+
+### Changed
+
+- Improved dashboard responsiveness and efficiency by reducing unnecessary data refreshes and re-rendering, speeding up session synchronization, database access, package imports, and usage, model, and time-series requests, and avoiding repeated downloads of unchanged traces.
+- Dashboard requests are now cancelled when no longer needed, improving responsiveness when switching sessions or closing trace views during loading.
+- 「情绪压力」的辨识层重做:新增中文与语音输入词典(无词界/不依赖标点,因为中文输入大量来自语音转写,脏话常呈同音字),新增强调信号(全角爆点、叠字、叠词)用于判定“发怒”,并新增**整条消息重复上一条**这一跨语言信号。不再依赖 emoji(用户输入几乎不用,模型才输出);英文词典保持不变。判定提示词改为语言中立,并适配单条消息内中英混杂。
+
 ## [1.1.25] - 2026-10-03
 
 - 版本线推进至 1.1.25；本版无独立用户可见变化。
