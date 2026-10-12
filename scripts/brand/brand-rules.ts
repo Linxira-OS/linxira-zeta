@@ -613,6 +613,16 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{
+		needle: /__omp_(fn|re)(?![\w])|__omp_(prelude|helpers|display|call_tool|current_run_id)__/,
+		why: "runtime globals the sources inject as __zeta_* (computer/browser preludes serialize __zeta_fn/__zeta_re, the eval prelude reads __zeta_helpers__/__zeta_call_tool__/__zeta_display__, runtime.ts installs __zeta_prelude__, runner.py's run-id getter is __zeta_current_run_id__). The v18.9.1 merge swept the producer side but left test fixtures and one consumer on the upstream spelling, failing as 'not a function'/'not an object' plus one silent degrade. Only source-defined globals belong here: internal protocol markers (__omp_with_call_site__, __omp_tool_bridge__, __omp_final_expr__, mcp__omp__*) and test-local probes stay upstream-shaped",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
+	},
+	{
+		needle: /ompRelayVersion:\s*"18\.|restartOwned\("18\./,
+		why: "relay fixtures must not hardcode the upstream 18.x line: isOlderRelayVersion compares with Bun.semver.order against our VERSION (1.x), so '18.0.0' reads as *newer* and every older-relay case inverts into 'a newer zeta owns it' (v18.9.1 PR CI). Use OLDER_RELAY_VERSION in test/tools/browser-relay-*.test.ts",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
 		needle: /`omp\.(cmd|ps1|bunx|exe)`/,
 		why: "the CLI's npm/bun shims and release binary are named after CLI_BIN_NAME (zetacode.*); the bare `omp.*` spelling is upstream's. The stale pre-merge `zeta.cmd` is not the target either",
 		exempt: ["CHANGELOG.md"],

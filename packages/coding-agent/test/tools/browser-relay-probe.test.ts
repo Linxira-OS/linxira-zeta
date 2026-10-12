@@ -9,6 +9,14 @@ import {
 	startRelayServer,
 } from "@linxiraos/zeta/tools/browser/relay/server";
 
+/**
+ * A relay version that sorts below this build's line. Upstream's fixtures
+ * hardcoded `18.5.1`, which `isOlderRelayVersion` (Bun.semver.order against
+ * VERSION) reads as *newer* on our 1.x line, so the "older relay" cases
+ * inverted into "a newer zeta owns it".
+ */
+const OLDER_RELAY_VERSION = "0.0.1";
+
 const EXTENSION_HELLO = {
 	t: "hello",
 	userAgent: "test",
@@ -151,7 +159,7 @@ describe("waitForRelayExtension", () => {
 			port: 0,
 			fetch: () =>
 				Response.json({
-					ompRelayVersion: "18.5.1",
+					ompRelayVersion: OLDER_RELAY_VERSION,
 					ompRelayDiscardedTabsProtocol: "1",
 					ompExtensionDiscardedTabsProtocol: "0",
 				}),
@@ -165,7 +173,7 @@ describe("waitForRelayExtension", () => {
 			port: 0,
 			fetch: () =>
 				Response.json({
-					ompRelayVersion: "18.5.1",
+					ompRelayVersion: OLDER_RELAY_VERSION,
 					ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 					ompExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 				}),
@@ -174,8 +182,8 @@ describe("waitForRelayExtension", () => {
 	});
 
 	it.each([
-		{ version: "18.5.1", clients: 0, outcome: "idle-older-relay" },
-		{ version: "18.5.1", clients: 1, outcome: "ready" },
+		{ version: OLDER_RELAY_VERSION, clients: 0, outcome: "idle-older-relay" },
+		{ version: OLDER_RELAY_VERSION, clients: 1, outcome: "ready" },
 		{ version: "999.0.0", clients: 0, outcome: "ready" },
 		{ version: VERSION, clients: 0, outcome: "ready" },
 	])(

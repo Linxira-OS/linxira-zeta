@@ -1803,7 +1803,7 @@ def _install_builtins(ns: dict) -> None:
     ns["__zeta_magic_async"] = __zeta_magic_async
     ns["__zeta_magic_cell"] = __zeta_magic_cell
     ns["__zeta_shell"] = __zeta_shell
-    ns["__omp_current_run_id__"] = lambda: _CURRENT_RID.get()
+    ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get()
 
 
 _install_builtins(_STATE.user_ns)

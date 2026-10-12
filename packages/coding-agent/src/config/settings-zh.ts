@@ -152,6 +152,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "找回已清除的草稿",
 		description: "用 Ctrl+C 清除的草稿在退出前仍可通过本地上/下方向键找回；关闭后影响后续清除操作",
 	},
+	"composer.predictions": {
+		label: "输入框预测",
+		description:
+			"一轮完成后，请当前模型预测你的下一条消息，并以幽灵文本显示在空输入框中；Tab 或右方向键可插入但不发送。额外消耗：每完成一轮都会多发送一次计费请求，计入整个会话（见 /stats）",
+	},
+	"contextFiles.extra": {
+		label: "额外上下文文件",
+		description:
+			'AGENTS.md 之外额外加载的指令文件名。使用名称的 JSON 列表而非路径，例如 ["AGENTS.local.md"]；[] 表示不加载额外文件。需新建会话后生效',
+	},
 	"statusLine.contextLine": {
 		label: "上下文响应行",
 		description: "左右分段之间的行如何反映上下文使用情况（仅限 box 编辑器形状）",

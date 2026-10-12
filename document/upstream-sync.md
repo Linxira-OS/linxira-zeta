@@ -153,6 +153,41 @@ two-parent tag merge.
      `check-scope-imports` 18,518 specifiers, `check-zeta-sentinels` 60;
      `check:ts` and the test buckets stay with hosted CI per the maintainer's
      no-local-build instruction.
+- **PR #91 CI round, second pass (run `38192024959`)**: four more families, same
+  class of half-swept contract:
+  1. **Runtime globals** — the merge swept the producer side but left fixtures (and
+     one consumer) on the upstream spelling: `computer.test.ts` still passed
+     `__omp_prelude__`/`__omp_display__` (5+5) and its facade case asserted
+     `__omp_fn`/`__omp_re` against sources emitting `__zeta_*`; `prelude-agent`
+     still installed `__omp_helpers__` in its artifact helper while the prelude
+     reads `__zeta_helpers__`. Worse, `runner.py` injected the run-id getter as
+     `__omp_current_run_id__` while `prelude.py` looks up
+     `__zeta_current_run_id__` — a **silent** degrade the fallback to
+     `__zeta_run_id__` masked. All aligned to the `__zeta_*` names the sources
+     define; `brand-rules` now pins that list (and explicitly keeps the internal
+     protocol markers `__omp_with_call_site__`/`__omp_tool_bridge__`/
+     `__omp_final_expr__`/`mcp__omp__*` upstream-shaped).
+  2. **settings zh, again** — `composer.predictions` and `contextFiles.extra` had
+     no zh label; the assertion stops at the first, so a throwaway audit over
+     `createSettingsHost()` (429 entries) was used to enumerate all of them
+     instead of iterating CI runs; both added, audit now 0 violations.
+  3. **Relay version fixtures** — upstream's fixtures hardcoded `18.0.0`/`18.5.1`
+     as "older"; `isOlderRelayVersion` compares with `Bun.semver.order` against
+     `VERSION`, so on the 1.x line they read as *newer*, every older-relay case
+     inverted to "kept", and the run then connected puppeteer to a stand-in
+     without `webSocketDebuggerUrl` (Bun: "Invalid url for WebSocket undefined").
+     Fixed with a line-agnostic `OLDER_RELAY_VERSION` in both relay tests and a
+     brand rule against `ompRelayVersion: "18.`/`restartOwned("18.`.
+  4. **`browser-tab-worker-startup` inline-cancel case** — source is
+     upstream-identical (branding-only diffs) and the case **passes locally** on
+     Windows/Chrome; it races crash detection against the run's 2 s timer, so a
+     slow runner loses it deterministically. Handled as the repo already handles
+     timing reds (re-run decides, no test edit) — recorded here because it is the
+     one family this round did not fix by code.
+  Local verification before the maintainer's stop-local-runs instruction:
+  `prelude-agent` + `browser-relay-probe` 30/30, `computer` 57/57, both i18n
+  suites 11/11; `browser-relay-daemon` and `python-tool-bridge` were left to CI.
+  `brand-check` stays 0 under the two new rules.
 - **Next merge**: starts from this round's final commit. Upstream's next tag is
   `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
   pure window is 166 commits / 165 files / +5870 −972). Maintainer decision

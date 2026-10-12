@@ -215,7 +215,7 @@ describe("eval js read() URI delegation", () => {
 			calls.push({ name, args });
 			return { text: "from the read tool" };
 		});
-		sandbox.__omp_helpers__ = createHelpers({
+		sandbox.__zeta_helpers__ = createHelpers({
 			cwd: () => process.cwd(),
 			env: new Map(),
 			localRoots: () => roots,
