@@ -2,8 +2,8 @@
 //!
 //! Installs Rust-side panic and allocation-error hooks the first time the
 //! native module loads, so any crash inside `pi-natives` writes an actionable
-//! record (thread, payload, backtrace) to disk and to stderr before the host
-//! process exits.
+//! record (thread, payload, backtrace, process/system memory counters) to disk
+//! and to stderr before the host process exits.
 //!
 //! Without these hooks, Bun receives only the bare
 //! `memory allocation of N bytes failed` line and aborts with no stack —
@@ -99,6 +99,10 @@ pub fn install() {
 			// recursively enter this hook; the secondary entry writes the same
 			// stack-only fallback and aborts immediately.
 			write_alloc_failure_line(std::io::stderr(), layout.size());
+			// The memory block is written before the re-entry guard and before any
+			// allocation-prone formatting, so a genuine OOM that recurs while the
+			// report is assembled still leaves the numbers behind.
+			write_memory_block(std::io::stderr());
 			if ALLOC_HOOK_ACTIVE.swap(true, Ordering::AcqRel) {
 				process::abort();
 			}
@@ -188,12 +192,24 @@ fn format_alloc_report(layout: Layout) -> String {
 fn report_header(kind: CrashKind) -> String {
 	let thread_name = thread::current().name().unwrap_or("<unnamed>").to_owned();
 	let now_ms = unix_millis();
-	format!(
+	let mut header = format!(
 		"pi-natives {kind} crash\npid:       {pid}\nthread:    {thread_name}\ntimestamp: {now_ms} \
 		 (unix ms)\n",
 		kind = kind.as_str(),
 		pid = process::id(),
-	)
+	);
+	// Both reports carry the block. The fatal allocation path also writes it to
+	// stderr on its own (see `install`) because the report itself is assembled
+	// with `format!` and may not survive a real OOM — in that one path the
+	// counters can therefore appear twice on stderr, while the file copy always
+	// rides the report.
+	// The block is rendered into a stack buffer and copied in: `String`
+	// implements `fmt::Write`, not `io::Write`. The allocation-free copy is the
+	// one the allocation-error hook writes to stderr directly.
+	let mut mem = [0u8; mem_stats::BUFFER_LEN];
+	let mem = mem_stats::take().render(&mut mem);
+	header.push_str(&String::from_utf8_lossy(mem));
+	header
 }
 fn write_alloc_failure_line(mut out: impl std::io::Write, size: usize) {
 	let _ = out.write_all(b"memory allocation of ");
@@ -212,6 +228,305 @@ fn write_alloc_failure_line(mut out: impl std::io::Write, size: usize) {
 	}
 	let _ = out.write_all(&digits[pos..]);
 	let _ = out.write_all(b" bytes failed\n");
+}
+
+/// Append the process/system memory block to `out`.
+///
+/// Allocation-free by construction: the snapshot is read through syscalls and
+/// rendered with integer arithmetic into a stack buffer, so the
+/// allocation-error hook can call this while the allocator has nothing left to
+/// hand out.
+fn write_memory_block(mut out: impl std::io::Write) {
+	let mut buf = [0u8; mem_stats::BUFFER_LEN];
+	let bytes = mem_stats::take().render(&mut buf);
+	if !bytes.is_empty() {
+		let _ = out.write_all(bytes);
+	}
+}
+
+/// Process and system memory counters embedded in crash reports.
+///
+/// The allocation-error hook runs exactly when the allocator is exhausted, so
+/// nothing here may allocate: both platforms fill a struct of plain integers
+/// through syscalls, and [`Snapshot::render`] formats into a caller-provided
+/// stack buffer.
+///
+/// Windows numbers come from `K32GetProcessMemoryInfo` and
+/// `GlobalMemoryStatusEx`; both are exported by `kernel32`, so no new
+/// `windows-sys` feature (and therefore no `MODULE.bazel.lock` churn) is
+/// involved. Linux numbers come from `/proc` through `libc`. Other platforms
+/// report nothing — macOS is outside the release surface, and an empty block
+/// beats numbers no one can trust.
+mod mem_stats {
+	use std::io::Write as _;
+
+	/// Stack buffer the snapshot is rendered into; the block never exceeds it.
+	pub(super) const BUFFER_LEN: usize = 512;
+
+	/// Integer-only memory counters. Every field is optional because no single
+	/// platform reports all of them.
+	#[derive(Clone, Copy, Default)]
+	pub(super) struct Snapshot {
+		/// Resident set size of this process.
+		pub(super) rss_bytes:                     Option<u64>,
+		/// Peak resident set size of this process.
+		pub(super) peak_rss_bytes:                Option<u64>,
+		/// Committed private bytes of this process.
+		pub(super) commit_bytes:                  Option<u64>,
+		/// Physical memory available to the system.
+		pub(super) system_available_bytes:        Option<u64>,
+		/// Physical memory installed in the system.
+		pub(super) system_total_bytes:            Option<u64>,
+		/// Commit charge the system can still hand out.
+		pub(super) system_commit_available_bytes: Option<u64>,
+		/// System commit limit.
+		pub(super) system_commit_limit_bytes:     Option<u64>,
+	}
+
+	impl Snapshot {
+		/// Render the block into `buf`, returning the bytes to write. Empty when
+		/// no counter was readable or `buf` cannot hold the first line.
+		pub(super) fn render<'b>(&self, buf: &'b mut [u8]) -> &'b [u8] {
+			let mut out = SliceWriter { buf: &mut *buf, len: 0 };
+			if self.rss_bytes.is_none()
+				&& self.peak_rss_bytes.is_none()
+				&& self.system_total_bytes.is_none()
+			{
+				return &[];
+			}
+			if self.rss_bytes.is_some() || self.peak_rss_bytes.is_some() || self.commit_bytes.is_some()
+			{
+				let _ = write!(&mut out, "memory:    ");
+				let mut first = true;
+				write_optional_mib(&mut out, &mut first, "rss", self.rss_bytes);
+				write_optional_mib(&mut out, &mut first, "peak", self.peak_rss_bytes);
+				write_optional_mib(&mut out, &mut first, "commit", self.commit_bytes);
+				let _ = writeln!(&mut out);
+			}
+			if self.system_total_bytes.is_some()
+				|| self.system_available_bytes.is_some()
+				|| self.system_commit_limit_bytes.is_some()
+			{
+				let _ = write!(&mut out, "system:    ");
+				let mut first = true;
+				write_optional_mib(&mut out, &mut first, "available", self.system_available_bytes);
+				write_optional_mib(&mut out, &mut first, "total", self.system_total_bytes);
+				write_optional_mib(
+					&mut out,
+					&mut first,
+					"commit available",
+					self.system_commit_available_bytes,
+				);
+				write_optional_mib(
+					&mut out,
+					&mut first,
+					"commit limit",
+					self.system_commit_limit_bytes,
+				);
+				let _ = writeln!(&mut out);
+			}
+			&out.buf[..out.len]
+		}
+	}
+
+	/// `label 123.4 MiB`, comma-separated after the first entry of a line.
+	/// Integer arithmetic on tenths of a MiB keeps this heap-free.
+	fn write_optional_mib(
+		out: &mut SliceWriter<'_>,
+		first: &mut bool,
+		label: &str,
+		value: Option<u64>,
+	) {
+		let Some(value) = value else {
+			return;
+		};
+		let tenths = (u128::from(value) * 10 + 524_288) / 1_048_576;
+		let separator = if *first { "" } else { ", " };
+		*first = false;
+		let _ = write!(out, "{separator}{label} {}.{} MiB", tenths / 10, tenths % 10);
+	}
+
+	/// `Write` sink over a caller-owned slice; short writes truncate the block
+	/// instead of growing it.
+	struct SliceWriter<'a> {
+		buf: &'a mut [u8],
+		len: usize,
+	}
+
+	impl std::io::Write for SliceWriter<'_> {
+		fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+			let room = self.buf.len().saturating_sub(self.len);
+			let take = room.min(bytes.len());
+			self.buf[self.len..self.len + take].copy_from_slice(&bytes[..take]);
+			self.len += take;
+			Ok(take)
+		}
+
+		fn flush(&mut self) -> std::io::Result<()> {
+			Ok(())
+		}
+	}
+
+	#[cfg(target_os = "linux")]
+	pub(super) fn take() -> Snapshot {
+		// 4 KiB covers `/proc/self/statm` (a few dozen bytes) and `/proc/meminfo`
+		// (~1.5 KiB) with room to spare.
+		let mut buf = [0u8; 4096];
+		let mut snap = Snapshot::default();
+		if let Some(len) = read_proc(c"/proc/self/statm", &mut buf) {
+			let page_size = page_size_bytes();
+			if page_size > 0 {
+				// statm: size resident shared text lib data dt, in pages.
+				if let Some(pages) = field_as_u64(&buf[..len], b' ', 1) {
+					snap.rss_bytes = Some(pages.saturating_mul(page_size));
+				}
+			}
+		}
+		if let Some(len) = read_proc(c"/proc/meminfo", &mut buf) {
+			let info = &buf[..len];
+			snap.system_total_bytes = meminfo_field(info, b"MemTotal:");
+			snap.system_available_bytes = meminfo_field(info, b"MemAvailable:");
+		}
+		snap
+	}
+
+	#[cfg(target_os = "linux")]
+	fn page_size_bytes() -> u64 {
+		let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+		if size > 0 { size as u64 } else { 0 }
+	}
+
+	/// Read up to `buf.len()` bytes of a NUL-terminated path with raw syscalls,
+	/// returning the byte count actually read.
+	#[cfg(target_os = "linux")]
+	fn read_proc(path: &core::ffi::CStr, buf: &mut [u8]) -> Option<usize> {
+		let fd = unsafe {
+			libc::open(path.as_ptr().cast::<libc::c_char>(), libc::O_RDONLY | libc::O_CLOEXEC)
+		};
+		if fd < 0 {
+			return None;
+		}
+		let mut total = 0usize;
+		while total < buf.len() {
+			let read = unsafe {
+				libc::read(fd, buf[total..].as_mut_ptr().cast::<libc::c_void>(), buf.len() - total)
+			};
+			if read <= 0 {
+				break;
+			}
+			total += usize::try_from(read).unwrap_or(0);
+		}
+		unsafe { libc::close(fd) };
+		Some(total)
+	}
+
+	/// Whitespace-separated field `index` of `text`, parsed as `u64`.
+	#[cfg(target_os = "linux")]
+	fn field_as_u64(text: &[u8], separator: u8, index: usize) -> Option<u64> {
+		text
+			.split(|byte| *byte == separator)
+			.filter(|field| !field.is_empty())
+			.nth(index)
+			.and_then(parse_u64)
+	}
+
+	/// Leading decimal digits of `digits`, or `None` when there are none.
+	#[cfg(target_os = "linux")]
+	fn parse_u64(digits: &[u8]) -> Option<u64> {
+		let mut value = 0u64;
+		let mut seen = false;
+		for byte in digits {
+			if !byte.is_ascii_digit() {
+				break;
+			}
+			seen = true;
+			value = value.checked_mul(10)?.checked_add(u64::from(byte - b'0'))?;
+		}
+		seen.then_some(value)
+	}
+
+	/// `MemTotal:`-style `/proc/meminfo` line, converted from KiB to bytes.
+	#[cfg(target_os = "linux")]
+	fn meminfo_field(info: &[u8], prefix: &[u8]) -> Option<u64> {
+		for line in info.split(|byte| *byte == b'\n') {
+			let Some(rest) = line.strip_prefix(prefix) else {
+				continue;
+			};
+			let start = rest.iter().position(u8::is_ascii_digit)?;
+			return parse_u64(&rest[start..]).map(|kib| kib.saturating_mul(1024));
+		}
+		None
+	}
+
+	#[cfg(target_os = "windows")]
+	pub(super) fn take() -> Snapshot {
+		// Hand-rolled because the workspace's `windows-sys` feature list does not
+		// include `Win32_System_ProcessStatus`/`Win32_System_SystemInformation`,
+		// and adding features would churn `MODULE.bazel.lock` for a crash report.
+		// ABI mirrors MSDN; the layouts are `#[repr(C)]` and stable.
+		#[repr(C)]
+		#[allow(dead_code, reason = "ABI layout mirror: fields are read by the OS call, not by us")]
+		struct ProcessMemoryCounters {
+			cb: u32,
+			page_fault_count: u32,
+			peak_working_set_size: usize,
+			working_set_size: usize,
+			quota_peak_paged_pool_usage: usize,
+			quota_paged_pool_usage: usize,
+			quota_peak_non_paged_pool_usage: usize,
+			quota_non_paged_pool_usage: usize,
+			pagefile_usage: usize,
+			peak_pagefile_usage: usize,
+		}
+		#[repr(C)]
+		#[allow(dead_code, reason = "ABI layout mirror: fields are read by the OS call, not by us")]
+		struct MemoryStatusEx {
+			length:                 u32,
+			memory_load:            u32,
+			total_phys:             u64,
+			avail_phys:             u64,
+			total_page_file:        u64,
+			avail_page_file:        u64,
+			total_virtual:          u64,
+			avail_virtual:          u64,
+			avail_extended_virtual: u64,
+		}
+		#[link(name = "kernel32")]
+		unsafe extern "system" {
+			fn GetCurrentProcess() -> *mut core::ffi::c_void;
+			fn K32GetProcessMemoryInfo(
+				process: *mut core::ffi::c_void,
+				counters: *mut ProcessMemoryCounters,
+				cb: u32,
+			) -> i32;
+			fn GlobalMemoryStatusEx(status: *mut MemoryStatusEx) -> i32;
+		}
+
+		let mut snap = Snapshot::default();
+		unsafe {
+			let mut counters: ProcessMemoryCounters = core::mem::zeroed();
+			counters.cb = core::mem::size_of::<ProcessMemoryCounters>() as u32;
+			if K32GetProcessMemoryInfo(GetCurrentProcess(), &raw mut counters, counters.cb) != 0 {
+				snap.rss_bytes = Some(counters.working_set_size as u64);
+				snap.peak_rss_bytes = Some(counters.peak_working_set_size as u64);
+				snap.commit_bytes = Some(counters.pagefile_usage as u64);
+			}
+			let mut status: MemoryStatusEx = core::mem::zeroed();
+			status.length = core::mem::size_of::<MemoryStatusEx>() as u32;
+			if GlobalMemoryStatusEx(&raw mut status) != 0 {
+				snap.system_total_bytes = Some(status.total_phys);
+				snap.system_available_bytes = Some(status.avail_phys);
+				snap.system_commit_limit_bytes = Some(status.total_page_file);
+				snap.system_commit_available_bytes = Some(status.avail_page_file);
+			}
+		}
+		snap
+	}
+
+	#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+	pub(super) fn take() -> Snapshot {
+		Snapshot::default()
+	}
 }
 
 /// Extract a printable message from a panic payload captured by
@@ -422,6 +737,64 @@ mod tests {
 			"report missing pid: {report}"
 		);
 		assert!(report.contains("thread:"), "report missing thread: {report}");
+	}
+
+	#[cfg(any(target_os = "linux", target_os = "windows"))]
+	#[test]
+	fn alloc_report_carries_memory_counters() {
+		let layout = Layout::from_size_align(1, 8).unwrap();
+		let report = format_alloc_report(layout);
+		assert!(report.contains("memory:"), "report missing memory block: {report}");
+	}
+
+	#[test]
+	fn memory_block_renders_known_values_without_allocating() {
+		let snap = mem_stats::Snapshot {
+			rss_bytes: Some(1024 * 1_048_576),
+			peak_rss_bytes: Some(2048 * 1_048_576),
+			commit_bytes: Some(512 * 1_048_576),
+			system_available_bytes: Some(4096 * 1_048_576),
+			system_total_bytes: Some(32768 * 1_048_576),
+			..mem_stats::Snapshot::default()
+		};
+		let mut buf = [0u8; mem_stats::BUFFER_LEN];
+		let text = String::from_utf8_lossy(snap.render(&mut buf)).into_owned();
+		assert_eq!(
+			text,
+			"memory:    rss 1024.0 MiB, peak 2048.0 MiB, commit 512.0 MiB\nsystem:    available \
+			 4096.0 MiB, total 32768.0 MiB\n"
+		);
+	}
+
+	#[test]
+	fn memory_block_truncates_into_a_small_buffer() {
+		let snap = mem_stats::Snapshot {
+			rss_bytes: Some(1024 * 1_048_576),
+			..mem_stats::Snapshot::default()
+		};
+		let mut tiny = [0u8; 12];
+		let rendered = snap.render(&mut tiny);
+		assert_eq!(rendered.len(), 12, "short buffer must truncate, not grow");
+		assert_eq!(rendered, b"memory:    ");
+	}
+
+	#[test]
+	fn memory_block_is_empty_when_nothing_is_readable() {
+		let mut buf = [0u8; mem_stats::BUFFER_LEN];
+		assert!(mem_stats::Snapshot::default().render(&mut buf).is_empty());
+	}
+
+	#[cfg(target_os = "linux")]
+	#[test]
+	fn snapshot_reads_process_and_system_memory() {
+		let snap = mem_stats::take();
+		let rss = snap.rss_bytes.expect("rss from /proc/self/statm");
+		let total = snap
+			.system_total_bytes
+			.expect("MemTotal from /proc/meminfo");
+		assert!(rss > 0, "rss must be positive, got {rss}");
+		assert!(total > 0, "system total must be positive, got {total}");
+		assert!(rss <= total, "rss {rss} cannot exceed installed memory {total}");
 	}
 
 	#[test]
