@@ -772,10 +772,14 @@ mod tests {
 			rss_bytes: Some(1024 * 1_048_576),
 			..mem_stats::Snapshot::default()
 		};
+		// One byte short of the label: the block is cut at the buffer edge and
+		// the write machinery stops there instead of growing a byte to fit.
 		let mut tiny = [0u8; 12];
 		let rendered = snap.render(&mut tiny);
-		assert_eq!(rendered.len(), 12, "short buffer must truncate, not grow");
-		assert_eq!(rendered, b"memory:    ");
+		assert_eq!(rendered, b"memory:    r");
+		// Exactly the label fits, and nothing beyond it.
+		let mut label_only = [0u8; 11];
+		assert_eq!(snap.render(&mut label_only), b"memory:    ");
 	}
 
 	#[test]
