@@ -21,10 +21,11 @@ describe("test runner watchdog", () => {
 		];
 		// The child mirrors its own stdout into `childLog` as it arrives: a timed-out
 		// ptree.exec throws with only a message, so without this a wedged runner is
-		// undiagnosable from the CI log. The budget covers the watchdog *and* the
-		// process-tree diagnostics upstream's kill path runs first (v18.9.1), which are
-		// abandoned after their own SNAPSHOT_BUDGET_MS; the chunk timeout stays at 1 s,
-		// so a watchdog that never fired still shows up as a timeout here.
+		// undiagnosable from the CI log. The budget covers the watchdog (1 s), the
+		// process-tree diagnostics the kill path runs first (abandoned after their own
+		// SNAPSHOT_BUDGET_MS) and the following chunk, with room for a loaded runner;
+		// the chunk timeout stays at 1 s, so a watchdog that never fired still shows up
+		// here as a timeout rather than as a silent pass.
 		const childLog = dir.join("child.log");
 		const source = [
 			`import { appendFileSync } from "node:fs";`,
@@ -38,7 +39,7 @@ describe("test runner watchdog", () => {
 		try {
 			result = await ptree.exec([process.execPath, "-e", source], {
 				env: { ...Bun.env, OMP_TEST_CHUNK_TIMEOUT: "1", NO_COLOR: "1" },
-				timeout: 45_000,
+				timeout: 20_000,
 				detached: true,
 				allowNonZero: true,
 			});
@@ -60,7 +61,7 @@ describe("test runner watchdog", () => {
 		expect(await Bun.file(started).exists()).toBe(true);
 		expect(await Bun.file(completed).exists()).toBe(false);
 		expect(await Bun.file(continued).text()).toBe("continued");
-	}, 50_000);
+	}, 25_000);
 });
 
 describe("OMP_TEST_SHARD", () => {

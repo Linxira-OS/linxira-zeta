@@ -198,17 +198,20 @@ two-parent tag merge.
      (line 782).
   2. **`Messages` interface** — `en.ts`/`zh.ts` are annotated with it, so the new
      `/fork` keys needed it too (TS2353 + a TS2339 at every `M.cmdFork*`).
-  3. **The watchdog wedged instead of killing** — this test file is Zeta's (upstream
-     v18.9.1 ships none). Upstream's merged kill path runs the process-tree
-     diagnostics *before* the SIGKILL, and `snapshotProcessTree` called `Bun.spawnSync`
-     for `ps -eo ... args=` and `ss -tuanpH`: on a runner whose bucket commands list
-     hundreds of files that output runs to megabytes, the helper fills the pipe while
-     the parent waits for it to exit, so the SIGKILL never fired (the test hit a 45 s
-     timeout with a 1 s chunk timeout — the watchdog had become the thing that wedges,
-     which is the opposite of its job). The snapshot now spawns asynchronously,
-     drains as it arrives, and is abandoned after `SNAPSHOT_BUDGET_MS` (5 s) with its
-     helpers killed, so the kill always happens; the harness budget moved to 45 s
-     (test 50 s) to leave room for a slow runner.
+  3. **Importing the runner ran the whole suite (class 4: dropped Zeta-only code)** —
+     this test file is Zeta's (upstream v18.9.1 ships none), and on `main`
+     `scripts/ci-test-ts.ts` guards its main body with `if (import.meta.main)`;
+     upstream's copy runs that body unconditionally, so the merge dropped the guard
+     and *importing* the module — which `ci-test-ts.test.ts` does for `selectShard`
+     and the watchdog child does for `runTestCommandsInParallel` — executed the whole
+     suite, inheriting the test's `OMP_TEST_CHUNK_TIMEOUT=1`: every chunk killed after
+     one second, a child that never finished (the 45 s timeouts) and, worse, a second
+     full run competing with the job's own chunks. That last part is what produced
+     the "silent exit 1" chunk and aggravated the tui GC cases, i.e. the reds this
+     round kept attributing to flakes. Guard restored around upstream's body.
+     The diagnostics path also stopped using `Bun.spawnSync` for `ps`/`ss` and is now
+     abandoned after `SNAPSHOT_BUDGET_MS`: hardening found on the way, not the cause
+     the earlier rounds suspected.
   4. **`browser-tab-worker-startup` crash cases** (ours to tolerate, not to weaken):
      the inline-run case is a pure detection-latency race — `#unanswered` is set
      for the whole run, so `#onPageCrashed` does abort the run's signal, just later
@@ -221,12 +224,13 @@ two-parent tag merge.
   Still unfixed and left to a re-run: one native/unit chunk (`test/cli/*`, 10
   files) died without reporting a test failure and re-ran 66 pass / 0 fail in the
   same job — a process-level flake, not merge damage.
-- **Chasing that flake produced two more real fixes**: the harness now says when it
-  had to cancel a chunk's pipes (a descendant outlived the chunk and kept them
-  open, and cancelling discards what is still buffered — which is why such a
-  failure reports nothing at all and reads as a silent `exit 1`), and the
-  runner-watchdog test mirrors the child's stdout into a file so a timed-out
-  `ptree.exec` (which throws with a message only) can still be diagnosed.
+- **What made the missing guard visible**: the harness now says when it had to
+  cancel a chunk's pipes (a descendant outlived the chunk and kept them open, and
+  cancelling discards what is still buffered — which is why such a failure reports
+  nothing at all and reads as a silent `exit 1`), and the runner-watchdog test
+  mirrors the child's stdout into a file so a timed-out `ptree.exec` (which throws
+  with a message only) can still be diagnosed. The file is what showed the child
+  running the *coding-agent bucket* instead of the two commands it was given.
   `worker-client.ts` also resolved the CLI on PATH as `$which("zeta")`: that is a
   pre-existing Zeta divergence — upstream asks for its own CLI name there, and in
   Zeta a bare `zeta` is the **workbench** bin, so an upgrade that left

@@ -1046,26 +1046,30 @@ export function selectShard<T>(commands: T[], spec: string | undefined): T[] {
 	return selected;
 }
 
-if (!(requestedMode in validModes)) {
-	throw new Error(`Unknown mode ${shellQuote(requestedMode)}. Expected one of: ${Object.keys(validModes).join(", ")}`);
-}
+if (import.meta.main) {
+	if (!(requestedMode in validModes)) {
+		throw new Error(
+			`Unknown mode ${shellQuote(requestedMode)}. Expected one of: ${Object.keys(validModes).join(", ")}`,
+		);
+	}
 
-const requestedCommands = selectShard(await commandsForMode(requestedMode as Mode), Bun.env.OMP_TEST_SHARD);
-const explicitConcurrency = Boolean(Bun.env.OMP_TEST_CONCURRENCY?.trim());
-// CI defaults to one process at a time, but memory-sized workflow buckets
-// explicitly opt into bounded process concurrency. Local runs fan out by
-// default and may use the same override. Resolved before the dry-run check so
-// `--dry-run` prints the argv the real run would use, budget included.
-const pooled = requestedCommands.length > 1 && (!isCI() || explicitConcurrency);
-// The sequential path is a pool of one, so a lone chunk keeps the whole budget.
-const poolWidth = pooled
-	? testConcurrency(requestedCommands.length, Bun.env.OMP_TEST_CONCURRENCY, os.availableParallelism())
-	: 1;
-const testCommands = applyChunkBudget(requestedCommands, poolWidth);
-if (pooled && !isDryRun) {
-	await runTestCommandsInParallel(testCommands, poolWidth);
-} else {
-	for (const testCommand of testCommands) {
-		await runTestCommand(testCommand);
+	const requestedCommands = selectShard(await commandsForMode(requestedMode as Mode), Bun.env.OMP_TEST_SHARD);
+	const explicitConcurrency = Boolean(Bun.env.OMP_TEST_CONCURRENCY?.trim());
+	// CI defaults to one process at a time, but memory-sized workflow buckets
+	// explicitly opt into bounded process concurrency. Local runs fan out by
+	// default and may use the same override. Resolved before the dry-run check so
+	// `--dry-run` prints the argv the real run would use, budget included.
+	const pooled = requestedCommands.length > 1 && (!isCI() || explicitConcurrency);
+	// The sequential path is a pool of one, so a lone chunk keeps the whole budget.
+	const poolWidth = pooled
+		? testConcurrency(requestedCommands.length, Bun.env.OMP_TEST_CONCURRENCY, os.availableParallelism())
+		: 1;
+	const testCommands = applyChunkBudget(requestedCommands, poolWidth);
+	if (pooled && !isDryRun) {
+		await runTestCommandsInParallel(testCommands, poolWidth);
+	} else {
+		for (const testCommand of testCommands) {
+			await runTestCommand(testCommand);
+		}
 	}
 }
