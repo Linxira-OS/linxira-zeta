@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 - 新增动态小工具框架与首个工具 time（`/tool time on|off`，开启期间用户消息附带发送时间戳，AI 可随时获取当前准确时间）。
-
 ## [1.1.27] - 2026-10-07
 
 - Added automated release binary publication to build.stencil.so

@@ -4,7 +4,7 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import { AuthStorage, type FetchImpl, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { serializeCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
+import { serializeCloudflareCredential } from "@linxiraos/pi-catalog/wire/cloudflare";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { GeminiProvider, searchGemini } from "@linxiraos/zeta/web/search/providers/gemini";
 
@@ -183,7 +183,7 @@ describe("searchGemini tools serialization", () => {
 		const gatewayAuthStorage = new AuthStorage(new SqliteAuthCredentialStore(new Database(":memory:")));
 		gatewayAuthStorage.keys.setRuntime(
 			"cloudflare-ai-gateway",
-			serializeCloudflareAiGatewayCredential("test-cloudflare-key", "account", "gateway"),
+			serializeCloudflareCredential({ token: "test-cloudflare-key", accountId: "account", gatewayId: "gateway" }),
 		);
 		const gatewayRegistry = new ModelRegistry(gatewayAuthStorage);
 		const gatewayModel = geminiDeveloperModel(

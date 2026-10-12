@@ -1,5 +1,6 @@
 /**
- * Protocol handler for zeta:// URLs. *
+ * Protocol handler for zeta:// URLs.
+ *
  * Serves statically embedded documentation files bundled at build time.
  *
  * URL forms:
@@ -7,9 +8,39 @@
  * - zeta://<file>.md - Reads a specific documentation file
  */
 import * as path from "node:path";
-import { getDocFilenames, getEmbeddedDoc } from "./docs-index";
-import type { InternalResource, InternalUrl, ProtocolHandler, SchemeSpec, UrlCompletion } from "./types";
+import { resolveContainedPath, resolveContainedPathSync } from "../discovery/contained-path";
+import zetaDoc from "../prompts/internal-urls/zeta.md" with { type: "text" };
+import { getDocFilenames, getDocsDiskRoot, getEmbeddedDoc } from "./docs-index";
 import { zetaDocFilename, zetaDocRel, zetaDocsScopeEntries } from "./zeta-scope";
+import type {
+	InternalResource,
+	InternalUrl,
+	LocateOptions,
+	ProtocolHandler,
+	ResolveContext,
+	SchemeSpec,
+	UrlCompletion,
+} from "./types";
+
+/**
+ * Repo `docs/` tree the embedded corpus is generated from. Only the
+ * docs-index-owned root ({@link getDocsDiskRoot}) is ever probed: resolving
+ * `docs/` relative to this module would land in the consumer's own tree
+ * (their project's `docs/`, `node_modules/docs`) on installs where the
+ * corpus is embedded.
+ */
+function docFileOnDisk(docPath: string): string | undefined {
+	const root = getDocsDiskRoot();
+	if (root === null || !getDocFilenames().includes(docPath)) return undefined;
+	const resolution = resolveContainedPathSync(root, path.resolve(root, docPath));
+	return resolution.status === "ok" ? resolution.realPath : undefined;
+}
+
+/** File a doc URL may link to, or `undefined` for the docs root and doc-less URLs. */
+function docFileFor(url: InternalUrl): string | undefined {
+	const docPath = zetaDocRel(url);
+	return docPath.length > 0 ? docFileOnDisk(docPath) : undefined;
+}
 
 /**
  * Handler for zeta:// URLs.
@@ -18,33 +49,31 @@ import { zetaDocFilename, zetaDocRel, zetaDocsScopeEntries } from "./zeta-scope"
  */
 export class ZetaProtocolHandler implements ProtocolHandler {
 	readonly scheme = "zeta";
-	readonly spec: SchemeSpec = { backing: "virtual", selectors: "lines", immutable: true };
+	readonly spec: SchemeSpec = { backing: "virtual", selectors: "lines", immutable: true, linkable: true };
+
+	/** Always advertised: harness docs are embedded in every build. */
+	promptDoc(): string {
+		return zetaDoc.trim();
+	}
 
 	async resolve(url: InternalUrl): Promise<InternalResource> {
-		// Extract filename from host + path
-		const host = url.rawHost || url.hostname;
-		const pathname = url.rawPathname ?? url.pathname;
-		const filename = host ? (pathname && pathname !== "/" ? host + pathname : host) : "";
+		const filename = zetaDocFilename(url);
+		// The docs root (`zeta://`, `zeta://docs`) names no doc. The grammar also
+		// rejects absolute paths and `..` traversal.
+		const docPath = zetaDocRel(url);
 
-		// `zeta://docs` is the documentation root and `zeta://docs/<path>` aliases
-		// the bare doc key: the embed index stores paths without the docs/ prefix.
-		const docPath =
-			filename === "docs" ? "" : filename.startsWith("docs/") ? filename.slice("docs/".length) : filename;
-		if (!docPath) {
+		if (!filename || !docPath) {
 			return this.#listDocs(url);
 		}
 
 		return this.#readDoc(docPath, filename, url);
 	}
 
-	/**
-	 * Leaf enumeration for the URL filesystem's directory view: the whole
-	 * embedded corpus for the docs root, or the single doc a subpath names.
-	 */
-	async enumerate(url: InternalUrl): Promise<Array<{ url: string; content: string }>> {
+	/** The docs root expands to every embedded doc; a single-doc URL yields that doc (or throws when unknown). */
+	async enumerate(url: InternalUrl, context?: ResolveContext): Promise<Array<{ url: string; content: string }>> {
 		const docPath = zetaDocRel(url);
 		if (!docPath) {
-			const entries = await zetaDocsScopeEntries();
+			const entries = await zetaDocsScopeEntries(context);
 			if (entries.length === 0) {
 				throw new Error("No documentation files found");
 			}
@@ -56,6 +85,33 @@ export class ZetaProtocolHandler implements ProtocolHandler {
 
 	async complete(): Promise<UrlCompletion[]> {
 		return getDocFilenames().map(value => ({ value }));
+	}
+
+	/**
+	 * File a doc is read from in a source checkout, so `zeta://` links open it.
+	 * The shipped corpus is embedded, so most installs have nothing to link and
+	 * the URL stays plain text rather than being materialized on the fly.
+	 */
+	locateSync(url: InternalUrl): string | undefined {
+		try {
+			return docFileFor(url);
+		} catch {
+			// Malformed URLs locate to nothing, never throw, in a render path.
+			return undefined;
+		}
+	}
+
+	/** Async counterpart of {@link locateSync}; null instead of undefined. */
+	async locate(url: InternalUrl, _context?: ResolveContext, _options?: LocateOptions): Promise<string | null> {
+		// Async filesystem calls: the markdown linkifier awaits this off the
+		// render path, so blocking realpath/stat has no place here even though
+		// the first call still initializes the memoized corpus synchronously.
+		const docPath = zetaDocRel(url);
+		if (docPath.length === 0) return null;
+		const root = getDocsDiskRoot();
+		if (root === null || !getDocFilenames().includes(docPath)) return null;
+		const resolution = await resolveContainedPath(root, path.resolve(root, docPath));
+		return resolution.status === "ok" ? resolution.realPath : null;
 	}
 
 	async #listDocs(url: InternalUrl): Promise<InternalResource> {

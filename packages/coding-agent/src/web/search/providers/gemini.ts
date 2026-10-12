@@ -19,7 +19,7 @@ import {
 	withOAuthAccess,
 } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel, resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
-import { parseCloudflareAiGatewayCredential } from "@linxiraos/pi-catalog/wire/cloudflare-ai-gateway";
+import { parseCloudflareCredential } from "@linxiraos/pi-catalog/wire/cloudflare";
 import { getAntigravityUserAgent, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
@@ -672,9 +672,7 @@ export async function searchGemini(params: GeminiSearchParams): Promise<SearchRe
 			keyOrResolver,
 			async storedApiKey => {
 				const configuredHeaders = await params.modelRegistry.resolveModelHeaders(params.model, params.signal);
-				const apiKey = endpoint.isCloudflareGateway
-					? parseCloudflareAiGatewayCredential(storedApiKey)?.token
-					: storedApiKey;
+				const apiKey = endpoint.isCloudflareGateway ? parseCloudflareCredential(storedApiKey)?.token : storedApiKey;
 				if (!apiKey) {
 					throw new SearchProviderError("gemini", "Selected Gemini credential is empty", 401);
 				}

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import * as path from "node:path";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import { getDocsDiskRoot } from "@linxiraos/zeta/internal-urls/docs-index";
 
 describe("ZetaProtocolHandler", () => {
 	it("treats zeta://docs as the documentation root", async () => {
@@ -16,5 +18,33 @@ describe("ZetaProtocolHandler", () => {
 
 		expect(prefixed.content).toBe(direct.content);
 		expect(prefixed.content).toContain("# read");
+	});
+
+	it("locates a doc to the file the active corpus was read from", async () => {
+		const router = InternalUrlRouter.instance();
+		// A source checkout reads docs from disk; a bundled or embedded corpus
+		// (e.g. after `gen:bundle`) has no file and must never link.
+		const root = getDocsDiskRoot();
+		const onDisk = root === null ? undefined : path.join(root, "tools", "read.md");
+
+		// Both renderer entry points (sync read cards, async markdown links) must
+		// agree on the file, or a link opens a doc `read` never resolved.
+		expect(router.locateSync("zeta://tools/read.md")).toBe(onDisk);
+		expect(router.locateSync("zeta://docs/tools/read.md:1-20")).toBe(onDisk);
+		expect(await router.locate("zeta://tools/read.md")).toBe(onDisk ?? null);
+	});
+
+	it("never locates a URL that names no doc on disk", async () => {
+		const router = InternalUrlRouter.instance();
+
+		// The docs root is a listing, and an unknown doc has no file: linking it
+		// would open something `zeta://` does not serve.
+		expect(router.locateSync("zeta://")).toBeUndefined();
+		expect(router.locateSync("zeta://docs")).toBeUndefined();
+		expect(router.locateSync("zeta://no-such-doc.md")).toBeUndefined();
+		expect(await router.locate("zeta://no-such-doc.md")).toBeNull();
+
+		// Render paths must survive a model-authored traversal URL.
+		expect(router.locateSync("zeta://../AGENTS.md")).toBeUndefined();
 	});
 });
