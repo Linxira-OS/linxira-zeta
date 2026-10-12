@@ -32,6 +32,7 @@ import {
 	readMemorySample,
 	type MemoryPressureLevel,
 } from "./fanout-pressure";
+import { shedUnderMemoryPressure } from "./memory-shed";
 import type { ToolSession } from "..";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { Theme } from "@linxiraos/pi-tui/theme";
@@ -808,6 +809,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			const notice = describePressure(level, sample);
 			if (notice) logger.warn(`task: ${notice}`);
 		}
+		// Pull-driven shed on the same sample: caches + idle tabs while tight,
+		// plus the mnemopi worker and idle broker daemons while critical. Detached
+		// — a spawn decision must not wait on teardown, and `ok` only resets the
+		// shed's per-episode state.
+		void shedUnderMemoryPressure(level, sample, { session: this.session, source: "spawn permit" });
 		return this.#spawnSemaphore;
 	}
 

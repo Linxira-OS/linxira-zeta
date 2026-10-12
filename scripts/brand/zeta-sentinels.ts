@@ -336,6 +336,17 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "#stopUnownedOneShotDaemons",
 		why: "Zeta-only fix: the idle sweep stops non-`persist`, non-`detached` daemons once no client and no project presence remain, so the project-shared Chromium (a `persist: false` daemon whose process IS Chrome) cannot outlive zeta. Upstream OMP still vetoes the whole shutdown on `livePersistent` (issues #14379, #15014), so a merge taking their broker.ts wholesale reopens the leaked-headless-Chrome class.",
 	},
+	// -- Pull-driven memory-pressure shed ------------------------------------------
+	{
+		file: "packages/coding-agent/src/task/memory-shed.ts",
+		symbol: "export async function shedUnderMemoryPressure(",
+		why: "Zeta-only pull-driven memory shed (roadmap M3a): the repo has no push-style memory-pressure event, so shedding hangs off the checkpoints that already sample (spawn permit, workpool limit, turn end). Upstream OMP has no counterpart, so a merge that takes these files wholesale silently drops the whole shed (caches, idle tabs, mnemopi worker, idle broker daemons).",
+	},
+	{
+		file: "packages/coding-agent/src/session/agent-session.ts",
+		symbol: "void this.#shedMemoryAtTurnEnd();",
+		why: "Zeta-only turn-end shed checkpoint (roadmap M3a). agent-session.ts is a shared file a merge can take wholesale; losing only this line leaves the module compiling but the turn-end sample unreachable, so memory shedding would only fire on spawn/workpool decisions.",
+	},
 	// -- Agent-side mode switching (`mode` tool) -----------------------------------
 	{
 		file: "packages/coding-agent/src/tools/mode.ts",

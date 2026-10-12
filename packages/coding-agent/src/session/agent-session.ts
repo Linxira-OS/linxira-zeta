@@ -179,6 +179,8 @@ import type { EvalPreludeDefinition } from "../eval/preludes";
 import type { PythonResult } from "../eval/py/executor";
 import { formatEvalStateContext } from "../eval/state";
 import { WorkPoolRegistry } from "../task/workpool";
+import { memoryPressureLevel, readMemorySample } from "../task/fanout-pressure";
+import { shedUnderMemoryPressure } from "../task/memory-shed";
 import { type BashPtyOptions, type BashResult, releaseShellSessions } from "../exec/bash-executor";
 import type { TtsrManager } from "../export/ttsr";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
@@ -4606,6 +4608,10 @@ export class AgentSession implements SettingsScope {
 		// the event flow.
 		if (event.type === "turn_end") {
 			void this.#settleOwnedBrowserTabs();
+			// Pull-driven memory shed on a fresh sample at turn end (the checkpoints
+			// in `task/` only sample on spawn/workpool decisions). Detached for the
+			// same reason as the tab settle: teardown must never block the event flow.
+			void this.#shedMemoryAtTurnEnd();
 		}
 		if (event.type === "tool_execution_end") {
 			if (event.toolName === "goal") {
@@ -6219,6 +6225,33 @@ export class AgentSession implements SettingsScope {
 			}
 		} catch (error) {
 			logger.warn("Failed to settle owned browser tabs at turn end", { error: String(error) });
+		}
+	}
+
+	/**
+	 * Turn-end memory-pressure shed: sample once, then release by level
+	 * (caches + idle owned tabs while tight; plus the mnemopi worker and idle
+	 * broker daemons while critical). The session layer owns no `ToolSession`,
+	 * so a minimal view is handed to the broker step. Best-effort and detached
+	 * — never throws, never blocks the event flow.
+	 */
+	async #shedMemoryAtTurnEnd(): Promise<void> {
+		try {
+			const sample = readMemorySample();
+			const level = memoryPressureLevel(sample);
+			await shedUnderMemoryPressure(level, sample, {
+				session: {
+					cwd: this.sessionManager.getCwd(),
+					getSessionId: () => this.sessionManager.getSessionId(),
+					getAgentId: () => this.getAgentId() ?? null,
+				},
+				source: "turn end",
+				// Re-shed at the current level: idle tabs accumulate across turns and
+				// a turn boundary is the cheap point to collect them.
+				force: true,
+			});
+		} catch (error) {
+			logger.warn("Failed to shed memory at turn end", { error: String(error) });
 		}
 	}
 
