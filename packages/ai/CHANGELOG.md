@@ -1,47 +1,5 @@
 ## [Unreleased]
 
-### Breaking Changes
-
-- The environment API-key helpers (`getEnvApiKey`, `getEnvApiKeyName`, and `listProvidersWithEnvKey`) are no longer exported from `@linxiraos/pi-ai/stream`; import them from `@linxiraos/pi-ai` or `@linxiraos/pi-ai/env-api-key` instead.
-- `TranscriptionRequest.audio` now accepts `Uint8Array | Blob`. Consumers must handle `Blob` values when reading transcription requests.
-
-- Added routing-session cleanup for OpenAI Responses and Codex while preserving shared provider fallbacks ([#14334](https://github.com/can1357/oh-my-pi/pull/14334) by [@iliaal](https://github.com/iliaal)).
-### Added
-
-- `oauth.refresh(id, signal, { reason: "auth-recovery" })` forwards provider-401 recovery intent to a delegated (auth broker) refresh, and `AuthStorageOptions.refreshOAuthCredentialMints` marks a `refreshOAuthCredential` hook that exchanges tokens itself so its tokens are reused for auth recovery ([#14752](https://github.com/can1357/oh-my-pi/pull/14752) by [@will-bogusz](https://github.com/will-bogusz))
-- `SessionsApi.inherit` accepts an optional filter, called with each provider and whether the source's affinity is an explicit user pin, to copy only the affinities it accepts ([#14749](https://github.com/can1357/oh-my-pi/pull/14749) by [@will-bogusz](https://github.com/will-bogusz))
-
-### Changed
-
-- Improved CPU and memory efficiency across streamed model responses, including Cursor, Devin, Codex, OpenAI Responses, and GitLab Duo Workflow.
-- Improved request and authentication performance, including account ranking, OAuth preflight, credential rate-limit checks, credential synchronization, and auth gateway requests.
-- Improved tool-call parsing performance for long calls and Apple Foundation Models requests.
-- Improved Cloudflare AI Gateway request performance and AWS credential-source detection.
-- Reduced memory usage when handling generated images and usage reports.
-- `AuthApiKeyOptions.accountIds` also matches the login email, or else the project id, of credentials that carry no account id (see `oauthAccountKey`), so Antigravity requests prefer accounts that serve the requested model ([#14924](https://github.com/can1357/oh-my-pi/issues/14924)).
-
-- Fixed Claude Haiku 5.5 requests silently enabling adaptive thinking when reasoning is off, on native Bedrock (main and helper calls) and the Anthropic API; conversations whose earlier effort controls rule out disabled thinking fall back to lowest-effort adaptive thinking instead of failing ([#14996](https://github.com/can1357/oh-my-pi/pull/14996) by [@bse-ai](https://github.com/bse-ai)).
-- Fixed `/session pin` being ignored when every stored account is quota-blocked, which routed the next request to a different exhausted account instead of the pinned one ([#14997](https://github.com/can1357/oh-my-pi/issues/14997)).
-- Fixed `minimax-code-cn` sessions staying pinned to a key whose Token Plan quota is exhausted (`用量上限` 429) instead of rotating to a sibling credential ([#15053](https://github.com/can1357/oh-my-pi/issues/15053)).
-- Fixed OpenAI Responses and Codex tool calls running with empty `{}` arguments when a compatible host or proxy ends the call with an empty arguments payload after streaming the real ones ([#15099](https://github.com/can1357/oh-my-pi/pull/15099) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed truncated Factory Droid Gemini responses ending as a hard error or a half-received tool call instead of being retried ([#15103](https://github.com/can1357/oh-my-pi/pull/15103) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed Factory Droid Gemini ignoring an error the server reports mid-response, which hid its status and retried errors that cannot succeed ([#15103](https://github.com/can1357/oh-my-pi/pull/15103) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed resumed OpenAI Responses sessions (xAI, Factory Droid, OpenAI and other hosts) dropping all earlier encrypted reasoning on their first request; GitHub Copilot still rebuilds history until its first response ([#15148](https://github.com/can1357/oh-my-pi/pull/15148) by [@will-bogusz](https://github.com/will-bogusz))
-### Fixed
-
-- Fixed false thinking-loop detections for Gemini, DeepSeek, and Grok when responses contain repetitive code or markup such as VRML, SVG, or JSON; valid output is no longer discarded and retried.
-- Fixed the Cursor provider retaining request resources after requests completed.
-- Fixed session-affinity pins growing without bound in long-lived gateways; pins are now capped at 256 sessions per provider.
-- Fixed Anthropic sessions failing every request with HTTP 400 ("role 'system' must precede an 'assistant' message") after a tool change coincided with compaction or an interrupted or failed reply; sessions already stuck this way recover on the next message ([#14746](https://github.com/can1357/oh-my-pi/issues/14746)).
-- Fixed Google Gemini and Cloud Code Assist (Antigravity) requests failing when tool schemas contain unsupported JSON Schema keywords or fields that allow multiple types.
-- Fixed auth broker account selection and usage-limit enforcement to consistently use the selected account’s quota when multiple accounts are present.
-- Fixed Anthropic-family model streaming so encoded marker tokens are decoded correctly in text, tool-call updates, partial messages, and completed tool calls.
-- Fixed accounts sitting exactly at their `reservePct` (e.g. 70% used with a 30% reserve) still being picked and reported healthy instead of being held in reserve ([#14765](https://github.com/can1357/oh-my-pi/pull/14765) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed `oauth.accessById` with `forceRefresh` returning the stored token unchanged while it was still valid; it now re-mints that one account (through the auth broker when configured) and returns that account's token even if another row is removed meanwhile ([#14752](https://github.com/can1357/oh-my-pi/pull/14752) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed `omp -p` and other short-lived auth-broker clients missing from `zetacode usage clients`: usage still waiting for the 10-second report batch is now sent to the broker before the process exits ([#14899](https://github.com/can1357/oh-my-pi/pull/14899) by [@will-bogusz](https://github.com/will-bogusz))
-- Fixed Cursor web fetches that were cut off by a dropped connection disappearing from resumed and rebuilt sessions; they now show as interrupted ([#14819](https://github.com/can1357/oh-my-pi/pull/14819) by [@jchanghong023](https://github.com/jchanghong023))
-- Anthropic hosted web search can honor custom providers' OAuth-style request shaping and configured headers consistently with conversations ([#14919](https://github.com/can1357/oh-my-pi/pull/14919) by [@farnoy](https://github.com/farnoy))
-
 ## [1.1.24] - 2026-10-03
 
 - 网关身份头统一 `x-zeta-*`（消费方同步）；新增 `extractHttpStatusFromError`/`extractRetryHint` 导出。

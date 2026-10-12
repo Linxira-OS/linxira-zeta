@@ -25,6 +25,18 @@ import { moveSessionToTrash, type TrashMoveOptions, type TrashMoveResult } from 
 const SESSION_WRITE_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT;
 const utf8Decoder = new TextDecoder("utf-8");
 
+/**
+ * Basename of a rewrite staged by {@link sessionStagingPath}; group 1 is the
+ * target's basename. A live publish renames it away within milliseconds;
+ * `zetacode gc` reclaims one a killed writer left behind.
+ */
+export const SESSION_STAGING_RE = /^\.(.+)\.[0-9a-f]{16}\.tmp$/;
+
+/** Fresh staging path beside `target`, matching {@link SESSION_STAGING_RE}. */
+export function sessionStagingPath(target: string): string {
+	return path.join(path.dirname(target), `.${path.basename(target)}.${Snowflake.next()}.tmp`);
+}
+
 export interface SessionStorageStat {
 	size: number;
 	mtimeMs: number;
@@ -522,7 +534,7 @@ function testSessionOwnersDir(): string | undefined {
 	const exported = process.env[TEST_SESSION_OWNERS_DIR_ENV];
 	if (exported || !isBunTestRuntime()) return exported;
 	const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().username;
-	const dir = path.join(os.tmpdir(), `omp-test-session-owners-${uid}`);
+	const dir = path.join(os.tmpdir(), `zeta-test-session-owners-${uid}`);
 	process.env[TEST_SESSION_OWNERS_DIR_ENV] = dir;
 	return dir;
 }
@@ -939,7 +951,7 @@ export class FileSessionStorage implements SessionStorage {
 	): void {
 		const dir = path.dirname(fpath);
 		this.ensureDirSync(dir);
-		const tempPath = path.join(dir, `.${path.basename(fpath)}.${Snowflake.next()}.tmp`);
+		const tempPath = sessionStagingPath(fpath);
 		try {
 			stage(tempPath);
 		} catch (err) {
@@ -1061,7 +1073,7 @@ export class FileSessionStorage implements SessionStorage {
 		options: WriteTextAtomicOptions | undefined,
 	): Promise<void> {
 		const dir = path.resolve(fpath, "..");
-		const tempPath = path.join(dir, `.${path.basename(fpath)}.${Snowflake.next()}.tmp`);
+		const tempPath = sessionStagingPath(fpath);
 		await fs.promises.mkdir(dir, { recursive: true });
 		try {
 			await stage(tempPath);
