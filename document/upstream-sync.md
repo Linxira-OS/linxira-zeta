@@ -250,7 +250,12 @@ two-parent tag merge.
      earlier branding pass on main, so this is not merge damage, but it is user-visible;
      swept to `_zeta*` across the generator and its test. The brand rule pins only the
      emitted shapes: `_omp/…` ACP extMethod names, `_omp_prelude` and the `_omp_ida_stub`
-     test module are upstream protocol/private names and stay.
+     test module are upstream protocol/private names and stay. The first pass used
+     `(?<![_\w])_omp_` for *both* the replacement and the check, so `\n\t\t\t_omp_comma`-style
+     sites (literal backslash + `t` before the underscore) were filtered out on both sides:
+     the check reported 0 while four remained, and hosted CI named
+     `completions.test.ts:69`. Re-swept with plain substrings, and the guard was de-blinded
+     and confirmed against those four before clearing them — 结论 28 in the playbook.
   8. **A chunk that reports no failing test but exits nonzero is now retried** — the
      coding-agent native bucket's `test/cli` chunk ran its whole suite (`66 pass / 0 fail`,
      `Ran 68 tests across 10 files`) and still exited 1 with nothing else printed, so the

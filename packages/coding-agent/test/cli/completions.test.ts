@@ -66,9 +66,9 @@ describe("generateCompletion — bash", () => {
 		expect(out).toContain("--resume|-r)");
 		expect(out).toContain(`command ${CLI_BIN_NAME} __complete sessions`);
 		// static comma list routes through the comma-aware helper
-		expect(out).toContain('--tools)\n\t\t\t_omp_comma "read bash"');
+		expect(out).toContain('--tools)\n\t\t\t_zeta_comma "read bash"');
 		// multiple-value models flag also uses the comma helper
-		expect(out).toContain("--models)\n\t\t\t_omp_comma");
+		expect(out).toContain("--models)\n\t\t\t_zeta_comma");
 	});
 
 	it("offers subcommand names and root flags at the top level", () => {
@@ -107,7 +107,7 @@ describe.skipIf(!hasZsh)("zsh action helper under _arguments' calling convention
 			fs.writeFileSync(
 				path.join(dir, "harness.zsh"),
 				// _describe only exists inside a completion context.
-				`_describe() { :; }\n${fn}\n_omp_call -n -J -default- sessions\n`,
+				`_describe() { :; }\n${fn}\n_zeta_call -n -J -default- sessions\n`,
 			);
 
 			const result = Bun.spawnSync(["zsh", "-f", path.join(dir, "harness.zsh")], {

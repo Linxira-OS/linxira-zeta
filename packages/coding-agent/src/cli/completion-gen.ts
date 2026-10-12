@@ -282,7 +282,7 @@ ${bashFlagCase(bin, c.flags)}
 	// Dispatcher.
 	const dispatch: string[] = [];
 	for (const c of spec.commands) {
-		dispatch.push(`\t\t${commandTokens(c).join("|")})\n\t\t\t_omp_cmd_${bashFn(c.name)}\n\t\t\t;;`);
+		dispatch.push(`\t\t${commandTokens(c).join("|")})\n\t\t\t_zeta_cmd_${bashFn(c.name)}\n\t\t\t;;`);
 	}
 	parts.push(`_zeta() {
 	local cur prev cmd i
