@@ -90,6 +90,8 @@ describe("/tracking slash command", () => {
 		await trackingCmd!.handle!(command("start"), mockRuntime(cwd, capture));
 		expect(capture.text).toContain("开始维护项目追踪文档");
 		expect(capture.text).toContain("tracking_update");
+		// D2 memory boundary: tracking holds process state, never knowledge facts.
+		expect(capture.text).toContain("绝不存学到的知识事实");
 	});
 
 	it("status reads a status.json written by tracking_update", async () => {

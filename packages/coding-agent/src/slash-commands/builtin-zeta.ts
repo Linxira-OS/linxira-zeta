@@ -298,6 +298,7 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 				"开始维护项目追踪文档：我会在里程碑、重要决策、阶段完成与阻塞解除后调用 tracking_update 工具，\n" +
 				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.jsonl）、阶段（sync_todo）与计划（sessions/）写入 ${dir}。\n` +
 				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。三读者定位：人 / agent / 协作者。\n" +
+				"追踪只记过程状态（阶段 / 阻塞 / 计划镜像），绝不存学到的知识事实——事实请用记忆工具；动态状态先写入追踪文档，再由读者读取文档。\n" +
 				seededNote
 			);
 		}
