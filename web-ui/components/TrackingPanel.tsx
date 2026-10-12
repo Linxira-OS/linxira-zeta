@@ -31,7 +31,7 @@ interface TrackingData {
 	summaries: { name: string; content: string }[];
 }
 
-type SubTab = "overview" | "status" | "plans" | "logs" | "sessions" | "charts";
+type SubTab = "overview" | "status" | "plans" | "logs" | "sessions" | "summaries" | "charts";
 
 const SUB_TABS: { id: SubTab; labelKey: string }[] = [
 	{ id: "overview", labelKey: "tracking.tab.overview" },
@@ -39,8 +39,50 @@ const SUB_TABS: { id: SubTab; labelKey: string }[] = [
 	{ id: "plans", labelKey: "tracking.tab.plans" },
 	{ id: "logs", labelKey: "tracking.tab.logs" },
 	{ id: "sessions", labelKey: "tracking.tab.sessions" },
+	{ id: "summaries", labelKey: "tracking.tab.summaries" },
 	{ id: "charts", labelKey: "tracking.tab.charts" },
 ];
+
+/**
+ * Collapsible markdown listing shared by the plans and summaries sub-tabs.
+ * Exported so a render test can mount it directly: the panel fetches its own
+ * data in an effect, which a static render never runs.
+ */
+export function TrackingMarkdownList({
+	entries,
+	cwd,
+	emptyLabel,
+}: {
+	entries: { name: string; content: string }[];
+	cwd: string | null;
+	emptyLabel: string;
+}) {
+	if (entries.length === 0) {
+		return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{emptyLabel}</div>;
+	}
+	return (
+		<div style={{ padding: "12px 16px", overflow: "auto", flex: 1 }}>
+			{entries.map(entry => (
+				<details key={entry.name} style={{ marginBottom: 12 }}>
+					<summary
+						style={{
+							cursor: "pointer",
+							color: "var(--text)",
+							fontSize: 13,
+							fontWeight: 500,
+							padding: "4px 0",
+						}}
+					>
+						{entry.name.replace(/\.md$/, "")}
+					</summary>
+					<div style={{ padding: "8px 0 8px 12px", borderLeft: "2px solid var(--border)" }}>
+						<MarkdownBody cwd={cwd ?? undefined}>{entry.content}</MarkdownBody>
+					</div>
+				</details>
+			))}
+		</div>
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -150,30 +192,15 @@ export function TrackingPanel({ cwd }: Props) {
 
 	const renderPlans = () => {
 		if (!data) return null;
-		if (data.plans.length === 0) {
-			return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyPlans")}</div>;
-		}
 		return (
-			<div style={{ padding: "12px 16px", overflow: "auto", flex: 1 }}>
-				{data.plans.map(s => (
-					<details key={s.name} style={{ marginBottom: 12 }}>
-						<summary
-							style={{
-								cursor: "pointer",
-								color: "var(--text)",
-								fontSize: 13,
-								fontWeight: 500,
-								padding: "4px 0",
-							}}
-						>
-							{s.name.replace(/\.md$/, "")}
-						</summary>
-						<div style={{ padding: "8px 0 8px 12px", borderLeft: "2px solid var(--border)" }}>
-							<MarkdownBody cwd={cwd ?? undefined}>{s.content}</MarkdownBody>
-						</div>
-					</details>
-				))}
-			</div>
+			<TrackingMarkdownList entries={data.plans} cwd={cwd} emptyLabel={t("tracking.emptyPlans")} />
+		);
+	};
+
+	const renderSummaries = () => {
+		if (!data) return null;
+		return (
+			<TrackingMarkdownList entries={data.summaries} cwd={cwd} emptyLabel={t("tracking.emptySummaries")} />
 		);
 	};
 
@@ -521,6 +548,7 @@ export function TrackingPanel({ cwd }: Props) {
 		plans: renderPlans,
 		logs: renderLogs,
 		sessions: renderSessions,
+		summaries: renderSummaries,
 		charts: renderCharts,
 	};
 

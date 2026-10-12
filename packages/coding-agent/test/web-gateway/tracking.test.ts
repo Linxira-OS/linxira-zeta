@@ -1,8 +1,9 @@
 /**
  * Gateway tracking contract — `GET /api/tracking` mirrors the
- * `<project>/.zeta/tracking/` file layout (status.json, INDEX.md,
- * actions.jsonl, sessions/*.md) and `GET /api/tracking/events` pushes a
- * `{ type: "tracking_changed" }` SSE notification after a file write.
+ * `<project>/.zeta/tracking/` file layout (status.json, INDEX.md, the rotated
+ * `actions.<day>.jsonl.log` family, sessions|summaries|plans/*.md) and
+ * `GET /api/tracking/events` pushes a `{ type: "tracking_changed" }` SSE
+ * notification after a file write.
  *
  * The SSE test drives the handler through a real Bun.serve listener + fetch
  * (the production path): a direct ReadableStream reader drops post-start
@@ -10,7 +11,7 @@
  * them correctly — which is what the gateway runs in production.
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleGetTracking, handleTrackingEvents } from "../../src/server/web-gateway/tracking";
@@ -25,6 +26,10 @@ async function makeTrackingProject(): Promise<string> {
 	return cwd;
 }
 
+function trackingRequest(cwd: string): Request {
+	return new Request(`http://127.0.0.1/api/tracking?cwd=${encodeURIComponent(cwd)}`);
+}
+
 afterEach(async () => {
 	await Promise.all(cleanups.splice(0).map(fn => fn()));
 });
@@ -32,14 +37,15 @@ afterEach(async () => {
 describe("GET /api/tracking", () => {
 	test("returns empty-state fields for a fresh project", async () => {
 		const cwd = await makeTrackingProject();
-		const res = await handleGetTracking(new Request(`http://127.0.0.1/api/tracking?cwd=${encodeURIComponent(cwd)}`));
+		const res = await handleGetTracking(trackingRequest(cwd));
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.index).toBeNull();
 		expect(body.status).toBeNull();
 		expect(body.actions).toEqual([]);
 		expect(body.sessions).toEqual([]);
-		expect(typeof body.updatedAt).toBe("string");
+		expect(body.summaries).toEqual([]);
+		expect(body.updatedAt).toBe("");
 	});
 
 	test("mirrors the tracking file layout", async () => {
@@ -58,7 +64,7 @@ describe("GET /api/tracking", () => {
 		);
 		await writeFile(join(trackingDir, "INDEX.md"), "# Plan index\n\n- item one\n");
 		await writeFile(
-			join(trackingDir, "actions.jsonl"),
+			join(trackingDir, "actions.2026-09-08.jsonl.log"),
 			[
 				JSON.stringify({ timestamp: "2026-09-08T00:01:00.000Z", action: "update_status", detail: "60%" }),
 				"not-json",
@@ -67,14 +73,17 @@ describe("GET /api/tracking", () => {
 			"utf8",
 		);
 		await writeFile(join(trackingDir, "sessions", "PLAN-1.md"), "## Session plan\n");
+		await mkdir(join(trackingDir, "summaries"), { recursive: true });
+		await writeFile(join(trackingDir, "summaries", "compaction-2026-09-08T00-03-00-000Z.md"), "# Goal\nShip it.\n");
 
-		const res = await handleGetTracking(new Request(`http://127.0.0.1/api/tracking?cwd=${encodeURIComponent(cwd)}`));
+		const res = await handleGetTracking(trackingRequest(cwd));
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			index: string | null;
 			status: { phase: string; blockers: string[] } | null;
 			actions: Array<{ action: string; detail?: string }>;
 			sessions: Array<{ name: string; content: string }>;
+			summaries: Array<{ name: string; content: string }>;
 		};
 		expect(body.index).toContain("# Plan index");
 		expect(body.status?.phase).toBe("impl");
@@ -83,6 +92,30 @@ describe("GET /api/tracking", () => {
 		expect(body.actions).toHaveLength(2);
 		expect(body.actions[0]?.detail).toBe("60%");
 		expect(body.sessions).toEqual([{ name: "PLAN-1.md", content: "## Session plan\n" }]);
+		// the summaries family the panel's Summaries tab renders
+		expect(body.summaries.map(row => row.name)).toEqual(["compaction-2026-09-08T00-03-00-000Z.md"]);
+		expect(body.summaries[0]?.content).toContain("Ship it.");
+	});
+
+	test("updatedAt is content-derived: it holds still while nothing changes and moves on a write", async () => {
+		const cwd = await makeTrackingProject();
+		const trackingDir = join(cwd, ".zeta", "tracking");
+		const readUpdatedAt = async (): Promise<string> => {
+			const res = await handleGetTracking(trackingRequest(cwd));
+			const body = (await res.json()) as { updatedAt: string };
+			return body.updatedAt;
+		};
+
+		await writeFile(join(trackingDir, "INDEX.md"), "# Plan index\n", "utf8");
+		const first = await readUpdatedAt();
+		const second = await readUpdatedAt();
+		expect(first).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+		expect(second).toBe(first);
+
+		const bumped = new Date(Date.now() + 2000);
+		await writeFile(join(trackingDir, "INDEX.md"), "# Plan index\n\n- more\n", "utf8");
+		await utimes(join(trackingDir, "INDEX.md"), bumped, bumped);
+		expect(Date.parse(await readUpdatedAt())).toBeGreaterThan(Date.parse(first));
 	});
 });
 
