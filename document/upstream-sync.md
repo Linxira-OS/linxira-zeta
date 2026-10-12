@@ -119,6 +119,40 @@ two-parent tag merge.
   grep-concurrency timing test; `packages/coding-agent` ModelRegistry compat (3;
   path rendering in the warning differs from the fixture). Main's Linux CI shows
   those buckets green, which is why they are local-only.
+- **PR #91 CI round (2026-10-12)**: the first hosted run (`38188714802`) surfaced
+  five families, each an upstream contract imported without its Zeta counterpart
+  (fixed in `92b3476e27a`):
+  1. **TUI roles** — upstream's `composer-native`/`transcript-committed-release`
+     tests assert `omp.composer.*`/`omp.editor.*`/`omp.working.*`/`omp.queue.*`/
+     `omp.status`/`omp.note` while the sources emit `zeta.*` (main's copies are
+     branded); `notifications.test.ts` asserted the OSC 99 probe id `i=omp-probe-`
+     and app field `f=b21w` against a source emitting `zeta-probe-`/`emV0YQ==`.
+     Swept both to the Zeta shapes and widened the brand rules from the
+     `composer\.chips?|run` alternation to the whole role namespace plus those two
+     OSC tokens (`scripts/brand/brand-rules.ts`), so a future merge re-importing
+     them fails `brand-check` instead of hosted CI.
+  2. **`scripts/ci-test-ts.ts`** — upstream inlined `selectShard` without `export`;
+     our `ci-test-ts.test.ts` imports it (main exports it) → export restored.
+  3. **i18n** — upstream's new `/fork pane|window|tab` descriptions were hardcoded
+     English, and the `cmdFork` catalogue key had become orphaned when upstream
+     rewrote the command's text. Wired all four to `M.cmdFork*`, updated the
+     orphaned en text and added the zh catalogue.
+  4. **settings zh** — upstream's new `retry.fallbackOn` had no zh label, failing
+     the settings-completeness assertion; label + description added to
+     `config/settings-zh.ts`.
+  5. **Native windowing — by design, not damage** — the two long-line tests need
+     v18.9.1's `window_matched_line`, but a `pull_request` run never builds addons:
+     `ci.yml` `native_addons` restores main's cache (its key includes `crates/**`,
+     so a native-changing PR always misses) or falls back to the npm leaf, and says
+     "Native changes are validated post-merge on main and at release". Rather than
+     weaken the tests, they now probe the loaded addon for windowing (`column` on a
+     truncated match) and `skipIf` — they run wherever the addon is source-matched
+     (main, release, and PRs after main caches the merged crates) and skip with the
+     same rationale the workflow documents. Local confirmations for this round:
+     version line 1.1.29, `brand-check` 0 hits under the widened rules,
+     `check-scope-imports` 18,518 specifiers, `check-zeta-sentinels` 60;
+     `check:ts` and the test buckets stay with hosted CI per the maintainer's
+     no-local-build instruction.
 - **Next merge**: starts from this round's final commit. Upstream's next tag is
   `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
   pure window is 166 commits / 165 files / +5870 −972). Maintainer decision
