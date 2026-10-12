@@ -4,11 +4,12 @@ description: >
    exposes the backend through step outputs before any action condition
    uses it.
 
-   omp-kata jobs use the cluster remote cache. GitHub-hosted jobs use an
-   actions/cache-backed disk cache seeded by the bazel-cache-warm workflow
-   on the same runner image — cross-host action keys never hit, so the disk
-   cache is hosted-only and its key carries a schema version (v1 was
-   poisoned by a kata-produced export that silently missed every action).
+   Zeta's bazel jobs run on GitHub-hosted runners and use an
+   actions/cache-backed disk cache that this action restores and saves; the
+   optional self-hosted infra branch (selected when BAZEL_REMOTE_USER/
+   BAZEL_REMOTE_PASSWORD are set) uses the in-cluster remote cache instead.
+   The disk-cache key carries a schema version because its v1 was poisoned
+   by a bad export that silently missed every action.
 
    The v3 key is <config hash>-<source hash>: config covers toolchain and
    build settings, source covers crates/** + BUILD.bazel. Restores fall
@@ -73,7 +74,7 @@ runs:
              remote=true
            elif [ -n "${BAZEL_REMOTE_USER:-}" ] || [ -n "${BAZEL_REMOTE_PASSWORD:-}" ]; then
              # Single-sided credential config (e.g. one repo secret set, the
-             # other missing) must not fail the warm/seed runs — fall back to
+             # other missing) must not fail the cache-seeding runs — fall back to
              # the actions/cache-backed disk cache instead of erroring out.
              echo "::warning::BAZEL_REMOTE_USER/PASSWORD partially configured; using disk cache"
            fi
