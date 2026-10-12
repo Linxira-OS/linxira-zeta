@@ -4,6 +4,7 @@
 - 崩溃报告（stderr 与 `~/.zeta/logs/native-*.log`）新增进程与系统内存计数：进程 rss/峰值/提交、系统可用/总量/提交上限。读数走 syscall、经预分配栈缓冲无分配写入，因此真正的 OOM 下数字也能先落到 stderr，再谈报告本体。
 - 新增动态小工具框架与首个工具 time（`/tool time on|off`，开启期间用户消息附带发送时间戳，AI 可随时获取当前准确时间）。
 - 新增 `mode` 工具：AI 可自行进入计划模式（含 `parallel`/`iterative`/`ultra` 工作流），且只能退出**自己开启的**计划模式；用户开启的计划模式、以及 `goal`/`vibe` 模式的进出一律拒绝（这两个模式授予自主权，只能由用户开启，AI 只能请求）。计划模式的来源记录在会话状态里（缺省视为用户开启），因此代理无法绕过用户放行计划的那道门。
+- 系统提示词补上 host CLI 的专用工具规则：GitHub（CI 运行、PR、议题、搜索）用 `github` 工具而非 shell `gh`，轮询 CI 用 `op: run_watch`（省略 `run` 即当前 HEAD）而非 `gh run watch` 循环；Gitea 同理用 `tea` 工具而非 shell `tea`。此前这条规则只存在于「把 CI 弄绿」这一条件提示词里，日常会话中模型仍会用 shell 轮询。
 ## [1.1.27] - 2026-10-07
 
 - Added automated release binary publication to build.stencil.so
