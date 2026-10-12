@@ -253,7 +253,7 @@ describe("update-cli install target detection", () => {
 	});
 
 	it("uses npm update for Windows npm command shims even when no package-manager bin dirs were detected", () => {
-		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\zeta.cmd", undefined);
+		const method = resolveUpdateMethodForTest("C:\\Users\\test\\AppData\\Roaming\\npm\\zetacode.cmd", undefined);
 
 		expect(method).toBe("npm");
 	});
@@ -1978,7 +1978,7 @@ describe("update-cli manager update recovery", () => {
 		packages: { pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 		registry: "https://registry.npmjs.org/",
 	};
-	const launcherPath = "C:/Users/test/AppData/Roaming/npm/zeta.cmd";
+	const launcherPath = "C:/Users/test/AppData/Roaming/npm/zetacode.cmd";
 
 	function scriptedSteps(script: {
 		install: InstalledVersionVerification | Error | undefined;

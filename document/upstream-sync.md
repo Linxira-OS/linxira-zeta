@@ -221,9 +221,23 @@ two-parent tag merge.
      `Target.getTargets` for up to 7 s instead of reading once, because the release
      closes the crashed page through a 5 s bounded close; a page that is *never*
      closed still fails.
-  Still unfixed and left to a re-run: one native/unit chunk (`test/cli/*`, 10
-  files) died without reporting a test failure and re-ran 66 pass / 0 fail in the
-  same job — a process-level flake, not merge damage.
+  5. **The CLI's own name swept to the workbench's (half-sweep)** — once item 3's
+     guard stopped masking failures, the only red left was two cases in
+     `test/executable-fallback.test.ts`. Upstream's fixture wrote `omp` for the CLI it
+     resolves on PATH; our sweep wrote bare `zeta`, matching `worker-client.ts`'s
+     pre-existing `$which("zeta")`. In Zeta a bare `zeta` is the **workbench** bin
+     (`@linxiraos/main`), so an upgrade that left `process.execPath` stale would have
+     spawned the workbench, not the CLI. The source resolves `CLI_BIN_NAME` now and the
+     fixtures follow it (`CLI_BIN_NAME`; `VERSION` for the cellar path — pinning the
+     literal would re-pin the bug). Same residue in `test/cli/completions.test.ts`
+     (`bin: "zeta"`) and `test/update-cli.test.ts` (`npm\zeta.cmd` in a file that
+     already used `zetacode.*` everywhere else). Two brand rules now hold the line:
+     `$which("zeta")` and bare `zeta.cmd|ps1`.
+  The reds this list could not explain were item 3's: the rerun carrying its guard fix
+  (`2672871f63e`) failed exactly two tests — both `executable-fallback.test.ts` (item 5)
+  — with `Test TS workspace fast` green, and the native/unit chunk that had died
+  silently ran `66 pass / 0 fail` in the same job. Neither was a process-level flake;
+  both were the runaway suite competing with their own job.
 - **What made the missing guard visible**: the harness now says when it had to
   cancel a chunk's pipes (a descendant outlived the chunk and kept them open, and
   cancelling discards what is still buffered — which is why such a failure reports
@@ -231,11 +245,10 @@ two-parent tag merge.
   mirrors the child's stdout into a file so a timed-out `ptree.exec` (which throws
   with a message only) can still be diagnosed. The file is what showed the child
   running the *coding-agent bucket* instead of the two commands it was given.
-  `worker-client.ts` also resolved the CLI on PATH as `$which("zeta")`: that is a
-  pre-existing Zeta divergence — upstream asks for its own CLI name there, and in
-  Zeta a bare `zeta` is the **workbench** bin, so an upgrade that left
-  `process.execPath` stale would have spawned the wrong program. It now resolves
-  `CLI_BIN_NAME` (`zetacode`).
+  The same two diagnostics exposed item 5: `worker-client.ts` resolved the CLI on PATH
+  as `$which("zeta")` (a pre-existing Zeta divergence) and the merged upstream fixture
+  pinned that. It now resolves `CLI_BIN_NAME` (`zetacode`), guarded in `brand-rules.ts`
+  together with the shim names.
 - **Next merge**: starts from this round's final commit. Upstream's next tag is
   `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
   pure window is 166 commits / 165 files / +5870 −972). Maintainer decision

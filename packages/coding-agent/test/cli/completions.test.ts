@@ -11,7 +11,7 @@ import type { CliConfig, CommandCtor } from "@linxiraos/pi-utils/cli";
 // subcommand. The generators are pure functions of this shape, so pinning their
 // output here defends the exact bytes each shell parses without booting the CLI.
 const spec: CompletionSpec = {
-	bin: "zeta",
+	bin: CLI_BIN_NAME,
 	root: {
 		flags: [
 			{ name: "model", description: "Model to use", value: { kind: "models", multiple: false }, repeatable: false },
@@ -191,7 +191,7 @@ describe("buildSpec", () => {
 
 	it("lifts the root command's flags and excludes root + hidden from subcommands", () => {
 		const config: CliConfig = {
-			bin: "zeta",
+			bin: CLI_BIN_NAME,
 			version: "0",
 			commands: new Map<string, CommandCtor>([
 				["launch", fakeCmd({ hidden: true, flags: { model: { kind: "string" } }, args: {} })],
@@ -209,7 +209,7 @@ describe("buildSpec", () => {
 
 	it("classifies flag value sources from descriptor metadata", () => {
 		const config: CliConfig = {
-			bin: "zeta",
+			bin: CLI_BIN_NAME,
 			version: "0",
 			commands: new Map<string, CommandCtor>([
 				[

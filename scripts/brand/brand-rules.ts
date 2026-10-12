@@ -623,6 +623,16 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{
+		needle: /\$which\(\s*"zeta"\)/,
+		why: "resolving the CLI on PATH must go through CLI_BIN_NAME: a bare `zeta` is the separate workbench (@linxiraos/main), so this spawns the wrong program once an upgrade leaves process.execPath stale (worker-client.ts carried `zeta` from before the v18.9.1 merge, and the merged fallback test pinned it)",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /\bzeta\.(cmd|ps1)\b/,
+		why: "our CLI's npm/bun shims are named after CLI_BIN_NAME (zetacode.cmd/.ps1); bare `zeta.cmd` is the workbench's (@linxiraos/main). A resolver or fixture naming it is upstream's omp.cmd swept one step short (v18.9.1: test/update-cli.test.ts)",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
 		needle: /`omp\.(cmd|ps1|bunx|exe)`/,
 		why: "the CLI's npm/bun shims and release binary are named after CLI_BIN_NAME (zetacode.*); the bare `omp.*` spelling is upstream's. The stale pre-merge `zeta.cmd` is not the target either",
 		exempt: ["CHANGELOG.md"],
