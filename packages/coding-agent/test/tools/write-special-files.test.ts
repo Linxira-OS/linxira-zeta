@@ -27,7 +27,7 @@ function createSession(cwd: string): ToolSession {
 async function writeInChild(
 	target: string,
 	cwd: string,
-): Promise<{ code: number | null; signal: string | null; output: string }> {
+): Promise<{ code: number | null; signal: string | number | null; output: string }> {
 	const script = `
 		import { Settings } from "@linxiraos/zeta/config/settings";
 		import { WriteTool } from "@linxiraos/zeta/tools/write";
