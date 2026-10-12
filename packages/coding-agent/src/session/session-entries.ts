@@ -23,6 +23,15 @@ export const TITLE_CHANGE_ENTRY_TYPE = "title_change";
 
 export type SessionTitleSource = "auto" | "user";
 
+/**
+ * Which client created a session — the provenance stamp every durable header
+ * carries. `cli` covers the terminal CLI and its ACP host, `web` the browser
+ * workbench, `desktop` the Electron shell's serve process, and `automation`
+ * a serve process with no interactive client attached (IM channels, cron-ish
+ * relay work).
+ */
+export type SessionClient = "cli" | "web" | "desktop" | "automation";
+
 /** Fixed-width first-line slot carrying the mutable current session title. */
 export interface SessionTitleSlotEntry {
 	type: typeof SESSION_TITLE_SLOT_ENTRY_TYPE;
@@ -44,6 +53,11 @@ export interface SessionHeader {
 	timestamp: string;
 	cwd: string;
 	/**
+	 * Client that created this session. Absent on sessions written before the
+	 * stamp existed (read them as an unknown client, never as a guess).
+	 */
+	client?: SessionClient;
+	/**
 	 * Additional workspace directories beyond `cwd` (multi-root workspace).
 	 * Absolute, normalized, deduplicated. Absent on legacy single-cwd sessions.
 	 * See {@link SessionWorkspace} in `./session-workspace`.
@@ -58,6 +72,11 @@ export interface SessionHeader {
 
 export interface NewSessionOptions {
 	parentSession?: string;
+	/**
+	 * Client the new session is created for; omitted means "same client as the
+	 * session being replaced", which is what `/new`, branch and fork want.
+	 */
+	client?: SessionClient;
 	/** Provider prompt-cache identity to seed on the new session header. */
 	providerPromptCacheKey?: string;
 	/** Skip flushing the current session and delete it instead of saving. */

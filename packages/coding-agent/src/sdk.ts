@@ -217,6 +217,7 @@ import {
 } from "./session/retry-fallback-chains";
 import { describeUsageFallback } from "./session/retry-fallback-reason";
 import { getRestorableSessionModels } from "./session/session-context";
+import type { SessionClient } from "./session/session-entries";
 import { SessionManager } from "./session/session-manager";
 import {
 	collectMountedMCPToolRoutes,
@@ -852,6 +853,15 @@ export interface CreateAgentSessionOptions {
 
 	/** Session manager. Default: session stored under the configured agentDir sessions root */
 	sessionManager?: SessionManager;
+
+	/**
+	 * Client this session is created for, stamped on the durable header when the
+	 * SDK is the one creating the session (i.e. no `sessionManager` was passed).
+	 * A caller that supplies its own manager stamps it there instead — the
+	 * creator owns the provenance. Default: undefined, which reads as a session
+	 * from before the stamp existed.
+	 */
+	client?: SessionClient;
 
 	/** Override local:// protocol options for subagent local:// sharing. Default: uses the session's own artifacts dir and session ID. */
 	localProtocolOptions?: LocalProtocolOptions;
@@ -1889,7 +1899,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const sessionManager =
 		options.sessionManager ??
 		logger.time("sessionManager", () =>
-			SessionManager.create(cwd, SessionManager.getDefaultSessionDir(cwd, agentDir)),
+			SessionManager.create(cwd, SessionManager.getDefaultSessionDir(cwd, agentDir), undefined, {
+				client: options.client,
+			}),
 		);
 	const configuredDirs = options.additionalDirectories
 		? options.additionalDirectories
