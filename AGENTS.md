@@ -449,6 +449,7 @@ tag）；结论成立则写入 `document/merge-playbook.md`。
 ## Commands
 
 - NEVER commit unless asked.
+- Scratch artifacts go in `temp/` (already gitignored); ad-hoc outputs and one-off debugging files MUST never be committed — the repo root tracks product files only.
 - Never use `tsc`/`npx tsc` — always `bun check`.
 - Never run `cargo test` directly for Rust tests — use `bun run test:rs`. It runs `cargo nextest run` (config: `.config/nextest.toml`) followed by a `cargo test --doc` pass, because nextest does not execute doctests. The doctest pass runs every runnable doctest in the workspace's lib crates; today that is tree-sitter-go's one example (pi-natives is a `cdylib`, which rustdoc skips; pi-builtins' examples are `ignore`d vendored uutils docs).
 - Merge commits (maintainer merges of PRs) follow: `Merge PR #<number>: <conventional PR subject> (@<author>)` — e.g. `Merge PR #6386: feat(catalog): add native Meta Model API provider (@eggpeat)`.
