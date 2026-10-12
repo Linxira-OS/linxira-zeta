@@ -3,7 +3,9 @@
  *
  * Zeta rides ONE version line across every published surface: the 14
  * @linxiraos/* packages, the root workspaces.catalog keys, the Rust workspace
- * version, the pi-natives sentinel (__piNativesVX_Y_Z), the desktop app, and
+ * version, the pi-natives build-version mechanism (`pi_natives_build_version()`
+ * symbol + the stamped `__piNativesBuildVersion` value — the per-release
+ * __piNativesVX_Y_Z sentinel name is gone), the desktop app, and
  * the README version badge. Any drift is a release-blocking bug (the
  * 1.0.6/1.0.7 era shipped natives at 1.0.2/1.0.4 and broke `zeta update` with
  * ETARGET).
