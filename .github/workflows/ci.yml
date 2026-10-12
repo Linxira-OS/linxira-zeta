@@ -5,6 +5,7 @@ on:
       branches: [main, "dev/*"]
       paths:
          - "packages/**"
+         - "plugins/**"
          - "desktop/**"
          - "web-ui/**"
          - "editor/**"
@@ -39,6 +40,7 @@ on:
       branches: [main, omp2]
       paths:
          - "packages/**"
+         - "plugins/**"
          - "desktop/**"
          - "web-ui/**"
          - "editor/**"

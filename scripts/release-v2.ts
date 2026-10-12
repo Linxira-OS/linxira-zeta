@@ -29,21 +29,24 @@ import { runChangelogFixer } from "./fix-changelogs";
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
-// All published packages ride the release version in lock-step.
+// All published packages ride the release version in lock-step. Entries are
+// repo-relative package directories — official plugins (plugins/official/<id>)
+// follow the line too, so a plugin never lags the runtime it peers into.
 const ALL_PACKAGES = [
-	"utils",
-	"agent",
-	"catalog",
-	"ai",
-	"tui",
-	"mnemopi",
-	"snapcompact",
-	"stats",
-	"coding-agent",
-	"channels",
-	"natives",
-	"omptype",
-	"wire",
+	"packages/utils",
+	"packages/agent",
+	"packages/catalog",
+	"packages/ai",
+	"packages/tui",
+	"packages/mnemopi",
+	"packages/snapcompact",
+	"packages/stats",
+	"packages/coding-agent",
+	"packages/channels",
+	"packages/natives",
+	"packages/omptype",
+	"packages/wire",
+	"plugins/official/pi-messenger",
 ] as const;
 
 // Root catalog key → package dir mapping. Exactly these keys may carry a
@@ -84,7 +87,7 @@ async function finalizeChangelogsForRelease(version: string, packageDirs: readon
 	const date = new Date().toISOString().split("T")[0];
 
 	for (const dir of packageDirs) {
-		const changelog = `packages/${dir}/CHANGELOG.md`;
+		const changelog = `${dir}/CHANGELOG.md`;
 		let content = await Bun.file(changelog).text();
 
 		if (!content.includes("## [Unreleased]")) {
@@ -166,8 +169,8 @@ async function assertConsistency(version: string): Promise<void> {
 	const problems: string[] = [];
 
 	for (const pkg of ALL_PACKAGES) {
-		const pkgJson = await Bun.file(`packages/${pkg}/package.json`).json();
-		if (pkgJson.version !== version) problems.push(`packages/${pkg}: ${pkgJson.version} != ${version}`);
+		const pkgJson = await Bun.file(`${pkg}/package.json`).json();
+		if (pkgJson.version !== version) problems.push(`${pkg}: ${pkgJson.version} != ${version}`);
 	}
 	for (const manifestPath of ["desktop/package.json", "desktop/package-lock.json"]) {
 		const manifest = await Bun.file(manifestPath).json();
@@ -305,7 +308,7 @@ async function assertReleaseLogs(): Promise<void> {
 	const problems: string[] = [];
 
 	for (const pkg of ALL_PACKAGES) {
-		const changelogPath = `packages/${pkg}/CHANGELOG.md`;
+		const changelogPath = `${pkg}/CHANGELOG.md`;
 		const content = await Bun.file(changelogPath).text();
 		const upstreamMatch = content.match(/^## \[1[5-8]\./m);
 		if (upstreamMatch) {
@@ -391,7 +394,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	// Step 2: bump all published packages to the release version.
 	console.log(`Updating ${ALL_PACKAGES.length} packages to ${version}…`);
 	for (const pkg of ALL_PACKAGES) {
-		const pkgPath = `packages/${pkg}/package.json`;
+		const pkgPath = `${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
 	}
 	// Step 2b: Cargo workspace version follows the release version. The
