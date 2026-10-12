@@ -355,23 +355,23 @@ The pre-tag gate in `release-v2.ts` runs before any bump:
 **Zeta uses one version line for everything.** All 14 published `@linxiraos/*`
 packages (the 11 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)
 ride the same release version, and the root `workspaces.catalog` (13 keys),
-`Cargo.toml` workspace version, the `__piNativesVX_Y_Z` sentinel, and
-`desktop/package.json` + `desktop/package-lock.json` follow in lock-step. There
+`Cargo.toml` workspace version, the natives build-version stamp mechanism,
+and `desktop/package.json` + `desktop/package-lock.json` follow in lock-step. There
 is no separate leaf version — the 1.0.6/1.0.7 era shipped natives at
 1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, which broke `zeta update` with
 `ETARGET No matching version found for @linxiraos/pi-natives@1.0.7`. Never
 introduce a second version line: any version drift across the 14 packages,
-catalog, Cargo, or sentinel is a release-blocking bug.
+catalog, Cargo, or natives stamp is a release-blocking bug.
 
 Version bumps are a script operation, never hand edits:
 
 1. Ensure all changes since last release are in each affected package's `[Unreleased]` section.
 2. Run `bun scripts/release-v2.ts <version> [--watch]` (e.g. `bun scripts/release-v2.ts 1.0.8`).
 
-The script bumps all 14 packages, Cargo.toml, and the pi-natives sentinel
-(`__piNativesVX_Y_Z` in `crates/pi-natives/src/lib.rs` + the committed
-bindings in `packages/natives/native/index.{js,d.ts}`), rewrites the 14 root
-catalog keys, regenerates `bun.lock`, finalizes all 14 CHANGELOGs, runs
+The script bumps all 14 packages, Cargo.toml, and the 14 root catalog keys
+(the natives line carries the stable build-version stamp instead of a
+per-release sentinel name, so no natives source edit is needed), regenerates
+`bun.lock`, finalizes all 14 CHANGELOGs, runs
 `check:ts`, then commits (`chore: bump version to <version>`), tags
 (`v<version>`), and pushes atomically. The pushed commit triggers CI, which
 runs the full gate and — because HEAD carries the tag — the release/publish

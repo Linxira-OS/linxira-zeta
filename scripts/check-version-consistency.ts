@@ -14,8 +14,8 @@
  *   bun scripts/check-version-consistency.ts
  *
  * Exits non-zero listing every drifted surface. Kept in lock-step with the
- * package/catalog/sentinel lists in scripts/release-v2.ts and
- * scripts/set-version.ts (update all three together).
+ * package/catalog lists and natives mechanism symbols in
+ * scripts/release-v2.ts and scripts/set-version.ts (update all three together).
  *
  * web-ui/ is intentionally NOT checked: it only aligns to the release version
  * at publish time via set-version.ts, and stays on its own version between
@@ -217,7 +217,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + sentinel + desktop + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
 	);
 }
 

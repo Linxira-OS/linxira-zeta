@@ -6,7 +6,6 @@
  * Rewrites every hard-coded release version to <version> in one pass:
  *   - all 14 published @linxiraos packages (packages/{pkg}/package.json)
  *   - Cargo.toml workspace version
- *   - the __piNativesVX_Y_Z sentinel (lib.rs + committed bindings)
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
  *   - web-ui/package.json (zeta-web) version AND its @linxiraos/* dependency
@@ -85,13 +84,6 @@ const CATALOG_KEYS = [
 	"@linxiraos/pi-omptype",
 	"@linxiraos/pi-wire",
 ] as const;
-
-// Files carrying the pi-natives sentinel, same set as release-v2.ts.
-const SENTINEL_FILES = [
-	"crates/pi-natives/src/lib.rs",
-	"packages/natives/native/index.js",
-	"packages/natives/native/index.d.ts",
-];
 
 function readJson(rel: string): unknown {
 	return JSON.parse(fs.readFileSync(path.join(repoRoot, rel), "utf8"));
@@ -193,17 +185,6 @@ async function main(): Promise<void> {
 		changed.push(mainCargoRel);
 	} else {
 		unchanged.push(mainCargoRel);
-	}
-
-	// 3. pi-natives version sentinel.
-	const sentinelJsId = version.replace(/[^A-Za-z0-9]/g, "_");
-	const sentinelName = `__piNativesV${sentinelJsId}`;
-	for (const rel of SENTINEL_FILES) {
-		if (replaceInFile(rel, /__piNativesV[A-Za-z0-9_]+/g, sentinelName)) {
-			changed.push(rel);
-		} else {
-			unchanged.push(rel);
-		}
 	}
 
 	// 4. Desktop shell.

@@ -375,10 +375,12 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 - **v18.8.8 合并后专项排查产出（2026-10-11）**：
   - **待设计**：④tracking 架构项（`status.json` 无锁、`actions.jsonl` 无上限、
     `summaries/` 无面板、`updatedAt` 取请求时刻）。
-  - **文档漂移（改文档即可）**：AGENTS.md 的 `__piNativesVX_Y_Z`/`__piNativesV1_X_Y`
-    哨兵措辞已改为 `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳机制；
-    同类逐版本哨兵措辞仍留在 `document/dev-conventions.md`、`document/release.md`、
-    `scripts/set-version.ts`、`scripts/release-v2.ts`，需一并改齐。
+  - **文档漂移（已收尾）**：版本线叙述已全树对齐到机制——稳定符号
+    `pi_natives_build_version()` + `__piNativesBuildVersion` 构建期值戳，逐版本
+    哨兵名（含 set-version 的改名步骤）已无残留；涉及 AGENTS.md、
+    `document/release.md`、`document/dev-conventions.md`、`document/merge-playbook.md`、
+    `document/design-principles.md`、`document/merge-review.md`、
+    `scripts/set-version.ts`、`scripts/release-v2.ts`。本条备注至此收尾。
 
 - **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
   基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方

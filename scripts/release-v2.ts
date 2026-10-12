@@ -16,8 +16,9 @@ import { runChangelogFixer } from "./fix-changelogs";
  * v2 (unified version line): every published @linxiraos/* package rides the
  * release version (see ALL_PACKAGES below — core packages plus the native
  * leaves natives/omptype/wire all become `X.Y.Z`). The root catalog
- * (CATALOG_KEYS), Cargo.toml workspace version, and the
- * `__piNativesVX_Y_Z` sentinel follow in lock-step, so npm installs never
+ * (CATALOG_KEYS) and the Cargo.toml workspace version follow in lock-step
+ * (the natives line rides a stable build-version stamp, never a per-release
+ * name), so npm installs never
  * mix version lines (the 1.0.6/1.0.7
  * releases shipped natives@1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, and
  * `zeta update` failed with ETARGET because it pinned every package to the
@@ -62,13 +63,6 @@ const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-omptype", pkg: "omptype" },
 	{ key: "@linxiraos/pi-wire", pkg: "wire" },
 ];
-
-/** Files carrying the pi-natives version sentinel, kept in lock-step with the release version. */
-const SENTINEL_FILES = [
-	"crates/pi-natives/src/lib.rs",
-	"packages/natives/native/index.d.ts",
-	"packages/natives/native/index.js",
-] as const;
 
 function git(args: readonly string[]) {
 	return $`git -c core.fsmonitor=false -c core.untrackedCache=false -c fetch.pruneTags=false ${args}`;
@@ -215,7 +209,7 @@ async function assertConsistency(version: string): Promise<void> {
 		process.exit(1);
 	}
 	console.log(
-		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/sentinel OK, tag absent`,
+		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/natives-stamp OK, tag absent`,
 	);
 }
 
