@@ -24,7 +24,11 @@
    `temp/` 等 gitignored 路径）。
 2. 携带标准模板文件：`plugin.json`/`plugin.toml`、`package.json`（peer 全部
    指向 `@linxiraos/*`）、`src/`（registerTool / registerCommand）、`crew/`、
-   `skills/`、`locales/`、`README.md`、`CHANGELOG.md`、`tests/`。
+   `skills/`、`README.md`、`CHANGELOG.md`、`tests/`。
+   `locales/` 不在此列：它是**预留目录**——宿主 i18n 机制
+   （`ExtensionContext.t()` + 清单 `locales` 字段 + loader 读取 `locales/*.json`）
+   尚未实现（见 `README.md`、`document/plugin-system.md`；机制登记在
+   `document/roadmap.md` Deferred Queue），新建插件可选携带，存量插件豁免。
 3. `package.json` 与全部源码 import 已常驻 `@linxiraos/*`（`@earendil-works/*`
    改写是常驻构建步骤，不依赖发布时临时改写）。
 4. 版本线跟随 Zeta 发布版本；经 `scripts/publish-missing-packages.ts` 统一发布。

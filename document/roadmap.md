@@ -454,7 +454,22 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   中英混杂,少数情况下思维链被强制成中文;所以模型侧分析必须语言中立、en+zh 词典同时生效,
   绝不能按 UI 语言选词典——中文用户的统计天生是双语的。用户侧已据此落地(每条消息同时跑
   en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
-  为语言中立且适配单条消息内混语言。
+  改为语言中立且适配单条消息内混语言。
+
+- **插件宿主 i18n 机制(2026-10-13 用户裁决;官方插件标准的 `locales/{zh,en}.json` 同步降级为预留)**:
+  官方插件标准模板里的 `locales/{zh,en}.json` + 宿主注入 `t()` **只有文档、没有实现**——
+  `ExtensionAPI`/`ExtensionContext`(`packages/coding-agent/src/extensibility/extensions/types.ts`)
+  无 i18n / `t` 成员,`PluginManifest`
+  (`packages/coding-agent/src/extensibility/plugins/types.ts:27`)无 `locales` 字段,
+  `plugins/loader.ts`/`manager.ts`/`parser.ts` 均不读 `locales/*.json`。故标准措辞已统一降级为
+  **预留目录**(新建插件可选携带,存量插件豁免;`plugins/official/README.md`、
+  `plugins/official/INDEX.md`、`document/plugin-system.md` 三处同步,本轮只改文档、不动实现)。
+  **待开发三步**:① `ExtensionContext.t()` 注入;② 清单 `locales` 字段与解析;③ loader 读取
+  `locales/*.json` 并按宿主语言选表(语言源现成:`packages/coding-agent/src/i18n` 的
+  `currentLanguage()`/`M`)。**前置事实**:pi-messenger 的用户可见字符串目前全是硬编码
+  (overlay / 命令 / 工具描述 / handler 文案,11 个文件量级、约 200+ 条字面量),抽取前必须
+  先划清「用户可见 UI 文案」与「模型可见提示词(工具 description、crew/skills)」的边界——
+  后者本地化会改变模型行为。
 
 ## Notes
 
