@@ -160,6 +160,47 @@ function normalizeInlineLatexMath(line: string): string {
   );
 }
 
+/**
+ * The source of every ```svg fence a closing fence terminates, as the fence's
+ * content reaches the renderer (no trailing newline). A fence the reply has not
+ * closed yet — the tail of a streaming answer — is left out: its source is
+ * still being written, so it renders as a code block instead of a half-drawn
+ * figure. Mirrors `normalizeDisplayMath`'s fence walk.
+ */
+export function closedSvgFences(markdown: string): Set<string> {
+  const fences = new Set<string>();
+  let open: { marker: string; size: number; indent: string; svg: boolean } | null = null;
+  let body: string[] = [];
+
+  for (const line of markdown.split(/\r?\n/)) {
+    const fence = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      const marker = fence[2]!;
+      if (!open) {
+        open = {
+          marker: marker[0]!,
+          size: marker.length,
+          indent: fence[1]!,
+          svg: fence[3]!.trim().split(/\s+/)[0]!.toLowerCase() === "svg",
+        };
+        body = [];
+      } else if (marker[0] === open.marker && marker.length >= open.size) {
+        const { indent, svg } = open;
+        // CommonMark removes up to the opening fence's indentation from content.
+        const dedent = new RegExp(`^ {0,${indent.length}}`);
+        if (svg) fences.add(body.map(text => text.replace(dedent, "")).join("\n"));
+        open = null;
+      } else {
+        body.push(line);
+      }
+      continue;
+    }
+    if (open) body.push(line);
+  }
+
+  return fences;
+}
+
 export const markdownRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [remarkGfm, remarkMath];
 export const markdownPreviewRemarkPlugins: ReactMarkdownOptions["remarkPlugins"] = [remarkGfm, remarkMath];
 

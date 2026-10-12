@@ -6,11 +6,13 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import { resolveLocalFileHref } from "@/lib/file-links";
 import { encodeFilePathForApi } from "@/lib/file-paths";
 import {
+  closedSvgFences,
   markdownRehypePlugins,
   markdownRemarkPlugins,
   normalizeDisplayMath,
 } from "@/lib/markdown";
 import { MermaidBlock, CodeBlock } from "./MermaidBlock";
+import { SvgBlock } from "./SvgBlock";
 
 interface MarkdownBodyProps {
   children: string;
@@ -34,6 +36,8 @@ export function MarkdownBody({
     () => normalizeDisplayMath(children),
     [children],
   );
+  // ```svg fences the reply has closed: an open one is still streaming, so it stays code.
+  const closedSvg = useMemo(() => closedSvgFences(normalizedMarkdown), [normalizedMarkdown]);
   // Stable renderer identities keep stateful blocks mounted across message hover updates.
   const components = useMemo<Components>(
     () => ({
@@ -42,15 +46,14 @@ export function MarkdownBody({
         const raw = String(children);
         const isBlock = className?.includes("language-") || raw.includes("\n");
         if (isBlock) {
+          const source = raw.replace(/\n$/, "");
           if (lang === "mermaid") {
-            return (
-              <MermaidBlock
-                code={raw.replace(/\n$/, "")}
-                isStreaming={isStreaming}
-              />
-            );
+            return <MermaidBlock code={source} isStreaming={isStreaming} />;
           }
-          return <CodeBlock code={raw.replace(/\n$/, "")} lang={lang} />;
+          if (lang === "svg" && closedSvg.has(source)) {
+            return <SvgBlock code={source} defaultPreview />;
+          }
+          return <CodeBlock code={source} lang={lang} />;
         }
         return (
           <code className="markdown-inline-code" {...props}>
@@ -115,7 +118,7 @@ export function MarkdownBody({
         );
       },
     }),
-    [cwd, isStreaming, onOpenFile, onOpenFileContextMenu],
+    [closedSvg, cwd, isStreaming, onOpenFile, onOpenFileContextMenu],
   );
 
   return (

@@ -407,8 +407,8 @@ html[data-theme-id="zeta-starfield"] .sf-notice.sf-notice-success {
 	background: rgba(34, 197, 94, 0.06) !important;
 }
 
-/* ── 21. Mermaid diagram container ─────────────────────────────────────── */
-html[data-theme-id="zeta-starfield"] .mermaid-block {
+/* ── 21. Diagram containers (Mermaid + ```svg figures) ───────────────────── */
+html[data-theme-id="zeta-starfield"] .figure-block {
 	border: 1px solid var(--sf-navy) !important;
 	background: #06080f !important;
 	border-left: 3px solid var(--sf-cyan) !important;
@@ -1079,40 +1079,72 @@ code {
 	color: var(--text);
 }
 
-.mermaid-block {
+.figure-block {
 	padding: 12px;
 	overflow-x: auto;
 	background: color-mix(in srgb, var(--bg) 92%, var(--bg-panel));
 }
-.mermaid-block svg {
+.figure-block svg {
 	display: block;
 	max-width: none;
 }
-.mermaid-block-loading {
+.figure-block-loading {
 	min-height: 120px;
 }
-.mermaid-block-error {
+.figure-block-error {
 	color: var(--text-muted);
 	font-family: var(--font-mono);
 	font-size: 12px;
 }
 
-.mermaid-preview-button {
+.figure-preview-button {
 	width: 100%;
 	border: 0;
 	color: inherit;
 	cursor: zoom-in;
 	text-align: left;
 }
-.mermaid-preview-button:hover {
+.figure-preview-button:hover {
 	opacity: 0.85;
 }
-.mermaid-preview-button:focus-visible {
+.figure-preview-button:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: -2px;
 }
 
-.mermaid-zoom-dialog {
+/* A ```svg figure names theme colors as bare tokens — `var(--fg)`,
+   `var(--c1)`… — which only the interactive TUI defines natively (see
+   `packages/tui/src/chat/svg-figure.ts`). Alias them to web-ui's own variables
+   on the element that holds the figure, never globally: web-ui already means
+   `surface.muted` by `--muted` (lib/theme/cssGenerator.ts). `--accent` and
+   `--border` cannot alias their same-named variables — a custom property that
+   references itself is invalid — so they point at the identical
+   `--primary-base`/`--interactive-border`. */
+.svg-figure {
+	--fg: var(--text);
+	--muted: var(--text-muted);
+	--border: var(--interactive-border);
+	--surface: var(--bg-panel);
+	--accent: var(--primary-base);
+	--success: var(--status-success);
+	--warning: var(--status-warning);
+	--error: var(--status-error);
+	--c1: var(--chart-1);
+	--c2: var(--chart-2);
+	--c3: var(--chart-3);
+	--c4: var(--chart-4);
+	--c5: var(--chart-5);
+	--c6: var(--chart-6);
+}
+/* The prompt sizes a figure in user units (1 unit ≈ 1px, up to 1000 wide), so
+   unlike Mermaid's own fixed-width output it can be wider than the chat
+   column: let it shrink to fit instead of scrolling the block sideways. */
+.svg-figure svg {
+	max-width: 100%;
+	height: auto;
+}
+
+.figure-zoom-dialog {
 	width: 100vw;
 	max-width: none;
 	height: 100dvh;
@@ -1123,15 +1155,15 @@ code {
 	background: var(--bg);
 	color: var(--text);
 }
-.mermaid-zoom-dialog::backdrop {
+.figure-zoom-dialog::backdrop {
 	background: rgba(0, 0, 0, 0.35);
 }
-.mermaid-zoom-layout {
+.figure-zoom-layout {
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr);
 	height: 100%;
 }
-.mermaid-zoom-toolbar {
+.figure-zoom-toolbar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -1140,7 +1172,7 @@ code {
 	background: var(--bg-panel);
 	border-bottom: 1px solid var(--border);
 }
-.mermaid-zoom-title {
+.figure-zoom-title {
 	min-width: 0;
 	overflow: hidden;
 	color: var(--text-muted);
@@ -1150,13 +1182,13 @@ code {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.mermaid-zoom-actions {
+.figure-zoom-actions {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	margin-left: auto;
 }
-.mermaid-zoom-stepper {
+.figure-zoom-stepper {
 	display: flex;
 	align-items: center;
 	height: 24px;
@@ -1165,8 +1197,8 @@ code {
 	border-radius: 5px;
 	background: var(--bg);
 }
-.mermaid-zoom-stepper button,
-.mermaid-zoom-icon-button {
+.figure-zoom-stepper button,
+.figure-zoom-icon-button {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1179,33 +1211,33 @@ code {
 	cursor: pointer;
 	touch-action: manipulation;
 }
-.mermaid-zoom-stepper button {
+.figure-zoom-stepper button {
 	height: 22px;
 }
-.mermaid-zoom-stepper button + .mermaid-zoom-value,
-.mermaid-zoom-value + button {
+.figure-zoom-stepper button + .figure-zoom-value,
+.figure-zoom-value + button {
 	border-left: 1px solid var(--border);
 }
-.mermaid-zoom-icon-button {
+.figure-zoom-icon-button {
 	flex: 0 0 24px;
 	border: 1px solid var(--border);
 	border-radius: 5px;
 }
-.mermaid-zoom-stepper button:hover:not(:disabled),
-.mermaid-zoom-icon-button:hover {
+.figure-zoom-stepper button:hover:not(:disabled),
+.figure-zoom-icon-button:hover {
 	background: var(--bg-hover);
 	color: var(--text);
 }
-.mermaid-zoom-stepper button:disabled {
+.figure-zoom-stepper button:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
-.mermaid-zoom-stepper button:focus-visible,
-.mermaid-zoom-icon-button:focus-visible {
+.figure-zoom-stepper button:focus-visible,
+.figure-zoom-icon-button:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: -2px;
 }
-.mermaid-zoom-value {
+.figure-zoom-value {
 	min-width: 48px;
 	height: 22px;
 	color: var(--text-muted);
@@ -1215,7 +1247,7 @@ code {
 	text-align: center;
 	user-select: none;
 }
-.mermaid-zoom-viewport {
+.figure-zoom-viewport {
 	min-width: 0;
 	min-height: 0;
 	overflow: auto;
@@ -1223,7 +1255,7 @@ code {
 	background: var(--bg);
 	-webkit-overflow-scrolling: touch;
 }
-.mermaid-zoom-canvas {
+.figure-zoom-canvas {
 	padding: 12px;
 	border: 1px solid var(--border);
 	border-radius: 7px;
@@ -1231,7 +1263,7 @@ code {
 	margin: 0 auto;
 	transition: width 0.15s ease;
 }
-.mermaid-zoom-canvas svg {
+.figure-zoom-canvas svg {
 	display: block;
 	width: 100% !important;
 	height: auto;
@@ -1239,15 +1271,15 @@ code {
 }
 
 @media (max-width: 480px) {
-	.mermaid-zoom-toolbar {
+	.figure-zoom-toolbar {
 		padding-inline: 8px;
 	}
 
-	.mermaid-zoom-title {
+	.figure-zoom-title {
 		font-size: 10px;
 	}
 
-	.mermaid-zoom-viewport {
+	.figure-zoom-viewport {
 		padding: 12px;
 	}
 }

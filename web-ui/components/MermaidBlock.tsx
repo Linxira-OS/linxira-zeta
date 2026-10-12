@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useShikiHighlight } from "@/hooks/useCodeTheme";
 import { useI18n } from "@/hooks/useI18n";
 import { copyText } from "@/lib/clipboard";
+import { FigureZoomDialog } from "./FigureZoomDialog";
 
 interface MermaidBlockProps {
 	code: string;
 	isStreaming?: boolean;
 	defaultPreview?: boolean;
 }
-
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3;
 
 type RenderState =
 	| { key: string; status: "loading" }
@@ -91,22 +88,29 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
 
 	const body =
 		renderState?.key === currentKey && renderState.status === "error" ? (
-			<div className="mermaid-block mermaid-block-error">{t("invalid-mermaid-diagram")}</div>
+			<div className="figure-block figure-block-error">{t("invalid-mermaid-diagram")}</div>
 		) : renderState?.key !== currentKey || renderState.status !== "ready" ? (
-			<div className="mermaid-block mermaid-block-loading" aria-label={t("mermaid.rendering")} />
+			<div className="figure-block figure-block-loading" aria-label={t("mermaid.rendering")} />
 		) : (
 			<>
 				{!zoomOpen && (
 					<button
 						type="button"
-						className="mermaid-block mermaid-preview-button"
+						className="figure-block figure-preview-button"
 						title={t("mermaid.open-viewer")}
 						aria-label={t("mermaid.open-viewer")}
 						onClick={() => setZoomOpen(true)}
 						dangerouslySetInnerHTML={{ __html: renderState.svg }}
 					/>
 				)}
-				{zoomOpen && <MermaidZoomDialog svg={renderState.svg} onClose={() => setZoomOpen(false)} />}
+				{zoomOpen && (
+					<FigureZoomDialog
+						svg={renderState.svg}
+						title={t("mermaid-diagram")}
+						ariaLabel={t("mermaid.viewer")}
+						onClose={() => setZoomOpen(false)}
+					/>
+				)}
 			</>
 		);
 
@@ -121,147 +125,6 @@ export function MermaidBlock({ code, isStreaming, defaultPreview = false }: Merm
 	);
 }
 
-function MermaidZoomDialog({ svg, onClose }: { svg: string; onClose: () => void }) {
-	const { t } = useI18n();
-	const dialogRef = useRef<HTMLDialogElement>(null);
-	const [zoom, setZoom] = useState(1);
-
-	useEffect(() => {
-		const dialog = dialogRef.current;
-		if (!dialog) return;
-
-		const previousOverflow = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
-		dialog.showModal();
-
-		return () => {
-			document.body.style.overflow = previousOverflow;
-			if (dialog.open) dialog.close();
-		};
-	}, []);
-
-	return (
-		<dialog
-			ref={dialogRef}
-			className="mermaid-zoom-dialog"
-			aria-label={t("mermaid.viewer")}
-			onCancel={event => {
-				event.preventDefault();
-				onClose();
-			}}
-			onKeyDown={event => {
-				if (event.key !== "Escape") return;
-				event.preventDefault();
-				onClose();
-			}}
-		>
-			<div className="mermaid-zoom-layout">
-				<div className="mermaid-zoom-toolbar">
-					<span className="mermaid-zoom-title">{t("mermaid-diagram")}</span>
-					<div className="mermaid-zoom-actions">
-						<div className="mermaid-zoom-stepper">
-							<button
-								type="button"
-								onClick={() => setZoom(value => Math.max(ZOOM_MIN, value - ZOOM_STEP))}
-								disabled={zoom <= ZOOM_MIN}
-								title={t("mermaid.zoom-out")}
-								aria-label={t("mermaid.zoom-out")}
-							>
-								<svg
-									width="13"
-									height="13"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									aria-hidden="true"
-								>
-									<path d="M5 12h14" />
-								</svg>
-							</button>
-							<span className="mermaid-zoom-value">{Math.round(zoom * 100)}%</span>
-							<button
-								type="button"
-								onClick={() => setZoom(value => Math.min(ZOOM_MAX, value + ZOOM_STEP))}
-								disabled={zoom >= ZOOM_MAX}
-								title={t("mermaid.zoom-in")}
-								aria-label={t("mermaid.zoom-in")}
-							>
-								<svg
-									width="13"
-									height="13"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									aria-hidden="true"
-								>
-									<path d="M12 5v14M5 12h14" />
-								</svg>
-							</button>
-						</div>
-						<button
-							type="button"
-							className="mermaid-zoom-icon-button"
-							onClick={() => setZoom(1)}
-							title={t("mermaid.fit-width")}
-							aria-label={t("mermaid.fit-width")}
-						>
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
-							</svg>
-						</button>
-						<button
-							type="button"
-							className="mermaid-zoom-icon-button"
-							onClick={onClose}
-							title={t("chat.close")}
-							aria-label={t("chat.close")}
-						>
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								strokeLinecap="round"
-								aria-hidden="true"
-							>
-								<path d="M6 6l12 12M18 6 6 18" />
-							</svg>
-						</button>
-					</div>
-				</div>
-				<div
-					className="mermaid-zoom-viewport"
-					onClick={event => {
-						if (event.target === event.currentTarget) onClose();
-					}}
-				>
-					<div
-						className="mermaid-zoom-canvas"
-						style={{ width: `${zoom * 100}%` }}
-						dangerouslySetInnerHTML={{ __html: svg }}
-					/>
-				</div>
-			</div>
-		</dialog>
-	);
-}
-
 interface CodeBlockProps {
 	code: string;
 	lang: string;
@@ -270,7 +133,8 @@ interface CodeBlockProps {
 
 /**
  * Syntax-highlighted code block with copy button.
- * Used as the "source" view for mermaid blocks and for all non-mermaid code fences.
+ * Used as the "source" view for Mermaid blocks and ```svg figures, and for all
+ * other code fences.
  */
 export function CodeBlock({ code, lang, headerAction }: CodeBlockProps) {
 	const { t } = useI18n();
