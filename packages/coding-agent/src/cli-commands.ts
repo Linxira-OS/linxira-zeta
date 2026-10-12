@@ -202,6 +202,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.playHelp,
 	},
 	{
+		name: "serve",
+		load: () => import("./commands/serve").then(m => m.default),
+		help: commandHelp.serveHelp,
+	},
+	{
 		name: "share",
 		load: () => import("./commands/share").then(m => m.default),
 		help: commandHelp.shareHelp,
