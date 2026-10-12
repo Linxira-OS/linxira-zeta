@@ -2363,6 +2363,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getImageAttachments: () => session?.getImageAttachments() ?? [],
 			getPlanModeState: () => session?.getPlanModeState(),
 			getPlanReferencePath: () => session?.getPlanReferencePath() ?? "local://PLAN.md",
+			enterMode: (mode, options) => session?.enterMode(mode, options) ?? Promise.resolve(),
+			exitMode: (mode, options) => session?.exitMode(mode, options) ?? Promise.resolve(),
 			getGoalModeState: () => session?.getGoalModeState(),
 			getGoalRuntime: () => session?.goalRuntime,
 			getUsageStatistics: () => sessionManager.getUsageStatistics(),

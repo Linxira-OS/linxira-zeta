@@ -27,13 +27,12 @@ export interface PlanModeEntryOptions {
 	workflow?: PlanWorkflow;
 	preserveRestoredModel?: boolean;
 	reentry?: boolean;
-}
-export interface PlanModeEntryOptions {
-	initialPrompt?: string;
-	planFilePath?: string;
-	workflow?: PlanWorkflow;
-	preserveRestoredModel?: boolean;
-	reentry?: boolean;
+	/**
+	 * Who is entering the mode: absent means the user (or an external client);
+	 * the agent's `mode` tool passes `"agent"`, which is what lets it leave the
+	 * mode again.
+	 */
+	enteredBy?: "user" | "agent";
 }
 export interface PlanModeExitOptions {
 	silent?: boolean;
@@ -1845,6 +1844,7 @@ export class AgentSession implements SettingsScope {
 			planFilePath,
 			workflow: options.workflow ?? "parallel",
 			reentry: options.reentry,
+			enteredBy: options.enteredBy ?? "user",
 		});
 		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
 		if (this.isStreaming) {

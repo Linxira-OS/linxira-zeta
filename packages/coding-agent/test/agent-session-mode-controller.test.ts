@@ -150,6 +150,22 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		expect(harness.session.model?.id).toBe(initialModelId);
 	});
 
+	it("records who armed plan mode: an agent entry is marked, every other caller stays user-armed", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+
+		await harness.session.enterMode("plan", { enteredBy: "agent" });
+		expect(harness.session.getPlanModeState()?.enteredBy).toBe("agent");
+
+		// The default is the conservative direction: `/plan`, the CLI, the web
+		// gateway and ACP clients all omit `enteredBy`, and the `mode` tool must
+		// not be able to leave a mode any of them armed.
+		await harness.session.exitMode("plan");
+		await harness.session.enterMode("plan");
+		expect(harness.session.getPlanModeState()?.enteredBy).toBe("user");
+	});
+
 	it("enterMode('goal')/exitMode('goal') sets the goal state and augments/restores the toolset", async () => {
 		const harness = await createModeSession(
 			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),

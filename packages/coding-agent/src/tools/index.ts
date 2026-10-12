@@ -33,6 +33,7 @@ import type { MnemopiSessionState } from "../mnemopi/state";
 import type { PlanModeState } from "../plan-mode/state";
 import type { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import type { AgentRegistry } from "../registry/agent-registry";
+import type { ModeId } from "../session/agent-session";
 import type { ArtifactManager } from "../session/artifacts";
 import type { ClientBridge } from "../session/client-bridge";
 import type { CustomMessage } from "../session/messages";
@@ -71,6 +72,7 @@ import { MemoryEditTool } from "./memory-edit";
 import { MemoryRecallTool } from "./memory-recall";
 import { MemoryReflectTool } from "./memory-reflect";
 import { MemoryRetainTool } from "./memory-retain";
+import { ModeTool } from "./mode";
 import { wrapToolWithMetaNotice } from "./output-meta";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
@@ -457,6 +459,14 @@ export interface ToolSession {
 	getGoalModeState?: () => GoalModeState | undefined;
 	/** Goal runtime for the active agent session. */
 	getGoalRuntime?: () => GoalRuntime | undefined;
+	/**
+	 * Enter a session mode on the agent's own initiative (the `mode` tool).
+	 * Absent outside the top-level SDK session, where the tool refuses instead
+	 * of silently doing nothing.
+	 */
+	enterMode?: (mode: ModeId, options?: unknown) => Promise<void>;
+	/** Leave a session mode on the agent's own initiative (the `mode` tool). */
+	exitMode?: (mode: ModeId, options?: unknown) => Promise<void>;
 	/** Get cumulative session usage statistics (input/output tokens, cost). */
 	getUsageStatistics?: () => UsageStatistics;
 	/** Current per-turn token budget {total, spent, hard} for the eval `budget` helper. */
@@ -595,6 +605,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	task: s => TaskTool.create(s),
 	wait: s => new WaitTool(s),
 	todo: s => new TodoTool(s),
+	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),
 	write: s => new WriteTool(s),
