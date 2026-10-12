@@ -68,13 +68,17 @@ let purifier: Purifier | null = null;
 function getPurifier(): Purifier {
 	if (purifier) return purifier;
 	const instance = DOMPurify();
-	instance.addHook("afterSanitizeAttributes", (element: Element) => {
-		for (const attribute of Array.from(element.attributes)) {
-			if (!isSelfContainedReference(attribute.name, attribute.value)) {
-				element.removeAttribute(attribute.name);
+	// Without a DOM this is DOMPurify's bare factory (no `sanitize`, no `addHook`):
+	// leave it untouched and let `sanitizeSvg` fail closed on `isSupported`.
+	if (instance.isSupported) {
+		instance.addHook("afterSanitizeAttributes", (element: Element) => {
+			for (const attribute of Array.from(element.attributes)) {
+				if (!isSelfContainedReference(attribute.name, attribute.value)) {
+					element.removeAttribute(attribute.name);
+				}
 			}
-		}
-	});
+		});
+	}
 	purifier = instance;
 	return instance;
 }

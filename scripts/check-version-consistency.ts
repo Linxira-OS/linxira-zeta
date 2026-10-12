@@ -2,7 +2,9 @@
  * Version-line consistency check for the Zeta monorepo.
  *
  * Zeta rides ONE version line across every published surface: the 14
- * @linxiraos/* packages, the root workspaces.catalog keys, the Rust workspace
+ * @linxiraos/* packages (13 workspace packages + the `pi-messenger` official
+ * plugin, which follows the line even though it lives outside packages/), the
+ * root workspaces.catalog keys, the Rust workspace
  * version, the pi-natives build-version mechanism (`pi_natives_build_version()`
  * symbol + the stamped `__piNativesBuildVersion` value — the per-release
  * __piNativesVX_Y_Z sentinel name is gone), the desktop app, and
@@ -42,21 +44,24 @@ const RUST_MEMBERS = [
 	"crates/pi-shell/Cargo.toml",
 ];
 
-// Must match ALL_PACKAGES in scripts/release-v2.ts / set-version.ts.
+// Must match ALL_PACKAGES in scripts/release-v2.ts / set-version.ts. Entries are
+// repo-relative package directories — official plugins (plugins/official/<id>)
+// ride the same line as the packages even though they live outside packages/.
 const ALL_PACKAGES = [
-	"utils",
-	"agent",
-	"catalog",
-	"ai",
-	"tui",
-	"mnemopi",
-	"snapcompact",
-	"stats",
-	"coding-agent",
-	"channels",
-	"natives",
-	"omptype",
-	"wire",
+	"packages/utils",
+	"packages/agent",
+	"packages/catalog",
+	"packages/ai",
+	"packages/tui",
+	"packages/mnemopi",
+	"packages/snapcompact",
+	"packages/stats",
+	"packages/coding-agent",
+	"packages/channels",
+	"packages/natives",
+	"packages/omptype",
+	"packages/wire",
+	"plugins/official/pi-messenger",
 ] as const;
 
 // Must match CATALOG_KEYS in scripts/release-v2.ts / set-version.ts.
@@ -91,14 +96,14 @@ function readVersion(file: string): string {
 function main(): void {
 	const versions = new Map<string, string>();
 	for (const pkg of ALL_PACKAGES) {
-		versions.set(pkg, readVersion(`packages/${pkg}/package.json`));
+		versions.set(pkg, readVersion(`${pkg}/package.json`));
 	}
 
 	const distinct = new Set(versions.values()).size;
 	if (distinct !== 1) {
 		const baseline = versions.get(ALL_PACKAGES[0]) ?? "";
 		for (const [pkg, v] of versions) {
-			if (v !== baseline) problems.push(`packages/${pkg}: ${v} != ${baseline}`);
+			if (v !== baseline) problems.push(`${pkg}: ${v} != ${baseline}`);
 		}
 	}
 
@@ -203,11 +208,11 @@ function main(): void {
 	// upstream OMP version sections ([15.x]–[18.x]) — and has an
 	// [Unreleased] header (the release preflight enforces non-empty bodies).
 	for (const pkg of ALL_PACKAGES) {
-		const changelog = fs.readFileSync(path.join(root, `packages/${pkg}/CHANGELOG.md`), "utf8");
+		const changelog = fs.readFileSync(path.join(root, `${pkg}/CHANGELOG.md`), "utf8");
 		const upstream = changelog.match(/^## \[1[5-8]\./m);
-		if (upstream) problems.push(`packages/${pkg}/CHANGELOG.md: upstream OMP section ${upstream[0].trim()}`);
+		if (upstream) problems.push(`${pkg}/CHANGELOG.md: upstream OMP section ${upstream[0].trim()}`);
 		if (!changelog.includes("## [Unreleased]")) {
-			problems.push(`packages/${pkg}/CHANGELOG.md: missing [Unreleased] header`);
+			problems.push(`${pkg}/CHANGELOG.md: missing [Unreleased] header`);
 		}
 	}
 

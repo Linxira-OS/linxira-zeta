@@ -8,7 +8,7 @@
 
 | 插件 id | 名称 | 类别 | 来源 | 兼容记录 | 状态 |
 |---|---|---|---|---|---|
-| `pi-messenger` | Messenger | inter-agent messaging | https://github.com/nicobailon/pi-messenger | peer/源码改写为 `@linxiraos/*`；Zeta 1.1.x | 已迁入 `plugins/official/pi-messenger/` |
+| `pi-messenger` | Messenger | inter-agent messaging | https://github.com/nicobailon/pi-messenger | 上游 commit/SHA：`未记录`；改写：`@earendil-works/pi-coding-agent`→`@linxiraos/zeta`，其余 `@earendil-works/*`→`@linxiraos/*`（逐名映射见 `README.md`）；加载/工具注册冒烟：`未记录`（最近一次源码变更随 Zeta 1.1.24 发布，见 `UPDATE-LOG.md`）；已知不兼容：web/桌面（`!ctx.hasUI`）无 overlay 显示面，需独立显示面 | 已迁入 `plugins/official/pi-messenger/`（`plugins/*` 已是根 workspace 成员，版本随 Zeta 发布线） |
 
 ## 类别
 
@@ -24,7 +24,11 @@
    `temp/` 等 gitignored 路径）。
 2. 携带标准模板文件：`plugin.json`/`plugin.toml`、`package.json`（peer 全部
    指向 `@linxiraos/*`）、`src/`（registerTool / registerCommand）、`crew/`、
-   `skills/`、`locales/`、`README.md`、`CHANGELOG.md`、`tests/`。
+   `skills/`、`README.md`、`CHANGELOG.md`、`tests/`。
+   `locales/` 不在此列：它是**预留目录**——宿主 i18n 机制
+   （`ExtensionContext.t()` + 清单 `locales` 字段 + loader 读取 `locales/*.json`）
+   尚未实现（见 `README.md`、`document/plugin-system.md`；机制登记在
+   `document/roadmap.md` Deferred Queue），新建插件可选携带，存量插件豁免。
 3. `package.json` 与全部源码 import 已常驻 `@linxiraos/*`（`@earendil-works/*`
    改写是常驻构建步骤，不依赖发布时临时改写）。
 4. 版本线跟随 Zeta 发布版本；经 `scripts/publish-missing-packages.ts` 统一发布。

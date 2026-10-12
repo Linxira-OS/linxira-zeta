@@ -40,7 +40,8 @@ plugins/
 │   │   ├── plugin.json / plugin.toml  # 清单（随打包一起分发）
 │   │   ├── package.json          # @linxiraos/*，peer 全部指向 @linxiraos/*
 │   │   ├── src/                  # 扩展工厂源码（registerTool / registerCommand）
-│   │   ├── crew/ skills/ locales/ README.md CHANGELOG.md tests/
+│   │   ├── crew/ skills/ README.md CHANGELOG.md tests/
+│   │   ├── locales/              # 预留：宿主 i18n 机制未实现（见设计决议）
 │   └── INDEX.md                  # 官方插件追踪文档（类别、来源、兼容性）
 └── community/                    # 社区：只有元数据指针文件，不放代码
     ├── <plugin-id>.json|.toml    # 上游仓库地址 + 依赖处理说明 + 准入 CI 证明
@@ -143,7 +144,7 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
   ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
   ├── crew/agents/*.md             # 团队代理定义
   ├── skills/                      # 自带 skills
-  ├── locales/{zh,en}.json         # i18n 字符串表（宿主注入 t()）
+  ├── locales/                     # 预留：宿主 i18n 机制未实现（见设计决议）
   ├── README.md / CHANGELOG.md
   └── tests/
   ```
@@ -191,8 +192,13 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
 - web 显示面（team agent 特有）：成员名册、消息流、文件预留、任务看板、
   messenger 设置——全部走 manifest v2 `pages` + gateway `/api/plugin-assets` iframe
   动态插入。
-- i18n：插件侧字符串表约定（manifest 声明 `locales/{lang}.json`），宿主注入 `t()`；
-  messenger 现有英文硬编码文案抽出 + zh 条目。
+- i18n（**机制未实现，暂缓**）：约定是插件侧字符串表（manifest 声明
+  `locales/{lang}.json`）+ 宿主注入 `t()`，但宿主 i18n 机制——`ExtensionContext.t()`
+  注入 + 清单 `locales` 字段 + loader 读取 `locales/*.json`——**至今没有实现**。
+  因此 `locales/` 目前只是**预留目录**：新建插件可选携带，存量插件豁免；
+  messenger 现有英文硬编码文案（overlay / 命令 / 工具描述 / handler 文案）的抽出 +
+  zh 条目随之暂缓（抽面前先确定"用户可见 UI 文案"与"模型可见提示词"的边界）。
+  机制本身登记在 `document/roadmap.md` 的 Deferred Queue。
 
 ## 未决问题（2026-08-26 更新）
 

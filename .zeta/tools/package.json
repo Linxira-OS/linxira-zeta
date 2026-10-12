@@ -1,0 +1,8 @@
+{
+	"name": "zeta-tools",
+	"private": true,
+	"description": "Local checkout tooling: pins tui.ts's lazily imported rasterizer (kitty-vt-wasm resolves from the root install's hoisted store).",
+	"dependencies": {
+		"@napi-rs/canvas": "^1.0.11"
+	}
+}
