@@ -128,4 +128,46 @@ describe("teamagent command", () => {
 		// The stale "restart before spawning" advice is gone.
 		expect(sent[0].content).not.toContain("Restart");
 	});
+
+	// Two readers consume the written file: the crew role mirror (a hand-rolled
+	// frontmatter reader with no key normalization, which reads the literal
+	// `thinking` / `skills` keys) and CLI agent discovery (which normalizes
+	// kebab-case to camelCase and prefers `thinkingLevel`, falling back to the
+	// legacy `thinking` key). A single rendered file must feed both.
+	it("round-trips thinking and skills through the crew mirror and CLI discovery", async () => {
+		const { addTeamAgent } = await loadModule();
+		const result = addTeamAgent(
+			{
+				name: "worker",
+				description: "Implementation agent",
+				thinking: "high",
+				skills: ["testing", "api"],
+			},
+			"project",
+			cwd,
+		);
+		expect(result.ok).toBe(true);
+		const filePath = result.filePath!;
+		const content = fs.readFileSync(filePath, "utf8");
+		// The writer must emit the key both readers understand, and must leave
+		// `autoloadSkills` alone (that is the CLI's canonical skills key).
+		expect(content).toContain('thinking: "high"');
+		expect(content).not.toContain("thinking-level:");
+		expect(content).toContain("autoloadSkills:");
+
+		// Both readers are loaded after `homedir` is pointed at the temp root:
+		// the mirror resolves `~/.zeta/agent/agents` through getAgentDir(), so
+		// it must not be hoisted into the module graph this file re-imports per
+		// test (see loadModule).
+		const { discoverSubagentRoles } = await import("../crew/team/subagent-roles.ts");
+		const mirrored = discoverSubagentRoles(cwd, { homeDir: path.join(root, "empty-home") });
+		expect(mirrored.worker?.thinking).toBe("high");
+		expect(mirrored.worker?.skills).toEqual(["testing", "api"]);
+
+		// CLI discovery: kebab→camel normalization plus the `thinking` fallback.
+		const { parseAgent } = await import("@linxiraos/zeta/task/agents");
+		const parsed = parseAgent(filePath, content, "project");
+		expect(parsed.thinkingLevel).toBe("high");
+		expect(parsed.autoloadSkills).toEqual(["testing", "api"]);
+	});
 });
