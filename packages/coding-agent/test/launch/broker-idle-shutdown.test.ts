@@ -74,4 +74,84 @@ describe("daemon broker idle shutdown", () => {
 			process.title = previousTitle;
 		}
 	}, 30_000);
+
+	// The process really dying is the assertion, and a client cannot be connected while
+	// observing it (a connected client cancels the sweep). Real timers are unavoidable
+	// for the same reason this file's header gives: the broker drives real child
+	// processes, so the wait below polls a real PID death — it ends the instant the
+	// process is gone, and the deadline only bounds failure.
+	function isAlive(pid: number): boolean {
+		try {
+			process.kill(pid, 0);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/** Child program that stays alive until terminated: no timer, no exit, no executor form. */
+	const neverExits = ["-e", "await Promise.withResolvers().promise"];
+
+	it("stops a non-persist daemon once the last client leaves, even while a persist daemon keeps the broker alive", async () => {
+		using tempDir = TempDir.createSync("@omp-launch-idle-oneshot-");
+		const projectDir = path.join(tempDir.path(), "project");
+		const runtimeDir = path.join(tempDir.path(), "runtime");
+		await fs.mkdir(projectDir);
+
+		const client = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
+		const broker = startBroker(projectDir, runtimeDir, 100);
+		try {
+			// Keeps the broker up across the idle sweep: on its own that used to be reason
+			// enough to keep every other daemon alive, so the project-shared browser
+			// (`persist: false`, like `oneshot-temp` here) stayed in the background after
+			// zeta exited and was visible only in the task manager.
+			const holder = await client.request({
+				op: "start",
+				spec: {
+					name: "persist-holder",
+					application: process.execPath,
+					args: neverExits,
+					env: {},
+					cwd: projectDir,
+					pty: false,
+					restart: "no",
+					persist: true,
+					detached: false,
+				},
+			});
+			expect(holder.op).toBe("start");
+
+			const oneshot = await client.request({
+				op: "start",
+				spec: {
+					name: "oneshot-temp",
+					application: process.execPath,
+					args: neverExits,
+					env: {},
+					cwd: projectDir,
+					pty: false,
+					restart: "no",
+					persist: false,
+					detached: false,
+				},
+			});
+			expect(oneshot.op).toBe("start");
+			const pid = oneshot.op === "start" ? oneshot.daemon.pid : undefined;
+			expect(typeof pid).toBe("number");
+
+			client.close();
+
+			// No client, no project presence => nothing can own a oneshot daemon.
+			const deadline = Date.now() + 10_000;
+			while (Date.now() < deadline && isAlive(pid as number)) await Bun.sleep(50);
+			expect(isAlive(pid as number)).toBe(false);
+		} finally {
+			// Release the holder so nothing keeps the broker up, then await the broker's
+			// own run() promise rather than a guessed duration.
+			const stopper = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
+			await stopper.request({ op: "stop", name: "persist-holder" });
+			stopper.close();
+			await broker;
+		}
+	}, 30_000);
 });
