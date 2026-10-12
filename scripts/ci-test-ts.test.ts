@@ -64,6 +64,45 @@ describe("test runner watchdog", () => {
 	}, 25_000);
 });
 
+describe("chunk exit classification", () => {
+	// A CLI command run in process sets `process.exitCode` to report a status, a test
+	// asserts that value and does not always put it back, and the runner inherits it: the
+	// coding-agent native bucket's test/cli chunk printed a complete, failure-free bun
+	// summary and still exited 1 on three consecutive attempts. Retrying cannot help, so
+	// bun's own summary decides — which these two cases pin from both sides.
+	async function runOne(script: string): Promise<Awaited<ReturnType<typeof ptree.exec>>> {
+		const commands = [{ label: "chunk under test", cwd: ".", command: [process.execPath, "-e", script] }];
+		const source = [
+			`const { runTestCommandsInParallel } = await import(${JSON.stringify(import.meta.resolve("./ci-test-ts.ts"))});`,
+			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1);`,
+		].join("\n");
+		return ptree.exec([process.execPath, "-e", source], {
+			env: { ...Bun.env, NO_COLOR: "1" },
+			timeout: 20_000,
+			detached: true,
+			allowNonZero: true,
+		});
+	}
+
+	test("a nonzero exit with a clean bun summary counts as passed", async () => {
+		const result = await runOne(
+			`console.log(" 66 pass\\n 2 skip\\n 0 fail\\n 216 expect() calls\\nRan 68 tests across 10 files. [8.7s]"); process.exit(1);`,
+		);
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toContain("clean summary");
+		expect(result.stdout).toContain("1 chunks passed");
+		expect(result.stdout).toContain("0 failed");
+	});
+
+	test("a reported failing test still fails the chunk", async () => {
+		const result = await runOne(
+			`console.log(" 1 pass\\n 1 fail\\nRan 2 tests across 1 file. [1.0s]"); process.exit(1);`,
+		);
+		expect(result.exitCode).toBe(1);
+		expect(result.stdout).toContain("1 failed");
+	});
+});
+
 describe("OMP_TEST_SHARD", () => {
 	test("shards partition every chunk exactly once, balanced to within one", () => {
 		const chunks = Array.from({ length: 79 }, (_, i) => i);

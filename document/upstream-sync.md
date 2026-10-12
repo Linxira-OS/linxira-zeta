@@ -256,15 +256,18 @@ two-parent tag merge.
      the check reported 0 while four remained, and hosted CI named
      `completions.test.ts:69`. Re-swept with plain substrings, and the guard was de-blinded
      and confirmed against those four before clearing them — 结论 28 in the playbook.
-  8. **A chunk that reports no failing test but exits nonzero is now retried** — the
-     coding-agent native bucket's `test/cli` chunk ran its whole suite (`66 pass / 0 fail`,
-     `Ran 68 tests across 10 files`) and still exited 1 with nothing else printed, so the
-     report was a blank `(exit 1)`. `bun test` prints `N fail`/`(fail)` whenever a test
-     fails, so a nonzero exit with neither is the *process*: a test that runs the CLI in
-     process leaving `process.exitCode` set, or a descendant writing to a closed pipe. Such
-     a chunk now gets the fresh-process retry bun crashes already get (up to
-     `MAX_CHUNK_ATTEMPTS`), and the final report states how many attempts it took; a
-     deterministic failure reproduces on every attempt and is reported exactly as before.
+  8. **A chunk that exits nonzero on a clean summary is judged by bun's summary** — the
+     coding-agent native bucket's `test/cli` chunk ran its whole suite (`66 pass / 2 skip /
+     0 fail / 216 expect() calls`, `Ran 68 tests across 10 files`) and exited 1 with nothing
+     else printed. Three consecutive attempts did the same, so the retry added in the
+     previous round only paid the cost three times. The cause is process-level: a CLI
+     command run in process sets `process.exitCode` to report a status, a test asserts that
+     value and does not always put it back, and the runner inherits it. `bun test`'s summary
+     is the authority on test results, so a nonzero exit on a *complete* summary carrying
+     `0 fail`, no `(fail)` marker and no `error:` block is counted as passed — said so in
+     the progress line (`exit N on a clean summary`) — while anything else stays red. Two
+     cases in `scripts/ci-test-ts.test.ts` pin both directions, because "the summary
+     decides" is only safe if a reported failure still fails.
   The reds this list could not explain were item 3's: the rerun carrying its guard fix
   (`2672871f63e`) failed exactly two tests — both `executable-fallback.test.ts` (item 5)
   — with `Test TS workspace fast` green, and the native/unit chunk that had died

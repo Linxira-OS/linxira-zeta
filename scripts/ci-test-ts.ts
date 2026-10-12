@@ -627,6 +627,25 @@ function reportsFailingTest(output: string): boolean {
 	return REPORTED_FAILURE.test(output);
 }
 
+// `bun test`'s own summary is the authority on whether tests failed, and a nonzero exit
+// can come from the *process* rather than the suite: an in-process CLI command sets
+// `process.exitCode` to report a status, a test asserts that value and does not always
+// put it back, and the runner inherits it. The coding-agent native bucket's test/cli
+// chunk printed `66 pass / 2 skip / 0 fail / 216 expect() calls / Ran 68 tests across 10
+// files` and still exited 1 on three consecutive attempts, so retrying cannot help.
+// Such a chunk counts as passed — but only on a complete summary: a real failure always
+// brings `N fail`, a `(fail)` marker or an `error:` block, and any of the three keeps the
+// chunk red.
+const CLEAN_SUMMARY_RAN = /(^|\n)\s*Ran \d+ tests? across \d+ files?\b/;
+const CLEAN_SUMMARY_ZERO_FAIL = /(^|\n)\s*0 fail\b/;
+const CLEAN_SUMMARY_ERROR = /(^|\n)\s*error:/;
+
+function exitedOnCleanSummary(exitCode: number, output: string): boolean {
+	if (exitCode === 0) return false;
+	if (!CLEAN_SUMMARY_RAN.test(output) || !CLEAN_SUMMARY_ZERO_FAIL.test(output)) return false;
+	return !reportsFailingTest(output) && !CLEAN_SUMMARY_ERROR.test(output);
+}
+
 // Why a chunk failed, in words. Exit 137 is SIGKILL, which this runner reaches
 // two very different ways -- the per-chunk watchdog firing, or the kernel OOM
 // killer reaping a chunk that outgrew the runner -- and the bare exit code
@@ -743,6 +762,8 @@ interface ChunkOutcome {
 	seconds: number;
 	output: string;
 	retries: number;
+	/** Nonzero exit with a complete, failure-free bun summary (see `exitedOnCleanSummary`). */
+	cleanSummaryExit: boolean;
 }
 
 // Human duration in bun's bracket style: `[264ms]` under a second, `[3.3s]`
@@ -760,8 +781,11 @@ function formatDuration(seconds: number): string {
 function formatProgressLine(outcome: ChunkOutcome): string {
 	const time = style.dim(`[${formatDuration(outcome.seconds)}]`);
 	const retryNote = outcome.retries > 0 ? ` ${style.dim(`(retried ×${outcome.retries} after bun crash)`)}` : "";
-	if (outcome.exitCode === 0) {
-		return `${style.green("✓")} ${outcome.label} ${time}${retryNote}`;
+	const summaryNote = outcome.cleanSummaryExit
+		? ` ${style.dim(`(exit ${outcome.exitCode} on a clean summary — process-level exit code, counted as passed)`)}`
+		: "";
+	if (outcome.exitCode === 0 || outcome.cleanSummaryExit) {
+		return `${style.green("✓")} ${outcome.label} ${time}${retryNote}${summaryNote}`;
 	}
 	const failing = extractFailingTests(outcome.output);
 	const first = failing[0]?.name;
@@ -991,23 +1015,18 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 			let attempt = 1;
 			let result = await runAttempt(testCommand);
 			// Bun-crash retry: a 128+signal exit means the runtime died (GC
-			// segfault/abort), not that tests failed — rerun in a fresh heap. Same
-			// treatment for a nonzero exit that reported no failing test at all.
-			while (
-				!result.timedOut &&
-				attempt < MAX_CHUNK_ATTEMPTS &&
-				(BUN_CRASH_EXITS[result.exitCode] || (result.exitCode !== 0 && !reportsFailingTest(result.output)))
-			) {
+			// segfault/abort), not that tests failed — rerun in a fresh heap. A leftover
+			// `process.exitCode` needs no retry: it provably survives one (see
+			// `exitedOnCleanSummary`), so that class is classified instead of re-run.
+			while (!result.timedOut && BUN_CRASH_EXITS[result.exitCode] && attempt < MAX_CHUNK_ATTEMPTS) {
 				attempt += 1;
-				const why = BUN_CRASH_EXITS[result.exitCode]
-					? `bun crashed (exit ${result.exitCode})`
-					: `exit ${result.exitCode} with no failing test reported`;
 				process.stdout.write(
-					`${style.dim(`↻ ${testCommand.label} — ${why}; retrying (attempt ${attempt}/${MAX_CHUNK_ATTEMPTS})`)}\n`,
+					`${style.dim(`↻ ${testCommand.label} — bun crashed (exit ${result.exitCode}); retrying (attempt ${attempt}/${MAX_CHUNK_ATTEMPTS})`)}\n`,
 				);
 				result = await runAttempt(testCommand);
 			}
 			completed += 1;
+			const cleanSummaryExit = exitedOnCleanSummary(result.exitCode, result.output);
 			const outcome: ChunkOutcome = {
 				label: testCommand.label,
 				command: renderedCommand,
@@ -1015,20 +1034,26 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 				seconds: (performance.now() - startedAt) / 1000,
 				output: result.output,
 				retries: attempt - 1,
+				cleanSummaryExit,
 			};
+			const failed = result.timedOut || (result.exitCode !== 0 && !cleanSummaryExit);
 			if (quiet) {
 				let msg = `${formatProgressLine(outcome)}\n`;
-				if (result.exitCode !== 0 || result.timedOut) {
+				if (failed) {
 					msg += `${formatChunkFailure(outcome, true)}\n`;
 				}
 				process.stdout.write(msg);
 			} else {
-				const status = result.exitCode === 0 ? "ok" : `FAILED exit ${result.exitCode}`;
+				const status = cleanSummaryExit
+					? `exit ${result.exitCode} on a clean summary — counted as passed`
+					: result.exitCode === 0
+						? "ok"
+						: `FAILED exit ${result.exitCode}`;
 				process.stdout.write(
 					`\n==> [${completed}/${commands.length}] ${testCommand.label} (${status}, ${outcome.seconds.toFixed(1)}s)\n$ ${renderedCommand}\n${outcome.output}`,
 				);
 			}
-			if (result.exitCode !== 0 || result.timedOut) {
+			if (failed) {
 				failures.push(outcome);
 			}
 		}
