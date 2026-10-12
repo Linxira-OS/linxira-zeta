@@ -74,6 +74,7 @@ export const OH_MY_PI_ALLOW_FILES = [
 	"packages/coding-agent/CHANGELOG.md", // changelog entries describe the residue itself
 	"scripts/merge-package-json.ts", // merge driver: must name the upstream @oh-my-pi scope to map it back
 	"scripts/merge-package-json.test.ts", // driver test: fixtures carry the upstream scope to prove the mapping
+	"scripts/check-scope-imports.ts", // the class-3 guard documents the exact upstream→Zeta leaf mappings it exists to catch
 ];
 
 /** `oh-my-pi` is allowed when embedded in these patterns (issue/URL provenance). */
