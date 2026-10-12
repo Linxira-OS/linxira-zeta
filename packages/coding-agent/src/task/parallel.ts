@@ -32,8 +32,7 @@ export async function mapWithConcurrencyLimit<T, R>(
 	const normalizedConcurrency = Number.isFinite(concurrency) ? Math.floor(concurrency) : items.length;
 	const effectiveConcurrency = normalizedConcurrency > 0 ? normalizedConcurrency : items.length;
 	const limit = Math.max(1, Math.min(effectiveConcurrency, items.length));
-	// [suppressed] length preallocation
-	const results: (R | undefined)[] = new Array(items.length);
+	const results: (R | undefined)[] = Array.from<R | undefined>({ length: items.length });
 	let nextIndex = 0;
 
 	// Create internal abort controller to cancel workers on any rejection
@@ -104,8 +103,9 @@ export async function mapWithConcurrencyLimitAllSettled<T, R>(
 	const normalizedConcurrency = Number.isFinite(concurrency) ? Math.floor(concurrency) : items.length;
 	const effectiveConcurrency = normalizedConcurrency > 0 ? normalizedConcurrency : items.length;
 	const limit = Math.max(1, Math.min(effectiveConcurrency, items.length));
-	// [suppressed] length preallocation
-	const results: (PromiseSettledResult<R> | undefined)[] = new Array(items.length);
+	const results: (PromiseSettledResult<R> | undefined)[] = Array.from<PromiseSettledResult<R> | undefined>({
+		length: items.length,
+	});
 	const workerSignal = signal ?? new AbortController().signal;
 	let nextIndex = 0;
 

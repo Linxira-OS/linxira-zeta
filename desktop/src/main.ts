@@ -44,7 +44,6 @@ import {
 } from "./session-monitor";
 import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
 import {
-	bundledServeCommandIn,
 	findRepoRootIn,
 	resolveServeCommandIn,
 	type ServeCommand,
@@ -395,10 +394,6 @@ async function sessionDisplayName(sessionId: string): Promise<string> {
 
 function findRepoRoot(): string | null {
 	return findRepoRootIn(desktopServeDeps());
-}
-
-function bundledServeCommand(): ServeCommand | null {
-	return bundledServeCommandIn(desktopServeDeps());
 }
 
 /** Real-process seams for the pure serve resolver. */
