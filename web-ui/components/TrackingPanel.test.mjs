@@ -29,7 +29,7 @@ test("renders every summary entry as a titled, expandable markdown block", () =>
 	});
 
 	// File suffix is stripped in the summary line, contents render as markdown.
-	assert.match(html, /<summary[^>]*>compaction-2026-09-08T00-03-00-000Z</summary>/);
+	assert.match(html, /<summary[^>]*>compaction-2026-09-08T00-03-00-000Z<\/summary>/);
 	assert.match(html, /Ship the summaries tab\./);
 	assert.match(html, /compaction-2026-09-07T11-00-00-000Z/);
 	assert.match(html, /Second summary\./);
