@@ -352,6 +352,11 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'enteredBy?: "user" | "agent";',
 		why: 'provenance of a plan-mode entry: absent means the user (all CLI/web/ACP callers), "agent" only from the `mode` tool. Losing it makes every plan mode look user-armed (safe) or, with a wholesale upstream take, makes the tool\'s exit check impossible.',
 	},
+	{
+		file: "packages/coding-agent/src/prompts/system/system-prompt.md",
+		symbol: '{{#has tools "github"}}- GitHub (CI runs, PRs, issues, search)',
+		why: "Zeta-only rule: GitHub/Gitea work goes through the `github`/`tea` tools, never shell `gh`/`tea` (CI polling via `op: run_watch`). Upstream's Specialized Tools list covers files/search/LSP but has no host-CLI entry, so an upstream take of this file silently restores the shell-`gh` habit the CI-green prompt already tried to prevent.",
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",
