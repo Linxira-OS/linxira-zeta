@@ -421,7 +421,7 @@ web.yml 字段契约与 gateway 端点。
    tag release run 的 desktop 产物必须内嵌新 web-ui(冒烟步骤断言「项目」
    section 文案存在)。
 3. 上述未满足前,不得打任何 release tag;判定 CI 绿必须核对 run 的 jobs 数
-   (1-job run 是 flake 评估器,见 AGENTS.md 损伤类别 10)。
+   (单 job 的 `Zeta Nix` run 不是主流水线,见 AGENTS.md 损伤类别 10)。
 
 ## 9. 非目标
 

@@ -362,7 +362,7 @@ models/open/web-config/archive…），handler 只 import coding-agent 内部源
    验收 1-17 全绿 + 桌面链路（desktop_linux/windows）在含本计划的 commit
    上跑绿 + tag release 的桌面产物内嵌新 web-ui（冒烟断言「项目」section
    文案存在）；未满足不得打任何 release tag；判定 CI 绿必须核对 run 的
-   jobs 数（1-job run 是 flake 评估器）。
+   jobs 数（单 job 的 `Zeta Nix` run 不是主流水线）。
 4. **CLI 指令面修复（独立分支 `fix/cli-command-surface`）**：P0
    resume-command 提示错名（`APP_NAME` → `CLI_BIN_NAME`）；P0 update-cli
    自更新链（shim 劫持工作台 `zeta.exe`、REPO/MISE 指向上游）；P1 约 18

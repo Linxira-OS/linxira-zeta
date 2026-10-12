@@ -223,11 +223,13 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
 | 7   | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版        | `release_editor_packages` 重发已存在版本 → npm 409，run 红                                     | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改                                                                                         |
 
-**发布完成的判定纪律（v1.1.16 教训）**：PR 会产生两个 run——真正的 CI run（约 21
-jobs）和 "Evaluate flake" 的 1-job 轻量 run。**判断 CI 是否通过必须打开 run 核对
-jobs 数量**：`jobs=1` 的 "success" 是 flake 评估器，不是 CI 绿。v1.1.16 前夕
-#30/#31/#32 的"绿"全是 flake 评估器，embed 代码从未被完整验证，合并后 main 立即
-三 bucket 红。
+**发布完成的判定纪律（v1.1.16 教训）**：同一次 push 会产生两个 workflow 的 run——
+主流水线 `CI`（`.github/workflows/ci.yml`，20+ jobs）与 `Zeta Nix`
+（`.github/workflows/nix.yml`，单 job，job 名 `Evaluate flake`，即 nix flake 检查）。
+**判断 CI 是否通过必须打开 run 核对 workflow 名 + jobs 数**：单 job 的 `Zeta Nix`
+run 不是主流水线，不是 CI 绿。v1.1.16 前夕 #30/#31/#32 的"绿"只是
+`Zeta Nix`，embed 代码从未被完整验证，合并后 main 立即三 bucket 红。两个
+workflow 都绿才算真绿。
 
 **版权面（发行物随带义务）**：根 `LICENSE` 保留上游版权行（Mario Zechner /
 Can Bölük / Stencil Labs）并追加 `Copyright (c) 2026 Linxira-OS (Zeta
