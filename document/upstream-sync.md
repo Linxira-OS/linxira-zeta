@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.9.1
+## Integrated through: v18.9.2
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,9 +9,10 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.9.1` (`a4d6f0adc63dda4ccdf4d25c26422219820f865b`,
-  confirmed by `git merge-base HEAD <tag>`). The previous value was `v18.8.8`
-  (`1ca13863a828`), which is the merge-base this round started from.
+- **Integrated through**: `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`,
+  confirmed by `git merge-base HEAD <tag>`, merge commit `af624c160fe`). The
+  previous value was `v18.9.1` (`a4d6f0adc6`, PR #91, merge `d45b699092e`),
+  which is exactly the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -22,11 +23,53 @@ two-parent tag merge.
 - **Upstream moved the v18.8.4 tag** after we merged it: the remote now
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
-- **Next merge** therefore starts from `153b37c3b65b`, which is exactly what
-  `git merge v18.8.7` computes as its own merge-base. The increment applied is
-  upstream's, not a whole-tree comparison against our branch.
+- **Next merge** starts from this round's final commit on `main` (`af624c160fe`
+  once PR #92 merges), which is exactly what `git merge-base` against the next
+  tag will compute. The increment applied is upstream's, not a whole-tree
+  comparison against our branch.
 
 
+
+## v18.9.2 incremental merge (Zeta — branch `sync/omp-release/v18.9.2`; merge commit `af624c160fe`)
+
+- **Baseline**: v18.9.1, integrated by PR #91 (`d45b699092e`; tag commit `a4d6f0adc6`).
+- **Source tag**: `v18.9.2` → `bd4dffd5e617ce732f8a14249b0be1e6c7621886`, a *lightweight* tag —
+  verified with `git ls-remote --tags omp-upstream` before the fetch and read back locally
+  (`git rev-parse v18.9.2^{commit}`) after it. **Zeta starting commit**: `d45b699092e`.
+- **Window**: upstream's own increment (merge-base gate passed exactly: `git merge-base HEAD
+  v18.9.2 == a4d6f0adc6`), 165 files, +5870 −972, one real two-parent merge commit
+  (`af624c160fe` = `d45b699092e` + `bd4dffd5e61`).
+- **Conflicts**: 38 (36 UU, 1 UD, 1 DU) — a third of v18.9.1's, because the 18.8.x–18.9.1
+  brand sweeps had converged. Resolution: source and tests take upstream, then the Zeta
+  surface is re-applied (scope mapping including the leaf renames, brand tokens, `.zeta`
+  paths, backticked CLI references, `__omp_*` prelude globals). Judgment calls:
+  - `README.md` (product front door) stays ours; `Dockerfile.robomp` keeps our base image
+    and takes upstream's bun version (the container's bun is not the CI runtime pin).
+  - upstream deleted `ai/judgment/typesafe.ts` (the judgment client is now `native.ts`) —
+    deletion accepted, `UD` resolved by `git rm`.
+  - `omp-protocol.ts` → `zeta-protocol.ts` was *re-ported* from upstream's new shape
+    (contained-path resolution, docs disk-root probing, `promptDoc()` backed by
+    `prompts/internal-urls/zeta.md`, a file we must create because an earlier round had
+    deleted its upstream twin as an orphan). The `DU` test file became
+    `test/internal-urls/zeta-protocol.test.ts` the same way.
+  - upstream's `packages/tui/test/gc.ts` collects from a fresh timer callback, out of stale
+    async stack frames — the real fix for the GC flake this project had tolerated with a
+    3 s → 8 s deadline patch in #91. The patch is dropped in favour of upstream's file.
+  - upstream 18.x CHANGELOG sections stripped from the seven package changelogs (they carry
+    upstream's command spellings and are not our release history).
+  - `packageManager` restored to the exact `bun@1.4.0` pin: upstream's `bun@>=1.4` range is
+    rejected by `check-ci-surface` (`bun-pin-exact`) and would let CI fetch a newer bun than
+    the tested runtime.
+- **Regenerated**: compat `rules.json` (999 rules / 21 classes / 234 files, up from 991),
+  rpc wire artifacts (`sdk/{python,rust,go}`), `bun.lock`. `gen:compat` needs the native
+  addon (it loads `@linxiraos/pi-utils` → the natives loader); in a fresh worktree one can
+  borrow a previously built `packages/natives/native/*.node` (gitignored) instead of
+  rebuilding.
+- **Checks**: `check:ts` 0 errors; tsgo clean per package (ai, catalog, utils, agent, tui,
+  mnemopi, coding-agent); `brand-check` 0 hits; Zeta sentinels 60/60; scope imports 18,556;
+  version line 1.1.29; `check-ci-surface` 29 jobs; `check:tools` 0; `cargo fmt --all --check`
+  clean (the window touched `crates/pi-edit` and `crates/pi-natives`).
+- **Next merge**: starts from this round's final commit, at the then-current upstream tag.
 
 ## v18.9.1 incremental merge (Zeta — branch `sync/omp-release/v18.9.1`; merge commit `fb4dcded44d`)
 
