@@ -743,8 +743,15 @@ function previewHighlightedLines(renderState: object): WeakRef<object> {
 	throw new Error("expected the streaming call render to keep highlighted preview rows");
 }
 
-/** Whether `target` becomes collectible within `deadlineMs`; a retained target never does. */
-async function becomesCollectible(target: WeakRef<object>, deadlineMs = 3_000): Promise<boolean> {
+/**
+ * Whether `target` becomes collectible within `deadlineMs`; a retained target never does.
+ *
+ * The bound is generous on purpose: `Bun.gc(true)` is a full synchronous collection, but a
+ * weak target is only cleared once the engine processes its weak refs, and several passes
+ * can be needed under load (`--parallel=2` in CI). Raising the bound cannot weaken the
+ * assertion — an unreachable target still passes, a pinned one still fails, just later.
+ */
+async function becomesCollectible(target: WeakRef<object>, deadlineMs = 8_000): Promise<boolean> {
 	const deadline = performance.now() + deadlineMs;
 	do {
 		// WeakRef targets survive the job that created them; collect from a fresh turn and stack.

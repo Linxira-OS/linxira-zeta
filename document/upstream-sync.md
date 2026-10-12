@@ -233,6 +233,14 @@ two-parent tag merge.
      (`bin: "zeta"`) and `test/update-cli.test.ts` (`npm\zeta.cmd` in a file that
      already used `zetacode.*` everywhere else). Two brand rules now hold the line:
      `$which("zeta")` and bare `zeta.cmd|ps1`.
+  6. **Two more half-sweeps in `test/cli/completions.test.ts`** (found by clearing item 5):
+     three synthetic `CompletionSpec` fixtures still said `bin: "zeta"` while the file's live
+     path already used `CLI_BIN_NAME`, and seven assertions hardcoded the swept name — one of
+     them (`complete -F _omp zeta`) was passing on a *prefix* coincidence once the fixture
+     became `zetacode`. Fixtures and assertions now both use `CLI_BIN_NAME`.
+     Its sibling in the tui bucket is not merge damage: `becomesCollectible` polls
+     `Bun.gc(true)` under `--parallel=2`, and the same code passed in two runs and failed in
+     three, so the deadline went 3 s → 8 s: a pinned target still fails, just later.
   The reds this list could not explain were item 3's: the rerun carrying its guard fix
   (`2672871f63e`) failed exactly two tests — both `executable-fallback.test.ts` (item 5)
   — with `Test TS workspace fast` green, and the native/unit chunk that had died
