@@ -629,6 +629,16 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
 	},
 	{
+		needle: /\/omp\/system-prompt/,
+		why: "the Cursor provider roots its global-rule paths at `/zeta/…`; upstream's `/omp/…` came back with the v18.9.2 provider rewrite while the swept test expects `/zeta/system-prompt/0.mdc` (v18.9.2 PR CI: expected /zeta, received /omp)",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /"x-omp-(app|install-id|hostname)"/,
+		why: "the auth-gateway reads its client identity from `x-zeta-{app,install-id,hostname}`; upstream's new systemone test sent `x-omp-app`, so the recorded client fell back to the `gateway` default and the assertion read robomp vs gateway (v18.9.2 PR CI). Other `x-omp-*` names — `x-omp-blob-token`, `application/x-omp-image`, `x-omp-slot` — are interop with shared OMP infrastructure and stay",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
 		needle: /\$which\(\s*"zeta"\)/,
 		why: "resolving the CLI on PATH must go through CLI_BIN_NAME: a bare `zeta` is the separate workbench (@linxiraos/main), so this spawns the wrong program once an upgrade leaves process.execPath stale (worker-client.ts carried `zeta` from before the v18.9.1 merge, and the merged fallback test pinned it)",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
