@@ -10,6 +10,7 @@ import { setAgentDir } from "@linxiraos/pi-utils";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { TrackingTool } from "@linxiraos/zeta/tools/tracking";
+import { readTrackingActionRows } from "@linxiraos/zeta/tools/tracking-actions-log";
 
 function createMockSession(cwd: string): ToolSession {
 	return { cwd, hasUI: false } as ToolSession;
@@ -127,13 +128,47 @@ describe("TrackingTool (part 1)", () => {
 			{ name: "verify", status: "pending" },
 		]);
 
-		const actions = (await Bun.file(path.join(cwd, ".zeta", "tracking", "actions.jsonl")).text())
-			.trim()
-			.split("\n")
-			.map(line => JSON.parse(line) as { action: string; detail?: string });
+		const actions = (await readTrackingActionRows(path.join(cwd, ".zeta", "tracking"))).map(
+			line => JSON.parse(line) as { action: string; detail?: string },
+		);
 		const phaseComplete = actions.filter(entry => entry.action === "phase_complete");
 		expect(phaseComplete).toHaveLength(1);
-		expect(phaseComplete[0].detail).toBe("setup");
+		expect(phaseComplete[0]!.detail).toBe("setup");
+	});
+
+	it("update_status: two interleaved writers keep both updates", async () => {
+		const cwd = path.join(tempDir, "p5");
+		await fs.mkdir(cwd, { recursive: true });
+		const tool = new TrackingTool(createMockSession(cwd));
+
+		// Both calls read-modify-write the same status.json: without the lease the
+		// later write is built on a stale read and drops the earlier field.
+		const [first, second] = await Promise.all([
+			tool.execute("t1", { op: "update_status", progress: "writer-A" }),
+			tool.execute("t2", { op: "update_status", blockers: ["writer-B"] }),
+		]);
+		expect(first.isError).toBeFalsy();
+		expect(second.isError).toBeFalsy();
+
+		const status = await Bun.file(path.join(cwd, ".zeta", "tracking", "status.json")).json();
+		expect(status.progress).toBe("writer-A");
+		expect(status.blockers).toEqual(["writer-B"]);
+	});
+
+	it("update_status: concurrent writes to two projects both land in the global index", async () => {
+		const cwdA = path.join(tempDir, "p6a");
+		const cwdB = path.join(tempDir, "p6b");
+		await Promise.all([fs.mkdir(cwdA, { recursive: true }), fs.mkdir(cwdB, { recursive: true })]);
+
+		await Promise.all([
+			new TrackingTool(createMockSession(cwdA)).execute("t1", { op: "update_index", content: "# A" }),
+			new TrackingTool(createMockSession(cwdB)).execute("t2", { op: "update_index", content: "# B" }),
+		]);
+
+		const rows: { path: string }[] = await Bun.file(path.join(agentDir, "tracking-index.json")).json();
+		const paths = rows.map(row => row.path);
+		expect(paths).toContain(cwdA);
+		expect(paths).toContain(cwdB);
 	});
 
 	it("update_index: throws when content is missing", async () => {

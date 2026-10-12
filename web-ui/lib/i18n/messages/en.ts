@@ -641,6 +641,7 @@ export const enLocale: LocalePlugin = {
 		"tracking.tab.plans": "Plans",
 		"tracking.tab.logs": "Logs",
 		"tracking.tab.sessions": "Sessions",
+		"tracking.tab.summaries": "Summaries",
 		"tracking.tab.charts": "Charts",
 		"tracking.loadFailed": "Load failed",
 		"tracking.retry": "Retry",
@@ -650,6 +651,7 @@ export const enLocale: LocalePlugin = {
 		"tracking.emptyPlans": "No synced plan files yet.",
 		"tracking.emptyLogs": "No activity logs yet.",
 		"tracking.emptySessions": "No session summaries yet.",
+		"tracking.emptySummaries": "No compaction summaries yet.",
 		"tracking.emptyCharts":
 			"No activity data yet — charts will appear once the agent records operations via tracking_update.",
 		"tracking.field.phase": "Phase",

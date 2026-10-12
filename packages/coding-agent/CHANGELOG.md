@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- tracking 四项完整性：`status.json` 与全局追踪索引的读-改-写整体进 `withFileLock` 租约（锁覆盖整个过程，不只包住写）并改为原子替换，`tracking_update` 同时声明同批次串行——两个写者不再互相丢更新；`actions.jsonl` 改为按 5 MB × 3 份轮转的 `actions.<日期>.jsonl.log`，所有读者（Web 面板、`/tracking log`）改为有界尾读；Web UI 追踪面板补上 `summaries/` 摘要标签页（此前只声明不渲染）；`GET /api/tracking` 的 `updatedAt` 改为内容派生（追踪目录最新 mtime），内容未变时不再每次请求都前进。
 - 内存吃紧时自动收紧子代理扇出：`task` 每次取并发许可时采样（进程 rss + 系统可用内存），低于阈值就把该次决策的实际并发上限降下来（紧张 ≤8、危急 ≤2，已设更小的值只会保留不会抬高），并在日志里逐级告警一次；`task.maxConcurrency` 设置本身不动，跑着的工作不杀不加，内存恢复即回到配置值。
 - 崩溃报告（stderr 与 `~/.zeta/logs/native-*.log`）新增进程与系统内存计数：进程 rss/峰值/提交、系统可用/总量/提交上限。读数走 syscall、经预分配栈缓冲无分配写入，因此真正的 OOM 下数字也能先落到 stderr，再谈报告本体。
 - 新增动态小工具框架与首个工具 time（`/tool time on|off`，开启期间用户消息附带发送时间戳，AI 可随时获取当前准确时间）。

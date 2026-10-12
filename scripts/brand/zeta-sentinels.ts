@@ -206,6 +206,16 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "tracking_update tool",
 	},
 	{
+		file: "packages/coding-agent/src/tools/tracking.ts",
+		symbol: "function trackingLockPath(dir: string): string {",
+		why: "status.json read-modify-write lease (the lock covers the whole RMW, not just the write)",
+	},
+	{
+		file: "packages/coding-agent/src/tools/tracking-actions-log.ts",
+		symbol: "export function appendTrackingActionRow(dir: string, row: string): void {",
+		why: "bounded action log: append through the size-rotating sink (5 MB × 3) with a bounded tail read for readers",
+	},
+	{
 		file: "packages/coding-agent/src/tools/builtin-names.ts",
 		symbol: '"tracking_update",',
 		why: "tracking tool registered in the builtin tool name table",
@@ -260,12 +270,38 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "export async function handleTrackingEvents(req: Request): Promise<Response> {",
 		why: "tracking SSE watcher handler (tracking_changed notification)",
 	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/tracking.ts",
+		symbol:
+			"function deriveTrackingUpdatedAt(trackingDir: string, markdown: readonly { mtimeMs: number }[]): string {",
+		why: "content-derived tracking freshness stamp (newest file mtime, not the request clock)",
+	},
 	// -- Tracking web-ui surface (vendored from omp-web: these files are
 	//    upstream-owned copies, so a re-vendor can silently drop the panel) -----
 	{
 		file: "web-ui/components/AppShell.tsx",
 		symbol: 'label: t("dock.window.tracking")',
 		why: "tracking dock entry label (tracking.enabled-gated dock window)",
+	},
+	{
+		file: "web-ui/components/TrackingPanel.tsx",
+		symbol: "export function TrackingMarkdownList({",
+		why: "tracking sub-tab markdown listing — carries the Summaries tab that used to be declared but never rendered",
+	},
+	{
+		file: "web-ui/components/TrackingPanel.tsx",
+		symbol: '{ id: "summaries", labelKey: "tracking.tab.summaries" },',
+		why: "summaries sub-tab entry in the tracking panel",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/en.ts",
+		symbol: '"tracking.tab.summaries": "Summaries"',
+		why: "EN label for the tracking Summaries tab",
+	},
+	{
+		file: "web-ui/lib/i18n/messages/zh-CN.ts",
+		symbol: '"tracking.tab.summaries": "摘要"',
+		why: "zh-CN label for the tracking Summaries tab",
 	},
 	{
 		file: "web-ui/lib/i18n/messages/en.ts",

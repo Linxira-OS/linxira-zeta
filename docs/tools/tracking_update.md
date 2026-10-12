@@ -38,27 +38,28 @@ Keep every section factual and independently readable. Tracking stores *project 
 ## Operations
 
 ### `update_status`
-Merges fields into `status.json`. Only provided fields are written; `decisions` are appended (deduplicated) rather than replaced. `lastUpdated` and `lastSessionId` are always refreshed.
+Merges fields into `status.json`. Only provided fields are written; `decisions` are appended (deduplicated) rather than replaced. `lastUpdated` (the write instant) and `lastSessionId` are refreshed on every status write. This is the status document's own stamp: the freshness the Web UI reports (`GET /api/tracking` → `updatedAt`) is derived from the tracking files' mtimes instead, so it does not advance while the content is unchanged.
 
 ### `update_index`
 Overwrites `INDEX.md` with the supplied markdown `content`. Use this to maintain a structured project overview. On first use of any tracking operation the index is seeded from the fixed template (`# Goal / # Architecture Key Points / # Key Decisions / # Current Phase / # Next Steps / # Open Questions`).
 
 ### `log_action`
-Appends a timestamped JSON entry to `actions.jsonl`, recording what was done and why.
+Appends a timestamped JSON entry to the project action log (`actions.<day>.jsonl.log`; rolled at 5 MB per file, 3 files kept), recording what was done and why. Readers see the newest rows through a bounded tail read.
 
 ### `sync_plan`
 Copies a plan `.md` file from the agent's session directory into `tracking/sessions/` so it persists across sessions.
 
 ### `sync_todo` (v2)
-Mirrors todo phases into `status.json`: `stage` = current phase name, `phases` = ordered `[{name, status}]` rows (phases before the current one are marked `completed`). When the stage advances, a `phase_complete` entry is appended to `actions.jsonl`. Call this when a todo phase completes instead of re-describing phases by hand — the Web UI panel and INDEX.md stay aligned with the live todo list.
+Mirrors todo phases into `status.json`: `stage` = current phase name, `phases` = ordered `[{name, status}]` rows (phases before the current one are marked `completed`). When the stage advances, a `phase_complete` entry is appended to the action log. Call this when a todo phase completes instead of re-describing phases by hand — the Web UI panel and INDEX.md stay aligned with the live todo list.
 
 ## Outputs
 - `content[0].type = "text"`
 - `details` is `{ op, path, message }`.
 
 ## Side Effects
-- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, `actions.jsonl`, `sessions/`, plus `summaries/` and `plans/` written by the compaction hook and plan approval).
+- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, the rotated `actions.<day>.jsonl.log` family, `sessions/`, plus `summaries/` and `plans/` written by the compaction hook and plan approval). `status.json` is published by atomic replace; the rotated action-log files are pruned to the newest 3.
 - Also updates the global tracking index (`~/.zeta/agent/tracking-index.json`) so the project is registered for cross-project discovery. The index is a JSON array of objects `{path, name, phase, progress, lastActiveSessionId, lastUpdated}` (v1 stored bare path strings; they are migrated on first write).
+- Concurrency: `status.json` and the global index are read-modify-written under an advisory file lease keyed on `<tracking>/.lock`, taken for the whole read-modify-write, and the tool itself runs serialized against sibling calls in the same batch — two writers cannot drop each other's update.
 
 ## Errors
 - `content is required for update_index operation` — `update_index` called without `content`.

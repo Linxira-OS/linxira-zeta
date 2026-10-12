@@ -28,16 +28,25 @@ memory by topic instead.
 
 ```
 <project>/.zeta/tracking/
-├── INDEX.md           # Project overview from the fixed template (see below)
-├── status.json        # Current status snapshot (+ v2 stage/phases mirror)
-├── actions.jsonl      # Timestamped action log (JSONL), incl. phase_complete
-├── sessions/          # Synced plan files from agent sessions
+├── INDEX.md             # Project overview from the fixed template (see below)
+├── status.json          # Current status snapshot (+ v2 stage/phases mirror)
+├── actions.<day>.jsonl.log[.N]
+│                        # Timestamped action log (JSONL), incl. phase_complete;
+│                        #   rolled at 5 MB per file, 3 files kept per day family
+├── sessions/            # Synced plan files from agent sessions
 │   └── <plan>.md
-├── summaries/         # Compaction-derived summaries (v2)
+├── summaries/           # Compaction-derived summaries (v2)
 │   └── compaction-<ts>.md
-└── plans/             # Read-only mirrors of approved plans (v2)
+└── plans/               # Read-only mirrors of approved plans (v2)
     └── <slug>-plan.md
 ```
+
+`status.json` and the global index are read-modify-written under an advisory
+file lease with an atomic replace, so a second session writing at the same time
+cannot drop the first one's update. The action log is bounded by size rotation
+(5 MB per file, 3 files); readers take its newest rows through a bounded tail
+read. A pre-rotation `actions.jsonl` is left on disk untouched but no longer
+read — the rotated family under the names above is the live log.
 
 ### INDEX.md template
 
@@ -77,9 +86,9 @@ a `discoverable` tool (loaded on demand) with `read` approval level, gated by
 |---|---|---|
 | `update_status` | Update project phase, progress, blockers, decisions | `status.json` |
 | `update_index` | Overwrite the project overview | `INDEX.md` |
-| `log_action` | Append a timestamped action entry | `actions.jsonl` |
+| `log_action` | Append a timestamped action entry | `actions.<day>.jsonl.log` |
 | `sync_plan` | Copy a plan file to the tracking directory | `sessions/` |
-| `sync_todo` (v2) | Mirror todo phases: `stage` + ordered `phases` rows; logs `phase_complete` when the stage advances | `status.json` + `actions.jsonl` |
+| `sync_todo` (v2) | Mirror todo phases: `stage` + ordered `phases` rows; logs `phase_complete` when the stage advances | `status.json` + `actions.<day>.jsonl.log` |
 
 ### Schema
 
@@ -128,10 +137,14 @@ The agent prompt instructs the model to:
 The gateway serves a point-in-time read at `GET /api/tracking?cwd=<dir>` with
 `{index, status, actions, sessions, summaries, plans, updatedAt}` and an SSE
 stream at `/api/tracking/events` for change notifications. The TrackingPanel
-renders 6 sub-tabs (Overview / Status / Plans / Logs / Sessions / Charts);
-v2 data surfaces as stage + phase progress rows and the summaries/plans
-listings. The dock tracking entry itself is gated on `tracking.enabled`
-(conditional entry — see `document/simplify-and-plan-surface.md` §1.3).
+renders 7 sub-tabs (Overview / Status / Plans / Logs / Sessions / Summaries /
+Charts): Status shows the `status.json` fields it renders (phase, progress,
+blockers, decisions, last updated — the v2 `stage`/`phases` mirror is stored but
+not yet drawn), and Summaries lists `summaries/compaction-*.md` newest first.
+`updatedAt` is the newest mtime among the tracked files, not the request clock,
+so polling an unchanged project reports a stable instant. The dock tracking
+entry itself is gated on `tracking.enabled` (conditional entry — see
+`document/simplify-and-plan-surface.md` §1.3).
 
 ## Design Principles
 

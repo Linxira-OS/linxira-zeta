@@ -113,7 +113,7 @@ describe("/tracking slash command", () => {
 		expect(capture.text).toContain("CI failing");
 	});
 
-	it("log summarizes recent entries from actions.jsonl", async () => {
+	it("log summarizes recent entries from the rotated action log", async () => {
 		const cwd = path.join(tempDir, "p2");
 		await fs.mkdir(cwd, { recursive: true });
 		const tool = new TrackingTool({ cwd, hasUI: false } as ToolSession);

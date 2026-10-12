@@ -28,7 +28,7 @@ Update the project status file (`status.json`). Fields are merged — only provi
 Overwrite the project index (`INDEX.md`) with markdown content. Use this to maintain a structured overview of the project.
 
 ### `log_action`
-Append a timestamped action entry to `actions.jsonl`. Each entry records what was done and why.
+Append a timestamped action entry to the project action log (rotated: `actions.<day>.jsonl.log`). Each entry records what was done and why.
 - `action`: short action description
 - `detail`: optional extended detail
 
