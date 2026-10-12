@@ -24,6 +24,7 @@ import {
 import { buildWorkPoolOutputSchema, type WorkPoolYieldItem } from "./workpool-yield";
 
 import { cfgEvalWorkpoolFreshAgents } from "../eval/settings";
+import { effectiveFanOutCap, memoryPressureLevel } from "./fanout-pressure";
 import { cfgTaskMaxConcurrency, cfgTaskMaxRuntimeMs } from "./settings";
 
 /** One user-supplied unit tracked through a workpool batch. */
@@ -148,10 +149,16 @@ export class WorkPool {
 		}
 	}
 
-	/** Current worker ceiling from the live `task.maxConcurrency` setting. */
+	/**
+	 * Current worker ceiling: the live `task.maxConcurrency` setting, lowered
+	 * while the machine is short on memory (`fanout-pressure.ts`). `0`
+	 * ("Unlimited") stays unbounded only while memory is healthy.
+	 */
 	limit(): number {
-		const configured = cfgTaskMaxConcurrency.get(this.session.settings);
-		return configured > 0 ? configured : Infinity;
+		const cap = effectiveFanOutCap(cfgTaskMaxConcurrency.get(this.session.settings), memoryPressureLevel());
+		// `0` is the sentinel `effectiveFanOutCap` reproduces for an unlimited
+		// setting; this call site has always surfaced it as Infinity.
+		return cap > 0 ? cap : Number.POSITIVE_INFINITY;
 	}
 
 	/** Queue items and start the aggregate pool job on the first non-empty push. */
