@@ -15,6 +15,7 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
+import { readTrackingActionRows, trackingActionLogFiles } from "../../tools/tracking-actions-log";
 
 interface TrackingStatus {
 	phase: string;
@@ -45,17 +46,25 @@ export interface TrackingData {
 	summaries: { name: string; content: string }[];
 	/** Mirrored approved plans (`plans/*-plan.md`), newest first. */
 	plans: { name: string; content: string }[];
+	/**
+	 * Newest mtime among the tracked files, as ISO — content-derived, so two
+	 * reads of unchanged files report the same instant. `""` when the project
+	 * has no tracking files yet.
+	 */
 	updatedAt: string;
 }
 
 /** Debounce window coalescing rapid write bursts into one notification. */
 const WATCH_DEBOUNCE_MS = 100;
+const STATUS_FILE = "status.json";
+const INDEX_FILE = "INDEX.md";
+const SESSIONS_DIR = "sessions";
 const SUMMARIES_DIR = "summaries";
 const PLANS_DIR = "plans";
 
 function readIndex(trackingDir: string): string | null {
 	try {
-		return fs.readFileSync(path.join(trackingDir, "INDEX.md"), "utf8");
+		return fs.readFileSync(path.join(trackingDir, INDEX_FILE), "utf8");
 	} catch {
 		return null;
 	}
@@ -64,7 +73,7 @@ function readIndex(trackingDir: string): string | null {
 function readStatus(trackingDir: string): TrackingStatus | null {
 	try {
 		const raw = JSON.parse(
-			fs.readFileSync(path.join(trackingDir, "status.json"), "utf8"),
+			fs.readFileSync(path.join(trackingDir, STATUS_FILE), "utf8"),
 		) as Partial<TrackingStatus> | null;
 		if (!raw || typeof raw !== "object") return null;
 		const phaseRows: unknown = raw.phases;
@@ -93,51 +102,29 @@ function readStatus(trackingDir: string): TrackingStatus | null {
 	}
 }
 
-function readActions(trackingDir: string): TrackingAction[] {
-	try {
-		const raw = fs.readFileSync(path.join(trackingDir, "actions.jsonl"), "utf8");
-		return raw
-			.split("\n")
-			.map(line => line.trim())
-			.filter(Boolean)
-			.map(line => {
-				try {
-					const parsed = JSON.parse(line) as Partial<TrackingAction>;
-					return {
-						timestamp: String(parsed.timestamp ?? ""),
-						action: String(parsed.action ?? ""),
-						...(parsed.detail !== undefined ? { detail: String(parsed.detail) } : {}),
-					};
-				} catch {
-					return null;
-				}
-			})
-			.filter((a): a is TrackingAction => a !== null);
-	} catch {
-		return [];
-	}
-}
-
-function readSessions(trackingDir: string): { name: string; content: string }[] {
-	const sessionsDir = path.join(trackingDir, "sessions");
-	try {
-		return fs
-			.readdirSync(sessionsDir)
-			.filter(name => name.endsWith(".md"))
-			.map(name => {
-				try {
-					return { name, content: fs.readFileSync(path.join(sessionsDir, name), "utf8") };
-				} catch {
-					return { name, content: "" };
-				}
+/**
+ * Newest action rows from the rotated action log — a bounded tail read, so a
+ * long-lived project never ships its whole history to the panel.
+ */
+async function readActions(trackingDir: string): Promise<TrackingAction[]> {
+	const actions: TrackingAction[] = [];
+	for (const line of await readTrackingActionRows(trackingDir)) {
+		try {
+			const parsed = JSON.parse(line) as Partial<TrackingAction>;
+			actions.push({
+				timestamp: String(parsed.timestamp ?? ""),
+				action: String(parsed.action ?? ""),
+				...(parsed.detail !== undefined ? { detail: String(parsed.detail) } : {}),
 			});
-	} catch {
-		return [];
+		} catch {
+			// A malformed row must not hide the rest of the log.
+		}
 	}
+	return actions;
 }
 
 /** Newest-first listing of a tracking subdirectory of markdown files. */
-function readMarkdownDir(dir: string): { name: string; content: string }[] {
+function readMarkdownDir(dir: string): { name: string; content: string; mtimeMs: number }[] {
 	try {
 		return fs
 			.readdirSync(dir, { withFileTypes: true })
@@ -148,17 +135,43 @@ function readMarkdownDir(dir: string): { name: string; content: string }[] {
 					return {
 						name: entry.name,
 						content: fs.readFileSync(fullPath, "utf8"),
-						mtime: fs.statSync(fullPath).mtimeMs,
+						mtimeMs: fs.statSync(fullPath).mtimeMs,
 					};
 				} catch {
-					return { name: entry.name, content: "", mtime: 0 };
+					return { name: entry.name, content: "", mtimeMs: 0 };
 				}
 			})
-			.sort((a, b) => b.mtime - a.mtime)
-			.map(({ name, content }) => ({ name, content }));
+			.sort((a, b) => b.mtimeMs - a.mtimeMs);
 	} catch {
 		return [];
 	}
+}
+
+/**
+ * Freshness stamp for the whole payload: the newest mtime the gateway can see
+ * among the files it serves (index, status, action log, session/summary/plan
+ * markdown). Taking the request clock instead made every poll look like a
+ * content change, which defeats change detection on the client.
+ */
+function deriveTrackingUpdatedAt(trackingDir: string, markdown: readonly { mtimeMs: number }[]): string {
+	let newest = 0;
+	for (const row of markdown) {
+		if (row.mtimeMs > newest) newest = row.mtimeMs;
+	}
+	const candidates = [
+		path.join(trackingDir, INDEX_FILE),
+		path.join(trackingDir, STATUS_FILE),
+		...trackingActionLogFiles(trackingDir),
+	];
+	for (const filePath of candidates) {
+		try {
+			const { mtimeMs } = fs.statSync(filePath);
+			if (mtimeMs > newest) newest = mtimeMs;
+		} catch {
+			// A file the gateway serves is allowed to be absent.
+		}
+	}
+	return newest > 0 ? new Date(newest).toISOString() : "";
 }
 
 export async function handleGetTracking(req: Request): Promise<Response> {
@@ -166,14 +179,17 @@ export async function handleGetTracking(req: Request): Promise<Response> {
 		const url = new URL(req.url);
 		const cwd = url.searchParams.get("cwd")?.trim() || req.headers.get("x-zeta-cwd") || process.cwd();
 		const trackingDir = getProjectTrackingDir(cwd);
+		const sessions = readMarkdownDir(path.join(trackingDir, SESSIONS_DIR));
+		const summaries = readMarkdownDir(path.join(trackingDir, SUMMARIES_DIR));
+		const plans = readMarkdownDir(path.join(trackingDir, PLANS_DIR));
 		const data: TrackingData = {
 			index: readIndex(trackingDir),
 			status: readStatus(trackingDir),
-			actions: readActions(trackingDir),
-			sessions: readSessions(trackingDir),
-			summaries: readMarkdownDir(path.join(trackingDir, SUMMARIES_DIR)),
-			plans: readMarkdownDir(path.join(trackingDir, PLANS_DIR)),
-			updatedAt: new Date().toISOString(),
+			actions: await readActions(trackingDir),
+			sessions: sessions.map(({ name, content }) => ({ name, content })),
+			summaries: summaries.map(({ name, content }) => ({ name, content })),
+			plans: plans.map(({ name, content }) => ({ name, content })),
+			updatedAt: deriveTrackingUpdatedAt(trackingDir, [...sessions, ...summaries, ...plans]),
 		};
 		return Response.json(data);
 	} catch (error) {

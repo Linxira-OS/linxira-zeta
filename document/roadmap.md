@@ -104,8 +104,7 @@ OpenCode commands fall into three kinds; migrate them in that order:
    operations — implemented as code, not text.
 2. **Prompt-substitution** (expand to a prompt): `/init` and `/update` have
    shipped (`cmdInitGenerateAgentsMd` bundled zh overlay; CLI `/update`);
-   `/recipe` remains deferred with the removed-feature backlog — manage
-   remaining prompt-substitution gaps together with the user-defined
+   manage remaining prompt-substitution gaps together with the user-defined
    commands gaps below. (`/review` and `/share` already shipped as
    bundled/builtin commands.)
 3. **Combined** (template + arguments), using V2's command schema
