@@ -198,13 +198,17 @@ two-parent tag merge.
      (line 782).
   2. **`Messages` interface** — `en.ts`/`zh.ts` are annotated with it, so the new
      `/fork` keys needed it too (TS2353 + a TS2339 at every `M.cmdFork*`).
-  3. **The watchdog test's budget** — this test file is Zeta's (upstream v18.9.1
-     ships none). Upstream's merged kill path now runs the process-tree
-     diagnostics *before* the SIGKILL, and those shell out to `ps` plus
-     `ss -tuanpH -p`, which resolves every socket's owning process — tens of
-     seconds on a busy runner. The chunk timeout stays at 1 s; the harness budget
-     moves to 45 s (test 50 s) so the diagnostics are not mistaken for a watchdog
-     that never fired.
+  3. **The watchdog wedged instead of killing** — this test file is Zeta's (upstream
+     v18.9.1 ships none). Upstream's merged kill path runs the process-tree
+     diagnostics *before* the SIGKILL, and `snapshotProcessTree` called `Bun.spawnSync`
+     for `ps -eo ... args=` and `ss -tuanpH`: on a runner whose bucket commands list
+     hundreds of files that output runs to megabytes, the helper fills the pipe while
+     the parent waits for it to exit, so the SIGKILL never fired (the test hit a 45 s
+     timeout with a 1 s chunk timeout — the watchdog had become the thing that wedges,
+     which is the opposite of its job). The snapshot now spawns asynchronously,
+     drains as it arrives, and is abandoned after `SNAPSHOT_BUDGET_MS` (5 s) with its
+     helpers killed, so the kill always happens; the harness budget moved to 45 s
+     (test 50 s) to leave room for a slow runner.
   4. **`browser-tab-worker-startup` crash cases** (ours to tolerate, not to weaken):
      the inline-run case is a pure detection-latency race — `#unanswered` is set
      for the whole run, so `#onPageCrashed` does abort the run's signal, just later

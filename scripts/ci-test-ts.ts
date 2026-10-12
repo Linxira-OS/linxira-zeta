@@ -516,18 +516,44 @@ function chunkTimeoutMs(): number {
 // chunk right after, and a snapshot failure must not stop that.
 async function describeStuckProcessTree(rootPid: number): Promise<string> {
 	if (process.platform !== "linux" || !Bun.which("ps")) return "";
-	try {
-		return await snapshotProcessTree(rootPid);
-	} catch (err) {
-		return `[watchdog] process tree snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`;
-	}
+	const running: HelperProcess[] = [];
+	const snapshot = snapshotProcessTree(rootPid, running).catch(
+		err => `[watchdog] process tree snapshot failed: ${err instanceof Error ? err.message : String(err)}\n`,
+	);
+	// The snapshot only explains the kill that follows it, so it is abandoned at the
+	// budget: the caller SIGKILLs the chunk right after this returns, and a helper
+	// that never answers must not keep that kill from happening.
+	const taken = await Promise.race([snapshot, Bun.sleep(SNAPSHOT_BUDGET_MS).then(() => null)]);
+	if (taken !== null) return taken;
+	for (const proc of running) proc.kill();
+	return `[watchdog] process tree snapshot abandoned after ${SNAPSHOT_BUDGET_MS} ms\n`;
 }
 
-async function snapshotProcessTree(rootPid: number): Promise<string> {
-	const ps = Bun.spawnSync(["ps", "-eo", "pid=,ppid=,stat=,etimes=,pcpu=,rss=,wchan:24=,args="]);
-	if (!ps.success) return "";
-	const rows = ps.stdout
-		.toString()
+/** A diagnostics helper the watchdog may have to abandon. */
+interface HelperProcess {
+	kill: () => void;
+}
+
+/** Seconds a `describeStuckProcessTree` snapshot may take before it is abandoned;
+ * the SIGKILL it explains happens right after either way. */
+const SNAPSHOT_BUDGET_MS = 5_000;
+
+// `Bun.spawnSync` cannot be used here: on a CI runner `ps ... args=` prints
+// megabytes (bucket commands list hundreds of files), and a helper whose output
+// fills the pipe buffer while the parent waits for it to exit wedges both. The
+// watchdog's kill must never be what wedges -- these spawns are drained as they
+// arrive and the caller abandons them at a budget.
+async function captureHelper(argv: string[], running: HelperProcess[]): Promise<string | null> {
+	const proc = Bun.spawn(argv, { stdin: "ignore", stdout: "pipe", stderr: "ignore" });
+	running.push(proc);
+	const [text, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+	return code === 0 ? text : null;
+}
+
+async function snapshotProcessTree(rootPid: number, running: HelperProcess[]): Promise<string> {
+	const ps = await captureHelper(["ps", "-eo", "pid=,ppid=,stat=,etimes=,pcpu=,rss=,wchan:24=,args="], running);
+	if (ps === null) return "";
+	const rows = ps
 		.split("\n")
 		.map(line => line.trim().split(/\s+/))
 		.filter(cols => cols.length >= 8);
@@ -545,12 +571,9 @@ async function snapshotProcessTree(rootPid: number): Promise<string> {
 	for (const cols of rows) {
 		if (tree.has(cols[0])) lines.push(`  ${cols.slice(0, 7).join(" ")} ${cols.slice(7).join(" ").slice(0, 200)}`);
 	}
-	const ss = Bun.which("ss") ? Bun.spawnSync(["ss", "-tuanpH"]) : null;
-	if (ss?.success) {
-		const owned = ss.stdout
-			.toString()
-			.split("\n")
-			.filter(line => [...tree].some(pid => line.includes(`pid=${pid},`)));
+	const ss = Bun.which("ss") ? await captureHelper(["ss", "-tuanpH"], running) : null;
+	if (ss !== null) {
+		const owned = ss.split("\n").filter(line => [...tree].some(pid => line.includes(`pid=${pid},`)));
 		lines.push(`[watchdog] sockets held by that tree (${owned.length}):`, ...owned.map(line => `  ${line.trim()}`));
 		return `${lines.join("\n")}\n`;
 	}

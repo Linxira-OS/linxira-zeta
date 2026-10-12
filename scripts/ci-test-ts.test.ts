@@ -19,11 +19,11 @@ describe("test runner watchdog", () => {
 			{ label: "stalled chunk", cwd: ".", command: stalledCommand },
 			{ label: "following chunk", cwd: ".", command: nextCommand },
 		];
-		// The budget covers the watchdog *and* the diagnostics upstream's kill path now
-		// runs first (v18.9.1): it shells out to `ps` and `ss -tuanpH -p`, and `ss -p`
-		// resolves every socket's owning process, which costs tens of seconds on a
-		// busy CI runner. The chunk timeout itself stays at 1 s, so a watchdog that
-		// never fired still shows up here as a timeout.
+		// The budget covers the watchdog *and* the process-tree diagnostics upstream's
+		// kill path runs first (v18.9.1): those shell out to `ps` and `ss -p` and are
+		// abandoned after their own SNAPSHOT_BUDGET_MS, so a healthy run finishes in
+		// seconds — the slack here is only for a runner slow to start the child. The
+		// chunk timeout stays at 1 s, so a watchdog that never fired still times out.
 		const result = await ptree.exec(
 			[
 				process.execPath,
