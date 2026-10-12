@@ -22,6 +22,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"task",
 	"wait",
 	"todo",
+	"mode",
 	"web_search",
 	"time",
 	"write",

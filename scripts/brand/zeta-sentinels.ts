@@ -336,6 +336,22 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "#stopUnownedOneShotDaemons",
 		why: "Zeta-only fix: the idle sweep stops non-`persist`, non-`detached` daemons once no client and no project presence remain, so the project-shared Chromium (a `persist: false` daemon whose process IS Chrome) cannot outlive zeta. Upstream OMP still vetoes the whole shutdown on `livePersistent` (issues #14379, #15014), so a merge taking their broker.ts wholesale reopens the leaked-headless-Chrome class.",
 	},
+	// -- Agent-side mode switching (`mode` tool) -----------------------------------
+	{
+		file: "packages/coding-agent/src/tools/mode.ts",
+		symbol: "export class ModeTool",
+		why: "Zeta-only tool: the agent may enter plan mode and leave only the plan mode it entered. Upstream OMP has no agent-side mode switch (the session-layer `enterMode`/`exitMode` API itself is already Zeta-only), so a merge taking tools/index.ts or the session wholesale drops the whole surface.",
+	},
+	{
+		file: "packages/coding-agent/src/tools/index.ts",
+		symbol: "mode: s => new ModeTool(s),",
+		why: "registration line for the `mode` tool — the file survives a merge, so losing only this line would leave the tool unreachable while the class still compiles",
+	},
+	{
+		file: "packages/coding-agent/src/plan-mode/state.ts",
+		symbol: 'enteredBy?: "user" | "agent";',
+		why: 'provenance of a plan-mode entry: absent means the user (all CLI/web/ACP callers), "agent" only from the `mode` tool. Losing it makes every plan mode look user-armed (safe) or, with a wholesale upstream take, makes the tool\'s exit check impossible.',
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",
