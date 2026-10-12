@@ -17,8 +17,17 @@ export function collectGarbage(): Promise<void> {
 	return promise;
 }
 
-/** Whether `target` becomes collectible within `deadlineMs`; a retained target never does. */
-export async function becomesCollectible(target: WeakRef<object>, deadlineMs = 3_000): Promise<boolean> {
+/**
+ * Whether `target` becomes collectible within `deadlineMs`; a retained target never does.
+ *
+ * The bound is deliberately generous: the timer-callback GC in {@link collectGarbage} is what
+ * makes collection possible at all, but a loaded CI runner still needs several passes, and the
+ * TUI bucket runs with `--parallel=2`, which makes the timing load-dependent. Widening the bound
+ * cannot weaken the assertion — an unreachable target passes either way, and a pinned one still
+ * fails, just later. (main, 2026-10-12: the assertion failed on the post-#92 push run while its
+ * sibling run of the same commit stayed green.)
+ */
+export async function becomesCollectible(target: WeakRef<object>, deadlineMs = 8_000): Promise<boolean> {
 	const deadline = performance.now() + deadlineMs;
 	do {
 		await collectGarbage();
