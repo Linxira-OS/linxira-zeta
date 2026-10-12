@@ -4,6 +4,7 @@ import * as path from "node:path";
 import {
 	$env,
 	$which,
+	CLI_BIN_NAME,
 	isBunTestRuntime,
 	isCompiledBinary,
 	isExecutable,
@@ -128,8 +129,11 @@ export function resolveExecutablePath(): string {
 			// Prefer the original launcher when invoked with an absolute path
 			isFullyQualifiedPath(argv0) ? argv0 : null,
 			!isPath ? $which(argv0, { requireAbsolutePaths: true, cache: WhichCachePolicy.Bypass }) : null,
-			// Generic fallback to finding "zeta" on PATH
-			$which("zeta", { requireAbsolutePaths: true, cache: WhichCachePolicy.Bypass }),
+			// Generic fallback to finding the CLI on PATH. The bin is CLI_BIN_NAME
+			// ("zetacode"); a bare `zeta` is the separate workbench entry point, so
+			// resolving that here would spawn the wrong program after an upgrade left
+			// `process.execPath` stale.
+			$which(CLI_BIN_NAME, { requireAbsolutePaths: true, cache: WhichCachePolicy.Bypass }),
 		];
 		for (const candidate of candidates) {
 			if (candidate && isExecutable(candidate)) {

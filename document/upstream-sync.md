@@ -221,6 +221,17 @@ two-parent tag merge.
   Still unfixed and left to a re-run: one native/unit chunk (`test/cli/*`, 10
   files) died without reporting a test failure and re-ran 66 pass / 0 fail in the
   same job — a process-level flake, not merge damage.
+- **Chasing that flake produced two more real fixes**: the harness now says when it
+  had to cancel a chunk's pipes (a descendant outlived the chunk and kept them
+  open, and cancelling discards what is still buffered — which is why such a
+  failure reports nothing at all and reads as a silent `exit 1`), and the
+  runner-watchdog test mirrors the child's stdout into a file so a timed-out
+  `ptree.exec` (which throws with a message only) can still be diagnosed.
+  `worker-client.ts` also resolved the CLI on PATH as `$which("zeta")`: that is a
+  pre-existing Zeta divergence — upstream asks for its own CLI name there, and in
+  Zeta a bare `zeta` is the **workbench** bin, so an upgrade that left
+  `process.execPath` stale would have spawned the wrong program. It now resolves
+  `CLI_BIN_NAME` (`zetacode`).
 - **Next merge**: starts from this round's final commit. Upstream's next tag is
   `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`; fetched and verified — the
   pure window is 166 commits / 165 files / +5870 −972). Maintainer decision

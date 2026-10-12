@@ -941,7 +941,13 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		}, chunkTimeoutMs());
 		const exitCode = await proc.exited;
 		clearTimeout(killTimer);
+		// A descendant that outlives the chunk keeps the pipes open, and cancelling the
+		// readers discards whatever is still buffered in them. Say so in the output:
+		// without it a chunk that fails this way reports nothing at all, and the
+		// failure looks like a silent exit 1.
+		let pipesHeldOpen = false;
 		if (!(await settleWithin(drains, 5000))) {
+			pipesHeldOpen = true;
 			stdoutDrain.cancel();
 			stderrDrain.cancel();
 			await drains;
@@ -949,7 +955,11 @@ export async function runTestCommandsInParallel(commands: TestCommand[], concurr
 		return {
 			exitCode,
 			timedOut,
-			output: `${stdout.text}${stderr.text}${timedOut ? `\n${stuckTree}[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
+			output: `${stdout.text}${stderr.text}${
+				pipesHeldOpen
+					? `\n[runner] the chunk's stdout/stderr pipes stayed open 5s after it exited (a descendant still holds them); cancelled them after capturing ${stdout.text.length + stderr.text.length} byte(s), so buffered output may be missing\n`
+					: ""
+			}${timedOut ? `\n${stuckTree}[watchdog] chunk exceeded ${Math.round(chunkTimeoutMs() / 1000)}s; killed with SIGKILL (OMP_TEST_CHUNK_TIMEOUT to change)\n` : ""}`,
 		};
 	}
 

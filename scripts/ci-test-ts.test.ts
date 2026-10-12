@@ -19,27 +19,44 @@ describe("test runner watchdog", () => {
 			{ label: "stalled chunk", cwd: ".", command: stalledCommand },
 			{ label: "following chunk", cwd: ".", command: nextCommand },
 		];
-		// The budget covers the watchdog *and* the process-tree diagnostics upstream's
-		// kill path runs first (v18.9.1): those shell out to `ps` and `ss -p` and are
-		// abandoned after their own SNAPSHOT_BUDGET_MS, so a healthy run finishes in
-		// seconds — the slack here is only for a runner slow to start the child. The
-		// chunk timeout stays at 1 s, so a watchdog that never fired still times out.
-		const result = await ptree.exec(
-			[
-				process.execPath,
-				"-e",
-				`import { runTestCommandsInParallel } from ${JSON.stringify(import.meta.resolve("./ci-test-ts.ts"))}; await runTestCommandsInParallel(${JSON.stringify(commands)}, 1);`,
-			],
-			{
+		// The child mirrors its own stdout into `childLog` as it arrives: a timed-out
+		// ptree.exec throws with only a message, so without this a wedged runner is
+		// undiagnosable from the CI log. The budget covers the watchdog *and* the
+		// process-tree diagnostics upstream's kill path runs first (v18.9.1), which are
+		// abandoned after their own SNAPSHOT_BUDGET_MS; the chunk timeout stays at 1 s,
+		// so a watchdog that never fired still shows up as a timeout here.
+		const childLog = dir.join("child.log");
+		const source = [
+			`import { appendFileSync } from "node:fs";`,
+			`const write = process.stdout.write.bind(process.stdout);`,
+			`process.stdout.write = (chunk, ...rest) => { try { appendFileSync(${JSON.stringify(childLog)}, chunk); } catch {} return write(chunk, ...rest); };`,
+			`const { runTestCommandsInParallel } = await import(${JSON.stringify(import.meta.resolve("./ci-test-ts.ts"))});`,
+			`await runTestCommandsInParallel(${JSON.stringify(commands)}, 1);`,
+		].join("\n");
+		let result: Awaited<ReturnType<typeof ptree.exec>> | undefined;
+		let failure: unknown;
+		try {
+			result = await ptree.exec([process.execPath, "-e", source], {
 				env: { ...Bun.env, OMP_TEST_CHUNK_TIMEOUT: "1", NO_COLOR: "1" },
 				timeout: 45_000,
 				detached: true,
 				allowNonZero: true,
-			},
-		);
+			});
+		} catch (error) {
+			failure = error;
+		}
+		if (failure !== undefined) {
+			const log = await Bun.file(childLog)
+				.text()
+				.catch(() => "(no child output)");
+			expect(
+				false,
+				`runner child did not exit: ${String(failure)}\n--- child output ---\n${log.slice(-4000)}`,
+			).toBeTrue();
+		}
 
-		expect(result.exitCode).toBe(1);
-		expect(result.stdout).toContain("[watchdog]");
+		expect(result?.exitCode).toBe(1);
+		expect(result?.stdout).toContain("[watchdog]");
 		expect(await Bun.file(started).exists()).toBe(true);
 		expect(await Bun.file(completed).exists()).toBe(false);
 		expect(await Bun.file(continued).text()).toBe("continued");
