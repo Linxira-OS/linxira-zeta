@@ -997,7 +997,7 @@ async function runTestCommandsInParallel(commands: TestCommand[], concurrency: n
 // contiguous ranges because the chunk list follows sorted file order, so slow
 // neighbouring suites spread evenly instead of piling into one shard. Every
 // chunk lands in exactly one shard; unset/empty runs everything.
-function selectShard<T>(commands: T[], spec: string | undefined): T[] {
+export function selectShard<T>(commands: T[], spec: string | undefined): T[] {
 	const trimmed = spec?.trim();
 	if (!trimmed) return commands;
 	const match = /^(\d+)\/(\d+)$/.exec(trimmed);

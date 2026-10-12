@@ -219,7 +219,7 @@ with an `e` message:
 ```
 
 `sf` must name a live surface and `id` its editable composer node (the
-`editor` descendant of the `omp.editor` role, normally `<component>.line/input`),
+`editor` descendant of the `zeta.editor` role, normally `<component>.line/input`),
 not the composer wrapper or its Send button. All three payload fields are
 required strings; surface and node ids must be nonempty. Malformed payloads,
 unknown or closed surfaces, and stale/noneditable node targets are ignored.

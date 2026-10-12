@@ -649,6 +649,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"顾问模型的服务层级。None = 标准处理；Inherit = 与主智能体的实时分系列层级保持一致；选择一个值可将其应用于顾问模型所属系列。",
 	},
+	"retry.fallbackOn": {
+		label: "回退触发条件",
+		description:
+			"哪些失败的请求可以切换到已配置的回退模型。任何错误 = 所有服务商错误都可切换；仅用量上限 = 只在用量上限时切换，其他错误在原模型重试后再呈现；除用量上限外 = 用量上限等待或呈现，其他错误才切换。",
+	},
 	"retry.enabled": {
 		label: "自动重试",
 		description: "自动重试失败的轮次，而不是立即将错误呈现给你",

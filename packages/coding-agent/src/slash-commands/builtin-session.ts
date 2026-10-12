@@ -608,11 +608,11 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fork",
 		icon: "branch",
-		description: "Fork this session, or open it in a multiplexer pane or window",
+		description: () => M.cmdFork,
 		subcommands: [
-			{ name: "pane", description: "Open the fork in a new terminal pane" },
-			{ name: "window", description: "Open the fork in a new multiplexer window" },
-			{ name: "tab", description: "Alias for window" },
+			{ name: "pane", description: () => M.cmdForkPane },
+			{ name: "window", description: () => M.cmdForkWindow },
+			{ name: "tab", description: () => M.cmdForkTab },
 		],
 		subcommandOptional: true,
 		allowArgs: true,

@@ -603,9 +603,14 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 		exempt: ["CHANGELOG.md"],
 	},
 	{
-		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer\.chips?|run)(?![A-Za-z0-9_-])/,
-		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips, image cache symbol, run box/foot/state/time/facts/status/caption)",
-		exempt: ["CHANGELOG.md"],
+		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run)(?![A-Za-z0-9_-])/,
+		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
+	},
+	{
+		needle: /f=b21w|i=omp-probe-/,
+		why: "the OSC 99 notification probe id and its base64 `f=` app field carry our identity (terminal.ts emits zeta-probe-<n> and base64 zeta); the v18.9.1 merge brought upstream's test asserting omp/b21w",
+		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{
 		needle: /`omp\.(cmd|ps1|bunx|exe)`/,

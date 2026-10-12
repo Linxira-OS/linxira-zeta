@@ -282,7 +282,7 @@ describe("committed transcript blocks release render caches", () => {
 		const frameCalls = { count: 0 };
 		const framed = () =>
 			new FramedMessageComponent({
-				role: "omp.note",
+				role: "zeta.note",
 				message: { customType: "note", content: "" },
 				customRenderer: () => {
 					frameCalls.count++;
