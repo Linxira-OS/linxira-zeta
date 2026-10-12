@@ -60,13 +60,11 @@ async function waitForCommandState(
 ): Promise<void> {
 	if (predicate()) return;
 	const { promise, resolve } = Promise.withResolvers<void>();
-	let unsubscribe: (() => void) | undefined;
-	const check = (): void => {
+	const unsubscribe = session.subscribeCommandMetadataChanged(() => {
 		if (!predicate()) return;
-		unsubscribe?.();
+		unsubscribe();
 		resolve();
-	};
-	unsubscribe = session.subscribeCommandMetadataChanged(check);
+	});
 	await withTimeout(promise, timeoutMs, `Timed out after ${timeoutMs}ms waiting for ${label}`);
 }
 
