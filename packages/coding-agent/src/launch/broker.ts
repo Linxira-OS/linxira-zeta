@@ -1527,17 +1527,43 @@ class DaemonBroker {
 		this.#idleTimer = setTimeout(() => {
 			this.#idleTimer = undefined;
 			void (async () => {
-				const livePersistent = [...this.#records.values()].some(
-					record => record.spec.persist && !terminalState(record.snapshot.state),
-				);
-				if (this.#clients.size > 0 || livePersistent) return;
+				if (this.#clients.size > 0) return;
 				if (await hasLiveDaemonProjectPresence(this.#runtimeDir)) {
 					this.#scheduleIdleShutdown();
 					return;
 				}
-				if (this.#clients.size === 0) await this.shutdown();
+				// Zeta-only (upstream OMP still vetoes the sweep on `livePersistent`
+				// — issues #14379/#15014): nobody is left who could own a oneshot
+				// daemon, so stop those now. The project-shared browser is one
+				// (`persist: false`): before this sweep, any `persist` daemon
+				// elsewhere in the scope (lsp mux, stats) kept the broker — and with
+				// it an unattached Chromium and its whole process tree — alive until
+				// the machine was rebooted: the "Chrome is still in the background
+				// after zeta exited" report. `scripts/brand/zeta-sentinels.ts` pins
+				// this so a merge cannot drop it silently.
+				await this.#stopUnownedOneShotDaemons();
+				if (this.#clients.size > 0) return;
+				const livePersistent = [...this.#records.values()].some(
+					record => record.spec.persist && !terminalState(record.snapshot.state),
+				);
+				if (livePersistent) return;
+				await this.shutdown();
 			})();
 		}, this.#idleGraceMs);
+	}
+
+	/**
+	 * Stop every live non-`persist`, non-`detached` daemon: with no client
+	 * connected and no other zeta process present in the project, nothing can be
+	 * using one. `persist` daemons exist to outlive clients (and are what keep the
+	 * broker itself up); `detached` ones are owned by someone outside this broker —
+	 * both are left alone, mirroring {@link shutdown}.
+	 */
+	async #stopUnownedOneShotDaemons(): Promise<void> {
+		for (const record of [...this.#records.values()]) {
+			if (record.spec.persist || record.spec.detached || terminalState(record.snapshot.state)) continue;
+			await this.#stopRecord(record, 2_000);
+		}
 	}
 }
 

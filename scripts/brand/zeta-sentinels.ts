@@ -330,6 +330,12 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'const WEB_UI_URL = "http://127.0.0.1:30141";',
 		why: "desktop ↔ web-ui loopback contract",
 	},
+	// -- Launch/broker: unowned oneshot daemon sweep -------------------------------
+	{
+		file: "packages/coding-agent/src/launch/broker.ts",
+		symbol: "#stopUnownedOneShotDaemons",
+		why: "Zeta-only fix: the idle sweep stops non-`persist`, non-`detached` daemons once no client and no project presence remain, so the project-shared Chromium (a `persist: false` daemon whose process IS Chrome) cannot outlive zeta. Upstream OMP still vetoes the whole shutdown on `livePersistent` (issues #14379, #15014), so a merge taking their broker.ts wholesale reopens the leaked-headless-Chrome class.",
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",
