@@ -737,7 +737,9 @@ export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContex
 			// label must strip the extension with that platform's path impl (a POSIX
 			// host probes `C:\npm\zetawork.cmd` on the win32 tier and must still call
 			// it "zetawork", not the whole backslash path).
-			label: pathImpl(ctx.platform).basename(workbench).replace(/\.(cmd|bat|exe)$/i, ""),
+			label: pathImpl(ctx.platform)
+				.basename(workbench)
+				.replace(/\.(cmd|bat|exe)$/i, ""),
 			command: wrapped?.command ?? workbench,
 			args: wrapped?.args ?? [],
 			fallbackReason: null,
