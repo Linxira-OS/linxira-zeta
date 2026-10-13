@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../styles/themes/zeta-dark-static.css";
+@import "../styles/themes/zeta-static.css";
 /* Design-system token layer (v1.1.7 modernization, step 1 — additive).
    See document/web-ui-modernization.md §2. */
 @import "../styles/design-system.css";
@@ -13,39 +13,33 @@ html.zeta-theme-switching *::after {
 }
 
 @theme {
-	--color-bg: var(--bg);
-	--color-bg-panel: var(--bg-panel);
-	--color-bg-hover: var(--bg-hover);
-	--color-bg-selected: var(--bg-selected);
-	--color-border: var(--border);
-	--color-text: var(--text);
-	--color-text-muted: var(--text-muted);
-	--color-text-dim: var(--text-dim);
-	--color-accent: var(--accent);
-	--color-accent-hover: var(--accent-hover);
-	--color-user-bg: var(--user-bg);
-	--color-assistant-bg: var(--assistant-bg);
-	--color-tool-bg: var(--tool-bg);
-	--color-bg-subtle: var(--bg-subtle);
+	--color-bg: var(--zeta-alias-bg);
+	--color-bg-panel: var(--zeta-alias-bg-panel);
+	--color-bg-hover: var(--zeta-alias-bg-hover);
+	--color-bg-selected: var(--zeta-alias-bg-selected);
+	--color-border: var(--zeta-alias-border);
+	--color-text: var(--zeta-alias-text);
+	--color-text-muted: var(--zeta-alias-text-muted);
+	--color-text-dim: var(--zeta-alias-text-dim);
+	--color-accent: var(--zeta-alias-accent);
+	--color-accent-hover: var(--zeta-alias-accent-hover);
+	--color-user-bg: var(--zeta-alias-user-bg);
+	--color-assistant-bg: var(--zeta-alias-assistant-bg);
+	--color-tool-bg: var(--zeta-alias-tool-bg);
+	--color-bg-subtle: var(--zeta-alias-bg-subtle);
 	--font-mono-font: var(--font-mono);
 }
 
-/* Theme color variables are owned by ThemeSystemProvider. The static dark
-   sheet above prevents a light first frame; the provider then injects the
-   selected preset and legacy aliases for existing components. */
+/* Theme colour variables are owned by ThemeSystemProvider. The generated
+   first-frame sheet above (`styles/themes/zeta-static.css`) carries all three
+   layers — L1 raw palette, L2 semantic aliases, L3 compat bridge — for the
+   default light theme, plus the single `[data-theme="dark"]` override table
+   for the default dark theme; the provider then injects the selected preset. */
 
-/* Starfield remains an explicit Zeta preset rather than a generic dark theme. */
-html[data-theme-id="zeta-starfield"] {
-	--sf-navy: #1b365d;
-	--sf-gold: #d99b26;
-	--sf-gold-dim: #a07018;
-	--sf-orange: #e05a2b;
-	--sf-red: #c81d25;
-	--sf-green: #22c55e;
-	--sf-cyan: #38bdf8;
-	--sf-glow: rgb(217 155 38 / 0.22);
-	--sf-stripe: linear-gradient(90deg, #1b365d 0% 25%, #d99b26 25% 50%, #e05a2b 50% 75%, #c81d25 75% 100%);
-}
+/* Starfield remains an explicit Zeta preset rather than a generic dark theme.
+   Its `--sf-*` brand palette lives in the L1 layer (`lib/theme/tokens.ts`
+   STATIC_CONSTANTS → `--zeta-static-sf-*`) and is consumed through the L2
+   aliases (`--zeta-alias-sf-*`); this file only styles with those aliases. */
 
 /* UI Chrome Typography: Orbitron for titles & Share Tech Mono for controls */
 html[data-theme-id="zeta-starfield"] .sidebar-container,
@@ -66,10 +60,10 @@ html[data-theme-id="zeta-starfield"] .comp-title {
 
 /* ── 2. Global background: deep-space dot-grid ─────────────────────────── */
 html[data-theme-id="zeta-starfield"] body {
-	background-color: var(--bg);
+	background-color: var(--zeta-alias-bg);
 	background-image:
-		radial-gradient(circle, rgba(217, 155, 38, 0.06) 1px, transparent 1px),
-		radial-gradient(circle, rgba(27, 54, 93, 0.18) 1px, transparent 1px);
+		radial-gradient(circle, color-mix(in srgb, var(--zeta-alias-sf-gold) 6%, transparent) 1px, transparent 1px),
+		radial-gradient(circle, color-mix(in srgb, var(--zeta-alias-sf-navy) 18%, transparent) 1px, transparent 1px);
 	background-size:
 		40px 40px,
 		20px 20px;
@@ -86,16 +80,16 @@ html[data-theme-id="zeta-starfield"] body::before {
 	left: 0;
 	right: 0;
 	height: 3px;
-	background: var(--sf-stripe);
+	background: var(--zeta-alias-sf-stripe);
 	z-index: 9999;
 	pointer-events: none;
 }
 
 /* ── 4. Sidebar ──────────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sidebar-container {
-	background: #0b0f18 !important;
-	border-right: 2px solid var(--sf-navy) !important;
-	box-shadow: inset -8px 0 24px rgba(27, 54, 93, 0.12) !important;
+	background: var(--zeta-alias-sf-void) !important;
+	border-right: 2px solid var(--zeta-alias-sf-navy) !important;
+	box-shadow: inset -8px 0 24px color-mix(in srgb, var(--zeta-alias-sf-navy) 12%, transparent) !important;
 	position: relative;
 }
 /* Gold accent bar on inner edge of sidebar */
@@ -106,7 +100,7 @@ html[data-theme-id="zeta-starfield"] .sidebar-container::after {
 	right: -1px;
 	bottom: 0;
 	width: 1px;
-	background: linear-gradient(180deg, transparent 0%, var(--sf-gold) 20%, var(--sf-gold) 80%, transparent 100%);
+	background: linear-gradient(180deg, transparent 0%, var(--zeta-alias-sf-gold) 20%, var(--zeta-alias-sf-gold) 80%, transparent 100%);
 	opacity: 0.35;
 	pointer-events: none;
 }
@@ -116,7 +110,7 @@ html[data-theme-id="zeta-starfield"] [class*="top-bar"],
 html[data-theme-id="zeta-starfield"] [style*="height: 36"][style*="bg-panel"],
 html[data-theme-id="zeta-starfield"] div[style*="height: 36px"],
 html[data-theme-id="zeta-starfield"] div[style*="height:36px"] {
-	background: #0b0f18 !important;
+	background: var(--zeta-alias-sf-void) !important;
 }
 
 /* ── 6. Scrollbars ──────────────────────────────────────────────────────── */
@@ -128,29 +122,29 @@ html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-track {
 	background: transparent;
 }
 html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-thumb {
-	background: var(--sf-navy);
+	background: var(--zeta-alias-sf-navy);
 	border-radius: 0;
 }
 html[data-theme-id="zeta-starfield"] ::-webkit-scrollbar-thumb:hover {
-	background: var(--sf-gold);
+	background: var(--zeta-alias-sf-gold);
 }
 
 /* ── 7. Text selection ──────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] ::selection {
-	background: rgba(217, 155, 38, 0.3);
-	color: #f0f4ff;
+	background: color-mix(in srgb, var(--zeta-alias-sf-gold) 30%, transparent);
+	color: var(--zeta-alias-sf-ice);
 }
 
 /* ── 8. User message bubble ─────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-user-bubble {
 	border-radius: 0 !important;
 	clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%) !important;
-	border: 1px solid rgba(217, 155, 38, 0.35) !important;
-	border-left: 3px solid var(--sf-gold) !important;
-	background: linear-gradient(135deg, #0f1e38 0%, #0c1a2e 100%) !important;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-sf-gold) 35%, transparent) !important;
+	border-left: 3px solid var(--zeta-alias-sf-gold) !important;
+	background: linear-gradient(135deg, var(--zeta-alias-sf-navy-mid) 0%, var(--zeta-alias-sf-navy-dark) 100%) !important;
 	box-shadow:
-		inset 0 1px 0 rgba(217, 155, 38, 0.12),
-		0 4px 20px rgba(27, 54, 93, 0.2) !important;
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-sf-gold) 12%, transparent),
+		0 4px 20px color-mix(in srgb, var(--zeta-alias-sf-navy) 20%, transparent) !important;
 	position: relative;
 }
 /* Corner crosshair — top-right */
@@ -161,8 +155,8 @@ html[data-theme-id="zeta-starfield"] .sf-user-bubble::before {
 	right: 4px;
 	width: 8px;
 	height: 8px;
-	border-top: 1.5px solid var(--sf-gold);
-	border-right: 1.5px solid var(--sf-gold);
+	border-top: 1.5px solid var(--zeta-alias-sf-gold);
+	border-right: 1.5px solid var(--zeta-alias-sf-gold);
 	opacity: 0.6;
 	pointer-events: none;
 }
@@ -174,8 +168,8 @@ html[data-theme-id="zeta-starfield"] .sf-user-bubble::after {
 	left: 6px;
 	width: 8px;
 	height: 8px;
-	border-bottom: 1.5px solid var(--sf-gold);
-	border-left: 1.5px solid var(--sf-gold);
+	border-bottom: 1.5px solid var(--zeta-alias-sf-gold);
+	border-left: 1.5px solid var(--zeta-alias-sf-gold);
 	opacity: 0.4;
 	pointer-events: none;
 }
@@ -183,16 +177,16 @@ html[data-theme-id="zeta-starfield"] .sf-user-bubble::after {
 /* ── 9. Tool call blocks ────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-tool-block {
 	border-radius: 0 !important;
-	border: 1px solid rgba(27, 54, 93, 0.8) !important;
-	border-left: 2px solid var(--sf-orange) !important;
-	background: #0a1020 !important;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-sf-navy) 80%, transparent) !important;
+	border-left: 2px solid var(--zeta-alias-sf-orange) !important;
+	background: var(--zeta-alias-sf-deep) !important;
 	position: relative;
 	overflow: hidden;
 }
 html[data-theme-id="zeta-starfield"] .sf-tool-block.sf-tool-error {
-	border-left-color: var(--sf-red) !important;
-	border-color: rgba(200, 29, 37, 0.4) !important;
-	background: rgba(200, 29, 37, 0.04) !important;
+	border-left-color: var(--zeta-alias-sf-red) !important;
+	border-color: color-mix(in srgb, var(--zeta-alias-sf-red) 40%, transparent) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-red) 4%, transparent) !important;
 }
 /* Scan-line shimmer on tool header hover */
 html[data-theme-id="zeta-starfield"] .sf-tool-block::before {
@@ -202,7 +196,7 @@ html[data-theme-id="zeta-starfield"] .sf-tool-block::before {
 	left: -100%;
 	right: 0;
 	bottom: 0;
-	background: linear-gradient(90deg, transparent, rgba(217, 155, 38, 0.04), transparent);
+	background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--zeta-alias-sf-gold) 4%, transparent), transparent);
 	transition: left 0.6s ease;
 	pointer-events: none;
 }
@@ -213,92 +207,92 @@ html[data-theme-id="zeta-starfield"] .sf-tool-block:hover::before {
 /* ── 10. Code blocks ────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .markdown-code-block {
 	border-radius: 0 !important;
-	border: 1px solid var(--sf-navy) !important;
-	border-left: 3px solid var(--sf-gold) !important;
-	background: #06080f !important;
-	box-shadow: inset 0 0 30px rgba(27, 54, 93, 0.12) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
+	border-left: 3px solid var(--zeta-alias-sf-gold) !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	box-shadow: inset 0 0 30px color-mix(in srgb, var(--zeta-alias-sf-navy) 12%, transparent) !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-code-header {
-	background: linear-gradient(90deg, var(--sf-navy), #0d1a33) !important;
-	color: var(--sf-gold) !important;
-	border-bottom: 1px solid rgba(217, 155, 38, 0.3) !important;
+	background: linear-gradient(90deg, var(--zeta-alias-sf-navy), var(--zeta-alias-sf-navy-deep)) !important;
+	color: var(--zeta-alias-sf-gold) !important;
+	border-bottom: 1px solid color-mix(in srgb, var(--zeta-alias-sf-gold) 30%, transparent) !important;
 	font-family: var(--font-mono) !important;
 	letter-spacing: 0.08em !important;
 	border-radius: 0 !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-code-lang {
-	color: var(--sf-orange) !important;
+	color: var(--zeta-alias-sf-orange) !important;
 	font-weight: 700 !important;
 	text-transform: uppercase !important;
 	letter-spacing: 0.12em !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-code-action {
-	color: var(--sf-gold) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	border-radius: 0 !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-code-action:hover:not(:disabled) {
-	background: rgba(217, 155, 38, 0.12) !important;
-	color: #f0b840 !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-gold) 12%, transparent) !important;
+	color: var(--zeta-alias-sf-amber) !important;
 }
 
 /* ── 11. Inline code ────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .markdown-inline-code {
-	background: rgba(27, 54, 93, 0.5) !important;
-	color: var(--sf-gold) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-navy) 50%, transparent) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	border-radius: 0 !important;
-	border: 1px solid rgba(27, 54, 93, 0.7) !important;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-sf-navy) 70%, transparent) !important;
 	padding: 1px 5px !important;
 	font-weight: 700 !important;
 }
 
 /* ── 12. Blockquote ─────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .markdown-body blockquote {
-	border-left: 3px solid var(--sf-orange) !important;
-	background: rgba(224, 90, 43, 0.06) !important;
+	border-left: 3px solid var(--zeta-alias-sf-orange) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-orange) 6%, transparent) !important;
 	border-radius: 0 !important;
 }
 
 /* ── 13. Tables ─────────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .markdown-body th {
-	background: var(--sf-navy) !important;
-	color: #f0f4ff !important;
-	border: 1px solid rgba(217, 155, 38, 0.3) !important;
+	background: var(--zeta-alias-sf-navy) !important;
+	color: var(--zeta-alias-sf-ice) !important;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-sf-gold) 30%, transparent) !important;
 	font-family: var(--font-mono) !important;
 	letter-spacing: 0.06em !important;
 	text-transform: uppercase !important;
 	font-size: 0.78em !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-body td {
-	border-color: #1e2d45 !important;
+	border-color: var(--zeta-alias-sf-slate) !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-body tbody tr:nth-child(even) td {
-	background: rgba(27, 54, 93, 0.15) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-navy) 15%, transparent) !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-body table {
-	border: 1px solid var(--sf-navy) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
 }
 
 /* ── 14. Headings in chat ───────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .markdown-body h1,
 html[data-theme-id="zeta-starfield"] .markdown-body h2,
 html[data-theme-id="zeta-starfield"] .markdown-body h3 {
-	color: var(--sf-gold) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	font-family: var(--font-mono) !important;
 	letter-spacing: 0.06em !important;
-	border-bottom: 1px solid rgba(217, 155, 38, 0.2) !important;
+	border-bottom: 1px solid color-mix(in srgb, var(--zeta-alias-sf-gold) 20%, transparent) !important;
 	padding-bottom: 4px !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-body h1::before {
 	content: "// ";
-	color: var(--sf-orange);
+	color: var(--zeta-alias-sf-orange);
 }
 html[data-theme-id="zeta-starfield"] .markdown-body h2::before {
 	content: "// ";
-	color: rgba(217, 155, 38, 0.6);
+	color: color-mix(in srgb, var(--zeta-alias-sf-gold) 60%, transparent);
 }
 html[data-theme-id="zeta-starfield"] .markdown-body h3::before {
 	content: "// ";
-	color: rgba(217, 155, 38, 0.35);
+	color: color-mix(in srgb, var(--zeta-alias-sf-gold) 35%, transparent);
 }
 
 /* ── 15. HR separator ───────────────────────────────────────────────────── */
@@ -308,9 +302,9 @@ html[data-theme-id="zeta-starfield"] .markdown-body hr {
 	background: linear-gradient(
 		90deg,
 		transparent,
-		var(--sf-gold),
-		var(--sf-orange),
-		var(--sf-red),
+		var(--zeta-alias-sf-gold),
+		var(--zeta-alias-sf-orange),
+		var(--zeta-alias-sf-red),
 		transparent
 	) !important;
 	opacity: 0.35 !important;
@@ -318,15 +312,15 @@ html[data-theme-id="zeta-starfield"] .markdown-body hr {
 
 /* ── 16. Thinking block ─────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-thinking-block {
-	border-left: 2px solid var(--sf-cyan) !important;
-	background: rgba(56, 189, 248, 0.04) !important;
+	border-left: 2px solid var(--zeta-alias-sf-cyan) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-cyan) 4%, transparent) !important;
 	border-radius: 0 !important;
 }
 
 /* ── 17. Chat input area ─────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-chat-input-wrap {
-	border-top: 1px solid var(--sf-navy) !important;
-	background: #0b0f18 !important;
+	border-top: 1px solid var(--zeta-alias-sf-navy) !important;
+	background: var(--zeta-alias-sf-void) !important;
 	position: relative;
 }
 html[data-theme-id="zeta-starfield"] .sf-chat-input-wrap::before {
@@ -336,40 +330,40 @@ html[data-theme-id="zeta-starfield"] .sf-chat-input-wrap::before {
 	left: 0;
 	right: 0;
 	height: 1px;
-	background: linear-gradient(90deg, transparent 0%, var(--sf-gold) 20%, var(--sf-orange) 60%, transparent 100%);
+	background: linear-gradient(90deg, transparent 0%, var(--zeta-alias-sf-gold) 20%, var(--zeta-alias-sf-orange) 60%, transparent 100%);
 	opacity: 0.5;
 	pointer-events: none;
 }
 html[data-theme-id="zeta-starfield"] .sf-chat-input-box {
-	border: 1px solid var(--sf-navy) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
 	border-radius: 0 !important;
-	background: #0a1020 !important;
+	background: var(--zeta-alias-sf-deep) !important;
 	clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%) !important;
 	transition:
 		border-color 0.2s,
 		box-shadow 0.2s !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-chat-input-box:focus-within {
-	border-color: rgba(217, 155, 38, 0.6) !important;
+	border-color: color-mix(in srgb, var(--zeta-alias-sf-gold) 60%, transparent) !important;
 	box-shadow:
-		0 0 0 1px rgba(217, 155, 38, 0.2),
-		inset 0 0 20px rgba(27, 54, 93, 0.1) !important;
+		0 0 0 1px color-mix(in srgb, var(--zeta-alias-sf-gold) 20%, transparent),
+		inset 0 0 20px color-mix(in srgb, var(--zeta-alias-sf-navy) 10%, transparent) !important;
 }
 
 /* ── 18. Send button ────────────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-send-btn {
 	border-radius: 0 !important;
-	background: var(--sf-navy) !important;
-	border: 1px solid var(--sf-gold) !important;
+	background: var(--zeta-alias-sf-navy) !important;
+	border: 1px solid var(--zeta-alias-sf-gold) !important;
 	clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%) !important;
-	color: var(--sf-gold) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	transition:
 		background 0.2s,
 		color 0.2s !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-send-btn:hover:not(:disabled) {
-	background: var(--sf-gold) !important;
-	color: var(--sf-navy) !important;
+	background: var(--zeta-alias-sf-gold) !important;
+	color: var(--zeta-alias-sf-navy) !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-send-btn:disabled {
 	opacity: 0.4 !important;
@@ -378,84 +372,84 @@ html[data-theme-id="zeta-starfield"] .sf-send-btn:disabled {
 /* ── 19. Model/tool/control chips in input bar ───────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-control-chip {
 	border-radius: 0 !important;
-	border: 1px solid rgba(27, 54, 93, 0.8) !important;
-	background: rgba(27, 54, 93, 0.3) !important;
-	color: var(--sf-gold) !important;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-sf-navy) 80%, transparent) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-navy) 30%, transparent) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	font-family: var(--font-mono) !important;
 	letter-spacing: 0.04em !important;
 	font-size: 10px !important;
 	text-transform: uppercase !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-control-chip:hover {
-	border-color: var(--sf-gold) !important;
-	background: rgba(217, 155, 38, 0.1) !important;
+	border-color: var(--zeta-alias-sf-gold) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-gold) 10%, transparent) !important;
 }
 
 /* ── 20. Notice / alert shelf ───────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-notice {
-	border-left: 3px solid var(--sf-gold) !important;
+	border-left: 3px solid var(--zeta-alias-sf-gold) !important;
 	border-radius: 0 !important;
-	background: rgba(27, 54, 93, 0.35) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-navy) 35%, transparent) !important;
 	font-family: var(--font-mono) !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-notice.sf-notice-error {
-	border-left-color: var(--sf-red) !important;
-	background: rgba(200, 29, 37, 0.08) !important;
+	border-left-color: var(--zeta-alias-sf-red) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-red) 8%, transparent) !important;
 }
 html[data-theme-id="zeta-starfield"] .sf-notice.sf-notice-success {
-	border-left-color: var(--sf-green) !important;
-	background: rgba(34, 197, 94, 0.06) !important;
+	border-left-color: var(--zeta-alias-sf-green) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-green) 6%, transparent) !important;
 }
 
 /* ── 21. Diagram containers (Mermaid + ```svg figures) ───────────────────── */
 html[data-theme-id="zeta-starfield"] .figure-block {
-	border: 1px solid var(--sf-navy) !important;
-	background: #06080f !important;
-	border-left: 3px solid var(--sf-cyan) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	border-left: 3px solid var(--zeta-alias-sf-cyan) !important;
 	border-radius: 0 !important;
 }
 
 /* ── 22. Session info / stats popover ───────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .session-info-popover {
 	border-radius: 0 !important;
-	border: 1px solid var(--sf-navy) !important;
-	border-top: 2px solid var(--sf-gold) !important;
-	box-shadow: 0 8px 40px rgba(27, 54, 93, 0.5) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
+	border-top: 2px solid var(--zeta-alias-sf-gold) !important;
+	box-shadow: 0 8px 40px color-mix(in srgb, var(--zeta-alias-sf-navy) 50%, transparent) !important;
 }
 
 /* ── 23. Branch navigator ───────────────────────────────────────────────── */
 html[data-theme-id="zeta-starfield"] .sf-branch-nav {
-	border-bottom: 1px solid var(--sf-navy) !important;
-	background: #0b0f18 !important;
+	border-bottom: 1px solid var(--zeta-alias-sf-navy) !important;
+	background: var(--zeta-alias-sf-void) !important;
 }
 
 /* ── 24. Right Panel & File Viewer (NASA-punk Source Code & Preview) ─────── */
 html[data-theme-id="zeta-starfield"] .right-panel-container {
-	background: #06080f !important;
-	border-left: 2px solid var(--sf-navy) !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	border-left: 2px solid var(--zeta-alias-sf-navy) !important;
 	position: relative;
 }
 
 /* File viewer toolbar */
 html[data-theme-id="zeta-starfield"] .file-viewer-toolbar {
-	background: #0b0f18 !important;
-	border-bottom: 1px solid var(--sf-navy) !important;
+	background: var(--zeta-alias-sf-void) !important;
+	border-bottom: 1px solid var(--zeta-alias-sf-navy) !important;
 	font-family: var(--font-mono) !important;
 }
 html[data-theme-id="zeta-starfield"] .file-viewer-path {
-	color: var(--sf-gold) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	font-family: var(--font-mono) !important;
 	font-weight: 600 !important;
 }
 html[data-theme-id="zeta-starfield"] .file-viewer-meta {
-	color: var(--text-dim) !important;
+	color: var(--zeta-alias-text-dim) !important;
 	font-family: var(--font-mono) !important;
 }
 
 /* View mode switcher (Source / Preview / Diff) */
 html[data-theme-id="zeta-starfield"] .file-viewer-mode-switch {
-	background: #06080f !important;
-	border: 1px solid var(--sf-navy) !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
 	border-radius: 0 !important;
 	padding: 1px !important;
 }
@@ -469,34 +463,34 @@ html[data-theme-id="zeta-starfield"] .file-viewer-mode-button {
 	padding: 2px 8px !important;
 }
 html[data-theme-id="zeta-starfield"] .file-viewer-mode-button[aria-pressed="true"] {
-	background: var(--sf-navy) !important;
-	color: var(--sf-gold) !important;
+	background: var(--zeta-alias-sf-navy) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	font-weight: 700 !important;
-	box-shadow: inset 0 0 8px rgba(217, 155, 38, 0.18) !important;
+	box-shadow: inset 0 0 8px color-mix(in srgb, var(--zeta-alias-sf-gold) 18%, transparent) !important;
 }
 
 /* Icon buttons in file viewer toolbar (word wrap, copy, download) */
 html[data-theme-id="zeta-starfield"] .file-viewer-icon-button {
 	border-radius: 0 !important;
-	color: var(--text-muted) !important;
+	color: var(--zeta-alias-text-muted) !important;
 	border: 1px solid transparent !important;
 }
 html[data-theme-id="zeta-starfield"] .file-viewer-icon-button:hover {
-	background: rgba(27, 54, 93, 0.4) !important;
-	color: var(--sf-gold) !important;
-	border-color: rgba(217, 155, 38, 0.3) !important;
+	background: color-mix(in srgb, var(--zeta-alias-sf-navy) 40%, transparent) !important;
+	color: var(--zeta-alias-sf-gold) !important;
+	border-color: color-mix(in srgb, var(--zeta-alias-sf-gold) 30%, transparent) !important;
 }
 html[data-theme-id="zeta-starfield"] .file-viewer-icon-button[aria-pressed="true"] {
-	background: var(--sf-navy) !important;
-	color: var(--sf-gold) !important;
+	background: var(--zeta-alias-sf-navy) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 }
 
 /* Source Code Container & Syntax Highlighter */
 html[data-theme-id="zeta-starfield"] .file-source-view,
 html[data-theme-id="zeta-starfield"] pre.file-source-view,
 html[data-theme-id="zeta-starfield"] div.file-source-view {
-	background: #06080f !important;
-	color: #e8eeff !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	color: var(--zeta-alias-sf-frost) !important;
 	font-family: var(--font-mono) !important;
 	border-radius: 0 !important;
 	font-size: 12.5px !important;
@@ -506,86 +500,89 @@ html[data-theme-id="zeta-starfield"] div.file-source-view {
 /* Line numbers in source viewer */
 html[data-theme-id="zeta-starfield"] .file-source-view span.linenumber,
 html[data-theme-id="zeta-starfield"] span.linenumber {
-	background: #0b0f18 !important;
-	color: #3d5070 !important;
-	border-right: 1px solid #1e2d45 !important;
+	background: var(--zeta-alias-sf-void) !important;
+	color: var(--zeta-alias-sf-steel) !important;
+	border-right: 1px solid var(--zeta-alias-sf-slate) !important;
 	font-family: var(--font-mono) !important;
 	font-size: 11px !important;
 	padding-right: 10px !important;
 }
 
-/* Custom NASA-punk Syntax Highlighting for source code preview */
+/* Custom NASA-punk Syntax Highlighting for source code preview.
+   The `[style*="color: …"]` selectors match the *inline* colours the file
+   highlighter writes into the DOM, so their literals are matching keys rather
+   than paint — each carries the colour guard's per-line escape marker. */
 html[data-theme-id="zeta-starfield"] .file-source-view .token.keyword,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 0, 255)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(86, 156, 214)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #569cd6"] {
-	color: #e05a2b !important; /* Starfield Orange for keywords */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 0, 255)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(86, 156, 214)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #569cd6"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-orange) !important; /* Starfield Orange for keywords */
 	font-weight: 700 !important;
 }
 html[data-theme-id="zeta-starfield"] .file-source-view .token.string,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(163, 21, 21)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(206, 145, 120)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #ce9178"] {
-	color: #22c55e !important; /* Tactical Green for strings */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(163, 21, 21)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(206, 145, 120)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #ce9178"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-green) !important; /* Tactical Green for strings */
 }
 html[data-theme-id="zeta-starfield"] .file-source-view .token.function,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(220, 220, 170)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #dcdcaa"] {
-	color: #d99b26 !important; /* Starfield Gold for functions */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(220, 220, 170)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #dcdcaa"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-gold) !important; /* Starfield Gold for functions */
 }
 html[data-theme-id="zeta-starfield"] .file-source-view .token.comment,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 128, 0)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(106, 153, 85)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #6a9955"] {
-	color: #4b5a72 !important; /* Muted Space Slate for comments */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(0, 128, 0)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(106, 153, 85)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #6a9955"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-mist) !important; /* Muted Space Slate for comments */
 	font-style: italic !important;
 }
 html[data-theme-id="zeta-starfield"] .file-source-view .token.number,
 html[data-theme-id="zeta-starfield"] .file-source-view .token.boolean,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(181, 206, 168)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #b5cea8"] {
-	color: #38bdf8 !important; /* Telemetry Cyan for numbers/booleans */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(181, 206, 168)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #b5cea8"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-cyan) !important; /* Telemetry Cyan for numbers/booleans */
 }
 html[data-theme-id="zeta-starfield"] .file-source-view .token.class-name,
 html[data-theme-id="zeta-starfield"] .file-source-view .token.type-name,
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(78, 201, 176)"],
-html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #4ec9b0"] {
-	color: #f0f4ff !important;
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: rgb(78, 201, 176)"], /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+html[data-theme-id="zeta-starfield"] .file-source-view span[style*="color: #4ec9b0"] { /* zeta-style-literal-allow: highlighter inline colour, matched not painted */
+	color: var(--zeta-alias-sf-ice) !important;
 	font-weight: 600 !important;
 }
 
 /* Markdown Document Preview in Right Panel */
 html[data-theme-id="zeta-starfield"] .markdown-file-preview {
-	background: #06080f !important;
-	color: #e8eeff !important;
+	background: var(--zeta-alias-sf-abyss) !important;
+	color: var(--zeta-alias-sf-frost) !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h1,
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h2,
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h3,
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h4 {
-	color: var(--sf-gold) !important;
+	color: var(--zeta-alias-sf-gold) !important;
 	font-family: var(--font-mono) !important;
-	border-bottom: 1px solid rgba(217, 155, 38, 0.25) !important;
+	border-bottom: 1px solid color-mix(in srgb, var(--zeta-alias-sf-gold) 25%, transparent) !important;
 	padding-bottom: 6px !important;
 }
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h1::before {
 	content: "// ";
-	color: var(--sf-orange);
+	color: var(--zeta-alias-sf-orange);
 }
 html[data-theme-id="zeta-starfield"] .markdown-file-preview h2::before {
 	content: "// ";
-	color: rgba(217, 155, 38, 0.7);
+	color: color-mix(in srgb, var(--zeta-alias-sf-gold) 70%, transparent);
 }
 html[data-theme-id="zeta-starfield"] .markdown-file-preview pre {
-	background: #0a1020 !important;
-	border: 1px solid var(--sf-navy) !important;
-	border-left: 3px solid var(--sf-gold) !important;
+	background: var(--zeta-alias-sf-deep) !important;
+	border: 1px solid var(--zeta-alias-sf-navy) !important;
+	border-left: 3px solid var(--zeta-alias-sf-gold) !important;
 	border-radius: 0 !important;
 }
 
 /* Git Diff View in Right Panel */
 html[data-theme-id="zeta-starfield"] .file-diff-view {
-	background: #06080f !important;
+	background: var(--zeta-alias-sf-abyss) !important;
 	font-family: var(--font-mono) !important;
 }
 html[data-theme-id="zeta-starfield"] .file-diff-line {
@@ -619,8 +616,8 @@ html[data-theme-id="zeta-starfield"] body::after {
 		0deg,
 		transparent,
 		transparent 2px,
-		rgba(0, 0, 0, 0.06) 2px,
-		rgba(0, 0, 0, 0.06) 4px
+		color-mix(in srgb, var(--zeta-alias-neutral-1000) 6%, transparent) 2px,
+		color-mix(in srgb, var(--zeta-alias-neutral-1000) 6%, transparent) 4px
 	);
 	pointer-events: none;
 	z-index: 9998;
@@ -648,7 +645,7 @@ html[data-theme-id="zeta-starfield"] body::after {
 /* Running agent indicator pulse in starfield */
 html[data-theme-id="zeta-starfield"] .sf-running-dot {
 	animation: sf-pulse-gold 1.2s ease-in-out infinite !important;
-	background: var(--sf-gold) !important;
+	background: var(--zeta-alias-sf-gold) !important;
 	border-radius: 0 !important;
 }
 
@@ -680,8 +677,8 @@ body {
 	margin: 0;
 	padding: 0;
 	overflow: hidden;
-	background: var(--bg);
-	color: var(--text);
+	background: var(--zeta-alias-bg);
+	color: var(--zeta-alias-text);
 	font-family: var(--font-display);
 	font-size: 14px;
 	overscroll-behavior: none;
@@ -700,11 +697,11 @@ body {
 	background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-	background: var(--border);
+	background: var(--zeta-alias-border);
 	border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: var(--text-dim);
+	background: var(--zeta-alias-text-dim);
 }
 
 :root {
@@ -724,7 +721,7 @@ code {
 	overflow-x: hidden;
 	font-size: 14px;
 	line-height: 1.7;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	/* 中文按短语断行而不是逐字("简报"不被拆开、标点不落行首);
 	   Chromium 支持 auto-phrase 时启用短语级换行,其余环境保持逐词回退。 */
 	overflow-wrap: break-word;
@@ -751,7 +748,7 @@ code {
 .markdown-body h6 {
 	font-weight: 600;
 	margin: 10px 0 5px;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	line-height: 1.35;
 	letter-spacing: 0;
 }
@@ -763,7 +760,7 @@ code {
 }
 .markdown-body h3 {
 	font-size: 0.98em;
-	color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+	color: color-mix(in srgb, var(--zeta-alias-text) 88%, var(--zeta-alias-text-muted));
 }
 .markdown-body ul,
 .markdown-body ol {
@@ -785,25 +782,25 @@ code {
 	margin: 0;
 }
 .markdown-body li::marker {
-	color: color-mix(in srgb, var(--accent) 72%, var(--text-muted));
+	color: color-mix(in srgb, var(--zeta-alias-accent) 72%, var(--zeta-alias-text-muted));
 	font-weight: 600;
 }
 .markdown-body strong {
-	color: color-mix(in srgb, var(--text) 88%, var(--accent));
+	color: color-mix(in srgb, var(--zeta-alias-text) 88%, var(--zeta-alias-accent));
 	font-weight: 700;
 }
 .markdown-body em {
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 }
 .markdown-body a {
-	color: var(--accent);
+	color: var(--zeta-alias-accent);
 	text-decoration: underline;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 3px;
-	text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+	text-decoration-color: color-mix(in srgb, var(--zeta-alias-accent) 45%, transparent);
 }
 .markdown-body a:hover {
-	text-decoration-color: var(--accent);
+	text-decoration-color: var(--zeta-alias-accent);
 }
 .markdown-body img {
 	display: block;
@@ -813,13 +810,13 @@ code {
 	border-radius: 6px;
 }
 .markdown-body .markdown-inline-code {
-	background: var(--bg-subtle);
+	background: var(--zeta-alias-bg-subtle);
 	border-radius: 5px;
 	padding: 1px 5px;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	font-family: var(--font-mono);
 	font-size: 0.92em;
-	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--zeta-alias-border) 70%, transparent);
 }
 .markdown-body .contains-task-list {
 	padding-left: 0;
@@ -842,40 +839,40 @@ code {
 	width: 14px;
 	height: 14px;
 	margin: 0;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 4px;
-	background: var(--bg);
+	background: var(--zeta-alias-bg);
 	display: inline-grid;
 	place-content: center;
 }
 .markdown-body .task-list-item > input[type="checkbox"]:checked,
 .markdown-body .task-list-item > p:first-child > input[type="checkbox"]:first-child:checked {
-	border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-	background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+	border-color: color-mix(in srgb, var(--zeta-alias-accent) 55%, var(--zeta-alias-border));
+	background: color-mix(in srgb, var(--zeta-alias-accent) 10%, var(--zeta-alias-bg));
 }
 .markdown-body .task-list-item > input[type="checkbox"]:checked::before,
 .markdown-body .task-list-item > p:first-child > input[type="checkbox"]:first-child:checked::before {
 	content: "";
 	width: 4px;
 	height: 8px;
-	border: solid var(--accent);
+	border: solid var(--zeta-alias-accent);
 	border-width: 0 1.5px 1.5px 0;
 	transform: rotate(45deg) translateY(-1px);
 }
 .markdown-body blockquote {
-	border-left: 3px solid color-mix(in srgb, var(--border) 75%, var(--text-muted));
+	border-left: 3px solid color-mix(in srgb, var(--zeta-alias-border) 75%, var(--zeta-alias-text-muted));
 	border-radius: 0 6px 6px 0;
 	margin: 6px 0;
 	padding: 6px 11px;
-	background: var(--bg-subtle);
-	color: var(--text-muted);
+	background: var(--zeta-alias-bg-subtle);
+	color: var(--zeta-alias-text-muted);
 }
 .markdown-table-wrap {
 	width: 100%;
 	margin: 8px 0;
 	overflow-x: auto;
 	overflow-y: hidden;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 7px;
 }
 .markdown-body table {
@@ -887,7 +884,7 @@ code {
 .markdown-body th,
 .markdown-body td {
 	border: 0;
-	border-bottom: 1px solid var(--border);
+	border-bottom: 1px solid var(--zeta-alias-border);
 	padding: 6px 10px;
 	text-align: left;
 	vertical-align: top;
@@ -896,18 +893,18 @@ code {
 	border-bottom: 0;
 }
 .markdown-body th {
-	background: var(--bg-panel);
-	color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+	background: var(--zeta-alias-bg-panel);
+	color: color-mix(in srgb, var(--zeta-alias-text) 88%, var(--zeta-alias-text-muted));
 	font-weight: 650;
 }
 .markdown-body tbody tr:nth-child(even) td {
-	background: var(--bg-subtle);
+	background: var(--zeta-alias-bg-subtle);
 }
 .markdown-body hr {
 	border: none;
 	height: 1px;
 	margin: 12px 0;
-	background: linear-gradient(90deg, transparent, var(--border), transparent);
+	background: linear-gradient(90deg, transparent, var(--zeta-alias-border), transparent);
 }
 .markdown-body .katex-display {
 	margin: 0.6em 0;
@@ -983,8 +980,8 @@ code {
 .compaction-file-details {
 	margin-top: 10px;
 	padding-top: 8px;
-	border-top: 1px solid var(--border);
-	color: var(--text-muted);
+	border-top: 1px solid var(--zeta-alias-border);
+	color: var(--zeta-alias-text-muted);
 	font-size: 12px;
 }
 .compaction-file-details summary {
@@ -997,7 +994,7 @@ code {
 }
 .compaction-file-title {
 	margin-bottom: 4px;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	font-size: 11px;
 	font-weight: 650;
 }
@@ -1006,9 +1003,9 @@ code {
 	margin: 0;
 	padding: 7px 8px;
 	overflow: auto;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 6px;
-	background: var(--bg-panel);
+	background: var(--zeta-alias-bg-panel);
 	font-family: var(--font-mono);
 	font-size: 11px;
 	line-height: 1.45;
@@ -1027,17 +1024,17 @@ code {
 	min-width: 0;
 	max-width: 100%;
 	margin: 6px 0;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 7px;
 	overflow: hidden;
-	background: var(--bg);
-	box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 42%, transparent);
+	background: var(--zeta-alias-bg);
+	box-shadow: 0 1px 0 color-mix(in srgb, var(--zeta-alias-border) 42%, transparent);
 }
 .markdown-code-header {
 	padding: 5px 10px;
-	background: var(--bg-panel);
-	border-bottom: 1px solid var(--border);
-	color: var(--text-dim);
+	background: var(--zeta-alias-bg-panel);
+	border-bottom: 1px solid var(--zeta-alias-border);
+	color: var(--zeta-alias-text-dim);
 	font-size: 11px;
 	display: flex;
 	justify-content: space-between;
@@ -1045,7 +1042,7 @@ code {
 	gap: 8px;
 }
 .markdown-code-lang {
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-family: var(--font-mono);
 	font-weight: 650;
 }
@@ -1055,34 +1052,34 @@ code {
 	gap: 6px;
 }
 .markdown-code-action {
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 5px;
 	padding: 2px 7px;
-	background: var(--bg);
-	color: var(--text-muted);
+	background: var(--zeta-alias-bg);
+	color: var(--zeta-alias-text-muted);
 	cursor: pointer;
 	font: inherit;
 	font-size: 11px;
 	line-height: 1.25;
 }
 .markdown-code-action:hover:not(:disabled) {
-	color: var(--text);
-	border-color: color-mix(in srgb, var(--border) 70%, var(--text-muted));
+	color: var(--zeta-alias-text);
+	border-color: color-mix(in srgb, var(--zeta-alias-border) 70%, var(--zeta-alias-text-muted));
 }
 .markdown-code-action:disabled {
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 	cursor: not-allowed;
 	opacity: 0.75;
 }
 .markdown-code-action.is-active {
-	background: var(--bg-selected);
-	color: var(--text);
+	background: var(--zeta-alias-bg-selected);
+	color: var(--zeta-alias-text);
 }
 
 .figure-block {
 	padding: 12px;
 	overflow-x: auto;
-	background: color-mix(in srgb, var(--bg) 92%, var(--bg-panel));
+	background: color-mix(in srgb, var(--zeta-alias-bg) 92%, var(--zeta-alias-bg-panel));
 }
 .figure-block svg {
 	display: block;
@@ -1092,7 +1089,7 @@ code {
 	min-height: 120px;
 }
 .figure-block-error {
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-family: var(--font-mono);
 	font-size: 12px;
 }
@@ -1108,7 +1105,7 @@ code {
 	opacity: 0.85;
 }
 .figure-preview-button:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--zeta-alias-accent);
 	outline-offset: -2px;
 }
 
@@ -1121,20 +1118,20 @@ code {
    references itself is invalid — so they point at the identical
    `--primary-base`/`--interactive-border`. */
 .svg-figure {
-	--fg: var(--text);
-	--muted: var(--text-muted);
-	--border: var(--interactive-border);
-	--surface: var(--bg-panel);
-	--accent: var(--primary-base);
-	--success: var(--status-success);
-	--warning: var(--status-warning);
-	--error: var(--status-error);
-	--c1: var(--chart-1);
-	--c2: var(--chart-2);
-	--c3: var(--chart-3);
-	--c4: var(--chart-4);
-	--c5: var(--chart-5);
-	--c6: var(--chart-6);
+	--fg: var(--zeta-alias-text);
+	--muted: var(--zeta-alias-text-muted);
+	--border: var(--zeta-alias-interactive-border);
+	--surface: var(--zeta-alias-bg-panel);
+	--accent: var(--zeta-alias-primary-base);
+	--success: var(--zeta-alias-status-success);
+	--warning: var(--zeta-alias-status-warning);
+	--error: var(--zeta-alias-status-error);
+	--c1: var(--zeta-alias-chart-1);
+	--c2: var(--zeta-alias-chart-2);
+	--c3: var(--zeta-alias-chart-3);
+	--c4: var(--zeta-alias-chart-4);
+	--c5: var(--zeta-alias-chart-5);
+	--c6: var(--zeta-alias-chart-6);
 }
 /* The prompt sizes a figure in user units (1 unit ≈ 1px, up to 1000 wide), so
    unlike Mermaid's own fixed-width output it can be wider than the chat
@@ -1152,11 +1149,11 @@ code {
 	margin: 0;
 	padding: 0;
 	border: 0;
-	background: var(--bg);
-	color: var(--text);
+	background: var(--zeta-alias-bg);
+	color: var(--zeta-alias-text);
 }
 .figure-zoom-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.35);
+	background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent);
 }
 .figure-zoom-layout {
 	display: grid;
@@ -1169,13 +1166,13 @@ code {
 	gap: 10px;
 	min-height: 40px;
 	padding: 7px 10px;
-	background: var(--bg-panel);
-	border-bottom: 1px solid var(--border);
+	background: var(--zeta-alias-bg-panel);
+	border-bottom: 1px solid var(--zeta-alias-border);
 }
 .figure-zoom-title {
 	min-width: 0;
 	overflow: hidden;
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-family: var(--font-mono);
 	font-size: 11px;
 	font-weight: 600;
@@ -1193,9 +1190,9 @@ code {
 	align-items: center;
 	height: 24px;
 	overflow: hidden;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 5px;
-	background: var(--bg);
+	background: var(--zeta-alias-bg);
 }
 .figure-zoom-stepper button,
 .figure-zoom-icon-button {
@@ -1207,7 +1204,7 @@ code {
 	padding: 0;
 	border: 0;
 	background: transparent;
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	cursor: pointer;
 	touch-action: manipulation;
 }
@@ -1216,17 +1213,17 @@ code {
 }
 .figure-zoom-stepper button + .figure-zoom-value,
 .figure-zoom-value + button {
-	border-left: 1px solid var(--border);
+	border-left: 1px solid var(--zeta-alias-border);
 }
 .figure-zoom-icon-button {
 	flex: 0 0 24px;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 5px;
 }
 .figure-zoom-stepper button:hover:not(:disabled),
 .figure-zoom-icon-button:hover {
-	background: var(--bg-hover);
-	color: var(--text);
+	background: var(--zeta-alias-bg-hover);
+	color: var(--zeta-alias-text);
 }
 .figure-zoom-stepper button:disabled {
 	opacity: 0.35;
@@ -1234,13 +1231,13 @@ code {
 }
 .figure-zoom-stepper button:focus-visible,
 .figure-zoom-icon-button:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--zeta-alias-accent);
 	outline-offset: -2px;
 }
 .figure-zoom-value {
 	min-width: 48px;
 	height: 22px;
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-family: var(--font-mono);
 	font-size: 12px;
 	line-height: 22px;
@@ -1252,14 +1249,14 @@ code {
 	min-height: 0;
 	overflow: auto;
 	padding: 24px;
-	background: var(--bg);
+	background: var(--zeta-alias-bg);
 	-webkit-overflow-scrolling: touch;
 }
 .figure-zoom-canvas {
 	padding: 12px;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 7px;
-	background: var(--bg-panel);
+	background: var(--zeta-alias-bg-panel);
 	margin: 0 auto;
 	transition: width 0.15s ease;
 }
@@ -1333,7 +1330,7 @@ code {
 	display: flex;
 	height: 24px;
 	overflow: hidden;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 5px;
 }
 
@@ -1341,7 +1338,7 @@ code {
 	height: 22px;
 	padding: 0 8px;
 	border: 0;
-	border-left: 1px solid var(--border);
+	border-left: 1px solid var(--zeta-alias-border);
 	font: inherit;
 	font-size: 11px;
 	font-weight: 500;
@@ -1367,39 +1364,39 @@ code {
 	padding: 0;
 	box-sizing: border-box;
 	flex: 0 0 24px;
-	border: 1px solid var(--border);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 5px;
 	background: transparent;
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	cursor: pointer;
 	text-decoration: none;
 }
 
 .file-viewer-icon-button:hover {
-	background: var(--bg-hover) !important;
-	color: var(--text);
+	background: var(--zeta-alias-bg-hover) !important;
+	color: var(--zeta-alias-text);
 }
 
 .file-viewer-icon-button:disabled {
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 	cursor: not-allowed;
 	opacity: 0.55;
 }
 
 .file-viewer-icon-button:disabled:hover {
 	background: transparent !important;
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 }
 
 .file-viewer-mode-button:focus-visible,
 .file-viewer-icon-button:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--zeta-alias-accent);
 	outline-offset: -2px;
 }
 
 .directory-picker-path:focus-visible {
-	border-color: var(--accent) !important;
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+	border-color: var(--zeta-alias-accent) !important;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--zeta-alias-accent) 18%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -1433,8 +1430,8 @@ code {
 	margin: 0 0 12px;
 }
 .markdown-file-preview pre {
-	background: var(--bg-panel);
-	border: 1px solid var(--border);
+	background: var(--zeta-alias-bg-panel);
+	border: 1px solid var(--zeta-alias-border);
 	border-radius: 6px;
 	padding: 12px 16px;
 	overflow-x: auto;
@@ -1445,7 +1442,7 @@ code {
 .markdown-file-preview code {
 	font-family: var(--font-mono);
 	font-size: 0.9em;
-	background: var(--bg-panel);
+	background: var(--zeta-alias-bg-panel);
 	padding: 1px 5px;
 	border-radius: 3px;
 }
@@ -1457,7 +1454,7 @@ code {
 /* syntax highlighter line numbers */
 .markdown-body span.linenumber,
 span.linenumber {
-	color: var(--text-dim) !important;
+	color: var(--zeta-alias-text-dim) !important;
 	font-style: normal !important;
 }
 
@@ -1590,15 +1587,15 @@ span.linenumber {
 @keyframes saved-pop {
 	0% {
 		transform: scale(1);
-		box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55);
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--zeta-alias-status-success) 55%, transparent);
 	}
 	40% {
 		transform: scale(1.08);
-		box-shadow: 0 0 0 6px rgba(74, 222, 128, 0.25);
+		box-shadow: 0 0 0 6px color-mix(in srgb, var(--zeta-alias-status-success) 25%, transparent);
 	}
 	100% {
 		transform: scale(1);
-		box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--zeta-alias-status-success) 0%, transparent);
 	}
 }
 
@@ -1721,7 +1718,7 @@ span.linenumber {
 	}
 	.sidebar-container.sidebar-open {
 		transform: translateX(0);
-		box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+		box-shadow: 4px 0 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 15%, transparent);
 	}
 	.sidebar-container.sidebar-closed {
 		transform: translateX(calc(-100% - env(safe-area-inset-left)));
@@ -1782,11 +1779,11 @@ span.linenumber {
 		transform 0.05s;
 }
 .sidebar-icon-btn:hover:not(:disabled) {
-	background: var(--bg-hover);
-	color: var(--text);
+	background: var(--zeta-alias-bg-hover);
+	color: var(--zeta-alias-text);
 }
 .sidebar-icon-btn:active:not(:disabled) {
-	background: var(--bg-selected);
-	color: var(--accent);
+	background: var(--zeta-alias-bg-selected);
+	color: var(--zeta-alias-accent);
 	transform: scale(0.96);
 }

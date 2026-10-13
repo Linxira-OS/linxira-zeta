@@ -9,10 +9,10 @@
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	scrollbar-width: thin;
-	scrollbar-color: var(--border) transparent;
-	background: var(--bg);
-	border-left: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-	box-shadow: -10px 0 26px rgba(0, 0, 0, 0.07);
+	scrollbar-color: var(--zeta-alias-border) transparent;
+	background: var(--zeta-alias-bg);
+	border-left: 1px solid color-mix(in srgb, var(--zeta-alias-border) 82%, transparent);
+	box-shadow: -10px 0 26px color-mix(in srgb, var(--zeta-alias-neutral-1000) 7%, transparent);
 	pointer-events: auto;
 	cursor: default;
 	user-select: text;
@@ -23,7 +23,7 @@
 	display: grid;
 	grid-template-columns: 34px minmax(0, 1fr);
 	padding: 0;
-	border-bottom: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+	border-bottom: 1px solid color-mix(in srgb, var(--zeta-alias-border) 68%, transparent);
 	background: transparent;
 	transition:
 		background 120ms ease,
@@ -31,8 +31,8 @@
 }
 
 .turn[data-located="true"] {
-	background: color-mix(in srgb, var(--text) 4%, var(--bg));
-	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--text-muted) 70%, transparent);
+	background: color-mix(in srgb, var(--zeta-alias-text) 4%, var(--zeta-alias-bg));
+	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--zeta-alias-text-muted) 70%, transparent);
 }
 
 .number {
@@ -45,7 +45,7 @@
 	width: 34px;
 	height: 32px;
 	padding: 0;
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 	font-family: var(--font-mono);
 	font-size: 10px;
 	font-variant-numeric: tabular-nums;
@@ -54,7 +54,7 @@
 }
 
 .turn[data-located="true"] .number {
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 }
 
 .content {
@@ -72,7 +72,7 @@
 	border: 0;
 	border-radius: 0;
 	background: transparent;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	font-family: inherit;
 	font-size: 14px;
 	font-weight: 500;
@@ -95,14 +95,14 @@
 }
 
 .user:hover {
-	background: color-mix(in srgb, var(--text) 6%, transparent);
+	background: color-mix(in srgb, var(--zeta-alias-text) 6%, transparent);
 }
 
 .assistant {
 	position: relative;
 	display: block;
 	padding: 0;
-	border-top: 1px solid color-mix(in srgb, var(--border) 52%, transparent);
+	border-top: 1px solid color-mix(in srgb, var(--zeta-alias-border) 52%, transparent);
 }
 
 .assistant + .assistant {
@@ -119,7 +119,7 @@
 	padding: 0;
 	border: 0;
 	background: transparent;
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 	font-family: var(--font-mono);
 	font-size: 10px;
 	font-weight: 600;
@@ -133,8 +133,8 @@
 }
 
 .assistantJump:hover {
-	color: var(--text);
-	background: var(--bg-subtle);
+	color: var(--zeta-alias-text);
+	background: var(--zeta-alias-bg-subtle);
 }
 
 .outline {
@@ -169,15 +169,15 @@
 
 .heading:hover,
 .paragraph:hover {
-	background: color-mix(in srgb, var(--text) 6%, transparent);
-	color: var(--text);
+	background: color-mix(in srgb, var(--zeta-alias-text) 6%, transparent);
+	color: var(--zeta-alias-text);
 }
 
 .heading[data-level="1"] {
 	min-height: 32px;
 	padding-top: 7px;
 	padding-bottom: 7px;
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	font-size: 14px;
 	font-weight: 600;
 }
@@ -187,20 +187,20 @@
 	padding-top: 5px;
 	padding-bottom: 5px;
 	padding-left: 50px;
-	color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+	color: color-mix(in srgb, var(--zeta-alias-text) 88%, var(--zeta-alias-text-muted));
 	font-size: 12px;
 	font-weight: 500;
 }
 
 .heading[data-level="3"] {
 	padding-left: 60px;
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-size: 11px;
 	font-weight: 400;
 }
 
 .paragraph {
-	color: var(--text-muted);
+	color: var(--zeta-alias-text-muted);
 	font-size: 14px;
 	font-weight: 400;
 }
@@ -219,11 +219,11 @@
 .heading:focus-visible,
 .paragraph:focus-visible {
 	outline: 0;
-	background: color-mix(in srgb, var(--text) 6%, transparent);
-	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--text-muted) 65%, transparent);
+	background: color-mix(in srgb, var(--zeta-alias-text) 6%, transparent);
+	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--zeta-alias-text-muted) 65%, transparent);
 }
 
 .assistantJump:focus-visible {
-	outline: 1px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
+	outline: 1px solid color-mix(in srgb, var(--zeta-alias-text-muted) 65%, transparent);
 	outline-offset: 1px;
 }

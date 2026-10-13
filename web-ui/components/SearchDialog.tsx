@@ -177,7 +177,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 				justifyContent: "center",
 				alignItems: "flex-start",
 				paddingTop: "12vh",
-				background: "color-mix(in srgb, var(--bg) 55%, transparent)",
+				background: "color-mix(in srgb, var(--zeta-alias-bg) 55%, transparent)",
 				backdropFilter: "blur(2px)",
 			}}
 		>
@@ -188,15 +188,15 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 					maxHeight: "60vh",
 					display: "flex",
 					flexDirection: "column",
-					background: "var(--bg)",
-					border: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 10,
-					boxShadow: "var(--surface-shadow, 0 10px 32px rgba(0,0,0,0.25))",
+					boxShadow: "var(--surface-shadow, 0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 25%, transparent))",
 					overflow: "hidden",
 				}}
 			>
-				<div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-dim)" }}>
+				<div style={{ padding: "8px 10px", borderBottom: "1px solid var(--zeta-alias-border)", display: "flex", alignItems: "center", gap: 8 }}>
+					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--zeta-alias-text-dim)" }}>
 						<circle cx="11" cy="11" r="7" />
 						<line x1="21" y1="21" x2="16.5" y2="16.5" />
 					</svg>
@@ -208,7 +208,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 							setActive(0);
 						}}
 						placeholder={t("search.placeholder")}
-						style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--text)", fontSize: 13 }}
+						style={{ flex: 1, background: "none", border: "none", outline: "none", color: "var(--zeta-alias-text)", fontSize: 13 }}
 					/>
 				</div>
 				<div ref={listRef} style={{ overflowY: "auto", flex: 1, padding: 4 }}>
@@ -223,7 +223,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 										fontWeight: 600,
 										letterSpacing: "0.08em",
 										textTransform: "uppercase",
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 									}}
 								>
 									{row.label}
@@ -249,10 +249,10 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 									gap: 8,
 									width: "100%",
 									padding: "6px 8px",
-									background: isActive ? "var(--bg-selected)" : "none",
+									background: isActive ? "var(--zeta-alias-bg-selected)" : "none",
 									border: "none",
 									borderRadius: 6,
-									color: row.kind === "action" ? "var(--accent)" : "var(--text)",
+									color: row.kind === "action" ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text)",
 									cursor: "pointer",
 									fontSize: 12,
 									textAlign: "left",
@@ -261,7 +261,7 @@ export function SearchDialog({ open, sessions, commands, onClose, onSelectSessio
 								<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
 									{row.label}
 								</span>
-								{row.hint && <span style={{ color: "var(--text-dim)", fontSize: 10.5, flexShrink: 0 }}>{row.hint}</span>}
+								{row.hint && <span style={{ color: "var(--zeta-alias-text-dim)", fontSize: 10.5, flexShrink: 0 }}>{row.hint}</span>}
 							</button>
 						);
 					})}

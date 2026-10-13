@@ -229,7 +229,7 @@ export function OpenTargetMenu({
 }) {
 	const { t } = useI18n();
 	if (entries.length === 0) {
-		return <div style={{ color: "var(--text-dim)", fontSize: 12, padding: "6px 10px" }}>{t("no-apps-found")}</div>;
+		return <div style={{ color: "var(--zeta-alias-text-dim)", fontSize: 12, padding: "6px 10px" }}>{t("no-apps-found")}</div>;
 	}
 	return (
 		<>
@@ -244,7 +244,7 @@ export function OpenTargetMenu({
 						onClick={() => onSelect(entry.id)}
 						onMouseEnter={e => {
 							if (disabled) return;
-							e.currentTarget.style.background = "var(--bg-hover)";
+							e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 						}}
 						onMouseLeave={e => {
 							e.currentTarget.style.background = "none";
@@ -256,7 +256,7 @@ export function OpenTargetMenu({
 							background: "none",
 							border: "none",
 							borderRadius: 6,
-							color: disabled ? "var(--text-dim)" : "var(--text)",
+							color: disabled ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text)",
 							cursor: disabled ? "default" : "pointer",
 							display: "flex",
 							fontSize: 12,
@@ -271,11 +271,11 @@ export function OpenTargetMenu({
 						<span style={{ alignItems: "center", display: "flex", flex: 1, gap: 6, minWidth: 0 }}>
 							{label}
 							{entry.type === "terminal" && entry.label !== label && (
-								<span style={{ color: "var(--text-dim)" }}>· {entry.label}</span>
+								<span style={{ color: "var(--zeta-alias-text-dim)" }}>· {entry.label}</span>
 							)}
 						</span>
 						{isDefault && (
-							<span style={{ alignItems: "center", color: "var(--text-dim)", display: "flex", gap: 4 }}>
+							<span style={{ alignItems: "center", color: "var(--zeta-alias-text-dim)", display: "flex", gap: 4 }}>
 								{t("open.defaultSuffix")}
 								<CheckIcon />
 							</span>
@@ -293,7 +293,7 @@ const splitButtonBaseStyle: React.CSSProperties = {
 	border: "none",
 	borderTop: "2px solid transparent",
 	borderBottom: "2px solid transparent",
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	display: "flex",
 	fontSize: 11,
@@ -405,7 +405,7 @@ export function OpenSplitButton({ activeCwd }: { activeCwd: string | null }) {
 				title={t("open.openWithDefault")}
 				style={{
 					...splitButtonBaseStyle,
-					borderRight: "1px solid var(--border)",
+					borderRight: "1px solid var(--zeta-alias-border)",
 					cursor: noDefaultAvailable ? "default" : "pointer",
 					opacity: noDefaultAvailable ? 0.45 : 1,
 				}}
@@ -424,11 +424,11 @@ export function OpenSplitButton({ activeCwd }: { activeCwd: string | null }) {
 				title={t("open.pickTarget")}
 				style={{
 					...splitButtonBaseStyle,
-					borderLeft: "1px solid var(--border)",
-					borderRight: "1px solid var(--border)",
-					background: menuOpen ? "var(--bg-selected)" : "none",
-					borderTopColor: menuOpen ? "var(--accent)" : "transparent",
-					color: menuOpen ? "var(--text)" : "var(--text-muted)",
+					borderLeft: "1px solid var(--zeta-alias-border)",
+					borderRight: "1px solid var(--zeta-alias-border)",
+					background: menuOpen ? "var(--zeta-alias-bg-selected)" : "none",
+					borderTopColor: menuOpen ? "var(--zeta-alias-accent)" : "transparent",
+					color: menuOpen ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 					padding: "0 6px",
 				}}
 			>
@@ -447,10 +447,10 @@ export function OpenSplitButton({ activeCwd }: { activeCwd: string | null }) {
 						role="menu"
 						aria-label={t("topbar.openInApp")}
 						style={{
-							background: "var(--bg-panel)",
-							border: "1px solid var(--border)",
+							background: "var(--zeta-alias-bg-panel)",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 8,
-							boxShadow: "0 10px 32px rgb(0 0 0 / 0.28)",
+							boxShadow: "0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 28%, transparent)",
 							display: "flex",
 							flexDirection: "column",
 							minWidth: 220,

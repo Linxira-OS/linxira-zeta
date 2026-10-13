@@ -22,8 +22,8 @@ export function PlanApproval({ planFilePath, planTitle, planMarkdown, onApprove 
   return (
     <div
       style={{
-        background: "var(--bg)",
-        border: "1px solid var(--border)",
+        background: "var(--zeta-alias-bg)",
+        border: "1px solid var(--zeta-alias-border)",
         borderRadius: 8,
         padding: 16,
         display: "flex",
@@ -33,14 +33,14 @@ export function PlanApproval({ planFilePath, planTitle, planMarkdown, onApprove 
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>📋 {planTitle}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--zeta-alias-text)" }}>📋 {planTitle}</span>
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
           style={{
             background: "none",
             border: "none",
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
             cursor: "pointer",
             fontSize: 12,
             padding: "2px 6px",
@@ -54,7 +54,7 @@ export function PlanApproval({ planFilePath, planTitle, planMarkdown, onApprove 
       {expanded && (
         <div
           style={{
-            background: "var(--bg-panel)",
+            background: "var(--zeta-alias-bg-panel)",
             borderRadius: 6,
             padding: 12,
             maxHeight: 320,
@@ -63,7 +63,7 @@ export function PlanApproval({ planFilePath, planTitle, planMarkdown, onApprove 
             fontSize: 12,
             lineHeight: 1.5,
             whiteSpace: "pre-wrap",
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
           }}
         >
           {planMarkdown}
@@ -75,22 +75,22 @@ export function PlanApproval({ planFilePath, planTitle, planMarkdown, onApprove 
         <ActionButton
           label="Execute (preserve context)"
           onClick={() => handleApprove("preserve")}
-          color="#22c55e"
+          color="var(--zeta-alias-status-success)"
         />
         <ActionButton
           label="Summarize & execute"
           onClick={() => handleApprove("compact")}
-          color="#3b82f6"
+          color="var(--zeta-alias-status-info)"
         />
         <ActionButton
           label="New session & execute"
           onClick={() => handleApprove("fresh")}
-          color="#f59e0b"
+          color="var(--zeta-alias-status-warning)"
         />
         <ActionButton
           label="Cancel"
           onClick={() => handleApprove("cancel")}
-          color="#ef4444"
+          color="var(--zeta-alias-status-error)"
         />
       </div>
     </div>

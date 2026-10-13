@@ -54,8 +54,8 @@ export function ThemePicker() {
           alignItems: "center",
           background: "none",
           border: "none",
-          borderRight: "1px solid var(--border)",
-          color: "var(--text-muted)",
+          borderRight: "1px solid var(--zeta-alias-border)",
+          color: "var(--zeta-alias-text-muted)",
           cursor: "pointer",
           display: "flex",
           fontSize: 11,
@@ -73,9 +73,9 @@ export function ThemePicker() {
           role="dialog"
           aria-label="Theme settings"
           style={{
-            background: "var(--bg-panel)",
-            border: "1px solid var(--border)",
-            boxShadow: "0 10px 32px rgb(0 0 0 / 0.28)",
+            background: "var(--zeta-alias-bg-panel)",
+            border: "1px solid var(--zeta-alias-border)",
+            boxShadow: "0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 28%, transparent)",
             display: "grid",
             gap: 10,
             left: 0,
@@ -86,19 +86,19 @@ export function ThemePicker() {
             zIndex: 9000,
           }}
         >
-          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+          <label style={{ color: "var(--zeta-alias-text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
             Appearance
             <select value={themeMode} onChange={(event) => setThemeMode(event.target.value as ThemeMode)} style={selectStyle}>
               {(Object.entries(MODE_LABELS) as Array<[ThemeMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+          <label style={{ color: "var(--zeta-alias-text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
             Light preset
             <select value={lightThemeId} onChange={(event) => setLightThemePreference(event.target.value)} style={selectStyle}>
               {lightThemes.map((theme) => <option key={theme.metadata.id} value={theme.metadata.id}>{theme.metadata.name}</option>)}
             </select>
           </label>
-          <label style={{ color: "var(--text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
+          <label style={{ color: "var(--zeta-alias-text-dim)", display: "grid", fontSize: 11, gap: 4 }}>
             Dark preset
             <select value={darkThemeId} onChange={(event) => setDarkThemePreference(event.target.value)} style={selectStyle}>
               {darkThemes.map((theme) => <option key={theme.metadata.id} value={theme.metadata.id}>{theme.metadata.name}</option>)}
@@ -111,9 +111,9 @@ export function ThemePicker() {
 }
 
 const selectStyle: React.CSSProperties = {
-  background: "var(--bg)",
-  border: "1px solid var(--border)",
-  color: "var(--text)",
+  background: "var(--zeta-alias-bg)",
+  border: "1px solid var(--zeta-alias-border)",
+  color: "var(--zeta-alias-text)",
   fontSize: 12,
   padding: "6px 8px",
 };

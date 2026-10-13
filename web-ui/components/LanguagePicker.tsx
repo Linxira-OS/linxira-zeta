@@ -89,15 +89,15 @@ export function LanguagePicker() {
 					padding: "0 10px",
 					background: "none",
 					border: "none",
-					borderRight: "1px solid var(--border)",
-					color: isStarfield ? "#d99b26" : "var(--text-muted)",
+					borderRight: "1px solid var(--zeta-alias-border)",
+					color: isStarfield ? "var(--zeta-alias-sf-gold)" : "var(--zeta-alias-text-muted)",
 					cursor: "pointer",
 					fontSize: 11,
 					whiteSpace: "nowrap",
 					transition: "color 0.12s, background 0.12s",
 				}}
 				onMouseEnter={e => {
-					e.currentTarget.style.background = "var(--bg-hover)";
+					e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 				}}
 				onMouseLeave={e => {
 					e.currentTarget.style.background = "none";
@@ -142,12 +142,12 @@ export function LanguagePicker() {
 						left: 0,
 						zIndex: 9000,
 						minWidth: 170,
-						background: "var(--bg-panel)",
-						border: "1px solid var(--border)",
-						boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
+						background: "var(--zeta-alias-bg-panel)",
+						border: "1px solid var(--zeta-alias-border)",
+						boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 28%, transparent)",
 						borderRadius: isStarfield ? 0 : 8,
 						overflow: "hidden",
-						borderTop: isStarfield ? "2px solid #d99b26" : "1px solid var(--border)",
+						borderTop: isStarfield ? "2px solid var(--zeta-alias-sf-gold)" : "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					{isStarfield && (
@@ -157,10 +157,10 @@ export function LanguagePicker() {
 								fontFamily: "var(--font-mono, monospace)",
 								fontSize: 9,
 								letterSpacing: "0.14em",
-								color: "#d99b26",
+								color: "var(--zeta-alias-sf-gold)",
 								opacity: 0.7,
 								textTransform: "uppercase",
-								borderBottom: "1px solid #1e2d45",
+								borderBottom: "1px solid var(--zeta-alias-sf-slate)",
 							}}
 						>
 							◈ {t("language.menu-title")}
@@ -184,19 +184,19 @@ export function LanguagePicker() {
 									gap: 10,
 									width: "100%",
 									padding: "8px 12px",
-									background: isActive ? "var(--bg-selected)" : "none",
+									background: isActive ? "var(--zeta-alias-bg-selected)" : "none",
 									border: "none",
 									borderLeft: isActive
 										? isStarfield
-											? "3px solid #d99b26"
-											: "3px solid var(--accent)"
+											? "3px solid var(--zeta-alias-sf-gold)"
+											: "3px solid var(--zeta-alias-accent)"
 										: "3px solid transparent",
 									cursor: "pointer",
 									textAlign: "left",
 									transition: "background 0.1s",
 								}}
 								onMouseEnter={e => {
-									if (!isActive) e.currentTarget.style.background = "var(--bg-hover)";
+									if (!isActive) e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 								}}
 								onMouseLeave={e => {
 									if (!isActive) e.currentTarget.style.background = "none";
@@ -208,7 +208,7 @@ export function LanguagePicker() {
 										style={{
 											fontSize: 12,
 											fontWeight: 600,
-											color: isStarfield && isActive ? "#d99b26" : "var(--text)",
+											color: isStarfield && isActive ? "var(--zeta-alias-sf-gold)" : "var(--zeta-alias-text)",
 											fontFamily: isStarfield ? "var(--font-mono, monospace)" : "inherit",
 										}}
 									>
@@ -217,7 +217,7 @@ export function LanguagePicker() {
 									<div
 										style={{
 											fontSize: 10,
-											color: "var(--text-dim)",
+											color: "var(--zeta-alias-text-dim)",
 											fontFamily: isStarfield ? "var(--font-mono, monospace)" : "inherit",
 										}}
 									>
@@ -231,7 +231,7 @@ export function LanguagePicker() {
 										height="11"
 										viewBox="0 0 24 24"
 										fill="none"
-										stroke={isStarfield ? "#d99b26" : "var(--accent)"}
+										stroke={isStarfield ? "var(--zeta-alias-sf-gold)" : "var(--zeta-alias-accent)"}
 										strokeWidth="2.5"
 										strokeLinecap="round"
 										strokeLinejoin="round"

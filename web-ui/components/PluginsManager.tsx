@@ -65,10 +65,10 @@ function normalizePluginSource(raw: string): string {
 }
 
 const STATUS_COLOR: Record<PluginPackageInfo["status"], string> = {
-	loaded: "var(--accent)",
-	installed: "#f59e0b",
-	disabled: "var(--text-dim)",
-	missing: "#ef4444",
+	loaded: "var(--zeta-alias-accent)",
+	installed: "var(--zeta-alias-status-warning)",
+	disabled: "var(--zeta-alias-text-dim)",
+	missing: "var(--zeta-alias-status-error)",
 };
 
 interface PluginsManagerProps {
@@ -151,7 +151,7 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 	return (
 		<div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
 			{/* Quick add row */}
-			<div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--border)" }}>
+			<div style={{ display: "flex", gap: 6, padding: "8px 10px", borderBottom: "1px solid var(--zeta-alias-border)" }}>
 				<input
 					value={sourceInput}
 					onChange={(event) => setSourceInput(event.target.value)}
@@ -166,9 +166,9 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 						height: 26,
 						padding: "0 8px",
 						fontSize: 12,
-						color: "var(--text)",
-						background: "var(--bg-subtle)",
-						border: "1px solid var(--border)",
+						color: "var(--zeta-alias-text)",
+						background: "var(--zeta-alias-bg-subtle)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 6,
 						outline: "none",
 					}}
@@ -179,9 +179,9 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 					style={{
 						height: 26,
 						fontSize: 11.5,
-						color: "var(--text)",
-						background: "var(--bg-subtle)",
-						border: "1px solid var(--border)",
+						color: "var(--zeta-alias-text)",
+						background: "var(--zeta-alias-bg-subtle)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 6,
 					}}
 				>
@@ -197,8 +197,8 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 						padding: "0 10px",
 						fontSize: 12,
 						cursor: "pointer",
-						color: "var(--accent-foreground)",
-						background: "var(--accent)",
+						color: "var(--zeta-alias-accent-foreground)",
+						background: "var(--zeta-alias-accent)",
 						border: "none",
 						borderRadius: 6,
 					}}
@@ -215,9 +215,9 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 							padding: "0 8px",
 							fontSize: 12,
 							cursor: "pointer",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							background: "transparent",
-							border: "1px solid var(--border)",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 6,
 						}}
 					>
@@ -231,8 +231,8 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 					style={{
 						padding: "5px 10px",
 						fontSize: 11.5,
-						borderBottom: "1px solid var(--border)",
-						color: error ? "var(--status-error-foreground)" : "var(--status-success-foreground)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
+						color: error ? "var(--zeta-alias-status-error-foreground)" : "var(--zeta-alias-status-success-foreground)",
 					}}
 				>
 					{error ?? message}
@@ -242,14 +242,14 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 			{/* Package list */}
 			<div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
 				{packages.length === 0 ? (
-					<div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12, color: "var(--text-dim)" }}>
+					<div style={{ padding: "24px 12px", textAlign: "center", fontSize: 12, color: "var(--zeta-alias-text-dim)" }}>
 						{data ? t("plugins.empty") : t("plugins.loading")}
 					</div>
 				) : (
 					packages.map((pkg) => (
 						<div
 							key={`${pkg.scope}\u0000${pkg.source}`}
-							style={{ padding: "9px 10px", borderBottom: "1px solid var(--border)" }}
+							style={{ padding: "9px 10px", borderBottom: "1px solid var(--zeta-alias-border)" }}
 						>
 							<div style={{ display: "flex", alignItems: "center", gap: 7 }}>
 								<span
@@ -266,18 +266,18 @@ export function PluginsManager({ cwd, sessionId, onReloaded, onOpenAdvanced }: P
 										whiteSpace: "nowrap",
 										fontSize: 12.5,
 										fontWeight: 600,
-										color: pkg.disabled ? "var(--text-dim)" : "var(--text)",
+										color: pkg.disabled ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text)",
 									}}
 								>
 									{pkg.packageName ?? shortenPath(pkg.source)}
 								</span>
-								<span style={{ fontSize: 10.5, color: "var(--text-muted)", flexShrink: 0 }}>
+								<span style={{ fontSize: 10.5, color: "var(--zeta-alias-text-muted)", flexShrink: 0 }}>
 									{pkg.scope === "project" ? t("plugins.scope.project") : t("plugins.scope.global")}
 								</span>
 							</div>
 
 							<div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-								<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: "var(--text-muted)" }}>
+								<span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: "var(--zeta-alias-text-muted)" }}>
 									{resourceSummary(pkg, t)}
 									{pkg.version ? ` · v${pkg.version}` : ""}
 								</span>
@@ -328,9 +328,9 @@ function SmallButton({
 				lineHeight: 1,
 				cursor: disabled ? "default" : "pointer",
 				flexShrink: 0,
-				color: danger ? "#ef4444" : "var(--text-muted)",
+				color: danger ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-muted)",
 				background: "transparent",
-				border: "1px solid var(--border)",
+				border: "1px solid var(--zeta-alias-border)",
 				borderRadius: 5,
 				opacity: disabled ? 0.55 : 1,
 			}}

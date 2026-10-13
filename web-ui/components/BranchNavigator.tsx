@@ -121,7 +121,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
                 top: 0,
                 bottom: 0,
                 width: 1,
-                background: "var(--border)",
+                background: "var(--zeta-alias-border)",
               }} />
             )}
           </div>
@@ -136,7 +136,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
             top: 0,
             bottom: isLast ? "50%" : 0,
             width: 1,
-            background: "var(--border)",
+            background: "var(--zeta-alias-border)",
           }} />
           {/* horizontal line to node */}
           <div style={{
@@ -145,7 +145,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
             top: "50%",
             width: 9,
             height: 1,
-            background: "var(--border)",
+            background: "var(--zeta-alias-border)",
           }} />
         </div>
 
@@ -155,8 +155,8 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
           height: 7,
           borderRadius: "50%",
           flexShrink: 0,
-          background: isActive ? "var(--accent)" : isOnPath ? "var(--text-muted)" : "var(--border)",
-          border: isActive ? "none" : "1px solid var(--text-dim)",
+          background: isActive ? "var(--zeta-alias-accent)" : isOnPath ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-border)",
+          border: isActive ? "none" : "1px solid var(--zeta-alias-text-dim)",
           marginRight: 6,
           transition: "background 0.12s",
         }} />
@@ -166,9 +166,9 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
           <span style={{
             fontSize: 9,
             fontFamily: "var(--font-mono)",
-            color: role === "user" ? "var(--accent)" : "var(--text-dim)",
-            background: role === "user" ? "rgba(37,99,235,0.08)" : "var(--bg-hover)",
-            border: `1px solid ${role === "user" ? "rgba(37,99,235,0.2)" : "var(--border)"}`,
+            color: role === "user" ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
+            background: role === "user" ? "color-mix(in srgb, var(--zeta-alias-status-info) 8%, transparent)" : "var(--zeta-alias-bg-hover)",
+            border: `1px solid ${role === "user" ? "color-mix(in srgb, var(--zeta-alias-status-info) 20%, transparent)" : "var(--zeta-alias-border)"}`,
             borderRadius: 3,
             padding: "0 4px",
             marginRight: 5,
@@ -181,7 +181,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
 
         {/* Skipped indicator */}
         {skipped > 0 && (
-          <span style={{ fontSize: 10, color: "var(--text-dim)", marginRight: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, color: "var(--zeta-alias-text-dim)", marginRight: 5, flexShrink: 0 }}>
             +{skipped}
           </span>
         )}
@@ -189,7 +189,7 @@ function TreeNodeView({ node, activePathIds, depth, isLast, parentLines, onSelec
         {/* Label */}
         <span style={{
           fontSize: 11,
-          color: isActive ? "var(--text)" : isOnPath ? "var(--text-muted)" : "var(--text-dim)",
+          color: isActive ? "var(--zeta-alias-text)" : isOnPath ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-text-dim)",
           fontWeight: isActive ? 500 : 400,
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -258,7 +258,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   const hasContent = !noBranchReason && firstNode && firstNode.children.length > 1;
 
   const branchIcon = (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: hasContent ? "var(--accent)" : "var(--text-dim)", flexShrink: 0 }}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: hasContent ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)", flexShrink: 0 }}>
       <line x1="6" y1="3" x2="6" y2="15" />
       <circle cx="18" cy="6" r="3" />
       <circle cx="6" cy="18" r="3" />
@@ -267,7 +267,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   );
 
   const chevron = (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--zeta-alias-text-dim)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
       <polyline points="2 3.5 5 6.5 8 3.5" />
     </svg>
   );
@@ -285,18 +285,18 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
             gap: 6,
             height: "100%",
             padding: "0 12px",
-            background: open ? "var(--bg-selected)" : "none",
+            background: open ? "var(--zeta-alias-bg-selected)" : "none",
             border: "none",
-            borderTop: open ? "2px solid var(--accent)" : "2px solid transparent",
-            borderRight: "1px solid var(--border)",
+            borderTop: open ? "2px solid var(--zeta-alias-accent)" : "2px solid transparent",
+            borderRight: "1px solid var(--zeta-alias-border)",
             cursor: "pointer",
-            color: open ? "var(--text)" : "var(--text-muted)",
+            color: open ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
             fontSize: 11,
             whiteSpace: "nowrap",
             transition: "color 0.1s, background 0.1s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = open ? "var(--text)" : "var(--text-muted)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--zeta-alias-text)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = open ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)"; }}
           title={t("branches")}
           aria-label={t("branches")}
           aria-pressed={open}
@@ -310,8 +310,8 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
             top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
-            background: "var(--bg-panel)",
-            borderBottom: "1px solid var(--border)",
+            background: "var(--zeta-alias-bg-panel)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             zIndex: 500,
           }}>
             {hasContent && firstNode ? (
@@ -329,7 +329,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
                 ))}
               </div>
             ) : (
-              <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+              <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--zeta-alias-text-muted)", fontStyle: "italic" }}>
                 {noBranchReason}
               </div>
             )}
@@ -340,7 +340,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
   }
 
   return (
-    <div style={{ borderBottom: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0, position: "relative" }}>
+    <div style={{ borderBottom: "1px solid var(--zeta-alias-border)", background: "var(--zeta-alias-bg)", flexShrink: 0, position: "relative" }}>
       {/* Header toggle */}
       <button
         onClick={() => setOpenInternal((v) => !v)}
@@ -353,13 +353,13 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           background: "none",
           border: "none",
           cursor: "pointer",
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           fontSize: 11,
           textAlign: "left",
         }}
       >
         {branchIcon}
-        <span style={{ color: "var(--text-muted)" }}>{t("branches")}</span>
+        <span style={{ color: "var(--zeta-alias-text-muted)" }}>{t("branches")}</span>
         {chevron}
       </button>
 
@@ -370,9 +370,9 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
           top: "100%",
           left: 0,
           right: 0,
-          background: "var(--bg)",
-          borderBottom: "1px solid var(--border)",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          background: "var(--zeta-alias-bg)",
+          borderBottom: "1px solid var(--zeta-alias-border)",
+          boxShadow: "0 4px 12px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
           zIndex: 100,
         }}>
           {hasContent && firstNode ? (
@@ -390,7 +390,7 @@ export function BranchNavigator({ tree, activeLeafId, onLeafChange, inline, cont
               ))}
             </div>
           ) : (
-            <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+            <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--zeta-alias-text-muted)", fontStyle: "italic" }}>
               {noBranchReason ?? "This session has no branches"}
             </div>
           )}

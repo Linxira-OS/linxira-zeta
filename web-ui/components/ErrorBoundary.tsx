@@ -46,7 +46,7 @@ function ErrorFallback({ error, onReload }: { error: Error; onReload: () => void
 				display: "flex",
 				alignItems: "center",
 				justifyContent: "center",
-				background: "var(--bg)",
+				background: "var(--zeta-alias-bg)",
 				padding: 24,
 			}}
 		>
@@ -57,24 +57,24 @@ function ErrorFallback({ error, onReload }: { error: Error; onReload: () => void
 					flexDirection: "column",
 					gap: 12,
 					padding: 24,
-					background: "var(--bg-panel)",
-					border: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg-panel)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 10,
 				}}
 			>
-				<div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+				<div style={{ fontSize: 16, fontWeight: 700, color: "var(--zeta-alias-text)" }}>
 					{t("error-boundary.title")}
 				</div>
-				<div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
+				<div style={{ fontSize: 13, color: "var(--zeta-alias-text-muted)", lineHeight: 1.6 }}>
 					{t("error-boundary.description")}
 				</div>
 				<div
 					style={{
 						fontSize: 12,
 						fontFamily: "var(--font-mono)",
-						color: "var(--text-dim)",
-						background: "var(--bg)",
-						border: "1px solid var(--border)",
+						color: "var(--zeta-alias-text-dim)",
+						background: "var(--zeta-alias-bg)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 6,
 						padding: "8px 10px",
 						maxHeight: 120,
@@ -93,10 +93,10 @@ function ErrorFallback({ error, onReload }: { error: Error; onReload: () => void
 							fontSize: 12,
 							fontWeight: 600,
 							fontFamily: "var(--font-mono)",
-							background: "var(--accent)",
+							background: "var(--zeta-alias-accent)",
 							border: "none",
 							borderRadius: 6,
-							color: "#fff",
+							color: "var(--zeta-alias-accent-foreground)",
 							cursor: "pointer",
 						}}
 					>

@@ -254,7 +254,7 @@ function Field({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <label
-        style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}
+        style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)", fontWeight: 500 }}
       >
         {label}
       </label>
@@ -265,10 +265,10 @@ function Field({
 
 const inputStyle = {
   padding: "6px 9px",
-  background: "var(--bg-panel)",
-  border: "1px solid var(--border)",
+  background: "var(--zeta-alias-bg-panel)",
+  border: "1px solid var(--zeta-alias-border)",
   borderRadius: 5,
-  color: "var(--text)",
+  color: "var(--zeta-alias-text)",
   fontSize: 12,
   outline: "none",
   width: "100%",
@@ -356,7 +356,7 @@ function SecretTextInput({
           padding: 0,
           border: "none",
           background: "transparent",
-          color: "var(--text-dim)",
+          color: "var(--zeta-alias-text-dim)",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -437,7 +437,7 @@ function Select({
       onChange={(e) => onChange(e.target.value)}
       style={{
         ...inputStyle,
-        color: value ? "var(--text)" : "var(--text-dim)",
+        color: value ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-dim)",
       }}
     >
       {!required && (
@@ -469,7 +469,7 @@ function Check({
         gap: 6,
         cursor: "pointer",
         fontSize: 12,
-        color: "var(--text-muted)",
+        color: "var(--zeta-alias-text-muted)",
       }}
     >
       <input
@@ -479,7 +479,7 @@ function Check({
         style={{
           width: 13,
           height: 13,
-          accentColor: "var(--accent)",
+          accentColor: "var(--zeta-alias-accent)",
           cursor: "pointer",
         }}
       />
@@ -494,7 +494,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       style={{
         fontSize: 11,
         fontWeight: 600,
-        color: "var(--text-dim)",
+        color: "var(--zeta-alias-text-dim)",
         textTransform: "uppercase",
         letterSpacing: "0.06em",
         marginBottom: 2,
@@ -671,9 +671,9 @@ function ProviderDetail({
             <span
               style={{
                 padding: "1px 6px",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 4,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 fontSize: 10,
                 whiteSpace: "nowrap",
               }}
@@ -688,9 +688,9 @@ function ProviderDetail({
             style={{
               padding: "3px 8px",
               background: "none",
-              border: "1px solid rgba(239,68,68,0.3)",
+              border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
               borderRadius: 4,
-              color: "#ef4444",
+              color: "var(--zeta-alias-status-error)",
               cursor: "pointer",
               fontSize: 11,
             }}
@@ -716,10 +716,10 @@ function ProviderDetail({
             style={{
               marginTop: 4,
               padding: "3px 10px",
-              background: "var(--accent)",
+              background: "var(--zeta-alias-accent)",
               border: "none",
               borderRadius: 4,
-              color: "#fff",
+              color: "var(--zeta-alias-accent-foreground)",
               cursor: "pointer",
               fontSize: 11,
               alignSelf: "flex-start",
@@ -746,7 +746,7 @@ function ProviderDetail({
           placeholder="ENV_VAR_NAME, !shell-command, or literal key"
           mono
         />
-        <span style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+        <span style={{ fontSize: 10, color: "var(--zeta-alias-text-dim)", marginTop: 2 }}>
           Prefix with <code style={{ fontFamily: "var(--font-mono)" }}>!</code>{" "}
           to run a shell command, or use an env var name
         </span>
@@ -763,7 +763,7 @@ function ProviderDetail({
 
       <div
         style={{
-          borderTop: "1px solid var(--border)",
+          borderTop: "1px solid var(--zeta-alias-border)",
           paddingTop: 14,
           display: "flex",
           flexDirection: "column",
@@ -780,13 +780,13 @@ function ProviderDetail({
               alignSelf: "flex-start",
               height: 30,
               padding: "0 12px",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 5,
-              background: "var(--bg-panel)",
+              background: "var(--zeta-alias-bg-panel)",
               color:
                 !provider.baseUrl?.trim() || discoveryState.phase === "loading"
-                  ? "var(--text-dim)"
-                  : "var(--text-muted)",
+                  ? "var(--zeta-alias-text-dim)"
+                  : "var(--zeta-alias-text-muted)",
               cursor:
                 !provider.baseUrl?.trim() || discoveryState.phase === "loading"
                   ? "not-allowed"
@@ -804,9 +804,9 @@ function ProviderDetail({
           <div
             style={{
               padding: "7px 9px",
-              border: "1px solid rgba(239,68,68,0.3)",
+              border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
               borderRadius: 5,
-              color: "#ef4444",
+              color: "var(--zeta-alias-status-error)",
               fontSize: 11,
               lineHeight: 1.4,
             }}
@@ -831,9 +831,9 @@ function ProviderDetail({
               style={{
                 maxHeight: 220,
                 overflowY: "auto",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 6,
-                background: "var(--bg-panel)",
+                background: "var(--zeta-alias-bg-panel)",
               }}
             >
               <label
@@ -846,10 +846,10 @@ function ProviderDetail({
                   position: "sticky",
                   top: 0,
                   zIndex: 1,
-                  borderBottom: "1px solid var(--border)",
-                  background: "var(--bg)",
+                  borderBottom: "1px solid var(--zeta-alias-border)",
+                  background: "var(--zeta-alias-bg)",
                   cursor: selectableShownIds.length ? "pointer" : "default",
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   fontSize: 10,
                   fontWeight: 600,
                 }}
@@ -863,7 +863,7 @@ function ProviderDetail({
                   style={{
                     width: 13,
                     height: 13,
-                    accentColor: "var(--accent)",
+                    accentColor: "var(--zeta-alias-accent)",
                     flexShrink: 0,
                   }}
                 />
@@ -873,7 +873,7 @@ function ProviderDetail({
                 <div
                   style={{
                     padding: 12,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     fontSize: 11,
                   }}
                 >
@@ -893,7 +893,7 @@ function ProviderDetail({
                         alignItems: "center",
                         gap: 8,
                         borderTop:
-                          index === 0 ? "none" : "1px solid var(--border)",
+                          index === 0 ? "none" : "1px solid var(--zeta-alias-border)",
                         cursor: alreadyAdded ? "default" : "pointer",
                         opacity: alreadyAdded ? 0.65 : 1,
                       }}
@@ -906,7 +906,7 @@ function ProviderDetail({
                         style={{
                           width: 13,
                           height: 13,
-                          accentColor: "var(--accent)",
+                          accentColor: "var(--zeta-alias-accent)",
                           flexShrink: 0,
                         }}
                       />
@@ -917,7 +917,7 @@ function ProviderDetail({
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            color: "var(--text)",
+                            color: "var(--zeta-alias-text)",
                             fontSize: 11,
                           }}
                         >
@@ -930,7 +930,7 @@ function ProviderDetail({
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
-                              color: "var(--text-dim)",
+                              color: "var(--zeta-alias-text-dim)",
                               fontSize: 10,
                               fontFamily: "var(--font-mono)",
                             }}
@@ -941,7 +941,7 @@ function ProviderDetail({
                       </span>
                       {alreadyAdded && (
                         <span
-                          style={{ color: "var(--text-dim)", fontSize: 10 }}
+                          style={{ color: "var(--zeta-alias-text-dim)", fontSize: 10 }}
                         >
                           {t("models.discoveryAdded")}
                         </span>
@@ -967,7 +967,7 @@ function ProviderDetail({
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                   fontSize: 10,
                 }}
               >
@@ -989,9 +989,9 @@ function ProviderDetail({
                   border: "none",
                   borderRadius: 5,
                   background: selectedCount
-                    ? "var(--accent)"
-                    : "var(--bg-panel)",
-                  color: selectedCount ? "#fff" : "var(--text-dim)",
+                    ? "var(--zeta-alias-accent)"
+                    : "var(--zeta-alias-bg-panel)",
+                  color: selectedCount ? "var(--zeta-alias-accent-foreground)" : "var(--zeta-alias-text-dim)",
                   cursor: selectedCount ? "pointer" : "not-allowed",
                   fontSize: 11,
                   fontWeight: 600,
@@ -1041,13 +1041,13 @@ const THINKING_LEVELS = [
 type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 const LEVEL_COLORS: Record<ThinkingLevel, string> = {
-  off: "var(--text-dim)",
-  minimal: "#6b7280",
-  low: "#60a5fa",
-  medium: "#a78bfa",
-  high: "#f472b6",
-  xhigh: "#fb923c",
-  max: "#ef4444",
+  off: "var(--zeta-alias-text-dim)",
+  minimal: "var(--zeta-alias-text-muted)",
+  low: "var(--zeta-alias-status-info)",
+  medium: "var(--zeta-alias-chart-2)",
+  high: "var(--zeta-alias-chart-3)",
+  xhigh: "var(--zeta-alias-chart-4)",
+  max: "var(--zeta-alias-status-error)",
 };
 
 function ThinkingLevelMapEditor({
@@ -1089,17 +1089,17 @@ function ThinkingLevelMapEditor({
           fontWeight: 400,
           transition: "background 0.1s, color 0.1s",
           whiteSpace: "nowrap",
-          background: "var(--bg-panel)",
-          color: "var(--text-dim)",
+          background: "var(--zeta-alias-bg-panel)",
+          color: "var(--zeta-alias-text-dim)",
         };
         const btnActive: React.CSSProperties = {
-          background: "var(--accent)",
-          color: "#fff",
+          background: "var(--zeta-alias-accent)",
+          color: "var(--zeta-alias-accent-foreground)",
           fontWeight: 600,
         };
         const btnActiveDisabled: React.CSSProperties = {
-          background: "#ef4444",
-          color: "#fff",
+          background: "var(--zeta-alias-status-error)",
+          color: "var(--zeta-alias-accent-foreground)",
           fontWeight: 600,
         };
 
@@ -1141,7 +1141,7 @@ function ThinkingLevelMapEditor({
                   fontSize: 11,
                   fontFamily: "var(--font-mono)",
                   color:
-                    state === "null" ? "var(--text-dim)" : "var(--text-muted)",
+                    state === "null" ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text-muted)",
                   textDecoration: state === "null" ? "line-through" : "none",
                 }}
               >
@@ -1154,7 +1154,7 @@ function ThinkingLevelMapEditor({
               style={{
                 display: "flex",
                 borderRadius: 5,
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 overflow: "hidden",
                 flexShrink: 0,
               }}
@@ -1169,7 +1169,7 @@ function ThinkingLevelMapEditor({
                 onClick={() => setLevel(level, null)}
                 style={{
                   ...btnBase,
-                  borderLeft: "1px solid var(--border)",
+                  borderLeft: "1px solid var(--zeta-alias-border)",
                   ...(state === "null" ? btnActiveDisabled : {}),
                 }}
               >
@@ -1182,7 +1182,7 @@ function ThinkingLevelMapEditor({
               style={{
                 display: "flex",
                 borderRadius: 5,
-                border: `1px solid ${state === "string" ? "var(--accent)" : "var(--border)"}`,
+                border: `1px solid ${state === "string" ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)"}`,
                 overflow: "hidden",
                 transition: "border-color 0.1s",
               }}
@@ -1192,7 +1192,7 @@ function ThinkingLevelMapEditor({
                 style={{
                   ...btnBase,
                   ...(state === "string" ? btnActive : {}),
-                  borderRight: "1px solid var(--border)",
+                  borderRight: "1px solid var(--zeta-alias-border)",
                   flexShrink: 0,
                 }}
               >
@@ -1209,10 +1209,10 @@ function ThinkingLevelMapEditor({
                 style={{
                   width: "12ch",
                   background:
-                    state === "string" ? "var(--bg)" : "var(--bg-panel)",
+                    state === "string" ? "var(--zeta-alias-bg)" : "var(--zeta-alias-bg-panel)",
                   border: "none",
                   outline: "none",
-                  color: state === "string" ? "var(--text)" : "var(--text-dim)",
+                  color: state === "string" ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-dim)",
                   fontFamily: "var(--font-mono)",
                   fontSize: 11,
                   padding: "4px 7px",
@@ -1290,9 +1290,9 @@ function ThinkingConfigEditor({
                 fontSize: 10,
                 padding: "2px 7px",
                 background: "none",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 4,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
               }}
             >
@@ -1313,9 +1313,9 @@ function ThinkingConfigEditor({
                   fontSize: 10.5,
                   fontFamily: "var(--font-mono)",
                   borderRadius: 4,
-                  border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-                  background: active ? "var(--accent)" : "var(--bg-panel)",
-                  color: active ? "#fff" : "var(--text-muted)",
+                  border: `1px solid ${active ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)"}`,
+                  background: active ? "var(--zeta-alias-accent)" : "var(--zeta-alias-bg-panel)",
+                  color: active ? "var(--zeta-alias-accent-foreground)" : "var(--zeta-alias-text-muted)",
                   cursor: "pointer",
                 }}
               >
@@ -1414,7 +1414,7 @@ function HeadersEditor({
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               cursor: "pointer",
               fontSize: 13,
               padding: "2px 4px",
@@ -1431,9 +1431,9 @@ function HeadersEditor({
           alignSelf: "flex-start",
           padding: "3px 9px",
           background: "none",
-          border: "1px dashed var(--border)",
+          border: "1px dashed var(--zeta-alias-border)",
           borderRadius: 4,
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           cursor: "pointer",
           fontSize: 11,
         }}
@@ -1488,7 +1488,7 @@ function CompatEditor({
         }}
       />
       {error && (
-        <span style={{ fontSize: 10.5, color: "#f87171" }}>{error}</span>
+        <span style={{ fontSize: 10.5, color: "var(--zeta-alias-status-error)" }}>{error}</span>
       )}
     </div>
   );
@@ -1821,11 +1821,11 @@ function ModelDetail({
       : catalogResultSummary;
   const catalogStatusColor =
     catalogState.phase === "error"
-      ? "#ef4444"
+      ? "var(--zeta-alias-status-error)"
       : catalogState.phase === "success" &&
           catalogState.recommendation.price.status === "unreliable"
-        ? "#d97706"
-        : "var(--text-dim)";
+        ? "var(--zeta-alias-status-warning)"
+        : "var(--zeta-alias-text-dim)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1845,15 +1845,15 @@ function ModelDetail({
                 maxWidth: 260,
                 height: 24,
                 padding: "0 8px",
-                border: `1px solid ${testState.phase === "error" ? "#fecaca" : testState.phase === "success" ? "#bbf7d0" : "var(--border)"}`,
+                border: `1px solid ${testState.phase === "error" ? "var(--zeta-alias-status-error-border)" : testState.phase === "success" ? "var(--zeta-alias-status-success-border)" : "var(--zeta-alias-border)"}`,
                 borderRadius: 4,
                 background:
                   testState.phase === "error"
-                    ? "#fee2e2"
+                    ? "var(--zeta-alias-status-error-background)"
                     : testState.phase === "success"
-                      ? "#dcfce7"
-                      : "#e5e7eb",
-                color: "#111827",
+                      ? "var(--zeta-alias-status-success-background)"
+                      : "var(--zeta-alias-interactive-border)",
+                color: "var(--zeta-alias-text)",
                 fontSize: 11,
                 display: "inline-flex",
                 alignItems: "center",
@@ -1873,15 +1873,15 @@ function ModelDetail({
             style={{
               height: 24,
               padding: "0 8px",
-              background: testState.phase === "success" ? "#16a34a" : "none",
-              border: `1px solid ${testState.phase === "success" ? "#16a34a" : "var(--border)"}`,
+              background: testState.phase === "success" ? "var(--zeta-alias-status-success)" : "none",
+              border: `1px solid ${testState.phase === "success" ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)"}`,
               borderRadius: 4,
               color:
                 testState.phase === "success"
-                  ? "#fff"
+                  ? "var(--zeta-alias-accent-foreground)"
                   : !model.id.trim() || testState.phase === "testing"
-                    ? "var(--text-dim)"
-                    : "var(--text-muted)",
+                    ? "var(--zeta-alias-text-dim)"
+                    : "var(--zeta-alias-text-muted)",
               cursor:
                 !model.id.trim() || testState.phase === "testing"
                   ? "not-allowed"
@@ -1920,9 +1920,9 @@ function ModelDetail({
               height: 24,
               padding: "0 8px",
               background: "none",
-              border: "1px solid rgba(239,68,68,0.3)",
+              border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
               borderRadius: 4,
-              color: "#ef4444",
+              color: "var(--zeta-alias-status-error)",
               cursor: "pointer",
               fontSize: 11,
               boxSizing: "border-box",
@@ -1954,8 +1954,8 @@ function ModelDetail({
       <div
         style={{
           padding: "10px 0",
-          borderTop: "1px solid var(--border)",
-          borderBottom: "1px solid var(--border)",
+          borderTop: "1px solid var(--zeta-alias-border)",
+          borderBottom: "1px solid var(--zeta-alias-border)",
         }}
       >
         <div
@@ -1972,13 +1972,13 @@ function ModelDetail({
             style={{
               height: 28,
               padding: "0 10px",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 5,
-              background: "var(--bg-panel)",
+              background: "var(--zeta-alias-bg-panel)",
               color:
                 !model.id.trim() || catalogState.phase === "loading"
-                  ? "var(--text-dim)"
-                  : "var(--text-muted)",
+                  ? "var(--zeta-alias-text-dim)"
+                  : "var(--zeta-alias-text-muted)",
               cursor:
                 !model.id.trim() || catalogState.phase === "loading"
                   ? "not-allowed"
@@ -1996,7 +1996,7 @@ function ModelDetail({
             rel="noreferrer"
             style={{
               marginLeft: "auto",
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               fontSize: 10,
               textDecoration: "none",
             }}
@@ -2037,7 +2037,7 @@ function ModelDetail({
                 padding: "0 2px",
                 border: "none",
                 background: "none",
-                color: "var(--accent)",
+                color: "var(--zeta-alias-accent)",
                 cursor: "pointer",
                 fontSize: 10,
               }}
@@ -2097,15 +2097,15 @@ function ModelDetail({
           style={{
             height: 28,
             padding: "0 9px",
-            background: metadataState === "success" ? "#16a34a" : "none",
-            border: `1px solid ${metadataState === "error" ? "#ef4444" : metadataState === "success" ? "#16a34a" : "var(--border)"}`,
+            background: metadataState === "success" ? "var(--zeta-alias-status-success)" : "none",
+            border: `1px solid ${metadataState === "error" ? "var(--zeta-alias-status-error)" : metadataState === "success" ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)"}`,
             borderRadius: 4,
             color:
               metadataState === "success"
-                ? "#fff"
+                ? "var(--zeta-alias-accent-foreground)"
                 : metadataState === "error"
-                  ? "#ef4444"
-                  : "var(--text-muted)",
+                  ? "var(--zeta-alias-status-error)"
+                  : "var(--zeta-alias-text-muted)",
             cursor:
               !model.id.trim() || metadataState === "loading"
                 ? "not-allowed"
@@ -2126,7 +2126,7 @@ function ModelDetail({
           style={{
             marginTop: -8,
             fontSize: 10,
-            color: metadataState === "error" ? "#ef4444" : "var(--text-dim)",
+            color: metadataState === "error" ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-dim)",
           }}
         >
           {metadataMessage}
@@ -2169,9 +2169,9 @@ function ModelDetail({
                     fontSize: 10,
                     padding: "2px 7px",
                     background: "none",
-                    border: "1px solid var(--border)",
+                    border: "1px solid var(--zeta-alias-border)",
                     borderRadius: 4,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     cursor: "pointer",
                   }}
                 >
@@ -2201,9 +2201,9 @@ function ModelDetail({
                     fontSize: 10,
                     padding: "2px 7px",
                     background: "none",
-                    border: "1px solid var(--border)",
+                    border: "1px solid var(--zeta-alias-border)",
                     borderRadius: 4,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     cursor: "pointer",
                   }}
                 >
@@ -2255,7 +2255,7 @@ function ModelDetail({
           onChange={(v) => set("omitMaxOutputTokens", v || undefined)}
         />
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <label style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <label style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)" }}>
             Premium multiplier
           </label>
           <NumInput
@@ -2498,14 +2498,14 @@ function OAuthDetail({
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: provider.loggedIn ? "#4ade80" : "var(--border)",
+              background: provider.loggedIn ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
               display: "inline-block",
             }}
           />
           <span
             style={{
               fontSize: 11,
-              color: provider.loggedIn ? "#4ade80" : "var(--text-dim)",
+              color: provider.loggedIn ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-text-dim)",
             }}
           >
             {provider.loggedIn
@@ -2522,7 +2522,7 @@ function OAuthDetail({
             style={{
               margin: 0,
               fontSize: 12,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               lineHeight: 1.5,
             }}
           >
@@ -2532,7 +2532,7 @@ function OAuthDetail({
           </p>
         )}
         {loginState.phase === "connecting" && (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-text-muted)" }}>
             {t("models.openingBrowser")}
           </p>
         )}
@@ -2542,7 +2542,7 @@ function OAuthDetail({
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 lineHeight: 1.5,
               }}
             >
@@ -2555,10 +2555,10 @@ function OAuthDetail({
                   onClick={() => submitSelection(loginState.token, option.id)}
                   style={{
                     padding: "6px 9px",
-                    background: "var(--bg)",
-                    border: "1px solid var(--border)",
+                    background: "var(--zeta-alias-bg)",
+                    border: "1px solid var(--zeta-alias-border)",
                     borderRadius: 5,
-                    color: "var(--text)",
+                    color: "var(--zeta-alias-text)",
                     cursor: "pointer",
                     fontSize: 12,
                     textAlign: "left",
@@ -2576,7 +2576,7 @@ function OAuthDetail({
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 lineHeight: 1.5,
               }}
             >
@@ -2589,7 +2589,7 @@ function OAuthDetail({
                 style={{
                   margin: 0,
                   fontSize: 11,
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                   lineHeight: 1.5,
                 }}
               >
@@ -2598,7 +2598,7 @@ function OAuthDetail({
                   href={loginState.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "var(--accent)", wordBreak: "break-all" }}
+                  style={{ color: "var(--zeta-alias-accent)", wordBreak: "break-all" }}
                 >
                   click here to open the login page
                 </a>
@@ -2622,10 +2622,10 @@ function OAuthDetail({
                 style={{
                   flex: 1,
                   padding: "6px 9px",
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
+                  background: "var(--zeta-alias-bg)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 5,
-                  color: "var(--text)",
+                  color: "var(--zeta-alias-text)",
                   fontSize: 12,
                   outline: "none",
                   fontFamily: "var(--font-mono)",
@@ -2638,11 +2638,11 @@ function OAuthDetail({
                 style={{
                   padding: "6px 12px",
                   background: inputValue.trim()
-                    ? "var(--accent)"
-                    : "var(--bg-panel)",
+                    ? "var(--zeta-alias-accent)"
+                    : "var(--zeta-alias-bg-panel)",
                   border: "none",
                   borderRadius: 5,
-                  color: inputValue.trim() ? "#fff" : "var(--text-dim)",
+                  color: inputValue.trim() ? "var(--zeta-alias-accent-foreground)" : "var(--zeta-alias-text-dim)",
                   cursor: inputValue.trim() ? "pointer" : "not-allowed",
                   fontSize: 12,
                   fontWeight: 600,
@@ -2660,7 +2660,7 @@ function OAuthDetail({
               style={{
                 margin: 0,
                 fontSize: 12,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 lineHeight: 1.5,
               }}
             >
@@ -2669,10 +2669,10 @@ function OAuthDetail({
             <div
               style={{
                 padding: "8px 10px",
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
+                background: "var(--zeta-alias-bg)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 5,
-                color: "var(--text)",
+                color: "var(--zeta-alias-text)",
                 fontSize: 16,
                 fontWeight: 700,
                 fontFamily: "var(--font-mono)",
@@ -2685,7 +2685,7 @@ function OAuthDetail({
               style={{
                 margin: 0,
                 fontSize: 11,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 lineHeight: 1.5,
               }}
             >
@@ -2693,7 +2693,7 @@ function OAuthDetail({
                 href={loginState.verificationUri}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: "var(--accent)", wordBreak: "break-all" }}
+                style={{ color: "var(--zeta-alias-accent)", wordBreak: "break-all" }}
               >
                 {loginState.verificationUri}
               </a>
@@ -2704,17 +2704,17 @@ function OAuthDetail({
           </div>
         )}
         {loginState.phase === "progress" && (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-text-muted)" }}>
             {loginState.message}
           </p>
         )}
         {loginState.phase === "success" && (
-          <p style={{ margin: 0, fontSize: 12, color: "#4ade80" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-status-success)" }}>
             {t("models.connectedSuccessfully")}
           </p>
         )}
         {loginState.phase === "error" && (
-          <p style={{ margin: 0, fontSize: 12, color: "#f87171" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-status-error)" }}>
             {loginState.message}
           </p>
         )}
@@ -2731,9 +2731,9 @@ function OAuthDetail({
             style={{
               padding: "5px 12px",
               background: "none",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 5,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: "pointer",
               fontSize: 12,
             }}
@@ -2746,10 +2746,10 @@ function OAuthDetail({
               onClick={handleLogin}
               style={{
                 padding: "5px 14px",
-                background: "var(--accent)",
+                background: "var(--zeta-alias-accent)",
                 border: "none",
                 borderRadius: 5,
-                color: "#fff",
+                color: "var(--zeta-alias-accent-foreground)",
                 cursor: "pointer",
                 fontSize: 12,
                 fontWeight: 600,
@@ -2763,9 +2763,9 @@ function OAuthDetail({
                 style={{
                   padding: "5px 12px",
                   background: "none",
-                  border: "1px solid rgba(239,68,68,0.3)",
+                  border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
                   borderRadius: 5,
-                  color: "#ef4444",
+                  color: "var(--zeta-alias-status-error)",
                   cursor: "pointer",
                   fontSize: 12,
                 }}
@@ -2887,14 +2887,14 @@ function ApiKeyDetail({
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: provider.configured ? "#4ade80" : "var(--border)",
+              background: provider.configured ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
               display: "inline-block",
             }}
           />
           <span
             style={{
               fontSize: 11,
-              color: provider.configured ? "#4ade80" : "var(--text-dim)",
+              color: provider.configured ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-text-dim)",
             }}
           >
             {provider.configured
@@ -2908,7 +2908,7 @@ function ApiKeyDetail({
         style={{
           margin: 0,
           fontSize: 12,
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           lineHeight: 1.5,
         }}
       >
@@ -2939,13 +2939,13 @@ function ApiKeyDetail({
             style={{
               padding: "6px 12px",
               background: savedOk
-                ? "#16a34a"
+                ? "var(--zeta-alias-status-success)"
                 : apiKey.trim()
-                  ? "var(--accent)"
-                  : "var(--bg-panel)",
+                  ? "var(--zeta-alias-accent)"
+                  : "var(--zeta-alias-bg-panel)",
               border: "none",
               borderRadius: 5,
-              color: apiKey.trim() || savedOk ? "#fff" : "var(--text-dim)",
+              color: apiKey.trim() || savedOk ? "var(--zeta-alias-accent-foreground)" : "var(--zeta-alias-text-dim)",
               cursor:
                 saving || !apiKey.trim() || savedOk ? "not-allowed" : "pointer",
               fontSize: 12,
@@ -2987,9 +2987,9 @@ function ApiKeyDetail({
             alignSelf: "flex-start",
             padding: "5px 12px",
             background: "none",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--zeta-alias-border)",
             borderRadius: 5,
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
             cursor: copying ? "not-allowed" : "pointer",
             fontSize: 12,
           }}
@@ -2999,7 +2999,7 @@ function ApiKeyDetail({
       )}
 
       {error && (
-        <p style={{ margin: 0, fontSize: 12, color: "#f87171" }}>{error}</p>
+        <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-status-error)" }}>{error}</p>
       )}
 
       {provider.configured && (
@@ -3010,9 +3010,9 @@ function ApiKeyDetail({
             alignSelf: "flex-start",
             padding: "5px 12px",
             background: "none",
-            border: "1px solid rgba(239,68,68,0.3)",
+            border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
             borderRadius: 5,
-            color: "#ef4444",
+            color: "var(--zeta-alias-status-error)",
             cursor: removing ? "not-allowed" : "pointer",
             fontSize: 12,
           }}
@@ -3043,9 +3043,9 @@ function ProviderIcon({ id, size }: { id: string; size: number }) {
         style={{
           width: size,
           height: size,
-          border: "1px solid var(--border)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 4,
-          color: "var(--text-dim)",
+          color: "var(--zeta-alias-text-dim)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -3062,7 +3062,7 @@ function ProviderIcon({ id, size }: { id: string; size: number }) {
   // Color icons: self-colored SVG, no wrapper needed
   if (pi.hasColor) return <pi.Icon size={size} />;
   // Mono icons: use currentColor so they adapt to light/dark theme
-  return <pi.Icon size={size} style={{ color: "var(--text-muted)" }} />;
+  return <pi.Icon size={size} style={{ color: "var(--zeta-alias-text-muted)" }} />;
 }
 
 // ── Add provider picker ───────────────────────────────────────────────────────
@@ -3119,8 +3119,8 @@ function AddProviderPicker({
     alignItems: "center",
     gap: 8,
     padding: "10px 12px",
-    background: "var(--bg-panel)",
-    border: "1px solid var(--border)",
+    background: "var(--zeta-alias-bg-panel)",
+    border: "1px solid var(--zeta-alias-border)",
     borderRadius: 7,
     boxSizing: "border-box",
     cursor: "pointer",
@@ -3135,7 +3135,7 @@ function AddProviderPicker({
         position: "fixed",
         inset: 0,
         zIndex: 1100,
-        background: "rgba(0,0,0,0.4)",
+        background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 40%, transparent)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -3149,12 +3149,12 @@ function AddProviderPicker({
           width: 820,
           maxWidth: "calc(100vw - 32px)",
           maxHeight: "min(72vh, calc(100vh - 32px))",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 10,
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.22)",
+          boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 22%, transparent)",
           overflow: "hidden",
         }}
       >
@@ -3162,7 +3162,7 @@ function AddProviderPicker({
         <div
           style={{
             padding: "10px 14px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
@@ -3178,7 +3178,7 @@ function AddProviderPicker({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ color: "var(--text-dim)", flexShrink: 0 }}
+            style={{ color: "var(--zeta-alias-text-dim)", flexShrink: 0 }}
           >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -3196,7 +3196,7 @@ function AddProviderPicker({
               background: "none",
               border: "none",
               outline: "none",
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               fontSize: 13,
               boxSizing: "border-box",
             }}
@@ -3210,7 +3210,7 @@ function AddProviderPicker({
               style={{
                 padding: "20px 0",
                 fontSize: 12,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 textAlign: "center",
               }}
             >
@@ -3231,7 +3231,7 @@ function AddProviderPicker({
                     gridColumn: "1 / -1",
                     fontSize: 10,
                     fontWeight: 600,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     textTransform: "uppercase",
                     letterSpacing: "0.07em",
                   }}
@@ -3247,12 +3247,12 @@ function AddProviderPicker({
                   }}
                   style={cardStyle}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.background = "var(--bg-hover)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border)";
-                    e.currentTarget.style.background = "var(--bg-panel)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-panel)";
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -3260,7 +3260,7 @@ function AddProviderPicker({
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "var(--text)",
+                        color: "var(--zeta-alias-text)",
                         lineHeight: 1.3,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -3272,7 +3272,7 @@ function AddProviderPicker({
                     <div
                       style={{
                         fontSize: 10,
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                         marginTop: 2,
                       }}
                     >
@@ -3284,8 +3284,8 @@ function AddProviderPicker({
                       width: 26,
                       height: 26,
                       borderRadius: 5,
-                      background: "var(--bg-hover)",
-                      border: "1px dashed var(--border)",
+                      background: "var(--zeta-alias-bg-hover)",
+                      border: "1px dashed var(--zeta-alias-border)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -3301,7 +3301,7 @@ function AddProviderPicker({
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      style={{ color: "var(--text-dim)" }}
+                      style={{ color: "var(--zeta-alias-text-dim)" }}
                     >
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
@@ -3317,7 +3317,7 @@ function AddProviderPicker({
                     paddingTop: showCustom ? 6 : 0,
                     fontSize: 10,
                     fontWeight: 600,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     textTransform: "uppercase",
                     letterSpacing: "0.07em",
                   }}
@@ -3334,12 +3334,12 @@ function AddProviderPicker({
                   }}
                   style={cardStyle}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.background = "var(--bg-hover)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border)";
-                    e.currentTarget.style.background = "var(--bg-panel)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-panel)";
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -3347,7 +3347,7 @@ function AddProviderPicker({
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "var(--text)",
+                        color: "var(--zeta-alias-text)",
                         lineHeight: 1.3,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -3359,7 +3359,7 @@ function AddProviderPicker({
                     <div
                       style={{
                         fontSize: 10,
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                         marginTop: 2,
                       }}
                     >
@@ -3377,7 +3377,7 @@ function AddProviderPicker({
                     paddingTop: availableOAuth.length > 0 ? 6 : 0,
                     fontSize: 10,
                     fontWeight: 600,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     textTransform: "uppercase",
                     letterSpacing: "0.07em",
                   }}
@@ -3394,12 +3394,12 @@ function AddProviderPicker({
                   }}
                   style={cardStyle}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.background = "var(--bg-hover)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border)";
-                    e.currentTarget.style.background = "var(--bg-panel)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-panel)";
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -3407,7 +3407,7 @@ function AddProviderPicker({
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "var(--text)",
+                        color: "var(--zeta-alias-text)",
                         lineHeight: 1.3,
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -3419,7 +3419,7 @@ function AddProviderPicker({
                     <div
                       style={{
                         fontSize: 10,
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                         marginTop: 2,
                       }}
                     >
@@ -3765,7 +3765,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
           position: "fixed",
           inset: 0,
           zIndex: 1000,
-          background: "rgba(0,0,0,0.35)",
+          background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -3780,12 +3780,12 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
             maxWidth: "calc(100vw - 16px)",
             height: isMobile ? "calc(100dvh - 16px)" : "78vh",
             maxHeight: "calc(100dvh - 16px)",
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
+            background: "var(--zeta-alias-bg)",
+            border: "1px solid var(--zeta-alias-border)",
             borderRadius: 10,
             display: "flex",
             flexDirection: "column",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
             overflow: "hidden",
           }}
         >
@@ -3796,7 +3796,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               alignItems: "center",
               justifyContent: "space-between",
               padding: "12px 18px",
-              borderBottom: "1px solid var(--border)",
+              borderBottom: "1px solid var(--zeta-alias-border)",
               flexShrink: 0,
               gap: 12,
               flexWrap: isMobile ? "wrap" : undefined,
@@ -3804,14 +3804,14 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
           >
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span
-                style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
+                style={{ fontSize: 15, fontWeight: 700, color: "var(--zeta-alias-text)" }}
               >
                 {t("models")}
               </span>
               <code
                 style={{
                   fontSize: 11,
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   fontFamily: "var(--font-mono)",
                 }}
               >
@@ -3845,10 +3845,10 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                 disabled={importing || !importUrl.trim()}
                 style={{
                   padding: "6px 10px",
-                  background: "var(--accent)",
+                  background: "var(--zeta-alias-accent)",
                   border: "none",
                   borderRadius: 6,
-                  color: "#fff",
+                  color: "var(--zeta-alias-accent-foreground)",
                   fontSize: 12,
                   cursor: importing ? "default" : "pointer",
                   opacity: importing || !importUrl.trim() ? 0.5 : 1,
@@ -3864,9 +3864,9 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                 style={{
                   padding: "6px 10px",
                   background: "none",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 6,
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   fontSize: 12,
                   cursor: loading ? "default" : "pointer",
                   opacity: loading ? 0.5 : 1,
@@ -3880,8 +3880,8 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                   style={{
                     fontSize: 11,
                     color: importMessage.startsWith("Imported")
-                      ? "var(--text-muted)"
-                      : "#f87171",
+                      ? "var(--zeta-alias-text-muted)"
+                      : "var(--zeta-alias-status-error)",
                     maxWidth: 200,
                     overflowWrap: "anywhere",
                   }}
@@ -3894,7 +3894,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor: "pointer",
                   fontSize: 20,
                   lineHeight: 1,
@@ -3920,12 +3920,12 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               style={{
                 width: isMobile ? "100%" : 210,
                 maxHeight: isMobile ? "40vh" : undefined,
-                borderRight: isMobile ? "none" : "1px solid var(--border)",
-                borderBottom: isMobile ? "1px solid var(--border)" : "none",
+                borderRight: isMobile ? "none" : "1px solid var(--zeta-alias-border)",
+                borderBottom: isMobile ? "1px solid var(--zeta-alias-border)" : "none",
                 display: "flex",
                 flexDirection: "column",
                 flexShrink: 0,
-                background: "var(--bg-panel)",
+                background: "var(--zeta-alias-bg-panel)",
               }}
             >
               <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
@@ -3947,11 +3947,11 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                         padding: "5px 8px",
                         borderRadius: 5,
                         cursor: "pointer",
-                        background: isSelected ? "var(--bg-selected)" : "none",
+                        background: isSelected ? "var(--zeta-alias-bg-selected)" : "none",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected)
-                          e.currentTarget.style.background = "var(--bg-hover)";
+                          e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected)
@@ -3962,7 +3962,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                       <span
                         style={{
                           fontSize: 12,
-                          color: "var(--text)",
+                          color: "var(--zeta-alias-text)",
                           flex: 1,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -3993,11 +3993,11 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                         padding: "5px 8px",
                         borderRadius: 5,
                         cursor: "pointer",
-                        background: isSelected ? "var(--bg-selected)" : "none",
+                        background: isSelected ? "var(--zeta-alias-bg-selected)" : "none",
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected)
-                          e.currentTarget.style.background = "var(--bg-hover)";
+                          e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                       }}
                       onMouseLeave={(e) => {
                         if (!isSelected)
@@ -4008,7 +4008,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                       <span
                         style={{
                           fontSize: 12,
-                          color: "var(--text)",
+                          color: "var(--zeta-alias-text)",
                           flex: 1,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -4027,7 +4027,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                     <div
                       style={{
                         margin: "4px 8px",
-                        borderTop: "1px solid var(--border)",
+                        borderTop: "1px solid var(--zeta-alias-border)",
                       }}
                     />
                   )}
@@ -4038,7 +4038,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                     style={{
                       padding: "10px 8px",
                       fontSize: 12,
-                      color: "var(--text-muted)",
+                      color: "var(--zeta-alias-text-muted)",
                     }}
                   >
                     {t("models.loading")}
@@ -4064,13 +4064,13 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                             borderRadius: 5,
                             cursor: "pointer",
                             background: isProviderSelected
-                              ? "var(--bg-selected)"
+                              ? "var(--zeta-alias-bg-selected)"
                               : "none",
                           }}
                           onMouseEnter={(e) => {
                             if (!isProviderSelected)
                               e.currentTarget.style.background =
-                                "var(--bg-hover)";
+                                "var(--zeta-alias-bg-hover)";
                           }}
                           onMouseLeave={(e) => {
                             if (!isProviderSelected)
@@ -4086,7 +4086,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            style={{ color: "var(--text-dim)", flexShrink: 0 }}
+                            style={{ color: "var(--zeta-alias-text-dim)", flexShrink: 0 }}
                           >
                             <rect x="4" y="4" width="16" height="16" rx="2" />
                             <rect x="9" y="9" width="6" height="6" />
@@ -4103,7 +4103,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                             style={{
                               fontSize: 12,
                               fontWeight: isProviderSelected ? 600 : 400,
-                              color: "var(--text)",
+                              color: "var(--zeta-alias-text)",
                               fontFamily: "var(--font-mono)",
                               flex: 1,
                               overflow: "hidden",
@@ -4139,13 +4139,13 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                                 borderRadius: 5,
                                 cursor: "pointer",
                                 background: isModelSelected
-                                  ? "var(--bg-selected)"
+                                  ? "var(--zeta-alias-bg-selected)"
                                   : "none",
                               }}
                               onMouseEnter={(e) => {
                                 if (!isModelSelected)
                                   e.currentTarget.style.background =
-                                    "var(--bg-hover)";
+                                    "var(--zeta-alias-bg-hover)";
                               }}
                               onMouseLeave={(e) => {
                                 if (!isModelSelected)
@@ -4157,8 +4157,8 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                                   fontSize: 11,
                                   fontFamily: "var(--font-mono)",
                                   color: m.id
-                                    ? "var(--text-muted)"
-                                    : "var(--text-dim)",
+                                    ? "var(--zeta-alias-text-muted)"
+                                    : "var(--zeta-alias-text-dim)",
                                   flex: 1,
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
@@ -4172,8 +4172,8 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                                   style={{
                                     fontSize: 9,
                                     padding: "1px 4px",
-                                    background: "rgba(99,102,241,0.12)",
-                                    color: "rgba(99,102,241,0.8)",
+                                    background: "color-mix(in srgb, var(--zeta-alias-accent) 12%, transparent)",
+                                    color: "color-mix(in srgb, var(--zeta-alias-accent) 80%, transparent)",
                                     borderRadius: 3,
                                     flexShrink: 0,
                                   }}
@@ -4198,15 +4198,15 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                             padding: "4px 8px 4px 26px",
                             borderRadius: 5,
                             cursor: "pointer",
-                            color: "var(--text-dim)",
+                            color: "var(--zeta-alias-text-dim)",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.color = "var(--accent)";
+                            e.currentTarget.style.color = "var(--zeta-alias-accent)";
                             e.currentTarget.style.background =
-                              "var(--bg-hover)";
+                              "var(--zeta-alias-bg-hover)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.color = "var(--text-dim)";
+                            e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
                             e.currentTarget.style.background = "none";
                           }}
                         >
@@ -4223,7 +4223,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               {/* Add provider */}
               <div
                 style={{
-                  borderTop: "1px solid var(--border)",
+                  borderTop: "1px solid var(--zeta-alias-border)",
                   padding: "8px 6px",
                 }}
               >
@@ -4237,19 +4237,19 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                     width: "100%",
                     padding: "6px 0",
                     background: "none",
-                    border: "1px dashed var(--border)",
+                    border: "1px dashed var(--zeta-alias-border)",
                     borderRadius: 5,
-                    color: "var(--text-muted)",
+                    color: "var(--zeta-alias-text-muted)",
                     cursor: "pointer",
                     fontSize: 12,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.color = "var(--accent)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
+                    e.currentTarget.style.color = "var(--zeta-alias-accent)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border)";
-                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+                    e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
                   }}
                 >
                   + {t("models.addProvider")}
@@ -4268,7 +4268,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                         fontSize: 13,
                       }}
                     >
@@ -4286,12 +4286,12 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               justifyContent: "flex-end",
               gap: 10,
               padding: "10px 18px",
-              borderTop: "1px solid var(--border)",
+              borderTop: "1px solid var(--zeta-alias-border)",
               flexShrink: 0,
             }}
           >
             {saveError && (
-              <span style={{ fontSize: 12, color: "#f87171", flex: 1 }}>
+              <span style={{ fontSize: 12, color: "var(--zeta-alias-status-error)", flex: 1 }}>
                 {saveError}
               </span>
             )}
@@ -4300,9 +4300,9 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
               style={{
                 padding: "6px 14px",
                 background: "none",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 6,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 cursor: "pointer",
                 fontSize: 13,
               }}
@@ -4317,13 +4317,13 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
                 padding: "6px 16px",
                 minWidth: 92,
                 background: savedOk
-                  ? "#16a34a"
+                  ? "var(--zeta-alias-status-success)"
                   : saving
-                    ? "var(--bg-panel)"
-                    : "var(--accent)",
+                    ? "var(--zeta-alias-bg-panel)"
+                    : "var(--zeta-alias-accent)",
                 border: "none",
                 borderRadius: 6,
-                color: savedOk ? "#fff" : saving ? "var(--text-muted)" : "#fff",
+                color: savedOk ? "var(--zeta-alias-accent-foreground)" : saving ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-accent-foreground)",
                 cursor: saving || savedOk ? "default" : "pointer",
                 fontSize: 13,
                 fontWeight: 600,
