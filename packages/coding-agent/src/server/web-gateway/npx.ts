@@ -42,6 +42,32 @@ function findNpxCli(): string | null {
 	return null;
 }
 
+/** An argv pair `execFile` can spawn without a shell. */
+export interface NpxInvocation {
+	readonly command: string;
+	readonly commandArgs: string[];
+}
+
+/**
+ * Resolve the `npx <args>` equivalent for the current runtime.
+ *
+ * - **Bun**: `bun x <args>` — Bun's package runner, built into the running Bun
+ *   binary. This mirrors `npx` argument-for-argument and, like the Node path,
+ *   never needs a shell. Bun ships no `npx-cli.js`, so {@link findNpxCli} can
+ *   never match there: `process.execPath` is the Bun binary, whose
+ *   `node_modules/npm` layout does not exist.
+ * - **Node**: the `npx-cli.js` shipped with the running Node (see
+ *   {@link findNpxCli}), falling back to a bare `npx` on `PATH`.
+ */
+export function resolveNpxInvocation(args: string[]): NpxInvocation {
+	// `Bun` is a Bun-only global; its presence means we are the Bun runtime.
+	if (typeof Bun !== "undefined") {
+		return { command: execPath, commandArgs: ["x", ...args] };
+	}
+	const npxCli = findNpxCli();
+	return npxCli ? { command: execPath, commandArgs: [npxCli, ...args] } : { command: "npx", commandArgs: args };
+}
+
 export interface RunNpxOptions {
 	timeout?: number;
 	cwd?: string;
@@ -54,10 +80,7 @@ export interface RunNpxResult {
 }
 
 export async function runNpx(args: string[], opts: RunNpxOptions = {}): Promise<RunNpxResult> {
-	const npxCli = findNpxCli();
-	const { command, commandArgs } = npxCli
-		? { command: execPath, commandArgs: [npxCli, ...args] }
-		: { command: "npx", commandArgs: args };
+	const { command, commandArgs } = resolveNpxInvocation(args);
 	return execFileAsync(command, commandArgs, {
 		timeout: opts.timeout,
 		cwd: opts.cwd,
