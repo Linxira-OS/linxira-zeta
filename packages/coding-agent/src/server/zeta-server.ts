@@ -35,6 +35,7 @@ import { COORDINATOR_ALIAS, SessionRouter } from "../channels/session-router";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";
+import { currentLanguage } from "../i18n";
 import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../plan-mode/approved-plan";
 import type { AgentSession } from "../session/agent-session";
 import { SessionManager } from "../session/session-manager";
@@ -446,8 +447,12 @@ export class ZetaServer {
 
 	async #startStats(port: number): Promise<void> {
 		try {
+			// Lazy: pi-stats drags in the aggregator/db graph; only load it when
+			// the dashboard actually starts.
 			const { startServer } = await import("@linxiraos/pi-stats");
-			const server = await startServer(port);
+			// Stamp the product's UI language into the served shell so the in-process
+			// dashboard matches the CLI (same contract as `zetacode stats`/trace).
+			const server = await startServer(port, undefined, { language: currentLanguage() });
 			this.#statsServer = server;
 			logger.info("Stats Dashboard started", { port: server.port });
 		} catch (err) {
