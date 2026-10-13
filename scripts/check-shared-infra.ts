@@ -143,7 +143,12 @@ const INVENTORY: Placement[] = [
 	{
 		domain: "https://scl.so",
 		status: "keep",
-		files: ["packages/tui/src/prompt/tips.txt", "packages/tui/src/prompt/welcome.ts"],
+		files: [
+			"packages/tui/src/prompt/tips.txt",
+			"packages/tui/src/prompt/welcome.ts",
+			"packages/coding-agent/src/i18n/en.ts",
+			"packages/coding-agent/src/i18n/zh.ts",
+		],
 		why: "copy link only — no API call",
 	},
 	{

@@ -72,6 +72,7 @@ import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
 import type { ExtensionUIContext } from "./extensibility/extensions/types";
 import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
+import { wireTuiTexts } from "./i18n/wire-tui";
 import { registerDaemonProjectPresence } from "./launch/presence";
 import type { MCPManager } from "./mcp";
 import type { InteractiveMode } from "./modes/interactive-mode";
@@ -640,6 +641,18 @@ async function runInteractiveMode(
 	startupLease?: ComposerLease,
 	startupGoal?: string,
 ): Promise<void> {
+	// Install the host text source for @linxiraos/pi-tui before the first
+	// interactive render: every `tuiText` lookup (welcome box and tips, setup
+	// wizard, panels) resolves against the live Messages catalogue instead of
+	// its inline English fallback. `M` is a live proxy, so a later `/language`
+	// switch re-resolves on the next render. This is the single wiring point for
+	// the whole TUI; headless modes never register a source.
+	wireTuiTexts();
+	// The prepaint frame was painted before settings/theme/catalogue settled, so
+	// the welcome (when its intro was suppressed) may still hold English fallback
+	// lines in its width cache. Drop the frame so the next render re-resolves
+	// through the freshly installed source.
+	startupLease?.composer.welcome?.invalidate();
 	const InteractiveModeConstructor = await loadInteractiveModeConstructor();
 	let mode: InteractiveMode;
 	try {
