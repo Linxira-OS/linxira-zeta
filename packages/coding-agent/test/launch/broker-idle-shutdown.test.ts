@@ -17,18 +17,38 @@ function restoreEnv(name: string, value: string | undefined): void {
 	else process.env[name] = value;
 }
 
-function startBroker(projectDir: string, runtimeDir: string, idleGraceMs: number): Promise<void> {
+interface EmbeddedBroker {
+	/** Settles once this in-process broker has shut down and released its lease. */
+	finished: Promise<void>;
+}
+
+/**
+ * Start the in-process broker and wait until it actually owns the scope.
+ *
+ * A client that connects before the broker has bound its endpoint does not wait:
+ * it spawns a broker *process* for the same scope, and that process can claim the
+ * scope in the broker-restart handoff. The test would then be driving — and
+ * awaiting the shutdown of — a broker it does not own, while the scope's records
+ * live in a detached process nothing here tracks. `onListening` is the broker's
+ * own "accepting connections" signal, so a request issued after this resolves
+ * always reaches the broker started here; a broker that loses the race resolves
+ * `finished` instead and the test fails loudly rather than flaking.
+ */
+async function startBroker(projectDir: string, runtimeDir: string, idleGraceMs: number): Promise<EmbeddedBroker> {
 	const previousProjectDir = process.env[DAEMON_PROJECT_DIR_ENV];
 	const previousRuntimeDir = process.env[DAEMON_RUNTIME_DIR_ENV];
 	const previousGrace = process.env[DAEMON_IDLE_GRACE_ENV];
 	process.env[DAEMON_PROJECT_DIR_ENV] = projectDir;
 	process.env[DAEMON_RUNTIME_DIR_ENV] = runtimeDir;
 	process.env[DAEMON_IDLE_GRACE_ENV] = String(idleGraceMs);
-	const broker = startDaemonBrokerFromEnvironment();
+	const listening = Promise.withResolvers<boolean>();
+	const finished = startDaemonBrokerFromEnvironment({ onListening: () => listening.resolve(true) });
 	restoreEnv(DAEMON_PROJECT_DIR_ENV, previousProjectDir);
 	restoreEnv(DAEMON_RUNTIME_DIR_ENV, previousRuntimeDir);
 	restoreEnv(DAEMON_IDLE_GRACE_ENV, previousGrace);
-	return broker;
+	const claimed = await Promise.race([listening.promise, finished.then(() => false)]);
+	if (!claimed) throw new Error("In-process daemon broker did not claim its scope");
+	return { finished };
 }
 
 describe("daemon broker idle shutdown", () => {
@@ -40,8 +60,9 @@ describe("daemon broker idle shutdown", () => {
 
 		const previousTitle = process.title;
 		// Create the client (writes broker.token) before starting the broker, which reads that token.
+		// Creation is lazy: the connection is opened by the first request, after the claim below.
 		const client = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
-		const broker = startBroker(projectDir, runtimeDir, 100);
+		const broker = await startBroker(projectDir, runtimeDir, 100);
 		try {
 			// A persistent daemon that outlives the first idle-shutdown timer (100ms) and then
 			// self-exits (~300ms). restart:"no" so its exit is terminal.
@@ -69,7 +90,7 @@ describe("daemon broker idle shutdown", () => {
 			// then releases its lease and run() resolves. Awaiting the broker promise IS the shutdown
 			// signal. Before the fix nothing rearmed, so this await never resolved and the test timed
 			// out — the regression this guards.
-			await broker;
+			await broker.finished;
 		} finally {
 			process.title = previousTitle;
 		}
@@ -99,7 +120,7 @@ describe("daemon broker idle shutdown", () => {
 		await fs.mkdir(projectDir);
 
 		const client = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
-		const broker = startBroker(projectDir, runtimeDir, 100);
+		const broker = await startBroker(projectDir, runtimeDir, 100);
 		try {
 			// Keeps the broker up across the idle sweep: on its own that used to be reason
 			// enough to keep every other daemon alive, so the project-shared browser
@@ -146,12 +167,14 @@ describe("daemon broker idle shutdown", () => {
 			while (Date.now() < deadline && isAlive(pid as number)) await Bun.sleep(50);
 			expect(isAlive(pid as number)).toBe(false);
 		} finally {
-			// Release the holder so nothing keeps the broker up, then await the broker's
-			// own run() promise rather than a guessed duration.
+			// Release the holder so nothing keeps the broker up, then await that broker's own
+			// run() promise rather than a guessed duration. `startBroker` already proved this test
+			// owns the scope, so this stop reaches the broker that registered `persist-holder`
+			// instead of an unattached broker process that would answer `Unknown daemon`.
 			const stopper = await createDaemonBrokerClient(projectDir, { runtimeDir, idleGraceMs: 100 });
 			await stopper.request({ op: "stop", name: "persist-holder", timeoutMs: 2_000 });
 			stopper.close();
-			await broker;
+			await broker.finished;
 		}
 	}, 30_000);
 });

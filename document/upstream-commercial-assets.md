@@ -41,7 +41,7 @@ bun scripts/brand/brand-check.ts
 | `https://omp.sh/install` | `packages/coding-agent/src/cli/update-cli.ts` | 注册表「共享基础设施，勿改」 |
 | `catalog.stencil.so/models.json.zstd` | `packages/catalog/scripts/generate-models.ts`、`packages/catalog/src/provider-models/openai-compat.ts` | 模型发现数据源；替换需自建模型目录服务，未列入计划。注意 `packages/catalog/src/compat/rules.json` 是生成物 |
 | `build.stencil.so` | `.github/workflows/ci.yml`、`scripts/ci-build-upload.ts` | 上游给我们的**匿名产物上传通道**，不涉及用户凭证 |
-| `scl.so/tern`、`docs.stencil.so/tern/protocol/` | `packages/tui/src/prompt/tips.txt`、`packages/tui/src/prompt/welcome.ts` | 文案链接，不是 API 调用 |
+| `scl.so/tern`、`docs.stencil.so/tern/protocol/` | `packages/tui/src/prompt/tips.txt`、`packages/tui/src/prompt/welcome.ts`、`packages/coding-agent/src/i18n/{en,zh}.ts` | 文案链接，不是 API 调用 |
 
 ## 2. 保留代码，凭证改为用户自填
 
