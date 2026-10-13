@@ -16,7 +16,6 @@ func RegisterCommands(app *App) {
 	registerExplorerCommands(app)
 	registerGitCommands(app)
 	registerWorkspaceCommands(app)
-	registerHandoffCommands(app)
 	registerPRCommands(app)
 	registerHelpCommands(app)
 	registerOptionsCommands(app)
