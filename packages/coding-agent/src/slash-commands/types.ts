@@ -56,7 +56,7 @@ export interface ParsedSlashCommand {
  *   consumed; no further input. Handlers may simply omit a `return` rather than
  *   building `{ consumed: true }`; `void` is accepted in the handler signatures
  *   below so the contract typechecks under TypeScript 5.x (which does not
- *   coerce `() => void` to `() => T | undefined`) as well as 6.x / tsgo.
+ *   coerce `() => void` to `() => T | undefined`) as well as 6.x / 7.x.
  * - `{ consumed: true }` — explicit equivalent of the above (ACP shape).
  * - `{ prompt: string }` — command handled, pass `prompt` through as the new
  *   user input (e.g. `/force <tool> <prompt>` keeps `<prompt>` as the message).
@@ -164,7 +164,7 @@ export interface SlashCommandSpec extends BuiltinSlashCommand {
 	 * Expressed as a union of two function types — one returning a
 	 * `SlashCommandResult`, one returning `void` — so handlers that simply
 	 * `return` (or omit the return) typecheck under TypeScript 5.x as well as
-	 * 6.x / tsgo. TS 5.x does not coerce a `() => void` value into a
+	 * 6.x / 7.x. TS 5.x does not coerce a `() => void` value into a
 	 * `() => T | undefined` slot, so the two return shapes must be siblings
 	 * rather than a `T | void` union inside one function type (which Biome's
 	 * `noConfusingVoidType` also rejects).

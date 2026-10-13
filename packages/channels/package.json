@@ -34,7 +34,7 @@
 		"fmt": "oxfmt 'src/**/*.{ts,tsx}' '*.{ts,tsx}'",
 		"fix": "oxlint --fix . && oxfmt 'src/**/*.{ts,tsx}' '*.{ts,tsx}'",
 		"lint": "oxlint .",
-		"check:types": "tsgo -p tsconfig.json --noEmit",
+		"check:types": "tsc -p tsconfig.json --noEmit",
 		"check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '*.{ts,tsx}' && bun run check:types"
 	},
 	"types": "./src/index.ts",

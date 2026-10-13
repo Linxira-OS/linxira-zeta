@@ -4,6 +4,20 @@
 
 日常编码约定参考：代码质量、中央工具库、Bun 优先、模型策略 KDL、生成文件、日志、TUI 消毒、Rust 构建档位、测试指南、变更日志。硬性合并/发布规则见根 `AGENTS.md`；合并操作手册见 `document/merge-playbook.md`；CI 与发布机制见 `document/release.md`。
 
+## Toolchain
+
+三件工具，三个来源，各自的钉法不同：
+
+| 工具 | 来源 | 现行最低/精确版本 | 谁在读 |
+|---|---|---|---|
+| Bun | `package.json` `packageManager`（**精确** `bun@1.4.3`） | 精确钉版，CI 与本机同版 | `.github/actions/bun-install/action.yml`、`.gitea/workflows/local-ci.yml`、`scripts/check-ci-surface.ts` (`bun-pin-exact`) |
+| TypeScript | workspace catalog `typescript`（`^7.0.2`）+ 各包 `check:types` | TS 7 稳定版；`tsc` 即原生编译器 | 每个 `packages/*/package.json` 的 `check:types` |
+| npm | 本机全局（开发用）；CI 发布路径 | **≥ 11.5.1**（见 `document/release.md`：trusted publishing / OIDC 的下限） | `.github/workflows/ci.yml` 发布 job、本机手工 `npm publish` |
+
+- **Bun 的 pin 必须是精确版本，不能写范围**。范围 pin（`bun@>=1.4`）会让 `bun-install` action 去装 latest，把 CI 静默挪到未经测试的运行时上；`scripts/check-ci-surface.ts` 的 `bun-pin-exact` 规则会直接拦下范围 pin。升级 bun = 改这一处 `packageManager`（Dockerfile 的 `ARG BUN_VERSION` 与叶包 Dockerfile 要一起改），然后重跑 `bun install`、`bun run check:ts` 与各守卫。
+- **类型检查只有一个入口：TypeScript 7 稳定版的 `tsc`**。它自带原生（Go）编译器，所以不再需要 `@typescript/native-preview` / `tsgo` 这套预览分发：全仓统一写 `tsc -p <tsconfig> --noEmit`（发布路径是 `bun x tsc -p tsconfig.publish*.json`）。新增包照抄既有 `check:types` 形态，不要引入第二个类型检查器。
+- **npm 只在两处出现**：本机开发（`npm ci` 装 `web-ui/`、手工补发）与 CI 发布（`npm publish` + provenance）。发布路径要求 npm CLI ≥ 11.5.1，本机开发也建议同版或更新（当前 12.x）；版本不够时 trusted publishing/OIDC 不会生效。
+
 ## Code Quality
 
 - No `any` unless absolutely necessary.

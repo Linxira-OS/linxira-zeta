@@ -519,9 +519,9 @@ mod tests {
 			"$ bun run check:tools && bun run --workspaces --if-present check\n$ biome check . \
 			 --no-errors-on-unmatched\nChecked 1690 files in 371ms. No fixes \
 			 applied.\n@linxiraos/pi-utils check: Checked 40 files in 11ms. No fixes \
-			 applied.\n@linxiraos/pi-utils check: $ tsgo -p tsconfig.json \
+			 applied.\n@linxiraos/pi-utils check: $ tsc -p tsconfig.json \
 			 --noEmit\n@linxiraos/pi-utils check: Exited with code 0\n@linxiraos/zeta check: Checked \
-			 1178 files in 287ms. No fixes applied.\n@linxiraos/zeta check: $ tsgo -p tsconfig.json \
+			 1178 files in 287ms. No fixes applied.\n@linxiraos/zeta check: $ tsc -p tsconfig.json \
 			 --noEmit\n@linxiraos/zeta check: Exited with code 0\n",
 			0,
 		);
@@ -531,7 +531,7 @@ mod tests {
 		assert!(out.text.contains("@linxiraos/pi-utils"));
 		assert!(out.text.contains("@linxiraos/zeta"));
 		assert!(!out.text.contains("No fixes applied"));
-		assert!(!out.text.contains("tsgo -p"));
+		assert!(!out.text.contains("tsc -p"));
 		assert!(!out.text.contains("Exited with code 0"));
 	}
 
@@ -654,9 +654,9 @@ mod tests {
 		let bun_ctx = ctx("bun", Some("run"), "bun run check:ts", &cfg);
 		let input = concat!(
 			"$ bun run --workspaces check\n",
-			"@linxiraos/pi-utils check: $ tsgo -p tsconfig.json --noEmit\n",
+			"@linxiraos/pi-utils check: $ tsc -p tsconfig.json --noEmit\n",
 			"@linxiraos/pi-utils check: Exited with code 0\n",
-			"@linxiraos/zeta check: $ tsgo -p tsconfig.json --noEmit\n",
+			"@linxiraos/zeta check: $ tsc -p tsconfig.json --noEmit\n",
 			"src/tools/bash.ts(42,7): error TS2322: Type 'string' is not assignable to type \
 			 'number'.\n",
 			"@linxiraos/zeta check: Exited with code 1\n",
@@ -667,7 +667,7 @@ mod tests {
 		assert!(out.text.contains("failed"), "failed verdict must appear: {:?}", out.text);
 		assert!(out.text.contains("error TS2322"), "diagnostic must survive: {:?}", out.text);
 		assert!(
-			!out.text.contains("tsgo -p"),
+			!out.text.contains("tsc -p"),
 			"internal command lines must be stripped: {:?}",
 			out.text
 		);
@@ -688,17 +688,17 @@ mod tests {
 	#[test]
 	fn bun_check_success_emits_passed_status_and_no_noise() {
 		// Clean `bun run check:ts` (all packages exit 0) must compact to a
-		// single `passed` summary line without biome/tsgo details.
+		// single `passed` summary line without biome/tsc details.
 		let cfg = MinimizerConfig { enabled: true, ..Default::default() };
 		let bun_ctx = ctx("bun", Some("run"), "bun run check:ts", &cfg);
 		let input = concat!(
 			"$ bun run --workspaces check\n",
 			"Checked 1690 files in 371ms. No fixes applied.\n",
 			"@linxiraos/pi-utils check: Checked 40 files in 11ms. No fixes applied.\n",
-			"@linxiraos/pi-utils check: $ tsgo -p tsconfig.json --noEmit\n",
+			"@linxiraos/pi-utils check: $ tsc -p tsconfig.json --noEmit\n",
 			"@linxiraos/pi-utils check: Exited with code 0\n",
 			"@linxiraos/zeta check: Checked 1178 files in 287ms. No fixes applied.\n",
-			"@linxiraos/zeta check: $ tsgo -p tsconfig.json --noEmit\n",
+			"@linxiraos/zeta check: $ tsc -p tsconfig.json --noEmit\n",
 			"@linxiraos/zeta check: Exited with code 0\n",
 		);
 
@@ -712,7 +712,7 @@ mod tests {
 			out.text
 		);
 		assert!(
-			!out.text.contains("tsgo -p"),
+			!out.text.contains("tsc -p"),
 			"internal command lines must be stripped: {:?}",
 			out.text
 		);
