@@ -6,6 +6,7 @@ import { getKeybindings, type Keybinding } from "../keybindings";
 import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { runTranscriptAction } from "../chat/transcript-actions";
+import { tuiText } from "../i18n";
 import { compactText, plainLine, plainText } from "../native/spans";
 
 import { isNativeRendering } from "../native/state";
@@ -20,12 +21,42 @@ import tipsText from "./tips.txt" with { type: "text" };
  *  is live, since a live one means the user is already in Tern. */
 const NO_TERN_TIP_MARKER = /^\[NO-TERN\]\s*/;
 
+/** Trailing marker that flags a tip as a "what's new" callout. Stripped before
+ *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
+ *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
+const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
+
+/** A tips.txt line. The structural markers stay in the source line — they drive
+ *  pool selection and the "[NEW]" weighting — while the user-visible text is
+ *  resolved from the host catalogue under `tipN`, N = the 1-based line number. */
+interface TipLine {
+	/** 1-based tips.txt line number; the catalogue key is `tip${line}`. */
+	readonly line: number;
+	/** Raw line, markers intact — what the weighted picker selects from. */
+	readonly raw: string;
+	/** English body with both markers stripped: the `tuiText` fallback. */
+	readonly english: string;
+	/** Pitches Tern; excluded from the TSP pool. */
+	readonly noTern: boolean;
+	/** "What's new" callout; carries the heavier selection weight. */
+	readonly isNew: boolean;
+}
+
 /** tips.txt lines embedded at build time; blanks dropped. Key placeholders
- *  (see {@link expandTipKeys}) stay raw until render time. */
-const TIP_LINES: readonly string[] = tipsText
-	.split("\n")
-	.map(line => line.trim())
-	.filter(line => line.length > 0);
+ *  (see {@link expandTipKeys}) and markdown links stay raw until render time. */
+const TIP_LINES: readonly TipLine[] = tipsText.split("\n").flatMap((line, index) => {
+	const raw = line.trim();
+	if (raw.length === 0) return [];
+	return [
+		{
+			line: index + 1,
+			raw,
+			english: raw.replace(NO_TERN_TIP_MARKER, "").replace(NEW_TIP_MARKER, ""),
+			noTern: NO_TERN_TIP_MARKER.test(raw),
+			isNew: NEW_TIP_MARKER.test(raw),
+		},
+	];
+});
 
 /**
  * Fixed number of session rows in the welcome box so its height stays stable
@@ -39,19 +70,18 @@ export const WELCOME_SESSION_SLOTS = 4;
  */
 export const WELCOME_LSP_SLOTS = 4;
 
-/** Tips for the classic renderer: every tip, {@link NO_TERN_TIP_MARKER} stripped. */
-const TIPS: readonly string[] = TIP_LINES.map(line => line.replace(NO_TERN_TIP_MARKER, ""));
+/** Classic pool: every tip's raw line, so {@link pickWeightedTip} can still read
+ *  the trailing {@link NEW_TIP_MARKER} for its selection weight. */
+const TIPS: readonly string[] = TIP_LINES.map(tip => tip.raw);
 
-/** Tips for a live TSP surface: those marked {@link NO_TERN_TIP_MARKER} dropped. */
-const TSP_TIPS: readonly string[] = TIP_LINES.filter(line => !NO_TERN_TIP_MARKER.test(line));
-
-/** Trailing marker that flags a tip as a "what's new" callout. Stripped before
- *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
- *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
-const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
+/** TSP pool: those marked {@link NO_TERN_TIP_MARKER} dropped. */
+const TSP_TIPS: readonly string[] = TIP_LINES.filter(tip => !tip.noTern).map(tip => tip.raw);
 
 /** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
 const NEW_TAG_TEXT = "NEW!";
+
+/** Inline English for the nerdfont nudge tip (`welcomeNerdFontJoke`). */
+const NERDFONT_TIP = "Please use nerdfont 😭.";
 
 /** Milliseconds for one full hue rotation of the rainbow "NEW!" tag. */
 const NEW_GLOW_PERIOD_MS = 1500;
@@ -75,16 +105,33 @@ export function pickWeightedTip(tips: readonly string[], r: number): string {
 	return tips[tips.length - 1] ?? "";
 }
 
+/** A tip resolved through the host catalogue: the localised body plus the
+ *  structural "[NEW]" flag, which lives in tips.txt rather than the translated
+ *  text (so a translation never has to carry the marker). */
+interface ResolvedTip {
+	readonly text: string;
+	readonly isNew: boolean;
+}
+
+/** Localise a picked tip. `raw` is a {@link TIPS}/{@link TSP_TIPS} member (or the
+ *  nerdfont nudge); the catalogue is consulted live, so `/language` applies. */
+function resolveTip(raw: string): ResolvedTip {
+	if (raw === NERDFONT_TIP) return { text: tuiText("welcomeNerdFontJoke", NERDFONT_TIP), isNew: false };
+	const entry = TIP_LINES.find(tip => tip.raw === raw);
+	if (entry === undefined) return { text: raw, isNew: NEW_TIP_MARKER.test(raw) };
+	return { text: tuiText(`tip${entry.line}`, entry.english), isNew: entry.isNew };
+}
+
 type ColorEncoding = "ansi-16m" | "ansi-256";
 
-/** Paint each glyph of {@link NEW_TAG_TEXT} on a moving HSL rainbow. `phase`
- *  rotates the hue offset cyclically; successive renders with increasing phase
- *  shimmer, while a fixed phase yields a still rainbow. */
-function renderNewTag(phase: number, encoding: ColorEncoding): string {
+/** Paint each glyph of `tagText` on a moving HSL rainbow. `phase` rotates the
+ *  hue offset cyclically; successive renders with increasing phase shimmer,
+ *  while a fixed phase yields a still rainbow. */
+function renderNewTag(tagText: string, phase: number, encoding: ColorEncoding): string {
 	const bold = "\x1b[1m";
 	const reset = "\x1b[0m";
 	const wrapped = ((phase % 1) + 1) % 1;
-	const chars = [...NEW_TAG_TEXT];
+	const chars = [...tagText];
 	let out = bold;
 	let prev = "";
 	for (let i = 0; i < chars.length; i++) {
@@ -158,17 +205,18 @@ function tipSpans(tip: string): TspSpan[] {
 }
 
 /**
- * The welcome tip as lines of at most `width` columns: `Tip:` and the body
- * wrapped together, with no indent, so the banner can center each line.
- * `[]` when `width` leaves no room for a useful line.
+ * The welcome tip as lines of at most `width` columns: the `welcomeTipLabel`
+ * label and the body wrapped together, with no indent, so the banner can center
+ * each line. `isNew` drives the rainbow "welcomeNewTag" suffix; it is passed in
+ * because the marker lives in tips.txt, not in the resolved body. `[]` when
+ * `width` leaves no room for a useful line.
  */
-export function renderWelcomeTip(tip: string, width: number, phase = 0): string[] {
-	const label = "Tip: ";
+export function renderWelcomeTip(tip: string, width: number, phase = 0, isNew = NEW_TIP_MARKER.test(tip)): string[] {
+	const label = tuiText("welcomeTipLabel", "Tip: ");
 	const labelWidth = visibleWidth(label);
 	const bodyBudget = width - labelWidth;
 	if (bodyBudget < 8) return [];
 
-	const isNew = NEW_TIP_MARKER.test(tip);
 	const body = linkTipText(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
 
 	const wrappedBody = wrapTextWithAnsi(replaceTabs(body), bodyBudget);
@@ -191,8 +239,9 @@ export function renderWelcomeTip(tip: string, width: number, phase = 0): string[
 		// box; otherwise drop it onto its own indented continuation line so the
 		// styled glyphs never overflow or reflow the wrapped body.
 		const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
-		const tag = renderNewTag(phase, encoding);
-		const tagWidth = 1 + visibleWidth(NEW_TAG_TEXT); // 1 = space separator
+		const tagText = tuiText("welcomeNewTag", NEW_TAG_TEXT);
+		const tag = renderNewTag(tagText, phase, encoding);
+		const tagWidth = 1 + visibleWidth(tagText); // 1 = space separator
 		const lastLine = lines[lines.length - 1];
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= width) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
@@ -233,10 +282,13 @@ export class WelcomeComponent implements Component {
 	#tipRoll: number | undefined;
 	// Render cache: the welcome box is the first transcript-area component, so
 	// returning a stable array reference keeps the whole frame prefix stable.
-	// Bypassed while the intro animation runs (every frame differs).
+	// Bypassed while the intro animation runs (every frame differs). The
+	// `#cachedLang` sentinel retires the cache when `/language` swaps the
+	// catalogue, so a live switch repaints instead of serving stale text.
 	#cachedWidth = -1;
 	#cachedLines: string[] | undefined;
-	#native: { tip: string | undefined; node: NativeNode } | undefined;
+	#cachedLang = "";
+	#native: { lang: string; tip: string | undefined; node: NativeNode } | undefined;
 
 	constructor(
 		private version: string,
@@ -250,7 +302,7 @@ export class WelcomeComponent implements Component {
 		this.#nagRoll ??= Math.random();
 		this.#tipRoll ??= Math.random();
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
-			return "Please use nerdfont 😭.";
+			return NERDFONT_TIP;
 		}
 		return pickWeightedTip(isNativeRendering() ? TSP_TIPS : TIPS, this.#tipRoll) || undefined;
 	}
@@ -270,8 +322,10 @@ export class WelcomeComponent implements Component {
 	 * carries a terminal-clocked shimmering tag.
 	 */
 	describe(_cx: DescribeContext): NativeNode {
-		const tip = this.tip;
-		if (this.#native && this.#native.tip === tip) return this.#native.node;
+		const lang = tuiText("welcomeBack", "Welcome back!");
+		const rawTip = this.tip;
+		const tip = rawTip === undefined ? undefined : resolveTip(rawTip);
+		if (this.#native && this.#native.lang === lang && this.#native.tip === tip?.text) return this.#native.node;
 		const line = (spans: readonly TspSpan[], role?: string, key?: string): NativeNode =>
 			keyed(text(spans, { wrap: "none", truncate: "end", role }), key ?? role ?? "");
 		// Centered brand lines are short and fixed; the logo is multi-line art that must never truncate.
@@ -280,7 +334,7 @@ export class WelcomeComponent implements Component {
 		const brand = keyed(
 			col(
 				[
-					art([span("Welcome back!", "strong")], "zeta.welcome.greeting"),
+					art([span(lang, "strong")], "zeta.welcome.greeting"),
 					node(
 						"image",
 						{
@@ -309,16 +363,20 @@ export class WelcomeComponent implements Component {
 			keyed(row([kbd(key), line([span(label, "muted")])], { gap: "sm" }), label);
 		const info: NativeChild[] = [
 			line([span(this.version, "dim mono")], "zeta.welcome.version"),
-			section("tips", "Tips", [
-				shortcut("#", "prompt actions"),
-				shortcut("/", "commands"),
-				shortcut("!", "run bash"),
-				shortcut("$", "run python"),
+			section("tips", tuiText("welcomeTipsTitle", "Tips"), [
+				// The classic hints carry a leading space before the suffix; the
+				// keycap layout already supplies the gap, so trim it here.
+				shortcut("#", tuiText("welcomePromptActionsHint", " for prompt actions").trim()),
+				shortcut("/", tuiText("welcomeCommandsHint", " for commands").trim()),
+				shortcut("!", tuiText("welcomeRunBashHint", " to run bash").trim()),
+				shortcut("$", tuiText("welcomeRunPythonHint", " to run python").trim()),
 			]),
 		];
 		if (this.lspServers !== null) {
 			const lsp: NativeChild[] = [];
-			if (this.lspServers.length === 0) lsp.push(line([span("No LSP servers", "dim")], undefined, "none"));
+			if (this.lspServers.length === 0) {
+				lsp.push(line([span(tuiText("welcomeNoLspServers", "No LSP servers"), "dim")], undefined, "none"));
+			}
 			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
 				const [symbol, token] =
 					server.status === "ready"
@@ -344,10 +402,12 @@ export class WelcomeComponent implements Component {
 					),
 				);
 			}
-			info.push(section("lsp", "LSP servers", lsp));
+			info.push(section("lsp", tuiText("welcomeLspServersTitle", "LSP Servers"), lsp));
 		}
 		const recents: NativeChild[] = [];
-		if (this.recentSessions.length === 0) recents.push(line([span("No recent sessions", "dim")], undefined, "none"));
+		if (this.recentSessions.length === 0) {
+			recents.push(line([span(tuiText("welcomeNoRecentSessions", "No recent sessions"), "dim")], undefined, "none"));
+		}
 		for (const [index, session] of this.recentSessions.slice(0, WELCOME_SESSION_SLOTS).entries()) {
 			recents.push(
 				keyed(
@@ -368,7 +428,7 @@ export class WelcomeComponent implements Component {
 				),
 			);
 		}
-		info.push(section("recents", "Recent sessions", recents));
+		info.push(section("recents", tuiText("welcomeRecentSessionsTitle", "Recent sessions"), recents));
 		const body: NativeChild[] = [
 			keyed(
 				row([brand, keyed(col(info, { gap: "md", role: "zeta.welcome.info" }), "info")], {
@@ -380,18 +440,19 @@ export class WelcomeComponent implements Component {
 			),
 		];
 		if (tip) {
-			const isNew = NEW_TIP_MARKER.test(tip);
-			const tipText = compactText(tipSpans(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip)));
+			const tipText = compactText(tipSpans(expandTipKeys(tip.text)));
 			const tipRow: NativeChild[] = [
 				node("icon", { name: "lightbulb", role: "zeta.welcome.tip-icon" }),
 				text(tipText, { wrap: "word", role: "zeta.welcome.tip-text" }),
 			];
-			if (isNew) tipRow.push(node("shimmer", { text: "New", role: "zeta.welcome.new" }));
+			if (tip.isNew) {
+				tipRow.push(node("shimmer", { text: tuiText("welcomeNewTag", NEW_TAG_TEXT), role: "zeta.welcome.new" }));
+			}
 			body.push(node("row", { gap: "sm", align: "start", role: "zeta.welcome.tip" }, tipRow, "tip"));
 		}
 		// No head row or chevron: the card is the hero; the version sits in the info column.
 		const described = card({ role: "zeta.welcome" }, body);
-		this.#native = { tip, node: described };
+		this.#native = { lang, tip: tip?.text, node: described };
 		return described;
 	}
 	/** A click on a recent session resumes it. */
@@ -486,7 +547,8 @@ export class WelcomeComponent implements Component {
 
 	render(termWidth: number): readonly string[] {
 		const animating = this.#animStart != null;
-		if (!animating && this.#cachedLines && this.#cachedWidth === termWidth) {
+		const lang = tuiText("welcomeBack", "Welcome back!");
+		if (!animating && this.#cachedLines && this.#cachedWidth === termWidth && this.#cachedLang === lang) {
 			return this.#cachedLines;
 		}
 		const lines = this.#renderLines(termWidth);
@@ -496,6 +558,7 @@ export class WelcomeComponent implements Component {
 		} else {
 			this.#cachedLines = lines;
 			this.#cachedWidth = termWidth;
+			this.#cachedLang = lang;
 		}
 		return lines;
 	}
@@ -514,7 +577,8 @@ export class WelcomeComponent implements Component {
 		// Dynamic model/provider labels are truncated inside the fixed column.
 		// Letting them influence the responsive breakpoint changes the box height
 		// when authoritative session data replaces the empty prepaint labels.
-		const leftMinContentWidth = Math.max(minLeftCol, visibleWidth("Welcome back!"));
+		const greeting = tuiText("welcomeBack", "Welcome back!");
+		const leftMinContentWidth = Math.max(minLeftCol, visibleWidth(greeting));
 		const desiredLeftCol = Math.max(
 			Math.min(preferredLeftCol, Math.max(minLeftCol, Math.floor(dualContentWidth * 0.35))),
 			leftMinContentWidth,
@@ -534,7 +598,7 @@ export class WelcomeComponent implements Component {
 		// Left column - centered content
 		const leftLines = [
 			"",
-			this.#centerText(theme.bold("Welcome back!"), leftCol),
+			this.#centerText(theme.bold(greeting), leftCol),
 			"",
 			...logoColored.map(l => this.#centerText(l, leftCol)),
 			"",
@@ -549,7 +613,7 @@ export class WelcomeComponent implements Component {
 		// Recent sessions content
 		const sessionLines: string[] = [];
 		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", "No recent sessions")}`);
+			sessionLines.push(` ${theme.fg("dim", tuiText("welcomeNoRecentSessions", "No recent sessions"))}`);
 		} else {
 			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
 			// so the relative time is never the part that gets truncated. The name
@@ -574,14 +638,14 @@ export class WelcomeComponent implements Component {
 
 		// Right column
 		const rightLines = [
-			` ${theme.bold(theme.fg("accent", "Tips"))}`,
-			` ${theme.fg("dim", "#")}${theme.fg("muted", " for prompt actions")}`,
-			` ${theme.fg("dim", "/")}${theme.fg("muted", " for commands")}`,
-			` ${theme.fg("dim", "!")}${theme.fg("muted", " to run bash")}`,
-			` ${theme.fg("dim", "$")}${theme.fg("muted", " to run python")}`,
+			` ${theme.bold(theme.fg("accent", tuiText("welcomeTipsTitle", "Tips")))}`,
+			` ${theme.fg("dim", "#")}${theme.fg("muted", tuiText("welcomePromptActionsHint", " for prompt actions"))}`,
+			` ${theme.fg("dim", "/")}${theme.fg("muted", tuiText("welcomeCommandsHint", " for commands"))}`,
+			` ${theme.fg("dim", "!")}${theme.fg("muted", tuiText("welcomeRunBashHint", " to run bash"))}`,
+			` ${theme.fg("dim", "$")}${theme.fg("muted", tuiText("welcomeRunPythonHint", " to run python"))}`,
 			...this.#renderLspSection(separator),
 			separator,
-			` ${theme.bold(theme.fg("accent", "Recent sessions"))}`,
+			` ${theme.bold(theme.fg("accent", tuiText("welcomeRecentSessionsTitle", "Recent sessions")))}`,
 			...sessionLines,
 			"",
 		];
@@ -641,7 +705,7 @@ export class WelcomeComponent implements Component {
 		if (this.lspServers === null) return [];
 		const lspLines: string[] = [];
 		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", "No LSP servers")}`);
+			lspLines.push(` ${theme.fg("dim", tuiText("welcomeNoLspServers", "No LSP servers"))}`);
 		} else {
 			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
 				const icon =
@@ -660,7 +724,11 @@ export class WelcomeComponent implements Component {
 		while (lspLines.length < WELCOME_LSP_SLOTS) {
 			lspLines.push("");
 		}
-		return [separator, ` ${theme.bold(theme.fg("accent", "LSP Servers"))}`, ...lspLines];
+		return [
+			separator,
+			` ${theme.bold(theme.fg("accent", tuiText("welcomeLspServersTitle", "LSP Servers")))}`,
+			...lspLines,
+		];
 	}
 
 	/**
@@ -669,14 +737,15 @@ export class WelcomeComponent implements Component {
 	 * when no tip is available or the box is too narrow to be useful.
 	 */
 	#renderTip(boxWidth: number): string[] {
-		const tip = this.tip;
-		if (!tip) return [];
-		// A trailing "[NEW]" marker paints an animated rainbow "NEW!" tag. Derive
-		// its hue phase from wall-clock time so it shimmers across the welcome
-		// intro's re-render frames, then settles into a still rainbow once the box
-		// caches its resting frame. Non-"[NEW]" tips ignore the phase entirely.
-		const phase = NEW_TIP_MARKER.test(tip) ? performance.now() / NEW_GLOW_PERIOD_MS : 0;
-		return renderWelcomeTip(tip, boxWidth, phase);
+		const raw = this.tip;
+		if (!raw) return [];
+		// A trailing "[NEW]" marker paints an animated rainbow tag. Derive its
+		// hue phase from wall-clock time so it shimmers across the welcome intro's
+		// re-render frames, then settles into a still rainbow once the box caches
+		// its resting frame. Non-"[NEW]" tips ignore the phase entirely.
+		const tip = resolveTip(raw);
+		const phase = tip.isNew ? performance.now() / NEW_GLOW_PERIOD_MS : 0;
+		return renderWelcomeTip(tip.text, boxWidth, phase, tip.isNew);
 	}
 
 	/** Center text within a given width */

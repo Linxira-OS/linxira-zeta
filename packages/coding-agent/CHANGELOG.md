@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+- The interactive CLI now installs the pi-tui text source at TUI startup (`wireTuiTexts`), so every panel lookup through `tuiText`/`tuiTextFmt` resolves against the live `Messages` catalogue instead of always falling back to inline English, and a `/language` switch re-resolves on the next render. Previously the bridge was never called and the whole pi-tui surface stayed English.
+- The welcome tips are localised: `tipN` catalogue keys are realigned to the `tips.txt` line they translate (they had drifted several lines out of step) and now cover every line, including the `#`/`/`/`!`/`$` prompt hints, the `jevify` tip, the self-reconfigure tip, and the Tern habitat tip. English output is unchanged (the lines keep their `{key:…}` placeholders and markdown links).
+
 ## [1.2.0] - 2026-10-12
 
 - Tracking integrity (four fixes): the read-modify-write of `status.json` and the global tracking index now runs entirely inside a `withFileLock` lease (the lock spans the whole cycle, not just the write) and uses atomic replacement, while `tracking_update` declares same-batch serialization — two writers no longer lose each other's updates. `actions.jsonl` rotates at 5 MB × 3 as `actions.<date>.jsonl.log`, and every reader (the web panel, `/tracking log`) uses bounded tail reads. The web UI tracking panel gains the `summaries/` tab (previously declared but never rendered). `GET /api/tracking`'s `updatedAt` is now content-derived (the newest mtime in the tracking directory) instead of advancing on every request.

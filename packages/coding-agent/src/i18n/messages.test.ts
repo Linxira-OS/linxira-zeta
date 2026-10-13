@@ -41,10 +41,12 @@ const intentionallyIdentical: Partial<Record<keyof typeof en, true>> = {
 	composerShapeClaudeLabel: true,
 	composerShapePiLabel: true,
 	// Language-neutral technical tokens: a token count reads the same in zh
-	// (`ctxTokensPctFmt` likewise keeps "tokens"), and "env" is a credential
-	// origin tag next to `psBadgeNpm`'s "[npm]".
+	// (`ctxTokensPctFmt` likewise keeps "tokens"), "env" is a credential
+	// origin tag next to `psBadgeNpm`'s "[npm]", and an HTTP status line is
+	// just the protocol token plus a code.
 	ctxTokensOfFmt: true,
 	oauthOriginEnv: true,
+	grErrHttpStatusFmt: true,
 };
 
 describe("catalogue completeness", () => {
