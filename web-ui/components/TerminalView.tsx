@@ -5,7 +5,15 @@ import type { Terminal as XTermTerminal } from "@xterm/xterm";
 import type { FitAddon as XTermFitAddon } from "@xterm/addon-fit";
 import type { IDisposable } from "@xterm/xterm";
 import { useI18n } from "@/hooks/useI18n";
-import { buildTerminalWsUrl, parseTerminalFrame, terminalReconnectDelayMs } from "@/lib/terminal-client";
+import {
+	buildTerminalWsUrl,
+	isTerminalEnsureSuccess,
+	parseTerminalFrame,
+	terminalFailureMessage,
+	terminalReconnectDelayMs,
+	terminalSessionNotice,
+	type TerminalEnsurePayload,
+} from "@/lib/terminal-client";
 
 /** File-open request from the chat path chips (spec U9): inject `zeta-ide <file>`. */
 export interface TerminalFileRequest {
@@ -17,41 +25,53 @@ export interface TerminalFileRequest {
 }
 
 interface TerminalViewProps {
-	/** Workspace cwd for new sessions; null → gateway default (server cwd). */
+	/** Workspace cwd for the slot; null → gateway default (server cwd). */
 	cwd: string | null;
-	/** Existing session to reattach to (dock reopened); null → create one. */
-	attachSessionId: string | null;
-	/** Reported after create so the shell survives pane close/reopen. */
-	onSessionCreated?: (sessionId: string | null) => void;
-	/** Chip-flow request; a fresh nonce creates a session with the file injected. */
+	/** UI-allocated slot id for this workspace (see lib/terminal-workspaces). */
+	instanceId: string;
+	/** Slots this workspace has, in allocation order — the header chip strip. */
+	instances: readonly string[];
+	/**
+	 * Session this slot last resumed. A *different* id coming back from
+	 * `ensure` means the previous PTY is gone (gateway restart, recycle, or a
+	 * kill elsewhere), which the pane announces instead of pretending.
+	 */
+	knownSessionId?: string | null;
+	/** Header chip selected: show another slot of this workspace. */
+	onSelectInstance?: (instanceId: string) => void;
+	/** Header "+" (explicit second terminal, spec P1 §4). */
+	onNewInstance?: () => void;
+	/** Slot resumed: remember the session id for the reattach check. */
+	onSessionCreated?: (sessionId: string) => void;
+	/** Explicit stop: forget the slot's session so no notice fires next open. */
+	onSessionStopped?: () => void;
+	/** Chip-flow request; a fresh nonce replaces the session with a file injected. */
 	openFileRequest?: TerminalFileRequest | null;
 }
 
-interface CreateResponse {
-	id: string;
-	shell: string;
-	cwd: string;
-	ticket: string;
-	injected: boolean;
+interface EnsureResponse extends Partial<TerminalEnsurePayload> {
+	error?: string;
+	code?: string;
+	limit?: number;
 }
 
-type ConnState = "connecting" | "open" | "reconnecting" | "exited" | "error";
+type ConnState = "connecting" | "open" | "reconnecting" | "exited" | "ended" | "error";
 
 const MAX_PENDING_INPUT_CHARS = 4096;
 
 /**
  * xterm.js 16-colour palette. Deliberately literal and deliberately outside the
- * three-layer theme tokens (`lib/theme/tokens.ts`): a terminal owns its own
- * ANSI palette (the PTY writes SGR codes, not theme roles), so `background` is
- * transparent and the rest are the standard xterm defaults. The colour guard
- * exempts the table itself — and only the table — through the marked region
- * below, so the rest of this file stays under the guard.
+ * `lib/theme/tokens.ts` three-layer tokens: a terminal emulator's palette is a
+ * protocol artifact (the PTY writes SGR codes, not theme roles), not a theme
+ * choice. The colour guard exempts the table itself — and only the table —
+ * through the marked region below, so the rest of this file stays under the
+ * guard.
  */
 /* zeta-style-literal-allow-start: xterm.js 16-colour ANSI palette — the terminal owns these values, they are not theme roles */
 const TERMINAL_THEME = {
-	background: "rgba(0,0,0,0)",
-	foreground: "#d4d4d4",
-	cursor: "#d4d4d4",
+	background: "#1e1e1e",
+	foreground: "#e5e5e5",
+	cursor: "#ffffff",
 	selectionBackground: "#264f78",
 	black: "#000000",
 	red: "#cd3131",
@@ -73,12 +93,27 @@ const TERMINAL_THEME = {
 /* zeta-style-literal-allow-end */
 
 /**
- * Embedded terminal pane (spec §15): xterm.js over the gateway PTY WS.
- * Reconnects with exponential backoff + server-side replay; resize is
- * debounced through the REST control plane; the session survives pane
- * close (attachSessionId reattach).
+ * Embedded terminal pane (spec §15, P1): xterm.js over the gateway PTY WS.
+ *
+ * The pane is a *view* of a `(cwd, instanceId)` slot, never the owner of a
+ * PTY: opening it calls `POST /api/terminal/ensure`, which replays the slot's
+ * live session (history included) when one exists and spawns one only when the
+ * slot is empty. Unmounting — closing the dock, switching panes — therefore
+ * only closes the socket; the shell keeps running and the next open reattaches
+ * to it. Switching workspaces switches the slot key, so two workspaces never
+ * see each other's sessions.
  */
-export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileRequest }: TerminalViewProps) {
+export function TerminalView({
+	cwd,
+	instanceId,
+	instances,
+	knownSessionId,
+	onSelectInstance,
+	onNewInstance,
+	onSessionCreated,
+	onSessionStopped,
+	openFileRequest,
+}: TerminalViewProps) {
 	const { t } = useI18n();
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const terminalRef = useRef<XTermTerminal | null>(null);
@@ -91,10 +126,26 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 	const resizeTimerRef = useRef<number | null>(null);
 	const attemptRef = useRef(0);
 	const disposedRef = useRef(false);
+	/** Latest parent-known session id, read inside ensure without re-booting. */
+	const knownSessionRef = useRef<string | null>(knownSessionId ?? null);
+	/** Latest chip request, so the boot effect never reads a stale prop. */
+	const openFileRequestRef = useRef(openFileRequest);
+	/** Chip nonce the boot effect already served (skips the duplicate effect run). */
+	const bootNonceRef = useRef(0);
 	const [connState, setConnState] = useState<ConnState>("connecting");
 	const [statusText, setStatusText] = useState<string>("");
+	const [notice, setNotice] = useState<string | null>(null);
 	const [exitCode, setExitCode] = useState<number | null>(null);
 	const [sessionLabel, setSessionLabel] = useState<string>("");
+	const [injected, setInjected] = useState(false);
+
+	useEffect(() => {
+		knownSessionRef.current = knownSessionId ?? null;
+	}, [knownSessionId]);
+
+	useEffect(() => {
+		openFileRequestRef.current = openFileRequest;
+	}, [openFileRequest]);
 
 	// Latest-state refs so WS callbacks observe current values without
 	// re-registering the socket on every render.
@@ -154,8 +205,9 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 				try {
 					const res = await fetch(`/api/terminal/${encodeURIComponent(sessionId)}/ticket`, { method: "POST" });
 					if (res.status === 404) {
-						// Session purged (retention/restart) — surface as exited.
-						setConnState("exited");
+						// Session purged (retention, kill, or a gateway restart):
+						// surface as ended so the client stops reconnecting.
+						setConnState("ended");
 						return;
 					}
 					if (!res.ok) throw new Error(`ticket HTTP ${res.status}`);
@@ -195,6 +247,11 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 						setConnState("exited");
 						wsRef.current = null;
 						ws.close();
+					} else if (frame.payload.event === "session_ended") {
+						// Gateway-side end (explicit DELETE, or a retained record
+						// ageing out). The socket follows; do not reconnect.
+						setConnState("ended");
+						wsRef.current = null;
 					}
 					return;
 				}
@@ -202,9 +259,11 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 			};
 			ws.onclose = () => {
 				if (wsRef.current === ws) wsRef.current = null;
-				// The exit handler flips state before close fires; anything else
+				// exit/session_ended flip state before close fires; anything else
 				// (gateway restart, dropped LAN link, ticket expiry) reconnects.
-				if (!disposedRef.current && connStateRef.current !== "exited") scheduleReconnect();
+				if (!disposedRef.current && connStateRef.current !== "exited" && connStateRef.current !== "ended") {
+					scheduleReconnect();
+				}
 			};
 		},
 		[flushPendingInput],
@@ -213,38 +272,50 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 		connectRef.current = connectWs;
 	}, [connectWs]);
 
-	const startSession = useCallback(
-		async (options: { attach?: string | null; create?: TerminalFileRequest | null }) => {
+	/**
+	 * Reattach-or-spawn this slot. `replace` asks the gateway to end the slot's
+	 * live session first — the explicit-action path (the chip flow's injected
+	 * command), never a plain reattach, which must resume the running PTY.
+	 */
+	const ensureSession = useCallback(
+		async (options: { replace?: boolean; file?: TerminalFileRequest | null } = {}) => {
 			if (disposedRef.current) return;
 			setExitCode(null);
+			setStatusText("");
+			setNotice(null);
+			setInjected(false);
+			const previous = sessionIdRef.current;
 			try {
-				if (options.attach) {
-					sessionIdRef.current = options.attach;
-					setSessionLabel("…");
-					await connectWs(options.attach);
-					return;
-				}
-				const body: Record<string, unknown> = {};
+				const body: Record<string, unknown> = { instanceId };
 				if (cwd) body.cwd = cwd;
-				if (options.create) {
-					body.file = options.create.file;
-					if (options.create.line) body.line = options.create.line;
-					if (options.create.col) body.col = options.create.col;
+				if (options.replace) body.replace = true;
+				if (options.file) {
+					body.file = options.file.file;
+					if (options.file.line) body.line = options.file.line;
+					if (options.file.col) body.col = options.file.col;
 				}
-				const res = await fetch("/api/terminal", {
+				const res = await fetch("/api/terminal/ensure", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(body),
 				});
-				const payload = (await res.json().catch(() => ({}))) as Partial<CreateResponse> & { error?: string };
-				if (!res.ok || typeof payload.id !== "string" || typeof payload.ticket !== "string") {
+				const payload = (await res.json().catch(() => ({}))) as EnsureResponse;
+				if (!isTerminalEnsureSuccess(payload, res)) {
+					const message = terminalFailureMessage(payload, res.status);
 					setConnState("error");
-					setStatusText(payload.error ?? `HTTP ${res.status}`);
+					setStatusText(t(message.key, message.params));
 					return;
 				}
+				if (previous !== payload.id) {
+					// A different PTY than the pane was showing: stale screen
+					// content would masquerade as this session's history.
+					terminalRef.current?.clear();
+				}
 				sessionIdRef.current = payload.id;
-				setSessionLabel(typeof payload.shell === "string" ? payload.shell : "");
-				setStatusText(payload.injected === true ? t("terminal.injected") : "");
+				setSessionLabel(payload.shell);
+				setInjected(payload.injected);
+				const reason = terminalSessionNotice(payload, knownSessionRef.current);
+				if (reason) setNotice(t(reason.key, reason.params));
 				onSessionCreated?.(payload.id);
 				await connectWs(payload.id, payload.ticket);
 			} catch (error) {
@@ -252,13 +323,23 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 				setStatusText(error instanceof Error ? error.message : String(error));
 			}
 		},
-		[connectWs, cwd, onSessionCreated, t],
+		[connectWs, cwd, instanceId, onSessionCreated, t],
 	);
+	const ensureRef = useRef(ensureSession);
+	useEffect(() => {
+		ensureRef.current = ensureSession;
+	}, [ensureSession]);
 
-	// xterm boot (client-only dynamic import keeps SSR clean).
+	// xterm boot + slot attach. Re-runs on a workspace/slot switch (which is
+	// exactly what re-ensuring wants); teardown closes the socket and disposes
+	// xterm but never touches the PTY, so the dock can be closed mid-command.
 	useEffect(() => {
 		disposedRef.current = false;
 		let localDisposed = false;
+		// A pending chip request rides along with the boot: this pane mounts to
+		// serve it, so it must not also spawn a plain session first.
+		const pending = openFileRequestRef.current;
+		if (pending) bootNonceRef.current = pending.nonce;
 		void (async () => {
 			const container = containerRef.current;
 			if (!container) return;
@@ -294,10 +375,7 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 			} catch {
 				// Hidden container (dock animating open) — the observer fits later.
 			}
-			void startSession({
-				attach: openFileRequest ? null : attachSessionId,
-				create: openFileRequest ?? null,
-			});
+			void ensureRef.current(pending ? { replace: true, file: pending } : {});
 		})();
 		return () => {
 			localDisposed = true;
@@ -311,24 +389,20 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 			terminalRef.current?.dispose();
 			terminalRef.current = null;
 			fitRef.current = null;
+			// Deliberately NOT killing the session: the gateway keeps the PTY
+			// running for the slot so reopening this pane reattaches to it.
 			sessionIdRef.current = null;
-			onSessionCreated?.(null);
+			pendingInputRef.current = [];
 		};
-		// Boot once per mount; chip re-fires below through the nonce effect.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [cwd, instanceId, clearReconnectTimer]);
 
-	// Chip flow: a fresh openFileRequest tears down and opens a new session.
+	// Later chip requests (pane already open): replace this slot's session in
+	// place instead of rebuilding the pane. The nonce the boot consumed is
+	// skipped — it was already served above.
 	const openFileNonce = openFileRequest?.nonce ?? 0;
 	useEffect(() => {
-		if (openFileNonce === 0) return;
-		const id = sessionIdRef.current;
-		if (id) {
-			void fetch(`/api/terminal/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
-			terminalRef.current?.write("\r\n");
-		}
-		sessionIdRef.current = null;
-		void startSession({ create: openFileRequest ?? null });
+		if (openFileNonce === 0 || bootNonceRef.current === openFileNonce) return;
+		void ensureRef.current({ replace: true, file: openFileRequest ?? null });
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [openFileNonce]);
 
@@ -356,9 +430,20 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 
 	const handleKill = useCallback(() => {
 		const id = sessionIdRef.current;
-		if (!id) return;
-		void fetch(`/api/terminal/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
-	}, []);
+		clearReconnectTimer();
+		attemptRef.current = 0;
+		sessionIdRef.current = null;
+		setConnState("ended");
+		setExitCode(null);
+		onSessionStopped?.();
+		if (wsRef.current) {
+			wsRef.current.close();
+			wsRef.current = null;
+		}
+		if (id) {
+			void fetch(`/api/terminal/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+		}
+	}, [clearReconnectTimer, onSessionStopped]);
 
 	const handleRestart = useCallback(() => {
 		clearReconnectTimer();
@@ -367,20 +452,27 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 			wsRef.current.close();
 			wsRef.current = null;
 		}
-		void startSession({ create: null });
-	}, [clearReconnectTimer, startSession]);
+		sessionIdRef.current = null;
+		void ensureRef.current();
+	}, [clearReconnectTimer]);
 
 	const statusColor = useMemo(() => {
 		switch (connState) {
 			case "open":
 				return "var(--zeta-alias-status-success-foreground)";
 			case "exited":
+			case "ended":
 			case "error":
 				return "var(--zeta-alias-status-error-foreground)";
 			default:
 				return "var(--zeta-alias-status-warning-foreground)";
 		}
 	}, [connState]);
+
+	const chipStyle = (active: boolean) => ({
+		...actionButtonStyle,
+		...(active ? { borderColor: "var(--accent)", color: "var(--accent)" } : null),
+	});
 
 	return (
 		<div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }} data-testid="terminal-view">
@@ -407,18 +499,45 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 						{exitCode !== null ? ` · ${t("terminal.exitCode", { code: exitCode })}` : ""}
 					</span>
 				)}
+				{connState === "ended" && <span>{t("terminal.ended")}</span>}
 				{connState === "error" && (
 					<span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{statusText}</span>
 				)}
+				{notice && <span style={{ color: "var(--status-warning-foreground)" }}>{notice}</span>}
+				{injected && <span>{t("terminal.injected")}</span>}
 				<div style={{ flex: 1 }} />
-				{(connState === "exited" || connState === "error") && (
+				{instances.length > 0 && (
+					<div style={{ display: "flex", alignItems: "center", gap: 4 }} data-testid="terminal-slots">
+						{instances.map(id => (
+							<button
+								key={id}
+								type="button"
+								onClick={() => onSelectInstance?.(id)}
+								style={chipStyle(id === instanceId)}
+								aria-pressed={id === instanceId}
+								title={t("terminal.slotTitle", { instance: id })}
+							>
+								{id}
+							</button>
+						))}
+					</div>
+				)}
+				<button type="button" onClick={() => onNewInstance?.()} style={actionButtonStyle}>
+					{t("terminal.newSlot")}
+				</button>
+				{connState === "open" && (
+					<button type="button" onClick={handleKill} style={actionButtonStyle}>
+						{t("terminal.kill")}
+					</button>
+				)}
+				{(connState === "exited" || connState === "ended") && (
 					<button type="button" onClick={handleRestart} style={actionButtonStyle}>
 						{t("terminal.restart")}
 					</button>
 				)}
-				{connState === "open" && (
-					<button type="button" onClick={handleKill} style={actionButtonStyle}>
-						{t("terminal.kill")}
+				{connState === "error" && (
+					<button type="button" onClick={handleRestart} style={actionButtonStyle}>
+						{t("terminal.retry")}
 					</button>
 				)}
 			</div>

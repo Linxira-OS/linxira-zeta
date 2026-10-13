@@ -95,6 +95,7 @@ import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config
 import {
 	handleTerminalCreate,
 	handleTerminalDelete,
+	handleTerminalEnsure,
 	handleTerminalList,
 	handleTerminalResize,
 	handleTerminalTicket,
@@ -150,6 +151,7 @@ const OPEN_RE = /^\/api\/open$/;
 const DESKTOP_INFO_RE = /^\/api\/desktop\/info$/;
 const OPEN_OPTIONS_RE = /^\/api\/open\/options$/;
 const TERMINAL_LIST_RE = /^\/api\/terminal$/;
+const TERMINAL_ENSURE_RE = /^\/api\/terminal\/ensure$/;
 const TERMINAL_ID_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})$`);
 const TERMINAL_RESIZE_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})/resize$`);
 const TERMINAL_TICKET_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})/ticket$`);
@@ -516,6 +518,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (TERMINAL_LIST_RE.test(pathname)) {
 		if (req.method === "POST") return handleTerminalCreate(req);
 		if (req.method === "GET") return handleTerminalList();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (TERMINAL_ENSURE_RE.test(pathname)) {
+		if (req.method === "POST") return handleTerminalEnsure(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

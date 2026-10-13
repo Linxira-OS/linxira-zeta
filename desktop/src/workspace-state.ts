@@ -18,7 +18,7 @@ export const WORKSPACE_STATE_FILE = "workspace-state.json";
 
 export const MAX_LAUNCH_RECORDS = 50;
 
-export const TOOL_IDS = ["zetacode", "zetaide", "zetaeditor"] as const;
+export const TOOL_IDS = ["zetacode", "zetaide", "zetaeditor", "zetawork"] as const;
 export type ToolId = (typeof TOOL_IDS)[number];
 
 export function isToolId(value: unknown): value is ToolId {

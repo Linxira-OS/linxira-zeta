@@ -4,10 +4,26 @@
  *
  * Control plane (REST, authorized like every other gateway route):
  *   POST   /api/terminal            create {cwd?, file?, line?, col?} → {id, shell, ticket}
+ *   POST   /api/terminal/ensure     ensure {cwd?, instanceId?, file?, line?, col?} → same, + {reused}
  *   GET    /api/terminal            list live sessions + retained exited sessions
  *   DELETE /api/terminal/:id        kill and drop a session
  *   POST   /api/terminal/:id/resize {cols, rows}
  *   POST   /api/terminal/:id/ticket one-time connect ticket for the WS data plane
+ *
+ * Session identity (P1 workbench + reattach): a session owns a slot keyed by
+ * `(resolved cwd, instance id)`, where the instance id is allocated by the UI
+ * (see `DEFAULT_TERMINAL_INSTANCE` for the id-less caller). `ensure` returns the
+ * slot's live PTY — replaying its ring buffer, so pane close/reopen resumes the
+ * *same* shell — and only spawns when the slot is empty or its session died;
+ * a reuse never consumes another slot of the live-terminal budget. Two
+ * workspaces never share a session: the key starts with the absolute cwd.
+ * Retained exited records are dropped with an `expired` signal, and an explicit
+ * DELETE emits `session_ended` (reason `killed`) before the PTY is reaped.
+ *
+ * The default program is the framework workbench `zetawork` (npm bins `zeta` /
+ * `zetawork` / `zeta-work`); when it is not installed the session falls back to
+ * the platform shell and reports `fallbackReason` so the UI can say so out
+ * loud instead of hiding the substitution.
  *
  * Data plane: GET /api/terminal/:id/ws (WebSocket upgrade). Browsers cannot
  * attach `Authorization`/`X-Zeta-Token` headers to a WebSocket, so the upgrade
@@ -16,8 +32,10 @@
  *
  * Wire protocol (mirrors the opencode shape): the first outbound frame is a
  * binary frame prefixed `0x00` carrying JSON metadata (`{replayedBytes}` on
- * attach, `{event:"exit", exitCode}` on PTY exit); every later outbound frame
- * is raw PTY bytes. Inbound text frames are raw stdin for the shell.
+ * attach, `{event:"exit", exitCode}` on PTY exit, `{event:"session_ended",
+ * reason}` when the gateway ends the session — reason `killed` for an explicit
+ * DELETE, `expired` when a retained exited record is pruned); every later
+ * outbound frame is raw PTY bytes. Inbound text frames are raw stdin.
  *
  * PTY backend: `PtySession` from @linxiraos/pi-natives (the same NAPI PTY the
  * interactive bash tool uses). node-pty was evaluated and rejected with
@@ -32,7 +50,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WebSocketHandler } from "bun";
 import { PtySession } from "@linxiraos/pi-natives";
-import { defaultProbeContext, discoverBin, type OpenProbeContext } from "../../utils/bin-discovery";
+import { defaultProbeContext, discoverBin, pathImpl, type OpenProbeContext } from "../../utils/bin-discovery";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 
@@ -49,6 +67,33 @@ const TICKET_TTL_MS = 60_000;
 const MAX_PENDING_TICKETS = 128;
 /** Small grace so the shell has painted its prompt before an injected command. */
 const INJECT_DELAY_MS = 400;
+/** Slot when a caller passes no instance id (legacy `create` callers). */
+export const DEFAULT_TERMINAL_INSTANCE = "default";
+/** Instance ids land in a Map key next to an absolute cwd; keep them tame. */
+const INSTANCE_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
+
+/**
+ * Framework workbench launchers, in probe order. The npm form
+ * (`@linxiraos/main`) installs `zeta` / `zetawork` / `zeta-work`; distro and
+ * pacman packages ship `zetawork` alone. In-repo shorthand: never rename it.
+ */
+export const ZETAWORK_BINS = ["zetawork", "zeta-work", "zeta"] as const;
+
+/** Why a session runs a plain shell instead of the workbench. */
+export type SessionFallbackReason = "workbench-not-found";
+
+/** Interactive program the PTY starts: the workbench, or the shell fallback. */
+export interface SessionProgram {
+	kind: "workbench" | "shell";
+	/** Status-bar label: the resolved bin basename, or the shell label. */
+	label: string;
+	/** Absolute executable for the PTY. */
+	command: string;
+	/** argv after `command`. */
+	args: string[];
+	/** Non-null on the fallback branch, so the UI can state it. */
+	fallbackReason: SessionFallbackReason | null;
+}
 
 // --- PTY backend seam ---
 
@@ -181,6 +226,12 @@ export interface TerminalInfo {
 	shellLabel: string;
 	shellCommand: string;
 	cwd: string;
+	/** Slot key half allocated by the UI (`DEFAULT_TERMINAL_INSTANCE` if none). */
+	instance: string;
+	/** Whether the session runs the workbench or the shell fallback. */
+	program: "workbench" | "shell";
+	/** Why the shell fallback happened; null for a workbench session. */
+	fallbackReason: SessionFallbackReason | null;
 	exited: boolean;
 	exitCode: number | null;
 	startedAt: number;
@@ -192,12 +243,18 @@ interface AttachedSocket {
 	close(code?: number, reason?: string): void;
 }
 
+/** How a session reached the gateway's own end-of-life (natural exit uses `exit`). */
+export type SessionEndReason = "killed" | "expired";
+
 interface TerminalSession {
 	id: string;
 	/** Monotonic creation sequence — deterministic retention ordering. */
 	seq: number;
+	/** Slot key: `(absolute cwd, instance id)` — the reattach identity. */
+	key: string;
+	instance: string;
 	cwd: string;
-	shell: ResolvedTerminal;
+	program: SessionProgram;
 	pty: TerminalPty | null;
 	ring: TerminalRingBuffer;
 	sockets: Set<AttachedSocket>;
@@ -209,8 +266,23 @@ interface TerminalSession {
 
 const TERMINAL_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
+/** Slot key for a resolved cwd + UI instance id. NUL keeps the halves apart. */
+export function sessionSlotKey(cwd: string, instanceId: string): string {
+	return `${cwd}\u0000${instanceId}`;
+}
+
+/** A failed control-plane call: HTTP status plus a machine-readable code. */
+interface TerminalFailure {
+	ok: false;
+	status: number;
+	code: string;
+	error: string;
+}
+
 class TerminalManager {
 	#sessions = new Map<string, TerminalSession>();
+	/** Slot key → session id, for live sessions only (reattach identity). */
+	#slots = new Map<string, string>();
 	#creationSeq = 0;
 	#tickets = new Map<string, { terminalId: string; expiresAt: number }>();
 
@@ -228,10 +300,37 @@ class TerminalManager {
 		return session ? this.#info(session) : null;
 	}
 
+	/** Live session occupying a slot, or null (stale slot entries self-heal). */
+	findBySlot(key: string): TerminalSession | null {
+		const id = this.#slots.get(key);
+		if (id === undefined) return null;
+		const session = this.#sessions.get(id);
+		if (!session || session.exited) {
+			this.#slots.delete(key);
+			return null;
+		}
+		return session;
+	}
+
 	#createId(): string {
 		const id = crypto.randomUUID();
 		if (TERMINAL_ID_RE.test(id)) return id;
 		return crypto.randomBytes(16).toString("hex").slice(0, 32);
+	}
+
+	/** Absolute, existing directory or a coded failure the UI can explain. */
+	#resolveCwd(cwd: string | undefined): { ok: true; cwd: string } | TerminalFailure {
+		const requested = cwd?.trim() ? path.resolve(cwd.trim()) : path.resolve(process.cwd());
+		let stat: fs.Stats;
+		try {
+			stat = fs.statSync(requested);
+		} catch {
+			return { ok: false, status: 400, code: "cwd_missing", error: `cwd does not exist: ${requested}` };
+		}
+		if (!stat.isDirectory()) {
+			return { ok: false, status: 400, code: "cwd_not_directory", error: `cwd is not a directory: ${requested}` };
+		}
+		return { ok: true, cwd: requested };
 	}
 
 	async create(options: {
@@ -239,40 +338,46 @@ class TerminalManager {
 		file?: string;
 		line?: number;
 		col?: number;
-	}): Promise<
-		| { ok: true; session: TerminalSession; ticket: string; injected: boolean }
-		| { ok: false; status: number; error: string }
-	> {
+		/** Slot to claim; `ensure` supplies one, a bare create allocates "default". */
+		instanceId?: string;
+	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
-		let cwd = options.cwd?.trim() || process.cwd();
-		cwd = path.resolve(cwd);
-		let stat: fs.Stats;
-		try {
-			stat = fs.statSync(cwd);
-		} catch {
-			return { ok: false, status: 400, error: `cwd does not exist: ${cwd}` };
+		const resolved = this.#resolveCwd(options.cwd);
+		if (!resolved.ok) return resolved;
+		const cwd = resolved.cwd;
+		const instance = options.instanceId ?? DEFAULT_TERMINAL_INSTANCE;
+		if (!INSTANCE_ID_RE.test(instance)) {
+			return {
+				ok: false,
+				status: 400,
+				code: "invalid_instance",
+				error: `invalid terminal instance id: ${instance}`,
+			};
 		}
-		if (!stat.isDirectory()) return { ok: false, status: 400, error: `cwd is not a directory: ${cwd}` };
 
 		const live = [...this.#sessions.values()].filter(session => !session.exited);
 		if (live.length >= MAX_LIVE_TERMINALS) {
 			return {
 				ok: false,
 				status: 429,
+				code: "terminal_limit",
 				error: `terminal limit reached (${MAX_LIVE_TERMINALS}); close one before opening another`,
 			};
 		}
 
-		const shell = resolveTerminal(defaultProbeContext());
-		if (!shell) return { ok: false, status: 500, error: "no terminal shell found on this system" };
+		const program = resolveSessionProgram(defaultProbeContext());
+		if (!program)
+			return { ok: false, status: 500, code: "no_program", error: "no terminal shell found on this system" };
 
 		const id = this.#createId();
 		this.#creationSeq += 1;
 		const session: TerminalSession = {
 			id,
 			seq: this.#creationSeq,
+			key: sessionSlotKey(cwd, instance),
+			instance,
 			cwd,
-			shell,
+			program,
 			pty: null,
 			ring: new TerminalRingBuffer(),
 			sockets: new Set(),
@@ -287,8 +392,8 @@ class TerminalManager {
 			: null;
 
 		session.pty = ptyFactory({
-			application: shell.command,
-			args: shellSpawnArgs(shell),
+			application: program.command,
+			args: [...program.args],
 			cwd,
 			env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" } as Record<string, string>,
 			cols: 80,
@@ -298,6 +403,7 @@ class TerminalManager {
 		});
 
 		this.#sessions.set(id, session);
+		this.#slots.set(session.key, id);
 		this.#pruneExited();
 
 		if (injectCommand) {
@@ -310,12 +416,73 @@ class TerminalManager {
 		return { ok: true, session, ticket: this.#issueTicket(id), injected: injectCommand !== null };
 	}
 
+	/**
+	 * Reattach-or-spawn for one `(cwd, instance)` slot — the reattach entry
+	 * point. A live session for the slot is returned as-is (its ring buffer
+	 * replays the history on attach) and costs no extra slot of the live
+	 * budget, so reopening a closed pane never mints a second PTY. A slot whose
+	 * session exited, was killed, or died with a previous gateway process is
+	 * spawned fresh.
+	 *
+	 * `replace` inverts the reuse: the slot's live session is ended (its
+	 * clients get `session_ended`/`killed`) before the new one spawns. That is
+	 * the explicit-action path — the file-chip flow, which needs the spawn-time
+	 * injection — and never the pane's plain reattach.
+	 */
+	async ensure(options: {
+		cwd?: string;
+		instanceId?: string;
+		file?: string;
+		line?: number;
+		col?: number;
+		replace?: boolean;
+	}): Promise<
+		{ ok: true; session: TerminalSession; ticket: string; reused: boolean; injected: boolean } | TerminalFailure
+	> {
+		const instance = options.instanceId?.trim() || DEFAULT_TERMINAL_INSTANCE;
+		if (!INSTANCE_ID_RE.test(instance)) {
+			return {
+				ok: false,
+				status: 400,
+				code: "invalid_instance",
+				error: `invalid terminal instance id: ${instance}`,
+			};
+		}
+		const resolved = this.#resolveCwd(options.cwd);
+		if (!resolved.ok) return resolved;
+
+		const existing = this.findBySlot(sessionSlotKey(resolved.cwd, instance));
+		if (existing) {
+			if (!options.replace) {
+				this.#pruneTickets();
+				return {
+					ok: true,
+					session: existing,
+					ticket: this.#issueTicket(existing.id),
+					reused: true,
+					injected: false,
+				};
+			}
+			this.remove(existing.id);
+		}
+
+		const created = await this.create({ ...options, cwd: resolved.cwd, instanceId: instance });
+		if (!created.ok) return created;
+		return { ok: true, session: created.session, ticket: created.ticket, reused: false, injected: created.injected };
+	}
+
 	/** Kill a live session and drop it, or drop a retained exited one. */
 	remove(id: string): boolean {
 		const session = this.#sessions.get(id);
 		if (!session) return false;
-		if (!session.exited) session.pty?.kill();
+		const reason: SessionEndReason = session.exited ? "expired" : "killed";
+		this.#endSession(session, reason);
+		// Kill after the bookkeeping so the natural-exit callback is a no-op
+		// and the client sees exactly one end signal.
+		session.pty?.kill();
+		session.pty = null;
 		this.#sessions.delete(id);
+		this.#pruneExited();
 		return true;
 	}
 
@@ -358,16 +525,49 @@ class TerminalManager {
 		session.exited = true;
 		session.exitCode = exitCode;
 		session.exitedAt = Date.now();
+		this.#releaseSlot(session);
 		this.#broadcastControl(session, { event: "exit", exitCode });
+		this.#closeSockets(session, "terminal exited");
+		this.#pruneExited();
+	}
+
+	/**
+	 * Free the slot — but only when it still points at *this* session. A bare
+	 * `create` (legacy control-plane callers) can claim an already-claimed slot,
+	 * and the older session must not evict the newer one on its way out.
+	 */
+	#releaseSlot(session: TerminalSession): void {
+		if (this.#slots.get(session.key) === session.id) this.#slots.delete(session.key);
+	}
+
+	/**
+	 * Gateway-initiated end (explicit DELETE, or a retained record ageing out):
+	 * flag the session first so the PTY's own exit callback cannot emit a
+	 * second, contradictory signal, then tell the attached clients and close
+	 * them. The slot is released so the next `ensure` spawns fresh.
+	 */
+	#endSession(session: TerminalSession, reason: SessionEndReason): void {
+		this.#releaseSlot(session);
+		if (!session.exited) {
+			session.exited = true;
+			session.exitCode = null;
+			session.exitedAt = Date.now();
+		}
+		this.#broadcastControl(session, { event: "session_ended", reason });
+		this.#closeSockets(session, `terminal ${reason}`);
+	}
+
+	#closeSockets(session: TerminalSession, reason: string): void {
+		// 1000 = normal closure: the client treats it as a state change, not a
+		// dropped link to reconnect.
 		for (const socket of session.sockets) {
 			try {
-				socket.close(1000, "terminal exited");
+				socket.close(1000, reason);
 			} catch {
 				// Already closing.
 			}
 		}
 		session.sockets.clear();
-		this.#pruneExited();
 	}
 
 	#pruneExited(): void {
@@ -376,6 +576,9 @@ class TerminalManager {
 		// platforms, and same-millisecond exits must not flip who survives.
 		const exited = [...this.#sessions.values()].filter(session => session.exited).sort((a, b) => a.seq - b.seq);
 		for (const session of exited.slice(0, Math.max(0, exited.length - RETAINED_EXITED_TERMINALS))) {
+			// Its PTY is already gone; the record (and any late reattacher) is
+			// told the session expired rather than silently vanishing.
+			this.#endSession(session, "expired");
 			this.#sessions.delete(session.id);
 		}
 	}
@@ -415,9 +618,12 @@ class TerminalManager {
 	#info(session: TerminalSession): TerminalInfo {
 		return {
 			id: session.id,
-			shellLabel: session.shell.label,
-			shellCommand: session.shell.command,
+			shellLabel: session.program.label,
+			shellCommand: session.program.command,
 			cwd: session.cwd,
+			instance: session.instance,
+			program: session.program.kind,
+			fallbackReason: session.program.fallbackReason,
 			exited: session.exited,
 			exitCode: session.exitCode,
 			startedAt: session.startedAt,
@@ -454,6 +660,7 @@ class TerminalManager {
 			}
 		}
 		this.#sessions.clear();
+		this.#slots.clear();
 		this.#tickets.clear();
 	}
 }
@@ -488,7 +695,7 @@ export function resetTerminalManagerForTests(): void {
 	manager.resetForTests();
 }
 
-// --- shell argv ---
+// --- session program ---
 
 /** Interactive argv for the embedded PTY (window flags from open.ts don't apply). */
 export function shellSpawnArgs(shell: ResolvedTerminal): string[] {
@@ -501,6 +708,52 @@ export function shellSpawnArgs(shell: ResolvedTerminal): string[] {
 		default:
 			return [...shell.args];
 	}
+}
+
+/**
+ * Windows npm launcher shims (`zetawork.cmd`) are scripts, not images: ConPTY
+ * cannot exec them, so the PTY starts `cmd.exe /c <shim>` (issue #148's ruling
+ * for tool launches, applied to the terminal default program). Returns null on
+ * every other platform and for real executables.
+ */
+function windowsShimWrapper(command: string, ctx: OpenProbeContext): { command: string; args: string[] } | null {
+	if (ctx.platform !== "win32" || !/\.(cmd|bat)$/i.test(command)) return null;
+	const comspec = ctx.env.ComSpec?.trim() || ctx.env.COMSPEC?.trim() || "cmd.exe";
+	return { command: comspec, args: ["/c", command] };
+}
+
+/**
+ * Program for a new PTY: the workbench when `zetawork` resolves through the
+ * shared discovery tiers, else the platform shell with `fallbackReason` set.
+ * Null only when neither exists (no shell on the machine).
+ */
+export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContext()): SessionProgram | null {
+	const workbench = discoverBin(ZETAWORK_BINS, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
+	if (workbench) {
+		const wrapped = windowsShimWrapper(workbench, ctx);
+		return {
+			kind: "workbench",
+			// The discovered path is spelled in the probed platform's style, so the
+			// label must strip the extension with that platform's path impl (a POSIX
+			// host probes `C:\npm\zetawork.cmd` on the win32 tier and must still call
+			// it "zetawork", not the whole backslash path).
+			label: pathImpl(ctx.platform)
+				.basename(workbench)
+				.replace(/\.(cmd|bat|exe)$/i, ""),
+			command: wrapped?.command ?? workbench,
+			args: wrapped?.args ?? [],
+			fallbackReason: null,
+		};
+	}
+	const shell = resolveTerminal(ctx);
+	if (!shell) return null;
+	return {
+		kind: "shell",
+		label: shell.label,
+		command: shell.command,
+		args: shellSpawnArgs(shell),
+		fallbackReason: "workbench-not-found",
+	};
 }
 
 // --- zeta-ide injection ---
@@ -554,6 +807,31 @@ function intOrUndefined(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/**
+ * Shared create/ensure response. `fallbackReason` is what lets the UI announce
+ * the shell substitution instead of silently running a different program.
+ */
+function sessionPayload(
+	session: TerminalSession,
+	ticket: string,
+	extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+	return {
+		id: session.id,
+		shell: session.program.label,
+		cwd: session.cwd,
+		instance: session.instance,
+		program: session.program.kind,
+		fallbackReason: session.program.fallbackReason,
+		ticket,
+		...extra,
+	};
+}
+
+function failurePayload(result: TerminalFailure, extra: Record<string, unknown> = {}): Response {
+	return json({ error: result.error, code: result.code, ...extra }, result.status);
+}
+
 export async function handleTerminalCreate(req: Request): Promise<Response> {
 	const body = await readJsonBody(req);
 	const result = await manager.create({
@@ -562,14 +840,30 @@ export async function handleTerminalCreate(req: Request): Promise<Response> {
 		line: intOrUndefined(body.line),
 		col: intOrUndefined(body.col),
 	});
-	if (!result.ok) return json({ error: result.error }, result.status);
-	return json({
-		id: result.session.id,
-		shell: result.session.shell.label,
-		cwd: result.session.cwd,
-		ticket: result.ticket,
-		injected: result.injected,
+	if (!result.ok) return failurePayload(result);
+	return json(sessionPayload(result.session, result.ticket, { injected: result.injected }));
+}
+
+/**
+ * Reattach-or-spawn for one `(cwd, instanceId)` slot: the UI's default open
+ * path. `reused` tells the client whether it resumed a live PTY or minted one;
+ * `replace` (explicit user action, e.g. the file-chip flow) discards the slot's
+ * live session first so the new spawn carries the injected command.
+ */
+export async function handleTerminalEnsure(req: Request): Promise<Response> {
+	const body = await readJsonBody(req);
+	const result = await manager.ensure({
+		cwd: typeof body.cwd === "string" ? body.cwd : undefined,
+		instanceId: typeof body.instanceId === "string" ? body.instanceId : undefined,
+		file: typeof body.file === "string" ? body.file : undefined,
+		line: intOrUndefined(body.line),
+		col: intOrUndefined(body.col),
+		replace: body.replace === true,
 	});
+	if (!result.ok) {
+		return failurePayload(result, result.code === "terminal_limit" ? { limit: MAX_LIVE_TERMINALS } : {});
+	}
+	return json(sessionPayload(result.session, result.ticket, { reused: result.reused, injected: result.injected }));
 }
 
 export function handleTerminalList(): Response {

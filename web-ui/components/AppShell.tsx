@@ -7,6 +7,17 @@ import { installRemoteTokenFetch } from "@/lib/remote-token";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow, planTitleFromPath } from "./ChatWindow";
 import { TerminalView, type TerminalFileRequest } from "./TerminalView";
+import {
+	loadTerminalSlots,
+	saveTerminalSlots,
+	slotsFor,
+	terminalWorkspaceKey,
+	withActiveInstance,
+	withNewInstance,
+	withSessionId,
+	withoutSessionId,
+	type TerminalSlotsState,
+} from "@/lib/terminal-workspaces";
 import { FloatingMenu, type FloatingMenuItem } from "./sidebar/FloatingMenu";
 import { PluginsManager } from "./PluginsManager";
 import { FileViewer } from "./FileViewer";
@@ -217,10 +228,23 @@ function AppShellContent() {
 	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history" | "context";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
-	// Embedded terminal (spec §15): live session id survives pane close so the
-	// dock reattach; chip flow carries file/line/col for zeta-ide injection.
-	const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
+	// Embedded terminal (spec §15, P1): the pane is a view of a per-workspace
+	// slot keyed by `(cwd, instanceId)`; the gateway reattaches by that key, so
+	// closing the dock never kills a shell and reopening resumes it. Slot state
+	// (which slots exist, which one is active, the last session per slot) is
+	// persisted so a reload still recognises "the gateway lost that session".
+	const [terminalSlots, setTerminalSlots] = useState<TerminalSlotsState>({});
 	const [terminalFileRequest, setTerminalFileRequest] = useState<TerminalFileRequest | null>(null);
+	useEffect(() => {
+		setTerminalSlots(loadTerminalSlots());
+	}, []);
+	const updateTerminalSlots = useCallback((update: (state: TerminalSlotsState) => TerminalSlotsState) => {
+		setTerminalSlots(previous => {
+			const next = update(previous);
+			saveTerminalSlots(next);
+			return next;
+		});
+	}, []);
 	const [fileChipMenu, setFileChipMenu] = useState<{ filePath: string; point: { x: number; y: number } } | null>(null);
 	// On mobile the sidebar is an overlay drawer; hide it by default so the chat
 	// is visible on load. Runs once the breakpoint resolves after hydration.
@@ -816,6 +840,33 @@ function AppShellContent() {
 	const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
 	const windowTitle = activeCwdName ? `${activeCwdName} - Zeta Web` : "Zeta Web";
 
+	// Terminal slot plumbing (P1). The workspace key is derived from the cwd the
+	// pane will use, so switching workspaces switches the slot set — and with
+	// it the gateway-side session key, which is why two workspaces can never
+	// share a PTY. Instance ids are allocated here (t1, then max + 1).
+	const terminalCwd = activeCwd ?? selectedSession?.cwd ?? null;
+	const terminalWorkspace = terminalWorkspaceKey(terminalCwd);
+	const terminalSlot = slotsFor(terminalSlots, terminalWorkspace);
+	const handleTerminalSelectSlot = useCallback(
+		(instanceId: string) => updateTerminalSlots(state => withActiveInstance(state, terminalWorkspace, instanceId)),
+		[terminalWorkspace, updateTerminalSlots],
+	);
+	const handleTerminalNewSlot = useCallback(() => {
+		updateTerminalSlots(state => {
+			const { state: next } = withNewInstance(state, terminalWorkspace);
+			return next;
+		});
+	}, [terminalWorkspace, updateTerminalSlots]);
+	const handleTerminalSession = useCallback(
+		(sessionId: string) =>
+			updateTerminalSlots(state => withSessionId(state, terminalWorkspace, terminalSlot.active, sessionId)),
+		[terminalSlot.active, terminalWorkspace, updateTerminalSlots],
+	);
+	const handleTerminalStopped = useCallback(
+		() => updateTerminalSlots(state => withoutSessionId(state, terminalWorkspace, terminalSlot.active)),
+		[terminalSlot.active, terminalWorkspace, updateTerminalSlots],
+	);
+
 	useEffect(() => {
 		const syncWindowTitle = () => {
 			if (document.title !== windowTitle) document.title = windowTitle;
@@ -1312,7 +1363,7 @@ function AppShellContent() {
 									} as React.CSSProperties
 								}
 							>
-								{(["zetacode", "zetaide", "zetaeditor"] as const).map(tool => (
+								{(["zetacode", "zetaide", "zetaeditor", "zetawork"] as const).map(tool => (
 									<button
 										key={tool}
 										type="button"
@@ -2574,9 +2625,14 @@ function AppShellContent() {
 								/>
 							) : dockTool === "terminal" ? (
 								<TerminalView
-									cwd={activeCwd ?? selectedSession?.cwd ?? null}
-									attachSessionId={terminalSessionId}
-									onSessionCreated={setTerminalSessionId}
+									cwd={terminalCwd}
+									instanceId={terminalSlot.active}
+									instances={terminalSlot.instances}
+									knownSessionId={terminalSlot.sessionIds[terminalSlot.active] ?? null}
+									onSelectInstance={handleTerminalSelectSlot}
+									onNewInstance={handleTerminalNewSlot}
+									onSessionCreated={handleTerminalSession}
+									onSessionStopped={handleTerminalStopped}
 									openFileRequest={terminalFileRequest}
 								/>
 							) : dockTool === "tracking" ? (

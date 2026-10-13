@@ -109,6 +109,16 @@ const DYNAMIC_KEY_PREFIXES = [
 	{ prefix: "context-ring.status-", reason: "ContextRingView TONE_STATUS_KEY lookup" },
 	{ prefix: "context-ring.usage-", reason: "ContextRingView USAGE_ROWS lookup" },
 	{ prefix: "context-ring.calls-", reason: "ContextRingView CALL_ROWS lookup" },
+	// TerminalView surfaces the gateway's readable terminal failures and
+	// notices through t(message.key, message.params), where the key/params pair
+	// is built by lib/terminal-client (terminalFailureMessage /
+	// terminalSessionNotice) rather than written at the callsite.
+	{ prefix: "terminal.shellFallback", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
+	{ prefix: "terminal.previousEnded", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
+	{ prefix: "terminal.limitReached", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
+	{ prefix: "terminal.cwdMissing", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
+	{ prefix: "terminal.noProgram", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
+	{ prefix: "terminal.requestFailed", reason: "TerminalView t(message.key) over terminal-client TerminalMessage" },
 ];
 
 test("every message key is referenced by a literal t() call in product source", () => {

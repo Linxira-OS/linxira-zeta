@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import {
+	DEFAULT_TERMINAL_INSTANCE,
 	MAX_LIVE_TERMINALS,
 	RETAINED_EXITED_TERMINALS,
 	TerminalRingBuffer,
@@ -19,6 +20,7 @@ import {
 	controlFrame,
 	handleTerminalCreate,
 	handleTerminalDelete,
+	handleTerminalEnsure,
 	handleTerminalList,
 	handleTerminalResize,
 	handleTerminalTicket,
@@ -27,6 +29,8 @@ import {
 	parseFrame,
 	resetPtyBackend,
 	resetTerminalManagerForTests,
+	resolveSessionProgram,
+	sessionSlotKey,
 	setPtyBackendForTests,
 	terminalWebSocketHandler,
 	shellSpawnArgs,
@@ -35,6 +39,7 @@ import {
 	type TerminalWsData,
 	type TerminalWsUpgradeServer,
 } from "../../src/server/web-gateway/terminal";
+import type { OpenProbeContext } from "../../src/utils/bin-discovery";
 import type { ResolvedTerminal } from "../../src/server/web-gateway/open";
 
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
@@ -185,6 +190,66 @@ describe("buildZetaIdeCommand", () => {
 	test("returns null when no zeta-ide binary exists (plain shell fallback)", () => {
 		expect(buildZetaIdeCommand({ file: "src/a.ts" }, { ...ctx, exists: () => false })).toBeNull();
 		expect(buildZetaIdeCommand({ file: "" }, ctx)).toBeNull();
+	});
+});
+
+// --- session program (workbench first, shell fallback) ---
+
+describe("resolveSessionProgram", () => {
+	const probe = (overrides: Partial<OpenProbeContext> = {}): OpenProbeContext => ({
+		platform: "linux" as NodeJS.Platform,
+		env: { PATH: "/bin", SHELL: "/bin/zsh" },
+		exists: (candidate: string) => candidate === "/bin/zsh" || candidate === "/bin/zetawork",
+		now: () => 0,
+		...overrides,
+	});
+
+	test("prefers the workbench when zetawork resolves", () => {
+		const program = resolveSessionProgram(probe());
+		expect(program).toEqual({
+			kind: "workbench",
+			label: "zetawork",
+			command: "/bin/zetawork",
+			args: [],
+			fallbackReason: null,
+		});
+	});
+
+	test("falls back to the platform shell and says why", () => {
+		const program = resolveSessionProgram(probe({ exists: (candidate: string) => candidate === "/bin/zsh" }));
+		expect(program?.kind).toBe("shell");
+		expect(program?.command).toBe("/bin/zsh");
+		expect(program?.fallbackReason).toBe("workbench-not-found");
+	});
+
+	test("probes zeta / zeta-work aliases behind zetawork", () => {
+		const program = resolveSessionProgram(
+			probe({ exists: (candidate: string) => candidate === "/bin/zeta-work" || candidate === "/bin/bash" }),
+		);
+		expect(program?.kind).toBe("workbench");
+		expect(program?.command).toBe("/bin/zeta-work");
+		expect(program?.label).toBe("zeta-work");
+	});
+
+	test("Windows npm shims (.cmd) are started through cmd.exe", () => {
+		const program = resolveSessionProgram({
+			platform: "win32",
+			env: { PATH: "C:\\npm", ComSpec: "C:\\WINDOWS\\system32\\cmd.exe" },
+			exists: (candidate: string) => candidate === "C:\\npm\\zetawork.cmd",
+			now: () => 0,
+		});
+		// ConPTY cannot exec a script: spawn cmd.exe with `/c <shim>` (#148).
+		expect(program).toEqual({
+			kind: "workbench",
+			label: "zetawork",
+			command: "C:\\WINDOWS\\system32\\cmd.exe",
+			args: ["/c", "C:\\npm\\zetawork.cmd"],
+			fallbackReason: null,
+		});
+	});
+
+	test("returns null when neither the workbench nor a shell exists", () => {
+		expect(resolveSessionProgram(probe({ exists: () => false }))).toBeNull();
 	});
 });
 
@@ -492,6 +557,272 @@ describe("WS attachment frames", () => {
 		handler.close(stubFor(created.id));
 		await handleTerminalDelete(created.id);
 		expect(closed).toContain(1000);
+	});
+});
+
+// --- P1 slots: ensure/reattach, workspace isolation, lifecycle signals ---
+
+describe("terminal ensure (P1 slots)", () => {
+	async function ensureTerminal(body: Record<string, unknown>): Promise<Response> {
+		return handleTerminalEnsure(
+			new Request("http://127.0.0.1/api/terminal/ensure", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			}),
+		);
+	}
+
+	interface EnsureBody {
+		id: string;
+		instance: string;
+		program: "workbench" | "shell";
+		fallbackReason: string | null;
+		reused: boolean;
+		injected: boolean;
+		ticket: string;
+		cwd: string;
+		error?: string;
+		code?: string;
+		limit?: number;
+	}
+
+	async function ensureOk(body: Record<string, unknown>): Promise<EnsureBody> {
+		const res = await ensureTerminal(body);
+		expect(res.status).toBe(200);
+		return (await res.json()) as EnsureBody;
+	}
+
+	async function makeCwd(): Promise<string> {
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-slot-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		return cwd;
+	}
+
+	test("reopening a slot reattaches the same PTY and spawns nothing", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+
+		const first = await ensureOk({ cwd, instanceId: "t1" });
+		expect(first.reused).toBe(false);
+		expect(first.instance).toBe("t1");
+		expect(fakePtys.length).toBe(1);
+
+		// Closing the dock and reopening it is just another ensure for the slot.
+		const again = await ensureOk({ cwd, instanceId: "t1" });
+		expect(again.id).toBe(first.id);
+		expect(again.reused).toBe(true);
+		expect(fakePtys.length).toBe(1);
+		expect(fakePtys[0].killed).toBe(false);
+	});
+
+	test("a reused slot does not consume another live-terminal budget entry", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		const ids: string[] = [];
+		for (let i = 0; i < MAX_LIVE_TERMINALS; i++) {
+			ids.push((await ensureOk({ cwd, instanceId: `t${i + 1}` })).id);
+		}
+		// The budget is full; reattaching an existing slot must still work.
+		const reused = await ensureOk({ cwd, instanceId: "t1" });
+		expect(reused.id).toBe(ids[0]);
+		expect(reused.reused).toBe(true);
+
+		const fifth = await ensureTerminal({ cwd, instanceId: `t${MAX_LIVE_TERMINALS + 1}` });
+		expect(fifth.status).toBe(429);
+		const body = (await fifth.json()) as EnsureBody;
+		expect(body.code).toBe("terminal_limit");
+		expect(body.limit).toBe(MAX_LIVE_TERMINALS);
+	});
+
+	test("an explicit second slot spawns a second session in the same workspace", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		const first = await ensureOk({ cwd, instanceId: "t1" });
+		const second = await ensureOk({ cwd, instanceId: "t2" });
+		expect(second.id).not.toBe(first.id);
+		expect(second.reused).toBe(false);
+		expect(fakePtys.length).toBe(2);
+		expect(fakePtys[1].spec.cwd).toBe(cwd);
+		const list = (await (await handleTerminalList()).json()) as { terminals: Array<{ instance: string }> };
+		expect(list.terminals.map(term => term.instance).sort()).toEqual(["t1", "t2"]);
+	});
+
+	test("two workspaces never share a session for the same slot id", async () => {
+		await setup();
+		installFakePty();
+		const cwdA = await makeCwd();
+		const cwdB = await makeCwd();
+		const a = await ensureOk({ cwd: cwdA, instanceId: "t1" });
+		const b = await ensureOk({ cwd: cwdB, instanceId: "t1" });
+		expect(b.id).not.toBe(a.id);
+		expect(fakePtys[0].spec.cwd).toBe(cwdA);
+		expect(fakePtys[1].spec.cwd).toBe(cwdB);
+		// Switching back reattaches workspace A's own session.
+		expect((await ensureOk({ cwd: cwdA, instanceId: "t1" })).id).toBe(a.id);
+	});
+
+	test("the slot key is the absolute cwd plus the instance id", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		const created = await ensureOk({ cwd: join(cwd, ".") });
+		const info = (await (await handleTerminalList()).json()) as { terminals: Array<{ id: string; cwd: string }> };
+		expect(info.terminals[0].id).toBe(created.id);
+		// "." resolves to the same absolute directory → the same slot.
+		expect(created.id).toBe((await ensureOk({ cwd, instanceId: DEFAULT_TERMINAL_INSTANCE })).id);
+		expect(sessionSlotKey(cwd, DEFAULT_TERMINAL_INSTANCE)).toBe(`${cwd}\u0000${DEFAULT_TERMINAL_INSTANCE}`);
+	});
+
+	test("a slot whose session exited spawns a fresh one", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		const first = await ensureOk({ cwd, instanceId: "t1" });
+		fakePtys[0].spec.onExit(0);
+		const next = await ensureOk({ cwd, instanceId: "t1" });
+		expect(next.id).not.toBe(first.id);
+		expect(next.reused).toBe(false);
+		expect(fakePtys.length).toBe(2);
+	});
+
+	test("replace ends the slot's live session before spawning the new one", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		const first = await ensureOk({ cwd, instanceId: "t1" });
+		const replacement = await ensureOk({ cwd, instanceId: "t1", replace: true });
+		expect(replacement.id).not.toBe(first.id);
+		expect(replacement.reused).toBe(false);
+		expect(fakePtys[0].killed).toBe(true);
+		expect(fakePtys.length).toBe(2);
+		// The dead session is gone from the list, not merely exited.
+		const list = (await (await handleTerminalList()).json()) as { terminals: Array<{ id: string }> };
+		expect(list.terminals.map(term => term.id)).toEqual([replacement.id]);
+	});
+
+	test("cwd problems and bad instance ids carry a code the UI can translate", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+
+		const missing = await ensureTerminal({ cwd: join(cwd, "gone"), instanceId: "t1" });
+		expect(missing.status).toBe(400);
+		expect(((await missing.json()) as EnsureBody).code).toBe("cwd_missing");
+
+		const badInstance = await ensureTerminal({ cwd, instanceId: "t 1/../x" });
+		expect(badInstance.status).toBe(400);
+		expect(((await badInstance.json()) as EnsureBody).code).toBe("invalid_instance");
+		expect(fakePtys.length).toBe(0);
+	});
+
+	test("ensure reports the workbench program and the shell fallback", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await makeCwd();
+		// The PTY backend is faked but program resolution is real: whichever way
+		// this machine resolves, the payload must state it.
+		const body = await ensureOk({ cwd, instanceId: "t1" });
+		expect(["workbench", "shell"]).toContain(body.program);
+		expect(body.fallbackReason).toBe(body.program === "shell" ? "workbench-not-found" : null);
+		expect(fakePtys[0].spec.application.length).toBeGreaterThan(0);
+	});
+});
+
+describe("terminal session end signals", () => {
+	function attach(sessionId: string, closed: Array<number | undefined>, sent: Array<string | Uint8Array>): unknown {
+		const ws = {
+			data: { sessionId } as TerminalWsData,
+			send: (data: string | Uint8Array) => sent.push(data),
+			close: (code?: number) => closed.push(code),
+		};
+		const handler = terminalWebSocketHandler as { open: (socket: unknown) => void };
+		handler.open(ws);
+		return ws;
+	}
+
+	test("DELETE emits session_ended/killed once and frees the slot", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		const created = (await (
+			await handleTerminalEnsure(
+				new Request("http://127.0.0.1/api/terminal/ensure", {
+					method: "POST",
+					body: JSON.stringify({ cwd, instanceId: "t1" }),
+				}),
+			)
+		).json()) as { id: string };
+
+		const sent: Array<string | Uint8Array> = [];
+		const closed: Array<number | undefined> = [];
+		attach(created.id, closed, sent);
+
+		await handleTerminalDelete(created.id);
+		const frames = sent.map(data => parseFrame(typeof data === "string" ? new TextEncoder().encode(data) : data));
+		const control = frames.filter(frame => "control" in frame).map(frame => frame.control);
+		expect(control).toContainEqual({ replayedBytes: 0 });
+		expect(control).toContainEqual({ event: "session_ended", reason: "killed" });
+		// One end signal only: the PTY's own exit callback must not also fire.
+		expect(control.some(payload => payload.event === "exit")).toBe(false);
+		expect(closed).toContain(1000);
+
+		// The slot is free again: the next ensure spawns a new PTY.
+		const next = (await (
+			await handleTerminalEnsure(
+				new Request("http://127.0.0.1/api/terminal/ensure", {
+					method: "POST",
+					body: JSON.stringify({ cwd, instanceId: "t1" }),
+				}),
+			)
+		).json()) as { id: string; reused: boolean };
+		expect(next.reused).toBe(false);
+		expect(next.id).not.toBe(created.id);
+	});
+
+	test("a retained exited session ageing out emits session_ended/expired", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+
+		const ensure = async (instanceId: string): Promise<{ id: string }> =>
+			(await (
+				await handleTerminalEnsure(
+					new Request("http://127.0.0.1/api/terminal/ensure", {
+						method: "POST",
+						body: JSON.stringify({ cwd, instanceId }),
+					}),
+				)
+			).json()) as { id: string };
+
+		// The oldest session exits and stays listable (retention); a client
+		// reattaches to that retained record, which is exactly the window the
+		// `expired` signal exists for.
+		const oldest = (await ensure("t1")).id;
+		fakePtys[0].spec.onExit(0);
+		const sent: Array<string | Uint8Array> = [];
+		const closed: Array<number | undefined> = [];
+		attach(oldest, closed, sent);
+
+		// Fill the retention set past its cap so the oldest record ages out.
+		for (let i = 0; i < RETAINED_EXITED_TERMINALS; i++) {
+			await ensure(`t${i + 2}`);
+			fakePtys[i + 1].spec.onExit(0);
+		}
+
+		const control = sent
+			.map(data => parseFrame(typeof data === "string" ? new TextEncoder().encode(data) : data))
+			.filter(frame => "control" in frame)
+			.map(frame => frame.control);
+		expect(control).toContainEqual({ event: "session_ended", reason: "expired" });
+		expect(closed).toContain(1000);
+		const list = (await (await handleTerminalList()).json()) as { terminals: Array<{ id: string }> };
+		expect(list.terminals.map(term => term.id)).not.toContain(oldest);
 	});
 });
 
