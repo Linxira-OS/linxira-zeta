@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { contextRingPanelEntry } from "@/components/context-ring/panel-entry";
+import { gitBranchesPanelEntry } from "@/components/git-branches/panel-entry";
 
 /**
  * Single source of truth for every dockable panel (plan §2.4).
@@ -20,7 +21,7 @@ export type PanelId =
 	| "tracking"
 	| "terminal"
 	| "plugins"
-	| "stats"
+	| "git"
 	| "context"
 	| "branches"
 	| "system"
@@ -118,14 +119,6 @@ const PLUGINS_ICON = (
 	</Icon>
 );
 
-const STATS_ICON = (
-	<Icon>
-		<line x1="18" y1="20" x2="18" y2="10" />
-		<line x1="12" y1="20" x2="12" y2="4" />
-		<line x1="6" y1="20" x2="6" y2="14" />
-	</Icon>
-);
-
 const BRANCHES_ICON = (
 	<Icon>
 		<line x1="6" y1="3" x2="6" y2="15" />
@@ -203,14 +196,17 @@ export const PANEL_REGISTRY: readonly PanelDecl[] = [
 		exclusive: true,
 		icon: PLUGINS_ICON,
 	},
+	// Git branches of the active workspace. The descriptor + icon are owned by
+	// the git-branches module (see its `panel-entry.tsx`). Not gated: the panel
+	// itself says when the workspace is missing or is not a git checkout.
 	{
-		id: "stats",
-		titleKey: "dock.window.stats",
-		surface: "rail",
-		kind: "dock",
-		widthTier: "regular",
-		exclusive: true,
-		icon: STATS_ICON,
+		id: gitBranchesPanelEntry.id,
+		titleKey: gitBranchesPanelEntry.titleKey,
+		surface: gitBranchesPanelEntry.surface,
+		kind: gitBranchesPanelEntry.kind,
+		widthTier: gitBranchesPanelEntry.widthTier,
+		exclusive: gitBranchesPanelEntry.exclusive,
+		icon: gitBranchesPanelEntry.icon,
 	},
 	{
 		id: "branches",

@@ -1,0 +1,223 @@
+/*
+ * Git-branch panel (right-dock "git").
+ *
+ * Same colour contract as the rest of the shell: the semantic alias layer only
+ * (`--zeta-alias-*`), no literals — see `web-ui/AGENTS.md` § "CSS Variables —
+ * three colour layers" and `scripts/check-style-literals.mjs`.
+ */
+
+.git-branches {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	height: 100%;
+	min-height: 0;
+	padding: 10px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--zeta-alias-text);
+}
+
+.git-branches__header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex-shrink: 0;
+}
+
+.git-branches__workspace {
+	min-width: 0;
+	overflow: hidden;
+}
+
+.git-branches__workspace-name {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--zeta-alias-text-muted);
+}
+
+.git-branches__spacer {
+	flex: 1;
+}
+
+.git-branches__count {
+	flex-shrink: 0;
+	font-size: 10.5px;
+	color: var(--zeta-alias-text-dim);
+}
+
+.git-branches__icon-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	border-radius: 5px;
+	color: var(--zeta-alias-text-muted);
+	cursor: pointer;
+}
+
+.git-branches__icon-button:hover:not(:disabled) {
+	background: var(--zeta-alias-bg-hover);
+	color: var(--zeta-alias-text);
+}
+
+.git-branches__icon-button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.git-branches__empty,
+.git-branches__detached {
+	margin: 0;
+	color: var(--zeta-alias-text-muted);
+}
+
+.git-branches__error {
+	margin: 0;
+	padding: 6px 8px;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--zeta-alias-status-error-foreground) 12%, transparent);
+	border: 1px solid var(--zeta-alias-status-error-foreground);
+	color: var(--zeta-alias-status-error-foreground);
+}
+
+.git-branches__list {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.git-branches__row {
+	min-width: 0;
+}
+
+.git-branches__row-button {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	width: 100%;
+	padding: 5px 8px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: var(--zeta-alias-text-muted);
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.git-branches__row-button:hover:not(:disabled) {
+	background: var(--zeta-alias-bg-hover);
+	color: var(--zeta-alias-text);
+}
+
+.git-branches__row-button:disabled {
+	cursor: default;
+}
+
+.git-branches__row--current .git-branches__row-button {
+	background: var(--zeta-alias-bg-selected);
+	color: var(--zeta-alias-text);
+}
+
+.git-branches__row-glyph {
+	display: inline-flex;
+	flex-shrink: 0;
+	color: var(--zeta-alias-text-dim);
+}
+
+.git-branches__row--current .git-branches__row-glyph {
+	color: var(--zeta-alias-accent);
+}
+
+.git-branches__name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.git-branches__badge {
+	flex-shrink: 0;
+	padding: 0 6px;
+	border-radius: 999px;
+	border: 1px solid color-mix(in srgb, var(--zeta-alias-accent) 35%, transparent);
+	color: var(--zeta-alias-accent);
+	font-size: 8.5px;
+	line-height: 15px;
+	text-transform: uppercase;
+	letter-spacing: 0.4px;
+}
+
+.git-branches__confirm {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px;
+	border-radius: 8px;
+	background: var(--zeta-alias-bg-panel);
+	border: 1px solid var(--zeta-alias-border);
+}
+
+.git-branches__confirm-title {
+	margin: 0;
+	font-weight: 600;
+	color: var(--zeta-alias-text);
+}
+
+.git-branches__confirm-body {
+	margin: 0;
+	color: var(--zeta-alias-text-muted);
+}
+
+.git-branches__confirm-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.git-branches__button {
+	padding: 5px 12px;
+	border-radius: 6px;
+	background: var(--zeta-alias-bg-elevated);
+	border: 1px solid var(--zeta-alias-border);
+	color: var(--zeta-alias-text);
+	font-size: 11.5px;
+	cursor: pointer;
+}
+
+.git-branches__button:hover:not(:disabled) {
+	background: var(--zeta-alias-bg-hover);
+}
+
+.git-branches__button--primary {
+	background: var(--zeta-alias-accent);
+	border-color: var(--zeta-alias-accent);
+	color: var(--zeta-alias-accent-foreground);
+}
+
+.git-branches__button--primary:hover:not(:disabled) {
+	background: var(--zeta-alias-accent-hover);
+	border-color: var(--zeta-alias-accent-hover);
+}
+
+.git-branches__button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
