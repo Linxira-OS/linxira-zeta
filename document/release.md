@@ -151,6 +151,15 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
         tests skipped, straight to build + publish).
      2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
         dispatch that skips publishing (re-runs / 补发).
+  - **Pushing the tag itself triggers nothing**: `on.push` lists `branches:`
+    only, never `tags:`. A release run is always a *re-run of that commit's push
+    run* (or the equivalent dispatch above), which is what lets `release_metadata`
+    see the tag sitting on HEAD and flip the run into release mode. Fixing a bug
+    mid-release therefore means moving the tag onto the commit that carries the
+    fix and re-running that commit — the "retagged" case the comments in
+    `ci.yml`'s `on.push` path list exist for. Never retag onto a commit whose
+    push run was not green: the release run skips the tests, so that SHA's green
+    push run is the only proof they ever passed.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
   gated on `release_gate` (release-state validation: lockfile freshness +
   native addons + install methods) plus `release_binary` / `desktop_*`
@@ -225,6 +234,12 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
 | 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红） |
 
+**版本戳核对必须用绝对路径（本机 PATH 陷阱）**：核对平台叶包/二进制版本戳时，用刚构建
+产物的**绝对路径**调用（`"$PWD/packages/coding-agent/binaries/zeta-cli-linux-x64" --version`，
+叶包同理）。本机 PATH 上常驻的全局 `zeta.cmd`/`zeta` 是旧版；Git Bash 里用相对/裸命令调用
+会命中它而不是刚构建的产物，读出的是**旧版本号**——于是要么报出假红（"版本戳没跟上"），
+要么更糟：把旧版当成新版放行。Windows 上尤其容易（`.cmd` shim 优先于同名无扩展名产物）。
+
 **发布完成的判定纪律（v1.1.16 教训）**：同一次 push 会产生两个 workflow 的 run——
 主流水线 `CI`（`.github/workflows/ci.yml`，20+ jobs）与 `Zeta Nix`
 （`.github/workflows/nix.yml`，单 job，job 名 `Evaluate flake`，即 nix flake 检查）。
@@ -278,6 +293,13 @@ Rules:
   valid input there.
 - After `set-version.ts`, regenerate the lockfile (`bun install`) or let
   `release-v2.ts` do it — a stale `bun.lock` is the usual npm-publish hazard.
+- Running `release-v2.ts` from a **non-root worktree** needs that worktree's own
+  dependencies first: `bun install --frozen-lockfile` there before the release
+  (and `rm -rf node_modules` after, if the worktree is throwaway). Bun resolves
+  workspace packages upward, so without a local install the type and
+  consistency gates compile the new sources against the repository root's
+  possibly **stale** `node_modules` — "new code + old type definitions" surfaces
+  as phantom errors that have nothing to do with the release.
 - `scripts/release.ts` is the v1 script, retained only for its shared helpers
   (`selectLatestZetaTag`, `validateExplicitVersion`, `watchCI`) and its
   `watch` mode. Do not use it to cut a release.
