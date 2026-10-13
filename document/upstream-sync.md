@@ -95,7 +95,12 @@ two-parent tag merge.
   deleted; `cli/update-cli.ts` restored to our self-update path verbatim
   (upstream's only commits there were the migration itself and a CI fix, so
   nothing else was lost); `scripts/install.{sh,ps1}` and `ci-update-brew-formula`
-  kept on our side. No `fetchBuild` / `PI_BUILD_URL` reference remains.
+  kept on our side. No `fetchBuild` / `PI_BUILD_URL` reference remains. The
+  legacy upload tail (`Publish to build.stencil.so` + `scripts/ci-build-upload.ts`)
+  was retired separately on 2026-10-14: the v1.2.1 run took a permanent HTTP 403
+  there (the upstream build server only accepts can1357/stencil-hq repos, so this
+  fork has no publish rights — damage class 11), and binaries ship in our own
+  GitHub Release.
 - **Relocations accepted**: `commit/cli.ts` → `commands/commit.ts` (no references
   on our side); `auto-thinking-bucket-question.md` →
   `prompts/judge/auto-thinking.json`.

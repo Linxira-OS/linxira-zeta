@@ -3,8 +3,8 @@
  * only where a release publishes one, and must say so plainly everywhere else.
  *
  * Releases carry exactly the `release_binary` matrix's legs (linux-x64,
- * linux-musl-x64, windows-x64.exe), which is also what the build service's
- * `ASSETS` table is pinned to by `scripts/check-release-asset-names.ts`. Both
+ * linux-musl-x64, windows-x64.exe), pinned by `scripts/check-release-asset-names.ts`
+ * to the CLI outfiles and the updater's `releaseCliAssetName` names. Both
  * installers used to accept every host they knew how to name — macOS and ARM
  * included — and let the download 404, so a user there read "download failed"
  * instead of "not published for this platform".

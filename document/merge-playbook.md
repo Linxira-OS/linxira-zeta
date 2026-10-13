@@ -145,11 +145,15 @@ brand-rules.ts 规则表并注释理由，再让脚本吃掉它——不要靠�
 
 上游把一批共享/商业服务的域名硬编码在客户端里（中继 `my.omp.sh`、OIDC 登录
 `auth.stencil.so`、模型发现源 `catalog.stencil.so`、安装/更新提示
-`omp.sh/install`、CI 上传通道 `build.stencil.so`）。它们在品牌注册表里被显式
+`omp.sh/install`）。它们在品牌注册表里被显式
 列为「刻意保留」，`brand-check` 因此**不覆盖**——机械守卫是
 `bun scripts/check-shared-infra.ts`（CI `check` job）：出现未登记域名、或已知
 域名出现在未登记的落点（测试文件豁免）即 exit 1；只改台账不改 `INVENTORY`
 不会生效，只改代码不改台账会红。
+
+（原「CI 上传通道 `build.stencil.so`」已于 2026-10-14 退役：本 fork 在该端点
+永久 403，步骤与 `scripts/ci-build-upload.ts` 已删除，端点标为 `replaced`；
+见 `document/upstream-commercial-assets.md` §3c 与 `document/release.md` 损伤类别 11。）
 
 逐项现状、保留依据、待替代方案（`qa.omp.sh` → GitHub Issues、`skills.omp.sh`
 → `@linxiraos/linxira-skills`、`live.omp.sh`）与「明确不改」清单见
