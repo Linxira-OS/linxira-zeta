@@ -213,7 +213,14 @@ import {
 	listFrames,
 	resolveFrame,
 } from "./frames";
-import { navigateMainFrame, pushState, reloadPage, traverseHistory, type NavigationWaitUntil } from "./navigation";
+import {
+	type NavigationStartedHook,
+	type NavigationWaitUntil,
+	navigateMainFrame,
+	pushState,
+	reloadPage,
+	traverseHistory,
+} from "./navigation";
 
 import { cloneSafe, RunOutput } from "./run-output";
 import type {
@@ -1315,6 +1322,12 @@ interface ActiveRun {
 	floatingFailure: { promise: Promise<never>; reject(reason?: unknown): void };
 	/** Helper invocations currently awaiting the page/network, keyed by op id. */
 	inflight: Map<number, InflightOp>;
+	/**
+	 * Main-frame navigations this run started that the browser has not answered yet. The cancel
+	 * path reads it because the CDP `request` event that reports such a navigation can still be
+	 * queued in this process when the abort lands (see the stopLoading gate in `#run`).
+	 */
+	pendingNavigations: number;
 	opCounter: number;
 }
 
@@ -1761,6 +1774,7 @@ export class WorkerCore {
 			floatingRejections: [],
 			floatingFailure,
 			inflight: new Map(),
+			pendingNavigations: 0,
 			opCounter: 0,
 		};
 		this.#active = active;
@@ -1868,8 +1882,13 @@ export class WorkerCore {
 			// A cancelled run abandons its main-frame navigation: left loading, it still replaces the
 			// page later and holds up any interception restore below. Stopping is gated on
 			// that navigation because Page.stopLoading also cancels every fetch and subresource
-			// load in flight. A run that merely ended keeps an unawaited goto going.
-			if (ac.signal.aborted && this.#network?.hasPendingMainFrameNavigation()) await this.#stopLoading();
+			// load in flight. The navigations this run started itself count too: the CDP `request`
+			// event that would report one to the network manager can still be queued in this process
+			// when the cancel lands, and reading "not navigating" then skips the stop. A run that
+			// merely ended keeps an unawaited goto going.
+			const pendingNavigation =
+				this.#network?.hasPendingMainFrameNavigation() === true || active.pendingNavigations > 0;
+			if (ac.signal.aborted && pendingNavigation) await this.#stopLoading();
 			try {
 				await runPage?.restoreInterception();
 			} catch (error) {
@@ -2135,8 +2154,13 @@ export class WorkerCore {
 						// Default to "load" because dev servers with HMR/WS never reach networkidle.
 						// budgetBound (not the full cell) so a hung navigation fails named and
 						// catchable inside the run instead of dying with the whole cell.
-						await navigateMainFrame(page, opts?.waitUntil ?? "load", budgetBound, sig, options =>
-							page.goto(url, options),
+						await navigateMainFrame(
+							page,
+							opts?.waitUntil ?? "load",
+							budgetBound,
+							sig,
+							options => page.goto(url, options),
+							this.#trackMainFrameNavigation(active),
 						);
 					} catch (err) {
 						if (err instanceof Error && err.name === "TimeoutError") {
@@ -2446,17 +2470,37 @@ export class WorkerCore {
 			back: opts =>
 				op("tab.back()", INF, async sig => {
 					this.#clearElementCache();
-					return await traverseHistory(page, "back", opts?.waitUntil ?? "load", budgetBound, sig);
+					return await traverseHistory(
+						page,
+						"back",
+						opts?.waitUntil ?? "load",
+						budgetBound,
+						sig,
+						this.#trackMainFrameNavigation(active),
+					);
 				}),
 			forward: opts =>
 				op("tab.forward()", INF, async sig => {
 					this.#clearElementCache();
-					return await traverseHistory(page, "forward", opts?.waitUntil ?? "load", budgetBound, sig);
+					return await traverseHistory(
+						page,
+						"forward",
+						opts?.waitUntil ?? "load",
+						budgetBound,
+						sig,
+						this.#trackMainFrameNavigation(active),
+					);
 				}),
 			reload: opts =>
 				op("tab.reload()", INF, async sig => {
 					this.#clearElementCache();
-					return await reloadPage(page, opts?.waitUntil ?? "load", budgetBound, sig);
+					return await reloadPage(
+						page,
+						opts?.waitUntil ?? "load",
+						budgetBound,
+						sig,
+						this.#trackMainFrameNavigation(active),
+					);
 				}),
 			pushState: url =>
 				op(`tab.pushState(${JSON.stringify(url)})`, actionOpMs, async sig => {
@@ -3186,6 +3230,22 @@ export class WorkerCore {
 		this.#elementCache.clear();
 		this.#elementCounter = 0;
 		for (const handle of handles) void handle.dispose().catch(() => undefined);
+	}
+
+	/**
+	 * Record a main-frame navigation this run starts until the browser answers it — a response, or
+	 * the navigation's own failure. `BrowserNetworkManager` learns the same fact from the CDP
+	 * `request` event, which can still be queued in this process when a cancel arrives, so a
+	 * cancelled run reads the navigations it started itself instead of that lagging snapshot.
+	 */
+	#trackMainFrameNavigation(active: ActiveRun): NavigationStartedHook {
+		return navigation => {
+			active.pendingNavigations += 1;
+			const answered = (): void => {
+				active.pendingNavigations -= 1;
+			};
+			void navigation.then(answered, answered);
+		};
 	}
 
 	/** Best-effort `Page.stopLoading` so an abandoned navigation cannot stall later ops. */
