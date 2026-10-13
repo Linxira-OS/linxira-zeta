@@ -238,6 +238,23 @@ install_binary() {
         fi
     fi
 
+    # Only the release matrix's three legs have published binaries (the
+    # `zeta-cli-*` assets `scripts/ci-build-upload.ts` keys). On any other host
+    # the download below would 404 halfway through with no explanation, so say
+    # what exists and how to install from source instead.
+    case "${PLATFORM}-${ARCH}" in
+        linux-x64|linux-musl-x64) ;;
+        *)
+            echo "No prebuilt binary for ${PLATFORM}-${ARCH}."
+            echo "Zeta CLI publishes prebuilt binaries for linux-x64, linux-musl-x64 and windows-x64 only"
+            echo "(macOS and ARM publishing is paused)."
+            echo "Install the package instead:"
+            echo "    npm install -g ${PACKAGE}"
+            echo "Or re-run this installer with --source (it installs bun when missing)."
+            exit 1
+            ;;
+    esac
+
     BINARY="zeta-cli-${PLATFORM}-${ARCH}"
     # Get release tag
     if [ -n "$REF" ]; then

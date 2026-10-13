@@ -283,6 +283,14 @@ function Install-ViaBun {
 }
 
 function Install-Binary {
+    # Releases carry zeta-cli-windows-x64.exe only (the `release_binary` matrix
+    # and the ASSETS table in scripts/ci-build-upload.ts), so an ARM64 Windows
+    # host has nothing to download. Fail here with the source-install path
+    # instead of letting the request below 404 halfway through.
+    if ($NativeArchitecture -ne "x64") {
+        throw "No prebuilt binary for windows-$NativeArchitecture. Zeta CLI publishes prebuilt binaries for linux-x64, linux-musl-x64 and windows-x64 only (macOS and ARM publishing is paused).`nInstall the package instead:`n    npm install -g $Package`nOr re-run this installer with -Source."
+    }
+
     if ($Ref) {
         Write-Host "Fetching release $Ref..."
         try {
