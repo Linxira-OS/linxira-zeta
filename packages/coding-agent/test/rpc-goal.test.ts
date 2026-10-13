@@ -4,7 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
-import { RpcGoalController, type RpcGoalSession } from "@linxiraos/zeta/modes/rpc/rpc-goal";
+import {
+	GOAL_CONTINUATION_MODE_RPC,
+	GoalContinuationController,
+	type GoalContinuationSession,
+} from "@linxiraos/zeta/goals/continuation-controller";
 import {
 	isRpcSessionSettled,
 	RpcSessionSettleWatcher,
@@ -413,7 +417,7 @@ describe("RPC goal command", () => {
 	}, 30_000);
 });
 
-describe("RpcGoalController continuation gate", () => {
+describe("GoalContinuationController continuation gate", () => {
 	const agentEnd = { type: "agent_end", messages: [], isTerminal: true } as unknown as AgentSessionEvent;
 	const hostInput = { type: "message_start", message: { role: "user", content: [] } } as unknown as AgentSessionEvent;
 
@@ -511,7 +515,10 @@ describe("RpcGoalController continuation gate", () => {
 			waitForIdle: () => idle.promise,
 		};
 		let dropped = 0;
-		const controller = new RpcGoalController(session as unknown as RpcGoalSession, () => dropped++);
+		const controller = new GoalContinuationController(session as unknown as GoalContinuationSession, {
+			continuationMode: GOAL_CONTINUATION_MODE_RPC,
+			onContinuationDropped: () => dropped++,
+		});
 		return {
 			session,
 			controller,

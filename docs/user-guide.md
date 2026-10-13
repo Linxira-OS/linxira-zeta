@@ -125,6 +125,9 @@ punctuation from Chinese IMEs is auto-normalized):
   plan arrives as an image (or text fallback), then reply **1** to execute,
   **2** to compact and execute, **3** to execute in a fresh conversation, or
   **4** to cancel. The same plan is also available for approval in the web UI.
+  Approving a plan executes it as a **goal** (the execution round carries the
+  goal context and the host keeps the work moving between turns) — see
+  [`docs/plan-approval.md`](/docs/plan-approval.md).
 
 Full command reference and the routing model live in
 [`docs/remote-workspaces.md`](/docs/remote-workspaces.md).

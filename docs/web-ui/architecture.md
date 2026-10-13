@@ -89,6 +89,14 @@ protocol:
 - **State** — `get_state` returns a snapshot including `planModeEnabled` /
   `planFilePath` / `planContent`, so the web UI can render the
   `PlanApproval` card for remote plan reviews.
+- **Goal mode** — the wrapper owns a goal controller
+  (`goals/continuation-controller.ts`) for its session: `plan_approve` arms goal
+  mode under the plan's objective, and with `goal.continuationModes` containing
+  `"web"` (the default for these hosts) each terminal `agent_end` may start a
+  hidden `goal-continuation` turn, so an approved plan keeps executing without
+  another operator prompt. `abort` stops that continuation, and
+  `fork`/`navigate_tree`/`reload` run through the controller's session-change
+  quiesce/reattach. See [`docs/plan-approval.md`](/docs/plan-approval.md).
 - **Events** — `GET /api/agent/:id/events` is a Server-Sent Events stream
   (`text/event-stream`). The wrapper subscribes to the runtime session's
   `AgentSessionEvent`s and forwards each one as a `data: <json>` frame, plus a

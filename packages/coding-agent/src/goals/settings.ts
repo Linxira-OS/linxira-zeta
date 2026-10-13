@@ -24,7 +24,11 @@ export const cfgGoalStatusInFooter = register({
 	},
 });
 
-const GOAL_CONTINUATION_MODES_DEFAULT: string[] = ["interactive"];
+/**
+ * TUI sessions and web/desktop gateway sessions continue an active goal by
+ * default; RPC hosts (`--mode rpc`) stay opt-in (see docs/rpc.md).
+ */
+const GOAL_CONTINUATION_MODES_DEFAULT: string[] = ["interactive", "web"];
 
 export const cfgGoalContinuationModes = register({
 	id: "goal.continuationModes",
@@ -34,6 +38,6 @@ export const cfgGoalContinuationModes = register({
 		tab: "tasks",
 		group: "Modes",
 		label: "Goal Continuation Modes",
-		description: 'Run modes where active goals may auto-continue between turns ("interactive", "rpc")',
+		description: 'Run modes where active goals may auto-continue between turns ("interactive", "rpc", "web")',
 	},
 });

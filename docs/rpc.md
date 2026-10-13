@@ -574,6 +574,12 @@ turn, sent as a hidden `goal-continuation` message.
   navigation, reopening the open session), the goal continues. While such a turn is
   held, the session is not reported as settled.
 
+The same driver runs for web/desktop gateway sessions under
+`"goal.continuationModes": ["web"]` — the default for those hosts, alongside the
+TUI's `"interactive"`. Plan approval arms goal mode on every host that executes a
+plan (see [`docs/plan-approval.md`](/docs/plan-approval.md)), so a web or desktop
+session continues an approved plan without the operator prompting again.
+
 When the agent completes the goal, the goal tool is removed again and
 `get_state.goal` becomes `null`.
 

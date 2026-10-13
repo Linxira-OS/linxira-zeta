@@ -10,25 +10,32 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { approveRemotePlan } from "../../src/channels/plan-approval";
+import { Settings } from "../../src/config/settings";
 import type { AgentSession } from "../../src/session/agent-session";
 
 interface StubSession {
+	settings: Settings;
 	setPlanModeState: ReturnType<typeof vi.fn>;
+	getPlanModeState: ReturnType<typeof vi.fn>;
 	setPlanReferencePath: ReturnType<typeof vi.fn>;
 	markPlanReferenceSent: ReturnType<typeof vi.fn>;
 	newSession: ReturnType<typeof vi.fn>;
 	compact: ReturnType<typeof vi.fn>;
 	prompt: ReturnType<typeof vi.fn>;
+	enterGoalMode: ReturnType<typeof vi.fn>;
 }
 
-function makeStubSession(): StubSession {
+function makeStubSession(settings = Settings.isolated({})): StubSession {
 	return {
+		settings,
 		setPlanModeState: vi.fn(),
+		getPlanModeState: vi.fn(() => undefined),
 		setPlanReferencePath: vi.fn(),
 		markPlanReferenceSent: vi.fn(),
 		newSession: vi.fn(),
 		compact: vi.fn(),
 		prompt: vi.fn().mockResolvedValue(undefined),
+		enterGoalMode: vi.fn().mockResolvedValue(undefined),
 	};
 }
 
@@ -146,5 +153,93 @@ describe("approveRemotePlan", () => {
 		expect(result.approved).toBe(false);
 		expect(result.error).toContain("Plan file not found");
 		expect(session.prompt).not.toHaveBeenCalled();
+	});
+
+	test("preserve mode arms goal mode with the task stated at plan entry, before the execution prompt", async () => {
+		const session = makeStubSession();
+		session.getPlanModeState.mockReturnValue({
+			enabled: true,
+			planFilePath: "local://PLAN.md",
+			objective: "Ship the release",
+		});
+		const planFilePath = await seedPlan();
+
+		const result = await approveRemotePlan(
+			session as unknown as AgentSession,
+			{ planFilePath, mode: "preserve" },
+			opts(),
+		);
+
+		expect(result).toEqual({ approved: true });
+		expect(session.enterGoalMode).toHaveBeenCalledWith({ objective: "Ship the release" });
+		// Goal mode must be armed BEFORE the synthetic prompt, or the first
+		// execution turn runs without the goal context and the goal tool.
+		expect(session.enterGoalMode.mock.invocationCallOrder[0]!).toBeLessThan(
+			session.prompt.mock.invocationCallOrder[0]!,
+		);
+	});
+
+	test("preserve mode derives the goal objective from the plan when no task was stated", async () => {
+		const session = makeStubSession();
+		const planFilePath = await seedPlan("# Refactor the auth store\n\nDo it.");
+
+		const result = await approveRemotePlan(
+			session as unknown as AgentSession,
+			{ planFilePath, mode: "preserve" },
+			opts(),
+		);
+
+		expect(result).toEqual({ approved: true });
+		expect(session.enterGoalMode).toHaveBeenCalledWith({ objective: "Refactor the auth store" });
+	});
+
+	test("fresh mode arms goal mode after the transcript is replaced", async () => {
+		const session = makeStubSession();
+		session.newSession.mockResolvedValue(undefined);
+		const planFilePath = await seedPlan();
+
+		const result = await approveRemotePlan(
+			session as unknown as AgentSession,
+			{ planFilePath, mode: "fresh" },
+			opts(),
+		);
+
+		expect(result).toEqual({ approved: true });
+		expect(session.newSession.mock.invocationCallOrder[0]!).toBeLessThan(
+			session.enterGoalMode.mock.invocationCallOrder[0]!,
+		);
+		expect(session.enterGoalMode.mock.invocationCallOrder[0]!).toBeLessThan(
+			session.prompt.mock.invocationCallOrder[0]!,
+		);
+	});
+
+	test("goal mode is not armed when it is disabled in settings", async () => {
+		const session = makeStubSession(Settings.isolated({ "goal.enabled": false }));
+		const planFilePath = await seedPlan();
+
+		const result = await approveRemotePlan(
+			session as unknown as AgentSession,
+			{ planFilePath, mode: "preserve" },
+			opts(),
+		);
+
+		expect(result).toEqual({ approved: true });
+		expect(session.enterGoalMode).not.toHaveBeenCalled();
+		expect(session.prompt).toHaveBeenCalledTimes(1);
+	});
+
+	test("a goal that cannot start does not fail the approval", async () => {
+		const session = makeStubSession();
+		session.enterGoalMode.mockRejectedValue(new Error("A goal is already active. Drop it before creating another."));
+		const planFilePath = await seedPlan();
+
+		const result = await approveRemotePlan(
+			session as unknown as AgentSession,
+			{ planFilePath, mode: "preserve" },
+			opts(),
+		);
+
+		expect(result).toEqual({ approved: true });
+		expect(session.prompt).toHaveBeenCalledTimes(1);
 	});
 });
