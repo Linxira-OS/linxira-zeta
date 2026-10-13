@@ -51,6 +51,7 @@ import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
+import { handleServeIdentityGet, SERVE_IDENTITY_PATH } from "./web-gateway/identity";
 import {
 	handleModels,
 	handleModelsConfigGet,
@@ -259,6 +260,14 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Forbidden origin" }, 403);
 	}
 	const pathname = new URL(req.url).pathname;
+
+	// Service identity, used by serve discovery/reuse (see `../serve-registry.ts`).
+	// Answered ahead of any session/dashboard state so a probe of a just-bound
+	// port never reads as a false negative.
+	if (pathname === SERVE_IDENTITY_PATH) {
+		if (req.method === "GET") return handleServeIdentityGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
 
 	if (SESSION_LIST_RE.test(pathname)) {
 		if (req.method === "GET") return handleListSessions();
