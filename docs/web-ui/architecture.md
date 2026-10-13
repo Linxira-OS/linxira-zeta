@@ -26,14 +26,20 @@ entry point. Its `classifyRequest()` decides where each request goes:
 
 A few `/api/*` prefixes stay inside Next.js because they are pure Node code
 with no runtime dependency (`/api/fs/`, `/api/files/`, `/api/cwd/`,
-`/api/git/`, `/api/home`, `/api/default-cwd`, `/api/worktrees`,
-`/api/tracking`, `/api/file-index`). Every other `/api/*` request is handed to
+`/api/git/` — `status`/`diff` run locally and `branches`/`checkout`/`branch`
+proxy to the gateway per request, `/api/home`, `/api/default-cwd`,
+`/api/worktrees`, `/api/file-index`). Every other `/api/*` request is handed to
 the Web Gateway.
 
 The Web Gateway also exposes a standalone `127.0.0.1` listener
 (`ZETA_WEB_GATEWAY_PORT`, default 30142) for `next dev`/`next start` access;
 the main proxy dispatches in-process, so a busy gateway port only disables the
-dev-mode listener, never the gateway itself.
+dev-mode listener, never the gateway itself. `zeta serve` starts that listener
+on `--gateway-port` and injects the resulting origin (`ZETA_WEB_GATEWAY_URL`)
+into the web-ui child, which is what Next-side rewrites and the request-time
+gateway proxies (`/api/git/branches|checkout|branch`) resolve their target
+from. Tracking is dispatched in-process by the listener (`classifyRequest`), so
+its SSE stream is never bridged through Next.
 
 ## Web Gateway dispatch
 

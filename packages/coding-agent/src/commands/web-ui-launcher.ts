@@ -26,24 +26,32 @@ function hideWebUiWindow(): boolean {
 
 /**
  * 启动 Web UI 服务器，返回子进程句柄。
+ *
+ * `statsUrl` / `gatewayUrl` are forwarded as `NEXT_PUBLIC_STATS_URL` /
+ * `ZETA_WEB_GATEWAY_URL`: web-ui's Next-side `/api/*` proxies (next.config
+ * `beforeFiles` rewrites and route handlers) resolve their targets from these
+ * env vars. Both service ports are configurable (`--stats-port` /
+ * `--gateway-port`), so the child must be told the real origins — otherwise it
+ * falls back to the default ports and the proxies fail with ECONNREFUSED.
+ *
  * @param port 监听端口，默认 30141
  */
-export async function spawnWebUi(port: number = 30141, statsUrl?: string): Promise<WebUiChild> {
+export async function spawnWebUi(port: number = 30141, statsUrl?: string, gatewayUrl?: string): Promise<WebUiChild> {
 	// 1. 编译后二进制：尝试从内嵌资源启动
 	if (process.env.PI_COMPILED === "true") {
-		return spawnEmbeddedWebUi(port, statsUrl);
+		return spawnEmbeddedWebUi(port, statsUrl, gatewayUrl);
 	}
 
 	// 2. 优先源码仓库中的 web-ui（开发/便携场景，避免依赖全局 npm 包或 npx）
 	const webUiDir = findSourceWebUiDir();
 	if (webUiDir) {
-		return spawnSourceWebUi(webUiDir, port, statsUrl);
+		return spawnSourceWebUi(webUiDir, port, statsUrl, gatewayUrl);
 	}
 
 	// 3. 回退：全局安装的 zeta-web
 	const zetaWebBin = await findZetaWebBin();
 	if (zetaWebBin) {
-		return spawnZetaWebBin(zetaWebBin, port, statsUrl);
+		return spawnZetaWebBin(zetaWebBin, port, statsUrl, gatewayUrl);
 	}
 
 	throw new Error("Web UI not found. Install with: npm install -g zeta-web, or run from the Zeta repository root.");
@@ -77,7 +85,7 @@ function findSourceWebUiDir(): string | null {
 	return null;
 }
 
-function spawnZetaWebBin(bin: string, port: number, statsUrl?: string): WebUiChild {
+function spawnZetaWebBin(bin: string, port: number, statsUrl?: string, gatewayUrl?: string): WebUiChild {
 	const args =
 		bin === "npx:zeta-web"
 			? ["npx", "zeta-web", "--port", String(port), "--hostname", "127.0.0.1"]
@@ -89,6 +97,7 @@ function spawnZetaWebBin(bin: string, port: number, statsUrl?: string): WebUiChi
 		ZETA_WEB_PORT: String(port),
 		ZETA_WEB_NO_OPEN: "1", // zetacode serve handles browser opening
 		...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+		...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 	};
 
 	const child = Bun.spawn(args, {
@@ -105,7 +114,7 @@ function spawnZetaWebBin(bin: string, port: number, statsUrl?: string): WebUiChi
 	};
 }
 
-function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string): WebUiChild {
+function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string, gatewayUrl?: string): WebUiChild {
 	const runtime = resolveWebUiRuntime();
 	// Check if web-ui has been built
 	const nextDir = path.join(webUiDir, ".next");
@@ -126,6 +135,7 @@ function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string): We
 				ZETA_WEB_PORT: String(port),
 				ZETA_WEB_NO_OPEN: "1",
 				...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+				...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 			},
 			stdout: "inherit",
 			stderr: "inherit",
@@ -153,6 +163,7 @@ function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string): We
 			ZETA_WEB_PORT: String(port),
 			ZETA_WEB_NO_OPEN: "1",
 			...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+			...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 		},
 		stdout: "inherit",
 		stderr: "inherit",
@@ -174,7 +185,7 @@ function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string): We
  * 2. web-ui/.next/BUILD_ID + node_modules/next（普通构建）
  * 3. 全局安装的 zeta-web npm 包
  */
-function spawnEmbeddedWebUi(port: number, statsUrl?: string): WebUiChild {
+function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string): WebUiChild {
 	const runtime = resolveWebUiRuntime();
 	// PI_COMPILED 模式下，二进制旁边就是 web-ui 目录（便携版布局）
 	const candidates = [
@@ -195,6 +206,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string): WebUiChild {
 					PORT: String(port),
 					HOSTNAME: "127.0.0.1",
 					...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+					...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 				},
 				stdout: "inherit",
 				stderr: "inherit",
@@ -220,6 +232,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string): WebUiChild {
 					ZETA_WEB_PORT: String(port),
 					ZETA_WEB_NO_OPEN: "1",
 					...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+					...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 				},
 				stdout: "inherit",
 				stderr: "inherit",
@@ -244,6 +257,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string): WebUiChild {
 				ZETA_WEB_PORT: String(port),
 				ZETA_WEB_NO_OPEN: "1",
 				...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
+				...(gatewayUrl ? { ZETA_WEB_GATEWAY_URL: gatewayUrl } : {}),
 			},
 			stdout: "inherit",
 			stderr: "inherit",
