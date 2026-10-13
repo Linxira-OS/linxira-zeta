@@ -605,6 +605,76 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   ③`local` 文件面只做只读清单还是允许编辑(推荐只读);④可选 `memory_changed` 事件是否做(推荐不做,避免与 `state_changed`
   抢语义)。**取证(本地)**:`temp/.omp-tmp/capability-contracts.md` §2 与 §5.1/§9(逐后端现状 `文件:行号`、拟议契约、代价、未决项)。
 
+- **Node 残留清点后续:web-ui 生产产物改用 Next 官方 Bun adapter(P0;2026-10-13 用户裁决:此项入队待排,P2 另行先做)**:
+  范围 = 把 `web-ui/` 的生产产物从 **Node 目标**的 `.next/standalone`(`web-ui/next.config.ts:17` `output: "standalone"`)
+  换成 Next 官方 **Bun adapter**(`nextjs/adapter-bun`,产出 `bun-dist/` + Bun 启动的 `server.js`),并把
+  `packages/coding-agent/src/commands/web-ui-launcher.ts:20` 的 `ZETA_WEB_RUNTIME || "node"` 默认改为 `bun`
+  (保留 `ZETA_WEB_RUNTIME=node` 逃生阀)。这是唯一"web 面脱离 Node、并解锁删除 desktop 内置 Node"的实质大改。
+  **量级**:**中高**——1 个构建+运行时改造 PR + 原生依赖矩阵逐个体测,**约 5–15 agent-日 [推断]**。
+  **为什么推迟**:1.2.1 只带已合内容;且它本质是"换产物形态",风险集中在 `web-ui/next.config.ts:28-38` 的
+  `serverExternalPackages`(`better-sqlite3`/`undici`/`fastembed`/`onnxruntime-node`/`tar`/`@anush008/tokenizers*`)——
+  Node-API 原生模块在 Bun 上是否可用**必须实测**(`better-sqlite3` 在 Bun 侧最稳的替代是 `bun:sqlite`,但 API 不同需改代码)。
+  **开工前先定**:**原生依赖矩阵逐个体测的清单与通过标准**(每个模块:能否在 Bun 下加载 / 关键路径冒烟 / 失败是否阻塞发布);
+  另需定 `bun --bun next start` 与 adapter `bun-dist/` 两条路径的取舍口径——Next 官方自 v16.4.0 起把 Bun 列为
+  **Verified Adapter**,但我们今天打包的是 **Node 目标产物**,**不在其承诺面内**(把 Node 产物塞给 `bun` 跑 ≠ 官方支持)。
+  **取证(本地,`temp/` 不随仓库发布)**:`temp/.omp-tmp/node-residency-report.md` §1.3(a)、§3 第 1/10 条、§4.1、§5.1(两条 P0)。
+
+- **Node 残留清点后续:删 desktop 内置 Node staging + npm 启动器/安装文档成对改(P1;依赖上一条 P0)**:
+  范围 = ①删 desktop 打包期的内置 Node staging——`desktop/scripts/prepare-runtime.mjs:53`
+  (`fs.copyFileSync(process.execPath, stagedNode)`)、`desktop/scripts/platform.mjs:12`(`nodeBinaryName`)、
+  `desktop/src/main.ts:66` 的 `WEB_RUNTIME_NAME`(及其 `webRuntimeName` 契约面:`desktop/src/serve-resolution.ts:59,123,141`、
+  `desktop/src/tool-resolution.ts:44`);②把 3 个 npm 启动器(`main/npm/main/bin/zeta.js`、`termide/npm/ide/bin/zeta-ide.js`、
+  `editor/npm/editor/bin/zeta-editor.js`)的 shebang 从 `#!/usr/bin/env node` 改为 `bun`、`engines` 声明改为
+  `{"bun": ">=1.3.14"}`,**并同步把安装文档改为 `bun install -g`**(`README.md:33` 的 "Node 18+ or Bun"、
+  `docs/user-guide.md:14-18`、`docs/user-guide.zh-CN.md:13`)。**量级**:低——2 个 PR,**约 1–3 agent-日 [推断]**。
+  **为什么推迟**:**依赖 P0**——内置 Node 存在的唯一理由是托管 Next standalone 的 `server.js`(Node 目标产物),
+  P0 不落地就删不掉;且**启动器 shebang 与安装文档必须成对改**:npm 生成的 Windows `.cmd` shim **硬编码 `node`**
+  (本仓实物证据:`web-ui/node_modules/.bin/next.cmd` 里 `SET "_prog=node"`;`desktop/node_modules/.bin/electron-builder.cmd` 同理),
+  只改 shebang 而安装方式仍是 `npm i -g` 就是**假迁移**(Windows 上 `npm i -g @linxiraos/zeta` → `zetacode` 会用系统 Node
+  跑 Bun 目标 bundle,因 `Bun.semver` 未定义而抛错)。**开工前先定**:①删 staging 后"目标机无需 Node"改由 Bun 承担的口径,
+  以及 `desktop/README.md`、`AGENTS.md`、desktop smoke 断言的同步改动清单;②`bun install -g` 在
+  Windows/macOS/Linux 三端生成 shim 的行为确认(不再是 `.cmd`/`node`,而是 `.exe`/`bunx` 侧)。**取证(本地)**:
+  `temp/.omp-tmp/node-residency-report.md` §1.3(b)、§2.1、§2.2、§3 第 2/4/5 条、§4.2、§5.1(两条 P1)。
+  （行号说明:报告写作 `main.ts:59-60`、`README.md:36`、`run-ci.sh:178`,登记时已漂移;上列为登记时的 main 实测行号。）
+
+- **Node 残留清点后续:清理项(P3;2026-10-13 登记)**:
+  范围 = ①`packages/omptype/package.json:43-46` 删 `engines.node`(只保留 `bun`;它是唯一同时声明 node 的工作区包);
+  ②`scripts/install-tests/run-ci.sh:185` 的 `node -e "..."`(写 `pkg.overrides`)换成 `bun -e`。**量级**:极低——1 PR,
+  **约 0.5 agent-日 [推断]**。**为什么推迟**:纯一致性清理,无收益无风险,排在 P0/P1 之后。**开工前先定**:无实质分叉,
+  仅需在 CI 环境确认 `bun -e` 对那段 `require('fs')`/`JSON.parse` 脚本的等价性。**取证(本地)**:
+  `temp/.omp-tmp/node-residency-report.md` §2.2、§2.3、§3 第 13/14 条、§5.1(P3 行)。
+
+- **Node 残留:「明确不改」清单(防后人误改;2026-10-13 登记)**:
+  下列均为**刻意保留 Node**,不是漏改、不是待办;任何人**不得**以"全线 Bun"为名改动:①**Electron 主进程**
+  (`desktop/package.json` `electron@37.10.3`)——Electron 官方把 Node 作为主进程运行时内建,"改掉它"等于换桌面外壳框架,
+  不是运行时迁移;②**CI 发布 job 的 `setup-node` + npm trusted publishing**——`npm publish` 的 OIDC 依赖 npm CLI
+  (`ci.yml` 注释已写死:npm 12 需要比 Bun 1.3 更新的 emulated Node),改动收益为零、风险是断发布;③**`electron-builder`**
+  (`desktop/scripts/package-desktop.mjs`)——纯 Node 工具、无 Bun 等价物,只在构建期跑;④**构建期 Node**(web-ui
+  `next build`、desktop `npm ci`、`node --test` 契约测试、editor `vitest`)——工具链而非产品运行时,目标机用户不接触;
+  ⑤**用户自带的 LSP/MCP/DAP/npx 生态工具**——它们本身就是 Node 程序,我们只保证"优先 / 回退"策略正确;
+  ⑥**Dockerfile 的 `node→bun` 符号链接**(`Dockerfile:141-147`)——方向是"去 Node 化"(用 bun 伪装 node,服务镜像内
+  `#!/usr/bin/env node` 的包 bin),删掉反而让镜像工具链断。**取证(本地)**:
+  `temp/.omp-tmp/node-residency-report.md` §5.2(逐条原因)、§3 第 3/8/9/11 条。
+
+- **Node 残留清点后续:P2 已开工 + NAPI/Bun "best effort" 风险事实(2026-10-13 记录)**:
+  状态 = P2 三项(`napi10` 降到实际所需的最低 Node-API level、CI 为 Bun 的 natives 加**阻塞性**(而非
+  `continue-on-error`)回归、`packages/coding-agent/src/server/web-gateway/npx.ts:29-45` 的 `findNpxCli()` 增加 Bun 分支)
+  **已另派、开工中**,不属本队列(此处仅留状态与风险)。**关键风险事实**(须先记牢):我们的 addon 用 **Node-API level 10**
+  (`Cargo.toml:338` `napi = { version = "3", features = ["napi10", ...] }`,并自行 vendored napi,见 `Cargo.toml:45`),
+  而 napi-rs 官方支持矩阵把 **Bun 标为 "Best effort"**:Bun job `continue-on-error`(失败不阻塞 napi-rs 发布)、
+  `napi new` 脚手架**只提供 Node-API level 1–9**、且明确把 "Bugs in an alternate runtime's Node-API implementation"
+  排除在 ABI 保证之外;Bun 官方 Node-API 文档**未声明支持的版本号**。这是整份清点里**风险收益比最差**的一处——
+  迁移收益为零(已经在 Bun 上),风险是"某次 Bun 升级把深水区 NAPI 语义改坏"。**取证(本地)**:
+  `temp/.omp-tmp/node-residency-report.md` §4.3、§5.1(两条 P2)。
+
+- **README 语义修正项(待定;2026-10-13 登记)**:`README.md:33`(报告记作 :36)的 "Install the workspace
+  (**Node 18+ or Bun** on the machine)" 与实测不符——`@linxiraos/zeta` 实际**需要 Bun**(发布产物是 Bun 目标 bundle,
+  `packages/coding-agent/src/cli.ts:47` 模块顶层访问 `Bun.semver`);`@linxiraos/zeta-web` 需要 **Node ≥ 22.19.0**
+  (`web-ui/bin/node-version.js:3` 硬门禁);真正只需系统 Node 的是 main/editor/ide 三个 Rust/Go 工具的**启动器**。
+  范围 = 修正 README 与 `docs/user-guide*.md` 的安装前置描述。**量级**:极低(单文件级文档小修)。**为什么待定**:
+  它从属 **P1**——P1 落地时安装文档本就要改成 `bun install -g`,可顺带一次改对;若 P1 长期不开工,可独立小修。
+  **开工前先定**:归入 P1 批次,还是独立小修。**取证(本地)**:`temp/.omp-tmp/node-residency-report.md` §2.5、§4.2。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
