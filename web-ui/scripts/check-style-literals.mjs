@@ -16,10 +16,11 @@
  * is a *matching key* (a selector against the highlighter's inline colours)
  * rather than paint.
  *
- * Files still mid-migration are recorded in `scripts/style-literal-baseline.json`
- * with their exact count, and the guard ratchets: new debt, growth inside a
- * baselined file, and stale (too high) entries all fail. Lower a file's entry
- * after migrating it with `--update-baseline`.
+ * Files still mid-migration carry a per-file ceiling in
+ * `scripts/style-literal-baseline.json`: a literal in any other file, or a
+ * count above the ceiling, fails. Counts below a ceiling are reported as stale
+ * (not a failure) — migrations land in their own PR — and `--update-baseline`
+ * rewrites the file from the current tree to tighten them.
  *
  * Usage: `node scripts/check-style-literals.mjs`               — exit 0/1
  *        `node scripts/check-style-literals.mjs --update-baseline`
@@ -33,9 +34,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
 const BASELINE_PATH = join(ROOT, "scripts/style-literal-baseline.json");
 const BASELINE_NOTE =
-  "Colour literals still pending migration, per file, enforced as a ratchet by check-style-literals.mjs. " +
-  "Entries shrink, never grow; delete an entry once its file reaches zero. " +
-  "The remaining files are owned by the parallel shell PR (feat/desktop-ui-p0-shell: ChatInput/SessionSidebar/sidebar/**).";
+  "Colour-literal ceilings for files still mid-migration, enforced by check-style-literals.mjs: any literal in a file " +
+  "absent here, and any count above its ceiling, fails the guard. A count below the ceiling is reported as a stale " +
+  "entry (not a failure) because a migration lands in its own PR; tighten with `node scripts/check-style-literals.mjs " +
+  "--update-baseline`, which rewrites this file from the current tree. The five files below are owned by the parallel " +
+  "shell PR (feat/desktop-ui-p0-shell).";
 
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "public"]);
 const SCAN_EXT = new Set([".css", ".ts", ".tsx"]);
@@ -173,32 +176,39 @@ if (process.argv.includes("--update-baseline")) {
 }
 
 /**
- * Ratchet: a file that is still mid-migration is recorded in the baseline with
- * its exact count. New debt anywhere, growth in a baselined file, or a stale
- * (too high) baseline entry all fail, so the ledger can only shrink.
+ * Ratchet: a file still mid-migration carries a per-file **ceiling** in the
+ * baseline. Any literal in an unbaselined file, and any count above the
+ * ceiling, fails. A count *below* the ceiling is allowed and reported as a
+ * stale entry: migrations land in their own PR (different branch, different
+ * owner), so failing on a decrease would deadlock two in-flight PRs. Tighten
+ * with `--update-baseline` once the file is migrated.
  */
 const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")).files;
 const problems = [];
+const stale = [];
 for (const [rel, list] of [...byFile].sort()) {
-  const recorded = baseline[rel];
-  if (recorded === undefined) {
+  const ceiling = baseline[rel];
+  if (ceiling === undefined) {
     problems.push(`  ${rel} (${list.length} new): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
-  } else if (list.length > recorded) {
-    problems.push(`  ${rel} (${list.length} > baseline ${recorded}): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
-  } else if (list.length < recorded) {
-    problems.push(`  ${rel} (${list.length} < baseline ${recorded}) — baseline is stale, lower it`);
+  } else if (list.length > ceiling) {
+    problems.push(`  ${rel} (${list.length} > ceiling ${ceiling}): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
+  } else if (list.length < ceiling) {
+    stale.push(`  ${rel} (${list.length} < ceiling ${ceiling}) — tighten with --update-baseline`);
   }
 }
 for (const rel of Object.keys(baseline)) {
-  if (!byFile.has(rel)) problems.push(`  ${rel} (0 < baseline ${baseline[rel]}) — baseline is stale, drop the entry`);
+  if (!byFile.has(rel)) stale.push(`  ${rel} (0 < ceiling ${baseline[rel]}) — drop the entry with --update-baseline`);
 }
 
 if (problems.length > 0) {
   console.error(`colour-literal guard FAILED: ${violations.length} literal(s) outside the L1 token layer`);
   for (const problem of problems) console.error(problem);
   console.error("Use an L2 alias (var(--zeta-alias-…)), or add the value to lib/theme/tokens.ts.");
-  console.error("After migrating a baselined file: node scripts/check-style-literals.mjs --update-baseline");
   process.exit(1);
+}
+if (stale.length > 0) {
+  console.warn(`colour-literal guard: ${stale.length} stale baseline entr(ies) (not a failure)`);
+  for (const entry of stale) console.warn(entry);
 }
 
 console.log(
