@@ -637,6 +637,18 @@ impl Terminal {
         Ok(())
     }
 
+    /// Send a control byte, prefixed with `ESC` when Alt is held — the xterm
+    /// encoding for Alt+Ctrl chords (`Alt+Ctrl+D` → `ESC` `\x04`). Folding the
+    /// modifier into the byte stream keeps the working key chord (not just
+    /// its Ctrl half) reaching the child.
+    fn send_ctrl_char(&mut self, byte: u8, alt: bool) {
+        let _ = if alt {
+            self.send_input(&[0x1b, byte])
+        } else {
+            self.send_input(&[byte])
+        };
+    }
+
     /// Change the shell's directory to `path`, quoted for this shell.
     pub fn send_cd(&mut self, path: &std::path::Path) -> Result<()> {
         self.send_command(&self.shell_kind.cd_command(path))
@@ -1141,19 +1153,27 @@ impl Panel for Terminal {
                                 }];
                             }
                         } else {
-                            let _ = self.send_input(&[3]); // Ctrl+C (SIGINT)
+                            self.send_ctrl_char(3, key.modifiers.contains(KeyModifiers::ALT));
+                            // Ctrl+C (SIGINT)
                         }
                     } else if c.eq_ignore_ascii_case(&'d') {
-                        let _ = self.send_input(&[4]); // Ctrl+D
+                        self.send_ctrl_char(4, key.modifiers.contains(KeyModifiers::ALT));
                     } else if c.eq_ignore_ascii_case(&'z') {
-                        let _ = self.send_input(&[26]); // Ctrl+Z
+                        self.send_ctrl_char(26, key.modifiers.contains(KeyModifiers::ALT));
                     } else {
                         // Other Ctrl combinations
                         let ctrl_char = (c as u8) & 0x1f;
-                        let _ = self.send_input(&[ctrl_char]);
+                        self.send_ctrl_char(ctrl_char, key.modifiers.contains(KeyModifiers::ALT));
                     }
                 } else {
-                    // Regular character
+                    // Regular character. Alt chords reach the PTY as `ESC` +
+                    // the key — the xterm convention (`\x1bv` = Alt+V) that
+                    // applications decode as Alt+<key>. The modifier used to
+                    // be dropped here, so an unbound Alt chord forwarded from
+                    // the host arrived as its bare character.
+                    if key.modifiers.contains(KeyModifiers::ALT) {
+                        let _ = self.send_input(b"\x1b");
+                    }
                     let mut buf = [0u8; 4];
                     let s = c.encode_utf8(&mut buf);
                     let _ = self.send_input(s.as_bytes());

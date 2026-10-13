@@ -30,9 +30,10 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"🗕 Minimize pane",
 			"🗗 Move pane to new tab",
 			"❌ Close pane",
+			"✏ Rename pane",
 		],
 	),
-	("Tab", &["Next tab", "Previous tab"]),
+	("Tab", &["Next tab", "Previous tab", "✏ Rename tab"]),
 	(
 		"Tools",
 		&[

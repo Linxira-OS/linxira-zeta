@@ -10,7 +10,14 @@ Zeta suite. Type `zeta` in a project directory and everything is one key away:
 - `Alt+T` / `Alt+1..9` — new tab / jump between tabs (each tab keeps its own
   layout)
 - `Alt+L` — cycle the pane layout (1x1, side-by-side, 2x2)
+- `Alt+V` — paste the clipboard image as a temp-file path (the host terminal
+  usually swallows image pastes; zetacode loads the path as an attachment)
 - `F1` — in-app help; `zeta --help` — the same map on the command line
+- Unbound `Alt` chords are forwarded to the focused pane, so a child
+  (`zetacode`) keeps its own `Alt` shortcuts.
+- Mouse: double-click a tab — or a pane's title bar — to rename it
+  (`Enter` saves, `Esc` cancels). Bracketed paste keeps multi-line clipboard
+  text whole instead of submitting line by line.
 
 Every tool also runs standalone (`zeta-c`, `zeta-editor`/`zeta-e`,
 `zeta-ide`/`zeta-i`, each with its own `--help`).

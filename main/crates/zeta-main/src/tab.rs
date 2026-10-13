@@ -130,6 +130,9 @@ pub enum PaneBody {
 pub struct Page {
 	pub kind: PaneKind,
 	pub body: PaneBody,
+	/// Explicit rename; when `Some` it wins over the child's OSC 0/2 title
+	/// and the tool's default label.
+	pub name: Option<String>,
 }
 
 /// A single embedded pane: a stack of sub-pages plus which one shows.
@@ -180,7 +183,7 @@ impl Pane {
 			}
 			PaneBody::Pty(term)
 		};
-		self.pages.push(Page { kind, body });
+		self.pages.push(Page { kind, body, name: None });
 		self.page = self.pages.len() - 1;
 		Ok(self.page)
 	}
@@ -199,6 +202,15 @@ impl Pane {
 
 	pub fn active_page(&self) -> Option<&Page> {
 		self.pages.get(self.page)
+	}
+
+	/// The active page's explicit rename, when set and non-empty.
+	pub fn name_override(&self) -> Option<&str> {
+		self
+			.active_page()?
+			.name
+			.as_deref()
+			.filter(|name| !name.is_empty())
 	}
 
 	/// The active page's PTY terminal, when it is a terminal page.
@@ -248,20 +260,35 @@ pub struct Tab {
 	pub minimized: Vec<Pane>,
 	pub active: usize,
 	pub tree: PaneNode,
+	/// Explicit tab rename; when `Some` the tab bar shows it (still numbered)
+	/// instead of the focused pane's title.
+	pub name: Option<String>,
 }
 
 impl Tab {
 	/// A tab starts with a single shell pane; the layout grows by splitting.
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
 		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
-		Ok(Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) })
+		Ok(Self {
+			panes: vec![pane],
+			minimized: Vec::new(),
+			active: 0,
+			tree: PaneNode::single(0),
+			name: None,
+		})
 	}
 
 	/// A tab around an existing pane — the promote-pane move: the Pane
 	/// object (and its live PTY pages) travels here by value, never
 	/// respawned or cloned.
 	pub fn with_pane(pane: Pane) -> Self {
-		Self { panes: vec![pane], minimized: Vec::new(), active: 0, tree: PaneNode::single(0) }
+		Self {
+			panes: vec![pane],
+			minimized: Vec::new(),
+			active: 0,
+			tree: PaneNode::single(0),
+			name: None,
+		}
 	}
 
 	/// The pane's unnumbered title: the child's OSC 0/2 name when its active
@@ -271,6 +298,11 @@ impl Tab {
 		let Some(pane) = self.panes.get(pane_index) else {
 			return "pane".into();
 		};
+		// An explicit rename wins over the child's announcement and the
+		// default label — it is the user's own name for the pane.
+		if let Some(name) = pane.name_override() {
+			return name.to_string();
+		}
 		match pane.osc_title() {
 			Some(title) if !title.is_empty() => title,
 			_ => pane.label(),
@@ -537,6 +569,7 @@ mod tests {
 			minimized: Vec::new(),
 			active: 0,
 			tree: PaneNode::Split { axis: crate::layout::Axis::Row, children },
+			name: None,
 		}
 	}
 
@@ -773,6 +806,19 @@ mod tests {
 		// positions).
 		assert!(tab.take_pane(0).is_some());
 		assert_eq!(tab.pane_display_name(0), "1:🍅 pomodoro");
+	}
+
+	#[test]
+	fn explicit_page_name_overrides_the_default_label() {
+		let mut tab = widget_tab(1);
+		assert_eq!(tab.pane_title_base(0), "time · calendar");
+		// An explicit rename wins over the tool's default label.
+		tab.panes[0].pages[0].name = Some("scratch".into());
+		assert_eq!(tab.pane_title_base(0), "scratch");
+		assert_eq!(tab.pane_display_name(0), "1:scratch");
+		// An empty name behaves as no override.
+		tab.panes[0].pages[0].name = Some(String::new());
+		assert_eq!(tab.pane_title_base(0), "time · calendar");
 	}
 
 	#[test]
