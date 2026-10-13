@@ -78,7 +78,7 @@ export type AgentCommand =
 	| { type: "fork"; entryId: string }
 	| { type: "navigate_tree"; entryId: string }
 	| { type: "set_thinking_level"; level: string }
-	| { type: "compact" }
+	| { type: "compact"; customInstructions?: string }
 	| { type: "set_session_name"; name: string }
 	| { type: "get_session_stats" }
 	| { type: "get_last_assistant_text" }
@@ -615,7 +615,7 @@ export class AgentSessionWrapper {
 				// matching end leaves the button stuck on "Compacting…").
 				this.#emit({ type: "compaction_start" });
 				try {
-					const result = await this.#inner.compact();
+					const result = await this.#inner.compact(command.customInstructions);
 					const contextUsage = this.#inner.getContextUsage();
 					const payload = {
 						tokensBefore: result.tokensBefore,
