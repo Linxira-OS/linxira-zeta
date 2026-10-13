@@ -50,7 +50,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WebSocketHandler } from "bun";
 import { PtySession } from "@linxiraos/pi-natives";
-import { defaultProbeContext, discoverBin, type OpenProbeContext } from "../../utils/bin-discovery";
+import { defaultProbeContext, discoverBin, pathImpl, type OpenProbeContext } from "../../utils/bin-discovery";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 
@@ -733,7 +733,11 @@ export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContex
 		const wrapped = windowsShimWrapper(workbench, ctx);
 		return {
 			kind: "workbench",
-			label: path.basename(workbench).replace(/\.(cmd|bat|exe)$/i, ""),
+			// The discovered path is spelled in the probed platform's style, so the
+			// label must strip the extension with that platform's path impl (a POSIX
+			// host probes `C:\npm\zetawork.cmd` on the win32 tier and must still call
+			// it "zetawork", not the whole backslash path).
+			label: pathImpl(ctx.platform).basename(workbench).replace(/\.(cmd|bat|exe)$/i, ""),
 			command: wrapped?.command ?? workbench,
 			args: wrapped?.args ?? [],
 			fallbackReason: null,
