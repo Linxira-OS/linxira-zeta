@@ -532,6 +532,79 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
     SDK/host 层「pi 兼容模式」而不是改默认。**开工前先定**:①兼容开关的承载层(SDK 选项 vs wire 版本
     协商);②`message_start`/`message_end` 之间增量装配的责任归属;③对既有 Web UI/desktop 消费面的回归范围。
 
+- **P2「按 DeepSeek Reasonix 补齐复杂控件」12 片(2026-10-13 用户裁决;分叉 F1–F5 已决,本队列逐片登记)**:范围 =
+  纯前端(`web-ui/**` + `desktop/**`)补齐 Reasonix 交互复杂度最高的控件,**12 个互不阻塞的独立 PR**,零网关/DTO 契约改动。
+  **分叉已决**:`F1` 只做前端(解禁 `packages/**` 的四类后端控件另列,见本队列后两条);`F2` 引入会话多标签(不塞进本批,
+  另立计划,见下条);`F3` 终端留在右 dock(不做底部抽屉);`F4` 保留 textarea(不移植 contentEditable atom,chip 化放上下文行);
+  `F5` 独立 AskCard(须依赖 ask 通道 → 见本队列第三条,本批只做 `S6` 的 DecisionShelf 子集)。
+  **逐片一句话**:①`S1` 覆盖层三件套 `AnchoredPopover`/`ContextMenu`/`Tooltip` + 纯定位数学(唯一共享弹出层,替掉
+  `DraftContextBar`/`ChatInput`/`AppShell` 的手写定位);②`S2` slash 参数补全(ArgMenu:`model`/`skill`/`plugin`/`session`
+  等二级取值,复用既有零引用孤儿 `lib/models-cache.ts`)+ @/slash 菜单虚拟化(已存 `@tanstack/react-virtual`);
+  ③`S3` 输入面手感:粘贴折块(≥12 行或 ≥1200 字)、附件 SHA-256 去重、输入框右键菜单、`Alt+↑/↓` 键盘调高并随草稿持久化;
+  ④`S4` 草稿跨刷新(`localStorage` `zeta-web:draft:<key>` + LRU)+ 跨会话提示历史(↑/↓ 磁带,源=会话 JSONL,上限 50 会话);
+  ⑤`S5` 转写选区浮动菜单(Copy/加入对话)+ composer 上下文 chip(附件/工作区/会话引用/选中文本);⑥`S6` TodoPanel
+  (composer 上方常驻任务清单:done/total、当前任务、按批次持久化折叠、全完成自动折叠;后端 `GET /api/agent/<id>` 的
+  `todos` 已就绪)+ 最小 `DecisionShelf` 子集;⑦`S7` 工具调用分组/只读批次折叠 + 折叠态按会话持久化(`tool-buckets.ts`
+  在 `ChatWindow` 轮次构建期批处理,不下沉 `MessageView`);⑧`S8` 转写虚拟化(hot/warm/cold 三层窗口替换 `visibleCount`
+  分页,流式期间历史不重建 —— 本批最高风险片,旧路径留 flag 回退);⑨`S9` 底部状态栏(模型/工作区/分支/缓存命中%/
+  tokens/成本/轮次/上下文%,项可勾选排序,设置页新增分区);⑩`S10` 终端多会话 rail(≤4 活,复用已有
+  list/create/delete 路由)+ 终端输出「加入对话」插入 composer;⑪`S11` 代码查看器搜索(大文件 >400 行切 CodeMirror 6
+  只读视图,包已在 `package.json` 且全库零 import,不新增依赖;字面量+正则搜索、命中计数、行号);⑫`S12` Markdown/数学加固
+  (货币不误判、LLM LaTeX 修复、复制回原始 TeX、Young 图)+ Mermaid 串行队列·`svg-sanitize` 消毒·pan/zoom。
+  **量级**:**约 30–45 agent-日 [推断]**(单列 `S8` 约 5–10;其余各 1–5)。**为什么推迟**:1.2.1 只带已合内容;
+  且 `S1`/`S9`/`S10` 触碰 `AppShell.tsx`、`panel-registry.tsx`(被 P1 `feat/desktop-ui-p1-stats-branch` 占用),
+  `S8` 须与窗口滚动修复串行,**必须等 P1 合入 main 后 rebase,不并行**。**开工前先定**:①P1(stats/branches)与滚动修复的
+  合并窗口(硬串行前置);②整批按依赖图开工(`S1 → S2/S3/S4/S5`、`S7 → S8`,其余独立)还是先做 `S1` 共享件;
+  ③每片的真实浏览器证据目录与验收形态(用户硬性要求,已写死在计划 §3)。
+  **取证(本地,`temp/` 不随仓库发布)**:`temp/.omp-tmp/reasonix-controls-plan.md`(含逐片范围/验收/依赖图/F1–F5)。
+
+- **会话多标签 B/C 两片(2026-10-13 用户裁决;A 已合 PR #168,B/C 待做)**:范围 = 在已合并的 PR A(标签骨架:纯模型
+  `lib/session-tabs.ts` + `SessionTabBar` + 切换/新建/关闭 + 保活 + 单活动 SSE)之上补齐两片。**B(持久化+恢复+徽章+关闭族)**:
+  刷新后标签/顺序/活动项恢复(`zeta-web:session-tabs-v1` + 编解码/校验/淘汰,冷标签零请求)、后台运行徽章(只吃已消费信号)、
+  右键「关闭其他/关闭右侧」、上限淘汰(**12**,LRU 且**不中止**运行)、draft 标签关闭确认。**C(DnD+快捷键+收口)**:HTML5 DnD
+  重排持久化、`Alt+1..9` 与桌面壳 `Ctrl+W`、活动标签自动滚入可视区、roving tabindex/ARIA 达标、订正 `web-ui/AGENTS.md`
+  File Map。**另列(不在 B/C)**:审批徽章接线(`extension_ui_request` → 「等待审批」)依赖 **ask 通道**(见本队列第三条),
+  且会改变既有交互行为,须独立立项与独立证据(计划分叉点 4 的推荐 = 不做,仅记录降级)。**量级**:B/C 各 1 PR,
+  **约 4–8 agent-日 [推断]**;**为什么推迟**:1.2.1 只带已合内容;`B` 依赖已合的 A,`C` 依赖 B,审批徽章依赖 ask 通道。
+  **开工前先定**:①上限 **12** 与「失活但运行中保留 ≤2 条流」的默认值(计划分叉点 1/2 的推荐值,需确认);
+  ②「关闭标签不中止运行」(默认)与菜单项「关闭并中止运行」是否同批;③是否顺带接线 `extension_ui_request`(推荐:本批不做)。
+  **取证(本地)**:`temp/.omp-tmp/session-tabs-plan.md`(含 B/C 逐条范围文件、可观察验收、风险与回滚)。
+
+- **审批内核钩子(自建能力第三批;**唯一触及内核面的项**;2026-10-13 用户裁决 F5=B)**:范围 = 把审批从「文本 `select`」升格为
+  结构化事件:**内核**在 `ExtensionUIContext` 新增**可选** `approvalRequest?({toolCallId,toolName,tier,approvalMode,reason?,prompt,expiresAt?})
+  → ApprovalDecision("allow_once"|"allow_always"|"reject_once"|"reject_always")`,发射点 `wrapper.ts` 的 `approvalCheck.required`
+  分支(**有钩子走钩子,没有退回 `select`**);**网关**发 SSE `approval_requested`/`approval_resolved` +
+  `extension_ui_request(method:"ask")`/`method:"cancel"`,并扩 `POST /api/extension-ui/response` 为 `{id,value?,confirmed?,cancelled?,timedOut?,answers?,decision?}`;
+  **前端**新增 AskCard(多问题走查/推荐徽章/自定义输入/备注)与 ApprovalModal(工具/tier/reason/prompt + 四决策按钮)。
+  必带两个副项:共享 `parseAskDialogResponse` 校验器迁出为单一实现;`uiRequestOwners` 注册时机 bug(搬到 `dispatchUiRequest`,
+  否则无 `/events` 订阅时答复恒 404 —— 全局审批面与多标签/多窗口的前置)。
+  **边界(与第二/第三批)**:**第二批 = ask 通道**——网关实现 `askDialog` + `ExtensionUiRequest`/`ExtensionUiResponse` 联合扩型 +
+  校验器共享,**不改内核行为**,且必须先合(PR-B 复用同一扩型/答复体形状);**第三批 = 本条**——唯一新增内核可选方法的一批,
+  因为审批决策语义(tier 解析、`policy:"deny"`、provider safety 不可绕过、`xdevApproved`/`acpApprovedArgs` 旁路)全在内核
+  (`wrapper.ts` + `tools/approval.ts`),网关无法从提示串反推;「总是允许」也必须由内核决定落盘位置,不能由 UI 私自持久化。
+  `select` 兜底路径**完整保留**(纯加法兼容)。**量级**:3 后端 PR + 2–3 前端片 + 约 10 例契约测试,**约 10–20 agent-日 [推断]**。
+  **为什么推迟**:1.2.1 只带已合内容;钩子落在**每个工具调用**的关键路径,需人在内核面 review;前端片须排在 P2 `S8` 之后、
+  且与 P1 合入后共用一次 `panel-registry` 三列表改动。**开工前先定**:①fail-closed 与超时语义(超时只能**拒绝**、绝不自动放行)
+  及 `abort` 语义;②`allow_always` 落盘范围(默认仅会话内存表;写 `tools.approval.<tool>` 需二次确认并与 `tools.approvalMode`
+  的优先级说明);③结构化事件**替代** `select`(目标态)还是配对过渡(过渡态须写死配对规则,否则双弹窗);④`ask` 图片附件
+  (`customInputImages`/`noteImages`)是否支持(不支持须**显式拒绝**而非静默丢弃)。
+  **取证(本地)**:`temp/.omp-tmp/capability-contracts.md` §3(含现状 `文件:行号`、拟议契约、落点、代价、重叠评估);
+  关联 `temp/.omp-tmp/reasonix-controls-plan.md` §F5(方案 B)。
+
+- **记忆内容管理「写面」(2026-10-13 用户当前未选,登记为**待定**)**:范围 = 在**已合并的只读面**(PR #166:
+  `GET …/memory`(status + 逐后端能力矩阵)/`…/memory/search`/`…/memory/items/:memId`)之上做写侧:`PATCH /api/agent/:id/memory/items/:memId`
+  (`op: update|forget|invalidate`)、`POST /api/agent/:id/memory`(`clear|enqueue|stats|diagnose|queue`),可选 PR-3 做 `local`
+  文件**只读**清单;前端为 MemoryPanel 的详情/修订/归档片。**量级**:1 后端写 PR(+1 可选文件面)+ 1–2 前端片,
+  **约 5–10 agent-日 [推断]**。**为什么待定(推迟)**:写侧风险高且用户未选 —— 5 个后端能力**严重不对称**
+  (`off` 全禁;`local` 只写 `learned.md` 且**无搜索**;`mnemopi` 全可写;`hindsight` 内容在服务端且不可寻址;
+  `sharpshooter` 搜索仅子串、无归档);mnemopi 的 search/edit 依赖会话级 `MnemopiSessionState`,不能凭空开库编辑;
+  HTTP 写入口**不得绕过** `redact.ts` 的凭据擦除;`recall` 返回的是**截断预览**,修订前必须先取全文,否则会把预览写回去;
+  `local` 汇总文件是**整体重写**语义,提供「编辑」会与整合互相覆盖。**开工前先定**:①**写侧能力矩阵**
+  (哪些后端可写/可搜索/可归档)与 UI 空态文案(`capabilities` 必须下发,否则 UI 会整片空白);②风险控制与边界
+  (无活会话 → 明确报「不可写」而非 5xx;归档 = `invalidate` 软删与 `forget` 硬删的措辞分开;**写入路径强制走 redact**);
+  ③`local` 文件面只做只读清单还是允许编辑(推荐只读);④可选 `memory_changed` 事件是否做(推荐不做,避免与 `state_changed`
+  抢语义)。**取证(本地)**:`temp/.omp-tmp/capability-contracts.md` §2 与 §5.1/§9(逐后端现状 `文件:行号`、拟议契约、代价、未决项)。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
