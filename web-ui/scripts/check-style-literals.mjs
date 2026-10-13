@@ -14,10 +14,17 @@
  *
  * Scope: `.css`, `.ts`, `.tsx` under web-ui/ (excluding `node_modules/`,
  * `.next/`, test files and the paths in ALLOWED below). Comments are ignored;
- * string literals are scanned, because that is where inline styles live. A line
- * carrying `zeta-style-literal-allow: <reason>` is skipped — for a literal that
- * is a *matching key* (a selector against the highlighter's inline colours)
- * rather than paint.
+ * string literals are scanned, because that is where inline styles live.
+ * Escape hatches, both of which must carry a reason:
+ *   - one line: the marker `zeta-style-literal-allow: <reason>` in a comment —
+ *     for a literal that is a *matching key* (a selector against the
+ *     highlighter's inline colours) rather than paint;
+ *   - a block: `zeta-style-literal-allow-start: <reason>` … `zeta-style-literal-allow-end`
+ *     — for one cohesive palette that legitimately owns its own literals (the
+ *     xterm ANSI table). An unterminated or nested region is a hard error, so
+ *     the exemption can never silently widen.
+ * Prefer a region over a file-level ALLOWED entry: the file keeps every other
+ * line under the guard.
  *
  * Files still mid-migration carry a per-file ceiling in
  * `scripts/style-literal-baseline.json` (currently empty): a literal in any
@@ -54,7 +61,6 @@ const SCAN_EXT = new Set([".css", ".ts", ".tsx"]);
 const ALLOWED = [
   ["lib/theme/", "theme owner: the L1 --zeta-static-* palette is defined here"],
   ["lib/ansi.ts", "ANSI-16 → CSS colour map: terminal palette, not theme surfaces"],
-  ["components/TerminalView.tsx", "xterm.js palette + theme wiring: the terminal owns its own 16 colours"],
   ["lib/rainbow.tsx", "computed rainbow palette: hues are interpolated per keyword spec, not theme surfaces"],
   ["styles/themes/", "generated L1/L2/L3 first-frame tables (scripts/gen-theme-static.mjs)"],
   ["app/api/", "standalone server-rendered HTML preview document (no theme context)"],
@@ -70,6 +76,34 @@ const NAMED_STRING = new RegExp(`["'\`](${NAMED})["'\`]`, "g");
 
 /** Per-line escape hatch for a colour that is a *matching key*, not paint. */
 const ALLOW_MARKER = /zeta-style-literal-allow:\s*\S+/;
+/** Region escape hatch for a block of literals that are one cohesive palette. */
+const ALLOW_REGION_START = /zeta-style-literal-allow-start:\s*\S+/;
+const ALLOW_REGION_END = /zeta-style-literal-allow-end/;
+
+/**
+ * Lines exempted from rule 1: single-line markers plus whole marked regions.
+ * A region that is opened and never closed is a hard error — an unterminated
+ * exemption would silently swallow the rest of the file.
+ */
+function allowedLines(source, rel) {
+  const lines = source.split(/\r?\n/);
+  const allowed = new Set();
+  let open = 0;
+  lines.forEach((line, index) => {
+    const number = index + 1;
+    if (ALLOW_REGION_START.test(line)) {
+      if (open) throw new Error(`${rel}:${number}: nested zeta-style-literal-allow-start`);
+      open = number;
+    }
+    if (ALLOW_MARKER.test(line) || open) allowed.add(number);
+    if (ALLOW_REGION_END.test(line)) {
+      if (!open) throw new Error(`${rel}:${number}: zeta-style-literal-allow-end without a start`);
+      open = 0;
+    }
+  });
+  if (open) throw new Error(`${rel}:${open}: zeta-style-literal-allow-start is never closed`);
+  return allowed;
+}
 
 /**
  * Rule 2: a colour token used as the *whole* `box-shadow` value. A colour is
@@ -153,21 +187,8 @@ function walk(dir, files = []) {
   return files;
 }
 
-const violations = [];
-const shadowViolations = [];
-for (const file of walk(ROOT)) {
-  const rel = relative(ROOT, file).split("\\").join("/");
-  if (rel.includes(".test.")) continue;
-  if (ALLOWED.some(([prefix]) => rel.startsWith(prefix))) continue;
-
-  const source = readFileSync(file, "utf8");
-  const isCss = file.endsWith(".css");
-  const masked = maskComments(source, isCss);
-  const marked = new Set(source.split(/\r?\n/).flatMap((line, index) => (ALLOW_MARKER.test(line) ? [index + 1] : [])));
-  const report = (line, text) => {
-    if (!marked.has(line)) violations.push({ rel, line, text });
-  };
-
+/** Rule 1 literals plus rule 2 shadow values, for one masked file body. */
+function scan(masked, isCss, rel, report) {
   for (const match of masked.matchAll(HEX)) {
     const raw = match[0];
     if (raw.length - 1 < 6 && !isShortHexColor(masked, match.index, raw, isCss)) continue;
@@ -188,6 +209,26 @@ for (const file of walk(ROOT)) {
     if (!bare || !COLOUR_TOKENS.has(bare[1])) continue;
     shadowViolations.push({ rel, line: lineOf(masked, match.index), text: value.slice(0, 60) });
   }
+}
+
+const violations = [];
+const shadowViolations = [];
+try {
+  for (const file of walk(ROOT)) {
+    const rel = relative(ROOT, file).split("\\").join("/");
+    if (rel.includes(".test.")) continue;
+    if (ALLOWED.some(([prefix]) => rel.startsWith(prefix))) continue;
+
+    const source = readFileSync(file, "utf8");
+    const isCss = file.endsWith(".css");
+    const marked = allowedLines(source, rel);
+    scan(maskComments(source, isCss), isCss, rel, (line, text) => {
+      if (!marked.has(line)) violations.push({ rel, line, text });
+    });
+  }
+} catch (error) {
+  console.error(`colour-literal guard FAILED: malformed exemption — ${error.message}`);
+  process.exit(1);
 }
 
 const byFile = new Map();

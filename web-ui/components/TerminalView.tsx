@@ -44,8 +44,10 @@ const MAX_PENDING_INPUT_CHARS = 4096;
  * three-layer theme tokens (`lib/theme/tokens.ts`): a terminal owns its own
  * ANSI palette (the PTY writes SGR codes, not theme roles), so `background` is
  * transparent and the rest are the standard xterm defaults. The colour guard
- * exempts this file by name for exactly this reason.
+ * exempts the table itself — and only the table — through the marked region
+ * below, so the rest of this file stays under the guard.
  */
+/* zeta-style-literal-allow-start: xterm.js 16-colour ANSI palette — the terminal owns these values, they are not theme roles */
 const TERMINAL_THEME = {
 	background: "rgba(0,0,0,0)",
 	foreground: "#d4d4d4",
@@ -68,6 +70,7 @@ const TERMINAL_THEME = {
 	brightCyan: "#29b8db",
 	brightWhite: "#ffffff",
 };
+/* zeta-style-literal-allow-end */
 
 /**
  * Embedded terminal pane (spec §15): xterm.js over the gateway PTY WS.
@@ -370,12 +373,12 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 	const statusColor = useMemo(() => {
 		switch (connState) {
 			case "open":
-				return "var(--zeta-alias-status-success-foreground, #0dbc79)";
+				return "var(--zeta-alias-status-success-foreground)";
 			case "exited":
 			case "error":
-				return "var(--zeta-alias-status-error-foreground, #cd3131)";
+				return "var(--zeta-alias-status-error-foreground)";
 			default:
-				return "var(--zeta-alias-status-warning-foreground, #e5e510)";
+				return "var(--zeta-alias-status-warning-foreground)";
 		}
 	}, [connState]);
 
