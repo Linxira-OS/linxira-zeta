@@ -11,16 +11,31 @@
  *
  * Scope: `.css`, `.ts`, `.tsx` under web-ui/ (excluding `node_modules/`,
  * `.next/`, test files and the paths in ALLOWED below). Comments are ignored;
- * string literals are scanned, because that is where inline styles live.
+ * string literals are scanned, because that is where inline styles live. A line
+ * carrying `zeta-style-literal-allow: <reason>` is skipped — for a literal that
+ * is a *matching key* (a selector against the highlighter's inline colours)
+ * rather than paint.
  *
- * Usage: `node scripts/check-style-literals.mjs` (from web-ui/) — exit 0/1.
+ * Files still mid-migration are recorded in `scripts/style-literal-baseline.json`
+ * with their exact count, and the guard ratchets: new debt, growth inside a
+ * baselined file, and stale (too high) entries all fail. Lower a file's entry
+ * after migrating it with `--update-baseline`.
+ *
+ * Usage: `node scripts/check-style-literals.mjs`               — exit 0/1
+ *        `node scripts/check-style-literals.mjs --update-baseline`
+ *        (from web-ui/)
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
+const BASELINE_PATH = join(ROOT, "scripts/style-literal-baseline.json");
+const BASELINE_NOTE =
+  "Colour literals still pending migration, per file, enforced as a ratchet by check-style-literals.mjs. " +
+  "Entries shrink, never grow; delete an entry once its file reaches zero. " +
+  "The remaining files are owned by the parallel shell PR (feat/desktop-ui-p0-shell: ChatInput/SessionSidebar/sidebar/**).";
 
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "public"]);
 const SCAN_EXT = new Set([".css", ".ts", ".tsx"]);
@@ -144,18 +159,48 @@ for (const file of walk(ROOT)) {
   }
 }
 
-if (violations.length > 0) {
+const byFile = new Map();
+for (const violation of violations) {
+  if (!byFile.has(violation.rel)) byFile.set(violation.rel, []);
+  byFile.get(violation.rel).push(violation);
+}
+
+if (process.argv.includes("--update-baseline")) {
+  const files = Object.fromEntries([...byFile].map(([rel, list]) => [rel, list.length]));
+  writeFileSync(BASELINE_PATH, `${JSON.stringify({ note: BASELINE_NOTE, files }, null, 2)}\n`);
+  console.log(`wrote ${relative(ROOT, BASELINE_PATH)}: ${Object.keys(files).length} file(s), ${violations.length} literal(s)`);
+  process.exit(0);
+}
+
+/**
+ * Ratchet: a file that is still mid-migration is recorded in the baseline with
+ * its exact count. New debt anywhere, growth in a baselined file, or a stale
+ * (too high) baseline entry all fail, so the ledger can only shrink.
+ */
+const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")).files;
+const problems = [];
+for (const [rel, list] of [...byFile].sort()) {
+  const recorded = baseline[rel];
+  if (recorded === undefined) {
+    problems.push(`  ${rel} (${list.length} new): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
+  } else if (list.length > recorded) {
+    problems.push(`  ${rel} (${list.length} > baseline ${recorded}): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
+  } else if (list.length < recorded) {
+    problems.push(`  ${rel} (${list.length} < baseline ${recorded}) — baseline is stale, lower it`);
+  }
+}
+for (const rel of Object.keys(baseline)) {
+  if (!byFile.has(rel)) problems.push(`  ${rel} (0 < baseline ${baseline[rel]}) — baseline is stale, drop the entry`);
+}
+
+if (problems.length > 0) {
   console.error(`colour-literal guard FAILED: ${violations.length} literal(s) outside the L1 token layer`);
-  const byFile = new Map();
-  for (const violation of violations) {
-    if (!byFile.has(violation.rel)) byFile.set(violation.rel, []);
-    byFile.get(violation.rel).push(violation);
-  }
-  for (const [rel, list] of [...byFile].sort()) {
-    console.error(`  ${rel} (${list.length}): ${list.map(v => `${v.line}:${v.text}`).join(", ")}`);
-  }
-  console.error("Use an L2 alias (var(--zeta-alias-…)) or add the value to lib/theme/tokens.ts.");
+  for (const problem of problems) console.error(problem);
+  console.error("Use an L2 alias (var(--zeta-alias-…)), or add the value to lib/theme/tokens.ts.");
+  console.error("After migrating a baselined file: node scripts/check-style-literals.mjs --update-baseline");
   process.exit(1);
 }
 
-console.log("colour-literal guard OK: no literals outside the L1 token layer");
+console.log(
+  `colour-literal guard OK: ${violations.length} baselined literal(s) in ${byFile.size} file(s) pending migration, 0 elsewhere`,
+);

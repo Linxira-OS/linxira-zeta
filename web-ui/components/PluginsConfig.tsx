@@ -468,7 +468,7 @@ function AddPluginPanel({
           style={{
             ...buttonStyle(busy || !source.trim()),
             background: "var(--zeta-alias-accent)",
-            color: var(--zeta-alias-accent-foreground),
+            color: "var(--zeta-alias-accent-foreground)",
             borderColor: "var(--zeta-alias-accent)",
           }}
         >

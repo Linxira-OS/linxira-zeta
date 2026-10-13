@@ -1,0 +1,10 @@
+{
+  "note": "Colour literals still pending migration, per file, enforced as a ratchet by check-style-literals.mjs. Entries shrink, never grow; delete an entry once its file reaches zero. The remaining files are owned by the parallel shell PR (feat/desktop-ui-p0-shell: ChatInput/SessionSidebar/sidebar/**).",
+  "files": {
+    "components/ChatInput.tsx": 41,
+    "components/SessionSidebar.tsx": 5,
+    "components/sidebar/FloatingMenu.tsx": 1,
+    "components/sidebar/SessionNodeItem.tsx": 3,
+    "components/sidebar/SidebarHeader.tsx": 1
+  }
+}

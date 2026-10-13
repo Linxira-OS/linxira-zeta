@@ -286,6 +286,13 @@ jobs:
            run: npx tsc --noEmit
          - name: Lint
            run: npm run lint
+         # Three-layer colour tokens (lib/theme/tokens.ts): raw values live only
+         # in L1 `--zeta-static-*`, feature CSS/TSX consume L2 `--zeta-alias-*`,
+         # and the unprefixed names stay as L3 redirects. This guard fails on a
+         # hex/rgb/hsl/oklch/named literal outside the L1 owner and the
+         # allow-listed terminal palettes.
+         - name: Colour literal guard
+           run: node scripts/check-style-literals.mjs
          # web-ui's own `test` script (`node --test` over app/api, components and
          # lib). Self-contained: jiti transpiles the TS/TSX sources in place, so
          # nothing here needs `next build` output — run it before the production
