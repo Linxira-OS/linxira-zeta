@@ -2546,10 +2546,19 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
                 handled: true,
                 error: "No active session to export",
               });
-            window.open(`/api/sessions/${sid}/export`, "_blank");
+            // A same-origin download, not `window.open`: the desktop shell
+            // routes every http(s) window.open target to the system browser,
+            // so the old call dragged the user out of the app to fetch a file.
+            const link = document.createElement("a");
+            link.href = `/api/sessions/${encodeURIComponent(sid)}/export`;
+            link.download = "";
+            link.rel = "noopener";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
             return complete({
               handled: true,
-              message: "Opened session export",
+              message: "Downloading the session export",
             });
           }
 
