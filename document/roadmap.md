@@ -452,6 +452,86 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   候选清单**——方向已定(保留为候选,量级 8–20 agent-日),但具体挑哪些能力待裁断,
   开工时从本队列移入执行计划。
 
+- **pi 0.61.1 → v1.2.0「选择性拉取」冲突面登记(2026-10-13 用户裁决:本轮不开工,只列清单与路线图)**:接续上条 ③,
+  本条把「挑哪些能力」的冲突面与候选清单完整登记下来,便于将来开工时直接移入执行计划。历史同步点
+  `b21b42d0`(= pi 0.61.1,2026-03-22),对照面 pi `v1.2.0` = `06a4669355`(2026-10-12),欠账
+  `git rev-list --count b21b42d0..pi-v1.2.0` = **3,562 commits / 95 个版本条目 / +352,211 −91,355 行**
+  (其中 `packages/` 1,874 文件 / +335,563 / −84,041)。
+  **可行性结论**:差异化拉取**能做且是唯一可行形态**,但它只吃下 pi 这半年增量的「表层能力」,pi 1.2.0 的
+  「架构增量」拿不动。分桶(110 个细粒度评估项):我方已覆盖 23%、可直接取 26%、需适配 38%、不可取 13%
+  ——按条目约 **60–65% 可落地**;按代码量约 **40–55% 落在不可取侧**(pi 7 个新系统层包 105,267 行 + 内核重写块)
+  `[推断]`。**最大障碍 = 三处契约层分叉**:①会话数据模型(pi 的 lane-based `Session` v4 / `SessionRepo` /
+  `TranscriptContext` / `finishTurn` / `ContextEditEntry` 在我方全库 0 命中,我们只有 `SessionStorage` 接缝);
+  ②工具参数校验与暴露体系(pi `typebox` ↔ 我们自研 `omptype`(355 文件 import);pi
+  `exposure`/`namespace`/`reachesTools` ↔ 我们 `hidden`/`loadMode`/`approval`);③pi 的系统层新包中
+  `chord`(chord2 宿主运行时)/`durable`/`env` 形成自闭合依赖链,且 `durable`(63,985 行)与我们
+  `session/`+`compaction` 正面重叠。
+  **取法(硬约束)**:不 merge —— `git merge pi-v1.2.0` 已实测不可行(201 冲突文件 / 1,263 冲突块 /
+  98.7% 真语义);真实冲突面只有 **168 个同名文件(`src/` 生产码 62 个**,pi 78,239 行 vs 我们 148,510 行),
+  一律走 `port/pi/<scope>` 分支 cherry-pick。本仓库已有 24–25 次同类 port 提交先例,最近一次为
+  `7fb18faf4c6`「backported pi-mono changes (1feccfed..b21b42d0)」;门禁沿用
+  `scripts/check-merge-lineage.ts` 与 `document/merge-playbook.md`。
+  **取证产物(本地,`temp/` 不随仓库发布)**:`temp/.omp-tmp/pi-pull-surface-report.md`(完整报告,含分组
+  热力表、同名文件榜、复现命令)与 `temp/.omp-tmp/pi-pull-surface-summary.md`。
+
+  **候选清单(20 项,均未开工;量级 S ≤1 / M 1–3 agent-日,区间为含验证的估计 `[推断]`)**:合计约
+  **18–26 agent-日**,可拆 20 个互不阻塞的独立 PR,**零 merge 冲突面**。
+
+  | # | 能力(一句话) | 代表 SHA | 落点 | 风险 | 量级(agent-日) | 拖入依赖 |
+  |---|---|---|---|---|---|---|
+  | 1 | `--tools` 支持 `+name`/`-name` 增量,不再整表替换 | `ddaa0a0341a` | 改造 `packages/coding-agent/src/cli/flag-tables.ts` + 工具选择链 | 低 | S(0.3–0.8) | 无 |
+  | 2 | `--exclude-tools`/`-xt`,并给 `--tools`/`--exclude-tools` 加 `*` 通配与 `--no-mcp` | `04b97ef0007` | 新增 flag,接入 `loadMode`/`hidden`/per-run 工具集判定链 | 中 | M(1–2) | 无 |
+  | 3 | `ToolDefinition.prepareArguments`(schema 校验前规整参数) | `b5f425ad152` | `extensibility/extensions/types.ts` 新增槽位 | 低 | S(0.3–0.8) | 无 |
+  | 4 | `defineTool()` 与生态导出批量(`CONFIG_DIR_NAME`/`generateUnifiedPatch`/`convertToPng`/`parseArgs` 等) | `0.65.0` 等 | `packages/coding-agent/src/index.ts` 从既有 shim 正式 re-export | 低 | S(0.5–1) | 无 |
+  | 5 | 发布 4 套配置 JSON schema(settings/models/keybindings/themes),并修主题 `$schema` 漂移 | `96abe9a5ad3` | 新增生成脚本 + 4 个 schema 文件 | 低 | M(1–2) | 无 |
+  | 6 | `AGENTS.override.md` 每目录上下文覆盖 + symlink AGENTS.md(嵌套 worktree)修复 + `--no-context-files` | `8ecf8a9883d` / `f1b2e77f5b1` | `discovery/` + 规则优先级(`--no-rules` 已等价) | 低 | S–M(0.5–1.5) | 无 |
+  | 7 | `--session-id` / `--name,-n` / `settings.sessionDir` / `PI_CODING_AGENT=true` | `52dc08c1f78` / `ce554ad3dec` | `cli/args.ts` + `session/session-manager.ts`(贯穿 create/fork/恢复) | 低 | M(1–2) | 无 |
+  | 8 | Windows `EPERM` 锁瞬时重试(防御性对齐) | `e6fb2581dff` | 落点在我们的 SQLite 凭证/锁工具,非 `auth.json` | 低 | S(0.3–0.8) | 无 |
+  | 9 | 认证面补齐:`ANTHROPIC_AUTH_TOKEN` bearer + Anthropic workload identity federation + `auth check` 三态 + `print-api-key`/`print-bearer-token` | `0.82.1` / `0.99.2` / `0.83.0` / `0.84.1` | `packages/ai/src/auth/*` env 别名;扩 `commands/token.ts` | 低 | S–M(0.5–1.5) | 无 |
+  | 10 | 全局 `httpProxy` 设置(只作用于自家管理的 fetch) | `0.79.5` | 新增 settings 键 + fetch 注入 | 低 | S(0.3–1) | 无 |
+  | 11 | OpenRouter provider-preference 全字段(allow_fallbacks/require_parameters/data_collection/sort/max_price/ignore/quantizations) | `0.67.1` | `packages/catalog/src/types.ts` + KDL 轴 + 两处请求构建 | 低 | S–M(0.5–1.5) | 无 |
+  | 12 | `samplingParams` + `samplingParamsByThinkingLevel`(每模型默认值 + 按思考档覆盖) | `0.84.0` / `1.0.2` | catalog schema + resolver + 合并顺序 | 中 | M(1.5–3) | 无 |
+  | 13 | `inputLimits.images.resize` 每模型图像缩放档 | `f5c946480c5` | catalog 模型配置 + `packages/ai` 图像管线 | 中 | M(1–2) | 无 |
+  | 14 | per-key OpenRouter 模型列表(`/models/user` + 离线保留) | `ee409a85f6a` | `catalog/src/provider-models/openai-compat.ts` | 中 | M(1–2) | 无 |
+  | 15 | `retry.provider.{timeoutMs,maxRetries,maxRetryDelayMs}` 命名空间 | `0.70.1` / `0.76.0` | settings schema + 各 provider 传输层穿透 | 中 | M(1.5–3) | 无 |
+  | 16 | 渲染上下文 `durationMs`(别名我们现有 `elapsedMs`)+ `outputPad` | `36a686ee8dd` / `18336987add` | `packages/tui/src/tools/renderer.ts` + 卡片/消息渲染管线 | 低 | S–M(0.5–1.5) | 无 |
+  | 17 | 扩展事件补齐 6 个:`session_compact_failed` / `ui_prompt_start·end` / `provider_stream_event` / `thinking_level_select` / `session_info_changed` / 输入 `streamingBehavior` | `a6b1dbceb1a` / `ccfe79ed238` / `0.99.0` / `0.71.0` / `0.80.3` / `0.77.0` | `extensibility/shared-events.ts` + runner 各插入点 | 中 | M(2–4) | 无 |
+  | 18 | 扩展 API 小补齐 8 项:`ctx.signal` / `pi.on()` 退订 / `clear_queue` / `prompt·steer·follow_up` disposition / bash RPC `excludeFromContext` / `registerToolRenderer` / `renderShell:"self"` / `terminate:true` | `0.63.2` / `0.86.0` / `a79b3733421` / `e473b5cd8b6` / `61babc24cf6` / `1.0.1` / `f7cd613ee46` / `0.69.0` | 扩展面 + `modes/rpc/*` + `tui/src/tools/*` | 中 | M(2–4) | 无 |
+  | 19 | TUI/CLI 小项打包 9 项:OSC 7501 契约上移 `Terminal.setProgramStatus`、`PI_TUI_WRITE_LOG` 目录、HTML 导出 `display:false` 的 H 切换、`${1:-7}` 位置参数默认值、task-list checkbox、`quietStartup:"header"` 三态、`externalEditor` 设置、`/tree` `Shift+T`、设置命名别名 | `503c605528f` / `0.63.0` / `0.99.0` / `0.79.1` / `0.74.1` / `f29ea3deb29` / `0.80.3` / `0.65.0` | `packages/tui/*` + `modes/settings.ts` + export 模板(可拆 8 个 PR) | 低 | S(1.5–3 合计) | 无 |
+  | 20 | 新 provider KDL 规则:ant-ling / qwen-token-plan(+CN) / openrouter-fusion | `0.78.1` / `0.84.1` / `0.79.8` | `packages/catalog/src/rules/providers/*.kdl` | 低 | S(0.5–1) | 无 |
+
+  **大项立项登记(5 项;用户勾选,单列不入候选清单,因量级 L 或触及契约层)**:每项写「范围 / 量级 /
+  为什么单列 / 开工前先定什么」。
+
+  - **全屏 transcript 体系**:范围 = pi 0.84.0→1.0.0 的 `tuiMode` 全屏模式、transcript 搜索(Ctrl+Shift+F)、
+    jump-to-latest、选区自动复制、可拖拽滚动条、`fullscreenWheelScrollLines`。量级 **L(8–20 agent-日)**。
+    单列理由:我们当前是「主屏 native 流 + overlay 借 alt-screen」,并刻意保留终端原生选区
+    (`tui.mouse` 默认 false),这不是接线而是新状态机。**开工前先定**:①是否接受 in-app 选区(与终端原生
+    选区/复制行为互斥);②alt-screen 生命周期与 native 图像预算/`scroll-view` 的接线边界;③`tuiMode`
+    默认值(pi 1.0 起默认 fullscreen,我们是否跟随)。
+  - **codemode 引擎**:范围 = pi `packages/codemode`(33 文件,QuickJS 沙箱,外部依赖仅 `quickjs-wasi`,
+    不 import 任何 pi 包)+ `coding-agent/src/extensions/codemode` 的接线。量级 **L(5–12 agent-日)**。
+    单列理由:包本身最干净,但价值依赖 pi 的工具暴露契约(`exposure`/`searchTools`/`describeNamespace`/
+    `reachesTools`),与我们 `hidden`/`loadMode`/per-run 工具集重叠但不等价。**开工前先定**:①工具暴露度
+    模型二选一还是并存;②`prepareLoadout()`/`ctx.executeTool()` 嵌套工具调用是否一起做;③`quickjs-wasi`
+    的打包体积与 eval 沙箱的安全边界。
+  - **虚拟模型 `registerVirtualModel`**:范围 = 扩展注册模型、逐请求选物理模型 + thinking level
+    (`0.99.0`,SHA `540e174c72c`),含 selection/dispatch 分离、会话分支态、footer 与 `/session` 展示。量级
+    **L(3–8 agent-日)**。单列理由:它贴模型解析/角色链与 catalog,是候选里最靠内核的一项(我方
+    `virtualModel` 全库 0 命中)。**开工前先定**:①路由态是否进 session 条目(影响会话 JSONL 兼容);
+    ②与 `registerProvider` 静态/动态注册的关系与优先级;③成本归属(按物理模型计费)。
+  - **project trust gating**:范围 = 项目本地设置/资源/指令/包加载前的信任裁决 + `project_trust` 扩展事件 +
+    `defaultProjectTrust` + `--approve`/`--no-approve`(`0.79.0`/`0.79.1`,SHA `718215bd95b`)。量级
+    **L(4–8 agent-日)**。单列理由:全新子系统且要插在启动早期顺序里;我方 `isProjectTrusted()` 目前是
+    恒真桩,与既有 `--trusted-extension`/`--auto-approve` 语义必须裁决,否则双语义并存。**开工前先定**:
+    ①信任粒度(项目/目录/资源/插件)与存储位置;②「扩展可裁决」与「设置先行」的顺序;③对 Web/桌面宿主
+    (`serve`/gateway)的等价面。
+  - **`message_update` 增量契约**:范围 = 把 RPC/JSON 的 `message_update` 从「累积快照」改为「只发
+    `assistantMessageEvent` 增量」(pi 0.84.0 破坏性)。量级 **M–L**。单列理由:我们默认全量、另留
+    `set_event_filter("delta")` 可选投影;翻转默认会拖垮既有 wire 消费者与 `rpc-client.ts`,故建议做成
+    SDK/host 层「pi 兼容模式」而不是改默认。**开工前先定**:①兼容开关的承载层(SDK 选项 vs wire 版本
+    协商);②`message_start`/`message_end` 之间增量装配的责任归属;③对既有 Web UI/desktop 消费面的回归范围。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
