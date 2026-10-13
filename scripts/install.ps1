@@ -284,7 +284,7 @@ function Install-ViaBun {
 
 function Install-Binary {
     # Releases carry zeta-cli-windows-x64.exe only (the `release_binary` matrix
-    # and the ASSETS table in scripts/ci-build-upload.ts), so an ARM64 Windows
+    # and `packages/utils/src/release-assets.ts`), so an ARM64 Windows
     # host has nothing to download. Fail here with the source-install path
     # instead of letting the request below 404 halfway through.
     if ($NativeArchitecture -ne "x64") {

@@ -198,6 +198,24 @@ export const CI_SURFACE: WorkflowSurface[] = [
 					},
 				],
 			},
+			{
+				// The upstream build-server upload step must never come back: it is
+				// permanently 403 for this fork (build.stencil.so accepts only the
+				// upstream orgs can1357/stencil-hq), so a release run only fails
+				// *after* npm has already shipped — v1.2.0 and v1.2.1 both reddened
+				// this way. Zeta publishes binaries to its own GitHub Release only.
+				// Neither token may appear anywhere in the workflow, comments
+				// included: a comment is how the step's intent gets resurrected by
+				// the next merge.
+				scope: /ci-build-upload|build\.stencil\.so/,
+				mustNotContain: [
+					{
+						needle: /ci-build-upload|build\.stencil\.so/,
+						tag: "stencil-upload",
+						why: "the fork has no build.stencil.so publish rights (permanent 403); the uploader step/script was removed 2026-10-14 (damage class 11)",
+					},
+				],
+			},
 		],
 	},
 	{

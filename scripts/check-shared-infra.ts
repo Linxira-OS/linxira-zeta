@@ -81,9 +81,15 @@ const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://build.stencil.so",
-		status: "keep",
-		files: [".github/workflows/ci.yml", "scripts/ci-build-upload.ts"],
-		why: "anonymous CI artifact upload channel; no user credentials involved",
+		status: "replaced",
+		// Deliberately empty: the release step `Publish to build.stencil.so` and
+		// its `scripts/ci-build-upload.ts` are deleted. The service permanently
+		// 403s this fork ("only repositories of can1357 or stencil-hq may publish
+		// omp builds"), which reddened the v1.2.0 and v1.2.1 publish tails after
+		// npm had already shipped. Zeta publishes binaries to its own GitHub
+		// Release only; any placement is a regression.
+		files: [],
+		why: "upstream OMP build server — permanently 403 for this fork; retired 2026-10-14 (damage class 11); binaries ship in our own GitHub Release",
 	},
 	{
 		domain: "https://api.stencil.so",

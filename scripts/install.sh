@@ -239,9 +239,9 @@ install_binary() {
     fi
 
     # Only the release matrix's three legs have published binaries (the
-    # `zeta-cli-*` assets `scripts/ci-build-upload.ts` keys). On any other host
-    # the download below would 404 halfway through with no explanation, so say
-    # what exists and how to install from source instead.
+    # `zeta-cli-*` assets `packages/utils/src/release-assets.ts` names). On any
+    # other host the download below would 404 halfway through with no
+    # explanation, so say what exists and how to install from source instead.
     case "${PLATFORM}-${ARCH}" in
         linux-x64|linux-musl-x64) ;;
         *)

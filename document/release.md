@@ -250,15 +250,20 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红） |
 | 8   | release worktree 重解析 lockfile vs CI frozen 安装的不对称（v1.2.0）：`release-v2.ts` 会 `rm -f bun.lock && bun install` 重解析，而每个 CI job 都是 `--frozen-lockfile`，于是类型类依赖的 caret 要到发布时才被抬版本（`@types/bun` 1.4.2 → 1.4.3 放宽 `Subprocess.signalCode`） | Step 8 `bun run check:ts` 在发布机上首次报错——CI 从未见过该版本（不是"CI 没跑类型检查"：`check` job 一直在跑，只是跑的是旧 types） | 类型依赖写死版本：catalog 里的 `@types/*` 全部精确钉版（与已精确的 `@typescript/native-preview` 一致），升级走单独 PR，让 CI 的 frozen 安装与 `check:ts` 真正看到新版本 |
 | 9   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
-| 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布） | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | `bun scripts/check-release-asset-names.ts` **两个方向都硬拦**（exit 1）：每个 `ASSETS` 键必须有 `release_binary` 矩阵腿，每个矩阵腿必须有 `ASSETS` 键；裁剪/恢复平台时表与矩阵必须同 PR 改（键有腿无、腿有键无都红） |
+| 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）**——机制已退役 2026-10-14，见类别 11**：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布） | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | ~~上传器 `ASSETS` 表与矩阵两方向硬拦~~ 随上传器一并删除；`scripts/check-release-asset-names.ts` 现只校 CLI 目标 ↔ `release_binary` 矩阵 ↔ 更新器资产名（类别 1/2 的三面） |
+| 11  | 发布到上游 OMP 基础设施（stencil）：发布链最后一环 `Publish to build.stencil.so` 按设计只接受 `can1357`/`stencil-hq` 的仓库，本 fork 永久无权限（v1.2.0、v1.2.1 同一环连续两次把 run 打红） | `error: create build: HTTP 403 {"error":"only repositories of can1357 or stencil-hq may publish omp builds, not Linxira-OS/linxira-zeta"}`；此时 GitHub Release 与 npm 已发出，run 红在 tag 之后、流程尾部 | **规则：Zeta 不向上游构建服务器发布，发行资产只进自己的 GitHub Release**（更新器消费 `zeta-cli-*`）。步骤与 `scripts/ci-build-upload.ts` 已删除；`check-ci-surface.ts` 禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow（含注释），`check-shared-infra.ts` 把端点标为 `replaced`（`files: []`）——复活即红 |
 
-**stencil 上传的硬失败语义（`Publish to build.stencil.so` ↔ `scripts/ci-build-upload.ts`）**：
-这是发布链的最后一环，也是最"哑"的一环。上传器把 `release_binary` 产出的文件**逐个**按 basename
-对照 `ASSETS` 键（不在表里 → 立刻 `throw`），收完后再反向要求 `ASSETS` 每个键都拿到文件
-（`error: missing release binaries: <key>`，任一非 2xx 同样 `throw`）。于是 `ASSETS` 与矩阵不是
-"松散对应"，而是**必须相等**：多一行无腿的键，就在 tag 之后把 run 打红——GitHub Release / npm
-都已发完，只有镜像缺这一次发布，且已发布的 tag 无法用修复后的代码补传（dispatch 跑的是 tag 的树）。
-所以这类漂移宁可在 check job 里红（改 1 行），也不要留到发布尾部。
+**stencil 上传的退役（`Publish to build.stencil.so` ↔ `scripts/ci-build-upload.ts`，2026-10-14）**：
+这曾是发布链的最后一环，也是最"哑"的一环——`build.stencil.so` 是 OMP 上游的构建服务器，按设计只
+接受 `can1357`/`stencil-hq` 的仓库；本 fork 提交即被拒（`HTTP 403 "only repositories of can1357 or
+stencil-hq may publish omp builds"`），v1.2.0、v1.2.1 两次都在这一环把 run 打红，而 GitHub Release
+与 npm 此时已发完，tag 已定、无法用修复后的代码补传（dispatch 跑的是 tag 的树）。**我们永远拿不到
+授权，所以正确的处置是删除该步骤，而不是"修好它"**：上传器
+（`ASSETS` 表、OIDC `id-token` 用途、`zeta-binary-*` 下载）连同只为它存在的
+步骤一并删除，发行资产只进自己的 GitHub Release（更新器消费 `zeta-cli-*`）。防回归由两条机械守卫
+兜住：`check-ci-surface.ts` 禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow（含注释——注释
+正是下一步被复活的地方），`check-shared-infra.ts` 把端点标为 `replaced` 且 `files: []`。所以这类
+违规宁可在 check job 里红（改 1 行），也不要留到发布尾部。
 
 **版本戳核对必须用绝对路径（本机 PATH 陷阱）**：核对平台叶包/二进制版本戳时，用刚构建
 产物的**绝对路径**调用（`"$PWD/packages/coding-agent/binaries/zeta-cli-linux-x64" --version`，
