@@ -89,6 +89,33 @@ handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
 `web-gateway/context-usage.ts`（web-ui 不 import 任何 `@linxiraos/*` 类型入口，
 故镜像定义）。
 
+## 服务发现与复用（`zeta serve` ↔ 桌面）
+
+- `../serve-registry.ts`（`packages/coding-agent/src/server/serve-registry.ts`）：
+  `zeta serve` 绑定端口成功后把自身写进 `<config root>/serve.json`
+  （`pid/webUrl/statsUrl/gatewayUrl/version/startedAt/cwd`，`0600`，临时文件 +
+  rename 原子替换，`shutdown()` 按 pid 撤回；`ZETA_SERVE_REGISTRY` 覆盖路径，
+  供测试与多用户/可移植安装使用）。`pid` 已死的条目在下次启动时被删除并打印提示，
+  而不是被信任。`--stats-only` 不发布：它没有 identity 端点，探活无法确认。
+- `web-gateway/identity.ts`：`GET /api/server/identity` →
+  `{ app: "zeta", version, pid, startedAt, webUrl, statsUrl, gatewayUrl }`，由服务
+  进程自身回答（注册过 URL 后带上 URL）。它是既有 `/api/*` 面上的只读探针，走既有
+  访问门：非 loopback 调用仍需 `remote.token`。
+- 决策矩阵：**同版本 + 健康** ⇒ 复用（CLI 打印对方 URL 与"强制另起/重启"选项后
+  `exit 0`；桌面 shell 直接 adopt，不 spawn）；**版本不符** ⇒ 明确拒绝并给同样选项
+  （CLI `exit 1`，桌面弹选择），绝不静默抢占；**同版本但在其他端口** ⇒ 只提示，显式
+  `--web-port` 仍照常起第二个监听；**身份探测失败/陌生服务** ⇒ 不当作自家实例。
+- 桌面镜像：`desktop/src/serve-discovery.ts` 因 desktop 是独立 npm 项目（无
+  `packages/*` 工作区依赖、`tsc` 的 `rootDir: src`、CLI 以不透明二进制交付）而必须
+  自带"读取/探活/判定"这一半；两份读**同一个**注册文件与**同一个**端点，写入侧由
+  CLI 独占。两个文件头部互相注明对方路径。
+- 漂移守卫：`scripts/check-serve-discovery-parity.ts` 从两份源码抽取**动作名集合、
+  每个动作携带的字段、版本比较（严格 `!==`）与分支顺序**做对比（不做整文件 diff，
+  注释/格式/桌面特有字段不算漂移），并强制 `DIFFERENCES` 里记录的刻意差异
+  （CLI `start` ↔ 桌面 `spawn`、`stale` ↔ `stalePid`、只有 CLI 有 `occupiesTarget`
+  目标端口门）；任一侧抽不出来即失败。接线在 GitHub `ci.yml` 与 Gitea
+  `local-ci.yml` 的 `check` job 内（"Serve-discovery parity guard"）。
+
 ## 关键实现要点
 
 - 会话 ID：持久化 Web 会话 ID 用 `session.sessionManager.getSessionId()`；

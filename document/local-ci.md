@@ -118,6 +118,7 @@ bun run ci:check:full
 bun scripts/brand/brand-check.ts
 bun scripts/check-zeta-sentinels.ts
 bun scripts/check-ci-surface.ts
+bun scripts/check-serve-discovery-parity.ts
 cargo build --release -p pi-natives        # then copy into packages/natives/native/
 bun run ci:test:full                       # every TS bucket + cargo nextest
 ```
