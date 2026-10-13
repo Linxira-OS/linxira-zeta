@@ -582,7 +582,13 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     planFilePath: null,
     planContent: null,
   });
+  // Gates the approval card: only a submitted `xd://propose` (the gateway's
+  // `plan_proposed` event) makes a plan ready to approve. Plan mode being on —
+  // or a plan file merely existing mid-planning — must not show the four
+  // execution buttons.
+  const [planProposed, setPlanProposed] = useState(false);
   const [modes, setModes] = useState<ModeStateSnapshot>({});
+  const [atBottom, setAtBottom] = useState(true);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const eventSourceSessionIdRef = useRef<string | null>(null);
@@ -754,28 +760,32 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           `/api/sessions/${encodeURIComponent(sid)}?${params}`,
         );
         if (res.status === 404) {
+          // A live but file-less session (the shared coordinator, an IM-only
+          // session) has no persisted context to render. Do NOT bail here: the
+          // live get_state below is the only source for its plan/mode state, and
+          // returning early left the approval card and banners empty until a
+          // manual refresh.
           if (showLoading) {
             setData(null);
             setActiveLeafId(null);
             setMessages([]);
             setError(null);
           }
-          return null;
+        } else {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const d = (await res.json()) as SessionData;
+          if (sessionIdRef.current !== sid) return null;
+          setData(d);
+          setActiveLeafId(d.leafId);
+          setMessages(d.context.messages);
+          setEntryIds(d.context.entryIds ?? []);
+          setCurrentModelOverride(null);
+          setError(null);
+          if (d.context.thinkingLevel && d.context.thinkingLevel !== "off") {
+            setThinkingLevel(d.context.thinkingLevel as ThinkingLevelOption);
+          }
+          messagesLoaded = true;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const d = (await res.json()) as SessionData;
-        if (sessionIdRef.current !== sid) return null;
-        setData(d);
-        setActiveLeafId(d.leafId);
-        setMessages(d.context.messages);
-        setEntryIds(d.context.entryIds ?? []);
-        setCurrentModelOverride(null);
-        setError(null);
-        if (d.context.thinkingLevel && d.context.thinkingLevel !== "off") {
-          setThinkingLevel(d.context.thinkingLevel as ThinkingLevelOption);
-        }
-
-        messagesLoaded = true;
         if (showLoading) setLoading(false);
         if (!includeState) return null;
 
@@ -1713,6 +1723,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
             | ModeStateSnapshot["goal"]
             | ModeStateSnapshot["vibe"]
             | null;
+          if (mode === "plan" && !state?.enabled) {
+            // Plan mode left (approved, cancelled, or exited): no plan is
+            // awaiting approval anymore.
+            setPlanProposed(false);
+          }
           setModes((prev) => {
             const next = { ...prev };
             if (state?.enabled) {
@@ -1722,6 +1737,39 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
             }
             return next;
           });
+          break;
+        }
+        case "state_changed": {
+          // External-state version bump (plan file writeback, model/mode
+          // changes). planFilePath/planContent live on get_state, not on the
+          // event, so re-fetch the live state — this is what keeps the plan
+          // approval card and banners current without a manual refresh.
+          const sid = sessionIdRef.current;
+          if (!sid) break;
+          void fetch(`/api/agent/${encodeURIComponent(sid)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d: { state?: AgentStateResponse } | null) => {
+              if (sessionIdRef.current !== sid) return;
+              setPlanState(readPlanState(d?.state));
+              setModes(readModes(d?.state));
+            })
+            .catch(() => {});
+          break;
+        }
+        case "plan_proposed": {
+          // A successful `xd://propose`: the plan artifact is final. Reveal the
+          // approval card and pull its path/content from live state.
+          setPlanProposed(true);
+          const sid = sessionIdRef.current;
+          if (!sid) break;
+          void fetch(`/api/agent/${encodeURIComponent(sid)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d: { state?: AgentStateResponse } | null) => {
+              if (sessionIdRef.current !== sid) return;
+              setPlanState(readPlanState(d?.state));
+              setModes(readModes(d?.state));
+            })
+            .catch(() => {});
           break;
         }
         case "auto_retry_start":
@@ -3133,6 +3181,24 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     markUserScrollIntent,
   ]);
 
+  // Track whether the transcript is scrolled to (near) the bottom so the
+  // floating "scroll to bottom" affordance can hide itself. Re-attaches when
+  // the container mounts or is replaced (messages.length/loading change).
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const handleAtBottomScroll = () => {
+      const el = scrollContainerRef.current;
+      if (el)
+        setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 48);
+    };
+    handleAtBottomScroll();
+    container.addEventListener("scroll", handleAtBottomScroll, {
+      passive: true,
+    });
+    return () => container.removeEventListener("scroll", handleAtBottomScroll);
+  }, [messages.length, loading]);
+
   useEffect(() => {
     if (messages.length > 0) {
       if (pendingScrollToUserRef.current) {
@@ -3234,8 +3300,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     isAutoModelSelection: isNew && newSessionModel === null,
     agentPhase,
     planState,
+    planProposed,
+    setPlanProposed,
     modes,
+    atBottom,
     isNew,
+    addNotice,
     // Refs
     sessionIdRef,
     eventSourceRef,
@@ -3259,6 +3329,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleBuiltinSlashCommand,
     handleToolPresetChange,
     handleThinkingLevelChange,
+    scrollToBottom,
     loadTools,
     loadSlashCommands,
     setActiveLeafId,

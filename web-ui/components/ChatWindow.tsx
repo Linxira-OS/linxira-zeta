@@ -418,7 +418,12 @@ export function ChatWindow({
 		isAutoModelSelection,
 		agentPhase,
 		planState,
+		planProposed,
+		setPlanProposed,
+		addNotice,
 		modes,
+		atBottom,
+		scrollToBottom,
 		isNew,
 		sessionIdRef,
 		messagesEndRef,
@@ -463,17 +468,25 @@ export function ChatWindow({
 		(mode: "preserve" | "compact" | "fresh" | "cancel") => {
 			const sid = sessionIdRef.current;
 			if (!sid || !planState.planFilePath) return;
+			// Cancel sends no execution turn: hide the card immediately so the
+			// user can keep refining the plan. The other modes end plan mode, so
+			// their `mode_changed` clears it.
+			if (mode === "cancel") setPlanProposed(false);
 			// Blocks until the approved-execution turn finishes; agent_end then
-			// reconciles state and clears the card.
+			// reconciles state and clears the card. Failures must stay visible —
+			// a swallowed error left the card up with no explanation.
 			void sendAgentCommand(sid, {
 				type: "plan_approve",
 				planFilePath: planState.planFilePath,
 				mode,
 			}).catch(e => {
-				console.error("Failed to approve plan:", e);
+				addNotice({
+					type: "error",
+					message: `Plan approval failed: ${e instanceof Error ? e.message : String(e)}`,
+				});
 			});
 		},
-		[planState.planFilePath, sessionIdRef],
+		[addNotice, planState.planFilePath, sessionIdRef, setPlanProposed],
 	);
 
 	// Shared mode-control: exit (or complete/drop a goal) through the generic
@@ -969,7 +982,7 @@ export function ChatWindow({
 									fontSize: 12,
 								}}
 							>
-								{mode === "chat" ? "Chat" : "Trajectory"}
+								{mode === "chat" ? t("chat.view-chat") : t("chat.view-trajectory")}
 							</button>
 						))}
 					</div>
@@ -995,7 +1008,7 @@ export function ChatWindow({
 								</div>
 								<div
 									ref={scrollContainerRef}
-									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-width:none]"
+									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4"
 								>
 									<div style={{ padding: `0 ${CHAT_COLUMN_PADDING}px` }}>
 										<div
@@ -1057,7 +1070,7 @@ export function ChatWindow({
 													]}
 												/>
 											)}
-											{planState.enabled && planState.planFilePath && (
+											{planProposed && planState.enabled && planState.planFilePath && (
 												<PlanApproval
 													planFilePath={planState.planFilePath}
 													planTitle={planTitleFromPath(planState.planFilePath)}
@@ -1469,6 +1482,46 @@ export function ChatWindow({
 										messageRefs={messageRefs}
 										onRevealHistory={revealHistoryForMinimap}
 									/>
+								)}
+								{!atBottom && (
+									<button
+										type="button"
+										onClick={() => scrollToBottom("smooth")}
+										title={t("chat.scroll-to-bottom")}
+										aria-label={t("chat.scroll-to-bottom")}
+										style={{
+											position: "absolute",
+											bottom: 16,
+											right: isMobile ? CHAT_COLUMN_PADDING : CHAT_MINIMAP_WIDTH + 12,
+											width: 32,
+											height: 32,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											background: "var(--bg-panel)",
+											border: "1px solid var(--border)",
+											borderRadius: "50%",
+											color: "var(--text)",
+											boxShadow: "var(--surface-shadow)",
+											cursor: "pointer",
+											zIndex: 50,
+										}}
+									>
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M12 5v14" />
+											<path d="M19 12l-7 7-7-7" />
+										</svg>
+									</button>
 								)}
 							</div>
 
