@@ -12,8 +12,11 @@
  * main). `scripts/check-release-asset-names.ts` pins both sides together.
  */
 
-/** Leading token of every published CLI binary asset. */
-export const RELEASE_CLI_ASSET = "zeta-cli";
+/**
+ * Leading token of every published CLI binary asset, separator included:
+ * assets are `<prefix><os>[-musl]-<arch>[.exe]`.
+ */
+export const RELEASE_CLI_ASSET_PREFIX = "zeta-cli-";
 
 /** Asset-name OS token per platform; Linux additionally has a musl build. */
 const RELEASE_OS: Partial<Record<NodeJS.Platform, string>> = {
@@ -33,5 +36,5 @@ export function releaseCliAssetName(platform: NodeJS.Platform, arch: string, opt
 	if (!archName) throw new Error(`Unsupported architecture: ${arch}`);
 	const libc = options.musl ? "-musl" : "";
 	const suffix = platform === "win32" ? ".exe" : "";
-	return `${RELEASE_CLI_ASSET}-${os}${libc}-${archName}${suffix}`;
+	return `${RELEASE_CLI_ASSET_PREFIX}${os}${libc}-${archName}${suffix}`;
 }
