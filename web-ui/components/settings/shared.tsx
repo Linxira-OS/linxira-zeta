@@ -170,7 +170,7 @@ export function SettingsToggle({
 					width: 12,
 					height: 12,
 					borderRadius: 6,
-					background: checked ? "var(--bg, var(--zeta-alias-accent-foreground))" : "var(--zeta-alias-text-dim)",
+					background: checked ? "var(--zeta-alias-bg)" : "var(--zeta-alias-text-dim)",
 					boxShadow: "0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 25%, transparent)",
 					transition: "left 0.15s ease, background 0.15s ease",
 				}}
@@ -560,7 +560,7 @@ function ChannelCredentialsForm({
 						background: saved ? "var(--zeta-alias-status-success)" : dirty && !saving ? "var(--zeta-alias-accent)" : "var(--bg-input, var(--zeta-alias-bg-panel))",
 						border: dirty && !saving || saved ? "1px solid transparent" : "1px solid var(--zeta-alias-border)",
 						borderRadius: "var(--radius-unit, 6px)",
-						color: (dirty && !saving) || saved ? "var(--bg, var(--zeta-alias-accent-foreground))" : "var(--zeta-alias-text-dim)",
+						color: (dirty && !saving) || saved ? "var(--zeta-alias-bg)" : "var(--zeta-alias-text-dim)",
 						cursor: dirty && !saving ? "pointer" : "not-allowed",
 						fontSize: 11.5,
 						fontWeight: 600,
