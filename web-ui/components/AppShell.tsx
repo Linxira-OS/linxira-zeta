@@ -13,6 +13,7 @@ import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
 import { StatsDashboard } from "./StatsDashboard";
+import { FullHistoryPanel } from "./FullHistoryPanel";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { SettingsWindow } from "./settings/SettingsWindow";
@@ -208,7 +209,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15): live session id survives pane close so the
@@ -847,13 +848,13 @@ function AppShellContent() {
 		[fileTabs],
 	);
 
+	// 「完整历史」 opens the read-only export inside the dock window instead of
+	// handing `/api/sessions/<id>/export` to the host browser (the desktop
+	// shell's window-open handler sends every http(s) target to the system
+	// browser, which is exactly what the chip must not do).
 	const handleViewFullHistory = useCallback(() => {
 		if (!selectedSession) return;
-		window.open(
-			`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?inline=1`,
-			"_blank",
-			"noopener,noreferrer",
-		);
+		setDockTool(cur => (cur === "history" ? null : "history"));
 	}, [selectedSession]);
 
 	// Show chat area if a session is selected, a cwd to start a new session in,
@@ -1723,17 +1724,24 @@ function AppShellContent() {
 											: t("full-history-is-available-after-the-session-is-s")
 									}
 									aria-label={t("view-full-history")}
+									aria-pressed={dockTool === "history"}
 									style={{
 										display: "flex",
 										alignItems: "center",
 										gap: 6,
 										height: "100%",
 										padding: "0 12px",
-										background: "none",
+										background: dockTool === "history" ? "var(--bg-selected)" : "none",
 										border: "none",
-										borderTop: "2px solid transparent",
+										borderTop:
+											dockTool === "history" ? "2px solid var(--accent)" : "2px solid transparent",
 										borderRight: "1px solid var(--border)",
-										color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
+										color:
+											dockTool === "history"
+												? "var(--text)"
+												: selectedSession
+													? "var(--text-muted)"
+													: "var(--text-dim)",
 										cursor: selectedSession ? "pointer" : "not-allowed",
 										opacity: selectedSession ? 1 : 0.45,
 										flexShrink: 0,
@@ -1744,9 +1752,15 @@ function AppShellContent() {
 									onMouseEnter={e => {
 										if (!selectedSession) return;
 										e.currentTarget.style.color = "var(--text)";
-										e.currentTarget.style.background = "var(--bg-hover)";
+										e.currentTarget.style.background =
+											dockTool === "history" ? "var(--bg-selected)" : "var(--bg-hover)";
 									}}
 									onMouseLeave={e => {
+										if (dockTool === "history") {
+											e.currentTarget.style.color = "var(--text)";
+											e.currentTarget.style.background = "var(--bg-selected)";
+											return;
+										}
 										e.currentTarget.style.color = selectedSession ? "var(--text-muted)" : "var(--text-dim)";
 										e.currentTarget.style.background = "none";
 									}}
@@ -2784,6 +2798,32 @@ function AppShellContent() {
 									</svg>
 								),
 							},
+							// Conditional entry: the full-history window only exists for a
+							// selected session — there is nothing to export without one.
+							...(selectedSession
+								? [
+										{
+											id: "history",
+											label: t("dock.window.history"),
+											icon: (
+												<svg
+													width="16"
+													height="16"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="2"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												>
+													<path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+													<path d="M3 3v5h5" />
+													<path d="M12 7v5l3 2" />
+												</svg>
+											),
+										} satisfies { id: DockTool; label: string; icon: ReactNode },
+									]
+								: []),
 							{
 								id: "plugins",
 								label: t("dock.window.plugins"),
@@ -2902,7 +2942,9 @@ function AppShellContent() {
 												? t("dock.window.tracking")
 												: dockTool === "terminal"
 													? t("dock.window.terminal")
-													: t("dock.window.plugins")}
+													: dockTool === "history"
+														? t("dock.window.history")
+														: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2969,6 +3011,25 @@ function AppShellContent() {
 						>
 							{dockTool === "stats" ? (
 								<StatsDashboard />
+							) : dockTool === "history" ? (
+								selectedSession ? (
+									<FullHistoryPanel sessionId={selectedSession.id} sessionName={selectedSession.name ?? null} />
+								) : (
+									<div
+										style={{
+											flex: 1,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											padding: 16,
+											textAlign: "center",
+											color: "var(--text-dim)",
+											fontSize: 12,
+										}}
+									>
+										{t("full-history-is-available-after-the-session-is-s")}
+									</div>
+								)
 							) : dockTool === "session" ? (
 								<SidePanel
 									stats={sessionStats}
