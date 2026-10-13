@@ -71,8 +71,9 @@ signing or credential failure.
 
 What this means in practice:
 
-- `curl https://omp.sh/install | sh` — `curl` sets no quarantine bit, so
-  Gatekeeper is not consulted.
+- `curl -fsSL https://linxira-os.github.io/install.sh | sh` (our Linux installer;
+  macOS installs go through npm or the formula below) — `curl` sets no
+  quarantine bit, so Gatekeeper is not consulted.
 - Homebrew **formula** installs — Homebrew does not quarantine formula files, so
   Gatekeeper is not consulted.
 - Anything that **quarantines** the binary (a browser download, or a Homebrew

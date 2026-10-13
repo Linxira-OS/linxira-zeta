@@ -175,13 +175,14 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 伴侣产品 bin(2026-10-09 定稿) | `zetaide`(`@linxiraos/ide`，别名 `zeta-ide`/`zeta-i`)、`zetaeditor`(`@linxiraos/editor`，别名 `zeta-editor`/`zeta-e`)、`zetawork`(`@linxiraos/main`，别名 `zeta-work`；裸 `zeta` 同指工作台) | 四个标准名无连字符：**zetawork / zetacode / zetaide / zetaeditor**；`zeta code` 这类带空格写法不是 bin，任何文案不得出现 |
 | 工作台与 IDE 包 | `@linxiraos/main`(bin `zeta`/`zetawork`，main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zetaide`/`zeta-ide`/`zeta-i`,termide npm 面)、`@linxiraos/editor`(bin `zetaeditor`/`zeta-editor`/`zeta-e`) | 发布链已全接线：ci.yml 发布链经 workflow_call 派发 main/ide/editor-publish.yml（2026-09-30 起，1.1.24 起实际发版）。**平台叶包内嵌的二进制是入库产物**——发版前必须重编并提交（main/npm/*/bin、editor/termide npm 同理），否则原样带出陈旧二进制（v1.1.25 事故：发的是 1.1.23 的 zeta.exe，v1.1.26 补丁修复） |
 | 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
+| **Release 资产名（更新器 ↔ 发布链）** | `zeta-cli-<os>-<arch>[.exe]`（musl: `zeta-cli-linux-musl-*`） | 真源 `packages/utils/src/release-assets.ts`；守卫 `bun scripts/check-release-asset-names.ts`（CI check job）。**资产名不跟 `CLI_BIN_NAME`**——`zetacode` 是命令面，资产保留文件面 `zeta-cli-*`：v1.1.27 更新器按 bin 名拼 `zetacode-<os>-<arch>`，二进制回退下载对每个用户 404（旧版 1.1.27 硬编码 `zeta-cli-*` 反而是对的） |
 | npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量，MUST_CONTAIN 守护） |
 | Native 版本机制 | `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳 | v18.3.3 起取代逐版本哨兵名；`check-version-consistency.ts` 钉机制符号而非版本派生名 |
 | Native Tokio 安装导出 | `__ompInstallTokioRuntime` | crate/index.js/loader 三方一致；勿 sweep 成 `__zeta*`（v18.0.10 改断，Tokio 静默不装） |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
 | 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
-| 安装提示 URL | `https://omp.sh/install` | 共享基础设施，勿改 |
+| 安装提示 URL | `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows） | **我们自己的站**（与 `scripts/install.sh`/`install.ps1` 同源，从 GitHub Releases 拉 `zeta-cli-*`）；上游 `omp.sh/install` 不再出现在任何用户可见提示里（2026-10-13 起，`installerHint()` 两侧成对改，见 `cli/update-cli.ts`） |
 | **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
 | OTLP `service.name` 兜底 | `zeta` | 合并会带回 `oh-my-pi`；用户在自建 OTLP 里看到的身份面 |
 | **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
