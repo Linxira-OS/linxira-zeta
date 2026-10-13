@@ -33,6 +33,11 @@ export interface PlanModeEntryOptions {
 	 * mode again.
 	 */
 	enteredBy?: "user" | "agent";
+	/**
+	 * Goal objective the approved plan will execute under. Defaults to
+	 * `initialPrompt` — the task the operator stated with `/plan <task>`.
+	 */
+	objective?: string;
 }
 export interface PlanModeExitOptions {
 	silent?: boolean;
@@ -195,6 +200,7 @@ import { SkillDescriptionCatalog } from "../extensibility/skill-descriptions";
 import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
 import { normalizeToolEventInput, resolveToolEventInput } from "../extensibility/tool-event-input";
+import { normalizeGoalObjective } from "../goals/plan-objective";
 import { GoalRuntime } from "../goals/runtime";
 import type { GoalModeState, GoalTokenUsage } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
@@ -1875,6 +1881,10 @@ export class AgentSession implements SettingsScope {
 			workflow: options.workflow ?? "parallel",
 			reentry: options.reentry,
 			enteredBy: options.enteredBy ?? "user",
+			// Carried for the approved-plan execution round: approving a plan runs
+			// it under goal mode, and the operator's own task beats a summary
+			// derived from the plan text.
+			objective: normalizeGoalObjective(options.objective ?? initialPrompt),
 		});
 		this.setPlanProposalHandler(title => this.#preparePlanForReviewAndSync(title));
 		if (!options.preserveRestoredModel) {

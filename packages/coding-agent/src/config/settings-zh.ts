@@ -1596,7 +1596,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"goal.continuationModes": {
 		label: "目标延续模式",
-		description: "活动目标可在轮次间自动延续的运行模式",
+		description: '活动目标可在轮次间自动延续的运行模式（"interactive"、"rpc"、"web"）',
 	},
 	"title.icons": {
 		label: "标题图标",

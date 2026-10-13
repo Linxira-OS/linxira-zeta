@@ -17,7 +17,7 @@ import type { BtwHistoryRecord } from "../../session/btw-history";
 import type { CacheWarmingMode } from "../../session/cache-warmer";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameDecoder, type RpcProtocolVersion } from "./rpc-frame";
-import type { RpcGoalOp, RpcGoalResult } from "./rpc-goal";
+import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
 import {
 	RPC_MESSAGES_PAGE_BUSY_ERROR,
 	RPC_MESSAGES_PAGE_STALE_ERROR,
@@ -829,7 +829,10 @@ export class RpcClient {
 	 * Read or change goal mode. `get` never mutates or starts a turn; `create`/`resume`
 	 * start a turn only when the server enables `goal.continuationModes: ["rpc"]`.
 	 */
-	async goal(op: RpcGoalOp, options?: { objective?: string; tokenBudget?: number }): Promise<RpcGoalResult> {
+	async goal(
+		op: GoalContinuationOp,
+		options?: { objective?: string; tokenBudget?: number },
+	): Promise<GoalContinuationResult> {
 		const response = await this.#send({
 			type: "goal",
 			op,

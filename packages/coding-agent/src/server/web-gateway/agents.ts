@@ -28,6 +28,7 @@ import {
 	type ExtensionUIContext,
 	getExtensionUISelectOptionLabel,
 } from "../../extensibility/extensions/types";
+import { GOAL_CONTINUATION_MODE_WEB, GoalContinuationController } from "../../goals/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
@@ -262,6 +263,12 @@ export class AgentSessionWrapper {
 	sessionFile: string | null;
 
 	#inner: AgentSession;
+	/**
+	 * Goal mode outside the TUI: owns the goal tool's place in the active set,
+	 * completion/drop exit, reattach across session changes, and the opt-in
+	 * continuation turn (`goal.continuationModes: ["web"]`).
+	 */
+	#goalController: GoalContinuationController;
 	#destroyed = false;
 	#listeners = new Set<EventListener>();
 	#pendingUiRequests = new Map<string, PendingUiResponse>();
@@ -283,6 +290,9 @@ export class AgentSessionWrapper {
 		this.#inner = inner;
 		this.realSessionId = realSessionId;
 		this.sessionFile = sessionFile;
+		this.#goalController = new GoalContinuationController(inner, {
+			continuationMode: GOAL_CONTINUATION_MODE_WEB,
+		});
 
 		inner.subscribe(event => this.#onInnerEvent(event));
 
@@ -367,6 +377,10 @@ export class AgentSessionWrapper {
 	}
 
 	#onInnerEvent(event: AgentSessionEvent): void {
+		// Before every emit below: a goal continuation decided at this `agent_end`
+		// is claimed here, so the idle transition that follows reports the session
+		// with the pending turn already accounted for.
+		this.#goalController.observe(event);
 		if (event.type === "auto_compaction_end") {
 			// The runtime CompactionResult has no `estimatedTokensAfter`; the
 			// client reads it off the event, so synthesize it from context usage.
@@ -541,6 +555,10 @@ export class AgentSessionWrapper {
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "abort":
+				// Before the abort: the aborted run's own `agent_end` must not re-arm
+				// the goal continuation. Only a later host prompt (or a goal
+				// resume/create) starts turns again.
+				this.#goalController.stopForHostAbort();
 				this.#inner.abort();
 				return { ok: true };
 			case "get_state":
@@ -553,24 +571,38 @@ export class AgentSessionWrapper {
 				return { ok: switched };
 			}
 			case "fork": {
-				const result = await this.#inner.branch(command.entryId);
-				if (result.cancelled) return { cancelled: true };
-				// branch() switched the session manager to the new file; the
-				// wrapper now lives under the NEW id (web-ui contract:
-				// `inner.sessionId` is the new session after fork).
-				const newSessionId = this.#inner.sessionId;
-				const newFile = this.#inner.sessionFile;
-				if (newSessionId && newFile) {
-					sessions.delete(this.realSessionId);
-					cacheSessionPath(newSessionId, newFile);
-					this.#rekey(newSessionId, newFile);
+				// Goal state belongs to the transcript that set it: quiesce it, then
+				// adopt (or clear) the goal the fork's transcript carries.
+				await this.#goalController.beginSessionChange();
+				try {
+					const result = await this.#inner.branch(command.entryId);
+					if (result.cancelled) return { cancelled: true };
+					// branch() switched the session manager to the new file; the
+					// wrapper now lives under the NEW id (web-ui contract:
+					// `inner.sessionId` is the new session after fork).
+					const newSessionId = this.#inner.sessionId;
+					const newFile = this.#inner.sessionFile;
+					if (newSessionId && newFile) {
+						sessions.delete(this.realSessionId);
+						cacheSessionPath(newSessionId, newFile);
+						this.#rekey(newSessionId, newFile);
+					}
+					invalidateSessionListCache();
+					return { cancelled: false, newSessionId };
+				} finally {
+					// branch() switches files in-process without detaching a run.
+					await this.#goalController.endSessionChange();
 				}
-				invalidateSessionListCache();
-				return { cancelled: false, newSessionId };
 			}
 			case "navigate_tree": {
-				const result = await this.#inner.navigateTree(command.entryId, {});
-				return { cancelled: result.cancelled };
+				await this.#goalController.beginSessionChange();
+				try {
+					// Navigation leaves a live run streaming to its normal end.
+					const result = await this.#inner.navigateTree(command.entryId, {});
+					return { cancelled: result.cancelled };
+				} finally {
+					await this.#goalController.endSessionChange();
+				}
 			}
 			case "set_thinking_level":
 				this.#inner.setThinkingLevel(command.level as ConfiguredThinkingLevel);
@@ -638,9 +670,16 @@ export class AgentSessionWrapper {
 				return { ok: true };
 			}
 			case "reload":
-				await this.#inner.reload();
-				this.#applyToolsDisabledHack(this.#toolsDisabled);
-				return { ok: true };
+				// Reload is a session change: it detaches the running agent, so a
+				// pending goal continuation will never reach its terminal `agent_end`.
+				await this.#goalController.beginSessionChange();
+				try {
+					await this.#inner.reload();
+					this.#applyToolsDisabledHack(this.#toolsDisabled);
+					return { ok: true };
+				} finally {
+					await this.#goalController.endSessionChange({ detachedRun: true });
+				}
 			case "abort_compaction":
 				this.#inner.abortCompaction();
 				// Pair the compaction_start emitted by the original compact

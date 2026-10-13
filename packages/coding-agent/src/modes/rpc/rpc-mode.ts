@@ -65,6 +65,7 @@ import {
 	formatPersistenceFailure,
 	formatPersistenceNotice,
 } from "../persistence-failure";
+import { GoalContinuationController, GOAL_CONTINUATION_MODE_RPC } from "../../goals/continuation-controller";
 import { initializeExtensions } from "../runtime-init";
 import { cfgSpellingAutocomplete } from "../settings";
 import { isRpcHostToolResult, isRpcHostToolUpdate, RpcHostToolBridge } from "./host-tools";
@@ -73,7 +74,6 @@ import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameEncoder } from 
 import { claimRpcInput, readRpcInputFrames } from "./rpc-input";
 import { pageRpcMessages, RPC_MESSAGES_PAGE_BUSY_ERROR, RpcMessagesPageError } from "./rpc-messages";
 import { RpcBtwController } from "./rpc-btw";
-import { RpcGoalController } from "./rpc-goal";
 import { RpcLiveBridge, type RpcLiveSessionFactory } from "./rpc-live";
 import { RpcOutputWriter } from "./rpc-output";
 import {
@@ -1393,7 +1393,10 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	const wordPredictor = new RpcWordPredictor();
 	const btw = new RpcBtwController(session, output);
 	// A continuation abandoned while waiting leaves nothing to end the activity stretch: re-check settlement.
-	const goalController = new RpcGoalController(session, () => void settleWatcher.check());
+	const goalController = new GoalContinuationController(session, {
+		continuationMode: GOAL_CONTINUATION_MODE_RPC,
+		onContinuationDropped: () => void settleWatcher.check(),
+	});
 	// A scheduled or held goal turn will start a turn: every settle report treats it as busy,
 	// and any report of "not settled" for that reason is later closed by `session_settled`.
 	const goalTurnScheduled = watchedScheduledTurnProbe(

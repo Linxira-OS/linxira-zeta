@@ -396,6 +396,7 @@ import { cfgWorktreeOnExit, cfgWorktreeOnStart } from "../task/settings";
 import { cfgExpandThinkingBlocks, cfgProseOnlyThinking } from "../session/settings";
 import { cfgHideThinkingBlock } from "../session/settings";
 import { cfgCycleOrder, cfgModelRoles } from "../config/model-settings";
+import { derivePlanGoalObjective, normalizeGoalObjective } from "../goals/plan-objective";
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "../goals/settings";
 import { goalContinuationActivity, goalFromModeData } from "../goals/state";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "../plan-mode/settings";
@@ -4967,6 +4968,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		planFilePath?: string;
 		workflow?: PlanWorkflow;
 		preserveRestoredModel?: boolean;
+		objective?: string;
 	}): Promise<void> {
 		if (this.planModeEnabled) {
 			return;
@@ -5020,6 +5022,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			planFilePath,
 			workflow: options?.workflow ?? "parallel",
 			reentry: this.#planModeHasEntered,
+			// Seeds the goal objective of the approved-plan execution round.
+			objective: normalizeGoalObjective(options?.objective),
 		});
 		try {
 			await this.session.setActiveToolsByName(uniquePlanTools);
@@ -5660,6 +5664,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			enabled: this.session.getEnabledToolNames().filter(name => !isMCPToolName(name)),
 			mounted: this.session.getMountedXdevToolNames().filter(name => !isMCPToolName(name)),
 		};
+		// The task the operator stated at plan entry (when any) is the goal
+		// objective for the execution round; #exitPlanMode clears plan state below.
+		const statedObjective = this.session.getPlanModeState()?.objective;
 
 		// Mark the pending abort caused by the plan-mode → compaction transition as
 		// silent BEFORE #exitPlanMode raises it. The `finally` below clears the
@@ -5781,6 +5788,29 @@ export class InteractiveMode implements InteractiveModeContext {
 			return false;
 		}
 
+		// Approved plans execute as a goal: the execution turn carries the goal
+		// context, and the goal's own continuation drives the remaining work
+		// instead of stopping at the first turn. Entered AFTER the tool
+		// restoration above (which would otherwise drop the `goal` tool) and
+		// BEFORE the execution prompt, so the very first execution turn runs
+		// goal-directed. A goal that cannot start (goal mode disabled, or a
+		// paused goal the runtime refuses to replace) must not fail the
+		// approval — the plan is executed either way.
+		const goalObjective = derivePlanGoalObjective({
+			statedTask: statedObjective,
+			planContent,
+			title: options.title,
+		});
+		if (goalObjective && cfgGoalEnabled.get(this.session.settings) && !this.goalModeEnabled) {
+			try {
+				await this.#enterGoalMode({ objective: goalObjective, silent: true });
+			} catch (error) {
+				this.showWarning(
+					`Plan approved without goal mode: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		}
+
 		// Approved plans land in a fresh (or compacted) session whose first user-visible
 		// turn is the synthetic plan-approved prompt — that path bypasses the
 		// input-controller's title generation. Seed an auto-name from the plan title
@@ -5886,7 +5916,12 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
-		await this.#enterPlanMode(workflow ? { workflow } : undefined);
+		await this.#enterPlanMode({
+			...(workflow ? { workflow } : {}),
+			// The supplied task is the operator's own statement of what the plan
+			// is for; approving it later runs the plan as a goal under it.
+			...(initialPrompt ? { objective: initialPrompt } : {}),
+		});
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {

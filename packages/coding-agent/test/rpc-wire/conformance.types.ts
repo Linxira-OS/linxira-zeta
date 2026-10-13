@@ -16,7 +16,7 @@ import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessageEvent, ImageContent, Model, Usage } from "@linxiraos/pi-ai";
 import type { BashResult } from "@linxiraos/zeta/exec/bash-executor";
 import type { GoalModeState } from "@linxiraos/zeta/goals/state";
-import type { RpcGoalResult } from "@linxiraos/zeta/modes/rpc/rpc-goal";
+import type { GoalContinuationResult } from "@linxiraos/zeta/goals/continuation-controller";
 import type { RpcMessagesPage } from "@linxiraos/zeta/modes/rpc/rpc-messages";
 import type {
 	RpcAbortAndRestoreQueueResult,
@@ -254,7 +254,7 @@ export type State = Assert<
 		todoItemInbound: Inbound<Wire.TodoItem, TodoItem>;
 		goal: Outbound<Goal, Wire.Goal>;
 		goalModeState: Outbound<GoalModeState, Wire.GoalModeState>;
-		goalResult: Outbound<RpcGoalResult, Wire.GoalResult>;
+		goalResult: Outbound<GoalContinuationResult, Wire.GoalResult>;
 		usageLimitLowPriority: Outbound<Extract<UsageLimitState, { stage: "low_priority" }>, Wire.UsageLimitLowPriority>;
 		usageLimitWrapUp: Outbound<Extract<UsageLimitState, { stage: "wrap_up" }>, Wire.UsageLimitWrapUp>;
 		usageLimitStages: Same<UsageLimitState["stage"], Wire.UsageLimitState["stage"]>;

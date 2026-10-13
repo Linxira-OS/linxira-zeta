@@ -12,4 +12,10 @@ export interface PlanModeState {
 	 * out of the approval gate the user put it behind.
 	 */
 	enteredBy?: "user" | "agent";
+	/**
+	 * Task stated when plan mode was entered (`/plan <task>`, `/plan-ultra <task>`).
+	 * Seeds the goal objective of the approved-plan execution round; a plan
+	 * restored from disk has none, so approval falls back to the plan content.
+	 */
+	objective?: string;
 }

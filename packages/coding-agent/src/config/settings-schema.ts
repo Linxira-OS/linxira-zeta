@@ -5024,12 +5024,12 @@ export const SETTINGS_SCHEMA = {
 
 	"goal.continuationModes": {
 		type: "array",
-		default: ["interactive"],
+		default: ["interactive", "web"],
 		ui: {
 			tab: "tasks",
 			group: "Modes",
 			label: "Goal Continuation Modes",
-			description: "Run modes where active goals may auto-continue between turns",
+			description: 'Run modes where active goals may auto-continue between turns ("interactive", "rpc", "web")',
 		},
 	},
 

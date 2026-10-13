@@ -1637,6 +1637,12 @@ describe("InteractiveMode plan review rendering", () => {
 
 		expect(mode.planModeEnabled).toBe(false);
 		expect(session.getPlanReferencePath()).toBe(planFilePath);
+		// Approving a plan now executes it as a goal, and plan mode is refused
+		// while a goal is active: the operator drops the goal to plan again.
+		expect(mode.goalModeEnabled).toBe(true);
+		vi.spyOn(mode, "showHookConfirm").mockResolvedValue(true);
+		await mode.handleGoalModeCommand("drop");
+		expect(mode.goalModeEnabled).toBe(false);
 
 		await mode.handlePlanModeCommand();
 		expect(session.getPlanModeState()).toMatchObject({
@@ -2009,6 +2015,12 @@ describe("InteractiveMode plan review rendering", () => {
 
 		expect(mode.planModeEnabled).toBe(false);
 		expect(session.getPlanReferencePath()).toBe(planFilePath);
+		// Approving a plan now executes it as a goal, and plan mode is refused
+		// while a goal is active: the operator drops the goal to plan again.
+		expect(mode.goalModeEnabled).toBe(true);
+		vi.spyOn(mode, "showHookConfirm").mockResolvedValue(true);
+		await mode.handleGoalModeCommand("drop");
+		expect(mode.goalModeEnabled).toBe(false);
 
 		await mode.handlePlanModeCommand();
 		expect(session.getPlanModeState()).toMatchObject({

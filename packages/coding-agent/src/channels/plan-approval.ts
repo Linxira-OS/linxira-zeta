@@ -17,6 +17,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
+import { derivePlanGoalObjective } from "../goals/plan-objective";
+import { cfgGoalEnabled } from "../goals/settings";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
@@ -75,6 +77,13 @@ export async function approveRemotePlan(
 		return { approved: false, error: `Plan file not found: ${planFilePath}` };
 	}
 
+	// The task stated at plan entry (when any) is the goal objective of the
+	// execution round; captured before the plan state is cleared below.
+	const goalObjective = derivePlanGoalObjective({
+		statedTask: session.getPlanModeState()?.objective,
+		planContent,
+	});
+
 	try {
 		// Leave plan mode so the execution turn runs with the normal toolset.
 		session.setPlanModeState(undefined);
@@ -88,6 +97,23 @@ export async function approveRemotePlan(
 		} else if (mode === "compact") {
 			const compactionPrompt = prompt.render(planModeCompactInstructionsPrompt, { planFilePath });
 			await session.compact(compactionPrompt);
+		}
+
+		// Approved plans execute as a goal: the execution turn carries the goal
+		// context, and the goal's own continuation (`goal.continuationModes`,
+		// "web" for the gateway) drives the remaining work instead of stopping
+		// after the first turn. Entered after the `fresh` branch above, which
+		// replaces the transcript, and before the execution prompt. A goal that
+		// cannot start (goal mode disabled, a paused goal the runtime refuses to
+		// replace) must not fail the approval — the plan is executed either way.
+		if (goalObjective && cfgGoalEnabled.get(session.settings)) {
+			try {
+				await session.enterGoalMode({ objective: goalObjective });
+			} catch (error) {
+				logger.warn("Remote plan approval could not start goal mode", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
 		}
 
 		session.setPlanReferencePath(planFilePath);
