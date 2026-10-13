@@ -12,11 +12,16 @@ test("only Shift+click bypasses session deletion confirmation (SessionNodeItem)"
 	);
 });
 
-test("polls running sessions only while the tab is visible", () => {
-	assert.doesNotMatch(source, /new EventSource\("\/api\/agent\/running\/events"\)/);
-	assert.match(source, /fetch\("\/api\/agent\/running"/);
-	assert.match(source, /document\.visibilityState !== "visible"/);
-	assert.match(source, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
+test("polls running sessions only while the tab is visible (shared hook)", async () => {
+	// The poll moved to the app-wide provider so the sidebar and the session tab
+	// strip share one request; the sidebar only consumes it.
+	const hookSource = await readFile(new URL("../hooks/useRunningSessionIds.tsx", import.meta.url), "utf8");
+	assert.doesNotMatch(hookSource, /new EventSource\("\/api\/agent\/running\/events"\)/);
+	assert.match(hookSource, /fetch\("\/api\/agent\/running"/);
+	assert.match(hookSource, /document\.visibilityState !== "visible"/);
+	assert.match(hookSource, /document\.addEventListener\("visibilitychange", onVisibilityChange\)/);
+	assert.match(source, /useRunningSessionIds\(\)/);
+	assert.doesNotMatch(source, /fetch\("\/api\/agent\/running"/);
 });
 
 test("no hero action row or permanent new-session buttons remain", () => {
@@ -29,8 +34,9 @@ test("no hero action row or permanent new-session buttons remain", () => {
 test("new-session entry falls back to the default workspace before null cwd", () => {
 	assert.match(source, /defaultWorkspacePath/);
 	assert.match(source, /startNewSession/);
-	// The shell callback accepts a nullable cwd.
-	const shell = source.match(/onNewSession\?: \(sessionId: string, cwd: string \| null\) => void;/);
+	// The shell callback accepts a nullable cwd (the tab id is allocated by the
+	// tab model, so the sidebar no longer mints a throwaway session id).
+	const shell = source.match(/onNewSession\?: \(cwd: string \| null\) => void;/);
 	assert.ok(shell, "sidebar onNewSession prop must accept string | null cwd");
 });
 

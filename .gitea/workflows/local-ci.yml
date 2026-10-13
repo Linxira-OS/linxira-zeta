@@ -396,6 +396,11 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         # The desktop shell mirrors the CLI's serve-discovery decision module
+         # (it has no workspace dependency), so the two decision matrices must
+         # stay equal.
+         - name: Serve-discovery parity guard
+           run: bun scripts/check-serve-discovery-parity.ts
          - name: Upstream merge lineage guard
            run: bun scripts/check-merge-lineage.ts
          - name: Build collab web

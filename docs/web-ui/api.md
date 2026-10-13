@@ -82,7 +82,8 @@ Commands: `prompt` (`{ message, images?, streamingBehavior? }`), `steer`
 (`{ text, images? }`), `follow_up` (`{ text, images? }`), `abort`, `get_state`
 (returns `AgentState`), `set_model` (`{ provider, modelId }`),
 `fork` (`{ entryId }`), `navigate_tree` (`{ entryId }`),
-`set_thinking_level` (`{ level }`), `compact`, `set_session_name`
+`set_thinking_level` (`{ level }`), `compact` (`{ customInstructions? }`),
+`set_session_name`
 (`{ name }`), `get_session_stats`, `get_last_assistant_text`,
 `set_auto_compaction` (`{ enabled }`), `clear_queue`, `get_tools`,
 `get_commands`, `set_tools` (`{ toolNames }`), `reload`,

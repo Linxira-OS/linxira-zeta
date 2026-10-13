@@ -34,6 +34,12 @@ import {
 	handleGlobalExtensionUiResponse,
 	handleRunningEvents,
 } from "./web-gateway/agents";
+import {
+	handleSubagentEvents,
+	handleSubagentOutput,
+	handleSubagentRoster,
+	handleSubagentTranscript,
+} from "./web-gateway/subagents";
 import { handleArchiveSession, handleListArchivedSessions, handleUnarchiveSession } from "./web-gateway/archive";
 import {
 	handleAllProviders,
@@ -136,6 +142,14 @@ const AGENT_MEMORY_SEARCH_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/memo
 // Memory ids are opaque and percent-encoded by the client (a `local` id is a
 // relative file path, so it may contain an encoded `/`).
 const AGENT_MEMORY_ITEM_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/memory/items/([^/]+)$`);
+// Subagent roster family (see `document/web-gateway.md`). `subagents/events`
+// must be tested before the bare `subagents` form; both are anchored, so the
+// ordering only keeps the reading order literal-first. `subId` is any
+// non-slash segment: agent ids may carry dots/colons (nested spawns, advisors).
+const AGENT_SUBAGENTS_EVENTS_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/subagents/events$`);
+const AGENT_SUBAGENTS_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/subagents$`);
+const SUBAGENT_TRANSCRIPT_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/subagents/([^/]+)/transcript$`);
+const SUBAGENT_OUTPUT_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/subagents/([^/]+)/output$`);
 const AGENT_CONTEXT_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/context$`);
 
 const AUTH_ALL_PROVIDERS_RE = /^\/api\/auth\/all-providers$/;
@@ -401,6 +415,31 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	const agentEvents = capture(pathname, AGENT_EVENTS_RE);
 	if (agentEvents) {
 		if (req.method === "GET") return handleAgentEvents(req, agentEvents[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Subagent roster family: literal-first, then the deeper `:subId` forms.
+	const subagentEvents = capture(pathname, AGENT_SUBAGENTS_EVENTS_RE);
+	if (subagentEvents) {
+		if (req.method === "GET") return handleSubagentEvents(req, subagentEvents[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const subagents = capture(pathname, AGENT_SUBAGENTS_RE);
+	if (subagents) {
+		if (req.method === "GET") return handleSubagentRoster(req, subagents[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const subagentTranscript = capture(pathname, SUBAGENT_TRANSCRIPT_RE);
+	if (subagentTranscript) {
+		if (req.method === "GET") return handleSubagentTranscript(req, subagentTranscript[0], subagentTranscript[1]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const subagentOutput = capture(pathname, SUBAGENT_OUTPUT_RE);
+	if (subagentOutput) {
+		if (req.method === "GET") return handleSubagentOutput(req, subagentOutput[0], subagentOutput[1]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

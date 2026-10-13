@@ -233,6 +233,16 @@ export interface UseAgentSessionOptions {
   onSystemPromptChange?: (prompt: string | null) => void;
   onSessionStatsPanelOpen?: () => void;
   setToolPreset?: (preset: "none" | "default" | "full") => void;
+  /**
+   * Session-tab options. `active` marks the visible tab: only it runs the 15s
+   * reconcile timer and the visibility/online listeners. `streamActive` decides
+   * whether this instance may hold its session SSE at all — the shell keeps it
+   * for the active tab and for a bounded number of *running* background tabs
+   * (browsers cap same-origin connections at 6 under HTTP/1.1), and drops it
+   * for everything else instead of waiting out the idle grace. Defaults: true.
+   */
+  active?: boolean;
+  streamActive?: boolean;
 }
 
 export type ThinkingLevelOption =
@@ -1524,11 +1534,55 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     [finishPromptWithoutStream],
   );
 
+  /**
+   * Tab activity (session tabs). `streamActive` is false for a hidden tab with
+   * nothing running (and for a cold tab whose stream is over budget): the
+   * connection is dropped immediately rather than after the 30s idle grace,
+   * because a hidden tab cannot start a new run. Flipping it back to true
+   * re-arms the stream with the `?since` cursor and catches the transcript up,
+   * so a tab that sat out part of a run does not come back stale.
+   */
+  const streamEnabled = opts.streamActive !== false;
+  const tabActive = opts.active !== false;
+
+  useEffect(() => {
+    if (streamEnabled) {
+      // Re-arm a stream this tab dropped while it was hidden: the `?since`
+      // cursor replays persisted frames, and the transcript refetch plus the
+      // reconcile call cover live-only deltas and a run that ended meanwhile.
+      const sid = sessionIdRef.current;
+      if (!sid || eventSourceRef.current) return;
+      if (!agentRunningRef.current && !bashRunningRef.current) return;
+      void ensureEventsConnected(sid)
+        .then(() => {
+          void loadSession(sid);
+          void reconcileAgentState(sid);
+        })
+        .catch(() => {
+          // Stream could not be re-established; the running poll and the next
+          // reconcile tick still converge on the server state.
+        });
+      return;
+    }
+    // Cold or idle-and-hidden: give the connection back immediately. An
+    // over-budget running tab lands here too, so the stream budget holds.
+    cancelEventStreamGrace();
+    closeEvents();
+  }, [
+    streamEnabled,
+    cancelEventStreamGrace,
+    closeEvents,
+    ensureEventsConnected,
+    loadSession,
+    reconcileAgentState,
+  ]);
+
   // Recovery net for missed SSE events: while the agent is running, verify
   // against the server periodically and whenever the tab returns to the
-  // foreground or the network comes back.
+  // foreground or the network comes back. Active tab only — a hidden tab's run
+  // is covered by its stream (when the budget allows) and the running poll.
   useEffect(() => {
-    if (!agentRunning) return;
+    if (!agentRunning || !tabActive) return;
     const reconcile = () => {
       // Read the ref on every tick: for brand-new sessions the id is
       // assigned only after ensure_session returns.
@@ -1546,7 +1600,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", reconcile);
     };
-  }, [agentRunning, reconcileAgentState]);
+  }, [agentRunning, tabActive, reconcileAgentState]);
 
   useEffect(() => {
     agentRunningRef.current = agentRunning;
@@ -2086,30 +2140,54 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (bashRunningRef.current) return;
       const sid = sessionIdRef.current;
       if (!sid) return;
-      sendAgentCommand(sid, { type: "navigate_tree", targetId: entryId }).catch(
-        () => {},
-      );
-      setActiveLeafId(entryId);
-      await loadContext(sid, entryId);
+      // The gateway contract is `entryId` (packages/coding-agent
+      // src/server/web-gateway/agents.ts: `navigate_tree`). A failure here must
+      // stay visible: a swallowed rejection used to leave the UI showing the
+      // target leaf while the session's real leaf never moved.
+      try {
+        await sendAgentCommand(sid, { type: "navigate_tree", entryId });
+        setActiveLeafId(entryId);
+        await loadContext(sid, entryId);
+      } catch (e) {
+        addNotice({
+          type: "error",
+          message: `Failed to move to this point in the session: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        });
+        // Drop the optimistic leaf and re-read the session's real position so
+        // the UI does not keep a leaf the session never adopted.
+        await loadContext(sid, null);
+      }
     },
-    [loadContext],
+    [addNotice, loadContext],
   );
 
   const handleLeafChange = useCallback(
     async (leafId: string | null) => {
       if (bashRunningRef.current) return;
-      setActiveLeafId(leafId);
       const sid = sessionIdRef.current;
       if (!sid) return;
-      await loadContext(sid, leafId);
-      if (leafId) {
-        sendAgentCommand(sid, {
-          type: "navigate_tree",
-          targetId: leafId,
-        }).catch(() => {});
+      if (!leafId) {
+        setActiveLeafId(null);
+        await loadContext(sid, null);
+        return;
+      }
+      try {
+        await sendAgentCommand(sid, { type: "navigate_tree", entryId: leafId });
+        setActiveLeafId(leafId);
+        await loadContext(sid, leafId);
+      } catch (e) {
+        addNotice({
+          type: "error",
+          message: `Failed to switch branch: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        });
+        await loadContext(sid, null);
       }
     },
-    [loadContext],
+    [addNotice, loadContext],
   );
 
   // Persist a chosen model back into the runtime models config when its
@@ -2831,7 +2909,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       try {
         await sendAgentCommand(sid, {
           type: "steer",
-          message,
+          text: message,
           ...(piImages?.length ? { images: piImages } : {}),
         });
       } catch (e) {
@@ -2880,7 +2958,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       try {
         await sendAgentCommand(sid, {
           type: "follow_up",
-          message,
+          text: message,
           ...(piImages?.length ? { images: piImages } : {}),
         });
       } catch (e) {

@@ -72,7 +72,20 @@ import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { WorkspacePickerPanel, type PickerAnchor } from "./DraftContextBar";
 import { OpenSplitButton } from "./OpenSplitButton";
-import type { SessionStatsInfo } from "@/lib/pi-types";
+import { SessionTabBar } from "./shell/SessionTabBar";
+import { useSessionTabs } from "@/hooks/useSessionTabs";
+import { RunningSessionsProvider, useRunningSessionIds } from "@/hooks/useRunningSessionIds";
+import { sessionDisplayTitle } from "./sidebar/sidebar-shared";
+import { getDraft } from "@/lib/draft-store";
+import {
+	draftKeyForTab,
+	EMPTY_TAB_META,
+	findTabBySessionId,
+	isTabRunning,
+	selectStreamingTabIds,
+	type SessionTab,
+	type TabRuntimeMeta,
+} from "@/lib/session-tabs";
 
 type SessionCopyField = "file" | "id";
 
@@ -97,10 +110,91 @@ function writeSidebarOpenPref(open: boolean): void {
 	}
 }
 
+/**
+ * Session row behind a tab: the cached `/api/sessions` row when the tab was
+ * opened from the sidebar (the normal path), else a minimal identity stub so a
+ * tab restored without its row (PR B) still renders its chat. `path`/`modified`
+ * are only used by sidebar rows, which always come from the real list.
+ */
+function sessionForTab(tab: SessionTab, cache: Record<string, SessionInfo>): SessionInfo | null {
+	if (tab.kind !== "session" || !tab.sessionId) return null;
+	return (
+		cache[tab.sessionId] ?? {
+			path: "",
+			id: tab.sessionId,
+			cwd: tab.projectRoot ?? "",
+			name: tab.title,
+			created: new Date(tab.openedAt).toISOString(),
+			modified: "",
+			messageCount: 0,
+			firstMessage: "",
+		}
+	);
+}
+
+/**
+ * Workspace context of a tab. A session tab keeps the session's own cwd — a
+ * linked worktree is a different directory from its project root, and the
+ * terminal/dock panels must open there — while a draft tab owns its cwd.
+ */
+function tabContextCwd(tab: SessionTab, session: SessionInfo | null): string | null {
+	if (tab.kind === "draft") return tab.draftCwd;
+	return session?.cwd ?? tab.projectRoot;
+}
+
+/** Metadata of one tab, or the neutral entry when it has not reported yet. */
+function tabMetaFor(meta: Record<string, TabRuntimeMeta>, tabId: string | null): TabRuntimeMeta {
+	return (tabId && meta[tabId]) || EMPTY_TAB_META;
+}
+
+/** Tabs whose own ChatWindow reports a live run (exact, SSE-driven). */
+function runningTabIdsFrom(meta: Record<string, TabRuntimeMeta>): Set<string> {
+	const ids = new Set<string>();
+	for (const [tabId, entry] of Object.entries(meta)) {
+		if (entry.running) ids.add(tabId);
+	}
+	return ids;
+}
+
+/** Is the tab running? Live tab state first, then the shared running poll. */
+function isTabRunningNow(
+	tab: SessionTab,
+	meta: Record<string, TabRuntimeMeta>,
+	runningSessionIds: ReadonlySet<string>,
+): boolean {
+	return isTabRunning(tab, { runningSessionIds, runningTabIds: runningTabIdsFrom(meta) });
+}
+
+/** Unsent composer text or images — tabs holding either are never evicted. */
+function hasUnsavedDraft(tab: SessionTab): boolean {
+	return getDraft(draftKeyForTab(tab)) !== null;
+}
+
+/**
+ * Per-tab ChatWindow callbacks, cached by tab id. `inputRef` is the tab's own
+ * composer handle (Ctrl+I / Ctrl+Enter and the file-mention inserters act on
+ * the active tab only).
+ */
+interface TabBindings {
+	inputRef: React.RefObject<ChatInputHandle | null>;
+	onTabMeta: (patch: Partial<TabRuntimeMeta>) => void;
+	onSessionCreated: (session: SessionInfo) => void;
+	onSessionForked: (newSessionId: string) => void;
+	onAgentEnd: () => void;
+	onNewSessionCwdChange: (cwd: string) => void;
+	onBranchDataChange: (
+		tree: SessionTreeNode[],
+		activeLeafId: string | null,
+		onLeafChange: (leafId: string | null) => void,
+	) => void;
+}
+
 export function AppShell() {
 	return (
 		<I18nProvider>
-			<AppShellContent />
+			<RunningSessionsProvider>
+				<AppShellContent />
+			</RunningSessionsProvider>
 		</I18nProvider>
 	);
 }
@@ -125,21 +219,38 @@ function AppShellContent() {
 	const { locale, t } = useI18n();
 	useViewportHeight();
 	const isMobile = useIsMobile();
-	const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
-	const [activeCwd, setActiveCwd] = useState<string | null>(null);
-	// When user clicks +, we only store the cwd — no fake session id
-	const [newSessionCwd, setNewSessionCwd] = useState<string | null>(null);
-	// Null-cwd degraded draft (spec D11): neither a project nor the default
-	// workspace resolved — the whole composer card becomes the workspace picker.
-	const [degradedDraft, setDegradedDraft] = useState(false);
-	/** True once the user explicitly requested a new session (default chat shares the coordinator). */
-	const explicitNewRef = useRef(false);
+
+	// --- Session tabs ------------------------------------------------------
+	// The tab list is the single source of truth for "which chat is open";
+	// `selectedSession` / `newSessionCwd` / `activeCwd` below are *derived* from
+	// the active tab so every existing consumer (dock panels, sidebar highlight,
+	// top bar) keeps reading one value.
+	const sessionTabs = useSessionTabs();
+	const { tabs, activeTabId, activeTab } = sessionTabs;
+	const { runningSessionIds } = useRunningSessionIds();
+	// Runtime-only per-tab metadata (stats, context, branch tree, plan, run
+	// state). Written by each tab's ChatWindow through `onTabMeta`; the shell
+	// chrome only ever reads the active tab's entry.
+	const [tabMeta, setTabMeta] = useState<Record<string, TabRuntimeMeta>>({});
+	// Sessions opened through the sidebar arrive with their full row; cache them
+	// so a tab can render its ChatWindow without a second `/api/sessions/{id}`.
+	const [sessionCache, setSessionCache] = useState<Record<string, SessionInfo>>({});
+	// The workspace the sidebar currently points at. Only used while no tab
+	// exists (open-workspace placeholder): once a tab is active, the tab owns
+	// its workspace, so moving around the sidebar never retargets an open draft.
+	const [sidebarCwd, setSidebarCwd] = useState<string | null>(null);
+
+	// --- Derived active-tab state -------------------------------------------
+	// One expression per value: the active tab is the session the sidebar
+	// highlights, the dock panels describe, and the top bar reports.
+	const selectedSession = activeTab ? sessionForTab(activeTab, sessionCache) : null;
+	const newSessionCwd = activeTab?.kind === "draft" ? activeTab.draftCwd : null;
+	const activeCwd = activeTab ? tabContextCwd(activeTab, selectedSession) : sidebarCwd;
 	const [initialCwdStatus, setInitialCwdStatus] = useState<"idle" | "validating" | "ready" | "error">(() =>
 		initialNavigation.requestedCwd ? "validating" : "idle",
 	);
 	const [initialCwdError, setInitialCwdError] = useState<string | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
-	const [sessionKey, setSessionKey] = useState(0);
 	const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
 	const [modelsConfigOpen, setModelsConfigOpen] = useState(false);
 	const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
@@ -192,14 +303,9 @@ function AppShellContent() {
 	}, []);
 	// Command palette (Ctrl+K) visibility.
 	const [paletteOpen, setPaletteOpen] = useState(false);
-	// Sidebar Plan card state (hoisted from ChatWindow).
-	const [sidebarPlan, setSidebarPlan] = useState<{ enabled: boolean; planFilePath: string | null }>({
-		enabled: false,
-		planFilePath: null,
-	});
-	const handlePlanStateChange = useCallback((plan: { enabled: boolean; planFilePath: string | null }) => {
-		setSidebarPlan(plan);
-	}, []);
+	// Sidebar Plan card state: read from the active tab's metadata (the tab's
+	// own ChatWindow writes it) so a background plan cannot drive the sidebar.
+	const sidebarPlan = tabMetaFor(tabMeta, activeTabId).plan;
 	// tracking.enabled gates the dock tracking entry (conditional entry, §1.3).
 	const [trackingEnabled, setTrackingEnabled] = useState(false);
 	useEffect(() => {
@@ -257,38 +363,166 @@ function AppShellContent() {
 	useEffect(() => {
 		setMobileSidebarReady(true);
 	}, []);
-	const chatInputRef = useRef<ChatInputHandle | null>(null);
 	const topBarRef = useRef<HTMLDivElement>(null);
 
-	// Branch navigator state — populated by ChatWindow via onBranchDataChange
-	const [branchTree, setBranchTree] = useState<SessionTreeNode[]>([]);
-	const [branchActiveLeafId, setBranchActiveLeafId] = useState<string | null>(null);
-	const branchLeafChangeFnRef = useRef<((leafId: string | null) => void) | null>(null);
+	// --- Per-tab metadata plumbing ------------------------------------------
+	// Every ChatWindow stays mounted while its tab is open, so the hoisted
+	// session values (stats, context, branch tree, prompt, plan, run state) are
+	// per-tab maps. The chrome below reads only the active tab's entry.
+	const activeMeta = tabMetaFor(tabMeta, activeTabId);
+	const sessionStats = activeMeta.sessionStats;
+	const contextUsage = activeMeta.contextUsage;
+	const modelInfo = { model: activeMeta.model, thinkingLevel: activeMeta.thinkingLevel };
+	const branchTree = activeMeta.branchTree;
+	const branchActiveLeafId = activeMeta.branchActiveLeafId;
+	const systemPrompt = activeMeta.systemPrompt;
 
-	const handleBranchDataChange = useCallback(
-		(tree: SessionTreeNode[], activeLeafId: string | null, onLeafChange: (leafId: string | null) => void) => {
-			setBranchTree(tree);
-			setBranchActiveLeafId(activeLeafId);
-			branchLeafChangeFnRef.current = onLeafChange;
+	const patchTabMeta = useCallback((tabId: string, patch: Partial<TabRuntimeMeta>) => {
+		setTabMeta(prev => ({ ...prev, [tabId]: { ...EMPTY_TAB_META, ...prev[tabId], ...patch } }));
+	}, []);
+
+	// Keep a ref to the live tab list so the per-tab callbacks (created once per
+	// tab and cached) never read a stale render's state.
+	const tabsRef = useRef({ tabs, activeTabId, sessionCache });
+	tabsRef.current = { tabs, activeTabId, sessionCache };
+	const tabMetaRef = useRef(tabMeta);
+	tabMetaRef.current = tabMeta;
+	const runningSessionIdsRef = useRef(runningSessionIds);
+	runningSessionIdsRef.current = runningSessionIds;
+	const branchLeafChangeFnsRef = useRef(new Map<string, (leafId: string | null) => void>());
+	const tabBindingsRef = useRef(new Map<string, TabBindings>());
+
+	// The top bar's branch navigator acts on the active tab's leaf callback.
+	const handleBranchLeafChange = useCallback((leafId: string | null) => {
+		const tabId = tabsRef.current.activeTabId;
+		if (tabId) branchLeafChangeFnsRef.current.get(tabId)?.(leafId);
+	}, []);
+
+	// Cache the session row so the tab's ChatWindow renders from real data (and
+	// the sidebar's rename / projectRoot land without another fetch).
+	const cacheSession = useCallback((session: SessionInfo) => {
+		setSessionCache(prev => ({ ...prev, [session.id]: session }));
+	}, []);
+
+	const bumpTabRemount = useCallback((tabId: string) => {
+		setTabMeta(prev => ({
+			...prev,
+			[tabId]: { ...EMPTY_TAB_META, ...prev[tabId], remountNonce: (prev[tabId]?.remountNonce ?? 0) + 1 },
+		}));
+	}, []);
+
+	/**
+	 * Welcome-card workspace pick: rebind the draft tab to another workspace and
+	 * re-create its chat, because the cwd is where the pending session will be
+	 * created (the pre-tab shell remounted for the same reason).
+	 */
+	const setTabDraftCwd = useCallback(
+		(tabId: string, cwd: string) => {
+			const tab = tabsRef.current.tabs.find(candidate => candidate.id === tabId);
+			if (!tab || tab.kind !== "draft" || tab.draftCwd === cwd) return;
+			sessionTabs.update(tabId, { draftCwd: cwd, projectRoot: cwd });
+			bumpTabRemount(tabId);
 		},
+		[bumpTabRemount, sessionTabs],
+	);
+
+	/**
+	 * Per-tab ChatWindow bindings, created once per tab id and cached: the
+	 * hoist effects inside ChatWindow key on callback identity, so a fresh
+	 * closure per render would re-fire them forever. Everything they touch goes
+	 * through refs that are refreshed on each render.
+	 */
+	const tabHandlersRef = useRef<{
+		tabMeta: (tabId: string, patch: Partial<TabRuntimeMeta>) => void;
+		sessionCreated: (tabId: string, session: SessionInfo) => void;
+		sessionForked: (tabId: string, newSessionId: string) => void;
+		agentEnd: (tabId: string) => void;
+		draftCwdChange: (tabId: string, cwd: string) => void;
+		branchData: (
+			tabId: string,
+			tree: SessionTreeNode[],
+			activeLeafId: string | null,
+			onLeafChange: (leafId: string | null) => void,
+		) => void;
+	}>({
+		tabMeta: () => {},
+		sessionCreated: () => {},
+		sessionForked: () => {},
+		agentEnd: () => {},
+		draftCwdChange: () => {},
+		branchData: () => {},
+	});
+
+	const bindingsFor = useCallback((tabId: string): TabBindings => {
+		const cached = tabBindingsRef.current.get(tabId);
+		if (cached) return cached;
+		const bindings: TabBindings = {
+			inputRef: { current: null },
+			onTabMeta: patch => tabHandlersRef.current.tabMeta(tabId, patch),
+			onSessionCreated: session => tabHandlersRef.current.sessionCreated(tabId, session),
+			onSessionForked: newSessionId => tabHandlersRef.current.sessionForked(tabId, newSessionId),
+			onAgentEnd: () => tabHandlersRef.current.agentEnd(tabId),
+			onNewSessionCwdChange: cwd => tabHandlersRef.current.draftCwdChange(tabId, cwd),
+			onBranchDataChange: (tree, activeLeafId, onLeafChange) =>
+				tabHandlersRef.current.branchData(tabId, tree, activeLeafId, onLeafChange),
+		};
+		tabBindingsRef.current.set(tabId, bindings);
+		return bindings;
+	}, []);
+
+	/** Composer handle of the active tab: Ctrl+I / Ctrl+Enter and file mentions. */
+	const activeInputRef = useCallback((): React.RefObject<ChatInputHandle | null> => {
+		const tabId = tabsRef.current.activeTabId;
+		return tabId ? bindingsFor(tabId).inputRef : { current: null };
+	}, [bindingsFor]);
+
+	/**
+	 * Mark the active tab mounted (its ChatWindow is created on first
+	 * activation) and drop metadata for tabs that no longer exist.
+	 */
+	useEffect(() => {
+		const live = new Set(tabs.map(tab => tab.id));
+		for (const id of [...tabBindingsRef.current.keys()]) {
+			if (!live.has(id)) tabBindingsRef.current.delete(id);
+		}
+		for (const id of [...branchLeafChangeFnsRef.current.keys()]) {
+			if (!live.has(id)) branchLeafChangeFnsRef.current.delete(id);
+		}
+		setTabMeta(prev => {
+			const pruned = Object.fromEntries(Object.entries(prev).filter(([id]) => live.has(id)));
+			if (!activeTabId || pruned[activeTabId]?.mounted) return pruned;
+			return { ...pruned, [activeTabId]: { ...EMPTY_TAB_META, ...pruned[activeTabId], mounted: true } };
+		});
+	}, [tabs, activeTabId]);
+
+	// --- Tab lifecycle helpers ----------------------------------------------
+	// A tab that is running, holds unsent text, or (PR B) waits for approval is
+	// never evicted by the soft cap: the cap is a memory guard, not a way to
+	// kill work.
+	const canEvictTab = useCallback(
+		(tab: SessionTab) =>
+			!isTabRunningNow(tab, tabMetaRef.current, runningSessionIdsRef.current) && !hasUnsavedDraft(tab),
 		[],
 	);
 
-	const handleBranchLeafChange = useCallback((leafId: string | null) => {
-		branchLeafChangeFnRef.current?.(leafId);
-	}, []);
+	const openSessionTab = useCallback(
+		(session: SessionInfo) => {
+			cacheSession(session);
+			sessionTabs.openSessionTab(session, sessionDisplayTitle(session, t), { canEvict: canEvictTab });
+		},
+		[cacheSession, canEvictTab, sessionTabs, t],
+	);
 
-	const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
-
-	const handleSystemPromptChange = useCallback((prompt: string | null) => {
-		setSystemPrompt(prompt);
-	}, []);
-
-	// Session stats (tokens + cost) — populated by ChatWindow, displayed in top bar
-	const [sessionStats, setSessionStats] = useState<SessionStatsInfo | null>(null);
-	const handleSessionStatsChange = useCallback((stats: SessionStatsInfo | null) => {
-		setSessionStats(stats);
-	}, []);
+	const openDraftTab = useCallback(
+		(cwd: string | null, explicitNew: boolean) => {
+			// Draft tabs use the same D4 title rule a brand-new session row shows
+			// (name > first message > "New session · HH:mm"), so the strip reads
+			// the same before and after the session exists.
+			const title = sessionDisplayTitle({ name: null, firstMessage: "", created: new Date().toISOString() }, t);
+			sessionTabs.openDraftTab(cwd, title, explicitNew, { canEvict: canEvictTab });
+		},
+		[canEvictTab, sessionTabs, t],
+	);
 
 	// "Update" button: check → confirm → download → install → prompt restart.
 	const handleCheckUpdate = useCallback(async () => {
@@ -356,42 +590,12 @@ function AppShellContent() {
 		};
 	}, []);
 
-	// Context usage — populated by ChatWindow, displayed in top bar
-	const [contextUsage, setContextUsage] = useState<{
-		percent: number | null;
-		contextWindow: number;
-		tokens: number | null;
-	} | null>(null);
-	const handleContextUsageChange = useCallback(
-		(
-			usage: {
-				percent: number | null;
-				contextWindow: number;
-				tokens: number | null;
-			} | null,
-		) => {
-			setContextUsage(usage);
-		},
-		[],
-	);
-
 	// One-shot /api/desktop/info probe: warms the shared cached promise so
 	// desktop-specific surfaces resolve instantly instead of re-fetching.
 	useEffect(() => {
 		fetchDesktopInfo().catch(error => recordBootFailure("desktop-info", error));
 	}, [recordBootFailure]);
 
-	// Current model + thinking level — populated by ChatWindow for the SidePanel
-	const [modelInfo, setModelInfo] = useState<{
-		model: { provider: string; modelId: string } | null;
-		thinkingLevel: string;
-	}>({ model: null, thinkingLevel: "" });
-	const handleModelChange = useCallback(
-		(model: { provider: string; modelId: string } | null, thinkingLevel: string) => {
-			setModelInfo({ model, thinkingLevel });
-		},
-		[],
-	);
 	const { visible: sessionPanelVisible } = useSidebar();
 	// The dock auto-hides below 1024px regardless of the stored preference.
 	const [sidePanelNarrow, setSidePanelNarrow] = useState(false);
@@ -493,27 +697,33 @@ function AppShellContent() {
 	const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
 
 	// Same @mention format as the chat input's @ autocomplete, so the agent's
-	// read tool resolves it the same way (it strips the @ prefix).
-	const handleAtMention = useCallback((relativePath: string, isDir: boolean) => {
-		chatInputRef.current?.insertText(buildAtMentionText(relativePath, isDir));
-	}, []);
+	// read tool resolves it the same way (it strips the @ prefix). Inserts land
+	// in the active tab's composer.
+	const handleAtMention = useCallback(
+		(relativePath: string, isDir: boolean) => {
+			activeInputRef().current?.insertText(buildAtMentionText(relativePath, isDir));
+		},
+		[activeInputRef],
+	);
 
-	const handleAtMentions = useCallback((relativePaths: string[]) => {
-		const mentions = buildFileAtMentionsText(relativePaths);
-		if (mentions) chatInputRef.current?.insertText(mentions);
-	}, []);
+	const handleAtMentions = useCallback(
+		(relativePaths: string[]) => {
+			const mentions = buildFileAtMentionsText(relativePaths);
+			if (mentions) activeInputRef().current?.insertText(mentions);
+		},
+		[activeInputRef],
+	);
 
-	const handleFileLineMention = useCallback((relativePath: string, startLine: number, endLine: number) => {
-		chatInputRef.current?.insertText(buildFileLineMentionText(relativePath, startLine, endLine));
-	}, []);
+	const handleFileLineMention = useCallback(
+		(relativePath: string, startLine: number, endLine: number) => {
+			activeInputRef().current?.insertText(buildFileLineMentionText(relativePath, startLine, endLine));
+		},
+		[activeInputRef],
+	);
 
 	const initialSessionId = initialNavigation.sessionId;
-	const activeProjectRootRef = useRef<string | null>(null);
 	// True once the initial ?session= URL param has been resolved (or confirmed absent)
 	const [initialSessionRestored, setInitialSessionRestored] = useState<boolean>(() => !initialSessionId);
-	// Suppresses sessionKey bump in handleCwdChange during the initial URL restore
-	const suppressCwdBumpRef = useRef(false);
-
 	useEffect(() => {
 		const requestedCwd = initialNavigation.requestedCwd;
 		if (!requestedCwd) return;
@@ -537,10 +747,10 @@ function AppShellContent() {
 					throw new Error(data.error ?? `HTTP ${response.status}`);
 				}
 
-				// The sidebar will notify us when it adopts this cwd. Avoid remounting
-				// the just-created empty chat during that initial synchronization.
-				suppressCwdBumpRef.current = true;
-				setNewSessionCwd(data.cwd);
+				// `?cwd=` deep link: open the requested workspace as the initial
+				// draft tab. Not "explicit" — it keeps attaching to the serve
+				// process's shared coordinator session until the user sends.
+				openDraftTab(data.cwd, false);
 				setInitialCwdStatus("ready");
 			})
 			.catch((error: unknown) => {
@@ -550,68 +760,54 @@ function AppShellContent() {
 			});
 
 		return () => controller.abort();
-	}, [initialNavigation]);
+	}, [initialNavigation, openDraftTab]);
 
-	const handleCwdChange = useCallback((cwd: string | null, _projectRoot?: string | null) => {
-		// Session-centric model: the active session defines the context. The
-		// sidebar no longer drives a global cwd switch, so there is nothing to
-		// close or remount here — cross-project session activation is handled by
-		// handleSelectSession, and concurrent agents keep running per session.
-		setActiveCwd(cwd);
-	}, []);
+	const handleCwdChange = useCallback(
+		(cwd: string | null) => {
+			// The sidebar points at a workspace. It only decides the context while
+			// nothing is open: with tabs, the active tab owns its workspace (plan
+			// §2.3), so an open chat is never retargeted behind the user's back.
+			setSidebarCwd(cwd);
+			if (!cwd) return;
+			if (tabsRef.current.tabs.length > 0) return;
+			// Boot: the sidebar resolved the initial project and no tab exists yet,
+			// so open the default draft there (shared-coordinator semantics).
+			openDraftTab(cwd, false);
+		},
+		[openDraftTab],
+	);
 
 	const handleSelectSession = useCallback(
 		(session: SessionInfo, isRestore = false) => {
-			setNewSessionCwd(null);
-			setDegradedDraft(false);
-			setSelectedSession(session);
-			setSessionKey(k => k + 1);
-			setSystemPrompt(null);
+			// Clicking a session focuses its tab, or appends a new one; it never
+			// replaces whatever the current tab is showing.
+			openSessionTab(session);
 			setInitialSessionRestored(true);
 			// On mobile, collapse the overlay drawer so the chat is revealed after pick.
 			if (isMobile && !isRestore) setSidebarOpen(false);
-			if (isRestore) {
-				// Suppress the redundant sessionKey bump that would come from the
-				// onCwdChange effect firing after setSelectedCwd in the sidebar
-				suppressCwdBumpRef.current = true;
-			}
-			// Skip router.replace when restoring from URL — the param is already correct
-			// and calling replace in production Next.js triggers a Suspense remount loop
-			if (!isRestore) {
-				router.replace(`?session=${encodeURIComponent(session.id)}`, {
-					scroll: false,
-				});
-			}
 		},
-		[router, isMobile],
+		[isMobile, openSessionTab],
 	);
 
 	const handleNewSession = useCallback(
 		// cwd === null: neither a project nor the default workspace resolved —
-		// the empty state renders its degraded workspace trigger (batch 3).
-		(_sessionId: string, cwd: string | null) => {
-			explicitNewRef.current = true;
-			setSelectedSession(null);
-			setNewSessionCwd(cwd);
-			setDegradedDraft(cwd === null);
-			setSessionKey(k => k + 1);
-			setBranchTree([]);
-			setBranchActiveLeafId(null);
-			setSystemPrompt(null);
-			setActiveTopPanel(null);
+		// the tab renders the degraded workspace trigger (batch 3).
+		(cwd: string | null) => {
+			openDraftTab(cwd, true);
 			if (isMobile) setSidebarOpen(false);
-			router.replace("/", { scroll: false });
 		},
-		[router, isMobile],
+		[isMobile, openDraftTab],
 	);
 
 	// Global keyboard shortcuts (handles Esc, Ctrl+N/Ctrl+Alt+N, Ctrl+I,
-	// Ctrl+Enter, Ctrl+K, Ctrl+/ etc.)
+	// Ctrl+Enter, Ctrl+K, Ctrl+/ etc.). Ctrl+I/Ctrl+Enter act on the active
+	// tab's composer; Esc aborts the active tab's run.
 	useGlobalKeyboardShortcuts({
-		onNewSession: (cwd: string) => handleNewSession(`kb-${Date.now()}`, cwd),
+		onNewSession: (cwd: string) => handleNewSession(cwd),
 		activeCwd,
-		onFocusInput: () => chatInputRef.current?.focus(),
-		onSubmitInput: () => chatInputRef.current?.submit(),
+		activeTabId,
+		onFocusInput: () => activeInputRef().current?.focus(),
+		onSubmitInput: () => activeInputRef().current?.submit(),
 		onTogglePalette: () => setPaletteOpen(open => !open),
 		onCycleTheme: () => cycleTheme(),
 	});
@@ -623,7 +819,7 @@ function AppShellContent() {
 			id: "new-session",
 			label: t("palette.new-session"),
 			keywords: "new create session",
-			run: () => handleNewSession(`palette-${Date.now()}`, activeCwd ?? ""),
+			run: () => handleNewSession(activeCwd ?? ""),
 		},
 		{
 			id: "open-settings",
@@ -682,33 +878,47 @@ function AppShellContent() {
 	);
 
 	// Client-built transient SessionInfo (new session / fork) lacks the
-	// server-computed projectRoot, which the same-project check in
-	// handleCwdChange relies on. Hydrate it from the session list so switching
-	// worktrees right after creating a session doesn't close the chat.
-	const hydrateSelectedSession = useCallback((sessionId: string) => {
-		void fetch("/api/sessions")
-			.then(r => (r.ok ? (r.json() as Promise<{ sessions: SessionInfo[] }>) : null))
-			.then(d => {
-				const full = d?.sessions.find(s => s.id === sessionId);
-				if (!full) return;
-				setSelectedSession(prev => (prev && prev.id === sessionId && !prev.projectRoot ? full : prev));
-			})
-			.catch(() => {});
-	}, []);
-
-	// Called by ChatWindow when a new session gets its real id from pi
-	const handleSessionCreated = useCallback(
-		(session: SessionInfo) => {
-			setNewSessionCwd(null);
-			setDegradedDraft(false);
-			setSelectedSession(session);
-			setRefreshKey(k => k + 1);
-			hydrateSelectedSession(session.id);
-			router.replace(`?session=${encodeURIComponent(session.id)}`, {
-				scroll: false,
-			});
+	// server-computed projectRoot. Hydrate it from the session list so the tab's
+	// identity (and the sidebar's project grouping) matches the server row.
+	const hydrateSession = useCallback(
+		(sessionId: string) => {
+			void fetch("/api/sessions")
+				.then(r => (r.ok ? (r.json() as Promise<{ sessions: SessionInfo[] }>) : null))
+				.then(d => {
+					const full = d?.sessions.find(s => s.id === sessionId);
+					if (!full) return;
+					cacheSession(full);
+					const tab = findTabBySessionId(tabsRef.current.tabs, sessionId);
+					if (tab) {
+						sessionTabs.update(tab.id, {
+							projectRoot: full.projectRoot ?? full.cwd,
+							title: sessionDisplayTitle(full, t),
+						});
+					}
+				})
+				.catch(() => {});
 		},
-		[router, hydrateSelectedSession],
+		[cacheSession, sessionTabs, t],
+	);
+
+	// Called by the tab's ChatWindow when a draft gets its real session id.
+	const handleSessionCreated = useCallback(
+		(tabId: string, session: SessionInfo) => {
+			cacheSession(session);
+			// The tab keeps its id and its mounted ChatWindow: the draft simply
+			// becomes the session view (no remount, no lost scroll position).
+			sessionTabs.update(tabId, {
+				kind: "session",
+				sessionId: session.id,
+				draftCwd: null,
+				projectRoot: session.projectRoot ?? session.cwd,
+				title: sessionDisplayTitle(session, t),
+				explicitNew: false,
+			});
+			setRefreshKey(k => k + 1);
+			hydrateSession(session.id);
+		},
+		[cacheSession, hydrateSession, sessionTabs, t],
 	);
 
 	const handleAgentEnd = useCallback(() => {
@@ -720,28 +930,25 @@ function AppShellContent() {
 		setExplorerRefreshKey(k => k + 1);
 	}, []);
 
+	// A fork opens its own tab; the parent tab keeps its transcript untouched.
 	const handleSessionForked = useCallback(
-		(newSessionId: string) => {
-			setRefreshKey(k => k + 1);
-			setSessionKey(k => k + 1);
-			setNewSessionCwd(null);
-			setSelectedSession(prev => ({
-				...(prev ?? {
-					path: "",
-					cwd: "",
-					created: "",
-					modified: "",
-					messageCount: 0,
-					firstMessage: "",
-				}),
+		(tabId: string, newSessionId: string) => {
+			const parent = tabsRef.current.tabs.find(tab => tab.id === tabId);
+			const cwd = parent?.projectRoot ?? tabsRef.current.sessionCache[parent?.sessionId ?? ""]?.cwd ?? "";
+			const session: SessionInfo = {
+				path: "",
 				id: newSessionId,
-			}));
-			hydrateSelectedSession(newSessionId);
-			router.replace(`?session=${encodeURIComponent(newSessionId)}`, {
-				scroll: false,
-			});
+				cwd,
+				created: new Date().toISOString(),
+				modified: new Date().toISOString(),
+				messageCount: 0,
+				firstMessage: "",
+			};
+			setRefreshKey(k => k + 1);
+			openSessionTab(session);
+			hydrateSession(newSessionId);
 		},
-		[router, hydrateSelectedSession],
+		[hydrateSession, openSessionTab],
 	);
 
 	const handleInitialRestoreDone = useCallback(() => {
@@ -751,19 +958,12 @@ function AppShellContent() {
 	const handleSessionDeleted = useCallback(
 		(sessionId: string) => {
 			setRefreshKey(k => k + 1);
-			if (selectedSession?.id === sessionId) {
-				const cwd = selectedSession.cwd;
-				setSelectedSession(null);
-				setNewSessionCwd(cwd ?? null);
-				setSessionKey(k => k + 1);
-				setBranchTree([]);
-				setBranchActiveLeafId(null);
-				setSystemPrompt(null);
-				setActiveTopPanel(null);
-				router.replace("/", { scroll: false });
-			}
+			// Deleting a session closes its tab view (activation falls to the
+			// right neighbour, else the left, else the empty state). The session
+			// file is gone, so nothing is left to re-open.
+			sessionTabs.closeSessionTabs(sessionId);
 		},
-		[selectedSession, router],
+		[sessionTabs],
 	);
 
 	const handleOpenFile = useCallback(
@@ -858,11 +1058,63 @@ function AppShellContent() {
 		[fileTabs],
 	);
 
-	// Show chat area if a session is selected, a cwd to start a new session in,
-	// or the degraded null-cwd draft (whole card = workspace trigger)
-	const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
-	const showDegradedDraft = degradedDraft && selectedSession === null && effectiveNewSessionCwd === null;
-	const showChat = selectedSession !== null || effectiveNewSessionCwd !== null || showDegradedDraft;
+	// Live tab title: the cached session row keeps renames and first messages
+	// current; a draft falls back to its snapshot title.
+	const tabTitle = useCallback(
+		(tab: SessionTab) => {
+			const session = sessionForTab(tab, tabsRef.current.sessionCache);
+			return session ? sessionDisplayTitle(session, t) : tab.title;
+		},
+		[t],
+	);
+
+	// --- Tab strip plumbing -------------------------------------------------
+	// Sessions whose stream may stay open: the active tab, plus the two most
+	// recently used *running* background tabs (browser connection budget).
+	const runningTabIds = useMemo(() => runningTabIdsFrom(tabMeta), [tabMeta]);
+	const streamingTabIds = useMemo(
+		() => selectStreamingTabIds({ tabs, activeTabId, runningSessionIds, runningTabIds }),
+		[tabs, activeTabId, runningSessionIds, runningTabIds],
+	);
+
+	const handleActivateTab = useCallback((tabId: string) => sessionTabs.activate(tabId), [sessionTabs]);
+	const handleCloseTab = useCallback((tabId: string) => sessionTabs.close(tabId), [sessionTabs]);
+
+	// The URL always names the active tab's session (`?session=`), or is bare for
+	// a draft — the same contract as the pre-tab shell, and the deep link the
+	// desktop tray and the browser back/forward rely on. Skipped when the param
+	// already matches: replacing it with the same value makes Next.js remount
+	// the route in production.
+	useEffect(() => {
+		const current = searchParams.get("session");
+		if (!activeTab) return;
+		if (activeTab.kind === "session" && activeTab.sessionId) {
+			if (current === activeTab.sessionId) return;
+			router.replace(`?session=${encodeURIComponent(activeTab.sessionId)}`, { scroll: false });
+			return;
+		}
+		if (current === null) return;
+		router.replace("/", { scroll: false });
+	}, [activeTab, router, searchParams]);
+
+	// Per-tab callbacks are created once per tab (see `bindingsFor`); point them
+	// at this render's handlers so they never run a stale closure.
+	tabHandlersRef.current = {
+		tabMeta: patchTabMeta,
+		sessionCreated: handleSessionCreated,
+		sessionForked: handleSessionForked,
+		agentEnd: handleAgentEnd,
+		draftCwdChange: setTabDraftCwd,
+		branchData: (tabId, tree, activeLeafId, onLeafChange) => {
+			branchLeafChangeFnsRef.current.set(tabId, onLeafChange);
+			patchTabMeta(tabId, { branchTree: tree, branchActiveLeafId: activeLeafId });
+		},
+	};
+
+	// The chat area is driven by the tab list: one entry per open tab, lazily
+	// mounted on first activation and kept alive (hidden) afterwards so its
+	// transcript, scroll position and composer draft survive tab switches.
+	const showChat = tabs.length > 0;
 	// While restoring initial session from URL, don't show the placeholder
 	const showPlaceholder = initialSessionRestored && !showChat;
 
@@ -928,8 +1180,7 @@ function AppShellContent() {
 				[
 					{
 						label: t("new-session"),
-						onClick: () =>
-							handleNewSession(`rail-${Date.now()}`, activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? ""),
+						onClick: () => handleNewSession(activeCwd ?? ""),
 						icon: (
 							<svg
 								width="18"
@@ -2229,37 +2480,74 @@ function AppShellContent() {
 						)}
 					</div>
 
+					{/* Session tab strip — one tab per open chat */}
+					{tabs.length > 0 && (
+						<SessionTabBar
+							tabs={tabs}
+							activeTabId={activeTabId}
+							runningTabIds={runningTabIds}
+							streamingTabIds={streamingTabIds}
+							titleFor={tabTitle}
+							onActivateTab={handleActivateTab}
+							onCloseTab={handleCloseTab}
+							onNewTab={() => handleNewSession(activeCwd ?? "")}
+							isMobile={isMobile}
+						/>
+					)}
+
 					{/* Chat content */}
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-						{showDegradedDraft ? (
-							<DegradedDraftCard
-								onWorkspaceSelect={cwd => {
-									setDegradedDraft(false);
-									handleNewSession(`draft-${Date.now()}`, cwd);
-								}}
-							/>
-						) : showChat ? (
-							<ChatWindow
-								key={sessionKey}
-								session={selectedSession}
-								newSessionCwd={effectiveNewSessionCwd}
-								explicitNew={explicitNewRef.current}
-								onNewSessionCwdChange={cwd => handleNewSession(`welcome-${Date.now()}`, cwd)}
-								onPlanStateChange={handlePlanStateChange}
-								onAgentEnd={handleAgentEnd}
-								onSessionCreated={handleSessionCreated}
-								onSessionForked={handleSessionForked}
-								modelsRefreshKey={modelsRefreshKey}
-								chatInputRef={chatInputRef}
-								onBranchDataChange={handleBranchDataChange}
-								onSystemPromptChange={handleSystemPromptChange}
-								onSessionStatsChange={handleSessionStatsChange}
-								onSessionStatsPanelOpen={openSessionStatsPanel}
-								onContextUsageChange={handleContextUsageChange}
-								onModelChange={handleModelChange}
-								onOpenFile={handleOpenLinkedFile}
-								onOpenFileContextMenu={handleFileChipContextMenu}
-							/>
+						{showChat ? (
+							// One ChatWindow per tab: mounted on first activation, kept
+							// mounted (hidden) afterwards so its transcript, scroll
+							// position and composer draft survive tab switches. Hidden
+							// tabs are inert — see the `active` / `streamActive` props.
+							tabs.map(tab => {
+								const meta = tabMetaFor(tabMeta, tab.id);
+								// A degraded draft (no workspace resolved) renders its
+								// picker before anything is mounted; every other tab waits
+								// for its first activation.
+								const isDegraded = tab.kind === "draft" && tab.draftCwd === null;
+								if (!meta.mounted && !isDegraded) return null;
+								const tabSession = sessionForTab(tab, sessionCache);
+								const bindings = bindingsFor(tab.id);
+								return (
+									<div
+										key={tab.id}
+										style={{
+											position: "absolute",
+											inset: 0,
+											display: tab.id === activeTabId ? "block" : "none",
+										}}
+									>
+										{isDegraded ? (
+											<DegradedDraftCard onWorkspaceSelect={cwd => setTabDraftCwd(tab.id, cwd)} />
+										) : (
+											<ChatWindow
+												key={`${tab.id}:${meta.remountNonce}`}
+												tabId={tab.id}
+												active={tab.id === activeTabId}
+												streamActive={streamingTabIds.has(tab.id)}
+												draftKey={draftKeyForTab(tab)}
+												session={tabSession}
+												newSessionCwd={tab.kind === "draft" ? tab.draftCwd : null}
+												explicitNew={tab.explicitNew}
+												onNewSessionCwdChange={bindings.onNewSessionCwdChange}
+												onTabMeta={bindings.onTabMeta}
+												onAgentEnd={bindings.onAgentEnd}
+												onSessionCreated={bindings.onSessionCreated}
+												onSessionForked={bindings.onSessionForked}
+												modelsRefreshKey={modelsRefreshKey}
+												chatInputRef={bindings.inputRef}
+												onBranchDataChange={bindings.onBranchDataChange}
+												onSessionStatsPanelOpen={openSessionStatsPanel}
+												onOpenFile={handleOpenLinkedFile}
+												onOpenFileContextMenu={handleFileChipContextMenu}
+											/>
+										)}
+									</div>
+								);
+							})
 						) : initialCwdStatus === "validating" ? (
 							<div
 								role="status"
@@ -2688,7 +2976,7 @@ function AppShellContent() {
 									<PluginsManager
 										cwd={(activeCwd ?? selectedSession?.cwd)!}
 										sessionId={selectedSession?.id ?? null}
-										onReloaded={() => setSessionKey(k => k + 1)}
+										onReloaded={() => activeTabId && bumpTabRemount(activeTabId)}
 										onOpenAdvanced={() => setPluginsConfigOpen(true)}
 									/>
 								) : (
@@ -2775,7 +3063,7 @@ function AppShellContent() {
 					cwd={(activeCwd ?? selectedSession?.cwd ?? newSessionCwd)!}
 					sessionId={selectedSession?.id ?? null}
 					onClose={() => setPluginsConfigOpen(false)}
-					onReloaded={() => setSessionKey(k => k + 1)}
+					onReloaded={() => activeTabId && bumpTabRemount(activeTabId)}
 				/>
 			)}
 		</ShellBootGate>

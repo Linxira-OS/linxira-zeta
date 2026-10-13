@@ -41,6 +41,7 @@ import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { writeDeviceDispatch } from "../../tools/resolve";
+import { EventBus } from "../../utils/event-bus";
 import type { VibeModeState } from "../../vibe/state";
 import {
 	addRunningSession,
@@ -49,6 +50,7 @@ import {
 	subscribeRunningSessions,
 } from "./running-sessions";
 import { cacheSessionPath, invalidateSessionListCache, resolveSessionPath } from "./sessions";
+import { SubagentSink } from "./subagents";
 
 // ---------------------------------------------------------------------------
 // DTO types (web-ui contract; see web-ui/lib/types.ts + useAgentSession.ts)
@@ -78,7 +80,7 @@ export type AgentCommand =
 	| { type: "fork"; entryId: string }
 	| { type: "navigate_tree"; entryId: string }
 	| { type: "set_thinking_level"; level: string }
-	| { type: "compact" }
+	| { type: "compact"; customInstructions?: string }
 	| { type: "set_session_name"; name: string }
 	| { type: "get_session_stats" }
 	| { type: "get_last_assistant_text" }
@@ -261,6 +263,13 @@ export class AgentSessionWrapper {
 	/** Mutable: after a fork the wrapper follows the inner session's new id/file. */
 	realSessionId: string;
 	sessionFile: string | null;
+
+	/**
+	 * Root-scoped subagent roster sink (see `./subagents.ts`), assigned by
+	 * `startRpcSession`. Null after disposal, when only the persisted roster
+	 * remains readable.
+	 */
+	subagentSink: SubagentSink | null = null;
 
 	#inner: AgentSession;
 	/**
@@ -615,7 +624,7 @@ export class AgentSessionWrapper {
 				// matching end leaves the button stuck on "Compacting…").
 				this.#emit({ type: "compaction_start" });
 				try {
-					const result = await this.#inner.compact();
+					const result = await this.#inner.compact(command.customInstructions);
 					const contextUsage = this.#inner.getContextUsage();
 					const payload = {
 						tokensBefore: result.tokensBefore,
@@ -823,6 +832,8 @@ export class AgentSessionWrapper {
 	/** Reload the runtime's current thinking level etc. into the client contract. */
 	destroy(): void {
 		if (this.#destroyed) return;
+		this.subagentSink?.dispose();
+		this.subagentSink = null;
 		for (const pending of this.#pendingUiRequests.values()) {
 			try {
 				pending.cancel();
@@ -1087,10 +1098,15 @@ export async function startRpcSession(
 		}
 
 		const agentDir = getAgentDir();
+		// Root-scoped observability bus for `task:subagent:*` frames. The gateway
+		// is a second consumer next to the TUI: the subagent roster sink below
+		// reads it for live progress, and every nested spawn publishes here too.
+		const subagentEventBus = new EventBus();
 		const { session, setToolUIContext } = await createAgentSession({
 			cwd: manager.getCwd(),
 			agentDir,
 			sessionManager: manager,
+			subagentEventBus,
 			channelSend: channelHooks?.channelSend,
 			workspaceRun: channelHooks?.workspaceRun,
 			imControl: channelHooks?.imControl,
@@ -1105,6 +1121,9 @@ export async function startRpcSession(
 		});
 
 		const wrapper = new AgentSessionWrapper(session, realSessionId, sessionFile || manager.getSessionFile() || null);
+		// The sink binds to the wrapper, not to a fixed path: a session gets its
+		// file only on the first write, and a fork re-keys the wrapper later.
+		wrapper.subagentSink = new SubagentSink(subagentEventBus, () => wrapper.sessionFile);
 		const uiContext = createGatewayUiContext(wrapper, request => wrapper.dispatchUiRequest(request));
 		setToolUIContext(uiContext, true);
 		sessions.set(realSessionId, wrapper);
