@@ -3191,7 +3191,7 @@ export const en = {
 	agentHubLoadingSaved: "Loading saved agents…",
 	agentHubEmptyTitle: "No agents in this session",
 	agentHubEmptyDetail: "Finished, parked, and killed subagents remain with the session that created them.",
-	agentHubEmptyHint: "Resume that session with omp-dev --continue, or spawn a task here.",
+	agentHubEmptyHint: "Resume that session with zetacode --continue, or spawn a task here.",
 	agentHubMoreFmt: "… %s more",
 	agentHubViewFlatChip: "Flat",
 	agentHubViewByParentChip: "By parent",

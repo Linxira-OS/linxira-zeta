@@ -29,16 +29,16 @@ Subscription-backed models use matching public API prices when an exact public m
 
 ```bash
 # Start dashboard server (default: http://localhost:3847)
-zeta-c stats
+zetacode stats
 
 # Custom port
-zeta-c stats --port 8080
+zetacode stats --port 8080
 
 # Print summary to console
-zeta-c stats --summary
+zetacode stats --summary
 
 # Output as JSON (for scripting)
-zeta-c stats --json
+zetacode stats --json
 ```
 
 ### Programmatic
