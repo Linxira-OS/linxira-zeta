@@ -17,6 +17,7 @@ unicode-width = "0.2.2"
 anyhow.workspace = true
 chrono = "0.4"
 arboard = "3"
+png = "0.18"
 crossterm.workspace = true
 ratatui.workspace = true
 sysinfo = "0.31"
