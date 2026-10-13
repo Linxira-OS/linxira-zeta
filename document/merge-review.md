@@ -53,7 +53,7 @@ duplicating (or inventing) rows for them.
 
 | Check | Command | Gate | CI job |
 |---|---|---|---|
-| Version line (packages, catalog, Cargo, natives stamp, desktop, README badge) | `bun scripts/check-version-consistency.ts` | every push | `check` |
+| Version line (packages, catalog, Cargo, natives stamp, desktop, vendored npm distribution leaf pins, README badge) | `bun scripts/check-version-consistency.ts` | every push | `check` |
 | Brand residue — token bans, MUST_CONTAIN pins, and product-policy gates | `bun scripts/brand/brand-check.ts` | every push | `check` |
 | Zeta-only sentinels + AGENTS.md link | `bun scripts/check-zeta-sentinels.ts` | every push | `check` |
 | CI release surface (job inventory + needs edges + artifact names — damage classes 7+10; registry `scripts/brand/ci-surface-registry.ts`) | `bun scripts/check-ci-surface.ts` | every push | `check` |
