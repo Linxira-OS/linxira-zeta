@@ -259,8 +259,13 @@ semantic alias.
   every functional style/component file is literal-free; tighten a ceiling with
   `--update-baseline` after migrating one.
 - A literal that is a *matching key* rather than paint (e.g. a selector against
-  the highlighter's inline colours) is exempted per line with
-  `/* zeta-style-literal-allow: <reason> */`.
+  the highlighter's inline colours) is exempted per line with a
+  `zeta-style-literal-allow: <reason>` comment; one cohesive palette that
+  legitimately owns its literals (the xterm ANSI table in `TerminalView.tsx`)
+  uses a marked region instead: `zeta-style-literal-allow-start: <reason>` …
+  `zeta-style-literal-allow-end`. An unterminated or nested region fails the
+  guard, so an exemption can never silently widen, and a region is always
+  preferred over a file-level entry.
 - The guard's second rule: a colour token may not be the *whole* `box-shadow`
   value (`box-shadow: var(--surface-shadow)` is invalid CSS — the grammar needs
   2–4 lengths — so the declaration is dropped and nothing paints). Write the
