@@ -1481,7 +1481,7 @@ jobs:
          # Same OIDC token as npm's trusted publishing; build.stencil.so serves
          # these to update clients and diffs them against earlier releases.
          - name: Publish to build.stencil.so
-           run: bun scripts/ci-build-upload.ts "${{ needs.release_metadata.outputs.release-tag }}" packages/coding-agent/binaries/zeta-binary-*
+           run: bun scripts/ci-build-upload.ts "${{ needs.release_metadata.outputs.release-tag }}" packages/coding-agent/binaries/zeta-cli-*
 
    # Vendored TTT editor (zeta-editor) test contract: Go unit + e2e plus the
    # functional vitest harness against a freshly built binary. Gates the
