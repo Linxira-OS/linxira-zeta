@@ -61,7 +61,6 @@ const SCAN_EXT = new Set([".css", ".ts", ".tsx"]);
 const ALLOWED = [
   ["lib/theme/", "theme owner: the L1 --zeta-static-* palette is defined here"],
   ["lib/ansi.ts", "ANSI-16 → CSS colour map: terminal palette, not theme surfaces"],
-  ["components/TerminalView.tsx", "xterm.js palette + theme wiring: the terminal owns its own 16 colours"],
   ["lib/rainbow.tsx", "computed rainbow palette: hues are interpolated per keyword spec, not theme surfaces"],
   ["styles/themes/", "generated L1/L2/L3 first-frame tables (scripts/gen-theme-static.mjs)"],
   ["app/api/", "standalone server-rendered HTML preview document (no theme context)"],
