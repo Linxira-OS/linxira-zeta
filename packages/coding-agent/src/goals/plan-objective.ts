@@ -52,7 +52,7 @@ export function derivePlanGoalObjective(input: PlanGoalObjectiveInput): string |
 	const title = plainText(collapse(input.title));
 	if (title) return clampObjective(title);
 	for (const line of lines) {
-		if (!line || /^([-*_])\1{2,}$/.test(line) || /^\|/.test(line)) continue;
+		if (!line || /^([-*_])\1{2,}$/.test(line) || line.startsWith("|")) continue;
 		const text = plainText(line.replace(/^(?:[-*+]|\d+[.)])\s+/, ""));
 		if (text) return clampObjective(text);
 	}

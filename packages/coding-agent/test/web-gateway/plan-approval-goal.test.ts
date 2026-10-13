@@ -13,11 +13,9 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import type { Message } from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
-import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -25,11 +23,9 @@ import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import type { CustomMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AgentSessionWrapper, type AgentEvent } from "../../src/server/web-gateway/agents";
-import type { ToolSession } from "../../src/tools";
-import { dispatchResolutionDevice, PROPOSE_DEVICE_PATH } from "../../src/tools/resolve";
 
 function makeTool(name: string): AgentTool {
 	return {
@@ -63,10 +59,13 @@ function textResponse(text: string): MockResponse {
 }
 
 /** Hidden goal-continuation turns recorded in the session transcript. */
-function goalContinuations(session: AgentSession): SessionEntry[] {
+function goalContinuations(session: AgentSession): CustomMessageEntry[] {
 	return session.sessionManager
 		.getEntries()
-		.filter(entry => entry.type === "custom_message" && entry.customType === "goal-continuation");
+		.filter(
+			(entry): entry is CustomMessageEntry =>
+				entry.type === "custom_message" && entry.customType === "goal-continuation",
+		);
 }
 
 /** Flush the goal scheduler's own macrotasks (setImmediate + promise continuations). */
@@ -136,7 +135,11 @@ describe("web-gateway plan approval → goal", () => {
 
 		const askTool = makeTool("ask");
 		const readTool = makeTool("read");
-		let planSession: AgentSession | undefined;
+		// The write tool is built before the session exists; the holder (a const)
+		// carries it in without a reassigned binding.
+		const sessionRef: { current?: AgentSession } = {};
+		// Goal-mode runs never draft a plan here: the approval path is what this
+		// fixture owns, so `write` only needs to land a plan file on disk.
 		const writeTool: AgentTool = {
 			name: "write",
 			label: "write",
@@ -145,21 +148,9 @@ describe("web-gateway plan approval → goal", () => {
 			async execute(_toolCallId, input) {
 				const target = String((input as { path?: unknown }).path ?? "");
 				const content = String((input as { content?: unknown }).content ?? "");
-				if (target === PROPOSE_DEVICE_PATH) {
-					if (!planSession) throw new Error("session not ready");
-					// The internal-URL `write` scheme's propose branch.
-					const { result, xdev } = await dispatchResolutionDevice(
-						{
-							peekPlanProposalHandler: () => planSession?.peekPlanProposalHandler(),
-						} as unknown as ToolSession,
-						PROPOSE_DEVICE_NAME,
-						content,
-					);
-					return { content: result.content, details: { xdev }, isError: result.isError };
-				}
 				const resolved = resolveLocalUrlToPath(target, {
-					getArtifactsDir: () => planSession!.sessionManager.getArtifactsDir(),
-					getSessionId: () => planSession!.sessionManager.getSessionId(),
+					getArtifactsDir: () => sessionRef.current!.sessionManager.getArtifactsDir(),
+					getSessionId: () => sessionRef.current!.sessionManager.getSessionId(),
 				});
 				await Bun.write(resolved, content);
 				return { content: [{ type: "text" as const, text: `Wrote ${target}` }] };
@@ -184,7 +175,7 @@ describe("web-gateway plan approval → goal", () => {
 			settings: Settings.isolated({
 				"compaction.enabled": false,
 				"retry.enabled": false,
-				...(options.settings ?? {}),
+				...options.settings,
 			}),
 			modelRegistry,
 			toolRegistry: new Map<string, AgentTool>([
@@ -195,7 +186,7 @@ describe("web-gateway plan approval → goal", () => {
 			builtInToolNames: ["ask", "write", "read"],
 			advisorTools: [],
 		});
-		planSession = created;
+		sessionRef.current = created;
 		session = created;
 
 		const wrapper = new AgentSessionWrapper(created, options.key, null);
