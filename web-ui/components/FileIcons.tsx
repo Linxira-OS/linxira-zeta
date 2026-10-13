@@ -1,4 +1,4 @@
-// Flat monochrome file & folder icons — all use currentColor / var(--text-dim)
+// Flat monochrome file & folder icons — all use currentColor / var(--zeta-alias-text-dim)
 
 interface IconProps {
   size?: number;
