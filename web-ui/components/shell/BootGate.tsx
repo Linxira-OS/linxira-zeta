@@ -23,9 +23,9 @@ export function BootFailureList({ items }: BootFailureListProps) {
 				left: 0,
 				right: 0,
 				zIndex: 1500,
-				background: "var(--status-error-background, var(--bg-panel))",
-				borderBottom: "1px solid var(--status-error-border, var(--border))",
-				color: "var(--text)",
+				background: "var(--zeta-alias-status-error-background, var(--zeta-alias-bg-panel))",
+				borderBottom: "1px solid var(--zeta-alias-status-error-border, var(--zeta-alias-border))",
+				color: "var(--zeta-alias-text)",
 				padding: "10px 14px",
 				fontSize: 12,
 				fontFamily: "var(--font-mono)",
@@ -78,7 +78,7 @@ export class ShellBootGate extends Component<ShellBootGateProps, ShellBootGateSt
 				`render: ${this.state.error.message || String(this.state.error)}`,
 			];
 			return (
-				<div style={{ minHeight: "100dvh", background: "var(--bg)" }}>
+				<div style={{ minHeight: "100dvh", background: "var(--zeta-alias-bg)" }}>
 					<BootFailureList items={items} />
 					<div
 						style={{
@@ -93,9 +93,9 @@ export class ShellBootGate extends Component<ShellBootGateProps, ShellBootGateSt
 							style={{
 								padding: "8px 18px",
 								borderRadius: 8,
-								border: "1px solid var(--border)",
-								background: "var(--bg-panel)",
-								color: "var(--text)",
+								border: "1px solid var(--zeta-alias-border)",
+								background: "var(--zeta-alias-bg-panel)",
+								color: "var(--zeta-alias-text)",
 								cursor: "pointer",
 								fontSize: 13,
 							}}

@@ -11,19 +11,19 @@
 
 .context-ring-shell,
 .context-ring-panel {
-	--cr-fg: var(--zeta-alias-foreground, var(--foreground));
-	--cr-muted: var(--zeta-alias-muted-foreground, var(--muted-foreground, var(--text-muted)));
-	--cr-border: var(--zeta-alias-interactive-border, var(--interactive-border, var(--border)));
-	--cr-track: var(--zeta-alias-surface-subtle, var(--surface-subtle, var(--bg-subtle)));
-	--cr-accent: var(--zeta-alias-accent, var(--accent));
-	--cr-ok: var(--zeta-alias-status-success, var(--status-success));
-	--cr-near: var(--zeta-alias-status-warning, var(--status-warning));
-	--cr-full: var(--zeta-alias-status-error, var(--status-error));
-	--cr-swatch-1: var(--zeta-alias-chart-1, var(--chart-1, var(--accent)));
-	--cr-swatch-2: var(--zeta-alias-chart-2, var(--chart-2, var(--status-error)));
-	--cr-swatch-3: var(--zeta-alias-chart-3, var(--chart-3, var(--status-warning)));
-	--cr-swatch-4: var(--zeta-alias-chart-4, var(--chart-4, var(--status-success)));
-	--cr-swatch-5: var(--zeta-alias-chart-5, var(--chart-5, var(--status-info)));
+	--cr-fg: var(--zeta-alias-foreground, var(--zeta-alias-foreground));
+	--cr-muted: var(--zeta-alias-muted-foreground, var(--zeta-alias-muted-foreground, var(--zeta-alias-text-muted)));
+	--cr-border: var(--zeta-alias-interactive-border, var(--zeta-alias-interactive-border, var(--zeta-alias-border)));
+	--cr-track: var(--zeta-alias-surface-subtle, var(--zeta-alias-surface-subtle, var(--zeta-alias-bg-subtle)));
+	--cr-accent: var(--zeta-alias-accent, var(--zeta-alias-accent));
+	--cr-ok: var(--zeta-alias-status-success, var(--zeta-alias-status-success));
+	--cr-near: var(--zeta-alias-status-warning, var(--zeta-alias-status-warning));
+	--cr-full: var(--zeta-alias-status-error, var(--zeta-alias-status-error));
+	--cr-swatch-1: var(--zeta-alias-chart-1, var(--zeta-alias-chart-1, var(--zeta-alias-accent)));
+	--cr-swatch-2: var(--zeta-alias-chart-2, var(--zeta-alias-chart-2, var(--zeta-alias-status-error)));
+	--cr-swatch-3: var(--zeta-alias-chart-3, var(--zeta-alias-chart-3, var(--zeta-alias-status-warning)));
+	--cr-swatch-4: var(--zeta-alias-chart-4, var(--zeta-alias-chart-4, var(--zeta-alias-status-success)));
+	--cr-swatch-5: var(--zeta-alias-chart-5, var(--zeta-alias-chart-5, var(--zeta-alias-status-info)));
 }
 
 .context-ring-shell {
@@ -316,8 +316,8 @@
 	padding: 6px 8px;
 	border-radius: 6px;
 	font-size: 11.5px;
-	background: var(--zeta-alias-status-warning-background, var(--status-warning-background));
-	color: var(--zeta-alias-status-warning-foreground, var(--status-warning-foreground, var(--cr-fg)));
+	background: var(--zeta-alias-status-warning-background, var(--zeta-alias-status-warning-background));
+	color: var(--zeta-alias-status-warning-foreground, var(--zeta-alias-status-warning-foreground, var(--cr-fg)));
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -31,8 +31,8 @@ export function DockRail({ activeId, onToggle, trackingEnabled, hasSession }: Do
 				alignItems: "center",
 				gap: 4,
 				padding: "6px 0",
-				background: "var(--bg-panel)",
-				borderLeft: "1px solid var(--border)",
+				background: "var(--zeta-alias-bg-panel)",
+				borderLeft: "1px solid var(--zeta-alias-border)",
 			}}
 		>
 			{getDockPanels(trackingEnabled, hasSession).map(panel => {
@@ -52,10 +52,10 @@ export function DockRail({ activeId, onToggle, trackingEnabled, hasSession }: Do
 							width: 30,
 							height: 30,
 							padding: 0,
-							background: active ? "var(--bg-selected)" : "transparent",
+							background: active ? "var(--zeta-alias-bg-selected)" : "transparent",
 							border: "none",
 							borderRadius: 7,
-							color: active ? "var(--accent)" : "var(--text-muted)",
+							color: active ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)",
 							cursor: "pointer",
 							transition: "color 0.12s, background 0.12s",
 						}}

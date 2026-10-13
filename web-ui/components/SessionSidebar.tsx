@@ -206,8 +206,8 @@ function ToolbarIconButton({
 }) {
 	const enter = (e: React.MouseEvent<HTMLButtonElement>) => {
 		if (disabled || skipHover) return;
-		e.currentTarget.style.color = "var(--text-muted)";
-		e.currentTarget.style.background = "var(--bg-hover)";
+		e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
+		e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 	};
 	const leave = (e: React.MouseEvent<HTMLButtonElement>) => {
 		if (disabled || skipHover) return;
@@ -453,7 +453,7 @@ function ProjectHeaderMenu({
 					background: "none",
 					border: "none",
 					borderRadius: 5,
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					cursor: "pointer",
 					opacity: open ? 1 : 0,
 					transition: "opacity 0.12s",
@@ -481,8 +481,8 @@ function ProjectHeaderMenu({
 						right: 8,
 						zIndex: 220,
 						minWidth: 190,
-						background: "var(--bg-elevated, var(--bg))",
-						border: "1px solid var(--border)",
+						background: "var(--zeta-alias-bg-elevated, var(--zeta-alias-bg))",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 8,
 						boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 						padding: 4,
@@ -500,7 +500,7 @@ function ProjectHeaderMenu({
 							textAlign: "left",
 							padding: "6px 8px",
 							fontSize: 12,
-							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+							color: count === 0 ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-status-error)",
 							background: "none",
 							border: "none",
 							borderRadius: 5,
@@ -522,7 +522,7 @@ function ProjectHeaderMenu({
 							textAlign: "left",
 							padding: "6px 8px",
 							fontSize: 12,
-							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
+							color: count === 0 ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-status-error)",
 							background: "none",
 							border: "none",
 							borderRadius: 5,
@@ -587,7 +587,7 @@ function ZetaWebTitle() {
 					fontWeight: 800,
 					fontSize: isStarfield ? 14 : 15,
 					letterSpacing: isStarfield ? "0.12em" : "-0.01em",
-					color: showVersion ? "var(--accent)" : "var(--text)",
+					color: showVersion ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text)",
 					fontFamily: isStarfield ? "var(--font-display, 'Orbitron', sans-serif)" : "var(--font-mono)",
 					minWidth: "6ch",
 					textTransform: isStarfield ? "uppercase" : "none",
@@ -1614,7 +1614,7 @@ export function SessionSidebar({
 			<div
 				style={{
 					padding: "12px 10px 10px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					flexShrink: 0,
 				}}
 			>
@@ -1651,8 +1651,8 @@ export function SessionSidebar({
 								alignItems: "center",
 								gap: 7,
 								padding: "7px 9px",
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 8,
 								cursor: "pointer",
 								textAlign: "left",
@@ -1663,7 +1663,7 @@ export function SessionSidebar({
 								height="13"
 								viewBox="0 0 24 24"
 								fill="none"
-								stroke="var(--accent)"
+								stroke="var(--zeta-alias-accent)"
 								strokeWidth="2"
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -1682,12 +1682,12 @@ export function SessionSidebar({
 									textOverflow: "ellipsis",
 									whiteSpace: "nowrap",
 									fontSize: 11.5,
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 								}}
 							>
 								{planCard.title}
 							</span>
-							<span style={{ fontSize: 10, color: "var(--text-dim)", flexShrink: 0 }}>
+							<span style={{ fontSize: 10, color: "var(--zeta-alias-text-dim)", flexShrink: 0 }}>
 								{t("sidebar.planCard")}
 							</span>
 						</button>
@@ -1704,8 +1704,8 @@ export function SessionSidebar({
 								gap: 6,
 								height: 28,
 								padding: "0 8px",
-								background: "var(--bg-panel)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-panel)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 6,
 							}}
 						>
@@ -1714,7 +1714,7 @@ export function SessionSidebar({
 								height="12"
 								viewBox="0 0 24 24"
 								fill="none"
-								stroke="var(--text-dim)"
+								stroke="var(--zeta-alias-text-dim)"
 								strokeWidth="2"
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -1741,7 +1741,7 @@ export function SessionSidebar({
 									border: "none",
 									outline: "none",
 									background: "transparent",
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 									fontSize: 12,
 								}}
 							/>
@@ -1760,7 +1760,7 @@ export function SessionSidebar({
 										flexShrink: 0,
 										background: "none",
 										border: "none",
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 										cursor: "pointer",
 									}}
 								>
@@ -1782,7 +1782,7 @@ export function SessionSidebar({
 								<span
 									style={{
 										fontSize: 10,
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 										flexShrink: 0,
 									}}
 								>
@@ -1817,7 +1817,7 @@ export function SessionSidebar({
 				<div
 					style={{
 						flexShrink: 0,
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 						padding: "6px 8px",
 					}}
 				>
@@ -1826,7 +1826,7 @@ export function SessionSidebar({
 							fontSize: 10,
 							fontWeight: 600,
 							letterSpacing: "0.08em",
-							color: "var(--text-dim)",
+							color: "var(--zeta-alias-text-dim)",
 							marginBottom: 4,
 						}}
 					>
@@ -1848,7 +1848,7 @@ export function SessionSidebar({
 									background: "none",
 									border: "none",
 									borderRadius: 5,
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 									cursor: "pointer",
 									fontSize: 11.5,
 									textAlign: "left",
@@ -1861,8 +1861,8 @@ export function SessionSidebar({
 										height: 6,
 										borderRadius: "50%",
 										flexShrink: 0,
-										background: "var(--accent)",
-										boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)",
+										background: "var(--zeta-alias-accent)",
+										boxShadow: "0 0 0 3px color-mix(in srgb, var(--zeta-alias-accent) 22%, transparent)",
 									}}
 								/>
 								<span
@@ -1890,15 +1890,15 @@ export function SessionSidebar({
 						padding: "5px 12px",
 						background: "none",
 						border: "none",
-						borderTop: "1px solid var(--border)",
+						borderTop: "1px solid var(--zeta-alias-border)",
 						cursor: "pointer",
-						color: "var(--text-muted)",
+						color: "var(--zeta-alias-text-muted)",
 						fontSize: 10.5,
 						textAlign: "left",
 					}}
 					title={t("sidebar-usage-open")}
 				>
-					<span style={{ fontWeight: 600, color: "var(--text-dim)" }}>{t("sidebar-usage-today")}</span>
+					<span style={{ fontWeight: 600, color: "var(--zeta-alias-text-dim)" }}>{t("sidebar-usage-today")}</span>
 					<span>${usage.totalCost.toFixed(2)}</span>
 					<span>
 						{usage.totalTokens >= 1000 ? `${(usage.totalTokens / 1000).toFixed(1)}k` : usage.totalTokens} tok
@@ -1930,7 +1930,7 @@ export function SessionSidebar({
 					<div
 						style={{
 							padding: "16px 14px",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							fontSize: 12,
 						}}
 					>
@@ -1941,7 +1941,7 @@ export function SessionSidebar({
 					<div
 						style={{
 							padding: "12px 14px",
-							color: "var(--status-error-foreground)",
+							color: "var(--zeta-alias-status-error-foreground)",
 							fontSize: 12,
 						}}
 					>
@@ -1953,7 +1953,7 @@ export function SessionSidebar({
 					<div
 						style={{
 							padding: "16px 14px",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							fontSize: 12,
 						}}
 					>
@@ -1964,7 +1964,7 @@ export function SessionSidebar({
 					<div
 						style={{
 							padding: "16px 14px",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							fontSize: 12,
 						}}
 					>
@@ -2131,7 +2131,7 @@ export function SessionSidebar({
 			{(selectedCwdProp || selectedCwd) && (
 				<div
 					style={{
-						borderTop: "1px solid var(--border)",
+						borderTop: "1px solid var(--zeta-alias-border)",
 						display: "flex",
 						flexDirection: "column",
 						flex: explorerOpen ? "1 1 0" : "0 0 auto",
@@ -2150,7 +2150,7 @@ export function SessionSidebar({
 								padding: "6px 10px",
 								background: "none",
 								border: "none",
-								color: "var(--text-muted)",
+								color: "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								fontSize: 11,
 								fontWeight: 600,
@@ -2183,8 +2183,8 @@ export function SessionSidebar({
 								onClick={() => setChangesCollapsed(v => !v)}
 								title={t("sidebar.changedFiles", { count: changesCount })}
 								ariaPressed={!changesCollapsed}
-								color={changesCollapsed ? "var(--text-dim)" : "var(--accent)"}
-								background={changesCollapsed ? "none" : "var(--bg-selected)"}
+								color={changesCollapsed ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-accent)"}
+								background={changesCollapsed ? "none" : "var(--zeta-alias-bg-selected)"}
 							>
 								<svg
 									width="13"
@@ -2208,7 +2208,7 @@ export function SessionSidebar({
 								onClick={() => fileExplorerRef.current?.openUploadPicker()}
 								disabled={explorerUploadBusy}
 								title={t("sidebar.uploadFilesTitle")}
-								color="var(--text-dim)"
+								color="var(--zeta-alias-text-dim)"
 							>
 								<svg
 									width="13"
@@ -2237,8 +2237,8 @@ export function SessionSidebar({
 							}}
 							title={t("sidebar.refreshExplorer")}
 							skipHover={explorerRefreshDone}
-							color={explorerRefreshDone ? "var(--status-success)" : "var(--text-dim)"}
-							background={explorerRefreshDone ? "var(--status-success-background)" : "none"}
+							color={explorerRefreshDone ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-text-dim)"}
+							background={explorerRefreshDone ? "var(--zeta-alias-status-success-background)" : "none"}
 							marginRight={6}
 						>
 							{explorerRefreshDone ? (
@@ -2247,7 +2247,7 @@ export function SessionSidebar({
 									height="13"
 									viewBox="0 0 24 24"
 									fill="none"
-									stroke="var(--status-success)"
+									stroke="var(--zeta-alias-status-success)"
 									strokeWidth="2.5"
 									strokeLinecap="round"
 									strokeLinejoin="round"
@@ -2300,7 +2300,7 @@ export function SessionSidebar({
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
-						background: "var(--surface-overlay)",
+						background: "var(--zeta-alias-surface-overlay)",
 					}}
 				>
 					<div
@@ -2308,17 +2308,17 @@ export function SessionSidebar({
 						style={{
 							minWidth: 320,
 							maxWidth: 420,
-							background: "var(--bg-elevated, var(--bg))",
-							border: "1px solid var(--border)",
+							background: "var(--zeta-alias-bg-elevated, var(--zeta-alias-bg))",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 10,
 							padding: 16,
 							boxShadow: "0 12px 40px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent)",
 						}}
 					>
-						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--zeta-alias-text)", marginBottom: 6 }}>
 							{t("sidebar.deleteProjectSessions")}
 						</div>
-						<div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+						<div style={{ fontSize: 12, color: "var(--zeta-alias-text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
 							{t("sidebar.deleteProjectConfirm", { count: confirmProjectDelete.count })}
 							<div
 								title={confirmProjectDelete.project}
@@ -2326,7 +2326,7 @@ export function SessionSidebar({
 									marginTop: 4,
 									fontFamily: "var(--font-mono)",
 									fontSize: 11,
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									overflow: "hidden",
 									textOverflow: "ellipsis",
 									whiteSpace: "nowrap",
@@ -2340,10 +2340,10 @@ export function SessionSidebar({
 								onClick={() => setConfirmProjectDelete(null)}
 								style={{
 									padding: "6px 12px",
-									background: "var(--bg-hover)",
-									border: "1px solid var(--border)",
+									background: "var(--zeta-alias-bg-hover)",
+									border: "1px solid var(--zeta-alias-border)",
 									borderRadius: 6,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									fontSize: 12,
 									cursor: "pointer",
 								}}
@@ -2360,10 +2360,10 @@ export function SessionSidebar({
 								}}
 								style={{
 									padding: "6px 12px",
-									background: "var(--status-error)",
+									background: "var(--zeta-alias-status-error)",
 									border: "none",
 									borderRadius: 6,
-									color: "var(--status-error-foreground)",
+									color: "var(--zeta-alias-status-error-foreground)",
 									fontSize: 12,
 									fontWeight: 600,
 									cursor: "pointer",
@@ -2387,7 +2387,7 @@ export function SessionSidebar({
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
-						background: "var(--surface-overlay)",
+						background: "var(--zeta-alias-surface-overlay)",
 					}}
 				>
 					<div
@@ -2395,17 +2395,17 @@ export function SessionSidebar({
 						style={{
 							minWidth: 320,
 							maxWidth: 420,
-							background: "var(--bg-elevated, var(--bg))",
-							border: "1px solid var(--border)",
+							background: "var(--zeta-alias-bg-elevated, var(--zeta-alias-bg))",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 10,
 							padding: 16,
 							boxShadow: "0 12px 40px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent)",
 						}}
 					>
-						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
+						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--zeta-alias-text)", marginBottom: 6 }}>
 							{dangerConfirm.title}
 						</div>
-						<div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
+						<div style={{ fontSize: 12, color: "var(--zeta-alias-text-muted)", lineHeight: 1.5, marginBottom: 14 }}>
 							{dangerConfirm.body}
 							{dangerConfirm.detail && (
 								<div
@@ -2414,7 +2414,7 @@ export function SessionSidebar({
 										marginTop: 4,
 										fontFamily: "var(--font-mono)",
 										fontSize: 11,
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 										overflow: "hidden",
 										textOverflow: "ellipsis",
 										whiteSpace: "nowrap",
@@ -2429,10 +2429,10 @@ export function SessionSidebar({
 								onClick={() => setDangerConfirm(null)}
 								style={{
 									padding: "6px 12px",
-									background: "var(--bg-hover)",
-									border: "1px solid var(--border)",
+									background: "var(--zeta-alias-bg-hover)",
+									border: "1px solid var(--zeta-alias-border)",
 									borderRadius: 6,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									fontSize: 12,
 									cursor: "pointer",
 								}}
@@ -2450,8 +2450,8 @@ export function SessionSidebar({
 									padding: "6px 12px",
 									borderRadius: 6,
 									fontSize: 12,
-									color: "var(--status-error)",
-									borderColor: "color-mix(in srgb, var(--status-error) 50%, var(--border))",
+									color: "var(--zeta-alias-status-error)",
+									borderColor: "color-mix(in srgb, var(--zeta-alias-status-error) 50%, var(--zeta-alias-border))",
 								}}
 							>
 								{dangerConfirm.confirmLabel}
@@ -2485,7 +2485,7 @@ export function SessionSidebar({
 						display: "flex",
 						alignItems: "center",
 						justifyContent: "center",
-						background: "color-mix(in srgb, var(--bg) 55%, transparent)",
+						background: "color-mix(in srgb, var(--zeta-alias-bg) 55%, transparent)",
 						backdropFilter: "blur(2px)",
 					}}
 				>
@@ -2496,8 +2496,8 @@ export function SessionSidebar({
 							maxHeight: "min(70vh, 560px)",
 							display: "flex",
 							flexDirection: "column",
-							background: "var(--bg)",
-							border: "1px solid var(--border)",
+							background: "var(--zeta-alias-bg)",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 10,
 							boxShadow: "0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 							overflow: "hidden",
@@ -2506,10 +2506,10 @@ export function SessionSidebar({
 						<div
 							style={{
 								padding: "10px 12px",
-								borderBottom: "1px solid var(--border)",
+								borderBottom: "1px solid var(--zeta-alias-border)",
 								fontSize: 12.5,
 								fontWeight: 600,
-								color: "var(--text)",
+								color: "var(--zeta-alias-text)",
 								display: "flex",
 								justifyContent: "space-between",
 								alignItems: "center",
@@ -2522,7 +2522,7 @@ export function SessionSidebar({
 								style={{
 									background: "none",
 									border: "none",
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									cursor: "pointer",
 									fontSize: 14,
 									lineHeight: 1,
@@ -2537,7 +2537,7 @@ export function SessionSidebar({
 							<div
 								style={{
 									padding: "6px 8px",
-									borderBottom: "1px solid var(--border)",
+									borderBottom: "1px solid var(--zeta-alias-border)",
 								}}
 							>
 								<input
@@ -2556,11 +2556,11 @@ export function SessionSidebar({
 										fontSize: 11,
 										fontFamily: "var(--font-mono)",
 										padding: "5px 8px",
-										border: "1px solid var(--border)",
+										border: "1px solid var(--zeta-alias-border)",
 										borderRadius: 5,
 										outline: "none",
-										background: "var(--bg)",
-										color: "var(--text)",
+										background: "var(--zeta-alias-bg)",
+										color: "var(--zeta-alias-text)",
 										boxSizing: "border-box",
 									}}
 								/>
@@ -2579,10 +2579,10 @@ export function SessionSidebar({
 								gap: 7,
 								width: "100%",
 								padding: "7px 10px",
-								background: "var(--bg)",
+								background: "var(--zeta-alias-bg)",
 								border: "none",
-								borderBottom: "1px solid var(--border)",
-								color: "var(--text)",
+								borderBottom: "1px solid var(--zeta-alias-border)",
+								color: "var(--zeta-alias-text)",
 								cursor: "pointer",
 								textAlign: "left",
 							}}
@@ -2593,7 +2593,7 @@ export function SessionSidebar({
 								height="11"
 								viewBox="0 0 24 24"
 								fill="none"
-								stroke="var(--accent)"
+								stroke="var(--zeta-alias-accent)"
 								strokeWidth="2"
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -2623,10 +2623,10 @@ export function SessionSidebar({
 											gap: 7,
 											width: "100%",
 											padding: "7px 10px",
-											background: active ? "var(--bg-selected)" : "var(--bg)",
+											background: active ? "var(--zeta-alias-bg-selected)" : "var(--zeta-alias-bg)",
 											border: "none",
-											borderBottom: "1px solid var(--border)",
-											color: active ? "var(--text)" : "var(--text-muted)",
+											borderBottom: "1px solid var(--zeta-alias-border)",
+											color: active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 											cursor: "pointer",
 											textAlign: "left",
 										}}
@@ -2639,7 +2639,7 @@ export function SessionSidebar({
 													height="10"
 													viewBox="0 0 10 10"
 													fill="none"
-													stroke="var(--accent)"
+													stroke="var(--zeta-alias-accent)"
 													strokeWidth="2"
 													strokeLinecap="round"
 													strokeLinejoin="round"
@@ -2661,7 +2661,7 @@ export function SessionSidebar({
 												style={{
 													fontSize: 11.5,
 													fontWeight: 600,
-													color: "var(--text)",
+													color: "var(--zeta-alias-text)",
 													overflow: "hidden",
 													textOverflow: "ellipsis",
 													whiteSpace: "nowrap",
@@ -2671,7 +2671,7 @@ export function SessionSidebar({
 											</span>
 											<PathLabel
 												text={displayCwd(project, homeDir)}
-												style={{ fontSize: 10, color: "var(--text-muted)" }}
+												style={{ fontSize: 10, color: "var(--zeta-alias-text-muted)" }}
 											/>
 										</span>
 									</button>
@@ -2682,7 +2682,7 @@ export function SessionSidebar({
 									style={{
 										padding: "8px 10px",
 										fontSize: 11,
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 									}}
 								>
 									{t("no-matching-projects")}
@@ -2694,8 +2694,8 @@ export function SessionSidebar({
 						<div
 							style={{
 								display: "flex",
-								borderTop: "1px solid var(--border)",
-								background: "var(--bg)",
+								borderTop: "1px solid var(--zeta-alias-border)",
+								background: "var(--zeta-alias-bg)",
 							}}
 						>
 							{[
@@ -2703,7 +2703,7 @@ export function SessionSidebar({
 									key: "default",
 									label: t("use-default-directory"),
 									visible: !customPathOpen,
-									color: "var(--text-muted)" as string,
+									color: "var(--zeta-alias-text-muted)" as string,
 									icon: (
 										<svg
 											width="10"
@@ -2728,7 +2728,7 @@ export function SessionSidebar({
 									key: "browse",
 									label: t("browse-folder-ide-style"),
 									visible: !customPathOpen,
-									color: "var(--accent)" as string,
+									color: "var(--zeta-alias-accent)" as string,
 									icon: (
 										<svg
 											width="11"
@@ -2754,7 +2754,7 @@ export function SessionSidebar({
 									key: "custom",
 									label: t("custom-path"),
 									visible: true,
-									color: "var(--text-muted)" as string,
+									color: "var(--zeta-alias-text-muted)" as string,
 									icon: (
 										<svg
 											width="10"
@@ -2982,7 +2982,7 @@ function TempSection({
 	const { t } = useI18n();
 	const [active, setActive] = useState(false);
 	return (
-		<div style={{ borderTop: "1px solid var(--border)", marginTop: 4 }}>
+		<div style={{ borderTop: "1px solid var(--zeta-alias-border)", marginTop: 4 }}>
 			<div
 				onMouseEnter={() => setActive(true)}
 				onMouseLeave={() => setActive(false)}
@@ -3004,7 +3004,7 @@ function TempSection({
 						padding: "6px 0 6px 14px",
 						background: "none",
 						border: "none",
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 						cursor: "pointer",
 						fontSize: 10.5,
 						letterSpacing: "0.08em",
@@ -3043,7 +3043,7 @@ function TempSection({
 					<button
 						aria-label={t("sidebar.sessionSort")}
 						title={t("sidebar.sessionSort")}
-						style={{ fontSize: 10, padding: "1px 5px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+						style={{ fontSize: 10, padding: "1px 5px", background: "none", border: "none", color: "var(--zeta-alias-text-muted)", cursor: "pointer" }}
 						onClick={e => {
 							e.stopPropagation();
 							onSortMenu(e.currentTarget.getBoundingClientRect());
@@ -3054,7 +3054,7 @@ function TempSection({
 					<button
 						aria-label={t("sidebar.actions.newSession")}
 						title={t("sidebar.actions.newSession")}
-						style={{ padding: "1px 6px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
+						style={{ padding: "1px 6px", background: "none", border: "none", color: "var(--zeta-alias-text-muted)", cursor: "pointer" }}
 						onClick={e => {
 							e.stopPropagation();
 							onNewSession();
@@ -3065,7 +3065,7 @@ function TempSection({
 					<button
 						aria-label={t("sidebar.tempClear")}
 						title={t("sidebar.tempClear")}
-						style={{ padding: "1px 4px", background: "none", border: "none", color: "var(--status-error)", cursor: "pointer", fontSize: 10.5 }}
+						style={{ padding: "1px 4px", background: "none", border: "none", color: "var(--zeta-alias-status-error)", cursor: "pointer", fontSize: 10.5 }}
 						onClick={e => {
 							e.stopPropagation();
 							onClear();

@@ -183,7 +183,7 @@ export function ShellLayout({
           padding-left: env(safe-area-inset-left);
           padding-right: env(safe-area-inset-right);
           overflow: hidden;
-          background: var(--bg);
+          background: var(--zeta-alias-bg);
           box-sizing: border-box;
           transition: grid-template-columns 0.2s ease;
         }
@@ -246,7 +246,7 @@ export function ShellLayout({
         .shell-handle:hover::after,
         .shell-handle:focus-visible::after,
         .shell-handle.is-resizing::after {
-          background: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+          background: color-mix(in srgb, var(--zeta-alias-text-muted) 70%, var(--zeta-alias-border));
         }
       `}</style>
 			<div className={`shell-grid${resizing ? " is-resizing" : ""}`} style={gridStyle}>
@@ -258,8 +258,8 @@ export function ShellLayout({
 						style={
 							{
 								"--sidebar-width": `${tracks.sidebar}px`,
-								background: "var(--bg-panel)",
-								borderRight: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-panel)",
+								borderRight: "1px solid var(--zeta-alias-border)",
 								display: "flex",
 								flexDirection: "column",
 								flexShrink: 0,
@@ -303,8 +303,8 @@ export function ShellLayout({
 								"--right-panel-width": `${dockWidthVar}px`,
 								display: "flex",
 								flexDirection: "column",
-								borderLeft: "1px solid var(--border)",
-								background: "var(--bg)",
+								borderLeft: "1px solid var(--zeta-alias-border)",
+								background: "var(--zeta-alias-bg)",
 							} as CSSProperties
 						}
 					>

@@ -4,7 +4,7 @@ interface IconProps {
   size?: number;
 }
 
-const DIM = "var(--text-dim)";
+const DIM = "var(--zeta-alias-text-dim)";
 
 // ── Folder ────────────────────────────────────────────────────────────────
 

@@ -38,8 +38,8 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
         flexDirection: "column",
         width: 360,
         minWidth: 360,
-        borderLeft: "1px solid var(--border)",
-        background: "var(--bg-panel)",
+        borderLeft: "1px solid var(--zeta-alias-border)",
+        background: "var(--zeta-alias-bg-panel)",
         overflowY: "auto",
       }}
     >
@@ -49,10 +49,10 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "8px 12px",
-          borderBottom: "1px solid var(--border)",
+          borderBottom: "1px solid var(--zeta-alias-border)",
           fontSize: 12,
           fontWeight: 600,
-          color: "var(--text)",
+          color: "var(--zeta-alias-text)",
         }}
       >
         <span>{t("step-inspector")}</span>
@@ -62,7 +62,7 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
           style={{
             background: "none",
             border: "none",
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
             cursor: "pointer",
             fontSize: 14,
             lineHeight: 1,
@@ -72,7 +72,7 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
         </button>
       </div>
       <div style={{ padding: "8px 12px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--zeta-alias-text-muted)", marginBottom: 4 }}>
           Reconstructed (derived from session messages)
         </div>
         <pre
@@ -80,19 +80,19 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
             margin: 0,
             padding: 8,
             borderRadius: 6,
-            background: "color-mix(in srgb, var(--bg) 60%, transparent)",
+            background: "color-mix(in srgb, var(--zeta-alias-bg) 60%, transparent)",
             fontSize: 11,
             lineHeight: 1.5,
             whiteSpace: "pre-wrap",
             overflowWrap: "anywhere",
-            color: "var(--text-dim)",
+            color: "var(--zeta-alias-text-dim)",
             maxHeight: 200,
             overflowY: "auto",
           }}
         >
           {derivedText}
         </pre>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", margin: "12px 0 4px" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--zeta-alias-text-muted)", margin: "12px 0 4px" }}>
           Raw entry JSON
         </div>
         <pre
@@ -100,12 +100,12 @@ export function TrajectoryInspector({ entryJson, derived, onClose }: Props) {
             margin: 0,
             padding: 8,
             borderRadius: 6,
-            background: "color-mix(in srgb, var(--bg) 60%, transparent)",
+            background: "color-mix(in srgb, var(--zeta-alias-bg) 60%, transparent)",
             fontSize: 11,
             lineHeight: 1.5,
             whiteSpace: "pre-wrap",
             overflowWrap: "anywhere",
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
           }}
         >
           {rawText}

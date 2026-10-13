@@ -58,7 +58,7 @@ export function TrackingMarkdownList({
 	emptyLabel: string;
 }) {
 	if (entries.length === 0) {
-		return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{emptyLabel}</div>;
+		return <div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{emptyLabel}</div>;
 	}
 	return (
 		<div style={{ padding: "12px 16px", overflow: "auto", flex: 1 }}>
@@ -67,7 +67,7 @@ export function TrackingMarkdownList({
 					<summary
 						style={{
 							cursor: "pointer",
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 							fontSize: 13,
 							fontWeight: 500,
 							padding: "4px 0",
@@ -75,7 +75,7 @@ export function TrackingMarkdownList({
 					>
 						{entry.name.replace(/\.md$/, "")}
 					</summary>
-					<div style={{ padding: "8px 0 8px 12px", borderLeft: "2px solid var(--border)" }}>
+					<div style={{ padding: "8px 0 8px 12px", borderLeft: "2px solid var(--zeta-alias-border)" }}>
 						<MarkdownBody cwd={cwd ?? undefined}>{entry.content}</MarkdownBody>
 					</div>
 				</details>
@@ -152,7 +152,7 @@ export function TrackingPanel({ cwd }: Props) {
 		if (!data) return null;
 		if (!data.index) {
 			return (
-				<div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyOverview")}</div>
+				<div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{t("tracking.emptyOverview")}</div>
 			);
 		}
 		return (
@@ -165,7 +165,7 @@ export function TrackingPanel({ cwd }: Props) {
 	const renderStatus = () => {
 		if (!data) return null;
 		if (!data.status) {
-			return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyStatus")}</div>;
+			return <div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{t("tracking.emptyStatus")}</div>;
 		}
 		const s = data.status;
 		const listSep = t("tracking.listSeparator");
@@ -181,8 +181,8 @@ export function TrackingPanel({ cwd }: Props) {
 				<div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", fontSize: 13 }}>
 					{rows.map(([label, value]) => (
 						<div key={label} style={{ display: "contents" }}>
-							<div style={{ color: "var(--text-dim)", whiteSpace: "nowrap", fontWeight: 500 }}>{label}</div>
-							<div style={{ color: "var(--text)", wordBreak: "break-word" }}>{value}</div>
+							<div style={{ color: "var(--zeta-alias-text-dim)", whiteSpace: "nowrap", fontWeight: 500 }}>{label}</div>
+							<div style={{ color: "var(--zeta-alias-text)", wordBreak: "break-word" }}>{value}</div>
 						</div>
 					))}
 				</div>
@@ -207,7 +207,7 @@ export function TrackingPanel({ cwd }: Props) {
 	const renderLogs = () => {
 		if (!data) return null;
 		if (data.actions.length === 0) {
-			return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyLogs")}</div>;
+			return <div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{t("tracking.emptyLogs")}</div>;
 		}
 		const reversed = [...data.actions].reverse();
 		return (
@@ -217,7 +217,7 @@ export function TrackingPanel({ cwd }: Props) {
 						<div key={i} style={{ display: "flex", gap: 12, fontSize: 12, lineHeight: 1.5 }}>
 							<div
 								style={{
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									whiteSpace: "nowrap",
 									fontFamily: "var(--font-mono)",
 									flexShrink: 0,
@@ -225,9 +225,9 @@ export function TrackingPanel({ cwd }: Props) {
 							>
 								{new Date(a.timestamp).toLocaleString(locale)}
 							</div>
-							<div style={{ color: "var(--text)" }}>
+							<div style={{ color: "var(--zeta-alias-text)" }}>
 								<span style={{ fontWeight: 600 }}>{a.action}</span>
-								{a.detail ? <span style={{ color: "var(--text-muted)" }}> — {a.detail}</span> : null}
+								{a.detail ? <span style={{ color: "var(--zeta-alias-text-muted)" }}> — {a.detail}</span> : null}
 							</div>
 						</div>
 					))}
@@ -240,7 +240,7 @@ export function TrackingPanel({ cwd }: Props) {
 		if (!data) return null;
 		if (data.sessions.length === 0) {
 			return (
-				<div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptySessions")}</div>
+				<div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{t("tracking.emptySessions")}</div>
 			);
 		}
 		return (
@@ -251,18 +251,18 @@ export function TrackingPanel({ cwd }: Props) {
 							key={s.name}
 							style={{
 								padding: 10,
-								background: "var(--bg-panel)",
+								background: "var(--zeta-alias-bg-panel)",
 								borderRadius: 6,
-								border: "1px solid var(--border)",
+								border: "1px solid var(--zeta-alias-border)",
 							}}
 						>
-							<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+							<div style={{ fontSize: 13, fontWeight: 600, color: "var(--zeta-alias-text)", marginBottom: 4 }}>
 								{s.name.replace(/\.md$/, "")}
 							</div>
 							<div
 								style={{
 									fontSize: 12,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									maxHeight: 120,
 									overflow: "hidden",
 									position: "relative",
@@ -277,7 +277,7 @@ export function TrackingPanel({ cwd }: Props) {
 											left: 0,
 											right: 0,
 											height: 30,
-											background: "linear-gradient(transparent, var(--bg-panel))",
+											background: "linear-gradient(transparent, var(--zeta-alias-bg-panel))",
 										}}
 									/>
 								) : null}
@@ -292,7 +292,7 @@ export function TrackingPanel({ cwd }: Props) {
 	const renderCharts = () => {
 		if (!data) return null;
 		if (data.actions.length === 0) {
-			return <div style={{ padding: 16, color: "var(--text-dim)", fontSize: 13 }}>{t("tracking.emptyCharts")}</div>;
+			return <div style={{ padding: 16, color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>{t("tracking.emptyCharts")}</div>;
 		}
 
 		// --- Compute stats ---
@@ -325,12 +325,12 @@ export function TrackingPanel({ cwd }: Props) {
 			const label = date.slice(5); // MM-DD
 			return (
 				<g key={date}>
-					<rect x={x} y={y} width={barW} height={barH} rx={2} fill="var(--chart-1)" opacity={0.7} />
+					<rect x={x} y={y} width={barW} height={barH} rx={2} fill="var(--zeta-alias-chart-1)" opacity={0.7} />
 					<text
 						x={x + barW / 2}
 						y={chartH - 6}
 						textAnchor="middle"
-						fill="var(--text-dim)"
+						fill="var(--zeta-alias-text-dim)"
 						fontSize={9}
 						fontFamily="var(--font-mono)"
 					>
@@ -351,7 +351,7 @@ export function TrackingPanel({ cwd }: Props) {
 						style={{
 							width: 80,
 							fontSize: 11,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 							whiteSpace: "nowrap",
 							overflow: "hidden",
 							textOverflow: "ellipsis",
@@ -360,7 +360,7 @@ export function TrackingPanel({ cwd }: Props) {
 					>
 						{op}
 					</div>
-					<div style={{ flex: 1, height: 8, background: "var(--bg-hover)", borderRadius: 4, overflow: "hidden" }}>
+					<div style={{ flex: 1, height: 8, background: "var(--zeta-alias-bg-hover)", borderRadius: 4, overflow: "hidden" }}>
 						<div
 							style={{
 								height: "100%",
@@ -376,7 +376,7 @@ export function TrackingPanel({ cwd }: Props) {
 						style={{
 							width: 48,
 							fontSize: 11,
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							textAlign: "right",
 							fontFamily: "var(--font-mono)",
 						}}
@@ -408,9 +408,9 @@ export function TrackingPanel({ cwd }: Props) {
 							key={s.label}
 							style={{
 								padding: "10px 12px",
-								background: "var(--bg-panel)",
+								background: "var(--zeta-alias-bg-panel)",
 								borderRadius: 6,
-								border: "1px solid var(--border)",
+								border: "1px solid var(--zeta-alias-border)",
 								textAlign: "center",
 							}}
 						>
@@ -418,28 +418,28 @@ export function TrackingPanel({ cwd }: Props) {
 								style={{
 									fontSize: 20,
 									fontWeight: 700,
-									color: "var(--accent)",
+									color: "var(--zeta-alias-accent)",
 									fontFamily: "var(--font-mono)",
 								}}
 							>
 								{s.value}
 							</div>
-							<div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>{s.label}</div>
+							<div style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)", marginTop: 2 }}>{s.label}</div>
 						</div>
 					))}
 				</div>
 
 				{/* Timeline */}
 				<div style={{ marginBottom: 16 }}>
-					<div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>
+					<div style={{ fontSize: 12, fontWeight: 600, color: "var(--zeta-alias-text)", marginBottom: 8 }}>
 						{t("tracking.chart.timeline")}
 					</div>
 					<div
 						style={{
 							overflowX: "auto",
-							background: "var(--bg-panel)",
+							background: "var(--zeta-alias-bg-panel)",
 							borderRadius: 6,
-							border: "1px solid var(--border)",
+							border: "1px solid var(--zeta-alias-border)",
 							padding: 8,
 						}}
 					>
@@ -451,14 +451,14 @@ export function TrackingPanel({ cwd }: Props) {
 
 				{/* Operation distribution */}
 				<div>
-					<div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>
+					<div style={{ fontSize: 12, fontWeight: 600, color: "var(--zeta-alias-text)", marginBottom: 8 }}>
 						{t("tracking.chart.distribution")}
 					</div>
 					<div
 						style={{
-							background: "var(--bg-panel)",
+							background: "var(--zeta-alias-bg-panel)",
 							borderRadius: 6,
-							border: "1px solid var(--border)",
+							border: "1px solid var(--zeta-alias-border)",
 							padding: 12,
 						}}
 					>
@@ -481,7 +481,7 @@ export function TrackingPanel({ cwd }: Props) {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					fontSize: 13,
 				}}
 			>
@@ -501,10 +501,10 @@ export function TrackingPanel({ cwd }: Props) {
 					justifyContent: "center",
 					gap: 8,
 					padding: 24,
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 				}}
 			>
-				<div style={{ fontSize: 13, color: "var(--status-error-foreground)" }}>{t("tracking.loadFailed")}</div>
+				<div style={{ fontSize: 13, color: "var(--zeta-alias-status-error-foreground)" }}>{t("tracking.loadFailed")}</div>
 				<div style={{ fontSize: 12 }}>{error}</div>
 				<button
 					onClick={fetchData}
@@ -512,10 +512,10 @@ export function TrackingPanel({ cwd }: Props) {
 						marginTop: 8,
 						padding: "4px 16px",
 						fontSize: 12,
-						background: "var(--bg-panel)",
-						border: "1px solid var(--border)",
+						background: "var(--zeta-alias-bg-panel)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 4,
-						color: "var(--text)",
+						color: "var(--zeta-alias-text)",
 						cursor: "pointer",
 					}}
 				>
@@ -533,7 +533,7 @@ export function TrackingPanel({ cwd }: Props) {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					fontSize: 13,
 				}}
 			>
@@ -553,15 +553,15 @@ export function TrackingPanel({ cwd }: Props) {
 	};
 
 	return (
-		<div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+		<div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--zeta-alias-bg)" }}>
 			{/* Sub-tab bar */}
 			<div
 				style={{
 					display: "flex",
 					alignItems: "center",
 					flexShrink: 0,
-					background: "var(--bg-panel)",
-					borderBottom: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg-panel)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					height: 32,
 				}}
 			>
@@ -576,10 +576,10 @@ export function TrackingPanel({ cwd }: Props) {
 								alignItems: "center",
 								height: 32,
 								padding: "0 14px",
-								background: isActive ? "var(--bg)" : "transparent",
+								background: isActive ? "var(--zeta-alias-bg)" : "transparent",
 								border: "none",
-								borderBottom: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-								color: isActive ? "var(--text)" : "var(--text-muted)",
+								borderBottom: isActive ? "2px solid var(--zeta-alias-accent)" : "2px solid transparent",
+								color: isActive ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								fontSize: 12,
 								whiteSpace: "nowrap",
@@ -603,7 +603,7 @@ export function TrackingPanel({ cwd }: Props) {
 						height: 28,
 						background: "none",
 						border: "none",
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 						cursor: "pointer",
 						borderRadius: 4,
 					}}

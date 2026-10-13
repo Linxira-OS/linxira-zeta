@@ -63,7 +63,7 @@ export function TrajectoryView({ messages, entryIds, onLoadEntryJson }: Props) {
             justifyContent: "space-between",
             marginBottom: 8,
             fontSize: 12,
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
           }}
         >
           <span>
@@ -75,7 +75,7 @@ export function TrajectoryView({ messages, entryIds, onLoadEntryJson }: Props) {
           </span>
         </div>
         {turns.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>
+          <div style={{ padding: 24, textAlign: "center", color: "var(--zeta-alias-text-dim)", fontSize: 13 }}>
             No turns yet.
           </div>
         ) : (
@@ -85,17 +85,17 @@ export function TrajectoryView({ messages, entryIds, onLoadEntryJson }: Props) {
                 style={{
                   padding: "6px 10px",
                   borderRadius: 8,
-                  background: "color-mix(in srgb, var(--accent) 8%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)",
+                  background: "color-mix(in srgb, var(--zeta-alias-accent) 8%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--zeta-alias-accent) 25%, transparent)",
                   fontSize: 13,
-                  color: "var(--text)",
+                  color: "var(--zeta-alias-text)",
                   whiteSpace: "pre-wrap",
                   overflowWrap: "anywhere",
                 }}
               >
                 {turn.userText || "(empty prompt)"}
                 {turn.durationMs !== null && turn.durationMs !== undefined && (
-                  <span style={{ marginLeft: 8, color: "var(--text-dim)", fontSize: 11 }}>
+                  <span style={{ marginLeft: 8, color: "var(--zeta-alias-text-dim)", fontSize: 11 }}>
                     {turn.durationMs}ms
                   </span>
                 )}
