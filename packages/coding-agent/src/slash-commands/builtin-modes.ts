@@ -435,7 +435,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!cfgPlanEnabled.get(runtime.ctx.settings)) return "Plan: disabled in settings";
+			if (!cfgPlanEnabled.get(runtime.ctx.settings)) return M.acPlanDisabledInSettings;
 			if (runtime.ctx.planModeEnabled) {
 				const planFile = runtime.ctx.planModePlanFilePath;
 				return M.acPlanOnFmt.replace("%s", planFile ? ` (${path.basename(planFile)})` : "");
@@ -516,8 +516,8 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[objective]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!cfgGoalEnabled.get(runtime.ctx.settings)) return "Goal: disabled in settings";
-			if (runtime.ctx.planModeEnabled) return "Goal: blocked by plan mode";
+			if (!cfgGoalEnabled.get(runtime.ctx.settings)) return M.acGoalDisabledInSettings;
+			if (runtime.ctx.planModeEnabled) return M.acGoalBlockedByPlanMode;
 			const state = runtime.ctx.session.getGoalModeState();
 			return state
 				? M.acGoalOnFmt.replace("%s", state.goal.status).replace("%s", shortDetail(state.goal.objective))
@@ -548,15 +548,15 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		inlineHint: "[count|duration] [--while|--until '<cmd>'] [prompt]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!runtime.ctx.loopModeEnabled) return "Loop: off";
-			if (runtime.ctx.loopModePaused) return "Loop: paused";
+			if (!runtime.ctx.loopModeEnabled) return M.acLoopOff;
+			if (runtime.ctx.loopModePaused) return M.acLoopPaused;
 			const bounds = [
 				runtime.ctx.loopLimit ? describeLoopLimitRuntime(runtime.ctx.loopLimit) : undefined,
 				runtime.ctx.loopCondition ? describeLoopCondition(runtime.ctx.loopCondition) : undefined,
 			].filter((part): part is string => part !== undefined);
-			if (bounds.length > 0) return `Loop: on (${bounds.join(", ")})`;
-			if (runtime.ctx.loopPrompt) return "Loop: on (repeating prompt)";
-			return "Loop: on (waiting for next prompt)";
+			if (bounds.length > 0) return M.acLoopOnLimitFmt.replace("%s", bounds.join(", "));
+			if (runtime.ctx.loopPrompt) return M.acLoopOnRepeating;
+			return M.acLoopOnWaiting;
 		},
 		handleTui: async (command, runtime) => {
 			const prompt = await runtime.ctx.handleLoopCommand(command.args);
@@ -584,7 +584,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		aliases: ["models"],
 		icon: "model",
 		description: () => M.cmdModel,
-		acpDescription: M.cmdModelAcp,
+		acpDescription: () => M.cmdModelAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const model = runtime.ctx.session.model;
 			return model ? M.acModelFmt.replace("%s", model.provider).replace("%s", model.id) : M.acModelNone;
@@ -627,7 +627,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "switch",
 		icon: "swap",
 		description: () => M.cmdSwitchModelWithSelectors,
-		acpDescription: M.cmdSwitchModelSessionOnly,
+		acpDescription: () => M.cmdSwitchModelSessionOnly,
 		acpInputHint: "[model]",
 		inlineHint: "[model]",
 		allowArgs: true,
@@ -676,7 +676,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "fast",
 		icon: "fast",
 		description: () => M.cmdFast,
-		acpDescription: M.cmdFastAcp,
+		acpDescription: () => M.cmdFastAcp,
 		acpInputHint: "[on|ultra|off|status]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdFastOn },
@@ -704,7 +704,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "slow",
 		icon: "fast",
 		description: () => M.cmdSlow,
-		acpDescription: M.cmdSlowAcp,
+		acpDescription: () => M.cmdSlowAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdSlowOn },
@@ -731,7 +731,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "skillful",
 		icon: "compass",
 		description: () => M.cmdSkillful,
-		acpDescription: M.cmdSkillfulAcp,
+		acpDescription: () => M.cmdSkillfulAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdSkillfulOn },
@@ -740,7 +740,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			`Skill listing: ${cfgSkillful.get(runtime.ctx.session.settings) ? "on" : "off"}`,
+			M.acSkillfulFmt.replace("%s", cfgSkillful.get(runtime.ctx.session.settings) ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
@@ -787,7 +787,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "extended-context",
 		icon: "expand",
 		description: () => M.cmdToggleExtendedContextWindows,
-		acpDescription: M.cmdToggleExtendedContext,
+		acpDescription: () => M.cmdToggleExtendedContext,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdEnableLargerContextWindows },
@@ -814,7 +814,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "computer",
 		icon: "computer",
 		description: () => M.cmdToggleTheNativeComputerUseEvalPreludeForThisSession,
-		acpDescription: M.cmdComputerAcp,
+		acpDescription: () => M.cmdComputerAcp,
 		acpInputHint: "[on|off|status]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdComputerOn },
@@ -823,7 +823,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
-			`Computer: ${cfgComputerEnabled.get(runtime.ctx.session.settings) ? "on" : "off"}`,
+			M.acComputerFmt.replace("%s", cfgComputerEnabled.get(runtime.ctx.session.settings) ? M.stateOn : M.stateOff),
 		handle: async (command, runtime) => {
 			const arg = command.args.trim().toLowerCase();
 			if (arg === "status") {
@@ -894,7 +894,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "prewalk",
 		description: () => M.cmdPrewalk,
 		allowArgs: true,
-		acpDescription: M.cmdPrewalkAcp,
+		acpDescription: () => M.cmdPrewalkAcp,
 		acpInputHint: "[restart|off]",
 		subcommands: [
 			{ name: "restart", description: () => M.cmdPrewalkRestart },

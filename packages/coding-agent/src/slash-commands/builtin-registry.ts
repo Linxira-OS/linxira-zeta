@@ -22,6 +22,7 @@ import { BUILTIN_SKILLS_SLASH_COMMANDS } from "./builtin-skills";
 import { parseSlashCommand } from "./helpers/parse";
 import type {
 	BuiltinSlashCommand,
+	SubcommandDef,
 	ParsedSlashCommand,
 	SlashCommandResult,
 	SlashCommandRuntime,
@@ -77,7 +78,14 @@ export function resolveCommandDescription(description: string | (() => string)):
 
 export const BUILTIN_SLASH_COMMAND_RESERVED_NAMES: ReadonlySet<string> = new Set(BUILTIN_SLASH_COMMAND_LOOKUP.keys());
 
-/** Builtin command metadata used for slash-command autocomplete and help text. */
+/**
+ * Builtin command metadata used for slash-command autocomplete and help text.
+ *
+ * `description` and `subcommands` are re-exported through getters: a spec may
+ * declare them as accessors (`get description() { return M.cmdEffortFmt.replace(...) }`,
+ * `/effort`), and reading them once here would capture the locale active at
+ * import time. Everything else is a plain value.
+ */
 export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BUILTIN_SLASH_COMMAND_REGISTRY.map(
 	command => ({
 		name: command.name,
@@ -85,9 +93,13 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		allowArgs: command.allowArgs === true,
 		// Keep the thunk itself: resolving here would re-freeze the locale that
 		// happens to be active when this module is imported.
-		description: command.description,
+		get description(): string | (() => string) {
+			return command.description;
+		},
 		icon: command.icon,
-		subcommands: command.subcommands,
+		get subcommands(): SubcommandDef[] | undefined {
+			return command.subcommands;
+		},
 		subcommandOptional: command.subcommandOptional,
 		inlineHint: command.inlineHint,
 		getTuiAutocompleteDescription: command.getTuiAutocompleteDescription,

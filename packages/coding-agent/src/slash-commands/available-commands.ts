@@ -50,7 +50,7 @@ export async function buildAvailableSlashCommands(
 		appendCommand({
 			name: command.name,
 			aliases: command.aliases,
-			description: command.acpDescription ?? resolveCommandDescription(command.description),
+			description: resolveCommandDescription(command.acpDescription ?? command.description),
 			input: hint ? { hint } : undefined,
 			subcommands: command.subcommands?.map(s => ({
 				name: s.name,

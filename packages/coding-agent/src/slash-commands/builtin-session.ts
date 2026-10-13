@@ -228,11 +228,14 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const tasks = runtime.ctx.todoPhases.flatMap(phase => phase.tasks);
-			if (tasks.length === 0) return "Todos: none";
+			if (tasks.length === 0) return M.acTodosNone;
 			const pending = tasks.filter(task => task.status === "pending").length;
 			const inProgress = tasks.filter(task => task.status === "in_progress").length;
 			const completed = tasks.filter(task => task.status === "completed").length;
-			return `Todos: ${pending + inProgress} open (${inProgress} in progress, ${completed} done)`;
+			return M.acTodosFmt
+				.replace("%s", String(pending + inProgress))
+				.replace("%s", String(inProgress))
+				.replace("%s", String(completed));
 		},
 		handle: handleTodoAcp,
 		handleTui: async (command, runtime) => {
@@ -331,8 +334,10 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
-			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return "Jobs: none";
-			return `Jobs: ${snapshot.running.length} running, ${snapshot.recent.length} recent`;
+			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return M.acJobsNone;
+			return M.acJobsFmt
+				.replace("%s", String(snapshot.running.length))
+				.replace("%s", String(snapshot.recent.length));
 		},
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
@@ -516,7 +521,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
-			return all === 0 ? "Tools: none available" : `Tools: ${active} active / ${all} available`;
+			return all === 0 ? M.acToolsNone : M.acToolsFmt.replace("%s", String(active)).replace("%s", String(all));
 		},
 		handle: async (_command, runtime) => {
 			const active = runtime.session.getActiveToolNames();
@@ -544,8 +549,11 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		acpDescription: "Show context usage",
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			if (!usage) return "Context: unavailable";
-			return `Context: ${Math.round(usage.percent)}% (${formatTokenCount(usage.tokens)}/${formatTokenCount(usage.contextWindow)})`;
+			if (!usage) return M.acContextUnavailable;
+			return M.acContextFmt
+				.replace("%s", String(Math.round(usage.percent)))
+				.replace("%s", formatTokenCount(usage.tokens))
+				.replace("%s", formatTokenCount(usage.contextWindow));
 		},
 		handle: async (_command, runtime) => {
 			await runtime.output(buildContextReportText(runtime));

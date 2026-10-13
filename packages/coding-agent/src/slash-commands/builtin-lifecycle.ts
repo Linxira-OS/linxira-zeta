@@ -170,7 +170,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "restart",
 		description: () => M.cmdFresh,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? "Fresh: unavailable while streaming" : "Fresh: ready",
+			runtime.ctx.session.isStreaming ? M.acFreshUnavailable : M.acFreshReady,
 		handle: async (_command, runtime) => {
 			const result = runtime.session.freshSession();
 			if (!result) {
@@ -192,7 +192,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		icon: "eraser",
 		description: () => M.cmdClear,
 		getTuiAutocompleteDescription: runtime =>
-			runtime.ctx.session.isStreaming ? "Clear: unavailable while streaming" : "Clear: drop context, keep session",
+			runtime.ctx.session.isStreaming ? M.acClearUnavailable : M.acClearDrop,
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleResetContextCommand();
@@ -211,7 +211,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "compact",
 		icon: "compress",
 		description: () => M.cmdCompact,
-		acpDescription: M.cmdCompactAcp,
+		acpDescription: () => M.cmdCompactAcp,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
 			description:
@@ -226,7 +226,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			return usage ? `Compact: context ${Math.round(usage.percent)}% used` : "Compact: context unavailable";
+			return usage ? M.acCompactUsedFmt.replace("%s", String(Math.round(usage.percent))) : M.acCompactUnavailable;
 		},
 		handle: async (command, runtime) => {
 			const parsed = parseCompactArgs(command.args);

@@ -34,7 +34,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "language",
 		description: () => M.cmdLanguage,
 		icon: "globe",
-		acpDescription: M.cmdSetTheCLIDisplayLanguage,
+		acpDescription: () => M.cmdSetTheCLIDisplayLanguage,
 		acpInputHint: "[en|zh]",
 		subcommands: [
 			{ name: "en", description: () => M.cmdEnglish },
@@ -103,7 +103,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "tracking",
 		description: () => M.cmdTracking,
 		icon: "eye",
-		acpDescription: M.cmdTrackingAcp,
+		acpDescription: () => M.cmdTrackingAcp,
 		acpInputHint: "<status|plan|log|index|start|on|off>",
 		subcommands: [
 			{ name: "status", description: () => M.cmdTrackingStatus },

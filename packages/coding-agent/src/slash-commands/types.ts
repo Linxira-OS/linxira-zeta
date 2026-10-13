@@ -144,12 +144,16 @@ export interface SlashCommandSpec extends BuiltinSlashCommand {
 	/** When false, the dispatcher refuses to handle invocations that include arguments. */
 	allowArgs?: boolean;
 	/**
-	 * ACP-specific override for `description`. Used by `ACP_BUILTIN_SLASH_COMMANDS`
-	 * when building `available_commands_update` payloads so the client receives
-	 * mode-appropriate copy (e.g. `/dump` advertises "Return full transcript as
-	 * plain text" in ACP rather than the TUI's clipboard-centric copy).
+	 * ACP-specific override for `description`, resolved through
+	 * `resolveCommandDescription` when a list is built. Localized copy declares
+	 * the thunk form (`() => M.cmdFoo`) so `/language` reaches ACP/RPC clients on
+	 * their next `available_commands_update` instead of freezing at import time.
+	 * Used when building `available_commands_update` payloads so the client
+	 * receives mode-appropriate copy (e.g. `/dump` advertises "Return full
+	 * transcript as plain text" in ACP rather than the TUI's clipboard-centric
+	 * copy).
 	 */
-	acpDescription?: string;
+	acpDescription?: string | (() => string);
 	/**
 	 * ACP-specific override for the advertised input hint. `subcommands`-only
 	 * specs that historically advertised `<subcommand>` / `[on|off|status]` /
