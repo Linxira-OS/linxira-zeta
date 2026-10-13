@@ -136,7 +136,9 @@ describe("web-gateway plan chain", () => {
 						},
 					],
 				},
-				{ content: [{ type: "toolCall", name: "write", arguments: { path: PROPOSE_DEVICE_PATH, content: "web" } }] },
+				{
+					content: [{ type: "toolCall", name: "write", arguments: { path: PROPOSE_DEVICE_PATH, content: "web" } }],
+				},
 				{ content: ["Plan submitted."] },
 				{ content: ["Executing the approved plan."] },
 			],

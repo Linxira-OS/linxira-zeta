@@ -422,6 +422,8 @@ export function ChatWindow({
 		setPlanProposed,
 		addNotice,
 		modes,
+		atBottom,
+		scrollToBottom,
 		isNew,
 		sessionIdRef,
 		messagesEndRef,
@@ -980,7 +982,7 @@ export function ChatWindow({
 									fontSize: 12,
 								}}
 							>
-								{mode === "chat" ? "Chat" : "Trajectory"}
+								{mode === "chat" ? t("chat.view-chat") : t("chat.view-trajectory")}
 							</button>
 						))}
 					</div>
@@ -1006,7 +1008,7 @@ export function ChatWindow({
 								</div>
 								<div
 									ref={scrollContainerRef}
-									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-width:none]"
+									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4"
 								>
 									<div style={{ padding: `0 ${CHAT_COLUMN_PADDING}px` }}>
 										<div
@@ -1480,6 +1482,46 @@ export function ChatWindow({
 										messageRefs={messageRefs}
 										onRevealHistory={revealHistoryForMinimap}
 									/>
+								)}
+								{!atBottom && (
+									<button
+										type="button"
+										onClick={() => scrollToBottom("smooth")}
+										title={t("chat.scroll-to-bottom")}
+										aria-label={t("chat.scroll-to-bottom")}
+										style={{
+											position: "absolute",
+											bottom: 16,
+											right: isMobile ? CHAT_COLUMN_PADDING : CHAT_MINIMAP_WIDTH + 12,
+											width: 32,
+											height: 32,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											background: "var(--bg-panel)",
+											border: "1px solid var(--border)",
+											borderRadius: "50%",
+											color: "var(--text)",
+											boxShadow: "var(--surface-shadow)",
+											cursor: "pointer",
+											zIndex: 50,
+										}}
+									>
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth="2"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											aria-hidden="true"
+										>
+											<path d="M12 5v14" />
+											<path d="M19 12l-7 7-7-7" />
+										</svg>
+									</button>
 								)}
 							</div>
 

@@ -588,6 +588,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   // execution buttons.
   const [planProposed, setPlanProposed] = useState(false);
   const [modes, setModes] = useState<ModeStateSnapshot>({});
+  const [atBottom, setAtBottom] = useState(true);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const eventSourceSessionIdRef = useRef<string | null>(null);
@@ -3171,6 +3172,24 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     markUserScrollIntent,
   ]);
 
+  // Track whether the transcript is scrolled to (near) the bottom so the
+  // floating "scroll to bottom" affordance can hide itself. Re-attaches when
+  // the container mounts or is replaced (messages.length/loading change).
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const handleAtBottomScroll = () => {
+      const el = scrollContainerRef.current;
+      if (el)
+        setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 48);
+    };
+    handleAtBottomScroll();
+    container.addEventListener("scroll", handleAtBottomScroll, {
+      passive: true,
+    });
+    return () => container.removeEventListener("scroll", handleAtBottomScroll);
+  }, [messages.length, loading]);
+
   useEffect(() => {
     if (messages.length > 0) {
       if (pendingScrollToUserRef.current) {
@@ -3275,6 +3294,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     planProposed,
     setPlanProposed,
     modes,
+    atBottom,
     isNew,
     addNotice,
     // Refs
@@ -3300,6 +3320,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleBuiltinSlashCommand,
     handleToolPresetChange,
     handleThinkingLevelChange,
+    scrollToBottom,
     loadTools,
     loadSlashCommands,
     setActiveLeafId,
