@@ -44,6 +44,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
 | `api/agent/[id]/memory`、`[id]/memory/search`、`[id]/memory/items/[memId]` | Gateway（`MemoryRuntimeContext` + 会话级 `MnemopiSessionState`） | W5 ✅（**只读**：列表 / 搜索 / 单条；`PATCH` item 与 `POST /memory` 已占位但返回 501） |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
+| `api/extension-ui/response` | Gateway（新增，非迁移） | ✅ 无会话应答通道：`{id, value?｜confirmed?｜cancelled?｜timedOut?｜answers?｜decision?}` → 按 `uiRequestOwners` 转发到拥有该对话框的会话。仅 `POST`（其余 405）；未知 id 404；`answers` 非数组 / `decision` 非字符串 400。见下方「Ask 通道」 |
 | `api/agent/[id]/context` | Gateway（新增，非迁移） | ✅ 上下文统计面板数据源：窗口占用 + 分类占用 + 压缩阈值 + 会话累计 token/调用计数（`context-usage.ts`）。**仅活会话**：未运行时回 `{ running: false }`（同 `GET /api/agent/<id>`），仅 `GET`（其余 405） |
 | `api/agent/[id]/subagents`、`[id]/subagents/events`（SSE）、`[id]/subagents/[subId]/transcript`、`[id]/subagents/[subId]/output` | Gateway（新增，非迁移） | ✅ 子代理名册读面（`subagents.ts`）：快照 / 增量 SSE / 字节分页转写 / 已发布输出。仅 `GET`（其余 405）；本节下方「子代理名册」给出 DTO 与词表映射。动作面（`cancel`/`steer`）**未实现**，见该节末尾 |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
@@ -62,7 +63,8 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
   state（running/streaming 状态）、thinking、export（`../export/html` + 递归补丁）。
 - `agents.ts` — W2 ✅：`createAgentSession` + `AgentSessionWrapper` 注册表 +
   RPC 命令转发 + SSE（session/events、running/events）。web-ui 的
-  `AgentSessionWrapper`/`startRpcSession`/extension-UI 对话框语义全部迁入；
+  `AgentSessionWrapper`/`startRpcSession`/extension-UI 对话框语义全部迁入
+  （含富 `ask` 对话框与 `uiRequestOwners` 的登记点，见「Ask 通道」）；
   `queue_update` 与 `running`/`not-running` 事件为网关合成（运行时事件集
   不含二者）；`auto_compaction_end` 的事件载荷补上运行时缺失的
   `estimatedTokensAfter`（`getContextUsage()` 合成）。bash-output 不实现。
@@ -287,6 +289,55 @@ interface SubagentRosterEntry {
   （`rpc-mode.ts`，均已导出）+ `resolveOwnedLiveSubagent` 的所有权校验；本批只做读面，
   该路由保留为 404（未注册），实现时须一并补上 `AgentLifecycleManager.release` 与 tombstone 语义。
 
+## Ask 通道（`extension_ui_request(method:"ask")`）
+
+`ask` 工具的多问题富对话框走**会话 SSE**（不是新开通道）：网关的 UI 上下文
+（`web-gateway/agents.ts` 的 `createGatewayUiContext`）实现了 `askDialog`，一次
+`ask` 调用 = **一帧**，一次答复 = **一个 `answers` 数组**。
+
+```
+SSE   data: { type:"extension_ui_request", id, method:"ask", questions:[…], timeout? }
+HTTP  POST /api/extension-ui/response  { id, answers: AskDialogAnswer[] }
+SSE   data: { type:"extension_ui_resolved", id }
+```
+
+- **帧形状逐字复用 stdio RPC 的 wire 契约**（`modes/rpc/wire/frames.ts` 的
+  `AskUiRequest`）：`questions: AskQuestion[]`，每项
+  `{id, question, header?, options:[{label, description?, preview?}], multi?, recommended?}`，
+  `recommended` 是 `options` 的**下标**；`timeout`（毫秒）缺省=无截止。
+- **答复体**：`answers` 每问一项、**顺序与请求一致**——
+  `{id, selectedOptions: string[], customInput?: string, note?: string}`；
+  `selectedOptions` 是**选项标签原值**（不是下标）。`customInput`（自定义输入）与
+  `note`（备注）都是可选字符串；`multi:false` 的题只允许一个答案（选项+自定义输入互斥）。
+- **校验器共享**：`extensibility/extensions/ask-dialog-response.ts::parseAskDialogResponse`
+  是唯一实现，stdio RPC 与网关共同调用（网关**不再**自建第二套）；规则=数量相等、
+  id 对齐、未知选项拒绝、重复选项拒绝、单选排他、`customInput`/`note` 必须为字符串。
+  网关通道**不接受图片附件**（`customInputImages`/`noteImages`）——带附件即报错，
+  不静默丢弃。
+- **超时**：客户端主导倒计时（与既有 `select` 一致，`timeoutStartsOnPresentation:false`）；
+  网关另设**安全网**（同 `timeout` 毫秒）防 SSE 断连后扩展永久挂起。两条路径都落到
+  **每问取 `recommended`（无则首项）并标 `timedOut:true`**（`timedOutAskDialogResult`
+  语义，与 RPC 一致）——**不是**空答复；网关侧超时还会补发
+  `extension_ui_request(method:"cancel", targetId)` 让客户端收起对话框，
+  之后的答复因 pending 已释放而被忽略。
+- **未应答/取消**：`{cancelled:true}` 或客户端取消 → `askDialog` resolve
+  `undefined` → `ask` 工具按"用户取消"报 `ToolAbortError`（fail-closed，绝不当作
+  "空答案"）。网关超时是 `{cancelled:true, timedOut:true}`，与用户取消区分。
+- **非法载荷 fail-closed**：`answers` 与问题不符（数量/id/选项/重复/单选越界）→
+  校验器抛错 → **扩展的 await 被 reject**（`ask` 工具调用即报错），不会被当成已回答；
+  HTTP 层只做浅校验（`answers` 必须是数组、`decision` 必须是字符串，否则 400；
+  未知 id 404），语义校验在持有问题的那次调用里做。
+- **应答路由（`uiRequestOwners`）**：所有者登记搬到了 `dispatchUiRequest`
+  （真正的发出点，而不是"有 SSE 订阅者时"）——因此**没有** `/events` 订阅者、
+  或答复来自另一个标签页时，`POST /api/extension-ui/response` 仍能转发到正确的会话；
+  仅可应答方法（`select`/`confirm`/`input`/`editor`/`ask`）占位，`notify`/`setStatus`
+  /`cancel` 等单向帧不留 owner；对话框 settle 或 wrapper `destroy()` 时释放。
+- **`decision` 字段**：本批只定义并透传（`{id, decision}` 直达会话），供下一批的
+  审批通道复用同一应答体；本批没有任何 pending 消费者。
+- **与既有路径的关系**：`select` 兜底**保留**（未提供 `askDialog` 的上下文仍走
+  `extension_ui_request(method:"select")`）；web-ui 的 `AskCard` 接线在后续片，
+  网关契约先行（帧/应答体如上）。
+
 ## 批次验收
 
 - W1 完成：`bun check`（runtime 包）+ `zeta serve --web-only` 起服后
@@ -326,6 +377,12 @@ interface SubagentRosterEntry {
 - 子代理名册（新增）完成：`bun test test/web-gateway/subagents.test.ts`（快照形状与作用域、
   SSE 首帧快照 + 进度 + 终态、转写字节游标/重放/越界 reset、输出已发布/未发布/404）全绿；
   `bun run check:types` 无错；起服后真跑一个子代理，四个端点逐一冒烟通过（证据见 PR）。
+- Ask 通道（新增）完成：`bun test test/web-gateway/ask-channel.test.ts`（5 用例：多问题单帧
+  回环、`recommended` 超时兜底 + `cancel` 帧、用户取消、非法载荷 reject、共享校验器规则）
+  全绿；`bun run check:types` 无错；真实运行证据（`zeta serve` 起服 + 生产网关监听器 +
+  真实 `AskTool` + 真实 SSE/POST）：一帧携带全部问题、一次 `answers` POST 后工具继续
+  （`q1: "postgres 16" (note: …)` / `q2: [web, cli]`），非法载荷 reject、取消报
+  `ToolAbortError`、超时取推荐项并补发 `method:"cancel"`（原始帧见 PR 描述）。
 
 ## 环境变量
 
