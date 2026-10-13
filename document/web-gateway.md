@@ -44,6 +44,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
 | `api/agent/[id]/context` | Gateway（新增，非迁移） | ✅ 上下文统计面板数据源：窗口占用 + 分类占用 + 压缩阈值 + 会话累计 token/调用计数（`context-usage.ts`）。**仅活会话**：未运行时回 `{ running: false }`（同 `GET /api/agent/<id>`），仅 `GET`（其余 405） |
+| `api/agent/[id]/subagents`、`[id]/subagents/events`（SSE）、`[id]/subagents/[subId]/transcript`、`[id]/subagents/[subId]/output` | Gateway（新增，非迁移） | ✅ 子代理名册读面（`subagents.ts`）：快照 / 增量 SSE / 字节分页转写 / 已发布输出。仅 `GET`（其余 405）；本节下方「子代理名册」给出 DTO 与词表映射。动作面（`cancel`/`steer`）**未实现**，见该节末尾 |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
 | `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
 | `api/tracking`、`api/tracking/events`（SSE） | Gateway（`tracking.ts`） | ✅ `zeta serve` 进程内分派（`classifyRequest`，不依赖 Next rewrite）；dev/standalone 经 Next rewrite |
@@ -70,6 +71,12 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
   `getSessionCompactionBoundaries`（阈值与投机压缩百分比）+
   `AgentSession.getSessionStats()`（累计 token / 调用计数 / 花费 / 路由模型）。
   不新增任何 token 计算；分类是估算值，面板按 `~` 语义呈现。
+- `subagents.ts` — 子代理名册读面（新增）：`AgentRegistry` 行 + 活会话 `task:subagent:*`
+  帧（`RpcSubagentRegistry`，订阅级别 `progress`）投影成名册快照，SSE 增量（帧名
+  逐字复用 stdio RPC 契约），转写走 `readRpcSubagentTranscript`（字节游标），输出读
+  `<artifactsDir>/<id>.md`（+ `.json` sidecar）。根作用域：一个网关会话一个 sink，
+  挂在 `AgentSessionWrapper.subagentSink` 上，`destroy()` 时释放；`startRpcSession`
+  为每个会话注入自己的 `subagentEventBus`（`createAgentSession` 的公开选项）。
 - `auth.ts` — W3 ✅：`AuthStorage`/`ModelRegistry` 的 provider/API-key/OAuth 流。
 - `models.ts` — W3 ✅：models 列表、`models.json` 读写、连接测试。
 - `skills.ts`、`skills-lock.ts`、`skill-updates.ts`、`npx.ts` — W4 ✅：skills 列表
@@ -109,6 +116,104 @@ handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
   `Connection: keep-alive`；ZetaServer 主代理已设 `idleTimeout: 0`。
 - 日志走 `logger`，网关请求失败记录 `web-gateway` 上下文；不上 `console.*`。
 
+## 子代理名册（`api/agent/[id]/subagents*`）
+
+读面四端点，作用域**必须**挂在顶层会话下：子代理 id 只在「父根会话 artifacts 树」
+内唯一（`<artifactsDir>/<id>.jsonl`，嵌套为 `<artifactsDir>/<parent>/<id>.jsonl`），
+进程级 `AgentRegistry` 每 id 只保留最新 ref。首个路径参数因此永远是根会话 id。
+
+| 方法 | 路由 | 语义 |
+| --- | --- | --- |
+| GET | `/api/agent/:id/subagents` | 名册快照（活会话 + 磁盘恢复的 parked/aborted 行） |
+| GET | `/api/agent/:id/subagents/events` | SSE：先 `subagent_snapshot`，再增量帧 |
+| GET | `/api/agent/:id/subagents/:subId/transcript?fromByte=N` | 按**字节偏移**分页转写 |
+| GET | `/api/agent/:id/subagents/:subId/output?json=1` | 已发布结果（`?json=1` 附带 `.json` sidecar） |
+
+`:subId` 是任意非 `/` 段（agent id 可含 `.`/`:`）。四个端点都是 `GET`，其余方法 405；
+未知会话 404 `{error:"Unknown session: <id>"}`，未知子代理 404 `{error:"Unknown subagent: <subId>"}`。
+
+### 快照 DTO
+
+```ts
+interface SubagentRosterResponse { subagents: SubagentRosterEntry[]; maxConcurrency: number; generatedAt: number }
+interface SubagentRosterEntry {
+  id: string; displayName: string; kind: "sub" | "advisor";
+  parentId: string | null; depth: number;            // depth = 本树内层级（0 = 根会话直接 spawn）
+  index?: number;                                     // 同一 task 调用的 spawn 序号（只有活观察者知道）
+  agent?: string; agentSource?: string;
+  status: AgentStatus;                                // 权威（registry 词表）
+  taskStatus?: "pending"|"running"|"completed"|"failed"|"aborted";  // 仅展示（observer 词表）
+  description?: string; task?: string; assignment?: string;
+  sessionFile: string | null; createdAt: number; lastActivity: number;
+  detached?: boolean; parentToolCallId?: string;
+  activity?: string;                                  // 仅 running 有意义；**不发事件**，只在快照/合并刷新时可信
+  lifecycle?: { responseAt?: number; acceptedAt?: number; terminalAt?: number };
+  staleAcceptedRun?: boolean;
+  progress?: { lastIntent?; currentTool?; toolCount?; requests?; tokens?;
+               contextTokens?; contextWindow?; cost?; durationMs?; recentOutput?: string[] };
+  metrics?: AgentMetricsSummary;                      // 持久化行或活观察者 progress
+  outputPath?: string | null; patchPath?: string | null; branchName?: string | null;   // 来自持久化 history
+  persisted: boolean;                                 // true = 无活会话（磁盘恢复/已 park）
+}
+```
+
+排序与 TUI Agent Hub 完全一致（`STATUS_ORDER` → `lastActivity` 降序 → id），行数上限 512；
+`metrics` 由 `progressMetrics()`（TUI 同一投影）产出。**advisor 默认过滤**（与 TUI 一致），
+`kind` 字段保留以便前端将来区分。`depth`/`parentId` 足够前端自行建树，网关不下发树形嵌套。
+
+### 状态词表映射（两套 → 一份 DTO）
+
+| observer `taskStatus`（`AgentProgress.status`） | registry `status`（`AgentStatus`） |
+| --- | --- |
+| `pending` | `running` |
+| `running` | `running` |
+| `completed` | `idle`（会话释放后 `parked`） |
+| `failed` | `idle` / `parked`（失败运行同样离开 `running`） |
+| `aborted` | `aborted`（**终态**，tombstone，不再回活） |
+
+前端**只渲染 `status`**；`taskStatus` 仅解释「为什么是这个状态」。映射由运行时
+（`AgentRegistry.setStatus` / 会话 run-state 订阅）施加，网关不重算。
+
+### SSE 帧
+
+判别式是 JSON 的 `type`（与既有 SSE 相同：`data: <json>\n\n`，无 `event:` 名、无 `seq`，
+30s 心跳注释帧 `:\n\n`）：
+
+- `subagent_snapshot { subagents, maxConcurrency, generatedAt }` —— **首帧**（先写快照再订阅，
+  扫描期间到达的帧不会抢在快照前；那些帧只描述进度，状态已在快照里）。
+- `subagent_lifecycle { payload: SubagentLifecyclePayload }` —— 逐字复用 RPC 帧（observer 词表
+  `started|completed|failed|aborted`）。
+- `subagent_progress { payload: SubagentProgressPayload }` —— 复用 RPC 帧；**同一子代理只留最新一帧**，
+  150ms 合并窗口；终端状态帧同时触发 `subagent_removed`。
+- `subagent_status { subagent: SubagentRosterEntry }` —— 网关合成：`AgentRegistry.onChange`
+  （`registered|status_changed|metadata_changed`）的权威行，前端按 id 替换即可。
+- `subagent_removed { id }` —— 网关合成：终态清理（RPC 契约是直接删快照，web 需要显式删除通知）。
+
+`activity`/`lastActivity`/`session` 的变更**不发事件**（`AgentRegistry.setActivity`/`attachSession`
+刻意静默），只能靠快照帧或 `subagent_status`/`subagent_progress` 合并刷新 —— 需要更强保证时轮询
+`GET …/subagents`。
+
+**慢消费者策略**：进度帧两级丢弃 —— sink 内 150ms 合并（最新优先）；每条连接再按流缓冲
+（`controller.desiredSize <= 0`）丢弃并只保留每个子代理的最新一帧，缓冲排空后补发。
+状态帧（snapshot/lifecycle/status/removed）**永不丢弃**：它们小且受子代理churn 限制，
+慢客户端因此只会丢失被覆盖的进度细节，最终收敛到真相。
+
+### 转写与输出
+
+- 转写分页复用 `readRpcSubagentTranscript(sessionFile, fromByte)`：一次读 `fromByte` 到 EOF 的完整行，
+  丢弃尾部半行，返回 `{sessionFile, fromByte, nextByte, reset, entries, messages}`；`nextByte` 是下次的游标
+  （追加输出后从该游标继续即为增量），`fromByte > filesize` 时 `reset: true` 且从 0 重读。
+- subId → 会话文件解析顺序：活观察者快照 → `AgentRegistry` ref（须在本树内）→ 磁盘探测
+  `<artifactsDir>/**/<subId>.jsonl`（深度上限 8，覆盖嵌套 spawn），因此重启后仍可按 id 读历史转写。
+- 输出：`<artifactsDir>/<subId>.md`（+ 同名 `.json` sidecar，`?json=1` 取）。已发布 →
+  `{published:true, outputPath, content, size, status}`；已注册但尚未发布 → 200
+  `{published:false, status, message, progress?, metrics?}`（`agent://<id>` 的 progress 视图语义）；
+  `?json=1` 而无 sidecar → 404 `{error}`。
+- **动作面（未实现）**：`POST /api/agent/:id/subagents/:subId` 的 `{action:"cancel"}` /
+  `{action:"steer", message}` 拟复用 `handleRpcCancelSubagent` / `handleRpcSteerSubagent`
+  （`rpc-mode.ts`，均已导出）+ `resolveOwnedLiveSubagent` 的所有权校验；本批只做读面，
+  该路由保留为 404（未注册），实现时须一并补上 `AgentLifecycleManager.release` 与 tombstone 语义。
+
 ## 批次验收
 
 - W1 完成：`bun check`（runtime 包）+ `zeta serve --web-only` 起服后
@@ -137,6 +242,9 @@ handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
   `GET/POST /api/plugins` 冒烟通过（本机注意：plugins 写 settings 依赖
   `@linxiraos/pi-natives` FileLock，staging dll 过期时 POST 持久化报
   `NativeFileLock.tryAcquire` undefined —— natives 重建后恢复，属环境问题非网关缺陷）。
+- 子代理名册（新增）完成：`bun test test/web-gateway/subagents.test.ts`（快照形状与作用域、
+  SSE 首帧快照 + 进度 + 终态、转写字节游标/重放/越界 reset、输出已发布/未发布/404）全绿；
+  `bun run check:types` 无错；起服后真跑一个子代理，四个端点逐一冒烟通过（证据见 PR）。
 
 ## 环境变量
 
