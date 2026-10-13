@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/ide-windows-x64",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Windows x64 binary for @linxiraos/ide (zeta-ide)",
   "license": "MIT",
   "repository": {
