@@ -214,6 +214,8 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         - name: Release asset-name guard
+           run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
          # Audits the standing upstream lineage on every push, so a squash /

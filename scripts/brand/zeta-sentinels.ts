@@ -493,6 +493,18 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "void customCommandWatcher.start();",
 		why: "main-session watcher wiring — sdk.ts survives a merge, so losing only this line leaves `CustomCommandWatcher` unreachable and hot reload silently dead.",
 	},
+	// -- CLI command table: Zeta-only subcommands --------------------------------
+	//
+	// Set-difference against the integrated-through upstream tag (v18.9.2 at the
+	// time of writing): `serve` is the ONLY name in the table upstream does not
+	// have. The other 51 entries survive a `--theirs` take because upstream
+	// carries them too — so they need no sentinel here, and a name that appears
+	// upstream cannot be "silently dropped" by a merge in the first place.
+	{
+		file: "packages/coding-agent/src/cli-commands.ts",
+		symbol: 'name: "serve",',
+		why: 'Zeta-only subcommand (`zeta serve` hosts the web gateway + desktop sessions; upstream OMP\'s table has no `serve`). It vanished from this table during the 1.2.0 upstream merge: `serveHelp` in cli/command-help.ts survived while the entry did not, `isSubcommand("serve")` returned false, and every desktop smoke failed — visible only in release runs. The table is a shared file a merge can take wholesale.',
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",

@@ -7,10 +7,11 @@
  * root workspaces.catalog keys, the Rust workspace
  * version, the pi-natives build-version mechanism (`pi_natives_build_version()`
  * symbol + the stamped `__piNativesBuildVersion` value — the per-release
- * __piNativesVX_Y_Z sentinel name is gone), the desktop app, and
- * the README version badge. Any drift is a release-blocking bug (the
- * 1.0.6/1.0.7 era shipped natives at 1.0.2/1.0.4 and broke `zeta update` with
- * ETARGET).
+ * __piNativesVX_Y_Z sentinel name is gone), the desktop app, the vendored npm
+ * distributions (launcher + platform leaves + the launcher's exact
+ * optionalDependencies pins), and the README version badge. Any drift is a
+ * release-blocking bug (the 1.0.6/1.0.7 era shipped natives at 1.0.2/1.0.4 and
+ * broke `zeta update` with ETARGET).
  *
  * Usage:
  *   bun scripts/check-version-consistency.ts
@@ -24,8 +25,10 @@
  * releases.
  */
 
+import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { distributionManifests, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
 
 const root = path.resolve(import.meta.dir, "..");
 
@@ -194,6 +197,64 @@ function main(): void {
 	const desktopVersion = readVersion("desktop/package.json");
 	if (desktopVersion !== expected) problems.push(`desktop/package.json: ${desktopVersion} != ${expected}`);
 
+	// Vendored npm distributions (scripts/npm-distributions.ts): the launcher
+	// package, its platform leaves, and the launcher's exact
+	// optionalDependencies pins all ride the one line. A launcher lifted to the
+	// new version while its pins stay behind publishes a package that installs
+	// the PREVIOUS release's binary and nothing on npm's side complains — the
+	// 1.2.0 editor launcher shipped pinning @linxiraos/editor-{windows,linux}-x64
+	// at 1.1.28 and had to be hand-fixed (PR #119).
+	const registeredPins: Record<string, ReadonlySet<string>> = {};
+	for (const dist of NPM_DISTRIBUTIONS) {
+		const parentRel = `${dist.dir}/package.json`;
+		registeredPins[parentRel] = new Set(dist.leaves.map(leaf => leaf.name));
+		for (const rel of distributionManifests(dist)) {
+			const manifestVersion = readVersion(rel);
+			if (manifestVersion !== expected) problems.push(`${rel}: ${manifestVersion} != ${expected}`);
+		}
+		const parent = JSON.parse(fs.readFileSync(path.join(root, parentRel), "utf8"));
+		for (const leaf of dist.leaves) {
+			const pinned = parent.optionalDependencies?.[leaf.name];
+			if (pinned !== expected) {
+				problems.push(`${parentRel} optionalDependencies ${leaf.name}: ${pinned} != ${expected}`);
+			}
+		}
+	}
+
+	// Discovery half: every @linxiraos/* optionalDependency inside the vendored
+	// npm tree must belong to a registered distribution, so a new launcher (or
+	// a new leaf) cannot silently escape the bump and this check.
+	// `Glob#ignore` does not prune nested `node_modules` here, and a sibling
+	// worktree checked out under a dot dir (`.worktrees/`) would otherwise be
+	// scanned too — filter both out explicitly.
+	const npmManifests = [...new Glob(NPM_MANIFEST_GLOB).scanSync({ cwd: root })]
+		.map(rel => rel.replaceAll("\\", "/"))
+		.filter(rel => !rel.split("/").some(segment => segment.startsWith(".") || segment === "node_modules"));
+
+	for (const manifestRel of npmManifests) {
+		let manifest: { optionalDependencies?: Record<string, string> };
+		try {
+			manifest = JSON.parse(fs.readFileSync(path.join(root, manifestRel), "utf8"));
+		} catch {
+			problems.push(`${manifestRel}: unreadable`);
+			continue;
+		}
+		const pins = Object.keys(manifest.optionalDependencies ?? {}).filter(key => key.startsWith("@linxiraos/"));
+		if (pins.length === 0) continue;
+		const registered = registeredPins[manifestRel];
+		if (!registered) {
+			problems.push(
+				`${manifestRel}: unregistered @linxiraos/* optionalDependencies (${pins.join(", ")}) — add the distribution to scripts/npm-distributions.ts`,
+			);
+			continue;
+		}
+		for (const pin of pins) {
+			if (!registered.has(pin)) {
+				problems.push(`${manifestRel}: unregistered pin ${pin} — add it to scripts/npm-distributions.ts`);
+			}
+		}
+	}
+
 	// README badge: the product front door carries the release version
 	// (img.shields.io `badge/zeta-<version>`); a merge that resets it to an
 	// upstream number or forgets the bump must fail here, not in the log only.
@@ -222,7 +283,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf pins + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
 	);
 }
 
