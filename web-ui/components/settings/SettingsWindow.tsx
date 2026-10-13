@@ -154,7 +154,7 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 					position: "fixed",
 					inset: 0,
 				zIndex: 950,
-				background: "rgba(0,0,0,0.35)",
+				background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent)",
 				display: "flex",
 				alignItems: "center",
 				justifyContent: "center",
@@ -171,12 +171,12 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 				style={{
 					width: isMobile ? "100%" : "min(1080px, 100%)",
 					height: isMobile ? "100%" : "min(860px, 100%)",
-					background: "var(--bg)",
-					border: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: "var(--radius-unit, 12px)",
 					display: "flex",
 					flexDirection: "column",
-					boxShadow: "0 12px 48px rgba(0,0,0,0.28)",
+					boxShadow: "0 12px 48px color-mix(in srgb, var(--zeta-alias-neutral-1000) 28%, transparent)",
 					overflow: "hidden",
 				}}
 			>
@@ -187,13 +187,13 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 						alignItems: "center",
 						gap: 12,
 						padding: "12px 18px",
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 						flexShrink: 0,
 					}}
 				>
 					<div style={{ display: "flex", alignItems: "baseline", gap: 10, flexShrink: 0 }}>
-						<span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{t("settings")}</span>
-						<code style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+						<span style={{ fontSize: 15, fontWeight: 700, color: "var(--zeta-alias-text)" }}>{t("settings")}</span>
+						<code style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)", fontFamily: "var(--font-mono)" }}>
 							~/.zeta/agent/config.yml
 						</code>
 					</div>
@@ -211,7 +211,7 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 						style={{
 							background: "none",
 							border: "none",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							cursor: "pointer",
 							fontSize: 20,
 							lineHeight: 1,
@@ -233,8 +233,8 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 										display: "flex",
 										gap: 4,
 										padding: "8px 10px",
-										borderBottom: "1px solid var(--border)",
-										background: "var(--bg-panel)",
+										borderBottom: "1px solid var(--zeta-alias-border)",
+										background: "var(--zeta-alias-bg-panel)",
 										overflowX: "auto",
 										flexShrink: 0,
 									}
@@ -245,8 +245,8 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 										width: 192,
 										flexShrink: 0,
 										padding: "8px 6px",
-										borderRight: "1px solid var(--border)",
-										background: "var(--bg-panel)",
+										borderRight: "1px solid var(--zeta-alias-border)",
+										background: "var(--zeta-alias-bg-panel)",
 										overflowY: "auto",
 									}
 						}
@@ -270,8 +270,8 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 											style={{
 												marginLeft: "auto",
 												fontSize: 10,
-												color: titleMatch ? "var(--text-dim)" : "var(--accent)",
-												background: titleMatch ? "transparent" : "var(--accent-muted)",
+												color: titleMatch ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-accent)",
+												background: titleMatch ? "transparent" : "var(--zeta-alias-accent-muted)",
 												borderRadius: 8,
 												padding: "1px 6px",
 												flexShrink: 0,
@@ -294,7 +294,7 @@ export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWi
 									justifyContent: "center",
 									padding: 24,
 									fontSize: 12.5,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 								}}
 							>
 								{t("settings.search-no-results", { query })}
@@ -559,7 +559,7 @@ function AppearanceSection({ query }: { query: string }) {
 			: rows.filter(r => r.label.toLowerCase().includes(query) || r.description.toLowerCase().includes(query));
 
 	return (
-		<div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>
+		<div style={{ flex: 1, overflowY: "auto", background: "var(--zeta-alias-bg)" }}>
 			{visible.map(({ key, label, description, control }) => (
 				<div
 					key={key}
@@ -568,22 +568,22 @@ function AppearanceSection({ query }: { query: string }) {
 						flexDirection: "column",
 						gap: 6,
 						padding: "calc(10px * var(--padding-scale, 1)) 16px",
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					<div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-						<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
+						<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
 							<SettingsHighlight text={label} query={query} />
 						</span>
 						{control}
 					</div>
-					<div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.45 }}>
+					<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.45 }}>
 						<SettingsHighlight text={description} query={query} />
 					</div>
 				</div>
 			))}
 			{visible.length === 0 && (
-				<div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>
+				<div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>
 					{t("settings.search-no-results", { query })}
 				</div>
 			)}

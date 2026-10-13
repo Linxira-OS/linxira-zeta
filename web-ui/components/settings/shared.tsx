@@ -67,10 +67,10 @@ export const SURFACE_CLASS = "zset-scope";
 export const inputStyle: CSSProperties = {
 	height: 26,
 	padding: "4px 9px",
-	background: "var(--bg-input, var(--bg-panel))",
-	border: "1px solid var(--border)",
+	background: "var(--bg-input, var(--zeta-alias-bg-panel))",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: "var(--radius-unit, 6px)",
-	color: "var(--text)",
+	color: "var(--zeta-alias-text)",
 	fontSize: 12,
 	outline: "none",
 	boxSizing: "border-box" as const,
@@ -84,9 +84,9 @@ export const outlineButtonStyle: CSSProperties = {
 	padding: "4px 10px",
 	height: 26,
 	background: "transparent",
-	border: "1px solid var(--border)",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: "var(--radius-unit, 6px)",
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	fontSize: 11.5,
 	transition: "border-color 0.15s ease, color 0.15s ease, background 0.15s ease",
@@ -95,8 +95,8 @@ export const outlineButtonStyle: CSSProperties = {
 /** Destructive action (unbind, reset token): red outline/text, red tint on hover. */
 export const destructiveButtonStyle: CSSProperties = {
 	...outlineButtonStyle,
-	borderColor: "color-mix(in srgb, #f87171 45%, transparent)",
-	color: "#f87171",
+	borderColor: "color-mix(in srgb, var(--zeta-alias-status-error) 45%, transparent)",
+	color: "var(--zeta-alias-status-error)",
 };
 
 /**
@@ -111,8 +111,8 @@ export function SettingsCard({ children, style }: { children: ReactNode; style?:
 				flexDirection: "column",
 				gap: 8,
 				padding: "10px 12px",
-				background: "var(--bg-input, var(--bg-panel))",
-				border: "1px solid var(--border)",
+				background: "var(--bg-input, var(--zeta-alias-bg-panel))",
+				border: "1px solid var(--zeta-alias-border)",
 				borderRadius: "var(--radius-unit, 8px)",
 				...style,
 			}}
@@ -155,8 +155,8 @@ export function SettingsToggle({
 				flexShrink: 0,
 				position: "relative",
 				cursor: disabled ? "default" : "pointer",
-				border: checked ? "1px solid transparent" : "1px solid var(--border)",
-				background: checked ? "var(--accent)" : "var(--bg-input, var(--bg-panel))",
+				border: checked ? "1px solid transparent" : "1px solid var(--zeta-alias-border)",
+				background: checked ? "var(--zeta-alias-accent)" : "var(--bg-input, var(--zeta-alias-bg-panel))",
 				opacity: disabled ? 0.45 : 1,
 				filter: disabled ? "grayscale(1)" : undefined,
 				transition: "background 0.15s ease, border-color 0.15s ease",
@@ -170,8 +170,8 @@ export function SettingsToggle({
 					width: 12,
 					height: 12,
 					borderRadius: 6,
-					background: checked ? "var(--bg, #fff)" : "var(--text-dim)",
-					boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+					background: checked ? "var(--zeta-alias-bg)" : "var(--zeta-alias-text-dim)",
+					boxShadow: "0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 25%, transparent)",
 					transition: "left 0.15s ease, background 0.15s ease",
 				}}
 			/>
@@ -199,9 +199,9 @@ export function SettingsToggleRow({
 	return (
 		<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
 			<div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{label}</span>
+				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>{label}</span>
 				{description && (
-					<span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>{description}</span>
+					<span style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.4 }}>{description}</span>
 				)}
 			</div>
 			<SettingsToggle
@@ -233,8 +233,8 @@ export function settingsNavButtonStyle(active: boolean): CSSProperties {
 		whiteSpace: "nowrap",
 		textAlign: "left",
 		flexShrink: 0,
-		background: active ? "var(--bg-selected)" : "transparent",
-		color: active ? "var(--text)" : "var(--text-muted)",
+		background: active ? "var(--zeta-alias-bg-selected)" : "transparent",
+		color: active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 	};
 }
 
@@ -249,13 +249,13 @@ export function SettingsControlStyles() {
 			.${SURFACE_CLASS} input:not([type="checkbox"]):not([type="radio"]):hover:not(:disabled):not(:focus),
 			.${SURFACE_CLASS} select:hover:not(:disabled):not(:focus),
 			.${SURFACE_CLASS} textarea:hover:not(:disabled):not(:focus) {
-				border-color: var(--border-strong, var(--text-dim));
+				border-color: var(--border-strong, var(--zeta-alias-text-dim));
 			}
 			.${SURFACE_CLASS} input:focus,
 			.${SURFACE_CLASS} select:focus,
 			.${SURFACE_CLASS} textarea:focus {
-				border-color: var(--accent);
-				box-shadow: 0 0 0 2px var(--accent-muted);
+				border-color: var(--zeta-alias-accent);
+				box-shadow: 0 0 0 2px var(--zeta-alias-accent-muted);
 				outline: none;
 			}
 			.${SURFACE_CLASS} input:disabled,
@@ -264,15 +264,15 @@ export function SettingsControlStyles() {
 				cursor: not-allowed;
 			}
 			.zset-nav-item:hover:not([aria-pressed="true"]) {
-				background: color-mix(in srgb, var(--text) 7%, transparent);
-				color: var(--text);
+				background: color-mix(in srgb, var(--zeta-alias-text) 7%, transparent);
+				color: var(--zeta-alias-text);
 			}
 			.zset-danger:hover:not(:disabled) {
-				background: color-mix(in srgb, #f87171 12%, transparent);
+				background: color-mix(in srgb, var(--zeta-alias-status-error) 12%, transparent);
 			}
 			.zset-outline:hover:not(:disabled) {
-				border-color: var(--border-strong, var(--text-dim));
-				color: var(--text);
+				border-color: var(--border-strong, var(--zeta-alias-text-dim));
+				color: var(--zeta-alias-text);
 			}
 		`}</style>
 	);
@@ -396,7 +396,7 @@ function SecretInput({
 				...inputStyle,
 				width: 170,
 				fontFamily: "var(--font-mono)",
-				borderColor: failed ? "#f87171" : undefined,
+				borderColor: failed ? "var(--zeta-alias-status-error)" : undefined,
 			}}
 		/>
 	);
@@ -435,7 +435,7 @@ function WeChatQrImage({ url }: { url: string }) {
 			width={140}
 			height={140}
 			onError={() => setFailed(true)}
-			style={{ borderRadius: 6, border: "1px solid var(--border)", flexShrink: 0, background: "#fff" }}
+			style={{ borderRadius: 6, border: "1px solid var(--zeta-alias-border)", flexShrink: 0, background: "var(--zeta-alias-accent-foreground)" }}
 		/>
 	);
 }
@@ -557,10 +557,10 @@ function ChannelCredentialsForm({
 					style={{
 						height: 26,
 						padding: "0 12px",
-						background: saved ? "#16a34a" : dirty && !saving ? "var(--accent)" : "var(--bg-input, var(--bg-panel))",
-						border: dirty && !saving || saved ? "1px solid transparent" : "1px solid var(--border)",
+						background: saved ? "var(--zeta-alias-status-success)" : dirty && !saving ? "var(--zeta-alias-accent)" : "var(--bg-input, var(--zeta-alias-bg-panel))",
+						border: dirty && !saving || saved ? "1px solid transparent" : "1px solid var(--zeta-alias-border)",
 						borderRadius: "var(--radius-unit, 6px)",
-						color: (dirty && !saving) || saved ? "var(--bg, #fff)" : "var(--text-dim)",
+						color: (dirty && !saving) || saved ? "var(--zeta-alias-bg)" : "var(--zeta-alias-text-dim)",
 						cursor: dirty && !saving ? "pointer" : "not-allowed",
 						fontSize: 11.5,
 						fontWeight: 600,
@@ -573,7 +573,7 @@ function ChannelCredentialsForm({
 				>
 					{saved ? t("settings.saved") : saving ? t("settings.saving") : t("settings.save")}
 				</button>
-				{error && <span style={{ fontSize: 11, color: "#f87171" }}>{error}</span>}
+				{error && <span style={{ fontSize: 11, color: "var(--zeta-alias-status-error)" }}>{error}</span>}
 			</div>
 		</div>
 	);
@@ -582,14 +582,14 @@ function ChannelCredentialsForm({
 function WebDisplaySection({ t, highlight }: { t: (key: string) => string; highlight?: string }) {
 	const { visible, toggle } = useSidebar();
 	return (
-		<div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+		<div style={{ padding: "12px 14px", borderBottom: "1px solid var(--zeta-alias-border)" }}>
 			<div
 				style={{
 					fontSize: 11,
 					fontWeight: 700,
 					letterSpacing: 0.4,
 					textTransform: "uppercase",
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					marginBottom: 10,
 				}}
 			>
@@ -666,14 +666,14 @@ function WebSettingsSection({
 	}, []);
 
 	const group = (title: string, children: React.ReactNode) => (
-		<div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+		<div style={{ padding: "12px 14px", borderBottom: "1px solid var(--zeta-alias-border)" }}>
 			<div
 				style={{
 					fontSize: 11,
 					fontWeight: 700,
 					letterSpacing: 0.4,
 					textTransform: "uppercase",
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					marginBottom: 10,
 				}}
 			>
@@ -686,18 +686,18 @@ function WebSettingsSection({
 	const row = (label: string, description: string | undefined, control: React.ReactNode, path?: string) => (
 		<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
 			<div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
+				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
 					<SettingsHighlight text={label} query={highlight} />
 				</span>
 				{description && (
-					<span style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>
+					<span style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.4 }}>
 						<SettingsHighlight text={description} query={highlight} />
 					</span>
 				)}
 			</div>
 			<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 				{path && pending[path] === true && (
-					<span style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("settings.saving")}</span>
+					<span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>{t("settings.saving")}</span>
 				)}
 				{control}
 			</div>
@@ -711,9 +711,9 @@ function WebSettingsSection({
 					style={{
 						padding: "10px 14px",
 						fontSize: 12,
-						color: "#f87171",
-						background: "var(--bg-panel)",
-						borderBottom: "1px solid var(--border)",
+						color: "var(--zeta-alias-status-error)",
+						background: "var(--zeta-alias-bg-panel)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					{error}
@@ -724,9 +724,9 @@ function WebSettingsSection({
 					style={{
 						padding: "10px 14px",
 						fontSize: 12,
-						color: "var(--text-muted)",
-						background: "var(--bg-panel)",
-						borderBottom: "1px solid var(--border)",
+						color: "var(--zeta-alias-text-muted)",
+						background: "var(--zeta-alias-bg-panel)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					{savedFlash}
@@ -834,7 +834,7 @@ function WebSettingsSection({
 													<span
 														style={{
 															fontSize: 11.5,
-															color: "var(--text-muted)",
+															color: "var(--zeta-alias-text-muted)",
 															maxWidth: 220,
 															overflowWrap: "anywhere",
 															fontFamily: "var(--font-mono)",
@@ -849,7 +849,7 @@ function WebSettingsSection({
 														flexDirection: "column",
 														gap: 6,
 														fontSize: 11.5,
-														color: "var(--text-muted)",
+														color: "var(--zeta-alias-text-muted)",
 													}}
 												>
 													<span>
@@ -865,12 +865,12 @@ function WebSettingsSection({
 											</div>
 										)}
 										{wechatQr.pending && !wechatQr.qrcodeUrl && (
-											<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+											<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>
 												{t("wechat-waiting-qr")}
 											</div>
 										)}
 										{!wechatQr.pending && (
-											<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+											<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>
 												{channel.botToken
 													? t("wechat-connected")
 													: channel.enabled
@@ -941,7 +941,7 @@ function MultiSelectEditor({
 		onCommit(next);
 	};
 	if (options.length === 0) {
-		return <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatValue(entry)}</div>;
+		return <div style={{ fontSize: 12, color: "var(--zeta-alias-text-muted)" }}>{formatValue(entry)}</div>;
 	}
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 5, width: "100%" }}>
@@ -956,19 +956,19 @@ function MultiSelectEditor({
 							gap: 7,
 							cursor: "pointer",
 							fontSize: 12,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 						}}
 					>
 						<input
 							type="checkbox"
 							checked={checked}
 							onChange={() => toggle(option.value)}
-							style={{ width: 13, height: 13, accentColor: "var(--accent)", marginTop: 1, cursor: "pointer" }}
+							style={{ width: 13, height: 13, accentColor: "var(--zeta-alias-accent)", marginTop: 1, cursor: "pointer" }}
 						/>
 						<span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
 							<span>{option.label}</span>
 							{option.description && (
-								<span style={{ fontSize: 11, color: "var(--text-muted)" }}>{option.description}</span>
+								<span style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)" }}>{option.description}</span>
 							)}
 						</span>
 					</label>
@@ -1027,7 +1027,7 @@ function ProviderLimitsEditor({
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
 			{providers.length === 0 && (
-				<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+				<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>
 					{t("settings.provider-limits-empty")}
 				</div>
 			)}
@@ -1037,7 +1037,7 @@ function ProviderLimitsEditor({
 						style={{
 							flex: 1,
 							fontSize: 11,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 							fontFamily: "var(--font-mono)",
 							overflowWrap: "anywhere",
 						}}
@@ -1144,7 +1144,7 @@ function ModelRolesEditor({
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
 			{roles.length === 0 && (
-				<div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+				<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>
 					{t("settings.model-roles-empty")}
 				</div>
 			)}
@@ -1154,7 +1154,7 @@ function ModelRolesEditor({
 						style={{
 							flex: 1,
 							fontSize: 11,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 							fontFamily: "var(--font-mono)",
 							overflowWrap: "anywhere",
 						}}
@@ -1325,7 +1325,7 @@ function SettingRow({
 									padding: 0,
 									border: "none",
 									background: "transparent",
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									cursor: "pointer",
 									display: "flex",
 									alignItems: "center",
@@ -1389,35 +1389,35 @@ function SettingRow({
 				flexDirection: "column",
 				gap: 6,
 				padding: "10px 14px",
-				borderBottom: "1px solid var(--border)",
+				borderBottom: "1px solid var(--zeta-alias-border)",
 			}}
 		>
 			<div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
+				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
 					<SettingsHighlight text={entry.label} query={highlight} />
 				</span>
 				{!wide && (
 					<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-						{pending && <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("settings.saving")}</span>}
+						{pending && <span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>{t("settings.saving")}</span>}
 						{renderControl()}
 					</div>
 				)}
 			</div>
 			{entry.description && (
-				<div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.45 }}>
+				<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.45 }}>
 					<SettingsHighlight text={entry.description} query={highlight} />
 				</div>
 			)}
 			{terminalNote && (
-				<div style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("takes-effect-in-the-terminal-cli")}</div>
+				<div style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>{t("takes-effect-in-the-terminal-cli")}</div>
 			)}
 			{wide && (
 				<div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-					{pending && <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("settings.saving")}</span>}
+					{pending && <span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>{t("settings.saving")}</span>}
 					{renderControl()}
 				</div>
 			)}
-			{error && <div style={{ fontSize: 11.5, color: "#f87171" }}>{t("settings.save-failed-fmt", { error })}</div>}
+			{error && <div style={{ fontSize: 11.5, color: "var(--zeta-alias-status-error)" }}>{t("settings.save-failed-fmt", { error })}</div>}
 		</div>
 	);
 }
@@ -1435,7 +1435,7 @@ export function SettingsHighlight({ text, query }: { text: string; query?: strin
 		parts.push(
 			<mark
 				key={parts.length}
-				style={{ background: "var(--accent-muted)", color: "inherit", borderRadius: 2, padding: "0 1px" }}
+				style={{ background: "var(--zeta-alias-accent-muted)", color: "inherit", borderRadius: 2, padding: "0 1px" }}
 			>
 				{text.slice(index, index + needle.length)}
 			</mark>,
@@ -1547,23 +1547,23 @@ export function useSettingsData(enabled = true): SettingsDataState {
 						flexDirection: "column",
 						gap: 3,
 						padding: "10px 14px",
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					<div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-						<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
+						<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
 							<SettingsHighlight text={entry.label} query={highlight} />
 						</span>
-						<code style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+						<code style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)", fontFamily: "var(--font-mono)" }}>
 							{formatValue(entry)}
 						</code>
 					</div>
 					{entry.description && (
-						<div style={{ fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.45 }}>
+						<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.45 }}>
 							<SettingsHighlight text={entry.description} query={highlight} />
 						</div>
 					)}
-					<div style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("settings.configure-via-cli")}</div>
+					<div style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>{t("settings.configure-via-cli")}</div>
 				</div>
 			);
 		}
@@ -1685,10 +1685,10 @@ function WebTabContent({ web, highlight }: { web: SettingsWebConfigState; highli
 		);
 	}
 	return (
-		<div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>
+		<div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>
 			{web.error ? (
 				<div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
-					<span style={{ color: "#f87171" }}>
+					<span style={{ color: "var(--zeta-alias-status-error)" }}>
 						{t("web-config-load-failed")}
 						{web.error}
 					</span>
@@ -1744,7 +1744,7 @@ export function SettingsTabBody({
 				style={{
 					padding: 24,
 					fontSize: 12.5,
-					color: "#f87171",
+					color: "var(--zeta-alias-status-error)",
 					display: "flex",
 					flexDirection: "column",
 					gap: 10,
@@ -1758,7 +1758,7 @@ export function SettingsTabBody({
 			</div>
 		);
 	} else if (!data) {
-		body = <div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>{t("loading")}</div>;
+		body = <div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>{t("loading")}</div>;
 	} else {
 		const entries = data.settings.filter(s => s.tab === activeTab && s.visible);
 		const filtered =
@@ -1782,10 +1782,10 @@ export function SettingsTabBody({
 							justifyContent: "space-between",
 							gap: 10,
 							padding: "10px 14px",
-							background: "var(--accent-muted)",
-							borderBottom: "1px solid var(--border)",
+							background: "var(--zeta-alias-accent-muted)",
+							borderBottom: "1px solid var(--zeta-alias-border)",
 							fontSize: 12,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 						}}
 					>
 						<span style={{ lineHeight: 1.45 }}>{t("configure-provider-models-via-the-models-configu")}</span>
@@ -1809,8 +1809,8 @@ export function SettingsTabBody({
 								fontWeight: 700,
 								letterSpacing: "0.06em",
 								textTransform: "uppercase",
-								color: "var(--text-muted)",
-								background: "var(--bg)",
+								color: "var(--zeta-alias-text-muted)",
+								background: "var(--zeta-alias-bg)",
 							}}
 						>
 							<SettingsHighlight text={group} query={q} />
@@ -1819,10 +1819,10 @@ export function SettingsTabBody({
 					</div>
 				))}
 				{entries.length === 0 && (
-					<div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>{t("settings.tab-empty")}</div>
+					<div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>{t("settings.tab-empty")}</div>
 				)}
 				{entries.length > 0 && filtered.length === 0 && (
-					<div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>
+					<div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>
 						{t("settings.search-no-results", { query: query ?? "" })}
 					</div>
 				)}
@@ -1830,5 +1830,5 @@ export function SettingsTabBody({
 		);
 	}
 
-	return <div style={{ flex: 1, overflowY: "auto", background: "var(--bg)" }}>{body}</div>;
+	return <div style={{ flex: 1, overflowY: "auto", background: "var(--zeta-alias-bg)" }}>{body}</div>;
 }

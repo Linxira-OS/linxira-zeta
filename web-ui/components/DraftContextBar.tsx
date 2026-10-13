@@ -156,10 +156,10 @@ export function WorkspacePickerPanel({
 					zIndex: 500,
 					display: "flex",
 					flexDirection: "column",
-					background: "var(--bg)",
-					border: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 10,
-					boxShadow: "0 -4px 20px rgba(0,0,0,0.14)",
+					boxShadow: "0 -4px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 					overflow: "hidden",
 				}}
 			>
@@ -170,8 +170,8 @@ export function WorkspacePickerPanel({
 						fontWeight: 600,
 						letterSpacing: "0.06em",
 						textTransform: "uppercase",
-						color: "var(--text-dim)",
-						borderBottom: "1px solid var(--border)",
+						color: "var(--zeta-alias-text-dim)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
 					{t("draft-context.recent-projects")}
@@ -186,9 +186,9 @@ export function WorkspacePickerPanel({
 								gap: 8,
 								width: "100%",
 								padding: "7px 12px",
-								background: "var(--bg-selected)",
+								background: "var(--zeta-alias-bg-selected)",
 								border: "none",
-								color: "var(--text)",
+								color: "var(--zeta-alias-text)",
 								cursor: "pointer",
 								fontSize: 12.5,
 								textAlign: "left",
@@ -202,7 +202,7 @@ export function WorkspacePickerPanel({
 						</button>
 					)}
 					{items.length === 0 && !normalizedCurrent ? (
-						<div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-muted)" }}>
+						<div style={{ padding: "10px 12px", fontSize: 12, color: "var(--zeta-alias-text-muted)" }}>
 							{t("draft-context.no-projects")}
 						</div>
 					) : (
@@ -219,18 +219,18 @@ export function WorkspacePickerPanel({
 									padding: "7px 12px",
 									background: "none",
 									border: "none",
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									cursor: "pointer",
 									fontSize: 12.5,
 									textAlign: "left",
 								}}
 								onMouseEnter={e => {
-									e.currentTarget.style.background = "var(--bg-hover)";
-									e.currentTarget.style.color = "var(--text)";
+									e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+									e.currentTarget.style.color = "var(--zeta-alias-text)";
 								}}
 								onMouseLeave={e => {
 									e.currentTarget.style.background = "none";
-									e.currentTarget.style.color = "var(--text-muted)";
+									e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 								}}
 							>
 								<FolderIcon />
@@ -241,8 +241,8 @@ export function WorkspacePickerPanel({
 								<span
 									style={{
 										fontSize: 10,
-										color: "var(--accent)",
-										border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+										color: "var(--zeta-alias-accent)",
+										border: "1px solid color-mix(in srgb, var(--zeta-alias-accent) 35%, transparent)",
 										borderRadius: 999,
 										padding: "0 6px",
 										lineHeight: "15px",
@@ -263,8 +263,8 @@ export function WorkspacePickerPanel({
 						style={{
 							padding: "6px 12px",
 							fontSize: 11.5,
-							color: "var(--status-error)",
-							borderTop: "1px solid var(--border)",
+							color: "var(--zeta-alias-status-error)",
+							borderTop: "1px solid var(--zeta-alias-border)",
 							overflowWrap: "anywhere",
 						}}
 					>
@@ -281,14 +281,14 @@ export function WorkspacePickerPanel({
 						padding: "8px 12px",
 						background: "none",
 						border: "none",
-						borderTop: "1px solid var(--border)",
-						color: "var(--accent)",
+						borderTop: "1px solid var(--zeta-alias-border)",
+						color: "var(--zeta-alias-accent)",
 						cursor: "pointer",
 						fontSize: 12.5,
 						textAlign: "left",
 					}}
 					onMouseEnter={e => {
-						e.currentTarget.style.background = "var(--bg-hover)";
+						e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 					}}
 					onMouseLeave={e => {
 						e.currentTarget.style.background = "none";
@@ -329,10 +329,10 @@ const chipButtonStyle: React.CSSProperties = {
 	alignItems: "center",
 	gap: 6,
 	padding: "5px 10px",
-	background: "var(--bg-panel)",
-	border: "1px solid var(--border)",
+	background: "var(--zeta-alias-bg-panel)",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: 999,
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	fontSize: 12,
 	maxWidth: 320,
@@ -445,12 +445,12 @@ export function DraftContextBar({
 					title={cwd ?? t("draft-context.select-workspace")}
 					style={chipButtonStyle}
 					onMouseEnter={e => {
-						e.currentTarget.style.borderColor = "color-mix(in srgb, var(--accent) 40%, var(--border))";
-						e.currentTarget.style.color = "var(--text)";
+						e.currentTarget.style.borderColor = "color-mix(in srgb, var(--zeta-alias-accent) 40%, var(--zeta-alias-border))";
+						e.currentTarget.style.color = "var(--zeta-alias-text)";
 					}}
 					onMouseLeave={e => {
-						e.currentTarget.style.borderColor = "var(--border)";
-						e.currentTarget.style.color = "var(--text-muted)";
+						e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+						e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 					}}
 				>
 					<FolderIcon />
@@ -498,12 +498,12 @@ export function DraftContextBar({
 						disabled={checkoutBusy}
 						style={{ ...chipButtonStyle, fontFamily: "var(--font-mono)" }}
 						onMouseEnter={e => {
-							e.currentTarget.style.borderColor = "color-mix(in srgb, var(--accent) 40%, var(--border))";
-							e.currentTarget.style.color = "var(--text)";
+							e.currentTarget.style.borderColor = "color-mix(in srgb, var(--zeta-alias-accent) 40%, var(--zeta-alias-border))";
+							e.currentTarget.style.color = "var(--zeta-alias-text)";
 						}}
 						onMouseLeave={e => {
-							e.currentTarget.style.borderColor = "var(--border)";
-							e.currentTarget.style.color = "var(--text-muted)";
+							e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
+							e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 						}}
 					>
 						<svg
@@ -536,10 +536,10 @@ export function DraftContextBar({
 								zIndex: 500,
 								display: "flex",
 								flexDirection: "column",
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 10,
-								boxShadow: "0 -4px 20px rgba(0,0,0,0.14)",
+								boxShadow: "0 -4px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 								overflow: "hidden",
 							}}
 							onMouseDown={e => {
@@ -559,9 +559,9 @@ export function DraftContextBar({
 												gap: 8,
 												width: "100%",
 												padding: "7px 12px",
-												background: isActive ? "var(--bg-selected)" : "none",
+												background: isActive ? "var(--zeta-alias-bg-selected)" : "none",
 												border: "none",
-												color: isActive ? "var(--text)" : "var(--text-muted)",
+												color: isActive ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 												cursor: "pointer",
 												fontSize: 12,
 												fontFamily: "var(--font-mono)",
@@ -569,7 +569,7 @@ export function DraftContextBar({
 												whiteSpace: "nowrap",
 											}}
 											onMouseEnter={e => {
-												if (!isActive) e.currentTarget.style.background = "var(--bg-hover)";
+												if (!isActive) e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 											}}
 											onMouseLeave={e => {
 												if (!isActive) e.currentTarget.style.background = "none";
@@ -581,7 +581,7 @@ export function DraftContextBar({
 													height="10"
 													viewBox="0 0 10 10"
 													fill="none"
-													stroke="var(--accent)"
+													stroke="var(--zeta-alias-accent)"
 													strokeWidth="2"
 													strokeLinecap="round"
 													strokeLinejoin="round"
@@ -609,7 +609,7 @@ export function DraftContextBar({
 						flexBasis: "100%",
 						textAlign: "center",
 						fontSize: 11.5,
-						color: "var(--status-error)",
+						color: "var(--zeta-alias-status-error)",
 					}}
 				>
 					{checkoutError}

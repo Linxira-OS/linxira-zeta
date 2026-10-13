@@ -346,8 +346,8 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "web-ui/app/globals.css",
-		symbol: "--c6: var(--chart-6);",
-		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless",
+		symbol: "--c6: var(--zeta-alias-chart-6);",
+		why: "the theme-token aliases a ```svg figure paints with (the prompt promises --fg/--muted/--accent/--c1…); web-ui defines none of those names natively, so losing the scope leaves every figure colorless. The right-hand side is the L2 alias layer — L1 `--chart-6` still resolves through the compat bridge, but the alias is what the three-layer scheme (lib/theme/tokens.ts) puts in feature CSS",
 	},
 	// -- Cross-client session provenance -------------------------------------------
 	{

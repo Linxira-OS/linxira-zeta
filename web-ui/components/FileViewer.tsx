@@ -41,9 +41,9 @@ const FILE_LINE_NUMBER_STYLE: CSSProperties = {
 	minWidth: 48,
 	padding: "0 10px",
 	textAlign: "right",
-	color: "var(--text-dim)",
-	background: "var(--bg-panel)",
-	borderRight: "1px solid var(--border)",
+	color: "var(--zeta-alias-text-dim)",
+	background: "var(--zeta-alias-bg-panel)",
+	borderRight: "1px solid var(--zeta-alias-border)",
 	fontFamily: "var(--font-mono)",
 	fontSize: 11,
 	fontStyle: "normal",
@@ -144,8 +144,8 @@ function ShikiSourceView({ code, language, wrapLines }: { code: string; language
 				margin: 0,
 				padding: 0,
 				border: 0,
-				background: "var(--syntax-background)",
-				color: "var(--md-syntax-foreground)",
+				background: "var(--zeta-alias-syntax-background)",
+				color: "var(--zeta-alias-md-syntax-foreground)",
 				...FILE_CODE_STYLE,
 				width: wrapLines ? "100%" : "max-content",
 				minWidth: "100%",
@@ -298,7 +298,7 @@ function DiffView({ patch }: { patch: string }) {
 				style={{
 					padding: "12px 16px",
 					fontSize: 12,
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					fontFamily: "var(--font-mono)",
 				}}
 			>
@@ -353,11 +353,11 @@ function DiffView({ patch }: { patch: string }) {
 							key={si}
 							style={{
 								padding: "2px 16px",
-								color: "var(--text-dim)",
-								background: "var(--bg-panel)",
+								color: "var(--zeta-alias-text-dim)",
+								background: "var(--zeta-alias-bg-panel)",
 								fontSize: 11,
-								borderTop: "1px solid var(--border)",
-								borderBottom: "1px solid var(--border)",
+								borderTop: "1px solid var(--zeta-alias-border)",
+								borderBottom: "1px solid var(--zeta-alias-border)",
 							}}
 						>
 							... {seg.count} unchanged lines ...
@@ -368,13 +368,13 @@ function DiffView({ patch }: { patch: string }) {
 				const lines = seg.lines.map((line, li) => {
 					const bg =
 						line.type === "added"
-							? "rgba(0,200,80,0.12)"
+							? "color-mix(in srgb, var(--zeta-alias-status-success) 12%, transparent)"
 							: line.type === "removed"
-								? "rgba(240,60,60,0.14)"
+								? "color-mix(in srgb, var(--zeta-alias-status-error) 14%, transparent)"
 								: "transparent";
 					const prefix = line.type === "added" ? "+" : line.type === "removed" ? "-" : " ";
 					const prefixColor =
-						line.type === "added" ? "#4ade80" : line.type === "removed" ? "#f87171" : "var(--text-dim)";
+						line.type === "added" ? "var(--zeta-alias-status-success)" : line.type === "removed" ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-dim)";
 
 					return (
 						<div
@@ -386,9 +386,9 @@ function DiffView({ patch }: { patch: string }) {
 								background: bg,
 								borderLeft:
 									line.type === "added"
-										? "3px solid #4ade80"
+										? "3px solid var(--zeta-alias-status-success)"
 										: line.type === "removed"
-											? "3px solid #f87171"
+											? "3px solid var(--zeta-alias-status-error)"
 											: "3px solid transparent",
 							}}
 						>
@@ -413,7 +413,7 @@ function DiffView({ patch }: { patch: string }) {
 									flexShrink: 0,
 									padding: "0 8px 0 0",
 									whiteSpace: "pre",
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 								}}
 							>
 								{line.text || "\u00a0"}
@@ -494,10 +494,10 @@ function ImageViewer({ filePath, cwd, sourceSessionId }: Props) {
 					alignItems: "center",
 					gap: 12,
 					padding: "4px 16px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-dim)",
-					background: "var(--bg)",
+					color: "var(--zeta-alias-text-dim)",
+					background: "var(--zeta-alias-bg)",
 					flexShrink: 0,
 				}}
 			>
@@ -517,9 +517,9 @@ function ImageViewer({ filePath, cwd, sourceSessionId }: Props) {
 							width: 7,
 							height: 7,
 							borderRadius: "50%",
-							background: watching ? "#4ade80" : "var(--border)",
+							background: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
 							display: "inline-block",
-							boxShadow: watching ? "0 0 4px #4ade80" : "none",
+							boxShadow: watching ? "0 0 4px var(--zeta-alias-status-success)" : "none",
 						}}
 					/>
 					{watching ? "live" : "static"}
@@ -530,19 +530,19 @@ function ImageViewer({ filePath, cwd, sourceSessionId }: Props) {
 				style={{
 					flex: 1,
 					overflow: "auto",
-					background: "var(--bg-panel)",
+					background: "var(--zeta-alias-bg-panel)",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 					padding: 16,
 					backgroundImage:
-						"linear-gradient(45deg, var(--bg) 25%, transparent 25%), linear-gradient(-45deg, var(--bg) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--bg) 75%), linear-gradient(-45deg, transparent 75%, var(--bg) 75%)",
+						"linear-gradient(45deg, var(--zeta-alias-bg) 25%, transparent 25%), linear-gradient(-45deg, var(--zeta-alias-bg) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--zeta-alias-bg) 75%), linear-gradient(-45deg, transparent 75%, var(--zeta-alias-bg) 75%)",
 					backgroundSize: "16px 16px",
 					backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
 				}}
 			>
 				{error ? (
-					<div style={{ color: "#f87171", fontSize: 13 }}>{error}</div>
+					<div style={{ color: "var(--zeta-alias-status-error)", fontSize: 13 }}>{error}</div>
 				) : (
 					// eslint-disable-next-line @next/next/no-img-element
 					<img
@@ -557,7 +557,7 @@ function ImageViewer({ filePath, cwd, sourceSessionId }: Props) {
 							maxWidth: "100%",
 							maxHeight: "100%",
 							objectFit: "contain",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+							boxShadow: "0 2px 8px color-mix(in srgb, var(--zeta-alias-neutral-1000) 15%, transparent)",
 						}}
 					/>
 				)}
@@ -638,10 +638,10 @@ function AudioViewer({ filePath, cwd, sourceSessionId }: Props) {
 					alignItems: "center",
 					gap: 12,
 					padding: "4px 16px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-dim)",
-					background: "var(--bg)",
+					color: "var(--zeta-alias-text-dim)",
+					background: "var(--zeta-alias-bg)",
 					flexShrink: 0,
 				}}
 			>
@@ -657,7 +657,7 @@ function AudioViewer({ filePath, cwd, sourceSessionId }: Props) {
 						display: "flex",
 						alignItems: "center",
 						gap: 4,
-						color: watching ? "#4ade80" : "var(--text-dim)",
+						color: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-text-dim)",
 					}}
 				>
 					<span
@@ -665,9 +665,9 @@ function AudioViewer({ filePath, cwd, sourceSessionId }: Props) {
 							width: 7,
 							height: 7,
 							borderRadius: "50%",
-							background: watching ? "#4ade80" : "var(--border)",
+							background: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
 							display: "inline-block",
-							boxShadow: watching ? "0 0 4px #4ade80" : "none",
+							boxShadow: watching ? "0 0 4px var(--zeta-alias-status-success)" : "none",
 						}}
 					/>
 					{watching ? "live" : "static"}
@@ -681,14 +681,14 @@ function AudioViewer({ filePath, cwd, sourceSessionId }: Props) {
 					alignItems: "center",
 					justifyContent: "center",
 					padding: 24,
-					background: "var(--bg-panel)",
+					background: "var(--zeta-alias-bg-panel)",
 				}}
 			>
 				<div style={{ width: "min(680px, 100%)" }}>
 					{error && (
 						<div
 							style={{
-								color: "#f87171",
+								color: "var(--zeta-alias-status-error)",
 								fontSize: 13,
 								marginBottom: 12,
 								textAlign: "center",
@@ -794,10 +794,10 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
 					alignItems: "center",
 					gap: 12,
 					padding: "4px 16px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-dim)",
-					background: "var(--bg)",
+					color: "var(--zeta-alias-text-dim)",
+					background: "var(--zeta-alias-bg)",
 					flexShrink: 0,
 				}}
 			>
@@ -821,7 +821,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
 						display: "flex",
 						alignItems: "center",
 						gap: 4,
-						color: watching ? "#4ade80" : "var(--text-dim)",
+						color: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-text-dim)",
 						flexShrink: 0,
 					}}
 				>
@@ -830,15 +830,15 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
 							width: 7,
 							height: 7,
 							borderRadius: "50%",
-							background: watching ? "#4ade80" : "var(--border)",
+							background: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
 							display: "inline-block",
-							boxShadow: watching ? "0 0 4px #4ade80" : "none",
+							boxShadow: watching ? "0 0 4px var(--zeta-alias-status-success)" : "none",
 						}}
 					/>
 					{watching ? "live" : "static"}
 				</span>
 			</div>
-			<div style={{ flex: 1, minHeight: 0, background: "var(--bg-panel)" }}>
+			<div style={{ flex: 1, minHeight: 0, background: "var(--zeta-alias-bg-panel)" }}>
 				{error ? (
 					<div
 						style={{
@@ -847,7 +847,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
 							alignItems: "center",
 							justifyContent: "center",
 							padding: 24,
-							color: "#f87171",
+							color: "var(--zeta-alias-status-error)",
 							fontSize: 13,
 							textAlign: "center",
 						}}
@@ -863,7 +863,7 @@ function DocumentViewer({ filePath, cwd, sourceSessionId }: Props) {
 							width: "100%",
 							height: "100%",
 							border: "none",
-							background: isPdf ? "var(--bg)" : "#eef1f5",
+							background: isPdf ? "var(--zeta-alias-bg)" : "var(--zeta-alias-bg-panel)",
 						}}
 					/>
 				)}
@@ -1126,7 +1126,7 @@ function TextFileViewer({
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					fontSize: 13,
 				}}
 			>
@@ -1143,7 +1143,7 @@ function TextFileViewer({
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					color: "#f87171",
+					color: "var(--zeta-alias-status-error)",
 					fontSize: 13,
 				}}
 			>
@@ -1186,10 +1186,10 @@ function TextFileViewer({
 					alignItems: "center",
 					gap: 8,
 					padding: "5px 12px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-dim)",
-					background: "var(--bg)",
+					color: "var(--zeta-alias-text-dim)",
+					background: "var(--zeta-alias-bg)",
 					flexShrink: 0,
 				}}
 			>
@@ -1206,8 +1206,8 @@ function TextFileViewer({
 						aria-label={watching ? t("files.liveSync") : t("files.notWatching")}
 						className="file-viewer-live-indicator"
 						style={{
-							background: watching ? "#4ade80" : "var(--border)",
-							boxShadow: watching ? "0 0 4px #4ade80" : "none",
+							background: watching ? "var(--zeta-alias-status-success)" : "var(--zeta-alias-border)",
+							boxShadow: watching ? "0 0 4px var(--zeta-alias-status-success)" : "none",
 						}}
 					/>
 				)}
@@ -1226,8 +1226,8 @@ function TextFileViewer({
 										aria-pressed={active}
 										className="file-viewer-mode-button"
 										style={{
-											background: active ? "var(--bg-selected)" : "transparent",
-											color: active ? "var(--text)" : "var(--text-muted)",
+											background: active ? "var(--zeta-alias-bg-selected)" : "transparent",
+											color: active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 										}}
 									>
 										{mode === "source" ? t("source") : mode === "preview" ? t("preview") : t("diff")}
@@ -1259,8 +1259,8 @@ function TextFileViewer({
 									aria-pressed={wrapLines}
 									className="file-viewer-icon-button"
 									style={{
-										background: wrapLines ? "var(--bg-selected)" : "transparent",
-										color: wrapLines ? "var(--text)" : "var(--text-muted)",
+										background: wrapLines ? "var(--zeta-alias-bg-selected)" : "transparent",
+										color: wrapLines ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 									}}
 								>
 									<svg
@@ -1292,7 +1292,7 @@ function TextFileViewer({
 			<div
 				ref={contentRef}
 				className="file-viewer-content"
-				style={{ flex: 1, overflow: "auto", background: "var(--bg)" }}
+				style={{ flex: 1, overflow: "auto", background: "var(--zeta-alias-bg)" }}
 			>
 				{effectiveDisplayMode === "diff" && hasGitDiff ? (
 					<DiffView patch={gitDiff.patch!} />
@@ -1304,7 +1304,7 @@ function TextFileViewer({
 							width: "100%",
 							height: "100%",
 							border: "none",
-							background: "var(--bg)",
+							background: "var(--zeta-alias-bg)",
 						}}
 						title={t("files.htmlPreview")}
 					/>

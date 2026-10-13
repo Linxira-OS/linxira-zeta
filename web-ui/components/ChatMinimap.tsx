@@ -697,8 +697,8 @@ export function ChatMinimap({
         position: "relative",
         cursor: "pointer",
         userSelect: "none",
-        borderLeft: "1px solid var(--border)",
-        background: "var(--bg-panel)",
+        borderLeft: "1px solid var(--zeta-alias-border)",
+        background: "var(--zeta-alias-bg-panel)",
         overflow: "visible",
       }}
     >
@@ -709,7 +709,7 @@ export function ChatMinimap({
           top: MINIMAP_PADDING,
           height: railHeight,
           width: 1,
-          background: "var(--border)",
+          background: "var(--zeta-alias-border)",
           transform: "translateX(-50%)",
           zIndex: 0,
         }}
@@ -744,10 +744,10 @@ export function ChatMinimap({
                 height: 8,
                 borderRadius: 2,
                 background: isActive
-                  ? "rgba(128,128,128,0.42)"
-                  : "rgba(128,128,128,0.16)",
-                border: `1.5px solid ${isActive ? "rgba(128,128,128,0.95)" : "rgba(128,128,128,0.58)"}`,
-                boxShadow: isActive ? "0 0 0 2px var(--bg-panel)" : "none",
+                  ? "color-mix(in srgb, var(--zeta-alias-text-muted) 42%, transparent)"
+                  : "color-mix(in srgb, var(--zeta-alias-text-muted) 16%, transparent)",
+                border: `1.5px solid ${isActive ? "color-mix(in srgb, var(--zeta-alias-text-muted) 95%, transparent)" : "color-mix(in srgb, var(--zeta-alias-text-muted) 58%, transparent)"}`,
+                boxShadow: isActive ? "0 0 0 2px var(--zeta-alias-bg-panel)" : "none",
                 transition: "transform 0.1s, background 0.1s",
                 transform: isNearest ? "scale(1.25)" : "scale(1)",
               }}

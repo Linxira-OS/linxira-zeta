@@ -465,6 +465,9 @@ jobs:
          - name: Lint
            working-directory: web-ui
            run: npm run lint
+         - name: Colour literal guard
+           working-directory: web-ui
+           run: node scripts/check-style-literals.mjs
          - name: Build
            working-directory: web-ui
            run: npm run build

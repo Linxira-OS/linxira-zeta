@@ -236,11 +236,34 @@ Location: `~/.zeta/agent/sessions/<encoded-cwd>/<timestamp>_<uuid>.jsonl`
 
 ---
 
-## CSS Variables (`app/globals.css`)
+## CSS Variables — three colour layers (`lib/theme/tokens.ts`)
 
-```
---bg --bg-panel --bg-hover --bg-selected --border
---text --text-muted --text-dim
---accent --user-bg --tool-bg
---font-mono
-```
+Raw colour values live in exactly one place. Everything else references a
+semantic alias.
+
+| Layer | Name | Content | Who may write it |
+|---|---|---|---|
+| L1 static | `--zeta-static-<theme-JSON-leaf>` | raw values, e.g. `--zeta-static-surface-muted-foreground` ← `colors.surface.mutedForeground` | only `lib/theme/tokens.ts` and the generated `styles/themes/zeta-static.css` |
+| L2 alias | `--zeta-alias-<semantic-name>` | `var(--zeta-static-…)` or `color-mix(...)`; every L1 token gets a same-named alias, plus the short vocabulary (`bg`, `text-dim`, `accent`, `sidebar-*`, `md-syntax-*`, …) from `ALIAS_OVERRIDES` | **feature CSS/TSX uses this layer only** |
+| L3 bridge | the unprefixed names (`--bg`, `--accent`, `--chart-1`, …) | one-line redirects: `--bg: var(--zeta-alias-bg);` | compat layer for unmigrated components; no removal deadline |
+
+- The runtime generator publishes all three layers per active theme; the
+  checked-in first-frame sheet carries them for the default light theme in
+  `:root` and the **single** dark override table (`[data-theme="dark"]`, the
+  whole L1 layer) — regenerate with `node scripts/gen-theme-static.mjs`.
+- `node scripts/check-style-literals.mjs` (wired into `web_ui_build`) fails on
+  any hex/rgb/hsl/oklch/named literal outside L1 and the allow-listed palettes
+  (`TerminalView` xterm colours, `lib/ansi.ts`, `lib/rainbow.tsx`, the server
+  preview document, the `theme-color` meta). Files still mid-migration carry a
+  ceiling in `scripts/style-literal-baseline.json`; tighten it with
+  `--update-baseline` after migrating one.
+- A literal that is a *matching key* rather than paint (e.g. a selector against
+  the highlighter's inline colours) is exempted per line with
+  `/* zeta-style-literal-allow: <reason> */`.
+- `--text-dim` is secondary **text** (`surface.mutedForeground`); the code
+  gutter is `--syntax-line-number`. `--primary-foreground` /
+  `--accent-foreground` are the on-fill foreground pair — use them instead of a
+  hardcoded `#fff` on an accent/destructive fill.
+- Typography, spacing, radius, motion and z-index tokens are outside these
+  layers and unchanged: `--font-mono`, `--font-display`, `--padding-scale`,
+  `--radius-unit`, `--text-markdown`, `--text-code`, `--markdown-*`.
