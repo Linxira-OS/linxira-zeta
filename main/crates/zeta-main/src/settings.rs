@@ -8,7 +8,7 @@
 use std::{fmt, path::PathBuf, sync::RwLock};
 
 /// Which shell new panes spawn. `Auto` follows the detected chain
-/// (Windows PowerShell → PowerShell 7 → Git Bash → cmd); the pins select
+/// (PowerShell 7 → Windows PowerShell → Git Bash → cmd); the pins select
 /// a specific flavor and fall back to `Auto` when it is not installed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ShellChoice {

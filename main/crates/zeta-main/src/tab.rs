@@ -75,7 +75,7 @@ impl PaneKind {
 	///
 	/// The workbench offers one-click bring-up of missing suite members: the
 	/// returned pane runs the raw install command inside a modern chained
-	/// shell (Windows PowerShell → PowerShell 7 → Git Bash — cmd.exe is
+	/// shell (PowerShell 7 → Windows PowerShell → Git Bash — cmd.exe is
 	/// never used for installs), keeps the pane open so the output stays
 	/// visible, and the next Alt+<tool> finds the freshly installed binary.
 	pub fn install_kind(&self) -> Option<PaneKind> {
@@ -160,8 +160,8 @@ impl Pane {
 		let body = if kind.is_widget() {
 			PaneBody::Widget
 		} else {
-			// Every PTY page is the modern chained shell (Windows
-			// PowerShell → PowerShell 7 → Git Bash, cmd.exe only as last
+			// Every PTY page is the modern chained shell (PowerShell 7 →
+			// Windows PowerShell → Git Bash, cmd.exe only as last
 			// resort — never for installs). The pane's command is typed
 			// into the interactive shell: quoting stays shell-correct for
 			// spaced paths, and the shell keeps the pane open after the

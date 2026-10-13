@@ -22,6 +22,12 @@ Zeta suite. Type `zeta` in a project directory and everything is one key away:
 Every tool also runs standalone (`zetacode`, `zeta-editor`/`zeta-e`,
 `zeta-ide`/`zeta-i`, each with its own `--help`).
 
+New shell panes pick the best installed shell automatically — PowerShell 7
+(`pwsh`) first, because its in-box PSReadLine is what gives panes inline
+history completion, then Windows PowerShell 5.1 (which ships PSReadLine 2.0.0
+and has no prediction), then Git Bash, then cmd. Pin one in Settings →
+`default shell` (`auto` · `powershell` · `pwsh` · `git-bash`).
+
 The workspace is Rust (ratatui + portable-pty via the vendored TermIDE panel
 crates). This tree is its own Cargo workspace — `cargo build` inside `main/`.
 
