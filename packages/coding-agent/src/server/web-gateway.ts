@@ -57,6 +57,7 @@ import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
+import { handleMemoryItem, handleMemoryList, handleMemorySearch, handleMemoryWrite } from "./web-gateway/memory";
 import { handleServeIdentityGet, SERVE_IDENTITY_PATH } from "./web-gateway/identity";
 import {
 	handleModels,
@@ -133,6 +134,14 @@ const SESSION_EXPORT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/export
 const AGENT_ID_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})$`);
 const EXTENSION_UI_RESPONSE_RE = /^\/api\/extension-ui\/response$/;
 const AGENT_EVENTS_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/events$`);
+// Memory content management, read-only batch (see web-gateway/memory.ts and the
+// capability matrix in document/web-gateway.md). `search`/`items` are anchored
+// separately so the bare `/memory` pattern cannot swallow them.
+const AGENT_MEMORY_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/memory$`);
+const AGENT_MEMORY_SEARCH_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/memory/search$`);
+// Memory ids are opaque and percent-encoded by the client (a `local` id is a
+// relative file path, so it may contain an encoded `/`).
+const AGENT_MEMORY_ITEM_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/memory/items/([^/]+)$`);
 // Subagent roster family (see `document/web-gateway.md`). `subagents/events`
 // must be tested before the bare `subagents` form; both are anchored, so the
 // ordering only keeps the reading order literal-first. `subId` is any
@@ -437,6 +446,29 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	const agentContext = capture(pathname, AGENT_CONTEXT_RE);
 	if (agentContext) {
 		if (req.method === "GET") return handleAgentContextUsage(agentContext[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Memory content management (read-only batch). `/memory` is both the list
+	// (GET) and the reserved maintenance entry point (POST → 501); item edits
+	// (PATCH → 501) are reserved on the item route.
+	const agentMemorySearch = capture(pathname, AGENT_MEMORY_SEARCH_RE);
+	if (agentMemorySearch) {
+		if (req.method === "GET") return handleMemorySearch(req, agentMemorySearch[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentMemoryItem = capture(pathname, AGENT_MEMORY_ITEM_RE);
+	if (agentMemoryItem) {
+		if (req.method === "GET") return handleMemoryItem(agentMemoryItem[0], agentMemoryItem[1]);
+		if (req.method === "PATCH") return handleMemoryWrite("PATCH");
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentMemory = capture(pathname, AGENT_MEMORY_RE);
+	if (agentMemory) {
+		if (req.method === "GET") return handleMemoryList(req, agentMemory[0]);
+		if (req.method === "POST") return handleMemoryWrite("POST");
 		return json({ error: "Method not allowed" }, 405);
 	}
 
