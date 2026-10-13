@@ -8,7 +8,11 @@ exports_files(["Cargo.toml"])
 # Vendored napi-rs with the per-env leak fix (see README.md), promoted to a
 # workspace member so Bazel treats it as first-party (crate_universe's path-dep
 # rendering is machine-local and breaks lockfile portability). Feature list
-# mirrors cargo's resolved set for pi-natives. build.rs is not wired in: it
+# mirrors cargo's resolved set for pi-natives — regenerate it with
+# `cargo tree -p pi-natives -i napi -e normal -f '{p} [{f}]'` — and stops at
+# napi8: levels 9 and 10 are unused, while 8 carries the type-tag validation
+# napi-derive emits for every `#[napi]` class (see the napi dependency comment
+# in the root Cargo.toml). build.rs is not wired in: it
 # only sets cfgs for wasm32-wasip1-threads and links windows-gnu, neither of
 # which ships; its check-cfg declarations are covered by --cap-lints.
 rust_library(
@@ -19,7 +23,6 @@ rust_library(
         "default",
         "dyn-symbols",
         "napi1",
-        "napi10",
         "napi2",
         "napi3",
         "napi4",
@@ -27,7 +30,6 @@ rust_library(
         "napi6",
         "napi7",
         "napi8",
-        "napi9",
         "tokio",
         "tokio_rt",
         "tokio_time",

@@ -335,7 +335,23 @@ winreg = "0.56"
 # ──────────────────────────────────────────────────────────────────────────────
 # Node.js Bindings (NAPI)
 # ──────────────────────────────────────────────────────────────────────────────
-napi = { version = "3", features = ["napi10", "tokio_rt", "tokio_time"] }
+# Node-API level floor for the pi-natives addon. The tree calls level 4
+# (thread-safe functions, async work), level 6 (BigInt on the vfs u64 wire),
+# and — through napi-derive's generated class glue, which is emitted
+# unconditionally — level 8 type-tag validation: `napi_type_tag_object` on
+# construction and `napi_check_object_type_tag` on every `&self`/`&mut self`
+# recovery, rejecting a wrong-class or prototype-spoofed argument before the
+# blind cast. Nothing uses level 9 (`node_api_symbol_for`,
+# `node_api_get_module_file_name`, `node_api_throw_syntax_error`) or level 10
+# (`node_api_create_external_string_latin1/utf16`), so the enabled set stops at
+# the lowest level that preserves current behavior. Bun is the only runtime that
+# loads these addons, and napi-rs treats an alternate runtime's Node-API
+# implementation as best-effort (its own Bun CI step is `continue-on-error`), so
+# the surface we lean on stays as small as it can. Dropping below 8 silently
+# disables the type-tag guard (the helper no-ops without the feature).
+# Keep `crates/vendor/napi/BUILD.bazel`'s crate_features in sync
+# (`cargo tree -p pi-natives -i napi -e normal -f '{p} [{f}]'`).
+napi = { version = "3", features = ["napi8", "tokio_rt", "tokio_time"] }
 napi-build = "2"
 napi-derive = "3"
 

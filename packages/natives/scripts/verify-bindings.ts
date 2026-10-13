@@ -41,6 +41,11 @@ function parseDeclaredSurface(source: string): { functions: string[]; classes: s
 function parseReExportedNames(source: string): string[] {
 	const names = new Set<string>();
 	for (const m of source.matchAll(/^export const (\w+) = nativeBindings\.\w+;/gm)) names.add(m[1]!);
+	// gen-enums guards every function export with `?? missingNativeExport("…")`,
+	// so a release addon predating a symbol resolves to a labeled stub instead
+	// of `undefined`. Those lines are still re-exports of the addon.
+	for (const m of source.matchAll(/^export const (\w+) = nativeBindings\.\w+ \?\? missingNativeExport\("[^"]*"\);/gm))
+		names.add(m[1]!);
 	for (const m of source.matchAll(/^export const (\w+) = \w+\(nativeBindings\.\w+\);/gm)) names.add(m[1]!);
 	for (const m of source.matchAll(/^export (?:async )?function (\w+)/gm)) names.add(m[1]!);
 	return [...names];

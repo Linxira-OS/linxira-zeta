@@ -501,6 +501,11 @@ jobs:
               echo "::notice title=Bazel build summary::${summary:-no process summary found}"
 
          # ---- both paths ----
+         # The product loads these addons on Bun, so the runtime is pinned
+         # here (package.json `packageManager`) rather than inherited from the
+         # runner image — and every natives step below runs on Bun, never
+         # silently falling back to node.
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
          # A corrupt download or cache entry must fail here, not as a
          # confusing dlopen error in every downstream test shard.
          - name: Smoke native addons
@@ -508,8 +513,8 @@ jobs:
            run: |
               set -euo pipefail
               # NOTE: `bun -e 'require("./x.node")'` swallows dlopen failures
-              # (exit 0 on a bogus addon); a script file enforces them in
-              # both bun and node. Verified against a corrupt .node fixture.
+              # (exit 0 on a bogus addon); a script file enforces them.
+              # Verified against a corrupt .node fixture.
               cat > "$RUNNER_TEMP/smoke-addons.js" <<'EOF'
               for (const f of process.argv.slice(2)) {
                const m = require(f);
@@ -519,9 +524,18 @@ jobs:
                }
               }
               EOF
-              loader=node
-              if command -v bun >/dev/null 2>&1; then loader=bun; fi
-              "$loader" "$RUNNER_TEMP/smoke-addons.js" \
+              bun "$RUNNER_TEMP/smoke-addons.js" \
+                "$PWD/ci-natives/natives-linux-x64-baseline/pi_natives.linux-x64-baseline.node" \
+                "$PWD/ci-natives/natives-linux-x64-modern/pi_natives.linux-x64-modern.node"
+         # The smoke above only proves dlopen. Bun is where the product runs
+         # these addons, and napi-rs treats an alternate runtime's Node-API
+         # implementation as best-effort (its own Bun CI step is
+         # continue-on-error), so "the addons work on Bun" is asserted
+         # directly here: real native operations, no skips, blocking. A real
+         # Bun gap found here is a release blocker, never a rerun.
+         - name: Bun natives regression (real operations)
+           run: |
+              bun packages/natives/scripts/bun-runtime-smoke.ts \
                 "$PWD/ci-natives/natives-linux-x64-baseline/pi_natives.linux-x64-baseline.node" \
                 "$PWD/ci-natives/natives-linux-x64-modern/pi_natives.linux-x64-modern.node"
          # Test jobs download ~120 MB of artifact over the network (44-68 s
