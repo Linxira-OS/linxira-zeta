@@ -2086,30 +2086,54 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       if (bashRunningRef.current) return;
       const sid = sessionIdRef.current;
       if (!sid) return;
-      sendAgentCommand(sid, { type: "navigate_tree", targetId: entryId }).catch(
-        () => {},
-      );
-      setActiveLeafId(entryId);
-      await loadContext(sid, entryId);
+      // The gateway contract is `entryId` (packages/coding-agent
+      // src/server/web-gateway/agents.ts: `navigate_tree`). A failure here must
+      // stay visible: a swallowed rejection used to leave the UI showing the
+      // target leaf while the session's real leaf never moved.
+      try {
+        await sendAgentCommand(sid, { type: "navigate_tree", entryId });
+        setActiveLeafId(entryId);
+        await loadContext(sid, entryId);
+      } catch (e) {
+        addNotice({
+          type: "error",
+          message: `Failed to move to this point in the session: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        });
+        // Drop the optimistic leaf and re-read the session's real position so
+        // the UI does not keep a leaf the session never adopted.
+        await loadContext(sid, null);
+      }
     },
-    [loadContext],
+    [addNotice, loadContext],
   );
 
   const handleLeafChange = useCallback(
     async (leafId: string | null) => {
       if (bashRunningRef.current) return;
-      setActiveLeafId(leafId);
       const sid = sessionIdRef.current;
       if (!sid) return;
-      await loadContext(sid, leafId);
-      if (leafId) {
-        sendAgentCommand(sid, {
-          type: "navigate_tree",
-          targetId: leafId,
-        }).catch(() => {});
+      if (!leafId) {
+        setActiveLeafId(null);
+        await loadContext(sid, null);
+        return;
+      }
+      try {
+        await sendAgentCommand(sid, { type: "navigate_tree", entryId: leafId });
+        setActiveLeafId(leafId);
+        await loadContext(sid, leafId);
+      } catch (e) {
+        addNotice({
+          type: "error",
+          message: `Failed to switch branch: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        });
+        await loadContext(sid, null);
       }
     },
-    [loadContext],
+    [addNotice, loadContext],
   );
 
   // Persist a chosen model back into the runtime models config when its
@@ -2831,7 +2855,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       try {
         await sendAgentCommand(sid, {
           type: "steer",
-          message,
+          text: message,
           ...(piImages?.length ? { images: piImages } : {}),
         });
       } catch (e) {
@@ -2880,7 +2904,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       try {
         await sendAgentCommand(sid, {
           type: "follow_up",
-          message,
+          text: message,
           ...(piImages?.length ? { images: piImages } : {}),
         });
       } catch (e) {
