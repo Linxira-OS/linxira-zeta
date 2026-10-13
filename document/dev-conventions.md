@@ -356,7 +356,10 @@ The pre-tag gate in `release-v2.ts` runs before any bump:
 packages (the 11 core packages plus the 3 native leaves `natives`/`omptype`/`wire`)
 ride the same release version, and the root `workspaces.catalog` (13 keys),
 `Cargo.toml` workspace version, the natives build-version stamp mechanism,
-and `desktop/package.json` + `desktop/package-lock.json` follow in lock-step. There
+`desktop/package.json` + `desktop/package-lock.json`, and the vendored npm
+distributions (editor / main / termide: launcher package, platform leaves, and
+the launcher's exact `optionalDependencies` pins, registry in
+`scripts/npm-distributions.ts`) follow in lock-step. There
 is no separate leaf version — the 1.0.6/1.0.7 era shipped natives at
 1.0.2/1.0.4 while zeta rode 1.0.6/1.0.7, which broke `zeta update` with
 `ETARGET No matching version found for @linxiraos/pi-natives@1.0.7`. Never
@@ -368,7 +371,8 @@ Version bumps are a script operation, never hand edits:
 1. Ensure all changes since last release are in each affected package's `[Unreleased]` section.
 2. Run `bun scripts/release-v2.ts <version> [--watch]` (e.g. `bun scripts/release-v2.ts 1.0.8`).
 
-The script bumps all 14 packages, Cargo.toml, and the 14 root catalog keys
+The script bumps all 14 packages, Cargo.toml, the 14 root catalog keys, and the
+vendored npm distributions (launcher versions + their leaf pins)
 (the natives line carries the stable build-version stamp instead of a
 per-release sentinel name, so no natives source edit is needed), regenerates
 `bun.lock`, finalizes all 14 CHANGELOGs, runs
