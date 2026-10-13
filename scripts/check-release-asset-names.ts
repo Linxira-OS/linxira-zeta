@@ -31,16 +31,20 @@
  *     (a scan that silently misses is a bug here, never a pass);
  *   - every `ASSETS` key must name a real CLI outfile basename — catches the
  *     stale/renamed table that broke v1.2.0;
+ *   - every `ASSETS` key must be built by the release matrix (`release_binary`):
+ *     a key with no leg is a hard fail, not a note — the uploader throws
+ *     `missing release binaries: <key>` and takes the publish tail with it (the
+ *     v1.2.0 coda: linux / linux-musl / windows arm64 were keyed but never built);
  *   - every name the release matrix builds must be an `ASSETS` key — catches a
  *     new leg added to the matrix before a release discovers it mid-flight;
  *   - the updater's names and the CLI outfile basenames must be the same set —
  *     a name only one side knows is a 404 or an unreachable build;
  *   - the updater must delegate to `releaseCliAssetName(` and must not rebuild
  *     the name from `CLI_BIN_NAME`;
- *   - CLI targets that are neither built nor keyed are reported, not failed:
- *     the build matrix is the authority on what ships (macOS left the release
- *     surface on 2026-10-01 while its targets stayed in the table, and the
- *     arm64 legs are keyed ahead of the matrix). They are visible here so the
+ *   - CLI targets the matrix neither builds nor `ASSETS` keys are reported, not
+ *     failed: the build matrix is the authority on what ships (macOS left the
+ *     release surface on 2026-10-01; the arm64 targets stay buildable so a
+ *     future platform decision is one matrix edit). They are visible here so the
  *     next release-platform trim is a decision, not an accident.
  *
  * Static and hermetic: reads four files, no network, no build.
@@ -139,6 +143,16 @@ for (const name of shipped) {
 		);
 	}
 }
+// The other direction, and the one v1.2.0 actually died of: a key the matrix
+// never builds is not a harmless extra, because `main()` fails the run for
+// every key it was handed no file for.
+for (const key of accepted) {
+	if (!shipped.includes(key)) {
+		problems.push(
+			`${UPLOAD_FILE}: ASSETS key \`${key}\` has no \`${RELEASE_JOB}\` matrix leg — the uploader fails the release with \`missing release binaries: ${key}\``,
+		);
+	}
+}
 
 // 4. What the updater asks for: the binary fallback downloads a published
 //    asset name, built from the shared convention in
@@ -187,15 +201,11 @@ if (problems.length > 0) {
 	for (const problem of problems) console.error(`  - ${problem}`);
 	process.exit(1);
 }
-const keyedNotShipped = accepted.filter(key => !shipped.includes(key)).sort();
-const buildableNotKeyed = [...buildable].filter(name => !accepted.includes(name) && !shipped.includes(name)).sort();
+const buildableNotShipped = [...buildable].filter(name => !accepted.includes(name) && !shipped.includes(name)).sort();
 console.log(
-	`Release asset names OK: ${accepted.length} ASSETS key(s) ↔ ${buildable.size} CLI target(s) ↔ ${updaterNames.size} updater name(s); ` +
+	`Release asset names OK: ${accepted.length} ASSETS key(s) ↔ ${buildable.size} CLI target(s) ↔ ${updaterNames.size} updater name(s), every ASSETS key built by ${RELEASE_JOB}; ` +
 		`${RELEASE_JOB} builds ${shipped.length} (${[...shipped].sort().join(", ")})`,
 );
-if (keyedNotShipped.length > 0) {
-	console.log(`  keyed but not built by ${RELEASE_JOB} today: ${keyedNotShipped.join(", ")}`);
-}
-if (buildableNotKeyed.length > 0) {
-	console.log(`  buildable but neither keyed nor built today: ${buildableNotKeyed.join(", ")}`);
+if (buildableNotShipped.length > 0) {
+	console.log(`  buildable but neither keyed nor built today: ${buildableNotShipped.join(", ")}`);
 }
