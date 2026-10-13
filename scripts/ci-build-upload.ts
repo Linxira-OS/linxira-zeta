@@ -37,14 +37,12 @@ const ATTEMPTS = 3;
 
 /** Release asset name → build-service target. Only these are uploaded. */
 export const ASSETS: Readonly<Record<string, { platform: string; arch: string }>> = {
-	"omp-darwin-arm64": { platform: "macos", arch: "arm64" },
-	"omp-darwin-x64": { platform: "macos", arch: "x86_64" },
-	"omp-linux-x64": { platform: "linux", arch: "x86_64" },
-	"omp-linux-arm64": { platform: "linux", arch: "arm64" },
-	"omp-linux-musl-x64": { platform: "linux-musl", arch: "x86_64" },
-	"omp-linux-musl-arm64": { platform: "linux-musl", arch: "arm64" },
-	"omp-windows-x64.exe": { platform: "windows", arch: "x86_64" },
-	"omp-windows-arm64.exe": { platform: "windows", arch: "arm64" },
+	"zeta-cli-linux-x64": { platform: "linux", arch: "x86_64" },
+	"zeta-cli-linux-arm64": { platform: "linux", arch: "arm64" },
+	"zeta-cli-linux-musl-x64": { platform: "linux-musl", arch: "x86_64" },
+	"zeta-cli-linux-musl-arm64": { platform: "linux-musl", arch: "arm64" },
+	"zeta-cli-windows-x64.exe": { platform: "windows", arch: "x86_64" },
+	"zeta-cli-windows-arm64.exe": { platform: "windows", arch: "arm64" },
 };
 
 const RELEASE_TAG = /^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;
