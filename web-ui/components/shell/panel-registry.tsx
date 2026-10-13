@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { contextRingPanelEntry } from "@/components/context-ring/panel-entry";
 
 /**
  * Single source of truth for every dockable panel (plan §2.4).
@@ -9,11 +10,9 @@ import type { ReactNode } from "react";
  * chips — are generated from this registry, so a panel is declared exactly
  * once and can never drift into two divergent entry points.
  *
- * To add a panel (e.g. the context ring), append one `PanelDecl` here and add
- * its body to the dock switch in AppShell. `context` is intentionally not
- * listed yet: the context-ring panel ships in its own PR and will append its
- * own entry (id "context", surface "rail", kind "dock", widthTier "regular",
- * exclusive true).
+ * To add a panel, append one `PanelDecl` (or an externally-owned descriptor such
+ * as the context ring's `contextRingPanelEntry`) here and add its body to the
+ * dock switch in AppShell.
  */
 export type PanelId =
 	| "session"
@@ -22,6 +21,7 @@ export type PanelId =
 	| "terminal"
 	| "plugins"
 	| "stats"
+	| "context"
 	| "branches"
 	| "system"
 	| "history";
@@ -238,6 +238,19 @@ export const PANEL_REGISTRY: readonly PanelDecl[] = [
 		widthTier: "regular",
 		exclusive: true,
 		icon: HISTORY_ICON,
+		requiresSession: true,
+	},
+	// Context-statistics ring. The descriptor + icon are owned by the
+	// context-ring module (see its `panel-entry.tsx`); the shell only wires it
+	// into the rail. Needs a session id, so it shares the session gate below.
+	{
+		id: contextRingPanelEntry.id,
+		titleKey: contextRingPanelEntry.titleKey,
+		surface: contextRingPanelEntry.surface,
+		kind: contextRingPanelEntry.kind,
+		widthTier: contextRingPanelEntry.widthTier,
+		exclusive: contextRingPanelEntry.exclusive,
+		icon: contextRingPanelEntry.icon,
 		requiresSession: true,
 	},
 ] as const;
