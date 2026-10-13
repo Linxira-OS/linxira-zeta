@@ -141,12 +141,10 @@ export function FloatingMenu({ open, onClose, items, point, anchorRect, label }:
 				background: "var(--bg-elevated, var(--bg))",
 				border: "1px solid var(--border)",
 				borderRadius: 8,
-				// `--surface-shadow` is a colour token (`rgb(0 0 0 / 0.64)`), so this is not a
-// valid box-shadow and paints nothing today — the same dead-fallback shape as
-// SearchDialog. Restoring the shadow (`0 6px 20px var(--zeta-alias-surface-shadow)`,
-// the pattern every other floating surface uses) is a deliberate visual change,
-// tracked separately; this line only drops the unreachable literal.
-boxShadow: "var(--zeta-alias-surface-shadow)",
+				// `--surface-shadow` is a colour token, so `box-shadow: var(--surface-shadow)`
+				// is not valid CSS and painted nothing. Keep the menu's own geometry and the
+				// 0.18 alpha it asked for, in the form the other popovers use.
+				boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 				padding: 4,
 				display: "flex",
 				flexDirection: "column",

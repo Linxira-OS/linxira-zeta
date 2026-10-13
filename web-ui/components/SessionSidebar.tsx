@@ -2499,7 +2499,7 @@ export function SessionSidebar({
 							background: "var(--bg)",
 							border: "1px solid var(--border)",
 							borderRadius: 10,
-							boxShadow: "var(--surface-shadow)",
+							boxShadow: "0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 							overflow: "hidden",
 						}}
 					>

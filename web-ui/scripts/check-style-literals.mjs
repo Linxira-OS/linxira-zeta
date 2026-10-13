@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Colour-literal guard for the web-ui style layers.
+ * Colour guard for the web-ui style layers. Two rules:
  *
- * The three-layer token scheme (`lib/theme/tokens.ts`) puts every raw colour
- * value in L1 `--zeta-static-*`; feature CSS/TSX must consume L2
- * `--zeta-alias-*` (or the L3 compat bridge) and never spell a colour out.
- * This guard is the mechanical half of that rule: it fails when a hex, rgb()/
- * hsl()/oklch()/named colour literal appears in a functional style or
- * component file.
+ * 1. **No colour literals.** The three-layer token scheme
+ *    (`lib/theme/tokens.ts`) puts every raw colour value in L1
+ *    `--zeta-static-*`; feature CSS/TSX must consume L2 `--zeta-alias-*` (or
+ *    the L3 compat bridge) and never spell a colour out. Fails on a hex, rgb()/
+ *    hsl()/oklch()/named colour literal in a functional style or component.
+ * 2. **No colour token as a whole box-shadow.** `box-shadow: <colour>` is
+ *    invalid CSS (the grammar needs 2–4 lengths too), so the declaration is
+ *    dropped and the element paints no shadow — the bug `FloatingMenu` and
+ *    `SearchDialog` shipped until 2026-10-13. Never baselined.
  *
  * Scope: `.css`, `.ts`, `.tsx` under web-ui/ (excluding `node_modules/`,
  * `.next/`, test files and the paths in ALLOWED below). Comments are ignored;
@@ -17,10 +20,10 @@
  * rather than paint.
  *
  * Files still mid-migration carry a per-file ceiling in
- * `scripts/style-literal-baseline.json`: a literal in any other file, or a
- * count above the ceiling, fails. Counts below a ceiling are reported as stale
- * (not a failure) — migrations land in their own PR — and `--update-baseline`
- * rewrites the file from the current tree to tighten them.
+ * `scripts/style-literal-baseline.json` (currently empty): a literal in any
+ * other file, or a count above the ceiling, fails. Counts below a ceiling are
+ * reported as stale (not a failure) — migrations land in their own PR — and
+ * `--update-baseline` rewrites the file from the current tree to tighten them.
  *
  * Usage: `node scripts/check-style-literals.mjs`               — exit 0/1
  *        `node scripts/check-style-literals.mjs --update-baseline`
@@ -29,6 +32,7 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createJiti } from "jiti";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
@@ -66,6 +70,21 @@ const NAMED_STRING = new RegExp(`["'\`](${NAMED})["'\`]`, "g");
 
 /** Per-line escape hatch for a colour that is a *matching key*, not paint. */
 const ALLOW_MARKER = /zeta-style-literal-allow:\s*\S+/;
+
+/**
+ * Rule 2: a colour token used as the *whole* `box-shadow` value. A colour is
+ * `<color>` in the shadow grammar, which requires 2–4 lengths as well, so the
+ * declaration is invalid and the element paints no shadow at all — the failure
+ * mode `FloatingMenu`/`SearchDialog` shipped (2026-10-13). The alias table is
+ * the authority on what counts as a colour token.
+ */
+const jiti = createJiti(import.meta.url, { tsconfigPaths: true });
+const { aliasColorTokens } = await jiti.import(join(ROOT, "lib/theme/tokens.ts"));
+const { getThemeById, DEFAULT_LIGHT_THEME_ID } = await jiti.import(join(ROOT, "lib/theme/themes.ts"));
+const COLOUR_TOKENS = new Set(aliasColorTokens(getThemeById(DEFAULT_LIGHT_THEME_ID)).map(([name]) => name));
+const BARE_TOKEN_SHADOW = /^var\(\s*--(?:zeta-alias-)?([a-z0-9-]+)\s*(?:,[\s\S]*)?\)$/;
+const SHADOW_CSS = /(?:^|[;{\s])box-shadow\s*:\s*([^;{}]+);/g;
+const SHADOW_TS = /boxShadow\s*:\s*(["'`])([\s\S]*?)\1/g;
 
 /**
  * Blank out comments while preserving offsets, so a colour mentioned in prose
@@ -135,6 +154,7 @@ function walk(dir, files = []) {
 }
 
 const violations = [];
+const shadowViolations = [];
 for (const file of walk(ROOT)) {
   const rel = relative(ROOT, file).split("\\").join("/");
   if (rel.includes(".test.")) continue;
@@ -158,6 +178,15 @@ for (const file of walk(ROOT)) {
   }
   for (const match of masked.matchAll(isCss ? NAMED_CSS : NAMED_STRING)) {
     report(lineOf(masked, match.index), match[1]);
+  }
+
+  // Rule 2 — a colour token as the whole box-shadow value (never baselined:
+  // the declaration is invalid CSS, so there is no "debt" to accept).
+  for (const match of masked.matchAll(isCss ? SHADOW_CSS : SHADOW_TS)) {
+    const value = (isCss ? match[1] : match[2]).trim();
+    const bare = BARE_TOKEN_SHADOW.exec(value);
+    if (!bare || !COLOUR_TOKENS.has(bare[1])) continue;
+    shadowViolations.push({ rel, line: lineOf(masked, match.index), text: value.slice(0, 60) });
   }
 }
 
@@ -197,6 +226,14 @@ for (const [rel, list] of [...byFile].sort()) {
 }
 for (const rel of Object.keys(baseline)) {
   if (!byFile.has(rel)) stale.push(`  ${rel} (0 < ceiling ${baseline[rel]}) — drop the entry with --update-baseline`);
+}
+
+if (shadowViolations.length > 0) {
+  console.error(`colour-token guard FAILED: ${shadowViolations.length} colour token(s) used as a whole box-shadow`);
+  for (const violation of shadowViolations)
+    console.error(`  ${violation.rel}:${violation.line}: ${violation.text}`);
+  console.error("A colour is not a shadow: add the geometry, e.g. `0 6px 20px var(--zeta-alias-surface-shadow)`.");
+  process.exit(1);
 }
 
 if (problems.length > 0) {
