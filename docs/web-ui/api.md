@@ -240,6 +240,80 @@ List plugins for a project.
 
 Body: `{ action, source?, scope?, cwd }`.
 
+## Terminal
+
+The embedded terminal (spec §15) is a gateway-owned PTY with a REST control
+plane and a WebSocket data plane. Sessions are process-scoped: the gateway
+keeps them, not the browser, and a gateway restart ends every session.
+
+A session occupies a **slot** identified by `(absolute cwd, instanceId)`. The
+UI allocates the instance id (first slot `t1`, then `t2`, `t3`, … per
+workspace) and sends it with every ensure; the same slot always resolves to the
+same PTY, which is what makes closing and reopening the pane a reattach rather
+than a new spawn.
+
+### `POST /api/terminal/ensure`
+
+Body: `{ cwd?, instanceId?, file?, line?, col?, replace? }`. Reattach-or-spawn
+for one slot:
+
+- live session in the slot → it is returned with a fresh connect ticket and
+  `reused: true`; its replay ring buffer still holds the scrollback, and it
+  does **not** consume another entry of the live-terminal budget;
+- no live session (first open, exited, killed, or a previous gateway process)
+  → a session is spawned, `reused: false`;
+- `replace: true` ends the slot's live session first (`session_ended`,
+  reason `killed`) so the new spawn carries the `file`/`line`/`col` zeta-ide
+  injection.
+
+Response: `{ id, ticket, shell, cwd, instance, program, fallbackReason, reused,
+injected }`. `program` is `workbench` when the framework workbench
+(`zetawork`; npm bins `zeta` / `zetawork` / `zeta-work`) resolved through the
+shared binary-discovery tiers, else `shell` with
+`fallbackReason: "workbench-not-found"` — the UI must show that fallback
+instead of silently running the shell. On Windows a resolved `.cmd`/`.bat`
+launcher is started as `cmd.exe /c <shim>` (ConPTY cannot exec a script).
+
+Failures carry a machine-readable `code`: `cwd_missing` / `cwd_not_directory`
+(400 — the workspace directory is gone), `invalid_instance` (400),
+`terminal_limit` (429, plus `limit`), `no_program` (500).
+
+### `POST /api/terminal`
+
+Body: `{ cwd?, file?, line?, col? }` → `{ id, shell, cwd, ticket, injected }`.
+Legacy always-spawn form (used by the `file`-injection chip flow); it claims
+the `default` slot.
+
+### `GET /api/terminal`
+
+`{ terminals: [{ id, shellLabel, shellCommand, cwd, instance, program,
+fallbackReason, exited, exitCode, startedAt, exitedAt }] }` — live sessions plus
+the newest 25 exited records.
+
+### `DELETE /api/terminal/:id`
+
+Kill (live) or drop (retained exited) a session. Attached clients receive
+`{ event: "session_ended", reason: "killed" | "expired" }` before the socket
+closes with 1000; a retained exited record that ages out sends the `expired`
+variant. Either way the slot is released, and the PTY is reaped.
+
+### `POST /api/terminal/:id/resize`
+
+Body: `{ cols, rows }` (2…1000). 409 when the session already exited.
+
+### `POST /api/terminal/:id/ticket`
+
+Issue a one-time, 60-second connect ticket for the WS data plane. 404 when the
+session is gone — the UI's signal that a reattach target no longer exists.
+
+### `GET /api/terminal/:id/ws?ticket=<ticket>`
+
+WebSocket upgrade (loopback callers may omit the ticket). The first outbound
+frame is `0x00`-prefixed JSON metadata (`{ replayedBytes }` on attach, then the
+replay payload), later frames are raw PTY bytes; inbound text frames are stdin.
+Control events: `{ event: "exit", exitCode }` for a natural exit,
+`{ event: "session_ended", reason }` for a gateway-side end.
+
 ## Settings / Web config
 
 ### `GET /api/settings?lang=en|zh`

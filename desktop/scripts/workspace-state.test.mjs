@@ -42,10 +42,11 @@ test("parseWorkspaceState keeps valid bounds and maximized, drops junk launches"
 	assert.equal(parsed.launches[0].sessionDir, "/tmp/s");
 });
 
-test("isToolId whitelists the three products only", () => {
+test("isToolId whitelists the launcher products only", () => {
 	assert.equal(isToolId("zetacode"), true);
 	assert.equal(isToolId("zetaide"), true);
 	assert.equal(isToolId("zetaeditor"), true);
+	assert.equal(isToolId("zetawork"), true);
 	assert.equal(isToolId("zeta"), false);
 	assert.equal(isToolId("rm -rf /"), false);
 	assert.equal(isToolId(42), false);

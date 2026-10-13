@@ -15,7 +15,9 @@ function renderTerminal(props = {}) {
   return renderToStaticMarkup(
     React.createElement(I18nProvider, null, React.createElement(TerminalView, {
       cwd: "/repo",
-      attachSessionId: null,
+      instanceId: "t1",
+      instances: ["t1"],
+      knownSessionId: null,
       onSessionCreated: () => {},
       openFileRequest: null,
       ...props,
@@ -34,10 +36,15 @@ test("TerminalView renders the pane skeleton with a connecting status", () => {
   assert.match(html, /terminal-connecting/);
 });
 
-test("TerminalView shows no restart/stop buttons before any session state", () => {
-  const html = renderTerminal();
-  // Buttons appear only after a session exits or opens (client effect).
-  assert.doesNotMatch(html, /<button/);
+test("TerminalView renders one chip per slot plus the explicit new-terminal entry", () => {
+  const html = renderTerminal({ instances: ["t1", "t2"], instanceId: "t2" });
+  assert.match(html, /data-testid="terminal-slots"/);
+  // The active slot is marked for assistive tech, the other one is not.
+  assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
+  assert.equal((html.match(/aria-pressed="false"/g) ?? []).length, 1);
+  // "New terminal" (a new slot) is always offered; Stop/Restart need state.
+  assert.equal((html.match(/<button/g) ?? []).length, 3);
+  assert.doesNotMatch(html, /terminal-kill|terminal-restart/);
 });
 
 test("TerminalView container keeps a flex-fill body for the xterm mount", () => {

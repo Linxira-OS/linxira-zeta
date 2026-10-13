@@ -235,6 +235,71 @@ Windows 终端按 `pwsh` → Git Bash → `powershell` 链解析，其余平台
 
 请求体：`{ action, source?, scope?, cwd }`。
 
+## Terminal
+
+内置终端（spec §15）是网关托管的 PTY：REST 为控制面，WebSocket 为数据面。
+会话属于网关进程，不属于浏览器；网关重启即所有会话结束。
+
+一个会话占用一个**槽位**，由「`cwd` 绝对路径 + `instanceId`」确定。实例 id 由
+UI 分配（每个工作区第一个槽位是 `t1`，之后 `t2`、`t3`……），并在每次 ensure
+时一并提交；同一槽位永远对应同一个 PTY，因此关闭再打开面板是「接回」而不是
+新建。
+
+### `POST /api/terminal/ensure`
+
+请求体：`{ cwd?, instanceId?, file?, line?, col?, replace? }`。按槽位接回或新建：
+
+- 槽位内有活会话 → 直接返回该会话并签发新连接票据，`reused: true`；其 64KiB
+  回放环仍保留滚动历史，且**不额外占用**并发终端额度；
+- 槽位内无活会话（首次打开、已退出、被结束，或上一轮网关进程）→ 新建会话，
+  `reused: false`；
+- `replace: true` → 先结束槽位内的活会话（`session_ended`，reason
+  `killed`），再新建，使 `file`/`line`/`col` 的 zeta-ide 注入生效。
+
+响应：`{ id, ticket, shell, cwd, instance, program, fallbackReason, reused,
+injected }`。`program` 为 `workbench` 表示解析到框架工作台
+（`zetawork`；npm 侧 bin 为 `zeta` / `zetawork` / `zeta-work`），否则为
+`shell` 且 `fallbackReason: "workbench-not-found"`——UI 必须把该回退明确显示
+出来，而不是静默换成 shell。Windows 上解析到 `.cmd`/`.bat` 启动器时，以
+`cmd.exe /c <shim>` 启动（ConPTY 无法直接执行脚本）。
+
+失败响应带可机读的 `code`：`cwd_missing` / `cwd_not_directory`（400，工作区
+目录已不存在）、`invalid_instance`（400）、`terminal_limit`（429，另带
+`limit`）、`no_program`（500）。
+
+### `POST /api/terminal`
+
+请求体：`{ cwd?, file?, line?, col? }` → `{ id, shell, cwd, ticket, injected }`。
+旧的「总是新建」形式（供注入 `file` 的文件胶囊流程使用），占用 `default` 槽位。
+
+### `GET /api/terminal`
+
+`{ terminals: [{ id, shellLabel, shellCommand, cwd, instance, program,
+fallbackReason, exited, exitCode, startedAt, exitedAt }] }`——活会话加上最新 25 条
+已退出记录。
+
+### `DELETE /api/terminal/:id`
+
+结束活会话（或丢弃已退出记录）。已连接的客户端会先收到
+`{ event: "session_ended", reason: "killed" | "expired" }`，随后 socket 以 1000
+关闭；已退出记录过期淘汰时发送 `expired` 变体。两种情况都会释放槽位并回收 PTY。
+
+### `POST /api/terminal/:id/resize`
+
+请求体：`{ cols, rows }`（2…1000）。会话已退出时返回 409。
+
+### `POST /api/terminal/:id/ticket`
+
+签发一次性、60s 有效的 WS 连接票据。会话不存在时 404——UI 据此判断「接回目标
+已不存在」。
+
+### `GET /api/terminal/:id/ws?ticket=<ticket>`
+
+WebSocket 升级（loopback 调用可省略票据）。首个下行帧是 `0x00` 前缀的 JSON 元数据
+（接入时为 `{ replayedBytes }`，随后是回放负载），之后是裸 PTY 字节；上行文本帧
+即 stdin。控制事件：自然退出为 `{ event: "exit", exitCode }`，网关侧结束为
+`{ event: "session_ended", reason }`。
+
 ## Settings / Web config
 
 ### `GET /api/settings?lang=en|zh`

@@ -9,6 +9,9 @@ const jiti = createJiti(import.meta.url, {
 const { parseTerminalFrame, terminalReconnectDelayMs, buildTerminalWsUrl } = await jiti.import(
   "@/lib/terminal-client",
 );
+const { isTerminalEnsureSuccess, terminalFailureMessage, terminalSessionNotice } = await jiti.import(
+  "@/lib/terminal-client",
+);
 
 const encoder = new TextEncoder();
 
@@ -76,4 +79,57 @@ test("buildTerminalWsUrl encodes session id and ticket", () => {
   assert.equal(url, "ws://127.0.0.1:30141/api/terminal/abc-123/ws?ticket=t%2F%2B%3D%3F");
   const https = buildTerminalWsUrl("https://zeta.example.com/", "abc", "tk");
   assert.equal(https, "wss://zeta.example.com/api/terminal/abc/ws?ticket=tk");
+});
+
+// --- ensure contract (P1) ---
+
+const workbenchPayload = {
+  id: "sess-1",
+  ticket: "tk",
+  shell: "zetawork",
+  cwd: "/repo",
+  instance: "t1",
+  program: "workbench",
+  fallbackReason: null,
+  reused: false,
+  injected: false,
+};
+
+test("isTerminalEnsureSuccess requires the full session identity", () => {
+  assert.equal(isTerminalEnsureSuccess(workbenchPayload, { ok: true }), true);
+  assert.equal(isTerminalEnsureSuccess(workbenchPayload, { ok: false }), false);
+  assert.equal(isTerminalEnsureSuccess({ ...workbenchPayload, ticket: undefined }, { ok: true }), false);
+  assert.equal(isTerminalEnsureSuccess({ ...workbenchPayload, program: "weird" }, { ok: true }), false);
+});
+
+test("terminalFailureMessage maps codes to readable keys", () => {
+  assert.deepEqual(terminalFailureMessage({ code: "terminal_limit", limit: 4 }, 429), {
+    key: "terminal.limitReached",
+    params: { limit: 4 },
+  });
+  assert.deepEqual(terminalFailureMessage({ code: "terminal_limit" }, 429).params, { limit: 4 });
+  assert.equal(terminalFailureMessage({ code: "cwd_missing", error: "cwd does not exist: /gone" }, 400).key, "terminal.cwdMissing");
+  assert.equal(terminalFailureMessage({ code: "cwd_not_directory" }, 400).key, "terminal.cwdMissing");
+  assert.equal(terminalFailureMessage({ code: "no_program" }, 500).key, "terminal.noProgram");
+  assert.deepEqual(terminalFailureMessage({ error: "boom" }, 502), {
+    key: "terminal.requestFailed",
+    params: { status: 502, detail: "boom" },
+  });
+});
+
+test("terminalSessionNotice announces the shell fallback and a replaced session", () => {
+  // A workbench session that reattached to the same PTY says nothing.
+  assert.equal(terminalSessionNotice(workbenchPayload, "sess-1"), null);
+  assert.equal(terminalSessionNotice(workbenchPayload, null), null);
+  // Same slot, different session id → the previous session ended.
+  assert.deepEqual(terminalSessionNotice(workbenchPayload, "sess-old"), {
+    key: "terminal.previousEnded",
+    params: {},
+  });
+  // The shell fallback is always announced, even on a first open.
+  const fallback = { ...workbenchPayload, program: "shell", shell: "PowerShell", fallbackReason: "workbench-not-found" };
+  assert.deepEqual(terminalSessionNotice(fallback, null), {
+    key: "terminal.shellFallback",
+    params: { shell: "PowerShell" },
+  });
 });
