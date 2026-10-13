@@ -816,6 +816,60 @@ mod tests {
     }
 
     #[test]
+    fn sgr_faint_is_stored_and_cleared_by_22() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"A\x1b[2mB\x1b[22mC");
+        performer.flush();
+        let s = screen.read().unwrap();
+        let row = &s.active_buffer()[0];
+        assert!(!row[0].style.dim, "A keeps normal intensity");
+        assert!(row[1].style.dim, "B is faint (SGR 2)");
+        assert!(!row[2].style.dim, "C is normal again (SGR 22)");
+    }
+
+    #[test]
+    fn sgr_22_clears_bold_as_well_as_faint() {
+        // ECMA-48: 22 is "normal intensity" — it clears bold *and* faint.
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"\x1b[1m\x1b[2mX\x1b[22mY");
+        performer.flush();
+        let s = screen.read().unwrap();
+        let row = &s.active_buffer()[0];
+        assert!(row[0].style.bold && row[0].style.dim);
+        assert!(!row[1].style.bold && !row[1].style.dim);
+    }
+
+    #[test]
+    fn psreadline_inline_prediction_is_faint_and_italic() {
+        // The exact bytes PSReadLine 2.4.5 emits for an inline history
+        // prediction after "git com": typed text, then the suffix in
+        // `97;2;3`, then the cursor returns to the end of the input.
+        let (mut performer, _capture, screen) = performer();
+        feed(
+            &mut performer,
+            b"PS> \x1b[93mgit \x1b[37mcom\x1b[97m\x1b[2m\x1b[3mmit -m \"hi\"\x1b[5;27H\x1b[?25h",
+        );
+        performer.flush();
+
+        assert_eq!(row_text(&screen, 0), "PS> git commit -m \"hi\"");
+        let s = screen.read().unwrap();
+        let row = &s.active_buffer()[0];
+        // "PS> git com" is 11 columns: the typed 'c' sits at 8, the
+        // predicted suffix starts at 11.
+        assert!(
+            !row[8].style.dim && !row[8].style.italic,
+            "typed text is normal intensity"
+        );
+        assert!(row[11].style.dim, "the predicted suffix is faint");
+        assert!(row[11].style.italic);
+        assert_eq!(
+            s.cursor,
+            (4, 26),
+            "cursor returns to the end of the typed input"
+        );
+    }
+
+    #[test]
     fn backslashes_and_brackets_are_printed_verbatim() {
         // `\[` / `\]` are bash PS1 markup that readline consumes; they never
         // reach the terminal, so program output containing them (regexes,

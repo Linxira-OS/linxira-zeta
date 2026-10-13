@@ -15,6 +15,49 @@ use termide_theme::Theme;
 use crate::terminal::Cell;
 use crate::Terminal;
 
+/// The ratatui style for one grid cell: reverse applied, theme colors
+/// substituted for the terminal defaults, then the text attributes.
+///
+/// The workbench's plain theme resolves both `fg` and `bg` to `Reset`, so a
+/// cell keeps the outer terminal's own colors; `dim` (SGR 2) is the one
+/// attribute that survives as-is and is what makes PSReadLine's inline
+/// prediction read as a dimmed suffix rather than typed text.
+fn cell_style(cell: &Cell, theme: &Theme) -> Style {
+    let (mut fg, mut bg) = if cell.style.reverse {
+        (cell.style.bg, cell.style.fg)
+    } else {
+        (cell.style.fg, cell.style.bg)
+    };
+
+    // Apply theme colors during rendering (not post-processing)
+    if fg == Color::White || fg == Color::Reset {
+        fg = theme.fg;
+    }
+    if bg == Color::Reset {
+        bg = theme.bg;
+    }
+
+    let mut style = Style::default().fg(fg).bg(bg);
+
+    if cell.style.bold {
+        style = style.add_modifier(Modifier::BOLD);
+    }
+    if cell.style.dim {
+        style = style.add_modifier(Modifier::DIM);
+    }
+    if cell.style.italic {
+        style = style.add_modifier(Modifier::ITALIC);
+    }
+    if cell.style.underline {
+        style = style.add_modifier(Modifier::UNDERLINED);
+    }
+    if cell.style.reverse {
+        style = style.add_modifier(Modifier::REVERSED);
+    }
+
+    style
+}
+
 impl Terminal {
     /// Get lines for display with zero-copy rendering under lock.
     ///
@@ -345,35 +388,7 @@ impl Terminal {
                 };
                 prev_was_head = is_wide;
 
-                // Apply reverse if set
-                let (mut fg, mut bg) = if cell.style.reverse {
-                    (cell.style.bg, cell.style.fg)
-                } else {
-                    (cell.style.fg, cell.style.bg)
-                };
-
-                // Apply theme colors during rendering (not post-processing)
-                if fg == Color::White || fg == Color::Reset {
-                    fg = theme.fg;
-                }
-                if bg == Color::Reset {
-                    bg = theme.bg;
-                }
-
-                let mut style = Style::default().fg(fg).bg(bg);
-
-                if cell.style.bold {
-                    style = style.add_modifier(Modifier::BOLD);
-                }
-                if cell.style.italic {
-                    style = style.add_modifier(Modifier::ITALIC);
-                }
-                if cell.style.underline {
-                    style = style.add_modifier(Modifier::UNDERLINED);
-                }
-                if cell.style.reverse {
-                    style = style.add_modifier(Modifier::REVERSED);
-                }
+                let mut style = cell_style(cell, theme);
 
                 // Check if cell is in selection (optimized - skips if no selection)
                 if is_in_selection(row_idx, col_idx) {
@@ -482,5 +497,89 @@ impl Terminal {
         self.cached_use_alt_screen = use_alt_screen;
 
         (arc_lines, cursor_pos, show_cursor_now)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::terminal::{Cell, CellStyle};
+
+    /// The workbench's plain theme: both defaults are `Reset`, so a cell keeps
+    /// the outer terminal's own colors.
+    fn plain_theme() -> Theme {
+        Theme {
+            name: "test-plain",
+            bg: Color::Reset,
+            fg: Color::Reset,
+            accented_bg: Color::Reset,
+            accented_fg: Color::White,
+            selected_bg: Color::DarkGray,
+            selected_fg: Color::White,
+            disabled: Color::DarkGray,
+            success: Color::Green,
+            warning: Color::Yellow,
+            error: Color::Red,
+            is_light: Some(false),
+        }
+    }
+
+    fn cell_with(fg: Color, dim: bool, italic: bool) -> Cell {
+        Cell::blank(CellStyle {
+            fg,
+            dim,
+            italic,
+            ..CellStyle::default()
+        })
+    }
+
+    /// PSReadLine renders the inline prediction with `\e[97m\e[2m\e[3m`:
+    /// bright white, faint, italic. The suffix must come out dim — that is
+    /// the only cue that separates it from the typed text.
+    #[test]
+    fn prediction_suffix_is_dim_italic() {
+        let cell = cell_with(Color::White, true, true);
+        let style = cell_style(&cell, &plain_theme());
+
+        assert!(
+            style.add_modifier.contains(Modifier::DIM),
+            "faint must survive to the backend"
+        );
+        assert!(style.add_modifier.contains(Modifier::ITALIC));
+        // Plain theme keeps the terminal's own colors.
+        assert_eq!(style.fg, Some(Color::Reset));
+        assert_eq!(style.bg, Some(Color::Reset));
+    }
+
+    /// Typed input (`\e[37m` / `\e[97m`, no faint) and the predicted suffix
+    /// must not render as the same style, or the ghost text reads as typed.
+    #[test]
+    fn typed_text_and_prediction_differ() {
+        let theme = plain_theme();
+        let typed = cell_style(&cell_with(Color::White, false, false), &theme);
+        let predicted = cell_style(&cell_with(Color::White, true, true), &theme);
+
+        assert_ne!(typed, predicted);
+        assert!(!typed.add_modifier.contains(Modifier::DIM));
+        assert!(predicted.add_modifier.contains(Modifier::DIM));
+    }
+
+    /// SGR 2 on a themed color dims that color rather than replacing it.
+    #[test]
+    fn dim_keeps_the_foreground_for_a_colored_theme() {
+        let mut theme = plain_theme();
+        theme.fg = Color::Rgb(205, 214, 244);
+        let style = cell_style(&cell_with(Color::LightYellow, true, false), &theme);
+
+        assert_eq!(style.fg, Some(Color::LightYellow));
+        assert!(style.add_modifier.contains(Modifier::DIM));
+    }
+
+    /// Non-dim cells must not gain the modifier (regression guard).
+    #[test]
+    fn ordinary_text_stays_normal_intensity() {
+        let style = cell_style(&cell_with(Color::White, false, false), &plain_theme());
+        assert!(!style.add_modifier.contains(Modifier::DIM));
+        assert!(!style.add_modifier.contains(Modifier::ITALIC));
     }
 }

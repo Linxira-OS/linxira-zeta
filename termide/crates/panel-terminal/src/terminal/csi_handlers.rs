@@ -128,10 +128,16 @@ pub fn handle_sgr(screen: &mut TerminalScreen, params: &Params) {
         match p {
             0 => screen.current_style = CellStyle::default(),
             1 => screen.current_style.bold = true,
+            2 => screen.current_style.dim = true,
             3 => screen.current_style.italic = true,
             4 => screen.current_style.underline = true,
             7 => screen.current_style.reverse = true,
-            22 => screen.current_style.bold = false,
+            // ECMA-48: 22 clears *both* bold and faint ("normal intensity"),
+            // which is how PSReadLine turns the inline prediction off.
+            22 => {
+                screen.current_style.bold = false;
+                screen.current_style.dim = false;
+            }
             23 => screen.current_style.italic = false,
             24 => screen.current_style.underline = false,
             27 => screen.current_style.reverse = false,

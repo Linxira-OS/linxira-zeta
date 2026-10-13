@@ -1,10 +1,10 @@
 //! Shell chain and binary probing for pane spawning.
 //!
-//! The chain order is a product ruling: on Windows prefer Windows
-//! PowerShell, then PowerShell 7 (`pwsh`), then Git Bash (derived from
-//! git.exe), with cmd.exe strictly last-resort — and install panes never
-//! use cmd.exe. Unix keeps the plain `$SHELL` → `/bin/bash` → `/bin/sh`
-//! chain.
+//! The chain order is a product ruling: on Windows prefer PowerShell 7
+//! (`pwsh`) — the only Windows shell with in-box predictive IntelliSense —
+//! then Windows PowerShell 5.1, then Git Bash (derived from git.exe), with
+//! cmd.exe strictly last-resort — and install panes never use cmd.exe.
+//! Unix keeps the plain `$SHELL` → `/bin/bash` → `/bin/sh` chain.
 //!
 //! Binary probing is PATHEXT-aware. npm's global installs on Windows are
 //! shims — `name` (sh), `name.ps1`, `name.cmd` — and there is no
@@ -109,8 +109,15 @@ pub struct Probes<'a> {
 }
 
 /// The Windows chain in the product-ruled order: `$SHELL` (absolute
-/// Windows path only) → Windows PowerShell → PowerShell 7 → Git Bash →
-/// cmd.exe. The chain always ends in cmd.exe, so it is never empty.
+/// Windows path only) → PowerShell 7 (`pwsh`) → Windows PowerShell →
+/// Git Bash → cmd.exe. The chain always ends in cmd.exe, so it is never
+/// empty.
+///
+/// `pwsh` leads because it is the only Windows shell whose in-box
+/// PSReadLine ships predictive IntelliSense (inline history completion);
+/// Windows PowerShell 5.1 loads PSReadLine 2.0.0, which has no
+/// `PredictionSource` at all. A machine that only has 5.1 still gets it —
+/// `pwsh` simply fails to resolve and the chain falls through.
 fn chain_windows(p: &Probes) -> Vec<Shell> {
 	let mut shells: Vec<Shell> = Vec::new();
 	let push = |shells: &mut Vec<Shell>, path: PathBuf, p: &Probes| {
@@ -130,18 +137,6 @@ fn chain_windows(p: &Probes) -> Vec<Shell> {
 		}
 	}
 
-	// Windows PowerShell ships with the OS under System32 — locate it
-	// without touching PATH so a stale GUI PATH still finds it.
-	let win_dir = (p.env)("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
-	push(
-		&mut shells,
-		PathBuf::from(format!(r"{win_dir}\System32\WindowsPowerShell\v1.0\powershell.exe")),
-		p,
-	);
-	if let Some(hit) = (p.where_)("powershell.exe") {
-		push(&mut shells, PathBuf::from(hit), p);
-	}
-
 	// PowerShell 7 (pwsh): PATH first, then the standard install roots.
 	if let Some(hit) = (p.where_)("pwsh.exe") {
 		push(&mut shells, PathBuf::from(hit), p);
@@ -153,6 +148,19 @@ fn chain_windows(p: &Probes) -> Vec<Shell> {
 			PathBuf::from(format!(r"{program_files}\PowerShell\{version}\pwsh.exe")),
 			p,
 		);
+	}
+
+	// Windows PowerShell ships with the OS under System32 — locate it
+	// without touching PATH so a stale GUI PATH still finds it. It is the
+	// fallback for machines without PowerShell 7.
+	let win_dir = (p.env)("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
+	push(
+		&mut shells,
+		PathBuf::from(format!(r"{win_dir}\System32\WindowsPowerShell\v1.0\powershell.exe")),
+		p,
+	);
+	if let Some(hit) = (p.where_)("powershell.exe") {
+		push(&mut shells, PathBuf::from(hit), p);
 	}
 
 	// Git Bash: standard install locations plus a derivation from git.exe
@@ -669,7 +677,7 @@ mod tests {
 
 	#[cfg(windows)]
 	#[test]
-	fn windows_chain_order_powershell_pwsh_gitbash_cmd() {
+	fn windows_chain_order_pwsh_powershell_gitbash_cmd() {
 		let fake = Fake::new()
 			.with_where("pwsh.exe", r"C:\Program Files\PowerShell\7\pwsh.exe")
 			.with_where("powershell.exe", r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
@@ -681,6 +689,21 @@ mod tests {
 				r"C:\Windows\System32\cmd.exe",
 			])
 			.with_env("COMSPEC", r"C:\Windows\System32\cmd.exe");
+		let paths: Vec<String> = fake
+			.chain()
+			.iter()
+			.map(|s| s.path.to_string_lossy().into_owned())
+			.collect();
+		assert_eq!(
+			paths,
+			vec![
+				r"C:\Program Files\PowerShell\7\pwsh.exe",
+				r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+				r"E:\Tools\Git\bin\bash.exe",
+				r"C:\Windows\System32\cmd.exe",
+			],
+			"ruled order: pwsh, Windows PowerShell, Git Bash, cmd — never otherwise"
+		);
 		let flavors: Vec<ShellFlavor> = fake.chain().iter().map(|s| s.flavor).collect();
 		assert_eq!(
 			flavors,
@@ -689,16 +712,16 @@ mod tests {
 				ShellFlavor::PowerShell,
 				ShellFlavor::Posix,
 				ShellFlavor::Cmd
-			],
-			"ruled order: Windows PowerShell, pwsh, Git Bash, cmd — never otherwise"
+			]
 		);
 	}
 
 	#[cfg(windows)]
 	#[test]
-	fn windows_chain_powershell_before_pwsh_even_when_only_pwsh_on_where() {
-		// Windows PowerShell comes from System32 without any PATH/where
-		// hit; pwsh found via where must land AFTER it.
+	fn windows_chain_leads_with_pwsh_even_though_system32_shell_comes_first() {
+		// Windows PowerShell is found without any PATH/where hit (System32);
+		// pwsh found via where must still land FIRST — it is the only shell
+		// whose PSReadLine has predictive IntelliSense.
 		let fake = Fake::new()
 			.with_where("pwsh.exe", r"D:\pwsh\pwsh.exe")
 			.with_paths(&[
@@ -713,8 +736,28 @@ mod tests {
 			.map(|s| s.path.to_string_lossy().into_owned())
 			.collect();
 		assert_eq!(paths.len(), 3);
-		assert!(paths[0].ends_with(r"WindowsPowerShell\v1.0\powershell.exe"));
-		assert_eq!(paths[1], r"D:\pwsh\pwsh.exe");
+		assert_eq!(paths[0], r"D:\pwsh\pwsh.exe");
+		assert!(paths[1].ends_with(r"WindowsPowerShell\v1.0\powershell.exe"));
+	}
+
+	#[cfg(windows)]
+	#[test]
+	fn windows_chain_falls_back_to_windows_powershell_without_pwsh() {
+		// A machine with only 5.1 keeps working: no pwsh anywhere, so the
+		// System32 Windows PowerShell leads.
+		let fake = Fake::new()
+			.with_paths(&[
+				r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+				r"C:\Windows\System32\cmd.exe",
+			])
+			.with_env("ProgramFiles", r"C:\Program Files")
+			.with_env("COMSPEC", r"C:\Windows\System32\cmd.exe");
+		let shells = fake.chain();
+		assert_eq!(
+			shells[0].path,
+			PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
+		);
+		assert_eq!(shells[0].flavor, ShellFlavor::PowerShell);
 	}
 
 	#[cfg(windows)]

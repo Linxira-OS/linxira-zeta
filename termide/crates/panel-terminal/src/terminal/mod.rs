@@ -151,11 +151,18 @@ impl Default for Cell {
 }
 
 /// Cell style with colors and text attributes
+///
+/// `dim` is ECMA-48 "faint" (SGR 2). Interactive shells lean on it to draw
+/// low-emphasis text that must stay legible: PSReadLine's inline prediction
+/// (`\e[97m\e[2m\e[3m…`) and readline's `\e[2m` hints. Dropping it made the
+/// predicted suffix render at full intensity — indistinguishable from typed
+/// input.
 #[derive(Clone, Debug, Copy)]
 pub struct CellStyle {
     pub fg: Color,
     pub bg: Color,
     pub bold: bool,
+    pub dim: bool,
     pub italic: bool,
     pub underline: bool,
     pub reverse: bool,
@@ -167,6 +174,7 @@ impl Default for CellStyle {
             fg: Color::White,
             bg: Color::Reset, // Use theme background by default
             bold: false,
+            dim: false,
             italic: false,
             underline: false,
             reverse: false,

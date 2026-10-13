@@ -1973,8 +1973,7 @@ impl Workspace {
 			let value = |on: bool| if on { "on" } else { "off" };
 			let rows = [
 				format!(
-					" default shell        {:<9}  ← click to cycle  (auto · powershell · pwsh 7 · git \
-					 bash)",
+					" default shell        {:<9}  ← click to cycle  (auto prefers pwsh 7)",
 					s.shell.label()
 				),
 				format!(
