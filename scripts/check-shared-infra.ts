@@ -43,11 +43,6 @@ interface Placement {
 	why: string;
 }
 
-const MANIFEST_COPIES = [
-	"packages/browser-relay/extension/manifest.json",
-	"packages/coding-agent/src/tools/browser/relay/extension-assets/manifest.json.txt",
-];
-
 const INVENTORY: Placement[] = [
 	{
 		domain: "https://my.omp.sh",
@@ -63,9 +58,13 @@ const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://omp.sh/install",
-		status: "keep",
-		files: ["packages/coding-agent/src/cli/update-cli.ts"],
-		why: "install hint URL (registry: 共享基础设施，勿改)",
+		status: "replaced",
+		// Deliberately empty: `installerHint()` (the recovery line printed when an
+		// upgrade fails verification) points at OUR site's installers since
+		// 2026-10-13. The old value was worse than a 404 — it installed upstream
+		// OMP on a user's machine — so any re-placement is a regression.
+		files: [],
+		why: "upstream installer one-liner; replaced by https://linxira-os.github.io/install.{sh,ps1} (2026-10-13) — it installs OMP, not Zeta",
 	},
 	{
 		domain: "https://omp.sh/docs/",
@@ -165,8 +164,8 @@ const INVENTORY: Placement[] = [
 	{
 		domain: "https://omp.sh",
 		status: "replace-brand",
-		files: [...MANIFEST_COPIES, "packages/collab-web/index.html"],
-		why: "browser-relay extension homepage_url + collab-web JSON-LD still point at the upstream site; needs a Zeta-owned URL",
+		files: ["packages/collab-web/index.html"],
+		why: "collab-web JSON-LD still points at the upstream site; needs a Zeta-owned URL (the browser-relay manifests moved to our site 2026-10-14)",
 	},
 	{
 		domain: "https://stencil.so",

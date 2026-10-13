@@ -28,9 +28,9 @@ resolver = "3"
 version = "1.2.1"
 edition = "2024"
 license = "MIT"
-authors = ["Stencil Labs, Inc."]
-homepage = "https://omp.sh/"
-repository = "https://github.com/can1357/oh-my-pi"
+authors = ["Linxira-OS"]
+homepage = "https://linxira-os.github.io/zeta/"
+repository = "https://github.com/Linxira-OS/linxira-zeta"
 
 [patch.crates-io]
 brush-core = { path = "crates/vendor/brush-core" }

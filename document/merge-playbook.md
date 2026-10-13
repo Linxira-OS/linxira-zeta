@@ -130,7 +130,7 @@ scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 | 级别 | 含义 | 落在哪个表 | 动作 |
 |---|---|---|---|
 | **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
-| **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`omp.sh`/`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表） |
+| **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表）。**主机名不在豁免面**：`omp.sh` 等上游 URL 由台账 + `scripts/check-shared-infra.ts` 管（2026-10-14 收窄，详见下文「共享基础设施台账」） |
 | **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
 | **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
 | **test-contract** | 测试 fixture/断言编码的上游兼容契约 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训） | 阶段 4 人工逐文件 resolve |
@@ -144,12 +144,13 @@ brand-rules.ts 规则表并注释理由，再让脚本吃掉它——不要靠�
 ### 共享基础设施台账（商业面，与代码合并无关）
 
 上游把一批共享/商业服务的域名硬编码在客户端里（中继 `my.omp.sh`、OIDC 登录
-`auth.stencil.so`、模型发现源 `catalog.stencil.so`、安装/更新提示
-`omp.sh/install`）。它们在品牌注册表里被显式
-列为「刻意保留」，`brand-check` 因此**不覆盖**——机械守卫是
+`auth.stencil.so`、模型发现源 `catalog.stencil.so`）。它们在台账
+（`document/upstream-commercial-assets.md`）里逐项登记，机械守卫是
 `bun scripts/check-shared-infra.ts`（CI `check` job）：出现未登记域名、或已知
 域名出现在未登记的落点（测试文件豁免）即 exit 1；只改台账不改 `INVENTORY`
-不会生效，只改代码不改台账会红。
+不会生效，只改代码不改台账会红。**品牌 sweep 自 2026-10-14 起不再把主机名当
+豁免面**（`omp.sh` 曾有整体豁免，已收窄）；安装提示 `omp.sh/install` 是反面
+例子——它被换成自家站点安装器并在 `INVENTORY` 中标为 `replaced`，复活即红。
 
 （原「CI 上传通道 `build.stencil.so`」已于 2026-10-14 退役：本 fork 在该端点
 永久 403，步骤与 `scripts/ci-build-upload.ts` 已删除，端点标为 `replaced`；
@@ -525,7 +526,10 @@ Cargo 依赖与 bazel 依赖是两套声明，新增 crate 后两套都要对账
 却同时引用 `zeta.`。这类断言 `check:ts` 抓不到（字符串字面量两侧都是 `string`），
 `brand-check` 也抓不到（`OH_MY_PI_ALLOW_FILES` 只覆盖了显式登记的文件）。
 **收口时把"上游测试文件"与"品牌面注册表"做一次交叉比对**，比逐个跑测试便宜得多。
-注意 `APP_URL = "https://omp.sh/"` 是注册表里刻意保留的共享基础设施，不要一并改掉。
+**注意**：`APP_URL`（`packages/utils/src/dirs.ts`）现在是我们自己的站点
+`https://linxira-os.github.io/zeta/`——inference gateway 的归因头用它，**不要再跟
+上游改回 `omp.sh`**（原文误称它是「注册表里刻意保留的共享基础设施」，2026-10-14
+按现实修正；`brand-check` 没有钉住这一行，别指望守卫兜住）。
 
 **结论 23（共享工具函数的 null 语义要读实现，不要凭名字推断）**：
 `extractLiteralAndChainSegments` 的用途是审批 `a && b` 链，末行有
