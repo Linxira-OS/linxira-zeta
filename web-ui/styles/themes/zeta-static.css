@@ -213,6 +213,8 @@
   --zeta-alias-assistant-bg: var(--zeta-static-chat-assistant-background);
   --zeta-alias-tool-bg: var(--zeta-static-chat-tool-background);
   --zeta-alias-surface-shadow: var(--zeta-static-surface-overlay);
+  --zeta-alias-bg-input: var(--zeta-static-surface-muted);
+  --zeta-alias-border-strong: var(--zeta-static-interactive-border-hover);
   --zeta-alias-card: var(--zeta-static-surface-elevated);
   --zeta-alias-card-foreground: var(--zeta-static-surface-elevated-foreground);
   --zeta-alias-popover: var(--zeta-static-surface-elevated);
@@ -359,6 +361,8 @@
   --assistant-bg: var(--zeta-alias-assistant-bg);
   --tool-bg: var(--zeta-alias-tool-bg);
   --surface-shadow: var(--zeta-alias-surface-shadow);
+  --bg-input: var(--zeta-alias-bg-input);
+  --border-strong: var(--zeta-alias-border-strong);
   --card: var(--zeta-alias-card);
   --card-foreground: var(--zeta-alias-card-foreground);
   --popover: var(--zeta-alias-popover);
