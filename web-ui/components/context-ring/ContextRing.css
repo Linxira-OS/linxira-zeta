@@ -1,0 +1,327 @@
+/*
+ * Context-statistics panel (right-dock "context").
+ *
+ * Colors come only from the theme's semantic alias layer. The `--zeta-alias-*`
+ * names are the canonical consumption layer (TokensP0); the legacy
+ * `--interactive-border` / `--chart-N` / `--status-*` names are the pre-alias
+ * spellings, kept as the `var()` fallback so this panel renders unchanged
+ * before and after that rename. No hex literals: the panel follows the active
+ * theme.
+ */
+
+.context-ring-shell,
+.context-ring-panel {
+	--cr-fg: var(--zeta-alias-foreground, var(--foreground));
+	--cr-muted: var(--zeta-alias-muted-foreground, var(--muted-foreground, var(--text-muted)));
+	--cr-border: var(--zeta-alias-interactive-border, var(--interactive-border, var(--border)));
+	--cr-track: var(--zeta-alias-surface-subtle, var(--surface-subtle, var(--bg-subtle)));
+	--cr-accent: var(--zeta-alias-accent, var(--accent));
+	--cr-ok: var(--zeta-alias-status-success, var(--status-success));
+	--cr-near: var(--zeta-alias-status-warning, var(--status-warning));
+	--cr-full: var(--zeta-alias-status-error, var(--status-error));
+	--cr-swatch-1: var(--zeta-alias-chart-1, var(--chart-1, var(--accent)));
+	--cr-swatch-2: var(--zeta-alias-chart-2, var(--chart-2, var(--status-error)));
+	--cr-swatch-3: var(--zeta-alias-chart-3, var(--chart-3, var(--status-warning)));
+	--cr-swatch-4: var(--zeta-alias-chart-4, var(--chart-4, var(--status-success)));
+	--cr-swatch-5: var(--zeta-alias-chart-5, var(--chart-5, var(--status-info)));
+}
+
+.context-ring-shell {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	height: 100%;
+	min-height: 0;
+	padding: 12px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--cr-fg);
+}
+
+.context-ring-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.context-ring-panel__header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.context-ring-panel__title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--cr-fg);
+}
+
+.context-ring-panel__model {
+	min-width: 0;
+	overflow: hidden;
+	font-size: 11px;
+	color: var(--cr-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.context-ring-panel__hero {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+/* The ring ----------------------------------------------------------------- */
+
+.context-ring {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+}
+
+.context-ring__svg {
+	width: 100%;
+	height: 100%;
+}
+
+.context-ring__track {
+	fill: none;
+	stroke: var(--cr-track);
+	stroke-width: 9;
+}
+
+.context-ring__arc {
+	fill: none;
+	stroke: var(--cr-accent);
+	stroke-width: 9;
+	stroke-linecap: round;
+	transition: stroke-dashoffset 300ms ease, stroke 300ms ease;
+}
+
+.context-ring__arc--ok {
+	stroke: var(--cr-ok);
+}
+
+.context-ring__arc--near {
+	stroke: var(--cr-near);
+}
+
+.context-ring__arc--full {
+	stroke: var(--cr-full);
+}
+
+.context-ring__marker {
+	stroke: var(--cr-fg);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+}
+
+.context-ring__center {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1px;
+	pointer-events: none;
+}
+
+.context-ring-panel__percent {
+	font-size: 20px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--cr-fg);
+}
+
+.context-ring-panel__figures {
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	color: var(--cr-muted);
+}
+
+/* Legend ------------------------------------------------------------------- */
+
+.context-ring-panel__legend {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.context-ring-panel__legend-row {
+	display: grid;
+	grid-template-columns: 8px minmax(0, 1fr) auto auto;
+	gap: 8px;
+	align-items: center;
+	font-size: 11.5px;
+	cursor: default;
+}
+
+.context-ring-panel__swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--cr-muted);
+}
+
+.context-ring-panel__swatch--systemPrompt,
+.context-ring-panel__seg--systemPrompt {
+	background: var(--cr-swatch-1);
+}
+
+.context-ring-panel__swatch--systemTools,
+.context-ring-panel__seg--systemTools {
+	background: var(--cr-swatch-2);
+}
+
+.context-ring-panel__swatch--systemContext,
+.context-ring-panel__seg--systemContext {
+	background: var(--cr-swatch-3);
+}
+
+.context-ring-panel__swatch--skills,
+.context-ring-panel__seg--skills {
+	background: var(--cr-swatch-4);
+}
+
+.context-ring-panel__swatch--messages,
+.context-ring-panel__seg--messages {
+	background: var(--cr-swatch-5);
+}
+
+.context-ring-panel__legend-name {
+	overflow: hidden;
+	color: var(--cr-fg);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.context-ring-panel__legend-tokens {
+	color: var(--cr-fg);
+	font-variant-numeric: tabular-nums;
+}
+
+.context-ring-panel__legend-share {
+	min-width: 58px;
+	color: var(--cr-muted);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+/* Composition bar ---------------------------------------------------------- */
+
+.context-ring-panel__bar {
+	position: relative;
+	display: flex;
+	gap: 1px;
+	height: 6px;
+	border-radius: 999px;
+	background: var(--cr-track);
+	overflow: hidden;
+}
+
+.context-ring-panel__seg {
+	height: 100%;
+	min-width: 2px;
+}
+
+.context-ring-panel__mark {
+	position: absolute;
+	top: -2px;
+	bottom: -2px;
+	width: 2px;
+	border-radius: 1px;
+	background: var(--cr-near);
+	transform: translateX(-1px);
+}
+
+/* Fact rows ---------------------------------------------------------------- */
+
+.context-ring-panel__facts {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 3px 12px;
+	margin: 0;
+}
+
+/* Each row is a grid item pair, so the dt/dd columns align across rows. */
+.context-ring-panel__fact {
+	display: contents;
+}
+
+.context-ring-panel__facts dt {
+	overflow: hidden;
+	color: var(--cr-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.context-ring-panel__facts dd {
+	margin: 0;
+	color: var(--cr-fg);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.context-ring-panel__tone {
+	font-weight: 600;
+}
+
+.context-ring-panel__tone--ok {
+	color: var(--cr-ok);
+}
+
+.context-ring-panel__tone--near {
+	color: var(--cr-near);
+}
+
+.context-ring-panel__tone--full {
+	color: var(--cr-full);
+}
+
+.context-ring-panel__section {
+	margin: 6px 0 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--cr-muted);
+}
+
+/* States ------------------------------------------------------------------- */
+
+.context-ring-panel__empty {
+	margin: 0;
+	font-size: 12px;
+	color: var(--cr-muted);
+}
+
+.context-ring-panel__error {
+	margin: 0;
+	font-size: 12px;
+	color: var(--cr-full);
+}
+
+.context-ring-panel__notice {
+	margin: 0;
+	padding: 6px 8px;
+	border-radius: 6px;
+	font-size: 11.5px;
+	background: var(--zeta-alias-status-warning-background, var(--status-warning-background));
+	color: var(--zeta-alias-status-warning-foreground, var(--status-warning-foreground, var(--cr-fg)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.context-ring__arc {
+		transition: none;
+	}
+}

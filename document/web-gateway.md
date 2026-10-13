@@ -34,6 +34,7 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 | `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export` | Gateway | W1 ✅ |
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
+| `api/agent/[id]/context` | Gateway（新增，非迁移） | ✅ 上下文统计面板数据源：窗口占用 + 分类占用 + 压缩阈值 + 会话累计 token/调用计数（`context-usage.ts`）。**仅活会话**：未运行时回 `{ running: false }`（同 `GET /api/agent/<id>`），仅 `GET`（其余 405） |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
 | `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
 | `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/tracking`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import） | — |
@@ -53,6 +54,12 @@ Browser ── :30141 (Bun.serve, ZetaServer)
   `queue_update` 与 `running`/`not-running` 事件为网关合成（运行时事件集
   不含二者）；`auto_compaction_end` 的事件载荷补上运行时缺失的
   `estimatedTokensAfter`（`getContextUsage()` 合成）。bash-output 不实现。
+- `context-usage.ts` — 上下文统计面板（右栏 `context` 面板，web-ui
+  `components/context-ring/**`）：把会话自有的记账投影成一份快照 ——
+  `computeSessionContextBreakdown`（分类占用 / 窗口 / 空闲 / 压缩缓冲）+
+  `getSessionCompactionBoundaries`（阈值与投机压缩百分比）+
+  `AgentSession.getSessionStats()`（累计 token / 调用计数 / 花费 / 路由模型）。
+  不新增任何 token 计算；分类是估算值，面板按 `~` 语义呈现。
 - `auth.ts` — W3 ✅：`AuthStorage`/`ModelRegistry` 的 provider/API-key/OAuth 流。
 - `models.ts` — W3 ✅：models 列表、`models.json` 读写、连接测试。
 - `skills.ts`、`skills-lock.ts`、`skill-updates.ts`、`npx.ts` — W4 ✅：skills 列表
@@ -67,7 +74,10 @@ Browser ── :30141 (Bun.serve, ZetaServer)
   disable/enable 写 `disabledExtensions` 的 `extension-module:<name>` 条目）。
 
 DTO 契约以 web-ui `lib/types.ts` / `lib/api-types.ts` 为准，网关负责产出；
-web-ui 侧类型定义保留（客户端在用），路由文件删除。
+web-ui 侧类型定义保留（客户端在用），路由文件删除。新增族的 DTO 与产生它的
+handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
+`web-gateway/context-usage.ts`（web-ui 不 import 任何 `@linxiraos/*` 类型入口，
+故镜像定义）。
 
 ## 关键实现要点
 
