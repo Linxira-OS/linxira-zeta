@@ -91,7 +91,7 @@ on:
 # in the same `release-<sha>` group — a duplicate that re-publishes. A tag
 # pushed on its own does not trigger CI; use `gh workflow run` (a dispatch is
 # in the no-cancel group) for a standalone tag. Never push to main while a
-# release run is in flight (document/release.md damage class 8).
+# release run is in flight (document/release.md damage class 9).
 concurrency:
    group: "${{ github.workflow }}-${{ (startsWith(github.event.head_commit.message, 'chore: bump version to ') || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && format('release-{0}', github.sha) || github.ref }}"
    cancel-in-progress: "${{ !(startsWith(github.event.head_commit.message, 'chore: bump version to ') || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}"
@@ -227,6 +227,8 @@ jobs:
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface
            run: bun scripts/check-ci-surface.ts
+         - name: Release asset-name guard
+           run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
          # Audits the standing upstream lineage on every push, so a squash /

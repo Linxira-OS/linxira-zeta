@@ -4955,6 +4955,7 @@ dependencies = [
  "arboard",
  "chrono",
  "crossterm",
+ "png",
  "ratatui",
  "sysinfo",
  "termide-config",

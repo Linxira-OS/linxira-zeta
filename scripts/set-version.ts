@@ -8,6 +8,10 @@
  *   - Cargo.toml workspace version
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
+ *   - the vendored npm distributions (editor / main / termide): the launcher
+ *     package and its platform leaves, plus the launcher's exact
+ *     optionalDependencies pins — a stale pin ships the previous release's
+ *     binary (scripts/npm-distributions.ts holds the registry)
  *   - web-ui/package.json (zeta-web) version AND its @linxiraos/* dependency
  *     ranges (kept as ^<version>, so a lockstep publish always resolves)
  *
@@ -24,6 +28,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { NPM_DISTRIBUTIONS } from "./npm-distributions";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -45,29 +50,6 @@ const ALL_PACKAGES = [
 	"packages/omptype",
 	"packages/wire",
 	"plugins/official/pi-messenger",
-] as const;
-
-// Vendored editor npm distribution (published by `ci-release-publish.ts --editor`).
-const EDITOR_NPM_PACKAGES = [
-	"editor/npm/editor-windows-x64/package.json",
-	"editor/npm/editor-linux-x64/package.json",
-	"editor/npm/editor/package.json",
-] as const;
-
-// Vendored termide (zeta-ide) npm distribution (published by
-// `ci-release-publish.ts --ide`). Not a Bun workspace; without this list the
-// manifests silently lag the release line (damage item 7 in release.md).
-const IDE_NPM_PACKAGES = [
-	"termide/npm/ide-windows-x64/package.json",
-	"termide/npm/ide-linux-x64/package.json",
-	"termide/npm/ide/package.json",
-] as const;
-
-// The zeta workspace (zeta bin) npm distribution — same vendored-npm pattern.
-const MAIN_NPM_PACKAGES = [
-	"main/npm/main-windows-x64/package.json",
-	"main/npm/main-linux-x64/package.json",
-	"main/npm/main/package.json",
 ] as const;
 
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
@@ -158,6 +140,45 @@ async function main(): Promise<void> {
 	const changed: string[] = [];
 	const unchanged: string[] = [];
 
+	// Fail before writing anything when the leaf-pin registry and the tree
+	// disagree: a renamed or removed leaf would otherwise half-apply the bump.
+	for (const dist of NPM_DISTRIBUTIONS) {
+		const parentRel = `${dist.dir}/package.json`;
+		const parent = readJson(parentRel) as { optionalDependencies?: Record<string, string> };
+		for (const leaf of dist.leaves) {
+			if (!parent.optionalDependencies?.[leaf.name]) {
+				fail(`${parentRel}: ${leaf.name} is not pinned in optionalDependencies`);
+			}
+			if (!fs.existsSync(path.join(repoRoot, `${leaf.dir}/package.json`))) {
+				fail(`${leaf.dir}/package.json: missing (registered as a leaf of ${dist.dir})`);
+			}
+		}
+	}
+
+	// Bump one manifest's version, plus any leaf pins it carries. Pins are
+	// rewritten even when the version already matches: a stale pin next to a
+	// correct version is exactly the drift check-version-consistency.ts gates on.
+	const bumpManifest = (rel: string, pins: readonly string[] = []): void => {
+		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
+		let touched = manifest.version !== version;
+		manifest.version = version;
+		for (const pin of pins) {
+			if (!manifest.optionalDependencies?.[pin]) {
+				fail(`${rel}: ${pin} is not pinned in optionalDependencies`);
+			}
+			if (manifest.optionalDependencies[pin] !== version) {
+				manifest.optionalDependencies[pin] = version;
+				touched = true;
+			}
+		}
+		if (!touched) {
+			unchanged.push(rel);
+			return;
+		}
+		writeJson(rel, manifest);
+		changed.push(rel);
+	};
+
 	// 1. All published packages.
 	for (const pkg of ALL_PACKAGES) {
 		const rel = `${pkg}/package.json`;
@@ -210,51 +231,18 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 3b. Vendored editor npm distribution (not a Bun workspace).
-	for (const rel of EDITOR_NPM_PACKAGES) {
-		const manifest = readJson(rel) as { version?: string };
-		if (manifest.version === version) {
-			unchanged.push(rel);
-			continue;
-		}
-		manifest.version = version;
-		writeJson(rel, manifest);
-		changed.push(rel);
-	}
-
-	// 3c. Vendored termide (zeta-ide) npm distribution; the launcher pins its
-	// platform leaves exactly, so the optionalDependencies refs move too.
-	for (const rel of IDE_NPM_PACKAGES) {
-		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
-		if (manifest.version === version) {
-			unchanged.push(rel);
-			continue;
-		}
-		manifest.version = version;
-		if (manifest.optionalDependencies) {
-			for (const dep of Object.keys(manifest.optionalDependencies)) {
-				if (dep.startsWith("@linxiraos/ide-")) manifest.optionalDependencies[dep] = version;
-			}
-		}
-		writeJson(rel, manifest);
-		changed.push(rel);
-	}
-
-	// 3d. The zeta workspace (main) npm distribution; same leaf-pinning move.
-	for (const rel of MAIN_NPM_PACKAGES) {
-		const manifest = readJson(rel) as { version?: string; optionalDependencies?: Record<string, string> };
-		if (manifest.version === version) {
-			unchanged.push(rel);
-			continue;
-		}
-		manifest.version = version;
-		if (manifest.optionalDependencies) {
-			for (const dep of Object.keys(manifest.optionalDependencies)) {
-				if (dep.startsWith("@linxiraos/main-")) manifest.optionalDependencies[dep] = version;
-			}
-		}
-		writeJson(rel, manifest);
-		changed.push(rel);
+	// 3b. Vendored npm distributions (editor / main / termide — published by
+	// `ci-release-publish.ts --editor/--ide` and the workbench job). Not Bun
+	// workspaces: the launcher, its platform leaves, and the launcher's exact
+	// leaf pins all ride the release line. The 1.2.0 editor launcher was lifted
+	// to the line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so
+	// the pins are part of this pass.
+	for (const dist of NPM_DISTRIBUTIONS) {
+		bumpManifest(
+			`${dist.dir}/package.json`,
+			dist.leaves.map(leaf => leaf.name),
+		);
+		for (const leaf of dist.leaves) bumpManifest(`${leaf.dir}/package.json`);
 	}
 
 	// 4. Root catalog @linxiraos keys.

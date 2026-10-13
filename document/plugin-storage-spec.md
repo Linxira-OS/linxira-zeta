@@ -123,11 +123,12 @@
   已知违规豁免点（单文件、三键），改用 dirs.ts 前至少 MUST 认
   `ZETA_CONFIG_DIR`（§3.4）。
 - **Zeta editor（Go/TTT）**：对 `.zeta` 全只读——读 `handoff.json`
-  （handoff.go:30-36，`ZETA_HANDOFF_PATH` 可直指）与
-  `plugins/node_modules/.bin/zeta-c`（handoff_to_agent.go:71）。MUST NOT
+  （handoff.go:25，`ZETA_HANDOFF_PATH` 可直指）。MUST NOT
   写 `.zeta` 任何文件；自有状态归 `~/.config/ttt/`
-  （internal/config/config.go:60-75，`TTT_CONFIG_DIR` 认领）。双写契约
-  （handoff.ts ↔ handoff.go 无共享代码）双方 MUST 保持字段兼容。
+  （internal/config/config.go:60-75，`TTT_CONFIG_DIR` 认领）。handoff 契约
+  （handoff.ts ↔ handoff.go 无共享代码）为**单向下发**（agent 写、editor 读；
+  editor 侧写回面与 `plugins/node_modules/.bin/zeta-c` 读取已随 editor→agent
+  入口移除），双方 MUST 保持字段兼容。
 - **Zetaide（Rust/termide）**：零接触 `.zeta`（全树 grep `ZETA_|\.zeta`
   零命中），自有 XDG 三件套 `~/.config|local/share|cache/termide/`。规范
   立场：保持零接触；若未来需与 agent 交互，走 handoff 式只读接缝，不新开

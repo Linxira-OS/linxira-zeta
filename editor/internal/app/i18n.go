@@ -127,9 +127,6 @@ var zhLabels = map[string]string{
 	"Output":                 "输出",
 	"Discard":                "放弃",
 	"Menu":                   "菜单",
-	"Agent":                  "代理",
-	"Enable agent handoff":   "启用代理交接",
-	"Hand off current file":  "交接当前文件",
 }
 
 // zhFieldLabels translates setting-field labels. Keyed by the English label

@@ -1,4 +1,4 @@
-use std::{io::Stdout, time::Duration};
+use std::{io::Stdout, time::Duration, time::Instant};
 
 use anyhow::Result;
 use crossterm::event::{
@@ -68,6 +68,51 @@ fn render_confirm_box(frame: &mut ratatui::Frame, area: Rect, message: &str) {
 		height: rect.height.saturating_sub(2),
 	};
 	frame.render_widget(Paragraph::new(truncate(message, inner.width as usize)), inner);
+	let hint_row = Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 1 };
+	frame.render_widget(
+		Paragraph::new(Line::from(Span::styled(hint, Style::default().fg(Color::DarkGray)))),
+		hint_row,
+	);
+}
+
+/// The inline rename modal: a small opaque centered box — a title line, the
+/// working buffer with a caret, and the key hints. Modal like the close
+/// confirm (input is swallowed until Enter or Esc).
+fn render_rename_box(frame: &mut ratatui::Frame, area: Rect, title: &str, buffer: &str) {
+	let input = format!("{buffer}▏");
+	let hint = " Enter save · Esc cancel ";
+	let needed = Span::raw(&input).width().max(Span::raw(hint).width()) as u16 + 2;
+	let width = needed.min(area.width.saturating_sub(2)).max(24);
+	let height = 5u16.min(area.height);
+	if area.width < 26 || area.height < 5 {
+		return;
+	}
+	let rect = Rect {
+		x: area.x + (area.width - width) / 2,
+		y: area.y + (area.height - height) / 2,
+		width,
+		height,
+	};
+	// Opaque surface: reset cells first so pane text never bleeds through
+	// (the same rule as the menu dropdown and the close confirm).
+	for row in rect.y..rect.bottom() {
+		for col in rect.x..rect.right() {
+			frame.buffer_mut()[(col, row)].reset();
+		}
+	}
+	let block = Block::default()
+		.borders(Borders::ALL)
+		.border_type(BorderType::Rounded)
+		.title(format!(" {title} "))
+		.style(Style::default().fg(Color::Cyan));
+	frame.render_widget(block, rect);
+	let inner = Rect {
+		x: rect.x + 1,
+		y: rect.y + 1,
+		width: rect.width.saturating_sub(2),
+		height: rect.height.saturating_sub(2),
+	};
+	frame.render_widget(Paragraph::new(truncate(&input, inner.width as usize)), inner);
 	let hint_row = Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 1 };
 	frame.render_widget(
 		Paragraph::new(Line::from(Span::styled(hint, Style::default().fg(Color::DarkGray)))),
@@ -172,6 +217,10 @@ pub struct Workspace {
 	widgets: WidgetState,
 	/// Pending close awaiting confirmation of busy panes (Yes replays it).
 	confirm: Option<ConfirmClose>,
+	/// Inline rename modal, when open (tab or pane page name).
+	rename: Option<Rename>,
+	/// Last left-press position for double-click detection (tab/page rename).
+	last_click: Option<(Instant, u16, u16)>,
 }
 
 /// A close the user still has to confirm: which panes are busy, and what
@@ -179,6 +228,22 @@ pub struct Workspace {
 struct ConfirmClose {
 	message: String,
 	action: PendingClose,
+}
+
+/// What an inline rename edits: a top-level tab's name, or one sub-page of a
+/// pane (a pane's own "subtab" — the page tabs in its title bar).
+#[derive(Clone, Copy, Debug)]
+enum RenameTarget {
+	Tab(usize),
+	Page { pane: usize, page: usize },
+}
+
+/// The inline rename modal: what it renames plus the working buffer. Modal
+/// like the close confirm — input is swallowed until Enter commits or Esc
+/// cancels.
+struct Rename {
+	target: RenameTarget,
+	buffer: String,
 }
 
 enum PendingClose {
@@ -197,7 +262,12 @@ pub fn run() -> Result<()> {
 	crossterm::execute!(
 		stdout,
 		crossterm::terminal::EnterAlternateScreen,
-		crossterm::event::EnableMouseCapture
+		crossterm::event::EnableMouseCapture,
+		// Bracketed paste: the host wraps clipboard text in `ESC[200~…ESC[201~`
+		// so the workbench receives it as one `Event::Paste`, never a burst of
+		// key events. Without this a multi-line paste arrived line by line and
+		// the focused shell submitted each line.
+		crossterm::event::EnableBracketedPaste
 	)?;
 	let backend = CrosstermBackend::new(stdout);
 	let mut terminal = RatuTerminal::new(backend)?;
@@ -206,7 +276,8 @@ pub fn run() -> Result<()> {
 	crossterm::execute!(
 		terminal.backend_mut(),
 		crossterm::terminal::LeaveAlternateScreen,
-		crossterm::event::DisableMouseCapture
+		crossterm::event::DisableMouseCapture,
+		crossterm::event::DisableBracketedPaste
 	)?;
 	terminal.show_cursor()?;
 	result
@@ -231,6 +302,10 @@ fn event_loop(terminal: &mut RatuTerminal<CrosstermBackend<Stdout>>) -> Result<(
 						return Ok(());
 					}
 				},
+				// A bracketed paste from the host: route the text to the
+				// focused pane's PTY as one bracketed paste (never as key
+				// events, so multi-line pastes do not submit line by line).
+				Event::Paste(text) => ws.handle_paste(&text),
 				Event::Resize(cols, rows) => ws.resize(rows, cols),
 				_ => {},
 			}
@@ -263,6 +338,8 @@ impl Workspace {
 			last_frame: Rect::default(),
 			widgets: WidgetState::default(),
 			confirm: None,
+			rename: None,
+			last_click: None,
 		})
 	}
 
@@ -355,6 +432,12 @@ impl Workspace {
 
 	/// Returns `true` when the workspace should quit.
 	fn handle_key(&mut self, key: KeyEvent) -> Result<bool> {
+		// The inline rename is modal: Enter commits, Esc cancels, editable
+		// keys edit the buffer, everything else is swallowed.
+		if self.rename.is_some() {
+			self.handle_rename_key(key);
+			return Ok(false);
+		}
 		// The busy-close confirm is modal: Yes replays the pending close,
 		// No dismisses, everything else is swallowed while it shows.
 		if self.confirm.is_some() {
@@ -456,7 +539,14 @@ impl Workspace {
 					tab.minimize_pane(idx);
 				},
 				KeyCode::Char('b') | KeyCode::Char('B') => self.promote_pane_to_tab(),
-				_ => {},
+				// Alt+V is the documented image-paste fallback on hosts whose
+				// terminal eats Ctrl+V: spill a clipboard image to a temp PNG
+				// and paste its path; without an image, forward the chord so
+				// the child's own Alt+V (text paste) still fires.
+				KeyCode::Char('v') | KeyCode::Char('V') => self.paste_image_or_forward(key),
+				// Any other Alt chord is the user talking to the pane, not the
+				// workbench — forward it instead of swallowing it.
+				_ => self.forward_key(key),
 			}
 			return Ok(false);
 		}
@@ -464,19 +554,146 @@ impl Workspace {
 			self.open_overlay(Overlay::Help);
 			return Ok(false);
 		}
+		self.forward_key(key);
+		Ok(false)
+	}
+
+	/// Route a key chord to the focused pane's PTY. Unbound chords — every
+	/// regular key and every host Alt combination the workbench does not claim
+	/// — fall through here, so the child (zetacode and friends) sees them.
+	fn forward_key(&mut self, key: KeyEvent) {
 		let chord = KeyChord::new(key, &self.normalizer);
 		let events = {
 			let tab = self.active();
 			let Some(pane) = tab.panes.get_mut(tab.active) else {
-				return Ok(false);
+				return;
 			};
 			let Some(term) = pane.as_terminal() else {
-				return Ok(false);
+				return;
 			};
 			term.handle_key(chord)
 		};
 		self.apply_events(events);
-		Ok(false)
+	}
+
+	/// A bracketed paste from the host: write the text into the focused pane's
+	/// PTY as one bracketed paste. The pane re-wraps it (its child shell/agent
+	/// expects the markers), so a multi-line paste lands whole instead of
+	/// line-by-line submits.
+	fn handle_paste(&mut self, text: &str) {
+		if text.is_empty() {
+			return;
+		}
+		let tab = self.active();
+		let active = tab.active;
+		if let Some(term) = tab.panes.get_mut(active).and_then(|p| p.as_terminal()) {
+			let _ = term.paste_text(text);
+		}
+	}
+
+	/// `Alt+V`: paste a clipboard image as a temp-file path (the host terminal
+	/// swallowed the image otherwise), falling back to forwarding the chord so
+	/// the child's own text paste still runs when the clipboard holds no image.
+	fn paste_image_or_forward(&mut self, key: KeyEvent) {
+		match clipboard_image_path() {
+			Some(path) => {
+				let name = path
+					.file_name()
+					.map(|n| n.to_string_lossy().into_owned())
+					.unwrap_or_else(|| path.display().to_string());
+				self.handle_paste(&path.to_string_lossy());
+				self.notice = Some(format!("pasted image: {name}"));
+			},
+			None => self.forward_key(key),
+		}
+	}
+
+	/// Open the inline rename modal for `target`, pre-filled with its current
+	/// name so a small edit is easy and an empty buffer means "clear the
+	/// override".
+	fn open_rename(&mut self, target: RenameTarget) {
+		let buffer = match target {
+			RenameTarget::Tab(idx) => self
+				.tabs
+				.get(idx)
+				.map(|tab| {
+					tab.name
+						.clone()
+						.unwrap_or_else(|| tab.pane_title_base(tab.active))
+				})
+				.unwrap_or_default(),
+			RenameTarget::Page { pane, page } => self
+				.tabs
+				.get(self.active_tab)
+				.and_then(|tab| tab.panes.get(pane))
+				.and_then(|p| p.pages.get(page))
+				.map(|p| p.name.clone().unwrap_or_else(|| p.kind.label()))
+				.unwrap_or_default(),
+		};
+		self.rename = Some(Rename { target, buffer });
+	}
+
+	/// Keys while the rename modal is open: Enter commits, Esc cancels,
+	/// Backspace/Char edit the buffer (end-anchored), everything else ignored.
+	fn handle_rename_key(&mut self, key: KeyEvent) {
+		match key.code {
+			KeyCode::Enter => {
+				let Some(rename) = self.rename.take() else {
+					return;
+				};
+				let trimmed = rename.buffer.trim().to_string();
+				let name = if trimmed.is_empty() {
+					None
+				} else {
+					Some(trimmed)
+				};
+				match rename.target {
+					RenameTarget::Tab(idx) => {
+						if let Some(tab) = self.tabs.get_mut(idx) {
+							tab.name = name;
+						}
+					},
+					RenameTarget::Page { pane, page } => {
+						if let Some(p) = self
+							.tabs
+							.get_mut(self.active_tab)
+							.and_then(|t| t.panes.get_mut(pane))
+						{
+							if let Some(pg) = p.pages.get_mut(page) {
+								pg.name = name;
+							}
+						}
+					},
+				}
+			},
+			KeyCode::Esc => self.rename = None,
+			KeyCode::Backspace => {
+				if let Some(rename) = self.rename.as_mut() {
+					rename.buffer.pop();
+				}
+			},
+			KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+				if let Some(rename) = self.rename.as_mut() {
+					rename.buffer.push(c);
+				}
+			},
+			_ => {},
+		}
+	}
+
+	/// Double-click detection for the rename gesture: a second left-press on
+	/// the same cell within 400 ms counts as a double click. Always records
+	/// the press for the next comparison.
+	fn take_double_click(&mut self, mouse: &crossterm::event::MouseEvent) -> bool {
+		const DOUBLE_CLICK: Duration = Duration::from_millis(400);
+		let now = Instant::now();
+		let double = matches!(
+			self.last_click,
+			Some((then, col, row))
+				if now.duration_since(then) <= DOUBLE_CLICK && col == mouse.column && row == mouse.row
+		);
+		self.last_click = Some((now, mouse.column, mouse.row));
+		double
 	}
 
 	/// One click: open an install pane for every suite tool missing from
@@ -527,6 +744,11 @@ impl Workspace {
 	}
 
 	fn handle_mouse(&mut self, mouse: crossterm::event::MouseEvent) -> bool {
+		// The rename modal is keyboard-only; a stray click must not activate
+		// the chrome underneath it.
+		if self.rename.is_some() {
+			return false;
+		}
 		match mouse.kind {
 			MouseEventKind::Down(MouseButton::Left) => self.handle_mouse_down(mouse),
 			MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => self.handle_mouse_scroll(mouse),
@@ -610,6 +832,9 @@ impl Workspace {
 		let Some(hit) = self.hit_at(mouse.column, mouse.row) else {
 			return false;
 		};
+		// A double click on the chrome renames instead of its single-click
+		// action; the press is recorded for the next comparison either way.
+		let double = self.take_double_click(&mouse);
 		match hit {
 			Hit::DismissMenu => {
 				self.open_menu = None;
@@ -645,6 +870,10 @@ impl Workspace {
 			Hit::TabPlus => self.new_tab(),
 			Hit::Tab(idx) => {
 				self.active_tab = idx;
+				if double {
+					self.open_rename(RenameTarget::Tab(idx));
+					return false;
+				}
 				if self.drag_enabled() {
 					self.drag = Some(Drag::TabReorder(idx));
 				}
@@ -674,6 +903,10 @@ impl Workspace {
 				self.active().active = pane;
 				if let Some(p) = self.active().panes.get_mut(pane) {
 					p.page = page.min(p.pages.len().saturating_sub(1));
+				}
+				if double {
+					self.open_rename(RenameTarget::Page { pane, page });
+					return false;
 				}
 			},
 			Hit::PageClose { pane } => {
@@ -731,6 +964,11 @@ impl Workspace {
 			},
 			Hit::PaneTitle { pane } => {
 				self.active().active = pane;
+				if double {
+					let page = self.active().panes.get(pane).map(|p| p.page).unwrap_or(0);
+					self.open_rename(RenameTarget::Page { pane, page });
+					return false;
+				}
 				if self.drag_enabled() {
 					self.drag = Some(Drag::PaneSwap { from: pane, cursor: (mouse.column, mouse.row) });
 				}
@@ -897,6 +1135,7 @@ impl Workspace {
 							minimized: Vec::new(),
 							active: 0,
 							tree: PaneNode::single(0),
+							name: None,
 						});
 						self.active_tab = self.tabs.len() - 1;
 					}
@@ -980,6 +1219,11 @@ impl Workspace {
 				let idx = self.active().active;
 				self.close_pane_at(idx);
 			},
+			(1, 11) => {
+				let pane = self.active().active;
+				let page = self.active().panes.get(pane).map(|p| p.page).unwrap_or(0);
+				self.open_rename(RenameTarget::Page { pane, page });
+			},
 			// Tab
 			(2, 0) => self.active_tab = (self.active_tab + 1) % self.tabs.len(),
 			(2, 1) => {
@@ -989,6 +1233,7 @@ impl Workspace {
 					self.active_tab - 1
 				}
 			},
+			(2, 2) => self.open_rename(RenameTarget::Tab(self.active_tab)),
 			// Tools
 			(3, 0..=5) => {
 				let (_, tree) = PaneNode::presets()[item].clone();
@@ -1248,7 +1493,15 @@ impl Workspace {
 			.tabs
 			.iter()
 			.enumerate()
-			.map(|(idx, tab)| format!("{}:{}", idx + 1, tab.pane_title_base(tab.active)))
+			.map(|(idx, tab)| {
+				// An explicit tab rename replaces the focused pane's float-up
+				// title; the number prefix keeps tabs distinguishable.
+				let base = match &tab.name {
+					Some(name) if !name.is_empty() => name.clone(),
+					_ => tab.pane_title_base(tab.active),
+				};
+				format!("{}:{}", idx + 1, base)
+			})
 			.collect()
 	}
 
@@ -1425,7 +1678,7 @@ impl Workspace {
 						pane
 							.pages
 							.get(page_idx)
-							.map(|p| p.kind.label())
+							.map(|p| p.name.clone().unwrap_or_else(|| p.kind.label()))
 							.unwrap_or_default()
 					};
 					let label = format!(" {} ", truncate(&label, 12));
@@ -1667,6 +1920,14 @@ impl Workspace {
 			render_confirm_box(frame, rows[2], &confirm.message);
 		}
 
+		if let Some(rename) = &self.rename {
+			let title = match rename.target {
+				RenameTarget::Tab(_) => "rename tab",
+				RenameTarget::Page { .. } => "rename pane",
+			};
+			render_rename_box(frame, rows[2], title, &rename.buffer);
+		}
+
 		if self.doctor_open {
 			// Full-frame dismiss beneath the panel: any click closes —
 			// overlays must never depend on keys alone (an active IME can
@@ -1830,6 +2091,42 @@ fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
 	])
 	.split(v[1]);
 	h[1]
+}
+
+/// Read an image off the system clipboard, encode it as a PNG under the
+/// system temp directory, and return the absolute path. `None` when the
+/// clipboard holds no image (the usual case) or the encode/write failed — the
+/// caller then falls back to forwarding the paste chord.
+fn clipboard_image_path() -> Option<std::path::PathBuf> {
+	let mut clipboard = arboard::Clipboard::new().ok()?;
+	let image = clipboard.get_image().ok()?;
+	write_clipboard_png(&image)
+}
+
+/// Encode clipboard RGBA pixels (`arboard::ImageData`) as a PNG in the temp
+/// dir. The name carries the process id and a nanosecond stamp so distinct
+/// pastes never collide. zetacode loads a pasted absolute `.png` path as an
+/// image attachment, which is how the picture reaches the pane without an
+/// OSC 5522 terminal role.
+fn write_clipboard_png(image: &arboard::ImageData<'_>) -> Option<std::path::PathBuf> {
+	let width = u32::try_from(image.width).ok()?;
+	let height = u32::try_from(image.height).ok()?;
+	if width == 0 || height == 0 {
+		return None;
+	}
+	let stamp = std::time::SystemTime::now()
+		.duration_since(std::time::UNIX_EPOCH)
+		.map(|d| d.as_nanos())
+		.unwrap_or(0);
+	let path = std::env::temp_dir().join(format!("zeta-paste-{}-{stamp}.png", std::process::id()));
+	let file = std::fs::File::create(&path).ok()?;
+	let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), width, height);
+	encoder.set_color(png::ColorType::Rgba);
+	encoder.set_depth(png::BitDepth::Eight);
+	let mut writer = encoder.write_header().ok()?;
+	writer.write_image_data(image.bytes.as_ref()).ok()?;
+	writer.finish().ok()?;
+	Some(path)
 }
 
 /// The working directory new panes inherit. GUI launches (Start menu, some

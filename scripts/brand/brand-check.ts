@@ -25,6 +25,12 @@ import {
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const SCAN_EXT = /\.(ts|tsx|rs|json|md|toml|kdl|sh|ps1)$/;
+// Line-leading comment markers for MUST_NOT_CONTAIN rules with skipCommentLines:
+// a rule that bans a token in copy must not flag an explanatory comment that
+// names the token. Block-comment body lines (`\s*\*…`) and line comments are
+// covered; trailing comments after code are not (rare, and the token would sit
+// in code anyway).
+const COMMENT_LINE = /^\s*(\/\/|\/\*|\*|#|<!--|--)/;
 
 function* trackedFiles(): Generator<string> {
 	const out = Bun.spawnSync(["git", "ls-files"], { cwd: ROOT, stdout: "pipe" });
@@ -69,6 +75,7 @@ for (const file of trackedFiles()) {
 		if (isChangelog) break;
 		if (rule.exempt?.some(suffix => relPath.endsWith(suffix))) continue;
 		lines.forEach((line, index) => {
+			if (rule.skipCommentLines && COMMENT_LINE.test(line)) return;
 			if (rule.needle.test(line)) {
 				hits.push({ file: relPath, line: index + 1, text: line.trim().slice(0, 120), rule: rule.why });
 			}

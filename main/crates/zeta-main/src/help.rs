@@ -26,13 +26,20 @@ KEYS (inside the workspace)
   Alt+D    pane: time+calendar     Alt+X    close focused pane
   Alt+L    cycle pane layout       Alt+M    minimize focused pane
   Alt+B    pane → new tab          Alt+Q    quit
-  F1       help overlay
+  Alt+V    paste image as path     F1       help overlay
+
+  Any other Alt chord is forwarded to the focused pane — unbound host
+  combinations (zetacode's own Alt shortcuts) reach the child.
 
   Mouse: click a tab (or +) in the tab bar; click a pane to focus it;
   drag a shared border to resize (left/right and top/bottom); drag a
   pane by its title onto another pane to swap or reposition it; the –
   button (or the Pane menu) minimizes a pane into the dock at the
-  bottom — click its chip there to restore it.
+  bottom — click its chip there to restore it. Double-click a tab or a
+  pane's title to rename it (Enter saves, Esc cancels).
+  Paste: bracketed paste keeps multi-line clipboard text whole; an image
+  on the clipboard pastes as a temp-file path (Alt+V), which zetacode
+  loads as an attachment.
   Note: an active IME can swallow Alt combos — switch to English input
   if a hotkey does not respond.
 
@@ -59,9 +66,11 @@ pub fn overlay_text() -> &'static str {
 	"zeta workspace — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
 	 cycle\npanes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\nAlt+D \
 	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
-	 below)\nAlt+B move pane to its own new tab\nmouse    click tab bar · click pane to focus · \
-	 drag border = resize\ndrag pane title onto a pane = swap / reposition\ndock     minimized \
-	 panes wait at the bottom — click a chip to restore\ngeneral  F1 help · Alt+Q quit\n\nsuite    \
+	 below)\nAlt+B move pane to its own new tab · Alt+V paste image (path)\nAlt+any other chord is \
+	 forwarded to the pane\nmouse    click tab bar · click pane to focus · drag border = resize\ndrag \
+	 pane title onto a pane = swap / reposition\ndouble-click a tab or pane title = rename (Enter \
+	 save · Esc cancel)\ndock     minimized panes wait at the bottom — click a chip to restore\npaste    \
+	 bracketed paste keeps multi-line clipboard text whole\ngeneral  F1 help · Alt+Q quit\n\nsuite    \
 	 zetacode · zetaeditor · zetaide\nmissing  a missing suite tool installs itself into a pane on \
 	 first use\n\nnote     an active IME can swallow Alt combos — use English input\npress F1 or \
 	 Esc to close"

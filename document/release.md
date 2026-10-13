@@ -8,7 +8,9 @@ CI/发布机制参考：唯一 workflow、trigger discipline、CI watching disci
 
 Zeta rides **one semver line** across every published surface (14 packages,
 catalog keys, Cargo workspace, natives build-version stamp, desktop, README badge,
-`crates/*/BUILD.bazel`). The format conventions below are enforced by
+`crates/*/BUILD.bazel`, and the vendored npm distributions — launcher package,
+platform leaves, and the launcher's exact `optionalDependencies` pins).
+The format conventions below are enforced by
 `scripts/set-version.ts` and verified by `scripts/check-version-consistency.ts`.
 
 | Segment  | Meaning                                                           | Example                         |
@@ -161,6 +163,15 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
         publish). No separate dispatch: the atomic push **is** the release run.
      2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
         dispatch that skips publishing (re-runs / 补发).
+  - **Pushing the tag itself triggers nothing**: `on.push` lists `branches:`
+    only, never `tags:`. A release run is always a *re-run of that commit's push
+    run* (or the equivalent dispatch above), which is what lets `release_metadata`
+    see the tag sitting on HEAD and flip the run into release mode. Fixing a bug
+    mid-release therefore means moving the tag onto the commit that carries the
+    fix and re-running that commit — the "retagged" case the comments in
+    `ci.yml`'s `on.push` path list exist for. Never retag onto a commit whose
+    push run was not green: the release run skips the tests, so that SHA's green
+    push run is the only proof they ever passed.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
   gated on `release_gate` (release-state validation: the `check` guard job —
   brand/sentinel/CI-surface/scope guards — plus lockfile freshness, native
@@ -236,8 +247,15 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 4   | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致                                                                                         | `bun-install` 全 job 死 / `check-version-consistency` 报错                                     | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖）                                                                                   |
 | 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                     |
 | 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
-| 7   | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版        | `release_editor_packages` 重发已存在版本 → npm 409，run 红                                     | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改                                                                                         |
-| 8   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
+| 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红） |
+| 8   | release worktree 重解析 lockfile vs CI frozen 安装的不对称（v1.2.0）：`release-v2.ts` 会 `rm -f bun.lock && bun install` 重解析，而每个 CI job 都是 `--frozen-lockfile`，于是类型类依赖的 caret 要到发布时才被抬版本（`@types/bun` 1.4.2 → 1.4.3 放宽 `Subprocess.signalCode`） | Step 8 `bun run check:ts` 在发布机上首次报错——CI 从未见过该版本（不是"CI 没跑类型检查"：`check` job 一直在跑，只是跑的是旧 types） | 类型依赖写死版本：catalog 里的 `@types/*` 全部精确钉版（与已精确的 `@typescript/native-preview` 一致），升级走单独 PR，让 CI 的 frozen 安装与 `check:ts` 真正看到新版本 |
+| 9   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
+
+**版本戳核对必须用绝对路径（本机 PATH 陷阱）**：核对平台叶包/二进制版本戳时，用刚构建
+产物的**绝对路径**调用（`"$PWD/packages/coding-agent/binaries/zeta-cli-linux-x64" --version`，
+叶包同理）。本机 PATH 上常驻的全局 `zeta.cmd`/`zeta` 是旧版；Git Bash 里用相对/裸命令调用
+会命中它而不是刚构建的产物，读出的是**旧版本号**——于是要么报出假红（"版本戳没跟上"），
+要么更糟：把旧版当成新版放行。Windows 上尤其容易（`.cmd` shim 优先于同名无扩展名产物）。
 
 **发布完成的判定纪律（v1.1.16 教训）**：同一次 push 会产生两个 workflow 的 run——
 主流水线 `CI`（`.github/workflows/ci.yml`，20+ jobs）与 `Zeta Nix`
@@ -275,9 +293,9 @@ Always move the version with a script:
 
 | Script                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                            |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
+| `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, `desktop/package.json` + its lockfile, the vendored npm distributions (editor / main / termide: launcher, platform leaves, **and** the launcher's exact `optionalDependencies` pins — a stale pin silently installs the previous release's binary), and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
 | `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
-| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
+| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, vendored npm distribution leaf pins, README badge). Run before tagging.                                                                                                                                                                                                                                              |
 | `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, verify the release source commit's push run is green, atomic branch+tag push (`--no-ci-wait` skips the source-commit check).                                                                                                                 |
 
 Rules:
@@ -292,6 +310,13 @@ Rules:
   valid input there.
 - After `set-version.ts`, regenerate the lockfile (`bun install`) or let
   `release-v2.ts` do it — a stale `bun.lock` is the usual npm-publish hazard.
+- Running `release-v2.ts` from a **non-root worktree** needs that worktree's own
+  dependencies first: `bun install --frozen-lockfile` there before the release
+  (and `rm -rf node_modules` after, if the worktree is throwaway). Bun resolves
+  workspace packages upward, so without a local install the type and
+  consistency gates compile the new sources against the repository root's
+  possibly **stale** `node_modules` — "new code + old type definitions" surfaces
+  as phantom errors that have nothing to do with the release.
 - `scripts/release.ts` is the v1 script, retained only for its shared helpers
   (`selectLatestZetaTag`, `validateExplicitVersion`, `watchCI`) and its
   `watch` mode. Do not use it to cut a release.

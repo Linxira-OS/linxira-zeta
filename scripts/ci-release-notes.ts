@@ -257,7 +257,7 @@ async function main(): Promise<void> {
 		const content = await Bun.file(changelogPath).text();
 		const merged = mergePackageSection(content, floor, version);
 		if (merged === "") continue;
-		const pkgDir = changelogPath.replace(/\/CHANGELOG\.md$/, "");
+		const pkgDir = changelogPath.replace(/[/\\]CHANGELOG\.md$/, "");
 		const name = await loadPackageName(pkgDir);
 		sections.push(`## ${name}\n\n${merged}`);
 	}
@@ -281,7 +281,9 @@ async function main(): Promise<void> {
  * `desktop/electron-builder.yml` `artifactName`), the CLI binaries
  * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles),
  * and the bare product binaries (`zeta-work-*` / `zeta-ide-*` /
- * `zeta-editor-*` from the release_product_binaries job).
+ * `zeta-editor-*` from the release_product_binaries job), then the remaining
+ * release assets (`LICENSE`, `SHA256SUMS.txt`, `THIRD-PARTY-NOTICES.txt`, and
+ * the browser relay extension).
  * Every line links to its `releases/download` URL so release assets stay
  * discoverable from the notes without scripting.
  */
@@ -296,20 +298,8 @@ function buildAssetSections(version: string): string {
 		`zeta-desktop-${version}-linux-x64.tar.gz`,
 		`zeta-desktop-${version}-win-x64.zip`,
 		`zeta-desktop-${version}-win-x64.exe`,
-		`zeta-desktop-${version}-mac-x64.dmg`,
-		`zeta-desktop-${version}-mac-x64.zip`,
-		`zeta-desktop-${version}-mac-arm64.dmg`,
-		`zeta-desktop-${version}-mac-arm64.zip`,
 	];
-	const cliAssets = [
-		"zeta-cli-linux-x64",
-		"zeta-cli-linux-musl-x64",
-		"zeta-cli-linux-arm64",
-		"zeta-cli-linux-musl-arm64",
-		"zeta-cli-darwin-x64",
-		"zeta-cli-darwin-arm64",
-		"zeta-cli-windows-x64.exe",
-	];
+	const cliAssets = ["zeta-cli-linux-x64", "zeta-cli-linux-musl-x64", "zeta-cli-windows-x64.exe"];
 	// Bare product binaries from the release_product_binaries job; the
 	// distribution PKGBUILDs fetch these URLs verbatim.
 	const productAssets = [
@@ -319,8 +309,12 @@ function buildAssetSections(version: string): string {
 		"zeta-editor-linux-x64",
 		"zeta-editor-win-x64.exe",
 	];
+	// Remaining release_github assets: root license, third-party notices, the
+	// checksum manifest, and the browser relay extension. Keep in sync with
+	// that job's `files:` list.
+	const miscAssets = ["LICENSE", "SHA256SUMS.txt", "THIRD-PARTY-NOTICES.txt", "zeta-browser-relay-extension.zip"];
 
-	return `## 桌面安装包\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI 二进制\n\n${cliAssets.map(link).join("\n")}\n\n## 产品裸二进制\n\n${productAssets.map(link).join("\n")}`;
+	return `## Desktop installers\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
 }
 
 if (import.meta.main) {

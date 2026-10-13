@@ -69,7 +69,7 @@ export const providers = {
 		"providers.exhausted-n": "{count} exhausted",
 		"providers.no-snapshots-in-range": "No usage snapshots in this range",
 		"providers.snapshot-hint":
-			"Usage snapshots accumulate whenever usage limits are fetched (TUI footer, /usage, zeta-c usage).",
+			"Usage snapshots accumulate whenever usage limits are fetched (TUI footer, /usage, zetacode usage).",
 		// ── window utilization card + accounts table ────────────────────────
 		"providers.utilization": "Window utilization",
 		"providers.utilization-description": "{window} used fraction per account, {from} – {to}",
@@ -146,7 +146,7 @@ export const providers = {
 		"providers.exhaustions-title": "该时间范围内观测到的进入耗尽状态的次数",
 		"providers.exhausted-n": "{count} 次耗尽",
 		"providers.no-snapshots-in-range": "该时间范围内没有用量快照",
-		"providers.snapshot-hint": "每当获取用量限额时都会累积用量快照（TUI 底部、/usage、zeta-c usage）。",
+		"providers.snapshot-hint": "每当获取用量限额时都会累积用量快照（TUI 底部、/usage、zetacode usage）。",
 		// ── window utilization card + accounts table ────────────────────────
 		"providers.utilization": "窗口利用率",
 		"providers.utilization-description": "{window} 各账号的已用比例，{from} – {to}",

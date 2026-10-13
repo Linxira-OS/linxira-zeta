@@ -116,9 +116,9 @@ export const OMP_PATH_ALLOW = [
 export const PI_FREE_FILES = [
 	"packages/coding-agent/src/utils/title-generator.ts",
 	"packages/tui/src/prompt/welcome.ts",
-	"packages/coding-agent/src/modes/setup-wizard/scenes/splash.ts",
-	"packages/coding-agent/src/modes/setup-wizard/scenes/outro.ts",
-	"packages/coding-agent/src/modes/setup-wizard/wizard-overlay.ts",
+	"packages/tui/src/setup/scenes/splash.ts",
+	"packages/tui/src/setup/scenes/outro.ts",
+	"packages/tui/src/setup/wizard-overlay.ts",
 ];
 
 /** Unicode π-family codepoints scanned in PI_FREE_FILES. */
@@ -149,7 +149,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "ZETA_LOGO",
-		why: "ζ char-art is the product logo surface (v18.0.3 lesson)",
+		why: "ζ char-art is the product logo surface (v18.0.3 lesson); it stays the named mark of the welcome/splash lockup",
 	},
 	{
 		file: "packages/tui/src/prompt/composer.ts",
@@ -164,7 +164,22 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "alt: APP_NAME,",
-		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); upstream replaced it with a wordmark lockup and the π art, which must not return (v18.0.3/v18.6.0 lessons)",
+		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); the wordmark beside it is the Zeta half-block art below, not upstream's `omp` wordmark",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
+		why: 'the half-block `Zeta` wordmark of the welcome lockup, set beside ZETA_LOGO with the version under it (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot revert it to upstream\'s `omp` wordmark',
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: "`v${this.version}`",
+		why: "the version renders under the wordmark (upstream lockup geometry), never back in a box title or an info column",
+	},
+	{
+		file: "packages/tui/src/setup/scenes/splash.ts",
+		needle: '"Z e t a"',
+		why: 'the setup splash lockup carries the Zeta wordmark text (registry: wordmark "Z e t a"), never `O h M y P i`',
 	},
 	{
 		file: "packages/tui/src/status-line/segments.ts",
@@ -379,7 +394,17 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
  * allow-listed files, and MUST_CONTAIN asserts the scope survives), and the
  * oh-my-pi token scan in brand-check.ts covers every other file.
  */
-export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: string[] }> = [
+export const MUST_NOT_CONTAIN: Array<{
+	needle: RegExp;
+	why: string;
+	exempt?: string[];
+	/**
+	 * When true, line-leading comment lines are never flagged for this rule.
+	 * Only rules that ban a token in *copy* (not in code identifiers) set this:
+	 * a comment may legitimately name an alias the copy must not.
+	 */
+	skipCommentLines?: boolean;
+}> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
 	// ── The three-name hierarchy (2026-10-10) ────────────────────────────────
 	// Zeta has three distinct names and swapping them is a real defect, not a
@@ -728,6 +753,53 @@ export const MUST_NOT_CONTAIN: Array<{ needle: RegExp; why: string; exempt?: str
 	{
 		needle: /\bomp-owned\b/,
 		why: "browser-profile prose is model-visible (prompt + settings copy): write Zeta-owned",
+	},
+	// ── Short-dash legacy bins in default-visible copy (2026-10-13 sweep) ────
+	// The canonical command is `zetacode`; `zeta-c`/`zeta-cli` survive only as
+	// compatibility bin aliases (registry: CLI bin 命名). They must never reach
+	// default-visible copy — i18n strings, prompts, TUI/stats rendered text,
+	// README command lines. The lookarounds exclude the suffixed forms the
+	// registry protects (`zeta-c.cmd`/`zeta-c.exe`, `zeta-capture-*`,
+	// `zeta-cli-*` release assets, `zeta-cli-<host>` shim paths), so only a bare
+	// token is banned. Exempt files carry the aliases solely in bin/alias tables,
+	// resolver/match tables, comments, or file/shim-name contexts (installers,
+	// packaging, brew/deb formulae name the on-disk binary `zeta-c`).
+	{
+		needle: /(?<![\w.-])zeta-(?:c|cli)(?![\w.-])/,
+		why: "short-dash alias bins are compatibility-only; default-visible copy must read the canonical `zetacode` (registry: CLI bin 命名)",
+		skipCommentLines: true,
+		exempt: [
+			"desktop/src/serve-resolution.ts", // PATH resolver bin list + comment
+			"desktop/src/tool-resolution.ts", // resolver bin list
+			"main/crates/zeta-main/src/main.rs", // workbench bin resolver table
+			"main/crates/zeta-main/src/shell.rs", // shim-name resolution comments/paths
+			"main/crates/zeta-main/src/suite.rs", // tool bin table
+			"main/crates/zeta-main/src/tab.rs", // tool bin table
+			"packages/ai/src/auth-gateway/types.ts", // doc comment naming the CLI
+			"packages/ai/src/auth/pool.ts", // doc comments naming the CLI
+			"packages/ai/src/auth/types.ts", // doc comments naming the CLI
+			"packages/catalog/src/types.ts", // doc comment naming the CLI
+			"packages/coding-agent/package.json", // bin/alias table
+			"packages/coding-agent/src/cli/classify-install-target.ts", // doc comment
+			"packages/coding-agent/src/cli/desktop-entry.ts", // doc/inline comments
+			"packages/coding-agent/src/cli/npm-registry.ts", // doc comments
+			"packages/stats/src/client/i18n/index.ts", // doc comment
+			"packages/stats/src/index.ts", // doc comment
+			"packages/stats/src/port-conflict.ts", // process-name match table
+			"packages/tui/src/overlays/model-hub.ts", // inline comment
+			"packages/tui/src/overlays/session-selector.ts", // doc comment
+			"packages/tui/src/prompt/composer-cache.ts", // doc comment
+			"packages/utils/src/dirs.ts", // doc comment naming the alias bins
+			"packages/wire/src/index.ts", // doc comment naming the CLI
+			"scripts/ci-release-publish.ts", // npm publish bin table
+			"scripts/ci-update-brew-formula.ts", // brew formula bin/symlink table
+			"scripts/ci-update-brew-formula.test.ts", // asserts that formula
+			"scripts/install-tests/run-ci.sh", // smoke-test file paths of the built binary
+			"scripts/install.ps1", // installer: on-disk binary/shim names + hints for it
+			"scripts/install.sh", // installer: on-disk binary/shim names + hints for it
+			"scripts/packaging/deb/build-deb.sh", // deb packaging bin/symlink table
+			"scripts/release.ts", // doc comment naming the CLI
+		],
 	},
 ];
 

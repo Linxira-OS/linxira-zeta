@@ -166,7 +166,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | Surface | Canonical | Guard |
 |---|---|---|
 | CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
-| CLI welcome/splash/outro 字符画 | `ZETA_LOGO`（ζ 形）+ wordmark `"Z e t a"` | 不接受上游 `PI_LOGO` |
+| CLI welcome/splash/outro 字符画 | 上游 lockup 结构（2026-10-13 落地）：`ZETA_LOGO`（ζ 块格 5×12，█/▒）+ 半块 wordmark `Zeta` + 其下 `v<version>`；native/splash 面的字标文本为 `"Z e t a"` | 不接受上游 `PI_LOGO`/`omp` wordmark/π art；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
 | `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |

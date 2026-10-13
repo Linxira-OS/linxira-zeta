@@ -27,6 +27,7 @@ import { runChangelogFixer } from "./fix-changelogs";
  * match.
  */
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
+import { distributionManifests, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
 // All published packages ride the release version in lock-step. Entries are
@@ -177,6 +178,25 @@ async function assertConsistency(version: string): Promise<void> {
 		if (manifest.version !== version) problems.push(`${manifestPath}: ${manifest.version} != ${version}`);
 	}
 
+	// Vendored npm distributions: launcher and platform leaves ride the line,
+	// and the launcher's optionalDependencies pins must have moved with them —
+	// a pin left behind publishes a launcher that installs the previous
+	// release's leaf (PR #119). Runs after the Step 2f bump, so a pin whose
+	// sed pattern missed fails here instead of reaching npm.
+	for (const dist of NPM_DISTRIBUTIONS) {
+		for (const rel of distributionManifests(dist)) {
+			const manifest = await Bun.file(rel).json();
+			if (manifest.version !== version) problems.push(`${rel}: ${manifest.version} != ${version}`);
+		}
+		const parent = await Bun.file(`${dist.dir}/package.json`).json();
+		for (const leaf of dist.leaves) {
+			const pinned = parent.optionalDependencies?.[leaf.name];
+			if (pinned !== version) {
+				problems.push(`${dist.dir}/package.json optionalDependencies ${leaf.name}: ${pinned} != ${version}`);
+			}
+		}
+	}
+
 	const catalog = await readCatalog();
 	for (const { key } of CATALOG_KEYS) {
 		if (catalog[key] !== version) problems.push(`catalog ${key}: ${catalog[key]} != ${version}`);
@@ -212,7 +232,7 @@ async function assertConsistency(version: string): Promise<void> {
 		process.exit(1);
 	}
 	console.log(
-		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/natives-stamp OK, tag absent`,
+		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/natives-stamp/npm leaf pins OK, tag absent`,
 	);
 }
 
@@ -475,35 +495,26 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		await $`sd '^(\s{4}version = ")[^"]+(")' ${"$1" + version + "$2"} ${buildFile}`;
 	}
 
-	// Step 2f: editor npm distribution packages (vendored TTT editor; not a
-	// Bun workspace — bumped here so the CI trusted-publishing job releases
-	// them on the same release version). The launcher pins platform leaves
-	// exactly, so their dependency refs move in the same pass.
-	console.log(`Updating editor npm packages to ${version}...`);
-	for (const editorDir of ["editor/npm/editor", "editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64"]) {
-		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${editorDir}/package.json`;
-	}
-	for (const editorLeaf of ["editor-windows-x64", "editor-linux-x64"]) {
-		await $`sd '"@linxiraos/${editorLeaf}": "[^"]+"' ${`"@linxiraos/${editorLeaf}": "${version}"`} editor/npm/editor/package.json`;
-	}
-
-	// Step 2f-2: termide (zeta-ide) npm distribution — same pattern as the
-	// editor trio; the launcher pins its platform leaves exactly.
-	console.log(`Updating ide npm packages to ${version}...`);
-	for (const ideDir of ["termide/npm/ide", "termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64"]) {
-		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${ideDir}/package.json`;
-	}
-	for (const ideLeaf of ["ide-windows-x64", "ide-linux-x64"]) {
-		await $`sd '"@linxiraos/${ideLeaf}": "[^"]+"' ${`"@linxiraos/${ideLeaf}": "${version}"`} termide/npm/ide/package.json`;
-	}
-
-	// Step 2f-3: the zeta workspace (main) npm distribution — same pattern.
-	console.log(`Updating main npm packages to ${version}...`);
-	for (const mainDir of ["main/npm/main", "main/npm/main-windows-x64", "main/npm/main-linux-x64"]) {
-		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${mainDir}/package.json`;
-	}
-	for (const mainLeaf of ["main-windows-x64", "main-linux-x64"]) {
-		await $`sd '"@linxiraos/${mainLeaf}": "[^"]+"' ${`"@linxiraos/${mainLeaf}": "${version}"`} main/npm/main/package.json`;
+	// Step 2f: vendored npm distributions (editor, termide/zeta-ide, the zeta
+	// workbench; not Bun workspaces — bumped here so the CI trusted-publishing
+	// jobs release them on the same release version). The launcher pins its
+	// platform leaves EXACTLY in optionalDependencies, so those refs move in
+	// the same pass: a launcher bumped without its pins installs the previous
+	// release's leaf (the 1.2.0 editor launcher shipped pinning 1.1.28 and was
+	// hand-fixed in PR #119). Registry: scripts/npm-distributions.ts.
+	for (const dist of NPM_DISTRIBUTIONS) {
+		console.log(`Updating ${dist.dir} npm distribution to ${version}...`);
+		for (const dir of [dist.dir, ...dist.leaves.map(leaf => leaf.dir)]) {
+			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${dir}/package.json`;
+		}
+		for (const leaf of dist.leaves) {
+			// Interpolated args reach `sd` verbatim (Bun strips shell quotes only
+			// from the template's literal parts), so the pattern is the plain
+			// regex — wrapping it in quotes makes `sd` look for a leading `'` and
+			// silently rewrite nothing (the post-bump consistency gate catches
+			// that, but only after a wasted release run).
+			await $`sd ${`"${leaf.name}": "[^"]+"`} ${`"${leaf.name}": "${version}"`} ${dist.dir}/package.json`;
+		}
 	}
 
 	// Step 2f-4: the main workbench is a separate Cargo workspace whose

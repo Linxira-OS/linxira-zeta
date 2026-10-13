@@ -389,8 +389,13 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: 'ZETA_LOGO = ["█████████╗", "╚════████║", "   ████╔═╝", " ████╔═╝  ", "█████████╗", "╚════════╝"]',
-		why: "widened Z art (+1px per side, 2026-10-04 user-approved geometry) — pins the exact rows so a merge cannot silently revert to the narrow art",
+		symbol: 'ZETA_LOGO = ["████████████", "   ████████ ", "  ████████  ", " ████████▒▒▒", "████████████"]',
+		why: "block-grid ζ mark (5 rows × 12 cols, █/▒) of the welcome/splash lockup — redrawn 2026-10-13 in upstream's block-grid geometry so the mark takes the lockup's 5-row slot (wordmark beside it, version under it) and the same 2x splash look as upstream; pins the exact rows so a merge cannot revert to the old box-drawing art or upstream's π mark",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		symbol: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
+		why: 'half-block `Zeta` wordmark of the welcome lockup (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot swap in upstream\'s `omp` wordmark',
 	},
 	{
 		file: "packages/tui/src/theme/symbols.ts",
@@ -492,6 +497,18 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		file: "packages/coding-agent/src/sdk.ts",
 		symbol: "void customCommandWatcher.start();",
 		why: "main-session watcher wiring — sdk.ts survives a merge, so losing only this line leaves `CustomCommandWatcher` unreachable and hot reload silently dead.",
+	},
+	// -- CLI command table: Zeta-only subcommands --------------------------------
+	//
+	// Set-difference against the integrated-through upstream tag (v18.9.2 at the
+	// time of writing): `serve` is the ONLY name in the table upstream does not
+	// have. The other 51 entries survive a `--theirs` take because upstream
+	// carries them too — so they need no sentinel here, and a name that appears
+	// upstream cannot be "silently dropped" by a merge in the first place.
+	{
+		file: "packages/coding-agent/src/cli-commands.ts",
+		symbol: 'name: "serve",',
+		why: 'Zeta-only subcommand (`zeta serve` hosts the web gateway + desktop sessions; upstream OMP\'s table has no `serve`). It vanished from this table during the 1.2.0 upstream merge: `serveHelp` in cli/command-help.ts survived while the entry did not, `isSubcommand("serve")` returned false, and every desktop smoke failed — visible only in release runs. The table is a shared file a merge can take wholesale.',
 	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
