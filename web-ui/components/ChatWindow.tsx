@@ -1502,7 +1502,7 @@ export function ChatWindow({
 											border: "1px solid var(--border)",
 											borderRadius: "50%",
 											color: "var(--text)",
-											boxShadow: "var(--surface-shadow)",
+											boxShadow: "0 4px 12px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 											cursor: "pointer",
 											zIndex: 50,
 										}}

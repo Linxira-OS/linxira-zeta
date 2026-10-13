@@ -261,6 +261,11 @@ semantic alias.
 - A literal that is a *matching key* rather than paint (e.g. a selector against
   the highlighter's inline colours) is exempted per line with
   `/* zeta-style-literal-allow: <reason> */`.
+- The guard's second rule: a colour token may not be the *whole* `box-shadow`
+  value (`box-shadow: var(--surface-shadow)` is invalid CSS — the grammar needs
+  2–4 lengths — so the declaration is dropped and nothing paints). Write the
+  geometry explicitly, e.g. `0 6px 20px var(--zeta-alias-surface-shadow)` or
+  `0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)`.
 - `--text-dim` is secondary **text** (`surface.mutedForeground`); the code
   gutter is `--syntax-line-number`. `--primary-foreground` /
   `--accent-foreground` are the on-fill foreground pair — use them instead of a
