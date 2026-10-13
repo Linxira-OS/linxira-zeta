@@ -100,6 +100,15 @@ const DYNAMIC_KEY_PREFIXES = [
 	{ prefix: "web-channel-wechat", reason: "CHANNEL_LABEL_KEY / WEB_SEARCH_KEYS data" },
 	{ prefix: "web-channel-feishu", reason: "CHANNEL_LABEL_KEY / WEB_SEARCH_KEYS data" },
 	{ prefix: "web-channel-telegram", reason: "CHANNEL_LABEL_KEY / WEB_SEARCH_KEYS data" },
+	// context-ring: the panel's category legend, hover hints, tone labels, and
+	// the usage/call counter rows are rendered from literal lookup tables in
+	// ContextRingView (CATEGORY_LABEL_KEY, CATEGORY_HINT_KEY, TONE_STATUS_KEY,
+	// USAGE_ROWS, CALL_ROWS), so their keys never appear inside t("...").
+	{ prefix: "context-ring.category-", reason: "ContextRingView CATEGORY_LABEL_KEY lookup" },
+	{ prefix: "context-ring.hint-", reason: "ContextRingView CATEGORY_HINT_KEY lookup" },
+	{ prefix: "context-ring.status-", reason: "ContextRingView TONE_STATUS_KEY lookup" },
+	{ prefix: "context-ring.usage-", reason: "ContextRingView USAGE_ROWS lookup" },
+	{ prefix: "context-ring.calls-", reason: "ContextRingView CALL_ROWS lookup" },
 ];
 
 test("every message key is referenced by a literal t() call in product source", () => {

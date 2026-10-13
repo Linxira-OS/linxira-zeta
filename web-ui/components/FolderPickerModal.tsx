@@ -162,7 +162,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         position: "fixed",
         inset: 0,
         zIndex: 1200,
-        background: "rgba(0,0,0,0.5)",
+        background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 50%, transparent)",
         backdropFilter: "blur(4px)",
         display: "flex",
         alignItems: "center",
@@ -180,12 +180,12 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
           maxWidth: "calc(100vw - 16px)",
           height: isMobile ? "calc(100dvh - 16px)" : "75vh",
           maxHeight: "calc(100dvh - 16px)",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 10,
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+          boxShadow: "0 12px 40px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent)",
           overflow: "hidden",
         }}
       >
@@ -196,8 +196,8 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 16px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-panel)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-panel)",
             flexShrink: 0,
           }}
         >
@@ -216,10 +216,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                   padding: "4px 10px",
                   fontSize: 11,
                   fontFamily: "var(--font-mono)",
-                  background: "var(--bg-hover)",
-                  border: "1px solid var(--border)",
+                  background: "var(--zeta-alias-bg-hover)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 5,
-                  color: "var(--text)",
+                  color: "var(--zeta-alias-text)",
                   cursor: "pointer",
                 }}
               >
@@ -238,7 +238,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 justifyContent: "center",
                 background: "none",
                 border: "none",
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 cursor: "pointer",
                 borderRadius: 4,
               }}
@@ -252,8 +252,8 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         <div
           style={{
             padding: "8px 14px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-panel)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-panel)",
             display: "flex",
             flexWrap: "wrap",
             alignItems: "center",
@@ -269,10 +269,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
             title="Go to parent directory"
             style={{
               padding: "3px 8px",
-              background: parentPath ? "var(--bg)" : "none",
-              border: "1px solid var(--border)",
+              background: parentPath ? "var(--zeta-alias-bg)" : "none",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 4,
-              color: parentPath ? "var(--text)" : "var(--text-dim)",
+              color: parentPath ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-dim)",
               cursor: parentPath ? "pointer" : "not-allowed",
               display: "flex",
               alignItems: "center",
@@ -290,10 +290,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
             title={`Home directory (${homeDir})`}
             style={{
               padding: "3px 8px",
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 4,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               cursor: "pointer",
               fontFamily: "var(--font-mono)",
             }}
@@ -310,13 +310,13 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               style={{
                 padding: "3px 8px",
                 background: currentPath.toUpperCase().startsWith(drive.toUpperCase())
-                  ? "var(--accent)"
-                  : "var(--bg)",
-                border: "1px solid var(--border)",
+                  ? "var(--zeta-alias-accent)"
+                  : "var(--zeta-alias-bg)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 4,
                 color: currentPath.toUpperCase().startsWith(drive.toUpperCase())
-                  ? "#fff"
-                  : "var(--text)",
+                  ? "var(--zeta-alias-accent-foreground)"
+                  : "var(--zeta-alias-text)",
                 cursor: "pointer",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 600,
@@ -331,14 +331,14 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         <div
           style={{
             padding: "8px 14px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             display: "flex",
             alignItems: "center",
             gap: 4,
             overflowX: "auto",
             fontSize: 12,
             fontFamily: "var(--font-mono)",
-            background: "var(--bg)",
+            background: "var(--zeta-alias-bg)",
             flexShrink: 0,
           }}
         >
@@ -351,12 +351,12 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                   border: "none",
                   padding: "2px 4px",
                   borderRadius: 3,
-                  color: i === breadcrumbs.length - 1 ? "var(--text)" : "var(--accent)",
+                  color: i === breadcrumbs.length - 1 ? "var(--zeta-alias-text)" : "var(--zeta-alias-accent)",
                   fontWeight: i === breadcrumbs.length - 1 ? 700 : 400,
                   cursor: "pointer",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
+                  e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "none";
@@ -364,7 +364,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               >
                 {b.label}
               </button>
-              {i < breadcrumbs.length - 1 && <span style={{ color: "var(--text-dim)" }}>/</span>}
+              {i < breadcrumbs.length - 1 && <span style={{ color: "var(--zeta-alias-text-dim)" }}>/</span>}
             </div>
           ))}
         </div>
@@ -373,7 +373,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         <div
           style={{
             padding: "8px 14px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -390,10 +390,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               padding: "5px 10px",
               fontSize: 12,
               fontFamily: "var(--font-mono)",
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-panel)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 5,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               outline: "none",
             }}
           />
@@ -403,10 +403,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               padding: "5px 10px",
               fontSize: 11,
               fontFamily: "var(--font-mono)",
-              background: "var(--bg-hover)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-hover)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 5,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
@@ -420,8 +420,8 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
           <div
             style={{
               padding: "10px 14px",
-              background: "var(--bg-panel)",
-              borderBottom: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-panel)",
+              borderBottom: "1px solid var(--zeta-alias-border)",
               display: "flex",
               flexDirection: "column",
               gap: 6,
@@ -443,10 +443,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                   padding: "5px 8px",
                   fontSize: 12,
                   fontFamily: "var(--font-mono)",
-                  background: "var(--bg)",
-                  border: "1px solid var(--accent)",
+                  background: "var(--zeta-alias-bg)",
+                  border: "1px solid var(--zeta-alias-accent)",
                   borderRadius: 5,
-                  color: "var(--text)",
+                  color: "var(--zeta-alias-text)",
                   outline: "none",
                 }}
               />
@@ -456,10 +456,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 style={{
                   padding: "5px 12px",
                   fontSize: 11,
-                  background: "var(--accent)",
+                  background: "var(--zeta-alias-accent)",
                   border: "none",
                   borderRadius: 5,
-                  color: "#fff",
+                  color: "var(--zeta-alias-accent-foreground)",
                   cursor: "pointer",
                 }}
               >
@@ -471,9 +471,9 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                   padding: "5px 10px",
                   fontSize: 11,
                   background: "none",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 5,
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor: "pointer",
                 }}
               >
@@ -481,7 +481,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
               </button>
             </div>
             {createError && (
-              <div style={{ fontSize: 11, color: "#ef4444" }}>{createError}</div>
+              <div style={{ fontSize: 11, color: "var(--zeta-alias-status-error)" }}>{createError}</div>
             )}
           </div>
         )}
@@ -489,19 +489,19 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         {/* Folder List Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "6px 8px" }}>
           {loading && (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-dim)", fontSize: 12 }}>
+            <div style={{ padding: 24, textAlign: "center", color: "var(--zeta-alias-text-dim)", fontSize: 12 }}>
               Loading directories...
             </div>
           )}
 
           {error && (
-            <div style={{ padding: 16, color: "#ef4444", fontSize: 12, textAlign: "center" }}>
+            <div style={{ padding: 16, color: "var(--zeta-alias-status-error)", fontSize: 12, textAlign: "center" }}>
               {error}
             </div>
           )}
 
           {!loading && !error && filteredDirs.length === 0 && (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--text-dim)", fontSize: 12 }}>
+            <div style={{ padding: 24, textAlign: "center", color: "var(--zeta-alias-text-dim)", fontSize: 12 }}>
               No subdirectories found
             </div>
           )}
@@ -522,14 +522,14 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                     padding: "7px 10px",
                     borderRadius: 6,
                     cursor: "pointer",
-                    background: isSelected ? "var(--bg-selected)" : "transparent",
-                    border: isSelected ? "1px solid var(--accent)" : "1px solid transparent",
+                    background: isSelected ? "var(--zeta-alias-bg-selected)" : "transparent",
+                    border: isSelected ? "1px solid var(--zeta-alias-accent)" : "1px solid transparent",
                     marginBottom: 2,
                     userSelect: "none",
                     transition: "background 0.1s",
                   }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = "var(--bg-hover)";
+                    if (!isSelected) e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) e.currentTarget.style.background = "transparent";
@@ -541,7 +541,7 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                       style={{
                         fontSize: 13,
                         fontWeight: isSelected ? 600 : 400,
-                        color: "var(--text)",
+                        color: "var(--zeta-alias-text)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -561,9 +561,9 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                       fontSize: 11,
                       fontFamily: "var(--font-mono)",
                       background: "none",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--zeta-alias-border)",
                       borderRadius: 4,
-                      color: "var(--text-muted)",
+                      color: "var(--zeta-alias-text-muted)",
                       cursor: "pointer",
                       flexShrink: 0,
                     }}
@@ -579,8 +579,8 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
         <div
           style={{
             padding: "12px 16px",
-            borderTop: "1px solid var(--border)",
-            background: "var(--bg-panel)",
+            borderTop: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-panel)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -589,14 +589,14 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <div style={{ fontSize: 10, color: "var(--zeta-alias-text-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
               {t("selected-path")}
             </div>
             <div
               style={{
                 fontSize: 12,
                 fontFamily: "var(--font-mono)",
-                color: "var(--text)",
+                color: "var(--zeta-alias-text)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -615,10 +615,10 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 fontSize: 12,
                 fontWeight: 600,
                 fontFamily: "var(--font-mono)",
-                background: "var(--accent)",
+                background: "var(--zeta-alias-accent)",
                 border: "none",
                 borderRadius: 6,
-                color: "#fff",
+                color: "var(--zeta-alias-accent-foreground)",
                 cursor: "pointer",
               }}
             >
@@ -631,9 +631,9 @@ export function FolderPickerModal({ open, initialPath, onSelect, onClose }: Prop
                 fontSize: 12,
                 fontFamily: "var(--font-mono)",
                 background: "none",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 6,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 cursor: "pointer",
               }}
             >

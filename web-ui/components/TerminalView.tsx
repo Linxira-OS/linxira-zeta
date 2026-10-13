@@ -39,6 +39,13 @@ type ConnState = "connecting" | "open" | "reconnecting" | "exited" | "error";
 
 const MAX_PENDING_INPUT_CHARS = 4096;
 
+/**
+ * xterm.js 16-colour palette. Deliberately literal and deliberately outside the
+ * three-layer theme tokens (`lib/theme/tokens.ts`): a terminal owns its own
+ * ANSI palette (the PTY writes SGR codes, not theme roles), so `background` is
+ * transparent and the rest are the standard xterm defaults. The colour guard
+ * exempts this file by name for exactly this reason.
+ */
 const TERMINAL_THEME = {
 	background: "rgba(0,0,0,0)",
 	foreground: "#d4d4d4",

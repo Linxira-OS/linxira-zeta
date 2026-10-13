@@ -334,13 +334,13 @@ function UserMessageView({
           style={{
             flex: 1,
             minWidth: 0,
-            background: "var(--user-bg)",
-            border: "1px solid var(--chat-user-border)",
+            background: "var(--zeta-alias-user-bg)",
+            border: "1px solid var(--zeta-alias-chat-user-border)",
             borderRadius: 12,
             padding: "8px 12px",
             fontSize: 14,
             lineHeight: 1.6,
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
             wordBreak: "break-word",
           }}
         >
@@ -379,7 +379,7 @@ function UserMessageView({
                       borderRadius: 6,
                       objectFit: "contain",
                       display: "block",
-                      border: "1px solid var(--interactive-border)",
+                      border: "1px solid var(--zeta-alias-interactive-border)",
                     }}
                   />
                 );
@@ -439,7 +439,7 @@ function UserMessageView({
                 background: "none",
                 border: "none",
                 borderRadius: 5,
-                color: copied ? "var(--accent)" : "var(--text-dim)",
+                color: copied ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
                 fontSize: 11,
                 fontWeight: 400,
@@ -447,10 +447,10 @@ function UserMessageView({
                 transition: "color 0.12s",
               }}
               onMouseEnter={(e) => {
-                if (!copied) e.currentTarget.style.color = "var(--accent)";
+                if (!copied) e.currentTarget.style.color = "var(--zeta-alias-accent)";
               }}
               onMouseLeave={(e) => {
-                if (!copied) e.currentTarget.style.color = "var(--text-dim)";
+                if (!copied) e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
               }}
             >
               {copied ? (
@@ -510,7 +510,7 @@ function UserMessageView({
                     background: "none",
                     border: "none",
                     borderRadius: 5,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     cursor: "pointer",
                     fontSize: 11,
                     fontWeight: 400,
@@ -518,10 +518,10 @@ function UserMessageView({
                     transition: "color 0.12s",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--accent)";
+                    e.currentTarget.style.color = "var(--zeta-alias-accent)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--text-dim)";
+                    e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
                   }}
                 >
                   <svg
@@ -560,7 +560,7 @@ function UserMessageView({
                     background: "none",
                     border: "none",
                     borderRadius: 5,
-                    color: forking ? "var(--accent)" : "var(--text-dim)",
+                    color: forking ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
                     cursor: forking ? "not-allowed" : "pointer",
                     fontSize: 11,
                     fontWeight: 400,
@@ -568,11 +568,11 @@ function UserMessageView({
                     transition: "color 0.12s",
                   }}
                   onMouseEnter={(e) => {
-                    if (!forking) e.currentTarget.style.color = "var(--accent)";
+                    if (!forking) e.currentTarget.style.color = "var(--zeta-alias-accent)";
                   }}
                   onMouseLeave={(e) => {
                     if (!forking)
-                      e.currentTarget.style.color = "var(--text-dim)";
+                      e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
                   }}
                 >
                   <svg
@@ -596,7 +596,7 @@ function UserMessageView({
             </div>
           )}
           {time && (
-            <span style={{ fontSize: 10, color: "var(--text-dim)" }}>
+            <span style={{ fontSize: 10, color: "var(--zeta-alias-text-dim)" }}>
               {time}
             </span>
           )}
@@ -855,7 +855,7 @@ function AssistantMessageView({
       <div
         style={{
           fontSize: 11,
-          color: "var(--text-dim)",
+          color: "var(--zeta-alias-text-dim)",
           marginBottom: 4,
           display: "flex",
           alignItems: "center",
@@ -918,7 +918,7 @@ function AssistantMessageView({
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
-                      color: "var(--text)",
+                      color: "var(--zeta-alias-text)",
                     }}
                     title={t("message.estimated-tokens")}
                   >
@@ -1008,10 +1008,10 @@ function AssistantMessageView({
           style={{
             marginTop: blocks.length > 0 ? 8 : 0,
             padding: "7px 10px",
-            border: "1px solid rgba(239,68,68,0.3)",
+            border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
             borderRadius: 6,
-            background: "rgba(239,68,68,0.07)",
-            color: "#ef4444",
+            background: "color-mix(in srgb, var(--zeta-alias-status-error) 7%, transparent)",
+            color: "var(--zeta-alias-status-error)",
             fontFamily: "var(--font-mono)",
             fontSize: 12,
             lineHeight: 1.5,
@@ -1032,7 +1032,7 @@ function AssistantMessageView({
         }}
       >
         {message.usage && !isStreaming && (
-          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+          <div style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>
             {formatUsage(message.usage)}
           </div>
         )}
@@ -1049,7 +1049,7 @@ function AssistantMessageView({
               background: "none",
               border: "none",
               borderRadius: 5,
-              color: copied ? "var(--accent)" : "var(--text-dim)",
+              color: copied ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
               cursor: "pointer",
               fontSize: 11,
               fontWeight: 400,
@@ -1059,10 +1059,10 @@ function AssistantMessageView({
               transition: "opacity 0.12s, color 0.12s",
             }}
             onMouseEnter={(e) => {
-              if (!copied) e.currentTarget.style.color = "var(--accent)";
+              if (!copied) e.currentTarget.style.color = "var(--zeta-alias-accent)";
             }}
             onMouseLeave={(e) => {
-              if (!copied) e.currentTarget.style.color = "var(--text-dim)";
+              if (!copied) e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
             }}
           >
             {copied ? (
@@ -1109,7 +1109,7 @@ function AssistantMessageView({
                 background: "none",
                 border: "none",
                 borderRadius: 5,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
                 fontSize: 11,
                 fontWeight: 400,
@@ -1144,10 +1144,10 @@ function AssistantMessageView({
                 maxWidth: 420,
                 maxHeight: 240,
                 overflowY: "auto",
-                background: "var(--bg-panel)",
-                border: "1px solid var(--border)",
+                background: "var(--zeta-alias-bg-panel)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 8,
-                boxShadow: "0 8px 24px var(--surface-shadow)",
+                boxShadow: "0 8px 24px var(--zeta-alias-surface-shadow)",
                 padding: "4px 0",
                 zIndex: 60,
               }}
@@ -1163,7 +1163,7 @@ function AssistantMessageView({
                     padding: "5px 10px",
                     background: "none",
                     border: "none",
-                    color: "var(--text-muted)",
+                    color: "var(--zeta-alias-text-muted)",
                     cursor: "pointer",
                     fontSize: 11,
                     fontFamily: "var(--font-mono)",
@@ -1172,10 +1172,10 @@ function AssistantMessageView({
                     whiteSpace: "nowrap",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--accent)";
+                    e.currentTarget.style.color = "var(--zeta-alias-accent)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
                   }}
                 >
                   {filePath}
@@ -1211,7 +1211,7 @@ function AssistantMessageView({
           <span
             style={{
               fontSize: 10,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               marginLeft: "auto",
             }}
           >
@@ -1248,7 +1248,7 @@ function IconAction({
         background: "none",
         border: "none",
         borderRadius: 5,
-        color: "var(--text-dim)",
+        color: "var(--zeta-alias-text-dim)",
         cursor: "pointer",
         fontSize: 11,
         fontWeight: 400,
@@ -1258,10 +1258,10 @@ function IconAction({
         transition: "opacity 0.12s, color 0.12s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.color = "var(--accent)";
+        e.currentTarget.style.color = "var(--zeta-alias-accent)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.color = "var(--text-dim)";
+        e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
       }}
     >
       <svg
@@ -1357,7 +1357,7 @@ function BlockView({
           objectFit: "contain",
           display: "block",
           margin: "6px 0",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--zeta-alias-border)",
         }}
       />
     );
@@ -1429,7 +1429,7 @@ function ThinkingBlock({
     <div
       className="sf-thinking-block"
       style={{
-        border: "1px solid var(--border)",
+        border: "1px solid var(--zeta-alias-border)",
         borderRadius: 6,
         overflow: "hidden",
         fontSize: 13,
@@ -1443,9 +1443,9 @@ function ThinkingBlock({
           gap: 6,
           width: "100%",
           padding: "6px 10px",
-          background: "var(--bg-panel)",
+          background: "var(--zeta-alias-bg-panel)",
           border: "none",
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           cursor: "pointer",
           fontSize: 12,
           textAlign: "left",
@@ -1457,7 +1457,7 @@ function ThinkingBlock({
             style={{
               marginLeft: "auto",
               fontSize: 11,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               fontVariantNumeric: "tabular-nums",
             }}
           >
@@ -1470,13 +1470,13 @@ function ThinkingBlock({
           style={{
             padding: "8px 10px",
             color: error
-              ? "var(--status-error-foreground)"
-              : "var(--text-muted)",
+              ? "var(--zeta-alias-status-error-foreground)"
+              : "var(--zeta-alias-text-muted)",
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
-            background: "var(--bg-panel)",
-            borderTop: "1px solid var(--border)",
+            background: "var(--zeta-alias-bg-panel)",
+            borderTop: "1px solid var(--zeta-alias-border)",
           }}
         >
           {loading
@@ -1549,11 +1549,11 @@ function ToolCallBlock({
         overflow: "hidden",
         fontSize: 12,
         border: isError
-          ? "1px solid var(--status-error-border)"
-          : "1px solid var(--chat-tool-border)",
+          ? "1px solid var(--zeta-alias-status-error-border)"
+          : "1px solid var(--zeta-alias-chat-tool-border)",
         background: isError
-          ? "var(--status-error-background)"
-          : "var(--chat-tool-background)",
+          ? "var(--zeta-alias-status-error-background)"
+          : "var(--zeta-alias-chat-tool-background)",
       }}
     >
       {/* ── Tool call header ── */}
@@ -1567,7 +1567,7 @@ function ToolCallBlock({
           padding: "6px 10px",
           background: "none",
           border: "none",
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           cursor: "pointer",
           fontSize: 12,
           textAlign: "left",
@@ -1577,8 +1577,8 @@ function ToolCallBlock({
         <span
           style={{
             color: isError
-              ? "var(--status-error-foreground)"
-              : "var(--status-success-foreground)",
+              ? "var(--zeta-alias-status-error-foreground)"
+              : "var(--zeta-alias-status-success-foreground)",
             display: "flex",
             alignItems: "center",
             gap: 5,
@@ -1598,7 +1598,7 @@ function ToolCallBlock({
         </span>
         <span
           style={{
-            color: "var(--text-dim)",
+            color: "var(--zeta-alias-text-dim)",
             fontFamily: "var(--font-mono)",
             fontSize: 11,
             overflow: "hidden",
@@ -1616,7 +1616,7 @@ function ToolCallBlock({
               display: "flex",
               alignItems: "center",
               gap: 5,
-              color: "var(--status-info-foreground)",
+              color: "var(--zeta-alias-status-info-foreground)",
               fontSize: 11,
               flexShrink: 0,
               fontVariantNumeric: "tabular-nums",
@@ -1639,7 +1639,7 @@ function ToolCallBlock({
           <span
             style={{
               fontSize: 11,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               flexShrink: 0,
               fontVariantNumeric: "tabular-nums",
             }}
@@ -1652,7 +1652,7 @@ function ToolCallBlock({
           height="10"
           viewBox="0 0 10 10"
           fill="none"
-          stroke="var(--text-dim)"
+          stroke="var(--zeta-alias-text-dim)"
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -1672,14 +1672,14 @@ function ToolCallBlock({
           style={{
             margin: 0,
             padding: "8px 10px",
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
             fontSize: 12,
             lineHeight: 1.5,
             overflow: "auto",
-            background: "var(--bg-subtle)",
+            background: "var(--zeta-alias-bg-subtle)",
             borderTop: isError
-              ? "1px solid var(--status-error-border)"
-              : "1px solid var(--status-success-border)",
+              ? "1px solid var(--zeta-alias-status-error-border)"
+              : "1px solid var(--zeta-alias-status-success-border)",
             whiteSpace: "pre-wrap",
             wordBreak: "break-all",
           }}
@@ -1709,8 +1709,8 @@ function ToolCallBlock({
             gap: 6,
             flexWrap: "wrap",
             padding: "8px 10px",
-            borderTop: "1px solid var(--chat-tool-border)",
-            background: "var(--bg)",
+            borderTop: "1px solid var(--zeta-alias-chat-tool-border)",
+            background: "var(--zeta-alias-bg)",
           }}
         >
           {resultImages.map((src, i) => (
@@ -1725,7 +1725,7 @@ function ToolCallBlock({
                 borderRadius: 6,
                 objectFit: "contain",
                 display: "block",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
               }}
             />
           ))}
@@ -1743,8 +1743,8 @@ function PairedDiffResult({ diff }: { diff: ResultDiff }) {
   return (
     <div
       style={{
-        borderTop: "1px solid var(--status-success-border)",
-        background: "var(--bg)",
+        borderTop: "1px solid var(--zeta-alias-status-success-border)",
+        background: "var(--zeta-alias-bg)",
       }}
     >
       <SplitPatchView text={diff.text} />
@@ -1764,7 +1764,7 @@ function SplitPatchView({ text }: { text: string }) {
         maxHeight: 560,
         overflowY: "auto",
         overflowX: "hidden",
-        background: "var(--bg)",
+        background: "var(--zeta-alias-bg)",
       }}
     >
       {files.map((file, fileIndex) => (
@@ -1772,7 +1772,7 @@ function SplitPatchView({ text }: { text: string }) {
           key={fileIndex}
           style={{
             minWidth: 0,
-            borderTop: fileIndex === 0 ? "none" : "1px solid var(--border)",
+            borderTop: fileIndex === 0 ? "none" : "1px solid var(--zeta-alias-border)",
             fontFamily: "var(--font-mono)",
             fontSize: 12,
             lineHeight: 1.55,
@@ -1786,8 +1786,8 @@ function SplitPatchView({ text }: { text: string }) {
                 position: "sticky",
                 top: 0,
                 zIndex: 1,
-                background: "var(--bg-panel)",
-                borderBottom: "1px solid var(--border)",
+                background: "var(--zeta-alias-bg-panel)",
+                borderBottom: "1px solid var(--zeta-alias-border)",
               }}
             >
               <SplitDiffHeader
@@ -1838,8 +1838,8 @@ function SplitDiffHeader({
       title={title}
       style={{
         padding: "5px 10px",
-        color: "var(--text-dim)",
-        borderRight: side === "left" ? "1px solid var(--border)" : "none",
+        color: "var(--zeta-alias-text-dim)",
+        borderRight: side === "left" ? "1px solid var(--zeta-alias-border)" : "none",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -1859,20 +1859,20 @@ function SplitDiffCellView({
 }) {
   const bg =
     cell.type === "added"
-      ? "var(--status-success-background)"
+      ? "var(--zeta-alias-status-success-background)"
       : cell.type === "removed"
-        ? "var(--status-error-background)"
+        ? "var(--zeta-alias-status-error-background)"
         : cell.type === "empty"
-          ? "var(--bg-subtle)"
+          ? "var(--zeta-alias-bg-subtle)"
           : "transparent";
   const marker =
     cell.type === "added" ? "+" : cell.type === "removed" ? "-" : " ";
   const markerColor =
     cell.type === "added"
-      ? "var(--status-success-foreground)"
+      ? "var(--zeta-alias-status-success-foreground)"
       : cell.type === "removed"
-        ? "var(--status-error-foreground)"
-        : "var(--text-dim)";
+        ? "var(--zeta-alias-status-error-foreground)"
+        : "var(--zeta-alias-text-dim)";
 
   return (
     <div
@@ -1880,7 +1880,7 @@ function SplitDiffCellView({
         display: "flex",
         minWidth: 0,
         background: bg,
-        borderRight: side === "left" ? "1px solid var(--border)" : "none",
+        borderRight: side === "left" ? "1px solid var(--zeta-alias-border)" : "none",
       }}
     >
       <span
@@ -1888,10 +1888,10 @@ function SplitDiffCellView({
           width: 42,
           padding: "0 6px",
           textAlign: "right",
-          color: "var(--text-dim)",
+          color: "var(--zeta-alias-text-dim)",
           userSelect: "none",
-          background: "var(--bg-panel)",
-          borderRight: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg-panel)",
+          borderRight: "1px solid var(--zeta-alias-border)",
           flexShrink: 0,
         }}
       >
@@ -1915,7 +1915,7 @@ function SplitDiffCellView({
           flex: 1,
           minWidth: 0,
           padding: "0 10px 0 0",
-          color: cell.type === "empty" ? "var(--text-dim)" : "var(--text)",
+          color: cell.type === "empty" ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text)",
           whiteSpace: "pre-wrap",
           overflowWrap: "anywhere",
         }}
@@ -1951,20 +1951,20 @@ function PatchTextView({ text }: { text: string }) {
               : "context";
         const bg =
           kind === "added"
-            ? "var(--status-success-background)"
+            ? "var(--zeta-alias-status-success-background)"
             : kind === "removed"
-              ? "var(--status-error-background)"
+              ? "var(--zeta-alias-status-error-background)"
               : kind === "hunk"
-                ? "var(--status-info-background)"
+                ? "var(--zeta-alias-status-info-background)"
                 : "transparent";
         const color =
           kind === "added"
-            ? "var(--status-success-foreground)"
+            ? "var(--zeta-alias-status-success-foreground)"
             : kind === "removed"
-              ? "var(--status-error-foreground)"
+              ? "var(--zeta-alias-status-error-foreground)"
               : kind === "hunk"
-                ? "var(--accent)"
-                : "var(--text)";
+                ? "var(--zeta-alias-accent)"
+                : "var(--zeta-alias-text)";
 
         return (
           <div
@@ -1974,11 +1974,11 @@ function PatchTextView({ text }: { text: string }) {
               background: bg,
               borderLeft:
                 kind === "added"
-                  ? "3px solid var(--status-success-border)"
+                  ? "3px solid var(--zeta-alias-status-success-border)"
                   : kind === "removed"
-                    ? "3px solid var(--status-error-border)"
+                    ? "3px solid var(--zeta-alias-status-error-border)"
                     : kind === "hunk"
-                      ? "3px solid var(--accent)"
+                      ? "3px solid var(--zeta-alias-accent)"
                       : "3px solid transparent",
             }}
           >
@@ -1986,9 +1986,9 @@ function PatchTextView({ text }: { text: string }) {
               style={{
                 width: 48,
                 padding: "0 8px",
-                color: "var(--text-dim)",
-                background: "var(--bg-panel)",
-                borderRight: "1px solid var(--border)",
+                color: "var(--zeta-alias-text-dim)",
+                background: "var(--zeta-alias-bg-panel)",
+                borderRight: "1px solid var(--zeta-alias-border)",
                 textAlign: "right",
                 userSelect: "none",
                 flexShrink: 0,
@@ -2056,11 +2056,11 @@ function PairedResult({
     <div
       style={{
         borderTop: isError
-          ? "1px solid var(--status-error-border)"
-          : "1px solid var(--status-success-border)",
+          ? "1px solid var(--zeta-alias-status-error-border)"
+          : "1px solid var(--zeta-alias-status-success-border)",
         background: isError
-          ? "var(--status-error-background)"
-          : "var(--bg-subtle)",
+          ? "var(--zeta-alias-status-error-background)"
+          : "var(--zeta-alias-bg-subtle)",
       }}
     >
       <pre
@@ -2068,15 +2068,15 @@ function PairedResult({
           margin: 0,
           padding: "8px 10px",
           color: isError
-            ? "var(--status-error-foreground)"
+            ? "var(--zeta-alias-status-error-foreground)"
             : isEmpty
-              ? "var(--text-dim)"
-              : "var(--text-muted)",
+              ? "var(--zeta-alias-text-dim)"
+              : "var(--zeta-alias-text-muted)",
           fontSize: 12,
           lineHeight: 1.5,
           overflow: "auto",
           maxHeight: 400,
-          background: "var(--bg)",
+          background: "var(--zeta-alias-bg)",
           whiteSpace: "pre-wrap",
           wordBreak: "break-all",
           fontStyle: isEmpty ? "italic" : "normal",
@@ -2102,10 +2102,10 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
     <div style={{ marginBottom: 16 }}>
       <div
         style={{
-          border: "1px solid var(--border)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 8,
           overflow: "hidden",
-          background: "var(--bg)",
+          background: "var(--zeta-alias-bg)",
         }}
       >
         <div
@@ -2114,9 +2114,9 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
             alignItems: "center",
             gap: 8,
             padding: "7px 10px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-panel)",
-            color: "var(--text-muted)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-panel)",
+            color: "var(--zeta-alias-text-muted)",
           }}
         >
           <span
@@ -2132,7 +2132,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
             <span
               style={{
                 marginLeft: "auto",
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 fontSize: 10,
               }}
             >
@@ -2144,7 +2144,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
         <div style={{ padding: "11px 13px 12px" }}>
           <div
             style={{
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               fontSize: 15,
               fontWeight: 700,
               lineHeight: 1.35,
@@ -2156,7 +2156,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
             style={{
               marginTop: 3,
               marginBottom: 10,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               fontSize: 14,
               lineHeight: 1.5,
             }}
@@ -2168,7 +2168,7 @@ function CompactionMessageView({ message }: { message: CustomMessage }) {
               {parsedSummary.body}
             </MarkdownBody>
           ) : (
-            <span style={{ color: "var(--text-dim)", fontSize: 12 }}>
+            <span style={{ color: "var(--zeta-alias-text-dim)", fontSize: 12 }}>
               {t("message.no-summary")}
             </span>
           )}
@@ -2268,10 +2268,10 @@ function CustomMessageView({
     <div style={{ marginBottom: 16 }}>
       <div
         style={{
-          border: "1px solid var(--border)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 8,
           overflow: "hidden",
-          background: isHiddenDisplay ? "var(--bg-subtle)" : "var(--bg)",
+          background: isHiddenDisplay ? "var(--zeta-alias-bg-subtle)" : "var(--zeta-alias-bg)",
           opacity: isHiddenDisplay && !contentExpanded ? 0.82 : 1,
         }}
       >
@@ -2281,15 +2281,15 @@ function CustomMessageView({
             alignItems: "center",
             gap: 8,
             padding: "7px 10px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--bg-panel)",
-            color: "var(--text-muted)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-panel)",
+            color: "var(--zeta-alias-text-muted)",
             fontSize: 12,
           }}
         >
           <span
             style={{
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               fontFamily: "var(--font-mono)",
               fontSize: 11,
               fontWeight: 650,
@@ -2298,7 +2298,7 @@ function CustomMessageView({
             {title}
           </span>
           {isHiddenDisplay && (
-            <span style={{ color: "var(--text-dim)", fontSize: 11 }}>
+            <span style={{ color: "var(--zeta-alias-text-dim)", fontSize: 11 }}>
               {t("message.hidden-extension")}
             </span>
           )}
@@ -2306,7 +2306,7 @@ function CustomMessageView({
             <span
               style={{
                 marginLeft: "auto",
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 fontSize: 10,
               }}
             >
@@ -2341,7 +2341,7 @@ function CustomMessageView({
                         borderRadius: 6,
                         objectFit: "contain",
                         display: "block",
-                        border: "1px solid var(--border)",
+                        border: "1px solid var(--zeta-alias-border)",
                       }}
                     />
                   );
@@ -2358,7 +2358,7 @@ function CustomMessageView({
                 {text}
               </MarkdownBody>
             ) : (
-              <span style={{ color: "var(--text-dim)", fontSize: 12 }}>
+              <span style={{ color: "var(--zeta-alias-text-dim)", fontSize: 12 }}>
                 {t("message.no-message")}
               </span>
             )}
@@ -2372,7 +2372,7 @@ function CustomMessageView({
               padding: "8px 10px",
               border: "none",
               background: "transparent",
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               cursor: "pointer",
               fontSize: 12,
               textAlign: "left",
@@ -2390,8 +2390,8 @@ function CustomMessageView({
             alignItems: "center",
             gap: 8,
             padding: "4px 9px",
-            borderTop: "1px solid var(--border)",
-            background: "var(--bg-subtle)",
+            borderTop: "1px solid var(--zeta-alias-border)",
+            background: "var(--zeta-alias-bg-subtle)",
           }}
         >
           {text || detailsText ? (
@@ -2401,7 +2401,7 @@ function CustomMessageView({
                 padding: "3px 7px",
                 border: "none",
                 background: "none",
-                color: copied ? "var(--accent)" : "var(--text-dim)",
+                color: copied ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
                 fontSize: 11,
               }}
@@ -2420,7 +2420,7 @@ function CustomMessageView({
                 padding: "3px 7px",
                 border: "none",
                 background: "none",
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
                 fontSize: 11,
               }}
@@ -2443,9 +2443,9 @@ function CustomMessageView({
               style={{
                 margin: 0,
                 padding: "9px 10px",
-                borderTop: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text-muted)",
+                borderTop: "1px solid var(--zeta-alias-border)",
+                background: "var(--zeta-alias-bg)",
+                color: "var(--zeta-alias-text-muted)",
                 fontSize: 12,
                 lineHeight: 1.5,
                 whiteSpace: "pre-wrap",
@@ -2625,7 +2625,7 @@ function BashExecutionView({
               style={{
                 background: "none",
                 border: "none",
-                color: "var(--accent)",
+                color: "var(--zeta-alias-accent)",
                 cursor: loadingFull ? "default" : "pointer",
                 fontSize: 11,
                 padding: 0,
@@ -2639,7 +2639,7 @@ function BashExecutionView({
             href={`${fullOutputUrl}&download=1`}
             style={{
               marginLeft: showFullButton ? 10 : 0,
-              color: "var(--accent)",
+              color: "var(--zeta-alias-accent)",
               fontSize: 11,
               textDecoration: "underline",
             }}
@@ -2648,7 +2648,7 @@ function BashExecutionView({
           </a>
           {fullError && (
             <span
-              style={{ marginLeft: 6, color: "var(--text-dim)", fontSize: 11 }}
+              style={{ marginLeft: 6, color: "var(--zeta-alias-text-dim)", fontSize: 11 }}
             >
               ({fullError})
             </span>

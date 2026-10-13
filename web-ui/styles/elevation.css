@@ -8,7 +8,7 @@
  * Technique: top-lit gradient + inset rim light + layered drop shadow.
  * Hover raises (bigger shadow, lighter face), :active presses (shadow in,
  * face darkens, 0.5px sink). Works on dark and light: rim uses white alpha,
- * shadow black alpha, face color-mix over var(--bg).
+ * shadow black alpha, face color-mix over var(--zeta-alias-bg).
  *
  * Reduced motion: transforms/shadow transitions collapse to instant.
  */
@@ -16,8 +16,8 @@
 .ze-btn,
 .ze-btn-hero {
 	position: relative;
-	border: 1px solid var(--border);
-	color: var(--text);
+	border: 1px solid var(--zeta-alias-border);
+	color: var(--zeta-alias-text);
 	cursor: pointer;
 	transition:
 		box-shadow 0.14s ease,
@@ -27,13 +27,13 @@
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-hover) 88%, #fff 12%) 0%,
-			var(--bg-hover) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-hover) 88%, var(--zeta-alias-neutral-0) 12%) 0%,
+			var(--zeta-alias-bg-hover) 100%
 		);
 	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.07),
-		0 1px 2px rgba(0, 0, 0, 0.5),
-		0 2px 5px rgba(0, 0, 0, 0.28);
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 7%, transparent),
+		0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 50%, transparent),
+		0 2px 5px color-mix(in srgb, var(--zeta-alias-neutral-1000) 28%, transparent);
 }
 
 .ze-btn:hover,
@@ -41,29 +41,29 @@
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-selected) 82%, #fff 18%) 0%,
-			var(--bg-selected) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 82%, var(--zeta-alias-neutral-0) 18%) 0%,
+			var(--zeta-alias-bg-selected) 100%
 		);
-	border-color: color-mix(in srgb, var(--border) 55%, var(--text-muted) 45%);
+	border-color: color-mix(in srgb, var(--zeta-alias-border) 55%, var(--zeta-alias-text-muted) 45%);
 	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.09),
-		0 2px 4px rgba(0, 0, 0, 0.5),
-		0 5px 12px rgba(0, 0, 0, 0.32);
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 9%, transparent),
+		0 2px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 50%, transparent),
+		0 5px 12px color-mix(in srgb, var(--zeta-alias-neutral-1000) 32%, transparent);
 }
 
 .ze-btn:active,
 .ze-btn-hero:active {
 	transform: translateY(0.5px);
-	background: var(--bg-selected);
+	background: var(--zeta-alias-bg-selected);
 	box-shadow:
-		inset 0 2px 4px rgba(0, 0, 0, 0.35),
-		inset 0 1px 0 rgba(255, 255, 255, 0.04),
-		0 1px 2px rgba(0, 0, 0, 0.4);
+		inset 0 2px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 4%, transparent),
+		0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 40%, transparent);
 }
 
 .ze-btn:focus-visible,
 .ze-btn-hero:focus-visible {
-	outline: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+	outline: 1px solid color-mix(in srgb, var(--zeta-alias-accent) 70%, transparent);
 	outline-offset: 1px;
 }
 
@@ -72,36 +72,36 @@
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-selected) 78%, var(--accent) 22%) 0%,
-			color-mix(in srgb, var(--bg-selected) 90%, var(--accent) 10%) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 78%, var(--zeta-alias-accent) 22%) 0%,
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 90%, var(--zeta-alias-accent) 10%) 100%
 		);
-	border-color: color-mix(in srgb, var(--accent) 45%, var(--border) 55%);
-	color: var(--accent);
+	border-color: color-mix(in srgb, var(--zeta-alias-accent) 45%, var(--zeta-alias-border) 55%);
+	color: var(--zeta-alias-accent);
 	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.1),
-		inset 0 0 12px color-mix(in srgb, var(--accent) 8%, transparent),
-		0 1px 2px rgba(0, 0, 0, 0.55),
-		0 3px 8px rgba(0, 0, 0, 0.3);
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 10%, transparent),
+		inset 0 0 12px color-mix(in srgb, var(--zeta-alias-accent) 8%, transparent),
+		0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 55%, transparent),
+		0 3px 8px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent);
 }
 
 .ze-btn-hero:hover {
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-selected) 66%, var(--accent) 34%) 0%,
-			color-mix(in srgb, var(--bg-selected) 82%, var(--accent) 18%) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 66%, var(--zeta-alias-accent) 34%) 0%,
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 82%, var(--zeta-alias-accent) 18%) 100%
 		);
-	border-color: color-mix(in srgb, var(--accent) 70%, var(--border) 30%);
+	border-color: color-mix(in srgb, var(--zeta-alias-accent) 70%, var(--zeta-alias-border) 30%);
 	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.12),
-		inset 0 0 14px color-mix(in srgb, var(--accent) 12%, transparent),
-		0 2px 4px rgba(0, 0, 0, 0.55),
-		0 6px 16px rgba(0, 0, 0, 0.35);
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 12%, transparent),
+		inset 0 0 14px color-mix(in srgb, var(--zeta-alias-accent) 12%, transparent),
+		0 2px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 55%, transparent),
+		0 6px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent);
 }
 
 /* Quiet ghost triggers: invisible chrome until hover, then a raised chip. */
 .ze-quiet {
-	color: var(--text-dim);
+	color: var(--zeta-alias-text-dim);
 	cursor: pointer;
 	border: 1px solid transparent;
 	border-radius: 5px;
@@ -115,22 +115,22 @@
 }
 
 .ze-quiet:hover {
-	color: var(--text);
+	color: var(--zeta-alias-text);
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-hover) 85%, #fff 15%) 0%,
-			var(--bg-hover) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-hover) 85%, var(--zeta-alias-neutral-0) 15%) 0%,
+			var(--zeta-alias-bg-hover) 100%
 		);
-	border-color: var(--border);
+	border-color: var(--zeta-alias-border);
 	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.06),
-		0 1px 2px rgba(0, 0, 0, 0.4);
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 6%, transparent),
+		0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 40%, transparent);
 }
 
 .ze-quiet:active {
-	background: var(--bg-selected);
-	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+	background: var(--zeta-alias-bg-selected);
+	box-shadow: inset 0 1px 3px color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -150,12 +150,12 @@
 	background:
 		linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--bg-selected) 80%, var(--accent) 20%) 0%,
-			var(--bg-selected) 100%
+			color-mix(in srgb, var(--zeta-alias-bg-selected) 80%, var(--zeta-alias-accent) 20%) 0%,
+			var(--zeta-alias-bg-selected) 100%
 		);
-	border-color: color-mix(in srgb, var(--accent) 55%, var(--border) 45%);
+	border-color: color-mix(in srgb, var(--zeta-alias-accent) 55%, var(--zeta-alias-border) 45%);
 	box-shadow:
-		inset 0 2px 4px rgba(0, 0, 0, 0.3),
-		inset 0 1px 0 rgba(255, 255, 255, 0.05),
-		0 1px 2px rgba(0, 0, 0, 0.35);
+		inset 0 2px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--zeta-alias-neutral-0) 5%, transparent),
+		0 1px 2px color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent);
 }

@@ -105,13 +105,13 @@ export function DocsPanel({ locale, t }: DocsPanelProps) {
         style={{
           width: 220,
           flexShrink: 0,
-          borderRight: "1px solid var(--border)",
+          borderRight: "1px solid var(--zeta-alias-border)",
           overflowY: "auto",
           padding: "12px 10px",
-          background: "var(--bg-panel)",
+          background: "var(--zeta-alias-bg-panel)",
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", padding: "4px 8px 8px" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--zeta-alias-text-muted)", padding: "4px 8px 8px" }}>
           {t("web-docs-title")}
         </div>
         <select
@@ -122,10 +122,10 @@ export function DocsPanel({ locale, t }: DocsPanelProps) {
             width: "100%",
             padding: "6px 8px",
             marginBottom: 10,
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
+            background: "var(--zeta-alias-bg)",
+            border: "1px solid var(--zeta-alias-border)",
             borderRadius: 6,
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
             fontSize: 12,
           }}
         >
@@ -150,18 +150,18 @@ export function DocsPanel({ locale, t }: DocsPanelProps) {
                   border: "none",
                   borderRadius: 6,
                   background: "none",
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor: "pointer",
                   fontSize: 12,
                   lineHeight: 1.35,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-selected)";
-                  e.currentTarget.style.color = "var(--text)";
+                  e.currentTarget.style.background = "var(--zeta-alias-bg-selected)";
+                  e.currentTarget.style.color = "var(--zeta-alias-text)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "none";
-                  e.currentTarget.style.color = "var(--text-muted)";
+                  e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
                 }}
               >
                 {heading}
@@ -172,11 +172,11 @@ export function DocsPanel({ locale, t }: DocsPanelProps) {
       </div>
 
       {/* Document body */}
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 22px", background: "var(--bg)" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 22px", background: "var(--zeta-alias-bg)" }}>
         {error ? (
-          <div style={{ padding: 24, fontSize: 12.5, color: "#f87171" }}>{error}</div>
+          <div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-status-error)" }}>{error}</div>
         ) : content === null ? (
-          <div style={{ padding: 24, fontSize: 12.5, color: "var(--text-muted)" }}>Loading…</div>
+          <div style={{ padding: 24, fontSize: 12.5, color: "var(--zeta-alias-text-muted)" }}>Loading…</div>
         ) : (
           <div style={{ maxWidth: 760 }}>
             <MarkdownBody>{content}</MarkdownBody>

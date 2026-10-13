@@ -68,7 +68,7 @@ function Toggle({
         border: "none",
         padding: 0,
         cursor: loading ? "wait" : "pointer",
-        background: enabled ? "var(--accent)" : "var(--border)",
+        background: enabled ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)",
         position: "relative",
         transition: "background 0.18s",
         outline: "none",
@@ -82,8 +82,8 @@ function Toggle({
           width: 16,
           height: 16,
           borderRadius: "50%",
-          background: "var(--bg)",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+          background: "var(--zeta-alias-bg)",
+          boxShadow: "0 1px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 22%, transparent)",
           transition: "left 0.18s cubic-bezier(.4,0,.2,1)",
         }}
       />
@@ -141,12 +141,12 @@ function SkillDetail({
               flexShrink: 0,
               background:
                 label === "project"
-                  ? "rgba(99,102,241,0.12)"
-                  : "rgba(120,120,120,0.12)",
+                  ? "color-mix(in srgb, var(--zeta-alias-accent) 12%, transparent)"
+                  : "color-mix(in srgb, var(--zeta-alias-text-muted) 12%, transparent)",
               color:
                 label === "project"
-                  ? "rgba(99,102,241,0.8)"
-                  : "var(--text-dim)",
+                  ? "color-mix(in srgb, var(--zeta-alias-accent) 80%, transparent)"
+                  : "var(--zeta-alias-text-dim)",
             }}
           >
             {label}
@@ -155,7 +155,7 @@ function SkillDetail({
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 11,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               flex: 1,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -182,7 +182,7 @@ function SkillDetail({
           }}
         >
           {!enabled && (
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
+            <span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>
               {t("skills.hiddenButInvocable")}
             </span>
           )}
@@ -190,7 +190,7 @@ function SkillDetail({
             <span
               style={{
                 fontSize: 12,
-                color: "#f87171",
+                color: "var(--zeta-alias-status-error)",
                 overflowWrap: "anywhere",
               }}
             >
@@ -205,7 +205,7 @@ function SkillDetail({
           <span
             style={{
               fontSize: 12,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               fontWeight: 500,
             }}
           >
@@ -222,7 +222,7 @@ function SkillDetail({
               gap: 8,
               width: "fit-content",
               maxWidth: "100%",
-              color: "var(--accent)",
+              color: "var(--zeta-alias-accent)",
               textDecoration: "none",
             }}
           >
@@ -246,7 +246,7 @@ function SkillDetail({
           <span
             style={{
               fontSize: 12,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               fontWeight: 500,
             }}
           >
@@ -264,7 +264,7 @@ function SkillDetail({
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 12,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
               }}
             >
               {shortVersion(
@@ -277,10 +277,10 @@ function SkillDetail({
                 disabled={checkingUpdate || updating}
                 style={{
                   padding: "4px 9px",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 5,
                   background: "none",
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor:
                     checkingUpdate || updating ? "not-allowed" : "pointer",
                   opacity: checkingUpdate || updating ? 0.5 : 1,
@@ -295,7 +295,7 @@ function SkillDetail({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 12,
-                  color: "#d97706",
+                  color: "var(--zeta-alias-status-warning)",
                 }}
               >
                 {shortVersion(updateStatus.latestVersion)}
@@ -307,12 +307,12 @@ function SkillDetail({
                 style={{
                   fontSize: 12,
                   color: checkingUpdate
-                    ? "var(--accent)"
+                    ? "var(--zeta-alias-accent)"
                     : updateStatus?.state === "up-to-date"
-                      ? "#16a34a"
+                      ? "var(--zeta-alias-status-success)"
                       : updateStatus?.state === "error"
-                        ? "#ef4444"
-                        : "var(--text-dim)",
+                        ? "var(--zeta-alias-status-error)"
+                        : "var(--zeta-alias-text-dim)",
                 }}
               >
                 {checkingUpdate
@@ -332,8 +332,8 @@ function SkillDetail({
                   padding: "4px 10px",
                   border: "none",
                   borderRadius: 5,
-                  background: "var(--accent)",
-                  color: "#fff",
+                  background: "var(--zeta-alias-accent)",
+                  color: "var(--zeta-alias-accent-foreground)",
                   cursor:
                     updating || checkingUpdate ? "not-allowed" : "pointer",
                   opacity: updating || checkingUpdate ? 0.5 : 1,
@@ -346,7 +346,7 @@ function SkillDetail({
             )}
           </div>
           {updateError && (
-            <span style={{ fontSize: 12, color: "#ef4444" }}>
+            <span style={{ fontSize: 12, color: "var(--zeta-alias-status-error)" }}>
               {updateError}
             </span>
           )}
@@ -355,7 +355,7 @@ function SkillDetail({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <span
-          style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
+          style={{ fontSize: 12, color: "var(--zeta-alias-text-muted)", fontWeight: 500 }}
         >
           Name
         </span>
@@ -363,7 +363,7 @@ function SkillDetail({
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 14,
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
           }}
         >
           {skill.name}
@@ -372,12 +372,12 @@ function SkillDetail({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <span
-          style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}
+          style={{ fontSize: 12, color: "var(--zeta-alias-text-muted)", fontWeight: 500 }}
         >
           Description
         </span>
         <span
-          style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}
+          style={{ fontSize: 14, color: "var(--zeta-alias-text-muted)", lineHeight: 1.6 }}
         >
           {skill.description}
         </span>
@@ -484,7 +484,7 @@ function AddSkillPanel({
           marginBottom: 20,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
           {t("add-skill")}
         </div>
 
@@ -502,10 +502,10 @@ function AddSkillPanel({
               flex: 1,
               padding: "7px 10px",
               fontSize: 13,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-panel)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               outline: "none",
             }}
           />
@@ -517,8 +517,8 @@ function AddSkillPanel({
               fontSize: 13,
               borderRadius: 6,
               border: "none",
-              background: "var(--accent)",
-              color: "#fff",
+              background: "var(--zeta-alias-accent)",
+              color: "var(--zeta-alias-accent-foreground)",
               cursor: searching || !query.trim() ? "not-allowed" : "pointer",
               opacity: searching || !query.trim() ? 0.5 : 1,
               flexShrink: 0,
@@ -534,7 +534,7 @@ function AddSkillPanel({
             style={{
               display: "flex",
               borderRadius: 5,
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               overflow: "hidden",
               fontSize: 12,
               flexShrink: 0,
@@ -559,13 +559,13 @@ function AddSkillPanel({
                     s === "project" && !projectResourcesLoaded
                       ? "not-allowed"
                       : "pointer",
-                  background: scope === s ? "var(--bg-selected)" : "none",
-                  color: scope === s ? "var(--text)" : "var(--text-dim)",
+                  background: scope === s ? "var(--zeta-alias-bg-selected)" : "none",
+                  color: scope === s ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-dim)",
                   fontWeight: scope === s ? 600 : 400,
                   opacity:
                     s === "project" && !projectResourcesLoaded ? 0.45 : 1,
                   borderRight:
-                    s === "global" ? "1px solid var(--border)" : "none",
+                    s === "global" ? "1px solid var(--zeta-alias-border)" : "none",
                 }}
               >
                 {s}
@@ -575,7 +575,7 @@ function AddSkillPanel({
           <span
             style={{
               fontSize: 12,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               fontFamily: "var(--font-mono)",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -588,11 +588,11 @@ function AddSkillPanel({
 
         {/* Errors */}
         {searchError && (
-          <div style={{ fontSize: 12, color: "#f87171" }}>{searchError}</div>
+          <div style={{ fontSize: 12, color: "var(--zeta-alias-status-error)" }}>{searchError}</div>
         )}
         {installError && (
           <div
-            style={{ fontSize: 12, color: "#f87171", wordBreak: "break-word" }}
+            style={{ fontSize: 12, color: "var(--zeta-alias-status-error)", wordBreak: "break-word" }}
           >
             {installError}
           </div>
@@ -619,7 +619,7 @@ function AddSkillPanel({
                   alignItems: "center",
                   gap: 14,
                   padding: "12px 0",
-                  borderBottom: "1px solid var(--border)",
+                  borderBottom: "1px solid var(--zeta-alias-border)",
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -628,7 +628,7 @@ function AddSkillPanel({
                     style={{
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "var(--text)",
+                      color: "var(--zeta-alias-text)",
                       marginBottom: 3,
                     }}
                   >
@@ -647,7 +647,7 @@ function AddSkillPanel({
                       style={{
                         fontFamily: "var(--font-mono)",
                         fontSize: 11,
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                       }}
                     >
                       {repopart}
@@ -655,7 +655,7 @@ function AddSkillPanel({
                     <span
                       style={{
                         fontSize: 12,
-                        color: "var(--text-muted)",
+                        color: "var(--zeta-alias-text-muted)",
                         fontWeight: 500,
                       }}
                     >
@@ -668,7 +668,7 @@ function AddSkillPanel({
                         rel="noreferrer"
                         style={{
                           fontSize: 12,
-                          color: "var(--accent)",
+                          color: "var(--zeta-alias-accent)",
                           textDecoration: "none",
                         }}
                       >
@@ -688,17 +688,17 @@ function AddSkillPanel({
                     fontSize: 12,
                     fontWeight: 500,
                     borderRadius: 5,
-                    border: "1px solid var(--border)",
+                    border: "1px solid var(--zeta-alias-border)",
                     cursor:
                       isInstalled || isInstalling || installing !== null
                         ? "not-allowed"
                         : "pointer",
-                    background: isInstalled ? "rgba(34,197,94,0.1)" : "none",
+                    background: isInstalled ? "color-mix(in srgb, var(--zeta-alias-status-success) 10%, transparent)" : "none",
                     color: isInstalled
-                      ? "#16a34a"
+                      ? "var(--zeta-alias-status-success)"
                       : isInstalling
-                        ? "var(--accent)"
-                        : "var(--text-muted)",
+                        ? "var(--zeta-alias-accent)"
+                        : "var(--zeta-alias-text-muted)",
                     transition: "color 0.12s",
                   }}
                 >
@@ -716,14 +716,14 @@ function AddSkillPanel({
         !searchError &&
         !searching && (
           <div
-            style={{ fontSize: 13, color: "var(--text-dim)", lineHeight: 1.8 }}
+            style={{ fontSize: 13, color: "var(--zeta-alias-text-dim)", lineHeight: 1.8 }}
           >
             Search{" "}
             <a
               href="https://skills.sh"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--accent)", textDecoration: "none" }}
+              style={{ color: "var(--zeta-alias-accent)", textDecoration: "none" }}
             >
               skills.sh
             </a>{" "}
@@ -948,7 +948,7 @@ export function SkillsConfig({
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(0,0,0,0.35)",
+        background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -963,12 +963,12 @@ export function SkillsConfig({
           maxWidth: "calc(100vw - 16px)",
           height: isMobile ? "calc(100dvh - 16px)" : "78vh",
           maxHeight: "calc(100dvh - 16px)",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 10,
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
           overflow: "hidden",
         }}
       >
@@ -979,20 +979,20 @@ export function SkillsConfig({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 18px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
             <span
-              style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--zeta-alias-text)" }}
             >
               {t("skills")}
             </span>
             <code
               style={{
                 fontSize: 11,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 fontFamily: "var(--font-mono)",
                 maxWidth: 320,
                 overflow: "hidden",
@@ -1008,7 +1008,7 @@ export function SkillsConfig({
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: "pointer",
               fontSize: 20,
               lineHeight: 1,
@@ -1024,9 +1024,9 @@ export function SkillsConfig({
             role="status"
             style={{
               padding: "8px 18px",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--bg-panel)",
-              color: "var(--text-muted)",
+              borderBottom: "1px solid var(--zeta-alias-border)",
+              background: "var(--zeta-alias-bg-panel)",
+              color: "var(--zeta-alias-text-muted)",
               fontSize: 12,
             }}
           >
@@ -1048,12 +1048,12 @@ export function SkillsConfig({
             style={{
               width: isMobile ? "100%" : 210,
               maxHeight: isMobile ? "40vh" : undefined,
-              borderRight: isMobile ? "none" : "1px solid var(--border)",
-              borderBottom: isMobile ? "1px solid var(--border)" : "none",
+              borderRight: isMobile ? "none" : "1px solid var(--zeta-alias-border)",
+              borderBottom: isMobile ? "1px solid var(--zeta-alias-border)" : "none",
               display: "flex",
               flexDirection: "column",
               flexShrink: 0,
-              background: "var(--bg-panel)",
+              background: "var(--zeta-alias-bg-panel)",
             }}
           >
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
@@ -1062,7 +1062,7 @@ export function SkillsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 12,
-                    color: "var(--text-muted)",
+                    color: "var(--zeta-alias-text-muted)",
                   }}
                 >
                   {t("skills.loading")}
@@ -1072,7 +1072,7 @@ export function SkillsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 11,
-                    color: "#f87171",
+                    color: "var(--zeta-alias-status-error)",
                   }}
                 >
                   {error}
@@ -1082,7 +1082,7 @@ export function SkillsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 11,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                   }}
                 >
                   {t("skills.noSkills")}
@@ -1143,13 +1143,13 @@ export function SkillsConfig({
                           borderRadius: 5,
                           cursor: "pointer",
                           background: isSelected
-                            ? "var(--bg-selected)"
+                            ? "var(--zeta-alias-bg-selected)"
                             : "none",
                         }}
                         onMouseEnter={(e) => {
                           if (!isSelected)
                             e.currentTarget.style.background =
-                              "var(--bg-hover)";
+                              "var(--zeta-alias-bg-hover)";
                         }}
                         onMouseLeave={(e) => {
                           if (!isSelected)
@@ -1163,11 +1163,11 @@ export function SkillsConfig({
                             height: 7,
                             borderRadius: "50%",
                             background: disabled
-                              ? "var(--border)"
-                              : "var(--accent)",
+                              ? "var(--zeta-alias-border)"
+                              : "var(--zeta-alias-accent)",
                             boxShadow: disabled
                               ? "none"
-                              : "0 0 4px var(--accent)",
+                              : "0 0 4px var(--zeta-alias-accent)",
                             transition: "background 0.15s, box-shadow 0.15s",
                           }}
                         />
@@ -1175,7 +1175,7 @@ export function SkillsConfig({
                           style={{
                             fontSize: 12,
                             fontWeight: isSelected ? 600 : 400,
-                            color: disabled ? "var(--text-dim)" : "var(--text)",
+                            color: disabled ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text)",
                             fontFamily: "var(--font-mono)",
                             flex: 1,
                             overflow: "hidden",
@@ -1193,7 +1193,7 @@ export function SkillsConfig({
                             <span
                               title={t("skills.updateAvailable")}
                               style={{
-                                color: "#d97706",
+                                color: "var(--zeta-alias-status-warning)",
                                 fontSize: 13,
                                 lineHeight: 1,
                                 flexShrink: 0,
@@ -1222,7 +1222,7 @@ export function SkillsConfig({
                               padding: "4px 8px 3px",
                               fontSize: 10,
                               fontWeight: 600,
-                              color: "var(--text-dim)",
+                              color: "var(--zeta-alias-text-dim)",
                               textTransform: "uppercase",
                               letterSpacing: "0.06em",
                             }}
@@ -1246,7 +1246,7 @@ export function SkillsConfig({
                                   padding: "4px 8px 3px",
                                   fontSize: 10,
                                   fontWeight: 600,
-                                  color: "var(--text-dim)",
+                                  color: "var(--zeta-alias-text-dim)",
                                   textTransform: "uppercase",
                                   letterSpacing: "0.06em",
                                   cursor: "pointer",
@@ -1272,7 +1272,7 @@ export function SkillsConfig({
             <div
               style={{
                 padding: "8px 6px",
-                borderTop: "1px solid var(--border)",
+                borderTop: "1px solid var(--zeta-alias-border)",
                 flexShrink: 0,
               }}
             >
@@ -1285,13 +1285,13 @@ export function SkillsConfig({
                   padding: "7px 8px",
                   borderRadius: 5,
                   cursor: "pointer",
-                  background: addMode ? "var(--bg-selected)" : "none",
-                  color: addMode ? "var(--accent)" : "var(--text-dim)",
+                  background: addMode ? "var(--zeta-alias-bg-selected)" : "none",
+                  color: addMode ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
                   fontSize: 12,
                 }}
                 onMouseEnter={(e) => {
                   if (!addMode)
-                    e.currentTarget.style.background = "var(--bg-hover)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                 }}
                 onMouseLeave={(e) => {
                   if (!addMode) e.currentTarget.style.background = "none";
@@ -1366,7 +1366,7 @@ export function SkillsConfig({
                   height: "100%",
                   display: "flex",
                   alignItems: "center",
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                   fontSize: 13,
                 }}
               >
@@ -1383,7 +1383,7 @@ export function SkillsConfig({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "10px 18px",
-            borderTop: "1px solid var(--border)",
+            borderTop: "1px solid var(--zeta-alias-border)",
             flexShrink: 0,
           }}
         >
@@ -1395,9 +1395,9 @@ export function SkillsConfig({
                 style={{
                   padding: "6px 12px",
                   background: "none",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--zeta-alias-border)",
                   borderRadius: 6,
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor:
                     checkingAll || updatingSkill !== null
                       ? "not-allowed"
@@ -1412,7 +1412,7 @@ export function SkillsConfig({
             {Object.values(updateStatuses).filter(
               (status) => status.state === "update-available",
             ).length > 0 && (
-              <span style={{ fontSize: 12, color: "#d97706" }}>
+              <span style={{ fontSize: 12, color: "var(--zeta-alias-status-warning)" }}>
                 {
                   Object.values(updateStatuses).filter(
                     (status) => status.state === "update-available",
@@ -1431,9 +1431,9 @@ export function SkillsConfig({
             style={{
               padding: "6px 14px",
               background: "none",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: "pointer",
               fontSize: 13,
             }}

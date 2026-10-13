@@ -5,6 +5,12 @@ const ANSI_ESCAPE_AT_START_RE = /^\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]
 const ANSI_SGR_RE = /\x1B\[([0-9;]*)m/g;
 const TUI_CURSOR_MARKER_RE = /\x1B_pi:c\x07/g;
 
+/**
+ * ANSI-16 → CSS colour map for PTY output. Deliberately literal and outside the
+ * three-layer theme tokens (`lib/theme/tokens.ts`): these are terminal semantics
+ * (SGR 30–37 / 90–97), not UI theme roles. The colour guard exempts this file
+ * by name for exactly this reason.
+ */
 const ANSI_8_COLORS = [
   "#1f2937",
   "#dc2626",

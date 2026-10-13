@@ -99,10 +99,10 @@ function findInstalledPackage(
 }
 
 function statusColor(status: PluginPackageInfo["status"]): string {
-  if (status === "loaded") return "var(--accent)";
-  if (status === "installed") return "#f59e0b";
-  if (status === "disabled") return "var(--text-dim)";
-  return "#ef4444";
+  if (status === "loaded") return "var(--zeta-alias-accent)";
+  if (status === "installed") return "var(--zeta-alias-status-warning)";
+  if (status === "disabled") return "var(--zeta-alias-text-dim)";
+  return "var(--zeta-alias-status-error)";
 }
 
 function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
@@ -124,7 +124,7 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
 
   if (groups.length === 0) {
     return (
-      <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+      <div style={{ fontSize: 12, color: "var(--zeta-alias-text-dim)" }}>
         {pkg.disabled
           ? t("plugins.packageDisabled")
           : t("plugins.noResolvedResources")}
@@ -144,7 +144,7 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
         <div
           key={group.kind}
           style={{
-            borderTop: groupIndex === 0 ? "none" : "1px solid var(--border)",
+            borderTop: groupIndex === 0 ? "none" : "1px solid var(--zeta-alias-border)",
             paddingTop: groupIndex === 0 ? 0 : 12,
           }}
         >
@@ -152,7 +152,7 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
             style={{
               fontSize: 10,
               fontWeight: 700,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               textTransform: "uppercase",
               marginBottom: 6,
             }}
@@ -168,7 +168,7 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "var(--text)",
+                    color: "var(--zeta-alias-text)",
                     fontFamily: "var(--font-mono)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -181,7 +181,7 @@ function ResourceList({ pkg }: { pkg: PluginPackageInfo }) {
                 <div
                   style={{
                     fontSize: 10,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                     fontFamily: "var(--font-mono)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -211,10 +211,10 @@ function ScopeTag({ scope }: { scope: PluginScope }) {
         flexShrink: 0,
         background:
           scope === "project"
-            ? "rgba(99,102,241,0.12)"
-            : "rgba(120,120,120,0.12)",
+            ? "color-mix(in srgb, var(--zeta-alias-accent) 12%, transparent)"
+            : "color-mix(in srgb, var(--zeta-alias-text-muted) 12%, transparent)",
         color:
-          scope === "project" ? "rgba(99,102,241,0.85)" : "var(--text-dim)",
+          scope === "project" ? "color-mix(in srgb, var(--zeta-alias-accent) 85%, transparent)" : "var(--zeta-alias-text-dim)",
       }}
     >
       {scope}
@@ -228,10 +228,10 @@ function buttonStyle(
 ): React.CSSProperties {
   return {
     padding: "6px 12px",
-    background: danger ? "rgba(239,68,68,0.08)" : "none",
-    border: "1px solid var(--border)",
+    background: danger ? "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)" : "none",
+    border: "1px solid var(--zeta-alias-border)",
     borderRadius: 6,
-    color: danger ? "#ef4444" : "var(--text-muted)",
+    color: danger ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-muted)",
     cursor: disabled ? "not-allowed" : "pointer",
     fontSize: 12,
     opacity: disabled ? 0.5 : 1,
@@ -265,7 +265,7 @@ function Toggle({
         border: "none",
         padding: 0,
         cursor: loading ? "wait" : "pointer",
-        background: enabled ? "var(--accent)" : "var(--border)",
+        background: enabled ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)",
         position: "relative",
         transition: "background 0.18s",
         outline: "none",
@@ -280,8 +280,8 @@ function Toggle({
           width: 16,
           height: 16,
           borderRadius: "50%",
-          background: "var(--bg)",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+          background: "var(--zeta-alias-bg)",
+          boxShadow: "0 1px 4px color-mix(in srgb, var(--zeta-alias-neutral-1000) 22%, transparent)",
           transition: "left 0.18s cubic-bezier(.4,0,.2,1)",
         }}
       />
@@ -303,7 +303,7 @@ function SegmentedScope({
     <div
       style={{
         display: "inline-flex",
-        border: "1px solid var(--border)",
+        border: "1px solid var(--zeta-alias-border)",
         borderRadius: 7,
         overflow: "hidden",
         height: 30,
@@ -324,9 +324,9 @@ function SegmentedScope({
               width: 76,
               border: "none",
               borderRight:
-                scope === "global" ? "1px solid var(--border)" : "none",
-              background: active ? "var(--bg-selected)" : "none",
-              color: active ? "var(--text)" : "var(--text-muted)",
+                scope === "global" ? "1px solid var(--zeta-alias-border)" : "none",
+              background: active ? "var(--zeta-alias-bg-selected)" : "none",
+              color: active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
               cursor: disabled ? "not-allowed" : "pointer",
               opacity: disabled ? 0.45 : 1,
               fontSize: 12,
@@ -393,14 +393,14 @@ function AddPluginPanel({
             flexWrap: "wrap",
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--zeta-alias-text)" }}>
             {t("plugins.addPlugin")}
           </div>
         </div>
         <div
           style={{
             fontSize: 12,
-            color: "var(--text-dim)",
+            color: "var(--zeta-alias-text-dim)",
             fontFamily: "var(--font-mono)",
           }}
         >
@@ -411,7 +411,7 @@ function AddPluginPanel({
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <label
           htmlFor="plugin-source"
-          style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}
+          style={{ fontSize: 12, fontWeight: 600, color: "var(--zeta-alias-text-muted)" }}
         >
           Source
         </label>
@@ -434,10 +434,10 @@ function AddPluginPanel({
             width: "100%",
             height: 36,
             padding: "0 11px",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--zeta-alias-border)",
             borderRadius: 6,
-            background: "var(--bg-panel)",
-            color: "var(--text)",
+            background: "var(--zeta-alias-bg-panel)",
+            color: "var(--zeta-alias-text)",
             fontFamily: "var(--font-mono)",
             fontSize: 13,
             outline: "none",
@@ -467,9 +467,9 @@ function AddPluginPanel({
           disabled={busy || !source.trim()}
           style={{
             ...buttonStyle(busy || !source.trim()),
-            background: "var(--accent)",
-            color: "white",
-            borderColor: "var(--accent)",
+            background: "var(--zeta-alias-accent)",
+            color: "var(--zeta-alias-accent-foreground)",
+            borderColor: "var(--zeta-alias-accent)",
           }}
         >
           {busy ? t("plugins.installing") : t("plugins.action.install")}
@@ -478,7 +478,7 @@ function AddPluginPanel({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div
-          style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}
+          style={{ fontSize: 12, fontWeight: 600, color: "var(--zeta-alias-text-muted)" }}
         >
           Examples
         </div>
@@ -493,21 +493,21 @@ function AddPluginPanel({
                 minHeight: 30,
                 textAlign: "left",
                 padding: "6px 9px",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 6,
-                background: "var(--bg-panel)",
-                color: "var(--text-dim)",
+                background: "var(--zeta-alias-bg-panel)",
+                color: "var(--zeta-alias-text-dim)",
                 cursor: "pointer",
                 fontFamily: "var(--font-mono)",
                 fontSize: 11,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+                e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-panel)";
-                e.currentTarget.style.color = "var(--text-dim)";
+                e.currentTarget.style.background = "var(--zeta-alias-bg-panel)";
+                e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
               }}
             >
               {example}
@@ -517,7 +517,7 @@ function AddPluginPanel({
       </div>
 
       {actionError && (
-        <div style={{ fontSize: 12, color: "#ef4444", whiteSpace: "pre-wrap" }}>
+        <div style={{ fontSize: 12, color: "var(--zeta-alias-status-error)", whiteSpace: "pre-wrap" }}>
           {actionError}
         </div>
       )}
@@ -595,8 +595,8 @@ function PackageDetail({
                 fontSize: 10,
                 padding: "1px 5px",
                 borderRadius: 3,
-                background: "rgba(120,120,120,0.12)",
-                color: "var(--text-dim)",
+                background: "color-mix(in srgb, var(--zeta-alias-text-muted) 12%, transparent)",
+                color: "var(--zeta-alias-text-dim)",
               }}
             >
               {t("plugins.status.disabled")}
@@ -608,8 +608,8 @@ function PackageDetail({
                   fontSize: 10,
                   padding: "1px 5px",
                   borderRadius: 3,
-                  background: "rgba(245,158,11,0.12)",
-                  color: "#d97706",
+                  background: "color-mix(in srgb, var(--zeta-alias-status-warning) 12%, transparent)",
+                  color: "var(--zeta-alias-status-warning)",
                 }}
               >
                 {t("plugins.filtered")}
@@ -620,7 +620,7 @@ function PackageDetail({
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 12,
-              color: "var(--text)",
+              color: "var(--zeta-alias-text)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -673,7 +673,7 @@ function PackageDetail({
           lineHeight: 1.45,
         }}
       >
-        <div style={{ color: "var(--text-dim)" }}>{t("status")}</div>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("status")}</div>
         <div
           style={{
             color: statusColor(pkg.status),
@@ -682,30 +682,30 @@ function PackageDetail({
         >
           {pkg.status}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("version")}</div>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("version")}</div>
         <div
-          style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
+          style={{ color: "var(--zeta-alias-text-muted)", fontFamily: "var(--font-mono)" }}
         >
           {versionSummary(pkg, t)}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("package")}</div>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("package")}</div>
         <div
           style={{
-            color: "var(--text-muted)",
+            color: "var(--zeta-alias-text-muted)",
             fontFamily: "var(--font-mono)",
             overflowWrap: "anywhere",
           }}
         >
           {pkg.packageName ?? t("plugins.unknown")}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("resources")}</div>
-        <div style={{ color: "var(--text-muted)" }}>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("resources")}</div>
+        <div style={{ color: "var(--zeta-alias-text-muted)" }}>
           {resourceSummary(pkg, t)}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("installed-path")}</div>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("installed-path")}</div>
         <div
           style={{
-            color: pkg.installedPath ? "var(--text-muted)" : "#ef4444",
+            color: pkg.installedPath ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-status-error)",
             fontFamily: "var(--font-mono)",
             overflowWrap: "anywhere",
           }}
@@ -714,10 +714,10 @@ function PackageDetail({
             ? shortenPath(pkg.installedPath)
             : t("plugins.notFound")}
         </div>
-        <div style={{ color: "var(--text-dim)" }}>{t("cwd")}</div>
+        <div style={{ color: "var(--zeta-alias-text-dim)" }}>{t("cwd")}</div>
         <div
           style={{
-            color: "var(--text-dim)",
+            color: "var(--zeta-alias-text-dim)",
             fontFamily: "var(--font-mono)",
             overflowWrap: "anywhere",
           }}
@@ -727,17 +727,17 @@ function PackageDetail({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--zeta-alias-text)" }}>
           {t("plugins.resolvedResources")}
         </div>
         <ResourceList pkg={pkg} />
       </div>
 
       {actionMessage && (
-        <div style={{ fontSize: 12, color: "#16a34a" }}>{actionMessage}</div>
+        <div style={{ fontSize: 12, color: "var(--zeta-alias-status-success)" }}>{actionMessage}</div>
       )}
       {actionError && (
-        <div style={{ fontSize: 12, color: "#ef4444", whiteSpace: "pre-wrap" }}>
+        <div style={{ fontSize: 12, color: "var(--zeta-alias-status-error)", whiteSpace: "pre-wrap" }}>
           {actionError}
         </div>
       )}
@@ -914,7 +914,7 @@ export function PluginsConfig({
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(0,0,0,0.35)",
+        background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -929,12 +929,12 @@ export function PluginsConfig({
           maxWidth: "calc(100vw - 16px)",
           height: isMobile ? "calc(100dvh - 16px)" : "76vh",
           maxHeight: "calc(100dvh - 16px)",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 8,
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
           overflow: "hidden",
         }}
       >
@@ -944,7 +944,7 @@ export function PluginsConfig({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 18px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
             flexShrink: 0,
           }}
         >
@@ -957,14 +957,14 @@ export function PluginsConfig({
             }}
           >
             <span
-              style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--zeta-alias-text)" }}
             >
               {t("plugins")}
             </span>
             <code
               style={{
                 fontSize: 11,
-                color: "var(--text-muted)",
+                color: "var(--zeta-alias-text-muted)",
                 fontFamily: "var(--font-mono)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -979,7 +979,7 @@ export function PluginsConfig({
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: "pointer",
               fontSize: 20,
               lineHeight: 1,
@@ -1002,12 +1002,12 @@ export function PluginsConfig({
             style={{
               width: isMobile ? "100%" : 245,
               maxHeight: isMobile ? "40vh" : undefined,
-              borderRight: isMobile ? "none" : "1px solid var(--border)",
-              borderBottom: isMobile ? "1px solid var(--border)" : "none",
+              borderRight: isMobile ? "none" : "1px solid var(--zeta-alias-border)",
+              borderBottom: isMobile ? "1px solid var(--zeta-alias-border)" : "none",
               display: "flex",
               flexDirection: "column",
               flexShrink: 0,
-              background: "var(--bg-panel)",
+              background: "var(--zeta-alias-bg-panel)",
             }}
           >
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
@@ -1016,7 +1016,7 @@ export function PluginsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 12,
-                    color: "var(--text-muted)",
+                    color: "var(--zeta-alias-text-muted)",
                   }}
                 >
                   Loading...
@@ -1026,7 +1026,7 @@ export function PluginsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 11,
-                    color: "#ef4444",
+                    color: "var(--zeta-alias-status-error)",
                   }}
                 >
                   {error}
@@ -1036,7 +1036,7 @@ export function PluginsConfig({
                   style={{
                     padding: "10px 8px",
                     fontSize: 11,
-                    color: "var(--text-dim)",
+                    color: "var(--zeta-alias-text-dim)",
                   }}
                 >
                   No plugins configured
@@ -1049,7 +1049,7 @@ export function PluginsConfig({
                         padding: "4px 8px 3px",
                         fontSize: 10,
                         fontWeight: 600,
-                        color: "var(--text-dim)",
+                        color: "var(--zeta-alias-text-dim)",
                         textTransform: "uppercase",
                       }}
                     >
@@ -1075,13 +1075,13 @@ export function PluginsConfig({
                             borderRadius: 5,
                             cursor: "pointer",
                             background: isSelected
-                              ? "var(--bg-selected)"
+                              ? "var(--zeta-alias-bg-selected)"
                               : "none",
                           }}
                           onMouseEnter={(e) => {
                             if (!isSelected)
                               e.currentTarget.style.background =
-                                "var(--bg-hover)";
+                                "var(--zeta-alias-bg-hover)";
                           }}
                           onMouseLeave={(e) => {
                             if (!isSelected)
@@ -1102,7 +1102,7 @@ export function PluginsConfig({
                               style={{
                                 fontSize: 12,
                                 fontWeight: isSelected ? 600 : 400,
-                                color: "var(--text)",
+                                color: "var(--zeta-alias-text)",
                                 fontFamily: "var(--font-mono)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -1114,7 +1114,7 @@ export function PluginsConfig({
                             <div
                               style={{
                                 fontSize: 10,
-                                color: "var(--text-dim)",
+                                color: "var(--zeta-alias-text-dim)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -1127,7 +1127,7 @@ export function PluginsConfig({
                               <div
                                 style={{
                                   fontSize: 10,
-                                  color: "var(--text-dim)",
+                                  color: "var(--zeta-alias-text-dim)",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   whiteSpace: "nowrap",
@@ -1148,7 +1148,7 @@ export function PluginsConfig({
             <div
               style={{
                 padding: "8px 6px",
-                borderTop: "1px solid var(--border)",
+                borderTop: "1px solid var(--zeta-alias-border)",
                 flexShrink: 0,
               }}
             >
@@ -1168,13 +1168,13 @@ export function PluginsConfig({
                   border: "none",
                   width: "100%",
                   cursor: "pointer",
-                  background: addMode ? "var(--bg-selected)" : "none",
-                  color: addMode ? "var(--accent)" : "var(--text-dim)",
+                  background: addMode ? "var(--zeta-alias-bg-selected)" : "none",
+                  color: addMode ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
                   fontSize: 12,
                 }}
                 onMouseEnter={(e) => {
                   if (!addMode)
-                    e.currentTarget.style.background = "var(--bg-hover)";
+                    e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
                 }}
                 onMouseLeave={(e) => {
                   if (!addMode) e.currentTarget.style.background = "none";
@@ -1230,7 +1230,7 @@ export function PluginsConfig({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                   fontSize: 13,
                 }}
               >
@@ -1247,7 +1247,7 @@ export function PluginsConfig({
             justifyContent: "space-between",
             gap: 12,
             padding: "10px 18px",
-            borderTop: "1px solid var(--border)",
+            borderTop: "1px solid var(--zeta-alias-border)",
             flexShrink: 0,
           }}
         >
@@ -1256,7 +1256,7 @@ export function PluginsConfig({
               minWidth: 0,
               flex: 1,
               fontSize: 11,
-              color: "var(--text-dim)",
+              color: "var(--zeta-alias-text-dim)",
               overflow: "hidden",
             }}
           >
@@ -1270,8 +1270,8 @@ export function PluginsConfig({
                   .join("\n")}
                 style={{
                   color: data.diagnostics.some((d) => d.type === "error")
-                    ? "#ef4444"
-                    : "#d97706",
+                    ? "var(--zeta-alias-status-error)"
+                    : "var(--zeta-alias-status-warning)",
                 }}
               >
                 {data.diagnostics.length} diagnostic

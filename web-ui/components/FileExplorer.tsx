@@ -134,12 +134,12 @@ const GIT_STATUS_KEYS: Record<GitFileStatusKind, string> = {
 };
 
 const GIT_STATUS_COLORS: Record<GitFileStatusKind, string> = {
-  modified: "#d6a84b",
-  added: "#4ade80",
-  deleted: "#f87171",
-  renamed: "#60a5fa",
-  untracked: "#4ade80",
-  conflict: "#f87171",
+  modified: "var(--zeta-alias-status-warning)",
+  added: "var(--zeta-alias-status-success)",
+  deleted: "var(--zeta-alias-status-error)",
+  renamed: "var(--zeta-alias-status-info)",
+  untracked: "var(--zeta-alias-status-success)",
+  conflict: "var(--zeta-alias-status-error)",
 };
 
 function GitStatusBadge({
@@ -250,15 +250,15 @@ function DismissButton({
         border: "none",
         borderRadius: 4,
         background: "none",
-        color: "var(--text-dim)",
+        color: "var(--zeta-alias-text-dim)",
         cursor: "pointer",
       }}
       onMouseEnter={(event) => {
-        event.currentTarget.style.color = "var(--text-muted)";
-        event.currentTarget.style.background = "var(--bg-hover)";
+        event.currentTarget.style.color = "var(--zeta-alias-text-muted)";
+        event.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
       }}
       onMouseLeave={(event) => {
-        event.currentTarget.style.color = "var(--text-dim)";
+        event.currentTarget.style.color = "var(--zeta-alias-text-dim)";
         event.currentTarget.style.background = "none";
       }}
     >
@@ -381,7 +381,7 @@ function TreeNode({
           paddingRight: 8,
           height: 24,
           cursor: "pointer",
-          background: hovered ? "var(--bg-hover)" : "transparent",
+          background: hovered ? "var(--zeta-alias-bg-hover)" : "transparent",
           borderRadius: 4,
           userSelect: "none",
         }}
@@ -392,7 +392,7 @@ function TreeNode({
             height="10"
             viewBox="0 0 10 10"
             fill="none"
-            stroke="var(--text-dim)"
+            stroke="var(--zeta-alias-text-dim)"
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -416,7 +416,7 @@ function TreeNode({
         <span
           style={{
             fontSize: 12,
-            color: "var(--text)",
+            color: "var(--zeta-alias-text)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -444,7 +444,7 @@ function TreeNode({
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#3b82f6",
+                background: "var(--zeta-alias-status-info)",
               }}
             />
           </span>
@@ -470,7 +470,7 @@ function TreeNode({
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#d6a84b",
+                background: "var(--zeta-alias-status-warning)",
               }}
             />
           </span>
@@ -481,7 +481,7 @@ function TreeNode({
             height="10"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="var(--text-dim)"
+            stroke="var(--zeta-alias-text-dim)"
             strokeWidth="2"
             strokeLinecap="round"
           >
@@ -506,10 +506,10 @@ function TreeNode({
               gap: 4,
               padding: "0 8px",
               height: 20,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-panel)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 4,
-              color: "var(--accent)",
+              color: "var(--zeta-alias-accent)",
               cursor: "pointer",
               fontSize: 11,
               fontWeight: 600,
@@ -537,10 +537,10 @@ function TreeNode({
               gap: 4,
               padding: "0 5px",
               height: 20,
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border)",
+              background: "var(--zeta-alias-bg-panel)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 4,
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: "pointer",
               fontSize: 11,
               fontWeight: 600,
@@ -589,7 +589,7 @@ function TreeNode({
               style={{
                 paddingLeft: 8 + (depth + 1) * 14,
                 fontSize: 11,
-                color: "var(--text-dim)",
+                color: "var(--zeta-alias-text-dim)",
                 height: 22,
                 display: "flex",
                 alignItems: "center",
@@ -640,7 +640,7 @@ function ChangeRow({
         paddingRight: 8,
         height: 24,
         cursor: "pointer",
-        background: hovered ? "var(--bg-hover)" : "transparent",
+        background: hovered ? "var(--zeta-alias-bg-hover)" : "transparent",
         borderRadius: 4,
         userSelect: "none",
       }}
@@ -659,7 +659,7 @@ function ChangeRow({
       <span
         style={{
           fontSize: 12,
-          color: "var(--text)",
+          color: "var(--zeta-alias-text)",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -975,7 +975,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           <div
             style={{
               padding: "6px 8px",
-              borderBottom: "1px solid var(--border)",
+              borderBottom: "1px solid var(--zeta-alias-border)",
             }}
           >
             {uploadBusy && (
@@ -995,7 +995,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                     justifyContent: "space-between",
                     gap: 8,
                     minHeight: 14,
-                    color: "var(--text-muted)",
+                    color: "var(--zeta-alias-text-muted)",
                   }}
                 >
                   {uploadPhase === "checking" ? (
@@ -1040,14 +1040,14 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                       marginTop: 4,
                       overflow: "hidden",
                       borderRadius: 2,
-                      background: "var(--border)",
+                      background: "var(--zeta-alias-border)",
                     }}
                   >
                     <div
                       style={{
                         width: `${uploadProgress}%`,
                         height: "100%",
-                        background: "var(--text-muted)",
+                        background: "var(--zeta-alias-text-muted)",
                         transition: "width 120ms ease",
                       }}
                     />
@@ -1062,15 +1062,15 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 style={{
                   padding: 7,
                   border:
-                    "1px solid color-mix(in srgb, #f59e0b 55%, var(--border))",
+                    "1px solid color-mix(in srgb, var(--zeta-alias-status-warning) 55%, var(--zeta-alias-border))",
                   borderRadius: 4,
-                  background: "color-mix(in srgb, #f59e0b 9%, var(--bg-panel))",
+                  background: "color-mix(in srgb, var(--zeta-alias-status-warning) 9%, var(--zeta-alias-bg-panel))",
                 }}
               >
                 <div
                   style={{
                     fontSize: 11,
-                    color: "var(--text)",
+                    color: "var(--zeta-alias-text)",
                     lineHeight: 1.35,
                     overflowWrap: "anywhere",
                   }}
@@ -1087,7 +1087,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                     style={{
                       marginTop: 3,
                       fontSize: 10,
-                      color: "#f59e0b",
+                      color: "var(--zeta-alias-status-warning)",
                       lineHeight: 1.35,
                       overflowWrap: "anywhere",
                     }}
@@ -1106,10 +1106,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                     style={{
                       height: 22,
                       padding: "0 7px",
-                      border: "1px solid #ef4444",
+                      border: "1px solid var(--zeta-alias-status-error)",
                       borderRadius: 4,
                       background: "transparent",
-                      color: "#ef4444",
+                      color: "var(--zeta-alias-status-error)",
                       cursor: "pointer",
                       fontSize: 10,
                     }}
@@ -1124,10 +1124,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                     style={{
                       height: 22,
                       padding: "0 7px",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--zeta-alias-border)",
                       borderRadius: 4,
-                      background: "var(--bg-panel)",
-                      color: "var(--text)",
+                      background: "var(--zeta-alias-bg-panel)",
+                      color: "var(--zeta-alias-text)",
                       cursor: "pointer",
                       fontSize: 10,
                     }}
@@ -1143,7 +1143,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                       border: "none",
                       borderRadius: 4,
                       background: "transparent",
-                      color: "var(--text-muted)",
+                      color: "var(--zeta-alias-text-muted)",
                       cursor: "pointer",
                       fontSize: 10,
                     }}
@@ -1163,7 +1163,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                   gap: 6,
                   fontSize: 11,
                   lineHeight: 1.35,
-                  color: "#f87171",
+                  color: "var(--zeta-alias-status-error)",
                 }}
               >
                 <span
@@ -1206,7 +1206,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                           display: "flex",
                           alignItems: "center",
                           gap: 3,
-                          color: "#22c55e",
+                          color: "var(--zeta-alias-status-success)",
                         }}
                       >
                         <svg
@@ -1233,7 +1233,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                           display: "flex",
                           alignItems: "center",
                           gap: 3,
-                          color: "var(--text-dim)",
+                          color: "var(--zeta-alias-text-dim)",
                         }}
                       >
                         <svg
@@ -1260,7 +1260,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                           display: "flex",
                           alignItems: "center",
                           gap: 3,
-                          color: "#f87171",
+                          color: "var(--zeta-alias-status-error)",
                         }}
                       >
                         <svg
@@ -1304,10 +1304,10 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                         justifyContent: "center",
                         gap: 4,
                         flexShrink: 0,
-                        border: "1px solid var(--border)",
+                        border: "1px solid var(--zeta-alias-border)",
                         borderRadius: 4,
-                        background: "var(--bg-panel)",
-                        color: "var(--accent)",
+                        background: "var(--zeta-alias-bg-panel)",
+                        color: "var(--zeta-alias-accent)",
                         cursor: "pointer",
                         fontSize: 11,
                         fontWeight: 600,
@@ -1334,7 +1334,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                       marginTop: 3,
                       minWidth: 0,
                       fontSize: 10,
-                      color: "#f87171",
+                      color: "var(--zeta-alias-status-error)",
                     }}
                   >
                     <svg
@@ -1387,7 +1387,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 fontSize: 12,
               }}
             >
-              <span style={{ color: "var(--text-dim)" }}>
+              <span style={{ color: "var(--zeta-alias-text-dim)" }}>
                 {t("files.changedCount", { count: gitFiles.length })}
               </span>
               <span
@@ -1426,14 +1426,14 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 style={{
                   padding: "8px 12px",
                   fontSize: 11,
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                 }}
               >
                 {t("loading-files")}
               </div>
             ) : error ? (
               <div
-                style={{ padding: "8px 12px", fontSize: 11, color: "#f87171" }}
+                style={{ padding: "8px 12px", fontSize: 11, color: "var(--zeta-alias-status-error)" }}
               >
                 {error}
               </div>
@@ -1461,7 +1461,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 style={{
                   padding: "8px 12px",
                   fontSize: 11,
-                  color: "var(--text-dim)",
+                  color: "var(--zeta-alias-text-dim)",
                 }}
               >
                 {t("no-files-found")}

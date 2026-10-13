@@ -41,6 +41,11 @@ function magicKeywordRegex(keyword: string): RegExp {
 const PALETTE_LIGHTNESS = 62;
 const PALETTE_SATURATION = 90;
 
+/**
+ * Computed HSL gradient: hues are interpolated per keyword spec, so there is no
+ * fixed value to name as a token. The colour guard exempts this file by name for
+ * exactly this reason (see `lib/theme/tokens.ts` for the three token layers).
+ */
 function paletteFor(spec: RainbowKeywordSpec): string[] {
 	const colors: string[] = [];
 	for (let i = 0; i < spec.stops; i++) {

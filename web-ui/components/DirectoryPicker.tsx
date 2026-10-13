@@ -147,7 +147,7 @@ export function DirectoryPicker({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.35)",
+        background: "color-mix(in srgb, var(--zeta-alias-neutral-1000) 35%, transparent)",
       }}
     >
       <div
@@ -160,10 +160,10 @@ export function DirectoryPicker({
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          background: "var(--zeta-alias-bg)",
+          border: "1px solid var(--zeta-alias-border)",
           borderRadius: 10,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          boxShadow: "0 8px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
         }}
       >
         <div
@@ -173,12 +173,12 @@ export function DirectoryPicker({
             justifyContent: "space-between",
             flexShrink: 0,
             padding: "12px 18px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
           }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
-              style={{ color: "var(--text)", fontWeight: 700, fontSize: 15 }}
+              style={{ color: "var(--zeta-alias-text)", fontWeight: 700, fontSize: 15 }}
             >
               {t("select-directory")}
             </div>
@@ -193,7 +193,7 @@ export function DirectoryPicker({
               padding: "2px 6px",
               border: 0,
               background: "none",
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               fontSize: 20,
               lineHeight: 1,
               cursor: busy ? "default" : "pointer",
@@ -212,7 +212,7 @@ export function DirectoryPicker({
             gap: 8,
             flexShrink: 0,
             padding: "10px 14px",
-            borderBottom: "1px solid var(--border)",
+            borderBottom: "1px solid var(--zeta-alias-border)",
           }}
         >
           <button
@@ -230,10 +230,10 @@ export function DirectoryPicker({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
-              background: "var(--bg-hover)",
-              color: "var(--text-muted)",
+              background: "var(--zeta-alias-bg-hover)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: canNavigateUp ? "pointer" : "default",
               opacity: canNavigateUp ? 1 : 0.45,
             }}
@@ -286,11 +286,11 @@ export function DirectoryPicker({
               flex: 1,
               height: 36,
               padding: "0 10px",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
               outline: "none",
-              background: "var(--bg-panel)",
-              color: "var(--text)",
+              background: "var(--zeta-alias-bg-panel)",
+              color: "var(--zeta-alias-text)",
               fontFamily: "var(--font-mono)",
               fontSize: 12,
             }}
@@ -311,10 +311,10 @@ export function DirectoryPicker({
                 minWidth: 74,
                 height: 36,
                 padding: "0 12px",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--zeta-alias-border)",
                 borderRadius: 6,
-                background: "var(--bg-hover)",
-                color: "var(--text-muted)",
+                background: "var(--zeta-alias-bg-hover)",
+                color: "var(--zeta-alias-text-muted)",
                 cursor: loading ? "default" : "pointer",
                 opacity: loading ? 0.6 : 1,
               }}
@@ -331,10 +331,10 @@ export function DirectoryPicker({
               minWidth: 58,
               height: 36,
               padding: "0 12px",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
-              background: "var(--bg-hover)",
-              color: "var(--text-muted)",
+              background: "var(--zeta-alias-bg-hover)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: loading || !pathInput.trim() ? "default" : "pointer",
               opacity: loading || !pathInput.trim() ? 0.6 : 1,
             }}
@@ -353,7 +353,7 @@ export function DirectoryPicker({
           }}
         >
           {loading ? (
-            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: 11 }}>
+            <div style={{ padding: 8, color: "var(--zeta-alias-text-dim)", fontSize: 11 }}>
               {t("directoryPicker.loadingDirectories")}
             </div>
           ) : drives !== null ? (
@@ -376,7 +376,7 @@ export function DirectoryPicker({
                       border: 0,
                       borderRadius: 5,
                       background: "none",
-                      color: "var(--text-muted)",
+                      color: "var(--zeta-alias-text-muted)",
                       cursor: "pointer",
                       textAlign: "left",
                       fontFamily: "var(--font-mono)",
@@ -389,7 +389,7 @@ export function DirectoryPicker({
                 ))
               ) : (
                 <div
-                  style={{ padding: 8, color: "var(--text-dim)", fontSize: 11 }}
+                  style={{ padding: 8, color: "var(--zeta-alias-text-dim)", fontSize: 11 }}
                 >
                   {t("directoryPicker.noDrives")}
                 </div>
@@ -413,7 +413,7 @@ export function DirectoryPicker({
                   border: 0,
                   borderRadius: 5,
                   background: "none",
-                  color: "var(--text-muted)",
+                  color: "var(--zeta-alias-text-muted)",
                   cursor: "pointer",
                   textAlign: "left",
                   fontFamily: "var(--font-mono)",
@@ -433,12 +433,12 @@ export function DirectoryPicker({
               </button>
             ))
           ) : (
-            <div style={{ padding: 8, color: "var(--text-dim)", fontSize: 11 }}>
+            <div style={{ padding: 8, color: "var(--zeta-alias-text-dim)", fontSize: 11 }}>
               {t("no-subdirectories")}
             </div>
           )}
           {(loadError || error) && (
-            <div style={{ padding: "8px", color: "#dc2626", fontSize: 11 }}>
+            <div style={{ padding: "8px", color: "var(--zeta-alias-status-error)", fontSize: 11 }}>
               {loadError ?? error}
             </div>
           )}
@@ -453,7 +453,7 @@ export function DirectoryPicker({
             gap: 10,
             flexShrink: 0,
             padding: "10px 18px",
-            borderTop: "1px solid var(--border)",
+            borderTop: "1px solid var(--zeta-alias-border)",
           }}
         >
           <button
@@ -463,10 +463,10 @@ export function DirectoryPicker({
             disabled={busy}
             style={{
               padding: "6px 14px",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--zeta-alias-border)",
               borderRadius: 6,
               background: "none",
-              color: "var(--text-muted)",
+              color: "var(--zeta-alias-text-muted)",
               cursor: busy ? "default" : "pointer",
               fontSize: 13,
             }}
@@ -487,8 +487,8 @@ export function DirectoryPicker({
               padding: "6px 16px",
               border: 0,
               borderRadius: 6,
-              background: "var(--accent)",
-              color: "#fff",
+              background: "var(--zeta-alias-accent)",
+              color: "var(--zeta-alias-accent-foreground)",
               fontSize: 13,
               fontWeight: 600,
               opacity: canSelect ? 1 : 0.6,
