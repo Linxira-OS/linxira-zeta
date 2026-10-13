@@ -1,10 +1,10 @@
 {
   "note": "Colour-literal ceilings for files still mid-migration, enforced by check-style-literals.mjs: any literal in a file absent here, and any count above its ceiling, fails the guard. A count below the ceiling is reported as a stale entry (not a failure) because a migration lands in its own PR; tighten with `node scripts/check-style-literals.mjs --update-baseline`, which rewrites this file from the current tree. The five files below are owned by the parallel shell PR (feat/desktop-ui-p0-shell).",
   "files": {
-    "components/ChatInput.tsx": 41,
-    "components/SessionSidebar.tsx": 5,
+    "components/ChatInput.tsx": 35,
+    "components/SessionSidebar.tsx": 3,
     "components/sidebar/FloatingMenu.tsx": 1,
-    "components/sidebar/SessionNodeItem.tsx": 3,
+    "components/sidebar/SessionNodeItem.tsx": 2,
     "components/sidebar/SidebarHeader.tsx": 1
   }
 }
