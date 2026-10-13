@@ -9,7 +9,13 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ZETA_BIN_DIR_ENV, discoverBin, explicitBinDirs, npmFormBinDirs } from "../../src/utils/bin-discovery";
+import {
+	ZETA_BIN_DIR_ENV,
+	discoverBin,
+	explicitBinDirs,
+	npmFormBinDirs,
+	whichCommand,
+} from "../../src/utils/bin-discovery";
 
 const IS_WIN = process.platform === "win32";
 const EXT = IS_WIN ? ".cmd" : "";
@@ -90,5 +96,36 @@ describe("bin-discovery", () => {
 
 	test("no tier has the binary → null", () => {
 		expect(discoverBin(["zeta-ide"], { env: { PATH: "" }, exists: () => false })).toBeNull();
+	});
+
+	test("windows: the executable extension wins over a same-directory bare POSIX shim", () => {
+		// npm/pnpm install BOTH `zetacode` (a POSIX sh script) and
+		// `zetacode.cmd` (the launcher) into one bin dir. Windows cannot run the
+		// script, so probing the bare name first made `zetacode update` spawn a
+		// file that never reports a version and refuse to replace itself
+		// (v1.1.27). Synthetic candidates so the fixture is host-independent.
+		const binDir = "C:\\Program Files\\nodejs";
+		const present = [path.win32.join(binDir, "zetacode"), path.win32.join(binDir, "zetacode.cmd")];
+		expect(
+			whichCommand("zetacode", {
+				platform: "win32",
+				env: { PATH: binDir, PATHEXT: ".COM;.EXE;.BAT;.CMD" },
+				exists: candidate => present.includes(candidate),
+				now: () => Date.now(),
+			}),
+		).toBe(path.win32.join(binDir, "zetacode.cmd"));
+	});
+
+	test("posix: the bare name is the only candidate", () => {
+		const binDir = "/usr/local/bin";
+		const present = [`${binDir}/zetacode`, `${binDir}/zetacode.cmd`];
+		expect(
+			whichCommand("zetacode", {
+				platform: "linux",
+				env: { PATH: binDir },
+				exists: candidate => present.includes(candidate),
+				now: () => Date.now(),
+			}),
+		).toBe(`${binDir}/zetacode`);
 	});
 });

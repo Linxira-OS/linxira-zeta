@@ -3,6 +3,10 @@
 - The interactive CLI now installs the pi-tui text source at TUI startup (`wireTuiTexts`), so every panel lookup through `tuiText`/`tuiTextFmt` resolves against the live `Messages` catalogue instead of always falling back to inline English, and a `/language` switch re-resolves on the next render. Previously the bridge was never called and the whole pi-tui surface stayed English.
 - The welcome tips are localised: `tipN` catalogue keys are realigned to the `tips.txt` line they translate (they had drifted several lines out of step) and now cover every line, including the `#`/`/`/`!`/`$` prompt hints, the `jevify` tip, the self-reconfigure tip, and the Tern habitat tip. English output is unchanged (the lines keep their `{key:…}` placeholders and markdown links).
 - The CLI welcome banner is the upstream logo lockup (ζ mark + half-block `Zeta` wordmark, version under the wordmark, tip below). The composer no longer resolves model/provider labels, LSP servers or recent sessions for the banner, and the corresponding welcome i18n keys are gone.
+- `zetacode update` on Windows no longer resolves the npm-installed POSIX `zetacode` sh script (which Windows cannot execute, so the version probe always failed) and refuse to replace itself: the shim lookup now tries executable extensions (`.cmd`/`.exe`, in PATHEXT order) before the bare name, matching `cmd.exe` itself.
+- The self-update binary fallback asks for the asset a release actually publishes (`zeta-cli-<os>-<arch>[.exe]`) instead of one derived from the command name (`zetacode-*`), which 404'd for every user. The name now comes from `packages/utils/src/release-assets.ts`, and `scripts/check-release-asset-names.ts` pins the updater, the build outfiles and the `release_binary` upload matrix to the same set.
+- Update-failure recovery hints point at our own installers (`https://linxira-os.github.io/install.sh` on POSIX, `install.ps1` on Windows) instead of the upstream `omp.sh/install` one-liners.
+- `zetacode update` merges `NODE_EXTRA_CA_CERTS` into its release metadata, binary download and npm registry requests (the same TLS wrapper inference uses), so a TLS-inspecting corporate proxy no longer fails the whole update with `SELF_SIGNED_CERT_IN_CHAIN`.
 
 ## [1.2.0] - 2026-10-12
 
@@ -16,6 +20,7 @@
 
 ### Added
 
+- The bundled office skills (`docx`, `xlsx`, `pptx`, `pdf`) are installed into your own skills directory (`~/.zeta/agent/skills/`) as files you can edit and version, on first session startup or with `zetacode skill install-official`; files you edited are never overwritten, and `--uninstall` hands the names back to the built-in provider.
 - Added the tea tool suite: a `tea` CLI integration for self-hosted Gitea (and gitea.com) covering repo/issue/pull-request/checkout/merge/release ops (`repo_view`, `repo_create`, `issue_*`, `pr_*`, `release_*`), with every create-type operation verified by reading back through the API (`tea repo create` has a history of silent failure). Enabled via `gitea.enabled`, off by default.
 - Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
 

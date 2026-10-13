@@ -13,6 +13,7 @@ import {
 	buildMiseUpgradeArgs,
 	buildNpmInstallArgs,
 	buildRenameCleanupPackages,
+	defaultBinaryName,
 	downloadVerifiedBinary,
 	type InstalledVersionVerification,
 	isMuslLinuxForTest,
@@ -40,7 +41,7 @@ import {
 	updateViaShimTakeover,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import { $which, removeWithRetries } from "@linxiraos/pi-utils";
+import { $which, __resetExtraCaCache, releaseCliAssetName, removeWithRetries } from "@linxiraos/pi-utils";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
@@ -798,7 +799,9 @@ describe("migrateRenamedInstall transaction", () => {
 		const { steps, calls } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 
 		await withPlatformAsync("linux", async () => {
-			await expect(migrateRenamedInstall(release, steps)).rejects.toThrow("curl -fsSL https://omp.sh/install");
+			await expect(migrateRenamedInstall(release, steps)).rejects.toThrow(
+				"curl -fsSL https://linxira-os.github.io/install.sh",
+			);
 		});
 		expect(calls).toEqual(["install", "removeOld", "verify", "install", "verify"]);
 	});
@@ -811,7 +814,7 @@ describe("migrateRenamedInstall transaction", () => {
 		try {
 			const { steps } = scriptedSteps({ install: [0, 0], verify: [false, false] });
 			const promise = migrateRenamedInstall(release, steps);
-			await expect(promise).rejects.toThrow("irm https://omp.sh/install.ps1");
+			await expect(promise).rejects.toThrow("irm https://linxira-os.github.io/install.ps1 | iex");
 			await expect(promise).rejects.not.toThrow("| sh");
 		} finally {
 			Object.defineProperty(process, "platform", platformDescriptor);
@@ -1321,6 +1324,87 @@ describe("update-cli release binary integrity", () => {
 		expect(selectFallbackBinaryAsset(releases, binaryName, "999.0.0", { allowPrerelease: true })?.version).toBe(
 			"999.9.9",
 		);
+	});
+
+	it("names the fallback download after the published asset, not the command name", async () => {
+		// Regression (v1.1.27): the brand cutover moved CLI_BIN_NAME to
+		// `zetacode` and the updater's asset name followed it, while releases
+		// kept shipping `zeta-cli-*` — so every binary fallback 404'd.
+		await withPlatformAsync("win32", async () => {
+			expect(defaultBinaryName()).toBe(`zeta-cli-windows-${process.arch}.exe`);
+		});
+		await withPlatformAsync("darwin", async () => {
+			expect(defaultBinaryName()).toBe(`zeta-cli-darwin-${process.arch}`);
+		});
+	});
+
+	it("derives asset names from the shared release convention, musl builds included", () => {
+		expect(releaseCliAssetName("linux", "x64")).toBe("zeta-cli-linux-x64");
+		expect(releaseCliAssetName("linux", "x64", { musl: true })).toBe("zeta-cli-linux-musl-x64");
+		expect(releaseCliAssetName("linux", "arm64", { musl: true })).toBe("zeta-cli-linux-musl-arm64");
+		expect(releaseCliAssetName("win32", "arm64")).toBe("zeta-cli-windows-arm64.exe");
+		expect(() => releaseCliAssetName("freebsd" as NodeJS.Platform, "x64")).toThrow("Unsupported platform");
+		expect(() => releaseCliAssetName("darwin", "x64", { musl: true })).toThrow("linux only");
+	});
+
+	it("requests the default published asset when the caller names none", async () => {
+		const dir = await makeTempDir();
+		const requested: string[] = [];
+
+		await expect(
+			updateViaBinaryAt(path.join(dir, "zetacode"), "1.2.3", {
+				githubToken: "test-token",
+				fetchImpl: async (input: string | URL | Request) => {
+					requested.push(String(input));
+					return new Response(JSON.stringify({ tag_name: "v1.2.3", draft: false, prerelease: false, assets: [] }));
+				},
+			}),
+		).rejects.toThrow("has 0 assets named zeta-cli-");
+		expect(requested).toEqual(["https://api.github.com/repos/Linxira-OS/linxira-zeta/releases/tags/v1.2.3"]);
+	});
+
+	it("merges NODE_EXTRA_CA_CERTS into the download request", async () => {
+		// Environment mitigation: the updater used bare `fetch`, so a
+		// TLS-inspecting corporate proxy failed every download even on machines
+		// that had already configured the extra CA for the rest of Zeta.
+		const dir = await makeTempDir();
+		const caPath = path.join(dir, "corp-ca.pem");
+		const pem = "-----BEGIN CERTIFICATE-----\nMIIBfakeCorpCa\n-----END CERTIFICATE-----\n";
+		await fs.writeFile(caPath, pem);
+		const inits: RequestInit[] = [];
+		const capture = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+			inits.push(init ?? {});
+			return new Response(content);
+		};
+		// Bun's fetch accepts a `tls` extension the DOM `RequestInit` type lacks.
+		type TlsRequestInit = RequestInit & { tls?: { ca?: string[] } };
+		const download = () =>
+			downloadVerifiedBinary({
+				url,
+				targetPath: path.join(dir, binaryName),
+				expectedSize: Buffer.byteLength(content),
+				expectedDigest: digest,
+				fetchImpl: capture,
+			});
+
+		const previous = Bun.env.NODE_EXTRA_CA_CERTS;
+		delete Bun.env.NODE_EXTRA_CA_CERTS;
+		__resetExtraCaCache();
+		try {
+			await download();
+			const untouched = inits[0] as TlsRequestInit;
+			expect(untouched.tls).toBeUndefined();
+
+			Bun.env.NODE_EXTRA_CA_CERTS = caPath;
+			__resetExtraCaCache();
+			await download();
+			const extended = inits[1] as TlsRequestInit;
+			expect(extended.tls?.ca ?? []).toContain(pem);
+		} finally {
+			if (previous === undefined) delete Bun.env.NODE_EXTRA_CA_CERTS;
+			else Bun.env.NODE_EXTRA_CA_CERTS = previous;
+			__resetExtraCaCache();
+		}
 	});
 });
 
@@ -2152,5 +2236,23 @@ describe("update-cli self discovery (unified tiers)", () => {
 
 	it("resolves nothing when every tier is empty", () => {
 		expect(updateCli.resolveOmpPathForTest({ PATH: "" }, () => false)).toBeUndefined();
+	});
+
+	it("prefers the Windows launcher extension over a same-directory POSIX shim", () => {
+		// The unit contract for the probe order lives in
+		// test/utils/bin-discovery.test.ts; this is the updater-level fixture:
+		// npm/pnpm install BOTH `zetacode` (a POSIX sh script) and
+		// `zetacode.cmd` into one bin dir, and probing the bare name first made
+		// `zetacode update` spawn a file that never reports a version and refuse
+		// to replace itself (v1.1.27).
+		const tree = treeWith({ path: [CLI_BIN, `${CLI_BIN}.cmd`] });
+		try {
+			const found = updateCli.resolveOmpPathForTest({ PATH: tree.dirs.path! }, candidate =>
+				nodeFs.existsSync(candidate),
+			);
+			expect(found).toBe(path.join(tree.dirs.path!, `${CLI_BIN}${isWin ? ".cmd" : ""}`));
+		} finally {
+			cleanup(tree);
+		}
 	});
 });

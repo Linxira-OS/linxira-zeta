@@ -8,6 +8,8 @@ export interface DockRailProps {
 	activeId: PanelId | null;
 	onToggle: (id: PanelId) => void;
 	trackingEnabled: boolean;
+	/** Whether a session is selected (gates the full-history panel). */
+	hasSession: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ export interface DockRailProps {
  * registry — this component holds no panel list of its own, so the rail and the
  * top-bar chips can never drift apart.
  */
-export function DockRail({ activeId, onToggle, trackingEnabled }: DockRailProps) {
+export function DockRail({ activeId, onToggle, trackingEnabled, hasSession }: DockRailProps) {
 	const { t } = useI18n();
 	return (
 		<div
@@ -33,7 +35,7 @@ export function DockRail({ activeId, onToggle, trackingEnabled }: DockRailProps)
 				borderLeft: "1px solid var(--border)",
 			}}
 		>
-			{getDockPanels(trackingEnabled).map(panel => {
+			{getDockPanels(trackingEnabled, hasSession).map(panel => {
 				const label = t(panel.titleKey);
 				const active = activeId === panel.id;
 				return (

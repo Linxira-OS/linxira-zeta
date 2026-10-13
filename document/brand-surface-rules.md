@@ -76,7 +76,7 @@ party's registry carries the string.
 | Reading upstream npm release manifests (`omp.rename`, `omp.dist`) | Consuming the upstream ecosystem | `cli/update-cli.ts` |
 | Reading upstream plugin packages (`pkg.zeta \|\| pkg.omp \|\| pkg.pi`) | Consuming the upstream ecosystem | `plugins/manager.ts` |
 | `.omp-plugin` manifest dir | OMP/Claude compatibility | AGENTS registry |
-| `omp.sh`, `live.omp.sh`, `my.omp.sh`, `skills.omp.sh`, `qa.omp.sh` | Shared upstream infrastructure | AGENTS registry |
+| `omp.sh`, `live.omp.sh`, `my.omp.sh`, `skills.omp.sh`, `qa.omp.sh` | Shared upstream infrastructure | AGENTS registry — **安装提示不在其列**：更新器的恢复提示指 `https://linxira-os.github.io/install.{sh,ps1}`（2026-10-13 起） |
 | `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
 | `omp/muxConnect`-style handshakes | Single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |
 | `OMP_NUM_THREADS`, `OMP_THREAD_LIMIT`, `OMP_PCRE2_JIT`, `OMP_MINIMIZER_LEGACY_FILTERS` | GNU toolchain contract — external tools read them | `pi-builtins/nproc.rs`, `grep.rs` |

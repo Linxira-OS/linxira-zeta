@@ -13,10 +13,8 @@ export interface TopChipState {
 
 export interface TopPanelChipsProps {
 	activeId: PanelId | null;
-	/** `topPanel` kind: opens/toggles the anchored dropdown. */
+	/** Opens/toggles the anchored dropdown for a `topPanel` entry. */
 	onToggle: (id: PanelId) => void;
-	/** `action` kind: runs the imperative action. */
-	onAction: (id: PanelId) => void;
 	isMobile: boolean;
 	/** Per-panel state (disabled/active/title) for the generated chip. */
 	stateFor?: (id: PanelId) => TopChipState;
@@ -29,7 +27,7 @@ export interface TopPanelChipsProps {
  * (theme/language/update/open-in-app) stay in AppShell; only panel entries live
  * here, so the set of panels is declared exactly once.
  */
-export function TopPanelChips({ activeId, onToggle, onAction, isMobile, stateFor, overrides }: TopPanelChipsProps) {
+export function TopPanelChips({ activeId, onToggle, isMobile, stateFor, overrides }: TopPanelChipsProps) {
 	const { t } = useI18n();
 	return (
 		<>
@@ -43,7 +41,7 @@ export function TopPanelChips({ activeId, onToggle, onAction, isMobile, stateFor
 					<button
 						key={panel.id}
 						type="button"
-						onClick={() => (panel.kind === "action" ? onAction(panel.id) : onToggle(panel.id))}
+						onClick={() => onToggle(panel.id)}
 						disabled={state.disabled}
 						title={state.title ?? label}
 						aria-label={state.title ?? label}

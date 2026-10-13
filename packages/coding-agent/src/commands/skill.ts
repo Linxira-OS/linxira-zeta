@@ -30,6 +30,9 @@ export default class Skill extends Command {
 		"allow-secrets": Flags.boolean({ description: "Publish even when credential-shaped strings are found" }),
 		registry: Flags.string({ description: "Registry base URL (overrides skills.registryUrl)" }),
 		undo: Flags.boolean({ description: "Reverse a yank or deprecation" }),
+		uninstall: Flags.boolean({
+			description: "With install-official: remove the installed pack and fall back to the built-in provider",
+		}),
 		package: Flags.string({ description: "Restrict a new token to a package (repeatable)", multiple: true }),
 		expires: Flags.integer({ description: "Token lifetime in days" }),
 	};
@@ -37,6 +40,7 @@ export default class Skill extends Command {
 	static examples = [
 		"zetacode skill install @alice/pdf-tools",
 		"zetacode skill install -g @alice/pdf-tools@^1.2",
+		"zetacode skill install-official",
 		'zetacode skill search "pdf" --sort downloads',
 		"zetacode skill version minor && zetacode skill publish",
 		"zetacode skill publish ./skills/pdf-tools --dry-run",
@@ -66,6 +70,7 @@ export default class Skill extends Command {
 				yes: flags.yes,
 				json: flags.json,
 				sort: flags.sort as SkillSearchSort | undefined,
+				uninstall: flags.uninstall,
 				package: flags.package,
 				expires: flags.expires,
 			},

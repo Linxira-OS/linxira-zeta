@@ -91,6 +91,7 @@ import { LiveImageUrlService } from "./blob-broker/service";
 import { wrapStreamFnWithBlobUrlFallback } from "./blob-broker/stream-fallback";
 import type { ImControlParams, ImControlResult } from "./channels/im-control";
 import { initializeWithSettings } from "./discovery";
+import { installOfficialSkills } from "./discovery/official-skills";
 import { setInvocationConfiguredExtensions, withOmpExtensionRootScope } from "./discovery/zeta-extension-roots";
 import { disposeVmContextsByOwner } from "./eval/js/context-manager";
 import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/preludes";
@@ -1772,6 +1773,32 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		extensionRoots?.configured ?? cfgExtensions.get(settings),
 		extensionRoots?.configuredLevel ?? settings.extensionsSourceLevel(),
 	);
+
+	// Install the bundled official pack (docx/xlsx/pptx/pdf) into the user skills
+	// dir so it is the user's own editable, versionable copy; the `zeta-official`
+	// provider stays as the fallback for names the user dir does not carry. Only
+	// the top-level session runs it (subagents/sibling sessions short-circuit on
+	// the recorded pack hash anyway), it is best-effort, and it is skipped when
+	// the caller supplies the skill list or turns the pack/skills off.
+	if (bindsProcessState && options.skills === undefined) {
+		const skillsConfig = cfgSkills.get(settings);
+		if (skillsConfig.enabled && skillsConfig.enableOfficial) {
+			try {
+				const sync = installOfficialSkills({ mode: "auto" });
+				if (sync && (sync.installed.length > 0 || sync.upgraded.length > 0 || sync.kept.length > 0)) {
+					logger.info("Synced official skills into the user skills dir", {
+						dir: sync.dir,
+						installed: sync.installed.length,
+						upgraded: sync.upgraded.length,
+						kept: sync.kept.length,
+					});
+				}
+			} catch (error) {
+				// A read-only or otherwise unwritable agent dir must not block startup.
+				logger.warn("Failed to install official skills", { error: String(error) });
+			}
+		}
+	}
 
 	// Pin authStorage to modelRegistry.authStorage: ModelRegistry.getApiKey() routes refresh
 	// failures through that instance, so any divergent storage handed to the bridge / mcpManager

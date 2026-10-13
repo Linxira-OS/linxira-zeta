@@ -54,6 +54,15 @@ export function pathImpl(platform: NodeJS.Platform): typeof path.posix {
 
 const WINDOWS_DEFAULT_PATHEXT = [".com", ".exe", ".bat", ".cmd"];
 
+/**
+ * Extension candidates for a Windows lookup, in probe order. Executable
+ * extensions come FIRST and the bare name LAST, which is what `cmd.exe` itself
+ * does: the npm/pnpm form installs two entries per bin — `zetacode` (a POSIX
+ * `sh` script, unrunnable on Windows) and `zetacode.cmd` (the launcher) — and
+ * probing the bare name first resolved the script, so `zetacode update` spawned
+ * a file that never reports a version and refused to replace itself
+ * (`does not report a zetacode version when run directly`, v1.1.27).
+ */
 function windowsPathext(env: NodeJS.ProcessEnv): string[] {
 	const raw = env.PATHEXT;
 	if (raw) {
@@ -61,15 +70,16 @@ function windowsPathext(env: NodeJS.ProcessEnv): string[] {
 			.split(";")
 			.map(ext => ext.trim().toLowerCase())
 			.filter(ext => /^\.[a-z0-9]+$/.test(ext));
-		if (parsed.length > 0) return ["", ...parsed];
+		if (parsed.length > 0) return [...parsed, ""];
 	}
-	return ["", ...WINDOWS_DEFAULT_PATHEXT];
+	return [...WINDOWS_DEFAULT_PATHEXT, ""];
 }
 
 /**
- * `which`-style lookup across PATH. Windows tries each dir with the bare name
- * first, then every PATHEXT-style extension (npm shims are `.cmd`, native
- * tools `.exe`); other platforms take the bare name. Returns the absolute
+ * `which`-style lookup across PATH. Windows tries every PATHEXT-style
+ * extension (npm launchers are `.cmd`, native tools `.exe`) before the bare
+ * name, so a same-directory POSIX shim can never shadow the launcher that
+ * actually runs; other platforms take the bare name. Returns the absolute
  * path of the first match, or null.
  */
 export function whichCommand(command: string, ctx: OpenProbeContext): string | null {

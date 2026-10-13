@@ -13,6 +13,7 @@ import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
 import { StatsDashboard } from "./StatsDashboard";
+import { FullHistoryPanel } from "./FullHistoryPanel";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { SettingsWindow } from "./settings/SettingsWindow";
@@ -212,7 +213,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15): live session id survives pane close so the
@@ -802,15 +803,6 @@ function AppShellContent() {
 		[fileTabs],
 	);
 
-	const handleViewFullHistory = useCallback(() => {
-		if (!selectedSession) return;
-		window.open(
-			`/api/sessions/${encodeURIComponent(selectedSession.id)}/export?inline=1`,
-			"_blank",
-			"noopener,noreferrer",
-		);
-	}, [selectedSession]);
-
 	// Show chat area if a session is selected, a cwd to start a new session in,
 	// or the degraded null-cwd draft (whole card = workspace trigger)
 	const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
@@ -1007,6 +999,7 @@ function AppShellContent() {
 				selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
 				onCwdChange={handleCwdChange}
 				onOpenSkills={() => setSkillsConfigOpen(true)}
+				onOpenStats={() => setDockTool("stats")}
 				onOpenFile={handleOpenFile}
 				explorerRefreshKey={explorerRefreshKey}
 				onExplorerRefresh={handleExplorerRefresh}
@@ -1577,22 +1570,8 @@ function AppShellContent() {
 								<TopPanelChips
 									activeId={activeTopPanel}
 									onToggle={id => toggleTopPanel(id as "branches" | "system")}
-									onAction={id => {
-										if (id === "history") handleViewFullHistory();
-									}}
 									isMobile={isMobile}
-									stateFor={id => {
-										if (id === "history") {
-											return {
-												disabled: !selectedSession,
-												title: selectedSession
-													? t("view-full-history")
-													: t("full-history-is-available-after-the-session-is-s"),
-											};
-										}
-										if (id === "system") return { title: t("topbar.systemPrompt") };
-										return {};
-									}}
+									stateFor={id => (id === "system" ? { title: t("topbar.systemPrompt") } : {})}
 									overrides={{
 										branches: (
 											<BranchNavigator
@@ -2446,6 +2425,7 @@ function AppShellContent() {
 						activeId={dockTool}
 						onToggle={id => setDockTool(cur => (cur === id ? null : id as DockTool))}
 						trackingEnabled={trackingEnabled}
+						hasSession={selectedSession !== null}
 					/>
 				</ShellSlot>
 
@@ -2493,7 +2473,9 @@ function AppShellContent() {
 												? t("dock.window.tracking")
 												: dockTool === "terminal"
 													? t("dock.window.terminal")
-													: t("dock.window.plugins")}
+													: dockTool === "history"
+														? t("dock.window.history")
+														: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2560,6 +2542,25 @@ function AppShellContent() {
 						>
 							{dockTool === "stats" ? (
 								<StatsDashboard />
+							) : dockTool === "history" ? (
+								selectedSession ? (
+									<FullHistoryPanel sessionId={selectedSession.id} sessionName={selectedSession.name ?? null} />
+								) : (
+									<div
+										style={{
+											flex: 1,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											padding: 16,
+											textAlign: "center",
+											color: "var(--text-dim)",
+											fontSize: 12,
+										}}
+									>
+										{t("full-history-is-available-after-the-session-is-s")}
+									</div>
+								)
 							) : dockTool === "session" ? (
 								<SidePanel
 									stats={sessionStats}

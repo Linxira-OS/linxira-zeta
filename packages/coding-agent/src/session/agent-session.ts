@@ -508,7 +508,6 @@ import { SessionStatsTracker, type SessionStatsTrackerHost } from "./session-sta
 import { SessionTools, type SessionToolsHost } from "./session-tools";
 import { resolveOpenAIWebsocketPreference } from "./settings-stream-fn";
 import type { ShakeMode, ShakeResult } from "./shake-types";
-import { skillPromptTitleInput } from "@linxiraos/pi-tui/chat/skill-title-input";
 import { ToolChoiceQueue } from "./tool-choice-queue";
 import { planTurnPersistence, sameMessageContent, sessionMessagePersistenceKey } from "./turn-persistence";
 import { TurnRecovery, type TurnRecoveryHost } from "./turn-recovery";
@@ -585,20 +584,15 @@ import {
 	type ExtensionCommandContext,
 	ExtensionRunner,
 	type ExtensionUIContext,
-	type MessageEndEvent,
 	type MessageStartEvent,
-	type MessageUpdateEvent,
 	type PreparedExtension,
 	type SessionBeforeBranchResult,
 	type SessionBeforeSwitchResult,
 	type SessionBeforeTreeResult,
 	type SessionStopEventResult,
-	type ToolExecutionEndEvent,
 	type ToolExecutionStartEvent,
-	type ToolExecutionUpdateEvent,
 	type ToolInfo,
 	type TreePreparation,
-	type TurnEndEvent,
 	type TurnStartEvent,
 	emitSessionShutdownEvent,
 	TOP_LEVEL_AGENT,
@@ -1043,6 +1037,12 @@ export class AgentSession implements SettingsScope {
 	#stopTimeTodoRemindersEnabled = true;
 	#planModeReminderCount = 0;
 	#planModeReminderAwaitingProgress = false;
+	/** Set once the current turn lands a successful plan decision (`ask` answered
+	 *  or `xd://propose` submitted). A later text-only stop in the same turn is
+	 *  the agent's closing message, not a missing decision, so the settle
+	 *  enforcement must not force another tool call (issue: propose → reminder →
+	 *  re-propose loop). Reset per user turn and on plan-mode exit. */
+	#planModeDecisionSubmitted = false;
 	readonly #todo: TodoTracker;
 	readonly #modelMentions: ModelMentionRegistry;
 	#workPoolYieldItems: readonly WorkPoolYieldItem[] = [];
@@ -1763,6 +1763,24 @@ export class AgentSession implements SettingsScope {
 		};
 	}
 
+	/**
+	 * `xd://propose` handler wrapping {@link preparePlanForReview}: after the
+	 * plan artifact is located, promote the resolved path into plan-mode state
+	 * so `#getState`/get_state consumers (web-ui Preview + approve) read the
+	 * file the agent actually wrote (`local://<slug>-plan.md`), not the stale
+	 * entry path. Mirrors the remote-plan handler in zeta-server and
+	 * interactive-mode's approval-path promotion.
+	 */
+	async #preparePlanForReviewAndSync(title: string): Promise<AgentToolResult<PlanApprovalDetails>> {
+		const result = await this.preparePlanForReview(title);
+		const state = this.getPlanModeState();
+		const planFilePath = result.details?.planFilePath;
+		if (state?.enabled && planFilePath && state.planFilePath !== planFilePath) {
+			this.setPlanModeState({ ...state, planFilePath });
+		}
+		return result;
+	}
+
 	/** Monotonic counter bumped whenever mode or model state changes (external-state contract). */
 	getStateVersion(): number {
 		return this.#stateVersion;
@@ -1836,7 +1854,7 @@ export class AgentSession implements SettingsScope {
 			// task must still reach the agent — dropping it here leaves the
 			// client stuck on "plan mode enabled" with nothing planned.
 			if (initialPrompt && initialPrompt.trim() !== "") {
-				await this.steer(initialPrompt.trim());
+				await this.#submitPlanModeTask(initialPrompt.trim());
 			}
 			return;
 		}
@@ -1850,6 +1868,7 @@ export class AgentSession implements SettingsScope {
 		const uniquePlanTools = [...new Set([...previousTools, ...planAugmentations])];
 		this.#planModePreviousTools = previousTools;
 		await this.setActiveToolsByName(uniquePlanTools);
+		this.#planModeDecisionSubmitted = false;
 		this.setPlanModeState({
 			enabled: true,
 			planFilePath,
@@ -1857,17 +1876,30 @@ export class AgentSession implements SettingsScope {
 			reentry: options.reentry,
 			enteredBy: options.enteredBy ?? "user",
 		});
-		this.setPlanProposalHandler(title => this.preparePlanForReview(title));
-		if (this.isStreaming) {
-			await this.sendPlanModeContext({ deliverAs: "steer" });
-		}
+		this.setPlanProposalHandler(title => this.#preparePlanForReviewAndSync(title));
 		if (!options.preserveRestoredModel) {
 			await this.#applyPlanModeModel();
 		}
 		this.sessionManager.appendModeChange("plan", { planFilePath });
 		if (initialPrompt && initialPrompt.trim() !== "") {
-			await this.steer(initialPrompt.trim());
+			await this.#submitPlanModeTask(initialPrompt.trim());
+		} else if (this.isStreaming) {
+			await this.sendPlanModeContext({ deliverAs: "steer" });
 		}
+	}
+
+	/**
+	 * Deliver a plan-mode task. The CLI's `/plan <prompt>` reaches `prompt()`,
+	 * whose message build injects `#buildPlanModeMessage()` into the turn;
+	 * external clients (gateway/desktop) go through `steer()`, so the same
+	 * context block must land in the conversation first. Idle, that appends it
+	 * (the drain that claims the task then builds a request starting with the
+	 * plan-mode constraints instead of settling into a forced decision);
+	 * streaming, it steers into the live turn.
+	 */
+	async #submitPlanModeTask(text: string): Promise<void> {
+		await this.sendPlanModeContext({ deliverAs: "steer" });
+		await this.steer(text);
 	}
 
 	/**
@@ -4630,11 +4662,13 @@ export class AgentSession implements SettingsScope {
 			}
 			this.#planModeReminderAwaitingProgress = false;
 			if (
-				event.toolName === "ask" ||
-				writeDeviceDispatch(event.toolName, event.result)?.tool === PROPOSE_DEVICE_NAME
+				!event.isError &&
+				(event.toolName === "ask" ||
+					writeDeviceDispatch(event.toolName, event.result)?.tool === PROPOSE_DEVICE_NAME)
 			) {
 				this.#planModeReminderCount = 0;
 				this.#planModeReminderAwaitingProgress = false;
+				this.#planModeDecisionSubmitted = true;
 			}
 		}
 
@@ -7440,6 +7474,7 @@ export class AgentSession implements SettingsScope {
 		} else {
 			this.#planModeReminderCount = 0;
 			this.#planModeReminderAwaitingProgress = false;
+			this.#planModeDecisionSubmitted = false;
 			// Drop any unconsumed forced decision so a post-plan execution turn
 			// does not inherit a stale `required` tool choice.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
@@ -8047,6 +8082,7 @@ export class AgentSession implements SettingsScope {
 			this.#advisors.autoResumeSuppressed = false;
 			this.#planModeReminderCount = 0;
 			this.#planModeReminderAwaitingProgress = false;
+			this.#planModeDecisionSubmitted = false;
 			// A user turn owns the next decision; drop a queued forced choice from
 			// a reminder continuation this prompt just preempted.
 			this.#toolChoiceQueue.removeByLabel("plan-mode-decision");
@@ -11365,6 +11401,13 @@ export class AgentSession implements SettingsScope {
 		if (!this.#planModeState?.enabled) {
 			return false;
 		}
+		// A decision already landed this turn (`ask` answered or a plan
+		// proposed). The host owns the next move; a trailing text-only stop is
+		// the agent's closing message, so forcing another tool call here just
+		// re-proposes forever.
+		if (this.#planModeDecisionSubmitted) {
+			return false;
+		}
 		const assistantMessage = this.#findLastAssistantMessage();
 		if (!assistantMessage) {
 			return false;
@@ -11406,6 +11449,7 @@ export class AgentSession implements SettingsScope {
 		this.#toolChoiceQueue.pushOnce("required", { label: "plan-mode-decision" });
 		const reminder = prompt.render(planModeToolDecisionReminderPrompt, {
 			askToolName: "ask",
+			writeToolName: "write",
 		});
 		const reminderMessage: Message = {
 			role: "developer",

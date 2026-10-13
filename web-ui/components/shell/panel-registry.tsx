@@ -54,6 +54,8 @@ export interface PanelDecl {
 	icon: ReactNode;
 	/** Requires `tracking.enabled`; hidden until the setting resolves true. */
 	requiresTracking?: boolean;
+	/** Requires a selected session (e.g. the full-history export panel). */
+	requiresSession?: boolean;
 }
 
 const GRID = "0 0 24 24";
@@ -230,18 +232,22 @@ export const PANEL_REGISTRY: readonly PanelDecl[] = [
 	},
 	{
 		id: "history",
-		titleKey: "full-history",
-		surface: "topbar",
-		kind: "action",
+		titleKey: "dock.window.history",
+		surface: "rail",
+		kind: "dock",
 		widthTier: "regular",
-		exclusive: false,
+		exclusive: true,
 		icon: HISTORY_ICON,
+		requiresSession: true,
 	},
 ] as const;
 
-/** Dock panels that are visible right now (honours the tracking gate). */
-export function getDockPanels(trackingEnabled: boolean): PanelDecl[] {
+/** Dock panels that are visible right now (honours the tracking + session gates). */
+export function getDockPanels(trackingEnabled: boolean, hasSession: boolean): PanelDecl[] {
 	return PANEL_REGISTRY.filter(
-		panel => panel.surface === "rail" && (!panel.requiresTracking || trackingEnabled),
+		panel =>
+			panel.surface === "rail" &&
+			(!panel.requiresTracking || trackingEnabled) &&
+			(!panel.requiresSession || hasSession),
 	);
 }
