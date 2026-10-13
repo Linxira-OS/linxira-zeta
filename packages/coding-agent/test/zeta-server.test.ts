@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+	classifyRequest,
 	formatServerUrl,
 	normalizeProxiedResponse,
 	parsePlanApprovalReply,
@@ -27,6 +28,35 @@ describe("ZetaServer host URLs", () => {
 	it("reports the configured public host and brackets IPv6 literals", () => {
 		expect(new ZetaServer({ host: "192.168.1.5", port: 30141 }).url).toBe("http://192.168.1.5:30141");
 		expect(formatServerUrl("::1", 30141)).toBe("http://[::1]:30141");
+	});
+});
+
+describe("ZetaServer routing", () => {
+	const classify = (path: string) => classifyRequest(new Request(`http://127.0.0.1:30141${path}`), 51234, true);
+
+	it("dispatches the gateway-owned tracking family in-process on a custom gateway port", () => {
+		// The Next-side rewrite target is frozen at web-ui build time, so serve
+		// must not depend on it for a non-default --gateway-port.
+		expect(classify("/api/tracking?cwd=/repo").type).toBe("gateway");
+		expect(classify("/api/tracking/events?cwd=/repo").type).toBe("gateway");
+	});
+
+	it("keeps the Next-owned families in the Web UI child", () => {
+		// Next serves /api/git/* end to end (status/diff locally, the rest as
+		// request-time gateway proxies) and resolves the origin itself.
+		expect(classify("/api/git/branches?cwd=/repo").type).toBe("webui");
+		expect(classify("/api/git/status?cwd=/repo").type).toBe("webui");
+		expect(classify("/api/fs/directories").type).toBe("webui");
+		expect(classify("/api/files/tmp/a.png").type).toBe("webui");
+	});
+
+	it("still sends the other gateway families to the gateway", () => {
+		expect(classify("/api/sessions").type).toBe("gateway");
+		expect(classify("/api/agent/running/events").type).toBe("gateway");
+	});
+
+	it("reports the stats dashboard on its own route", () => {
+		expect(classify("/api/stats/overview").type).toBe("stats");
 	});
 });
 

@@ -97,7 +97,19 @@ export interface ZetaServerRoute {
 	type: "stats" | "gateway" | "webui" | "unavailable";
 }
 
-/** `/api/*` prefixes that stay in Next.js (pure Node, no runtime imports). */
+/**
+ * `/api/*` prefixes that stay in Next.js (pure Node, no runtime imports).
+ *
+ * `/api/tracking` is deliberately NOT listed: it is gateway-owned (read +
+ * `events` SSE), and the Next-side `beforeFiles` rewrite that used to bridge it
+ * keeps the destination frozen into the web-ui *build* output. Dispatching it
+ * in-process here is therefore what keeps it working when `zeta serve` runs the
+ * gateway on a non-default `--gateway-port` — the baked rewrite would still
+ * target the default `127.0.0.1:30142` and fail with `ECONNREFUSED` (HTTP 500).
+ * The `/api/git/` family stays in Next because Next serves it end to end:
+ * `status`/`diff` locally, `branches`/`checkout`/`branch` as request-time
+ * gateway proxies that follow the injected gateway origin.
+ */
 const NEXT_OWNED_API_PREFIXES = [
 	"/api/fs/",
 	"/api/files/",
@@ -106,7 +118,6 @@ const NEXT_OWNED_API_PREFIXES = [
 	"/api/home",
 	"/api/default-cwd",
 	"/api/worktrees",
-	"/api/tracking",
 	"/api/file-index",
 	"/api/webui/",
 ];
@@ -467,7 +478,17 @@ export class ZetaServer {
 		try {
 			// NEXT_PUBLIC_STATS_URL lets the web-ui Stats iframe tab target the
 			// in-process stats dashboard.
-			this.#webUiChild = await spawnWebUi(this.#webUiPort, `http://127.0.0.1:${this.#options.statsPort}`);
+			// ZETA_WEB_GATEWAY_URL is the base of web-ui's Next-side `/api/*`
+			// proxies (next.config beforeFiles rewrites + route handlers). The
+			// gateway listener is loopback-only, and its port is configurable
+			// (`--gateway-port`), so the child must be handed this origin —
+			// otherwise it proxies to the default 30142 and fails with
+			// ECONNREFUSED whenever serve runs on non-default ports.
+			this.#webUiChild = await spawnWebUi(
+				this.#webUiPort,
+				formatServerUrl("127.0.0.1", this.#options.statsPort),
+				formatServerUrl("127.0.0.1", this.#options.gatewayPort),
+			);
 			logger.info("Web UI backend started", { internalPort: this.#webUiPort });
 		} catch (err) {
 			logger.warn("Failed to start Web UI backend", {

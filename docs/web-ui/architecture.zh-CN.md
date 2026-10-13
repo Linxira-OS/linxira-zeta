@@ -24,14 +24,18 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 | `unavailable` | 未启动 Web UI 后端                                   | 503                        |
 
 少量 `/api/*` 前缀保留在 Next.js 内，因为它们是纯 Node 代码、不依赖运行时
-（`/api/fs/`、`/api/files/`、`/api/cwd/`、`/api/git/`、`/api/home`、
-`/api/default-cwd`、`/api/worktrees`、`/api/tracking`、`/api/file-index`）。
+（`/api/fs/`、`/api/files/`、`/api/cwd/`、`/api/git/`——其中 `status`/`diff`
+本地实现，`branches`/`checkout`/`branch` 按请求代理到网关、`/api/home`、
+`/api/default-cwd`、`/api/worktrees`、`/api/file-index`）。
 其余所有 `/api/*` 请求都交给 Web Gateway。
 
 Web Gateway 还暴露一个独立的 `127.0.0.1` 监听端口
 （`ZETA_WEB_GATEWAY_PORT`，默认 30142）供 `next dev`/`next start` 访问；
 主代理在进程内分派，因此网关端口被占用只会禁用 dev 模式监听器，不影响
-网关本身。
+网关本身。`zeta serve` 按 `--gateway-port` 启动该监听器，并把解析出的 origin
+（`ZETA_WEB_GATEWAY_URL`）注入 web-ui 子进程，Next 侧 rewrites 与请求期网关代理
+（`/api/git/branches|checkout|branch`）即由此解析目标；tracking 由监听器进程内
+分派（`classifyRequest`），其 SSE 不再经 Next 中转。
 
 ## Web Gateway 分派
 

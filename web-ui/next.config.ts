@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
+import { resolveGatewayUrl, resolveStatsUrl } from "./lib/proxy-targets";
 
 const { version } = JSON.parse(readFileSync(join(__dirname, "package.json"), "utf8")) as { version: string };
 let piVersion = "unknown";
@@ -79,12 +80,18 @@ const nextConfig: NextConfig = {
 			},
 		];
 	},
-	// Gateway-owned /api families are served by the runtime Web Gateway
-	// (in-process under `zeta serve`, standalone listener in dev). Keeping them
-	// here as beforeFiles rewrites means `next dev`/`next start` reach the same
-	// handler through ZETA_WEB_GATEWAY_URL. Ownership: document/web-gateway.md.
+	// Gateway-owned /api families reach the runtime Web Gateway through
+	// resolveGatewayUrl() (injected ZETA_WEB_GATEWAY_URL, else
+	// ZETA_WEB_GATEWAY_PORT, else the default) — never a hardcoded port.
+	// Note the timing: Next evaluates this function when the config is loaded
+	// (web-ui build for `next start`), so the origin is only adoptable for the
+	// families listed here when it is known then. `zeta serve` therefore
+	// dispatches the gateway-owned families in-process (see zeta-server.ts
+	// classifyRequest) and Next owns request-time proxies (/api/git, /api/tracking)
+	// for the paths it serves itself. Ownership: document/web-gateway.md.
 	async rewrites() {
-		const gateway = process.env.ZETA_WEB_GATEWAY_URL ?? "http://127.0.0.1:30142";
+		const gateway = resolveGatewayUrl();
+		const stats = resolveStatsUrl();
 		return {
 			beforeFiles: [
 				{ source: "/api/sessions/:path*", destination: `${gateway}/api/sessions/:path*` },
@@ -102,7 +109,12 @@ const nextConfig: NextConfig = {
 				{ source: "/api/update/:path*", destination: `${gateway}/api/update/:path*` },
 				{ source: "/api/docs/:path*", destination: `${gateway}/api/docs/:path*` },
 				{ source: "/api/projects/:path*", destination: `${gateway}/api/projects/:path*` },
-				{ source: "/api/git/:path*", destination: `${gateway}/api/git/:path*` },
+				// `/api/git/*` is NOT rewritten: Next serves the whole family —
+				// `status`/`diff` from local Node handlers, `branches`/`checkout`/
+				// `branch` through request-time proxies (app/api/git/*) that
+				// resolve the gateway origin per request. A beforeFiles rewrite
+				// here would both shadow those handlers and pin the gateway port
+				// at build time.
 				// Session blob bytes (agent screenshots in tool results). The
 				// `zeta serve` listener routes /api/* to the gateway already; this
 				// covers `next dev` / standalone `next start` against it.
@@ -110,8 +122,9 @@ const nextConfig: NextConfig = {
 				// Stats Dashboard is a separate service (default :3847). Under
 				// `zeta serve` the unified listener already routes /api/stats; this
 				// rewrite covers `next dev` / standalone `next start` against the
-				// gateway-only topology.
-				{ source: "/api/stats/:path*", destination: "http://127.0.0.1:3847/api/stats/:path*" },
+				// gateway-only topology. Same rule as the gateway: the port comes
+				// from the injected URL, never a literal (`--stats-port`).
+				{ source: "/api/stats/:path*", destination: `${stats}/api/stats/:path*` },
 			],
 		};
 	},

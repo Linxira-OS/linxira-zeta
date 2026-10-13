@@ -54,12 +54,18 @@ Browser                Next.js Server              Runtime Web Gateway (Bun)
 **Gateway ownership** (`document/web-gateway.md`): the sessions family
 (`/api/sessions*`) is served by the runtime Web Gateway — in-process under
 `zeta serve` (ZetaServer), and in dev/standalone via `next.config` `beforeFiles`
-rewrites to `ZETA_WEB_GATEWAY_URL` (default `http://127.0.0.1:30142`). These
-routes have no Next route files; the DTO contract in `lib/types.ts` remains the
-source of truth for the JSON shape. Remaining families (`agent`, `auth`,
-`models`, `skills`, `plugins`) migrate batch by batch; `fs`/`files`/`cwd`/`git`
-stay in Next. **Session browsing** (read-only): reads `.jsonl` files through the
-gateway's `SessionManager` helpers — no AgentSession created.  
+rewrites to the resolved gateway origin (`lib/proxy-targets.ts`: injected
+`ZETA_WEB_GATEWAY_URL`, else `ZETA_WEB_GATEWAY_PORT`, else
+`http://127.0.0.1:30142`). Rewrites are evaluated when the config loads (the
+web-ui *build* for `next start`), so `zeta serve` dispatches the gateway-owned
+families in-process instead (tracking included), and the gateway paths Next
+serves itself (`/api/git/{branches,checkout,branch}`) proxy per request through
+`lib/gateway-proxy.ts`. These routes have no Next route files; the DTO
+contract in `lib/types.ts` remains the source of truth for the JSON shape.
+Remaining families (`agent`, `auth`, `models`, `skills`, `plugins`) migrate
+batch by batch; `fs`/`files`/`cwd`/`git` stay in Next. **Session browsing**
+(read-only): reads `.jsonl` files through the gateway's `SessionManager`
+helpers — no AgentSession created.  
 **Sending a message**: `startRpcSession()` in `lib/rpc-manager.ts` creates an AgentSession in-process (until W2).
 
 ---
@@ -81,6 +87,11 @@ app/api/
   cwd/validate/route.ts           POST validate/select a cwd
   default-cwd/route.ts            POST create ~/pi-cwd-YYYYMMDD
   files/[...path]/route.ts        GET file contents for viewer
+  git/branches/route.ts           GET branch list (request-time gateway proxy)
+  git/branch/route.ts             POST create local branch (request-time gateway proxy)
+  git/checkout/route.ts           POST switch branch (request-time gateway proxy)
+  git/diff/route.ts               GET file diff (local Node)
+  git/status/route.ts             GET worktree status (local Node)
   home/route.ts                   GET user home directory
   models/route.ts                 GET { models, modelList, defaultModel }
   models-config/route.ts          GET/PUT — read/write ~/.zeta/agent/models.json
@@ -89,6 +100,7 @@ app/api/
   skills/route.ts                 GET/PATCH loaded skills and disable-model-invocation
   skills/install/route.ts         POST install skills through npx skills add
   skills/search/route.ts          GET/POST skills.sh search
+  tracking/route.ts               GET tracking read (request-time gateway proxy)
   worktrees/route.ts              GET/POST/DELETE git worktrees
 
 lib/
