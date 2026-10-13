@@ -154,6 +154,11 @@ import {
 import type { ShakeMode } from "../session/shake-types";
 import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
+import {
+	resolveCommandSnapshot,
+	slashCommandSnapshotKey,
+	type SlashCommandSnapshot,
+} from "../slash-commands/command-snapshot";
 import { formatCoarseDuration } from "@linxiraos/pi-tui/chrome/format";
 import { type DictationTarget, MicCursor, type SttCallbacks, STTController, type SttState } from "../stt";
 import type { SpaceHoldHandler } from "@linxiraos/pi-tui/space-hold";
@@ -1517,8 +1522,13 @@ export class InteractiveMode implements InteractiveModeContext {
 	/** Commands (not components) queued while streaming, for the deferral hint. */
 	#pendingCommandOutputCommands = 0;
 	#pendingSlashCommands: SlashCommand[] = [];
-	/** Symbol preset the slash-command picker icons were resolved under. */
-	#slashIconPreset: string | undefined;
+	/**
+	 * Materialized builtin picker list. Descriptions are plain strings resolved
+	 * when the list was built, so the snapshot key carries both the symbol preset
+	 * the icons came from *and* the language those strings were resolved against
+	 * ({@link SlashCommandSnapshotKey}).
+	 */
+	#slashCommandSnapshot: SlashCommandSnapshot<SlashCommand> | undefined;
 	/** Built-in editor autocomplete provider, before extension wrapping. */
 	#baseAutocompleteProvider: AutocompleteProvider | undefined;
 	/** Extension-registered provider factories, applied in registration order (#4919). */
@@ -1966,7 +1976,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.expandThinkingBlocks = cfgExpandThinkingBlocks.get(settings);
 
 		// Store pending commands for init() where file commands are loaded async
-		this.#pendingSlashCommands = this.#buildPendingSlashCommands();
+		this.#syncSlashCommandSnapshot();
 
 		this.#uiHelpers = new UiHelpers(this);
 		this.#btwController = new BtwController(this);
@@ -2470,9 +2480,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#eventBusUnsubscribers.push(
 			this.session.subscribeCommandMetadataChanged(() => {
 				// Skills/commands rediscovery (live `skills.*`/`commands.*`/extension edits,
-				// `/move`, manage_skill, MCP prompts) lands here; rebuild the picker from session state.
-				this.#pendingSlashCommands = this.#buildPendingSlashCommands();
-				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd());
+				// `/move`, manage_skill, MCP prompts) lands here; rebuild the picker
+				// from session state even though the snapshot key is unchanged.
+				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd(), { force: true });
 				this.ui.requestRender();
 			}),
 		);
@@ -2591,13 +2601,27 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * which can land before the theme listener exists) rebuilds the picker.
 	 */
 	#refreshSlashCommandIcons(): void {
-		if (theme.getSymbolPreset() === this.#slashIconPreset) return;
+		if (theme.getSymbolPreset() === this.#slashCommandSnapshot?.key.symbolPreset) return;
 		this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd());
+	}
+
+	/**
+	 * Materialize the builtin picker list, reusing the previous snapshot while
+	 * its symbol-preset *and* language still match. Any language change — the
+	 * `/language` command's own refresh lands here — resolves every
+	 * `description: () => M.cmdFoo` thunk again against the new catalogue.
+	 */
+	#syncSlashCommandSnapshot(force = false): void {
+		this.#slashCommandSnapshot = resolveCommandSnapshot(
+			force ? undefined : this.#slashCommandSnapshot,
+			slashCommandSnapshotKey(theme.getSymbolPreset()),
+			() => this.#buildPendingSlashCommands(),
+		);
+		this.#pendingSlashCommands = [...this.#slashCommandSnapshot.commands];
 	}
 
 	/** Builtin, extension, custom, and `/skill:<name>` commands derived from live session state. */
 	#buildPendingSlashCommands(): SlashCommand[] {
-		this.#slashIconPreset = theme.getSymbolPreset();
 		const builtinCommands: SlashCommand[] = buildTuiBuiltinSlashCommands({
 			ctx: this,
 		}).map(cmd => ({
@@ -2672,9 +2696,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * Rebuild the editor's slash-command autocomplete from the pending command list and
 	 * the session's current file-based slash commands and prompt templates.
 	 */
-	#rebuildSlashCommandAutocomplete(basePath: string): void {
-		if (theme.getSymbolPreset() !== this.#slashIconPreset)
-			this.#pendingSlashCommands = this.#buildPendingSlashCommands();
+	#rebuildSlashCommandAutocomplete(basePath: string, options?: { force?: boolean }): void {
+		this.#syncSlashCommandSnapshot(options?.force === true);
 		const fileCommands = this.session.slashCommands;
 		this.fileSlashCommands = new Set(fileCommands.map(cmd => cmd.name));
 		const promptIcon = getSlashCommandTypeIcon("prompt");

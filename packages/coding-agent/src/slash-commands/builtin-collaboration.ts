@@ -75,10 +75,12 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const stats = runtime.ctx.session.getAdvisorStats();
-			if (stats.active && stats.advisors.length > 1) return `Advisor: on (${stats.advisors.length} advisors)`;
-			if (stats.active && stats.model) return `Advisor: on (${stats.model.provider}/${stats.model.id})`;
-			if (stats.configured) return "Advisor: configured, no model";
-			return "Advisor: off";
+			if (stats.active && stats.advisors.length > 1)
+				return M.acAdvisorOnFmt.replace("%s", `${stats.advisors.length} advisors`);
+			if (stats.active && stats.model)
+				return M.acAdvisorOnFmt.replace("%s", `${stats.model.provider}/${stats.model.id}`);
+			if (stats.configured) return M.acAdvisorConfiguredNoModel;
+			return M.acAdvisorOff;
 		},
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
@@ -330,11 +332,12 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		getTuiAutocompleteDescription: runtime => {
 			const host = runtime.ctx.collabController.host;
 			if (host) {
-				return `Collab: hosting (${Math.max(0, host.participants.length - 1)} guests)`;
+				const guests = M.acCollabGuestsFmt.replace("%s", String(Math.max(0, host.participants.length - 1)));
+				return M.acCollabFmt.replace("%s", `${M.stateHosting}${guests}`);
 			}
-			if (runtime.ctx.collabGuest?.readOnly) return "Collab: read-only guest";
-			if (runtime.ctx.collabGuest) return "Collab: guest";
-			return "Collab: off";
+			if (runtime.ctx.collabGuest?.readOnly) return M.acCollabFmt.replace("%s", M.stateReadOnlyGuest);
+			if (runtime.ctx.collabGuest) return M.acCollabFmt.replace("%s", M.stateGuest);
+			return M.acCollabFmt.replace("%s", M.stateOff);
 		},
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
@@ -481,9 +484,9 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		icon: "signOut",
 		description: () => M.cmdCollabLeave,
 		getTuiAutocompleteDescription: runtime => {
-			if (runtime.ctx.collabController.host) return "Leave collab: hosting";
-			if (runtime.ctx.collabGuest) return "Leave collab: guest";
-			return "Leave collab: not in collab";
+			if (runtime.ctx.collabController.host) return M.acLeaveCollabHosting;
+			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;
+			return M.acLeaveCollabNone;
 		},
 		handleTui: async (_command, runtime) => {
 			const ctx = runtime.ctx;
@@ -512,8 +515,11 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
-			if (!cfgBrowserEnabled.get(runtime.ctx.settings)) return "Browser: disabled";
-			return cfgBrowserHeadless.get(runtime.ctx.settings) ? "Browser: headless" : "Browser: visible";
+			if (!cfgBrowserEnabled.get(runtime.ctx.settings)) return M.acBrowserFmt.replace("%s", M.stateDisabled);
+			return M.acBrowserFmt.replace(
+				"%s",
+				cfgBrowserHeadless.get(runtime.ctx.settings) ? M.stateHeadless : M.stateVisible,
+			);
 		},
 		handle: async (command, runtime) => {
 			const arg = command.args.toLowerCase();
