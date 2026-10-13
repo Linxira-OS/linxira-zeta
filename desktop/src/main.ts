@@ -57,8 +57,8 @@ import {
 	type ServeResolutionDeps,
 } from "./serve-resolution";
 
-const DEFAULT_WEB_UI_URL = "http://127.0.0.1:30141";
-const DEFAULT_STATS_URL = "http://127.0.0.1:3847";
+const WEB_UI_URL = "http://127.0.0.1:30141";
+const STATS_URL = "http://127.0.0.1:3847";
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 400;
 const SESSION_POLL_INTERVAL_MS = 5_000;
@@ -73,9 +73,10 @@ let serviceOwned = false;
 let serviceWorkspacePath = process.cwd();
 let quitting = false;
 // Effective service origins: the reused instance's when boot adopted one, else
-// the defaults of the service we spawn ourselves.
-let webUiUrl = DEFAULT_WEB_UI_URL;
-let statsUrl = DEFAULT_STATS_URL;
+// the loopback defaults of the service we spawn ourselves (WEB_UI_URL is the
+// desktop ↔ web-ui contract pinned by scripts/zeta-sentinels.ts).
+let webUiUrl = WEB_UI_URL;
+let statsUrl = STATS_URL;
 // One-time open-bridge secret. Adopted from a reused desktop-spawned instance
 // so the open tokens the gateway issues keep validating here.
 let desktopOpenSecret = crypto.randomBytes(32).toString("base64url");
@@ -942,11 +943,11 @@ async function boot(): Promise<void> {
 	// does the shell start its own service (the previous behavior).
 	const plan = await discoverDesktopService({
 		deps: desktopServeDiscoveryDeps(),
-		targetUrl: DEFAULT_WEB_UI_URL,
+		targetUrl: WEB_UI_URL,
 		// The desktop app version and the bundled CLI's version are kept in
 		// lockstep by scripts/check-version-consistency.ts.
 		expectedVersion: app.getVersion(),
-		fallbackStatsUrl: DEFAULT_STATS_URL,
+		fallbackStatsUrl: STATS_URL,
 	});
 	if (plan.stalePid !== null) {
 		writeDesktopLog(`Removed a stale serve registration (pid ${plan.stalePid} is no longer running).`);
