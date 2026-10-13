@@ -20,6 +20,7 @@
 
 ### Added
 
+- The bundled office skills (`docx`, `xlsx`, `pptx`, `pdf`) are installed into your own skills directory (`~/.zeta/agent/skills/`) as files you can edit and version, on first session startup or with `zetacode skill install-official`; files you edited are never overwritten, and `--uninstall` hands the names back to the built-in provider.
 - Added the tea tool suite: a `tea` CLI integration for self-hosted Gitea (and gitea.com) covering repo/issue/pull-request/checkout/merge/release ops (`repo_view`, `repo_create`, `issue_*`, `pr_*`, `release_*`), with every create-type operation verified by reading back through the API (`tea repo create` has a history of silent failure). Enabled via `gitea.enabled`, off by default.
 - Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
 

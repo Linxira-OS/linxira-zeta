@@ -99,7 +99,8 @@ Current registered skill providers:
    - `codex`
 7. `opencode` (priority 55)
 8. `github` (priority 30) — `.github/skills/<name>/SKILL.md` (GitHub Agent Skills layout, project-only)
-9. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+9. `zeta-official` (priority 10) — the bundled office pack; it serves only names the user skills directory does not already carry, and any authored skill of the same name still wins (see "Bundled official skills")
+10. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
 
 Capability dedup key is skill name; the first item with a given name wins in the deduped `items` view. `loadSkills()` resolves same-name collisions itself (see "Collision and duplicate handling").
 
@@ -133,6 +134,40 @@ The `agents` provider (`.agent[s]/skills`) has its own `enableAgentsUser`/`enabl
 - Namespaced skills resolve through `skill://<namespace>/<name>[/<path>]` and the `/skill:<namespace>/<name>` token, both leading and mid-prompt (a mid-prompt token accepts exactly one `/`; deeper paths are left as prose). Because skill names never contain `/`, an exact `<host>/<first segment>` match is unambiguous and takes precedence over reading that segment as a path relative to a bare skill of the same name as the namespace.
 - Custom-directory skills are merged after provider skills and outrank a same-named default-path provider skill regardless of admission order (#7190): the custom-directory skill keeps the bare name, and the provider skill is re-admitted under its namespaced name (suffixed if that slot is taken) when it differs or dropped when it is identical. Among two custom directories, the first one in `skills.customDirectories` keeps the bare name and the other is namespaced.
 - `disabledExtensions` (`skill:<name>`) and `skills.ignoredSkills` are applied to both the raw and the final name, so a namespaced alias cannot bypass an exclusion. `skills.includeSkills` is applied to the final listing only, after every name is resolved, so `second/*` selects a namespaced skill even though the bare skill it collided with is not itself included.
+
+## Bundled official skills, installed into your skills directory
+
+The first-party office skills (`docx`, `xlsx`, `pptx`, `pdf`) ship with Zeta as a **bundled pack**: `skills/official/` in a source checkout, burned into release binaries at build time (`scripts/generate-official-skills-payload.ts` → `ZETA_OFFICIAL_SKILLS_EMBED`).
+
+The pack is installed into **your own skills directory**, so the skills are ordinary files you can read, edit, and put under version control:
+
+```text
+~/.zeta/agent/skills/
+  ├─ docx/SKILL.md      ← yours now: edit freely
+  ├─ xlsx/SKILL.md
+  ├─ pptx/SKILL.md
+  ├─ pdf/SKILL.md
+  └─ .official-skills.json   ← install marker (which pack version seeded what)
+```
+
+- The install runs automatically on the first session startup after an upgrade (`createAgentSession`), and on demand with `zetacode skill install-official` (`--dry-run`, `--json`).
+- The install writes the pack only where the name is free, and records a content hash per file in `.official-skills.json`.
+  - a file you **edited** is never overwritten — it is reported instead (`kept`);
+  - a file you **deleted** stays deleted on the automatic path; `zetacode skill install-official` restores it;
+  - a file the pack **changed** and you left untouched is upgraded in place;
+  - a skill **new** in the pack is added.
+  - the whole pass is skipped when the recorded pack hash matches, so a settled install costs one small JSON read per startup.
+- The `zeta-official` provider stays registered as the **fallback**: it serves only names your skills directory does not already carry, so a name is never provisioned twice and an edited copy never appears again as `zeta-official/<name>`. A skill you author yourself under one of those names shadows the pack's copy the same way.
+
+### Rolling back to the system-side pack
+
+```text
+zetacode skill install-official --uninstall
+```
+
+removes the files the installer added, leaves anything you edited in place, and records an opt-out in `.official-skills.json` so startup stops re-installing them. The `zeta-official` provider then serves `docx`/`xlsx`/`pptx`/`pdf` from the bundled pack again (as read-only, system-side skills). `zetacode skill install-official` is the way back; deleting the whole `~/.zeta/agent/skills/` directory (marker included) is equivalent to a fresh, never-installed state and the pack is installed again on the next startup.
+
+To turn the pack off entirely, set `skills.enableOfficial` to `false` (this also skips the install).
 
 ## Runtime usage behavior
 
