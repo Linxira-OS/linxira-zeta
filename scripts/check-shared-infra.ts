@@ -138,24 +138,20 @@ const INVENTORY: Placement[] = [
 	{
 		domain: "https://docs.stencil.so",
 		status: "keep",
-		files: [
-			"packages/tui/src/prompt/tips.txt",
-			"packages/tui/src/prompt/welcome.ts",
-			"packages/tui/src/native/node.ts",
-			"packages/wire/src/tsp.ts",
-		],
-		why: "documentation link (tips/welcome copy + protocol comments)",
+		files: ["packages/tui/src/native/node.ts", "packages/wire/src/tsp.ts"],
+		why: "provenance comment linking the Tern Surface Protocol spec; not a runtime call",
 	},
 	{
 		domain: "https://scl.so",
-		status: "keep",
-		files: [
-			"packages/tui/src/prompt/tips.txt",
-			"packages/tui/src/prompt/welcome.ts",
-			"packages/coding-agent/src/i18n/en.ts",
-			"packages/coding-agent/src/i18n/zh.ts",
-		],
-		why: "copy link only — no API call",
+		status: "replaced",
+		// Deliberately empty: the upstream Tern promo tip (tips.txt `[NO-TERN] …
+		// [tern](https://scl.so/tern)` + its i18n `tip33` copy) was removed by user
+		// ruling 2026-10-14 — it pitched the upstream terminal via an upstream
+		// short-link, and the product surface belongs to Zeta. The `[NO-TERN]`
+		// visibility-marker mechanism went with it. A merge that re-introduces the
+		// tip trips "registered endpoint (replaced) but not whitelisted".
+		files: [],
+		why: "upstream Tern promo copy link — removed 2026-10-14 (user ruling); any placement is a regression",
 	},
 	{
 		domain: "https://omp.sh/schemas/",

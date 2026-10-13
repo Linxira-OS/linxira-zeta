@@ -801,6 +801,11 @@ export const MUST_NOT_CONTAIN: Array<{
 			"scripts/release.ts", // doc comment naming the CLI
 		],
 	},
+	{
+		needle: /scl\.so/,
+		why: "the upstream Tern promo short-link (scl.so/tern) — the welcome tip pitching the upstream terminal was removed by user ruling 2026-10-14 (see document/upstream-sync.md); any scl.so literal is that promo returning. Deliberately NOT a bare `stencil.so` ban: catalog.stencil.so is our model-catalogue infrastructure (shared, must not be renamed)",
+		exempt: ["scripts/check-shared-infra.ts"], // the shared-infra ledger names the domain by design (status: replaced, files: [])
+	},
 ];
 
 /**
@@ -813,8 +818,8 @@ export const MUST_NOT_CONTAIN: Array<{
 export const USER_SURFACE_FILES: Array<{ file: string; forbid: RegExp; why: string }> = [
 	{
 		file: "packages/tui/src/prompt/tips.txt",
-		forbid: /\bomp\b|PI_DIALECT|clanker/,
-		why: "the welcome Tip row renders this file verbatim: the binary is zeta, and upstream env/slang tokens (PI_DIALECT, clanker) never surface (v18.6.0 shipped 7 omp tips + a PI_DIALECT tip here)",
+		forbid: /\bomp\b|PI_DIALECT|clanker|scl\.so/,
+		why: "the welcome Tip row renders this file verbatim: the binary is zeta, and upstream env/slang tokens (PI_DIALECT, clanker) never surface (v18.6.0 shipped 7 omp tips + a PI_DIALECT tip here). scl.so is upstream's Tern promo short-link — the [NO-TERN] tern tip that carried it was removed by user ruling 2026-10-14; a hit means the promo tip returned (its i18n tip copy is caught by the MUST_NOT_CONTAIN scl.so rule)",
 	},
 	{
 		file: "packages/coding-agent/src/i18n/en.ts",

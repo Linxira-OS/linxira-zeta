@@ -2544,7 +2544,6 @@ export const zh = {
 	tip30: "按 {key:shift+tab} 循环切换推理投入级别",
 	tip31: "zeta 可以自我重新配置并扩展——有任何问题尽管问！",
 	tip32: "Lint/类型错误堆积？`zetacode cleanse`（或就在这里 /cleanse）会扫描项目诊断并用并行子智能体修复——{key:escape} 取消",
-	tip33: "悄悄告诉你，zeta 有个天然栖息地 🐦 [tern](https://scl.so/tern)",
 	// ── MCP 运行时面板（pi-tui overlays/extensions/mcp-runtime.ts）──────────
 	mcpHealthNotConnected: "未连接",
 	mcpHealthInactive: "未启用",
