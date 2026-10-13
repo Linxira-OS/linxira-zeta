@@ -94,7 +94,8 @@ describe("web-gateway plan chain", () => {
 
 		const askTool = makeTool("ask");
 		const readTool = makeTool("read");
-		let planSession: AgentSession | undefined;
+		// The closure references `created`, declared below: tools only execute
+		// once the session exists, same pattern as the convergence harness.
 		const writeTool: AgentTool = {
 			name: "write",
 			label: "write",
@@ -104,11 +105,10 @@ describe("web-gateway plan chain", () => {
 				const target = String((input as { path?: unknown }).path ?? "");
 				const content = String((input as { content?: unknown }).content ?? "");
 				if (target === PROPOSE_DEVICE_PATH) {
-					if (!planSession) throw new Error("session not ready");
 					// The internal-URL `write` scheme's propose branch.
 					const { result, xdev } = await dispatchResolutionDevice(
 						{
-							peekPlanProposalHandler: () => planSession?.peekPlanProposalHandler(),
+							peekPlanProposalHandler: () => created.peekPlanProposalHandler(),
 						} as unknown as ToolSession,
 						PROPOSE_DEVICE_NAME,
 						content,
@@ -116,8 +116,8 @@ describe("web-gateway plan chain", () => {
 					return { content: result.content, details: { xdev }, isError: result.isError };
 				}
 				const resolved = resolveLocalUrlToPath(target, {
-					getArtifactsDir: () => planSession!.sessionManager.getArtifactsDir(),
-					getSessionId: () => planSession!.sessionManager.getSessionId(),
+					getArtifactsDir: () => created.sessionManager.getArtifactsDir(),
+					getSessionId: () => created.sessionManager.getSessionId(),
 				});
 				await Bun.write(resolved, content);
 				return { content: [{ type: "text" as const, text: `Wrote ${target}` }] };
@@ -165,7 +165,6 @@ describe("web-gateway plan chain", () => {
 			builtInToolNames: ["ask", "write", "read"],
 			advisorTools: [],
 		});
-		planSession = created;
 		session = created;
 
 		const wrapper = new AgentSessionWrapper(created, "sess-plan-flow", null);

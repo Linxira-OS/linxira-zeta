@@ -152,7 +152,9 @@ describe("AgentSession plan-mode convergence", () => {
 
 		const askTool = makeTool("ask");
 		const readTool = makeTool("read");
-		let proposalSession: AgentSession | undefined;
+		// Referencing `created` from inside the tool closure mirrors the
+		// `currentAgent` pattern above: the declaration is later in this scope
+		// but the closure only runs after the session exists.
 		const writeTool: AgentTool = {
 			name: "write",
 			label: "write",
@@ -167,7 +169,7 @@ describe("AgentSession plan-mode convergence", () => {
 				// `xd://propose` — the session keys convergence off the returned
 				// `details.xdev` envelope, so a bare "ok" would not model it.
 				const { result, xdev } = await dispatchResolutionDevice(
-					{ peekPlanProposalHandler: () => proposalSession?.peekPlanProposalHandler() } as unknown as ToolSession,
+					{ peekPlanProposalHandler: () => created.peekPlanProposalHandler() } as unknown as ToolSession,
 					PROPOSE_DEVICE_NAME,
 					String((input as { content?: unknown }).content ?? ""),
 				);
@@ -252,7 +254,6 @@ describe("AgentSession plan-mode convergence", () => {
 				: undefined,
 		});
 		if (!options?.planYolo) created.setPlanModeState({ enabled: true, planFilePath: "local://PLAN.md" });
-		proposalSession = created;
 		session = created;
 		return {
 			session: created,
