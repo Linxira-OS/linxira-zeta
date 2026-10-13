@@ -97,7 +97,11 @@ export const OMP_PATH_ALLOW = [
 	/utils\/title-generator\.ts$/, // \uE000omp-title-visible\uE000 wire sentinel
 	/legacy-pi-compat\.ts$|legacy-pi-coding-agent-shim\.ts$/,
 	/packages\/browser-relay\//, // chrome.storage keys (ompGroupTitle family)
-	/\.omp-plugin|\.ompshare|omp\.sh|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
+	/\.omp-plugin|\.ompshare|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
+	// `omp.sh` is deliberately NOT in this list: an upstream-host literal is not
+	// interop residue, so a line carrying one must not slip past the `.omp` path
+	// rule on its way out. Upstream-host placements are owned by the ledger
+	// (`document/upstream-commercial-assets.md`) + `scripts/check-shared-infra.ts`.
 	/\.omp[a-zA-Z]*Url|ompPr|ompPersisted|ompToolViews|ompCmd|ompGroup/,
 	/rewrite-changelog\.ts$/, // pre-existing main debt: doc comment on db path
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist

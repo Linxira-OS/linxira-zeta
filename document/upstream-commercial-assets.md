@@ -29,17 +29,16 @@ bun scripts/brand/brand-check.ts
 
 | 处置 | 域名 / 面 | 一句话依据 |
 |---|---|---|
-| **保留** | `my.omp.sh`（中继/分享）、`https://omp.sh/install`（安装提示）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>`、模型发现或安装路径 |
+| **保留** | `my.omp.sh`（中继/分享）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>` 或模型发现 |
 | **保留代码，凭证自填** | `api.stencil.so` / `auth.stencil.so`（Stencil 账号体系）、`client-id "omp"`、Tern 客户端适配 | 代码留着（将来可能有同类商业产品），凭证改成用户自填 `STENCIL_API_KEY`；OIDC public client id 与 issuer/scope 名是协议契约，**改名即登录失败** |
 | **待替代** | `skills.omp.sh`（P2）、`live.omp.sh`（P3）；`qa.omp.sh` 已替换 ✓（见 §3c） | 用户可主动触达的外部依赖，上游关停即失效 |
-| **已移除** | `scl.so`（Tern 推广文案链接，2026-10-14 用户裁决）；`qa.omp.sh`、`build.stencil.so` 已替换/退役（见 §3c） | 上游产品推广面；守卫标为 `replaced`，复活即红 |
+| **已移除** | `scl.so`（Tern 推广文案链接，2026-10-14 用户裁决）；`qa.omp.sh`、`build.stencil.so` 已替换/退役、`omp.sh/install` 已换成自家安装器（见 §3c） | 上游产品推广面 / 指错产品；守卫标为 `replaced`，复活即红 |
 
 ## 1. 保留：共享基础设施
 
 | 服务 | 非测试落点 | 依据 |
 |---|---|---|
 | `my.omp.sh` — 中继/分享 URL | `packages/collab-web/{index.html,public/robots.txt,public/sitemap.xml,scripts/local-relay.ts}`、`packages/wire/src/index.ts`（另有测试 12 处） | 端到端加密中继，协议两端由上游运营；注册表「不品牌化」 |
-| `https://omp.sh/install` | `packages/coding-agent/src/cli/update-cli.ts` | 注册表「共享基础设施，勿改」 |
 | `catalog.stencil.so/models.json.zstd` | `packages/catalog/scripts/generate-models.ts`、`packages/catalog/src/provider-models/openai-compat.ts` | 模型发现数据源；替换需自建模型目录服务，未列入计划。注意 `packages/catalog/src/compat/rules.json` 是生成物 |
 | `docs.stencil.so/tern/protocol/` | `packages/tui/src/native/node.ts`、`packages/wire/src/tsp.ts` | 协议文档出处（注释），不是 API 调用 |
 
@@ -87,7 +86,6 @@ bun scripts/brand/brand-check.ts
 
 | 落点 | 内容 | 处置 |
 |---|---|---|
-| `packages/browser-relay/extension/manifest.json` + `src/tools/browser/relay/extension-assets/manifest.json.txt` | `homepage_url: "https://omp.sh"` | 待换成 Zeta 自有站点 URL |
 | `src/modes/rpc/wire/index.ts` + `rpc-wire.schema.json` | JSON-Schema `$id: "https://omp.sh/schemas/rpc-wire.json"`（上游 `c4d3204151a` 引入，从未扫过） | 待换成 Zeta URL（改 `$id` 需同步再生成 SDK 产物） |
 | `packages/collab-web/index.html` | JSON-LD publisher = Stencil Labs, Inc. / `stencil.so`，另引用 `https://omp.sh/` | 待换成我们的组织身份 |
 
@@ -95,6 +93,9 @@ bun scripts/brand/brand-check.ts
 
 | 项 | 结果 |
 |---|---|
+| **`omp.sh/install` → 自家站点安装器（2026-10-13）** | `packages/coding-agent/src/cli/update-cli.ts` 的 `installerHint()`（升级失败/外链被顶掉时的恢复指引）两侧成对改为 `https://linxira-os.github.io/install.sh`（POSIX）/`install.ps1`（Windows）；测试 `packages/coding-agent/test/update-cli.test.ts` 同步。**旧值不只是 404：按提示会把用户装成上游 OMP**。`docs/macos-signing-notarization.md`（随产品打包）同款修正。守卫：2026-10-14 把 `INVENTORY` 的 `https://omp.sh/install` 从 `keep` 改为 `replaced`/`files: []`——任何落点复活即红。 |
+| **浏览器扩展元数据换自有（2026-10-14）** | `packages/browser-relay/extension/manifest.json`（源）+ `packages/coding-agent/src/tools/browser/relay/extension-assets/manifest.json.txt`（`build-extension.ts` 生成的内嵌副本，两文件逐字节相同）：`name`/`description`/`author`/`homepage_url`/`action.default_title` 从上游品牌与 `https://omp.sh` 换为 Zeta 自有（`Linxira-OS` / `https://linxira-os.github.io/zeta/`）；选项页 `options.html`（`<title>`/`<h1>`）与 `background.ts`/`options.js` 注释同步。守卫：`INVENTORY` 的 `https://omp.sh` 落点收窄为 `packages/collab-web/index.html`（扩展两处已无上游引用）。 |
+| **发布元数据换自有（2026-10-14）** | `Cargo.toml` 的 `[workspace.package]` `authors`/`homepage`/`repository`、`sdk/python/zeta-rpc/pyproject.toml` 的 `authors`/`description`/`keywords`/`[project.urls]`（Homepage/Repository/Documentation）从 `Stencil Labs, Inc.` / `omp.sh` / 上游 repo 换为 `Linxira-OS` / 自有站点 / `Linxira-OS/linxira-zeta`。`nix/package.nix` 的 `meta.changelog` 仍指上游 release（`zeta.sh` 主页归属待核实，未动）。 |
 | **`qa.omp.sh/v1/grievances` → GitHub Issues（2026-10-11）** | 三处落点（`src/cli/grievances-cli.ts`、`src/tools/report-tool-issue.ts`、`src/tools/settings.ts`）改走新客户端 `packages/coding-agent/src/grievances/client.ts`：目标仓库取 `ZETA_ISSUE_REPO`（默认 `Linxira-OS/linxira-zeta`），令牌链 `GITHUB_TOKEN` → `GH_TOKEN` → `dev.autoqaPush.token` → `gh auth token`；401/403/404/422 有各自可操作提示；**无令牌不发请求**，改为打印成文 issue + 预填 `issues/new` URL；每条 body 明示"将公开发布"。标签：工具缺陷 `bug`、手动反馈 `feedback`。已删除 `dev.autoqaPush.endpoint` 与 `PI_AUTO_QA_PUSH_URL`/`_TOKEN`。守卫把该端点标为 `replaced` 且 `files: []`——任何落点回归即红。 |
 | **`build.stencil.so` 发布步骤退役（2026-10-14）** | v1.2.1 发布 run 的 `Publish to build.stencil.so` 步骤 HTTP 403（服务只接受 `can1357`/`stencil-hq` 仓库，本 fork 永久无权限；v1.2.0 同步骤亦红）。删除 `.github/workflows/ci.yml` 该步骤及其 `scripts/ci-build-upload.ts`，连同只为它下载 `zeta-binary-*` 的步骤；`INVENTORY` 把该端点标为 `replaced` 且 `files: []`，`check-ci-surface` 规则禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow —— 复活即红。二进制只进自己的 GitHub Release（更新器消费 `zeta-cli-*` 资产，见 `document/release.md` 损伤类别 11）。 |
 | **`scl.so/tern` 推广提示移除（2026-10-14）** | 欢迎页 tips 末行 `[NO-TERN] Psst, zeta has a natural habitat 🐦 [tern](https://scl.so/tern)`、`welcome.ts` 的 `[NO-TERN]` 可见性标签机制（`NO_TERN_TIP_MARKER` + `TIPS`/`TSP_TIPS` 分池；只有这一条用过，故机制一并移除）、i18n `tip33`（`en.ts`/`zh.ts`/`messages.ts`）全部删除。这是上游产品推广（"来用上游终端 Tern"）+ 上游短链，用户裁决**推翻** `document/upstream-sync.md` 里 v18.8.5 合并时「tern tip kept」的旧决议。守卫：`scripts/brand/brand-rules.ts` 加 `MUST_NOT_CONTAIN /scl\.so/`，`tips.txt` 的 `USER_SURFACE_FILES.forbid` 加 `scl\.so`；`check-shared-infra.ts` 把 `https://scl.so` 标 `replaced`/`files: []`。 |
@@ -113,7 +114,7 @@ bun scripts/brand/brand-check.ts
 | `OMP_*` / `PI_*` 环境变量（约 190 个） | 文档化的用户配置项；改名破坏现有配置，且要求生产者/消费者同时改，漏一处即静默失效。正确路径是读旧写新分阶段迁移 |
 | Stencil `client-id "omp"` | 改则登录失败（见 §2） |
 | `.omp-plugin` / `omp-plugins.lock.json` | OMP/Claude 插件兼容面，刻意保留 |
-| `my.omp.sh` / `omp.sh/install` | 共享基础设施（见 §1） |
+| `my.omp.sh` | 共享基础设施（见 §1）。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
 
 ## 5. 遥测（已硬关闭）
 
@@ -135,3 +136,10 @@ settings key、没有 env var、没有 CLI flag；设 `OTEL_EXPORTER_OTLP*` 端�
 （fixture 可以任意引用端点）。替换某项（如 `qa.omp.sh` → GitHub Issues）时，
 同一提交里：改代码 + 从 `INVENTORY` 移除该域名（或改状态为 `replaced`）+
 更新本台账的处置表。
+
+品牌侧配合（2026-10-14 收窄）：`scripts/brand/brand-rules.ts` 的
+`OMP_PATH_ALLOW` 与 `packages/coding-agent/test/i18n-brand-guard.test.ts` 的
+`OMP_INTEROP_ALLOWLIST` **不再整体豁免 `omp.sh`**。此前任何一行只要带上
+`omp.sh` 就会连同行内的 `.omp` 路径/产品名一起豁免，等于给上游主机名开了
+后门；收窄后主机名落点一律由本台账 + `check-shared-infra` 管（两处守卫的
+新增命中均为 0——现有落点都已登记）。

@@ -330,7 +330,7 @@ stdenv.mkDerivation {
   meta = {
     description = "Terminal-based coding agent with multi-model support";
     homepage = "https://zeta.sh";
-    changelog = "https://github.com/can1357/oh-my-pi/releases/tag/v${packageJson.version}";
+    changelog = "https://github.com/Linxira-OS/linxira-zeta/releases/tag/v${packageJson.version}";
     license = lib.licenses.mit;
     mainProgram = "zeta";
     platforms = [

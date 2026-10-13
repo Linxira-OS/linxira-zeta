@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zeta-rpc"
 version = "0.1.0"
-description = "Typed Python client for the omp coding-agent RPC protocol"
+description = "Typed Python client for the Zeta coding-agent (zetacode) RPC protocol"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Stencil Labs, Inc." }]
-keywords = ["omp", "rpc", "agent", "coding-agent", "jsonl", "stdio"]
+authors = [{ name = "Linxira-OS" }]
+keywords = ["zeta", "rpc", "agent", "coding-agent", "jsonl", "stdio"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -23,9 +23,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://omp.sh/"
-Repository = "https://github.com/can1357/oh-my-pi"
-Documentation = "https://github.com/can1357/oh-my-pi/blob/main/docs/rpc.md"
+Homepage = "https://linxira-os.github.io/zeta/"
+Repository = "https://github.com/Linxira-OS/linxira-zeta"
+Documentation = "https://github.com/Linxira-OS/linxira-zeta/blob/main/docs/rpc.md"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
