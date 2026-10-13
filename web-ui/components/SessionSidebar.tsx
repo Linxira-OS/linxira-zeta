@@ -81,6 +81,8 @@ interface Props {
 	selectedCwd?: string | null;
 	onCwdChange?: (cwd: string | null, projectRoot?: string | null) => void;
 	onOpenSkills?: () => void;
+	/** Open the shell's stats dock window (the "today's usage" micro-line target). */
+	onOpenStats?: () => void;
 	onOpenFile?: (
 		filePath: string,
 		fileName: string,
@@ -633,6 +635,7 @@ export function SessionSidebar({
 	selectedCwd: selectedCwdProp,
 	onCwdChange,
 	onOpenSkills,
+	onOpenStats,
 	onOpenFile,
 	explorerRefreshKey,
 	onExplorerRefresh,
@@ -1913,7 +1916,7 @@ export function SessionSidebar({
 			{/* USAGE — today's cost/token micro-line; hidden while stats is down */}
 			{usage && (
 				<button
-					onClick={() => window.open("/stats/", "_blank")}
+					onClick={onOpenStats}
 					style={{
 						flexShrink: 0,
 						display: "flex",

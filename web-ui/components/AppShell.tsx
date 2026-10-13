@@ -1052,6 +1052,7 @@ function AppShellContent() {
 				selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
 				onCwdChange={handleCwdChange}
 				onOpenSkills={() => setSkillsConfigOpen(true)}
+				onOpenStats={() => setDockTool("stats")}
 				onOpenFile={handleOpenFile}
 				explorerRefreshKey={explorerRefreshKey}
 				onExplorerRefresh={handleExplorerRefresh}
