@@ -25,7 +25,7 @@ const ACTION_BUTTON_STYLE = {
 	background: "none",
 	border: "none",
 	borderRadius: 5,
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 } as const;
 
@@ -53,7 +53,7 @@ export function ProjectsSection({ onOpenWorkspace, onNewSession }: ProjectsSecti
 					fontSize: 10.5,
 					fontWeight: 600,
 					letterSpacing: "0.08em",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 				}}
 			>
 				{t("sidebar.projectsSection")}

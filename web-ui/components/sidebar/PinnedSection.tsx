@@ -46,11 +46,11 @@ export function PinnedSection({
 	if (pinnedSessions.length === 0 && stalePinnedIds.length === 0) return null;
 
 	return (
-		<div style={{ borderBottom: "1px solid var(--border)", paddingBottom: 4 }}>
+		<div style={{ borderBottom: "1px solid var(--zeta-alias-border)", paddingBottom: 4 }}>
 			<div
 				style={{
 					padding: "8px 14px 2px",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					fontSize: 10,
 					fontWeight: 600,
 					letterSpacing: "0.08em",
@@ -91,7 +91,7 @@ export function PinnedSection({
 						gap: 6,
 						height: 34,
 						padding: "0 14px",
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 						fontSize: 11.5,
 						opacity: 0.65,
 					}}
@@ -105,7 +105,7 @@ export function PinnedSection({
 						style={{
 							background: "none",
 							border: "none",
-							color: "var(--text-dim)",
+							color: "var(--zeta-alias-text-dim)",
 							cursor: "pointer",
 							fontSize: 11,
 							flexShrink: 0,

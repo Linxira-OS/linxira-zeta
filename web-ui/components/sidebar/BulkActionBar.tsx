@@ -35,11 +35,11 @@ export function BulkActionBar({
 				alignItems: "center",
 				gap: 5,
 				padding: "6px 8px",
-				borderTop: "1px solid var(--border)",
-				background: "var(--bg-panel)",
+				borderTop: "1px solid var(--zeta-alias-border)",
+				background: "var(--zeta-alias-bg-panel)",
 			}}
 		>
-			<span style={{ fontSize: 11.5, color: "var(--text)", flex: 1, minWidth: 0, whiteSpace: "nowrap" }}>
+			<span style={{ fontSize: 11.5, color: "var(--zeta-alias-text)", flex: 1, minWidth: 0, whiteSpace: "nowrap" }}>
 				{t("sidebar.editMode")} · {count}
 			</span>
 			<button
@@ -48,9 +48,9 @@ export function BulkActionBar({
 				style={{
 					padding: "4px 9px",
 					background: "none",
-					border: "1px solid var(--border)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 6,
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					fontSize: 11,
 					cursor: "pointer",
 					flexShrink: 0,
@@ -63,9 +63,9 @@ export function BulkActionBar({
 				style={{
 					padding: "4px 9px",
 					background: "none",
-					border: "1px solid var(--border)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 6,
-					color: "var(--text)",
+					color: "var(--zeta-alias-text)",
 					fontSize: 11,
 					cursor: "pointer",
 					flexShrink: 0,
@@ -77,10 +77,10 @@ export function BulkActionBar({
 				onClick={onBulkDelete}
 				style={{
 					padding: "4px 9px",
-					background: "var(--status-error)",
+					background: "var(--zeta-alias-status-error)",
 					border: "none",
 					borderRadius: 6,
-					color: "var(--status-error-foreground)",
+					color: "var(--zeta-alias-status-error-foreground)",
 					fontSize: 11,
 					fontWeight: 600,
 					cursor: "pointer",
@@ -101,7 +101,7 @@ export function BulkActionBar({
 					padding: 0,
 					background: "none",
 					border: "none",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					cursor: "pointer",
 					flexShrink: 0,
 				}}

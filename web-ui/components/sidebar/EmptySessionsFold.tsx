@@ -34,7 +34,7 @@ export function EmptySessionsFold({ sessions, onDelete }: EmptySessionsFoldProps
 					padding: "4px 14px 6px 30px",
 					background: "none",
 					border: "none",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					cursor: "pointer",
 					fontSize: 11,
 					textAlign: "left",
@@ -78,7 +78,7 @@ export function EmptySessionsFold({ sessions, onDelete }: EmptySessionsFoldProps
 									textOverflow: "ellipsis",
 									whiteSpace: "nowrap",
 									fontSize: 11.5,
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 								}}
 							>
 								{sessionDisplayTitle(s, t)}
@@ -96,7 +96,7 @@ export function EmptySessionsFold({ sessions, onDelete }: EmptySessionsFoldProps
 									background: "none",
 									border: "none",
 									borderRadius: 4,
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									cursor: "pointer",
 									flexShrink: 0,
 								}}

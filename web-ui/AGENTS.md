@@ -255,11 +255,22 @@ semantic alias.
   any hex/rgb/hsl/oklch/named literal outside L1 and the allow-listed palettes
   (`TerminalView` xterm colours, `lib/ansi.ts`, `lib/rainbow.tsx`, the server
   preview document, the `theme-color` meta). Files still mid-migration carry a
-  ceiling in `scripts/style-literal-baseline.json`; tighten it with
+  ceiling in `scripts/style-literal-baseline.json` — currently **empty**, i.e.
+  every functional style/component file is literal-free; tighten a ceiling with
   `--update-baseline` after migrating one.
 - A literal that is a *matching key* rather than paint (e.g. a selector against
-  the highlighter's inline colours) is exempted per line with
-  `/* zeta-style-literal-allow: <reason> */`.
+  the highlighter's inline colours) is exempted per line with a
+  `zeta-style-literal-allow: <reason>` comment; one cohesive palette that
+  legitimately owns its literals (the xterm ANSI table in `TerminalView.tsx`)
+  uses a marked region instead: `zeta-style-literal-allow-start: <reason>` …
+  `zeta-style-literal-allow-end`. An unterminated or nested region fails the
+  guard, so an exemption can never silently widen, and a region is always
+  preferred over a file-level entry.
+- The guard's second rule: a colour token may not be the *whole* `box-shadow`
+  value (`box-shadow: var(--surface-shadow)` is invalid CSS — the grammar needs
+  2–4 lengths — so the declaration is dropped and nothing paints). Write the
+  geometry explicitly, e.g. `0 6px 20px var(--zeta-alias-surface-shadow)` or
+  `0 10px 32px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)`.
 - `--text-dim` is secondary **text** (`surface.mutedForeground`); the code
   gutter is `--syntax-line-number`. `--primary-foreground` /
   `--accent-foreground` are the on-fill foreground pair — use them instead of a

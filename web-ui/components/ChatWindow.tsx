@@ -104,10 +104,10 @@ const CHAT_COLUMN_PADDING = 16;
 const CHAT_INPUT_RIGHT_PADDING = CHAT_COLUMN_PADDING + CHAT_MINIMAP_WIDTH;
 
 const welcomeSelectStyle: React.CSSProperties = {
-	background: "var(--bg)",
-	border: "1px solid var(--border)",
+	background: "var(--zeta-alias-bg)",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: 9,
-	color: "var(--text)",
+	color: "var(--zeta-alias-text)",
 	fontSize: 12,
 	padding: "5px 8px",
 	maxWidth: 260,
@@ -214,7 +214,7 @@ function ModeBanner({
 }) {
 	// Goal/vibe banners: plan rides the theme accent; goal uses the theme
 	// warning token; vibe uses the theme info token — no hardcoded hexes.
-	const accent = mode === "plan" ? "var(--accent)" : mode === "goal" ? "var(--status-warning)" : "var(--status-info)";
+	const accent = mode === "plan" ? "var(--zeta-alias-accent)" : mode === "goal" ? "var(--zeta-alias-status-warning)" : "var(--zeta-alias-status-info)";
 	return (
 		<div
 			style={{
@@ -223,15 +223,15 @@ function ModeBanner({
 				gap: 10,
 				padding: "7px 12px",
 				marginBottom: 12,
-				background: "var(--bg-panel)",
+				background: "var(--zeta-alias-bg-panel)",
 				border: `1px solid ${accent}55`,
 				borderLeft: `3px solid ${accent}`,
 				borderRadius: 7,
 				fontSize: 12.5,
 			}}
 		>
-			<span style={{ color: "var(--text)", fontWeight: 600 }}>{title}</span>
-			{subtitle && <span style={{ color: "var(--text-muted)", overflowWrap: "anywhere" }}>{subtitle}</span>}
+			<span style={{ color: "var(--zeta-alias-text)", fontWeight: 600 }}>{title}</span>
+			{subtitle && <span style={{ color: "var(--zeta-alias-text-muted)", overflowWrap: "anywhere" }}>{subtitle}</span>}
 			<span style={{ flex: 1 }} />
 			{actions.map(action => (
 				<button
@@ -240,10 +240,10 @@ function ModeBanner({
 					onClick={action.onClick}
 					style={{
 						padding: "4px 10px",
-						border: "1px solid var(--border)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 5,
 						background: "none",
-						color: action.tone === "danger" ? "var(--status-error)" : "var(--text-muted)",
+						color: action.tone === "danger" ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-muted)",
 						cursor: "pointer",
 						fontSize: 11.5,
 						whiteSpace: "nowrap",
@@ -290,7 +290,7 @@ function ProcessDetailsGroup({
 					padding: "2px 0",
 					border: "none",
 					background: "transparent",
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					cursor: "pointer",
 					fontSize: 12,
 					textAlign: "left",
@@ -786,12 +786,12 @@ export function ChatWindow({
 			onDrop={handleDrop}
 		>
 			{isDragOver && !sessionBusy && (
-				<div className="pointer-events-none absolute inset-0 z-50 flex animate-[drop-zone-in_0.15s_ease_both] items-center justify-center bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] backdrop-blur-[1px]">
+				<div className="pointer-events-none absolute inset-0 z-50 flex animate-[drop-zone-in_0.15s_ease_both] items-center justify-center bg-[color-mix(in_srgb,var(--zeta-alias-accent)_6%,transparent)] backdrop-blur-[1px]">
 					<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
 						{[0, 0.8, 1.6].map(delay => (
 							<div
 								key={delay}
-								className="absolute h-[720px] w-[720px] rounded-full border-[1.5px] border-solid border-[color-mix(in_srgb,var(--accent)_50%,transparent)] animate-[drop-ripple_2.4s_ease-out_infinite_backwards]"
+								className="absolute h-[720px] w-[720px] rounded-full border-[1.5px] border-solid border-[color-mix(in_srgb,var(--zeta-alias-accent)_50%,transparent)] animate-[drop-ripple_2.4s_ease-out_infinite_backwards]"
 								style={{
 									transformOrigin: "center",
 									animationDelay: `${delay}s`,
@@ -805,7 +805,7 @@ export function ChatWindow({
 						viewBox="0 0 140 140"
 						fill="none"
 						xmlns="http://www.w3.org/2000/svg"
-						className="drop-shadow-[0_6px_18px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
+						className="drop-shadow-[0_6px_18px_color-mix(in_srgb,var(--zeta-alias-accent)_18%,transparent)]"
 					>
 						<rect
 							x="28"
@@ -813,14 +813,14 @@ export function ChatWindow({
 							width="84"
 							height="60"
 							rx="8"
-							fill="color-mix(in srgb, var(--accent) 8%, transparent)"
-							stroke="color-mix(in srgb, var(--accent) 50%, transparent)"
+							fill="color-mix(in srgb, var(--zeta-alias-accent) 8%, transparent)"
+							stroke="color-mix(in srgb, var(--zeta-alias-accent) 50%, transparent)"
 							strokeWidth="1.8"
 						/>
 						<path
 							d="M36 100 L54 72 L68 88 L80 74 L104 100Z"
-							fill="color-mix(in srgb, var(--accent) 16%, transparent)"
-							stroke="color-mix(in srgb, var(--accent) 40%, transparent)"
+							fill="color-mix(in srgb, var(--zeta-alias-accent) 16%, transparent)"
+							stroke="color-mix(in srgb, var(--zeta-alias-accent) 40%, transparent)"
 							strokeWidth="1.4"
 							strokeLinejoin="round"
 						/>
@@ -828,12 +828,12 @@ export function ChatWindow({
 							cx="96"
 							cy="58"
 							r="8"
-							fill="color-mix(in srgb, var(--accent) 22%, transparent)"
-							stroke="color-mix(in srgb, var(--accent) 55%, transparent)"
+							fill="color-mix(in srgb, var(--zeta-alias-accent) 22%, transparent)"
+							stroke="color-mix(in srgb, var(--zeta-alias-accent) 55%, transparent)"
 							strokeWidth="1.6"
 						/>
 						<g
-							stroke="color-mix(in srgb, var(--accent) 45%, transparent)"
+							stroke="color-mix(in srgb, var(--zeta-alias-accent) 45%, transparent)"
 							strokeWidth="1.4"
 							strokeLinecap="round"
 						>
@@ -885,7 +885,7 @@ export function ChatWindow({
 										fontSize: 28,
 										fontWeight: 700,
 										letterSpacing: 0,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										flexShrink: 0,
 										whiteSpace: "nowrap",
 									}}
@@ -895,7 +895,7 @@ export function ChatWindow({
 								<span
 									style={{
 										fontSize: 22,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										fontWeight: 700,
 										letterSpacing: 0,
 										flexShrink: 0,
@@ -914,9 +914,9 @@ export function ChatWindow({
 									flexShrink: 0,
 								}}
 							>
-								<span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+								<span style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)" }}>
 									Zeta{" "}
-									<span style={{ color: "var(--text)" }}>
+									<span style={{ color: "var(--zeta-alias-text)" }}>
 										v
 										{process.env.NEXT_PUBLIC_APP_VERSION ??
 											process.env.NEXT_PUBLIC_ZETA_VERSION ??
@@ -965,7 +965,7 @@ export function ChatWindow({
 							gap: 6,
 							flexShrink: 0,
 							padding: "6px 16px 0",
-							borderBottom: "1px solid var(--border)",
+							borderBottom: "1px solid var(--zeta-alias-border)",
 						}}
 					>
 						{(["chat", "trajectory"] as const).map(mode => (
@@ -975,9 +975,9 @@ export function ChatWindow({
 								style={{
 									padding: "4px 12px",
 									border: "none",
-									borderBottom: viewMode === mode ? "2px solid var(--accent)" : "2px solid transparent",
+									borderBottom: viewMode === mode ? "2px solid var(--zeta-alias-accent)" : "2px solid transparent",
 									background: "none",
-									color: viewMode === mode ? "var(--text)" : "var(--text-muted)",
+									color: viewMode === mode ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 									cursor: "pointer",
 									fontSize: 12,
 								}}
@@ -1359,7 +1359,7 @@ export function ChatWindow({
 																	justifyContent: "center",
 																	gap: 8,
 																	padding: "10px 0 4px",
-																	background: "linear-gradient(to bottom, var(--bg) 40%, transparent)",
+																	background: "linear-gradient(to bottom, var(--zeta-alias-bg) 40%, transparent)",
 																}}
 															>
 																<button
@@ -1380,20 +1380,20 @@ export function ChatWindow({
 																		gap: 6,
 																		height: 26,
 																		padding: "0 12px",
-																		background: "var(--bg-panel)",
-																		border: "1px solid var(--border)",
+																		background: "var(--zeta-alias-bg-panel)",
+																		border: "1px solid var(--zeta-alias-border)",
 																		borderRadius: 13,
-																		color: "var(--text-muted)",
+																		color: "var(--zeta-alias-text-muted)",
 																		cursor: "pointer",
 																		fontSize: 11,
 																	}}
 																	onMouseEnter={e => {
-																		e.currentTarget.style.color = "var(--text)";
-																		e.currentTarget.style.borderColor = "var(--accent)";
+																		e.currentTarget.style.color = "var(--zeta-alias-text)";
+																		e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
 																	}}
 																	onMouseLeave={e => {
-																		e.currentTarget.style.color = "var(--text-muted)";
-																		e.currentTarget.style.borderColor = "var(--border)";
+																		e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
+																		e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
 																	}}
 																>
 																	<svg
@@ -1498,11 +1498,11 @@ export function ChatWindow({
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "center",
-											background: "var(--bg-panel)",
-											border: "1px solid var(--border)",
+											background: "var(--zeta-alias-bg-panel)",
+											border: "1px solid var(--zeta-alias-border)",
 											borderRadius: "50%",
-											color: "var(--text)",
-											boxShadow: "var(--surface-shadow)",
+											color: "var(--zeta-alias-text)",
+											boxShadow: "0 4px 12px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 											cursor: "pointer",
 											zIndex: 50,
 										}}
@@ -1582,17 +1582,17 @@ function ExtensionWidgets({ widgets }: { widgets: Array<{ key: string; lines: st
 				<div
 					key={widget.key}
 					style={{
-						border: "1px solid var(--border)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 7,
-						background: "var(--bg-panel)",
+						background: "var(--zeta-alias-bg-panel)",
 						overflow: "hidden",
 					}}
 				>
 					<div
 						style={{
 							padding: "5px 9px",
-							borderBottom: "1px solid var(--border)",
-							color: "var(--text-dim)",
+							borderBottom: "1px solid var(--zeta-alias-border)",
+							color: "var(--zeta-alias-text-dim)",
 							fontSize: 11,
 							fontFamily: "var(--font-mono)",
 						}}
@@ -1603,7 +1603,7 @@ function ExtensionWidgets({ widgets }: { widgets: Array<{ key: string; lines: st
 						style={{
 							margin: 0,
 							padding: "8px 9px",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							fontSize: 12,
 							lineHeight: 1.5,
 							whiteSpace: "pre-wrap",
@@ -1641,12 +1641,12 @@ function NoticeShelf({
 			{notices.map((notice, index) => {
 				const color =
 					notice.type === "error"
-						? "var(--status-error-foreground)"
+						? "var(--zeta-alias-status-error-foreground)"
 						: notice.type === "warning"
-							? "var(--status-warning-foreground)"
+							? "var(--zeta-alias-status-warning-foreground)"
 							: notice.type === "success"
-								? "var(--status-success-foreground)"
-								: "var(--accent)";
+								? "var(--zeta-alias-status-success-foreground)"
+								: "var(--zeta-alias-accent)";
 				return (
 					<div
 						key={notice.id}
@@ -1661,14 +1661,14 @@ function NoticeShelf({
 							marginBottom: index === notices.length - 1 ? 0 : 6,
 							overflow: "hidden",
 							borderRadius: 14,
-							border: "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
-							background: "var(--bg)",
-							color: "var(--text-muted)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-border) 70%, transparent)",
+							background: "var(--zeta-alias-bg)",
+							color: "var(--zeta-alias-text-muted)",
 							width: "fit-content",
 							maxWidth: "min(100%, 620px)",
 							boxShadow: floating
-								? "0 1px 2px var(--surface-shadow), 0 10px 28px -14px var(--surface-shadow)"
-								: "0 1px 2px var(--surface-shadow), 0 8px 24px -12px var(--surface-shadow)",
+								? "0 1px 2px var(--zeta-alias-surface-shadow), 0 10px 28px -14px var(--zeta-alias-surface-shadow)"
+								: "0 1px 2px var(--zeta-alias-surface-shadow), 0 8px 24px -12px var(--zeta-alias-surface-shadow)",
 							fontSize: 18,
 							lineHeight: 1.45,
 							transformOrigin: "top center",
@@ -1743,7 +1743,7 @@ function ExtensionDialog({
 				alignItems: "center",
 				justifyContent: "center",
 				padding: 20,
-				background: "var(--surface-shadow)",
+				background: "var(--zeta-alias-surface-shadow)",
 			}}
 		>
 			<div
@@ -1751,24 +1751,24 @@ function ExtensionDialog({
 				aria-modal="true"
 				style={{
 					width: "min(560px, 100%)",
-					border: "1px solid var(--border)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 8,
-					background: "var(--bg)",
-					boxShadow: "0 20px 60px var(--surface-shadow)",
+					background: "var(--zeta-alias-bg)",
+					boxShadow: "0 20px 60px var(--zeta-alias-surface-shadow)",
 					overflow: "hidden",
 				}}
 			>
 				<div
 					style={{
 						padding: "12px 14px",
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
-					<div style={{ color: "var(--text)", fontSize: 14, fontWeight: 650 }}>{request.title}</div>
+					<div style={{ color: "var(--zeta-alias-text)", fontSize: 14, fontWeight: 650 }}>{request.title}</div>
 					<div
 						style={{
 							marginTop: 3,
-							color: "var(--text-dim)",
+							color: "var(--zeta-alias-text-dim)",
 							fontSize: 11,
 							fontFamily: "var(--font-mono)",
 						}}
@@ -1781,7 +1781,7 @@ function ExtensionDialog({
 					{request.method === "confirm" && (
 						<div
 							style={{
-								color: "var(--text-muted)",
+								color: "var(--zeta-alias-text-muted)",
 								fontSize: 13,
 								lineHeight: 1.6,
 								whiteSpace: "pre-wrap",
@@ -1800,9 +1800,9 @@ function ExtensionDialog({
 										width: "100%",
 										padding: "9px 10px",
 										borderRadius: 7,
-										border: "1px solid var(--border)",
-										background: "var(--bg-panel)",
-										color: "var(--text)",
+										border: "1px solid var(--zeta-alias-border)",
+										background: "var(--zeta-alias-bg-panel)",
+										color: "var(--zeta-alias-text)",
 										cursor: "pointer",
 										textAlign: "left",
 										fontSize: 13,
@@ -1827,9 +1827,9 @@ function ExtensionDialog({
 								width: "100%",
 								padding: "9px 10px",
 								borderRadius: 7,
-								border: "1px solid var(--border)",
-								background: "var(--bg-panel)",
-								color: "var(--text)",
+								border: "1px solid var(--zeta-alias-border)",
+								background: "var(--zeta-alias-bg-panel)",
+								color: "var(--zeta-alias-text)",
 								outline: "none",
 								fontSize: 13,
 							}}
@@ -1849,9 +1849,9 @@ function ExtensionDialog({
 								minHeight: 220,
 								padding: 10,
 								borderRadius: 7,
-								border: "1px solid var(--border)",
-								background: "var(--bg-panel)",
-								color: "var(--text)",
+								border: "1px solid var(--zeta-alias-border)",
+								background: "var(--zeta-alias-bg-panel)",
+								color: "var(--zeta-alias-text)",
 								outline: "none",
 								resize: "vertical",
 								fontSize: 13,
@@ -1868,8 +1868,8 @@ function ExtensionDialog({
 						justifyContent: "flex-end",
 						gap: 8,
 						padding: "10px 14px",
-						borderTop: "1px solid var(--border)",
-						background: "var(--bg-panel)",
+						borderTop: "1px solid var(--zeta-alias-border)",
+						background: "var(--zeta-alias-bg-panel)",
 					}}
 				>
 					<button
@@ -1877,9 +1877,9 @@ function ExtensionDialog({
 						style={{
 							padding: "6px 10px",
 							borderRadius: 6,
-							border: "1px solid var(--border)",
-							background: "var(--bg)",
-							color: "var(--text-muted)",
+							border: "1px solid var(--zeta-alias-border)",
+							background: "var(--zeta-alias-bg)",
+							color: "var(--zeta-alias-text-muted)",
 							cursor: "pointer",
 						}}
 					>
@@ -1891,9 +1891,9 @@ function ExtensionDialog({
 							style={{
 								padding: "6px 10px",
 								borderRadius: 6,
-								border: "1px solid var(--accent)",
-								background: "var(--accent)",
-								color: "var(--primary-foreground)",
+								border: "1px solid var(--zeta-alias-accent)",
+								background: "var(--zeta-alias-accent)",
+								color: "var(--zeta-alias-primary-foreground)",
 								cursor: "pointer",
 							}}
 						>
@@ -1905,9 +1905,9 @@ function ExtensionDialog({
 							style={{
 								padding: "6px 10px",
 								borderRadius: 6,
-								border: "1px solid var(--accent)",
-								background: "var(--accent)",
-								color: "var(--primary-foreground)",
+								border: "1px solid var(--zeta-alias-accent)",
+								background: "var(--zeta-alias-accent)",
+								color: "var(--zeta-alias-primary-foreground)",
 								cursor: "pointer",
 							}}
 						>
@@ -1960,7 +1960,7 @@ function ExtensionCustomPanel({
 				alignItems: "center",
 				justifyContent: "center",
 				padding: 20,
-				background: "var(--surface-shadow)",
+				background: "var(--zeta-alias-surface-shadow)",
 			}}
 		>
 			<div
@@ -1973,10 +1973,10 @@ function ExtensionCustomPanel({
 					position: "relative",
 					width: "min(920px, 100%)",
 					maxHeight: "min(760px, calc(100vh - 40px))",
-					border: "1px solid var(--border)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 8,
-					background: "var(--bg)",
-					boxShadow: "0 20px 60px var(--surface-shadow)",
+					background: "var(--zeta-alias-bg)",
+					boxShadow: "0 20px 60px var(--zeta-alias-surface-shadow)",
 					overflow: "hidden",
 					outline: "none",
 				}}
@@ -2036,18 +2036,18 @@ function ExtensionCustomPanel({
 						justifyContent: "space-between",
 						gap: 12,
 						padding: "10px 12px",
-						borderBottom: "1px solid var(--border)",
+						borderBottom: "1px solid var(--zeta-alias-border)",
 					}}
 				>
-					<div style={{ color: "var(--text)", fontSize: 13, fontWeight: 650 }}>{t("extension-panel")}</div>
+					<div style={{ color: "var(--zeta-alias-text)", fontSize: 13, fontWeight: 650 }}>{t("extension-panel")}</div>
 					<button
 						onClick={() => onInput(request, "\x03")}
 						style={{
 							padding: "5px 9px",
 							borderRadius: 6,
-							border: "1px solid var(--border)",
-							background: "var(--bg-panel)",
-							color: "var(--text-muted)",
+							border: "1px solid var(--zeta-alias-border)",
+							background: "var(--zeta-alias-bg-panel)",
+							color: "var(--zeta-alias-text-muted)",
 							cursor: "pointer",
 							fontSize: 12,
 						}}
@@ -2061,8 +2061,8 @@ function ExtensionCustomPanel({
 						padding: 14,
 						maxHeight: "calc(min(760px, 100vh - 40px) - 48px)",
 						overflow: "auto",
-						background: "var(--bg-panel)",
-						color: "var(--text)",
+						background: "var(--zeta-alias-bg-panel)",
+						color: "var(--zeta-alias-text)",
 						fontFamily: "var(--font-mono)",
 						fontSize: 13,
 						lineHeight: 1.45,

@@ -73,7 +73,7 @@ function TreeItem({
 							top: 0,
 							bottom: 0,
 							width: 1,
-							background: "var(--border)",
+							background: "var(--zeta-alias-border)",
 							pointerEvents: "none",
 						}}
 					/>
@@ -134,7 +134,7 @@ export function SessionGroupSection({ nodes, visibleIds, ...rest }: SessionGroup
 						padding: "5px 14px",
 						background: "none",
 						border: "none",
-						color: "var(--accent)",
+						color: "var(--zeta-alias-accent)",
 						cursor: "pointer",
 						fontSize: 11,
 						textAlign: "left",

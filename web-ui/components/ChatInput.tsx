@@ -387,7 +387,7 @@ function QueuedMessageRow({ kind, text }: { kind: "steer" | "follow-up"; text: s
 				gap: 8,
 				padding: "3px 10px",
 				fontSize: 12,
-				color: "var(--text-muted)",
+				color: "var(--zeta-alias-text-muted)",
 				minWidth: 0,
 			}}
 		>
@@ -398,8 +398,8 @@ function QueuedMessageRow({ kind, text }: { kind: "steer" | "follow-up"; text: s
 					fontFamily: "var(--font-mono)",
 					padding: "1px 7px",
 					borderRadius: 999,
-					border: `1px solid ${kind === "steer" ? "color-mix(in srgb, var(--accent) 45%, transparent)" : "var(--border)"}`,
-					color: kind === "steer" ? "var(--accent)" : "var(--text-dim)",
+					border: `1px solid ${kind === "steer" ? "color-mix(in srgb, var(--zeta-alias-accent) 45%, transparent)" : "var(--zeta-alias-border)"}`,
+					color: kind === "steer" ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
 				}}
 			>
 				{kind}
@@ -429,10 +429,10 @@ function Kbd({ children }: { children: React.ReactNode }) {
 				minWidth: 18,
 				height: 16,
 				padding: "0 4px",
-				background: "var(--bg-panel)",
-				border: "1px solid var(--border)",
+				background: "var(--zeta-alias-bg-panel)",
+				border: "1px solid var(--zeta-alias-border)",
 				borderRadius: 4,
-				color: "var(--text-muted)",
+				color: "var(--zeta-alias-text-muted)",
 				fontSize: 10,
 				fontFamily: "var(--font-mono)",
 				lineHeight: 1,
@@ -444,7 +444,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 function ModelNoticeBanner({ tone, title, body }: { tone: "error" | "warning"; title: string; body: string }) {
-	const color = tone === "error" ? "239,68,68" : "234,179,8";
+	const color = tone === "error" ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-status-warning)";
 	return (
 		<div
 			role="alert"
@@ -456,10 +456,10 @@ function ModelNoticeBanner({ tone, title, body }: { tone: "error" | "warning"; t
 				marginBottom: 8,
 				padding: "7px 10px",
 				overflowY: "auto",
-				border: `1px solid rgba(${color},0.3)`,
+				border: `1px solid color-mix(in srgb, ${color} 30%%, transparent)`,
 				borderRadius: 6,
-				background: `rgba(${color},0.07)`,
-				color: `rgb(${color})`,
+				background: `color-mix(in srgb, ${color} 7%%, transparent)`,
+				color,
 				fontSize: 11,
 				lineHeight: 1.45,
 			}}
@@ -1567,9 +1567,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 					<div
 						style={{
 							marginBottom: 8,
-							border: "1px solid var(--border)",
+							border: "1px solid var(--zeta-alias-border)",
 							borderRadius: 6,
-							background: "var(--bg-panel)",
+							background: "var(--zeta-alias-bg-panel)",
 							padding: "5px 0",
 						}}
 					>
@@ -1586,7 +1586,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								style={{
 									fontSize: 10,
 									fontFamily: "var(--font-mono)",
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									textTransform: "uppercase",
 									letterSpacing: 0.4,
 								}}
@@ -1605,22 +1605,22 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										gap: 6,
 										padding: "4px 12px",
 										fontSize: 12,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										background: "transparent",
-										border: "1px solid var(--border)",
+										border: "1px solid var(--zeta-alias-border)",
 										borderRadius: 7,
 										cursor: "pointer",
 										transition: "background 0.12s, border-color 0.12s",
 										whiteSpace: "nowrap",
 									}}
 									onMouseEnter={e => {
-										e.currentTarget.style.background = "var(--bg-hover)";
+										e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 										e.currentTarget.style.borderColor =
-											"color-mix(in srgb, var(--accent) 45%, var(--border))";
+											"color-mix(in srgb, var(--zeta-alias-accent) 45%, var(--zeta-alias-border))";
 									}}
 									onMouseLeave={e => {
 										e.currentTarget.style.background = "transparent";
-										e.currentTarget.style.borderColor = "var(--border)";
+										e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
 									}}
 								>
 									<svg
@@ -1654,11 +1654,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "5px 10px",
-							background: "rgba(234,179,8,0.08)",
-							border: "1px solid rgba(234,179,8,0.25)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-warning) 8%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-warning) 25%, transparent)",
 							borderRadius: 6,
 							fontSize: 12,
-							color: "rgba(180,130,0,0.9)",
+							color: "var(--zeta-alias-status-warning)",
 							display: "flex",
 							alignItems: "center",
 							gap: 6,
@@ -1689,11 +1689,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "5px 10px",
-							background: "rgba(16,185,129,0.08)",
-							border: "1px solid rgba(16,185,129,0.24)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-success) 8%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-success) 24%, transparent)",
 							borderRadius: 6,
 							fontSize: 12,
-							color: "rgba(5,150,105,0.95)",
+							color: "var(--zeta-alias-status-success)",
 							display: "flex",
 							alignItems: "center",
 							gap: 6,
@@ -1721,8 +1721,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "7px 10px",
-							background: "rgba(239,68,68,0.07)",
-							border: "1px solid rgba(239,68,68,0.3)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-error) 7%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
 							borderRadius: 6,
 							color: "var(--zeta-alias-status-error)",
 							fontFamily: "var(--font-mono)",
@@ -1756,7 +1756,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										height: 56,
 										objectFit: "cover",
 										borderRadius: 6,
-										border: "1px solid var(--border)",
+										border: "1px solid var(--zeta-alias-border)",
 										display: "block",
 									}}
 								/>
@@ -1769,14 +1769,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										width: 16,
 										height: 16,
 										borderRadius: "50%",
-										background: "var(--bg-panel)",
-										border: "1px solid var(--border)",
+										background: "var(--zeta-alias-bg-panel)",
+										border: "1px solid var(--zeta-alias-border)",
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
 										cursor: "pointer",
 										padding: 0,
-										color: "var(--text-muted)",
+										color: "var(--zeta-alias-text-muted)",
 									}}
 								>
 									<svg
@@ -1808,10 +1808,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								right: 0,
 								bottom: "calc(100% + 8px)",
 								zIndex: 120,
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 8,
-								boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+								boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 								overflow: "hidden",
 								maxHeight: "min(44vh, 360px)",
 							}}
@@ -1821,10 +1821,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								style={{
 									height: 30,
 									padding: "0 10px",
-									borderBottom: "1px solid var(--border)",
+									borderBottom: "1px solid var(--zeta-alias-border)",
 									display: "flex",
 									alignItems: "center",
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 								}}
 							>
 								<svg
@@ -1872,8 +1872,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												padding: "7px 8px",
 												border: "none",
 												borderRadius: 6,
-												background: active ? "var(--bg-selected)" : "none",
-												color: "var(--text)",
+												background: active ? "var(--zeta-alias-bg-selected)" : "none",
+												color: "var(--zeta-alias-text)",
 												cursor: "pointer",
 												textAlign: "left",
 												fontSize: 12.5,
@@ -1885,7 +1885,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													flexShrink: 0,
 													fontFamily: "var(--font-mono)",
 													fontSize: 11,
-													color: "var(--text-dim)",
+													color: "var(--zeta-alias-text-dim)",
 													paddingTop: 1,
 												}}
 											>
@@ -1917,10 +1917,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								right: 0,
 								bottom: "calc(100% + 8px)",
 								zIndex: 120,
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 8,
-								boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+								boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 								overflow: "hidden",
 								maxHeight: "min(56vh, 460px)",
 							}}
@@ -1928,13 +1928,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							<div
 								style={{
 									padding: "8px 10px",
-									borderBottom: "1px solid var(--border)",
+									borderBottom: "1px solid var(--zeta-alias-border)",
 									display: "flex",
 									alignItems: "center",
 									justifyContent: "space-between",
 									gap: 8,
 									fontSize: 11,
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 								}}
 							>
 								<span>
@@ -1946,11 +1946,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								</span>
 								<span style={{ display: "flex", alignItems: "center", gap: 6 }}>
 									<Kbd>↑↓</Kbd>
-									<span style={{ color: "var(--text-dim)" }}>{t("chat.hint-select")}</span>
+									<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.hint-select")}</span>
 									<Kbd>Tab</Kbd>
-									<span style={{ color: "var(--text-dim)" }}>{t("chat.hint-complete")}</span>
+									<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.hint-complete")}</span>
 									<Kbd>Esc</Kbd>
-									<span style={{ color: "var(--text-dim)" }}>{t("chat.close")}</span>
+									<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.close")}</span>
 								</span>
 							</div>
 							<div
@@ -1965,7 +1965,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										style={{
 											padding: "2px 2px 4px",
 											fontSize: 12,
-											color: "var(--text-dim)",
+											color: "var(--zeta-alias-text-dim)",
 										}}
 									>
 										{t("chat.no-commands")}
@@ -1983,8 +1983,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													justifyContent: "space-between",
 													gap: 8,
 													padding: "4px 0 6px",
-													background: "var(--bg)",
-													color: "var(--text-dim)",
+													background: "var(--zeta-alias-bg)",
+													color: "var(--zeta-alias-text-dim)",
 													fontSize: 10,
 													fontWeight: 600,
 													textTransform: "uppercase",
@@ -2031,14 +2031,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																gap: 4,
 																justifyContent: "center",
 																padding: "9px 10px",
-																border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+																border: `1px solid ${active ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)"}`,
 																borderRadius: 7,
-																background: active ? "var(--bg-selected)" : "var(--bg-panel)",
-																color: "var(--text)",
+																background: active ? "var(--zeta-alias-bg-selected)" : "var(--zeta-alias-bg-panel)",
+																color: "var(--zeta-alias-text)",
 																cursor: "pointer",
 																textAlign: "left",
 																boxShadow: active
-																	? "0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent)"
+																	? "0 0 0 1px color-mix(in srgb, var(--zeta-alias-accent) 28%, transparent)"
 																	: "none",
 															}}
 														>
@@ -2048,7 +2048,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																	fontFamily: "var(--font-mono)",
 																	overflowWrap: "anywhere",
 																	wordBreak: "break-word",
-																	color: dormant ? "var(--text-dim)" : undefined,
+																	color: dormant ? "var(--zeta-alias-text-dim)" : undefined,
 																}}
 															>
 																/{command.name}
@@ -2057,10 +2057,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																		style={{
 																			marginLeft: 6,
 																			padding: "0 4px",
-																			border: "1px solid var(--border)",
+																			border: "1px solid var(--zeta-alias-border)",
 																			borderRadius: 3,
 																			fontSize: 9,
-																			color: "var(--text-dim)",
+																			color: "var(--zeta-alias-text-dim)",
 																			whiteSpace: "nowrap",
 																		}}
 																	>
@@ -2077,7 +2077,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																		overflow: "hidden",
 																		fontSize: 11,
 																		lineHeight: 1.35,
-																		color: "var(--text-dim)",
+																		color: "var(--zeta-alias-text-dim)",
 																	}}
 																>
 																	{getSlashDescription(command, t)}
@@ -2115,10 +2115,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										right: 0,
 										bottom: "calc(100% + 8px)",
 										zIndex: 120,
-										background: "var(--bg)",
-										border: "1px solid var(--border)",
+										background: "var(--zeta-alias-bg)",
+										border: "1px solid var(--zeta-alias-border)",
 										borderRadius: 8,
-										boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+										boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 										overflow: "hidden",
 										maxHeight: "min(48vh, 400px)",
 									}}
@@ -2126,13 +2126,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									<div
 										style={{
 											padding: "8px 10px",
-											borderBottom: "1px solid var(--border)",
+											borderBottom: "1px solid var(--zeta-alias-border)",
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "space-between",
 											gap: 8,
 											fontSize: 11,
-											color: "var(--text-dim)",
+											color: "var(--zeta-alias-text-dim)",
 										}}
 									>
 										<span>
@@ -2145,11 +2145,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										</span>
 										<span style={{ display: "flex", alignItems: "center", gap: 6 }}>
 											<Kbd>↑↓</Kbd>
-											<span style={{ color: "var(--text-dim)" }}>{t("chat.hint-select")}</span>
+											<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.hint-select")}</span>
 											<Kbd>Tab</Kbd>
-											<span style={{ color: "var(--text-dim)" }}>{t("chat.hint-complete")}</span>
+											<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.hint-complete")}</span>
 											<Kbd>Esc</Kbd>
-											<span style={{ color: "var(--text-dim)" }}>{t("chat.close")}</span>
+											<span style={{ color: "var(--zeta-alias-text-dim)" }}>{t("chat.close")}</span>
 										</span>
 									</div>
 									<div
@@ -2164,7 +2164,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												style={{
 													padding: "6px 8px",
 													fontSize: 12,
-													color: "var(--text-dim)",
+													color: "var(--zeta-alias-text-dim)",
 												}}
 											>
 												{needsServerSearch && !serverResultInUse
@@ -2196,8 +2196,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															padding: "6px 8px",
 															border: "none",
 															borderRadius: 6,
-															background: active ? "var(--bg-selected)" : "none",
-															color: "var(--text)",
+															background: active ? "var(--zeta-alias-bg-selected)" : "none",
+															color: "var(--zeta-alias-text)",
 															cursor: "pointer",
 															textAlign: "left",
 															fontSize: 12.5,
@@ -2222,10 +2222,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															}}
 														>
 															{dirPrefix && (
-																<span style={{ color: "var(--text-dim)" }}>{dirPrefix}</span>
+																<span style={{ color: "var(--zeta-alias-text-dim)" }}>{dirPrefix}</span>
 															)}
 															{name}
-															{entry.isDir && <span style={{ color: "var(--text-dim)" }}>/</span>}
+															{entry.isDir && <span style={{ color: "var(--zeta-alias-text-dim)" }}>/</span>}
 														</span>
 													</button>
 												);
@@ -2243,19 +2243,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								display: "flex",
 								gap: 8,
 								alignItems: "center",
-								background: "var(--bg)",
+								background: "var(--zeta-alias-bg)",
 								border: degraded
-									? "1.5px dashed var(--border)"
+									? "1.5px dashed var(--zeta-alias-border)"
 									: `1px solid ${
 											bashMode
-												? "var(--tool-bg)"
+												? "var(--zeta-alias-tool-bg)"
 												: isStreaming && (onSteer || onFollowUp)
-													? "rgba(234,179,8,0.4)"
-													: "color-mix(in srgb, var(--border) 70%, transparent)"
+													? "color-mix(in srgb, var(--zeta-alias-status-warning) 40%, transparent)"
+													: "color-mix(in srgb, var(--zeta-alias-border) 70%, transparent)"
 										}`,
 								borderRadius: 14,
 								padding: isHero ? "14px 14px 10px 16px" : "10px 10px 10px 14px",
-								boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)",
+								boxShadow: "0 1px 2px color-mix(in srgb, var(--zeta-alias-shadow-ink) 4%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--zeta-alias-shadow-ink) 10%, transparent)",
 								transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
 							} as React.CSSProperties
 						}
@@ -2302,7 +2302,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								border: "none",
 								outline: "none",
 								resize: "none",
-								color: "var(--text)",
+								color: "var(--zeta-alias-text)",
 								fontSize: 14,
 								lineHeight: 1.6,
 								fontFamily: "inherit",
@@ -2337,10 +2337,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											gap: 5,
 											padding: "7px 12px",
-											background: canQueueStreamingMessage ? "rgba(234,179,8,0.12)" : "none",
-											border: "1px solid rgba(234,179,8,0.35)",
+											background: canQueueStreamingMessage ? "color-mix(in srgb, var(--zeta-alias-status-warning) 12%, transparent)" : "none",
+											border: "1px solid color-mix(in srgb, var(--zeta-alias-status-warning) 35%, transparent)",
 											borderRadius: 8,
-											color: canQueueStreamingMessage ? "rgba(180,130,0,1)" : "var(--text-dim)",
+											color: canQueueStreamingMessage ? "var(--zeta-alias-status-warning)" : "var(--zeta-alias-text-dim)",
 											cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
 											fontSize: 13,
 											fontWeight: 600,
@@ -2378,10 +2378,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											gap: 5,
 											padding: "7px 12px",
-											background: canQueueStreamingMessage ? "rgba(129,140,248,0.12)" : "none",
-											border: "1px solid rgba(129,140,248,0.35)",
+											background: canQueueStreamingMessage ? "color-mix(in srgb, var(--zeta-alias-status-info) 12%, transparent)" : "none",
+											border: "1px solid color-mix(in srgb, var(--zeta-alias-status-info) 35%, transparent)",
 											borderRadius: 8,
-											color: canQueueStreamingMessage ? "rgba(99,102,241,1)" : "var(--text-dim)",
+											color: canQueueStreamingMessage ? "var(--zeta-alias-status-info)" : "var(--zeta-alias-text-dim)",
 											cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
 											fontSize: 13,
 											fontWeight: 600,
@@ -2419,15 +2419,15 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									alignItems: "center",
 									gap: 6,
 									padding: "7px 14px",
-									background: value.trim() || attachedImages.length ? "var(--accent)" : "var(--bg-panel)",
+									background: value.trim() || attachedImages.length ? "var(--zeta-alias-accent)" : "var(--zeta-alias-bg-panel)",
 									border: "none",
 									borderRadius: 8,
-									color: value.trim() || attachedImages.length ? "var(--zeta-alias-accent-foreground)" : "var(--text-dim)",
+									color: value.trim() || attachedImages.length ? "var(--zeta-alias-accent-foreground)" : "var(--zeta-alias-text-dim)",
 									cursor: value.trim() || attachedImages.length ? "pointer" : "not-allowed",
 									fontSize: 13,
 									fontWeight: 600,
 									letterSpacing: "-0.01em",
-									boxShadow: value.trim() || attachedImages.length ? "0 1px 3px rgba(37,99,235,0.25)" : "none",
+									boxShadow: value.trim() || attachedImages.length ? "0 1px 3px color-mix(in srgb, var(--zeta-alias-accent) 25%, transparent)" : "none",
 									transition: "background 0.15s, box-shadow 0.15s",
 								}}
 							>
@@ -2455,7 +2455,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 					<div
 						className="text-xs px-2 py-1"
 						style={{
-							color: bashExcluded ? "var(--text-muted)" : "var(--accent)",
+							color: bashExcluded ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-accent)",
 							marginTop: 4,
 						}}
 					>
@@ -2498,19 +2498,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								background: "none",
 								border: "none",
 								borderRadius: 9,
-								color: attachedImages.length ? "var(--accent)" : "var(--text-muted)",
+								color: attachedImages.length ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)",
 								cursor: isStreaming ? "not-allowed" : "pointer",
 								opacity: isStreaming ? 0.5 : 1,
 								transition: "background 0.12s, color 0.12s",
 							}}
 							onMouseEnter={e => {
 								if (isStreaming) return;
-								e.currentTarget.style.background = "var(--bg-hover)";
-								e.currentTarget.style.color = attachedImages.length ? "var(--accent)" : "var(--text)";
+								e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+								e.currentTarget.style.color = attachedImages.length ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text)";
 							}}
 							onMouseLeave={e => {
 								e.currentTarget.style.background = "none";
-								e.currentTarget.style.color = attachedImages.length ? "var(--accent)" : "var(--text-muted)";
+								e.currentTarget.style.color = attachedImages.length ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)";
 							}}
 						>
 							<svg
@@ -2569,10 +2569,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										width: isMobile ? "100%" : undefined,
 										maxWidth: isMobile ? "100%" : 220,
 										overflow: "hidden",
-										background: modelDropdownOpen ? "var(--bg-hover)" : "none",
+										background: modelDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none",
 										border: "none",
 										borderRadius: 9,
-										color: "var(--text-muted)",
+										color: "var(--zeta-alias-text-muted)",
 										cursor: isStreaming ? "not-allowed" : "pointer",
 										fontSize: 12,
 										opacity: isStreaming ? 0.5 : 1,
@@ -2580,12 +2580,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									}}
 									onMouseEnter={e => {
 										if (isStreaming) return;
-										e.currentTarget.style.background = "var(--bg-hover)";
-										e.currentTarget.style.color = "var(--text)";
+										e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+										e.currentTarget.style.color = "var(--zeta-alias-text)";
 									}}
 									onMouseLeave={e => {
-										e.currentTarget.style.background = modelDropdownOpen ? "var(--bg-hover)" : "none";
-										e.currentTarget.style.color = "var(--text-muted)";
+										e.currentTarget.style.background = modelDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none";
+										e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 									}}
 									title={
 										isStreaming
@@ -2637,10 +2637,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											right: 0,
 											top: "calc(100% + 4px)",
 											padding: "2px 8px",
-											background: "var(--bg-panel)",
-											border: "1px solid var(--border)",
+											background: "var(--zeta-alias-bg-panel)",
+											border: "1px solid var(--zeta-alias-border)",
 											borderRadius: 5,
-											color: "var(--text-muted)",
+											color: "var(--zeta-alias-text-muted)",
 											fontSize: 11,
 											whiteSpace: "nowrap",
 											pointerEvents: "none",
@@ -2673,10 +2673,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													bottom,
 													...panelPos,
 													zIndex: 500,
-													background: "var(--bg)",
-													border: "1px solid var(--border)",
+													background: "var(--zeta-alias-bg)",
+													border: "1px solid var(--zeta-alias-border)",
 													borderRadius: 8,
-													boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+													boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 													overflow: "hidden",
 													maxHeight: maxH,
 													display: "flex",
@@ -2687,7 +2687,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													<div
 														style={{
 															padding: "6px 8px",
-															borderBottom: "1px solid var(--border)",
+															borderBottom: "1px solid var(--zeta-alias-border)",
 															flexShrink: 0,
 														}}
 													>
@@ -2711,11 +2711,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																fontSize: 11,
 																fontFamily: "var(--font-mono)",
 																padding: "5px 8px",
-																border: "1px solid var(--border)",
+																border: "1px solid var(--zeta-alias-border)",
 																borderRadius: 5,
 																outline: "none",
-																background: "var(--bg)",
-																color: "var(--text)",
+																background: "var(--zeta-alias-bg)",
+																color: "var(--zeta-alias-text)",
 																boxSizing: "border-box",
 															}}
 														/>
@@ -2726,7 +2726,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 														<div
 															style={{
 																padding: "8px 12px",
-																color: "var(--status-error-foreground)",
+																color: "var(--zeta-alias-status-error-foreground)",
 																fontSize: 12,
 																whiteSpace: "nowrap",
 															}}
@@ -2746,10 +2746,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																			padding: "6px 12px 4px",
 																			fontSize: 10,
 																			fontWeight: 600,
-																			color: "var(--text-dim)",
+																			color: "var(--zeta-alias-text-dim)",
 																			textTransform: "uppercase",
 																			letterSpacing: "0.07em",
-																			borderTop: gi > 0 ? "1px solid var(--border)" : "none",
+																			borderTop: gi > 0 ? "1px solid var(--zeta-alias-border)" : "none",
 																		}}
 																	>
 																		{formatProviderName(group.provider)}
@@ -2792,12 +2792,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																				width: "100%",
 																				padding: "7px 12px",
 																				background: isKbdActive
-																					? "var(--bg-hover)"
+																					? "var(--zeta-alias-bg-hover)"
 																					: isActive
-																						? "var(--bg-selected)"
+																						? "var(--zeta-alias-bg-selected)"
 																						: "none",
 																				border: "none",
-																				color: isActive ? "var(--text)" : "var(--text-muted)",
+																				color: isActive ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 																				cursor: "pointer",
 																				fontSize: 12,
 																				textAlign: "left",
@@ -2811,7 +2811,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																					height="10"
 																					viewBox="0 0 10 10"
 																					fill="none"
-																					stroke="var(--accent)"
+																					stroke="var(--zeta-alias-accent)"
 																					strokeWidth="2"
 																					strokeLinecap="round"
 																					strokeLinejoin="round"
@@ -2827,9 +2827,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																				<span
 																					style={{
 																						padding: "0 5px",
-																						border: "1px solid var(--border)",
+																						border: "1px solid var(--zeta-alias-border)",
 																						borderRadius: 4,
-																						color: "var(--text-dim)",
+																						color: "var(--zeta-alias-text-dim)",
 																						fontSize: 10,
 																						lineHeight: "16px",
 																						whiteSpace: "nowrap",
@@ -2888,7 +2888,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									background: "none",
 									border: "none",
 									borderRadius: 9,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									cursor: controlsMenuOpen ? "default" : "pointer",
 									fontSize: 12,
 									fontWeight: 500,
@@ -2898,13 +2898,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								}}
 								onMouseEnter={e => {
 									if (controlsMenuOpen) return;
-									e.currentTarget.style.background = "var(--bg-hover)";
-									e.currentTarget.style.color = "var(--text)";
+									e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+									e.currentTarget.style.color = "var(--zeta-alias-text)";
 								}}
 								onMouseLeave={e => {
 									if (controlsMenuOpen) return;
 									e.currentTarget.style.background = "none";
-									e.currentTarget.style.color = "var(--text-muted)";
+									e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 								}}
 							>
 								{t("chat.more-controls")}
@@ -2926,10 +2926,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											maxWidth: "calc(100vw - 32px)",
 											flexWrap: "nowrap",
 											justifyContent: "flex-end",
-											border: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
+											border: "1px solid color-mix(in srgb, var(--zeta-alias-border) 72%, transparent)",
 											borderRadius: 10,
-											background: "color-mix(in srgb, var(--bg-panel) 92%, var(--bg))",
-											boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+											background: "color-mix(in srgb, var(--zeta-alias-bg-panel) 92%, var(--zeta-alias-bg))",
+											boxShadow: "0 8px 24px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 											backdropFilter: "blur(10px)",
 										}
 									: null),
@@ -2946,7 +2946,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										gap: 5,
 										padding: controlsCompact ? "0 6px" : "8px 12px",
 										height: 32,
-										color: "var(--text-muted)",
+										color: "var(--zeta-alias-text-muted)",
 										fontSize: 12,
 										whiteSpace: "nowrap",
 									}}
@@ -2988,10 +2988,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											padding: controlsCompact ? "0 6px" : "8px 12px",
 											width: controlsCompact ? "auto" : undefined,
 											height: 32,
-											background: thinkingDropdownOpen ? "var(--bg-hover)" : "none",
+											background: thinkingDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none",
 											border: "none",
 											borderRadius: 9,
-											color: "var(--text-muted)",
+											color: "var(--zeta-alias-text-muted)",
 											cursor: isStreaming ? "not-allowed" : "pointer",
 											fontSize: 12,
 											opacity: isStreaming ? 0.5 : 1,
@@ -2999,12 +2999,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										}}
 										onMouseEnter={e => {
 											if (isStreaming) return;
-											e.currentTarget.style.background = "var(--bg-hover)";
-											e.currentTarget.style.color = "var(--text)";
+											e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+											e.currentTarget.style.color = "var(--zeta-alias-text)";
 										}}
 										onMouseLeave={e => {
-											e.currentTarget.style.background = thinkingDropdownOpen ? "var(--bg-hover)" : "none";
-											e.currentTarget.style.color = "var(--text-muted)";
+											e.currentTarget.style.background = thinkingDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none";
+											e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 										}}
 									>
 										<svg
@@ -3031,10 +3031,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												bottom: "calc(100% + 6px)",
 												right: 0,
 												zIndex: 100,
-												background: "var(--bg)",
-												border: "1px solid var(--border)",
+												background: "var(--zeta-alias-bg)",
+												border: "1px solid var(--zeta-alias-border)",
 												borderRadius: 8,
-												boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+												boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 												overflow: "hidden",
 												minWidth: 180,
 											}}
@@ -3063,9 +3063,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															gap: 8,
 															width: "100%",
 															padding: "7px 12px",
-															background: isActive ? "var(--bg-selected)" : "none",
+															background: isActive ? "var(--zeta-alias-bg-selected)" : "none",
 															border: "none",
-															color: isActive ? "var(--text)" : "var(--text-muted)",
+															color: isActive ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 															cursor: "pointer",
 															fontSize: 12,
 															textAlign: "left",
@@ -3073,7 +3073,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															whiteSpace: "nowrap",
 														}}
 														onMouseEnter={e => {
-															if (!isActive) e.currentTarget.style.background = "var(--bg-hover)";
+															if (!isActive) e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 														}}
 														onMouseLeave={e => {
 															if (!isActive) e.currentTarget.style.background = "none";
@@ -3085,7 +3085,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																height="10"
 																viewBox="0 0 10 10"
 																fill="none"
-																stroke="var(--accent)"
+																stroke="var(--zeta-alias-accent)"
 																strokeWidth="2"
 																strokeLinecap="round"
 																strokeLinejoin="round"
@@ -3102,7 +3102,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																<span
 																	style={{
 																		fontSize: 10,
-																		color: "var(--text-dim)",
+																		color: "var(--zeta-alias-text-dim)",
 																		fontFamily: "var(--font-mono)",
 																		marginLeft: 5,
 																	}}
@@ -3114,7 +3114,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 														<span
 															style={{
 																fontSize: 11,
-																color: "var(--text-dim)",
+																color: "var(--zeta-alias-text-dim)",
 																marginLeft: 8,
 															}}
 														>
@@ -3142,10 +3142,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											padding: controlsCompact ? "0 6px" : "8px 12px",
 											width: controlsCompact ? "auto" : undefined,
 											height: 32,
-											background: toolDropdownOpen ? "var(--bg-hover)" : "none",
+											background: toolDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none",
 											border: "none",
 											borderRadius: 9,
-											color: "var(--text-muted)",
+											color: "var(--zeta-alias-text-muted)",
 											cursor: isStreaming ? "not-allowed" : "pointer",
 											fontSize: 12,
 											opacity: isStreaming ? 0.5 : 1,
@@ -3153,12 +3153,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										}}
 										onMouseEnter={e => {
 											if (isStreaming) return;
-											e.currentTarget.style.background = "var(--bg-hover)";
-											e.currentTarget.style.color = "var(--text)";
+											e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+											e.currentTarget.style.color = "var(--zeta-alias-text)";
 										}}
 										onMouseLeave={e => {
-											e.currentTarget.style.background = toolDropdownOpen ? "var(--bg-hover)" : "none";
-											e.currentTarget.style.color = "var(--text-muted)";
+											e.currentTarget.style.background = toolDropdownOpen ? "var(--zeta-alias-bg-hover)" : "none";
+											e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 										}}
 									>
 										<svg
@@ -3184,10 +3184,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												bottom: "calc(100% + 6px)",
 												right: 0,
 												zIndex: 100,
-												background: "var(--bg)",
-												border: "1px solid var(--border)",
+												background: "var(--zeta-alias-bg)",
+												border: "1px solid var(--zeta-alias-border)",
 												borderRadius: 8,
-												boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+												boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 												overflow: "hidden",
 												minWidth: 120,
 											}}
@@ -3214,9 +3214,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															gap: 8,
 															width: "100%",
 															padding: "7px 12px",
-															background: isActive ? "var(--bg-selected)" : "none",
+															background: isActive ? "var(--zeta-alias-bg-selected)" : "none",
 															border: "none",
-															color: isActive ? "var(--text)" : "var(--text-muted)",
+															color: isActive ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 															cursor: "pointer",
 															fontSize: 12,
 															textAlign: "left",
@@ -3224,7 +3224,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 															whiteSpace: "nowrap",
 														}}
 														onMouseEnter={e => {
-															if (!isActive) e.currentTarget.style.background = "var(--bg-hover)";
+															if (!isActive) e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 														}}
 														onMouseLeave={e => {
 															if (!isActive) e.currentTarget.style.background = "none";
@@ -3236,7 +3236,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																height="10"
 																viewBox="0 0 10 10"
 																fill="none"
-																stroke="var(--accent)"
+																stroke="var(--zeta-alias-accent)"
 																strokeWidth="2"
 																strokeLinecap="round"
 																strokeLinejoin="round"
@@ -3251,7 +3251,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 														<span
 															style={{
 																fontSize: 11,
-																color: "var(--text-dim)",
+																color: "var(--zeta-alias-text-dim)",
 																marginLeft: 8,
 															}}
 														>
@@ -3278,10 +3278,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											padding: controlsCompact ? "0 6px" : "8px 12px",
 											width: controlsCompact ? "auto" : undefined,
 											height: 32,
-											background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
+											background: isCompacting ? "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)" : "none",
 											border: "none",
 											borderRadius: 9,
-											color: isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)",
+											color: isCompacting ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-muted)",
 											cursor: isStreaming && !isCompacting ? "not-allowed" : "pointer",
 											fontSize: 12,
 											opacity: isStreaming && !isCompacting ? 0.5 : 1,
@@ -3290,13 +3290,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										onMouseEnter={e => {
 											if (isStreaming && !isCompacting) return;
 											e.currentTarget.style.background = isCompacting
-												? "rgba(239,68,68,0.16)"
-												: "var(--bg-hover)";
-											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text)";
+												? "color-mix(in srgb, var(--zeta-alias-status-error) 16%, transparent)"
+												: "var(--zeta-alias-bg-hover)";
+											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text)";
 										}}
 										onMouseLeave={e => {
-											e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
-											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)";
+											e.currentTarget.style.background = isCompacting ? "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)" : "none";
+											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-text-muted)";
 										}}
 										title={isCompacting ? t("chat.stop-compaction") : t("chat.compact-context")}
 										aria-label={isCompacting ? t("chat.stop-compaction") : t("chat.compact-context")}
@@ -3346,8 +3346,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										gap: 6,
 										padding: "8px 14px",
 										height: 32,
-										background: "rgba(239,68,68,0.08)",
-										border: "1px solid rgba(239,68,68,0.3)",
+										background: "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)",
+										border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
 										borderRadius: 9,
 										color: "var(--zeta-alias-status-error)",
 										cursor: "pointer",
@@ -3358,10 +3358,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										transition: "background 0.12s",
 									}}
 									onMouseEnter={e => {
-										e.currentTarget.style.background = "rgba(239,68,68,0.16)";
+										e.currentTarget.style.background = "color-mix(in srgb, var(--zeta-alias-status-error) 16%, transparent)";
 									}}
 									onMouseLeave={e => {
-										e.currentTarget.style.background = "rgba(239,68,68,0.08)";
+										e.currentTarget.style.background = "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)";
 									}}
 								>
 									<svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -3387,19 +3387,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										background: "none",
 										border: "none",
 										borderRadius: 9,
-										color: soundEnabled ? "var(--text-muted)" : "var(--text-dim)",
+										color: soundEnabled ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-text-dim)",
 										cursor: "pointer",
 										opacity: soundEnabled ? 1 : 0.55,
 										transition: "background 0.12s, color 0.12s, opacity 0.12s",
 									}}
 									onMouseEnter={e => {
-										e.currentTarget.style.background = "var(--bg-hover)";
-										e.currentTarget.style.color = "var(--text)";
+										e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+										e.currentTarget.style.color = "var(--zeta-alias-text)";
 										e.currentTarget.style.opacity = "1";
 									}}
 									onMouseLeave={e => {
 										e.currentTarget.style.background = "none";
-										e.currentTarget.style.color = soundEnabled ? "var(--text-muted)" : "var(--text-dim)";
+										e.currentTarget.style.color = soundEnabled ? "var(--zeta-alias-text-muted)" : "var(--zeta-alias-text-dim)";
 										e.currentTarget.style.opacity = soundEnabled ? "1" : "0.55";
 									}}
 								>
@@ -3455,19 +3455,19 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										height: 32,
 										padding: 0,
 										marginLeft: 0,
-										background: "var(--bg-hover)",
+										background: "var(--zeta-alias-bg-hover)",
 										border: "none",
-										borderLeft: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
+										borderLeft: "1px solid color-mix(in srgb, var(--zeta-alias-border) 72%, transparent)",
 										borderRadius: "0 9px 9px 0",
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										cursor: "pointer",
 										transition: "background 0.12s, color 0.12s",
 									}}
 									onMouseEnter={e => {
-										e.currentTarget.style.background = "var(--bg-selected)";
+										e.currentTarget.style.background = "var(--zeta-alias-bg-selected)";
 									}}
 									onMouseLeave={e => {
-										e.currentTarget.style.background = "var(--bg-hover)";
+										e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 									}}
 								>
 									<svg

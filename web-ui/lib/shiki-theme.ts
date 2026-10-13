@@ -30,38 +30,38 @@ const MARKDOWN_TOKEN_COLORS: Array<{
 	{
 		scope: ["comment", "punctuation.definition.comment", "string.comment"],
 		settings: {
-			foreground: "var(--md-syntax-comment)",
+			foreground: "var(--zeta-alias-md-syntax-comment)",
 			fontStyle: "italic",
 		},
 	},
 	// Plain strings (quotes inherit via scope stack)
 	{
 		scope: ["string"],
-		settings: { foreground: "var(--md-syntax-string)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-string)" },
 	},
 	// Numbers and numeric constants
 	{
 		scope: ["constant.numeric", "constant.character.escape"],
-		settings: { foreground: "var(--md-syntax-number)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-number)" },
 	},
 	// Keywords and storage (const/let/class/int, public/private…)
 	{
 		scope: ["keyword", "storage"],
-		settings: { foreground: "var(--md-syntax-keyword)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-keyword)" },
 	},
 	// Language constants (true/false/null/this/self)
 	{
 		scope: ["constant.language", "keyword.constant", "variable.language"],
-		settings: { foreground: "var(--md-syntax-keyword)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-keyword)" },
 	},
 	// Tags (HTML/JSX) lean keyword, attributes lean property
 	{
 		scope: ["entity.name.tag"],
-		settings: { foreground: "var(--md-syntax-keyword)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-keyword)" },
 	},
 	{
 		scope: ["entity.other.attribute-name"],
-		settings: { foreground: "var(--md-syntax-property)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-property)" },
 	},
 	// Types, classes, namespaces
 	{
@@ -76,12 +76,12 @@ const MARKDOWN_TOKEN_COLORS: Array<{
 			"support.type",
 			"support.class",
 		],
-		settings: { foreground: "var(--md-syntax-type)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-type)" },
 	},
 	// Functions and call expressions
 	{
 		scope: ["entity.name.function", "support.function", "meta.function-call", "variable.function"],
-		settings: { foreground: "var(--md-syntax-function)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-function)" },
 	},
 	// Properties, object keys, struct members
 	{
@@ -92,28 +92,28 @@ const MARKDOWN_TOKEN_COLORS: Array<{
 			"variable.other.object.property",
 			"meta.object-literal.key",
 		],
-		settings: { foreground: "var(--md-syntax-property)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-property)" },
 	},
 	// Operators (longer scope path beats `keyword` above)
 	{
 		scope: ["keyword.operator"],
-		settings: { foreground: "var(--md-syntax-operator)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-operator)" },
 	},
 	// Markup (markdown source, diff fences)
 	{
 		scope: ["markup.heading", "entity.name.section"],
 		settings: {
-			foreground: "var(--syntax-header)",
+			foreground: "var(--zeta-alias-syntax-header)",
 			fontStyle: "bold",
 		},
 	},
 	{
 		scope: ["markup.inserted"],
-		settings: { foreground: "var(--md-syntax-inserted)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-inserted)" },
 	},
 	{
 		scope: ["markup.deleted"],
-		settings: { foreground: "var(--md-syntax-deleted)" },
+		settings: { foreground: "var(--zeta-alias-md-syntax-deleted)" },
 	},
 ];
 
@@ -126,9 +126,9 @@ export function createMarkdownShikiTheme(themeId: string = ACTIVE_SHIKI_THEME_ID
 	return {
 		name: `zeta-markdown-${themeId}`,
 		colors: {
-			"editor.background": "var(--syntax-background)",
-			"editor.foreground": "var(--md-syntax-foreground)",
-			"editorLineNumber.foreground": "var(--syntax-line-number)",
+			"editor.background": "var(--zeta-alias-syntax-background)",
+			"editor.foreground": "var(--zeta-alias-md-syntax-foreground)",
+			"editorLineNumber.foreground": "var(--zeta-alias-syntax-line-number)",
 		},
 		settings: MARKDOWN_TOKEN_COLORS,
 	};

@@ -25,6 +25,7 @@ import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
 import { StatsDashboard } from "./StatsDashboard";
 import { FullHistoryPanel } from "./FullHistoryPanel";
+import { ContextRingPanel } from "./context-ring/ContextRingPanel";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { SettingsWindow } from "./settings/SettingsWindow";
@@ -224,7 +225,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history" | "context";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15, P1): the pane is a view of a per-workspace
@@ -989,7 +990,7 @@ function AppShellContent() {
 						background: "none",
 						border: "none",
 						borderRadius: 9,
-						color: "var(--text-muted)",
+						color: "var(--zeta-alias-text-muted)",
 						cursor: "pointer",
 					}}
 				>
@@ -1012,7 +1013,7 @@ function AppShellContent() {
 					background: "none",
 					border: "none",
 					borderRadius: 9,
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					cursor: "pointer",
 				}}
 			>
@@ -1120,7 +1121,7 @@ function AppShellContent() {
 							background: "none",
 							border: "none",
 							borderRadius: 9,
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							cursor: disabled ? "default" : "pointer",
 							fontSize: 12,
 							opacity: disabled ? 0.35 : 1,
@@ -1148,15 +1149,15 @@ function AppShellContent() {
           opacity: 1;
           transform: translateY(0);
           filter: blur(0);
-          background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel));
-          box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 16%, transparent);
+          background: color-mix(in srgb, var(--zeta-alias-accent) 8%, var(--zeta-alias-bg-panel));
+          box-shadow: 0 18px 44px color-mix(in srgb, var(--zeta-alias-accent) 16%, transparent);
         }
         100% {
           opacity: 1;
           transform: translateY(0);
           filter: blur(0);
-          background: var(--bg-panel);
-          box-shadow: 0 10px 28px var(--surface-shadow);
+          background: var(--zeta-alias-bg-panel);
+          box-shadow: 0 10px 28px var(--zeta-alias-surface-shadow);
         }
       }
       @keyframes session-info-light-wash {
@@ -1187,7 +1188,7 @@ function AppShellContent() {
         left: 0;
         width: 44%;
         pointer-events: none;
-        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 24%, transparent), transparent);
+        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--zeta-alias-accent) 24%, transparent), transparent);
         animation: session-info-light-wash 620ms ease-out both;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1230,7 +1231,7 @@ function AppShellContent() {
       .panel-resize-handle:hover::after,
       .panel-resize-handle:focus-visible::after,
       .panel-resize-handle.is-resizing::after {
-        background: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+        background: color-mix(in srgb, var(--zeta-alias-text-muted) 70%, var(--zeta-alias-border));
       }
       @media (min-width: 641px) {
         .sidebar-overlay-backdrop {
@@ -1299,7 +1300,7 @@ function AppShellContent() {
           width: min(560px, calc(100vw - 48px));
           min-width: 300px;
           overflow: hidden;
-          box-shadow: -12px 0 32px var(--surface-shadow);
+          box-shadow: -12px 0 32px var(--zeta-alias-surface-shadow);
           transition: transform 0.2s ease;
         }
         .right-panel-container.right-panel-open {
@@ -1330,8 +1331,8 @@ function AppShellContent() {
 							display: "flex",
 							alignItems: "center",
 							justifyContent: "space-between",
-							background: "var(--bg-panel)",
-							borderBottom: "1px solid var(--border)",
+							background: "var(--zeta-alias-bg-panel)",
+							borderBottom: "1px solid var(--zeta-alias-border)",
 							userSelect: "none",
 							WebkitAppRegion: "drag",
 						} as React.CSSProperties
@@ -1346,7 +1347,7 @@ function AppShellContent() {
 							fontSize: 11.5,
 							fontWeight: 600,
 							letterSpacing: "0.04em",
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 						}}
 					>
 						Zeta
@@ -1372,10 +1373,10 @@ function AppShellContent() {
 										style={
 											{
 												padding: "2px 8px",
-												border: "1px solid var(--border)",
+												border: "1px solid var(--zeta-alias-border)",
 												borderRadius: 4,
 												background: "transparent",
-												color: "var(--text-muted)",
+												color: "var(--zeta-alias-text-muted)",
 												fontSize: 10.5,
 												fontWeight: 500,
 												letterSpacing: "0.02em",
@@ -1422,7 +1423,7 @@ function AppShellContent() {
 					position: "fixed",
 					inset: 0,
 					zIndex: 199,
-					background: "color-mix(in srgb, var(--bg) 40%, transparent)",
+					background: "color-mix(in srgb, var(--zeta-alias-bg) 40%, transparent)",
 					opacity: sidebarOpen ? 1 : 0,
 					pointerEvents: sidebarOpen ? "auto" : "none",
 					transition: "opacity 0.25s ease",
@@ -1446,10 +1447,10 @@ function AppShellContent() {
 							display: "flex",
 							alignItems: "center",
 							flexShrink: 0,
-							borderBottom: "1px solid var(--border)",
+							borderBottom: "1px solid var(--zeta-alias-border)",
 							height: "calc(36px + env(safe-area-inset-top))",
 							paddingTop: "env(safe-area-inset-top)",
-							background: "var(--bg-panel)",
+							background: "var(--zeta-alias-bg-panel)",
 						}}
 					>
 						<button
@@ -1481,17 +1482,17 @@ function AppShellContent() {
 								padding: 0,
 								background: "none",
 								border: "none",
-								borderRight: "1px solid var(--border)",
-								color: "var(--text-muted)",
+								borderRight: "1px solid var(--zeta-alias-border)",
+								color: "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								flexShrink: 0,
 								transition: "color 0.12s",
 							}}
 							onMouseEnter={e => {
-								e.currentTarget.style.color = "var(--text)";
+								e.currentTarget.style.color = "var(--zeta-alias-text)";
 							}}
 							onMouseLeave={e => {
-								e.currentTarget.style.color = "var(--text-muted)";
+								e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 							}}
 						>
 							{sidebarOpen && !sidebarRailActive ? (
@@ -1568,9 +1569,9 @@ function AppShellContent() {
 										background: "none",
 										border: "none",
 										borderTop: "2px solid transparent",
-										borderRight: "1px solid var(--border)",
+										borderRight: "1px solid var(--zeta-alias-border)",
 										cursor: updating || checkingUpdate ? "default" : "pointer",
-										color: updateInfo?.available ? "var(--accent)" : "var(--text-muted)",
+										color: updateInfo?.available ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)",
 										fontSize: 11,
 										whiteSpace: "nowrap",
 										opacity: updating || checkingUpdate ? 0.5 : 1,
@@ -1606,13 +1607,13 @@ function AppShellContent() {
 											top: 40,
 											right: 16,
 											zIndex: 400,
-											background: "var(--bg-panel)",
-											border: "1px solid var(--border)",
+											background: "var(--zeta-alias-bg-panel)",
+											border: "1px solid var(--zeta-alias-border)",
 											borderRadius: 8,
-											boxShadow: "0 4px 16px color-mix(in srgb, var(--bg) 20%, transparent)",
+											boxShadow: "0 4px 16px color-mix(in srgb, var(--zeta-alias-bg) 20%, transparent)",
 											padding: "8px 12px",
 											fontSize: 12,
-											color: "var(--text)",
+											color: "var(--zeta-alias-text)",
 										}}
 									>
 										{updateNotice}
@@ -1655,12 +1656,12 @@ function AppShellContent() {
 											: String(n);
 								const costStr = c > 0 ? (c >= 0.01 ? `$${c.toFixed(2)}` : `<$0.01`) : null;
 
-								let ctxColor = "var(--text-muted)";
+								let ctxColor = "var(--zeta-alias-text-muted)";
 								let ctxStr: string | null = null;
 								if (contextUsage?.contextWindow) {
 									const pct = contextUsage.percent;
-									if (pct !== null && pct > 90) ctxColor = "var(--status-error-foreground)";
-									else if (pct !== null && pct > 70) ctxColor = "var(--status-warning-foreground)";
+									if (pct !== null && pct > 90) ctxColor = "var(--zeta-alias-status-error-foreground)";
+									else if (pct !== null && pct > 70) ctxColor = "var(--zeta-alias-status-warning-foreground)";
 									ctxStr =
 										pct !== null
 											? `${pct.toFixed(0)}% / ${fmt(contextUsage.contextWindow)}`
@@ -1698,23 +1699,23 @@ function AppShellContent() {
 											paddingLeft: 12,
 											paddingRight: 12,
 											height: "100%",
-											background: activeTopPanel === "session" ? "var(--bg-selected)" : "none",
+											background: activeTopPanel === "session" ? "var(--zeta-alias-bg-selected)" : "none",
 											border: "none",
 											borderTop:
-												activeTopPanel === "session" ? "2px solid var(--accent)" : "2px solid transparent",
+												activeTopPanel === "session" ? "2px solid var(--zeta-alias-accent)" : "2px solid transparent",
 											fontSize: 11,
-											color: "var(--text-muted)",
+											color: "var(--zeta-alias-text-muted)",
 											whiteSpace: "nowrap",
 											cursor: "pointer",
 											fontVariantNumeric: "tabular-nums",
 											transition: "color 0.1s, background 0.1s",
 										}}
 										onMouseEnter={e => {
-											e.currentTarget.style.color = "var(--text)";
+											e.currentTarget.style.color = "var(--zeta-alias-text)";
 										}}
 										onMouseLeave={e => {
 											e.currentTarget.style.color =
-												activeTopPanel === "session" ? "var(--text)" : "var(--text-muted)";
+												activeTopPanel === "session" ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)";
 										}}
 									>
 										{isMobile && (
@@ -1811,7 +1812,7 @@ function AppShellContent() {
 												style={{
 													display: "flex",
 													alignItems: "center",
-													color: "var(--text)",
+													color: "var(--zeta-alias-text)",
 													fontWeight: 500,
 												}}
 											>
@@ -1864,8 +1865,8 @@ function AppShellContent() {
 								{activeTopPanel === "system" && (
 									<div
 										style={{
-											background: "var(--bg-panel)",
-											borderBottom: "1px solid var(--border)",
+											background: "var(--zeta-alias-bg-panel)",
+											borderBottom: "1px solid var(--zeta-alias-border)",
 										}}
 									>
 										{systemPrompt ? (
@@ -1874,7 +1875,7 @@ function AppShellContent() {
 													maxHeight: "min(600px, 75vh)",
 													overflowY: "auto",
 													padding: "12px 16px",
-													color: "var(--text-muted)",
+													color: "var(--zeta-alias-text-muted)",
 													fontSize: 12,
 													lineHeight: 1.6,
 													whiteSpace: "pre-wrap",
@@ -1888,7 +1889,7 @@ function AppShellContent() {
 												style={{
 													padding: "10px 16px",
 													fontSize: 12,
-													color: "var(--text-muted)",
+													color: "var(--zeta-alias-text-muted)",
 													fontStyle: "italic",
 												}}
 											>
@@ -1899,7 +1900,7 @@ function AppShellContent() {
 												style={{
 													padding: "10px 16px",
 													fontSize: 12,
-													color: "var(--text-muted)",
+													color: "var(--zeta-alias-text-muted)",
 													fontStyle: "italic",
 												}}
 											>
@@ -1912,9 +1913,9 @@ function AppShellContent() {
 									<div
 										className="session-info-popover"
 										style={{
-											background: "var(--bg-panel)",
-											borderBottom: "1px solid var(--border)",
-											boxShadow: "0 10px 28px color-mix(in srgb, var(--bg) 10%, transparent)",
+											background: "var(--zeta-alias-bg-panel)",
+											borderBottom: "1px solid var(--zeta-alias-border)",
+											boxShadow: "0 10px 28px color-mix(in srgb, var(--zeta-alias-bg) 10%, transparent)",
 											padding: "12px 16px",
 										}}
 									>
@@ -1988,7 +1989,7 @@ function AppShellContent() {
 															style={{
 																fontSize: 11,
 																fontWeight: 700,
-																color: "var(--text)",
+																color: "var(--zeta-alias-text)",
 																marginBottom: 6,
 															}}
 														>
@@ -2009,7 +2010,7 @@ function AppShellContent() {
 																<div key={`${title}:${label}`} style={{ display: "contents" }}>
 																	<div
 																		style={{
-																			color: "var(--text-dim)",
+																			color: "var(--zeta-alias-text-dim)",
 																			whiteSpace: "nowrap",
 																		}}
 																	>
@@ -2017,7 +2018,7 @@ function AppShellContent() {
 																	</div>
 																	<div
 																		style={{
-																			color: "var(--text-muted)",
+																			color: "var(--zeta-alias-text-muted)",
 																			minWidth: 0,
 																			overflowWrap: compact ? "normal" : "anywhere",
 																			textAlign: valueAlign,
@@ -2052,24 +2053,24 @@ function AppShellContent() {
 																width: 22,
 																height: 22,
 																marginTop: -2,
-																color: copied ? "var(--accent)" : "var(--text-dim)",
+																color: copied ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)",
 																background: "transparent",
-																border: "1px solid var(--border)",
+																border: "1px solid var(--zeta-alias-border)",
 																borderRadius: 4,
 																cursor: "pointer",
 																flex: "0 0 auto",
 																transition: "color 0.12s, border-color 0.12s, background 0.12s",
 															}}
 															onMouseEnter={e => {
-																e.currentTarget.style.color = "var(--accent)";
-																e.currentTarget.style.borderColor = "var(--accent)";
-																e.currentTarget.style.background = "var(--bg-hover)";
+																e.currentTarget.style.color = "var(--zeta-alias-accent)";
+																e.currentTarget.style.borderColor = "var(--zeta-alias-accent)";
+																e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 															}}
 															onMouseLeave={e => {
 																e.currentTarget.style.color = copied
-																	? "var(--accent)"
-																	: "var(--text-dim)";
-																e.currentTarget.style.borderColor = "var(--border)";
+																	? "var(--zeta-alias-accent)"
+																	: "var(--zeta-alias-text-dim)";
+																e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
 																e.currentTarget.style.background = "transparent";
 															}}
 														>
@@ -2112,7 +2113,7 @@ function AppShellContent() {
 															style={{
 																fontSize: 11,
 																fontWeight: 700,
-																color: "var(--text)",
+																color: "var(--zeta-alias-text)",
 																marginBottom: 6,
 															}}
 														>
@@ -2131,7 +2132,7 @@ function AppShellContent() {
 																<div key={`session-info:${row.label}`} style={{ display: "contents" }}>
 																	<div
 																		style={{
-																			color: "var(--text-dim)",
+																			color: "var(--zeta-alias-text-dim)",
 																			whiteSpace: "nowrap",
 																		}}
 																	>
@@ -2139,7 +2140,7 @@ function AppShellContent() {
 																	</div>
 																	<div
 																		style={{
-																			color: "var(--text-muted)",
+																			color: "var(--zeta-alias-text-muted)",
 																			minWidth: 0,
 																			overflowWrap: "anywhere",
 																			wordBreak: "break-word",
@@ -2185,7 +2186,7 @@ function AppShellContent() {
 											<div
 												style={{
 													fontSize: 12,
-													color: "var(--text-muted)",
+													color: "var(--zeta-alias-text-muted)",
 													fontStyle: "italic",
 												}}
 											>
@@ -2240,11 +2241,11 @@ function AppShellContent() {
 									justifyContent: "center",
 									gap: 8,
 									padding: 24,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									textAlign: "center",
 								}}
 							>
-								<div style={{ fontSize: 14, color: "var(--text)" }}>Opening workspace...</div>
+								<div style={{ fontSize: 14, color: "var(--zeta-alias-text)" }}>Opening workspace...</div>
 								<div
 									style={{
 										maxWidth: "min(720px, 100%)",
@@ -2267,14 +2268,14 @@ function AppShellContent() {
 									justifyContent: "center",
 									gap: 8,
 									padding: 24,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									textAlign: "center",
 								}}
 							>
 								<div
 									style={{
 										fontSize: 14,
-										color: "var(--status-error-foreground)",
+										color: "var(--zeta-alias-status-error-foreground)",
 									}}
 								>
 									{t("unable-to-open-workspace")}
@@ -2301,7 +2302,7 @@ function AppShellContent() {
 										alignItems: "center",
 										justifyContent: "center",
 										gap: 16,
-										color: "var(--text-muted)",
+										color: "var(--zeta-alias-text-muted)",
 										fontSize: 14,
 									}}
 								>
@@ -2320,7 +2321,7 @@ function AppShellContent() {
 													fontFamily: "var(--font-display)",
 													fontSize: 13,
 													letterSpacing: "0.16em",
-													color: "var(--accent)",
+													color: "var(--zeta-alias-accent)",
 													textTransform: "uppercase",
 												}}
 											>
@@ -2360,7 +2361,7 @@ function AppShellContent() {
 													fontSize: 20,
 													fontWeight: 900,
 													letterSpacing: "0.2em",
-													color: "var(--text)",
+													color: "var(--zeta-alias-text)",
 													textTransform: "uppercase",
 												}}
 											>
@@ -2370,7 +2371,7 @@ function AppShellContent() {
 												style={{
 													fontFamily: "var(--font-mono)",
 													fontSize: 12,
-													color: "var(--accent)",
+													color: "var(--zeta-alias-accent)",
 													letterSpacing: "0.1em",
 												}}
 											>
@@ -2379,11 +2380,11 @@ function AppShellContent() {
 											<div
 												style={{
 													fontSize: 13,
-													color: "var(--text-muted)",
+													color: "var(--zeta-alias-text-muted)",
 													lineHeight: 1.8,
-													background: "var(--surface-subtle)",
-													border: "1px solid var(--border)",
-													borderLeft: "3px solid var(--accent)",
+													background: "var(--zeta-alias-surface-subtle)",
+													border: "1px solid var(--zeta-alias-border)",
+													borderLeft: "3px solid var(--zeta-alias-accent)",
 													padding: "14px 20px",
 													textAlign: "left",
 													width: "100%",
@@ -2391,7 +2392,7 @@ function AppShellContent() {
 											>
 												<span
 													style={{
-														color: "var(--status-warning-foreground)",
+														color: "var(--zeta-alias-status-warning-foreground)",
 														fontFamily: "var(--font-mono)",
 														fontWeight: 700,
 													}}
@@ -2402,7 +2403,7 @@ function AppShellContent() {
 												<br />
 												<span
 													style={{
-														color: "var(--status-warning-foreground)",
+														color: "var(--zeta-alias-status-warning-foreground)",
 														fontFamily: "var(--font-mono)",
 														fontWeight: 700,
 													}}
@@ -2429,7 +2430,7 @@ function AppShellContent() {
 												height="44"
 												viewBox="0 0 24 24"
 												fill="none"
-												stroke="var(--accent)"
+												stroke="var(--zeta-alias-accent)"
 												strokeWidth="1.5"
 												strokeLinecap="round"
 												strokeLinejoin="round"
@@ -2443,7 +2444,7 @@ function AppShellContent() {
 													style={{
 														fontSize: 18,
 														fontWeight: 600,
-														color: "var(--text)",
+														color: "var(--zeta-alias-text)",
 														marginBottom: 8,
 													}}
 												>
@@ -2452,14 +2453,14 @@ function AppShellContent() {
 												<div
 													style={{
 														fontSize: 12,
-														color: "var(--text-muted)",
+														color: "var(--zeta-alias-text-muted)",
 														lineHeight: 1.8,
 													}}
 												>
-													<span style={{ color: "var(--text-dim)", marginRight: 6 }}>1.</span>
+													<span style={{ color: "var(--zeta-alias-text-dim)", marginRight: 6 }}>1.</span>
 													{t("select-a-project-directory-from-the-sidebar")}
 													<br />
-													<span style={{ color: "var(--text-dim)", marginRight: 6 }}>2.</span>
+													<span style={{ color: "var(--zeta-alias-text-dim)", marginRight: 6 }}>2.</span>
 													{t("add-models-via-the-models-button-at-the-bottom")}
 												</div>
 											</div>
@@ -2488,7 +2489,7 @@ function AppShellContent() {
 							minWidth: 0,
 							display: "flex",
 							flexDirection: "column",
-							background: "var(--bg)",
+							background: "var(--zeta-alias-bg)",
 							overflow: "hidden",
 						}}
 					>
@@ -2499,8 +2500,8 @@ function AppShellContent() {
 								display: "flex",
 								alignItems: "center",
 								flexShrink: 0,
-								background: "var(--bg-panel)",
-								borderBottom: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-panel)",
+								borderBottom: "1px solid var(--zeta-alias-border)",
 								height: 36,
 								paddingLeft: 10,
 								gap: 8,
@@ -2511,7 +2512,7 @@ function AppShellContent() {
 									fontSize: 11.5,
 									fontWeight: 700,
 									letterSpacing: 0.3,
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 								}}
 							>
 								{dockTool === "stats"
@@ -2526,7 +2527,9 @@ function AppShellContent() {
 													? t("dock.window.terminal")
 													: dockTool === "history"
 														? t("dock.window.history")
-														: t("dock.window.plugins")}
+														: dockTool === "context"
+															? t("context-ring.title")
+															: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2562,7 +2565,7 @@ function AppShellContent() {
 									background: "transparent",
 									border: "none",
 									borderRadius: 6,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									cursor: "pointer",
 								}}
 							>
@@ -2605,7 +2608,7 @@ function AppShellContent() {
 											justifyContent: "center",
 											padding: 16,
 											textAlign: "center",
-											color: "var(--text-dim)",
+											color: "var(--zeta-alias-text-dim)",
 											fontSize: 12,
 										}}
 									>
@@ -2634,6 +2637,19 @@ function AppShellContent() {
 								/>
 							) : dockTool === "tracking" ? (
 								<TrackingPanel cwd={activeCwd} />
+							) : dockTool === "context" ? (
+								<ContextRingPanel
+									sessionId={selectedSession?.id ?? null}
+									contextUsage={
+										contextUsage
+											? {
+													tokens: contextUsage.tokens ?? 0,
+													contextWindow: contextUsage.contextWindow,
+													percent: contextUsage.percent ?? 0,
+												}
+											: null
+									}
+								/>
 							) : dockTool === "plugins" ? (
 								(activeCwd ?? selectedSession?.cwd) ? (
 									<PluginsManager
@@ -2649,7 +2665,7 @@ function AppShellContent() {
 											display: "flex",
 											alignItems: "center",
 											justifyContent: "center",
-											color: "var(--text-dim)",
+											color: "var(--zeta-alias-text-dim)",
 											fontSize: 12,
 										}}
 									>
@@ -2677,7 +2693,7 @@ function AppShellContent() {
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 										fontSize: 12,
 									}}
 								>
@@ -2752,7 +2768,7 @@ function DegradedDraftCard({ onWorkspaceSelect }: { onWorkspaceSelect: (cwd: str
 	return (
 		<div className="flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-8">
 			<div className="w-full max-w-[820px]">
-				<div style={{ marginBottom: 12, textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>
+				<div style={{ marginBottom: 12, textAlign: "center", fontSize: 13, color: "var(--zeta-alias-text-muted)" }}>
 					{t("draft-context.select-workspace")}
 				</div>
 				<div style={{ position: "relative" }}>
@@ -2823,8 +2839,8 @@ function TitlebarButton({
 					padding: 0,
 					border: "none",
 					cursor: "pointer",
-					color: hovered ? (danger ? "var(--primary-foreground)" : "var(--text)") : "var(--text-muted)",
-					background: hovered ? (danger ? "var(--status-error)" : "var(--bg-hover)") : "transparent",
+					color: hovered ? (danger ? "var(--zeta-alias-primary-foreground)" : "var(--zeta-alias-text)") : "var(--zeta-alias-text-muted)",
+					background: hovered ? (danger ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-bg-hover)") : "transparent",
 					transition: "background 0.12s, color 0.12s",
 					WebkitAppRegion: "no-drag",
 				} as React.CSSProperties

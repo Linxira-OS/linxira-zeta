@@ -60,7 +60,7 @@ const ACTION_BUTTON_STYLE = {
 	background: "none",
 	border: "none",
 	borderRadius: 5,
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 } as const;
 
@@ -136,7 +136,7 @@ function ProjectGroupRow({
 						height="11"
 						viewBox="0 0 24 24"
 						fill="none"
-						stroke={isCurrent ? "var(--accent)" : "var(--text-dim)"}
+						stroke={isCurrent ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-dim)"}
 						strokeWidth="2"
 						strokeLinecap="round"
 						strokeLinejoin="round"
@@ -152,7 +152,7 @@ function ProjectGroupRow({
 							whiteSpace: "nowrap",
 							fontSize: 12,
 							fontWeight: 700,
-							color: isCurrent ? "var(--text)" : "var(--text-muted)",
+							color: isCurrent ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 						}}
 					>
 						{alias ?? getFileName(group.project)}
@@ -162,8 +162,8 @@ function ProjectGroupRow({
 						title={t("sidebar.default-workspace")}
 						style={{
 							fontSize: 10,
-							color: "var(--accent)",
-							border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+							color: "var(--zeta-alias-accent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-accent) 35%, transparent)",
 							borderRadius: 999,
 							padding: "0 6px",
 							lineHeight: "15px",
@@ -185,8 +185,8 @@ function ProjectGroupRow({
 								alignItems: "center",
 								gap: 3,
 								fontSize: 10,
-								color: "var(--accent)",
-								border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+								color: "var(--zeta-alias-accent)",
+								border: "1px solid color-mix(in srgb, var(--zeta-alias-accent) 35%, transparent)",
 								borderRadius: 999,
 								padding: "0 6px",
 								lineHeight: "15px",
@@ -209,7 +209,7 @@ function ProjectGroupRow({
 					<span
 						style={{
 							fontSize: 10,
-							color: "var(--text-dim)",
+							color: "var(--zeta-alias-text-dim)",
 							flexShrink: 0,
 						}}
 					>
@@ -220,7 +220,7 @@ function ProjectGroupRow({
 						height="9"
 						viewBox="0 0 10 10"
 						fill="none"
-						stroke="var(--text-dim)"
+						stroke="var(--zeta-alias-text-dim)"
 						strokeWidth="1.8"
 						strokeLinecap="round"
 						strokeLinejoin="round"
@@ -299,7 +299,7 @@ function ProjectGroupRow({
 						<button
 							aria-label={t("sidebar.deleteProjectSessions")}
 							title={t("sidebar.deleteProjectSessions")}
-							style={{ ...ACTION_BUTTON_STYLE, color: "var(--status-error)" }}
+							style={{ ...ACTION_BUTTON_STYLE, color: "var(--zeta-alias-status-error)" }}
 							onClick={e => {
 								e.stopPropagation();
 								onDeleteProjectSessions(group.project);
@@ -319,7 +319,7 @@ function ProjectGroupRow({
 					style={{
 						padding: "2px 14px 8px 38px",
 						fontSize: 11,
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 					}}
 				>
 					{t("sidebar.no-sessions-in-workspace")}

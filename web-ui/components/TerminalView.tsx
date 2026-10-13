@@ -61,10 +61,13 @@ const MAX_PENDING_INPUT_CHARS = 4096;
 
 /**
  * xterm.js 16-colour palette. Deliberately literal and deliberately outside the
- * L1/L2 colour layers: a terminal emulator's palette is a protocol artifact
- * (what the shell's `\e[31m` means), not a theme choice — the allow-listed
- * literal islands named in web-ui/AGENTS.md cover this one.
+ * `lib/theme/tokens.ts` three-layer tokens: a terminal emulator's palette is a
+ * protocol artifact (the PTY writes SGR codes, not theme roles), not a theme
+ * choice. The colour guard exempts the table itself — and only the table —
+ * through the marked region below, so the rest of this file stays under the
+ * guard.
  */
+/* zeta-style-literal-allow-start: xterm.js 16-colour ANSI palette — the terminal owns these values, they are not theme roles */
 const TERMINAL_THEME = {
 	background: "#1e1e1e",
 	foreground: "#e5e5e5",
@@ -87,6 +90,7 @@ const TERMINAL_THEME = {
 	brightCyan: "#29b8db",
 	brightWhite: "#ffffff",
 };
+/* zeta-style-literal-allow-end */
 
 /**
  * Embedded terminal pane (spec §15, P1): xterm.js over the gateway PTY WS.
@@ -455,13 +459,13 @@ export function TerminalView({
 	const statusColor = useMemo(() => {
 		switch (connState) {
 			case "open":
-				return "var(--status-success-foreground, #0dbc79)";
+				return "var(--zeta-alias-status-success-foreground)";
 			case "exited":
 			case "ended":
 			case "error":
-				return "var(--status-error-foreground, #cd3131)";
+				return "var(--zeta-alias-status-error-foreground)";
 			default:
-				return "var(--status-warning-foreground, #e5e510)";
+				return "var(--zeta-alias-status-warning-foreground)";
 		}
 	}, [connState]);
 
@@ -479,9 +483,9 @@ export function TerminalView({
 					gap: 8,
 					flexShrink: 0,
 					padding: "4px 10px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 				}}
 			>
 				<span style={{ color: statusColor }} aria-label={`terminal-${connState}`}>
@@ -537,16 +541,16 @@ export function TerminalView({
 					</button>
 				)}
 			</div>
-			<div ref={containerRef} style={{ flex: 1, minHeight: 0, padding: "4px 6px", background: "var(--bg)" }} />
+			<div ref={containerRef} style={{ flex: 1, minHeight: 0, padding: "4px 6px", background: "var(--zeta-alias-bg)" }} />
 		</div>
 	);
 }
 
 const actionButtonStyle = {
 	background: "transparent",
-	border: "1px solid var(--border)",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: 6,
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	fontSize: 11,
 	padding: "2px 8px",

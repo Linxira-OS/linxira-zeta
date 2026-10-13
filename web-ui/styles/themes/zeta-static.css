@@ -83,6 +83,7 @@
   --zeta-static-chart-8: #0E8A8A;
   --zeta-static-neutral-0: #ffffff;
   --zeta-static-neutral-1000: #000000;
+  --zeta-static-shadow-ink: #0f172a;
   --zeta-static-sf-navy: #1b365d;
   --zeta-static-sf-navy-mid: #0f1e38;
   --zeta-static-sf-navy-dark: #0c1a2e;
@@ -171,6 +172,7 @@
   --zeta-alias-chart-8: var(--zeta-static-chart-8);
   --zeta-alias-neutral-0: var(--zeta-static-neutral-0);
   --zeta-alias-neutral-1000: var(--zeta-static-neutral-1000);
+  --zeta-alias-shadow-ink: var(--zeta-static-shadow-ink);
   --zeta-alias-sf-navy: var(--zeta-static-sf-navy);
   --zeta-alias-sf-navy-mid: var(--zeta-static-sf-navy-mid);
   --zeta-alias-sf-navy-dark: var(--zeta-static-sf-navy-dark);
@@ -316,6 +318,7 @@
   --chart-8: var(--zeta-alias-chart-8);
   --neutral-0: var(--zeta-alias-neutral-0);
   --neutral-1000: var(--zeta-alias-neutral-1000);
+  --shadow-ink: var(--zeta-alias-shadow-ink);
   --sf-navy: var(--zeta-alias-sf-navy);
   --sf-navy-mid: var(--zeta-alias-sf-navy-mid);
   --sf-navy-dark: var(--zeta-alias-sf-navy-dark);

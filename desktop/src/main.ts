@@ -44,8 +44,11 @@ import {
 } from "./session-monitor";
 import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
 import {
+	bundledServeCommandIn,
+	describeServeResolution,
 	findRepoRootIn,
 	resolveServeCommandIn,
+	spawnSpec,
 	type ServeCommand,
 	type ServeResolutionDeps,
 } from "./serve-resolution";
@@ -179,6 +182,22 @@ function restoredWindowBounds(): { bounds: WindowBounds; maximized: boolean } | 
 // Topbar tool launchers (zetacode / zetaide / zetaeditor)
 // ---------------------------------------------------------------------------
 
+/**
+ * `where`/`which` lookup returning a spawnable absolute launcher path, or null.
+ * Windows `where` also matches the extensionless POSIX sh shim npm installs
+ * beside its `.cmd`, and that file cannot be exec'd — so a real `.exe` wins,
+ * then a `.cmd`/`.bat` shim (spawned through a shell), and a bare POSIX script
+ * is rejected so discovery keeps walking instead of handing spawn a dead path.
+ */
+function probeLauncher(name: string): string | null {
+	const lookup = process.platform === "win32" ? "where" : "which";
+	const probe = spawnSync(lookup, [name], { encoding: "utf8" });
+	if (probe.status !== 0) return null;
+	const lines = probe.stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+	if (process.platform !== "win32") return lines[0] ?? null;
+	return lines.find(line => /\.exe$/i.test(line)) ?? lines.find(line => /\.(cmd|bat)$/i.test(line)) ?? null;
+}
+
 function toolResolutionDeps(): ToolResolutionDeps {
 	return {
 		isPackaged: app.isPackaged,
@@ -201,15 +220,7 @@ function toolResolutionDeps(): ToolResolutionDeps {
 		},
 		dirname: __dirname,
 		cwd: process.cwd(),
-		probePath: name => {
-			const lookup = process.platform === "win32" ? "where" : "which";
-			const probe = spawnSync(lookup, [name], { encoding: "utf8" });
-			if (probe.status !== 0) return null;
-			const lines = probe.stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-			if (lines.length === 0) return null;
-			// Prefer a real executable over cmd/bat shims so spawn works without a shell.
-			return lines.find(line => !/\.(cmd|bat)$/i.test(line)) ?? lines[0];
-		},
+		probePath: probeLauncher,
 		serviceBinaryName: SERVICE_BINARY_NAME,
 		webRuntimeName: WEB_RUNTIME_NAME,
 	};
@@ -396,6 +407,10 @@ function findRepoRoot(): string | null {
 	return findRepoRootIn(desktopServeDeps());
 }
 
+function bundledServeCommand(): ServeCommand | null {
+	return bundledServeCommandIn(desktopServeDeps());
+}
+
 /** Real-process seams for the pure serve resolver. */
 function desktopServeDeps(): ServeResolutionDeps {
 	return {
@@ -419,10 +434,7 @@ function desktopServeDeps(): ServeResolutionDeps {
 		},
 		dirname: __dirname,
 		cwd: process.cwd(),
-		probePath: name => {
-			const probe = spawnSync(process.platform === "win32" ? "where" : "which", [name], { encoding: "utf8" });
-			return probe.status === 0 && Boolean(probe.stdout.trim());
-		},
+		probePath: probeLauncher,
 		serviceBinaryName: SERVICE_BINARY_NAME,
 		webRuntimeName: WEB_RUNTIME_NAME,
 	};
@@ -507,10 +519,12 @@ function startServeOnce(cmd: ServeCommand): boolean {
 	try {
 		writeDesktopLog(`Starting service: ${cmd.file}`);
 		serviceLogFd = fs.openSync(desktopLogPath(), "a");
-		serveChild = spawn(cmd.file, cmd.args, {
+		const launch = spawnSpec(cmd);
+		serveChild = spawn(launch.file, launch.args, {
 			cwd: cmd.cwd,
 			env: cmd.env,
 			windowsHide: true,
+			windowsVerbatimArguments: launch.windowsVerbatimArguments,
 			stdio: ["ignore", serviceLogFd, serviceLogFd],
 		});
 		serviceOwned = true;
@@ -526,7 +540,11 @@ function startServeOnce(cmd: ServeCommand): boolean {
 		serveChild = null;
 		serviceOwned = false;
 		closeServiceLog();
-		showServiceFailure(`Could not start the Zeta service: ${err.message}`);
+		// A missing/unrunnable launcher (ENOENT/EACCES) is a discovery failure,
+		// not a crash: report what was tried and how to fix it.
+		const code = (err as NodeJS.ErrnoException).code;
+		const detail = code === "ENOENT" || code === "EACCES" ? `\n\n${describeServeResolution(desktopServeDeps())}` : "";
+		showServiceFailure(`Could not start the Zeta service: ${err.message}${detail}`);
 	});
 	child.once("exit", code => {
 		if (serveChild !== child) return;
@@ -914,7 +932,7 @@ async function boot(): Promise<void> {
 
 	const cmd = resolveServeCommand();
 	if (!cmd) {
-		showServiceFailure("The bundled Zeta service is incomplete. Reinstall the desktop package.");
+		showServiceFailure(`Could not start the Zeta service.\n\n${describeServeResolution(desktopServeDeps())}`);
 		return;
 	}
 	// `zeta-d -d <cwd>` / `zeta --desktop <cwd>`: open the requested workspace.

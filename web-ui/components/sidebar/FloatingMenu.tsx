@@ -138,10 +138,13 @@ export function FloatingMenu({ open, onClose, items, point, anchorRect, label }:
 				visibility: pos ? "visible" : "hidden",
 				zIndex: 300,
 				minWidth: MENU_W,
-				background: "var(--bg-elevated, var(--bg))",
-				border: "1px solid var(--border)",
+				background: "var(--zeta-alias-bg-elevated, var(--zeta-alias-bg))",
+				border: "1px solid var(--zeta-alias-border)",
 				borderRadius: 8,
-				boxShadow: "var(--surface-shadow, 0 6px 20px rgba(0,0,0,0.18))",
+				// `--surface-shadow` is a colour token, so `box-shadow: var(--surface-shadow)`
+				// is not valid CSS and painted nothing. Keep the menu's own geometry and the
+				// 0.18 alpha it asked for, in the form the other popovers use.
+				boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 				padding: 4,
 				display: "flex",
 				flexDirection: "column",
@@ -169,7 +172,7 @@ function MenuItem({
 	return (
 		<>
 			{item.separatorBefore && (
-				<div role="separator" style={{ height: 1, background: "var(--border)", margin: "3px 4px" }} />
+				<div role="separator" style={{ height: 1, background: "var(--zeta-alias-border)", margin: "3px 4px" }} />
 			)}
 			<button
 				data-menuitem
@@ -187,10 +190,10 @@ function MenuItem({
 					gap: 6,
 					width: "100%",
 					padding: "6px 8px",
-					background: active ? "var(--bg-selected)" : "none",
+					background: active ? "var(--zeta-alias-bg-selected)" : "none",
 					border: "none",
 					borderRadius: 5,
-					color: item.danger ? "var(--status-error)" : item.disabled ? "var(--text-dim)" : "var(--text)",
+					color: item.danger ? "var(--zeta-alias-status-error)" : item.disabled ? "var(--zeta-alias-text-dim)" : "var(--zeta-alias-text)",
 					cursor: item.disabled ? "default" : "pointer",
 					fontSize: 11.5,
 					textAlign: "left",

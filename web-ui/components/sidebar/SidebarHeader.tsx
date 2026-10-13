@@ -28,7 +28,7 @@ const TOOL_BUTTON_STYLE: CSSProperties = {
 	display: "flex",
 	alignItems: "center",
 	justifyContent: "center",
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	width: 32,
 	height: 32,
@@ -38,13 +38,13 @@ const TOOL_BUTTON_STYLE: CSSProperties = {
 };
 
 function hoverAccent(e: React.MouseEvent<HTMLButtonElement>) {
-	e.currentTarget.style.background = "var(--bg-selected)";
-	e.currentTarget.style.color = "var(--accent)";
+	e.currentTarget.style.background = "var(--zeta-alias-bg-selected)";
+	e.currentTarget.style.color = "var(--zeta-alias-accent)";
 }
 
 function hoverReset(e: React.MouseEvent<HTMLButtonElement>) {
-	e.currentTarget.style.background = "var(--bg-hover)";
-	e.currentTarget.style.color = "var(--text-muted)";
+	e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+	e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
 }
 
 export function SidebarHeader({
@@ -99,10 +99,10 @@ export function SidebarHeader({
 							sideOffset={4}
 							style={{
 								minWidth: 200,
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 8,
-								boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
+								boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 								padding: 4,
 								zIndex: 200,
 							}}
@@ -114,7 +114,7 @@ export function SidebarHeader({
 									fontWeight: 600,
 									letterSpacing: "0.08em",
 									textTransform: "uppercase",
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 								}}
 							>
 								{t("sidebar.display.projectSort")}
@@ -129,7 +129,7 @@ export function SidebarHeader({
 										gap: 6,
 										padding: "6px 8px",
 										fontSize: 12,
-										color: projectSort === value ? "var(--accent)" : "var(--text)",
+										color: projectSort === value ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text)",
 										borderRadius: 5,
 										cursor: "pointer",
 										outline: "none",
@@ -151,7 +151,7 @@ export function SidebarHeader({
 					title={t("sidebar.display.search")}
 					style={{
 						...TOOL_BUTTON_STYLE,
-						color: searchOpen ? "var(--accent)" : "var(--text-muted)",
+						color: searchOpen ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)",
 					}}
 					onMouseEnter={hoverAccent}
 					onMouseLeave={hoverReset}
@@ -179,7 +179,7 @@ export function SidebarHeader({
 					title={editMode ? t("sidebar.exitEditMode") : t("sidebar.editMode")}
 					style={{
 						...TOOL_BUTTON_STYLE,
-						color: editMode ? "var(--accent)" : "var(--text-muted)",
+						color: editMode ? "var(--zeta-alias-accent)" : "var(--zeta-alias-text-muted)",
 					}}
 					onMouseEnter={hoverAccent}
 					onMouseLeave={hoverReset}

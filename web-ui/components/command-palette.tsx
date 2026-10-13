@@ -62,7 +62,7 @@ export function CommandPalette({
 					alignItems: "flex-start",
 					justifyContent: "center",
 					paddingTop: "12vh",
-					background: "color-mix(in srgb, var(--bg) 55%, transparent)",
+					background: "color-mix(in srgb, var(--zeta-alias-bg) 55%, transparent)",
 				} as React.CSSProperties
 			}
 		>
@@ -72,10 +72,10 @@ export function CommandPalette({
 					maxHeight: "min(480px, 70vh)",
 					display: "flex",
 					flexDirection: "column",
-					background: "var(--bg-panel)",
-					border: "1px solid var(--border)",
+					background: "var(--zeta-alias-bg-panel)",
+					border: "1px solid var(--zeta-alias-border)",
 					borderRadius: 12,
-					boxShadow: "0 18px 48px var(--surface-shadow)",
+					boxShadow: "0 18px 48px var(--zeta-alias-surface-shadow)",
 					overflow: "hidden",
 				}}
 				onClick={e => e.stopPropagation()}
@@ -86,10 +86,10 @@ export function CommandPalette({
 					style={{
 						margin: 10,
 						padding: "8px 12px",
-						background: "var(--bg)",
-						border: "1px solid var(--border)",
+						background: "var(--zeta-alias-bg)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 9,
-						color: "var(--text)",
+						color: "var(--zeta-alias-text)",
 						fontSize: 13,
 						outline: "none",
 					}}
@@ -105,7 +105,7 @@ export function CommandPalette({
 						style={{
 							padding: "16px 12px",
 							fontSize: 12,
-							color: "var(--text-muted)",
+							color: "var(--zeta-alias-text-muted)",
 							textAlign: "center",
 						}}
 					>
@@ -126,7 +126,7 @@ export function CommandPalette({
 										padding: "8px 10px",
 										borderRadius: 8,
 										fontSize: 12.5,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										cursor: "pointer",
 									}}
 								>
@@ -151,7 +151,7 @@ export function CommandPalette({
 										padding: "8px 10px",
 										borderRadius: 8,
 										fontSize: 12.5,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										cursor: "pointer",
 									}}
 								>
@@ -169,7 +169,7 @@ export function CommandPalette({
 										<span
 											style={{
 												fontSize: 11,
-												color: "var(--text-dim)",
+												color: "var(--zeta-alias-text-dim)",
 												overflow: "hidden",
 												textOverflow: "ellipsis",
 												whiteSpace: "nowrap",
@@ -191,9 +191,9 @@ export function CommandPalette({
 				<div
 					style={{
 						padding: "6px 12px",
-						borderTop: "1px solid var(--border)",
+						borderTop: "1px solid var(--zeta-alias-border)",
 						fontSize: 11,
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 						pointerEvents: "none",
 					}}
 				>
