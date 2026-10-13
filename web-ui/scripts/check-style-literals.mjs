@@ -35,10 +35,9 @@ const ROOT = resolve(here, "..");
 const BASELINE_PATH = join(ROOT, "scripts/style-literal-baseline.json");
 const BASELINE_NOTE =
   "Colour-literal ceilings for files still mid-migration, enforced by check-style-literals.mjs: any literal in a file " +
-  "absent here, and any count above its ceiling, fails the guard. A count below the ceiling is reported as a stale " +
-  "entry (not a failure) because a migration lands in its own PR; tighten with `node scripts/check-style-literals.mjs " +
-  "--update-baseline`, which rewrites this file from the current tree. The five files below are owned by the parallel " +
-  "shell PR (feat/desktop-ui-p0-shell).";
+  "absent here, and any count above its ceiling, fails the guard. Empty by design — every non-allow-listed file under " +
+  "web-ui is literal-free as of 2026-10-13. Adding an entry means accepting debt: state the owning branch/PR in the " +
+  "same commit, and tighten it again with `node scripts/check-style-literals.mjs --update-baseline` once migrated.";
 
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "public"]);
 const SCAN_EXT = new Set([".css", ".ts", ".tsx"]);

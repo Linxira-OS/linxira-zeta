@@ -484,7 +484,7 @@ function ProjectHeaderMenu({
 						background: "var(--bg-elevated, var(--bg))",
 						border: "1px solid var(--border)",
 						borderRadius: 8,
-						boxShadow: "0 6px 20px rgba(0,0,0,0.18)",
+						boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 						padding: 4,
 					}}
 				>
@@ -2312,7 +2312,7 @@ export function SessionSidebar({
 							border: "1px solid var(--border)",
 							borderRadius: 10,
 							padding: 16,
-							boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+							boxShadow: "0 12px 40px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent)",
 						}}
 					>
 						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>
@@ -2399,7 +2399,7 @@ export function SessionSidebar({
 							border: "1px solid var(--border)",
 							borderRadius: 10,
 							padding: 16,
-							boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+							boxShadow: "0 12px 40px color-mix(in srgb, var(--zeta-alias-neutral-1000) 30%, transparent)",
 						}}
 					>
 						<div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>

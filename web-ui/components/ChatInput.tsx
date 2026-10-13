@@ -444,7 +444,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 function ModelNoticeBanner({ tone, title, body }: { tone: "error" | "warning"; title: string; body: string }) {
-	const color = tone === "error" ? "239,68,68" : "234,179,8";
+	const color = tone === "error" ? "var(--zeta-alias-status-error)" : "var(--zeta-alias-status-warning)";
 	return (
 		<div
 			role="alert"
@@ -456,10 +456,10 @@ function ModelNoticeBanner({ tone, title, body }: { tone: "error" | "warning"; t
 				marginBottom: 8,
 				padding: "7px 10px",
 				overflowY: "auto",
-				border: `1px solid rgba(${color},0.3)`,
+				border: `1px solid color-mix(in srgb, ${color} 30%%, transparent)`,
 				borderRadius: 6,
-				background: `rgba(${color},0.07)`,
-				color: `rgb(${color})`,
+				background: `color-mix(in srgb, ${color} 7%%, transparent)`,
+				color,
 				fontSize: 11,
 				lineHeight: 1.45,
 			}}
@@ -1654,11 +1654,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "5px 10px",
-							background: "rgba(234,179,8,0.08)",
-							border: "1px solid rgba(234,179,8,0.25)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-warning) 8%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-warning) 25%, transparent)",
 							borderRadius: 6,
 							fontSize: 12,
-							color: "rgba(180,130,0,0.9)",
+							color: "var(--zeta-alias-status-warning)",
 							display: "flex",
 							alignItems: "center",
 							gap: 6,
@@ -1689,11 +1689,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "5px 10px",
-							background: "rgba(16,185,129,0.08)",
-							border: "1px solid rgba(16,185,129,0.24)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-success) 8%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-success) 24%, transparent)",
 							borderRadius: 6,
 							fontSize: 12,
-							color: "rgba(5,150,105,0.95)",
+							color: "var(--zeta-alias-status-success)",
 							display: "flex",
 							alignItems: "center",
 							gap: 6,
@@ -1721,8 +1721,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 						style={{
 							marginBottom: 8,
 							padding: "7px 10px",
-							background: "rgba(239,68,68,0.07)",
-							border: "1px solid rgba(239,68,68,0.3)",
+							background: "color-mix(in srgb, var(--zeta-alias-status-error) 7%, transparent)",
+							border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
 							borderRadius: 6,
 							color: "var(--zeta-alias-status-error)",
 							fontFamily: "var(--font-mono)",
@@ -1811,7 +1811,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								background: "var(--bg)",
 								border: "1px solid var(--border)",
 								borderRadius: 8,
-								boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+								boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 								overflow: "hidden",
 								maxHeight: "min(44vh, 360px)",
 							}}
@@ -1920,7 +1920,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 								background: "var(--bg)",
 								border: "1px solid var(--border)",
 								borderRadius: 8,
-								boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+								boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 								overflow: "hidden",
 								maxHeight: "min(56vh, 460px)",
 							}}
@@ -2118,7 +2118,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										background: "var(--bg)",
 										border: "1px solid var(--border)",
 										borderRadius: 8,
-										boxShadow: "0 -6px 20px rgba(0,0,0,0.12)",
+										boxShadow: "0 -6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 12%, transparent)",
 										overflow: "hidden",
 										maxHeight: "min(48vh, 400px)",
 									}}
@@ -2250,12 +2250,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											bashMode
 												? "var(--tool-bg)"
 												: isStreaming && (onSteer || onFollowUp)
-													? "rgba(234,179,8,0.4)"
+													? "color-mix(in srgb, var(--zeta-alias-status-warning) 40%, transparent)"
 													: "color-mix(in srgb, var(--border) 70%, transparent)"
 										}`,
 								borderRadius: 14,
 								padding: isHero ? "14px 14px 10px 16px" : "10px 10px 10px 14px",
-								boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)",
+								boxShadow: "0 1px 2px color-mix(in srgb, var(--zeta-alias-shadow-ink) 4%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--zeta-alias-shadow-ink) 10%, transparent)",
 								transition: "border-color 0.15s, background 0.15s, box-shadow 0.15s",
 							} as React.CSSProperties
 						}
@@ -2337,10 +2337,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											gap: 5,
 											padding: "7px 12px",
-											background: canQueueStreamingMessage ? "rgba(234,179,8,0.12)" : "none",
-											border: "1px solid rgba(234,179,8,0.35)",
+											background: canQueueStreamingMessage ? "color-mix(in srgb, var(--zeta-alias-status-warning) 12%, transparent)" : "none",
+											border: "1px solid color-mix(in srgb, var(--zeta-alias-status-warning) 35%, transparent)",
 											borderRadius: 8,
-											color: canQueueStreamingMessage ? "rgba(180,130,0,1)" : "var(--text-dim)",
+											color: canQueueStreamingMessage ? "var(--zeta-alias-status-warning)" : "var(--text-dim)",
 											cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
 											fontSize: 13,
 											fontWeight: 600,
@@ -2378,10 +2378,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											alignItems: "center",
 											gap: 5,
 											padding: "7px 12px",
-											background: canQueueStreamingMessage ? "rgba(129,140,248,0.12)" : "none",
-											border: "1px solid rgba(129,140,248,0.35)",
+											background: canQueueStreamingMessage ? "color-mix(in srgb, var(--zeta-alias-status-info) 12%, transparent)" : "none",
+											border: "1px solid color-mix(in srgb, var(--zeta-alias-status-info) 35%, transparent)",
 											borderRadius: 8,
-											color: canQueueStreamingMessage ? "rgba(99,102,241,1)" : "var(--text-dim)",
+											color: canQueueStreamingMessage ? "var(--zeta-alias-status-info)" : "var(--text-dim)",
 											cursor: canQueueStreamingMessage ? "pointer" : "not-allowed",
 											fontSize: 13,
 											fontWeight: 600,
@@ -2427,7 +2427,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									fontSize: 13,
 									fontWeight: 600,
 									letterSpacing: "-0.01em",
-									boxShadow: value.trim() || attachedImages.length ? "0 1px 3px rgba(37,99,235,0.25)" : "none",
+									boxShadow: value.trim() || attachedImages.length ? "0 1px 3px color-mix(in srgb, var(--zeta-alias-accent) 25%, transparent)" : "none",
 									transition: "background 0.15s, box-shadow 0.15s",
 								}}
 							>
@@ -2676,7 +2676,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 													background: "var(--bg)",
 													border: "1px solid var(--border)",
 													borderRadius: 8,
-													boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+													boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 													overflow: "hidden",
 													maxHeight: maxH,
 													display: "flex",
@@ -2929,7 +2929,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											border: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
 											borderRadius: 10,
 											background: "color-mix(in srgb, var(--bg-panel) 92%, var(--bg))",
-											boxShadow: "0 8px 24px rgba(0,0,0,0.14)",
+											boxShadow: "0 8px 24px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 											backdropFilter: "blur(10px)",
 										}
 									: null),
@@ -3034,7 +3034,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												background: "var(--bg)",
 												border: "1px solid var(--border)",
 												borderRadius: 8,
-												boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+												boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 												overflow: "hidden",
 												minWidth: 180,
 											}}
@@ -3187,7 +3187,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 												background: "var(--bg)",
 												border: "1px solid var(--border)",
 												borderRadius: 8,
-												boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+												boxShadow: "0 -4px 16px color-mix(in srgb, var(--zeta-alias-neutral-1000) 10%, transparent)",
 												overflow: "hidden",
 												minWidth: 120,
 											}}
@@ -3278,7 +3278,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											padding: controlsCompact ? "0 6px" : "8px 12px",
 											width: controlsCompact ? "auto" : undefined,
 											height: 32,
-											background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
+											background: isCompacting ? "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)" : "none",
 											border: "none",
 											borderRadius: 9,
 											color: isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)",
@@ -3290,12 +3290,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										onMouseEnter={e => {
 											if (isStreaming && !isCompacting) return;
 											e.currentTarget.style.background = isCompacting
-												? "rgba(239,68,68,0.16)"
+												? "color-mix(in srgb, var(--zeta-alias-status-error) 16%, transparent)"
 												: "var(--bg-hover)";
 											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text)";
 										}}
 										onMouseLeave={e => {
-											e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
+											e.currentTarget.style.background = isCompacting ? "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)" : "none";
 											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)";
 										}}
 										title={isCompacting ? t("chat.stop-compaction") : t("chat.compact-context")}
@@ -3346,8 +3346,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										gap: 6,
 										padding: "8px 14px",
 										height: 32,
-										background: "rgba(239,68,68,0.08)",
-										border: "1px solid rgba(239,68,68,0.3)",
+										background: "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)",
+										border: "1px solid color-mix(in srgb, var(--zeta-alias-status-error) 30%, transparent)",
 										borderRadius: 9,
 										color: "var(--zeta-alias-status-error)",
 										cursor: "pointer",
@@ -3358,10 +3358,10 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										transition: "background 0.12s",
 									}}
 									onMouseEnter={e => {
-										e.currentTarget.style.background = "rgba(239,68,68,0.16)";
+										e.currentTarget.style.background = "color-mix(in srgb, var(--zeta-alias-status-error) 16%, transparent)";
 									}}
 									onMouseLeave={e => {
-										e.currentTarget.style.background = "rgba(239,68,68,0.08)";
+										e.currentTarget.style.background = "color-mix(in srgb, var(--zeta-alias-status-error) 8%, transparent)";
 									}}
 								>
 									<svg width="10" height="10" viewBox="0 0 10 10" fill="none">
