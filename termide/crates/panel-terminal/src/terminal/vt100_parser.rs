@@ -175,7 +175,12 @@ impl Perform for VtPerformer {
                         .and_then(|p| p.first())
                         .copied()
                         .unwrap_or(0);
-                    screen.keyboard_protocol = if flag == 1 {
+                    // The push payload is a flag bitmask (kitty: 1 =
+                    // disambiguate escape codes, 2 = report event types, …).
+                    // Honour the disambiguate bit rather than requiring the
+                    // mask to equal 1 exactly, so `>1u`, `>3u`, and any set
+                    // that includes bit 1 all enable CSI-u reporting.
+                    screen.keyboard_protocol = if flag & 1 == 1 {
                         KeyboardProtocolMode::CsiUCompat
                     } else {
                         KeyboardProtocolMode::Legacy

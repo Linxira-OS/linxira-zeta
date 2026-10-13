@@ -10,7 +10,7 @@ import (
 )
 
 var menuBarLabels = []string{
-	"menu.file", "menu.edit", "menu.selection", "menu.view", "menu.options", "menu.help", "menu.agent",
+	"menu.file", "menu.edit", "menu.selection", "menu.view", "menu.options", "menu.help",
 }
 
 var menuBarMenus = [][]ui.ContextMenuItem{
@@ -76,13 +76,6 @@ var menuBarMenus = [][]ui.ContextMenuItem{
 	// Help
 	{
 		{Label: "About", Command: "about"},
-	},
-	// Agent — hands the session to the agent CLI (the editor→zeta direction of
-	// the handoff). Appended last so menuOptionsIndex keeps pointing at Options.
-	{
-		{Label: "Switch to Agent", Command: "handoff.toAgent"},
-		ui.MenuSep(),
-		{Label: "Switch to Agent with Current File", Command: "handoff.toAgentWithFile"},
 	},
 }
 

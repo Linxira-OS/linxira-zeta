@@ -243,29 +243,6 @@ func DefaultExplorerSettings() ExplorerSettings {
 	}
 }
 
-// AgentSettings controls the editor↔agent handoff (the editor side of the
-// cross-surface switch). All fields are tri-state pointers so an absent key
-// means "default" rather than "off", matching PluginSettings.
-type AgentSettings struct {
-	// Enabled gates the Agent menu entry and the handoff commands.
-	Enabled *bool `json:"enabled,omitempty"`
-	// HandoffFile writes the file target (path:line:col) into the handoff so
-	// the agent resumes with the cursor where the user left it.
-	HandoffFile *bool `json:"handoffFile,omitempty"`
-}
-
-// boolPtr returns a pointer to b, for tri-state settings whose nil value means
-// "inherit the default".
-func boolPtr(b bool) *bool { return &b }
-
-func (a AgentSettings) IsEnabled() bool {
-	return a.Enabled == nil || *a.Enabled
-}
-
-func (a AgentSettings) HandsOffFile() bool {
-	return a.HandoffFile == nil || *a.HandoffFile
-}
-
 type PluginSettings struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -330,7 +307,6 @@ type Settings struct {
 	Image        ImageSettings        `json:"image"`
 	// Plugins is safe: its only field is a tri-state *bool where nil means the
 	// default, so the zero value and "unset" mean the same thing.
-	Agent      AgentSettings     `json:"agent,omitzero"`
 	Plugins    PluginSettings    `json:"plugins,omitzero"`
 	Welcome    WelcomeSettings   `json:"welcome,omitzero"`
 	Formatters map[string]string `json:"formatters,omitempty"`
@@ -346,7 +322,7 @@ type Settings struct {
 var knownSettingsKeys = map[string]bool{
 	"version": true, "theme": true, "debugMode": true, "appearance": true, "editor": true,
 	"search": true, "explorer": true, "sidebar": true, "panel": true, "git": true, "terminal": true, "lsp": true,
-	"autocomplete": true, "markdown": true, "image": true, "plugins": true, "formatters": true, "agent": true,
+	"autocomplete": true, "markdown": true, "image": true, "plugins": true, "formatters": true,
 	"welcome": true,
 }
 
@@ -407,14 +383,7 @@ func DefaultSettings() Settings {
 		LSP:          DefaultLSPSettings(),
 		Autocomplete: DefaultAutocompleteSettings(),
 		Markdown:     DefaultMarkdownSettings(),
-		// Explicit (not nil) so a written config shows the agent block and the
-		// settings UI can round-trip it; IsEnabled/HandsOffFile still treat nil
-		// as "on" for configs written before this block existed.
-		Agent: AgentSettings{
-			Enabled:     boolPtr(true),
-			HandoffFile: boolPtr(true),
-		},
-		Image: DefaultImageSettings(),
+		Image:        DefaultImageSettings(),
 	}
 }
 

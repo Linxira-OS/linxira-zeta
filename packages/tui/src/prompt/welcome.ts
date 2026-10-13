@@ -2,19 +2,17 @@ import { APP_NAME } from "@linxiraos/pi-utils/dirs";
 import type { TspSpan } from "@linxiraos/pi-wire";
 import { formatDoubleTap, formatKeyHint, formatKeyHints, type KeyName } from "../app-keybindings";
 import { editorKey } from "../chrome/keybinding-hints";
-import { getKeybindings, type Keybinding } from "../keybindings";
-import { card, col, kbd, keyed, node, row, span, text } from "../native/describe";
-import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
-import { runTranscriptAction } from "../chat/transcript-actions";
 import { tuiText } from "../i18n";
-import { compactText, plainLine, plainText } from "../native/spans";
-
+import { getKeybindings, type Keybinding } from "../keybindings";
+import { card, col, keyed, node, row, span, text } from "../native/describe";
+import type { DescribeContext, NativeChild, NativeNode } from "../native/node";
+import { compactText, plainText } from "../native/spans";
 import { isNativeRendering } from "../native/state";
 import { isHyperlinkEnabled, urlHyperlink, urlLinkSpan } from "../render/hyperlink";
 import { TERMINAL } from "../terminal-capabilities";
 import { theme } from "../theme/theme";
 import type { Component } from "../tui";
-import { padding, replaceTabs, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "../utils";
+import { padding, replaceTabs, visibleWidth, wrapTextWithAnsi } from "../utils";
 import tipsText from "./tips.txt" with { type: "text" };
 
 /** Leading marker for a tip that pitches Tern: shown only while no TSP surface
@@ -57,18 +55,6 @@ const TIP_LINES: readonly TipLine[] = tipsText.split("\n").flatMap((line, index)
 		},
 	];
 });
-
-/**
- * Fixed number of session rows in the welcome box so its height stays stable
- * across recent-session updates.
- */
-export const WELCOME_SESSION_SLOTS = 4;
-
-/**
- * Fixed number of LSP-server rows, for the same reason. Overflow is sliced so
- * the box height is constant regardless of how many servers a project has.
- */
-export const WELCOME_LSP_SLOTS = 4;
 
 /** Classic pool: every tip's raw line, so {@link pickWeightedTip} can still read
  *  the trailing {@link NEW_TIP_MARKER} for its selection weight. */
@@ -213,31 +199,29 @@ function tipSpans(tip: string): TspSpan[] {
  */
 export function renderWelcomeTip(tip: string, width: number, phase = 0, isNew = NEW_TIP_MARKER.test(tip)): string[] {
 	const label = tuiText("welcomeTipLabel", "Tip: ");
-	const labelWidth = visibleWidth(label);
-	const bodyBudget = width - labelWidth;
-	if (bodyBudget < 8) return [];
+	if (width - visibleWidth(label) < 8) return [];
 
 	const body = linkTipText(expandTipKeys(isNew ? tip.replace(NEW_TIP_MARKER, "") : tip));
 
-	const wrappedBody = wrapTextWithAnsi(replaceTabs(body), bodyBudget);
-	if (wrappedBody.length === 0) return [];
+	// Trailing spaces left by the wrap would count toward the width the banner centers.
+	const wrapped = wrapTextWithAnsi(replaceTabs(`${label}${body}`), width).map(line => line.trimEnd());
+	if (wrapped.length === 0) return [];
 
 	// Pull both colors from the active theme so the line stays readable on light
 	// themes; the previous hardcoded `#b48cff` / `#9ccfff` pastels (plus a manual
 	// `\x1b[2m` dim on the body) dropped to ~1.5:1 contrast on a white background.
-	const continuationIndent = padding(labelWidth);
 	const styledLabel = theme.fg("customMessageLabel", label);
-
-	const lines = wrappedBody.map((line, index) => {
-		const styledBody = theme.fg("muted", line);
-		const content = index === 0 ? `${styledLabel}${styledBody}` : `${styledBody}`;
-		return theme.italic(content);
-	});
+	const lines = wrapped.map((line, index) =>
+		theme.italic(
+			index === 0 && line.startsWith(label)
+				? `${styledLabel}${theme.fg("muted", line.slice(label.length))}`
+				: theme.fg("muted", line),
+		),
+	);
 
 	if (isNew) {
-		// Append the rainbow tag to the final body line when it fits within the
-		// box; otherwise drop it onto its own indented continuation line so the
-		// styled glyphs never overflow or reflow the wrapped body.
+		// Append the rainbow tag to the final line when it fits; otherwise give it
+		// a line of its own so the styled glyphs never overflow the width.
 		const encoding: ColorEncoding = TERMINAL.trueColor ? "ansi-16m" : "ansi-256";
 		const tagText = tuiText("welcomeNewTag", NEW_TAG_TEXT);
 		const tag = renderNewTag(tagText, phase, encoding);
@@ -246,28 +230,19 @@ export function renderWelcomeTip(tip: string, width: number, phase = 0, isNew = 
 		if (lastLine !== undefined && visibleWidth(lastLine) + tagWidth <= width) {
 			lines[lines.length - 1] = `${lastLine} ${tag}`;
 		} else {
-			lines.push(continuationIndent + tag);
+			lines.push(tag);
 		}
 	}
 
 	return lines;
 }
 
-export interface RecentSession {
-	name: string;
-	timeAgo: string;
-	/** Session file; a native click on the row resumes it. */
-	path?: string;
-}
-
-export interface LspServerInfo {
-	name: string;
-	status: "ready" | "error" | "connecting" | "available";
-	fileTypes: string[];
-}
-
 /**
- * Premium welcome screen with block-based ZETA logo and two-column layout.
+ * The session's welcome banner. In a terminal: the gradient logo beside the
+ * `zeta` wordmark with the version under it (the logo alone when the lockup does
+ * not fit) and the tip of the session (dropped below {@link TIP_MIN_COLUMNS}
+ * columns). Natively: a card with the same logo, wordmark, version and tip
+ * ({@link WelcomeComponent.describe}).
  */
 export class WelcomeComponent implements Component {
 	#animStart: number | null = null;
@@ -290,14 +265,7 @@ export class WelcomeComponent implements Component {
 	#cachedLang = "";
 	#native: { lang: string; tip: string | undefined; node: NativeNode } | undefined;
 
-	constructor(
-		private version: string,
-		private modelName: string = "",
-		private providerName: string = "",
-		private recentSessions: RecentSession[] = [],
-		/** Detected project servers; `null` means LSP is disabled and hides the section. */
-		private lspServers: LspServerInfo[] | null = [],
-	) {}
+	constructor(private version: string) {}
 	get tip(): string | undefined {
 		this.#nagRoll ??= Math.random();
 		this.#tipRoll ??= Math.random();
@@ -314,11 +282,10 @@ export class WelcomeComponent implements Component {
 	}
 
 	/**
-	 * A `card` (`zeta.welcome`) titled with the app version. The brand column
-	 * (`zeta.welcome.brand`: greeting and the terminal's builtin `zeta` mark, which
-	 * it animates) sits beside the info column (`zeta.welcome.info`: prompt-sigil
-	 * keycaps, LSP servers, recent sessions); the tip of the session closes the card. Roles
-	 * carry the look (gradient logo, type scale, column hairline); a "[NEW]" tip
+	 * A `card` (`zeta.welcome`) mirroring the terminal banner: the lockup
+	 * (`zeta.welcome.lockup`: the terminal's builtin `zeta` mark, which it animates,
+	 * beside the wordmark with the version under it) and the tip of the session.
+	 * Roles carry the look (gradient logo, type scale); a "[NEW]" tip
 	 * carries a terminal-clocked shimmering tag.
 	 */
 	describe(_cx: DescribeContext): NativeNode {
@@ -326,15 +293,12 @@ export class WelcomeComponent implements Component {
 		const rawTip = this.tip;
 		const tip = rawTip === undefined ? undefined : resolveTip(rawTip);
 		if (this.#native && this.#native.lang === lang && this.#native.tip === tip?.text) return this.#native.node;
-		const line = (spans: readonly TspSpan[], role?: string, key?: string): NativeNode =>
-			keyed(text(spans, { wrap: "none", truncate: "end", role }), key ?? role ?? "");
-		// Centered brand lines are short and fixed; the logo is multi-line art that must never truncate.
+		// Brand lines are short and fixed; never wrap or truncate them.
 		const art = (spans: readonly TspSpan[], role: string): NativeNode =>
 			keyed(text(spans, { wrap: "none", role }), role);
-		const brand = keyed(
-			col(
+		const lockupRow = keyed(
+			row(
 				[
-					art([span(lang, "strong")], "zeta.welcome.greeting"),
 					node(
 						"image",
 						{
@@ -346,99 +310,22 @@ export class WelcomeComponent implements Component {
 						undefined,
 						"logo",
 					),
-				],
-				{ align: "center", role: "zeta.welcome.brand" },
-			),
-			"brand",
-		);
-		const section = (key: string, label: string, rows: readonly NativeChild[]): NativeNode =>
-			keyed(
-				col([line([span(label, "dim")], "zeta.welcome.heading"), ...rows], {
-					gap: "xs",
-					role: `zeta.welcome.${key}`,
-				}),
-				key,
-			);
-		const shortcut = (key: string, label: string): NativeNode =>
-			keyed(row([kbd(key), line([span(label, "muted")])], { gap: "sm" }), label);
-		const info: NativeChild[] = [
-			line([span(this.version, "dim mono")], "zeta.welcome.version"),
-			section("tips", tuiText("welcomeTipsTitle", "Tips"), [
-				// The classic hints carry a leading space before the suffix; the
-				// keycap layout already supplies the gap, so trim it here.
-				shortcut("#", tuiText("welcomePromptActionsHint", " for prompt actions").trim()),
-				shortcut("/", tuiText("welcomeCommandsHint", " for commands").trim()),
-				shortcut("!", tuiText("welcomeRunBashHint", " to run bash").trim()),
-				shortcut("$", tuiText("welcomeRunPythonHint", " to run python").trim()),
-			]),
-		];
-		if (this.lspServers !== null) {
-			const lsp: NativeChild[] = [];
-			if (this.lspServers.length === 0) {
-				lsp.push(line([span(tuiText("welcomeNoLspServers", "No LSP servers"), "dim")], undefined, "none"));
-			}
-			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
-				const [symbol, token] =
-					server.status === "ready"
-						? (["status.enabled", "success"] as const)
-						: server.status === "available"
-							? (["status.enabled", "dim"] as const)
-							: server.status === "connecting"
-								? (["status.pending", "muted"] as const)
-								: (["status.error", "error"] as const);
-				lsp.push(
 					keyed(
-						row(
+						col(
 							[
-								text([span("●", token)], { role: "zeta.welcome.lsp-dot", title: server.status, aria: symbol }),
-								line([span(server.name)]),
-								...server.fileTypes
-									.slice(0, 3)
-									.map(type => node("badge", { text: type, role: "zeta.welcome.lsp-type" }, undefined, type)),
+								art([span("Z e t a", "strong")], "zeta.welcome.wordmark"),
+								art([span(`v${this.version}`, "dim mono")], "zeta.welcome.version"),
 							],
-							{ gap: "sm", role: "zeta.welcome.lsp-row" },
+							{ role: "zeta.welcome.mark" },
 						),
-						server.name,
+						"mark",
 					),
-				);
-			}
-			info.push(section("lsp", tuiText("welcomeLspServersTitle", "LSP Servers"), lsp));
-		}
-		const recents: NativeChild[] = [];
-		if (this.recentSessions.length === 0) {
-			recents.push(line([span(tuiText("welcomeNoRecentSessions", "No recent sessions"), "dim")], undefined, "none"));
-		}
-		for (const [index, session] of this.recentSessions.slice(0, WELCOME_SESSION_SLOTS).entries()) {
-			recents.push(
-				keyed(
-					row(
-						[
-							line([span(plainLine(session.name))], "zeta.welcome.session"),
-							line([span(session.timeAgo, "dim")], "zeta.welcome.age"),
-						],
-						{
-							gap: "md",
-							justify: "between",
-							role: "zeta.welcome.recent",
-							actions: session.path ? { click: "resume" } : undefined,
-							title: session.path ? `Resume ${plainLine(session.name)}` : undefined,
-						},
-					),
-					`s${index}`,
-				),
-			);
-		}
-		info.push(section("recents", tuiText("welcomeRecentSessionsTitle", "Recent sessions"), recents));
-		const body: NativeChild[] = [
-			keyed(
-				row([brand, keyed(col(info, { gap: "md", role: "zeta.welcome.info" }), "info")], {
-					align: "start",
-					wrap: true,
-					role: "zeta.welcome.grid",
-				}),
-				"grid",
+				],
+				{ align: "center", gap: "md", role: "zeta.welcome.lockup" },
 			),
-		];
+			"lockup",
+		);
+		const body: NativeChild[] = [lockupRow];
 		if (tip) {
 			const tipText = compactText(tipSpans(expandTipKeys(tip.text)));
 			const tipRow: NativeChild[] = [
@@ -450,17 +337,10 @@ export class WelcomeComponent implements Component {
 			}
 			body.push(node("row", { gap: "sm", align: "start", role: "zeta.welcome.tip" }, tipRow, "tip"));
 		}
-		// No head row or chevron: the card is the hero; the version sits in the info column.
+		// No head row or chevron: the card is the hero; the version sits under the wordmark.
 		const described = card({ role: "zeta.welcome" }, body);
 		this.#native = { lang, tip: tip?.text, node: described };
 		return described;
-	}
-	/** A click on a recent session resumes it. */
-	handleNativeEvent(event: NativeUiEvent): void {
-		if (event.type !== "action" || event.act !== "resume") return;
-		const index = Number(/\/s(\d+)$/.exec(event.key)?.[1]);
-		const path = this.recentSessions[index]?.path;
-		if (path) runTranscriptAction({ act: "resume", path });
 	}
 
 	/** The intro keeps the welcome block mutable; settling lets it retire to history. */
@@ -529,22 +409,6 @@ export class WelcomeComponent implements Component {
 		this.invalidate();
 	}
 
-	setModel(modelName: string, providerName: string): void {
-		this.modelName = modelName;
-		this.providerName = providerName;
-		this.invalidate();
-	}
-
-	setRecentSessions(sessions: RecentSession[]): void {
-		this.recentSessions = sessions;
-		this.invalidate();
-	}
-
-	setLspServers(servers: LspServerInfo[] | null): void {
-		this.lspServers = servers;
-		this.invalidate();
-	}
-
 	render(termWidth: number): readonly string[] {
 		const animating = this.#animStart != null;
 		const lang = tuiText("welcomeBack", "Welcome back!");
@@ -564,224 +428,33 @@ export class WelcomeComponent implements Component {
 	}
 
 	#renderLines(termWidth: number): string[] {
-		// Box dimensions - responsive with max width and small-terminal support
-		const maxWidth = 100;
-		const boxWidth = Math.min(maxWidth, Math.max(0, termWidth - 2));
-		if (boxWidth < 4) {
-			return [];
-		}
-		const dualContentWidth = boxWidth - 3; // 3 = │ + │ + │
-		const preferredLeftCol = 26;
-		const minLeftCol = 12; // logo width
-		const minRightCol = 20;
-		// Dynamic model/provider labels are truncated inside the fixed column.
-		// Letting them influence the responsive breakpoint changes the box height
-		// when authoritative session data replaces the empty prepaint labels.
-		const greeting = tuiText("welcomeBack", "Welcome back!");
-		const leftMinContentWidth = Math.max(minLeftCol, visibleWidth(greeting));
-		const desiredLeftCol = Math.max(
-			Math.min(preferredLeftCol, Math.max(minLeftCol, Math.floor(dualContentWidth * 0.35))),
-			leftMinContentWidth,
-		);
-		const dualLeftCol =
-			dualContentWidth >= minRightCol + 1
-				? Math.min(desiredLeftCol, dualContentWidth - minRightCol)
-				: Math.max(1, dualContentWidth - 1);
-		const dualRightCol = Math.max(1, dualContentWidth - dualLeftCol);
-		const showRightColumn = dualLeftCol >= leftMinContentWidth && dualRightCol >= minRightCol;
-		const leftCol = showRightColumn ? dualLeftCol : boxWidth - 2;
-		const rightCol = showRightColumn ? dualRightCol : 0;
-
-		// Logo: pick a frame from the intro animation if active, else the resting frame.
-		const logoColored = this.#currentLogoFrame();
-
-		// Left column - centered content
-		const leftLines = [
-			"",
-			this.#centerText(theme.bold(greeting), leftCol),
-			"",
-			...logoColored.map(l => this.#centerText(l, leftCol)),
-			"",
-			this.#centerText(theme.fg("muted", this.modelName), leftCol),
-			this.#centerText(theme.fg("borderMuted", this.providerName), leftCol),
-		];
-
-		// Right column separator
-		const separatorWidth = Math.max(0, rightCol - 2); // padding on each side
-		const separator = ` ${theme.fg("dim", theme.boxRound.horizontal.repeat(separatorWidth))}`;
-
-		// Recent sessions content
-		const sessionLines: string[] = [];
-		if (this.recentSessions.length === 0) {
-			sessionLines.push(` ${theme.fg("dim", tuiText("welcomeNoRecentSessions", "No recent sessions"))}`);
-		} else {
-			// Reserve width for the bullet prefix (" • ") and the trailing " (timeAgo)"
-			// so the relative time is never the part that gets truncated. The name
-			// absorbs whatever space is left.
-			const bulletPrefix = ` ${theme.md.bullet} `;
-			const prefixWidth = visibleWidth(bulletPrefix);
-			for (const session of this.recentSessions.slice(0, WELCOME_SESSION_SLOTS)) {
-				const timeSuffixRaw = ` (${session.timeAgo})`;
-				const timeWidth = visibleWidth(timeSuffixRaw);
-				const nameBudget = Math.max(1, rightCol - prefixWidth - timeWidth);
-				const nameVis = visibleWidth(session.name);
-				const name = nameVis > nameBudget ? truncateToWidth(session.name, nameBudget) : session.name;
-				sessionLines.push(
-					`${theme.fg("dim", bulletPrefix)}${theme.fg("muted", name)}${theme.fg("dim", timeSuffixRaw)}`,
-				);
-			}
-		}
-		// Pad to the fixed slot count so the box height doesn't depend on session count.
-		while (sessionLines.length < WELCOME_SESSION_SLOTS) {
-			sessionLines.push("");
-		}
-
-		// Right column
-		const rightLines = [
-			` ${theme.bold(theme.fg("accent", tuiText("welcomeTipsTitle", "Tips")))}`,
-			` ${theme.fg("dim", "#")}${theme.fg("muted", tuiText("welcomePromptActionsHint", " for prompt actions"))}`,
-			` ${theme.fg("dim", "/")}${theme.fg("muted", tuiText("welcomeCommandsHint", " for commands"))}`,
-			` ${theme.fg("dim", "!")}${theme.fg("muted", tuiText("welcomeRunBashHint", " to run bash"))}`,
-			` ${theme.fg("dim", "$")}${theme.fg("muted", tuiText("welcomeRunPythonHint", " to run python"))}`,
-			...this.#renderLspSection(separator),
-			separator,
-			` ${theme.bold(theme.fg("accent", tuiText("welcomeRecentSessionsTitle", "Recent sessions")))}`,
-			...sessionLines,
-			"",
-		];
-
-		// Border characters (dim)
-		const hChar = theme.boxRound.horizontal;
-		const h = theme.fg("dim", hChar);
-		const v = theme.fg("dim", theme.boxRound.vertical);
-		const tl = theme.fg("dim", theme.boxRound.topLeft);
-		const tr = theme.fg("dim", theme.boxRound.topRight);
-		const bl = theme.fg("dim", theme.boxRound.bottomLeft);
-		const br = theme.fg("dim", theme.boxRound.bottomRight);
-
-		const lines: string[] = [];
-
-		// Top border with embedded title
-		const title = ` ${APP_NAME} v${this.version} `;
-		const titlePrefixRaw = hChar.repeat(3);
-		const titleStyled = theme.fg("dim", titlePrefixRaw) + theme.fg("muted", title);
-		const titleVisLen = visibleWidth(titlePrefixRaw) + visibleWidth(title);
-		const titleSpace = boxWidth - 2;
-		if (titleVisLen >= titleSpace) {
-			lines.push(tl + truncateToWidth(titleStyled, titleSpace) + tr);
-		} else {
-			const afterTitle = titleSpace - titleVisLen;
-			lines.push(tl + titleStyled + theme.fg("dim", hChar.repeat(afterTitle)) + tr);
-		}
-
-		// Content rows
-		const maxRows = showRightColumn ? Math.max(leftLines.length, rightLines.length) : leftLines.length;
-		for (let i = 0; i < maxRows; i++) {
-			const left = this.#fitToWidth(leftLines[i] ?? "", leftCol);
-			if (showRightColumn) {
-				const right = this.#fitToWidth(rightLines[i] ?? "", rightCol);
-				lines.push(v + left + v + right + v);
-			} else {
-				lines.push(v + left + v);
-			}
-		}
-		// Bottom border
-		if (showRightColumn) {
-			lines.push(bl + h.repeat(leftCol) + theme.fg("dim", theme.boxRound.teeUp) + h.repeat(rightCol) + br);
-		} else {
-			lines.push(bl + h.repeat(leftCol) + br);
-		}
-
-		// Randomly picked tip, rendered directly beneath the box.
-		// The banner centers every tip line, so the tip drops out entirely on
-		// narrow boxes rather than wrapping into unreadable slivers.
-		if (termWidth >= 16) lines.push(...this.#renderTip(boxWidth));
-
+		// Content keeps a column clear on each side; everything centers in the full width.
+		const room = termWidth - 2;
+		if (room < 4) return [];
+		const logo = this.#currentLogoFrame();
+		const version = theme.fg("dim", `v${this.version}`);
+		const lockupWidth = LOGO_WIDTH + LOCKUP_GAP + Math.max(WORDMARK_WIDTH, visibleWidth(version));
+		const art = room >= lockupWidth ? lockup(logo, version) : room >= LOGO_WIDTH ? logo : [];
+		const lines = centerBlock(art, termWidth);
+		const tip = termWidth >= TIP_MIN_COLUMNS ? this.#renderTip(room) : [];
+		if (tip.length > 0) lines.push("", ...tip.flatMap(line => centerBlock([line], termWidth)));
 		return lines;
 	}
 
-	/** Right-column LSP rows padded to a fixed height; empty when LSP is disabled. */
-	#renderLspSection(separator: string): string[] {
-		if (this.lspServers === null) return [];
-		const lspLines: string[] = [];
-		if (this.lspServers.length === 0) {
-			lspLines.push(` ${theme.fg("dim", tuiText("welcomeNoLspServers", "No LSP servers"))}`);
-		} else {
-			for (const server of this.lspServers.slice(0, WELCOME_LSP_SLOTS)) {
-				const icon =
-					server.status === "ready"
-						? theme.styledSymbol("status.enabled", "success")
-						: server.status === "available"
-							? theme.styledSymbol("status.enabled", "dim")
-							: server.status === "connecting"
-								? theme.styledSymbol("status.pending", "muted")
-								: theme.styledSymbol("status.error", "error");
-				const exts = server.fileTypes.slice(0, 3).join(" ");
-				lspLines.push(` ${icon} ${theme.fg("muted", server.name)} ${theme.fg("dim", exts)}`);
-			}
-		}
-		// Pad to the fixed slot count so the box height doesn't depend on server count.
-		while (lspLines.length < WELCOME_LSP_SLOTS) {
-			lspLines.push("");
-		}
-		return [
-			separator,
-			` ${theme.bold(theme.fg("accent", tuiText("welcomeLspServersTitle", "LSP Servers")))}`,
-			...lspLines,
-		];
-	}
-
 	/**
-	 * Render the per-instance tip line: the `customMessageLabel`-themed `Tip:`
-	 * label followed by a `muted` body, the whole line italicized. Returns `[]`
-	 * when no tip is available or the box is too narrow to be useful.
+	 * The tip of the session wrapped to {@link TIP_MEASURE} columns (fewer when
+	 * `room` is narrower); `[]` when there is none or no room for it.
 	 */
-	#renderTip(boxWidth: number): string[] {
+	#renderTip(room: number): string[] {
 		const raw = this.tip;
 		if (!raw) return [];
 		// A trailing "[NEW]" marker paints an animated rainbow tag. Derive its
 		// hue phase from wall-clock time so it shimmers across the welcome intro's
-		// re-render frames, then settles into a still rainbow once the box caches
-		// its resting frame. Non-"[NEW]" tips ignore the phase entirely.
+		// re-render frames, then settles into a still rainbow once the banner
+		// caches its resting frame. Non-"[NEW]" tips ignore the phase entirely.
 		const tip = resolveTip(raw);
 		const phase = tip.isNew ? performance.now() / NEW_GLOW_PERIOD_MS : 0;
-		return renderWelcomeTip(tip.text, boxWidth, phase, tip.isNew);
-	}
-
-	/** Center text within a given width */
-	#centerText(text: string, width: number): string {
-		const visLen = visibleWidth(text);
-		if (visLen >= width) {
-			return truncateToWidth(text, width);
-		}
-		const leftPad = Math.floor((width - visLen) / 2);
-		const rightPad = width - visLen - leftPad;
-		return padding(leftPad) + text + padding(rightPad);
-	}
-
-	/** Fit string to exact width with ANSI-aware truncation/padding */
-	#fitToWidth(str: string, width: number): string {
-		const visLen = visibleWidth(str);
-		if (visLen > width) {
-			const ellipsis = "…";
-			const ellipsisWidth = visibleWidth(ellipsis);
-			const maxWidth = Math.max(0, width - ellipsisWidth);
-			let truncated = "";
-			let currentWidth = 0;
-			let inEscape = false;
-			for (const char of str) {
-				if (char === "\x1b") inEscape = true;
-				if (inEscape) {
-					truncated += char;
-					if (char === "m") inEscape = false;
-				} else if (currentWidth < maxWidth) {
-					truncated += char;
-					currentWidth++;
-				}
-			}
-			return `${truncated}${ellipsis}`;
-		}
-		return str + padding(width - visLen);
+		return renderWelcomeTip(tip.text, Math.min(room, TIP_MEASURE), phase, tip.isNew);
 	}
 
 	/** Pick the logo frame for the current intro phase, or the resting frame. */
@@ -794,7 +467,46 @@ export class WelcomeComponent implements Component {
 }
 
 /** Block-grid brand mark shared by the welcome and setup surfaces. */
-export const ZETA_LOGO = ["█████████╗", "╚════████║", "   ████╔═╝", " ████╔═╝  ", "█████████╗", "╚════════╝"];
+export const ZETA_LOGO = ["████████████", "   ████████ ", "  ████████  ", " ████████▒▒▒", "████████████"];
+
+/** Columns of {@link ZETA_LOGO}. */
+const LOGO_WIDTH = Math.max(...ZETA_LOGO.map(row => row.length));
+
+/**
+ * The `Zeta` wordmark in half-blocks, set beside {@link ZETA_LOGO} from its
+ * second row: the `Z` is a solid zig-zag closed by a light step, `e`/`a` sit on
+ * the x-height, the `t` ascender rises above it, and the version takes the
+ * fifth row.
+ */
+const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];
+
+/** Columns of {@link WORDMARK}. */
+const WORDMARK_WIDTH = Math.max(...WORDMARK.map(row => row.length));
+
+/** Columns between the logo and the wordmark. */
+const LOCKUP_GAP = 4;
+
+/** Widest a welcome tip wraps, so a long one stays a centered paragraph. */
+const TIP_MEASURE = 72;
+
+/** Narrowest terminal that still shows the tip; below it the banner is the logo alone. */
+const TIP_MIN_COLUMNS = 50;
+
+/** Logo frame `logo` with the wordmark beside it and `version` (styled) under the wordmark. */
+function lockup(logo: readonly string[], version: string): string[] {
+	const beside = ["", ...WORDMARK.map(row => theme.bold(theme.fg("text", row))), version];
+	return logo.map((row, index) => `${row}${padding(LOCKUP_GAP)}${beside[index] ?? ""}`);
+}
+
+/**
+ * `lines` indented as one block whose widest line is centered in `width`
+ * columns; pass a single line to center it on its own.
+ */
+function centerBlock(lines: readonly string[], width: number): string[] {
+	const widest = lines.reduce((max, line) => Math.max(max, visibleWidth(line)), 0);
+	const indent = padding(Math.max(0, Math.floor((width - widest) / 2)));
+	return lines.map(line => indent + line);
+}
 
 /** The block-grid brand mark as accent lines; `shimmer` declares the terminal-clocked shine sweep. */
 export function logoNode(lines: readonly string[], shimmer: boolean): NativeNode {

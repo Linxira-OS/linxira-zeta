@@ -2,6 +2,7 @@
 
 - The interactive CLI now installs the pi-tui text source at TUI startup (`wireTuiTexts`), so every panel lookup through `tuiText`/`tuiTextFmt` resolves against the live `Messages` catalogue instead of always falling back to inline English, and a `/language` switch re-resolves on the next render. Previously the bridge was never called and the whole pi-tui surface stayed English.
 - The welcome tips are localised: `tipN` catalogue keys are realigned to the `tips.txt` line they translate (they had drifted several lines out of step) and now cover every line, including the `#`/`/`/`!`/`$` prompt hints, the `jevify` tip, the self-reconfigure tip, and the Tern habitat tip. English output is unchanged (the lines keep their `{key:…}` placeholders and markdown links).
+- The CLI welcome banner is the upstream logo lockup (ζ mark + half-block `Zeta` wordmark, version under the wordmark, tip below). The composer no longer resolves model/provider labels, LSP servers or recent sessions for the banner, and the corresponding welcome i18n keys are gone.
 
 ## [1.2.0] - 2026-10-12
 

@@ -23,11 +23,7 @@
 export interface Messages {
 	// welcome box
 	welcomeBack: string; // heading above the logo
-	welcomeNoRecentSessions: string; // "No recent sessions" row
-	welcomeNoLspServers: string; // "No LSP servers" row
 	welcomeTipsTitle: string; // right-column "Tips" heading
-	welcomeLspServersTitle: string; // right-column "LSP Servers" heading
-	welcomeRecentSessionsTitle: string; // right-column "Recent sessions" heading
 	welcomePromptActionsHint: string; // "#" hint suffix
 	welcomeCommandsHint: string; // "/" hint suffix
 	welcomeRunBashHint: string; // "!" hint suffix
@@ -70,7 +66,7 @@ export interface Messages {
 	setupFallbackTitle: string; // wizard scene-title fallback
 	setupStepFmt: string; // "Setup step %s of %s" header line
 	setupFooterHint: string; // wizard footer key hints
-	setupSkipHint: string; // splash "press enter to skip"
+	setupSkipHint: string; // splash "press {key} to skip"; {key} is the formatted confirm key
 	setupOutroTitle: string; // "Setup saved"
 	setupOutroSubtitle: string; // "Handing off to the normal CLI…"
 

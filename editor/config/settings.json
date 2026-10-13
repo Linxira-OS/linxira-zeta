@@ -55,9 +55,5 @@
   },
   "image": {
     "protocol": "auto"
-  },
-  "agent": {
-    "enabled": true,
-    "handoffFile": true
   }
 }

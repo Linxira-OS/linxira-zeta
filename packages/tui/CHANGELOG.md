@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - The welcome box now resolves its labels, the `Tip:` label, the `[NEW]` tag, and every tip body through the host `tuiText` catalogue (`welcome*` and `tipN` keys, where `tipN` maps to `tips.txt` line N). The inline English stays as the permanent fallback, so rendering without a registered source is unchanged; a registered source localises the box and re-renders on a live language switch.
+- Welcome banner restored to the upstream logo lockup: the ζ block mark sits beside a half-block `Zeta` wordmark with the version under it and the session tip below, replacing the two-column card. Model/provider labels, LSP servers and recent sessions are no longer rendered (the same removal upstream shipped in `1fb10d29bc1`), and the setup splash now reuses a cached water field, cell grid and per-frame gradient escapes with a skip hint that follows the live symbol preset.
 
 ## [1.2.0] - 2026-10-12
 

@@ -271,7 +271,6 @@ func BuildAppFromConfig(cfg *config.AppConfig, borders *term.BorderSet, ws *work
 		{Name: "View"},
 		{Name: "Options"},
 		{Name: "Help"},
-		{Name: "Agent"},
 	})
 
 	search := ui.NewSearchWidget()
