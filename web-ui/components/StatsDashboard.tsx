@@ -55,9 +55,9 @@ export function StatsDownNotice({ onRetry }: { onRetry?: () => void }) {
 					style={{
 						padding: "6px 16px",
 						borderRadius: 6,
-						border: "1px solid var(--border)",
-						background: "var(--bg-elevated)",
-						color: "var(--text)",
+						border: "1px solid var(--zeta-alias-border)",
+						background: "var(--zeta-alias-bg-elevated)",
+						color: "var(--zeta-alias-text)",
 						cursor: "pointer",
 						fontSize: 13,
 					}}
@@ -116,7 +116,7 @@ export function StatsDashboard() {
 				src={statsUrl}
 				title={t("topbar.statsDashboard")}
 				data-testid="stats-pane-frame"
-				style={{ width: "100%", height: "100%", border: "none", display: "block", background: "var(--bg)" }}
+				style={{ width: "100%", height: "100%", border: "none", display: "block", background: "var(--zeta-alias-bg)" }}
 			/>
 		);
 	}
@@ -128,7 +128,7 @@ export function StatsDashboard() {
 				height: "100%",
 				display: "grid",
 				placeItems: "center",
-				color: "var(--text-dim)",
+				color: "var(--zeta-alias-text-dim)",
 				fontSize: 13,
 				padding: 24,
 				textAlign: "center",

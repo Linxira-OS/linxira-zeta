@@ -25,15 +25,15 @@ const fmt = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : 
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)" }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6 }}>{title}</div>
+    <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--zeta-alias-border)" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--zeta-alias-text-muted)", marginBottom: 6 }}>{title}</div>
       {children}
     </div>
   );
 }
 
 function Value({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 12.5, color: "var(--text)", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{children}</div>;
+  return <div style={{ fontSize: 12.5, color: "var(--zeta-alias-text)", fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{children}</div>;
 }
 
 /**
@@ -43,7 +43,7 @@ function Value({ children }: { children: React.ReactNode }) {
  */
 export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }: SidePanelProps) {
   const pct = contextUsage?.percent;
-  const pctColor = pct === null || pct === undefined ? "var(--text-muted)" : pct > 90 ? "var(--status-error-foreground)" : pct > 70 ? "var(--status-warning-foreground)" : "var(--text)";
+  const pctColor = pct === null || pct === undefined ? "var(--zeta-alias-text-muted)" : pct > 90 ? "var(--zeta-alias-status-error-foreground)" : pct > 70 ? "var(--zeta-alias-status-warning-foreground)" : "var(--zeta-alias-text)";
   const cost = stats?.cost ?? 0;
 
   return (
@@ -52,20 +52,20 @@ export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }
       style={{
         width: 280,
         flexShrink: 0,
-        background: "var(--bg-panel)",
-        borderLeft: "1px solid var(--border)",
+        background: "var(--zeta-alias-bg-panel)",
+        borderLeft: "1px solid var(--zeta-alias-border)",
         overflowY: "auto",
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text)" }}>Session</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid var(--zeta-alias-border)" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--zeta-alias-text)" }}>Session</span>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close session panel"
-          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 4px" }}
+          style={{ background: "none", border: "none", color: "var(--zeta-alias-text-muted)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 4px" }}
         >
           ×
         </button>
@@ -74,7 +74,7 @@ export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }
       <Panel title="Model">
         <Value>{model ? `${model.provider}/${model.modelId}` : "—"}</Value>
         {thinkingLevel && (
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>thinking: {thinkingLevel}</div>
+          <div style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)", marginTop: 2 }}>thinking: {thinkingLevel}</div>
         )}
       </Panel>
 
@@ -83,10 +83,10 @@ export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }
           <>
             <Value>
               <span style={{ color: pctColor }}>{pct !== null && pct !== undefined ? `${pct.toFixed(0)}%` : "0%"}</span>
-              <span style={{ color: "var(--text-muted)" }}> of {fmt(contextUsage.contextWindow)}</span>
+              <span style={{ color: "var(--zeta-alias-text-muted)" }}> of {fmt(contextUsage.contextWindow)}</span>
             </Value>
             {contextUsage.tokens !== null && contextUsage.tokens !== undefined && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(contextUsage.tokens)} tokens in context</div>
+              <div style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)", marginTop: 2 }}>{fmt(contextUsage.tokens)} tokens in context</div>
             )}
           </>
         ) : (
@@ -98,13 +98,13 @@ export function SidePanel({ stats, contextUsage, model, thinkingLevel, onClose }
         {stats ? (
           <>
             <Value>
-              ↑ {fmt(stats.tokens.input)} <span style={{ color: "var(--text-muted)" }}>in</span>
+              ↑ {fmt(stats.tokens.input)} <span style={{ color: "var(--zeta-alias-text-muted)" }}>in</span>
             </Value>
             <Value>
-              ↓ {fmt(stats.tokens.output)} <span style={{ color: "var(--text-muted)" }}>out</span>
+              ↓ {fmt(stats.tokens.output)} <span style={{ color: "var(--zeta-alias-text-muted)" }}>out</span>
             </Value>
             {(stats.tokens.cacheRead > 0 || stats.tokens.cacheWrite > 0) && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: "var(--zeta-alias-text-muted)", marginTop: 2 }}>
                 cache read {fmt(stats.tokens.cacheRead)} · write {fmt(stats.tokens.cacheWrite)}
               </div>
             )}

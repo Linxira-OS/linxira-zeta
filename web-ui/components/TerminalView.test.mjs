@@ -43,5 +43,5 @@ test("TerminalView shows no restart/stop buttons before any session state", () =
 test("TerminalView container keeps a flex-fill body for the xterm mount", () => {
   const html = renderTerminal();
   // The xterm mount point is the second child div (flex:1) after the status row.
-  assert.match(html, /<div style="flex:1;min-height:0;padding:4px 6px;background:var\(--bg\)"><\/div>/);
+  assert.match(html, /<div style="flex:1;min-height:0;padding:4px 6px;background:var\(--zeta-alias-bg\)"><\/div>/);
 });

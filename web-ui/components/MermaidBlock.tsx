@@ -149,15 +149,15 @@ export function CodeBlock({ code, lang, headerAction }: CodeBlockProps) {
 	};
 
 	const headerStyle = {
-		background: "var(--syntax-header)",
-		borderColor: "var(--interactive-border)",
-		color: "var(--syntax-foreground)",
+		background: "var(--zeta-alias-syntax-header)",
+		borderColor: "var(--zeta-alias-interactive-border)",
+		color: "var(--zeta-alias-syntax-foreground)",
 	};
 
 	return (
-		<div className="markdown-code-block" style={{ borderColor: "var(--interactive-border)" }}>
+		<div className="markdown-code-block" style={{ borderColor: "var(--zeta-alias-interactive-border)" }}>
 			<div className="markdown-code-header" style={headerStyle}>
-				<span className="markdown-code-lang" style={{ color: "var(--syntax-keyword)" }}>
+				<span className="markdown-code-lang" style={{ color: "var(--zeta-alias-syntax-keyword)" }}>
 					{lang || "text"}
 				</span>
 				<div className="markdown-code-actions">
@@ -166,8 +166,8 @@ export function CodeBlock({ code, lang, headerAction }: CodeBlockProps) {
 						onClick={copy}
 						className="markdown-code-action"
 						style={{
-							color: "var(--syntax-foreground)",
-							borderColor: "var(--interactive-border)",
+							color: "var(--zeta-alias-syntax-foreground)",
+							borderColor: "var(--zeta-alias-interactive-border)",
 						}}
 					>
 						{copied ? t("copied") : t("copy")}
@@ -182,8 +182,8 @@ export function CodeBlock({ code, lang, headerAction }: CodeBlockProps) {
 					fontSize: 12.5,
 					lineHeight: 1.62,
 					borderRadius: 0,
-					background: "var(--syntax-background)",
-					color: "var(--md-syntax-foreground)",
+					background: "var(--zeta-alias-syntax-background)",
+					color: "var(--zeta-alias-md-syntax-foreground)",
 					overflowX: "auto",
 				}}
 			>
@@ -196,7 +196,7 @@ export function CodeBlock({ code, lang, headerAction }: CodeBlockProps) {
 									minWidth: "1.9em",
 									marginRight: "0.9em",
 									textAlign: "right",
-									color: "var(--syntax-line-number)",
+									color: "var(--zeta-alias-syntax-line-number)",
 									userSelect: "none",
 								}}
 							>

@@ -52,12 +52,12 @@ export function TopPanelChips({ activeId, onToggle, isMobile, stateFor, override
 							gap: 6,
 							height: "100%",
 							padding: "0 12px",
-							background: active && panel.kind === "topPanel" ? "var(--bg-selected)" : "none",
+							background: active && panel.kind === "topPanel" ? "var(--zeta-alias-bg-selected)" : "none",
 							border: "none",
-							borderTop: active && panel.kind === "topPanel" ? "2px solid var(--accent)" : "2px solid transparent",
-							borderRight: "1px solid var(--border)",
+							borderTop: active && panel.kind === "topPanel" ? "2px solid var(--zeta-alias-accent)" : "2px solid transparent",
+							borderRight: "1px solid var(--zeta-alias-border)",
 							cursor: state.disabled ? "not-allowed" : "pointer",
-							color: active ? "var(--text)" : "var(--text-muted)",
+							color: active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)",
 							opacity: state.disabled ? 0.45 : 1,
 							fontSize: 11,
 							whiteSpace: "nowrap",
@@ -66,13 +66,13 @@ export function TopPanelChips({ activeId, onToggle, isMobile, stateFor, override
 						}}
 						onMouseEnter={e => {
 							if (state.disabled) return;
-							e.currentTarget.style.color = "var(--text)";
-							e.currentTarget.style.background = "var(--bg-hover)";
+							e.currentTarget.style.color = "var(--zeta-alias-text)";
+							e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
 						}}
 						onMouseLeave={e => {
-							e.currentTarget.style.color = active ? "var(--text)" : "var(--text-muted)";
+							e.currentTarget.style.color = active ? "var(--zeta-alias-text)" : "var(--zeta-alias-text-muted)";
 							e.currentTarget.style.background =
-								active && panel.kind === "topPanel" ? "var(--bg-selected)" : "none";
+								active && panel.kind === "topPanel" ? "var(--zeta-alias-bg-selected)" : "none";
 						}}
 					>
 						{panel.icon}

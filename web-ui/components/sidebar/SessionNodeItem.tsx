@@ -80,15 +80,15 @@ function RunningIndicator({ startedMs }: { startedMs: number }) {
 		<span
 			title={t("sidebar.agentRunning")}
 			aria-label={t("sidebar.agentRunning")}
-			style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}
+			style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, color: "var(--zeta-alias-accent)", fontVariantNumeric: "tabular-nums" }}
 		>
 			<span
 				style={{
 					width: 6,
 					height: 6,
 					borderRadius: "50%",
-					background: "var(--accent)",
-					boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)",
+					background: "var(--zeta-alias-accent)",
+					boxShadow: "0 0 0 3px color-mix(in srgb, var(--zeta-alias-accent) 22%, transparent)",
 				}}
 			/>
 			<span style={{ fontSize: 10.5 }}>{formatElapsed(startedMs, nowMs)}</span>
@@ -110,7 +110,7 @@ function UnreadIndicator() {
 				alignItems: "center",
 				justifyContent: "center",
 				flexShrink: 0,
-				color: "var(--status-info)",
+				color: "var(--zeta-alias-status-info)",
 			}}
 		>
 			<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ display: "block" }}>
@@ -255,16 +255,16 @@ export function SessionNodeItem({
 				paddingRight: 8,
 				cursor: confirmDelete || renaming ? "default" : "pointer",
 				background: confirmDelete
-					? "var(--status-error-background)"
+					? "var(--zeta-alias-status-error-background)"
 					: isSelected
-						? "var(--bg-selected)"
+						? "var(--zeta-alias-bg-selected)"
 						: hovered
-							? "var(--bg-hover)"
+							? "var(--zeta-alias-bg-hover)"
 							: "transparent",
 				borderLeft: confirmDelete
-					? "2px solid var(--status-error)"
+					? "2px solid var(--zeta-alias-status-error)"
 					: isSelected
-						? "2px solid var(--accent)"
+						? "2px solid var(--zeta-alias-accent)"
 						: "2px solid transparent",
 				transition: "background 0.1s",
 				opacity: deleting ? 0.5 : 1,
@@ -281,7 +281,7 @@ export function SessionNodeItem({
 							flex: 1,
 							minWidth: 0,
 							fontSize: 12,
-							color: "var(--text)",
+							color: "var(--zeta-alias-text)",
 							overflow: "hidden",
 							textOverflow: "ellipsis",
 							whiteSpace: "nowrap",
@@ -301,10 +301,10 @@ export function SessionNodeItem({
 								gap: 4,
 								height: 30,
 								padding: "0 11px",
-								background: "var(--status-error)",
+								background: "var(--zeta-alias-status-error)",
 								border: "none",
 								borderRadius: 6,
-								color: "var(--status-error-foreground)",
+								color: "var(--zeta-alias-status-error-foreground)",
 								cursor: "pointer",
 								fontSize: 12,
 								fontWeight: 600,
@@ -327,10 +327,10 @@ export function SessionNodeItem({
 								justifyContent: "center",
 								height: 30,
 								padding: "0 11px",
-								background: "var(--bg)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 6,
-								color: "var(--text-muted)",
+								color: "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								fontSize: 12,
 								fontWeight: 500,
@@ -357,11 +357,11 @@ export function SessionNodeItem({
 						flex: 1,
 						fontSize: 12,
 						padding: "5px 8px",
-						border: "1px solid var(--accent)",
+						border: "1px solid var(--zeta-alias-accent)",
 						borderRadius: 5,
 						outline: "none",
-						background: "var(--bg)",
-						color: "var(--text)",
+						background: "var(--zeta-alias-bg)",
+						color: "var(--zeta-alias-text)",
 						height: 30,
 					}}
 				/>
@@ -380,9 +380,9 @@ export function SessionNodeItem({
 								height: 16,
 								flexShrink: 0,
 								borderRadius: 4,
-								border: `1px solid ${isChecked ? "var(--accent)" : "var(--border)"}`,
-								background: isChecked ? "var(--accent)" : "transparent",
-								color: "var(--primary-foreground)",
+								border: `1px solid ${isChecked ? "var(--zeta-alias-accent)" : "var(--zeta-alias-border)"}`,
+								background: isChecked ? "var(--zeta-alias-accent)" : "transparent",
+								color: "var(--zeta-alias-primary-foreground)",
 								display: "inline-flex",
 								alignItems: "center",
 								justifyContent: "center",
@@ -406,7 +406,7 @@ export function SessionNodeItem({
 							height="10"
 							viewBox="0 0 24 24"
 							fill="none"
-							stroke="var(--text-dim)"
+							stroke="var(--zeta-alias-text-dim)"
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
@@ -428,7 +428,7 @@ export function SessionNodeItem({
 								fontSize: 12,
 								fontWeight: isSelected ? 500 : 400,
 								lineHeight: 1.4,
-								color: "var(--text)",
+								color: "var(--zeta-alias-text)",
 							}}
 							title={title}
 						>
@@ -451,7 +451,7 @@ export function SessionNodeItem({
 										padding: "2px 5px",
 										borderRadius: 8,
 										border: "1px solid var(--zeta-alias-accent-dim)",
-										color: "var(--accent)",
+										color: "var(--zeta-alias-accent)",
 										textTransform: "uppercase",
 										letterSpacing: 0.4,
 									}}
@@ -466,7 +466,7 @@ export function SessionNodeItem({
 								display: "flex",
 								alignItems: "center",
 								gap: 8,
-								color: "var(--text-dim)",
+								color: "var(--zeta-alias-text-dim)",
 								fontSize: 11,
 								minWidth: 0,
 							}}
@@ -479,7 +479,7 @@ export function SessionNodeItem({
 										textOverflow: "ellipsis",
 										whiteSpace: "nowrap",
 										maxWidth: "45%",
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 									}}
 								>
 									{session.cwd.split(/[\\/]/).filter(Boolean).pop() || session.cwd}
@@ -500,7 +500,7 @@ export function SessionNodeItem({
 										display: "flex",
 										alignItems: "center",
 										gap: 3,
-										color: "var(--accent)",
+										color: "var(--zeta-alias-accent)",
 										minWidth: 0,
 										overflow: "hidden",
 									}}
@@ -543,7 +543,7 @@ export function SessionNodeItem({
 								flexShrink: 0,
 								background: "none",
 								border: "none",
-								color: "var(--text-dim)",
+								color: "var(--zeta-alias-text-dim)",
 								cursor: "pointer",
 								transform: collapsed ? "rotate(-90deg)" : "none",
 								transition: "transform 0.15s",
@@ -578,23 +578,23 @@ export function SessionNodeItem({
 								width: 32,
 								height: 32,
 								padding: 0,
-								background: "var(--bg-hover)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-hover)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 7,
-								color: "var(--text-muted)",
+								color: "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								flexShrink: 0,
 								transition: "background 0.12s, color 0.12s, border-color 0.12s",
 							}}
 							onMouseEnter={e => {
-								e.currentTarget.style.background = "var(--bg-selected)";
-								e.currentTarget.style.color = "var(--accent)";
-								e.currentTarget.style.borderColor = "var(--interactive-border-focus)";
+								e.currentTarget.style.background = "var(--zeta-alias-bg-selected)";
+								e.currentTarget.style.color = "var(--zeta-alias-accent)";
+								e.currentTarget.style.borderColor = "var(--zeta-alias-interactive-border-focus)";
 							}}
 							onMouseLeave={e => {
-								e.currentTarget.style.background = "var(--bg-hover)";
-								e.currentTarget.style.color = "var(--text-muted)";
-								e.currentTarget.style.borderColor = "var(--border)";
+								e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+								e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
+								e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
 							}}
 						>
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -611,23 +611,23 @@ export function SessionNodeItem({
 								width: 32,
 								height: 32,
 								padding: 0,
-								background: "var(--bg-hover)",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-hover)",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 7,
-								color: "var(--text-muted)",
+								color: "var(--zeta-alias-text-muted)",
 								cursor: "pointer",
 								flexShrink: 0,
 								transition: "background 0.12s, color 0.12s, border-color 0.12s",
 							}}
 							onMouseEnter={e => {
-								e.currentTarget.style.background = "var(--status-error-background)";
-								e.currentTarget.style.color = "var(--status-error)";
-								e.currentTarget.style.borderColor = "var(--status-error-border)";
+								e.currentTarget.style.background = "var(--zeta-alias-status-error-background)";
+								e.currentTarget.style.color = "var(--zeta-alias-status-error)";
+								e.currentTarget.style.borderColor = "var(--zeta-alias-status-error-border)";
 							}}
 							onMouseLeave={e => {
-								e.currentTarget.style.background = "var(--bg-hover)";
-								e.currentTarget.style.color = "var(--text-muted)";
-								e.currentTarget.style.borderColor = "var(--border)";
+								e.currentTarget.style.background = "var(--zeta-alias-bg-hover)";
+								e.currentTarget.style.color = "var(--zeta-alias-text-muted)";
+								e.currentTarget.style.borderColor = "var(--zeta-alias-border)";
 							}}
 						>
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -647,8 +647,8 @@ export function SessionNodeItem({
 								position: "fixed",
 								zIndex: 300,
 								minWidth: 150,
-								background: "var(--bg-elevated, var(--bg))",
-								border: "1px solid var(--border)",
+								background: "var(--zeta-alias-bg-elevated, var(--zeta-alias-bg))",
+								border: "1px solid var(--zeta-alias-border)",
 								borderRadius: 8,
 								boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 								padding: 4,
@@ -667,7 +667,7 @@ export function SessionNodeItem({
 										textAlign: "left",
 										padding: "6px 8px",
 										fontSize: 12,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										background: "none",
 										border: "none",
 										borderRadius: 5,
@@ -685,7 +685,7 @@ export function SessionNodeItem({
 									textAlign: "left",
 									padding: "6px 8px",
 									fontSize: 12,
-									color: "var(--text)",
+									color: "var(--zeta-alias-text)",
 									background: "none",
 									border: "none",
 									borderRadius: 5,
@@ -706,7 +706,7 @@ export function SessionNodeItem({
 										textAlign: "left",
 										padding: "6px 8px",
 										fontSize: 12,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										background: "none",
 										border: "none",
 										borderRadius: 5,

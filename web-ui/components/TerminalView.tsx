@@ -370,12 +370,12 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 	const statusColor = useMemo(() => {
 		switch (connState) {
 			case "open":
-				return "var(--status-success-foreground, #0dbc79)";
+				return "var(--zeta-alias-status-success-foreground, #0dbc79)";
 			case "exited":
 			case "error":
-				return "var(--status-error-foreground, #cd3131)";
+				return "var(--zeta-alias-status-error-foreground, #cd3131)";
 			default:
-				return "var(--status-warning-foreground, #e5e510)";
+				return "var(--zeta-alias-status-warning-foreground, #e5e510)";
 		}
 	}, [connState]);
 
@@ -388,9 +388,9 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 					gap: 8,
 					flexShrink: 0,
 					padding: "4px 10px",
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 					fontSize: 11,
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 				}}
 			>
 				<span style={{ color: statusColor }} aria-label={`terminal-${connState}`}>
@@ -419,16 +419,16 @@ export function TerminalView({ cwd, attachSessionId, onSessionCreated, openFileR
 					</button>
 				)}
 			</div>
-			<div ref={containerRef} style={{ flex: 1, minHeight: 0, padding: "4px 6px", background: "var(--bg)" }} />
+			<div ref={containerRef} style={{ flex: 1, minHeight: 0, padding: "4px 6px", background: "var(--zeta-alias-bg)" }} />
 		</div>
 	);
 }
 
 const actionButtonStyle = {
 	background: "transparent",
-	border: "1px solid var(--border)",
+	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: 6,
-	color: "var(--text-muted)",
+	color: "var(--zeta-alias-text-muted)",
 	cursor: "pointer",
 	fontSize: 11,
 	padding: "2px 8px",

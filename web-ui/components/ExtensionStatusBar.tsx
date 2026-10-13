@@ -41,7 +41,7 @@ export function ExtensionStatusBar({
         minWidth: 0,
         height: 36,
         padding: "0 12px",
-        borderTop: "1px solid var(--border)",
+        borderTop: "1px solid var(--zeta-alias-border)",
         background: "transparent",
       }}
     >
@@ -49,7 +49,7 @@ export function ExtensionStatusBar({
         style={{
           minWidth: 0,
           overflow: "hidden",
-          color: "var(--text-muted)",
+          color: "var(--zeta-alias-text-muted)",
           fontFamily: "var(--font-mono)",
           fontSize: 11,
           textOverflow: "ellipsis",

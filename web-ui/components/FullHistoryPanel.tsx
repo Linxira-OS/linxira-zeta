@@ -74,7 +74,7 @@ export function FullHistoryPanel({ sessionId, sessionName }: Props) {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					color: "var(--text-dim)",
+					color: "var(--zeta-alias-text-dim)",
 					fontSize: 12,
 				}}
 			>
@@ -97,16 +97,16 @@ export function FullHistoryPanel({ sessionId, sessionName }: Props) {
 					textAlign: "center",
 				}}
 			>
-				<div style={{ color: "var(--text)", fontSize: 12.5 }}>{t("full-history-load-failed")}</div>
-				<div style={{ color: "var(--text-dim)", fontSize: 11, wordBreak: "break-word" }}>{error}</div>
+				<div style={{ color: "var(--zeta-alias-text)", fontSize: 12.5 }}>{t("full-history-load-failed")}</div>
+				<div style={{ color: "var(--zeta-alias-text-dim)", fontSize: 11, wordBreak: "break-word" }}>{error}</div>
 				<button
 					onClick={reload}
 					style={{
 						padding: "5px 12px",
-						background: "var(--bg-panel)",
-						border: "1px solid var(--border)",
+						background: "var(--zeta-alias-bg-panel)",
+						border: "1px solid var(--zeta-alias-border)",
 						borderRadius: 6,
-						color: "var(--text)",
+						color: "var(--zeta-alias-text)",
 						fontSize: 12,
 						cursor: "pointer",
 					}}
@@ -125,7 +125,7 @@ export function FullHistoryPanel({ sessionId, sessionName }: Props) {
 					alignItems: "center",
 					justifyContent: "flex-end",
 					flexShrink: 0,
-					borderBottom: "1px solid var(--border)",
+					borderBottom: "1px solid var(--zeta-alias-border)",
 				}}
 			>
 				<button
@@ -142,7 +142,7 @@ export function FullHistoryPanel({ sessionId, sessionName }: Props) {
 						background: "none",
 						border: "none",
 						borderRadius: 4,
-						color: "var(--text-dim)",
+						color: "var(--zeta-alias-text-dim)",
 						cursor: "pointer",
 					}}
 				>
@@ -192,7 +192,7 @@ export function FullHistoryFrame({ html, title }: { html: string; title: string 
 				width: "100%",
 				minHeight: 0,
 				border: "none",
-				background: "var(--bg)",
+				background: "var(--zeta-alias-bg)",
 			}}
 		/>
 	);
