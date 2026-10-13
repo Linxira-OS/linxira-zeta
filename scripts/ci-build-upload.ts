@@ -6,7 +6,7 @@
 // `canary`, everything else with channel `stable`.
 //
 // Usage:
-//   bun scripts/ci-build-upload.ts <tag> <file>...    # all 8 release binaries
+//   bun scripts/ci-build-upload.ts <tag> <file>...    # every asset in ASSETS
 //
 // Runs in ci.yml's `release_build` job (which npm and the Homebrew tap wait
 // for), on the binaries this run built. Requests the job's GitHub OIDC token
@@ -35,14 +35,18 @@ const MAX_NOTES_BYTES = 16 << 10;
 /** Attempts per upload/publish request on network errors and transient statuses. */
 const ATTEMPTS = 3;
 
-/** Release asset name → build-service target. Only these are uploaded. */
+/**
+ * Release asset name → build-service target. Only these are uploaded, and the
+ * keys must be exactly the assets ci.yml's `release_binary` matrix builds: main
+ * fails the run for every key it was not handed a file for, so a key with no
+ * matrix leg (the arm64 targets are buildable but not shipped while macOS/ARM
+ * publishing is paused) breaks the publish tail. `check-release-asset-names.ts`
+ * gates this table against the matrix.
+ */
 export const ASSETS: Readonly<Record<string, { platform: string; arch: string }>> = {
 	"zeta-cli-linux-x64": { platform: "linux", arch: "x86_64" },
-	"zeta-cli-linux-arm64": { platform: "linux", arch: "arm64" },
 	"zeta-cli-linux-musl-x64": { platform: "linux-musl", arch: "x86_64" },
-	"zeta-cli-linux-musl-arm64": { platform: "linux-musl", arch: "arm64" },
 	"zeta-cli-windows-x64.exe": { platform: "windows", arch: "x86_64" },
-	"zeta-cli-windows-arm64.exe": { platform: "windows", arch: "arm64" },
 };
 
 const RELEASE_TAG = /^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;
