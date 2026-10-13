@@ -44,14 +44,16 @@ async function checkAddon(addonPath: string): Promise<void> {
 	const addon = require_(addonPath) as Record<string, unknown>;
 
 	// A release addon carries the version stamp written post-link by
-	// `scripts/stamp-native-version.ts`; a null/undefined stamp means the build
-	// pipeline skipped that step and the loader would reject the addon anyway.
+	// `scripts/stamp-native-version.ts`; the loader validates it only when
+	// present. PR-path addons come from main's addon cache or the npm release
+	// tarball, so an unstamped (legacy) addon is a supported state — the export
+	// must exist and return `string | null`, nothing more.
 	const buildVersion = addon.__piNativesBuildVersion;
 	check(typeof buildVersion === "function", "addon does not export __piNativesBuildVersion");
 	const stamp = buildVersion();
 	check(
-		typeof stamp === "string" && stamp.length > 0,
-		`addon is unstamped: __piNativesBuildVersion() = ${String(stamp)}`,
+		stamp === null || (typeof stamp === "string" && stamp.length > 0),
+		`addon reports a malformed build stamp: ${String(stamp)}`,
 	);
 
 	// The Rust module init deliberately defers building the Tokio runtime until
@@ -101,7 +103,7 @@ async function checkAddon(addonPath: string): Promise<void> {
 	const markdown = await htmlToMarkdown("<h1>Bun</h1><p>native</p>");
 	check(typeof markdown === "string" && markdown.includes("Bun"), `htmlToMarkdown returned ${String(markdown)}`);
 
-	console.log(`OK ${path.basename(addonPath)} (stamp ${stamp})`);
+	console.log(`OK ${path.basename(addonPath)} (stamp ${stamp ?? "unstamped"})`);
 }
 
 const addonPaths = process.argv.slice(2);
