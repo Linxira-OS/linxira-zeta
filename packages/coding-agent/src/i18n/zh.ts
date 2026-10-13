@@ -3,11 +3,7 @@ import type { Messages } from "./messages";
 /** Chinese (Simplified) catalogue. */
 export const zh = {
 	welcomeBack: "欢迎回来！",
-	welcomeNoRecentSessions: "暂无最近会话",
-	welcomeNoLspServers: "无 LSP 服务器",
 	welcomeTipsTitle: "提示",
-	welcomeLspServersTitle: "LSP 服务器",
-	welcomeRecentSessionsTitle: "最近会话",
 	welcomePromptActionsHint: " 触发提示词操作",
 	welcomeCommandsHint: " 打开命令",
 	welcomeRunBashHint: " 运行 bash",
@@ -42,7 +38,7 @@ export const zh = {
 	setupFallbackTitle: "设置",
 	setupStepFmt: "设置步骤 %s / %s",
 	setupFooterHint: "↑/↓ 选择 · 回车确认 · Esc 跳过 · Ctrl+C 退出设置",
-	setupSkipHint: "按回车跳过",
+	setupSkipHint: "按 {key} 跳过",
 	setupOutroTitle: "设置已保存",
 	setupOutroSubtitle: "即将进入正常 CLI…",
 	setupGlyphTitle: "选择字形模式",

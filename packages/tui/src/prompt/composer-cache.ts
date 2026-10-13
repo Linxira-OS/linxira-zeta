@@ -3,11 +3,10 @@
  * (`~/.zeta/agent/cache/composer.db`).
  *
  * Each row is one JSON payload keyed by project (the resolved cwd) and kind.
- * Settings-derived kinds (theme/composer preferences, welcome model labels,
- * status-bar inputs) are also written under the empty project, so a folder that
- * never ran zeta-c still paints with the user's theme and status bar: those are
- * rarely project-specific, and path/branch render live. Recent sessions and LSP
- * rows stay per project.
+ * Settings-derived kinds (theme/composer preferences, status-bar inputs) are
+ * also written under the empty project, so a folder that never ran zeta-c still
+ * paints with the user's theme and status bar: those are rarely
+ * project-specific, and path/branch render live.
  *
  * ```text
  * entries (project TEXT, kind TEXT, value TEXT JSON, PRIMARY KEY (project, kind))
@@ -25,7 +24,6 @@ import * as logger from "@linxiraos/pi-utils/logger";
 import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import { openSqliteDatabaseSync } from "@linxiraos/pi-utils/sqlite";
 import { isRecord } from "@linxiraos/pi-utils/type-guards";
-import type { LspServerInfo, RecentSession } from "./welcome";
 import type { ComposerPreferences, ComposerStatusCache } from "./composer";
 import { readStatusLineStartupData } from "../status-line/startup";
 import type { SymbolPreset } from "../theme/theme";

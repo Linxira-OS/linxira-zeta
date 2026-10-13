@@ -1,6 +1,4 @@
 import type { Terminal } from "@linxiraos/pi-tui";
-import { scheduler } from "node:timers/promises";
-import * as logger from "@linxiraos/pi-utils/logger";
 
 import {
 	COMPOSER_DEFAULTS,

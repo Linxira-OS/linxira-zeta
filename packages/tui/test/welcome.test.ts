@@ -1,7 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import { pickWeightedTip, WelcomeComponent, ZETA_LOGO } from "@linxiraos/pi-tui/prompt/welcome";
+import { pickWeightedTip, WelcomeComponent } from "@linxiraos/pi-tui/prompt/welcome";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
-import { visibleWidth, type NativeNode } from "@linxiraos/pi-tui";
+import { visibleWidth } from "@linxiraos/pi-tui";
+
+/** A half-block run that starts the `Zeta` wordmark (its `Z` top bar), for row probes. */
+const WORDMARK_ROW = "███▀";
 
 describe("WelcomeComponent", () => {
 	beforeAll(async () => {
@@ -12,33 +15,23 @@ describe("WelcomeComponent", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("natively lays out the brand column beside the info column holding the version", () => {
+	it("natively sets the version under the wordmark beside the logo", () => {
 		const tree = new WelcomeComponent("18.4.12").describe({} as never);
-		// The props union is keyed by node kind; tests only read these two members.
-		const props = (node: NativeNode | undefined) =>
-			node?.p as { role?: string; spans?: Array<{ t?: string }> } | undefined;
-		const find = (node: NativeNode | undefined, role: string): NativeNode | undefined => {
-			if (props(node)?.role === role) return node;
-			for (const child of node?.c ?? []) {
-				if ("k" in child) {
-					const found = find(child, role);
-					if (found) return found;
-				}
-			}
-			return undefined;
-		};
-
-		const grid = find(tree, "zeta.welcome.grid");
-		expect(grid?.p).toMatchObject({ align: "start", wrap: true });
-
-		// Brand column: greeting plus the terminal's builtin zeta logo mark.
-		const brand = find(grid, "zeta.welcome.brand");
-		expect(props(find(brand, "zeta.welcome.greeting"))?.spans?.[0]).toMatchObject({ t: "Welcome back!" });
-		expect(find(brand, "zeta.welcome.logo")?.k).toBe("image");
-
-		// Info column: the version sits at its head, ahead of tips/LSP/sessions.
-		const info = find(grid, "zeta.welcome.info");
-		expect(props(find(info, "zeta.welcome.version"))?.spans?.[0]).toMatchObject({ t: "18.4.12" });
+		expect(tree.c?.[0]).toMatchObject({
+			key: "lockup",
+			p: { role: "zeta.welcome.lockup" },
+			c: [
+				{ k: "image", key: "logo" },
+				{
+					k: "col",
+					p: { role: "zeta.welcome.mark" },
+					c: [
+						{ p: { role: "zeta.welcome.wordmark" } },
+						{ p: { role: "zeta.welcome.version", spans: [{ t: "v18.4.12" }] } },
+					],
+				},
+			],
+		});
 	});
 
 	it("selects standard tip when preset is not unicode", () => {
@@ -90,81 +83,50 @@ describe("WelcomeComponent", () => {
 		expect(pickWeightedTip([], 0.5)).toBe("");
 	});
 
-	it("centers the greeting and every logo line in the brand column", () => {
-		const columns = 60;
-		const rows = new WelcomeComponent("1.0.0").render(columns).map(row => Bun.stripANSI(row));
-		// Content rows read `│ left │ right │`: the brand column is the first segment.
-		const brand = rows.map(row => row.split("│")[1] ?? "");
+	it("centers the lockup block and every tip line in the terminal width", () => {
+		const columns = 140;
+		const rows = new WelcomeComponent("1.0.0").render(columns).map(Bun.stripANSI);
+		// The lockup is the block before the blank spacer; everything after it is
+		// the tip, which may wrap onto continuation lines that carry no "Tip: ".
+		const spacer = rows.findIndex(row => row.trim().length === 0);
+		const lockup = rows.slice(0, spacer);
+		const tips = rows.slice(spacer + 1).filter(row => row.trim().length > 0);
+		const lead = (row: string) => visibleWidth(row) - visibleWidth(row.trimStart());
 
-		const greeting = brand.find(segment => segment.includes("Welcome back!")) ?? "";
-		const leftCol = visibleWidth(greeting);
-		const greetingLead = visibleWidth(greeting) - visibleWidth(greeting.trimStart());
-		const greetingTrail = visibleWidth(greeting) - visibleWidth(greeting.trimEnd());
-		expect(Math.abs(greetingLead - greetingTrail)).toBeLessThanOrEqual(1);
+		const widest = lockup.reduce((a, b) => (visibleWidth(a) >= visibleWidth(b) ? a : b));
+		// The block indent is the smallest leading run: the art's own leading spaces
+		// add to it per row, so only the minimum is the centering offset.
+		const blockLead = Math.min(...lockup.map(lead));
+		expect(widest).toContain(WORDMARK_ROW);
+		expect(Math.abs(blockLead - (columns - visibleWidth(widest)))).toBeLessThanOrEqual(1);
 
-		// Each logo line keeps its own art spacing and centers on the column.
-		for (const art of ZETA_LOGO) {
-			const segment = brand.find(seg => seg.includes(art)) ?? "";
-			const pad = Math.floor((leftCol - visibleWidth(art)) / 2);
-			expect(segment.startsWith(" ".repeat(pad))).toBe(true);
-			expect(segment.endsWith(" ".repeat(leftCol - visibleWidth(art) - pad))).toBe(true);
+		// Each tip line centers on its own.
+		expect(tips.length).toBeGreaterThanOrEqual(1);
+		for (const row of tips) {
+			expect(Math.abs(lead(row) - (columns - visibleWidth(row)))).toBeLessThanOrEqual(1);
 		}
-
-		// The tip renders beneath the box; its lines carry no baked-in indent.
-		const tipIndex = rows.findIndex(row => row.includes("Tip: "));
-		expect(tipIndex).toBeGreaterThan(rows.findIndex(row => row.includes("Recent sessions")));
-		expect(rows[tipIndex]?.startsWith("Tip: ")).toBe(true);
 	});
 
-	it("drops the tip below 16 columns", () => {
+	it("drops the tip below 50 columns", () => {
 		const text = (columns: number) => Bun.stripANSI(new WelcomeComponent("1.0.0").render(columns).join("\n"));
-		expect(text(16)).toContain("Tip: ");
-		expect(text(15)).not.toContain("Tip: ");
-		expect(text(15)).toContain("███████╗");
-		expect(text(50)).toContain("v1.0.0");
+		expect(text(50)).toContain("Tip: ");
+		expect(text(49)).not.toContain("Tip: ");
+		expect(text(49)).toContain("v1.0.0");
 	});
 
-	it("keeps the info column beside the brand column while it fits, else the brand column alone", () => {
+	it("sets the version under the wordmark while the lockup fits, else keeps the logo alone", () => {
 		const rows = (columns: number) => new WelcomeComponent("1.0.0").render(columns).map(row => Bun.stripANSI(row));
 
-		// Wide: both columns, version in the border title.
-		const wide = rows(60).join("\n");
-		expect(wide).toContain("███████╗");
-		expect(wide).toContain("Recent sessions");
-		expect(wide).toContain("v1.0.0");
+		// The lockup needs 12 logo + 4 gap + 22 wordmark columns inside the 2-column margin.
+		const fits = rows(40);
+		const word = fits.find(row => row.includes(WORDMARK_ROW));
+		const version = fits.find(row => row.includes("v1.0.0"));
+		expect(fits.some(row => row.includes("████████████"))).toBe(true);
+		expect(version?.indexOf("v1.0.0")).toBe(word?.indexOf(WORDMARK_ROW));
 
-		// Narrow: the info column collapses, but the logo and title version stay.
-		const narrow = rows(33).join("\n");
-		expect(narrow).toContain("███████╗");
-		expect(narrow).toContain("v1.0.0");
-		expect(narrow).not.toContain("Recent sessions");
-	});
-
-	it("truncates a long model name inside the fixed left column and keeps the right column", () => {
-		// Dynamic model labels must not influence the responsive breakpoint: a
-		// long name is truncated with an ellipsis instead of collapsing the right
-		// column or changing the box height when authoritative session data
-		// replaces the prepaint labels.
-		const modelName = "DeepSeek V4 Flash (2x usage)";
-		const output = new WelcomeComponent("17.3.4", modelName, "opencode-go").render(55).join("\n");
-		const plain = output.replace(/\x1b\[[0-9;]*m/g, "");
-
-		expect(plain).not.toContain(modelName);
-		expect(plain).toMatch(/DeepSeek V4 [^│]*…/);
-		expect(plain).toContain("Recent sessions");
-	});
-
-	it("hides the LSP section only when LSP is disabled (null), not when no servers were detected", () => {
-		const [empty, disabled] = [[], null].map(servers =>
-			new WelcomeComponent("1.0.0", "model", "provider", [], servers)
-				.render(100)
-				.join("\n")
-				.replace(/\x1b\[[0-9;]*m/g, ""),
-		);
-
-		expect(empty).toContain("No LSP servers");
-		expect(disabled).not.toContain("LSP Servers");
-		expect(disabled).not.toContain("No LSP servers");
-		expect(disabled).toContain("Recent sessions");
+		const narrow = rows(39).join("\n");
+		expect(narrow).toContain("████████████");
+		expect(narrow).not.toContain(WORDMARK_ROW);
+		expect(narrow).not.toContain("v1.0.0");
 	});
 });
