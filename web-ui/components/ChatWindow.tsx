@@ -424,6 +424,8 @@ export function ChatWindow({
 		messagesEndRef,
 		scrollContainerRef,
 		lastUserMsgRef,
+		scrollToBottom,
+		atBottom,
 		handleSend,
 		handleAbort,
 		handleFork,
@@ -969,7 +971,7 @@ export function ChatWindow({
 									fontSize: 12,
 								}}
 							>
-								{mode === "chat" ? "Chat" : "Trajectory"}
+								{mode === "chat" ? t("chat.view-chat") : t("chat.view-trajectory")}
 							</button>
 						))}
 					</div>
@@ -995,7 +997,7 @@ export function ChatWindow({
 								</div>
 								<div
 									ref={scrollContainerRef}
-									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-width:none]"
+									className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4"
 								>
 									<div style={{ padding: `0 ${CHAT_COLUMN_PADDING}px` }}>
 										<div
@@ -1469,6 +1471,41 @@ export function ChatWindow({
 										messageRefs={messageRefs}
 										onRevealHistory={revealHistoryForMinimap}
 									/>
+								)}
+								{!atBottom && (
+									<button
+										type="button"
+										onClick={() => scrollToBottom("smooth")}
+										title={t("chat.scroll-to-bottom")}
+										aria-label={t("chat.scroll-to-bottom")}
+										style={{
+											position: "absolute",
+											bottom: 16,
+											right: isMobile ? CHAT_COLUMN_PADDING : CHAT_MINIMAP_WIDTH + 12,
+											width: 32,
+											height: 32,
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											background: "var(--bg-panel)",
+											border: "1px solid var(--border)",
+											color: "var(--text)",
+											borderRadius: "50%",
+											boxShadow: "var(--surface-shadow)",
+											cursor: "pointer",
+											zIndex: 50,
+										}}
+									>
+										<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+											<path
+												d="M8 3v10M3.5 8.5L8 13l4.5-4.5"
+												stroke="currentColor"
+												strokeWidth="1.5"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
+										</svg>
+									</button>
 								)}
 							</div>
 

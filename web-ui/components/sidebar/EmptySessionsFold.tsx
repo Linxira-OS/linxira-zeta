@@ -15,11 +15,9 @@ interface EmptySessionsFoldProps {
 	sessions: SessionInfo[];
 	/** Per-row delete — the caller owns the danger confirm. */
 	onDelete: (session: SessionInfo) => void;
-	/** Batch delete of every listed session — caller owns the danger confirm. */
-	onCleanup: (sessions: SessionInfo[]) => void;
 }
 
-export function EmptySessionsFold({ sessions, onDelete, onCleanup }: EmptySessionsFoldProps) {
+export function EmptySessionsFold({ sessions, onDelete }: EmptySessionsFoldProps) {
 	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
 	if (sessions.length === 0) return null;
@@ -111,21 +109,6 @@ export function EmptySessionsFold({ sessions, onDelete, onCleanup }: EmptySessio
 							</button>
 						</div>
 					))}
-					<button
-						onClick={() => onCleanup(sessions)}
-						style={{
-							display: "block",
-							padding: "2px 14px 8px 30px",
-							background: "none",
-							border: "none",
-							color: "var(--status-error)",
-							cursor: "pointer",
-							fontSize: 11,
-							textAlign: "left",
-						}}
-					>
-						{t("sidebar.emptySessionCleanup")}
-					</button>
 				</>
 			)}
 		</div>

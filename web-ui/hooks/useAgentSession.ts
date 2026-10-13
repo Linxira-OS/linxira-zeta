@@ -498,6 +498,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const [error, setError] = useState<string | null>(null);
   const [activeLeafId, setActiveLeafId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [atBottom, setAtBottom] = useState(true);
   const [entryIds, setEntryIds] = useState<string[]>([]);
   const [streamState, dispatch] = useReducer(streamReducer, {
     isStreaming: false,
@@ -3125,6 +3126,25 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   ]);
 
   useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const container = scrollContainerRef.current;
+      if (container) {
+        setAtBottom(
+          container.scrollHeight - container.scrollTop - container.clientHeight <=
+            48,
+        );
+      }
+    };
+    handleScroll();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+    };
+  }, [messages.length, loading]);
+
+  useEffect(() => {
     if (messages.length > 0) {
       if (pendingScrollToUserRef.current) {
         pendingScrollToUserRef.current = false;
@@ -3236,6 +3256,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     pendingScrollToUserRef,
     initialScrollDoneRef,
     // Actions
+    scrollToBottom,
+    atBottom,
     handleSend,
     handleAbort,
     handleFork,

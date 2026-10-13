@@ -102,6 +102,11 @@ const DYNAMIC_KEY_PREFIXES = [
 	{ prefix: "web-channel-telegram", reason: "CHANNEL_LABEL_KEY / WEB_SEARCH_KEYS data" },
 ];
 
+// Keys carried as data rather than a literal t() call: the shell panel registry
+// (components/shell/panel-registry.tsx) declares a `titleKey` per panel and
+// renders `t(panel.titleKey)`, so the literal-scan cannot see it.
+const DATA_DRIVEN_KEYS = new Set(["full-history"]);
+
 test("every message key is referenced by a literal t() call in product source", () => {
   const webUiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
   const sourceRoots = ["components", "hooks", "lib", "app"].map(dir => path.join(webUiRoot, dir));
@@ -129,7 +134,10 @@ test("every message key is referenced by a literal t() call in product source", 
   for (const root of sourceRoots) walk(root);
 
   const dead = Object.keys(enLocale.messages).filter(
-    key => !usedKeys.has(key) && !DYNAMIC_KEY_PREFIXES.some(({ prefix }) => key.startsWith(prefix)),
+    key =>
+      !usedKeys.has(key) &&
+      !DATA_DRIVEN_KEYS.has(key) &&
+      !DYNAMIC_KEY_PREFIXES.some(({ prefix }) => key.startsWith(prefix)),
   );
   assert.deepEqual(
     dead,
