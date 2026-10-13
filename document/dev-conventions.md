@@ -298,6 +298,23 @@ flat scratch reports `redundant_pub_crate`), and expect `-A dead_code`/`-A
 unused` noise from the scaffolding — never let those allowances hide a diagnostic
 that matters.
 
+### Fresh worktrees: install your own dependencies
+
+A git worktree has no `node_modules`. Run `bun install --frozen-lockfile` inside
+it, and copy the gitignored native addons (`packages/natives/native/*.node`) from
+a checkout that has them, before running tests or `serve`.
+
+**Never** point a worktree's `node_modules` / `@linxiraos/*` at another
+checkout's tree (junction or symlink). Workspace links resolve `@linxiraos/*` to
+*that* checkout's `packages/*` sources, so a worktree wired to a shared — usually
+peer-dirty — checkout runs against someone else's edits, and the symptoms are
+phantom and misleading: `Cannot find module './tool-views.generated.js'`,
+`SyntaxError: Export named 'x' not found in module …`, `check-scope-imports`
+reporting unresolvable `@linxiraos/*` specifiers, or a `zeta serve` that boots
+from one worktree and dies from another with the same command. When a
+freshly-created worktree misbehaves, re-run the install before debugging the
+code.
+
 ## Changelog
 
 Location: `packages/*/CHANGELOG.md` (per package).
