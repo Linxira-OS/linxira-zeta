@@ -2596,7 +2596,6 @@ export const en = {
 	tip30: "Press {key:shift+tab} to cycle through reasoning effort levels",
 	tip31: "zeta can reconfigure and extend itself — ask any questions you have!",
 	tip32: "Lint/type errors piling up? `zetacode cleanse` (or /cleanse right here) hunts project diagnostics and fixes them with parallel subagents — {key:escape} cancels",
-	tip33: "Psst, zeta has a natural habitat 🐦 [tern](https://scl.so/tern)",
 	// ── MCP runtime dashboard (pi-tui overlays/extensions/mcp-runtime.ts) ───
 	mcpHealthNotConnected: "Not connected",
 	mcpHealthInactive: "Inactive",

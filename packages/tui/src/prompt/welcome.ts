@@ -15,27 +15,21 @@ import type { Component } from "../tui";
 import { padding, replaceTabs, visibleWidth, wrapTextWithAnsi } from "../utils";
 import tipsText from "./tips.txt" with { type: "text" };
 
-/** Leading marker for a tip that pitches Tern: shown only while no TSP surface
- *  is live, since a live one means the user is already in Tern. */
-const NO_TERN_TIP_MARKER = /^\[NO-TERN\]\s*/;
-
 /** Trailing marker that flags a tip as a "what's new" callout. Stripped before
  *  wrapping (with any preceding whitespace) and replaced by {@link NEW_TAG_TEXT}
  *  painted as a shimmering rainbow. Non-global so `.test` stays stateless. */
 const NEW_TIP_MARKER = /\s*\[NEW\]\s*$/;
 
-/** A tips.txt line. The structural markers stay in the source line — they drive
- *  pool selection and the "[NEW]" weighting — while the user-visible text is
+/** A tips.txt line. The `[NEW]` marker stays in the source line — it drives
+ *  pool selection and the weighting — while the user-visible text is
  *  resolved from the host catalogue under `tipN`, N = the 1-based line number. */
 interface TipLine {
 	/** 1-based tips.txt line number; the catalogue key is `tip${line}`. */
 	readonly line: number;
-	/** Raw line, markers intact — what the weighted picker selects from. */
+	/** Raw line, marker intact — what the weighted picker selects from. */
 	readonly raw: string;
-	/** English body with both markers stripped: the `tuiText` fallback. */
+	/** English body with the `[NEW]` marker stripped: the `tuiText` fallback. */
 	readonly english: string;
-	/** Pitches Tern; excluded from the TSP pool. */
-	readonly noTern: boolean;
 	/** "What's new" callout; carries the heavier selection weight. */
 	readonly isNew: boolean;
 }
@@ -49,19 +43,15 @@ const TIP_LINES: readonly TipLine[] = tipsText.split("\n").flatMap((line, index)
 		{
 			line: index + 1,
 			raw,
-			english: raw.replace(NO_TERN_TIP_MARKER, "").replace(NEW_TIP_MARKER, ""),
-			noTern: NO_TERN_TIP_MARKER.test(raw),
+			english: raw.replace(NEW_TIP_MARKER, ""),
 			isNew: NEW_TIP_MARKER.test(raw),
 		},
 	];
 });
 
-/** Classic pool: every tip's raw line, so {@link pickWeightedTip} can still read
- *  the trailing {@link NEW_TIP_MARKER} for its selection weight. */
+/** Every tip's raw line, so {@link pickWeightedTip} can still read the
+ *  trailing {@link NEW_TIP_MARKER} for its selection weight. */
 const TIPS: readonly string[] = TIP_LINES.map(tip => tip.raw);
-
-/** TSP pool: those marked {@link NO_TERN_TIP_MARKER} dropped. */
-const TSP_TIPS: readonly string[] = TIP_LINES.filter(tip => !tip.noTern).map(tip => tip.raw);
 
 /** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
 const NEW_TAG_TEXT = "NEW!";
@@ -99,7 +89,7 @@ interface ResolvedTip {
 	readonly isNew: boolean;
 }
 
-/** Localise a picked tip. `raw` is a {@link TIPS}/{@link TSP_TIPS} member (or the
+/** Localise a picked tip. `raw` is a {@link TIPS} member (or the
  *  nerdfont nudge); the catalogue is consulted live, so `/language` applies. */
 function resolveTip(raw: string): ResolvedTip {
 	if (raw === NERDFONT_TIP) return { text: tuiText("welcomeNerdFontJoke", NERDFONT_TIP), isNew: false };
@@ -165,7 +155,7 @@ function expandTipKeys(tip: string): string {
 	});
 }
 
-/** Markdown-style links in tips.txt: `[Tern](https://scl.so/tern)` shows the label, linked to the URL. */
+/** Markdown-style links in tips.txt: `[docs](https://example.com)` shows the label, linked to the URL. */
 const TIP_LINK = /\[([^\]]+)\]\(([^\s)]+)\)/g;
 
 /** Tip links as underlined OSC 8 labels, or `label (url)` where the terminal cannot link. */
@@ -249,10 +239,8 @@ export class WelcomeComponent implements Component {
 	#animTimer: Timer | null = null;
 	#requestRender: (() => void) | null = null;
 	// Tip randomness is latched once so the tip is stable across renders, but
-	// the nerdfont-nag gate re-reads the live preset and the pool re-reads the
-	// live TSP state: the startup prepaint can run under the default "unicode"
-	// preset before settings resolve the real one, and an optimistic Tern start
-	// falls back to the classic renderer when `hello` never confirms.
+	// the nerdfont-nag gate re-reads the live preset: the startup prepaint can
+	// run under the default "unicode" preset before settings resolve the real one.
 	#nagRoll: number | undefined;
 	#tipRoll: number | undefined;
 	// Render cache: the welcome box is the first transcript-area component, so
@@ -272,7 +260,7 @@ export class WelcomeComponent implements Component {
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
 			return NERDFONT_TIP;
 		}
-		return pickWeightedTip(isNativeRendering() ? TSP_TIPS : TIPS, this.#tipRoll) || undefined;
+		return pickWeightedTip(TIPS, this.#tipRoll) || undefined;
 	}
 
 	invalidate(): void {

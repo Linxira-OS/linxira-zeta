@@ -29,9 +29,10 @@ bun scripts/brand/brand-check.ts
 
 | 处置 | 域名 / 面 | 一句话依据 |
 |---|---|---|
-| **保留** | `my.omp.sh`（中继/分享）、`https://omp.sh/install`（安装提示）、`catalog.stencil.so`（模型发现数据源）、`scl.so`（文案链接） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>`、模型发现或安装路径 |
+| **保留** | `my.omp.sh`（中继/分享）、`https://omp.sh/install`（安装提示）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>`、模型发现或安装路径 |
 | **保留代码，凭证自填** | `api.stencil.so` / `auth.stencil.so`（Stencil 账号体系）、`client-id "omp"`、Tern 客户端适配 | 代码留着（将来可能有同类商业产品），凭证改成用户自填 `STENCIL_API_KEY`；OIDC public client id 与 issuer/scope 名是协议契约，**改名即登录失败** |
 | **待替代** | `skills.omp.sh`（P2）、`live.omp.sh`（P3）；`qa.omp.sh` 已替换 ✓（见 §3c） | 用户可主动触达的外部依赖，上游关停即失效 |
+| **已移除** | `scl.so`（Tern 推广文案链接，2026-10-14 用户裁决）；`qa.omp.sh`、`build.stencil.so` 已替换/退役（见 §3c） | 上游产品推广面；守卫标为 `replaced`，复活即红 |
 
 ## 1. 保留：共享基础设施
 
@@ -40,7 +41,14 @@ bun scripts/brand/brand-check.ts
 | `my.omp.sh` — 中继/分享 URL | `packages/collab-web/{index.html,public/robots.txt,public/sitemap.xml,scripts/local-relay.ts}`、`packages/wire/src/index.ts`（另有测试 12 处） | 端到端加密中继，协议两端由上游运营；注册表「不品牌化」 |
 | `https://omp.sh/install` | `packages/coding-agent/src/cli/update-cli.ts` | 注册表「共享基础设施，勿改」 |
 | `catalog.stencil.so/models.json.zstd` | `packages/catalog/scripts/generate-models.ts`、`packages/catalog/src/provider-models/openai-compat.ts` | 模型发现数据源；替换需自建模型目录服务，未列入计划。注意 `packages/catalog/src/compat/rules.json` 是生成物 |
-| `scl.so/tern`、`docs.stencil.so/tern/protocol/` | `packages/tui/src/prompt/tips.txt`、`packages/tui/src/prompt/welcome.ts`、`packages/coding-agent/src/i18n/{en,zh}.ts` | 文案链接，不是 API 调用 |
+| `docs.stencil.so/tern/protocol/` | `packages/tui/src/native/node.ts`、`packages/wire/src/tsp.ts` | 协议文档出处（注释），不是 API 调用 |
+
+> `scl.so/tern` 推广链接**已移除**（2026-10-14 用户裁决）：欢迎页 tips 的
+> `[NO-TERN] … [tern](https://scl.so/tern)` 条、`welcome.ts` 的 `[NO-TERN]`
+> 可见性标签机制、以及 i18n `tip33` 文案一并删除；`check-shared-infra.ts` 的
+> `INVENTORY` 把 `https://scl.so` 标为 `replaced`（`files: []`），
+> `scripts/brand/brand-rules.ts` 加 `MUST_NOT_CONTAIN /scl\.so/` 精确规则
+> （裸 `stencil.so` 不禁——`catalog.stencil.so` 是模型目录基础设施）。详见 §3c。
 
 ## 2. 保留代码，凭证改为用户自填
 
@@ -89,6 +97,7 @@ bun scripts/brand/brand-check.ts
 |---|---|
 | **`qa.omp.sh/v1/grievances` → GitHub Issues（2026-10-11）** | 三处落点（`src/cli/grievances-cli.ts`、`src/tools/report-tool-issue.ts`、`src/tools/settings.ts`）改走新客户端 `packages/coding-agent/src/grievances/client.ts`：目标仓库取 `ZETA_ISSUE_REPO`（默认 `Linxira-OS/linxira-zeta`），令牌链 `GITHUB_TOKEN` → `GH_TOKEN` → `dev.autoqaPush.token` → `gh auth token`；401/403/404/422 有各自可操作提示；**无令牌不发请求**，改为打印成文 issue + 预填 `issues/new` URL；每条 body 明示"将公开发布"。标签：工具缺陷 `bug`、手动反馈 `feedback`。已删除 `dev.autoqaPush.endpoint` 与 `PI_AUTO_QA_PUSH_URL`/`_TOKEN`。守卫把该端点标为 `replaced` 且 `files: []`——任何落点回归即红。 |
 | **`build.stencil.so` 发布步骤退役（2026-10-14）** | v1.2.1 发布 run 的 `Publish to build.stencil.so` 步骤 HTTP 403（服务只接受 `can1357`/`stencil-hq` 仓库，本 fork 永久无权限；v1.2.0 同步骤亦红）。删除 `.github/workflows/ci.yml` 该步骤及其 `scripts/ci-build-upload.ts`，连同只为它下载 `zeta-binary-*` 的步骤；`INVENTORY` 把该端点标为 `replaced` 且 `files: []`，`check-ci-surface` 规则禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow —— 复活即红。二进制只进自己的 GitHub Release（更新器消费 `zeta-cli-*` 资产，见 `document/release.md` 损伤类别 11）。 |
+| **`scl.so/tern` 推广提示移除（2026-10-14）** | 欢迎页 tips 末行 `[NO-TERN] Psst, zeta has a natural habitat 🐦 [tern](https://scl.so/tern)`、`welcome.ts` 的 `[NO-TERN]` 可见性标签机制（`NO_TERN_TIP_MARKER` + `TIPS`/`TSP_TIPS` 分池；只有这一条用过，故机制一并移除）、i18n `tip33`（`en.ts`/`zh.ts`/`messages.ts`）全部删除。这是上游产品推广（"来用上游终端 Tern"）+ 上游短链，用户裁决**推翻** `document/upstream-sync.md` 里 v18.8.5 合并时「tern tip kept」的旧决议。守卫：`scripts/brand/brand-rules.ts` 加 `MUST_NOT_CONTAIN /scl\.so/`，`tips.txt` 的 `USER_SURFACE_FILES.forbid` 加 `scl\.so`；`check-shared-infra.ts` 把 `https://scl.so` 标 `replaced`/`files: []`。 |
 | 安装站点脚本 | `F:\Linxira-OS\Linxira-OS.github.io`（Astro，推 `master` 自动部署）：安装脚本原本下载 `zeta-windows-x64.exe` / `zeta-linux-x64`，而 CI 实际发布 `zeta-cli-*` —— **两个平台的安装脚本都必然失败**。已改为 `zeta-cli-*` 并安装为 `zetacode`（裸 `zeta` 是工作台 bin，会互相遮蔽）。站点仓库提交 `90d2e14`，已推送。 |
 | `.ompcast` → `.zetacast` | 已改完。 |
 
