@@ -307,9 +307,15 @@ export class PluginListComponent extends OverlayPanel {
 		if (entries.length === 0) {
 			this.addChild(new Text(theme.fg("muted", "No plugins installed"), 0, 0));
 			this.addChild(new Spacer(1));
-			this.addChild(new Text(theme.fg("dim", "Install npm plugins:        zeta-c plugin install <package>"), 0, 0));
 			this.addChild(
-				new Text(theme.fg("dim", "Install marketplace plugins: zeta-c plugin install <name>@<marketplace>"), 0, 0),
+				new Text(theme.fg("dim", "Install npm plugins:        zetacode plugin install <package>"), 0, 0),
+			);
+			this.addChild(
+				new Text(
+					theme.fg("dim", "Install marketplace plugins: zetacode plugin install <name>@<marketplace>"),
+					0,
+					0,
+				),
 			);
 			this.addChild(new Spacer(1));
 

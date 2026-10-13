@@ -3136,7 +3136,7 @@ export const zh = {
 	agentHubLoadingSaved: "正在加载已保存的 agent…",
 	agentHubEmptyTitle: "本会话没有 agent",
 	agentHubEmptyDetail: "已完成、已驻留和已终止的子 agent 保留在创建它们的会话中。",
-	agentHubEmptyHint: "使用 omp-dev --continue 恢复该会话，或在此处派生任务。",
+	agentHubEmptyHint: "使用 zetacode --continue 恢复该会话，或在此处派生任务。",
 	agentHubMoreFmt: "… 还有 %s 个",
 	agentHubViewFlatChip: "平铺",
 	agentHubViewByParentChip: "按父级",
