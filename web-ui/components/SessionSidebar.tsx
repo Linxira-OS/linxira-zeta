@@ -416,14 +416,12 @@ function useScramble(target: string, running: boolean): string {
 function ProjectHeaderMenu({
 	project,
 	count,
-	onConfirmDelete,
 	onRenameAlias,
 	onTogglePin,
 	pinned,
 }: {
 	project: string;
 	count: number;
-	onConfirmDelete: (project: string, count: number) => void;
 	onRenameAlias: (project: string) => void;
 	onTogglePin: (project: string) => void;
 	pinned: boolean;
@@ -533,28 +531,6 @@ function ProjectHeaderMenu({
 						}}
 					>
 						{t("sidebar.renameProject")}
-					</button>
-					<button
-						onClick={() => {
-							setOpen(false);
-							onConfirmDelete(project, count);
-						}}
-						disabled={count === 0}
-						style={{
-							display: "block",
-							width: "100%",
-							textAlign: "left",
-							padding: "6px 8px",
-							fontSize: 12,
-							color: count === 0 ? "var(--text-dim)" : "var(--status-error)",
-							background: "none",
-							border: "none",
-							borderRadius: 5,
-							cursor: count === 0 ? "default" : "pointer",
-							whiteSpace: "nowrap",
-						}}
-					>
-						{t("sidebar.deleteProjectSessions")}
 					</button>
 				</div>
 			)}
@@ -1549,17 +1525,6 @@ export function SessionSidebar({
 		},
 		[handleEmptySessionsCleanup, t],
 	);
-	const confirmEmptySessionsCleanup = useCallback(
-		(targets: SessionInfo[]) => {
-			setDangerConfirm({
-				title: t("sidebar.emptySessionCleanup"),
-				body: t("sidebar.deleteSelectedConfirm", { count: targets.length }),
-				confirmLabel: t("sidebar.delete"),
-				action: () => handleEmptySessionsCleanup(targets),
-			});
-		},
-		[handleEmptySessionsCleanup, t],
-	);
 	const loadArchived = useCallback(async () => {
 		try {
 			setArchivedSessions(await fetchArchivedSessions());
@@ -1896,8 +1861,8 @@ export function SessionSidebar({
 										height: 6,
 										borderRadius: "50%",
 										flexShrink: 0,
-										background: "var(--accent, #22c55e)",
-										boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent, #22c55e) 22%, transparent)",
+										background: "var(--accent)",
+										boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)",
 									}}
 								/>
 								<span
@@ -2049,7 +2014,6 @@ export function SessionSidebar({
 									onRenameAlias={project => setProjectAlias(project)}
 									onTogglePin={project => toggleProjectPin(project)}
 									pinned={pinnedProjects.includes(project)}
-									onConfirmDelete={(p, count) => setConfirmProjectDelete({ project: p, count })}
 								/>
 							) : null
 						}
@@ -2081,7 +2045,6 @@ export function SessionSidebar({
 							<EmptySessionsFold
 								sessions={emptySessionsByProject.get(project) ?? []}
 								onDelete={confirmEmptySessionDelete}
-								onCleanup={confirmEmptySessionsCleanup}
 							/>
 						)}
 					/>
@@ -2511,7 +2474,7 @@ export function SessionSidebar({
 				<div
 					role="dialog"
 					aria-modal="true"
-					aria-label="Open workspace"
+					aria-label={t("sidebar.open-workspace")}
 					onMouseDown={e => {
 						if (e.target === e.currentTarget) setDropdownOpen(false);
 					}}
@@ -2554,7 +2517,7 @@ export function SessionSidebar({
 						>
 							{t("sidebar.openWorkspace")}
 							<button
-								aria-label="Close"
+								aria-label={t("close")}
 								onClick={() => setDropdownOpen(false)}
 								style={{
 									background: "none",
@@ -2890,23 +2853,6 @@ export function SessionSidebar({
 							label: t("sidebar.copySessionId"),
 							onSelect: () => void navigator.clipboard?.writeText(s.id).catch(() => {}),
 						},
-						{
-							key: "delete",
-							label: t("sidebar.delete"),
-							danger: true,
-							onSelect: () =>
-								setDangerConfirm({
-									title: t("sidebar.deleteSessionTitle"),
-									body: t("sidebar.deleteSessionConfirm", { name: sessionDisplayTitle(s, t) }),
-									detail: s.id,
-									confirmLabel: t("sidebar.delete"),
-									action: async () => {
-										await deleteSessions([s.id]);
-										onSessionDeleted?.(s.id);
-										await loadSessions();
-									},
-								}),
-						},
 					];
 				})()}
 			/>
@@ -2935,12 +2881,6 @@ export function SessionSidebar({
 							key: "pin",
 							label: pinnedProjects.includes(project) ? t("sidebar.unpinProject") : t("sidebar.pinProject"),
 							onSelect: () => toggleProjectPin(project),
-						},
-						{
-							key: "delete",
-							label: t("sidebar.deleteProjectSessions"),
-							danger: true,
-							onSelect: () => requestProjectDelete(project),
 						},
 					];
 				})()}

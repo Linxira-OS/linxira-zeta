@@ -3,7 +3,7 @@
  * extended with the openchamber activity contract — running state shows an
  * accent dot + elapsed timer (never a spinner), unread a pulsing info dot —
  * plus edit-mode checkboxes and a right-click context menu (pin / rename /
- * archive / delete).
+ * archive).
  */
 "use client";
 
@@ -451,7 +451,7 @@ export function SessionNodeItem({
 										padding: "2px 5px",
 										borderRadius: 8,
 										border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
-										color: "var(--accent, #6366f1)",
+										color: "var(--accent)",
 										textTransform: "uppercase",
 										letterSpacing: 0.4,
 									}}
@@ -495,7 +495,7 @@ export function SessionNodeItem({
 							<span>{t("sidebar.messagesCount", { count: session.messageCount })}</span>
 							{session.worktreeBranch && (
 								<span
-									title={`Worktree: ${session.cwd}`}
+									title={t("sidebar.worktree-title", { path: session.cwd })}
 									style={{
 										display: "flex",
 										alignItems: "center",
@@ -532,7 +532,7 @@ export function SessionNodeItem({
 								e.stopPropagation();
 								onToggleCollapse?.();
 							}}
-							title={collapsed ? "Expand forks" : "Collapse forks"}
+							title={collapsed ? t("sidebar.expand-forks") : t("sidebar.collapse-forks")}
 							style={{
 								display: "flex",
 								alignItems: "center",
@@ -716,26 +716,6 @@ export function SessionNodeItem({
 									{t("sidebar.archive")}
 								</button>
 							)}
-							<button
-								onClick={e => {
-									setMenuOpen(false);
-									handleDeleteClick(e);
-								}}
-								style={{
-									display: "block",
-									width: "100%",
-									textAlign: "left",
-									padding: "6px 8px",
-									fontSize: 12,
-									color: "var(--status-error)",
-									background: "none",
-									border: "none",
-									borderRadius: 5,
-									cursor: "pointer",
-								}}
-							>
-								{t("sidebar.delete")}
-							</button>
 						</div>
 					)}
 				</>

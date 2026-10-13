@@ -68,3 +68,128 @@ export function getRightPanelMaxWidth(options: {
 	const visibleSidebarWidth = sidebarOpen ? sidebarWidth : 0;
 	return Math.min(RIGHT_PANEL_MAX_WIDTH, viewportWidth - DESKTOP_CHAT_MIN_WIDTH - visibleSidebarWidth);
 }
+
+/**
+ * Width of the persistent right-edge dock rail (icon strip). It is always
+ * visible and sits to the left of the dock window.
+ */
+export const DOCK_RAIL_WIDTH = 40;
+
+/** Invisible hit area (px) of a column drag handle. */
+export const PANEL_RESIZE_HIT_AREA = 8;
+
+/**
+ * Frozen shell geometry. Every pixel constant the three-column shell needs is
+ * collected here so the layout maths lives in exactly one place.
+ */
+export const SHELL_GEOMETRY = Object.freeze({
+	sidebarDefault: SIDEBAR_DEFAULT_WIDTH,
+	sidebarMin: SIDEBAR_MIN_WIDTH,
+	sidebarMax: SIDEBAR_MAX_WIDTH,
+	sidebarRail: SIDEBAR_COLLAPSED_WIDTH,
+	detailDefault: RIGHT_PANEL_FALLBACK_WIDTH,
+	detailMin: RIGHT_PANEL_MIN_WIDTH,
+	detailMax: RIGHT_PANEL_MAX_WIDTH,
+	chatMinDesktop: DESKTOP_CHAT_MIN_WIDTH,
+	chatMinCompact: COMPACT_CHAT_MIN_WIDTH,
+	splitMin: SPLIT_PANEL_MIN_WIDTH,
+	mobileMax: MOBILE_MAX_WIDTH,
+	dockRail: DOCK_RAIL_WIDTH,
+	resizeHitArea: PANEL_RESIZE_HIT_AREA,
+} as const);
+
+export interface ShellTracks {
+	/** Width (px) of the left sidebar track; 0 when overlay/hidden. */
+	sidebar: number;
+	/** Width (px) of the centre chat track. */
+	center: number;
+	/** Width (px) of the right details track (rail + in-flow dock window). */
+	details: number;
+	/** Sidebar is a fixed overlay (mobile drawer) rather than an in-flow track. */
+	sidebarOverlay: boolean;
+	/** Dock window is a fixed overlay rather than an in-flow track. */
+	detailOverlay: boolean;
+	/** Yield chain closed the dock window to protect the chat track. */
+	detailCollapsed: boolean;
+}
+
+/**
+ * Pure column-width yield chain (plan §2.3). Contract:
+ *   1. the centre chat column keeps at least `chatMinDesktop` px;
+ *   2. the dock window is compressed first, down to `detailMin`;
+ *   3. then the dock window is dropped entirely (never written back to prefs);
+ *   4. then the sidebar is compressed, down to its own minimum.
+ * Below `splitMin` the dock window overlays the chat; below `mobileMax` the
+ * sidebar overlays too. No side effects — safe to call during render.
+ */
+export function resolveShellTracks(options: {
+	viewportWidth: number;
+	sidebarOpen: boolean;
+	sidebarCollapsed: boolean;
+	detailOpen: boolean;
+	sidebarWidth: number;
+	detailWidth: number;
+}): ShellTracks {
+	const { viewportWidth, sidebarOpen, sidebarCollapsed, detailOpen, sidebarWidth, detailWidth } = options;
+
+	if (viewportWidth <= MOBILE_MAX_WIDTH) {
+		return {
+			sidebar: 0,
+			center: Math.max(0, viewportWidth - DOCK_RAIL_WIDTH),
+			details: DOCK_RAIL_WIDTH,
+			sidebarOverlay: true,
+			detailOverlay: true,
+			detailCollapsed: !detailOpen,
+		};
+	}
+
+	let sidebar = !sidebarOpen
+		? 0
+		: sidebarCollapsed
+			? SIDEBAR_COLLAPSED_WIDTH
+			: clampPanelWidth(sidebarWidth, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH);
+
+	// 641-959 px: the dock window overlays the chat instead of claiming a track.
+	if (viewportWidth < SPLIT_PANEL_MIN_WIDTH) {
+		return {
+			sidebar,
+			center: Math.max(0, viewportWidth - sidebar - DOCK_RAIL_WIDTH),
+			details: DOCK_RAIL_WIDTH,
+			sidebarOverlay: false,
+			detailOverlay: true,
+			detailCollapsed: !detailOpen,
+		};
+	}
+
+	let detailPx = detailOpen ? clampPanelWidth(detailWidth, RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH) : 0;
+	let detailCollapsed = false;
+	let center = viewportWidth - sidebar - DOCK_RAIL_WIDTH - detailPx;
+
+	// 2. compress the dock window.
+	if (center < DESKTOP_CHAT_MIN_WIDTH && detailPx > 0) {
+		const take = Math.min(DESKTOP_CHAT_MIN_WIDTH - center, Math.max(0, detailPx - RIGHT_PANEL_MIN_WIDTH));
+		detailPx -= take;
+		center += take;
+	}
+	// 3. drop the dock window (transient — preferences are never rewritten).
+	if (center < DESKTOP_CHAT_MIN_WIDTH && detailPx > 0) {
+		center += detailPx;
+		detailPx = 0;
+		detailCollapsed = true;
+	}
+	// 4. compress the sidebar down to its minimum.
+	if (center < DESKTOP_CHAT_MIN_WIDTH && sidebar > SIDEBAR_MIN_WIDTH) {
+		const take = Math.min(DESKTOP_CHAT_MIN_WIDTH - center, sidebar - SIDEBAR_MIN_WIDTH);
+		sidebar -= take;
+		center += take;
+	}
+
+	return {
+		sidebar,
+		center,
+		details: DOCK_RAIL_WIDTH + detailPx,
+		sidebarOverlay: false,
+		detailOverlay: false,
+		detailCollapsed,
+	};
+}

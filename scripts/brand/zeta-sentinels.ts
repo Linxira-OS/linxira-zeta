@@ -279,9 +279,9 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	// -- Tracking web-ui surface (vendored from omp-web: these files are
 	//    upstream-owned copies, so a re-vendor can silently drop the panel) -----
 	{
-		file: "web-ui/components/AppShell.tsx",
-		symbol: 'label: t("dock.window.tracking")',
-		why: "tracking dock entry label (tracking.enabled-gated dock window)",
+		file: "web-ui/components/shell/panel-registry.tsx",
+		symbol: 'titleKey: "dock.window.tracking"',
+		why: "tracking dock entry label (tracking.enabled-gated dock window; registry-driven rail)",
 	},
 	{
 		file: "web-ui/components/TrackingPanel.tsx",

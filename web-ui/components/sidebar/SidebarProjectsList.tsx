@@ -179,7 +179,7 @@ function ProjectGroupRow({
 				)}
 					{isCurrent && branch && (
 						<span
-							title={`Branch: ${branch}`}
+							title={t("sidebar.branch-title", { branch })}
 							style={{
 								display: "inline-flex",
 								alignItems: "center",

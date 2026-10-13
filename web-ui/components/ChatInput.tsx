@@ -1724,7 +1724,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							background: "rgba(239,68,68,0.07)",
 							border: "1px solid rgba(239,68,68,0.3)",
 							borderRadius: 6,
-							color: "#ef4444",
+							color: "var(--zeta-alias-status-error)",
 							fontFamily: "var(--font-mono)",
 							fontSize: 12,
 							lineHeight: 1.5,
@@ -1817,7 +1817,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 							}}
 						>
 							<div
-								title="Input history"
+								title={t("chat.input-history")}
 								style={{
 									height: 30,
 									padding: "0 10px",
@@ -2422,7 +2422,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									background: value.trim() || attachedImages.length ? "var(--accent)" : "var(--bg-panel)",
 									border: "none",
 									borderRadius: 8,
-									color: value.trim() || attachedImages.length ? "#fff" : "var(--text-dim)",
+									color: value.trim() || attachedImages.length ? "var(--zeta-alias-accent-foreground)" : "var(--text-dim)",
 									cursor: value.trim() || attachedImages.length ? "pointer" : "not-allowed",
 									fontSize: 13,
 									fontWeight: 600,
@@ -2589,12 +2589,12 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 									}}
 									title={
 										isStreaming
-											? "Unavailable while the agent is running"
+											? t("chat.model-unavailable-running")
 											: modelOptions.length > 0
-												? "Change model"
+												? t("chat.change-model")
 												: modelError
-													? "No models available (failed to load)"
-													: "No available models"
+													? t("chat.models-load-failed")
+													: t("chat.no-available-models")
 									}
 								>
 									<svg
@@ -2626,7 +2626,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											minWidth: 0,
 										}}
 									>
-										{currentName ?? (modelOptions.length > 0 ? "Select model" : "No models")}
+										{currentName ?? (modelOptions.length > 0 ? t("chat.select-model") : t("chat.no-models"))}
 									</span>
 								</button>
 								{modelActiveFlash && (
@@ -3281,7 +3281,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
 											border: "none",
 											borderRadius: 9,
-											color: isCompacting ? "#ef4444" : "var(--text-muted)",
+											color: isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)",
 											cursor: isStreaming && !isCompacting ? "not-allowed" : "pointer",
 											fontSize: 12,
 											opacity: isStreaming && !isCompacting ? 0.5 : 1,
@@ -3292,11 +3292,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 											e.currentTarget.style.background = isCompacting
 												? "rgba(239,68,68,0.16)"
 												: "var(--bg-hover)";
-											e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text)";
+											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text)";
 										}}
 										onMouseLeave={e => {
 											e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
-											e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text-muted)";
+											e.currentTarget.style.color = isCompacting ? "var(--zeta-alias-status-error)" : "var(--text-muted)";
 										}}
 										title={isCompacting ? t("chat.stop-compaction") : t("chat.compact-context")}
 										aria-label={isCompacting ? t("chat.stop-compaction") : t("chat.compact-context")}
@@ -3349,7 +3349,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 										background: "rgba(239,68,68,0.08)",
 										border: "1px solid rgba(239,68,68,0.3)",
 										borderRadius: 9,
-										color: "#ef4444",
+										color: "var(--zeta-alias-status-error)",
 										cursor: "pointer",
 										fontSize: 12,
 										fontWeight: 600,

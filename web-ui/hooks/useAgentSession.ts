@@ -3181,22 +3181,23 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     markUserScrollIntent,
   ]);
 
-  // Track whether the transcript is scrolled to (near) the bottom so the
-  // floating "scroll to bottom" affordance can hide itself. Re-attaches when
-  // the container mounts or is replaced (messages.length/loading change).
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const handleAtBottomScroll = () => {
-      const el = scrollContainerRef.current;
-      if (el)
-        setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight <= 48);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const container = scrollContainerRef.current;
+      if (container) {
+        setAtBottom(
+          container.scrollHeight - container.scrollTop - container.clientHeight <=
+            48,
+        );
+      }
     };
-    handleAtBottomScroll();
-    container.addEventListener("scroll", handleAtBottomScroll, {
-      passive: true,
-    });
-    return () => container.removeEventListener("scroll", handleAtBottomScroll);
+    handleScroll();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+    };
   }, [messages.length, loading]);
 
   useEffect(() => {
@@ -3303,7 +3304,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     planProposed,
     setPlanProposed,
     modes,
-    atBottom,
     isNew,
     addNotice,
     // Refs
@@ -3315,6 +3315,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     pendingScrollToUserRef,
     initialScrollDoneRef,
     // Actions
+    scrollToBottom,
+    atBottom,
     handleSend,
     handleAbort,
     handleFork,
@@ -3329,7 +3331,6 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     handleBuiltinSlashCommand,
     handleToolPresetChange,
     handleThinkingLevelChange,
-    scrollToBottom,
     loadTools,
     loadSlashCommands,
     setActiveLeafId,

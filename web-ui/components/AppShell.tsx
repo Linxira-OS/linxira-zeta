@@ -19,7 +19,10 @@ import { PluginsConfig } from "./PluginsConfig";
 import { SettingsWindow } from "./settings/SettingsWindow";
 import { BranchNavigator } from "./BranchNavigator";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
-import { useResizablePanel } from "@/hooks/useResizablePanel";
+import { ShellLayout, ShellSlot } from "./shell/ShellLayout";
+import { DockRail } from "./shell/DockRail";
+import { TopPanelChips } from "./shell/TopPanelChips";
+import { ShellBootGate } from "./shell/BootGate";
 import { ThemePicker } from "./ThemePicker";
 import { LanguagePicker } from "./LanguagePicker";
 import { useTheme } from "@/hooks/useTheme";
@@ -48,16 +51,7 @@ import {
 	type DesktopToolId,
 } from "@/lib/pi-desktop";
 import {
-	getDefaultRightPanelWidth,
-	getRightPanelMaxWidth,
-	getSidebarMaxWidth,
-	RIGHT_PANEL_FALLBACK_WIDTH,
-	RIGHT_PANEL_MAX_WIDTH,
-	RIGHT_PANEL_MIN_WIDTH,
 	SIDEBAR_COLLAPSED_WIDTH,
-	SIDEBAR_DEFAULT_WIDTH,
-	SIDEBAR_MAX_WIDTH,
-	SIDEBAR_MIN_WIDTH,
 	readSidebarCollapsedPref,
 	writeSidebarCollapsedPref,
 } from "@/lib/panel-layout";
@@ -99,9 +93,20 @@ export function AppShell() {
 }
 
 function AppShellContent() {
-	installRemoteTokenFetch();
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const [bootFailures, setBootFailures] = useState<string[]>([]);
+	const recordBootFailure = useCallback((step: string, error: unknown) => {
+		const detail = error instanceof Error ? error.message : String(error);
+		setBootFailures(prev => [...prev, `${step}: ${detail}`]);
+	}, []);
+	useEffect(() => {
+		try {
+			installRemoteTokenFetch();
+		} catch (error) {
+			recordBootFailure("remote-token", error);
+		}
+	}, [recordBootFailure]);
 	const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
 	const { isStarfield, cycleTheme } = useTheme();
 	const { locale, t } = useI18n();
@@ -159,15 +164,14 @@ function AppShellContent() {
 		},
 		[activeCwd, newSessionCwd, selectedSession],
 	);
-	// Sidebar defaults to closed (user preference, persisted); sessions stay
-	// reachable through the top-bar toggle. The initializer stays
-	// window-independent for SSR; the preference applies right after mount.
+	// Sidebar visibility. Desktop never fully hides the sidebar: the collapsed
+	// state is the 56px icon rail, and the persisted `collapsed` preference
+	// decides between full and rail. Mobile keeps a persisted drawer pref.
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	useEffect(() => {
-		setSidebarOpen(readSidebarOpenPref());
-	}, []);
-	// Collapsed rail mode (desktop): the sidebar shrinks to a 56px icon column.
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	useEffect(() => {
+		setSidebarOpen(isMobile ? readSidebarOpenPref() : true);
+	}, [isMobile]);
 	useEffect(() => {
 		setSidebarCollapsed(readSidebarCollapsedPref());
 	}, []);
@@ -217,59 +221,6 @@ function AppShellContent() {
 	const [terminalSessionId, setTerminalSessionId] = useState<string | null>(null);
 	const [terminalFileRequest, setTerminalFileRequest] = useState<TerminalFileRequest | null>(null);
 	const [fileChipMenu, setFileChipMenu] = useState<{ filePath: string; point: { x: number; y: number } } | null>(null);
-	const sidebarWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
-	const rightPanelWidthRef = useRef(RIGHT_PANEL_FALLBACK_WIDTH);
-	const getResponsiveRightPanelWidth = useCallback(
-		() => (typeof window === "undefined" ? RIGHT_PANEL_FALLBACK_WIDTH : getDefaultRightPanelWidth(window.innerWidth)),
-		[],
-	);
-	const getResponsiveSidebarMaxWidth = useCallback(
-		() =>
-			typeof window === "undefined"
-				? SIDEBAR_MAX_WIDTH
-				: getSidebarMaxWidth({
-						viewportWidth: window.innerWidth,
-						rightPanelOpen: dockTool !== null,
-						rightPanelWidth: rightPanelWidthRef.current,
-					}),
-		[dockTool],
-	);
-	const getResponsiveRightPanelMaxWidth = useCallback(
-		() =>
-			typeof window === "undefined"
-				? RIGHT_PANEL_MAX_WIDTH
-				: getRightPanelMaxWidth({
-						viewportWidth: window.innerWidth,
-						sidebarOpen,
-						sidebarWidth: sidebarWidthRef.current,
-					}),
-		[sidebarOpen],
-	);
-	const sidebarResizer = useResizablePanel({
-		ariaLabel: t("layout.resizeSidebar"),
-		cssVariable: "--sidebar-width",
-		defaultWidth: SIDEBAR_DEFAULT_WIDTH,
-		getMaxWidth: getResponsiveSidebarMaxWidth,
-		growthDirection: "right",
-		maxWidth: SIDEBAR_MAX_WIDTH,
-		minWidth: SIDEBAR_MIN_WIDTH,
-		storageKey: "zeta-sidebar-width",
-		widthRef: sidebarWidthRef,
-	});
-	const rightPanelResizer = useResizablePanel({
-		ariaLabel: t("layout.resizeFilePanel"),
-		cssVariable: "--right-panel-width",
-		defaultWidth: RIGHT_PANEL_FALLBACK_WIDTH,
-		getDefaultWidth: getResponsiveRightPanelWidth,
-		getMaxWidth: getResponsiveRightPanelMaxWidth,
-		growthDirection: "left",
-		maxWidth: RIGHT_PANEL_MAX_WIDTH,
-		minWidth: RIGHT_PANEL_MIN_WIDTH,
-		storageKey: "zeta-right-panel-width",
-		widthRef: rightPanelWidthRef,
-	});
-	const reclampSidebarWidth = sidebarResizer.reclampWidth;
-	const reclampRightPanelWidth = rightPanelResizer.reclampWidth;
 	// On mobile the sidebar is an overlay drawer; hide it by default so the chat
 	// is visible on load. Runs once the breakpoint resolves after hydration.
 	useEffect(() => {
@@ -278,11 +229,6 @@ function AppShellContent() {
 	useEffect(() => {
 		setMobileSidebarReady(true);
 	}, []);
-	useEffect(() => {
-		if (dockTool === null) return;
-		reclampSidebarWidth();
-		reclampRightPanelWidth();
-	}, [dockTool, reclampRightPanelWidth, reclampSidebarWidth]);
 	const chatInputRef = useRef<ChatInputHandle | null>(null);
 	const topBarRef = useRef<HTMLDivElement>(null);
 
@@ -305,7 +251,6 @@ function AppShellContent() {
 	}, []);
 
 	const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
-	const systemBtnRef = useRef<HTMLButtonElement>(null);
 
 	const handleSystemPromptChange = useCallback((prompt: string | null) => {
 		setSystemPrompt(prompt);
@@ -401,8 +346,8 @@ function AppShellContent() {
 	// One-shot /api/desktop/info probe: warms the shared cached promise so
 	// desktop-specific surfaces resolve instantly instead of re-fetching.
 	useEffect(() => {
-		void fetchDesktopInfo();
-	}, []);
+		fetchDesktopInfo().catch(error => recordBootFailure("desktop-info", error));
+	}, [recordBootFailure]);
 
 	// Current model + thinking level — populated by ChatWindow for the SidePanel
 	const [modelInfo, setModelInfo] = useState<{
@@ -458,11 +403,21 @@ function AppShellContent() {
 		setActiveTopPanel("session");
 	}, [isMobile]);
 
+	// One semantic for both surfaces (plan §3 P0): on desktop the toggle swaps
+	// between the full sidebar and the 56px rail (never fully hides); on mobile
+	// it opens/closes the drawer.
 	const handleSidebarToggle = useCallback(() => {
-		if (isMobile) setActiveTopPanel(null);
-		setSidebarOpen(open => {
-			writeSidebarOpenPref(!open);
-			return !open;
+		if (isMobile) {
+			setActiveTopPanel(null);
+			setSidebarOpen(open => {
+				writeSidebarOpenPref(!open);
+				return !open;
+			});
+			return;
+		}
+		setSidebarCollapsed(collapsed => {
+			writeSidebarCollapsedPref(!collapsed);
+			return !collapsed;
 		});
 	}, [isMobile]);
 
@@ -848,15 +803,6 @@ function AppShellContent() {
 		[fileTabs],
 	);
 
-	// 「完整历史」 opens the read-only export inside the dock window instead of
-	// handing `/api/sessions/<id>/export` to the host browser (the desktop
-	// shell's window-open handler sends every http(s) target to the system
-	// browser, which is exactly what the chip must not do).
-	const handleViewFullHistory = useCallback(() => {
-		if (!selectedSession) return;
-		setDockTool(cur => (cur === "history" ? null : "history"));
-	}, [selectedSession]);
-
 	// Show chat area if a session is selected, a cwd to start a new session in,
 	// or the degraded null-cwd draft (whole card = workspace trigger)
 	const effectiveNewSessionCwd = newSessionCwd ?? (selectedSession === null && activeCwd ? activeCwd : null);
@@ -1079,37 +1025,6 @@ function AppShellContent() {
 			>
 				{(
 					[
-						// This entry and the top-bar toggle are intentionally two
-						// different actions, not duplicates: this one switches the
-						// sidebar into the 56px icon-rail mode (quick actions stay
-						// reachable), while the top-bar toggle fully hides/shows the
-						// sidebar. Labels are worded to keep the distinction obvious.
-						// The rail is desktop-only; mobile keeps the full drawer.
-						...(isMobile
-							? []
-							: [
-									{
-										label: t("layout.collapseToRail"),
-										onClick: collapseSidebar,
-										disabled: false,
-										icon: (
-											<svg
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="2"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											>
-												<rect x="3" y="3" width="18" height="18" rx="2" />
-												<line x1="9" y1="3" x2="9" y2="21" />
-												<polyline points="16.5 9 14 12 16.5 15" />
-											</svg>
-										),
-									},
-								]),
 						{
 							label: t("settings"),
 							onClick: () => setSettingsConfigOpen(true),
@@ -1169,7 +1084,7 @@ function AppShellContent() {
 	);
 
 	return (
-		<>
+		<ShellBootGate failures={bootFailures}>
 			<style>{`
       @keyframes session-info-pop {
         0% {
@@ -1448,75 +1363,31 @@ function AppShellContent() {
 					</div>
 				</div>
 			)}
+			{/* Mobile overlay backdrop */}
 			<div
+				className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
+				onClick={() => setSidebarOpen(false)}
 				style={{
-					display: "flex",
-					width: "100%",
-					height: "var(--app-viewport-height, 100dvh)",
-					paddingLeft: "env(safe-area-inset-left)",
-					paddingRight: "env(safe-area-inset-right)",
-					overflow: "hidden",
-					background: "var(--bg)",
-					paddingTop: desktopChrome ? 30 : 0,
-					boxSizing: "border-box",
+					position: "fixed",
+					inset: 0,
+					zIndex: 199,
+					background: "color-mix(in srgb, var(--bg) 40%, transparent)",
+					opacity: sidebarOpen ? 1 : 0,
+					pointerEvents: sidebarOpen ? "auto" : "none",
+					transition: "opacity 0.25s ease",
 				}}
+			/>
+
+			<ShellLayout
+				sidebarOpen={sidebarOpen}
+				sidebarCollapsed={sidebarRailActive}
+				detailOpen={dockTool !== null}
+				isMobile={isMobile}
+				desktopChromeInset={desktopChrome ? 30 : 0}
 			>
-				{/* Mobile overlay backdrop */}
-				<div
-					className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
-					onClick={() => setSidebarOpen(false)}
-					style={{
-						position: "fixed",
-						inset: 0,
-						zIndex: 199,
-						background: "color-mix(in srgb, var(--bg) 40%, transparent)",
-						opacity: sidebarOpen ? 1 : 0,
-						pointerEvents: sidebarOpen ? "auto" : "none",
-						transition: "opacity 0.25s ease",
-					}}
-				/>
+				<ShellSlot name="sidebar">{sidebarContent}</ShellSlot>
 
-				{/* Left sidebar */}
-				<div
-					ref={sidebarResizer.panelRef}
-					id="session-sidebar"
-					className={`sidebar-container${sidebarRailActive ? " sidebar-collapsed" : ""}${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${mobileSidebarReady ? "" : " sidebar-mobile-pending"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
-					style={
-						{
-							"--sidebar-width": `${sidebarRailActive ? SIDEBAR_COLLAPSED_WIDTH : sidebarResizer.width}px`,
-							background: "var(--bg-panel)",
-							borderRight: "1px solid var(--border)",
-							display: "flex",
-							flexDirection: "column",
-							flexShrink: 0,
-							paddingTop: "env(safe-area-inset-top)",
-							paddingBottom: "env(safe-area-inset-bottom)",
-							zIndex: 200,
-						} as React.CSSProperties
-					}
-				>
-					{sidebarContent}
-				</div>
-				{sidebarOpen && (
-					<div
-						{...sidebarResizer.separatorProps}
-						aria-controls="session-sidebar"
-						className={`panel-resize-handle sidebar-resize-handle${sidebarResizer.isResizing ? " is-resizing" : ""}`}
-						data-resize-handle="sidebar"
-						title={`${t("layout.resizeSidebar")}: ${t("layout.resizeHint")}`}
-					/>
-				)}
-
-				{/* Center: chat */}
-				<div
-					style={{
-						flex: 1,
-						display: "flex",
-						flexDirection: "column",
-						overflow: "hidden",
-						minWidth: 0,
-					}}
-				>
+				<ShellSlot name="center">
 					{/* Top bar with sidebar toggle */}
 					<div
 						ref={topBarRef}
@@ -1532,8 +1403,24 @@ function AppShellContent() {
 					>
 						<button
 							onClick={handleSidebarToggle}
-							title={sidebarOpen ? t("layout.hideSidebar") : t("layout.showSidebar")}
-							aria-label={sidebarOpen ? t("layout.hideSidebar") : t("layout.showSidebar")}
+							title={
+								isMobile
+									? sidebarOpen
+										? t("layout.hideSidebar")
+										: t("layout.showSidebar")
+									: sidebarRailActive
+										? t("layout.expandRail")
+										: t("layout.collapseToRail")
+							}
+							aria-label={
+								isMobile
+									? sidebarOpen
+										? t("layout.hideSidebar")
+										: t("layout.showSidebar")
+									: sidebarRailActive
+										? t("layout.expandRail")
+										: t("layout.collapseToRail")
+							}
 							style={{
 								display: "flex",
 								alignItems: "center",
@@ -1556,7 +1443,7 @@ function AppShellContent() {
 								e.currentTarget.style.color = "var(--text-muted)";
 							}}
 						>
-							{sidebarOpen ? (
+							{sidebarOpen && !sidebarRailActive ? (
 								<svg
 									width="16"
 									height="16"
@@ -1596,42 +1483,6 @@ function AppShellContent() {
 									height: "100%",
 								}}
 							>
-								<button
-									onClick={() => setDockTool(cur => (cur === "stats" ? null : "stats"))}
-									title={t("topbar.statsDashboard")}
-									aria-pressed={dockTool === "stats"}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										height: "100%",
-										padding: "0 12px",
-										background: dockTool === "stats" ? "var(--bg-selected)" : "none",
-										border: "none",
-										borderTop: dockTool === "stats" ? "2px solid var(--accent)" : "2px solid transparent",
-										borderRight: "1px solid var(--border)",
-										cursor: "pointer",
-										color: dockTool === "stats" ? "var(--text)" : "var(--text-muted)",
-										fontSize: 11,
-										whiteSpace: "nowrap",
-									}}
-								>
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<line x1="18" y1="20" x2="18" y2="10" />
-										<line x1="12" y1="20" x2="12" y2="4" />
-										<line x1="6" y1="20" x2="6" y2="14" />
-									</svg>
-									{!isMobile && <span>{t("topbar.stats")}</span>}
-								</button>
 								<OpenSplitButton
 									activeCwd={activeCwd ?? selectedSession?.projectRoot ?? selectedSession?.cwd ?? newSessionCwd}
 								/>
@@ -1716,146 +1567,34 @@ function AppShellContent() {
 										{updateNotice}
 									</div>
 								)}
-								<button
-									onClick={handleViewFullHistory}
-									disabled={!selectedSession}
-									title={
-										selectedSession
-											? t("view-full-history")
-											: t("full-history-is-available-after-the-session-is-s")
-									}
-									aria-label={t("view-full-history")}
-									aria-pressed={dockTool === "history"}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										height: "100%",
-										padding: "0 12px",
-										background: dockTool === "history" ? "var(--bg-selected)" : "none",
-										border: "none",
-										borderTop:
-											dockTool === "history" ? "2px solid var(--accent)" : "2px solid transparent",
-										borderRight: "1px solid var(--border)",
-										color:
-											dockTool === "history"
-												? "var(--text)"
-												: selectedSession
-													? "var(--text-muted)"
-													: "var(--text-dim)",
-										cursor: selectedSession ? "pointer" : "not-allowed",
-										opacity: selectedSession ? 1 : 0.45,
-										flexShrink: 0,
-										fontSize: 11,
-										whiteSpace: "nowrap",
-										transition: "color 0.1s, background 0.1s, opacity 0.1s",
+								<TopPanelChips
+									activeId={activeTopPanel}
+									onToggle={id => toggleTopPanel(id as "branches" | "system")}
+									isMobile={isMobile}
+									stateFor={id => (id === "system" ? { title: t("topbar.systemPrompt") } : {})}
+									overrides={{
+										branches: (
+											<BranchNavigator
+												tree={branchTree}
+												activeLeafId={branchActiveLeafId}
+												onLeafChange={handleBranchLeafChange}
+												inline
+												compact={isMobile}
+												containerRef={topBarRef}
+												open={activeTopPanel === "branches"}
+												onToggle={() => toggleTopPanel("branches")}
+												hasSession
+											/>
+										),
 									}}
-									onMouseEnter={e => {
-										if (!selectedSession) return;
-										e.currentTarget.style.color = "var(--text)";
-										e.currentTarget.style.background =
-											dockTool === "history" ? "var(--bg-selected)" : "var(--bg-hover)";
-									}}
-									onMouseLeave={e => {
-										if (dockTool === "history") {
-											e.currentTarget.style.color = "var(--text)";
-											e.currentTarget.style.background = "var(--bg-selected)";
-											return;
-										}
-										e.currentTarget.style.color = selectedSession ? "var(--text-muted)" : "var(--text-dim)";
-										e.currentTarget.style.background = "none";
-									}}
-								>
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										style={{
-											color: selectedSession ? "var(--text-muted)" : "var(--text-dim)",
-											flexShrink: 0,
-										}}
-									>
-										<path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-										<path d="M3 3v5h5" />
-										<path d="M12 7v5l3 2" />
-									</svg>
-									{!isMobile && <span>{t("full-history")}</span>}
-								</button>
-								<BranchNavigator
-									tree={branchTree}
-									activeLeafId={branchActiveLeafId}
-									onLeafChange={handleBranchLeafChange}
-									inline
-									compact={isMobile}
-									containerRef={topBarRef}
-									open={activeTopPanel === "branches"}
-									onToggle={() => toggleTopPanel("branches")}
-									hasSession
 								/>
-								<button
-									ref={systemBtnRef}
-									onClick={() => toggleTopPanel("system")}
-									title={t("topbar.systemPrompt")}
-									aria-label={t("topbar.systemPrompt")}
-									aria-pressed={activeTopPanel === "system"}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 6,
-										height: "100%",
-										padding: "0 12px",
-										background: activeTopPanel === "system" ? "var(--bg-selected)" : "none",
-										border: "none",
-										borderTop:
-											activeTopPanel === "system" ? "2px solid var(--accent)" : "2px solid transparent",
-										borderRight: "1px solid var(--border)",
-										cursor: "pointer",
-										color: activeTopPanel === "system" ? "var(--text)" : "var(--text-muted)",
-										fontSize: 11,
-										whiteSpace: "nowrap",
-										transition: "color 0.1s, background 0.1s",
-									}}
-									onMouseEnter={e => {
-										e.currentTarget.style.color = "var(--text)";
-									}}
-									onMouseLeave={e => {
-										e.currentTarget.style.color =
-											activeTopPanel === "system" ? "var(--text)" : "var(--text-muted)";
-									}}
-								>
-									<svg
-										width="12"
-										height="12"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										style={{
-											color: systemPrompt ? "var(--accent)" : "var(--text-dim)",
-											flexShrink: 0,
-										}}
-									>
-										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-										<polyline points="14 2 14 8 20 8" />
-										<line x1="8" y1="13" x2="16" y2="13" />
-										<line x1="8" y1="17" x2="13" y2="17" />
-									</svg>
-									{!isMobile && <span>{t("system")}</span>}
-								</button>
 							</div>
 						)}
 						{/* Session stats — right-aligned in top bar */}
 						{showChat &&
 							(sessionStats || contextUsage) &&
 							(() => {
-								const t = sessionStats?.tokens;
+								const tokenUsage = sessionStats?.tokens;
 								const c = sessionStats?.cost ?? 0;
 								const fmt = (n: number) =>
 									n >= 1_000_000
@@ -1878,11 +1617,11 @@ function AppShellContent() {
 								}
 
 								const tooltipParts: string[] = [];
-								if (t) {
-									tooltipParts.push(`in: ${t.input.toLocaleString(locale)}`);
-									tooltipParts.push(`out: ${t.output.toLocaleString(locale)}`);
-									tooltipParts.push(`cache read: ${t.cacheRead.toLocaleString(locale)}`);
-									tooltipParts.push(`cache write: ${t.cacheWrite.toLocaleString(locale)}`);
+								if (tokenUsage) {
+									tooltipParts.push(`in: ${tokenUsage.input.toLocaleString(locale)}`);
+									tooltipParts.push(`out: ${tokenUsage.output.toLocaleString(locale)}`);
+									tooltipParts.push(`cache read: ${tokenUsage.cacheRead.toLocaleString(locale)}`);
+									tooltipParts.push(`cache write: ${tokenUsage.cacheWrite.toLocaleString(locale)}`);
 									if (c > 0) tooltipParts.push(`cost: $${c.toFixed(4)}`);
 								}
 								if (contextUsage?.contextWindow) {
@@ -1897,8 +1636,8 @@ function AppShellContent() {
 									<button
 										type="button"
 										onClick={() => toggleTopPanel("session")}
-										title={tooltip || "Session info"}
-										aria-label="Session info"
+										title={tooltip || t("session-info")}
+										aria-label={t("session-info")}
 										aria-pressed={activeTopPanel === "session"}
 										style={{
 											marginLeft: "auto",
@@ -1944,7 +1683,7 @@ function AppShellContent() {
 												<line x1="12" y1="8" x2="12.01" y2="8" />
 											</svg>
 										)}
-										{!isMobile && t && t.input > 0 && (
+										{!isMobile && tokenUsage && tokenUsage.input > 0 && (
 											<span
 												style={{
 													display: "flex",
@@ -1965,10 +1704,10 @@ function AppShellContent() {
 													<line x1="5" y1="8.5" x2="5" y2="1.5" />
 													<polyline points="2 4 5 1.5 8 4" />
 												</svg>
-												{fmt(t.input)}
+												{fmt(tokenUsage.input)}
 											</span>
 										)}
-										{!isMobile && t && t.output > 0 && (
+										{!isMobile && tokenUsage && tokenUsage.output > 0 && (
 											<span
 												style={{
 													display: "flex",
@@ -1989,10 +1728,10 @@ function AppShellContent() {
 													<line x1="5" y1="1.5" x2="5" y2="8.5" />
 													<polyline points="2 6 5 8.5 8 6" />
 												</svg>
-												{fmt(t.output)}
+												{fmt(tokenUsage.output)}
 											</span>
 										)}
-										{!isMobile && t && t.cacheRead > 0 && (
+										{!isMobile && tokenUsage && tokenUsage.cacheRead > 0 && (
 											<span
 												style={{
 													display: "flex",
@@ -2013,7 +1752,7 @@ function AppShellContent() {
 													<path d="M8.5 5a3.5 3.5 0 1 1-1-2.45" />
 													<polyline points="6.5 1.5 8.5 2.5 7.5 4.5" />
 												</svg>
-												{fmt(t.cacheRead)}
+												{fmt(tokenUsage.cacheRead)}
 											</span>
 										)}
 										{!isMobile && costStr && (
@@ -2102,7 +1841,7 @@ function AppShellContent() {
 													fontStyle: "italic",
 												}}
 											>
-												System prompt is empty (tools are disabled)
+												{t("system-prompt.empty")}
 											</div>
 										) : (
 											<div
@@ -2113,7 +1852,7 @@ function AppShellContent() {
 													fontStyle: "italic",
 												}}
 											>
-												Send a message to load the system prompt
+												{t("system-prompt.load-hint")}
 											</div>
 										)}
 									</div>
@@ -2134,40 +1873,40 @@ function AppShellContent() {
 													...(sessionStats.sessionName
 														? [
 																{
-																	label: "Name",
+																	label: t("session-info.name"),
 																	value: sessionStats.sessionName,
 																	copyField: null,
 																},
 															]
 														: []),
 													{
-														label: "File",
-														value: sessionStats.sessionFile ?? "In-memory",
+														label: t("session-info.file"),
+														value: sessionStats.sessionFile ?? t("session-info.in-memory"),
 														copyField: "file" as const,
 													},
 													{
-														label: "ID",
+														label: t("session-info.id"),
 														value: sessionStats.sessionId,
 														copyField: "id" as const,
 													},
 												];
 												const messageRows = [
-													["User", sessionStats.userMessages.toLocaleString(locale)],
-													["Assistant", sessionStats.assistantMessages.toLocaleString(locale)],
-													["Tool Calls", sessionStats.toolCalls.toLocaleString(locale)],
-													["Tool Results", sessionStats.toolResults.toLocaleString(locale)],
-													["Total", sessionStats.totalMessages.toLocaleString(locale)],
+													[t("session-info.messages.user"), sessionStats.userMessages.toLocaleString(locale)],
+													[t("session-info.messages.assistant"), sessionStats.assistantMessages.toLocaleString(locale)],
+													[t("session-info.messages.tool-calls"), sessionStats.toolCalls.toLocaleString(locale)],
+													[t("session-info.messages.tool-results"), sessionStats.toolResults.toLocaleString(locale)],
+													[t("session-info.messages.total"), sessionStats.totalMessages.toLocaleString(locale)],
 												];
 												const tokenRows = [
-													["Input", sessionStats.tokens.input.toLocaleString(locale)],
-													["Output", sessionStats.tokens.output.toLocaleString(locale)],
+													[t("session-info.tokens.input"), sessionStats.tokens.input.toLocaleString(locale)],
+													[t("session-info.tokens.output"), sessionStats.tokens.output.toLocaleString(locale)],
 													...(sessionStats.tokens.cacheRead > 0
-														? [["Cache Read", sessionStats.tokens.cacheRead.toLocaleString(locale)]]
+														? [[t("session-info.tokens.cache-read"), sessionStats.tokens.cacheRead.toLocaleString(locale)]]
 														: []),
 													...(sessionStats.tokens.cacheWrite > 0
-														? [["Cache Write", sessionStats.tokens.cacheWrite.toLocaleString(locale)]]
+														? [[t("session-info.tokens.cache-write"), sessionStats.tokens.cacheWrite.toLocaleString(locale)]]
 														: []),
-													["Total", sessionStats.tokens.total.toLocaleString(locale)],
+													[t("session-info.tokens.total"), sessionStats.tokens.total.toLocaleString(locale)],
 												];
 												const ctx = contextUsage ?? sessionStats.contextUsage;
 												const formatCompact = (n: number) =>
@@ -2177,11 +1916,11 @@ function AppShellContent() {
 															? `${(n / 1000).toFixed(0)}k`
 															: String(n);
 												const extraTokenRows = [
-													...(sessionStats.cost > 0 ? [["Cost", `$${sessionStats.cost.toFixed(4)}`]] : []),
+													...(sessionStats.cost > 0 ? [[t("session-info.cost"), `$${sessionStats.cost.toFixed(4)}`]] : []),
 													...(ctx?.contextWindow
 														? [
 																[
-																	"Context",
+																	t("session-info.context"),
 																	`${ctx.percent !== null ? `${ctx.percent.toFixed(1)}%` : "?"} / ${formatCompact(ctx.contextWindow)}`,
 																],
 															]
@@ -2248,8 +1987,10 @@ function AppShellContent() {
 															type="button"
 															title={
 																copied
-																	? "Copied"
-																	: `Copy ${field === "file" ? "file path" : "session ID"}`
+																	? t("copied")
+																	: field === "file"
+																		? t("session-info.copy-file")
+																		: t("session-info.copy-id")
 															}
 															onClick={() => handleCopySessionField(field, value)}
 															style={{
@@ -2379,8 +2120,13 @@ function AppShellContent() {
 														}}
 													>
 														{sessionInfoSection}
-														{section("Messages", messageRows)}
-														{section("Tokens", [...tokenRows, ...extraTokenRows], "right", true)}
+														{section(t("session-info.section-messages"), messageRows)}
+														{section(
+															t("session-info.section-tokens"),
+															[...tokenRows, ...extraTokenRows],
+															"right",
+															true,
+														)}
 													</div>
 												);
 											})()
@@ -2392,7 +2138,7 @@ function AppShellContent() {
 													fontStyle: "italic",
 												}}
 											>
-												Send a message or run /session to load session info
+												{t("session-info.empty")}
 											</div>
 										)}
 									</div>
@@ -2672,234 +2418,18 @@ function AppShellContent() {
 							)
 						) : null}
 					</div>
-				</div>
+				</ShellSlot>
 
-				{/* Right tool dock — vertical window rail + active window */}
-				{/* Persistent tool rail — hugs the right edge, always visible */}
-				<div
-					role="tablist"
-					aria-label={t("dock.rail-label")}
-					style={{
-						width: 40,
-						flexShrink: 0,
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						gap: 4,
-						padding: "6px 0",
-						background: "var(--bg-panel)",
-						borderLeft: "1px solid var(--border)",
-					}}
-				>
-					{(
-						[
-							{
-								id: "session",
-								label: t("dock.window.session"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<circle cx="12" cy="12" r="9" />
-										<line x1="12" y1="10" x2="12" y2="16" />
-										<circle cx="12" cy="7.5" r="0.5" fill="currentColor" />
-									</svg>
-								),
-							},
-							{
-								id: "files",
-								label: t("dock.window.files"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<rect x="3" y="3" width="18" height="18" rx="2" />
-										<line x1="15" y1="3" x2="15" y2="21" />
-									</svg>
-								),
-							},
-							// Conditional entry (§1.3): the tracking window only exists when
-							// tracking.enabled is on.
-							...(trackingEnabled
-								? [
-										{
-											id: "tracking",
-											label: t("dock.window.tracking"),
-											icon: (
-												<svg
-													width="16"
-													height="16"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													strokeWidth="2"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												>
-													<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-													<polyline points="14 2 14 8 20 8" />
-													<line x1="16" y1="13" x2="8" y2="13" />
-													<line x1="16" y1="17" x2="8" y2="17" />
-													<polyline points="10 9 9 9 8 9" />
-												</svg>
-											),
-										} satisfies { id: DockTool; label: string; icon: ReactNode },
-									]
-								: []),
-							{
-								id: "terminal",
-								label: t("dock.window.terminal"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<polyline points="4 17 10 11 4 5" />
-										<line x1="12" y1="19" x2="20" y2="19" />
-									</svg>
-								),
-							},
-							{
-								id: "stats",
-								label: t("dock.window.stats"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<line x1="18" y1="20" x2="18" y2="10" />
-										<line x1="12" y1="20" x2="12" y2="4" />
-										<line x1="6" y1="20" x2="6" y2="14" />
-									</svg>
-								),
-							},
-							// Conditional entry: the full-history window only exists for a
-							// selected session — there is nothing to export without one.
-							...(selectedSession
-								? [
-										{
-											id: "history",
-											label: t("dock.window.history"),
-											icon: (
-												<svg
-													width="16"
-													height="16"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													strokeWidth="2"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												>
-													<path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-													<path d="M3 3v5h5" />
-													<path d="M12 7v5l3 2" />
-												</svg>
-											),
-										} satisfies { id: DockTool; label: string; icon: ReactNode },
-									]
-								: []),
-							{
-								id: "plugins",
-								label: t("dock.window.plugins"),
-								icon: (
-									<svg
-										width="16"
-										height="16"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										strokeWidth="2"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									>
-										<path d="M21 8l-9-6-9 6v8l9 6 9-6z" />
-										<path d="M12 22V14" />
-										<path d="M3.5 6.5L12 11l8.5-4.5" />
-									</svg>
-								),
-							},
-						] as Array<{ id: DockTool; label: string; icon: ReactNode }>
-					).map(entry => {
-						const active = dockTool === entry.id;
-						return (
-							<button
-								key={entry.id}
-								onClick={() => setDockTool(cur => (cur === entry.id ? null : entry.id))}
-								title={entry.label}
-								aria-label={entry.label}
-								aria-pressed={active}
-								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									width: 30,
-									height: 30,
-									padding: 0,
-									background: active ? "var(--bg-selected)" : "transparent",
-									border: "none",
-									borderRadius: 7,
-									color: active ? "var(--accent)" : "var(--text-muted)",
-									cursor: "pointer",
-									transition: "color 0.12s, background 0.12s",
-								}}
-							>
-								{entry.icon}
-							</button>
-						);
-					})}
-				</div>
+				<ShellSlot name="rail">
+					<DockRail
+						activeId={dockTool}
+						onToggle={id => setDockTool(cur => (cur === id ? null : id as DockTool))}
+						trackingEnabled={trackingEnabled}
+						hasSession={selectedSession !== null}
+					/>
+				</ShellSlot>
 
-				{/* Dock window — animated open/close */}
-				<div
-					suppressHydrationWarning
-					{...rightPanelResizer.separatorProps}
-					aria-controls="right-tool-dock"
-					className={`panel-resize-handle right-panel-resize-handle${rightPanelResizer.isResizing ? " is-resizing" : ""}`}
-					data-resize-handle="right-panel"
-					title={`${t("layout.resizeFilePanel")}: ${t("layout.resizeHint")}`}
-					style={{ display: dockTool !== null ? undefined : "none" }}
-				/>
-				<div
-					ref={rightPanelResizer.panelRef}
-					id="right-tool-dock"
-					className={`right-panel-container${dockTool !== null ? " right-panel-open" : " right-panel-closed"}${rightPanelResizer.isResizing ? " right-panel-resizing" : ""}`}
-					style={
-						{
-							"--right-panel-width": `${rightPanelResizer.width}px`,
-							display: "flex",
-							flexDirection: "column",
-							borderLeft: "1px solid var(--border)",
-							background: "var(--bg)",
-						} as React.CSSProperties
-					}
-				>
+				<ShellSlot name="dockWindow">
 					{/* Active window */}
 					<div
 						style={{
@@ -3100,8 +2630,8 @@ function AppShellContent() {
 							)}
 						</div>
 					</div>
-				</div>
-			</div>
+				</ShellSlot>
+			</ShellLayout>
 			{/* File-chip context menu (U9): 打开文件 / 在终端打开 */}
 			<FloatingMenu
 				open={fileChipMenu !== null}
@@ -3143,7 +2673,7 @@ function AppShellContent() {
 					onReloaded={() => setSessionKey(k => k + 1)}
 				/>
 			)}
-		</>
+		</ShellBootGate>
 	);
 }
 
