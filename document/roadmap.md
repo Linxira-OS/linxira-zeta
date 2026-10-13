@@ -442,6 +442,16 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   先划清「用户可见 UI 文案」与「模型可见提示词(工具 description、crew/skills)」的边界——
   后者本地化会改变模型行为。
 
+- **上游 2.0 评估：被推迟的三项(2026-10-13 用户裁决)**:完整决策记录见
+  `document/upstream-2.0-evaluation.md`。统一后端方向已定为「局部对齐 + 发现即复用」
+  (不做完整统一后端,已开工:`zeta serve` 注册文件 + 同版本复用 + 桌面优先复用);
+  PI 内核**不换**。本队列登记三项:①**自建完整统一后端**(opencode 2.0 形态:全机
+  daemon + 固定端口 + HTTP/SSE + 服务发现)——押后,启动时再评估;②**跟进 omp² /
+  pi-durable**——两者均未发布(omp² `omp2` 分支仍 pre-release,pi-durable 为
+  Experimental 且无网络外壳),等上游稳定后再评估对接;③**档 1 反向 cherry-pick
+  候选清单**——方向已定(保留为候选,量级 8–20 agent-日),但具体挑哪些能力待裁断,
+  开工时从本队列移入执行计划。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
