@@ -113,6 +113,33 @@ test("text-dim is bound to the secondary-text role, not the code gutter", () => 
   assert.match(generator.generate(mono), /--zeta-static-surface-muted-foreground: #808080;/);
 });
 
+test("control tokens bg-input and border-strong are declared and resolve to theme values", () => {
+  const generator = new CSSVariableGenerator();
+  for (const theme of themes) {
+    const css = generator.generate(theme);
+    const aliases = new Map(aliasColorTokens(theme));
+    // bg-input keeps the surface the app already paints fields on …
+    assert.equal(aliases.get("bg-input"), "var(--zeta-static-surface-muted)", theme.metadata.id);
+    // … and border-strong is the theme's hover-border step, never a foreground.
+    assert.equal(aliases.get("border-strong"), "var(--zeta-static-interactive-border-hover)", theme.metadata.id);
+    assert.match(css, /--zeta-alias-bg-input: var\(--zeta-static-surface-muted\)/);
+    assert.match(css, /--zeta-alias-border-strong: var\(--zeta-static-interactive-border-hover\)/);
+    // L3 redirects so the unprefixed design-system names keep resolving.
+    assert.match(css, /--bg-input: var\(--zeta-alias-bg-input\)/);
+    assert.match(css, /--border-strong: var\(--zeta-alias-border-strong\)/);
+    // The raw value published behind the hover-border alias is the theme's own.
+    assert.ok(
+      css.includes(`--zeta-static-interactive-border-hover: ${theme.colors.interactive.borderHover};`),
+      `${theme.metadata.id}: hover-border raw value missing from L1`,
+    );
+  }
+  // mono-dark is one of the themes whose hover border is deliberately a subtle
+  // step; the point is that the value is a border role, not `#808080` text.
+  const mono = getThemeById("mono-dark");
+  assert.equal(mono.colors.interactive.borderHover, "#333333");
+  assert.notEqual(mono.colors.interactive.borderHover, mono.colors.surface.mutedForeground);
+});
+
 test("checked-in first-frame sheet matches the generator for the default themes", () => {
   const sheet = readFileSync(new URL("../../styles/themes/zeta-static.css", import.meta.url), "utf8");
   assert.equal(sheet, renderStaticThemeSheet(getThemeById(DEFAULT_LIGHT_THEME_ID), getThemeById(DEFAULT_DARK_THEME_ID)));

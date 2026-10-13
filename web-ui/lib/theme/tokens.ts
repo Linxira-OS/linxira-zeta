@@ -165,6 +165,16 @@ export const ALIAS_OVERRIDES: Readonly<Record<string, string>> = {
   "assistant-bg": "chat-assistant-background",
   "tool-bg": "chat-tool-background",
   "surface-shadow": "surface-overlay",
+  // Control surfaces (settings primitives, spec D14: "inputs sit on `bg-input`
+  // with default/hover/focus border states"). `bg-input` is the same raw
+  // surface the rest of the app paints fields on (`bg-panel`, and the
+  // ChatInput composer), so declaring it keeps the rendering identical while
+  // giving the design vocabulary its own name. `border-strong` must stay a
+  // *border* role: the only consumers are `:hover` rules, so it binds to the
+  // theme's hover-border step rather than to `surface-muted-foreground` (a
+  // foreground colour) that its fallback used to resolve to.
+  "bg-input": "surface-muted",
+  "border-strong": "interactive-border-hover",
   // shadcn-compatible names the design system publishes.
   card: "surface-elevated",
   "card-foreground": "surface-elevated-foreground",

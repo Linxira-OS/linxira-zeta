@@ -49,13 +49,17 @@ const ZETA_LOCALE_STORAGE_KEY = "zeta-locale";
  * shared by every settings surface — SettingsWindow and all tabs. Screens
  * never hand-roll toggles, inputs, or card containers.
  *
- * Reference rules (zcode DESIGN.md): inputs sit on `--bg-input` with
- * default/hover/focus border states, control heights stay in the 24–28px
- * band, menus/rows are compact, and not every action is promoted to primary —
- * destructive actions use a red outline variant, never a filled red block.
+ * Reference rules (zcode DESIGN.md): inputs sit on `--zeta-alias-bg-input` with
+ * default/hover/focus border states (`--zeta-alias-border` /
+ * `--zeta-alias-border-strong` / `--zeta-alias-accent`), control heights stay in
+ * the 24–28px band, menus/rows are compact, and not every action is promoted to
+ * primary — destructive actions use a red outline variant, never a filled red
+ * block.
  *
- * Themes that predate the `--bg-input` / `--border-strong` tokens keep working
- * through fallbacks to the legacy variables.
+ * `bg-input` and `border-strong` are declared L2 aliases (`lib/theme/tokens.ts`,
+ * `ALIAS_OVERRIDES`): `bg-input` is the control surface, `border-strong` the
+ * theme's hover-border step. They used to be referenced without ever being
+ * declared, so every use silently fell through to the fallback.
  */
 
 /**
@@ -67,7 +71,7 @@ export const SURFACE_CLASS = "zset-scope";
 export const inputStyle: CSSProperties = {
 	height: 26,
 	padding: "4px 9px",
-	background: "var(--bg-input, var(--zeta-alias-bg-panel))",
+	background: "var(--zeta-alias-bg-input)",
 	border: "1px solid var(--zeta-alias-border)",
 	borderRadius: "var(--radius-unit, 6px)",
 	color: "var(--zeta-alias-text)",
@@ -111,7 +115,7 @@ export function SettingsCard({ children, style }: { children: ReactNode; style?:
 				flexDirection: "column",
 				gap: 8,
 				padding: "10px 12px",
-				background: "var(--bg-input, var(--zeta-alias-bg-panel))",
+				background: "var(--zeta-alias-bg-input)",
 				border: "1px solid var(--zeta-alias-border)",
 				borderRadius: "var(--radius-unit, 8px)",
 				...style,
@@ -156,7 +160,7 @@ export function SettingsToggle({
 				position: "relative",
 				cursor: disabled ? "default" : "pointer",
 				border: checked ? "1px solid transparent" : "1px solid var(--zeta-alias-border)",
-				background: checked ? "var(--zeta-alias-accent)" : "var(--bg-input, var(--zeta-alias-bg-panel))",
+				background: checked ? "var(--zeta-alias-accent)" : "var(--zeta-alias-bg-input)",
 				opacity: disabled ? 0.45 : 1,
 				filter: disabled ? "grayscale(1)" : undefined,
 				transition: "background 0.15s ease, border-color 0.15s ease",
@@ -249,7 +253,7 @@ export function SettingsControlStyles() {
 			.${SURFACE_CLASS} input:not([type="checkbox"]):not([type="radio"]):hover:not(:disabled):not(:focus),
 			.${SURFACE_CLASS} select:hover:not(:disabled):not(:focus),
 			.${SURFACE_CLASS} textarea:hover:not(:disabled):not(:focus) {
-				border-color: var(--border-strong, var(--zeta-alias-text-dim));
+				border-color: var(--zeta-alias-border-strong);
 			}
 			.${SURFACE_CLASS} input:focus,
 			.${SURFACE_CLASS} select:focus,
@@ -271,7 +275,7 @@ export function SettingsControlStyles() {
 				background: color-mix(in srgb, var(--zeta-alias-status-error) 12%, transparent);
 			}
 			.zset-outline:hover:not(:disabled) {
-				border-color: var(--border-strong, var(--zeta-alias-text-dim));
+				border-color: var(--zeta-alias-border-strong);
 				color: var(--zeta-alias-text);
 			}
 		`}</style>
@@ -557,7 +561,7 @@ function ChannelCredentialsForm({
 					style={{
 						height: 26,
 						padding: "0 12px",
-						background: saved ? "var(--zeta-alias-status-success)" : dirty && !saving ? "var(--zeta-alias-accent)" : "var(--bg-input, var(--zeta-alias-bg-panel))",
+						background: saved ? "var(--zeta-alias-status-success)" : dirty && !saving ? "var(--zeta-alias-accent)" : "var(--zeta-alias-bg-input)",
 						border: dirty && !saving || saved ? "1px solid transparent" : "1px solid var(--zeta-alias-border)",
 						borderRadius: "var(--radius-unit, 6px)",
 						color: (dirty && !saving) || saved ? "var(--zeta-alias-bg)" : "var(--zeta-alias-text-dim)",

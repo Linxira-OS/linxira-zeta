@@ -13,17 +13,23 @@ import type { Theme, ThemeVariant } from "./types";
  * `[staticToken, aliasToken]` — the alias is the short semantic name the
  * pre-hydration stylesheet consumers use; identity pairs cover the names that
  * `ThemeSystemProvider` also republishes after hydration.
+ *
+ * The L2 aliases are `var()` references, so an alias resolves for the selected
+ * preset only when its L1 source is in `staticValues` too: the checked-in sheet
+ * declares every alias, but the raw value behind it comes from here.
  */
 const BOOTSTRAP_ROLES: ReadonlyArray<readonly [string, string]> = [
   ["surface-background", "bg"],
   ["surface-background", "surface-background"],
   ["surface-muted", "bg-panel"],
+  ["surface-muted", "bg-input"],
   ["surface-muted", "surface-muted"],
   ["surface-elevated", "bg-elevated"],
   ["surface-elevated", "surface-elevated"],
   ["interactive-hover", "bg-hover"],
   ["interactive-selection", "bg-selected"],
   ["interactive-border", "border"],
+  ["interactive-border-hover", "border-strong"],
   ["surface-foreground", "text"],
   ["surface-foreground", "surface-foreground"],
   ["surface-muted-foreground", "text-muted"],
@@ -52,6 +58,7 @@ function toBootstrapTheme(theme: Theme): BootstrapTheme {
       "interactive-hover": theme.colors.interactive.hover,
       "interactive-selection": theme.colors.interactive.selection,
       "interactive-border": theme.colors.interactive.border,
+      "interactive-border-hover": theme.colors.interactive.borderHover,
       "primary-base": theme.colors.primary.base,
       "chat-user-background": theme.colors.chat.userBackground,
       "chat-tool-background": theme.colors.chat.toolBackground,
