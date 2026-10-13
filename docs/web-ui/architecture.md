@@ -113,13 +113,26 @@ protocol:
 `POST /api/agent/new` starts a session; `GET /api/agent/running/events`
 streams the set of currently-running session ids to every connected client.
 
-## Stats iframe
+## Stats dashboard entry
 
-The Web UI's Stats tab embeds the Stats Dashboard in an `<iframe>`. The
-dashboard URL is injected at spawn time: `spawnWebUi(port, statsUrl)` in
-`packages/coding-agent/src/commands/web-ui-launcher.ts` passes
-`http://127.0.0.1:<statsPort>` as the second argument, which the web-ui
-process surfaces as `NEXT_PUBLIC_STATS_URL`.
+The stats dashboard (`@linxiraos/pi-stats`, default
+`http://127.0.0.1:<statsPort>`, started by `zetacode stats` or by
+`zetacode serve`) is **not** a dock panel. It answers cross-session questions —
+costs, models, providers, tools, frustration judge, gain, timeseries, session
+traces — while the dock's context ring reports one live session, so the shell
+keeps the dashboard as an action entry instead of a second "statistics" pane:
+
+- the command palette's "Open stats dashboard" action, and
+- the sidebar's "Today" usage line (whose numbers come from the dashboard's
+  `/api/stats/overview?range=today`).
+
+Both call `openStandaloneStats()` (`web-ui/lib/standalone-stats.ts`), which
+resolves the origin through `GET /api/webui/stats-url` (the route reads
+`NEXT_PUBLIC_STATS_URL`, injected at spawn time by `spawnWebUi(port, statsUrl)`
+in `packages/coding-agent/src/commands/web-ui-launcher.ts`, and falls back to
+the documented default), probes it, and opens it in its own tab. When nothing
+answers, the shell's transient notice names the address and the command to
+start it instead of leaving a dead tab.
 
 ## Settings client bridge
 

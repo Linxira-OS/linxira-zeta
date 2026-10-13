@@ -23,7 +23,8 @@ import { PluginsManager } from "./PluginsManager";
 import { FileViewer } from "./FileViewer";
 import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
-import { StatsDashboard } from "./StatsDashboard";
+import { GitBranchesPanel } from "./git-branches/GitBranchesPanel";
+import { openStandaloneStats } from "@/lib/standalone-stats";
 import { FullHistoryPanel } from "./FullHistoryPanel";
 import { ContextRingPanel } from "./context-ring/ContextRingPanel";
 import { SkillsConfig } from "./SkillsConfig";
@@ -144,8 +145,10 @@ function AppShellContent() {
 	const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
 	const [updating, setUpdating] = useState(false);
 	const [checkingUpdate, setCheckingUpdate] = useState(false);
-	const [updateNotice, setUpdateNotice] = useState<string | null>(null);
-	const updateNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// One transient notice serves the whole shell chrome (update checks, stats
+	// dashboard failures): a short-lived line near the top-right, never a modal.
+	const [shellNotice, setShellNotice] = useState<string | null>(null);
+	const shellNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const [updateInfo, setUpdateInfo] = useState<{
 		current: string;
 		latest: string;
@@ -225,7 +228,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history" | "context";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "git" | "history" | "context";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15, P1): the pane is a view of a per-workspace
@@ -307,10 +310,14 @@ function AppShellContent() {
 		}
 	}, []);
 
-	const showUpdateNotice = useCallback((message: string) => {
-		setUpdateNotice(message);
-		if (updateNoticeTimerRef.current) clearTimeout(updateNoticeTimerRef.current);
-		updateNoticeTimerRef.current = setTimeout(() => setUpdateNotice(null), 2000);
+	/**
+	 * Show the shell's transient notice. `ttlMs` defaults to the update-check
+	 * flash; longer copy (e.g. "start the stats service") asks for more.
+	 */
+	const showShellNotice = useCallback((message: string, ttlMs = 2_000) => {
+		setShellNotice(message);
+		clearTimeout(shellNoticeTimerRef.current);
+		shellNoticeTimerRef.current = setTimeout(() => setShellNotice(null), ttlMs);
 	}, []);
 
 	const handleRunUpdate = useCallback(async () => {
@@ -427,6 +434,29 @@ function AppShellContent() {
 		if (isMobile) setSidebarOpen(false);
 		setActiveTopPanel("session");
 	}, [isMobile]);
+
+	/**
+	 * Open the standalone stats dashboard. It is not a dock panel: its data is
+	 * cross-session (costs, providers, tools, traces) while the dock's context
+	 * ring reports one live session, so the shell keeps the capability as an
+	 * action entry and opens the dashboard in its own tab. When nothing answers,
+	 * say so — with the address and the command — instead of a dead tab.
+	 */
+	const handleOpenStatsDashboard = useCallback(async () => {
+		const { ok, url } = await openStandaloneStats();
+		if (ok) return;
+		showShellNotice(url === null ? t("stats.urlUnresolved") : t("stats.notRunning", { url }), 6_000);
+	}, [showShellNotice, t]);
+
+	/**
+	 * A checkout rewrites the working tree, so every surface that read the old
+	 * branch is stale: the file explorer's git status/diff, the open file tabs,
+	 * and the sidebar's per-project worktree/branch badges.
+	 */
+	const handleBranchSwitched = useCallback(() => {
+		setExplorerRefreshKey(k => k + 1);
+		setRefreshKey(k => k + 1);
+	}, []);
 
 	// One semantic for both surfaces (plan §3 P0): on desktop the toggle swaps
 	// between the full sidebar and the 56px rail (never fully hides); on mobile
@@ -622,8 +652,8 @@ function AppShellContent() {
 		{
 			id: "open-stats",
 			label: t("palette.open-stats"),
-			keywords: "stats dashboard usage",
-			run: () => setDockTool("stats"),
+			keywords: "stats dashboard usage cost",
+			run: () => void handleOpenStatsDashboard(),
 		},
 		...(isMobile
 			? []
@@ -1051,7 +1081,7 @@ function AppShellContent() {
 				selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
 				onCwdChange={handleCwdChange}
 				onOpenSkills={() => setSkillsConfigOpen(true)}
-				onOpenStats={() => setDockTool("stats")}
+				onOpenStats={() => void handleOpenStatsDashboard()}
 				onOpenFile={handleOpenFile}
 				explorerRefreshKey={explorerRefreshKey}
 				onExplorerRefresh={handleExplorerRefresh}
@@ -1545,7 +1575,7 @@ function AppShellContent() {
 											if (updateInfo.available && window.confirm(t("topbar.updateConfirmFmt", { version: updateInfo.latest }))) {
 												void handleRunUpdate();
 											} else {
-												showUpdateNotice(t("you-are-up-to-date"));
+												showShellNotice(t("you-are-up-to-date"));
 												setUpdateInfo(null);
 											}
 										} else {
@@ -1600,7 +1630,7 @@ function AppShellContent() {
 										</span>
 									)}
 								</button>
-								{updateNotice && (
+								{shellNotice && (
 									<div
 										style={{
 											position: "fixed",
@@ -1616,7 +1646,7 @@ function AppShellContent() {
 											color: "var(--zeta-alias-text)",
 										}}
 									>
-										{updateNotice}
+										{shellNotice}
 									</div>
 								)}
 								<TopPanelChips
@@ -2515,8 +2545,8 @@ function AppShellContent() {
 									color: "var(--zeta-alias-text)",
 								}}
 							>
-								{dockTool === "stats"
-									? t("dock.window.stats")
+								{dockTool === "git"
+									? t("dock.window.branches")
 									: dockTool === "session"
 										? t("dock.window.session")
 										: dockTool === "files"
@@ -2594,8 +2624,11 @@ function AppShellContent() {
 								minHeight: 0,
 							}}
 						>
-							{dockTool === "stats" ? (
-								<StatsDashboard />
+							{dockTool === "git" ? (
+								<GitBranchesPanel
+									cwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? null}
+									onSwitched={handleBranchSwitched}
+								/>
 							) : dockTool === "history" ? (
 								selectedSession ? (
 									<FullHistoryPanel sessionId={selectedSession.id} sessionName={selectedSession.name ?? null} />

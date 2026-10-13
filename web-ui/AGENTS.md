@@ -124,7 +124,9 @@ components/
   ChatWindow.tsx      chat composition + completion sound wrapper
   ChatInput.tsx       input bar + model/thinking/tools/compact controls
   MessageView.tsx     renders one message (user/assistant/toolCall/toolResult)
-  BranchNavigator.tsx in-session branch switcher
+  BranchNavigator.tsx in-session branch switcher (top-bar "Branches" chip)
+  git-branches/       workspace git branches (rail "git" panel): list, current
+                      highlight, confirm-then-checkout via /api/git/{branches,checkout}
   ChatMinimap.tsx     scroll minimap alongside the message list
   MarkdownBody.tsx    markdown renderer
   ModelsConfig.tsx    modal for editing models.json (opened from sidebar bottom)

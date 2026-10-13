@@ -96,12 +96,24 @@ Web Gateway 还暴露一个独立的 `127.0.0.1` 监听端口
 `POST /api/agent/new` 启动会话；`GET /api/agent/running/events` 向所有已
 连接客户端流式推送当前运行中的会话 id 集合。
 
-## Stats iframe
+## 统计面板入口
 
-Web UI 的 Stats 标签页以 `<iframe>` 内嵌 Stats Dashboard。仪表盘 URL 在
-启动时注入：`packages/coding-agent/src/commands/web-ui-launcher.ts` 中的
-`spawnWebUi(port, statsUrl)` 把 `http://127.0.0.1:<statsPort>` 作为第二个
-参数传给 web-ui 进程，web-ui 以 `NEXT_PUBLIC_STATS_URL` 暴露它。
+统计面板（`@linxiraos/pi-stats`，默认 `http://127.0.0.1:<statsPort>`，由
+`zetacode stats` 或 `zetacode serve` 启动）**不是** dock 面板。它回答的是跨
+会话问题——成本、模型、供应商、工具、frustration judge、gain、时间序列、
+会话轨迹——而 dock 的上下文环只报告单个实时会话，因此外壳把统计面板保留为
+**动作型入口**，而非第二个「统计」面板：
+
+- 命令面板中的「打开统计面板」动作；
+- 侧栏的「今日」用量行（其数字来自面板的
+  `/api/stats/overview?range=today`）。
+
+两者都调用 `openStandaloneStats()`（`web-ui/lib/standalone-stats.ts`）：
+经 `GET /api/webui/stats-url` 解析地址（该路由读取启动时由
+`packages/coding-agent/src/commands/web-ui-launcher.ts` 的
+`spawnWebUi(port, statsUrl)` 注入的 `NEXT_PUBLIC_STATS_URL`，并回退到文档
+默认值），探测可达性后在独立标签页打开。若无服务应答，外壳的短暂提示会给出
+地址与启动命令，而不是留下一个打不开的标签页。
 
 ## Settings 客户端桥
 

@@ -81,7 +81,7 @@ interface Props {
 	selectedCwd?: string | null;
 	onCwdChange?: (cwd: string | null, projectRoot?: string | null) => void;
 	onOpenSkills?: () => void;
-	/** Open the shell's stats dock window (the "today's usage" micro-line target). */
+	/** Open the standalone stats dashboard (the "today's usage" micro-line target). */
 	onOpenStats?: () => void;
 	onOpenFile?: (
 		filePath: string,
