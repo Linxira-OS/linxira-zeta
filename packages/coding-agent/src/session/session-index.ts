@@ -3,8 +3,8 @@
  *
  * - `session_titles`: session id → display title, written whenever a title is
  *   created or renamed ({@link SessionManager.setSessionName}) and backfilled by
- *   the recent-session fallback scan. Lets the welcome "Recent sessions" list
- *   resolve names from a stat + lookup instead of content-scanning every session
+ *   the recent-session fallback scan. Lets session pickers resolve names from a
+ *   stat + lookup instead of content-scanning every session
  *   file in the project directory (multi-hundred-ms on dirs with thousands of
  *   sessions). A title has no life beyond its session; `zetacode gc` drops rows of
  *   archived sessions.

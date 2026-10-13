@@ -116,9 +116,9 @@ export const OMP_PATH_ALLOW = [
 export const PI_FREE_FILES = [
 	"packages/coding-agent/src/utils/title-generator.ts",
 	"packages/tui/src/prompt/welcome.ts",
-	"packages/coding-agent/src/modes/setup-wizard/scenes/splash.ts",
-	"packages/coding-agent/src/modes/setup-wizard/scenes/outro.ts",
-	"packages/coding-agent/src/modes/setup-wizard/wizard-overlay.ts",
+	"packages/tui/src/setup/scenes/splash.ts",
+	"packages/tui/src/setup/scenes/outro.ts",
+	"packages/tui/src/setup/wizard-overlay.ts",
 ];
 
 /** Unicode π-family codepoints scanned in PI_FREE_FILES. */
@@ -149,7 +149,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "ZETA_LOGO",
-		why: "ζ char-art is the product logo surface (v18.0.3 lesson)",
+		why: "ζ char-art is the product logo surface (v18.0.3 lesson); it stays the named mark of the welcome/splash lockup",
 	},
 	{
 		file: "packages/tui/src/prompt/composer.ts",
@@ -164,7 +164,22 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "alt: APP_NAME,",
-		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); upstream replaced it with a wordmark lockup and the π art, which must not return (v18.0.3/v18.6.0 lessons)",
+		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); the wordmark beside it is the Zeta half-block art below, not upstream's `omp` wordmark",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
+		why: 'the half-block `Zeta` wordmark of the welcome lockup, set beside ZETA_LOGO with the version under it (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot revert it to upstream\'s `omp` wordmark',
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: "`v${this.version}`",
+		why: "the version renders under the wordmark (upstream lockup geometry), never back in a box title or an info column",
+	},
+	{
+		file: "packages/tui/src/setup/scenes/splash.ts",
+		needle: '"Z e t a"',
+		why: 'the setup splash lockup carries the Zeta wordmark text (registry: wordmark "Z e t a"), never `O h M y P i`',
 	},
 	{
 		file: "packages/tui/src/status-line/segments.ts",

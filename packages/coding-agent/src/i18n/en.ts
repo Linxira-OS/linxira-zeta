@@ -3,11 +3,7 @@ import type { Messages } from "./messages";
 /** English catalogue — the default. */
 export const en = {
 	welcomeBack: "Welcome back!",
-	welcomeNoRecentSessions: "No recent sessions",
-	welcomeNoLspServers: "No LSP servers",
 	welcomeTipsTitle: "Tips",
-	welcomeLspServersTitle: "LSP Servers",
-	welcomeRecentSessionsTitle: "Recent sessions",
 	welcomePromptActionsHint: " for prompt actions",
 	welcomeCommandsHint: " for commands",
 	welcomeRunBashHint: " to run bash",
@@ -42,7 +38,7 @@ export const en = {
 	setupFallbackTitle: "Setup",
 	setupStepFmt: "Setup step %s of %s",
 	setupFooterHint: "↑/↓ select · enter confirm · esc skip · ctrl+c exit setup",
-	setupSkipHint: "press enter to skip",
+	setupSkipHint: "press {key} to skip",
 	setupOutroTitle: "Setup saved",
 	setupOutroSubtitle: "Handing off to the normal CLI…",
 	setupGlyphTitle: "Choose glyph mode",

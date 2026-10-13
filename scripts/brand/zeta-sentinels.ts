@@ -389,8 +389,13 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: 'ZETA_LOGO = ["█████████╗", "╚════████║", "   ████╔═╝", " ████╔═╝  ", "█████████╗", "╚════════╝"]',
-		why: "widened Z art (+1px per side, 2026-10-04 user-approved geometry) — pins the exact rows so a merge cannot silently revert to the narrow art",
+		symbol: 'ZETA_LOGO = ["████████████", "   ████████ ", "  ████████  ", " ████████▒▒▒", "████████████"]',
+		why: "block-grid ζ mark (5 rows × 12 cols, █/▒) of the welcome/splash lockup — redrawn 2026-10-13 in upstream's block-grid geometry so the mark takes the lockup's 5-row slot (wordmark beside it, version under it) and the same 2x splash look as upstream; pins the exact rows so a merge cannot revert to the old box-drawing art or upstream's π mark",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		symbol: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
+		why: 'half-block `Zeta` wordmark of the welcome lockup (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot swap in upstream\'s `omp` wordmark',
 	},
 	{
 		file: "packages/tui/src/theme/symbols.ts",
