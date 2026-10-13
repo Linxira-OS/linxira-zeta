@@ -1,9 +1,12 @@
 /**
  * Zeta desktop shell — main process.
  *
- * Starts the local Zeta service (`zeta serve`, no browser, no console window),
- * waits for the Web UI on 30141, then hosts it in an embedded Electron window.
- * The system browser is never opened and no terminal window appears.
+ * Reuses a healthy same-version Zeta service when one is already running
+ * (discovered through `~/.zeta/serve.json` + the `/api/server/identity` probe,
+ * see `./serve-discovery.ts`); otherwise it starts the local service
+ * (`zeta serve`, no browser, no console window), waits for the Web UI on 30141,
+ * then hosts it in an embedded Electron window. The system browser is never
+ * opened and no terminal window appears.
  */
 
 import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, screen, shell, Tray } from "electron";
@@ -43,6 +46,7 @@ import {
 	type RunningSessionsResponse,
 } from "./session-monitor";
 import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
+import { desktopServeDiscoveryDeps, discoverDesktopService } from "./serve-discovery";
 import {
 	bundledServeCommandIn,
 	describeServeResolution,
@@ -68,7 +72,14 @@ let serviceLogFd: number | null = null;
 let serviceOwned = false;
 let serviceWorkspacePath = process.cwd();
 let quitting = false;
-const desktopOpenSecret = crypto.randomBytes(32).toString("base64url");
+// Effective service origins: the reused instance's when boot adopted one, else
+// the loopback defaults of the service we spawn ourselves (WEB_UI_URL is the
+// desktop ↔ web-ui contract pinned by scripts/zeta-sentinels.ts).
+let webUiUrl = WEB_UI_URL;
+let statsUrl = STATS_URL;
+// One-time open-bridge secret. Adopted from a reused desktop-spawned instance
+// so the open tokens the gateway issues keep validating here.
+let desktopOpenSecret = crypto.randomBytes(32).toString("base64url");
 
 function desktopServiceEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
 	return { ...env, ZETA_DESKTOP: "1", ZETA_DESKTOP_OPEN_SECRET: desktopOpenSecret };
@@ -358,7 +369,7 @@ function stopSessionMonitor(): void {
 async function pollRunningSessions(): Promise<void> {
 	let snapshot: RunningSessionsResponse | null = null;
 	try {
-		const response = await fetch(`${WEB_UI_URL}/api/agent/running`, { headers: { accept: "application/json" } });
+		const response = await fetch(`${webUiUrl}/api/agent/running`, { headers: { accept: "application/json" } });
 		if (response.ok) snapshot = parseRunningSessions(await response.json());
 	} catch {
 		// Connection refused / aborted (service restarting): silent retry.
@@ -392,7 +403,7 @@ async function notifySessionCompleted(sessionId: string): Promise<void> {
  *  list; falls back to the raw id when the lookup fails or finds nothing. */
 async function sessionDisplayName(sessionId: string): Promise<string> {
 	try {
-		const response = await fetch(`${WEB_UI_URL}/api/sessions`, { headers: { accept: "application/json" } });
+		const response = await fetch(`${webUiUrl}/api/sessions`, { headers: { accept: "application/json" } });
 		if (!response.ok) return sessionId;
 		return parseSessionNames(await response.json()).get(sessionId) ?? sessionId;
 	} catch {
@@ -496,9 +507,9 @@ async function serviceIsReady(): Promise<boolean> {
 		// /api/sessions 走 in-process gateway（不依赖 web-ui 子进程），必须再
 		// 探测主页：主代理 / → 随机端口 web-ui 子进程，子进程未就绪时 502。
 		const [gateway, page, stats] = await Promise.all([
-			fetch(`${WEB_UI_URL}/api/sessions`),
-			fetch(`${WEB_UI_URL}/`),
-			fetch(STATS_URL),
+			fetch(`${webUiUrl}/api/sessions`),
+			fetch(`${webUiUrl}/`),
+			fetch(statsUrl),
 		]);
 		return gateway.ok && page.ok && stats.ok;
 	} catch {
@@ -589,7 +600,7 @@ async function waitForService(timeoutMs: number): Promise<boolean> {
 
 async function ensureDefaultWorkspace(): Promise<void> {
 	try {
-		const response = await fetch(`${WEB_UI_URL}/api/default-cwd`, { method: "POST" });
+		const response = await fetch(`${webUiUrl}/api/default-cwd`, { method: "POST" });
 		if (!response.ok) writeDesktopLog(`Could not create the default workspace: HTTP ${response.status}`);
 	} catch (err) {
 		writeDesktopLog(`Could not create the default workspace: ${err instanceof Error ? err.message : String(err)}`);
@@ -648,7 +659,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		},
 	});
 
-	if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
+	if (!win.isDestroyed()) void win.loadURL(webUiUrl).catch(() => {});
 	win.on("close", event => {
 		// Minimize-to-tray (default): closing the window hides it and keeps the
 		// service + tray alive. Only a real quit (tray menu / Cmd+Q / app.quit)
@@ -699,7 +710,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		if (!isMainFrame) return;
 		if (desc.includes("ERR_CONNECTION_REFUSED")) {
 			setTimeout(() => {
-				if (!win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
+				if (!win.isDestroyed()) void win.loadURL(webUiUrl).catch(() => {});
 			}, 1500);
 			return;
 		}
@@ -723,7 +734,7 @@ function createWindow(prefs: TrayPrefs): BrowserWindow {
 		if (rendererCrashes <= RENDERER_CRASH_RELOAD_LIMIT) {
 			writeDesktopLog(`Reloading renderer after crash (${rendererCrashes}/${RENDERER_CRASH_RELOAD_LIMIT})`);
 			setTimeout(() => {
-				if (!quitting && !win.isDestroyed()) void win.loadURL(WEB_UI_URL).catch(() => {});
+				if (!quitting && !win.isDestroyed()) void win.loadURL(webUiUrl).catch(() => {});
 			}, 500);
 		} else {
 			loadFailurePage(win, `The Web UI renderer crashed repeatedly (${details.reason}).`);
@@ -764,7 +775,7 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
  */
 async function readTrayPrefs(): Promise<TrayPrefs> {
 	try {
-		const response = await fetch(`${WEB_UI_URL}/api/web-config`, {
+		const response = await fetch(`${webUiUrl}/api/web-config`, {
 			headers: { "x-zeta-locale": app.getLocale() },
 		});
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -804,7 +815,7 @@ function openStatsWindow(): void {
 	statsWindow.on("closed", () => {
 		statsWindow = null;
 	});
-	statsWindow.loadURL(STATS_URL).catch((err: unknown) => {
+	statsWindow.loadURL(statsUrl).catch((err: unknown) => {
 		writeDesktopLog(`Could not load stats dashboard: ${err instanceof Error ? err.message : String(err)}`);
 	});
 }
@@ -837,7 +848,7 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 				// The tray can own the only window (hidden to tray), so surface it
 				// before deep-linking into the settings panel modal.
 				showMainWindow();
-				mainWindow?.loadURL(`${WEB_UI_URL}/?panel=settings`);
+				mainWindow?.loadURL(`${webUiUrl}/?panel=settings`);
 			},
 		},
 		{ type: "separator" },
@@ -909,7 +920,7 @@ function buildMenu(labels: DesktopLabels): void {
 		{
 			label: "Zeta",
 			submenu: [
-				{ label: labels.webUi, accelerator: "CmdOrCtrl+1", click: () => mainWindow?.loadURL(WEB_UI_URL) },
+				{ label: labels.webUi, accelerator: "CmdOrCtrl+1", click: () => mainWindow?.loadURL(webUiUrl) },
 				{ label: labels.statsDashboard, accelerator: "CmdOrCtrl+2", click: () => openStatsWindow() },
 				{ type: "separator" },
 				{ label: labels.reload, accelerator: "CmdOrCtrl+R", click: () => mainWindow?.webContents.reload() },
@@ -926,26 +937,70 @@ function buildMenu(labels: DesktopLabels): void {
 // ---------------------------------------------------------------------------
 
 async function boot(): Promise<void> {
-	// 总是启动自己的服务，绝不静默复用外部实例：外部 `zeta serve` 可能指向
-	// 不同的工作目录/版本，复用会挂载错误的会话与配置。若端口 30141 已被
-	// 其他 zeta 进程占用，服务绑定失败退出，错误提示见下方 exit 处理器。
+	// Reuse before spawning: a healthy same-version instance already serving this
+	// machine must not be duplicated — two backends would fight over
+	// 30141/30142 and show two divergent session stores. Only when none answers
+	// does the shell start its own service (the previous behavior).
+	const plan = await discoverDesktopService({
+		deps: desktopServeDiscoveryDeps(),
+		targetUrl: WEB_UI_URL,
+		// The desktop app version and the bundled CLI's version are kept in
+		// lockstep by scripts/check-version-consistency.ts.
+		expectedVersion: app.getVersion(),
+		fallbackStatsUrl: STATS_URL,
+	});
+	if (plan.stalePid !== null) {
+		writeDesktopLog(`Removed a stale serve registration (pid ${plan.stalePid} is no longer running).`);
+	}
 
-	const cmd = resolveServeCommand();
-	if (!cmd) {
-		showServiceFailure(`Could not start the Zeta service.\n\n${describeServeResolution(desktopServeDeps())}`);
+	if (plan.action === "version-mismatch") {
+		showServiceFailure(
+			[
+				"A running Zeta service reports a different version, so this shell will not take its port over.",
+				"",
+				`  running: ${plan.identity.version} (pid ${plan.identity.pid}${plan.identity.webUrl ? `, ${plan.identity.webUrl}` : ""})`,
+				`  shell:   ${app.getVersion()}`,
+				"",
+				"Quit the running service and start Zeta again, or keep using it directly in a browser.",
+			].join("\n"),
+		);
 		return;
 	}
-	// `zeta-d -d <cwd>` / `zeta --desktop <cwd>`: open the requested workspace.
-	const requestedCwd = parseRequestedCwd();
-	if (requestedCwd) cmd.cwd = requestedCwd;
-	serviceWorkspacePath = path.resolve(cmd.cwd);
-	cmd.env = desktopServiceEnv(cmd.env);
 
-	if (!startServeOnce(cmd)) return;
+	if (plan.action === "reuse") {
+		webUiUrl = plan.webUrl;
+		statsUrl = plan.statsUrl;
+		// Not ours: quitting must leave the adopted instance running for its owner.
+		serviceOwned = false;
+		serviceWorkspacePath = plan.registration?.cwd ? path.resolve(plan.registration.cwd) : process.cwd();
+		if (plan.registration?.desktopOpenSecret) desktopOpenSecret = plan.registration.desktopOpenSecret;
+		const requestedCwd = parseRequestedCwd();
+		if (requestedCwd && path.resolve(requestedCwd) !== serviceWorkspacePath) {
+			writeDesktopLog(`Reusing workspace ${serviceWorkspacePath}; requested ${path.resolve(requestedCwd)} is not applied to a running service.`);
+		}
+		writeDesktopLog(`Reusing the running Zeta service at ${plan.webUrl} (pid ${plan.identity.pid}, version ${plan.identity.version}).`);
+	} else {
+		const cmd = resolveServeCommand();
+		if (!cmd) {
+			showServiceFailure(`Could not start the Zeta service.\n\n${describeServeResolution(desktopServeDeps())}`);
+			return;
+		}
+		// `zeta-d -d <cwd>` / `zeta --desktop <cwd>`: open the requested workspace.
+		const requestedCwd = parseRequestedCwd();
+		if (requestedCwd) cmd.cwd = requestedCwd;
+		serviceWorkspacePath = path.resolve(cmd.cwd);
+		cmd.env = desktopServiceEnv(cmd.env);
+
+		if (!startServeOnce(cmd)) return;
+	}
 
 	const ready = await waitForService(READY_TIMEOUT_MS);
 	if (!ready) {
-		showServiceFailure("The Zeta service did not become ready in time.");
+		showServiceFailure(
+			plan.action === "reuse"
+				? `The running Zeta service at ${webUiUrl} did not answer.`
+				: "The Zeta service did not become ready in time.",
+		);
 		return;
 	}
 

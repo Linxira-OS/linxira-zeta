@@ -14,7 +14,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { logger } from "@linxiraos/pi-utils";
+import { logger, VERSION } from "@linxiraos/pi-utils";
 import type { ChannelId, ChatImage } from "../channels";
 import {
 	type ChannelRuntime,
@@ -40,6 +40,7 @@ import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../
 import type { AgentSession } from "../session/agent-session";
 import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
+import { clearServeRegistration, writeServeRegistration } from "./serve-registry";
 import { authorizedForAccess, startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
 import {
 	handleTerminalWsUpgrade,
@@ -47,6 +48,7 @@ import {
 	terminalWebSocketHandler,
 	type TerminalWsData,
 } from "./web-gateway/terminal";
+import { registerServeInstanceUrls } from "./web-gateway/identity";
 import { startRpcSession } from "./web-gateway/agents";
 import { serveSessionClient } from "./web-gateway/desktop";
 import { getSharedModelRegistry } from "./web-gateway/auth";
@@ -390,8 +392,30 @@ export class ZetaServer {
 				await this.#maybeStartChannels();
 			}
 
-			// 3. Start the main Bun.serve proxy
+			// 3. Start the main Bun.serve proxy. Identity is published first so a
+			//    probe can never catch us answering without our URLs; the registry
+			//    file is written only after the port is actually held, so anyone
+			//    who finds us finds a bound, identity-answering instance.
+			const startedAt = new Date();
+			const urls = { webUrl: this.url, statsUrl: this.statsUrl, gatewayUrl: this.#gateway?.url ?? null };
+			if (!statsOnly) {
+				// Stats-only mode serves no identity endpoint, so it must not
+				// publish a registration that no probe could ever confirm.
+				registerServeInstanceUrls(urls, startedAt);
+			}
 			this.#server = this.#createMainServer();
+			if (!statsOnly) {
+				writeServeRegistration({
+					pid: process.pid,
+					...urls,
+					version: VERSION,
+					startedAt: startedAt.toISOString(),
+					cwd: process.cwd(),
+					// Only a desktop-spawned instance has an open bridge; a reusing
+					// shell adopts this to validate the tokens the gateway issues.
+					desktopOpenSecret: process.env.ZETA_DESKTOP_OPEN_SECRET || undefined,
+				});
+			}
 
 			return {
 				url: this.url,
@@ -408,6 +432,12 @@ export class ZetaServer {
 
 	async shutdown(): Promise<void> {
 		this.#running = false;
+
+		// Withdraw discovery state first: a newcomer must never be told to reuse
+		// an instance that is already tearing down. `clearServeRegistration` only
+		// removes our own record, never a successor's.
+		registerServeInstanceUrls(null);
+		clearServeRegistration();
 
 		if (this.#channelRuntime) {
 			await this.#channelRuntime.stop().catch(() => {});

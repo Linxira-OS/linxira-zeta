@@ -90,6 +90,41 @@ Both commands use `ZetaServer` under the hood. The server:
 
 See [zeta-server.md](./zeta-server.md) for the full server architecture.
 
+## Instance discovery and reuse (multi-surface coexistence)
+
+A machine can host the same backend from several surfaces (the desktop shell, a
+terminal `zetacode serve`, `zeta-d`). They must not fight over `30141`/`30142`,
+so a starting instance **discovers** a healthy one before it binds:
+
+- **Registration file** — a running `zetacode serve` publishes itself to
+  `<config root>/serve.json` (`~/.zeta/serve.json`; `ZETA_SERVE_REGISTRY`
+  overrides the path). It holds `{ pid, webUrl, statsUrl, gatewayUrl, version,
+  startedAt, cwd }` and is written owner-only (`0600`) after the port is bound,
+  replaced atomically, and removed on a clean shutdown. A registration whose
+  `pid` is gone is stale: the next start deletes it (and says so) instead of
+  trusting it. A stats-only instance (`--stats-only`) publishes nothing, because
+  it serves no identity endpoint and could never be confirmed.
+- **Identity probe** — `GET /api/server/identity` reports
+  `{ app: "zeta", version, pid, startedAt, webUrl, statsUrl, gatewayUrl }` from
+  the serving process, so a newcomer can tell *whose* port it is and *which
+  version* answers there. It rides the existing gateway access gate: a
+  non-loopback caller still needs `remote.token`.
+- **Same version + healthy** — the newcomer does not start a second listener.
+  `zetacode serve` prints the running instance's URLs and exits `0` (force a
+  separate instance with explicit ports, e.g. `--web-port 30241
+  --gateway-port 30242`); the desktop shell points its window at the running
+  instance and spawns nothing. The desktop also survives a broken launcher
+  resolution in that case, because discovery needs no binary.
+- **Different version** — the port is *not* taken over silently. `zetacode
+  serve` prints the running and expected versions with the options (stop the old
+  instance, or start on other ports) and exits `1`; the desktop shell shows the
+  same choice instead of failing later with a bind error.
+- **Another port** — an instance that answers somewhere else is reported and the
+  requested listener still starts (`zetacode serve` never second-guesses an
+  explicit `--web-port`). The desktop shell reuses such an instance too: it
+  reads the runtime URLs from discovery and points its window, stats window and
+  gateway calls at them.
+
 ## Desktop entry: `zeta-d` and `--desktop`
 
 Command resolution contract — the two installs never collide on PATH:
