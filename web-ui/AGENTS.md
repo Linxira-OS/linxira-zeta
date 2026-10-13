@@ -255,7 +255,8 @@ semantic alias.
   any hex/rgb/hsl/oklch/named literal outside L1 and the allow-listed palettes
   (`TerminalView` xterm colours, `lib/ansi.ts`, `lib/rainbow.tsx`, the server
   preview document, the `theme-color` meta). Files still mid-migration carry a
-  ceiling in `scripts/style-literal-baseline.json`; tighten it with
+  ceiling in `scripts/style-literal-baseline.json` — currently **empty**, i.e.
+  every functional style/component file is literal-free; tighten a ceiling with
   `--update-baseline` after migrating one.
 - A literal that is a *matching key* rather than paint (e.g. a selector against
   the highlighter's inline colours) is exempted per line with

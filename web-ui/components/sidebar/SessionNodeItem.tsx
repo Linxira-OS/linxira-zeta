@@ -450,7 +450,7 @@ export function SessionNodeItem({
 										lineHeight: 1,
 										padding: "2px 5px",
 										borderRadius: 8,
-										border: "1px solid var(--accent-dim, rgba(99,102,241,0.4))",
+										border: "1px solid var(--zeta-alias-accent-dim)",
 										color: "var(--accent)",
 										textTransform: "uppercase",
 										letterSpacing: 0.4,
@@ -650,7 +650,7 @@ export function SessionNodeItem({
 								background: "var(--bg-elevated, var(--bg))",
 								border: "1px solid var(--border)",
 								borderRadius: 8,
-								boxShadow: "0 6px 20px rgba(0,0,0,0.18)",
+								boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 18%, transparent)",
 								padding: 4,
 							}}
 							onClick={e => e.stopPropagation()}

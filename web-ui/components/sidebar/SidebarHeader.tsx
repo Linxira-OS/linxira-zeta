@@ -102,7 +102,7 @@ export function SidebarHeader({
 								background: "var(--bg)",
 								border: "1px solid var(--border)",
 								borderRadius: 8,
-								boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
+								boxShadow: "0 6px 20px color-mix(in srgb, var(--zeta-alias-neutral-1000) 14%, transparent)",
 								padding: 4,
 								zIndex: 200,
 							}}

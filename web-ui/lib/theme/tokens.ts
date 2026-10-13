@@ -34,6 +34,10 @@ export const STATIC_CONSTANTS: ReadonlyArray<readonly [string, string]> = [
   // pure endpoints are the only literals the elevation sheets need.
   ["neutral-0", "#ffffff"],
   ["neutral-1000", "#000000"],
+  // Soft-shadow tint: a slate-black used for the low-alpha composer/popover
+  // shadows. Kept as its own raw value (rather than folded into neutral-1000)
+  // so the de-literalisation is exactly value-preserving.
+  ["shadow-ink", "#0f172a"],
   // Starfield brand palette (NASA-punk preset: one raw value per shade, named
   // after its role in the starfield chrome).
   ["sf-navy", "#1b365d"],
