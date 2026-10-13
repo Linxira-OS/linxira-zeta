@@ -83,6 +83,15 @@ on:
 # via `v*` tag-ref dispatches, and via manual dispatches whose tag-on-HEAD
 # status is only known after checkout; scope them to a per-sha group with no
 # cancellation. Every other event keeps branch-wide cancellation for PR/main churn.
+#
+# `scripts/release-v2.ts` tags the bump commit, so the atomic branch+tag push
+# always carries the release subject as the branch HEAD and lands in the
+# no-cancel group. Do NOT add `tags: ["v*"]` to `on.push`: GitHub fires the
+# push event once per ref, so the atomic push would fire a second (tag-ref) run
+# in the same `release-<sha>` group — a duplicate that re-publishes. A tag
+# pushed on its own does not trigger CI; use `gh workflow run` (a dispatch is
+# in the no-cancel group) for a standalone tag. Never push to main while a
+# release run is in flight (document/release.md damage class 8).
 concurrency:
    group: "${{ github.workflow }}-${{ (startsWith(github.event.head_commit.message, 'chore: bump version to ') || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && format('release-{0}', github.sha) || github.ref }}"
    cancel-in-progress: "${{ !(startsWith(github.event.head_commit.message, 'chore: bump version to ') || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}"
@@ -170,11 +179,12 @@ jobs:
 
    check:
       name: Lint, type check & web build
-      # Dual-mode: test-type jobs run on ordinary pushes/PRs only; the
-      # release run (bump-commit push with `v*` tag on HEAD) skips them and
-      # goes straight to build+publish (see release_gate).
+      # Runs in BOTH modes: the guard steps below are cheap and must gate a
+      # release too. Only the workspace type check is skipped on a release run
+      # (the source commit's push run already ran it, and it is the local
+      # mandatory gate — see document/release.md). The test-type jobs
+      # (rust_validate / the test_* buckets) still run on ordinary pushes/PRs only.
       needs: [release_metadata]
-      if: needs.release_metadata.outputs.is-release != 'true'
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -205,6 +215,9 @@ jobs:
               cargo fetch --locked
               cargo deny --locked --offline check licenses sources
          - name: Type check workspace
+           # Duplicate of the source commit's push run (and of the local
+           # pre-commit gate): skip on a release run, keep the guards below.
+           if: needs.release_metadata.outputs.is-release != 'true'
            run: bun run ci:check:full
          - name: Brand residue guard
            run: bun scripts/brand/brand-check.ts
@@ -798,8 +811,8 @@ jobs:
    test_smoke:
       name: Test CLI smoke (TS)
       runs-on: ubuntu-22.04
-      needs: [native_addons]
-      if: ${{ !cancelled() && needs.native_addons.result == 'success' }}
+      needs: [release_metadata, native_addons]
+      if: ${{ needs.release_metadata.outputs.is-release != 'true' && !cancelled() && needs.native_addons.result == 'success' }}
       timeout-minutes: 15
       steps:
          - uses: actions/checkout@v4
@@ -831,17 +844,18 @@ jobs:
    # Aggregates the release-state prerequisites so publish-side release jobs
    # gate on one result. In the release state the test-type jobs above are
    # skipped (their greenness is a precondition enforced by scripts/release-v2.ts
-   # waiting for the bump-commit push run before tagging), so this gate only
-   # needs the jobs that actually run on a release. Skipped jobs would not
-   # appear in needs.*.result at all, and the guard below counts only
-   # failure/cancelled. Binary BUILDS deliberately do not wait for this gate —
-   # they run in parallel and only publishing is held back.
+   # verifying the release SOURCE commit's push run before tagging), so this gate
+   # needs the jobs that actually run on a release — including `check`, whose
+   # guard steps must gate publishing. Skipped jobs would not appear in
+   # needs.*.result at all, and the guard below counts only failure/cancelled.
+   # Binary BUILDS deliberately do not wait for this gate — they run in parallel
+   # and only publishing is held back.
    release_gate:
       name: Release validation gate
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          !contains(needs.*.result, 'failure') &&
          !contains(needs.*.result, 'cancelled') }}
-      needs: [release_metadata, bazel_lock, native_addons, native_addons_cross, install_methods]
+      needs: [release_metadata, check, bazel_lock, native_addons, native_addons_cross, install_methods]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4

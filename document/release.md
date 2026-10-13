@@ -117,11 +117,12 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
     `test_coding_agent_singleton/native/ui/runtime`, `test_ts_native`,
     `test_smoke`, `install_methods`.
   - **Release mode** (`is-release == 'true'`): the test-type jobs above
-    (`check` / `rust_validate` / `test_workspace` / the `test_coding_agent_*`
-    buckets / `test_ts_native`) are **skipped** via
+    (`rust_validate` / `test_workspace` / the `test_coding_agent_*` buckets /
+    `test_ts_native` / `test_smoke`) are **skipped** via
     `needs: [release_metadata]` +
     `if: needs.release_metadata.outputs.is-release != 'true'`; the run goes
-    straight to `bazel_lock` + `native_addons`(+`native_addons_cross`) +
+    straight to the guard job `check` (its workspace type-check step skipped) +
+    `bazel_lock` + `native_addons`(+`native_addons_cross`) +
     `install_methods` → `release_gate` → build/publish. `release_gate` counts
     only `failure`/`cancelled` in `needs.*.result`, so skipped test jobs never
     block or greenwash it.
@@ -129,37 +130,51 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
   - `push` to `main` runs quality checks only; it never publishes. Only a
     release run — a `v*` tag at HEAD detected by `release_metadata` — enters
     the build/publish chain.
-  - Because the release run **skips the tests**, green push-run CI on the
-    **identical SHA** is a hard precondition before the tag may land.
-    `scripts/release-v2.ts` enforces this mechanically: it pushes the bump
-    commit, waits for that push run (`gh run watch` on the headSha+`event=push`
-    run, poll ≥60 s, max 90 min) and aborts without tagging on anything but
-    success. Escape hatch: `--no-ci-wait` restores the old atomic
-    branch+tag push for exceptional cases only.
-  - `.github/**` is deliberately **excluded** from the `on.push` /
-    `on.pull_request` path filters: CI/workflow config changes never self-trigger
-    a full run. They are verified by `workflow_dispatch` instead (using
-    `skip_npm` as needed). Before any dispatch, the change must
-    be functionally complete and locally validated — never dispatch half-done
-    work, and never trigger CI for a simple documentation/config push.
+  - Because the release run **skips the tests**, a green push run on the
+    **release source commit** (the pre-bump `main` HEAD the release is cut
+    from) is a hard precondition before the tag may land. `scripts/release-v2.ts`
+    enforces this mechanically: it verifies that commit's push run (`gh run
+    watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
+    without tagging on anything but success — including when no run registers
+    (never a silent pass). The bump commit only rewrites versions/CHANGELOG, so
+    re-running the suite on it is pure waste; the source commit's green run
+    proves the shipped code. Escape hatch: `--no-ci-wait` skips the
+    source-commit check (when its greenness is already established).
+  - The bump/tag phase runs **no test jobs**: the atomic push's release run has
+    `is-release == 'true'`, so the test buckets are skipped — they ran once on
+    the source commit. Tests are never re-run for a version bump.
+  - The release run lands in the **no-cancel** `release-<sha>` concurrency group
+    because its HEAD is the bump commit (`chore: bump version to …`), so a later
+    main push cannot cancel it. A tag that does **not** ride a bump commit (e.g.
+    a tag placed on a release-PR merge commit and pushed with main) would fall
+    into the cancellable `CI-refs/heads/main` group and be cancelled — so never
+    push to main while a release run is in flight, and cut releases only through
+    `release-v2.ts` (or dispatch a standalone tag with `gh workflow run`).
+  - `.github/**` **is** in the `on.push` / `on.pull_request` path filters, so a
+    workflow/config change triggers the full run like any other change (it is
+    not self-trigger-exempt). A manual `workflow_dispatch` remains the way to
+    re-run, or to run with `skip_npm` — never dispatch half-done work.
   - Release runs are entered only through two channels:
-     1. `bun scripts/release-v2.ts <version>` — bump-commit push → wait for a
-        green push-run on that SHA → tag push → then
-        `gh workflow run ci.yml --ref main` (tagged HEAD ⇒ release mode:
-        tests skipped, straight to build + publish).
+     1. `bun scripts/release-v2.ts <version>` — verify the release source
+        commit's push run is green → atomic branch+tag push (the branch push
+        carries the tag ⇒ release mode: tests skipped, straight to build +
+        publish). No separate dispatch: the atomic push **is** the release run.
      2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
         dispatch that skips publishing (re-runs / 补发).
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
-  gated on `release_gate` (release-state validation: lockfile freshness +
-  native addons + install methods) plus `release_binary` / `desktop_*`
+  gated on `release_gate` (release-state validation: the `check` guard job —
+  brand/sentinel/CI-surface/scope guards — plus lockfile freshness, native
+  addons and install methods) plus `release_binary` / `desktop_*`
   artifacts and `!inputs.skip_npm`.
 - `check:ts` (and the rest of the local pre-commit gates) remain mandatory
   before every merge/release regardless of mode — the dual-mode skip only
-  removes the *duplicated CI* run, never the local gate.
+  removes the *duplicated CI* run, never the local gate. On a release run the
+  `check` job still runs its guard steps; only its workspace type-check step is
+  skipped (it duplicates the source commit's push run).
 - Test-suite failures in a push run are environment flakes (e.g. singleton
   `broker-idle-shutdown`, julia prelude kernel) unless proven otherwise; a
-  release run relies on the pre-tag push-run greenness (same SHA), never on
-  unrelated push runs.
+  release run relies on the green push run of the release source commit it was
+  cut from, never on unrelated push runs.
 
 ### CI watching discipline (no polling)
 
@@ -222,6 +237,7 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                     |
 | 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
 | 7   | 手动版本 bump 漏 editor 平台包（v1.1.16）：只 bump launcher，`editor-windows-x64`/`-linux-x64` 与 launcher `optionalDependencies` pins 留在旧版        | `release_editor_packages` 重发已存在版本 → npm 409，run 红                                     | `release-v2.ts` Step 2f 是唯一权威 bump 路径；手动 bump 必须三包 + 两条 pins 全改                                                                                         |
+| 8   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
 
 **发布完成的判定纪律（v1.1.16 教训）**：同一次 push 会产生两个 workflow 的 run——
 主流水线 `CI`（`.github/workflows/ci.yml`，20+ jobs）与 `Zeta Nix`
@@ -262,7 +278,7 @@ Always move the version with a script:
 | `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 14 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, `desktop/package.json` + its lockfile, and `web-ui/package.json` (`zeta-web` version **and** its `@linxiraos/*` ranges, kept as `^<version>`). **Does not** touch changelogs, commit, tag or push. |
 | `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
 | `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, README badge). Run before tagging.                                                                                                                                                                                                                                                                                |
-| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, push → wait for green push-run CI on that SHA → tag push (`--no-ci-wait` restores the old atomic push).                                                                                                                 |
+| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, verify the release source commit's push run is green, atomic branch+tag push (`--no-ci-wait` skips the source-commit check).                                                                                                                 |
 
 Rules:
 

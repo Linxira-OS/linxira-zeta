@@ -240,9 +240,12 @@ function extractSectionBody(content: string, header: string): string | undefined
  * log completeness (pre-tag gate)".
  */
 /**
- * CI-wait constants for the bump-commit push run. The workflow is dual-mode:
+ * CI-wait constants for the source-commit push run. The workflow is dual-mode:
  * a run whose HEAD carries the release tag SKIPS the test-type jobs, so the
- * tests must be proven green on the identical SHA before the tag is pushed.
+ * tests must be proven green on the identical source SHA before the tag is
+ * pushed. The bump commit only rewrites versions/CHANGELOG, so the pre-bump
+ * source commit's green run proves the code the release actually ships — the
+ * full suite does not need to re-run on the bump commit.
  */
 const CI_WAIT_POLL_MS = 60_000;
 const CI_WAIT_TIMEOUT_MS = 90 * 60_000;
@@ -259,22 +262,31 @@ async function findPushRunId(sha: string): Promise<string | null> {
 }
 
 /**
- * Wait (poll ≥60 s, max 90 min) for the bump-commit push run to finish, via
- * `gh run watch <id> --exit-status`. True only on a green run.
+ * Wait (poll ≥60 s, max 90 min) for `sha`'s push run to finish, via
+ * `gh run watch <id> --exit-status`. True only on a green run. A missing run
+ * (the commit was never pushed, or GitHub is lagging) fails loudly after the
+ * ceiling — it never passes silently on an API hiccup.
  */
-async function waitForBumpCommitCI(sha: string): Promise<boolean> {
-	console.log(
-		`Waiting for CI on bump commit ${sha} (poll ${CI_WAIT_POLL_MS / 1000}s, max ${CI_WAIT_TIMEOUT_MS / 60_000}min)...`,
-	);
-	const deadline = Date.now() + CI_WAIT_TIMEOUT_MS;
+export async function waitForPushRunGreen(
+	sha: string,
+	what: string,
+	opts: { pollMs?: number; timeoutMs?: number } = {},
+): Promise<boolean> {
+	const pollMs = opts.pollMs ?? CI_WAIT_POLL_MS;
+	const timeoutMs = opts.timeoutMs ?? CI_WAIT_TIMEOUT_MS;
+	console.log(`Waiting for CI on ${what} ${sha} (poll ${pollMs / 1000}s, max ${timeoutMs / 60_000}min)...`);
+	const deadline = Date.now() + timeoutMs;
 
 	let runId: string | null = null;
 	while ((runId = await findPushRunId(sha)) === null) {
 		if (Date.now() > deadline) {
-			console.error("Timed out waiting for the push run to register on GitHub.");
+			console.error(
+				`Timed out waiting for a push run on ${what} ${sha} to register on GitHub. ` +
+					"Refusing to tag on an unverified source commit.",
+			);
 			return false;
 		}
-		await Bun.sleep(CI_WAIT_POLL_MS);
+		await Bun.sleep(pollMs);
 	}
 	// `gh run watch` needs the URL for the link anyway; resolve once here:
 	const origin = (await git(["remote", "get-url", "origin"]).text())
@@ -283,22 +295,19 @@ async function waitForBumpCommitCI(sha: string): Promise<boolean> {
 		.replace(/\.git$/, "");
 	console.log(`  Run: ${origin}/actions/runs/${runId}`);
 
-	const proc = Bun.spawn(
-		["gh", "run", "watch", runId, "--exit-status", "--interval", String(CI_WAIT_POLL_MS / 1000)],
-		{
-			stdin: "ignore",
-			stdout: "inherit",
-			stderr: "inherit",
-		},
-	);
+	const proc = Bun.spawn(["gh", "run", "watch", runId, "--exit-status", "--interval", String(pollMs / 1000)], {
+		stdin: "ignore",
+		stdout: "inherit",
+		stderr: "inherit",
+	});
 	const timer = setTimeout(() => {
-		console.error("\nTimed out after 90 minutes waiting for the push run.");
+		console.error(`\nTimed out after ${timeoutMs / 60_000} minutes waiting for the push run.`);
 		proc.kill();
 	}, deadline - Date.now());
 	const exitCode = await proc.exited;
 	clearTimeout(timer);
 	if (exitCode !== 0) {
-		console.error(`Push run ${runId} did not succeed (exit ${exitCode}).`);
+		console.error(`Push run ${runId} on ${what} ${sha} did not succeed (exit ${exitCode}).`);
 		return false;
 	}
 	return true;
@@ -364,6 +373,10 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		console.error(status);
 		process.exit(1);
 	}
+	// The commit the release is cut from (pre-bump main HEAD). Its push run is
+	// the test evidence for the code the release ships — the bump commit only
+	// rewrites versions/CHANGELOG, so re-running the full suite on it is waste.
+	const startSha = (await git(["rev-parse", "HEAD"]).text()).trim();
 	const latestTag =
 		selectLatestZetaTag(
 			(
@@ -591,40 +604,39 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	await git(["commit", "-m", `chore: bump version to ${version}`]);
 	console.log();
 
-	// Step 10: push the bump commit, WAIT for its push-run CI to go green
-	// (unless --no-ci-wait), and only then tag. Dual-mode CI skips the
-	// test-type jobs on a release run, so the tag must not land until the
-	// identical SHA has a green full-test run — that greenness is the
-	// precondition the skipped release-state tests rely on. The tag push uses
-	// the SHA refspec (survives git-maintenance tag pruning; see release.ts
-	// for the race this avoids).
+	// Step 10: verify the release SOURCE commit's push run is green, then push
+	// the branch and tag atomically. The bump commit only changes
+	// versions/CHANGELOG, so the pre-bump commit's green push run is the test
+	// evidence for the shipped code — waiting for the bump commit's own push
+	// run would re-run the whole suite on identical source (waste). Dual-mode
+	// CI skips the test-type jobs on the tagged release run, so this
+	// verification is what that skip relies on. The atomic push lands
+	// branch+tag together (the tag rides the branch push, which is what
+	// triggers the release run; a tag-only push would not trigger anything).
+	// Because the tag rides the bump commit, the branch push's HEAD carries the
+	// `chore: bump version to …` subject, so the run lands in the no-cancel
+	// `release-<sha>` concurrency group — a later main push cannot cancel it.
 	const sha = (await git(["rev-parse", "HEAD"]).text()).trim();
 	const tagRef = `v${version}`;
 	if (noCiWait) {
-		// Escape hatch: old atomic behavior (branch + tag in one push).
-		console.log("Tagging and pushing to remote (--no-ci-wait: no CI wait)...");
-		await git(["tag", "-f", tagRef]);
-		await git(["push", "--atomic", "origin", "refs/heads/main:refs/heads/main", `${sha}:refs/tags/${tagRef}`]);
+		console.log("--no-ci-wait: skipping the source-commit push-run check.");
 	} else {
-		console.log("Pushing bump commit (tag follows after CI)...");
-		await git(["push", "origin", "refs/heads/main:refs/heads/main"]);
-		console.log();
-		const ok = await waitForBumpCommitCI(sha);
+		const ok = await waitForPushRunGreen(startSha, "release source commit");
 		console.log();
 		if (!ok) {
-			console.error("Aborting: not tagging a bump commit whose push run is not green.");
-			console.error("To skip this wait (at your own risk), re-run with --no-ci-wait:");
+			console.error(`Aborting: the release source commit ${startSha} has no green push run.`);
+			console.error("Not tagging an unverified source commit. Re-run once its run is green, or pass");
+			console.error(`--no-ci-wait to skip the check if you have verified it another way:`);
 			console.error(`  bun scripts/release-v2.ts ${versionArg} --no-ci-wait`);
 			process.exit(1);
 		}
-		console.log("Push-run green. Tagging and pushing the tag...");
-		await git(["tag", "-f", tagRef]);
-		await git(["push", "origin", `${sha}:refs/tags/${tagRef}`]);
 	}
+	console.log("Tagging and pushing branch + tag atomically...");
+	await git(["tag", "-f", tagRef]);
+	await git(["push", "--atomic", "origin", "refs/heads/main:refs/heads/main", `${sha}:refs/tags/${tagRef}`]);
 	console.log();
-	console.log(`Tag ${tagRef} is on ${sha.slice(0, 12)}.`);
-	console.log("Dispatch the release CI run (it SKIPS the test jobs and goes straight to build+publish):");
-	console.log("  gh workflow run ci.yml --ref main");
+	console.log(`Tag ${tagRef} is on ${sha.slice(0, 12)} (branch + tag pushed atomically).`);
+	console.log("The branch push carries the tag, so it IS the release run (tests skipped, straight to build+publish).");
 	if (watch) {
 		console.log("\nWatching CI...");
 		const success = await watchCI();
@@ -656,8 +668,9 @@ if (import.meta.main) {
 		console.error("  bun scripts/release-v2.ts <version> [--watch] [--no-ci-wait]   Full release");
 		console.error("  bun scripts/release-v2.ts watch                 Watch CI for current commit");
 		console.error("");
-		console.error("  --no-ci-wait  Push branch+tag atomically without waiting for the");
-		console.error("                bump-commit push run to go green first (escape hatch).");
+		console.error("  --no-ci-wait  Skip verifying that the release source commit's");
+		console.error("                push run is green before pushing branch+tag atomically.");
+		console.error("                (Escape hatch; the default verifies the source commit.)");
 		process.exit(1);
 	}
 
