@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -8,9 +9,12 @@ import {
 	SERVE_BIN_DIR_ENV,
 	SERVE_BIN_NAMES,
 	bundledServeCommandIn,
+	describeServeResolution,
 	findRepoRootIn,
+	missingBundledServeFiles,
 	parseCommand,
 	resolveServeCommandIn,
+	spawnSpec,
 } from "../src/serve-resolution.ts";
 
 /**POSIX-spelled deps so names/extensions stay deterministic on any host. */
@@ -31,7 +35,7 @@ function makeDeps(overrides = {}) {
 		},
 		dirname: root,
 		cwd: root,
-		probePath: () => false,
+		probePath: () => null,
 		serviceBinaryName: "zeta",
 		webRuntimeName: "node",
 		...overrides,
@@ -61,7 +65,7 @@ test("parseCommand splits quotes and strips them", () => {
 test("tier 1: ZETA_SERVE_COMMAND wins over PATH and the vendored bundle", () => {
 	const tree = makeDeps({
 		isPackaged: true,
-		probePath: () => true,
+		probePath: () => "/usr/local/bin/zetacode",
 		env: { ZETA_SERVE_COMMAND: '"mock dir/zeta-c" serve --port 1' },
 	});
 	try {
@@ -75,7 +79,7 @@ test("tier 1: ZETA_SERVE_COMMAND wins over PATH and the vendored bundle", () => 
 });
 
 test("tier 1: a ZETA_BIN_DIR dir outranks a PATH hit", () => {
-	const tree = makeDeps({ platform: process.platform, probePath: () => true });
+	const tree = makeDeps({ platform: process.platform, probePath: () => "/usr/local/bin/zetacode" });
 	try {
 		const dir = path.join(tree.root, "override");
 		fs.mkdirSync(dir);
@@ -93,11 +97,12 @@ test("tier 2: the PATH probe wins over the packaged bundle; bare zeta never prob
 	try {
 		const serviceDir = installBundle(tree);
 		const probed = [];
+		const hit = path.join(tree.root, "npm", "zeta-c");
 		const cmd = resolveServeCommandIn({
 			...tree.deps,
 			probePath: name => {
 				probed.push(name);
-				return name === "zeta-c";
+				return name === "zeta-c" ? hit : null;
 			},
 		});
 		// Canonical-first: the loop probes `zetacode` before its aliases and
@@ -105,9 +110,48 @@ test("tier 2: the PATH probe wins over the packaged bundle; bare zeta never prob
 		// probed at all.
 		assert.deepEqual(probed, ["zetacode", "zeta-c"]);
 		assert.ok(!probed.includes("zeta"), "workbench bin must never be a serve candidate");
-		assert.equal(cmd.file, "zeta-c");
+		// The resolved absolute path is spawned, never the bare probe name.
+		assert.equal(cmd.file, hit);
+		assert.equal(cmd.needsShell, false);
 		assert.equal(cmd.args[0], "serve");
 		assert.ok(!JSON.stringify(cmd).includes(serviceDir), "bundle must be skipped on the PATH hit");
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("tier 2 (win32): a .cmd PATH hit resolves to its absolute suffixed path and needs a shell", () => {
+	const tree = makeDeps({ isPackaged: true, platform: "win32" });
+	try {
+		installBundle(tree);
+		// What `where zetacode` yields on an npm install: the shim, with suffix.
+		const shim = "C:\\Users\\me\\AppData\\Roaming\\npm\\zetacode.cmd";
+		const cmd = resolveServeCommandIn({
+			...tree.deps,
+			exists: () => false, // no bundle: prove the PATH hit alone resolves
+			probePath: name => (name === "zetacode" ? shim : null),
+		});
+		assert.equal(cmd.file, shim);
+		assert.match(cmd.file, /zetacode\.cmd$/);
+		assert.notEqual(cmd.file, "zetacode", "must not hand spawn the bare name");
+		assert.equal(cmd.needsShell, true);
+		assert.deepEqual(cmd.args, ["serve"]);
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("tier 2 (win32): a native .exe PATH hit spawns without a shell", () => {
+	const tree = makeDeps({ isPackaged: true, platform: "win32" });
+	try {
+		installBundle(tree);
+		const cmd = resolveServeCommandIn({
+			...tree.deps,
+			exists: () => false,
+			probePath: name => (name === "zetacode" ? "C:\\Program Files\\Zeta\\zetacode.exe" : null),
+		});
+		assert.equal(cmd.file, "C:\\Program Files\\Zeta\\zetacode.exe");
+		assert.equal(cmd.needsShell, false);
 	} finally {
 		cleanup(tree);
 	}
@@ -134,6 +178,99 @@ test("packaged desktop with no PATH hit and an incomplete bundle reports failure
 		cleanup(tree);
 	}
 });
+
+test("packaged bundle: every missing piece is named, not silently dropped", () => {
+	const tree = makeDeps({ isPackaged: true });
+	try {
+		const serviceDir = path.join(tree.deps.resourcesPath, "zeta");
+		fs.mkdirSync(serviceDir, { recursive: true });
+		fs.writeFileSync(path.join(serviceDir, "zeta"), ""); // binary only
+		const missing = missingBundledServeFiles(tree.deps);
+		assert.equal(missing.length, 2);
+		assert.ok(missing.some(m => m.includes(path.join(serviceDir, "node"))), "Node runtime must be reported");
+		assert.ok(
+			missing.some(m => m.includes(path.join("web-ui", ".next", "standalone", "server.js"))),
+			"Web UI standalone server must be reported",
+		);
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("describeServeResolution lists every tier, the paths checked, and the fix", () => {
+	const tree = makeDeps({ platform: "linux" });
+	try {
+		const text = describeServeResolution({
+			...tree.deps,
+			env: { [SERVE_BIN_DIR_ENV]: "/opt/zeta/bin" },
+			probePath: name => (name === "zeta-cli" ? "/usr/bin/zeta-cli" : null),
+		});
+		assert.match(text, /①/);
+		assert.match(text, /②/);
+		assert.match(text, /③/);
+		assert.ok(text.includes("/opt/zeta/bin"), "explicit dir must appear");
+		assert.ok(text.includes("/usr/bin/zeta-cli"), "resolved PATH hit must appear");
+		assert.ok(text.includes("zetacode → not found"), "each probed name must appear");
+		assert.ok(text.includes("npm install -g @linxiraos/zeta"), "install hint must appear");
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("describeServeResolution names the missing bundled files when packaged", () => {
+	const tree = makeDeps({ isPackaged: true });
+	try {
+		const serviceDir = path.join(tree.deps.resourcesPath, "zeta");
+		const text = describeServeResolution(tree.deps);
+		assert.ok(text.includes(serviceDir), "bundled dir must appear");
+		assert.ok(text.includes("incomplete"), "an incomplete bundle must be called out");
+		assert.ok(text.includes("npm install -g @linxiraos/zeta"));
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("spawnSpec leaves a real executable untouched", () => {
+	assert.deepEqual(spawnSpec({ file: "C:\\bin\\zeta.exe", args: ["serve"], cwd: ".", env: {}, needsShell: false }), {
+		file: "C:\\bin\\zeta.exe",
+		args: ["serve"],
+		windowsVerbatimArguments: false,
+	});
+});
+
+test(
+	"real spawn (win32): a resolved .cmd shim starts through cmd.exe even with a spaced path",
+	{ skip: process.platform !== "win32" },
+	() => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-serve-spawn-"));
+		try {
+			const dir = path.join(root, "npm dir"); // space on purpose
+			fs.mkdirSync(dir, { recursive: true });
+			const shim = path.join(dir, "zetacode.cmd");
+			fs.writeFileSync(shim, "@echo off\r\necho ZETA-SHIM %*\r\nexit /b 0\r\n");
+
+			// Resolution (what the desktop does) then the exact spawn shape it uses.
+			const cmd = resolveServeCommandIn({
+				...makeDeps().deps,
+				platform: "win32",
+				exists: () => false,
+				probePath: name => (name === "zetacode" ? shim : null),
+			});
+			assert.match(cmd.file, /zetacode\.cmd$/);
+			assert.equal(cmd.needsShell, true);
+
+			const spec = spawnSpec(cmd);
+			const result = spawnSync(spec.file, spec.args, {
+				encoding: "utf8",
+				windowsVerbatimArguments: spec.windowsVerbatimArguments,
+			});
+			assert.equal(result.status, 0, result.stderr);
+			assert.match(result.stdout, /ZETA-SHIM serve/);
+		} finally {
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	},
+);
 
 test("tier 3 dev: repo dist binary, then bun-run source, then the bare launcher", () => {
 	const repoRoot = path.join(os.tmpdir(), "zeta-serve-res-virtual-repo");
