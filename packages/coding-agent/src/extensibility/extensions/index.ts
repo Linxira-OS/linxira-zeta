@@ -12,6 +12,7 @@ export {
 	loadExtensionFromFactory,
 	loadExtensions,
 } from "./loader";
+export * from "./ask-dialog-response";
 export * from "./runner";
 // Type guards
 export * from "./types";

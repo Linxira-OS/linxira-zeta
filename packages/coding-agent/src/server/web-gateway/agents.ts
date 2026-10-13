@@ -22,11 +22,16 @@ import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import type { ImControlParams, ImControlResult } from "../../channels/im-control";
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
+import { type AskDialogAnswer, parseAskDialogResponse } from "../../extensibility/extensions/ask-dialog-response";
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import {
 	type ContextUsage,
+	type ExtensionAskDialogQuestion,
+	type ExtensionAskDialogResult,
 	type ExtensionUIContext,
+	type ExtensionUIDialogOptions,
 	getExtensionUISelectOptionLabel,
+	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
 import { GOAL_CONTINUATION_MODE_WEB, GoalContinuationController } from "../../goals/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
@@ -98,6 +103,10 @@ export type AgentCommand =
 			confirmed?: boolean;
 			cancelled?: boolean;
 			timedOut?: boolean;
+			/** Answers to an `ask` request, one per question in request order. */
+			answers?: AskDialogAnswer[];
+			/** Approval decision; reserved for the approval channel (no consumer yet). */
+			decision?: string;
 	  }
 	| { type: "extension_ui_input"; id: string; data: string }
 	| { type: "set_auto_retry"; enabled: boolean }
@@ -149,6 +158,15 @@ export type ExtensionUiRequest =
 	| {
 			type: "extension_ui_request";
 			id: string;
+			method: "ask";
+			questions: ExtensionAskDialogQuestion[];
+			timeout?: number;
+			expiresAt?: number;
+	  }
+	| { type: "extension_ui_request"; id: string; method: "cancel"; targetId: string }
+	| {
+			type: "extension_ui_request";
+			id: string;
 			method: "notify";
 			message: string;
 			notifyType?: "info" | "warning" | "error";
@@ -166,7 +184,14 @@ export type ExtensionUiRequest =
 	| { type: "extension_ui_request"; id: string; method: "set_editor_text"; text: string }
 	| { type: "extension_ui_request"; id: string; method: "custom"; closed?: boolean };
 
-type ExtensionUiResponse = { value: string } | { confirmed: boolean } | { cancelled: true; timedOut?: boolean };
+type ExtensionUiResponse =
+	| { value: string }
+	| { confirmed: boolean }
+	| { cancelled: true; timedOut?: boolean }
+	/** Answers to an `ask` request (validated against the questions before use). */
+	| { answers: AskDialogAnswer[] }
+	/** Approval decision; reserved for the approval channel (no pending consumer yet). */
+	| { decision: string };
 
 export interface AgentState {
 	sessionId: string;
@@ -233,13 +258,23 @@ const startLocks = new Map<string, Promise<{ session: AgentSessionWrapper; realS
 /**
  * Pending extension UI dialogs, keyed by request id → owning session id.
  *
- * Serve-hosted agents run in RPC subprocesses, so the pending dialog lives in
- * the child's memory — the gateway can only observe the `extension_ui_request`
- * frames it already relays over SSE. Recording the owner there lets
- * `/api/extension-ui/response` forward the reply to the right session's
- * command channel without the caller knowing which session asked.
+ * Registered by `AgentSessionWrapper.dispatchUiRequest` — the point every
+ * dialog request is actually emitted — so the session-less
+ * `/api/extension-ui/response` route can forward a reply to the right
+ * session's command channel even when no client is subscribed to that
+ * session's `/events`. Entries are dropped when the dialog settles (or its
+ * wrapper is destroyed).
  */
 const uiRequestOwners = new Map<string, string>();
+
+/** Extension UI methods a client answers with an `ExtensionUiResponse`. */
+const ANSWERABLE_UI_METHODS: Record<"select" | "confirm" | "input" | "editor" | "ask", true> = {
+	select: true,
+	confirm: true,
+	input: true,
+	editor: true,
+	ask: true,
+};
 export function getRpcSession(sessionId: string): AgentSessionWrapper | undefined {
 	return sessions.get(sessionId);
 }
@@ -697,20 +732,20 @@ export class AgentSessionWrapper {
 				this.#emit({ type: "compaction_end", aborted: true, reason: "manual" });
 				return { ok: true };
 			case "extension_ui_response": {
-				const pending = this.#pendingUiRequests.get(command.id);
-				if (pending) {
-					this.#pendingUiRequests.delete(command.id);
-					const response: ExtensionUiResponse = command.cancelled
-						? { cancelled: true, timedOut: command.timedOut }
-						: command.confirmed !== undefined
-							? { confirmed: command.confirmed }
-							: { value: command.value ?? "" };
-					pending.resolve(response);
-					// Tell SSE listeners the dialog closed so web clients can
-					// drop the pending question/permission card even when the
-					// reply came from a different tab than the one showing it.
-					this.#emit({ type: "extension_ui_resolved", id: command.id });
-				}
+				const response: ExtensionUiResponse = command.cancelled
+					? { cancelled: true, timedOut: command.timedOut }
+					: command.confirmed !== undefined
+						? { confirmed: command.confirmed }
+						: command.answers !== undefined
+							? { answers: command.answers }
+							: command.decision !== undefined
+								? { decision: command.decision }
+								: { value: command.value ?? "" };
+				// Settles the pending dialog and tells SSE listeners the dialog
+				// closed, so web clients can drop the pending question/permission
+				// card even when the reply came from a different tab than the one
+				// showing it. Unknown ids stay a no-op (replies are idempotent).
+				this.resolveUiRequest(command.id, response);
 				return { ok: true };
 			}
 			case "extension_ui_input":
@@ -789,8 +824,16 @@ export class AgentSessionWrapper {
 		}
 	}
 
-	/** Route an extension UI request into the SSE stream. */
+	/**
+	 * Route an extension UI request into the SSE stream and record its owning
+	 * session, so `POST /api/extension-ui/response` can answer a dialog even
+	 * when no client is subscribed to `/events` and the caller does not know
+	 * which session asked. Only request/response dialogs get an owner;
+	 * fire-and-forget frames (`notify`, `setStatus`, …, `cancel`) are not
+	 * answerable and must not claim an owner slot.
+	 */
 	dispatchUiRequest(request: ExtensionUiRequest): void {
+		if (request.method in ANSWERABLE_UI_METHODS) uiRequestOwners.set(request.id, this.realSessionId);
 		this.#emit(request as unknown as AgentEvent);
 	}
 
@@ -799,11 +842,13 @@ export class AgentSessionWrapper {
 		this.#pendingUiRequests.set(id, { resolve, cancel });
 	}
 
-	/** Resolve a pending extension UI dialog by request id. Returns false if unknown. */
-	resolveUiRequest(id: string, _response: ExtensionUiResponse): boolean {
+	/** Settle a pending extension UI dialog by request id. Returns false if unknown. */
+	resolveUiRequest(id: string, response: ExtensionUiResponse): boolean {
 		const pending = this.#pendingUiRequests.get(id);
 		if (!pending) return false;
 		this.#pendingUiRequests.delete(id);
+		uiRequestOwners.delete(id);
+		pending.resolve(response);
 		this.#emit({ type: "extension_ui_resolved", id });
 		return true;
 	}
@@ -834,13 +879,15 @@ export class AgentSessionWrapper {
 		if (this.#destroyed) return;
 		this.subagentSink?.dispose();
 		this.subagentSink = null;
-		for (const pending of this.#pendingUiRequests.values()) {
+		for (const [id, pending] of this.#pendingUiRequests) {
+			uiRequestOwners.delete(id);
 			try {
 				pending.cancel();
 			} catch {
 				// best-effort cancel
 			}
 		}
+		this.#pendingUiRequests.clear();
 		sessions.delete(this.realSessionId);
 	}
 }
@@ -861,7 +908,15 @@ function mapBashResult(result: BashResult): {
 
 /** Resolve a pending extension UI dialog without addressing a session. */
 export async function handleGlobalExtensionUiResponse(req: Request): Promise<Response> {
-	let body: { id?: string; value?: string; confirmed?: boolean; cancelled?: boolean; timedOut?: boolean };
+	let body: {
+		id?: string;
+		value?: string;
+		confirmed?: boolean;
+		cancelled?: boolean;
+		timedOut?: boolean;
+		answers?: unknown;
+		decision?: unknown;
+	};
 	try {
 		body = (await req.json()) as typeof body;
 	} catch {
@@ -869,17 +924,28 @@ export async function handleGlobalExtensionUiResponse(req: Request): Promise<Res
 	}
 	const id = typeof body.id === "string" ? body.id : "";
 	if (!id) return json({ error: "id is required" }, 400);
+	// Shallow shape checks only; the pending dialog validates `answers` against
+	// the questions it asked and rejects the extension's await on any mismatch.
+	if (body.answers !== undefined && !Array.isArray(body.answers)) {
+		return json({ error: "answers must be an array" }, 400);
+	}
+	if (body.decision !== undefined && typeof body.decision !== "string") {
+		return json({ error: "decision must be a string" }, 400);
+	}
 	const ownerSessionId = uiRequestOwners.get(id);
 	if (!ownerSessionId) return json({ error: "Unknown extension UI request id" }, 404);
 	uiRequestOwners.delete(id);
-	// Forward through the owning session's command channel — the pending
-	// dialog lives in that session's RPC subprocess, not in this process.
+	// Forward through the owning session's command channel.
 	const command: Record<string, unknown> = { type: "extension_ui_response", id };
 	if (body.cancelled) {
 		command.cancelled = true;
 		command.timedOut = body.timedOut;
 	} else if (body.confirmed !== undefined) {
 		command.confirmed = body.confirmed;
+	} else if (body.answers !== undefined) {
+		command.answers = body.answers;
+	} else if (body.decision !== undefined) {
+		command.decision = body.decision;
 	} else {
 		command.value = body.value ?? "";
 	}
@@ -903,24 +969,92 @@ function requestUiDialog<T>(
 	emit: (request: ExtensionUiRequest) => void,
 	request: ExtensionUiRequest,
 	parse: (response: ExtensionUiResponse) => T,
+	/** Invoked when the safety-net timeout fires (e.g. to close the client dialog). */
+	onTimeout?: () => void,
 ): Promise<T> {
 	const id = request.id;
-	const { promise, resolve } = Promise.withResolvers<T>();
-	wrapper.registerUiRequest(
-		id,
-		response => resolve(parse(response)),
-		() => resolve(parse({ cancelled: true })),
-	);
+	const { promise, resolve, reject } = Promise.withResolvers<T>();
+	// A rejected parse (malformed answer) must reject the extension's await
+	// rather than leave it hanging: fail-closed, never a silently empty answer.
+	const settle = (response: ExtensionUiResponse) => {
+		try {
+			resolve(parse(response));
+		} catch (error) {
+			reject(error);
+		}
+	};
+	wrapper.registerUiRequest(id, settle, () => settle({ cancelled: true }));
 	if ("timeout" in request && typeof request.timeout === "number") {
 		// Client-side dialogs own the timeout UX (they respond with
 		// `cancelled: true, timedOut: true`); this timer is only a safety net
 		// for a dropped SSE connection so the extension's await never hangs.
 		setTimeout(() => {
+			onTimeout?.();
 			wrapper.resolveUiRequest(id, { cancelled: true, timedOut: true });
 		}, request.timeout);
 	}
 	emit(request);
 	return promise;
+}
+
+/**
+ * Rich multi-question `ask` dialog over SSE — the gateway port of
+ * `requestRpcAskDialog`, sharing its answer validator.
+ *
+ * One frame carries every question; one `answers` array brings every answer
+ * back (see `handleGlobalExtensionUiResponse`). Outcome contract:
+ * - all questions answered and valid → `{ kind: "submit", results }`;
+ * - host deadline elapsed (client `timedOut`, or the gateway's safety-net
+ *   timer firing) → each question resolved to its recommended option, marked
+ *   `timedOut` — never a blank answer;
+ * - user cancel / abort → `undefined`, which AskTool reports as "cancelled by
+ *   the user";
+ * - malformed answers → the ask call rejects (the validator throws).
+ */
+function requestAskDialog(
+	wrapper: AgentSessionWrapper,
+	emit: (request: ExtensionUiRequest) => void,
+	questions: ExtensionAskDialogQuestion[],
+	dialogOptions?: ExtensionUIDialogOptions,
+): Promise<ExtensionAskDialogResult | undefined> {
+	if (dialogOptions?.signal?.aborted) return Promise.resolve(undefined);
+
+	const id = Snowflake.next() as string;
+	const request: ExtensionUiRequest = {
+		type: "extension_ui_request",
+		id,
+		method: "ask",
+		questions,
+		...(dialogOptions?.timeout !== undefined ? { timeout: dialogOptions.timeout } : {}),
+	};
+	let timedOut = false;
+	const options: ExtensionUIDialogOptions = {
+		...dialogOptions,
+		onTimeout: () => {
+			timedOut = true;
+			dialogOptions?.onTimeout?.();
+		},
+	};
+	// Tell the client to drop a dialog this side already settled (timeout or
+	// abort); a late answer to it is ignored by both sides.
+	const closeRemoteDialog = () =>
+		emit({ type: "extension_ui_request", id: Snowflake.next() as string, method: "cancel", targetId: id });
+	dialogOptions?.signal?.addEventListener(
+		"abort",
+		() => {
+			closeRemoteDialog();
+			wrapper.resolveUiRequest(id, { cancelled: true });
+		},
+		{ once: true },
+	);
+
+	return requestUiDialog(
+		wrapper,
+		emit,
+		request,
+		response => parseAskDialogResponse(response, questions, options),
+		closeRemoteDialog,
+	).then(result => (timedOut ? timedOutAskDialogResult(questions) : result));
 }
 
 /** Build the ExtensionUIContext used by all sessions (web-ui event shapes). */
@@ -1012,12 +1146,14 @@ export function createGatewayUiContext(
 		setHeader() {},
 		addAutocompleteProvider() {},
 		setEditorComponent() {},
-		// Intentionally no `askDialog`: its mere presence would route AskTool
-		// through the rich-dialog path, whose unresolved promise resolves to
-		// `undefined` and turns every ask into "cancelled by the user". Omitting
-		// it makes ask.ts fall back to `ui.select`, which emits
-		// `extension_ui_request(method=select)` over SSE and resolves through
-		// the gateway's `extension_ui_response` route (the QuestionCard path).
+		// The rich multi-question `ask` dialog rides the same SSE channel as the
+		// other dialogs: one `extension_ui_request(method="ask")` frame carrying
+		// every question (the stdio-RPC wire shape) answered by one `answers`
+		// array. AskTool prefers this path whenever the context exposes it, so
+		// the `select` fallback below only runs for hosts that omit it.
+		askDialog(questions, dialogOptions) {
+			return requestAskDialog(wrapper, emit, questions, dialogOptions);
+		},
 		get theme(): never {
 			throw new Error("Theme access is not supported by the web gateway");
 		},
@@ -1286,18 +1422,9 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 				}
 			}
 
+			// Dialog ownership is registered by `dispatchUiRequest` (the emit
+			// point), not here: this stream only relays frames.
 			const unsubscribe = live.onEvent(event => {
-				if (
-					event &&
-					typeof event === "object" &&
-					"type" in event &&
-					event.type === "extension_ui_request" &&
-					"id" in event &&
-					typeof event.id === "string" &&
-					event.id.length > 0
-				) {
-					uiRequestOwners.set(event.id, sessionId);
-				}
 				encode(event);
 			});
 
