@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Release asset-name contract guard — one rename, three surfaces.
+ * Release asset-name contract guard — one rename, four surfaces.
  *
  * The v1.2.0 release run died inside `ci-build-upload.ts`: its table still
  * carried upstream's `omp-*` names while the release builds `zeta-cli-*`, so
@@ -8,9 +8,12 @@
  * asset") and the publish tail went with it. Nothing else can see that rename:
  * the names are ordinary strings to the type gates, and the only place they
  * meet is the release run itself (the release-state-only damage shape of
- * damage classes 7/10/12).
+ * damage classes 7/10/12). The same rename hit the *consumer* side in v1.1.27:
+ * `zetacode update` built its fallback download name from `CLI_BIN_NAME`
+ * (`zetacode-*`) while releases shipped `zeta-cli-*`, so self-update 404'd on
+ * every platform.
  *
- * Three surfaces have to agree:
+ * Four surfaces have to agree:
  *
  *   1. `scripts/ci-release-build-binaries.ts` — every `kind: "cli"` target's
  *      `outfile` basename: what a release can build.
@@ -18,6 +21,10 @@
  *      entries: which of those a release actually builds and uploads.
  *   3. `scripts/ci-build-upload.ts`'s `ASSETS` keys: what the build service
  *      (build.stencil.so, consumed by update clients) accepts.
+ *   4. `packages/coding-agent/src/cli/update-cli.ts` via
+ *      `packages/utils/src/release-assets.ts`: the name `zetacode update`'s
+ *      binary fallback downloads. Assets keep the package's *file*-name face,
+ *      never the user-visible command name.
  *
  * Assertions:
  *   - the `outfile` scan must find exactly one basename per declared CLI target
@@ -26,17 +33,22 @@
  *     stale/renamed table that broke v1.2.0;
  *   - every name the release matrix builds must be an `ASSETS` key — catches a
  *     new leg added to the matrix before a release discovers it mid-flight;
+ *   - the updater's names and the CLI outfile basenames must be the same set —
+ *     a name only one side knows is a 404 or an unreachable build;
+ *   - the updater must delegate to `releaseCliAssetName(` and must not rebuild
+ *     the name from `CLI_BIN_NAME`;
  *   - CLI targets that are neither built nor keyed are reported, not failed:
  *     the build matrix is the authority on what ships (macOS left the release
  *     surface on 2026-10-01 while its targets stayed in the table, and the
  *     arm64 legs are keyed ahead of the matrix). They are visible here so the
  *     next release-platform trim is a decision, not an accident.
  *
- * Static and hermetic: reads three files, no network, no build.
+ * Static and hermetic: reads four files, no network, no build.
  *
  * Usage: bun scripts/check-release-asset-names.ts   (gate mode; exit 0/1)
  */
 import * as path from "node:path";
+import { releaseCliAssetName } from "../packages/utils/src/release-assets";
 import { ASSETS } from "./ci-build-upload";
 
 const ROOT = path.resolve(import.meta.dir, "..");
@@ -44,8 +56,13 @@ const BINARIES_DIR = "packages/coding-agent/binaries";
 const TARGETS_FILE = "scripts/ci-release-build-binaries.ts";
 const UPLOAD_FILE = "scripts/ci-build-upload.ts";
 const WORKFLOW_FILE = ".github/workflows/ci.yml";
+/** The updater's binary-fallback path: it downloads what a release publishes. */
+const UPDATER_FILE = "packages/coding-agent/src/cli/update-cli.ts";
 /** Job whose matrix decides which release assets exist. */
 const RELEASE_JOB = "release_binary";
+/** Declared platforms/arches of the release matrix; every cross product must exist. */
+const PLATFORMS = ["darwin", "linux", "win32"] as const;
+const ARCHES = ["x64", "arm64"] as const;
 
 const problems: string[] = [];
 
@@ -123,6 +140,48 @@ for (const name of shipped) {
 	}
 }
 
+// 4. What the updater asks for: the binary fallback downloads a published
+//    asset name, built from the shared convention in
+//    packages/utils/src/release-assets.ts. That name is the *file*-name face
+//    (`zeta-cli-*`), NOT the user-visible command name (`CLI_BIN_NAME` =
+//    `zetacode`): deriving it from the command name made every fallback ask
+//    GitHub for `zetacode-<os>-<arch>` while releases carried `zeta-cli-*`, so
+//    self-update 404'd on every platform (v1.1.27 / main).
+const updaterSource = await read(UPDATER_FILE);
+if (!updaterSource.includes("releaseCliAssetName(")) {
+	problems.push(
+		`${UPDATER_FILE}: no \`releaseCliAssetName(\` call — the updater must derive its download name from ${"packages/utils/src/release-assets.ts"}`,
+	);
+}
+// Source text of the drift itself, assembled so it does not read as a live
+// template literal.
+if (updaterSource.includes("$" + "{CLI_BIN_NAME}-")) {
+	problems.push(
+		`${UPDATER_FILE}: builds an asset name from CLI_BIN_NAME — assets keep the package's file-name face (zeta-cli-*), not the command name`,
+	);
+}
+const updaterNames = new Set<string>();
+for (const platform of PLATFORMS) {
+	for (const arch of ARCHES) {
+		updaterNames.add(releaseCliAssetName(platform, arch));
+		if (platform === "linux") updaterNames.add(releaseCliAssetName(platform, arch, { musl: true }));
+	}
+}
+for (const name of updaterNames) {
+	if (!buildable.has(name)) {
+		problems.push(
+			`${UPDATER_FILE}: the updater downloads \`${name}\`, which no \`kind: "cli"\` target in ${TARGETS_FILE} builds — that fallback 404s`,
+		);
+	}
+}
+for (const name of buildable) {
+	if (!updaterNames.has(name)) {
+		problems.push(
+			`${TARGETS_FILE}: \`${name}\` is built but no updater name maps to it — self-update cannot install that build`,
+		);
+	}
+}
+
 if (problems.length > 0) {
 	console.error("Release asset-name contract FAILED:");
 	for (const problem of problems) console.error(`  - ${problem}`);
@@ -131,7 +190,8 @@ if (problems.length > 0) {
 const keyedNotShipped = accepted.filter(key => !shipped.includes(key)).sort();
 const buildableNotKeyed = [...buildable].filter(name => !accepted.includes(name) && !shipped.includes(name)).sort();
 console.log(
-	`Release asset names OK: ${accepted.length} ASSETS key(s) ↔ ${buildable.size} CLI target(s); ${RELEASE_JOB} builds ${shipped.length} (${[...shipped].sort().join(", ")})`,
+	`Release asset names OK: ${accepted.length} ASSETS key(s) ↔ ${buildable.size} CLI target(s) ↔ ${updaterNames.size} updater name(s); ` +
+		`${RELEASE_JOB} builds ${shipped.length} (${[...shipped].sort().join(", ")})`,
 );
 if (keyedNotShipped.length > 0) {
 	console.log(`  keyed but not built by ${RELEASE_JOB} today: ${keyedNotShipped.join(", ")}`);

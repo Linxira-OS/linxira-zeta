@@ -103,12 +103,17 @@ zetaide / zetaeditor）。连字符形式只作为 `package.json` `bin` 兼容�
   branding-overlay commit 恢复。
   为什么：v18.0.3 合并曾静默回翻 ζ 品牌——散文规则不可执行，机械守卫才
   挡得住合并。
-- **刻意不品牌化**：中继/分享 URL `my.omp.sh`、安装提示 `omp.sh/install`
-  （共享 OMP 基础设施）、native Tokio 安装导出 `__ompInstallTokioRuntime`
+- **刻意不品牌化**：中继/分享 URL `my.omp.sh`（共享 OMP 基础设施）、native
+  Tokio 安装导出 `__ompInstallTokioRuntime`
   （crate/index.js/loader 三方一致协议，sweep 会让 Tokio 静默不装）、上游
   进程间协议符号（`__omp_with_call_site__` 等负断言 marker）。
   为什么：守卫的对面是「不该扫的别扫」——v18.0.10 与 v18.1.21 的反向损伤
   全部来自过度 sweep。
+- **安装提示指向我们自己的站**（2026-10-13 起）：更新器的恢复提示用
+  `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows）
+  ——用户可见的恢复路径必须落在我们运维的脚本上，上游 `omp.sh/install`
+  不再出现在任何提示里（`my.omp.sh` 等中继仍是共享基础设施，不改）。
+  为什么：提示是用户唯一能照着做的恢复步骤，指到别人的站上等于没有恢复路径。
 
 ## 3. 数据主权教义
 

@@ -15,10 +15,13 @@ import {
 	APP_NAME,
 	CLI_BIN_NAME,
 	compareVersions,
+	type FetchImpl,
 	getProjectDir,
 	isCompiledBinary,
 	isEnoent,
+	releaseCliAssetName,
 	VERSION,
+	wrapFetchForExtraCa,
 } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
@@ -340,6 +343,23 @@ export function selectFallbackBinaryAsset(
 	return undefined;
 }
 
+/**
+ * Transport for every updater network call: the caller's fetch (or the global
+ * one) with `NODE_EXTRA_CA_CERTS` merged in — the same TLS contract
+ * `transportFetch` gives inference. The updater used bare `fetch`, so on a
+ * TLS-inspecting corporate proxy (Zscaler/Netskope) every check, download and
+ * registry lookup died with `SELF_SIGNED_CERT_IN_CHAIN` on machines that had
+ * already configured the extra CA for the rest of Zeta.
+ *
+ * Built per call: `wrapFetchForExtraCa` peeks at the env when it is built (and
+ * returns the original fetch untouched when the variable is unset, so default
+ * deployments pay nothing), while the env is re-read per request — a long
+ * `update` run picks up a CA bundle that appears mid-flight.
+ */
+function releaseFetch(fetchImpl?: Fetch): Fetch {
+	return wrapFetchForExtraCa(fetchImpl ?? (globalThis.fetch as FetchImpl));
+}
+
 /** Release metadata request with the shared headers, timeout, and rate-limit mapping. */
 async function fetchReleaseMetadata(url: string, fetchImpl: Fetch, token: string | undefined): Promise<Response> {
 	const headers: Record<string, string> = {
@@ -378,9 +398,10 @@ async function getReleaseBinaryAsset(
 ): Promise<ReleaseBinaryAsset> {
 	const tag = `v${expectedVersion}`;
 	const token = githubToken ?? (await resolveGitHubToken());
+	const transport = releaseFetch(fetchImpl);
 	const response = await fetchReleaseMetadata(
 		`${GITHUB_API}/repos/${REPO}/releases/tags/${encodeURIComponent(tag)}`,
-		fetchImpl,
+		transport,
 		token,
 	);
 	if (response.ok) {
@@ -392,7 +413,7 @@ async function getReleaseBinaryAsset(
 
 	const listing = await fetchReleaseMetadata(
 		`${GITHUB_API}/repos/${REPO}/releases?per_page=${RELEASE_LISTING_PAGE_SIZE}`,
-		fetchImpl,
+		transport,
 		token,
 	);
 	if (!listing.ok) {
@@ -426,7 +447,7 @@ export interface VerifiedBinaryDownloadOptions {
  * Download a binary and verify its GitHub-reported size and SHA-256 digest.
  */
 export async function downloadVerifiedBinary(options: VerifiedBinaryDownloadOptions): Promise<void> {
-	const fetchImpl = options.fetchImpl ?? fetch;
+	const fetchImpl = releaseFetch(options.fetchImpl);
 	await unlinkIfExists(options.targetPath);
 
 	let response: Response;
@@ -939,9 +960,10 @@ async function fetchLatestManifest(
 	const headers: Record<string, string> = { accept: "application/json" };
 	if (registry.authorization) headers.authorization = registry.authorization;
 	const origin = registry.url === DEFAULT_NPM_REGISTRY ? "" : ` from ${registry.url} (${registry.source})`;
+	const transport = releaseFetch();
 	const get = async (url: string): Promise<Response> => {
 		try {
-			return await fetch(url, { headers, signal: withTimeoutSignal(timeoutMs) });
+			return await transport(url, { headers, signal: withTimeoutSignal(timeoutMs) });
 		} catch (err) {
 			if (isTimeoutError(err)) {
 				throw new Error(
@@ -1315,43 +1337,18 @@ export function isMuslLinuxForTest(options: Required<MuslDetectionOptions>): boo
 }
 
 /**
- * Get the appropriate binary name for this platform.
+ * Asset name this machine's binary fallback downloads — the published
+ * `zeta-cli-<os>-<arch>[.exe]` release asset ({@link releaseCliAssetName}),
+ * exported because updater-vs-release naming is a contract pinned by
+ * `scripts/check-release-asset-names.ts`, not an implementation detail.
+ *
+ * It is NOT the user-visible command name: `CLI_BIN_NAME` drives launcher/shim
+ * text and the `--version` report, while assets keep the package's file-name
+ * face. Building the asset name from `CLI_BIN_NAME` made every fallback
+ * download ask GitHub for a `zetacode-*` asset no release carries (v1.1.27).
  */
-function getBinaryName(): string {
-	const platform = process.platform;
-	const arch = process.arch;
-
-	let os: string;
-	switch (platform) {
-		case "linux":
-			os = isMuslLinux() ? "linux-musl" : "linux";
-			break;
-		case "darwin":
-			os = "darwin";
-			break;
-		case "win32":
-			os = "windows";
-			break;
-		default:
-			throw new Error(`Unsupported platform: ${platform}`);
-	}
-
-	let archName: string;
-	switch (arch) {
-		case "x64":
-			archName = "x64";
-			break;
-		case "arm64":
-			archName = "arm64";
-			break;
-		default:
-			throw new Error(`Unsupported architecture: ${arch}`);
-	}
-
-	if (os === "windows") {
-		return `${CLI_BIN_NAME}-${os}-${archName}.exe`;
-	}
-	return `${CLI_BIN_NAME}-${os}-${archName}`;
+export function defaultBinaryName(): string {
+	return releaseCliAssetName(process.platform, process.arch, { musl: isMuslLinux() });
 }
 
 /**
@@ -2039,7 +2036,7 @@ export async function updateViaBinaryAt(
 	} = {},
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
-	const binaryName = options.binaryName ?? getBinaryName();
+	const binaryName = options.binaryName ?? defaultBinaryName();
 	// Unique per attempt so two overlapping `zetacode update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
@@ -2140,7 +2137,7 @@ export async function updateViaShimTakeover(
 		verifyBinary?: typeof verifyBinaryAtPath;
 	} = {},
 ): Promise<void> {
-	const binaryName = options.binaryName ?? getBinaryName();
+	const binaryName = options.binaryName ?? defaultBinaryName();
 	const launcherDir = path.dirname(shimPath);
 	const exePath = path.join(launcherDir, `${CLI_BIN_NAME}.exe`);
 	const attempt = `${Date.now()}.${process.pid}.${updateAttemptSeq++}`;
@@ -2241,14 +2238,16 @@ export async function updateViaShimTakeover(
 /**
  * Platform-appropriate installer one-liner for recovery instructions.
  *
- * Forces the installer's binary mode (`--binary` / `-Binary`): the default
- * mode prefers a bun-based install whenever bun is present, which would send
- * a user recovering from a binary-only release straight back through bun.
+ * Both targets are our own site's installers, which pull the prebuilt
+ * `zeta-cli-*` asset straight from GitHub Releases. They are binary-only, so
+ * there is no bun/source mode to avoid and no `--binary` / `-Binary` flag to
+ * pass; the site's `install.sh` is Linux-only (macOS and Windows use the
+ * PowerShell or npm route).
  */
 function installerHint(): string {
 	return process.platform === "win32"
-		? "& ([scriptblock]::Create((irm https://omp.sh/install.ps1))) -Binary"
-		: "curl -fsSL https://omp.sh/install | sh -s -- --binary";
+		? "irm https://linxira-os.github.io/install.ps1 | iex"
+		: "curl -fsSL https://linxira-os.github.io/install.sh | sh";
 }
 
 /** Persisted channel, or undefined when settings are unavailable (SDK/test embedding without `Settings.init()`). */
