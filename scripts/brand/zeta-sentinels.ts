@@ -426,7 +426,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	{
 		file: "desktop/src/main.ts",
 		symbol: 'const WEB_UI_URL = "http://127.0.0.1:30141";',
-		why: "desktop ↔ web-ui loopback contract",
+		why: "desktop ↔ web-ui loopback contract. Asserts the declaration literal is still present verbatim in the file (presence, not usage): removing or renaming the constant fails here. Whether the shell actually loads this value is not what this sentinel proves — the effective service origins may be adopted from a discovered instance, so keep the const as the canonical default and initialize the runtime value from it.",
 	},
 	// -- Launch/broker: unowned oneshot daemon sweep -------------------------------
 	{
