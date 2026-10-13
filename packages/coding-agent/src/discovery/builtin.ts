@@ -3,9 +3,7 @@
  *
  * Primary provider for ZETA native configs. Supports all capabilities.
  */
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import type { Dirent } from "node:fs";
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, logger, normalizePathForComparison, parseFrontmatter, tryParseJson } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -38,6 +36,7 @@ import {
 	SOURCE_PATHS,
 	scanSkillsFromDir,
 } from "./helpers";
+import { officialSkillsInstalledNames, resolveOfficialSkillsDir, userSkillsDir } from "./official-skills";
 
 const PROVIDER_ID = "native";
 const DISPLAY_NAME = "Zeta";
@@ -311,9 +310,11 @@ async function loadSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
 		}),
 	);
 
-	// User-level scan from ~/.zeta/agent/skills/
+	// User-level scan from the user skills root (~/.zeta/agent/skills by default;
+	// see userSkillsDir for the isolation seam). Same root the official pack is
+	// installed into, so the provider streams agree on what the user dir serves.
 	const userScan = scanSkillsFromDir(ctx, {
-		dir: path.join(getAgentDir(), "skills"),
+		dir: userSkillsDir(),
 		providerId: PROVIDER_ID,
 		level: "user",
 		requireDescription: true,
@@ -363,93 +364,14 @@ registerProvider<Skill>(skillCapability.id, {
 // provider is inert in contexts without the pack (npm global installs
 // before the bundled seed lands).
 const OFFICIAL_SKILLS_PRIORITY = 10;
-// Resolution order:
-//   1. ZETA_OFFICIAL_SKILLS_DIR — explicit override; a dead path disables the
-//      pack entirely (the test preload uses this for process-wide isolation).
-//   2. ZETA_OFFICIAL_SKILLS_EMBED — payload burned in at bundle/binary build
-//      time (see scripts/generate-official-skills-payload.ts); seeded to disk
-//      under <agentDir>/official-skills/ so skills keep real paths.
-//   3. On-disk candidates — repo checkout (`<repo>/skills/official`, dev runs)
-//      and the packaged copy (`<pkg>/skills/official`, shipped via the
-//      package.json `files` list). src runtimes have no embed define (it is
-//      substituted at bundle/binary build time), so npm source installs rely
-//      entirely on the packaged candidate.
-/**
- * Candidate directories probed in order by {@link resolveOfficialSkillsDir}.
- * Exported for tests that verify the npm source-install layout.
- */
-export function officialSkillsDirCandidates(fromDir: string): string[] {
-	return [path.join(fromDir, "../../../../skills/official"), path.join(fromDir, "../../skills/official")];
-}
-
-function resolveOfficialSkillsDir(): string | null {
-	const override = process.env.ZETA_OFFICIAL_SKILLS_DIR;
-	if (override !== undefined) return override;
-	const embed = process.env.ZETA_OFFICIAL_SKILLS_EMBED;
-	if (embed !== undefined) return seedOfficialSkillsFromEmbed(embed);
-	for (const candidate of officialSkillsDirCandidates(import.meta.dir)) {
-		if (existsSync(candidate)) return candidate;
-	}
-	return null;
-}
-
-function seedOfficialSkillsFromEmbed(embedJson: string): string {
-	// Test processes override this to point the seed at a temp dir; mutating
-	// the global agent dir from a test leaks into every later chunk sibling.
-	const seedRoot = process.env.ZETA_OFFICIAL_SKILLS_SEED_DIR ?? path.join(getAgentDir(), "official-skills");
-	const seedDir = seedRoot;
-	const hash = createHash("sha256").update(embedJson).digest("hex").slice(0, 16);
-	const hashPath = path.join(seedDir, ".embed-hash");
-	let currentHash = "";
-	try {
-		currentHash = readFileSync(hashPath, "utf8").trim();
-	} catch {
-		// First seed, or the marker was removed — fall through to a rewrite.
-	}
-	if (currentHash === hash && existsSync(seedDir)) return seedDir;
-	const files = JSON.parse(embedJson) as Record<string, string>;
-	const wanted = new Set(Object.keys(files));
-	mkdirSync(seedDir, { recursive: true });
-	for (const [relative, body] of Object.entries(files)) {
-		const target = path.join(seedDir, relative);
-		mkdirSync(path.dirname(target), { recursive: true });
-		writeFileSync(target, body);
-	}
-	writeFileSync(hashPath, `${hash}\n`);
-	pruneStaleSeedFiles(seedDir, wanted);
-	return seedDir;
-}
 
 /**
- * The payload is the single source of truth for the seed dir: when a new embed
- * ships fewer files (a skill retired from the pack), leftovers from the
- * previous seed must go or ghost skills keep loading from disk. Only the
- * `.embed-hash` marker itself is exempt. Runs only on rewrites — the hash
- * short-circuit above skips it for unchanged payloads.
+ * Official pack as a *fallback* provider: it yields the bundled pack minus any
+ * name the user skills directory already serves. Installing the pack into that
+ * directory (`discovery/official-skills.ts`) therefore does not double-provision
+ * a name — the user's editable copy wins the bare name, and no
+ * `zeta-official/<name>` ghost appears once the user edits it.
  */
-function pruneStaleSeedFiles(seedDir: string, wanted: Set<string>): void {
-	const visit = (dir: string): void => {
-		let entries: Dirent[];
-		try {
-			entries = readdirSync(dir, { withFileTypes: true });
-		} catch {
-			return;
-		}
-		for (const entry of entries) {
-			const entryPath = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				visit(entryPath);
-				continue;
-			}
-			const relative = path.relative(seedDir, entryPath).split(path.sep).join("/");
-			if (relative !== ".embed-hash" && !wanted.has(relative)) {
-				rmSync(entryPath, { force: true });
-			}
-		}
-	};
-	visit(seedDir);
-}
-
 async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> {
 	let dir: string | null;
 	try {
@@ -461,12 +383,43 @@ async function loadOfficialSkills(ctx: LoadContext): Promise<LoadResult<Skill>> 
 		};
 	}
 	if (!dir || !existsSync(dir)) return { items: [] };
-	return scanSkillsFromDir(ctx, {
+	const result = await scanSkillsFromDir(ctx, {
 		dir,
 		providerId: OFFICIAL_SKILLS_PROVIDER_ID,
 		level: "user",
 		requireDescription: true,
 	});
+	const shadowed = await officialSkillShadowNames(ctx, result.items);
+	if (shadowed.size === 0) return result;
+	return { items: result.items.filter(skill => !shadowed.has(skill.name)), warnings: result.warnings };
+}
+
+/**
+ * Names the user skills directory already serves, so the pack must not supply
+ * them again: a byte-identical copy (the unmodified install), or a copy our
+ * install marker owns (the user edited it, and would otherwise see a namespaced
+ * duplicate of the same skill). A user-authored *different* skill under one of
+ * these names is deliberately not shadowed here — that is an ordinary authored
+ * collision, resolved by the usual precedence rules.
+ */
+async function officialSkillShadowNames(ctx: LoadContext, officialItems: Skill[]): Promise<Set<string>> {
+	const dir = userSkillsDir();
+	if (!existsSync(dir)) return new Set();
+	const userSkills = await scanSkillsFromDir(ctx, {
+		dir,
+		providerId: PROVIDER_ID,
+		level: "user",
+		requireDescription: true,
+	});
+	const owned = officialSkillsInstalledNames(dir);
+	const userBodies = new Map(userSkills.items.map(skill => [skill.name, skill.content]));
+	const shadowed = new Set<string>();
+	for (const item of officialItems) {
+		const userBody = userBodies.get(item.name);
+		if (userBody === undefined) continue;
+		if (owned.has(item.name) || userBody === item.content) shadowed.add(item.name);
+	}
+	return shadowed;
 }
 
 registerProvider<Skill>(skillCapability.id, {

@@ -7,7 +7,7 @@ import { getProviderInfo, loadCapability } from "../src/capability";
 import { type Skill, skillCapability } from "../src/capability/skill";
 // Static import: builtin.ts reads the env overrides at provider-load time, not
 // at module load, so importing it here cannot bypass the preload isolation.
-import { officialSkillsDirCandidates } from "../src/discovery/builtin";
+import { officialSkillsDirCandidates } from "../src/discovery/official-skills";
 
 /**
  * Merge guard: the official bundled skills provider (skills/official/) must
@@ -17,6 +17,8 @@ import { officialSkillsDirCandidates } from "../src/discovery/builtin";
  */
 // Opt this file back into the real pack before the provider module loads
 // (the global test preload points ZETA_OFFICIAL_SKILLS_DIR at a dead path).
+// Test files share a chunk process, so the override leaks into later files in
+// that chunk — the same accepted tradeoff the preload documents.
 process.env.ZETA_OFFICIAL_SKILLS_DIR = path.resolve(import.meta.dir, "../../../skills/official");
 await import("../src/discovery/builtin"); // registers all discovery providers (side effect)
 
@@ -30,17 +32,30 @@ describe("official bundled skills provider", () => {
 
 	test("discovers the shipped docx and pptx skills from skills/official", async () => {
 		const repo = path.resolve(import.meta.dir, "../..");
-		const result = await loadCapability<Skill>(skillCapability.id, {
-			cwd: repo,
-			providers: ["zeta-official"],
-		});
-		const names = result.items.map(s => s.name);
-		expect(names).toContain("docx");
-		expect(names).toContain("pptx");
-		expect(names).toContain("xlsx");
-		expect(names).toContain("pdf");
-		const docx = result.items.find(s => s.name === "docx");
-		expect(docx?.frontmatter?.description).toContain("Word");
+		// Hermetic: the pack provider yields a name the user skills dir already
+		// serves, and a developer machine may have an installed copy of the pack
+		// there (see the install tests). Point the user skills root at a temp dir.
+		const previousUserDir = process.env.ZETA_SKILLS_USER_DIR;
+		process.env.ZETA_SKILLS_USER_DIR = path.join(
+			await mkdtemp(path.join(os.tmpdir(), "zeta-official-shadow-")),
+			"skills",
+		);
+		try {
+			const result = await loadCapability<Skill>(skillCapability.id, {
+				cwd: repo,
+				providers: ["zeta-official"],
+			});
+			const names = result.items.map(s => s.name);
+			expect(names).toContain("docx");
+			expect(names).toContain("pptx");
+			expect(names).toContain("xlsx");
+			expect(names).toContain("pdf");
+			const docx = result.items.find(s => s.name === "docx");
+			expect(docx?.frontmatter?.description).toContain("Word");
+		} finally {
+			if (previousUserDir === undefined) delete process.env.ZETA_SKILLS_USER_DIR;
+			else process.env.ZETA_SKILLS_USER_DIR = previousUserDir;
+		}
 	});
 });
 

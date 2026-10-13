@@ -21,6 +21,7 @@ import { parseSkillSpec, type SkillSpec, SkillshareClient, SkillshareError } fro
 import { installSkills, searchSkills, showSkillInfo, uninstallSkills, updateSkills } from "../skillshare/installer";
 import { bumpVersion, type PackResult, packSkill, SEMVER_RE } from "../skillshare/pack";
 import { handleSkillList } from "./skill-list";
+import { handleSkillInstallOfficial } from "./skill-install-official";
 
 export type SkillAction =
 	| "publish"
@@ -32,6 +33,7 @@ export type SkillAction =
 	| "token"
 	| "import"
 	| "install"
+	| "install-official"
 	| "update"
 	| "uninstall"
 	| "search"
@@ -48,6 +50,7 @@ export const SKILL_ACTIONS: readonly SkillAction[] = [
 	"token",
 	"import",
 	"install",
+	"install-official",
 	"update",
 	"uninstall",
 	"search",
@@ -70,6 +73,7 @@ export interface SkillCommandArgs {
 		yes?: boolean;
 		json?: boolean;
 		sort?: SkillSearchSort;
+		uninstall?: boolean;
 		package?: string[];
 		expires?: number;
 	};
@@ -84,6 +88,7 @@ Install and discover:
   search <query> [--sort relevance|downloads|recent] [--json]
   info <@scope/name[@version]> [--json]
   list [dir] [--json]                             Skills a session in dir resolves, with warnings
+  install-official [--uninstall] [--dry-run]      Install bundled docx/xlsx/pptx/pdf into your skills dir
 
 Publish and manage:
   publish [dir] [--scope s] [--tag t] [--dry-run] [--allow-secrets]
@@ -501,6 +506,12 @@ async function dispatch(cmd: SkillCommandArgs): Promise<number> {
 		}
 		case "list":
 			return handleSkillList(args, cwd, flags.json === true);
+		case "install-official":
+			return handleSkillInstallOfficial(args, {
+				uninstall: flags.uninstall === true,
+				dryRun: flags.dryRun === true,
+				json: flags.json === true,
+			});
 		case "info": {
 			const spec = args[0];
 			if (!spec) throw new CliUsageError("usage: zetacode skill info <@scope/name[@version]>");
