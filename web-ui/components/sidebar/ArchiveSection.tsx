@@ -61,7 +61,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 	void handleArchiveOne;
 
 	return (
-		<div style={{ borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+		<div style={{ borderTop: "1px solid var(--zeta-alias-border)", flexShrink: 0 }}>
 			<button
 				onClick={() => setOpen(v => !v)}
 				style={{
@@ -72,7 +72,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 					padding: "7px 10px",
 					background: "none",
 					border: "none",
-					color: "var(--text-muted)",
+					color: "var(--zeta-alias-text-muted)",
 					cursor: "pointer",
 					fontSize: 11,
 					fontWeight: 600,
@@ -95,7 +95,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 					<polyline points="3 2 7 5 3 8" />
 				</svg>
 				{t("sidebar.archivedSection")}
-				<span style={{ color: "var(--text-dim)", fontWeight: 400 }}>{archivedSessions.length}</span>
+				<span style={{ color: "var(--zeta-alias-text-dim)", fontWeight: 400 }}>{archivedSessions.length}</span>
 			</button>
 			{open && (
 				<div style={{ maxHeight: "min(40vh, 300px)", overflowY: "auto" }}>
@@ -109,11 +109,11 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 									width: "100%",
 									fontSize: 11,
 									padding: "5px 8px",
-									border: "1px solid var(--border)",
+									border: "1px solid var(--zeta-alias-border)",
 									borderRadius: 5,
 									outline: "none",
-									background: "var(--bg)",
-									color: "var(--text)",
+									background: "var(--zeta-alias-bg)",
+									color: "var(--zeta-alias-text)",
 									boxSizing: "border-box",
 								}}
 							/>
@@ -127,7 +127,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 								alignItems: "center",
 								gap: 6,
 								padding: "5px 10px",
-								borderBottom: "1px solid var(--border)",
+								borderBottom: "1px solid var(--zeta-alias-border)",
 								opacity: busyId === session.id ? 0.5 : 1,
 							}}
 						>
@@ -135,7 +135,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 								<div
 									style={{
 										fontSize: 11.5,
-										color: "var(--text)",
+										color: "var(--zeta-alias-text)",
 										overflow: "hidden",
 										textOverflow: "ellipsis",
 										whiteSpace: "nowrap",
@@ -147,7 +147,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 								<div
 									style={{
 										fontSize: 10,
-										color: "var(--text-dim)",
+										color: "var(--zeta-alias-text-dim)",
 										overflow: "hidden",
 										textOverflow: "ellipsis",
 										whiteSpace: "nowrap",
@@ -162,10 +162,10 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 								title={t("sidebar.unarchive")}
 								style={{
 									padding: "3px 8px",
-									background: "var(--bg-hover)",
-									border: "1px solid var(--border)",
+									background: "var(--zeta-alias-bg-hover)",
+									border: "1px solid var(--zeta-alias-border)",
 									borderRadius: 5,
-									color: "var(--text-muted)",
+									color: "var(--zeta-alias-text-muted)",
 									fontSize: 10.5,
 									cursor: "pointer",
 									flexShrink: 0,
@@ -187,16 +187,16 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 									background: "none",
 									border: "none",
 									borderRadius: 5,
-									color: "var(--text-dim)",
+									color: "var(--zeta-alias-text-dim)",
 									cursor: "pointer",
 									flexShrink: 0,
 								}}
 								onMouseEnter={e => {
-									e.currentTarget.style.color = "var(--status-error)";
-									e.currentTarget.style.background = "var(--status-error-background)";
+									e.currentTarget.style.color = "var(--zeta-alias-status-error)";
+									e.currentTarget.style.background = "var(--zeta-alias-status-error-background)";
 								}}
 								onMouseLeave={e => {
-									e.currentTarget.style.color = "var(--text-dim)";
+									e.currentTarget.style.color = "var(--zeta-alias-text-dim)";
 									e.currentTarget.style.background = "none";
 								}}
 							>
@@ -210,7 +210,7 @@ export function ArchiveSection({ archivedSessions, onChanged }: ArchiveSectionPr
 						</div>
 					))}
 					{visible.length === 0 && (
-						<div style={{ padding: "6px 10px", fontSize: 11, color: "var(--text-dim)" }}>∅</div>
+						<div style={{ padding: "6px 10px", fontSize: 11, color: "var(--zeta-alias-text-dim)" }}>∅</div>
 					)}
 				</div>
 			)}

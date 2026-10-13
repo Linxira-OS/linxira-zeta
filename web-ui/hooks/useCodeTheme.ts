@@ -112,8 +112,8 @@ export function useCodeTheme(): CodeTheme {
 		theme: sharedTheme,
 		themeName: sharedThemeName,
 		highlighter,
-		codeBg: "var(--syntax-background)",
-		codeFg: "var(--md-syntax-foreground)",
+		codeBg: "var(--zeta-alias-syntax-background)",
+		codeFg: "var(--zeta-alias-md-syntax-foreground)",
 	};
 }
 
