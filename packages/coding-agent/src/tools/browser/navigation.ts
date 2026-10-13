@@ -11,6 +11,15 @@ declare module "puppeteer-core" {
 /** Navigation lifecycle accepted by history traversal and reload helpers. */
 export type NavigationWaitUntil = "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
 
+/**
+ * Receives a navigation's own promise the moment the browser is asked to perform it.
+ *
+ * `signal` can abandon the wait — and the caller with it — while the browser keeps loading, so a
+ * caller tracking "a main-frame navigation is pending" needs the navigation's own promise: only
+ * its settlement reports that the browser answered (a response, or the navigation's failure).
+ */
+export type NavigationStartedHook = (navigation: Promise<unknown>) => void;
+
 /** CDP lifecycle event behind each `waitUntil` that is read from the main frame alone. */
 const MAIN_FRAME_LIFECYCLE_EVENTS = { load: "load", domcontentloaded: "DOMContentLoaded" } as const;
 /** How often the main-frame wait re-reads the frame's lifecycle events. */
@@ -83,6 +92,9 @@ export async function pushStateInPage(destination: string): Promise<string> {
  * the main frame's lifecycle events, which Puppeteer's own wait reads too, decide the rest.
  * Any other `waitUntil` (`networkidle*`, arrays, invalid values) keeps Puppeteer's own wait,
  * which also validates the value.
+ *
+ * `onStarted` receives the navigation's own promise: this wait can be abandoned by `signal` while
+ * the browser keeps loading, so only that promise's settlement says whether the browser answered.
  */
 export async function navigateMainFrame(
 	page: Page,
@@ -90,13 +102,19 @@ export async function navigateMainFrame(
 	timeout: number,
 	signal: AbortSignal | undefined,
 	navigate: (options: WaitForOptions) => Promise<unknown>,
+	onStarted?: NavigationStartedHook,
 ): Promise<void> {
+	const start = (options: WaitForOptions): Promise<unknown> => {
+		const navigation = navigate(options);
+		onStarted?.(navigation);
+		return navigation;
+	};
 	if (waitUntil !== "load" && waitUntil !== "domcontentloaded") {
-		await untilAborted(signal, () => navigate({ waitUntil, timeout }));
+		await untilAborted(signal, () => start({ waitUntil, timeout }));
 		return;
 	}
 	const deadline = Date.now() + timeout;
-	await untilAborted(signal, () => navigate({ waitUntil: [], timeout }));
+	await untilAborted(signal, () => start({ waitUntil: [], timeout }));
 	const event = MAIN_FRAME_LIFECYCLE_EVENTS[waitUntil];
 	for (;;) {
 		if (page.isClosed() || !page.browser().connected) throw new Error("Navigating frame was detached");
@@ -117,9 +135,10 @@ export async function traverseHistory(
 	waitUntil: NavigationWaitUntil,
 	timeout: number,
 	signal?: AbortSignal,
+	onStarted?: NavigationStartedHook,
 ): Promise<string> {
 	const navigate = direction === "back" ? page.goBack.bind(page) : page.goForward.bind(page);
-	await navigateMainFrame(page, waitUntil, timeout, signal, navigate);
+	await navigateMainFrame(page, waitUntil, timeout, signal, navigate, onStarted);
 	return page.url();
 }
 
@@ -129,8 +148,9 @@ export async function reloadPage(
 	waitUntil: NavigationWaitUntil,
 	timeout: number,
 	signal?: AbortSignal,
+	onStarted?: NavigationStartedHook,
 ): Promise<string> {
-	await navigateMainFrame(page, waitUntil, timeout, signal, options => page.reload(options));
+	await navigateMainFrame(page, waitUntil, timeout, signal, options => page.reload(options), onStarted);
 	return page.url();
 }
 

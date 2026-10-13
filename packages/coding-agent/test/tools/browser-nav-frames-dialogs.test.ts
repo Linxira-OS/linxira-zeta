@@ -188,6 +188,42 @@ test("hands any waitUntil other than load/domcontentloaded to Puppeteer unchange
 	expect(seen).toEqual(["networkidle0", ["load", "networkidle2"]]);
 });
 
+// A cancel abandons the wait but not the navigation, and the browser keeps owing an answer: the
+// caller tracking "a main-frame navigation is pending" reads that promise's own settlement.
+test("hands the caller a navigation's own promise, which a cancel leaves unanswered", async () => {
+	const page = fakePage({ _lifecycleEvents: new Set(["load"]) });
+	const answer = Promise.withResolvers<void>();
+	let reported: Promise<unknown> | undefined;
+	let answered = false;
+	const cancel = new AbortController();
+	const wait = navigateMainFrame(
+		page,
+		"load",
+		10_000,
+		cancel.signal,
+		() => answer.promise,
+		navigation => {
+			reported = navigation;
+			void navigation.then(
+				() => {
+					answered = true;
+				},
+				() => {
+					answered = true;
+				},
+			);
+		},
+	);
+	expect(reported).toBe(answer.promise);
+	cancel.abort();
+	await expect(wait).rejects.toThrow("Aborted: The operation was aborted.");
+	await Promise.resolve();
+	expect(answered).toBe(false);
+	answer.resolve();
+	await reported;
+	expect(answered).toBe(true);
+});
+
 describe.skipIf(!CHROMIUM_AVAILABLE)("browser navigation, frames, dialogs, and tab listing", () => {
 	test("drives history and SPA navigation without reloading", async () => {
 		const invoke = createHost();
