@@ -14,6 +14,7 @@ import { TabBar, type Tab } from "./TabBar";
 import { ModelsConfig } from "./ModelsConfig";
 import { StatsDashboard } from "./StatsDashboard";
 import { FullHistoryPanel } from "./FullHistoryPanel";
+import { ContextRingPanel } from "./context-ring/ContextRingPanel";
 import { SkillsConfig } from "./SkillsConfig";
 import { PluginsConfig } from "./PluginsConfig";
 import { SettingsWindow } from "./settings/SettingsWindow";
@@ -213,7 +214,7 @@ function AppShellContent() {
 	}, []);
 	// The collapsed rail is a desktop affordance; mobile keeps the drawer.
 	const sidebarRailActive = sidebarCollapsed && !isMobile;
-	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history";
+	type DockTool = "session" | "files" | "tracking" | "plugins" | "terminal" | "stats" | "history" | "context";
 	const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
 	const [dockTool, setDockTool] = useState<DockTool | null>(null);
 	// Embedded terminal (spec §15): live session id survives pane close so the
@@ -2475,7 +2476,9 @@ function AppShellContent() {
 													? t("dock.window.terminal")
 													: dockTool === "history"
 														? t("dock.window.history")
-														: t("dock.window.plugins")}
+														: dockTool === "context"
+															? t("context-ring.title")
+															: t("dock.window.plugins")}
 							</span>
 							<div style={{ flex: 1 }} />
 							{dockTool === "files" && fileTabs.length > 0 && (
@@ -2578,6 +2581,19 @@ function AppShellContent() {
 								/>
 							) : dockTool === "tracking" ? (
 								<TrackingPanel cwd={activeCwd} />
+							) : dockTool === "context" ? (
+								<ContextRingPanel
+									sessionId={selectedSession?.id ?? null}
+									contextUsage={
+										contextUsage
+											? {
+													tokens: contextUsage.tokens ?? 0,
+													contextWindow: contextUsage.contextWindow,
+													percent: contextUsage.percent ?? 0,
+												}
+											: null
+									}
+								/>
 							) : dockTool === "plugins" ? (
 								(activeCwd ?? selectedSession?.cwd) ? (
 									<PluginsManager
