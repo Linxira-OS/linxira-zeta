@@ -50,7 +50,7 @@ Identify project command(s) surfacing exactly these diagnostics for orchestrator
 |`terraform`|`terraform validate -json`|
 |`tflint`|`tflint --format=json`|
 |`actionlint`|actionlint with its JSON `-format` template|
-|`generic`|gcc-style `file:line:col: severity: message` lines (tsc/tsgo `--pretty false`, mypy, clang, zig, MSVC-style)|
+|`generic`|gcc-style `file:line:col: severity: message` lines (tsc `--pretty false`, mypy, clang, zig, MSVC-style)|
 
 ## Output schema
 

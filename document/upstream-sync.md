@@ -65,7 +65,7 @@ two-parent tag merge.
   addon (it loads `@linxiraos/pi-utils` → the natives loader); in a fresh worktree one can
   borrow a previously built `packages/natives/native/*.node` (gitignored) instead of
   rebuilding.
-- **Checks**: `check:ts` 0 errors; tsgo clean per package (ai, catalog, utils, agent, tui,
+- **Checks**: `check:ts` 0 errors; tsc clean per package (ai, catalog, utils, agent, tui,
   mnemopi, coding-agent); `brand-check` 0 hits; Zeta sentinels 60/60; scope imports 18,556;
   version line 1.1.29; `check-ci-surface` 29 jobs; `check:tools` 0; `cargo fmt --all --check`
   clean (the window touched `crates/pi-edit` and `crates/pi-natives`).

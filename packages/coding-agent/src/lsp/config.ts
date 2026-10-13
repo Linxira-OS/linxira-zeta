@@ -312,7 +312,7 @@ export function resolveCommand(command: string, cwd: string, options?: ResolveCo
 // =============================================================================
 
 /**
- * Directory of the package that owns a resolved `tsc`/`tsgo` launcher, or null
+ * Directory of the package that owns a resolved `tsc` launcher, or null
  * when the layout is not a recognizable npm install.
  */
 function typescriptPackageDir(tscPath: string): string | null {

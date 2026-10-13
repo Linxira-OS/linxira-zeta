@@ -704,7 +704,7 @@ async function discoverJavaScript(state: DiscoveryState): Promise<void> {
 			label: hasVue ? "Vue TypeScript" : "TypeScript",
 			language: "TypeScript",
 			root,
-			binaries: hasVue ? ["vue-tsc", "tsgo", "tsc"] : ["tsgo", "tsc"],
+			binaries: hasVue ? ["vue-tsc", "tsc"] : ["tsc"],
 			args: ["--noEmit", "--pretty", "false"],
 			parser: "generic",
 		});

@@ -227,7 +227,7 @@ async function createPersistedSession(
 	// fall off the end (TS infers `() => void`) typecheck under TypeScript 5.x
 	// alongside callbacks that explicitly return a tree target. TS 5.x does not
 	// coerce a `void`-returning function value into a `() => T | undefined` slot
-	// the way 6.x / tsgo does, so the two return shapes have to be siblings.
+	// the way 6.x / 7.x does, so the two return shapes have to be siblings.
 	populate:
 		| ((sessionManager: SessionManager) => { treeTargetId?: string } | undefined)
 		| ((sessionManager: SessionManager) => void),
