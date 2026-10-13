@@ -42,6 +42,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | --- | --- | --- |
 | `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export` | Gateway | W1 ✅ |
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
+| `api/agent/[id]/memory`、`[id]/memory/search`、`[id]/memory/items/[memId]` | Gateway（`MemoryRuntimeContext` + 会话级 `MnemopiSessionState`） | W5 ✅（**只读**：列表 / 搜索 / 单条；`PATCH` item 与 `POST /memory` 已占位但返回 501） |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
 | `api/agent/[id]/context` | Gateway（新增，非迁移） | ✅ 上下文统计面板数据源：窗口占用 + 分类占用 + 压缩阈值 + 会话累计 token/调用计数（`context-usage.ts`）。**仅活会话**：未运行时回 `{ running: false }`（同 `GET /api/agent/<id>`），仅 `GET`（其余 405） |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
@@ -83,11 +84,57 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
   update 幂等写配置，未落盘的包显示 `missing` + warning，与 OMP Web 一致；
   disable/enable 写 `disabledExtensions` 的 `extension-module:<name>` 条目）。
 
+- `memory.ts` — W5 ✅：记忆**读面**（`list`/`search`/`item`）。逐后端能力矩阵
+  （`MEMORY_CAPABILITIES`）是唯一真源，且每个响应都回带 `capabilities`；后端
+  不支持的操作一律 `200 + supported:false + message`（不是空数组、不是 5xx，沿
+  `memory-backend/runtime.ts` 的"结构化不可用"语义）。`mnemopi` 走会话自带的
+  `MnemopiSessionState`（未初始化时报"not initialised"，不假装空库）；`local`
+  的条目是记忆根下的 markdown 文件（id = 相对路径，含越界防护）；`sharpshooter`
+  按行列出三个决策文件。写操作留位：`PATCH items/:memId` 与 `POST /memory`
+  返回 501（`unsupported:true`），矩阵里 `write`/`archive`/`maintenance` 全 false。
+
 DTO 契约以 web-ui `lib/types.ts` / `lib/api-types.ts` 为准，网关负责产出；
 web-ui 侧类型定义保留（客户端在用），路由文件删除。新增族的 DTO 与产生它的
 handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
 `web-gateway/context-usage.ts`（web-ui 不 import 任何 `@linxiraos/*` 类型入口，
 故镜像定义）。
+
+## 记忆读面（W5）契约与逐后端能力矩阵
+
+五个记忆后端（`memory.backend`）能力严重不对称，故**每个响应都回带 `capabilities`**，
+前端据其决定渲染搜索框、文件列表还是"该后端不支持"。矩阵唯一真源是
+`web-gateway/memory.ts` 的 `MEMORY_CAPABILITIES`（`memory.test.ts` 逐行断言）。
+
+| 后端 | `list` | `search` | `item` | `files` | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| `off` | ✗ | ✗ | ✗ | ✗ | 无后端；`message` 明确"nothing to list/search" |
+| `local` | ✓ | **✗** | ✓ | ✓ | 条目 = 记忆根（`getMemoryRoot(agentDir, cwd)`）下的 markdown 文件；`id` = 相对路径（`learned.md`、`skills/<name>.md`、`rollout_summaries/**`），`kind ∈ memory/summary/learned/skill/rollout/other`；无结构化搜索（回带"用列表接口"的指引） |
+| `mnemopi` | ✓ | ✓ | ✓ | ✗ | `list` = 会话各作用域 bank 的**活跃 working 行**（`Mnemopi.getContext`，已过滤 `invalidate`/`supersede`；episodic 只经 `search` 出现）；`search` = 作用域 recall；`item` = `getScopedMemory(id)`，含全文、`store`(working/episodic/fact)、`bank`、`metadata` |
+| `sharpshooter` | ✓ | ✓ | **✗** | ✗ | `list` = `architecture.md`/`product.md`/`style.md` 的逐行；行 `id` 形如 `architecture.md#0`（仅供列表定位，不可寻址）；`search` 是朴素子串 |
+| `hindsight` | ✗ | ✗ | ✗ | ✗ | 内容在远端服务、本地不可寻址；`message` 指引用 `recall` 工具 / `reflect` |
+| 写面（下一批） | — | — | — | — | 本批所有后端 `write`/`archive`/`maintenance = false`：`PATCH`/`POST` 仅占位并返回 501。下一批可写者只有 `mnemopi`（`update`/`forget`/`invalidate`，`forget` 硬删、`invalidate` 软归档）与 `local` 的 `learned.md`（`learn` 工具路径） |
+
+路由与响应（**不支持 = `200 + supported:false + message`**，绝不空数组、绝不 5xx；
+沿 `memory-backend/runtime.ts:36-40` 的结构化不可用语义）：
+
+```
+GET   /api/agent/:id/memory?limit=1..50      → { backend, supported, available, capabilities, status,
+                                                  count, items[], message? }
+GET   /api/agent/:id/memory/search?q=&limit= → { backend, supported, capabilities, query, count, items[], message? }
+GET   /api/agent/:id/memory/items/:memId     → { backend, supported, capabilities, item } | 404 { error, ... }
+PATCH /api/agent/:id/memory/items/:memId     → 501 { error, unsupported, message }   // 留位
+POST  /api/agent/:id/memory                  → 501 { error, unsupported, message }   // 留位（maintenance）
+```
+
+- `limit` 夹取 `1..50`（列表默认 20、搜索默认 10；缺省/非数字回默认值）。
+- `memId` 客户端须 `encodeURIComponent`：`local` 的 id 是相对路径（可含 `/`），
+  `sharpshooter` 的 id 含 `#`。服务端解码后再解析，`local` 逐级校验不越出记忆根。
+- `available` 区分"后端不支持"（`capabilities.* = false`）与"后端支持但本会话未初始化"
+  （`mnemopi` 未装 `MnemopiSessionState` 时 `status.message = "…not initialised…"`，不假装空库）。
+- 读面需要**真实运行时会话**：网关按 `getRpcSession` → 会话文件 `startRpcSession`
+  的顺序解析（与 `GET /api/agent/:id/events` 同款），拿不到会话即 404。
+- 写入口必须走 `memory-backend/redact.ts` 的凭据擦除——本批无写路由，故该约束
+  记录在下一批的契约里，不得在本批以只读之外的形式绕过。
 
 ## 关键实现要点
 
@@ -137,6 +184,14 @@ handler 同处：上下文统计 = `web-ui/components/context-ring/types.ts` ↔
   `GET/POST /api/plugins` 冒烟通过（本机注意：plugins 写 settings 依赖
   `@linxiraos/pi-natives` FileLock，staging dll 过期时 POST 持久化报
   `NativeFileLock.tryAcquire` undefined —— natives 重建后恢复，属环境问题非网关缺陷）。
+- W5 完成（记忆读面，只读）：`bun check`（runtime 包）+ 聚焦测试
+  `test/web-gateway/memory.test.ts`（14 用例：矩阵逐行、5 后端降级路径、
+  `limit` 夹取、`local` 越界拒绝、`sharpshooter` 行/搜索、保留写路由 501）全绿；
+  真实 HTTP 证据（`startWebGateway` + `POST /api/agent/new` + 真实读写路径）
+  逐后端落盘：`off`/`hindsight` 全 `supported:false` 带 message、`local` 真实
+  `learned.md` 与"不支持搜索"、`sharpshooter` 行列表与子串搜索、
+  `mnemopi` 真实列表 3 条 + 搜索 3 条 + 单条全文（`store:working`/`bank`/`metadata`）。
+  写面未实现：`PATCH`/`POST` 返回 501，矩阵 `write`/`archive`/`maintenance` 全 false。
 
 ## 环境变量
 
