@@ -37,7 +37,9 @@ import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
 import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
+import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import { writeDeviceDispatch } from "../../tools/resolve";
 import type { VibeModeState } from "../../vibe/state";
 import {
 	addRunningSession,
@@ -394,6 +396,24 @@ export class AgentSessionWrapper {
 			}
 			this.#emit({ type: "state_changed", stateVersion: event.stateVersion });
 			return;
+		}
+		if (event.type === "tool_execution_end" && !event.isError) {
+			// `xd://propose` submitted: the plan artifact is final and the state
+			// writeback in the proposal handler already promoted its real path.
+			// Surface a dedicated event so the web-ui shows the approval card
+			// only on a submitted plan (not for every plan-mode state change).
+			const dispatch = writeDeviceDispatch(event.toolName, event.result);
+			if (dispatch?.tool === PROPOSE_DEVICE_NAME) {
+				const details = dispatch.inner as { planFilePath?: unknown; title?: unknown } | undefined;
+				this.#emit({
+					type: "plan_proposed",
+					planFilePath:
+						typeof details?.planFilePath === "string"
+							? details.planFilePath
+							: (this.#inner.getPlanModeState()?.planFilePath ?? null),
+					title: typeof details?.title === "string" ? details.title : null,
+				});
+			}
 		}
 		this.#emit(event as unknown as AgentEvent);
 		if (event.type === "agent_end") {

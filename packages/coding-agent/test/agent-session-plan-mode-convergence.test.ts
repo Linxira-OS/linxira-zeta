@@ -26,6 +26,9 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { dispatchResolutionDevice, PROPOSE_DEVICE_PATH } from "@linxiraos/zeta/tools/resolve";
+import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -148,8 +151,29 @@ describe("AgentSession plan-mode convergence", () => {
 		if (!model) throw new Error("Expected bundled anthropic model to exist");
 
 		const askTool = makeTool("ask");
-		const writeTool = makeTool("write");
 		const readTool = makeTool("read");
+		let proposalSession: AgentSession | undefined;
+		const writeTool: AgentTool = {
+			name: "write",
+			label: "write",
+			description: "Fake write",
+			parameters: type({}),
+			async execute(_toolCallId, input) {
+				const target = (input as { path?: unknown }).path;
+				if (target !== PROPOSE_DEVICE_PATH) {
+					return { content: [{ type: "text" as const, text: "ok" }] };
+				}
+				// Same dispatch the internal-URL write scheme runs for
+				// `xd://propose` — the session keys convergence off the returned
+				// `details.xdev` envelope, so a bare "ok" would not model it.
+				const { result, xdev } = await dispatchResolutionDevice(
+					{ peekPlanProposalHandler: () => proposalSession?.peekPlanProposalHandler() } as unknown as ToolSession,
+					PROPOSE_DEVICE_NAME,
+					String((input as { content?: unknown }).content ?? ""),
+				);
+				return { content: result.content, details: { xdev }, isError: result.isError };
+			},
+		};
 		const toolRegistry = new Map<string, AgentTool>([
 			["ask", askTool],
 			["write", writeTool],
@@ -228,6 +252,7 @@ describe("AgentSession plan-mode convergence", () => {
 				: undefined,
 		});
 		if (!options?.planYolo) created.setPlanModeState({ enabled: true, planFilePath: "local://PLAN.md" });
+		proposalSession = created;
 		session = created;
 		return {
 			session: created,
@@ -300,7 +325,7 @@ describe("AgentSession plan-mode convergence", () => {
 		expect(harness.session.getPlanModeState()?.enabled).toBe(true);
 	});
 
-	it("T3b: a propose write resets the convergence counter", async () => {
+	it("T3b: a successful propose ends the turn without another forced reminder", async () => {
 		const harness = await createPlanSession([
 			{ content: ["planning A"] },
 			{
@@ -316,17 +341,26 @@ describe("AgentSession plan-mode convergence", () => {
 				],
 			},
 			{ content: ["planning B"] },
-			{ content: ["planning C"] },
+			{ content: ["never requested"] },
 		]);
+		// The stub proposer stands in for the real
+		// `#preparePlanForReviewAndSync` handler: without one the propose
+		// dispatch throws and the turn never sees a successful submission.
+		harness.session.setPlanProposalHandler(async title => ({
+			content: [{ type: "text", text: "Plan ready for review." }],
+			details: { planFilePath: `local://${title}-plan.md`, title, planExists: true },
+		}));
 
 		await harness.session.prompt("make a plan");
 		await harness.session.waitForIdle();
 
-		expect(countReminders(harness.session.agent.state.messages)).toBe(2);
-		expect(harness.mock.calls.length).toBe(4);
+		// One nudge before the propose (the first text-only stop), none after it:
+		// the closing text is not a missing decision.
+		expect(countReminders(harness.session.agent.state.messages)).toBe(1);
+		expect(harness.mock.calls.length).toBe(3);
 	});
 
-	it("T3c: an ask call resets the convergence counter", async () => {
+	it("T3c: a successful ask ends the turn without another forced reminder", async () => {
 		const harness = await createPlanSession([
 			{ content: ["planning A"] },
 			{
@@ -343,14 +377,34 @@ describe("AgentSession plan-mode convergence", () => {
 				],
 			},
 			{ content: ["planning B"] },
-			{ content: ["planning C"] },
+			{ content: ["never requested"] },
 		]);
 
 		await harness.session.prompt("make a plan");
 		await harness.session.waitForIdle();
 
-		expect(countReminders(harness.session.agent.state.messages)).toBe(2);
-		expect(harness.mock.calls.length).toBe(4);
+		// One nudge before the ask; the answered question satisfies the turn, so
+		// the closing text draws no second reminder.
+		expect(countReminders(harness.session.agent.state.messages)).toBe(1);
+		expect(harness.mock.calls.length).toBe(3);
+	});
+
+	it("T4: the convergence reminder renders the plan-write tool name", async () => {
+		const harness = await createPlanSession([{ content: ["planning A"] }]);
+
+		await harness.session.prompt("make a plan");
+		await harness.session.waitForIdle();
+
+		const reminder = harness.session.agent.state.messages.find(
+			m => m.role === "developer" && messageText(m).includes(REMINDER_FRAGMENT),
+		);
+		expect(reminder).toBeDefined();
+		const reminderText = messageText(reminder!);
+		// `{{writeToolName}}` must be filled: the log evidence showed the model
+		// receiving "with ``" (an empty interpolation).
+		expect(reminderText).toContain("with `write`");
+		expect(reminderText).not.toContain("``");
+		expect(reminderText).not.toContain("{{");
 	});
 
 	it("keeps PlanYolo's internal write augmentation transport-only", async () => {

@@ -11,12 +11,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModel } from "@linxiraos/pi-ai/providers/mock";
+import type { Message } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
@@ -30,6 +33,17 @@ function makeTool(name: string): AgentTool {
 			return { content: [{ type: "text" as const, text: "ok" }] };
 		},
 	};
+}
+
+/** Concatenate the text blocks of a provider message (string or content-array). */
+function messageText(message: { content?: unknown }): string {
+	const content = message.content;
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.filter((block): block is { type: "text"; text: string } => (block as { type?: string }).type === "text")
+		.map(block => block.text)
+		.join("\n");
 }
 
 interface ModeHarness {
@@ -69,7 +83,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		}
 	});
 
-	async function createModeSession(settings: Settings): Promise<ModeHarness> {
+	async function createModeSession(settings: Settings, options?: { mock?: MockModel }): Promise<ModeHarness> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!model) throw new Error("Expected bundled anthropic model to exist");
 
@@ -84,7 +98,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			["goal", goalTool],
 		]);
 
-		const mock = createMockModel({ responses: [{ content: ["ok"] }] });
+		const mock = options?.mock ?? createMockModel({ responses: [{ content: ["ok"] }] });
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: {
@@ -94,6 +108,11 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 				messages: [],
 			},
 			streamFn: mock.stream,
+			// Production wiring (`createAgentSession` passes the coding-agent's
+			// `convertToLlm`): without it a `custom` message (e.g. the plan-mode
+			// context) lands in the transcript but never reaches the model, so
+			// request-shape assertions would read the wrong thing.
+			convertToLlm,
 		});
 
 		const created = new AgentSession({
@@ -253,5 +272,65 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			userTexts(harness).some(text => text.includes("Second task")) ||
 				harness.session.getQueuedMessages().steering.some(text => text.includes("Second task")),
 		).toBe(true);
+	});
+
+	it("enterMode('plan', { initialPrompt }) opens the turn with the plan-mode context", async () => {
+		const settings = Settings.isolated({ "compaction.enabled": false, "retry.enabled": false });
+		// `enterMode` schedules the queued-task drain instead of awaiting the
+		// turn, so the mock resolves the signal when the drain reaches the model.
+		const firstRequest = Promise.withResolvers<readonly Message[]>();
+		const mock = createMockModel({
+			handler: context => {
+				firstRequest.resolve(context.messages);
+				return { content: ["ok"] };
+			},
+		});
+		const harness = await createModeSession(settings, { mock });
+
+		await harness.session.enterMode("plan", { initialPrompt: "Draft the migration plan" });
+		const request = await firstRequest.promise;
+
+		// The turn must start with `plan-mode-context` immediately before the
+		// user task — the CLI's `/plan <prompt>` reaches `prompt()`, whose build
+		// injects `#buildPlanModeMessage()`. Going through `steer()` alone left
+		// the first plan turn without constraints, so settle enforcement forced
+		// an instant plan file.
+		const contextIndex = request.findIndex(message => messageText(message).includes("Plan mode active."));
+		const taskIndex = request.findIndex(
+			message => message.role === "user" && messageText(message).includes("Draft the migration plan"),
+		);
+		expect(contextIndex).toBeGreaterThanOrEqual(0);
+		expect(taskIndex).toBeGreaterThan(contextIndex);
+		const contextText = messageText(request[contextIndex]!);
+		expect(contextText).toContain("Canonical plan");
+		// Interpolations are filled, not left as empty template placeholders.
+		expect(contextText).toContain("`write`");
+		expect(contextText).not.toContain("{{");
+	});
+
+	it("a submitted plan promotes its real file path into plan-mode state", async () => {
+		const harness = await createModeSession(
+			Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+		);
+		await harness.session.enterMode("plan");
+		const entryPlanPath = harness.session.getPlanModeState()?.planFilePath;
+
+		// The agent drafts `local://web-plan.md` (its own slug) and proposes the
+		// matching title, exactly as the plan-mode prompt instructs.
+		const planPath = resolveLocalUrlToPath("local://web-plan.md", {
+			getArtifactsDir: () => harness.session.sessionManager.getArtifactsDir(),
+			getSessionId: () => harness.session.sessionManager.getSessionId(),
+		});
+		await Bun.write(planPath, "# Web plan\n\nImplement it.\n");
+
+		const handler = harness.session.peekPlanProposalHandler();
+		if (!handler) throw new Error("Expected the default plan proposal handler");
+		const result = await handler("web");
+
+		expect(result.details).toMatchObject({ planFilePath: "local://web-plan.md", planExists: true });
+		// What `get_state` reads back for the web-ui Preview + plan_approve.
+		expect(harness.session.getPlanModeState()?.planFilePath).toBe("local://web-plan.md");
+		expect(harness.session.getPlanModeState()?.planFilePath).not.toBe(entryPlanPath);
+		await expect(harness.session.getPlanFileContent("local://web-plan.md")).resolves.toContain("Implement it.");
 	});
 });
