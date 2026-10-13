@@ -47,6 +47,7 @@ import {
 	handleOAuthProviders,
 } from "./web-gateway/auth";
 import { handleBlobGet } from "./web-gateway/blobs";
+import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
@@ -124,6 +125,7 @@ const SESSION_EXPORT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/export
 const AGENT_ID_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})$`);
 const EXTENSION_UI_RESPONSE_RE = /^\/api\/extension-ui\/response$/;
 const AGENT_EVENTS_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/events$`);
+const AGENT_CONTEXT_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})/context$`);
 
 const AUTH_ALL_PROVIDERS_RE = /^\/api\/auth\/all-providers$/;
 const AUTH_PROVIDERS_RE = /^\/api\/auth\/providers$/;
@@ -379,6 +381,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	const agentEvents = capture(pathname, AGENT_EVENTS_RE);
 	if (agentEvents) {
 		if (req.method === "GET") return handleAgentEvents(req, agentEvents[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const agentContext = capture(pathname, AGENT_CONTEXT_RE);
+	if (agentContext) {
+		if (req.method === "GET") return handleAgentContextUsage(agentContext[0]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
