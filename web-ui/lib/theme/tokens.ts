@@ -1,7 +1,7 @@
 import type { Theme } from "./types";
 
 /**
- * Colour token layers (see `document/desktop-ui-tokens.md`).
+ * Colour token layers (see `web-ui/AGENTS.md` § "CSS Variables — three colour layers").
  *
  * L1 `--zeta-static-*`  raw palette values. The ONLY place a colour literal may
  *                       live (theme JSON + {@link STATIC_CONSTANTS}). Theme
