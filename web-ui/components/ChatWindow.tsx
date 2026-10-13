@@ -13,6 +13,7 @@ import type {
 	ToolResultMessage,
 } from "@/lib/types";
 import { normalizeCustomPanelLines, parseAnsiLine } from "@/lib/ansi";
+import type { TabRuntimeMeta } from "@/lib/session-tabs";
 import { asBracketedPaste, toTerminalKeyData } from "@/lib/terminal-input";
 import {
 	countToolCallBlocks,
@@ -33,7 +34,6 @@ import { useAudio } from "@/hooks/useAudio";
 import { useDragDrop } from "@/hooks/useDragDrop";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useI18n } from "@/hooks/useI18n";
-import type { SessionStatsInfo } from "@/lib/pi-types";
 import {
 	captureScrollDistance,
 	getNextVisibleCount,
@@ -43,6 +43,16 @@ import {
 } from "@/lib/chat-lazy-load";
 
 interface Props {
+	/** Stable session-tab id: keys the abort registry and the per-tab metadata. */
+	tabId: string;
+	/** True while this tab is the visible one. Gates Esc, arrow navigation and
+	 *  the scroll snapshot — a hidden tab keeps its DOM but stays passive. */
+	active: boolean;
+	/** May this instance hold its session SSE (active tab, or a running
+	 *  background tab inside the shell's stream budget). */
+	streamActive: boolean;
+	/** Draft buffer key for the composer (see `draftKeyForTab`). */
+	draftKey: string;
 	session: SessionInfo | null;
 	newSessionCwd: string | null;
 	/**
@@ -51,8 +61,14 @@ interface Props {
 	 * reset). Absent → the picker renders but stays inert.
 	 */
 	onNewSessionCwdChange?: (cwd: string) => void;
-	/** Notifies the host of the active plan state (sidebar Plan card). */
-	onPlanStateChange?: (plan: { enabled: boolean; planFilePath: string | null }) => void;
+	/**
+	 * Per-tab metadata for the shell chrome (top bar stats/context, branch tree,
+	 * system prompt, sidebar plan card, live run state). The host merges each
+	 * patch into its `Map<tabId, TabRuntimeMeta>` and the top bar only ever
+	 * reads the *active* tab's entry, so a background tab cannot leak its
+	 * numbers into the chrome.
+	 */
+	onTabMeta?: (patch: Partial<TabRuntimeMeta>) => void;
 	/** True when the "New" action created this chat (independent session). */
 	explicitNew?: boolean;
 	onAgentEnd?: () => void;
@@ -65,17 +81,7 @@ interface Props {
 		activeLeafId: string | null,
 		onLeafChange: (leafId: string | null) => void,
 	) => void;
-	onSystemPromptChange?: (prompt: string | null) => void;
-	onSessionStatsChange?: (stats: SessionStatsInfo | null) => void;
 	onSessionStatsPanelOpen?: () => void;
-	onContextUsageChange?: (
-		usage: {
-			percent: number | null;
-			contextWindow: number;
-			tokens: number | null;
-		} | null,
-	) => void;
-	onModelChange?: (model: { provider: string; modelId: string } | null, thinkingLevel: string) => void;
 	onOpenFile?: (filePath: string) => void;
 	onOpenFileContextMenu?: (filePath: string, point: { x: number; y: number }) => void;
 }
@@ -331,10 +337,14 @@ function ProcessDetailsGroup({
 }
 
 export function ChatWindow({
+	tabId,
+	active,
+	streamActive,
+	draftKey,
 	session,
 	newSessionCwd,
 	onNewSessionCwdChange,
-	onPlanStateChange,
+	onTabMeta,
 	explicitNew,
 	onAgentEnd,
 	onSessionCreated,
@@ -342,17 +352,20 @@ export function ChatWindow({
 	modelsRefreshKey,
 	chatInputRef,
 	onBranchDataChange,
-	onSystemPromptChange,
-	onSessionStatsChange,
 	onSessionStatsPanelOpen,
-	onContextUsageChange,
-	onModelChange,
 	onOpenFile,
 	onOpenFileContextMenu,
 }: Props) {
 	const { soundEnabled, onSoundToggle, playDoneSound, unlockAudio } = useAudio();
 	const { t } = useI18n();
 	const isMobile = useIsMobile();
+	// Stable bridge into the per-tab metadata: useAgentSession re-fires its
+	// hoist effects on callback identity changes, so an inline arrow here would
+	// loop through the host's state on every render.
+	const handleSystemPromptMeta = useCallback(
+		(prompt: string | null) => onTabMeta?.({ systemPrompt: prompt }),
+		[onTabMeta],
+	);
 	// Chat / trajectory toggle for the message area (trajectory is derived).
 	const [viewMode, setViewMode] = useState<"chat" | "trajectory">("chat");
 
@@ -448,13 +461,15 @@ export function ChatWindow({
 		session,
 		newSessionCwd,
 		explicitNew,
+		active,
+		streamActive,
 		onAgentEnd: wrappedOnAgentEnd,
 		onSessionCreated,
 		onSessionForked,
 		modelsRefreshKey,
 		chatInputRef,
 		onBranchDataChange,
-		onSystemPromptChange,
+		onSystemPromptChange: handleSystemPromptMeta,
 		onSessionStatsPanelOpen,
 	});
 	const sessionBusy = agentRunning || bashRunning;
@@ -506,10 +521,20 @@ export function ChatWindow({
 		[sessionIdRef],
 	);
 
-	// Register the abort handler for the global Esc shortcut
+	// Register this tab's abort handler for the global Esc shortcut. Keyed by
+	// tab id: every visited tab stays mounted, and Esc must only ever stop the
+	// *active* tab's run (AppShell dispatches by activeTabId).
 	useEffect(() => {
-		registerAbortHandler(sessionBusy ? handleAbort : null);
-	}, [sessionBusy, handleAbort]);
+		registerAbortHandler(tabId, sessionBusy ? handleAbort : null);
+		return () => registerAbortHandler(tabId, null);
+	}, [tabId, sessionBusy, handleAbort]);
+
+	// Live run state for the tab strip's running dot. The shared
+	// `/api/agent/running` poll covers every other tab; this one is exact and
+	// immediate (agent_start/agent_end arrive over this tab's own SSE).
+	useEffect(() => {
+		onTabMeta?.({ running: sessionBusy });
+	}, [sessionBusy, onTabMeta]);
 
 	// --- Lazy-load historical messages ---
 	// Only render the last N messages initially. When the user scrolls to the
@@ -526,7 +551,25 @@ export function ChatWindow({
 		container.scrollTop = restoreScrollTop(container.scrollHeight, prevScrollDistanceRef.current);
 		prevScrollDistanceRef.current = null;
 	}, [visibleCount, scrollContainerRef]);
-	// Push session stats up to AppShell for the top bar.
+
+	// A hidden tab keeps its DOM (`display: none`), which collapses the scroll
+	// container and drops scrollTop. Snapshot the distance-from-bottom on the
+	// way out and restore it on the way back, so switching tabs never jumps to
+	// the top of the transcript.
+	const tabScrollDistanceRef = useRef<number | null>(null);
+	useEffect(() => {
+		const container = scrollContainerRef.current;
+		if (!container) return;
+		if (!active) {
+			tabScrollDistanceRef.current = captureScrollDistance(container.scrollHeight, container.scrollTop);
+			return;
+		}
+		const saved = tabScrollDistanceRef.current;
+		if (saved === null) return;
+		tabScrollDistanceRef.current = null;
+		container.scrollTop = restoreScrollTop(container.scrollHeight, saved);
+	}, [active, scrollContainerRef]);
+	// Push session stats to the shell's per-tab metadata (top bar).
 	// Compare scalar fields to avoid loops from new object identity each render.
 	const statsKey = sessionStats
 		? [
@@ -549,30 +592,30 @@ export function ChatWindow({
 	const sessionStatsRef = useRef(sessionStats);
 	sessionStatsRef.current = sessionStats;
 	useEffect(() => {
-		onSessionStatsChange?.(sessionStatsRef.current);
-	}, [statsKey, onSessionStatsChange]);
+		onTabMeta?.({ sessionStats: sessionStatsRef.current });
+	}, [statsKey, onTabMeta]);
 	useEffect(
 		() => () => {
-			onSessionStatsChange?.(null);
+			onTabMeta?.({ sessionStats: null });
 		},
-		[onSessionStatsChange],
+		[onTabMeta],
 	);
 	// Hoist plan state for the sidebar Plan card (AppShell owns the wiring).
 	const planFileForCard = planState.planFilePath;
 	const planEnabledForCard = planState.enabled;
 	useEffect(() => {
-		onPlanStateChange?.({ enabled: planEnabledForCard, planFilePath: planFileForCard });
-	}, [planEnabledForCard, planFileForCard, onPlanStateChange]);
+		onTabMeta?.({ plan: { enabled: planEnabledForCard, planFilePath: planFileForCard } });
+	}, [planEnabledForCard, planFileForCard, onTabMeta]);
 
-	// Push context usage up to AppShell as well.
+	// Push context usage to the shell's per-tab metadata as well.
 	const ctxKey = contextUsage
 		? `${contextUsage.percent ?? "null"}|${contextUsage.contextWindow}|${contextUsage.tokens ?? "null"}`
 		: null;
 	const contextUsageRef = useRef(contextUsage);
 	contextUsageRef.current = contextUsage;
 	useEffect(() => {
-		onContextUsageChange?.(contextUsageRef.current);
-	}, [ctxKey, onContextUsageChange]);
+		onTabMeta?.({ contextUsage: contextUsageRef.current });
+	}, [ctxKey, onTabMeta]);
 	const modelInfoKey = displayModelValue
 		? `${displayModelValue.provider}:${displayModelValue.modelId}:${thinkingLevel ?? ""}`
 		: "";
@@ -588,20 +631,22 @@ export function ChatWindow({
 		thinkingLevel: thinkingLevel ?? "",
 	};
 	useEffect(() => {
-		onModelChange?.(modelInfoRef.current.model, modelInfoRef.current.thinkingLevel);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [modelInfoKey, onModelChange]);
+		onTabMeta?.({
+			model: modelInfoRef.current.model,
+			thinkingLevel: modelInfoRef.current.thinkingLevel,
+		});
+	}, [modelInfoKey, onTabMeta]);
 	useEffect(
 		() => () => {
-			onModelChange?.(null, "");
+			onTabMeta?.({ model: null, thinkingLevel: "" });
 		},
-		[onModelChange],
+		[onTabMeta],
 	);
 	useEffect(
 		() => () => {
-			onContextUsageChange?.(null);
+			onTabMeta?.({ contextUsage: null });
 		},
-		[onContextUsageChange],
+		[onTabMeta],
 	);
 
 	const onDrop = useCallback(
@@ -637,6 +682,9 @@ export function ChatWindow({
 	// Mirrors the TUI's message navigation. Deliberately skips editable targets
 	// (textarea/input/contenteditable) so typing arrows still moves the caret.
 	useEffect(() => {
+		// Only the visible tab reacts to the window-level arrow keys; a hidden
+		// tab would otherwise steal the shortcut from the active one.
+		if (!active) return;
 		const handler = (e: KeyboardEvent): void => {
 			if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
 			if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -683,7 +731,7 @@ export function ChatWindow({
 		};
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [visibleMessages, messageRefs, scrollContainerRef]);
+	}, [active, visibleMessages, messageRefs, scrollContainerRef]);
 
 	const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
 	const messageCwd = session?.cwd ?? newSessionCwd ?? undefined;
@@ -760,7 +808,7 @@ export function ChatWindow({
 			soundEnabled={soundEnabled}
 			onSoundToggle={onSoundToggle}
 			onAudioUnlock={unlockAudio}
-			draftKey={session?.id ?? (newSessionCwd ? `new:${newSessionCwd}` : undefined)}
+			draftKey={draftKey}
 			cwd={session?.cwd ?? newSessionCwd}
 		/>
 	);

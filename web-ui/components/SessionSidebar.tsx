@@ -17,6 +17,7 @@ import {
 import type { SessionInfo } from "@/lib/types";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { DirectoryPicker } from "./DirectoryPicker";
+import { useRunningSessionIds } from "@/hooks/useRunningSessionIds";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { StarfieldEmblem } from "./StarfieldEmblem";
 import { FolderPickerModal } from "./FolderPickerModal";
@@ -68,11 +69,11 @@ interface Props {
 	/**
 	 * New-session entry (D2): the sidebar resolves the draft cwd (entry hint →
 	 * selected project → default workspace) and hands it to the shell, which
-	 * switches to the empty-state draft. `cwd` is null only when neither a
-	 * project nor the default workspace is available — batch 3's degraded
-	 * workspace-trigger card consumes that case.
+	 * opens a new draft tab. `cwd` is null only when neither a project nor the
+	 * default workspace is available — batch 3's degraded workspace-trigger card
+	 * consumes that case.
 	 */
-	onNewSession?: (sessionId: string, cwd: string | null) => void;
+	onNewSession?: (cwd: string | null) => void;
 	initialSessionId?: string | null;
 	skipInitialProjectSelection?: boolean;
 	onInitialRestoreDone?: () => void;
@@ -114,7 +115,6 @@ interface WorktreeState {
 }
 
 const UNREAD_SESSIONS_STORAGE_KEY = "zeta-web:unread-session-ids";
-const RUNNING_SESSIONS_POLL_MS = 2500;
 
 function loadUnreadSessionIds(): Set<string> {
 	if (typeof window === "undefined") return new Set();
@@ -692,12 +692,11 @@ export function SessionSidebar({
 	const [changesCollapsed, setChangesCollapsed] = useState(true);
 	const [explorerRefreshDone, setExplorerRefreshDone] = useState(false);
 	const [wtFilter, setWtFilter] = useState("");
-	const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(() => new Set());
+	// Running state comes from the single app-wide poll (RunningSessionsProvider)
+	// so the session tab strip and this list read one signal.
+	const { runningSessionIds, seedFromList: seedRunningFromList } = useRunningSessionIds();
 	const [unreadSessionIds, setUnreadSessionIds] = useState<Set<string>>(() => loadUnreadSessionIds());
-	const previousRunningSessionIdsRef = useRef<Set<string>>(new Set());
-	// Once polling has delivered a snapshot it is the source of truth for
-	// running state; late /api/sessions responses must not overwrite it.
-	const runningPollAuthoritativeRef = useRef(false);
+	const previousRunningSessionIdsRef = useRef<ReadonlySet<string>>(new Set());
 	const explorerRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const fileExplorerRef = useRef<FileExplorerHandle>(null);
 	// Sidebar extras: today's usage micro-line from the stats dashboard.
@@ -798,10 +797,8 @@ export function SessionSidebar({
 			};
 			setAllSessions(data.sessions);
 			// Treat the fetched running set as an initial fallback only. Once the
-			// lightweight poll is live, a slow session-list fetch cannot overwrite it.
-			if (!runningPollAuthoritativeRef.current) {
-				setRunningSessionIds(new Set(data.runningSessionIds ?? []));
-			}
+			// shared poll is live, a slow session-list fetch cannot overwrite it.
+			seedRunningFromList(data.runningSessionIds ?? []);
 			// Drop unread markers for sessions that no longer exist (e.g. deleted).
 			const existingIds = new Set(data.sessions.map(s => s.id));
 			setUnreadSessionIds(prev => {
@@ -815,7 +812,7 @@ export function SessionSidebar({
 		} finally {
 			if (showLoading) setLoading(false);
 		}
-	}, []);
+	}, [seedRunningFromList]);
 
 	const initialLoadDone = useRef(false);
 	useEffect(() => {
@@ -838,66 +835,9 @@ export function SessionSidebar({
 		saveUnreadSessionIds(unreadSessionIds);
 	}, [unreadSessionIds]);
 
-	useEffect(() => {
-		// Running status via a lightweight poll of /api/agent/running. Pauses when
-		// the tab is hidden; aborted in-flight requests when switching visibility.
-		let stopped = false;
-		let timer: ReturnType<typeof setTimeout> | undefined = undefined;
-		let controller: AbortController | null = null;
-
-		const clearTimer = () => {
-			clearTimeout(timer);
-			timer = undefined;
-		};
-
-		const schedule = () => {
-			clearTimer();
-			if (stopped || document.visibilityState !== "visible") return;
-			timer = setTimeout(() => void poll(), RUNNING_SESSIONS_POLL_MS);
-		};
-
-		const poll = async () => {
-			if (stopped || document.visibilityState !== "visible") return;
-			const current = new AbortController();
-			controller?.abort();
-			controller = current;
-			try {
-				const res = await fetch("/api/agent/running", {
-					cache: "no-store",
-					signal: current.signal,
-				});
-				if (!res.ok) return;
-				const data = (await res.json()) as { runningSessionIds?: string[] };
-				if (stopped || controller !== current) return;
-				runningPollAuthoritativeRef.current = true;
-				setRunningSessionIds(new Set(data.runningSessionIds ?? []));
-			} catch {
-				// Keep the last known state; the next visible-tab poll retries.
-			} finally {
-				if (controller === current) controller = null;
-				schedule();
-			}
-		};
-
-		const onVisibilityChange = () => {
-			if (document.visibilityState === "visible") {
-				void poll();
-				return;
-			}
-			clearTimer();
-			controller?.abort();
-			controller = null;
-		};
-
-		void poll();
-		document.addEventListener("visibilitychange", onVisibilityChange);
-		return () => {
-			stopped = true;
-			clearTimer();
-			controller?.abort();
-			document.removeEventListener("visibilitychange", onVisibilityChange);
-		};
-	}, []);
+	// Running status is owned by the app-wide poll
+	// (`hooks/useRunningSessionIds.tsx`), shared with the session tab strip —
+	// one 2.5s request for the whole shell instead of one per surface.
 
 	useEffect(() => {
 		const previous = previousRunningSessionIdsRef.current;
@@ -1216,18 +1156,11 @@ export function SessionSidebar({
 		[onSelectSession],
 	);
 
-	const tempId = useCallback(
-		() =>
-			typeof crypto.randomUUID === "function"
-				? crypto.randomUUID()
-				: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`,
-		[],
-	);
-
 	/**
 	 * D2 draft-direct new session: resolve the draft cwd (entry hint → selected
-	 * project → default workspace) and hand it to the shell. The session is
-	 * only created when the first message is sent (unchanged semantics).
+	 * project → default workspace) and hand it to the shell, which opens the
+	 * draft as a new tab. The session is only created when the first message is
+	 * sent (unchanged semantics).
 	 */
 	const startNewSession = useCallback(
 		async (cwdHint?: string | null) => {
@@ -1246,9 +1179,9 @@ export function SessionSidebar({
 				}
 				if (home) cwd = defaultWorkspacePath(home);
 			}
-			onNewSession?.(tempId(), cwd);
+			onNewSession?.(cwd);
 		},
-		[selectedCwd, homeDir, projectRootFor, onNewSession, tempId],
+		[selectedCwd, homeDir, projectRootFor, onNewSession],
 	);
 
 	// Project presentation prefs write straight to P2 (single source of truth).

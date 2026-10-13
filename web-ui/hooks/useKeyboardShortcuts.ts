@@ -3,17 +3,28 @@
 import { useEffect } from "react";
 
 // ---------------------------------------------------------------------------
-// Module-level registry — ChatWindow registers the abort handler here so that
-// the global Esc listener in AppShell can call it without prop-drilling.
+// Module-level registry — each mounted ChatWindow registers its abort handler
+// here, keyed by tab id, so the global Esc listener in AppShell can reach the
+// active tab's run without prop-drilling. Keyed rather than single-valued:
+// session tabs keep their ChatWindow mounted while hidden, and a single slot
+// would let a background tab overwrite the active tab's handler (Esc used to
+// abort whichever tab rendered last).
 // ---------------------------------------------------------------------------
-let globalAbortHandler: (() => void) | null = null;
+const abortHandlers = new Map<string, () => void>();
 
 /**
- * Register (or clear) the abort handler for the global Esc shortcut.
- * Call this from ChatWindow whenever agentRunning or handleAbort changes.
+ * Register (or clear) one tab's abort handler. Call from ChatWindow whenever
+ * `tabId`, agentRunning or handleAbort changes; pass null when the tab has
+ * nothing running or is unmounting.
  */
-export function registerAbortHandler(handler: (() => void) | null): void {
-	globalAbortHandler = handler;
+export function registerAbortHandler(tabId: string, handler: (() => void) | null): void {
+	if (handler) abortHandlers.set(tabId, handler);
+	else abortHandlers.delete(tabId);
+}
+
+/** The handler Esc should run, or null when that tab has nothing running. */
+export function abortHandlerFor(tabId: string | null): (() => void) | null {
+	return tabId ? (abortHandlers.get(tabId) ?? null) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -25,6 +36,8 @@ interface UseGlobalKeyboardShortcutsOptions {
 	onNewSession?: (cwd: string) => void;
 	/** The currently selected project directory (sidebar cwd). */
 	activeCwd?: string | null;
+	/** Tab whose run Esc aborts (only the active tab is ever stopped). */
+	activeTabId?: string | null;
 	/** Focus the chat input (Ctrl+I). */
 	onFocusInput?: () => void;
 	/** Submit the current chat draft (Ctrl+Enter). */
@@ -39,7 +52,8 @@ interface UseGlobalKeyboardShortcutsOptions {
  * Register global keyboard shortcuts for the application.
  *
  * Shortcuts handled here:
- *   Esc          – stop the running agent (via module-level abort handler)
+ *   Esc          – stop the active tab's run (via the module-level registry,
+ *                  keyed by tab id: a hidden tab must never be aborted)
  *   Ctrl+Alt+N   – create a new session in the active project directory
  *   Ctrl+N       – create a new session (same action; Ctrl+Alt+N kept for
  *                  compatibility with the original binding)
@@ -56,20 +70,21 @@ interface UseGlobalKeyboardShortcutsOptions {
  * or input (IME composition); the textarea is driven by ChatInput's own keys.
  */
 export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOptions): void {
-	const { onNewSession, activeCwd, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette } = options;
+	const { onNewSession, activeCwd, activeTabId, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette } = options;
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent): void => {
-			// ---- Esc: stop agent ----
+			// ---- Esc: stop the active tab's run ----
 			if (e.key === "Escape") {
-				if (!globalAbortHandler) return;
+				const abort = abortHandlerFor(activeTabId ?? null);
+				if (!abort) return;
 
 				const tag = (e.target as HTMLElement)?.tagName;
 				// Let textarea/input handle Esc internally (ChatInput menus / stop).
 				if (tag === "TEXTAREA" || tag === "INPUT") return;
 
 				e.preventDefault();
-				globalAbortHandler();
+				abort();
 				return;
 			}
 
@@ -115,5 +130,5 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
 
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [activeCwd, onNewSession, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette]);
+	}, [activeCwd, activeTabId, onNewSession, onFocusInput, onSubmitInput, onCycleTheme, onTogglePalette]);
 }
