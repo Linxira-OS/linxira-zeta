@@ -23,6 +23,7 @@
 import * as fs from "node:fs/promises";
 import { logger, untilAborted } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
+import { applySubagentModelOverride, modelFailureLedgerForSession } from "../task/model-switch";
 import { trackLateCleanup } from "../utils/late-cleanup";
 import {
 	type AgentRef,
@@ -34,6 +35,16 @@ import {
 import { getAgentTombstonePath } from "./agent-tombstone";
 
 export type AgentReviver = (expected: AgentRef) => Promise<AgentSession>;
+
+/** Options accepted by {@link AgentLifecycleManager.ensureLive}. */
+export interface EnsureLiveOptions {
+	/**
+	 * Run the ensured session on this model selector (`provider/id[:level]` or an
+	 * `@role` alias) instead of the one it already has. Requires
+	 * `task.enableModelParam`; omitted keeps the session's current model.
+	 */
+	model?: string;
+}
 
 const AGENT_RELEASE_GRACE_MS = 5000;
 
@@ -350,8 +361,27 @@ export class AgentLifecycleManager {
 	 *
 	 * Never returns a session that is mid-dispose: an in-flight park is either
 	 * cancelled (session still live) or awaited to completion before revive.
+	 *
+	 * `options.model` is an opt-in per-wake override: the returned session runs
+	 * the following turn on that selector (`provider/id[:level]` or `@role`),
+	 * whether it was already live (warm) or rebuilt from its transcript (cold).
+	 * Omitted — the default — leaves the session on its current model and
+	 * behaves exactly as before. Requires `task.enableModelParam`; an
+	 * unresolvable selector or one inside its hard-failure cooldown throws
+	 * instead of quietly running on the wrong route.
 	 */
-	async ensureLive(id: string): Promise<AgentSession> {
+	async ensureLive(id: string, options?: EnsureLiveOptions): Promise<AgentSession> {
+		const session = await this.#ensureLiveSession(id);
+		if (options?.model === undefined) return session;
+		await applySubagentModelOverride(session, options.model, {
+			source: "wake-param",
+			ledger: modelFailureLedgerForSession(session.sessionManager.getSessionFile() ?? null),
+		});
+		return session;
+	}
+
+	/** {@link ensureLive} without the optional model override. */
+	async #ensureLiveSession(id: string): Promise<AgentSession> {
 		const park = this.#parks.get(id);
 		if (park) {
 			const parked = this.#registry.get(id);

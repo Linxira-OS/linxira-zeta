@@ -99,6 +99,7 @@ import { buildNamedToolChoice } from "../utils/tool-choice";
 import type { WorkspaceTree } from "../workspace-tree";
 import { isCompletionProbeEnabled, startCompletionProbe } from "./completion-probe";
 import { attributeSubagentError } from "./error-attribution";
+import { classifySubagentFailure } from "./model-switch";
 import { generateTaskLabel } from "./label";
 import { resolveAgentPrewalkDefault } from "./prewalk";
 import { isReadOnlyAgent } from "./read-only-policy";
@@ -2841,6 +2842,19 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 	progress.status = wasAborted ? "aborted" : exitCode === 0 ? "completed" : "failed";
 	monitor.scheduleProgress(true);
 
+	// Coarse cause of a non-zero exit, for a parent agent that must decide
+	// whether a different model would help. `aborted` is known from the exit
+	// path itself; everything else comes from the provider error classifier
+	// reading the failure the run already reports.
+	const classifiedFailure =
+		exitCode === 0 ? undefined : classifySubagentFailure({ message: stderr || progress.retryFailure?.errorMessage });
+	const failureClass =
+		classifiedFailure === undefined || classifiedFailure !== "unknown"
+			? classifiedFailure
+			: wasAborted
+				? ("aborted" as const)
+				: ("unknown" as const);
+
 	// Emit lifecycle end event after finalization so yield status is reflected
 	const settledPayload = {
 		id,
@@ -2889,6 +2903,7 @@ async function finalizeRunResult(args: FinalizeRunArgs): Promise<SingleResult> {
 		outputPath,
 		extractedToolData: progress.extractedToolData,
 		retryFailure: progress.retryFailure,
+		...(failureClass !== undefined ? { failureClass } : {}),
 		outputMeta,
 	};
 }
@@ -3451,6 +3466,13 @@ export interface FollowUpTurnOptions {
 	description?: string;
 	/** Explicit pre-expansion model role alias retained from the original run. */
 	modelRole?: string;
+	/**
+	 * Model selector to run this wake turn on (`provider/id`, `:level` suffix, or
+	 * an `@role` alias). Opt-in and absent by default: without it the turn
+	 * continues on the session's current model, exactly as before. Requires
+	 * `task.enableModelParam`.
+	 */
+	model?: string;
 	/** Structured-output state retained from the original invocation. */
 	outputSchema?: unknown;
 	outputSchemaMode?: StructuredSubagentSchemaMode;
@@ -3489,7 +3511,8 @@ export async function runSubagentFollowUpTurn(options: FollowUpTurnOptions): Pro
 	const { id, agent, message, signal } = options;
 	const index = options.index ?? 0;
 	const startTime = Date.now();
-	let session = await AgentLifecycleManager.global().ensureLive(id);
+	const ensureLiveOptions = options.model !== undefined ? { model: options.model } : undefined;
+	let session = await AgentLifecycleManager.global().ensureLive(id, ensureLiveOptions);
 	// Acquire turn ownership before mutating the shared yield contract: installing
 	// pooled items under a running ordinary wake would reject its in-flight tool
 	// calls. The check-to-install section below has no await, so once idle is
@@ -3522,7 +3545,7 @@ export async function runSubagentFollowUpTurn(options: FollowUpTurnOptions): Pro
 	// already be streaming a wake, so ownership is reacquired every round.
 	for (let acquireAttempts = 0; ; acquireAttempts++) {
 		await session.setWorkPoolYieldItems(options.workPoolYieldItems ?? []);
-		const live = await AgentLifecycleManager.global().ensureLive(id);
+		const live = await AgentLifecycleManager.global().ensureLive(id, ensureLiveOptions);
 		if (live === session) break;
 		if (acquireAttempts >= 2) {
 			throw new Error(

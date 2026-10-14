@@ -9,7 +9,13 @@ import * as os from "node:os";
 import path from "node:path";
 import { $env, prompt, Snowflake } from "@linxiraos/pi-utils";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
-import { resolveAgentModelSelection, resolveConfiguredModelPatterns } from "../config/model-resolver";
+import {
+	formatModelStringWithRouting,
+	resolveAgentModelPatterns,
+	resolveAgentModelSelection,
+	resolveConfiguredModelPatterns,
+	resolveModelOverride,
+} from "../config/model-resolver";
 import { type OAuthAccountPools, validateAgentAccountPools } from "../config/account-pools";
 import {
 	type CompactionThresholdPair,
@@ -46,6 +52,12 @@ import {
 	runIsolatedSubprocess,
 } from "./isolation-runner";
 import { generateTaskName } from "./name-generator";
+import {
+	classifySubagentFailure,
+	collectModelSwitchCandidates,
+	isHardFailureClass,
+	modelFailureLedgerForSession,
+} from "./model-switch";
 import { AgentOutputManager } from "./output-manager";
 import { resolveSpawnPolicy } from "./spawn-policy";
 import { type AgentDefinition, canSpawnAtDepth } from "./types";
@@ -67,6 +79,7 @@ import {
 	cfgTaskAgentServiceTierOverrides,
 	cfgTaskDisabledAgents,
 	cfgTaskEnableLsp,
+	cfgTaskEnableModelParam,
 	cfgTaskIsolationApply,
 	cfgTaskIsolationEnabled,
 	cfgTaskIsolationMerge,
@@ -745,6 +758,76 @@ function describeSalvagedWork(result: SingleResult): string {
 }
 
 /**
+ * Fold agent-driven model bookkeeping into a settled child result: the audit
+ * record of a caller-supplied `model`, the models this session could run
+ * instead, and the ledger entry that keeps the harness from re-hitting a route
+ * it just watched fail hard. Runs here rather than in the executor because only
+ * this layer knows the *parent* session, which is the scope a re-plan happens
+ * in; both frontends (task and eval) reach it.
+ *
+ * Inert while `task.enableModelParam` is off, so a default session's results
+ * and ledger stay exactly as they were.
+ */
+function annotateAgentDrivenModelUse(
+	request: StructuredSubagentRequest,
+	policy: EffectiveSubagentPolicy,
+	result: SingleResult,
+): void {
+	if (!cfgTaskEnableModelParam.get(request.session.settings)) return;
+	const registry = request.session.modelRegistry;
+	const ledger = modelFailureLedgerForSession(request.session);
+	const selected = result.resolvedModel ?? result.resolvedModelIdentity;
+	const requested = Array.isArray(request.model) ? request.model[0] : request.model;
+	if (requested?.trim()) {
+		// What the run would have used without the override: the same chain with
+		// the request selector removed (settings override, agent default, parent).
+		const inheritedPatterns = resolveAgentModelPatterns({
+			settingsOverride: cfgTaskAgentModelOverrides.get(request.session.settings)[policy.agentName],
+			agentModel: policy.effectiveAgent.model,
+			settings: request.session.settings,
+			activeModelPattern: policy.parentActiveModelPattern,
+		});
+		const inherited = registry
+			? resolveModelOverride(inheritedPatterns, registry, request.session.settings).model
+			: undefined;
+		result.modelChange = {
+			source: "spawn-param",
+			...(inherited ? { from: formatModelStringWithRouting(inherited) } : {}),
+			to: selected ?? requested.trim(),
+		};
+		ledger.noteSwitch({ ...result.modelChange, agent: policy.agentName });
+	}
+	if (result.exitCode === 0) {
+		ledger.noteServed(selected);
+		return;
+	}
+	const failureClass =
+		result.failureClass ??
+		(result.aborted === true
+			? ("aborted" as const)
+			: classifySubagentFailure({ message: result.stderr || result.retryFailure?.errorMessage }));
+	result.failureClass = failureClass;
+	if (registry) {
+		result.fallbackCandidates = collectModelSwitchCandidates({
+			settings: request.session.settings,
+			modelRegistry: registry,
+			failedSelector: selected,
+			patterns: policy.modelOverride,
+			role: policy.modelRole,
+			ledger,
+		}).map(candidate => candidate.selector);
+	}
+	if (isHardFailureClass(failureClass) && selected) {
+		ledger.noteFailure({
+			selector: selected,
+			failureClass,
+			agent: policy.agentName,
+			message: result.stderr || result.retryFailure?.errorMessage,
+		});
+	}
+}
+
+/**
  * Execute a validated subagent. Preflight errors occur before any artifact
  * lease or child dispatch; callers keep responsibility for their result text.
  */
@@ -808,6 +891,7 @@ export async function runStructuredSubagent(request: StructuredSubagentRequest):
 			});
 		}
 		settled = result;
+		annotateAgentDrivenModelUse(request, policy, result);
 		attachStructuredOutputMetadata(result, policy.schema);
 		hasValidStructuredOutput = result.structuredOutput?.status === "valid";
 		requiresRecoveryArtifacts =
