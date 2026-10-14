@@ -1624,6 +1624,57 @@ describe("ModelRegistry", () => {
 			expect(model?.baseUrl).toBe("http://127.0.0.1:8080/v1");
 		});
 
+		test("scoped refresh skips discovery providers outside its scope", async () => {
+			writeRawModelsJson({
+				"scope-a": {
+					baseUrl: "https://scope-a.test/v1",
+					apiKey: "TEST_KEY",
+					api: "openai-completions",
+					discovery: { type: "openai-models-list" },
+				},
+				"scope-b": {
+					baseUrl: "https://scope-b.test/v1",
+					apiKey: "TEST_KEY",
+					api: "openai-completions",
+					discovery: { type: "openai-models-list" },
+				},
+			});
+			const requested: string[] = [];
+			const fetchMock: FetchImpl = async input => {
+				const url = String(input);
+				requested.push(url);
+				if (url === "https://scope-a.test/v1/models") {
+					return new Response(JSON.stringify({ data: [{ id: "scope-a-model" }] }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					});
+				}
+				if (url === "https://scope-b.test/v1/models") {
+					return new Response(JSON.stringify({ data: [{ id: "scope-b-model" }] }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					});
+				}
+				// Built-in shared catalogs are irrelevant here; answer empty.
+				return new Response(JSON.stringify({ data: [] }), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				});
+			};
+			const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+
+			await registry.refresh("online-if-uncached", { providers: ["scope-a"] });
+
+			expect(registry.find("scope-a", "scope-a-model")).toBeDefined();
+			// The out-of-scope provider is not fetched by a scoped pass...
+			expect(requested).not.toContain("https://scope-b.test/v1/models");
+			expect(registry.find("scope-b", "scope-b-model")).toBeUndefined();
+
+			// ...and the unscoped refresh (the post-frame background pass) still is.
+			await registry.refresh("online-if-uncached");
+			expect(registry.find("scope-b", "scope-b-model")).toBeDefined();
+		});
+
 		test("discoverable custom compat survives refresh", async () => {
 			writeRawModelsJson({
 				openai: {

@@ -31,8 +31,13 @@ describe("ModelRegistry", () => {
 		// Construct with an explicit modelsPath inside the temp dir so the
 		// constructor's #loadModels read returns "not-found" rather than
 		// touching the host's ~/.zeta/agent/models.yaml. isBunTestRuntime()
-		// auto-stubs #fetch in the constructor.
-		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"));
+		// auto-stubs #fetch in the constructor. The upstream-compat probe is
+		// pointed at an empty fixture: its default (`~/.zeta/agent`) is the
+		// host's own agent dir, which would otherwise merge a developer's real
+		// models.yml into every case here.
+		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"), {
+			ompAgentDir: path.join(tmpDir, "upstream-fixture"),
+		});
 	});
 
 	afterEach(() => {
@@ -91,12 +96,9 @@ describe("ModelRegistry", () => {
 			supportsStroe: false,
 		});
 		expect(JSON.parse(listing.stdout).models).toContainEqual(expect.objectContaining({ id: "custom-model" }));
-		expect(listing.stderr.trim().split("\n")).toEqual(
-			["compat", "models.0.compat", "modelOverrides.custom-model.compat"].map(
-				location =>
-					`Warning: Unknown compat key in ${modelsPath}: providers.custom.${location}.supportsStroe (configuration still loaded).`,
-			),
-		);
+		expect(listing.stderr.trim().split("\n")).toEqual([
+			`Warning: Unknown compat key in ${modelsPath}: supportsStroe at 3 places (providers.custom.compat, providers.custom.models.0.compat, providers.custom.modelOverrides.custom-model.compat) (configuration still loaded).`,
+		]);
 
 		await registry.refresh("offline");
 		await registry.refresh("offline", { refreshCommandCredentials: true });
@@ -112,6 +114,38 @@ describe("ModelRegistry", () => {
 		expect((await listModels()).stderr).toBe(
 			`Warning: Unknown compat key in ${modelsPath}: providers.custom.compat.supportsStorre (configuration still loaded).\n`,
 		);
+	});
+
+	test("aggregates one stale key repeated per model and names its successor", async () => {
+		const modelsPath = path.join(tmpDir, "models.yaml");
+		const providers: Record<string, unknown> = {};
+		for (const name of ["volcengine-coding", "volcengine-agent", "zai", "aaccxx"]) {
+			providers[name] = {
+				baseUrl: `https://${name}.example.test/v1`,
+				auth: "none",
+				api: "openai-completions",
+				models: [0, 1].map(index => ({
+					id: `${name}-model-${index}`,
+					compat: { requiresReasoningContentOnAssistantMessages: true },
+				})),
+			};
+		}
+		await Bun.write(modelsPath, JSON.stringify({ providers }));
+
+		await registry.refresh("offline");
+		expect(registry.getError()).toBeUndefined();
+		const listing = await listModels();
+		// Eight occurrences of one key: one line naming the successor, and the
+		// stale key stays inert rather than failing the file.
+		expect(listing.stderr.trim().split("\n")).toEqual([
+			`Warning: Unknown compat key in ${modelsPath}: requiresReasoningContentOnAssistantMessages at 8 places ` +
+				"(providers.volcengine-coding.models.0.compat, providers.volcengine-coding.models.1.compat, " +
+				"providers.volcengine-agent.models.0.compat, +5 more) — renamed to " +
+				'"requiresReasoningContentForAllAssistantTurns"; update or remove it (configuration still loaded).',
+		]);
+		expect(registry.find("zai", "zai-model-0")?.compatConfig).toMatchObject({
+			requiresReasoningContentOnAssistantMessages: true,
+		});
 	});
 
 	test("warns for nested fixed-field compat keys but accepts open extraBody payloads", async () => {

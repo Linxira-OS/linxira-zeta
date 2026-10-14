@@ -149,9 +149,39 @@ const getRuntimeCompatKeys = once(
 		),
 );
 
+/**
+ * One compat key the current vocabulary does not declare, together with every
+ * path the file wrote it at.
+ */
+export interface UnknownCompatKey {
+	/** Key as written (camelCase). */
+	key: string;
+	/** Dotted `providers.…compat` paths, in file order. */
+	paths: string[];
+}
+
+/**
+ * Compat keys renamed after the release that declared them.
+ *
+ * The published schema only declares the successor, so a `models.yml` written
+ * for an older engine reports the stale spelling as unknown. Naming the
+ * replacement keeps the diagnostic actionable instead of a dead end.
+ *
+ * `requiresReasoningContentOnAssistantMessages` and
+ * `requiresReasoningContentForAllAssistantTurns` are the same contract (every
+ * replayed assistant turn carries `reasoning_content` while reasoning is on);
+ * the catalog renamed the axis and now also resolves the DeepSeek/MiMo
+ * identity rules that require it on their own
+ * (`packages/catalog/src/compat/axes.ts`,
+ * `packages/catalog/src/compat/resolve.ts`).
+ */
+export const RENAMED_COMPAT_KEYS: Readonly<Record<string, string>> = {
+	requiresReasoningContentOnAssistantMessages: "requiresReasoningContentForAllAssistantTurns",
+};
+
 /** Unknown keys are diagnostic only: keep newer-release configuration intact. */
-export function getUnknownCompatKeys(config: ModelsConfig): string[] {
-	const unknownKeys: string[] = [];
+export function getUnknownCompatKeys(config: ModelsConfig): UnknownCompatKey[] {
+	const byKey = new Map<string, UnknownCompatKey>();
 	const { ApiCompatSchema } = getModelsConfigSchemaBundle();
 	const visit = <Input>(
 		value: unknown,
@@ -165,7 +195,9 @@ export function getUnknownCompatKeys(config: ModelsConfig): string[] {
 		for (const [key, entry] of Object.entries(value)) {
 			const keyPath = `${path}.${key}`;
 			if (!keys.allows(key) && !(level !== "nested" && key !== "whenThinking" && getRuntimeCompatKeys().has(key))) {
-				unknownKeys.push(keyPath);
+				const existing = byKey.get(key);
+				if (existing) existing.paths.push(keyPath);
+				else byKey.set(key, { key, paths: [keyPath] });
 				continue;
 			}
 			if (!isRecord(entry)) continue;
@@ -191,7 +223,47 @@ export function getUnknownCompatKeys(config: ModelsConfig): string[] {
 			visit(override.compat, ApiCompatSchema, `${path}.modelOverrides.${id}.compat`, "compat");
 		}
 	}
-	return unknownKeys;
+	return [...byKey.values()];
+}
+
+/** Occurrences of one key summarized inline before the rest is left to the log. */
+const UNKNOWN_COMPAT_PATH_SAMPLE = 3;
+/** Distinct keys rendered before the remainder collapses into one summary line. */
+const UNKNOWN_COMPAT_KEY_LIMIT = 8;
+
+/**
+ * Render one warning per unknown key, with every occurrence of that key folded
+ * into it: one stale key repeated across four providers × two models is a
+ * single line, not eight. Occurrences are listed as their `…compat` container
+ * (the key itself is named once); the complete dotted paths for every key go to
+ * the debug log at the call site, so nothing is lost.
+ */
+export function formatUnknownCompatKeyWarnings(file: string, unknown: readonly UnknownCompatKey[]): string[] {
+	const lines: string[] = [];
+	for (const entry of unknown.slice(0, UNKNOWN_COMPAT_KEY_LIMIT)) {
+		const renamedTo = RENAMED_COMPAT_KEYS[entry.key];
+		const hint = renamedTo === undefined ? "" : ` — renamed to "${renamedTo}"; update or remove it`;
+		if (entry.paths.length === 1 && hint === "") {
+			lines.push(`Unknown compat key in ${file}: ${entry.paths[0]} (configuration still loaded).`);
+			continue;
+		}
+		const suffixLength = entry.key.length + 1;
+		const sample = entry.paths
+			.slice(0, UNKNOWN_COMPAT_PATH_SAMPLE)
+			.map(keyPath => keyPath.slice(0, -suffixLength))
+			.join(", ");
+		const rest = entry.paths.length - UNKNOWN_COMPAT_PATH_SAMPLE;
+		const where =
+			entry.paths.length === 1
+				? entry.paths[0]
+				: `${entry.key} at ${entry.paths.length} places (${sample}${rest > 0 ? `, +${rest} more` : ""})`;
+		lines.push(`Unknown compat key in ${file}: ${where}${hint} (configuration still loaded).`);
+	}
+	const omitted = unknown.length - UNKNOWN_COMPAT_KEY_LIMIT;
+	if (omitted > 0) {
+		lines.push(`${omitted} more unknown compat key(s) in ${file}; see the debug log for the full list.`);
+	}
+	return lines;
 }
 
 export const ModelsConfigFile = new ConfigFile<ModelsConfig>("models", {

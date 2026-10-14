@@ -132,6 +132,7 @@ export {
 } from "./model-provider-discovery";
 
 import {
+	formatUnknownCompatKeyWarnings,
 	getUnknownCompatKeys,
 	ModelsConfigFile,
 	type ProviderValidationModel,
@@ -290,6 +291,14 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
 	forceStatic?: boolean;
+	/**
+	 * Restrict the discovery pass to these providers. Callers that only need a
+	 * specific catalog (a fallback role's model, a resume target's) skip the
+	 * bundled-provider sweep, which costs one network fetch per provider with a
+	 * cold cache and is otherwise picked up by the post-frame background pass.
+	 * Omitted: every provider is refreshed.
+	 */
+	providers?: Iterable<string>;
 }
 
 /** Authentication material returned to legacy extensions for one model request. */
@@ -590,7 +599,10 @@ export class ModelRegistry {
 		// as a background reconcile, and must not spawn `!command` helpers.
 		this.#reloadStaticModelsForRefresh(options);
 		this.#suppressedSelectors.clear();
-		await this.#refreshRuntimeDiscoveries(strategy);
+		await this.#refreshRuntimeDiscoveries(
+			strategy,
+			options?.providers === undefined ? undefined : new Set(options.providers),
+		);
 	}
 
 	/**
@@ -1918,13 +1930,7 @@ export class ModelRegistry {
 	}
 
 	#buildCustomModelsResult(value: ModelsConfig): CustomModelsResult {
-		for (const keyPath of getUnknownCompatKeys(value)) {
-			if (this.#warnedCompatKeys.has(keyPath)) continue;
-			this.#warnedCompatKeys.add(keyPath);
-			this.#configWarnings.push(
-				`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
-			);
-		}
+		this.#reportUnknownCompatKeys(value);
 
 		const overrides = new Map<string, ProviderOverride>();
 		const allModelOverrides = new Map<string, Map<string, ModelOverride>>();
@@ -2039,6 +2045,43 @@ export class ModelRegistry {
 			configuredProviders,
 			found: true,
 		};
+	}
+
+	/**
+	 * Surface unknown `models.yml` compat keys, once per path.
+	 *
+	 * Every occurrence of one key collapses into a single line: the reported
+	 * shape (one stale key repeated per model across four providers) pushed
+	 * eight identical notifications into the startup header. The complete path
+	 * list always lands in the debug log, so nothing is lost.
+	 */
+	#reportUnknownCompatKeys(value: ModelsConfig): void {
+		const fresh = getUnknownCompatKeys(value)
+			.map(finding => ({
+				...finding,
+				paths: finding.paths.filter(keyPath => !this.#warnedCompatKeys.has(keyPath)),
+			}))
+			.filter(finding => finding.paths.length > 0);
+		if (fresh.length === 0) return;
+		for (const finding of fresh) {
+			for (const keyPath of finding.paths) this.#warnedCompatKeys.add(keyPath);
+		}
+		const file = this.#modelsConfigFile.path();
+		logger.debug("unknown compat keys in models config", {
+			file,
+			keys: fresh.map(finding => ({ key: finding.key, paths: finding.paths })),
+		});
+		for (const line of formatUnknownCompatKeyWarnings(file, fresh)) this.#pushConfigWarning(line);
+	}
+
+	/**
+	 * Append a config diagnostic, skipping an exact repeat.
+	 *
+	 * Collectors re-run on every refresh, and the interactive header renders one
+	 * row per entry, so an unchanged message must never accumulate.
+	 */
+	#pushConfigWarning(message: string): void {
+		if (!this.#configWarnings.includes(message)) this.#configWarnings.push(message);
 	}
 
 	async #refreshRuntimeDiscoveries(
@@ -2347,7 +2390,7 @@ export class ModelRegistry {
 			const provider = providerConfig.provider;
 			// The endpoint env var may embed `user:pass@`, and fetch errors can echo it.
 			const detail = error.replaceAll(baseUrl, url).replace(URL_USERINFO_RE, "$1").replace(/\s+/g, " ").trim();
-			this.#configWarnings.push(
+			this.#pushConfigWarning(
 				`Built-in ${provider} provider: model discovery at ${url} (from ${endpointEnv}) failed. Fix or unset ${endpointEnv}, or add "${provider}" to disabledProviders. Error: ${detail}`,
 			);
 		}

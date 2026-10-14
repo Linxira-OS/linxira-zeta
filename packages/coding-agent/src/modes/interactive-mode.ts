@@ -481,6 +481,8 @@ type LiveUiSettings = SettingValueOf<typeof cfgLiveUiSettings>;
 
 const STILL_CLOSING_DELAY_MS = 3_000;
 const JUDGMENT_BATCH_PROGRESS_RETAIN_MS = 1_000;
+/** Config warnings the header shows before it summarizes the remainder. */
+const CONFIG_WARNING_HEADER_LIMIT = 5;
 /** Startup emits several status-bar changes within a second; persist only the settled one. */
 const COMPOSER_STATUS_PERSIST_DELAY_MS = 1_000;
 const DEFAULT_WORKING_MESSAGE = "Working…";
@@ -7505,9 +7507,22 @@ export class InteractiveMode implements InteractiveModeContext {
 	/** Header rows for the current config warnings, rebuilt when they change (#10048). */
 	#buildConfigWarningComponents(): Component[] {
 		const components: Component[] = [];
-		for (const warning of this.session.configWarnings) {
+		const shown = this.session.configWarnings.slice(0, CONFIG_WARNING_HEADER_LIMIT);
+		for (const warning of shown) {
 			components.push(
 				new Text(`Warning: ${warning}`, 1, 0).setStyleFn(t => theme.fg("warning", t)),
+				new Spacer(1),
+			);
+		}
+		// The header is a startup surface, not an error report: a config with many
+		// independent problems must not push the composer off screen. The full list
+		// stays on `session.configWarnings` and in the debug log.
+		const hidden = this.session.configWarnings.length - shown.length;
+		if (hidden > 0) {
+			components.push(
+				new Text(`… and ${hidden} more configuration warning(s); see the debug log.`, 1, 0).setStyleFn(t =>
+					theme.fg("muted", t),
+				),
 				new Spacer(1),
 			);
 		}
