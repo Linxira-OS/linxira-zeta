@@ -17,17 +17,41 @@
 
 import * as fs from "node:fs";
 
-const ZETA_IDENTITY_FIELDS = new Set([
-	"name",
-	"version",
-	"homepage",
-	"bin",
-	"repository",
-	"bugs",
-	"author",
-	"contributors",
-	"keywords",
-]);
+/**
+ * Top-level manifest keys the driver rebuilds from the branch side (`current`),
+ * i.e. the keys a merge cannot drop or revert. Exported because
+ * `check-package-json-merge.ts` derives its keep-list from here: the guard must
+ * never carry a second, hand-maintained copy of what the driver owns (a copy
+ * that drifts turns the guard into a no-op exactly when the driver changes).
+ */
+export const ZETA_IDENTITY_FIELDS: Record<string, true> = {
+	name: true,
+	version: true,
+	homepage: true,
+	bin: true,
+	repository: true,
+	bugs: true,
+	author: true,
+	contributors: true,
+	keywords: true,
+};
+
+/** Dependency sections the driver merges key-by-key via `mergeDeps`. */
+export const DEPENDENCY_SECTIONS = [
+	"dependencies",
+	"devDependencies",
+	"optionalDependencies",
+	"peerDependencies",
+] as const;
+
+/**
+ * Nested paths the driver rebuilds from the branch side, dotted and relative to
+ * the manifest root. `workspaces` itself arrives from the merged-in side; only
+ * its `catalog` is re-merged key-by-key (see `main`), so a catalog change is not
+ * branch-side loss while every other `workspaces` key is. Also consumed by
+ * `check-package-json-merge.ts`.
+ */
+export const DRIVER_MERGED_PATHS = ["workspaces.catalog"] as const;
 
 const ZETA_SCOPE = "@linxiraos/";
 
@@ -130,16 +154,14 @@ function main() {
 	const result: Record<string, unknown> = { ...other };
 
 	// Preserve Zeta identity fields from current
-	for (const field of ZETA_IDENTITY_FIELDS) {
+	for (const field of Object.keys(ZETA_IDENTITY_FIELDS)) {
 		if (field in current) {
 			result[field] = current[field];
 		}
 	}
 
 	// Merge dependency sections: keep Zeta scoped deps, accept upstream rest
-	const depSections = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
-
-	for (const section of depSections) {
+	for (const section of DEPENDENCY_SECTIONS) {
 		const currentDeps = current[section] as Record<string, string> | undefined;
 		const otherDeps = other[section] as Record<string, string> | undefined;
 
@@ -154,10 +176,11 @@ function main() {
 	}
 
 	// Handle workspace catalog entries in root package.json. The catalog
-	// lives at `workspaces.catalog`, not at the top level — a top-level
-	// `in` check never fires, silently shipping upstream `@oh-my-pi/*`
-	// catalog keys and dropping the Zeta `@linxiraos/*` ones on every
-	// merge (the recurring asset-name damage).
+	// lives at `workspaces.catalog` (the path declared in DRIVER_MERGED_PATHS,
+	// which check-package-json-merge.ts reads back), not at the top level — a
+	// top-level `in` check never fires, silently shipping upstream
+	// `@oh-my-pi/*` catalog keys and dropping the Zeta `@linxiraos/*` ones on
+	// every merge (the recurring asset-name damage).
 	const currentWorkspaces = current.workspaces as Record<string, unknown> | undefined;
 	const resultWorkspaces = result.workspaces as Record<string, unknown> | undefined;
 	const currentCatalog = currentWorkspaces?.catalog as Record<string, string> | undefined;

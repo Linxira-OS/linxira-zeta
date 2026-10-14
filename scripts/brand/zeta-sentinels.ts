@@ -536,6 +536,6 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	{
 		file: ".github/workflows/ci.yml",
 		symbol: "bun scripts/check-package-json-merge.ts",
-		why: "Zeta-only step in the shared `check` job: the `merge.zeta-package` driver rebuilds the merged manifest from the merged-in side, so a local `git merge main` silently drops branch-side `scripts` entries (2026-10-14: three). ci.yml is a shared file an upstream merge takes in blocks, and the local-CI parity guard only checks GitHub → mirror, never the reverse, so a trimmed step would go unnoticed.",
+		why: "Zeta-only step in the shared `check` job: the `merge.zeta-package` driver rebuilds the merged manifest from the merged-in side, so a local `git merge main` silently drops or reverts branch-side leaves — `scripts` entries (2026-10-14: three) and any other top-level key such as `packageManager`. ci.yml is a shared file an upstream merge takes in blocks, and the local-CI parity guard only checks GitHub → mirror, never the reverse, so a trimmed step would go unnoticed.",
 	},
 ];

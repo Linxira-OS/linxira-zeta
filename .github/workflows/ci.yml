@@ -257,9 +257,11 @@ jobs:
               bun scripts/check-merge-lineage.ts
          # `.gitattributes` binds every manifest to the `merge.zeta-package`
          # driver, which rebuilds the merged package.json from the merged-in
-         # side — branch-side `scripts` entries vanish silently (2026-10-14:
-         # three of them, noticed only by a later "script not found"). The scan
-         # needs this branch's own merge commits, hence the unshallow.
+         # side — branch-side leaves vanish or revert silently (2026-10-14:
+         # three `scripts` entries, noticed only by a later "script not found";
+         # the v18.9.1 merge reverted the top-level `packageManager` pin the
+         # same way). The scan needs this branch's own merge commits, hence the
+         # unshallow.
          - name: package.json merge-drop guard
            run: |
               set -euo pipefail
