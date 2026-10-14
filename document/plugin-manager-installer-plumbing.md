@@ -43,7 +43,7 @@ omp plugin install name@marketplace / omp install name@marketplace
 
 ## On-disk model
 
-User plugin state lives under the plugins data root (`~/.omp/plugins` by default). On Linux and macOS, `omp config init-xdg` initializes the XDG data, state, and cache roots but does not move existing plugin trees. With `XDG_DATA_HOME` set and its `omp/` directory initialized, default-profile state resolves under `$XDG_DATA_HOME/omp/plugins`. Named profiles use their own roots and require a profile-specific XDG directory to opt into that routing. The marketplace registry helper separately copies a legacy `marketplaces.json` best-effort when its XDG target is absent.
+User plugin state lives under the plugins data root (`~/.zeta/plugins` by default). On Linux and macOS, `zetacode config init-xdg` initializes the XDG data, state, and cache roots but does not move existing plugin trees. With `XDG_DATA_HOME` set and its `zeta/` directory initialized, default-profile state resolves under `$XDG_DATA_HOME/zeta/plugins`. Named profiles use their own roots and require a profile-specific XDG directory to opt into that routing. The marketplace registry helper separately copies a legacy `marketplaces.json` best-effort when its XDG target is absent.
 
 The plugin root contains:
 
@@ -56,15 +56,15 @@ The plugin root contains:
 
 Project-root resolution first walks upward for the nearest `.zeta/`; only when none exists does it use the nearest `.git` anchor. Project runtime plugins live in `<anchor>/.zeta/plugins/{node_modules,zeta-plugins.lock.json}`. Explicit marketplace project installs can create `<cwd>/.zeta/plugins/` when neither anchor exists (except when cwd is home). Enabled project packages shadow user packages with the same package name; disabled project packages do not. npm/git/link CLI operations remain user-scoped; their install handler warns and ignores `--scope`.
 
-Project-local overrides are searched through project config directories as `plugin-overrides.json` (normally `<project>/.omp/plugin-overrides.json`). Overrides are read-only from manager/loader perspective and can disable plugins or override features/settings.
+Project-local overrides are searched through project config directories as `plugin-overrides.json` (normally `<project>/.zeta/plugin-overrides.json`). Overrides are read-only from manager/loader perspective and can disable plugins or override features/settings.
 
 Marketplace installs add registry and cache state alongside those runtime entries:
 
-- user data root `marketplaces.json` (`~/.omp/marketplaces.json` by default) — configured marketplace catalogs
-- user plugins data root `installed_plugins.json` (`~/.omp/plugins/installed_plugins.json` by default) — user-scoped marketplace installs
-- `<anchor>/.omp/plugins/installed_plugins.json` — project-scoped marketplace installs
+- user data root `marketplaces.json` (`~/.zeta/marketplaces.json` by default) — configured marketplace catalogs
+- user plugins data root `installed_plugins.json` (`~/.zeta/plugins/installed_plugins.json` by default) — user-scoped marketplace installs
+- `<anchor>/.zeta/plugins/installed_plugins.json` — project-scoped marketplace installs
 - user plugins data root `cache/{marketplaces,plugins}/` — cached catalogs and plugin directories
-- `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` `omp.extensions` and tools to load
+- `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` manifest (`zeta`/`omp`/`pi` `extensions`) and tools to load
 - `<scope>/plugins/zeta-plugins.lock.json` — enablement and feature state shared with the runtime plugin loader
 
 ## Plugin spec parsing and metadata interpretation
@@ -152,7 +152,7 @@ If uninstall command fails, runtime state is not changed.
 
 ## Link flow (`PluginManager.link`)
 
-`link` supports local plugin development by symlinking a local package into `~/.omp/plugins/node_modules/<pkg.name>`.
+`link` supports local plugin development by symlinking a local package into `~/.zeta/plugins/node_modules/<pkg.name>`.
 
 Behavior:
 
