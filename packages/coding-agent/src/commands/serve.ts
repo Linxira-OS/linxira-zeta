@@ -132,6 +132,33 @@ export default class Serve extends Command {
 			return;
 		}
 
+		if (plan.action === "web-ui-unreachable") {
+			console.log(
+				chalk.yellow(
+					`  The ${CLI_BIN_NAME} instance holding ${targetUrl} answers its gateway but not its Web UI — refusing to reuse it.\n`,
+				),
+			);
+			reportInstance(plan.identity);
+			const probe = plan.probe;
+			const answer = probe.status === null ? (probe.error ?? "no answer") : `HTTP ${probe.status}`;
+			console.log(chalk.dim(`    Web UI probe: ${probe.url} → ${answer}`));
+			console.log(
+				chalk.dim(
+					`\n  That page is proxied to the serve process's Web UI child; a failure means the child is not running.`,
+				),
+			);
+			console.log(chalk.dim(`  Options:`));
+			console.log(chalk.dim(`    • stop that instance (pid ${plan.identity.pid}), then start serve again`));
+			console.log(
+				chalk.dim(
+					`    • start this one on other ports:  ${CLI_BIN_NAME} serve --web-port 30241 --gateway-port 30242`,
+				),
+			);
+			console.log(chalk.dim(`    Registry:                         ${serveRegistryPath()}\n`));
+			process.exitCode = 1;
+			return;
+		}
+
 		if (plan.other) {
 			console.log(
 				chalk.dim(

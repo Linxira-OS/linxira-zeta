@@ -22,6 +22,7 @@ import {
 	parseServeRegistration,
 	planServeStart,
 	probeServeIdentity,
+	probeWebUiSurface,
 	readServeRegistration,
 	SERVE_REGISTRY_ENV,
 	serveRegistryPath,
@@ -331,6 +332,101 @@ describe("reuse decision (zeta serve)", () => {
 		if (plan.action !== "start") throw new Error("expected start");
 		expect(plan.stale?.pid).toBe(777);
 		expect(plan.other).toBeNull();
+	});
+});
+
+/**
+ * The v1.2.1 corpse on the CLI side too: the port holder answers
+ * `/api/server/identity` in-process while its Web UI child is dead, so the page
+ * it proxies returns 502. Reusing it would hand every client a dead UI.
+ */
+describe("reuse decision (Web UI surface)", () => {
+	const target = "http://127.0.0.1:30141";
+
+	/** Identity answers on the port, every other path is a proxy 502. */
+	const fetchWithDeadWebUi = (): typeof fetch =>
+		fakeFetch(url => {
+			const parsed = new URL(url);
+			if (Number(parsed.port) !== 30141) return null;
+			if (parsed.pathname === "/api/server/identity") return Response.json(identity());
+			return new Response("Bad Gateway", { status: 502 });
+		});
+
+	test("refuses a port holder whose Web UI page does not answer", async () => {
+		const file = tempRegistry();
+		writeServeRegistration(registration(), file);
+		const discovery = await discoverServeInstance({
+			targetUrl: target,
+			registryFile: file,
+			fetchImpl: fetchWithDeadWebUi(),
+			isAlive: () => true,
+			sleepImpl: async () => {},
+		});
+		expect(discovery.webUiProbe?.ok).toBe(false);
+		expect(discovery.webUiProbe?.status).toBe(502);
+		const plan = planServeStart({ discovery, targetUrl: target, currentVersion: "1.2.0" });
+		expect(plan.action).toBe("web-ui-unreachable");
+		if (plan.action !== "web-ui-unreachable") throw new Error("expected web-ui-unreachable");
+		expect(plan.identity.pid).toBe(4242);
+		expect(plan.registration?.webUrl).toBe(target);
+		expect(plan.probe.url).toBe(`${target}/`);
+	});
+
+	test("still reuses a port holder whose Web UI page answers", async () => {
+		const file = tempRegistry();
+		writeServeRegistration(registration(), file);
+		const discovery = await discoverServeInstance({
+			targetUrl: target,
+			registryFile: file,
+			fetchImpl: fakeFetch(url => {
+				const parsed = new URL(url);
+				if (Number(parsed.port) !== 30141) return null;
+				if (parsed.pathname === "/api/server/identity") return Response.json(identity());
+				return new Response("<html>", { status: 200 });
+			}),
+			isAlive: () => true,
+			sleepImpl: async () => {},
+		});
+		expect(discovery.webUiProbe?.ok).toBe(true);
+		const plan = planServeStart({ discovery, targetUrl: target, currentVersion: "1.2.0" });
+		expect(plan.action).toBe("reuse");
+	});
+
+	test("probeWebUiSurface retries once and keeps the last answer", async () => {
+		let calls = 0;
+		const probe = await probeWebUiSurface(target, {
+			fetchImpl: fakeFetch(() => {
+				calls++;
+				return new Response("Bad Gateway", { status: 502 });
+			}),
+			sleepImpl: async () => {},
+		});
+		expect(calls).toBe(2);
+		expect(probe.attempts).toBe(2);
+		expect(probe.status).toBe(502);
+
+		let healthy = 0;
+		const ok = await probeWebUiSurface(target, {
+			fetchImpl: fakeFetch(() => {
+				healthy++;
+				return new Response("<html>", { status: 200 });
+			}),
+			sleepImpl: async () => {},
+		});
+		expect(healthy).toBe(1);
+		expect(ok.ok).toBe(true);
+	});
+
+	test("a transport failure is a failed probe, never a throw", async () => {
+		const probe = await probeWebUiSurface(target, {
+			fetchImpl: fakeFetch(() => {
+				throw new Error("ECONNREFUSED 127.0.0.1:54495");
+			}),
+			sleepImpl: async () => {},
+		});
+		expect(probe.ok).toBe(false);
+		expect(probe.status).toBeNull();
+		expect(probe.error).toContain("ECONNREFUSED");
 	});
 });
 

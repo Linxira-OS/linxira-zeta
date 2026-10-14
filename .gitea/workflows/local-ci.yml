@@ -1210,9 +1210,10 @@ jobs:
    # GitHub 的 desktop_linux/desktop_windows 都是发布态才跑的
    #（if: is-release == 'true'），本地镜像只取它的**测试半边**：desktop 的
    # npm test 平台契约 + web-ui 依赖。打包（electron-builder）、冒烟与产物
-   # 上传属于发布链，不在此处。
+   # 上传属于发布链，不在此处。同一 job 也镜像 ci.yml 的 `web_desktop_tests`
+   #（desktop 契约 + launcher/serve 复用决策，PR 路径常跑）。
    desktop_tests:
-      name: Test desktop platform contracts (Linux)
+      name: Test web/desktop contracts (Linux)
       needs: [preflight, toolchains]
       if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
       runs-on: self-hosted
@@ -1264,12 +1265,21 @@ jobs:
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
+         - name: Test web-ui
+           working-directory: web-ui
+           run: npm test
          - name: Install desktop dependencies
            working-directory: desktop
            run: npm ci
          - name: Test desktop platform contracts
            working-directory: desktop
            run: npm test
+         # Mirror of ci.yml `web_desktop_tests`: the two suites that had no
+         # PR-time signal while both desktop jobs stayed release-only.
+         - name: Test the Web UI launcher resolution
+           run: bun test packages/coding-agent/test/web-ui-launcher.test.ts
+         - name: Test the serve reuse decision
+           run: bun test packages/coding-agent/test/serve-registry.test.ts
 
    # ── 8. vendor 工作区（镜像 editor_tests / termide_tests / main_tests）────
    editor_tests:

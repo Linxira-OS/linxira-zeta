@@ -1,14 +1,18 @@
 /**
  * Desktop serve-command resolution — one face of the product-wide binary
- * discovery ruling, in the same order every other surface uses:
+ * discovery ruling, in the same order every other surface uses, plus the one
+ * packaged-shell rule below:
  *
  *   ① explicit env — `ZETA_SERVE_COMMAND` (full command override) and
  *     `ZETA_BIN_DIR` (delimiter-separated dirs probed before PATH)
- *   ② PATH — native `zetacode`/`zeta-c`/`zeta-cli` as installed (a distro
- *     or npm install puts them here); a PATH hit is used directly, with no
+ *   ② vendored form — a *packaged* shell prefers its own bundle (complete
+ *     bundle only: service binary + Node runtime + staged Web UI standalone)
+ *     because that is the only launcher version-locked to the shell and able to
+ *     serve the embedded UI offline; then the dev repo checkout (built dist
+ *     binary, then Bun-run source)
+ *   ③ PATH — native `zetacode`/`zeta-c`/`zeta-cli` as installed (a distro or npm
+ *     install puts them here); reached when no bundle is present, with no
  *     cross-component version validation
- *   ③ vendored form — the packaged desktop's own resources, then the dev
- *     repo checkout (built dist binary, then Bun-run source)
  *
  * Pure node-builtins only: main.ts supplies the Electron/process seams, so
  * the whole order is unit-testable without Electron.
@@ -193,10 +197,24 @@ export function resolveServeCommandIn(deps: ServeResolutionDeps): ServeCommand |
 		}
 	}
 
-	// ② PATH — installed launchers win over anything we vendor ourselves. The
-	// probe returns the resolved absolute path (with suffix); spawning the bare
-	// name here was the ENOENT bug — `where` matches `.cmd` shims that Node's
-	// shell-less spawn cannot execute.
+	// ② vendored — a packaged shell serves its *own* bundle before PATH.
+	//
+	// The bundle is the only launcher that ships the staged Web UI and the Node
+	// runtime it needs (see `prepare-runtime.mjs`), and it is version-locked to
+	// the shell: `scripts/check-version-consistency.ts` pins desktop/package.json
+	// to the CLI's version line, so the bundle's serve is always this shell's
+	// version. A PATH launcher carries no such guarantee — an npm install ships
+	// no Web UI at all (it fetches `@linxiraos/zeta-web` at runtime) and a
+	// different version would be refused later by the version-mismatch policy.
+	// v1.2.1 evidence: the shell spawned the PATH `zetacode.cmd`, whose Web UI
+	// fetch 404'd, and every launch reused the resulting corpse. Explicit
+	// overrides (ZETA_SERVE_COMMAND / ZETA_BIN_DIR) still win over this tier.
+	const bundled = bundledServeCommandIn(deps);
+	if (bundled) return bundled;
+
+	// ③ PATH — installed launchers. The probe returns the resolved absolute path
+	// (with suffix); spawning the bare name here was the ENOENT bug — `where`
+	// matches `.cmd` shims that Node's shell-less spawn cannot execute.
 	for (const name of SERVE_BIN_NAMES) {
 		const resolved = deps.probePath(name);
 		if (resolved) {
@@ -204,10 +222,7 @@ export function resolveServeCommandIn(deps: ServeResolutionDeps): ServeCommand |
 		}
 	}
 
-	// ③ vendored: the packaged bundle first, then the dev repo checkout.
-	const bundled = bundledServeCommandIn(deps);
-	if (bundled) return bundled;
-
+	// ④ dev repo checkout (unpackaged shells, or a packaged one with no bundle).
 	if (repoRoot) {
 		const exe = path.join(repoRoot, "packages", "coding-agent", "dist", deps.serviceBinaryName);
 		if (deps.exists(exe)) {
@@ -240,19 +255,21 @@ export function describeServeResolution(deps: ServeResolutionDeps): string {
 	const lines = [
 		"Zeta could not find a service binary to start. Discovery order:",
 		`  ① explicit: ZETA_SERVE_COMMAND=${deps.env.ZETA_SERVE_COMMAND ? "set" : "unset"}; ZETA_BIN_DIR=[${explicitDirs.join(", ") || "unset"}]`,
-		`  ② PATH (${deps.platform === "win32" ? "where" : "which"}): ${SERVE_BIN_NAMES.map(name => `${name} → ${deps.probePath(name) ?? "not found"}`).join("; ")}`,
 	];
 	if (!deps.isPackaged) {
-		lines.push(`  ③ vendored: not a packaged build; dev repo checkout at ${findRepoRootIn(deps) ?? "not found"}`);
+		lines.push(`  ② vendored: not a packaged build; dev repo checkout at ${findRepoRootIn(deps) ?? "not found"}`);
 	} else {
 		const missing = missingBundledServeFiles(deps);
 		const serviceDir = path.join(deps.resourcesPath, "zeta");
 		lines.push(
 			missing.length > 0
-				? `  ③ vendored: bundled runtime at ${serviceDir} is incomplete — ${missing.join("; ")}`
-				: `  ③ vendored: bundled runtime at ${serviceDir} is complete but was not selected`,
+				? `  ② vendored: bundled runtime at ${serviceDir} is incomplete — ${missing.join("; ")}`
+				: `  ② vendored: bundled runtime at ${serviceDir} is complete but was not selected`,
 		);
 	}
+	lines.push(
+		`  ③ PATH (${deps.platform === "win32" ? "where" : "which"}): ${SERVE_BIN_NAMES.map(name => `${name} → ${deps.probePath(name) ?? "not found"}`).join("; ")}`,
+	);
 	lines.push(
 		"Fix: install the CLI with `npm install -g @linxiraos/zeta`, or reinstall the Zeta desktop package (run the bundled installer), then relaunch.",
 	);

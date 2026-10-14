@@ -110,6 +110,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "Zeta-only web-ui pipeline job, absent upstream; silently lost in the squash-sync era (damage class 7)",
 			},
 			{
+				job: "web_desktop_tests",
+				why: "PR-path test job for the desktop contract suite + the CLI's Web UI launcher resolution (v1.2.1 shipped `npx zeta-web` 404 with the desktop adopting the corpse, because both live in release-only jobs); upstream has no counterpart, so a merge trimming ci.yml would re-open that hole",
+			},
+			{
 				job: "desktop_linux",
 				why: "Zeta-only desktop Linux packaging; release_github preflight expects zeta-desktop-* assets (damage classes 7+10)",
 			},
@@ -165,6 +169,11 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "desktop_linux",
 				needs: ["release_metadata", "native_addons"],
 				why: "desktop packaging consumes release detection and the zeta natives binaries",
+			},
+			{
+				job: "web_desktop_tests",
+				needs: ["native_addons"],
+				why: "the job's `bun test` legs import coding-agent modules whose import chain reaches the native addon; without the artifact wiring the legs die in the loader (first run of the job failed exactly there)",
 			},
 			{
 				job: "desktop_windows",

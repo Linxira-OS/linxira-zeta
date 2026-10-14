@@ -16,6 +16,12 @@
  * any healthy same-version instance is reused and the window points at it,
  * whatever port it listens on. Only a version mismatch refuses to proceed
  * (spawning would just collide on the default port and hide the real cause).
+ *
+ * "Healthy" is judged on the surface the user needs, not only on the in-process
+ * identity route: `/api/server/identity` keeps answering while the serve
+ * reverse proxy's Web UI child is dead (v1.2.1: `npm error 404` for the web-ui
+ * package, so every page request proxied to a child port that never bound).
+ * An instance like that is reported as `web-ui-unreachable` and never adopted.
  */
 
 import * as fs from "node:fs";
@@ -31,6 +37,19 @@ const DEFAULT_CONFIG_DIR = ".zeta";
 const REGISTRY_FILE_NAME = "serve.json";
 
 const IDENTITY_PATH = "/api/server/identity";
+
+/** Path of the surface the user actually needs — the Web UI page, not `/api/*`. */
+export const WEB_UI_PROBE_PATH = "/";
+
+/**
+ * Budget for the Web UI page probe (attempts, and the delay between them). The
+ * identity route answers from process facts as soon as the listeners bind,
+ * while the Web UI child may still be compiling its first page, so one refused
+ * request must not condemn a healthy, booting instance; a genuinely dead child
+ * (the v1.2.1 `npm error 404` shape) fails every attempt.
+ */
+export const WEB_UI_PROBE_ATTEMPTS = 2;
+export const WEB_UI_PROBE_RETRY_MS = 1200;
 
 /** Probe budget: loopback identity must answer fast or the instance is unwell. */
 export const PROBE_TIMEOUT_MS = 1500;
@@ -65,6 +84,30 @@ export interface ServeDiscoveryDeps {
 	isPidAlive: (pid: number) => boolean;
 	fetchImpl: typeof fetch;
 	timeoutMs: number;
+	/** Delay between Web UI probe attempts; tests inject a no-op. */
+	sleep?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Result of probing an instance's Web UI page.
+ *
+ * `/api/server/identity` is answered in-process by the gateway, so an instance
+ * whose Web UI child died still passes it — the serve reverse proxy only fails
+ * on the page and on the `/api/*` routes Next owns (the release log shows
+ * `Proxy request failed … ECONNREFUSED` on the child port while identity kept
+ * answering). This probe is what tells "gateway up, UI alive" from "gateway up,
+ * UI dead".
+ */
+export interface WebUiSurfaceProbe {
+	ok: boolean;
+	/** URL probed (the instance's Web UI origin plus {@link WEB_UI_PROBE_PATH}). */
+	url: string;
+	/** HTTP status of the answer; null when the request never produced one. */
+	status: number | null;
+	/** Transport error when the request failed outright. */
+	error: string | null;
+	/** Attempts spent (1 when the first one passed). */
+	attempts: number;
 }
 
 /** Production seams; tests inject fakes over a temp directory. */
@@ -178,6 +221,51 @@ export async function probeServeIdentity(url: string, deps: ServeDiscoveryDeps):
 	}
 }
 
+/**
+ * Probe the Web UI page of an instance that already answered its identity (see
+ * {@link WebUiSurfaceProbe} for why the identity answer is not enough). Bounded
+ * retry; any transport failure is a failed probe, never a throw.
+ */
+export async function probeWebUiSurface(url: string, deps: ServeDiscoveryDeps): Promise<WebUiSurfaceProbe> {
+	const sleep = deps.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
+	const target = `${url.replace(/\/+$/, "")}${WEB_UI_PROBE_PATH}`;
+	let last: WebUiSurfaceProbe = { ok: false, url: target, status: null, error: "not attempted", attempts: 0 };
+	for (let attempt = 1; attempt <= WEB_UI_PROBE_ATTEMPTS; attempt++) {
+		try {
+			const response = await deps.fetchImpl(target, {
+				headers: { accept: "text/html" },
+				signal: AbortSignal.timeout(deps.timeoutMs),
+			});
+			last = { ok: response.ok, url: target, status: response.status, error: null, attempts: attempt };
+		} catch (err) {
+			last = {
+				ok: false,
+				url: target,
+				status: null,
+				error: err instanceof Error ? err.message : String(err),
+				attempts: attempt,
+			};
+		}
+		if (last.ok) return last;
+		if (attempt < WEB_UI_PROBE_ATTEMPTS) await sleep(WEB_UI_PROBE_RETRY_MS);
+	}
+	return last;
+}
+
+/**
+ * Drop the registration while it still describes `pid` — never a successor's
+ * record. Mirror of `clearServeRegistration` in the CLI's serve-registry, used
+ * when a reused instance turns out to be a corpse: leaving its record behind is
+ * what made the next launch adopt the same dead service (v1.2.1 desktop loop).
+ */
+export function clearServeRegistrationForPid(pid: number, deps: ServeDiscoveryDeps): boolean {
+	const file = serveRegistryPathIn(deps);
+	const current = parseServeRegistration(safeJson(deps.readTextFile(file)));
+	if (!current || current.pid !== pid) return false;
+	deps.removeFile(file);
+	return true;
+}
+
 /** What the shell should do at boot. */
 export type DesktopServicePlan =
 	| { action: "spawn"; stalePid: number | null }
@@ -196,13 +284,30 @@ export type DesktopServicePlan =
 			identity: ServeIdentity;
 			registration: ServeRegistration | null;
 			stalePid: number | null;
+	  }
+	| {
+			/**
+			 * The instance answered its gateway but not its Web UI page: the serve
+			 * proxy could not reach the Web UI child. Never adopted — the shell
+			 * reports the probe evidence and retires the registration instead.
+			 */
+			action: "web-ui-unreachable";
+			identity: ServeIdentity;
+			registration: ServeRegistration | null;
+			stalePid: number | null;
+			/** Loopback URL that answered identity — the URL the window would load. */
+			webUrl: string;
+			/** Stats URL of the instance, for the probe report. */
+			statsUrl: string;
+			probe: WebUiSurfaceProbe;
 	  };
 
 /**
  * Look for a running service: drop a registration whose owner pid is gone,
  * probe the recorded URL then the shell's own target, and classify the answer.
  * A version mismatch is reported, never taken over — the old instance keeps its
- * port, sessions and workspace.
+ * port, sessions and workspace. An instance whose Web UI page does not answer
+ * is reported as `web-ui-unreachable` (never reused) rather than adopted.
  */
 export async function discoverDesktopService(args: {
 	deps: ServeDiscoveryDeps;
@@ -231,6 +336,7 @@ export async function discoverDesktopService(args: {
 		if (!candidates.includes(url)) candidates.push(url);
 	}
 
+	let unreachable: Extract<DesktopServicePlan, { action: "web-ui-unreachable" }> | null = null;
 	for (const url of candidates) {
 		const identity = await probeServeIdentity(url, deps);
 		if (!identity) continue;
@@ -239,6 +345,23 @@ export async function discoverDesktopService(args: {
 		const owned = registration?.pid === identity.pid ? registration : null;
 		if (identity.version !== expectedVersion) {
 			return { action: "version-mismatch", identity, registration: owned, stalePid };
+		}
+		// The identity route is in-process; the page is proxied to the Web UI
+		// child. Only a page that answers means the surface the user needs is up.
+		const probe = await probeWebUiSurface(url, deps);
+		if (!probe.ok) {
+			// Keep looking: another candidate may be a healthy instance. Report the
+			// first corpse only if no candidate passes.
+			unreachable ??= {
+				action: "web-ui-unreachable",
+				identity,
+				registration: owned,
+				stalePid,
+				webUrl: url,
+				statsUrl: loopbackUrlFor(owned?.statsUrl || identity.statsUrl || fallbackStatsUrl),
+				probe,
+			};
+			continue;
 		}
 		const statsUrl = owned?.statsUrl || identity.statsUrl || fallbackStatsUrl;
 		return {
@@ -251,7 +374,7 @@ export async function discoverDesktopService(args: {
 			stalePid,
 		};
 	}
-	return { action: "spawn", stalePid };
+	return unreachable ?? { action: "spawn", stalePid };
 }
 
 function safeJson(text: string | null): unknown {

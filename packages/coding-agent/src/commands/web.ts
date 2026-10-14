@@ -7,6 +7,7 @@
 import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
+import { WEB_UI_INSTALL_HINT } from "./web-ui-launcher";
 import { startZetaServer } from "../server/zeta-server";
 
 export default class Web extends Command {
@@ -61,7 +62,7 @@ export default class Web extends Command {
 				error: err instanceof Error ? err.message : String(err),
 			});
 			console.log(chalk.red(`  Failed to start Web UI: ${err instanceof Error ? err.message : err}`));
-			console.log(chalk.dim(`  Install with: npm install -g zeta-web`));
+			console.log(chalk.dim(`  Install with: ${WEB_UI_INSTALL_HINT}`));
 			if (instance) {
 				await instance.shutdown().catch(() => {});
 			}

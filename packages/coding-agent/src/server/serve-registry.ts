@@ -14,6 +14,10 @@
  *   the bind failure stays the operator's error to see.
  * - Same version + healthy → the newcomer reuses instead of fighting for the
  *   port. Different version → the newcomer refuses the port with options.
+ *   "Healthy" means what the user needs, not just that the gateway answers:
+ *   the identity route is served in-process, so the reuse decision also probes
+ *   the Web UI page the instance proxies to (see {@link probeWebUiSurface}) and
+ *   refuses an instance whose Web UI child is gone instead of adopting it.
  *
  * The Electron shell cannot import this module (separate npm project, no
  * workspace dependency); `desktop/src/serve-discovery.ts` carries the same
@@ -33,6 +37,39 @@ export const SERVE_REGISTRY_FILE = "serve.json";
 
 /** Probe budget: loopback identity must answer fast or the instance is unwell. */
 export const SERVE_PROBE_TIMEOUT_MS = 1500;
+
+/** Path of the surface the user actually needs — the Web UI page, not `/api/*`. */
+export const SERVE_WEB_UI_PROBE_PATH = "/";
+
+/**
+ * Budget for the Web UI page probe (attempts, and the delay between them).
+ * The identity route answers from process facts as soon as the listeners bind,
+ * while the Web UI child may still be compiling its first page, so one refused
+ * request must not condemn a healthy, booting instance; a genuinely dead child
+ * (the v1.2.1 `npm error 404` shape) fails every attempt.
+ */
+export const SERVE_WEB_UI_PROBE_ATTEMPTS = 2;
+export const SERVE_WEB_UI_PROBE_RETRY_MS = 1200;
+
+/**
+ * Result of probing an instance's Web UI page.
+ *
+ * `/api/server/identity` is answered in-process by the gateway, so an instance
+ * whose Web UI child died still passes it — the reverse proxy only fails on the
+ * page and on the `/api/*` routes Next owns. This probe is the only thing that
+ * tells "gateway up, UI alive" from "gateway up, UI dead".
+ */
+export interface WebUiSurfaceProbe {
+	ok: boolean;
+	/** URL probed (the instance's Web UI origin plus {@link SERVE_WEB_UI_PROBE_PATH}). */
+	url: string;
+	/** HTTP status of the answer; null when the request never produced one. */
+	status: number | null;
+	/** Transport error when the request failed outright. */
+	error: string | null;
+	/** Attempts spent (1 when the first one passed). */
+	attempts: number;
+}
 
 /** A published serve instance. */
 export interface ServeRegistration {
@@ -177,6 +214,41 @@ export async function probeServeIdentity(
 	}
 }
 
+/**
+ * Probe the Web UI page of an instance that already answered its identity
+ * (see {@link WebUiSurfaceProbe} for why the identity answer is not enough).
+ * Bounded retry, never fatal: any transport failure is a failed probe.
+ */
+export async function probeWebUiSurface(
+	url: string,
+	options: { fetchImpl?: typeof fetch; timeoutMs?: number; sleepImpl?: (ms: number) => Promise<void> } = {},
+): Promise<WebUiSurfaceProbe> {
+	const doFetch = options.fetchImpl ?? fetch;
+	const sleep = options.sleepImpl ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
+	const target = `${url.replace(/\/+$/, "")}${SERVE_WEB_UI_PROBE_PATH}`;
+	let last: WebUiSurfaceProbe = { ok: false, url: target, status: null, error: "not attempted", attempts: 0 };
+	for (let attempt = 1; attempt <= SERVE_WEB_UI_PROBE_ATTEMPTS; attempt++) {
+		try {
+			const response = await doFetch(target, {
+				headers: { accept: "text/html" },
+				signal: AbortSignal.timeout(options.timeoutMs ?? SERVE_PROBE_TIMEOUT_MS),
+			});
+			last = { ok: response.ok, url: target, status: response.status, error: null, attempts: attempt };
+		} catch (err) {
+			last = {
+				ok: false,
+				url: target,
+				status: null,
+				error: err instanceof Error ? err.message : String(err),
+				attempts: attempt,
+			};
+		}
+		if (last.ok) return last;
+		if (attempt < SERVE_WEB_UI_PROBE_ATTEMPTS) await sleep(SERVE_WEB_UI_PROBE_RETRY_MS);
+	}
+	return last;
+}
+
 /** What the newcomer should do about an instance it found (pure decision). */
 export type ServeReuseDecision =
 	| { action: "start" }
@@ -210,6 +282,11 @@ export interface ServeDiscovery {
 	staleRegistration: ServeRegistration | null;
 	/** URL that answered the identity probe (loopback form), null when none did. */
 	probedUrl: string | null;
+	/**
+	 * Web UI page probe of the answering instance; null when none answered.
+	 * Carried (not decided) here so the plan stays a pure function.
+	 */
+	webUiProbe: WebUiSurfaceProbe | null;
 }
 
 /**
@@ -227,6 +304,8 @@ export async function discoverServeInstance(options: {
 	fetchImpl?: typeof fetch;
 	timeoutMs?: number;
 	isAlive?: (pid: number) => boolean;
+	/** Delay between Web UI probe attempts; tests inject a no-op. */
+	sleepImpl?: (ms: number) => Promise<void>;
 }): Promise<ServeDiscovery> {
 	const file = options.registryFile ?? serveRegistryPath();
 	const alive = options.isAlive ?? isPidAlive;
@@ -249,15 +328,17 @@ export async function discoverServeInstance(options: {
 		const identity = await probeServeIdentity(url, options);
 		if (!identity) continue;
 		// The answering pid is ground truth: a registration naming a different
-		// live process is stale metadata, not this instance's record.
+		// live process is stale metadata, not this instance's record. The page
+		// probe runs here (not in the plan) because it needs the fetch seams.
 		return {
 			identity,
 			registration: registration?.pid === identity.pid ? registration : null,
 			staleRegistration,
 			probedUrl: url,
+			webUiProbe: await probeWebUiSurface(url, options),
 		};
 	}
-	return { identity: null, registration, staleRegistration, probedUrl: null };
+	return { identity: null, registration, staleRegistration, probedUrl: null, webUiProbe: null };
 }
 
 /**
@@ -278,6 +359,19 @@ export type ServeStartPlan =
 			identity: ServeIdentity;
 			registration: ServeRegistration | null;
 			stale: ServeRegistration | null;
+	  }
+	| {
+			/**
+			 * The instance holding the port answers its gateway but not its Web UI
+			 * (the identity route is in-process; the page is proxied to the Web UI
+			 * child). Reusing it would hand every client a dead UI, so it is refused
+			 * with the probe evidence instead.
+			 */
+			action: "web-ui-unreachable";
+			identity: ServeIdentity;
+			registration: ServeRegistration | null;
+			stale: ServeRegistration | null;
+			probe: WebUiSurfaceProbe;
 	  };
 
 /**
@@ -285,7 +379,9 @@ export type ServeStartPlan =
  * process is about to bind* is a conflict — that is the case that must be
  * reused or refused instead of failing on `EADDRINUSE`. A same-version
  * instance on another port is a deliberate second listener (an explicit
- * `--web-port`), so it is reported and this one still starts.
+ * `--web-port`), so it is reported and this one still starts. A same-version
+ * instance whose Web UI page does not answer is refused rather than reused
+ * (`web-ui-unreachable`), with the probe result the caller prints.
  */
 export function planServeStart(args: {
 	discovery: ServeDiscovery;
@@ -302,5 +398,11 @@ export function planServeStart(args: {
 	}
 	const { registration } = discovery;
 	if (identity.version !== currentVersion) return { action: "version-mismatch", identity, registration, stale };
+	// A corpse: gateway up, the Web UI it proxies to down (v1.2.1 npm-404 shape).
+	// `reuse` would leave every client pointed at a dead UI, so refuse with the
+	// probe evidence — the caller prints the target it tried.
+	if (discovery.webUiProbe && !discovery.webUiProbe.ok) {
+		return { action: "web-ui-unreachable", identity, registration, stale, probe: discovery.webUiProbe };
+	}
 	return { action: "reuse", identity, registration, stale };
 }

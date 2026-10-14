@@ -15,6 +15,7 @@ import * as path from "node:path";
 import test from "node:test";
 
 import {
+	clearServeRegistrationForPid,
 	desktopServeDiscoveryDeps,
 	discoverDesktopService,
 	identityProbeUrls,
@@ -65,6 +66,8 @@ function makeDeps({ file = null, alive = () => true, responder = () => null, env
 			removeFile: target => removed.push(target),
 			isPidAlive: alive,
 			timeoutMs: 50,
+			// The Web UI probe retries once in production; keep the suite instant.
+			sleep: async () => {},
 			fetchImpl: async url => {
 				const response = responder(String(url));
 				if (!response) throw new Error(`ECONNREFUSED ${url}`);
@@ -202,6 +205,75 @@ test("finds an instance whose registration names another pid (registry deleted/o
 	assert.equal(plan.registration, null);
 	// No recorded workspace/secret: the shell falls back to its own defaults.
 	assert.equal(plan.statsUrl, DEFAULT_STATS_URL);
+});
+
+/**
+ * The v1.2.1 corpse: the serve process answers `/api/server/identity` in-process
+ * while its Web UI child is gone, so the page it proxies returns 502 (release
+ * log: `Proxy request failed … ECONNREFUSED` on the child port). Such an
+ * instance must never be classified as reusable, and a second candidate that is
+ * healthy must still win.
+ */
+function responderWithDeadWebUi(ports, payload) {
+	return url => {
+		const parsed = new URL(url);
+		if (!ports.includes(Number(parsed.port))) return null;
+		if (parsed.pathname === "/api/server/identity") return Response.json(payload);
+		return new Response("Bad Gateway", { status: 502 });
+	};
+}
+
+test("never reuses an instance whose Web UI does not answer", async () => {
+	const { deps } = makeDeps({
+		file: JSON.stringify(registration()),
+		responder: responderWithDeadWebUi([30141], identity()),
+	});
+	const plan = await planFromEnv({ deps });
+	assert.equal(plan.action, "web-ui-unreachable");
+	assert.equal(plan.identity.pid, 4242);
+	assert.equal(plan.registration.pid, 4242);
+	assert.equal(plan.webUrl, TARGET_URL);
+	assert.equal(plan.statsUrl, DEFAULT_STATS_URL);
+	assert.equal(plan.probe.url, `${TARGET_URL}/`);
+	assert.equal(plan.probe.status, 502);
+	// The probe is bounded (2 attempts) so a booting child is not condemned.
+	assert.equal(plan.probe.attempts, 2);
+});
+
+test("keeps looking past a corpse: a healthy instance on another URL still wins", async () => {
+	const { deps } = makeDeps({
+		file: JSON.stringify(registration({ webUrl: "http://127.0.0.1:39999" })),
+		responder: url => {
+			const parsed = new URL(url);
+			if (Number(parsed.port) === 39999) {
+				return parsed.pathname === "/api/server/identity"
+					? Response.json(identity({ webUrl: "http://127.0.0.1:39999" }))
+					: new Response("Bad Gateway", { status: 502 });
+			}
+			if (Number(parsed.port) === 30141) {
+				return parsed.pathname === "/api/server/identity" ? Response.json(identity({ pid: 99 })) : new Response("ok");
+			}
+			return null;
+		},
+	});
+	const plan = await planFromEnv({ deps });
+	assert.equal(plan.action, "reuse");
+	assert.equal(plan.identity.pid, 99);
+	assert.equal(plan.webUrl, TARGET_URL);
+});
+
+test("clearServeRegistrationForPid retires only the matching registration", async () => {
+	const { deps, removed } = makeDeps({ file: JSON.stringify(registration({ pid: 4242 })) });
+	assert.equal(clearServeRegistrationForPid(4242, deps), true);
+	assert.deepEqual(removed, [path.resolve("/virtual/serve.json")]);
+
+	const { deps: other, removed: otherRemoved } = makeDeps({ file: JSON.stringify(registration({ pid: 999 })) });
+	assert.equal(clearServeRegistrationForPid(4242, other), false);
+	assert.deepEqual(otherRemoved, []);
+
+	const { deps: absent, removed: absentRemoved } = makeDeps({});
+	assert.equal(clearServeRegistrationForPid(4242, absent), false);
+	assert.deepEqual(absentRemoved, []);
 });
 
 test("production deps read the real filesystem and process table", () => {

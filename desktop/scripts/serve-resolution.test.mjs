@@ -92,10 +92,62 @@ test("tier 1: a ZETA_BIN_DIR dir outranks a PATH hit", () => {
 	}
 });
 
-test("tier 2: the PATH probe wins over the packaged bundle; bare zeta never probed", () => {
+test("packaged shell: the vendored bundle wins over a PATH hit; bare zeta never probed", () => {
+	// v1.2.1 evidence: the shell spawned the PATH npm shim (`zetacode.cmd`), which
+	// ships no Web UI, so every launch served a dead UI. The bundle is the only
+	// launcher that carries the staged Web UI + Node runtime and is version-locked
+	// to the shell, so a packaged shell uses it and never probes PATH at all.
 	const tree = makeDeps({ isPackaged: true });
 	try {
 		const serviceDir = installBundle(tree);
+		const probed = [];
+		const cmd = resolveServeCommandIn({
+			...tree.deps,
+			probePath: name => {
+				probed.push(name);
+				return name === "zeta-c" ? path.join(tree.root, "npm", "zeta-c") : null;
+			},
+		});
+		assert.deepEqual(probed, [], "a complete bundle must be decided before any PATH probe");
+		assert.ok(!probed.includes("zeta"), "workbench bin must never be a serve candidate");
+		assert.equal(cmd.file, path.join(serviceDir, "zeta"));
+		assert.equal(cmd.needsShell, false);
+		assert.equal(cmd.env.ZETA_WEB_RUNTIME, path.join(serviceDir, "node"));
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("packaged shell: an incomplete bundle does not shadow a PATH hit", () => {
+	const tree = makeDeps({ isPackaged: true });
+	try {
+		// Binary only: no Node runtime, no staged Web UI → not a usable bundle.
+		const serviceDir = path.join(tree.deps.resourcesPath, "zeta");
+		fs.mkdirSync(serviceDir, { recursive: true });
+		fs.writeFileSync(path.join(serviceDir, "zeta"), "");
+		const hit = path.join(tree.root, "npm", "zeta-c");
+		const cmd = resolveServeCommandIn({ ...tree.deps, probePath: name => (name === "zeta-c" ? hit : null) });
+		assert.equal(cmd.file, hit);
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("unpackaged shells never prefer a bundle over PATH", () => {
+	const tree = makeDeps({ isPackaged: false });
+	try {
+		installBundle(tree);
+		const hit = path.join(tree.root, "usr", "bin", "zetacode");
+		const cmd = resolveServeCommandIn({ ...tree.deps, probePath: name => (name === "zetacode" ? hit : null) });
+		assert.equal(cmd.file, hit);
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("tier 3: with no bundle, the PATH probe resolves the absolute suffixed path; bare zeta never probed", () => {
+	const tree = makeDeps({ isPackaged: true });
+	try {
 		const probed = [];
 		const hit = path.join(tree.root, "npm", "zeta-c");
 		const cmd = resolveServeCommandIn({
@@ -114,13 +166,12 @@ test("tier 2: the PATH probe wins over the packaged bundle; bare zeta never prob
 		assert.equal(cmd.file, hit);
 		assert.equal(cmd.needsShell, false);
 		assert.equal(cmd.args[0], "serve");
-		assert.ok(!JSON.stringify(cmd).includes(serviceDir), "bundle must be skipped on the PATH hit");
 	} finally {
 		cleanup(tree);
 	}
 });
 
-test("tier 2 (win32): a .cmd PATH hit resolves to its absolute suffixed path and needs a shell", () => {
+test("tier 3 (win32): a .cmd PATH hit resolves to its absolute suffixed path and needs a shell", () => {
 	const tree = makeDeps({ isPackaged: true, platform: "win32" });
 	try {
 		installBundle(tree);
@@ -141,7 +192,7 @@ test("tier 2 (win32): a .cmd PATH hit resolves to its absolute suffixed path and
 	}
 });
 
-test("tier 2 (win32): a native .exe PATH hit spawns without a shell", () => {
+test("tier 3 (win32): a native .exe PATH hit spawns without a shell", () => {
 	const tree = makeDeps({ isPackaged: true, platform: "win32" });
 	try {
 		installBundle(tree);
@@ -157,7 +208,7 @@ test("tier 2 (win32): a native .exe PATH hit spawns without a shell", () => {
 	}
 });
 
-test("tier 3: packaged desktop with no PATH hit uses its vendored bundle", () => {
+test("tier 2: packaged desktop uses its vendored bundle", () => {
 	const tree = makeDeps({ isPackaged: true });
 	try {
 		const serviceDir = installBundle(tree);
@@ -212,6 +263,22 @@ test("describeServeResolution lists every tier, the paths checked, and the fix",
 		assert.ok(text.includes("/usr/bin/zeta-cli"), "resolved PATH hit must appear");
 		assert.ok(text.includes("zetacode → not found"), "each probed name must appear");
 		assert.ok(text.includes("npm install -g @linxiraos/zeta"), "install hint must appear");
+	} finally {
+		cleanup(tree);
+	}
+});
+
+test("describeServeResolution reports the bundle tier before the PATH tier when packaged", () => {
+	const tree = makeDeps({ isPackaged: true, probePath: name => (name === "zeta-cli" ? "/usr/bin/zeta-cli" : null) });
+	try {
+		const serviceDir = installBundle(tree);
+		const text = describeServeResolution(tree.deps);
+		assert.ok(
+			text.indexOf(serviceDir) < text.indexOf("/usr/bin/zeta-cli"),
+			"the bundled runtime must be listed before the PATH probe",
+		);
+		assert.match(text, /② vendored/);
+		assert.match(text, /③ PATH/);
 	} finally {
 		cleanup(tree);
 	}
