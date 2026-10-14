@@ -23,7 +23,7 @@ User scope (`<config-dir>` is `~/.zeta` by default; see [`config-usage.md`](./co
 ```
 ~/.zeta/plugins/
   package.json                 # dependency manifest of the plugin root ("zeta-plugins")
-  omp-plugins.lock.json        # per-plugin runtime state: version, enabled, enabledFeatures, settings
+  zeta-plugins.lock.json       # per-plugin runtime state: version, enabled, enabledFeatures, settings
   installed_plugins.json       # marketplace install registry (version 2), user scope
   node_modules/<package>       # npm install, or a symlink for `plugin link` / marketplace runtime
   cache/                       # plugin + marketplace caches (and per-plugin cache tier)
@@ -35,17 +35,31 @@ Project scope (created by an explicit `--scope project` marketplace install, or 
 ```
 <project>/.zeta/plugins/
   installed_plugins.json       # marketplace install registry, project scope
-  omp-plugins.lock.json        # project runtime state
+  zeta-plugins.lock.json       # project runtime state
   node_modules/<package>       # symlink into the shared plugin cache
 ```
+
+`zeta-plugins.lock.json` is the canonical name every writer targets. A plugin
+root that predates the rename still holds `omp-plugins.lock.json`: it is read as
+the fallback and migrated to the canonical name on the first read (see
+[the lockfile note](#the-lockfile-name)).
 
 `.zeta` here is the config-dir name, so `ZETA_CONFIG_DIR=<name>` moves the project tree to `<project>/<name>/plugins` as well.
 
 Read [`marketplace.md`](./marketplace.md#on-disk-layout) for the cache layout and the version-keying rules.
 
-### Two manifest spellings, one loader
+### Three manifest spellings, one loader
 
-The CLI reads `package.json`'s `zeta`, `omp`, or `pi` block; the session loader at `packages/coding-agent/src/extensibility/plugins/loader.ts:253` only reads `omp` and `pi`. A plugin whose manifest exists **only** under `zeta` is therefore listed and health-checked by `zetacode plugin …` but never loaded into a session. Until that is fixed, ship plugin manifests under `pi` (the key the official plugin uses), or under both.
+A plugin declares its manifest in `package.json` under one of three keys, in
+this precedence order: `zeta` (ours), then the upstream `omp` and `pi` keys that
+stay readable so an upstream package still loads. Every surface — the CLI's
+listing and health checks, the session loader, extension-directory resolution,
+and the sub-discovery provider — reads the same list
+(`PLUGIN_MANIFEST_KEYS` in `packages/coding-agent/src/extensibility/plugins/types.ts`,
+through `readPluginManifest`), so a package that `zetacode plugin list` accepts
+is exactly the set a session can load. A `zeta`-only manifest loads; so does an
+`omp`-only or `pi`-only one; a package declaring several is read as the most
+specific one.
 
 The keys the loader consumes are `extensions` (module entry points) and `features`; the runtime also reads `settings` (schema for `zetacode plugin config`). `tools`, `hooks`, and `commands` manifest keys are resolved by `resolvePluginToolPaths`/`resolvePluginHookPaths`/`resolvePluginCommandPaths`, but nothing in the product calls them — a plugin contributes its tools/commands/hooks by registering them from an `extensions` module. `skills` is likewise **not** an implemented manifest key: a plugin's skills are found by directory convention (`<plugin>/skills/<name>/SKILL.md`), which is why the official plugin's `"skills": ["./skills"]` entry is inert but its skill still loads.
 
@@ -87,7 +101,7 @@ $ zetacode plugin install plugins/official/pi-messenger
 ✘ Failed to install plugins/official/pi-messenger: Error: Invalid package name: plugins/official/pi-messenger
 ```
 
-Both forms symlink the directory into `node_modules` (so source edits show up without reinstalling) and record `enabled: true` in `omp-plugins.lock.json`. `--dry-run` prints `[dry-run] Would link ./plugins/official/pi-messenger`.
+Both forms symlink the directory into `node_modules` (so source edits show up without reinstalling) and record `enabled: true` in `zeta-plugins.lock.json`. `--dry-run` prints `[dry-run] Would link ./plugins/official/pi-messenger`.
 
 ### Enable, disable, and the name you must use
 
@@ -98,7 +112,7 @@ $ zetacode plugin enable pi-messenger
 ✘ Failed to enable pi-messenger: Error: Plugin pi-messenger not found in runtime config
 ```
 
-`zetacode plugin list` prints exactly the token to use (`@linxiraos/pi-messenger`, or `pi-messenger@local-test`). Disabling is persisted in `omp-plugins.lock.json` and takes effect on the next discovery pass — the plugin's skills and extension modules stop being discovered:
+`zetacode plugin list` prints exactly the token to use (`@linxiraos/pi-messenger`, or `pi-messenger@local-test`). Disabling is persisted in `zeta-plugins.lock.json` and takes effect on the next discovery pass — the plugin's skills and extension modules stop being discovered:
 
 ```
 $ zetacode plugin disable @linxiraos/pi-messenger
@@ -170,7 +184,7 @@ It builds a synthetic root (`<name>@__local__`, origin `plugin-dir`, name read f
 An enabled plugin contributes through two independent channels:
 
 1. **Directory convention.** The plugin's package directory is an extension-package root, so the sibling directories are scanned: `skills/<name>/SKILL.md` (verified end-to-end), and — per `packages/coding-agent/src/discovery/omp-plugins.ts` — `hooks/pre/`, `hooks/post/`, `commands/`, `rules/`, `prompts/`, `tools/`, `.mcp.json`. Skills only load from an immediate child directory; `pi-messenger`'s `skills/pi-messenger-crew/SKILL.md` is what shows up as the `pi-messenger-crew` skill.
-2. **`extensions` entry points.** Each `extensions` path is imported as an extension module and its default factory registers tools, slash commands, hooks, renderers, and shortcuts. A failure to import one module does not stop other plugins from loading, but it does mean *none* of that plugin's registered surface exists.
+2. **`extensions` entry points.** Each `extensions` path is imported as an extension module and its default factory registers tools, slash commands, hooks, renderers, and shortcuts. A failure to import one module does not stop other plugins from loading, but it does mean *none* of that plugin's registered surface exists — the plugin stays listed as installed while contributing nothing, and only the extension-error list says why. `zetacode plugin doctor` checks that each declared entry exists on disk, not that it imports.
 
 The provider that serves channel 1 for installed plugins is `zeta-plugins` (priority 90, formerly `omp-plugins`); `--plugin-dir` and marketplace-registry roots are served by `claude-plugins` (70); a root `plugin.json` with the Agent Plugins `$schema` hands `skills/` and `mcp.json` to `agent-plugins` (75). See [`skills.md`](./skills.md#built-in-skill-providers-and-precedence) for the full skill precedence table.
 
@@ -203,28 +217,48 @@ This surface is **the extension-package model, not the Zeta-plugin model**: `GET
 
 Verified against this tree; each is reported rather than worked around here.
 
-1. **The plugin lockfile has two names.** `packages/utils/src/dirs.ts:713` (`getPluginsLockfile`) returns the legacy `omp-plugins.lock.json`, and that is what `packages/coding-agent/src/extensibility/plugins/manager.ts:173,185` and the marketplace manager read and write. `packages/coding-agent/src/extensibility/plugins/loader.ts:88-108` treats `zeta-plugins.lock.json` as canonical and migrates the legacy file to it, deleting the legacy file. After that migration every `zetacode plugin …` command reads the (now absent) legacy file and reports nothing:
+1. **The plugin's `skills` manifest key is not implemented**, so `"skills": ["./skills"]` in `pi-messenger`'s `package.json` is decorative; the skill loads from the `skills/` directory convention instead.
 
-   ```
-   $ zetacode plugin list
-   No plugins installed
+2. **A lockfile entry without a `package.json` dependency and without a symlink is skipped** as stale (`loader.ts:229-231`), so an npm-installed plugin whose dependency entry was removed silently stays unloaded while `zeta-plugins.lock.json` still records it.
 
-   Install plugins with: zetacode plugin install <package>
-   $ zetacode plugin enable @linxiraos/pi-messenger
-   ✘ Failed to enable @linxiraos/pi-messenger: Error: Plugin @linxiraos/pi-messenger not found in runtime config
-   ```
+3. **A pre-rename lockfile is healed on read, not on write.** Both lockfile spellings are read, and the loader's migrating read moves the legacy file to `zeta-plugins.lock.json`. `zetacode plugin enable/disable/config` rewrites the canonical file but leaves a stale `omp-plugins.lock.json` beside it — readers prefer the canonical file, so the stale copy is inert, and the next session drops it. See [the lockfile name](#the-lockfile-name).
 
-   Reproduced by linking a plugin, calling the loader's migrating reader, then re-running `plugin list`. `document/brand-surface-rules.md:99` records write-new as the canonical name; `UPDATE-LOG.md:66` records the opposite decision. See the per-plugin page for the recovery step.
+## The lockfile name
 
-2. **`zeta`-only manifests never load** (`loader.ts:253` vs `manager.ts:661`). Verified with a plugin declaring only `package.json#zeta`: `plugin list` and `plugin doctor` accept it, `getEnabledPlugins` returns `[]`, no skill and no extension load. Switching the same directory to the `pi` key makes all three appear.
+The plugin lockfile is `zeta-plugins.lock.json` in every scope. It carries
+per-plugin runtime state (enabled flag, feature selection, versions), so the
+rename has a read-old path rather than a reset:
 
-3. **The plugin's `skills` manifest key is not implemented**, so `"skills": ["./skills"]` in `pi-messenger`'s `package.json` is decorative; the skill loads from the `skills/` directory convention instead.
+- `omp-plugins.lock.json` is the pre-rename spelling. It is still read
+  (`pluginsLockfileReadOrder` in `packages/utils/src/dirs.ts` returns the
+  canonical name first, the legacy name second) and is migrated to the canonical
+  name — content carried forward, legacy file removed — on the loader's first
+  read.
+- Every writer targets the canonical name, so `zetacode plugin link/install/
+  enable/disable/config` and marketplace installs all record into
+  `zeta-plugins.lock.json`.
+- Nothing needs to be done by hand. A tree that still holds only the legacy file
+  lists and loads its plugins normally; the next session migrates it.
 
-4. **A lockfile entry without a `package.json` dependency and without a symlink is skipped** as stale (`loader.ts:228-231`), so an npm-installed plugin whose dependency entry was removed silently stays unloaded while `omp-plugins.lock.json` still records it.
+This also means the file a user sees after `zetacode plugin link ./plugins/official/pi-messenger`
+is `~/.zeta/plugins/zeta-plugins.lock.json`:
+
+```json
+{
+  "plugins": {
+    "@linxiraos/pi-messenger": {
+      "version": "1.2.1",
+      "enabledFeatures": null,
+      "enabled": true
+    }
+  },
+  "settings": {}
+}
+```
 
 ## See also
 
-- [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin today, and the blocker that stops it
+- [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin, with the commands and output of a working install
 - [`marketplace.md`](./marketplace.md) — catalogs, `name@marketplace`, scopes, upgrade rules
 - [`extension-loading.md`](./extension-loading.md) — extension-module discovery and resolution order
 - [`extensions.md`](./extensions.md) — writing an extension module (`registerTool`/`registerCommand`)

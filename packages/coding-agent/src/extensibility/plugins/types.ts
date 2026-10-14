@@ -1,5 +1,5 @@
 // =============================================================================
-// Plugin Manifest Types (from package.json zeta/pi field)
+// Plugin Manifest Types (from the package.json zeta/omp/pi field)
 // =============================================================================
 
 /**
@@ -22,7 +22,7 @@ export interface PluginFeature {
 }
 
 /**
- * Plugin manifest from package.json zeta or pi field.
+ * Plugin manifest from the package.json `zeta/omp/pi` field.
  */
 export interface PluginManifest {
 	/** Plugin display name (defaults to package name) */
@@ -46,6 +46,42 @@ export interface PluginManifest {
 
 	/** Settings schema for plugin configuration */
 	settings?: Record<string, PluginSettingSchema>;
+}
+
+/**
+ * The `package.json` keys a plugin may declare its manifest under, most
+ * specific first: Zeta's own `zeta` key, then the upstream spellings we keep
+ * reading so an upstream package still loads. Every manifest reader — session
+ * loading, listing, installation, extension-directory resolution, discovery —
+ * goes through {@link readPluginManifest} so the accepted set cannot drift
+ * between the surface that lists a plugin and the surface that loads it.
+ */
+export const PLUGIN_MANIFEST_KEYS = ["zeta", "omp", "pi"] as const;
+
+/** One of {@link PLUGIN_MANIFEST_KEYS}. */
+export type PluginManifestKey = (typeof PLUGIN_MANIFEST_KEYS)[number];
+
+/** A package.json carrying any of {@link PLUGIN_MANIFEST_KEYS}. */
+export type PluginPackageJson = Partial<Record<PluginManifestKey, PluginManifest>>;
+
+/**
+ * The manifest block of a plugin's `package.json`, or `undefined` when the
+ * package ships none (and is therefore not a plugin). Key order is
+ * {@link PLUGIN_MANIFEST_KEYS}: a package declaring both `zeta` and `pi` is
+ * read as a Zeta plugin.
+ *
+ * Generic over the block shape so a caller that reads only part of a manifest
+ * (discovery reads `extensions`) still shares the key list and its order.
+ */
+export function readPluginManifest<M = PluginManifest>(
+	pkg: Partial<Record<PluginManifestKey, M>> | null | undefined,
+): M | undefined {
+	if (!pkg) return undefined;
+	for (const key of PLUGIN_MANIFEST_KEYS) {
+		const manifest = pkg[key];
+		if (manifest) return manifest;
+	}
+	return undefined;
 }
 
 // =============================================================================

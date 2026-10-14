@@ -77,7 +77,7 @@
 | `~/.zeta/workbench.toml` | Zetawork | settings.rs:110-120 | 在用 |
 | `~/.zeta/stats.db` | 共享（agent+stats+scripts） | `getStatsDbPath` | 在用 |
 | `~/.zeta/logs/`（含 `http-400-requests/`、`.zeta.<pid>-audit.json`） | coding-agent/ai | `getLogsDir`/`getLogPath`、http-inspector.ts:93、logger.ts:257 | 在用 |
-| `~/.zeta/plugins/{package.json,omp-plugins.lock.json,bun.lock,node_modules}` | 插件平台 | `getPlugins*`、loader.ts:101-123 | 在用（半安装态见 §5.2） |
+| `~/.zeta/plugins/{package.json,zeta-plugins.lock.json,bun.lock,node_modules}` | 插件平台 | `getPlugins*`、loader.ts:101-123 | 在用（半安装态见 §5.2） |
 | `~/.zeta/plugins/{data,cache,state}/<plugin-id>/` | 插件平台 | `getPluginDataDir`/`getPluginCacheDir`/`getPluginStateDir` | **API 已落地**（dirs.ts + loader 注入；插件接入待 #44 合并） |
 | `~/.zeta/handoff.json` | 共享接缝：pi-messenger 写 / editor 读 | handoff.ts:39-45 / handoff.go:26-38 | 在用 |
 | `~/.zeta/cache/{github-cache,commit-inference,judgment-cache,legacy-pi-extension-cache}.db`、`auth-broker-snapshot.enc`、`avatars/`、`fastembed{,-runtime}` | coding-agent | 对应 `get*Cache*` | 在用 |
@@ -198,7 +198,7 @@ override 各自为政时，测试隔离与用户搬迁都会漏面。
 
 插件装载根是 `~/.zeta/plugins`（npm 布局；loader.ts:8,101-123，
 `collectPluginsAtRoot`：node_modules ∪ package.json dependencies ∪
-omp-plugins.lock.json）。`InstalledPlugin`（types.ts:102-110）与 manifest
+zeta-plugins.lock.json）。`InstalledPlugin`（types.ts:102-110）与 manifest
 **均无 per-plugin 存储字段**；extensibility 全树无 dataDir/storageDir 概念。
 后果：插件想持久化只能自定路径——pi-messenger 把协调状态写
 `~/.pi/agent/messenger`、配置写 `~/.pi/agent/pi-messenger.json`、migration
@@ -269,7 +269,7 @@ interface InstalledPlugin {
 3. 写 `.zeta` 白名单（§2.4）之外的任何宿主路径（含 `agent/` 子树、
    `config.yml`、`web.yml`、`sessions/`）。
 4. 写上游根 `~/.pi/`、`~/.omp/` 及其任何子路径。
-5. 绕过 loader 直接改 `omp-plugins.lock.json` / `package.json` /
+5. 绕过 loader 直接改 `zeta-plugins.lock.json` / `package.json` /
    `plugin-overrides.json`。
 
 违规即 review 拒收；宿主侧守卫见 §6.2。
@@ -313,7 +313,7 @@ legacy-crew-agent-cleanup-v1.json`：标记文件 + 一次性执行 + 幂等）�
 
 ### 5.2 plugins/ 半安装态
 
-本机现状：`plugins/` 有 `omp-plugins.lock.json`+`bun.lock` 但
+本机现状：`plugins/` 有 `zeta-plugins.lock.json`+`bun.lock` 但
 `node_modules` 缺失——loader.collectPluginsAtRoot 无 node_modules 即返回
 空（loader.ts:101），实际插件数为 0，登记与安装脱节。处置规则：doctor
 类工具 MUST 检测「lock 有 / node_modules 无」并提示

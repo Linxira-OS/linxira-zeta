@@ -549,4 +549,36 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'export const WEB_UI_PACKAGE = "@linxiraos/zeta-web";',
 		why: "The npm fallback's package name (v1.2.1: an unscoped `zeta-web` specifier 404s against the registry while the *bin* name stays `zeta-web`, so both roles must be spelled separately). A brand/scope sweep or an upstream merge touching this file is exactly the edit that silently breaks `zetacode serve` on any install without a local web-ui checkout.",
 	},
+	// -- Plugin surface: manifest keys + lockfile name ---------------------------
+	// These five pin the plugin activation path end to end. All of them were dead
+	// in the tree for months with `check:ts` green: the manifest key list dropped
+	// Zeta-authored plugins on load, the lockfile writer and reader disagreed on
+	// the filename, and the editor settings handles the official plugin imports
+	// were lost by a merge. Each is a line an upstream merge takes wholesale
+	// (types.ts, dirs.ts, loader.ts, settings.ts are all shared files).
+	{
+		file: "packages/coding-agent/src/extensibility/plugins/types.ts",
+		symbol: 'export const PLUGIN_MANIFEST_KEYS = ["zeta", "omp", "pi"] as const;',
+		why: "The manifest keys every plugin reader consults, most specific first. Reverting this to the upstream `omp`/`pi` pair makes a `zeta`-keyed package be listed by `zetacode plugin list`/`doctor` but never loaded by a session — no skill, no extension module, no tool.",
+	},
+	{
+		file: "packages/coding-agent/src/extensibility/plugins/loader.ts",
+		symbol: "const manifest = readPluginManifest(pluginPkg);",
+		why: "The session loader's manifest read — the exact line that read `pluginPkg.omp || pluginPkg.pi` and ignored `zeta`. A merge that takes loader.ts from upstream restores that pair and silently re-breaks every Zeta-keyed plugin.",
+	},
+	{
+		file: "packages/utils/src/dirs.ts",
+		symbol: "return path.join(getPluginsDir(home), PLUGINS_LOCKFILE_CANONICAL);",
+		why: "The lockfile path every writer targets must be the canonical Zeta name. This line returned the legacy `omp-plugins.lock.json` while the loader's migrating reader moved the file to `zeta-plugins.lock.json` and deleted the legacy one — after which every `zetacode plugin …` command read a file that no longer existed and reported 'No plugins installed'.",
+	},
+	{
+		file: "packages/utils/src/dirs.ts",
+		symbol: "export function pluginsLockfileReadOrder(lockfilePath: string): string[] {",
+		why: "Read-old/write-new for the lockfile rename (DUAL verdict in document/brand-surface-rules.md): the shared read order returns the canonical name first and the pre-rename name second, so an install that predates the rename keeps its enabled flags and feature selection. Dropping it turns the rename into a state reset.",
+	},
+	{
+		file: "packages/coding-agent/src/session/settings.ts",
+		symbol: "export const cfgEditorAutoInstall = register({",
+		why: "Zeta-only editor settings handles (added f02d7401fa9, dropped by a merge and only noticed when the official pi-messenger plugin failed to import its /editor command). The plugin's `editor-command.ts` is their only consumer in the tree, so losing them again breaks plugin activation without breaking `check:ts`.",
+	},
 ];

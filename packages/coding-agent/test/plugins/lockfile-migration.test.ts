@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getPluginsDir } from "@linxiraos/pi-utils";
+import { getEnabledPlugins, getPluginSettings } from "@linxiraos/zeta/extensibility/plugins/loader";
 
 /**
  * Upgrade contract for the plugin lockfile rename.
@@ -33,12 +35,27 @@ function readCanonical(): { plugins: Record<string, { enabled: boolean }> } {
 	return JSON.parse(fs.readFileSync(path.join(pluginsDir(), CANONICAL), "utf8"));
 }
 
+/** Install a fixture plugin package into the temp home's plugin root. */
+function installPluginFixture(name: string): void {
+	const root = getPluginsDir(home);
+	const pluginDir = path.join(root, "node_modules", name);
+	fs.mkdirSync(pluginDir, { recursive: true });
+	fs.writeFileSync(
+		path.join(root, "package.json"),
+		JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { [name]: "1.0.0" } }),
+	);
+	fs.writeFileSync(
+		path.join(pluginDir, "package.json"),
+		JSON.stringify({ name, version: "1.0.0", zeta: { extensions: ["./index.ts"] } }),
+	);
+	fs.writeFileSync(path.join(pluginDir, "index.ts"), "export default function () {}\n");
+}
+
 /**
  * Drive the migration through the loader's public entry point. `home` is passed
  * explicitly so the test never depends on process-global agent-dir state.
  */
 async function loadViaLoader(): Promise<void> {
-	const { getPluginSettings } = await import("@linxiraos/zeta/extensibility/plugins/loader");
 	await getPluginSettings("my-ext", home, home);
 }
 
@@ -97,10 +114,38 @@ describe("plugin lockfile migration", () => {
 		writeLock(LEGACY, { plugins: { x: { enabled: false } }, settings: {} });
 		fs.mkdirSync(path.join(pluginsDir(), CANONICAL), { recursive: true });
 
-		const { getPluginSettings } = await import("@linxiraos/zeta/extensibility/plugins/loader");
 		const settings = await getPluginSettings("x", home, home);
 
 		expect(settings).toEqual({});
 		expect(lockExists(LEGACY)).toBe(true);
+	});
+
+	// The regression this whole file exists for: the migrating read used to move
+	// the lockfile to the canonical name *while the listing surface still read
+	// only the legacy name*, so every `zetacode plugin …` command reported an
+	// empty install right after the migration ran. Listed here means the loader's
+	// `getEnabledPlugins`, which is what the CLI's plugin commands enumerate.
+	it("keeps a plugin installed under the pre-rename name listed after the migration", async () => {
+		installPluginFixture("@demo/pre-rename");
+		writeLock(LEGACY, { plugins: { "@demo/pre-rename": { enabled: true } }, settings: {} });
+
+		await loadViaLoader();
+
+		expect(lockExists(CANONICAL)).toBe(true);
+		expect(lockExists(LEGACY)).toBe(false);
+		expect(readCanonical().plugins["@demo/pre-rename"]?.enabled).toBe(true);
+
+		const listed = await getEnabledPlugins(home, { home });
+		expect(listed.map(plugin => plugin.name)).toEqual(["@demo/pre-rename"]);
+	});
+
+	it("lists nothing and writes no lockfile when the plugin root is empty", async () => {
+		fs.mkdirSync(path.join(getPluginsDir(home), "node_modules"), { recursive: true });
+
+		await loadViaLoader();
+
+		expect(await getEnabledPlugins(home, { home })).toEqual([]);
+		expect(lockExists(CANONICAL)).toBe(false);
+		expect(lockExists(LEGACY)).toBe(false);
 	});
 });
