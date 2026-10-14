@@ -13,5 +13,6 @@
 ---
 
 - [ ] `bun check` passes
+- [ ] Generated copies refreshed when their source moved: `bun run gen:nix` for `bun.lock`, `bun run gen:relay-assets` for `packages/browser-relay/extension/` (`bun run check:nix-bun` / `bun run check:relay-assets` pass)
 - [ ] Tested locally
 - [ ] CHANGELOG updated with the required attribution (if user-facing; internal issue fixes use issue links, external contributions add the PR link and contributor credit after creation)

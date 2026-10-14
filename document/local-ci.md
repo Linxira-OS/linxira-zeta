@@ -119,6 +119,8 @@ bun scripts/brand/brand-check.ts
 bun scripts/check-zeta-sentinels.ts
 bun scripts/check-ci-surface.ts
 bun scripts/check-serve-discovery-parity.ts
+bun run check:nix-bun                        # no nix needed (bunx fallback)
+bun run check:relay-assets                   # no zip/bun install needed
 cargo build --release -p pi-natives        # then copy into packages/natives/native/
 bun run ci:test:full                       # every TS bucket + cargo nextest
 ```
@@ -128,7 +130,7 @@ bun run ci:test:full                       # every TS bucket + cargo nextest
 Repository files alone cannot stop a Gitea instance from *also* picking up
 `.github/workflows/*.yml` (Gitea Actions scans both trees). Disable them once
 in the Gitea UI — repository → **Actions** → disable `CI`, `Zeta Nix`,
-`Warm bun store cache`, `Publish …` — or, if the instance is yours, turn off
+`Zeta generated files`, `Warm bun store cache`, `Publish …` — or, if the instance is yours, turn off
 Actions for `.github/workflows` globally.
 
 Until that is done, treat "Gitea must not run GitHub's workflows" as an

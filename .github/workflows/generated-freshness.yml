@@ -1,0 +1,112 @@
+name: Zeta generated files
+
+# Fast, tool-free half of the "committed generated file is stale" checks. Two
+# artifact families ship generated output in the tree, and both used to be
+# verified only late or not at all:
+#
+#   - `nix/bun.nix` ← `bun.lock` via the pinned bun2nix. The flake's `bun-lock`
+#     check (flake.nix → checks.<system>.bun-lock, run by nix.yml) proves it,
+#     but only inside a nix store — minutes, and impossible without nix. PR #181
+#     shipped a stale expression and learned it from a red `Zeta Nix` job.
+#   - `packages/coding-agent/src/tools/browser/relay/extension-assets/*` ←
+#     `packages/browser-relay/extension/` via the extension build, which CI only
+#     ran in `release_binary` — so a normal PR could not notice the copies
+#     drifting, and a license test noticed stale tokens instead.
+#
+# Both jobs re-run the repository's own derivation (never a second copy of it)
+# into a temp directory and diff bytes, on a plain Ubuntu runner, in seconds.
+# They run ONLY on the paths that can move one of the pairs: this is
+# deliberately not part of the per-PR `check` / `check:ts` hot path, which must
+# stay offline.
+#
+# `push` is listed as well as `pull_request` because main carries direct pushes
+# (the release commit) and because nix.yml only covers the `nix/bun.nix` pair:
+# without it a stale `extension-assets/*` could land on main unverified.
+#
+# Inventory of these two jobs is registered in scripts/brand/ci-surface-registry.ts
+# (damage class 7: an upstream merge trims `.github/workflows` silently).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/generated-freshness.yml"
+      # nix/bun.nix ← bun.lock
+      - "bun.lock"
+      - "nix/bun.nix"
+      - "package.json"
+      - "scripts/gen-nix-bun.ts"
+      # extension-assets/* ← packages/browser-relay/extension/
+      - "LICENSE"
+      - "THIRD-PARTY-NOTICES.txt"
+      - "packages/browser-relay/extension/**"
+      - "packages/browser-relay/scripts/build-extension.ts"
+      - "packages/coding-agent/src/tools/browser/relay/extension-assets/**"
+      # the guards themselves
+      - "scripts/check-extension-assets-freshness.ts"
+      - "scripts/check-nix-bun-freshness.ts"
+      - "scripts/check-nix-bun-freshness.test.ts"
+      - "scripts/gen-nix-bun.test.ts"
+      - "scripts/generated-freshness.ts"
+      - "scripts/generated-freshness.test.ts"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/generated-freshness.yml"
+      # nix/bun.nix ← bun.lock
+      - "bun.lock"
+      - "nix/bun.nix"
+      - "package.json"
+      - "scripts/gen-nix-bun.ts"
+      # extension-assets/* ← packages/browser-relay/extension/
+      - "LICENSE"
+      - "THIRD-PARTY-NOTICES.txt"
+      - "packages/browser-relay/extension/**"
+      - "packages/browser-relay/scripts/build-extension.ts"
+      - "packages/coding-agent/src/tools/browser/relay/extension-assets/**"
+      # the guards themselves
+      - "scripts/check-extension-assets-freshness.ts"
+      - "scripts/check-nix-bun-freshness.ts"
+      - "scripts/check-nix-bun-freshness.test.ts"
+      - "scripts/gen-nix-bun.test.ts"
+      - "scripts/generated-freshness.ts"
+      - "scripts/generated-freshness.test.ts"
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+   bun_lock_freshness:
+      name: Verify nix/bun.nix matches bun.lock
+      runs-on: ubuntu-22.04
+      timeout-minutes: 10
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         # No `bun install`: the guard needs bun and the pinned bun2nix from npm
+         # only, and re-running through the repo script keeps this job on the
+         # same generator the release path and the flake check use.
+         - name: Regenerate nix/bun.nix from bun.lock and compare
+           run: bun run check:nix-bun
+         # The guard scripts' own unit tests: repo script tests are not part of
+         # the CI test buckets (see scripts/ci-test-ts.ts), so without this step
+         # they would only ever run by hand.
+         - name: Unit-test the freshness guards
+           run: bun test scripts/generated-freshness.test.ts scripts/check-nix-bun-freshness.test.ts scripts/gen-nix-bun.test.ts
+
+   relay_assets_freshness:
+      name: Verify extension-assets match the extension build
+      runs-on: ubuntu-22.04
+      timeout-minutes: 10
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         # Same reason: the build script is dependency-free by design, and the
+         # guard re-runs its derivation without the `zip` packaging step.
+         - name: Rebuild extension-assets and compare
+           run: bun run check:relay-assets
