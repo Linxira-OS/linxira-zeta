@@ -232,11 +232,37 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
    `git config merge.zeta-package.driver "bun <repo>/scripts/merge-package-json.ts %A %O %B"`
    （`<repo>` 为仓库绝对路径；`git config --get merge.zeta-package.driver`
    应回显该值。driver 定义见 `scripts/merge-package-json.ts` 头部注释）。
+   - **语义（决定合并后要核对什么）**：driver **不是**对称三方合并。它把
+     结果**以"被并入侧"（`%B`/other，即 `git merge` 的参数侧、`git pull`
+     的远端侧）为基线重建**——即最终 manifest ≈ `other` 的那一份，只有
+     identity 字段（name/version/homepage/bin/repository/bugs/author/
+     contributors/keywords）、四段依赖（含 `workspaces.catalog`）取自
+     `current`（本分支）。**推论：`scripts` 整段来自被并入侧，分支侧
+     新增/改动的 `scripts` 键（以及任何不属上述两类的字段）会在合并中
+     被静默丢弃**。2026-10-14 实例：`git merge origin/main` 丢掉
+     `check:nix-bun` / `check:relay-assets` / `gen:relay-assets`，直到 CI
+     报 "script not found" 才暴露。
+   - **判据**：合并后 `git diff $(git merge-base <被并入侧> HEAD^1) HEAD -- package.json`
+     应只有预期改动；或直接确认分支侧的 `scripts` 键仍在。
+     注意 driver 恰恰是"静默"的来源：**没注册 driver 时**同一处改动会变成
+     可见的 `CONFLICT (content): Merge conflict in package.json`（2026-10-14
+     实测）；注册之后冲突消失、分支侧改动也一起消失。
+   - **修法**：按分支侧的值手工恢复，**并让它在 HEAD 上存在**（只留在
+     merge commit 里、随后续提交被覆盖不算修复）。
+   - **机械检查**：`bun scripts/check-package-json-merge.ts`
+     （`--base <ref>` 可指定基线）扫描 `<base>..HEAD` 的 merge commit，
+     报"第一父侧改过、merge 后仍缺"的 script 键；CI `check` job 与
+     `.gitea` 本地镜像都已接入（不新增热路径成本：同一 job 里
+     `check-merge-lineage.ts` 已经 unshallow）。
 5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
    映射、.zeta 路径、ZETA_CODING_AGENT_DIR、`__zeta_*` 注入符号、品牌、
    Zeta-only 功能存活清单）。
+   **合并后必须核对 manifest 的 `scripts` 没被 driver 吃掉**（见步骤 4 的
+   「语义」段）：`bun scripts/check-package-json-merge.ts`，或直接
+   `git diff <merge-base> HEAD -- package.json`。任何分支侧新增的脚本
+   （如 Zeta-only 的 `check:*`/`gen:*`）在 merge 后**不会**自动存活。
 6. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
    `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
    → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：
@@ -250,7 +276,9 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 8. **门禁**：`bun scripts/check-version-consistency.ts` +
    `bun run check:ts` + `bun scripts/brand/brand-check.ts` +
    `bun scripts/check-zeta-sentinels.ts`（双守卫都要）+
-   `bunx oxfmt --check <既有 glob>` + 动过 crates/ 时 `cargo fmt --all --check`。
+   `bun scripts/check-package-json-merge.ts`（merge commit 是否吃掉分支侧
+   `scripts`，见步骤 4/5）+ `bunx oxfmt --check <既有 glob>` +
+   动过 crates/ 时 `cargo fmt --all --check`。
 9. **本地全量测试（强制，不靠 CI 揭伤）**：workspace `bun test` 全量 +
    `bun run test:rs`；已知环境噪声按豁免清单排除（本地 .node 陈旧造成的
    natives 符号缺失属环境噪声，但必须先按 §natives 恢复再判定）。

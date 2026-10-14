@@ -119,6 +119,7 @@ bun scripts/brand/brand-check.ts
 bun scripts/check-zeta-sentinels.ts
 bun scripts/check-ci-surface.ts
 bun scripts/check-serve-discovery-parity.ts
+bun scripts/check-package-json-merge.ts        # merge commit 没吃掉分支侧 scripts
 bun run check:nix-bun                        # no nix needed (bunx fallback)
 bun run check:relay-assets                   # no zip/bun install needed
 cargo build --release -p pi-natives        # then copy into packages/natives/native/
