@@ -286,14 +286,15 @@ describe("collab chunked welcome (#3144)", () => {
 		const guest = new CollabGuestLink(makeFailingGuestContext(failure));
 		const joinAttempt = guest.join(host.link);
 		try {
-			await expect(
-				Promise.race([
-					joinAttempt,
-					Bun.sleep(250).then(() => {
-						throw new Error("join did not reject");
-					}),
-				]),
-			).rejects.toThrow("replica write failed during snapshot resume");
+			// Await the join itself. The in-memory relay delivers the welcome and
+			// every chunk on microtasks, so the mocked replica write rejects on that
+			// same chain: the rejection is the rendezvous, and a fixed wall-clock
+			// budget only measures scheduling. A 250 ms `Bun.sleep` race sat here and
+			// flaked under the bucket's chunk-pool load — the ~1.5 MB chunk train plus
+			// the rollback outran the budget and the test failed with "join did not
+			// reject". A join that never settles still fails loudly on the harness's
+			// per-test timeout.
+			await expect(joinAttempt).rejects.toThrow("replica write failed during snapshot resume");
 		} finally {
 			writeSpy.mockRestore();
 			await guest.leave("test cleanup").catch(() => {});
