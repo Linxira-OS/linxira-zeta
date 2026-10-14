@@ -9,8 +9,8 @@ import { type ModelsConfig, ModelsConfigSchema } from "./models-config-schema";
 /**
  * Read-only compatibility with upstream OMP model configuration.
  *
- * Users migrating from OMP may already have model providers (`~/.zeta/agent/models.yml`)
- * and plaintext API keys (`~/.zeta/agent/agent.db`) on disk. This module probes
+ * Users migrating from OMP may already have model providers (`~/.omp/agent/models.yml`)
+ * and plaintext API keys (`~/.omp/agent/agent.db`) on disk. This module probes
  * that upstream state without ever writing to it: the YAML file is only parsed
  * and the SQLite database is only opened in readonly mode. Anything the probe
  * finds is surfaced as an in-memory overlay by the model registry — no key is
@@ -36,11 +36,15 @@ export interface OmpCompatSnapshot {
 
 /**
  * Upstream OMP agent directory. The upstream default root is fixed
- * (`~/.zeta/agent`); upstream env-var path variants are deliberately not
+ * (`~/.omp/agent`); upstream env-var path variants are deliberately not
  * followed — this is a best-effort compatibility shim, not a full config merge.
+ *
+ * This must stay the *upstream* root: Zeta's own config root is `~/.zeta/agent`
+ * (`getAgentDir()`), so resolving this to `.zeta` would re-read our own
+ * `models.yml` as a phantom "upstream overlay".
  */
 export function defaultOmpAgentDir(): string {
-	return path.join(os.homedir(), ".zeta", "agent");
+	return path.join(os.homedir(), ".omp", "agent");
 }
 
 function parseOmpModelsConfig(content: string): ModelsConfig | undefined {

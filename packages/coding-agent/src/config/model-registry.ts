@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@linxiraos/pi-ai";
 import { type AuthApiKeyOptions, oauthAccountKey } from "@linxiraos/pi-ai/auth-storage";
@@ -139,7 +138,7 @@ import {
 	validateProviderConfiguration,
 } from "./models-config";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
-import { type OmpCompatSnapshot, probeOmpCompat } from "./omp-compat";
+import { type OmpCompatSnapshot, defaultOmpAgentDir, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
 
 import { cfgDisabledProviders } from "./model-settings";
@@ -417,7 +416,7 @@ export class ModelRegistry {
 	#ompOriginProviders: Set<string> = new Set();
 	#ompConfigProviders: Set<string> = new Set();
 	#ompCompatConfig: ModelsConfig | undefined;
-	/** Test seam: upstream agent dir override; undefined = default `~/.zeta/agent`. */
+	/** Test seam: upstream agent dir override; undefined = default `~/.omp/agent`. */
 	#ompAgentDir: string | undefined;
 	/** mtime fingerprint of the upstream files at last static load; drives reload detection. */
 	#lastOmpCompatFingerprint: string | null = null;
@@ -565,7 +564,7 @@ export class ModelRegistry {
 			cacheDbPath?: string;
 			/**
 			 * Upstream OMP agent directory for the read-only compatibility probe.
-			 * Defaults to `~/.zeta/agent`; tests point this at a fixture directory.
+			 * Defaults to `~/.omp/agent`; tests point this at a fixture directory.
 			 */
 			ompAgentDir?: string;
 			fetch?: FetchImpl;
@@ -1207,8 +1206,7 @@ export class ModelRegistry {
 	 */
 	#ompCompatFingerprint(): string | null {
 		if (this.#ignoreLocalModelConfig) return null;
-		const dir = this.#ompAgentDir;
-		const agentDir = dir ?? path.join(os.homedir(), ".zeta", "agent");
+		const agentDir = this.#ompAgentDir ?? defaultOmpAgentDir();
 		const parts = [agentDir];
 		for (const name of ["models.yml", "agent.db"]) {
 			try {
