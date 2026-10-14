@@ -1,4 +1,4 @@
-"""Host tools exposed to the agent through `omp_rpc.host_tool`.
+"""Host tools exposed to the agent through `zeta_rpc.host_tool`.
 
 The agent uses these for any side effect that touches GitHub, the
 reproduction transcript store, or the orchestrator's bookkeeping.
@@ -19,7 +19,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, NoReturn
 
-from omp_rpc import HostTool, HostToolContext, RpcCommandError, host_tool
+from zeta_rpc import HostTool, HostToolContext, RpcCommandError, host_tool
 
 from robomp import persona
 from robomp.config import Settings

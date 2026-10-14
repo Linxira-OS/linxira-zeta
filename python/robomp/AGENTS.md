@@ -23,14 +23,14 @@ Webhook → durable queue → async dispatcher → per-issue git worktree → om
 - `src/prompts/` — Mustache-style `{{var}}` templates loaded by `persona.py` via `@cache` and `importlib.resources`. Shipped as package data (`pyproject.toml` `package-data`).
 - `tests/` — pytest suite. `test_worker_smoke.py` is gated on `ROBOMP_INTEGRATION=1`.
 - `data/` — runtime state (sqlite + WAL, `workspaces/`, `logs/`). Never committed.
-- `/Dockerfile` (pi root) — produces `oh-my-pi/pi:dev` (pi runtime image: python + bun + rustup + pi-natives + omp_rpc + `/usr/local/bin/omp` shim + the full pi source under `/pi`). Stages: `natives-builder` → `wheel-builder` → `pi-base` → `pi-runtime` (default). Built via `bun run pi:image`. Robomp's image extends `pi-base` via `FROM ${PI_BASE}` in `/Dockerfile.robomp`.
+- `/Dockerfile` (pi root) — produces `oh-my-pi/pi:dev` (pi runtime image: python + bun + rustup + pi-natives + zeta_rpc + `/usr/local/bin/omp` shim + the full pi source under `/pi`). Stages: `natives-builder` → `wheel-builder` → `pi-base` → `pi-runtime` (default). Built via `bun run pi:image`. Robomp's image extends `pi-base` via `FROM ${PI_BASE}` in `/Dockerfile.robomp`.
 
 ## Development Commands
 
-Task runner is `bun` against the **monorepo root** `package.json`. roboomp itself no longer ships a `package.json`; every recipe lives at the root under the `robomp:*` namespace. Local venv (no docker): `bun run robomp:install` runs `pip install -e sdk/python/omp-rpc -e 'python/robomp[dev]'` (the local `omp-rpc` is not on the package index). From there:
+Task runner is `bun` against the **monorepo root** `package.json`. roboomp itself no longer ships a `package.json`; every recipe lives at the root under the `robomp:*` namespace. Local venv (no docker): `bun run robomp:install` runs `pip install -e sdk/python/zeta-rpc -e 'python/robomp[dev]'` (the local `zeta-rpc` is not on the package index). From there:
 
 ```
-bun run test:py                   # pytest -x sdk/python/omp-rpc/tests python/robomp/tests
+bun run test:py                   # pytest -x sdk/python/zeta-rpc/tests python/robomp/tests
 bun run robomp:test:integration   # ROBOMP_INTEGRATION=1, requires omp on PATH
 bun run robomp:serve              # python -m robomp serve on the host
 ```
@@ -72,7 +72,7 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 
 - **Python ≥3.11**, container is 3.12-slim. `from __future__ import annotations` is the norm; type hints are mandatory on public functions.
 - **Records**: prefer `@dataclass(slots=True, frozen=True)` for immutable value types (see `github_client.IssueInfo`, `sandbox.Workspace`, `db.EventRow`).
-- **Async style**: FastAPI handlers and `queue.WorkerPool` are async. `worker.run_task` is **synchronous** and runs in a worker thread because `omp-rpc` is blocking — keep it that way; don't try to async it. CLI commands wrap with `asyncio.run`.
+- **Async style**: FastAPI handlers and `queue.WorkerPool` are async. `worker.run_task` is **synchronous** and runs in a worker thread because `zeta-rpc` is blocking — keep it that way; don't try to async it. CLI commands wrap with `asyncio.run`.
 - **Config**: `pydantic-settings` `Settings` in `config.py` with `ROBOMP_*` env prefix (e.g. `ROBOMP_MAX_CONCURRENCY`, `ROBOMP_REPO_ALLOWLIST`). Access only via `get_settings()` (`@cache` singleton). Tests must call `reset_settings_cache()` after mutating env.
 - **Dependency injection**: pass `Settings`, `Database`, `GitHubClient`, `SandboxManager` explicitly into `create_app()`, `WorkerPool`, and `ToolBindings`. No module-level globals other than the singleton accessors (`get_settings`, `get_database`).
 - **State**: SQLite (`db.Database`) is the source of truth for `events`, `issues`, `releases`, and `tool_calls`. Release rows transition through `awaiting_ci` / `fixing` / `green` / `failed` / `superseded`. Thread-safe via an internal `_lock`; `BEGIN IMMEDIATE` for claim contention. In-memory state is only the `_inflight` set in `WorkerPool`.
@@ -97,7 +97,7 @@ Lint + format: TypeScript via Biome (config in `biome.json`), Python via Ruff (c
 - `src/cli.py` — Click CLI (`serve`, `triage`, `replay`, `status`, `cleanup`).
 - `src/dashboard.py` — single-page HTML dashboard served from `/`.
 - `pyproject.toml` — packaging + pytest config (`asyncio_mode = "auto"`, `testpaths = ["tests"]`).
-- `/Dockerfile.robomp` (pi root) — robomp's image. `FROM ${PI_BASE}` (default `oh-my-pi/pi:dev`), adds the SolidJS dashboard bundle, the robomp Python package, and the `robomp-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + pi-natives + omp_rpc + `omp` shim) comes from `pi-base` — no duplication in this file.
+- `/Dockerfile.robomp` (pi root) — robomp's image. `FROM ${PI_BASE}` (default `oh-my-pi/pi:dev`), adds the SolidJS dashboard bundle, the robomp Python package, and the `robomp-entrypoint` shim. Tini entrypoint, exposes `8080`, `VOLUME /data`. The toolchain (python + bun + rustup + pi-natives + zeta_rpc + `omp` shim) comes from `pi-base` — no duplication in this file.
 - `docker-compose.yml` — `build.args.PI_BASE`, mounts `$PI_ROOT:/work/pi:ro`, `./data:/data`, `~/.zeta/agent/models.container.yml:ro` (mapped to `models.yml` inside the container — kept separate from the host's `~/.zeta/agent/models.yml` so the host omp doesn't pick up gateway routing intended only for the container), `extra_hosts: llm-gateway.internal:host-gateway`.
 - `entrypoint.sh` — validates `PI_ROOT`, creates `/data/{workspaces,logs}` + build caches.
 - `.env.example` — authoritative list of required runtime env vars.

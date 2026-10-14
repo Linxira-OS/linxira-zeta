@@ -4,7 +4,7 @@
 #
 # Extends `pi-base` (from /Dockerfile, default target zeta/pi:dev) and adds
 # the robomp Python package + a Vite-built SolidJS dashboard bundle. The pi
-# toolchain (python + bun + rustup launcher + pi-natives + omp_rpc wheel +
+# toolchain (python + bun + rustup launcher + pi-natives + zeta_rpc wheel +
 # /usr/local/bin/zeta shim) all comes from PI_BASE; this file only layers what's
 # robomp-specific.
 #

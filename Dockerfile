@@ -4,8 +4,8 @@
 #
 # Stages:
 #   natives-builder — Rust + Bun → pi_natives.linux-<arch>.node
-#   wheel-builder   — omp_rpc Python wheel
-#   pi-base         — python + bun + rustup launcher + natives + omp_rpc
+#   wheel-builder   — zeta_rpc Python wheel
+#   pi-base         — python + bun + rustup launcher + natives + zeta_rpc
 #                     + /usr/local/bin/zeta shim
 #   pi-runtime      — pi-base + pi source + bun install      (DEFAULT, runnable)
 #
@@ -93,7 +93,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cp packages/natives/native/pi_natives.linux-*.node /out/
 
 ############################
-# 2) wheel-builder — omp-rpc wheel
+# 2) wheel-builder — zeta-rpc wheel
 ############################
 FROM python:3.12-slim-bookworm AS wheel-builder
 
@@ -104,11 +104,11 @@ RUN apt-get update \
 RUN pip install --upgrade pip build
 
 WORKDIR /src
-COPY sdk/python/omp-rpc /src
+COPY sdk/python/zeta-rpc /src
 RUN python -m build --wheel --outdir /out
 
 ############################
-# 3) pi-base — python + bun + rustup + natives + omp_rpc + zeta shim
+# 3) pi-base — python + bun + rustup + natives + zeta_rpc + zeta shim
 #
 # Sharable runtime base. Derived images (pi-runtime below, Dockerfile.robomp)
 # extend this and overlay their own source tree. Default PI_ROOT=/work/pi is
@@ -159,9 +159,9 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
 # pi-natives addon: pi's loader probes /opt/bun/bin as a fallback path.
 COPY --from=natives-builder /out/pi_natives.linux-*.node /opt/bun/bin/
 
-# omp-rpc Python wheel.
+# zeta-rpc Python wheel.
 COPY --from=wheel-builder /out/*.whl /tmp/wheels/
-RUN pip install /tmp/wheels/omp_rpc-*.whl && rm -rf /tmp/wheels
+RUN pip install /tmp/wheels/zeta_rpc-*.whl && rm -rf /tmp/wheels
 
 # `zeta` shim — runs the coding-agent CLI against $PI_ROOT via Bun. Derived
 COPY LICENSE  THIRD-PARTY-NOTICES.txt /usr/share/doc/zeta/

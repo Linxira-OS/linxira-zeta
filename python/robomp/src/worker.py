@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from omp_rpc import (
+from zeta_rpc import (
     HostToolCompletedEvent,
     MessageUpdateEvent,
     RpcClient,
@@ -229,7 +229,7 @@ def _ensure_agent_run_dir() -> None:
 def _build_extra_env(settings: Settings) -> dict[str, str]:
     """Build the env overlay passed to the omp subprocess.
 
-    `omp_rpc` merges this dict on top of `os.environ`, so overlaying empty
+    `zeta_rpc` merges this dict on top of `os.environ`, so overlaying empty
     strings for the sensitive keys is what actually masks them in the
     child — `del` on the parent's env would not help us here.
     """
@@ -560,7 +560,7 @@ def _run_rpc_blocking(
 
     def _on_tool_end(event: ToolExecutionEndEvent) -> None:
         tool_name = event.tool_name
-        # `tool_name` is transport-normalized by omp_rpc for top-level and
+        # `tool_name` is transport-normalized by zeta_rpc for top-level and
         # xd:// device dispatches, but an eval-bridged host tool only surfaces
         # as the enclosing `eval`; terminal-action detection therefore relies
         # on `_on_host_tool_completed`. A failed execution (`is_error`) does
@@ -678,7 +678,7 @@ def _run_rpc_blocking(
         # we'll let propagate. The `with` exit calls `client.stop()` again, but
         # it's idempotent.
         #
-        # NOTE: omp_rpc.RpcClient.stop() has a bug where it sets `_stopping=True`
+        # NOTE: zeta_rpc.RpcClient.stop() has a bug where it sets `_stopping=True`
         # before the stdout reader loop notices the closed pipe, so the reader's
         # `if not self._stopping` guard skips `_mark_closed()` entirely.
         # `_wait_for_agent_end` then blocks on `_event_condition` until the hard

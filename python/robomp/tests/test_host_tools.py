@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
-from omp_rpc import HostToolContext, RpcCommandError
+from zeta_rpc import HostToolContext, RpcCommandError
 
 from robomp import host_tools
 from robomp.config import Settings

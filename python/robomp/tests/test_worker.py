@@ -574,9 +574,9 @@ async def test_run_rpc_hard_timeout_stops_client_and_fails(
     assert fake.stop_calls == 1
     # `_cancel_hook` (used by both manual cancel and hard timeout) MUST also call
     # `_mark_closed` to unblock `_wait_for_agent_end` — `stop()` alone leaves
-    # `_closed_error` unset (omp_rpc bug), so the worker would hang otherwise.
+    # `_closed_error` unset (zeta_rpc bug), so the worker would hang otherwise.
     assert len(fake.mark_closed_calls) == 1
-    from omp_rpc import RpcProcessExitError
+    from zeta_rpc import RpcProcessExitError
 
     assert isinstance(fake.mark_closed_calls[0], RpcProcessExitError)
 
@@ -587,7 +587,7 @@ async def test_run_rpc_cancel_hook_stops_and_marks_closed(
 ) -> None:
     """The cancel hook registered with `register_cancel_hook` must call both
     `client.stop()` AND `client._mark_closed()`. The latter is the workaround for
-    an upstream omp_rpc bug where `stop()` does not set `_closed_error`, leaving
+    an upstream zeta_rpc bug where `stop()` does not set `_closed_error`, leaving
     `_wait_for_agent_end` blocked until timeout."""
     captured: list = []
     monkeypatch.setattr("robomp.worker.register_cancel_hook", lambda hook: captured.append(hook))
@@ -613,7 +613,7 @@ async def test_run_rpc_cancel_hook_stops_and_marks_closed(
     hook()  # Simulate the API/worker firing the cancel
     assert fake.stop_calls == pre_stop + 1
     assert len(fake.mark_closed_calls) == 1
-    from omp_rpc import RpcProcessExitError
+    from zeta_rpc import RpcProcessExitError
 
     assert isinstance(fake.mark_closed_calls[0], RpcProcessExitError)
     assert "cancelled by operator" in str(fake.mark_closed_calls[0])
@@ -785,7 +785,7 @@ async def test_run_rpc_review_pr_still_reminds_when_submit_fails(
 ) -> None:
     """An errored terminal-tool end event does not count as the terminal action.
 
-    omp_rpc normalizes xd:// device dispatches to the host-tool name, so a
+    zeta_rpc normalizes xd:// device dispatches to the host-tool name, so a
     rejected `submit_pr_review` surfaces as an end event with `is_error=True`
     under its real name. Counting it would end the review task silently with
     no review submitted — the completion reminder must still fire.

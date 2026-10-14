@@ -163,7 +163,7 @@ mid-way (`session_busy`, `stale_cursor`); under v1 it sends `get_messages`.
 
 ```sh
 go test -race ./...
-OMP_RPC_SMOKE=1 go test -run TestSmoke -v ./...   # real servers via bun, from this checkout
+ZETA_RPC_SMOKE=1 go test -run TestSmoke -v ./...   # real servers via bun, from this checkout
 ```
 
 `TestSmokeModel` drives full prompt turns against the scripted model in
