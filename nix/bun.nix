@@ -1570,6 +1570,10 @@
     url = "https://registry.npmjs.org/fdir/-/fdir-6.5.0.tgz";
     hash = "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==";
   };
+  "figlet@1.8.0" = fetchurl {
+    url = "https://registry.npmjs.org/figlet/-/figlet-1.8.0.tgz";
+    hash = "sha512-chzvGjd+Sp7KUvPHZv6EXV5Ir3Q7kYNpCr4aHrRW79qFtTefmQZNny+W1pW9kf5zeE6dikku2W50W/wAH2xWgw==";
+  };
   "flatbuffers@25.9.23" = fetchurl {
     url = "https://registry.npmjs.org/flatbuffers/-/flatbuffers-25.9.23.tgz";
     hash = "sha512-MI1qs7Lo4Syw0EOzUl0xjs2lsoeqFku44KpngfIduHBYvzm8h2+7K8YMQh1JtVVVrUvhLpNwqVi4DERegUJhPQ==";
