@@ -538,4 +538,15 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "bun scripts/check-package-json-merge.ts",
 		why: "Zeta-only step in the shared `check` job: the `merge.zeta-package` driver rebuilds the merged manifest from the merged-in side, so a local `git merge main` silently drops or reverts branch-side leaves — `scripts` entries (2026-10-14: three) and any other top-level key such as `packageManager`. ci.yml is a shared file an upstream merge takes in blocks, and the local-CI parity guard only checks GitHub → mirror, never the reverse, so a trimmed step would go unnoticed.",
 	},
+	// -- CI: PR-path web/desktop test legs ---------------------------------------
+	{
+		file: ".github/workflows/ci.yml",
+		symbol: "bun test packages/coding-agent/test/web-ui-launcher.test.ts",
+		why: "Zeta-only test leg (`web_desktop_tests`): the desktop contract suite and the CLI's Web UI launcher/serve-reuse suites had no PR-time signal because desktop_linux/desktop_windows are release-only. v1.2.1 shipped `npx zeta-web` (404; the package is `@linxiraos/zeta-web`), and the desktop reused the resulting dead-Web-UI service forever. Upstream has no such job, so a merge that takes ci.yml in blocks drops the only fast detector.",
+	},
+	{
+		file: "packages/coding-agent/src/commands/web-ui-launcher.ts",
+		symbol: 'export const WEB_UI_PACKAGE = "@linxiraos/zeta-web";',
+		why: "The npm fallback's package name (v1.2.1: an unscoped `zeta-web` specifier 404s against the registry while the *bin* name stays `zeta-web`, so both roles must be spelled separately). A brand/scope sweep or an upstream merge touching this file is exactly the edit that silently breaks `zetacode serve` on any install without a local web-ui checkout.",
+	},
 ];

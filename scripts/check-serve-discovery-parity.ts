@@ -67,6 +67,9 @@ const DIFFERENCES = {
 const SHARED_FIELDS: Record<string, string[]> = {
 	reuse: ["identity", "registration"],
 	"version-mismatch": ["identity", "registration"],
+	// Both copies refuse an instance whose Web UI page does not answer, and both
+	// carry the probe evidence their caller prints.
+	"web-ui-unreachable": ["identity", "registration", "probe"],
 };
 
 interface Extracted {
