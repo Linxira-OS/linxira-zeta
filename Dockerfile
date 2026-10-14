@@ -6,7 +6,7 @@
 #   natives-builder — Rust + Bun → pi_natives.linux-<arch>.node
 #   wheel-builder   — zeta_rpc Python wheel
 #   pi-base         — python + bun + rustup launcher + natives + zeta_rpc
-#                     + /usr/local/bin/zeta shim
+#                     + /usr/local/bin/zetacode shim
 #   pi-runtime      — pi-base + pi source + bun install      (DEFAULT, runnable)
 #
 # Build:
@@ -108,7 +108,7 @@ COPY sdk/python/zeta-rpc /src
 RUN python -m build --wheel --outdir /out
 
 ############################
-# 3) pi-base — python + bun + rustup + natives + zeta_rpc + zeta shim
+# 3) pi-base — python + bun + rustup + natives + zeta_rpc + zetacode shim
 #
 # Sharable runtime base. Derived images (pi-runtime below, Dockerfile.robomp)
 # extend this and overlay their own source tree. Default PI_ROOT=/work/pi is
@@ -163,20 +163,25 @@ COPY --from=natives-builder /out/pi_natives.linux-*.node /opt/bun/bin/
 COPY --from=wheel-builder /out/*.whl /tmp/wheels/
 RUN pip install /tmp/wheels/zeta_rpc-*.whl && rm -rf /tmp/wheels
 
-# `zeta` shim — runs the coding-agent CLI against $PI_ROOT via Bun. Derived
+# `zetacode` shim — runs the coding-agent CLI against $PI_ROOT via Bun. Derived
 COPY LICENSE  THIRD-PARTY-NOTICES.txt /usr/share/doc/zeta/
 # images override PI_ROOT to point at wherever their pi source lives.
+# The shim carries the canonical CLI name (`CLI_BIN_NAME`, AGENTS.md registry:
+# user-visible CLI text and the bin users type are `zetacode`), so PATH
+# resolution works out of the box for anything that spawns the CLI by name —
+# robomp's worker and the desktop shell's serve resolution both probe
+# `zetacode` first. `scripts/check-robomp-cli-contract.ts` pins this pairing.
 RUN printf '%s\n' \
     '#!/usr/bin/env bash' \
     'set -euo pipefail' \
     ': "${PI_ROOT:=/work/pi}"' \
     'if [ ! -d "$PI_ROOT/packages/coding-agent" ]; then' \
-    '  echo "pi: PI_ROOT=$PI_ROOT does not look like a pi checkout" >&2' \
+    '  echo "zetacode: PI_ROOT=$PI_ROOT does not look like a zeta checkout (no packages/coding-agent/)" >&2' \
     '  exit 127' \
     'fi' \
     'exec bun "$PI_ROOT/packages/coding-agent/src/cli.ts" "$@"' \
-    > /usr/local/bin/zeta \
-    && chmod +x /usr/local/bin/zeta
+    > /usr/local/bin/zetacode \
+    && chmod +x /usr/local/bin/zetacode
 
 ############################
 # 4) pi-runtime — pi-base + pi source + bun install (DEFAULT)
@@ -211,5 +216,5 @@ COPY . /pi/
 # package.json's `prepare` script normally handles these on a vanilla install.
 RUN bun --cwd=packages/coding-agent run gen:tool-views
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/zeta"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/zetacode"]
 CMD ["--help"]

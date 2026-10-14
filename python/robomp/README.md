@@ -1,6 +1,6 @@
 # roboomp
 
-Self-hosted GitHub triage bot. Drives [`omp --mode rpc`](https://github.com/can1357/oh-my-pi)
+Self-hosted GitHub triage bot. Drives [`zetacode --mode rpc`](https://github.com/can1357/oh-my-pi)
 as a subprocess against a per-issue git worktree, then writes back to GitHub
 through a sidecar that holds the PAT.
 
@@ -30,7 +30,7 @@ the next verdict until every run and the GitHub Release are green.
 
 Two containers, one trust boundary:
 
-- **robomp** — FastAPI + sqlite event queue + `WorkerPool` running `omp` in
+- **robomp** — FastAPI + sqlite event queue + `WorkerPool` running `zetacode` in
   per-issue worktrees under `/data/workspaces/`. Holds the HMAC key, never
   the PAT.
 - **gh-proxy** — sibling on an `internal: true` network. Holds `GITHUB_TOKEN`,
@@ -41,7 +41,7 @@ Flow: webhook → HMAC verify → `github_events.route` → sqlite `events`
 (dedup on `X-GitHub-Delivery`) → `WorkerPool` claims under
 `BEGIN IMMEDIATE` with an in-process `_inflight` set per `(owner, repo, n)`
 → `sandbox.ensure_workspace` produces a worktree on `farm/<8hex>/<slug>`
-→ `worker.run_task` spawns `omp --mode rpc` with `cwd=worktree`,
+→ `worker.run_task` spawns `zetacode --mode rpc` with `cwd=worktree`,
 persistent `session_dir`, model randomly drawn from `ROBOMP_MODEL` (CSV).
 
 Release events serialize under `<owner>/<repo>#release`; each tag persists its
@@ -157,8 +157,8 @@ pytest -x tests/                              # unit suite, no network
 ROBOMP_INTEGRATION=1 pytest -x tests/test_worker_smoke.py
 ```
 
-The integration test spawns a real `omp --mode rpc` against an
-`httpx.MockTransport` GitHub and a local bare repo, so it needs `omp` on
+The integration test spawns a real `zetacode --mode rpc` against an
+`httpx.MockTransport` GitHub and a local bare repo, so it needs `zetacode` on
 `PATH`. `bun run test:py` runs the unit suite.
 
 ## Security posture
