@@ -24,7 +24,7 @@ describe("RPC queued-message editing", () => {
 	}
 
 	beforeEach(async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-rpc-queued-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-rpc-queued-"));
 		client = createClient();
 	});
 

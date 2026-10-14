@@ -19,7 +19,7 @@ dependencies = [
   "pydantic-settings>=2.2",
   "python-dotenv>=1.0",
   "click>=8.1",
-  "omp-rpc>=0.1.0",
+  "zeta-rpc>=0.1.0",
 ]
 
 [project.optional-dependencies]
