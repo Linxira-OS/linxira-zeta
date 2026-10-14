@@ -330,6 +330,41 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **robomp 容器 CLI 契约残留(2026-10-14)**:本轮已修「镜像只装了一个 CLI 垫片,
+  而 robomp 按名 spawn 另一个名字」这一断层——`Dockerfile`(pi-base 段)的垫片
+  `/usr/local/bin/zeta` 更名 `zetacode`(`ENTRYPOINT` 同步),robomp 三处取值
+  (`src/config.py:101` 默认、`docker-compose.yml:81`、`.env.example:186`)对齐
+  `zetacode`,`python/robomp/AGENTS.md`/`README.md` 的幽灵 `/usr/local/bin/omp`
+  垫片叙述与 `omp --mode rpc` 调用叙述一并改写;机器守卫
+  `scripts/check-robomp-cli-contract.ts`(CI `check` job + 本地 `local-ci.yml`
+  `check` job)从 Dockerfile 垫片名与 robomp 取值两侧推导,任一侧漂移即红。
+  **仍排队(逐项已取证,勿与上条混谈)**:
+  - ①**沙箱 XDG 目录名**:`python/robomp/src/sandbox.py:541-549,584-588` 预建
+    `$XDG_*_HOME/omp`,而产品只认 `$XDG_*_HOME/zeta`——`packages/utils/src/dirs.ts`
+    (`APP_NAME="zeta"` @:24)以 `fs.existsSync($XDG_*_HOME/zeta)`(:383、:403)为
+    XDG 生效条件,故今日容器内 XDG 重定向**从未生效**,产品状态根回落 `~/.zeta`
+    (=`/srv/agent-home/.zeta`,root:root 0755,见 `entrypoint.sh:68-69`)。改名即把
+    产品 data/state/cache 切到各工作区 XDG 树,并使 `entrypoint.sh:77-84` 与
+    `worker.py:199-221` 那套 group `omp` 共享 `~/.zeta/run` 方案失效——**必须先有
+    容器内验证**(本机无 docker daemon),故本轮只出结论不动手。
+  - ②`PI_ROOT`/`OMP_*` 环境变量族改名:AGENTS.md 品牌表 2026-10-10 裁决暂缓,
+    robomp 的 `ROBOMP_OMP_COMMAND` 属同族,本轮只改取值不改名。
+  - ③镜像 tag/stage 名:`package.json:138,139,147` 的 `PI_IMAGE` 默认
+    `oh-my-pi/pi:dev` 与 `Dockerfile.robomp:19`/`docker-compose.yml:23` 的
+    `zeta/pi:dev` 不同名(compose 显式传参掩盖),`pi-base`/`pi-runtime` 段名同属
+    镜像命名面——不在本轮范围。
+  - ④容器内 unix 组 `omp`(`entrypoint.sh:25-38`、`worker.py:674` `extra_groups`):
+    跨槽位权限模型的一部分,刻意保留。
+  - ⑤Python SDK 默认命令名:`sdk/python/zeta-rpc/src/zeta_rpc/client.py:458`
+    `executable: str = "omp"`(手写 transport 默认值,robomp 恒显式传参故不影响
+    容器);`scripts/rate-edit-tool.py:949-956` `shutil.which("omp")` 与报错文案
+    「`zetacode`」自相矛盾。二者同一类「默认值指向不存在的命令」,待独立批次。
+  - ⑥robomp 工作区内部目录名 `.omp-xdg`/`.omp-tmp`/`.omp-session*`
+    (`sandbox.py:17`、`test_sandbox.py` 多处):纯 robomp 自用 scratch,非产品配置
+    面,改名无契约收益、改动面大,不排期。
+  - ⑦`python/robomp/` 散文仍通篇以 "omp" 称呼产品(如 `README.md:50,58,226`):
+    品牌扫描 `SKIP_PREFIXES` 有意跳过 `python/`,随 ②的 env 迁移一并处理。
+
 - **tea CLI 工具套件(2026-10-07 用户裁决)**:自托管 Gitea 与 gitea.com 的 gh 工具族
   对等集成。**一期已落**:`packages/coding-agent/src/tools/tea.ts`(单工具 op 判别联合,
   omptype)+ `packages/coding-agent/src/tools/tea-common.ts`(owner/repo 解析、实例→login)
