@@ -675,6 +675,38 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   它从属 **P1**——P1 落地时安装文档本就要改成 `bun install -g`,可顺带一次改对;若 P1 长期不开工,可独立小修。
   **开工前先定**:归入 P1 批次,还是独立小修。**取证(本地)**:`temp/.omp-tmp/node-residency-report.md` §2.5、§4.2。
 
+- **测试「墙钟绑定」同类清理(2026-10-14 登记,来自 native 桶 chunk 13/34 flake 定案 PR #187)**:
+  **事实**:`Test coding-agent native/unit (TS)` 两个 flake 已定案并修复(chunk 13 `test/collab/chunked-welcome.test.ts`、
+  chunk 34 `test/issue-3464-ollama-cloud-task-backoff.test.ts`),**两者非同机制、同类型**——都是「把断言结果绑到真实时间」,
+  放大器是**本桶刻意 over-subscribe**(4 chunk 进程 / 2 core 的 runner),不是产品 bug:一个给纯微任务路径设了固定
+  250ms 预算(负载下 join→reject p90 749ms/p99 1495ms,但**每次都正确 reject**),另一个的断言依赖产品
+  `retry.fallbackRevertPolicy=cooldown-expiry` 的 200ms 回拨窗口(链解析与 failover 每次都正确)。
+  **残余同类(本次未做,属非目标)**:①**107 个** coding-agent 测试文件使用正数时长的 `Bun.sleep`,其中 **27 个**与
+  `Promise.race` 配对(= 假预算的主要形状);②同桶已注释掉的 `mcp/transports/stdio.test.ts` pid 轮询 flake;
+  ③同 chunk 邻居 `test/collab/host-peer-left-queue.test.ts` 用 1–8s 预算(宽松,风险低)。
+  **范围**:按类清理——纯微任务/内存路径的固定预算改为**直接 await 被测 promise**(hang 交 per-test timeout 兜底);
+  断言依赖产品时钟窗口的**冻结时钟**(`vi.spyOn(Date,"now")`,兄弟套件 `test/agent-session-retry-fallback.test.ts` 已是此范式,
+  且该文件 `afterEach` 已有 `vi.restoreAllMocks()`)。**不动** chunk 划分与池宽度(无共享状态/端口/临时目录/缓存参与,
+  负载才是放大器)。**量级**:中——107 文件需逐个甄别,真需改的是子集,**约 3–8 agent-日 [推断]**。
+  **为什么推迟**:非用户可见行为、当前桶全绿,一次性大扫会与在飞的 PR 冲突。
+  **开工前先定**:①甄别标准——哪些 `Bun.sleep` 是「等真实异步 I/O(必须保留)」、哪些是「假预算(必须删)」,
+  以免把真实等待也一并删掉;②是否顺手加一条 lint/守卫把「用固定时长 race 去断言一个微任务结果」这种形状拦死
+  (仓库已有 `ts-no-test-timers` 的同精神规则可参照);③是否把该桶池宽度/分片作为独立议题评估(本次结论是**不需要**)。
+  **取证**:`pr://187`(含前后失败率表 12/40→0/40、23/40→0/40 与逐字原始断言);本地未提交的
+  `temp/bucket-flake-triage/.repro/`(`before_single.txt`/`after_single.txt`、`runs/*.log`、3 个机制探针
+  `probes/`、`harness.py` 池化压测)。
+
+- **产品回退策略的「回拨 churn」(2026-10-14 登记,待定;非 bug,是策略裁断)**:
+  **事实**:`retry.fallbackRevertPolicy` 默认 `cooldown-expiry`,`TurnRecovery#maybeRestoreRetryFallbackPrimary`
+  (`packages/coding-agent/src/session/turn-recovery.ts:2388`)在自动重试的 continue 头部
+  (`src/session/agent-session.ts:5265`)把这次重试**拨回刚被限流的主模型**;当 provider 给的 `retry-after-ms` 很短时,
+  重试会立刻打回主模型(时钟探针:活时钟 1/5/25ms → `[primary, primary]`,50/100/200/1000ms → `[primary, fallback]`)。
+  **范围**:裁断是否给回拨设**下限阈值**(如窗口 < 1s 时跳过回拨、直接继续用 fallback),或维持现状并在文档写明。
+  **量级**:低——1 PR(策略 + 1 条 `docs/` 说明 + 覆盖既有 `test/agent-session-retry-fallback.test.ts` 一个用例)。
+  **为什么待定**:属**既定策略**,非本次 flake 的成因(#187 未触碰),且放宽/收紧回拨会影响额度耗尽时的失败面,需用户裁断。
+  **开工前先定**:阈值取值与「窗口极短时优先用 fallback 而非主模型」是否符合产品意图(与我们默认 YOLO、不新增审批层的姿态一致)。
+  **取证**:`pr://187` 根因 2(含逐档阈值与 `model_change`/`isSelectorSuppressed()` 时间线探针)。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
