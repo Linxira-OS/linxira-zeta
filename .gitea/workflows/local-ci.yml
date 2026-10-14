@@ -401,6 +401,11 @@ jobs:
          # stay equal.
          - name: Serve-discovery parity guard
            run: bun scripts/check-serve-discovery-parity.ts
+         # 镜像 GitHub `check` job：robomp 的 worker 按名 spawn CLI,该名字必须是
+         # 镜像真正放上 PATH 的名字(两侧均从真实文件推导：Dockerfile 垫片 vs
+         # config.py/compose/.env.example)。
+         - name: robomp container CLI contract guard
+           run: bun scripts/check-robomp-cli-contract.ts
          - name: Upstream merge lineage guard
            run: bun scripts/check-merge-lineage.ts
          # 镜像 GitHub `check` job：`merge.zeta-package` driver 以被并入侧为
