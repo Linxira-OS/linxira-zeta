@@ -70,9 +70,10 @@ zetaide / zetaeditor）。连字符形式只作为 `package.json` `bin` 兼容�
 **来源：`AGENTS.md`（Zeta Brand Surface Registry / OMP Release Sync Policy）、
 本批次 spec §12（D12）、`roadmap.md`（P2 TTT About）。**
 
-- **ζ 品牌**：CLI 终端标题字符 `ζ`（title-generator）、`ZETA_LOGO` 字符画、
-  `icon.omp` unicode 预设用 `ζ`。`icon.pi`（π）与 latex-to-unicode 的 π 条目
-  **保留**——那是 provider 图标与数学转换语义，不是品牌残留。
+- **ζ 品牌**：CLI 终端标题字符 `ζ`（title-generator）、`icon.omp` unicode 预设用
+  `ζ`；welcome/splash 的字符画由标准 FIGlet 工具生成（mark = `Ζ` 的 ASCII 形
+  `Z`，主行 `Zeta`，次行 `Linxira-Zeta`）。`icon.pi`（π）与 latex-to-unicode 的
+  π 条目**保留**——那是 provider 图标与数学转换语义，不是品牌残留。
   为什么：品牌收拢要精确，语义字符被误扫恰恰是过度品牌的损伤。
 - **`.zeta` 配置根**：配置目录 `.zeta` / `~/.zeta` 唯一，无上游名别名；上游
   测试/文档携带的上游配置目录路径在合并时改写为 `.zeta` 并记入账本。唯一
