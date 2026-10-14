@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- The welcome/splash brand art is now generated with the standard FIGlet tool instead of being drawn by hand: `ZETA_LOGO` renders the mark `Z` (the ASCII form of `Ζ`), `ZETA_WORDMARK` renders `Zeta` (both in the standard `ANSI Shadow` font) and `ZETA_SUBLINE` renders the `Linxira-Zeta` identity line in `mini`, with the version under the wordmark. `bun scripts/brand/generate-logo-art.ts` regenerates the three constants from the vendored fonts, and the brand guard fails on any hand-edited glyph.
+
 ## [1.2.1] - 2026-10-13
 
 - The welcome box now resolves its labels, the `Tip:` label, the `[NEW]` tag, and every tip body through the host `tuiText` catalogue (`welcome*` and `tipN` keys, where `tipN` maps to `tips.txt` line N). The inline English stays as the permanent fallback, so rendering without a registered source is unchanged; a registered source localises the box and re-renders on a live language switch.

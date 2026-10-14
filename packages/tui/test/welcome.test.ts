@@ -3,8 +3,8 @@ import { pickWeightedTip, WelcomeComponent } from "@linxiraos/pi-tui/prompt/welc
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { visibleWidth } from "@linxiraos/pi-tui";
 
-/** A half-block run that starts the `Zeta` wordmark (its `Z` top bar), for row probes. */
-const WORDMARK_ROW = "███▀";
+/** The `Zeta` wordmark's top row (its `Z`+`e` top bars), for row probes. */
+const WORDMARK_ROW = "███████╗███████╗";
 
 describe("WelcomeComponent", () => {
 	beforeAll(async () => {
@@ -26,8 +26,9 @@ describe("WelcomeComponent", () => {
 					k: "col",
 					p: { role: "zeta.welcome.mark" },
 					c: [
-						{ p: { role: "zeta.welcome.wordmark" } },
+						{ p: { role: "zeta.welcome.wordmark", spans: [{ t: "Zeta" }] } },
 						{ p: { role: "zeta.welcome.version", spans: [{ t: "v18.4.12" }] } },
+						{ p: { role: "zeta.welcome.subline", spans: [{ t: "Linxira-Zeta" }] } },
 					],
 				},
 			],
@@ -117,15 +118,16 @@ describe("WelcomeComponent", () => {
 	it("sets the version under the wordmark while the lockup fits, else keeps the logo alone", () => {
 		const rows = (columns: number) => new WelcomeComponent("1.0.0").render(columns).map(row => Bun.stripANSI(row));
 
-		// The lockup needs 12 logo + 4 gap + 22 wordmark columns inside the 2-column margin.
-		const fits = rows(40);
+		// The lockup needs 8 mark + 4 gap + 33 wordmark = 45 columns inside the
+		// 2-column margin, so it fits from 47 columns up.
+		const fits = rows(47);
 		const word = fits.find(row => row.includes(WORDMARK_ROW));
 		const version = fits.find(row => row.includes("v1.0.0"));
-		expect(fits.some(row => row.includes("████████████"))).toBe(true);
+		expect(fits.some(row => row.includes("███████╗    ███████╗███████╗"))).toBe(true);
 		expect(version?.indexOf("v1.0.0")).toBe(word?.indexOf(WORDMARK_ROW));
 
-		const narrow = rows(39).join("\n");
-		expect(narrow).toContain("████████████");
+		const narrow = rows(46).join("\n");
+		expect(narrow).toContain("╚══███╔╝");
 		expect(narrow).not.toContain(WORDMARK_ROW);
 		expect(narrow).not.toContain("v1.0.0");
 	});

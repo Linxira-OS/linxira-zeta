@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { AuthStorage } from "@linxiraos/pi-ai";
 import { ModelRegistry } from "../../src/config/model-registry";
 import { mergeOmpProviderMirrors, stripOmpOriginProviders } from "../../src/server/web-gateway/models";
-import { probeOmpCompat } from "../../src/config/omp-compat";
+import { defaultOmpAgentDir, probeOmpCompat } from "../../src/config/omp-compat";
 
 const OMP_YML = `providers:
   ac:
@@ -165,6 +165,17 @@ describe("probeOmpCompat", () => {
 		probeOmpCompat(dir);
 		const entries = fs.readdirSync(dir).sort();
 		expect(entries).toEqual(["agent.db", "models.yml"]);
+	});
+});
+
+describe("defaultOmpAgentDir", () => {
+	test("targets the upstream OMP root, never Zeta's own agent dir", () => {
+		const dir = defaultOmpAgentDir();
+		// Upstream OMP keeps its user config under `.omp`; Zeta's own root is
+		// `.zeta` (getAgentDir()). Resolving the probe default to `.zeta` would
+		// re-read Zeta's own models.yml as a phantom "upstream overlay".
+		expect(dir).toBe(path.join(os.homedir(), ".omp", "agent"));
+		expect(dir).not.toBe(path.join(os.homedir(), ".zeta", "agent"));
 	});
 });
 

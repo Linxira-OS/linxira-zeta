@@ -6,7 +6,14 @@ import { formatKeyHint } from "../../app-keybindings";
 import { col, node, span, text } from "../../native/describe";
 import type { NativeNode } from "../../native/node";
 import { Memo } from "../../native/memo";
-import { gradientEscape, gradientLogo, ZETA_LOGO, type ShineConfig, logoNode } from "../../prompt/welcome";
+import {
+	gradientEscape,
+	gradientLogo,
+	ZETA_LOGO,
+	ZETA_SUBLINE,
+	type ShineConfig,
+	logoNode,
+} from "../../prompt/welcome";
 
 export const SETUP_SPLASH_MS = 2600;
 export const SETUP_TICK_MS = 33;
@@ -159,11 +166,12 @@ function resetCells(width: number, height: number): string[][] {
 let diagonalEscapes: (string | undefined)[] = [];
 
 /**
- * Animated setup splash, in the spirit of the Zeta visual identity: the brand ζ
- * mark rendered with the live diagonal gradient + shine sweep, rising out of a
- * rippling, gradient-lit water surface, under a faint twinkling starfield. The
- * mark and water share one continuous gradient so the sweep reads across the
- * whole scene; the water surface drifts each frame.
+ * Animated setup splash, in the spirit of the Zeta visual identity: the brand
+ * mark — the FIGlet-rendered Latin `Z`, the ASCII form of `Ζ` — with the live
+ * diagonal gradient + shine sweep, rising out of a rippling, gradient-lit water
+ * surface, under a faint twinkling starfield. The mark and water share one
+ * continuous gradient so the sweep reads across the whole scene; the water
+ * surface drifts each frame.
  */
 export function renderSetupSplash(width: number, height: number, elapsedMs: number): string[] {
 	const w = Math.max(1, width);
@@ -265,7 +273,8 @@ export function describeSetupSplash(): NativeNode {
 			[
 				node("spacer", { grow: 1 }),
 				logoNode(LARGE_LOGO, true),
-				text([span("Z e t a", "strong")], { wrap: "none" }),
+				text([span("Zeta", "strong")], { wrap: "none" }),
+				text([span("Linxira-Zeta", "dim")], { wrap: "none" }),
 				node("spacer", { grow: 1 }),
 				text([span(hint, "dim")], { wrap: "none" }),
 			],
@@ -277,7 +286,12 @@ export function describeSetupSplash(): NativeNode {
 /** Centered fallback for windows too small to hold the full scene. */
 function renderCompactSplash(width: number, height: number, phase: number, shine: ShineConfig): string[] {
 	const art = height >= 14 ? LARGE_LOGO : ZETA_LOGO;
-	const content = [...gradientLogo(art, phase, shine), "", theme.bold("Z e t a")];
+	const content = [
+		...gradientLogo(art, phase, shine),
+		"",
+		theme.bold("Zeta"),
+		...ZETA_SUBLINE.map(row => theme.fg("dim", row)),
+	];
 	const start = Math.max(0, Math.floor((height - content.length) / 2));
 	const lines: string[] = [];
 	for (let y = 0; y < height; y++) {

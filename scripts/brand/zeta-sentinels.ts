@@ -385,17 +385,22 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		symbol: "export const ZETA_LOGO",
-		why: "ζ char-art product logo surface (v18.0.3 lesson)",
+		why: "the brand mark is the product logo surface (v18.0.3 lesson)",
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: 'ZETA_LOGO = ["████████████", "   ████████ ", "  ████████  ", " ████████▒▒▒", "████████████"]',
-		why: "block-grid ζ mark (5 rows × 12 cols, █/▒) of the welcome/splash lockup — redrawn 2026-10-13 in upstream's block-grid geometry so the mark takes the lockup's 5-row slot (wordmark beside it, version under it) and the same 2x splash look as upstream; pins the exact rows so a merge cannot revert to the old box-drawing art or upstream's π mark",
+		symbol: '"╚══███╔╝"',
+		why: "mark row 1 of the FIGlet-generated `Z` (ANSI Shadow) — the welcome/splash lockup mark, rendered by `bun scripts/brand/generate-logo-art.ts`; pinned as a row, not the array, because oxfmt splits the long arrays across lines",
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		symbol: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
-		why: 'half-block `Zeta` wordmark of the welcome lockup (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot swap in upstream\'s `omp` wordmark',
+		symbol: '"███████╗███████╗████████╗ █████╗ "',
+		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow, 2026-10-14 brand spec) — a merge cannot swap in upstream's `omp` wordmark or a hand-drawn replacement",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		symbol: '" |_ | | | >< | | (_|   /_ (/_ |_ (_| "',
+		why: "last row of the FIGlet-generated `Linxira-Zeta` identity subline (mini font, 2026-10-14 brand spec)",
 	},
 	{
 		file: "packages/tui/src/theme/symbols.ts",
