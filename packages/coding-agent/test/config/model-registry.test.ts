@@ -31,13 +31,8 @@ describe("ModelRegistry", () => {
 		// Construct with an explicit modelsPath inside the temp dir so the
 		// constructor's #loadModels read returns "not-found" rather than
 		// touching the host's ~/.zeta/agent/models.yaml. isBunTestRuntime()
-		// auto-stubs #fetch in the constructor. The upstream-compat probe is
-		// pointed at an empty fixture: its default (`~/.zeta/agent`) is the
-		// host's own agent dir, which would otherwise merge a developer's real
-		// models.yml into every case here.
-		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"), {
-			ompAgentDir: path.join(tmpDir, "upstream-fixture"),
-		});
+		// auto-stubs #fetch in the constructor.
+		registry = new ModelRegistry(authStorage, path.join(tmpDir, "models.yaml"));
 	});
 
 	afterEach(() => {
