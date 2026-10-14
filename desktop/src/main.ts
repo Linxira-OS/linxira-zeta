@@ -46,7 +46,18 @@ import {
 	type RunningSessionsResponse,
 } from "./session-monitor";
 import { SERVICE_MAX_RESTARTS, shouldRestartServe } from "./service-supervision";
-import { desktopServeDiscoveryDeps, discoverDesktopService } from "./serve-discovery";
+import {
+	clearServeRegistrationForPid,
+	desktopServeDiscoveryDeps,
+	discoverDesktopService,
+	type ServeRegistration,
+} from "./serve-discovery";
+import {
+	describeReadinessFailure,
+	probeServiceReadiness,
+	registrationPidToRetire,
+	type ServiceReadiness,
+} from "./service-readiness";
 import {
 	bundledServeCommandIn,
 	describeServeResolution,
@@ -502,19 +513,34 @@ async function sleep(ms: number): Promise<void> {
 	await deferred.promise;
 }
 
+// Last readiness pass of `waitForService`, kept so the failure dialog can name
+// which surface did not answer instead of "did not answer" (see
+// ./service-readiness.ts).
+let lastReadiness: ServiceReadiness | null = null;
+
 async function serviceIsReady(): Promise<boolean> {
-	try {
-		// /api/sessions 走 in-process gateway（不依赖 web-ui 子进程），必须再
-		// 探测主页：主代理 / → 随机端口 web-ui 子进程，子进程未就绪时 502。
-		const [gateway, page, stats] = await Promise.all([
-			fetch(`${webUiUrl}/api/sessions`),
-			fetch(`${webUiUrl}/`),
-			fetch(statsUrl),
-		]);
-		return gateway.ok && page.ok && stats.ok;
-	} catch {
-		return false;
-	}
+	// The surfaces are probed by ./service-readiness.ts: `/api/sessions` is the
+	// in-process gateway (it stays up while the Web UI child is dead), `/` is the
+	// proxied Web UI page, and the stats dashboard is its own listener.
+	lastReadiness = await probeServiceReadiness({ webUiUrl, statsUrl });
+	return lastReadiness.ready;
+}
+
+/**
+ * Retire a reused instance's registration after it failed to serve the Web UI,
+ * so the next launch cannot adopt the same corpse. Only a registration still
+ * naming that pid is dropped (never a successor's record).
+ */
+function retireReusedRegistration(identityPid: number, registration: ServeRegistration | null): boolean {
+	const pid = registrationPidToRetire({ reusedPid: identityPid, registrationPid: registration?.pid ?? null });
+	if (pid === null) return false;
+	const retired = clearServeRegistrationForPid(pid, desktopServeDiscoveryDeps());
+	writeDesktopLog(
+		retired
+			? `Retired the serve registration for pid ${pid}: it answered identity but not the Web UI.`
+			: `Left the serve registration alone: it no longer names pid ${pid}.`,
+	);
+	return retired;
 }
 
 let serveRestarts = 0;
@@ -967,6 +993,20 @@ async function boot(): Promise<void> {
 		return;
 	}
 
+	if (plan.action === "web-ui-unreachable") {
+		// Gateway up, Web UI child gone: the shell cannot adopt it (nothing to
+		// load) and cannot spawn over it (the corpse still holds the port).
+		const retired = retireReusedRegistration(plan.identity.pid, plan.registration);
+		showServiceFailure(
+			describeReadinessFailure({
+				readiness: await probeServiceReadiness({ webUiUrl: plan.webUrl, statsUrl: plan.statsUrl }),
+				reused: { pid: plan.identity.pid, version: plan.identity.version, webUrl: plan.webUrl },
+				retire: plan.registration ? { pid: plan.identity.pid, retired } : null,
+			}),
+		);
+		return;
+	}
+
 	if (plan.action === "reuse") {
 		webUiUrl = plan.webUrl;
 		statsUrl = plan.statsUrl;
@@ -996,10 +1036,25 @@ async function boot(): Promise<void> {
 
 	const ready = await waitForService(READY_TIMEOUT_MS);
 	if (!ready) {
+		if (plan.action === "reuse") {
+			// A reused instance that never served the Web UI must not stay
+			// registered: the next launch would reuse the same corpse again.
+			const retired = retireReusedRegistration(plan.identity.pid, plan.registration);
+			showServiceFailure(
+				describeReadinessFailure({
+					readiness: lastReadiness ?? { ready: false, probes: [] },
+					reused: { pid: plan.identity.pid, version: plan.identity.version, webUrl: webUiUrl },
+					retire: plan.registration ? { pid: plan.identity.pid, retired } : null,
+				}),
+			);
+			return;
+		}
 		showServiceFailure(
-			plan.action === "reuse"
-				? `The running Zeta service at ${webUiUrl} did not answer.`
-				: "The Zeta service did not become ready in time.",
+			describeReadinessFailure({
+				readiness: lastReadiness ?? { ready: false, probes: [] },
+				reused: null,
+				retire: null,
+			}),
 		);
 		return;
 	}

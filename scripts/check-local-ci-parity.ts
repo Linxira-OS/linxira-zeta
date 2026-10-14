@@ -28,25 +28,25 @@ type Job = { steps?: Array<{ run?: string; uses?: string }> };
 type Workflow = { jobs: Record<string, Job> };
 
 /** ci.yml jobs that must never run locally, with the reason they are cut. */
-const EXCLUDED = new Map<string, string>([
-	["release_metadata", "release chain"],
-	["release_gate", "release chain"],
-	["release_binary", "release chain"],
-	["release_product_binaries", "release chain"],
-	["release_native_leaves", "release chain"],
-	["release_github", "release chain"],
-	["release_npm", "release chain"],
-	["release_editor_packages", "release chain"],
-	["release_main_packages", "release chain"],
-	["release_ide_packages", "release chain"],
-	["release_web_ui_packages", "release chain"],
+const EXCLUDED: Record<string, string> = {
+	release_metadata: "release chain",
+	release_gate: "release chain",
+	release_binary: "release chain",
+	release_product_binaries: "release chain",
+	release_native_leaves: "release chain",
+	release_github: "release chain",
+	release_npm: "release chain",
+	release_editor_packages: "release chain",
+	release_main_packages: "release chain",
+	release_ide_packages: "release chain",
+	release_web_ui_packages: "release chain",
 	// GitHub gates both desktop jobs on `is-release == 'true'`; the packaging
 	// half (electron-builder + smoke + artifact upload) is release work. The
 	// local mirror still covers the desktop contracts through `desktop_tests`.
-	["desktop_linux", "release-gated on GitHub (mirrored in part by desktop_tests)"],
-	["desktop_windows", "release-gated on GitHub; Windows leg"],
-	["native_addons_cross", "cross-target leg (darwin/win32 arm64)"],
-]);
+	desktop_linux: "release-gated on GitHub (mirrored in part by desktop_tests)",
+	desktop_windows: "release-gated on GitHub; Windows leg",
+	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
+};
 
 /** ci.yml job id → local-ci job id. */
 const MIRRORED: Record<string, string> = {
@@ -66,6 +66,10 @@ const MIRRORED: Record<string, string> = {
 	editor_tests: "editor_tests",
 	termide_tests: "termide_tests",
 	main_tests: "main_tests",
+	// The local desktop_tests job is the mirror of the GitHub job that carries
+	// the cheap web/desktop contracts (desktop `npm test` + the launcher/serve
+	// reuse suites); the release-only desktop_linux/windows packaging stays out.
+	web_desktop_tests: "desktop_tests",
 };
 
 /**
@@ -73,14 +77,10 @@ const MIRRORED: Record<string, string> = {
  * `preflight`/`toolchains` are the mirror's own scaffolding; the rest cover
  * verification GitHub only performs in the release state.
  */
-const LOCAL_ONLY = new Map<string, string>([
-	["preflight", "mirror scaffolding: refuses tag refs / tagged HEAD"],
-	["toolchains", "mirror scaffolding: persistent toolchain + bun install"],
-	[
-		"desktop_tests",
-		"desktop_linux is release-gated on GitHub; locally we run its test half (desktop npm test) and leave packaging to the release chain",
-	],
-]);
+const LOCAL_ONLY: Record<string, string> = {
+	preflight: "mirror scaffolding: refuses tag refs / tagged HEAD",
+	toolchains: "mirror scaffolding: persistent toolchain + bun install",
+};
 
 const problems: string[] = [];
 
@@ -89,9 +89,9 @@ const local = parse(readFileSync(LOCAL, "utf8")) as Workflow;
 
 for (const jobId of Object.keys(github.jobs)) {
 	if (MIRRORED[jobId]) continue;
-	if (!EXCLUDED.has(jobId)) problems.push(`${GITHUB}:${jobId} is neither mirrored nor an acknowledged exclusion`);
+	if (!(jobId in EXCLUDED)) problems.push(`${GITHUB}:${jobId} is neither mirrored nor an acknowledged exclusion`);
 }
-for (const jobId of EXCLUDED.keys()) {
+for (const jobId of Object.keys(EXCLUDED)) {
 	if (!github.jobs[jobId]) problems.push(`${GITHUB}:${jobId} no longer exists — drop it from the exclusion list`);
 }
 for (const [githubId, localId] of Object.entries(MIRRORED)) {
@@ -100,11 +100,11 @@ for (const [githubId, localId] of Object.entries(MIRRORED)) {
 }
 for (const jobId of Object.keys(local.jobs)) {
 	if (Object.values(MIRRORED).includes(jobId)) continue;
-	if (!LOCAL_ONLY.has(jobId)) {
+	if (!(jobId in LOCAL_ONLY)) {
 		problems.push(`${LOCAL}:${jobId} has no counterpart in ${GITHUB} — add it to MIRRORED or LOCAL_ONLY`);
 	}
 }
-for (const jobId of LOCAL_ONLY.keys()) {
+for (const jobId of Object.keys(LOCAL_ONLY)) {
 	if (!local.jobs[jobId]) problems.push(`${LOCAL}:${jobId} is listed local-only but missing`);
 }
 
@@ -144,5 +144,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-	`local-ci parity OK: ${Object.keys(MIRRORED).length} mirrored job(s), ${EXCLUDED.size} acknowledged exclusion(s), ${LOCAL_ONLY.size} local-only job(s)`,
+	`local-ci parity OK: ${Object.keys(MIRRORED).length} mirrored job(s), ${Object.keys(EXCLUDED).length} acknowledged exclusion(s), ${Object.keys(LOCAL_ONLY).length} local-only job(s)`,
 );
