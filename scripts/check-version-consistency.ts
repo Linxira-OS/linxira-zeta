@@ -20,9 +20,11 @@
  * package/catalog lists and natives mechanism symbols in
  * scripts/release-v2.ts and scripts/set-version.ts (update all three together).
  *
- * web-ui/ is intentionally NOT checked: it only aligns to the release version
- * at publish time via set-version.ts, and stays on its own version between
- * releases.
+ * web-ui/ is intentionally NOT checked: it aligns to the release version only
+ * when the release tooling runs (`set-version.ts`, and `release-v2.ts` whose
+ * pre-tag assertConsistency does verify it), so between releases its manifest
+ * legitimately still carries the version it last published. This checker runs
+ * between releases, which is why it ignores it.
  */
 
 import { Glob } from "bun";

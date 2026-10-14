@@ -151,6 +151,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "release_main_packages",
 				why: "Zeta-only workbench package publish; wired 2026-09-30 after npm trusted publishing was configured for main-publish.yml (manual 1.1.21 bootstrap preceded)",
 			},
+			{
+				job: "release_web_ui_packages",
+				why: "Zeta-only web-ui publish leg (@linxiraos/zeta-web, wired 2026-10-14). It runs inside ci.yml rather than a dedicated workflow file because npm binds a trusted publisher to the workflow FILE that executes the publish, and web-ui must never carry its own workflow (GitHub only executes root workflows). Losing this job silently freezes the published web UI at the last version that shipped while the gateway moves on",
+			},
 		],
 		needsEdges: [
 			{
@@ -179,6 +183,11 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "desktop_windows",
 				needs: ["release_metadata", "native_addons", "native_addons_cross"],
 				why: "native_addons_cross uploads the native-addons artifact desktop_windows downloads; needsing only the x64 job raced the upload (damage class 10, two release runs lost to it)",
+			},
+			{
+				job: "release_web_ui_packages",
+				needs: ["release_metadata", "release_gate"],
+				why: "release_metadata supplies is-release (the web UI must never publish from an ordinary push) and release_gate carries the release-state prerequisite — `check`'s guard steps gate publishing. Same shape as release_editor_packages / release_main_packages / release_ide_packages; no build-artifact edge is needed because the tarball's `.next` is produced inside the job",
 			},
 		],
 		artifactRules: [

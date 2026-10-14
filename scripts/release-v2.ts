@@ -50,6 +50,16 @@ const ALL_PACKAGES = [
 	"plugins/official/pi-messenger",
 ] as const;
 
+// Published packages that ride the same line but ship no CHANGELOG.md, so they
+// cannot join ALL_PACKAGES: that list doubles as the changelog set
+// (assertReleaseLogs / finalizeChangelogsForRelease read `${dir}/CHANGELOG.md`
+// unconditionally). web-ui is the standalone OMP Web snapshot published as
+// @linxiraos/zeta-web by `release_web_ui_packages` in ci.yml — it must move
+// with the line, or the tag run republishes nothing (the publish leg skips a
+// version already on the registry). scripts/set-version.ts bumps it in its
+// ALL_PACKAGES; keep the two in lock-step.
+const VERSION_ONLY_PACKAGES = ["web-ui"] as const;
+
 // Root catalog key → package dir mapping. Exactly these keys may carry a
 // `@linxiraos/*` workspace dependency; any other count is a drift error.
 const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
@@ -170,6 +180,12 @@ async function assertConsistency(version: string): Promise<void> {
 	const problems: string[] = [];
 
 	for (const pkg of ALL_PACKAGES) {
+		const pkgJson = await Bun.file(`${pkg}/package.json`).json();
+		if (pkgJson.version !== version) problems.push(`${pkg}: ${pkgJson.version} != ${version}`);
+	}
+	// Version-only siblings (web-ui): the release must not tag a tree whose
+	// publishable web-ui still carries the previous release's version.
+	for (const pkg of VERSION_ONLY_PACKAGES) {
 		const pkgJson = await Bun.file(`${pkg}/package.json`).json();
 		if (pkgJson.version !== version) problems.push(`${pkg}: ${pkgJson.version} != ${version}`);
 	}
@@ -429,6 +445,27 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	for (const pkg of ALL_PACKAGES) {
 		const pkgPath = `${pkg}/package.json`;
 		await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${pkgPath}`;
+	}
+	// Step 2a: the version-only siblings (web-ui/@linxiraos/zeta-web) move with
+	// the line too, but stay out of the changelog steps below.
+	if (VERSION_ONLY_PACKAGES.length > 0) {
+		console.log(`Updating ${VERSION_ONLY_PACKAGES.length} version-only package(s)…`);
+		for (const pkg of VERSION_ONLY_PACKAGES) {
+			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${`${pkg}/package.json`}`;
+			// web-ui ships its own npm lockfile; its root version and
+			// packages[""] entry move with the manifest (same rule as
+			// desktop/package-lock.json in Step 3 below).
+			const lockPath = `${pkg}/package-lock.json`;
+			if (await Bun.file(lockPath).exists()) {
+				const lock = (await Bun.file(lockPath).json()) as {
+					version?: string;
+					packages?: Record<string, { version?: string }>;
+				};
+				lock.version = version;
+				if (lock.packages?.[""]) lock.packages[""].version = version;
+				await Bun.write(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+			}
+		}
 	}
 	// Step 2b: Cargo workspace version follows the release version. The
 	// version lives under `[workspace.package]` (indented per standard Cargo

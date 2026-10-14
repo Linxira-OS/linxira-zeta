@@ -1888,3 +1888,82 @@ jobs:
                  exit 1
               fi
               gh run watch "$rid" --exit-status --interval 15
+
+   # Publishes the standalone web-ui package (@linxiraos/zeta-web) on release
+   # tags via npm trusted publishing. The publish leg lives INSIDE ci.yml rather
+   # than in a dedicated workflow file: npm binds a trusted publisher to the
+   # workflow FILE that executes the publish, and web-ui must never carry its
+   # own workflow — GitHub only executes root workflows (document/release.md),
+   # so ci.yml is the binding the npm-side entry for `@linxiraos/zeta-web` has
+   # to name (damage class 12).
+   #
+   # web-ui is deliberately NOT a root Bun workspace member (AGENTS.md: a
+   # standalone OMP Web snapshot with its own package manager), so this job
+   # brings its own `npm ci` + `next build` before packing: the manifest's
+   # `files` list ships `.next`, and a bare `npm publish` from a fresh checkout
+   # would publish a missing or stale build against a new gateway.
+   #
+   # needs: [release_metadata, release_gate] mirrors the vendored
+   # editor/main/ide publish jobs — release_metadata supplies is-release (this
+   # job must not run on ordinary pushes) and release_gate carries the
+   # release-state prerequisite: `check`'s guard steps run on a release run, and
+   # publishing before they pass must be impossible. There is no build-artifact
+   # dependency to wait on: everything in the tarball is produced inside this
+   # job from the tagged tree, so nothing can race an upload (unlike
+   # release_npm, whose prepack loads the native_addons artifact). web-ui's own
+   # verification legs (`web_ui_build`: type check / lint / colour guard / unit
+   # tests / build) gate the PUSH run of the release source commit, not this
+   # job — publishing never depends on a sibling test job (damage class 12), and
+   # release-v2.ts refuses to tag until that push run is green.
+   #
+   # Re-run safe: `ci-release-publish.ts --web-ui` packs through the shared
+   # publish path, which preflights `npm view <name>@<version>` and skips a
+   # version already on the registry (and treats npm's E409 /
+   # "previously published versions" output as already published).
+   release_web_ui_packages:
+      name: Publish web-ui npm package
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_gate.result == 'success' &&
+         !inputs.skip_npm }}
+      needs: [release_metadata, release_gate]
+      runs-on: ubuntu-22.04
+      # id-token: write lets npm mint the GitHub OIDC token it exchanges for a
+      # short-lived publish token (trusted publishing + provenance);
+      # NODE_AUTH_TOKEN below is only the fallback for a package npm has no
+      # trusted-publisher entry for.
+      permissions:
+         id-token: write
+         contents: read
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+              registry-url: "https://registry.npmjs.org"
+              cache: npm
+              cache-dependency-path: web-ui/package-lock.json
+         # Same trusted-publishing floor as the sibling publish jobs: the npm
+         # CLI that performs the publish must speak OIDC (>= 11.5.1).
+         - name: Ensure npm supports trusted publishing
+           run: npm install -g npm@11.17.0
+         # No `bun install --frozen-lockfile` here (unlike release_npm): this
+         # path only packs a self-contained npm directory, and
+         # ci-release-publish.ts's own imports are node builtins — the
+         # editor/main/ide publish workflows run the same pack path the same
+         # way, without a workspace install.
+         - name: Install web-ui dependencies
+           working-directory: web-ui
+           run: npm ci
+         # The published tarball's `files` list ships `.next`; build it here so
+         # the pack that follows can never ship a stale or missing build.
+         - name: Build web-ui
+           working-directory: web-ui
+           run: npm run build
+         - name: Publish web-ui package
+           env:
+              # Fallback auth: setup-node wrote an .npmrc referencing
+              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
+              # publisher for the package (or on a first publish).
+              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+           run: bun run ci:release:publish-web-ui

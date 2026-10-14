@@ -18,13 +18,17 @@ import * as readline from "node:readline";
  *
  * 用法（新 PowerShell 窗口，先 cd 到仓库根）:
  *   cd C:\Users\ETPau\Documents\GITHUB\zeta
- *   bun scripts/publish-missing-packages.ts                     # 全部核心包（web-ui/pi-messenger 需另行确认）
+ *   bun scripts/publish-missing-packages.ts                     # 全部核心包（pi-messenger 需另行确认）
  *   bun scripts/publish-missing-packages.ts --only @linxiraos/pi-channels
  *
  * 行为:
  *   - 已发布版本跳过（npm view 命中；EPUBLISHCONFLICT 视为已发）
- *   - zeta-web / pi-messenger 不在默认链路里（版本线独立，发布节奏单独决策）；
- *     如需补发，用 --only @linxiraos/zeta-web / --only @linxiraos/pi-messenger。
+ *   - pi-messenger 不在默认链路里（版本线独立，发布节奏单独决策）；
+ *     如需补发，用 --only @linxiraos/pi-messenger。
+ *   - zeta-web（web-ui）自 2026-10-14 起随发布线走：版本由 set-version.ts /
+ *     release-v2.ts 一起 bump，CI 由 ci.yml 的 release_web_ui_packages 发布
+ *     （自带 npm ci + next build）。本脚本的 TARGETS 里保留注释掉的 web-ui 项，
+ *     只作为发布中断后的紧急本地补发手段——先取消注释再 --only。
  *   - 1.1.9（v1.1.9 release）: CI native-leaf job 在 win32-arm64 首发时 404 中断，
  *     主包 14 个 + musl leaf 全部未发；用本脚本补发核心包，musl/win32-arm64 leaf
  *     由 CI 的 trusted publishing 补（或 npmjs.com 网页端放行后重跑 release run）。
@@ -74,8 +78,10 @@ const TARGETS: Array<{
 	{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
 	{ dir: "termide/npm/ide-linux-x64", name: "@linxiraos/ide-linux-x64" },
 	{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
-	// zeta-web（web-ui）与 pi-messenger 版本线独立（1.1.5 / 1.1.1），不随 RELEASE 走；
-	// 需要时 --only 单发（见头部说明）。
+	// web-ui（@linxiraos/zeta-web）自 2026-10-14 起随发布线（set-version.ts /
+	// release-v2.ts bump，ci.yml 的 release_web_ui_packages 发布），默认不在此
+	// 列表；保留注释项仅供发布中断后的紧急本地补发。
+	// pi-messenger 版本线独立（1.1.1），不随 RELEASE 走；需要时 --only 单发。
 	// { dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
 	// { dir: "plugins/official/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
 ];
