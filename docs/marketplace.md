@@ -13,7 +13,7 @@ In the TUI, `/marketplace` with no arguments opens the interactive plugin browse
 
 ## Concepts
 
-A **marketplace** is a Git repository (or local directory) containing a catalog file at `.zeta-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
+A **marketplace** is a Git repository (or local directory) containing a catalog file at `.omp-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
 
 A **plugin** is a directory containing Claude/ZETA plugin content such as skills, commands, agents, rules, hooks, tools, MCP servers, LSP servers, or DAP adapters. Root `plugin.json` packages declaring the Agent Plugins 1.0.0 schema use the portable `agent-plugins` discovery provider for skills and `mcp.json`; hybrid packages can still expose ZETA-specific content. Marketplace installs also load extension modules declared by `package.json` `zeta.extensions`: installation symlinks the cached plugin into the scope's `node_modules` tree and records it in `omp-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins. Plugins are identified by `name@marketplace` (e.g. `code-review@claude-plugins-official`).
 
@@ -93,11 +93,11 @@ When you run `/marketplace add <source>`, the system classifies the source:
 | `git@...` / `ssh://...`         | Git repository                                     | `git@github.com:org/repo.git`          |
 | `./path` or `~/path` or `/path` | Local directory                                    | `./my-marketplace`                     |
 
-Git and local sources must contain a catalog at `.zeta-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). Direct catalog URLs cache only the JSON catalog; plugins in URL-sourced catalogs cannot use relative string sources like `"./plugins/foo"`.
+Git and local sources must contain a catalog at `.omp-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). Direct catalog URLs cache only the JSON catalog; plugins in URL-sourced catalogs cannot use relative string sources like `"./plugins/foo"`.
 
 ## Catalog format (marketplace.json)
 
-A marketplace catalog lives at `.zeta-plugin/marketplace.json` in the repository root. When zeta is the only intended consumer, prefer this path. To remain Claude Code-compatible (zeta loads the same shape from either path), publish at `.claude-plugin/marketplace.json` instead — zeta uses it as a fallback when `.zeta-plugin/marketplace.json` is absent. A repository may ship both: zeta reads the `.zeta-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
+A marketplace catalog lives at `.omp-plugin/marketplace.json` in the repository root — that is the path zeta reads first. A repository that must also be readable as a Claude Code marketplace can publish the same catalog at `.claude-plugin/marketplace.json`; zeta falls back to it when `.omp-plugin/marketplace.json` is absent. A repository may ship both: zeta reads the `.omp-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
 
 ```json
 {
@@ -257,3 +257,9 @@ Building plugin IDs (`name@marketplace`) enforces a 128-character total limit. N
 
 Valid examples: `my-plugin`, `code-review`, `wordpress.com`, `ai-firstify`, `MixedCase`
 Invalid examples: `-bad`, `bad-`, `.bad`, `under_score`
+
+## See also
+
+- [`plugins.md`](./plugins.md) — the plugin model, `zetacode plugin …` commands, scopes, and how enabled content reaches a session
+- [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin
+- [`skills/authoring-marketplaces.md`](./skills/authoring-marketplaces.md) — authoring a marketplace catalog
