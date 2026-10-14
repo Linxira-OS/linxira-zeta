@@ -255,6 +255,18 @@ jobs:
                 git fetch --no-filter omp-upstream tag "$baseline"
               fi
               bun scripts/check-merge-lineage.ts
+         # `.gitattributes` binds every manifest to the `merge.zeta-package`
+         # driver, which rebuilds the merged package.json from the merged-in
+         # side — branch-side `scripts` entries vanish silently (2026-10-14:
+         # three of them, noticed only by a later "script not found"). The scan
+         # needs this branch's own merge commits, hence the unshallow.
+         - name: package.json merge-drop guard
+           run: |
+              set -euo pipefail
+              git fetch --unshallow origin 2>/dev/null || true
+              bun scripts/check-package-json-merge.ts
+         - name: Unit-test the package.json merge guard
+           run: bun test scripts/check-package-json-merge.test.ts
          - name: Build collab web
            run: bun run collab:web:build
 

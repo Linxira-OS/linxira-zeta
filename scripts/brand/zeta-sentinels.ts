@@ -532,4 +532,10 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "bun run check:relay-assets",
 		why: "Same class for the committed browser-relay embeds (`extension-assets/*.txt`): nothing regenerated them outside the release job, so the copies drifted with only a license test noticing. Zeta-only workflow — a merge must not drop the second job.",
 	},
+	// -- CI: package.json merge-drop gate ----------------------------------------
+	{
+		file: ".github/workflows/ci.yml",
+		symbol: "bun scripts/check-package-json-merge.ts",
+		why: "Zeta-only step in the shared `check` job: the `merge.zeta-package` driver rebuilds the merged manifest from the merged-in side, so a local `git merge main` silently drops branch-side `scripts` entries (2026-10-14: three). ci.yml is a shared file an upstream merge takes in blocks, and the local-CI parity guard only checks GitHub → mirror, never the reverse, so a trimmed step would go unnoticed.",
+	},
 ];

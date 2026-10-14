@@ -403,6 +403,13 @@ jobs:
            run: bun scripts/check-serve-discovery-parity.ts
          - name: Upstream merge lineage guard
            run: bun scripts/check-merge-lineage.ts
+         # 镜像 GitHub `check` job：`merge.zeta-package` driver 以被并入侧为
+         # 基线重建 package.json，分支侧新增的 `scripts` 会被静默丢掉
+         # （2026-10-14 丢过三个）。本地合并后即刻跑，能在 push 前发现。
+         - name: package.json merge-drop guard
+           run: bun scripts/check-package-json-merge.ts
+         - name: Unit-test the package.json merge guard
+           run: bun test scripts/check-package-json-merge.test.ts
          - name: Build collab web
            run: bun run collab:web:build
          - name: Local-CI parity guard
