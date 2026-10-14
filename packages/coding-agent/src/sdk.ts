@@ -2949,9 +2949,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					return resolved.model !== undefined && !disabledProviders.has(resolved.model.provider);
 				}),
 			);
-			if (!runtimeResolved && modelRegistry.getDiscoverableProviders().length > 0) {
+			const unresolvedDiscoveryProviders = modelRegistry.getDiscoverableProviders();
+			if (!runtimeResolved && unresolvedDiscoveryProviders.length > 0) {
+				// Same scope as the default-role fallback below: only providers that
+				// ship no static models can be unresolved here; the bundled sweep
+				// belongs to the post-frame background refresh.
 				await logger.time("resolveModelDiscoveryFallbackNonRuntime", () =>
-					modelRegistry.refresh("online-if-uncached"),
+					modelRegistry.refresh("online-if-uncached", { providers: unresolvedDiscoveryProviders }),
 				);
 			}
 			const allEnabledModels =
@@ -3273,12 +3277,19 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// The common path — role already resolved, or a `pick` with no
 				// configured default — never pays for it.
 				const defaultRoleConfigured = Boolean(settings.getModelRole("default"));
-				if (
-					!hasExplicitModel &&
-					(defaultRoleConfigured || !pick) &&
-					modelRegistry.getDiscoverableProviders().length > 0
-				) {
-					await logger.time("resolveModelDiscoveryFallback", () => modelRegistry.refresh("online-if-uncached"));
+				// Only providers that ship no static models can be why the scopes
+				// above resolved nothing: models.yml `discovery:` endpoints, runtime
+				// managers, and the implicit local engines. Every bundled provider
+				// already contributes static rows, so refreshing its online catalog
+				// here cannot add a resolvable model — it only spends one network
+				// fetch per provider on a cold cache. Those catalogs are refreshed
+				// off the critical path by the background pass started after the
+				// first frame (`refreshInBackground`), so nothing is lost.
+				const unresolvedDiscoveryProviders = modelRegistry.getDiscoverableProviders();
+				if (!hasExplicitModel && (defaultRoleConfigured || !pick) && unresolvedDiscoveryProviders.length > 0) {
+					await logger.time("resolveModelDiscoveryFallback", () =>
+						modelRegistry.refresh("online-if-uncached", { providers: unresolvedDiscoveryProviders }),
+					);
 					if (!(await tryResolveDefaultRole()) && !model) {
 						const refreshedCandidates = await resolveAllowedModels(
 							modelRegistry,
