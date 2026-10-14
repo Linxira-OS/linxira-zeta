@@ -257,3 +257,9 @@ Building plugin IDs (`name@marketplace`) enforces a 128-character total limit. N
 
 Valid examples: `my-plugin`, `code-review`, `wordpress.com`, `ai-firstify`, `MixedCase`
 Invalid examples: `-bad`, `bad-`, `.bad`, `under_score`
+
+## See also
+
+- [`plugins.md`](./plugins.md) — the plugin model, `zetacode plugin …` commands, scopes, and how enabled content reaches a session
+- [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin
+- [`skills/authoring-marketplaces.md`](./skills/authoring-marketplaces.md) — authoring a marketplace catalog

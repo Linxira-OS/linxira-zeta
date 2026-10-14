@@ -4,6 +4,9 @@
 > 或 Zeta 自研插件。来源与依赖改写（`@earendil-works/*` → `@linxiraos/*`）都由
 > Zeta 负责，保证正确。本文件是官方插件的追踪文档，随构建期快照打包分发。
 
+插件如何安装、启用并在会话中生效（运行期文档，随产品打包）：[`docs/plugins.md`](../../docs/plugins.md)；
+`pi-messenger` 的逐插件使用页：[`docs/plugins/pi-messenger.md`](../../docs/plugins/pi-messenger.md)。
+
 ## 登记表
 
 | 插件 id | 名称 | 类别 | 来源 | 兼容记录 | 状态 |
