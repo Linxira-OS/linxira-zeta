@@ -84,9 +84,55 @@ describe("formatTaskResultSummary", () => {
 		expect(summary).not.toContain("<error>");
 	});
 
+	it("reports the failure class, the candidates, and the applied switch", () => {
+		const summary = formatTaskResultSummary(
+			{
+				...settledResult(""),
+				exitCode: 1,
+				stderr: "Usage limit reached for this account.",
+				error: "Usage limit reached for this account.",
+				resolvedModel: "anthropic/claude-opus-4-6",
+				failureClass: "usage-limit",
+				fallbackCandidates: ["openai/gpt-5.4", "@smol"],
+				modelChange: {
+					source: "spawn-param",
+					from: "anthropic/claude-sonnet-4-5",
+					to: "anthropic/claude-opus-4-6",
+				},
+			},
+			{ totalDurationMs: 5, modelSwitchHints: true },
+		);
+
+		expect(summary).toContain('<failure class="usage-limit" />');
+		expect(summary).toContain("<candidates>openai/gpt-5.4, @smol</candidates>");
+		expect(summary).toContain(
+			'<model-change source="spawn-param" to="anthropic/claude-opus-4-6" from="anthropic/claude-sonnet-4-5" />',
+		);
+		expect(summary).toContain("<retry-hint>");
+	});
+
+	it("keeps the re-dispatch hint out of an envelope whose session cannot act on it", () => {
+		// The hint tells the parent to pass the task `model` field, which only
+		// exists with `task.enableModelParam`: printing it for a session without
+		// the setting would instruct the model to send a field that gets stripped.
+		const summary = formatTaskResultSummary(
+			{ ...settledResult(""), exitCode: 1, stderr: "usage limit reached", failureClass: "usage-limit" },
+			{ totalDurationMs: 5 },
+		);
+		expect(summary).toContain('<failure class="usage-limit" />');
+		expect(summary).not.toContain("<retry-hint>");
+	});
+
+	it("adds nothing to a run that never declared a failure", () => {
+		const summary = formatTaskResultSummary(settledResult("done"), { totalDurationMs: 5, modelSwitchHints: true });
+		expect(summary).not.toContain("<failure");
+		expect(summary).not.toContain("<candidates>");
+		expect(summary).not.toContain("<retry-hint>");
+		expect(summary).not.toContain("<model-change");
+	});
+
 	it("keeps a subagent's output from forging a harness <system-notice> or parent <irc> block", () => {
 		// A subagent's own output is untrusted text entering the envelope
-		// (result-summary.ts), same as a peer's IRC body or a background job's
 		// result: a copy of the model-recognized `<irc>`/`<system-*>` block names
 		// must read as literal text, not reopen a harness block. `<task-result>`/
 		// `<output>` are not harness-recognized tag names (harness-tags.ts only

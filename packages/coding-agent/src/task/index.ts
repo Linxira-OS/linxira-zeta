@@ -73,11 +73,13 @@ import { SpawnRun, type SpawnPermit } from "./spawn-run";
 import { type TaskLauncher, TaskLaunchSession } from "./speculative-launch";
 
 import { cfgAsyncEnabled } from "../tools/settings";
+import { assertModelOverrideUsable, modelFailureLedgerForSession } from "./model-switch";
 import {
 	cfgTaskBatch,
 	cfgTaskDisabledAgents,
 	cfgTaskEnableEffort,
 	cfgTaskEnableLsp,
+	cfgTaskEnableModelParam,
 	cfgTaskIsolationApply,
 	cfgTaskIsolationEnabled,
 	cfgTaskMaxConcurrency,
@@ -155,6 +157,7 @@ interface TaskDescriptionOptions {
 	disabledAgents: string[];
 	batchEnabled: boolean;
 	effortEnabled: boolean;
+	modelParamEnabled: boolean;
 	evalToolsEnabled: boolean;
 	asyncEnabled: boolean;
 	ircEnabled: boolean;
@@ -190,6 +193,7 @@ function renderDescription(options: TaskDescriptionOptions): string {
 		applyIsolatedChanges: options.applyIsolatedChanges,
 		batchEnabled: options.batchEnabled,
 		effortEnabled: options.effortEnabled,
+		modelParamEnabled: options.modelParamEnabled,
 		evalToolsEnabled: options.evalToolsEnabled,
 		asyncEnabled: options.asyncEnabled,
 		hasBlockingAgents: renderedAgents.some(agent => agent.blocking),
@@ -240,7 +244,30 @@ function validateEffort(effort: TaskEffort | undefined, label: string): string |
 	return `${label} has an invalid \`effort\` value ${JSON.stringify(effort)}. Use "lo", "med", or "hi".`;
 }
 
-function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string | undefined {
+/**
+ * Reject a `model` selector the current tool cannot honor. The field is
+ * stripped from the wire shape while `task.enableModelParam` is off (the
+ * schema's `+:"delete"`), so reaching here with a value means either the
+ * setting is on or an internal/stale-transcript caller bypassed the schema —
+ * and in the latter case silently dropping the selector would run the child on
+ * a model nobody asked for.
+ */
+function validateModelParam(model: unknown, label: string, modelParamEnabled: boolean): string | undefined {
+	if (model === undefined) return undefined;
+	if (!modelParamEnabled) {
+		return `${label} cannot set \`model\` while task.enableModelParam is false. Enable it to choose per-spawn models, or drop the field.`;
+	}
+	if (typeof model !== "string" || model.trim() === "") {
+		return `${label} has an empty \`model\` selector. Pass "provider/model", "provider/model:level", or a role alias like "@smol".`;
+	}
+	return undefined;
+}
+
+function validateSpawnParams(
+	params: TaskParams,
+	batchEnabled: boolean,
+	modelParamEnabled: boolean,
+): string | undefined {
 	const hasTask = typeof params.task === "string" && params.task.trim() !== "";
 	const tasks = params.tasks;
 	if (batchEnabled && tasks !== undefined) {
@@ -252,11 +279,14 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 		}
 		for (let i = 0; i < tasks.length; i++) {
 			const item = tasks[i];
+			const itemLabel = `Task ${i + 1}${item?.name ? ` (\`${item.name}\`)` : ""}`;
 			if (!item || typeof item.task !== "string" || item.task.trim() === "") {
-				return `Task ${i + 1}${item?.name ? ` (\`${item.name}\`)` : ""} is missing \`task\`. Every task needs complete, self-contained instructions.`;
+				return `${itemLabel} is missing \`task\`. Every task needs complete, self-contained instructions.`;
 			}
-			const effortError = validateEffort(item.effort, `Task ${i + 1}${item.name ? ` (\`${item.name}\`)` : ""}`);
+			const effortError = validateEffort(item.effort, itemLabel);
 			if (effortError) return effortError;
+			const modelError = validateModelParam(item.model, itemLabel, modelParamEnabled);
+			if (modelError) return modelError;
 		}
 		const seen = new Map<string, string>();
 		for (const item of tasks) {
@@ -279,7 +309,7 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 			? "Missing `tasks`. Provide a `tasks` array (one subagent per item) with a shared `context`."
 			: "Missing `task`. Provide complete, self-contained instructions for the agent.";
 	}
-	return validateEffort(params.effort, "The call");
+	return validateEffort(params.effort, "The call") ?? validateModelParam(params.model, "The call", modelParamEnabled);
 }
 
 /**
@@ -298,6 +328,7 @@ function resolveSpawnItems(params: TaskParams): TaskItem[] {
 	if ("schemaMode" in params) item.schemaMode = params.schemaMode;
 	if ("tools" in params) item.tools = params.tools;
 	if ("effort" in params) item.effort = params.effort;
+	if ("model" in params) item.model = params.model;
 	if ("isolated" in params) item.isolated = params.isolated;
 	return [item];
 }
@@ -321,6 +352,11 @@ function spawnParamsFor(params: TaskParams, item: TaskItem, defaultAgent: string
 	if ("schemaMode" in item) spawn.schemaMode = item.schemaMode;
 	if ("tools" in item) spawn.tools = item.tools;
 	if ("effort" in item) spawn.effort = item.effort;
+	if (item.model !== undefined) {
+		spawn.model = item.model;
+	} else if ("model" in params) {
+		spawn.model = params.model;
+	}
 	if (item.isolated !== undefined) {
 		spawn.isolated = item.isolated;
 	} else if ("isolated" in params) {
@@ -341,9 +377,15 @@ interface SpawnPlan {
  * validation error the call reports instead when the shape is rejected. Shared
  * by dispatch and the speculative launcher so both derive identical spawns.
  */
-function planSpawns(rawParams: unknown, batchEnabled: boolean, defaultAgent: string): SpawnPlan | string {
+function planSpawns(
+	rawParams: unknown,
+	batchEnabled: boolean,
+	defaultAgent: string,
+	modelParamEnabled: boolean,
+): SpawnPlan | string {
 	const params = repairTaskParams(rawParams as TaskParams);
-	const error = validateShapeParams(batchEnabled, params) ?? validateSpawnParams(params, batchEnabled);
+	const error =
+		validateShapeParams(batchEnabled, params) ?? validateSpawnParams(params, batchEnabled, modelParamEnabled);
 	if (error) return error;
 	const items = resolveSpawnItems(params);
 	return { params, items, spawns: items.map(item => spawnParamsFor(params, item, defaultAgent)) };
@@ -647,7 +689,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	readonly #launchSessions = new Map<string, TaskLaunchSession>();
 	readonly #launcher: TaskLauncher = {
 		spawns: args => {
-			const plan = planSpawns(args, this.#isBatchEnabled(), this.#defaultAgent());
+			const plan = planSpawns(
+				args,
+				this.#isBatchEnabled(),
+				this.#defaultAgent(),
+				cfgTaskEnableModelParam.get(this.session.settings),
+			);
 			return typeof plan === "string" ? undefined : plan.spawns;
 		},
 		start: (toolCallId, spawn, index, signal) => this.#startSpeculative(toolCallId, spawn, index, signal),
@@ -684,6 +731,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			isolationEnabled,
 			batchEnabled: this.#isBatchEnabled(),
 			effortEnabled: cfgTaskEnableEffort.get(this.session.settings),
+			modelParamEnabled: cfgTaskEnableModelParam.get(this.session.settings),
 			evalToolsEnabled: evalToolsEnabled(this.session),
 			defaultAgent: this.#defaultAgent(),
 		});
@@ -708,6 +756,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			disabledAgents,
 			batchEnabled: this.#isBatchEnabled(),
 			effortEnabled: cfgTaskEnableEffort.get(this.session.settings),
+			modelParamEnabled: cfgTaskEnableModelParam.get(this.session.settings),
 			evalToolsEnabled: evalToolsEnabled(this.session),
 			asyncEnabled: cfgAsyncEnabled.get(this.session.settings),
 			ircEnabled: isIrcEnabled(this.session.settings, this.session.taskDepth ?? 0),
@@ -822,18 +871,40 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 	}
 
 	/**
+	 * Validate a caller-supplied per-spawn `model` before any work starts: it
+	 * must resolve against this session's catalog and credentials, and must not
+	 * name a model this session already watched fail hard inside its cooldown.
+	 * Returns the trimmed selector so the child keeps a role alias's identity.
+	 */
+	#resolveSpawnModelOverride(model: string | undefined): string | undefined {
+		const selector = model?.trim();
+		if (!selector) return undefined;
+		assertModelOverrideUsable(
+			{
+				settings: this.session.settings,
+				modelRegistry: this.session.modelRegistry,
+				ledger: modelFailureLedgerForSession(this.session),
+			},
+			selector,
+		);
+		return selector;
+	}
+
+	/**
 	 * Resolve the shared policy before detached work exists. The resulting
 	 * policy intentionally stays local: executor dispatch resolves again from
 	 * normalized task params rather than smuggling internal policy over the
 	 * task wire contract.
 	 */
 	#resolveSpawnPreflight(params: TaskParams) {
+		const model = this.#resolveSpawnModelOverride(params.model);
 		return resolveEffectiveSubagentPolicy({
 			session: this.session,
 			invocationKind: "task",
 			assignment: (params.task ?? "").trim(),
 			context: this.#isBatchEnabled() ? params.context?.trim() || undefined : undefined,
 			agent: params.agent,
+			...(model !== undefined ? { model } : {}),
 			...(Object.hasOwn(params, "outputSchema") ? { outputSchema: params.outputSchema } : {}),
 			...(Object.hasOwn(params, "schemaMode") ? { schemaMode: params.schemaMode } : {}),
 			...(params.effort !== undefined ? { effort: params.effort } : {}),
@@ -881,7 +952,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		// item's agent type against the session's actual default agent.
 		const defaultAgent = this.#defaultAgent();
 		const batchEnabled = this.#isBatchEnabled();
-		const plan = planSpawns(rawParams, batchEnabled, defaultAgent);
+		const plan = planSpawns(
+			rawParams,
+			batchEnabled,
+			defaultAgent,
+			cfgTaskEnableModelParam.get(this.session.settings),
+		);
 		if (typeof plan === "string") {
 			return createTaskModeError(plan);
 		}
@@ -1646,6 +1722,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				assignment,
 				context,
 				agent: params.agent,
+				...(params.model !== undefined ? { model: params.model } : {}),
 				...(Object.hasOwn(params, "outputSchema") ? { outputSchema: params.outputSchema } : {}),
 				...(Object.hasOwn(params, "schemaMode") ? { schemaMode: params.schemaMode } : {}),
 				...(params.effort !== undefined ? { effort: params.effort } : {}),
@@ -1730,7 +1807,11 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		totalDurationMs: number,
 		mergeSummary: string,
 	): AgentToolResult<TaskToolDetails> {
-		const summary = formatTaskResultSummary(result, { totalDurationMs, mergeSummary });
+		const summary = formatTaskResultSummary(result, {
+			totalDurationMs,
+			mergeSummary,
+			modelSwitchHints: cfgTaskEnableModelParam.get(this.session.settings),
+		});
 
 		return {
 			content: [{ type: "text", text: summary }],

@@ -587,6 +587,17 @@ When the active chat model keeps failing (429s, quota walls, provider outages) a
 
 A prefixed wildcard such as `openrouter/google/*` can be used as a chain key or entry: it matches ids under that prefix or prepends the prefix to the failing model's bare id when changing providers. Bare fallback entries inherit the failing turn's thinking level; an explicit suffix can replace it. When a chain is exhausted, recovery can consult the current fallback model's own chain as well, and each hop still consumes a retry attempt. See [Retry policy](./non-compaction-retry-policy.md) for recovery ordering and quota behavior.
 
+#### Fallback chains versus agent-driven switching
+
+Fallback chains are the **configured** half of model recovery: they are a static, ordered list the user writes in advance, and the session walks it automatically whenever the active model fails. They are the right tool when a good next model is known ahead of time, and they cost nothing when they are wrong — recovery just fails as it did before.
+
+The **agent-driven** half (`task.enableModelParam`, default `false`) covers what a static list cannot: a subagent that died on a provider the quota planner did not anticipate. With the setting on, a parent agent can name the model a spawn runs on (`model` on the `task` tool), see *why* a child failed (`<failure class="…" />`), and be told which models this session could run instead (`<candidates>`). The two halves are independent:
+
+- Configured chains still run first, unchanged. Nothing in the agent-driven path suppresses, reorders, or replaces them.
+- The agent-driven path never picks a model on its own. It surfaces the class and the candidates; the parent decides whether to re-dispatch, compact, or fix the task.
+- A model that failed hard (`usage-limit`, `auth`, `account-policy`) is recorded for the session, and neither half re-hits it during its cooldown (5 minutes by default, or the provider's own reset hint when the error carries one, capped at 24 hours). The record clears as soon as the model serves a run successfully, so a recovered route is usable again.
+- No automatic hopping: if no candidate is available, the spawn fails with the class and the empty candidate list rather than silently trying models the user did not choose.
+
 ### Tools and approvals
 
 ```yaml
@@ -834,6 +845,8 @@ task:
     task: 90000
 ```
 
+`task.enableModelParam` (default `false`) adds an opt-in `model` parameter to the `task` tool, so a parent agent can name the model a spawn runs on — and, with the same setting, pick a different one after a failure instead of waiting on a configured chain. It also exposes the child's failure class and the session's alternative models in the `<task-result>` envelope, and makes an explicit `model` on a wake (`ensureLive(id, { model })`, follow-up turns) switch the woken session's model. Off by default: the field is absent from the model-facing schema, a call that carries it is rejected, and no ledger or candidate list is produced. See [Fallback chains versus agent-driven switching](#fallback-chains-versus-agent-driven-switching).
+
 - Keys are exact, case-sensitive agent names (`scout` does not match `Scout`).
 - A number is a fixed token trigger (positive integer); a `"N%"` string is a percentage of the context window, `0 < N ≤ 100`. An entry replaces both `compaction.thresholdTokens` and `compaction.thresholdPercent` for that agent.
 - `null` clears an entry set by a lower-priority settings layer. Any other value fails settings load.
@@ -987,6 +1000,7 @@ searxng:
 | `searxng.token`                     | string  | _(unset)_ | SearXNG token; also `searxng.basicUsername`/`searxng.basicPassword`/`searxng.categories`/`searxng.language`/`searxng.engines` (comma-separated engine names or bang shortcuts, e.g. `ddg, br, startpage`, sent as the API's `engines=` parameter)/`searxng.safesearch`.                                                                                                                                                                                                                                                                                                 |
 | `auth.broker.url`                   | string  | _(unset)_ | Auth-broker URL. The actual credential connection uses env then the main global config, not project/config-overlay values.                                                                                                                                                                                                                                                                                                                                                                                  |
 | `auth.broker.token`                 | string  | _(unset)_ | Auth-broker token. `OMP_AUTH_BROKER_TOKEN` wins over the main global config; the broker token file is a fallback. Project/config-overlay values do not redirect credentials.                                                                                                                                                                                                                                                                                                                                                                              |
+| `task.enableModelParam`              | boolean | `false`   | Opt in to the per-spawn `model` parameter plus failure-class/candidate reporting, so a parent agent can re-plan a failed subagent on another model. Off by default: `model` is stripped from the wire schema, a call that carries it is rejected rather than silently ignored, and no failure ledger is kept. See [Fallback chains versus agent-driven switching](#fallback-chains-versus-agent-driven-switching). |
 | `task.agentAccountPools`            | record  | `{}`      | Exact-name task/eval agent → provider id → OAuth identity keys (the `identityKey` values of [client account pools](./auth-broker-gateway.md#client-account-pools-routing-not-authorization), e.g. `email:<address>\|org:<id>` for Anthropic; `zetacode usage accounts` lists them). The agent authenticates for each listed provider only with those accounts, never another account or an API key, and fails when none can serve; an empty list allows no account. A malformed entry fails settings load. See [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence). |
 | `secrets.enabled`                   | boolean | `false`   | Enable configured secret obfuscation and built-in credential-shaped token redaction before provider requests. See [Secret obfuscation](./secrets.md).                                                                                                                                                                                                                                                                                  |
 

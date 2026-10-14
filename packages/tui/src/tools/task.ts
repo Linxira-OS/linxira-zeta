@@ -2206,6 +2206,13 @@ export interface TaskItem {
 	solutionSpace?: string;
 	/** Per-spawn thinking effort: lowest/middle/highest level the resolved model supports. Overrides the agent's default selector (e.g. `auto`). */
 	effort?: "lo" | "med" | "hi";
+	/**
+	 * Per-spawn model selector (`provider/id`, `provider/id:level`, or a role
+	 * alias like `@smol`). Highest priority in the resolution chain: it beats
+	 * `task.agentModelOverrides`, the agent's own `model`, and the parent's
+	 * active model. Present only with `task.enableModelParam=true`.
+	 */
+	model?: string;
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */
 	outputSchema?: unknown;
 	/** Validation behavior for a caller-provided or inherited output schema. */
@@ -2233,6 +2240,8 @@ export interface TaskParams {
 	solutionSpace?: string;
 	/** Per-spawn thinking effort (flat form): lowest/middle/highest level the resolved model supports. */
 	effort?: "lo" | "med" | "hi";
+	/** Per-spawn model selector (flat form); see {@link TaskItem.model}. */
+	model?: string;
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */
 	outputSchema?: unknown;
 	/** Validation behavior for a caller-provided or inherited output schema. */
@@ -2496,6 +2505,29 @@ export interface SingleResult {
 	retryFailure?: {
 		attempt: number;
 		errorMessage: string;
+	};
+	/**
+	 * Coarse category of a non-zero exit — `usage-limit`, `auth`,
+	 * `account-policy`, `context-overflow`, `transient`, `aborted`, or
+	 * `unknown`. A parent agent reads this to tell "swap the model" (the first
+	 * three) from "fix the request" instead of parsing provider prose.
+	 */
+	failureClass?: "usage-limit" | "auth" | "account-policy" | "context-overflow" | "transient" | "aborted" | "unknown";
+	/**
+	 * Other models this session could run instead (selectors accepted by the
+	 * task `model` parameter, including `@role` aliases). Empty when nothing
+	 * else is configured or every alternative is already in cooldown.
+	 */
+	fallbackCandidates?: string[];
+	/**
+	 * Set when a caller-supplied `model` replaced the model this run would
+	 * otherwise have used — the audit trail of an agent-driven switch.
+	 */
+	modelChange?: {
+		source: "spawn-param" | "wake-param";
+		/** The model the run would have used without the override, when resolvable. */
+		from?: string;
+		to: string;
 	};
 	/** Output metadata for agent:// URL integration */
 	outputMeta?: { lineCount: number; charCount: number };

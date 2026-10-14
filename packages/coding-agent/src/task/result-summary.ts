@@ -38,10 +38,17 @@ function previewHead(output: string): string {
 	return lastNewline >= FULL_OUTPUT_THRESHOLD / 2 ? slice.slice(0, lastNewline) : slice;
 }
 
+/** Failure classes a different model can plausibly fix; they carry the re-dispatch hint. */
+const MODEL_SWITCH_CLASSES: Readonly<Partial<Record<NonNullable<SingleResult["failureClass"]>, true>>> = {
+	"usage-limit": true,
+	auth: true,
+	"account-policy": true,
+};
+
 /** Render the `<task-result>` envelope for a settled run. */
 export function formatTaskResultSummary(
 	result: SingleResult,
-	options: { totalDurationMs: number; mergeSummary?: string },
+	options: { totalDurationMs: number; mergeSummary?: string; modelSwitchHints?: boolean },
 ): string {
 	const status = result.aborted
 		? "cancelled"
@@ -65,12 +72,22 @@ export function formatTaskResultSummary(
 	// "parked" status must not read as resumable.
 	const refStatus = AgentRegistry.global().get(result.id)?.status;
 	const resumable = result.aborted && !result.isolated && (refStatus === "idle" || refStatus === "parked");
+	// Diagnostics, not instructions: a parent that cannot act on a class would
+	// still rather see it than read another bare error line. The actionable
+	// re-dispatch hint needs `task.enableModelParam`, so it is caller-gated.
+	const candidates = result.fallbackCandidates ?? [];
+	const failedClass = result.exitCode !== 0 ? result.failureClass : undefined;
+	const modelSwitchHint =
+		options.modelSwitchHints === true && failedClass !== undefined && MODEL_SWITCH_CLASSES[failedClass] === true
+			? `\`${result.resolvedModel ?? result.agent}\` failed with ${failedClass}. Re-dispatch the work on another model by passing the task \`model\` field${candidates.length > 0 ? ` (candidates above)` : ""}, or handle it in your plan; the harness will not re-hit that model on its own.`
+			: undefined;
 	return prompt.render(taskSummaryTemplate, {
 		agentName: result.agent,
 		id: result.id,
 		status,
 		duration: formatDuration(options.totalDurationMs),
 		abortReason: result.aborted ? escapeHarnessTags(result.abortReason ?? "") || undefined : undefined,
+		failureClass: failedClass,
 		error: error === undefined ? undefined : escapeHarnessTags(error),
 		resumable,
 		preview: escapeHarnessTags(preview),
@@ -81,6 +98,10 @@ export function formatTaskResultSummary(
 					charSize: formatBytes(result.outputMeta.charCount),
 				}
 			: undefined,
+		modelChange: result.modelChange,
+		fallbackCandidates:
+			candidates.length > 0 ? candidates.map(candidate => escapeHarnessTags(candidate)).join(", ") : undefined,
+		modelSwitchHint,
 		mergeSummary: options.mergeSummary === undefined ? "" : escapeHarnessTags(options.mergeSummary),
 	});
 }
