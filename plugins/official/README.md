@@ -46,6 +46,20 @@ plugins/official/<plugin-id>/
 `scripts/publish-missing-packages.ts` 的 `rewriteEarendilDeps` 保留为发布兜底，
 但官方插件源码内已常驻 `@linxiraos/*`。
 
+## 发布腿
+
+官方插件随 Zeta 发布线发布，腿在 `ci.yml` 的 `release_plugin_packages`
+（`bun run ci:release:publish-plugin` → `ci-release-publish.ts --plugin
+plugins/official/<id>`），把插件目录**原样打包**（`index.ts` 入口、`crew/**`、
+`skills/**`、`bin` → `install.mjs`），不跑 workspace `packages` 表那条
+declaration emit 路径——插件发布的是宿主加载器要 transpile 的 TS 源码。
+`plugins/official/pi-messenger` 于 2026-10-14 接上该腿（此前只有本地手工补发）。
+
+新增官方插件的两处必改：`package.json` 的 `ci:release:publish-plugin` 目标目录，
+以及 `scripts/brand/ci-surface-registry.ts` 中 `release_plugin_packages` 的登记
+（一个 job 发一个插件；再增插件时扩 `--plugin` 调用点）。npm 侧 trusted
+publisher 必须绑 `.github/workflows/ci.yml`（见 `document/release.md`）。
+
 ## 清单示例
 
 ```jsonc

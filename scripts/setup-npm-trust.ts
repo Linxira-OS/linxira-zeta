@@ -170,14 +170,14 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 			}
 		}
 	}
-	// Not in ci-release-publish's workspace `packages` table: web-ui publishes
-	// through its own `--web-ui` vendored-dir branch, driven by the
-	// release_web_ui_packages job in ci.yml that builds its `.next` first;
-	// pi-messenger is the ported multi-agent extension, npm-only for now.
-	// They still need trusted-publisher links so CI can publish them with OIDC.
-	// The vendored distributions (editor/termide) publish through their own
-	// `--editor`/`--ide` branches rather than the workspace `packages` list,
-	// so their names are pinned here the same way.
+	// Not in ci-release-publish's workspace `packages` table, each published by
+	// its own ci.yml job instead: web-ui (`release_web_ui_packages` → `--web-ui`
+	// as-is pack, which builds its `.next` first), the official plugin
+	// pi-messenger (`release_plugin_packages` → `--plugin`, packed from
+	// plugins/official/pi-messenger as-authored), and the vendored
+	// editor/ide/main distributions (`--editor`/`--ide`/`--main`). They still
+	// need trusted-publisher links so CI can publish them with OIDC; the
+	// workflow they must name stays `.github/workflows/ci.yml` for all of them.
 	const extras = [
 		"@linxiraos/zeta-web",
 		"@linxiraos/pi-messenger",

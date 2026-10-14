@@ -33,7 +33,9 @@
 		"crew/**",
 		"skills/**",
 		"README.md",
-		"CHANGELOG.md"
+		"CHANGELOG.md",
+		"LICENSE",
+		"THIRD-PARTY-NOTICES.txt"
 	],
 	"type": "module",
 	"main": "index.ts",

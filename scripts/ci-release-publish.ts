@@ -7,6 +7,11 @@
  * `--native-leaf <tag>` from the release_binary matrix after that matrix entry
  * downloads the matching `.node` artifacts.
  *
+ * Publish targets whose manifests are already publish-ready pack as-authored
+ * through `publishAsIsNpmDirs` instead of the steps below, each from its own
+ * ci.yml job: `--editor`, `--ide`, `--main`, `--web-ui` (vendored
+ * distributions) and `--plugin <dir>` (official plugins, see that function).
+ *
  * For each public TypeScript package we:
  *   1. Emit `.d.ts` declarations into `dist/types/` so consumers get
  *      stable types regardless of their tsconfig `lib`.
@@ -97,6 +102,11 @@ const publishMain = process.argv.slice(2).includes("--main");
 // packs/publishes through the vendored-dir path like editor/main/termide. Its
 // `.next` build is produced by the invoking CI job before this runs.
 const publishWebUi = process.argv.slice(2).includes("--web-ui");
+// Official plugins (`plugins/official/<id>/`) ship the TS source their host
+// transpiles on load (`index.ts`, `install.mjs`, `crew/**`, `skills/**`);
+// `--plugin <dir>` packs one as-authored through the same path as the vendored
+// dirs rather than the workspace `packages` table — see `publishAsIsNpmDirs`.
+const publishPluginDir = argValueFromArgs(process.argv.slice(2), "--plugin");
 const MIT_LICENSE = "LICENSE";
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
@@ -147,6 +157,20 @@ function nativeLeafTagFromArgs(argv: readonly string[]): string | null {
 	return null;
 }
 
+/** Read a `--flag <value>` / `--flag=<value>` argument (repo-relative path). */
+function argValueFromArgs(argv: readonly string[], flag: string): string | null {
+	for (let i = 0; i < argv.length; i++) {
+		const arg = argv[i];
+		if (arg === flag) {
+			const value = argv[i + 1];
+			if (!value) throw new Error(`${flag} requires a directory argument`);
+			return value;
+		}
+		if (arg.startsWith(`${flag}=`)) return arg.slice(flag.length + 1);
+	}
+	return null;
+}
+
 const nativeLeafTag = nativeLeafTagFromArgs(process.argv.slice(2));
 /**
  * Choose npm's dist-tag from a package manifest version. Unknown prereleases
@@ -173,6 +197,7 @@ export const packages: PublishPackage[] = [
 	{ dir: "packages/wire", kind: "typescript" },
 	{ dir: "packages/omptype", kind: "typescript", publishJs: true },
 	{ dir: "packages/catalog", kind: "typescript" },
+	{ dir: "packages/channels", kind: "typescript" },
 	{ dir: "packages/ai", kind: "typescript" },
 	{ dir: "packages/natives", kind: "native" },
 	{ dir: "packages/tui", kind: "typescript" },
@@ -619,15 +644,30 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
 }
 
 /**
- * Vendored distributions (editor/, termide/, web-ui/) are not Bun workspace
- * packages; their npm/ trees publish as-is: platform leaves first, then the
- * launcher package that pins them via optionalDependencies. Manifests are
- * already publish-ready (bin launcher, files, publishConfig), so only the legal
- * payloads need staging before pack+publish. web-ui has no platform leaves and
- * no `prepack` — its `.next` build is produced by the invoking CI job
- * (`release_web_ui_packages` in ci.yml) before this path is called.
+ * Publish directories whose manifests are already publish-ready, packed
+ * as-authored (platform leaves first, then the launcher package that pins them
+ * via optionalDependencies). Two callers:
+ *
+ *   - Vendored distributions (editor/, termide/, web-ui/, main/) — not Bun
+ *     workspace packages; only the legal payloads need staging before
+ *     pack+publish. web-ui has no platform leaves and no `prepack` — its
+ *     `.next` build is produced by the invoking CI job
+ *     (`release_web_ui_packages` in ci.yml) before this path is called.
+ *   - Official plugins (`plugins/official/pi-messenger`) — a workspace-shaped
+ *     directory that deliberately ships TS source (`index.ts` entry, `bin` →
+ *     `install.mjs`, `crew/**`, `skills/**`) for the host loader to transpile.
+ *     The workspace `packages` table's `typescript` kind cannot express that
+ *     shape: it runs a declaration emit whose output this package cannot
+ *     consume (its sources use `allowImportingTsExtensions`, so the emitted
+ *     `.d.ts` keep `.ts` specifiers no consumer can resolve) and rewrites
+ *     `main`/`exports`/`types` the plugin's `pi.extensions` and `bin` do not
+ *     point at. Driven by the `release_plugin_packages` job in ci.yml.
+ *
+ * Neither caller may own a dedicated workflow file (npm binds a trusted
+ * publisher to the workflow FILE that publishes; only root workflows run), so
+ * both route through `ci.yml` jobs into this one pack+publish path.
  */
-async function publishVendoredNpmDirs(dirs: readonly string[]): Promise<string[]> {
+async function publishAsIsNpmDirs(dirs: readonly string[]): Promise<string[]> {
 	const targets: PublishTarget[] = [];
 	for (const dir of dirs) {
 		const manifest = (await Bun.file(path.join(repoRoot, dir, "package.json")).json()) as PackageManifest;
@@ -720,22 +760,20 @@ if (import.meta.main) {
 	const failed = nativeLeafTag
 		? await publishNativeLeafPackage(nativeLeafTag)
 		: publishEditor
-			? await publishVendoredNpmDirs([
+			? await publishAsIsNpmDirs([
 					"editor/npm/editor-windows-x64",
 					"editor/npm/editor-linux-x64",
 					"editor/npm/editor",
 				])
 			: publishIde
-				? await publishVendoredNpmDirs([
-						"termide/npm/ide-windows-x64",
-						"termide/npm/ide-linux-x64",
-						"termide/npm/ide",
-					])
+				? await publishAsIsNpmDirs(["termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64", "termide/npm/ide"])
 				: publishMain
-					? await publishVendoredNpmDirs(["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"])
+					? await publishAsIsNpmDirs(["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"])
 					: publishWebUi
-						? await publishVendoredNpmDirs(["web-ui"])
-						: await publishWorkspacePackages();
+						? await publishAsIsNpmDirs(["web-ui"])
+						: publishPluginDir
+							? await publishAsIsNpmDirs([publishPluginDir])
+							: await publishWorkspacePackages();
 	if (failed.length > 0) {
 		console.error(`Failed to publish ${failed.length} package(s): ${failed.join(", ")}`);
 		process.exit(1);

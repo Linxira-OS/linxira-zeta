@@ -23,8 +23,8 @@ import * as readline from "node:readline";
  *
  * 行为:
  *   - 已发布版本跳过（npm view 命中；EPUBLISHCONFLICT 视为已发）
- *   - pi-messenger 不在默认链路里（版本线独立，发布节奏单独决策）；
- *     如需补发，用 --only @linxiraos/pi-messenger。
+ *   - pi-messenger 不在默认链路里（虽是发布线成员，但由 ci.yml 的
+ *     release_plugin_packages 原样打包发布）；如需补发，用 --only @linxiraos/pi-messenger。
  *   - zeta-web（web-ui）自 2026-10-14 起随发布线走：版本由 set-version.ts /
  *     release-v2.ts 一起 bump，CI 由 ci.yml 的 release_web_ui_packages 发布
  *     （自带 npm ci + next build）。本脚本的 TARGETS 里保留注释掉的 web-ui 项，
@@ -81,7 +81,8 @@ const TARGETS: Array<{
 	// web-ui（@linxiraos/zeta-web）自 2026-10-14 起随发布线（set-version.ts /
 	// release-v2.ts bump，ci.yml 的 release_web_ui_packages 发布），默认不在此
 	// 列表；保留注释项仅供发布中断后的紧急本地补发。
-	// pi-messenger 版本线独立（1.1.1），不随 RELEASE 走；需要时 --only 单发。
+	// pi-messenger 随发布线，但由 ci.yml 的 release_plugin_packages
+	// （ci-release-publish.ts --plugin plugins/official/pi-messenger）发布。
 	// { dir: "web-ui", name: "@linxiraos/zeta-web", build: true, align: true },
 	// { dir: "plugins/official/pi-messenger", name: "@linxiraos/pi-messenger", rename: true },
 ];
