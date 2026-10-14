@@ -411,6 +411,11 @@ jobs:
            run: bun scripts/check-package-json-merge.ts
          - name: Unit-test the package.json merge guard
            run: bun test scripts/check-package-json-merge.test.ts
+         # 镜像 GitHub：driver 自身的测试是唯一能挡住品牌 sweep 改写上游 scope
+         # fixture 的关卡（merge dab5fa80ac4 就是这么把 main 留红的：
+         # `test:scripts` 没有接进任何 job）。
+         - name: Unit-test the package.json merge driver
+           run: bun test scripts/merge-package-json.test.ts
          - name: Build collab web
            run: bun run collab:web:build
          - name: Local-CI parity guard

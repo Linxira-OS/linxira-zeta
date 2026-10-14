@@ -269,6 +269,12 @@ jobs:
               bun scripts/check-package-json-merge.ts
          - name: Unit-test the package.json merge guard
            run: bun test scripts/check-package-json-merge.test.ts
+         # The driver's own tests are the only thing that catches a brand sweep
+         # rewriting the upstream-scope fixtures (merge dab5fa80ac4 did exactly
+         # that and left `merge-package-json.test.ts` red on main for days: no
+         # CI bucket ran it, `test:scripts` is not wired into a job).
+         - name: Unit-test the package.json merge driver
+           run: bun test scripts/merge-package-json.test.ts
          - name: Build collab web
            run: bun run collab:web:build
 
