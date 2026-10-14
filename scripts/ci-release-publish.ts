@@ -733,7 +733,9 @@ if (import.meta.main) {
 					])
 				: publishMain
 					? await publishVendoredNpmDirs(["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"])
-					: await publishWorkspacePackages();
+					: publishWebUi
+						? await publishVendoredNpmDirs(["web-ui"])
+						: await publishWorkspacePackages();
 	if (failed.length > 0) {
 		console.error(`Failed to publish ${failed.length} package(s): ${failed.join(", ")}`);
 		process.exit(1);

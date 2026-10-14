@@ -4,7 +4,8 @@
  * Quick lockstep version bump for Zeta.
  *
  * Rewrites every hard-coded release version to <version> in one pass:
- *   - all 14 published @linxiraos packages (packages/{pkg}/package.json)
+ *   - all 15 published @linxiraos packages (packages/{pkg}/package.json plus
+ *     the official plugin and the standalone web-ui snapshot)
  *   - Cargo.toml workspace version
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
@@ -12,8 +13,11 @@
  *     package and its platform leaves, plus the launcher's exact
  *     optionalDependencies pins — a stale pin ships the previous release's
  *     binary (scripts/npm-distributions.ts holds the registry)
- *   - web-ui/package.json (zeta-web) version AND its @linxiraos/* dependency
- *     ranges (kept as ^<version>, so a lockstep publish always resolves)
+ *   - web-ui/package.json (@linxiraos/zeta-web) version, so the web UI
+ *     publishes in step with the gateway it talks to (release_web_ui_packages
+ *     in ci.yml). That manifest declares no @linxiraos/* dependency today, so
+ *     there is no range to move; a range added later needs a step here the way
+ *     the vendored launcher pins have one.
  *
  * It deliberately does NOT touch CHANGELOGs, commit, tag, or push — that is
  * `bun scripts/release-v2.ts <version>`'s job. Use this when you need the
@@ -33,8 +37,12 @@ import { NPM_DISTRIBUTIONS } from "./npm-distributions";
 const repoRoot = path.join(import.meta.dir, "..");
 const DRY_RUN = process.argv.includes("--dry-run");
 
-// Mirrors scripts/release-v2.ts ALL_PACKAGES. Keep in lock-step. Entries are
-// repo-relative package directories: official plugins ride the same line.
+// Mirrors scripts/release-v2.ts ALL_PACKAGES, plus web-ui: release-v2 keeps
+// web-ui in its VERSION_ONLY_PACKAGES list instead, because its ALL_PACKAGES
+// doubles as the CHANGELOG set and web-ui ships no CHANGELOG.md — same bump,
+// different bookkeeping. Keep the three lists (here, release-v2,
+// check-version-consistency) in lock-step. Entries are repo-relative package
+// directories: official plugins ride the same line.
 const ALL_PACKAGES = [
 	"packages/utils",
 	"packages/agent",
@@ -50,6 +58,10 @@ const ALL_PACKAGES = [
 	"packages/omptype",
 	"packages/wire",
 	"plugins/official/pi-messenger",
+	// The standalone web-ui snapshot (@linxiraos/zeta-web): not a Bun workspace
+	// member, but published by release_web_ui_packages in ci.yml, so its version
+	// has to ride the same line as the gateway it serves.
+	"web-ui",
 ] as const;
 
 // Mirrors release-v2.ts CATALOG_KEYS — the exact @linxiraos workspace-catalog keys.
@@ -190,6 +202,31 @@ async function main(): Promise<void> {
 		manifest.version = version;
 		writeJson(rel, manifest);
 		changed.push(rel);
+	}
+
+	// 1a. web-ui's npm lockfile (its own, like desktop's): the root version and
+	// the packages[""] entry move with the manifest so the pair never drifts.
+	// npm ci only reads the manifest, but a half-moved pair is exactly the kind
+	// of stale-lockfile drift the release chain keeps rediscovering.
+	{
+		const rel = "web-ui/package-lock.json";
+		const lock = readJson(rel) as { version?: string; packages?: Record<string, { version?: string }> };
+		let touched = false;
+		if (lock.version !== version) {
+			lock.version = version;
+			touched = true;
+		}
+		const rootEntry = lock.packages?.[""];
+		if (rootEntry && rootEntry.version !== version) {
+			rootEntry.version = version;
+			touched = true;
+		}
+		if (touched) {
+			writeJson(rel, lock);
+			changed.push(rel);
+		} else {
+			unchanged.push(rel);
+		}
 	}
 
 	// 2. Cargo workspace version.

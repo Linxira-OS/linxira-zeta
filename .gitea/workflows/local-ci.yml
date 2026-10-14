@@ -15,7 +15,7 @@ name: local-ci
 #        test_smoke / install_methods / editor_tests / termide_tests / main_tests
 #   裁掉：release_metadata / release_gate / release_binary /
 #        release_product_binaries / release_native_leaves / release_github /
-#        release_npm / release_{editor,main,ide}_packages（发布链，永不在此跑）
+#        release_npm / release_{editor,main,ide,web_ui}_packages（发布链，永不在此跑）
 #        desktop_windows、native_addons_cross 的 win32/darwin 腿（Windows/macOS）
 #
 # 与 GitHub 侧刻意保持一致的地方：命令行入口全部走仓库脚本

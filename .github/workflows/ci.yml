@@ -1845,7 +1845,11 @@ jobs:
    # publishing before they pass must be impossible. There is no build-artifact
    # dependency to wait on: everything in the tarball is produced inside this
    # job from the tagged tree, so nothing can race an upload (unlike
-   # release_npm, whose prepack loads the native_addons artifact).
+   # release_npm, whose prepack loads the native_addons artifact). web-ui's own
+   # verification legs (`web_ui_build`: type check / lint / colour guard / unit
+   # tests / build) gate the PUSH run of the release source commit, not this
+   # job — publishing never depends on a sibling test job (damage class 12), and
+   # release-v2.ts refuses to tag until that push run is green.
    #
    # Re-run safe: `ci-release-publish.ts --web-ui` packs through the shared
    # publish path, which preflights `npm view <name>@<version>` and skips a
@@ -1878,6 +1882,11 @@ jobs:
          # CLI that performs the publish must speak OIDC (>= 11.5.1).
          - name: Ensure npm supports trusted publishing
            run: npm install -g npm@11.17.0
+         # No `bun install --frozen-lockfile` here (unlike release_npm): this
+         # path only packs a self-contained npm directory, and
+         # ci-release-publish.ts's own imports are node builtins — the
+         # editor/main/ide publish workflows run the same pack path the same
+         # way, without a workspace install.
          - name: Install web-ui dependencies
            working-directory: web-ui
            run: npm ci

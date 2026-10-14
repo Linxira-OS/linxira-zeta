@@ -170,8 +170,10 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 			}
 		}
 	}
-	// Published outside ci-release-publish (web-ui builds via its own job;
-	// pi-messenger is the ported multi-agent extension, npm-only for now).
+	// Not in ci-release-publish's workspace `packages` table: web-ui publishes
+	// through its own `--web-ui` vendored-dir branch, driven by the
+	// release_web_ui_packages job in ci.yml that builds its `.next` first;
+	// pi-messenger is the ported multi-agent extension, npm-only for now.
 	// They still need trusted-publisher links so CI can publish them with OIDC.
 	// The vendored distributions (editor/termide) publish through their own
 	// `--editor`/`--ide` branches rather than the workspace `packages` list,

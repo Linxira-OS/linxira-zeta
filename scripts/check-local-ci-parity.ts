@@ -39,6 +39,7 @@ const EXCLUDED = new Map<string, string>([
 	["release_editor_packages", "release chain"],
 	["release_main_packages", "release chain"],
 	["release_ide_packages", "release chain"],
+	["release_web_ui_packages", "release chain"],
 	// GitHub gates both desktop jobs on `is-release == 'true'`; the packaging
 	// half (electron-builder + smoke + artifact upload) is release work. The
 	// local mirror still covers the desktop contracts through `desktop_tests`.
