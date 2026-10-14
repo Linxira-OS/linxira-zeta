@@ -93,6 +93,10 @@ const isDryRun = process.argv.includes("--dry-run");
 const publishEditor = process.argv.slice(2).includes("--editor");
 const publishIde = process.argv.slice(2).includes("--ide");
 const publishMain = process.argv.slice(2).includes("--main");
+// web-ui is a standalone npm-only project (not a Bun workspace package), so it
+// packs/publishes through the vendored-dir path like editor/main/termide. Its
+// `.next` build is produced by the invoking CI job before this runs.
+const publishWebUi = process.argv.slice(2).includes("--web-ui");
 const MIT_LICENSE = "LICENSE";
 const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 
@@ -615,11 +619,13 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
 }
 
 /**
- * Vendored distributions (editor/, termide/) are not Bun workspace packages;
- * their npm/ trees publish as-is: platform leaves first, then the launcher
- * package that pins them via optionalDependencies. Manifests are already
- * publish-ready (bin launcher, files, publishConfig), so only the legal
- * payloads need staging before pack+publish.
+ * Vendored distributions (editor/, termide/, web-ui/) are not Bun workspace
+ * packages; their npm/ trees publish as-is: platform leaves first, then the
+ * launcher package that pins them via optionalDependencies. Manifests are
+ * already publish-ready (bin launcher, files, publishConfig), so only the legal
+ * payloads need staging before pack+publish. web-ui has no platform leaves and
+ * no `prepack` — its `.next` build is produced by the invoking CI job
+ * (`release_web_ui_packages` in ci.yml) before this path is called.
  */
 async function publishVendoredNpmDirs(dirs: readonly string[]): Promise<string[]> {
 	const targets: PublishTarget[] = [];

@@ -125,6 +125,7 @@
     "ci:release:checksums": "bun scripts/ci-release-checksums.ts",
     "ci:release:publish": "bun scripts/ci-release-publish.ts",
     "ci:release:publish-native-leaf": "bun scripts/ci-release-publish.ts --native-leaf",
+    "ci:release:publish-web-ui": "bun scripts/ci-release-publish.ts --web-ui",
     "bench:gen-fixtures": "bun --cwd=packages/typescript-edit-benchmark run src/generate.ts --typescript-dir /tmp/typescript-source --count-per-type 8",
     "stats:sync": "python3 scripts/session-stats/sync.py",
     "stats:tools": "python3 scripts/session-stats/analyze.py tools",
