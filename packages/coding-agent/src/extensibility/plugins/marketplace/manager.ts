@@ -10,9 +10,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { isEnoent, logger, pathIsWithin } from "@linxiraos/pi-utils";
+import { isEnoent, logger, pathIsWithin, PLUGINS_LOCKFILE_CANONICAL } from "@linxiraos/pi-utils";
 import { expandTilde } from "../../../tools/path-utils";
-import { normalizePluginRuntimeConfig } from "../runtime-config";
+import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "../runtime-config";
 import type { PluginRuntimeConfig, PluginRuntimeState } from "../types";
 
 import { cachePlugin, getCachedPluginPath, isValidVersionForCache } from "./cache";
@@ -904,20 +904,21 @@ export class MarketplaceManager {
 	}
 
 	#runtimeLockPath(scope: "user" | "project"): string {
-		return path.join(this.#runtimeRoot(scope), "omp-plugins.lock.json");
+		// Canonical Zeta name, shared with the runtime loader and the plugin
+		// manager; `pluginsLockfileReadOrder` still reads an unmigrated install.
+		return path.join(this.#runtimeRoot(scope), PLUGINS_LOCKFILE_CANONICAL);
 	}
 
 	async #loadRuntimeConfig(scope: "user" | "project"): Promise<PluginRuntimeConfig> {
-		try {
-			return normalizePluginRuntimeConfig(await Bun.file(this.#runtimeLockPath(scope)).json());
-		} catch (err) {
-			if (isEnoent(err)) return normalizePluginRuntimeConfig({});
+		const read = await readPluginRuntimeConfig(this.#runtimeLockPath(scope));
+		if (read.status === "read") return read.config;
+		if (read.error) {
 			logger.warn("Failed to load marketplace plugin runtime config", {
-				path: this.#runtimeLockPath(scope),
-				error: String(err),
+				path: read.error.path,
+				error: String(read.error.error),
 			});
-			return normalizePluginRuntimeConfig({});
 		}
+		return normalizePluginRuntimeConfig({});
 	}
 
 	async #writeRuntimeConfig(scope: "user" | "project", config: PluginRuntimeConfig): Promise<void> {

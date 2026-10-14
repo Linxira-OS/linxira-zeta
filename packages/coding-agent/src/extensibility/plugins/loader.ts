@@ -11,25 +11,26 @@ import {
 	getPluginDataDir,
 	getPluginStateDir,
 	getPluginsDir,
+	getPluginsLockfile,
 	hasFsCode,
 	isEacces,
 	isEnoent,
 	logger,
 	normalizePathForComparison,
 	PLUGINS_LOCKFILE_CANONICAL,
-	PLUGINS_LOCKFILE_LEGACY,
 } from "@linxiraos/pi-utils";
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
-import { normalizePluginRuntimeConfig } from "./runtime-config";
-import type {
-	InstalledPlugin,
-	PluginManifest,
-	PluginRuntimeConfig,
-	PluginStorage,
-	ProjectPluginOverrides,
+import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "./runtime-config";
+import {
+	type InstalledPlugin,
+	type PluginPackageJson,
+	type PluginRuntimeConfig,
+	type PluginStorage,
+	type ProjectPluginOverrides,
+	readPluginManifest,
 } from "./types";
 
 /**
@@ -79,46 +80,34 @@ registerPluginCacheInvalidator(clearEnabledPluginsCache);
  * Read-old / write-new: the lockfile carries per-plugin runtime state (enabled
  * flag, version), so an upgrade must not orphan it. The Zeta-named file is
  * canonical; when only the pre-rename file exists we read it, write the new
- * one, and remove the old — a one-time, idempotent migration.
+ * one, and remove the old — a one-time, idempotent migration. Every other
+ * reader of this file reads both spellings through
+ * {@link readPluginRuntimeConfig}, so a listing taken before the migration runs
+ * sees the same plugins as this loader does — that split is what once emptied
+ * `zetacode plugin list` right after the migration.
  *
  * `home` controls which `<plugins>/` directory is used — pass it through
  * whenever the caller is loading plugins for a tempdir-rooted scenario (tests,
  * discovery sub-surfaces that need to mirror an alternate `LoadContext.home`).
  */
 async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
-	const dir = getPluginsDir(home);
-	const canonical = path.join(dir, PLUGINS_LOCKFILE_CANONICAL);
-	const legacy = path.join(dir, PLUGINS_LOCKFILE_LEGACY);
+	const read = await readPluginRuntimeConfig(getPluginsLockfile(home));
+	if (read.status === "empty") return normalizePluginRuntimeConfig({});
 
-	/** Missing file, or a path we cannot read at all. */
-	const readIfPossible = async (p: string): Promise<Partial<PluginRuntimeConfig> | undefined> => {
-		try {
-			return (await Bun.file(p).json()) as Partial<PluginRuntimeConfig>;
-		} catch {
-			// Anything unreadable — absent, a directory, EACCES — is treated as
-			// "no config here" so a broken path cannot take every plugin down
-			// with it. A legacy file with real state is still preferred below.
-			return undefined;
-		}
-	};
-
-	const canonicalData = await readIfPossible(canonical);
-	if (canonicalData !== undefined) return normalizePluginRuntimeConfig(canonicalData);
-
-	const legacyData = await readIfPossible(legacy);
-	if (legacyData === undefined) return normalizePluginRuntimeConfig({});
+	// A canonical file, or nothing readable at all: done. Only the pre-rename
+	// spelling still has to be carried forward.
+	if (!read.legacy) return read.config;
 
 	// First run after the rename: carry the state forward, then drop the old
 	// file so the migration cannot run twice or drift.
-	const migrated = normalizePluginRuntimeConfig(legacyData);
 	try {
-		await Bun.write(canonical, `${JSON.stringify(migrated, null, "\t")}\n`);
-		await fs.promises.unlink(legacy);
+		await Bun.write(getPluginsLockfile(home), `${JSON.stringify(read.config, null, "\t")}\n`);
+		await fs.promises.unlink(read.path);
 	} catch {
 		// A read-only or concurrently-locked plugins dir must not break loading;
 		// the legacy file simply stays authoritative until the write succeeds.
 	}
-	return migrated;
+	return read.config;
 }
 
 /**
@@ -186,18 +175,16 @@ async function collectPluginsAtRoot(
 		if (!isEnoent(err)) throw err;
 	}
 
-	const lockPath = path.join(root, "omp-plugins.lock.json");
-	let runtimeConfig: PluginRuntimeConfig;
-	try {
-		runtimeConfig = normalizePluginRuntimeConfig(await Bun.file(lockPath).json());
-	} catch (err) {
-		if (isUnreadableRoot(err)) {
-			logger.warn("plugins: skipping unreadable plugin root", { root, path: lockPath });
+	const lockRead = await readPluginRuntimeConfig(path.join(root, PLUGINS_LOCKFILE_CANONICAL));
+	if (lockRead.status === "empty" && lockRead.error) {
+		if (isUnreadableRoot(lockRead.error.error)) {
+			logger.warn("plugins: skipping unreadable plugin root", { root, path: lockRead.error.path });
 			return [];
 		}
-		if (!isEnoent(err)) throw err;
-		runtimeConfig = normalizePluginRuntimeConfig({});
+		if (!isEnoent(lockRead.error.error)) throw lockRead.error.error;
 	}
+	const runtimeConfig: PluginRuntimeConfig =
+		lockRead.status === "read" ? lockRead.config : normalizePluginRuntimeConfig({});
 
 	// Union: dependencies (npm/marketplace installs) ∪ runtime-config plugins
 	// (links + already-recorded installs). Set preserves first-seen order,
@@ -233,7 +220,7 @@ async function collectPluginsAtRoot(
 			continue;
 		}
 		const pluginPkgPath = path.join(nodeModulesPath, name, "package.json");
-		let pluginPkg: { version: string; omp?: PluginManifest; pi?: PluginManifest };
+		let pluginPkg: PluginPackageJson & { version: string };
 		try {
 			pluginPkg = await Bun.file(pluginPkgPath).json();
 		} catch (err) {
@@ -250,9 +237,9 @@ async function collectPluginsAtRoot(
 			throw err;
 		}
 
-		const manifest: PluginManifest | undefined = pluginPkg.omp || pluginPkg.pi;
+		const manifest = readPluginManifest(pluginPkg);
 		if (!manifest) {
-			// Not an zetacode plugin, skip
+			// Not a plugin package, skip
 			continue;
 		}
 		manifest.version = pluginPkg.version;

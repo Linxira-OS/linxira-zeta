@@ -11,6 +11,7 @@ import {
 	isEnoent,
 	logger,
 	normalizePathForComparison,
+	PLUGINS_LOCKFILE_CANONICAL,
 } from "@linxiraos/pi-utils";
 import { JSONC } from "bun";
 import { resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -21,16 +22,18 @@ import { buildPluginStorage, resolvePluginManifestEntries } from "./loader";
 import { getInstalledPluginsRegistryPath, readInstalledPluginsRegistry } from "./marketplace/registry";
 import { parsePluginId } from "./marketplace/types";
 import { extractPackageName, parsePluginSpec } from "./parser";
-import { normalizePluginRuntimeConfig } from "./runtime-config";
-import type {
-	DoctorCheck,
-	DoctorOptions,
-	InstalledPlugin,
-	InstallOptions,
-	PluginManifest,
-	PluginRuntimeConfig,
-	PluginSettingSchema,
-	ProjectPluginOverrides,
+import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "./runtime-config";
+import {
+	type DoctorCheck,
+	type DoctorOptions,
+	type InstalledPlugin,
+	type InstallOptions,
+	type PluginManifest,
+	type PluginPackageJson,
+	type PluginRuntimeConfig,
+	type PluginSettingSchema,
+	type ProjectPluginOverrides,
+	readPluginManifest,
 } from "./types";
 
 // =============================================================================
@@ -134,14 +137,9 @@ interface PluginPackageSnapshot {
 	readonly backupPath: string;
 }
 
-interface RuntimePackageJson {
+interface RuntimePackageJson extends PluginPackageJson {
 	name?: unknown;
 	version: string;
-	zeta?: PluginManifest;
-	// Historical manifest keys from the upstream scopes stay valid: installed
-	// plugins author these (see loader.ts, which never stopped reading them).
-	omp?: PluginManifest;
-	pi?: PluginManifest;
 }
 // =============================================================================
 // Plugin Manager
@@ -160,13 +158,17 @@ export class PluginManager {
 	// ==========================================================================
 
 	async #readRuntimeConfigAt(lockPath: string): Promise<PluginRuntimeConfig> {
-		try {
-			return normalizePluginRuntimeConfig(await Bun.file(lockPath).json());
-		} catch (err) {
-			if (isEnoent(err)) return normalizePluginRuntimeConfig({});
-			logger.warn("Failed to load plugin runtime config", { path: lockPath, error: String(err) });
-			return normalizePluginRuntimeConfig({});
+		const read = await readPluginRuntimeConfig(lockPath);
+		if (read.status === "read") return read.config;
+		if (read.error) {
+			// The canonical and pre-rename spellings were both unreadable, which is
+			// not the same as "no plugins installed" — say which path failed.
+			logger.warn("Failed to load plugin runtime config", {
+				path: read.error.path,
+				error: String(read.error.error),
+			});
 		}
+		return normalizePluginRuntimeConfig({});
 	}
 
 	async #loadRuntimeConfig(): Promise<PluginRuntimeConfig> {
@@ -288,9 +290,7 @@ export class PluginManager {
 		}
 
 		const name = typeof pluginPkg.name === "string" && pluginPkg.name.length > 0 ? pluginPkg.name : fallbackName;
-		const manifest: PluginManifest = pluginPkg.zeta ||
-			pluginPkg.omp ||
-			pluginPkg.pi || { version: pluginPkg.version };
+		const manifest: PluginManifest = readPluginManifest(pluginPkg) || { version: pluginPkg.version };
 		manifest.version = pluginPkg.version;
 		const runtimeState = config.plugins[name] || {
 			version: pluginPkg.version,
@@ -649,7 +649,7 @@ export class PluginManager {
 			}
 
 			const pkgPath = path.join(getPluginsNodeModules(), actualName, "package.json");
-			let pkg: { name: string; version: string; zeta?: PluginManifest; omp?: PluginManifest; pi?: PluginManifest };
+			let pkg: PluginPackageJson & { name: string; version: string };
 			try {
 				pkg = await Bun.file(pkgPath).json();
 			} catch (err) {
@@ -658,7 +658,7 @@ export class PluginManager {
 				}
 				throw err;
 			}
-			const manifest: PluginManifest = pkg.zeta || pkg.omp || pkg.pi || { version: pkg.version };
+			const manifest: PluginManifest = readPluginManifest(pkg) || { version: pkg.version };
 			manifest.version = pkg.version;
 
 			// Resolve enabled features
@@ -866,7 +866,7 @@ export class PluginManager {
 		if (normalizePathForComparison(projectRoot) === normalizePathForComparison(getPluginsDir())) return undefined;
 		const [projectDeps, projectConfig] = await Promise.all([
 			this.#readDeps(path.join(projectRoot, "package.json")),
-			this.#readRuntimeConfigAt(path.join(projectRoot, "omp-plugins.lock.json")),
+			this.#readRuntimeConfigAt(path.join(projectRoot, PLUGINS_LOCKFILE_CANONICAL)),
 		]);
 		if (!this.#collectInstalledNames(projectDeps, projectConfig).has(name)) return undefined;
 		return this.#resolvePlugin(name, path.join(projectRoot, "node_modules", name), projectConfig, projectOverrides);
@@ -911,7 +911,7 @@ export class PluginManager {
 		const absolutePath = path.resolve(this.#cwd, localPath);
 
 		const pkgFilePath = path.join(absolutePath, "package.json");
-		let pkg: { name?: string; version: string; zeta?: PluginManifest; omp?: PluginManifest; pi?: PluginManifest };
+		let pkg: PluginPackageJson & { name?: string; version: string };
 		try {
 			pkg = await Bun.file(pkgFilePath).json();
 		} catch (err) {
@@ -941,7 +941,7 @@ export class PluginManager {
 		// link in marketplace/manager.ts).
 		await fs.promises.symlink(absolutePath, linkPath, process.platform === "win32" ? "junction" : "dir");
 
-		const manifest: PluginManifest = pkg.zeta || pkg.omp || pkg.pi || { version: pkg.version };
+		const manifest: PluginManifest = readPluginManifest(pkg) || { version: pkg.version };
 		manifest.version = pkg.version;
 
 		// Add to runtime config
@@ -1120,13 +1120,7 @@ export class PluginManager {
 			const pluginPkgPath = path.join(pluginPath, "package.json");
 			const fromDependencies = name in deps;
 
-			let pluginPkg: {
-				version: string;
-				description?: string;
-				zeta?: PluginManifest;
-				omp?: PluginManifest;
-				pi?: PluginManifest;
-			};
+			let pluginPkg: PluginPackageJson & { version: string; description?: string };
 			try {
 				pluginPkg = await Bun.file(pluginPkgPath).json();
 			} catch (err) {
@@ -1186,15 +1180,15 @@ export class PluginManager {
 				}
 			}
 
-			const hasManifest = !!(pluginPkg.zeta || pluginPkg.omp || pluginPkg.pi);
-			const manifest: PluginManifest | undefined = pluginPkg.zeta || pluginPkg.omp || pluginPkg.pi;
+			const manifest = readPluginManifest(pluginPkg);
+			const hasManifest = !!manifest;
 
 			checks.push({
 				name: `plugin:${name}`,
 				status: hasManifest ? "ok" : "warning",
 				message: hasManifest
 					? `v${pluginPkg.version}${pluginPkg.description ? ` - ${pluginPkg.description}` : ""}`
-					: `v${pluginPkg.version} - No zeta/pi manifest (not an zetacode plugin)`,
+					: `v${pluginPkg.version} - No zeta/omp/pi manifest (not a plugin package)`,
 			});
 
 			// Check tools path exists if specified

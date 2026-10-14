@@ -1,10 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { hasFsCode, isEacces, isEnoent, isRecord } from "@linxiraos/pi-utils";
+import { type PluginPackageJson, readPluginManifest } from "../plugins/types";
 
 /** Selected extension files and whether a manifest suppresses convention fallback. */
 export interface ExtensionDirectoryResolution {
-	/** Whether package.json declares a non-empty omp/pi extensions array. */
+	/** Whether package.json declares a non-empty `zeta/omp/pi` extensions array. */
 	declared: boolean;
 	/** Existing files selected by the authoritative manifest or directory conventions. */
 	files: string[];
@@ -66,7 +67,9 @@ function readDeclaredManifestEntries(
 		return { declared: false, files: [] };
 	}
 
-	const manifest = isRecord(pkg) ? (pkg.omp ?? pkg.pi) : undefined;
+	// Parsed JSON, so the shape is unchecked: the reader picks the manifest
+	// block (Zeta's `zeta` first, then the upstream spellings) and ignores the rest.
+	const manifest = isRecord(pkg) ? readPluginManifest(pkg as PluginPackageJson) : undefined;
 	const entries = isRecord(manifest) ? manifest.extensions : undefined;
 	if (!Array.isArray(entries) || entries.length === 0) {
 		return { declared: false, files: [] };

@@ -1,6 +1,6 @@
 # Plugin manager and installer plumbing
 
-This document describes how `omp plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `omp-plugins.lock.json` runtime surfaces used by npm/git/link installs; see `docs/marketplace.md`.
+This document describes how `omp plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `zeta-plugins.lock.json` runtime surfaces used by npm/git/link installs; the pre-rename `omp-plugins.lock.json` is still read and migrated on first read (see `document/brand-surface-rules.md`, DUAL row); see `docs/marketplace.md`.
 
 ## Scope and architecture
 
@@ -20,7 +20,7 @@ omp plugin <npm/link action> ...
   -> src/commands/plugin.ts
   -> runPluginCommand(...) in src/cli/plugin-cli.ts
   -> PluginManager method (install/list/uninstall/link/...)
-  -> mutate user plugins data root {package.json,node_modules,omp-plugins.lock.json}
+  -> mutate user plugins data root {package.json,node_modules,zeta-plugins.lock.json}
   -> enabled-plugin enumeration discovers user and nearest project plugin roots
   -> direct loaders resolve manifest-declared tool/extension entries
   -> `omp-plugins` capability discovery scans conventional skills/hooks/tools/commands/rules/prompts/MCP content; task discovery scans `agents/`
@@ -28,7 +28,7 @@ omp plugin <npm/link action> ...
 omp plugin install name@marketplace / omp install name@marketplace
   -> MarketplaceManager
   -> mutate scope registry and shared cache
-  -> symlink the cached package into the scope's node_modules and update omp-plugins.lock.json
+  -> symlink the cached package into the scope's node_modules and update zeta-plugins.lock.json
   -> `claude-plugins` discovery loads legacy marketplace content; `agent-plugins` handles portable skills/MCP for standard root plugin.json packages
   -> task discovery loads `agents/`; extension loader imports `package.json#omp.extensions`
 ```
@@ -49,12 +49,12 @@ The plugin root contains:
 
 - `package.json` — dependency manifest used by `bun install`/`bun uninstall` for npm-installed plugins
 - `node_modules/` — installed npm packages plus link and marketplace-cache symlinks
-- `omp-plugins.lock.json` — runtime state for npm/link/marketplace plugins:
+- `zeta-plugins.lock.json` — runtime state for npm/link/marketplace plugins:
   - enabled/disabled per plugin
   - selected feature set per plugin
   - persisted plugin settings
 
-Project-root resolution first walks upward for the nearest `.omp/`; only when none exists does it use the nearest `.git` anchor. Project runtime plugins live in `<anchor>/.omp/plugins/{node_modules,omp-plugins.lock.json}`. Explicit marketplace project installs can create `<cwd>/.omp/plugins/` when neither anchor exists (except when cwd is home). Enabled project packages shadow user packages with the same package name; disabled project packages do not. npm/git/link CLI operations remain user-scoped; their install handler warns and ignores `--scope`.
+Project-root resolution first walks upward for the nearest `.zeta/`; only when none exists does it use the nearest `.git` anchor. Project runtime plugins live in `<anchor>/.zeta/plugins/{node_modules,zeta-plugins.lock.json}`. Explicit marketplace project installs can create `<cwd>/.zeta/plugins/` when neither anchor exists (except when cwd is home). Enabled project packages shadow user packages with the same package name; disabled project packages do not. npm/git/link CLI operations remain user-scoped; their install handler warns and ignores `--scope`.
 
 Project-local overrides are searched through project config directories as `plugin-overrides.json` (normally `<project>/.omp/plugin-overrides.json`). Overrides are read-only from manager/loader perspective and can disable plugins or override features/settings.
 
@@ -65,7 +65,7 @@ Marketplace installs add registry and cache state alongside those runtime entrie
 - `<anchor>/.omp/plugins/installed_plugins.json` — project-scoped marketplace installs
 - user plugins data root `cache/{marketplaces,plugins}/` — cached catalogs and plugin directories
 - `<scope>/plugins/node_modules/<package>` — symlink to the cached plugin, allowing its `package.json` `omp.extensions` and tools to load
-- `<scope>/plugins/omp-plugins.lock.json` — enablement and feature state shared with the runtime plugin loader
+- `<scope>/plugins/zeta-plugins.lock.json` — enablement and feature state shared with the runtime plugin loader
 
 ## Plugin spec parsing and metadata interpretation
 

@@ -302,7 +302,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/utils/src/dirs.ts",
 		needle: '"omp-plugins.lock.json"',
-		why: "the plugin lockfile keeps its upstream filename on purpose — existing installs carry runtime state (enabled features, versions) in it, so renaming would reset every user's plugins on upgrade. The doc comment above getPluginsLockfile says the same; do not rebrand it",
+		why: "the pre-rename plugin lockfile name must stay readable: existing installs carry runtime state (enabled features, versions) in it, and `pluginsLockfileReadOrder`/the loader's migration resolve it before writing the canonical Zeta name. Removing the literal turns the rename into a state reset, not a migration",
 	},
 	// ── v18.8.7/v18.8.8 merge-residue pins (2026-10-11 sweep) ──────────────
 	// These are file-local strings the whole-tree token bans cannot express

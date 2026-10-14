@@ -701,24 +701,45 @@ export function getPluginsPackageJson(home?: string): string {
 }
 
 /**
- * Plugin lock file (~/.zeta/plugins/omp-plugins.lock.json).
- *
- * The on-disk filename stays upstream-compatible: it carries per-plugin runtime
- * state (enabled flag, version), so renaming it would reset every existing
- * install's plugins on upgrade. That is the reason for the compat, not a
- * general rule — see `document/brand-surface-rules.md`, which classifies this
- * surface as DUAL (read both spellings, write the Zeta one) rather than
- * permanently frozen.
+ * Zeta-named lockfile, written going forward; `PLUGINS_LOCKFILE_LEGACY` stays
+ * readable so a pre-rename install keeps its state (see
+ * `document/brand-surface-rules.md`, DUAL: read both spellings, write the Zeta
+ * one). Every lockfile name in the tree comes from the two constants below —
+ * a writer on one spelling and a reader on the other is what emptied
+ * `zetacode plugin list` after the loader migrated the file.
  */
-export function getPluginsLockfile(home?: string): string {
-	return path.join(getPluginsDir(home), "omp-plugins.lock.json");
-}
-
-/** Zeta-named lockfile, written going forward; `getPluginsLockfile` is read first. */
 export const PLUGINS_LOCKFILE_CANONICAL = "zeta-plugins.lock.json";
 
 /** Pre-rename lockfile name still produced by earlier installs. */
 export const PLUGINS_LOCKFILE_LEGACY = "omp-plugins.lock.json";
+
+/**
+ * Plugin lock file (~/.zeta/plugins/zeta-plugins.lock.json) — the path every
+ * writer targets and every reader asks for first.
+ *
+ * It carries per-plugin runtime state (enabled flag, enabled features,
+ * version), so the rename is a migration rather than a reset: a lockfile left
+ * under the pre-rename name is still read (see
+ * {@link pluginsLockfileReadOrder}) and moved to this path on first load.
+ */
+export function getPluginsLockfile(home?: string): string {
+	return path.join(getPluginsDir(home), PLUGINS_LOCKFILE_CANONICAL);
+}
+
+/**
+ * Read order for a lockfile path whose directory is a plugins root: the
+ * canonical name first, then the pre-rename one. Returned as absolute paths so
+ * a caller can hand each to `Bun.file` without re-deriving the directory.
+ *
+ * A path that is not one of the two names (a caller- or test-supplied path) is
+ * returned as-is and reads nothing else.
+ */
+export function pluginsLockfileReadOrder(lockfilePath: string): string[] {
+	const dir = path.dirname(lockfilePath);
+	const base = path.basename(lockfilePath);
+	if (base !== PLUGINS_LOCKFILE_CANONICAL && base !== PLUGINS_LOCKFILE_LEGACY) return [lockfilePath];
+	return [path.join(dir, PLUGINS_LOCKFILE_CANONICAL), path.join(dir, PLUGINS_LOCKFILE_LEGACY)];
+}
 
 /**
  * Normalize a plugin id into a safe single path segment (spec §4.2): lowercased,

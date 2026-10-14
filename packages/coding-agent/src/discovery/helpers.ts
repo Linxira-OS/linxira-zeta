@@ -28,6 +28,7 @@ import {
 import type { Skill, SkillFrontmatter } from "../capability/skill";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 import { resolveClaudePaths } from "../config/claude-paths";
+import { type PluginManifestKey, readPluginManifest } from "../extensibility/plugins/types";
 import type { MCPRequestIdFormat } from "../mcp/types";
 import { type ConfiguredThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { normalizeToolNames } from "../tools/builtin-names";
@@ -846,12 +847,8 @@ async function readExtensionModuleManifest(
 	const content = await readFile(packageJsonPath);
 	if (!content) return null;
 
-	const pkg = tryParseJson<{
-		omp?: ExtensionModuleManifest;
-		pi?: ExtensionModuleManifest;
-		zeta?: ExtensionModuleManifest;
-	}>(content);
-	const manifest = pkg?.zeta ?? pkg?.pi;
+	const pkg = tryParseJson<Partial<Record<PluginManifestKey, ExtensionModuleManifest>>>(content);
+	const manifest = readPluginManifest<ExtensionModuleManifest>(pkg);
 	if (manifest && typeof manifest === "object") {
 		return manifest;
 	}
@@ -864,7 +861,8 @@ async function readExtensionModuleManifest(
  * Discovery rules:
  * 1. Direct files: `extensions/*.ts` or `*.js` → load
  * 2. Subdirectory with index: `extensions/<ext>/index.ts` or `index.js` → load
- * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with "omp"/"pi" field → load declared paths
+ * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with a
+ *    `zeta/omp/pi` field → load declared paths
  *
  * No recursion beyond one level. Complex packages must use package.json manifest.
  * Uses native glob for fast filesystem scanning with gitignore support.

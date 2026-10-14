@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { discoverAndLoadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { __closeExtensionParseCacheForTests } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
+import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import { getAgentDir, getPluginsDir, removeSyncWithRetries, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 const currentPiCodingAgentPath = Bun.resolveSync("@linxiraos/zeta", import.meta.dir);
@@ -768,5 +769,56 @@ describe("plugin extension discovery", () => {
 		expect(extension).toBeDefined();
 		expect(extension?.commands.has("dts-ext")).toBe(true);
 		expect(declaration).toBeUndefined();
+	});
+
+	// The `zeta` manifest key is what Zeta-authored plugins ship. The management
+	// surface (`zetacode plugin list`/`doctor`, PluginManager) always read it, but
+	// the session loader read only the upstream keys, so a `zeta`-only package was
+	// listed as installed while contributing nothing: no skill, no extension module.
+	it("lists and loads a plugin whose manifest is declared only under the Zeta key", async () => {
+		const pluginsDir = getPluginsDir();
+		const pluginDir = path.join(pluginsDir, "node_modules", "@demo", "zeta-only");
+		const extensionPath = path.join(pluginDir, "dist", "extension.ts");
+		fs.mkdirSync(path.dirname(extensionPath), { recursive: true });
+		fs.writeFileSync(
+			path.join(pluginsDir, "package.json"),
+			JSON.stringify({
+				name: "zeta-plugins",
+				private: true,
+				dependencies: {
+					"@demo/plugin": "1.0.0",
+					"@demo/zeta-only": "1.0.0",
+				},
+			}),
+		);
+		fs.writeFileSync(
+			path.join(pluginDir, "package.json"),
+			JSON.stringify({
+				name: "@demo/zeta-only",
+				version: "1.0.0",
+				zeta: { extensions: ["./dist/extension.ts"] },
+			}),
+		);
+		fs.writeFileSync(
+			extensionPath,
+			["export default function(pi) {", '\tpi.registerCommand("zeta-ext", { handler: async () => {} });', "}"].join(
+				"\n",
+			),
+		);
+
+		// Listed: the surface `zetacode plugin list` and `doctor` report through.
+		const listed = await new PluginManager(projectDir.path()).list();
+		expect(listed.map(plugin => plugin.name)).toContain("@demo/zeta-only");
+		expect(listed.find(plugin => plugin.name === "@demo/zeta-only")?.manifest.extensions).toEqual([
+			"./dist/extension.ts",
+		]);
+
+		// Loaded: the session surface that turns a manifest into an extension module.
+		const result = await discoverAndLoadExtensions([], projectDir.path());
+		const extension = result.extensions.find(ext => ext.path === extensionPath);
+
+		expect(result.errors).toHaveLength(0);
+		expect(extension).toBeDefined();
+		expect(extension?.commands.has("zeta-ext")).toBe(true);
 	});
 });

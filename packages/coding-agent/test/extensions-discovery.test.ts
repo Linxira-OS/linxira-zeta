@@ -402,6 +402,19 @@ describe("extensions discovery", () => {
 		expect(result.extensions).toHaveLength(3);
 	});
 
+	it("discovers a subdirectory manifest declared under the Zeta key", async () => {
+		const subdir = path.join(extensionsDir, "zeta-manifest");
+		fs.mkdirSync(subdir);
+		fs.writeFileSync(path.join(subdir, "entry.ts"), extensionCode);
+		fs.writeFileSync(path.join(subdir, "package.json"), JSON.stringify({ zeta: { extensions: ["./entry.ts"] } }));
+
+		const result = await discoverForTest();
+
+		expect(result.errors).toHaveLength(0);
+		expect(result.extensions).toHaveLength(1);
+		expect(result.extensions[0].path).toBe(path.join(subdir, "entry.ts"));
+	});
+
 	it("discovers a symlinked extension directory with index.ts", async () => {
 		// A single extension dir shared across profiles via a symlink: the real
 		// directory lives outside extensions/ and is linked into it. Native glob
