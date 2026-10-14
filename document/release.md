@@ -93,7 +93,15 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
   `.github/workflows/ci.yml`——npm 匹配的是真正执行发布的那个 workflow 文件名
   （web-ui 不能自带 workflow，见上），发版前在 npmjs.com → `@linxiraos/zeta-web`
   → Publishing access 核对这一行；绑定缺失时 OIDC 会静默回退 `NODE_AUTH_TOKEN`
-  （`PUT 404` / `E403`），run 红在 tag 之后。`pi-messenger` 仍为独立线。
+  （`PUT 404` / `E403`），run 红在 tag 之后。
+  `@linxiraos/pi-channels` 与 `@linxiraos/pi-messenger` 自 2026-10-14 起同样随
+  发布线（`release-v2.ts` / `set-version.ts` 的版本线早已含二者），二者也都
+  **必须**把 trusted publisher 绑到 `.github/workflows/ci.yml`：`pi-channels`
+  由 `release_npm`（workspace `packages` 表，`ci-release-publish.ts`）发布，
+  `pi-messenger` 由 `release_plugin_packages`（`ci-release-publish.ts --plugin
+  plugins/official/pi-messenger`，把插件目录原样打包）发布——两个腿都在
+  `ci.yml` 内，不在任何独立 workflow 里。注意 `pi-messenger` 在 npm 上停在
+  1.1.1（上一次手工补发），首次随线发布是它绑定关系的第一道实战检验。
   editor（vendored TTT）三包 `@linxiraos/editor` /
   `@linxiraos/editor-windows-x64` / `@linxiraos/editor-linux-x64`（1.1.16 起，
   短期仅编译 linux-x64 + win32-x64；macOS 任何版本与任何设备的 ARM 构建
@@ -271,6 +279,7 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）**——机制已退役 2026-10-14，见类别 11**：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布） | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | ~~上传器 `ASSETS` 表与矩阵两方向硬拦~~ 随上传器一并删除；`scripts/check-release-asset-names.ts` 现只校 CLI 目标 ↔ `release_binary` 矩阵 ↔ 更新器资产名（类别 1/2 的三面） |
 | 11  | 发布到上游 OMP 基础设施（stencil）：发布链最后一环 `Publish to build.stencil.so` 按设计只接受 `can1357`/`stencil-hq` 的仓库，本 fork 永久无权限（v1.2.0、v1.2.1 同一环连续两次把 run 打红） | `error: create build: HTTP 403 {"error":"only repositories of can1357 or stencil-hq may publish omp builds, not Linxira-OS/linxira-zeta"}`；此时 GitHub Release 与 npm 已发出，run 红在 tag 之后、流程尾部 | **规则：Zeta 不向上游构建服务器发布，发行资产只进自己的 GitHub Release**（更新器消费 `zeta-cli-*`）。步骤与 `scripts/ci-build-upload.ts` 已删除；`check-ci-surface.ts` 禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow（含注释），`check-shared-infra.ts` 把端点标为 `replaced`（`files: []`）——复活即红 |
 | 12  | web-ui（`@linxiraos/zeta-web`）发布腿缺失（2026-10-14 修复）：包已在 npm 上（停在 1.1.5）却不在任何发布路径上——web-ui 不是根 workspace 成员、ci.yml 无对应 job、`set-version.ts` / `release-v2.ts` 也不 bump 它，于是 gateway 一路前进而 Web UI 冻结 | npm 上 `zeta-web` 长期落后产品线；`zeta serve` 在无 repo web-ui 时回退到 npm 安装，装出的是旧 Web UI 对上新网关（网关 API 漂移即炸） | 发布腿 = ci.yml 的 `release_web_ui_packages`（发布前自带 `npm ci` + `next build`：tarball 的 `files` 含 `.next`，裸 `npm publish` 会发出缺失/陈旧的构建）；版本随线由 `set-version.ts` / `release-v2.ts` 一起 bump（`web-ui/package.json` + 其 `package-lock.json`）；**npm 侧 trusted publisher 必须绑 `.github/workflows/ci.yml`**——npm 按"执行发布的 workflow 文件名"匹配，而 web-ui 永不自带 workflow（子目录 workflow 不会被触发），见下方逐包清单；重跑安全：publish 前 `npm view <pkg>@<ver>` 命中即跳过 |
+| 13  | 发布腿缺失（第二种形态，2026-10-14 修复）：包在 Zeta 版本线（`ALL_PACKAGES`）上，却不接进任何发布腿——`@linxiraos/pi-channels` 的行被 **c9b8c2d1413（Merge tag 'v18.3.3' into dev/main）** 的冲突解决从 `ci-release-publish.ts` 的 `packages` 表里整行删掉（`0cd00b412ba` 的 merge-damage 修复没把它捞回来），`@linxiraos/pi-messenger` 则从未接过 CI 发布腿（最后一次发版是本地手工 `scripts/publish-missing-packages.ts` 补发） | 两个包在 npm 上长期落后产品线（`pi-channels` 停 1.1.20、`pi-messenger` 停 1.1.1），而仓库版本线一路 bump；用户装到的 `@linxiraos/pi-channels` / `@linxiraos/pi-messenger` 与仓库里的运行时不是同一版（网关/扩展协议漂移即炸） | `pi-channels` 的发布腿 = workspace `packages` 表（`release_npm` 内的 `ci-release-publish.ts`，恢复原行）；`pi-messenger` 的发布腿 = `ci.yml` 的 `release_plugin_packages`（`--plugin plugins/official/pi-messenger` 原样打包插件目录；workspace 表的 `typescript` kind 会做插件消费不了的 declaration emit，故不走该表）；两条腿都登记进 `scripts/brand/ci-surface-registry.ts` 的 `requiresAll` + `needsEdges`（删 job 即 `check-ci-surface.ts` 红）；两者都在 `check-version-consistency.ts` / `set-version.ts` / `release-v2.ts` 的 `ALL_PACKAGES` 里，所以版本线一 bump 就同时校验两包 |
 
 **stencil 上传的退役（`Publish to build.stencil.so` ↔ `scripts/ci-build-upload.ts`，2026-10-14）**：
 这曾是发布链的最后一环，也是最"哑"的一环——`build.stencil.so` 是 OMP 上游的构建服务器，按设计只

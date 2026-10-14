@@ -149,9 +149,11 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
   └── tests/
   ```
 
-- 打包/发布：从 `plugins/official/<id>/` 构建并 trusted-publish；版本线与 Zeta
-  发布版本对齐；`@earendil-works/*` → `@linxiraos/*` 的 peer/源码改写成为该插件
-  **常驻构建步骤**，不再依赖发布时临时改写。
+- 打包/发布：从 `plugins/official/<id>/` **原样打包**并 trusted-publish（`ci.yml`
+  的 `release_plugin_packages` → `ci-release-publish.ts --plugin plugins/official/<id>`：
+  插件发的是宿主加载器要 transpile 的 TS 源码，不走 workspace `packages` 表的
+  declaration emit 路径）；版本线与 Zeta 发布版本对齐；`@earendil-works/*` →
+  `@linxiraos/*` 的 peer/源码改写是该插件**常驻构建步骤**，不再依赖发布时临时改写。
 
 ### 清单格式：JSON + TOML 双格式
 

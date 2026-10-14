@@ -31,7 +31,9 @@
    `document/roadmap.md` Deferred Queue），新建插件可选携带，存量插件豁免。
 3. `package.json` 与全部源码 import 已常驻 `@linxiraos/*`（`@earendil-works/*`
    改写是常驻构建步骤，不依赖发布时临时改写）。
-4. 版本线跟随 Zeta 发布版本；经 `scripts/publish-missing-packages.ts` 统一发布。
+4. 版本线跟随 Zeta 发布版本；经 `ci.yml` 的 `release_plugin_packages`
+   （`ci-release-publish.ts --plugin plugins/official/<plugin-id>`，原样打包插件
+   目录）发布，本地补发仍可用 `scripts/publish-missing-packages.ts`。
 
 ## 兼容记录写法
 

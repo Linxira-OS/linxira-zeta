@@ -1967,3 +1967,75 @@ jobs:
               # publisher for the package (or on a first publish).
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish-web-ui
+
+   # Publishes the official plugins (`@linxiraos/pi-messenger`) on release tags
+   # via npm trusted publishing. Unlike web-ui there is no build to run: an
+   # official plugin ships TS source (`index.ts` entry, `crew/**`, `skills/**`,
+   # `bin` → `install.mjs`) for the host loader to transpile, so
+   # `ci-release-publish.ts --plugin` packs the directory as-authored through
+   # the same as-is path the vendored editor/main/ide/web-ui legs use. The
+   # workspace `packages` table (release_npm) cannot carry it: that path's
+   # `typescript` kind runs a declaration emit whose output the plugin cannot
+   # consume — its sources use `allowImportingTsExtensions`, so the emitted
+   # `.d.ts` keep `.ts` specifiers no consumer can resolve — and it rewrites
+   # `main`/`exports`/`types`, which the plugin's `pi.extensions` and `bin` do
+   # not point at. Shipping source as-authored is the plugin's documented
+   # publish contract (document/plugin-system.md).
+   #
+   # The leg lives INSIDE ci.yml rather than in a dedicated workflow file: npm
+   # binds a trusted publisher to the workflow FILE that executes the publish,
+   # so the npm-side entry for `@linxiraos/pi-messenger` must name
+   # `.github/workflows/ci.yml` (document/release.md) — a first publish with no
+   # matching trusted publisher fails `PUT 404` (the v1.1.9 native-leaf lesson).
+   #
+   # needs: [release_metadata, release_gate] mirrors release_web_ui_packages and
+   # the vendored editor/main/ide publish jobs — release_metadata supplies
+   # is-release (this job must not run on ordinary pushes) and release_gate
+   # carries the release-state prerequisite: `check`'s guard steps run on a
+   # release run, and publishing before they pass must be impossible. No
+   # build-artifact edge is needed: everything in the tarball is produced inside
+   # this job from the tagged tree, so nothing can race an upload. A failure
+   # here reddens the tag run; like the sibling package legs it does not gate
+   # release_github's asset assembly.
+   #
+   # Re-run safe: the shared publish path preflights
+   # `npm view @linxiraos/pi-messenger@<version>` and skips a version already on
+   # the registry (and treats npm's E409 / "previously published versions"
+   # output as already published).
+   release_plugin_packages:
+      name: Publish official plugin npm packages
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_gate.result == 'success' &&
+         !inputs.skip_npm }}
+      needs: [release_metadata, release_gate]
+      runs-on: ubuntu-22.04
+      # Same OIDC split as release_web_ui_packages: id-token: write lets npm
+      # exchange the GitHub OIDC token for a short-lived publish token (trusted
+      # publishing + provenance); NODE_AUTH_TOKEN below is only the fallback for
+      # a name npm has no trusted-publisher entry for.
+      permissions:
+         id-token: write
+         contents: read
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+              registry-url: "https://registry.npmjs.org"
+         # Same trusted-publishing floor as the sibling publish jobs: the npm
+         # CLI that performs the publish must speak OIDC (>= 11.5.1).
+         - name: Ensure npm supports trusted publishing
+           run: npm install -g npm@11.17.0
+         # No `bun install --frozen-lockfile` here (unlike release_npm): the
+         # as-is path only stages the legal payloads, reads the manifest and runs
+         # `bun pm pack` inside the plugin directory, and
+         # ci-release-publish.ts's own imports are node builtins. Nothing in the
+         # plugin resolves at pack time — it publishes the source it ships.
+         - name: Publish official plugin packages
+           env:
+              # Fallback auth: setup-node wrote an .npmrc referencing
+              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
+              # publisher for the package (or on a first publish).
+              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+           run: bun run ci:release:publish-plugin
