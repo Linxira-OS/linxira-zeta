@@ -14,12 +14,15 @@ import * as path from "node:path";
 import {
 	MUST_CONTAIN,
 	MUST_NOT_CONTAIN,
+	MUST_NOT_CONTAIN_EXTRA_FLOOR,
+	MUST_NOT_CONTAIN_EXTRA_GLOBS,
 	OH_MY_PI_ALLOW_FILES,
 	OH_MY_PI_ALLOW_PATTERNS,
 	OMP_PATH_ALLOW,
 	PI_FAMILY,
 	PI_FREE_FILES,
 	SKIP_PREFIXES,
+	TOKEN_BAN_SKIP_PREFIXES,
 	USER_SURFACE_FILES,
 } from "./brand-rules";
 import { diffBrandArt } from "./logo-art";
@@ -33,13 +36,31 @@ const SCAN_EXT = /\.(ts|tsx|rs|json|md|toml|kdl|sh|ps1)$/;
 // in code anyway).
 const COMMENT_LINE = /^\s*(\/\/|\/\*|\*|#|<!--|--)/;
 
-function* trackedFiles(): Generator<string> {
+interface ScannedFile {
+	file: string;
+	/** `SCAN_EXT` and not under `SKIP_PREFIXES`: every rule in the loop applies. */
+	full: boolean;
+	/**
+	 * Token bans apply. True for `full` files plus the files SCAN_EXT skips that
+	 * the token bans are required to police (`MUST_NOT_CONTAIN_EXTRA_GLOBS`), which
+	 * use `TOKEN_BAN_SKIP_PREFIXES` (same as `SKIP_PREFIXES` but keeping
+	 * `python/**`, where the SDK's only in-repo consumer lives).
+	 */
+	tokenBan: boolean;
+}
+
+function* trackedFiles(): Generator<ScannedFile> {
 	const out = Bun.spawnSync(["git", "ls-files"], { cwd: ROOT, stdout: "pipe" });
 	for (const line of out.stdout.toString().split("\n")) {
 		const file = line.trim();
-		if (!file || !SCAN_EXT.test(file)) continue;
-		if (SKIP_PREFIXES.some(prefix => file.startsWith(prefix))) continue;
-		yield file;
+		if (!file) continue;
+		const full = SCAN_EXT.test(file) && !SKIP_PREFIXES.some(prefix => file.startsWith(prefix));
+		const tokenBan =
+			full ||
+			(MUST_NOT_CONTAIN_EXTRA_GLOBS.some(pattern => pattern.test(file)) &&
+				!TOKEN_BAN_SKIP_PREFIXES.some(prefix => file.startsWith(prefix)));
+		if (!full && !tokenBan) continue;
+		yield { file, full, tokenBan };
 	}
 }
 
@@ -53,7 +74,8 @@ interface Hit {
 const hits: Hit[] = [];
 const missing: Array<{ file: string; needle: string; why: string }> = [];
 
-for (const file of trackedFiles()) {
+for (const { file, full, tokenBan } of trackedFiles()) {
+	if (!tokenBan) continue;
 	const rel = file.replaceAll("\\", "/");
 	const abs = path.resolve(ROOT, file);
 	if (!abs.startsWith(ROOT + path.sep)) continue; // containment guard for index paths
@@ -75,6 +97,8 @@ for (const file of trackedFiles()) {
 		// ban exempts them wholesale, in addition to any per-rule `exempt` list.
 		if (isChangelog) break;
 		if (rule.exempt?.some(suffix => relPath.endsWith(suffix))) continue;
+		// Extra files are read only by rules that opt in (see `extraFiles`).
+		if (!full && !rule.extraFiles) continue;
 		lines.forEach((line, index) => {
 			if (rule.skipCommentLines && COMMENT_LINE.test(line)) return;
 			if (rule.needle.test(line)) {
@@ -82,6 +106,10 @@ for (const file of trackedFiles()) {
 			}
 		});
 	}
+
+	// Everything below is code/asset-shaped: extra files (Dockerfiles, ignore
+	// lists, notices, Python) are read by the token bans above and stop here.
+	if (!full) continue;
 
 	// oh-my-pi outside provenance/interop allow-lists. Entries ending with "/"
 	// are directory prefixes; the rest are exact file matches. Changelogs are
@@ -172,6 +200,19 @@ for (const drift of diffBrandArt(welcomeSource)) {
 		file: WELCOME_TS,
 		needle: `${drift.constant} = ${drift.expected}`,
 		why: `generated brand art drifted from the FIGlet render — run \`bun scripts/brand/generate-logo-art.ts\` (committed: ${drift.actual})`,
+	});
+}
+
+// Token-ban extra-file floor: every path the ban is REQUIRED to read must still
+// be matched by MUST_NOT_CONTAIN_EXTRA_GLOBS. Without this, narrowing a pattern
+// (or renaming a Dockerfile) would silently return the ban to vacuous — the
+// failure mode this pass exists to remove.
+for (const required of MUST_NOT_CONTAIN_EXTRA_FLOOR) {
+	if (MUST_NOT_CONTAIN_EXTRA_GLOBS.some(pattern => pattern.test(required))) continue;
+	missing.push({
+		file: required,
+		needle: "<matched by MUST_NOT_CONTAIN_EXTRA_GLOBS>",
+		why: "the token-ban extra-file patterns no longer match this path, so token bans are vacuous here",
 	});
 }
 

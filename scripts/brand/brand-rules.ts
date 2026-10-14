@@ -427,6 +427,16 @@ export const MUST_NOT_CONTAIN: Array<{
 	 * a comment may legitimately name an alias the copy must not.
 	 */
 	skipCommentLines?: boolean;
+	/**
+	 * When true, this rule also reads `MUST_NOT_CONTAIN_EXTRA_GLOBS` files
+	 * (Dockerfiles, ignore lists, `.txt` notices, `python/**`+`sdk/**` sources)
+	 * that `brand-check.ts`'s `SCAN_EXT` skips. Off by default: those classes sit
+	 * outside SCAN_EXT precisely because they carry other products' text and
+	 * robomp's deliberate `omp` CLI/group spellings (a separately tracked brand
+	 * decision), so only a rule whose token genuinely lives there — paths,
+	 * distribution names, imports — should pull them into scope.
+	 */
+	extraFiles?: boolean;
 }> = [
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
 	// ── The three-name hierarchy (2026-10-10) ────────────────────────────────
@@ -829,7 +839,78 @@ export const MUST_NOT_CONTAIN: Array<{
 		why: "the upstream Tern promo short-link (scl.so/tern) — the welcome tip pitching the upstream terminal was removed by user ruling 2026-10-14 (see document/upstream-sync.md); any scl.so literal is that promo returning. Deliberately NOT a bare `stencil.so` ban: catalog.stencil.so is our model-catalogue infrastructure (shared, must not be renamed)",
 		exempt: ["scripts/check-shared-infra.ts"], // the shared-infra ledger names the domain by design (status: replaced, files: [])
 	},
+	// ── SDK rename token (2026-10-14) ────────────────────────────────────────
+	// The RPC SDK was renamed `omp-rpc` → `zeta-rpc` (dirs `sdk/{go,python,rust}/zeta-rpc`,
+	// Python module `zeta_rpc`) with no compatibility alias, but the name still
+	// reached places SCAN_EXT cannot see: `Dockerfile`'s `COPY sdk/python/omp-rpc`
+	// (a path that does not exist, so the wheel-builder stage cannot build),
+	// the wheel glob `omp_rpc-*.whl` (the wheel is named after the project),
+	// four `*dockerignore`/`.gitignore` entries, the three `THIRD-PARTY-NOTICES.txt`
+	// copies, `package.json`'s `test:py`/`robomp:install`, and robomp itself
+	// (`python/robomp` depended on `omp-rpc` and imported `omp_rpc` while the
+	// module is `zeta_rpc`). `MUST_NOT_CONTAIN_EXTRA_GLOBS` is what makes this
+	// rule read those files.
+	{
+		needle: /(?<![A-Za-z0-9])omp[-_]?rpc(?![A-Za-z0-9])/i,
+		why: "the SDK is zeta-rpc / zeta_rpc and its dirs are sdk/{go,python,rust}/zeta-rpc; an `omp-rpc` path, distribution name, import or env knob breaks the Docker wheel-builder stage (COPY/glob), robomp's imports, and the Go SDK smoke gate",
+		exempt: ["packages/coding-agent/CHANGELOG.md"], // released entry recording the rename; immutable history
+		extraFiles: true, // the leak lived in Dockerfile/ignore/notices/robomp — see MUST_NOT_CONTAIN_EXTRA_GLOBS
+	},
 ];
+
+/**
+ * Files `brand-check.ts`'s `SCAN_EXT` cannot see that token bans MUST still
+ * police: extensionless Dockerfiles, dotfile ignore lists, `.txt` notices and
+ * the Python sources of the SDK and its in-repo consumer.
+ *
+ * Patterns are matched against **git-tracked paths** rather than listing files,
+ * so a new Dockerfile / notice / SDK file is covered the moment it is committed
+ * — the list cannot silently drift from reality. `MUST_NOT_CONTAIN_EXTRA_FLOOR`
+ * names paths those patterns MUST match, so a bad pattern fails brand-check
+ * loudly instead of making the ban vacuous.
+ *
+ * Python is deliberately narrow: `python/**` + `sdk/**` are the Python SDK, its
+ * generated languages and robomp (its only in-repo consumer). The other ~150
+ * tracked `.py` files are eval preludes, fixture generators and analysis tools
+ * under `packages/**`, `crates/pi-natives/tools/**`, `editor/tests/**` and
+ * `bazel/**`, which no SDK rename can reach.
+ */
+export const MUST_NOT_CONTAIN_EXTRA_GLOBS: RegExp[] = [
+	/(^|\/)Dockerfile(\..*)?$/, // Dockerfile, Dockerfile.robomp
+	/(^|\/)[^/]*dockerignore$/, // .dockerignore, Dockerfile*.dockerignore
+	/(^|\/)\.gitignore$/, // every ignore list (robomp/.gitignore included)
+	/(^|\/)THIRD-PARTY-NOTICES\.txt$/, // root + natives + relay embed copies
+	/^(python|sdk)\/.*\.(py|md)$/, // SDK sources + robomp (imports, packaging, docs)
+];
+
+/**
+ * Paths `MUST_NOT_CONTAIN_EXTRA_GLOBS` must match — brand-check's floor for the
+ * token-ban extra scan. Each entry is a file a token ban is REQUIRED to read, so
+ * narrowing or breaking a pattern above cannot silently exempt it.
+ */
+export const MUST_NOT_CONTAIN_EXTRA_FLOOR: readonly string[] = [
+	"Dockerfile",
+	"Dockerfile.robomp",
+	"Dockerfile.dockerignore",
+	"Dockerfile.robomp.dockerignore",
+	".dockerignore",
+	".gitignore",
+	"THIRD-PARTY-NOTICES.txt",
+	"packages/natives/THIRD-PARTY-NOTICES.txt",
+	"packages/coding-agent/src/tools/browser/relay/extension-assets/THIRD-PARTY-NOTICES.txt",
+	"python/robomp/src/worker.py",
+	"python/robomp/AGENTS.md",
+	"sdk/python/zeta-rpc/src/zeta_rpc/client.py",
+];
+
+/**
+ * `SKIP_PREFIXES` for the token-ban pass, identical except that `python/` stays
+ * scanned: `python/robomp` is the in-repo consumer of the Python SDK
+ * (`from zeta_rpc import …`) and is exactly where the last `omp-rpc` leak lived,
+ * so a ban that inherited the blanket `python/` skip would be blind there.
+ * Derived from `SKIP_PREFIXES`, so a new skip prefix updates both passes.
+ */
+export const TOKEN_BAN_SKIP_PREFIXES = SKIP_PREFIXES.filter(prefix => prefix !== "python/");
 
 /**
  * User-visible brand surfaces scanned verbatim regardless of file extension
