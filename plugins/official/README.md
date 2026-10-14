@@ -3,6 +3,8 @@
 官方插件位于 `plugins/official/<plugin-id>/`，每个插件必须携带以下文件
 （`locales/` 除外：预留目录，机制未实现，见下）。
 完整目录说明见 `document/plugin-system.md`；登记表见 `INDEX.md`。
+安装、启用与在会话中如何生效的运行期文档见 [`docs/plugins.md`](../../docs/plugins.md)，
+`pi-messenger` 的逐插件使用页见 [`docs/plugins/pi-messenger.md`](../../docs/plugins/pi-messenger.md)。
 
 ```
 plugins/official/<plugin-id>/
