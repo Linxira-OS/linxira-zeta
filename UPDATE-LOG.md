@@ -8,11 +8,11 @@
 
 ### 新增
 
-- 无。
+- **welcome/splash 字符画改标准工具生成**（2026-10-14 品牌字样规格）：新增 `scripts/brand/logo-art.ts` + `scripts/brand/generate-logo-art.ts`，用 FIGlet 标准字体生成字符画常量（mark = `Z`/`ANSI Shadow`，主行 `Zeta`/`ANSI Shadow`，次行 `Linxira-Zeta`/`mini`；字体 `ANSI Shadow.flf`、`mini.flf` 随包 vendored 到 `scripts/brand/fonts/`，root devDependency 加 `figlet@1.8.0` 作渲染器，CI 离线可复现）；`brand-check.ts` 新增"字符画必须与生成脚本输出逐字一致"校验——手改一个字符即红，`bun scripts/brand/generate-logo-art.ts` 重生成即绿。拉丁 `Z` 而非 `Ζ` 的原因：标准 FIGlet 字体全是单字节码表、无希腊区，`Ζ`/`ζ` 渲染为空串（`Z` 与 `Ζ` 同源）。
 
 ### 修复
 
-- 无。
+- **welcome/splash 字符画不再手绘**：`ZETA_LOGO`（mark）、`ZETA_WORDMARK`（主行 `Zeta`）、`ZETA_SUBLINE`（次行 `Linxira-Zeta`）三个常量改为 FIGlet 生成（此前是手画的块格 ζ + 半块 wordmark，mark 用小写 ζ 造型）；锁排为 mark 旁置字标、版本在字标下、次行居中于其下，welcome 与 setup splash（含 native TSP 面）一致；着色/渐变/闪烁逻辑不变。
 
 ### 移除
 

@@ -824,6 +824,56 @@ public licenses.
 
 Creative Commons may be contacted at creativecommons.org.
 
+-------------------------------------------------------------------------------
+scripts/brand/fonts/ANSI Shadow.flf, scripts/brand/fonts/mini.flf
+
+Two FIGlet font files from the standard FIGlet font distribution — the
+figlet.org font set shipped by figlet.js
+(https://github.com/patorjk/figlet.js/tree/master/fonts), fetched from
+figlet.js 1.8.0 — vendored so the welcome/splash brand art
+(`packages/tui/src/prompt/welcome.ts`) is generated reproducibly and offline
+by `bun scripts/brand/generate-logo-art.ts`. Both files are unmodified and
+retain their original FIGlet headers. They are build-time inputs only: no font
+file or font data is compiled into, or shipped with, a Zeta release artifact.
+The fonts' own headers carry their terms:
+
+- `ANSI Shadow.flf` — "ANSI Shadow". Author unknown ("Font Author: ?" in the
+  header); a TheDraw-archive font converted with the FIGlet font editor
+  (http://patorjk.com/figfont-editor). Distributed under the FIGlet font
+  license as carried by the standard FIGlet font set: free to use and
+  redistribute with the header intact.
+- `mini.flf` — "mini" by Glenn Chappell (4/93), from figlet release 2.1
+  (12 Aug 1994), "Includes ISO Latin-1"; modified by Paul Burton
+  <solution@earthlink.net> 12/96. Header grant: "Permission is hereby given to
+  modify this font, as long as the modifier's name is placed on a comment
+  line."
+
+FIGlet renderer — `figlet` 1.8.0 (https://github.com/patorjk/figlet.js), a
+root devDependency used only to generate the art at build time; it is not
+imported by any runtime bundle or shipped artifact.
+
+  MIT License
+
+  Copyright (C) 2014-present Patrick Gillespie and other contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
 BUN / NPM DEPENDENCY INVENTORY
 ==============================
 This inventory is traversed from bun.lock, not from the host node_modules tree.

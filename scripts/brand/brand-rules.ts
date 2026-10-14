@@ -153,7 +153,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "ZETA_LOGO",
-		why: "ζ char-art is the product logo surface (v18.0.3 lesson); it stays the named mark of the welcome/splash lockup",
+		why: "the brand mark is the product logo surface (v18.0.3 lesson); it stays the named constant of the welcome/splash lockup, now FIGlet-generated (see the row pins below)",
 	},
 	{
 		file: "packages/tui/src/prompt/composer.ts",
@@ -168,12 +168,22 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		needle: "alt: APP_NAME,",
-		why: "the welcome hero is the built-in ζ mark with the APP_NAME alt (registry: welcome/splash); the wordmark beside it is the Zeta half-block art below, not upstream's `omp` wordmark",
+		why: "the welcome hero is the terminal's built-in mark with the APP_NAME alt (registry: welcome/splash); the wordmark beside it is the generated `Zeta` art below, not upstream's `omp` wordmark",
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
-		needle: 'const WORDMARK = ["███▀         ▄        ", " ██   ███▄  ███   ▄██▄", "▄▄██  █▄▄    █▄   █▄▄█"];',
-		why: 'the half-block `Zeta` wordmark of the welcome lockup, set beside ZETA_LOGO with the version under it (registry: wordmark "Z e t a"); pins the exact rows so a merge cannot revert it to upstream\'s `omp` wordmark',
+		needle: '"╚══███╔╝"',
+		why: "mark row 1 of the FIGlet-generated `Z` (ANSI Shadow). Rows, not the whole array, are pinned so oxfmt's line splitting cannot break the needle",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: '"███████╗███████╗████████╗ █████╗ "',
+		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow) — the 2026-10-14 brand spec's primary name, never a hand-drawn or upstream lockup",
+	},
+	{
+		file: "packages/tui/src/prompt/welcome.ts",
+		needle: '" |_ | | | >< | | (_|   /_ (/_ |_ (_| "',
+		why: "last row of the FIGlet-generated `Linxira-Zeta` subline (mini font) — the 2026-10-14 brand spec's full product identity line",
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
@@ -182,8 +192,13 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	},
 	{
 		file: "packages/tui/src/setup/scenes/splash.ts",
-		needle: '"Z e t a"',
-		why: 'the setup splash lockup carries the Zeta wordmark text (registry: wordmark "Z e t a"), never `O h M y P i`',
+		needle: '"Zeta"',
+		why: "the setup splash carries the product name `Zeta` (2026-10-14 brand spec), never upstream's `O h M y P i` lockup",
+	},
+	{
+		file: "packages/tui/src/setup/scenes/splash.ts",
+		needle: '"Linxira-Zeta"',
+		why: "the setup splash carries the full `Linxira-Zeta` identity line under the product name",
 	},
 	{
 		file: "packages/tui/src/status-line/segments.ts",

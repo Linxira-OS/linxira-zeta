@@ -22,6 +22,7 @@ import {
 	SKIP_PREFIXES,
 	USER_SURFACE_FILES,
 } from "./brand-rules";
+import { diffBrandArt } from "./logo-art";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const SCAN_EXT = /\.(ts|tsx|rs|json|md|toml|kdl|sh|ps1)$/;
@@ -157,6 +158,21 @@ for (const rule of MUST_CONTAIN) {
 	}
 	const text = fs.readFileSync(abs, "utf8");
 	if (!text.includes(rule.needle)) missing.push({ file: rule.file, needle: rule.needle, why: rule.why });
+}
+
+// Generated brand art: the welcome/splash lockup is rendered by the standard
+// FIGlet tool (scripts/brand/logo-art.ts), never drawn by hand, so the committed
+// rows must equal the render exactly. A hand-edited glyph, a hand-drawn
+// replacement, an upstream `omp`/π lockup and a stale render after a font bump
+// all fail here; `bun scripts/brand/generate-logo-art.ts` rewrites the rows.
+const WELCOME_TS = "packages/tui/src/prompt/welcome.ts";
+const welcomeSource = fs.readFileSync(path.resolve(ROOT, WELCOME_TS), "utf8");
+for (const drift of diffBrandArt(welcomeSource)) {
+	missing.push({
+		file: WELCOME_TS,
+		needle: `${drift.constant} = ${drift.expected}`,
+		why: `generated brand art drifted from the FIGlet render — run \`bun scripts/brand/generate-logo-art.ts\` (committed: ${drift.actual})`,
+	});
 }
 
 if (process.argv.includes("--json")) {

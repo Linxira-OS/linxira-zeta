@@ -11,6 +11,7 @@
       },
       "devDependencies": {
         "@types/bun": "catalog:",
+        "figlet": "1.8.0",
         "lint-staged": "catalog:",
         "oxfmt": "catalog:",
         "oxlint": "catalog:",
@@ -1176,6 +1177,8 @@
     "fastembed": ["fastembed@3.0.0", "", { "dependencies": { "@anush008/tokenizers": "^0.0.0", "@huggingface/hub": "^2.7.1", "onnxruntime-node": "1.21.0", "progress": "^2.0.3" } }, "sha512-Rq5OO2sjLDSoKSpbYiLmTDCEE5XDiVqAMc7loGbAnStmDvu+G4Y+vcU/Sm0cU0dqB0D1sbHiw4UJPA9M19nVJQ=="],
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" }, "optionalPeers": ["picomatch"] }, "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg=="],
+
+    "figlet": ["figlet@1.8.0", "", { "bin": { "figlet": "bin/index.js" } }, "sha512-chzvGjd+Sp7KUvPHZv6EXV5Ir3Q7kYNpCr4aHrRW79qFtTefmQZNny+W1pW9kf5zeE6dikku2W50W/wAH2xWgw=="],
 
     "flatbuffers": ["flatbuffers@25.9.23", "", {}, "sha512-MI1qs7Lo4Syw0EOzUl0xjs2lsoeqFku44KpngfIduHBYvzm8h2+7K8YMQh1JtVVVrUvhLpNwqVi4DERegUJhPQ=="],
 
