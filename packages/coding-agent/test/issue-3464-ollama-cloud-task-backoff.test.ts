@@ -62,6 +62,17 @@ describe("issue #3464: ollama-cloud task backoff", () => {
 	it("uses the default fallback chain for a configured task role with no task chain", async () => {
 		const primary = requireModel("anthropic", "claude-sonnet-4-5");
 		const fallback = requireModel("openai", "gpt-4o-mini");
+		// The failure below carries `retry-after-ms=200`, which is also what seeds
+		// the primary's fallback cooldown. `retry.fallbackRevertPolicy` defaults to
+		// `cooldown-expiry`, and the automatic retry restores the primary at the head
+		// of its continue — so with a live clock the retry lands back on the primary
+		// whenever the failover and its rollback outran that 200 ms window. Under the
+		// native bucket's chunk-pool load they did, and the request list came back
+		// [primary, primary]. Freeze the cooldown clock so the revert cannot race the
+		// retry this test asserts; the cooldown-expiry revert itself is covered by
+		// test/agent-session-retry-fallback.test.ts.
+		const frozenNow = Date.now();
+		vi.spyOn(Date, "now").mockImplementation(() => frozenNow);
 		const requestedModels: string[] = [];
 		const mock = createMockModel();
 		let primaryAttempts = 0;
