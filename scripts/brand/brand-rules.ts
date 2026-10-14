@@ -96,7 +96,12 @@ export const OMP_PATH_ALLOW = [
 	/export\/share\.ts$/, // .ompshare gist export
 	/utils\/title-generator\.ts$/, // \uE000omp-title-visible\uE000 wire sentinel
 	/legacy-pi-compat\.ts$|legacy-pi-coding-agent-shim\.ts$/,
-	/packages\/browser-relay\//, // chrome.storage keys (ompGroupTitle family)
+	// `packages/browser-relay/**` used to be exempted wholesale (twice: the
+	// chrome.storage key family + the README's OMP-compatible CLI surface).
+	// Removed 2026-10-14: the extension, its committed embeds and its README
+	// carry no `.omp`-shaped token any more (keys and the keepalive alarm are
+	// zeta*), so the blanket entry exempted nothing while hiding residue from
+	// every per-file rule.
 	/\.omp-plugin|\.ompshare|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
 	// `omp.sh` is deliberately NOT in this list: an upstream-host literal is not
 	// interop residue, so a line carrying one must not slip past the `.omp` path
@@ -106,7 +111,6 @@ export const OMP_PATH_ALLOW = [
 	/rewrite-changelog\.ts$/, // pre-existing main debt: doc comment on db path
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
-	/packages\/browser-relay\//, // relay README pairs with OMP-compatible CLI surfaces
 	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
 	// the probe must name the upstream `~/.omp/agent` default root to find it.
 	/"\.omp", "agent"/,
@@ -818,8 +822,25 @@ export const MUST_NOT_CONTAIN: Array<{
  * to the screen were invisible to every rule — the v18.6.0 tips.txt leak).
  * `forbid` runs line-by-line on the exact file; any hit fails the gate.
  * Extend whenever a new verbatim-rendered copy surface appears.
+ *
+ * The committed generated copies of the browser-relay extension are covered
+ * here because they are served verbatim to Chrome by `zetacode browser-relay
+ * install` and packaged into the release zip, yet as `.txt` files they sit
+ * outside SCAN_EXT: a copy left behind by an extension rename kept upstream
+ * tokens in the shipped extension for months. `check-extension-assets-freshness.ts`
+ * catches the drift; this rule catches the residue even in a hand-refreshed copy.
  */
+const RELAY_ASSET_FILES = ["background.js.txt", "manifest.json.txt", "options.html.txt", "options.js.txt"] as const;
+
+/** Upstream brand residue that must never reach those copies. */
+const RELAY_ASSET_FORBID = /\bomp\b|omp[-_.]|\bomp[A-Z]|oh-my-pi/;
+
 export const USER_SURFACE_FILES: Array<{ file: string; forbid: RegExp; why: string }> = [
+	...RELAY_ASSET_FILES.map(file => ({
+		file: `packages/coding-agent/src/tools/browser/relay/extension-assets/${file}`,
+		forbid: RELAY_ASSET_FORBID,
+		why: "generated copy of the browser-relay extension: the chrome.storage key family and keepalive alarm were renamed to zeta*, so a copy still carrying ompGroupTitle/omp-relay-keepalive predates the source (the drift that reached main was caught only by packages/coding-agent/test/cli-license.test.ts; `bun run gen:relay-assets` refreshes the copy)",
+	})),
 	{
 		file: "packages/tui/src/prompt/tips.txt",
 		forbid: /\bomp\b|PI_DIALECT|clanker|scl\.so/,

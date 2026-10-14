@@ -516,4 +516,15 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "pub fn pi_natives_build_version() -> Option<String> {",
 		why: "natives build-version mechanism (v18.3.3: stamped `__piNativesBuildVersion()` replaces the per-release `__piNativesVX_Y_Z` name; checked by version-consistency)",
 	},
+	// -- CI: committed-generated-file freshness gates ----------------------------
+	{
+		file: ".github/workflows/generated-freshness.yml",
+		symbol: "bun run check:nix-bun",
+		why: "Zeta-only early-feedback gate for the generated nix/bun.nix: PR #181 shipped a stale expression and only the slow `Zeta Nix` flake job caught it. Upstream has no such workflow, so a merge that trims `.github/workflows` would silently re-open the gap (the flake check stays, but reports it minutes later).",
+	},
+	{
+		file: ".github/workflows/generated-freshness.yml",
+		symbol: "bun run check:relay-assets",
+		why: "Same class for the committed browser-relay embeds (`extension-assets/*.txt`): nothing regenerated them outside the release job, so the copies drifted with only a license test noticing. Zeta-only workflow — a merge must not drop the second job.",
+	},
 ];

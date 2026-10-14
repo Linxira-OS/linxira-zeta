@@ -251,4 +251,20 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		needsEdges: [],
 		artifactRules: [],
 	},
+	{
+		file: ".github/workflows/generated-freshness.yml",
+		minJobs: 2,
+		requiresAll: [
+			{
+				job: "bun_lock_freshness",
+				why: "Zeta-only early-feedback gate for the generated nix/bun.nix (PR #181 shipped a stale expression and only the slow `Zeta Nix` flake job noticed). Upstream has no such workflow, so a merge that trims .github/workflows re-opens that gap (damage class 7)",
+			},
+			{
+				job: "relay_assets_freshness",
+				why: "same class for the committed browser-relay embeds (extension-assets/*.txt): nothing regenerated them outside the release job, so the copies drifted with only a license test noticing",
+			},
+		],
+		needsEdges: [],
+		artifactRules: [],
+	},
 ];

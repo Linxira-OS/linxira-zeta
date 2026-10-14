@@ -17,6 +17,9 @@
 - **Bun 的 pin 必须是精确版本，不能写范围**。范围 pin（`bun@>=1.4`）会让 `bun-install` action 去装 latest，把 CI 静默挪到未经测试的运行时上；`scripts/check-ci-surface.ts` 的 `bun-pin-exact` 规则会直接拦下范围 pin。升级 bun = 改这一处 `packageManager`（Dockerfile 的 `ARG BUN_VERSION` 与叶包 Dockerfile 要一起改），然后重跑 `bun install`、`bun run check:ts` 与各守卫。
 - **类型检查只有一个入口：TypeScript 7 稳定版的 `tsc`**。它自带原生（Go）编译器，所以不再需要 `@typescript/native-preview` / `tsgo` 这套预览分发：全仓统一写 `tsc -p <tsconfig> --noEmit`（发布路径是 `bun x tsc -p tsconfig.publish*.json`）。新增包照抄既有 `check:types` 形态，不要引入第二个类型检查器。
 - **npm 只在两处出现**：本机开发（`npm ci` 装 `web-ui/`、手工补发）与 CI 发布（`npm publish` + provenance）。发布路径要求 npm CLI ≥ 11.5.1，本机开发也建议同版或更新（当前 12.x）；版本不够时 trusted publishing/OIDC 不会生效。
+- **改依赖 = 改 `bun.lock` = 重刷 `nix/bun.nix`。** `nix/bun.nix` 是生成文件：钉版 bun2nix（`scripts/gen-nix-bun.ts`）从 `bun.lock` 生成它，Nix 只消费这一个产物。`bun install` / `bun update` / catalog 版本改动之后一律 `bun run gen:nix`，**并把 `bun.lock` 与 `nix/bun.nix` 一起提交**；无 nix 的机器上该脚本自动回退到 `bunx bun2nix@2.1.2`（与 flake pin 同版本），所以不存在"没装 nix 就没法收口"的情况。忘了刷会让 flake 的 `bun-lock` 检查（`Zeta Nix` job）在 PR 上变红（PR #181 就是这么红的），所以另有一道前置机械检查：
+  - `bun run check:nix-bun` —— 用同一条生成路径重算到临时目录后与 `nix/bun.nix` **逐字节**比对，需要 npm 拉 bun2nix、不需要 nix，随时可手动跑；
+  - 接线上只在**PR/main push 且改动落在 `bun.lock` / `nix/bun.nix` / `package.json` / `scripts/gen-nix-bun.ts`** 时由 `.github/workflows/generated-freshness.yml`（`bun_lock_freshness` job）触发（秒级早期反馈）。**刻意不进 `check` / `check:ts` 热路径**：那两道门禁必须能离线跑，而这道检查依赖 npm 出口。
 
 ## Code Quality
 
@@ -190,6 +193,18 @@ To change an entry, fix the source:
 - **Generator wiring** (upstream merges, premium multipliers, post-processing order) → `packages/catalog/scripts/generate-models.ts`.
 
 Regenerate with `bun run gen:compat` and/or `bun run gen:models` and commit the generated files alongside the source change. Add a regression test against the **rule/descriptor/mapper**, not the bundled JSON, so it survives upstream metadata shifts.
+
+**提交进库、由源可推导的产物必须同 PR 重刷**（改了源却不刷副本 = 漂移，只有下游偶然撞到才会发现）：
+
+| 产物 | 源 | 重刷 | 机械检查（PR 早期反馈） |
+|---|---|---|---|
+| `nix/bun.nix` | `bun.lock`（钉版 bun2nix） | `bun run gen:nix` | `bun run check:nix-bun` |
+| `packages/coding-agent/src/tools/browser/relay/extension-assets/*` | `packages/browser-relay/extension/` + 根 `LICENSE`/`THIRD-PARTY-NOTICES.txt` | `bun run gen:relay-assets` | `bun run check:relay-assets` |
+
+- 两道检查都**用仓库自己的生成路径重算到临时目录**、再与提交副本**逐字节**比对，所以生成逻辑本身改了也自动覆盖；失败时打印 diff 并给出上面那条重刷命令。都不需要 nix / `zip` / 网络（nix 那条只需 npm 拉一次 bun2nix），也不需要 `bun install`。`extension-assets` 那条还会点名**提交目录里多出来的副本**（目录是生成路径整体重写的，多出来的只能是残留）。
+- 接线：`.github/workflows/generated-freshness.yml`（job 清单登记在 `scripts/brand/ci-surface-registry.ts`）只在 **PR 或 main push 且改动落在相关路径**（`bun.lock`、`nix/bun.nix`、`packages/browser-relay/extension/**`、`extension-assets/**`、生成脚本…）时跑。**刻意不进 `check` / `check:ts` 热路径**——那两道门禁必须能离线跑。
+- `extension-assets/*.txt` 会被 `zetacode browser-relay install` 原样喂给 Chrome，也是发布 zip 里的同一份字节；因此它们同时受 `brand-check` 的 `USER_SURFACE_FILES` 扫（2026-10-14 起：副本曾带着 `ompGroupTitle`/`omp-relay-keepalive` 漂到 main，只有 `packages/coding-agent/test/cli-license.test.ts` 偶然抓到）。
+- 同类产物还有几处，**各自已有覆盖或有外部依赖**，故未进上面这道 tool-free 门禁（2026-10-14 盘点）：`packages/catalog/src/compat/rules.json` + `auth-ids.ts`（`gen:compat`；`packages/catalog/test/compat-compile.test.ts` 重算后 `toEqual`，随 catalog 测试桶在 CI 跑）；`packages/coding-agent/src/modes/rpc/wire/rpc-wire.generated.ts` + schema bundle（`gen:rpc`；`packages/coding-agent/test/rpc-wire/generated.test.ts` 逐字节比对）；`packages/catalog/src/models.json`（`gen:models`，**无等价守卫**：重算要打上游模型 API，只能靠人工 `bun run gen:models` + review）；`packages/coding-agent/src/tools/browser/aria/aria-snapshot.bundle.txt`（`bun scripts/generate-aria-snapshot.ts`，**无等价守卫**：要按 pin 的 Playwright tag 抓上游源码）；`packages/stats/src/embedded-client.generated.txt`（`gen:stats`；提交态刻意是空文件，发布链路 `scripts/ci-release-publish.ts` 才生成）。
 
 ## Logging and CLI Output
 
