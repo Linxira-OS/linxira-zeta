@@ -208,11 +208,12 @@ function longestMatch(url: string): Placement | undefined {
 }
 
 const out = Bun.spawnSync(["git", "ls-files"], { cwd: ROOT, stdout: "pipe" });
-const files = out.stdout
+const tracked = out.stdout
 	.toString()
 	.split("\n")
 	.map(line => line.trim())
-	.filter(Boolean)
+	.filter(Boolean);
+const files = tracked
 	.filter(file => SCAN_ROOTS.some(root => file === root || file.startsWith(`${root}/`)))
 	.filter(file => SCAN_EXT.test(file))
 	.filter(file => !isTest(file.replaceAll("\\", "/")))
@@ -244,6 +245,72 @@ for (const file of files) {
 	}
 }
 
+/**
+ * A second URL class this guard owns: a committed lockfile whose `resolved`
+ * fields point at a registry that is not the public one.
+ *
+ * npm >= 12 refuses to fetch a tarball whose `resolved` host is not the
+ * configured registry (`EALLOWREMOTE`), so a single mirror URL in a committed
+ * lockfile turns `npm ci` into a hard failure on every machine that does not
+ * share the `.npmrc` that wrote it. `desktop/package-lock.json` carried 323
+ * `registry.npmmirror.com` URLs from exactly that leak (rewritten to
+ * `registry.npmjs.org` on 2026-10-14); `bun.lock` leaked the same way before
+ * (v1.1.x, normalized during the release step). The leak is invisible on the
+ * machine that produced it and invisible in CI while CI runs the
+ * node-bundled npm rather than the pinned one, so a habit cannot catch it —
+ * hence a guard on the committed bytes.
+ *
+ * Test fixtures are exempt (`isTest`). An intentional non-public registry
+ * would have to be added here first, the same deliberate act the endpoint
+ * inventory requires.
+ */
+const LOCKFILE_RE = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|bun\.lock)$/;
+const PUBLIC_REGISTRY_HOST = "registry.npmjs.org";
+const REGISTRY_HOST_RE = /registry\.[a-z0-9-]+(?:\.[a-z0-9-]+)+/gi;
+let lockfiles = 0;
+
+for (const file of tracked) {
+	const rel = file.replaceAll("\\", "/");
+	if (!LOCKFILE_RE.test(rel) || isTest(rel)) continue;
+	if (!(await Bun.file(path.join(ROOT, file)).exists())) continue;
+	lockfiles++;
+	const text = await Bun.file(path.join(ROOT, file)).text();
+
+	// npm lockfiles name the tarball host of every entry; check the field
+	// itself so an off-registry host is caught no matter what it is called.
+	if (/(^|\/)package-lock\.json$/.test(rel)) {
+		let lock: { packages?: Record<string, { resolved?: unknown }> };
+		try {
+			lock = JSON.parse(text);
+		} catch (err) {
+			hits.push(`${rel}: does not parse as JSON (${err}) — the registry rule cannot run on it`);
+			continue;
+		}
+		for (const [entry, meta] of Object.entries(lock.packages ?? {})) {
+			if (typeof meta?.resolved !== "string") continue;
+			let host: string;
+			try {
+				host = new URL(meta.resolved).host;
+			} catch {
+				hits.push(`${rel}: ${entry || "<root>"} has an unparseable "resolved" URL: ${meta.resolved}`);
+				continue;
+			}
+			if (host === PUBLIC_REGISTRY_HOST) continue;
+			hits.push(
+				`${rel}: ${entry || "<root>"} resolves against ${host} — npm >= 12 refuses off-registry tarball hosts (EALLOWREMOTE); rewrite it to https://${PUBLIC_REGISTRY_HOST}/ with a forced re-resolve (--registry=https://registry.npmjs.org) or a resolved-only URL rewrite`,
+			);
+		}
+	}
+
+	// bun/pnpm lockfiles record a registry URL only for non-default sources;
+	// any `registry.<…>` host they do name must be the public one (same rule
+	// the release step applies to the regenerated `bun.lock`).
+	for (const host of new Set(text.match(REGISTRY_HOST_RE) ?? [])) {
+		if (host.toLowerCase() === PUBLIC_REGISTRY_HOST) continue;
+		hits.push(`${rel}: names non-public registry host ${host} — rewrite it to https://${PUBLIC_REGISTRY_HOST}/`);
+	}
+}
+
 if (hits.length > 0) {
 	for (const hit of hits) console.log(`✗ ${hit}`);
 	console.log(`\n${hits.length} shared-infra hit(s). Ledger: document/upstream-commercial-assets.md`);
@@ -254,5 +321,5 @@ const replaceCount = INVENTORY.filter(
 	entry => entry.status.startsWith("replace") && entry.status !== "replaced",
 ).length;
 console.log(
-	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement).`,
+	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement); ${lockfiles} lockfile(s) on the public registry.`,
 );
