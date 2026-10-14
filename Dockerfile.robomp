@@ -5,7 +5,7 @@
 # Extends `pi-base` (from /Dockerfile, default target zeta/pi:dev) and adds
 # the robomp Python package + a Vite-built SolidJS dashboard bundle. The pi
 # toolchain (python + bun + rustup launcher + pi-natives + zeta_rpc wheel +
-# /usr/local/bin/zeta shim) all comes from PI_BASE; this file only layers what's
+# /usr/local/bin/zetacode shim) all comes from PI_BASE; this file only layers what's
 # robomp-specific.
 #
 # Build (from pi root):
@@ -45,8 +45,9 @@ ENV PI_ROOT=/work/pi
 
 WORKDIR /app
 
-# robomp is an MIT product; OMP's dual-license payload remains available from
-# the inherited base image under /usr/share/doc/omp.
+# robomp is an MIT product; the upstream OMP dual-license payload (LICENSE +
+# THIRD-PARTY-NOTICES.txt) remains available from the inherited base image
+# under /usr/share/doc/zeta — the path pi-base installs it to.
 COPY LICENSE THIRD-PARTY-NOTICES.txt /usr/share/doc/robomp/
 
 # robomp itself. Drop the Vite-built dashboard into the package tree before

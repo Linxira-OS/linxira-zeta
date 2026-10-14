@@ -92,7 +92,13 @@ class Settings(BaseSettings):
     # opening a PR — continue" reminder prompts into the same omp session.
     # Set to 0 to disable.
     task_completion_max_reminders: int = Field(2, alias="ROBOMP_TASK_COMPLETION_MAX_REMINDERS")
-    omp_command: str = Field("omp", alias="ROBOMP_OMP_COMMAND")
+    # Command name the worker execs for the coding-agent CLI. Must be a name the
+    # image actually puts on PATH — `zetacode`, the shim `/Dockerfile` installs
+    # and the canonical CLI name in AGENTS.md's brand registry.
+    # `scripts/check-robomp-cli-contract.ts` fails if this drifts away from the
+    # shim names the Dockerfiles create. The `ROBOMP_OMP_COMMAND` alias is kept
+    # as-is (env-family renames are a separate, deferred migration).
+    omp_command: str = Field("zetacode", alias="ROBOMP_OMP_COMMAND")
 
     # Graceful shutdown (Phase B). On SIGTERM the dispatcher stops claiming
     # new work, then waits up to `drain` seconds for in-flight events to

@@ -39,7 +39,7 @@ fi
 
 : "${PI_ROOT:=/work/pi}"
 if [ ! -d "$PI_ROOT/packages/coding-agent" ]; then
-    echo "roboomp: PI_ROOT=$PI_ROOT does not look like a pi checkout (no packages/coding-agent/)" >&2
+    echo "roboomp: PI_ROOT=$PI_ROOT does not look like a zeta checkout (no packages/coding-agent/)" >&2
     exit 1
 fi
 
