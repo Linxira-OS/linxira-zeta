@@ -204,7 +204,14 @@ Regenerate with `bun run gen:compat` and/or `bun run gen:models` and commit the 
 - 两道检查都**用仓库自己的生成路径重算到临时目录**、再与提交副本**逐字节**比对，所以生成逻辑本身改了也自动覆盖；失败时打印 diff 并给出上面那条重刷命令。都不需要 nix / `zip` / 网络（nix 那条只需 npm 拉一次 bun2nix），也不需要 `bun install`。`extension-assets` 那条还会点名**提交目录里多出来的副本**（目录是生成路径整体重写的，多出来的只能是残留）。
 - 接线：`.github/workflows/generated-freshness.yml`（job 清单登记在 `scripts/brand/ci-surface-registry.ts`）只在 **PR 或 main push 且改动落在相关路径**（`bun.lock`、`nix/bun.nix`、`packages/browser-relay/extension/**`、`extension-assets/**`、生成脚本…）时跑。**刻意不进 `check` / `check:ts` 热路径**——那两道门禁必须能离线跑。
 - `extension-assets/*.txt` 会被 `zetacode browser-relay install` 原样喂给 Chrome，也是发布 zip 里的同一份字节；因此它们同时受 `brand-check` 的 `USER_SURFACE_FILES` 扫（2026-10-14 起：副本曾带着 `ompGroupTitle`/`omp-relay-keepalive` 漂到 main，只有 `packages/coding-agent/test/cli-license.test.ts` 偶然抓到）。
-- 同类产物还有几处，**各自已有覆盖或有外部依赖**，故未进上面这道 tool-free 门禁（2026-10-14 盘点）：`packages/catalog/src/compat/rules.json` + `auth-ids.ts`（`gen:compat`；`packages/catalog/test/compat-compile.test.ts` 重算后 `toEqual`，随 catalog 测试桶在 CI 跑）；`packages/coding-agent/src/modes/rpc/wire/rpc-wire.generated.ts` + schema bundle（`gen:rpc`；`packages/coding-agent/test/rpc-wire/generated.test.ts` 逐字节比对）；`packages/catalog/src/models.json`（`gen:models`，**无等价守卫**：重算要打上游模型 API，只能靠人工 `bun run gen:models` + review）；`packages/coding-agent/src/tools/browser/aria/aria-snapshot.bundle.txt`（`bun scripts/generate-aria-snapshot.ts`，**无等价守卫**：要按 pin 的 Playwright tag 抓上游源码）；`packages/stats/src/embedded-client.generated.txt`（`gen:stats`；提交态刻意是空文件，发布链路 `scripts/ci-release-publish.ts` 才生成）。
+- 同类产物还有几处（2026-10-14 盘点），**各自已有覆盖或有外部依赖**，故未进上面这道 tool-free 门禁：
+  - `packages/catalog/src/compat/rules.json` + `auth-ids.ts` ← `src/compat/rules/*.kdl`（`gen:compat`）—— `packages/catalog/test/compat-compile.test.ts` 重算后 `toEqual`，随 catalog 测试桶在 CI 跑；
+  - `packages/coding-agent/src/modes/rpc/wire/rpc-wire.generated.ts` + schema bundle（`gen:rpc`）—— `packages/coding-agent/test/rpc-wire/generated.test.ts` 逐字节比对；
+  - `MODULE.bazel.lock` 的 `@crates` 条目（`scripts/gen-bazel-lock.ts --check`）—— `check` job 里每次 PR 跑，但要 bazelisk + cargo 索引（冷缓存 1–4 分钟）；
+  - `bazel/clippy.bazelrc` ← `Cargo.toml` 的 `[workspace.lints]`（`scripts/gen-clippy-bazelrc.ts --check`）—— 只在 release 门禁里跑；
+  - `packages/catalog/src/models.json`（`gen:models`）—— **无等价守卫**：重算要打上游模型 API，只能人工 `bun run gen:models` + review；
+  - `packages/coding-agent/src/tools/browser/aria/aria-snapshot.bundle.txt`（`bun scripts/generate-aria-snapshot.ts`）—— **无等价守卫**：要按 pin 的 Playwright tag 抓上游源码；
+  - `packages/stats/src/embedded-client.generated.txt`（`gen:stats`）—— 提交态刻意是空文件，发布链路 `scripts/ci-release-publish.ts` 才生成。
 
 ## Logging and CLI Output
 
